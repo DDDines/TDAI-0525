@@ -11,9 +11,11 @@ class StatusEnriquecimentoEnum(enum.Enum):
     PENDENTE = "pendente"
     EM_PROGRESSO = "em_progresso"
     CONCLUIDO_SUCESSO = "concluido_sucesso"
-    FALHOU = "falhou"
-    NENHUMA_FONTE_ENCONTRADA = "nenhuma_fonte_encontrada"
+    FALHOU = "falhou" # Erro genérico durante o processo
+    NENHUMA_FONTE_ENCONTRADA = "nenhuma_fonte_encontrada" # Nenhuma URL ou dado útil encontrado
     CONCLUIDO_COM_DADOS_PARCIAIS = "concluido_com_dados_parciais"
+    FALHA_CONFIGURACAO_API_EXTERNA = "falha_configuracao_api_externa"
+    FALHA_API_EXTERNA = "falha_api_externa" 
 
 class Role(Base):
     __tablename__ = "roles"

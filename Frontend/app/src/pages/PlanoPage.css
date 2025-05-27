@@ -1,0 +1,139 @@
+/* Frontend/app/src/pages/PlanoPage.css */
+.plano-page-container .card {
+  padding: 1.5rem 2.1rem; /* Similar ao .card global mas podemos ajustar */
+}
+
+.plano-page-container .card-header h1 {
+  font-size: 1.8rem;
+  margin-bottom: 1rem; /* Ajustado para dar espaço antes do grid */
+}
+
+.plano-details-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2rem; /* Espaço entre os cards de plano e ações */
+  align-items: flex-start;
+}
+
+.plano-card {
+  background: linear-gradient(135deg, #f0f4ff 0%, #f9fafb 100%);
+  border-radius: 12px;
+  box-shadow: 0 2px 12px 0 rgba(60, 60, 110, 0.08);
+  padding: 1.8rem 2rem 1.5rem 2rem;
+  flex: 2 1 350px; /* Ocupa mais espaço e permite encolher */
+  min-width: 300px;
+  display: flex;
+  flex-direction: column;
+}
+
+.current-plan-header {
+  display: flex;
+  align-items: center;
+  margin-bottom: 1.2rem;
+  gap: 0.8rem;
+}
+
+.plan-badge {
+  color: #fff;
+  font-size: 0.9rem;
+  font-weight: 700;
+  border-radius: 7px;
+  padding: 0.25em 1em;
+  letter-spacing: 0.01em;
+  box-shadow: 0 1px 6px 0 rgba(0,0,0,0.1);
+  text-transform: uppercase;
+}
+
+.plan-badge.gratuito { background-color: var(--info); }
+.plan-badge.ilimitado { background-color: var(--success); }
+/* Adicione mais estilos para outros nomes de planos, como 'pro', 'premium', etc. */
+.plan-badge.pro { background-color: var(--primary); } /* Exemplo */
+
+
+.current-plan-label {
+  color: #555;
+  font-size: 1rem;
+  font-weight: 500;
+}
+
+.plan-features {
+  list-style: none;
+  padding-left: 0;
+  margin-bottom: 1.5rem;
+  font-size: 1.05rem;
+  line-height: 1.9;
+  color: #333;
+}
+
+.plan-features li strong {
+  color: var(--primary);
+}
+
+.plan-renewal {
+  color: #555;
+  font-size: 0.95rem;
+  font-weight: 500;
+  margin-top: auto; /* Empurra para baixo se o card crescer */
+  padding-top: 1rem;
+  border-top: 1px solid #e0e8f3;
+}
+
+.plano-actions-card {
+  flex: 1 1 280px; /* Ocupa menos espaço, mas pode crescer */
+  min-width: 250px;
+  padding: 1.5rem;
+  background-color: var(--card-bg);
+  border-radius: 12px;
+  box-shadow: 0 2px 8px 0 rgba(60, 60, 110, 0.06);
+}
+
+.plano-actions-card h4 {
+  font-size: 1.2rem;
+  color: #333;
+  margin-bottom: 0.5rem;
+}
+.plano-actions-card p {
+  font-size: 0.95rem;
+  color: #666;
+  margin-bottom: 1.5rem;
+  line-height: 1.5;
+}
+
+.plano-buttons {
+  display: flex;
+  gap: 1rem;
+  flex-wrap: wrap; /* Para telas menores */
+}
+
+.plano-buttons button {
+  flex-grow: 1; /* Faz os botões ocuparem o espaço disponível */
+  padding: 0.7rem 1rem;
+  font-weight: 600;
+  font-size: 0.95rem;
+  border-radius: var(--radius);
+  border: none;
+  cursor: pointer;
+  transition: filter 0.2s;
+}
+.plano-buttons button:hover:not(:disabled) {
+  filter: brightness(90%);
+}
+
+.btn-upgrade {
+  background-color: var(--success);
+  color: white;
+}
+
+.btn-cancel {
+  background-color: var(--danger);
+  color: white;
+}
+
+.billing-history-link a {
+    color: var(--primary);
+    text-decoration: none;
+    font-weight: 500;
+}
+.billing-history-link a:hover {
+    text-decoration: underline;
+}

@@ -99,6 +99,21 @@ export const gerarDescricaoProduto = async (produtoId) => {
   }
 };
 
+export const iniciarEnriquecimentoWebProduto = async (produtoId, termosBuscaOverride = null) => {
+  try {
+    let endpoint = `/enriquecimento-web/produto/${produtoId}/`;
+    if (termosBuscaOverride) {
+      endpoint += `?termos_busca_override=${encodeURIComponent(termosBuscaOverride)}`;
+    }
+    // O endpoint é POST e espera uma resposta 202 Accepted com uma mensagem.
+    const response = await apiClient.post(endpoint);
+    return response.data; // Geralmente { "message": "Processo ... iniciado..." }
+  } catch (error) {
+    console.error(`Error starting web enrichment for produto ${produtoId}:`, error.response?.data || error.message);
+    throw error.response?.data || new Error('Failed to start web enrichment process');
+  }
+};
+
 export default {
   getProdutos,
   getProdutoById,
@@ -107,4 +122,5 @@ export default {
   deleteProduto,
   gerarTitulosProduto,
   gerarDescricaoProduto,
+  iniciarEnriquecimentoWebProduto,
 };

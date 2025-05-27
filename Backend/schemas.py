@@ -1,10 +1,10 @@
 # tdai_project/Backend/schemas.py
 from pydantic import BaseModel, EmailStr, Field, HttpUrl
 from typing import Optional, List, Dict, Any, Union
-import enum 
+import enum
 from datetime import datetime
 
-import models 
+import models
 
 # --- Role Schemas ---
 class RoleBase(BaseModel):
@@ -47,7 +47,7 @@ class FornecedorCreate(FornecedorBase):
 
 class FornecedorUpdate(BaseModel):
     nome: Optional[str] = Field(None, min_length=2, max_length=100)
-    site_url: Optional[HttpUrl] = Field(None) 
+    site_url: Optional[HttpUrl] = Field(None)
     catalogo_pdf_path: Optional[str] = Field(None, max_length=255)
     link_busca_padrao: Optional[HttpUrl] = Field(None)
 
@@ -60,7 +60,6 @@ class Fornecedor(FornecedorBase):
     class Config:
         from_attributes = True
 
-# NOVO: Schema para resposta paginada de fornecedores
 class FornecedorPage(BaseModel):
     items: List[Fornecedor]
     total_items: int
@@ -94,10 +93,10 @@ class ProdutoUpdate(BaseModel):
 class Produto(ProdutoBase):
     id: int
     user_id: int
-    fornecedor: Optional[Fornecedor] = None # Opcional, pois um fornecedor pode ser deletado
+    fornecedor: Optional[Fornecedor] = None
     descricao_principal_gerada: Optional[str] = None
     titulos_sugeridos: Optional[Dict[str, str]] = None
-    status_enriquecimento_web: models.StatusEnriquecimentoEnum 
+    status_enriquecimento_web: models.StatusEnriquecimentoEnum
     log_enriquecimento_web: Optional[Dict[str, Any]] = None
     created_at: datetime
     updated_at: Optional[datetime] = None
@@ -131,6 +130,16 @@ class UsoIA(UsoIABase):
     user_id: int
     produto_id: Optional[int] = None
     timestamp: datetime
+
+    class Config:
+        from_attributes = True
+
+# NOVO SCHEMA ADICIONADO AQUI
+class UsoIAPage(BaseModel):
+    items: List[UsoIA]
+    total_items: int
+    limit: int
+    skip: int
 
     class Config:
         from_attributes = True
