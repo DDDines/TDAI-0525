@@ -1,0 +1,132 @@
+# =============== General ===============
+# OS-generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+desktop.ini
+
+# IDE & Editor specific files
+.idea/
+.vscode/
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
+*.sublime-workspace
+*.sublime-project
+
+# Log files
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+lerna-debug.log*
+
+# Environment variables
+.env
+.env.local
+.env.*.local
+.env.development
+.env.test
+.env.production
+# Exceção para o arquivo de exemplo de variáveis de ambiente
+!.env.example
+!.env.sample
+
+# =============== Backend (Python / FastAPI) ===============
+# Virtualenv
+venv/
+*.venv/
+env/
+ENV/
+# Se você usar outros nomes para seu ambiente virtual, adicione aqui.
+# Ex: myenv/
+
+# Python Bytecode
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Distribution / packaging
+build/
+dist/ # Geralmente, o dist do Python pode ser ignorado se não for intencional versionar builds
+*.egg-info/
+*.egg
+wheels/
+*.tar.gz
+*.whl
+pip-wheel-metadata/
+share/python-wheels/
+develop-eggs/
+parts/
+sdist/
+var/
+
+# Test & Coverage
+.pytest_cache/
+.coverage
+.coverage.*
+htmlcov/
+nosetests.xml
+coverage.xml
+*.cover
+.hypothesis/
+
+# Database files (SQLite example, adicione outros se usar localmente)
+*.sqlite3
+*.db
+*.db3
+
+# Jupyter Notebook
+.ipynb_checkpoints
+
+# Alembic (se você o usar para migrações, o diretório alembic/versions/ usualmente é versionado)
+# mas o .env de alembic e logs podem ser ignorados.
+# alembic.ini é geralmente versionado.
+
+# Arquivos de instância/configuração local (se aplicável)
+instance/
+local_settings.py
+
+# Arquivos de upload temporários ou de dados que não devem ir para o repo
+uploads_temp/
+media_files_local/
+
+
+# =============== Frontend (React / Vite) ===============
+# Pasta de dependências
+Frontend/app/node_modules/
+
+# Arquivos de build
+Frontend/app/dist/
+Frontend/app/.output/
+Frontend/app/out/
+
+# Logs
+Frontend/app/logs
+Frontend/app/*.log
+
+# Cache do Vite
+Frontend/app/.vite/
+
+# Relatórios de cobertura de testes (exemplo)
+Frontend/app/coverage/
+
+# Arquivos de ambiente local específicos do frontend
+Frontend/app/.env.local
+Frontend/app/.env.*.local
+# Mantenha .env.example versionado
+!Frontend/app/.env.example
+!Frontend/app/.env.sample
+
+# Arquivos específicos de IDEs para o frontend (se não cobertos pelo geral)
+# .project
+# .classpath
+# .c9/
+# *.launch
+# .settings/
+# .tmPreferences

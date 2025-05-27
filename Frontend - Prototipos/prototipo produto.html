@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>SaaS - Protótipo Completo</title>
+  <style>
+    :root { --sidebar-bg:#1f2a40; --sidebar-text:#cfd8e5; --main-bg:#f4f6f8; --card-bg:#ffffff; --primary:#3b82f6; --success:#10b981; --info:#6366f1; --warning:#f59e0b; --danger:#ef4444; --font:'Helvetica Neue',Arial,sans-serif; --radius:8px; --spacing:1rem; --shadow-sm:0 1px 4px rgba(0,0,0,0.1); --shadow-md:0 4px 8px rgba(0,0,0,0.15); }
+    * { margin:0; padding:0; box-sizing:border-box; }
+    body { display:flex; height:100vh; font-family:var(--font); background:var(--main-bg); }
+    .sidebar { width:240px; background:var(--sidebar-bg); color:var(--sidebar-text); display:flex; flex-direction:column; padding:var(--spacing); }
+    .sidebar .logo { font-size:1.75rem; font-weight:bold; color:#fff; margin-bottom:2rem; text-align:center; }
+    .sidebar nav { flex:1; }
+    .sidebar nav a { display:block; padding:0.75rem var(--spacing); color:inherit; text-decoration:none; border-radius:var(--radius); margin-bottom:0.5rem; cursor:pointer; }
+    .sidebar nav a.active, .sidebar nav a:hover { background:#16203a; color:#fff; }
+    .sidebar .logout { padding:0.75rem var(--spacing); color:var(--primary); cursor:pointer; border-radius:var(--radius); }
+    .main { flex:1; display:flex; flex-direction:column; }
+    .topbar { background:var(--card-bg); padding:var(--spacing) 2rem; box-shadow:var(--shadow-sm); }
+    .topbar h1 { font-size:1.75rem; color:#333; }
+    .content { flex:1; overflow:auto; padding:var(--spacing) 2rem; }
+    .hidden { display:none; }
+    /* Dashboard */
+    .stats-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(180px,1fr)); gap:1rem; }
+    .stats-card { background:var(--card-bg); border-radius:var(--radius); padding:var(--spacing); box-shadow:var(--shadow-sm); }
+    .stats-card h3 { font-size:1rem; color:#555; margin-bottom:0.5rem; }
+    .stats-card .value { font-size:1.75rem; font-weight:bold; color:#222; }
+    .actions-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(200px,1fr)); gap:1rem; margin-top:1rem; }
+    .action-card { color:#fff; border-radius:var(--radius); padding:1rem; display:flex; align-items:center; justify-content:center; font-size:1rem; cursor:pointer; }
+    .action-import { background:var(--primary); }
+    .action-enrich { background:var(--info); }
+    .action-ai { background:var(--success); }
+    /* Table & Cards */
+    .card { background:var(--card-bg); border-radius:var(--radius); padding:var(--spacing); box-shadow:var(--shadow-sm); margin-bottom:var(--spacing); }
+    .card-header { display:flex; justify-content:space-between; align-items:center; margin-bottom:var(--spacing); }
+    table { width:100%; border-collapse:collapse; margin-top:var(--spacing); }
+    th, td { padding:0.75rem; border-bottom:1px solid #ddd; }
+    th.select, td.select { width:2rem; text-align:center; }
+    tr:hover { background:#f1f5f9; }
+    td.name-cell { cursor:pointer; color:#000; }
+    .table-actions { margin-top:1rem; display:flex; gap:0.5rem; justify-content:flex-start; }
+    button { background:var(--primary); color:#fff; border:none; border-radius:var(--radius); padding:0.5rem 1rem; cursor:pointer; }
+    .modal { position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.4); display:none; align-items:center; justify-content:center; }
+    .modal.active { display:flex; }
+    .modal-content { background:var(--card-bg); padding:1.5rem; border-radius:var(--radius); width:90%; max-width:500px; box-shadow:var(--shadow-md); position:relative; max-height:90%; overflow-y:auto; }
+    .modal-close { position:absolute; top:0.5rem; right:0.5rem; background:none; border:none; font-size:1rem; width:1.5rem; height:1.5rem; display:flex; align-items:center; justify-content:center; cursor:pointer; color:#555; }
+    .modal-content label, .modal-content h3, .modal-content h4 { margin-bottom:0.5rem; }
+    .modal-content input, .modal-content select, .modal-content textarea { width:100%; padding:0.5rem; margin-bottom:0.75rem; border:1px solid #ccc; border-radius:var(--radius); }
+    .modal-content textarea { resize:vertical; min-height:80px; }
+  </style>
+</head>
+<body>
+  <aside class="sidebar">
+    <div class="logo">SaaS</div>
+    <nav>
+      <a id="nav-dashboard" class="active">Dashboard</a>
+      <a id="nav-produtos">Produtos</a>
+      <a id="nav-fornecedores">Fornecedores</a>
+      <a id="nav-enriquecimento">Enriquecimento</a>
+      <a id="nav-historico">Histórico</a>
+      <a id="nav-plano">Meu Plano</a>
+      <a id="nav-config">Configurações</a>
+    </nav>
+    <div class="logout">Sair</div>
+  </aside>
+  <div class="main">
+    <header class="topbar"><h1 id="view-title">Dashboard</h1></header>
+    <div class="content">
+      <!-- Dashboard -->
+      <div id="view-dashboard">
+        <div class="stats-grid">
+          <div class="stats-card"><h3>Produtos Enriquecidos</h3><div class="value">128</div></div>
+          <div class="stats-card"><h3>Gerações com IA</h3><div class="value">94</div></div>
+          <div class="stats-card"><h3>Uploads no mês</h3><div class="value">46</div></div>
+          <div class="stats-card"><h3>Fornecedores Cadastrados</h3><div class="value">12</div></div>
+        </div>
+        <div class="actions-grid">
+          <div class="action-card action-import" id="open-import">📥 Importar Planilha</div>
+          <div class="action-card action-enrich" id="open-enrich">🌐 Iniciar Enriquecimento</div>
+          <div class="action-card action-ai" id="open-ai">🤖 Gerar com IA</div>
+        </div>
+      </div>
+      <!-- Produtos -->
+      <div id="view-produtos" class="hidden">
+        <div class="stats-grid">
+          <div class="stats-card"><h3>Total de Produtos</h3><div class="value">215</div></div>
+          <div class="stats-card"><h3>Pendentes</h3><div class="value">45</div></div>
+          <div class="stats-card"><h3>Concluídos</h3><div class="value">170</div></div>
+        </div>
+        <div class="card">
+          <div class="card-header">
+            <h3>Lista de Produtos</h3>
+            <button id="btn-new-prod">Novo Produto</button>
+          </div>
+          <table>
+            <thead><tr><th class="select"><input type="checkbox" id="select-all-prod"></th><th>Nome</th><th>SKU</th><th>Status</th><th>Descrição</th><th>Data</th></tr></thead>
+            <tbody>
+              <tr onclick="rowClick(event)"><td class="select"><input type="checkbox" class="row-select-prod"></td><td class="name-cell">Filtro KN</td><td>FKN-001</td><td>⚪ Pendente</td><td>Sem descrição</td><td>2025-05-18</td></tr>
+              <tr onclick="rowClick(event)"><td class="select"><input type="checkbox" class="row-select-prod"></td><td class="name-cell">Óleo 10W-40</td><td>OL40-010</td><td>🟡 Em Processamento</td><td>Sem descrição</td><td>2025-05-17</td></tr>
+              <tr onclick="rowClick(event)"><td class="select"><input type="checkbox" class="row-select-prod"></td><td class="name-cell">Filtro Ar</td><td>FAR-012</td><td>🟢 Completo</td><td>Descrição disponível</td><td>2025-05-10</td></tr>
+            </tbody>
+          </table>
+          <div class="table-actions">
+            <button id="generate-btn">Gerar Títulos/Descrições</button>
+            <button id="delete-btn">Deletar Selecionados</button>
+          </div>
+        </div>
+      </div>
+      <!-- Fornecedores -->
+      <div id="view-fornecedores" class="hidden">
+        <div class="card">
+          <div class="card-header">
+            <h3>Lista de Fornecedores</h3>
+            <button id="btn-new-forn">Novo Fornecedor</button>
+          </div>
+          <table>
+            <thead><tr><th class="select"><input type="checkbox" id="select-all-forn"></th><th>Nome</th><th>Contato</th><th>Status</th></tr></thead>
+            <tbody>
+              <tr><td class="select"><input type="checkbox" class="row-select-forn"></td><td>Alpha Distribuidora</td><td>alpha@ex.com</td><td>Ativo</td></tr>
+              <tr><td class="select"><input type="checkbox" class="row-select-forn"></td><td>Beta Forn</td><td>beta@ex.com</td><td>Inativo</td></tr>
+              <tr><td class="select"><input type="checkbox" class="row-select-forn"></td><td>Gama Import</td><td>gama@ex.com</td><td>Ativo</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+      <!-- Placeholders -->
+      <div id="view-enriquecimento" class="hidden"><div class="card"><h3>Enriquecimento</h3><p>Futuramente</p></div></div>
+      <div id="view-historico" class="hidden"><div class="card"><h3>Histórico</h3><p>Futuramente</p></div></div>
+      <div id="view-plano" class="hidden"><div class="card"><h3>Meu Plano</h3><p>Futuramente</p></div></div>
+      <div id="view-config" class="hidden"><div class="card"><h3>Configurações</h3><p>Futuramente</p></div></div>
+    </div>
+  </div>
+  <!-- Modals -->
+  <div class="modal" id="new-prod-modal">
+    <div class="modal-content">
+      <button class="modal-close" onclick="closeNewProd()">×</button>
+      <h3>Novo Produto</h3>
+      <label>Nome</label><input id="p-nome" type="text" placeholder="Nome">
+      <label>SKU</label><input id="p-sku" type="text" placeholder="SKU">
+      <label>Categoria</label><select id="p-cat"><option>Selecione</option></select>
+      <label>Preço</label><input id="p-preco" type="text" placeholder="Preço">
+      <label>Fornecedor</label><select id="p-forn"><option>Alpha Distribuidora</option></select>
+      <label>Descrição</label><textarea id="p-desc"></textarea>
+      <button onclick="saveNewProd()">Salvar</button>
+    </div>
+  </div>
+  <div class="modal" id="detail-modal">
+    <div class="modal-content">
+      <button class="modal-close" onclick="closeDetail()">×</button>
+      <h3>Detalhes do Produto</h3>
+      <ul id="detail-info"></ul>
+      <h4>Descrição</h4><p id="detail-desc">--</p>
+      <h4>Ações</h4>
+      <button onclick="alert('Enriquecer')">Enriquecer</button>
+      <button onclick="alert('Histórico')">Histórico</button>
+    </div>
+  </div>
+  <div class="modal" id="import-modal">
+    <div class="modal-content">
+      <button class="modal-close" onclick="closeImport()">×</button>
+      <h3>Importar Planilha</h3>
+      <input type="file" id="file-input" multiple>
+      <button onclick="alert('Importado')">Importar</button>
+    </div>
+  </div>
+  <script>
+    // Navigation
+    const navItems = ['dashboard','produtos','fornecedores','enriquecimento','historico','plano','config'];
+    navItems.forEach(id => document.getElementById('nav-'+id)?.addEventListener('click',()=>showView(id)));
+    function showView(v){navItems.forEach(id=>{document.getElementById('view-'+id).classList.add('hidden');document.getElementById('nav-'+id).classList.remove('active')});document.getElementById('view-'+v).classList.remove('hidden');document.getElementById('nav-'+v).classList.add('active');document.getElementById('view-title').textContent=v.charAt(0).toUpperCase()+v.slice(1)}
+    showView('dashboard');
+    // Produtos actions
+    document.getElementById('btn-new-prod').onclick = ()=>document.getElementById('new-prod-modal').classList.add('active');
+    function closeNewProd(){document.getElementById('new-prod-modal').classList.remove('active')}
+    function saveNewProd(){closeNewProd();alert('Produto salvo')}
+    function rowClick(e){if(e.target.type==='checkbox')return;const r=e.currentTarget.cells;document.getElementById('detail-info').innerHTML=`<li>Nome: ${r[1].textContent}</li><li>SKU: ${r[2].textContent}</li><li>Status: ${r[3].textContent}</li>`;document.getElementById('detail-desc').textContent=r[4].textContent;document.getElementById('detail-modal').classList.add('active')}
+    function closeDetail(){document.getElementById('detail-modal').classList.remove('active')}
+    // Import modal
+    document.getElementById('open-import').onclick = ()=>document.getElementById('import-modal').classList.add('active');
+    function closeImport(){document.getElementById('import-modal').classList.remove('active')}
+    // Select controls
+    document.getElementById('select-all-prod').onchange=e=>document.querySelectorAll('.row-select-prod').forEach(cb=>cb.checked=e.target.checked);
+    document.getElementById('select-all-forn').onchange=e=>document.querySelectorAll('.row-select-forn').forEach(cb=>cb.checked=e.target.checked);
+    document.getElementById('generate-btn').onclick=()=>alert('Gerando títulos e descrições');
+    document.getElementById('delete-btn').onclick=()=>alert('Deletando selecionados');
+  </script>
+</body>
+</html>

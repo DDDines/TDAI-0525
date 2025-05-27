@@ -1,0 +1,89 @@
+/* Frontend/app/src/pages/LoginPage.css */
+.login-page-wrapper { /* NOVO WRAPPER */
+  display: flex;
+  flex-direction: column; /* Para centralizar o card verticalmente */
+  justify-content: center; /* Centraliza verticalmente */
+  align-items: center; /* Centraliza horizontalmente */
+  width: 100%; /* Ocupa toda a largura do #root */
+  min-height: 100vh; /* Ocupa toda a altura da viewport */
+  background-color: var(--main-bg); /* Usando a variável do :root em index.css */
+  padding: 20px; /* Espaçamento interno */
+  box-sizing: border-box; /* Garante que padding não aumente o tamanho total */
+}
+
+.login-form-card {
+  background-color: var(--card-bg); /* Usando a variável do :root */
+  padding: 2rem 2.5rem;
+  border-radius: var(--radius); /* Usando a variável do :root */
+  box-shadow: var(--shadow-md); /* Usando a variável do :root */
+  width: 100%;
+  max-width: 400px; /* Mantém a largura máxima do card */
+  text-align: center;
+}
+
+.login-form-card h2 {
+  margin-bottom: 1.5rem;
+  color: var(--sidebar-bg); /* Usando a variável do :root */
+  font-size: 1.75rem;
+}
+
+.form-group {
+  margin-bottom: 1rem;
+  text-align: left;
+}
+
+.form-group label {
+  display: block;
+  margin-bottom: 0.5rem;
+  color: #333; /* Cor de texto base */
+  font-weight: 500;
+}
+
+.form-group input {
+  width: 100%;
+  padding: 0.75rem;
+  border: 1px solid #ccc;
+  border-radius: 4px; /* Pode usar var(--radius) se preferir */
+  box-sizing: border-box;
+  font-size: 1rem; /* Garante boa legibilidade */
+}
+
+.login-button {
+  width: 100%;
+  padding: 0.75rem;
+  background-color: var(--primary); /* Usando a variável do :root */
+  color: white;
+  border: none;
+  border-radius: 4px; /* Pode usar var(--radius) se preferir */
+  font-size: 1rem;
+  font-weight: bold;
+  cursor: pointer;
+  transition: background-color 0.2s;
+  margin-top: 1rem;
+}
+
+.login-button:hover {
+  background-color: #2563eb; /* Tom mais escuro do primary */
+}
+
+.login-button:disabled {
+  background-color: #9ca3af;
+  cursor: not-allowed;
+}
+
+.login-links {
+  margin-top: 1.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  font-size: 0.9rem;
+}
+
+.login-links a {
+  color: var(--primary); /* Usando a variável do :root */
+  text-decoration: none;
+}
+
+.login-links a:hover {
+  text-decoration: underline;
+}
