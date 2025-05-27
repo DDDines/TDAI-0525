@@ -1,9 +1,9 @@
 # tdai_project/Backend/crud.py
 from sqlalchemy.orm import Session
-from sqlalchemy import func, extract, and_ # Garanta que 'func' está importado
+from sqlalchemy import func, extract, and_
 from typing import List, Optional, Union
 from datetime import datetime, timezone
-import enum
+import enum # Certifique-se de que enum está importado
 from pydantic import HttpUrl
 
 import models
@@ -245,28 +245,34 @@ def update_produto(db: Session, db_produto: models.Produto, produto_update: sche
     if "dados_brutos" in update_data and update_data["dados_brutos"] is not None:
         if db_produto.dados_brutos is None:
             db_produto.dados_brutos = {}
-
         current_dados_brutos = db_produto.dados_brutos.copy() if isinstance(db_produto.dados_brutos, dict) else {}
-
         for key_bruto, value_bruto in update_data["dados_brutos"].items():
             if value_bruto is None and key_bruto in current_dados_brutos:
                 del current_dados_brutos[key_bruto]
             elif value_bruto is not None:
                 current_dados_brutos[key_bruto] = value_bruto
-
         setattr(db_produto, "dados_brutos", current_dados_brutos)
         if "dados_brutos" in update_data: del update_data["dados_brutos"]
 
     for key, value in update_data.items():
         if key == "status_enriquecimento_web" and value is not None:
-            if isinstance(value, enum.Enum):
+            if isinstance(value, models.StatusEnriquecimentoEnum): # Se o valor já é um objeto Enum Python
                 setattr(db_produto, key, value)
-            else:
+            elif isinstance(value, str): # Se o valor é uma string
                 try:
-                    setattr(db_produto, key, models.StatusEnriquecimentoEnum(str(value)))
+                    # Tenta converter a string para o objeto Enum Python usando o VALOR do enum (ex: "falha_configuracao_api_externa")
+                    enum_member = models.StatusEnriquecimentoEnum(value)
+                    setattr(db_produto, key, enum_member)
                 except ValueError:
-                    print(f"AVISO: Tentativa de definir status_enriquecimento_web com valor inválido '{value}'. Mantendo o valor atual.")
-                    pass
+                    # Se a conversão pelo VALOR falhar, tenta converter pelo NOME do enum (ex: "FALHA_CONFIGURACAO_API_EXTERNA")
+                    try:
+                        enum_member_by_name = models.StatusEnriquecimentoEnum[value.upper()] # Acessa pelo nome (geralmente maiúsculas)
+                        setattr(db_produto, key, enum_member_by_name)
+                        # print(f"INFO CRUD: Convertendo status_enriquecimento_web pelo NOME '{value}' para o membro enum '{enum_member_by_name}'.")
+                    except KeyError:
+                        print(f"AVISO CRUD: Valor/Nome de string '{value}' é inválido para StatusEnriquecimentoEnum. Status do produto não alterado.")
+            else:
+                print(f"AVISO CRUD: Tipo inesperado '{type(value)}' para status_enriquecimento_web. Status do produto não alterado.")
         else:
             setattr(db_produto, key, value)
 
@@ -292,9 +298,7 @@ def create_uso_ia(db: Session, uso_ia: schemas.UsoIACreate, user_id: int) -> mod
 def get_usos_ia_by_user(db: Session, user_id: int, skip: int = 0, limit: int = 100) -> List[models.UsoIA]:
     return db.query(models.UsoIA).filter(models.UsoIA.user_id == user_id).order_by(models.UsoIA.timestamp.desc()).offset(skip).limit(limit).all()
 
-# NOVA FUNÇÃO ADICIONADA AQUI
 def count_usos_ia_by_user(db: Session, user_id: int) -> int:
-    """Conta o número total de registros de uso da IA para um usuário específico."""
     count = db.query(func.count(models.UsoIA.id)).filter(models.UsoIA.user_id == user_id).scalar()
     return count or 0
 
