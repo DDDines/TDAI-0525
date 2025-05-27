@@ -1,9 +1,10 @@
 # tdai_project/Backend/crud.py
 from sqlalchemy.orm import Session
-from sqlalchemy import func, extract, and_
+from sqlalchemy import func
+from sqlalchemy.exc import SQLAlchemyError
 from typing import List, Optional, Union
 from datetime import datetime, timezone
-import enum # Certifique-se de que enum está importado
+import enum
 from pydantic import HttpUrl
 
 import models
@@ -42,28 +43,27 @@ def update_user(db: Session, user_id: int, user_update: Union[schemas.UserUpdate
     db_user = get_user(db, user_id)
     if not db_user:
         return None
-
     update_data = user_update.model_dump(exclude_unset=True)
-
     if "password" in update_data and update_data["password"]:
         hashed_password = pwd_context.hash(update_data["password"])
         db_user.hashed_password = hashed_password
         del update_data["password"]
-
     for key, value in update_data.items():
         setattr(db_user, key, value)
-
     if db.is_modified(db_user):
         db_user.updated_at = datetime.now(timezone.utc)
-
-    db.commit()
-    db.refresh(db_user)
+    try:
+        db.commit()
+        db.refresh(db_user)
+    except SQLAlchemyError as e_sql_commit:
+        db.rollback()
+        print(f"ERRO CRUD SQL ao commitar atualização do usuário ID {db_user.id}: {e_sql_commit}")
+        raise
     return db_user
 
 def delete_user(db: Session, user_id: int) -> Optional[models.User]:
     db_user = get_user(db, user_id)
-    if not db_user:
-        return None
+    if not db_user: return None
     db.delete(db_user)
     db.commit()
     return db_user
@@ -71,13 +71,10 @@ def delete_user(db: Session, user_id: int) -> Optional[models.User]:
 # --- Role CRUD ---
 def get_role_by_name(db: Session, name: str) -> Optional[models.Role]:
     return db.query(models.Role).filter(models.Role.name == name).first()
-
 def get_role(db: Session, role_id: int) -> Optional[models.Role]:
     return db.query(models.Role).filter(models.Role.id == role_id).first()
-
 def get_roles(db: Session, skip: int = 0, limit: int = 100) -> List[models.Role]:
     return db.query(models.Role).order_by(models.Role.name).offset(skip).limit(limit).all()
-
 def create_role(db: Session, role: schemas.RoleCreate) -> models.Role:
     db_role = models.Role(**role.model_dump())
     db.add(db_role)
@@ -88,13 +85,10 @@ def create_role(db: Session, role: schemas.RoleCreate) -> models.Role:
 # --- Plano CRUD ---
 def get_plano_by_name(db: Session, name: str) -> Optional[models.Plano]:
     return db.query(models.Plano).filter(models.Plano.name == name).first()
-
 def get_plano(db: Session, plano_id: int) -> Optional[models.Plano]:
     return db.query(models.Plano).filter(models.Plano.id == plano_id).first()
-
 def get_planos(db: Session, skip: int = 0, limit: int = 100) -> List[models.Plano]:
     return db.query(models.Plano).order_by(models.Plano.name).offset(skip).limit(limit).all()
-
 def create_plano(db: Session, plano: schemas.PlanoCreate) -> models.Plano:
     db_plano = models.Plano(**plano.model_dump())
     db.add(db_plano)
@@ -105,226 +99,185 @@ def create_plano(db: Session, plano: schemas.PlanoCreate) -> models.Plano:
 # --- Fornecedor CRUD ---
 def create_fornecedor(db: Session, fornecedor: schemas.FornecedorCreate, user_id: int) -> models.Fornecedor:
     fornecedor_data = fornecedor.model_dump()
-
-    if fornecedor_data.get("site_url") is not None and isinstance(fornecedor_data["site_url"], HttpUrl):
+    if fornecedor_data.get("site_url") is not None:
         fornecedor_data["site_url"] = str(fornecedor_data["site_url"])
-
-    if fornecedor_data.get("link_busca_padrao") is not None and isinstance(fornecedor_data["link_busca_padrao"], HttpUrl):
+    if fornecedor_data.get("link_busca_padrao") is not None:
         fornecedor_data["link_busca_padrao"] = str(fornecedor_data["link_busca_padrao"])
-
     db_fornecedor = models.Fornecedor(**fornecedor_data, user_id=user_id)
-    db.add(db_fornecedor)
-    db.commit()
-    db.refresh(db_fornecedor)
+    db.add(db_fornecedor); db.commit(); db.refresh(db_fornecedor)
     return db_fornecedor
 
 def get_fornecedor(db: Session, fornecedor_id: int, user_id: Optional[int] = None) -> Optional[models.Fornecedor]:
-    query = db.query(models.Fornecedor).filter(models.Fornecedor.id == fornecedor_id)
-    if user_id:
-        query = query.filter(models.Fornecedor.user_id == user_id)
-    return query.first()
+    q = db.query(models.Fornecedor).filter(models.Fornecedor.id == fornecedor_id)
+    if user_id: q = q.filter(models.Fornecedor.user_id == user_id)
+    return q.first()
 
-def get_fornecedores_by_user(
-    db: Session,
-    user_id: int,
-    skip: int = 0,
-    limit: int = 100,
-    termo_busca: Optional[str] = None
-) -> List[models.Fornecedor]:
-    query = db.query(models.Fornecedor).filter(models.Fornecedor.user_id == user_id)
-    if termo_busca:
-        query = query.filter(models.Fornecedor.nome.ilike(f"%{termo_busca}%"))
-    return query.order_by(models.Fornecedor.nome).offset(skip).limit(limit).all()
+def get_fornecedores_by_user(db: Session, user_id: int, skip: int = 0, limit: int = 100, termo_busca: Optional[str] = None) -> List[models.Fornecedor]:
+    q = db.query(models.Fornecedor).filter(models.Fornecedor.user_id == user_id)
+    if termo_busca: q = q.filter(models.Fornecedor.nome.ilike(f"%{termo_busca}%"))
+    return q.order_by(models.Fornecedor.nome).offset(skip).limit(limit).all()
 
-def count_fornecedores_by_user(
-    db: Session,
-    user_id: int,
-    termo_busca: Optional[str] = None
-) -> int:
-    query = db.query(func.count(models.Fornecedor.id)).filter(models.Fornecedor.user_id == user_id)
-    if termo_busca:
-        query = query.filter(models.Fornecedor.nome.ilike(f"%{termo_busca}%"))
-    count = query.scalar()
-    return count or 0
+def count_fornecedores_by_user(db: Session, user_id: int, termo_busca: Optional[str] = None) -> int:
+    q = db.query(func.count(models.Fornecedor.id)).filter(models.Fornecedor.user_id == user_id)
+    if termo_busca: q = q.filter(models.Fornecedor.nome.ilike(f"%{termo_busca}%"))
+    return q.scalar() or 0
 
 def update_fornecedor(db: Session, db_fornecedor: models.Fornecedor, fornecedor_update: schemas.FornecedorUpdate) -> models.Fornecedor:
     update_data = fornecedor_update.model_dump(exclude_unset=True)
-
     if "site_url" in update_data:
-        if update_data["site_url"] is not None and isinstance(update_data["site_url"], HttpUrl):
-            setattr(db_fornecedor, "site_url", str(update_data["site_url"]))
-        elif update_data["site_url"] is None:
-             setattr(db_fornecedor, "site_url", None)
-        if "site_url" in update_data: del update_data["site_url"]
-
+        setattr(db_fornecedor, "site_url", str(update_data.pop("site_url", db_fornecedor.site_url)))
     if "link_busca_padrao" in update_data:
-        if update_data["link_busca_padrao"] is not None and isinstance(update_data["link_busca_padrao"], HttpUrl):
-            setattr(db_fornecedor, "link_busca_padrao", str(update_data["link_busca_padrao"]))
-        elif update_data["link_busca_padrao"] is None:
-             setattr(db_fornecedor, "link_busca_padrao", None)
-        if "link_busca_padrao" in update_data: del update_data["link_busca_padrao"]
-
-    for key, value in update_data.items():
-        setattr(db_fornecedor, key, value)
-
-    if db.is_modified(db_fornecedor):
-        db_fornecedor.updated_at = datetime.now(timezone.utc)
-    db.commit()
-    db.refresh(db_fornecedor)
+        setattr(db_fornecedor, "link_busca_padrao", str(update_data.pop("link_busca_padrao", db_fornecedor.link_busca_padrao)))
+    for key, value in update_data.items(): setattr(db_fornecedor, key, value)
+    if db.is_modified(db_fornecedor): db_fornecedor.updated_at = datetime.now(timezone.utc)
+    try:
+        db.commit(); db.refresh(db_fornecedor)
+    except SQLAlchemyError as e: db.rollback(); print(f"ERRO CRUD SQL update_fornecedor ID {db_fornecedor.id}: {e}"); raise
     return db_fornecedor
 
 def delete_fornecedor(db: Session, db_fornecedor: models.Fornecedor) -> models.Fornecedor:
-    db.delete(db_fornecedor)
-    db.commit()
+    db.delete(db_fornecedor); db.commit()
     return db_fornecedor
 
 # --- Produto CRUD ---
 def create_produto(db: Session, produto: schemas.ProdutoCreate, user_id: int) -> models.Produto:
     produto_data_dict = produto.model_dump()
-    if produto_data_dict.get("dados_brutos") is None:
-        produto_data_dict["dados_brutos"] = {}
+    if produto_data_dict.get("dados_brutos") is None: produto_data_dict["dados_brutos"] = {}
+    
+    status_value = produto_data_dict.get("status_enriquecimento_web")
+    if isinstance(status_value, str):
+        try: produto_data_dict["status_enriquecimento_web"] = models.StatusEnriquecimentoEnum(status_value)
+        except ValueError: produto_data_dict["status_enriquecimento_web"] = models.StatusEnriquecimentoEnum.PENDENTE
+    elif status_value is None : # Se não veio no schema, usa o default do modelo
+         produto_data_dict["status_enriquecimento_web"] = models.StatusEnriquecimentoEnum.PENDENTE
+
 
     db_produto = models.Produto(**produto_data_dict, user_id=user_id)
-    db.add(db_produto)
-    db.commit()
-    db.refresh(db_produto)
+    db.add(db_produto); db.commit(); db.refresh(db_produto)
     return db_produto
 
 def get_produto(db: Session, produto_id: int, user_id: Optional[int] = None) -> Optional[models.Produto]:
-    query = db.query(models.Produto).filter(models.Produto.id == produto_id)
-    if user_id:
-        query = query.filter(models.Produto.user_id == user_id)
-    return query.first()
+    q = db.query(models.Produto).filter(models.Produto.id == produto_id)
+    if user_id: q = q.filter(models.Produto.user_id == user_id)
+    return q.first()
 
 def get_produtos_by_user(
-    db: Session,
-    user_id: int,
-    skip: int = 0,
-    limit: int = 100,
+    db: Session, user_id: int, skip: int = 0, limit: int = 100,
     fornecedor_id: Optional[int] = None,
-    status_enriquecimento: Optional[models.StatusEnriquecimentoEnum] = None,
+    status_enriquecimento: Optional[Union[models.StatusEnriquecimentoEnum, str]] = None,
     termo_busca: Optional[str] = None
 ) -> List[models.Produto]:
-    query = db.query(models.Produto).filter(models.Produto.user_id == user_id)
-    if fornecedor_id is not None:
-        query = query.filter(models.Produto.fornecedor_id == fornecedor_id)
+    q = db.query(models.Produto).filter(models.Produto.user_id == user_id)
+    if fornecedor_id is not None: q = q.filter(models.Produto.fornecedor_id == fornecedor_id)
     if status_enriquecimento is not None:
-        query = query.filter(models.Produto.status_enriquecimento_web == status_enriquecimento)
+        s_enum = status_enriquecimento
+        if isinstance(s_enum, str):
+            try: s_enum = models.StatusEnriquecimentoEnum(s_enum)
+            except ValueError: 
+                try: s_enum = models.StatusEnriquecimentoEnum[s_enum.upper()]
+                except KeyError: s_enum = None
+        if s_enum: q = q.filter(models.Produto.status_enriquecimento_web == s_enum)
     if termo_busca:
-        query = query.filter(
-            (models.Produto.nome_base.ilike(f"%{termo_busca}%")) |
-            (models.Produto.marca.ilike(f"%{termo_busca}%")) |
-            (models.Produto.categoria_original.ilike(f"%{termo_busca}%"))
-        )
-    return query.order_by(models.Produto.id.desc()).offset(skip).limit(limit).all()
+        q = q.filter( (models.Produto.nome_base.ilike(f"%{termo_busca}%")) | (models.Produto.marca.ilike(f"%{termo_busca}%")) | (models.Produto.categoria_original.ilike(f"%{termo_busca}%")) )
+    return q.order_by(models.Produto.id.desc()).offset(skip).limit(limit).all()
 
 def count_produtos_by_user(
-    db: Session,
-    user_id: int,
-    fornecedor_id: Optional[int] = None,
-    status_enriquecimento: Optional[models.StatusEnriquecimentoEnum] = None,
+    db: Session, user_id: int, fornecedor_id: Optional[int] = None,
+    status_enriquecimento: Optional[Union[models.StatusEnriquecimentoEnum, str]] = None,
     termo_busca: Optional[str] = None
 ) -> int:
-    query = db.query(func.count(models.Produto.id)).filter(models.Produto.user_id == user_id)
-    if fornecedor_id is not None:
-        query = query.filter(models.Produto.fornecedor_id == fornecedor_id)
+    q = db.query(func.count(models.Produto.id)).filter(models.Produto.user_id == user_id)
+    if fornecedor_id is not None: q = q.filter(models.Produto.fornecedor_id == fornecedor_id)
     if status_enriquecimento is not None:
-        query = query.filter(models.Produto.status_enriquecimento_web == status_enriquecimento)
+        s_enum = status_enriquecimento
+        if isinstance(s_enum, str):
+            try: s_enum = models.StatusEnriquecimentoEnum(s_enum)
+            except ValueError: 
+                try: s_enum = models.StatusEnriquecimentoEnum[s_enum.upper()]
+                except KeyError: s_enum = None
+        if s_enum: q = q.filter(models.Produto.status_enriquecimento_web == s_enum)
     if termo_busca:
-        query = query.filter(
-            (models.Produto.nome_base.ilike(f"%{termo_busca}%")) |
-            (models.Produto.marca.ilike(f"%{termo_busca}%")) |
-            (models.Produto.categoria_original.ilike(f"%{termo_busca}%"))
-        )
-    count = query.scalar()
-    return count or 0
+        q = q.filter( (models.Produto.nome_base.ilike(f"%{termo_busca}%")) | (models.Produto.marca.ilike(f"%{termo_busca}%")) | (models.Produto.categoria_original.ilike(f"%{termo_busca}%")) )
+    return q.scalar() or 0
 
 def update_produto(db: Session, db_produto: models.Produto, produto_update: schemas.ProdutoUpdate) -> models.Produto:
     update_data = produto_update.model_dump(exclude_unset=True)
 
     if "dados_brutos" in update_data and update_data["dados_brutos"] is not None:
-        if db_produto.dados_brutos is None:
-            db_produto.dados_brutos = {}
+        if db_produto.dados_brutos is None: db_produto.dados_brutos = {}
         current_dados_brutos = db_produto.dados_brutos.copy() if isinstance(db_produto.dados_brutos, dict) else {}
-        for key_bruto, value_bruto in update_data["dados_brutos"].items():
-            if value_bruto is None and key_bruto in current_dados_brutos:
-                del current_dados_brutos[key_bruto]
-            elif value_bruto is not None:
-                current_dados_brutos[key_bruto] = value_bruto
+        for k, v in update_data["dados_brutos"].items():
+            if v is None and k in current_dados_brutos: del current_dados_brutos[k]
+            elif v is not None: current_dados_brutos[k] = v
         setattr(db_produto, "dados_brutos", current_dados_brutos)
-        if "dados_brutos" in update_data: del update_data["dados_brutos"]
+        del update_data["dados_brutos"] # Remove para não ser processado no loop abaixo
 
     for key, value in update_data.items():
         if key == "status_enriquecimento_web" and value is not None:
-            if isinstance(value, models.StatusEnriquecimentoEnum): # Se o valor já é um objeto Enum Python
-                setattr(db_produto, key, value)
-            elif isinstance(value, str): # Se o valor é uma string
+            # O valor aqui deve ser uma string (o valor do enum, ex: "falha_configuracao_api_externa")
+            # porque ProdutoUpdate.status_enriquecimento_web é Optional[str]
+            if isinstance(value, str):
                 try:
-                    # Tenta converter a string para o objeto Enum Python usando o VALOR do enum (ex: "falha_configuracao_api_externa")
                     enum_member = models.StatusEnriquecimentoEnum(value)
-                    setattr(db_produto, key, enum_member)
+                    setattr(db_produto, key, enum_member) # Atribui o objeto enum ao modelo SQLAlchemy
                 except ValueError:
-                    # Se a conversão pelo VALOR falhar, tenta converter pelo NOME do enum (ex: "FALHA_CONFIGURACAO_API_EXTERNA")
+                    # Se a string não for um valor válido do enum, pode ser um NOME?
+                    # Embora o schema espere o valor, esta é uma salvaguarda.
                     try:
-                        enum_member_by_name = models.StatusEnriquecimentoEnum[value.upper()] # Acessa pelo nome (geralmente maiúsculas)
+                        enum_member_by_name = models.StatusEnriquecimentoEnum[value.upper()]
                         setattr(db_produto, key, enum_member_by_name)
-                        # print(f"INFO CRUD: Convertendo status_enriquecimento_web pelo NOME '{value}' para o membro enum '{enum_member_by_name}'.")
+                        print(f"INFO CRUD: Status '{value}' (string) tratado como NOME e convertido para enum.")
                     except KeyError:
-                        print(f"AVISO CRUD: Valor/Nome de string '{value}' é inválido para StatusEnriquecimentoEnum. Status do produto não alterado.")
+                        print(f"AVISO CRUD: String '{value}' inválida para StatusEnriquecimentoEnum (nem valor, nem nome). Status não alterado.")
+            elif isinstance(value, models.StatusEnriquecimentoEnum): # Segurança caso o schema mude de volta
+                 setattr(db_produto, key, value)
             else:
-                print(f"AVISO CRUD: Tipo inesperado '{type(value)}' para status_enriquecimento_web. Status do produto não alterado.")
+                print(f"AVISO CRUD: Tipo inesperado '{type(value)}' para status_enriquecimento_web. Status não alterado.")
         else:
             setattr(db_produto, key, value)
 
     if db.is_modified(db_produto):
         db_produto.updated_at = datetime.now(timezone.utc)
-    db.commit()
-    db.refresh(db_produto)
+    
+    try:
+        db.commit()
+        db.refresh(db_produto)
+    except SQLAlchemyError as e_sql_commit:
+        db.rollback()
+        print(f"ERRO CRUD SQL ao commitar atualização do produto ID {db_produto.id if db_produto else 'desconhecido'}: {e_sql_commit}")
+        raise 
+    
     return db_produto
 
 def delete_produto(db: Session, db_produto: models.Produto) -> models.Produto:
-    db.delete(db_produto)
-    db.commit()
+    db.delete(db_produto); db.commit()
     return db_produto
 
 # --- UsoIA CRUD ---
 def create_uso_ia(db: Session, uso_ia: schemas.UsoIACreate, user_id: int) -> models.UsoIA:
     db_uso_ia = models.UsoIA(**uso_ia.model_dump(exclude={'user_id'}), user_id=user_id)
-    db.add(db_uso_ia)
-    db.commit()
-    db.refresh(db_uso_ia)
+    db.add(db_uso_ia); db.commit(); db.refresh(db_uso_ia)
     return db_uso_ia
 
 def get_usos_ia_by_user(db: Session, user_id: int, skip: int = 0, limit: int = 100) -> List[models.UsoIA]:
     return db.query(models.UsoIA).filter(models.UsoIA.user_id == user_id).order_by(models.UsoIA.timestamp.desc()).offset(skip).limit(limit).all()
 
 def count_usos_ia_by_user(db: Session, user_id: int) -> int:
-    count = db.query(func.count(models.UsoIA.id)).filter(models.UsoIA.user_id == user_id).scalar()
-    return count or 0
+    return db.query(func.count(models.UsoIA.id)).filter(models.UsoIA.user_id == user_id).scalar() or 0
 
 def get_usos_ia_by_produto(db: Session, produto_id: int, user_id: int, skip: int = 0, limit: int = 100) -> List[models.UsoIA]:
-    produto = get_produto(db, produto_id=produto_id, user_id=user_id)
-    if not produto:
-        return []
+    prod = get_produto(db, produto_id=produto_id, user_id=user_id)
+    if not prod: return []
     return db.query(models.UsoIA).filter(models.UsoIA.produto_id == produto_id).order_by(models.UsoIA.timestamp.desc()).offset(skip).limit(limit).all()
 
 def count_usos_ia_by_user_and_type_no_mes_corrente(db: Session, user_id: int, tipo_geracao_prefix: str) -> int:
-    agora_utc = datetime.now(timezone.utc)
-    inicio_mes_corrente = agora_utc.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
-
-    if inicio_mes_corrente.month == 12:
-        fim_mes_corrente_exclusivo = inicio_mes_corrente.replace(year=inicio_mes_corrente.year + 1, month=1, day=1)
-    else:
-        fim_mes_corrente_exclusivo = inicio_mes_corrente.replace(month=inicio_mes_corrente.month + 1, day=1)
-
-    count = (
-        db.query(func.count(models.UsoIA.id))
-        .filter(
-            models.UsoIA.user_id == user_id,
-            models.UsoIA.timestamp >= inicio_mes_corrente,
-            models.UsoIA.timestamp < fim_mes_corrente_exclusivo,
-            models.UsoIA.tipo_geracao.startswith(tipo_geracao_prefix)
-        )
-        .scalar()
-    )
-    return count or 0
+    agora = datetime.now(timezone.utc)
+    inicio_mes = agora.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+    fim_mes_exclusivo = (inicio_mes.replace(month=inicio_mes.month % 12 + 1, day=1) if inicio_mes.month < 12 else inicio_mes.replace(year=inicio_mes.year + 1, month=1, day=1))
+    
+    return db.query(func.count(models.UsoIA.id)).filter(
+        models.UsoIA.user_id == user_id,
+        models.UsoIA.timestamp >= inicio_mes,
+        models.UsoIA.timestamp < fim_mes_exclusivo,
+        models.UsoIA.tipo_geracao.startswith(tipo_geracao_prefix)
+    ).scalar() or 0

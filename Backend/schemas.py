@@ -4,7 +4,7 @@ from typing import Optional, List, Dict, Any, Union
 import enum
 from datetime import datetime
 
-import models
+import models # Garanta que models está importado aqui
 
 # --- Role Schemas ---
 class RoleBase(BaseModel):
@@ -16,24 +16,20 @@ class RoleCreate(RoleBase):
 
 class Role(RoleBase):
     id: int
-
-    class Config:
-        from_attributes = True
+    class Config: from_attributes = True
 
 # --- Plano Schemas ---
 class PlanoBase(BaseModel):
     name: str = Field(..., min_length=3, max_length=50)
-    max_descricoes_mes: Optional[int] = Field(0, ge=0)
-    max_titulos_mes: Optional[int] = Field(0, ge=0)
+    max_descricoes_mes: Optional[int] = Field(0, ge=0, description="0 ou None para ilimitado")
+    max_titulos_mes: Optional[int] = Field(0, ge=0, description="0 ou None para ilimitado")
 
 class PlanoCreate(PlanoBase):
     pass
 
 class Plano(PlanoBase):
     id: int
-
-    class Config:
-        from_attributes = True
+    class Config: from_attributes = True
 
 # --- Fornecedor Schemas ---
 class FornecedorBase(BaseModel):
@@ -56,18 +52,14 @@ class Fornecedor(FornecedorBase):
     user_id: int
     created_at: datetime
     updated_at: Optional[datetime] = None
-
-    class Config:
-        from_attributes = True
+    class Config: from_attributes = True
 
 class FornecedorPage(BaseModel):
     items: List[Fornecedor]
     total_items: int
     limit: int
     skip: int
-
-    class Config:
-        from_attributes = True
+    class Config: from_attributes = True
 
 # --- Produto Schemas ---
 class ProdutoBase(BaseModel):
@@ -87,7 +79,7 @@ class ProdutoUpdate(BaseModel):
     descricao_principal_gerada: Optional[str] = None
     titulos_sugeridos: Optional[Dict[str, str]] = None
     fornecedor_id: Optional[int] = None
-    status_enriquecimento_web: Optional[models.StatusEnriquecimentoEnum] = None
+    status_enriquecimento_web: Optional[str] = None # <--- ALTERADO PARA STRING AQUI
     log_enriquecimento_web: Optional[Dict[str, Any]] = None
 
 class Produto(ProdutoBase):
@@ -103,16 +95,14 @@ class Produto(ProdutoBase):
 
     class Config:
         from_attributes = True
-        use_enum_values = True
+        use_enum_values = True # Para serialização (GET), o valor do enum será usado
 
 class ProdutoPage(BaseModel):
     items: List[Produto]
     total_items: int
     limit: int
     skip: int
-
-    class Config:
-        from_attributes = True
+    class Config: from_attributes = True
 
 # --- UsoIA Schemas ---
 class UsoIABase(BaseModel):
@@ -130,19 +120,14 @@ class UsoIA(UsoIABase):
     user_id: int
     produto_id: Optional[int] = None
     timestamp: datetime
+    class Config: from_attributes = True
 
-    class Config:
-        from_attributes = True
-
-# NOVO SCHEMA ADICIONADO AQUI
 class UsoIAPage(BaseModel):
     items: List[UsoIA]
     total_items: int
     limit: int
     skip: int
-
-    class Config:
-        from_attributes = True
+    class Config: from_attributes = True
 
 # --- User Schemas ---
 class UserBase(BaseModel):
@@ -179,11 +164,9 @@ class User(UserBase):
     role: Optional[Role] = None
     created_at: datetime
     updated_at: Optional[datetime] = None
+    class Config: from_attributes = True
 
-    class Config:
-        from_attributes = True
-
-# --- Token Schemas (para JWT) ---
+# --- Token Schemas ---
 class Token(BaseModel):
     access_token: str
     token_type: str
