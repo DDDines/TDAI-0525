@@ -1,0 +1,887 @@
+  <!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+  <title>TDAi - Title Description Ai</title>
+  <style>
+  :root {
+    --sidebar-bg: #1f2a40;
+    --sidebar-text: #cfd8e5;
+    --main-bg: #f4f6f8;
+    --card-bg: #fff;
+    --primary: #3b82f6;
+    --success: #10b981;
+    --info: #6366f1;
+    --warning: #f59e0b;
+    --danger: #ef4444;
+    --font: 'Helvetica Neue', Arial, sans-serif;
+    --radius: 8px;
+    --shadow-sm: 0 1px 4px rgba(0,0,0,0.1);
+    --shadow-md: 0 4px 8px rgba(0,0,0,0.15);
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    display: flex;
+    height: 100vh;
+    font-family: var(--font);
+    background: var(--main-bg);
+  }
+
+  .sidebar {
+    width: 240px;
+    background: var(--sidebar-bg);
+    color: var(--sidebar-text);
+    display: flex;
+    flex-direction: column;
+    padding: 1rem;
+  }
+  .sidebar .logo {
+    font-size: 1.75rem;
+    font-weight: bold;
+    color: #fff;
+    margin-bottom: 2rem;
+    text-align: center;
+  }
+  .sidebar nav { flex: 1; }
+  .sidebar nav a {
+    display: block;
+    padding: 0.75rem 1rem;
+    color: inherit;
+    text-decoration: none;
+    border-radius: var(--radius);
+    margin-bottom: 0.5rem;
+    cursor: pointer;
+  }
+  .sidebar nav a.active, .sidebar nav a:hover {
+    background: #16203a;
+    color: #fff;
+  }
+  .sidebar .logout {
+    padding: 0.75rem 1rem;
+    color: var(--primary);
+    cursor: pointer;
+    border-radius: var(--radius);
+  }
+
+  .main { flex: 1; display: flex; flex-direction: column; }
+
+  .topbar {
+    background: var(--card-bg);
+    padding: 1rem 2rem;
+    box-shadow: var(--shadow-sm);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .topbar h1 { font-size: 1.65rem; color: #333; }
+
+  .user-area {
+    display: flex; align-items: center; gap: 0.75rem; position: relative;
+  }
+  .user-avatar {
+    width: 36px; height: 36px; border-radius: 50%;
+    background: var(--primary); color: #fff;
+    display: flex; align-items: center; justify-content: center;
+    font-weight: bold; font-size: 1.1rem; cursor: pointer; user-select: none;
+  }
+  .user-name { font-weight: 500; cursor: pointer; }
+  .user-menu {
+    position: absolute; right: 0; top: 44px; background: #fff;
+    box-shadow: var(--shadow-md); border-radius: var(--radius);
+    min-width: 160px; z-index: 9; display: none; flex-direction: column;
+  }
+  .user-area:hover .user-menu,
+  .user-area:focus-within .user-menu { display: flex; }
+  .user-menu button {
+    border: none; background: none; padding: 0.9rem 1rem;
+    text-align: left; cursor: pointer; color: #222; font-size: 1rem;
+  }
+  .user-menu button:hover { background: var(--main-bg); }
+
+  .content {
+    max-width: 1440px !important;
+    width: 100%;
+    margin: 0 auto;
+    padding: 1.5rem 1.2rem;
+  }
+
+
+  .hidden { display: none !important; }
+
+  .stats-grid {
+    display: grid; grid-template-columns: repeat(auto-fit, minmax(180px,1fr));
+    gap: 1rem;
+  }
+  .stats-card {
+    background: var(--card-bg); border-radius: var(--radius);
+    padding: 1rem; box-shadow: var(--shadow-sm);
+  }
+  .stats-card h3 { font-size: 1rem; color: #555; margin-bottom: 0.5rem; }
+  .stats-card .value { font-size: 1.75rem; font-weight: bold; color: #222; }
+
+  .card,
+  .pro-card-metric{
+      position: relative;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+  },
+  .pro-bar-chart,
+  .pro-feed-card,
+  .pro-alert-card,
+  .search-results-table {
+    background: #fff;
+    border-radius: 18px;
+    box-shadow: 0 2px 12px 0 rgba(60,100,150,0.11);
+  }
+
+  .card-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; }
+  .table-actions { margin-top: 1rem; display: flex; gap: 0.5rem; }
+
+  table { width: 100%; border-collapse: collapse; margin-top: 1rem; }
+  th, td { padding: 0.7rem; border-bottom: 1px solid #eee; text-align: center; }
+  th.select, td.select { width: 2rem; }
+  tr:hover { background: #f1f5f9; }
+  td.name-cell { cursor: pointer; color: #000; }
+  .desc-ok { color: var(--success); font-weight: bold; }
+  .desc-nao { color: #999; }
+  .status-dot {
+    display: inline-block; width: 12px; height: 12px;
+    border-radius: 50%; margin-right: 5px; vertical-align: middle;
+  }
+  .status-completo { background: var(--success);}
+  .status-pendente { background: #c4b5fd;}
+
+  button {
+    background: var(--primary); color: #fff;
+    border: none; border-radius: var(--radius);
+    padding: 0.5rem 1rem; cursor: pointer;
+  }
+  button[disabled], button:disabled {
+    opacity: 0.6; cursor: default;
+  }
+
+  .search-container {
+    margin: 2rem 0 1.2rem 0; display: flex; gap: 0.75rem; align-items: center;
+  }
+  .search-container input {
+    border: 1px solid #bbb; border-radius: 6px;
+    padding: 0.45rem 0.7rem;
+  }
+
+  /* DASHBOARD PRO */
+  #dashboard-pro-main { display: flex; flex-direction: column; gap: 1.2rem; }
+  .pro-stats-row {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px,1fr));
+    gap: 1.15rem;
+    margin-bottom: 1.2rem;
+  }
+  .pro-metric-bar {
+    height: 15px;
+    border-radius: 7px;
+    margin-bottom: 1rem;
+    width: 100%;
+    background: linear-gradient(90deg,var(--bar-color),#f1f1f1 85%);
+    transition: width .8s cubic-bezier(.7,.2,.25,1);
+    position: relative;
+  }
+
+  .pro-metric-bar-bg {
+    width: 100%;
+    position: relative;
+    padding-right: 2.7rem; /* reserva espaço para o ícone */
+    box-sizing: border-box;
+  }
+
+  .pro-metric-bar {
+    width: calc(100% - 2.7rem)
+    height: 15px;
+    border-radius: 7px;
+    margin-bottom: 1rem;
+    width: 100%; /* agora é 100%, mas o container já reserva espaço pro ícone */
+    background: linear-gradient(90deg,var(--bar-color),#f1f1f1 85%);
+    transition: width .8s cubic-bezier(.7,.2,.25,1);
+    position: relative;
+  }
+
+  .pro-metric-icon {
+    position: absolute;
+    top: 18px;
+    right: 20px;
+    font-size: 2.2rem;
+    opacity: 0.16;
+    pointer-events: none;
+  }
+  .pro-metric-value { font-size: 2.38rem; font-weight: bold; color: #222; }
+  .pro-metric-label { font-size: 1.12rem; color: #666; font-weight: 500; }
+  .pro-metric-comp { font-size: .97rem; color: #5e72e4; font-weight: 500; margin-top: .15rem; }
+
+  .dashboard-flex-row {
+    display: flex; gap: 2rem; flex-wrap: wrap;
+    justify-content: center; align-items: flex-start;
+    width: 100%; max-width: 1400px; margin: 0 auto;
+  }
+  .dashboard-col { flex: 1 1 440px; min-width: 300px; max-width: 700px; margin-bottom: 2.2rem; }
+  .dashboard-col-esq {
+    display: flex; flex-direction: column; gap: 1.15rem; width: 100%; align-items: stretch;
+  }
+
+  /* Cards do dashboard */
+  .pro-bar-chart,
+  .pro-alert-card,
+  .pro-feed-card {
+    width: 100%; max-width: 100%; margin: 0; box-sizing: border-box;
+    background: #fff; border-radius: 14px; box-shadow: 0 2px 12px 0 rgba(60,100,150,0.10);
+  }
+  .pro-bar-chart { padding: 1.4rem 2.1rem 1.2rem 2.1rem; }
+  .pro-alert-card { background: #fff9e0; border-left: 6px solid var(--warning); padding: 1.25rem 2.1rem 1.05rem 2.1rem; }
+  .pro-feed-card { padding: 1.3rem 2.1rem 1.3rem 2.1rem; }
+
+  .pro-bar-title { font-size: 1.17rem; font-weight: 600; margin-bottom: 1rem; color: #30304a; }
+  .pro-bar-row { display: flex; align-items: center; gap: 0.6rem; margin-bottom: 0.85rem; }
+  .pro-bar-label { flex: 0 0 120px; text-align: right; color: #666; font-weight: 500; }
+  .pro-bar-bg { flex: 1 1 auto; background: #e7eaf0; border-radius: 7px; height: 17px; margin: 0 0.6rem; overflow: hidden; position: relative; }
+  .pro-bar { height: 100%; border-radius: 7px; transition: width .8s cubic-bezier(.7,.2,.25,1); box-shadow: 0 1px 7px 0 rgba(60,130,246,0.07);}
+  .pro-bar-value { min-width: 32px; text-align: right; font-weight: 600; color: #222; font-size: 1.08rem; }
+
+  .pro-alert-title { color: #d48b1a; font-size: 1.04rem; font-weight: 700; margin-bottom: 0.37rem; }
+  .pro-alert-list div { margin-bottom: 0.22rem; color: #b77b1e; font-size: 1.01rem; }
+
+  .pro-feed-title { font-size: 1.15rem; font-weight: 600; margin-bottom: 0.53rem; color: #313149; }
+  .pro-feed-list { list-style: none; margin: 0; padding: 0;}
+  .pro-feed-item {
+    display: flex; align-items: center; gap: 0.7rem;
+    border-bottom: 1px solid #f2f3f9; padding: 0.56rem 0.2rem;
+    font-size: 1.04rem;
+  }
+  .pro-feed-item:last-child { border-bottom: none; }
+  .pro-feed-ico {
+    font-size: 1.18rem; width: 2.1em; height: 2.1em; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    background: #f1f2fc; color: #5053c9; margin-right: 0.07em;
+  }
+  .pro-feed-msg { flex: 1 1 auto; }
+  .pro-feed-date { font-size: .95em; color: #bbb; min-width: 90px; text-align: right; }
+
+  /* Tabela de pesquisa (dashboard col dir) */
+  .pro-search-bar {
+    max-width: 550px; margin: 0.5rem auto 1rem auto;
+    display: flex; align-items: center; background: #fff;
+    border-radius: 7px; box-shadow: 0 2px 8px rgba(90,120,190,.04);
+    border: none;
+    padding: 0.36rem 0.9rem 0.36rem 0.6rem;*/
+    gap: 0.55rem;
+    max-width: 100%;
+  }
+  .pro-search-bar input {
+    flex: 1 1 auto; border: none; outline: none; font-size: 1.07rem; background: transparent;
+  }
+  .pro-search-bar .pro-search-ico { font-size: 1.21rem; color: #aaa; }
+
+  .search-results-table {
+    background: #fff; border-radius: 14px; box-shadow: 0 2px 12px 0 rgba(60,100,150,0.10);
+    border: none !important;
+    padding: 1.2rem 1.9rem 1.25rem 1.9rem;
+    max-width: 100%; margin-bottom: 0.85rem; overflow: hidden;
+  }
+  .search-results-table table {
+    width: 100%; border-collapse: separate; border-spacing: 0;
+  }
+  .search-results-table th,
+  .search-results-table td {
+    padding: 0.86rem 0.65rem; font-size: 1.11rem; border: none !important; background: transparent !important;
+  }
+  .search-results-table th {
+    background: #f6f7fa; font-weight: 600; color: #313149;
+  }
+  .search-results-table tr {
+    border-bottom: 1px solid #f1f1f4;
+  }
+  .search-results-table tr:last-child { border-bottom: none; }
+  .search-results-table .btn-detalhe {
+    background: #f5f6f9; color: #888;
+    border: none; border-radius: 6px; padding: 0.34em 1.15em;
+    font-weight: 600; font-size: 1.03rem; cursor: pointer;
+    transition: background .2s, color .2s;
+  }
+  .search-results-table .btn-detalhe:hover {
+    background: #dde5f8; color: #4551cf;
+  }
+
+  /* Modal */
+  .modal { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.4); display: none; align-items: center; justify-content: center; }
+  .modal.active { display: flex; }
+  .modal-content {
+    background: var(--card-bg); padding: 1.5rem; border-radius: var(--radius);
+    width: 90%; max-width: 500px; box-shadow: var(--shadow-md);
+    position: relative; max-height: 90%; overflow-y: auto;
+  }
+  .modal-close {
+    position: absolute; top: 0.5rem; right: 0.5rem;
+    background: none; border: none; font-size: 1rem;
+    width: 1.5rem; height: 1.5rem;
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer; color: #555;
+  }
+  .modal-content label, .modal-content h3, .modal-content h4 { margin-bottom: 0.5rem; }
+  .modal-content input, .modal-content select, .modal-content textarea {
+    width: 100%; padding: 0.5rem; margin-bottom: 0.75rem; border: 1px solid #ccc; border-radius: var(--radius);
+  }
+  .modal-content textarea { resize: vertical; min-height: 80px; }
+
+  /* Configurações */
+  .settings-form {
+    display: flex; flex-direction: column; gap: 1.5rem; max-width: 500px; margin: 0 auto;
+  }
+  .settings-form label { font-weight: 500; margin-bottom: 0.3rem; }
+  .settings-form input { border: 1px solid #bbb; border-radius: 6px; padding: 0.5rem; font-size: 1rem; }
+  .settings-form button { width: max-content; background: var(--primary); }
+
+  /* Responsividade geral */
+  @media (max-width: 1200px) {
+    .content, .dashboard-flex-row { max-width: 100vw; padding-left: 0.4rem; padding-right: 0.4rem; }
+    .dashboard-flex-row { gap: 1rem; }
+    .dashboard-col { max-width: 100%; margin-bottom: 1.2rem; }
+  }
+  @media (max-width: 900px) {
+    .dashboard-flex-row { flex-direction: column; gap: 1.1rem; align-items: stretch; }
+    .dashboard-col { max-width: 100%; }
+  }
+
+  .card,
+  .card > *,
+  .card table,
+  .card .stats-grid,
+  .card .search-container,
+  .card > div,
+  .card > form {
+    width: 100% !important;
+    max-width: 100% !important;
+    box-sizing: border-box;
+  }
+  .card {
+    padding-left: 2.1rem !important;
+    padding-right: 2.1rem !important;
+  }
+
+
+  </style>
+</head>
+<body>
+  <aside class="sidebar">
+    <div class="logo">TDAi</div>
+    <nav>
+      <a id="nav-dashboard" class="active">Dashboard</a>
+      <a id="nav-produtos">Produtos</a>
+      <a id="nav-fornecedores">Fornecedores</a>
+      <a id="nav-enriquecimento">Enriquecimento</a>
+      <a id="nav-historico">Histórico</a>
+      <a id="nav-plano">Meu Plano</a>
+      <a id="nav-config">Configurações</a>
+    </nav>
+    <div class="logout">Sair</div>
+  </aside>
+  <div class="main">
+    <header class="topbar">
+      <h1 id="view-title">Dashboard</h1>
+      <div class="user-area" tabindex="0">
+        <div class="user-avatar" id="user-avatar">JU</div>
+        <span class="user-name" id="user-name">Julio User</span>
+        <div class="user-menu">
+          <button disabled><span style="color:#7c3aed;vertical-align:middle;">&#128100;</span> Meu Perfil</button>
+          <button disabled><span style="color:#a3a3a3;vertical-align:middle;">&#9881;&#65039;</span> Configurações</button>
+          <button disabled>Sair</button>
+        </div>
+      </div>
+    </header>
+    <div class="content">
+
+      <!-- DASHBOARD -->
+      <div id="view-dashboard">
+        <div id="dashboard-pro-main">
+          <div class="pro-stats-row">
+            <div class="pro-card-metric" style="--bar-color:var(--success);">
+              <div class="pro-metric-bar-bg">
+                <div class="pro-metric-bar" style="width:85%; background: linear-gradient(90deg,var(--success),#e8faed 85%);"></div>
+              </div>
+              <div class="pro-metric-icon">🌟</div>
+              <span class="pro-metric-value">128</span>
+              <span class="pro-metric-label">Produtos Enriquecidos</span>
+              <span class="pro-metric-comp">+4 hoje, +17 na semana</span>
+            </div>
+            <div class="pro-card-metric" style="--bar-color:var(--info);">
+              <div class="pro-metric-bar-bg">
+                <div class="pro-metric-bar" style="width:70%; background: linear-gradient(90deg,var(--info),#eef6fa 85%);"></div>
+              </div>
+              <div class="pro-metric-icon">🤖</div>
+              <span class="pro-metric-value">94</span>
+              <span class="pro-metric-label">Gerações IA</span>
+              <span class="pro-metric-comp">+2 hoje</span>
+            </div>
+            <div class="pro-card-metric" style="--bar-color:var(--primary);">
+              <div class="pro-metric-bar-bg">
+                <div class="pro-metric-bar" style="width:65%; background: linear-gradient(90deg,var(--primary),#e8ebff 85%);"></div>
+              </div>
+              <div class="pro-metric-icon">📥</div>
+              <span class="pro-metric-value">46</span>
+              <span class="pro-metric-label">Uploads no mês</span>
+              <span class="pro-metric-comp">+1 hoje</span>
+            </div>
+            <div class="pro-card-metric" style="--bar-color:var(--warning);">
+              <div class="pro-metric-bar-bg">
+                <div class="pro-metric-bar" style="width:90%; background: linear-gradient(90deg,var(--warning),#fff4d5 85%);"></div>
+              </div>
+              <div class="pro-metric-icon">🏢</div>
+              <span class="pro-metric-value">12</span>
+              <span class="pro-metric-label">Fornecedores</span>
+              <span class="pro-metric-comp">Nenhum novo hoje</span>
+            </div>
+          </div>
+
+          <div class="dashboard-flex-row">
+            <div class="dashboard-col dashboard-col-esq">
+              <div class="pro-bar-chart">
+                <div class="pro-bar-title">Produtos por Status</div>
+                <div class="pro-bar-row">
+                  <span class="pro-bar-label">Pendentes</span>
+                  <div class="pro-bar-bg"><div class="pro-bar" style="width:38%;background:var(--warning);"></div></div>
+                  <span class="pro-bar-value">38</span>
+                </div>
+                <div class="pro-bar-row">
+                  <span class="pro-bar-label">Enriquecidos</span>
+                  <div class="pro-bar-bg"><div class="pro-bar" style="width:54%;background:var(--success);"></div></div>
+                  <span class="pro-bar-value">54</span>
+                </div>
+                <div class="pro-bar-row">
+                  <span class="pro-bar-label">Completos</span>
+                  <div class="pro-bar-bg"><div class="pro-bar" style="width:8%;background:var(--info);"></div></div>
+                  <span class="pro-bar-value">8</span>
+                </div>
+              </div>
+              <div class="pro-alert-card">
+                <div class="pro-alert-title">Pendências</div>
+                <div class="pro-alert-list">
+                  <div>⚠️ <b>2 produto(s)</b> sem descrição</div>
+                  <div>🔄 <b>2 produto(s)</b> pendente(s) de enriquecimento</div>
+                </div>
+              </div>
+              <div class="pro-feed-card">
+                <div class="pro-feed-title">Últimas Atividades</div>
+                <ul class="pro-feed-list">
+                  <li class="pro-feed-item"><span class="pro-feed-ico">📝</span><span class="pro-feed-msg">3 títulos gerados por IA</span><span class="pro-feed-date">18/05/2025</span></li>
+                  <li class="pro-feed-item"><span class="pro-feed-ico">✅</span><span class="pro-feed-msg">Produto MINI REFRIGERATOR enriquecido</span><span class="pro-feed-date">17/05/2025</span></li>
+                  <li class="pro-feed-item"><span class="pro-feed-ico">📦</span><span class="pro-feed-msg">Planilha importada</span><span class="pro-feed-date">16/05/2025</span></li>
+                </ul>
+              </div>
+            </div>
+            <div class="dashboard-col dashboard-col-dir">
+              <div class="pro-search-bar">
+                <span class="pro-search-ico">🔎</span>
+                <input type="text" value="MINI" readonly>
+              </div>
+              <div class="search-results-table">
+                <table>
+                  <thead>
+                    <tr>
+                      <th style="text-align:left;">Tipo</th>
+                      <th style="text-align:left;">Nome</th>
+                      <th style="text-align:left;">Status</th>
+                      <th style="text-align:right;">Ação</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr>
+                      <td><span title="Produto">📦</span></td>
+                      <td style="font-weight:600;">MINI REFRIGERATOR 18L DREIHA CBX QUADRIVOLT</td>
+                      <td><span style="color:#d99a18;font-weight:500;">Pendente</span></td>
+                      <td style="text-align:right;">
+                        <button class="btn-detalhe">Ver Detalhes</button>
+                      </td>
+                    </tr>
+                    <tr>
+                      <td><span title="Produto">📦</span></td>
+                      <td style="font-weight:600;">MINI COOLER 10L COMPACT</td>
+                      <td><span style="color:#39b664;font-weight:500;">Enriquecido</span></td>
+                      <td style="text-align:right;">
+                        <button class="btn-detalhe">Ver Detalhes</button>
+                      </td>
+                    </tr>
+                    <tr>
+                      <td><span title="Fornecedor">🏢</span></td>
+                      <td style="font-weight:600;">MiniDistribuidora</td>
+                      <td><span style="color:#39b664;font-weight:500;">Ativo</span></td>
+                      <td style="text-align:right;">
+                        <button class="btn-detalhe">Ver Detalhes</button>
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- PRODUTOS -->
+      <div id="view-produtos" class="hidden">
+        <div class="stats-grid">
+          <div class="stats-card"><h3>Total de Produtos</h3><div class="value">215</div></div>
+          <div class="stats-card"><h3>Pendentes</h3><div class="value">45</div></div>
+          <div class="stats-card"><h3>Concluídos</h3><div class="value">170</div></div>
+        </div>
+        <div class="search-container">
+          <label for="search-prod">Buscar:</label>
+          <input type="text" id="search-prod" placeholder="Nome ou SKU...">
+        </div>
+        <div class="card">
+          <div class="card-header">
+            <h3>Lista de Produtos</h3>
+            <button onclick="document.getElementById('new-prod-modal').classList.add('active')">Novo Produto</button>
+          </div>
+          <table id="prod-table">
+            <thead>
+              <tr>
+                <th class="select"><input type="checkbox" id="select-all-prod"></th>
+                <th>Nome</th>
+                <th>SKU</th>
+                <th>Status</th>
+                <th>Descrição</th>
+                <th>Data</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr onclick="rowClick(event)">
+                <td class="select"><input type="checkbox" class="row-select-prod"></td>
+                <td class="name-cell">PORTABLE REFRIGERATOR 18L DREIHA CBX QUADRIVOLT 12/24/110/240V</td>
+                <td>SAN_7766700014</td>
+                <td><span class="status-dot status-pendente"></span>Pendente</td>
+                <td class="desc-cell desc-nao">Sem descrição</td>
+                <td>2025-05-18</td>
+              </tr>
+              <tr onclick="rowClick(event)">
+                <td class="select"><input type="checkbox" class="row-select-prod"></td>
+                <td class="name-cell">TRUCK REFRIGERATOR 18L DREIHA CBX QUADRIVOLT 12/24/110/240V</td>
+                <td>SAN_7766700014_1</td>
+                <td><span class="status-dot status-pendente"></span>Pendente</td>
+                <td class="desc-cell desc-nao">Sem descrição</td>
+                <td>2025-05-17</td>
+              </tr>
+              <tr onclick="rowClick(event)">
+                <td class="select"><input type="checkbox" class="row-select-prod"></td>
+                <td class="name-cell">MINI REFRIGERATOR 18L DREIHA CBX QUADRIVOLT 12/24/110/240V</td>
+                <td>SAN_7766700014_2</td>
+                <td><span class="status-dot status-pendente"></span>Pendente</td>
+                <td class="desc-cell desc-nao">Sem descrição</td>
+                <td>2025-05-10</td>
+              </tr>
+              <tr onclick="rowClick(event)">
+                <td class="select"><input type="checkbox" class="row-select-prod"></td>
+                <td class="name-cell">PORTABLE REFRIGERATOR 18L DREIHA CBX 12/24/110/240V</td>
+                <td>SAN_7766700014_3</td>
+                <td><span class="status-dot status-pendente"></span>Pendente</td>
+                <td class="desc-cell desc-nao">Sem descrição</td>
+                <td>2025-05-09</td>
+              </tr>
+            </tbody>
+          </table>
+          <div class="table-actions">
+            <button id="generate-btn">Gerar Títulos/Descrições</button>
+            <button id="delete-btn">Deletar Selecionados</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- FORNECEDORES -->
+      <div id="view-fornecedores" class="hidden">
+        <div class="card">
+          <div class="card-header">
+            <h3>Lista de Fornecedores</h3>
+            <button onclick="document.getElementById('new-forn-modal').classList.add('active')">Novo Fornecedor</button>
+          </div>
+          <table>
+            <thead>
+              <tr>
+                <th class="select"><input type="checkbox" id="select-all-forn"></th>
+                <th>Nome</th>
+                <th>Contato</th>
+                <th>Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr><td class="select"><input type="checkbox" class="row-select-forn"></td><td>Alpha Distribuidora</td><td>alpha@ex.com</td><td>Ativo</td></tr>
+              <tr><td class="select"><input type="checkbox" class="row-select-forn"></td><td>Beta Forn</td><td>beta@ex.com</td><td>Inativo</td></tr>
+              <tr><td class="select"><input type="checkbox" class="row-select-forn"></td><td>Gama Import</td><td>gama@ex.com</td><td>Ativo</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- ENRIQUECIMENTO -->
+      <div id="view-enriquecimento" class="hidden">
+        <div class="card">
+          <div class="card-header">
+            <h3>Enriquecimento de Produtos</h3>
+            <button disabled>Iniciar Enriquecimento</button>
+          </div>
+          <p style="margin-bottom:1.2rem;color:#555;">Selecione produtos para enriquecer automaticamente informações e descrições usando IA.</p>
+          <table>
+            <thead>
+              <tr>
+                <th class="select"><input type="checkbox" disabled></th>
+                <th>Nome</th>
+                <th>SKU</th>
+                <th>Status Enriq.</th>
+                <th>Última Atualização</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td class="select"><input type="checkbox" disabled></td>
+                <td>PORTABLE REFRIGERATOR 18L DREIHA CBX QUADRIVOLT</td>
+                <td>SAN_7766700014</td>
+                <td><span style="color:#999;">Pendente</span></td>
+                <td>2025-05-18</td>
+              </tr>
+              <tr>
+                <td class="select"><input type="checkbox" disabled></td>
+                <td>TRUCK REFRIGERATOR 18L DREIHA CBX QUADRIVOLT</td>
+                <td>SAN_7766700014_1</td>
+                <td><span style="color:#10b981;font-weight:bold;">Enriquecido</span></td>
+                <td>2025-05-12</td>
+              </tr>
+            </tbody>
+          </table>
+          <div class="table-actions" style="margin-top:1.3rem;">
+            <button disabled>Enriquecer Selecionados</button>
+          </div>
+          <div style="font-size:.93rem;color:#999;text-align:right;margin-top:10px;">*Funcionalidade prototipada. Não há ação real.</div>
+        </div>
+      </div>
+
+      <!-- HISTÓRICO -->
+      <div id="view-historico" class="hidden">
+        <div class="card">
+          <div class="card-header"><h3>Histórico de Gerações</h3></div>
+          <table class="hist-table" id="hist-table">
+            <thead>
+              <tr>
+                <th>Data/Hora</th>
+                <th>Produtos Gerados</th>
+                <th>SKUs</th>
+              </tr>
+            </thead>
+            <tbody>
+              <!-- Registros do histórico aqui -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- CONFIGURAÇÕES -->
+      <div id="view-config" class="hidden">
+        <div class="card">
+          <div class="card-header"><h3>Configurações do Sistema</h3></div>
+          <form class="settings-form" onsubmit="event.preventDefault();alert('Configurações salvas! (Simulado)');">
+            <div>
+              <label for="user-name-input">Nome do Usuário</label>
+              <input id="user-name-input" type="text" placeholder="Seu nome" value="Julio User"/>
+            </div>
+            <div>
+              <label for="api-openai">Chave API OpenAI</label>
+              <input id="api-openai" type="text" placeholder="sk-..." autocomplete="off"/>
+            </div>
+            <div>
+              <label for="api-google">Chave API Google</label>
+              <input id="api-google" type="text" placeholder="Chave Google" autocomplete="off"/>
+            </div>
+            <div>
+              <label for="api-outro">Outra API (opcional)</label>
+              <input id="api-outro" type="text" placeholder="API extra" autocomplete="off"/>
+            </div>
+            <button type="submit">Salvar</button>
+          </form>
+        </div>
+      </div>
+
+      <!-- PLANO -->
+      <div id="view-plano" class="hidden">
+        <div class="card">
+          <div class="card-header"><h3>Meu Plano</h3></div>
+          <div style="padding:1.2rem;">
+            <div style="display:flex;gap:2rem;align-items:flex-start;flex-wrap:wrap;justify-content:space-between;">
+              <div style="flex:1 1 320px; background: linear-gradient(135deg, #f0f4ff 0%, #f9fafb 100%); border-radius: 12px; box-shadow: 0 2px 12px 0 rgba(60,60,110,.06); padding: 2rem 2rem 1.5rem 2rem; margin-bottom: 1.2rem; min-width: 260px; max-width: 400px; display: flex; flex-direction: column; align-items: flex-start;">
+                <div style="font-size:1.1rem;font-weight:600;letter-spacing:0.01em;margin-bottom:0.4rem;">Meu Plano</div>
+                <div style="display:flex;align-items:center;margin-bottom:1.1rem;">
+                  <span style="background:#3b82f6;color:#fff;font-size:1rem;font-weight:700;border-radius:7px;padding:0.18em 0.95em;margin-right:0.8rem;letter-spacing:0.01em;box-shadow:0 1px 6px 0 rgba(59,130,246,0.08);">PRO</span>
+                  <span style="color:#777;font-size:1.04rem;font-weight:500;">Plano Atual</span>
+                </div>
+                <ul style="margin-bottom:1.1rem;font-size:1.04rem;line-height:1.8;padding-left:1.1em;">
+                  <li><b>3.000</b> produtos/mês</li>
+                  <li>Geração com IA ilimitada</li>
+                  <li>Suporte prioritário</li>
+                </ul>
+                <div style="color:#7e8caa;font-size:0.98rem;font-weight:500;margin-top:0.5rem;">
+                  <span style="font-weight:600;">Renovação:</span> 14/07/2025
+                </div>
+              </div>
+              <div style="flex:1 1 220px;display:flex;flex-direction:column;align-items:flex-end;justify-content:flex-start;">
+                <div style="display:flex;gap:1rem;">
+                  <button style="background:#6366f1;color:#fff;padding:0.6rem 1.2rem;font-weight:600;font-size:1rem;border-radius:8px;border:none;cursor:pointer;transition:.2s;">Upgrade de Plano</button>
+                  <button style="background:#ef4444;color:#fff;padding:0.6rem 1.2rem;font-weight:600;font-size:1rem;border-radius:8px;border:none;cursor:pointer;transition:.2s;">Cancelar Assinatura</button>
+                </div>
+              </div>
+            </div>
+            <hr style="margin:1.7rem 0;">
+            <h4 style="margin-bottom:0.7rem;">Histórico de Cobrança</h4>
+            <table style="width:100%;border-collapse:collapse;font-size:1rem;">
+              <thead>
+                <tr style="background:#f6f7fa;">
+                  <th style="padding:0.9rem 0.7rem;text-align:left;font-weight:600;">Data</th>
+                  <th style="padding:0.9rem 0.7rem;text-align:left;font-weight:600;">Plano</th>
+                  <th style="padding:0.9rem 0.7rem;text-align:left;font-weight:600;">Valor</th>
+                  <th style="padding:0.9rem 0.7rem;text-align:left;font-weight:600;">Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td style="padding:0.8rem 0.7rem;">14/06/2025</td>
+                  <td style="padding:0.8rem 0.7rem;">Pro</td>
+                  <td style="padding:0.8rem 0.7rem;">€49,00</td>
+                  <td style="padding:0.8rem 0.7rem;color:#10b981;font-weight:bold;">Pago</td>
+                </tr>
+                <tr>
+                  <td style="padding:0.8rem 0.7rem;">14/05/2025</td>
+                  <td style="padding:0.8rem 0.7rem;">Pro</td>
+                  <td style="padding:0.8rem 0.7rem;">€49,00</td>
+                  <td style="padding:0.8rem 0.7rem;color:#10b981;font-weight:bold;">Pago</td>
+                </tr>
+                <tr>
+                  <td style="padding:0.8rem 0.7rem;">14/04/2025</td>
+                  <td style="padding:0.8rem 0.7rem;">Starter</td>
+                  <td style="padding:0.8rem 0.7rem;">€29,00</td>
+                  <td style="padding:0.8rem 0.7rem;color:#10b981;font-weight:bold;">Pago</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- MODAIS -->
+  <div class="modal" id="new-prod-modal">
+    <div class="modal-content">
+      <button class="modal-close" onclick="closeNewProd()">×</button>
+      <h3>Novo Produto</h3>
+      <label>Nome</label><input id="p-nome" type="text" placeholder="Nome">
+      <label>SKU</label><input id="p-sku" type="text" placeholder="SKU">
+      <label>Categoria</label><select id="p-cat"><option>Selecione</option></select>
+      <label>Preço</label><input id="p-preco" type="text" placeholder="Preço">
+      <label>Fornecedor</label><select id="p-forn"><option>Alpha Distribuidora</option></select>
+      <label>Descrição</label><textarea id="p-desc"></textarea>
+      <button onclick="saveNewProd()">Salvar</button>
+    </div>
+  </div>
+  <div class="modal" id="detail-modal">
+    <div class="modal-content">
+      <button class="modal-close" onclick="closeDetail()">×</button>
+      <h3>Detalhes do Produto</h3>
+      <ul id="detail-info"></ul>
+      <h4>Título Gerado</h4>
+      <div id="detail-title">--</div>
+      <h4>Descrição Gerada</h4>
+      <p id="detail-desc">--</p>
+      <h4>Ações</h4>
+      <button onclick="alert('Enriquecer')">Enriquecer</button>
+      <button onclick="alert('Histórico')">Histórico</button>
+    </div>
+  </div>
+  <div class="modal" id="import-modal">
+    <div class="modal-content">
+      <button class="modal-close" onclick="closeImport()">×</button>
+      <h3>Importar Planilha</h3>
+      <input type="file" id="file-input" multiple>
+      <button onclick="alert('Importado')">Importar</button>
+    </div>
+  </div>  
+  <div class="modal" id="new-prod-modal">
+    <div class="modal-content">
+      <button class="modal-close" onclick="closeNewProd()">×</button>
+      <h3>Novo Produto</h3>
+      <label>Nome</label>
+      <input id="p-nome" type="text" placeholder="Nome do produto">
+      <label>SKU</label>
+      <input id="p-sku" type="text" placeholder="SKU">
+      <label>Categoria</label>
+      <select id="p-cat"><option>Selecione</option></select>
+      <label>Preço</label>
+      <input id="p-preco" type="text" placeholder="Preço">
+      <label>Fornecedor</label>
+      <select id="p-forn"><option>Alpha Distribuidora</option></select>
+      <label>Descrição</label>
+      <textarea id="p-desc"></textarea>
+      <button onclick="saveNewProd()">Salvar</button>
+    </div>
+  </div>
+  <div class="modal" id="new-forn-modal">
+    <div class="modal-content">
+      <button class="modal-close" onclick="closeNewForn()">×</button>
+      <h3>Novo Fornecedor</h3>
+      <label>Nome</label>
+      <input id="f-nome" type="text" placeholder="Nome do fornecedor">
+      <label>Email</label>
+      <input id="f-email" type="email" placeholder="Email">
+      <label>Telefone</label>
+      <input id="f-tel" type="text" placeholder="Telefone">
+      <label>Contato</label>
+      <input id="f-contato" type="text" placeholder="Nome do contato">
+      <label>Observações</label>
+      <textarea id="f-obs" placeholder="Observações..."></textarea>
+      <button onclick="saveNewForn()">Salvar</button>
+    </div>
+  </div>
+
+
+
+  <!-- SCRIPT DE NAVEGAÇÃO -->
+  <script>
+    const navItems = ['dashboard','produtos','fornecedores','enriquecimento','historico','plano','config'];
+    navItems.forEach(id => document.getElementById('nav-'+id)?.addEventListener('click',()=>showView(id)));
+    function showView(v){
+      navItems.forEach(id=>{
+        document.getElementById('view-'+id).classList.add('hidden');
+        document.getElementById('nav-'+id).classList.remove('active')
+      });
+      document.getElementById('view-'+v).classList.remove('hidden');
+      document.getElementById('nav-'+v).classList.add('active');
+      document.getElementById('view-title').textContent =
+        v.charAt(0).toUpperCase()+v.slice(1)
+        .replace("config","Configurações")
+        .replace("plano","Meu Plano")
+        .replace("enriquecimento","Enriquecimento")
+        .replace("historico","Histórico")
+        .replace("fornecedores","Fornecedores")
+        .replace("produtos","Produtos")
+        .replace("dashboard","Dashboard");
+    }
+    showView('dashboard');
+
+    function closeNewProd(){document.getElementById('new-prod-modal').classList.remove('active')}
+    function saveNewProd(){closeNewProd();alert('Produto salvo! (Exemplo)')}
+
+    function closeNewForn(){document.getElementById('new-forn-modal').classList.remove('active')}
+    function saveNewForn(){closeNewForn();alert('Fornecedor salvo! (Exemplo)')}
+
+
+  </script>
+</body>
+
+
+</html>
