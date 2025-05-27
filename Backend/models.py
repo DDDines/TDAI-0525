@@ -1,21 +1,20 @@
 # tdai_project/Backend/models.py
-from sqlalchemy import Column, Integer, String, Boolean, ForeignKey, DateTime, Text, Enum, JSON
+from sqlalchemy import Column, Integer, String, Boolean, ForeignKey, DateTime, Text, Enum as SQLAlchemyEnum, JSON
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
-import enum
+import enum 
 
-# CORREÇÃO APLICADA: Import direto de 'database' que é um módulo no mesmo nível (Backend/)
-from database import Base #
+from database import Base 
 
 class StatusEnriquecimentoEnum(enum.Enum):
-    PENDENTE = "pendente"
-    EM_PROGRESSO = "em_progresso"
-    CONCLUIDO_SUCESSO = "concluido_sucesso"
-    FALHOU = "falhou" # Erro genérico durante o processo
-    NENHUMA_FONTE_ENCONTRADA = "nenhuma_fonte_encontrada" # Nenhuma URL ou dado útil encontrado
-    CONCLUIDO_COM_DADOS_PARCIAIS = "concluido_com_dados_parciais"
-    FALHA_CONFIGURACAO_API_EXTERNA = "falha_configuracao_api_externa"
-    FALHA_API_EXTERNA = "falha_api_externa" 
+    PENDENTE = "PENDENTE"
+    EM_PROGRESSO = "EM_PROGRESSO"
+    CONCLUIDO_SUCESSO = "CONCLUIDO_SUCESSO"
+    FALHOU = "FALHOU"
+    NENHUMA_FONTE_ENCONTRADA = "NENHUMA_FONTE_ENCONTRADA"
+    CONCLUIDO_COM_DADOS_PARCIAIS = "CONCLUIDO_COM_DADOS_PARCIAIS"
+    FALHA_CONFIGURACAO_API_EXTERNA = "FALHA_CONFIGURACAO_API_EXTERNA"
+    FALHA_API_EXTERNA = "FALHA_API_EXTERNA"
 
 class Role(Base):
     __tablename__ = "roles"
@@ -68,7 +67,16 @@ class Produto(Base):
     fornecedor_id = Column(Integer, ForeignKey("fornecedores.id"), nullable=True)
     user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
 
-    status_enriquecimento_web = Column(Enum(StatusEnriquecimentoEnum), default=StatusEnriquecimentoEnum.PENDENTE, nullable=False)
+    status_enriquecimento_web = Column(
+        SQLAlchemyEnum(
+            StatusEnriquecimentoEnum 
+            # native_enum=True é o default para PostgreSQL e tentará usar os NOMES dos membros.
+            # Se o tipo ENUM no DB foi criado com os valores em maiúsculas (PENDENTE, EM_PROGRESSO),
+            # e agora os .value do Python Enum também são essas strings maiúsculas, deve alinhar.
+        ),
+        default=StatusEnriquecimentoEnum.PENDENTE, # Atribui o membro do enum
+        nullable=False
+    )
     log_enriquecimento_web = Column(JSON, nullable=True)
 
     fornecedor = relationship("Fornecedor", back_populates="produtos")

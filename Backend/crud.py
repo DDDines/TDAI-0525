@@ -141,17 +141,14 @@ def delete_fornecedor(db: Session, db_fornecedor: models.Fornecedor) -> models.F
 
 # --- Produto CRUD ---
 def create_produto(db: Session, produto: schemas.ProdutoCreate, user_id: int) -> models.Produto:
-    produto_data_dict = produto.model_dump()
-    if produto_data_dict.get("dados_brutos") is None: produto_data_dict["dados_brutos"] = {}
+    produto_data_dict = produto.model_dump(exclude_unset=True)
+    if produto_data_dict.get("dados_brutos") is None: 
+        produto_data_dict["dados_brutos"] = {}
     
-    status_value = produto_data_dict.get("status_enriquecimento_web")
-    if isinstance(status_value, str):
-        try: produto_data_dict["status_enriquecimento_web"] = models.StatusEnriquecimentoEnum(status_value)
-        except ValueError: produto_data_dict["status_enriquecimento_web"] = models.StatusEnriquecimentoEnum.PENDENTE
-    elif status_value is None : # Se não veio no schema, usa o default do modelo
-         produto_data_dict["status_enriquecimento_web"] = models.StatusEnriquecimentoEnum.PENDENTE
-
-
+    # O default do modelo models.Produto (StatusEnriquecimentoEnum.PENDENTE) será usado
+    # ao criar o objeto models.Produto se status_enriquecimento_web não estiver em produto_data_dict.
+    # O SQLAlchemy usará o .value (agora MAIÚSCULO) desse default.
+    
     db_produto = models.Produto(**produto_data_dict, user_id=user_id)
     db.add(db_produto); db.commit(); db.refresh(db_produto)
     return db_produto
@@ -169,14 +166,24 @@ def get_produtos_by_user(
 ) -> List[models.Produto]:
     q = db.query(models.Produto).filter(models.Produto.user_id == user_id)
     if fornecedor_id is not None: q = q.filter(models.Produto.fornecedor_id == fornecedor_id)
+    
     if status_enriquecimento is not None:
-        s_enum = status_enriquecimento
-        if isinstance(s_enum, str):
-            try: s_enum = models.StatusEnriquecimentoEnum(s_enum)
-            except ValueError: 
-                try: s_enum = models.StatusEnriquecimentoEnum[s_enum.upper()]
-                except KeyError: s_enum = None
-        if s_enum: q = q.filter(models.Produto.status_enriquecimento_web == s_enum)
+        status_valor_comparar: Optional[str] = None
+        if isinstance(status_enriquecimento, models.StatusEnriquecimentoEnum):
+            status_valor_comparar = status_enriquecimento.value # Será MAIÚSCULO
+        elif isinstance(status_enriquecimento, str):
+            # Tenta converter para o valor do enum, assumindo que a string pode ser um nome ou valor
+            try:
+                status_valor_comparar = models.StatusEnriquecimentoEnum(status_enriquecimento.lower()).value # Tenta com minúsculo primeiro (se input for "pendente")
+            except ValueError:
+                try:
+                    status_valor_comparar = models.StatusEnriquecimentoEnum[status_enriquecimento.upper()].value # Tenta com nome maiúsculo (se input for "PENDENTE")
+                except KeyError:
+                    status_valor_comparar = None 
+        
+        if status_valor_comparar: # Compara com o .value (MAIÚSCULO)
+            q = q.filter(models.Produto.status_enriquecimento_web == status_valor_comparar)
+
     if termo_busca:
         q = q.filter( (models.Produto.nome_base.ilike(f"%{termo_busca}%")) | (models.Produto.marca.ilike(f"%{termo_busca}%")) | (models.Produto.categoria_original.ilike(f"%{termo_busca}%")) )
     return q.order_by(models.Produto.id.desc()).offset(skip).limit(limit).all()
@@ -188,14 +195,22 @@ def count_produtos_by_user(
 ) -> int:
     q = db.query(func.count(models.Produto.id)).filter(models.Produto.user_id == user_id)
     if fornecedor_id is not None: q = q.filter(models.Produto.fornecedor_id == fornecedor_id)
+
     if status_enriquecimento is not None:
-        s_enum = status_enriquecimento
-        if isinstance(s_enum, str):
-            try: s_enum = models.StatusEnriquecimentoEnum(s_enum)
-            except ValueError: 
-                try: s_enum = models.StatusEnriquecimentoEnum[s_enum.upper()]
-                except KeyError: s_enum = None
-        if s_enum: q = q.filter(models.Produto.status_enriquecimento_web == s_enum)
+        status_valor_comparar: Optional[str] = None
+        if isinstance(status_enriquecimento, models.StatusEnriquecimentoEnum):
+            status_valor_comparar = status_enriquecimento.value # MAIÚSCULO
+        elif isinstance(status_enriquecimento, str):
+            try:
+                status_valor_comparar = models.StatusEnriquecimentoEnum(status_enriquecimento.lower()).value
+            except ValueError:
+                try:
+                    status_valor_comparar = models.StatusEnriquecimentoEnum[status_enriquecimento.upper()].value
+                except KeyError:
+                    status_valor_comparar = None
+        if status_valor_comparar:
+             q = q.filter(models.Produto.status_enriquecimento_web == status_valor_comparar)
+
     if termo_busca:
         q = q.filter( (models.Produto.nome_base.ilike(f"%{termo_busca}%")) | (models.Produto.marca.ilike(f"%{termo_busca}%")) | (models.Produto.categoria_original.ilike(f"%{termo_busca}%")) )
     return q.scalar() or 0
@@ -210,26 +225,19 @@ def update_produto(db: Session, db_produto: models.Produto, produto_update: sche
             if v is None and k in current_dados_brutos: del current_dados_brutos[k]
             elif v is not None: current_dados_brutos[k] = v
         setattr(db_produto, "dados_brutos", current_dados_brutos)
-        del update_data["dados_brutos"] # Remove para não ser processado no loop abaixo
+        del update_data["dados_brutos"]
 
     for key, value in update_data.items():
         if key == "status_enriquecimento_web" and value is not None:
-            # O valor aqui deve ser uma string (o valor do enum, ex: "falha_configuracao_api_externa")
-            # porque ProdutoUpdate.status_enriquecimento_web é Optional[str]
             if isinstance(value, str):
                 try:
+                    # 'value' deve ser a string MAIÚSCULA, ex: "FALHA_CONFIGURACAO_API_EXTERNA"
+                    # que corresponde ao .value do enum Python após a alteração em models.py
                     enum_member = models.StatusEnriquecimentoEnum(value)
                     setattr(db_produto, key, enum_member) # Atribui o objeto enum ao modelo SQLAlchemy
                 except ValueError:
-                    # Se a string não for um valor válido do enum, pode ser um NOME?
-                    # Embora o schema espere o valor, esta é uma salvaguarda.
-                    try:
-                        enum_member_by_name = models.StatusEnriquecimentoEnum[value.upper()]
-                        setattr(db_produto, key, enum_member_by_name)
-                        print(f"INFO CRUD: Status '{value}' (string) tratado como NOME e convertido para enum.")
-                    except KeyError:
-                        print(f"AVISO CRUD: String '{value}' inválida para StatusEnriquecimentoEnum (nem valor, nem nome). Status não alterado.")
-            elif isinstance(value, models.StatusEnriquecimentoEnum): # Segurança caso o schema mude de volta
+                    print(f"AVISO CRUD: String de status '{value}' inválida para StatusEnriquecimentoEnum. Status não alterado.")
+            elif isinstance(value, models.StatusEnriquecimentoEnum): # Se por acaso um objeto enum for passado
                  setattr(db_produto, key, value)
             else:
                 print(f"AVISO CRUD: Tipo inesperado '{type(value)}' para status_enriquecimento_web. Status não alterado.")

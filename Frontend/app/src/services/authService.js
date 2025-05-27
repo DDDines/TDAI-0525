@@ -60,21 +60,29 @@ export const getTotalCounts = async () => {
   }
 };
 
-// NOVO: Função para buscar o histórico de uso da IA do usuário logado
 export const getMeuHistoricoUsoIA = async (params = {}) => {
-  // params pode incluir skip e limit para paginação
-  // O backend em routers/uso_ia.py para /me/ retorna List[schemas.UsoIA]
-  // Não retorna total_items por padrão, então a paginação será simples (apenas próxima/anterior baseada no número de itens retornados)
-  // ou precisaremos ajustar o backend para retornar total_items para /uso-ia/me/ também.
   try {
     const response = await apiClient.get('/uso-ia/me/', { params });
-    // Se o backend for ajustado para retornar um objeto com items e total_items:
-    // return response.data; 
-    // Por agora, assumindo que retorna uma lista diretamente:
-    return response.data; // Espera-se List[schemas.UsoIA]
+    return response.data; 
   } catch (error) {
     console.error('Error fetching AI usage history:', error.response?.data || error.message);
     throw error.response?.data || new Error('Failed to fetch AI usage history');
+  }
+};
+
+// Função para buscar o histórico de uso da IA para um produto específico
+export const getHistoricoUsoIAPorProduto = async (produtoId, params = {}) => {
+  // params pode incluir skip e limit, ex: { limit: 1 } para pegar só o mais recente.
+  try {
+    // O endpoint no backend é /api/v1/uso-ia/produto/{produto_id}/
+    const response = await apiClient.get(`/uso-ia/produto/${produtoId}/`, { params });
+    return response.data; // Espera-se List[schemas.UsoIA] do backend
+  } catch (error) {
+    console.error(`Error fetching AI usage history for product ${produtoId}:`, error.response?.data || error.message);
+    // Não lançar um novo erro aqui necessariamente, ou o toast pode mostrar "Failed to fetch..."
+    // É melhor retornar null ou um objeto de erro para que a página possa lidar com isso.
+    // Por agora, vamos deixar lançar, mas o `EnriquecimentoPage` tratará.
+    throw error.response?.data || new Error(`Failed to fetch AI usage history for product ${produtoId}`);
   }
 };
 
@@ -84,5 +92,6 @@ export default {
   updateCurrentUser,
   changePassword,
   getTotalCounts,
-  getMeuHistoricoUsoIA, // Adicionar a nova função aos exports
+  getMeuHistoricoUsoIA,
+  getHistoricoUsoIAPorProduto, // Garantir que está exportado
 };

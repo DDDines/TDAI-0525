@@ -70,6 +70,11 @@ class ProdutoBase(BaseModel):
 
 class ProdutoCreate(ProdutoBase):
     fornecedor_id: Optional[int] = None
+    # O status_enriquecimento_web não precisa estar no Create, pois o modelo tem um default.
+    # Se precisar definir na criação, adicione:
+    # status_enriquecimento_web: Optional[models.StatusEnriquecimentoEnum] = None 
+    # (ou Optional[str] se preferir passar a string e converter no CRUD)
+
 
 class ProdutoUpdate(BaseModel):
     nome_base: Optional[str] = Field(None, min_length=1, max_length=255)
@@ -79,23 +84,23 @@ class ProdutoUpdate(BaseModel):
     descricao_principal_gerada: Optional[str] = None
     titulos_sugeridos: Optional[Dict[str, str]] = None
     fornecedor_id: Optional[int] = None
-    status_enriquecimento_web: Optional[str] = None # <--- ALTERADO PARA STRING AQUI
+    status_enriquecimento_web: Optional[str] = None # Recebe a string (ex: "FALHA_CONFIGURACAO_API_EXTERNA")
     log_enriquecimento_web: Optional[Dict[str, Any]] = None
 
-class Produto(ProdutoBase):
+class Produto(ProdutoBase): # Este é o schema para respostas (GET)
     id: int
     user_id: int
     fornecedor: Optional[Fornecedor] = None
     descricao_principal_gerada: Optional[str] = None
     titulos_sugeridos: Optional[Dict[str, str]] = None
-    status_enriquecimento_web: models.StatusEnriquecimentoEnum
+    status_enriquecimento_web: models.StatusEnriquecimentoEnum # Mantém como o tipo Enum do Python
     log_enriquecimento_web: Optional[Dict[str, Any]] = None
     created_at: datetime
     updated_at: Optional[datetime] = None
 
     class Config:
         from_attributes = True
-        use_enum_values = True # Para serialização (GET), o valor do enum será usado
+        use_enum_values = True # IMPORTANTE: Para serialização (GET), o .value do enum será usado
 
 class ProdutoPage(BaseModel):
     items: List[Produto]
