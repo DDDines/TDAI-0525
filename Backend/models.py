@@ -16,6 +16,16 @@ class StatusEnriquecimentoEnum(enum.Enum):
     FALHA_CONFIGURACAO_API_EXTERNA = "FALHA_CONFIGURACAO_API_EXTERNA"
     FALHA_API_EXTERNA = "FALHA_API_EXTERNA"
 
+# NOVO ENUM PARA STATUS DE GERAÇÃO DE CONTEÚDO POR IA
+class StatusGeracaoIAEnum(enum.Enum):
+    PENDENTE = "PENDENTE"
+    EM_PROGRESSO = "EM_PROGRESSO"
+    CONCLUIDO_SUCESSO = "CONCLUIDO_SUCESSO"
+    FALHOU = "FALHOU"
+    NAO_SOLICITADO = "NAO_SOLICITADO" # Adicionado para um estado inicial mais claro
+    FALHA_CONFIGURACAO_IA = "FALHA_CONFIGURACAO_IA" # Para quando a API key está em falta, etc.
+    LIMITE_ATINGIDO = "LIMITE_ATINGIDO" # Para quando o plano do usuário não permite mais gerações
+
 class Role(Base):
     __tablename__ = "roles"
 
@@ -62,22 +72,29 @@ class Produto(Base):
     dados_brutos = Column(JSON, nullable=True)
     
     descricao_principal_gerada = Column(Text, nullable=True)
-    titulos_sugeridos = Column(JSON, nullable=True)
+    titulos_sugeridos = Column(JSON, nullable=True) 
 
     fornecedor_id = Column(Integer, ForeignKey("fornecedores.id"), nullable=True)
     user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
 
     status_enriquecimento_web = Column(
-        SQLAlchemyEnum(
-            StatusEnriquecimentoEnum 
-            # native_enum=True é o default para PostgreSQL e tentará usar os NOMES dos membros.
-            # Se o tipo ENUM no DB foi criado com os valores em maiúsculas (PENDENTE, EM_PROGRESSO),
-            # e agora os .value do Python Enum também são essas strings maiúsculas, deve alinhar.
-        ),
-        default=StatusEnriquecimentoEnum.PENDENTE, # Atribui o membro do enum
+        SQLAlchemyEnum(StatusEnriquecimentoEnum),
+        default=StatusEnriquecimentoEnum.PENDENTE, 
         nullable=False
     )
     log_enriquecimento_web = Column(JSON, nullable=True)
+
+    # NOVOS CAMPOS DE STATUS PARA GERAÇÃO IA
+    status_titulo_ia = Column(
+        SQLAlchemyEnum(StatusGeracaoIAEnum),
+        default=StatusGeracaoIAEnum.NAO_SOLICITADO, # Default para NAO_SOLICITADO
+        nullable=False
+    )
+    status_descricao_ia = Column(
+        SQLAlchemyEnum(StatusGeracaoIAEnum),
+        default=StatusGeracaoIAEnum.NAO_SOLICITADO, # Default para NAO_SOLICITADO
+        nullable=False
+    )
 
     fornecedor = relationship("Fornecedor", back_populates="produtos")
     owner = relationship("User", back_populates="produtos_cadastrados")

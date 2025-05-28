@@ -3,17 +3,11 @@ from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy.orm import Session
 from typing import List, Optional
 
-# CORREÇÕES DOS IMPORTS:
-# Como 'run_backend.py' coloca 'Backend/' no sys.path e define como CWD,
-# podemos tratar módulos em 'Backend/' (como crud, models, schemas, database)
-# e subpastas de 'Backend/' (como core) como se fossem de nível superior
-# ou diretamente acessíveis a partir do CWD.
 import crud
 import models
-import schemas # Garanta que schemas está importado
+import schemas 
 from database import get_db
 
-# '.' refere-se ao diretório atual ('routers') para encontrar auth_utils.py
 from .auth_utils import get_current_active_user, get_current_active_superuser
 
 router = APIRouter(
@@ -37,26 +31,30 @@ def create_new_produto(
             
     return crud.create_produto(db=db, produto=produto, user_id=current_user.id)
 
-@router.get("/", response_model=schemas.ProdutoPage) # Alterado para o novo schema de paginação
+@router.get("/", response_model=schemas.ProdutoPage) 
 def read_user_produtos(
     skip: int = Query(0, ge=0, description="Número de itens a pular (offset)"),
-    limit: int = Query(10, ge=1, le=200, description="Número máximo de itens a retornar"), # Default limit para 10
+    limit: int = Query(10, ge=1, le=200, description="Número máximo de itens a retornar"),
     fornecedor_id: Optional[int] = Query(None, description="Filtrar produtos por ID do fornecedor"),
     status_enriquecimento: Optional[models.StatusEnriquecimentoEnum] = Query(None, description="Filtrar produtos por status de enriquecimento web"),
     termo_busca: Optional[str] = Query(None, description="Termo para buscar em nome_base, marca ou categoria_original do produto"),
+    # NOVOS PARÂMETROS DE QUERY PARA STATUS IA:
+    status_titulo_ia: Optional[models.StatusGeracaoIAEnum] = Query(None, description="Filtrar por status da geração de títulos por IA."),
+    status_descricao_ia: Optional[models.StatusGeracaoIAEnum] = Query(None, description="Filtrar por status da geração de descrição por IA."),
     db: Session = Depends(get_db),
     current_user: models.User = Depends(get_current_active_user)
 ):
-    # Primeiro, obtenha a contagem total de itens que correspondem aos filtros, ANTES de aplicar skip/limit
     total_items = crud.count_produtos_by_user(
         db,
         user_id=current_user.id,
         fornecedor_id=fornecedor_id,
         status_enriquecimento=status_enriquecimento,
-        termo_busca=termo_busca
+        termo_busca=termo_busca,
+        # Passando os novos status para a contagem
+        status_titulo_ia=status_titulo_ia,
+        status_descricao_ia=status_descricao_ia
     )
 
-    # Depois, obtenha os itens para a página atual
     produtos_data = crud.get_produtos_by_user(
         db,
         user_id=current_user.id,
@@ -64,7 +62,10 @@ def read_user_produtos(
         limit=limit,
         fornecedor_id=fornecedor_id,
         status_enriquecimento=status_enriquecimento,
-        termo_busca=termo_busca
+        termo_busca=termo_busca,
+        # Passando os novos status para a busca
+        status_titulo_ia=status_titulo_ia,
+        status_descricao_ia=status_descricao_ia
     )
     return schemas.ProdutoPage(items=produtos_data, total_items=total_items, limit=limit, skip=skip)
 

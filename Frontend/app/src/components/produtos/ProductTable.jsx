@@ -1,6 +1,13 @@
 // Frontend/app/src/components/produtos/ProductTable.jsx
 import React from 'react';
 
+// Função auxiliar para formatar os valores dos Enums (opcional, mas melhora a leitura)
+const formatStatusEnumValue = (value) => {
+  if (!value) return 'N/D'; // Não definido ou Não disponível
+  // Converte para string antes de chamar replace, para o caso de não ser string (ex: se vier null do DB e não for tratado antes)
+  return String(value).replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase()); // Ex: "CONCLUIDO_SUCESSO" -> "Concluido Sucesso"
+};
+
 function ProductTable({ produtos, onRowClick, onSelectRow, selectedIds, onSelectAllRows, isLoading }) {
   if (isLoading && (!produtos || produtos.length === 0)) {
     return <p>Carregando tabela de produtos...</p>;
@@ -20,8 +27,11 @@ function ProductTable({ produtos, onRowClick, onSelectRow, selectedIds, onSelect
           </th>
           <th>Nome</th>
           <th>SKU</th>
-          <th>Status Enriq.</th>
-          <th>Descrição Gerada</th>
+          <th>Marca</th>
+          <th>Status Enriq. Web</th>
+          <th>Status Títulos IA</th>
+          <th>Status Descrição IA</th>
+          <th>Descrição Gerada (IA)</th>
           <th>Data Criação</th>
         </tr>
       </thead>
@@ -41,24 +51,27 @@ function ProductTable({ produtos, onRowClick, onSelectRow, selectedIds, onSelect
             </td>
             <td className="name-cell">{produto.nome_base}</td>
             <td>{produto.dados_brutos?.sku_original || produto.dados_brutos?.codigo_original || 'N/A'}</td>
+            <td>{produto.marca || 'N/A'}</td>
             <td>
               <span
                 className={`status-dot ${
-                  produto.status_enriquecimento_web === 'concluido_sucesso' ? 'status-completo' :
-                  produto.status_enriquecimento_web === 'em_progresso' ? 'status-em-progresso' :
-                  produto.status_enriquecimento_web === 'falhou' ? 'status-falhou' :
+                  produto.status_enriquecimento_web === 'CONCLUIDO_SUCESSO' ? 'status-completo' :
+                  produto.status_enriquecimento_web === 'EM_PROGRESSO' ? 'status-em-progresso' :
+                  produto.status_enriquecimento_web === 'FALHOU' ? 'status-falhou' :
                   'status-pendente'
                 }`}
               ></span>
-              {produto.status_enriquecimento_web?.replace(/_/g, ' ') || 'pendente'}
+              {formatStatusEnumValue(produto.status_enriquecimento_web || 'PENDENTE')} {/* Passa um default para formatStatusEnumValue */}
             </td>
+            <td>{formatStatusEnumValue(produto.status_titulo_ia)}</td>
+            <td>{formatStatusEnumValue(produto.status_descricao_ia)}</td>
             <td className={produto.descricao_principal_gerada ? 'desc-ok' : 'desc-nao'}>
               {produto.descricao_principal_gerada ? 'Sim' : 'Não'}
             </td>
             <td>{new Date(produto.created_at).toLocaleDateString()}</td>
           </tr>
         )) : (
-          <tr><td colSpan="6">Nenhum produto encontrado.</td></tr>
+          <tr><td colSpan="9">Nenhum produto encontrado.</td></tr> // Comentário removido daqui ou movido para fora
         )}
       </tbody>
     </table>

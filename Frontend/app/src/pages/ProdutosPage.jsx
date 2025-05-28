@@ -5,20 +5,50 @@ import ProductEditModal from '../components/ProductEditModal';
 import ProductTable from '../components/produtos/ProductTable';
 import NewProductModal from '../components/produtos/NewProductModal';
 import PaginationControls from '../components/common/PaginationControls';
-import { showSuccessToast, showErrorToast, showWarningToast } from '../utils/notifications'; // Importar as funções de toast
+import { showSuccessToast, showErrorToast, showWarningToast, showInfoToast } from '../utils/notifications';
+
+// Opções para os filtros de status (definidas acima ou importadas)
+const statusEnriquecimentoWebOptions = [
+  { value: "", label: "Todos Status Enriq. Web" },
+  { value: "PENDENTE", label: "Pendente (Web)" },
+  { value: "EM_PROGRESSO", label: "Em Progresso (Web)" },
+  { value: "CONCLUIDO_SUCESSO", label: "Sucesso (Web)" },
+  { value: "FALHOU", label: "Falhou (Web)" },
+  { value: "NENHUMA_FONTE_ENCONTRADA", label: "Fonte Ñ Encontrada (Web)" },
+  { value: "CONCLUIDO_COM_DADOS_PARCIAIS", label: "Parcial (Web)" },
+  { value: "FALHA_CONFIGURACAO_API_EXTERNA", label: "Falha Config API (Web)" },
+  { value: "FALHA_API_EXTERNA", label: "Falha API (Web)" },
+];
+
+const statusGeracaoIAOptions = [
+  { value: "", label: "Todos Status IA" },
+  { value: "NAO_SOLICITADO", label: "Não Solicitado (IA)" },
+  { value: "PENDENTE", label: "Pendente (IA)" },
+  { value: "EM_PROGRESSO", label: "Em Progresso (IA)" },
+  { value: "CONCLUIDO_SUCESSO", label: "Sucesso (IA)" },
+  { value: "FALHOU", label: "Falhou (IA)" },
+  { value: "FALHA_CONFIGURACAO_IA", label: "Falha Config (IA)" },
+  { value: "LIMITE_ATINGIDO", label: "Limite Atingido (IA)" },
+];
+
 
 function ProdutosPage() {
   const [produtos, setProdutos] = useState([]);
   const [loading, setLoading] = useState(true);
   const [modalLoading, setModalLoading] = useState(false);
-  const [error, setError] = useState(null); // Ainda pode ser útil para um erro geral na página
+  const [error, setError] = useState(null); 
   const [isNewProductModalOpen, setIsNewProductModalOpen] = useState(false);
   const [selectedProductIds, setSelectedProductIds] = useState([]);
 
   const [currentPage, setCurrentPage] = useState(0);
   const [limitPerPage] = useState(10);
   const [totalProdutosCount, setTotalProdutosCount] = useState(0);
+  
+  // Estados dos filtros
   const [searchTerm, setSearchTerm] = useState('');
+  const [selectedStatusEnriquecimento, setSelectedStatusEnriquecimento] = useState('');
+  const [selectedStatusTituloIA, setSelectedStatusTituloIA] = useState('');
+  const [selectedStatusDescricaoIA, setSelectedStatusDescricaoIA] = useState('');
 
   const [editingProduct, setEditingProduct] = useState(null);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
@@ -33,6 +63,9 @@ function ProdutosPage() {
         skip: currentPage * limitPerPage,
         limit: limitPerPage,
         termo_busca: searchTerm || undefined,
+        status_enriquecimento: selectedStatusEnriquecimento || undefined, // Nome do param como no backend
+        status_titulo_ia: selectedStatusTituloIA || undefined,       // Nome do param como no backend
+        status_descricao_ia: selectedStatusDescricaoIA || undefined, // Nome do param como no backend
       };
       const responseData = await productService.getProdutos(params);
       
@@ -43,7 +76,6 @@ function ProdutosPage() {
         console.warn('Formato de dados inesperado recebido para produtos:', responseData);
         setProdutos([]);
         setTotalProdutosCount(0);
-        // Não mostra toast aqui, pois o erro de fetch já mostraria um se ocorresse no service ou no catch abaixo
       }
 
     } catch (err) {
@@ -55,17 +87,23 @@ function ProdutosPage() {
     } finally {
       setLoading(false);
     }
-  }, [currentPage, limitPerPage, searchTerm]);
+  }, [currentPage, limitPerPage, searchTerm, selectedStatusEnriquecimento, selectedStatusTituloIA, selectedStatusDescricaoIA]); // Adicionar novos estados de filtro às dependências
 
   useEffect(() => {
     fetchProdutos();
   }, [fetchProdutos]);
 
-  const handleSearchChange = (event) => {
-    setSearchTerm(event.target.value);
-    setCurrentPage(0);
+  // Handlers para os filtros
+  const handleFilterChange = (setterFunction, value) => {
+    setterFunction(value);
+    setCurrentPage(0); // Resetar para a primeira página ao mudar um filtro
   };
 
+  const handleSearchChange = (event) => {
+    handleFilterChange(setSearchTerm, event.target.value);
+  };
+  
+  // ... (outros handlers: handlePageChange, handleOpenNewProductModal, etc. permanecem os mesmos) ...
   const handlePageChange = (newPage) => {
     setCurrentPage(newPage);
   };
@@ -81,13 +119,10 @@ function ProdutosPage() {
     let errorMessage = 'Erro desconhecido ao criar produto.';
     try {
       await productService.createProduto(produtoData);
-      showSuccessToast('Produto criado com sucesso!'); // <--- USO DO TOAST
+      showSuccessToast('Produto criado com sucesso!');
       handleCloseNewProductModal();
-      // Para ver o novo produto, idealmente iríamos para a última página se não houver busca
-      // ou recarregar a primeira/atual dependendo da lógica.
-      // Por simplicidade, recarregamos a página atual ou a primeira se não houver busca.
-      if (!searchTerm) {
-        setCurrentPage(0); // Ou lógica para ir à última página
+      if (!searchTerm && !selectedStatusEnriquecimento && !selectedStatusTituloIA && !selectedStatusDescricaoIA) { // Resetar se nenhum filtro ativo
+        setCurrentPage(0); 
       }
       fetchProdutos();
       setSelectedProductIds([]);
@@ -95,19 +130,12 @@ function ProdutosPage() {
     } catch (saveError) {
       console.error("Objeto de erro recebido em handleSaveNewProduct (ProdutosPage):", saveError); 
       if (saveError && saveError.detail) {
-        if (typeof saveError.detail === 'string') {
-          errorMessage = saveError.detail;
-        } else if (Array.isArray(saveError.detail)) {
-          errorMessage = saveError.detail.map(e => `${e.loc ? e.loc.join('.') + ': ' : ''}${e.msg}`).join('; ');
-        } else {
-            errorMessage = JSON.stringify(saveError.detail);
-        }
-      } else if (saveError && saveError.message) {
-        errorMessage = saveError.message;
-      } else if (typeof saveError === 'string') {
-        errorMessage = saveError;
-      }
-      showErrorToast(`Erro ao criar produto: ${errorMessage}`); // <--- USO DO TOAST
+        if (typeof saveError.detail === 'string') errorMessage = saveError.detail;
+        else if (Array.isArray(saveError.detail)) errorMessage = saveError.detail.map(e => `${e.loc ? e.loc.join('.') + ': ' : ''}${e.msg}`).join('; ');
+        else errorMessage = JSON.stringify(saveError.detail);
+      } else if (saveError && saveError.message) errorMessage = saveError.message;
+      else if (typeof saveError === 'string') errorMessage = saveError;
+      showErrorToast(`Erro ao criar produto: ${errorMessage}`);
       return Promise.reject(saveError);
     } finally {
       setModalLoading(false);
@@ -132,7 +160,7 @@ function ProdutosPage() {
 
   const handleDeleteSelected = async () => {
     if (selectedProductIds.length === 0) {
-      showWarningToast("Nenhum produto selecionado para deletar."); // <--- USO DO TOAST
+      showWarningToast("Nenhum produto selecionado para deletar.");
       return;
     }
     if (window.confirm(`Tem certeza que deseja deletar ${selectedProductIds.length} produto(s) selecionado(s)?`)) {
@@ -149,28 +177,18 @@ function ProdutosPage() {
                 errorOccurred = true;
             }
         }
-        if (successCount > 0) {
-            showSuccessToast(`${successCount} produto(s) deletado(s) com sucesso!`); // <--- USO DO TOAST
-        }
-        if (errorOccurred) {
-            showErrorToast(`Alguns produtos não puderam ser deletados. Verifique o console.`); // <--- USO DO TOAST
-        }
+        if (successCount > 0) showSuccessToast(`${successCount} produto(s) deletado(s) com sucesso!`);
+        if (errorOccurred) showErrorToast(`Alguns produtos não puderam ser deletados. Verifique o console.`);
         
         const newTotalProdutos = totalProdutosCount - successCount;
         const newTotalPages = Math.ceil(newTotalProdutos / limitPerPage);
 
-        if (currentPage >= newTotalPages && newTotalPages > 0) { 
-            setCurrentPage(newTotalPages - 1);
-        } else if (newTotalProdutos === 0) { 
-            setCurrentPage(0);
-            setProdutos([]); 
-            setTotalProdutosCount(0);
-        } else {
-             fetchProdutos(); 
-        }
+        if (currentPage >= newTotalPages && newTotalPages > 0) setCurrentPage(newTotalPages - 1);
+        else if (newTotalProdutos === 0) { setCurrentPage(0); setProdutos([]); setTotalProdutosCount(0); }
+        else fetchProdutos(); 
         setSelectedProductIds([]);
       } catch (err) { 
-        showErrorToast(`Erro ao processar deleção em massa: ${err.message || 'Erro desconhecido'}`); // <--- USO DO TOAST
+        showErrorToast(`Erro ao processar deleção em massa: ${err.message || 'Erro desconhecido'}`);
       } finally {
         setLoading(false);
       }
@@ -179,37 +197,28 @@ function ProdutosPage() {
 
   const handleGenerateContentForSelected = async (contentType) => {
     if (selectedProductIds.length === 0) {
-      showWarningToast(`Nenhum produto selecionado para gerar ${contentType}.`); // <--- USO DO TOAST
+      showWarningToast(`Nenhum produto selecionado para gerar ${contentType}.`);
       return;
     }
-    showInfoToast(`Iniciando geração de ${contentType} para ${selectedProductIds.length} produto(s). Isso pode levar um tempo e acontecerá em segundo plano.`); // <--- USO DO TOAST
+    showInfoToast(`Iniciando geração de ${contentType} para ${selectedProductIds.length} produto(s). Isso pode levar um tempo e acontecerá em segundo plano.`);
     setLoading(true); 
     let hasError = false;
     for (const produtoId of selectedProductIds) {
         try {
-            if (contentType === 'titulos') {
-                await productService.gerarTitulosProduto(produtoId);
-            } else if (contentType === 'descricoes') {
-                await productService.gerarDescricaoProduto(produtoId);
-            }
+            if (contentType === 'titulos') await productService.gerarTitulosProduto(produtoId);
+            else if (contentType === 'descricoes') await productService.gerarDescricaoProduto(produtoId);
         } catch (genError) {
             console.error(`Erro ao solicitar geração de ${contentType} para produto ID ${produtoId}:`, genError);
             let errorMsg = (genError && genError.message) ? genError.message : `Erro desconhecido ao gerar ${contentType} para produto ID ${produtoId}`;
-            if (genError && genError.detail) {
-                 errorMsg = typeof genError.detail === 'string' ? genError.detail : JSON.stringify(genError.detail);
-            }
-            showErrorToast(errorMsg); // <--- USO DO TOAST
+            if (genError && genError.detail) errorMsg = typeof genError.detail === 'string' ? genError.detail : JSON.stringify(genError.detail);
+            showErrorToast(errorMsg); 
             hasError = true;
         }
     }
     setLoading(false);
-    if (!hasError) {
-        showSuccessToast(`Solicitação de geração de ${contentType} enviada para os produtos selecionados! A atualização do status pode demorar alguns instantes.`); // <--- USO DO TOAST
-    } else {
-        showWarningToast(`Algumas solicitações de geração de ${contentType} falharam. Verifique o console. A atualização dos produtos bem-sucedidos pode demorar.`); // <--- USO DO TOAST
-    }
+    if (!hasError) showSuccessToast(`Solicitação de geração de ${contentType} enviada para os produtos selecionados! A atualização do status pode demorar alguns instantes.`);
+    else showWarningToast(`Algumas solicitações de geração de ${contentType} falharam. Verifique o console. A atualização dos produtos bem-sucedidos pode demorar.`);
     setSelectedProductIds([]);
-    // Opcional: setTimeout(() => fetchProdutos(), 3000); // Pequeno delay para dar tempo ao backend
   };
 
   const handleRowClick = (produto) => {
@@ -228,7 +237,7 @@ function ProdutosPage() {
     let errorMessage = 'Erro desconhecido ao atualizar produto.';
     try {
       await productService.updateProduto(productId, updateData);
-      showSuccessToast('Produto atualizado com sucesso!'); // <--- USO DO TOAST
+      showSuccessToast('Produto atualizado com sucesso!');
       handleCloseEditModal();
       fetchProdutos();
       setSelectedProductIds([]);
@@ -236,19 +245,12 @@ function ProdutosPage() {
     } catch (updateError) {
       console.error("Objeto de erro recebido em handleSaveProductUpdate (ProdutosPage):", updateError);
       if (updateError && updateError.detail) {
-        if (typeof updateError.detail === 'string') {
-          errorMessage = updateError.detail;
-        } else if (Array.isArray(updateError.detail)) {
-          errorMessage = updateError.detail.map(e => `${e.loc ? e.loc.join('.') + ': ' : ''}${e.msg}`).join('; ');
-        } else {
-            errorMessage = JSON.stringify(updateError.detail);
-        }
-      } else if (updateError && updateError.message) {
-        errorMessage = updateError.message;
-      } else if (typeof updateError === 'string') {
-        errorMessage = updateError;
-      }
-      showErrorToast(`Erro ao atualizar produto: ${errorMessage}`); // <--- USO DO TOAST
+        if (typeof updateError.detail === 'string') errorMessage = updateError.detail;
+        else if (Array.isArray(updateError.detail)) errorMessage = updateError.detail.map(e => `${e.loc ? e.loc.join('.') + ': ' : ''}${e.msg}`).join('; ');
+        else errorMessage = JSON.stringify(updateError.detail);
+      } else if (updateError && updateError.message) errorMessage = updateError.message;
+      else if (typeof updateError === 'string') errorMessage = updateError;
+      showErrorToast(`Erro ao atualizar produto: ${errorMessage}`);
       return Promise.reject(updateError);
     } finally {
       setModalLoading(false);
@@ -259,21 +261,65 @@ function ProdutosPage() {
     <div>
       <div className="stats-grid">
         <div className="stats-card"><h3>Total de Produtos Registrados</h3><div className="value">{totalProdutosCount}</div></div>
-        <div className="stats-card"><h3>Pendentes Enriq. (Página)</h3><div className="value">{produtos.filter(p => p.status_enriquecimento_web === 'pendente' || !p.status_enriquecimento_web).length}</div></div>
-        <div className="stats-card"><h3>Enriquecidos Web (Página)</h3><div className="value">{produtos.filter(p => p.status_enriquecimento_web === 'concluido_sucesso').length}</div></div>
+        <div className="stats-card"><h3>Pendentes Enriq. (Página)</h3><div className="value">{produtos.filter(p => p.status_enriquecimento_web === 'PENDENTE' || !p.status_enriquecimento_web).length}</div></div>
+        <div className="stats-card"><h3>Enriquecidos Web (Página)</h3><div className="value">{produtos.filter(p => p.status_enriquecimento_web === 'CONCLUIDO_SUCESSO').length}</div></div>
       </div>
 
-      <div className="search-container">
-        <label htmlFor="search-prod">Buscar Produtos:</label>
-        <input
-          type="text"
-          id="search-prod"
-          placeholder="Nome ou SKU..."
-          value={searchTerm}
-          onChange={handleSearchChange}
-          disabled={loading}
-        />
+      {/* Container para todos os filtros */}
+      <div className="filters-container" style={{ display: 'flex', gap: '1rem', marginBottom: '1.5rem', flexWrap: 'wrap', alignItems: 'flex-end' }}>
+        <div className="search-container" style={{ margin: 0, flexGrow: 1, minWidth: '200px' }}>
+          <label htmlFor="search-prod" style={{ display: 'block', marginBottom: '0.25rem' }}>Buscar Produtos:</label>
+          <input
+            type="text"
+            id="search-prod"
+            placeholder="Nome ou SKU..."
+            value={searchTerm}
+            onChange={handleSearchChange}
+            disabled={loading}
+            style={{width: '100%'}}
+          />
+        </div>
+
+        <div className="filter-group" style={{flexGrow: 1, minWidth: '180px'}}>
+          <label htmlFor="filter-status-enr" style={{ display: 'block', marginBottom: '0.25rem' }}>Status Enriq. Web:</label>
+          <select 
+            id="filter-status-enr" 
+            value={selectedStatusEnriquecimento} 
+            onChange={(e) => handleFilterChange(setSelectedStatusEnriquecimento, e.target.value)}
+            disabled={loading}
+            style={{width: '100%', padding: '0.5rem', border: '1px solid #ccc', borderRadius: 'var(--radius)', fontSize: '1rem'}}
+          >
+            {statusEnriquecimentoWebOptions.map(opt => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
+          </select>
+        </div>
+
+        <div className="filter-group" style={{flexGrow: 1, minWidth: '180px'}}>
+          <label htmlFor="filter-status-tit-ia" style={{ display: 'block', marginBottom: '0.25rem' }}>Status Títulos IA:</label>
+          <select 
+            id="filter-status-tit-ia" 
+            value={selectedStatusTituloIA} 
+            onChange={(e) => handleFilterChange(setSelectedStatusTituloIA, e.target.value)}
+            disabled={loading}
+            style={{width: '100%', padding: '0.5rem', border: '1px solid #ccc', borderRadius: 'var(--radius)', fontSize: '1rem'}}
+          >
+            {statusGeracaoIAOptions.map(opt => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
+          </select>
+        </div>
+
+        <div className="filter-group" style={{flexGrow: 1, minWidth: '180px'}}>
+          <label htmlFor="filter-status-desc-ia" style={{ display: 'block', marginBottom: '0.25rem' }}>Status Descrição IA:</label>
+          <select 
+            id="filter-status-desc-ia" 
+            value={selectedStatusDescricaoIA} 
+            onChange={(e) => handleFilterChange(setSelectedStatusDescricaoIA, e.target.value)}
+            disabled={loading}
+            style={{width: '100%', padding: '0.5rem', border: '1px solid #ccc', borderRadius: 'var(--radius)', fontSize: '1rem'}}
+          >
+            {statusGeracaoIAOptions.map(opt => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
+          </select>
+        </div>
       </div>
+
 
       <div className="card">
         <div className="card-header">
@@ -286,7 +332,7 @@ function ProdutosPage() {
             selectedIds={selectedProductIds}
             onSelectRow={handleSelectRow}
             onSelectAllRows={handleSelectAllRows}
-            onRowClick={handleRowClick}
+            onRowClick={handleRowClick} // Passando handleRowClick
             isLoading={loading}
         />
         

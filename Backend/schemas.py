@@ -1,7 +1,7 @@
 # tdai_project/Backend/schemas.py
 from pydantic import BaseModel, EmailStr, Field, HttpUrl
-from typing import Optional, List, Dict, Any, Union
-import enum
+from typing import Optional, List, Dict, Any, Union 
+import enum # Precisa ser importado para usar models.StatusGeracaoIAEnum como tipo
 from datetime import datetime
 
 import models # Garanta que models está importado aqui
@@ -70,11 +70,8 @@ class ProdutoBase(BaseModel):
 
 class ProdutoCreate(ProdutoBase):
     fornecedor_id: Optional[int] = None
-    # O status_enriquecimento_web não precisa estar no Create, pois o modelo tem um default.
-    # Se precisar definir na criação, adicione:
-    # status_enriquecimento_web: Optional[models.StatusEnriquecimentoEnum] = None 
-    # (ou Optional[str] se preferir passar a string e converter no CRUD)
-
+    titulos_sugeridos: Optional[List[str]] = Field(None, description="Lista de títulos sugeridos pela IA ou usuário.")
+    # Os status_ia não precisam estar no Create, pois o modelo models.Produto já define defaults.
 
 class ProdutoUpdate(BaseModel):
     nome_base: Optional[str] = Field(None, min_length=1, max_length=255)
@@ -82,25 +79,31 @@ class ProdutoUpdate(BaseModel):
     categoria_original: Optional[str] = Field(None, max_length=100)
     dados_brutos: Optional[Dict[str, Any]] = None
     descricao_principal_gerada: Optional[str] = None
-    titulos_sugeridos: Optional[Dict[str, str]] = None
+    titulos_sugeridos: Optional[List[str]] = Field(None, description="Lista de títulos sugeridos. Enviar lista vazia para limpar, ou null/None para não alterar.")
     fornecedor_id: Optional[int] = None
-    status_enriquecimento_web: Optional[str] = None # Recebe a string (ex: "FALHA_CONFIGURACAO_API_EXTERNA")
+    status_enriquecimento_web: Optional[str] = None 
     log_enriquecimento_web: Optional[Dict[str, Any]] = None
+    # NOVOS CAMPOS DE STATUS PARA ATUALIZAÇÃO
+    status_titulo_ia: Optional[models.StatusGeracaoIAEnum] = None
+    status_descricao_ia: Optional[models.StatusGeracaoIAEnum] = None
 
-class Produto(ProdutoBase): # Este é o schema para respostas (GET)
+class Produto(ProdutoBase): 
     id: int
     user_id: int
-    fornecedor: Optional[Fornecedor] = None
+    fornecedor: Optional[Fornecedor] = None 
     descricao_principal_gerada: Optional[str] = None
-    titulos_sugeridos: Optional[Dict[str, str]] = None
-    status_enriquecimento_web: models.StatusEnriquecimentoEnum # Mantém como o tipo Enum do Python
+    titulos_sugeridos: Optional[List[str]] = None
+    status_enriquecimento_web: models.StatusEnriquecimentoEnum 
     log_enriquecimento_web: Optional[Dict[str, Any]] = None
+    # NOVOS CAMPOS DE STATUS PARA RESPOSTA
+    status_titulo_ia: models.StatusGeracaoIAEnum
+    status_descricao_ia: models.StatusGeracaoIAEnum
     created_at: datetime
     updated_at: Optional[datetime] = None
 
     class Config:
         from_attributes = True
-        use_enum_values = True # IMPORTANTE: Para serialização (GET), o .value do enum será usado
+        use_enum_values = True 
 
 class ProdutoPage(BaseModel):
     items: List[Produto]
@@ -165,8 +168,8 @@ class User(UserBase):
     id: int
     is_active: bool
     is_superuser: bool
-    plano: Optional[Plano] = None
-    role: Optional[Role] = None
+    plano: Optional[Plano] = None 
+    role: Optional[Role] = None   
     created_at: datetime
     updated_at: Optional[datetime] = None
     class Config: from_attributes = True
