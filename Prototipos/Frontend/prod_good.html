@@ -1,0 +1,651 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+  <title>TDAi - Protótipo Tela Produtos (Aprimorado v2)</title>
+  <style>
+  :root {
+    --sidebar-bg: #1f2a40;
+    --sidebar-text: #cfd8e5;
+    --main-bg: #f4f6f8;
+    --card-bg: #fff;
+    --primary: #3b82f6;
+    --success: #10b981;
+    --info: #6366f1;
+    --warning: #f59e0b;
+    --danger: #ef4444;
+    --font: 'Helvetica Neue', Arial, sans-serif;
+    --radius: 8px;
+    --shadow-sm: 0 1px 4px rgba(0,0,0,0.1);
+    --shadow-md: 0 4px 8px rgba(0,0,0,0.15);
+    --border-color: #e5e7eb;
+    --text-color-light: #6b7280;
+    --error-color: #dc2626;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { display: flex; height: 100vh; font-family: var(--font); background: var(--main-bg); overflow: hidden; }
+  .sidebar { width: 240px; background: var(--sidebar-bg); color: var(--sidebar-text); padding: 20px; display: flex; flex-direction: column; }
+  .sidebar h1 { font-size: 1.5em; text-align: center; margin-bottom: 30px; color: #fff; }
+  .sidebar nav ul { list-style: none; }
+  .sidebar nav li a { display: block; padding: 12px 15px; text-decoration: none; color: var(--sidebar-text); border-radius: var(--radius); margin-bottom: 5px; transition: background 0.2s ease; }
+  .sidebar nav li a:hover, .sidebar nav li a.active { background: rgba(255,255,255,0.1); color: #fff; }
+  .main-content { flex: 1; display: flex; flex-direction: column; overflow-y: auto; }
+  .header-bar { background: var(--card-bg); padding: 15px 25px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border-color); box-shadow: var(--shadow-sm); }
+  .header-bar .search-bar input { padding: 10px 15px; border-radius: var(--radius); border: 1px solid var(--border-color); min-width: 300px; }
+  .header-bar .user-profile { display: flex; align-items: center; }
+  .header-bar .user-profile img { width: 40px; height: 40px; border-radius: 50%; margin-left: 15px; }
+  .page-area { padding: 25px; }
+  .page-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+  .page-header h2 { font-size: 1.8em; color: #333; }
+  .btn { padding: 10px 18px; border-radius: var(--radius); border: none; cursor: pointer; font-size: 0.95em; transition: opacity 0.2s ease, background-color 0.2s; display: inline-flex; align-items: center; justify-content: center; gap: 5px;}
+  .btn:hover { opacity: 0.85; }
+  .btn.loading { cursor: not-allowed; }
+  .btn.loading .btn-text { display: none; }
+  .btn .spinner { display: none; width: 16px; height: 16px; border: 2px solid rgba(255,255,255,0.3); border-top-color: white; border-radius: 50%; animation: spin 1s linear infinite; }
+  .btn.loading .spinner { display: inline-block; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  .btn-primary { background-color: var(--primary); color: white; }
+  .btn-danger { background-color: var(--danger); color: white; }
+  .btn-success { background-color: var(--success); color: white; }
+  .btn-info { background-color: var(--info); color: white; }
+  .btn-secondary { background-color: var(--text-color-light); color: white; }
+  .btn-sm { padding: 6px 12px; font-size: 0.85em; }
+  .btn-icon { padding: 8px; } /* For buttons with only icons */
+
+  /* Table Styles */
+  .table-container { background: var(--card-bg); border-radius: var(--radius); box-shadow: var(--shadow-sm); overflow-x: auto; padding: 20px; }
+  .filters-bar { margin-bottom: 20px; display: flex; gap: 15px; flex-wrap: wrap; align-items: center;}
+  .filters-bar select, .filters-bar input { padding: 8px 12px; border-radius: var(--radius); border: 1px solid var(--border-color); }
+  table { width: 100%; border-collapse: collapse; }
+  th, td { padding: 12px 15px; text-align: left; border-bottom: 1px solid var(--border-color); }
+  th { background-color: #f9fafb; font-weight: 600; color: #555; }
+  td .actions button { margin-right: 5px; }
+  .status { padding: 4px 8px; border-radius: 12px; font-size: 0.8em; font-weight: bold; text-transform: capitalize; }
+  .status-published { background-color: #d1fae5; color: #065f46; }
+  .status-draft { background-color: #fee2e2; color: #991b1b; }
+  .status-enrichment { background-color: #e0e7ff; color: #3730a3; }
+  .no-results { text-align: center; padding: 20px; color: var(--text-color-light); }
+
+  /* Modal Styles */
+  .modal { display: none; position: fixed; z-index: 1000; left: 0; top: 0; width: 100%; height: 100%; overflow: auto; background-color: rgba(0,0,0,0.5); }
+  .modal-content { background-color: #fff; margin: 5% auto; padding: 0; border: 1px solid #888; width: 70%; max-width: 900px; border-radius: var(--radius); box-shadow: var(--shadow-md); display: flex; flex-direction: column; max-height: 90vh; }
+  .modal-header { padding: 15px 25px; background-color: var(--primary); color: white; border-top-left-radius: var(--radius); border-top-right-radius: var(--radius); display: flex; justify-content: space-between; align-items: center; }
+  .modal-header h3 { margin: 0; font-size: 1.3em; }
+  .modal-header .close-btn { color: white; font-size: 24px; font-weight: bold; cursor: pointer; }
+  .modal-body { padding: 25px; overflow-y: auto; }
+  .modal-footer { padding: 15px 25px; display: flex; justify-content: flex-end; gap:10px; border-top: 1px solid var(--border-color); background-color: #f9fafb; border-bottom-left-radius: var(--radius); border-bottom-right-radius: var(--radius); }
+
+  .form-group { margin-bottom: 18px; }
+  .form-group label { display: block; margin-bottom: 6px; font-weight: 500; color: #444; }
+  .form-group label .required-asterisk { color: var(--danger); }
+  .form-group label .tooltip-icon { cursor: help; color: var(--text-color-light); font-size: 0.9em; margin-left: 4px; }
+  .form-group input[type="text"],
+  .form-group input[type="number"],
+  .form-group input[type="url"],
+  .form-group input[type="date"], /* Added for attribute type */
+  .form-group select,
+  .form-group textarea {
+    width: 100%; padding: 10px; border: 1px solid var(--border-color); border-radius: var(--radius);
+    font-family: var(--font); font-size: 0.95em;
+  }
+  .form-group textarea { min-height: 80px; resize: vertical; }
+  .error-message { display: block; color: var(--error-color); font-size: 0.85em; margin-top: 4px; }
+  .dynamic-list > li { display: flex; gap: 10px; align-items: flex-start; margin-bottom: 10px; padding:10px; border:1px solid #f0f0f0; border-radius: var(--radius); }
+  .dynamic-list .attribute-fields { flex-grow: 1; display: flex; gap: 10px; }
+  .dynamic-list .attribute-fields .form-group { margin-bottom: 0; flex:1; }
+  .dynamic-list .actions-group { display: flex; align-items: center; gap: 5px; flex-shrink:0; margin-top:28px; /* Aligns with inputs if labels are present */ }
+  .dynamic-list .actions-group button { padding: 5px; } /* smaller buttons for list items */
+  .suggestion-item { padding: 10px; border: 1px solid #eee; border-radius: var(--radius); margin-bottom:10px; background:#f9f9f9; }
+  .suggestion-item .content { flex-grow:1; }
+  .suggestion-item .actions { margin-left:10px; flex-shrink:0; }
+  .suggestion-item .confidence { font-size:0.8em; color: var(--text-color-light); margin-left:5px;}
+
+
+  /* Tabs for Modal */
+  .modal-tabs { display: flex; border-bottom: 1px solid var(--border-color); margin-bottom: 20px; }
+  .modal-tabs button { background: none; border: none; padding: 12px 18px; cursor: pointer; font-size: 0.95em; color: #555; border-bottom: 3px solid transparent; }
+  .modal-tabs button.active { color: var(--primary); border-bottom-color: var(--primary); font-weight: 600; }
+  .tab-pane { display: none; }
+  .tab-pane.active { display: block; animation: fadeIn 0.3s; }
+  @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+
+  .media-upload-area { border: 2px dashed var(--border-color); padding: 30px; text-align: center; background-color: #fdfdfd; border-radius: var(--radius); margin-bottom:15px; cursor:pointer; }
+  .media-upload-area:hover { border-color: var(--primary); }
+  .image-preview-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(100px, 1fr)); gap: 10px; margin-top:10px; }
+  .image-preview-item { border: 1px solid var(--border-color); border-radius: var(--radius); padding:5px; }
+  .image-preview-item img { width: 100%; height: 80px; object-fit: cover; border-radius: var(--radius); margin-bottom:5px;}
+  .image-preview-item input[type="text"] { font-size:0.8em; padding:4px; placeholder: "Alt text"; }
+
+
+  .bulk-actions-bar { padding: 10px; background-color: #e9ecef; border-radius: var(--radius); margin-bottom: 15px; display: none; /* JS to show when items selected */ align-items: center; gap: 10px; }
+  .pagination-controls { margin-top: 20px; text-align: center; }
+  .pagination-controls button { margin: 0 5px; }
+  </style>
+</head>
+<body>
+
+  <aside class="sidebar">
+    <h1>TDAi Plataforma</h1>
+    <nav>
+      <ul>
+        <li><a href="#">Dashboard</a></li>
+        <li><a href="#" class="active">Produtos</a></li>
+        <li><a href="#">Fornecedores</a></li>
+        <li><a href="#">Enriquecimento IA</a></li>
+        <li><a href="#">Histórico</a></li>
+        <li><a href="#">Configurações</a></li>
+      </ul>
+    </nav>
+  </aside>
+
+  <div class="main-content">
+    <header class="header-bar">
+      <div class="search-bar">
+        <input type="text" placeholder="Buscar produtos, SKUs, etc...">
+      </div>
+      <div class="user-profile">
+        <span>Nome do Usuário</span>
+        <img src="https://via.placeholder.com/40" alt="User Avatar">
+      </div>
+    </header>
+
+    <main class="page-area" id="product-management-area">
+      <div class="page-header">
+        <h2>Gestão de Produtos</h2>
+        <button class="btn btn-primary" onclick="openNewProductModal()"><span class="btn-text">Novo Produto</span><span class="spinner"></span></button>
+      </div>
+
+      <div class="filters-bar">
+        <input type="text" placeholder="Filtrar por nome...">
+        <select id="filter-category">
+          <option value="">Todas as Categorias</option>
+          <option value="eletronicos">Eletrônicos</option>
+          <option value="vestuario">Vestuário</option>
+        </select>
+        <select id="filter-status">
+            <option value="">Todos os Status</option>
+            <option value="published">Publicado</option>
+            <option value="draft">Rascunho</option>
+            <option value="enrichment">Em Enriquecimento</option>
+        </select>
+        <button class="btn btn-info btn-sm"><span class="btn-text">Aplicar Filtros</span><span class="spinner"></span></button>
+      </div>
+
+      <div class="bulk-actions-bar" id="bulkActionsBar">
+        <span>X itens selecionados:</span>
+        <button class="btn btn-danger btn-sm"><span class="btn-text">Excluir Selecionados</span><span class="spinner"></span></button>
+        <button class="btn btn-sm btn-secondary"><span class="btn-text">Alterar Status</span><span class="spinner"></span></button>
+      </div>
+
+      <div class="table-container">
+        <table id="productsTable">
+          <thead>
+            <tr>
+              <th><input type="checkbox" id="selectAllProducts" onchange="toggleSelectAll(this)"></th>
+              <th>ID</th>
+              <th>Nome do Produto</th>
+              <th>Categoria</th>
+              <th>Preço (R$)</th>
+              <th>Estoque</th>
+              <th>Status</th>
+              <th>Ações</th>
+            </tr>
+          </thead>
+          <tbody id="product-table-body">
+            <tr>
+              <td><input type="checkbox" class="product-checkbox" name="product_select"></td>
+              <td>1001</td>
+              <td>Smartphone TDAi X</td>
+              <td>Eletrônicos</td>
+              <td>1.299,90</td>
+              <td>150</td>
+              <td><span class="status status-published">Publicado</span></td>
+              <td class="actions">
+                <button class="btn btn-sm btn-info" onclick="openEditModal({id: 1001, nome: 'Smartphone TDAi X', categoria: 'Eletrônicos', preco: 1299.90, estoque: 150, descricao: 'Ótimo smartphone com IA.', imagem_url: 'https://via.placeholder.com/300x200?text=Produto+X', sku: 'SMART-X-001', imagens_adicionais: [{url:'https://via.placeholder.com/80?text=Img+1', alt:'Vista frontal'},{url:'https://via.placeholder.com/80?text=Img+2', alt:'Vista lateral'}], atributos_dinamicos: [{key: 'RAM', value: '8GB', type:'text'}, {key: 'Armazenamento', value: '128GB', type:'text'}], titulos_sugeridos: [{text:'Smartphone Incrível TDAi X', confidence:0.9},{text:'O Melhor Smartphone com IA', confidence:0.8}], descricoes_sugeridas: [{text:'Descubra o Smartphone TDAi X, uma revolução em tecnologia móvel.', confidence:0.85}, {text:'Compre agora o TDAi X e experimente o futuro.', confidence:0.75}]})"><span class="btn-text">Editar</span><span class="spinner"></span></button>
+                <button class="btn btn-sm btn-danger"><span class="btn-text">Excluir</span><span class="spinner"></span></button>
+              </td>
+            </tr>
+             <tr>
+              <td colspan="8" class="no-results" style="display:none;">Nenhum produto encontrado.</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="pagination-controls">
+        <button class="btn btn-sm btn-secondary"><span class="btn-text">&laquo; Anterior</span><span class="spinner"></span></button>
+        <span>Página 1 de 10</span>
+        <button class="btn btn-sm btn-secondary"><span class="btn-text">Próximo &raquo;</span><span class="spinner"></span></button>
+      </div>
+    </main>
+  </div>
+
+  <div id="editProductModal" class="modal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3 id="modalTitle">Editar Produto</h3>
+        <span class="close-btn" onclick="closeModal()">&times;</span>
+      </div>
+      <div class="modal-body">
+        <input type="hidden" id="productId">
+
+        <div class="modal-tabs">
+          <button class="tab-button active" onclick="openTab(event, 'tab-details')">Detalhes Principais</button>
+          <button class="tab-button" onclick="openTab(event, 'tab-media')">Mídia e Descrições</button>
+          <button class="tab-button" onclick="openTab(event, 'tab-price')">Preço e Estoque</button>
+          <button class="tab-button" onclick="openTab(event, 'tab-attributes')">Atributos Específicos</button>
+          <button class="tab-button" onclick="openTab(event, 'tab-ia')">Sugestões da IA</button>
+        </div>
+
+        <div id="tab-details" class="tab-pane active">
+          <h4>Detalhes Principais</h4>
+          <div class="form-group">
+            <label for="productName">Nome do Produto: <span class="required-asterisk">*</span></label>
+            <input type="text" id="productName" placeholder="Ex: Smartphone Avançado TDAi">
+            <span class="error-message" id="productNameError"></span>
+          </div>
+          <div class="form-group">
+            <label for="productSKU">SKU: <span class="tooltip-icon" title="Código único do produto no seu sistema.">?</span></label>
+            <input type="text" id="productSKU" placeholder="Ex: TDAI-SMART-001">
+            <span class="error-message" id="productSKUError"></span>
+          </div>
+          <div class="form-group">
+            <label for="productCategory">Categoria: <span class="required-asterisk">*</span></label>
+            <select id="productCategory">
+              <option value="">Selecione uma categoria</option>
+              <option value="eletronicos">Eletrônicos</option>
+              <option value="vestuario">Vestuário</option>
+            </select>
+            <span class="error-message" id="productCategoryError"></span>
+          </div>
+           <div class="form-group">
+            <label for="productShortDescription">Descrição Curta (Chamada):</label>
+            <textarea id="productShortDescription" rows="3" placeholder="Uma breve descrição que chame a atenção. Máx 255 caracteres."></textarea>
+            <span class="error-message" id="productShortDescriptionError"></span>
+          </div>
+        </div>
+
+        <div id="tab-media" class="tab-pane">
+          <h4>Mídia e Descrições</h4>
+          <div class="form-group">
+            <label>Upload de Imagens:</label>
+            <div class="media-upload-area" onclick="document.getElementById('fileInputPlaceholder').click()">
+              Clique ou arraste e solte arquivos aqui.
+              <br><small>(JPG, PNG. Múltiplas imagens permitidas)</small>
+              <input type="file" id="fileInputPlaceholder" multiple style="display:none;">
+            </div>
+          </div>
+          <div class="form-group">
+            <label>Imagens do Produto:</label>
+            <div class="image-preview-list" id="imagePreviewList">
+                </div>
+          </div>
+          <div class="form-group">
+            <label for="productLongDescription">Descrição Longa/Completa:</label>
+            <textarea id="productLongDescription" rows="6" placeholder="Detalhe todas as características..."></textarea>
+            <span class="error-message" id="productLongDescriptionError"></span>
+          </div>
+        </div>
+
+        <div id="tab-price" class="tab-pane">
+          <h4>Preço e Estoque</h4>
+          <div class="form-group">
+            <label for="productPrice">Preço de Venda (R$): <span class="required-asterisk">*</span></label>
+            <input type="number" id="productPrice" step="0.01" placeholder="Ex: 1299.90">
+            <span class="error-message" id="productPriceError"></span>
+          </div>
+          <div class="form-group">
+            <label for="productPromoPrice">Preço Promocional (R$):</label>
+            <input type="number" id="productPromoPrice" step="0.01" placeholder="Ex: 1199.00">
+          </div>
+          <div class="form-group">
+            <label for="productStock">Quantidade em Estoque: <span class="required-asterisk">*</span></label>
+            <input type="number" id="productStock" placeholder="Ex: 150">
+            <span class="error-message" id="productStockError"></span>
+          </div>
+           <div class="form-group">
+            <label for="productUnit">Unidade:</label>
+            <input type="text" id="productUnit" placeholder="Ex: pç, un, kg">
+          </div>
+        </div>
+
+        <div id="tab-attributes" class="tab-pane">
+          <h4>Atributos Específicos do Produto</h4>
+          <ul id="dynamic-attributes-list" class="dynamic-list"></ul>
+          <button class="btn btn-secondary btn-sm" onclick="addAttributeField()"><span class="btn-text">+ Adicionar Atributo</span><span class="spinner"></span></button>
+        </div>
+
+        <div id="tab-ia" class="tab-pane">
+          <h4>Sugestões da Inteligência Artificial</h4>
+          <button id="btnAnalyzeIA" class="btn btn-info" style="margin-bottom: 20px;" onclick="analyzeWithIA(this)"><span class="btn-text">Analisar Produto e Gerar Sugestões com IA</span><span class="spinner"></span></button>
+
+          <div class="form-group">
+            <label>Títulos Gerados/Sugeridos:</label>
+            <div id="dynamic-titles-list">
+              </div>
+            <button class="btn btn-secondary btn-sm" onclick="addUserTitleField()"><span class="btn-text">+ Adicionar Título Manual</span><span class="spinner"></span></button>
+          </div>
+
+          <div class="form-group">
+            <label>Descrições Geradas/Sugeridas:</label>
+            <div id="dynamic-descriptions-list">
+              </div>
+            <button class="btn btn-secondary btn-sm" onclick="addUserDescriptionField()"><span class="btn-text">+ Adicionar Descrição Manual</span><span class="spinner"></span></button>
+          </div>
+        </div>
+
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" onclick="closeModal()"><span class="btn-text">Cancelar</span><span class="spinner"></span></button>
+        <button id="btnSaveProduct" class="btn btn-success" onclick="saveProductChanges(this)"><span class="btn-text">Salvar Alterações</span><span class="spinner"></span></button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const modal = document.getElementById('editProductModal');
+    const modalTitle = document.getElementById('modalTitle');
+    const productIdField = document.getElementById('productId');
+    const productNameField = document.getElementById('productName');
+    const productSKUField = document.getElementById('productSKU');
+    const productCategoryField = document.getElementById('productCategory');
+    const productShortDescriptionField = document.getElementById('productShortDescription');
+    // const productImageURLField = document.getElementById('productImageURL'); // Será substituído por lista
+    const imagePreviewList = document.getElementById('imagePreviewList');
+    const productLongDescriptionField = document.getElementById('productLongDescription');
+    const productPriceField = document.getElementById('productPrice');
+    const productPromoPriceField = document.getElementById('productPromoPrice');
+    const productStockField = document.getElementById('productStock');
+    const productUnitField = document.getElementById('productUnit');
+
+    let tempAttributes = [];
+    let tempTitles = []; // Array de objetos {text: "string", confidence: 0.0}
+    let tempDescriptions = []; // Array de objetos {text: "string", confidence: 0.0}
+    let tempImages = []; // Array de objetos {url: "string", alt: "string"}
+
+
+    function openModal(productData = null) {
+      // Limpar mensagens de erro
+      document.querySelectorAll('.error-message').forEach(el => el.textContent = '');
+      if (productData) {
+        modalTitle.textContent = 'Editar Produto';
+        productIdField.value = productData.id;
+        productNameField.value = productData.nome || '';
+        productSKUField.value = productData.sku || '';
+        productCategoryField.value = productData.categoria || '';
+        productShortDescriptionField.value = productData.descricao_curta || '';
+        productLongDescriptionField.value = productData.descricao || '';
+        productPriceField.value = productData.preco || '';
+        productPromoPriceField.value = productData.preco_promocional || '';
+        productStockField.value = productData.estoque || '';
+        productUnitField.value = productData.unidade || '';
+
+        tempAttributes = productData.atributos_dinamicos ? JSON.parse(JSON.stringify(productData.atributos_dinamicos)) : [];
+        tempTitles = productData.titulos_sugeridos ? JSON.parse(JSON.stringify(productData.titulos_sugeridos)) : [];
+        tempDescriptions = productData.descricoes_sugeridas ? JSON.parse(JSON.stringify(productData.descricoes_sugeridas)) : [];
+        tempImages = productData.imagens_adicionais ? JSON.parse(JSON.stringify(productData.imagens_adicionais)) : (productData.imagem_url ? [{url: productData.imagem_url, alt:''}] : []);
+
+
+      } else {
+        modalTitle.textContent = 'Novo Produto';
+        const fieldsToClear = [productIdField, productNameField, productSKUField, productCategoryField, productShortDescriptionField, productLongDescriptionField, productPriceField, productPromoPriceField, productStockField, productUnitField];
+        fieldsToClear.forEach(f => f.value = '');
+        productCategoryField.value = ""; // Reset select
+        tempAttributes = [{ key: '', value: '', type: 'text' }]; // Iniciar com um atributo
+        tempTitles = [];
+        tempDescriptions = [];
+        tempImages = [];
+      }
+      renderAttributes();
+      renderTitles();
+      renderDescriptions();
+      renderImages();
+      openTab(null, 'tab-details');
+      modal.style.display = 'block';
+    }
+
+    function openNewProductModal(){ openModal(); }
+    function closeModal() { modal.style.display = 'none'; }
+    window.onclick = function(event) { if (event.target == modal) { closeModal(); } }
+
+    // --- Lógica para Imagens ---
+    function renderImages() {
+        imagePreviewList.innerHTML = '';
+        tempImages.forEach((img, index) => {
+            const itemDiv = document.createElement('div');
+            itemDiv.className = 'image-preview-item';
+            itemDiv.innerHTML = `
+                <img src="${img.url || 'https://via.placeholder.com/80?text=Nova'}" alt="${img.alt || 'Preview'}">
+                <input type="text" class="form-control form-control-sm mt-1" value="${img.alt || ''}" onchange="updateTempImage(${index}, 'alt', this.value)" placeholder="Texto Alternativo">
+                <input type="url" class="form-control form-control-sm mt-1" value="${img.url || ''}" onchange="updateTempImage(${index}, 'url', this.value)" placeholder="URL da Imagem">
+                <button class="btn btn-danger btn-sm btn-icon mt-1" onclick="removeTempImage(${index})" title="Remover Imagem">&times;</button>
+            `;
+            // No React, o upload real seria tratado aqui.
+            // Por agora, estamos apenas simulando com URLs.
+            imagePreviewList.appendChild(itemDiv);
+        });
+         // Placeholder para adicionar nova imagem (simulado)
+        const addImgButtonLi = document.createElement('div');
+        addImgButtonLi.className = 'image-preview-item';
+        addImgButtonLi.style.textAlign = 'center';
+        addImgButtonLi.style.cursor = 'pointer';
+        addImgButtonLi.innerHTML = `<div onclick="addTempImage()" style="display:flex; flex-direction:column; justify-content:center; align-items:center; width:100%; height:100%; border: 1px dashed #ccc; border-radius:var(--radius);">+ Add Img<br><small>(URL)</small></div>`;
+        imagePreviewList.appendChild(addImgButtonLi);
+    }
+    function addTempImage() {
+        tempImages.push({ url: '', alt: '' });
+        renderImages();
+    }
+    function updateTempImage(index, field, value) {
+        if (tempImages[index]) tempImages[index][field] = value;
+        if (field === 'url') renderImages(); // Re-render se a URL da imagem mudar para atualizar o preview
+        console.log("Imagens temporárias:", tempImages);
+    }
+    function removeTempImage(index) {
+        tempImages.splice(index, 1);
+        renderImages();
+    }
+
+
+    // --- Lógica para Atributos Dinâmicos ---
+    function renderAttributes() {
+      const attributesListUl = document.getElementById('dynamic-attributes-list');
+      attributesListUl.innerHTML = '';
+      tempAttributes.forEach((attr, index) => {
+        const li = document.createElement('li');
+        li.innerHTML = `
+          <div class="attribute-fields">
+            <div class="form-group">
+              <label for="attrKey_${index}" class="sr-only">Nome do Atributo</label>
+              <input type="text" id="attrKey_${index}" value="${attr.key || ''}" onchange="updateTempAttribute(${index}, 'key', this.value)" placeholder="Nome (Ex: Cor)">
+            </div>
+            <div class="form-group">
+              <label for="attrValue_${index}" class="sr-only">Valor do Atributo</label>
+              <input type="${attr.type === 'number' ? 'number' : 'text'}" id="attrValue_${index}" value="${attr.value || ''}" onchange="updateTempAttribute(${index}, 'value', this.value)" placeholder="Valor (Ex: Azul)">
+            </div>
+            <div class="form-group">
+              <label for="attrType_${index}" class="sr-only">Tipo</label>
+              <select id="attrType_${index}" onchange="updateTempAttribute(${index}, 'type', this.value); renderAttributes();">
+                <option value="text" ${attr.type === 'text' ? 'selected' : ''}>Texto</option>
+                <option value="number" ${attr.type === 'number' ? 'selected' : ''}>Número</option>
+                <option value="boolean" ${attr.type === 'boolean' ? 'selected' : ''}>Sim/Não</option>
+                <option value="date" ${attr.type === 'date' ? 'selected' : ''}>Data</option>
+              </select>
+            </div>
+          </div>
+          <div class="actions-group">
+            <button class="btn btn-secondary btn-sm btn-icon" title="Mover para Cima (Conceitual)">&#8593;</button>
+            <button class="btn btn-secondary btn-sm btn-icon" title="Mover para Baixo (Conceitual)">&#8595;</button>
+            <button class="btn btn-danger btn-sm btn-icon" onclick="removeTempAttribute(${index})" title="Remover Atributo">&times;</button>
+          </div>
+        `;
+        attributesListUl.appendChild(li);
+      });
+    }
+    function addAttributeField() { tempAttributes.push({ key: '', value: '', type: 'text' }); renderAttributes(); }
+    function updateTempAttribute(index, field, newValue) { if (tempAttributes[index]) tempAttributes[index][field] = newValue; console.log("Atributos:", tempAttributes); }
+    function removeTempAttribute(index) { tempAttributes.splice(index, 1); renderAttributes(); }
+
+    // --- Lógica para Títulos e Descrições Sugeridos (com "Aplicar" e "Confiança") ---
+    function createSuggestionItemHTML(item, index, type) {
+        const onchangeFunc = type === 'title' ? `updateTempTitle(${index}, 'text', this.value)` : `updateTempDescription(${index}, 'text', this.value)`;
+        const removeFunc = type === 'title' ? `removeTempTitle(${index})` : `removeTempDescription(${index})`;
+        const applyFunc = type === 'title' ? `applySuggestion('productName', '${item.text.replace(/'/g, "\\'")}')` : `applySuggestion('productShortDescription', '${item.text.replace(/'/g, "\\'")}')`; // Simplificado
+
+        return `
+            <div class="suggestion-item" style="display:flex; align-items:center;">
+                <div class="content">
+                 <input type="text" value="${item.text || ''}" onchange="${onchangeFunc}" class="form-control form-control-sm" placeholder="${type === 'title' ? 'Título' : 'Descrição'}">
+                 ${item.confidence ? `<span class="confidence">(Confiança: ${ (item.confidence * 100).toFixed(0) }%)</span>` : ''}
+                </div>
+                <div class="actions">
+                    <button class="btn btn-success btn-sm btn-icon" onclick="${applyFunc}" title="Aplicar Sugestão">&#10003;</button>
+                    <button class="btn btn-danger btn-sm btn-icon" onclick="${removeFunc}" title="Remover Sugestão">&times;</button>
+                </div>
+            </div>`;
+    }
+
+    function renderTitles() {
+      const titlesListDiv = document.getElementById('dynamic-titles-list');
+      titlesListDiv.innerHTML = '';
+      tempTitles.forEach((title, index) => titlesListDiv.innerHTML += createSuggestionItemHTML(title, index, 'title'));
+    }
+    function addUserTitleField() { tempTitles.push({text:"", confidence: null}); renderTitles(); }
+    function updateTempTitle(index, field, newValue) { if (tempTitles[index]) tempTitles[index][field] = newValue; console.log("Títulos:", tempTitles); }
+    function removeTempTitle(index) { tempTitles.splice(index, 1); renderTitles(); }
+
+    function renderDescriptions() {
+      const descriptionsListDiv = document.getElementById('dynamic-descriptions-list');
+      descriptionsListDiv.innerHTML = '';
+      tempDescriptions.forEach((desc, index) => descriptionsListDiv.innerHTML += createSuggestionItemHTML(desc, index, 'description'));
+    }
+    function addUserDescriptionField() { tempDescriptions.push({text:"", confidence: null}); renderDescriptions(); }
+    function updateTempDescription(index, field, newValue) { if (tempDescriptions[index]) tempDescriptions[index][field] = newValue; console.log("Descrições:", tempDescriptions); }
+    function removeTempDescription(index) { tempDescriptions.splice(index, 1); renderDescriptions(); }
+
+    function applySuggestion(targetFieldId, suggestionText) {
+        document.getElementById(targetFieldId).value = suggestionText;
+    }
+
+
+    function saveProductChanges(button) {
+      // Simular estado de carregamento
+      button.classList.add('loading');
+      button.disabled = true;
+
+      // Validação (exemplo simples)
+      let isValid = true;
+      if (!productNameField.value) {
+        document.getElementById('productNameError').textContent = 'Nome do produto é obrigatório.';
+        isValid = false;
+      } else { document.getElementById('productNameError').textContent = '';}
+
+      if (!productCategoryField.value) {
+        document.getElementById('productCategoryError').textContent = 'Categoria é obrigatória.';
+         isValid = false;
+      } else { document.getElementById('productCategoryError').textContent = '';}
+      // Adicionar mais validações...
+
+      if (!isValid) {
+          openTab(null, 'tab-details'); // Volta para a aba com erro, se necessário
+          setTimeout(() => { // Simula fim do carregamento
+            button.classList.remove('loading');
+            button.disabled = false;
+          }, 500);
+          return;
+      }
+
+      const productData = {
+        id: productIdField.value,
+        nome: productNameField.value,
+        sku: productSKUField.value,
+        categoria: productCategoryField.value,
+        descricao_curta: productShortDescriptionField.value,
+        imagens_adicionais: tempImages.filter(img => img.url),
+        descricao: productLongDescriptionField.value,
+        preco: parseFloat(productPriceField.value),
+        preco_promocional: productPromoPriceField.value ? parseFloat(productPromoPriceField.value) : null,
+        estoque: parseInt(productStockField.value),
+        unidade: productUnitField.value,
+        atributos_dinamicos: tempAttributes.filter(attr => attr.key && attr.value),
+        titulos_sugeridos: tempTitles.filter(title => title.text),
+        descricoes_sugeridas: tempDescriptions.filter(desc => desc.text),
+      };
+      console.log("Salvando produto:", productData);
+
+      setTimeout(() => { // Simula chamada de API
+        button.classList.remove('loading');
+        button.disabled = false;
+        alert('Dados "salvos" no console. Verifique o console do navegador.');
+        closeModal();
+      }, 1500);
+    }
+
+    function analyzeWithIA(button){
+        button.classList.add('loading');
+        button.disabled = true;
+        console.log("Analisando produto com IA...");
+        setTimeout(() => {
+            // Simular recebimento de novas sugestões
+            tempTitles.push({text: "Título IA Extra!", confidence: 0.95});
+            tempDescriptions.push({text: "Nova descrição da IA super legal.", confidence: 0.88});
+            renderTitles();
+            renderDescriptions();
+
+            button.classList.remove('loading');
+            button.disabled = false;
+            alert("Análise da IA concluída! Novas sugestões adicionadas.");
+        }, 2000);
+    }
+
+    // --- Lógica das Abas ---
+    function openTab(event, tabName) {
+      var i, tabcontent, tablinks;
+      tabcontent = document.getElementsByClassName("tab-pane");
+      for (i = 0; i < tabcontent.length; i++) { tabcontent[i].style.display = "none"; tabcontent[i].classList.remove("active"); }
+      tablinks = document.getElementsByClassName("tab-button");
+      for (i = 0; i < tablinks.length; i++) { tablinks[i].classList.remove("active"); }
+      document.getElementById(tabName).style.display = "block";
+      document.getElementById(tabName).classList.add("active");
+      if(event) event.currentTarget.classList.add("active");
+      else document.querySelector(`.modal-tabs button[onclick*="${tabName}"]`).classList.add('active');
+    }
+
+    // --- Lógica da Tabela (Seleção e Bulk Actions) ---
+    function toggleSelectAll(checkbox) {
+        document.querySelectorAll('.product-checkbox').forEach(cb => cb.checked = checkbox.checked);
+        updateBulkActionsBar();
+    }
+    document.addEventListener('change', function(e){ if(e.target.classList.contains('product-checkbox')) updateBulkActionsBar(); });
+    function updateBulkActionsBar() {
+        const selectedCount = document.querySelectorAll('.product-checkbox:checked').length;
+        const bulkActionsBar = document.getElementById('bulkActionsBar');
+        if (selectedCount > 0) {
+            bulkActionsBar.style.display = 'flex';
+            bulkActionsBar.querySelector('span').textContent = `${selectedCount} itens selecionados:`;
+        } else { bulkActionsBar.style.display = 'none'; }
+    }
+
+    // Checa se a tabela está vazia (simulado)
+    function checkTableEmpty() {
+        const tableBody = document.getElementById('product-table-body');
+        const noResultsRow = tableBody.querySelector('.no-results');
+        // Em um cenário real, isso seria verificado após carregar os dados
+        if (tableBody.querySelectorAll('tr:not(.no-results)').length === 0) {
+            if(noResultsRow) noResultsRow.style.display = 'table-row';
+            else { // Adiciona se não existir (apenas para o protótipo)
+                const tr = document.createElement('tr');
+                tr.className = 'no-results';
+                tr.innerHTML = `<td colspan="8">Nenhum produto encontrado.</td>`;
+                tableBody.appendChild(tr);
+            }
+        } else {
+            if(noResultsRow) noResultsRow.style.display = 'none';
+        }
+    }
+    // Simula a checagem após o carregamento da página
+    // document.addEventListener('DOMContentLoaded', checkTableEmpty); // Removido para não mostrar por padrão se há exemplos
+  </script>
+</body>
+</html>

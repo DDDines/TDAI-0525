@@ -1,0 +1,951 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+    <title>TDAi - Protótipo Tela Produtos (v5.5 - Validação e Payload Melhorados)</title>
+    <style>
+        :root {
+            --main-bg: #f4f6f8; --card-bg: #fff; --primary: #3b82f6; --success: #10b981;
+            --info: #6366f1; --warning: #f59e0b; --danger: #ef4444; --font: 'Helvetica Neue', Arial, sans-serif;
+            --radius: 8px; --shadow-sm: 0 1px 4px rgba(0,0,0,0.1); --shadow-md: 0 4px 8px rgba(0,0,0,0.15);
+            --border-color: #e5e7eb; --text-color-light: #6b7280; --error-color: #dc2626; --disabled-bg: #e9ecef;
+            --disabled-text: #9ca3af;
+        }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { font-family: var(--font); background: var(--main-bg); color: #333; line-height: 1.6; }
+        .main-content-wrapper { padding: 25px; max-width: 1400px; margin: 0 auto; }
+        .page-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+        .page-header h2 { font-size: 1.8em; color: #333; }
+        .btn { padding: 10px 18px; border-radius: var(--radius); border: none; cursor: pointer; font-size: 0.95em; transition: opacity 0.2s ease, background-color 0.2s; display: inline-flex; align-items: center; justify-content: center; gap: 5px;}
+        .btn:hover { opacity: 0.85; }
+        .btn:disabled, .btn.loading { background-color: var(--disabled-bg); color: var(--text-color-light); cursor: not-allowed; opacity: 0.7;}
+        .btn.loading .btn-text { display: none; }
+        .btn .spinner { display: none; width: 16px; height: 16px; border: 2px solid rgba(255,255,255,0.3); border-top-color: white; border-radius: 50%; animation: spin 1s linear infinite; }
+        .btn.loading .spinner { display: inline-block; } @keyframes spin { to { transform: rotate(360deg); } }
+        .btn-primary { background-color: var(--primary); color: white; } .btn-danger { background-color: var(--danger); color: white; }
+        .btn-success { background-color: var(--success); color: white; } .btn-info { background-color: var(--info); color: white; }
+        .btn-secondary { background-color: var(--text-color-light); color: white; } .btn-light { background-color: #f0f0f0; color: #333; border: 1px solid #ccc;}
+        .btn-sm { padding: 6px 12px; font-size: 0.85em; } .btn-xs { padding: 4px 8px; font-size: 0.75em; } .btn-icon { padding: 8px; }
+        .btn-link { background:none; color:var(--primary); padding:0; text-decoration:underline; border:none; font-size:0.9em;}
+
+        .table-container { background: var(--card-bg); border-radius: var(--radius); box-shadow: var(--shadow-sm); overflow-x: auto; padding: 20px; }
+        .filters-bar { margin-bottom: 20px; display: flex; gap: 10px; flex-wrap: wrap; align-items: center;}
+        .filters-bar select, .filters-bar input[type="text"] { padding: 8px 12px; border-radius: var(--radius); border: 1px solid var(--border-color); font-size:0.9em; }
+        .filters-bar .form-group {margin-bottom:0;}
+        table { width: 100%; border-collapse: collapse; }
+        th, td { padding: 12px 15px; text-align: left; border-bottom: 1px solid var(--border-color); font-size:0.9em; }
+        th { background-color: #f9fafb; font-weight: 600; color: #555; }
+        td .actions button { margin-right: 5px; }
+        .status { padding: 4px 8px; border-radius: 12px; font-size: 0.8em; font-weight: bold; text-transform: capitalize; }
+        .status-published { background-color: #d1fae5; color: #065f46; } .status-draft { background-color: #fee2e2; color: #991b1b; }
+        .no-results { text-align: center; padding: 20px; color: var(--text-color-light); }
+        .inline-edit-input { border: 1px solid var(--primary)!important; padding: 4px 6px!important; width: 100px!important; font-size:0.9em!important; border-radius:4px!important; }
+
+        .modal { display: none; position: fixed; z-index: 1000; left: 0; top: 0; width: 100%; height: 100%; overflow: auto; background-color: rgba(0,0,0,0.5); }
+        .modal-content { background-color: #fff; margin: 2% auto; padding: 0; border: 1px solid #888; width: 90%; max-width: 1200px; border-radius: var(--radius); box-shadow: var(--shadow-md); display: flex; flex-direction: column; max-height: 96vh; }
+        .modal-header { padding: 15px 25px; background-color: var(--primary); color: white; display: flex; justify-content: space-between; align-items: center; }
+        .modal-header h3 { margin: 0; font-size: 1.3em; } .modal-header .close-btn { color: white; font-size: 24px; font-weight: bold; cursor: pointer; }
+        .modal-header-toolbar { display: flex; justify-content: space-between; align-items: center; padding: 10px 25px; background-color: #f8f9fa; border-bottom: 1px solid var(--border-color); }
+        .product-type-selector-group { display: flex; align-items: center; gap: 15px; }
+        .product-type-selector-group .form-group {margin-bottom:0;}
+        #formErrorsSummary { padding: 10px 25px; background-color: #fffbe6; border:1px solid var(--warning); border-radius:var(--radius); color: var(--warning); font-size:0.9em; display:none; margin: 0 25px 15px 25px;}
+        #formErrorsSummary ul { margin:0; padding-left:20px; } #formErrorsSummary li { cursor:pointer; text-decoration:underline; } #formErrorsSummary li:hover { color:var(--danger); }
+        .modal-body { padding: 0 25px 25px 25px; overflow-y: auto; }
+        .modal-footer { padding: 15px 25px; display: flex; justify-content: space-between; align-items:center; gap:10px; border-top: 1px solid var(--border-color); background-color: #f9fafb; }
+        .modal-footer .actions-left { display:flex; gap:10px; }
+
+        .form-group { margin-bottom: 18px; }
+        .form-group label { display: block; margin-bottom: 6px; font-weight: 500; color: #444; }
+        .form-group label .required-asterisk { color: var(--danger); }
+        .form-group label .tooltip-icon { cursor: help; color: var(--text-color-light); font-size: 0.9em; margin-left: 4px; border: 1px solid; border-radius: 50%; width: 16px; height:16px; display:inline-flex; justify-content:center; align-items:center;}
+        .form-group input[type="text"], .form-group input[type="number"], .form-group input[type="url"], .form-group input[type="date"], .form-group select, .form-group textarea {
+            width: 100%; padding: 10px; border: 1px solid var(--border-color); border-radius: var(--radius); font-family: var(--font); font-size: 0.95em;
+        }
+        .form-group input.is-invalid, .form-group select.is-invalid, .form-group textarea.is-invalid { border-color: var(--error-color); }
+        .form-group input:disabled, .form-group select:disabled, .form-group textarea:disabled { background-color:var(--disabled-bg); color:var(--disabled-text); cursor: not-allowed;}
+        .form-group textarea { min-height: 80px; resize: vertical; }
+        .error-message { display: block; color: var(--error-color); font-size: 0.85em; margin-top: 4px; min-height: 1em; }
+        .dynamic-list > li { display: flex; gap: 10px; align-items: flex-start; margin-bottom: 10px; padding:10px; border:1px solid #f0f0f0; border-radius: var(--radius); background: #fafafa; animation: itemFadeIn 0.3s ease-out; }
+        @keyframes itemFadeIn { from { opacity:0; transform:translateY(-10px); } to { opacity:1; transform:translateY(0); } }
+        .dynamic-list .attribute-fields { flex-grow: 1; display: flex; flex-wrap:wrap; gap: 10px; }
+        .dynamic-list .attribute-fields .form-group { margin-bottom: 0; flex:1 1 200px; }
+        .dynamic-list .actions-group { display: flex; align-items: center; gap: 5px; flex-shrink:0; margin-top:5px; }
+        .suggestion-item { padding: 8px; border: 1px solid #eee; border-radius: var(--radius); margin-bottom:8px; background:#f9f9f9; display:flex; align-items:center; justify-content:space-between; }
+        .suggestion-item .content { flex-grow:1; display:flex; align-items:center; gap:8px; }
+        .suggestion-item .content input, .suggestion-item .content textarea { font-size:0.9em; padding:6px;}
+        .suggestion-item .actions { margin-left:10px; flex-shrink:0; }
+        .suggestion-item .confidence { font-size:0.8em; color: var(--text-color-light); margin-left:5px;}
+        .ia-suggestion-diff-view { display: flex; gap:10px; border:1px solid #eee; padding:10px; margin-bottom:10px; background:#fff; }
+        .ia-suggestion-diff-view .original-text-display { flex:1; background:#f9f9f9; padding:8px; border-radius:4px; font-style:italic; color:#555; border:1px solid #eee; min-height:38px; word-break:break-word;}
+        .ia-suggestion-diff-view .suggested-text-input { flex:1; }
+        .ia-suggestion-diff-view .suggested-text-input textarea {min-height:38px; font-size:0.95em;}
+
+
+        .modal-tabs { display: flex; border-bottom: 1px solid var(--border-color); margin: 15px 0; flex-wrap:wrap; }
+        .modal-tabs button { background: none; border: none; padding: 12px 18px; cursor: pointer; font-size: 0.9em; color: #555; border-bottom: 3px solid transparent; display:flex; align-items:center; gap:5px;}
+        .modal-tabs button.active { color: var(--primary); border-bottom-color: var(--primary); font-weight: 600; }
+        .tab-status-indicator { font-size: 1.2em; line-height: 1; }
+        .tab-status-indicator.error-count { font-size:0.7em; background-color:var(--danger); color:white; padding:1px 5px; border-radius:10px; margin-left:3px;}
+        .status-dot-pending { color: #bfbfbf; } .status-dot-error { color: var(--danger); } .status-dot-complete { color: var(--success); }
+        .tab-pane { display: none; padding-top:10px; } .tab-pane.active { display: block; animation: fadeIn 0.3s; }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+
+        .media-upload-area { border: 2px dashed var(--border-color); padding: 30px; text-align: center; background-color: #fdfdfd; border-radius: var(--radius); margin-bottom:10px; cursor:pointer; }
+        .media-upload-area:hover { border-color: var(--primary); }
+        .upload-progress-bar-container { margin-top:5px; font-size:0.8em; color:var(--text-color-light);}
+        .upload-progress-bar { width:100%; background-color: #eee; border-radius:4px; height:10px; margin-top:2px; display:block;}
+        .upload-progress-bar div { width:0%; height:100%; background-color:var(--success); border-radius:4px; transition: width 0.2s ease-out;}
+        .image-preview-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 15px; margin-top:10px; }
+        .image-preview-item { border: 1px solid var(--border-color); border-radius: var(--radius); padding:10px; background:#f9f9f9; position:relative;}
+        .image-preview-item img { width: 100%; height: 100px; object-fit: cover; border-radius: var(--radius); margin-bottom:8px; border: 1px solid #eee;}
+        .image-preview-item input[type="text"], .image-preview-item input[type="url"] { font-size:0.85em; padding:6px; margin-top:5px; width:100%;}
+        .image-preview-item .media-actions { margin-top:8px; display:flex; justify-content:space-between; align-items:center;}
+        .image-preview-item .media-actions .reorder-icons { display:flex; gap:3px; }
+        .image-preview-item .media-actions .reorder-icons button { padding:2px 4px;}
+        .image-preview-item .main-image-badge { position:absolute; top:5px; left:5px; background:var(--success); color:white; padding:2px 6px; font-size:0.7em; border-radius:4px;}
+
+        .content-block-container { margin-bottom: 20px; padding: 20px; border: 1px solid #ddd; border-radius: var(--radius); background: #fdfdff; position:relative; animation: itemFadeIn 0.3s ease-out;}
+        .content-block-container.highlight-flash { animation: flash 0.7s ease-out; }
+        .content-block-container details summary { font-weight:normal; cursor:pointer; padding: 5px; margin:-20px -20px 15px -20px; border-bottom:1px solid #eee; background-color:#f9f9f9; border-top-left-radius: var(--radius); border-top-right-radius: var(--radius); display:flex; justify-content:space-between; align-items:center;}
+        .content-block-container details summary .summary-title { flex-grow:1; font-weight:bold; }
+        .content-block-container details summary .summary-actions { flex-shrink:0; }
+        .content-block-container details[open] summary ~ * { animation: fadeIn 0.3s ease-out; } 
+        .content-block-container details summary .summary-icon::before { content: '[+] '; font-weight:bold; margin-right:5px;}
+        .content-block-container details[open] summary .summary-icon::before { content: '[-] '; }
+
+        .content-block-container .form-group { margin-bottom:10px; }
+        .content-block-item { display:flex; gap:10px; margin-bottom:8px; align-items:center;}
+        .content-block-item input, .content-block-item textarea { flex-grow:1; }
+        #add-block-controls { display:flex; gap:10px; align-items:flex-end; margin-bottom:15px; padding:10px; background-color:#f9fafb; border-radius:var(--radius);}
+        #add-block-controls .form-group {margin-bottom:0; flex-grow:1;}
+        .block-preview-area { border:1px dashed #ccc; padding:10px; margin-top:5px; min-height:50px; font-size:0.9em; color:#777; text-align:center; background:#fff;}
+        .history-log ul { list-style:none; padding-left:0;}
+        .history-log li { padding:8px 0; border-bottom:1px dotted #eee; font-size:0.9em; color:var(--text-color-light); display:flex; justify-content:space-between; align-items:center;}
+        .history-log li:last-child { border-bottom:none;}
+        .history-log li strong { color:#555;} .history-log .history-item-actions button {margin-left:8px;}
+
+        .ia-process-feedback { margin-top: 10px; font-size: 0.9em; padding:8px; background:#eef; border-radius:4px; display:none;}
+        .ia-process-feedback .status-ok { color: var(--success); } .ia-process-feedback .status-progress { color: var(--info); } .ia-process-feedback .status-error { color: var(--danger); }
+        .collapsible-template-view { background: #f0f8ff; border:1px solid #add8e6; padding:10px; margin: 10px 0; font-size:0.9em; display:none; border-radius:var(--radius);}
+        .collapsible-template-view strong {display:block; margin-bottom:5px;} .collapsible-template-view ul {padding-left:20px; margin:5px 0;}
+        .collapsible-template-view ul li {font-size:0.9em; margin-bottom:3px;}
+        .advanced-filter-modal-placeholder { display:none; padding:20px; border:1px solid #ccc; background:white; position:fixed; top:20%; left:50%; transform:translateX(-50%); z-index:1001; box-shadow: var(--shadow-md); width:600px; border-radius:var(--radius);}
+        .section-disabled { opacity:0.5; pointer-events:none; background-color: var(--disabled-bg); }
+        .sub-modal-overlay { display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.4); z-index:1050; justify-content:center; align-items:center; display:flex;} /* Corrigido para display:flex */
+        .sub-modal-content { background:white; padding:20px; border-radius:var(--radius); box-shadow:var(--shadow-md); width:90%; max-width:450px;}
+        .sub-modal-content ul {list-style:none; padding:0; max-height:150px; overflow-y:auto; margin-bottom:10px; border:1px solid var(--border-color); border-radius:var(--radius); }
+        .sub-modal-content li {display:flex; justify-content:space-between; align-items:center; padding:8px; border-bottom:1px solid #eee;}
+        .sub-modal-content li:last-child {border-bottom:none;}
+        .sub-modal-content .input-group {display:flex; gap:5px; margin-bottom:10px;}
+        .sub-modal-content .input-group input {flex-grow:1;}
+        .admin-modal-placeholder { display:none; position:fixed; top:10%; left:50%; transform:translateX(-50%); width:80%; max-width:800px; background:white; border:1px solid #ccc; box-shadow:var(--shadow-md); z-index:1060; padding:20px; border-radius:var(--radius);}
+        .admin-modal-placeholder h4 {margin-top:0;}
+        @keyframes flash { 0%, 100% { background-color: inherit; } 50% { background-color: var(--warning); opacity: 0.7; } }
+        .highlight-flash { animation: flash 0.7s ease-out; }
+        .field-changed-by-template { background-color: #fff3cd !important; transition: background-color 1s ease-out; }
+    </style>
+</head>
+<body>
+
+<div class="main-content-wrapper" id="product-management-area">
+    <div class="page-header">
+        <h2>Gestão de Produtos TDAi (v5.5)</h2>
+        <button class="btn btn-primary" onclick="openNewProductModal()"><span class="btn-text">Novo Produto</span><span class="spinner"></span></button>
+    </div>
+
+    <div class="filters-bar">
+        <div class="form-group"><input type="text" id="mainSearchInput" placeholder="Nome/SKU..."></div>
+        <div class="form-group"><select id="filter-product-type-main" class="btn-sm" title="Filtrar por Tipo de Produto"><option value="">Tipo de Produto</option></select></div>
+        <button class="btn btn-sm btn-light" onclick="openAdvancedFiltersModal()" title="Filtros mais específicos">Filtros Avançados +</button>
+        <div class="form-group"><select id="savedFiltersDropdown" class="btn-sm" title="Carregar filtros salvos"><option value="">Filtros Salvos</option></select></div>
+        <button class="btn btn-xs btn-light" onclick="saveCurrentFilters()" title="Salvar filtros atuais">Salvar Filtro</button>
+        <div class="form-group"><select id="tableViewModeDropdown" class="btn-sm" title="Mudar visualização da tabela" onchange="applyTableViewMode(this.value)"><option value="default">Visão Padrão</option><option value="estoque">Visão de Estoque</option></select></div>
+        <button class="btn btn-info btn-sm" onclick="applyTableFilters()"><span class="btn-text">Filtrar</span></button>
+    </div>
+    <div class="table-container">
+        <table>
+            <thead><tr><th><input type="checkbox" id="selectAllProducts" onchange="toggleSelectAll(this)"></th><th>ID</th><th>Nome</th><th class="col-preco">Preço</th><th class="col-estoque">Estoque</th><th>Status</th><th>Ações</th></tr></thead>
+            <tbody id="product-table-body">
+                <tr><td><input type="checkbox" class="product-checkbox"></td><td>1001</td><td>Smartphone TDAi X</td><td class="editable-cell col-preco" onclick="enableInlineEdit(this, 1001, 'preco', 'R$ ')">R$ 1299,90</td><td class="editable-cell col-estoque" onclick="enableInlineEdit(this, 1001, 'estoque', '')">150</td><td><span class="status status-published">Pub</span></td>
+                    <td class="actions"><button class="btn btn-xs btn-info" title="Editar Produto" onclick="openModal({id:1001, product_type:'eletronico', nome_base:'Smartphone TDAi X', dados_brutos: {sku_original: 'SKU-001', short_description:'Smartphone de última geração com IA.'}, categoria_original:'celulares', preco:1299.90, estoque: 10, descricao_principal_gerada:'Descrição longa e muito detalhada do Smartphone TDAi X, cobrindo todas as suas funcionalidades e benefícios para o usuário.', imagens: [{url:'https://via.placeholder.com/100', alt:'front', is_principal:true}], atributos_dinamicos: [{key:'RAM', value:'8GB', type:'text', required:false, placeholder:'Ex: 8GB'}, {key:'Voltagem', value:'Bivolt', type:'select_local', options:['110V','220V','Bivolt'], required:true}], custom_blocks: [{type:'spec_table', title:'Especificações Adicionais', id:Date.now(), required:true, specs:[{key:'Tela',value:'6.5 OLED'}]}], videos:[{url:'https://youtube.com/somevideo', title:'Review do Produto'}]})"><span class="btn-text">Editar</span></button></td></tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+<div id="advancedFilterModal" class="advanced-filter-modal-placeholder" style="display:none;">  <h4>Construtor de Filtros Avançados (Conceitual)</h4> <p>UI para adicionar regras E/OU aqui...</p> <button class="btn btn-sm" onclick="this.parentElement.style.display='none'">Fechar</button> </div>
+<div id="quickAddCategoryModal" class="sub-modal-overlay" style="display:none;"><div class="sub-modal-content"><h4>Nova Categoria</h4><div class="form-group"><label for="newCategoryNameInput">Nome da Categoria:</label><input type="text" id="newCategoryNameInput" class="form-control"></div><div style="text-align:right;"><button class="btn btn-sm" onclick="closeQuickAddCategoryModal()">Cancelar</button><button class="btn btn-sm btn-success" onclick="confirmQuickAddCategory()">Salvar Categoria</button></div></div></div>
+<div id="attributeOptionsModal" class="sub-modal-overlay" style="display:none;"><div class="sub-modal-content"><h4>Gerenciar Opções do Atributo "<span id="attrOptionModalTitle"></span>"</h4><ul id="currentAttributeOptionsList"></ul><div class="input-group"><input type="text" id="newAttributeOptionValue" placeholder="Nova opção"><button class="btn btn-xs btn-success" onclick="confirmAddAttributeOption()">Add</button></div><div style="text-align:right; margin-top:15px;"><button class="btn btn-sm" onclick="closeAttributeOptionsModal()">Fechar</button></div></div></div>
+<div id="adminManageProductTypesModal" class="admin-modal-placeholder" style="display:none;">
+    <h4>Gerenciar Tipos de Produto (Conceitual)</h4>
+    <div style="display:flex; gap:20px;">
+        <div style="width:30%; border-right:1px solid #eee; padding-right:15px;">
+            <strong>Tipos Existentes:</strong>
+            <ul id="adminProductTypeList" style="list-style:none; padding:0; max-height:300px; overflow-y:auto;"></ul>
+        </div>
+        <div style="width:70%;" id="adminProductTypeDetailsView">Selecione um tipo para ver sua estrutura.</div>
+    </div>
+    <hr><div style="text-align:right;"><button class="btn btn-sm" onclick="closeAdminManageProductTypesModal()">Fechar</button></div>
+</div>
+
+
+<div id="editProductModal" class="modal">
+    <div class="modal-content">
+        <div class="modal-header"><h3 id="modalTitle">Novo Produto</h3><span class="close-btn" onclick="closeModal()" title="Fechar Modal">×</span></div>
+        <div class="modal-header-toolbar">
+            <div class="product-type-selector-group">
+                <div class="form-group"><label for="productTypeSelector">Tipo de Produto:</label><select id="productTypeSelector" class="btn-sm" onchange="handleProductTypeChange(this.value)" title="Define o modelo de campos para este produto"><option value="">Selecione...</option></select><span id="productTypeError" class="error-message"></span></div>
+                <button class="btn btn-xs btn-link" onclick="toggleTemplateView()" id="viewTemplateStructureBtn" title="Ver/Ocultar detalhes do modelo do tipo de produto">Ver Estrutura</button>
+            </div>
+            <div> <button class="btn btn-xs btn-light" onclick="openAdminManageProductTypesModal()" title="Configurar os Tipos de Produto e seus modelos (Admin)">Gerenciar Tipos</button> </div>
+        </div>
+        <div id="templateStructureView" class="collapsible-template-view"></div>
+        <div id="formErrorsSummary" role="alert"><ul></ul></div>
+
+        <div class="modal-body">
+            <input type="hidden" id="productId">
+            <div class="modal-tabs">
+                <button id="btn-tab-details" class="tab-button active" onclick="openTab(event, 'tab-details')" title="Informações básicas">Detalhes <span class="tab-status-indicator status-dot-pending">●</span></button>
+                <button id="btn-tab-media" class="tab-button" onclick="openTab(event, 'tab-media')">Mídia <span class="tab-status-indicator status-dot-pending">●</span></button>
+                <button id="btn-tab-price" class="tab-button" onclick="openTab(event, 'tab-price')">Preço <span class="tab-status-indicator status-dot-pending">●</span></button>
+                <button id="btn-tab-attributes" class="tab-button" onclick="openTab(event, 'tab-attributes')">Atributos <span class="tab-status-indicator status-dot-pending">●</span></button>
+                <button id="btn-tab-custom-sections" class="tab-button" onclick="openTab(event, 'tab-custom-sections')">Seções <span class="tab-status-indicator status-dot-pending">●</span></button>
+                <button id="btn-tab-ia" class="tab-button" onclick="openTab(event, 'tab-ia')">IA <span class="tab-status-indicator status-dot-pending">●</span></button>
+                <button id="btn-tab-history" class="tab-button" onclick="openTab(event, 'tab-history')">Histórico</button>
+            </div>
+
+            <div id="tab-details" class="tab-pane active">
+                <h4>Detalhes Principais <small id="productTypeNoteDetails" style="color:var(--text-color-light);"></small> </h4>
+                <div class="form-group"><label for="productName">Nome Base: <span class="required-asterisk" id="productNameReqIndicator">*</span></label><input type="text" id="productName" oninput="updateIASuggestionOriginal('iaOriginalTitle', this.value); DebouncedValidateField(this, 'productNameError', 'Nome Base', 'tab-details', {required: true, minLength: 3, maxLength: 255})"><span id="productNameError" class="error-message"></span></div>
+                <div class="form-group"><label for="productSKU">SKU:</label><input type="text" id="productSKU" oninput="DebouncedValidateField(this, 'productSKUError', 'SKU', 'tab-details', {maxLength: 50})"><span id="productSKUError" class="error-message"></span></div>
+                <div class="form-group"><label for="productBrand">Marca:</label><input type="text" id="productBrand" oninput="DebouncedValidateField(this, 'productBrandError', 'Marca', 'tab-details', {maxLength: 100})"><span id="productBrandError" class="error-message"></span></div>
+                <div class="form-group"><label for="productCategory">Categoria Original: <span class="required-asterisk" id="productCategoryReqIndicator">*</span></label><div style="display:flex; gap:5px;"><select id="productCategory" style="flex-grow:1;" onchange="DebouncedValidateField(this, 'productCategoryError', 'Categoria', 'tab-details', {required: true});"><option value="">Selecione...</option></select><button class="btn btn-xs btn-light" onclick="quickAddCategory()" title="Adicionar nova categoria rapidamente">+</button></div><span id="productCategoryError" class="error-message"></span></div>
+                <div class="form-group"><label for="productShortDescription">Descrição Curta (Interna/Dados Brutos):</label><textarea id="productShortDescription" rows="2" oninput="DebouncedValidateField(this, 'productShortDescriptionError', 'Descrição Curta', 'tab-details', {maxLength: 500})"></textarea><span id="productShortDescriptionError" class="error-message"></span></div>
+            </div>
+            <div id="tab-media" class="tab-pane">
+                <h4>Mídia e Descrições <button class="btn btn-xs btn-light media-library-button" onclick="openMediaLibrary()" title="Selecionar mídia de um local centralizado">Usar da Biblioteca</button></h4>
+                <div class="form-group"><label>Imagens:</label><div class="media-upload-area" onclick="document.getElementById('fileInputPlaceholder').click()">Clique ou Arraste Imagens <div id="uploadProgressArea"></div></div><input type="file" id="fileInputPlaceholder" multiple style="display:none;" onchange="handleFileUpload(event)"><div class="image-preview-list" id="imagePreviewList"></div></div>
+                <div class="form-group"><label>Vídeos:</label><div id="videoListContainer"></div><button class="btn btn-xs btn-light" onclick="addVideoField()">+ URL Vídeo</button></div>
+                <div class="form-group"><label for="productLongDescription">Descrição Principal Gerada (IA/Manual):</label><div style="border:1px solid #ccc;padding:5px;font-size:0.8em;color:#777;" title="Este campo será preenchido pela IA ou editado manualmente.">(Editor de Texto Rico - Placeholder no HTML, funcionalidade de IA na aba "IA")</div><textarea id="productLongDescription" rows="5" oninput="updateIASuggestionOriginal('iaOriginalLongDesc', this.value); DebouncedValidateField(this, 'productLongDescriptionError', 'Descrição Principal', 'tab-media', {maxLength: 5000});"></textarea><span id="productLongDescriptionError" class="error-message"></span></div>
+            </div>
+             <div id="tab-price" class="tab-pane">
+                 <h4>Preço e Estoque</h4>
+                <div class="form-group"><label for="productPrice">Preço (R$): <span class="required-asterisk" id="productPriceReqIndicator">*</span></label><input type="text" id="productPrice" oninput="DebouncedValidateField(this, 'productPriceError', 'Preço', 'tab-price', {required:true, type:'number', min:0});"><span class="error-message" id="productPriceError"></span></div>
+                <div class="form-group"><label for="productPromoPrice">Preço Promocional (R$):</label><input type="text" id="productPromoPrice" oninput="DebouncedValidateField(this, 'productPromoPriceError', 'Preço Promocional', 'tab-price', {type:'number', min:0});"> <span class="error-message" id="productPromoPriceError"></span></div>
+                <div class="form-group"><label for="productStock">Estoque: <span class="required-asterisk" id="productStockReqIndicator">*</span></label><input type="text" id="productStock" oninput="DebouncedValidateField(this, 'productStockError', 'Estoque', 'tab-price', {required:true, type:'number', min:0});"><span class="error-message" id="productStockError"></span></div>
+                <div class="form-group"><label for="productUnit">Unidade (interno/dados brutos):</label><input type="text" id="productUnit" placeholder="Ex: pç, kg, un" oninput="DebouncedValidateField(this, 'productUnitError', 'Unidade', 'tab-price', {maxLength: 20});"><span id="productUnitError" class="error-message"></span></div>
+            </div>
+            <div id="tab-attributes" class="tab-pane">
+                <h4><details open><summary><span class="summary-icon"></span>Atributos Específicos <small id="productTypeNoteAttributes"></small></summary><div style="padding-left:20px;"><div class="form-group" style="display:flex; align-items:center; gap:10px; margin-top:10px;"><label for="attributeTypeToAdd" style="margin-bottom:0;">Adicionar Atributo Tipo:</label><select id="attributeTypeToAdd" class="btn-sm"><option value="text">Texto</option><option value="select_local">Lista Local</option><option value="select_global">Lista Global</option></select><button class="btn btn-light btn-sm" onclick="addAttributeField(document.getElementById('attributeTypeToAdd').value)">+ Adicionar</button></div><ul id="dynamic-attributes-list" class="dynamic-list"></ul></div></details></h4>
+            </div>
+            <div id="tab-custom-sections" class="tab-pane">
+                <h4><details open><summary><span class="summary-icon"></span>Seções Customizadas <small id="productTypeNoteCustomSections"></small></summary><div style="padding-left:20px;"><div id="add-block-controls"><div class="form-group"><label for="selectBlockType">Adicionar Bloco:</label><select id="selectBlockType" onchange="showBlockPreview(this.value)"><option value="">Selecione...</option></select></div><button class="btn btn-primary btn-sm" onclick="addContentBlockCurrentType()">Add</button><div class="form-group"><label for="loadSavedBlock">Carregar Bloco Modelo:</label><select id="loadSavedBlock" class="btn-sm" onchange="loadSavedBlockConcept(this.value)"><option value="">Salvos...</option></select></div></div><div id="blockPreviewArea" class="block-preview-area">Preview do bloco aqui.</div><div id="custom-blocks-container"></div></div></details></h4>
+            </div>
+            <div id="tab-ia" class="tab-pane">
+                <h4>Sugestões IA <button class="btn btn-xs btn-icon btn-light" title="Configurações IA">⚙</button></h4>
+                <button id="btnAnalyzeIA" class="btn btn-info" onclick="analyzeWithIA(this)">Analisar Produto Atual</button><button class="btn btn-success btn-sm" onclick="acceptAllHighConfidence()">Aceitar Alta Confiança</button>
+                <div id="iaProcessFeedbackDiv" class="ia-process-feedback">Aguardando análise...</div>
+                <div class="form-group"><label>Título Principal (Sugestão IA):</label><div class="ia-suggestion-diff-view"><div class="original-text-display" id="iaOriginalTitle"></div><div class="suggested-text-input form-group"><label for="iaSuggestedTitle" class="sr-only">Sugestão IA</label><textarea id="iaSuggestedTitle" rows="2" placeholder="Sugestão da IA"></textarea><div class="actions"><button class="btn btn-xs btn-success" onclick="applyIASuggestion('productName', 'iaSuggestedTitle')" title="Aplicar ao nome base do produto">Aplicar</button><button class="btn btn-xs btn-light" title="Útil">👍</button><button class="btn btn-xs btn-light" title="Não útil">👎</button></div></div></div></div>
+                <div class="form-group"><label>Outros Títulos (Sugestões IA):</label><div id="dynamic-titles-list"></div><button class="btn btn-light btn-sm" onclick="addUserTitleField()">+ Título Manual</button></div>
+                <div class="form-group"><label>Descrição Principal (Sugestão IA):</label><div class="ia-suggestion-diff-view"><div class="original-text-display" id="iaOriginalLongDesc"></div><div class="suggested-text-input form-group"><label for="iaSuggestedLongDesc" class="sr-only">Sugestão IA</label><textarea id="iaSuggestedLongDesc" rows="4" placeholder="Sugestão da IA"></textarea><div class="actions"><button class="btn btn-xs btn-success" onclick="applyIASuggestion('productLongDescription', 'iaSuggestedLongDesc')" title="Aplicar à descrição principal do produto">Aplicar</button><button class="btn btn-xs btn-light">👍</button><button class="btn btn-xs btn-light">👎</button></div></div></div></div>
+            </div>
+            <div id="tab-history" class="tab-pane">
+                <h4>Histórico de Alterações</h4><div class="history-log"><ul><li><span><strong>Data</strong> - Alteração.</span><span class="history-item-actions"><button class="btn btn-xs btn-link">Comparar</button><button class="btn btn-xs btn-link">Restaurar</button></span></li></ul></div>
+            </div>
+        </div>
+        <div class="modal-footer"><div class="actions-left"><button class="btn btn-light" onclick="previewProduct()" title="Visualizar (conceitual)">Preview</button></div><div><button class="btn btn-secondary" onclick="closeModal()">Cancelar</button><button id="btnSaveProduct" class="btn btn-success" onclick="saveProductChanges(this)">Salvar Produto</button></div></div>
+    </div>
+</div>
+
+<script>
+    // --- Variáveis Globais ---
+    let modal, modalTitle, productIdField, productTypeSelector, productName, productSKU, productBrand, productCategory,
+        productShortDescription, imagePreviewList, productLongDescription, productPrice, productPromoPrice,
+        productStock, productUnit, customBlocksContainer, iaProcessFeedbackDiv, formErrorsSummaryUl, 
+        currentEditingCell = null, iaOriginalTitleDisplay, iaSuggestedTitleInput, iaOriginalLongDescDisplay, iaSuggestedLongDescInput,
+        attributeOptionsModal, currentAttributeOptionsList, newAttributeOptionValue, currentEditingAttributeIndex = null,
+        quickAddCategoryModal, newCategoryNameInput, adminManageProductTypesModal, adminProductTypeList, adminProductTypeDetailsView;
+
+    let currentProductType = null; 
+    let tempAttributes = [], tempTitles = [], tempImages = [], tempCustomBlocks = [], tempVideos = [];
+    let tempSavedBlockTemplates = [
+        {name: "Destaques de Venda", type:"feature_list", title:"Principais Vantagens", items:[{icon:"⭐", text:"Qualidade Superior"},{icon:"🚀",text:"Entrega Rápida"}]},
+        {name: "FAQ Comum", type:"faq_list", title:"Perguntas Frequentes", faqs:[{question:"Qual o prazo de entrega?", answer:"De 3 a 5 dias úteis."}]}
+    ];
+    
+    const productTypeTemplates = {
+        'eletronico': {
+            attributes: [
+                {key: 'Voltagem', type:'select_local', options:['110V', '220V', 'Bivolt'], required:true, value:'Bivolt', placeholder:'Selecione voltagem'}, 
+                {key:'Garantia (meses)', type:'number', value:12, required:false, placeholder:'Ex: 12'},
+                {key:'Cor Principal', type:'select_global', option_key:'cores_padrao', value:'preto', required:false, placeholder:'Selecione uma cor'}
+            ],
+            blocks: [{type:'spec_table', title:'Especificações Técnicas', default:true, required:true, specs: [{key:'RAM', value:''}, {key:'Armazenamento', value:''}] }],
+            categories: ['Celulares', 'Computadores', 'TVs', 'Acessórios Eletrônicos'],
+            blockOptions: ['feature_list', 'spec_table', 'gallery', 'faq_list', 'rich_text', 'shipping_dims']
+        },
+        'vestuario': {
+            attributes: [{key: 'Cor', type:'text', required:true, placeholder:'Ex: Azul Marinho'}, {key:'Tamanho', type:'select_local', options:['P','M','G','GG', 'XG'], required:true, value:'M'}, {key:'Material', type:'text', placeholder:'Ex: Algodão'}],
+            blocks: [{type:'rich_text', title:'Guia de Cuidados', default:true, required:false, content:'Lavar à mão... Secar à sombra.'}],
+            categories: ['Camisetas', 'Calças', 'Vestidos', 'Sapatos', 'Casacos'],
+            blockOptions: ['feature_list', 'gallery', 'rich_text']
+        },
+        'alimento': {
+            attributes: [{key: 'Data de Validade', type:'date', required:true}, {key:'Peso Líquido', type:'text', placeholder:'Ex: 500g'}],
+            blocks: [{type:'spec_table', title:'Informações Nutricionais', default:true, required:true, specs:[{key:'Calorias (kcal)',value:''},{key:'Proteínas (g)',value:''}]}],
+            categories: ['Congelados', 'Frescos', 'Bebidas', 'Mercearia'],
+            blockOptions: ['spec_table', 'feature_list', 'rich_text']
+        },
+        'generico': {
+            attributes: [{key: 'Observação Genérica', type:'text', placeholder:'Detalhes...'}], blocks: [], categories: ['Geral', 'Outros'],
+            blockOptions: ['feature_list', 'spec_table', 'gallery', 'faq_list', 'rich_text', 'shipping_dims']
+        }
+    };
+    const globalAttributeLists = { 
+        "cores_padrao": ["Azul", "Vermelho", "Verde", "Preto", "Branco", "Cinza", "Amarelo"],
+        "voltagens_comuns": ["110V", "220V", "Bivolt", "12V"]
+    };
+
+    // --- Inicialização e Event Listeners ---
+    document.addEventListener('DOMContentLoaded', () => {
+        // Seletores de elementos principais do DOM
+        modal = document.getElementById('editProductModal');
+        modalTitle = document.getElementById('modalTitle');
+        productIdField = document.getElementById('productId');
+        productTypeSelector = document.getElementById('productTypeSelector');
+        productName = document.getElementById('productName');
+        productSKU = document.getElementById('productSKU');
+        productBrand = document.getElementById('productBrand'); // Adicionado seletor para marca
+        productCategory = document.getElementById('productCategory');
+        productShortDescription = document.getElementById('productShortDescription');
+        imagePreviewList = document.getElementById('imagePreviewList');
+        productLongDescription = document.getElementById('productLongDescription');
+        productPrice = document.getElementById('productPrice');
+        productPromoPrice = document.getElementById('productPromoPrice'); 
+        productStock = document.getElementById('productStock');
+        productUnit = document.getElementById('productUnit');
+        customBlocksContainer = document.getElementById('custom-blocks-container');
+        iaProcessFeedbackDiv = document.getElementById('iaProcessFeedbackDiv');
+        formErrorsSummaryUl = document.querySelector('#formErrorsSummary ul');
+        iaOriginalTitleDisplay = document.getElementById('iaOriginalTitle');
+        iaSuggestedTitleInput = document.getElementById('iaSuggestedTitle');
+        iaOriginalLongDescDisplay = document.getElementById('iaOriginalLongDesc');
+        iaSuggestedLongDescInput = document.getElementById('iaSuggestedLongDesc');
+        attributeOptionsModal = document.getElementById('attributeOptionsModal');
+        currentAttributeOptionsList = document.getElementById('currentAttributeOptionsList');
+        newAttributeOptionValue = document.getElementById('newAttributeOptionValue');
+        quickAddCategoryModal = document.getElementById('quickAddCategoryModal');
+        newCategoryNameInput = document.getElementById('newCategoryNameInput');
+        adminManageProductTypesModal = document.getElementById('adminManageProductTypesModal');
+        adminProductTypeList = document.getElementById('adminProductTypeList');
+        adminProductTypeDetailsView = document.getElementById('adminProductTypeDetailsView');
+
+        // Garante que botões de aba tenham IDs para fácil referência
+        const tabButtons = document.querySelectorAll('.modal-tabs .tab-button');
+        tabButtons.forEach(button => {
+            const onclickAttr = button.getAttribute('onclick');
+            if (onclickAttr && !button.id) {
+                const match = onclickAttr.match(/'(tab-[^']*)'/);
+                if (match && match[1]) { button.id = `btn-${match[1]}`; }
+            }
+        });
+        populateGlobalDropdowns();
+        setupCollapsibleSections();
+    });
+    
+    function populateGlobalDropdowns(){
+        const filterProductTypeEl = document.getElementById('filter-product-type-main');
+        const productTypeSelEl = document.getElementById('productTypeSelector');
+        const savedBlocksEl = document.getElementById('loadSavedBlock');
+
+        [filterProductTypeEl, productTypeSelEl].forEach(sel => {
+            if(sel){
+                sel.innerHTML = '<option value="">Selecione Tipo...</option>'; 
+                Object.keys(productTypeTemplates).forEach(key => {
+                    sel.innerHTML += `<option value="${key}">${key.charAt(0).toUpperCase() + key.slice(1)}</option>`;
+                });
+            }
+        });
+        if(savedBlocksEl){
+            savedBlocksEl.innerHTML = '<option value="">Blocos Salvos...</option>';
+            tempSavedBlockTemplates.forEach(template => {
+                savedBlocksEl.innerHTML += `<option value="${template.name}">${template.name} (${template.type})</option>`;
+            });
+        }
+    }
+
+    function setupCollapsibleSections() {
+        document.querySelectorAll('.modal-body details summary').forEach(summary => {
+            summary.addEventListener('click', (e) => {
+                // A funcionalidade de abrir/fechar é nativa do <details>
+            });
+        });
+    }
+
+    // --- Funções Principais do Modal (Abrir, Fechar, Inicializar) ---
+    function initializeEmptyProductState() {
+        try {
+            const fieldsToClear = [productIdField, productName, productSKU, productBrand, productShortDescription, productLongDescription, productPrice, productPromoPrice, productStock, productUnit, iaSuggestedTitleInput, iaSuggestedLongDescInput];
+            fieldsToClear.forEach(f => { if(f) f.value = ''; });
+            if(productCategory) { productCategory.innerHTML = '<option value="">Selecione...</option>'; productCategory.value = ""; }
+            if(iaOriginalTitleDisplay) iaOriginalTitleDisplay.textContent = 'Digite um nome base para o produto ou carregue um existente.';
+            if(iaOriginalLongDescDisplay) iaOriginalLongDescDisplay.textContent = 'Digite ou carregue uma descrição principal.';
+            
+            tempAttributes = []; tempTitles = []; tempImages = []; tempCustomBlocks = []; tempVideos = [];
+            // Limpar erros de validação ao inicializar
+            document.querySelectorAll('.error-message').forEach(el => el.textContent = '');
+            document.querySelectorAll('.is-invalid').forEach(el => el.classList.remove('is-invalid'));
+            if(formErrorsSummaryUl) formErrorsSummaryUl.innerHTML = '';
+            const formErrorsDiv = document.getElementById('formErrorsSummary');
+            if(formErrorsDiv) formErrorsDiv.style.display = 'none';
+
+        } catch (e) { console.error("Error in initializeEmptyProductState:", e); }
+    }
+
+    function openModal(productData = null) { // productData viria da API ao editar
+        if (!modal) { console.error("Modal element not found!"); return; }
+        
+        initializeEmptyProductState(); // Limpa o formulário e erros antes de popular
+
+        try {
+            if (productData && productData.id) { // Modo Edição
+                if(modalTitle) modalTitle.textContent = 'Editar Produto: ' + (productData.nome_base || productData.id);
+                if(productIdField) productIdField.value = productData.id;
+                currentProductType = productData.product_type || 'generico'; // Assume 'generico' se não especificado
+                if(productTypeSelector) productTypeSelector.value = currentProductType;
+                
+                // Campos principais
+                if(productName) productName.value = productData.nome_base || '';
+                if(productBrand) productBrand.value = productData.marca || ''; // Adicionado
+                if(productCategory) { /* será populado por handleProductTypeChange */ }
+                
+                // Campos que vão para 'dados_brutos' ou são auxiliares
+                if(productSKU) productSKU.value = productData.dados_brutos?.sku_original || '';
+                if(productShortDescription) productShortDescription.value = productData.dados_brutos?.short_description || '';
+                if(productUnit) productUnit.value = productData.dados_brutos?.unidade || '';
+
+
+                // Campos de Preço e Estoque (assumindo que podem estar no nível raiz do produtoData da API)
+                if(productPrice) productPrice.value = productData.preco !== undefined ? productData.preco : '';
+                if(productPromoPrice) productPromoPrice.value = productData.preco_promocional !== undefined ? productData.preco_promocional : '';
+                if(productStock) productStock.value = productData.estoque !== undefined ? productData.estoque : '';
+                
+                // Conteúdo gerado por IA
+                if(productLongDescription) productLongDescription.value = productData.descricao_principal_gerada || '';
+                tempTitles = productData.titulos_sugeridos ? JSON.parse(JSON.stringify(productData.titulos_sugeridos.map(t => ({text: t})))) : [];
+
+
+                // Campos dinâmicos
+                tempAttributes = productData.atributos_dinamicos ? JSON.parse(JSON.stringify(productData.atributos_dinamicos)) : [];
+                tempImages = productData.imagens ? JSON.parse(JSON.stringify(productData.imagens)) : []; // Nome do campo ajustado
+                tempCustomBlocks = productData.custom_blocks ? JSON.parse(JSON.stringify(productData.custom_blocks)) : [];
+                tempVideos = productData.videos ? JSON.parse(JSON.stringify(productData.videos)) : [];
+                
+                if(iaOriginalTitleDisplay && productName) iaOriginalTitleDisplay.textContent = productName.value || "Título Original...";
+                if(iaOriginalLongDescDisplay && productLongDescription) iaOriginalLongDescDisplay.textContent = productLongDescription.value || "Descrição Principal Original...";
+                
+                // Importante: Chamar handleProductTypeChange DEPOIS de popular os campos que ele pode sobrescrever se não estiver em isLoadingModal
+                handleProductTypeChange(currentProductType, true, productData.categoria_original); 
+
+            } else { // Modo Novo Produto
+                if(modalTitle) modalTitle.textContent = 'Novo Produto';
+                if(productTypeSelector) productTypeSelector.value = ""; 
+                currentProductType = null;
+                // initializeEmptyProductState(); // Já chamado no início da função openModal
+                handleProductTypeChange(null, false); 
+            }
+            openTab(null, 'tab-details'); 
+            modal.style.display = 'block';
+        } catch (e) { console.error("Erro ao abrir modal:", e); alert("Erro ao abrir formulário."); }
+    }
+
+    function openNewProductModal(){ openModal(null); }
+
+    function closeModal() { 
+        if(attributeOptionsModal && attributeOptionsModal.style.display === 'flex') { closeAttributeOptionsModal(); return; }
+        if(quickAddCategoryModal && quickAddCategoryModal.style.display === 'flex') { closeQuickAddCategoryModal(); return; }
+        if(adminManageProductTypesModal && adminManageProductTypesModal.style.display === 'block') { closeAdminManageProductTypesModal(); return;}
+        if(modal) modal.style.display = 'none'; 
+    }
+    document.addEventListener('keydown', function (event) {
+        if (event.key === 'Escape') {
+            if (attributeOptionsModal && attributeOptionsModal.style.display === 'flex') closeAttributeOptionsModal();
+            else if (quickAddCategoryModal && quickAddCategoryModal.style.display === 'flex') closeQuickAddCategoryModal();
+            else if (adminManageProductTypesModal && adminManageProductTypesModal.style.display === 'block') closeAdminManageProductTypesModal();
+            else if (modal && modal.style.display === 'block') closeModal();
+        }
+    });
+        
+    // --- Funções de Gestão de Abas e Indicadores ---
+    function updateAllTabStatusIndicators() {
+        const tabs = ['details', 'media', 'price', 'attributes', 'custom-sections', 'ia'];
+        tabs.forEach(tabKey => {
+            const tabBtn = document.getElementById(`btn-tab-${tabKey}`);
+            if (!tabBtn) return;
+            const indicator = tabBtn.querySelector('.tab-status-indicator');
+            if (!indicator) return;
+            let status = 'pending'; let hasErrorOnTab = false; let isPotentiallyComplete = true;
+            let errorCount = 0;
+            
+            const pane = document.getElementById(`tab-${tabKey}`);
+            if(pane) {
+                 const invalidInputsInPane = pane.querySelectorAll('.is-invalid');
+                 errorCount = invalidInputsInPane.length;
+                 if(errorCount > 0) hasErrorOnTab = true;
+            }
+
+            // Lógica de completude (pode ser aprimorada)
+            if (tabKey === 'details') {
+                if (!productTypeSelector.value || !productName.value || !productCategory.value) isPotentiallyComplete = false;
+            } else if (tabKey === 'price') {
+                 if (!productPrice.value || !productStock.value) isPotentiallyComplete = false;
+            } else if (tabKey === 'attributes') {
+                 const template = productTypeTemplates[currentProductType];
+                 isPotentiallyComplete = (tempAttributes || []).every(attr => {
+                    const attrDef = (template?.attributes || []).find(ta => ta.key === attr.key);
+                    return !( (attrDef?.required || attr.required) && !attr.value && attr.value !== false );
+                 });
+            }
+            // Adicionar lógica para outras abas se necessário
+            
+            if (hasErrorOnTab) {
+                status = 'error'; indicator.textContent = `●`; indicator.classList.add('error-count'); indicator.setAttribute('data-error-count', errorCount);
+            } else if (isPotentiallyComplete) {
+                status = 'complete'; indicator.textContent = `●`; indicator.classList.remove('error-count'); indicator.removeAttribute('data-error-count');
+            } else {
+                status = 'pending'; indicator.textContent = `●`; indicator.classList.remove('error-count'); indicator.removeAttribute('data-error-count');
+            }
+            indicator.className = `tab-status-indicator status-dot-${status} ${errorCount > 0 ? 'error-count' : ''}`;
+            if(errorCount > 0 && indicator.classList.contains('error-count')) indicator.setAttribute('data-error-count', errorCount); 
+            else if (indicator.classList.contains('error-count')) indicator.removeAttribute('data-error-count');
+        });
+    }
+
+    function openTab(event, tabName) {
+        let i; const tabPanes = document.getElementsByClassName("tab-pane"); const tabButtons = document.getElementsByClassName("tab-button");
+        for (i = 0; i < tabPanes.length; i++) { if (tabPanes[i]) { tabPanes[i].style.display = "none"; tabPanes[i].classList.remove("active"); }}
+        for (i = 0; i < tabButtons.length; i++) { if (tabButtons[i]) tabButtons[i].classList.remove("active"); }
+        const targetPane = document.getElementById(tabName);
+        const targetButton = document.getElementById(`btn-${tabName}`); // Usar o ID construído
+        if (targetPane) { targetPane.style.display = "block"; targetPane.classList.add("active"); } 
+        else { console.error(`Pane ${tabName} não encontrado!`); return; }
+        if (targetButton) { targetButton.classList.add("active"); }
+        // Fallback se o botão não for encontrado pelo ID (event pode ser null na chamada inicial)
+        else if (event && event.currentTarget && event.currentTarget.classList.contains('tab-button')) { 
+             event.currentTarget.classList.add("active");
+        } else { // Tenta encontrar pelo atributo onclick (menos ideal)
+            const fallbackButton = document.querySelector(`.modal-tabs button[onclick*="'${tabName}'"]`);
+            if (fallbackButton) fallbackButton.classList.add("active");
+        }
+        updateAllTabStatusIndicators();
+    }
+
+    // --- Funções de Manipulação de Tipo de Produto e Templates ---
+    function handleProductTypeChange(selectedType, isLoadingModal = false, loadedCategoryValue = null) {
+        currentProductType = selectedType;
+        const templateView = document.getElementById('templateStructureView');
+        const productTypeNoteDetailsEl = document.getElementById('productTypeNoteDetails');
+        const viewTemplateBtn = document.getElementById('viewTemplateStructureBtn');
+        const productTypeNoteAttributesEl = document.getElementById('productTypeNoteAttributes');
+        const productTypeNoteCustomSectionsEl = document.getElementById('productTypeNoteCustomSections');
+        const selectBlockTypeEl = document.getElementById('selectBlockType');
+        const productCategoryEl = document.getElementById('productCategory');
+
+        if (templateView) { templateView.style.display = 'none'; templateView.innerHTML = '';}
+        if(viewTemplateBtn) viewTemplateBtn.textContent = 'Ver Estrutura';
+
+        if (!isLoadingModal) { 
+            // Ao mudar o tipo em um formulário já preenchido (não ao carregar),
+            // PERGUNTAR se quer limpar ou tentar adaptar. Por ora, vamos limpar/resetar campos do template.
+            // initializeEmptyProductState(); // CUIDADO: isso limpa TUDO.
+            // Melhor seria limpar seletivamente o que é do template antigo e aplicar o novo.
+            // Para este exemplo, vamos apenas recarregar os atributos e blocos do template.
+        }
+        
+        if(productTypeNoteDetailsEl) { /* ... (lógica de flash) ... */ }
+        
+        const template = productTypeTemplates[selectedType] || productTypeTemplates['generico'];
+
+        if(productCategoryEl) {
+            const currentCategoryValue = productCategoryEl.value; // Salva o valor atual
+            productCategoryEl.innerHTML = '<option value="">Selecione...</option>'; 
+            (template.categories || ['Geral', 'Outros']).forEach(cat => {
+                const catValue = cat.toLowerCase().replace(/\s/g, '_');
+                productCategoryEl.innerHTML += `<option value="${catValue}">${cat}</option>`;
+            });
+            // Tenta restaurar o valor, se aplicável ao novo template, ou o valor carregado
+            if (loadedCategoryValue) { productCategoryEl.value = loadedCategoryValue; }
+            else if (currentCategoryValue && Array.from(productCategoryEl.options).some(opt => opt.value === currentCategoryValue)) {
+                 productCategoryEl.value = currentCategoryValue;
+            } else {
+                 productCategoryEl.value = ''; // Reseta se a categoria antiga não existe no novo template
+            }
+        }
+        
+        if(selectBlockTypeEl) { /* ... (popula selectBlockTypeEl) ... */ }
+
+        // Se não estiver carregando o modal E não for um produto novo já limpo,
+        // OU se estiver carregando um produto novo (sem ID), aplicar atributos e blocos default do template.
+        if ( (!isLoadingModal && (!productIdField || !productIdField.value)) || (isLoadingModal && (!productIdField || !productIdField.value)) ) {
+            tempAttributes = template.attributes ? JSON.parse(JSON.stringify(template.attributes)) : [{ key: 'Atributo Exemplo', value: '', type: 'text', placeholder:'Valor do atributo', required: false }];
+            tempAttributes.forEach(attr => {
+                // ... (lógica para placeholders e valores default dos atributos) ...
+            });
+
+            tempCustomBlocks = []; 
+            (template.blocks || []).forEach(blockDef => { 
+                if(blockDef.default) {
+                    // ... (lógica para adicionar blocos default) ...
+                }
+            });
+            if(productTypeNoteAttributesEl && tempAttributes.length > 0) productTypeNoteAttributesEl.textContent = '(Atributos pré-definidos/sugeridos)';
+            else if (productTypeNoteAttributesEl) productTypeNoteAttributesEl.textContent = '';
+            if(productTypeNoteCustomSectionsEl && tempCustomBlocks.length > 0) productTypeNoteCustomSectionsEl.textContent = '(Blocos padrão/sugeridos adicionados)';
+            else if (productTypeNoteCustomSectionsEl) productTypeNoteCustomSectionsEl.textContent = '';
+        }
+        // Se for um produto existente (isLoadingModal=true e productIdField tem valor),
+        // os tempAttributes e tempCustomBlocks já foram carregados com os dados do produto.
+        // Poderíamos aqui verificar se os atributos/blocos existentes são compatíveis com o novo template,
+        // ou adicionar os que faltam do novo template. Por simplicidade, aqui apenas renderizamos.
+        
+        renderAllDynamicContent();
+        // Força validação inicial dos campos principais que podem ser afetados pelo template
+        DebouncedValidateField(productTypeSelector, 'productTypeError', 'Tipo de Produto', 'tab-details', {required:true});
+        DebouncedValidateField(productName, 'productNameError', 'Nome Base', 'tab-details', {required:true, minLength:3, maxLength:255});
+        DebouncedValidateField(productCategory, 'productCategoryError', 'Categoria', 'tab-details', {required:true});
+    }
+    
+    function toggleTemplateView(){ /* ... (código existente) ... */ }
+
+    // --- Funções de Renderização de Conteúdo Dinâmico (Atributos, Mídia, Blocos, etc.) ---
+    function renderAllDynamicContent() { 
+        renderAttributes(); renderCustomBlocks(); renderImages(); renderVideos();
+        renderTitles(); 
+        updateAllTabStatusIndicators();
+    }
+    // ... (funções renderAttributes, addAttributeField, etc. como antes) ...
+    // ... (funções renderImages, addTempImage, etc. como antes) ...
+    // ... (funções renderVideos, addVideoField, etc. como antes) ...
+    // ... (funções renderTitles, addUserTitleField, etc. como antes) ...
+    // ... (funções renderCustomBlocks, addContentBlock, etc. como antes) ...
+
+    // --- Funções de Validação ---
+    let debounceTimer;
+    function DebouncedValidateField(fieldElement, errorElementId, fieldNameForError, tabIdForFocusOnError = null, validationRules = {}) {
+        clearTimeout(debounceTimer);
+        debounceTimer = setTimeout(() => {
+            validateField(fieldElement, errorElementId, fieldNameForError, tabIdForFocusOnError, validationRules);
+            updateAllTabStatusIndicators(); // Atualiza indicadores após cada validação
+        }, 500); // Delay de 500ms
+    }
+
+    function validateField(fieldElement, errorElementId, fieldNameForError, tabIdForFocusOnError = null, validationRules = {}) {
+        const errorElement = document.getElementById(errorElementId);
+        if (!fieldElement || !errorElement) { return true; } 
+        fieldElement.classList.remove('is-invalid');
+        errorElement.textContent = '';
+        let isValid = true;
+        const value = fieldElement.value; // Para inputs de texto, select, textarea
+        const type = fieldElement.type;
+
+        // 1. Verificação de Obrigatoriedade (melhorada)
+        const isRequiredByAttr = fieldElement.hasAttribute('required');
+        const reqIndicator = document.getElementById(fieldElement.id + 'ReqIndicator');
+        const isRequiredByIndicator = reqIndicator && window.getComputedStyle(reqIndicator).display !== 'none';
+        const isRequiredByRules = validationRules.required;
+        const isTrulyRequired = isRequiredByAttr || isRequiredByIndicator || isRequiredByRules;
+
+        if (isTrulyRequired) {
+            if (type === 'select-one' && !value) {
+                isValid = false;
+            } else if (type !== 'select-one' && typeof value === 'string' && !value.trim()) {
+                isValid = false;
+            } else if (type === 'checkbox' && !fieldElement.checked) { // Exemplo para checkbox
+                 isValid = false;
+            }
+            if (!isValid) {
+                fieldElement.classList.add('is-invalid');
+                errorElement.textContent = `${fieldNameForError} é obrigatório.`;
+            }
+        }
+        
+        // 2. Validações Adicionais (só se passou na de obrigatoriedade ou se não for obrigatório mas tiver valor)
+        if (isValid && ( (typeof value === 'string' && value.trim()) || (type !== 'string' && value !== null && value !== undefined) ) ) {
+            if (validationRules.minLength && value.length < validationRules.minLength) {
+                fieldElement.classList.add('is-invalid');
+                errorElement.textContent = `${fieldNameForError} deve ter pelo menos ${validationRules.minLength} caracteres.`;
+                isValid = false;
+            }
+            if (isValid && validationRules.maxLength && value.length > validationRules.maxLength) {
+                fieldElement.classList.add('is-invalid');
+                errorElement.textContent = `${fieldNameForError} não deve exceder ${validationRules.maxLength} caracteres.`;
+                isValid = false;
+            }
+            if (isValid && validationRules.type === 'number') {
+                const numValue = parseFloat(value.replace(',', '.')); // Tenta converter , para .
+                if (isNaN(numValue)) {
+                    fieldElement.classList.add('is-invalid');
+                    errorElement.textContent = `${fieldNameForError} deve ser um número válido.`;
+                    isValid = false;
+                } else {
+                    if (validationRules.min !== undefined && numValue < validationRules.min) {
+                        fieldElement.classList.add('is-invalid');
+                        errorElement.textContent = `${fieldNameForError} deve ser no mínimo ${validationRules.min}.`;
+                        isValid = false;
+                    }
+                    if (isValid && validationRules.max !== undefined && numValue > validationRules.max) {
+                        fieldElement.classList.add('is-invalid');
+                        errorElement.textContent = `${fieldNameForError} deve ser no máximo ${validationRules.max}.`;
+                        isValid = false;
+                    }
+                }
+            }
+            if (isValid && validationRules.type === 'url') {
+                try {
+                    new URL(value); // Tenta criar um objeto URL, lança erro se inválido
+                } catch (_) {
+                    fieldElement.classList.add('is-invalid');
+                    errorElement.textContent = `${fieldNameForError} deve ser uma URL válida (ex: http://exemplo.com).`;
+                    isValid = false;
+                }
+            }
+            // Adicionar mais regras conforme necessário (regex para SKU, etc.)
+            if (isValid && validationRules.pattern instanceof RegExp && !validationRules.pattern.test(value)) {
+                fieldElement.classList.add('is-invalid');
+                errorElement.textContent = validationRules.patternErrorMessage || `${fieldNameForError} está num formato inválido.`;
+                isValid = false;
+            }
+        }
+
+        if (!isValid && fieldElement.classList.contains('is-invalid')) {
+            // Pode adicionar ao sumário de erros aqui se desejar, mas a saveProductChanges já faz isso
+        }
+        return isValid;
+    }
+
+    // --- Função de Salvamento ---
+    function saveProductChanges(button) {
+        if(button) { button.classList.add('loading'); button.disabled = true;}
+        let isValidOverall = true;
+        const errorMessagesForSummary = []; 
+        if (formErrorsSummaryUl) formErrorsSummaryUl.innerHTML = ''; 
+        const formErrorsDiv = document.getElementById('formErrorsSummary');
+        if(formErrorsDiv) formErrorsDiv.style.display = 'none';
+        document.querySelectorAll('.error-message').forEach(el => el.textContent = ''); // Limpa erros antigos
+        document.querySelectorAll('.is-invalid').forEach(el => el.classList.remove('is-invalid'));
+        
+        // Validação dos campos principais
+        // Nota: As validationRules são passadas como último argumento para validateField
+        if (!validateField(productTypeSelector, 'productTypeError', 'Tipo de Produto','tab-details', {required:true})) {isValidOverall = false; errorMessagesForSummary.push({fieldId:'productTypeSelector', msg:'Tipo de Produto obrigatório.', tabId:'tab-details'});}
+        if (!validateField(productName, 'productNameError', 'Nome Base','tab-details', {required: true, minLength: 3, maxLength: 255})) {isValidOverall = false; errorMessagesForSummary.push({fieldId:'productName', msg:'Nome Base (3-255 caracteres).', tabId:'tab-details'});}
+        if (!validateField(productSKU, 'productSKUError', 'SKU','tab-details', {maxLength: 50})) {isValidOverall = false; errorMessagesForSummary.push({fieldId:'productSKU', msg:'SKU (max 50 caracteres).', tabId:'tab-details'});}
+        if (!validateField(productBrand, 'productBrandError', 'Marca','tab-details', {maxLength: 100})) {isValidOverall = false; errorMessagesForSummary.push({fieldId:'productBrand', msg:'Marca (max 100 caracteres).', tabId:'tab-details'});}
+        if (!validateField(productCategory, 'productCategoryError', 'Categoria','tab-details', {required: true})) {isValidOverall = false; errorMessagesForSummary.push({fieldId:'productCategory', msg:'Categoria obrigatória.', tabId:'tab-details'});}
+        // Adicionar validação para productShortDescription se necessário
+
+        // Validação da aba de Preço
+        if (!validateField(productPrice, 'productPriceError', 'Preço','tab-price', {required: true, type:'number', min:0})) {isValidOverall = false; errorMessagesForSummary.push({fieldId:'productPrice', msg:'Preço (número >= 0).', tabId:'tab-price'});}
+        if (productPromoPrice.value.trim() && !validateField(productPromoPrice, 'productPromoPriceError', 'Preço Promocional','tab-price', {type:'number', min:0})) {isValidOverall = false; errorMessagesForSummary.push({fieldId:'productPromoPrice', msg:'Preço Promocional (número >= 0).', tabId:'tab-price'});}
+        if (!validateField(productStock, 'productStockError', 'Estoque','tab-price', {required: true, type:'number', min:0})) {isValidOverall = false; errorMessagesForSummary.push({fieldId:'productStock', msg:'Estoque (número >= 0).', tabId:'tab-price'});}
+        // Adicionar validação para productUnit se necessário (ex: maxLength)
+        
+        // Validação de Atributos Dinâmicos
+        const currentProductTemplate = productTypeTemplates[currentProductType] || productTypeTemplates['generico'];
+        (tempAttributes || []).forEach((attr, index) => {
+            const attrElementContainer = document.getElementById(`attribute-item-${index}`);
+            const keyInput = attrElementContainer ? attrElementContainer.querySelector('input[id^="attrKey_"]') : null;
+            const valueInputOrSelect = attrElementContainer ? attrElementContainer.querySelector('input[type="text"], select') : null; // Pega o input de valor ou select
+            
+            if (keyInput && !validateField(keyInput, '', `Nome do Atributo ${index+1}`, 'tab-attributes', {required:true})){isValidOverall=false; errorMessagesForSummary.push({fieldId:keyInput.id, msg:`Nome do Atributo ${index+1} é obrigatório.`, tabId:'tab-attributes'});}
+
+            const templateAttrDef = (currentProductTemplate.attributes || []).find(ta => ta.key === attr.key);
+            const isRequired = !!( (templateAttrDef && templateAttrDef.required) || attr.required ); // Considera obrigatório se no template OU na instância
+            if (valueInputOrSelect && !validateField(valueInputOrSelect, '', `Valor do Atributo "${attr.key || `[Atributo ${index+1}]`}"`, 'tab-attributes', {required:isRequired})){isValidOverall=false; errorMessagesForSummary.push({fieldId:valueInputOrSelect.id || `attribute-item-${index}`, msg:`Valor para atributo "${attr.key || `[Atributo ${index+1}]`}" é obrigatório.`, tabId:'tab-attributes'});}
+        });
+
+        // Validação de Blocos Customizados (exemplo básico de obrigatoriedade)
+        (tempCustomBlocks || []).forEach((block, index) => {
+             const templateBlockDef = (currentProductTemplate.blocks || []).find(tb => tb.type === block.type && tb.title === block.title && tb.default); 
+             const isRequired = !!( (templateBlockDef && templateBlockDef.required) || block.required );
+             if(isRequired) { // Se o bloco em si é obrigatório, checar se tem conteúdo mínimo
+                 let blockContentIsValid = true;
+                 if(block.type === 'spec_table' && (!block.specs || block.specs.filter(s=>s.key && s.value).length === 0)) blockContentIsValid=false;
+                 else if (block.type === 'gallery' && (!block.images || block.images.length === 0)) blockContentIsValid=false;
+                 else if (block.type === 'faq_list' && (!block.faqs || block.faqs.filter(f=>f.question && f.answer).length === 0)) blockContentIsValid=false;
+                 else if (block.type === 'rich_text' && (!block.content || !block.content.trim())) blockContentIsValid=false;
+                 
+                 if (!blockContentIsValid) {
+                    isValidOverall = false; errorMessagesForSummary.push({fieldId:`custom-block-${index}`, msg:`Bloco obrigatório "${block.title}" requer conteúdo.`, tabId:'tab-custom-sections'});
+                    const blockEl = document.getElementById(`custom-block-${index}`);
+                    if(blockEl) blockEl.style.border = '1px solid var(--error-color)'; // Destaque visual
+                 }
+             }
+        });
+
+
+        updateAllTabStatusIndicators(); 
+        if (!isValidOverall) {
+            if(formErrorsDiv && errorMessagesForSummary.length > 0 && formErrorsSummaryUl) {
+                errorMessagesForSummary.forEach(err => {
+                    const li = document.createElement('li');
+                    li.innerHTML = `<a href="#" onclick="focusErrorField('${err.fieldId}', '${err.tabId}'); return false;">${err.msg} (na aba ${err.tabId.replace('tab-','')})</a>`;
+                    formErrorsSummaryUl.appendChild(li);
+                });
+                formErrorsDiv.style.display = 'block';
+                if (errorMessagesForSummary.length > 0) focusErrorField(errorMessagesForSummary[0].fieldId, errorMessagesForSummary[0].tabId);
+            }
+            if(button) { setTimeout(() => { button.classList.remove('loading'); button.disabled = false; }, 500); }
+            return;
+        }
+
+        // Montar o payload para o backend (consistente com schemas.ProdutoCreate/Update)
+        const payload = {
+            nome_base: productName.value,
+            marca: productBrand.value.trim() ? productBrand.value.trim() : null,
+            categoria_original: productCategory.value || null,
+            dados_brutos: { // Aqui entram campos que não são de primeira classe no modelo Produto
+                sku_original: productSKU.value.trim() ? productSKU.value.trim() : null,
+                short_description_interna: productShortDescription.value.trim() ? productShortDescription.value.trim() : null,
+                unidade: productUnit.value.trim() ? productUnit.value.trim() : null,
+                preco_original_fornecedor: productPrice.value ? parseFloat(productPrice.value.replace(',','.')) : null, // Exemplo
+                preco_promocional_fornecedor: productPromoPrice.value ? parseFloat(productPromoPrice.value.replace(',','.')) : null, // Exemplo
+                estoque_original_fornecedor: productStock.value ? parseInt(productStock.value) : null, // Exemplo
+                atributos_dinamicos: tempAttributes.filter(attr => attr.key && (attr.value !== undefined && attr.value !== '')),
+                custom_blocks: tempCustomBlocks,
+                // Outros campos do tipo de produto que não são campos principais do modelo Produto
+            },
+            // Campos principais do modelo Produto que são gerados/editados
+            descricao_principal_gerada: productLongDescription.value.trim() ? productLongDescription.value.trim() : null,
+            titulos_sugeridos: tempTitles.map(t => t.text).filter(t => t && t.trim() !== ''),
+            
+            // Adicionar fornecedor_id se houver um selecionado/associado
+            // fornecedor_id: (valor do fornecedor selecionado, se houver),
+            
+            // Imagens e vídeos (URLs)
+            // No backend, estes podem ir para dados_brutos ou campos JSON específicos se o modelo Produto os tiver
+            // Aqui, um exemplo simplificado, o ideal seria um campo JSON `imagens_produto` e `videos_produto`
+        };
+        if (tempImages.filter(img => img.url).length > 0) {
+            payload.dados_brutos.imagens_produto = tempImages.filter(img => img.url).map(img => ({ url: img.url, alt: img.alt, is_principal: img.is_principal }));
+        }
+        if (tempVideos.filter(v => v.url).length > 0) {
+            payload.dados_brutos.videos_produto = tempVideos.filter(v => v.url);
+        }
+
+
+        // Limpeza de chaves nulas em dados_brutos (opcional, mas bom para consistência)
+        for (const key in payload.dados_brutos) {
+            if (payload.dados_brutos[key] === null || 
+                (Array.isArray(payload.dados_brutos[key]) && payload.dados_brutos[key].length === 0) ||
+                (typeof payload.dados_brutos[key] === 'object' && payload.dados_brutos[key] !== null && Object.keys(payload.dados_brutos[key]).length === 0)
+            ) {
+                delete payload.dados_brutos[key];
+            }
+        }
+        if (Object.keys(payload.dados_brutos).length === 0) {
+             delete payload.dados_brutos; 
+        }
+
+        console.log("Payload para enviar ao backend (v5.5):", JSON.stringify(payload, null, 2));
+
+        // Simulação de chamada à API (substituir pelo seu productService.js no React)
+        const endpoint = productIdField.value
+            ? `/api/v1/produtos/${productIdField.value}` // Endpoint de atualização (PUT)
+            : '/api/v1/produtos/';                      // Endpoint de criação (POST)
+        const method = productIdField.value ? 'PUT' : 'POST';
+        
+        console.log(`Simulando ${method} para ${endpoint}`);
+        // fetch(endpoint, { method: method, headers: {'Content-Type': 'application/json', /* ...auth token... */ }, body: JSON.stringify(payload) })
+        // .then(response => { /* ... tratar resposta ... */ })
+        // .catch(error => { /* ... tratar erro ... */ })
+        // .finally(() => { if(button) { button.classList.remove('loading'); button.disabled = false; }});
+
+        setTimeout(() => {
+            if(button) { button.classList.remove('loading'); button.disabled = false; }
+            alert('Produto salvo (simulado com estrutura para API v5.5). Verifique o console para o payload.');
+            closeModal();
+        }, 1000);
+    }
+
+    function focusErrorField(fieldId, tabId) { /* ... (código existente, sem alterações diretas necessárias aqui) ... */ }
+
+    // --- Funções de Interação com IA (Simuladas) ---
+    function analyzeWithIA(button){ /* ... (código existente) ... */ }
+    function acceptAllHighConfidence() { /* ... (código existente) ... */ } 
+    function applyIASuggestion(mainFieldId, suggestedValueSourceId) { /* ... (código existente) ... */ }
+    function applyIASuggestionFromList(targetSuggestionBoxId, suggestionIndex, suggestionType) { /* ... (código existente) ... */ }
+    
+    // --- Funções Utilitárias e de UI (Tabela, Modais Secundários, etc.) ---
+    function previewProduct() { /* ... (código existente) ... */ }
+    function selectEntity(entityType) { /* ... (código existente) ... */ }
+    function saveCurrentFilters() { /* ... (código existente) ... */ }
+    function openAdvancedFiltersModal() { /* ... (código existente) ... */ }
+    function openMediaLibrary() { /* ... (código existente) ... */ }
+    function openAdminManageProductTypesModal() { /* ... (código existente) ... */ }
+    function closeAdminManageProductTypesModal(){ /* ... (código existente) ... */ }
+    function populateAdminProductTypeList(){ /* ... (código existente) ... */ }
+    function showAdminProductTypeDetails(typeKey){ /* ... (código existente) ... */ }
+    function quickAddCategory() { /* ... (código existente) ... */ }
+    function closeQuickAddCategoryModal() { /* ... (código existente) ... */ }
+    function confirmQuickAddCategory() { /* ... (código existente) ... */ }
+    function enableInlineEdit(cell, id, field, prefix='') { /* ... (código existente) ... */ }
+    function saveInlineEdit(input, id, field, prefix) { /* ... (código existente) ... */ }
+    function revertInlineEdit(input, prefix) { /* ... (código existente) ... */ }
+    function toggleSelectAll(cb) { /* ... (código existente) ... */ }
+    document.addEventListener('change', function(e){ /* ... (código existente) ... */ });
+    function updateBulkActionsBar() { /* ... (código existente) ... */ }
+    function applyTableFilters(){ /* ... (código existente) ... */ }
+
+    // --- Funções de Atributos Dinâmicos (já existentes, sem grandes alterações necessárias para este passo) ---
+    function renderAttributes() { /* ... (código existente) ... */ }
+    function handleAttributeDrop(draggedIndex, targetIndex) { /* ... (código existente) ... */ }
+    function addAttributeField(type = 'text') { /* ... (código existente) ... */ }
+    function updateTempAttribute(index, field, newValue) { /* ... (código existente) ... */ }
+    function removeTempAttribute(index) { /* ... (código existente) ... */ }
+    function moveAttribute(index, direction) { /* ... (código existente) ... */ }
+    function openAttributeOptionsModal(attrIndex) { /* ... (código existente) ... */ }
+    function renderCurrentAttributeOptions() { /* ... (código existente) ... */ }
+    function confirmAddAttributeOption() { /* ... (código existente) ... */ }
+    function removeAttributeOption(optionIndex) { /* ... (código existente) ... */ }
+    function closeAttributeOptionsModal() { /* ... (código existente) ... */ }
+
+    // --- Funções de Mídia (Imagens, Vídeos - já existentes) ---
+    function renderImages() { /* ... (código existente) ... */ }
+    function addTempImage() { /* ... (código existente) ... */ }
+    function updateTempImage(index, field, value) { /* ... (código existente) ... */ }
+    function removeTempImage(index) { /* ... (código existente) ... */ }
+    function setMainImage(selectedIndex) { /* ... (código existente) ... */ }
+    function handleFileUpload(event) { /* ... (código existente) ... */ }
+    function renderVideos() { /* ... (código existente) ... */ }
+    function addVideoField() { /* ... (código existente) ... */ }
+    function updateTempVideo(i, f, v) { /* ... (código existente) ... */ }
+    function removeTempVideo(i) { /* ... (código existente) ... */ }
+
+    // --- Funções de Títulos Dinâmicos (IA/Manual - já existentes) ---
+    createSuggestionItemHTML = (item, index, type) => { /* ... (código existente) ... */ };
+    renderTitles = () => { /* ... (código existente) ... */};
+    addUserTitleField = () => { /* ... (código existente) ... */ }; updateTempTitle = (i, f, nV) => { /* ... (código existente) ... */}; removeTempTitle = (i)=>{/* ... (código existente) ... */};
+    
+    // --- Funções de Blocos Customizados (já existentes) ---
+    function renderCustomBlocks() { /* ... (código existente, sem alterações diretas necessárias aqui) ... */ }
+    function handleCustomBlockDrop(draggedIndex, targetIndex) { /* ... (código existente) ... */ }
+    function getBlockPreviewIcon(blockType){ /* ... (código existente) ... */ }
+    function showBlockPreview(blockType) { /* ... (código existente) ... */ }
+    function addContentBlockCurrentType() { /* ... (código existente) ... */ }
+    function addContentBlock(type, isFromTemplate = false, templateData = null) { /* ... (código existente) ... */ }
+    function loadSavedBlockConcept(templateNameFromDropdown) { /* ... (código existente) ... */ }
+    function saveBlockAsTemplate(idx){ /* ... (código existente) ... */ }
+    function updateCustomBlock(idx,f,val){ /* ... (código existente) ... */ }
+    function removeCustomBlock(idx){ /* ... (código existente) ... */ }
+    function moveCustomBlock(index, direction) { /* ... (código existente) ... */ }
+    function addCustomBlockItem(bIdx,bType){ /* ... (código existente) ... */ }
+    function updateCustomBlockItem(bI,iI,f,v,arr='items'){ /* ... (código existente) ... */ }
+    function removeCustomBlockItem(bI,iI,arr='items'){ /* ... (código existente) ... */ }
+    function addImageToGalleryBlock(blockIndex) { /* ... (código existente) ... */ }
+    function removeImageFromGalleryBlock(blockIndex, imageIndex) { /* ... (código existente) ... */ }
+    function updateCustomBlockData(blockIndex, dataKey, value) { if(tempCustomBlocks[blockIndex]){ if(!tempCustomBlocks[blockIndex].data) tempCustomBlocks[blockIndex].data={}; tempCustomBlocks[blockIndex].data[dataKey]=value;}}
+
+
+</script>
+</body>
+</html>

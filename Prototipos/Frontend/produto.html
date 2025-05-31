@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Modelo de Página de Produto Ideal</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 0; padding: 0; background-color: #f4f4f4; color: #333; }
+        .container { max-width: 1200px; margin: 20px auto; padding: 20px; background-color: #fff; box-shadow: 0 0 10px rgba(0,0,0,0.1); }
+        header, footer { background-color: #333; color: #fff; padding: 1em; text-align: center; }
+        nav ul { list-style-type: none; padding: 0; }
+        nav ul li { display: inline; margin-right: 10px; }
+        nav a { color: #fff; text-decoration: none; }
+        .product-page { display: flex; flex-wrap: wrap; gap: 20px; }
+        .product-gallery { flex: 1 1 400px; /* Adapta mas não encolhe menos que 400px */ }
+        .product-gallery .main-image img { max-width: 100%; height: auto; border: 1px solid #ddd; }
+        .product-gallery .thumbnails { display: flex; gap: 10px; margin-top: 10px; }
+        .product-gallery .thumbnails img { width: 80px; height: 80px; object-fit: cover; border: 1px solid #ddd; cursor: pointer; }
+        .product-details { flex: 2 1 500px; /* Adapta e pode crescer mais */ }
+        .product-details h1 { font-size: 2em; margin-top: 0; }
+        .price { font-size: 1.5em; color: #e67e22; margin-bottom: 10px; }
+        .availability { margin-bottom: 15px; font-weight: bold; }
+        .variations label, .variations select, .variations button { margin-bottom:10px; display: block; }
+        .cta-button { background-color: #27ae60; color: white; padding: 15px 30px; border: none; font-size: 1.2em; cursor: pointer; margin-top: 20px; display: block; width: fit-content; }
+        .wishlist-button { background-color: #bdc3c7; color: #333; padding: 10px 20px; border: none; cursor: pointer; margin-top: 10px; display: block; width: fit-content; }
+        .section { background-color: #f9f9f9; padding: 15px; margin-top: 20px; border-radius: 5px; }
+        .section h2 { margin-top: 0; border-bottom: 2px solid #eee; padding-bottom: 10px; }
+        .tabs nav { border-bottom: 1px solid #ddd; margin-bottom: 15px; }
+        .tabs nav button { padding: 10px 15px; border: none; background: #eee; cursor: pointer; margin-right: 5px; }
+        .tabs nav button.active { background: #ddd; }
+        .tab-content { display: none; } /* JS controlaria a visibilidade */
+        .tab-content.active { display: block; }
+        ul.specifications-list { list-style-type: disc; padding-left: 20px; }
+        .related-products-grid, .reviews-list { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 15px; }
+        /* Comentários e notas no HTML explicam mais */
+    </style>
+</head>
+<body>
+    <header>
+        <div class="container">
+            <h1>Minha Loja Incrível</h1>
+            <nav>
+                <ul>
+                    <li><a href="#">Home</a></li>
+                    <li><a href="#">Categorias</a></li>
+                    <li><a href="#">Contato</a></li>
+                </ul>
+            </nav>
+        </div>
+    </header>
+
+    <div class="container">
+        <nav aria-label="breadcrumb">
+            <ol style="list-style:none; padding:0; display:flex; gap:5px;">
+                <li><a href="#">Home</a> &gt;</li>
+                <li><a href="#">Categoria do Produto</a> &gt;</li>
+                <li>Nome do Produto Aqui</li>
+            </ol>
+        </nav>
+
+        <article class="product-page">
+            <section class="product-gallery section">
+                <h2>Galeria do Produto</h2>
+                <div class="main-image">
+                    <img src="https://via.placeholder.com/600x400.png?text=Imagem+Principal" alt="Imagem Principal do Produto">
+                </div>
+                <div class="thumbnails">
+                    <img src="https://via.placeholder.com/80x80.png?text=Thumb+1" alt="Thumbnail 1">
+                    <img src="https://via.placeholder.com/80x80.png?text=Thumb+2" alt="Thumbnail 2">
+                    <img src="https://via.placeholder.com/80x80.png?text=Thumb+3" alt="Thumbnail 3">
+                    </div>
+                </section>
+
+            <section class="product-details section">
+                <h1>Nome do Produto Detalhado Aqui</h1>
+                <a href="#reviews">Ver avaliações (123)</a>
+
+                <div class="price">
+                    R$ 999,99
+                    </div>
+
+                <div class="availability">
+                    Disponível: Em Estoque
+                    </div>
+
+                <div class="short-description">
+                    <p>Uma breve descrição cativante do produto, destacando seus principais benefícios e para quem ele é ideal.</p>
+                </div>
+
+                <div class="variations">
+                    <label for="size-select">Tamanho:</label>
+                    <select id="size-select" name="size">
+                        <option value="P">P</option>
+                        <option value="M">M</option>
+                        <option value="G">G</option>
+                    </select>
+                    <label for="color-select">Cor:</label>
+                    <select id="color-select" name="color">
+                        <option value="Azul">Azul</option>
+                        <option value="Vermelho">Vermelho</option>
+                    </select>
+                    </div>
+
+                <button class="cta-button">Adicionar ao Carrinho</button>
+                <button class="wishlist-button">Salvar na Lista de Desejos</button>
+
+                <div class="social-share" style="margin-top:15px;">
+                    Compartilhar: <a href="#">Facebook</a> | <a href="#">Twitter</a> | <a href="#">Pinterest</a>
+                </div>
+            </section>
+
+            <section class="tabs section" style="flex-basis: 100%;">
+                <nav>
+                    <button class="active" data-tab="description">Descrição Completa</button>
+                    <button data-tab="specifications">Especificações</button>
+                    <button data-tab="reviews">Avaliações (123)</button>
+                    <button data-tab="qa">Perguntas e Respostas (10)</button>
+                </nav>
+
+                <div id="description" class="tab-content active">
+                    <h2>Descrição Completa do Produto</h2>
+                    <p>Aqui entra a descrição longa e detalhada do produto, falando sobre todos os seus aspectos, funcionalidades, benefícios, como usar, materiais, história da marca (se relevante), etc.</p>
+                    <p>Pode ser dividida em múltiplos parágrafos, usar listas, etc.</p>
+                    </div>
+
+                <div id="specifications" class="tab-content">
+                    <h2>Especificações Técnicas / Atributos do Produto</h2>
+                    <p><strong>Esta seção é crucial para a flexibilidade e deve ser preenchida dinamicamente com base no tipo de produto.</strong></p>
+                    <ul class="specifications-list">
+                        <li><strong>Marca:</strong> Nome da Marca</li>
+                        <li><strong>Modelo:</strong> Modelo XYZ</li>
+                        <li><strong>Dimensões:</strong> 10cm x 20cm x 5cm</li>
+                        <li><strong>Peso:</strong> 500g</li>
+                        <li><strong>Processador:</strong> Exemplo i5</li>
+                        <li><strong>Memória RAM:</strong> 8GB</li>
+                        <li><strong>Armazenamento:</strong> 256GB SSD</li>
+                        <li><strong>Material Principal:</strong> Algodão</li>
+                        <li><strong>Tipo de Manga:</strong> Curta</li>
+                        <li><strong>Origem:</strong> Nacional</li>
+                    </ul>
+                    <h4>Downloads Adicionais</h4>
+                    <ul>
+                        <li><a href="#">Manual do Usuário (PDF)</a></li>
+                        <li><a href="#">Guia de Instalação (PDF)</a></li>
+                    </ul>
+                </div>
+
+                <div id="reviews" class="tab-content">
+                    <h2>Avaliações de Clientes</h2>
+                    <div class="review-summary">Média: 4.5 de 5 estrelas</div>
+                    <div class="reviews-list">
+                        <div class="review-item" style="border:1px solid #eee; padding:10px;">
+                            <strong>Cliente Satisfeito</strong> - <span>5 estrelas</span>
+                            <p>Produto excelente, superou minhas expectativas!</p>
+                            <small>Data: 20/05/2025</small>
+                        </div>
+                        <div class="review-item" style="border:1px solid #eee; padding:10px;">
+                            <strong>Outro Cliente</strong> - <span>4 estrelas</span>
+                            <p>Bom produto, mas a entrega demorou um pouco.</p>
+                            <small>Data: 18/05/2025</small>
+                        </div>
+                    </div>
+                    <button style="margin-top:10px;">Ver todas as avaliações</button>
+                    <button style="margin-top:10px;">Escrever uma avaliação</button>
+                </div>
+
+                <div id="qa" class="tab-content">
+                    <h2>Perguntas e Respostas</h2>
+                    <div class="qa-item" style="border-bottom:1px solid #eee; padding-bottom:10px; margin-bottom:10px;">
+                        <p><strong>Pergunta:</strong> Este produto é bivolt?</p>
+                        <p><strong>Resposta:</strong> Sim, ele funciona tanto em 110V quanto em 220V.</p>
+                    </div>
+                    <button style="margin-top:10px;">Ver todas as perguntas</button>
+                    <button style="margin-top:10px;">Faça uma pergunta</button>
+                </div>
+            </section>
+
+            <section class="trust-elements section" style="flex-basis: 100%;">
+                <h2>Confiança e Segurança</h2>
+                <ul>
+                    <li>Informações sobre a Marca/Vendedor</li>
+                    <li>Política de Envio Detalhada</li>
+                    <li>Política de Devolução e Reembolso Clara</li>
+                    <li>Selos de Pagamento Seguro (ex: ícones de cartões, SSL)</li>
+                    <li>Garantia do Produto</li>
+                </ul>
+            </section>
+
+            <section class="related-products section" style="flex-basis: 100%;">
+                <h2>Você também pode gostar</h2>
+                <div class="related-products-grid">
+                    <div class="product-card" style="border:1px solid #ddd; padding:10px; text-align:center;">
+                        <img src="https://via.placeholder.com/150.png?text=Relacionado+1" alt="Produto Relacionado 1" style="max-width:100%;">
+                        <p>Nome Produto Relacionado 1</p>
+                        <strong>R$ 89,90</strong>
+                    </div>
+                    <div class="product-card" style="border:1px solid #ddd; padding:10px; text-align:center;">
+                        <img src="https://via.placeholder.com/150.png?text=Relacionado+2" alt="Produto Relacionado 2" style="max-width:100%;">
+                        <p>Nome Produto Relacionado 2</p>
+                        <strong>R$ 120,00</strong>
+                    </div>
+                    </div>
+                </section>
+        </article>
+    </div>
+
+    <footer>
+        <div class="container">
+            <p>&copy; 2025 Minha Loja Incrível. Todos os direitos reservados.</p>
+            <p>Este é um modelo conceitual. A implementação real exigirá integração com o backend (Python/FastAPI) e o desenvolvimento de componentes dinâmicos no frontend (React).</p>
+        </div>
+    </footer>
+
+    <script>
+        // Script básico para funcionalidade das abas (exemplo)
+        document.addEventListener('DOMContentLoaded', function() {
+            const tabButtons = document.querySelectorAll('.tabs nav button');
+            const tabContents = document.querySelectorAll('.tabs .tab-content');
+
+            tabButtons.forEach(button => {
+                button.addEventListener('click', function() {
+                    // Remove active class from all buttons and contents
+                    tabButtons.forEach(btn => btn.classList.remove('active'));
+                    tabContents.forEach(content => content.classList.remove('active'));
+
+                    // Add active class to clicked button and corresponding content
+                    this.classList.add('active');
+                    const targetTab = this.getAttribute('data-tab');
+                    document.getElementById(targetTab).classList.add('active');
+                });
+            });
+        });
+    </script>
+</body>
+</html>
