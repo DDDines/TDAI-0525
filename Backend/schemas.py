@@ -1,6 +1,6 @@
 # tdai_project/Backend/schemas.py
 from pydantic import BaseModel, EmailStr, Field, HttpUrl
-from typing import Optional, List, Dict, Any, Union 
+from typing import Optional, List, Dict, Any, Union
 import enum # Precisa ser importado para usar models.StatusGeracaoIAEnum como tipo
 from datetime import datetime
 
@@ -31,21 +31,80 @@ class Plano(PlanoBase):
     id: int
     class Config: from_attributes = True
 
+# --- AttributeTemplate Schemas ---
+class AttributeTemplateBase(BaseModel):
+    attribute_key: str = Field(..., min_length=1, max_length=100, description="Chave interna para o atributo, ex: 'cor_principal'")
+    label: str = Field(..., min_length=1, max_length=100, description="Rótulo do atributo para exibição, ex: 'Cor Principal'")
+    field_type: str = Field(..., max_length=50, description="Tipo de campo: 'text', 'select', 'number', 'checkbox', etc.")
+    options: Optional[Any] = Field(None, description="Opções para campos como 'select'. Ex: ['val1', 'val2'] ou [{'value': 'v', 'label': 'L'}]")
+    is_required: bool = False
+    tooltip_text: Optional[str] = Field(None, max_length=255)
+    default_value: Optional[str] = Field(None, max_length=255)
+    display_order: int = Field(0, ge=0)
+
+class AttributeTemplateCreate(AttributeTemplateBase):
+    pass # product_type_id virá do path da URL na criação
+
+class AttributeTemplateUpdate(BaseModel):
+    attribute_key: Optional[str] = Field(None, min_length=1, max_length=100)
+    label: Optional[str] = Field(None, min_length=1, max_length=100)
+    field_type: Optional[str] = Field(None, max_length=50)
+    options: Optional[Any] = None
+    is_required: Optional[bool] = None
+    tooltip_text: Optional[str] = Field(None, max_length=255)
+    default_value: Optional[str] = Field(None, max_length=255)
+    display_order: Optional[int] = Field(None, ge=0)
+
+class AttributeTemplateRead(AttributeTemplateBase):
+    id: int
+    product_type_id: int # Incluído para referência, embora a criação seja aninhada
+    created_at: datetime
+    updated_at: Optional[datetime] = None
+
+    class Config:
+        from_attributes = True
+
+# --- ProductType Schemas ---
+class ProductTypeBase(BaseModel):
+    key_name: str = Field(..., min_length=3, max_length=50, pattern=r"^[a-z0-9_]+$", description="Nome chave único (slug), ex: 'eletronicos_smartphones'")
+    friendly_name: str = Field(..., min_length=3, max_length=100, description="Nome amigável para exibição, ex: 'Smartphones'")
+
+class ProductTypeCreate(ProductTypeBase):
+    # user_id será definido pelo backend baseado no usuário logado ou nulo para global.
+    # Atributos são criados separadamente, conforme o plano.
+    pass
+
+class ProductTypeUpdate(BaseModel):
+    key_name: Optional[str] = Field(None, min_length=3, max_length=50, pattern=r"^[a-z0-9_]+$")
+    friendly_name: Optional[str] = Field(None, min_length=3, max_length=100)
+    # user_id geralmente não é alterado após a criação, ou apenas por admins.
+    # Para adicionar/remover/atualizar atributos, usar endpoints específicos de atributos.
+
+class ProductTypeRead(ProductTypeBase):
+    id: int
+    user_id: Optional[int] = None # ID do usuário proprietário, ou null se for global
+    attribute_templates: List[AttributeTemplateRead] = []
+    created_at: datetime
+    updated_at: Optional[datetime] = None
+
+    class Config:
+        from_attributes = True
+
 # --- Fornecedor Schemas ---
 class FornecedorBase(BaseModel):
     nome: str = Field(..., min_length=2, max_length=100)
-    site_url: Optional[HttpUrl] = None
+    site_url: Optional[HttpUrl] = None # type: ignore
     catalogo_pdf_path: Optional[str] = Field(None, max_length=255)
-    link_busca_padrao: Optional[HttpUrl] = None
+    link_busca_padrao: Optional[HttpUrl] = None # type: ignore
 
 class FornecedorCreate(FornecedorBase):
     pass
 
 class FornecedorUpdate(BaseModel):
     nome: Optional[str] = Field(None, min_length=2, max_length=100)
-    site_url: Optional[HttpUrl] = Field(None)
+    site_url: Optional[HttpUrl] = Field(None) # type: ignore
     catalogo_pdf_path: Optional[str] = Field(None, max_length=255)
-    link_busca_padrao: Optional[HttpUrl] = Field(None)
+    link_busca_padrao: Optional[HttpUrl] = Field(None) # type: ignore
 
 class Fornecedor(FornecedorBase):
     id: int
@@ -71,7 +130,8 @@ class ProdutoBase(BaseModel):
 class ProdutoCreate(ProdutoBase):
     fornecedor_id: Optional[int] = None
     titulos_sugeridos: Optional[List[str]] = Field(None, description="Lista de títulos sugeridos pela IA ou usuário.")
-    # Os status_ia não precisam estar no Create, pois o modelo models.Produto já define defaults.
+    # Adicionar product_type_key_referencia aqui se for definir no momento da criação do produto
+    # product_type_key_referencia: Optional[str] = None # Ou product_type_id
 
 class ProdutoUpdate(BaseModel):
     nome_base: Optional[str] = Field(None, min_length=1, max_length=255)
@@ -81,29 +141,30 @@ class ProdutoUpdate(BaseModel):
     descricao_principal_gerada: Optional[str] = None
     titulos_sugeridos: Optional[List[str]] = Field(None, description="Lista de títulos sugeridos. Enviar lista vazia para limpar, ou null/None para não alterar.")
     fornecedor_id: Optional[int] = None
-    status_enriquecimento_web: Optional[str] = None 
+    status_enriquecimento_web: Optional[str] = None
     log_enriquecimento_web: Optional[Dict[str, Any]] = None
-    # NOVOS CAMPOS DE STATUS PARA ATUALIZAÇÃO
     status_titulo_ia: Optional[models.StatusGeracaoIAEnum] = None
     status_descricao_ia: Optional[models.StatusGeracaoIAEnum] = None
+    # product_type_key_referencia: Optional[str] = None # Para mudar o tipo de produto
 
-class Produto(ProdutoBase): 
+class Produto(ProdutoBase):
     id: int
     user_id: int
-    fornecedor: Optional[Fornecedor] = None 
+    fornecedor: Optional[Fornecedor] = None
     descricao_principal_gerada: Optional[str] = None
     titulos_sugeridos: Optional[List[str]] = None
-    status_enriquecimento_web: models.StatusEnriquecimentoEnum 
+    status_enriquecimento_web: models.StatusEnriquecimentoEnum
     log_enriquecimento_web: Optional[Dict[str, Any]] = None
-    # NOVOS CAMPOS DE STATUS PARA RESPOSTA
     status_titulo_ia: models.StatusGeracaoIAEnum
     status_descricao_ia: models.StatusGeracaoIAEnum
     created_at: datetime
     updated_at: Optional[datetime] = None
+    # Adicionar product_type aqui para exibição, se necessário
+    # product_type: Optional[ProductTypeRead] = None
 
     class Config:
         from_attributes = True
-        use_enum_values = True 
+        use_enum_values = True
 
 class ProdutoPage(BaseModel):
     items: List[Produto]
@@ -168,8 +229,8 @@ class User(UserBase):
     id: int
     is_active: bool
     is_superuser: bool
-    plano: Optional[Plano] = None 
-    role: Optional[Role] = None   
+    plano: Optional[Plano] = None
+    role: Optional[Role] = None
     created_at: datetime
     updated_at: Optional[datetime] = None
     class Config: from_attributes = True
