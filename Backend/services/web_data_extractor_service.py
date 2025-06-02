@@ -9,6 +9,8 @@ import re
 from typing import List, Dict, Optional, Any
 from urllib.parse import urlparse
 from sqlalchemy.orm import Session # Importar Session para type hinting, se necessário
+from datetime import datetime, timezone
+
 
 try:
     from googleapiclient.discovery import build # type: ignore

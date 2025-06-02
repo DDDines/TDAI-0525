@@ -4,22 +4,24 @@ from sqlalchemy.orm import Session
 from typing import List, Optional, Dict, Any
 from datetime import datetime, timezone
 
+
+
+
 import schemas
 import models
 import crud
 from database import get_db
-from routers import auth_utils
-
-# Corrigindo NOMES das funções importadas para corresponder aos arquivos de serviço
+from routers import auth_utils # Para get_current_active_user
+# Corrigindo a importação para o nome correto da função no serviço:
 from services.web_data_extractor_service import extract_relevant_data_from_url 
 from services.ia_generation_service import (
-    gerar_descricao_produto_openai, # Nome corrigido
-    gerar_titulos_produto_openai    # Nome corrigido
+    generate_description_for_product_service,
+    generate_titles_for_product_service
 )
 
 
 router = APIRouter(
-    prefix="/produtos", 
+    prefix="/produtos", # O /api/v1 é adicionado no main.py
     tags=["Produtos"],
     responses={404: {"description": "Not found"}},
 )
@@ -209,59 +211,30 @@ async def generate_description_endpoint(
         raise HTTPException(status_code=404, detail="Produto não encontrado")
 
     try:
-        # Corrigindo a chamada para o nome correto da função no serviço
-        updated_produto = await gerar_descricao_produto_openai( 
-            dados_produto=db_produto.to_dict_for_ia(), # Supondo que você tenha um método para converter
-            user_api_key=current_user.chave_openai_pessoal or settings.OPENAI_API_KEY 
+        updated_produto = await generate_description_for_product_service(
+            db=db, 
+            produto_id=db_produto.id, 
+            user_id=current_user.id,
+            openai_api_key=current_user.chave_openai_pessoal or settings.OPENAI_API_KEY 
         )
-        # Precisamos atualizar o db_produto com a resposta do serviço
-        if isinstance(updated_produto, str): # Se a função retorna apenas a string da descrição
-            db_produto.descricao_principal_gerada = updated_produto
-            db_produto.status_descricao_ia = models.StatusGeracaoIAEnum.CONCLUIDO_SUCESSO
-        elif isinstance(updated_produto, models.Produto): # Se a função já retorna o objeto produto atualizado
-             db_produto = updated_produto
-        # (Se a função de serviço já salva no DB e retorna o objeto Produto atualizado,
-        #  então podemos apenas retornar 'updated_produto' diretamente.
-        #  A função 'gerar_descricao_produto_openai' que você me mostrou retorna uma string)
-        
-        # Se gerar_descricao_produto_openai retorna apenas a string da descrição:
-        # db_produto.descricao_principal_gerada = updated_produto # 'updated_produto' aqui seria a string da descrição
-        # db_produto.status_descricao_ia = models.StatusGeracaoIAEnum.CONCLUIDO_SUCESSO
-        # db.add(db_produto)
-        # db.commit()
-        # db.refresh(db_produto)
-        # return db_produto
-
-        # Ajuste baseado na sua função `gerar_descricao_produto_openai` que retorna uma string:
-        descricao_gerada_str = await gerar_descricao_produto_openai(
-            # O serviço espera um Dict, precisamos converter o db_produto.
-            # Adicione um método ao seu modelo Produto: to_dict_for_ia() ou passe os campos individualmente.
-            # Exemplo simplificado:
-            dados_produto={
-                "nome_base": db_produto.nome_base,
-                "marca": db_produto.marca,
-                "categoria_original": db_produto.categoria_original,
-                "dados_brutos": db_produto.dados_brutos
-            },
-            user_api_key=current_user.chave_openai_pessoal or settings.OPENAI_API_KEY
-        )
-        db_produto.descricao_principal_gerada = descricao_gerada_str
-        db_produto.status_descricao_ia = models.StatusGeracaoIAEnum.CONCLUIDO_SUCESSO
-        db.add(db_produto)
-        db.commit()
-        db.refresh(db_produto)
-        return db_produto
-
+        return updated_produto
     except ValueError as ve: 
         raise HTTPException(status_code=400, detail=str(ve))
     except Exception as e:
         print(f"Erro ao gerar descrição para produto {produto_id}: {e}")
         db_produto.status_descricao_ia = models.StatusGeracaoIAEnum.FALHOU
         log_entry = {"timestamp": datetime.now(timezone.utc).isoformat(), "level": "ERROR", "message": f"Falha ao gerar descrição com IA: {str(e)}"}
-        # (lógica de log omitida por brevidade, mas deve ser igual à do endpoint extract_data)
-        if isinstance(db_produto.log_enriquecimento_web, list): db_produto.log_enriquecimento_web.append(log_entry)
-        elif db_produto.log_enriquecimento_web is None: db_produto.log_enriquecimento_web = [log_entry]
-        else: db_produto.log_enriquecimento_web = [log_entry] # Simplificado
+        if isinstance(db_produto.log_enriquecimento_web, list):
+            db_produto.log_enriquecimento_web.append(log_entry)
+        elif db_produto.log_enriquecimento_web is None:
+            db_produto.log_enriquecimento_web = [log_entry]
+        else:
+            try:
+                current_log = list(db_produto.log_enriquecimento_web) if hasattr(db_produto.log_enriquecimento_web, '__iter__') else []
+                current_log.append(log_entry)
+                db_produto.log_enriquecimento_web = current_log
+            except TypeError:
+                 db_produto.log_enriquecimento_web = [log_entry]
         db.add(db_produto)
         db.commit()
         db.refresh(db_produto)
@@ -279,34 +252,30 @@ async def generate_titles_endpoint(
         raise HTTPException(status_code=404, detail="Produto não encontrado")
 
     try:
-        # Corrigindo a chamada para o nome correto da função no serviço
-        # E ajustando os dados passados para o serviço
-        titulos_gerados_list = await gerar_titulos_produto_openai(
-            dados_produto={ # Passar um dicionário conforme o serviço espera
-                "nome_base": db_produto.nome_base,
-                "marca": db_produto.marca,
-                "categoria_original": db_produto.categoria_original,
-                "dados_brutos": db_produto.dados_brutos 
-            },
-            user_api_key=current_user.chave_openai_pessoal or settings.OPENAI_API_KEY,
-            # 'idioma' e 'quantidade' usarão os defaults do serviço se não especificados aqui
+        updated_produto = await generate_titles_for_product_service(
+            db=db, 
+            produto_id=db_produto.id, 
+            user_id=current_user.id,
+            openai_api_key=current_user.chave_openai_pessoal or settings.OPENAI_API_KEY 
         )
-        db_produto.titulos_sugeridos = titulos_gerados_list
-        db_produto.status_titulo_ia = models.StatusGeracaoIAEnum.CONCLUIDO_SUCESSO
-        db.add(db_produto)
-        db.commit()
-        db.refresh(db_produto)
-        return db_produto
+        return updated_produto
     except ValueError as ve:
         raise HTTPException(status_code=400, detail=str(ve))
     except Exception as e:
         print(f"Erro ao gerar títulos para produto {produto_id}: {e}")
         db_produto.status_titulo_ia = models.StatusGeracaoIAEnum.FALHOU
         log_entry = {"timestamp": datetime.now(timezone.utc).isoformat(), "level": "ERROR", "message": f"Falha ao gerar títulos com IA: {str(e)}"}
-        # (lógica de log omitida por brevidade)
-        if isinstance(db_produto.log_enriquecimento_web, list): db_produto.log_enriquecimento_web.append(log_entry)
-        elif db_produto.log_enriquecimento_web is None: db_produto.log_enriquecimento_web = [log_entry]
-        else: db_produto.log_enriquecimento_web = [log_entry] # Simplificado
+        if isinstance(db_produto.log_enriquecimento_web, list):
+            db_produto.log_enriquecimento_web.append(log_entry)
+        elif db_produto.log_enriquecimento_web is None:
+            db_produto.log_enriquecimento_web = [log_entry]
+        else:
+            try:
+                current_log = list(db_produto.log_enriquecimento_web) if hasattr(db_produto.log_enriquecimento_web, '__iter__') else []
+                current_log.append(log_entry)
+                db_produto.log_enriquecimento_web = current_log
+            except TypeError:
+                 db_produto.log_enriquecimento_web = [log_entry]
         db.add(db_produto)
         db.commit()
         db.refresh(db_produto)
