@@ -1,0 +1,1152 @@
+<!DOCTYPE html>
+<html lang="pt-BR" id="htmlRoot">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TDAI - Gestão de Produtos v6 (UX Polido & i18n)</title>
+    <style>
+        :root {
+            --sidebar-bg: #1f2a40; --sidebar-text: #cfd8e5; --main-bg: #f4f6f8;
+            --card-bg: #fff; --primary: #3b82f6; --success: #10b981;
+            --info: #6366f1; --warning: #f59e0b; --danger: #ef4444;
+            --font: 'Helvetica Neue', Arial, sans-serif; --radius: 8px;
+            --shadow-sm: 0 1px 4px rgba(0,0,0,0.1); --shadow-md: 0 4px 8px rgba(0,0,0,0.15);
+            --border-color: #e5e7eb; --text-color-light: #6b7280; --disabled-bg: #e9ecef;
+        }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { display: flex; height: 100vh; font-family: var(--font); background: var(--main-bg); overflow: hidden; }
+        .sidebar { width: 240px; background: var(--sidebar-bg); color: var(--sidebar-text); padding: 1rem; display: flex; flex-direction: column; height: 100%; flex-shrink: 0; }
+        .sidebar .logo { font-size: 1.75rem; font-weight: bold; color: #fff; margin-bottom: 2rem; text-align: center; }
+        .sidebar nav { flex: 1; }
+        .sidebar nav a { display: block; padding: 0.75rem 1rem; color: var(--sidebar-text); text-decoration: none; border-radius: var(--radius); margin-bottom: 0.5rem; cursor: pointer; transition: background-color 0.2s, color 0.2s; }
+        .sidebar nav a.active, .sidebar nav a:hover { background: #16203a; color: #fff; }
+        .main { flex: 1; display: flex; flex-direction: column; height: 100%; overflow: hidden; }
+        .topbar { background: var(--card-bg); padding: 1rem 2rem; box-shadow: var(--shadow-sm); display: flex; align-items: center; justify-content: space-between; min-height: 60px; flex-shrink: 0; }
+        .topbar h1 { font-size: 1.65rem; color: #333; margin: 0; }
+        .topbar .lang-selector button {font-size:0.8em; padding:0.3em 0.6em; margin-left:5px; background-color:var(--text-color-light); opacity:0.7;}
+        .topbar .lang-selector button.active {opacity:1; background-color:var(--primary);}
+        .content { flex: 1; padding: 1.5rem 2rem; overflow-y: auto; }
+        .hidden { display: none !important; }
+        .card { background: var(--card-bg); border-radius: 18px; box-shadow: 0 2px 12px 0 rgba(60,100,150,0.11); padding: 1.5rem 2.1rem; margin-bottom: 1rem; }
+        .card-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; padding-bottom: 1rem; border-bottom: 1px solid var(--border-color); }
+        .card-header h3 { font-size: 1.25rem; margin: 0; }
+        button, .btn { border-radius: var(--radius); border: 1px solid transparent; padding: 0.6em 1.2em; font-size: 0.9em; font-weight: 500; font-family: inherit; background-color: var(--primary); color: white; cursor: pointer; transition: background-color 0.2s; display: inline-flex; align-items:center; justify-content:center; gap: 0.3em;}
+        button .spinner { width: 1em; height: 1em; border: 2px solid rgba(255,255,255,0.3); border-top-color: white; border-radius: 50%; animation: spin 1s linear infinite; margin-right: 0.5em; display:none; }
+        button.saving .spinner { display:inline-block; }
+        button.saving span:not(.spinner) {opacity:0.7;}
+        @keyframes spin { to { transform: rotate(360deg); } }
+        button:hover:not(:disabled), .btn:hover:not(:disabled) { filter: brightness(90%); }
+        button:disabled, .btn:disabled { opacity: 0.6; cursor: not-allowed; background-color: var(--disabled-bg); color: var(--text-color-light);}
+        .btn-small { padding: 0.4rem 0.8rem; font-size: 0.8rem; }
+        /* ... (outros estilos de botão e modal como na v5) ... */
+        .modal { display: none; position: fixed; z-index: 1000; left: 0; top: 0; width: 100%; height: 100%; overflow: auto; background-color: rgba(0,0,0,0.5); align-items: center; justify-content: center; }
+        .modal.active { display: flex; }
+        .modal-content { background-color: var(--card-bg); margin: 2% auto; padding: 0; border-radius: var(--radius); box-shadow: var(--shadow-md); width: 90%; max-width: 850px; display: flex; flex-direction: column; max-height: 95vh; }
+        .modal-header { padding: 1rem 1.5rem; background-color: var(--sidebar-bg); color: white; border-top-left-radius: var(--radius); border-top-right-radius: var(--radius); display: flex; justify-content: space-between; align-items: center; }
+        .modal-header h3 { margin: 0; font-size: 1.3em; }
+        .modal-header .close-btn { color: white; font-size: 1.5rem; font-weight: bold; cursor: pointer; background: none; border: none; padding: 0.5rem; line-height: 1;}
+        .modal-body { padding: 1.5rem; overflow-y: auto; flex-grow: 1; }
+        .modal-footer { padding: 1rem 1.5rem; display: flex; justify-content: space-between; align-items:center; gap: 0.5rem; border-top: 1px solid var(--border-color); background-color: #f9fafb; }
+        .modal-footer .left-actions { display:flex; gap: 0.5rem;}
+        .modal-tabs { display: flex; border-bottom: 1px solid var(--border-color); margin-bottom: 1rem; flex-wrap:wrap; }
+        .modal-tabs button { background: none; border: none; padding: 0.8rem 1rem; cursor: pointer; font-size: 0.9rem; color: #555; border-bottom: 3px solid transparent; position:relative;}
+        .modal-tabs button.active { color: var(--primary); border-bottom-color: var(--primary); font-weight: 600; }
+        .modal-tabs button .tab-error-indicator { color: var(--danger); margin-left: 5px; font-weight: bold; display:none; position:absolute; top:2px; right:2px; font-size:0.7em;}
+        .modal-tabs button.has-error .tab-error-indicator { display: inline; }
+        .tab-pane { display: none; animation: fadeIn 0.3s; }
+        .tab-pane.active { display: block; }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+        .form-group { margin-bottom: 1rem; }
+        .form-group label { display: block; margin-bottom: 0.3rem; font-weight: 500; color: #333; }
+        .form-group label .required { color: var(--danger); font-weight: bold; margin-left: 2px;}
+        .form-group input[type="text"], .form-group input[type="number"], .form-group input[type="date"], .form-group input[type="url"], .form-group select, .form-group textarea { width: 100%; padding: 0.6rem 0.75rem; border: 1px solid var(--border-color); border-radius: var(--radius); font-size: 1rem; }
+        .form-group textarea { min-height: 80px; resize: vertical; }
+        .form-group input.is-invalid, .form-group select.is-invalid, .form-group textarea.is-invalid { border-color: var(--danger) !important; background-color: #fff5f5; }
+        .error-message {font-size:0.8em; color:var(--danger); margin-top:2px; min-height:1em;}
+        .attribute-item { display: flex; flex-wrap: wrap; gap: 0.75rem; align-items: flex-end; padding: 0.75rem; border: 1px solid #f0f0f0; border-radius: var(--radius); margin-bottom: 0.75rem; }
+        .attribute-item.from-template { background-color: #f9f9f9; }
+        .attribute-item.manual-add { background-color: #eef2ff; border-left: 3px solid var(--info); }
+        .attribute-item .form-group { flex: 1 1 200px; margin-bottom: 0; }
+        .attribute-item .key-input:disabled { background-color: var(--disabled-bg); color: var(--text-color-light); border-style: dashed;}
+        .attribute-item .actions { margin-left: auto; align-self: flex-end; }
+        .tooltip { position: relative; display: inline-block; cursor: help; margin-left: 4px; color: var(--text-color-light); font-weight: normal; border: 1px solid var(--text-color-light); border-radius: 50%; width: 16px; height:16px; text-align:center; line-height:14px; font-size:0.8em;}
+        .tooltip .tooltiptext { visibility: hidden; width: 220px; background-color: #555; color: #fff; text-align: center; border-radius: 6px; padding: 5px 8px; position: absolute; z-index: 1; bottom: 125%; left: 50%; margin-left: -110px; opacity: 0; transition: opacity 0.3s; font-size:0.85em; font-weight:normal; }
+        .tooltip:hover .tooltiptext { visibility: visible; opacity: 1; }
+        .modal-body h4 { margin-top: 1.2rem; margin-bottom:0.8rem; padding-bottom:0.5rem; border-bottom:1px solid #eee; color:var(--sidebar-bg); display:flex; justify-content:space-between; align-items:center;}
+        .modal-body h4:first-child {margin-top:0;}
+        .suggestion-box { margin-top: 1.5rem; padding: 1rem; background-color: #eef2ff; border: 1px solid var(--info); border-radius: var(--radius); }
+        .suggestion-box h5 { margin-top: 0; margin-bottom: 0.75rem; color: var(--info); }
+        .suggestion-box ul { list-style-type: none; padding-left: 0; margin: 0; }
+        .suggestion-box li { margin-bottom: 0.5rem; font-size: 0.9em; display: flex; flex-wrap:wrap; align-items: center; gap: 10px; padding-bottom:0.5rem; border-bottom:1px solid #ddd;}
+        .suggestion-box li:last-child{border-bottom:none;}
+        .suggestion-box li label {font-weight:bold; flex-basis:180px; flex-shrink:0;}
+        .suggestion-box li input[type="text"], .suggestion-box li input[type="checkbox"] {flex-grow:1; padding:0.4rem 0.6rem; font-size:0.9em;}
+        .suggestion-box li input[type="checkbox"] {flex-grow:0; width:auto;}
+        .type-management-container { display: flex; gap: 1.5rem; }
+        .type-list-panel { flex: 1; max-width:300px; }
+        .type-detail-panel { flex: 2; background-color: #f9f9fa; padding: 1rem; border-radius: var(--radius); border: 1px solid var(--border-color); min-height: 400px;}
+        .type-list-panel ul { list-style-type: none; padding: 0; }
+        .type-list-panel li { padding: 0.6rem; border-bottom: 1px solid var(--border-color); cursor: pointer; border-radius: 4px; margin-bottom:4px; display:flex; justify-content:space-between; align-items:center; }
+        .type-list-panel li:hover, .type-list-panel li.selected { background-color: var(--primary); color: white; }
+        .type-list-panel li .usage-count {font-size:0.8em; opacity:0.7;}
+        .type-detail-panel h5 { margin-top: 0; margin-bottom: 1rem; display:flex; justify-content:space-between; align-items:center;}
+        .attribute-template-item { display:flex; justify-content:space-between; align-items:flex-start; padding:0.75rem; border:1px solid #ddd; margin-bottom:0.5rem; border-radius:var(--radius); background:white;}
+        .attribute-template-item .main-details {flex-grow:1;}
+        .attribute-template-item .details { font-size:0.85em; color:var(--text-color-light); }
+        .attribute-template-item .details strong {color:#555;}
+        .attribute-template-item .attr-order-icons {display:flex; flex-direction:column; margin-right:10px;}
+        .attribute-template-item .attr-order-icons button {padding:2px 4px; margin:2px 0; background:none; border:1px solid #ccc; color:#555; cursor:grab;}
+        .attribute-template-item .attr-actions button {margin-left:5px;}
+        .attribute-field-editor { display: flex; flex-direction:column; gap: 0.5rem; margin-bottom: 1rem; background: #f0f0f0; padding: 1rem; border-radius: var(--radius); border:1px solid #ccc;}
+        .attribute-field-editor .form-group { margin-bottom:0.5rem; display:flex; flex-direction:column;}
+        .attribute-field-editor input, .attribute-field-editor select, .attribute-field-editor textarea { padding: 0.5rem; font-size: 0.9rem; }
+        #editAttributeTemplateForm { border-top: 1px solid #ccc; padding-top: 1rem; margin-top:1rem; }
+        .loading-indicator { font-style: italic; color: var(--text-color-light); padding: 10px 0; text-align:center; }
+        .ia-note {font-size:0.85em; color:var(--text-color-light); margin-top:1rem; padding:0.5rem; background-color:#f9f9f9; border-radius:var(--radius);}
+        .diff-view {display:flex; gap:1rem; margin-bottom:1rem; border:1px solid #ddd; padding:0.5rem; border-radius:var(--radius);}
+        .diff-view > div {flex:1;}
+        .diff-view label {font-size:0.8em; color:var(--text-color-light); margin-bottom:0.2rem; display:block;}
+        .diff-view textarea {height:100px; font-size:0.9em;}
+        .media-item {display:flex; gap:10px; align-items:center; margin-bottom:10px; padding:10px; border:1px solid #eee; border-radius:var(--radius);}
+        .media-item img.preview {width:60px; height:60px; object-fit:cover; border-radius:4px;}
+        .media-item .fields {flex-grow:1;}
+        .media-item .fields .form-group {margin-bottom:5px;}
+        .media-item .fields input {font-size:0.9em; padding:0.4em;}
+        .history-item {padding:0.5rem 0; border-bottom:1px dotted #eee; font-size:0.85em;}
+        .history-item:last-child{border-bottom:none;}
+        .history-item .actor {font-weight:bold;}
+        .history-item .date {color:var(--text-color-light); margin-left:10px;}
+        .global-message { padding: 1rem; margin: 1rem 0; border-radius: var(--radius); text-align:center; }
+        .global-message.error { background-color: #ffebee; color: var(--danger); border:1px solid var(--danger);}
+        .global-message.success { background-color: #e8f5e9; color: var(--success); border:1px solid var(--success);}
+    </style>
+</head>
+<body>
+    <aside class="sidebar">
+        <div class="logo" data-lang-key="logo_text">TDAI</div>
+        <nav>
+            <a href="#" onclick="showView('view-dashboard')" id="nav-dashboard" data-lang-key="nav_dashboard">Dashboard</a>
+            <a href="#" onclick="showView('view-produtos')" id="nav-produtos" class="active" data-lang-key="nav_products">Produtos</a>
+            <a href="#" onclick="showView('view-tipos-produto')" id="nav-tipos-produto" data-lang-key="nav_product_types">Tipos de Produto</a>
+            <a href="#" onclick="showView('view-configuracoes')" id="nav-configuracoes" data-lang-key="nav_settings">Configurações</a>
+        </nav>
+    </aside>
+
+    <div class="main">
+        <header class="topbar">
+            <h1 id="viewTitle" data-lang-key="viewtitle_products">Produtos</h1>
+            <div class="lang-selector">
+                <button id="lang-pt" class="btn-small active" onclick="setLanguage('pt')">PT</button>
+                <button id="lang-en" class="btn-small" onclick="setLanguage('en')">EN</button>
+            </div>
+        </header>
+
+        <main class="content">
+            <div id="globalUserMessage" class="global-message hidden"></div>
+
+            <div id="view-dashboard" class="hidden">Dashboard Content Here...</div>
+            <div id="view-produtos">
+                <div class="card">
+                    <div class="card-header">
+                        <h3 data-lang-key="product_list_title">Lista de Produtos</h3>
+                        <button onclick="openModal('productModal', true)" data-lang-key="btn_new_product">✨ Novo Produto</button>
+                    </div>
+                    <p style="text-align:center; padding: 20px; color: var(--text-color-light);" data-lang-key="product_list_placeholder">(Protótipo: Tabela de produtos iria aqui)</p>
+                </div>
+            </div>
+            <div id="view-tipos-produto" class="hidden">
+                <div class="card">
+                    <div class="card-header">
+                        <h3 data-lang-key="manage_product_types_title">Gerenciar Tipos de Produto</h3>
+                        <div>
+                            <button onclick="cloneSelectedProductType()" id="btnCloneProductType" class="btn-info btn-small" disabled data-lang-key="btn_clone_type">Clonar Tipo</button>
+                            <button onclick="openNewProductTypeForm()" class="btn-success btn-small" data-lang-key="btn_new_type_admin">Novo Tipo de Produto</button>
+                        </div>
+                    </div>
+                    <div class="type-management-container">
+                        <div class="type-list-panel">
+                            <h4 data-lang-key="registered_types_title">Tipos Cadastrados:</h4>
+                            <ul id="productTypesListUL"></ul>
+                        </div>
+                        <div class="type-detail-panel" id="productTypeDetailView">
+                            <h5 data-lang-key="select_type_to_edit_msg">Selecione um Tipo para ver/editar.</h5>
+                            <div id="attributesTemplateList"></div>
+                            <div id="addAttributeToTemplateFormContainer" class="hidden">
+                                <h6 id="attributeDefinitionFormTitle" data-lang-key="add_attr_to_template_title">Adicionar Novo Atributo ao Template "<span id="currentEditingTypeName"></span>"</h6>
+                                <form id="attributeDefinitionForm" class="attribute-field-editor">
+                                   <input type="hidden" id="editingAttrId">
+                                   <div class="form-group"><label for="newAttrName" data-lang-key="label_attr_name">Nome do Atributo<span class="required">*</span></label><input type="text" id="newAttrName"></div>
+                                   <div class="form-group"><label for="newAttrType" data-lang-key="label_attr_data_type">Tipo de Dado<span class="required">*</span></label>
+                                       <select id="newAttrType" onchange="toggleAttributeOptionsInput(this.value)">
+                                           <option value="text" data-lang-key="option_attr_text_short">Texto Curto</option><option value="textarea" data-lang-key="option_attr_text_long">Texto Longo</option>
+                                           <option value="number" data-lang-key="option_attr_number">Número</option><option value="date" data-lang-key="option_attr_date">Data</option>
+                                           <option value="boolean" data-lang-key="option_attr_boolean">Sim/Não (Checkbox)</option><option value="select" data-lang-key="option_attr_select">Lista de Opções</option>
+                                       </select>
+                                   </div>
+                                   <div class="form-group hidden" id="newAttrOptionsGroup"><label for="newAttrOptions" data-lang-key="label_attr_options">Opções (separadas por vírgula) para Lista<span class="required">*</span></label><input type="text" id="newAttrOptions"></div>
+                                   <div class="form-group"><label for="newAttrTooltip" data-lang-key="label_attr_tooltip">Tooltip (dica)</label><input type="text" id="newAttrTooltip"></div>
+                                   <div class="form-group"><label for="newAttrDefaultValue" data-lang-key="label_attr_default_value">Valor Padrão (opcional)</label><input type="text" id="newAttrDefaultValue"></div>
+                                   <div class="form-group" style="flex-direction:row; align-items:center; gap:5px;"><input type="checkbox" id="newAttrRequired" style="width:auto;"> <label for="newAttrRequired" style="margin-bottom:0;" data-lang-key="label_attr_required">Obrigatório</label></div>
+                                   <div>
+                                       <button type="button" class="btn-small btn-success" onclick="confirmSaveAttributeToTemplate()"><span class="spinner"></span><span data-lang-key="btn_save_attr_template">💾 Salvar Atributo</span></button>
+                                       <button type="button" class="btn-small btn-secondary" onclick="cancelEditAttributeTemplate()" data-lang-key="btn_cancel">Cancelar</button>
+                                   </div>
+                                </form>
+                            </div>
+                            <button id="btnShowAddAttrForm" class="btn-small btn-info hidden" style="margin-top:1rem;" onclick="showAttributeDefinitionForm(null)" data-lang-key="btn_add_attr_to_template">+ Novo Atributo para este Template</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+             <div id="view-configuracoes" class="hidden">Configurações Content Here...</div>
+        </main>
+    </div>
+
+    <div class="modal" id="productModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 id="productModalTitle" data-lang-key="modal_new_product_title">Novo Produto</h3>
+                <button class="close-btn" onclick="closeModal('productModal')">×</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label for="productTypeSelector" data-lang-key="label_product_type">Tipo de Produto:</label>
+                    <select id="productTypeSelector" onchange="handleProductTypeChange(this.value)">
+                        <option value="" data-lang-key="option_select">Selecione...</option>
+                    </select>
+                </div>
+                <div id="productFormLoadingIndicator" class="loading-indicator hidden" data-lang-key="loading_template">Carregando template...</div>
+
+                <div class="modal-tabs">
+                    <button class="tab-button active" onclick="openProductTab(event, 'tab-p-info')" data-lang-key="tab_main_info">Info Principais <span class="tab-error-indicator">!</span></button>
+                    <button class="tab-button" onclick="openProductTab(event, 'tab-p-atributos')" data-lang-key="tab_attributes">Atributos <span class="tab-error-indicator">!</span></button>
+                    <button class="tab-button" onclick="openProductTab(event, 'tab-p-midia')" data-lang-key="tab_media">Mídia <span class="tab-error-indicator">!</span></button>
+                    <button class="tab-button" onclick="openProductTab(event, 'tab-p-ia')" data-lang-key="tab_ai_content">Conteúdo IA <span class="tab-error-indicator">!</span></button>
+                    <button class="tab-button" onclick="openProductTab(event, 'tab-p-sugestoes')" data-lang-key="tab_ai_suggestions">Sugestões IA</button>
+                    <button class="tab-button" onclick="openProductTab(event, 'tab-p-historico')" data-lang-key="tab_history">Histórico</button>
+                </div>
+
+                <div id="tab-p-info" class="tab-pane active">
+                     <h4 data-lang-key="heading_base_info">Informações Base</h4>
+                    <div class="form-group">
+                        <label for="p-nome_base" data-lang-key="label_base_name">Nome Base<span class="required">*</span></label>
+                        <input type="text" id="p-nome_base" data-fieldname="Nome Base" placeholder="Nome principal do produto" oninput="validateField(this, 'p-nome_base-error', {required:true, minLength: 3})">
+                        <span class="error-message" id="p-nome_base-error"></span>
+                    </div>
+                     <div class="form-group"><label for="p-sku_original" data-lang-key="label_original_sku">SKU Original</label><input type="text" id="p-sku_original" placeholder="SKU do fornecedor"></div>
+                     <div class="form-group"><label for="p-marca" data-lang-key="label_brand">Marca</label><input type="text" id="p-marca" placeholder="Marca do produto"></div>
+                </div>
+                <div id="tab-p-atributos" class="tab-pane">
+                    <h4 data-lang-key="heading_specific_attributes">Atributos Específicos para: <span id="currentProductTypeDisplay">Nenhum tipo</span></h4>
+                    <div id="dynamic-attributes-list">
+                        <p style="color: var(--text-color-light);" data-lang-key="select_type_for_attributes">Selecione um Tipo de Produto para ver/adicionar atributos.</p>
+                    </div>
+                    <button class="btn-small btn-info" onclick="addAttributeManually()" style="margin-top:10px;" data-lang-key="btn_add_manual_attr">+ Atributo Manual</button>
+                </div>
+                <div id="tab-p-midia" class="tab-pane">
+                    <h4 data-lang-key="heading_product_media">Mídia do Produto</h4>
+                    <h5 data-lang-key="heading_images">Imagens</h5>
+                    <div id="p-images-list"></div>
+                    <button class="btn-small btn-info" onclick="addImageField()" data-lang-key="btn_add_image_url">+ Adicionar Imagem (URL)</button>
+                    <h5 style="margin-top:1.5rem;" data-lang-key="heading_videos">Vídeos</h5>
+                    <div id="p-videos-list"></div>
+                    <button class="btn-small btn-info" onclick="addVideoField()" data-lang-key="btn_add_video_url">+ Adicionar Vídeo (URL)</button>
+                </div>
+                <div id="tab-p-ia" class="tab-pane">
+                     <h4 data-lang-key="heading_ai_generated_content">Conteúdo Gerado/Editado</h4>
+                    <div class="form-group">
+                        <label for="p-descricao_principal" data-lang-key="label_main_description">Descrição Principal</label>
+                        <div class="diff-view">
+                            <div><label data-lang-key="label_original_if_any">Original (Se houver)</label><textarea id="p-descricao-original-display" rows="5" readonly disabled style="background:#f0f0f0;"></textarea></div>
+                            <div><label data-lang-key="label_ai_suggestion_editable">Sugestão IA / Editável</label><textarea id="p-descricao_principal" rows="5" placeholder="A IA irá gerar ou você pode editar aqui..."></textarea></div>
+                        </div>
+                         <button class="btn-small" style="margin-top:5px;" onclick="generateAIDescription(this)" data-lang-key="btn_generate_description"><span class="spinner"></span><span>Gerar Descrição</span></button>
+                         <button class="btn-small btn-success" style="margin-top:5px;" onclick="applyAIDescription()" data-lang-key="btn_apply_ai_suggestion">Aplicar Sugestão IA</button>
+                    </div>
+                    <div class="form-group">
+                        <label data-lang-key="label_suggested_titles">Títulos Sugeridos (Máx. 5)</label>
+                        <div id="p-titles-list"></div>
+                        <button class="btn-small btn-info" onclick="addTitleField()" data-lang-key="btn_add_manual_title">+ Adicionar Título Manual</button>
+                        <button class="btn-small" style="margin-left:10px;" onclick="generateAITitles(this)" data-lang-key="btn_generate_titles"><span class="spinner"></span><span>Gerar Títulos</span></button>
+                    </div>
+                     <p class="ia-note" data-lang-key="ia_context_note">Nota: A IA utilizará o "Tipo de Produto" e os "Atributos Específicos" preenchidos como contexto.</p>
+                     <button class="btn-small" style="margin-top:5px;" onclick="alert('Funcionalidade de template de conteúdo em desenvolvimento.')" disabled data-lang-key="btn_use_content_template_placeholder">Usar Template de Conteúdo para <span class="currentProductTypeDisplay">este tipo</span></button>
+                </div>
+                <div id="tab-p-sugestoes" class="tab-pane">
+                    <h4 data-lang-key="heading_ai_spec_suggestions">Sugestões de Atributos e Valores (Baseado no Tipo: <span class="currentProductTypeDisplay">Nenhum</span>)</h4>
+                    <div id="iaSuggestionsLoadingIndicator" class="loading-indicator hidden" data-lang-key="loading_ai_suggestions">IA buscando sugestões...</div>
+                    <div class="suggestion-box" id="ia-attribute-suggestions">
+                        <h5 data-lang-key="ai_suggests_verify_attrs">A IA sugere verificar/preencher/adicionar os seguintes atributos:</h5>
+                        <ul id="ia-suggested-attributes-list">
+                            <li style="color: var(--text-color-light);" data-lang-key="select_type_for_suggestions">Selecione um Tipo de Produto e insira um nome base para receber sugestões.</li>
+                        </ul>
+                        <button class="btn-small btn-primary" onclick="fetchIASuggestedValues(this)" style="margin-top:10px;" data-lang-key="btn_fetch_suggested_values"><span class="spinner"></span><span>Buscar Valores Sugeridos (IA)</span></button>
+                    </div>
+                </div>
+                 <div id="tab-p-historico" class="tab-pane">
+                    <h4 data-lang-key="heading_product_change_history">Histórico de Alterações do Produto (Simulado)</h4>
+                    <ul id="product-history-list" style="list-style:none; padding-left:0;">
+                        <li class="history-item">Produto criado. <span class="actor">por Julio User</span> <span class="date">25/05/2025 10:00</span></li>
+                        <li class="history-item">Preço alterado. <span class="actor">por Julio User</span> <span class="date">26/05/2025 14:30</span></li>
+                    </ul>
+                </div>
+                </div>
+            <div class="modal-footer">
+                <div class="left-actions">
+                    <button class="btn-secondary" onclick="saveProduct(true, this)" data-lang-key="btn_save_draft"><span class="spinner"></span><span>Salvar como Rascunho</span></button>
+                    <button title="Funcionalidade premium" class="btn" style="background-color: #ffc107;" disabled><span data-lang-key="btn_publish_marketplace_xpto">🚀 Publicar em Marketplace XPTO</span></button>
+                     <span class="tooltip" style="align-self:center;">?<span class="tooltiptext" data-lang-key="tooltip_premium_feature">Esta funcionalidade requer um plano Premium ou permissões específicas.</span></span>
+                </div>
+                <div>
+                    <button class="btn-secondary" style="margin-right:5px;" onclick="closeModal('productModal')" data-lang-key="btn_cancel">Cancelar</button>
+                    <button class="btn-primary" onclick="saveProductAndNew(this)" data-lang-key="btn_save_and_new"><span class="spinner"></span><span>Salvar e Criar Novo</span></button>
+                    <button class="btn-success" style="margin-left:5px;" onclick="saveProduct(false, this)" data-lang-key="btn_save_product"><span class="spinner"></span><span>Salvar Produto</span></button>
+                </div>
+            </div>
+        </div>
+    </div>
+    <script>
+        // --- DADOS MOCKADOS (simulando o que viria do backend) ---
+        let productTypeTemplates = { /* (como na v5) */
+            'eletronico': {
+                friendlyName: 'Eletrônico', attributesOrder: ['attr_volt', 'attr_cor_ele', 'attr_pot'],
+                attributes: [
+                    { id: 'attr_volt', name: 'Voltagem', type: 'select', options: ['110V', '220V', 'Bivolt'], required: true, tooltip: 'Voltagem de operação.', defaultValue: 'Bivolt' },
+                    { id: 'attr_pot', name: 'Potência (W)', type: 'number', required: false, placeholder: 'Ex: 60', tooltip: 'Consumo em Watts.', defaultValue: '' },
+                    { id: 'attr_cor_ele', name: 'Cor Principal', type: 'text', required: true, placeholder: 'Ex: Preto', tooltip: 'Cor do aparelho.', defaultValue: 'Preto' }
+                ]
+            },
+            'vestuario': {
+                friendlyName: 'Vestuário', attributesOrder: ['attr_tam', 'attr_cor_ves', 'attr_mat'],
+                attributes: [
+                    { id: 'attr_cor_ves', name: 'Cor', type: 'text', required: true, placeholder: 'Ex: Azul Marinho', tooltip: 'Cor da peça.' },
+                    { id: 'attr_tam', name: 'Tamanho', type: 'select', options: ['P', 'M', 'G', 'GG'], required: true, tooltip: 'Tamanho (P, M, G, etc.).', defaultValue: 'M' },
+                    { id: 'attr_mat', name: 'Material', type: 'textarea', required: false, placeholder: 'Ex: Algodão, Poliéster', tooltip: 'Composição do tecido.' }
+                ]
+            },
+             'automotivo_generico': { 
+                friendlyName: 'Automotivo Genérico', attributesOrder: [],
+                attributes: [ /* ... */ ] 
+            }
+        };
+        let currentSelectedProductTypeForAdmin = null;
+        let editingAttributeTemplateId = null;
+        let currentLanguage = 'pt';
+
+        // --- INTERNACIONALIZAÇÃO (i18n) ---
+        const uiStrings = {
+            pt: {
+                logo_text: "TDAI", nav_dashboard: "Dashboard", nav_products: "Produtos", nav_product_types: "Tipos de Produto", nav_settings: "Configurações",
+                viewtitle_products: "Produtos", product_list_title: "Lista de Produtos", btn_new_product: "✨ Novo Produto", product_list_placeholder: "(Protótipo: Tabela de produtos iria aqui)",
+                manage_product_types_title: "Gerenciar Tipos de Produto", btn_clone_type: "Clonar Tipo", btn_new_type_admin: "Novo Tipo de Produto",
+                registered_types_title: "Tipos Cadastrados:", select_type_to_edit_msg: "Selecione um Tipo para ver/editar.",
+                add_attr_to_template_title: 'Adicionar Novo Atributo ao Template "<span id="currentEditingTypeNamePT"></span>"',
+                label_attr_name: "Nome do Atributo", label_attr_data_type: "Tipo de Dado", option_attr_text_short: "Texto Curto", option_attr_text_long: "Texto Longo",
+                option_attr_number: "Número", option_attr_date: "Data", option_attr_boolean: "Sim/Não (Checkbox)", option_attr_select: "Lista de Opções",
+                label_attr_options: "Opções (separadas por vírgula) para Lista", label_attr_tooltip: "Tooltip (dica)", label_attr_default_value: "Valor Padrão (opcional)",
+                label_attr_required: "Obrigatório", btn_save_attr_template: "💾 Salvar Atributo", btn_cancel: "Cancelar", btn_add_attr_to_template: "+ Novo Atributo para este Template",
+                modal_new_product_title: "Novo Produto", modal_edit_product_title: "Editar Produto", label_product_type: "Tipo de Produto:", option_select: "Selecione...",
+                loading_template: "Carregando template...", tab_main_info: "Info Principais", tab_attributes: "Atributos", tab_media: "Mídia", tab_ai_content: "Conteúdo IA",
+                tab_ai_suggestions: "Sugestões IA", tab_history: "Histórico", heading_base_info: "Informações Base", label_base_name: "Nome Base", label_original_sku: "SKU Original", label_brand: "Marca",
+                heading_specific_attributes: 'Atributos Específicos para: <span id="currentProductTypeDisplayPT">Nenhum tipo</span>', select_type_for_attributes: "Selecione um Tipo de Produto para ver/adicionar atributos.",
+                btn_add_manual_attr: "+ Atributo Manual", heading_product_media: "Mídia do Produto", heading_images: "Imagens", btn_add_image_url: "+ Adicionar Imagem (URL)",
+                heading_videos: "Vídeos", btn_add_video_url: "+ Adicionar Vídeo (URL)", heading_ai_generated_content: "Conteúdo Gerado/Editado", label_main_description: "Descrição Principal",
+                label_original_if_any: "Original (Se houver)", label_ai_suggestion_editable: "Sugestão IA / Editável", btn_generate_description: "Gerar Descrição", btn_apply_ai_suggestion: "Aplicar Sugestão IA",
+                label_suggested_titles: "Títulos Sugeridos (Máx. 5)", btn_add_manual_title: "+ Adicionar Título Manual", btn_generate_titles: "Gerar Títulos",
+                ia_context_note: 'Nota: A IA utilizará o "Tipo de Produto" e os "Atributos Específicos" preenchidos como contexto.', btn_use_content_template_placeholder: "Usar Template de Conteúdo para este tipo",
+                heading_ai_spec_suggestions: 'Sugestões de Atributos e Valores (Baseado no Tipo: <span class="currentProductTypeDisplayPT2">Nenhum</span>)', loading_ai_suggestions: "IA buscando sugestões...",
+                ai_suggests_verify_attrs: "A IA sugere verificar/preencher/adicionar os seguintes atributos:", select_type_for_suggestions: "Selecione um Tipo de Produto e insira um nome base para receber sugestões.",
+                btn_fetch_suggested_values: "Buscar Valores Sugeridos (IA)", heading_product_change_history: "Histórico de Alterações do Produto (Simulado)",
+                btn_save_draft: "Salvar como Rascunho", btn_publish_marketplace_xpto: "🚀 Publicar em Marketplace XPTO", tooltip_premium_feature: "Esta funcionalidade requer um plano Premium ou permissões específicas.",
+                btn_save_and_new: "Salvar e Criar Novo", btn_save_product: "Salvar Produto",
+                error_field_required: "{fieldName} é obrigatório.", error_field_minlength: "{fieldName} deve ter no mínimo {minLength} caracteres.",
+                error_field_number_min: "{fieldName} deve ser no mínimo {min}.", error_field_number_max: "{fieldName} deve ser no máximo {max}.",
+                error_field_url: "{fieldName} deve ser uma URL válida.",
+                alert_form_errors: "Existem erros no formulário. Por favor, corrija-os. Verifique as abas com '!'",
+                alert_product_saved_draft: "Produto salvo como Rascunho (simulado)! Verifique o console.",
+                alert_product_saved: "Produto salvo (simulado)! Verifique o console.",
+                alert_ia_failed: "Ops! A IA encontrou um problema ao processar sua solicitação. Tente novamente mais tarde.",
+                alert_ia_generating_titles: "IA gerando títulos...", alert_ia_titles_done: "Títulos gerados pela IA!",
+                alert_ia_generating_desc: "IA gerando descrição...", alert_ia_desc_done: "Descrição gerada pela IA!",
+                alert_ia_fetching_suggestions: "IA buscando sugestões de valores...", alert_ia_suggestions_done: "Sugestões de valores carregadas!",
+            },
+            en: { // Basic English translations
+                logo_text: "TDAI", nav_dashboard: "Dashboard", nav_products: "Products", nav_product_types: "Product Types", nav_settings: "Settings",
+                viewtitle_products: "Products", product_list_title: "Product List", btn_new_product: "✨ New Product", product_list_placeholder: "(Prototype: Product table would go here)",
+                manage_product_types_title: "Manage Product Types", btn_clone_type: "Clone Type", btn_new_type_admin: "New Product Type",
+                registered_types_title: "Registered Types:", select_type_to_edit_msg: "Select a Type to view/edit.",
+                add_attr_to_template_title: 'Add New Attribute to Template "<span id="currentEditingTypeNameEN"></span>"',
+                label_attr_name: "Attribute Name", label_attr_data_type: "Data Type", option_attr_text_short: "Short Text", option_attr_text_long: "Long Text",
+                option_attr_number: "Number", option_attr_date: "Date", option_attr_boolean: "Yes/No (Checkbox)", option_attr_select: "Options List",
+                label_attr_options: "Options (comma-separated) for List", label_attr_tooltip: "Tooltip (hint)", label_attr_default_value: "Default Value (optional)",
+                label_attr_required: "Required", btn_save_attr_template: "💾 Save Attribute", btn_cancel: "Cancel", btn_add_attr_to_template: "+ New Attribute for this Template",
+                modal_new_product_title: "New Product", modal_edit_product_title: "Edit Product", label_product_type: "Product Type:", option_select: "Select...",
+                loading_template: "Loading template...", tab_main_info: "Main Info", tab_attributes: "Attributes", tab_media: "Media", tab_ai_content: "AI Content",
+                tab_ai_suggestions: "AI Suggestions", tab_history: "History", heading_base_info: "Base Information", label_base_name: "Base Name", label_original_sku: "Original SKU", label_brand: "Brand",
+                heading_specific_attributes: 'Specific Attributes for: <span id="currentProductTypeDisplayEN">No type</span>', select_type_for_attributes: "Select a Product Type to view/add specific attributes.",
+                btn_add_manual_attr: "+ Manual Attribute", heading_product_media: "Product Media", heading_images: "Images", btn_add_image_url: "+ Add Image (URL)",
+                heading_videos: "Videos", btn_add_video_url: "+ Add Video (URL)", heading_ai_generated_content: "AI Generated/Edited Content", label_main_description: "Main Description",
+                label_original_if_any: "Original (If any)", label_ai_suggestion_editable: "AI Suggestion / Editable", btn_generate_description: "Generate Description", btn_apply_ai_suggestion: "Apply AI Suggestion",
+                label_suggested_titles: "Suggested Titles (Max 5)", btn_add_manual_title: "+ Add Manual Title", btn_generate_titles: "Generate Titles",
+                ia_context_note: "Note: The AI will use the selected 'Product Type' and filled 'Specific Attributes' as context.", btn_use_content_template_placeholder: "Use Content Template for this type",
+                heading_ai_spec_suggestions: 'Attribute & Value Suggestions (Based on Type: <span class="currentProductTypeDisplayEN2">None</span>)', loading_ai_suggestions: "AI fetching suggestions...",
+                ai_suggests_verify_attrs: "The AI suggests verifying/filling/adding the following attributes:", select_type_for_suggestions: "Select a Product Type and enter a base name to receive suggestions.",
+                btn_fetch_suggested_values: "Fetch Suggested Values (AI)", heading_product_change_history: "Product Change History (Simulated)",
+                btn_save_draft: "Save as Draft", btn_publish_marketplace_xpto: "🚀 Publish to Marketplace XPTO", tooltip_premium_feature: "This feature requires a Premium plan or specific permissions.",
+                btn_save_and_new: "Save & New", btn_save_product: "Save Product",
+                error_field_required: "{fieldName} is required.", error_field_minlength: "{fieldName} must be at least {minLength} characters.",
+                error_field_number_min: "{fieldName} must be at least {min}.", error_field_number_max: "{fieldName} must be at most {max}.",
+                error_field_url: "{fieldName} must be a valid URL.",
+                alert_form_errors: "There are errors in the form. Please correct them. Check tabs marked with '!'",
+                alert_product_saved_draft: "Product saved as Draft (simulated)! Check console.",
+                alert_product_saved: "Product saved (simulated)! Check console.",
+                alert_ia_failed: "Oops! The AI encountered an issue processing your request. Please try again later.",
+                alert_ia_generating_titles: "AI generating titles...", alert_ia_titles_done: "AI titles generated!",
+                alert_ia_generating_desc: "AI generating description...", alert_ia_desc_done: "AI description generated!",
+                alert_ia_fetching_suggestions: "AI fetching value suggestions...", alert_ia_suggestions_done: "Value suggestions loaded!",
+            }
+        };
+
+        function _(key, replacements = {}) {
+            let str = uiStrings[currentLanguage][key] || `MISSING_LANG[${key}]`;
+            for (const placeholder in replacements) {
+                str = str.replace(`{${placeholder}}`, replacements[placeholder]);
+            }
+            return str;
+        }
+
+        function setLanguage(lang) {
+            currentLanguage = lang;
+            document.getElementById('htmlRoot').lang = lang;
+            document.querySelectorAll('[data-lang-key]').forEach(el => {
+                const key = el.getAttribute('data-lang-key');
+                // Preserve specific span IDs for dynamic content
+                if(key === 'add_attr_to_template_title' || key === 'heading_specific_attributes' || key === 'heading_ai_spec_suggestions' || key === 'btn_use_content_template_placeholder') {
+                    const spanIdPT = el.querySelector('#currentEditingTypeNamePT, #currentProductTypeDisplayPT, #currentProductTypeDisplayPT2');
+                    const spanIdEN = el.querySelector('#currentEditingTypeNameEN, #currentProductTypeDisplayEN, #currentProductTypeDisplayEN2');
+                    
+                    let dynamicSpanHTML = "";
+                    if(lang === 'pt' && spanIdPT) dynamicSpanHTML = spanIdPT.outerHTML;
+                    else if (lang === 'en' && spanIdEN) dynamicSpanHTML = spanIdEN.outerHTML;
+                    else if (lang === 'pt' && key.includes('currentProductTypeDisplay')) dynamicSpanHTML = `<span id="currentProductTypeDisplayPT${key.includes('2')?'2':''}"></span>`;
+                    else if (lang === 'en' && key.includes('currentProductTypeDisplay')) dynamicSpanHTML = `<span id="currentProductTypeDisplayEN${key.includes('2')?'2':''}"></span>`;
+                    else if(lang === 'pt' && key === 'add_attr_to_template_title') dynamicSpanHTML = `<span id="currentEditingTypeNamePT"></span>`;
+                    else if(lang === 'en' && key === 'add_attr_to_template_title') dynamicSpanHTML = `<span id="currentEditingTypeNameEN"></span>`;
+
+
+                    let baseText = _(key);
+                    if(baseText.includes('<span></span>')) { // Placeholder for dynamic span
+                        baseText = baseText.replace('<span></span>', dynamicSpanHTML);
+                    } else if(baseText.includes('este tipo') || baseText.includes('this type')) { // For button with type name
+                        baseText = baseText.replace(/este tipo|this type/g, dynamicSpanHTML);
+                    }
+                     else { // For headings with type name
+                        baseText = baseText.replace(/<span id="[^"]+"><\/span>/, dynamicSpanHTML); // Replace existing span
+                    }
+                    el.innerHTML = baseText;
+                } else {
+                    el.innerHTML = _(key); // Simple text replacement
+                }
+            });
+             // Update dynamic span content if a type is selected
+            const currentTypeKey = document.getElementById('productTypeSelector')?.value;
+            if (currentTypeKey && productTypeTemplates[currentTypeKey]) {
+                const typeName = productTypeTemplates[currentTypeKey].friendlyName;
+                document.querySelectorAll('.currentProductTypeDisplay, #currentEditingTypeNamePT, #currentEditingTypeNameEN').forEach(span => {
+                    if (span.id.toLowerCase().includes(lang)) span.textContent = typeName;
+                });
+            }
+            document.querySelectorAll('.lang-selector button').forEach(b => b.classList.remove('active'));
+            document.getElementById(`lang-${lang}`).classList.add('active');
+            // Re-validate to update error messages if any
+            validateAllProductFields();
+        }
+
+        // --- FUNÇÕES DE NAVEGAÇÃO E UI GERAL ---
+        function showGlobalMessage(message, type = 'info') { // type can be 'info', 'success', 'error'
+            const msgDiv = document.getElementById('globalUserMessage');
+            msgDiv.textContent = message;
+            msgDiv.className = `global-message ${type}`; // Reset classes then add new
+            msgDiv.classList.remove('hidden');
+            setTimeout(() => msgDiv.classList.add('hidden'), 5000); // Auto-hide after 5s
+        }
+        /* ... (showView, openModal, closeModal, clearProductModalForm como na v5) ... */
+        function showView(viewId) {
+            document.querySelectorAll('.content > div:not(#globalUserMessage)').forEach(v => v.classList.add('hidden'));
+            document.querySelectorAll('.sidebar nav a').forEach(nav => nav.classList.remove('active'));
+            const targetView = document.getElementById(viewId);
+            const targetNav = document.getElementById('nav-' + viewId.replace('view-', ''));
+            if(targetView) targetView.classList.remove('hidden');
+            if(targetNav) targetNav.classList.add('active');
+            document.getElementById('viewTitle').innerHTML = targetNav.innerHTML; // Uses translated nav item
+        }
+
+        function openModal(modalId, isNew = false) {
+            const modal = document.getElementById(modalId);
+            if (modal) modal.style.display = 'flex';
+            if (modalId === 'productModal') {
+                document.getElementById('productModalTitle').innerHTML = isNew ? _('modal_new_product_title') : _('modal_edit_product_title');
+                document.getElementById('productTypeSelector').value = '';
+                clearProductModalForm();
+                handleProductTypeChange(''); 
+                openProductTab(null, 'tab-p-info');
+            }
+        }
+        function closeModal(modalId) {
+            const modal = document.getElementById(modalId);
+            if (modal) modal.style.display = 'none';
+        }
+        
+        function clearProductModalForm() {
+            document.getElementById('p-nome_base').value = '';
+            document.getElementById('p-sku_original').value = '';
+            document.getElementById('p-marca').value = '';
+            document.getElementById('p-descricao_principal').value = '';
+            document.getElementById('p-descricao-original-display').value = '';
+            document.getElementById('p-titles-list').innerHTML = '';
+            document.getElementById('p-images-list').innerHTML = '';
+            document.getElementById('p-videos-list').innerHTML = '';
+            document.getElementById('dynamic-attributes-list').innerHTML = `<p style="color: var(--text-color-light);">${_('select_type_for_attributes')}</p>`;
+            document.getElementById('ia-suggested-attributes-list').innerHTML = `<li style="color: var(--text-color-light);">${_('select_type_for_suggestions')}</li>`;
+            document.querySelectorAll('.modal-tabs button .tab-error-indicator').forEach(el => el.style.display = 'none');
+            document.querySelectorAll('.modal-body .is-invalid').forEach(el => el.classList.remove('is-invalid'));
+            document.querySelectorAll('.modal-body .error-message').forEach(el => el.textContent = '');
+        }
+
+        // --- LÓGICA DO MODAL DE PRODUTO ---
+        /* ... (openProductTab, populateProductTypeSelector, handleProductTypeChange, createAttributeItemHTML, addAttributeManually, addTitleField, addImageField, addVideoField, setMainImage, updateImagePreview, fetchIASuggestedValues, applyIASuggestion, applyAIDescription como na v5, mas adaptadas para usar _(key) para alertas) ... */
+        function openProductTab(event, tabName) {
+            document.querySelectorAll('#productModal .tab-pane').forEach(p => p.classList.remove('active'));
+            document.querySelectorAll('#productModal .tab-button').forEach(b => {
+                b.classList.remove('active');
+            });
+            document.getElementById(tabName).classList.add('active');
+            const clickedButton = event ? event.currentTarget : document.querySelector(`.modal-tabs button[onclick*="${tabName}"]`);
+            if (clickedButton) clickedButton.classList.add('active');
+        }
+
+        function populateProductTypeSelector() {
+            const selector = document.getElementById('productTypeSelector');
+            selector.innerHTML = `<option value="">${_('option_select')}</option>`;
+            for (const typeKey in productTypeTemplates) {
+                selector.innerHTML += `<option value="${typeKey}">${productTypeTemplates[typeKey].friendlyName}</option>`;
+            }
+        }
+
+        function handleProductTypeChange(typeKey) {
+            const loadingIndicator = document.getElementById('productFormLoadingIndicator');
+            loadingIndicator.classList.remove('hidden');
+            
+            setTimeout(() => {
+                const attributesContainer = document.getElementById('dynamic-attributes-list');
+                const typeDisplaySpans = document.querySelectorAll('.currentProductTypeDisplay');
+                const iaSuggestionsList = document.getElementById('ia-suggested-attributes-list');
+                const typeTemplate = productTypeTemplates[typeKey];
+
+                attributesContainer.innerHTML = '';
+                const typeName = typeTemplate ? typeTemplate.friendlyName : _('no_type_selected_placeholder', { langTag: currentLanguage === 'pt' ? 'PT' : 'EN' }); // Use a key for "Nenhum tipo"
+                typeDisplaySpans.forEach(span => span.textContent = typeName);
+
+
+                if (typeTemplate && typeTemplate.attributes) {
+                    // Ordenar atributos conforme attributesOrder
+                    const orderedAttributes = typeTemplate.attributesOrder && typeTemplate.attributesOrder.length > 0 ?
+                        typeTemplate.attributesOrder.map(id => typeTemplate.attributes.find(attr => attr.id === id)).filter(Boolean) :
+                        typeTemplate.attributes;
+
+                    orderedAttributes.forEach(attrConfig => {
+                        const item = createAttributeItemHTML(attrConfig.id, attrConfig, attrConfig.defaultValue || null, true);
+                        attributesContainer.appendChild(item);
+                    });
+                     iaSuggestionsList.innerHTML = orderedAttributes
+                        .map(attr => `<li><label for="ia-sug-${attr.id}">${attr.name}:</label> <input type="text" id="ia-sug-${attr.id}" placeholder="${_('ia_searching_placeholder')}"> <span class="ia-confidence"></span> <button class="btn-small btn-success" onclick="applyIASuggestion('${attr.id}', '${attr.name}')">${_('btn_apply')}</button></li>`)
+                        .join('') || `<li>${_('no_specific_attr_suggestion')}</li>`;
+                } else {
+                    attributesContainer.innerHTML = `<p style="color: var(--text-color-light);">${_('select_type_for_attributes')}</p>`;
+                    iaSuggestionsList.innerHTML = `<li style="color: var(--text-color-light);">${_('select_type_for_suggestions')}</li>`;
+                }
+                loadingIndicator.classList.add('hidden');
+                validateAllProductFields();
+            }, 300);
+        }
+        
+        function createAttributeItemHTML(idSuffix, attrConfig, value, isTemplateField = false) {
+            const attrDiv = document.createElement('div');
+            attrDiv.className = `attribute-item ${isTemplateField ? 'from-template' : 'manual-add'}`;
+            attrDiv.id = `attr-item-${idSuffix}`; 
+            let inputHtml = '';
+            const inputId = `attr-val-${idSuffix}`;
+            const keyInputId = `attr-key-${idSuffix}`;
+            const valToSet = value !== null && value !== undefined ? value : (isTemplateField ? (attrConfig.defaultValue || '') : '');
+            const isKeyEditable = !isTemplateField;
+
+            if (attrConfig.type === 'select') {
+                const optionsHtml = attrConfig.options.map(opt => `<option value="${opt.toLowerCase().replace(/\s/g, '_')}" ${valToSet === opt.toLowerCase().replace(/\s/g, '_') ? 'selected' : ''}>${opt}</option>`).join('');
+                inputHtml = `<select id="${inputId}" class="${attrConfig.required && isTemplateField ? 'validate-required' : ''}">${optionsHtml}</select>`;
+            } else if (attrConfig.type === 'textarea') {
+                inputHtml = `<textarea id="${inputId}" placeholder="${attrConfig.placeholder || ''}" rows="2" class="${attrConfig.required && isTemplateField ? 'validate-required' : ''}">${valToSet}</textarea>`;
+            } else if (attrConfig.type === 'boolean') {
+                inputHtml = `<input type="checkbox" id="${inputId}" ${valToSet ? 'checked' : ''} style="width:auto; height:auto; margin-top:5px;" class="${attrConfig.required && isTemplateField ? 'validate-required-checkbox' : ''}">`;
+            } else { 
+                inputHtml = `<input type="${attrConfig.type}" id="${inputId}" value="${valToSet}" placeholder="${attrConfig.placeholder || ''}" class="${attrConfig.required && isTemplateField ? 'validate-required' : ''}">`;
+            }
+             if(attrConfig.required && isTemplateField) {
+                // Adicionar listener de validação para campos de valor de atributos do template
+                // A validação on-the-fly é mais complexa de gerenciar aqui, focaremos na validação ao salvar.
+            }
+            
+            attrDiv.innerHTML = `
+                <div class="form-group" style="flex: 0 0 220px;">
+                    <label for="${keyInputId}">
+                        ${isTemplateField ? attrConfig.name : _('label_manual_attr_name')}
+                        ${attrConfig.required && isTemplateField ? '<span class="required">*</span>' : ''}
+                        ${attrConfig.tooltip ? `<span class="tooltip">?<span class="tooltiptext">${attrConfig.tooltip}</span></span>` : ''}
+                    </label>
+                    <input type="text" id="${keyInputId}" value="${isTemplateField ? attrConfig.name : ''}" ${isTemplateField ? 'disabled' : ''} class="${isTemplateField ? 'template-attr-key' : 'manual-attr-key key-input validate-required'}" placeholder="${isTemplateField ? '' : _('placeholder_manual_attr_name')}">
+                    <span class="error-message" id="${keyInputId}-error"></span>
+                </div>
+                <div class="form-group">
+                    <label for="${inputId}">${_('label_value')} ${attrConfig.required && isTemplateField ? '<span class="required">*</span>' : ''}</label>
+                    ${inputHtml}
+                    <span class="error-message" id="${inputId}-error"></span>
+                </div>
+                ${!isTemplateField ? `<div class="actions"><button class="btn-small btn-danger" onclick="this.closest('.attribute-item').remove()">${_('btn_remove')}</button></div>` : ''}
+            `;
+            return attrDiv;
+        }
+         function addAttributeManually() {
+            const attributesContainer = document.getElementById('dynamic-attributes-list');
+            const placeholderPara = attributesContainer.querySelector('p');
+            if (placeholderPara) placeholderPara.remove();
+
+            const manualAttrCount = document.querySelectorAll('.manual-attr-key').length;
+            const idSuffix = `manual_${Date.now()}_${manualAttrCount}`;
+            const item = createAttributeItemHTML(idSuffix, {name: '', type:'text', placeholder:_('placeholder_manual_attr_value'), required:false}, null, false); // Manual attr value not required by default
+            attributesContainer.appendChild(item);
+            const keyField = item.querySelector(`#attr-key-${idSuffix}`);
+            if(keyField) keyField.focus();
+        }
+
+        function addTitleField() {
+            const list = document.getElementById('p-titles-list');
+            if (list.children.length >= 5) {
+                showGlobalMessage(_('max_titles_reached', {max: 5}), 'warning');
+                return;
+            }
+            const newTitleGroup = document.createElement('div');
+            newTitleGroup.className = 'title-input-group form-group'; // Added form-group for consistency
+            newTitleGroup.style.display = 'flex'; newTitleGroup.style.gap = '5px'; newTitleGroup.style.alignItems = 'center';
+            newTitleGroup.innerHTML = `
+                <input type="text" placeholder="${_('placeholder_new_manual_title')}" style="flex-grow:1;">
+                <button class="btn-small btn-danger" onclick="this.closest('.title-input-group').remove()">${_('btn_remove')}</button>
+            `;
+            list.appendChild(newTitleGroup);
+        }
+        
+        function addImageField() { /* (como na v5) */
+             const list = document.getElementById('p-images-list');
+            const idx = list.children.length;
+            const item = document.createElement('div');
+            item.className = 'media-item';
+            item.innerHTML = `
+                <img src="https://via.placeholder.com/60?text=Nova" class="preview" id="img-preview-${idx}">
+                <div class="fields">
+                    <div class="form-group"><label for="img-url-${idx}">${_('label_image_url')}<span class="required">*</span></label><input type="url" id="img-url-${idx}" placeholder="https://exemplo.com/imagem.jpg" oninput="updateImagePreview('img-preview-${idx}', this.value); validateField(this, 'img-url-${idx}-error', _('label_image_url'), {required:true, type:'url'})"> <span class="error-message" id="img-url-${idx}-error"></span></div>
+                    <div class="form-group"><label for="img-alt-${idx}">${_('label_alt_text')}</label><input type="text" id="img-alt-${idx}" placeholder="${_('placeholder_image_description')}"></div>
+                </div>
+                <div style="display:flex; flex-direction:column; gap:5px;">
+                    <button class="btn-small" onclick="setMainImage(this.closest('.media-item'))">⭐ ${_('btn_main')}</button>
+                    <button class="btn-small btn-danger" onclick="this.closest('.media-item').remove()">${_('btn_remove')}</button>
+                </div>
+            `;
+            list.appendChild(item);
+        }
+        function updateImagePreview(previewId, url){ /* (como na v5) */
+             const imgEl = document.getElementById(previewId);
+            if(imgEl) imgEl.src = url || "https://via.placeholder.com/60?text=URL?";
+        }
+        function setMainImage(selectedItem){ /* (como na v5) */
+             document.querySelectorAll('#p-images-list .media-item').forEach(item => item.style.border = "1px solid #eee");
+            selectedItem.style.border = "2px solid var(--success)";
+        }
+
+        function addVideoField() { /* (como na v5) */
+            const list = document.getElementById('p-videos-list');
+            const idx = list.children.length;
+            const item = document.createElement('div');
+            item.className = 'media-item';
+            item.innerHTML = `
+                <div class="fields">
+                    <div class="form-group"><label for="video-url-${idx}">${_('label_video_url')}<span class="required">*</span></label><input type="url" id="video-url-${idx}" placeholder="https://youtube.com/watch?v=..." oninput="validateField(this, 'video-url-${idx}-error', _('label_video_url'), {required:true, type:'url'})"><span class="error-message" id="video-url-${idx}-error"></span></div>
+                    <div class="form-group"><label for="video-title-${idx}">${_('label_video_title')}</label><input type="text" id="video-title-${idx}" placeholder="${_('placeholder_video_review')}"></div>
+                </div>
+                <button class="btn-small btn-danger" onclick="this.closest('.media-item').remove()">${_('btn_remove')}</button>
+            `;
+            list.appendChild(item);
+        }
+        
+        function simulateAICall(buttonElement, loadingMessageKey, successMessageKey, failureMessageKey, callback) {
+            if(buttonElement) {
+                buttonElement.classList.add('saving'); // Mostra spinner
+                buttonElement.disabled = true;
+            }
+            showGlobalMessage(_(loadingMessageKey), 'info');
+
+            setTimeout(() => {
+                if(buttonElement) {
+                    buttonElement.classList.remove('saving');
+                    buttonElement.disabled = false;
+                }
+                if (Math.random() < 0.2) { // 20% chance de falha simulada
+                    showGlobalMessage(_(failureMessageKey), 'error');
+                    if(callback && typeof callback === 'function') callback(true, null); // error = true
+                } else {
+                    showGlobalMessage(_(successMessageKey), 'success');
+                     if(callback && typeof callback === 'function') callback(false, "Dados simulados da IA"); // error = false
+                }
+            }, 1500 + Math.random() * 1000);
+        }
+
+        function generateAITitles(btn) {
+            simulateAICall(btn, 'alert_ia_generating_titles', 'alert_ia_titles_done', 'alert_ia_failed', (error, data) => {
+                if (!error) {
+                    const list = document.getElementById('p-titles-list');
+                    list.innerHTML = ''; // Limpa títulos antigos
+                    for(let i=0; i<3; i++){ // Simula 3 títulos
+                        const newTitleGroup = document.createElement('div');
+                        newTitleGroup.className = 'title-input-group form-group'; 
+                        newTitleGroup.style.display = 'flex'; newTitleGroup.style.gap = '5px'; newTitleGroup.style.alignItems = 'center';
+                        newTitleGroup.innerHTML = `
+                            <input type="text" value="${_('simulated_ai_title')} ${i+1}" style="flex-grow:1;">
+                            <button class="btn-small btn-danger" onclick="this.closest('.title-input-group').remove()">${_('btn_remove')}</button>
+                        `;
+                        list.appendChild(newTitleGroup);
+                    }
+                }
+            });
+        }
+        function generateAIDescription(btn) {
+            simulateAICall(btn, 'alert_ia_generating_desc', 'alert_ia_desc_done', 'alert_ia_failed', (error, data) => {
+                if (!error) {
+                    document.getElementById('p-descricao-original-display').value = document.getElementById('p-descricao_principal').value; // Guarda o atual como "original"
+                    document.getElementById('p-descricao_principal').value = `${_('simulated_ai_description_part1')}\n\n${_('simulated_ai_description_part2')}`;
+                }
+            });
+        }
+
+        function fetchIASuggestedValues(btn) { /* (como na v5, mas usando simulateAICall) */
+            const iaSuggestionsList = document.getElementById('ia-suggested-attributes-list');
+            const suggestionsLoading = document.getElementById('iaSuggestionsLoadingIndicator');
+            suggestionsLoading.classList.remove('hidden');
+            iaSuggestionsList.innerHTML = `<li>${_('ia_searching_placeholder')}</li>`;
+
+            simulateAICall(btn, 'alert_ia_fetching_suggestions', 'alert_ia_suggestions_done', 'alert_ia_failed', (error, data) => {
+                 suggestionsLoading.classList.add('hidden');
+                 iaSuggestionsList.innerHTML = '';
+                 if(error){
+                     iaSuggestionsList.innerHTML = `<li>${_('error_fetching_suggestions')}</li>`;
+                     return;
+                 }
+                const currentTypeKey = document.getElementById('productTypeSelector').value;
+                const typeTemplate = productTypeTemplates[currentTypeKey];
+
+                if (typeTemplate && typeTemplate.attributes) {
+                    typeTemplate.attributes.forEach(attr => {
+                        let suggestedValue = (Math.random() > 0.3) ? `${_('simulated_ai_value_for')} ${attr.name}` : '';
+                        if(attr.type === 'select' && suggestedValue) suggestedValue = attr.options[Math.floor(Math.random() * attr.options.length)].toLowerCase().replace(/\s/g, '_');
+                        if(attr.type === 'number' && suggestedValue) suggestedValue = Math.floor(Math.random() * 100);
+                        if(attr.type === 'boolean' && suggestedValue !== '') suggestedValue = Math.random() > 0.5;
+
+                        const li = document.createElement('li');
+                        let valueInputHTML = '';
+                        if(attr.type === 'boolean'){
+                            valueInputHTML = `<input type="checkbox" id="ia-sug-${attr.id}" ${suggestedValue ? 'checked' : ''} style="width:auto;">`;
+                        } else {
+                            valueInputHTML = `<input type="text" id="ia-sug-${attr.id}" value="${suggestedValue}" placeholder="${_('ia_searching_placeholder')}">`;
+                        }
+                        li.innerHTML = `<label for="ia-sug-${attr.id}">${attr.name}:</label> ${valueInputHTML} <span class="ia-confidence" style="font-size:0.8em; color:var(--text-color-light)">(${_('confidence_label')}: ${Math.floor(Math.random()*50+50)}%)</span> <button class="btn-small btn-success" onclick="applyIASuggestion('${attr.id}', '${attr.name}')">${_('btn_apply')}</button>`;
+                        iaSuggestionsList.appendChild(li);
+                    });
+                    const extraLi = document.createElement('li');
+                    extraLi.innerHTML = `<label for="ia-sug-extra_feature">${_('extra_feature_label_ia')}:</label> <input type="text" id="ia-sug-extra_feature" value="${_('simulated_waterproof_value')}"> <span class="ia-confidence" style="font-size:0.8em; color:var(--text-color-light)">(${_('confidence_label')}: 75%)</span> <button class="btn-small btn-success" onclick="applyIASuggestion('extra_feature', '${_('extra_feature_label_ia')}', true)">${_('btn_apply_as_new')}</button>`;
+                    iaSuggestionsList.appendChild(extraLi);
+                } else {
+                    iaSuggestionsList.innerHTML = `<li>${_('no_suggestions_available')}</li>`;
+                }
+            });
+        }
+
+        function applyIASuggestion(attributeIdSuffix, attributeName, isNewManual = false) { /* (como na v5, mas usando _(key)) */
+            const suggestedValueInput = document.getElementById(`ia-sug-${attributeIdSuffix}`);
+            let suggestedValue;
+            if(suggestedValueInput.type === 'checkbox') {
+                suggestedValue = suggestedValueInput.checked;
+            } else {
+                suggestedValue = suggestedValueInput.value;
+            }
+
+            if (!suggestedValue && suggestedValueInput.type !== 'checkbox') {
+                showGlobalMessage(_('no_suggested_value_to_apply'), 'warning'); return;
+            }
+            const targetInputProductModal = document.getElementById(`attr-val-${attributeIdSuffix}`);
+            if (targetInputProductModal) { 
+                if(targetInputProductModal.type === 'checkbox') targetInputProductModal.checked = suggestedValue;
+                else targetInputProductModal.value = suggestedValue;
+                validateField(targetInputProductModal, `${targetInputProductModal.id}-error`, `Valor para ${attributeName}`, {required: targetInputProductModal.hasAttribute('data-required')});
+                showGlobalMessage(_('value_applied_to_attribute', {value: suggestedValue, attributeName: attributeName}), 'success');
+            } else if (isNewManual) { 
+                 const attributesContainer = document.getElementById('dynamic-attributes-list');
+                 const placeholderPara = attributesContainer.querySelector('p');
+                 if (placeholderPara) placeholderPara.remove();
+                 const newIdSuffix = `manual_ia_${Date.now()}`;
+                 const item = createAttributeItemHTML(newIdSuffix, {name: attributeName, type: suggestedValueInput.type === 'checkbox' ? 'boolean' : 'text', placeholder: _('placeholder_manual_attr_value'), required: false}, suggestedValue, false);
+                 attributesContainer.appendChild(item);
+                 showGlobalMessage(_('attribute_added_manually', {attributeName: attributeName, value: suggestedValue}), 'success');
+            } else {
+                 showGlobalMessage(_('attr_field_not_found', {attributeName: attributeName}), 'error'); return;
+            }
+            openProductTab(null, 'tab-p-atributos');
+        }
+        function applyAIDescription(){ /* (como na v5) */
+            document.getElementById('p-descricao_principal').value;
+            showGlobalMessage(_('ai_description_applied'), 'success');
+        }
+
+        // Validação de Campos
+        const validationRules = {
+            minLength: (value, length) => value.length >= length,
+            maxLength: (value, length) => value.length <= length,
+            isNumber: value => !isNaN(parseFloat(value)) && isFinite(value),
+            min: (value, minValue) => parseFloat(value) >= minValue,
+            max: (value, maxValue) => parseFloat(value) <= maxValue,
+            isUrl: value => { try { new URL(value); return true; } catch (e) { return false; } }
+        };
+
+        function validateField(fieldElement, errorMsgKeySuffix = '', fieldNameKey, rules = {}) {
+            const errorElement = document.getElementById(errorMsgKeySuffix); // fieldNameKey pode ser usado para pegar a string traduzida
+            const fieldDisplayName = _(fieldNameKey) || fieldNameKey; // Pega a string traduzida ou usa a chave
+            fieldElement.classList.remove('is-invalid');
+            if(errorElement) errorElement.textContent = '';
+            let isValid = true;
+            let value = fieldElement.type === 'checkbox' ? fieldElement.checked : fieldElement.value.trim();
+
+            if (rules.required && ((fieldElement.type !== 'checkbox' && !value) || (fieldElement.type === 'checkbox' && rules.requiredTrue && !value))) { // requiredTrue para checkbox
+                isValid = false; if(errorElement) errorElement.textContent = _('error_field_required', {fieldName: fieldDisplayName});
+            }
+            if (isValid && rules.minLength && !validationRules.minLength(value, rules.minLength)) {
+                isValid = false; if(errorElement) errorElement.textContent = _('error_field_minlength', {fieldName: fieldDisplayName, minLength: rules.minLength});
+            }
+            if (isValid && rules.type === 'number' && value !== '') { // Apenas valida se não vazio, required lida com vazio
+                if(!validationRules.isNumber(value)){ isValid = false; if(errorElement) errorElement.textContent = _('error_field_not_number', {fieldName: fieldDisplayName});}
+                else {
+                    if (rules.min !== undefined && !validationRules.min(value, rules.min)) {isValid = false; if(errorElement) errorElement.textContent = _('error_field_number_min', {fieldName: fieldDisplayName, min: rules.min});}
+                    if (isValid && rules.max !== undefined && !validationRules.max(value, rules.max)) {isValid = false; if(errorElement) errorElement.textContent = _('error_field_number_max', {fieldName: fieldDisplayName, max: rules.max});}
+                }
+            }
+            if (isValid && rules.type === 'url' && value !== '' && !validationRules.isUrl(value)) {
+                isValid = false; if(errorElement) errorElement.textContent = _('error_field_url', {fieldName: fieldDisplayName});
+            }
+            // Adicionar mais regras de validação aqui (minlength, pattern, etc.)
+            if (!isValid) fieldElement.classList.add('is-invalid');
+            return isValid;
+        }
+
+
+        function validateAllProductFields() { /* (como na v5, mas mais robusta) */
+            let overallValid = true;
+            const errorSummary = [];
+            document.querySelectorAll('.modal-tabs button .tab-error-indicator').forEach(el => el.style.display = 'none'); // Reset tab errors
+            document.querySelectorAll('.modal-tabs button.has-error').forEach(el => el.classList.remove('has-error'));
+
+
+            // Aba Info Principais
+            if(!validateField(document.getElementById('p-nome_base'), 'p-nome_base-error', 'label_base_name', {required:true, minLength: 3})) {
+                overallValid = false; errorSummary.push({tab: 'tab-p-info', field: 'Nome Base'});
+            }
+            // Aba Atributos
+            const currentTypeKey = document.getElementById('productTypeSelector').value;
+            const typeTemplate = productTypeTemplates[currentTypeKey];
+            if (typeTemplate && typeTemplate.attributes) {
+                typeTemplate.attributes.forEach(attrConfig => {
+                    if (attrConfig.required) {
+                        const inputEl = document.getElementById(`attr-val-${attrConfig.id}`);
+                        if (inputEl && !validateField(inputEl, `attr-val-${attrConfig.id}-error`, attrConfig.name, {required:true})){ // Usar nome do atributo para mensagem
+                            overallValid = false; errorSummary.push({tab: 'tab-p-atributos', field: attrConfig.name});
+                        }
+                    }
+                });
+            }
+            document.querySelectorAll('.manual-attr-key').forEach(keyEl => { // Nomes de atributos manuais são obrigatórios
+                 if (!validateField(keyEl, `${keyEl.id}-error`, 'label_manual_attr_name', {required:true})){
+                     overallValid = false; errorSummary.push({tab: 'tab-p-atributos', field: 'Nome de Atributo Manual'});
+                 }
+            });
+             // Aba Mídia - URLs de imagem e vídeo são obrigatórias se o campo foi adicionado
+            document.querySelectorAll('#p-images-list .media-item').forEach((item, idx) => {
+                if(!validateField(item.querySelector(`#img-url-${idx}`), `img-url-${idx}-error`, 'label_image_url', {required:true, type:'url'})){
+                     overallValid = false; errorSummary.push({tab: 'tab-p-midia', field: `URL da Imagem ${idx+1}`});
+                }
+            });
+             document.querySelectorAll('#p-videos-list .media-item').forEach((item, idx) => {
+                if(!validateField(item.querySelector(`#video-url-${idx}`), `video-url-${idx}-error`, 'label_video_url', {required:true, type:'url'})){
+                     overallValid = false; errorSummary.push({tab: 'tab-p-midia', field: `URL do Vídeo ${idx+1}`});
+                }
+            });
+
+            // Atualizar indicadores de erro nas abas
+            document.querySelectorAll('.modal-tabs button').forEach(btn => {
+                const tabId = btn.getAttribute('onclick').match(/'(tab-p-[^']*)'/)[1];
+                const errorsInTab = errorSummary.some(err => err.tab === tabId);
+                const errorIndicator = btn.querySelector('.tab-error-indicator');
+                if (errorIndicator) errorIndicator.style.display = errorsInTab ? 'inline' : 'none';
+                if(errorsInTab) btn.classList.add('has-error'); else btn.classList.remove('has-error');
+            });
+            return overallValid;
+        }
+
+
+        function saveProduct(isDraft = false, buttonElement = null) { /* (como na v5, mas com spinner e feedback) */
+            if(!isDraft && !validateAllProductFields()){
+                showGlobalMessage(_('alert_form_errors'), 'error');
+                const firstErrorTab = document.querySelector('.modal-tabs button.has-error');
+                if(firstErrorTab) firstErrorTab.click();
+                return;
+            }
+            if(buttonElement) buttonElement.classList.add('saving');
+
+            // Coleta de dados ... (como na v5)
+            const productType = document.getElementById('productTypeSelector').value;
+            const nomeBase = document.getElementById('p-nome_base').value;
+            const sku = document.getElementById('p-sku_original').value;
+            const marca = document.getElementById('p-marca').value;
+            const descricao = document.getElementById('p-descricao_principal').value;
+            const titulos = Array.from(document.querySelectorAll('#p-titles-list .title-input-group input')).map(input => input.value.trim()).filter(Boolean);
+            const atributosColetados = {};
+            document.querySelectorAll('#dynamic-attributes-list .attribute-item').forEach(item => { /* ... */ });
+            const imagens = []; document.querySelectorAll('#p-images-list .media-item').forEach(item => { /* ... */ });
+            const videos = []; document.querySelectorAll('#p-videos-list .media-item').forEach(item => { /* ... */ });
+
+            const payload = { /* ... */ };
+
+            setTimeout(() => { // Simula salvamento
+                if(buttonElement) buttonElement.classList.remove('saving');
+                console.log(`Payload para Salvar (${isDraft ? 'Rascunho' : 'Produto'}):`, payload);
+                showGlobalMessage(isDraft ? _('alert_product_saved_draft') : _('alert_product_saved'), 'success');
+                closeModal('productModal');
+            }, 1500);
+        }
+
+        function saveProductAndNew(btn){ /* (como na v5, mas passando o botão) */
+            saveProduct(false, btn); 
+            // setTimeout(() => openModal('productModal', true), 200); // Delay removido para ser mais rápido
+        }
+
+
+        // --- LÓGICA DA PÁGINA DE GERENCIAR TIPOS DE PRODUTO ---
+        /* ... (loadProductTypesList, cloneSelectedProductType, selectProductTypeForAdmin, reorderAttributeTemplateItem, openNewProductTypeForm, showAttributeDefinitionForm, toggleAttributeOptionsInput, editAttributeTemplateItem, cancelEditAttributeTemplate, confirmSaveAttributeToTemplate, removeAttributeFromTemplate como na v5, mas adaptadas para usar _(key) para alertas) ... */
+          function loadProductTypesList() {
+            const listUL = document.getElementById('productTypesListUL');
+            listUL.innerHTML = ''; 
+            Object.keys(productTypeTemplates).forEach(typeKey => {
+                const item = productTypeTemplates[typeKey];
+                const li = document.createElement('li');
+                const usageCount = Math.floor(Math.random() * 50); 
+                li.innerHTML = `${item.friendlyName} <span class="usage-count">(${usageCount} ${_('products_count_suffix')})</span>`;
+                li.setAttribute('data-type-key', typeKey);
+                li.onclick = () => selectProductTypeForAdmin(typeKey);
+                listUL.appendChild(li);
+            });
+        }
+        function cloneSelectedProductType(){
+            if(!currentSelectedProductTypeForAdmin) {showGlobalMessage(_('select_type_to_clone_alert'), 'warning'); return;}
+            const originalName = productTypeTemplates[currentSelectedProductTypeForAdmin].friendlyName;
+            const newTypeName = prompt(_('prompt_new_type_name_clone', {originalName: originalName}), `${originalName} - Cópia`);
+            if(newTypeName && newTypeName.trim() !== ""){
+                const newKey = `clone_${Date.now()}`;
+                productTypeTemplates[newKey] = JSON.parse(JSON.stringify(productTypeTemplates[currentSelectedProductTypeForAdmin])); 
+                productTypeTemplates[newKey].friendlyName = newTypeName.trim();
+                if(!productTypeTemplates[newKey].attributesOrder) productTypeTemplates[newKey].attributesOrder = []; // Garante que existe
+                loadProductTypesList();
+                showGlobalMessage(_('type_cloned_success_alert', {newTypeName: newTypeName}), 'success');
+            }
+        }
+
+        function selectProductTypeForAdmin(typeKey) {
+            currentSelectedProductTypeForAdmin = typeKey;
+            document.querySelectorAll('#productTypesListUL li').forEach(li => li.classList.remove('selected'));
+            document.querySelector(`#productTypesListUL li[data-type-key="${typeKey}"]`).classList.add('selected');
+            document.getElementById('btnCloneProductType').disabled = false;
+            
+            const detailViewH5 = document.getElementById('productTypeDetailView').querySelector('h5');
+            const attributesTemplateList = document.getElementById('attributesTemplateList');
+            const addAttrFormContainer = document.getElementById('addAttributeToTemplateFormContainer');
+            const btnShowAddAttrForm = document.getElementById('btnShowAddAttrForm');
+            const typeTemplate = productTypeTemplates[typeKey];
+
+            detailViewH5.innerHTML = _('template_attributes_for_type', {typeName: typeTemplate.friendlyName});
+            attributesTemplateList.innerHTML = '';
+            addAttrFormContainer.classList.add('hidden'); 
+            btnShowAddAttrForm.classList.remove('hidden');
+
+            const orderedAttributes = typeTemplate.attributesOrder && typeTemplate.attributesOrder.length > 0 ?
+                typeTemplate.attributesOrder.map(id => typeTemplate.attributes.find(attr => attr.id === id)).filter(Boolean) :
+                (typeTemplate.attributes || []);
+
+
+            if (orderedAttributes && orderedAttributes.length > 0) {
+                orderedAttributes.forEach((attr, index) => {
+                    const div = document.createElement('div');
+                    div.className = 'attribute-template-item';
+                    div.setAttribute('data-attr-id', attr.id);
+                    div.innerHTML = `
+                        <div class="attr-order-icons">
+                           <button class="btn-icon btn-small" title="${_('tooltip_move_up')}" onclick="reorderAttributeTemplateItem('${typeKey}', '${attr.id}', -1)" ${index === 0 ? 'disabled' : ''}>▲</button>
+                           <button class="btn-icon btn-small" title="${_('tooltip_move_down')}" onclick="reorderAttributeTemplateItem('${typeKey}', '${attr.id}', 1)" ${index === orderedAttributes.length - 1 ? 'disabled' : ''}>▼</button>
+                        </div>
+                        <div class="main-details">
+                           <strong>${attr.name}</strong> (ID: ${attr.id})
+                           <div class="details">
+                               Tipo: ${attr.type} ${attr.required ? `<strong>(${_('label_required_short')})</strong>` : ''} | 
+                               ${attr.options && attr.options.length > 0 ? `Opções: ${attr.options.join(', ')} | ` : ''}
+                               ${attr.defaultValue ? `Padrão: ${attr.defaultValue} | ` : ''}
+                               ${attr.tooltip ? `Tooltip: ${attr.tooltip}` : ''}
+                           </div>
+                        </div>
+                        <div class="attr-actions">
+                           <button class="btn-small btn-info" onclick="editAttributeTemplateItem('${typeKey}', '${attr.id}')">${_('btn_edit')}</button>
+                           <button class="btn-small btn-danger" onclick="removeAttributeFromTemplate('${typeKey}', '${attr.id}')">${_('btn_remove')}</button>
+                        </div>
+                    `;
+                    attributesTemplateList.appendChild(div);
+                });
+            } else {
+                attributesTemplateList.innerHTML = `<p>${_('no_attributes_defined_for_type')}</p>`;
+            }
+        }
+        function reorderAttributeTemplateItem(typeKey, attrId, direction){
+            const type = productTypeTemplates[typeKey];
+            if(!type.attributesOrder) type.attributesOrder = type.attributes.map(a => a.id); // Inicializa se não existir
+            const orderArray = type.attributesOrder;
+            const index = orderArray.indexOf(attrId);
+
+            if(index === -1) return;
+            const newIndex = index + direction;
+            if(newIndex < 0 || newIndex >= orderArray.length) return;
+            
+            [orderArray[index], orderArray[newIndex]] = [orderArray[newIndex], orderArray[index]]; // Swap
+            selectProductTypeForAdmin(typeKey); 
+            showGlobalMessage(_('order_changed_alert'), 'success');
+        }
+        
+        function openNewProductTypeForm(){ showGlobalMessage(_('sim_new_product_type_form_alert'), 'info');}
+        function showAttributeDefinitionForm(attrId = null) { /* (como na v5) */
+            editingAttributeTemplateId = attrId; // Guarda o ID do atributo sendo editado, ou null se for novo
+            const formContainer = document.getElementById('addAttributeToTemplateFormContainer');
+            const typeNameSpan = document.getElementById('currentEditingTypeName'+ (currentLanguage === 'pt' ? 'PT' : 'EN'));
+            const formTitleEl = document.getElementById('attributeDefinitionFormTitle');
+
+
+            if (typeNameSpan) typeNameSpan.textContent = productTypeTemplates[currentSelectedProductTypeForAdmin].friendlyName;
+            formContainer.classList.remove('hidden');
+            document.getElementById('btnShowAddAttrForm').classList.add('hidden');
+            document.getElementById('attributeDefinitionForm').reset();
+
+
+            if (attrId) { 
+                const attr = productTypeTemplates[currentSelectedProductTypeForAdmin].attributes.find(a => a.id === attrId);
+                document.getElementById('editingAttrId').value = attr.id; // Armazena o ID para a função de salvar
+                document.getElementById('newAttrName').value = attr.name;
+                document.getElementById('newAttrType').value = attr.type;
+                document.getElementById('newAttrOptions').value = attr.options ? attr.options.join(',') : '';
+                document.getElementById('newAttrTooltip').value = attr.tooltip || '';
+                document.getElementById('newAttrDefaultValue').value = attr.defaultValue || '';
+                document.getElementById('newAttrRequired').checked = attr.required || false;
+                formTitleEl.innerHTML = _('edit_attr_template_title', { attrName: attr.name});
+            } else { 
+                document.getElementById('editingAttrId').value = ''; // Limpa o ID
+                formTitleEl.innerHTML = _('add_attr_to_template_title', { typeNameHTML: `<span id="currentEditingTypeName${currentLanguage === 'pt' ? 'PT' : 'EN'}">${productTypeTemplates[currentSelectedProductTypeForAdmin].friendlyName}</span>`});
+            }
+            toggleAttributeOptionsInput(document.getElementById('newAttrType').value);
+        }
+        function toggleAttributeOptionsInput(typeValue){ /* (como na v5) */
+            const optionsGroup = document.getElementById('newAttrOptionsGroup');
+            const optionsInput = document.getElementById('newAttrOptions');
+            if(typeValue === 'select'){ 
+                optionsGroup.classList.remove('hidden'); 
+                // optionsInput.setAttribute('required', 'required'); // Validação manual é melhor aqui
+            } else { 
+                optionsGroup.classList.add('hidden'); 
+                // optionsInput.removeAttribute('required');
+                optionsInput.value = ''; 
+            }
+        }
+        function editAttributeTemplateItem(typeKey, attrId){ /* (como na v5) */
+             if (currentSelectedProductTypeForAdmin !== typeKey) selectProductTypeForAdmin(typeKey);
+            showAttributeDefinitionForm(attrId);
+        }
+        function cancelEditAttributeTemplate(){ /* (como na v5) */
+             document.getElementById('addAttributeToTemplateFormContainer').classList.add('hidden');
+            document.getElementById('btnShowAddAttrForm').classList.remove('hidden');
+            editingAttributeTemplateId = null;
+            document.getElementById('attributeDefinitionForm').reset();
+        }
+
+        function confirmSaveAttributeToTemplate() { /* (como na v5, mas com spinner) */
+            const saveButton = document.querySelector('#attributeDefinitionForm button.btn-success');
+            saveButton.classList.add('saving'); saveButton.disabled = true;
+
+            if (!currentSelectedProductTypeForAdmin) { showGlobalMessage(_('error_internal_no_type_admin'), 'error'); saveButton.classList.remove('saving'); saveButton.disabled = false; return; }
+            const name = document.getElementById('newAttrName').value.trim();
+            const type = document.getElementById('newAttrType').value;
+            const optionsRaw = document.getElementById('newAttrOptions').value;
+            const options = type === 'select' ? optionsRaw.split(',').map(s => s.trim()).filter(s => s) : [];
+            const tooltip = document.getElementById('newAttrTooltip').value.trim();
+            const defaultValue = document.getElementById('newAttrDefaultValue').value.trim();
+            const required = document.getElementById('newAttrRequired').checked;
+
+            if (!name) { showGlobalMessage(_('error_attr_name_required'), 'error'); saveButton.classList.remove('saving'); saveButton.disabled = false; return; }
+            if (type === 'select' && options.length === 0) { showGlobalMessage(_('error_select_options_required'), 'error'); saveButton.classList.remove('saving'); saveButton.disabled = false; return; }
+
+            setTimeout(() => { // Simula salvamento
+                const attrData = { name, type, options, required, tooltip, defaultValue };
+                const existingAttrId = document.getElementById('editingAttrId').value;
+
+                if(existingAttrId){ 
+                    const attrIndex = productTypeTemplates[currentSelectedProductTypeForAdmin].attributes.findIndex(a => a.id === existingAttrId);
+                    productTypeTemplates[currentSelectedProductTypeForAdmin].attributes[attrIndex] = {...productTypeTemplates[currentSelectedProductTypeForAdmin].attributes[attrIndex], ...attrData};
+                    showGlobalMessage(_('alert_attr_updated_template', {attrName: name}), 'success');
+                } else { 
+                    attrData.id = `custom_${Date.now()}`; 
+                    if(!productTypeTemplates[currentSelectedProductTypeForAdmin].attributes) productTypeTemplates[currentSelectedProductTypeForAdmin].attributes = [];
+                    productTypeTemplates[currentSelectedProductTypeForAdmin].attributes.push(attrData);
+                     // Adiciona ao attributesOrder também
+                    if(!productTypeTemplates[currentSelectedProductTypeForAdmin].attributesOrder) productTypeTemplates[currentSelectedProductTypeForAdmin].attributesOrder = [];
+                    productTypeTemplates[currentSelectedProductTypeForAdmin].attributesOrder.push(attrData.id);
+                    showGlobalMessage(_('alert_attr_added_template', {attrName: name}), 'success');
+                }
+                selectProductTypeForAdmin(currentSelectedProductTypeForAdmin); 
+                cancelEditAttributeTemplate();
+                saveButton.classList.remove('saving'); saveButton.disabled = false;
+            }, 1000);
+        }
+        function removeAttributeFromTemplate(typeKey, attrIdToRemove){ /* (como na v5) */
+            const type = productTypeTemplates[typeKey];
+            type.attributes = type.attributes.filter(attr => attr.id !== attrIdToRemove);
+            if(type.attributesOrder) type.attributesOrder = type.attributesOrder.filter(id => id !== attrIdToRemove);
+            selectProductTypeForAdmin(typeKey); 
+            showGlobalMessage(_('alert_attr_removed_template'), 'success');
+        }
+
+
+        // --- INICIALIZAÇÃO ---
+        document.addEventListener('DOMContentLoaded', () => {
+            setLanguage('pt'); // Define idioma padrão
+            showView('view-produtos');
+            populateProductTypeSelector();
+            loadProductTypesList();
+            handleProductTypeChange(''); 
+        });
+
+    </script>
+</body>
+</html>

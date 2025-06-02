@@ -1,0 +1,436 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TDAI - Gestão de Produtos (Protótipo Frontend)</title>
+    <style>
+        :root {
+            --sidebar-bg: #1f2a40; --sidebar-text: #cfd8e5; --main-bg: #f4f6f8;
+            --card-bg: #fff; --primary: #3b82f6; --success: #10b981;
+            --info: #6366f1; --warning: #f59e0b; --danger: #ef4444;
+            --font: 'Helvetica Neue', Arial, sans-serif; --radius: 8px;
+            --shadow-sm: 0 1px 4px rgba(0,0,0,0.1); --shadow-md: 0 4px 8px rgba(0,0,0,0.15);
+            --border-color: #e5e7eb; --text-color-light: #6b7280;
+        }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { display: flex; height: 100vh; font-family: var(--font); background: var(--main-bg); overflow: hidden; }
+        .sidebar { width: 240px; background: var(--sidebar-bg); color: var(--sidebar-text); padding: 1rem; display: flex; flex-direction: column; height: 100%; flex-shrink: 0; }
+        .sidebar .logo { font-size: 1.75rem; font-weight: bold; color: #fff; margin-bottom: 2rem; text-align: center; }
+        .sidebar nav { flex: 1; }
+        .sidebar nav a { display: block; padding: 0.75rem 1rem; color: var(--sidebar-text); text-decoration: none; border-radius: var(--radius); margin-bottom: 0.5rem; cursor: pointer; transition: background-color 0.2s, color 0.2s; }
+        .sidebar nav a.active, .sidebar nav a:hover { background: #16203a; color: #fff; }
+        .sidebar .logout { padding: 0.75rem 1rem; color: var(--sidebar-text); cursor: pointer; text-align: center; }
+        .main { flex: 1; display: flex; flex-direction: column; height: 100%; overflow: hidden; }
+        .topbar { background: var(--card-bg); padding: 1rem 2rem; box-shadow: var(--shadow-sm); display: flex; align-items: center; justify-content: space-between; min-height: 60px; flex-shrink: 0; }
+        .topbar h1 { font-size: 1.65rem; color: #333; margin: 0; }
+        .user-area { display: flex; align-items: center; gap: 0.75rem; }
+        .user-avatar { width: 36px; height: 36px; border-radius: 50%; background: var(--primary); color: #fff; display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: 1.1rem; }
+        .user-name { font-weight: 500; color: #333; }
+        .content { flex: 1; padding: 1.5rem 2rem; overflow-y: auto; }
+        .content h1 { font-size: 1.8rem; margin-bottom: 1.5rem; }
+        .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; margin-bottom: 1.5rem; }
+        .stats-card { background: var(--card-bg); border-radius: var(--radius); padding: 1.25rem; box-shadow: var(--shadow-sm); }
+        .stats-card h3 { font-size: 1rem; color: #555; margin-bottom: 0.5rem; font-weight: 500; }
+        .stats-card .value { font-size: 1.9rem; font-weight: bold; color: #222; }
+        .filters-container { display: flex; gap: 1rem; margin-bottom: 1.5rem; flex-wrap: wrap; align-items: flex-end; }
+        .filters-container .form-group { flex-grow: 1; min-width: 180px; margin-bottom: 0; }
+        .filters-container label { display: block; margin-bottom: 0.25rem; font-weight: 500; font-size: 0.9em; }
+        .filters-container input, .filters-container select { width: 100%; padding: 0.5rem; border: 1px solid var(--border-color); border-radius: var(--radius); font-size: 0.95rem; }
+        .card { background: var(--card-bg); border-radius: 18px; box-shadow: 0 2px 12px 0 rgba(60,100,150,0.11); padding: 1.5rem 2.1rem; margin-bottom: 1rem; }
+        .card-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; padding-bottom: 1rem; border-bottom: 1px solid var(--border-color); }
+        .card-header h3 { font-size: 1.25rem; margin: 0; }
+        table { width: 100%; border-collapse: collapse; margin-top: 1rem; font-size: 0.9rem; }
+        th, td { padding: 0.75rem 0.5rem; border-bottom: 1px solid var(--border-color); text-align: left; vertical-align: middle; }
+        th { font-weight: 600; color: #444; background-color: #f9fafb; }
+        td.name-cell { cursor: pointer; color: var(--primary); font-weight: 500; }
+        td.name-cell:hover { text-decoration: underline; }
+        .status-dot { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: 6px; vertical-align: middle; }
+        .status-PENDENTE { background: var(--warning); }
+        .status-EM_PROGRESSO { background: var(--info); }
+        .status-CONCLUIDO_SUCESSO { background: var(--success); }
+        .status-FALHOU { background: var(--danger); }
+        .status-NAO_SOLICITADO { background: #ccc; }
+        .status-NENHUMA_FONTE_ENCONTRADA { background: #e0e0e0; color: #555 }
+        .status-CONCLUIDO_COM_DADOS_PARCIAIS { background: #d1c4e9; } /* Lilás claro */
+        .status-FALHA_CONFIGURACAO_API_EXTERNA { background: #ffccbc; color: #bf360c;} /* Laranja avermelhado */
+        .status-FALHA_API_EXTERNA { background: #ffcdd2; color: #c62828;} /* Rosa claro */
+        .status-FALHA_CONFIGURACAO_IA { background: #ffecb3; color: #f57f17; } /* Amarelo escuro */
+        .status-LIMITE_ATINGIDO { background: #cfd8dc; color: #37474f; } /* Cinza azulado */
+        .desc-ok { color: var(--success); }
+        .desc-nao { color: var(--text-color-light); }
+        .table-actions { margin-top: 1.5rem; display: flex; gap: 0.75rem; flex-wrap: wrap; }
+        button { border-radius: var(--radius); border: 1px solid transparent; padding: 0.6em 1.2em; font-size: 0.9em; font-weight: 500; font-family: inherit; background-color: var(--primary); color: white; cursor: pointer; transition: background-color 0.2s; }
+        button:hover:not(:disabled) { filter: brightness(90%); }
+        button:disabled { opacity: 0.6; cursor: not-allowed; }
+        .pagination-controls { margin-top: 1.5rem; text-align: center; }
+        /* Modal Styles */
+        .modal { display: none; position: fixed; z-index: 1000; left: 0; top: 0; width: 100%; height: 100%; overflow: auto; background-color: rgba(0,0,0,0.5); align-items: center; justify-content: center; }
+        .modal.active { display: flex; }
+        .modal-content { background-color: var(--card-bg); margin: 5% auto; padding: 0; border-radius: var(--radius); box-shadow: var(--shadow-md); width: 90%; max-width: 700px; display: flex; flex-direction: column; max-height: 90vh; }
+        .modal-header { padding: 1rem 1.5rem; background-color: var(--sidebar-bg); color: white; border-top-left-radius: var(--radius); border-top-right-radius: var(--radius); display: flex; justify-content: space-between; align-items: center; }
+        .modal-header h3 { margin: 0; font-size: 1.3em; }
+        .modal-header .close-btn { color: white; font-size: 1.5rem; font-weight: bold; cursor: pointer; background: none; border: none; padding: 0.5rem; line-height: 1;}
+        .modal-body { padding: 1.5rem; overflow-y: auto; }
+        .modal-footer { padding: 1rem 1.5rem; display: flex; justify-content: flex-end; gap: 0.5rem; border-top: 1px solid var(--border-color); background-color: #f9fafb; }
+        .modal-tabs { display: flex; border-bottom: 1px solid var(--border-color); margin-bottom: 1rem; }
+        .modal-tabs button { background: none; border: none; padding: 0.8rem 1rem; cursor: pointer; font-size: 0.9rem; color: #555; border-bottom: 3px solid transparent; }
+        .modal-tabs button.active { color: var(--primary); border-bottom-color: var(--primary); font-weight: 600; }
+        .tab-pane { display: none; animation: fadeIn 0.3s; }
+        .tab-pane.active { display: block; }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+        .form-group { margin-bottom: 1rem; }
+        .form-group label { display: block; margin-bottom: 0.3rem; font-weight: 500; color: #333; }
+        .form-group input[type="text"], .form-group input[type="url"], .form-group input[type="number"], .form-group select, .form-group textarea { width: 100%; padding: 0.6rem 0.75rem; border: 1px solid var(--border-color); border-radius: var(--radius); font-size: 1rem; }
+        .form-group textarea { min-height: 100px; resize: vertical; }
+        .title-input-group { display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.5rem; }
+        .title-input-group input { flex-grow: 1; }
+        .btn-small { padding: 0.3rem 0.6rem; font-size: 0.8rem; }
+        .data-viewer-pre, .log-list {max-height: 300px; overflow-y: auto; background: #f4f4f4; padding: 10px; border-radius: 4px; white-space: pre-wrap; word-break: break-all; font-size: 0.9em; margin-top:0.5rem;}
+        .log-list {list-style-type: none;}
+        .log-list li {margin-bottom: 5px; padding-bottom: 5px; border-bottom: 1px dashed #ddd;}
+    </style>
+</head>
+<body>
+    <aside class="sidebar">
+        <div class="logo">TDAI</div>
+        <nav>
+            <a href="#dashboard">Dashboard</a>
+            <a href="#produtos" class="active">Produtos</a>
+            <a href="#fornecedores">Fornecedores</a>
+            <a href="#enriquecimento">Enriquecimento</a>
+            <a href="#historico">Histórico</a>
+            <a href="#plano">Meu Plano</a>
+            <a href="#configuracoes">Configurações</a>
+        </nav>
+        <div class="logout">Sair</div>
+    </aside>
+
+    <div class="main">
+        <header class="topbar">
+            <h1>Produtos</h1>
+            <div class="user-area">
+                <div class="user-avatar">JU</div>
+                <span class="user-name">Julio User</span>
+            </div>
+        </header>
+
+        <main class="content">
+            <div class="stats-grid">
+                <div class="stats-card"><h3>Total Registrados</h3><div class="value" id="stat-total-produtos">150</div></div>
+                <div class="stats-card"><h3>Pendentes Enriq.</h3><div class="value" id="stat-pendentes-enr">25</div></div>
+                <div class="stats-card"><h3>Enriquecidos Web</h3><div class="value" id="stat-enriquecidos-web">70</div></div>
+                <div class="stats-card"><h3>Com IA Completa</h3><div class="value" id="stat-completos-ia">55</div></div>
+            </div>
+
+            <div class="filters-container">
+                <div class="form-group">
+                    <label for="search-term">Buscar Produtos:</label>
+                    <input type="text" id="search-term" placeholder="Nome ou SKU...">
+                </div>
+                <div class="form-group">
+                    <label for="filter-status-enriquecimento">Status Enriq. Web:</label>
+                    <select id="filter-status-enriquecimento">
+                        <option value="">Todos</option>
+                        <option value="PENDENTE">Pendente</option>
+                        <option value="EM_PROGRESSO">Em Progresso</option>
+                        <option value="CONCLUIDO_SUCESSO">Sucesso</option>
+                        <option value="FALHOU">Falhou</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="filter-status-titulo-ia">Status Títulos IA:</label>
+                    <select id="filter-status-titulo-ia">
+                        <option value="">Todos</option>
+                        <option value="NAO_SOLICITADO">Não Solicitado</option>
+                        <option value="PENDENTE">Pendente</option>
+                        <option value="EM_PROGRESSO">Em Progresso</option>
+                        <option value="CONCLUIDO_SUCESSO">Sucesso</option>
+                        <option value="FALHOU">Falhou</option>
+                        <option value="LIMITE_ATINGIDO">Limite Atingido</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                  <label for="filter-status-descricao-ia">Status Descrição IA:</label>
+                  <select id="filter-status-descricao-ia">
+                      <option value="">Todos</option>
+                      <option value="NAO_SOLICITADO">Não Solicitado</option>
+                      <option value="PENDENTE">Pendente</option>
+                      <option value="EM_PROGRESSO">Em Progresso</option>
+                      <option value="CONCLUIDO_SUCESSO">Sucesso</option>
+                      <option value="FALHOU">Falhou</option>
+                      <option value="LIMITE_ATINGIDO">Limite Atingido</option>
+                  </select>
+              </div>
+            </div>
+
+            <div class="card">
+                <div class="card-header">
+                    <h3>Lista de Produtos</h3>
+                    <button onclick="openNewProductModal()">Novo Produto</button>
+                </div>
+                <table id="product-table-body">
+                    <thead>
+                        <tr>
+                            <th><input type="checkbox" id="select-all-products"></th>
+                            <th>Nome Base</th>
+                            <th>SKU</th>
+                            <th>Marca</th>
+                            <th>Status Enriq. Web</th>
+                            <th>Status Títulos IA</th>
+                            <th>Status Desc. IA</th>
+                            <th>Desc. Gerada</th>
+                            <th>Criação</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr onclick="openEditProductModal(this)" data-product-id="1">
+                            <td><input type="checkbox" class="product-checkbox" onclick="event.stopPropagation()"></td>
+                            <td class="name-cell">Geladeira Portátil 18L</td>
+                            <td>SAN_7766700014</td>
+                            <td>DREIHA</td>
+                            <td><span class="status-dot status-CONCLUIDO_SUCESSO"></span> Concluído Sucesso</td>
+                            <td><span class="status-dot status-CONCLUIDO_SUCESSO"></span> Sucesso</td>
+                            <td><span class="status-dot status-EM_PROGRESSO"></span> Em Progresso</td>
+                            <td class="desc-ok">Sim</td>
+                            <td>20/05/2025</td>
+                        </tr>
+                        <tr onclick="openEditProductModal(this)" data-product-id="2">
+                            <td><input type="checkbox" class="product-checkbox" onclick="event.stopPropagation()"></td>
+                            <td class="name-cell">Base Deslizante para Refrigerador</td>
+                            <td>SAN_7766700025</td>
+                            <td>DREIHA</td>
+                            <td><span class="status-dot status-PENDENTE"></span> Pendente</td>
+                            <td><span class="status-dot status-NAO_SOLICITADO"></span> Não Solicitado</td>
+                            <td><span class="status-dot status-NAO_SOLICITADO"></span> Não Solicitado</td>
+                            <td class="desc-nao">Não</td>
+                            <td>18/05/2025</td>
+                        </tr>
+                         <tr onclick="openEditProductModal(this)" data-product-id="3">
+                            <td><input type="checkbox" class="product-checkbox" onclick="event.stopPropagation()"></td>
+                            <td class="name-cell">Cabo de Força Universal</td>
+                            <td>CAB-001</td>
+                            <td>Genérico</td>
+                            <td><span class="status-dot status-FALHOU"></span> Falhou</td>
+                            <td><span class="status-dot status-FALHOU"></span> Falhou</td>
+                            <td><span class="status-dot status-LIMITE_ATINGIDO"></span> Limite Atingido</td>
+                            <td class="desc-nao">Não</td>
+                            <td>17/05/2025</td>
+                        </tr>
+                    </tbody>
+                </table>
+                <div class="pagination-controls">
+                    <button disabled>&laquo; Anterior</button>
+                    <span>Página 1 de 1</span>
+                    <button disabled>Próxima &raquo;</button>
+                </div>
+                <div class="table-actions">
+                    <button id="btn-enrich-web" style="background-color:var(--info);">🌐 Enriquecer Web</button>
+                    <button id="btn-generate-titles">Gerar Títulos (IA)</button>
+                    <button id="btn-generate-descriptions">Gerar Descrições (IA)</button>
+                    <button id="btn-delete-selected" style="background-color:var(--danger);">Deletar Selecionados</button>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <div class="modal" id="newProductModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Novo Produto</h3>
+                <button class="close-btn" onclick="closeNewProductModal()">×</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label for="new-nome_base">Nome Base*</label>
+                    <input type="text" id="new-nome_base" placeholder="Nome principal do produto">
+                </div>
+                <div class="form-group">
+                    <label for="new-marca">Marca</label>
+                    <input type="text" id="new-marca" placeholder="Marca do produto">
+                </div>
+                <div class="form-group">
+                    <label for="new-categoria_original">Categoria Original</label>
+                    <input type="text" id="new-categoria_original" placeholder="Categoria original">
+                </div>
+                <div class="form-group">
+                    <label for="new-sku_original">SKU Original</label>
+                    <input type="text" id="new-sku_original" placeholder="SKU do fornecedor">
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button style="background-color: var(--text-color-light);" onclick="closeNewProductModal()">Cancelar</button>
+                <button style="background-color: var(--success);" onclick="saveNewProduct()">Salvar Produto</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal" id="editProductModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 id="edit-modal-title">Editar Produto: Geladeira Portátil 18L</h3>
+                <button class="close-btn" onclick="closeEditProductModal()">×</button>
+            </div>
+            <div class="modal-body">
+                <div class="modal-tabs">
+                    <button class="tab-button active" onclick="openEditTab(event, 'tab-info-principais')">Info Principais</button>
+                    <button class="tab-button" onclick="openEditTab(event, 'tab-conteudo-ia')">Conteúdo IA</button>
+                    <button class="tab-button" onclick="openEditTab(event, 'tab-dados-web')">Dados Web</button>
+                    <button class="tab-button" onclick="openEditTab(event, 'tab-log')">Log</button>
+                </div>
+
+                <div id="tab-info-principais" class="tab-pane active">
+                    <h4>Informações Base do Produto</h4>
+                    <div class="form-group">
+                        <label for="edit-nome_base">Nome Base*</label>
+                        <input type="text" id="edit-nome_base" value="Geladeira Portátil 18L">
+                    </div>
+                    <div class="form-group">
+                        <label for="edit-sku_original">SKU Original</label>
+                        <input type="text" id="edit-sku_original" value="SAN_7766700014">
+                    </div>
+                    <div class="form-group">
+                        <label for="edit-marca">Marca</label>
+                        <input type="text" id="edit-marca" value="DREIHA">
+                    </div>
+                    <div class="form-group">
+                        <label for="edit-categoria_original">Categoria Original</label>
+                        <input type="text" id="edit-categoria_original" value="Refrigeradores Automotivos">
+                    </div>
+                    <button style="background-color: var(--success);" onclick="alert('Salvar Info Principais (Simulado)')">Salvar Info Principais</button>
+                </div>
+
+                <div id="tab-conteudo-ia" class="tab-pane">
+                    <h4>Conteúdo Gerado/Editado por IA</h4>
+                    <div class="form-group">
+                        <label for="edit-descricao_principal">Descrição Principal Gerada</label>
+                        <div style="display:flex; align-items: center; gap: 10px; margin-bottom: 5px;">
+                           <span style="flex-grow:1"></span>
+                           <button class="btn-small" style="background-color: var(--info);" onclick="alert('Regenerar Descrição (Simulado)')">🔄 Regenerar Descrição</button>
+                        </div>
+                        <textarea id="edit-descricao_principal" rows="6">Dreiha CBX portable refrigerators offer excellent cooling performance - even in environments with extreme temperatures, and with economical energy consumption. They can be used for refrigeration or quick freezing.
+Brand: SanzClima/Dreiha. SKU: SAN_7766700014.
+CBX18 - CAPACITY FOR 19 CANS OF 330ML, 18 LITERS.</textarea>
+                    </div>
+                    <div class="form-group">
+                        <label>Títulos Sugeridos/Editáveis</label>
+                        <div style="display:flex; align-items: center; gap: 10px; margin-bottom: 10px;">
+                           <span style="flex-grow:1"></span>
+                           <button class="btn-small" style="background-color: var(--info);" onclick="alert('Regenerar Títulos (Simulado)')">🔄 Regenerar Títulos</button>
+                        </div>
+                        <div id="edit-titles-list">
+                            <div class="title-input-group">
+                                <input type="text" value="Geladeira Portátil 18L DREIHA CBX Quadrivolt">
+                                <button class="btn-small" style="background-color: var(--danger);" onclick="removeTitleField(this)">Remover</button>
+                            </div>
+                            <div class="title-input-group">
+                                <input type="text" value="Mini Refrigerador Veicular 18 Litros 12V/24V/110V/220V">
+                                <button class="btn-small" style="background-color: var(--danger);" onclick="removeTitleField(this)">Remover</button>
+                            </div>
+                        </div>
+                        <button style="background-color: var(--primary);" onclick="addTitleField()">+ Adicionar Título</button>
+                    </div>
+                     <button style="background-color: var(--success);" onclick="alert('Salvar Conteúdo IA (Simulado)')">Salvar Conteúdo IA</button>
+                </div>
+
+                <div id="tab-dados-web" class="tab-pane">
+                    <h4>Dados Coletados do Enriquecimento Web</h4>
+                    <div class="data-viewer-pre" id="dados-web-content">
+                        {
+                          "nome_sugerido_seo": "Geladeira Portátil 18L DREIHA CBX Quadrivolt para Carro, Caminhão e Casa",
+                          "descricao_detalhada_seo": "A geladeira portátil DREIHA CBX de 18 litros é a solução ideal para manter seus alimentos e bebidas refrigerados ou congelados em qualquer lugar. Compatível com voltagens 12V, 24V, 110V e 240V, é perfeita para uso em carros, caminhões, barcos ou mesmo em casa e acampamentos. Possui baixo consumo de energia e performance confiável.",
+                          "lista_caracteristicas_beneficios_bullets": [
+                            "Capacidade de 18 Litros: Ideal para viagens e passeios.",
+                            "Quadrivolt: Funciona em 12V, 24V, 110V e 240V.",
+                            "Refrigeração e Congelamento: Temperatura ajustável de +20°C a -20°C.",
+                            "Baixo Consumo: Eficiência energética para não descarregar a bateria do veículo."
+                          ],
+                          "palavras_chave_seo_relevantes_lista": ["geladeira portátil", "refrigerador automotivo", "DREIHA CBX", "18L", "quadrivolt"],
+                          "especificacoes_tecnicas_dict": {
+                            "Capacidade": "18 Litros",
+                            "Voltagem": "12/24V DC, 100-240V AC",
+                            "Faixa de Temperatura": "-20°C a +20°C",
+                            "Consumo": "Aprox. 45W"
+                          }
+                        }
+                    </div>
+                </div>
+                <div id="tab-log" class="tab-pane">
+                    <h4>Log de Enriquecimento e IA</h4>
+                    <ul class="log-list" id="log-content-list">
+                        <li>2025-05-20 10:00:00 - Iniciando enriquecimento web.</li>
+                        <li>2025-05-20 10:00:05 - Busca Google: 5 resultados.</li>
+                        <li>2025-05-20 10:00:15 - Extraindo dados da URL X...</li>
+                        <li>2025-05-20 10:00:30 - LLM gerou dados complementares.</li>
+                        <li>2025-05-20 10:00:35 - Enriquecimento web CONCLUIDO_SUCESSO.</li>
+                        <li>2025-05-20 11:05:00 - Iniciando geração de títulos IA. Status: EM_PROGRESSO.</li>
+                        <li>2025-05-20 11:05:15 - IA Títulos: Geração concluída. Status: CONCLUIDO_SUCESSO.</li>
+                    </ul>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button style="background-color: var(--text-color-light);" onclick="closeEditProductModal()">Cancelar</button>
+                {/* O botão de salvar geral poderia ser removido se cada aba tem seu próprio salvar, 
+                    ou mantido para um "Salvar Tudo" que agregaria os payloads.
+                    Por simplicidade, vamos manter os saves por aba no protótipo.
+                <button style="background-color: var(--success);" onclick="saveProductChanges()">Salvar Todas Alterações</button> 
+                */}
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Product Page Actions
+        function openNewProductModal() { document.getElementById('newProductModal').style.display = 'flex'; }
+        function closeNewProductModal() { document.getElementById('newProductModal').style.display = 'none'; }
+        function saveNewProduct() { alert('Novo produto salvo (simulado)!'); closeNewProductModal(); }
+
+        let currentEditingProductId = null;
+        function openEditProductModal(rowElement) {
+            currentEditingProductId = rowElement ? rowElement.getAttribute('data-product-id') : null;
+            if (currentEditingProductId) { // Simula carregar dados do produto
+                 document.getElementById('edit-modal-title').textContent = `Editar Produto: ${rowElement.cells[1].textContent}`;
+                // Aqui você carregaria os dados reais do produto com ID 'currentEditingProductId'
+                // e preencheria os campos do modal. Para este protótipo, os valores já estão no HTML.
+            }
+            openEditTab(null, 'tab-info-principais'); // Garante que a primeira aba está ativa
+            document.getElementById('editProductModal').style.display = 'flex';
+        }
+        function closeEditProductModal() { document.getElementById('editProductModal').style.display = 'none'; currentEditingProductId = null; }
+
+        // Edit Product Modal Tabs
+        function openEditTab(event, tabName) {
+            const tabPanes = document.querySelectorAll('#editProductModal .tab-pane');
+            const tabButtons = document.querySelectorAll('#editProductModal .tab-button');
+            tabPanes.forEach(pane => pane.classList.remove('active'));
+            tabButtons.forEach(btn => btn.classList.remove('active'));
+            document.getElementById(tabName).classList.add('active');
+            if (event) event.currentTarget.classList.add('active');
+            else document.querySelector(`.modal-tabs button[onclick*="${tabName}"]`).classList.add('active');
+        }
+
+        // Edit Product Modal - Titles IA
+        function addTitleField() {
+            const list = document.getElementById('edit-titles-list');
+            const newTitleGroup = document.createElement('div');
+            newTitleGroup.className = 'title-input-group';
+            newTitleGroup.innerHTML = `
+                <input type="text" placeholder="Novo título sugerido">
+                <button class="btn-small" style="background-color: var(--danger);" onclick="removeTitleField(this)">Remover</button>
+            `;
+            list.appendChild(newTitleGroup);
+        }
+        function removeTitleField(buttonElement) {
+            buttonElement.closest('.title-input-group').remove();
+        }
+
+        // Table selection
+        document.getElementById('select-all-products').addEventListener('change', function(event) {
+            document.querySelectorAll('#product-table-body .product-checkbox').forEach(checkbox => {
+                checkbox.checked = event.target.checked;
+            });
+        });
+
+    </script>
+</body>
+</html>

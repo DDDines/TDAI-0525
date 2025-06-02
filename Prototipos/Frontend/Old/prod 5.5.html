@@ -1,0 +1,515 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <title>TDAI - Produtos & Categorias</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <style>
+    body {margin:0;padding:0;background:#f4f6fa;font-family:'Segoe UI',Arial,sans-serif;}
+    .nav {background:#2563eb;color:#fff;padding:0 28px;height:53px;display:flex;align-items:center;}
+    .nav-btn {background:none;border:none;color:#fff;font-size:1.13em;padding:0 19px;height:53px;cursor:pointer;font-weight:600;transition:background .18s;}
+    .nav-btn.active, .nav-btn:hover {background:#1e40af;}
+    .container {max-width:740px;margin:34px auto 0 auto;background:#fff;border-radius:12px;box-shadow:0 2px 14px #0002;padding:36px 28px;}
+    h1 {margin:0 0 19px 0;font-size:1.44em;}
+    .form-group{margin-bottom:15px;}
+    label{font-weight:500;font-size:1em;display:flex;align-items:center;gap:6px;margin-bottom:2px;}
+    input,select,textarea{width:100%;padding:7px 9px;border:1.1px solid #cbd5e1;border-radius:6px;font-size:1em;box-sizing:border-box;margin-top:2px;transition:border .12s;}
+    input:focus,select:focus,textarea:focus{outline:none;border-color:#2563eb;}
+    textarea{min-height:52px;}
+    .field-pending{border:2px solid #ef4444 !important;background:#fff0f3;animation:shake .3s;}
+    @keyframes shake {0%{transform:translateX(0);}30%{transform:translateX(-4px);}60%{transform:translateX(4px);}100%{transform:translateX(0);}
+    }
+    .save-btn{background:#2563eb;color:#fff;font-size:1.13em;padding:12px 32px;border-radius:8px;border:none;margin:22px 0 0 0;cursor:pointer;font-weight:600;}
+    .save-btn:disabled{background:#b1b1b1;cursor:not-allowed;}
+    .painel-pend{background:#fff7f1;border:1.4px solid #fdba74;color:#b45309;border-radius:8px;padding:10px 14px 7px 14px;margin-bottom:19px;}
+    .painel-pend ul{margin:3px 0 0 16px;padding:0;}
+    .painel-pend li{margin-bottom:3px;cursor:pointer;}
+    .preview-title{font-size:1.06em;color:#2563eb;font-weight:bold;margin-bottom:5px;}
+    .preview-prod{background:#f9fafb;border-radius:8px;border:1px solid #e0e7ef;padding:11px 13px 9px 13px;font-size:.97em;min-height:120px;}
+    .preview-img{width:100%;max-width:120px;margin-bottom:7px;border-radius:4px;border:1.2px solid #e0e7ef;}
+    .preview-pendente{color:#ef4444;font-size:.94em;font-style:italic;margin-bottom:5px;}
+    .toast{position:fixed;z-index:200;top:22px;right:22px;background:#2563eb;color:#fff;padding:15px 30px 13px 19px;border-radius:7px;box-shadow:0 4px 22px #0002;font-weight:500;opacity:0;pointer-events:none;transition:opacity .22s;}
+    .toast.show{opacity:1;pointer-events:auto;}
+    .prod-list{margin-top:28px;}
+    .prod-list-title{font-size:1.08em;font-weight:bold;margin-bottom:4px;color:#555;}
+    .prod-item{background:#f3f4f8;border-radius:7px;padding:13px 13px 9px 13px;border:1.1px solid #e1e3eb;margin-bottom:10px;}
+    .prod-item b{color:#2563eb;}
+    .prod-item small{color:#7a7a7a;font-size:.95em;}
+    .cat-table{width:100%;border-collapse:collapse;margin-bottom:17px;}
+    .cat-table th, .cat-table td{border:1px solid #e1e3eb;padding:7px 6px;text-align:left;}
+    .cat-table th{background:#f4f7ff;}
+    .cat-edit-btn,.cat-field-del{background:#10b981;color:#fff;border:none;border-radius:5px;padding:6px 13px;font-weight:500;cursor:pointer;}
+    .cat-field-del{background:#ef4444;padding:4px 11px;margin-left:3px;}
+    .add-field-btn{background:#2563eb;color:#fff;border:none;border-radius:4px;padding:5px 15px;font-weight:500;cursor:pointer;margin-top:7px;}
+    .cat-fields-row{display:flex;gap:7px;margin-bottom:6px;}
+    .cat-field-input{width:30%;}
+    .cat-field-tip{width:40%;}
+    .cat-field-checkbox{margin-right:6px;}
+    @media (max-width:700px){.container{padding:10px 3vw;}}
+    @media (max-width:500px){.nav{padding:0 7px;}.container{padding:11px 3vw;}}
+  </style>
+</head>
+<body>
+  <div class="nav">
+    <button class="nav-btn active" id="btnProdutos" onclick="showScreen('produtos')">Produtos</button>
+    <button class="nav-btn" id="btnCategorias" onclick="showScreen('categorias')">Categorias</button>
+  </div>
+  <div class="toast" id="toast"></div>
+  <div class="container" id="screenProdutos" style="display:block;">
+    <h1>Cadastrar Produto</h1>
+    <form id="produtoForm" autocomplete="off" onsubmit="event.preventDefault()">
+      <div class="form-group">
+        <label for="catSelect">Categoria *</label>
+        <select id="catSelect" name="categoria" required onchange="renderCamposProd()"></select>
+      </div>
+      <div id="prodCamposArea"></div>
+      <div class="form-group">
+        <label for="prodAtributos">Atributos Extras</label>
+        <input id="prodAtributos" type="text" placeholder="Ex: Bluetooth, 4K, GPS...">
+      </div>
+      <div class="form-group">
+        <label for="prodVarInput">Variações de Título</label>
+        <div style="margin-bottom:6px;" id="prodVarList"></div>
+        <div>
+          <input id="prodVarInput" type="text" placeholder="Ex: 1989, 2020, Limited Edition..." style="width:60%;">
+          <button type="button" class="cat-edit-btn" style="padding:4px 11px;background:#818cf8;" onclick="addProdVar()">+ Adicionar</button>
+        </div>
+      </div>
+      <button type="submit" class="save-btn" id="saveBtn">Salvar Produto</button>
+      <button type="button" class="save-btn" id="clearBtn" style="background:#64748b;margin-left:14px;display:none;">Cadastrar outro produto</button>
+    </form>
+    <div class="painel-pend" id="painelPend" style="display:none;">
+      <b>Pendências:</b>
+      <ul id="painelPendList"></ul>
+    </div>
+    <div class="preview-title">Preview do Produto</div>
+    <div class="preview-prod" id="previewBox">
+      <span class="preview-pendente" id="previewPendencia">Faltam dados obrigatórios!</span>
+      <div><img id="previewImg" class="preview-img" src="" style="display:none;" alt="Imagem produto"></div>
+      <div class="preview-prop" id="previewNome"></div>
+      <div class="preview-prop" id="previewMarca"></div>
+      <div class="preview-prop" id="previewPreco"></div>
+      <div class="preview-prop" id="previewCat"></div>
+      <div class="preview-prop" id="previewDesc"></div>
+      <div class="preview-prop" id="previewAtributos"></div>
+      <div class="preview-prop" id="previewVaria"></div>
+    </div>
+    <div class="prod-list" id="prodListArea"></div>
+  </div>
+  <div class="container" id="screenCategorias" style="display:none;">
+    <h1>Categorias</h1>
+    <button class="add-field-btn" style="margin-bottom:19px;" onclick="novaCategoria()">+ Nova Categoria</button>
+    <table class="cat-table" id="catTable">
+      <thead><tr><th>Nome</th><th>Campos</th><th>Ações</th></tr></thead>
+      <tbody id="catTableBody"></tbody>
+    </table>
+    <div id="catEditArea" style="margin-top:20px;display:none;">
+      <h2 id="catEditTitle" style="font-size:1.09em;margin-bottom:9px;"></h2>
+      <div id="catFieldsEdit"></div>
+      <button class="add-field-btn" onclick="addNovoCampoEdit()">+ Adicionar Campo</button>
+      <button class="cat-edit-btn" onclick="salvarCategoriaEdit()" style="margin-top:11px;">Salvar Alterações</button>
+      <button class="cat-field-del" onclick="excluirCategoriaEdit()" style="margin-top:11px;">Excluir Categoria</button>
+      <button class="cat-edit-btn" style="background:#64748b;margin-top:11px;" onclick="cancelarEditCategoria()">Cancelar</button>
+    </div>
+  </div>
+<script>
+function showToast(msg) {
+  let toast = document.getElementById('toast');
+  toast.innerText = msg;
+  toast.classList.add('show');
+  setTimeout(()=>{toast.classList.remove('show');},2100);
+}
+// Produto lista
+function getProdutos() {
+  let d = localStorage.getItem('tdai_produtos');
+  if (!d) return [];
+  try { return JSON.parse(d); } catch { return []; }
+}
+function saveProdutos(prods) {
+  localStorage.setItem('tdai_produtos', JSON.stringify(prods));
+}
+function renderProdList() {
+  let list = getProdutos();
+  let area = document.getElementById('prodListArea');
+  if (!list.length) { area.innerHTML = ""; return; }
+  area.innerHTML = `<div class="prod-list-title">Produtos cadastrados:</div>`;
+  for (let i = list.length - 1; i >= 0; i--) {
+    let p = list[i];
+    let atbs = p.atributos && p.atributos.length ? `<small>${p.atributos.join(' | ')}</small>` : '';
+    let vars = p.variacoes && p.variacoes.length ? `<small><br>Variações: ${p.variacoes.join(', ')}</small>` : '';
+    let img = p.imgData ? `<img src="${p.imgData}" style="max-width:48px;max-height:48px;float:right;margin-left:9px;border-radius:4px;">` : '';
+    area.innerHTML += `<div class="prod-item">${img}<b>${p.nome}</b><br>Marca: ${p.marca}<br>Preço: R$ ${p.preco}<br>Categoria: ${p.categoria}${vars}<br>${atbs}</div>`;
+  }
+}
+function limparProdutoForm() {
+  document.getElementById('produtoForm').reset();
+  prodVariacoes = [];
+  renderProdVarList();
+  renderCamposProd();
+  updatePreviewProd();
+  validateFormProd();
+  document.getElementById('clearBtn').style.display = 'none';
+}
+// --- Categoria ---
+function getCategorias() {
+  let data = localStorage.getItem('tdai_categorias2');
+  if (!data) return [];
+  try { return JSON.parse(data); } catch { return []; }
+}
+function saveCategorias(cats) {
+  localStorage.setItem('tdai_categorias2', JSON.stringify(cats));
+}
+function categoriasExemplo() {
+  if(getCategorias().length) return;
+  saveCategorias([
+    { nome: "Notebook", campos: [
+      {nome: "Processador", dica: "Ex: Intel i5-1240P", obrigatorio: true},
+      {nome: "RAM", dica: "Ex: 16GB DDR4", obrigatorio: true},
+      {nome: "Armazenamento", dica: "Ex: 512GB SSD", obrigatorio: true},
+      {nome: "Tamanho da Tela", dica: "Ex: 15,6'' Full HD", obrigatorio: true},
+      {nome: "Sistema Operacional", dica: "Ex: Windows 11", obrigatorio: true},
+      {nome: "Voltagem", dica: "Ex: Bivolt", obrigatorio: false}
+    ]},
+    { nome: "Celular", campos: [
+      {nome: "Sistema", dica: "Ex: Android 13", obrigatorio: true},
+      {nome: "RAM", dica: "Ex: 8GB", obrigatorio: true},
+      {nome: "Armazenamento", dica: "Ex: 256GB", obrigatorio: true},
+      {nome: "Câmera", dica: "Ex: 50MP traseira", obrigatorio: false},
+      {nome: "Bateria", dica: "Ex: 4500mAh", obrigatorio: false}
+    ]},
+    { nome: "Engate de Reboque", campos: [
+      {nome: "Peso Máximo", dica: "Ex: 700kg", obrigatorio: true},
+      {nome: "Veículo Compatível", dica: "Ex: Saveiro 1989-2022", obrigatorio: true},
+      {nome: "Material", dica: "Ex: Aço carbono", obrigatorio: true},
+      {nome: "Tipo de Fixação", dica: "Ex: Rosqueado", obrigatorio: false}
+    ]}
+  ]);
+}
+categoriasExemplo();
+function renderCatSelect() {
+  let select = document.getElementById('catSelect');
+  let cats = getCategorias();
+  select.innerHTML = `<option value="">Selecione</option>`+cats.map((c,i)=>`<option value="${i}">${c.nome}</option>`).join('');
+}
+renderCatSelect();
+function renderCatTable() {
+  let cats = getCategorias();
+  let body = document.getElementById('catTableBody');
+  body.innerHTML = '';
+  cats.forEach((cat,i)=>{
+    let campos = (cat.campos||[]).map(c=>c.nome+(c.obrigatorio?'*':'')).join(', ');
+    body.innerHTML += `<tr>
+      <td>${cat.nome}</td>
+      <td>${campos||'-'}</td>
+      <td>
+        <button class="cat-edit-btn" onclick="editarCategoria(${i})">Editar</button>
+      </td>
+    </tr>`;
+  });
+}
+renderCatTable();
+// --- Tela Produtos ---
+function renderCamposProd() {
+  let idx = document.getElementById('catSelect').value;
+  let area = document.getElementById('prodCamposArea');
+  area.innerHTML = '';
+  window.prodCamposDef = [];
+  if(idx==="") return;
+  let cats = getCategorias();
+  let cat = cats[idx];
+  let fixed = [
+    {id:'prodNome', label:'Nome do Produto *', tipo:'text', obrigatorio:true, dica:'Nome comercial completo.'},
+    {id:'prodMarca', label:'Marca *', tipo:'text', obrigatorio:true, dica:'Fabricante ou marca.'},
+    {id:'prodPreco', label:'Preço *', tipo:'number', obrigatorio:true, dica:'Ex: 2999.99'},
+    {id:'prodImagem', label:'Imagem Principal *', tipo:'file', obrigatorio:true, dica:'Imagem clara, fundo branco.'},
+    {id:'prodDesc', label:'Descrição do Produto *', tipo:'textarea', obrigatorio:true, dica:'Destaque diferenciais e aplicações.'}
+  ];
+  let din = cat.campos.map((c,i)=>({
+    id:'prodCampo'+i,
+    label:c.nome + (c.obrigatorio?' *':''), 
+    tipo:'text',
+    obrigatorio:c.obrigatorio,
+    dica:c.dica
+  }));
+  let campos = [...fixed,...din];
+  window.prodCamposDef = campos;
+  campos.forEach(c=>{
+    let group = document.createElement('div');
+    group.className = "form-group";
+    let tip = c.dica?`<span class="tooltip" tabindex="0">🛈<span class="tooltiptext">${c.dica}</span></span>`:'';
+    if(c.tipo==='textarea')
+      group.innerHTML = `<label for="${c.id}">${c.label} ${tip}</label><textarea id="${c.id}"></textarea>`;
+    else if(c.tipo==='file')
+      group.innerHTML = `<label for="${c.id}">${c.label} ${tip}</label><input id="${c.id}" type="file" accept="image/*">`;
+    else
+      group.innerHTML = `<label for="${c.id}">${c.label} ${tip}</label><input id="${c.id}" type="${c.tipo}">`;
+    area.appendChild(group);
+  });
+  // preview imagem
+  let imgEl = document.getElementById('prodImagem');
+  if (imgEl) imgEl.onchange = function() {
+    let img = document.getElementById('previewImg');
+    if (this.files && this.files[0]) {
+      let reader = new FileReader();
+      reader.onload = function(e) {
+        img.src = e.target.result;
+        img.style.display = "block";
+        updatePreviewProd();
+      };
+      reader.readAsDataURL(this.files[0]);
+    }
+  };
+  // eventos dos campos para atualizar preview e validar
+  campos.forEach(c=>{
+    let el = document.getElementById(c.id);
+    if (!el) return;
+    el.oninput = el.onchange = ()=>{ updatePreviewProd(); validateFormProd(); };
+  });
+  updatePreviewProd();
+  validateFormProd();
+}
+renderCamposProd();
+// --- Variações de título ---
+let prodVariacoes = [];
+function addProdVar() {
+  let inp = document.getElementById('prodVarInput');
+  let v = inp.value.trim();
+  if(!v) return;
+  prodVariacoes.push(v);
+  inp.value='';
+  renderProdVarList();
+  updatePreviewProd();
+  validateFormProd();
+}
+function renderProdVarList() {
+  let list = document.getElementById('prodVarList');
+  list.innerHTML = prodVariacoes.map((v,i)=>`
+    <span style="display:inline-block;background:#f3f4f6;color:#111;border-radius:6px;padding:3px 11px;margin:1px 2px;">
+      ${v} <button type="button" onclick="delProdVar(${i})" style="background:none;color:#dc2626;border:none;cursor:pointer;">×</button>
+    </span>
+  `).join('');
+}
+function delProdVar(i) {
+  prodVariacoes.splice(i,1);
+  renderProdVarList();
+  updatePreviewProd();
+  validateFormProd();
+}
+// --- Preview Produto & validação ---
+function getProdVal(id) {
+  let el = document.getElementById(id);
+  if (!el) return '';
+  if (el.type==='file') return el.files&&el.files[0]?el.files[0]:null;
+  return el.value?el.value.trim():'';
+}
+function updatePreviewProd() {
+  let idx = document.getElementById('catSelect').value;
+  let cats = getCategorias();
+  let cat = cats[idx];
+  let campos = window.prodCamposDef||[];
+  let v = {};
+  campos.forEach(c=>v[c.id]=getProdVal(c.id));
+  document.getElementById('previewNome').innerHTML = v['prodNome']?`<b>${v['prodNome']}</b>`:'';
+  document.getElementById('previewMarca').innerText = v['prodMarca']?'Marca: '+v['prodMarca']:'';
+  document.getElementById('previewPreco').innerText = v['prodPreco']?'Preço: R$ '+parseFloat(v['prodPreco']).toFixed(2):'';
+  document.getElementById('previewCat').innerText = idx!==""?('Categoria: '+cat.nome):'';
+  document.getElementById('previewDesc').innerText = v['prodDesc']?v['prodDesc']:'';
+  // atributos
+  let atb = [];
+  (cat?cat.campos:[]).forEach((c,i)=>{
+    let val = v['prodCampo'+i];
+    if(val) atb.push(`${c.nome}: ${val}`);
+  });
+  document.getElementById('previewAtributos').innerText = atb.length?'Atributos: '+atb.join(' | '):'';
+  // variações
+  document.getElementById('previewVaria').innerText = prodVariacoes.length?'Variações: '+prodVariacoes.join(', '):'';
+}
+function validateFormProd(scrollPend) {
+  let idx = document.getElementById('catSelect').value;
+  let cats = getCategorias();
+  let cat = cats[idx];
+  let campos = window.prodCamposDef||[];
+  let pendencias = [];
+  let statusOk = true;
+  campos.forEach((c,i)=>{
+    let val = getProdVal(c.id);
+    let el = document.getElementById(c.id);
+    if(c.obrigatorio && (!val || (c.tipo==='file' && !val.name))) {
+      pendencias.push({campo:c.id,msg:c.label+' ausente'});
+      statusOk = false;
+      if(el) el.classList.add('field-pending');
+    } else {
+      if(el) el.classList.remove('field-pending');
+    }
+  });
+  document.getElementById('saveBtn').disabled = !statusOk;
+  document.getElementById('painelPendList').innerHTML = pendencias.map(p=>`<li onclick="focusCampoProd('${p.campo}')">${p.msg}</li>`).join('');
+  document.getElementById('painelPend').style.display = pendencias.length ? "block":"none";
+  document.getElementById('previewPendencia').innerText = statusOk ? "Tudo OK para cadastro!" : "Faltam dados obrigatórios!";
+  // Se pediu scroll para pendente, foca no 1°
+  if(scrollPend && pendencias.length) focusCampoProd(pendencias[0].campo);
+}
+window.focusCampoProd = function(campo){
+  let el = document.getElementById(campo);
+  if(el){
+    el.scrollIntoView({behavior:"smooth",block:"center"});
+    el.classList.add('field-pending');
+    setTimeout(()=>{el.classList.remove('field-pending');},650);
+    el.focus();
+  }
+};
+document.addEventListener('input',function(e){
+  if(e.target && e.target.id && e.target.id.startsWith('prod')) updatePreviewProd();
+});
+document.addEventListener('change',function(e){
+  if(e.target && e.target.id && e.target.id.startsWith('prod')) updatePreviewProd();
+});
+// --- Salvar produto (MVP) ---
+document.getElementById('produtoForm').onsubmit = function(e) {
+  e.preventDefault();
+  if (document.getElementById('saveBtn').disabled) {
+    validateFormProd(true);
+    showToast('Preencha todos os obrigatórios!');
+    return;
+  }
+  let idx = document.getElementById('catSelect').value;
+  let cats = getCategorias();
+  let cat = cats[idx];
+  let campos = window.prodCamposDef||[];
+  let v = {};
+  campos.forEach(c=>v[c.id]=getProdVal(c.id));
+  let imgData = "";
+  let imgEl = document.getElementById('prodImagem');
+  if(imgEl && imgEl.files && imgEl.files[0]){
+    let reader = new FileReader();
+    reader.onload = function(e) {
+      imgData = e.target.result;
+      salvarProdutoFinal();
+    };
+    reader.readAsDataURL(imgEl.files[0]);
+  } else {
+    salvarProdutoFinal();
+  }
+  function salvarProdutoFinal(){
+    let prods = getProdutos();
+    prods.push({
+      nome: v['prodNome'],
+      marca: v['prodMarca'],
+      preco: parseFloat(v['prodPreco']).toFixed(2),
+      categoria: cat.nome,
+      descricao: v['prodDesc'],
+      atributos: (cat.campos||[]).map((c,i)=>v['prodCampo'+i]?`${c.nome}: ${v['prodCampo'+i]}`:null).filter(Boolean),
+      variacoes: [...prodVariacoes],
+      imgData
+    });
+    saveProdutos(prods);
+    renderProdList();
+    showToast('Produto cadastrado!');
+    document.getElementById('clearBtn').style.display = '';
+    document.getElementById('saveBtn').disabled = true;
+  }
+};
+document.getElementById('clearBtn').onclick = function(){
+  limparProdutoForm();
+};
+renderCatSelect();
+renderCamposProd();
+prodVariacoes=[]; renderProdVarList();
+updatePreviewProd();
+validateFormProd();
+renderProdList();
+
+// --- Navegação ---
+function showScreen(screen) {
+  document.getElementById('screenProdutos').style.display = screen==='produtos'?'block':'none';
+  document.getElementById('screenCategorias').style.display = screen==='categorias'?'block':'none';
+  document.getElementById('btnProdutos').classList.toggle('active', screen==='produtos');
+  document.getElementById('btnCategorias').classList.toggle('active', screen==='categorias');
+  if(screen==='produtos'){
+    renderCatSelect();
+    renderCamposProd();
+    renderProdVarList();
+    renderProdList();
+  } else {
+    renderCatTable();
+    document.getElementById('catEditArea').style.display='none';
+  }
+}
+// --- CATEGORIAS (tela própria) ---
+function novaCategoria() {
+  let nome = prompt('Nome da nova categoria?');
+  if(!nome) return;
+  let cats = getCategorias();
+  cats.push({nome,campos:[]});
+  saveCategorias(cats);
+  renderCatTable();
+  showToast('Nova categoria criada!');
+}
+let catEditIdx = null;
+function editarCategoria(idx){
+  catEditIdx = idx;
+  let cats = getCategorias();
+  let cat = cats[idx];
+  document.getElementById('catEditTitle').innerText = 'Editando: ' + cat.nome;
+  let area = document.getElementById('catFieldsEdit');
+  area.innerHTML = '';
+  (cat.campos||[]).forEach((c,j)=>{
+    let div = document.createElement('div');
+    div.className = "cat-fields-row";
+    div.innerHTML = `
+      <input class="cat-field-input" type="text" value="${c.nome.replace(/"/g,"&quot;")}" placeholder="Campo" maxlength="32">
+      <input class="cat-field-tip" type="text" value="${c.dica.replace(/"/g,"&quot;")}" placeholder="Dica (tooltip)" maxlength="45">
+      <label><input class="cat-field-checkbox" type="checkbox" ${c.obrigatorio?'checked':''}> Obrigatório</label>
+      <button class="cat-field-del" onclick="this.parentElement.remove()">X</button>
+    `;
+    area.appendChild(div);
+  });
+  document.getElementById('catEditArea').style.display='block';
+}
+function addNovoCampoEdit(nome='', dica='', obrigatorio=true) {
+  let area = document.getElementById('catFieldsEdit');
+  let div = document.createElement('div');
+  div.className = "cat-fields-row";
+  div.innerHTML = `
+    <input class="cat-field-input" type="text" placeholder="Campo" value="${nome.replace(/"/g,"&quot;")}" maxlength="32">
+    <input class="cat-field-tip" type="text" placeholder="Dica (tooltip)" value="${dica.replace(/"/g,"&quot;")}" maxlength="45">
+    <label><input class="cat-field-checkbox" type="checkbox" ${obrigatorio?'checked':''}> Obrigatório</label>
+    <button class="cat-field-del" onclick="this.parentElement.remove()">X</button>
+  `;
+  area.appendChild(div);
+}
+function salvarCategoriaEdit() {
+  if(catEditIdx===null) return;
+  let campos = [];
+  document.querySelectorAll('#catFieldsEdit .cat-fields-row').forEach(row=>{
+    let inputs = row.querySelectorAll('input');
+    let nomeCampo = inputs[0].value.trim();
+    let dica = inputs[1].value.trim();
+    let obrigatorio = inputs[2].checked;
+    if (nomeCampo) campos.push({nome:nomeCampo, dica, obrigatorio});
+  });
+  if (!campos.length) return alert('Adicione ao menos um campo!');
+  let cats = getCategorias();
+  cats[catEditIdx].campos = campos;
+  saveCategorias(cats);
+  renderCatTable();
+  showToast('Categoria salva!');
+  document.getElementById('catEditArea').style.display='none';
+}
+function excluirCategoriaEdit() {
+  if(catEditIdx===null) return;
+  let cats = getCategorias();
+  if(cats.length<=1) return alert('Deixe pelo menos uma categoria!');
+  if(!confirm('Excluir a categoria?')) return;
+  cats.splice(catEditIdx,1);
+  saveCategorias(cats);
+  renderCatTable();
+  document.getElementById('catEditArea').style.display='none';
+  showToast('Categoria excluída!');
+}
+function cancelarEditCategoria(){
+  document.getElementById('catEditArea').style.display='none';
+}
+</script>
+</body>
+</html>
