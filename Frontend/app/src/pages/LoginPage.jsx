@@ -16,13 +16,15 @@ function LoginPage() {
     setLoading(true);
 
     const loginData = new URLSearchParams();
-    loginData.append('username', email);
+    loginData.append('username', email); // O backend espera 'username' para o email no form OAuth2
     loginData.append('password', password);
 
     try {
+      // Garante que a URL base da API está correta (pode vir de .env.local do frontend)
       const VITE_API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
       
-      const response = await axios.post(`${VITE_API_BASE_URL}/api/v1/token`, loginData, {
+      // CORREÇÃO DA URL AQUI:
+      const response = await axios.post(`${VITE_API_BASE_URL}/api/v1/auth/token`, loginData, {
         headers: {
           'Content-Type': 'application/x-www-form-urlencoded',
         },
@@ -30,6 +32,9 @@ function LoginPage() {
 
       if (response.data.access_token) {
         localStorage.setItem('accessToken', response.data.access_token);
+        // Opcional: Decodificar o token para obter o nome do usuário ou buscar /users/me
+        // e então navegar para o dashboard.
+        // Por agora, apenas navega. O MainLayout/ProtectedRoute pode buscar o user.
         navigate('/dashboard'); 
       } else {
         showErrorToast('Resposta inesperada do servidor durante o login.');
@@ -57,7 +62,6 @@ function LoginPage() {
   };
 
   return (
-    // NOVO WRAPPER ADICIONADO
     <div className="login-page-wrapper"> 
       <div className="login-form-card">
         <h2>Login TDAI</h2>

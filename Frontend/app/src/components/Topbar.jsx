@@ -1,18 +1,20 @@
 // Frontend/app/src/components/Topbar.jsx
-import React, { useState, useEffect } from 'react';
-import { useNavigate }
-from 'react-router-dom';
-// import authService from '../services/authService'; // Descomente quando tiver o serviço de auth para buscar dados do user
+import React, { useState, useEffect, useContext } from 'react';
+import { useNavigate } from 'react-router-dom';
+import authService from '../services/authService'; 
+// Se você criar um AuthContext, importe-o:
+// import { AuthContext } from '../contexts/AuthContext'; 
 
-// Função para simular logout (similar à da Sidebar)
-const handleLogout = (navigate) => {
+const handleLogout = (navigate, authContextSetter) => { 
   localStorage.removeItem('accessToken');
-  // Limpe aqui qualquer outro estado global do usuário, se houver
-  // Ex: userService.clearCurrentUser(); 
+  // Limpar também o refresh token se estiver usando e armazenando-o
+  // localStorage.removeItem('refreshToken'); 
+  if (authContextSetter) {
+    authContextSetter(null); 
+  }
   navigate('/login');
 };
 
-// Função simples para obter iniciais de um nome
 const getInitials = (name) => {
   if (!name || typeof name !== 'string') return '??';
   const names = name.split(' ');
@@ -27,63 +29,75 @@ function Topbar({ viewTitle }) {
   const navigate = useNavigate();
   const [userMenuOpen, setUserMenuOpen] = useState(false);
   
-  // TODO: Buscar e armazenar dados do usuário de forma mais robusta (ex: Context API ou Redux)
-  // Por enquanto, vamos usar um nome de exemplo.
-  // Você pode tentar buscar do localStorage se salvou algo lá após o login.
-  const [currentUser, setCurrentUser] = useState({
-    nome: "Usuário Exemplo", // Placeholder
-    // email: "usuario@example.com"
-  });
+  // const { currentUser, setCurrentUser } = useContext(AuthContext); // Exemplo com Contexto
+  const [currentUser, setCurrentUser] = useState(null); 
+  const [loadingUser, setLoadingUser] = useState(true);
 
-  // useEffect(() => {
-  //   // Exemplo de como você poderia buscar dados do usuário ao montar o Topbar
-  //   const fetchUserData = async () => {
-  //     try {
-  //       // const user = await authService.getCurrentUser(); // Supondo uma função no seu authService
-  //       // if (user) {
-  //       //   setCurrentUser(user);
-  //       // } else {
-  //       //   // Se não conseguir buscar o usuário, talvez redirecionar para login
-  //       //   handleLogout(navigate);
-  //       // }
-  //     } catch (error) {
-  //       console.error("Erro ao buscar dados do usuário:", error);
-  //       // handleLogout(navigate); // Deslogar em caso de erro
-  //     }
-  //   };
-  //   // fetchUserData();
-  // }, [navigate]);
+  useEffect(() => {
+    const fetchUserData = async () => {
+      const token = localStorage.getItem('accessToken');
+      console.log('Topbar useEffect: token from localStorage:', token); // DEBUG
+      if (token) { 
+        setLoadingUser(true);
+        try {
+          console.log('Topbar: Fetching user data...'); // DEBUG
+          const user = await authService.getCurrentUser(); 
+          console.log('Topbar: User data fetched:', user); // DEBUG
+          if (user) {
+            setCurrentUser(user);
+          } else {
+            console.log('Topbar: No user data returned from getCurrentUser, logging out.'); // DEBUG
+            handleLogout(navigate, setCurrentUser); 
+          }
+        } catch (error) {
+          console.error("Topbar: Erro ao buscar dados do usuário:", error.response || error.message || error); // DEBUG
+          if (error.response && error.response.status === 401) {
+            console.log('Topbar: 401 error on fetching user, logging out.'); // DEBUG
+            handleLogout(navigate, setCurrentUser);
+          }
+          // Mesmo se não for 401, mas houver erro, talvez seja melhor deslogar
+          // ou pelo menos limpar o estado currentUser.
+          // setCurrentUser(null); // Limpa usuário em caso de outros erros
+        } finally {
+          setLoadingUser(false);
+        }
+      } else {
+        console.log('Topbar: No token found, user not logged in or already logged out.'); // DEBUG
+        setLoadingUser(false); 
+        // Não é necessário redirecionar aqui, ProtectedRoute deve cuidar disso
+      }
+    };
+    fetchUserData();
+  }, [navigate]); 
 
 
-  const userNameDisplay = currentUser?.nome || "Usuário";
-  const userInitials = getInitials(currentUser?.nome);
+  const userNameDisplay = loadingUser ? "Carregando..." : (currentUser?.nome_completo || currentUser?.email || "Usuário");
+  const userInitials = loadingUser ? "..." : getInitials(currentUser?.nome_completo || currentUser?.email);
 
   return (
-    <header className="topbar"> {/* Classe do allinone.html */}
+    <header className="topbar">
       <h1>{viewTitle || "Dashboard"}</h1>
       <div 
-        className="user-area"  /* Classe do allinone.html */
+        className="user-area"
         tabIndex="0" 
         onMouseEnter={() => setUserMenuOpen(true)}
         onMouseLeave={() => setUserMenuOpen(false)}
-        onClick={() => setUserMenuOpen(prev => !prev)} // Para toque/clique
+        onClick={() => setUserMenuOpen(prev => !prev)}
+        onFocus={() => setUserMenuOpen(true)} // Para acessibilidade com teclado
+        onBlur={() => setTimeout(() => setUserMenuOpen(false), 150)} // Pequeno delay para permitir clique no menu
       >
-        <div className="user-avatar"> {/* Classe do allinone.html */}
+        <div className="user-avatar">
           {userInitials}
         </div>
-        <span className="user-name">{userNameDisplay}</span> {/* Classe do allinone.html */}
+        <span className="user-name">{userNameDisplay}</span>
         
         {userMenuOpen && (
-          <div className="user-menu" style={{ display: 'flex' }}> {/* Classe e estilo do allinone.html */}
-            <button disabled>
-              <span style={{color:"#7c3aed",verticalAlign:"middle", marginRight:"5px"}}>&#128100;</span> 
-              Meu Perfil
-            </button>
-            <button disabled>
-              <span style={{color:"#a3a3a3",verticalAlign:"middle", marginRight:"5px"}}>&#9881;&#65039;</span> 
+          <div className="user-menu" style={{ display: 'flex' }}> {/* Mantido flex para layout interno dos botões */}
+            <button onClick={() => { setUserMenuOpen(false); navigate('/configuracoes'); }}> 
+              <span style={{color:"#7c3aed",verticalAlign:"middle", marginRight:"5px"}}>&#9881;&#65039;</span> 
               Configurações
             </button>
-            <button onClick={() => handleLogout(navigate)}>
+            <button onClick={() => { setUserMenuOpen(false); handleLogout(navigate, setCurrentUser); }}>
               <span style={{color:"var(--danger)",verticalAlign:"middle", marginRight:"5px"}}>➔</span> 
               Sair
             </button>

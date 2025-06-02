@@ -1,80 +1,118 @@
 // Frontend/app/src/components/produtos/ProductTable.jsx
 import React from 'react';
+import './ProductTable.css'; // Seu CSS para a tabela. Deve existir em src/components/produtos/ProductTable.css
+import { format } from 'date-fns'; 
+import { ptBR } from 'date-fns/locale'; 
 
-// Função auxiliar para formatar os valores dos Enums (opcional, mas melhora a leitura)
-const formatStatusEnumValue = (value) => {
-  if (!value) return 'N/D'; // Não definido ou Não disponível
-  // Converte para string antes de chamar replace, para o caso de não ser string (ex: se vier null do DB e não for tratado antes)
-  return String(value).replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase()); // Ex: "CONCLUIDO_SUCESSO" -> "Concluido Sucesso"
+const StatusIcon = ({ status }) => {
+  let iconClass = "status-icon ";
+  let iconText = "";
+  let title = status;
+
+  switch (status) {
+    case 'NAO_INICIADO': iconClass += "grey"; iconText = "➖"; title="Não Iniciado"; break;
+    case 'PENDENTE': iconClass += "orange"; iconText = "⏳"; title="Pendente"; break;
+    case 'EM_PROGRESSO': iconClass += "blue"; iconText = "⚙️"; title="Em Progresso"; break;
+    case 'CONCLUIDO': iconClass += "green"; iconText = "✔️"; title="Concluído"; break;
+    case 'FALHA': iconClass += "red"; iconText = "❌"; title="Falha"; break;
+    case 'NAO_APLICAVEL': iconClass += "grey"; iconText = "➖"; title="Não Aplicável"; break; 
+    default: iconClass += "grey"; iconText = "?"; title="Desconhecido";
+  }
+  return <span className={iconClass} title={title}>{iconText}</span>;
 };
 
-function ProductTable({ produtos, onRowClick, onSelectRow, selectedIds, onSelectAllRows, isLoading }) {
-  if (isLoading && (!produtos || produtos.length === 0)) {
-    return <p>Carregando tabela de produtos...</p>;
-  }
-  return (
-    <table id="prod-table" style={{ width: '100%' }}>
-      <thead>
-        <tr>
-          <th className="select">
-            <input
-              type="checkbox"
-              id="select-all-prod"
-              onChange={onSelectAllRows}
-              checked={produtos.length > 0 && selectedIds.length === produtos.length}
-              disabled={produtos.length === 0}
-            />
-          </th>
-          <th>Nome</th>
-          <th>SKU</th>
-          <th>Marca</th>
-          <th>Status Enriq. Web</th>
-          <th>Status Títulos IA</th>
-          <th>Status Descrição IA</th>
-          <th>Descrição Gerada (IA)</th>
-          <th>Data Criação</th>
-        </tr>
-      </thead>
+
+function ProductTable({
+  produtos,
+  onEdit,
+  onSort,
+  sortConfig,
+  onSelectProduto,
+  selectedProdutos,
+  onSelectAllProdutos, 
+  loading, 
+}) {
+  console.log('ProductTable: Props recebidos - produtos:', produtos); 
+  console.log('ProductTable: Props recebidos - loading:', loading); 
+  console.log('ProductTable: Props recebidos - selectedProdutos:', selectedProdutos); 
+
+  const getSortDirectionIcon = (key) => {
+    if (sortConfig.key === key) {
+      return sortConfig.direction === 'ascending' ? ' ▲' : ' ▼';
+    }
+    return ''; 
+  };
+
+  const isAllSelected = produtos && produtos.length > 0 && selectedProdutos.size === produtos.length;
+
+  const renderTableHeader = () => (
+    <thead>
+      <tr>
+        <th>
+          <input 
+            type="checkbox" 
+            checked={isAllSelected}
+            onChange={(e) => onSelectAllProdutos(e.target.checked)}
+            disabled={!produtos || produtos.length === 0 || loading}
+          />
+        </th>
+        <th onClick={() => onSort('id')}>ID {getSortDirectionIcon('id')}</th>
+        <th onClick={() => onSort('nome_base')}>Nome Base {getSortDirectionIcon('nome_base')}</th>
+        <th onClick={() => onSort('sku')}>SKU {getSortDirectionIcon('sku')}</th>
+        <th onClick={() => onSort('fornecedor_id')}>Fornecedor {getSortDirectionIcon('fornecedor_id')}</th>
+        <th onClick={() => onSort('status_enriquecimento_web')}>Status Web {getSortDirectionIcon('status_enriquecimento_web')}</th>
+        <th onClick={() => onSort('status_titulo_ia')}>Status Título {getSortDirectionIcon('status_titulo_ia')}</th>
+        <th onClick={() => onSort('status_descricao_ia')}>Status Desc. {getSortDirectionIcon('status_descricao_ia')}</th>
+        <th onClick={() => onSort('data_atualizacao')}>Atualizado em {getSortDirectionIcon('data_atualizacao')}</th>
+        <th>Ações</th>
+      </tr>
+    </thead>
+  );
+
+  const renderTableBody = () => {
+    if (loading && (!produtos || produtos.length === 0)) { 
+        return <tbody><tr><td colSpan="10" style={{ textAlign: 'center', padding: '20px' }}>Carregando produtos...</td></tr></tbody>;
+    }
+    if (!produtos || produtos.length === 0) {
+      return <tbody><tr><td colSpan="10" style={{ textAlign: 'center', padding: '20px' }}>Nenhum produto encontrado.</td></tr></tbody>;
+    }
+    return (
       <tbody>
-        {produtos.length > 0 ? produtos.map(produto => (
-          <tr key={produto.id} onClick={() => onRowClick && onRowClick(produto)} style={{ cursor: 'pointer' }}>
-            <td className="select" onClick={(e) => e.stopPropagation()} >
-              <input
+        {produtos.map((produto) => (
+          <tr key={produto.id} className={selectedProdutos.has(produto.id) ? 'selected-row' : ''}>
+            <td>
+              <input 
                 type="checkbox"
-                className="row-select-prod"
-                checked={selectedIds.includes(produto.id)}
-                onChange={() => {
-                    onSelectRow(produto.id);
-                }}
-                onClick={(e) => e.stopPropagation()}
+                checked={selectedProdutos.has(produto.id)}
+                onChange={() => onSelectProduto(produto.id)}
               />
             </td>
-            <td className="name-cell">{produto.nome_base}</td>
-            <td>{produto.dados_brutos?.sku_original || produto.dados_brutos?.codigo_original || 'N/A'}</td>
-            <td>{produto.marca || 'N/A'}</td>
+            <td>{produto.id}</td>
+            <td>{produto.nome_base || '--'}</td>
+            <td>{produto.sku || '--'}</td>
+            <td>{produto.fornecedor_id ? `ID: ${produto.fornecedor_id}` : '--'}</td> 
+            <td><StatusIcon status={produto.status_enriquecimento_web} /></td>
+            <td><StatusIcon status={produto.status_titulo_ia} /></td>
+            <td><StatusIcon status={produto.status_descricao_ia} /></td>
+            <td>{produto.data_atualizacao ? format(new Date(produto.data_atualizacao), 'dd/MM/yyyy HH:mm', { locale: ptBR }) : '--'}</td>
             <td>
-              <span
-                className={`status-dot ${
-                  produto.status_enriquecimento_web === 'CONCLUIDO_SUCESSO' ? 'status-completo' :
-                  produto.status_enriquecimento_web === 'EM_PROGRESSO' ? 'status-em-progresso' :
-                  produto.status_enriquecimento_web === 'FALHOU' ? 'status-falhou' :
-                  'status-pendente'
-                }`}
-              ></span>
-              {formatStatusEnumValue(produto.status_enriquecimento_web || 'PENDENTE')} {/* Passa um default para formatStatusEnumValue */}
+              <button onClick={() => onEdit(produto)} className="btn-icon btn-edit" title="Editar Produto">
+                ✏️
+              </button>
             </td>
-            <td>{formatStatusEnumValue(produto.status_titulo_ia)}</td>
-            <td>{formatStatusEnumValue(produto.status_descricao_ia)}</td>
-            <td className={produto.descricao_principal_gerada ? 'desc-ok' : 'desc-nao'}>
-              {produto.descricao_principal_gerada ? 'Sim' : 'Não'}
-            </td>
-            <td>{new Date(produto.created_at).toLocaleDateString()}</td>
           </tr>
-        )) : (
-          <tr><td colSpan="9">Nenhum produto encontrado.</td></tr> // Comentário removido daqui ou movido para fora
-        )}
+        ))}
       </tbody>
-    </table>
+    );
+  };
+
+  return (
+    <div className="table-responsive">
+      <table className="product-table">
+        {renderTableHeader()}
+        {renderTableBody()}
+      </table>
+    </div>
   );
 }
 

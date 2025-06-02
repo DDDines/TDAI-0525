@@ -1,76 +1,122 @@
-# tdai_project/Backend/routers/uso_ia.py
-from fastapi import APIRouter, Depends, HTTPException, status, Query
-from sqlalchemy.orm import Session
+# Backend/routers/uso_ia.py
 from typing import List, Optional
+from fastapi import APIRouter, Depends, HTTPException, Query, status
+from sqlalchemy.orm import Session
+from datetime import datetime # Necessário para filtros de data
 
 import crud
 import models
-import schemas # Certifique-se que schemas está importado para usar schemas.UsoIAPage
-from database import get_db
-
-from .auth_utils import get_current_active_user, get_current_active_superuser
+import schemas # schemas é importado
+import database
+from . import auth_utils # Para obter o usuário logado
 
 router = APIRouter(
-    prefix="/uso-ia",
-    tags=["Uso IA (Histórico e Limites)"],
-    dependencies=[Depends(get_current_active_user)]
+    prefix="/api/v1/uso-ia", 
+    tags=["uso-ia"],
+    dependencies=[Depends(auth_utils.get_current_active_user)],
 )
 
-@router.post("/", response_model=schemas.UsoIA, status_code=status.HTTP_201_CREATED)
-def registrar_novo_uso_ia(
-    uso_ia_data: schemas.UsoIACreate,
-    db: Session = Depends(get_db),
-    current_user: models.User = Depends(get_current_active_user)
+# Endpoint para registrar um novo uso de IA
+@router.post("/", response_model=schemas.RegistroUsoIAResponse, status_code=status.HTTP_201_CREATED) # CORRIGIDO AQUI
+def create_uso_ia_endpoint( 
+    uso_ia_data: schemas.RegistroUsoIACreate, 
+    db: Session = Depends(database.get_db),
+    current_user: models.User = Depends(auth_utils.get_current_active_user),
 ):
-    if uso_ia_data.produto_id:
-        produto = crud.get_produto(db, produto_id=uso_ia_data.produto_id)
-        if not produto:
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Produto com id {uso_ia_data.produto_id} não encontrado.")
-        if produto.user_id != current_user.id and not current_user.is_superuser:
-            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=f"Não autorizado a registrar uso para o produto id {uso_ia_data.produto_id} de outro usuário.")
+    """
+    Registra um novo uso de funcionalidade de IA pelo usuário.
+    """
+    try:
+        # A função no CRUD foi nomeada como create_registro_uso_ia
+        return crud.create_registro_uso_ia(db=db, uso_ia=uso_ia_data, user_id=current_user.id) 
+    except HTTPException as e:
+        raise e
+    except Exception as e:
+        print(f"ERRO INESPERADO ao criar registro de uso de IA: {e}")
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Erro interno ao registrar uso de IA.")
 
-    return crud.create_uso_ia(db=db, uso_ia=uso_ia_data, user_id=current_user.id)
-
-
-@router.get("/me/", response_model=schemas.UsoIAPage, summary="Meu Histórico de Uso da IA") # Response model ALTERADO
-def ler_meu_historico_uso_ia(
-    skip: int = Query(0, ge=0),
-    limit: int = Query(15, ge=1, le=200), # Limite padrão ajustado para 15
-    db: Session = Depends(get_db),
-    current_user: models.User = Depends(get_current_active_user)
+# Endpoint para listar os registros de uso de IA para o usuário logado
+@router.get("/", response_model=schemas.RegistroUsoIAPage) 
+def read_usos_ia_usuario_logado(
+    db: Session = Depends(database.get_db),
+    current_user: models.User = Depends(auth_utils.get_current_active_user),
+    skip: int = Query(0, ge=0, description="Número de itens para pular"),
+    limit: int = Query(100, ge=1, le=200, description="Número máximo de itens por página"), 
+    tipo_geracao: Optional[str] = Query(None, description="Filtrar por tipo de geração (ex: 'titulo_produto')"),
+    data_inicio: Optional[datetime] = Query(None, description="Filtrar por data de início (YYYY-MM-DDTHH:MM:SS)"),
+    data_fim: Optional[datetime] = Query(None, description="Filtrar por data de fim (YYYY-MM-DDTHH:MM:SS)")
 ):
-    total_items = crud.count_usos_ia_by_user(db, user_id=current_user.id) # BUSCA TOTAL
-    items = crud.get_usos_ia_by_user(db, user_id=current_user.id, skip=skip, limit=limit)
-    return schemas.UsoIAPage(items=items, total_items=total_items, limit=limit, skip=skip) # RETORNA OBJETO PAGINADO
+    """
+    Lista os registros de uso de IA para o usuário autenticado, com filtros e paginação.
+    """
+    # A função no CRUD foi nomeada como get_registros_uso_ia_by_user
+    registros = crud.get_registros_uso_ia_by_user(
+        db,
+        user_id=current_user.id,
+        skip=skip,
+        limit=limit,
+        tipo_geracao=tipo_geracao,
+        data_inicio=data_inicio,
+        data_fim=data_fim
+    )
+    # A função no CRUD foi nomeada como count_registros_uso_ia_by_user
+    total_items = crud.count_registros_uso_ia_by_user(
+        db,
+        user_id=current_user.id,
+        tipo_geracao=tipo_geracao,
+        data_inicio=data_inicio,
+        data_fim=data_fim
+    )
+    
+    return {"items": registros, "total_items": total_items, "page": skip // limit, "limit": limit}
 
-@router.get("/produto/{produto_id}/", response_model=List[schemas.UsoIA], summary="Histórico de Uso da IA por Produto")
-def ler_historico_uso_ia_por_produto(
+
+# Endpoint para obter detalhes de um registro de uso de IA específico (se necessário)
+@router.get("/{registro_id}", response_model=schemas.RegistroUsoIAResponse) 
+def read_uso_ia_especifico( 
+    registro_id: int,
+    db: Session = Depends(database.get_db),
+    current_user: models.User = Depends(auth_utils.get_current_active_user)
+):
+    """
+    Obtém detalhes de um registro de uso de IA específico,
+    verificando se pertence ao usuário logado ou se o usuário é admin.
+    """
+    # Idealmente, crie esta função em crud.py:
+    # def get_registro_uso_ia(db: Session, registro_id: int) -> Optional[models.RegistroUsoIA]:
+    # return db.query(models.RegistroUsoIA).filter(models.RegistroUsoIA.id == registro_id).first()
+    
+    # Simulando a busca direta enquanto a função CRUD não existe:
+    db_registro = db.query(models.RegistroUsoIA).filter(models.RegistroUsoIA.id == registro_id).first() 
+
+    if db_registro is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Registro de uso de IA não encontrado.")
+    
+    if not current_user.is_superuser and db_registro.user_id != current_user.id: 
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Não autorizado a visualizar este registro.")
+        
+    return db_registro
+
+
+@router.get("/por-produto/{produto_id}", response_model=List[schemas.RegistroUsoIAResponse])
+def read_usos_ia_por_produto(
     produto_id: int,
-    skip: int = Query(0, ge=0),
-    limit: int = Query(100, ge=1, le=200),
-    db: Session = Depends(get_db),
-    current_user: models.User = Depends(get_current_active_user)
+    db: Session = Depends(database.get_db),
+    current_user: models.User = Depends(auth_utils.get_current_active_user),
+    skip: int = Query(0, ge=0), 
+    limit: int = Query(100, ge=1, le=200)
 ):
+    """
+    Lista os registros de uso de IA para um produto específico.
+    Verifica se o produto pertence ao usuário ou se o usuário é admin.
+    """
+    # Primeiro, verifica o acesso ao produto
+    produto = crud.get_produto(db, produto_id=produto_id) 
+    if not produto:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Produto não encontrado")
+    if not current_user.is_superuser and produto.user_id != current_user.id:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Não autorizado a ver usos de IA para este produto")
+        
+    # A função no CRUD foi nomeada como get_usos_ia_by_produto
     usos = crud.get_usos_ia_by_produto(db, produto_id=produto_id, user_id=current_user.id, skip=skip, limit=limit)
-
-    if not usos:
-        produto_check = crud.get_produto(db, produto_id=produto_id)
-        if not produto_check:
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Produto não encontrado.")
-        # Se o produto existe mas não tem histórico, retorna lista vazia (comportamento ok)
-
     return usos
-
-@router.get("/all/", response_model=List[schemas.UsoIA], dependencies=[Depends(get_current_active_superuser)], summary="[Admin] Todo Histórico de Uso da IA")
-def ler_todo_historico_uso_ia(
-    skip: int = Query(0, ge=0),
-    limit: int = Query(1000, ge=1, le=5000),
-    user_id_filter: Optional[int] = Query(None, description="[Admin] Filtrar por ID de usuário específico"),
-    db: Session = Depends(get_db)
-):
-    if user_id_filter:
-        # Nota: Para paginação completa aqui também, precisaria de count_usos_ia_by_user e retornar UsoIAPage
-        return crud.get_usos_ia_by_user(db, user_id=user_id_filter, skip=skip, limit=limit)
-    else:
-        # Nota: Para paginação completa aqui também, precisaria de uma função count_all_usos_ia e retornar UsoIAPage
-        return db.query(models.UsoIA).order_by(models.UsoIA.timestamp.desc()).offset(skip).limit(limit).all()

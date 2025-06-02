@@ -1,109 +1,136 @@
 # Backend/routers/fornecedores.py
-from fastapi import APIRouter, Depends, HTTPException, Query, status
-from sqlalchemy.orm import Session
 from typing import List, Optional
 
-import schemas
+from fastapi import APIRouter, Depends, HTTPException, Query, status
+from sqlalchemy.orm import Session
+
+import crud
 import models
-import crud # Contém get_fornecedor, get_fornecedores, create_fornecedor, etc.
-from database import get_db
-from routers import auth_utils # Para get_current_active_user
+import schemas # schemas é importado
+import database
+from . import auth_utils # Para obter o usuário logado
 
 router = APIRouter(
-    prefix="/fornecedores", # O /api/v1 é adicionado no main.py
-    tags=["Fornecedores"],
-    responses={404: {"description": "Not found"}},
+    prefix="/fornecedores",
+    tags=["fornecedores"],
+    dependencies=[Depends(auth_utils.get_current_active_user)],
 )
 
-@router.post("/", response_model=schemas.Fornecedor, status_code=status.HTTP_201_CREATED)
+# Endpoint para criar fornecedor
+@router.post("/", response_model=schemas.FornecedorResponse, status_code=status.HTTP_201_CREATED) # CORRIGIDO AQUI
 def create_user_fornecedor(
     fornecedor: schemas.FornecedorCreate, 
-    db: Session = Depends(get_db), 
+    db: Session = Depends(database.get_db), 
     current_user: models.User = Depends(auth_utils.get_current_active_user)
 ):
-    # O user_id é pego do current_user, não precisa estar no schema FornecedorCreate
-    return crud.create_fornecedor(db=db, fornecedor=fornecedor, user_id=current_user.id)
+    # A função crud.create_fornecedor já lida com a verificação de nome duplicado para o usuário
+    try:
+        return crud.create_fornecedor(db=db, fornecedor=fornecedor, user_id=current_user.id) # Nome da função no CRUD
+    except HTTPException as e: # Repassa HTTPExceptions do CRUD
+        raise e
+    except Exception as e: # Captura outros erros inesperados
+        # Logar o erro 'e' aqui seria importante para depuração
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Erro interno ao criar fornecedor.")
 
-@router.get("/", response_model=schemas.FornecedorPage) # response_model espera items e total_items
+# Endpoint para listar fornecedores do usuário logado (ou todos para admin)
+@router.get("/", response_model=schemas.FornecedorPage)
 def read_user_fornecedores(
-    skip: int = Query(0, ge=0), 
-    limit: int = Query(10, ge=1, le=100), 
-    db: Session = Depends(get_db), 
+    db: Session = Depends(database.get_db),
+    skip: int = Query(0, ge=0, description="Número de itens para pular"),
+    limit: int = Query(10, ge=1, le=100, description="Número máximo de itens por página"),
+    termo_busca: Optional[str] = Query(None, description="Termo para buscar no nome do fornecedor"), # Adicionado termo_busca
     current_user: models.User = Depends(auth_utils.get_current_active_user)
 ):
-    # Primeiro, fazemos a query para obter os itens da página atual
-    fornecedores_items = crud.get_fornecedores(db, user_id=current_user.id, skip=skip, limit=limit)
+    if current_user.is_superuser:
+        # Admin vê todos, mas ainda pode filtrar por termo_busca
+        fornecedores = db.query(models.Fornecedor)
+        if termo_busca:
+            fornecedores = fornecedores.filter(models.Fornecedor.nome.ilike(f"%{termo_busca}%"))
+        total_items = fornecedores.count() # Conta após o filtro
+        items_paginados = fornecedores.order_by(models.Fornecedor.nome).offset(skip).limit(limit).all()
+    else:
+        # Usuário normal vê apenas os seus, filtrando por termo_busca se fornecido
+        items_paginados = crud.get_fornecedores_by_user(db, user_id=current_user.id, skip=skip, limit=limit, termo_busca=termo_busca)
+        total_items = crud.count_fornecedores_by_user(db=db, user_id=current_user.id, termo_busca=termo_busca)
     
-    # Depois, fazemos uma query separada para contar o total de itens para este usuário
-    # Esta é a parte que estava faltando ou causando o erro.
-    # A query base para contagem deve ser a mesma da busca de itens, antes do offset/limit.
-    query_base_para_contagem = db.query(models.Fornecedor).filter(models.Fornecedor.user_id == current_user.id)
-    total_items = query_base_para_contagem.count()
-    
-    return schemas.FornecedorPage(
-        items=fornecedores_items,
-        total_items=total_items,
-        limit=limit,
-        skip=skip
-    )
+    return {"items": items_paginados, "total_items": total_items, "page": skip // limit, "limit": limit}
 
-@router.get("/all", response_model=List[schemas.Fornecedor], dependencies=[Depends(auth_utils.get_current_active_superuser)])
-def read_all_fornecedores_admin(
-    skip: int = Query(0, ge=0),
-    limit: int = Query(100, ge=1),
-    db: Session = Depends(get_db)
-):
-    """
-    Endpoint para administradores listarem todos os fornecedores de todos os usuários.
-    """
-    return crud.get_all_fornecedores_admin(db, skip=skip, limit=limit)
-
-
-@router.get("/{fornecedor_id}", response_model=schemas.Fornecedor)
-def read_user_fornecedor(
+# Endpoint para obter um fornecedor específico
+@router.get("/{fornecedor_id}", response_model=schemas.FornecedorResponse) # CORRIGIDO AQUI
+def read_fornecedor(
     fornecedor_id: int, 
-    db: Session = Depends(get_db), 
+    db: Session = Depends(database.get_db), 
     current_user: models.User = Depends(auth_utils.get_current_active_user)
 ):
-    db_fornecedor = crud.get_fornecedor(db, fornecedor_id=fornecedor_id, user_id=current_user.id)
+    if current_user.is_superuser:
+        db_fornecedor = crud.get_fornecedor(db, fornecedor_id=fornecedor_id) # Admin pode buscar qualquer um
+    else:
+        db_fornecedor = crud.get_fornecedor(db, fornecedor_id=fornecedor_id, user_id=current_user.id) # Usuário só busca os seus
+        
     if db_fornecedor is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Fornecedor não encontrado ou não pertence ao usuário")
+        raise HTTPException(status_code=404, detail="Fornecedor não encontrado ou não pertence ao usuário")
     return db_fornecedor
 
-@router.put("/{fornecedor_id}", response_model=schemas.Fornecedor)
-def update_user_fornecedor(
+# Endpoint para atualizar um fornecedor
+@router.put("/{fornecedor_id}", response_model=schemas.FornecedorResponse) # CORRIGIDO AQUI
+def update_fornecedor_endpoint( # Renomeado para evitar conflito com crud.update_fornecedor
     fornecedor_id: int, 
     fornecedor_update: schemas.FornecedorUpdate, 
-    db: Session = Depends(get_db), 
+    db: Session = Depends(database.get_db), 
     current_user: models.User = Depends(auth_utils.get_current_active_user)
 ):
-    db_fornecedor = crud.get_fornecedor(db, fornecedor_id=fornecedor_id, user_id=current_user.id)
-    if db_fornecedor is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, 
-            detail="Fornecedor não encontrado ou não pertence ao usuário para atualização"
-        )
-    return crud.update_fornecedor(db=db, db_fornecedor=db_fornecedor, fornecedor_update=fornecedor_update)
-
-@router.delete("/{fornecedor_id}", response_model=schemas.Msg)
-def delete_user_fornecedor(
-    fornecedor_id: int, 
-    db: Session = Depends(get_db), 
-    current_user: models.User = Depends(auth_utils.get_current_active_user)
-):
-    db_fornecedor = crud.get_fornecedor(db, fornecedor_id=fornecedor_id, user_id=current_user.id)
-    if db_fornecedor is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, 
-            detail="Fornecedor não encontrado ou não pertence ao usuário para deleção"
-        )
+    # Primeiro, busca o fornecedor para garantir que ele existe e pertence ao usuário (ou se é admin)
+    db_fornecedor = crud.get_fornecedor(db, fornecedor_id=fornecedor_id)
     
-    # Verificar se há produtos associados a este fornecedor
-    if db_fornecedor.produtos: # Se a relação 'produtos' em Fornecedor estiver carregada ou for consultável
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Não é possível deletar o fornecedor '{db_fornecedor.nome}' pois ele possui produtos associados. Por favor, desassocie ou delete os produtos primeiro."
-        )
+    if db_fornecedor is None:
+        raise HTTPException(status_code=404, detail="Fornecedor não encontrado.")
+    
+    if not current_user.is_superuser and db_fornecedor.user_id != current_user.id:
+        raise HTTPException(status_code=403, detail="Não autorizado a modificar este fornecedor.")
+
+    # Verifica se o novo nome do fornecedor (se alterado) já existe para este usuário
+    if fornecedor_update.nome and fornecedor_update.nome != db_fornecedor.nome:
+        existing_fornecedor_check = db.query(models.Fornecedor).filter(
+            models.Fornecedor.user_id == current_user.id,
+            func.lower(models.Fornecedor.nome) == func.lower(fornecedor_update.nome),
+            models.Fornecedor.id != fornecedor_id # Exclui o próprio fornecedor da verificação
+        ).first()
+        if existing_fornecedor_check:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Já existe um fornecedor com o nome '{fornecedor_update.nome}'."
+            )
+            
+    try:
+        # A função crud.update_fornecedor espera o objeto db_fornecedor
+        return crud.update_fornecedor(db=db, db_fornecedor=db_fornecedor, fornecedor_update=fornecedor_update)
+    except HTTPException as e:
+        raise e
+    except Exception as e:
+        # Logar o erro 'e' aqui seria importante
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Erro interno ao atualizar fornecedor.")
+
+
+# Endpoint para deletar um fornecedor
+@router.delete("/{fornecedor_id}", response_model=schemas.FornecedorResponse) # CORRIGIDO AQUI
+def delete_fornecedor_endpoint( # Renomeado para evitar conflito
+    fornecedor_id: int, 
+    db: Session = Depends(database.get_db), 
+    current_user: models.User = Depends(auth_utils.get_current_active_user)
+):
+    db_fornecedor = crud.get_fornecedor(db, fornecedor_id=fornecedor_id) # Busca primeiro
+
+    if db_fornecedor is None:
+        raise HTTPException(status_code=404, detail="Fornecedor não encontrado.")
         
-    crud.delete_fornecedor(db=db, db_fornecedor=db_fornecedor)
-    return {"message": f"Fornecedor {fornecedor_id} ('{db_fornecedor.nome}') deletado com sucesso."}
+    if not current_user.is_superuser and db_fornecedor.user_id != current_user.id:
+        raise HTTPException(status_code=403, detail="Não autorizado a deletar este fornecedor.")
+    
+    try:
+        # A função crud.delete_fornecedor espera o objeto db_fornecedor
+        return crud.delete_fornecedor(db=db, db_fornecedor=db_fornecedor)
+    except HTTPException as e: # Se o CRUD levantar HTTP 409 por produtos associados
+        raise e
+    except Exception as e:
+        # Logar o erro 'e' aqui
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Erro interno ao deletar fornecedor.")

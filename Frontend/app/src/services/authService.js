@@ -1,97 +1,82 @@
 // Frontend/app/src/services/authService.js
-import axios from 'axios';
+import apiClient from './apiClient'; // Importa a instância centralizada do Axios
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000/api/v1';
+// A baseURL (ex: http://localhost:8000/api/v1) já está configurada no apiClient
+// Os paths dos endpoints aqui são relativos a essa baseURL.
 
-const apiClient = axios.create({
-  baseURL: API_BASE_URL,
-  headers: {
-    'Content-Type': 'application/json',
+export const login = async (email, password) => {
+  const loginData = new URLSearchParams();
+  loginData.append('username', email); // O backend espera 'username' para o email
+  login_data.append('password', password);
+
+  try {
+    // O endpoint de token está em /auth/token (relativo ao baseURL do apiClient)
+    const response = await apiClient.post('/auth/token', loginData, {
+       headers: {
+         // Sobrescreve Content-Type para este request específico, pois o backend espera form-urlencoded
+         'Content-Type': 'application/x-www-form-urlencoded',
+       },
+    });
+    if (response.data.access_token) {
+      localStorage.setItem('accessToken', response.data.access_token);
+      if (response.data.refresh_token) {
+        localStorage.setItem('refreshToken', response.data.refresh_token);
+      }
+    }
+    return response.data; // Retorna { access_token, refresh_token, token_type }
+  } catch (error) {
+    // O interceptor de resposta no apiClient já pode ter lidado com 401.
+    // Aqui podemos tratar outros erros específicos do login ou relançar.
+    console.error('Error during login:', error.response?.data || error.message);
+    throw error.response?.data || new Error('Falha no login. Verifique suas credenciais.');
   }
-});
-
-apiClient.interceptors.request.use(config => {
-  const token = localStorage.getItem('accessToken');
-  if (token) {
-    config.headers.Authorization = `Bearer ${token}`;
-  }
-  return config;
-}, error => {
-  return Promise.reject(error);
-});
+};
 
 export const getCurrentUser = async () => {
   try {
-    const response = await apiClient.get('/users/me/');
+    // A URL completa será: baseURL + /auth/users/me/
+    const response = await apiClient.get('/auth/users/me/'); 
     return response.data; 
   } catch (error) {
     console.error('Error fetching current user:', error.response?.data || error.message);
-    throw error.response?.data || new Error('Failed to fetch current user data');
+    // O interceptor de resposta já lida com 401 e redireciona.
+    // Lançar o erro permite que o componente chamador (ex: Topbar) reaja se necessário.
+    throw error.response?.data || new Error('Falha ao buscar dados do usuário.');
   }
 };
 
 export const updateCurrentUser = async (userData) => {
   try {
-    const response = await apiClient.put('/users/me/', userData);
+    // O endpoint PUT para /users/me/ está em main.py, não sob /auth.
+    // O baseURL do apiClient já inclui /api/v1.
+    const response = await apiClient.put('/users/me/', userData); // A URL será /api/v1/users/me/
     return response.data; 
   } catch (error) {
     console.error('Error updating current user:', error.response?.data || error.message);
-    throw error.response?.data || new Error('Failed to update user data');
+    throw error.response?.data || new Error('Falha ao atualizar dados do usuário.');
   }
 };
 
 export const changePassword = async (passwordData) => {
   try {
-    const response = await apiClient.post('/users/me/change-password', passwordData);
+    // O endpoint de change-password também está em main.py como /users/me/change-password
+    const response = await apiClient.post('/users/me/change-password', passwordData); 
     return response.data; 
   } catch (error) {
     console.error('Error changing password:', error.response?.data || error.message);
-    throw error.response?.data || new Error('Failed to change password');
+    throw error.response?.data || new Error('Falha ao alterar senha.');
   }
 };
 
-export const getTotalCounts = async () => {
-  try {
-    const response = await apiClient.get('/admin/analytics/counts');
-    return response.data; 
-  } catch (error) {
-    console.error('Error fetching total counts:', error.response?.data || error.message);
-    throw error.response?.data || new Error('Failed to fetch total counts');
-  }
-};
-
-export const getMeuHistoricoUsoIA = async (params = {}) => {
-  try {
-    const response = await apiClient.get('/uso-ia/me/', { params });
-    return response.data; 
-  } catch (error) {
-    console.error('Error fetching AI usage history:', error.response?.data || error.message);
-    throw error.response?.data || new Error('Failed to fetch AI usage history');
-  }
-};
-
-// Função para buscar o histórico de uso da IA para um produto específico
-export const getHistoricoUsoIAPorProduto = async (produtoId, params = {}) => {
-  // params pode incluir skip e limit, ex: { limit: 1 } para pegar só o mais recente.
-  try {
-    // O endpoint no backend é /api/v1/uso-ia/produto/{produto_id}/
-    const response = await apiClient.get(`/uso-ia/produto/${produtoId}/`, { params });
-    return response.data; // Espera-se List[schemas.UsoIA] do backend
-  } catch (error) {
-    console.error(`Error fetching AI usage history for product ${produtoId}:`, error.response?.data || error.message);
-    // Não lançar um novo erro aqui necessariamente, ou o toast pode mostrar "Failed to fetch..."
-    // É melhor retornar null ou um objeto de erro para que a página possa lidar com isso.
-    // Por agora, vamos deixar lançar, mas o `EnriquecimentoPage` tratará.
-    throw error.response?.data || new Error(`Failed to fetch AI usage history for product ${produtoId}`);
-  }
-};
-
+// As funções getTotalCounts, getMeuHistoricoUsoIA, getHistoricoUsoIAPorProduto
+// foram movidas ou serão definidas em seus próprios arquivos de serviço
+// (ex: adminService.js, usoIaService.js) para melhor organização,
+// ou podem permanecer aqui se fizer sentido para a sua estrutura.
+// Por agora, vou remover as que não são estritamente de "auth".
 
 export default {
+  login,
   getCurrentUser,
   updateCurrentUser,
   changePassword,
-  getTotalCounts,
-  getMeuHistoricoUsoIA,
-  getHistoricoUsoIAPorProduto, // Garantir que está exportado
 };

@@ -1,59 +1,65 @@
 # Backend/core/config.py
 import os
-from typing import Optional
+from typing import Optional 
+from pydantic_settings import BaseSettings
 from dotenv import load_dotenv
+from pathlib import Path
+from passlib.context import CryptContext
 
-# Importações atualizadas para Pydantic v2 e pydantic-settings
-from pydantic_settings import BaseSettings, SettingsConfigDict
-from pydantic import EmailStr, PostgresDsn, AnyHttpUrl
-
-from passlib.context import CryptContext # <--- ADICIONADO: Importar CryptContext
-
-load_dotenv()
-
-# Definição do pwd_context para hashing de senhas
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto") # <--- ADICIONADO
+dotenv_path = Path(__file__).resolve().parent.parent.parent / ".env" 
+load_dotenv(dotenv_path=dotenv_path)
 
 class Settings(BaseSettings):
-    PROJECT_NAME: str = "TDAI Backend"
-    PROJECT_VERSION: str = "0.1.0"
+    PROJECT_NAME: str = "TDAI API"
+    PROJECT_VERSION: str = "1.0.0"
     
-    DATABASE_URL: str = os.getenv("DATABASE_URL", "postgresql://user:password@localhost:5432/tdai_db")
-    TEST_DATABASE_URL: str = os.getenv("TEST_DATABASE_URL", "postgresql://user:password@localhost:5432/tdai_test_db")
+    DATABASE_URL: str = os.getenv("DATABASE_URL", "sqlite:///./tdai_app.db") 
     
-    SECRET_KEY: str = os.getenv("SECRET_KEY", "supersecretkey")
+    SECRET_KEY: str = os.getenv("SECRET_KEY", "supersecretkey") 
     ALGORITHM: str = "HS256"
-    ACCESS_TOKEN_EXPIRE_MINUTES: int = 60 * 24 * 7 # 7 days
-    REFRESH_TOKEN_EXPIRE_MINUTES: int = 60 * 24 * 30 # 30 days
+    ACCESS_TOKEN_EXPIRE_MINUTES: int = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", str(60 * 24 * 7))) 
+    REFRESH_TOKEN_EXPIRE_DAYS: int = int(os.getenv("REFRESH_TOKEN_EXPIRE_DAYS", "7"))
 
-    # Email settings
     MAIL_USERNAME: Optional[str] = os.getenv("MAIL_USERNAME")
     MAIL_PASSWORD: Optional[str] = os.getenv("MAIL_PASSWORD")
-    MAIL_FROM: Optional[EmailStr] = os.getenv("MAIL_FROM") 
-    MAIL_PORT: int = int(os.getenv("MAIL_PORT", "587")) 
+    MAIL_FROM: Optional[str] = os.getenv("MAIL_FROM")
+    MAIL_PORT: int = int(os.getenv("MAIL_PORT", 587))
     MAIL_SERVER: Optional[str] = os.getenv("MAIL_SERVER")
-    MAIL_STARTTLS: bool = os.getenv("MAIL_STARTTLS", "True").lower() in ("true", "1", "t")
-    MAIL_SSL_TLS: bool = os.getenv("MAIL_SSL_TLS", "False").lower() in ("true", "1", "t")
-    
-    FRONTEND_URL: str = os.getenv("FRONTEND_URL", "http://localhost:3000")
+    MAIL_FROM_NAME: str = os.getenv("MAIL_FROM_NAME", "TDAI Suporte")
+    MAIL_STARTTLS: bool = os.getenv("MAIL_STARTTLS", "True").lower() == "true"
+    MAIL_SSL_TLS: bool = os.getenv("MAIL_SSL_TLS", "False").lower() == "true"
+    USE_CREDENTIALS: bool = os.getenv("USE_CREDENTIALS", "True").lower() == "true"
+    VALIDATE_CERTS: bool = os.getenv("VALIDATE_CERTS", "True").lower() == "true"
+    FRONTEND_URL: str = os.getenv("FRONTEND_URL", "http://localhost:3000") 
 
-    # OpenAI API Key
-    OPENAI_API_KEY: Optional[str] = os.getenv("OPENAI_API_KEY")
-    OPENAI_ORG_ID: Optional[str] = os.getenv("OPENAI_ORG_ID")
-    
-    # Google OAuth
     GOOGLE_CLIENT_ID: Optional[str] = os.getenv("GOOGLE_CLIENT_ID")
     GOOGLE_CLIENT_SECRET: Optional[str] = os.getenv("GOOGLE_CLIENT_SECRET")
-    GOOGLE_REDIRECT_URI: Optional[str] = os.getenv("GOOGLE_REDIRECT_URI")
+    GOOGLE_REDIRECT_URI: Optional[str] = os.getenv("GOOGLE_REDIRECT_URI", f"{FRONTEND_URL}/auth/google/callback")
 
-    model_config = SettingsConfigDict(
-        case_sensitive=True,
-        env_file=".env",
-        env_file_encoding='utf-8',
-        extra='ignore' 
-    )
+    FACEBOOK_CLIENT_ID: Optional[str] = os.getenv("FACEBOOK_CLIENT_ID")
+    FACEBOOK_CLIENT_SECRET: Optional[str] = os.getenv("FACEBOOK_CLIENT_SECRET")
+    FACEBOOK_REDIRECT_URI: Optional[str] = os.getenv("FACEBOOK_REDIRECT_URI", f"{FRONTEND_URL}/auth/facebook/callback")
+
+    OPENAI_API_KEY: Optional[str] = os.getenv("OPENAI_API_KEY")
+    GOOGLE_GEMINI_API_KEY: Optional[str] = os.getenv("GOOGLE_GEMINI_API_KEY")
+    OPENAI_ORG_ID: Optional[str] = os.getenv("OPENAI_ORG_ID") 
+
+    DEFAULT_LIMIT_PRODUTOS_SEM_PLANO: int = int(os.getenv("DEFAULT_LIMIT_PRODUTOS_SEM_PLANO", 10))
+    # CORREÇÃO DO TYPO APLICADA AQUI:
+    DEFAULT_LIMIT_ENRIQUECIMENTO_SEM_PLANO: int = int(os.getenv("DEFAULT_LIMIT_ENRIQUECIMENTO_SEM_PLANO", 5)) 
+    DEFAULT_LIMIT_GERACAO_IA_SEM_PLANO: int = int(os.getenv("DEFAULT_LIMIT_GERACAO_IA_SEM_PLANO", 20))
+    
+    UPLOAD_DIRECTORY: str = os.getenv("UPLOAD_DIRECTORY", "Backend/static/product_images") 
+
+    ADMIN_EMAIL: str = os.getenv("ADMIN_EMAIL", "admin@example.com")
+    ADMIN_PASSWORD: str = os.getenv("ADMIN_PASSWORD", "adminpassword")
+
+
+    class Config:
+        pass
 
 settings = Settings()
+pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
-if settings.GOOGLE_REDIRECT_URI is None and settings.FRONTEND_URL:
-    settings.GOOGLE_REDIRECT_URI = f"{settings.FRONTEND_URL}/auth/google/callback"
+def get_settings() -> Settings:
+    return settings

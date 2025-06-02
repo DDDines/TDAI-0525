@@ -1,406 +1,334 @@
 // Frontend/app/src/pages/ProdutosPage.jsx
-import React, { useState, useEffect, useCallback } from 'react';
-import productService from '../services/productService';
-import ProductEditModal from '../components/ProductEditModal';
+import React, { useState, useEffect, useCallback, useContext } from 'react';
 import ProductTable from '../components/produtos/ProductTable';
 import NewProductModal from '../components/produtos/NewProductModal';
+import ProductEditModal from '../components/ProductEditModal';
 import PaginationControls from '../components/common/PaginationControls';
-import { showSuccessToast, showErrorToast, showWarningToast, showInfoToast } from '../utils/notifications';
+import productService from '../services/productService'; 
+import { showErrorToast, showSuccessToast } from '../utils/notifications';
+import './ProdutosPage.css'; // CSS específico para a página de Produtos. Deve existir em src/pages/ProdutosPage.css
 
-// Opções para os filtros de status
-const statusEnriquecimentoWebOptions = [
-  { value: "", label: "Todos Status Enriq. Web" },
-  { value: "PENDENTE", label: "Pendente (Web)" },
-  { value: "EM_PROGRESSO", label: "Em Progresso (Web)" },
-  { value: "CONCLUIDO_SUCESSO", label: "Sucesso (Web)" },
-  { value: "FALHOU", label: "Falhou (Web)" },
-  { value: "NENHUMA_FONTE_ENCONTRADA", label: "Fonte Ñ Encontrada (Web)" },
-  { value: "CONCLUIDO_COM_DADOS_PARCIAIS", label: "Parcial (Web)" },
-  { value: "FALHA_CONFIGURACAO_API_EXTERNA", label: "Falha Config API (Web)" },
-  { value: "FALHA_API_EXTERNA", label: "Falha API (Web)" },
-];
-
-const statusGeracaoIAOptions = [
-  { value: "", label: "Todos Status IA" },
-  { value: "NAO_SOLICITADO", label: "Não Solicitado (IA)" },
-  { value: "PENDENTE", label: "Pendente (IA)" },
-  { value: "EM_PROGRESSO", label: "Em Progresso (IA)" },
-  { value: "CONCLUIDO_SUCESSO", label: "Sucesso (IA)" },
-  { value: "FALHOU", label: "Falhou (IA)" },
-  { value: "FALHA_CONFIGURACAO_IA", label: "Falha Config (IA)" },
-  { value: "LIMITE_ATINGIDO", label: "Limite Atingido (IA)" },
-];
+// Importar o contexto de Tipos de Produto
+import { ProductTypeContext } from '../contexts/ProductTypeContext';
 
 
 function ProdutosPage() {
   const [produtos, setProdutos] = useState([]);
-  const [loading, setLoading] = useState(true); // Loading da tabela principal
-  const [actionLoading, setActionLoading] = useState(false); // Loading para ações como enriquecer, gerar IA
-  const [modalLoading, setModalLoading] = useState(false);
-  const [error, setError] = useState(null); 
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  
   const [isNewProductModalOpen, setIsNewProductModalOpen] = useState(false);
-  const [selectedProductIds, setSelectedProductIds] = useState([]);
-
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [produtoParaEditar, setProdutoParaEditar] = useState(null);
+  
   const [currentPage, setCurrentPage] = useState(0);
-  const [limitPerPage] = useState(10);
-  const [totalProdutosCount, setTotalProdutosCount] = useState(0);
+  const [limitPerPage, setLimitPerPage] = useState(10);
+  const [totalProdutos, setTotalProdutos] = useState(0);
   
   const [searchTerm, setSearchTerm] = useState('');
-  const [selectedStatusEnriquecimento, setSelectedStatusEnriquecimento] = useState('');
-  const [selectedStatusTituloIA, setSelectedStatusTituloIA] = useState('');
-  const [selectedStatusDescricaoIA, setSelectedStatusDescricaoIA] = useState('');
+  const [sortConfig, setSortConfig] = useState({ key: 'id', direction: 'descending' });
+  const [selectedProdutos, setSelectedProdutos] = useState(new Set());
 
-  const [editingProduct, setEditingProduct] = useState(null);
-  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [filtroStatusEnriquecimento, setFiltroStatusEnriquecimento] = useState('');
+  const [filtroStatusTituloIA, setFiltroStatusTituloIA] = useState('');
+  const [filtroStatusDescricaoIA, setFiltroStatusDescricaoIA] = useState('');
+  const [filtroFornecedor, setFiltroFornecedor] = useState(''); 
+  const [filtroTipoProduto, setFiltroTipoProduto] = useState(''); 
 
-  const totalPages = Math.ceil(totalProdutosCount / limitPerPage);
+  const { productTypes, loading: loadingProductTypes } = useContext(ProductTypeContext);
+
 
   const fetchProdutos = useCallback(async () => {
-    setLoading(true); // Loading principal da tabela
+    console.log("ProdutosPage: Iniciando fetchProdutos..."); 
+    setLoading(true);
     setError(null);
     try {
       const params = {
         skip: currentPage * limitPerPage,
         limit: limitPerPage,
-        termo_busca: searchTerm || undefined,
-        status_enriquecimento: selectedStatusEnriquecimento || undefined,
-        status_titulo_ia: selectedStatusTituloIA || undefined,
-        status_descricao_ia: selectedStatusDescricaoIA || undefined,
+        sort_by: sortConfig.key,
+        sort_order: sortConfig.direction,
+        search: searchTerm, 
+        status_enriquecimento_web: filtroStatusEnriquecimento || undefined, 
+        status_titulo_ia: filtroStatusTituloIA || undefined,
+        status_descricao_ia: filtroStatusDescricaoIA || undefined,
+        fornecedor_id: filtroFornecedor || undefined,
+        product_type_id: filtroTipoProduto || undefined,
       };
-      const responseData = await productService.getProdutos(params);
+      Object.keys(params).forEach(key => params[key] === undefined && delete params[key]);
+
+      console.log("ProdutosPage: Parâmetros para productService.getProdutos:", params); 
+
+      const data = await productService.getProdutos(params);
       
-      if (responseData && Array.isArray(responseData.items) && typeof responseData.total_items === 'number') {
-        setProdutos(responseData.items);
-        setTotalProdutosCount(responseData.total_items); 
-      } else {
-        console.warn('Formato de dados inesperado recebido para produtos:', responseData);
-        setProdutos([]); setTotalProdutosCount(0);
-      }
+      console.log('ProdutosPage: Dados recebidos da API de produtos:', data); 
+      
+      setProdutos(Array.isArray(data.items) ? data.items : []);
+      setTotalProdutos(data.total_items || 0);
+
     } catch (err) {
-      const errorMsg = (err && err.message) ? err.message : 'Falha ao buscar produtos.';
-      setError(errorMsg); 
-      showErrorToast(errorMsg); 
-      setProdutos([]); setTotalProdutosCount(0);
+      console.error("ProdutosPage: Erro ao buscar produtos:", err); 
+      const errorMessage = err.response?.data?.detail || err.message || 'Falha ao carregar produtos.';
+      setError(errorMessage);
+      showErrorToast(errorMessage);
+      setProdutos([]); 
+      setTotalProdutos(0);
     } finally {
-      setLoading(false); // Finaliza loading principal
+      setLoading(false);
+      console.log("ProdutosPage: fetchProdutos finalizado."); 
     }
-  }, [currentPage, limitPerPage, searchTerm, selectedStatusEnriquecimento, selectedStatusTituloIA, selectedStatusDescricaoIA]);
+  }, [currentPage, limitPerPage, sortConfig, searchTerm, filtroStatusEnriquecimento, filtroStatusTituloIA, filtroStatusDescricaoIA, filtroFornecedor, filtroTipoProduto]); 
 
   useEffect(() => {
     fetchProdutos();
   }, [fetchProdutos]);
 
-  const handleFilterChange = (setterFunction, value) => {
-    setterFunction(value);
-    setCurrentPage(0); 
-  };
-
-  const handleSearchChange = (event) => {
-    handleFilterChange(setSearchTerm, event.target.value);
-  };
-  
-  const handlePageChange = (newPage) => {
-    setCurrentPage(newPage);
-  };
-
   const handleOpenNewProductModal = () => setIsNewProductModalOpen(true);
-  const handleCloseNewProductModal = () => {
-    if (modalLoading) return;
-    setIsNewProductModalOpen(false);
-  }
+  const handleCloseNewProductModal = () => setIsNewProductModalOpen(false);
 
-  const handleSaveNewProduct = async (produtoData) => {
-    setModalLoading(true);
-    let errorMessage = 'Erro desconhecido ao criar produto.';
-    try {
-      await productService.createProduto(produtoData);
-      showSuccessToast('Produto criado com sucesso!');
-      handleCloseNewProductModal();
-      if (!searchTerm && !selectedStatusEnriquecimento && !selectedStatusTituloIA && !selectedStatusDescricaoIA) {
-        setCurrentPage(0); 
-      }
-      fetchProdutos();
-      setSelectedProductIds([]);
-      return Promise.resolve();
-    } catch (saveError) {
-      console.error("Objeto de erro recebido em handleSaveNewProduct (ProdutosPage):", saveError); 
-      if (saveError && saveError.detail) {
-        if (typeof saveError.detail === 'string') errorMessage = saveError.detail;
-        else if (Array.isArray(saveError.detail)) errorMessage = saveError.detail.map(e => `${e.loc ? e.loc.join('.') + ': ' : ''}${e.msg}`).join('; ');
-        else errorMessage = JSON.stringify(saveError.detail);
-      } else if (saveError && saveError.message) errorMessage = saveError.message;
-      else if (typeof saveError === 'string') errorMessage = saveError;
-      showErrorToast(`Erro ao criar produto: ${errorMessage}`);
-      return Promise.reject(saveError);
-    } finally {
-      setModalLoading(false);
-    }
-  };
-
-  const handleSelectRow = (productId) => {
-    setSelectedProductIds(prevSelected =>
-      prevSelected.includes(productId)
-        ? prevSelected.filter(id => id !== productId)
-        : [...prevSelected, productId]
-    );
-  };
-
-  const handleSelectAllRows = (event) => {
-    if (event.target.checked) {
-      setSelectedProductIds(produtos.map(p => p.id));
-    } else {
-      setSelectedProductIds([]);
-    }
-  };
-
-  const handleDeleteSelected = async () => {
-    if (selectedProductIds.length === 0) {
-      showWarningToast("Nenhum produto selecionado para deletar."); return;
-    }
-    if (window.confirm(`Tem certeza que deseja deletar ${selectedProductIds.length} produto(s) selecionado(s)?`)) {
-      setActionLoading(true); // Inicia loading da ação
-      let successCount = 0; let errorOccurred = false;
-      try {
-        for (const id of selectedProductIds) {
-            try { await productService.deleteProduto(id); successCount++; } 
-            catch (singleDeleteError) { console.error(`Falha ao deletar produto ID ${id}:`, singleDeleteError); errorOccurred = true; }
-        }
-        if (successCount > 0) showSuccessToast(`${successCount} produto(s) deletado(s) com sucesso!`);
-        if (errorOccurred) showErrorToast(`Alguns produtos não puderam ser deletados. Verifique o console.`);
-        
-        const newTotalProdutos = totalProdutosCount - successCount;
-        const newTotalPages = Math.ceil(newTotalProdutos / limitPerPage);
-        if (currentPage >= newTotalPages && newTotalPages > 0) setCurrentPage(newTotalPages - 1);
-        else if (newTotalProdutos === 0) { setCurrentPage(0); setProdutos([]); setTotalProdutosCount(0); }
-        else fetchProdutos(); 
-        setSelectedProductIds([]);
-      } catch (err) { 
-        showErrorToast(`Erro ao processar deleção em massa: ${err.message || 'Erro desconhecido'}`);
-      } finally {
-        setActionLoading(false); // Finaliza loading da ação
-      }
-    }
-  };
-
-  const handleGenerateContentForSelected = async (contentType) => {
-    if (selectedProductIds.length === 0) {
-      showWarningToast(`Nenhum produto selecionado para gerar ${contentType}.`); return;
-    }
-    showInfoToast(`Iniciando geração de ${contentType} para ${selectedProductIds.length} produto(s). Isso pode levar um tempo e acontecerá em segundo plano.`);
-    setActionLoading(true); 
-    let успіхRequests = 0; // contador de sucessos na solicitação
-    let errorRequests = 0; // contador de erros na solicitação
-
-    for (const produtoId of selectedProductIds) {
-        try {
-            if (contentType === 'titulos') await productService.gerarTitulosProduto(produtoId);
-            else if (contentType === 'descricoes') await productService.gerarDescricaoProduto(produtoId);
-            успіхRequests++;
-        } catch (genError) {
-            errorRequests++;
-            console.error(`Erro ao solicitar geração de ${contentType} para produto ID ${produtoId}:`, genError);
-            let errorMsg = (genError && genError.message) ? genError.message : `Erro desconhecido ao gerar ${contentType} para produto ID ${produtoId}`;
-            if (genError && genError.detail) errorMsg = typeof genError.detail === 'string' ? genError.detail : JSON.stringify(genError.detail);
-            showErrorToast(errorMsg); 
-        }
-    }
-    setActionLoading(false);
-    if (успіхRequests > 0) {
-      showSuccessToast(`${успіхRequests} solicitação(ões) de geração de ${contentType} enviada(s)! A atualização do status pode demorar.`);
-    }
-    if (errorRequests > 0) {
-      showWarningToast(`${errorRequests} solicitação(ões) de geração de ${contentType} falharam ao enviar. Verifique o console.`);
-    }
-    setSelectedProductIds([]);
-    // Adiciona um pequeno delay para dar tempo ao backend de mudar o status para "EM_PROGRESSO"
-    setTimeout(() => fetchProdutos(), 2000); 
-  };
-
-  // NOVA FUNÇÃO PARA ENRIQUECER WEB
-  const handleEnrichSelectedWeb = async () => {
-    if (selectedProductIds.length === 0) {
-      showWarningToast("Nenhum produto selecionado para enriquecimento web.");
-      return;
-    }
-    showInfoToast(`Iniciando enriquecimento web para ${selectedProductIds.length} produto(s). O processo ocorre em segundo plano e pode levar alguns minutos.`);
-    setActionLoading(true);
-    let requestSuccessCount = 0;
-    let requestErrorCount = 0;
-
-    for (const produtoId of selectedProductIds) {
-      try {
-        await productService.iniciarEnriquecimentoWebProduto(produtoId);
-        requestSuccessCount++;
-      } catch (err) {
-        requestErrorCount++;
-        const errorMsg = (err && err.detail) 
-                       ? (typeof err.detail === 'string' ? err.detail : JSON.stringify(err.detail))
-                       : (err && err.message) 
-                       ? err.message 
-                       : `Erro desconhecido ao iniciar enriquecimento para produto ID ${produtoId}.`;
-        showErrorToast(errorMsg);
-        console.error(`Erro ao iniciar enriquecimento web para produto ID ${produtoId}:`, err);
-      }
-    }
-    setActionLoading(false);
-
-    if (requestSuccessCount > 0) {
-      showSuccessToast(`${requestSuccessCount} processo(s) de enriquecimento web iniciado(s) com sucesso. Verifique o status na tabela em breve.`);
-    }
-    if (requestErrorCount > 0) {
-      showWarningToast(`${requestErrorCount} processo(s) de enriquecimento web falharam ao iniciar. Verifique o console.`);
-    }
-    
-    setSelectedProductIds([]);
-    // Atualiza a tabela para mostrar o status "EM_PROGRESSO"
-    // O backend deve atualizar o status para EM_PROGRESSO assim que a tarefa é agendada.
-    // Um pequeno delay pode ajudar a garantir que o status seja refletido.
-    setTimeout(() => {
-        fetchProdutos();
-    }, 2000); // Delay de 2 segundos antes de recarregar
-  };
-
-
-  const handleRowClick = (produto) => {
-    setEditingProduct(produto);
+  const handleOpenEditModal = (produto) => {
+    setProdutoParaEditar(produto);
     setIsEditModalOpen(true);
   };
-
   const handleCloseEditModal = () => {
-    if (modalLoading) return;
     setIsEditModalOpen(false);
-    setEditingProduct(null);
+    setProdutoParaEditar(null);
   };
 
-  const handleSaveProductUpdate = async (productId, updateData) => {
-    setModalLoading(true);
-    let errorMessage = 'Erro desconhecido ao atualizar produto.';
-    try {
-      await productService.updateProduto(productId, updateData);
-      showSuccessToast('Produto atualizado com sucesso!');
-      handleCloseEditModal();
-      fetchProdutos();
-      setSelectedProductIds([]);
-      return Promise.resolve();
-    } catch (updateError) {
-      console.error("Objeto de erro recebido em handleSaveProductUpdate (ProdutosPage):", updateError);
-      if (updateError && updateError.detail) {
-        if (typeof updateError.detail === 'string') errorMessage = updateError.detail;
-        else if (Array.isArray(updateError.detail)) errorMessage = updateError.detail.map(e => `${e.loc ? e.loc.join('.') + ': ' : ''}${e.msg}`).join('; ');
-        else errorMessage = JSON.stringify(updateError.detail);
-      } else if (updateError && updateError.message) errorMessage = updateError.message;
-      else if (typeof updateError === 'string') errorMessage = updateError;
-      showErrorToast(`Erro ao atualizar produto: ${errorMessage}`);
-      return Promise.reject(updateError);
-    } finally {
-      setModalLoading(false);
+  const handleProdutoSaved = () => {
+    fetchProdutos(); 
+    showSuccessToast("Produto salvo com sucesso!");
+  };
+
+  const handleSort = (key) => {
+    let direction = 'ascending';
+    if (sortConfig.key === key && sortConfig.direction === 'ascending') {
+      direction = 'descending';
+    }
+    setSortConfig({ key, direction });
+    setCurrentPage(0); 
+  };
+  
+  const handleSelectProduto = (produtoId) => {
+    setSelectedProdutos(prevSelected => {
+      const newSelected = new Set(prevSelected);
+      if (newSelected.has(produtoId)) {
+        newSelected.delete(produtoId);
+      } else {
+        newSelected.add(produtoId);
+      }
+      return newSelected;
+    });
+  };
+
+  const handleSelectAllProdutos = (isChecked) => {
+    if (isChecked) {
+      setSelectedProdutos(new Set(produtos.map(p => p.id)));
+    } else {
+      setSelectedProdutos(new Set());
     }
   };
   
+  const handleDeleteSelected = async () => {
+    if (selectedProdutos.size === 0) {
+      showErrorToast("Nenhum produto selecionado para deletar.");
+      return;
+    }
+    if (window.confirm(`Tem certeza que deseja deletar ${selectedProdutos.size} produto(s) selecionado(s)?`)) {
+      try {
+        setLoading(true);
+        await productService.batchDeleteProdutos(Array.from(selectedProdutos));
+        showSuccessToast(`${selectedProdutos.size} produto(s) deletado(s) com sucesso!`);
+        setSelectedProdutos(new Set()); 
+        fetchProdutos(); 
+      } catch (err) {
+        console.error("Erro ao deletar produtos selecionados:", err);
+        showErrorToast(err.response?.data?.detail || err.message || "Falha ao deletar produtos.");
+        setLoading(false);
+      }
+    }
+  };
+
+  const handleEnrichSelectedWeb = async () => {
+    if (selectedProdutos.size === 0) {
+      showErrorToast("Nenhum produto selecionado para enriquecimento web.");
+      return;
+    }
+    const primeiraUrl = produtos.find(p => selectedProdutos.has(p.id))?.link_referencia_fornecedor;
+    if (!primeiraUrl && selectedProdutos.size === 1) {
+        showErrorToast("O produto selecionado não tem um link de referência do fornecedor para enriquecimento.");
+        return;
+    }
+    if (selectedProdutos.size > 1 && !produtos.every(p => selectedProdutos.has(p.id) && p.link_referencia_fornecedor === primeiraUrl)) {
+        // Se múltiplas URLs diferentes ou algumas sem URL, precisa de tratamento especial
+        // Por ora, vamos simplificar e pedir para selecionar um ou garantir que todos tenham a mesma URL (pouco prático)
+        // Idealmente, cada um seria processado individualmente.
+        showErrorToast("Para enriquecimento em lote, todos os produtos selecionados devem ter o mesmo link de referência ou selecione um por vez.");
+        // return; // Comentado para permitir o loop abaixo, que tratará individualmente
+    }
+
+    console.log("Iniciar enriquecimento web para:", Array.from(selectedProdutos));
+    showSuccessToast(`Enriquecimento web iniciado para ${selectedProdutos.size} produto(s).`);
+    
+    try {
+        setLoading(true); 
+        for (const produtoId of selectedProdutos) {
+            const produto = produtos.find(p => p.id === produtoId);
+            if (produto && produto.link_referencia_fornecedor) {
+                 await productService.iniciarEnriquecimentoWebProduto(produtoId, produto.link_referencia_fornecedor);
+            } else {
+                showErrorToast(`Produto ID ${produtoId} não tem link de referência ou não foi encontrado para enriquecimento.`);
+            }
+        }
+        fetchProdutos(); 
+    } catch (err) {
+        console.error("Erro ao iniciar enriquecimento web:", err);
+        showErrorToast(err.response?.data?.detail || err.message || "Falha ao iniciar enriquecimento web.");
+    } finally {
+        setLoading(false);
+    }
+  };
+
+  const handleGenerateContentForSelected = async (contentType) => { 
+    if (selectedProdutos.size === 0) {
+      showErrorToast(`Nenhum produto selecionado para gerar ${contentType}s.`);
+      return;
+    }
+    console.log(`Iniciar geração de ${contentType}s para:`, Array.from(selectedProdutos));
+    showSuccessToast(`Geração de ${contentType}s iniciada para ${selectedProdutos.size} produto(s).`);
+    
+    try {
+        setLoading(true);
+        for (const produtoId of selectedProdutos) {
+            if (contentType === 'titulo') {
+                await productService.gerarTitulosProduto(produtoId, {}); 
+            } else if (contentType === 'descricao') {
+                await productService.gerarDescricaoProduto(produtoId, {}); 
+            }
+        }
+        fetchProdutos(); 
+    } catch (err) {
+        console.error(`Erro ao gerar ${contentType}s:`, err);
+        showErrorToast(err.response?.data?.detail || err.message || `Falha ao gerar ${contentType}s.`);
+    } finally {
+        setLoading(false);
+    }
+  };
+
+  const totalPages = Math.ceil(totalProdutos / limitPerPage);
+
+  if (error && !loading && produtos.length === 0) { 
+    return <div className="error-message">Erro: {error} <button onClick={fetchProdutos}>Tentar Novamente</button></div>;
+  }
+
   return (
-    <div>
-      <div className="stats-grid">
-        <div className="stats-card"><h3>Total de Produtos Registrados</h3><div className="value">{totalProdutosCount}</div></div>
-        <div className="stats-card"><h3>Pendentes Enriq. (Página)</h3><div className="value">{produtos.filter(p => p.status_enriquecimento_web === 'PENDENTE' || !p.status_enriquecimento_web).length}</div></div>
-        <div className="stats-card"><h3>Enriquecidos Web (Página)</h3><div className="value">{produtos.filter(p => p.status_enriquecimento_web === 'CONCLUIDO_SUCESSO').length}</div></div>
+    <div className="produtos-page-container">
+      <div className="page-header">
+        <h1>Meus Produtos</h1>
+        <button onClick={handleOpenNewProductModal} className="btn-primary">
+          <span className="icon-add"></span> Novo Produto
+        </button>
       </div>
 
-      <div className="filters-container" style={{ display: 'flex', gap: '1rem', marginBottom: '1.5rem', flexWrap: 'wrap', alignItems: 'flex-end' }}>
-        <div className="search-container" style={{ margin: 0, flexGrow: 1, minWidth: '200px' }}>
-          <label htmlFor="search-prod" style={{ display: 'block', marginBottom: '0.25rem' }}>Buscar Produtos:</label>
-          <input
-            type="text" id="search-prod" placeholder="Nome ou SKU..."
-            value={searchTerm} onChange={handleSearchChange} disabled={loading || actionLoading}
-            style={{width: '100%'}} />
-        </div>
-        <div className="filter-group" style={{flexGrow: 1, minWidth: '180px'}}>
-          <label htmlFor="filter-status-enr" style={{ display: 'block', marginBottom: '0.25rem' }}>Status Enriq. Web:</label>
-          <select id="filter-status-enr" value={selectedStatusEnriquecimento} 
-            onChange={(e) => handleFilterChange(setSelectedStatusEnriquecimento, e.target.value)}
-            disabled={loading || actionLoading}
-            style={{width: '100%', padding: '0.5rem', border: '1px solid #ccc', borderRadius: 'var(--radius)', fontSize: '1rem'}}
-          >
-            {statusEnriquecimentoWebOptions.map(opt => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
+      <div className="filtros-e-busca-container">
+        <input
+          type="text"
+          placeholder="Buscar por nome, SKU, EAN..."
+          value={searchTerm}
+          onChange={(e) => {
+            setSearchTerm(e.target.value);
+            setCurrentPage(0); 
+          }}
+          className="search-input"
+        />
+        <div className="filtros-dropdowns">
+          <select value={filtroStatusEnriquecimento} onChange={(e) => {setFiltroStatusEnriquecimento(e.target.value); setCurrentPage(0);}} className="filtro-select">
+            <option value="">Status Web</option>
+            <option value="NAO_INICIADO">Não Iniciado</option>
+            <option value="PENDENTE">Pendente</option>
+            <option value="EM_PROGRESSO">Em Progresso</option>
+            <option value="CONCLUIDO">Concluído</option>
+            <option value="FALHA">Falha</option>
           </select>
-        </div>
-        <div className="filter-group" style={{flexGrow: 1, minWidth: '180px'}}>
-          <label htmlFor="filter-status-tit-ia" style={{ display: 'block', marginBottom: '0.25rem' }}>Status Títulos IA:</label>
-          <select id="filter-status-tit-ia" value={selectedStatusTituloIA}
-            onChange={(e) => handleFilterChange(setSelectedStatusTituloIA, e.target.value)}
-            disabled={loading || actionLoading}
-            style={{width: '100%', padding: '0.5rem', border: '1px solid #ccc', borderRadius: 'var(--radius)', fontSize: '1rem'}}
-          >
-            {statusGeracaoIAOptions.map(opt => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
+          <select value={filtroStatusTituloIA} onChange={(e) => {setFiltroStatusTituloIA(e.target.value); setCurrentPage(0);}} className="filtro-select">
+            <option value="">Status Título IA</option>
+            <option value="NAO_INICIADO">Não Iniciado</option>
+            <option value="PENDENTE">Pendente</option>
+            <option value="EM_PROGRESSO">Em Progresso</option>
+            <option value="CONCLUIDO">Concluído</option>
+            <option value="FALHA">Falha</option>
+            <option value="NAO_APLICAVEL">Não Aplicável</option>
           </select>
-        </div>
-        <div className="filter-group" style={{flexGrow: 1, minWidth: '180px'}}>
-          <label htmlFor="filter-status-desc-ia" style={{ display: 'block', marginBottom: '0.25rem' }}>Status Descrição IA:</label>
-          <select id="filter-status-desc-ia" value={selectedStatusDescricaoIA}
-            onChange={(e) => handleFilterChange(setSelectedStatusDescricaoIA, e.target.value)}
-            disabled={loading || actionLoading}
-            style={{width: '100%', padding: '0.5rem', border: '1px solid #ccc', borderRadius: 'var(--radius)', fontSize: '1rem'}}
-          >
-            {statusGeracaoIAOptions.map(opt => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
+          <select value={filtroStatusDescricaoIA} onChange={(e) => {setFiltroStatusDescricaoIA(e.target.value); setCurrentPage(0);}} className="filtro-select">
+            <option value="">Status Descrição IA</option>
+            <option value="NAO_INICIADO">Não Iniciado</option>
+            <option value="PENDENTE">Pendente</option>
+            <option value="EM_PROGRESSO">Em Progresso</option>
+            <option value="CONCLUIDO">Concluído</option>
+            <option value="FALHA">Falha</option>
+            <option value="NAO_APLICAVEL">Não Aplicável</option>
           </select>
         </div>
       </div>
 
-      <div className="card">
-        <div className="card-header">
-          <h3>Lista de Produtos</h3>
-          <button onClick={handleOpenNewProductModal} disabled={loading || modalLoading || actionLoading}>Novo Produto</button>
+      {selectedProdutos.size > 0 && (
+        <div className="acoes-em-lote-container">
+          <span>{selectedProdutos.size} produto(s) selecionado(s)</span>
+          <button onClick={handleDeleteSelected} className="btn-danger btn-sm">Deletar Selecionados</button>
+          <button onClick={handleEnrichSelectedWeb} className="btn-secondary btn-sm">Enriquecer Web</button>
+          <button onClick={() => handleGenerateContentForSelected('titulo')} className="btn-secondary btn-sm">Gerar Títulos IA</button>
+          <button onClick={() => handleGenerateContentForSelected('descricao')} className="btn-secondary btn-sm">Gerar Descrições IA</button>
         </div>
+      )}
 
+      {loading && produtos.length === 0 ? ( 
+        <div className="loading-message">Carregando produtos...</div>
+      ) : (
         <ProductTable
-            produtos={produtos} selectedIds={selectedProductIds}
-            onSelectRow={handleSelectRow} onSelectAllRows={handleSelectAllRows}
-            onRowClick={handleRowClick} isLoading={loading} />
-        
-        {totalPages > 0 && (
-            <PaginationControls 
-                currentPage={currentPage} totalPages={totalPages} 
-                onPageChange={handlePageChange} isLoading={loading || actionLoading} />
+          produtos={produtos}
+          onEdit={handleOpenEditModal}
+          onSort={handleSort}
+          sortConfig={sortConfig}
+          onSelectProduto={handleSelectProduto}
+          selectedProdutos={selectedProdutos}
+          onSelectAllProdutos={handleSelectAllProdutos}
+          loading={loading && produtos.length > 0} 
+        />
+      )}
+      
+      {!loading && totalProdutos > 0 && (
+          <PaginationControls
+            currentPage={currentPage}
+            totalPages={totalPages}
+            onPageChange={(page) => setCurrentPage(page)}
+            itemsPerPage={limitPerPage}
+            onItemsPerPageChange={(value) => {
+              setLimitPerPage(parseInt(value, 10));
+              setCurrentPage(0); 
+            }}
+            totalItems={totalProdutos}
+          />
         )}
-        
-        <div className="table-actions">
-          {/* NOVO BOTÃO ADICIONADO */}
-          <button
-            onClick={handleEnrichSelectedWeb}
-            disabled={loading || actionLoading || selectedProductIds.length === 0}
-            style={{ backgroundColor: 'var(--info)' }} // Cor diferente para distinguir
-          >
-            🌐 Enriquecer Web ({selectedProductIds.length})
-          </button>
-          <button
-            onClick={() => handleGenerateContentForSelected('titulos')}
-            disabled={loading || actionLoading || selectedProductIds.length === 0}
-          >
-            Gerar Títulos (IA)
-          </button>
-          <button
-            onClick={() => handleGenerateContentForSelected('descricoes')}
-            disabled={loading || actionLoading || selectedProductIds.length === 0}
-          >
-            Gerar Descrições (IA)
-          </button>
-          <button
-            onClick={handleDeleteSelected}
-            disabled={loading || actionLoading || selectedProductIds.length === 0}
-            style={{ backgroundColor: 'var(--danger)'}}
-          >
-            Deletar Selecionado(s)
-          </button>
-        </div>
-      </div>
 
-      <NewProductModal
-        isOpen={isNewProductModalOpen} onClose={handleCloseNewProductModal}
-        onSave={handleSaveNewProduct} isLoading={modalLoading} />
-
-      <ProductEditModal
-        isOpen={isEditModalOpen} onClose={handleCloseEditModal}
-        productData={editingProduct} onSave={handleSaveProductUpdate}
-        isLoading={modalLoading} />
+      {isNewProductModalOpen && (
+        <NewProductModal
+          isOpen={isNewProductModalOpen}
+          onClose={handleCloseNewProductModal}
+          onProdutoSaved={handleProdutoSaved}
+          productTypes={productTypes} 
+          loadingProductTypes={loadingProductTypes} 
+        />
+      )}
+      {isEditModalOpen && produtoParaEditar && (
+        <ProductEditModal
+          isOpen={isEditModalOpen}
+          onClose={handleCloseEditModal}
+          produtoParaEditar={produtoParaEditar}
+          onProdutoSaved={handleProdutoSaved}
+          productTypes={productTypes} 
+          loadingProductTypes={loadingProductTypes} 
+        />
+      )}
     </div>
   );
 }
