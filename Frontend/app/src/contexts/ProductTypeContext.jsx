@@ -1,109 +1,137 @@
 // Frontend/app/src/contexts/ProductTypeContext.jsx
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
-import productTypeService from '../services/productTypeService'; // Nosso serviço recém-criado
+import productTypeService from '../services/productTypeService';
+import { useAuth } from './AuthContext';
 
-// 1. Criar o Contexto
-export const ProductTypeContext = createContext(); // <--- CORREÇÃO: 'export' adicionado aqui
+// 1. Criar o Contexto (NÃO EXPORTAR DIRETAMENTE PARA MELHORAR COMPATIBILIDADE COM HMR)
+const ProductTypeContext = createContext(null); // Inicializado como null
 
-// 2. Criar um Hook customizado para facilitar o uso do contexto
+// 2. Criar um Hook customizado para facilitar o uso do contexto (JÁ EXPORTADO)
 export const useProductTypes = () => {
   const context = useContext(ProductTypeContext);
-  if (!context) {
+  if (context === null) { // Verifica se o contexto ainda é null (não está dentro de um Provider)
     throw new Error('useProductTypes deve ser usado dentro de um ProductTypeProvider');
   }
   return context;
 };
 
-// 3. Criar o Componente Provider
+// 3. Criar o Componente Provider (JÁ EXPORTADO)
 export const ProductTypeProvider = ({ children }) => {
   const [productTypes, setProductTypes] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState(null);
+  const { user, isSessionLoading: isAuthSessionLoading } = useAuth();
 
-  // Função para buscar/recarregar os tipos de produto
   const fetchProductTypes = useCallback(async () => {
+    if (!user) {
+      console.log("ProductTypeContext: Usuário não autenticado, não buscando tipos de produto.");
+      setProductTypes([]); // Limpa os tipos se não houver usuário
+      setIsLoading(false);
+      setError(null); // Limpa erros anteriores se o usuário deslogar
+      return;
+    }
+
+    console.log("ProductTypeContext: Usuário autenticado, buscando tipos de produto...");
     setIsLoading(true);
     setError(null);
     try {
-      // Usamos a função getProductTypes do nosso serviço.
-      // Por padrão, ela buscará os tipos do usuário logado + globais.
-      // Se precisarmos de 'listAllForAdmin', precisaríamos de lógica adicional aqui
-      // para verificar o papel do usuário (talvez vindo de um AuthContext).
-      // Por agora, vamos manter simples e buscar os tipos padrão.
       const data = await productTypeService.getProductTypes();
-      setProductTypes(data || []); // Garante que seja um array mesmo se data for null/undefined
+      console.log("ProductTypeContext: Tipos de produto recebidos:", data);
+      setProductTypes(Array.isArray(data) ? data : []);
     } catch (err) {
-      console.error("Falha ao buscar tipos de produto no contexto:", err);
-      setError(err);
-      setProductTypes([]); // Limpa os tipos em caso de erro
+      const errorData = err.response?.data || { message: err.message || "Erro desconhecido" };
+      console.error("ProductTypeContext: Falha ao buscar tipos de produto:", errorData, err);
+      setError(errorData);
+      setProductTypes([]);
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  }, [user]); // 'user' é a dependência chave
 
-  // Buscar os tipos de produto quando o provider for montado pela primeira vez
   useEffect(() => {
-    fetchProductTypes();
-  }, [fetchProductTypes]); // fetchProductTypes é estável devido ao useCallback
+    // Só tenta buscar se a sessão de autenticação foi verificada
+    if (!isAuthSessionLoading) {
+      if (user) {
+        console.log("ProductTypeContext: AuthContext carregado e usuário existe, chamando fetchProductTypes.");
+        fetchProductTypes();
+      } else {
+        console.log("ProductTypeContext: AuthContext carregado, mas nenhum usuário logado. Limpando tipos de produto.");
+        setProductTypes([]);
+        setError(null); // Limpa erros se não houver usuário
+      }
+    }
+  }, [user, isAuthSessionLoading, fetchProductTypes]);
 
-  // Funções para interagir com o serviço e atualizar o estado (opcional, mas útil)
-  // Estas funções encapsulam a chamada ao serviço e o recarregamento dos dados.
-
-  const addProductType = async (productTypeData, asGlobal = false) => {
+  const addProductType = async (productTypeData) => {
+    if (!user) {
+      const authError = { detail: "Usuário não autenticado para adicionar tipo de produto." };
+      setError(authError);
+      throw authError; // Lança um objeto de erro consistente
+    }
+    setIsLoading(true);
     try {
-      const newProductType = await productTypeService.createProductType(productTypeData, asGlobal);
-      // Recarrega a lista após a criação bem-sucedida
-      // Ou, para otimismo, adiciona diretamente à lista:
-      // setProductTypes(prevTypes => [...prevTypes, newProductType]);
-      // Mas recarregar garante consistência com o backend.
-      await fetchProductTypes();
-      return newProductType; // Retorna o tipo criado para feedback
+      const newProductType = await productTypeService.createProductType(productTypeData);
+      await fetchProductTypes(); // Recarrega após adicionar
+      return newProductType;
     } catch (err) {
-      console.error("Falha ao adicionar tipo de produto:", err);
-      setError(err); // Define o erro no contexto se necessário
-      throw err; // Relança o erro para o componente tratar
+      const errorData = err.response?.data || { detail: err.message || "Falha ao adicionar tipo" };
+      console.error("ProductTypeContext: Falha ao adicionar tipo de produto:", errorData, err);
+      setError(errorData);
+      throw err; // Relança o erro original ou o erro processado
+    } finally {
+      setIsLoading(false);
     }
   };
 
   const updateExistingProductType = async (productTypeId, productTypeUpdateData) => {
+    if (!user) {
+      const authError = { detail: "Usuário não autenticado para atualizar tipo de produto." };
+      setError(authError);
+      throw authError;
+    }
+    setIsLoading(true);
     try {
       const updatedProductType = await productTypeService.updateProductType(productTypeId, productTypeUpdateData);
-      // Recarrega a lista ou atualiza o item específico
-      // setProductTypes(prevTypes =>
-      //   prevTypes.map(pt => (pt.id === productTypeId ? updatedProductType : pt))
-      // );
       await fetchProductTypes();
       return updatedProductType;
     } catch (err) {
-      console.error("Falha ao atualizar tipo de produto:", err);
-      setError(err);
+      const errorData = err.response?.data || { detail: err.message || "Falha ao atualizar tipo" };
+      console.error("ProductTypeContext: Falha ao atualizar tipo de produto:", errorData, err);
+      setError(errorData);
       throw err;
+    } finally {
+      setIsLoading(false);
     }
   };
 
   const removeProductType = async (productTypeId) => {
+    if (!user) {
+      const authError = { detail: "Usuário não autenticado para remover tipo de produto." };
+      setError(authError);
+      throw authError;
+    }
+    setIsLoading(true);
     try {
       await productTypeService.deleteProductType(productTypeId);
-      // Recarrega a lista ou remove o item
-      // setProductTypes(prevTypes => prevTypes.filter(pt => pt.id !== productTypeId));
       await fetchProductTypes();
     } catch (err) {
-      console.error("Falha ao remover tipo de produto:", err);
-      setError(err);
+      const errorData = err.response?.data || { detail: err.message || "Falha ao remover tipo" };
+      console.error("ProductTypeContext: Falha ao remover tipo de produto:", errorData, err);
+      setError(errorData);
       throw err;
+    } finally {
+      setIsLoading(false);
     }
   };
 
-
-  // O valor que o Provider vai fornecer aos seus componentes filhos
   const contextValue = {
     productTypes,
     isLoading,
     error,
-    reloadProductTypes: fetchProductTypes, // Função para recarregar manualmente
-    addProductType,                       // Função para criar e recarregar
-    updateExistingProductType,            // Função para atualizar e recarregar
-    removeProductType                     // Função para deletar e recarregar
+    reloadProductTypes: fetchProductTypes,
+    addProductType,
+    updateExistingProductType,
+    removeProductType
   };
 
   return (

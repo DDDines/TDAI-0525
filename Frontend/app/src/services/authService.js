@@ -1,82 +1,86 @@
 // Frontend/app/src/services/authService.js
-import apiClient from './apiClient'; // Importa a instância centralizada do Axios
+import apiClient from './apiClient';
+import { showSuccessToast, showErrorToast } from '../utils/notifications'; // Assumindo que você quer usar toasts aqui também
 
-// A baseURL (ex: http://localhost:8000/api/v1) já está configurada no apiClient
-// Os paths dos endpoints aqui são relativos a essa baseURL.
+const authService = {
+  async login(email, password) {
+    try {
+      const formData = new URLSearchParams();
+      formData.append('username', email); // O backend espera 'username' no form data
+      formData.append('password', password);
 
-export const login = async (email, password) => {
-  const loginData = new URLSearchParams();
-  loginData.append('username', email); // O backend espera 'username' para o email
-  login_data.append('password', password);
-
-  try {
-    // O endpoint de token está em /auth/token (relativo ao baseURL do apiClient)
-    const response = await apiClient.post('/auth/token', loginData, {
-       headers: {
-         // Sobrescreve Content-Type para este request específico, pois o backend espera form-urlencoded
-         'Content-Type': 'application/x-www-form-urlencoded',
-       },
-    });
-    if (response.data.access_token) {
-      localStorage.setItem('accessToken', response.data.access_token);
-      if (response.data.refresh_token) {
-        localStorage.setItem('refreshToken', response.data.refresh_token);
-      }
+      const response = await apiClient.post('/auth/token', formData, {
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded',
+        },
+      });
+      console.log("authService: Login response data:", response.data);
+      // O token é salvo no AuthContext após esta chamada ser bem-sucedida
+      return response.data;
+    } catch (error) {
+      console.error('Error during login (authService):', error.response?.data || error.message);
+      // Erros de login são geralmente tratados no componente/contexto que chama
+      throw error.response?.data || new Error('Falha no login.');
     }
-    return response.data; // Retorna { access_token, refresh_token, token_type }
-  } catch (error) {
-    // O interceptor de resposta no apiClient já pode ter lidado com 401.
-    // Aqui podemos tratar outros erros específicos do login ou relançar.
-    console.error('Error during login:', error.response?.data || error.message);
-    throw error.response?.data || new Error('Falha no login. Verifique suas credenciais.');
-  }
+  },
+
+  async getCurrentUser() {
+    console.log("authService: Tentando buscar getCurrentUser...");
+    try {
+      // CORREÇÃO: Remover a barra final para corresponder à definição do endpoint FastAPI
+      const response = await apiClient.get('/auth/users/me'); // ANTES: '/auth/users/me/'
+      console.log("authService: getCurrentUser response data:", response.data);
+      return response.data;
+    } catch (error) {
+      console.error('Error fetching current user (authService):', error.response?.data || error.message);
+      // O AuthContext tratará este erro (ex: limpando o usuário, redirecionando para login)
+      throw error.response?.data || new Error('Falha ao buscar usuário atual.');
+    }
+  },
+
+  async register(userData) {
+    try {
+      // Assumindo que seu backend tem um endpoint /auth/register ou /users/
+      // Se for /users/ (como em main.py), o apiClient já tem /api/v1
+      // Ajuste o endpoint conforme necessário. Se for /api/v1/users/ :
+      const response = await apiClient.post('/users/', userData);
+      showSuccessToast('Registro bem-sucedido! Faça login para continuar.');
+      return response.data;
+    } catch (error) {
+      console.error('Error during registration (authService):', error.response?.data || error.message);
+      showErrorToast(error.response?.data?.detail || 'Falha no registro.');
+      throw error.response?.data || new Error('Falha no registro.');
+    }
+  },
+
+  async updateUser(userId, userData) {
+    try {
+      // O endpoint em auth.py é /auth/users/{user_id}
+      const response = await apiClient.put(`/auth/users/${userId}`, userData);
+      showSuccessToast('Perfil atualizado com sucesso!');
+      return response.data;
+    } catch (error) {
+      console.error('Error updating user (authService):', error.response?.data || error.message);
+      showErrorToast(error.response?.data?.detail || 'Falha ao atualizar perfil.');
+      throw error.response?.data || new Error('Falha ao atualizar perfil.');
+    }
+  },
+
+  async changePassword(userId, passwordData) {
+    try {
+      // O endpoint em auth.py é /auth/users/{user_id}/change-password
+      const response = await apiClient.put(`/auth/users/${userId}/change-password`, passwordData);
+      showSuccessToast('Senha alterada com sucesso!');
+      return response.data;
+    } catch (error) {
+      console.error('Error changing password (authService):', error.response?.data || error.message);
+      showErrorToast(error.response?.data?.detail || 'Falha ao alterar senha.');
+      throw error.response?.data || new Error('Falha ao alterar senha.');
+    }
+  },
+
+  // Adicione outras funções de autenticação/usuário conforme necessário
+  // Ex: forgotPassword, resetPassword, etc.
 };
 
-export const getCurrentUser = async () => {
-  try {
-    // A URL completa será: baseURL + /auth/users/me/
-    const response = await apiClient.get('/auth/users/me/'); 
-    return response.data; 
-  } catch (error) {
-    console.error('Error fetching current user:', error.response?.data || error.message);
-    // O interceptor de resposta já lida com 401 e redireciona.
-    // Lançar o erro permite que o componente chamador (ex: Topbar) reaja se necessário.
-    throw error.response?.data || new Error('Falha ao buscar dados do usuário.');
-  }
-};
-
-export const updateCurrentUser = async (userData) => {
-  try {
-    // O endpoint PUT para /users/me/ está em main.py, não sob /auth.
-    // O baseURL do apiClient já inclui /api/v1.
-    const response = await apiClient.put('/users/me/', userData); // A URL será /api/v1/users/me/
-    return response.data; 
-  } catch (error) {
-    console.error('Error updating current user:', error.response?.data || error.message);
-    throw error.response?.data || new Error('Falha ao atualizar dados do usuário.');
-  }
-};
-
-export const changePassword = async (passwordData) => {
-  try {
-    // O endpoint de change-password também está em main.py como /users/me/change-password
-    const response = await apiClient.post('/users/me/change-password', passwordData); 
-    return response.data; 
-  } catch (error) {
-    console.error('Error changing password:', error.response?.data || error.message);
-    throw error.response?.data || new Error('Falha ao alterar senha.');
-  }
-};
-
-// As funções getTotalCounts, getMeuHistoricoUsoIA, getHistoricoUsoIAPorProduto
-// foram movidas ou serão definidas em seus próprios arquivos de serviço
-// (ex: adminService.js, usoIaService.js) para melhor organização,
-// ou podem permanecer aqui se fizer sentido para a sua estrutura.
-// Por agora, vou remover as que não são estritamente de "auth".
-
-export default {
-  login,
-  getCurrentUser,
-  updateCurrentUser,
-  changePassword,
-};
+export default authService;

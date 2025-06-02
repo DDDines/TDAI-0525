@@ -1,10 +1,7 @@
 // Frontend/app/src/services/apiClient.js
 import axios from 'axios';
 
-// Com a configuração de proxy no vite.config.js para '/api/v1',
-// o baseURL aqui pode ser apenas o prefixo que o proxy está escutando.
-// O Vite irá redirecionar para 'http://localhost:8000/api/v1'.
-const API_BASE_URL = '/api/v1'; // Simplificado para funcionar com o proxy do Vite
+const API_BASE_URL = '/api/v1'; // Conforme configuração com proxy do Vite
 
 const apiClient = axios.create({
   baseURL: API_BASE_URL,
@@ -13,30 +10,52 @@ const apiClient = axios.create({
   }
 });
 
-apiClient.interceptors.request.use(config => {
-  const token = localStorage.getItem('accessToken');
-  if (token) {
-    config.headers.Authorization = `Bearer ${token}`;
-  }
-  return config;
-}, error => {
-  return Promise.reject(error);
-});
+apiClient.interceptors.request.use(
+  config => {
+    const token = localStorage.getItem('accessToken');
+    const tokenSnippet = token ? `${token.substring(0, 15)}...${token.substring(token.length - 15)}` : "N/A";
 
-// Interceptor de resposta para lidar com erros 401 (Não Autorizado)
+    console.log(`apiClient: Interceptando requisição para ${config.url}. Token no localStorage (snippet): ${tokenSnippet}`);
+
+    if (token) {
+      config.headers.Authorization = `Bearer ${token}`;
+      // LOG DETALHADO DO HEADER (PARA DEBUG - REMOVER DEPOIS)
+      console.log(`apiClient: Header Authorization DEFINIDO para ${config.url}: "${config.headers.Authorization.substring(0,30)}..."`);
+    } else {
+      console.log(`apiClient: Nenhum token encontrado no localStorage para ${config.url}.`);
+      // Garantir que o header de autorização seja removido se não houver token
+      delete config.headers.Authorization;
+    }
+    return config;
+  },
+  error => {
+    console.error('apiClient: Erro no interceptor de requisição:', error);
+    return Promise.reject(error);
+  }
+);
+
 apiClient.interceptors.response.use(
   response => response,
   error => {
+    // Log mais detalhado do erro, incluindo a config da requisição que falhou
+    console.log(
+        `apiClient: Interceptor de resposta pegou um erro. URL: ${error.config?.url}`,
+        `Status: ${error.response?.status}`,
+        `Data: ${JSON.stringify(error.response?.data)}`,
+        // `Headers da Requisição que Falhou: ${JSON.stringify(error.config?.headers)}` // Log verboso, descomentar se necessário
+    );
+
     if (error.response && error.response.status === 401) {
-      // Se o erro for 401, o token pode ter expirado ou ser inválido.
-      // Limpa o token e redireciona para a página de login.
-      localStorage.removeItem('accessToken');
-      localStorage.removeItem('refreshToken');
-      // Evita redirecionamento em loop se já estiver na página de login
+      // Apenas redireciona se NÃO estiver já na página de login para evitar loops
       if (window.location.pathname !== '/login') {
-        window.location.href = '/login'; // Ou use o useNavigate do react-router-dom se estiver em um componente
+        console.warn("apiClient: Erro 401! Limpando tokens e redirecionando para /login. URL original:", error.config?.url);
+        localStorage.removeItem('accessToken');
+        localStorage.removeItem('refreshToken');
+        delete apiClient.defaults.headers.common['Authorization']; // Limpa o header padrão também
+        window.location.href = '/login';
+      } else {
+        console.warn("apiClient: Erro 401 na página de login ou durante verificação inicial, não redirecionando para evitar loop.");
       }
-      console.error("Erro 401: Não autorizado. Redirecionando para login.");
     }
     return Promise.reject(error);
   }
