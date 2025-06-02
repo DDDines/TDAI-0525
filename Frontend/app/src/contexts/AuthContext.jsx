@@ -1,100 +1,120 @@
 // Frontend/app/src/contexts/AuthContext.jsx
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
-import authService from '../services/authService'; // Seu serviço de autenticação
+import { useNavigate, useLocation } from 'react-router-dom';
+import authService from '../services/authService';
+import apiClient from '../services/apiClient'; // Para definir o header padrão após login
+import { showSuccessToast, showErrorToast, showInfoToast } from '../utils/notifications';
 
 const AuthContext = createContext(null);
 
-export const useAuth = () => {
-  const context = useContext(AuthContext);
-  if (context === undefined) {
-    throw new Error('useAuth deve ser usado dentro de um AuthProvider');
-  }
-  return context;
-};
+export const useAuth = () => useContext(AuthContext);
 
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [isLoadingAuth, setIsLoadingAuth] = useState(true); // Para o carregamento inicial
-  const navigate = useNavigate();
+  const [isLoading, setIsLoading] = useState(false); // Para operações de login/logout
+  const [isSessionLoading, setIsSessionLoading] = useState(true); // Para verificação inicial da sessão
 
-  // Função para verificar o usuário atual ao carregar o contexto
-  const checkCurrentUser = useCallback(async () => {
-    setIsLoadingAuth(true);
-    try {
-      const currentUserData = await authService.getCurrentUser(); // authService.getCurrentUser já deve retornar o usuário ou null
-      if (currentUserData) {
-        setUser(currentUserData);
-        setIsAuthenticated(true);
-      } else {
-        setUser(null);
-        setIsAuthenticated(false);
-        // O token pode ser inválido/expirado; authService.getCurrentUser já deve ter limpado do localStorage.
-      }
-    } catch (error) {
-      console.error('Nenhuma sessão de usuário ativa encontrada ou erro ao verificar usuário:', error);
+  const navigate = useNavigate();
+  const location = useLocation();
+
+  const verifyUserSession = useCallback(async () => {
+    console.log("AuthContext: Verificando sessão do usuário...");
+    const token = localStorage.getItem('accessToken');
+    if (!token) {
+      console.log("AuthContext: Nenhum token encontrado no localStorage.");
       setUser(null);
-      setIsAuthenticated(false);
+      setIsSessionLoading(false);
+      return;
+    }
+
+    // Se há um token, tentamos definir no apiClient e buscar o usuário
+    // O interceptor do apiClient já deve estar fazendo isso, mas uma garantia extra não faz mal.
+    // apiClient.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+
+    try {
+      // Não precisa de setIsLoading(true) aqui, pois temos isSessionLoading
+      const currentUser = await authService.getCurrentUser();
+      console.log("AuthContext: Usuário da sessão verificado:", currentUser);
+      setUser(currentUser);
+    } catch (error) {
+      console.error("AuthContext: Nenhuma sessão de usuário ativa encontrada ou erro ao verificar usuário:", error.response?.data || error.message);
+      setUser(null);
+      localStorage.removeItem('accessToken'); // Limpa token inválido
+      localStorage.removeItem('refreshToken');
+      // Não redirecionar para login aqui, o interceptor do apiClient fará isso se necessário
+      // e ProtectedRoute cuidará do redirecionamento se o usuário não estiver autenticado.
     } finally {
-      setIsLoadingAuth(false);
+      setIsSessionLoading(false);
     }
   }, []);
 
   useEffect(() => {
-    checkCurrentUser();
-  }, [checkCurrentUser]);
+    verifyUserSession();
+  }, [verifyUserSession]);
 
   const login = async (email, password) => {
     try {
-      setIsLoadingAuth(true);
-      // authService.loginUser deve salvar o token no localStorage e retornar dados do usuário
-      const loggedInData = await authService.loginUser(email, password); 
-      // Supondo que loggedInData.user contenha os dados do usuário
-      // e que o token já foi salvo pelo serviço.
-      // O endpoint /users/me será chamado por checkCurrentUser ou explicitamente se necessário.
-      // Após login, é bom buscar os dados completos do usuário para popular o contexto.
-      await checkCurrentUser(); // Recarrega os dados do usuário após login bem-sucedido
-      
-      // Se checkCurrentUser não navegar, e você quiser navegar explicitamente após login:
-      // if (authService.getToken()) { // Verifica se o token foi realmente setado
-      //   navigate('/'); 
-      // }
-      // navigate('/'); // Ou navega incondicionalmente se loginUser não der erro
-
-      return loggedInData; // Retorna o que o serviço de login retornou
+      setIsLoading(true);
+      const data = await authService.login(email, password);
+      console.log("AuthContext: Login API response data:", data);
+      if (data.access_token) {
+        localStorage.setItem('accessToken', data.access_token);
+        if (data.refresh_token) {
+          localStorage.setItem('refreshToken', data.refresh_token);
+        }
+        // O interceptor de requisição do apiClient pegará o token do localStorage na próxima chamada.
+        // Não é estritamente necessário definir o header padrão aqui se o interceptor já faz isso.
+        // apiClient.defaults.headers.common['Authorization'] = `Bearer ${data.access_token}`;
+        
+        // Após salvar o token, verificar a sessão para definir o usuário e o estado de carregamento da sessão
+        await verifyUserSession(); // Isso agora definirá o usuário
+        showSuccessToast("Login realizado com sucesso!");
+        const from = location.state?.from?.pathname || "/dashboard";
+        navigate(from, { replace: true });
+      } else {
+        throw new Error(data.detail || "Falha no login: Token não recebido.");
+      }
     } catch (error) {
-      console.error('Falha no login (AuthContext):', error);
-      setUser(null);
-      setIsAuthenticated(false);
-      throw error; 
+      console.error("AuthContext: Erro no login:", error.response?.data || error.message);
+      const errorMsg = error.response?.data?.detail || error.message || 'Falha ao fazer login.';
+      showErrorToast(errorMsg);
+      setUser(null); // Garante que o usuário seja nulo em caso de falha
+      localStorage.removeItem('accessToken');
+      localStorage.removeItem('refreshToken');
     } finally {
-      setIsLoadingAuth(false);
+      setIsLoading(false);
     }
   };
 
-  const logout = () => {
-    authService.logoutUser(); // Limpa o token do localStorage
+  const logout = useCallback(() => { // Envolver logout em useCallback
+    console.log("AuthContext: Efetuando logout...");
     setUser(null);
-    setIsAuthenticated(false);
-    navigate('/login'); 
-  };
-  
-  const value = {
-    user,
-    isAuthenticated,
-    isLoadingAuth,
-    login,
-    logout,
-    // isAdmin: user ? user.is_superuser : false // Exemplo
+    localStorage.removeItem('accessToken');
+    localStorage.removeItem('refreshToken');
+    delete apiClient.defaults.headers.common['Authorization'];
+    showInfoToast("Você foi desconectado.");
+    navigate('/login', { replace: true });
+  }, [navigate]);
+
+  const updateUser = (updatedUserData) => {
+    setUser(prevUser => ({ ...prevUser, ...updatedUserData }));
   };
 
-  // Não renderiza children até que a verificação inicial de autenticação termine,
-  // ou renderiza um loader global aqui se preferir.
-  // Para simplificar, vamos renderizar children, e os componentes/rotas protegidas
-  // podem usar isLoadingAuth para decidir o que mostrar.
-  // if (isLoadingAuth) {
-  //   return <div>Carregando autenticação...</div>; // Ou um spinner
+  const value = {
+    user,
+    isLoading, // Loading para operações de login/logout
+    isSessionLoading, // Loading para verificação inicial da sessão
+    login,
+    logout,
+    updateUser,
+    isAuthenticated: !!user, // Adicionado para conveniência
+  };
+
+  // Não renderiza children até que a verificação inicial da sessão seja concluída,
+  // a menos que seja uma rota pública (mas App.jsx já cuida de rotas públicas/protegidas)
+  // Se quisermos um spinner global, podemos adicionar aqui:
+  // if (isSessionLoading && !user && window.location.pathname !== '/login' /* e outras rotas públicas */) {
+  //   return <div>Verificando sessão...</div>; // Ou um spinner
   // }
 
   return (

@@ -1,19 +1,18 @@
 // Frontend/app/src/services/apiClient.js
 import axios from 'axios';
 
-// A VITE_API_BASE_URL deve ser a URL base do seu backend, ex: http://localhost:8000
-// O prefixo /api/v1 será adicionado aqui.
-const API_PREFIX = '/api/v1';
-const BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
+// Com a configuração de proxy no vite.config.js para '/api/v1',
+// o baseURL aqui pode ser apenas o prefixo que o proxy está escutando.
+// O Vite irá redirecionar para 'http://localhost:8000/api/v1'.
+const API_BASE_URL = '/api/v1'; // Simplificado para funcionar com o proxy do Vite
 
 const apiClient = axios.create({
-  baseURL: `${BASE_URL}${API_PREFIX}`, // ex: http://localhost:8000/api/v1
+  baseURL: API_BASE_URL,
   headers: {
     'Content-Type': 'application/json',
   }
 });
 
-// Interceptor para adicionar o token de autenticação a cada requisição
 apiClient.interceptors.request.use(config => {
   const token = localStorage.getItem('accessToken');
   if (token) {
@@ -24,25 +23,20 @@ apiClient.interceptors.request.use(config => {
   return Promise.reject(error);
 });
 
-// Interceptor de resposta para lidar com erros 401 (Não Autorizado) globalmente
+// Interceptor de resposta para lidar com erros 401 (Não Autorizado)
 apiClient.interceptors.response.use(
   response => response,
   error => {
     if (error.response && error.response.status === 401) {
-      // Token inválido ou expirado.
+      // Se o erro for 401, o token pode ter expirado ou ser inválido.
+      // Limpa o token e redireciona para a página de login.
       localStorage.removeItem('accessToken');
-      localStorage.removeItem('refreshToken'); // Se estiver usando refresh tokens
-
-      // Evita redirecionamento se já estiver na página de login para não criar loop
-      if (window.location.pathname !== '/login' && window.location.pathname !== '/register') {
-        // Redireciona para a página de login.
-        // Idealmente, isso seria tratado por um contexto de autenticação que atualizaria o estado
-        // e o Router faria o redirecionamento com base nesse estado.
-        // Por simplicidade, um redirecionamento direto aqui pode funcionar, mas pode ter efeitos colaterais.
-        // Uma abordagem melhor seria disparar um evento customizado ou usar um estado global.
-        console.warn("Interceptor: Token inválido ou expirado. Deslogando...");
-        window.location.href = '/login'; 
+      localStorage.removeItem('refreshToken');
+      // Evita redirecionamento em loop se já estiver na página de login
+      if (window.location.pathname !== '/login') {
+        window.location.href = '/login'; // Ou use o useNavigate do react-router-dom se estiver em um componente
       }
+      console.error("Erro 401: Não autorizado. Redirecionando para login.");
     }
     return Promise.reject(error);
   }

@@ -1,11 +1,11 @@
 // Frontend/app/src/pages/DashboardPage.jsx
 import React, { useState, useEffect } from 'react';
-import authService from '../services/authService'; // Para buscar dados do usuário e contagens
+import authService from '../services/authService'; // Mantido para getCurrentUser
+import adminService from '../services/adminService'; // NOVO: Importar o adminService
 import { showErrorToast } from '../utils/notifications';
 
 // Os dados mockados restantes podem ser usados para as partes do dashboard que ainda não têm dados reais
 const mockDashboardData = {
-  // Removida a seção 'stats' daqui, pois virá da API
   productsByStatus: [
     { label: "Pendentes", value: 38, barWidth: "38%", barColor: "var(--warning)" },
     { label: "Enriquecidos", value: 54, barWidth: "54%", barColor: "var(--success)" },
@@ -41,11 +41,10 @@ function DashboardPage() {
         setCurrentUser(user);
 
         if (user && user.is_superuser) {
-          const counts = await authService.getTotalCounts();
+          // CORREÇÃO: Usar adminService para getTotalCounts
+          const counts = await adminService.getTotalCounts();
           setAdminStats(counts);
         }
-        // Se não for superuser, adminStats permanecerá null,
-        // e podemos renderizar algo diferente para usuários normais.
       } catch (err) {
         const errorMsg = err.message || err.detail || 'Falha ao carregar dados do dashboard.';
         showErrorToast(errorMsg);
@@ -57,13 +56,13 @@ function DashboardPage() {
     fetchData();
   }, []);
 
-  // Transforma os dados do adminStats para o formato esperado pelos cards
   const formattedStats = adminStats ? [
     {
       value: adminStats.total_produtos?.toString() || "0",
       label: "Total Produtos",
-      comparison: `Usuários: ${adminStats.total_users || 0}`,
-      barWidth: "75%", // Pode ser dinâmico ou fixo
+      // MODIFICADO: Usando total_usuarios de adminStats se disponível
+      comparison: `Usuários: ${adminStats.total_usuarios || adminStats.total_users || 0}`, 
+      barWidth: "75%",
       barColor: "var(--success)",
       barGradient: "linear-gradient(90deg,var(--success),#e8faed 85%)",
       icon: "📦"
@@ -71,34 +70,34 @@ function DashboardPage() {
     {
       value: adminStats.total_fornecedores?.toString() || "0",
       label: "Total Fornecedores",
-      comparison: "", // Pode adicionar outra info aqui
+      comparison: `Gerações IA (mês): ${adminStats.total_geracoes_ia_mes || 0}`, // Usando outro stat aqui
       barWidth: "60%",
       barColor: "var(--warning)",
       barGradient: "linear-gradient(90deg,var(--warning),#fff4d5 85%)",
       icon: "🏢"
     },
     {
-      value: adminStats.total_usos_ia?.toString() || "0",
-      label: "Total Usos IA",
-      comparison: "",
+      value: adminStats.total_usos_ia?.toString() || // Se o backend retornar total_usos_ia
+                 adminStats.total_geracoes_ia_mes?.toString() || "0", // Fallback para total_geracoes_ia_mes
+      label: "Total Usos IA (mês)", // Rótulo mais específico
+      comparison: `Enriquecimentos (mês): ${adminStats.total_enriquecimentos_mes || 0}`,
       barWidth: "80%",
       barColor: "var(--info)",
       barGradient: "linear-gradient(90deg,var(--info),#eef6fa 85%)",
       icon: "🤖"
     },
-    // Poderia adicionar um card para total_users se quisesse
     {
-      value: adminStats.total_users?.toString() || "0",
+      value: adminStats.total_usuarios?.toString() || adminStats.total_users?.toString() || "0",
       label: "Total Usuários",
       comparison: "",
       barWidth: "50%",
       barColor: "var(--primary)",
       barGradient: "linear-gradient(90deg,var(--primary),#e8ebff 85%)",
-      icon: "👥" // Ícone para usuários
+      icon: "👥"
     }
-  ] : []; // Retorna array vazio se adminStats for null
+  ] : [];
 
-  const data = mockDashboardData; // Para as partes que ainda usam mock
+  const data = mockDashboardData; 
 
   if (loading) {
     return <p style={{padding: "20px"}}>Carregando dashboard...</p>;
@@ -106,7 +105,6 @@ function DashboardPage() {
 
   return (
     <div id="dashboard-pro-main">
-      {/* Linha de Estatísticas */}
       {currentUser && currentUser.is_superuser && adminStats && (
         <div className="pro-stats-row">
           {formattedStats.map((stat, index) => (
@@ -123,28 +121,16 @@ function DashboardPage() {
         </div>
       )}
 
-      {/* Dashboard para usuário não-admin ou se adminStats não carregou */}
       {(!currentUser || !currentUser.is_superuser) && !loading && (
         <div style={{ padding: '20px', textAlign: 'center' }}>
           <h2>Bem-vindo ao TDAI!</h2>
           <p>Seu dashboard personalizado será implementado aqui em breve.</p>
-          {/* Poderia mostrar contagens específicas do usuário aqui, como:
-              - Quantos produtos você tem.
-              - Quantos estão pendentes de enriquecimento.
-              - Seu limite de uso de IA do plano.
-              Isto exigiria novos endpoints no backend ou processamento dos dados de /users/me.
-          */}
         </div>
       )}
 
-
-      {/* Linha Principal do Dashboard (Duas Colunas) - Ainda com mock data */}
-      {/* Você pode também condicionar a exibição destas seções se for admin */}
       {currentUser && currentUser.is_superuser && (
         <div className="dashboard-flex-row">
-          {/* Coluna da Esquerda */}
           <div className="dashboard-col dashboard-col-esq">
-            {/* Produtos por Status */}
             <div className="pro-bar-chart">
               <div className="pro-bar-title">Produtos por Status (Mock)</div>
               {data.productsByStatus.map((item, index) => (
@@ -157,8 +143,6 @@ function DashboardPage() {
                 </div>
               ))}
             </div>
-
-            {/* Pendências */}
             <div className="pro-alert-card">
               <div className="pro-alert-title">Pendências (Mock)</div>
               <div className="pro-alert-list">
@@ -167,8 +151,6 @@ function DashboardPage() {
                 ))}
               </div>
             </div>
-
-            {/* Últimas Atividades */}
             <div className="pro-feed-card">
               <div className="pro-feed-title">Últimas Atividades (Mock)</div>
               <ul className="pro-feed-list">
@@ -182,15 +164,11 @@ function DashboardPage() {
               </ul>
             </div>
           </div>
-
-          {/* Coluna da Direita */}
           <div className="dashboard-col dashboard-col-dir">
-            {/* Barra de Pesquisa */}
             <div className="pro-search-bar">
               <span className="pro-search-ico">🔎</span>
               <input type="text" defaultValue="MINI (Mock)" readOnly />
             </div>
-            {/* Tabela */}
             <div className="search-results-table table-scroll-box">
               <table>
                 <thead>

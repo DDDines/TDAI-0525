@@ -3,7 +3,7 @@ import React, { createContext, useContext, useState, useEffect, useCallback } fr
 import productTypeService from '../services/productTypeService'; // Nosso serviço recém-criado
 
 // 1. Criar o Contexto
-const ProductTypeContext = createContext();
+export const ProductTypeContext = createContext(); // <--- CORREÇÃO: 'export' adicionado aqui
 
 // 2. Criar um Hook customizado para facilitar o uso do contexto
 export const useProductTypes = () => {
@@ -56,7 +56,7 @@ export const ProductTypeProvider = ({ children }) => {
       // Ou, para otimismo, adiciona diretamente à lista:
       // setProductTypes(prevTypes => [...prevTypes, newProductType]);
       // Mas recarregar garante consistência com o backend.
-      await fetchProductTypes(); 
+      await fetchProductTypes();
       return newProductType; // Retorna o tipo criado para feedback
     } catch (err) {
       console.error("Falha ao adicionar tipo de produto:", err);
@@ -69,7 +69,7 @@ export const ProductTypeProvider = ({ children }) => {
     try {
       const updatedProductType = await productTypeService.updateProductType(productTypeId, productTypeUpdateData);
       // Recarrega a lista ou atualiza o item específico
-      // setProductTypes(prevTypes => 
+      // setProductTypes(prevTypes =>
       //   prevTypes.map(pt => (pt.id === productTypeId ? updatedProductType : pt))
       // );
       await fetchProductTypes();
