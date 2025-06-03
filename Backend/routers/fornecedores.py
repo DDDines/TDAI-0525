@@ -1,8 +1,10 @@
 # Backend/routers/fornecedores.py
 from typing import List, Optional
-
+from sqlalchemy import func
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session
+
+
 
 import crud
 import models
