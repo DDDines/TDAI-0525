@@ -1,0 +1,230 @@
+/* Frontend/app/src/pages/TiposProdutoPage.css */
+
+/* Importa as variáveis globais e estilos base do index.css */
+/* É uma boa prática ter um arquivo de variáveis ou utilities CSS globais */
+/* Se não estiverem acessíveis diretamente, você pode copiá-las para cá ou garantir que o index.css seja carregado antes */
+
+.tipos-produto-container {
+  padding: 20px;
+  background-color: var(--main-bg); /* Usa a cor de fundo principal definida globalmente */
+  min-height: calc(100vh - 60px); /* Ajusta conforme altura do Topbar */
+}
+
+/* Estilos para o cabeçalho da página (Gerenciar Tipos de Produto) */
+.tipos-produto-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+  padding-bottom: 15px;
+  border-bottom: 1px solid var(--border-color); /* Divisor sutil */
+}
+
+.tipos-produto-header h1 {
+  font-size: 1.8rem;
+  font-weight: 600;
+  color: var(--sidebar-bg); /* Cor de título principal, geralmente mais escura */
+}
+
+/* Estilos para o botão "+ Novo Tipo de Produto" */
+.tipos-produto-button {
+  background-color: var(--primary);
+  color: white;
+  padding: 10px 18px;
+  border: none;
+  border-radius: var(--radius);
+  cursor: pointer;
+  font-size: 0.95rem;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  transition: background-color 0.2s ease;
+}
+
+.tipos-produto-button:hover {
+  filter: brightness(90%);
+}
+
+/* Estilos para a tabela de Tipos de Produto */
+.tipos-produto-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 20px;
+  background-color: var(--card-bg); /* Fundo do card da tabela */
+  border-radius: 18px; /* Borda arredondada do card, como nos outros cards */
+  box-shadow: var(--shadow-sm); /* Sombra do card */
+  overflow: hidden; /* Garante que o border-radius funcione na tabela */
+}
+
+.tipos-produto-table th,
+.tipos-produto-table td {
+  padding: 12px 15px;
+  border-bottom: 1px solid var(--border-color);
+  text-align: left;
+  font-size: 0.9rem;
+  color: #374151; /* Cor de texto padrão para células */
+}
+
+.tipos-produto-table th {
+  background-color: var(--sidebar-bg); /* Fundo do cabeçalho da tabela */
+  color: white;
+  font-weight: 600;
+}
+
+.tipos-produto-table tbody tr:hover {
+  background-color: #f3f4f6; /* Hover na linha da tabela */
+}
+
+.tipos-produto-actions-cell {
+  display: flex;
+  gap: 10px;
+}
+
+.tipos-produto-action-button {
+  padding: 6px 10px;
+  font-size: 0.85rem;
+  border-radius: var(--radius); /* Borda arredondada menor */
+  cursor: pointer;
+  border: 1px solid transparent;
+  transition: all 0.2s ease;
+}
+
+.tipos-produto-action-button.edit {
+  background-color: var(--info); /* Cor de informação */
+  color: white;
+}
+
+.tipos-produto-action-button.edit:hover {
+  filter: brightness(90%);
+}
+
+.tipos-produto-action-button.delete {
+  background-color: var(--danger); /* Cor de perigo */
+  color: white;
+}
+
+.tipos-produto-action-button.delete:hover {
+  filter: brightness(90%);
+}
+
+/* Estilos para o Modal */
+.tipos-produto-modal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(0, 0, 0, 0.5); /* Fundo semi-transparente */
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1050; /* Garante que o modal fique acima de outros elementos */
+}
+
+.tipos-produto-modal-content {
+  background-color: white;
+  padding: 25px;
+  border-radius: var(--radius); /* Borda arredondada do modal */
+  box-shadow: var(--shadow-md); /* Sombra do modal */
+  width: 90%;
+  max-width: 500px;
+}
+
+.tipos-produto-modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+    padding-bottom: 15px;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.tipos-produto-modal-header h2 {
+    margin: 0;
+    font-size: 1.5rem;
+    color: var(--sidebar-bg); /* Cor do título do modal */
+}
+
+.tipos-produto-modal-close-button {
+    background: none;
+    border: none;
+    font-size: 1.8rem;
+    font-weight: 300;
+    color: #6b7280;
+    cursor: pointer;
+    line-height: 1;
+}
+.tipos-produto-modal-close-button:hover {
+    color: #111827;
+}
+
+
+.tipos-produto-form-group {
+  margin-bottom: 15px;
+}
+
+.tipos-produto-form-group label {
+  display: block;
+  margin-bottom: 5px;
+  font-weight: 500;
+  color: #374151;
+}
+
+.tipos-produto-form-group input {
+  width: 100%;
+  padding: 10px;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius);
+  box-sizing: border-box;
+  font-size: 0.95rem;
+}
+
+.tipos-produto-modal-actions {
+  margin-top: 20px;
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+.tipos-produto-modal-button {
+  padding: 10px 15px;
+  border: none;
+  border-radius: var(--radius);
+  cursor: pointer;
+  font-size: 0.95rem;
+  transition: all 0.2s ease;
+}
+
+.tipos-produto-modal-button.save {
+  background-color: var(--success);
+  color: white;
+}
+
+.tipos-produto-modal-button.save:hover {
+  filter: brightness(90%);
+}
+
+.tipos-produto-modal-button.cancel {
+  background-color: var(--text-color-light); /* Cor cinza para cancelar */
+  color: white;
+}
+
+.tipos-produto-modal-button.cancel:hover {
+  filter: brightness(90%);
+}
+
+/* Estilos para mensagens de estado (loading, erro) */
+.loading-message,
+.error-message {
+  text-align: center;
+  padding: 40px 20px;
+  font-size: 1.1rem;
+  color: #4b5563;
+}
+
+.error-message {
+  color: var(--danger);
+  background-color: #fee2e2;
+  border: 1px solid #fca5a5;
+  border-radius: var(--radius);
+}
