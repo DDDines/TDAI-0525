@@ -12,11 +12,11 @@ from jose import jwt # Para decodificar token se necessário (ex: social_auth)
 
 from core.config import settings # Para JWT_SECRET_KEY, ALGORITHM, etc.
 from core import security # Para hash de senha
-from models import (
+from models import ( # Isso está correto
     User, Role, Plano, Produto, Fornecedor, ProductType, AttributeTemplate, RegistroUsoIA,
     StatusEnriquecimentoEnum, StatusGeracaoIAEnum, TipoAcaoIAEnum, AttributeFieldTypeEnum
 )
-import schemas # Importa todos os schemas
+import Project.Backend.schemas as schemas # Importa todos os schemas
 
 # Configuração básica de logging
 logging.basicConfig(level=logging.INFO)

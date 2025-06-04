@@ -5,7 +5,7 @@ from sqlalchemy.orm import Session
 
 import crud
 import models
-import schemas
+import Project.Backend.schemas as schemas
 import database 
 from . import auth_utils 
 

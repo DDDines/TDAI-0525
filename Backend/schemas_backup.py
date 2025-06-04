@@ -5,7 +5,81 @@ from typing import Optional, List, Dict, Any
 from datetime import datetime
 import enum
 
-from models import StatusEnriquecimentoEnum, StatusGeracaoIAEnum, AttributeFieldTypeEnum, TipoAcaoIAEnum
+from Backend.models import StatusEnriquecimentoEnum, StatusGeracaoIAEnum, AttributeFieldTypeEnum, TipoAcaoIAEnum
+
+# --- Novos Enums e Schemas para Mídia e Log ---
+class ImageMimeType(str, enum.Enum):
+    JPEG = "image/jpeg"
+    PNG = "image/png"
+    GIF = "image/gif"
+    WEBP = "image/webp"
+    TIFF = "image/tiff"
+    SVG = "image/svg+xml"
+    # Adicione outros tipos MIME de imagem conforme necessário
+
+class VideoMimeType(str, enum.Enum):
+    MP4 = "video/mp4"
+    WEBM = "video/webm"
+    OGG = "video/ogg"
+    # Adicione outros tipos MIME de vídeo conforme necessário
+
+class MediaItemType(str, enum.Enum):
+    IMAGE = "image"
+    VIDEO = "video"
+
+class ImageSchema(BaseModel):
+    url: str # Pode ser HttpUrl se for sempre externa, mas str para caminho local também
+    alt_text: Optional[str] = Field(None, max_length=255)
+    is_main: bool = False
+    display_order: int = Field(0, ge=0) # Para controlar a ordem de exibição na UI
+    mimetype: Optional[ImageMimeType] = None # Adicionado para especificar o tipo da imagem
+    size_bytes: Optional[int] = Field(None, ge=0) # Adicionado para armazenar o tamanho do arquivo
+    uploaded_at: Optional[datetime] = None # Adicionado para registrar a data de upload
+    filename: Optional[str] = Field(None, max_length=255) # Adicionado para o nome original do arquivo no upload
+
+    class Config:
+        from_attributes = True
+
+class VideoSchema(BaseModel):
+    url: HttpUrl # Geralmente URLs de vídeos (YouTube, Vimeo, etc.)
+    title: Optional[str] = Field(None, max_length=255)
+    description: Optional[str] = Field(None, max_length=1000)
+    display_order: int = Field(0, ge=0)
+    mimetype: Optional[VideoMimeType] = None
+    uploaded_at: Optional[datetime] = None # Adicionado para registrar a data de upload
+    filename: Optional[str] = Field(None, max_length=255) # Para vídeos carregados diretamente
+
+    class Config:
+        from_attributes = True
+
+class LogMessageSchema(BaseModel):
+    timestamp: datetime = Field(default_factory=datetime.utcnow)
+    message: str = Field(..., max_length=1000)
+    source: str = Field(..., max_length=50) # Ex: "web_enrichment", "ia_generation_titulo", "ia_generation_descricao", "user_edit", "system"
+    status: str = Field(..., max_length=50) # Ex: "SUCESSO", "FALHA", "EM_PROGRESSO", "INFO", "AVISO"
+
+    class Config:
+        from_attributes = True
+
+class ProductLogSchema(BaseModel):
+    historico_mensagens: List[LogMessageSchema] = Field(default_factory=list)
+
+    class Config:
+        from_attributes = True
+
+# --- Schema para Upload de Arquivos de Mídia (Resposta) ---
+class FileUploadResponse(BaseModel):
+    filename: str
+    original_filename: Optional[str] = None # Adicionado
+    url: str
+    message: str = "File uploaded successfully"
+    mimetype: Optional[str] = None # Pode ser ImageMimeType ou VideoMimeType, mas str é mais genérico para a resposta
+    size_bytes: Optional[int] = None # Adicionado
+
+    class Config:
+        from_attributes = True
+# --- Fim dos Novos Enums e Schemas para Mídia e Log ---
+
 
 # --- Token Schemas ---
 class Token(BaseModel):
@@ -14,7 +88,7 @@ class Token(BaseModel):
     token_type: str
 
 class TokenData(BaseModel):
-    email: Optional[str] = None
+    email: Optional[EmailStr] = None
     user_id: Optional[int] = None
 
 class RefreshTokenRequest(BaseModel):
@@ -30,7 +104,7 @@ class UserBase(BaseModel):
 
 class UserCreate(UserBase):
     password: str = Field(..., min_length=8)
-    plano_id: Optional[int] = None # Adicionado para permitir criar usuário já com plano
+    plano_id: Optional[int] = None
 
 class UserCreateOAuth(UserBase):
     provider: str
@@ -42,7 +116,7 @@ class UserUpdate(UserBase):
     idioma_preferido: Optional[str] = Field(None, max_length=10)
     chave_openai_pessoal: Optional[str] = Field(None, max_length=255)
     chave_google_gemini_pessoal: Optional[str] = Field(None, max_length=255)
-    plano_id: Optional[int] = None
+    plano_id: Optional[int] = None # Adicionado para permitir atualização de plano
 
     class Config:
         from_attributes = True
@@ -98,8 +172,6 @@ class RoleCreate(RoleBase):
 
 class RoleResponse(RoleBase):
     id: int
-    created_at: datetime # Adicionado
-    updated_at: Optional[datetime] = None # Adicionado
     class Config:
         from_attributes = True
 
@@ -108,10 +180,6 @@ class PlanoBase(BaseModel):
     nome: str = Field(..., max_length=100)
     descricao: Optional[str] = Field(None, max_length=500)
     preco_mensal: float = Field(..., ge=0)
-    # Novos campos para limites de IA
-    max_titulos_mes: int = Field(..., ge=0)
-    max_descricoes_mes: int = Field(..., ge=0)
-    # Campos antigos
     limite_produtos: int = Field(..., ge=0)
     limite_enriquecimento_web: int = Field(..., ge=0)
     limite_geracao_ia: int = Field(..., ge=0)
@@ -125,8 +193,6 @@ class PlanoUpdate(BaseModel):
     nome: Optional[str] = Field(None, max_length=100)
     descricao: Optional[str] = Field(None, max_length=500)
     preco_mensal: Optional[float] = Field(None, ge=0)
-    max_titulos_mes: Optional[int] = Field(None, ge=0)
-    max_descricoes_mes: Optional[int] = Field(None, ge=0)
     limite_produtos: Optional[int] = Field(None, ge=0)
     limite_enriquecimento_web: Optional[int] = Field(None, ge=0)
     limite_geracao_ia: Optional[int] = Field(None, ge=0)
@@ -135,8 +201,6 @@ class PlanoUpdate(BaseModel):
 
 class PlanoResponse(PlanoBase):
     id: int
-    created_at: datetime # Adicionado
-    updated_at: Optional[datetime] = None # Adicionado
     class Config:
         from_attributes = True
 
@@ -147,7 +211,7 @@ class FornecedorBase(BaseModel):
     contato_principal: Optional[str] = Field(None, max_length=100)
     email_contato: Optional[EmailStr] = None
     telefone_contato: Optional[str] = Field(None, max_length=20)
-    site_url: Optional[HttpUrl] = None
+    site_url: Optional[HttpUrl] = None # URLs devem ser validadas como HttpUrl
     link_busca_padrao: Optional[HttpUrl] = None
 
 class FornecedorCreate(FornecedorBase):
@@ -169,6 +233,7 @@ class FornecedorResponse(FornecedorBase):
 
     class Config:
         from_attributes = True
+
 
 class FornecedorPage(BaseModel):
     items: List[FornecedorResponse]
@@ -196,7 +261,7 @@ class AttributeTemplateUpdate(BaseModel):
     attribute_key: Optional[str] = Field(None, max_length=100)
     label: Optional[str] = Field(None, max_length=150)
     field_type: Optional[AttributeFieldTypeEnum] = None
-    options: Optional[str] = None
+    options: Optional[str] = None # Deve ser string JSON
     is_required: Optional[bool] = None
     is_filtrable: Optional[bool] = None
     tooltip_text: Optional[str] = Field(None, max_length=255)
@@ -220,7 +285,6 @@ class ProductTypeBase(BaseModel):
     description: Optional[str] = Field(None, description="Descrição do tipo de produto")
 
 class ProductTypeCreate(ProductTypeBase):
-    # Permite a criação de templates de atributos junto com o tipo de produto
     attribute_templates: Optional[List[AttributeTemplateCreate]] = Field([], description="Lista de templates de atributos para este tipo de produto")
 
 class ProductTypeUpdate(BaseModel):
@@ -232,7 +296,7 @@ class ProductTypeUpdate(BaseModel):
 
 class ProductTypeResponse(ProductTypeBase):
     id: int
-    user_id: Optional[int] = None 
+    user_id: Optional[int] = None # Se for global, user_id é None
     attribute_templates: List[AttributeTemplateResponse] = []
     created_at: datetime
     updated_at: Optional[datetime] = None
@@ -252,8 +316,8 @@ class ProdutoBase(BaseModel):
     nome_chat_api: Optional[str] = Field(None, max_length=255, description="Nome otimizado/alternativo para IA ou exibição")
     descricao_original: Optional[str] = Field(None, description="Descrição original detalhada do produto")
     descricao_curta_orig: Optional[str] = Field(None, max_length=500, description="Descrição curta original do produto")
-    descricao_principal_gerada: Optional[str] = Field(None, description="Descrição longa otimizada/alternativa pela IA") # Renomeado
-    descricao_curta_gerada: Optional[str] = Field(None, max_length=500, description="Descrição curta otimizada pela IA") # Renomeado
+    descricao_chat_api: Optional[str] = Field(None, description="Descrição otimizada/alternativa pela IA")
+    descricao_curta_chat_api: Optional[str] = Field(None, max_length=500, description="Descrição curta otimizada pela IA")
 
     sku: Optional[str] = Field(None, max_length=100)
     ean: Optional[str] = Field(None, max_length=100)
@@ -274,32 +338,36 @@ class ProdutoBase(BaseModel):
     largura_cm: Optional[float] = Field(None, ge=0)
     profundidade_cm: Optional[float] = Field(None, ge=0)
 
-    imagem_principal_url: Optional[HttpUrl] = Field(None, description="URL da imagem principal do produto")
-    imagens_secundarias_urls: Optional[List[HttpUrl]] = Field(None, description="Lista de URLs de imagens secundárias")
+    # REMOVIDOS imagem_principal_url e imagens_secundarias_urls
+    # imagem_principal_url: Optional[HttpUrl] = Field(None, description="URL da imagem principal do produto")
+    # imagens_secundarias_urls: Optional[List[HttpUrl]] = Field(None, description="Lista de URLs de imagens secundárias")
 
     fornecedor_id: Optional[int] = None
     product_type_id: Optional[int] = None
 
     dynamic_attributes: Optional[Dict[str, Any]] = Field(None, description="Atributos dinâmicos como dicionário")
     dados_brutos: Optional[Dict[str, Any]] = Field(None, description="Dados brutos originais do produto como dicionário")
-    
-    # Campo para armazenar títulos sugeridos por IA
-    titulos_sugeridos: Optional[List[str]] = Field(None, description="Lista de títulos sugeridos por IA")
 
     ativo_marketplace: Optional[bool] = Field(False, description="Se o produto está ativo para publicação em marketplaces")
     data_publicacao_marketplace: Optional[datetime] = Field(None, description="Data da última publicação ou atualização no marketplace")
 
+    # --- CAMPOS DE MÍDIA E LOG ADICIONADOS AQUI ---
+    imagens_produto: List[ImageSchema] = Field(default_factory=list, description="Lista de imagens do produto com detalhes")
+    videos_produto: List[VideoSchema] = Field(default_factory=list, description="Lista de vídeos do produto com detalhes")
+    log_enriquecimento_web: Optional[ProductLogSchema] = Field(None, description="Histórico de logs de enriquecimento e IA para este produto")
+    # --- FIM DOS CAMPOS DE MÍDIA E LOG ADICIONADOS ---
+
 
 class ProdutoCreate(ProdutoBase):
-    pass
+    pass # ProdutoBase agora já contém os campos de mídia e log
 
-class ProdutoUpdate(BaseModel):
+class ProdutoUpdate(BaseModel): # Campos que podem ser atualizados
     nome_base: Optional[str] = Field(None, max_length=255)
     nome_chat_api: Optional[str] = Field(None, max_length=255)
     descricao_original: Optional[str] = None
     descricao_curta_orig: Optional[str] = Field(None, max_length=500)
-    descricao_principal_gerada: Optional[str] = None
-    descricao_curta_gerada: Optional[str] = Field(None, max_length=500)
+    descricao_chat_api: Optional[str] = None
+    descricao_curta_chat_api: Optional[str] = Field(None, max_length=500)
 
     sku: Optional[str] = Field(None, max_length=100)
     ean: Optional[str] = Field(None, max_length=100)
@@ -319,15 +387,14 @@ class ProdutoUpdate(BaseModel):
     largura_cm: Optional[float] = Field(None, ge=0)
     profundidade_cm: Optional[float] = Field(None, ge=0)
 
-    imagem_principal_url: Optional[HttpUrl] = None
-    imagens_secundarias_urls: Optional[List[HttpUrl]] = None
+    # REMOVIDOS imagem_principal_url e imagens_secundarias_urls
+    # imagem_principal_url: Optional[HttpUrl] = None
+    # imagens_secundarias_urls: Optional[List[HttpUrl]] = None
 
     fornecedor_id: Optional[int] = None
     product_type_id: Optional[int] = None
     dynamic_attributes: Optional[Dict[str, Any]] = None
     dados_brutos: Optional[Dict[str, Any]] = None
-
-    titulos_sugeridos: Optional[List[str]] = None # Adicionado
 
     ativo_marketplace: Optional[bool] = None
     data_publicacao_marketplace: Optional[datetime] = None
@@ -336,13 +403,19 @@ class ProdutoUpdate(BaseModel):
     status_titulo_ia: Optional[StatusGeracaoIAEnum] = None
     status_descricao_ia: Optional[StatusGeracaoIAEnum] = None
 
+    # --- CAMPOS DE MÍDIA E LOG ADICIONADOS AQUI ---
+    imagens_produto: Optional[List[ImageSchema]] = None
+    videos_produto: Optional[List[VideoSchema]] = None
+    log_enriquecimento_web: Optional[ProductLogSchema] = None
+    # --- FIM DOS CAMPOS DE MÍDIA E LOG ADICIONADOS ---
+
 
 class ProdutoResponse(ProdutoBase):
     id: int
     user_id: int
 
-    created_at: datetime # Campo criado no models.py
-    updated_at: Optional[datetime] = None # Campo atualizado no models.py
+    created_at: datetime = Field(..., alias="data_criacao")
+    updated_at: Optional[datetime] = Field(None, alias="data_atualizacao")
 
     status_enriquecimento_web: StatusEnriquecimentoEnum
     status_titulo_ia: StatusGeracaoIAEnum
@@ -350,6 +423,7 @@ class ProdutoResponse(ProdutoBase):
 
     class Config:
         from_attributes = True
+        populate_by_name = True
 
 
 class ProdutoPage(BaseModel):
@@ -400,10 +474,11 @@ class RegistroUsoIACreate(RegistroUsoIABase):
 class RegistroUsoIAResponse(RegistroUsoIABase):
     id: int
     user_id: int
-    created_at: datetime
+    created_at: datetime = Field(..., alias="timestamp") # Atributo do modelo é created_at, alias para timestamp na saida
 
     class Config:
         from_attributes = True
+        populate_by_name = True
 
 
 class RegistroUsoIAPage(BaseModel):
@@ -426,22 +501,29 @@ class TotalCounts(BaseModel):
     total_produtos: int
     total_fornecedores: int
     total_geracoes_ia_mes: int
-    total_enriquecimentos_mes: int # Adicionado
+    total_enriquecimentos_mes: int
 
 class UsoIAPorPlano(BaseModel):
     plano_id: Optional[int] = None
     nome_plano: str
     total_geracoes_ia_no_mes: int
 
+class UsoIAPorUsuario(BaseModel):
+    user_id: int
+    email_usuario: EmailStr
+    nome_plano: Optional[str] = "N/A"
+    total_geracoes_ia_no_mes: int
+
 class UsoIAPorTipo(BaseModel):
-    tipo_acao: TipoAcaoIAEnum # Usar o Enum aqui
+    tipo_acao: str # Enum.value
     total_no_mes: int
 
 class UserActivity(BaseModel):
     user_id: int
     email: EmailStr
     nome_completo: Optional[str] = None
-    created_at: datetime
+    created_at: datetime # Do modelo User
+    # Campos que serão preenchidos no router a partir de dados do CRUD
     total_produtos: Optional[int] = None
     total_geracoes_ia_mes_corrente: Optional[int] = None
 
@@ -451,18 +533,13 @@ class UserActivity(BaseModel):
 
 # --- Schema para Mensagens Simples ---
 class Msg(BaseModel):
-    message: str
+    msg: str
 
 # --- Schema para Resposta de Processamento de Arquivo ---
-class FileProcessDetail(BaseModel): # Novo Schema para detalhes do processamento
-    filename: str
-    content_type: str
-    status: str # "sucesso", "erro_ao_ler", "nenhum_produto_valido_encontrado", etc.
-    mensagem: str
-    products_found_in_file: Optional[int] = None # Total de produtos que o parser encontrou no arquivo
-    products_created_in_db: Optional[int] = None # Produtos realmente criados no DB
-    products_failed_to_save: Optional[int] = None # Produtos que não foram salvos no DB
-
 class FileProcessResponse(BaseModel):
     message: str
-    details: List[FileProcessDetail] = [] # Lista de detalhes por arquivo/processamento
+    total_products_in_file: Optional[int] = None
+    products_created: Optional[int] = None
+    products_updated: Optional[int] = None
+    products_failed: Optional[int] = None
+    errors: Optional[List[str]] = None

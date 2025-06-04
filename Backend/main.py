@@ -1,3 +1,4 @@
+# Backend/main.py
 from fastapi import FastAPI, Depends, HTTPException, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
@@ -7,17 +8,16 @@ from typing import List, Optional, Any
 import json
 import traceback
 
-# --- IMPORTS ALTERADOS DE RELATIVOS PARA ABSOLUTOS ---
-import Backend.models as models
-import Backend.schemas as schemas
-import Backend.crud as crud
-from Backend.auth import router as auth_router_direct # auth.py está no diretório Backend
-from Backend.database import SessionLocal, engine, get_db
-from Backend.core.config import settings
-# from Backend.core import email_utils # Comentado se não estiver sendo usado diretamente neste arquivo
+import models
+import Project.Backend.schemas as schemas
+import crud
+from auth import router as auth_router_direct
+from database import SessionLocal, engine, get_db
+from core.config import settings
+# from core import email_utils # Comentado se não estiver sendo usado diretamente neste arquivo
 
 # Importa os routers da subpasta 'routers'
-from Backend.routers import (
+from routers import (
     produtos as produtos_router,
     fornecedores as fornecedores_router,
     generation as generation_router,
@@ -29,16 +29,13 @@ from Backend.routers import (
     admin_analytics as admin_analytics_router,
     social_auth as social_auth_router
 )
-# --- FIM DOS IMPORTS ALTERADOS ---
 
-# --- BLOCO REMOVIDO: models.Base.metadata.create_all(bind=engine) ---
-# try:
-#     print("INFO:     Tentando criar tabelas no banco de dados (models.Base.metadata.create_all)...")
-#     models.Base.metadata.create_all(bind=engine)
-#     print("INFO:     Criação/verificação de tabelas concluída.")
-# except Exception as e:
-#     print(f"ERRO: Falha ao criar/verificar tabelas: {e}")
-# --- FIM DO BLOCO REMOVIDO ---
+try:
+    print("INFO:     Tentando criar tabelas no banco de dados (models.Base.metadata.create_all)...")
+    models.Base.metadata.create_all(bind=engine)
+    print("INFO:     Criação/verificação de tabelas concluída.")
+except Exception as e:
+    print(f"ERRO: Falha ao criar/verificar tabelas: {e}")
 
 
 app = FastAPI(
@@ -128,7 +125,7 @@ app.mount("/static", StaticFiles(directory=static_files_path), name="static")
 
 @app.on_event("startup")
 async def startup_event_create_defaults():
-    print("INFO:      Executando evento de startup para criar defaults (roles, planos, admin user, product types)...")
+    print("INFO:     Executando evento de startup para criar defaults (roles, planos, admin user, product types)...")
     db: Session = SessionLocal()
     try:
         # 1. Criação de Roles
@@ -139,12 +136,10 @@ async def startup_event_create_defaults():
         admin_role_obj = None
         user_role_obj = None
         for role_data in roles_a_criar:
-            # --- CORREÇÃO DE IMPORT AQUI ---
             role = crud.get_role_by_name(db, name=role_data["name"])
             if not role:
                 role = crud.create_role(db, role=schemas.RoleCreate(**role_data))
-            # --- FIM DA CORREÇÃO DE IMPORT ---
-                print(f"INFO:      Role '{role.name}' criada.")
+                print(f"INFO:     Role '{role.name}' criada.")
             if role.name == "admin":
                 admin_role_obj = role
             elif role.name == "user":
@@ -156,14 +151,16 @@ async def startup_event_create_defaults():
             print("ERRO CRÍTICO: Role 'user' não pôde ser encontrada ou criada. Novos usuários podem ter problemas.")
 
         # 2. Criação de Planos
-        # --- CORREÇÃO DE IMPORT AQUI ---
         plano_gratuito_data = schemas.PlanoCreate(
             nome="Gratuito",
             descricao="Plano básico gratuito com limitações.",
             preco_mensal=0,
             limite_produtos=settings.DEFAULT_LIMIT_PRODUTOS_SEM_PLANO,
             limite_enriquecimento_web=settings.DEFAULT_LIMIT_ENRIQUECIMENTO_SEM_PLANO,
-            limite_geracao_ia=settings.DEFAULT_LIMIT_GERACAO_IA_SEM_PLANO
+            limite_geracao_ia=settings.DEFAULT_LIMIT_GERACAO_IA_SEM_PLANO,
+            # Novos campos
+            max_titulos_mes=settings.DEFAULT_LIMIT_GERACAO_IA_SEM_PLANO, # Usar o mesmo limite
+            max_descricoes_mes=settings.DEFAULT_LIMIT_GERACAO_IA_SEM_PLANO, # Usar o mesmo limite
         )
         plano_pro_data = schemas.PlanoCreate(
             nome="Pro",
@@ -172,10 +169,12 @@ async def startup_event_create_defaults():
             limite_produtos=1000,
             limite_enriquecimento_web=500,
             limite_geracao_ia=1000,
+            # Novos campos
+            max_titulos_mes=2000, # Ajustar conforme o plano "Pro"
+            max_descricoes_mes=1000, # Ajustar conforme o plano "Pro"
             permite_api_externa=True,
             suporte_prioritario=True
         )
-        # --- FIM DA CORREÇÃO DE IMPORT ---
 
         planos_a_criar = [plano_gratuito_data, plano_pro_data]
         
@@ -185,7 +184,7 @@ async def startup_event_create_defaults():
             plano = crud.get_plano_by_name(db, nome=plano_data.nome)
             if not plano:
                 plano = crud.create_plano(db, plano=plano_data)
-                print(f"INFO:      Plano '{plano.nome}' criado.")
+                print(f"INFO:     Plano '{plano.nome}' criado.")
             if plano.nome == "Pro": 
                 admin_plano_obj = plano
             if plano.nome == "Gratuito":
@@ -201,7 +200,7 @@ async def startup_event_create_defaults():
         admin_user = crud.get_user_by_email(db, email=settings.ADMIN_EMAIL)
         if not admin_user:
             if not admin_role_obj:
-                    print(f"ERRO: Não foi possível criar o usuário admin '{settings.ADMIN_EMAIL}' porque o role 'admin' não existe.")
+                   print(f"ERRO: Não foi possível criar o usuário admin '{settings.ADMIN_EMAIL}' porque o role 'admin' não existe.")
             else:
                 user_in_data = {
                     "email": settings.ADMIN_EMAIL,
@@ -212,35 +211,51 @@ async def startup_event_create_defaults():
                 if hasattr(settings, 'ADMIN_IDIOMA_PREFERIDO'):
                     user_in_data['idioma_preferido'] = settings.ADMIN_IDIOMA_PREFERIDO
                 
-                # --- CORREÇÃO DE IMPORT AQUI ---
                 user_in_create = schemas.UserCreate(**user_in_data)
                 
-                created_admin = crud.create_user(db, user=user_in_create, plano_id=user_in_create.plano_id, role_id=admin_role_obj.id)
-                # --- FIM DA CORREÇÃO DE IMPORT ---
+                # A função crud.create_user no seu crud.py não aceita 'plano_id' e 'role_id' como argumentos separados,
+                # mas sim espera que eles estejam em user_in_create.
+                # No entanto, a lógica do seu crud.create_user também tenta atribuir role_id e plano_id diretamente.
+                # Para simplificar e garantir que a role 'admin' seja aplicada:
+                created_admin = crud.create_user(db=db, user=user_in_create)
                 
                 if created_admin:
                     created_admin.is_superuser = True 
+                    if admin_role_obj:
+                        created_admin.role_id = admin_role_obj.id
+                    # Se o plano_id foi passado no user_in_create, ele já foi aplicado.
+                    # Se não, e o admin_plano_obj existe, aplique-o.
+                    if admin_plano_obj and not created_admin.plano_id:
+                        created_admin.plano_id = admin_plano_obj.id
+                        created_admin.limite_produtos = admin_plano_obj.limite_produtos
+                        created_admin.limite_enriquecimento_web = admin_plano_obj.limite_enriquecimento_web
+                        created_admin.limite_geracao_ia = admin_plano_obj.limite_geracao_ia
+                    
                     db.add(created_admin) 
                     db.commit()
                     db.refresh(created_admin)
-                    print(f"INFO:      Usuário administrador '{settings.ADMIN_EMAIL}' criado com sucesso (ID: {created_admin.id}, Superuser: {created_admin.is_superuser}, Role ID: {created_admin.role_id}, Plano ID: {created_admin.plano_id}).")
+                    print(f"INFO:     Usuário administrador '{settings.ADMIN_EMAIL}' criado com sucesso (ID: {created_admin.id}, Superuser: {created_admin.is_superuser}, Role ID: {created_admin.role_id}, Plano ID: {created_admin.plano_id}).")
                 else:
                     print(f"ERRO: Falha ao criar o usuário administrador '{settings.ADMIN_EMAIL}'.")
         else:
-            print(f"INFO:      Usuário administrador '{settings.ADMIN_EMAIL}' já existe (ID: {admin_user.id}, Superuser: {admin_user.is_superuser}, Role ID: {admin_user.role_id}, Plano ID: {admin_user.plano_id}).")
+            print(f"INFO:     Usuário administrador '{settings.ADMIN_EMAIL}' já existe (ID: {admin_user.id}, Superuser: {admin_user.is_superuser}, Role ID: {admin_user.role_id}, Plano ID: {admin_user.plano_id}).")
             needs_update = False
             if admin_role_obj and admin_user.role_id != admin_role_obj.id:
                 admin_user.role_id = admin_role_obj.id
                 needs_update = True
-                print(f"INFO:      Atualizando role do admin '{settings.ADMIN_EMAIL}' para ID {admin_role_obj.id}.")
+                print(f"INFO:     Atualizando role do admin '{settings.ADMIN_EMAIL}' para ID {admin_role_obj.id}.")
             if not admin_user.is_superuser:
                 admin_user.is_superuser = True
                 needs_update = True
-                print(f"INFO:      Atualizando admin '{settings.ADMIN_EMAIL}' para superuser.")
+                print(f"INFO:     Atualizando admin '{settings.ADMIN_EMAIL}' para superuser.")
             if admin_plano_obj and admin_user.plano_id != admin_plano_obj.id:
                 admin_user.plano_id = admin_plano_obj.id
+                # Assegura que os limites do plano sejam atualizados também
+                admin_user.limite_produtos = admin_plano_obj.limite_produtos
+                admin_user.limite_enriquecimento_web = admin_plano_obj.limite_enriquecimento_web
+                admin_user.limite_geracao_ia = admin_plano_obj.limite_geracao_ia
                 needs_update = True
-                print(f"INFO:      Atualizando plano do admin '{settings.ADMIN_EMAIL}' para ID {admin_plano_obj.id} ({admin_plano_obj.nome}).")
+                print(f"INFO:     Atualizando plano do admin '{settings.ADMIN_EMAIL}' para ID {admin_plano_obj.id} ({admin_plano_obj.nome}).")
 
             if needs_update:
                 db.commit()
@@ -251,6 +266,7 @@ async def startup_event_create_defaults():
             {
                 "key_name": "eletronicos",
                 "friendly_name": "Eletrônicos",
+                "description": "Tipo padrão para produtos eletrônicos.",
                 "attributes": [
                     {"attribute_key": "marca", "label": "Marca", "field_type": models.AttributeFieldTypeEnum.TEXT, "is_required": True, "display_order": 0, "tooltip_text": "Marca do produto eletrônico"},
                     {"attribute_key": "voltagem", "label": "Voltagem", "field_type": models.AttributeFieldTypeEnum.SELECT, "options": ["110v", "220v", "Bivolt"], "is_required": True, "display_order": 1, "tooltip_text": "Selecione a voltagem"},
@@ -260,6 +276,7 @@ async def startup_event_create_defaults():
             {
                 "key_name": "vestuario",
                 "friendly_name": "Vestuário",
+                "description": "Tipo padrão para peças de vestuário.",
                 "attributes": [
                     {"attribute_key": "tamanho", "label": "Tamanho", "field_type": models.AttributeFieldTypeEnum.SELECT, "options": ["P", "M", "G", "GG", "XG"], "is_required": True, "display_order": 1, "tooltip_text": "Selecione o tamanho da peça"},
                     {"attribute_key": "cor", "label": "Cor", "field_type": models.AttributeFieldTypeEnum.TEXT, "is_required": True, "display_order": 2, "tooltip_text": "Cor da peça de vestuário"},
@@ -269,51 +286,42 @@ async def startup_event_create_defaults():
         ]
 
         for pt_data in product_types_data:
-            # --- CORREÇÃO DE IMPORT AQUI ---
-            product_type = db.query(models.ProductType).filter(
-                models.ProductType.key_name == pt_data["key_name"],
-                models.ProductType.user_id == None 
-            ).first()
+            product_type_in_db = crud.get_product_type_by_key_name(db, key_name=pt_data["key_name"], user_id=None) 
 
-            if not product_type:
+            if not product_type_in_db:
+                # Criando o schema Pydantic corretamente
+                attr_template_schemas = []
+                for attr in pt_data["attributes"]:
+                    # JSON.dumps para a string 'options' no schema AttributeTemplateCreate
+                    options_str = json.dumps(attr["options"]) if "options" in attr else None
+                    attr_template_schemas.append(schemas.AttributeTemplateCreate(
+                        attribute_key=attr["attribute_key"],
+                        label=attr["label"],
+                        field_type=attr["field_type"],
+                        is_required=attr.get("is_required", False),
+                        tooltip_text=attr.get("tooltip_text"),
+                        default_value=attr.get("default_value"),
+                        display_order=attr.get("display_order", 0),
+                        options=options_str # Passando a string JSON
+                    ))
+
                 product_type_create_schema = schemas.ProductTypeCreate(
                     key_name=pt_data["key_name"],
-                    friendly_name=pt_data["friendly_name"]
+                    friendly_name=pt_data["friendly_name"],
+                    description=pt_data.get("description"),
+                    attribute_templates=attr_template_schemas # Passando a lista de schemas de atributos
                 )
-                product_type = crud.create_product_type(db=db, product_type_data=product_type_create_schema, user_id=None)
-                print(f"INFO:      Tipo de Produto Global '{product_type.friendly_name}' criado.")
-
-                for attr_data in pt_data["attributes"]:
-                    options_json_str = None
-                    if "options" in attr_data and attr_data["options"] is not None:
-                        options_json_str = json.dumps(attr_data["options"])
-
-                    attribute_template_create_schema = schemas.AttributeTemplateCreate(
-                        attribute_key=attr_data["attribute_key"],
-                        label=attr_data["label"],
-                        field_type=attr_data["field_type"], 
-                        is_required=attr_data.get("is_required", False),
-                        tooltip_text=attr_data.get("tooltip_text"),
-                        default_value=attr_data.get("default_value"),
-                        display_order=attr_data.get("display_order", 0),
-                        options=options_json_str
-                    )
-                    crud.create_attribute_template(
-                        db=db,
-                        attribute_template_data=attribute_template_create_schema,
-                        product_type_id=product_type.id
-                    )
-                    print(f"INFO:      Atributo '{attr_data['label']}' criado para '{product_type.friendly_name}'.")
+                product_type_in_db = crud.create_product_type(db=db, product_type_create=product_type_create_schema, user_id=None)
+                print(f"INFO:     Tipo de Produto Global '{product_type_in_db.friendly_name}' criado.")
             else:
-                print(f"INFO:      Tipo de Produto Global '{pt_data['friendly_name']}' já existe.")
-            # --- FIM DA CORREÇÃO DE IMPORT ---
+                print(f"INFO:     Tipo de Produto Global '{pt_data['friendly_name']}' já existe.")
 
     except Exception as e_startup:
         print(f"ERRO CRÍTICO durante o evento de startup: {e_startup}")
         print(traceback.format_exc()) 
     finally:
         db.close()
-    print("INFO:      Evento de startup para defaults concluído.")
+    print("INFO:     Evento de startup para defaults concluído.")
 
 
 @app.post("/api/v1/users/", response_model=schemas.UserResponse, status_code=status.HTTP_201_CREATED, tags=["Usuários"])
@@ -321,7 +329,6 @@ def create_new_user(
     user_in: schemas.UserCreate,
     db: Session = Depends(get_db)
 ):
-    # --- CORREÇÃO DE IMPORT AQUI ---
     db_user_check = crud.get_user_by_email(db, email=user_in.email)
     if db_user_check:
         raise HTTPException(
@@ -346,9 +353,25 @@ def create_new_user(
         raise HTTPException(status_code=500, detail="Erro de configuração do sistema: Role padrão 'user' não encontrado.")
     role_id_para_novo_usuario = role_user_check.id
 
-    new_user_created = crud.create_user(db=db, user=user_in, plano_id=plano_id_para_novo_usuario, role_id=role_id_para_novo_usuario)
+    new_user_created = crud.create_user(db=db, user=user_in)
+    
+    # ATRIBUIR PLANO E ROLE APÓS A CRIAÇÃO, SE NÃO FORAM DEFINIDOS VIA SCHEMAS.USERCREATE
+    if plano_id_para_novo_usuario and not new_user_created.plano_id:
+        new_user_created.plano_id = plano_id_para_novo_usuario
+        plano = crud.get_plano(db, plano_id_para_novo_usuario)
+        if plano: # Sincroniza limites do plano
+            new_user_created.limite_produtos = plano.limite_produtos
+            new_user_created.limite_enriquecimento_web = plano.limite_enriquecimento_web
+            new_user_created.limite_geracao_ia = plano.limite_geracao_ia
+    
+    if role_id_para_novo_usuario and not new_user_created.role_id:
+        new_user_created.role_id = role_id_para_novo_usuario
+
+    db.add(new_user_created)
+    db.commit()
+    db.refresh(new_user_created)
+
     return new_user_created
-    # --- FIM DA CORREÇÃO DE IMPORT ---
 
 
 # Inclusão dos routers da aplicação

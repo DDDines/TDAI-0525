@@ -12,7 +12,7 @@ from starlette.config import Config as AuthlibConfig
 from sqlalchemy.orm import Session
 
 from core.config import settings, pwd_context 
-import schemas 
+import Project.Backend.schemas as schemas 
 import models 
 import crud 
 from database import get_db # Para Depends(get_db)

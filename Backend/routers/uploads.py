@@ -11,7 +11,7 @@ import magic # Para detectar o tipo MIME de forma mais robusta (requer python-ma
 from Backend.database import get_db
 from Backend.auth import get_current_active_user
 from Backend.models import User
-from Backend.schemas import FileUploadResponse
+from Project.Backend.schemas import FileUploadResponse
 # --- FIM DOS IMPORTS ALTERADOS ---
 
 router = APIRouter()

@@ -11,7 +11,7 @@ from sqlalchemy.orm import Session
 
 import crud
 import models
-import schemas
+import Project.Backend.schemas as schemas
 from core import config # Mantido para settings que não são de segurança direta
 from core import security # <<< ADICIONADO: Importa o novo módulo de segurança
 from database import get_db
