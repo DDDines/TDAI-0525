@@ -1,11 +1,85 @@
 # Backend/schemas.py
-import json # Import json para uso interno se necessário
-from pydantic import BaseModel, EmailStr, HttpUrl, Field # Removido Json de pydantic pois não será usado diretamente nos campos problemáticos
+import json
+from pydantic import BaseModel, EmailStr, HttpUrl, Field
 from typing import Optional, List, Dict, Any
 from datetime import datetime
 import enum
 
-from models import StatusEnriquecimentoEnum, StatusGeracaoIAEnum, AttributeFieldTypeEnum, TipoAcaoIAEnum
+from Backend.models import StatusEnriquecimentoEnum, StatusGeracaoIAEnum, AttributeFieldTypeEnum, TipoAcaoIAEnum
+
+# --- Novos Enums e Schemas para Mídia e Log ---
+class ImageMimeType(str, enum.Enum):
+    JPEG = "image/jpeg"
+    PNG = "image/png"
+    GIF = "image/gif"
+    WEBP = "image/webp"
+    TIFF = "image/tiff"
+    SVG = "image/svg+xml"
+    # Adicione outros tipos MIME de imagem conforme necessário
+
+class VideoMimeType(str, enum.Enum):
+    MP4 = "video/mp4"
+    WEBM = "video/webm"
+    OGG = "video/ogg"
+    # Adicione outros tipos MIME de vídeo conforme necessário
+
+class MediaItemType(str, enum.Enum):
+    IMAGE = "image"
+    VIDEO = "video"
+
+class ImageSchema(BaseModel):
+    url: str # Pode ser HttpUrl se for sempre externa, mas str para caminho local também
+    alt_text: Optional[str] = Field(None, max_length=255)
+    is_main: bool = False
+    display_order: int = Field(0, ge=0) # Para controlar a ordem de exibição na UI
+    mimetype: Optional[ImageMimeType] = None # Adicionado para especificar o tipo da imagem
+    size_bytes: Optional[int] = Field(None, ge=0) # Adicionado para armazenar o tamanho do arquivo
+    uploaded_at: Optional[datetime] = None # Adicionado para registrar a data de upload
+    filename: Optional[str] = Field(None, max_length=255) # Adicionado para o nome original do arquivo no upload
+
+    class Config:
+        from_attributes = True
+
+class VideoSchema(BaseModel):
+    url: HttpUrl # Geralmente URLs de vídeos (YouTube, Vimeo, etc.)
+    title: Optional[str] = Field(None, max_length=255)
+    description: Optional[str] = Field(None, max_length=1000)
+    display_order: int = Field(0, ge=0)
+    mimetype: Optional[VideoMimeType] = None
+    uploaded_at: Optional[datetime] = None # Adicionado para registrar a data de upload
+    filename: Optional[str] = Field(None, max_length=255) # Para vídeos carregados diretamente
+
+    class Config:
+        from_attributes = True
+
+class LogMessageSchema(BaseModel):
+    timestamp: datetime = Field(default_factory=datetime.utcnow)
+    message: str = Field(..., max_length=1000)
+    source: str = Field(..., max_length=50) # Ex: "web_enrichment", "ia_generation_titulo", "ia_generation_descricao", "user_edit", "system"
+    status: str = Field(..., max_length=50) # Ex: "SUCESSO", "FALHA", "EM_PROGRESSO", "INFO", "AVISO"
+
+    class Config:
+        from_attributes = True
+
+class ProductLogSchema(BaseModel):
+    historico_mensagens: List[LogMessageSchema] = Field(default_factory=list)
+
+    class Config:
+        from_attributes = True
+
+# --- Schema para Upload de Arquivos de Mídia (Resposta) ---
+class FileUploadResponse(BaseModel):
+    filename: str
+    original_filename: Optional[str] = None # Adicionado
+    url: str
+    message: str = "File uploaded successfully"
+    mimetype: Optional[str] = None # Pode ser ImageMimeType ou VideoMimeType, mas str é mais genérico para a resposta
+    size_bytes: Optional[int] = None # Adicionado
+
+    class Config:
+        from_attributes = True
+# --- Fim dos Novos Enums e Schemas para Mídia e Log ---
+
 
 # --- Token Schemas ---
 class Token(BaseModel):
@@ -14,7 +88,7 @@ class Token(BaseModel):
     token_type: str
 
 class TokenData(BaseModel):
-    email: Optional[str] = None
+    email: Optional[EmailStr] = None
     user_id: Optional[int] = None
 
 class RefreshTokenRequest(BaseModel):
@@ -42,7 +116,7 @@ class UserUpdate(UserBase):
     idioma_preferido: Optional[str] = Field(None, max_length=10)
     chave_openai_pessoal: Optional[str] = Field(None, max_length=255)
     chave_google_gemini_pessoal: Optional[str] = Field(None, max_length=255)
-    plano_id: Optional[int] = None
+    plano_id: Optional[int] = None # Adicionado para permitir atualização de plano
 
     class Config:
         from_attributes = True
@@ -72,14 +146,14 @@ class UserResponse(UserBase):
     is_active: bool
     is_superuser: bool
     plano_id: Optional[int] = None
-    role_id: Optional[int] = None # Adicionado para exibir role do usuário
+    role_id: Optional[int] = None
     limite_produtos: Optional[int] = None
     limite_enriquecimento_web: Optional[int] = None
     limite_geracao_ia: Optional[int] = None
     data_expiracao_plano: Optional[datetime] = None
     provider: Optional[str] = None
-    created_at: datetime # Adicionado
-    updated_at: Optional[datetime] = None # Adicionado
+    created_at: datetime
+    updated_at: Optional[datetime] = None
 
     class Config:
         from_attributes = True
@@ -154,12 +228,11 @@ class FornecedorUpdate(BaseModel):
 class FornecedorResponse(FornecedorBase):
     id: int
     user_id: int
-    created_at: datetime # Adicionado para refletir o modelo
-    updated_at: Optional[datetime] = None # Adicionado para refletir o modelo
+    created_at: datetime
+    updated_at: Optional[datetime] = None
 
     class Config:
         from_attributes = True
-        # populate_by_name = True # Não precisa de alias se os nomes dos campos são iguais aos do modelo
 
 
 class FornecedorPage(BaseModel):
@@ -265,25 +338,28 @@ class ProdutoBase(BaseModel):
     largura_cm: Optional[float] = Field(None, ge=0)
     profundidade_cm: Optional[float] = Field(None, ge=0)
 
-    imagem_principal_url: Optional[HttpUrl] = Field(None, description="URL da imagem principal do produto")
-    # ** CORREÇÃO APLICADA AQUI para imagens_secundarias_urls **
-    # Se o model.Produto.imagens_secundarias_urls é uma coluna JSON que o SQLAlchemy já converte para lista de strings/dicts
-    imagens_secundarias_urls: Optional[List[HttpUrl]] = Field(None, description="Lista de URLs de imagens secundárias") # Ou List[str] se não forem HttpUrl
+    # REMOVIDOS imagem_principal_url e imagens_secundarias_urls
+    # imagem_principal_url: Optional[HttpUrl] = Field(None, description="URL da imagem principal do produto")
+    # imagens_secundarias_urls: Optional[List[HttpUrl]] = Field(None, description="Lista de URLs de imagens secundárias")
 
     fornecedor_id: Optional[int] = None
     product_type_id: Optional[int] = None
 
-    # ** CORREÇÃO APLICADA AQUI para dynamic_attributes e dados_brutos **
-    # Se o model.Produto armazena JSON e o SQLAlchemy já retorna dict, o schema deve ser Dict, não Json[Dict]
     dynamic_attributes: Optional[Dict[str, Any]] = Field(None, description="Atributos dinâmicos como dicionário")
     dados_brutos: Optional[Dict[str, Any]] = Field(None, description="Dados brutos originais do produto como dicionário")
 
     ativo_marketplace: Optional[bool] = Field(False, description="Se o produto está ativo para publicação em marketplaces")
     data_publicacao_marketplace: Optional[datetime] = Field(None, description="Data da última publicação ou atualização no marketplace")
 
+    # --- CAMPOS DE MÍDIA E LOG ADICIONADOS AQUI ---
+    imagens_produto: List[ImageSchema] = Field(default_factory=list, description="Lista de imagens do produto com detalhes")
+    videos_produto: List[VideoSchema] = Field(default_factory=list, description="Lista de vídeos do produto com detalhes")
+    log_enriquecimento_web: Optional[ProductLogSchema] = Field(None, description="Histórico de logs de enriquecimento e IA para este produto")
+    # --- FIM DOS CAMPOS DE MÍDIA E LOG ADICIONADOS ---
+
 
 class ProdutoCreate(ProdutoBase):
-    pass
+    pass # ProdutoBase agora já contém os campos de mídia e log
 
 class ProdutoUpdate(BaseModel): # Campos que podem ser atualizados
     nome_base: Optional[str] = Field(None, max_length=255)
@@ -311,12 +387,12 @@ class ProdutoUpdate(BaseModel): # Campos que podem ser atualizados
     largura_cm: Optional[float] = Field(None, ge=0)
     profundidade_cm: Optional[float] = Field(None, ge=0)
 
-    imagem_principal_url: Optional[HttpUrl] = None
-    imagens_secundarias_urls: Optional[List[HttpUrl]] = None # Ou List[str]
+    # REMOVIDOS imagem_principal_url e imagens_secundarias_urls
+    # imagem_principal_url: Optional[HttpUrl] = None
+    # imagens_secundarias_urls: Optional[List[HttpUrl]] = None
 
     fornecedor_id: Optional[int] = None
     product_type_id: Optional[int] = None
-    # ** CORREÇÃO APLICADA AQUI para dynamic_attributes e dados_brutos **
     dynamic_attributes: Optional[Dict[str, Any]] = None
     dados_brutos: Optional[Dict[str, Any]] = None
 
@@ -327,23 +403,27 @@ class ProdutoUpdate(BaseModel): # Campos que podem ser atualizados
     status_titulo_ia: Optional[StatusGeracaoIAEnum] = None
     status_descricao_ia: Optional[StatusGeracaoIAEnum] = None
 
+    # --- CAMPOS DE MÍDIA E LOG ADICIONADOS AQUI ---
+    imagens_produto: Optional[List[ImageSchema]] = None
+    videos_produto: Optional[List[VideoSchema]] = None
+    log_enriquecimento_web: Optional[ProductLogSchema] = None
+    # --- FIM DOS CAMPOS DE MÍDIA E LOG ADICIONADOS ---
+
 
 class ProdutoResponse(ProdutoBase):
     id: int
     user_id: int
 
-    created_at: datetime = Field(..., alias="data_criacao") # Mantém o alias da correção anterior
-    updated_at: Optional[datetime] = Field(None, alias="data_atualizacao") # Mantém o alias da correção anterior
+    created_at: datetime = Field(..., alias="data_criacao")
+    updated_at: Optional[datetime] = Field(None, alias="data_atualizacao")
 
     status_enriquecimento_web: StatusEnriquecimentoEnum
     status_titulo_ia: StatusGeracaoIAEnum
     status_descricao_ia: StatusGeracaoIAEnum
 
-    # Herdará dynamic_attributes e dados_brutos corrigidos de ProdutoBase
-
     class Config:
         from_attributes = True
-        populate_by_name = True # Para garantir que os aliases sejam usados na serialização
+        populate_by_name = True
 
 
 class ProdutoPage(BaseModel):
@@ -448,7 +528,7 @@ class UserActivity(BaseModel):
     total_geracoes_ia_mes_corrente: Optional[int] = None
 
     class Config:
-        from_attributes = True # Se os campos de contagem forem adicionados ao objeto User antes
+        from_attributes = True
 
 
 # --- Schema para Mensagens Simples ---

@@ -1,145 +1,224 @@
-# tdai_project/Backend/routers/uploads.py
-from fastapi import APIRouter, Depends, HTTPException, status, File, UploadFile, Form
-from sqlalchemy.orm import Session
-from typing import List, Optional, Dict, Any
+from fastapi import APIRouter, File, UploadFile, Depends, HTTPException, status
+from fastapi.responses import JSONResponse
+from typing import List, Optional
+import shutil
+import os
+from pathlib import Path
+import imghdr # Para detectar o tipo MIME de imagem
+import magic # Para detectar o tipo MIME de forma mais robusta (requer python-magic)
 
-# Imports de módulos no mesmo nível de Backend/ ou subpastas de Backend/
-import crud #
-import models #
-import schemas #
-from database import get_db, SessionLocal #
+# --- IMPORTS ALTERADOS DE RELATIVOS PARA ABSOLUTOS ---
+from Backend.database import get_db
+from Backend.auth import get_current_active_user
+from Backend.models import User
+from Backend.schemas import FileUploadResponse
+# --- FIM DOS IMPORTS ALTERADOS ---
 
-# Import de módulo no mesmo diretório (routers/)
-from .auth_utils import get_current_active_user #
+router = APIRouter()
 
-# CORREÇÃO APLICADA:
-# 'services' é uma subpasta de 'Backend/'. Como o CWD é 'Backend/'
-# e 'Backend/' está no sys.path, podemos importar 'services' diretamente.
-from services import file_processing_service #
+# O UPLOAD_DIRECTORY DEVE SER O MESMO MONTADO EM main.py /static
+# E DEVE SER RELATIVO AO DIRETÓRIO RAIZ DO BACKEND
+UPLOAD_DIRECTORY = Path("static") # Alterado para 'static' para corresponder a main.py e ser público
 
-router = APIRouter(
-    prefix="/upload",
-    tags=["Upload e Processamento de Arquivos"],
-    dependencies=[Depends(get_current_active_user)]
-)
+# Instalar python-magic: pip install python-magic (ou python-magic-bin no Windows se der problema)
+# Se magic.from_buffer falhar, pode-se usar imghdr para imagens ou verificar extensões.
+try:
+    import magic
+except ImportError:
+    magic = None
+    print("AVISO: python-magic não encontrado. A detecção de MIME type pode ser menos robusta.")
 
-# Constantes para configuração de upload
-MAX_FILE_SIZE_MB = 10
-MAX_FILE_SIZE_BYTES = MAX_FILE_SIZE_MB * 1024 * 1024
-ALLOWED_CONTENT_TYPES = {
-    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": "excel", # .xlsx
-    "application/vnd.ms-excel": "excel", # .xls
-    "text/csv": "csv",
-    "application/csv": "csv",
-    "text/plain": "csv",
-    "application/pdf": "pdf",
-}
 
-@router.post("/produtos-arquivo/", response_model=schemas.FileProcessResponse)
-async def upload_arquivo_produtos(
-    arquivo: UploadFile = File(..., description=f"Arquivo PDF, Excel (xlsx, xls) ou CSV contendo dados de produtos. Limite: {MAX_FILE_SIZE_MB}MB."),
-    fornecedor_id: Optional[int] = Form(None, description="ID do fornecedor para associar os produtos extraídos (opcional)."),
-    db: Session = Depends(get_db),
-    current_user: models.User = Depends(get_current_active_user)
+def get_file_mimetype(file_content: bytes, filename: str) -> str:
+    """Tenta determinar o MIME type de um arquivo."""
+    if magic:
+        try:
+            return magic.from_buffer(file_content, mime=True)
+        except Exception:
+            pass # Fallback para imghdr ou extensão se python-magic falhar
+
+    # Fallback para imghdr para imagens
+    img_type = imghdr.what(None, h=file_content)
+    if img_type:
+        return f"image/{img_type}"
+    
+    # Fallback básico para extensões de arquivo
+    ext = Path(filename).suffix.lower()
+    if ext == ".jpg" or ext == ".jpeg":
+        return "image/jpeg"
+    elif ext == ".png":
+        return "image/png"
+    elif ext == ".gif":
+        return "image/gif"
+    elif ext == ".webp":
+        return "image/webp"
+    elif ext == ".mp4":
+        return "video/mp4"
+    elif ext == ".webm":
+        return "video/webm"
+    elif ext == ".ogg":
+        return "video/ogg"
+    elif ext == ".pdf":
+        return "application/pdf"
+    elif ext == ".csv":
+        return "text/csv"
+    elif ext == ".xlsx":
+        return "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+    return "application/octet-stream" # Tipo genérico para arquivos desconhecidos
+
+
+@router.post("/upload-image-product/", response_model=FileUploadResponse, status_code=status.HTTP_201_CREATED)
+async def upload_product_image(
+    file: UploadFile = File(..., description="Arquivo de imagem do produto a ser carregado."),
+    current_user: User = Depends(get_current_active_user),
+    db: Session = Depends(get_db)
 ):
-    if not arquivo.filename:
+    """
+    Carrega uma única imagem de produto e retorna sua URL pública e metadados.
+    A imagem é salva no diretório 'static' e acessível via /static/.
+    """
+    if not file.filename:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Nome do arquivo não fornecido.")
 
-    if arquivo.size is not None and arquivo.size > MAX_FILE_SIZE_BYTES:
-        raise HTTPException(
-            status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
-            detail=f"Arquivo '{arquivo.filename}' muito grande. Limite de {MAX_FILE_SIZE_MB}MB."
-        )
+    # Gerar um nome de arquivo único para evitar colisões
+    # Ex: nome_original.jpg -> unique_id_nome_original.jpg
+    file_extension = Path(file.filename).suffix
+    unique_filename = f"{os.urandom(16).hex()}{file_extension}"
+    file_location = UPLOAD_DIRECTORY / unique_filename
 
-    file_type = ALLOWED_CONTENT_TYPES.get(arquivo.content_type or "")
-    if not file_type:
-        filename_lower = arquivo.filename.lower()
-        if filename_lower.endswith(".xlsx") or filename_lower.endswith(".xls"):
-            file_type = "excel"
-        elif filename_lower.endswith(".csv"):
-            file_type = "csv"
-        elif filename_lower.endswith(".pdf"):
-            file_type = "pdf"
-        else:
-            raise HTTPException(
-                status_code=status.HTTP_415_UNSUPPORTED_MEDIA_TYPE,
-                detail=f"Tipo de arquivo '{arquivo.content_type}' ou extensão do arquivo '{arquivo.filename}' não suportado. Permitidos: PDF, Excel (xlsx, xls), CSV."
-            )
+    # Garante que o diretório de upload existe
+    UPLOAD_DIRECTORY.mkdir(parents=True, exist_ok=True)
 
-    db_fornecedor = None
-    if fornecedor_id is not None:
-        db_fornecedor = crud.get_fornecedor(db, fornecedor_id=fornecedor_id)
-        if not db_fornecedor:
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Fornecedor com id {fornecedor_id} não encontrado.")
-        if db_fornecedor.user_id != current_user.id and not current_user.is_superuser:
-            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=f"Não autorizado a associar produtos ao fornecedor com id {fornecedor_id}.")
+    file_content = await file.read() # Lê o conteúdo do arquivo
+    
+    # Tenta determinar o MIME type e o tamanho
+    detected_mimetype = get_file_mimetype(file_content, file.filename)
+    file_size = len(file_content)
 
-    conteudo_arquivo = await arquivo.read()
-    await arquivo.close()
-
-    produtos_extraidos_raw: List[Dict[str, Any]] = []
-    process_detail = schemas.FileProcessDetail(
-        filename=arquivo.filename,
-        content_type=arquivo.content_type or "application/octet-stream",
-        status="processando",
-    )
+    # Verifica se é um tipo de imagem aceitável (opcional, pode ser expandido)
+    if not detected_mimetype.startswith("image/"):
+        raise HTTPException(status_code=status.HTTP_415_UNSUPPORTED_MEDIA_TYPE, detail=f"Tipo de arquivo não suportado: {detected_mimetype}. Apenas imagens são permitidas.")
 
     try:
-        if file_type == "excel":
-            produtos_extraidos_raw = await file_processing_service.processar_arquivo_excel(conteudo_arquivo)
-        elif file_type == "csv":
-            produtos_extraidos_raw = await file_processing_service.processar_arquivo_csv(conteudo_arquivo)
-        elif file_type == "pdf":
-            produtos_extraidos_raw = await file_processing_service.processar_arquivo_pdf(conteudo_arquivo)
-        
-        if not produtos_extraidos_raw or (len(produtos_extraidos_raw) == 1 and "erro" in produtos_extraidos_raw[0]):
-            process_detail.status = "erro_ao_ler"
-            process_detail.mensagem = produtos_extraidos_raw[0].get("erro", "Nenhum dado de produto válido encontrado ou erro na leitura do arquivo.") if produtos_extraidos_raw else "Nenhum dado de produto válido encontrado no arquivo."
-            return schemas.FileProcessResponse(message="Erro ao processar o arquivo.", details=[process_detail])
-
-        produtos_salvos_count = 0
-        
-        for produto_data_raw in produtos_extraidos_raw:
-            if not isinstance(produto_data_raw, dict):
-                print(f"Item extraído não é um dicionário: {produto_data_raw}")
-                continue
-            if "erro" in produto_data_raw:
-                print(f"Erro individual ao processar linha/item: {produto_data_raw['erro']}")
-                continue
-            if not produto_data_raw.get("nome_base"):
-                print(f"Produto pulado por falta de 'nome_base': {produto_data_raw}")
-                continue
-            
-            dados_brutos_para_schema = produto_data_raw.get("dados_brutos_adicionais") or \
-                                     produto_data_raw.get("dados_brutos_originais") or \
-                                     {k: v for k, v in produto_data_raw.items() if k not in ['nome_base', 'marca', 'categoria_original']}
-
-
-            produto_schema_create = schemas.ProdutoCreate(
-                nome_base=str(produto_data_raw.get("nome_base","Nome Padrão")),
-                marca=str(produto_data_raw.get("marca")) if produto_data_raw.get("marca") else None,
-                categoria_original=str(produto_data_raw.get("categoria_original")) if produto_data_raw.get("categoria_original") else None,
-                dados_brutos=dados_brutos_para_schema,
-                fornecedor_id=db_fornecedor.id if db_fornecedor else None
-            )
-            crud.create_produto(db=db, produto=produto_schema_create, user_id=current_user.id)
-            produtos_salvos_count += 1
-
-        if produtos_salvos_count > 0:
-            process_detail.status = "sucesso"
-            process_detail.produtos_encontrados = produtos_salvos_count
-            process_detail.mensagem = f"{produtos_salvos_count} produto(s) processado(s) e salvo(s) com sucesso do arquivo '{arquivo.filename}'."
-        else:
-            process_detail.status = "nenhum_produto_valido_encontrado"
-            process_detail.mensagem = f"Nenhum produto válido foi encontrado ou salvo do arquivo '{arquivo.filename}'."
-        
-        return schemas.FileProcessResponse(message="Processamento do arquivo concluído.", details=[process_detail])
-
+        with open(file_location, "wb") as f_out:
+            f_out.write(file_content)
     except Exception as e:
-        import traceback
-        print(f"Erro crítico durante o processamento do arquivo '{arquivo.filename}': {str(e)}\n{traceback.format_exc()}")
-        process_detail.status = "erro_critico_no_servidor"
-        process_detail.mensagem = f"Erro interno no servidor ao processar o arquivo. Por favor, tente novamente mais tarde ou contate o suporte."
-        
-        detail_dict = process_detail.model_dump() if hasattr(process_detail, 'model_dump') else process_detail.dict()
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=detail_dict)
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Não foi possível salvar o arquivo: {e}")
+    finally:
+        await file.close() # Garante que o UploadFile seja fechado
+
+    # A URL pública será /static/nome_do_arquivo_unico.ext
+    public_url = f"/static/{unique_filename}"
+    
+    # Retorna as informações necessárias para o frontend criar um ImageSchema
+    return FileUploadResponse(
+        filename=unique_filename,
+        original_filename=file.filename, # Adiciona o nome original para referência
+        url=public_url,
+        message="Imagem do produto carregada com sucesso!",
+        mimetype=detected_mimetype,
+        size_bytes=file_size
+    )
+
+@router.post("/upload-video-product/", response_model=FileUploadResponse, status_code=status.HTTP_201_CREATED)
+async def upload_product_video(
+    file: UploadFile = File(..., description="Arquivo de vídeo do produto a ser carregado."),
+    current_user: User = Depends(get_current_active_user),
+    db: Session = Depends(get_db)
+):
+    """
+    Carrega um único vídeo de produto e retorna sua URL pública e metadados.
+    O vídeo é salvo no diretório 'static' e acessível via /static/.
+    """
+    if not file.filename:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Nome do arquivo não fornecido.")
+
+    file_extension = Path(file.filename).suffix
+    unique_filename = f"{os.urandom(16).hex()}{file_extension}"
+    file_location = UPLOAD_DIRECTORY / unique_filename
+
+    UPLOAD_DIRECTORY.mkdir(parents=True, exist_ok=True)
+
+    file_content = await file.read()
+    
+    detected_mimetype = get_file_mimetype(file_content, file.filename)
+    file_size = len(file_content)
+
+    if not detected_mimetype.startswith("video/"):
+        raise HTTPException(status_code=status.HTTP_415_UNSUPPORTED_MEDIA_TYPE, detail=f"Tipo de arquivo não suportado: {detected_mimetype}. Apenas vídeos são permitidos.")
+
+    try:
+        with open(file_location, "wb") as f_out:
+            f_out.write(file_content)
+    except Exception as e:
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Não foi possível salvar o arquivo: {e}")
+    finally:
+        await file.close()
+
+    public_url = f"/static/{unique_filename}"
+    
+    return FileUploadResponse(
+        filename=unique_filename,
+        original_filename=file.filename,
+        url=public_url,
+        message="Vídeo do produto carregado com sucesso!",
+        mimetype=detected_mimetype,
+        size_bytes=file_size
+    )
+
+# Endpoints de upload genéricos (mantidos, mas os acima são específicos para produto)
+@router.post("/uploadfile/", status_code=status.HTTP_201_CREATED)
+async def create_upload_file(
+    file: UploadFile = File(...),
+    current_user: User = Depends(get_current_active_user),
+    db: Session = Depends(get_db)
+):
+    """
+    Upload a single file. (Generic endpoint, not product-specific)
+    """
+    if not file.filename:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Nome do arquivo não fornecido.")
+
+    # Usa o nome original do arquivo ou um nome único se houver risco de colisão
+    file_extension = Path(file.filename).suffix
+    unique_filename = f"{os.urandom(16).hex()}{file_extension}" if file_extension else os.urandom(16).hex() # Gerar nome único também para genérico
+    file_location = UPLOAD_DIRECTORY / unique_filename # Alterado para usar nome único
+    
+    UPLOAD_DIRECTORY.mkdir(parents=True, exist_ok=True)
+    try:
+        with open(file_location, "wb+") as file_object:
+            shutil.copyfileobj(file.file, file_object)
+    except Exception as e:
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Could not upload file: {e}")
+    finally:
+        file.file.close()
+    # Retorna a URL pública usando o nome único gerado
+    return {"info": f"file '{unique_filename}' (original: '{file.filename}') saved at '{file_location}'", "url": f"/static/{unique_filename}"}
+
+@router.post("/uploadfiles/", status_code=status.HTTP_201_CREATED)
+async def create_upload_files(
+    files: List[UploadFile],
+    current_user: User = Depends(get_current_active_user),
+    db: Session = Depends(get_db)
+):
+    """
+    Upload multiple files. (Generic endpoint, not product-specific)
+    """
+    UPLOAD_DIRECTORY.mkdir(parents=True, exist_ok=True)
+    responses = []
+    for file in files:
+        if not file.filename:
+            responses.append({"error": "Nome do arquivo não fornecido para um dos arquivos."})
+            continue
+        file_extension = Path(file.filename).suffix
+        unique_filename = f"{os.urandom(16).hex()}{file_extension}" if file_extension else os.urandom(16).hex() # Gerar nome único também para genérico
+        file_location = UPLOAD_DIRECTORY / unique_filename # Alterado para usar nome único
+        try:
+            with open(file_location, "wb+") as file_object:
+                shutil.copyfileobj(file.file, file_object)
+            responses.append({"info": f"file '{unique_filename}' (original: '{file.filename}') saved at '{file_location}'", "url": f"/static/{unique_filename}"}) # Retorna URL pública
+        except Exception as e:
+            responses.append({"error": f"Could not upload file '{file.filename}': {e}"})
+        finally:
+            file.file.close()
+    return responses

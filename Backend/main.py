@@ -1,4 +1,3 @@
-# Backend/main.py
 from fastapi import FastAPI, Depends, HTTPException, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
@@ -8,16 +7,17 @@ from typing import List, Optional, Any
 import json
 import traceback
 
-import models
-import schemas
-import crud
-from auth import router as auth_router_direct
-from database import SessionLocal, engine, get_db
-from core.config import settings
-# from core import email_utils # Comentado se não estiver sendo usado diretamente neste arquivo
+# --- IMPORTS ALTERADOS DE RELATIVOS PARA ABSOLUTOS ---
+import Backend.models as models
+import Backend.schemas as schemas
+import Backend.crud as crud
+from Backend.auth import router as auth_router_direct # auth.py está no diretório Backend
+from Backend.database import SessionLocal, engine, get_db
+from Backend.core.config import settings
+# from Backend.core import email_utils # Comentado se não estiver sendo usado diretamente neste arquivo
 
 # Importa os routers da subpasta 'routers'
-from routers import (
+from Backend.routers import (
     produtos as produtos_router,
     fornecedores as fornecedores_router,
     generation as generation_router,
@@ -29,13 +29,16 @@ from routers import (
     admin_analytics as admin_analytics_router,
     social_auth as social_auth_router
 )
+# --- FIM DOS IMPORTS ALTERADOS ---
 
-try:
-    print("INFO:     Tentando criar tabelas no banco de dados (models.Base.metadata.create_all)...")
-    models.Base.metadata.create_all(bind=engine)
-    print("INFO:     Criação/verificação de tabelas concluída.")
-except Exception as e:
-    print(f"ERRO: Falha ao criar/verificar tabelas: {e}")
+# --- BLOCO REMOVIDO: models.Base.metadata.create_all(bind=engine) ---
+# try:
+#     print("INFO:     Tentando criar tabelas no banco de dados (models.Base.metadata.create_all)...")
+#     models.Base.metadata.create_all(bind=engine)
+#     print("INFO:     Criação/verificação de tabelas concluída.")
+# except Exception as e:
+#     print(f"ERRO: Falha ao criar/verificar tabelas: {e}")
+# --- FIM DO BLOCO REMOVIDO ---
 
 
 app = FastAPI(
@@ -125,7 +128,7 @@ app.mount("/static", StaticFiles(directory=static_files_path), name="static")
 
 @app.on_event("startup")
 async def startup_event_create_defaults():
-    print("INFO:     Executando evento de startup para criar defaults (roles, planos, admin user, product types)...")
+    print("INFO:      Executando evento de startup para criar defaults (roles, planos, admin user, product types)...")
     db: Session = SessionLocal()
     try:
         # 1. Criação de Roles
@@ -136,10 +139,12 @@ async def startup_event_create_defaults():
         admin_role_obj = None
         user_role_obj = None
         for role_data in roles_a_criar:
+            # --- CORREÇÃO DE IMPORT AQUI ---
             role = crud.get_role_by_name(db, name=role_data["name"])
             if not role:
                 role = crud.create_role(db, role=schemas.RoleCreate(**role_data))
-                print(f"INFO:     Role '{role.name}' criada.")
+            # --- FIM DA CORREÇÃO DE IMPORT ---
+                print(f"INFO:      Role '{role.name}' criada.")
             if role.name == "admin":
                 admin_role_obj = role
             elif role.name == "user":
@@ -151,6 +156,7 @@ async def startup_event_create_defaults():
             print("ERRO CRÍTICO: Role 'user' não pôde ser encontrada ou criada. Novos usuários podem ter problemas.")
 
         # 2. Criação de Planos
+        # --- CORREÇÃO DE IMPORT AQUI ---
         plano_gratuito_data = schemas.PlanoCreate(
             nome="Gratuito",
             descricao="Plano básico gratuito com limitações.",
@@ -169,17 +175,17 @@ async def startup_event_create_defaults():
             permite_api_externa=True,
             suporte_prioritario=True
         )
+        # --- FIM DA CORREÇÃO DE IMPORT ---
 
         planos_a_criar = [plano_gratuito_data, plano_pro_data]
         
         admin_plano_obj = None 
         plano_gratuito_obj = None 
         for plano_data in planos_a_criar:
-            # FIX: Change 'name=plano_data.nome' to 'nome=plano_data.nome'
-            plano = crud.get_plano_by_name(db, nome=plano_data.nome) # This line is the fix
+            plano = crud.get_plano_by_name(db, nome=plano_data.nome)
             if not plano:
                 plano = crud.create_plano(db, plano=plano_data)
-                print(f"INFO:     Plano '{plano.nome}' criado.")
+                print(f"INFO:      Plano '{plano.nome}' criado.")
             if plano.nome == "Pro": 
                 admin_plano_obj = plano
             if plano.nome == "Gratuito":
@@ -195,7 +201,7 @@ async def startup_event_create_defaults():
         admin_user = crud.get_user_by_email(db, email=settings.ADMIN_EMAIL)
         if not admin_user:
             if not admin_role_obj:
-                   print(f"ERRO: Não foi possível criar o usuário admin '{settings.ADMIN_EMAIL}' porque o role 'admin' não existe.")
+                    print(f"ERRO: Não foi possível criar o usuário admin '{settings.ADMIN_EMAIL}' porque o role 'admin' não existe.")
             else:
                 user_in_data = {
                     "email": settings.ADMIN_EMAIL,
@@ -206,33 +212,35 @@ async def startup_event_create_defaults():
                 if hasattr(settings, 'ADMIN_IDIOMA_PREFERIDO'):
                     user_in_data['idioma_preferido'] = settings.ADMIN_IDIOMA_PREFERIDO
                 
-                user_in_create = schemas.UserCreate(**user_in_data) # Renomeado para evitar conflito
+                # --- CORREÇÃO DE IMPORT AQUI ---
+                user_in_create = schemas.UserCreate(**user_in_data)
                 
                 created_admin = crud.create_user(db, user=user_in_create, plano_id=user_in_create.plano_id, role_id=admin_role_obj.id)
+                # --- FIM DA CORREÇÃO DE IMPORT ---
                 
                 if created_admin:
                     created_admin.is_superuser = True 
                     db.add(created_admin) 
                     db.commit()
                     db.refresh(created_admin)
-                    print(f"INFO:     Usuário administrador '{settings.ADMIN_EMAIL}' criado com sucesso (ID: {created_admin.id}, Superuser: {created_admin.is_superuser}, Role ID: {created_admin.role_id}, Plano ID: {created_admin.plano_id}).")
+                    print(f"INFO:      Usuário administrador '{settings.ADMIN_EMAIL}' criado com sucesso (ID: {created_admin.id}, Superuser: {created_admin.is_superuser}, Role ID: {created_admin.role_id}, Plano ID: {created_admin.plano_id}).")
                 else:
                     print(f"ERRO: Falha ao criar o usuário administrador '{settings.ADMIN_EMAIL}'.")
         else:
-            print(f"INFO:     Usuário administrador '{settings.ADMIN_EMAIL}' já existe (ID: {admin_user.id}, Superuser: {admin_user.is_superuser}, Role ID: {admin_user.role_id}, Plano ID: {admin_user.plano_id}).")
+            print(f"INFO:      Usuário administrador '{settings.ADMIN_EMAIL}' já existe (ID: {admin_user.id}, Superuser: {admin_user.is_superuser}, Role ID: {admin_user.role_id}, Plano ID: {admin_user.plano_id}).")
             needs_update = False
             if admin_role_obj and admin_user.role_id != admin_role_obj.id:
                 admin_user.role_id = admin_role_obj.id
                 needs_update = True
-                print(f"INFO:     Atualizando role do admin '{settings.ADMIN_EMAIL}' para ID {admin_role_obj.id}.")
+                print(f"INFO:      Atualizando role do admin '{settings.ADMIN_EMAIL}' para ID {admin_role_obj.id}.")
             if not admin_user.is_superuser:
                 admin_user.is_superuser = True
                 needs_update = True
-                print(f"INFO:     Atualizando admin '{settings.ADMIN_EMAIL}' para superuser.")
+                print(f"INFO:      Atualizando admin '{settings.ADMIN_EMAIL}' para superuser.")
             if admin_plano_obj and admin_user.plano_id != admin_plano_obj.id:
                 admin_user.plano_id = admin_plano_obj.id
                 needs_update = True
-                print(f"INFO:     Atualizando plano do admin '{settings.ADMIN_EMAIL}' para ID {admin_plano_obj.id} ({admin_plano_obj.nome}).")
+                print(f"INFO:      Atualizando plano do admin '{settings.ADMIN_EMAIL}' para ID {admin_plano_obj.id} ({admin_plano_obj.nome}).")
 
             if needs_update:
                 db.commit()
@@ -261,6 +269,7 @@ async def startup_event_create_defaults():
         ]
 
         for pt_data in product_types_data:
+            # --- CORREÇÃO DE IMPORT AQUI ---
             product_type = db.query(models.ProductType).filter(
                 models.ProductType.key_name == pt_data["key_name"],
                 models.ProductType.user_id == None 
@@ -272,7 +281,7 @@ async def startup_event_create_defaults():
                     friendly_name=pt_data["friendly_name"]
                 )
                 product_type = crud.create_product_type(db=db, product_type_data=product_type_create_schema, user_id=None)
-                print(f"INFO:     Tipo de Produto Global '{product_type.friendly_name}' criado.")
+                print(f"INFO:      Tipo de Produto Global '{product_type.friendly_name}' criado.")
 
                 for attr_data in pt_data["attributes"]:
                     options_json_str = None
@@ -294,24 +303,26 @@ async def startup_event_create_defaults():
                         attribute_template_data=attribute_template_create_schema,
                         product_type_id=product_type.id
                     )
-                    print(f"INFO:       Atributo '{attr_data['label']}' criado para '{product_type.friendly_name}'.")
+                    print(f"INFO:      Atributo '{attr_data['label']}' criado para '{product_type.friendly_name}'.")
             else:
-                print(f"INFO:     Tipo de Produto Global '{pt_data['friendly_name']}' já existe.")
+                print(f"INFO:      Tipo de Produto Global '{pt_data['friendly_name']}' já existe.")
+            # --- FIM DA CORREÇÃO DE IMPORT ---
 
     except Exception as e_startup:
         print(f"ERRO CRÍTICO durante o evento de startup: {e_startup}")
         print(traceback.format_exc()) 
     finally:
         db.close()
-    print("INFO:     Evento de startup para defaults concluído.")
+    print("INFO:      Evento de startup para defaults concluído.")
 
 
 @app.post("/api/v1/users/", response_model=schemas.UserResponse, status_code=status.HTTP_201_CREATED, tags=["Usuários"])
 def create_new_user(
-    user_in: schemas.UserCreate, # Renomeado para evitar conflito com admin_user no escopo global
+    user_in: schemas.UserCreate,
     db: Session = Depends(get_db)
 ):
-    db_user_check = crud.get_user_by_email(db, email=user_in.email) # Renomeado para evitar conflito
+    # --- CORREÇÃO DE IMPORT AQUI ---
+    db_user_check = crud.get_user_by_email(db, email=user_in.email)
     if db_user_check:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -319,8 +330,7 @@ def create_new_user(
         )
     
     plano_id_para_novo_usuario = user_in.plano_id
-    # FIX: Change 'name="Gratuito"' to 'nome="Gratuito"'
-    plano_gratuito_obj_check = crud.get_plano_by_name(db, nome="Gratuito") # This line is the fix
+    plano_gratuito_obj_check = crud.get_plano_by_name(db, nome="Gratuito")
 
     if plano_id_para_novo_usuario is None:
         if plano_gratuito_obj_check:
@@ -330,14 +340,15 @@ def create_new_user(
             plano_id_para_novo_usuario = None 
 
 
-    role_user_check = crud.get_role_by_name(db, name="user") # Renomeado para evitar conflito
+    role_user_check = crud.get_role_by_name(db, name="user")
     if not role_user_check: 
         print("ERRO CRÍTICO: Role padrão 'user' não encontrado durante a criação de novo usuário.")
         raise HTTPException(status_code=500, detail="Erro de configuração do sistema: Role padrão 'user' não encontrado.")
     role_id_para_novo_usuario = role_user_check.id
 
-    new_user_created = crud.create_user(db=db, user=user_in, plano_id=plano_id_para_novo_usuario, role_id=role_id_para_novo_usuario) # Renomeado para evitar conflito
+    new_user_created = crud.create_user(db=db, user=user_in, plano_id=plano_id_para_novo_usuario, role_id=role_id_para_novo_usuario)
     return new_user_created
+    # --- FIM DA CORREÇÃO DE IMPORT ---
 
 
 # Inclusão dos routers da aplicação
