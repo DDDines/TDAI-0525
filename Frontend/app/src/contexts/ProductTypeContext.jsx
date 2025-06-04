@@ -30,9 +30,9 @@ export const ProductTypeProvider = ({ children }) => {
       const data = await productTypeService.getProductTypes({ skip: 0, limit: 500 }); 
       
       // FIX: Ajustar a condição para verificar se 'data' é um array diretamente
-      if (data && Array.isArray(data)) { // <--- ALTERADO AQUI
-        console.log("ProductTypeContext: Tipos de produto recebidos:", data.length); // <--- ALTERADO AQUI
-        setProductTypes(data); // <--- ALTERADO AQUI
+      if (data && Array.isArray(data)) { 
+        console.log("ProductTypeContext: Tipos de produto recebidos:", data.length); 
+        setProductTypes(data); 
       } else {
         console.warn("ProductTypeContext: Resposta de getProductTypes não era um array. Data:", data);
         setProductTypes([]);
@@ -52,15 +52,16 @@ export const ProductTypeProvider = ({ children }) => {
     console.log("ProductTypeContext useEffect: user mudou ou isAuthSessionLoading mudou.");
     console.log("ProductTypeContext useEffect: isAuthSessionLoading:", isAuthSessionLoading, "user:", user ? user.email : null);
 
+    // Só tenta buscar se a sessão de autenticação foi completamente verificada (não está mais carregando)
     if (!isAuthSessionLoading) {
       if (user) { 
         console.log("ProductTypeContext: AuthContext carregado e usuário existe, chamando fetchProductTypes.");
         fetchProductTypes();
       } else {
         console.log("ProductTypeContext: AuthContext carregado, mas nenhum usuário logado (user é null). Limpando tipos de produto.");
-        setProductTypes([]); 
-        setError(null);      
-        setIsLoading(false); 
+        setProductTypes([]); // Limpa os tipos se não houver usuário
+        setError(null);      // Limpa erros anteriores
+        setIsLoading(false); // Garante que o estado de loading seja resetado
       }
     } else {
         console.log("ProductTypeContext: Aguardando AuthContext carregar (isAuthSessionLoading é true).");
@@ -69,7 +70,7 @@ export const ProductTypeProvider = ({ children }) => {
 
   const refreshProductTypes = useCallback(() => {
     console.log("ProductTypeContext: Chamada para refreshProductTypes.");
-    if (user) { 
+    if (user) { // Só recarrega se houver usuário
         fetchProductTypes();
     } else {
         console.warn("ProductTypeContext: Tentativa de refreshProductTypes sem usuário autenticado.");
@@ -87,7 +88,10 @@ export const ProductTypeProvider = ({ children }) => {
       setProductTypes(prevTypes => [...prevTypes, newProductType].sort((a, b) => a.friendly_name.localeCompare(b.friendly_name)));
       showSuccessToast('Tipo de produto adicionado com sucesso!');
       return newProductType;
-    } catch (err) {
+    }
+    // Consider adding a specific catch for IntegrityError if you want to show a more user-friendly message
+    // for duplicate key_name, for example. The backend raises it.
+    catch (err) {
       const errorMessage = err.response?.data?.detail || err.message || 'Falha ao adicionar tipo de produto.';
       console.error("ProductTypeContext: Erro ao adicionar tipo de produto:", errorMessage, err);
       showErrorToast(errorMessage);

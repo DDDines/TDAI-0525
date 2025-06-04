@@ -21,8 +21,21 @@ const usoIAService = {
     }
   },
 
-  // Você pode adicionar outras funções relacionadas a uso de IA aqui, como:
-  // async getMeuHistoricoUsoIA(params = {}) { /* ... */ }
+  /**
+   * Busca o histórico de uso de IA do usuário logado.
+   * @param {object} params Parâmetros de query (skip, limit, tipo_geracao, data_inicio, data_fim).
+   * @returns {Promise<object>} Uma promessa que resolve para um objeto com items (lista) e total_items.
+   */
+  async getMeuHistoricoUsoIA(params = {}) {
+    try {
+      // Endpoint correto do backend: /api/v1/uso-ia/
+      const response = await apiClient.get(`${USO_IA_RESOURCE_URL}/`, { params });
+      return response.data;
+    } catch (error) {
+      console.error('Error fetching my IA usage history:', error.response?.data || error.message);
+      throw error.response?.data || new Error('Failed to fetch my IA usage history');
+    }
+  },
 };
 
 export default usoIAService;

@@ -1,58 +1,77 @@
 // Frontend/app/src/pages/HistoricoPage.jsx
 import React, { useState, useEffect, useCallback } from 'react';
-import authService from '../services/authService';
+// REMOVA ESTA LINHA: import authService from '../services/authService';
+// ADICIONE ESTA LINHA:
+import usoIAService from '../services/usoIAService'; // Importa o serviço de uso de IA
+import { useAuth } from '../contexts/AuthContext';
+import { showSuccessToast, showErrorToast, showInfoToast } from '../utils/notifications';
 import PaginationControls from '../components/common/PaginationControls';
-import { showErrorToast } from '../utils/notifications';
+import { format, parseISO } from 'date-fns';
+import { ptBR } from 'date-fns/locale';
 
 function HistoricoPage() {
+  const { user, isLoading: isAuthLoading } = useAuth();
   const [historico, setHistorico] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-
   const [currentPage, setCurrentPage] = useState(0);
-  const [limitPerPage] = useState(15);
-  const [totalItems, setTotalItems] = useState(0);
+  const [limitPerPage] = useState(10);
+  const [totalHistoricoCount, setTotalHistoricoCount] = useState(0);
+  const [filterTipoAcao, setFilterTipoAcao] = useState('');
 
-  const totalPages = Math.ceil(totalItems / limitPerPage);
+  const totalPages = Math.ceil(totalHistoricoCount / limitPerPage);
 
   const fetchHistorico = useCallback(async () => {
+    if (isAuthLoading) {
+      console.log("HistoricoPage: Auth está carregando, aguardando...");
+      return;
+    }
+
+    if (!user) {
+      console.log("HistoricoPage: Usuário não autenticado, não buscando histórico.");
+      setHistorico([]);
+      setTotalHistoricoCount(0);
+      setLoading(false);
+      return;
+    }
+
     setLoading(true);
     setError(null);
     try {
       const params = {
         skip: currentPage * limitPerPage,
         limit: limitPerPage,
+        tipo_acao: filterTipoAcao || undefined,
       };
-      const responseData = await authService.getMeuHistoricoUsoIA(params);
+      
+      // FIX: Chamar usoIAService.getMeuHistoricoUsoIA
+      const responseData = await usoIAService.getMeuHistoricoUsoIA(params);
 
       if (responseData && Array.isArray(responseData.items) && typeof responseData.total_items === 'number') {
         setHistorico(responseData.items);
-        setTotalItems(responseData.total_items);
+        setTotalHistoricoCount(responseData.total_items);
+        showInfoToast(`Histórico carregado: ${responseData.total_items} registros.`);
       } else {
-        // Fallback caso a API ainda retorne uma lista direta ou formato inesperado
-        if (Array.isArray(responseData)) {
-            setHistorico(responseData);
-            // Lógica paliativa simples para totalItems se for lista direta
-            setTotalItems(currentPage * limitPerPage + responseData.length + (responseData.length === limitPerPage ? limitPerPage : 0) );
-            console.warn('API /uso-ia/me/ retornou uma lista direta ou formato não paginado. A paginação pode ser imprecisa.');
-        } else {
-            console.warn('Formato de dados inesperado recebido para histórico:', responseData);
-            setHistorico([]);
-            setTotalItems(0);
-            showErrorToast('Não foi possível carregar o histórico de uso ou formato de dados incorreto.');
-        }
+        console.warn('HistoricoPage: Formato de dados inesperado recebido:', responseData);
+        setHistorico([]);
+        setTotalHistoricoCount(0);
       }
-
     } catch (err) {
-      const errorMsg = (err && err.message) ? err.message : 'Falha ao buscar histórico de uso.';
+      const errorMsg = (err && err.response && err.response.data && err.response.data.detail) 
+                       ? err.response.data.detail 
+                       : (err && err.message) 
+                       ? err.message 
+                       : 'Falha ao buscar histórico de uso de IA.';
+      console.error('HistoricoPage: Erro ao buscar histórico:', err);
       setError(errorMsg);
-      showErrorToast(errorMsg);
       setHistorico([]);
-      setTotalItems(0);
+      setTotalHistoricoCount(0);
+      showErrorToast(errorMsg);
     } finally {
       setLoading(false);
     }
-  }, [currentPage, limitPerPage]);
+  }, [user, isAuthLoading, currentPage, limitPerPage, filterTipoAcao]); // Adicionar dependências
+
 
   useEffect(() => {
     fetchHistorico();
@@ -62,58 +81,81 @@ function HistoricoPage() {
     setCurrentPage(newPage);
   };
 
-  if (loading && historico.length === 0) {
-    return <div className="card"><p>Carregando histórico de uso...</p></div>;
-  }
-
-  if (error) {
-    return <div className="card"><p style={{ color: 'red' }}>Erro ao carregar histórico: {error}</p></div>;
-  }
+  const handleFilterChange = (event) => {
+    setFilterTipoAcao(event.target.value);
+    setCurrentPage(0); // Resetar para a primeira página ao mudar o filtro
+  };
 
   return (
-    <div>
+    <div className="historico-page">
       <div className="card">
         <div className="card-header">
-          <h3>Histórico de Uso da IA</h3>
+          <h3>Histórico de Uso de IA</h3>
         </div>
 
-        {historico.length > 0 ? (
-          <>
-            <table className="hist-table" id="hist-table" style={{width: '100%'}}>
+        <div className="filters-container" style={{ marginBottom: '1rem' }}>
+          <label htmlFor="filter-tipo-acao">Filtrar por Tipo de Ação:</label>
+          <select
+            id="filter-tipo-acao"
+            value={filterTipoAcao}
+            onChange={handleFilterChange}
+            disabled={loading}
+          >
+            <option value="">Todos</option>
+            <option value="geracao_titulo_produto">Geração Título Produto</option>
+            <option value="geracao_descricao_produto">Geração Descrição Produto</option>
+            <option value="enriquecimento_web_produto">Enriquecimento Web Produto</option>
+            {/* Adicione outras opções conforme as TipoAcaoIAEnum do seu backend */}
+          </select>
+        </div>
+
+        {loading && <p>Carregando histórico...</p>}
+        {error && <p style={{ color: 'red' }}>Erro ao carregar histórico: {error}</p>}
+
+        {!loading && historico.length === 0 && !error && (
+          <p>Nenhum registro de uso de IA encontrado.</p>
+        )}
+
+        {!loading && historico.length > 0 && (
+          <div className="table-responsive">
+            <table className="historico-table">
               <thead>
                 <tr>
+                  <th>ID Registro</th>
+                  <th>Produto (ID)</th>
+                  <th>Ação de IA</th>
+                  <th>Resultado</th>
+                  <th>Custos</th>
                   <th>Data/Hora</th>
-                  <th>Tipo de Geração</th>
-                  <th>Produto ID</th>
-                  <th>Modelo IA</th>
-                  <th>Resultado (início)</th>
                 </tr>
               </thead>
               <tbody>
-                {historico.map(item => (
-                  <tr key={item.id}>
-                    <td>{new Date(item.timestamp).toLocaleString()}</td>
-                    <td>{item.tipo_geracao}</td>
-                    <td>{item.produto_id || 'N/A'}</td>
-                    <td>{item.modelo_ia_usado}</td>
-                    <td title={item.resultado_gerado}>
-                      {item.resultado_gerado ? `${item.resultado_gerado.substring(0, 70)}...` : 'N/A'}
+                {historico.map((registro) => (
+                  <tr key={registro.id}>
+                    <td>{registro.id}</td>
+                    <td>{registro.produto_id ? registro.produto_id : 'N/A'}</td>
+                    <td>{registro.tipo_acao.replace(/_/g, ' ')}</td>
+                    <td>
+                      <div className="resultado-cell" title={registro.resultado_gerado}>
+                        {registro.resultado_gerado ? registro.resultado_gerado.substring(0, 100) + '...' : 'N/A'}
+                      </div>
                     </td>
+                    <td>{registro.custo_tokens_total} tokens</td>
+                    <td>{registro.timestamp ? format(parseISO(registro.timestamp), 'dd/MM/yyyy HH:mm:ss', { locale: ptBR }) : 'N/A'}</td>
                   </tr>
                 ))}
               </tbody>
             </table>
-            {totalPages > 1 && (
-              <PaginationControls
-                currentPage={currentPage}
-                totalPages={totalPages}
-                onPageChange={handlePageChange}
-                isLoading={loading}
-              />
-            )}
-          </>
-        ) : (
-          !loading && <p>Nenhum histórico de uso encontrado.</p>
+          </div>
+        )}
+
+        {totalPages > 0 && !error && (
+          <PaginationControls
+            currentPage={currentPage}
+            totalPages={totalPages}
+            onPageChange={handlePageChange}
+            isLoading={loading}
+          />
         )}
       </div>
     </div>

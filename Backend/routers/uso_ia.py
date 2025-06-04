@@ -11,7 +11,7 @@ import database
 from . import auth_utils # Para obter o usuário logado
 
 router = APIRouter(
-    prefix="/api/v1/uso-ia", 
+    prefix="/uso-ia", # FIX: Removido o '/api/v1' daqui
     tags=["uso-ia"],
     dependencies=[Depends(auth_utils.get_current_active_user)],
 )
@@ -49,21 +49,21 @@ def read_usos_ia_usuario_logado(
     """
     Lista os registros de uso de IA para o usuário autenticado, com filtros e paginação.
     """
-    # A função no CRUD foi nomeada como get_registros_uso_ia_by_user
-    registros = crud.get_registros_uso_ia_by_user(
+    # FIX: Change 'get_registros_uso_ia_by_user' to 'get_registros_uso_ia'
+    registros = crud.get_registros_uso_ia( # Corrected function name
         db,
         user_id=current_user.id,
         skip=skip,
         limit=limit,
-        tipo_geracao=tipo_geracao,
+        tipo_acao=tipo_geracao, # Changed from tipo_geracao to tipo_acao to match crud function
         data_inicio=data_inicio,
         data_fim=data_fim
     )
-    # A função no CRUD foi nomeada como count_registros_uso_ia_by_user
-    total_items = crud.count_registros_uso_ia_by_user(
+    # FIX: Change 'count_registros_uso_ia_by_user' to 'count_registros_uso_ia'
+    total_items = crud.count_registros_uso_ia( # Corrected function name
         db,
         user_id=current_user.id,
-        tipo_geracao=tipo_geracao,
+        tipo_acao=tipo_geracao, # Changed from tipo_geracao to tipo_acao to match crud function
         data_inicio=data_inicio,
         data_fim=data_fim
     )

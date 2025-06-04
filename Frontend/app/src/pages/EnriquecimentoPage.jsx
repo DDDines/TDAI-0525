@@ -232,7 +232,9 @@ function EnriquecimentoPage() {
             selectedProdutos={selectedProductIds} // Passa como Set
             onSelectProduto={handleSelectRow}
             onSelectAllProdutos={handleSelectAllRows}
-            onEdit={handleRowClick} // This line was fixed: removed the JSX comment from within the prop
+            // onEdit={handleRowClick} // Old line
+            // FIX: Corrected comment syntax
+            onEdit={handleRowClick} 
             isLoading={loading}
             sortConfig={sortConfig} // ADICIONADO: Passando a configuração de ordenação
             onSort={handleSort}     // ADICIONADO: Passando a função de ordenação
