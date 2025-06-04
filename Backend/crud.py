@@ -1,559 +1,39 @@
 # Backend/crud.py
-from sqlalchemy.orm import Session, joinedload, noload, selectinload
-from sqlalchemy import func, and_, or_, distinct, asc, desc
+import logging
+import json
 from typing import List, Optional, Dict, Any, Union
 from datetime import datetime, timedelta, timezone
-import json
-import logging
-from sqlalchemy_json import NestedMutableJson
 
-# --- IMPORTS ALTERADOS DE RELATIVOS PARA ABSOLUTOS ---
-from Backend.models import ( #
-    User, Role, Plano, Fornecedor, Produto, ProductType, AttributeTemplate, RegistroUsoIA,
-    StatusEnriquecimentoEnum, StatusGeracaoIAEnum, AttributeFieldTypeEnum, TipoAcaoIAEnum
+from sqlalchemy import func, or_, and_, desc, asc, extract # Adicionado extract
+from sqlalchemy.orm import Session, joinedload, selectinload, aliased
+from sqlalchemy.exc import IntegrityError
+
+from jose import jwt # Para decodificar token se necessário (ex: social_auth)
+
+from core.config import settings # Para JWT_SECRET_KEY, ALGORITHM, etc.
+from core import security # Para hash de senha
+from models import (
+    User, Role, Plano, Produto, Fornecedor, ProductType, AttributeTemplate, RegistroUsoIA,
+    StatusEnriquecimentoEnum, StatusGeracaoIAEnum, TipoAcaoIAEnum, AttributeFieldTypeEnum
 )
-import Backend.schemas as schemas # <-- CORRIGIDO AQUI
-from Backend.auth import get_password_hash #
-from Backend.core.config import settings #
-from Backend.core import security #
-# --- FIM DOS IMPORTS ALTERADOS ---
+import schemas # Importa todos os schemas
 
-logger = logging.getLogger(__name__)
-
-# --- CRUD para Roles ---
-def get_role(db: Session, role_id: int):
-    return db.query(Role).filter(Role.id == role_id).first()
-
-def get_role_by_name(db: Session, name: str):
-    return db.query(Role).filter(Role.name == name).first()
-
-def create_role(db: Session, role: schemas.RoleCreate):
-    db_role = Role(name=role.name, description=role.description)
-    db.add(db_role)
-    db.commit()
-    db.refresh(db_role)
-    return db_role
-
-
-# --- CRUD para Planos ---
-def get_plano(db: Session, plano_id: int):
-    return db.query(Plano).filter(Plano.id == plano_id).first()
-
-def get_plano_by_name(db: Session, nome: str):
-    return db.query(Plano).filter(Plano.nome == nome).first()
-
-def get_all_planos(db: Session):
-    return db.query(Plano).all()
-
-def create_plano(db: Session, plano: schemas.PlanoCreate):
-    db_plano = Plano(**plano.model_dump())
-    db.add(db_plano)
-    db.commit()
-    db.refresh(db_plano)
-    return db_plano
-
-def update_plano(db: Session, plano_id: int, plano_in: schemas.PlanoUpdate):
-    db_plano = db.query(Plano).filter(Plano.id == plano_id).first()
-    if not db_plano:
-        return None
-    for field, value in plano_in.dict(exclude_unset=True).items():
-        setattr(db_plano, field, value)
-    db.add(db_plano)
-    db.commit()
-    db.refresh(db_plano)
-    return db_plano
-
-def delete_plano(db: Session, plano_id: int):
-    db_plano = db.query(Plano).filter(Plano.id == plano_id).first()
-    if db_plano:
-        db.delete(db_plano)
-        db.commit()
-    return db_plano
-
-
-# --- CRUD para Usuários ---
-def get_user(db: Session, user_id: int):
-    return db.query(User).filter(User.id == user_id).first()
-
-def get_user_by_email(db: Session, email: str):
-    return db.query(User).filter(User.email == email).first()
-
-def get_user_by_provider_id(db: Session, provider: str, provider_user_id: str):
-    return db.query(User).filter(
-        User.provider == provider,
-        User.provider_user_id == provider_user_id
-    ).first()
-
-def get_users(db: Session, skip: int = 0, limit: int = 100):
-    return db.query(User).offset(skip).limit(limit).all()
-
-def get_users_with_role_and_plan(db: Session, skip: int = 0, limit: int = 100):
-    return db.query(User).options(joinedload(User.role), joinedload(User.plano)).offset(skip).limit(limit).all()
-
-def create_user(db: Session, user: schemas.UserCreate, plano_id: Optional[int] = None, role_id: Optional[int] = None):
-    hashed_password = security.get_password_hash(user.password)
-    # Tenta obter a role e o plano por ID ou nome
-    db_role = get_role(db, role_id) if role_id else get_role_by_name(db, "user") # Default para 'user'
-    db_plano = get_plano(db, plano_id) if plano_id else get_plano_by_name(db, "Gratuito") # Default para 'Gratuito'
-
-    db_user = User(
-        email=user.email,
-        hashed_password=hashed_password,
-        nome_completo=user.nome_completo,
-        idioma_preferido=user.idioma_preferido,
-        chave_openai_pessoal=user.chave_openai_pessoal,
-        chave_google_gemini_pessoal=user.chave_google_gemini_pessoal,
-        is_active=user.is_active,
-        role_id=db_role.id if db_role else None,
-        plano_id=db_plano.id if db_plano else None
-    )
-    db.add(db_user)
-    db.commit()
-    db.refresh(db_user)
-    return db_user
-
-def create_user_oauth(db: Session, user_in: schemas.UserCreateOAuth, plano_id_default: Optional[int] = None, role_id: Optional[int] = None):
-    db_role = get_role(db, role_id) if role_id else get_role_by_name(db, "user")
-    db_plano = get_plano(db, plano_id=plano_id_default) if plano_id_default else get_plano_by_name(db, "Gratuito")
-
-    db_user = User(
-        email=user_in.email,
-        hashed_password="", # No password for OAuth users
-        nome_completo=user_in.nome_completo,
-        idioma_preferido=user_in.idioma_preferido,
-        is_active=True,
-        role_id=db_role.id if db_role else None,
-        plano_id=db_plano.id if db_plano else None,
-        provider=user_in.provider,
-        provider_user_id=user_in.provider_user_id
-    )
-    db.add(db_user)
-    db.commit()
-    db.refresh(db_user)
-    return db_user
-
-
-def update_user(db: Session, db_user: User, user_in: schemas.UserUpdate):
-    update_data = user_in.dict(exclude_unset=True)
-    if "password" in update_data and update_data["password"]:
-        update_data["hashed_password"] = get_password_hash(update_data["password"])
-        del update_data["password"]
-    
-    # Se plano_id for atualizado, garante que o plano existe
-    if "plano_id" in update_data and update_data["plano_id"] is not None:
-        if not get_plano(db, update_data["plano_id"]):
-            raise ValueError(f"Plano com ID {update_data['plano_id']} não encontrado.")
-
-    for field, value in update_data.items():
-        setattr(db_user, field, value)
-    
-    db.add(db_user)
-    db.commit()
-    db.refresh(db_user)
-    return db_user
-
-def update_user_by_admin(db: Session, db_user: User, user_in: schemas.UserUpdateByAdmin):
-    update_data = user_in.dict(exclude_unset=True)
-    if "password" in update_data and update_data["password"]:
-        db_user.hashed_password = get_password_hash(update_data["password"])
-        del update_data["password"]
-    
-    # Removendo campos que devem ser atualizados via setters diretos ou que não fazem parte do modelo User
-    fields_to_set = {k: v for k, v in update_data.items() if hasattr(db_user, k)}
-
-    for field, value in fields_to_set.items():
-        setattr(db_user, field, value)
-    
-    # Lógica específica para limites de plano (se o usuário não tiver plano ou o plano permitir override)
-    if user_in.limite_produtos is not None:
-        db_user.limite_produtos = user_in.limite_produtos
-    if user_in.limite_enriquecimento_web is not None:
-        db_user.limite_enriquecimento_web = user_in.limite_enriquecimento_web
-    if user_in.limite_geracao_ia is not None:
-        db_user.limite_geracao_ia = user_in.limite_geracao_ia
-    if user_in.data_expiracao_plano is not None:
-        db_user.data_expiracao_plano = user_in.data_expiracao_plano
-
-    db.add(db_user)
-    db.commit()
-    db.refresh(db_user)
-    return db_user
-
-
-def delete_user(db: Session, db_user: User) -> User:
-    db.delete(db_user)
-    db.commit()
-    return db_user
-
-
-def update_user_password_reset_token(db: Session, user_id: int, token: str, expires_at: datetime):
-    db_user = db.query(User).filter(User.id == user_id).first()
-    if db_user:
-        db_user.reset_password_token = token
-        db_user.reset_password_token_expires_at = expires_at
-        db.add(db_user)
-        db.commit()
-        db.refresh(db_user)
-    return db_user
-
-
-# --- CRUD para Fornecedores ---
-def get_fornecedor(db: Session, fornecedor_id: int, user_id: Optional[int] = None):
-    query = db.query(Fornecedor).filter(Fornecedor.id == fornecedor_id)
-    if user_id: # Se user_id for fornecido, filtra também pelo usuário
-        query = query.filter(Fornecedor.user_id == user_id)
-    return query.first()
-
-def get_fornecedores_by_user(db: Session, user_id: int, skip: int = 0, limit: int = 100, termo_busca: Optional[str] = None):
-    query = db.query(Fornecedor).filter(Fornecedor.user_id == user_id)
-    if termo_busca:
-        search_term = f"%{termo_busca.lower()}%"
-        query = query.filter(
-            or_(
-                func.lower(Fornecedor.nome).ilike(search_term),
-                func.lower(Fornecedor.email_contato).ilike(search_term),
-                func.lower(Fornecedor.contato_principal).ilike(search_term)
-            )
-        )
-    return query.offset(skip).limit(limit).all()
-
-def count_fornecedores_by_user(db: Session, user_id: int, termo_busca: Optional[str] = None):
-    query = db.query(Fornecedor).filter(Fornecedor.user_id == user_id)
-    if termo_busca:
-        search_term = f"%{termo_busca.lower()}%"
-        query = query.filter(
-            or_(
-                func.lower(Fornecedor.nome).ilike(search_term),
-                func.lower(Fornecedor.email_contato).ilike(search_term),
-                func.lower(Fornecedor.contato_principal).ilike(search_term)
-            )
-        )
-    return query.count()
-
-def create_fornecedor(db: Session, fornecedor: schemas.FornecedorCreate, user_id: int):
-    db_fornecedor = Fornecedor(**fornecedor.model_dump(), user_id=user_id)
-    db.add(db_fornecedor)
-    db.commit()
-    db.refresh(db_fornecedor)
-    return db_fornecedor
-
-def update_fornecedor(db: Session, db_fornecedor: Fornecedor, fornecedor_in: schemas.FornecedorUpdate):
-    update_data = fornecedor_in.dict(exclude_unset=True)
-    for field, value in update_data.items():
-        setattr(db_fornecedor, field, value)
-    db.add(db_fornecedor)
-    db.commit()
-    db.refresh(db_fornecedor)
-    return db_fornecedor
-
-def delete_fornecedor(db: Session, db_fornecedor: Fornecedor):
-    db.delete(db_fornecedor)
-    db.commit()
-    return db_fornecedor
-
-
-# --- CRUD para Tipos de Produto ---
-def get_product_type(db: Session, product_type_id: int, user_id: Optional[int] = None):
-    query = db.query(ProductType).options(selectinload(ProductType.attribute_templates))
-    # Permite buscar tipos globais (user_id=None) e personalizados do usuário, se user_id for fornecido
-    if user_id is not None:
-        query = query.filter(or_(ProductType.user_id == user_id, ProductType.user_id == None))
-    else: # Se user_id não for fornecido, busca apenas globais (padrão)
-        query = query.filter(ProductType.user_id == None)
-    return query.filter(ProductType.id == product_type_id).first()
-
-def get_product_type_by_key_name(db: Session, key_name: str, user_id: Optional[int] = None):
-    query = db.query(ProductType).options(selectinload(ProductType.attribute_templates)).filter(ProductType.key_name == key_name)
-    if user_id is not None:
-        query = query.filter(or_(ProductType.user_id == user_id, ProductType.user_id == None))
-    else:
-        query = query.filter(ProductType.user_id == None)
-    
-    # Adicionado order_by para priorizar o tipo do usuário sobre o global, se ambos tiverem a mesma key_name
-    return query.order_by(ProductType.user_id.desc().nullslast()).first()
-
-
-def get_product_types_for_user(db: Session, user_id: int, skip: int = 0, limit: int = 100):
-    # Retorna tipos de produto globais (user_id=None) e tipos criados pelo usuário
-    return db.query(ProductType).options(selectinload(ProductType.attribute_templates)).filter(
-        or_(ProductType.user_id == user_id, ProductType.user_id == None)
-    ).offset(skip).limit(limit).all()
-
-def count_product_types_for_user(db: Session, user_id: int):
-    return db.query(ProductType).filter(
-        or_(ProductType.user_id == user_id, ProductType.user_id == None)
-    ).count()
-
-
-def create_product_type(db: Session, product_type_create: schemas.ProductTypeCreate, user_id: Optional[int] = None):
-    db_product_type = ProductType(
-        key_name=product_type_create.key_name,
-        friendly_name=product_type_create.friendly_name,
-        description=product_type_create.description,
-        user_id=user_id # Define user_id (None para global)
-    )
-    db.add(db_product_type)
-    db.flush() # Para obter o ID do product_type antes de adicionar atributos
-
-    if product_type_create.attribute_templates:
-        for attr_data in product_type_create.attribute_templates:
-            create_attribute_template(db, attr_data, product_type_id=db_product_type.id)
-    
-    db.commit()
-    db.refresh(db_product_type)
-    # Para carregar os attribute_templates recém-criados na resposta
-    db.refresh(db_product_type, attribute_names=['attribute_templates']) 
-    return db_product_type
-
-def update_product_type(db: Session, product_type_id: int, product_type_data: schemas.ProductTypeUpdate, user_id: Optional[int] = None):
-    db_product_type = db.query(ProductType).filter(ProductType.id == product_type_id).first()
-    if not db_product_type:
-        return None
-    
-    # Garante que o usuário tem permissão para modificar (se não for admin e não for tipo global)
-    if user_id is not None and db_product_type.user_id != user_id and db_product_type.user_id is not None:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Você não tem permissão para editar este tipo de produto.")
-    # Permissões adicionais para tipos globais
-    if db_product_type.user_id is None and user_id is not None and not settings.ALLOW_USERS_TO_EDIT_GLOBAL_PRODUCT_TYPES:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Usuários comuns não podem editar tipos de produto globais.")
-
-
-    update_data = product_type_data.dict(exclude_unset=True)
-    for field, value in update_data.items():
-        setattr(db_product_type, field, value)
-    
-    db.add(db_product_type)
-    db.commit()
-    db.refresh(db_product_type)
-    return db_product_type
-
-def delete_product_type(db: Session, product_type_id: int, user_id: Optional[int] = None):
-    db_product_type = db.query(ProductType).filter(ProductType.id == product_type_id).first()
-    if not db_product_type:
-        return None
-    
-    # Garante que o usuário tem permissão para deletar
-    if user_id is not None and db_product_type.user_id != user_id: 
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Você não tem permissão para deletar este tipo de produto.")
-    if db_product_type.user_id is None and user_id is not None and not settings.ALLOW_USERS_TO_DELETE_GLOBAL_PRODUCT_TYPES:
-         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Usuários comuns não podem deletar tipos de produto globais.")
-
-    # Verifica se há produtos associados a este tipo
-    if db.query(Produto).filter(Produto.product_type_id == product_type_id).first():
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Não é possível deletar o tipo de produto: existem produtos associados a ele.")
-
-    db.delete(db_product_type)
-    db.commit()
-    return db_product_type
-
-
-# --- CRUD para AttributeTemplates ---
-def get_attribute_template(db: Session, attribute_template_id: int):
-    return db.query(AttributeTemplate).filter(AttributeTemplate.id == attribute_template_id).first()
-
-def get_attribute_template_by_key(db: Session, product_type_id: int, attribute_key: str):
-    return db.query(AttributeTemplate).filter(
-        AttributeTemplate.product_type_id == product_type_id,
-        AttributeTemplate.attribute_key == attribute_key
-    ).first()
-
-def create_attribute_template(db: Session, attribute_template_data: schemas.AttributeTemplateCreate, product_type_id: int, user_id: Optional[int] = None):
-    # Verifica unicidade da attribute_key dentro do product_type
-    existing_attribute = get_attribute_template_by_key(db, product_type_id, attribute_template_data.attribute_key)
-    if existing_attribute:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"Um atributo com a chave '{attribute_template_data.attribute_key}' já existe para este tipo de produto.")
-    
-    # Verifica permissão para o tipo de produto
-    product_type_owner = db.query(ProductType).filter(ProductType.id == product_type_id).first()
-    if product_type_owner:
-        # Se o tipo pertence a outro usuário e não é global, e o usuário não é admin
-        if product_type_owner.user_id is not None and product_type_owner.user_id != user_id and user_id is not None:
-             raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Não autorizado a adicionar atributos a este tipo de produto.")
-        # Se é um tipo global e o usuário não é admin e não pode editar globais
-        if product_type_owner.user_id is None and user_id is not None and not settings.ALLOW_USERS_TO_EDIT_GLOBAL_PRODUCT_TYPES:
-            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Usuários comuns não podem adicionar atributos a tipos de produto globais.")
-
-
-    db_attribute_template = AttributeTemplate(
-        **attribute_template_data.model_dump(),
-        product_type_id=product_type_id
-    )
-    db.add(db_attribute_template)
-    db.commit()
-    db.refresh(db_attribute_template)
-    return db_attribute_template
-
-def update_attribute_template(db: Session, attribute_template_id: int, attribute_template_data: schemas.AttributeTemplateUpdate, user_id: Optional[int] = None):
-    db_attribute_template = db.query(AttributeTemplate).filter(AttributeTemplate.id == attribute_template_id).first()
-    if not db_attribute_template:
-        return None
-    
-    # Verifica permissão para o tipo de produto pai
-    product_type_owner = db.query(ProductType).filter(ProductType.id == db_attribute_template.product_type_id).first()
-    if product_type_owner:
-        if product_type_owner.user_id is not None and product_type_owner.user_id != user_id and user_id is not None:
-             raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Não autorizado a editar atributos deste tipo de produto.")
-        if product_type_owner.user_id is None and user_id is not None and not settings.ALLOW_USERS_TO_EDIT_GLOBAL_PRODUCT_TYPES:
-            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Usuários comuns não podem editar atributos de tipos de produto globais.")
-
-
-    update_data = attribute_template_data.dict(exclude_unset=True)
-    # Valida unicidade se attribute_key for alterada
-    if "attribute_key" in update_data and update_data["attribute_key"] != db_attribute_template.attribute_key:
-        existing_attribute = get_attribute_template_by_key(db, db_attribute_template.product_type_id, update_data["attribute_key"])
-        if existing_attribute and existing_attribute.id != attribute_template_id:
-            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"Um atributo com a chave '{update_data['attribute_key']}' já existe para este tipo de produto.")
-
-    for field, value in update_data.items():
-        setattr(db_attribute_template, field, value)
-    
-    db.add(db_attribute_template)
-    db.commit()
-    db.refresh(db_attribute_template)
-    return db_attribute_template
-
-def delete_attribute_template(db: Session, attribute_template_id: int, user_id: Optional[int] = None):
-    db_attribute_template = db.query(AttributeTemplate).filter(AttributeTemplate.id == attribute_template_id).first()
-    if not db_attribute_template:
-        return None
-    
-    # Verifica permissão para o tipo de produto pai
-    product_type_owner = db.query(ProductType).filter(ProductType.id == db_attribute_template.product_type_id).first()
-    if product_type_owner:
-        if product_type_owner.user_id is not None and product_type_owner.user_id != user_id and user_id is not None:
-             raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Não autorizado a deletar atributos deste tipo de produto.")
-        if product_type_owner.user_id is None and user_id is not None and not settings.ALLOW_USERS_TO_DELETE_GLOBAL_PRODUCT_TYPES:
-            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Usuários comuns não podem deletar atributos de tipos de produto globais.")
-
-
-    db.delete(db_attribute_template)
-    db.commit()
-    return db_attribute_template
-
-
-# --- CRUD para Imagens de Produto (simplificado, apenas para salvar no sistema de arquivos) ---
-# Esta função pode ser transferida para um service/uploadService.py se crescer
-# async def save_produto_image(db: Session, produto_id: int, file: UploadFile) -> str:
-#     # Aqui você implementaria a lógica real de salvar o arquivo no disco
-#     # e retornar a URL/caminho para o DB.
-#     # Exemplo mock:
-#     # file_location = f"/static/produtos/{produto_id}_{file.filename}"
-#     # return file_location
-#     raise NotImplementedError("Implementar lógica de salvamento de imagem no sistema de arquivos.")
-```Você está recebendo o erro "`Table 'roles' is already defined for this MetaData instance.`" porque a forma como os módulos são importados e carregados pelo Uvicorn (especialmente com o `reload` ativo) está fazendo com que as classes de modelo da SQLAlchemy sejam redefinidas, causando um conflito no `MetaData`.
-
-A solução mais robusta é padronizar **todos os imports dentro do seu diretório `Backend` para serem absolutos**, ou seja, começando com `Backend.`. Isso ajuda o Python a gerenciar o estado dos módulos de forma mais consistente e evita que os modelos sejam redefinidos para o `MetaData` da SQLAlchemy em cada recarga.
-
-Já corrigimos `Backend/models.py` e `Backend/schemas.py`. O erro atual (conforme o traceback que você forneceu na última vez) vem de `Backend/crud.py` ao tentar importar `models` e `schemas` de forma relativa.
-
-Vamos corrigir o `Backend/crud.py` agora.
-
----
-
-**Correção em `Backend/crud.py`:**
-
-Esta alteração será **maior que 2 linhas**. Vou fornecer o conteúdo completo do arquivo `Backend/crud.py` com as modificações aplicadas para garantir que todos os imports internos sejam absolutos.
-
-**Passos:**
-
-1.  **Pare o servidor Uvicorn** (se ainda estiver rodando, geralmente com `CTRL+C`).
-2.  **Abra o arquivo `Backend/crud.py`.**
-3.  **Substitua TODO o conteúdo** do seu `Backend/crud.py` pelo código abaixo.
-
-```python
-from sqlalchemy.orm import Session, joinedload, noload, selectinload
-from sqlalchemy import func, and_, or_, distinct, asc, desc
-from typing import List, Optional, Dict, Any, Union
-from datetime import datetime, timedelta, timezone
-import json
-import logging
-from sqlalchemy_json import NestedMutableJson # Importado de forma absoluta no código do usuário
-
-# --- IMPORTS ALTERADOS DE RELATIVOS PARA ABSOLUTOS ---
-from Backend.models import ( # Importa os modelos diretamente do pacote Backend
-    User, Role, Plano, Fornecedor, Produto, ProductType, AttributeTemplate, RegistroUsoIA,
-    StatusEnriquecimentoEnum, StatusGeracaoIAEnum, AttributeFieldTypeEnum, TipoAcaoIAEnum
-)
-import Backend.schemas as schemas # Importa schemas como um alias do pacote Backend
-from Backend.auth import get_password_hash # Importa do módulo auth dentro de Backend
-from Backend.core.config import settings # Importa settings do pacote core dentro de Backend
-from Backend.core import security # Importa security do pacote core dentro de Backend
-# --- FIM DOS IMPORTS ALTERADOS ---
-
+# Configuração básica de logging
+logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 
-# --- CRUD para Roles ---
-def get_role(db: Session, role_id: int):
-    return db.query(Role).filter(Role.id == role_id).first()
-
-def get_role_by_name(db: Session, name: str):
-    return db.query(Role).filter(Role.name == name).first()
-
-def create_role(db: Session, role: schemas.RoleCreate):
-    db_role = Role(name=role.name, description=role.description)
-    db.add(db_role)
-    db.commit()
-    db.refresh(db_role)
-    return db_role
-
-
-# --- CRUD para Planos ---
-def get_plano(db: Session, plano_id: int):
-    return db.query(Plano).filter(Plano.id == plano_id).first()
-
-def get_plano_by_name(db: Session, nome: str):
-    return db.query(Plano).filter(Plano.nome == nome).first()
-
-def get_all_planos(db: Session):
-    return db.query(Plano).all()
-
-def create_plano(db: Session, plano: schemas.PlanoCreate):
-    db_plano = Plano(**plano.model_dump())
-    db.add(db_plano)
-    db.commit()
-    db.refresh(db_plano)
-    return db_plano
-
-def update_plano(db: Session, plano_id: int, plano_in: schemas.PlanoUpdate):
-    db_plano = db.query(Plano).filter(Plano.id == plano_id).first()
-    if not db_plano:
-        return None
-    for field, value in plano_in.dict(exclude_unset=True).items():
-        setattr(db_plano, field, value)
-    db.add(db_plano)
-    db.commit()
-    db.refresh(db_plano)
-    return db_plano
-
-def delete_plano(db: Session, plano_id: int):
-    db_plano = db.query(Plano).filter(Plano.id == plano_id).first()
-    if db_plano:
-        db.delete(db_plano)
-        db.commit()
-    return db_plano
-
-
-# --- CRUD para Usuários ---
-def get_user(db: Session, user_id: int):
+# --- User CRUD ---
+def get_user(db: Session, user_id: int) -> Optional[User]:
     return db.query(User).filter(User.id == user_id).first()
 
-def get_user_by_email(db: Session, email: str):
+def get_user_by_email(db: Session, email: str) -> Optional[User]:
     return db.query(User).filter(User.email == email).first()
 
-def get_user_by_provider_id(db: Session, provider: str, provider_user_id: str):
-    return db.query(User).filter(
-        User.provider == provider,
-        User.provider_user_id == provider_user_id
-    ).first()
-
-def get_users(db: Session, skip: int = 0, limit: int = 100):
+def get_users(db: Session, skip: int = 0, limit: int = 100) -> List[User]:
     return db.query(User).offset(skip).limit(limit).all()
 
-def get_users_with_role_and_plan(db: Session, skip: int = 0, limit: int = 100):
-    return db.query(User).options(joinedload(User.role), joinedload(User.plano)).offset(skip).limit(limit).all()
-
-def create_user(db: Session, user: schemas.UserCreate, plano_id: Optional[int] = None, role_id: Optional[int] = None):
+def create_user(db: Session, user: schemas.UserCreate) -> User:
     hashed_password = security.get_password_hash(user.password)
     
     # Define os limites iniciais baseados nas configurações padrão para usuários sem plano
@@ -592,27 +72,6 @@ def create_user(db: Session, user: schemas.UserCreate, plano_id: Optional[int] =
     db.commit()
     db.refresh(db_user)
     return db_user
-
-def create_user_oauth(db: Session, user_in: schemas.UserCreateOAuth, plano_id_default: Optional[int] = None, role_id: Optional[int] = None):
-    db_role = get_role(db, role_id) if role_id else get_role_by_name(db, "user")
-    db_plano = get_plano(db, plano_id=plano_id_default) if plano_id_default else get_plano_by_name(db, "Gratuito")
-
-    db_user = User(
-        email=user_in.email,
-        hashed_password="", # No password for OAuth users
-        nome_completo=user_in.nome_completo,
-        idioma_preferido=user_in.idioma_preferido, # Adicionado
-        is_active=True,
-        role_id=db_role.id if db_role else None,
-        plano_id=db_plano.id if db_plano else None,
-        provider=user_in.provider,
-        provider_user_id=user_in.provider_user_id
-    )
-    db.add(db_user)
-    db.commit()
-    db.refresh(db_user)
-    return db_user
-
 
 def update_user(db: Session, db_user: User, user_update: Union[schemas.UserUpdate, schemas.UserUpdateByAdmin, schemas.UserUpdateOAuth]) -> User:
     update_data = user_update.model_dump(exclude_unset=True)
@@ -658,108 +117,187 @@ def update_user(db: Session, db_user: User, user_update: Union[schemas.UserUpdat
     db.refresh(db_user)
     return db_user
 
-def update_user_by_admin(db: Session, db_user: User, user_in: schemas.UserUpdateByAdmin):
-    update_data = user_in.dict(exclude_unset=True)
-    if "password" in update_data and update_data["password"]:
-        db_user.hashed_password = get_password_hash(update_data["password"])
-        del update_data["password"]
-    
-    # Removendo campos que devem ser atualizados via setters diretos ou que não fazem parte do modelo User
-    fields_to_set = {k: v for k, v in update_data.items() if hasattr(db_user, k)}
-
-    for field, value in fields_to_set.items():
-        setattr(db_user, field, value)
-    
-    # Lógica específica para limites de plano (se o usuário não tiver plano ou o plano permitir override)
-    if user_in.limite_produtos is not None:
-        db_user.limite_produtos = user_in.limite_produtos
-    if user_in.limite_enriquecimento_web is not None:
-        db_user.limite_enriquecimento_web = user_in.limite_enriquecimento_web
-    if user_in.limite_geracao_ia is not None:
-        db_user.limite_geracao_ia = user_in.limite_geracao_ia
-    if user_in.data_expiracao_plano is not None:
-        db_user.data_expiracao_plano = user_in.data_expiracao_plano
-
-    db.add(db_user)
-    db.commit()
-    db.refresh(db_user)
-    return db_user
-
 
 def delete_user(db: Session, db_user: User) -> User:
     db.delete(db_user)
     db.commit()
     return db_user
 
+def create_user_oauth(db: Session, user_oauth: schemas.UserCreateOAuth, plano_id_default: Optional[int] = None) -> User:
+    db_user = User(
+        email=user_oauth.email,
+        nome_completo=user_oauth.nome_completo,
+        provider=user_oauth.provider,
+        provider_user_id=user_oauth.provider_user_id,
+        is_active=True,
+        idioma_preferido=user_oauth.idioma_preferido, # Adicionado
+        # Limites padrão, serão atualizados se plano_id_default for fornecido
+        limite_produtos=settings.DEFAULT_LIMIT_PRODUTOS_SEM_PLANO,
+        limite_enriquecimento_web=settings.DEFAULT_LIMIT_ENRIQUECIMENTO_SEM_PLANO,
+        limite_geracao_ia=settings.DEFAULT_LIMIT_GERACAO_IA_SEM_PLANO,
+    )
+    if plano_id_default:
+        plano = get_plano(db, plano_id=plano_id_default)
+        if plano:
+            db_user.plano_id = plano.id
+            db_user.limite_produtos = plano.limite_produtos
+            db_user.limite_enriquecimento_web = plano.limite_enriquecimento_web
+            db_user.limite_geracao_ia = plano.limite_geracao_ia
+            # db_user.data_expiracao_plano = datetime.now(timezone.utc) + timedelta(days=30) # Exemplo
+    
+    # Se o Role padrão "user" existir, atribui-lo
+    default_role = get_role_by_name(db, "user")
+    if default_role:
+        db_user.role_id = default_role.id
 
-def update_user_password_reset_token(db: Session, user_id: int, token: str, expires_at: datetime):
-    db_user = db.query(User).filter(User.id == user_id).first()
-    if db_user:
-        db_user.reset_password_token = token
-        db_user.reset_password_token_expires_at = expires_at
-        db.add(db_user)
-        db.commit()
-        db.refresh(db_user)
+    db.add(db_user)
+    db.commit()
+    db.refresh(db_user)
     return db_user
 
+def get_user_by_provider(db: Session, provider: str, provider_user_id: str) -> Optional[User]:
+    return db.query(User).filter(User.provider == provider, User.provider_user_id == provider_user_id).first()
 
-# --- CRUD para Fornecedores ---
-def get_fornecedor(db: Session, fornecedor_id: int, user_id: Optional[int] = None):
-    query = db.query(Fornecedor).filter(Fornecedor.id == fornecedor_id)
-    if user_id: # Se user_id for fornecido, filtra também pelo usuário
-        query = query.filter(Fornecedor.user_id == user_id)
-    return query.first()
 
-def get_fornecedores_by_user(db: Session, user_id: int, skip: int = 0, limit: int = 100, termo_busca: Optional[str] = None):
-    query = db.query(Fornecedor).filter(Fornecedor.user_id == user_id)
-    if termo_busca:
-        search_term = f"%{termo_busca.lower()}%"
-        query = query.filter(
-            or_(
-                func.lower(Fornecedor.nome).ilike(search_term),
-                func.lower(Fornecedor.email_contato).ilike(search_term),
-                func.lower(Fornecedor.contato_principal).ilike(search_term)
-            )
-        )
-    return query.offset(skip).limit(limit).all()
+def set_user_password_reset_token(db: Session, user: User, token: str, expires_at: datetime) -> None:
+    user.reset_password_token = token
+    user.reset_password_token_expires_at = expires_at
+    db.commit()
+    db.refresh(user)
 
-def count_fornecedores_by_user(db: Session, user_id: int, termo_busca: Optional[str] = None):
-    query = db.query(Fornecedor).filter(Fornecedor.user_id == user_id)
-    if termo_busca:
-        search_term = f"%{termo_busca.lower()}%"
-        query = query.filter(
-            or_(
-                func.lower(Fornecedor.nome).ilike(search_term),
-                func.lower(Fornecedor.email_contato).ilike(search_term),
-                func.lower(Fornecedor.contato_principal).ilike(search_term)
-            )
-        )
-    return query.count()
+def get_user_by_reset_token(db: Session, token: str) -> Optional[User]:
+    return db.query(User).filter(User.reset_password_token == token).first()
 
-def create_fornecedor(db: Session, fornecedor: schemas.FornecedorCreate, user_id: int):
+# --- Role CRUD ---
+def get_role(db: Session, role_id: int) -> Optional[Role]:
+    return db.query(Role).filter(Role.id == role_id).first()
+
+def get_role_by_name(db: Session, name: str) -> Optional[Role]:
+    return db.query(Role).filter(Role.name == name).first()
+
+def get_roles(db: Session, skip: int = 0, limit: int = 10) -> List[Role]:
+    return db.query(Role).offset(skip).limit(limit).all()
+
+def create_role(db: Session, role: schemas.RoleCreate) -> Role:
+    db_role = Role(name=role.name, description=role.description)
+    db.add(db_role)
+    db.commit()
+    db.refresh(db_role)
+    return db_role
+
+# --- Plano CRUD ---
+def get_plano(db: Session, plano_id: int) -> Optional[Plano]:
+    return db.query(Plano).filter(Plano.id == plano_id).first()
+
+def get_plano_by_name(db: Session, nome: str) -> Optional[Plano]:
+    return db.query(Plano).filter(Plano.nome == nome).first()
+
+def get_planos(db: Session, skip: int = 0, limit: int = 10) -> List[Plano]:
+    return db.query(Plano).offset(skip).limit(limit).all()
+
+def create_plano(db: Session, plano: schemas.PlanoCreate) -> Plano:
+    db_plano = Plano(**plano.model_dump())
+    db.add(db_plano)
+    db.commit()
+    db.refresh(db_plano)
+    return db_plano
+
+def update_plano(db: Session, db_plano: Plano, plano_update: schemas.PlanoUpdate) -> Plano:
+    update_data = plano_update.model_dump(exclude_unset=True)
+    for key, value in update_data.items():
+        setattr(db_plano, key, value)
+    db.commit()
+    db.refresh(db_plano)
+    return db_plano
+
+def delete_plano(db: Session, db_plano: Plano):
+    db.delete(db_plano)
+    db.commit()
+    return db_plano
+
+
+# --- Fornecedor CRUD ---
+def create_fornecedor(db: Session, fornecedor: schemas.FornecedorCreate, user_id: int) -> Fornecedor:
     db_fornecedor = Fornecedor(**fornecedor.model_dump(), user_id=user_id)
     db.add(db_fornecedor)
     db.commit()
     db.refresh(db_fornecedor)
     return db_fornecedor
 
-def update_fornecedor(db: Session, db_fornecedor: Fornecedor, fornecedor_in: schemas.FornecedorUpdate):
-    update_data = fornecedor_in.dict(exclude_unset=True)
-    for field, value in update_data.items():
-        setattr(db_fornecedor, field, value)
-    db.add(db_fornecedor)
+def get_fornecedor(db: Session, fornecedor_id: int) -> Optional[Fornecedor]:
+    return db.query(Fornecedor).filter(Fornecedor.id == fornecedor_id).first()
+
+def get_fornecedores_by_user(
+    db: Session,
+    user_id: Optional[int] = None, # Tornar opcional para admins
+    is_admin: bool = False,
+    skip: int = 0,
+    limit: int = 10,
+    search: Optional[str] = None
+) -> List[Fornecedor]:
+    query = db.query(Fornecedor)
+    if not is_admin and user_id:
+        query = query.filter(Fornecedor.user_id == user_id)
+    
+    if search:
+        search_term = f"%{search.lower()}%"
+        query = query.filter(
+            or_(
+                func.lower(Fornecedor.nome).ilike(search_term),
+                func.lower(Fornecedor.email_contato).ilike(search_term), # Ajustado para email_contato
+                func.lower(Fornecedor.contato_principal).ilike(search_term) # Ajustado para contato_principal
+            )
+        )
+    return query.order_by(Fornecedor.nome).offset(skip).limit(limit).all()
+
+
+def count_fornecedores_by_user(
+    db: Session,
+    user_id: Optional[int] = None, # Tornar opcional para admins
+    is_admin: bool = False,
+    search: Optional[str] = None
+) -> int:
+    query = db.query(func.count(Fornecedor.id))
+    if not is_admin and user_id:
+        query = query.filter(Fornecedor.user_id == user_id)
+    
+    if search:
+        search_term = f"%{search.lower()}%"
+        query = query.filter(
+            or_(
+                func.lower(Fornecedor.nome).ilike(search_term),
+                func.lower(Fornecedor.email_contato).ilike(search_term),
+                func.lower(Fornecedor.contato_principal).ilike(search_term)
+            )
+        )
+    return query.scalar() or 0
+
+
+def update_fornecedor(db: Session, db_fornecedor: Fornecedor, fornecedor_update: schemas.FornecedorUpdate) -> Fornecedor:
+    update_data = fornecedor_update.model_dump(exclude_unset=True)
+    for key, value in update_data.items():
+        setattr(db_fornecedor, key, value)
     db.commit()
     db.refresh(db_fornecedor)
     return db_fornecedor
 
-def delete_fornecedor(db: Session, db_fornecedor: Fornecedor):
+def delete_fornecedor(db: Session, db_fornecedor: Fornecedor) -> Fornecedor:
     db.delete(db_fornecedor)
     db.commit()
+    # Se Fornecedor não tiver cascade para produtos, a referência em produto precisa ser tratada (setar para None)
+    # No seu model.py, Produto tem um relacionamento com Fornecedor, mas Fornecedor não tem cascade="all, delete-orphan" para Produto.
+    # Isso significa que deletar um fornecedor não deleta os produtos.
+    # A ForeignKey `fornecedor_id` em `Produto` deve ser `nullable=True` e `ondelete="SET NULL"` no DB,
+    # ou você precisa fazer isso manualmente:
+    # db.query(Produto).filter(Produto.fornecedor_id == db_fornecedor.id).update({"fornecedor_id": None})
+    # db.commit()
+    # No entanto, a lógica atual do seu `models.Produto` para `fornecedor_id` é `nullable=True`
+    # o que é bom. O `ondelete` no DB é o mais robusto.
     return db_fornecedor
 
 
 # --- ProductType CRUD ---
-def create_product_type(db: Session, product_type_create: schemas.ProductTypeCreate, user_id: Optional[int] = None):
+def create_product_type(db: Session, product_type_create: schemas.ProductTypeCreate, user_id: Optional[int] = None) -> ProductType:
     logger.debug(f"CRUD (create_product_type): Recebido para user_id: {user_id}, key_name: {product_type_create.key_name}")
     
     # Verifica se já existe um tipo de produto com o mesmo key_name (global ou do usuário)
@@ -793,7 +331,11 @@ def create_product_type(db: Session, product_type_create: schemas.ProductTypeCre
 
     if hasattr(product_type_create, 'attribute_templates') and product_type_create.attribute_templates:
         for attr_template_data in product_type_create.attribute_templates:
-            create_attribute_template(db, attr_template_data, product_type_id=db_product_type.id)
+            db_attr_template = AttributeTemplate(
+                **attr_template_data.model_dump(),
+                product_type_id=db_product_type.id
+            )
+            db.add(db_attr_template)
     
     db.commit()
     db.refresh(db_product_type)
@@ -802,28 +344,31 @@ def create_product_type(db: Session, product_type_create: schemas.ProductTypeCre
     logger.info(f"CRUD (create_product_type): Tipo de Produto '{db_product_type.friendly_name}' (ID: {db_product_type.id}) criado para user_id: {user_id}")
     return db_product_type
 
-def get_product_type(db: Session, product_type_id: int, user_id: Optional[int] = None):
-    query = db.query(ProductType).options(selectinload(ProductType.attribute_templates))
-    # Permite buscar tipos globais (user_id=None) e personalizados do usuário, se user_id for fornecido
-    if user_id is not None:
-        query = query.filter(or_(ProductType.user_id == user_id, ProductType.user_id == None))
-    else: # Se user_id não for fornecido, busca apenas globais (padrão)
-        query = query.filter(ProductType.user_id == None)
-    return query.filter(ProductType.id == product_type_id).first()
+def get_product_type(db: Session, product_type_id: int) -> Optional[ProductType]:
+    return db.query(ProductType).options(selectinload(ProductType.attribute_templates)).filter(ProductType.id == product_type_id).first()
 
-def get_product_type_by_key_name(db: Session, key_name: str, user_id: Optional[int] = None):
+def get_product_type_by_key_name(db: Session, key_name: str, user_id: Optional[int] = None) -> Optional[ProductType]:
     logger.debug(f"CRUD (get_product_type_by_key_name): Buscando tipo de produto por KeyName: '{key_name}', UserID: {user_id}")
     query = db.query(ProductType).options(selectinload(ProductType.attribute_templates)).filter(ProductType.key_name == key_name)
-    if user_id is not None:
-        query = query.filter(or_(ProductType.user_id == user_id, ProductType.user_id == None))
+    if user_id:
+        # Usuário pode acessar seus próprios tipos ou tipos globais
+        pt = query.filter(or_(ProductType.user_id == user_id, ProductType.user_id == None)).order_by(ProductType.user_id.desc()).first() # Prioriza o do usuário
+        if pt:
+            logger.debug(f"CRUD: Encontrado tipo de produto (user ou global): '{pt.friendly_name}' (ID: {pt.id})")
+            return pt
+        logger.debug(f"CRUD: Nenhum tipo (user ou global) encontrado para key_name '{key_name}' e user_id '{user_id}'.")
+        return None
     else:
-        query = query.filter(ProductType.user_id == None)
-    
-    # Adicionado order_by para priorizar o tipo do usuário sobre o global, se ambos tiverem a mesma key_name
-    return query.order_by(ProductType.user_id.desc().nullslast()).first()
+        # Busca apenas tipos globais
+        pt = query.filter(ProductType.user_id == None).first()
+        if pt:
+            logger.debug(f"CRUD: Encontrado tipo de produto global: '{pt.friendly_name}' (ID: {pt.id})")
+            return pt
+        logger.debug(f"CRUD: Nenhum tipo global encontrado para key_name '{key_name}' (user_id não fornecido).")
+        return None
 
 
-def get_product_types_for_user(db: Session, user_id: int, skip: int = 0, limit: int = 100, search: Optional[str] = None) -> List[ProductType]:
+def get_product_types_for_user(db: Session, user_id: Optional[int], skip: int = 0, limit: int = 100, search: Optional[str] = None) -> List[ProductType]:
     query = db.query(ProductType).options(selectinload(ProductType.attribute_templates))
     
     # Filtra para tipos do usuário específico OU tipos globais (user_id IS NULL)
@@ -909,7 +454,7 @@ def delete_product_type(db: Session, db_product_type: ProductType) -> ProductTyp
 
 
 # --- AttributeTemplate CRUD ---
-def create_attribute_template(db: Session, attr_template_create: schemas.AttributeTemplateCreate, product_type_id: int, user_id: Optional[int] = None) -> AttributeTemplate:
+def create_attribute_template(db: Session, attr_template_create: schemas.AttributeTemplateCreate, product_type_id: int) -> AttributeTemplate:
     # Verificar se já existe um atributo com a mesma key para o mesmo product_type_id
     existing_attr = db.query(AttributeTemplate).filter(
         AttributeTemplate.product_type_id == product_type_id,
@@ -917,79 +462,47 @@ def create_attribute_template(db: Session, attr_template_create: schemas.Attribu
     ).first()
     if existing_attr:
         raise IntegrityError(f"O Tipo de Produto ID {product_type_id} já possui um atributo com a chave '{attr_template_create.attribute_key}'.", params={}, orig=None)
-    
-    # Verifica permissão para o tipo de produto
-    product_type_owner = db.query(ProductType).filter(ProductType.id == product_type_id).first()
-    if product_type_owner:
-        # Se o tipo pertence a outro usuário e não é global, e o usuário não é admin
-        if product_type_owner.user_id is not None and product_type_owner.user_id != user_id and user_id is not None:
-             raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Não autorizado a adicionar atributos a este tipo de produto.")
-        # Se é um tipo global e o usuário não é admin e não pode editar globais
-        if product_type_owner.user_id is None and user_id is not None and not settings.ALLOW_USERS_TO_EDIT_GLOBAL_PRODUCT_TYPES:
-            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Usuários comuns não podem adicionar atributos a tipos de produto globais.")
 
-
-    db_attribute_template = AttributeTemplate(
+    db_attr_template = AttributeTemplate(
         **attr_template_create.model_dump(),
         product_type_id=product_type_id
     )
-    db.add(db_attribute_template)
+    db.add(db_attr_template)
     db.commit()
-    db.refresh(db_attribute_template)
-    return db_attribute_template
+    db.refresh(db_attr_template)
+    return db_attr_template
 
 def get_attribute_template(db: Session, attribute_template_id: int) -> Optional[AttributeTemplate]:
     return db.query(AttributeTemplate).filter(AttributeTemplate.id == attribute_template_id).first()
 
-def update_attribute_template(db: Session, db_attr_template: AttributeTemplate, attr_template_update: schemas.AttributeTemplateUpdate, user_id: Optional[int] = None):
-    db_attribute_template = db.query(AttributeTemplate).filter(AttributeTemplate.id == attribute_template_id).first()
-    if not db_attribute_template:
-        return None
+def update_attribute_template(db: Session, db_attr_template: AttributeTemplate, attr_template_update: schemas.AttributeTemplateUpdate) -> AttributeTemplate:
+    update_data = attr_template_update.model_dump(exclude_unset=True)
     
-    # Verifica permissão para o tipo de produto pai
-    product_type_owner = db.query(ProductType).filter(ProductType.id == db_attribute_template.product_type_id).first()
-    if product_type_owner:
-        if product_type_owner.user_id is not None and product_type_owner.user_id != user_id and user_id is not None:
-             raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Não autorizado a editar atributos deste tipo de produto.")
-        if product_type_owner.user_id is None and user_id is not None and not settings.ALLOW_USERS_TO_EDIT_GLOBAL_PRODUCT_TYPES:
-            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Usuários comuns não podem editar atributos de tipos de produto globais.")
+    if "attribute_key" in update_data and update_data["attribute_key"] != db_attr_template.attribute_key:
+        # Verificar se a nova chave já existe para este product_type
+        existing_check = db.query(AttributeTemplate).filter(
+            AttributeTemplate.product_type_id == db_attr_template.product_type_id,
+            AttributeTemplate.attribute_key == update_data["attribute_key"],
+            AttributeTemplate.id != db_attr_template.id
+        ).first()
+        if existing_check:
+            raise IntegrityError(f"O Tipo de Produto ID {db_attr_template.product_type_id} já possui um atributo com a chave '{update_data['attribute_key']}'.", params={}, orig=None)
 
-
-    update_data = attr_template_update.dict(exclude_unset=True)
-    # Valida unicidade se attribute_key for alterada
-    if "attribute_key" in update_data and update_data["attribute_key"] != db_attribute_template.attribute_key:
-        existing_attribute = get_attribute_template_by_key(db, db_attribute_template.product_type_id, update_data["attribute_key"])
-        if existing_attribute and existing_attribute.id != attribute_template_id:
-            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"Um atributo com a chave '{update_data['attribute_key']}' já existe para este tipo de produto.")
-
-    for field, value in update_data.items():
-        setattr(db_attribute_template, field, value)
-    
-    db.add(db_attribute_template)
+    for key, value in update_data.items():
+        setattr(db_attr_template, key, value)
     db.commit()
-    db.refresh(db_attribute_template)
-    return db_attribute_template
+    db.refresh(db_attr_template)
+    return db_attr_template
 
-def delete_attribute_template(db: Session, attribute_template_id: int, user_id: Optional[int] = None):
-    db_attribute_template = db.query(AttributeTemplate).filter(AttributeTemplate.id == attribute_template_id).first()
-    if not db_attribute_template:
-        return None
-    
-    # Verifica permissão para o tipo de produto pai
-    product_type_owner = db.query(ProductType).filter(ProductType.id == db_attribute_template.product_type_id).first()
-    if product_type_owner:
-        if product_type_owner.user_id is not None and product_type_owner.user_id != user_id and user_id is not None:
-             raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Não autorizado a deletar atributos deste tipo de produto.")
-        if product_type_owner.user_id is None and user_id is not None and not settings.ALLOW_USERS_TO_DELETE_GLOBAL_PRODUCT_TYPES:
-            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Usuários comuns não podem deletar atributos de tipos de produto globais.")
-
-
-    db.delete(db_attribute_template)
+def delete_attribute_template(db: Session, db_attr_template: AttributeTemplate) -> AttributeTemplate:
+    # Aqui, não há produtos diretamente ligados ao AttributeTemplate, mas sim aos ProductTypes.
+    # A exclusão é simples.
+    db.delete(db_attr_template)
     db.commit()
-    return db_attribute_template
+    return db_attr_template
 
 
-# --- CRUD para Produtos ---
+# --- Produto CRUD ---
 def create_produto(db: Session, produto: schemas.ProdutoCreate, user_id: int) -> Produto:
     # Converte dynamic_attributes para dict se for string JSON
     # dynamic_attrs_dict = {}
@@ -1187,21 +700,12 @@ def update_produto(db: Session, db_produto: Produto, produto_update: schemas.Pro
     # Lógica para campos JSON (dynamic_attributes, dados_brutos, imagens_secundarias_urls)
     # Pydantic deve entregar dict/list se o schema estiver correto (não Json[Type])
     # O modelo SQLAlchemy aceita dict/list para colunas JSON.
-    for field in ['dynamic_attributes', 'dados_brutos', 'imagens_secundarias_urls', 'imagens_produto', 'videos_produto', 'log_enriquecimento_web']: # Adicionado aqui
+    for field in ['dynamic_attributes', 'dados_brutos', 'imagens_secundarias_urls']:
         if field in update_data and update_data[field] is not None:
-            setattr(db_produto, field, update_data[field]) # Atribui diretamente
-            del update_data[field] # Remove do dicionário para evitar processamento genérico abaixo
-        elif field in update_data and update_data[field] is None:
-            # Se for explicitamente None, pode-se decidir limpar ou manter o default
-            # Para listas e dicionários, geralmente é melhor definir como [] ou {}
-            if field in ['imagens_produto', 'videos_produto']:
-                setattr(db_produto, field, [])
-            elif field in ['dynamic_attributes', 'dados_brutos']:
-                setattr(db_produto, field, {})
-            elif field == 'log_enriquecimento_web':
-                setattr(db_produto, field, {"historico_mensagens": []})
-            del update_data[field]
-
+            # Se o schema já garante o tipo correto (dict/list), apenas atribua
+            # Se o schema ainda for Json[Type] e vier uma string, precisa de json.loads aqui
+            # Assumindo que o schema.ProdutoUpdate terá Dict/List para esses campos:
+            pass # setattr abaixo cuidará disso
 
     for key, value in update_data.items():
         setattr(db_produto, key, value)
@@ -1277,24 +781,6 @@ def count_registros_uso_ia(
 
     count = query.scalar()
     return count if count is not None else 0
-
-def get_usos_ia_by_produto(db: Session, produto_id: int, user_id: int, skip: int = 0, limit: int = 100):
-    # Retorna os registros de uso de IA para um produto específico e usuário
-    return db.query(RegistroUsoIA).filter(
-        RegistroUsoIA.produto_id == produto_id,
-        RegistroUsoIA.user_id == user_id
-    ).order_by(RegistroUsoIA.created_at.desc()).offset(skip).limit(limit).all()
-
-def count_usos_ia_by_user_and_type_no_mes_corrente(db: Session, user_id: int, tipo_geracao_prefix: str) -> int:
-    now = datetime.now(timezone.utc)
-    start_of_month = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
-    
-    query = db.query(func.count(RegistroUsoIA.id)).filter(
-        RegistroUsoIA.user_id == user_id,
-        RegistroUsoIA.created_at >= start_of_month,
-        RegistroUsoIA.tipo_acao.ilike(f"{tipo_geracao_prefix}%")
-    )
-    return query.scalar() or 0
 
 
 # --- Admin Analytics CRUD functions ---
