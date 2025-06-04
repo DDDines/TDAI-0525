@@ -1,0 +1,148 @@
+/* Frontend/app/src/components/Sidebar.css */
+.sidebar {
+  width: 250px;
+  height: 100vh;
+  background-color: #2c3e50; /* Cor de fundo escura de exemplo */
+  color: #ecf0f1; /* Cor de texto clara de exemplo */
+  display: flex;
+  flex-direction: column;
+  transition: width 0.3s ease;
+  position: fixed;
+  left: 0;
+  top: 0;
+  z-index: 1000;
+  overflow-y: auto;
+  padding-top: 1rem;
+}
+
+.sidebar.closed {
+  width: 70px; /* Largura quando recolhida */
+}
+
+.sidebar-header {
+  padding: 1rem;
+  text-align: center;
+  border-bottom: 1px solid #34495e;
+  margin-bottom: 1rem;
+}
+
+.sidebar-title {
+  margin: 0;
+  font-size: 1.5rem;
+  color: #ffffff;
+}
+
+.sidebar.closed .sidebar-title {
+  font-size: 1.2rem; /* Ajuste o tamanho para a versão recolhida */
+}
+
+.sidebar-nav ul {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.sidebar-nav li {
+  margin: 0;
+}
+
+.nav-link {
+  display: flex;
+  align-items: center;
+  padding: 0.75rem 1rem;
+  color: #bdc3c7; /* Cor do link */
+  text-decoration: none;
+  transition: background-color 0.2s ease, color 0.2s ease;
+  white-space: nowrap;
+  overflow: hidden;
+}
+
+.sidebar.closed .nav-link {
+  justify-content: center; /* Centraliza o ícone quando recolhido */
+  padding: 0.75rem 0.5rem;
+}
+
+
+.nav-link:hover {
+  background-color: #34495e; /* Cor de fundo ao passar o mouse */
+  color: #ffffff;
+}
+
+.nav-link.active {
+  background-color: #1abc9c; /* Cor de destaque para link ativo */
+  color: #ffffff;
+  font-weight: bold;
+}
+
+.nav-icon {
+  margin-right: 0.75rem;
+  font-size: 1.2rem; /* Tamanho do ícone */
+  min-width: 24px; /* Para alinhar quando o texto some */
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.sidebar.closed .nav-icon {
+  margin-right: 0;
+}
+
+.nav-text {
+  opacity: 1;
+  transition: opacity 0.2s ease;
+}
+
+.sidebar.closed .nav-text {
+  opacity: 0;
+  width: 0;
+  display: none; /* Esconde o texto quando recolhido */
+}
+
+.sidebar-footer {
+  margin-top: auto; /* Empurra o rodapé para baixo */
+  padding: 1rem;
+  border-top: 1px solid #34495e;
+}
+
+.user-info {
+  margin-bottom: 0.5rem;
+  font-size: 0.9rem;
+  text-align: center;
+}
+
+.sidebar.closed .user-info {
+    display: none;
+}
+
+.logout-button {
+  background-color: transparent;
+  color: #e74c3c; /* Cor para o botão de logout */
+  border: 1px solid #e74c3c;
+  padding: 0.5rem;
+  width: 100%;
+  text-align: left;
+  cursor: pointer;
+  border-radius: 4px;
+  transition: background-color 0.2s ease, color 0.2s ease;
+  display: flex;
+  align-items: center;
+}
+
+.sidebar.closed .logout-button {
+    justify-content: center;
+}
+
+.logout-button:hover {
+  background-color: #e74c3c;
+  color: #ffffff;
+}
+
+.logout-button .nav-icon { /* Para alinhar o ícone de logout */
+  margin-right: 0.75rem;
+}
+
+.sidebar.closed .logout-button .nav-text {
+    display: none;
+}
+
+/* Adicione mais estilos conforme necessário */

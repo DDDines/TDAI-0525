@@ -1,65 +1,128 @@
 # Backend/core/config.py
 import os
-from typing import Optional 
-from pydantic_settings import BaseSettings
 from dotenv import load_dotenv
-from pathlib import Path
-from passlib.context import CryptContext
+from typing import List, Union, Optional
+from pydantic_settings import BaseSettings
+from pydantic import AnyHttpUrl, ValidationError
+from pathlib import Path # <--- IMPORTAÇÃO ADICIONADA AQUI
 
-dotenv_path = Path(__file__).resolve().parent.parent.parent / ".env" 
-load_dotenv(dotenv_path=dotenv_path)
+# Carrega as variáveis de ambiente do arquivo .env
+# Garanta que o .env está na raiz do projeto ou ajuste o caminho
+dotenv_path = Path(__file__).resolve().parent.parent.parent / ".env" # Vai para a raiz do projeto
+if dotenv_path.exists():
+    load_dotenv(dotenv_path=dotenv_path)
+else:
+    print(f"AVISO: Arquivo .env não encontrado em {dotenv_path}. Usando valores padrão ou variáveis de ambiente do sistema.")
 
 class Settings(BaseSettings):
-    PROJECT_NAME: str = "TDAI API"
+    PROJECT_NAME: str = "TDAI - Transformador de Dados Assistido por IA"
     PROJECT_VERSION: str = "1.0.0"
-    
-    DATABASE_URL: str = os.getenv("DATABASE_URL", "sqlite:///./tdai_app.db") 
-    
-    SECRET_KEY: str = os.getenv("SECRET_KEY", "supersecretkey") 
-    ALGORITHM: str = "HS256"
-    ACCESS_TOKEN_EXPIRE_MINUTES: int = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", str(60 * 24 * 7))) 
-    REFRESH_TOKEN_EXPIRE_DAYS: int = int(os.getenv("REFRESH_TOKEN_EXPIRE_DAYS", "7"))
 
+    # Configurações do Banco de Dados
+    # Esta será a URL padrão se DATABASE_URL não estiver no .env
+    # ou se a DATABASE_URL do .env for inválida e cairmos no fallback.
+    SQLITE_DB_FILE: str = os.getenv("SQLITE_DB_FILE", "tdai_app.db") # Nome do arquivo, será colocado na pasta Backend
+    
+    # Tentativa de carregar DATABASE_URL do ambiente primeiro.
+    # Se não estiver no .env, pydantic-settings usará o valor padrão construído abaixo.
+    DATABASE_URL: Optional[str] = os.getenv("DATABASE_URL")
+
+    # Configurações de Autenticação JWT
+    SECRET_KEY: str = os.getenv("SECRET_KEY", "super-secret-key-deve-ser-alterada-imediatamente") # IMPORTANTE: Mude isso em produção!
+    ALGORITHM: str = "HS256"
+    ACCESS_TOKEN_EXPIRE_MINUTES: int = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", 30)) # 30 minutos
+    REFRESH_TOKEN_EXPIRE_DAYS: int = int(os.getenv("REFRESH_TOKEN_EXPIRE_DAYS", 7)) # 7 dias
+
+    # Configurações de CORS
+    _cors_origins_str: Optional[str] = os.getenv("BACKEND_CORS_ORIGINS")
+    BACKEND_CORS_ORIGINS: List[AnyHttpUrl] = []
+
+    # Configurações do Usuário Administrador Padrão
+    ADMIN_EMAIL: str = os.getenv("ADMIN_EMAIL", "admin@example.com")
+    ADMIN_PASSWORD: str = os.getenv("ADMIN_PASSWORD", "adminpassword") # IMPORTANTE: Mude isso!
+    ADMIN_IDIOMA_PREFERIDO: Optional[str] = os.getenv("ADMIN_IDIOMA_PREFERIDO", "pt-BR")
+
+    # Limites padrão para plano gratuito (se não definidos no banco)
+    DEFAULT_LIMIT_PRODUTOS_SEM_PLANO: int = int(os.getenv("DEFAULT_LIMIT_PRODUTOS_SEM_PLANO", 50))
+    DEFAULT_LIMIT_ENRIQUECIMENTO_SEM_PLANO: int = int(os.getenv("DEFAULT_LIMIT_ENRIQUECIMENTO_SEM_PLANO", 100))
+    DEFAULT_LIMIT_GERACAO_IA_SEM_PLANO: int = int(os.getenv("DEFAULT_LIMIT_GERACAO_IA_SEM_PLANO", 200))
+
+    # Configurações de Email (para recuperação de senha, etc.)
     MAIL_USERNAME: Optional[str] = os.getenv("MAIL_USERNAME")
     MAIL_PASSWORD: Optional[str] = os.getenv("MAIL_PASSWORD")
     MAIL_FROM: Optional[str] = os.getenv("MAIL_FROM")
     MAIL_PORT: int = int(os.getenv("MAIL_PORT", 587))
     MAIL_SERVER: Optional[str] = os.getenv("MAIL_SERVER")
-    MAIL_FROM_NAME: str = os.getenv("MAIL_FROM_NAME", "TDAI Suporte")
-    MAIL_STARTTLS: bool = os.getenv("MAIL_STARTTLS", "True").lower() == "true"
-    MAIL_SSL_TLS: bool = os.getenv("MAIL_SSL_TLS", "False").lower() == "true"
-    USE_CREDENTIALS: bool = os.getenv("USE_CREDENTIALS", "True").lower() == "true"
-    VALIDATE_CERTS: bool = os.getenv("VALIDATE_CERTS", "True").lower() == "true"
-    FRONTEND_URL: str = os.getenv("FRONTEND_URL", "http://localhost:3000") 
+    MAIL_STARTTLS: bool = os.getenv("MAIL_STARTTLS", "True").lower() in ("true", "1", "t")
+    MAIL_SSL_TLS: bool = os.getenv("MAIL_SSL_TLS", "False").lower() in ("true", "1", "t")
+    USE_CREDENTIALS: bool = True if MAIL_USERNAME and MAIL_PASSWORD else False
+    VALIDATE_CERTS: bool = True
+    MAIL_FROM_NAME: Optional[str] = os.getenv("MAIL_FROM_NAME", "TDAI Platform")
 
+    # Configurações de OAuth (Google, Facebook, etc.)
     GOOGLE_CLIENT_ID: Optional[str] = os.getenv("GOOGLE_CLIENT_ID")
     GOOGLE_CLIENT_SECRET: Optional[str] = os.getenv("GOOGLE_CLIENT_SECRET")
-    GOOGLE_REDIRECT_URI: Optional[str] = os.getenv("GOOGLE_REDIRECT_URI", f"{FRONTEND_URL}/auth/google/callback")
+    GOOGLE_REDIRECT_URI: Optional[str] = os.getenv("GOOGLE_REDIRECT_URI", "http://localhost:8000/api/v1/auth/google/callback")
 
     FACEBOOK_CLIENT_ID: Optional[str] = os.getenv("FACEBOOK_CLIENT_ID")
     FACEBOOK_CLIENT_SECRET: Optional[str] = os.getenv("FACEBOOK_CLIENT_SECRET")
-    FACEBOOK_REDIRECT_URI: Optional[str] = os.getenv("FACEBOOK_REDIRECT_URI", f"{FRONTEND_URL}/auth/facebook/callback")
+    FACEBOOK_REDIRECT_URI: Optional[str] = os.getenv("FACEBOOK_REDIRECT_URI", "http://localhost:8000/api/v1/auth/facebook/callback")
 
+    # URL do Frontend (para emails, redirects, etc.)
+    FRONTEND_URL: str = os.getenv("FRONTEND_URL", "http://localhost:5173")
+
+    # Diretório de Uploads
+    UPLOAD_DIRECTORY: str = os.getenv("UPLOAD_DIRECTORY", "static/uploads") # Relativo à pasta Backend
+
+    # Chaves de API (se usadas globalmente, senão, o usuário pode fornecer as suas)
     OPENAI_API_KEY: Optional[str] = os.getenv("OPENAI_API_KEY")
     GOOGLE_GEMINI_API_KEY: Optional[str] = os.getenv("GOOGLE_GEMINI_API_KEY")
-    OPENAI_ORG_ID: Optional[str] = os.getenv("OPENAI_ORG_ID") 
-
-    DEFAULT_LIMIT_PRODUTOS_SEM_PLANO: int = int(os.getenv("DEFAULT_LIMIT_PRODUTOS_SEM_PLANO", 10))
-    # CORREÇÃO DO TYPO APLICADA AQUI:
-    DEFAULT_LIMIT_ENRIQUECIMENTO_SEM_PLANO: int = int(os.getenv("DEFAULT_LIMIT_ENRIQUECIMENTO_SEM_PLANO", 5)) 
-    DEFAULT_LIMIT_GERACAO_IA_SEM_PLANO: int = int(os.getenv("DEFAULT_LIMIT_GERACAO_IA_SEM_PLANO", 20))
-    
-    UPLOAD_DIRECTORY: str = os.getenv("UPLOAD_DIRECTORY", "Backend/static/product_images") 
-
-    ADMIN_EMAIL: str = os.getenv("ADMIN_EMAIL", "admin@example.com")
-    ADMIN_PASSWORD: str = os.getenv("ADMIN_PASSWORD", "adminpassword")
-
 
     class Config:
-        pass
+        case_sensitive = True
+        env_file = ".env"
+        env_file_encoding = 'utf-8'
+        extra = 'ignore'
 
 settings = Settings()
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
-def get_settings() -> Settings:
-    return settings
+# Se DATABASE_URL não foi carregada do .env, construímos a URL do SQLite
+if settings.DATABASE_URL is None:
+    # Garante que o diretório do banco de dados (Backend) exista
+    backend_dir = Path(__file__).resolve().parent.parent
+    sqlite_file_path = backend_dir / settings.SQLITE_DB_FILE
+    settings.DATABASE_URL = f"sqlite:///{sqlite_file_path.resolve()}"
+    print(f"INFO: DATABASE_URL não encontrada no .env. Usando SQLite em: {settings.DATABASE_URL}")
+else:
+    print(f"INFO: DATABASE_URL carregada do .env: {settings.DATABASE_URL}")
+
+
+# Processamento de BACKEND_CORS_ORIGINS
+if settings._cors_origins_str:
+    try:
+        raw_origins = [origin.strip() for origin in settings._cors_origins_str.split(",") if origin.strip()]
+        valid_origins = []
+        for origin_str in raw_origins:
+            try:
+                valid_origins.append(AnyHttpUrl(origin_str))
+            except ValidationError:
+                print(f"AVISO: Origem CORS inválida '{origin_str}' em BACKEND_CORS_ORIGINS. Será ignorada.")
+        settings.BACKEND_CORS_ORIGINS = valid_origins
+    except Exception as e:
+        print(f"ERRO ao processar BACKEND_CORS_ORIGINS do .env: {e}. Usando fallback.")
+        settings.BACKEND_CORS_ORIGINS = [] 
+
+if not settings.BACKEND_CORS_ORIGINS:
+    settings.BACKEND_CORS_ORIGINS = [
+        AnyHttpUrl("http://localhost:5173"),
+        AnyHttpUrl("http://127.0.0.1:5173"),
+        AnyHttpUrl("http://localhost"),
+    ]
+    print(f"INFO: Usando CORS origins padrão: {[str(o) for o in settings.BACKEND_CORS_ORIGINS]}")
+else:
+    print(f"INFO: Usando CORS origins de settings: {[str(o) for o in settings.BACKEND_CORS_ORIGINS]}")
+
+
+# Password Hashing
+from passlib.context import CryptContext
+pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")

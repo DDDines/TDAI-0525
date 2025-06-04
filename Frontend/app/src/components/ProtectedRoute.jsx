@@ -1,41 +1,45 @@
-// Frontend/app/src/components/ProtectedRoute.jsx
 import React from 'react';
-import { Navigate, Outlet, useLocation } from 'react-router-dom';
-import { useAuth } from '../contexts/AuthContext'; // Importa o hook useAuth do nosso AuthContext
+import { Navigate, useLocation } from 'react-router-dom';
+import { useAuth } from '../contexts/AuthContext';
 
-function ProtectedRoute({ children }) {
-  const { isAuthenticated, isLoadingAuth } = useAuth();
-  const location = useLocation();
+const ProtectedRoute = ({ children, allowedRoles }) => {
+    const { isAuthenticated, user, isLoading } = useAuth();
+    const location = useLocation();
 
-  if (isLoadingAuth) {
-    // Enquanto o AuthContext estiver verificando o estado de autenticação,
-    // você pode exibir um loader global ou simplesmente não renderizar nada.
-    // Retornar null ou um componente de carregamento é uma boa prática.
-    // Exemplo: return <SpinnerGlobal />; ou
-    return (
-      <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh' }}>
-        Carregando autenticação...
-      </div>
-    ); 
-  }
+    if (isLoading) {
+        // Enquanto o AuthContext está verificando a sessão,
+        // pode-se exibir um loader global ou simplesmente não renderizar nada ainda.
+        // Retornar null ou um spinner evita renderização prematura da página de login
+        // ou do conteúdo protegido.
+        return <div>Carregando autenticação...</div>; // Ou um componente de Spinner/Loading
+    }
 
-  if (!isAuthenticated) {
-    // Se não estiver autenticado (após o carregamento inicial ter sido concluído),
-    // redireciona para a página de login.
-    // Passamos o `location` atual para que o usuário possa ser redirecionado
-    // de volta para a página que tentava acessar após o login.
-    return <Navigate to="/login" state={{ from: location }} replace />;
-  }
+    if (!isAuthenticated) {
+        // Usuário não está logado, redireciona para a página de login.
+        // Salva a localização atual para que possamos enviar o usuário de volta após o login.
+        console.log("ProtectedRoute: Usuário não autenticado. Redirecionando para /login.");
+        return <Navigate to="/login" state={{ from: location }} replace />;
+    }
 
-  // Se `children` for fornecido (para rotas que não usam <Outlet /> diretamente no ProtectedRoute,
-  // embora seja menos comum com a estrutura atual de <Outlet />).
-  if (children) {
-    return children;
-  }
+    // Verifica se o usuário tem uma das roles permitidas (se allowedRoles for fornecido)
+    // Supondo que user.role.name exista e seja uma string.
+    // Se user.role for um objeto, ajuste para user.role.name ou user.role_name etc.
+    // Se o seu modelo de usuário no frontend não tiver 'role.name',
+    // você pode precisar buscar o role do usuário ou ajustar essa lógica.
+    // Por enquanto, vamos assumir que user.role é uma string ou que user.role.name existe.
+    
+    // Ajuste esta lógica de role conforme a estrutura do seu objeto 'user' no AuthContext
+    const userRole = user?.role?.name || user?.role; // Tenta user.role.name, depois user.role
 
-  // Se autenticado e o carregamento inicial terminou, renderiza o <Outlet />
-  // para as rotas aninhadas (como quando usado com MainLayout).
-  return <Outlet />;
-}
+    if (allowedRoles && allowedRoles.length > 0) {
+        if (!userRole || !allowedRoles.includes(userRole)) {
+            console.log(`ProtectedRoute: Usuário autenticado mas sem permissão. Role: ${userRole}, Permitidas: ${allowedRoles}. Redirecionando para /nao-autorizado ou dashboard.`);
+            // Redireciona para uma página de "Não Autorizado" ou para o dashboard como fallback
+            return <Navigate to="/dashboard" state={{ from: location }} replace />; // Ou para uma página específica de "Não Autorizado"
+        }
+    }
+
+    return children; // Usuário está autenticado (e tem a role, se especificado)
+};
 
 export default ProtectedRoute;

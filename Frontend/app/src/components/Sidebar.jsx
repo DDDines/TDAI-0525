@@ -1,77 +1,81 @@
-// Frontend/app/src/components/Sidebar.jsx
 import React from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
-import { useAuth } from '../contexts/AuthContext'; // Importar useAuth
+import { useAuth } from '../contexts/AuthContext'; // Se precisar do logout ou dados do usuário
+import './Sidebar.css'; // Certifique-se de que este arquivo CSS existe e está correto
 
-// Ícones (exemplo, substitua pelos seus ou por uma biblioteca de ícones)
-const DashboardIcon = () => <span>📊</span>;
-const ProductsIcon = () => <span>📦</span>;
-const TypesIcon = () => <span>🏷️</span>; // Novo ícone para Tipos de Produto
-const SuppliersIcon = () => <span>🚚</span>;
-const EnrichmentIcon = () => <span>✨</span>;
-const HistoryIcon = () => <span>📜</span>;
-const PlanIcon = () => <span>💳</span>;
-const SettingsIcon = () => <span>⚙️</span>;
-const LogoutIcon = () => <span>🚪</span>;
+// Ícones (exemplo, substitua pelos seus ou remova se não usar)
+import {
+  LuLayoutDashboard,
+  LuBox,
+  LuUsers,
+  LuTag,
+  LuFileText,
+  LuHistory,
+  LuSettings,
+  LuLogOut,
+  LuZap, // Ícone para Enriquecimento
+  LuLayers // Ícone para Plano/Assinatura
+} from 'react-icons/lu'; // Exemplo com react-icons
 
-
-function Sidebar() {
-  const { user, logout } = useAuth(); // Obter o usuário do contexto
+const Sidebar = ({ isOpen, toggleSidebar }) => {
+  const { user, logout } = useAuth(); // Obtenha o usuário e a função de logout do AuthContext
   const navigate = useNavigate();
 
   const handleLogout = () => {
     logout();
-    // O AuthContext já deve cuidar do redirecionamento via navigate('/login')
+    // navigate('/login'); // O logout no AuthContext já deve redirecionar
   };
 
-  // Apenas mostrar a sidebar se o usuário estiver logado
-  // O ProtectedRoute já cuida do acesso, mas isso evita renderizar a sidebar na tela de login se não desejado.
-  if (!user) {
-    return null;
-  }
+  const menuItems = [
+    { path: "/dashboard", name: "Dashboard", icon: <LuLayoutDashboard /> },
+    { path: "/produtos", name: "Produtos", icon: <LuBox /> },
+    { path: "/fornecedores", name: "Fornecedores", icon: <LuUsers /> },
+    { path: "/tipos-de-produto", name: "Tipos de Produto", icon: <LuTag /> }, // <-- ROTA CORRIGIDA
+    { path: "/enriquecimento", name: "Enriquecimento", icon: <LuZap /> },
+    { path: "/historico", name: "Histórico", icon: <LuHistory /> },
+    { path: "/plano", name: "Meu Plano", icon: <LuLayers /> },
+    { path: "/configuracoes", name: "Configurações", icon: <LuSettings /> },
+  ];
 
   return (
-    <aside className="sidebar">
+    <aside className={`sidebar ${isOpen ? 'open' : 'closed'}`}>
       <div className="sidebar-header">
-        <span className="sidebar-logo-icon">🚀</span>
-        <h1 className="sidebar-logo-text">TDAI</h1>
+        {/* Pode adicionar um logo ou título aqui */}
+        <h1 className="sidebar-title">{isOpen ? "TDAI" : "T"}</h1>
+        {/* O botão de toggle pode ser movido para o Topbar se preferir */}
+        {/* <button onClick={toggleSidebar} className="sidebar-toggle-btn">
+          {isOpen ? <LuX /> : <LuMenu />}
+        </button> */}
       </div>
       <nav className="sidebar-nav">
-        <NavLink to="/dashboard" className={({ isActive }) => isActive ? "sidebar-link active" : "sidebar-link"}>
-          <DashboardIcon /> Dashboard
-        </NavLink>
-        <NavLink to="/produtos" className={({ isActive }) => isActive ? "sidebar-link active" : "sidebar-link"}>
-          <ProductsIcon /> Produtos
-        </NavLink>
-        {/* Adicionar link para Tipos de Produto */}
-        {user && user.is_superuser && ( // Mostrar apenas para superusuários, por exemplo
-          <NavLink to="/tipos-produto" className={({ isActive }) => isActive ? "sidebar-link active" : "sidebar-link"}>
-            <TypesIcon /> Tipos de Produto
-          </NavLink>
-        )}
-        <NavLink to="/fornecedores" className={({ isActive }) => isActive ? "sidebar-link active" : "sidebar-link"}>
-          <SuppliersIcon /> Fornecedores
-        </NavLink>
-        <NavLink to="/enriquecimento" className={({ isActive }) => isActive ? "sidebar-link active" : "sidebar-link"}>
-          <EnrichmentIcon /> Enriquecimento
-        </NavLink>
-        <NavLink to="/historico" className={({ isActive }) => isActive ? "sidebar-link active" : "sidebar-link"}>
-          <HistoryIcon /> Histórico
-        </NavLink>
-        <NavLink to="/plano" className={({ isActive }) => isActive ? "sidebar-link active" : "sidebar-link"}>
-          <PlanIcon /> Meu Plano
-        </NavLink>
-        <NavLink to="/configuracoes" className={({ isActive }) => isActive ? "sidebar-link active" : "sidebar-link"}>
-          <SettingsIcon /> Configurações
-        </NavLink>
+        <ul>
+          {menuItems.map((item) => (
+            <li key={item.name}>
+              <NavLink
+                to={item.path}
+                className={({ isActive }) => (isActive ? 'nav-link active' : 'nav-link')}
+                title={item.name}
+              >
+                <span className="nav-icon">{item.icon}</span>
+                {isOpen && <span className="nav-text">{item.name}</span>}
+              </NavLink>
+            </li>
+          ))}
+        </ul>
       </nav>
       <div className="sidebar-footer">
-        <button onClick={handleLogout} className="sidebar-link logout-button">
-          <LogoutIcon /> Sair
+        {user && isOpen && (
+          <div className="user-info">
+            {/* <p>Bem-vindo, {user.nome_completo || user.email}!</p> */}
+          </div>
+        )}
+        <button onClick={handleLogout} className="logout-button" title="Sair">
+          <LuLogOut />
+          {isOpen && <span className="nav-text">Sair</span>}
         </button>
       </div>
     </aside>
   );
-}
+};
 
 export default Sidebar;
