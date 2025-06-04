@@ -9,7 +9,7 @@ from sqlalchemy import func, or_
 
 import crud
 import models 
-import Project.Backend.schemas as schemas # schemas é importado
+import schemas # schemas é importado
 import database
 from . import auth_utils # Para obter o usuário logado
 from core import config # Pode ser necessário para settings, se usado diretamente

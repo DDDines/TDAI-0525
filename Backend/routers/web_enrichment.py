@@ -8,7 +8,7 @@ import json
 
 import crud
 import models
-import Project.Backend.schemas as schemas
+import schemas
 from database import get_db, SessionLocal
 
 from .auth_utils import get_current_active_user

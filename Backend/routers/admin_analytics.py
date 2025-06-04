@@ -7,7 +7,7 @@ from datetime import datetime, timedelta, timezone
 
 import crud 
 import models 
-import Project.Backend.schemas as schemas 
+import schemas 
 from database import get_db 
 from auth import get_current_active_user # Importa a dependência correta
 

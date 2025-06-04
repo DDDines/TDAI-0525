@@ -10,7 +10,7 @@ from datetime import datetime, timedelta, timezone
 # podemos tratar módulos em 'Backend/' como se fossem de nível superior.
 import crud #
 import models #
-import Project.Backend.schemas as schemas #
+import schemas #
 from database import get_db #
 
 # '.' refere-se ao diretório atual ('routers')

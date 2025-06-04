@@ -9,7 +9,7 @@ import json
 import traceback
 
 import models
-import Project.Backend.schemas as schemas
+import schemas
 import crud
 from auth import router as auth_router_direct
 from database import SessionLocal, engine, get_db

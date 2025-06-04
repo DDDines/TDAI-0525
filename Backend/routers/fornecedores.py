@@ -8,7 +8,7 @@ from sqlalchemy.orm import Session
 
 import crud
 import models
-import Project.Backend.schemas as schemas # schemas é importado
+import schemas # schemas é importado
 import database
 from . import auth_utils # Para obter o usuário logado
 

@@ -11,7 +11,9 @@ import magic # Para detectar o tipo MIME de forma mais robusta (requer python-ma
 from Backend.database import get_db
 from Backend.auth import get_current_active_user
 from Backend.models import User
-from Project.Backend.schemas import FileUploadResponse
+from schemas import FileProcessResponse
+from sqlalchemy.orm import Session
+
 # --- FIM DOS IMPORTS ALTERADOS ---
 
 router = APIRouter()
@@ -67,7 +69,7 @@ def get_file_mimetype(file_content: bytes, filename: str) -> str:
     return "application/octet-stream" # Tipo genérico para arquivos desconhecidos
 
 
-@router.post("/upload-image-product/", response_model=FileUploadResponse, status_code=status.HTTP_201_CREATED)
+@router.post("/upload-image-product/", response_model=FileProcessResponse, status_code=status.HTTP_201_CREATED)
 async def upload_product_image(
     file: UploadFile = File(..., description="Arquivo de imagem do produto a ser carregado."),
     current_user: User = Depends(get_current_active_user),
@@ -111,7 +113,7 @@ async def upload_product_image(
     public_url = f"/static/{unique_filename}"
     
     # Retorna as informações necessárias para o frontend criar um ImageSchema
-    return FileUploadResponse(
+    return FileProcessResponse(
         filename=unique_filename,
         original_filename=file.filename, # Adiciona o nome original para referência
         url=public_url,
@@ -120,7 +122,7 @@ async def upload_product_image(
         size_bytes=file_size
     )
 
-@router.post("/upload-video-product/", response_model=FileUploadResponse, status_code=status.HTTP_201_CREATED)
+@router.post("/upload-video-product/", response_model=FileProcessResponse, status_code=status.HTTP_201_CREATED)
 async def upload_product_video(
     file: UploadFile = File(..., description="Arquivo de vídeo do produto a ser carregado."),
     current_user: User = Depends(get_current_active_user),
@@ -157,7 +159,7 @@ async def upload_product_video(
 
     public_url = f"/static/{unique_filename}"
     
-    return FileUploadResponse(
+    return FileProcessResponse(
         filename=unique_filename,
         original_filename=file.filename,
         url=public_url,

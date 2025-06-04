@@ -5,7 +5,7 @@ from typing import List, Dict, Any, Optional
 
 import crud 
 import models 
-import Project.Backend.schemas as schemas 
+import schemas 
 from database import get_db, SessionLocal 
 from core.config import settings 
 

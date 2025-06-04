@@ -6,7 +6,7 @@ from fastapi import APIRouter, Depends, HTTPException, Request, status, Body # A
 from sqlalchemy.orm import Session
 
 import crud
-import Project.Backend.schemas as schemas # schemas é importado
+import schemas # schemas é importado
 import models # models é importado
 from database import get_db # Corrigido para get_db
 from core.config import settings # Para FRONTEND_URL

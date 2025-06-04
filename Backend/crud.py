@@ -16,7 +16,7 @@ from models import ( # Isso está correto
     User, Role, Plano, Produto, Fornecedor, ProductType, AttributeTemplate, RegistroUsoIA,
     StatusEnriquecimentoEnum, StatusGeracaoIAEnum, TipoAcaoIAEnum, AttributeFieldTypeEnum
 )
-import Project.Backend.schemas as schemas # Importa todos os schemas
+import schemas # Importa todos os schemas
 
 # Configuração básica de logging
 logging.basicConfig(level=logging.INFO)
