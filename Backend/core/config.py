@@ -12,19 +12,15 @@ if dotenv_path.exists():
 else:
     print(f"AVISO: Arquivo .env não encontrado em {dotenv_path}. Usando valores padrão ou variáveis de ambiente do sistema.")
 
-# --- FUNÇÃO AUXILIAR DEFINIDA AQUI (ANTES DA CLASSE SETTINGS) ---
 def env_var_name_with_prefix(field_name: str) -> str:
-    """
-    Helper para validation_alias. Neste caso, como os nomes das variáveis de ambiente
-    são os mesmos que os nomes dos campos, ela apenas retorna o nome do campo.
-    Poderia ser usada para adicionar um prefixo, se necessário.
-    """
     return field_name
-# --- FIM DA FUNÇÃO AUXILIAR ---
 
 class Settings(BaseSettings):
     PROJECT_NAME: str = "TDAI - Transformador de Dados Assistido por IA"
     PROJECT_VERSION: str = "1.0.0"
+
+    # Add this line:
+    API_V1_STR: str = "/api/v1"
 
     DATABASE_URL: Optional[str] = os.getenv("DATABASE_URL")
     SQLITE_DB_FILE: str = os.getenv("SQLITE_DB_FILE", "tdai_app.db")
@@ -101,7 +97,7 @@ if settings._cors_origins_str:
         settings.BACKEND_CORS_ORIGINS = valid_origins
     except Exception as e:
         print(f"ERRO ao processar BACKEND_CORS_ORIGINS do .env: {e}. Usando fallback.")
-        settings.BACKEND_CORS_ORIGINS = [] 
+        settings.BACKEND_CORS_ORIGINS = []
 
 if not settings.BACKEND_CORS_ORIGINS:
     default_origins_httpurl = []

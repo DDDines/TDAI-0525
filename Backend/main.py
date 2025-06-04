@@ -51,12 +51,12 @@ exact_frontend_origin = "http://localhost:5173" # Origem exata do frontend como 
 # Lista de origens padrão, garantindo a inclusão da origem exata do frontend
 # e outras variações comuns para desenvolvimento local.
 default_cors_origins_list = [
-    exact_frontend_origin,          # Ex: "http://localhost:5173"
-    "http://127.0.0.1:5173",        # Equivalente comum para localhost
-    exact_frontend_origin + "/",    # Com barra no final, por segurança: "http://localhost:5173/"
-    "http://127.0.0.1:5173/",       # Equivalente com barra
-    "http://localhost",             # Se você acessar o frontend por aqui diretamente em algum caso raro
-    "http://127.0.0.1",             # (Menos comum para frontend Vite em dev)
+    exact_frontend_origin,           # Ex: "http://localhost:5173"
+    "http://127.0.0.1:5173",         # Equivalente comum para localhost
+    exact_frontend_origin + "/",     # Com barra no final, por segurança: "http://localhost:5173/"
+    "http://127.0.0.1:5173/",        # Equivalente com barra
+    "http://localhost",              # Se você acessar o frontend por aqui diretamente em algum caso raro
+    "http://127.0.0.1",              # (Menos comum para frontend Vite em dev)
 ]
 
 current_allowed_origins = []
@@ -70,7 +70,7 @@ try:
         for origin_obj in settings.BACKEND_CORS_ORIGINS:
             origin_str = str(origin_obj)
             normalized_env_origins.add(origin_str.rstrip('/')) # Adiciona sem barra
-            normalized_env_origins.add(origin_str)           # Adiciona com barra (se houver)
+            normalized_env_origins.add(origin_str)             # Adiciona com barra (se houver)
 
         if not normalized_env_origins:
             current_allowed_origins = list(default_cors_origins_list) # Usa cópia da lista padrão
@@ -151,14 +151,32 @@ async def startup_event_create_defaults():
             print("ERRO CRÍTICO: Role 'user' não pôde ser encontrada ou criada. Novos usuários podem ter problemas.")
 
         # 2. Criação de Planos
-        planos_a_criar = [
-            schemas.PlanoCreate(nome="Gratuito", descricao="Plano básico gratuito com limitações.", preco_mensal=0, limite_produtos=settings.DEFAULT_LIMIT_PRODUTOS_SEM_PLANO, limite_enriquecimento_web=settings.DEFAULT_LIMIT_ENRIQUECIMENTO_SEM_PLANO, limite_geracao_ia=settings.DEFAULT_LIMIT_GERACAO_IA_SEM_PLANO),
-            schemas.PlanoCreate(nome="Pro", descricao="Plano profissional com mais limites e funcionalidades.", preco_mensal=49.90, limite_produtos=1000, limite_enriquecimento_web=500, limite_geracao_ia=1000, permite_api_externa=True, suporte_prioritario=True),
-        ]
+        plano_gratuito_data = schemas.PlanoCreate(
+            nome="Gratuito",
+            descricao="Plano básico gratuito com limitações.",
+            preco_mensal=0,
+            limite_produtos=settings.DEFAULT_LIMIT_PRODUTOS_SEM_PLANO,
+            limite_enriquecimento_web=settings.DEFAULT_LIMIT_ENRIQUECIMENTO_SEM_PLANO,
+            limite_geracao_ia=settings.DEFAULT_LIMIT_GERACAO_IA_SEM_PLANO
+        )
+        plano_pro_data = schemas.PlanoCreate(
+            nome="Pro",
+            descricao="Plano profissional com mais limites e funcionalidades.",
+            preco_mensal=49.90,
+            limite_produtos=1000,
+            limite_enriquecimento_web=500,
+            limite_geracao_ia=1000,
+            permite_api_externa=True,
+            suporte_prioritario=True
+        )
+
+        planos_a_criar = [plano_gratuito_data, plano_pro_data]
+        
         admin_plano_obj = None 
         plano_gratuito_obj = None 
         for plano_data in planos_a_criar:
-            plano = crud.get_plano_by_nome(db, nome=plano_data.nome)
+            # FIX: Change 'get_plano_by_nome' to 'get_plano_by_name'
+            plano = crud.get_plano_by_name(db, name=plano_data.nome)
             if not plano:
                 plano = crud.create_plano(db, plano=plano_data)
                 print(f"INFO:     Plano '{plano.nome}' criado.")
@@ -177,7 +195,7 @@ async def startup_event_create_defaults():
         admin_user = crud.get_user_by_email(db, email=settings.ADMIN_EMAIL)
         if not admin_user:
             if not admin_role_obj:
-                 print(f"ERRO: Não foi possível criar o usuário admin '{settings.ADMIN_EMAIL}' porque o role 'admin' não existe.")
+                   print(f"ERRO: Não foi possível criar o usuário admin '{settings.ADMIN_EMAIL}' porque o role 'admin' não existe.")
             else:
                 user_in_data = {
                     "email": settings.ADMIN_EMAIL,
@@ -301,7 +319,8 @@ def create_new_user(
         )
     
     plano_id_para_novo_usuario = user_in.plano_id
-    plano_gratuito_obj_check = crud.get_plano_by_nome(db, nome="Gratuito") # Renomeado para evitar conflito
+    # FIX: Change 'get_plano_by_nome' to 'get_plano_by_name'
+    plano_gratuito_obj_check = crud.get_plano_by_name(db, nome="Gratuito") # This line is the fix
 
     if plano_id_para_novo_usuario is None:
         if plano_gratuito_obj_check:
