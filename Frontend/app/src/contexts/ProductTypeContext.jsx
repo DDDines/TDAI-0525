@@ -26,20 +26,21 @@ export const ProductTypeProvider = ({ children }) => {
     setIsLoading(true);
     setError(null);
     try {
+      // O endpoint /product-types/ retorna diretamente uma LISTA de ProductTypeResponse
       const data = await productTypeService.getProductTypes({ skip: 0, limit: 500 }); 
-      if (data && Array.isArray(data.items)) {
-        console.log("ProductTypeContext: Tipos de produto recebidos:", data.items.length);
-        setProductTypes(data.items);
+      
+      // FIX: Ajustar a condição para verificar se 'data' é um array diretamente
+      if (data && Array.isArray(data)) { // <--- ALTERADO AQUI
+        console.log("ProductTypeContext: Tipos de produto recebidos:", data.length); // <--- ALTERADO AQUI
+        setProductTypes(data); // <--- ALTERADO AQUI
       } else {
-        console.warn("ProductTypeContext: Resposta de getProductTypes não continha 'items' ou não era um array. Data:", data);
+        console.warn("ProductTypeContext: Resposta de getProductTypes não era um array. Data:", data);
         setProductTypes([]);
       }
     } catch (err) {
       const errorMessage = err.response?.data?.detail || err.message || 'Falha ao carregar tipos de produto.';
       console.error("ProductTypeContext: Erro ao buscar tipos de produto:", errorMessage, err);
       setError(errorMessage);
-      // Removido showErrorToast daqui para evitar barulho excessivo na carga inicial se houver falha antes do usuário interagir.
-      // A página que consome o contexto pode decidir mostrar o erro.
       setProductTypes([]);
     } finally {
       setIsLoading(false);
@@ -51,28 +52,24 @@ export const ProductTypeProvider = ({ children }) => {
     console.log("ProductTypeContext useEffect: user mudou ou isAuthSessionLoading mudou.");
     console.log("ProductTypeContext useEffect: isAuthSessionLoading:", isAuthSessionLoading, "user:", user ? user.email : null);
 
-    // Só tenta buscar se a sessão de autenticação foi completamente verificada (não está mais carregando)
     if (!isAuthSessionLoading) {
-      if (user) { // E se o usuário existir (está logado e os dados do usuário foram carregados)
+      if (user) { 
         console.log("ProductTypeContext: AuthContext carregado e usuário existe, chamando fetchProductTypes.");
         fetchProductTypes();
       } else {
         console.log("ProductTypeContext: AuthContext carregado, mas nenhum usuário logado (user é null). Limpando tipos de produto.");
-        setProductTypes([]); // Limpa os tipos se não houver usuário
-        setError(null);      // Limpa erros anteriores
-        setIsLoading(false); // Garante que o estado de loading seja resetado
+        setProductTypes([]); 
+        setError(null);      
+        setIsLoading(false); 
       }
     } else {
         console.log("ProductTypeContext: Aguardando AuthContext carregar (isAuthSessionLoading é true).");
-        // Opcional: definir productTypes como [] e isLoading como true se a sessão de auth ainda está carregando
-        // setProductTypes([]);
-        // setIsLoading(true); 
     }
   }, [user, isAuthSessionLoading, fetchProductTypes]);
 
   const refreshProductTypes = useCallback(() => {
     console.log("ProductTypeContext: Chamada para refreshProductTypes.");
-    if (user) { // Só recarrega se houver usuário
+    if (user) { 
         fetchProductTypes();
     } else {
         console.warn("ProductTypeContext: Tentativa de refreshProductTypes sem usuário autenticado.");
@@ -85,10 +82,8 @@ export const ProductTypeProvider = ({ children }) => {
         throw new Error("Usuário não autenticado");
     }
     console.log("ProductTypeContext: Adicionando novo tipo de produto:", productTypeData);
-    // setIsLoading(true); // Opcional: loading específico para esta ação
     try {
       const newProductType = await productTypeService.createProductType(productTypeData);
-      // refreshProductTypes(); // Recarrega toda a lista para garantir consistência
       setProductTypes(prevTypes => [...prevTypes, newProductType].sort((a, b) => a.friendly_name.localeCompare(b.friendly_name)));
       showSuccessToast('Tipo de produto adicionado com sucesso!');
       return newProductType;
@@ -98,9 +93,8 @@ export const ProductTypeProvider = ({ children }) => {
       showErrorToast(errorMessage);
       throw err;
     } finally {
-      // setIsLoading(false);
     }
-  }, [user /*, refreshProductTypes ou setProductTypes */]);
+  }, [user]);
 
   const updateProductType = useCallback(async (id, productTypeData) => {
     if (!user) {
@@ -121,7 +115,7 @@ export const ProductTypeProvider = ({ children }) => {
       showErrorToast(errorMessage);
       throw err;
     }
-  }, [user /*, setProductTypes */]);
+  }, [user]);
 
   const removeProductType = useCallback(async (id) => {
     if (!user) {
@@ -139,11 +133,11 @@ export const ProductTypeProvider = ({ children }) => {
       showErrorToast(errorMessage);
       throw err;
     }
-  }, [user /*, setProductTypes */]);
+  }, [user]);
 
   const value = {
     productTypes,
-    isLoading, // Este isLoading é do ProductTypeContext
+    isLoading, 
     error,
     refreshProductTypes,
     addProductType,
@@ -160,7 +154,7 @@ export const ProductTypeProvider = ({ children }) => {
 
 export const useProductTypes = () => {
   const context = useContext(ProductTypeContext);
-  if (context === undefined || context === null) {
+  if (context === undefined || context === null) { 
     throw new Error('useProductTypes deve ser usado dentro de um ProductTypeProvider');
   }
   return context;

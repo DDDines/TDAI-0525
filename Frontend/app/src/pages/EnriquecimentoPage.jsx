@@ -1,7 +1,7 @@
 // Frontend/app/src/pages/EnriquecimentoPage.jsx
 import React, { useState, useEffect, useCallback } from 'react';
 import productService from '../services/productService';
-import authService from '../services/authService'; // Importar authService
+import usoIAService from '../services/usoIAService';
 import ProductTable from '../components/produtos/ProductTable';
 import PaginationControls from '../components/common/PaginationControls';
 import { showSuccessToast, showErrorToast, showInfoToast, showWarningToast } from '../utils/notifications';
@@ -11,12 +11,16 @@ function EnriquecimentoPage() {
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState(false);
   const [error, setError] = useState(null);
-  const [selectedProductIds, setSelectedProductIds] = useState([]);
+  // FIX: Inicializar selectedProductIds como um Set
+  const [selectedProductIds, setSelectedProductIds] = useState(new Set()); 
 
   const [currentPage, setCurrentPage] = useState(0);
   const [limitPerPage] = useState(10);
   const [totalProdutosCount, setTotalProdutosCount] = useState(0);
   const [searchTerm, setSearchTerm] = useState('');
+  
+  // ADICIONADO: Estado para configuração de ordenação
+  const [sortConfig, setSortConfig] = useState({ key: 'id', direction: 'descending' }); 
 
   const totalPages = Math.ceil(totalProdutosCount / limitPerPage);
 
@@ -29,6 +33,8 @@ function EnriquecimentoPage() {
         skip: currentPage * limitPerPage,
         limit: limitPerPage,
         termo_busca: searchTerm || undefined,
+        sort_by: sortConfig.key,      // ADICIONADO: Parâmetro de ordenação
+        sort_order: sortConfig.direction === 'ascending' ? 'asc' : 'desc', // ADICIONADO: Parâmetro de ordem
       };
       const responseData = await productService.getProdutos(params);
 
@@ -43,15 +49,12 @@ function EnriquecimentoPage() {
     } catch (err) {
       const errorMsg = (err && err.message) ? err.message : 'Falha ao buscar produtos.';
       setError(errorMsg);
-      // Não mostramos toast de erro aqui, pois se a busca falhar após uma ação,
-      // o toast da ação já pode ter sido mostrado. Deixe a UI refletir o erro de busca.
-      // showErrorToast(errorMsg); 
       setProdutos([]);
       setTotalProdutosCount(0);
     } finally {
       setLoading(false);
     }
-  }, [currentPage, limitPerPage, searchTerm]);
+  }, [currentPage, limitPerPage, searchTerm, sortConfig]); // sortConfig adicionado às dependências
 
   useEffect(() => {
     fetchProdutos();
@@ -68,19 +71,33 @@ function EnriquecimentoPage() {
   };
 
   const handleSelectRow = (productId) => {
-    setSelectedProductIds(prevSelected =>
-      prevSelected.includes(productId)
-        ? prevSelected.filter(id => id !== productId)
-        : [...prevSelected, productId]
-    );
+    setSelectedProductIds(prevSelected => {
+      const newSelection = new Set(prevSelected);
+      if (newSelection.has(productId)) {
+        newSelection.delete(productId);
+      } else {
+        newSelection.add(productId);
+      }
+      return newSelection;
+    });
   };
 
   const handleSelectAllRows = (event) => {
     if (event.target.checked) {
-      setSelectedProductIds(produtos.map(p => p.id));
+      setSelectedProductIds(new Set(produtos.map(p => p.id)));
     } else {
-      setSelectedProductIds([]);
+      setSelectedProductIds(new Set());
     }
+  };
+
+  // ADICIONADO: Função para lidar com a ordenação da tabela
+  const handleSort = (key) => {
+    let direction = 'ascending';
+    if (sortConfig.key === key && sortConfig.direction === 'ascending') {
+      direction = 'descending';
+    }
+    setSortConfig({ key, direction });
+    setCurrentPage(0); // Reset page on sort
   };
 
   // Função para verificar o histórico e notificar
@@ -92,7 +109,7 @@ function EnriquecimentoPage() {
 
     for (const produtoId of processedProductIds) {
       try {
-        const historicoProduto = await authService.getHistoricoUsoIAPorProduto(produtoId, { limit: 1, skip: 0 });
+        const historicoProduto = await usoIAService.getHistoricoUsoIAPorProduto(produtoId, { limit: 1, skip: 0 });
         if (historicoProduto && historicoProduto.length > 0) {
           const ultimoRegistro = historicoProduto[0];
           const tipoGeracao = ultimoRegistro.tipo_geracao || "";
@@ -101,7 +118,7 @@ function EnriquecimentoPage() {
           // Identifica se o tipo de geração indica uma falha de configuração ou erro
           if (tipoGeracao.includes('config_faltante') || tipoGeracao.includes('falha') || tipoGeracao.includes('erro')) {
             const produtoAfetado = produtos.find(p => p.id === produtoId) || { nome_base: `Produto ID ${produtoId}` };
-            showErrorToast(`Enriquecimento para "${produtoAfetado.nome_base}": ${resultadoGerado}`);
+            showErrorToast(`Enriquecimento para \"${produtoAfetado.nome_base}\": ${resultadoGerado}`);
             hasFailures = true;
           } else {
             // Pode adicionar um toast de sucesso aqui se quiser, mas pode ser redundante se a tabela atualizar bem
@@ -117,7 +134,7 @@ function EnriquecimentoPage() {
 
     // Atualiza a tabela de produtos para refletir qualquer mudança de status
     fetchProdutos();
-    setSelectedProductIds([]); // Limpa a seleção após a verificação
+    setSelectedProductIds(new Set()); // Limpa a seleção após a verificação
     
     if (!hasFailures && processedProductIds.length > 0) {
         showSuccessToast(`Processo de enriquecimento concluído para ${processedProductIds.length} produto(s). Verifique os status na tabela.`);
@@ -125,17 +142,17 @@ function EnriquecimentoPage() {
   };
 
   const handleEnrichSelected = async () => {
-    if (selectedProductIds.length === 0) {
+    if (selectedProductIds.size === 0) { // Usar .size para Set
       showWarningToast("Nenhum produto selecionado para enriquecimento.");
       return;
     }
 
     setActionLoading(true);
-    showInfoToast(`Iniciando enriquecimento web para ${selectedProductIds.length} produto(s). Isso pode levar um tempo e acontecerá em segundo plano.`);
+    showInfoToast(`Iniciando enriquecimento web para ${selectedProductIds.size} produto(s). Isso pode levar um tempo e acontecerá em segundo plano.`);
 
     let requestSuccessCount = 0;
     let requestErrorCount = 0;
-    const idsParaVerificar = [...selectedProductIds]; // Copia os IDs para usar na verificação
+    const idsParaVerificar = Array.from(selectedProductIds); // Converte Set para Array para iterar
 
     for (const produtoId of idsParaVerificar) {
       try {
@@ -153,19 +170,12 @@ function EnriquecimentoPage() {
     setActionLoading(false);
 
     if (requestSuccessCount > 0) {
-      // Chama a função para verificar os resultados e notificar
-      checkResultsAndNotify(idsParaVerificar.filter(id => {
-          // Filtra para incluir apenas os IDs que foram enviados com sucesso,
-          // embora na prática atual, todos são tentados.
-          // Se a chamada a iniciarEnriquecimentoWebProduto falhar, o erro já foi mostrado.
-          return true; 
-      }));
+      checkResultsAndNotify(idsParaVerificar); // Passa a lista completa de IDs que foram processados
     } else if (requestErrorCount > 0 && requestSuccessCount === 0) {
-      // Se todas as solicitações de enriquecimento falharam
-      setSelectedProductIds([]); // Limpa a seleção
+      setSelectedProductIds(new Set()); // Limpa a seleção
       fetchProdutos(); // Atualiza a tabela, embora provavelmente não haja mudança de status por esta ação
     } else {
-        setSelectedProductIds([]); // Caso de nenhum produto selecionado (já tratado) ou outro
+        setSelectedProductIds(new Set()); 
     }
   };
 
@@ -174,25 +184,25 @@ function EnriquecimentoPage() {
     // Tenta mostrar o log do enriquecimento web primeiro
     if (produto.log_enriquecimento_web && produto.log_enriquecimento_web.historico_mensagens && produto.log_enriquecimento_web.historico_mensagens.length > 0) {
       const logMessages = produto.log_enriquecimento_web.historico_mensagens.join("\n");
-      alert(`Log de Enriquecimento para "${produto.nome_base}":\n--------------------------------------\n${logMessages}`);
+      alert(`Log de Enriquecimento para \"${produto.nome_base}\":\n--------------------------------------\n${logMessages}`);
     } 
     // Se não houver log de enriquecimento, tenta mostrar o último erro do histórico de IA
     else if (produto.status_enriquecimento_web && 
              (produto.status_enriquecimento_web.includes('falha') || produto.status_enriquecimento_web.includes('erro'))) {
-      authService.getHistoricoUsoIAPorProduto(produto.id, { limit: 1, skip: 0 })
+      usoIAService.getHistoricoUsoIAPorProduto(produto.id, { limit: 1, skip: 0 }) 
         .then(historicoProduto => {
           if (historicoProduto && historicoProduto.length > 0 && historicoProduto[0].resultado_gerado) {
-            alert(`Último erro registado para "${produto.nome_base}":\n--------------------------------------\n${historicoProduto[0].resultado_gerado}`);
+            alert(`Último erro registado para \"${produto.nome_base}\":\n--------------------------------------\n${historicoProduto[0].resultado_gerado}`);
           } else {
-            alert(`Produto "${produto.nome_base}" com status "${String(produto.status_enriquecimento_web).replace(/_/g, ' ')}", mas sem log detalhado disponível.`);
+            alert(`Produto \"${produto.nome_base}\" com status \"${String(produto.status_enriquecimento_web).replace(/_/g, ' ')}\", mas sem log detalhado disponível.`);
           }
         })
         .catch(err => {
           console.error("Erro ao buscar histórico para detalhes do clique:", err);
-          alert(`Produto "${produto.nome_base}" com status "${String(produto.status_enriquecimento_web).replace(/_/g, ' ')}". Não foi possível carregar o log detalhado.`);
+          alert(`Produto \"${produto.nome_base}\" com status \"${String(produto.status_enriquecimento_web).replace(/_/g, ' ')}\". Não foi possível carregar o log detalhado.`);
         });
     } else if (produto.status_enriquecimento_web) {
-        alert(`Produto "${produto.nome_base}" com status "${String(produto.status_enriquecimento_web).replace(/_/g, ' ')}".`);
+        alert(`Produto \"${produto.nome_base}\" com status \"${String(produto.status_enriquecimento_web).replace(/_/g, ' ')}\".`);
     }
   };
 
@@ -219,11 +229,13 @@ function EnriquecimentoPage() {
 
         <ProductTable
             produtos={produtos}
-            selectedIds={selectedProductIds}
-            onSelectRow={handleSelectRow}
-            onSelectAllRows={handleSelectAllRows}
-            onRowClick={handleRowClick}
+            selectedProdutos={selectedProductIds} // Passa como Set
+            onSelectProduto={handleSelectRow}
+            onSelectAllProdutos={handleSelectAllRows}
+            onEdit={handleRowClick} // This line was fixed: removed the JSX comment from within the prop
             isLoading={loading}
+            sortConfig={sortConfig} // ADICIONADO: Passando a configuração de ordenação
+            onSort={handleSort}     // ADICIONADO: Passando a função de ordenação
         />
 
         {totalPages > 0 && !error && (
@@ -238,10 +250,10 @@ function EnriquecimentoPage() {
         <div className="table-actions" style={{ marginTop: '1.5rem' }}>
           <button
             onClick={handleEnrichSelected}
-            disabled={loading || actionLoading || selectedProductIds.length === 0}
+            disabled={loading || actionLoading || selectedProductIds.size === 0} // Usar .size
             style={{backgroundColor: 'var(--info)'}}
           >
-            {actionLoading ? 'Processando...' : `Enriquecer Web (${selectedProductIds.length}) Selecionado(s)`}
+            {actionLoading ? 'Processando...' : `Enriquecer Web (${selectedProductIds.size}) Selecionado(s)`}
           </button>
         </div>
         <div style={{fontSize: '.9rem', color: '#777', textAlign: 'right', marginTop: '1rem'}}>

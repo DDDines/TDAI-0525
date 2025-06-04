@@ -9,7 +9,7 @@ import crud
 import models 
 import schemas 
 from database import get_db 
-from auth import get_current_active_user 
+from auth import get_current_active_user # Importa a dependência correta
 
 router = APIRouter()
 
@@ -31,15 +31,14 @@ async def get_total_counts_endpoint(db: Session = Depends(get_db)):
         now = datetime.now(timezone.utc)
         start_of_month = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
         
-        # Correção: Usar .created_at e fazer cast para String para o ILIKE
+        # Usando o modelo correto: RegistroUsoIA
         total_geracoes_ia_mes = db.query(func.count(models.RegistroUsoIA.id)).filter(
-            models.RegistroUsoIA.created_at >= start_of_month
+            models.RegistroUsoIA.created_at >= start_of_month # Using created_at
         ).scalar() or 0
         
-        # Correção: Usar .created_at e fazer cast para String para o ILIKE
-        # Adicionado o cast para String para permitir o operador ILIKE em colunas ENUM
+        # FIX APLICADO AQUI: Adicionado o cast para String para permitir o operador ILIKE em colunas ENUM
         total_enriquecimentos_mes = db.query(func.count(models.RegistroUsoIA.id)).filter(
-            models.RegistroUsoIA.created_at >= start_of_month,
+            models.RegistroUsoIA.created_at >= start_of_month, # Using created_at
             cast(models.RegistroUsoIA.tipo_acao, String).ilike("%enriquecimento_web%") 
         ).scalar() or 0
 
@@ -66,7 +65,6 @@ async def get_uso_ia_por_plano_endpoint(db: Session = Depends(get_db)):
     start_of_month = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
 
     for plano in planos:
-        # Correção: Usar .created_at
         count = db.query(func.count(models.RegistroUsoIA.id))\
                   .join(models.User, models.RegistroUsoIA.user_id == models.User.id)\
                   .filter(models.User.plano_id == plano.id, models.RegistroUsoIA.created_at >= start_of_month)\
@@ -90,7 +88,6 @@ async def get_uso_ia_por_tipo_endpoint(db: Session = Depends(get_db)):
         models.RegistroUsoIA.tipo_acao,
         func.count(models.RegistroUsoIA.id).label("total_no_mes") 
     ).filter(
-        # Correção: Usar .created_at
         models.RegistroUsoIA.created_at >= start_of_month
     ).group_by(
         models.RegistroUsoIA.tipo_acao
@@ -115,7 +112,6 @@ async def get_user_activity_endpoint(
 
     for user_model in users: 
         total_produtos_user = db.query(func.count(models.Produto.id)).filter(models.Produto.user_id == user_model.id).scalar() or 0
-        # Correção: Usar .created_at
         total_ia_mes_user = db.query(func.count(models.RegistroUsoIA.id)).filter(
             models.RegistroUsoIA.user_id == user_model.id,
             models.RegistroUsoIA.created_at >= start_of_month
@@ -125,6 +121,7 @@ async def get_user_activity_endpoint(
             user_id=user_model.id,
             email=user_model.email, 
             nome_completo=user_model.nome_completo,
+            created_at=user_model.created_at, # Incluído created_at do modelo User
             total_produtos=total_produtos_user,
             total_geracoes_ia_mes_corrente=total_ia_mes_user
         ))
