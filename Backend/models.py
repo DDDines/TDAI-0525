@@ -1,239 +1,254 @@
 # Backend/models.py
 import enum
-from typing import Optional, List, Dict, Any
-from datetime import datetime
-from sqlalchemy import (Column, Integer, String, Boolean, ForeignKey, DateTime,
-                        Float, Text, UniqueConstraint, Enum as SQLAlchemyEnum, JSON) # <--- JSON IMPORTADO AQUI
-from sqlalchemy.orm import relationship, Mapped, mapped_column
-from sqlalchemy.sql import func
-from database import Base
+from sqlalchemy import (Column, Integer, String, Boolean, Float, DateTime, ForeignKey, Text, JSON, Date, Enum as SQLAlchemyEnum, func) # ADICIONADO func
+from sqlalchemy.orm import relationship
+from sqlalchemy.ext.declarative import declarative_base # MANTIDO (se não estiver usando Mapped)
+# from sqlalchemy.orm import Mapped, mapped_column # Se fosse usar a sintaxe mais nova do SQLAlchemy 2.0+
+from datetime import datetime, timezone
 
+from core.config import settings
 
-# Enum para status de enriquecimento web
-class StatusEnriquecimentoEnum(str, enum.Enum):
-    PENDENTE = "pendente"
-    EM_PROGRESSO = "em_progresso"
-    CONCLUIDO = "concluido"
-    FALHA = "falha"
-    NAO_INICIADO = "nao_iniciado"
+Base = declarative_base()
 
-# Enum para status de geração por IA (títulos, descrições, etc.)
-class StatusGeracaoIAEnum(str, enum.Enum):
-    PENDENTE = "pendente"
-    EM_PROGRESSO = "em_progresso"
-    CONCLUIDO = "concluido"
-    FALHA = "falha"
-    NAO_INICIADO = "nao_iniciado"
-    NAO_APLICAVEL = "nao_aplicavel"
+# --- ENUMS ---
+class StatusEnriquecimentoEnum(enum.Enum):
+    NAO_INICIADO = "NAO_INICIADO"
+    PENDENTE = "PENDENTE"
+    EM_PROGRESSO = "EM_PROGRESSO"
+    CONCLUIDO = "CONCLUIDO"
+    FALHA = "FALHA"
 
-# Enum para tipos de campos de atributos de template
-class AttributeFieldTypeEnum(str, enum.Enum):
-    TEXT = "text"
-    NUMBER = "number"
-    BOOLEAN = "boolean"
-    SELECT = "select"
-    MULTISELECT = "multiselect"
-    DATE = "date"
-    TEXTAREA = "textarea"
+class StatusGeracaoIAEnum(enum.Enum):
+    NAO_INICIADO = "NAO_INICIADO"
+    PENDENTE = "PENDENTE"
+    EM_PROGRESSO = "EM_PROGRESSO"
+    CONCLUIDO = "CONCLUIDO"
+    FALHA = "FALHA"
+    NAO_APLICAVEL = "NAO_APLICAVEL"
+
+class AttributeFieldTypeEnum(enum.Enum):
+    TEXT = "TEXT"
+    NUMBER = "NUMBER"
+    BOOLEAN = "BOOLEAN"
+    DATE = "DATE"
+    SELECT = "SELECT"
+    MULTI_SELECT = "MULTI_SELECT"
+    TEXTAREA = "TEXTAREA"
+
+class TipoAcaoIAEnum(enum.Enum):
+    GERACAO_TITULO_CURTO = "geracao_titulo_curto"
+    GERACAO_TITULO_LONGO = "geracao_titulo_longo"
+    GERACAO_DESCRICAO_CURTA = "geracao_descricao_curta"
+    GERACAO_DESCRICAO_LONGA = "geracao_descricao_longa"
+    GERACAO_PALAVRAS_CHAVE = "geracao_palavras_chave"
+    ANALISE_SENTIMENTO = "analise_sentimento"
+    ENRIQUECIMENTO_WEB_PRODUTO = "enriquecimento_web_produto"
+    OUTRA_ACAO_IA = "outra_acao_ia"
+
 
 class User(Base):
     __tablename__ = "users"
-
-    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
-    email: Mapped[str] = mapped_column(String, unique=True, index=True, nullable=False)
-    hashed_password: Mapped[Optional[str]] = mapped_column(String, nullable=True)
-    nome_completo: Mapped[Optional[str]] = mapped_column(String, nullable=True)
-    is_active: Mapped[bool] = mapped_column(Boolean, default=True)
-    is_superuser: Mapped[bool] = mapped_column(Boolean, default=False)
-
-    provider: Mapped[Optional[str]] = mapped_column(String, nullable=True)
-    provider_user_id: Mapped[Optional[str]] = mapped_column(String, nullable=True, unique=True)
-
-    plano_id: Mapped[Optional[int]] = mapped_column(Integer, ForeignKey("planos.id"), nullable=True)
-    plano: Mapped[Optional["Plano"]] = relationship("Plano", back_populates="users")
-
-    data_expiracao_plano: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
-
-    limite_produtos: Mapped[Optional[int]] = mapped_column(Integer, default=0)
-    limite_enriquecimento_web: Mapped[Optional[int]] = mapped_column(Integer, default=0)
-    limite_geracao_ia: Mapped[Optional[int]] = mapped_column(Integer, default=0)
-
-    chave_openai_pessoal: Mapped[Optional[str]] = mapped_column(String, nullable=True)
-    chave_google_gemini_pessoal: Mapped[Optional[str]] = mapped_column(String, nullable=True)
-
-    idioma_preferido: Mapped[Optional[str]] = mapped_column(String(10), nullable=True)
-    role_id: Mapped[Optional[int]] = mapped_column(Integer, ForeignKey("roles.id"), nullable=True)
-    role: Mapped[Optional["Role"]] = relationship("Role")
-
-    updated_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), onupdate=func.now(), nullable=True)
-
-
-    produtos: Mapped[List["Produto"]] = relationship("Produto", back_populates="owner", cascade="all, delete-orphan")
-    fornecedores: Mapped[List["Fornecedor"]] = relationship("Fornecedor", back_populates="owner", cascade="all, delete-orphan")
-    registros_uso_ia: Mapped[List["RegistroUsoIA"]] = relationship("RegistroUsoIA", back_populates="user", cascade="all, delete-orphan")
-    product_types: Mapped[List["ProductType"]] = relationship("ProductType", back_populates="owner", cascade="all, delete-orphan")
-
-    reset_password_token: Mapped[Optional[str]] = mapped_column(String, nullable=True, index=True)
-    reset_password_token_expires_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
-
-
-class Fornecedor(Base):
-    __tablename__ = "fornecedores"
-
-    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
-    nome: Mapped[str] = mapped_column(String, index=True, nullable=False)
-    contato: Mapped[Optional[str]] = mapped_column(String, nullable=True)
-    user_id: Mapped[int] = mapped_column(Integer, ForeignKey("users.id"), nullable=False)
-
-    email: Mapped[Optional[str]] = mapped_column(String, nullable=True)
-    telefone: Mapped[Optional[str]] = mapped_column(String, nullable=True)
-    endereco: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
-    site_url: Mapped[Optional[str]] = mapped_column(String, nullable=True)
-    link_busca_padrao: Mapped[Optional[str]] = mapped_column(String, nullable=True)
-
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
-    updated_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), onupdate=func.now(), nullable=True)
-
-
-    owner: Mapped["User"] = relationship("User", back_populates="fornecedores")
-    produtos: Mapped[List["Produto"]] = relationship("Produto", back_populates="fornecedor")
-
-    __table_args__ = (UniqueConstraint('user_id', 'nome', name='_user_fornecedor_nome_uc'),)
-
-
-class Produto(Base):
-    __tablename__ = "produtos"
-
-    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
-
-    nome_base: Mapped[str] = mapped_column(String, index=True, nullable=False)
-    nome_chat_api: Mapped[Optional[str]] = mapped_column(String, index=True, nullable=True)
-    descricao_original: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
-    descricao_chat_api: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
-    sku: Mapped[Optional[str]] = mapped_column(String, index=True, nullable=True)
-    ean: Mapped[Optional[str]] = mapped_column(String, index=True, nullable=True)
-    ncm: Mapped[Optional[str]] = mapped_column(String, index=True, nullable=True)
-
-    marca: Mapped[Optional[str]] = mapped_column(String, nullable=True)
-    modelo: Mapped[Optional[str]] = mapped_column(String, nullable=True)
-    categoria_original: Mapped[Optional[str]] = mapped_column(String, nullable=True)
-    tags: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
-    link_referencia_fornecedor: Mapped[Optional[str]] = mapped_column(String, nullable=True)
+    id = Column(Integer, primary_key=True, index=True)
+    email = Column(String, unique=True, index=True, nullable=False)
+    hashed_password = Column(String, nullable=True)
+    nome_completo = Column(String, index=True)
+    idioma_preferido = Column(String, default="pt-BR")
+    is_active = Column(Boolean, default=True)
+    is_superuser = Column(Boolean, default=False)
     
-    # CORREÇÃO AQUI: Mudar de Text para JSON
-    dados_brutos: Mapped[Optional[Dict[str, Any]]] = mapped_column(JSON, nullable=True)
+    plano_id = Column(Integer, ForeignKey("planos.id"), nullable=True)
+    role_id = Column(Integer, ForeignKey("roles.id"), nullable=True)
 
-    preco_custo: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
-    preco_venda: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
-    margem_lucro: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
-    estoque_disponivel: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    limite_produtos = Column(Integer, default=settings.DEFAULT_LIMIT_PRODUTOS_SEM_PLANO)
+    limite_enriquecimento_web = Column(Integer, default=settings.DEFAULT_LIMIT_ENRIQUECIMENTO_SEM_PLANO)
+    limite_geracao_ia = Column(Integer, default=settings.DEFAULT_LIMIT_GERACAO_IA_SEM_PLANO)
+    data_expiracao_plano = Column(DateTime(timezone=True), nullable=True)
 
-    peso_kg: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
-    altura_cm: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
-    largura_cm: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
-    profundidade_cm: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+    chave_openai_pessoal = Column(String, nullable=True)
+    chave_google_gemini_pessoal = Column(String, nullable=True)
 
-    data_criacao: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
-    data_atualizacao: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)
+    provider = Column(String, nullable=True)
+    provider_user_id = Column(String, nullable=True, unique=True, index=True)
 
-    imagem_principal_url: Mapped[Optional[str]] = mapped_column(String, nullable=True)
+    reset_password_token = Column(String, nullable=True, unique=True, index=True)
+    reset_password_token_expires_at = Column(DateTime(timezone=True), nullable=True)
+    
+    # --- TIMESTAMPS ALTERADOS ---
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=True) # nullable=True se pode não ser atualizado na criação ou se for opcional
 
-    status_enriquecimento_web: Mapped[StatusEnriquecimentoEnum] = mapped_column(SQLAlchemyEnum(StatusEnriquecimentoEnum), default=StatusEnriquecimentoEnum.NAO_INICIADO, nullable=False)
-    status_titulo_ia: Mapped[StatusGeracaoIAEnum] = mapped_column(SQLAlchemyEnum(StatusGeracaoIAEnum), default=StatusGeracaoIAEnum.NAO_INICIADO, nullable=False)
-    status_descricao_ia: Mapped[StatusGeracaoIAEnum] = mapped_column(SQLAlchemyEnum(StatusGeracaoIAEnum), default=StatusGeracaoIAEnum.NAO_INICIADO, nullable=False)
-
-    user_id: Mapped[int] = mapped_column(Integer, ForeignKey("users.id"), nullable=False)
-    owner: Mapped["User"] = relationship("User", back_populates="produtos")
-
-    fornecedor_id: Mapped[Optional[int]] = mapped_column(Integer, ForeignKey("fornecedores.id"), nullable=True)
-    fornecedor: Mapped[Optional["Fornecedor"]] = relationship("Fornecedor", back_populates="produtos")
-
-    product_type_id: Mapped[Optional[int]] = mapped_column(Integer, ForeignKey("product_types.id"), nullable=True)
-    product_type: Mapped[Optional["ProductType"]] = relationship("ProductType")
-
-    # CORREÇÃO AQUI: Mudar de Text para JSON
-    dynamic_attributes: Mapped[Optional[Dict[str, Any]]] = mapped_column(JSON, nullable=True)
-
-
-class ProductType(Base):
-    __tablename__ = "product_types"
-
-    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
-    key_name: Mapped[str] = mapped_column(String, unique=True, index=True, nullable=False)
-    friendly_name: Mapped[str] = mapped_column(String, nullable=False)
-
-    user_id: Mapped[Optional[int]] = mapped_column(Integer, ForeignKey("users.id"), nullable=True)
-    owner: Mapped[Optional["User"]] = relationship("User", back_populates="product_types")
-
-    attribute_templates: Mapped[List["AttributeTemplate"]] = relationship(
-        "AttributeTemplate",
-        back_populates="product_type",
-        cascade="all, delete-orphan",
-        order_by="AttributeTemplate.display_order"
-    )
-
-
-class AttributeTemplate(Base):
-    __tablename__ = "attribute_templates"
-
-    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
-    product_type_id: Mapped[int] = mapped_column(Integer, ForeignKey("product_types.id"), nullable=False)
-
-    attribute_key: Mapped[str] = mapped_column(String, nullable=False)
-    label: Mapped[str] = mapped_column(String, nullable=False)
-    field_type: Mapped[AttributeFieldTypeEnum] = mapped_column(SQLAlchemyEnum(AttributeFieldTypeEnum), nullable=False)
-
-    options: Mapped[Optional[str]] = mapped_column(Text, nullable=True) # Mantido como Text se armazena JSON string, ou pode ser JSON também
-    is_required: Mapped[bool] = mapped_column(Boolean, default=False)
-    tooltip_text: Mapped[Optional[str]] = mapped_column(String, nullable=True)
-    default_value: Mapped[Optional[str]] = mapped_column(String, nullable=True)
-    display_order: Mapped[int] = mapped_column(Integer, default=0)
-
-    product_type: Mapped["ProductType"] = relationship("ProductType", back_populates="attribute_templates")
-
-    __table_args__ = (UniqueConstraint('product_type_id', 'attribute_key', name='_product_type_attribute_key_uc'),)
-
-
-class Plano(Base):
-    __tablename__ = "planos"
-
-    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
-    nome: Mapped[str] = mapped_column(String, unique=True, nullable=False)
-    descricao: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
-    preco_mensal: Mapped[float] = mapped_column(Float, default=0.0)
-
-    limite_produtos: Mapped[int] = mapped_column(Integer, default=10)
-    limite_enriquecimento_web: Mapped[int] = mapped_column(Integer, default=50)
-    limite_geracao_ia: Mapped[int] = mapped_column(Integer, default=100)
-
-    permite_api_externa: Mapped[bool] = mapped_column(Boolean, default=False)
-    suporte_prioritario: Mapped[bool] = mapped_column(Boolean, default=False)
-
-    users: Mapped[List["User"]] = relationship("User", back_populates="plano")
-
-
-class RegistroUsoIA(Base):
-    __tablename__ = "registros_uso_ia"
-
-    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
-    user_id: Mapped[int] = mapped_column(Integer, ForeignKey("users.id"), nullable=False)
-    user: Mapped["User"] = relationship("User", back_populates="registros_uso_ia")
-
-    tipo_geracao: Mapped[str] = mapped_column(String, nullable=False)
-    produto_id: Mapped[Optional[int]] = mapped_column(Integer, ForeignKey("produtos.id"), nullable=True)
-
-    timestamp: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
-    custo_aproximado: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
-    provedor_ia: Mapped[Optional[str]] = mapped_column(String, nullable=True)
-    modelo_ia: Mapped[Optional[str]] = mapped_column(String, nullable=True)
-    sucesso: Mapped[bool] = mapped_column(Boolean, default=True)
-    detalhes_erro: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
-    input_text: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
-    output_text: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    plano = relationship("Plano", back_populates="usuarios")
+    role = relationship("Role", back_populates="usuarios")
+    produtos = relationship("Produto", back_populates="owner", cascade="all, delete-orphan")
+    fornecedores = relationship("Fornecedor", back_populates="owner", cascade="all, delete-orphan")
+    product_types = relationship("ProductType", back_populates="owner", cascade="all, delete-orphan")
+    registros_uso_ia = relationship("RegistroUsoIA", back_populates="user", cascade="all, delete-orphan")
 
 
 class Role(Base):
     __tablename__ = "roles"
-    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
-    name: Mapped[str] = mapped_column(String(50), unique=True, index=True, nullable=False)
-    description: Mapped[Optional[str]] = mapped_column(String(255))
+    id = Column(Integer, primary_key=True, index=True)
+    name = Column(String, unique=True, index=True, nullable=False)
+    description = Column(String, nullable=True)
+    usuarios = relationship("User", back_populates="role")
+
+
+class Plano(Base):
+    __tablename__ = "planos"
+    id = Column(Integer, primary_key=True, index=True)
+    nome = Column(String, unique=True, index=True, nullable=False)
+    descricao = Column(String, nullable=True)
+    preco_mensal = Column(Float, default=0.0)
+    limite_produtos = Column(Integer, default=10)
+    limite_enriquecimento_web = Column(Integer, default=20)
+    limite_geracao_ia = Column(Integer, default=50)
+    permite_api_externa = Column(Boolean, default=False)
+    suporte_prioritario = Column(Boolean, default=False)
+    
+    usuarios = relationship("User", back_populates="plano")
+
+
+class Fornecedor(Base):
+    __tablename__ = "fornecedores"
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    nome = Column(String, index=True, nullable=False)
+    contato_principal = Column(String, nullable=True)
+    email_contato = Column(String, nullable=True)
+    telefone_contato = Column(String, nullable=True)
+    site_url = Column(String, nullable=True)
+    link_busca_padrao = Column(String, nullable=True)
+
+    # --- TIMESTAMPS ALTERADOS ---
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=True)
+
+    owner = relationship("User", back_populates="fornecedores")
+    produtos = relationship("Produto", back_populates="fornecedor")
+
+
+class Produto(Base):
+    __tablename__ = "produtos"
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    fornecedor_id = Column(Integer, ForeignKey("fornecedores.id"), nullable=True)
+    product_type_id = Column(Integer, ForeignKey("product_types.id"), nullable=True)
+
+    nome_base = Column(String, index=True, nullable=False)
+    nome_chat_api = Column(String, nullable=True, index=True)
+    descricao_original = Column(Text, nullable=True)
+    descricao_curta_orig = Column(String, nullable=True)
+    descricao_chat_api = Column(Text, nullable=True)
+    descricao_curta_chat_api = Column(String, nullable=True)
+    
+    sku = Column(String, index=True, nullable=True)
+    ean = Column(String, index=True, nullable=True)
+    ncm = Column(String, index=True, nullable=True)
+    marca = Column(String, index=True, nullable=True)
+    modelo = Column(String, index=True, nullable=True)
+    categoria_original = Column(String, index=True, nullable=True)
+    categoria_mapeada = Column(String, index=True, nullable=True)
+
+    preco_custo = Column(Float, nullable=True)
+    preco_venda = Column(Float, nullable=True)
+    preco_promocional = Column(Float, nullable=True)
+    estoque_disponivel = Column(Integer, nullable=True)
+
+    peso_kg = Column(Float, nullable=True)
+    altura_cm = Column(Float, nullable=True)
+    largura_cm = Column(Float, nullable=True)
+    profundidade_cm = Column(Float, nullable=True)
+
+    imagem_principal_url = Column(String, nullable=True)
+    imagens_secundarias_urls = Column(JSON, nullable=True)
+
+    dynamic_attributes = Column(JSON, nullable=True)
+    dados_brutos = Column(JSON, nullable=True)
+
+    status_enriquecimento_web = Column(SQLAlchemyEnum(StatusEnriquecimentoEnum), default=StatusEnriquecimentoEnum.NAO_INICIADO)
+    status_titulo_ia = Column(SQLAlchemyEnum(StatusGeracaoIAEnum), default=StatusGeracaoIAEnum.NAO_INICIADO)
+    status_descricao_ia = Column(SQLAlchemyEnum(StatusGeracaoIAEnum), default=StatusGeracaoIAEnum.NAO_INICIADO)
+    
+    ativo_marketplace = Column(Boolean, default=False)
+    data_publicacao_marketplace = Column(DateTime(timezone=True), nullable=True)
+    
+    # Mantendo seus nomes originais data_criacao e data_atualizacao se preferir
+    # data_criacao = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    # data_atualizacao = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=True)
+    # Ou usando created_at/updated_at para padronizar:
+    created_at = Column(DateTime(timezone=True), name="data_criacao", server_default=func.now(), nullable=False)
+    updated_at = Column(DateTime(timezone=True), name="data_atualizacao", server_default=func.now(), onupdate=func.now(), nullable=True)
+
+
+    owner = relationship("User", back_populates="produtos")
+    fornecedor = relationship("Fornecedor", back_populates="produtos")
+    product_type = relationship("ProductType", back_populates="produtos")
+    registros_uso_ia = relationship("RegistroUsoIA", back_populates="produto", cascade="all, delete-orphan")
+
+
+class ProductType(Base):
+    __tablename__ = "product_types"
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=True)
+    
+    key_name = Column(String, index=True, nullable=False) # Considere adicionar UniqueConstraint com user_id
+    friendly_name = Column(String, nullable=False)
+    description = Column(Text, nullable=True)
+    
+    # --- TIMESTAMPS ALTERADOS ---
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=True)
+
+    owner = relationship("User", back_populates="product_types")
+    attribute_templates = relationship("AttributeTemplate", back_populates="product_type", cascade="all, delete-orphan", lazy="selectin")
+    produtos = relationship("Produto", back_populates="product_type")
+
+
+class AttributeTemplate(Base):
+    __tablename__ = "attribute_templates"
+    id = Column(Integer, primary_key=True, index=True)
+    product_type_id = Column(Integer, ForeignKey("product_types.id"), nullable=False)
+    
+    attribute_key = Column(String, nullable=False)
+    label = Column(String, nullable=False)
+    field_type = Column(SQLAlchemyEnum(AttributeFieldTypeEnum), nullable=False)
+    
+    is_required = Column(Boolean, default=False)
+    is_filtrable = Column(Boolean, default=False) # Se o atributo pode ser usado em filtros de busca
+    display_order = Column(Integer, default=0)
+    
+    options = Column(JSON, nullable=True) # Para SELECT, MULTI_SELECT
+    
+    default_value = Column(String, nullable=True)
+    tooltip_text = Column(String, nullable=True)
+    
+    # --- TIMESTAMPS ALTERADOS ---
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=True)
+
+    product_type = relationship("ProductType", back_populates="attribute_templates")
+
+
+class RegistroUsoIA(Base):
+    __tablename__ = "registros_uso_ia"
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    produto_id = Column(Integer, ForeignKey("produtos.id"), nullable=True)
+
+    tipo_acao = Column(SQLAlchemyEnum(TipoAcaoIAEnum), nullable=False)
+    provedor_ia = Column(String, nullable=True)
+    modelo_usado = Column(String, nullable=True)
+    
+    tokens_entrada = Column(Integer, default=0)
+    tokens_saida = Column(Integer, default=0)
+    custo_estimado = Column(Float, default=0.0)
+    
+    prompt_utilizado = Column(Text, nullable=True)
+    resposta_ia_raw = Column(Text, nullable=True)
+    
+    # --- TIMESTAMP ÚNICO ---
+    # Renomeado de 'timestamp' para 'created_at' para padronização, e usando server_default
+    created_at = Column(DateTime(timezone=True), name="timestamp", server_default=func.now(), index=True, nullable=False)
+
+    user = relationship("User", back_populates="registros_uso_ia")
+    produto = relationship("Produto", back_populates="registros_uso_ia")

@@ -1,221 +1,201 @@
 # Backend/routers/product_types.py
-
 from typing import List, Optional, Union
-from fastapi import APIRouter, Depends, HTTPException, status, Path as FastAPIPath # Renomeado Path para FastAPIPath
+from fastapi import APIRouter, Depends, HTTPException, status, Path as FastAPIPath
 from sqlalchemy.orm import Session
 
 import crud
 import models
 import schemas
-import database # Para get_db
-from . import auth_utils # Para get_current_active_user
-
-# Não precisa de app aqui, ele é definido e usado em main.py
-# from main import app # REMOVER ESTA LINHA SE EXISTIR
+import database 
+from . import auth_utils 
 
 router = APIRouter(
-    prefix="/product-types", # O prefixo /api/v1 será adicionado em main.py
+    prefix="/product-types", 
     tags=["Tipos de Produto e Templates de Atributos"],
     dependencies=[Depends(auth_utils.get_current_active_user)],
 )
 
-# Endpoints para ProductType
 @router.post("/", response_model=schemas.ProductTypeResponse, status_code=status.HTTP_201_CREATED)
-def create_product_type(
+def create_product_type_endpoint( 
     product_type_in: schemas.ProductTypeCreate,
     db: Session = Depends(database.get_db),
     current_user: models.User = Depends(auth_utils.get_current_active_user)
 ):
-    # Verificar se já existe um tipo de produto com a mesma key_name (global ou do usuário)
-    # Esta lógica pode ser mais complexa dependendo se key_name deve ser única globalmente ou por usuário.
-    # Assumindo que key_name é globalmente única por enquanto, como no modelo.
-    existing_type = crud.get_product_type_by_key_name(db, key_name=product_type_in.key_name)
+    user_id_for_type = None if current_user.is_superuser else current_user.id
+    
+    print(f"ROUTER (create_product_type): Verificando existência de key_name '{product_type_in.key_name}' para user_id: {user_id_for_type}")
+    existing_type = crud.get_product_type_by_key_name(db, key_name=product_type_in.key_name, user_id=user_id_for_type)
+    
+    if user_id_for_type is None and not existing_type: 
+        existing_type_global_check = crud.get_product_type_by_key_name(db, key_name=product_type_in.key_name, user_id=None)
+        if existing_type_global_check:
+             existing_type = existing_type_global_check
+
     if existing_type:
+        scope_msg = "globalmente" if existing_type.user_id is None else f"para o usuário ID {existing_type.user_id}"
+        print(f"ROUTER (create_product_type): Conflito! Tipo com key_name '{product_type_in.key_name}' já existe {scope_msg}.")
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Um tipo de produto com a chave '{product_type_in.key_name}' já existe."
+            detail=f"Um tipo de produto com a chave '{product_type_in.key_name}' já existe {scope_msg}."
         )
-    # user_id=None para tipos globais, ou current_user.id se for específico do usuário
-    # A lógica atual do modelo ProductType permite user_id opcional.
-    # Se a regra for que tipos criados por usuários não-admin são deles, e admin cria globais:
-    user_id_for_type = current_user.id if not current_user.is_superuser else None # Exemplo de lógica
-    # Ou sempre None se todos os tipos são globais, ou sempre current_user.id se são sempre do usuário.
-    # A chamada crud.create_product_type já aceita user_id opcional.
+        
+    print(f"ROUTER (create_product_type): Criando tipo de produto '{product_type_in.friendly_name}' com key_name '{product_type_in.key_name}' para user_id: {user_id_for_type}")
     return crud.create_product_type(db=db, product_type_data=product_type_in, user_id=user_id_for_type)
 
 
 @router.get("/", response_model=List[schemas.ProductTypeResponse])
-def read_product_types(
+def read_product_types_endpoint( 
     skip: int = 0, 
     limit: int = 100, 
     db: Session = Depends(database.get_db),
     current_user: models.User = Depends(auth_utils.get_current_active_user)
 ):
-    # Se usuários normais só podem ver os seus tipos + tipos globais (user_id=None)
-    # E admins veem todos.
-    # A função crud.get_product_types já tem um parâmetro user_id para essa lógica.
-    user_id_filter = current_user.id if not current_user.is_superuser else None
-    # Se user_id_filter for None, o CRUD deve retornar todos (ou apenas os globais, dependendo da implementação)
-    # Se user_id_filter tiver um ID, o CRUD deve retornar os desse usuário + os globais.
-    product_types = crud.get_product_types(db, skip=skip, limit=limit, user_id=user_id_filter)
+    print(f"ROUTER (read_product_types): Buscando tipos de produto para user_id: {current_user.id}, skip: {skip}, limit: {limit}")
+    product_types = crud.get_product_types(db, skip=skip, limit=limit, user_id=current_user.id)
+    print(f"ROUTER (read_product_types): Encontrados {len(product_types)} tipos de produto.")
     return product_types
 
-@router.get("/{type_id_or_key}", response_model=schemas.ProductTypeResponse)
-def read_product_type_details(
-    type_id_or_key: Union[int, str], # Aceita ID (int) ou key_name (str)
+# --- ESTA É A ROTA CRÍTICA PARA O ERRO 404 ---
+@router.get("/{type_id_or_key_path:path}", response_model=schemas.ProductTypeResponse, name="read_product_type_details")
+async def read_product_type_details_route(
+    type_id_or_key_path: str = FastAPIPath(..., description="ID (numérico) ou KeyName (string) do Tipo de Produto"),
     db: Session = Depends(database.get_db),
     current_user: models.User = Depends(auth_utils.get_current_active_user)
 ):
+    identifier = type_id_or_key_path 
+    print(f"ROUTER (read_product_type_details): Iniciando busca por '{identifier}'") 
     db_product_type = None
-    if isinstance(type_id_or_key, int):
-        db_product_type = crud.get_product_type(db, product_type_id=type_id_or_key)
-    else: # é string (key_name)
-        db_product_type = crud.get_product_type_by_key_name(db, key_name=type_id_or_key)
     
-    if db_product_type is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Tipo de Produto não encontrado.")
-    
-    # Lógica de permissão: usuário só pode ver os seus ou os globais, a menos que seja admin
-    if not current_user.is_superuser and db_product_type.user_id is not None and db_product_type.user_id != current_user.id:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Não autorizado a visualizar este tipo de produto.")
+    try:
+        numeric_id = int(identifier)
+        print(f"ROUTER: Identificador '{identifier}' é numérico. Tentando buscar por ID: {numeric_id}") 
+        # Chama crud.get_product_type que busca por ID e já tem logs de debug
+        db_product_type = crud.get_product_type(db, product_type_id=numeric_id) 
+        if db_product_type:
+            print(f"ROUTER: Encontrado por ID: {db_product_type.id} - {db_product_type.friendly_name}") 
+    except ValueError:
+        print(f"ROUTER: Identificador '{identifier}' não é puramente numérico. Será tratado como key_name.")
+        pass 
+
+    if not db_product_type: 
+        key_name_to_search = str(identifier) 
+        print(f"ROUTER: Não encontrado por ID (ou não era ID numérico válido). Tentando buscar por key_name: '{key_name_to_search}' para user_id: {current_user.id} (específico)") 
+        db_product_type = crud.get_product_type_by_key_name(db, key_name=key_name_to_search, user_id=current_user.id)
         
+        if not db_product_type:
+            print(f"ROUTER: Não encontrado como tipo do usuário. Tentando buscar globalmente por key_name: '{key_name_to_search}' (user_id: None)") 
+            db_product_type = crud.get_product_type_by_key_name(db, key_name=key_name_to_search, user_id=None)
+
+    if db_product_type is None:
+        print(f"ROUTER: Tipo de produto NÃO encontrado para identificador '{identifier}' após todas as tentativas.") 
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Tipo de Produto com identificador '{identifier}' não encontrado.")
+    
+    is_global = db_product_type.user_id is None
+    is_owner = db_product_type.user_id == current_user.id
+
+    if not (current_user.is_superuser or is_global or is_owner):
+        print(f"ROUTER: Permissão NEGADA para usuário ID {current_user.id} acessar tipo de produto ID {db_product_type.id} (Owner: {db_product_type.user_id}, Global: {is_global})")
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Não autorizado a visualizar este tipo de produto.")
+    
+    print(f"ROUTER: Permissão CONCEDIDA. Retornando tipo de produto ID {db_product_type.id} ('{db_product_type.friendly_name}')") 
     return db_product_type
+# --- FIM DA ROTA MODIFICADA ---
+
 
 @router.put("/{type_id}", response_model=schemas.ProductTypeResponse)
-def update_product_type(
+def update_product_type_endpoint( 
     type_id: int, 
     product_type_in: schemas.ProductTypeUpdate, 
     db: Session = Depends(database.get_db),
     current_user: models.User = Depends(auth_utils.get_current_active_user)
 ):
-    db_product_type = crud.get_product_type(db, product_type_id=type_id)
-    if not db_product_type:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Tipo de Produto não encontrado.")
-    
-    # Lógica de permissão para atualização
-    if not current_user.is_superuser and db_product_type.user_id != current_user.id:
-        # Se user_id for None (global), um não-admin também não deveria poder alterar,
-        # a menos que haja uma regra específica. Assumindo que só owner ou admin podem.
-         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Não autorizado a modificar este tipo de produto.")
+    print(f"ROUTER (update_product_type): Tentando atualizar tipo de produto ID {type_id} para usuário ID {current_user.id}")
+    updated_type = crud.update_product_type(db=db, product_type_id=type_id, product_type_data=product_type_in, user_id=current_user.id)
+    if not updated_type:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Tipo de produto não encontrado ou falha na atualização.")
+    print(f"ROUTER (update_product_type): Tipo de produto ID {type_id} atualizado com sucesso.")
+    return updated_type
 
-    # Verificar se a nova key_name (se alterada) já existe
-    if product_type_in.key_name and product_type_in.key_name != db_product_type.key_name:
-        existing_type = crud.get_product_type_by_key_name(db, key_name=product_type_in.key_name)
-        if existing_type and existing_type.id != type_id:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f"Um tipo de produto com a chave '{product_type_in.key_name}' já existe."
-            )
-    return crud.update_product_type(db=db, product_type_id=type_id, product_type_data=product_type_in)
-
-@router.delete("/{type_id}", response_model=schemas.ProductTypeResponse) # Ou apenas um Msg de sucesso
-def delete_product_type(
+@router.delete("/{type_id}", response_model=schemas.ProductTypeResponse) 
+def delete_product_type_endpoint( 
     type_id: int, 
     db: Session = Depends(database.get_db),
     current_user: models.User = Depends(auth_utils.get_current_active_user)
 ):
-    db_product_type = crud.get_product_type(db, product_type_id=type_id)
-    if not db_product_type:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Tipo de Produto não encontrado.")
-
-    # Lógica de permissão para deleção
-    if not current_user.is_superuser and db_product_type.user_id != current_user.id:
-         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Não autorizado a deletar este tipo de produto.")
-    
-    # Adicionar verificação se o tipo de produto está em uso por algum produto antes de deletar
-    # produtos_usando_tipo = db.query(models.Produto).filter(models.Produto.product_type_id == type_id).first()
-    # if produtos_usando_tipo:
-    #     raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Este tipo de produto está em uso e não pode ser deletado.")
-
-    deleted_type = crud.delete_product_type(db=db, product_type_id=type_id)
-    if not deleted_type: # Deveria ter sido pego pelo get_product_type, mas por segurança
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Tipo de Produto não encontrado para deleção.")
+    print(f"ROUTER (delete_product_type): Tentando deletar tipo de produto ID {type_id} para usuário ID {current_user.id}")
+    deleted_type = crud.delete_product_type(db=db, product_type_id=type_id, user_id=current_user.id)
+    if not deleted_type:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Tipo de Produto não encontrado para deleção ou não pôde ser deletado.")
+    print(f"ROUTER (delete_product_type): Tipo de produto ID {type_id} deletado com sucesso.")
     return deleted_type
 
-
-# Endpoints para AttributeTemplate aninhados em ProductType
 @router.post("/{type_id}/attributes/", response_model=schemas.AttributeTemplateResponse, status_code=status.HTTP_201_CREATED)
-def add_attribute_to_product_type(
+def add_attribute_to_product_type_endpoint( 
     type_id: int,
     attribute_in: schemas.AttributeTemplateCreate,
     db: Session = Depends(database.get_db),
     current_user: models.User = Depends(auth_utils.get_current_active_user)
 ):
-    db_product_type = crud.get_product_type(db, product_type_id=type_id)
-    if not db_product_type:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Tipo de Produto não encontrado para adicionar atributo.")
-    
-    if not current_user.is_superuser and db_product_type.user_id != current_user.id:
-         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Não autorizado a modificar atributos deste tipo de produto.")
-
-    # Verificar se attribute_key já existe para este product_type_id
-    existing_attr = db.query(models.AttributeTemplate).filter(
+    print(f"ROUTER (add_attribute): Tentando adicionar atributo ao tipo ID {type_id} para usuário ID {current_user.id}")
+    existing_attr_template = db.query(models.AttributeTemplate).filter(
         models.AttributeTemplate.product_type_id == type_id,
         models.AttributeTemplate.attribute_key == attribute_in.attribute_key
     ).first()
-    if existing_attr:
+    if existing_attr_template:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Atributo com a chave '{attribute_in.attribute_key}' já existe para este tipo de produto."
+            detail=f"Um atributo com a chave '{attribute_in.attribute_key}' já existe para este tipo de produto."
         )
-    return crud.create_attribute_template(db=db, attribute_template_data=attribute_in, product_type_id=type_id)
-
+    
+    new_attribute = crud.create_attribute_template(db=db, attribute_template_data=attribute_in, product_type_id=type_id, user_id=current_user.id)
+    print(f"ROUTER (add_attribute): Atributo '{new_attribute.label}' adicionado ao tipo ID {type_id}.")
+    return new_attribute
 
 @router.put("/{type_id}/attributes/{attribute_id}", response_model=schemas.AttributeTemplateResponse)
-def update_attribute_for_product_type(
-    type_id: int,
+def update_attribute_for_product_type_endpoint( 
+    type_id: int, 
     attribute_id: int,
     attribute_in: schemas.AttributeTemplateUpdate,
     db: Session = Depends(database.get_db),
     current_user: models.User = Depends(auth_utils.get_current_active_user)
 ):
-    db_product_type = crud.get_product_type(db, product_type_id=type_id)
-    if not db_product_type:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Tipo de Produto não encontrado.")
+    print(f"ROUTER (update_attribute): Tentando atualizar atributo ID {attribute_id} do tipo ID {type_id} para usuário ID {current_user.id}")
+    db_attribute_to_check = crud.get_attribute_template(db, attribute_id)
+    if not db_attribute_to_check or db_attribute_to_check.product_type_id != type_id:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Atributo não encontrado ou não pertence ao tipo de produto especificado.")
 
-    if not current_user.is_superuser and db_product_type.user_id != current_user.id:
-         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Não autorizado a modificar atributos deste tipo de produto.")
-
-    db_attribute = crud.get_attribute_template(db, attribute_template_id=attribute_id)
-    if not db_attribute or db_attribute.product_type_id != type_id:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Atributo não encontrado ou não pertence a este tipo de produto.")
-
-    # Se attribute_key for alterada, verificar duplicação
-    if attribute_in.attribute_key and attribute_in.attribute_key != db_attribute.attribute_key:
-        existing_attr = db.query(models.AttributeTemplate).filter(
+    if attribute_in.attribute_key and attribute_in.attribute_key != db_attribute_to_check.attribute_key:
+        existing_attr_with_new_key = db.query(models.AttributeTemplate).filter(
             models.AttributeTemplate.product_type_id == type_id,
             models.AttributeTemplate.attribute_key == attribute_in.attribute_key,
-            models.AttributeTemplate.id != attribute_id # Exclui o próprio atributo da checagem
+            models.AttributeTemplate.id != attribute_id 
         ).first()
-        if existing_attr:
+        if existing_attr_with_new_key:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f"Atributo com a chave '{attribute_in.attribute_key}' já existe para este tipo de produto."
+                detail=f"Um atributo com a nova chave '{attribute_in.attribute_key}' já existe para este tipo de produto."
             )
-    return crud.update_attribute_template(db=db, attribute_template_id=attribute_id, attribute_template_data=attribute_in)
 
+    updated_attribute = crud.update_attribute_template(db=db, attribute_template_id=attribute_id, attribute_template_data=attribute_in, user_id=current_user.id)
+    if not updated_attribute:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Falha ao atualizar o atributo.")
+    print(f"ROUTER (update_attribute): Atributo ID {attribute_id} atualizado.")
+    return updated_attribute
 
-@router.delete("/{type_id}/attributes/{attribute_id}", response_model=schemas.AttributeTemplateResponse) # Ou Msg
-def remove_attribute_from_product_type(
-    type_id: int,
+@router.delete("/{type_id}/attributes/{attribute_id}", response_model=schemas.AttributeTemplateResponse)
+def remove_attribute_from_product_type_endpoint( 
+    type_id: int, 
     attribute_id: int,
     db: Session = Depends(database.get_db),
     current_user: models.User = Depends(auth_utils.get_current_active_user)
 ):
-    db_product_type = crud.get_product_type(db, product_type_id=type_id)
-    if not db_product_type:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Tipo de Produto não encontrado.")
+    print(f"ROUTER (delete_attribute): Tentando deletar atributo ID {attribute_id} do tipo ID {type_id} para usuário ID {current_user.id}")
+    db_attribute_to_check = crud.get_attribute_template(db, attribute_id)
+    if not db_attribute_to_check or db_attribute_to_check.product_type_id != type_id:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Atributo não encontrado ou não pertence ao tipo de produto especificado para deleção.")
 
-    if not current_user.is_superuser and db_product_type.user_id != current_user.id:
-         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Não autorizado a modificar atributos deste tipo de produto.")
-
-    db_attribute = crud.get_attribute_template(db, attribute_template_id=attribute_id)
-    if not db_attribute or db_attribute.product_type_id != type_id:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Atributo não encontrado ou não pertence a este tipo de produto.")
-    
-    deleted_attribute = crud.delete_attribute_template(db=db, attribute_template_id=attribute_id)
-    if not deleted_attribute: # Segurança
+    deleted_attribute = crud.delete_attribute_template(db=db, attribute_template_id=attribute_id, user_id=current_user.id)
+    if not deleted_attribute: 
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Falha ao deletar o atributo.")
+    print(f"ROUTER (delete_attribute): Atributo ID {attribute_id} deletado.")
     return deleted_attribute
-
-# A linha problemática "app.include_router(product_types.router)" foi REMOVIDA daqui.

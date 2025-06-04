@@ -1,14 +1,14 @@
 // Frontend/app/src/components/produtos/NewProductModal.jsx
 import React, { useState, useEffect, useCallback } from 'react';
 import productTypeService from '../../services/productTypeService';
-import { showErrorToast } from '../../utils/notifications';
+import { showErrorToast } from '../../utils/notifications'; // Removido showSuccessToast se não usado aqui
 import AttributeField from './shared/AttributeField';
 
 // Nomes das Abas
 const TAB_INFO_PRINCIPAIS = 'INFO_PRINCIPAIS';
 const TAB_ATRIBUTOS = 'ATRIBUTOS';
-// const TAB_MIDIA = 'MIDIA'; // Comentado até ser implementado
-// const TAB_CONTEUDO_IA = 'CONTEUDO_IA'; // Comentado até ser implementado
+// const TAB_MIDIA = 'MIDIA'; 
+// const TAB_CONTEUDO_IA = 'CONTEUDO_IA'; 
 
 // Estilos para as abas
 const tabStyles = {
@@ -16,17 +16,17 @@ const tabStyles = {
   tabButton: { padding: '10px 15px', cursor: 'pointer', border: 'none', backgroundColor: 'transparent', borderBottom: '3px solid transparent', marginRight: '5px', fontSize: '0.95rem' },
   activeTabButton: { borderBottom: '3px solid var(--primary)', fontWeight: 'bold', color: 'var(--primary)' },
   tabContent: { padding: '1rem 0' },
-  formGroup: { marginBottom: '1rem' }, // Estilo genérico para grupos de formulário
-  label: { display: 'block', marginBottom: '0.3rem', fontWeight: '500', color: '#333', fontSize: '0.9rem' }, // Estilo genérico para labels
-  input: { width: '100%', padding: '0.6rem 0.75rem', border: '1px solid #d1d5db', borderRadius: 'var(--radius)', fontSize: '0.95rem', boxSizing: 'border-box' }, // Estilo genérico para inputs
+  formGroup: { marginBottom: '1rem' }, 
+  label: { display: 'block', marginBottom: '0.3rem', fontWeight: '500', color: '#333', fontSize: '0.9rem' }, 
+  input: { width: '100%', padding: '0.6rem 0.75rem', border: '1px solid #d1d5db', borderRadius: 'var(--radius)', fontSize: '0.95rem', boxSizing: 'border-box' }, 
 };
 
 function NewProductModal({
   isOpen,
   onClose,
-  onSave,
-  isLoading,
-  productTypes,
+  onSave, // Esta é a função handleSaveProdutoCallback de ProdutosPage.jsx
+  isLoading: propIsLoading, // Renomeado para evitar conflito com isLoading interno
+  productTypes, // Já vem do context, não precisa ser initialProductTypes
   loadingProductTypes
 }) {
   const [activeTab, setActiveTab] = useState(TAB_INFO_PRINCIPAIS);
@@ -35,7 +35,7 @@ function NewProductModal({
   const [nomeBase, setNomeBase] = useState('');
   const [marca, setMarca] = useState('');
   const [categoriaOriginal, setCategoriaOriginal] = useState('');
-  const [skuOriginal, setSkuOriginal] = useState('');
+  const [skuOriginal, setSkuOriginal] = useState(''); // Este será parte de dados_brutos
   const [selectedProductTypeId, setSelectedProductTypeId] = useState('');
 
   const [dynamicAttributes, setDynamicAttributes] = useState({});
@@ -45,6 +45,10 @@ function NewProductModal({
   const [manualAttributes, setManualAttributes] = useState([]);
   const [newManualAttributeKey, setNewManualAttributeKey] = useState('');
   const [newManualAttributeValue, setNewManualAttributeValue] = useState('');
+
+  //isLoading para o componente, considerando o loading da prop e o loading interno do template
+  const isLoading = propIsLoading || loadingTemplate;
+
 
   const clearForm = useCallback(() => {
     setNomeBase('');
@@ -58,11 +62,22 @@ function NewProductModal({
     setNewManualAttributeKey('');
     setNewManualAttributeValue('');
     setActiveTab(TAB_INFO_PRINCIPAIS);
+    // setIsSubmitting(false); // Não resetar isSubmitting aqui, pois pode ser chamado no useEffect de isOpen
   }, []);
 
   useEffect(() => {
+    if (isOpen) { // Limpa o formulário e reseta isSubmitting quando o modal é aberto
+        clearForm();
+        setIsSubmitting(false);
+    }
+  }, [isOpen, clearForm]);
+
+  useEffect(() => {
     if (selectedProductTypeId) {
-      const selectedType = productTypes.find(pt => pt.id === parseInt(selectedProductTypeId, 10));
+      const selectedType = Array.isArray(productTypes) 
+        ? productTypes.find(pt => pt.id === parseInt(selectedProductTypeId, 10))
+        : null;
+      
       let templatesToUse = [];
 
       const initializeAttributes = (templates) => {
@@ -77,7 +92,7 @@ function NewProductModal({
           }
         });
         setDynamicAttributes(initialAttrs);
-        setManualAttributes([]);
+        setManualAttributes([]); // Limpa atributos manuais ao mudar o tipo
       };
 
       if (selectedType?.attribute_templates?.length) {
@@ -89,27 +104,34 @@ function NewProductModal({
         console.log("NewProductModal: Buscando detalhes e templates para o tipo ID:", selectedProductTypeId);
         const fetchDetails = async () => {
           setLoadingTemplate(true);
+          setDynamicAttributes({}); // Limpa atributos enquanto carrega novos
+          setManualAttributes([]);
           try {
             const details = await productTypeService.getProductTypeDetails(selectedProductTypeId);
-            templatesToUse = details.attribute_templates || [];
+            templatesToUse = details?.attribute_templates || [];
             setCurrentAttributeTemplates(templatesToUse);
             initializeAttributes(templatesToUse);
+            if (!templatesToUse.length) {
+                console.log("NewProductModal: Tipo de produto não possui atributos pré-definidos.");
+            }
           } catch (error) {
-            showErrorToast("Falha ao carregar atributos para o tipo de produto.");
+            const errorMsg = error.response?.data?.detail || error.message || "Erro desconhecido ao buscar detalhes."
+            showErrorToast(`Falha ao carregar atributos para o tipo: ${errorMsg}`);
+            console.error("NewProductModal: Erro em fetchDetails:", error)
             setCurrentAttributeTemplates([]);
-            setDynamicAttributes({}); // Limpa atributos se o carregamento falhar
+            setDynamicAttributes({});
           } finally {
             setLoadingTemplate(false);
           }
         };
         fetchDetails();
       }
-    } else {
+    } else { // Se nenhum tipo de produto estiver selecionado
       setCurrentAttributeTemplates([]);
       setDynamicAttributes({});
       setManualAttributes([]);
     }
-  }, [selectedProductTypeId, productTypes]);
+  }, [selectedProductTypeId, productTypes]); // Removido fetchDetails daqui pois está sendo chamado condicionalmente
 
   const handleDynamicAttributeChange = (key, value) => {
     setDynamicAttributes(prev => ({ ...prev, [key]: value }));
@@ -148,7 +170,7 @@ function NewProductModal({
     setManualAttributes(prev => prev.filter((_, i) => i !== index));
   };
 
-  const handleSubmit = async () => {
+  const handleSubmit = async () => { // Removido 'e' do parâmetro se não usado
     if (!nomeBase.trim()) {
       setActiveTab(TAB_INFO_PRINCIPAIS);
       showErrorToast('Nome base é obrigatório.');
@@ -170,7 +192,6 @@ function NewProductModal({
         }
       }
     }
-    // Validação para chaves de atributos manuais (não podem ser vazias se o valor estiver preenchido)
     for (const manualAttr of manualAttributes) {
         if (!manualAttr.key.trim() && manualAttr.value.trim()) {
             setActiveTab(TAB_ATRIBUTOS);
@@ -179,40 +200,49 @@ function NewProductModal({
         }
     }
 
-
-    const allDynamicAttributes = { ...dynamicAttributes };
+    const finalDynamicAttributes = { ...dynamicAttributes };
     manualAttributes.forEach(attr => {
-      if (attr.key.trim()) {
-        allDynamicAttributes[attr.key.trim()] = attr.value;
+      if (attr.key.trim()) { // Só adiciona se a chave não for vazia
+        finalDynamicAttributes[attr.key.trim()] = attr.value.trim(); // Garante que o valor também seja trimado
       }
     });
 
     const produtoData = {
-      nome_base: nomeBase,
-      marca: marca || null,
-      categoria_original: categoriaOriginal || null,
-      dados_brutos: skuOriginal ? { sku_original: skuOriginal } : {},
+      nome_base: nomeBase.trim(),
+      marca: marca.trim() || null, // Envia null se vazio
+      categoria_original: categoriaOriginal.trim() || null, // Envia null se vazio
+      // Monta dados_brutos corretamente
+      dados_brutos: skuOriginal.trim() ? { sku_original: skuOriginal.trim() } : {}, 
       product_type_id: parseInt(selectedProductTypeId, 10),
-      dynamic_attributes: allDynamicAttributes,
+      // --- ALTERAÇÃO PARA ENVIAR dynamic_attributes COMO STRING JSON ---
+      dynamic_attributes: Object.keys(finalDynamicAttributes).length > 0 ? JSON.stringify(finalDynamicAttributes) : null,
+      // Adicione outros campos que seu backend espera no ProdutoCreate, como:
+      // sku: skuOriginal.trim() || null, // Se sku é um campo direto e não em dados_brutos
+      // ean: ean.trim() || null,
+      // modelo: modelo.trim() || null,
+      // preco_custo: preco_custo ? parseFloat(preco_custo) : null,
+      // preco_venda: preco_venda ? parseFloat(preco_venda) : null,
+      // descricao_original: descricao_original.trim() || null,
     };
+    
+    // --- LOG PARA VER O PAYLOAD ANTES DE ENVIAR ---
+    console.log("PAYLOAD PARA CRIAR PRODUTO (NewProductModal):", JSON.stringify(produtoData, null, 2));
 
     setIsSubmitting(true);
     try {
-      await onSave(produtoData);
-      clearForm();
-      onClose();
+      await onSave(produtoData); // onSave é handleSaveProdutoCallback de ProdutosPage.jsx
+      // showSuccessToast("Produto salvo com sucesso!"); // ProdutosPage.jsx já mostra essa mensagem
+      clearForm(); // Limpa o formulário
+      onClose();   // Fecha o modal
     } catch (err) {
-      console.error("Falha ao salvar novo produto (do modal):", err);
+      // O erro já deve ser logado e notificado por handleSaveProdutoCallback em ProdutosPage
+      console.error("Falha ao salvar novo produto (capturado no NewProductModal):", err);
+      // showErrorToast já deve ser chamado por handleSaveProdutoCallback
     } finally {
       setIsSubmitting(false);
     }
   };
 
-  useEffect(() => {
-    if (!isOpen) {
-      clearForm();
-    }
-  }, [isOpen, clearForm]);
 
   if (!isOpen) return null;
 
@@ -229,7 +259,8 @@ function NewProductModal({
                 value={selectedProductTypeId}
                 onChange={e => setSelectedProductTypeId(e.target.value)}
                 disabled={isSubmitting || loadingProductTypes || isLoading}
-                style={tabStyles.input} // Usando estilo genérico
+                style={tabStyles.input}
+                required // Adicionado required
               >
                 <option value="">
                   {loadingProductTypes ? 'Carregando tipos...' : '-- Selecione um Tipo --'}
@@ -243,7 +274,7 @@ function NewProductModal({
             </div>
             <div style={tabStyles.formGroup}>
               <label htmlFor="p-nome_base" style={tabStyles.label}>Nome Base*</label>
-              <input id="p-nome_base" name="nome_base" type="text" value={nomeBase} onChange={e => setNomeBase(e.target.value)} placeholder="Nome principal" style={tabStyles.input} disabled={isSubmitting || isLoading} />
+              <input id="p-nome_base" name="nome_base" type="text" value={nomeBase} onChange={e => setNomeBase(e.target.value)} placeholder="Nome principal do produto" style={tabStyles.input} disabled={isSubmitting || isLoading} required />
             </div>
             <div style={tabStyles.formGroup}>
               <label htmlFor="p-marca" style={tabStyles.label}>Marca</label>
@@ -251,12 +282,13 @@ function NewProductModal({
             </div>
             <div style={tabStyles.formGroup}>
               <label htmlFor="p-categoria_original" style={tabStyles.label}>Categoria Original</label>
-              <input id="p-categoria_original" name="categoria_original" type="text" value={categoriaOriginal} onChange={e => setCategoriaOriginal(e.target.value)} placeholder="Categoria original" style={tabStyles.input} disabled={isSubmitting || isLoading} />
+              <input id="p-categoria_original" name="categoria_original" type="text" value={categoriaOriginal} onChange={e => setCategoriaOriginal(e.target.value)} placeholder="Categoria original do produto" style={tabStyles.input} disabled={isSubmitting || isLoading} />
             </div>
             <div style={tabStyles.formGroup}>
-              <label htmlFor="p-sku_original" style={tabStyles.label}>SKU Original</label>
-              <input id="p-sku_original" name="sku_original" type="text" value={skuOriginal} onChange={e => setSkuOriginal(e.target.value)} placeholder="SKU original" style={tabStyles.input} disabled={isSubmitting || isLoading} />
+              <label htmlFor="p-sku_original" style={tabStyles.label}>SKU Original (em dados_brutos)</label>
+              <input id="p-sku_original" name="sku_original" type="text" value={skuOriginal} onChange={e => setSkuOriginal(e.target.value)} placeholder="SKU original do fornecedor" style={tabStyles.input} disabled={isSubmitting || isLoading} />
             </div>
+            {/* Adicionar outros campos básicos aqui se necessário, como EAN, Modelo, Preços, Descrição */}
           </>
         );
       case TAB_ATRIBUTOS:
@@ -269,10 +301,10 @@ function NewProductModal({
         return (
           <>
             <h4>Atributos para "{productTypes.find(pt => pt.id === parseInt(selectedProductTypeId))?.friendly_name}"</h4>
-            {currentAttributeTemplates.length > 0 ? currentAttributeTemplates.map(attrTemplate => (
+            {currentAttributeTemplates.length > 0 ? currentAttributeTemplates.sort((a,b) => a.display_order - b.display_order).map(attrTemplate => (
               <AttributeField
                 key={attrTemplate.attribute_key}
-                attributeTemplate={attrTemplate}
+                attributeTemplate={attrTemplate} // Passando o template completo
                 value={dynamicAttributes[attrTemplate.attribute_key]}
                 onChange={handleDynamicAttributeChange}
                 disabled={isSubmitting || isLoading}
@@ -280,7 +312,7 @@ function NewProductModal({
             )) : <p>Nenhum atributo definido no template para este tipo de produto.</p>}
 
             <hr style={{ margin: '20px 0', borderColor: '#eee' }} />
-            <h4>Atributos Manuais</h4>
+            <h4>Atributos Manuais Adicionais</h4>
             {manualAttributes.map((attr, index) => (
               <div key={index} style={{ display: 'flex', gap: '10px', marginBottom: '10px', alignItems: 'center' }}>
                 <input
@@ -300,12 +332,13 @@ function NewProductModal({
                   disabled={isSubmitting || isLoading}
                 />
                 <button
-                    onClick={() => handleRemoveManualAttribute(index)}
-                    disabled={isSubmitting || isLoading}
-                    title="Remover Atributo Manual"
-                    style={{padding: '0.4rem 0.6rem', backgroundColor: 'transparent', color:'var(--danger)', border:'1px solid var(--danger-light)', borderRadius:'var(--radius)', cursor: 'pointer'}}
+                  type="button" // importante para não submeter o form principal
+                  onClick={() => handleRemoveManualAttribute(index)}
+                  disabled={isSubmitting || isLoading}
+                  title="Remover Atributo Manual"
+                  style={{padding: '0.4rem 0.6rem', backgroundColor: 'transparent', color:'var(--danger)', border:'1px solid var(--danger-light)', borderRadius:'var(--radius)', cursor: 'pointer'}}
                 >
-                    🗑️
+                  🗑️
                 </button>
               </div>
             ))}
@@ -327,6 +360,7 @@ function NewProductModal({
                 disabled={isSubmitting || isLoading}
               />
               <button
+                type="button" // importante
                 onClick={handleAddManualAttribute}
                 disabled={isSubmitting || isLoading}
                 style={{padding: '0.6rem 1rem', backgroundColor: 'var(--primary-lightest)', color: 'var(--primary)', border: '1px solid var(--primary-light)', borderRadius:'var(--radius)', cursor: 'pointer'}}
@@ -342,7 +376,7 @@ function NewProductModal({
   };
 
   return (
-    <div className="modal active" id="new-prod-modal">
+    <div className={`modal ${isOpen ? 'active' : ''}`} id="new-prod-modal"> {/* Usa a classe 'active' para controlar visibilidade via CSS */}
       <div className="modal-content" style={{maxWidth: '750px', width: '90%'}}>
         <button className="modal-close" onClick={onClose} disabled={isSubmitting || isLoading}>×</button>
         <h3>Novo Produto</h3>
@@ -359,7 +393,8 @@ function NewProductModal({
         </div>
 
         <button
-            onClick={handleSubmit}
+            type="button" // Alterado para type="button" para ser chamado por handleSubmit
+            onClick={handleSubmit} // Chama a função de submit que tem validações
             disabled={isSubmitting || loadingProductTypes || isLoading || loadingTemplate}
             style={{
                 marginTop: '20px',
@@ -379,5 +414,8 @@ function NewProductModal({
     </div>
   );
 }
+
+// Removido PropTypes se não estiver usando extensivamente para simplificar
+// NewProductModal.propTypes = { ... };
 
 export default NewProductModal;

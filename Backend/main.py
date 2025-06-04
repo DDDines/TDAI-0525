@@ -6,16 +6,15 @@ from sqlalchemy.orm import Session
 from pathlib import Path
 from typing import List, Optional, Any
 import json
-import traceback # Para debugging, se necessário
+import traceback
 
 import models
 import schemas
 import crud
-# Importa o router diretamente do módulo auth (que agora define 'router')
 from auth import router as auth_router_direct
 from database import SessionLocal, engine, get_db
 from core.config import settings
-from core import email_utils
+# from core import email_utils # Comentado se não estiver sendo usado diretamente neste arquivo
 
 # Importa os routers da subpasta 'routers'
 from routers import (
@@ -45,38 +44,77 @@ app = FastAPI(
     description="API para o sistema TDAI - Ferramenta de Descrição Assistida por IA.",
 )
 
+# --- INÍCIO DA SEÇÃO CORS MODIFICADA E REVISADA ---
 # Configuração do CORS
-default_cors_origins = [
-    "http://localhost",
-    "http://localhost:5173",
-    "http://127.0.0.1:5173",
-    # Adicione aqui outras origens padrão se necessário
+exact_frontend_origin = "http://localhost:5173" # Origem exata do frontend como o navegador envia
+
+# Lista de origens padrão, garantindo a inclusão da origem exata do frontend
+# e outras variações comuns para desenvolvimento local.
+default_cors_origins_list = [
+    exact_frontend_origin,          # Ex: "http://localhost:5173"
+    "http://127.0.0.1:5173",        # Equivalente comum para localhost
+    exact_frontend_origin + "/",    # Com barra no final, por segurança: "http://localhost:5173/"
+    "http://127.0.0.1:5173/",       # Equivalente com barra
+    "http://localhost",             # Se você acessar o frontend por aqui diretamente em algum caso raro
+    "http://127.0.0.1",             # (Menos comum para frontend Vite em dev)
 ]
 
-try:
-    # Tenta usar BACKEND_CORS_ORIGINS das configurações, se existir e não for None/vazio
-    if hasattr(settings, 'BACKEND_CORS_ORIGINS') and settings.BACKEND_CORS_ORIGINS:
-        allowed_origins = [str(origin).strip() for origin in settings.BACKEND_CORS_ORIGINS if str(origin).strip()]
-        if not allowed_origins: # Se após o processamento a lista estiver vazia, usa o default
-            allowed_origins = default_cors_origins
-            print("AVISO: settings.BACKEND_CORS_ORIGINS estava definido mas resultou em lista vazia. Usando CORS origins padrão.")
-        else:
-            print(f"INFO: Usando CORS origins de settings: {allowed_origins}")
-    else:
-        allowed_origins = default_cors_origins
-        print("INFO: settings.BACKEND_CORS_ORIGINS não definido ou vazio. Usando CORS origins padrão.")
-except AttributeError:
-    allowed_origins = default_cors_origins
-    print("AVISO: Atributo settings.BACKEND_CORS_ORIGINS não encontrado. Usando CORS origins padrão.")
+current_allowed_origins = []
 
+try:
+    # settings.BACKEND_CORS_ORIGINS é List[AnyHttpUrl] carregada de core.config.py
+    if hasattr(settings, 'BACKEND_CORS_ORIGINS') and settings.BACKEND_CORS_ORIGINS:
+        # Processa as origens vindas das configurações (já são AnyHttpUrl)
+        # Normaliza para strings e remove duplicatas potenciais após normalização
+        normalized_env_origins = set()
+        for origin_obj in settings.BACKEND_CORS_ORIGINS:
+            origin_str = str(origin_obj)
+            normalized_env_origins.add(origin_str.rstrip('/')) # Adiciona sem barra
+            normalized_env_origins.add(origin_str)           # Adiciona com barra (se houver)
+
+        if not normalized_env_origins:
+            current_allowed_origins = list(default_cors_origins_list) # Usa cópia da lista padrão
+            print("AVISO: settings.BACKEND_CORS_ORIGINS estava definido mas resultou em conjunto vazio após normalização. Usando CORS origins padrão.")
+        else:
+            current_allowed_origins = sorted(list(normalized_env_origins))
+            print(f"INFO: Usando CORS origins de settings (normalizados): {current_allowed_origins}")
+            # Garante que a origem exata do frontend (sem barra) e os padrões estejam lá,
+            # caso o .env não os tenha ou os tenha de forma diferente.
+            for default_org in default_cors_origins_list:
+                if default_org not in current_allowed_origins:
+                    current_allowed_origins.append(default_org)
+            current_allowed_origins = sorted(list(set(current_allowed_origins))) # Remove duplicatas e ordena
+
+    else: # Se BACKEND_CORS_ORIGINS não estiver definido ou for vazio em settings
+        current_allowed_origins = list(default_cors_origins_list) # Usa cópia da lista padrão
+        print("INFO: settings.BACKEND_CORS_ORIGINS não definido ou vazio. Usando CORS origins padrão.")
+
+except AttributeError: # Se o atributo BACKEND_CORS_ORIGINS não existir em settings
+    current_allowed_origins = list(default_cors_origins_list) # Usa cópia da lista padrão
+    print("AVISO: Atributo settings.BACKEND_CORS_ORIGINS não encontrado em settings. Usando CORS origins padrão.")
+except Exception as e_cors_setup: # Capturar outros erros inesperados na configuração
+    current_allowed_origins = list(default_cors_origins_list) # Usa cópia da lista padrão
+    print(f"ERRO CRÍTICO ao configurar CORS origins a partir de settings: {e_cors_setup}. Usando CORS origins padrão.")
+
+# Garante que a origem exata do frontend (sem barra) esteja na lista final,
+# pois é assim que o header Origin geralmente chega.
+if exact_frontend_origin not in current_allowed_origins:
+    current_allowed_origins.insert(0, exact_frontend_origin) # Adiciona no início se faltar
+
+# Remove duplicatas finais que possam ter sido introduzidas e ordena para consistência no log
+final_unique_allowed_origins = sorted(list(set(current_allowed_origins)))
+
+print(f"INFO: Final unique allowed_origins para CORSMiddleware: {final_unique_allowed_origins}")
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=allowed_origins,
+    allow_origins=final_unique_allowed_origins,
     allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_methods=["*"], # Permite todos os métodos (GET, POST, PUT, OPTIONS, etc.)
+    allow_headers=["*"], # Permite todos os cabeçalhos (Authorization, Content-Type, etc.)
 )
+# --- FIM DA SEÇÃO CORS MODIFICADA E REVISADA ---
+
 
 static_files_path = Path(__file__).parent / "static"
 if not static_files_path.exists():
@@ -117,18 +155,23 @@ async def startup_event_create_defaults():
             schemas.PlanoCreate(nome="Gratuito", descricao="Plano básico gratuito com limitações.", preco_mensal=0, limite_produtos=settings.DEFAULT_LIMIT_PRODUTOS_SEM_PLANO, limite_enriquecimento_web=settings.DEFAULT_LIMIT_ENRIQUECIMENTO_SEM_PLANO, limite_geracao_ia=settings.DEFAULT_LIMIT_GERACAO_IA_SEM_PLANO),
             schemas.PlanoCreate(nome="Pro", descricao="Plano profissional com mais limites e funcionalidades.", preco_mensal=49.90, limite_produtos=1000, limite_enriquecimento_web=500, limite_geracao_ia=1000, permite_api_externa=True, suporte_prioritario=True),
         ]
-        admin_plano_obj = None
+        admin_plano_obj = None 
+        plano_gratuito_obj = None 
         for plano_data in planos_a_criar:
             plano = crud.get_plano_by_nome(db, nome=plano_data.nome)
             if not plano:
                 plano = crud.create_plano(db, plano=plano_data)
                 print(f"INFO:     Plano '{plano.nome}' criado.")
-            if plano.nome == "Pro":
+            if plano.nome == "Pro": 
                 admin_plano_obj = plano
+            if plano.nome == "Gratuito":
+                plano_gratuito_obj = plano
         
-        if not admin_plano_obj:
-            print("AVISO: Plano 'Pro' não encontrado para o usuário admin. Ele será criado sem plano ou com o gratuito se disponível.")
-
+        if not admin_plano_obj: 
+            print("AVISO: Plano 'Pro' não encontrado para o usuário admin. Ele será associado ao plano 'Gratuito' se disponível, ou ficará sem plano.")
+            admin_plano_obj = plano_gratuito_obj 
+        if not plano_gratuito_obj:
+            print("ERRO CRÍTICO: Plano 'Gratuito' não encontrado. Novos usuários podem não ser associados a um plano padrão.")
 
         # 3. Criação do Usuário Administrador
         admin_user = crud.get_user_by_email(db, email=settings.ADMIN_EMAIL)
@@ -142,24 +185,23 @@ async def startup_event_create_defaults():
                     "nome_completo": "Administrador TDAI",
                     "plano_id": admin_plano_obj.id if admin_plano_obj else None,
                 }
-                # Adicionar campos opcionais de UserCreate se existirem em settings
                 if hasattr(settings, 'ADMIN_IDIOMA_PREFERIDO'):
                     user_in_data['idioma_preferido'] = settings.ADMIN_IDIOMA_PREFERIDO
                 
-                user_in = schemas.UserCreate(**user_in_data)
+                user_in_create = schemas.UserCreate(**user_in_data) # Renomeado para evitar conflito
                 
-                created_admin = crud.create_user(db, user=user_in, plano_id=user_in.plano_id, role_id=admin_role_obj.id)
+                created_admin = crud.create_user(db, user=user_in_create, plano_id=user_in_create.plano_id, role_id=admin_role_obj.id)
                 
                 if created_admin:
-                    created_admin.is_superuser = True
+                    created_admin.is_superuser = True 
                     db.add(created_admin) 
                     db.commit()
                     db.refresh(created_admin)
-                    print(f"INFO:     Usuário administrador '{settings.ADMIN_EMAIL}' criado com sucesso (ID: {created_admin.id}, Superuser: {created_admin.is_superuser}, Role ID: {created_admin.role_id}).")
+                    print(f"INFO:     Usuário administrador '{settings.ADMIN_EMAIL}' criado com sucesso (ID: {created_admin.id}, Superuser: {created_admin.is_superuser}, Role ID: {created_admin.role_id}, Plano ID: {created_admin.plano_id}).")
                 else:
                     print(f"ERRO: Falha ao criar o usuário administrador '{settings.ADMIN_EMAIL}'.")
         else:
-            print(f"INFO:     Usuário administrador '{settings.ADMIN_EMAIL}' já existe (ID: {admin_user.id}, Superuser: {admin_user.is_superuser}, Role ID: {admin_user.role_id}).")
+            print(f"INFO:     Usuário administrador '{settings.ADMIN_EMAIL}' já existe (ID: {admin_user.id}, Superuser: {admin_user.is_superuser}, Role ID: {admin_user.role_id}, Plano ID: {admin_user.plano_id}).")
             needs_update = False
             if admin_role_obj and admin_user.role_id != admin_role_obj.id:
                 admin_user.role_id = admin_role_obj.id
@@ -169,10 +211,14 @@ async def startup_event_create_defaults():
                 admin_user.is_superuser = True
                 needs_update = True
                 print(f"INFO:     Atualizando admin '{settings.ADMIN_EMAIL}' para superuser.")
+            if admin_plano_obj and admin_user.plano_id != admin_plano_obj.id:
+                admin_user.plano_id = admin_plano_obj.id
+                needs_update = True
+                print(f"INFO:     Atualizando plano do admin '{settings.ADMIN_EMAIL}' para ID {admin_plano_obj.id} ({admin_plano_obj.nome}).")
+
             if needs_update:
                 db.commit()
                 db.refresh(admin_user)
-
 
         # 4. Criar Tipos de Produto e Atributos Padrão (Globais, user_id=None)
         product_types_data = [
@@ -244,33 +290,35 @@ async def startup_event_create_defaults():
 
 @app.post("/api/v1/users/", response_model=schemas.UserResponse, status_code=status.HTTP_201_CREATED, tags=["Usuários"])
 def create_new_user(
-    user_in: schemas.UserCreate,
+    user_in: schemas.UserCreate, # Renomeado para evitar conflito com admin_user no escopo global
     db: Session = Depends(get_db)
 ):
-    db_user = crud.get_user_by_email(db, email=user_in.email)
-    if db_user:
+    db_user_check = crud.get_user_by_email(db, email=user_in.email) # Renomeado para evitar conflito
+    if db_user_check:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Um usuário com este email já existe no sistema.",
         )
     
     plano_id_para_novo_usuario = user_in.plano_id
+    plano_gratuito_obj_check = crud.get_plano_by_nome(db, nome="Gratuito") # Renomeado para evitar conflito
+
     if plano_id_para_novo_usuario is None:
-        plano_gratuito = crud.get_plano_by_nome(db, nome="Gratuito")
-        if plano_gratuito:
-            plano_id_para_novo_usuario = plano_gratuito.id
+        if plano_gratuito_obj_check:
+            plano_id_para_novo_usuario = plano_gratuito_obj_check.id
         else: 
-            print("ERRO CRÍTICO: Plano padrão 'Gratuito' não encontrado durante a criação de novo usuário.")
-            raise HTTPException(status_code=500, detail="Erro de configuração do sistema: Plano padrão não encontrado.")
+            print("ERRO CRÍTICO: Plano padrão 'Gratuito' não encontrado no DB durante a criação de novo usuário sem plano especificado.")
+            plano_id_para_novo_usuario = None 
 
-    role_user = crud.get_role_by_name(db, name="user")
-    if not role_user: 
+
+    role_user_check = crud.get_role_by_name(db, name="user") # Renomeado para evitar conflito
+    if not role_user_check: 
         print("ERRO CRÍTICO: Role padrão 'user' não encontrado durante a criação de novo usuário.")
-        raise HTTPException(status_code=500, detail="Erro de configuração do sistema: Role padrão não encontrado.")
-    role_id_para_novo_usuario = role_user.id
+        raise HTTPException(status_code=500, detail="Erro de configuração do sistema: Role padrão 'user' não encontrado.")
+    role_id_para_novo_usuario = role_user_check.id
 
-    new_user = crud.create_user(db=db, user=user_in, plano_id=plano_id_para_novo_usuario, role_id=role_id_para_novo_usuario)
-    return new_user
+    new_user_created = crud.create_user(db=db, user=user_in, plano_id=plano_id_para_novo_usuario, role_id=role_id_para_novo_usuario) # Renomeado para evitar conflito
+    return new_user_created
 
 
 # Inclusão dos routers da aplicação
