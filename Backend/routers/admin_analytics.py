@@ -2,18 +2,17 @@
 from typing import List, Optional
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session
-from sqlalchemy import func 
+from sqlalchemy import func, cast, String # Importar cast e String
 from datetime import datetime, timedelta, timezone 
 
 import crud 
 import models 
 import schemas 
 from database import get_db 
-from auth import get_current_active_user # Importa a dependência correta
+from auth import get_current_active_user 
 
 router = APIRouter()
 
-# Dependência para garantir que o usuário é admin
 async def get_current_active_admin_user(current_user: models.User = Depends(get_current_active_user)):
     if not current_user.is_superuser:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Acesso negado: Requer privilégios de administrador.")
@@ -32,14 +31,16 @@ async def get_total_counts_endpoint(db: Session = Depends(get_db)):
         now = datetime.now(timezone.utc)
         start_of_month = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
         
-        # Usando o modelo correto: RegistroUsoIA
+        # Correção: Usar .created_at e fazer cast para String para o ILIKE
         total_geracoes_ia_mes = db.query(func.count(models.RegistroUsoIA.id)).filter(
-            models.RegistroUsoIA.timestamp >= start_of_month
+            models.RegistroUsoIA.created_at >= start_of_month
         ).scalar() or 0
         
+        # Correção: Usar .created_at e fazer cast para String para o ILIKE
+        # Adicionado o cast para String para permitir o operador ILIKE em colunas ENUM
         total_enriquecimentos_mes = db.query(func.count(models.RegistroUsoIA.id)).filter(
-            models.RegistroUsoIA.timestamp >= start_of_month,
-            models.RegistroUsoIA.tipo_geracao.ilike("%enriquecimento_web%") 
+            models.RegistroUsoIA.created_at >= start_of_month,
+            cast(models.RegistroUsoIA.tipo_acao, String).ilike("%enriquecimento_web%") 
         ).scalar() or 0
 
         return schemas.TotalCounts(
@@ -65,12 +66,13 @@ async def get_uso_ia_por_plano_endpoint(db: Session = Depends(get_db)):
     start_of_month = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
 
     for plano in planos:
+        # Correção: Usar .created_at
         count = db.query(func.count(models.RegistroUsoIA.id))\
                   .join(models.User, models.RegistroUsoIA.user_id == models.User.id)\
-                  .filter(models.User.plano_id == plano.id, models.RegistroUsoIA.timestamp >= start_of_month)\
+                  .filter(models.User.plano_id == plano.id, models.RegistroUsoIA.created_at >= start_of_month)\
                   .scalar() or 0
         resultado.append(schemas.UsoIAPorPlano(
-            plano_id=plano.id, # Adicionado plano_id
+            plano_id=plano.id, 
             nome_plano=plano.nome,
             total_geracoes_ia_no_mes=count
         ))
@@ -85,15 +87,16 @@ async def get_uso_ia_por_tipo_endpoint(db: Session = Depends(get_db)):
     start_of_month = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
     
     query_result = db.query(
-        models.RegistroUsoIA.tipo_geracao,
-        func.count(models.RegistroUsoIA.id).label("total_no_mes") # Renomeado para corresponder ao schema
+        models.RegistroUsoIA.tipo_acao,
+        func.count(models.RegistroUsoIA.id).label("total_no_mes") 
     ).filter(
-        models.RegistroUsoIA.timestamp >= start_of_month
+        # Correção: Usar .created_at
+        models.RegistroUsoIA.created_at >= start_of_month
     ).group_by(
-        models.RegistroUsoIA.tipo_geracao
+        models.RegistroUsoIA.tipo_acao
     ).all()
     
-    return [schemas.UsoIAPorTipo(tipo_geracao=row.tipo_geracao, total_no_mes=row.total_no_mes) for row in query_result]
+    return [schemas.UsoIAPorTipo(tipo_geracao=row.tipo_acao, total_no_mes=row.total_no_mes) for row in query_result]
 
 
 @router.get("/user-activity/", response_model=List[schemas.UserActivity], dependencies=[Depends(get_current_active_admin_user)])
@@ -110,16 +113,17 @@ async def get_user_activity_endpoint(
     now = datetime.now(timezone.utc)
     start_of_month = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
 
-    for user_model in users: # Renomeado para user_model para evitar conflito com user (se fosse parâmetro)
+    for user_model in users: 
         total_produtos_user = db.query(func.count(models.Produto.id)).filter(models.Produto.user_id == user_model.id).scalar() or 0
+        # Correção: Usar .created_at
         total_ia_mes_user = db.query(func.count(models.RegistroUsoIA.id)).filter(
             models.RegistroUsoIA.user_id == user_model.id,
-            models.RegistroUsoIA.timestamp >= start_of_month
+            models.RegistroUsoIA.created_at >= start_of_month
         ).scalar() or 0
         
         activities.append(schemas.UserActivity(
             user_id=user_model.id,
-            email=user_model.email, # Adicionado o campo email ao schema UserActivity
+            email=user_model.email, 
             nome_completo=user_model.nome_completo,
             total_produtos=total_produtos_user,
             total_geracoes_ia_mes_corrente=total_ia_mes_user
