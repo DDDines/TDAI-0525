@@ -5,7 +5,7 @@ from typing import Optional
 
 from fastapi import Depends, HTTPException, status, Request
 from fastapi.security import OAuth2PasswordBearer
-from jose import JWTError # JWTError pode ser útil para tratamento específico de erros de token
+from jose import JWTError, jwt # JWTError pode ser útil para tratamento específico de erros de token
 # from passlib.context import CryptContext # Removido, agora em core.security
 from sqlalchemy.orm import Session
 

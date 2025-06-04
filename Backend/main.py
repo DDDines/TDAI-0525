@@ -175,8 +175,8 @@ async def startup_event_create_defaults():
         admin_plano_obj = None 
         plano_gratuito_obj = None 
         for plano_data in planos_a_criar:
-            # FIX: Change 'get_plano_by_nome' to 'get_plano_by_name'
-            plano = crud.get_plano_by_name(db, name=plano_data.nome)
+            # FIX: Change 'name=plano_data.nome' to 'nome=plano_data.nome'
+            plano = crud.get_plano_by_name(db, nome=plano_data.nome) # This line is the fix
             if not plano:
                 plano = crud.create_plano(db, plano=plano_data)
                 print(f"INFO:     Plano '{plano.nome}' criado.")
@@ -319,7 +319,7 @@ def create_new_user(
         )
     
     plano_id_para_novo_usuario = user_in.plano_id
-    # FIX: Change 'get_plano_by_nome' to 'get_plano_by_name'
+    # FIX: Change 'name="Gratuito"' to 'nome="Gratuito"'
     plano_gratuito_obj_check = crud.get_plano_by_name(db, nome="Gratuito") # This line is the fix
 
     if plano_id_para_novo_usuario is None:

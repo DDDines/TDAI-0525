@@ -1,5 +1,6 @@
 # Backend/crud.py
 import logging
+import json
 from typing import List, Optional, Dict, Any, Union
 from datetime import datetime, timedelta, timezone
 
@@ -13,7 +14,7 @@ from core.config import settings # Para JWT_SECRET_KEY, ALGORITHM, etc.
 from core import security # Para hash de senha
 from models import (
     User, Role, Plano, Produto, Fornecedor, ProductType, AttributeTemplate, RegistroUsoIA,
-    StatusEnriquecimentoEnum, StatusGeracaoIAEnum, TipoAcaoIAEnum
+    StatusEnriquecimentoEnum, StatusGeracaoIAEnum, TipoAcaoIAEnum, AttributeFieldTypeEnum
 )
 import schemas # Importa todos os schemas
 
@@ -1073,10 +1074,34 @@ def create_initial_data(db: Session):
             "friendly_name": "Vestuário",
             "description": "Tipo padrão para peças de vestuário.",
             "attribute_templates": [
-                schemas.AttributeTemplateCreate(attribute_key="tamanho", label="Tamanho", field_type=AttributeFieldTypeEnum.SELECT, options='["P", "M", "G", "GG"]', is_required=True, display_order=1),
-                schemas.AttributeTemplateCreate(attribute_key="cor_produto", label="Cor", field_type=AttributeFieldTypeEnum.TEXT, is_required=True, display_order=2),
-                schemas.AttributeTemplateCreate(attribute_key="material_principal", label="Material Principal", field_type=AttributeFieldTypeEnum.TEXT, display_order=3),
-                schemas.AttributeTemplateCreate(attribute_key="genero_vestuario", label="Gênero", field_type=AttributeFieldTypeEnum.SELECT, options='["Masculino", "Feminino", "Unissex"]', display_order=4),
+                schemas.AttributeTemplateCreate(
+                    attribute_key="tamanho",
+                    label="Tamanho",
+                    field_type=AttributeFieldTypeEnum.SELECT,
+                    options=["P", "M", "G", "GG"],   # Correto: lista Python!
+                    is_required=True,
+                    display_order=1
+                ),
+                schemas.AttributeTemplateCreate(
+                    attribute_key="cor_produto",
+                    label="Cor",
+                    field_type=AttributeFieldTypeEnum.TEXT,
+                    is_required=True,
+                    display_order=2
+                ),
+                schemas.AttributeTemplateCreate(
+                    attribute_key="material_principal",
+                    label="Material Principal",
+                    field_type=AttributeFieldTypeEnum.TEXT,
+                    display_order=3
+                ),
+                schemas.AttributeTemplateCreate(
+                    attribute_key="genero_vestuario",
+                    label="Gênero",
+                    field_type=AttributeFieldTypeEnum.SELECT,
+                    options=["Masculino", "Feminino", "Unissex"],  # Correto: lista Python!
+                    display_order=4
+                ),
             ]
         }
     ]

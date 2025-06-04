@@ -40,7 +40,8 @@ def create_product_type_endpoint(
         )
         
     print(f"ROUTER (create_product_type): Criando tipo de produto '{product_type_in.friendly_name}' com key_name '{product_type_in.key_name}' para user_id: {user_id_for_type}")
-    return crud.create_product_type(db=db, product_type_data=product_type_in, user_id=user_id_for_type)
+    # FIX: Change 'product_type_data=' to 'product_type_create='
+    return crud.create_product_type(db=db, product_type_create=product_type_in, user_id=user_id_for_type)
 
 
 @router.get("/", response_model=List[schemas.ProductTypeResponse])
@@ -51,7 +52,7 @@ def read_product_types_endpoint(
     current_user: models.User = Depends(auth_utils.get_current_active_user)
 ):
     print(f"ROUTER (read_product_types): Buscando tipos de produto para user_id: {current_user.id}, skip: {skip}, limit: {limit}")
-    product_types = crud.get_product_types(db, skip=skip, limit=limit, user_id=current_user.id)
+    product_types = crud.get_product_types_for_user(db, skip=skip, limit=limit, user_id=current_user.id)
     print(f"ROUTER (read_product_types): Encontrados {len(product_types)} tipos de produto.")
     return product_types
 
