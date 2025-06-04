@@ -3,14 +3,16 @@ from typing import List, Optional
 from sqlalchemy import func
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session
-
+import logging
 
 
 import crud
 import models
 import schemas # schemas é importado
 import database
-from . import auth_utils # Para obter o usuário logado
+from . import auth_utils # Para obter o usuário 
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(
     prefix="/fornecedores",
@@ -19,20 +21,35 @@ router = APIRouter(
 )
 
 # Endpoint para criar fornecedor
-@router.post("/", response_model=schemas.FornecedorResponse, status_code=status.HTTP_201_CREATED) # CORRIGIDO AQUI
+@router.post("/", response_model=schemas.FornecedorResponse, status_code=status.HTTP_201_CREATED)
 def create_user_fornecedor(
     fornecedor: schemas.FornecedorCreate, 
     db: Session = Depends(database.get_db), 
     current_user: models.User = Depends(auth_utils.get_current_active_user)
 ):
-    # A função crud.create_fornecedor já lida com a verificação de nome duplicado para o usuário
+    # --- ADICIONAR LOGGING DE DEPURÇÃO AQUI ---
+    logger.info(f"Requisição para criar fornecedor recebida.")
+    logger.info(f"current_user (email): {current_user.email if current_user else 'N/A'}")
+    logger.info(f"current_user.id: {current_user.id if current_user else 'N/A'}")
+
+    if current_user is None or current_user.id is None:
+        logger.error("ERRO: Usuário autenticado ou seu ID é nulo ao tentar criar fornecedor. Isso pode indicar um problema de autenticação ou de sessão.")
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Não foi possível identificar o usuário logado para criar o fornecedor. Por favor, tente fazer login novamente."
+        )
+    # --- FIM DO LOGGING DE DEPURÇÃO ---
+
     try:
-        return crud.create_fornecedor(db=db, fornecedor=fornecedor, user_id=current_user.id) # Nome da função no CRUD
-    except HTTPException as e: # Repassa HTTPExceptions do CRUD
+        # A função crud.create_fornecedor já lida com a verificação de nome duplicado para o usuário
+        return crud.create_fornecedor(db=db, fornecedor=fornecedor, user_id=current_user.id) 
+    except HTTPException as e: # Repassa HTTPExceptions do CRUD (ex: nome duplicado)
+        logger.warning(f"HTTPException ao criar fornecedor: {e.detail}")
         raise e
     except Exception as e: # Captura outros erros inesperados
-        # Logar o erro 'e' aqui seria importante para depuração
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Erro interno ao criar fornecedor.")
+        logger.exception("Erro interno inesperado ao criar fornecedor:") # Usa exception para incluir o traceback completo
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Erro interno ao criar fornecedor. Por favor, tente novamente mais tarde.")
+
 
 # Endpoint para listar fornecedores do usuário logado (ou todos para admin)
 @router.get("/", response_model=schemas.FornecedorPage)

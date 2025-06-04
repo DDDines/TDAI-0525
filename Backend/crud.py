@@ -218,7 +218,14 @@ def delete_plano(db: Session, db_plano: Plano):
 
 # --- Fornecedor CRUD ---
 def create_fornecedor(db: Session, fornecedor: schemas.FornecedorCreate, user_id: int) -> Fornecedor:
-    db_fornecedor = Fornecedor(**fornecedor.model_dump(), user_id=user_id)
+    # Converter objetos HttpUrl para strings antes de passar para o modelo SQLAlchemy
+    fornecedor_data = fornecedor.model_dump()
+    if fornecedor_data.get("site_url"):
+        fornecedor_data["site_url"] = str(fornecedor_data["site_url"]) # Converte HttpUrl para string
+    if fornecedor_data.get("link_busca_padrao"):
+        fornecedor_data["link_busca_padrao"] = str(fornecedor_data["link_busca_padrao"]) # Converte HttpUrl para string
+
+    db_fornecedor = Fornecedor(**fornecedor_data, user_id=user_id) # Passa o dicionário modificado
     db.add(db_fornecedor)
     db.commit()
     db.refresh(db_fornecedor)
@@ -273,8 +280,16 @@ def count_fornecedores_by_user(
     return query.scalar() or 0
 
 
+# Localize também a função update_fornecedor e aplique lógica semelhante:
 def update_fornecedor(db: Session, db_fornecedor: Fornecedor, fornecedor_update: schemas.FornecedorUpdate) -> Fornecedor:
     update_data = fornecedor_update.model_dump(exclude_unset=True)
+
+    # Converter objetos HttpUrl para strings antes de aplicar a atualização
+    if "site_url" in update_data and update_data["site_url"] is not None:
+        update_data["site_url"] = str(update_data["site_url"])
+    if "link_busca_padrao" in update_data and update_data["link_busca_padrao"] is not None:
+        update_data["link_busca_padrao"] = str(update_data["link_busca_padrao"])
+
     for key, value in update_data.items():
         setattr(db_fornecedor, key, value)
     db.commit()
