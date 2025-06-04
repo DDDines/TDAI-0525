@@ -1,21 +1,21 @@
 # Backend/schemas.py
-from pydantic import BaseModel, EmailStr, HttpUrl, Field, Json
-from typing import Optional, List, Dict, Any 
+import json # Import json para uso interno se necessário
+from pydantic import BaseModel, EmailStr, HttpUrl, Field # Removido Json de pydantic pois não será usado diretamente nos campos problemáticos
+from typing import Optional, List, Dict, Any
 from datetime import datetime
-import enum 
+import enum
 
-from models import StatusEnriquecimentoEnum, StatusGeracaoIAEnum, AttributeFieldTypeEnum 
+from models import StatusEnriquecimentoEnum, StatusGeracaoIAEnum, AttributeFieldTypeEnum, TipoAcaoIAEnum
 
 # --- Token Schemas ---
 class Token(BaseModel):
     access_token: str
-    refresh_token: Optional[str] = None 
+    refresh_token: Optional[str] = None
     token_type: str
 
 class TokenData(BaseModel):
     email: Optional[str] = None
-    user_id: Optional[int] = None 
-    # scopes: List[str] = []
+    user_id: Optional[int] = None
 
 class RefreshTokenRequest(BaseModel):
     refresh_token: str
@@ -23,31 +23,21 @@ class RefreshTokenRequest(BaseModel):
 # --- User Schemas ---
 class UserBase(BaseModel):
     email: EmailStr
-    nome_completo: Optional[str] = Field(None, max_length=100) 
-    idioma_preferido: Optional[str] = Field(None, max_length=10) 
+    nome_completo: Optional[str] = Field(None, max_length=100)
+    idioma_preferido: Optional[str] = Field(None, max_length=10)
     chave_openai_pessoal: Optional[str] = Field(None, max_length=255)
-    chave_google_gemini_pessoal: Optional[str] = Field(None, max_length=255) 
+    chave_google_gemini_pessoal: Optional[str] = Field(None, max_length=255)
 
-class UserCreate(UserBase): 
+class UserCreate(UserBase):
     password: str = Field(..., min_length=8)
-    plano_id: Optional[int] = None 
+    plano_id: Optional[int] = None
 
 class UserCreateOAuth(UserBase):
     provider: str
     provider_user_id: str
 
-class UserUpdate(UserBase): 
-    password: Optional[str] = Field(None, min_length=8) 
-    nome_completo: Optional[str] = Field(None, max_length=100)
-    idioma_preferido: Optional[str] = Field(None, max_length=10)
-    chave_openai_pessoal: Optional[str] = Field(None, max_length=255)
-    chave_google_gemini_pessoal: Optional[str] = Field(None, max_length=255)
-    plano_id: Optional[int] = None 
-
-    class Config:
-        from_attributes = True 
-
-class UserUpdateOAuth(BaseModel): 
+class UserUpdate(UserBase):
+    password: Optional[str] = Field(None, min_length=8)
     nome_completo: Optional[str] = Field(None, max_length=100)
     idioma_preferido: Optional[str] = Field(None, max_length=10)
     chave_openai_pessoal: Optional[str] = Field(None, max_length=255)
@@ -57,8 +47,18 @@ class UserUpdateOAuth(BaseModel):
     class Config:
         from_attributes = True
 
-class UserUpdateByAdmin(UserUpdate): 
-    email: Optional[EmailStr] = None 
+class UserUpdateOAuth(BaseModel):
+    nome_completo: Optional[str] = Field(None, max_length=100)
+    idioma_preferido: Optional[str] = Field(None, max_length=10)
+    chave_openai_pessoal: Optional[str] = Field(None, max_length=255)
+    chave_google_gemini_pessoal: Optional[str] = Field(None, max_length=255)
+    plano_id: Optional[int] = None
+
+    class Config:
+        from_attributes = True
+
+class UserUpdateByAdmin(UserUpdate):
+    email: Optional[EmailStr] = None
     is_active: Optional[bool] = None
     is_superuser: Optional[bool] = None
     plano_id: Optional[int] = None
@@ -67,25 +67,25 @@ class UserUpdateByAdmin(UserUpdate):
     limite_geracao_ia: Optional[int] = None
     data_expiracao_plano: Optional[datetime] = None
 
-class UserResponse(UserBase): 
+class UserResponse(UserBase):
     id: int
     is_active: bool
     is_superuser: bool
     plano_id: Optional[int] = None
+    role_id: Optional[int] = None # Adicionado para exibir role do usuário
     limite_produtos: Optional[int] = None
     limite_enriquecimento_web: Optional[int] = None
     limite_geracao_ia: Optional[int] = None
     data_expiracao_plano: Optional[datetime] = None
     provider: Optional[str] = None
-    # created_at: datetime 
-    # updated_at: Optional[datetime] = None 
+    created_at: datetime # Adicionado
+    updated_at: Optional[datetime] = None # Adicionado
 
     class Config:
         from_attributes = True
 
-class UserCreateComPlano(UserCreate): 
-    plano_id: Optional[int] = None 
-    # is_superuser: bool = False 
+class UserCreateComPlano(UserCreate):
+    plano_id: Optional[int] = None
 
 
 # --- Role Schemas ---
@@ -115,7 +115,7 @@ class PlanoBase(BaseModel):
 class PlanoCreate(PlanoBase):
     pass
 
-class PlanoUpdate(BaseModel): 
+class PlanoUpdate(BaseModel):
     nome: Optional[str] = Field(None, max_length=100)
     descricao: Optional[str] = Field(None, max_length=500)
     preco_mensal: Optional[float] = Field(None, ge=0)
@@ -134,35 +134,35 @@ class PlanoResponse(PlanoBase):
 # --- Fornecedor Schemas ---
 class FornecedorBase(BaseModel):
     nome: str = Field(..., max_length=150)
-    contato: Optional[str] = Field(None, max_length=100)
-    email: Optional[EmailStr] = None
-    telefone: Optional[str] = Field(None, max_length=20)
-    endereco: Optional[str] = Field(None, max_length=255)
-    site_url: Optional[HttpUrl] = None
-    link_busca_padrao: Optional[HttpUrl] = None 
+    contato_principal: Optional[str] = Field(None, max_length=100)
+    email_contato: Optional[EmailStr] = None
+    telefone_contato: Optional[str] = Field(None, max_length=20)
+    site_url: Optional[HttpUrl] = None # URLs devem ser validadas como HttpUrl
+    link_busca_padrao: Optional[HttpUrl] = None
 
 class FornecedorCreate(FornecedorBase):
     pass
 
-class FornecedorUpdate(BaseModel): 
+class FornecedorUpdate(BaseModel):
     nome: Optional[str] = Field(None, max_length=150)
-    contato: Optional[str] = Field(None, max_length=100)
-    email: Optional[EmailStr] = None
-    telefone: Optional[str] = Field(None, max_length=20)
-    endereco: Optional[str] = Field(None, max_length=255)
+    contato_principal: Optional[str] = Field(None, max_length=100)
+    email_contato: Optional[EmailStr] = None
+    telefone_contato: Optional[str] = Field(None, max_length=20)
     site_url: Optional[HttpUrl] = None
     link_busca_padrao: Optional[HttpUrl] = None
 
 class FornecedorResponse(FornecedorBase):
     id: int
-    user_id: int 
-    # created_at: datetime 
-    # updated_at: Optional[datetime] = None 
+    user_id: int
+    created_at: datetime # Adicionado para refletir o modelo
+    updated_at: Optional[datetime] = None # Adicionado para refletir o modelo
 
     class Config:
         from_attributes = True
+        # populate_by_name = True # Não precisa de alias se os nomes dos campos são iguais aos do modelo
 
-class FornecedorPage(BaseModel): 
+
+class FornecedorPage(BaseModel):
     items: List[FornecedorResponse]
     total_items: int
     page: int
@@ -176,26 +176,30 @@ class AttributeTemplateBase(BaseModel):
     field_type: AttributeFieldTypeEnum = Field(..., description="Tipo de campo (text, number, boolean, select, multiselect, date, textarea)")
     options: Optional[str] = Field(None, description="JSON string para field_type 'select' ou 'multiselect', ex: '[\"110V\", \"220V\"]' ou '[{\"value\": \"110\", \"label\": \"110V\"}]'")
     is_required: bool = False
+    is_filtrable: Optional[bool] = Field(False, description="Se o atributo pode ser usado em filtros de busca")
     tooltip_text: Optional[str] = Field(None, max_length=255, description="Texto de ajuda exibido como tooltip")
     default_value: Optional[str] = Field(None, max_length=255, description="Valor padrão para o atributo")
     display_order: int = Field(0, description="Ordem de exibição do atributo no formulário")
 
 class AttributeTemplateCreate(AttributeTemplateBase):
-    pass 
+    pass
 
-class AttributeTemplateUpdate(BaseModel): 
+class AttributeTemplateUpdate(BaseModel):
     attribute_key: Optional[str] = Field(None, max_length=100)
     label: Optional[str] = Field(None, max_length=150)
     field_type: Optional[AttributeFieldTypeEnum] = None
-    options: Optional[str] = None
+    options: Optional[str] = None # Deve ser string JSON
     is_required: Optional[bool] = None
+    is_filtrable: Optional[bool] = None
     tooltip_text: Optional[str] = Field(None, max_length=255)
     default_value: Optional[str] = Field(None, max_length=255)
     display_order: Optional[int] = None
 
 class AttributeTemplateResponse(AttributeTemplateBase):
     id: int
-    product_type_id: int 
+    product_type_id: int
+    created_at: datetime
+    updated_at: Optional[datetime] = None
 
     class Config:
         from_attributes = True
@@ -205,23 +209,29 @@ class AttributeTemplateResponse(AttributeTemplateBase):
 class ProductTypeBase(BaseModel):
     key_name: str = Field(..., max_length=100, description="Chave única para o tipo de produto (ex: 'eletronicos', 'vestuario_adulto_masculino')")
     friendly_name: str = Field(..., max_length=150, description="Nome amigável para exibição (ex: 'Eletrônicos', 'Vestuário Adulto Masculino')")
+    description: Optional[str] = Field(None, description="Descrição do tipo de produto")
 
 class ProductTypeCreate(ProductTypeBase):
-    pass
+    attribute_templates: Optional[List[AttributeTemplateCreate]] = Field([], description="Lista de templates de atributos para este tipo de produto")
 
-class ProductTypeUpdate(BaseModel): 
+class ProductTypeUpdate(BaseModel):
     key_name: Optional[str] = Field(None, max_length=100)
     friendly_name: Optional[str] = Field(None, max_length=150)
+    description: Optional[str] = None
+    # Para atualizar atributos, pode ser uma lista de AttributeTemplateUpdate ou um endpoint específico
+    # attribute_templates: Optional[List[AttributeTemplateUpdate]] = None # Exemplo
 
 class ProductTypeResponse(ProductTypeBase):
     id: int
-    user_id: Optional[int] = None 
+    user_id: Optional[int] = None # Se for global, user_id é None
     attribute_templates: List[AttributeTemplateResponse] = []
+    created_at: datetime
+    updated_at: Optional[datetime] = None
 
     class Config:
         from_attributes = True
 
-class ProductTypePage(BaseModel): 
+class ProductTypePage(BaseModel):
     items: List[ProductTypeResponse]
     total_items: int
     page: int
@@ -229,67 +239,89 @@ class ProductTypePage(BaseModel):
 
 # --- Produto Schemas ---
 class ProdutoBase(BaseModel):
-    nome_base: str = Field(..., max_length=255, description="Nome principal ou base do produto") 
+    nome_base: str = Field(..., max_length=255, description="Nome principal ou base do produto")
     nome_chat_api: Optional[str] = Field(None, max_length=255, description="Nome otimizado/alternativo para IA ou exibição")
     descricao_original: Optional[str] = Field(None, description="Descrição original detalhada do produto")
+    descricao_curta_orig: Optional[str] = Field(None, max_length=500, description="Descrição curta original do produto")
     descricao_chat_api: Optional[str] = Field(None, description="Descrição otimizada/alternativa pela IA")
-    
-    sku: Optional[str] = Field(None, max_length=100) 
-    ean: Optional[str] = Field(None, max_length=100) 
-    ncm: Optional[str] = Field(None, max_length=20)  
-    
+    descricao_curta_chat_api: Optional[str] = Field(None, max_length=500, description="Descrição curta otimizada pela IA")
+
+    sku: Optional[str] = Field(None, max_length=100)
+    ean: Optional[str] = Field(None, max_length=100)
+    ncm: Optional[str] = Field(None, max_length=20)
+
     marca: Optional[str] = Field(None, max_length=100)
     modelo: Optional[str] = Field(None, max_length=100)
     categoria_original: Optional[str] = Field(None, max_length=150, description="Categoria original informada")
-    tags: Optional[str] = Field(None, description="Palavras-chave ou tags, separadas por vírgula ou JSON string array") 
-    
-    preco_custo: Optional[float] = Field(None, ge=0) 
+    categoria_mapeada: Optional[str] = Field(None, max_length=150, description="Categoria mapeada ou padronizada")
+
+    preco_custo: Optional[float] = Field(None, ge=0)
     preco_venda: Optional[float] = Field(None, ge=0)
-    margem_lucro: Optional[float] = Field(None, description="Margem de lucro percentual ou absoluta")
+    preco_promocional: Optional[float] = Field(None, ge=0)
     estoque_disponivel: Optional[int] = Field(None, ge=0)
-    
+
     peso_kg: Optional[float] = Field(None, ge=0)
     altura_cm: Optional[float] = Field(None, ge=0)
     largura_cm: Optional[float] = Field(None, ge=0)
     profundidade_cm: Optional[float] = Field(None, ge=0)
-    
-    imagem_principal_url: Optional[HttpUrl] = Field(None, description="URL da imagem principal do produto") 
-    link_referencia_fornecedor: Optional[HttpUrl] = Field(None, description="Link para a página do produto no fornecedor")
-    
+
+    imagem_principal_url: Optional[HttpUrl] = Field(None, description="URL da imagem principal do produto")
+    # ** CORREÇÃO APLICADA AQUI para imagens_secundarias_urls **
+    # Se o model.Produto.imagens_secundarias_urls é uma coluna JSON que o SQLAlchemy já converte para lista de strings/dicts
+    imagens_secundarias_urls: Optional[List[HttpUrl]] = Field(None, description="Lista de URLs de imagens secundárias") # Ou List[str] se não forem HttpUrl
+
     fornecedor_id: Optional[int] = None
     product_type_id: Optional[int] = None
 
-    dynamic_attributes: Optional[Json[Dict[str, Any]]] = Field(None, description="Atributos dinâmicos como JSON string")
+    # ** CORREÇÃO APLICADA AQUI para dynamic_attributes e dados_brutos **
+    # Se o model.Produto armazena JSON e o SQLAlchemy já retorna dict, o schema deve ser Dict, não Json[Dict]
+    dynamic_attributes: Optional[Dict[str, Any]] = Field(None, description="Atributos dinâmicos como dicionário")
+    dados_brutos: Optional[Dict[str, Any]] = Field(None, description="Dados brutos originais do produto como dicionário")
+
+    ativo_marketplace: Optional[bool] = Field(False, description="Se o produto está ativo para publicação em marketplaces")
+    data_publicacao_marketplace: Optional[datetime] = Field(None, description="Data da última publicação ou atualização no marketplace")
 
 
 class ProdutoCreate(ProdutoBase):
     pass
 
-class ProdutoUpdate(BaseModel): 
+class ProdutoUpdate(BaseModel): # Campos que podem ser atualizados
     nome_base: Optional[str] = Field(None, max_length=255)
     nome_chat_api: Optional[str] = Field(None, max_length=255)
     descricao_original: Optional[str] = None
+    descricao_curta_orig: Optional[str] = Field(None, max_length=500)
     descricao_chat_api: Optional[str] = None
+    descricao_curta_chat_api: Optional[str] = Field(None, max_length=500)
+
     sku: Optional[str] = Field(None, max_length=100)
     ean: Optional[str] = Field(None, max_length=100)
     ncm: Optional[str] = Field(None, max_length=20)
     marca: Optional[str] = Field(None, max_length=100)
     modelo: Optional[str] = Field(None, max_length=100)
     categoria_original: Optional[str] = Field(None, max_length=150)
-    tags: Optional[str] = None
+    categoria_mapeada: Optional[str] = Field(None, max_length=150)
+
     preco_custo: Optional[float] = Field(None, ge=0)
     preco_venda: Optional[float] = Field(None, ge=0)
-    margem_lucro: Optional[float] = None
+    preco_promocional: Optional[float] = Field(None, ge=0)
     estoque_disponivel: Optional[int] = Field(None, ge=0)
+
     peso_kg: Optional[float] = Field(None, ge=0)
     altura_cm: Optional[float] = Field(None, ge=0)
     largura_cm: Optional[float] = Field(None, ge=0)
     profundidade_cm: Optional[float] = Field(None, ge=0)
+
     imagem_principal_url: Optional[HttpUrl] = None
-    link_referencia_fornecedor: Optional[HttpUrl] = None
+    imagens_secundarias_urls: Optional[List[HttpUrl]] = None # Ou List[str]
+
     fornecedor_id: Optional[int] = None
     product_type_id: Optional[int] = None
-    dynamic_attributes: Optional[Json[Dict[str, Any]]] = None
+    # ** CORREÇÃO APLICADA AQUI para dynamic_attributes e dados_brutos **
+    dynamic_attributes: Optional[Dict[str, Any]] = None
+    dados_brutos: Optional[Dict[str, Any]] = None
+
+    ativo_marketplace: Optional[bool] = None
+    data_publicacao_marketplace: Optional[datetime] = None
 
     status_enriquecimento_web: Optional[StatusEnriquecimentoEnum] = None
     status_titulo_ia: Optional[StatusGeracaoIAEnum] = None
@@ -299,17 +331,22 @@ class ProdutoUpdate(BaseModel):
 class ProdutoResponse(ProdutoBase):
     id: int
     user_id: int
-    data_criacao: datetime
-    data_atualizacao: datetime
+
+    created_at: datetime = Field(..., alias="data_criacao") # Mantém o alias da correção anterior
+    updated_at: Optional[datetime] = Field(None, alias="data_atualizacao") # Mantém o alias da correção anterior
+
     status_enriquecimento_web: StatusEnriquecimentoEnum
     status_titulo_ia: StatusGeracaoIAEnum
     status_descricao_ia: StatusGeracaoIAEnum
 
+    # Herdará dynamic_attributes e dados_brutos corrigidos de ProdutoBase
+
     class Config:
         from_attributes = True
+        populate_by_name = True # Para garantir que os aliases sejam usados na serialização
 
 
-class ProdutoPage(BaseModel): 
+class ProdutoPage(BaseModel):
     items: List[ProdutoResponse]
     total_items: int
     page: int
@@ -337,32 +374,34 @@ class GerarDescricaoRequest(GeracaoRequestBase):
 
 class EnriquecimentoWebRequest(BaseModel):
     produto_id: int
-    url_produto_fornecedor: HttpUrl 
+
 
 # --- RegistroUsoIA Schemas ---
 class RegistroUsoIABase(BaseModel):
-    tipo_geracao: str = Field(..., description="Tipo de geração IA (ex: 'titulo_produto', 'descricao_produto', 'enriquecimento_web_parsed')")
-    produto_id: Optional[int] = None 
-    provedor_ia: Optional[str] = None
-    modelo_ia: Optional[str] = None
-    sucesso: bool = True
-    detalhes_erro: Optional[str] = None
-    input_text: Optional[str] = Field(None, description="Texto de entrada fornecido para a IA (prompt, etc.)")
-    output_text: Optional[str] = Field(None, description="Texto de saída gerado pela IA")
-    custo_aproximado: Optional[float] = Field(None, ge=0, description="Custo estimado da chamada à API IA, se aplicável")
+    tipo_acao: TipoAcaoIAEnum = Field(..., description="Tipo de ação de IA realizada")
+    produto_id: Optional[int] = None
+    provedor_ia: Optional[str] = Field(None, max_length=50)
+    modelo_usado: Optional[str] = Field(None, max_length=100)
+    prompt_utilizado: Optional[str] = Field(None, description="Prompt exato enviado à IA")
+    resposta_ia_raw: Optional[str] = Field(None, description="Resposta bruta da IA")
+    tokens_entrada: Optional[int] = Field(0, ge=0)
+    tokens_saida: Optional[int] = Field(0, ge=0)
+    custo_estimado: Optional[float] = Field(0.0, ge=0, description="Custo estimado da chamada à API IA")
 
 class RegistroUsoIACreate(RegistroUsoIABase):
-    pass
+    user_id: int
 
 class RegistroUsoIAResponse(RegistroUsoIABase):
     id: int
     user_id: int
-    timestamp: datetime
+    created_at: datetime = Field(..., alias="timestamp") # Atributo do modelo é created_at, alias para timestamp na saida
 
     class Config:
         from_attributes = True
+        populate_by_name = True
 
-class RegistroUsoIAPage(BaseModel): 
+
+class RegistroUsoIAPage(BaseModel):
     items: List[RegistroUsoIAResponse]
     total_items: int
     page: int
@@ -376,8 +415,8 @@ class PasswordResetSchema(BaseModel):
     new_password: str = Field(..., min_length=8)
     token: str
 
-# --- Admin Analytics Schemas --- 
-class TotalCounts(BaseModel): 
+# --- Admin Analytics Schemas ---
+class TotalCounts(BaseModel):
     total_usuarios: int
     total_produtos: int
     total_fornecedores: int
@@ -385,40 +424,38 @@ class TotalCounts(BaseModel):
     total_enriquecimentos_mes: int
 
 class UsoIAPorPlano(BaseModel):
-    plano_id: int
+    plano_id: Optional[int] = None
     nome_plano: str
     total_geracoes_ia_no_mes: int
-    # detalhe_por_tipo: Optional[Dict[str, int]] = None 
 
-class UsoIAPorUsuario(BaseModel): 
+class UsoIAPorUsuario(BaseModel):
     user_id: int
-    email_usuario: EmailStr # Mudado de email para email_usuario para clareza
-    nome_plano: Optional[str] = "N/A" # Mantido
+    email_usuario: EmailStr
+    nome_plano: Optional[str] = "N/A"
     total_geracoes_ia_no_mes: int
 
 class UsoIAPorTipo(BaseModel):
-    tipo_geracao: str 
+    tipo_acao: str # Enum.value
     total_no_mes: int
 
-# NOVO SCHEMA ADICIONADO AQUI
 class UserActivity(BaseModel):
     user_id: int
     email: EmailStr
     nome_completo: Optional[str] = None
-    # last_login_at: Optional[datetime] = None # Campo para futuro, requer tracking no modelo User
+    created_at: datetime # Do modelo User
+    # Campos que serão preenchidos no router a partir de dados do CRUD
     total_produtos: Optional[int] = None
     total_geracoes_ia_mes_corrente: Optional[int] = None
-    # data_criacao_usuario: datetime # Pegar do modelo User
 
     class Config:
-        from_attributes = True
+        from_attributes = True # Se os campos de contagem forem adicionados ao objeto User antes
 
 
-# --- Schema para Mensagens Simples --- 
+# --- Schema para Mensagens Simples ---
 class Msg(BaseModel):
     msg: str
 
-# --- Schema para Resposta de Processamento de Arquivo --- 
+# --- Schema para Resposta de Processamento de Arquivo ---
 class FileProcessResponse(BaseModel):
     message: str
     total_products_in_file: Optional[int] = None
