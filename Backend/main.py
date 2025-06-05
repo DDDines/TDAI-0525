@@ -32,7 +32,9 @@ from routers import (
 
 try:
     print("INFO:     Tentando criar tabelas no banco de dados (models.Base.metadata.create_all)...")
-    #models.Base.metadata.create_all(bind=engine)
+    # A LINHA ABAIXO FOI COMENTADA PARA EVITAR ERROS COM O RELOADER DO UVICORN.
+    # O GERENCIAMENTO DO SCHEMA DO BANCO DE DADOS DEVE SER FEITO VIA ALEMBIC.
+    # models.Base.metadata.create_all(bind=engine)
     print("INFO:     Criação/verificação de tabelas concluída.")
 except Exception as e:
     print(f"ERRO: Falha ao criar/verificar tabelas: {e}")
@@ -250,7 +252,6 @@ async def startup_event_create_defaults():
                 print(f"INFO:     Atualizando admin '{settings.ADMIN_EMAIL}' para superuser.")
             if admin_plano_obj and admin_user.plano_id != admin_plano_obj.id:
                 admin_user.plano_id = admin_plano_obj.id
-                # Assegura que os limites do plano sejam atualizados também
                 admin_user.limite_produtos = admin_plano_obj.limite_produtos
                 admin_user.limite_enriquecimento_web = admin_plano_obj.limite_enriquecimento_web
                 admin_user.limite_geracao_ia = admin_plano_obj.limite_geracao_ia
@@ -346,7 +347,6 @@ def create_new_user(
             print("ERRO CRÍTICO: Plano padrão 'Gratuito' não encontrado no DB durante a criação de novo usuário sem plano especificado.")
             plano_id_para_novo_usuario = None 
 
-
     role_user_check = crud.get_role_by_name(db, name="user")
     if not role_user_check: 
         print("ERRO CRÍTICO: Role padrão 'user' não encontrado durante a criação de novo usuário.")
@@ -355,7 +355,6 @@ def create_new_user(
 
     new_user_created = crud.create_user(db=db, user=user_in)
     
-    # ATRIBUIR PLANO E ROLE APÓS A CRIAÇÃO, SE NÃO FORAM DEFINIDOS VIA SCHEMAS.USERCREATE
     if plano_id_para_novo_usuario and not new_user_created.plano_id:
         new_user_created.plano_id = plano_id_para_novo_usuario
         plano = crud.get_plano(db, plano_id_para_novo_usuario)
@@ -377,7 +376,6 @@ def create_new_user(
 # Inclusão dos routers da aplicação
 app.include_router(auth_router_direct, prefix="/api/v1/auth", tags=["Autenticação e Usuários"])
 app.include_router(social_auth_router.router, prefix="/api/v1/auth", tags=["Autenticação Social"])
-
 app.include_router(produtos_router.router, prefix="/api/v1", tags=["Produtos"])
 app.include_router(fornecedores_router.router, prefix="/api/v1", tags=["Fornecedores"])
 app.include_router(generation_router.router, prefix="/api/v1/geracao", tags=["Geração de Conteúdo IA"])
@@ -387,7 +385,6 @@ app.include_router(product_types_router.router, prefix="/api/v1", tags=["Tipos d
 app.include_router(uso_ia_router.router, prefix="/api/v1", tags=["Registro de Uso de IA"])
 app.include_router(password_recovery_router.router, prefix="/api/v1/auth", tags=["Recuperação de Senha"])
 app.include_router(admin_analytics_router.router, prefix="/api/v1/admin/analytics", tags=["Analytics (Admin)"])
-
 
 @app.get("/", tags=["Raiz"])
 async def root():

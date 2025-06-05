@@ -149,11 +149,11 @@ class FornecedorBase(BaseModel):
     email_contato: Optional[EmailStr] = None
     telefone_contato: Optional[str] = Field(None, max_length=20)
     endereco: Optional[str] = None
-    site_url: Optional[HttpUrl] = None
+    site_url: Optional[str] = None # Usando str para flexibilidade
     termos_contratuais: Optional[str] = None
     contato_principal: Optional[str] = Field(None, max_length=100)
     observacoes: Optional[str] = None
-    link_busca_padrao: Optional[HttpUrl] = None # Link base para buscar produtos deste fornecedor
+    link_busca_padrao: Optional[str] = None # Usando str para flexibilidade
 
 class FornecedorCreate(FornecedorBase):
     pass
@@ -168,7 +168,6 @@ class FornecedorResponse(FornecedorBase):
     user_id: int
     created_at: datetime
     updated_at: datetime
-
     class Config:
         from_attributes = True
 
@@ -274,54 +273,48 @@ class ProdutoBase(BaseModel):
     product_type_id: Optional[int] = None # ID do Tipo de Produto associado
     
     categoria_original: Optional[str] = Field(None, max_length=150)
-    categoria_mapeada: Optional[str] = Field(None, max_length=150)
+    categoria_mapeada: Optional[str] = Field(None, max_length=150) # Categoria após algum processamento/padronização
     tags_palavras_chave: Optional[List[str]] = Field(None) # Lista de strings
     
-    imagem_principal_url: Optional[HttpUrl] = None
-    imagens_secundarias_urls: Optional[List[HttpUrl]] = Field(None) # Lista de URLs
-    video_url: Optional[HttpUrl] = None
+    imagem_principal_url: Optional[str] = None
+    imagens_secundarias_urls: Optional[List[str]] = Field(None) # Lista de URLs
+    video_url: Optional[str] = None
     
     status_enriquecimento_web: Optional[StatusEnriquecimentoEnum] = StatusEnriquecimentoEnum.NAO_INICIADO
     status_titulo_ia: Optional[StatusGeracaoIAEnum] = StatusGeracaoIAEnum.NAO_INICIADO
     status_descricao_ia: Optional[StatusGeracaoIAEnum] = StatusGeracaoIAEnum.NAO_INICIADO
     
     dados_brutos_web: Optional[Dict[str, Any]] = Field(None, description="JSON com dados extraídos da web (textos, metadados).")
-    # dynamic_attributes deveria ser Dict[str, Any] para Pydantic v2
-    # Se estiver usando Pydantic v1, Json[Dict[str,Any]] pode ser necessário se esperar uma string JSON
     dynamic_attributes: Optional[Dict[str, Any]] = Field(None, description="Atributos dinâmicos baseados no ProductType (JSON).")
 
-    # Campo para logs ou histórico de processamento do produto
     log_processamento: Optional[List[Dict[str, Any]]] = Field(None, description="Log de eventos de processamento do produto.")
 
 
 class ProdutoCreate(ProdutoBase):
-    # Campos que podem ser diferentes ou adicionais na criação
     pass
 
 class ProdutoUpdate(ProdutoBase):
-    # Todos os campos são opcionais na atualização
     nome_base: Optional[str] = Field(None, max_length=255)
-    # ... tornar todos os outros campos Optional se não forem obrigatórios na atualização
-    # Adicionar aqui campos que só podem ser atualizados e não criados, se houver
 
 class ProdutoResponse(ProdutoBase):
     id: int
     user_id: int
     created_at: datetime
     updated_at: datetime
-    # Incluir informações do fornecedor e tipo de produto se desejado na resposta
     fornecedor: Optional[FornecedorResponse] = None
-    product_type: Optional[ProductTypeResponse] = None # Resposta completa do ProductType
+    product_type: Optional[ProductTypeResponse] = None
     
-    # No Pydantic V2, `model_config` substitui `Config` para `from_attributes`
     class Config:
-        from_attributes = True # Para permitir conversão de modelos SQLAlchemy
+        from_attributes = True
 
-
-# Schema para a requisição de deleção em lote de produtos
 class ProdutoBatchDeleteRequest(BaseModel):
     produto_ids: List[int]
 
+class ProdutoPage(BaseModel):
+    items: List[ProdutoResponse]
+    total_items: int
+    page: int
+    limit: int
 
 # Schemas para RegistroUsoIA
 class RegistroUsoIABase(BaseModel):
@@ -331,7 +324,7 @@ class RegistroUsoIABase(BaseModel):
     provedor_ia: Optional[str] = None
     modelo_ia: Optional[str] = None
     prompt_utilizado: Optional[str] = None
-    resposta_ia: Optional[str] = None # Pode ser grande, considere omitir da resposta padrão
+    resposta_ia: Optional[str] = None
     tokens_prompt: Optional[int] = None
     tokens_resposta: Optional[int] = None
     custo_estimado_usd: Optional[float] = None
@@ -345,101 +338,21 @@ class RegistroUsoIACreate(RegistroUsoIABase):
 class RegistroUsoIAResponse(RegistroUsoIABase):
     id: int
     created_at: datetime
-
     class Config:
         from_attributes = True
 
-class RegistroUsoIAPage(BaseModel):
-    items: List[RegistroUsoIAResponse]
-    total_items: int
-    page: int
-    limit: int
-
-# Schemas para Analytics do Admin
-class AdminAnalyticsOverview(BaseModel):
-    total_usuarios: int
-    total_produtos_ativos: int # Ajustar conforme a definição de "ativo"
-    total_fornecedores: int
-    geracoes_ia_mes_corrente: int
-    enriquecimentos_web_mes_corrente: int
-
-class UsoIAPorPlanoResponse(BaseModel):
-    plano_id: Optional[int] = None
-    nome_plano: str
-    total_geracoes_ia_no_mes: int
-
-class UsoIAPorUsuarioResponse(BaseModel):
-    user_id: int
-    email_usuario: EmailStr
-    nome_plano: Optional[str] = "Sem Plano"
-    total_geracoes_ia_no_mes: int
-
-class UsoIAPorTipoAcaoResponse(BaseModel):
-    tipo_acao: str # Usar o valor do enum string
-    total_no_mes: int
-
-class UserActivityResponse(BaseModel):
-    user_id: int
-    email: EmailStr
-    nome_completo: Optional[str] = None
-    created_at: datetime
-    total_produtos_count: int = 0
-    total_geracoes_ia_mes_corrente_count: int = 0
-    # Adicionar mais métricas se necessário
-
-    class Config:
-        from_attributes = True # Para construir a partir de objetos User com atributos adicionados
-
-# --- Schema para Mensagens Simples ---
-class Msg(BaseModel):
-    msg: str
-
-class FileProcessResponse(BaseModel):
-    message: str
-    total_products_in_file: Optional[int] = None
-    products_created: Optional[int] = None
-    products_updated: Optional[int] = None
-    products_failed: Optional[int] = None
-    errors: Optional[List[str]] = None
-# ADICIONE ESTA CLASSE AQUI
 class UsoIAPage(BaseModel):
     items: List[RegistroUsoIAResponse]
     total_items: int
     page: int
     limit: int
 
-
-# ----- NOVOS SCHEMAS PARA SUGESTÃO DE ATRIBUTOS GEMINI -----
-class SugestaoAtributoItem(BaseModel):
-    chave_atributo: str = Field(..., description="A chave do atributo para o qual o valor é sugerido (ex: 'cor', 'material').")
-    valor_sugerido: str = Field(..., description="O valor sugerido pela IA para o atributo.")
-
-class SugestoesAtributosResponse(BaseModel):
-    sugestoes_atributos: List[SugestaoAtributoItem] = Field(..., description="Lista de sugestões de atributos e seus valores.")
-    produto_id: int = Field(..., description="ID do produto para o qual as sugestões foram geradas.")
-    modelo_ia_utilizado: Optional[str] = Field(None, description="Modelo de IA utilizado para a sugestão.")
-
-class ProdutoContextoParaSugestao(BaseModel): # Exemplo, não usado diretamente pelo endpoint atual
-    nome_base: Optional[str] = None
-    descricao_original: Optional[str] = None
-    marca: Optional[str] = None
-    modelo: Optional[str] = None
-    sku: Optional[str] = None
-    ean: Optional[str] = None
-    categoria_original: Optional[str] = None
-    dados_brutos_web: Optional[Dict[str, Any]] = None
-    atributos_atuais: Optional[Dict[str, Any]] = None
-
-class GeracaoSugestaoAtributoRequest(BaseModel): # Exemplo, não usado diretamente pelo endpoint atual
-    produto_id: int
-
-class EmailSchema(BaseModel):
-    email: EmailStr
-
+# --- Password Recovery Schemas ---
 class PasswordResetSchema(BaseModel):
     new_password: str = Field(..., min_length=8)
     token: str
 
+# --- Admin Analytics Schemas ---
 class TotalCounts(BaseModel):
     total_usuarios: int
     total_produtos: int
@@ -453,29 +366,43 @@ class UsoIAPorPlano(BaseModel):
     total_geracoes_ia_no_mes: int
 
 class UsoIAPorTipo(BaseModel):
-    tipo_acao: str # Enum.value
+    tipo_acao: str
     total_no_mes: int
 
 class UserActivity(BaseModel):
     user_id: int
     email: EmailStr
     nome_completo: Optional[str] = None
-    created_at: datetime # Do modelo User
-    # Campos que serão preenchidos no router a partir de dados do CRUD
+    created_at: datetime
     total_produtos: Optional[int] = None
     total_geracoes_ia_mes_corrente: Optional[int] = None
-
     class Config:
         from_attributes = True
 
-# Schema para paginação genérica de produtos
-class ProdutoPage(BaseModel):
-    items: List[ProdutoResponse]
-    total_items: int
-    page: int # O número da página atual (base 0)
-    limit: int # O limite de itens por página
+# ----- NOVOS SCHEMAS PARA SUGESTÃO DE ATRIBUTOS GEMINI -----
+class SugestaoAtributoItem(BaseModel):
+    chave_atributo: str = Field(..., description="A chave do atributo para o qual o valor é sugerido (ex: 'cor', 'material').")
+    valor_sugerido: str = Field(..., description="O valor sugerido pela IA para o atributo.")
 
-# Assegurar que UserResponse possa ser construído a partir de atributos de modelos SQLAlchemy
+class SugestoesAtributosResponse(BaseModel):
+    sugestoes_atributos: List[SugestaoAtributoItem] = Field(..., description="Lista de sugestões de atributos e seus valores.")
+    produto_id: int = Field(..., description="ID do produto para o qual as sugestões foram geradas.")
+    modelo_ia_utilizado: Optional[str] = Field(None, description="Modelo de IA utilizado para a sugestão.")
+
+# --- Utility Schemas ---
+class Msg(BaseModel):
+    msg: str
+
+class FileProcessResponse(BaseModel):
+    filename: str
+    original_filename: Optional[str] = None
+    url: str
+    message: str = "File uploaded successfully"
+    mimetype: Optional[str] = None
+    size_bytes: Optional[int] = None
+
+
+# --- Rebuilds Finais ---
 UserResponse.model_rebuild()
 PlanoResponse.model_rebuild()
 RoleResponse.model_rebuild()
@@ -484,4 +411,4 @@ AttributeTemplateResponse.model_rebuild()
 ProductTypeResponse.model_rebuild()
 ProdutoResponse.model_rebuild()
 RegistroUsoIAResponse.model_rebuild()
-UserActivityResponse.model_rebuild()
+UserActivity.model_rebuild()

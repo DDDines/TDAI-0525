@@ -7,13 +7,12 @@ from pathlib import Path
 import imghdr # Para detectar o tipo MIME de imagem
 import magic # Para detectar o tipo MIME de forma mais robusta (requer python-magic)
 
-# --- IMPORTS ALTERADOS DE RELATIVOS PARA ABSOLUTOS ---
-from Backend.database import get_db
-from Backend.auth import get_current_active_user
+# --- IMPORTS ALTERADOS ---
+from database import get_db
+from auth import get_current_active_user
 from models import User
 from schemas import FileProcessResponse
 from sqlalchemy.orm import Session
-
 # --- FIM DOS IMPORTS ALTERADOS ---
 
 router = APIRouter()

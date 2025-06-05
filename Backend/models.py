@@ -1,7 +1,7 @@
 # Backend/models.py
 
 from sqlalchemy import (Column, Integer, String, Boolean, DateTime, ForeignKey, Text,
-                        Float, Enum as SQLAlchemyEnum, JSON, Index, UniqueConstraint, func) # Adicionado func
+                        Float, Enum as SQLAlchemyEnum, JSON, Index, UniqueConstraint, func)
 from sqlalchemy.orm import relationship, backref
 from sqlalchemy.ext.mutable import MutableDict, MutableList # Para tipos JSON mutáveis
 from database import Base # Assume que database.py define Base = declarative_base()
@@ -170,13 +170,7 @@ class ProductType(Base):
 
     __table_args__ = (
         UniqueConstraint('user_id', 'key_name', name='_user_key_name_uc'),
-        # CORREÇÃO: Usando Index para o constraint parcial
-        Index(
-            'ix_product_types_global_key_name_unique',
-            'key_name',
-            unique=True,
-            postgresql_where=(Column('user_id') == None)
-        ),
+        Index('ix_product_types_global_key_name_unique', 'key_name', unique=True, postgresql_where=(Column('user_id') == None)),
         Index('ix_product_types_user_id_key_name', 'user_id', 'key_name'),
     )
 
@@ -310,5 +304,5 @@ class RegistroUsoIA(Base):
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
 
-    usuario = relationship("User", back_populates="registros_uso_ia_feitos") # Corrigido para o nome do back_populates em User
+    usuario = relationship("User", back_populates="registros_uso_ia_feitos")
     produto = relationship("Produto", back_populates="registros_uso_ia")

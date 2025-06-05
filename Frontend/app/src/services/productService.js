@@ -125,6 +125,21 @@ export const batchDeleteProdutos = async (produtoIds) => {
   }
 };
 
+// --- FUNÇÃO ADICIONADA ---
+export const getAtributoSugestions = async (produtoId) => {
+  try {
+    // O endpoint no backend é: POST /api/v1/geracao/sugerir-atributos-gemini/{produto_id}
+    const response = await apiClient.post(`/geracao/sugerir-atributos-gemini/${produtoId}`);
+    return response.data; // Deve retornar um objeto schemas.SugestoesAtributosResponse
+  } catch (error) {
+    console.error(`Erro ao buscar sugestões de atributos para produto ${produtoId}:`, error.response?.data || error.message);
+    // Lança o erro para que o componente que o chamou possa tratá-lo
+    throw error.response?.data || new Error('Falha ao buscar sugestões de atributos da IA.');
+  }
+};
+// --- FIM DA FUNÇÃO ADICIONADA ---
+
+
 export default {
   getProdutos,
   getProdutoById,
@@ -135,4 +150,5 @@ export default {
   gerarDescricaoProduto,
   iniciarEnriquecimentoWebProduto,
   batchDeleteProdutos,
+  getAtributoSugestions, // <-- Adicionado ao export
 };
