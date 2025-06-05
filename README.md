@@ -24,7 +24,7 @@ O **TDAI** é uma plataforma SaaS de automação e inteligência artificial para
 * [Arquitetura e Estrutura de Pastas](#arquitetura-e-estrutura-de-pastas)
 * [Fluxo de Uso](#fluxo-de-uso)
 * [Guia de Instalação Rápida](#guia-de-instalação-rápida)
-* [Variáveis de Ambiente – Exemplo ](#variáveis-de-ambiente--exemplo-env)[`.env`](#variáveis-de-ambiente--exemplo-env)
+* [Variáveis de Ambiente – Exemplo `.env`](#variáveis-de-ambiente--exemplo-env)
 * [Comandos Úteis](#comandos-úteis)
 * [Roadmap e Futuro](#roadmap-e-futuro)
 * [Segurança e Boas Práticas](#segurança-e-boas-práticas)
@@ -67,34 +67,96 @@ O **TDAI** é uma plataforma SaaS de automação e inteligência artificial para
 ## 🗂️ Arquitetura e Estrutura de Pastas
 
 ```
-TDAI/
-│
-├── Backend/                 # API, banco, lógica, integrações, serviços
-│   ├── alembic/             # Migrations do banco (Alembic)
-│   ├── core/                # Configurações, email, segurança
-│   ├── routers/             # Endpoints REST da aplicação
-│   ├── services/            # Lógica de negócio: IA, scraping, limites, arquivos
-│   ├── templates/           # Templates de emails
-│   ├── models.py            # Modelos ORM (banco)
-│   ├── schemas.py           # Schemas Pydantic (API)
-│   ├── main.py              # Inicialização FastAPI
-│   ├── auth.py, crud.py, database.py, ...
-│
+TDAI-0525-Dev/
+├── .gitignore
+├── README.md
+├── README.txt
+├── TDAI.pdf
+├── run_backend.py
+├── Backend/
+│   ├── __init__.py
+│   ├── alembic.ini
+│   ├── alembic/
+│   │   ├── README
+│   │   ├── env.py
+│   │   ├── script.py.mako
+│   │   └── versions/
+│   │       └── 522dce3cd6aa_initial_database_schema.py
+│   ├── auth.py
+│   ├── core/
+│   │   ├── __init__.py
+│   │   ├── config.py
+│   │   ├── email_utils.py
+│   │   └── security.py
+│   ├── crud.py
+│   ├── database.py
+│   ├── main.py
+│   ├── models.py
+│   ├── routers/
+│   │   ├── __init__.py
+│   │   ├── admin_analytics.py
+│   │   ├── auth_utils.py
+│   │   ├── fornecedores.py
+│   │   ├── generation.py
+│   │   ├── password_recovery.py
+│   │   ├── product_types.py
+│   │   ├── produtos.py
+│   │   ├── social_auth.py
+│   │   ├── uploads.py
+│   │   ├── uso_ia.py
+│   │   └── web_enrichment.py
+│   ├── schemas.py
+│   ├── schemas_backup.py
+│   ├── services/
+│   │   ├── __init__.py
+│   │   ├── file_processing_service.py
+│   │   ├── ia_generation_service.py
+│   │   ├── limit_service.py
+│   │   ├── web_data_extractor_service backup.py
+│   │   └── web_data_extractor_service.py
+│   ├── templates/
+│   │   └── password_reset_email.html
 ├── Frontend/
 │   └── app/
-│       ├── public/          # Assets estáticos (SVG, favicon, etc)
+│       ├── README.md
+│       ├── eslint.config.js
+│       ├── index.html
+│       ├── package-lock.json
+│       ├── package.json
+│       ├── public/
+│       │   └── vite.svg
 │       ├── src/
-│       │   ├── components/  # Componentes React reutilizáveis
-│       │   ├── pages/       # Páginas de navegação
-│       │   ├── App.jsx      # Raiz da aplicação
-│       │   ├── main.jsx     # Entry point React
-│       │   └── ...          # Outros helpers, contextos, assets
-│       ├── package.json, vite.config.js, ...
-│
-├── .env                     # Variáveis de ambiente (NÃO versionar!)
-├── run_backend.py           # Inicia API (FastAPI/Uvicorn)
-├── README.md                # Este arquivo
-└── TDAI.pdf                 # Protótipo, especificação e wireframes
+│       │   ├── App.css
+│       │   ├── App.jsx
+│       │   ├── assets/
+│       │   │   ├── react.svg
+│       │   │   └── vite.svg
+│       │   ├── common/
+│       │   │   ├── Modal.jsx
+│       │   │   └── PaginationControls.jsx
+│       │   ├── components/
+│       │   │   ├── AttributeTemplateList.jsx
+│       │   │   ├── AttributeTemplateModal.jsx
+│       │   │   ├── EditFornecedorModal.jsx
+│       │   │   ├── FornecedorTable.jsx
+│       │   │   ├── MainLayout.jsx
+│       │   │   ├── NewFornecedorModal.jsx
+│       │   │   ├── NewProductModal.jsx
+│       │   │   ├── ProductCard.jsx
+│       │   │   ├── ProductEditModal.jsx
+│       │   │   ├── ProductTable.jsx
+│       │   │   ├── ProtectedRoute.jsx
+│       │   │   ├── Sidebar.jsx
+│       │   │   └── Topbar.jsx
+│       │   ├── index backup2605.css
+│       │   ├── index.css
+│       │   ├── main.jsx
+│       │   ├── pages/
+│       │   │   └── (suas páginas específicas, ex: Dashboard, Login, etc)
+│       │   └── produtos/
+│       │       └── shared/
+│       │           └── AttributeField.jsx
+│       ├── vite.config.js
 ```
 
 ---
@@ -247,7 +309,13 @@ ADMIN_PASSWORD="adminpassword"
 
 ## 📈 Roadmap e Futuro
 
-*
+* [ ] Geração de variações para múltiplos marketplaces
+* [ ] Enriquecimento com análise de imagem (background, alt-text, etc)
+* [ ] Integração com ERPs e publicadores externos
+* [ ] Automação por agentes multi-IA
+* [ ] Personalização de conteúdo por persona/segmento
+* [ ] Sistema de feedback e aprendizado contínuo
+* [ ] Templates dinâmicos de prompt
 
 ---
 
