@@ -1,165 +1,635 @@
-TDAI - Transformador de Dados Assistido por IA (Documentação Técnica Detalhada)O TDAI (Transformador de Dados Assistido por IA) é uma solução SaaS inovadora, meticulosamente projetada para automatizar e elevar a qualidade da gestão de catálogos de produtos para e-commerce. A plataforma ingere dados brutos de produtos (de fontes diversas como .xlsx, .csv, .pdf), executa um sofisticado pipeline de enriquecimento web para coletar informações abrangentes, e, finalmente, emprega o poder de Grandes Modelos de Linguagem (LLMs) como GPT e Gemini para gerar títulos e descrições de produtos otimizados para conversão, prontos para serem implantados em qualquer vitrine digital.Este documento serve como um guia técnico aprofundado para desenvolvedores, detalhando a arquitetura, funcionalidades, fluxos de trabalho, configuração e visão de futuro do TDAI.📜 Índice Completo🚀 Visão Geral e Proposta de Valor✨ Funcionalidades Centrais Detalhadas2.1. Backend (FastAPI)2.1.1. Módulo de Autenticação e Autorização2.1.2. Gestão de Planos, Limites e Roles2.1.3. Pipeline de Ingestão e Processamento de Arquivos2.1.4. Pipeline de Enriquecimento Web Inteligente2.1.5. Motor de Geração de Conteúdo com IA2.1.6. Gestão de Produtos e Tipos de Produto2.1.7. Gestão de Fornecedores2.1.8. Histórico de Uso e Logs2.1.9. Painel de Administração e Analytics2.2. Frontend (React)2.2.1. Arquitetura da Interface e Componentização2.2.2. Gerenciamento de Estado Global e Local2.2.3. Fluxo de Interação com a API2.2.4. Principais Páginas e Funcionalidades🏗️ Arquitetura da Solução e Tech Stack3.1. Visão Geral da Arquitetura3.2. Detalhamento do Tech Stack⚙️ Guia de Configuração e Deployment Local4.1. Pré-requisitos Essenciais4.2. Configuração Detalhada das Variáveis de Ambiente (.env)4.3. Passos Detalhados para Instalação do Backend4.4. Passos Detalhados para Instalação do Frontend4.5. Inicialização e Verificação📚 Documentação e Endpoints da API (Swagger/ReDoc)📂 Estrutura Detalhada do Projeto🌊 Fluxos de Trabalho Principais7.1. Fluxo de Registro e Login de Usuário7.2. Fluxo Completo de Enriquecimento de Produto (de Upload à Geração IA)🛡️ Considerações de Segurança💡 Roadmap Estratégico e Visão de Futuro🤝 Como Contribuir📝 Licença1. 🚀 Visão Geral e Proposta de ValorO TDAI visa resolver um dos maiores desafios do e-commerce: a criação de conteúdo de produto que seja ao mesmo tempo informativo, atraente e otimizado para mecanismos de busca, em escala. Tradicionalmente, este é um processo manual, demorado e caro.Proposta de Valor:Automação Inteligente: Reduz drasticamente o tempo e o esforço manual na criação de descrições de produtos.Qualidade e Consistência: Garante um alto padrão de qualidade e uniformidade em todo o catálogo.Otimização para Conversão: Utiliza IA para gerar textos persuasivos e orientados para SEO.Escalabilidade: Permite que empresas de qualquer tamanho enriqueçam milhares de produtos eficientemente.Tomada de Decisão Baseada em Dados: (Futuro) Oferece insights sobre a qualidade do conteúdo e o potencial de melhoria.O objetivo final é transformar o TDAI em um "motor semântico" para catálogos de produtos, um sistema que aprende e melhora continuamente, capacitando os usuários a venderem mais e melhor.2. ✨ Funcionalidades Centrais Detalhadas2.1. Backend (FastAPI)O backend é construído com FastAPI, escolhido por sua alta performance, facilidade de uso com tipagem Python e geração automática de documentação.2.1.1. Módulo de Autenticação e AutorizaçãoRegistro de Usuário: (routers/auth_utils.py, crud.py) Novos usuários podem se registrar fornecendo e-mail e senha. A senha é hasheada usando passlib antes de ser armazenada.Login com JWT: (auth.py, core/security.py) Usuários autenticados recebem um JSON Web Token (JWT) que deve ser incluído no header Authorization (Bearer token) para acessar rotas protegidas. O token contém o user_id e um tempo de expiração.Login Social (OAuth 2.0): (routers/social_auth.py, core/config.py)Integração com Google e Facebook utilizando Authlib.Fluxo: O frontend redireciona para a página de consentimento do provedor. Após a autorização, o provedor redireciona de volta para o TDAI com um código de autorização. O backend troca este código por um access token e obtém as informações do usuário. Se o usuário não existir, uma nova conta é criada. Um token JWT da aplicação TDAI é então emitido.Recuperação de Senha: (routers/password_recovery.py, core/email_utils.py)Usuários esquecidos podem solicitar a redefinição de senha. Um token de reset único e com tempo de expiração é gerado e enviado para o e-mail do usuário.O e-mail utiliza um template HTML (templates/password_reset_email.html).Verificação de Usuário Atual: (auth.py:get_current_active_user) Função de dependência do FastAPI para injetar o usuário autenticado nas rotas protegidas.2.1.2. Gestão de Planos, Limites e RolesModelos de Dados: User (models.py) possui campos como plan (ex: "free", "pro") e role (ex: "user", "admin").Serviço de Limites: (services/limit_service.py)Verifica se o usuário possui créditos suficientes antes de realizar operações que consomem IA (geração de texto, enriquecimento).Decrementa os créditos após o uso.Os limites são definidos com base no plano do usuário (configuração atualmente implícita, pode ser externalizada ou definida no banco).Autorização Baseada em Roles: Endpoints específicos (ex: routers/admin_analytics.py) são protegidos para acesso apenas por usuários com role="admin".2.1.3. Pipeline de Ingestão e Processamento de ArquivosEndpoint de Upload: (routers/uploads.py:upload_file)Aceita UploadFile do FastAPI.Suporta .xlsx, .csv, .pdf.Valida o tipo de arquivo e o tamanho.Processamento Assíncrono: Utiliza BackgroundTasks para processar o arquivo sem bloquear a requisição HTTP.Serviço de Processamento: (services/file_processing_service.py)Leitura de Dados:.xlsx, .csv: Usa pandas para ler os dados da planilha em um DataFrame..pdf: Usa pdfplumber para extrair texto e tabelas (se houver). A extração de PDFs pode ser mais complexa e exigir heurísticas dependendo da estrutura do PDF.Mapeamento de Colunas: (Implícito) O serviço espera certas colunas (ex: 'Nome do Produto', 'SKU', 'EAN'). Isso pode ser tornado configurável pelo usuário no futuro.Criação/Atualização de Produtos: Itera sobre as linhas do arquivo e usa crud.create_product_with_ean_and_sku ou similar para adicionar/atualizar produtos no banco.Logging: Registra o início, progresso e conclusão do processamento.2.1.4. Pipeline de Enriquecimento Web InteligenteEndpoint de Enriquecimento: (routers/web_enrichment.py:enrich_product_from_web)Recebe um product_id.Disparado após o upload ou manualmente pelo usuário.Serviço de Extração de Dados Web: (services/web_data_extractor_service.py)Geração de Query de Busca: Constrói uma query otimizada para o Google (ex: "nome do produto" + "ean" + "marca").Busca no Google: Usa googleapiclient.discovery para interagir com a Google Custom Search API e obter uma lista de URLs relevantes.Scraping com Playwright:Para cada URL promissora, instancia um navegador Playwright (Chromium por padrão).Navega até a página, esperando que o conteúdo dinâmico seja carregado.Playwright permite a execução de JavaScript, crucial para sites modernos.Extração de Conteúdo:extruct: Tenta extrair metadados estruturados (JSON-LD, Microdata, OpenGraph) da página. Esses dados são frequentemente de alta qualidade.trafilatura: Extrai o texto principal da página, removendo boilerplate (menus, rodapés, anúncios).Armazenamento dos Dados Brutos: Os dados coletados (texto, metadados) são salvos ou associados ao produto para uso posterior pela IA.Logging: Detalhes de cada etapa são logados.2.1.5. Motor de Geração de Conteúdo com IAEndpoint de Geração: (routers/generation.py:generate_product_content)Recebe product_id e, opcionalmente, o tipo de conteúdo a ser gerado (título, descrição) e preferências (tom de voz, público-alvo - futuro).Serviço de Geração IA: (services/ia_generation_service.py)Seleção do Provedor de IA:Verifica se o usuário possui uma chave de API pessoal configurada.Caso contrário, usa a chave de API global do sistema.Suporta OpenAI (GPT) e potencialmente Gemini (configurável).Construção do Prompt:Reúne todas as informações disponíveis sobre o produto: dados do upload original, dados enriquecidos da web (metadados, texto extraído).Cria um prompt detalhado e bem estruturado para o LLM. Exemplo:"Gere 3 títulos e 2 descrições de produto otimizadas para SEO para o seguinte item:
-Nome Original: [Nome do Produto]
-EAN: [EAN]
-Marca: [Marca]
-Dados da Web: [Texto extraído e metadados relevantes]
-Atributos: [Cor: Vermelho, Tamanho: G]
+🚀 TDAI - Transformador de Dados Assistido por IA 🚀
+O TDAI (Transformador de Dados Assistido por IA) é uma solução SaaS inovadora, meticulosamente projetada para automatizar e elevar a qualidade da gestão de catálogos de produtos para e-commerce. A plataforma ingere dados brutos de produtos (de fontes diversas como .xlsx, .csv, .pdf), executa um sofisticado pipeline de enriquecimento web para coletar informações abrangentes, e, finalmente, emprega o poder de Grandes Modelos de Linguagem (LLMs) como GPT e Gemini para gerar títulos e descrições de produtos otimizados para conversão, prontos para serem implantados em qualquer vitrine digital.
 
-Instruções:
-- Títulos devem ser curtos, impactantes e incluir palavras-chave relevantes.
-- Descrições devem ser persuasivas, detalhar benefícios, ter entre 100-200 palavras e usar um tom [amigável/profissional].
-- Formate a saída como JSON: {'titulos': ['t1', 't2', 't3'], 'descricoes': ['d1', 'd2']}"
-Chamada à API do LLM: Envia o prompt para a API da OpenAI/Gemini.Processamento da Resposta: Parseia a resposta do LLM (geralmente JSON).Armazenamento das Gerações: Salva os títulos e descrições gerados, associando-os ao produto (models.ProductGeneratedContent). O usuário poderá escolher qual usar.Controle de Limites: Interage com limit_service para decrementar os créditos de IA do usuário.2.1.6. Gestão de Produtos e Tipos de ProdutoModelos: Product, ProductType, AttributeDefinition (models.py).ProductType define um template para um tipo de produto (ex: "Camiseta", "Smartphone"), especificando os atributos que ele deve ter (AttributeDefinition, ex: "Cor", "Tamanho", "Material" para Camiseta).CRUD para Produtos: (routers/produtos.py, crud.py) Endpoints para criar, ler, atualizar e deletar produtos.A atualização (update_product_attributes) permite modificar os atributos dinâmicos armazenados no campo JSON attributes.CRUD para Tipos de Produto: (routers/product_types.py, crud.py) Endpoints para gerenciar os templates de produto.2.1.7. Gestão de FornecedoresModelo: Fornecedor (models.py).CRUD para Fornecedores: (routers/fornecedores.py, crud.py) Endpoints para gerenciar informações de fornecedores.2.1.8. Histórico de Uso e LogsModelo: LogEntry (adicionado na migração 8052d919e969_add_media_and_log_fields_to_product_.py), UsoIA (models.py).LogEntry (no Product): Campo JSON para armazenar um histórico de ações importantes relacionadas ao produto (ex: criação, enriquecimento, geração IA).UsoIA: Tabela para registrar cada uso da IA, incluindo user_id, product_id, tipo_geracao, timestamp, custo_creditos.Endpoints de Histórico: (routers/uso_ia.py) Permite que usuários (e administradores) visualizem o histórico de uso da IA.2.1.9. Painel de Administração e AnalyticsEndpoints: (routers/admin_analytics.py)Protegidos para role="admin".Fornecem dados agregados sobre o uso da plataforma: número de usuários, produtos criados, gerações de IA, etc.Esses dados são consultados diretamente do banco, agregando informações das tabelas User, Product, UsoIA.2.2. Frontend (React)A interface do usuário é construída com React e Vite, focando em uma experiência de usuário moderna, responsiva e eficiente.2.2.1. Arquitetura da Interface e ComponentizaçãoComponente Principal: App.jsx configura o roteamento principal usando react-router-dom e envolve a aplicação com os provedores de contexto.Layout Principal: MainLayout.jsx define a estrutura visual comum da aplicação (Sidebar, Topbar, área de conteúdo).Componentes Reutilizáveis: (src/components/)common/Modal.jsx: Componente genérico para exibir diálogos modais.common/PaginationControls.jsx: Controles para navegação em listas paginadas.Tabelas específicas (ex: ProductTable.jsx, FornecedorTable.jsx) para exibir dados de forma organizada, com funcionalidades de ordenação, filtro (futuro) e ações.Modais específicos (ex: NewProductModal.jsx, ProductEditModal.jsx) para formulários de criação e edição.Estilização: CSS modular (arquivos .css por componente/página) e estilos globais em index.css e App.css.2.2.2. Gerenciamento de Estado Global e LocalContext API:AuthContext.jsx: Gerencia o estado de autenticação (token JWT, informações do usuário, status de loading). Fornece funções login, logout, register. O token é armazenado no localStorage para persistência entre sessões.ProductTypeContext.jsx: Busca e armazena os tipos de produto disponíveis, para serem usados em formulários de criação/edição de produtos.Estado Local: Componentes usam useState e useEffect para gerenciar seu próprio estado interno (dados de formulários, controle de UI, etc.).2.2.3. Fluxo de Interação com a APIAxios Client: (services/apiClient.js)Instância do Axios pré-configurada com baseURL (apontando para /api/v1, que é proxyado pelo Vite para o backend em desenvolvimento).Interceptor de Requisição: Adiciona automaticamente o token JWT do localStorage ao header Authorization de todas as requisições, exceto para rotas de autenticação.Interceptor de Resposta: (Potencial) Pode ser usado para tratamento global de erros (ex: deslogar o usuário em caso de token expirado - 401).Serviços da API: (src/services/)Módulos JavaScript que encapsulam a lógica de chamada aos endpoints do backend (ex: authService.js, productService.js, productTypeService.js).Retornam Promises, facilitando o uso com async/await nos componentes.2.2.4. Principais Páginas e FuncionalidadesLoginPage.jsx: Formulário de login, registro e links para login social. Interage com AuthContext e authService.DashboardPage.jsx: Página inicial após o login, exibe informações resumidas e navegação.ProdutosPage.jsx:Exibe a lista de produtos usando ProductTable.jsx.Permite adicionar novos produtos (NewProductModal.jsx) e editar existentes (ProductEditModal.jsx).Funcionalidades para disparar enriquecimento web e geração de IA para produtos selecionados.TiposProdutoPage.jsx: Gerenciamento (CRUD) dos tipos de produto e seus atributos.FornecedoresPage.jsx: Gerenciamento (CRUD) de fornecedores.EnriquecimentoPage.jsx: Interface para gerenciar o processo de enriquecimento em lote ou individual.HistoricoPage.jsx: Exibe o histórico de uso da IA (usoIAService.js).PlanoPage.jsx: Exibe informações sobre o plano atual do usuário e opções de upgrade (visual).ConfiguracoesPage.jsx: Permite ao usuário alterar senha, configurar chaves de API pessoais (se aplicável).ProtectedRoute.jsx: Componente de ordem superior que verifica se o usuário está autenticado antes de renderizar uma rota. Caso contrário, redireciona para /login.3. 🏗️ Arquitetura da Solução e Tech Stack3.1. Visão Geral da ArquiteturaO TDAI adota uma arquitetura cliente-servidor desacoplada:Backend (Servidor): Uma API RESTful desenvolvida com FastAPI, responsável por toda a lógica de negócios, persistência de dados, e comunicação com serviços externos (IA, Google Search).Frontend (Cliente): Uma Single Page Application (SPA) desenvolvida com React, que consome a API do backend para exibir dados e permitir interações do usuário.Banco de Dados: PostgreSQL como banco de dados relacional primário, gerenciado via SQLAlchemy ORM e Alembic para migrações.Serviços Externos: APIs de OpenAI/Gemini, Google Custom Search.(Substituir por um diagrama real se disponível)3.2. Detalhamento do Tech StackCategoriaTecnologia/BibliotecaPropósitoBackend FrameworkFastAPICriação de APIs Python de alta performance, com tipagem e documentação automática.Servidor ASGIUvicornServidor ASGI para rodar aplicações FastAPI.Linguagem (Backend)Python 3.8+Linguagem principal do backend.Banco de DadosPostgreSQLBanco de dados relacional robusto e escalável.ORM & MigraçõesSQLAlchemy, AlembicMapeamento objeto-relacional e gerenciamento de schema do banco de dados.Validação de DadosPydanticDefinição de schemas de dados e validação para a API (usado nativamente pelo FastAPI).AutenticaçãoJWT (python-jose), Passlib, AuthlibTokens seguros, hashing de senhas, integração OAuth 2.0.Processamento de ArquivosPandas, python-multipart, pdfplumberLeitura e parse de arquivos Excel, CSV e PDF.Web ScrapingPlaywright, Extruct, TrafilaturaAutomação de navegador para scraping dinâmico, extração de metadados e conteúdo principal.Comunicação Externagoogle-api-python-client, openaiClientes para interagir com APIs do Google e OpenAI.Tarefas em BackgroundFastAPI BackgroundTasksExecução de tarefas demoradas (processamento de arquivos, IA) de forma assíncrona.Frontend FrameworkReact 18Biblioteca JavaScript para construir interfaces de usuário componentizadas e reativas.Build Tool (Frontend)ViteFerramenta de build moderna e rápida para projetos frontend.Linguagem (Frontend)JavaScript (ES6+), JSXLinguagem principal do frontend.Roteamento (Frontend)react-router-domGerenciamento de navegação e rotas na SPA.Gerenciamento de Estado (FE)React Context API, useState, useEffectGerenciamento de estado global e local dos componentes.Chamadas HTTP (FE)AxiosCliente HTTP para fazer requisições à API do backend.UI & Notificações (FE)CSS modular, react-icons, react-toastifyEstilização, ícones e feedback visual para o usuário.4. ⚙️ Guia de Configuração e Deployment LocalEste guia detalha os passos para configurar e executar o TDAI em um ambiente de desenvolvimento local.4.1. Pré-requisitos EssenciaisPython: Versão 3.8 ou superior.Node.js: Versão 18.0.0 ou superior (inclui npm).PostgreSQL: Um servidor PostgreSQL em execução (versão 12+ recomendada).Você precisará criar um banco de dados e um usuário para o TDAI.Git: Para clonar o repositório.Playwright Browsers: Os navegadores para o Playwright (Chromium, Firefox, WebKit) precisam ser instalados.Chaves de API:OpenAI API KeyGoogle Custom Search Engine ID e API Key(Opcional) Google OAuth Client ID e Secret(Opcional) Facebook OAuth Client ID e Secret4.2. Configuração Detalhada das Variáveis de Ambiente (.env)Crie um arquivo chamado .env na raiz do projeto. Este arquivo é crucial e não deve ser versionado no Git. Use o README.txt ou o exemplo abaixo como base.# .env (na raiz do projeto)
+Este documento serve como um guia técnico aprofundado para desenvolvedores, detalhando a arquitetura, funcionalidades, fluxos de trabalho, configuração e visão de futuro do TDAI.
 
-# --- Configuração do Banco de Dados ---
-# Substitua com suas credenciais do PostgreSQL
+📜 Índice Completo
+🌟 Visão Geral e Proposta de Valor
+
+🧩 Funcionalidades Centrais Detalhadas
+
+🔩 Backend (FastAPI)
+
+🔑 Módulo de Autenticação e Autorização
+
+📊 Gestão de Planos, Limites e Roles
+
+📂 Pipeline de Ingestão e Processamento de Arquivos
+
+🕸️ Pipeline de Enriquecimento Web Inteligente
+
+🤖 Motor de Geração de Conteúdo com IA
+
+🛍️ Gestão de Produtos e Tipos de Produto
+
+🚚 Gestão de Fornecedores
+
+📋 Histórico de Uso e Logs
+
+📈 Painel de Administração e Analytics
+
+🖥️ Frontend (React)
+
+🖼️ Arquitetura da Interface e Componentização
+
+🔄 Gerenciamento de Estado Global e Local
+
+🔗 Fluxo de Interação com a API
+
+📄 Principais Páginas e Funcionalidades
+
+🏛️ Arquitetura da Solução e Tech Stack
+
+🗺️ Visão Geral da Arquitetura
+
+🛠️ Detalhamento do Tech Stack
+
+⚙️ Guia de Configuração e Deployment Local
+
+✅ Pré-requisitos Essenciais
+
+🔑 Configuração Detalhada das Variáveis de Ambiente (.env)
+
+🔩 Passos Detalhados para Instalação do Backend
+
+🖥️ Passos Detalhados para Instalação do Frontend
+
+🚀 Inicialização e Verificação
+
+📚 Documentação e Endpoints da API (Swagger/ReDoc)
+
+📁 Estrutura Detalhada do Projeto
+
+🌊 Fluxos de Trabalho Principais
+
+👤 Fluxo de Registro e Login de Usuário
+
+🔄 Fluxo Completo de Enriquecimento de Produto (de Upload à Geração IA)
+
+🛡️ Considerações de Segurança
+
+💡 Roadmap Estratégico e Visão de Futuro
+
+🤝 Como Contribuir
+
+📝 Licença
+
+1. 🌟 Visão Geral e Proposta de Valor
+O TDAI visa resolver um dos maiores desafios do e-commerce: a criação de conteúdo de produto que seja ao mesmo tempo informativo, atraente e otimizado para mecanismos de busca, em escala. Tradicionalmente, este é um processo manual, demorado e caro.
+
+🎯 Proposta de Valor:
+
+⚡ Automação Inteligente: Reduz drasticamente o tempo e o esforço manual na criação de descrições de produtos.
+
+🏆 Qualidade e Consistência: Garante um alto padrão de qualidade e uniformidade em todo o catálogo.
+
+** конверсия Otimização para Conversão:** Utiliza IA para gerar textos persuasivos e orientados para SEO.
+
+📈 Escalabilidade: Permite que empresas de qualquer tamanho enriqueçam milhares de produtos eficientemente.
+
+📊 Tomada de Decisão Baseada em Dados: (Futuro) Oferece insights sobre a qualidade do conteúdo e o potencial de melhoria.
+
+O objetivo final é transformar o TDAI em um "motor semântico" para catálogos de produtos, um sistema que aprende e melhora continuamente, capacitando os usuários a venderem mais e melhor.
+
+2. 🧩 Funcionalidades Centrais Detalhadas
+2.1. 🔩 Backend (FastAPI)
+O backend é construído com FastAPI, escolhido por sua alta performance, facilidade de uso com tipagem Python e geração automática de documentação.
+
+2.1.1. 🔑 Módulo de Autenticação e Autorização
+🚪 Registro de Usuário: (routers/auth_utils.py, crud.py) Novos usuários podem se registrar fornecendo e-mail e senha. A senha é hasheada usando passlib antes de ser armazenada.
+
+🎟️ Login com JWT: (auth.py, core/security.py) Usuários autenticados recebem um JSON Web Token (JWT) que deve ser incluído no header Authorization (Bearer token) para acessar rotas protegidas. O token contém o user_id e um tempo de expiração.
+
+🌐 Login Social (OAuth 2.0): (routers/social_auth.py, core/config.py)
+
+Integração com Google e Facebook utilizando Authlib.
+
+Fluxo detalhado na seção 7.1. Fluxo de Registro e Login de Usuário.
+
+🔑 Recuperação de Senha: (routers/password_recovery.py, core/email_utils.py)
+
+Usuários esquecidos podem solicitar a redefinição de senha. Um token de reset único e com tempo de expiração é gerado e enviado para o e-mail do usuário.
+
+O e-mail utiliza um template HTML (templates/password_reset_email.html).
+
+🕵️ Verificação de Usuário Atual: (auth.py:get_current_active_user) Função de dependência do FastAPI para injetar o usuário autenticado nas rotas protegidas.
+
+2.1.2. 📊 Gestão de Planos, Limites e Roles
+👥 Modelos de Dados: User (models.py) possui campos como plan (ex: "free", "pro") e role (ex: "user", "admin").
+
+⚖️ Serviço de Limites: (services/limit_service.py)
+
+Verifica se o usuário possui créditos suficientes antes de realizar operações que consomem IA.
+
+Decrementa os créditos após o uso.
+
+🛡️ Autorização Baseada em Roles: Endpoints específicos (ex: routers/admin_analytics.py) são protegidos para acesso apenas por usuários com role="admin".
+
+2.1.3. 📂 Pipeline de Ingestão e Processamento de Arquivos
+📤 Endpoint de Upload: (routers/uploads.py:upload_file)
+
+Aceita UploadFile do FastAPI (.xlsx, .csv, .pdf).
+
+Valida o tipo de arquivo e o tamanho.
+
+⏳ Processamento Assíncrono: Utiliza BackgroundTasks para processar o arquivo sem bloquear a requisição HTTP.
+
+⚙️ Serviço de Processamento: (services/file_processing_service.py)
+
+Leitura: pandas para .xlsx/.csv, pdfplumber para .pdf.
+
+Criação/Atualização: Adiciona/atualiza produtos no banco via crud.
+
+2.1.4. 🕸️ Pipeline de Enriquecimento Web Inteligente
+🎯 Endpoint de Enriquecimento: (routers/web_enrichment.py:enrich_product_from_web)
+
+🤖 Serviço de Extração de Dados Web: (services/web_data_extractor_service.py)
+
+Query de Busca: Otimizada para Google.
+
+Google Search API: Obtém URLs relevantes.
+
+Scraping com Playwright: Renderiza páginas dinâmicas.
+
+Extração de Conteúdo: extruct para metadados (JSON-LD, OpenGraph), trafilatura para texto principal.
+
+Armazenamento: Dados coletados são salvos para uso pela IA.
+
+2.1.5. 🤖 Motor de Geração de Conteúdo com IA
+💡 Endpoint de Geração: (routers/generation.py:generate_product_content)
+
+🧠 Serviço de Geração IA: (services/ia_generation_service.py)
+
+Seleção do Provedor: Chave pessoal ou global (OpenAI/Gemini).
+
+Construção do Prompt: Detalhado, com dados do produto e instruções claras (exemplo de prompt na seção 2.1.5 da documentação completa).
+
+Chamada à API LLM.
+
+Processamento e Armazenamento: Salva títulos e descrições gerados.
+
+Controle de Limites: Decrementa créditos de IA.
+
+2.1.6. 🛍️ Gestão de Produtos e Tipos de Produto
+🧱 Modelos: Product, ProductType, AttributeDefinition (models.py).
+
+ProductType define templates de atributos (ex: "Cor", "Tamanho" para Camiseta).
+
+🧩 CRUD para Produtos: (routers/produtos.py, crud.py) Completo.
+
+🏷️ CRUD para Tipos de Produto: (routers/product_types.py, crud.py).
+
+2.1.7. 🚚 Gestão de Fornecedores
+👤 Modelo: Fornecedor (models.py).
+
+🛠️ CRUD para Fornecedores: (routers/fornecedores.py, crud.py).
+
+2.1.8. 📋 Histórico de Uso e Logs
+📓 Modelos: LogEntry (no Product), UsoIA (models.py).
+
+📜 Endpoints de Histórico: (routers/uso_ia.py) Para visualização do uso da IA.
+
+2.1.9. 📈 Painel de Administração e Analytics
+🔒 Endpoints Protegidos: (routers/admin_analytics.py) Para role="admin".
+
+📊 Dados Agregados: Número de usuários, produtos, gerações de IA, etc.
+
+2.2. 🖥️ Frontend (React)
+A interface do usuário é construída com React e Vite, focando em uma experiência moderna, responsiva e eficiente.
+
+2.2.1. 🖼️ Arquitetura da Interface e Componentização
+뼈대 App Principal: App.jsx (roteamento com react-router-dom, provedores de contexto).
+
+🏠 Layout Principal: MainLayout.jsx (Sidebar, Topbar, área de conteúdo).
+
+🧩 Componentes Reutilizáveis: (src/components/)
+
+common/Modal.jsx, common/PaginationControls.jsx.
+
+Tabelas (ProductTable.jsx) e Modais (NewProductModal.jsx) específicos.
+
+🎨 Estilização: CSS modular e estilos globais (index.css, App.css).
+
+2.2.2. 🔄 Gerenciamento de Estado Global e Local
+🌐 Context API:
+
+AuthContext.jsx: Estado de autenticação global, token JWT no localStorage.
+
+ProductTypeContext.jsx: Tipos de produto.
+
+🏡 Estado Local: useState, useEffect para estado interno dos componentes.
+
+2.2.3. 🔗 Fluxo de Interação com a API
+📞 Axios Client: (services/apiClient.js)
+
+Instância pré-configurada com baseURL e Interceptor de Requisição para adicionar token JWT.
+
+📦 Serviços da API: (src/services/)
+
+Módulos encapsulando chamadas aos endpoints (ex: authService.js, productService.js).
+
+2.2.4. 📄 Principais Páginas e Funcionalidades
+🔑 LoginPage.jsx: Login, registro, login social.
+
+📊 DashboardPage.jsx: Página inicial pós-login.
+
+🛍️ ProdutosPage.jsx: Listagem, adição, edição de produtos; disparo de enriquecimento/geração IA.
+
+🏷️ TiposProdutoPage.jsx: Gerenciamento de tipos de produto.
+
+🚚 FornecedoresPage.jsx: Gerenciamento de fornecedores.
+
+✨ EnriquecimentoPage.jsx: Interface para processo de enriquecimento.
+
+📜 HistoricoPage.jsx: Histórico de uso da IA.
+
+💳 PlanoPage.jsx: Informações do plano do usuário.
+
+⚙️ ConfiguracoesPage.jsx: Alterar senha, chaves de API pessoais.
+
+🛡️ ProtectedRoute.jsx: Protege rotas autenticadas.
+
+3. 🏛️ Arquitetura da Solução e Tech Stack
+3.1. 🗺️ Visão Geral da Arquitetura
+O TDAI opera em uma arquitetura cliente-servidor desacoplada:
+
+Backend (Servidor): API RESTful com FastAPI.
+
+Frontend (Cliente): SPA com React.
+
+Banco de Dados: PostgreSQL (SQLAlchemy ORM, Alembic).
+
+Serviços Externos: APIs OpenAI/Gemini, Google Custom Search.
+
+3.2. 🛠️ Detalhamento do Tech Stack
+Categoria
+
+Tecnologia/Biblioteca
+
+Propósito
+
+Backend Framework
+
+FastAPI
+
+Criação de APIs Python de alta performance.
+
+Servidor ASGI
+
+Uvicorn
+
+Servidor ASGI para FastAPI.
+
+Linguagem (Backend)
+
+Python 3.8+
+
+Linguagem principal do backend.
+
+Banco de Dados
+
+PostgreSQL
+
+Banco de dados relacional.
+
+ORM & Migrações
+
+SQLAlchemy, Alembic
+
+Mapeamento objeto-relacional e migrações de schema.
+
+Validação de Dados
+
+Pydantic
+
+Definição e validação de schemas de dados da API.
+
+Autenticação
+
+JWT (python-jose), Passlib, Authlib
+
+Tokens, hashing de senhas, OAuth 2.0.
+
+Processamento Arquivos
+
+Pandas, python-multipart, pdfplumber
+
+Leitura de Excel, CSV, PDF.
+
+Web Scraping
+
+Playwright, Extruct, Trafilatura
+
+Automação de navegador, extração de metadados e conteúdo.
+
+Comunicação Externa
+
+google-api-python-client, openai
+
+Clientes para APIs Google e OpenAI.
+
+Tarefas Background
+
+FastAPI BackgroundTasks
+
+Execução assíncrona de tarefas.
+
+Frontend Framework
+
+React 18
+
+Biblioteca JavaScript para UIs componentizadas.
+
+Build Tool (Frontend)
+
+Vite
+
+Ferramenta de build moderna para frontend.
+
+Linguagem (Frontend)
+
+JavaScript (ES6+), JSX
+
+Linguagem principal do frontend.
+
+Roteamento (Frontend)
+
+react-router-dom
+
+Gerenciamento de navegação na SPA.
+
+Estado (FE)
+
+React Context API, useState, useEffect
+
+Gerenciamento de estado global e local.
+
+Chamadas HTTP (FE)
+
+Axios
+
+Cliente HTTP para requisições à API.
+
+UI & Notificações (FE)
+
+CSS modular, react-icons, react-toastify
+
+Estilização, ícones e feedback ao usuário.
+
+4. ⚙️ Guia de Configuração e Deployment Local
+4.1. ✅ Pré-requisitos Essenciais
+🐍 Python 3.8+
+
+📦 Node.js 18.0.0+ (com npm)
+
+🐘 PostgreSQL 12+ (servidor ativo, banco e usuário criados)
+
+🐙 Git
+
+🌐 Playwright Browsers (playwright install)
+
+🔑 Chaves de API (OpenAI, Google Search, OAuth opcional)
+
+4.2. 🔑 Configuração Detalhada das Variáveis de Ambiente (.env)
+Crie um arquivo .env na raiz do projeto. Não o versione no Git!
+
+# .env (Exemplo - Preencha com seus valores)
+
+# --- 🐘 Banco de Dados ---
 DATABASE_URL="postgresql://seu_usuario_pg:sua_senha_pg@localhost:5432/seu_banco_tdai"
 
-# --- Chave Secreta da Aplicação (MUITO IMPORTANTE) ---
-# Gere uma chave forte (ex: openssl rand -hex 32)
-SECRET_KEY="SUA_CHAVE_SECRETA_FORTE_AQUI"
-ALGORITHM="HS256" # Algoritmo para JWT
-ACCESS_TOKEN_EXPIRE_MINUTES=60 # Tempo de expiração do token JWT em minutos
+# --- 🤫 Segurança da Aplicação ---
+SECRET_KEY="SUA_CHAVE_SECRETA_FORTE_AQUI_GERADA_COM_OPENSSL_RAND_HEX_32"
+ALGORITHM="HS256"
+ACCESS_TOKEN_EXPIRE_MINUTES=60
 
-# --- Configurações de E-mail (para recuperação de senha, etc.) ---
-# Use um serviço como SendGrid, Mailgun, ou seu SMTP
+# --- 📧 Configurações de E-mail ---
 SMTP_SERVER="smtp.example.com"
 SMTP_PORT=587
 SMTP_USER="seu-email-de-envio@example.com"
 SMTP_PASSWORD="sua-senha-de-aplicativo-ou-smtp"
 EMAIL_FROM="TDAI Platform <nao-responda@tdai.com>"
 
-# --- URL do Frontend (IMPORTANTE para CORS e links de e-mail) ---
-# Deve corresponder à URL onde seu frontend React está rodando
+# --- 🌐 URL do Frontend ---
 FRONTEND_URL="http://localhost:5173"
 
-# --- Chaves de API de IA e Busca ---
+# --- 🤖 Chaves de API (IA e Busca) ---
 OPENAI_API_KEY="sk-SUA_CHAVE_OPENAI_AQUI"
-# Para Google Custom Search API:
-GOOGLE_CSE_ID="SEU_CUSTOM_SEARCH_ENGINE_ID" # ID do seu mecanismo de busca personalizado
-GOOGLE_CSE_API_KEY="SUA_GOOGLE_API_KEY"       # Chave da API do Google Cloud Console
+GOOGLE_CSE_ID="SEU_CUSTOM_SEARCH_ENGINE_ID"
+GOOGLE_CSE_API_KEY="SUA_GOOGLE_API_KEY"
 
-# --- Chaves de OAuth 2.0 (Login Social - Opcional) ---
-# Configure se for usar login com Google/Facebook
+# --- 🔗 Chaves de OAuth 2.0 (Opcional) ---
 GOOGLE_CLIENT_ID="SEU_GOOGLE_CLIENT_ID.apps.googleusercontent.com"
 GOOGLE_CLIENT_SECRET="SEU_GOOGLE_CLIENT_SECRET"
-FACEBOOK_CLIENT_ID="SEU_FACEBOOK_APP_ID"
-FACEBOOK_CLIENT_SECRET="SEU_FACEBOOK_APP_SECRET"
+# FACEBOOK_CLIENT_ID="SEU_FACEBOOK_APP_ID"
+# FACEBOOK_CLIENT_SECRET="SEU_FACEBOOK_APP_SECRET"
 
-# --- Configurações Adicionais (Exemplos) ---
-# LOG_LEVEL="INFO" # Nível de logging para a aplicação
-Nota sobre DATABASE_URL: Se você não tiver o PostgreSQL, o código em database.py possui um fallback para SQLite (SQLALCHEMY_DATABASE_URL = "sqlite:///./tdai.db"), o que é útil para testes rápidos, mas PostgreSQL é recomendado para desenvolvimento completo e produção.4.3. Passos Detalhados para Instalação do BackendClone o Repositório:git clone <URL_DO_SEU_REPOSITORIO_GIT>
+Nota: O código em database.py tem fallback para SQLite se DATABASE_URL não for PostgreSQL, útil para testes rápidos.
+
+4.3. 🔩 Passos Detalhados para Instalação do Backend
+Clone o Repositório:
+
+git clone <URL_DO_SEU_REPOSITORIO_GIT>
 cd <NOME_DA_PASTA_DO_PROJETO>
-Crie e Ative um Ambiente Virtual Python:python -m venv venv
-# Linux/macOS:
-source venv/bin/activate
-# Windows (PowerShell):
-# .\venv\Scripts\Activate.ps1
-# Windows (CMD):
-# .\venv\Scripts\activate.bat
-Instale as Dependências do Backend:Navegue até a pasta Backend e crie um arquivo requirements.txt se não existir, listando todas as dependências (ex: fastapi, uvicorn[standard], sqlalchemy, psycopg2-binary, alembic, pydantic, python-jose[cryptography], passlib[bcrypt], authlib, pandas, openpyxl, pdfplumber, playwright, google-api-python-client, openai, extruct, trafilatura, python-multipart).# Exemplo de conteúdo para Backend/requirements.txt (liste todas as suas dependências):
-# fastapi==0.100.0
-# uvicorn[standard]==0.22.0
-# sqlalchemy==2.0.0
-# psycopg2-binary # Para PostgreSQL
-# alembic==1.10.0
-# ... e todas as outras ...
+
+Crie e Ative Ambiente Virtual Python:
+
+python -m venv venv
+source venv/bin/activate  # Linux/macOS
+# .\venv\Scripts\activate # Windows
+
+Instale Dependências Python:
+(Certifique-se de ter um Backend/requirements.txt com todas as dependências listadas)
 
 pip install -r Backend/requirements.txt
-Instale os Navegadores do Playwright:Este comando baixa os binários dos navegadores (Chromium, Firefox, WebKit) que o Playwright usará.playwright install
-Configure o Banco de Dados PostgreSQL:Certifique-se de que o servidor PostgreSQL esteja rodando.Crie um usuário e um banco de dados para o TDAI. Exemplo com psql:CREATE USER seu_usuario_pg WITH PASSWORD 'sua_senha_pg';
-CREATE DATABASE seu_banco_tdai OWNER seu_usuario_pg;
-Verifique se as credenciais em seu arquivo .env (DATABASE_URL) correspondem.Execute as Migrações do Banco de Dados (Alembic):Alembic gerencia as alterações no schema do banco de dados.cd Backend # Certifique-se de estar na pasta Backend
+
+Instale Navegadores Playwright:
+
+playwright install
+
+Configure Banco PostgreSQL:
+
+Crie usuário e banco (ex: CREATE USER seu_usuario_pg WITH PASSWORD 'sua_senha_pg'; CREATE DATABASE seu_banco_tdai OWNER seu_usuario_pg;).
+
+Verifique DATABASE_URL no .env.
+
+Execute Migrações Alembic:
+
+cd Backend
 alembic upgrade head
-cd .. # Volte para a raiz do projeto
-Isso aplicará todas as migrações encontradas em Backend/alembic/versions/ ao seu banco de dados.4.4. Passos Detalhados para Instalação do FrontendNavegue até a Pasta do Frontend:cd Frontend/app
-Instale as Dependências do Node.js:Este comando lê o package.json e instala todas as bibliotecas necessárias (React, Axios, etc.).npm install
-Ou, se você usar Yarn:yarn install
-4.5. Inicialização e VerificaçãoInicie o Servidor do Backend:A partir da raiz do projeto, execute o script run_backend.py (ou diretamente o Uvicorn se preferir).python run_backend.py
-Por padrão, o backend FastAPI estará disponível em http://localhost:8000.Inicie o Servidor de Desenvolvimento do Frontend:Em um novo terminal, a partir da pasta Frontend/app:npm run dev
-Ou, se você usar Yarn:yarn dev
-O frontend React estará disponível em http://localhost:5173 (ou a porta configurada no vite.config.js).Verifique a Aplicação:Abra http://localhost:5173 em seu navegador. Você deve ver a página de login.Acesse a documentação da API do backend em http://localhost:8000/docs ou http://localhost:8000/redoc para verificar se os endpoints estão funcionando.5. 📚 Documentação e Endpoints da API (Swagger/ReDoc)Com o servidor backend em execução, a documentação interativa da API, gerada automaticamente pelo FastAPI, está disponível nos seguintes URLs:Swagger UI: http://localhost:8000/docsPermite visualizar todos os endpoints, seus parâmetros, schemas de requisição/resposta e testá-los diretamente no navegador.ReDoc: http://localhost:8000/redocOferece uma visualização alternativa e mais limpa da documentação da API.Consulte esta documentação para entender em detalhes cada endpoint, os dados esperados e as respostas retornadas.6. 📂 Estrutura Detalhada do ProjetoTDAI_Project_Root/
-├── Backend/
-│   ├── alembic/                      # Configurações e versões de migração do Alembic
-│   │   └── versions/                 # Scripts de migração individuais
-│   ├── core/                         # Módulos centrais da aplicação
-│   │   ├── config.py                 # Carregamento e gerenciamento de variáveis de ambiente e configurações
-│   │   ├── email_utils.py            # Utilitários para envio de e-mails (ex: recuperação de senha)
-│   │   └── security.py               # Funções relacionadas à segurança (hashing de senhas, criação/verificação JWT)
-│   ├── routers/                      # Define os endpoints (rotas) da API
-│   │   ├── admin_analytics.py        # Endpoints para analytics do painel de administração
-│   │   ├── auth_utils.py             # Endpoints de autenticação (registro, login local)
-│   │   ├── fornecedores.py           # CRUD para Fornecedores
-│   │   ├── generation.py             # Endpoints para disparar a geração de conteúdo por IA
-│   │   ├── password_recovery.py      # Endpoints para o fluxo de recuperação de senha
-│   │   ├── product_types.py          # CRUD para Tipos de Produto
-│   │   ├── produtos.py               # CRUD para Produtos
-│   │   ├── social_auth.py            # Endpoints para autenticação OAuth (Google, Facebook)
-│   │   ├── uploads.py                # Endpoint para upload de arquivos de produtos
-│   │   ├── uso_ia.py                 # Endpoints para histórico de uso da IA
-│   │   └── web_enrichment.py         # Endpoints para o pipeline de enriquecimento web
-│   ├── services/                     # Lógica de negócios e interação com serviços externos
-│   │   ├── file_processing_service.py # Processa arquivos de produtos enviados (XLSX, CSV, PDF)
-│   │   ├── ia_generation_service.py  # Orquestra a geração de conteúdo com LLMs
-│   │   ├── limit_service.py          # Gerencia os limites de uso da IA por usuário/plano
-│   │   └── web_data_extractor_service.py # Realiza o scraping e extração de dados da web
-│   ├── templates/                    # Templates HTML (ex: para e-mails)
-│   │   └── password_reset_email.html # Template para o e-mail de redefinição de senha
-│   ├── __init__.py                   # Torna o diretório Backend um pacote Python
-│   ├── alembic.ini                   # Arquivo de configuração principal do Alembic
-│   ├── auth.py                       # Dependências e utilitários de autenticação para FastAPI
-│   ├── crud.py                       # Funções de Create, Read, Update, Delete (CRUD) para interagir com o banco
-│   ├── database.py                   # Configuração da conexão com o banco de dados e motor SQLAlchemy
-│   ├── main.py                       # Ponto de entrada da aplicação FastAPI (criação da app, montagem de routers)
-│   ├── models.py                     # Definição dos modelos de dados SQLAlchemy (tabelas do banco)
-│   └── schemas.py                    # Definição dos schemas Pydantic (validação e serialização de dados da API)
+cd ..
+
+4.4. 🖥️ Passos Detalhados para Instalação do Frontend
+Navegue até a Pasta do Frontend:
+
+cd Frontend/app
+
+Instale Dependências Node.js:
+
+npm install
+# ou: yarn install
+
+4.5. 🚀 Inicialização e Verificação
+Inicie o Backend: (Na raiz do projeto)
+
+python run_backend.py
+
+(Disponível em http://localhost:8000)
+
+Inicie o Frontend: (Em Frontend/app, novo terminal)
+
+npm run dev
+# ou: yarn dev
+
+(Disponível em http://localhost:5173)
+
+Verifique:
+
+Abra http://localhost:5173 no navegador.
+
+Acesse API docs: http://localhost:8000/docs ou http://localhost:8000/redoc.
+
+5. 📚 Documentação e Endpoints da API (Swagger/ReDoc)
+Acesse a documentação interativa da API gerada pelo FastAPI:
+
+Swagger UI: http://localhost:8000/docs (Ideal para testar endpoints)
+
+ReDoc: http://localhost:8000/redoc (Visualização mais limpa)
+
+6. 📁 Estrutura Detalhada do Projeto
+TDAI_Project_Root/
+├── 🔩 Backend/
+│   ├── alembic/            # Migrações Alembic
+│   ├── core/               # Configurações centrais, email, segurança
+│   ├── routers/            # Endpoints da API (FastAPI)
+│   ├── services/           # Lógica de negócios (IA, scraping, arquivos)
+│   ├── templates/          # Templates HTML (e-mails)
+│   ├── auth.py             # Utilitários de autenticação FastAPI
+│   ├── crud.py             # Funções CRUD diretas ao banco
+│   ├── database.py         # Configuração da conexão SQLAlchemy
+│   ├── main.py             # Ponto de entrada FastAPI
+│   ├── models.py           # Modelos de dados SQLAlchemy
+│   └── schemas.py          # Schemas Pydantic (validação API)
 │
-├── Frontend/
-│   └── app/                          # Raiz da aplicação React (criada com Vite)
-│       ├── public/                   # Arquivos estáticos servidos diretamente
-│       ├── src/                      # Código fonte da aplicação React
-│       │   ├── assets/               # Imagens, fontes, etc. (se houver)
-│       │   ├── components/           # Componentes React reutilizáveis
-│       │   │   ├── common/           # Componentes genéricos (Modal, PaginationControls)
-│       │   │   ├── fornecedores/     # Componentes específicos para Fornecedores
-│       │   │   ├── produtos/         # Componentes específicos para Produtos (Table, Modals, AttributeField)
-│       │   │   ├── user/             # Componentes relacionados ao usuário (ChangePasswordModal)
-│       │   │   ├── MainLayout.jsx    # Layout principal da aplicação (Sidebar, Topbar)
-│       │   │   ├── ProductEditModal.jsx # Modal de edição de produtos (exemplo)
-│       │   │   ├── ProtectedRoute.jsx # HOC para proteger rotas autenticadas
-│       │   │   ├── Sidebar.jsx       # Componente da barra lateral de navegação
-│       │   │   └── Topbar.jsx        # Componente da barra superior
-│       │   ├── contexts/             # Provedores de Contexto React
-│       │   │   ├── AuthContext.jsx   # Gerencia o estado de autenticação global
-│       │   │   └── ProductTypeContext.jsx # Gerencia o estado global dos tipos de produto
-│       │   ├── pages/                # Componentes que representam as páginas da aplicação
-│       │   │   ├── ConfiguracoesPage.jsx, DashboardPage.jsx, EnriquecimentoPage.jsx, etc.
-│       │   │   └── LoginPage.jsx     # Página de login e registro
-│       │   ├── services/             # Módulos para interagir com a API do backend
-│       │   │   ├── apiClient.js      # Cliente Axios configurado (com interceptor JWT)
-│       │   │   ├── authService.js, productService.js, etc. # Funções específicas por recurso da API
-│       │   ├── utils/                # Utilitários gerais
-│       │   │   └── notifications.js  # Funções para exibir notificações (react-toastify)
-│       │   ├── App.css               # Estilos globais para o componente App
-│       │   ├── App.jsx               # Componente raiz da aplicação, define o roteamento principal
-│       │   ├── index.css             # Estilos globais da aplicação
-│       │   └── main.jsx              # Ponto de entrada da aplicação React (renderiza o App)
-│       ├── .eslintrc.cjs             # Configuração do ESLint (linting de código)
-│       ├── index.html                # Template HTML principal para a SPA
-│       ├── package-lock.json         # Gerado pelo npm, trava as versões das dependências
-│       ├── package.json              # Define as dependências e scripts do projeto Node.js
-│       └── vite.config.js            # Arquivo de configuração do Vite (build tool, dev server, proxy)
+├── 🖥️ Frontend/
+│   └── app/                # Raiz da aplicação React (Vite)
+│       ├── public/         # Arquivos estáticos
+│       ├── src/
+│       │   ├── components/ # Componentes React reutilizáveis
+│       │   ├── contexts/   # React Context API (estado global)
+│       │   ├── pages/      # Componentes de página
+│       │   ├── services/   # Lógica de chamada à API
+│       │   ├── utils/      # Utilitários
+│       │   ├── App.jsx     # Componente raiz e roteamento
+│       │   └── main.jsx    # Ponto de entrada React
+│       ├── vite.config.js  # Configuração do Vite (proxy, etc.)
+│       └── package.json    # Dependências e scripts Node.js
 │
-├── Prototipos/                       # Materiais de design, visão de futuro e documentação conceitual
-│   ├── Frontend/                     # Protótipos HTML antigos e novos
-│   ├── TDAI FUTURE Complement.pdf    # Documento complementar da visão de futuro
-│   └── TDAI FUTURE.pdf               # Documento principal da visão de futuro do TDAI
+├── 📜 Prototipos/           # Documentos de visão e design
 │
-├── .env                              # ARQUIVO LOCAL: Variáveis de ambiente (NÃO VERSIONAR)
-├── README.md                         # Este arquivo de documentação detalhada
-├── README.txt                        # Potencialmente um rascunho ou versão simplificada do README
-├── requirements.txt                  # ARQUIVO SUGERIDO: Dependências Python do Backend (para facilitar instalação)
-└── run_backend.py                    # Script utilitário para iniciar o servidor Uvicorn do backend
-7. 🌊 Fluxos de Trabalho Principais7.1. Fluxo de Registro e Login de UsuárioRegistro (Frontend):Usuário preenche formulário de registro (LoginPage.jsx).authService.register() é chamado, enviando dados para POST /api/v1/auth/register (Backend).Backend: crud.create_user() cria o novo usuário no banco com senha hasheada.Resposta de sucesso/erro é retornada.Login Local (Frontend):Usuário preenche formulário de login (LoginPage.jsx).AuthContext.login() é chamado, que usa authService.login() para enviar dados para POST /api/v1/auth/token (Backend).Backend: Verifica credenciais. Se válidas, create_access_token() (core/security.py) gera um JWT.Token JWT é retornado.Frontend: AuthContext armazena o token no localStorage e atualiza o estado de autenticação. Usuário é redirecionado para o dashboard.Login Social (OAuth - Ex: Google):Frontend: Usuário clica em "Login com Google" (LoginPage.jsx).Redireciona para o endpoint do backend: GET /api/v1/auth/google/login.Backend (routers/social_auth.py):Usa Authlib para gerar a URL de autorização do Google e redireciona o navegador do usuário para ela.Google: Usuário autentica e autoriza o TDAI. Google redireciona de volta para GET /api/v1/auth/google/callback (configurado no Google Cloud Console e no backend) com um código de autorização.Backend (Callback):Troca o código de autorização por um token de acesso do Google.Usa o token de acesso para obter as informações do perfil do usuário do Google.Verifica se o usuário já existe no TDAI pelo e-mail. Se não, cria um novo.Gera um token JWT do TDAI para este usuário.Frontend: O backend redireciona o usuário para uma rota no frontend (ex: /auth-callback?token=JWT_AQUI) ou retorna o token diretamente para ser processado pelo JavaScript que iniciou o fluxo. O token é armazenado pelo AuthContext.7.2. Fluxo Completo de Enriquecimento de Produto (de Upload à Geração IA)Upload do Arquivo (Frontend):Usuário seleciona um arquivo (.xlsx, .csv, .pdf) na ProdutosPage.jsx ou EnriquecimentoPage.jsx.productService.uploadFile() envia o arquivo para POST /api/v1/uploads/ (Backend).Processamento Inicial (Backend):routers/uploads.py: Recebe o arquivo.BackgroundTasks: Adiciona file_processing_service.process_uploaded_file() à fila de tarefas em background.Resposta imediata é enviada ao frontend (ex: "Arquivo recebido, processamento em andamento").file_processing_service:Lê os dados do arquivo (Pandas para Excel/CSV, pdfplumber para PDF).Para cada linha/produto identificado:crud.create_product() ou crud.get_or_create_product() adiciona/atualiza o produto no banco com os dados básicos (nome, SKU, EAN, atributos iniciais).Registra um log inicial no produto.Disparo do Enriquecimento Web (Automático ou Manual - Frontend):Após o processamento do arquivo, o usuário pode selecionar produtos e clicar em "Enriquecer via Web".productService.enrichProduct(productId) chama POST /api/v1/web-enrichment/{product_id}/enrich (Backend).Pipeline de Enriquecimento Web (Backend):routers/web_enrichment.py: Recebe o product_id.web_data_extractor_service.enrich_product_data():Busca o produto no banco.Gera query para Google Search (nome, EAN, marca).Chama Google Custom Search API.Para cada URL relevante:Usa Playwright para carregar a página.Usa extruct para metadados (JSON-LD, OpenGraph).Usa trafilatura para texto principal.Salva os dados brutos extraídos (ex: em um campo JSON no Product ou tabela separada).Atualiza o log do produto com o status do enriquecimento.Disparo da Geração IA (Frontend):Usuário seleciona um produto enriquecido e clica em "Gerar Conteúdo com IA".productService.generateContent(productId, type) chama POST /api/v1/generation/{product_id}/generate (Backend).Pipeline de Geração IA (Backend):routers/generation.py: Recebe product_id.limit_service.check_and_consume_credits(): Verifica e deduz créditos de IA do usuário.ia_generation_service.generate_content_for_product():Coleta todos os dados do produto (originais, da web).Constrói um prompt detalhado para o LLM (OpenAI/Gemini).Chama a API do LLM.Parseia a resposta (títulos, descrições).Salva o conteúdo gerado em ProductGeneratedContent associado ao produto.Atualiza o log do produto e registra em UsoIA.Visualização e Seleção (Frontend):ProdutosPage.jsx ou uma página de detalhes do produto busca e exibe os conteúdos gerados.Usuário pode revisar e selecionar qual título/descrição usar, que então é salvo como o conteúdo "ativo" do produto.8. 🛡️ Considerações de SegurançaSenhas: Hasheadas com bcrypt (via passlib). Nunca armazenadas em texto plano.JWT: Usado para autenticação stateless. SECRET_KEY forte é crucial. HTTPS é mandatório em produção para proteger os tokens em trânsito.OAuth 2.0: Implementado usando Authlib, seguindo os fluxos padrão para Google e Facebook. client_secrets devem ser protegidos.CORS (Cross-Origin Resource Sharing): Configurado no Backend/main.py para permitir requisições apenas do FRONTEND_URL definido no .env.Validação de Entrada: Pydantic (schemas.py) no backend valida todos os dados de entrada da API, prevenindo muitos tipos de ataques de injeção.Proteção contra XSS/CSRF:React por padrão escapa dados renderizados, ajudando a prevenir XSS.Para CSRF, como JWTs são usados e geralmente enviados via header Authorization (e não cookies automaticamente enviados pelo navegador para todas as requisições), o risco é menor, mas APIs que modificam estado (POST, PUT, DELETE) devem ser protegidas se houver sessões baseadas em cookies ou se o token JWT for armazenado em cookies. O setup atual com localStorage e header Authorization é uma boa prática.Dependências: Manter as dependências (Python e Node.js) atualizadas é vital para corrigir vulnerabilidades conhecidas.Playwright: Ao fazer scraping, cuidado para não sobrecarregar os sites alvo e respeitar seus robots.txt.9. 💡 Roadmap Estratégico e Visão de FuturoConforme delineado nos documentos Prototipos/TDAI FUTURE.pdf e TDAI FUTURE Complement.pdf, a visão de longo prazo para o TDAI é ambiciosa e transformadora:Fase 1: Fundação Sólida (Atual)Enriquecimento robusto e geração de IA de alta qualidade.Interface de usuário intuitiva para gerenciamento de produtos.Fase 2: Inteligência Aprimorada e Automação AvançadaAgentes de IA Autônomos (CrewAI/LangGraph): Implementar um sistema multi-agente onde diferentes IAs especializadas (Pesquisador, Scraper, Analista de Dados, Redator Criativo, Revisor SEO) colaboram para enriquecer produtos.Score de Qualidade de Conteúdo: Desenvolver um modelo para avaliar automaticamente a "saúde" do conteúdo de cada produto (completude, SEO, clareza, apelo visual) e fornecer um score e recomendações.Aprendizado Contínuo com Feedback: Permitir que usuários avaliem as gerações de IA e usem esse feedback para refinar os prompts e, potencialmente, fine-tuning de modelos menores.Templates de Prompt Dinâmicos: Permitir que usuários (especialmente admins ou planos avançados) customizem os prompts base para diferentes tipos de produtos ou objetivos de marketing.Fase 3: Ecossistema de Conteúdo e IntegraçõesOtimização Multi-Canal: Gerar automaticamente variações de títulos e descrições otimizadas para os requisitos específicos de diferentes marketplaces (Mercado Livre, Amazon, Google Shopping, etc.).Enriquecimento de Mídia Avançado:Análise de imagens de produtos (tags automáticas, detecção de atributos).Remoção de fundo de imagens.Geração de texto alternativo (alt-text) para imagens.Publicação Direta e Sincronização: Integrar-se com as principais plataformas de e-commerce (Shopify, WooCommerce, VTEX, etc.) e ERPs para permitir a publicação/atualização do conteúdo enriquecido com um clique e manter a sincronização.Analytics de Performance de Conteúdo: (Muito ambicioso) Rastrear como o conteúdo gerado pelo TDAI performa em termos de tráfego e conversão, e usar esses dados para refinar ainda mais as estratégias de geração.Fase 4: Personalização e Inteligência PreditivaPersonalização em Massa: Gerar descrições que se adaptam a diferentes segmentos de persona de cliente.Análise Preditiva de Tendências: Usar IA para analisar tendências de mercado e sugerir otimizações de catálogo ou novos produtos.10. 🤝 Como ContribuirContribuições para o TDAI são muito bem-vindas! Se você deseja ajudar a evoluir esta plataforma:Comunicação: Antes de iniciar um trabalho extenso, abra uma Issue no repositório para discutir sua ideia ou o bug que você encontrou.Fork & Branch:Faça um Fork do repositório oficial.Crie uma nova branch descritiva a partir da main (ou develop se existir) para sua feature ou correção: git checkout -b feature/nome-da-feature ou fix/descricao-do-bug.Desenvolvimento:Siga as convenções de código e estilo do projeto (ex: PEP 8 para Python, ESLint/Prettier para React).Escreva código claro, comentado e, se possível, modular.Testes:Adicione testes unitários e/ou de integração para suas novas funcionalidades ou correções.Certifique-se de que todos os testes existentes continuam passando.Documentação:Atualize este README.md ou outra documentação relevante se suas alterações impactarem a forma como o projeto é usado, configurado ou entendido.Comente seu código adequadamente.Commit & Push:Faça commits atômicos e com mensagens claras (ex: feat: Adiciona login com Facebook, fix: Corrige cálculo de créditos IA).Faça o push da sua branch para o seu fork: git push origin feature/nome-da-feature.Pull Request (PR):Abra um Pull Request do seu fork/branch para a branch main (ou develop) do repositório oficial.Forneça uma descrição clara das suas alterações no PR, referenciando a Issue original, se houver.Esteja aberto a feedback e discussões durante o processo de code review.11. 📝 Licença(Defina a licença do seu projeto aqui. Ex: MIT, Apache 2.0, GPL, etc.)Exemplo:
+├── .env                    # ⚠️ ARQUIVO LOCAL: Variáveis de ambiente (NÃO VERSIONAR)
+├── README.md               # ✨ Este arquivo de documentação
+├── requirements.txt        # (SUGERIDO) Dependências Python do Backend
+└── run_backend.py          # Script para iniciar backend
+
+7. 🌊 Fluxos de Trabalho Principais
+7.1. 👤 Fluxo de Registro e Login de Usuário
+(Detalhes mantidos da versão anterior, focando na clareza do fluxo)
+
+Registro (Frontend): Formulário (LoginPage.jsx) -> authService.register() -> POST /api/v1/auth/register (Backend).
+
+Login Local (Frontend): Formulário (LoginPage.jsx) -> AuthContext.login() -> authService.login() -> POST /api/v1/auth/token (Backend) -> JWT retornado e armazenado.
+
+Login Social (OAuth - Ex: Google): Botão -> GET /api/v1/auth/google/login (Backend) -> Redirecionamento Google -> Callback GET /api/v1/auth/google/callback (Backend) -> Troca código por token Google -> Obtém perfil -> Cria/Loga usuário TDAI -> Gera JWT TDAI.
+
+7.2. 🔄 Fluxo Completo de Enriquecimento de Produto (de Upload à Geração IA)
+(Detalhes mantidos da versão anterior, focando na clareza do fluxo)
+
+Upload (Frontend): Seleciona arquivo -> productService.uploadFile() -> POST /api/v1/uploads/.
+
+Processamento Inicial (Backend): routers/uploads.py -> BackgroundTasks com file_processing_service -> Leitura (Pandas/pdfplumber) -> Cria/Atualiza produtos via crud.
+
+Disparo Enriquecimento Web (Frontend): Seleciona produtos -> "Enriquecer" -> productService.enrichProduct() -> POST /api/v1/web-enrichment/{product_id}/enrich.
+
+Pipeline Enriquecimento Web (Backend): web_data_extractor_service -> Google Search -> Playwright/Extruct/Trafilatura -> Salva dados extraídos.
+
+Disparo Geração IA (Frontend): Seleciona produto -> "Gerar Conteúdo" -> productService.generateContent() -> POST /api/v1/generation/{product_id}/generate.
+
+Pipeline Geração IA (Backend): limit_service (créditos) -> ia_generation_service -> Constrói Prompt -> Chama LLM -> Salva conteúdo gerado.
+
+Visualização (Frontend): ProdutosPage.jsx exibe conteúdos -> Usuário seleciona.
+
+8. 🛡️ Considerações de Segurança
+🔒 Senhas: Hasheadas com bcrypt (passlib).
+
+🔑 JWT: Autenticação stateless. SECRET_KEY forte e HTTPS em produção são cruciais.
+
+🔗 OAuth 2.0: Authlib seguindo fluxos padrão. client_secrets protegidos.
+
+🌐 CORS: Configurado no Backend (main.py) para FRONTEND_URL.
+
+✅ Validação de Entrada: Pydantic (schemas.py) no backend.
+
+🛡️ XSS/CSRF: React escapa dados (XSS). JWT em header Authorization reduz risco CSRF.
+
+📦 Dependências: Manter atualizadas (Python & Node.js).
+
+🕷️ Playwright: Respeitar robots.txt e evitar sobrecarga em sites alvo.
+
+9. 💡 Roadmap Estratégico e Visão de Futuro
+A visão para o TDAI é ambiciosa, conforme detalhado nos documentos Prototipos/TDAI FUTURE.pdf:
+
+Fase 1: Fundação Sólida (Atual)
+
+Enriquecimento e geração IA de alta qualidade.
+
+Interface intuitiva.
+
+Fase 2: Inteligência Aprimorada e Automação Avançada
+
+🤖 Agentes de IA Autônomos (CrewAI/LangGraph): Sistema multi-agente para enriquecimento.
+
+💯 Score de Qualidade de Conteúdo: Avaliação automática da "saúde" do conteúdo.
+
+🗣️ Aprendizado Contínuo com Feedback: Refinamento de prompts e modelos.
+
+📝 Templates de Prompt Dinâmicos: Customização por usuários avançados.
+
+Fase 3: Ecossistema de Conteúdo e Integrações
+
+📢 Otimização Multi-Canal: Variações para diferentes marketplaces.
+
+🖼️ Enriquecimento de Mídia Avançado: Análise de imagens, remoção de fundo, alt-text.
+
+🔌 Publicação Direta e Sincronização: Integração com plataformas e-commerce/ERPs.
+
+Fase 4: Personalização e Inteligência Preditiva
+
+🎯 Personalização em Massa: Descrições adaptadas a personas.
+
+🔮 Análise Preditiva de Tendências: Sugestões de otimizações de catálogo.
+
+10. 🤝 Como Contribuir
+Contribuições são super bem-vindas! ✨
+
+🗣️ Discuta Primeiro: Abra uma Issue para discutir sua ideia ou bug.
+
+🍴 Fork & Branch: Faça um Fork e crie uma branch (feature/sua-feature ou fix/seu-bug).
+
+💻 Desenvolva: Siga as convenções (PEP 8, ESLint). Código claro e comentado.
+
+🧪 Teste: Adicione/atualize testes. Garanta que todos passem.
+
+📖 Documente: Atualize o README.md ou outra documentação se necessário.
+
+💾 Commit & Push: Commits atômicos (feat: ..., fix: ...). Push para seu fork.
+
+🚀 Pull Request (PR): Abra um PR para a branch main (ou develop) do oficial. Descreva suas alterações.
+
+11. 📝 Licença
+(Defina a licença do seu projeto aqui. Ex: MIT, Apache 2.0, GPL, etc.)
+
+Exemplo:
 Este projeto é licenciado sob a Licença MIT - veja o arquivo LICENSE.md para detalhes.
+
 Este README.md agora é um documento muito mais completo, pronto para guiar qualquer pessoa através do seu impressionante projeto TDAI!
