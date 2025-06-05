@@ -114,6 +114,17 @@ export const iniciarEnriquecimentoWebProduto = async (produtoId, termosBuscaOver
   }
 };
 
+export const batchDeleteProdutos = async (produtoIds) => {
+  try {
+    // O endpoint do backend é POST e espera a lista de IDs no corpo da requisição
+    const response = await apiClient.post('/produtos/batch-delete/', produtoIds);
+    return response.data;
+  } catch (error) {
+    console.error('Erro ao apagar produtos em lote:', error.response?.data || error.message);
+    throw error.response?.data || new Error('Falha ao apagar produtos em lote');
+  }
+};
+
 export default {
   getProdutos,
   getProdutoById,
@@ -123,4 +134,5 @@ export default {
   gerarTitulosProduto,
   gerarDescricaoProduto,
   iniciarEnriquecimentoWebProduto,
+  batchDeleteProdutos,
 };
