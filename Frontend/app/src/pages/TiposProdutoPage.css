@@ -1,32 +1,26 @@
 /* Frontend/app/src/pages/TiposProdutoPage.css */
 
-/* Importa as variáveis globais e estilos base do index.css */
-/* É uma boa prática ter um arquivo de variáveis ou utilities CSS globais */
-/* Se não estiverem acessíveis diretamente, você pode copiá-las para cá ou garantir que o index.css seja carregado antes */
-
 .tipos-produto-container {
   padding: 20px;
-  background-color: var(--main-bg); /* Usa a cor de fundo principal definida globalmente */
-  min-height: calc(100vh - 60px); /* Ajusta conforme altura do Topbar */
+  background-color: var(--main-bg);
+  min-height: calc(100vh - 60px);
 }
 
-/* Estilos para o cabeçalho da página (Gerenciar Tipos de Produto) */
 .tipos-produto-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
   margin-bottom: 20px;
   padding-bottom: 15px;
-  border-bottom: 1px solid var(--border-color); /* Divisor sutil */
+  border-bottom: 1px solid var(--border-color);
 }
 
 .tipos-produto-header h1 {
   font-size: 1.8rem;
   font-weight: 600;
-  color: var(--sidebar-bg); /* Cor de título principal, geralmente mais escura */
+  color: var(--sidebar-bg);
 }
 
-/* Estilos para o botão "+ Novo Tipo de Produto" */
 .tipos-produto-button {
   background-color: var(--primary);
   color: white;
@@ -45,175 +39,176 @@
   filter: brightness(90%);
 }
 
-/* Estilos para a tabela de Tipos de Produto */
-.tipos-produto-table {
-  width: 100%;
-  border-collapse: collapse;
-  margin-top: 20px;
-  background-color: var(--card-bg); /* Fundo do card da tabela */
-  border-radius: 18px; /* Borda arredondada do card, como nos outros cards */
-  box-shadow: var(--shadow-sm); /* Sombra do card */
-  overflow: hidden; /* Garante que o border-radius funcione na tabela */
+/* --- ESTILOS ATUALIZADOS E NOVOS PARA O LAYOUT DE DOIS PAINÉIS --- */
+
+.type-management-container {
+  display: flex;
+  gap: 1.5rem;
+  align-items: flex-start;
 }
 
-.tipos-produto-table th,
-.tipos-produto-table td {
-  padding: 12px 15px;
+.type-list-panel {
+  flex: 1;
+  min-width: 280px;
+  max-width: 400px; /* Aumentado um pouco para mais espaço */
+  background-color: var(--card-bg);
+  padding: 1.25rem;
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-sm);
+  height: fit-content; /* Para que não estique desnecessariamente */
+}
+
+.type-list-panel h4 {
+  margin-top: 0;
+  margin-bottom: 1rem;
+  font-size: 1.1rem;
+  color: #333;
+  padding-bottom: 0.75rem;
   border-bottom: 1px solid var(--border-color);
-  text-align: left;
-  font-size: 0.9rem;
-  color: #374151; /* Cor de texto padrão para células */
 }
 
-.tipos-produto-table th {
-  background-color: var(--sidebar-bg); /* Fundo do cabeçalho da tabela */
-  color: white;
-  font-weight: 600;
+.type-list-panel ul {
+  list-style-type: none;
+  padding: 0;
+  max-height: 65vh;
+  overflow-y: auto;
 }
 
-.tipos-produto-table tbody tr:hover {
-  background-color: #f3f4f6; /* Hover na linha da tabela */
-}
-
-.tipos-produto-actions-cell {
-  display: flex;
-  gap: 10px;
-}
-
-.tipos-produto-action-button {
-  padding: 6px 10px;
-  font-size: 0.85rem;
-  border-radius: var(--radius); /* Borda arredondada menor */
+.type-list-panel li {
+  padding: 0.8rem 1rem;
+  border-bottom: 1px solid var(--border-color);
   cursor: pointer;
-  border: 1px solid transparent;
-  transition: all 0.2s ease;
-}
-
-.tipos-produto-action-button.edit {
-  background-color: var(--info); /* Cor de informação */
-  color: white;
-}
-
-.tipos-produto-action-button.edit:hover {
-  filter: brightness(90%);
-}
-
-.tipos-produto-action-button.delete {
-  background-color: var(--danger); /* Cor de perigo */
-  color: white;
-}
-
-.tipos-produto-action-button.delete:hover {
-  filter: brightness(90%);
-}
-
-/* Estilos para o Modal */
-.tipos-produto-modal {
-  position: fixed;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  background-color: rgba(0, 0, 0, 0.5); /* Fundo semi-transparente */
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  z-index: 1050; /* Garante que o modal fique acima de outros elementos */
-}
-
-.tipos-produto-modal-content {
-  background-color: white;
-  padding: 25px;
-  border-radius: var(--radius); /* Borda arredondada do modal */
-  box-shadow: var(--shadow-md); /* Sombra do modal */
-  width: 90%;
-  max-width: 500px;
-}
-
-.tipos-produto-modal-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 20px;
-    padding-bottom: 15px;
-    border-bottom: 1px solid var(--border-color);
-}
-
-.tipos-produto-modal-header h2 {
-    margin: 0;
-    font-size: 1.5rem;
-    color: var(--sidebar-bg); /* Cor do título do modal */
-}
-
-.tipos-produto-modal-close-button {
-    background: none;
-    border: none;
-    font-size: 1.8rem;
-    font-weight: 300;
-    color: #6b7280;
-    cursor: pointer;
-    line-height: 1;
-}
-.tipos-produto-modal-close-button:hover {
-    color: #111827;
-}
-
-
-.tipos-produto-form-group {
-  margin-bottom: 15px;
-}
-
-.tipos-produto-form-group label {
-  display: block;
+  border-radius: 6px;
   margin-bottom: 5px;
-  font-weight: 500;
-  color: #374151;
-}
-
-.tipos-produto-form-group input {
-  width: 100%;
-  padding: 10px;
-  border: 1px solid var(--border-color);
-  border-radius: var(--radius);
-  box-sizing: border-box;
-  font-size: 0.95rem;
-}
-
-.tipos-produto-modal-actions {
-  margin-top: 20px;
   display: flex;
-  justify-content: flex-end;
-  gap: 10px;
+  justify-content: space-between;
+  align-items: center;
+  transition: background-color 0.2s, color 0.2s;
 }
 
-.tipos-produto-modal-button {
-  padding: 10px 15px;
-  border: none;
+.type-list-panel li:last-child {
+    border-bottom: none;
+}
+
+.type-list-panel li:hover {
+  background-color: #f0f4ff;
+}
+
+.type-list-panel li.selected {
+  background-color: var(--primary);
+  color: white;
+  font-weight: bold;
+}
+
+.type-list-panel li .usage-count {
+  font-size: 0.8em;
+  opacity: 0.8;
+  margin-left: 0.5rem;
+  font-weight: normal;
+}
+
+/* Ajuste para botões de ação na lista de tipos */
+.type-list-panel .btn-icon {
+    background: transparent;
+    border: none;
+    color: var(--text-color-light);
+    padding: 4px;
+}
+.type-list-panel li:hover .btn-icon {
+    color: var(--danger);
+}
+.type-list-panel li.selected .btn-icon {
+    color: white;
+}
+
+.type-detail-panel {
+  flex: 2.5; /* Painel de detalhes um pouco maior */
+  background-color: var(--card-bg);
+  padding: 1.5rem;
   border-radius: var(--radius);
-  cursor: pointer;
-  font-size: 0.95rem;
-  transition: all 0.2s ease;
+  box-shadow: var(--shadow-sm);
+  min-height: 400px;
 }
 
-.tipos-produto-modal-button.save {
-  background-color: var(--success);
+.panel-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1.5rem;
+  padding-bottom: 1rem;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.panel-header h5 {
+  margin: 0;
+  font-size: 1.2rem;
+  color: #333;
+}
+
+/* --- ESTILOS ADICIONADOS PARA A LISTA DE ATRIBUTOS --- */
+
+.attribute-template-card {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  padding: 1rem;
+  border: 1px solid #d1d5db;
+  margin-bottom: 0.75rem;
+  border-radius: var(--radius);
+  background: #f9fafb; /* Fundo levemente diferente para cada card */
+  transition: box-shadow 0.2s;
+}
+.attribute-template-card:hover {
+    box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+}
+.attribute-template-card .main-info {
+  flex-grow: 1;
+}
+.attribute-template-card .main-info strong {
+  font-size: 1.05em;
+  color: var(--sidebar-bg);
+  display: block;
+  margin-bottom: 0.25em;
+}
+.attribute-template-card .details {
+  font-size: 0.85em;
+  color: var(--text-color-light);
+  line-height: 1.4;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0 1rem; /* Espaçamento entre os itens de detalhe */
+}
+.attribute-template-card .details .detail-item {
+  margin-right: 10px;
+  display: inline-block;
+}
+.attribute-template-card .details .detail-item strong {
+  color: #555;
+}
+.attribute-template-card .attr-controls {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  align-items: flex-end;
+  flex-shrink: 0;
+  margin-left: 1rem;
+}
+.attribute-template-card .attr-actions {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.btn-secondary {
+  background-color: var(--text-color-light);
   color: white;
 }
-
-.tipos-produto-modal-button.save:hover {
-  filter: brightness(90%);
+.btn-small {
+    padding: 0.4rem 0.8rem;
+    font-size: 0.8rem;
 }
 
-.tipos-produto-modal-button.cancel {
-  background-color: var(--text-color-light); /* Cor cinza para cancelar */
-  color: white;
-}
 
-.tipos-produto-modal-button.cancel:hover {
-  filter: brightness(90%);
-}
-
-/* Estilos para mensagens de estado (loading, erro) */
+/* Estilos para mensagens de estado (loading, erro) e modal herdados de index.css ou App.css, mas podemos garantir aqui */
 .loading-message,
 .error-message {
   text-align: center;
@@ -227,4 +222,69 @@
   background-color: #fee2e2;
   border: 1px solid #fca5a5;
   border-radius: var(--radius);
+}
+
+/* Modal de criação de TIPO (existente, mas revisado) */
+.tipos-produto-modal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.5);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 1050;
+}
+.tipos-produto-modal-content {
+    background-color: white;
+    padding: 25px;
+    border-radius: var(--radius);
+    box-shadow: var(--shadow-md);
+    width: 90%;
+    max-width: 500px;
+}
+.tipos-produto-modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+    padding-bottom: 15px;
+    border-bottom: 1px solid var(--border-color);
+}
+.tipos-produto-modal-header h2 {
+    margin: 0;
+    font-size: 1.5rem;
+    color: var(--sidebar-bg);
+}
+.tipos-produto-modal-close-button {
+    background: none;
+    border: none;
+    font-size: 1.8rem;
+    font-weight: 300;
+    color: #6b7280;
+    cursor: pointer;
+    line-height: 1;
+}
+.tipos-produto-modal-actions {
+    margin-top: 20px;
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+}
+.tipos-produto-modal-button {
+    padding: 10px 15px;
+    border: none;
+    border-radius: var(--radius);
+    cursor: pointer;
+    font-size: 0.95rem;
+}
+.tipos-produto-modal-button.save {
+    background-color: var(--success);
+    color: white;
+}
+.tipos-produto-modal-button.cancel {
+    background-color: var(--text-color-light);
+    color: white;
 }
