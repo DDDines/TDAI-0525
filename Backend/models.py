@@ -169,8 +169,14 @@ class ProductType(Base):
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
 
     __table_args__ = (
-        UniqueConstraint('user_id', 'key_name', name='_user_key_name_uc'), # Um usuário não pode ter duas key_names iguais
-        UniqueConstraint('key_name', name='_global_key_name_uc', postgresql_where=Column('user_id IS NULL')), # key_name global deve ser única
+        UniqueConstraint('user_id', 'key_name', name='_user_key_name_uc'),
+        # CORREÇÃO: Usando Index para o constraint parcial
+        Index(
+            'ix_product_types_global_key_name_unique',
+            'key_name',
+            unique=True,
+            postgresql_where=(Column('user_id') == None)
+        ),
         Index('ix_product_types_user_id_key_name', 'user_id', 'key_name'),
     )
 

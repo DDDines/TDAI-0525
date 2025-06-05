@@ -36,7 +36,7 @@ def create_uso_ia_endpoint(
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Erro interno ao registrar uso de IA.")
 
 # Endpoint para listar os registros de uso de IA para o usuário logado
-@router.get("/", response_model=schemas.RegistroUsoIAPage) 
+@router.get("/", response_model=schemas.RegistroUsoIABase) 
 def read_usos_ia_usuario_logado(
     db: Session = Depends(database.get_db),
     current_user: models.User = Depends(auth_utils.get_current_active_user),

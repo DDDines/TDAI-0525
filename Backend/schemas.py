@@ -21,6 +21,9 @@ class TokenData(BaseModel):
     email: Optional[str] = None
     user_id: Optional[int] = None # Adicionado para identificar o usuário pelo ID
 
+class RefreshTokenRequest(BaseModel):
+    refresh_token: str
+
 class UserBase(BaseModel):
     email: EmailStr
     nome_completo: Optional[str] = None
@@ -169,6 +172,11 @@ class FornecedorResponse(FornecedorBase):
     class Config:
         from_attributes = True
 
+class FornecedorPage(BaseModel):
+    items: List[FornecedorResponse]
+    total_items: int
+    page: int
+    limit: int
 
 # Schemas para AttributeTemplate
 class AttributeTemplateBase(BaseModel):
@@ -341,7 +349,7 @@ class RegistroUsoIAResponse(RegistroUsoIABase):
     class Config:
         from_attributes = True
 
-class UsoIAPage(BaseModel):
+class RegistroUsoIAPage(BaseModel):
     items: List[RegistroUsoIAResponse]
     total_items: int
     page: int
@@ -382,6 +390,24 @@ class UserActivityResponse(BaseModel):
     class Config:
         from_attributes = True # Para construir a partir de objetos User com atributos adicionados
 
+# --- Schema para Mensagens Simples ---
+class Msg(BaseModel):
+    msg: str
+
+class FileProcessResponse(BaseModel):
+    message: str
+    total_products_in_file: Optional[int] = None
+    products_created: Optional[int] = None
+    products_updated: Optional[int] = None
+    products_failed: Optional[int] = None
+    errors: Optional[List[str]] = None
+# ADICIONE ESTA CLASSE AQUI
+class UsoIAPage(BaseModel):
+    items: List[RegistroUsoIAResponse]
+    total_items: int
+    page: int
+    limit: int
+
 
 # ----- NOVOS SCHEMAS PARA SUGESTÃO DE ATRIBUTOS GEMINI -----
 class SugestaoAtributoItem(BaseModel):
@@ -406,8 +432,41 @@ class ProdutoContextoParaSugestao(BaseModel): # Exemplo, não usado diretamente 
 
 class GeracaoSugestaoAtributoRequest(BaseModel): # Exemplo, não usado diretamente pelo endpoint atual
     produto_id: int
-# ----- FIM DOS NOVOS SCHEMAS -----
 
+class EmailSchema(BaseModel):
+    email: EmailStr
+
+class PasswordResetSchema(BaseModel):
+    new_password: str = Field(..., min_length=8)
+    token: str
+
+class TotalCounts(BaseModel):
+    total_usuarios: int
+    total_produtos: int
+    total_fornecedores: int
+    total_geracoes_ia_mes: int
+    total_enriquecimentos_mes: int
+
+class UsoIAPorPlano(BaseModel):
+    plano_id: Optional[int] = None
+    nome_plano: str
+    total_geracoes_ia_no_mes: int
+
+class UsoIAPorTipo(BaseModel):
+    tipo_acao: str # Enum.value
+    total_no_mes: int
+
+class UserActivity(BaseModel):
+    user_id: int
+    email: EmailStr
+    nome_completo: Optional[str] = None
+    created_at: datetime # Do modelo User
+    # Campos que serão preenchidos no router a partir de dados do CRUD
+    total_produtos: Optional[int] = None
+    total_geracoes_ia_mes_corrente: Optional[int] = None
+
+    class Config:
+        from_attributes = True
 
 # Schema para paginação genérica de produtos
 class ProdutoPage(BaseModel):

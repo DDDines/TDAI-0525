@@ -32,7 +32,7 @@ from routers import (
 
 try:
     print("INFO:     Tentando criar tabelas no banco de dados (models.Base.metadata.create_all)...")
-    models.Base.metadata.create_all(bind=engine)
+    #models.Base.metadata.create_all(bind=engine)
     print("INFO:     Criação/verificação de tabelas concluída.")
 except Exception as e:
     print(f"ERRO: Falha ao criar/verificar tabelas: {e}")
