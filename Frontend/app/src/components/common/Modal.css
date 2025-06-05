@@ -1,0 +1,274 @@
+/* Frontend/app/src/components/common/Modal.css */
+.modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: rgba(0, 0, 0, 0.7);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 1000;
+}
+
+.modal-content {
+    background: white;
+    padding: 20px;
+    border-radius: 8px;
+    width: 90%;
+    max-width: 800px; /* Limita a largura para melhor visualização */
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+    display: flex;
+    flex-direction: column;
+    max-height: 90vh; /* Limita a altura para modais grandes */
+    overflow-y: auto; /* Adiciona scroll se o conteúdo for muito alto */
+}
+
+.modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 1px solid #eee;
+    padding-bottom: 10px;
+    margin-bottom: 20px;
+}
+
+.modal-header h2 {
+    margin: 0;
+    font-size: 1.5em;
+    color: #333;
+}
+
+.modal-close-button {
+    background: none;
+    border: none;
+    font-size: 1.8em;
+    cursor: pointer;
+    color: #888;
+    padding: 0;
+    line-height: 1;
+}
+
+.modal-close-button:hover {
+    color: #333;
+}
+
+.modal-body {
+    flex-grow: 1;
+    overflow-y: auto; /* Permite scroll no corpo do modal */
+}
+
+/* Estilos para as abas */
+.tab-navigation {
+    display: flex;
+    margin-bottom: 20px;
+    border-bottom: 1px solid #eee;
+    overflow-x: auto; /* Permite rolagem em telas pequenas */
+    white-space: nowrap;
+}
+
+.tab-navigation button {
+    background-color: #f0f0f0;
+    border: 1px solid #ddd;
+    border-bottom: none;
+    padding: 10px 15px;
+    cursor: pointer;
+    font-size: 0.9em;
+    border-top-left-radius: 5px;
+    border-top-right-radius: 5px;
+    margin-right: 5px;
+    transition: background-color 0.2s ease, color 0.2s ease;
+}
+
+.tab-navigation button:hover:not(.active) {
+    background-color: #e0e0e0;
+}
+
+.tab-navigation button.active {
+    background-color: #007bff;
+    color: white;
+    border-color: #007bff;
+    font-weight: bold;
+}
+
+.form-section {
+    margin-bottom: 20px;
+    padding: 15px;
+    border: 1px solid #eee;
+    border-radius: 5px;
+    background-color: #fff;
+}
+
+.form-section label {
+    display: block;
+    margin-bottom: 10px;
+    font-weight: bold;
+    color: #555;
+}
+
+.form-section input[type="text"],
+.form-section input[type="number"],
+.form-section input[type="url"],
+.form-section input[type="date"],
+.form-section textarea,
+.form-section select {
+    width: calc(100% - 22px); /* Ajusta para padding e border */
+    padding: 10px;
+    margin-top: 5px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    box-sizing: border-box; /* Garante que padding e border não aumentem a largura total */
+    font-size: 1em;
+}
+
+.form-section textarea {
+    resize: vertical;
+    min-height: 60px;
+}
+
+.form-section input[type="checkbox"] {
+    margin-right: 10px;
+}
+
+.form-section button {
+    background-color: #28a745; /* Verde para botões de ação */
+    color: white;
+    padding: 10px 15px;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    font-size: 1em;
+    margin-top: 10px;
+    margin-right: 10px;
+    transition: background-color 0.2s ease;
+}
+
+.form-section button:hover {
+    background-color: #218838;
+}
+
+.form-section button:disabled {
+    background-color: #cccccc;
+    cursor: not-allowed;
+}
+
+.modal-actions {
+    display: flex;
+    justify-content: flex-end;
+    padding-top: 20px;
+    border-top: 1px solid #eee;
+    margin-top: 20px;
+}
+
+.modal-actions button {
+    padding: 10px 20px;
+    border-radius: 5px;
+    cursor: pointer;
+    font-size: 1em;
+    margin-left: 10px;
+}
+
+.modal-actions button[type="submit"] {
+    background-color: #007bff;
+    color: white;
+    border: none;
+}
+
+.modal-actions button[type="submit"]:hover {
+    background-color: #0056b3;
+}
+
+.modal-actions button[type="button"] { /* Cancelar */
+    background-color: #6c757d;
+    color: white;
+    border: none;
+}
+
+.modal-actions button[type="button"]:hover {
+    background-color: #5a6268;
+}
+
+.error-message {
+    color: red;
+    margin-top: 10px;
+    text-align: center;
+}
+
+.warning-text {
+    color: orange;
+    font-size: 0.9em;
+    margin-top: 5px;
+}
+
+.image-previews {
+    display: flex;
+    flex-wrap: wrap;
+    margin-top: 10px;
+}
+
+.image-previews img {
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    padding: 5px;
+    margin: 5px;
+    max-width: 120px;
+    max-height: 120px;
+    object-fit: contain;
+}
+
+/* Estilos para a seção de sugestões IA */
+.ia-suggestions-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+    gap: 15px;
+    margin-top: 15px;
+}
+
+.ia-suggestion-item {
+    border: 1px solid #e0e0e0;
+    padding: 12px;
+    border-radius: 8px;
+    background-color: #fefefe;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+}
+
+.ia-suggestion-item label {
+    display: flex;
+    align-items: flex-start;
+    cursor: pointer;
+    font-weight: normal; /* Override default label bold */
+}
+
+.ia-suggestion-item input[type="checkbox"] {
+    margin-right: 10px;
+    transform: scale(1.2); /* Aumenta o tamanho do checkbox */
+    flex-shrink: 0; /* Evita que o checkbox encolha */
+}
+
+.ia-suggestion-item strong {
+    color: #0056b3; /* Cor para a chave do atributo */
+    margin-right: 5px;
+}
+
+/* Estilo para o log de processamento */
+.log-container {
+    max-height: 300px;
+    overflow-y: auto;
+    border: 1px solid #e0e0e0;
+    padding: 10px;
+    background-color: #f8f8f8;
+    font-family: monospace;
+    font-size: 0.85em;
+    color: #444;
+    border-radius: 5px;
+}
+
+.log-container p {
+    margin: 0 0 5px 0;
+    line-height: 1.4;
+}
+
+.log-container p:last-child {
+    margin-bottom: 0;
+}

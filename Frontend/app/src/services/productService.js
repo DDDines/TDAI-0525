@@ -1,29 +1,10 @@
 // Frontend/app/src/services/productService.js
-import axios from 'axios';
-
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000/api/v1';
-
-const apiClient = axios.create({
-  baseURL: API_BASE_URL,
-  headers: {
-    'Content-Type': 'application/json',
-  }
-});
-
-apiClient.interceptors.request.use(config => {
-  const token = localStorage.getItem('accessToken');
-  if (token) {
-    config.headers.Authorization = `Bearer ${token}`;
-  }
-  return config;
-}, error => {
-  return Promise.reject(error);
-});
+// Importa a instância centralizada do Axios do apiClient.js
+import apiClient from './apiClient';
 
 export const getProdutos = async (params = {}) => {
   try {
-    // ADICIONADA BARRA FINAL AQUI
-    const response = await apiClient.get('/produtos/', { params });
+    const response = await apiClient.get('/produtos', { params }); // Endpoint sem barra final
     console.log('API Response in productService (getProdutos):', response.data);
     return response.data;
   } catch (error) {
@@ -34,8 +15,7 @@ export const getProdutos = async (params = {}) => {
 
 export const getProdutoById = async (produtoId) => {
   try {
-    // ADICIONADA BARRA FINAL AQUI
-    const response = await apiClient.get(`/produtos/${produtoId}/`);
+    const response = await apiClient.get(`/produtos/${produtoId}`); // Endpoint sem barra final
     console.log('API Response in productService (getProdutoById):', response.data);
     return response.data;
   } catch (error) {
@@ -46,8 +26,7 @@ export const getProdutoById = async (produtoId) => {
 
 export const createProduto = async (produtoData) => {
   try {
-    // ADICIONADA BARRA FINAL AQUI
-    const response = await apiClient.post('/produtos/', produtoData);
+    const response = await apiClient.post('/produtos', produtoData); // Endpoint sem barra final
     return response.data;
   } catch (error) {
     console.error('Error creating produto:', error.response?.data || error.message);
@@ -57,8 +36,7 @@ export const createProduto = async (produtoData) => {
 
 export const updateProduto = async (produtoId, produtoUpdateData) => {
   try {
-    // ADICIONADA BARRA FINAL AQUI
-    const response = await apiClient.put(`/produtos/${produtoId}/`, produtoUpdateData);
+    const response = await apiClient.put(`/produtos/${produtoId}`, produtoUpdateData); // Endpoint sem barra final
     return response.data;
   } catch (error) {
     console.error(`Error updating produto ${produtoId}:`, error.response?.data || error.message);
@@ -68,8 +46,7 @@ export const updateProduto = async (produtoId, produtoUpdateData) => {
 
 export const deleteProduto = async (produtoId) => {
   try {
-    // ADICIONADA BARRA FINAL AQUI
-    const response = await apiClient.delete(`/produtos/${produtoId}/`);
+    const response = await apiClient.delete(`/produtos/${produtoId}`); // Endpoint sem barra final
     return response.data;
   } catch (error) {
     console.error(`Error deleting produto ${produtoId}:`, error.response?.data || error.message);
@@ -77,36 +54,14 @@ export const deleteProduto = async (produtoId) => {
   }
 };
 
-export const gerarTitulosProduto = async (produtoId) => {
-  try {
-    // Mantendo consistência com a barra final se o router de geração também a usar
-    // Verifique o prefixo do router 'generation.py'. Se for /geracao, então:
-    const response = await apiClient.post(`/geracao/titulos/openai/${produtoId}/`); // Assumindo barra final
-    return response.data;
-  } catch (error) {
-    console.error(`Error generating titles for produto ${produtoId}:`, error.response?.data || error.message);
-    throw error.response?.data || new Error('Failed to generate titles');
-  }
-};
-
-export const gerarDescricaoProduto = async (produtoId) => {
-  try {
-    const response = await apiClient.post(`/geracao/descricao/openai/${produtoId}/`); // Assumindo barra final
-    return response.data;
-  } catch (error) {
-    console.error(`Error generating description for produto ${produtoId}:`, error.response?.data || error.message);
-    throw error.response?.data || new Error('Failed to generate description');
-  }
-};
-
+// Nova função para iniciar o enriquecimento web (anteriormente enrichProductWeb)
 export const iniciarEnriquecimentoWebProduto = async (produtoId, termosBuscaOverride = null) => {
   try {
-    let endpoint = `/enriquecimento-web/produto/${produtoId}/`;
-    if (termosBuscaOverride) {
-      endpoint += `?termos_busca_override=${encodeURIComponent(termosBuscaOverride)}`;
-    }
-    // O endpoint é POST e espera uma resposta 202 Accepted com uma mensagem.
-    const response = await apiClient.post(endpoint);
+    // Endpoint corrigido: /enriquecimento-web/produto/{produto_id}
+    let endpoint = `/enriquecimento-web/produto/${produtoId}`; 
+    const params = termosBuscaOverride ? { termos_busca_override: termosBuscaOverride } : {};
+    // POST request com payload null e parâmetros na query string
+    const response = await apiClient.post(endpoint, null, { params });
     return response.data; // Geralmente { "message": "Processo ... iniciado..." }
   } catch (error) {
     console.error(`Error starting web enrichment for produto ${produtoId}:`, error.response?.data || error.message);
@@ -114,13 +69,40 @@ export const iniciarEnriquecimentoWebProduto = async (produtoId, termosBuscaOver
   }
 };
 
-export default {
-  getProdutos,
-  getProdutoById,
-  createProduto,
-  updateProduto,
-  deleteProduto,
-  gerarTitulosProduto,
-  gerarDescricaoProduto,
-  iniciarEnriquecimentoWebProduto,
+// Função para gerar títulos (anteriormente generateProductTitles)
+export const gerarTitulosProduto = async (produtoId, config = {}) => {
+  try {
+    // Endpoint corrigido: /geracao-ia/titulo/{produto_id}
+    const response = await apiClient.post(`/geracao-ia/titulo/${produtoId}`, config); 
+    return response.data;
+  } catch (error) {
+    console.error(`Error generating titles for produto ${produtoId}:`, error.response?.data || error.message);
+    throw error.response?.data || new Error('Failed to generate titles');
+  }
 };
+
+// Função para gerar descrição (anteriormente generateProductDescription)
+export const gerarDescricaoProduto = async (produtoId, config = {}) => {
+  try {
+    // Endpoint corrigido: /geracao-ia/descricao/{produto_id}
+    const response = await apiClient.post(`/geracao-ia/descricao/${produtoId}`, config);
+    return response.data;
+  } catch (error) {
+    console.error(`Error generating description for produto ${produtoId}:`, error.response?.data || error.message);
+    throw error.response?.data || new Error('Failed to generate description');
+  }
+};
+
+// Novo: Função para deleção em lote (exemplo, se o backend tiver este endpoint)
+export const batchDeleteProdutos = async (produtoIds) => {
+  try {
+    // Supondo que o backend espera um corpo JSON com uma lista de IDs
+    const response = await apiClient.post('/produtos/batch-delete', { produto_ids: produtoIds });
+    return response.data;
+  } catch (error) {
+    console.error('Error batch deleting produtos:', error.response?.data || error.message);
+    throw error.response?.data || new Error('Failed to batch delete products');
+  }
+};
+
+// REMOVIDO: Não há default export. Todas as funções são exportadas como named exports acima.

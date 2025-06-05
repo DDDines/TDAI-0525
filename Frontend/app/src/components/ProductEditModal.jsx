@@ -1,313 +1,674 @@
 // Frontend/app/src/components/ProductEditModal.jsx
-import React, { useState, useEffect } from 'react';
-import { showSuccessToast, showErrorToast, showInfoToast } from '../utils/notifications';
-import productService from '../services/productService';
+import React, { useState, useEffect, useCallback } from 'react';
+import Modal from './common/Modal'; // Supondo que você tem um componente Modal
+// ALTERAÇÃO: Importar as funções de toast específicas
+import { showSuccessToast, showErrorToast, showInfoToast, showWarningToast } from '../utils/notifications'; 
+import * as productService from '../services/productService'; 
+import * as fornecedorService from '../services/fornecedorService'; 
+import * as productTypeService from '../services/productTypeService'; 
+import AttributeField from './produtos/shared/AttributeField';
+import { useProductTypes } from '../contexts/ProductTypeContext'; 
 
-// Nomes das abas
-const TAB_INFO_PRINCIPAIS = 'INFO_PRINCIPAIS';
-const TAB_CONTEUDO_IA = 'CONTEUDO_IA';
-const TAB_DADOS_WEB = 'DADOS_WEB';
-const TAB_LOG_ENRIQUECIMENTO = 'LOG_ENRIQUECIMENTO';
+const ProductEditModal = ({ isOpen, onClose, product, onProductUpdated }) => {
+    const isNewProduct = !product?.id;
 
-// Estilos
-const tabStyles = {
-  tabContainer: { display: 'flex', borderBottom: '1px solid #ccc', marginBottom: '1rem' },
-  tabButton: { padding: '10px 15px', cursor: 'pointer', border: 'none', backgroundColor: 'transparent', borderBottom: '3px solid transparent', marginRight: '5px', fontSize: '0.95rem' },
-  activeTabButton: { borderBottom: '3px solid var(--primary)', fontWeight: 'bold', color: 'var(--primary)' },
-  tabContent: { padding: '1rem 0' },
-  formGroup: { marginBottom: '1rem' },
-  label: { display: 'block', marginBottom: '0.3rem', fontWeight: '500', color: '#333' },
-  input: { width: '100%', padding: '0.6rem 0.75rem', border: '1px solid #ccc', borderRadius: 'var(--radius)', fontSize: '1rem', boxSizing: 'border-box' },
-  textarea: { width: '100%', minHeight: '150px', padding: '0.6rem 0.75rem', border: '1px solid #ccc', borderRadius: 'var(--radius)', fontSize: '1rem', boxSizing: 'border-box', resize: 'vertical' },
-  button: { padding: '0.7rem 1.2rem', marginTop: '1rem', backgroundColor: 'var(--success)', color: 'white', border: 'none', borderRadius: 'var(--radius)', cursor: 'pointer', fontSize: '1rem' },
-  smallButton: { padding: '0.3rem 0.6rem', fontSize: '0.8rem', marginLeft: '10px', backgroundColor: 'var(--danger)', },
-  addTitleButton: { padding: '0.5rem 1rem', fontSize: '0.9rem', backgroundColor: 'var(--primary)', marginTop: '0.5rem', marginBottom: '1rem' },
-  titleInputGroup: { display: 'flex', alignItems: 'center', marginBottom: '0.5rem' },
-  regenerateButton: { backgroundColor: 'var(--info)', marginLeft: '10px' },
-  dataViewerPre: { maxHeight: '300px', overflowY: 'auto', background: '#f4f4f4', padding: '10px', borderRadius: '4px', whiteSpace: 'pre-wrap', wordBreak: 'break-all', fontSize: '0.9em' },
-  logList: { maxHeight: '300px', overflowY: 'auto', background: '#f4f4f4', padding: '10px', borderRadius: '4px', listStyleType: 'none', fontSize: '0.9em' },
-  logListItem: { marginBottom: '5px', paddingBottom: '5px', borderBottom: '1px dashed #ddd', whiteSpace: 'pre-wrap', wordBreak: 'break-all' }
-};
+    const [formData, setFormData] = useState({
+        nome_base: product?.nome_base || '',
+        nome_chat_api: product?.nome_chat_api || '',
+        descricao_original: product?.descricao_original || '',
+        descricao_curta_orig: product?.descricao_curta_orig || '',
+        descricao_principal_gerada: product?.descricao_principal_gerada || '',
+        descricao_curta_gerada: product?.descricao_curta_gerada || '',
+        sku: product?.sku || '',
+        ean: product?.ean || '',
+        ncm: product?.ncm || '',
+        marca: product?.marca || '',
+        modelo: product?.modelo || '',
+        categoria_original: product?.categoria_original || '',
+        categoria_mapeada: product?.categoria_mapeada || '',
+        preco_custo: product?.preco_custo || '',
+        preco_venda: product?.preco_venda || '',
+        preco_promocional: product?.preco_promocional || '',
+        estoque_disponivel: product?.estoque_disponivel || '',
+        peso_kg: product?.peso_kg || '',
+        altura_cm: product?.altura_cm || '',
+        largura_cm: product?.largura_cm || '',
+        profundidade_cm: product?.profundidade_cm || '',
+        imagem_principal_url: product?.imagem_principal_url || '',
+        imagens_secundarias_urls: product?.imagens_secundarias_urls || [],
+        fornecedor_id: product?.fornecedor_id || '',
+        product_type_id: product?.product_type_id || '',
+        dynamic_attributes: product?.dynamic_attributes || {},
+        dados_brutos: product?.dados_brutos || {},
+        titulos_sugeridos: product?.titulos_sugeridos || [],
+        ativo_marketplace: product?.ativo_marketplace || false,
+        data_publicacao_marketplace: product?.data_publicacao_marketplace || null,
+        log_enriquecimento_web: product?.log_enriquecimento_web || { historico_mensagens: [] },
+        status_enriquecimento_web: product?.status_enriquecimento_web || null,
+        status_titulo_ia: product?.status_titulo_ia || null,
+        status_descricao_ia: product?.status_descricao_ia || null,
+    });
 
-// Função auxiliar para renderizar dados web de forma mais amigável
-const renderWebDataItem = (key, value) => {
-  let displayValue = value;
-  if (Array.isArray(value)) {
-    displayValue = (
-      <ul style={{ margin: 0, paddingLeft: '20px' }}>
-        {value.map((item, index) => <li key={index}>{String(item)}</li>)}
-      </ul>
-    );
-  } else if (typeof value === 'object' && value !== null) {
-    displayValue = <pre style={{...tabStyles.dataViewerPre, maxHeight: '150px', fontSize: '0.85em'}}>{JSON.stringify(value, null, 2)}</pre>;
-  } else {
-    displayValue = String(value);
-  }
+    const [activeTab, setActiveTab] = useState('info'); 
+    const [isLoading, setIsLoading] = useState(false);
+    const [isGeneratingIA, setIsGeneratingIA] = useState(false); 
+    const [isEnrichingWeb, setIsEnrichingWeb] = useState(false); 
+    const [error, setError] = useState(null);
+    const [fornecedores, setFornecedores] = useState([]);
+    const { productTypes } = useProductTypes(); 
 
-  return (
-    <div key={key} style={{ marginBottom: '0.75rem' }}>
-      <strong style={{ color: 'var(--sidebar-bg)' }}>{key.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}:</strong>
-      <div style={{ paddingLeft: '10px', marginTop: '0.25rem' }}>{displayValue}</div>
-    </div>
-  );
-};
+    const [iaAttributeSuggestions, setIaAttributeSuggestions] = useState({});
+    const [selectedIaSuggestions, setSelectedIaSuggestions] = useState({});
 
+    useEffect(() => {
+        const fetchDependencies = async () => {
+            try {
+                const fetchedFornecedores = await fornecedorService.getFornecedores(1, 100); 
+                setFornecedores(fetchedFornecedores.items);
+            } catch (err) {
+                console.error("Erro ao carregar fornecedores:", err);
+                showErrorToast("Erro ao carregar fornecedores."); // ALTERAÇÃO
+            }
+        };
+        fetchDependencies();
+    }, []);
 
-function ProductEditModal({ isOpen, onClose, productData, onSave, isLoading: propIsLoading }) {
-  const [activeTab, setActiveTab] = useState(TAB_INFO_PRINCIPAIS);
-  const [formData, setFormData] = useState({
-    nome_base: '', marca: '', categoria_original: '', sku_original: '',
-    titulos_sugeridos: [], 
-    descricao_principal_gerada: ''
-  });
-  const [isSaving, setIsSaving] = useState(false);
-  const [isGenerating, setIsGenerating] = useState(false); 
+    useEffect(() => {
+        if (product) {
+            setFormData({
+                nome_base: product.nome_base || '',
+                nome_chat_api: product.nome_chat_api || '',
+                descricao_original: product.descricao_original || '',
+                descricao_curta_orig: product.descricao_curta_orig || '',
+                descricao_principal_gerada: product.descricao_principal_gerada || '',
+                descricao_curta_gerada: product.descricao_curta_gerada || '',
+                sku: product.sku || '',
+                ean: product.ean || '',
+                ncm: product.ncm || '',
+                marca: product.marca || '',
+                modelo: product.modelo || '',
+                categoria_original: product.categoria_original || '',
+                categoria_mapeada: product.categoria_mapeada || '',
+                preco_custo: product.preco_custo || '',
+                preco_venda: product.preco_venda || '',
+                preco_promocional: product.preco_promocional || '',
+                estoque_disponivel: product.estoque_disponivel || '',
+                peso_kg: product.peso_kg || '',
+                altura_cm: product.altura_cm || '',
+                largura_cm: product.largura_cm || '',
+                profundidade_cm: product.profundidade_cm || '',
+                imagem_principal_url: product.imagem_principal_url || '',
+                imagens_secundarias_urls: product.imagens_secundarias_urls || [],
+                fornecedor_id: product.fornecedor_id || '',
+                product_type_id: product.product_type_id || '',
+                dynamic_attributes: product.dynamic_attributes || {},
+                dados_brutos: product.dados_brutos || {},
+                titulos_sugeridos: product.titulos_sugeridos || [],
+                ativo_marketplace: product.ativo_marketplace || false,
+                data_publicacao_marketplace: product.data_publicacao_marketplace || null,
+                log_enriquecimento_web: product.log_enriquecimento_web || { historico_mensagens: [] },
+                status_enriquecimento_web: product.status_enriquecimento_web || null,
+                status_titulo_ia: product.status_titulo_ia || null,
+                status_descricao_ia: product.status_descricao_ia || null,
+            });
+            extractIaSuggestions(product.dados_brutos);
+        } else {
+            setFormData({
+                nome_base: '', nome_chat_api: '', descricao_original: '', descricao_curta_orig: '',
+                descricao_principal_gerada: '', descricao_curta_gerada: '', sku: '', ean: '', ncm: '',
+                marca: '', modelo: '', categoria_original: '', categoria_mapeada: '',
+                preco_custo: '', preco_venda: '', preco_promocional: '', estoque_disponivel: '',
+                peso_kg: '', altura_cm: '', largura_cm: '', profundidade_cm: '',
+                imagem_principal_url: '', imagens_secundarias_urls: [],
+                fornecedor_id: '', product_type_id: '', dynamic_attributes: {}, dados_brutos: {},
+                titulos_sugeridos: [], ativo_marketplace: false, data_publicacao_marketplace: null,
+                log_enriquecimento_web: { historico_mensagens: [] },
+                status_enriquecimento_web: null, status_titulo_ia: null, status_descricao_ia: null,
+            });
+            setIaAttributeSuggestions({});
+            setSelectedIaSuggestions({});
+            setActiveTab('info');
+        }
+    }, [product]);
 
-  useEffect(() => {
-    if (isOpen && productData) {
-      setFormData({
-        nome_base: productData.nome_base || '',
-        marca: productData.marca || '',
-        categoria_original: productData.categoria_original || '',
-        sku_original: productData.dados_brutos?.sku_original || productData.dados_brutos?.codigo_original || '',
-        titulos_sugeridos: Array.isArray(productData.titulos_sugeridos) ? [...productData.titulos_sugeridos] : [],
-        descricao_principal_gerada: productData.descricao_principal_gerada || '',
-      });
-      // Não resetar a aba ativa aqui, a menos que o modal seja fechado e reaberto
-    } else if (!isOpen) {
-      setFormData({
-        nome_base: '', marca: '', categoria_original: '', sku_original: '',
-        titulos_sugeridos: [], descricao_principal_gerada: ''
-      });
-      setActiveTab(TAB_INFO_PRINCIPAIS); // Reseta a aba ao fechar
-    }
-  }, [productData, isOpen]);
+    const extractIaSuggestions = useCallback((dadosBrutos) => {
+        const extracted = {};
+        if (dadosBrutos) {
+            if (dadosBrutos.especificacoes_tecnicas_dict && typeof dadosBrutos.especificacoes_tecnicas_dict === 'object') {
+                for (const key in dadosBrutos.especificacoes_tecnicas_dict) {
+                    if (Object.prototype.hasOwnProperty.call(dadosBrutos.especificacoes_tecnicas_dict, key)) {
+                        extracted[key] = dadosBrutos.especificacoes_tecnicas_dict[key];
+                    }
+                }
+            }
+        }
+        setIaAttributeSuggestions(extracted);
+        const initialSelections = {};
+        for (const key in extracted) {
+            initialSelections[key] = false;
+        }
+        setSelectedIaSuggestions(initialSelections);
+    }, []);
 
-  const handleTabChange = (tabName) => {
-    setActiveTab(tabName);
-  };
-
-  const handleChange = (e) => {
-    const { name, value } = e.target;
-    setFormData(prev => ({ ...prev, [name]: value }));
-  };
-
-  const handleTituloChange = (index, value) => {
-    const novosTitulos = [...formData.titulos_sugeridos];
-    novosTitulos[index] = value;
-    setFormData(prev => ({ ...prev, titulos_sugeridos: novosTitulos }));
-  };
-
-  const handleAddTitulo = () => {
-    setFormData(prev => ({ ...prev, titulos_sugeridos: [...prev.titulos_sugeridos, ''] }));
-  };
-
-  const handleRemoveTitulo = (index) => {
-    const novosTitulos = formData.titulos_sugeridos.filter((_, i) => i !== index);
-    setFormData(prev => ({ ...prev, titulos_sugeridos: novosTitulos }));
-  };
-
-  const handleSaveInfoPrincipais = async () => {
-    if (!productData || !productData.id) { showErrorToast("ID do produto não encontrado."); return; }
-    if (!formData.nome_base.trim()) { showErrorToast("Nome base é obrigatório."); return; }
-    setIsSaving(true);
-    const updatePayload = {
-        nome_base: formData.nome_base,
-        marca: formData.marca || null,
-        categoria_original: formData.categoria_original || null,
-        dados_brutos: {
-        ...(productData.dados_brutos || {}),
-        sku_original: formData.sku_original.trim() ? formData.sku_original.trim() : undefined,
-        },
+    const handleChange = (e) => {
+        const { name, value, type, checked } = e.target;
+        if (name === 'imagens_secundarias_urls') {
+            const urls = value.split(',').map(url => url.trim()).filter(url => url);
+            setFormData(prev => ({ ...prev, [name]: urls }));
+        } else if (type === 'checkbox') {
+            setFormData(prev => ({ ...prev, [name]: checked }));
+        } else {
+            setFormData(prev => ({ ...prev, [name]: value }));
+        }
     };
-    if (updatePayload.dados_brutos.sku_original === undefined) delete updatePayload.dados_brutos.sku_original;
-    try { await onSave(productData.id, updatePayload); } 
-    catch (error) { console.error("Falha ao salvar informações principais (do modal):", error); } 
-    finally { setIsSaving(false); }
-  };
 
-  const handleSaveConteudoIA = async () => {
-    if (!productData || !productData.id) { showErrorToast("ID do produto não encontrado."); return; }
-    setIsSaving(true);
-    const updatePayload = {
-      titulos_sugeridos: formData.titulos_sugeridos.map(t => t.trim()).filter(t => t),
-      descricao_principal_gerada: formData.descricao_principal_gerada.trim() ? formData.descricao_principal_gerada.trim() : null,
+    const handleDynamicAttributeChange = (key, value) => {
+        setFormData(prev => ({
+            ...prev,
+            dynamic_attributes: {
+                ...prev.dynamic_attributes,
+                [key]: value,
+            },
+        }));
     };
-    try { await onSave(productData.id, updatePayload); } 
-    catch (error) { console.error("Falha ao salvar conteúdo IA (do modal):", error); } 
-    finally { setIsSaving(false); }
-  };
-  
-  const handleRegenerateContent = async (type) => {
-    if (!productData || !productData.id) {
-      showErrorToast(`ID do produto não disponível para regenerar ${type}.`);
-      return;
-    }
-    setIsGenerating(true);
-    showInfoToast(`Solicitando nova geração de ${type} para "${productData.nome_base}"...`);
-    try {
-      if (type === 'títulos') {
-        await productService.gerarTitulosProduto(productData.id);
-      } else if (type === 'descrição') {
-        await productService.gerarDescricaoProduto(productData.id);
-      }
-      showSuccessToast(`Solicitação de regeneração de ${type} enviada! Os novos dados e o status serão atualizados em breve.`);
-      // Opcional: Fechar o modal ou desabilitar mais ações até que productData seja atualizado pela ProdutosPage
-      // onClose(); // Poderia fechar para forçar o usuário a ver a tabela atualizada
-    } catch (error) {
-        const errorMsg = error?.detail || error?.message || `Falha ao solicitar regeneração de ${type}.`;
-        showErrorToast(errorMsg);
-    } finally {
-      setIsGenerating(false);
-    }
-  };
 
-  const renderTabContent = () => {
-    if (!productData) return <p>Nenhum produto carregado.</p>;
+    const addDynamicAttribute = () => {
+        const newKey = prompt("Digite a chave do novo atributo (ex: 'cor', 'voltagem'):");
+        if (newKey && !formData.dynamic_attributes.hasOwnProperty(newKey)) {
+            setFormData(prev => ({
+                ...prev,
+                dynamic_attributes: {
+                    [newKey]: '', 
+                    ...prev.dynamic_attributes, 
+                },
+            }));
+        } else if (newKey) {
+            showWarningToast("Atributo com esta chave já existe."); // ALTERAÇÃO
+        }
+    };
 
-    // Chaves que esperamos do enriquecimento web e que queremos destacar
-    const chavesDadosWebDestacadas = [
-        'nome_sugerido_seo', 'descricao_detalhada_seo', 
-        'lista_caracteristicas_beneficios_bullets', 'palavras_chave_seo_relevantes_lista',
-        'especificacoes_tecnicas_dict',
-        // Adicionar outras chaves que vêm de web_extractor._normalizar_dados_de_metadados
-        // ou de extrair_dados_produto_com_llm que não são os campos principais do produto
-        'nome', 'descricao_curta', 'imagem_url', 'sku', 'preco', 'moeda_preco', 'disponibilidade'
-    ];
+    const handleIaSuggestionToggle = (key) => {
+        setSelectedIaSuggestions(prev => ({
+            ...prev,
+            [key]: !prev[key],
+        }));
+    };
 
-    switch (activeTab) {
-      case TAB_INFO_PRINCIPAIS:
-        return (
-          <div>
-            <div style={tabStyles.formGroup}>
-              <label htmlFor="modal-nome_base" style={tabStyles.label}>Nome Base*</label>
-              <input type="text" id="modal-nome_base" name="nome_base" value={formData.nome_base} onChange={handleChange} style={tabStyles.input} disabled={isSaving || propIsLoading || isGenerating} />
-            </div>
-            <div style={tabStyles.formGroup}>
-              <label htmlFor="modal-sku_original" style={tabStyles.label}>SKU</label>
-              <input type="text" id="modal-sku_original" name="sku_original" value={formData.sku_original} onChange={handleChange} style={tabStyles.input} disabled={isSaving || propIsLoading || isGenerating} />
-            </div>
-            <div style={tabStyles.formGroup}>
-              <label htmlFor="modal-marca" style={tabStyles.label}>Marca</label>
-              <input type="text" id="modal-marca" name="marca" value={formData.marca} onChange={handleChange} style={tabStyles.input} disabled={isSaving || propIsLoading || isGenerating} />
-            </div>
-            <div style={tabStyles.formGroup}>
-              <label htmlFor="modal-categoria_original" style={tabStyles.label}>Categoria Original</label>
-              <input type="text" id="modal-categoria_original" name="categoria_original" value={formData.categoria_original} onChange={handleChange} style={tabStyles.input} disabled={isSaving || propIsLoading || isGenerating} />
-            </div>
-            <button onClick={handleSaveInfoPrincipais} style={tabStyles.button} disabled={isSaving || propIsLoading || isGenerating}>
-              {isSaving ? 'Salvando...' : 'Salvar Informações Principais'}
-            </button>
-          </div>
-        );
-      case TAB_CONTEUDO_IA:
-        return (
-          <div>
-            <div style={tabStyles.formGroup}>
-              <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem'}}>
-                <label htmlFor="modal-descricao_principal" style={{...tabStyles.label, marginBottom: 0}}>Descrição Principal Gerada/Editada</label>
-                <button onClick={() => handleRegenerateContent('descrição')} style={{...tabStyles.smallButton, ...tabStyles.regenerateButton}} disabled={isGenerating || isSaving || propIsLoading}>
-                  {isGenerating ? 'Gerando...' : '🔄 Regenerar Descrição'}
-                </button>
-              </div>
-              <textarea id="modal-descricao_principal" name="descricao_principal_gerada" value={formData.descricao_principal_gerada} onChange={handleChange} style={tabStyles.textarea} rows={8} disabled={isSaving || propIsLoading || isGenerating}/>
-            </div>
-            <div style={tabStyles.formGroup}>
-                <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem'}}>
-                    <label style={{...tabStyles.label, marginBottom: 0}}>Títulos Sugeridos Editáveis</label>
-                    <button onClick={() => handleRegenerateContent('títulos')} style={{...tabStyles.smallButton, ...tabStyles.regenerateButton}} disabled={isGenerating || isSaving || propIsLoading}>
-                        {isGenerating ? 'Gerando...' : '🔄 Regenerar Títulos'}
+    const applySelectedIaSuggestions = () => {
+        setFormData(prev => {
+            const newDynamicAttributes = { ...prev.dynamic_attributes };
+            for (const key in selectedIaSuggestions) {
+                if (selectedIaSuggestions[key]) {
+                    newDynamicAttributes[key] = iaAttributeSuggestions[key];
+                }
+            }
+            return { ...prev, dynamic_attributes: newDynamicAttributes };
+        });
+        showSuccessToast("Sugestões aplicadas aos atributos dinâmicos."); // ALTERAÇÃO
+    };
+
+    const handleEnrichWeb = async () => {
+        if (!product?.id) {
+            showWarningToast("Salve o produto primeiro antes de enriquecer a web."); // ALTERAÇÃO
+            return;
+        }
+        setIsEnrichingWeb(true);
+        setError(null);
+        try {
+            await productService.iniciarEnriquecimentoWebProduto(product.id); // ALTERAÇÃO: Renomeado para iniciarEnriquecimentoWebProduto
+            showInfoToast("Processo de enriquecimento web iniciado. Pode levar alguns minutos."); // ALTERAÇÃO
+
+            setTimeout(async () => {
+                const updatedProduct = await productService.getProdutoById(product.id);
+                setFormData(prev => ({
+                    ...prev,
+                    dados_brutos: updatedProduct.dados_brutos,
+                    log_enriquecimento_web: updatedProduct.log_enriquecimento_web,
+                    status_enriquecimento_web: updatedProduct.status_enriquecimento_web, 
+                }));
+                extractIaSuggestions(updatedProduct.dados_brutos); 
+                showSuccessToast("Enriquecimento web concluído (verifique o log e sugestões IA)."); // ALTERAÇÃO
+                onProductUpdated(updatedProduct); 
+            }, 10000); 
+            
+        } catch (err) {
+            console.error("Erro ao iniciar enriquecimento web:", err);
+            setError(err.response?.data?.detail || "Erro ao iniciar enriquecimento web.");
+            showErrorToast(err.response?.data?.detail || "Erro ao iniciar enriquecimento web."); // ALTERAÇÃO
+        } finally {
+            setIsEnrichingWeb(false);
+        }
+    };
+
+
+    const handleSubmit = async (e) => {
+        e.preventDefault();
+        setIsLoading(true);
+        setError(null);
+
+        if (!formData.nome_base) {
+            setError("O nome base do produto é obrigatório.");
+            showErrorToast("O nome base do produto é obrigatório."); // ALTERAÇÃO
+            setIsLoading(false);
+            return;
+        }
+        if (!formData.product_type_id && !isNewProduct) { 
+             setError("O tipo de produto é obrigatório.");
+             showErrorToast("O tipo de produto é obrigatório."); // ALTERAÇÃO
+             setIsLoading(false);
+             return;
+        }
+
+        try {
+            const productData = { ...formData };
+            for (const key in productData) {
+                if (productData[key] === '' || productData[key] === null || (Array.isArray(productData[key]) && productData[key].length === 0)) {
+                    if (typeof productData[key] === 'boolean') continue;
+                    if (typeof productData[key] === 'number' && (productData[key] === 0 || productData[key] === null)) continue;
+                    
+                    delete productData[key];
+                }
+            }
+            if (Object.keys(productData.dynamic_attributes || {}).length === 0) {
+                productData.dynamic_attributes = {};
+            }
+            if (Object.keys(productData.dados_brutos || {}).length === 0) {
+                productData.dados_brutos = {};
+            }
+            if (productData.data_publicacao_marketplace instanceof Date) {
+                productData.data_publicacao_marketplace = productData.data_publicacao_marketplace.toISOString();
+            } else if (!productData.data_publicacao_marketplace) {
+                productData.data_publicacao_marketplace = null;
+            }
+
+            let responseProduct;
+            if (isNewProduct) {
+                responseProduct = await productService.createProduto(productData);
+                showSuccessToast("Produto criado com sucesso!"); // ALTERAÇÃO
+            } else {
+                responseProduct = await productService.updateProduto(product.id, productData);
+                showSuccessToast("Produto atualizado com sucesso!"); // ALTERAÇÃO
+            }
+            onProductUpdated(responseProduct); 
+            onClose(); 
+        } catch (err) {
+            console.error("Erro ao salvar produto:", err);
+            setError(err.response?.data?.detail || "Erro ao salvar produto.");
+            showErrorToast(err.response?.data?.detail || "Erro ao salvar produto."); // ALTERAÇÃO
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+    const selectedProductType = productTypes.find(type => type.id === formData.product_type_id);
+    const attributeTemplates = selectedProductType ? selectedProductType.attribute_templates : [];
+
+    const handleGenerateTitles = async () => {
+        if (!product?.id) {
+            showWarningToast("Salve o produto primeiro para gerar títulos."); // ALTERAÇÃO
+            return;
+        }
+        setIsGeneratingIA(true);
+        try {
+            await productService.gerarTitulosProduto(product.id, { max_sugestoes: 3 }); // ALTERAÇÃO: Renomeado para gerarTitulosProduto
+            showInfoToast("Geração de títulos iniciada. Verifique em breve."); // ALTERAÇÃO
+            setTimeout(async () => {
+                const updatedProduct = await productService.getProdutoById(product.id);
+                setFormData(prev => ({ ...prev, titulos_sugeridos: updatedProduct.titulos_sugeridos }));
+                onProductUpdated(updatedProduct);
+            }, 5000); 
+        } catch (err) {
+            console.error("Erro ao gerar títulos:", err);
+            showErrorToast(err.response?.data?.detail || "Erro ao gerar títulos.", "error"); // ALTERAÇÃO
+        } finally {
+            setIsGeneratingIA(false);
+        }
+    };
+
+    const handleGenerateDescription = async () => {
+        if (!product?.id) {
+            showWarningToast("Salve o produto primeiro para gerar descrição."); // ALTERAÇÃO
+            return;
+        }
+        setIsGeneratingIA(true);
+        try {
+            await productService.gerarDescricaoProduto(product.id, { max_palavras: 300 }); // ALTERAÇÃO: Renomeado para gerarDescricaoProduto
+            showInfoToast("Geração de descrição iniciada. Verifique em breve."); // ALTERAÇÃO
+            setTimeout(async () => {
+                const updatedProduct = await productService.getProdutoById(product.id);
+                setFormData(prev => ({
+                    ...prev,
+                    descricao_principal_gerada: updatedProduct.descricao_principal_gerada,
+                    descricao_curta_gerada: updatedProduct.descricao_curta_gerada
+                }));
+                onProductUpdated(updatedProduct);
+            }, 5000); 
+        } catch (err) {
+            console.error("Erro ao gerar descrição:", err);
+            showErrorToast(err.response?.data?.detail || "Erro ao gerar descrição.", "error"); // ALTERAÇÃO
+        } finally {
+            setIsGeneratingIA(false);
+        }
+    };
+
+    const handleCopyToDescriptionOriginal = (generatedText) => {
+        setFormData(prev => ({ ...prev, descricao_original: generatedText }));
+        showInfoToast("Descrição gerada copiada para o campo original."); // ALTERAÇÃO
+    };
+
+    const handleCopyToDescriptionCurtaOriginal = (generatedText) => {
+        setFormData(prev => ({ ...prev, descricao_curta_orig: generatedText }));
+        showInfoToast("Descrição curta gerada copiada para o campo original."); // ALTERAÇÃO
+    };
+
+    return (
+        <Modal isOpen={isOpen} onClose={onClose} title={isNewProduct ? "Criar Novo Produto" : `Editar Produto: ${product?.nome_base}`}>
+            <form onSubmit={handleSubmit}>
+                <div className="tab-navigation">
+                    <button type="button" className={activeTab === 'info' ? 'active' : ''} onClick={() => setActiveTab('info')}>Info Principais</button>
+                    <button type="button" className={activeTab === 'atributos' ? 'active' : ''} onClick={() => setActiveTab('atributos')}>Atributos</button>
+                    <button type="button" className={activeTab === 'midia' ? 'active' : ''} onClick={() => setActiveTab('midia')}>Mídia</button>
+                    <button type="button" className={activeTab === 'conteudo-ia' ? 'active' : ''} onClick={() => setActiveTab('conteudo-ia')}>Conteúdo IA</button>
+                    <button type="button" className={activeTab === 'sugestoes-ia' ? 'active' : ''} onClick={() => setActiveTab('sugestoes-ia')}>Sugestões IA</button> 
+                    <button type="button" className={activeTab === 'log' ? 'active' : ''} onClick={() => setActiveTab('log')}>Log de Processamento</button>
+                </div>
+
+                <div className="tab-content">
+                    {activeTab === 'info' && (
+                        <div className="form-section">
+                            <label>
+                                Nome Base:
+                                <input type="text" name="nome_base" value={formData.nome_base} onChange={handleChange} required />
+                            </label>
+                            <label>
+                                Nome Chat API:
+                                <input type="text" name="nome_chat_api" value={formData.nome_chat_api} onChange={handleChange} />
+                            </label>
+                            <label>
+                                Descrição Original:
+                                <textarea name="descricao_original" value={formData.descricao_original} onChange={handleChange} />
+                            </label>
+                             <label>
+                                Descrição Curta Original:
+                                <input type="text" name="descricao_curta_orig" value={formData.descricao_curta_orig} onChange={handleChange} />
+                            </label>
+                            <label>
+                                SKU:
+                                <input type="text" name="sku" value={formData.sku} onChange={handleChange} />
+                            </label>
+                            <label>
+                                EAN:
+                                <input type="text" name="ean" value={formData.ean} onChange={handleChange} />
+                            </label>
+                            <label>
+                                NCM:
+                                <input type="text" name="ncm" value={formData.ncm} onChange={handleChange} />
+                            </label>
+                            <label>
+                                Marca:
+                                <input type="text" name="marca" value={formData.marca} onChange={handleChange} />
+                            </label>
+                             <label>
+                                Modelo:
+                                <input type="text" name="modelo" value={formData.modelo} onChange={handleChange} />
+                            </label>
+                            <label>
+                                Categoria Original:
+                                <input type="text" name="categoria_original" value={formData.categoria_original} onChange={handleChange} />
+                            </label>
+                            <label>
+                                Categoria Mapeada:
+                                <input type="text" name="categoria_mapeada" value={formData.categoria_mapeada} onChange={handleChange} />
+                            </label>
+                            <label>
+                                Preço Custo:
+                                <input type="number" name="preco_custo" value={formData.preco_custo} onChange={handleChange} step="0.01" />
+                            </label>
+                            <label>
+                                Preço Venda:
+                                <input type="number" name="preco_venda" value={formData.preco_venda} onChange={handleChange} step="0.01" />
+                            </label>
+                            <label>
+                                Preço Promocional:
+                                <input type="number" name="preco_promocional" value={formData.preco_promocional} onChange={handleChange} step="0.01" />
+                            </label>
+                            <label>
+                                Estoque Disponível:
+                                <input type="number" name="estoque_disponivel" value={formData.estoque_disponivel} onChange={handleChange} />
+                            </label>
+                            <label>
+                                Peso (kg):
+                                <input type="number" name="peso_kg" value={formData.peso_kg} onChange={handleChange} step="0.01" />
+                            </label>
+                            <label>
+                                Altura (cm):
+                                <input type="number" name="altura_cm" value={formData.altura_cm} onChange={handleChange} step="0.01" />
+                            </label>
+                            <label>
+                                Largura (cm):
+                                <input type="number" name="largura_cm" value={formData.largura_cm} onChange={handleChange} step="0.01" />
+                            </label>
+                            <label>
+                                Profundidade (cm):
+                                <input type="number" name="profundidade_cm" value={formData.profundidade_cm} onChange={handleChange} step="0.01" />
+                            </label>
+                            <label>
+                                Ativo no Marketplace:
+                                <input type="checkbox" name="ativo_marketplace" checked={formData.ativo_marketplace} onChange={handleChange} />
+                            </label>
+                            <label>
+                                Data Publicação Marketplace:
+                                <input type="date" name="data_publicacao_marketplace" 
+                                       value={formData.data_publicacao_marketplace ? new Date(formData.data_publicacao_marketplace).toISOString().split('T')[0] : ''}
+                                       onChange={handleChange} />
+                            </label>
+                            <label>
+                                Fornecedor:
+                                <select name="fornecedor_id" value={formData.fornecedor_id} onChange={handleChange}>
+                                    <option value="">Selecione um fornecedor</option>
+                                    {fornecedores.map(f => (
+                                        <option key={f.id} value={f.id}>{f.nome}</option>
+                                    ))}
+                                </select>
+                            </label>
+                            <label>
+                                Tipo de Produto:
+                                <select name="product_type_id" value={formData.product_type_id} onChange={handleChange}>
+                                    <option value="">Selecione um tipo de produto</option>
+                                    {productTypes.map(type => (
+                                        <option key={type.id} value={type.id}>{type.friendly_name}</option>
+                                    ))}
+                                </select>
+                            </label>
+                        </div>
+                    )}
+
+                    {activeTab === 'atributos' && (
+                        <div className="form-section">
+                            <h3>Atributos Dinâmicos e de Template</h3>
+                            {attributeTemplates.length > 0 && (
+                                <div>
+                                    <h4>Atributos do Tipo de Produto ({selectedProductType?.friendly_name})</h4>
+                                    {attributeTemplates.map(attr => (
+                                        <AttributeField
+                                            key={attr.id}
+                                            attribute={attr}
+                                            value={formData.dynamic_attributes[attr.attribute_key] || ''}
+                                            onChange={handleDynamicAttributeChange}
+                                        />
+                                    ))}
+                                </div>
+                            )}
+
+                            <h4>Outros Atributos Dinâmicos</h4>
+                            {Object.entries(formData.dynamic_attributes).map(([key, value]) => {
+                                const isTemplateAttribute = attributeTemplates.some(template => template.attribute_key === key);
+                                if (!isTemplateAttribute) {
+                                    return (
+                                        <label key={key}>
+                                            {key}:
+                                            <input
+                                                type="text"
+                                                value={value || ''}
+                                                onChange={(e) => handleDynamicAttributeChange(key, e.target.value)}
+                                            />
+                                        </label>
+                                    );
+                                }
+                                return null;
+                            })}
+                             <button type="button" onClick={addDynamicAttribute}>Adicionar Atributo Manual</button>
+                        </div>
+                    )}
+
+                    {activeTab === 'midia' && (
+                        <div className="form-section">
+                            <h3>Mídia do Produto</h3>
+                            <label>
+                                URL Imagem Principal:
+                                <input type="url" name="imagem_principal_url" value={formData.imagem_principal_url} onChange={handleChange} />
+                            </label>
+                            <label>
+                                URLs Imagens Secundárias (separadas por vírgula):
+                                <textarea
+                                    name="imagens_secundarias_urls"
+                                    value={formData.imagens_secundarias_urls.join(', ')}
+                                    onChange={handleChange}
+                                />
+                            </label>
+                            <div className="image-previews">
+                                {formData.imagem_principal_url && (
+                                    <img src={formData.imagem_principal_url} alt="Principal" style={{ maxWidth: '100px', maxHeight: '100px', margin: '5px' }} />
+                                )}
+                                {formData.imagens_secundarias_urls && formData.imagens_secundarias_urls.map((url, index) => (
+                                    <img key={index} src={url} alt={`Secundária ${index + 1}`} style={{ maxWidth: '100px', maxHeight: '100px', margin: '5px' }} />
+                                ))}
+                            </div>
+                        </div>
+                    )}
+
+                    {activeTab === 'conteudo-ia' && (
+                        <div className="form-section">
+                            <h3>Conteúdo Gerado por IA</h3>
+                            <button type="button" onClick={handleGenerateTitles} disabled={isGeneratingIA}>
+                                {isGeneratingIA ? 'Gerando Títulos...' : 'Gerar Títulos por IA'}
+                            </button>
+                            {formData.titulos_sugeridos && formData.titulos_sugeridos.length > 0 && (
+                                <div>
+                                    <h4>Títulos Sugeridos:</h4>
+                                    <ul>
+                                        {formData.titulos_sugeridos.map((title, index) => (
+                                            <li key={index}>{title}</li>
+                                        ))}
+                                    </ul>
+                                </div>
+                            )}
+
+                            <hr />
+
+                            <button type="button" onClick={handleGenerateDescription} disabled={isGeneratingIA}>
+                                {isGeneratingIA ? 'Gerando Descrição...' : 'Gerar Descrição por IA'}
+                            </button>
+                            {formData.descricao_principal_gerada && (
+                                <div style={{ marginTop: '10px' }}>
+                                    <h4>Descrição Principal Gerada:</h4>
+                                    <textarea
+                                        value={formData.descricao_principal_gerada}
+                                        onChange={(e) => setFormData(prev => ({ ...prev, descricao_principal_gerada: e.target.value }))}
+                                        rows="10"
+                                        style={{ width: '100%' }}
+                                    />
+                                    <button type="button" onClick={() => handleCopyToDescriptionOriginal(formData.descricao_principal_gerada)}>
+                                        Copiar para Descrição Original
+                                    </button>
+                                </div>
+                            )}
+                            {formData.descricao_curta_gerada && (
+                                <div style={{ marginTop: '10px' }}>
+                                    <h4>Descrição Curta Gerada:</h4>
+                                    <textarea
+                                        value={formData.descricao_curta_gerada}
+                                        onChange={(e) => setFormData(prev => ({ ...prev, descricao_curta_gerada: e.target.value }))}
+                                        rows="3"
+                                        style={{ width: '100%' }}
+                                    />
+                                    <button type="button" onClick={() => handleCopyToDescriptionCurtaOriginal(formData.descricao_curta_gerada)}>
+                                        Copiar para Descrição Curta Original
+                                    </button>
+                                </div>
+                            )}
+                        </div>
+                    )}
+
+                    {activeTab === 'sugestoes-ia' && (
+                        <div className="form-section">
+                            <h3>Sugestões de Atributos por IA</h3>
+                            <p>Clique no botão abaixo para iniciar o processo de busca e sugestão de atributos com base em informações da web e IA. Este processo ocorre em segundo plano.</p>
+                            
+                            <button type="button" onClick={handleEnrichWeb} disabled={isEnrichingWeb || isNewProduct}>
+                                {isEnrichingWeb ? 'Buscando Sugestões...' : 'Buscar Sugestões de Atributos'}
+                            </button>
+                            {!product?.id && <p className="warning-text">Salve o produto primeiro para buscar sugestões de atributos.</p>}
+
+                            {Object.keys(iaAttributeSuggestions).length > 0 && (
+                                <div style={{ marginTop: '20px' }}>
+                                    <h4>Sugestões Encontradas:</h4>
+                                    <p>Selecione os atributos que deseja adicionar ou atualizar nos "Atributos Dinâmicos".</p>
+                                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+                                        {Object.entries(iaAttributeSuggestions).map(([key, value]) => (
+                                            <div key={key} style={{ border: '1px solid #ddd', padding: '10px', borderRadius: '5px' }}>
+                                                <label>
+                                                    <input
+                                                        type="checkbox"
+                                                        checked={selectedIaSuggestions[key] || false}
+                                                        onChange={() => handleIaSuggestionToggle(key)}
+                                                    />
+                                                    <strong>{key}:</strong> {String(value)}
+                                                </label>
+                                            </div>
+                                        ))}
+                                    </div>
+                                    <button type="button" onClick={applySelectedIaSuggestions} style={{ marginTop: '15px' }}>
+                                        Aplicar Selecionados aos Atributos Dinâmicos
+                                    </button>
+                                </div>
+                            )}
+                            {Object.keys(iaAttributeSuggestions).length === 0 && !isEnrichingWeb && product?.id && (
+                                <p style={{ marginTop: '20px', color: '#666' }}>Nenhuma sugestão de atributo encontrada ainda. Clique em "Buscar Sugestões de Atributos" para iniciar.</p>
+                            )}
+                        </div>
+                    )}
+
+                    {activeTab === 'log' && (
+                        <div className="form-section">
+                            <h3>Log de Processamento Web</h3>
+                            {formData.log_enriquecimento_web && formData.log_enriquecimento_web.historico_mensagens && (
+                                <div style={{ maxHeight: '300px', overflowY: 'auto', border: '1px solid #ccc', padding: '10px', backgroundColor: '#f9f9f9' }}>
+                                    {formData.log_enriquecimento_web.historico_mensagens.map((msg, index) => (
+                                        <p key={index} style={{ fontSize: '0.9em', margin: '2px 0' }}>{msg}</p>
+                                    ))}
+                                </div>
+                            )}
+                            {(!formData.log_enriquecimento_web || !formData.log_enriquecimento_web.historico_mensagens || formData.log_enriquecimento_web.historico_mensagens.length === 0) && (
+                                <p>Nenhum log de processamento web disponível para este produto.</p>
+                            )}
+                        </div>
+                    )}
+                </div>
+
+                {error && <p className="error-message">{error}</p>}
+
+                <div className="modal-actions">
+                    <button type="submit" disabled={isLoading}>
+                        {isLoading ? 'Salvando...' : 'Salvar Produto'}
+                    </button>
+                    <button type="button" onClick={onClose} disabled={isLoading}>
+                        Cancelar
                     </button>
                 </div>
-              {formData.titulos_sugeridos && formData.titulos_sugeridos.map((titulo, index) => (
-                <div key={index} style={tabStyles.titleInputGroup}>
-                  <input type="text" value={titulo} onChange={(e) => handleTituloChange(index, e.target.value)} style={{ ...tabStyles.input, flexGrow: 1 }} placeholder={`Título ${index + 1}`} disabled={isSaving || propIsLoading || isGenerating} />
-                  <button onClick={() => handleRemoveTitulo(index)} style={tabStyles.smallButton} disabled={isSaving || propIsLoading || isGenerating}>Remover</button>
-                </div>
-              ))}
-              <button onClick={handleAddTitulo} style={tabStyles.addTitleButton} disabled={isSaving || propIsLoading || isGenerating}>Adicionar Novo Título</button>
-            </div>
-            <button onClick={handleSaveConteudoIA} style={tabStyles.button} disabled={isSaving || propIsLoading || isGenerating}>
-              {isSaving ? 'Salvando...' : 'Salvar Conteúdo IA'}
-            </button>
-          </div>
-        );
-      case TAB_DADOS_WEB:
-        const dadosBrutos = productData.dados_brutos || {};
-        const dadosWebVisiveis = Object.entries(dadosBrutos)
-            .filter(([key]) => chavesDadosWebDestacadas.includes(key) && dadosBrutos[key] !== null && dadosBrutos[key] !== undefined && String(dadosBrutos[key]).trim() !== "")
-            .sort(([keyA], [keyB]) => chavesDadosWebDestacadas.indexOf(keyA) - chavesDadosWebDestacadas.indexOf(keyB)); // Ordena pelas chaves destacadas
-        
-        const outrosDadosBrutos = Object.entries(dadosBrutos)
-            .filter(([key]) => !chavesDadosWebDestacadas.includes(key));
-
-        return (
-            <div>
-              <h4>Dados Coletados do Enriquecimento Web</h4>
-              {dadosWebVisiveis.length > 0 ? (
-                dadosWebVisiveis.map(([key, value]) => renderWebDataItem(key, value))
-              ) : (
-                <p>Nenhum dado web destacado para exibir ou enriquecimento ainda não executado.</p>
-              )}
-              {outrosDadosBrutos.length > 0 && (
-                <>
-                  <h5 style={{marginTop: '1.5rem', marginBottom: '0.5rem', borderTop: '1px solid #eee', paddingTop: '1rem'}}>Outros Dados Brutos (JSON):</h5>
-                  <pre style={tabStyles.dataViewerPre}>
-                    {JSON.stringify(Object.fromEntries(outrosDadosBrutos), null, 2)}
-                  </pre>
-                </>
-              )}
-              {dadosWebVisiveis.length === 0 && outrosDadosBrutos.length === 0 && (
-                <p>Nenhum dado bruto disponível.</p>
-              )}
-            </div>
-          );
-      case TAB_LOG_ENRIQUECIMENTO:
-        const logMessages = productData.log_enriquecimento_web?.historico_mensagens || [];
-        return (
-            <div>
-              <h4>Log de Enriquecimento e Geração IA</h4>
-              {logMessages.length > 0 ? (
-                <ul style={tabStyles.logList}>
-                  {logMessages.map((msg, index) => (
-                    <li key={index} style={tabStyles.logListItem}>{msg}</li>
-                  ))}
-                </ul>
-              ) : (
-                <p>Nenhum log disponível para este produto.</p>
-              )}
-            </div>
-          );
-      default:
-        return null;
-    }
-  };
-  
-  if (!isOpen) return null;
-
-  return (
-    <div className="modal active" id="product-detail-modal">
-      <div className="modal-content" style={{maxWidth: '700px', width: '90%'}}>
-        <button className="modal-close" onClick={onClose} disabled={isSaving || propIsLoading || isGenerating}>×</button>
-        <h3>
-          Detalhes do Produto: {productData?.nome_base || 'Carregando...'} 
-          (ID: {productData?.id || 'N/A'})
-        </h3>
-
-        <div style={tabStyles.tabContainer}>
-          {/* ... (botões das abas, sem alterações) ... */}
-          <button style={{...tabStyles.tabButton, ...(activeTab === TAB_INFO_PRINCIPAIS ? tabStyles.activeTabButton : {})}} onClick={() => handleTabChange(TAB_INFO_PRINCIPAIS)} disabled={isSaving || propIsLoading || isGenerating}>Informações Principais</button>
-          <button style={{...tabStyles.tabButton, ...(activeTab === TAB_CONTEUDO_IA ? tabStyles.activeTabButton : {})}} onClick={() => handleTabChange(TAB_CONTEUDO_IA)} disabled={isSaving || propIsLoading || isGenerating}>Conteúdo IA</button>
-          <button style={{...tabStyles.tabButton, ...(activeTab === TAB_DADOS_WEB ? tabStyles.activeTabButton : {})}} onClick={() => handleTabChange(TAB_DADOS_WEB)} disabled={isSaving || propIsLoading || isGenerating}>Dados Web</button>
-          <button style={{...tabStyles.tabButton, ...(activeTab === TAB_LOG_ENRIQUECIMENTO ? tabStyles.activeTabButton : {})}} onClick={() => handleTabChange(TAB_LOG_ENRIQUECIMENTO)} disabled={isSaving || propIsLoading || isGenerating}>Log</button>
-        </div>
-
-        <div style={tabStyles.tabContent}>
-          {propIsLoading && activeTab === TAB_INFO_PRINCIPAIS ? <p>Carregando dados do produto...</p> : renderTabContent()}
-        </div>
-      </div>
-    </div>
-  );
-}
+            </form>
+        </Modal>
+    );
+};
 
 export default ProductEditModal;
