@@ -5,13 +5,11 @@ const RESOURCE_URL = '/product-types';
 
 const productTypeService = {
   async getProductTypes(params = {}) {
-    // ALTERAÇÃO AQUI: Adicionar a barra final explicitamente
     const response = await apiClient.get(`${RESOURCE_URL}/`, { params });
     return response.data;
   },
 
   async getProductTypeDetails(typeIdOrKey) {
-    // Manter sem barra final, pois é um ID/chave específica
     const response = await apiClient.get(`${RESOURCE_URL}/${typeIdOrKey}`);
     return response.data;
   },
@@ -43,6 +41,14 @@ const productTypeService = {
 
   async removeAttributeFromType(typeId, attributeId) {
     const response = await apiClient.delete(`${RESOURCE_URL}/${typeId}/attributes/${attributeId}`);
+    return response.data;
+  },
+
+  // --- NOVA FUNÇÃO ADICIONADA ABAIXO ---
+  
+  async reorderAttributeInType(typeId, attributeId, direction) {
+    // direction deve ser "up" ou "down"
+    const response = await apiClient.post(`${RESOURCE_URL}/${typeId}/attributes/${attributeId}/reorder`, { direction });
     return response.data;
   }
 };

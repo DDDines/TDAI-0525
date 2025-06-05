@@ -1,0 +1,116 @@
+/* Frontend/app/src/components/ProductEditModal.css */
+.media-upload-area {
+    border: 2px dashed #d1d5db;
+    padding: 2rem;
+    text-align: center;
+    background-color: #f9fafb;
+    border-radius: var(--radius);
+    margin-bottom: 1rem;
+    cursor: pointer;
+    transition: border-color 0.2s, background-color 0.2s;
+}
+
+.media-upload-area.drag-over {
+    border-color: var(--primary);
+    background-color: #eef2ff;
+}
+
+.media-upload-area p {
+    margin: 0;
+    font-size: 1rem;
+    color: var(--text-color-light);
+}
+
+.media-upload-area small {
+    font-size: 0.85em;
+    color: #9ca3af;
+}
+
+#productImageUploadProgress {
+    margin-top: 0.5rem;
+    width: 100%;
+    background-color: #e5e7eb;
+    border-radius: 4px;
+    display: none; /* Controlado por JS */
+}
+
+#productImageUploadProgress .progress-bar {
+    width: 0%;
+    height: 10px;
+    background-color: var(--success);
+    border-radius: 4px;
+    text-align: center;
+    line-height: 10px;
+    color: white;
+    font-size: 0.7em;
+    transition: width 0.3s ease;
+}
+
+.media-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+    gap: 1rem;
+    margin-top: 1rem;
+}
+
+.media-item {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    padding: 0.5rem;
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius);
+    background-color: #fdfdfd;
+    position: relative;
+}
+
+.media-item.is-main {
+    border: 2px solid var(--primary);
+}
+
+.media-item img.preview, .media-item div.video-placeholder {
+    width: 100%;
+    height: 100px;
+    object-fit: cover;
+    border-radius: 4px;
+    background-color: #f0f0f0;
+    border: 1px solid #ddd;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.8em;
+    color: var(--text-color-light);
+}
+
+.media-item .fields input {
+    font-size: 0.85em;
+    padding: 0.4em;
+}
+
+.media-item .actions {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    width: 100%;
+}
+
+.media-item .actions .main-image-radio {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 0.8em;
+    cursor: pointer;
+}
+
+.media-item .actions .main-image-radio input {
+    cursor: pointer;
+}
+
+.media-item .btn-remove-media {
+    background: none;
+    border: none;
+    color: var(--danger);
+    cursor: pointer;
+    font-size: 1.2rem;
+    padding: 0;
+}

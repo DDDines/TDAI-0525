@@ -1,6 +1,7 @@
 # Backend/routers/product_types.py
 from typing import List, Optional, Union
-from fastapi import APIRouter, Depends, HTTPException, status, Path as FastAPIPath
+from fastapi import APIRouter, Depends, HTTPException, status, Path as FastAPIPath, Body
+from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
 import crud
@@ -40,7 +41,6 @@ def create_product_type_endpoint(
         )
         
     print(f"ROUTER (create_product_type): Criando tipo de produto '{product_type_in.friendly_name}' com key_name '{product_type_in.key_name}' para user_id: {user_id_for_type}")
-    # FIX: Change 'product_type_data=' to 'product_type_create='
     return crud.create_product_type(db=db, product_type_create=product_type_in, user_id=user_id_for_type)
 
 
@@ -56,7 +56,6 @@ def read_product_types_endpoint(
     print(f"ROUTER (read_product_types): Encontrados {len(product_types)} tipos de produto.")
     return product_types
 
-# --- ESTA É A ROTA CRÍTICA PARA O ERRO 404 ---
 @router.get("/{type_id_or_key_path:path}", response_model=schemas.ProductTypeResponse, name="read_product_type_details")
 async def read_product_type_details_route(
     type_id_or_key_path: str = FastAPIPath(..., description="ID (numérico) ou KeyName (string) do Tipo de Produto"),
@@ -70,7 +69,6 @@ async def read_product_type_details_route(
     try:
         numeric_id = int(identifier)
         print(f"ROUTER: Identificador '{identifier}' é numérico. Tentando buscar por ID: {numeric_id}") 
-        # Chama crud.get_product_type que busca por ID e já tem logs de debug
         db_product_type = crud.get_product_type(db, product_type_id=numeric_id) 
         if db_product_type:
             print(f"ROUTER: Encontrado por ID: {db_product_type.id} - {db_product_type.friendly_name}") 
@@ -100,7 +98,6 @@ async def read_product_type_details_route(
     
     print(f"ROUTER: Permissão CONCEDIDA. Retornando tipo de produto ID {db_product_type.id} ('{db_product_type.friendly_name}')") 
     return db_product_type
-# --- FIM DA ROTA MODIFICADA ---
 
 
 @router.put("/{type_id}", response_model=schemas.ProductTypeResponse)
@@ -200,3 +197,33 @@ def remove_attribute_from_product_type_endpoint(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Falha ao deletar o atributo.")
     print(f"ROUTER (delete_attribute): Atributo ID {attribute_id} deletado.")
     return deleted_attribute
+
+# --- NOVO ENDPOINT PARA REORDENAR ---
+class ReorderRequest(BaseModel):
+    direction: str # "up" ou "down"
+
+@router.post("/{type_id}/attributes/{attribute_id}/reorder", response_model=schemas.AttributeTemplateResponse)
+def reorder_attribute_endpoint(
+    type_id: int,
+    attribute_id: int,
+    reorder_request: ReorderRequest,
+    db: Session = Depends(database.get_db),
+    current_user: models.User = Depends(auth_utils.get_current_active_user)
+):
+    # Primeiro, verificação de permissão no tipo de produto
+    product_type = crud.get_product_type(db, type_id)
+    if not product_type:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Tipo de produto não encontrado.")
+    
+    is_owner = product_type.user_id == current_user.id
+    if not current_user.is_superuser and not is_owner:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Não autorizado a modificar este tipo de produto.")
+    
+    # Chama a nova função do CRUD
+    reordered_attribute = crud.reorder_attribute_template(db, attribute_id=attribute_id, direction=reorder_request.direction)
+    
+    if not reordered_attribute:
+        # A função CRUD pode retornar None se o atributo não for encontrado ou se o movimento for impossível
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Atributo não encontrado ou movimento inválido.")
+        
+    return reordered_attribute

@@ -516,6 +516,52 @@ def delete_attribute_template(db: Session, db_attr_template: AttributeTemplate) 
     db.commit()
     return db_attr_template
 
+# --- NOVA FUNÇÃO PARA REORDENAR ATRIBUTOS ---
+def reorder_attribute_template(db: Session, attribute_id: int, direction: str) -> Optional[AttributeTemplate]:
+    """Muda a ordem de um atributo dentro de seu tipo de produto."""
+    attr_to_move = get_attribute_template(db, attribute_id)
+    if not attr_to_move:
+        return None
+
+    # Busca todos os atributos "irmãos" ordenados pela ordem atual
+    siblings = db.query(AttributeTemplate).filter(
+        AttributeTemplate.product_type_id == attr_to_move.product_type_id
+    ).order_by(AttributeTemplate.display_order.asc(), AttributeTemplate.id.asc()).all()
+
+    # Se a ordem não estiver definida, inicializa com base na ordem atual
+    if any(s.display_order is None for s in siblings):
+        for i, s in enumerate(siblings):
+            s.display_order = i
+        db.commit()
+        db.refresh(attr_to_move) # Recarrega o atributo principal
+
+    try:
+        current_index = siblings.index(attr_to_move)
+    except ValueError:
+        return None # Não deveria acontecer
+
+    if direction == "up" and current_index > 0:
+        # Troca a ordem com o item anterior
+        prev_item = siblings[current_index - 1]
+        prev_item.display_order, attr_to_move.display_order = attr_to_move.display_order, prev_item.display_order
+        db.commit()
+    elif direction == "down" and current_index < len(siblings) - 1:
+        # Troca a ordem com o item seguinte
+        next_item = siblings[current_index + 1]
+        next_item.display_order, attr_to_move.display_order = attr_to_move.display_order, next_item.display_order
+        db.commit()
+    
+    # Normaliza a ordem para garantir que seja sequencial (0, 1, 2...)
+    siblings_reordered = db.query(AttributeTemplate).filter(
+        AttributeTemplate.product_type_id == attr_to_move.product_type_id
+    ).order_by(AttributeTemplate.display_order.asc(), AttributeTemplate.id.asc()).all()
+
+    for i, s in enumerate(siblings_reordered):
+        s.display_order = i
+    
+    db.commit()
+    db.refresh(attr_to_move)
+    return attr_to_move
 
 # --- Produto CRUD ---
 def create_produto(db: Session, produto: schemas.ProdutoCreate, user_id: int) -> Produto:

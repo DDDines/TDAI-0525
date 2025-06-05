@@ -2,9 +2,9 @@
 
 import React from 'react';
 // Importa o CSS da página pai para reutilizar os estilos
-import '../../pages/TiposProdutoPage.css'; // <-- CAMINHO CORRIGIDO
+import '../../pages/TiposProdutoPage.css';
 
-const AttributeTemplateList = ({ attributes, onEdit, onDelete }) => {
+const AttributeTemplateList = ({ attributes, onEdit, onDelete, onReorder }) => {
   if (!attributes || attributes.length === 0) {
     return <p style={{ textAlign: 'center', color: 'var(--text-color-light)', padding: '2rem 0' }}>Nenhum atributo definido para este tipo de produto.</p>;
   }
@@ -14,7 +14,7 @@ const AttributeTemplateList = ({ attributes, onEdit, onDelete }) => {
 
   return (
     <div>
-      {sortedAttributes.map((attr) => (
+      {sortedAttributes.map((attr, index) => (
         <div key={attr.id} className="attribute-template-card">
           <div className="main-info">
             <strong>{attr.label}</strong>
@@ -30,6 +30,26 @@ const AttributeTemplateList = ({ attributes, onEdit, onDelete }) => {
             )}
           </div>
           <div className="attr-controls">
+            {/* -- INÍCIO DAS ALTERAÇÕES PARA REORDENAÇÃO -- */}
+            <div className="attr-order-icons">
+                <button 
+                    onClick={() => onReorder(attr.id, 'up')} 
+                    disabled={index === 0} 
+                    title="Mover para Cima" 
+                    className="btn-icon btn-small"
+                >
+                    🔼
+                </button>
+                <button 
+                    onClick={() => onReorder(attr.id, 'down')} 
+                    disabled={index === sortedAttributes.length - 1} 
+                    title="Mover para Baixo"
+                    className="btn-icon btn-small"
+                >
+                    🔽
+                </button>
+            </div>
+            {/* -- FIM DAS ALTERAÇÕES -- */}
             <div className="attr-actions">
               <button className="btn-small" style={{backgroundColor: 'var(--info)'}} onClick={() => onEdit(attr)}>Editar</button>
               <button className="btn-small btn-danger" onClick={() => onDelete(attr.id)}>Excluir</button>

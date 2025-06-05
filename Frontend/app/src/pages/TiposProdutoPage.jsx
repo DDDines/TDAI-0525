@@ -4,29 +4,23 @@ import { useProductTypes } from '../contexts/ProductTypeContext';
 import { showErrorToast, showSuccessToast } from '../utils/notifications';
 import productTypeService from '../services/productTypeService';
 
-// Importa os novos componentes que criaremos a seguir
 import AttributeTemplateList from '../components/product_types/AttributeTemplateList';
 import AttributeTemplateModal from '../components/product_types/AttributeTemplateModal';
 
-// Importa o arquivo CSS atualizado
 import './TiposProdutoPage.css';
 
 function TiposProdutoPage() {
-  // Estado existente do contexto
   const { productTypes, isLoading, error, refreshProductTypes, addProductType, removeProductType } = useProductTypes();
   
-  // --- NOVOS ESTADOS PARA GERENCIAR A UI ---
   const [selectedProductType, setSelectedProductType] = useState(null);
   const [isAttributeModalOpen, setIsAttributeModalOpen] = useState(false);
   const [editingAttribute, setEditingAttribute] = useState(null);
 
-  // Estados do modal de criação de TIPO (mantidos)
   const [isNewTypeModalOpen, setIsNewTypeModalOpen] = useState(false);
   const [newTypeKeyName, setNewTypeKeyName] = useState('');
   const [newTypeFriendlyName, setNewTypeFriendlyName] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // Efeito para atualizar o tipo selecionado se a lista geral mudar
   useEffect(() => {
     if (selectedProductType) {
       const updatedType = productTypes.find(pt => pt.id === selectedProductType.id);
@@ -34,8 +28,6 @@ function TiposProdutoPage() {
     }
   }, [productTypes, selectedProductType]);
 
-
-  // --- FUNÇÕES PARA GERENCIAR O TIPO DE PRODUTO (Criação/Deleção) ---
   const handleOpenNewTypeModal = () => {
     setNewTypeKeyName('');
     setNewTypeFriendlyName('');
@@ -78,7 +70,6 @@ function TiposProdutoPage() {
     }
   };
 
-  // --- NOVAS FUNÇÕES PARA O PAINEL DE DETALHES E MODAL DE ATRIBUTOS ---
   const handleSelectType = (type) => {
     setSelectedProductType(type);
   };
@@ -132,6 +123,23 @@ function TiposProdutoPage() {
      }
   };
 
+  // --- NOVA FUNÇÃO ADICIONADA PARA REORDENAR ---
+  const handleReorderAttribute = async (attributeId, direction) => {
+    if (!selectedProductType) return;
+    
+    try {
+      // Chama o serviço para reordenar
+      await productTypeService.reorderAttributeInType(selectedProductType.id, attributeId, direction);
+      showSuccessToast("Ordem do atributo atualizada.");
+      // Força o recarregamento dos dados para refletir a nova ordem na UI
+      refreshProductTypes();
+    } catch (err) {
+      const errorMsg = err.response?.data?.detail || "Falha ao reordenar o atributo.";
+      showErrorToast(errorMsg);
+    }
+  };
+  // --- FIM DA NOVA FUNÇÃO ---
+
   if (isLoading && productTypes.length === 0) {
     return <div className="loading-message">Carregando tipos de produto...</div>;
   }
@@ -179,10 +187,12 @@ function TiposProdutoPage() {
                 <h5>Atributos para: {selectedProductType.friendly_name}</h5>
                 <button className="btn-small btn-primary" onClick={() => handleOpenAttributeModal(null)}>+ Novo Atributo</button>
               </div>
+              {/* --- ALTERAÇÃO AQUI PARA PASSAR A NOVA PROP --- */}
               <AttributeTemplateList
                 attributes={selectedProductType.attribute_templates}
                 onEdit={handleOpenAttributeModal}
                 onDelete={handleDeleteAttribute}
+                onReorder={handleReorderAttribute}
               />
             </>
           ) : (
