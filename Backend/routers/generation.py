@@ -1,169 +1,156 @@
-# tdai_project/Backend/routers/generation.py
-from fastapi import APIRouter, Depends, HTTPException, status, BackgroundTasks
+# Backend/routers/generation.py
+
+from fastapi import APIRouter, Depends, HTTPException, status, BackgroundTasks, Query
 from sqlalchemy.orm import Session
 from typing import List, Dict, Any, Optional
+from datetime import datetime # Adicionado datetime
 
-import crud 
-import models 
-import schemas 
-from database import get_db, SessionLocal 
-from core.config import settings 
-
-from .auth_utils import get_current_active_user 
-from services import ia_generation_service, limit_service 
+import crud
+import models
+import schemas
+from database import get_db, SessionLocal # Adicionado SessionLocal
+from core.config import settings
+from routers import auth_utils
+from services import ia_generation_service
+from services import limit_service
 
 router = APIRouter(
     prefix="/geracao",
     tags=["Geração de Conteúdo com IA"],
-    dependencies=[Depends(get_current_active_user)]
+    dependencies=[Depends(auth_utils.get_current_active_user)],
 )
 
+# Função auxiliar adaptada do seu original para processar em background
 async def _tarefa_processar_geracao_e_registrar_uso(
     db_session_factory,
     user_id: int,
     produto_id: int,
     tipo_geracao_principal: str, # "titulo" ou "descricao"
-    tipo_geracao_registro_uso: str, # ex: "titulo_openai_produto"
-    modelo_ia_usado_base: str,
-    funcao_geracao_ia,
-    **kwargs_geracao
+    # creditos_consumidos_pela_acao: int, # O consumo agora é feito dentro do serviço de IA
+    funcao_geracao_ia_no_servico,
+    **kwargs_para_funcao_servico
 ):
     db: Session = db_session_factory()
     db_produto: Optional[models.Produto] = None
-    # Determina qual campo de status IA será atualizado
-    status_field_to_update = None
+    status_field_to_update: Optional[str] = None
+    campo_produto_para_atualizar_com_resultado: Optional[str] = None
+    # tipo_acao_ia_enum_para_registro: models.TipoAcaoIAEnum # O serviço de IA já sabe o tipo de ação
+
     if tipo_geracao_principal == "titulo":
         status_field_to_update = "status_titulo_ia"
+        # Assumindo que o modelo Produto terá um campo para armazenar múltiplos títulos gerados, ex: titulos_gerados_ia (JSON List)
+        # Se for para atualizar nome_chat_api com o primeiro título, ajuste aqui.
+        # Por agora, vamos assumir que o serviço retorna uma lista e o produto pode armazená-la.
+        # Se não, você pode querer salvar o primeiro título em `nome_chat_api`.
+        campo_produto_para_atualizar_com_resultado = "nome_chat_api" # Ou um novo campo JSON para lista de títulos
     elif tipo_geracao_principal == "descricao":
         status_field_to_update = "status_descricao_ia"
+        campo_produto_para_atualizar_com_resultado = "descricao_chat_api"
+    else:
+        print(f"Tarefa Background: Tipo de geração principal '{tipo_geracao_principal}' desconhecido.")
+        db.close()
+        return
+
+    log_entry_prefix = f"IA {tipo_geracao_principal.capitalize()}"
 
     try:
-        user = crud.get_user(db, user_id)
+        user = crud.get_user(db, user_id=user_id)
         if not user:
-            print(f"Tarefa de Geração: Usuário {user_id} não encontrado.")
-            # Não podemos atualizar o status do produto se o usuário não for encontrado
+            print(f"Tarefa Background {log_entry_prefix}: Usuário {user_id} não encontrado.")
+            db.close()
             return
 
         db_produto = crud.get_produto(db, produto_id=produto_id)
         if not db_produto:
-            print(f"Tarefa de Geração: Produto {produto_id} não encontrado.")
+            print(f"Tarefa Background {log_entry_prefix}: Produto {produto_id} não encontrado.")
+            db.close()
             return
         
         if db_produto.user_id != user.id and not user.is_superuser:
-            print(f"Tarefa de Geração: Usuário {user_id} não autorizado para produto {produto_id}.")
+            print(f"Tarefa Background {log_entry_prefix}: Usuário {user_id} não autorizado para produto {produto_id}.")
+            db.close()
             return
 
-        # Atualizar status para EM_PROGRESSO antes de iniciar
+        # Atualizar status para EM_PROGRESSO
         if status_field_to_update:
             update_data_progresso = {status_field_to_update: models.StatusGeracaoIAEnum.EM_PROGRESSO}
-            log_progresso = db_produto.log_enriquecimento_web or {"historico_mensagens": []}
-            if not isinstance(log_progresso.get("historico_mensagens"), list): log_progresso["historico_mensagens"] = []
-            log_progresso["historico_mensagens"].append(f"IA {tipo_geracao_principal}: Iniciando geração. Status: EM_PROGRESSO.")
-            update_data_progresso["log_enriquecimento_web"] = log_progresso
-            
+            log_atual_obj = list(db_produto.log_processamento) if db_produto.log_processamento else []
+            log_atual_obj.append({"timestamp": datetime.utcnow().isoformat(), "actor": "system", "action": f"{log_entry_prefix}: Geração iniciada."})
+            update_data_progresso["log_processamento"] = log_atual_obj
             crud.update_produto(db, db_produto=db_produto, produto_update=schemas.ProdutoUpdate(**update_data_progresso))
-            # db.refresh(db_produto) # Opcional, se precisarmos dos dados atualizados imediatamente na tarefa
 
-        dados_produto_prompt = {
-            "nome_base": db_produto.nome_base,
-            "marca": db_produto.marca,
-            "categoria_original": db_produto.categoria_original,
-            "dados_brutos": db_produto.dados_brutos
-        }
+        print(f"Tarefa Background {log_entry_prefix}: Chamando serviço de IA para produto {produto_id}.")
         
-        api_key_para_usar = user.chave_openai_pessoal or settings.OPENAI_API_KEY
-        modelo_ia_final = modelo_ia_usado_base
-        
-        if "openai" in modelo_ia_usado_base.lower() and not api_key_para_usar:
-            print(f"Tarefa de Geração: Chave API OpenAI não disponível para usuário {user_id} para produto {produto_id}.")
-            if db_produto and status_field_to_update:
-                 log_atual = db_produto.log_enriquecimento_web or {"historico_mensagens": []}
-                 if not isinstance(log_atual.get("historico_mensagens"), list): log_atual["historico_mensagens"] = []
-                 log_atual["historico_mensagens"].append(f"IA {tipo_geracao_principal}: ERRO. Chave API OpenAI não configurada.")
-                 update_data_falha_config = {
-                     status_field_to_update: models.StatusGeracaoIAEnum.FALHA_CONFIGURACAO_IA,
-                     "log_enriquecimento_web": log_atual
-                 }
-                 crud.update_produto(db, db_produto=db_produto, produto_update=schemas.ProdutoUpdate(**update_data_falha_config))
-            return
-
-        print(f"Tarefa de Geração: Chamando IA para produto {produto_id}, tipo: {tipo_geracao_principal}")
-        resultado_ia = await funcao_geracao_ia(
-            dados_produto=dados_produto_prompt,
-            user_api_key=api_key_para_usar,
-            idioma=user.idioma_preferido or "pt-BR",
-            **kwargs_geracao
+        resultado_ia = await funcao_geracao_ia_no_servico(
+            db=db,
+            produto_id=produto_id,
+            user=user,
+            **kwargs_para_funcao_servico
         )
-        print(f"Tarefa de Geração: Resultado IA para produto {produto_id} (truncado): {str(resultado_ia)[:200]}...")
-
-        uso_ia_schema_data = {
-            "produto_id": produto_id,
-            "tipo_geracao": tipo_geracao_registro_uso,
-            "modelo_ia_usado": modelo_ia_final,
-            "resultado_gerado": str(resultado_ia),
-            "prompt_utilizado": kwargs_geracao.get("prompt_completo_debug") # Pode ser grande, considerar truncar ou remover
-        }
         
-        uso_ia_obj_para_criar = schemas.UsoIACreate(**uso_ia_schema_data)
-        crud.create_uso_ia(db=db, uso_ia=uso_ia_obj_para_criar, user_id=user.id)
+        print(f"Tarefa Background {log_entry_prefix}: Resultado IA para produto {produto_id} (truncado): {str(resultado_ia)[:200]}...")
 
-        # Preparar dados para atualização final do produto
         update_data_final_dict: Dict[str, Any] = {}
-        if tipo_geracao_principal == "titulo" and isinstance(resultado_ia, list) and resultado_ia: # Garante que não é lista vazia
-            update_data_final_dict["titulos_sugeridos"] = resultado_ia
-            if status_field_to_update: update_data_final_dict[status_field_to_update] = models.StatusGeracaoIAEnum.CONCLUIDO_SUCESSO
-        elif tipo_geracao_principal == "descricao" and isinstance(resultado_ia, str) and resultado_ia.strip() and "Não foi possível gerar" not in resultado_ia :
-            update_data_final_dict["descricao_principal_gerada"] = resultado_ia
-            if status_field_to_update: update_data_final_dict[status_field_to_update] = models.StatusGeracaoIAEnum.CONCLUIDO_SUCESSO
-        else: # Se resultado_ia for vazio, None, ou mensagem de erro padrão
-            if status_field_to_update: update_data_final_dict[status_field_to_update] = models.StatusGeracaoIAEnum.FALHOU
-            print(f"Tarefa de Geração: IA não retornou resultado válido para produto {produto_id}, tipo: {tipo_geracao_principal}.")
+        log_final_obj = list(db_produto.log_processamento) if db_produto.log_processamento else []
         
-        log_final = db_produto.log_enriquecimento_web or {"historico_mensagens": []}
-        if not isinstance(log_final.get("historico_mensagens"), list): log_final["historico_mensagens"] = []
-        status_final_log = update_data_final_dict.get(status_field_to_update, models.StatusGeracaoIAEnum.FALHOU)
-        log_final["historico_mensagens"].append(f"IA {tipo_geracao_principal}: Geração concluída. Status: {status_final_log.value}. Resultado (início): {str(resultado_ia)[:100]}...")
-        update_data_final_dict["log_enriquecimento_web"] = log_final
+        if resultado_ia and ((isinstance(resultado_ia, str) and resultado_ia.strip()) or (isinstance(resultado_ia, list) and resultado_ia)):
+            if campo_produto_para_atualizar_com_resultado:
+                # Se o resultado for uma lista de títulos, pegamos o primeiro para nome_chat_api
+                # ou você precisa de um campo JSON no Produto para `titulos_sugeridos_ia`
+                if tipo_geracao_principal == "titulo" and isinstance(resultado_ia, list) and campo_produto_para_atualizar_com_resultado == "nome_chat_api":
+                    update_data_final_dict[campo_produto_para_atualizar_com_resultado] = resultado_ia[0] if resultado_ia else db_produto.nome_chat_api
+                    # Se você tiver um campo `titulos_gerados_ia: List[str]` no modelo Produto e schema:
+                    # update_data_final_dict["titulos_gerados_ia"] = resultado_ia
+                else:
+                    update_data_final_dict[campo_produto_para_atualizar_com_resultado] = resultado_ia
 
-        if update_data_final_dict and db_produto:
-            crud.update_produto(db, db_produto=db_produto, produto_update=schemas.ProdutoUpdate(**update_data_final_dict))
+            if status_field_to_update: 
+                update_data_final_dict[status_field_to_update] = models.StatusGeracaoIAEnum.CONCLUIDO
+            log_final_obj.append({"timestamp": datetime.utcnow().isoformat(), "actor": "system", "action": f"{log_entry_prefix}: Geração concluída com sucesso."})
+        else:
+            if status_field_to_update: 
+                update_data_final_dict[status_field_to_update] = models.StatusGeracaoIAEnum.FALHA
+            log_final_obj.append({"timestamp": datetime.utcnow().isoformat(), "actor": "system", "action": f"{log_entry_prefix}: Falha na geração (resultado vazio ou IA não pôde gerar)."})
+            print(f"Tarefa Background {log_entry_prefix}: IA não retornou resultado válido para produto {produto_id}.")
         
-        print(f"Tarefa de Geração: Produto {produto_id} atualizado com resultado e status final da IA.")
+        update_data_final_dict["log_processamento"] = log_final_obj
+        if update_data_final_dict: # Apenas atualiza se houver algo para mudar
+             crud.update_produto(db, db_produto=db_produto, produto_update=schemas.ProdutoUpdate(**update_data_final_dict))
+        print(f"Tarefa Background {log_entry_prefix}: Produto {produto_id} atualizado com resultado e status final.")
 
-    except ValueError as ve: # Erros levantados pelo ia_generation_service ou limit_service (embora limite seja síncrono)
-        print(f"Tarefa de Geração: Erro de valor para produto {produto_id}: {ve}")
+    except HTTPException as http_exc: 
+        print(f"Tarefa Background {log_entry_prefix}: HTTPException para produto {produto_id}: {http_exc.detail}")
         if db_produto and status_field_to_update:
-             log_atual = db_produto.log_enriquecimento_web or {"historico_mensagens": []}
-             if not isinstance(log_atual.get("historico_mensagens"), list): log_atual["historico_mensagens"] = []
-             log_atual["historico_mensagens"].append(f"IA {tipo_geracao_principal}: ERRO (ValueError): {str(ve)}")
-             update_data_falha_valor = {
-                 status_field_to_update: models.StatusGeracaoIAEnum.FALHOU, # Ou um status mais específico
-                 "log_enriquecimento_web": log_atual
-             }
-             crud.update_produto(db, db_produto=db_produto, produto_update=schemas.ProdutoUpdate(**update_data_falha_valor))
+            log_erro_obj = list(db_produto.log_processamento) if db_produto.log_processamento else []
+            log_erro_obj.append({"timestamp": datetime.utcnow().isoformat(), "actor": "system", "action": f"{log_entry_prefix}: Falha ({http_exc.status_code}) - {http_exc.detail}"})
+            update_data_falha_http = {
+                status_field_to_update: models.StatusGeracaoIAEnum.FALHA,
+                "log_processamento": log_erro_obj
+            }
+            crud.update_produto(db, db_produto=db_produto, produto_update=schemas.ProdutoUpdate(**update_data_falha_http))
     except Exception as e:
         import traceback
-        print(f"Tarefa de Geração: Erro inesperado para produto {produto_id}: {traceback.format_exc()}")
+        print(f"Tarefa Background {log_entry_prefix}: Erro inesperado para produto {produto_id}: {traceback.format_exc()}")
         if db_produto and status_field_to_update:
-             log_atual = db_produto.log_enriquecimento_web or {"historico_mensagens": []}
-             if not isinstance(log_atual.get("historico_mensagens"), list): log_atual["historico_mensagens"] = []
-             log_atual["historico_mensagens"].append(f"IA {tipo_geracao_principal}: ERRO CRÍTICO INESPERADO: {str(e)}")
-             update_data_falha_critica = {
-                 status_field_to_update: models.StatusGeracaoIAEnum.FALHOU,
-                 "log_enriquecimento_web": log_atual
-             }
-             crud.update_produto(db, db_produto=db_produto, produto_update=schemas.ProdutoUpdate(**update_data_falha_critica))
+            log_erro_inesperado_obj = list(db_produto.log_processamento) if db_produto.log_processamento else []
+            log_erro_inesperado_obj.append({"timestamp": datetime.utcnow().isoformat(), "actor": "system", "action": f"{log_entry_prefix}: Erro crítico inesperado - {str(e)}"})
+            update_data_falha_critica = {
+                status_field_to_update: models.StatusGeracaoIAEnum.FALHA,
+                "log_processamento": log_erro_inesperado_obj
+            }
+            crud.update_produto(db, db_produto=db_produto, produto_update=schemas.ProdutoUpdate(**update_data_falha_critica))
     finally:
-        print(f"Finalizando tarefa de geração IA para produto ID: {produto_id}")
+        print(f"Tarefa Background {log_entry_prefix}: Finalizando para produto ID: {produto_id}")
         db.close()
 
 
-@router.post("/titulos/openai/{produto_id}", response_model=schemas.Msg, status_code=status.HTTP_202_ACCEPTED, summary="Gerar Títulos com OpenAI (Background)")
+@router.post("/titulos/openai/{produto_id}", response_model=schemas.Msg, status_code=status.HTTP_202_ACCEPTED)
 async def agendar_geracao_novos_titulos_openai(
     produto_id: int,
-    background_tasks: BackgroundTasks,
+    background_tasks: BackgroundTasks, # Movido para antes dos parâmetros com default
+    num_titulos: int = Query(3, ge=1, le=10),
     db: Session = Depends(get_db),
-    current_user: models.User = Depends(get_current_active_user)
+    current_user: models.User = Depends(auth_utils.get_current_active_user)
 ):
     db_produto_check = crud.get_produto(db, produto_id=produto_id)
     if not db_produto_check:
@@ -171,42 +158,49 @@ async def agendar_geracao_novos_titulos_openai(
     if db_produto_check.user_id != current_user.id and not current_user.is_superuser:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Não autorizado a gerar conteúdo para este produto")
 
-    # Verifica o limite ANTES de agendar a tarefa
-    try:
-        limit_service.verificar_limite_uso(db=db, user=current_user, tipo_geracao_principal="titulo")
-    except HTTPException as e_limit: # Se o limite for atingido, a exceção é levantada aqui
-        # Atualizar o status do produto para LIMITE_ATINGIDO
-        log_limite = db_produto_check.log_enriquecimento_web or {"historico_mensagens": []}
-        if not isinstance(log_limite.get("historico_mensagens"), list): log_limite["historico_mensagens"] = []
-        log_limite["historico_mensagens"].append(f"IA Títulos: Falha ao iniciar. Limite de uso mensal atingido.")
+    creditos_necessarios = settings.CREDITOS_CUSTO_GERACAO_TITULO if hasattr(settings, 'CREDITOS_CUSTO_GERACAO_TITULO') else 1
+    
+    if not await limit_service.verificar_creditos_disponiveis_geracao_ia(db, current_user.id, creditos_necessarios):
+        log_limite = list(db_produto_check.log_processamento) if db_produto_check.log_processamento else []
+        log_limite.append({"timestamp": datetime.utcnow().isoformat(), "actor": "system", "action": f"IA Títulos: Falha ao agendar. Limite de uso atingido."})
         update_data_limite = {
-            "status_titulo_ia": models.StatusGeracaoIAEnum.LIMITE_ATINGIDO,
-            "log_enriquecimento_web": log_limite
+            "status_titulo_ia": models.StatusGeracaoIAEnum.FALHA, 
+            "log_processamento": log_limite
         }
         crud.update_produto(db, db_produto=db_produto_check, produto_update=schemas.ProdutoUpdate(**update_data_limite))
-        raise e_limit # Relança a exceção para o cliente ser informado
+        raise HTTPException(
+            status_code=status.HTTP_402_PAYMENT_REQUIRED,
+            detail=f"Créditos de IA insuficientes ({creditos_necessarios} necessários) para agendar geração de títulos."
+        )
 
-    # Se passou pela verificação de limite, agenda a tarefa
+    log_pendente = list(db_produto_check.log_processamento) if db_produto_check.log_processamento else []
+    log_pendente.append({"timestamp": datetime.utcnow().isoformat(), "actor": "system", "action": "IA Títulos: Geração agendada. Status: PENDENTE."})
+    update_data_pendente = {
+        "status_titulo_ia": models.StatusGeracaoIAEnum.PENDENTE,
+        "log_processamento": log_pendente
+    }
+    crud.update_produto(db, db_produto=db_produto_check, produto_update=schemas.ProdutoUpdate(**update_data_pendente))
+    
     background_tasks.add_task(
         _tarefa_processar_geracao_e_registrar_uso,
         db_session_factory=SessionLocal,
         user_id=current_user.id,
         produto_id=produto_id,
         tipo_geracao_principal="titulo",
-        tipo_geracao_registro_uso="titulo_openai_produto",
-        modelo_ia_usado_base="openai_gpt-3.5-turbo", 
-        funcao_geracao_ia=ia_generation_service.gerar_titulos_produto_openai,
-        quantidade=5 
+        # creditos_consumidos_pela_acao=creditos_necessarios, # Removido, o serviço de IA trata disso
+        funcao_geracao_ia_no_servico=ia_generation_service.gerar_titulos_com_openai,
+        num_titulos=num_titulos
     )
     return {"message": f"Geração de títulos para o produto ID {produto_id} agendada."}
 
 
-@router.post("/descricao/openai/{produto_id}", response_model=schemas.Msg, status_code=status.HTTP_202_ACCEPTED, summary="Gerar Descrição com OpenAI (Background)")
+@router.post("/descricao/openai/{produto_id}", response_model=schemas.Msg, status_code=status.HTTP_202_ACCEPTED)
 async def agendar_geracao_nova_descricao_openai(
     produto_id: int,
-    background_tasks: BackgroundTasks,
+    background_tasks: BackgroundTasks, # Movido para antes dos parâmetros com default
+    tamanho_palavras: int = Query(150, ge=50, le=500),
     db: Session = Depends(get_db),
-    current_user: models.User = Depends(get_current_active_user)
+    current_user: models.User = Depends(auth_utils.get_current_active_user)
 ):
     db_produto_check = crud.get_produto(db, produto_id=produto_id)
     if not db_produto_check:
@@ -214,18 +208,27 @@ async def agendar_geracao_nova_descricao_openai(
     if db_produto_check.user_id != current_user.id and not current_user.is_superuser:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Não autorizado a gerar conteúdo para este produto")
 
-    try:
-        limit_service.verificar_limite_uso(db=db, user=current_user, tipo_geracao_principal="descricao")
-    except HTTPException as e_limit:
-        log_limite = db_produto_check.log_enriquecimento_web or {"historico_mensagens": []}
-        if not isinstance(log_limite.get("historico_mensagens"), list): log_limite["historico_mensagens"] = []
-        log_limite["historico_mensagens"].append(f"IA Descrição: Falha ao iniciar. Limite de uso mensal atingido.")
+    creditos_necessarios = settings.CREDITOS_CUSTO_GERACAO_DESCRICAO if hasattr(settings, 'CREDITOS_CUSTO_GERACAO_DESCRICAO') else 1
+    if not await limit_service.verificar_creditos_disponiveis_geracao_ia(db, current_user.id, creditos_necessarios):
+        log_limite = list(db_produto_check.log_processamento) if db_produto_check.log_processamento else []
+        log_limite.append({"timestamp": datetime.utcnow().isoformat(), "actor": "system", "action": f"IA Descrição: Falha ao agendar. Limite de uso atingido."})
         update_data_limite = {
-            "status_descricao_ia": models.StatusGeracaoIAEnum.LIMITE_ATINGIDO,
-            "log_enriquecimento_web": log_limite
+            "status_descricao_ia": models.StatusGeracaoIAEnum.FALHA, 
+            "log_processamento": log_limite
         }
         crud.update_produto(db, db_produto=db_produto_check, produto_update=schemas.ProdutoUpdate(**update_data_limite))
-        raise e_limit
+        raise HTTPException(
+            status_code=status.HTTP_402_PAYMENT_REQUIRED,
+            detail=f"Créditos de IA insuficientes ({creditos_necessarios} necessários) para agendar geração de descrição."
+        )
+    
+    log_pendente = list(db_produto_check.log_processamento) if db_produto_check.log_processamento else []
+    log_pendente.append({"timestamp": datetime.utcnow().isoformat(), "actor": "system", "action": "IA Descrição: Geração agendada. Status: PENDENTE."})
+    update_data_pendente = {
+        "status_descricao_ia": models.StatusGeracaoIAEnum.PENDENTE,
+        "log_processamento": log_pendente
+    }
+    crud.update_produto(db, db_produto=db_produto_check, produto_update=schemas.ProdutoUpdate(**update_data_pendente))
 
     background_tasks.add_task(
         _tarefa_processar_geracao_e_registrar_uso,
@@ -233,8 +236,37 @@ async def agendar_geracao_nova_descricao_openai(
         user_id=current_user.id,
         produto_id=produto_id,
         tipo_geracao_principal="descricao",
-        tipo_geracao_registro_uso="descricao_openai_produto",
-        modelo_ia_usado_base="openai_gpt-3.5-turbo", 
-        funcao_geracao_ia=ia_generation_service.gerar_descricao_produto_openai
+        # creditos_consumidos_pela_acao=creditos_necessarios, # Removido
+        funcao_geracao_ia_no_servico=ia_generation_service.gerar_descricao_com_openai,
+        tamanho_palavras=tamanho_palavras
     )
     return {"message": f"Geração de descrição para o produto ID {produto_id} agendada."}
+
+
+@router.post("/sugerir-atributos-gemini/{produto_id}", response_model=schemas.SugestoesAtributosResponse)
+async def sugerir_atributos_para_produto_com_gemini(
+    produto_id: int,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(auth_utils.get_current_active_user),
+    # background_tasks: BackgroundTasks # Este endpoint permanece síncrono por enquanto
+):
+    """
+    Obtém sugestões de valores para os atributos de um produto específico usando a API Gemini.
+    As sugestões são baseadas nos AttributeTemplates definidos no ProductType do produto.
+    Este endpoint é SÍNCRONO.
+    """
+    try:
+        sugestoes_response = await ia_generation_service.sugerir_valores_atributos_com_gemini(
+            db=db,
+            produto_id=produto_id,
+            user=current_user
+        )
+        return sugestoes_response
+    except HTTPException as e:
+        raise e
+    except Exception as e:
+        print(f"Erro não tratado no endpoint sugerir_atributos_para_produto_com_gemini: {e}") 
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Ocorreu um erro inesperado ao processar a sugestão de atributos: {str(e)}"
+        )
