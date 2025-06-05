@@ -83,7 +83,7 @@ O TDAI visa resolver um dos maiores desafios do e-commerce: a criação de conte
 
 🏆 Qualidade e Consistência: Garante um alto padrão de qualidade e uniformidade em todo o catálogo.
 
-** конверсия Otimização para Conversão:** Utiliza IA para gerar textos persuasivos e orientados para SEO.
+✨ Otimização para Conversão: Utiliza IA para gerar textos persuasivos e orientados para SEO. (Corrigi o emoji que estava como "конверсия")
 
 📈 Escalabilidade: Permite que empresas de qualquer tamanho enriqueçam milhares de produtos eficientemente.
 
@@ -419,8 +419,8 @@ GOOGLE_CSE_ID="SEU_CUSTOM_SEARCH_ENGINE_ID"
 GOOGLE_CSE_API_KEY="SUA_GOOGLE_API_KEY"
 
 # --- 🔗 Chaves de OAuth 2.0 (Opcional) ---
-GOOGLE_CLIENT_ID="SEU_GOOGLE_CLIENT_ID.apps.googleusercontent.com"
-GOOGLE_CLIENT_SECRET="SEU_GOOGLE_CLIENT_SECRET"
+# GOOGLE_CLIENT_ID="SEU_GOOGLE_CLIENT_ID.apps.googleusercontent.com"
+# GOOGLE_CLIENT_SECRET="SEU_GOOGLE_CLIENT_SECRET"
 # FACEBOOK_CLIENT_ID="SEU_FACEBOOK_APP_ID"
 # FACEBOOK_CLIENT_SECRET="SEU_FACEBOOK_APP_SECRET"
 
@@ -534,8 +534,6 @@ TDAI_Project_Root/
 
 7. 🌊 Fluxos de Trabalho Principais
 7.1. 👤 Fluxo de Registro e Login de Usuário
-(Detalhes mantidos da versão anterior, focando na clareza do fluxo)
-
 Registro (Frontend): Formulário (LoginPage.jsx) -> authService.register() -> POST /api/v1/auth/register (Backend).
 
 Login Local (Frontend): Formulário (LoginPage.jsx) -> AuthContext.login() -> authService.login() -> POST /api/v1/auth/token (Backend) -> JWT retornado e armazenado.
@@ -543,8 +541,6 @@ Login Local (Frontend): Formulário (LoginPage.jsx) -> AuthContext.login() -> au
 Login Social (OAuth - Ex: Google): Botão -> GET /api/v1/auth/google/login (Backend) -> Redirecionamento Google -> Callback GET /api/v1/auth/google/callback (Backend) -> Troca código por token Google -> Obtém perfil -> Cria/Loga usuário TDAI -> Gera JWT TDAI.
 
 7.2. 🔄 Fluxo Completo de Enriquecimento de Produto (de Upload à Geração IA)
-(Detalhes mantidos da versão anterior, focando na clareza do fluxo)
-
 Upload (Frontend): Seleciona arquivo -> productService.uploadFile() -> POST /api/v1/uploads/.
 
 Processamento Inicial (Backend): routers/uploads.py -> BackgroundTasks com file_processing_service -> Leitura (Pandas/pdfplumber) -> Cria/Atualiza produtos via crud.
