@@ -4,18 +4,7 @@ import ProductTable from '../components/produtos/ProductTable';
 import NewProductModal from '../components/produtos/NewProductModal';
 import ProductEditModal from '../components/ProductEditModal';
 import PaginationControls from '../components/common/PaginationControls';
-
-import {
-  getProdutos,
-  createProduto,
-  updateProduto,
-  deleteProduto,
-  iniciarEnriquecimentoWebProduto,
-  gerarTitulosProduto,
-  gerarDescricaoProduto,
-  batchDeleteProdutos
-} from '../services/productService';
-
+import productService from '../services/productService';
 import { showErrorToast, showSuccessToast } from '../utils/notifications';
 import './ProdutosPage.css';
 import { useProductTypes } from '../contexts/ProductTypeContext';
