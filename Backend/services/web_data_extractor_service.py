@@ -225,8 +225,8 @@ async def extrair_dados_produto_com_llm(
         return {"erro_llm": "Chave API OpenAI não configurada"}
 
     try:
-        # A função _call_openai_api está em ia_generation_service
-        json_str_resposta = await ia_generation_service._call_openai_api( 
+        # A função call_openai_api está em ia_generation_service
+        json_str_resposta = await ia_generation_service.call_openai_api(
             prompt=prompt,
             api_key=api_key_para_usar,
             model="gpt-3.5-turbo-0125", # Exemplo de modelo, pode ser configurável
