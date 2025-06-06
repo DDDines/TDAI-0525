@@ -251,6 +251,7 @@ DATABASE_URL="postgresql://usuario:senha@localhost:5432/tdai_db"
 
 # Segurança
 SECRET_KEY="sua_chave_forte"
+REFRESH_SECRET_KEY="sua_chave_refresh"
 ALGORITHM="HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES=60
 
@@ -277,9 +278,14 @@ GOOGLE_CLIENT_SECRET="..."
 FACEBOOK_CLIENT_ID="..."
 FACEBOOK_CLIENT_SECRET="..."
 
+# Custos de IA
+CREDITOS_CUSTO_SUGESTAO_ATRIBUTOS_GEMINI=1
+
 # Admin padrão
 ADMIN_EMAIL="admin@email.com"
 ADMIN_PASSWORD="adminpassword"
+FIRST_SUPERUSER_EMAIL="admin@example.com"
+FIRST_SUPERUSER_PASSWORD="adminpassword"
 ```
 
 > ⚠️ **Nunca suba este arquivo para o git!**
