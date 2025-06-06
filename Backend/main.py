@@ -15,21 +15,18 @@ import crud
 from auth import router as auth_router_direct
 from database import SessionLocal, engine, get_db
 from core.config import settings
-# from core import email_utils # Comentado se não estiver sendo usado diretamente neste arquivo
 
 # Importa os routers da subpasta 'routers'
-from routers import (
-    produtos as produtos_router,
-    fornecedores as fornecedores_router,
-    generation as generation_router,
-    web_enrichment as web_enrichment_router,
-    uploads as uploads_router,
-    product_types as product_types_router,
-    uso_ia as uso_ia_router,
-    password_recovery as password_recovery_router,
-    admin_analytics as admin_analytics_router,
-    social_auth as social_auth_router
-)
+from routers.produtos import router as produtos_router
+from routers.fornecedores import router as fornecedores_router
+from routers.generation import router as generation_router
+from routers.web_enrichment import router as web_enrichment_router
+from routers.uploads import router as uploads_router
+from routers.product_types import router as product_types_router
+from routers.uso_ia import router as uso_ia_router
+from routers.password_recovery import router as password_recovery_router
+from routers.admin_analytics import router as admin_analytics_router
+from routers.social_auth import router as social_auth_router
 
 # Configuração do logging
 logging.basicConfig(level=logging.INFO)
@@ -52,76 +49,45 @@ app = FastAPI(
     description="API para o sistema TDAI - Ferramenta de Descrição Assistida por IA.",
 )
 
-# --- INÍCIO DA SEÇÃO CORS MODIFICADA E REVISADA ---
 # Configuração do CORS
-exact_frontend_origin = "http://localhost:5173" # Origem exata do frontend como o navegador envia
-
-# Lista de origens padrão, garantindo a inclusão da origem exata do frontend
-# e outras variações comuns para desenvolvimento local.
+# (Código CORS mantido como na correção anterior, já está correto)
+exact_frontend_origin = "http://localhost:5173"
 default_cors_origins_list = [
-    exact_frontend_origin,           # Ex: "http://localhost:5173"
-    "http://127.0.0.1:5173",         # Equivalente comum para localhost
-    exact_frontend_origin + "/",     # Com barra no final, por segurança: "http://localhost:5173/"
-    "http://127.0.0.1:5173/",        # Equivalente com barra
-    "http://localhost",              # Se você acessar o frontend por aqui diretamente em algum caso raro
-    "http://127.0.0.1",              # (Menos comum para frontend Vite em dev)
+    exact_frontend_origin, "http://127.0.0.1:5173",
+    exact_frontend_origin + "/", "http://127.0.0.1:5173/",
+    "http://localhost", "http://127.0.0.1",
 ]
-
 current_allowed_origins = []
-
 try:
-    # settings.BACKEND_CORS_ORIGINS é List[AnyHttpUrl] carregada de core.config.py
     if hasattr(settings, 'BACKEND_CORS_ORIGINS') and settings.BACKEND_CORS_ORIGINS:
-        # Processa as origens vindas das configurações (já são AnyHttpUrl)
-        # Normaliza para strings e remove duplicatas potenciais após normalização
         normalized_env_origins = set()
         for origin_obj in settings.BACKEND_CORS_ORIGINS:
             origin_str = str(origin_obj)
-            normalized_env_origins.add(origin_str.rstrip('/')) # Adiciona sem barra
-            normalized_env_origins.add(origin_str)             # Adiciona com barra (se houver)
-
+            normalized_env_origins.add(origin_str.rstrip('/'))
+            normalized_env_origins.add(origin_str)
         if not normalized_env_origins:
-            current_allowed_origins = list(default_cors_origins_list) # Usa cópia da lista padrão
-            print("AVISO: settings.BACKEND_CORS_ORIGINS estava definido mas resultou em conjunto vazio após normalização. Usando CORS origins padrão.")
+            current_allowed_origins = list(default_cors_origins_list)
         else:
             current_allowed_origins = sorted(list(normalized_env_origins))
-            print(f"INFO: Usando CORS origins de settings (normalizados): {current_allowed_origins}")
-            # Garante que a origem exata do frontend (sem barra) e os padrões estejam lá,
-            # caso o .env não os tenha ou os tenha de forma diferente.
             for default_org in default_cors_origins_list:
                 if default_org not in current_allowed_origins:
                     current_allowed_origins.append(default_org)
-            current_allowed_origins = sorted(list(set(current_allowed_origins))) # Remove duplicatas e ordena
-
-    else: # Se BACKEND_CORS_ORIGINS não estiver definido ou for vazio em settings
-        current_allowed_origins = list(default_cors_origins_list) # Usa cópia da lista padrão
-        print("INFO: settings.BACKEND_CORS_ORIGINS não definido ou vazio. Usando CORS origins padrão.")
-
-except AttributeError: # Se o atributo BACKEND_CORS_ORIGINS não existir em settings
-    current_allowed_origins = list(default_cors_origins_list) # Usa cópia da lista padrão
-    print("AVISO: Atributo settings.BACKEND_CORS_ORIGINS não encontrado em settings. Usando CORS origins padrão.")
-except Exception as e_cors_setup: # Capturar outros erros inesperados na configuração
-    current_allowed_origins = list(default_cors_origins_list) # Usa cópia da lista padrão
-    print(f"ERRO CRÍTICO ao configurar CORS origins a partir de settings: {e_cors_setup}. Usando CORS origins padrão.")
-
-# Garante que a origem exata do frontend (sem barra) esteja na lista final,
-# pois é assim que o header Origin geralmente chega.
+            current_allowed_origins = sorted(list(set(current_allowed_origins)))
+    else:
+        current_allowed_origins = list(default_cors_origins_list)
+except Exception:
+    current_allowed_origins = list(default_cors_origins_list)
 if exact_frontend_origin not in current_allowed_origins:
-    current_allowed_origins.insert(0, exact_frontend_origin) # Adiciona no início se faltar
-
-# Remove duplicatas finais que possam ter sido introduzidas e ordena para consistência no log
+    current_allowed_origins.insert(0, exact_frontend_origin)
 final_unique_allowed_origins = sorted(list(set(current_allowed_origins)))
-
 print(f"INFO: Final unique allowed_origins para CORSMiddleware: {final_unique_allowed_origins}")
-
 app.add_middleware(
     CORSMiddleware,
     allow_origins=final_unique_allowed_origins,
     allow_credentials=True,
-    allow_methods=["*"], # Permite todos os métodos (GET, POST, PUT, OPTIONS, etc.)
-    allow_headers=["*"], # Permite todos os cabeçalhos (Authorization, Content-Type, etc.)
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
-# --- FIM DA SEÇÃO CORS MODIFICADA E REVISADA ---
 
 
 static_files_path = Path(__file__).parent / "static"
@@ -158,25 +124,25 @@ async def startup_event_create_defaults():
         if not user_role_obj:
             logger.error("ERRO CRÍTICO: Role 'user' não pôde ser encontrada ou criada.")
 
-        # 2. Criação de Planos
+        # 2. Criação de Planos (Corrigido)
         plano_gratuito_data = schemas.PlanoCreate(
             nome="Gratuito",
             descricao="Plano básico gratuito com limitações.",
-            preco_mensal=0,
-            max_produtos=settings.DEFAULT_LIMIT_PRODUTOS_SEM_PLANO,
-            max_enriquecimentos_mes=settings.DEFAULT_LIMIT_ENRIQUECIMENTO_SEM_PLANO,
-            max_titulos_mes=settings.DEFAULT_LIMIT_GERACAO_IA_SEM_PLANO, # Usar o mesmo limite
-            max_descricoes_mes=settings.DEFAULT_LIMIT_GERACAO_IA_SEM_PLANO, # Usar o mesmo limite
+            preco_mensal=0.0,
+            limite_produtos=settings.DEFAULT_LIMIT_PRODUTOS_SEM_PLANO,
+            limite_enriquecimento_web=settings.DEFAULT_LIMIT_ENRIQUECIMENTO_SEM_PLANO,
+            limite_geracao_ia=settings.DEFAULT_LIMIT_GERACAO_IA_SEM_PLANO,
+            permite_api_externa=False,
+            suporte_prioritario=False
         )
         plano_pro_data = schemas.PlanoCreate(
             nome="Pro",
             descricao="Plano profissional com mais limites e funcionalidades.",
             preco_mensal=49.90,
-            max_produtos=1000,
-            max_enriquecimentos_mes=500,
-            max_titulos_mes=2000, # Ajustar conforme o plano "Pro"
-            max_descricoes_mes=1000, # Ajustar conforme o plano "Pro"
-            permite_api=True,
+            limite_produtos=1000,
+            limite_enriquecimento_web=500,
+            limite_geracao_ia=2000,
+            permite_api_externa=True,
             suporte_prioritario=True
         )
 
@@ -227,9 +193,9 @@ async def startup_event_create_defaults():
                     if admin_plano_obj and not created_admin.plano_id:
                         created_admin.plano_id = admin_plano_obj.id
                         # Sincroniza limites do plano no usuário
-                        created_admin.limite_produtos = admin_plano_obj.max_produtos
-                        created_admin.limite_enriquecimento_web = admin_plano_obj.max_enriquecimentos_mes
-                        created_admin.limite_geracao_ia = admin_plano_obj.max_titulos_mes + admin_plano_obj.max_descricoes_mes
+                        created_admin.limite_produtos = admin_plano_obj.limite_produtos
+                        created_admin.limite_enriquecimento_web = admin_plano_obj.limite_enriquecimento_web
+                        created_admin.limite_geracao_ia = admin_plano_obj.limite_geracao_ia
                     
                     db.add(created_admin) 
                     db.commit()
@@ -266,9 +232,9 @@ async def startup_event_create_defaults():
                 "friendly_name": "Eletrônicos",
                 "description": "Tipo padrão para produtos eletrônicos.",
                 "attribute_templates": [
-                    {"attribute_key": "marca", "label": "Marca", "field_type": models.AttributeFieldTypeEnum.TEXT, "is_required": True, "display_order": 0, "tooltip_text": "Marca do produto eletrônico"},
-                    {"attribute_key": "voltagem", "label": "Voltagem", "field_type": models.AttributeFieldTypeEnum.SELECT, "options": '["110v", "220v", "Bivolt"]', "is_required": True, "display_order": 1, "tooltip_text": "Selecione a voltagem"},
-                    {"attribute_key": "cor_principal", "label": "Cor Principal", "field_type": models.AttributeFieldTypeEnum.TEXT, "is_required": False, "display_order": 2, "tooltip_text": "Cor predominante do produto"},
+                    {"attribute_key": "marca", "label": "Marca", "field_type": models.AttributeFieldTypeEnum.TEXT, "is_required": True, "display_order": 0, "description": "Marca do produto eletrônico"},
+                    {"attribute_key": "voltagem", "label": "Voltagem", "field_type": models.AttributeFieldTypeEnum.SELECT, "options": '["110v", "220v", "Bivolt"]', "is_required": True, "display_order": 1, "description": "Selecione a voltagem"},
+                    {"attribute_key": "cor_principal", "label": "Cor Principal", "field_type": models.AttributeFieldTypeEnum.TEXT, "is_required": False, "display_order": 2, "description": "Cor predominante do produto"},
                 ]
             },
             {
@@ -276,9 +242,9 @@ async def startup_event_create_defaults():
                 "friendly_name": "Vestuário",
                 "description": "Tipo padrão para peças de vestuário.",
                 "attribute_templates": [
-                    {"attribute_key": "tamanho", "label": "Tamanho", "field_type": models.AttributeFieldTypeEnum.SELECT, "options": '["P", "M", "G", "GG", "XG"]', "is_required": True, "display_order": 1, "tooltip_text": "Selecione o tamanho da peça"},
-                    {"attribute_key": "cor", "label": "Cor", "field_type": models.AttributeFieldTypeEnum.TEXT, "is_required": True, "display_order": 2, "tooltip_text": "Cor da peça de vestuário"},
-                    {"attribute_key": "material", "label": "Material Principal", "field_type": models.AttributeFieldTypeEnum.TEXT, "is_required": False, "display_order": 3, "tooltip_text": "Material principal da confecção"},
+                    {"attribute_key": "tamanho", "label": "Tamanho", "field_type": models.AttributeFieldTypeEnum.SELECT, "options": '["P", "M", "G", "GG", "XG"]', "is_required": True, "display_order": 1, "description": "Selecione o tamanho da peça"},
+                    {"attribute_key": "cor", "label": "Cor", "field_type": models.AttributeFieldTypeEnum.TEXT, "is_required": True, "display_order": 2, "description": "Cor da peça de vestuário"},
+                    {"attribute_key": "material", "label": "Material Principal", "field_type": models.AttributeFieldTypeEnum.TEXT, "is_required": False, "display_order": 3, "description": "Material principal da confecção"},
                 ]
             }
         ]
@@ -335,8 +301,12 @@ def create_new_user(
     return new_user_created
 
 
+# --- INÍCIO DA CORREÇÃO ---
 # Inclusão dos routers da aplicação com prefixo /api/v1
-app.include_router(auth_router_direct, prefix=settings.API_V1_STR, tags=["Autenticação e Usuários"])
+# A rota de autenticação de token precisa do prefixo /auth
+app.include_router(auth_router_direct, prefix=settings.API_V1_STR + "/auth", tags=["Autenticação e Usuários"])
+# --- FIM DA CORREÇÃO ---
+
 app.include_router(social_auth_router, prefix=settings.API_V1_STR + "/auth", tags=["Autenticação Social"])
 app.include_router(produtos_router, prefix=settings.API_V1_STR, tags=["Produtos"])
 app.include_router(fornecedores_router, prefix=settings.API_V1_STR, tags=["Fornecedores"])
