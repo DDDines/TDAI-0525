@@ -221,7 +221,6 @@ async def upload_produto_image( # Nome da função mantido como no arquivo do us
         raise HTTPException(status_code=403, detail="Não autorizado a modificar este produto")
 
     try:
-        # crud.save_produto_image deve retornar o caminho relativo salvo no DB
         file_path_in_db = await crud.save_produto_image(db, produto_id, file)
     except ValueError as e: 
         raise HTTPException(status_code=400, detail=str(e))

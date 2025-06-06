@@ -12,6 +12,9 @@ from jose import jwt # Para decodificar token se necessário (ex: social_auth)
 
 from core.config import settings # Para JWT_SECRET_KEY, ALGORITHM, etc.
 from core import security # Para hash de senha
+from pathlib import Path
+import uuid
+from fastapi import UploadFile
 from models import ( # Isso está correto
     User, Role, Plano, Produto, Fornecedor, ProductType, AttributeTemplate, RegistroUsoIA,
     StatusEnriquecimentoEnum, StatusGeracaoIAEnum, TipoAcaoIAEnum, AttributeFieldTypeEnum
@@ -751,6 +754,33 @@ def delete_produto(db: Session, db_produto: Produto) -> Produto:
     db.delete(db_produto)
     db.commit()
     return db_produto
+
+
+async def save_produto_image(db: Session, produto_id: int, file: UploadFile) -> str:
+    """Salva a imagem enviada para um produto e retorna o caminho relativo."""
+    if not file.filename:
+        raise ValueError("Nome do arquivo não fornecido.")
+
+    upload_dir = Path(settings.UPLOAD_DIRECTORY)
+    if not upload_dir.is_absolute():
+        upload_dir = Path(__file__).resolve().parent / upload_dir
+    upload_dir.mkdir(parents=True, exist_ok=True)
+
+    file_extension = Path(file.filename).suffix
+    unique_filename = f"{uuid.uuid4().hex}{file_extension}"
+    file_path = upload_dir / unique_filename
+
+    try:
+        content = await file.read()
+        with open(file_path, "wb") as f_out:
+            f_out.write(content)
+    except Exception as e:
+        raise IOError(f"Não foi possível salvar o arquivo: {e}")
+    finally:
+        await file.close()
+
+    relative = Path(settings.UPLOAD_DIRECTORY) / unique_filename
+    return f"/{relative.as_posix()}"
 
 # --- RegistroUsoIA CRUD ---
 def create_registro_uso_ia(db: Session, registro_uso: schemas.RegistroUsoIACreate) -> RegistroUsoIA:
