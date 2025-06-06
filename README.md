@@ -245,6 +245,19 @@ npm run dev                 # Roda o frontend em http://localhost:5173
 
 ---
 
+### 6. **Testes**
+
+```sh
+# Backend
+pytest
+
+# Frontend
+cd Frontend/app
+npm test
+```
+
+---
+
 ## ⚙️ Variáveis de Ambiente – Exemplo `.env`
 
 ```
