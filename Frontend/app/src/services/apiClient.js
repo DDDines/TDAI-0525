@@ -1,5 +1,6 @@
 // Frontend/app/src/services/apiClient.js
 import axios from 'axios';
+import logger from '../utils/logger';
 
 const API_BASE_URL = '/api/v1'; // Conforme configuração com proxy do Vite
 
@@ -15,14 +16,14 @@ apiClient.interceptors.request.use(
     const token = localStorage.getItem('accessToken');
     const tokenSnippet = token ? `${token.substring(0, 15)}...${token.substring(token.length - 15)}` : "N/A";
 
-    console.log(`apiClient: Interceptando requisição para ${config.url}. Token no localStorage (snippet): ${tokenSnippet}`);
+    logger.log(`apiClient: Interceptando requisição para ${config.url}. Token no localStorage (snippet): ${tokenSnippet}`);
 
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
       // LOG DETALHADO DO HEADER (PARA DEBUG - REMOVER DEPOIS)
-      console.log(`apiClient: Header Authorization DEFINIDO para ${config.url}: "${config.headers.Authorization.substring(0,30)}..."`);
+      logger.log(`apiClient: Header Authorization DEFINIDO para ${config.url}: "${config.headers.Authorization.substring(0,30)}..."`);
     } else {
-      console.log(`apiClient: Nenhum token encontrado no localStorage para ${config.url}.`);
+      logger.log(`apiClient: Nenhum token encontrado no localStorage para ${config.url}.`);
       // Garantir que o header de autorização seja removido se não houver token
       delete config.headers.Authorization;
     }
@@ -38,7 +39,7 @@ apiClient.interceptors.response.use(
   response => response,
   error => {
     // Log mais detalhado do erro, incluindo a config da requisição que falhou
-    console.log(
+    logger.log(
         `apiClient: Interceptor de resposta pegou um erro. URL: ${error.config?.url}`,
         `Status: ${error.response?.status}`,
         `Data: ${JSON.stringify(error.response?.data)}`,

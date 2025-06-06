@@ -19,13 +19,14 @@ import ProtectedRoute from './components/ProtectedRoute';
 // Importe outras páginas e componentes necessários
 
 import './App.css';
+import logger from './utils/logger';
 
 function AppContent() {
   const { isAuthenticated, isLoading } = useAuth();
   const location = useLocation();
 
   useEffect(() => {
-    console.log("App.jsx: Auth state changed - isAuthenticated:", isAuthenticated, "isLoading:", isLoading, "path:", location.pathname);
+    logger.log("App.jsx: Auth state changed - isAuthenticated:", isAuthenticated, "isLoading:", isLoading, "path:", location.pathname);
   }, [isAuthenticated, isLoading, location.pathname]);
 
   // Se ainda estiver carregando a informação de autenticação, pode mostrar um loader global
@@ -72,7 +73,7 @@ function AppContent() {
 
 function App() {
   useEffect(() => {
-    console.log("App.jsx está a ser renderizado com AuthProvider e ProductTypeProvider");
+    logger.log("App.jsx está a ser renderizado com AuthProvider e ProductTypeProvider");
   }, []);
 
   return (

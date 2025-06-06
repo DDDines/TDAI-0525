@@ -15,12 +15,15 @@ from .auth_utils import get_current_active_user
 
 from services import web_data_extractor_service as web_extractor
 from core.config import settings
+from core.logging_config import get_logger
 
 router = APIRouter(
     prefix="/enriquecimento-web",
     tags=["Enriquecimento de Produto via Web"],
     dependencies=[Depends(get_current_active_user)]
 )
+
+logger = get_logger(__name__)
 
 async def _tarefa_enriquecer_produto_web(
     db_session_factory,
@@ -38,7 +41,7 @@ async def _tarefa_enriquecer_produto_web(
         db_produto_obj = db.query(models.Produto).filter(models.Produto.id == produto_id).with_for_update().first()
         if not db_produto_obj:
             log_mensagens.append(f"ERRO FATAL PRECOCE: Produto ID {produto_id} não encontrado.")
-            print(log_mensagens[-1])
+            logger.error(log_mensagens[-1])
             db.close()
             return
         
@@ -47,7 +50,7 @@ async def _tarefa_enriquecer_produto_web(
 
     except SQLAlchemyError as e_sql_load:
         log_mensagens.append(f"ERRO SQL ao carregar produto ID {produto_id}: {e_sql_load}")
-        print(log_mensagens[-1])
+        logger.error(log_mensagens[-1])
         db.close()
         return
 
@@ -248,7 +251,11 @@ async def _tarefa_enriquecer_produto_web(
         error_full = traceback.format_exc()
         log_mensagens.append(f"ERRO CRÍTICO INESPERADO NO PROCESSO: {str(e_main_try)}. Trace: {error_full}")
         status_para_salvar_no_final = models.StatusEnriquecimentoEnum.FALHOU 
-        print(f"ERRO CRÍTICO INESPERADO na tarefa de enriquecimento para produto ID {produto_id}: {error_full}")
+        logger.error(
+            "ERRO CRÍTICO INESPERADO na tarefa de enriquecimento para produto ID %s: %s",
+            produto_id,
+            error_full,
+        )
     
     finally:
         if db_produto_obj:
@@ -273,12 +280,24 @@ async def _tarefa_enriquecer_produto_web(
                 )
                 crud.update_produto(db, db_produto=db_produto_obj, produto_update=payload_final_update)
                 log_mensagens.append(f"Produto ID {produto_id} FINALMENTE atualizado com status: {status_valor_str}.")
-                print(f"INFO (web_enrichment.py _finally_): Produto ID {produto_id} status ATUALIZADO PARA {status_valor_str}.")
+                logger.info(
+                    "INFO (web_enrichment.py _finally_): Produto ID %s status ATUALIZADO PARA %s.",
+                    produto_id,
+                    status_valor_str,
+                )
             except Exception as e_final_update:
-                print(f"ERRO CRÍTICO ao tentar atualização final do produto {produto_id} no finally: {e_final_update}")
+                logger.error(
+                    "ERRO CRÍTICO ao tentar atualização final do produto %s no finally: %s",
+                    produto_id,
+                    e_final_update,
+                )
         
         final_status_value_print = status_para_salvar_no_final.value
-        print(f"Finalizando tarefa de enriquecimento para produto ID: {produto_id}. Status determinado para gravação: {final_status_value_print}")
+        logger.info(
+            "Finalizando tarefa de enriquecimento para produto ID: %s. Status determinado para gravação: %s",
+            produto_id,
+            final_status_value_print,
+        )
         
         db.close()
 

@@ -1,6 +1,7 @@
 // Frontend/app/src/services/authService.js
 import apiClient from './apiClient';
 import { showSuccessToast, showErrorToast } from '../utils/notifications'; // Assumindo que você quer usar toasts aqui também
+import logger from '../utils/logger';
 
 const authService = {
   async login(email, password) {
@@ -14,7 +15,7 @@ const authService = {
           'Content-Type': 'application/x-www-form-urlencoded',
         },
       });
-      console.log("authService: Login response data:", response.data);
+      logger.log("authService: Login response data:", response.data);
       // O token é salvo no AuthContext após esta chamada ser bem-sucedida
       return response.data;
     } catch (error) {
@@ -25,11 +26,11 @@ const authService = {
   },
 
   async getCurrentUser() {
-    console.log("authService: Tentando buscar getCurrentUser...");
+    logger.log("authService: Tentando buscar getCurrentUser...");
     try {
       // CORREÇÃO: Remover a barra final para corresponder à definição do endpoint FastAPI
       const response = await apiClient.get('/auth/users/me'); // ANTES: '/auth/users/me/'
-      console.log("authService: getCurrentUser response data:", response.data);
+      logger.log("authService: getCurrentUser response data:", response.data);
       return response.data;
     } catch (error) {
       console.error('Error fetching current user (authService):', error.response?.data || error.message);
