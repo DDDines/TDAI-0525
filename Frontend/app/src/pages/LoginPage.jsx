@@ -3,6 +3,7 @@ import { useNavigate, useLocation, Link } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { toast } from 'react-toastify';
 import './LoginPage.css'; // Mantenha seu CSS
+import logger from '../utils/logger';
 
 const LoginPage = () => {
     const [email, setEmail] = useState('');
@@ -16,7 +17,7 @@ const LoginPage = () => {
     // Redireciona se já estiver autenticado
     useEffect(() => {
         if (isAuthenticated && !authIsLoading) {
-            console.log("LoginPage: Usuário já autenticado, redirecionando...");
+            logger.log("LoginPage: Usuário já autenticado, redirecionando...");
             const from = location.state?.from?.pathname || '/dashboard'; // Ou para a rota principal
             navigate(from, { replace: true });
         }

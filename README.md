@@ -106,13 +106,11 @@ TDAI-0525-Dev/
 │   │   ├── uso_ia.py
 │   │   └── web_enrichment.py
 │   ├── schemas.py
-│   ├── schemas_backup.py
 │   ├── services/
 │   │   ├── __init__.py
 │   │   ├── file_processing_service.py
 │   │   ├── ia_generation_service.py
 │   │   ├── limit_service.py
-│   │   ├── web_data_extractor_service backup.py
 │   │   └── web_data_extractor_service.py
 │   ├── templates/
 │   │   └── password_reset_email.html
@@ -148,7 +146,6 @@ TDAI-0525-Dev/
 │       │   │   ├── ProtectedRoute.jsx
 │       │   │   ├── Sidebar.jsx
 │       │   │   └── Topbar.jsx
-│       │   ├── index backup2605.css
 │       │   ├── index.css
 │       │   ├── main.jsx
 │       │   ├── pages/
@@ -210,6 +207,8 @@ cd <PASTA_DO_PROJETO>
 
 ### 3. **Configuração do Backend**
 
+As dependências Python necessárias estão listadas em `Backend/requirements.txt`.
+
 ```sh
 python -m venv venv
 source venv/bin/activate    # Ou .\venv\Scripts\activate no Windows
@@ -227,6 +226,9 @@ python run_backend.py       # Inicia o backend (http://localhost:8000)
 ```sh
 cd Frontend/app
 npm install
+# Certifique-se de que as dependências de desenvolvimento (como @eslint/js)
+# foram instaladas. Elas são necessárias para o comando de lint.
+npm run lint            # Opcional: verifica padrões de código
 npm run dev                 # Roda o frontend em http://localhost:5173
 ```
 
@@ -243,6 +245,19 @@ npm run dev                 # Roda o frontend em http://localhost:5173
 
 ---
 
+### 6. **Testes**
+
+```sh
+# Backend
+pytest
+
+# Frontend
+cd Frontend/app
+npm test
+```
+
+---
+
 ## ⚙️ Variáveis de Ambiente – Exemplo `.env`
 
 ```
@@ -251,6 +266,10 @@ DATABASE_URL="postgresql://usuario:senha@localhost:5432/tdai_db"
 
 # Segurança
 SECRET_KEY="sua_chave_forte"
+ codex/add-configuration-variables-to-config.py
+REFRESH_SECRET_KEY="sua_chave_refresh"
+
+REFRESH_SECRET_KEY="change-me"
 ALGORITHM="HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES=60
 
@@ -277,9 +296,14 @@ GOOGLE_CLIENT_SECRET="..."
 FACEBOOK_CLIENT_ID="..."
 FACEBOOK_CLIENT_SECRET="..."
 
+# Custos de IA
+CREDITOS_CUSTO_SUGESTAO_ATRIBUTOS_GEMINI=1
+
 # Admin padrão
 ADMIN_EMAIL="admin@email.com"
 ADMIN_PASSWORD="adminpassword"
+FIRST_SUPERUSER_EMAIL="admin@example.com"
+FIRST_SUPERUSER_PASSWORD="adminpassword"
 ```
 
 > ⚠️ **Nunca suba este arquivo para o git!**
@@ -299,6 +323,8 @@ ADMIN_PASSWORD="adminpassword"
 
 * **Iniciar Frontend:**
   `npm run dev` (na pasta `Frontend/app`)
+* **Verificar código com ESLint:**
+  `npm run lint` (exige dependências de desenvolvimento instaladas)
 
 * **Explorar Endpoints API:**
 
@@ -316,6 +342,21 @@ ADMIN_PASSWORD="adminpassword"
 * [ ] Personalização de conteúdo por persona/segmento
 * [ ] Sistema de feedback e aprendizado contínuo
 * [ ] Templates dinâmicos de prompt
+
+---
+
+## ✅ Conclusão da Fase Atual
+
+Esta etapa inclui avanços importantes de qualidade:
+
+* Implementados testes unitários e de integração (pasta `tests/`).
+* Estilos revistos no frontend para aderência ao protótipo.
+* Ajustes de performance e usabilidade documentados nesta versão.
+
+### Melhorias de Desempenho e Usabilidade
+
+* Utilização de variáveis CSS para acelerar o carregamento de estilos.
+* Layout do sidebar unificado, garantindo navegação mais consistente.
 
 ---
 

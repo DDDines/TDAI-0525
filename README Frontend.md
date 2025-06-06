@@ -111,9 +111,7 @@
 
 ---
 
-## Frontend/app/src/index backup2605.css
 
-* **Sem funções**: Arquivo de estilos CSS backup.
 
 ## Frontend/app/src/index.css
 

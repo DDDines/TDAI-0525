@@ -3,6 +3,7 @@ import React, { createContext, useContext, useState, useEffect, useCallback } fr
 import { useNavigate, useLocation } from 'react-router-dom';
 import authService from '../services/authService';
 import apiClient from '../services/apiClient'; // Para configurar o header padrão globalmente
+import logger from '../utils/logger';
 
 const AuthContext = createContext(null);
 
@@ -18,7 +19,7 @@ export const AuthProvider = ({ children }) => {
     setIsAuthenticated(false);
     localStorage.removeItem('accessToken'); // Chave corrigida
     delete apiClient.defaults.headers.common['Authorization'];
-    console.log("AuthContext: clearAuthData chamado, token removido e header limpo.");
+    logger.log("AuthContext: clearAuthData chamado, token removido e header limpo.");
     setIsLoading(false);
   }, []);
 
@@ -28,7 +29,7 @@ export const AuthProvider = ({ children }) => {
     if (token) {
         localStorage.setItem('accessToken', token); // Chave corrigida
         apiClient.defaults.headers.common['Authorization'] = `Bearer ${token}`;
-        console.log("AuthContext: setAuthData chamado, token salvo e header configurado.", userData);
+        logger.log("AuthContext: setAuthData chamado, token salvo e header configurado.", userData);
     } else {
         console.warn("AuthContext: setAuthData chamado sem token. UserData:", userData);
     }
@@ -36,19 +37,19 @@ export const AuthProvider = ({ children }) => {
   }, []);
 
   const checkUserSession = useCallback(async () => {
-    console.log("AuthContext: Verificando sessão do usuário...");
+    logger.log("AuthContext: Verificando sessão do usuário...");
     setIsLoading(true);
     const token = localStorage.getItem('accessToken'); // Chave corrigida
     const tokenSnippet = token ? `${token.substring(0, 15)}...${token.substring(token.length - 15)}` : "N/A";
-    console.log(`AuthContext: Token encontrado no localStorage (snippet): ${tokenSnippet}`);
+    logger.log(`AuthContext: Token encontrado no localStorage (snippet): ${tokenSnippet}`);
 
     if (token) {
       apiClient.defaults.headers.common['Authorization'] = `Bearer ${token}`;
       try {
-        console.log("AuthContext: Token encontrado, tentando buscar dados do usuário atual...");
+        logger.log("AuthContext: Token encontrado, tentando buscar dados do usuário atual...");
         const userData = await authService.getCurrentUser();
         if (userData) {
-          console.log("AuthContext: Dados do usuário recuperados com sucesso:", userData);
+          logger.log("AuthContext: Dados do usuário recuperados com sucesso:", userData);
           setAuthData(userData, token);
         } else {
           console.warn("AuthContext: getCurrentUser não retornou dados do usuário. Limpando...");
@@ -63,7 +64,7 @@ export const AuthProvider = ({ children }) => {
         clearAuthData();
       }
     } else {
-      console.log("AuthContext: Nenhum token no localStorage. Sessão não iniciada.");
+      logger.log("AuthContext: Nenhum token no localStorage. Sessão não iniciada.");
       clearAuthData();
     }
   }, [setAuthData, clearAuthData]);
@@ -73,28 +74,28 @@ export const AuthProvider = ({ children }) => {
   }, [checkUserSession]);
 
   const login = async (email, password) => {
-    console.log("AuthContext: Tentando login...");
+    logger.log("AuthContext: Tentando login...");
     setIsLoading(true);
     try {
       const response = await authService.login(email, password);
       if (response && response.access_token) {
         const token = response.access_token;
         const tokenSnippetLogin = `${token.substring(0, 15)}...${token.substring(token.length - 15)}`;
-        console.log(`AuthContext: Login bem-sucedido, token recebido (snippet): ${tokenSnippetLogin}`);
+        logger.log(`AuthContext: Login bem-sucedido, token recebido (snippet): ${tokenSnippetLogin}`);
         
         localStorage.setItem('accessToken', token); // Chave corrigida
         apiClient.defaults.headers.common['Authorization'] = `Bearer ${token}`;
-        console.log("AuthContext: Token salvo no localStorage e configurado no header do apiClient.");
+        logger.log("AuthContext: Token salvo no localStorage e configurado no header do apiClient.");
 
-        console.log("AuthContext: Buscando dados do usuário após login...");
+        logger.log("AuthContext: Buscando dados do usuário após login...");
         const userData = await authService.getCurrentUser();
         
         if (userData) {
-          console.log("AuthContext: Dados do usuário obtidos após login:", userData);
+          logger.log("AuthContext: Dados do usuário obtidos após login:", userData);
           setAuthData(userData, token);
           
           const from = location.state?.from?.pathname || '/dashboard';
-          console.log(`AuthContext: Redirecionando para ${from}`);
+          logger.log(`AuthContext: Redirecionando para ${from}`);
           navigate(from, { replace: true });
           return true;
         } else {
@@ -117,14 +118,14 @@ export const AuthProvider = ({ children }) => {
         throw new Error(errorMsg);
       }
     } finally {
-      console.log("AuthContext: Processo de login finalizado (finally).");
+      logger.log("AuthContext: Processo de login finalizado (finally).");
     }
   };
 
   const logout = async (redirectTo = "/login") => {
-    console.log("AuthContext: Efetuando logout...");
+    logger.log("AuthContext: Efetuando logout...");
     clearAuthData();
-    console.log(`AuthContext: Redirecionando para ${redirectTo} após logout.`);
+    logger.log(`AuthContext: Redirecionando para ${redirectTo} após logout.`);
     navigate(redirectTo);
   };
 
