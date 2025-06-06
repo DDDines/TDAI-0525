@@ -11,6 +11,7 @@ import models # models é importado
 from database import get_db # Corrigido para get_db
 from core.config import settings # Para FRONTEND_URL
 from core.email_utils import send_password_reset_email # Importa a função de envio de email
+from core import security
 
 router = APIRouter(
     prefix="/api/v1/auth", # Mantendo o prefixo como no arquivo original, se for este
@@ -81,7 +82,7 @@ def reset_password(
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Token de reset expirado.")
 
     # Atualizar a senha do usuário
-    hashed_password = crud.get_password_hash(reset_data.new_password)
+    hashed_password = security.get_password_hash(reset_data.new_password)
     user_update_data = schemas.UserUpdate(password=reset_data.new_password) # Criar um schema de update
     
     # Para atualizar apenas a senha e limpar o token:
