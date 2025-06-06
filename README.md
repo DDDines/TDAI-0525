@@ -24,7 +24,7 @@ O **TDAI** é uma plataforma SaaS de automação e inteligência artificial para
 * [Arquitetura e Estrutura de Pastas](#arquitetura-e-estrutura-de-pastas)
 * [Fluxo de Uso](#fluxo-de-uso)
 * [Guia de Instalação Rápida](#guia-de-instalação-rápida)
-* [Variáveis de Ambiente – Exemplo `.env`](#variáveis-de-ambiente--exemplo-env)
+* [Variáveis de Ambiente](#variáveis-de-ambiente)
 * [Comandos Úteis](#comandos-úteis)
 * [Roadmap e Futuro](#roadmap-e-futuro)
 * [Segurança e Boas Práticas](#segurança-e-boas-práticas)
@@ -195,7 +195,7 @@ TDAI-0525-Dev/
 * Navegadores Playwright (para scraping):
   `playwright install`
 * Chaves de API: OpenAI, Google Search, SMTP
-* Variáveis no arquivo `.env`
+* Copie o arquivo `.env.example` para `.env` e ajuste os valores
 
 ---
 
@@ -243,46 +243,12 @@ npm run dev                 # Roda o frontend em http://localhost:5173
 
 ---
 
-## ⚙️ Variáveis de Ambiente – Exemplo `.env`
+## ⚙️ Variáveis de Ambiente
 
-```
-# Banco de Dados
-DATABASE_URL="postgresql://usuario:senha@localhost:5432/tdai_db"
+Todas as variáveis necessárias para o backend e o frontend estão documentadas em [`.env.example`](./.env.example).
+Copie este arquivo para `.env` e preencha com seus valores antes de iniciar a aplicação.
 
-# Segurança
-SECRET_KEY="sua_chave_forte"
-ALGORITHM="HS256"
-ACCESS_TOKEN_EXPIRE_MINUTES=60
-
-# OpenAI
-OPENAI_API_KEY="sk-..."
-
-# Google Search API
-GOOGLE_CSE_ID="..."
-GOOGLE_CSE_API_KEY="..."
-
-# SMTP/Email
-SMTP_SERVER="smtp.seuprovedor.com"
-SMTP_PORT=587
-SMTP_USER="seu@email.com"
-SMTP_PASSWORD="senha"
-EMAIL_FROM="TDAI Platform <nao-responda@tdai.com>"
-
-# Frontend
-FRONTEND_URL="http://localhost:5173"
-
-# OAuth2 (Google/Facebook)
-GOOGLE_CLIENT_ID="..."
-GOOGLE_CLIENT_SECRET="..."
-FACEBOOK_CLIENT_ID="..."
-FACEBOOK_CLIENT_SECRET="..."
-
-# Admin padrão
-ADMIN_EMAIL="admin@email.com"
-ADMIN_PASSWORD="adminpassword"
-```
-
-> ⚠️ **Nunca suba este arquivo para o git!**
+> ⚠️ **Nunca suba arquivos `.env` com dados sensíveis para o git!**
 
 ---
 
