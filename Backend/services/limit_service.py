@@ -8,6 +8,8 @@ from sqlalchemy.orm import Session
 import crud #
 import models #
 # Se 'database.py' fosse necessário, seria: from database import get_db
+from core.logging_config import get_logger
+# Se 'database.py' fosse necessário, seria: from database import get_db
 
 def verificar_limite_uso(
     db: Session,
@@ -18,6 +20,8 @@ def verificar_limite_uso(
     Verifica se o usuário atingiu o limite de uso para o tipo de geração no mês corrente,
     baseado no seu plano. Lança HTTPException se o limite foi atingido.
     """
+
+    logger = get_logger(__name__)
     if not user.plano:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
@@ -36,7 +40,10 @@ def verificar_limite_uso(
         limite_mensal = user.plano.max_titulos_mes
         tipo_geracao_prefix_db = "titulo"
     else:
-        print(f"AVISO: Tentativa de verificar limite para tipo de geração desconhecido: {tipo_geracao_principal}")
+        logger.warning(
+            "Tentativa de verificar limite para tipo de geração desconhecido: %s",
+            tipo_geracao_principal,
+        )
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=f"Tipo de geração '{tipo_geracao_principal}' não é válido para verificação de limite."
@@ -62,5 +69,11 @@ def verificar_limite_uso(
             detail=mensagem_limite
         )
     
-    print(f"INFO: Verificação de limite para usuário {user.id} ({tipo_geracao_principal}): {usos_no_mes}/{limite_mensal} usos.")
+    logger.info(
+        "Verificação de limite para usuário %s (%s): %s/%s usos.",
+        user.id,
+        tipo_geracao_principal,
+        usos_no_mes,
+        limite_mensal,
+    )
     return True

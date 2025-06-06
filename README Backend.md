@@ -245,15 +245,7 @@
 ## Backend/schemas.py
 
 * **Várias classes Pydantic** para cada entidade (User, Produto, Fornecedor, Plano, Role, IAUsage, etc), contendo métodos de validação, exemplos de campos e enums.
-
 ---
-
-## Backend/schemas\_backup.py
-
-* **Classes antigas/legado**: Versões anteriores dos schemas, mantidas para referência.
-
----
-
 ## Backend/services/**init**.py
 
 * **Sem funções**: Marca o diretório como módulo Python.
@@ -280,9 +272,6 @@
 * `get_user_limits(user, db)`: Retorna limites atuais do usuário.
 * `block_usage(user, action, db)`: Bloqueia uso se limite for atingido.
 
-## Backend/services/web\_data\_extractor\_service backup.py
-
-* (Mesmas funções do arquivo principal, versão anterior/descontinuada.)
 
 ## Backend/services/web\_data\_extractor\_service.py
 

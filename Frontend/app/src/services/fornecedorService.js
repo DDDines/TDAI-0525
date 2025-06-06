@@ -1,5 +1,6 @@
 // Frontend/app/src/services/fornecedorService.js
 import axios from 'axios';
+import logger from '../utils/logger';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000/api/v1';
 
@@ -23,8 +24,8 @@ apiClient.interceptors.request.use(config => {
 export const getFornecedores = async (params = {}) => { // params pode incluir skip, limit, termo_busca
   try {
     // O backend agora deve retornar { items: [], total_items: X, limit: Y, skip: Z }
-    const response = await apiClient.get('/fornecedores/', { params }); 
-    console.log('API Response in fornecedorService (getFornecedores):', response.data); // Para depuração
+    const response = await apiClient.get('/fornecedores/', { params });
+    logger.log('API Response in fornecedorService (getFornecedores):', response.data); // Para depuração
     return response.data; // Retorna o objeto completo
   } catch (error) {
     console.error('Error fetching fornecedores (SERVICE LEVEL):', JSON.stringify(error.response?.data || error.message || error));

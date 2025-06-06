@@ -5,6 +5,7 @@ import usoIAService from '../services/usoIAService';
 import ProductTable from '../components/produtos/ProductTable';
 import PaginationControls from '../components/common/PaginationControls';
 import { showSuccessToast, showErrorToast, showInfoToast, showWarningToast } from '../utils/notifications';
+import logger from '../utils/logger';
 
 function EnriquecimentoPage() {
   const [produtos, setProdutos] = useState([]);
@@ -180,7 +181,7 @@ function EnriquecimentoPage() {
   };
 
   const handleRowClick = (produto) => {
-    console.log("Produto clicado:", produto);
+    logger.log("Produto clicado:", produto);
     // Tenta mostrar o log do enriquecimento web primeiro
     if (produto.log_enriquecimento_web && produto.log_enriquecimento_web.historico_mensagens && produto.log_enriquecimento_web.historico_mensagens.length > 0) {
       const logMessages = produto.log_enriquecimento_web.historico_mensagens.join("\n");

@@ -1,5 +1,6 @@
 // Frontend/app/src/services/productService.js
 import axios from 'axios';
+import logger from '../utils/logger';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000/api/v1';
 
@@ -24,7 +25,7 @@ export const getProdutos = async (params = {}) => {
   try {
     // ADICIONADA BARRA FINAL AQUI
     const response = await apiClient.get('/produtos/', { params });
-    console.log('API Response in productService (getProdutos):', response.data);
+    logger.log('API Response in productService (getProdutos):', response.data);
     return response.data;
   } catch (error) {
     console.error('Error fetching produtos:', error.response?.data || error.message);
@@ -36,7 +37,7 @@ export const getProdutoById = async (produtoId) => {
   try {
     // ADICIONADA BARRA FINAL AQUI
     const response = await apiClient.get(`/produtos/${produtoId}/`);
-    console.log('API Response in productService (getProdutoById):', response.data);
+    logger.log('API Response in productService (getProdutoById):', response.data);
     return response.data;
   } catch (error) {
     console.error(`Error fetching produto ${produtoId}:`, error.response?.data || error.message);

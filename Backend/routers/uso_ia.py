@@ -3,18 +3,22 @@ from typing import List, Optional
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session
 from datetime import datetime # Necessário para filtros de data
+from core.config import logger
 
 import crud
 import models
 import schemas # schemas é importado
 import database
 from . import auth_utils # Para obter o usuário logado
+from core.logging_config import get_logger
 
 router = APIRouter(
     prefix="/uso-ia", # FIX: Removido o '/api/v1' daqui
     tags=["uso-ia"],
     dependencies=[Depends(auth_utils.get_current_active_user)],
 )
+
+logger = get_logger(__name__)
 
 # Endpoint para registrar um novo uso de IA
 @router.post("/", response_model=schemas.RegistroUsoIAResponse, status_code=status.HTTP_201_CREATED) # CORRIGIDO AQUI
@@ -32,7 +36,7 @@ def create_uso_ia_endpoint(
     except HTTPException as e:
         raise e
     except Exception as e:
-        print(f"ERRO INESPERADO ao criar registro de uso de IA: {e}")
+        logger.error("ERRO INESPERADO ao criar registro de uso de IA: %s", e)
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Erro interno ao registrar uso de IA.")
 
 # Endpoint para listar os registros de uso de IA para o usuário logado

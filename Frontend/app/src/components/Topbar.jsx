@@ -1,7 +1,8 @@
 // Frontend/app/src/components/Topbar.jsx
 import React, { useState, useEffect, useContext } from 'react';
 import { useNavigate } from 'react-router-dom';
-import authService from '../services/authService'; 
+import authService from '../services/authService';
+import logger from '../utils/logger';
 // Se você criar um AuthContext, importe-o:
 // import { AuthContext } from '../contexts/AuthContext'; 
 
@@ -36,23 +37,23 @@ function Topbar({ viewTitle }) {
   useEffect(() => {
     const fetchUserData = async () => {
       const token = localStorage.getItem('accessToken');
-      console.log('Topbar useEffect: token from localStorage:', token); // DEBUG
+      logger.log('Topbar useEffect: token from localStorage:', token); // DEBUG
       if (token) { 
         setLoadingUser(true);
         try {
-          console.log('Topbar: Fetching user data...'); // DEBUG
+          logger.log('Topbar: Fetching user data...'); // DEBUG
           const user = await authService.getCurrentUser(); 
-          console.log('Topbar: User data fetched:', user); // DEBUG
+          logger.log('Topbar: User data fetched:', user); // DEBUG
           if (user) {
             setCurrentUser(user);
           } else {
-            console.log('Topbar: No user data returned from getCurrentUser, logging out.'); // DEBUG
+            logger.log('Topbar: No user data returned from getCurrentUser, logging out.'); // DEBUG
             handleLogout(navigate, setCurrentUser); 
           }
         } catch (error) {
           console.error("Topbar: Erro ao buscar dados do usuário:", error.response || error.message || error); // DEBUG
           if (error.response && error.response.status === 401) {
-            console.log('Topbar: 401 error on fetching user, logging out.'); // DEBUG
+            logger.log('Topbar: 401 error on fetching user, logging out.'); // DEBUG
             handleLogout(navigate, setCurrentUser);
           }
           // Mesmo se não for 401, mas houver erro, talvez seja melhor deslogar
@@ -62,7 +63,7 @@ function Topbar({ viewTitle }) {
           setLoadingUser(false);
         }
       } else {
-        console.log('Topbar: No token found, user not logged in or already logged out.'); // DEBUG
+        logger.log('Topbar: No token found, user not logged in or already logged out.'); // DEBUG
         setLoadingUser(false); 
         // Não é necessário redirecionar aqui, ProtectedRoute deve cuidar disso
       }

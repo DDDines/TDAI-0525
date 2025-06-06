@@ -3,6 +3,7 @@ from fastapi.responses import JSONResponse
 from typing import List, Optional
 import shutil
 import os
+from core.config import logger
 from pathlib import Path
 import imghdr # Para detectar o tipo MIME de imagem
 import magic # Para detectar o tipo MIME de forma mais robusta (requer python-magic)
@@ -14,8 +15,11 @@ from models import User
 from schemas import FileProcessResponse
 from sqlalchemy.orm import Session
 # --- FIM DOS IMPORTS ALTERADOS ---
+from core.logging_config import get_logger
 
 router = APIRouter()
+
+logger = get_logger(__name__)
 
 # O UPLOAD_DIRECTORY DEVE SER O MESMO MONTADO EM main.py /static
 # E DEVE SER RELATIVO AO DIRETÓRIO RAIZ DO BACKEND
@@ -27,7 +31,9 @@ try:
     import magic
 except ImportError:
     magic = None
-    print("AVISO: python-magic não encontrado. A detecção de MIME type pode ser menos robusta.")
+    logger.warning(
+        "python-magic não encontrado. A detecção de MIME type pode ser menos robusta."
+    )
 
 
 def get_file_mimetype(file_content: bytes, filename: str) -> str:

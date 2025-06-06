@@ -9,13 +9,20 @@ import crud
 import schemas # schemas é importado
 import models # models é importado
 from database import get_db # Corrigido para get_db
+refatorar-print-para-logging
 from core.config import settings # Para FRONTEND_URL
 from core.email_utils import send_password_reset_email # Importa a função de envio de email
+from core.logging_config import get_logger
+
+from core.config import settings, logger  # Para FRONTEND_URL e logging
+from core.email_utils import send_password_reset_email  # Importa a função de envio de email
 
 router = APIRouter(
     prefix="/api/v1/auth", # Mantendo o prefixo como no arquivo original, se for este
     tags=["password-recovery"],
 )
+
+logger = get_logger(__name__)
 
 @router.post("/password-recovery/{email}", response_model=schemas.Msg)
 async def recover_password(email: str, request: Request, db: Session = Depends(get_db)):
@@ -32,7 +39,12 @@ async def recover_password(email: str, request: Request, db: Session = Depends(g
         # detail="O email fornecido não foi encontrado em nosso sistema.",
         # )
         # No entanto, para evitar enumeração de usuários, retornamos sucesso mesmo se não encontrado.
-        print(f"INFO: Solicitação de recuperação de senha para email não registrado: {email}")
+        refatorar-print-para-logging
+        logger.info("Solicitação de recuperação de senha para email não registrado: %s", email)
+        logger.info(
+            "Solicitação de recuperação de senha para email não registrado: %s",
+            email,
+        )
         return {"msg": "Se um usuário com este email existir, um link de recuperação foi enviado."}
 
 
@@ -56,7 +68,15 @@ async def recover_password(email: str, request: Request, db: Session = Depends(g
         return {"msg": "Email de recuperação de senha enviado com sucesso."}
     except Exception as e:
         # Logar o erro 'e' aqui seria importante
-        print(f"ERRO: Falha ao enviar email de recuperação de senha para {user.email}: {e}")
+        refatorar-print-para-logging
+        logger.error("Falha ao enviar email de recuperação de senha para %s: %s", user.email, e)
+
+        logger.error(
+            "Falha ao enviar email de recuperação de senha para %s: %s",
+            user.email,
+            e,
+        )
+
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Houve um erro ao enviar o email de recuperação. Tente novamente mais tarde."
