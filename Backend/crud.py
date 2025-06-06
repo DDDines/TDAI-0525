@@ -601,12 +601,18 @@ def create_produto(db: Session, produto: schemas.ProdutoCreate, user_id: int) ->
             produto_data['dynamic_attributes'] = json.loads(produto_data['dynamic_attributes'])
         except json.JSONDecodeError:
             raise ValueError("dynamic_attributes não é um JSON string válido.")
-            
-    if 'dados_brutos' in produto_data and isinstance(produto_data['dados_brutos'], str):
+
+    if 'dados_brutos_web' in produto_data and isinstance(produto_data['dados_brutos_web'], str):
         try:
-            produto_data['dados_brutos'] = json.loads(produto_data['dados_brutos'])
+            produto_data['dados_brutos_web'] = json.loads(produto_data['dados_brutos_web'])
         except json.JSONDecodeError:
-            raise ValueError("dados_brutos não é um JSON string válido.")
+            raise ValueError("dados_brutos_web não é um JSON string válido.")
+
+    if 'log_enriquecimento_web' in produto_data and isinstance(produto_data['log_enriquecimento_web'], str):
+        try:
+            produto_data['log_enriquecimento_web'] = json.loads(produto_data['log_enriquecimento_web'])
+        except json.JSONDecodeError:
+            raise ValueError("log_enriquecimento_web não é um JSON string válido.")
 
     # Se imagens_secundarias_urls for uma string JSON, converter para lista
     # (Pydantic List[HttpUrl] deve tratar isso na entrada se o cliente enviar JSON string,
@@ -758,10 +764,10 @@ def count_produtos_by_user(
 def update_produto(db: Session, db_produto: Produto, produto_update: schemas.ProdutoUpdate) -> Produto:
     update_data = produto_update.model_dump(exclude_unset=True)
 
-    # Lógica para campos JSON (dynamic_attributes, dados_brutos, imagens_secundarias_urls)
+    # Lógica para campos JSON (dynamic_attributes, dados_brutos_web, log_enriquecimento_web, imagens_secundarias_urls)
     # Pydantic deve entregar dict/list se o schema estiver correto (não Json[Type])
     # O modelo SQLAlchemy aceita dict/list para colunas JSON.
-    for field in ['dynamic_attributes', 'dados_brutos', 'imagens_secundarias_urls']:
+    for field in ['dynamic_attributes', 'dados_brutos_web', 'log_enriquecimento_web', 'imagens_secundarias_urls']:
         if field in update_data and update_data[field] is not None:
             # Se o schema já garante o tipo correto (dict/list), apenas atribua
             # Se o schema ainda for Json[Type] e vier uma string, precisa de json.loads aqui
