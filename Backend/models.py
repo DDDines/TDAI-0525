@@ -13,8 +13,14 @@ class StatusEnriquecimentoEnum(str, enum.Enum):
     NAO_INICIADO = "NAO_INICIADO"
     PENDENTE = "PENDENTE" # Adicionado, se necessário para indicar que está na fila
     EM_PROGRESSO = "EM_PROGRESSO"
+    CONCLUIDO_SUCESSO = "CONCLUIDO_SUCESSO"
+    CONCLUIDO_COM_DADOS_PARCIAIS = "CONCLUIDO_COM_DADOS_PARCIAIS"
     CONCLUIDO = "CONCLUIDO"
+    FALHOU = "FALHOU"
+    FALHA_API_EXTERNA = "FALHA_API_EXTERNA"
+    FALHA_CONFIGURACAO_API_EXTERNA = "FALHA_CONFIGURACAO_API_EXTERNA"
     FALHA = "FALHA"
+    NENHUMA_FONTE_ENCONTRADA = "NENHUMA_FONTE_ENCONTRADA"
     NAO_APLICAVEL = "NAO_APLICAVEL" # Para produtos onde enriquecimento web não se aplica
 
 class StatusGeracaoIAEnum(str, enum.Enum):
