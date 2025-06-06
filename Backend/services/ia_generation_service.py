@@ -45,9 +45,9 @@ async def get_gemini_api_key(db: Session, user: models.User) -> Optional[str]:
     if user.chave_google_gemini_pessoal:
         logger.info(f"Usando chave Gemini pessoal para usuário ID: {user.id}")
         return user.chave_google_gemini_pessoal
-    if settings.GOOGLE_GEMINI_API_KEY_GLOBAL: # Supondo que GOOGLE_GEMINI_API_KEY_GLOBAL exista em settings
+    if settings.GOOGLE_GEMINI_API_KEY: # Supondo que GOOGLE_GEMINI_API_KEY_GLOBAL exista em settings
         logger.info("Usando chave Gemini global do sistema.")
-        return settings.GOOGLE_GEMINI_API_KEY_GLOBAL
+        return settings.GOOGLE_GEMINI_API_KEY
     logger.warning("Nenhuma chave Gemini encontrada (nem pessoal, nem global).")
     return None
 
@@ -254,15 +254,14 @@ async def sugerir_valores_atributos_com_gemini(
     
     # 1. Verificar créditos do usuário
     creditos_necessarios = settings.CREDITOS_CUSTO_SUGESTAO_ATRIBUTOS_GEMINI if hasattr(settings, 'CREDITOS_CUSTO_SUGESTAO_ATRIBUTOS_GEMINI') else 1 # Custo padrão de 1 crédito
-    if not await limit_service.verificar_e_consumir_creditos_geracao_ia(db, user.id, creditos_necessarios): # Ajustar nome da função se necessário
-        logger.warning(f"Usuário ID {user.id} com créditos insuficientes para sugestão de atributos (necessário: {creditos_necessarios}).")
-        raise HTTPException(
-            status_code=status.HTTP_402_PAYMENT_REQUIRED,
-            detail=f"Créditos de IA insuficientes ({creditos_necessarios} necessários) para gerar sugestões de atributos."
-        )
+    # A verificação de crédito foi movida para o router para uma resposta mais imediata ao usuário.
+    # No entanto, pode ser mantida aqui como uma segunda camada de segurança.
+    # if not await limit_service.verificar_e_consumir_creditos_geracao_ia(db, user.id, creditos_necessarios):
+    #     logger.warning(f"Usuário ID {user.id} com créditos insuficientes para sugestão de atributos (necessário: {creditos_necessarios}).")
+    #     raise HTTPException(...)
 
     # 2. Buscar Produto e seus AttributeTemplates
-    db_produto = crud.get_produto(db, produto_id=produto_id) # Assume que get_produto carrega product_type e attribute_templates
+    db_produto = crud.get_produto(db, produto_id=produto_id)
     if not db_produto:
         logger.error(f"Produto ID {produto_id} não encontrado para sugestão de atributos.")
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Produto não encontrado")
@@ -380,11 +379,6 @@ async def sugerir_valores_atributos_com_gemini(
         )
 
     except HTTPException as e: # Repassa HTTPExceptions de call_gemini_api_for_suggestions ou de verificações
-        # Registrar falha no uso da IA
-        # A lógica de consumo de crédito precisa de ajuste. Se a falha for da API, o crédito foi gasto.
-        # Se for antes, não. A lógica atual consome no início.
-        # Poderíamos reverter o crédito aqui se a falha não for culpa do usuário.
-        # Por simplicidade, mantemos o consumo.
         crud.create_registro_uso_ia(db, registro_uso=schemas.RegistroUsoIACreate(
             user_id=user.id, produto_id=produto_id, tipo_acao=models.TipoAcaoIAEnum.SUGESTAO_ATRIBUTOS_GEMINI,
             provedor_ia="gemini", modelo_ia=modelo_utilizado, creditos_consumidos=creditos_necessarios,

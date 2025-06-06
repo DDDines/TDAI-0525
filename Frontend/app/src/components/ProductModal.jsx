@@ -1,15 +1,16 @@
-// Frontend/app/src/components/ProductEditModal.jsx (Renomear para ProductModal.jsx)
-// REMOVIDO: Conteúdo antigo dos modais separados.
-// NOVO: Código unificado para criar e editar produtos.
-import React, { useState, useEffect, useCallback } from 'react';
-import Modal from './common/Modal';
-import { showSuccessToast, showErrorToast, showInfoToast, showWarningToast } from '../utils/notifications';
-import productService from '../services/productService';
-import fornecedorService from '../services/fornecedorService';
-import AttributeField from './produtos/shared/AttributeField';
-import { useProductTypes } from '../contexts/ProductTypeContext';
-import './ProductEditModal.css';
+// Frontend/app/src/components/produtos/ProductModal.jsx
+// ARQUIVO UNIFICADO para Criar e Editar Produtos
 
+import React, { useState, useEffect, useCallback } from 'react';
+import Modal from '../common/Modal';
+import { showSuccessToast, showErrorToast, showInfoToast, showWarningToast } from '../../utils/notifications';
+import productService from '../../services/productService';
+import fornecedorService from '../../services/fornecedorService';
+import AttributeField from './shared/AttributeField';
+import { useProductTypes } from '../../contexts/ProductTypeContext';
+import '../ProductEditModal.css';
+
+// Estado inicial do formulário, com todos os campos do seu modelo.
 const initialFormData = {
     nome_base: '',
     nome_chat_api: '',
@@ -47,116 +48,65 @@ const initialFormData = {
     status_descricao_ia: 'NAO_INICIADO',
 };
 
-// ALTERADO: O nome do componente agora é genérico e recebe um `product` para editar ou nada para criar.
 const ProductModal = ({ isOpen, onClose, product, onProductUpdated }) => {
-    // ALTERADO: Determina se está em modo de edição baseado na existência do produto e seu ID.
     const isEditing = product && product.id;
 
     const [formData, setFormData] = useState(initialFormData);
     const [activeTab, setActiveTab] = useState('info');
     const [isLoading, setIsLoading] = useState(false);
     const [isGeneratingIA, setIsGeneratingIA] = useState(false);
-    const [isEnrichingWeb, setIsEnrichingWeb] = useState(false);
     const [isSuggestingGemini, setIsSuggestingGemini] = useState(false);
     const [error, setError] = useState(null);
     const [fornecedores, setFornecedores] = useState([]);
     const { productTypes } = useProductTypes();
 
-    const [iaAttributeSuggestions, setIaAttributeSuggestions] = useState({});
-    const [selectedIaSuggestions, setSelectedIaSuggestions] = useState({});
+    // NOVO: Estado para armazenar as sugestões da Gemini.
+    const [geminiSuggestions, setGeminiSuggestions] = useState([]);
+    const [selectedGeminiSuggestions, setSelectedGeminiSuggestions] = useState({});
 
-    // Carrega fornecedores quando o modal abre
+    // Carrega fornecedores quando o modal abre.
     useEffect(() => {
         const fetchDependencies = async () => {
             if (isOpen) {
                 try {
-                    const fetchedFornecedores = await fornecedorService.getFornecedores({ skip: 0, limit: 100 });
+                    const fetchedFornecedores = await fornecedorService.getFornecedores({ skip: 0, limit: 1000 });
                     setFornecedores(fetchedFornecedores.items || []);
                 } catch (err) {
                     console.error("Erro ao carregar fornecedores:", err);
-                    showErrorToast("Erro ao carregar lista de fornecedores para o modal.");
+                    showErrorToast("Erro ao carregar lista de fornecedores.");
                 }
             }
         };
         fetchDependencies();
     }, [isOpen]);
 
-    const extractIaSuggestions = useCallback((dadosBrutos) => {
-        const extracted = {};
-        if (dadosBrutos) {
-            if (dadosBrutos.especificacoes_tecnicas_dict && typeof dadosBrutos.especificacoes_tecnicas_dict === 'object') {
-                for (const key in dadosBrutos.especificacoes_tecnicas_dict) {
-                    if (Object.prototype.hasOwnProperty.call(dadosBrutos.especificacoes_tecnicas_dict, key)) {
-                        extracted[key] = dadosBrutos.especificacoes_tecnicas_dict[key];
-                    }
-                }
-            }
-        }
-        setIaAttributeSuggestions(extracted);
-        const initialSelections = {};
-        for (const key in extracted) {
-            initialSelections[key] = false;
-        }
-        setSelectedIaSuggestions(initialSelections);
-    }, []);
-
-    // Popula o formulário quando o `product` (para edição) muda ou o modal abre.
+    // Popula o formulário com dados do produto para edição, ou reseta para criação.
     useEffect(() => {
         if (isOpen) {
             if (isEditing) {
-                const dynamicAttrs = (product.dynamic_attributes && typeof product.dynamic_attributes === 'object') ? product.dynamic_attributes : {};
-                const dadosBrutos = (product.dados_brutos && typeof product.dados_brutos === 'object') ? product.dados_brutos : {};
-
                 setFormData({
-                    nome_base: product.nome_base || '',
-                    nome_chat_api: product.nome_chat_api || '',
-                    descricao_original: product.descricao_original || '',
-                    descricao_curta_orig: product.descricao_curta_orig || '',
-                    descricao_principal_gerada: product.descricao_principal_gerada || '',
-                    descricao_curta_gerada: product.descricao_curta_gerada || '',
-                    sku: product.sku || '',
-                    ean: product.ean || '',
-                    ncm: product.ncm || '',
-                    marca: product.marca || '',
-                    modelo: product.modelo || '',
-                    categoria_original: product.categoria_original || '',
-                    categoria_mapeada: product.categoria_mapeada || '',
-                    preco_custo: product.preco_custo || '',
-                    preco_venda: product.preco_venda || '',
-                    preco_promocional: product.preco_promocional || '',
-                    estoque_disponivel: product.estoque_disponivel || '',
-                    peso_kg: product.peso_kg || '',
-                    altura_cm: product.altura_cm || '',
-                    largura_cm: product.largura_cm || '',
-                    profundidade_cm: product.profundidade_cm || '',
-                    imagem_principal_url: product.imagem_principal_url || '',
-                    imagens_secundarias_urls: product.imagens_secundarias_urls || [],
+                    ...initialFormData, // Garante que todos os campos estão presentes
+                    ...product,         // Sobrescreve com os dados do produto
+                    // Garante que os campos relacionais e de objeto/array sejam válidos
                     fornecedor_id: product.fornecedor_id || '',
                     product_type_id: product.product_type_id || '',
-                    dynamic_attributes: dynamicAttrs,
-                    dados_brutos: dadosBrutos,
+                    dynamic_attributes: product.dynamic_attributes && typeof product.dynamic_attributes === 'object' ? product.dynamic_attributes : {},
+                    dados_brutos: product.dados_brutos && typeof product.dados_brutos === 'object' ? product.dados_brutos : {},
+                    imagens_secundarias_urls: product.imagens_secundarias_urls || [],
                     titulos_sugeridos: product.titulos_sugeridos || [],
-                    ativo_marketplace: product.ativo_marketplace || false,
-                    data_publicacao_marketplace: product.data_publicacao_marketplace || null,
-                    log_enriquecimento_web: product.log_enriquecimento_web || { historico_mensagens: [] },
-                    status_enriquecimento_web: product.status_enriquecimento_web || null,
-                    status_titulo_ia: product.status_titulo_ia || null,
-                    status_descricao_ia: product.status_descricao_ia || null,
                 });
-                extractIaSuggestions(dadosBrutos);
-            } else { // Limpa para um novo produto
+            } else {
                 setFormData(initialFormData);
-                setIaAttributeSuggestions({});
-                setSelectedIaSuggestions({});
             }
             // Reseta estados de ação
-            setIsEnrichingWeb(false);
-            setIsGeneratingIA(false);
-            setIsSuggestingGemini(false);
             setActiveTab('info');
             setError(null);
+            setIsGeneratingIA(false);
+            setIsSuggestingGemini(false);
+            setGeminiSuggestions([]);
+            setSelectedGeminiSuggestions({});
         }
-    }, [product, isEditing, isOpen, extractIaSuggestions]);
+    }, [product, isEditing, isOpen]);
 
     const handleChange = (e) => {
         const { name, value, type, checked } = e.target;
@@ -179,24 +129,62 @@ const ProductModal = ({ isOpen, onClose, product, onProductUpdated }) => {
             },
         }));
     };
-
-    const addDynamicAttribute = () => {
-        const newKey = prompt("Digite a chave do novo atributo (ex: 'cor', 'voltagem'):");
-        if (newKey && !formData.dynamic_attributes.hasOwnProperty(newKey)) {
-            setFormData(prev => ({
-                ...prev,
-                dynamic_attributes: {
-                    ...prev.dynamic_attributes,
-                    [newKey]: '',
-                },
-            }));
-        } else if (newKey) {
-            showWarningToast("Atributo com esta chave já existe.");
+    
+    // NOVO: Handler para buscar sugestões de atributos com a Gemini.
+    const handleFetchGeminiSuggestions = async () => {
+        if (!isEditing) {
+            showWarningToast("Por favor, salve o produto antes de buscar sugestões.");
+            return;
+        }
+        setIsSuggestingGemini(true);
+        showInfoToast("Buscando sugestões com a API Gemini...");
+        try {
+            const response = await productService.sugerirAtributosGemini(product.id);
+            if (response && response.sugestoes_atributos && response.sugestoes_atributos.length > 0) {
+                setGeminiSuggestions(response.sugestoes_atributos);
+                // Pré-marca todas as sugestões para facilitar a aplicação
+                const initialSelections = response.sugestoes_atributos.reduce((acc, sug) => {
+                    acc[sug.chave_atributo] = true;
+                    return acc;
+                }, {});
+                setSelectedGeminiSuggestions(initialSelections);
+                showSuccessToast(`${response.sugestoes_atributos.length} sugestões encontradas!`);
+                setActiveTab('sugestoes-ia');
+            } else {
+                showWarningToast("Nenhuma sugestão de atributo foi retornada pela IA.");
+                setGeminiSuggestions([]);
+            }
+        } catch (err) {
+            showErrorToast(err.response?.data?.detail || "Falha ao buscar sugestões da IA.");
+        } finally {
+            setIsSuggestingGemini(false);
         }
     };
     
-    // Demais handlers (handleIaSuggestionToggle, applySelectedIaSuggestions, handleEnrichWeb, etc.) permanecem os mesmos...
-    // ...
+    // NOVO: Handler para selecionar/deselecionar uma sugestão.
+    const handleSuggestionToggle = (key) => {
+        setSelectedGeminiSuggestions(prev => ({ ...prev, [key]: !prev[key] }));
+    };
+
+    // NOVO: Handler para aplicar as sugestões selecionadas.
+    const applySelectedSuggestions = () => {
+        const newDynamicAttributes = { ...formData.dynamic_attributes };
+        let appliedCount = 0;
+        geminiSuggestions.forEach(suggestion => {
+            if (selectedGeminiSuggestions[suggestion.chave_atributo]) {
+                newDynamicAttributes[suggestion.chave_atributo] = suggestion.valor_sugerido;
+                appliedCount++;
+            }
+        });
+
+        if (appliedCount > 0) {
+            setFormData(prev => ({ ...prev, dynamic_attributes: newDynamicAttributes }));
+            showSuccessToast(`${appliedCount} sugestão(ões) aplicada(s) com sucesso!`);
+            setActiveTab('atributos'); // Muda para a aba de atributos para ver o resultado
+        } else {
+            showWarningToast("Nenhuma sugestão foi selecionada para aplicar.");
+        }
+    };
 
     const handleSubmit = async (e) => {
         e.preventDefault();
@@ -230,118 +218,142 @@ const ProductModal = ({ isOpen, onClose, product, onProductUpdated }) => {
             setIsLoading(false);
         }
     };
-
-    // ... todos os outros handlers (handleGenerateTitles, etc) vêm para cá ...
+    
+    // ATUALIZADO: Chama o endpoint Gemini para títulos.
     const handleGenerateTitles = async () => {
-        if (!product?.id) { showWarningToast("Salve o produto primeiro para gerar títulos."); return; }
+        if (!isEditing) { showWarningToast("Salve o produto primeiro."); return; }
         setIsGeneratingIA(true);
         try {
-            await productService.gerarTitulosProduto(product.id);
-            showInfoToast("Geração de títulos iniciada. Verifique em breve.");
-            setTimeout(async () => {
-                const updatedProduct = await productService.getProdutoById(product.id);
-                setFormData(prev => ({ ...prev, nome_chat_api: updatedProduct.nome_chat_api, titulos_sugeridos: updatedProduct.titulos_sugeridos }));
-                if (onProductUpdated) onProductUpdated(updatedProduct);
-            }, 7000); 
-        } catch (err) { showErrorToast(err.response?.data?.detail || "Erro ao gerar títulos."); } 
-        finally { setIsGeneratingIA(false); }
+            // Assumindo que o productService foi atualizado para ter essa função
+            await productService.gerarTitulosGemini(product.id);
+            showInfoToast("Geração de títulos com Gemini iniciada. O resultado aparecerá em breve.");
+            // Opcional: Implementar um polling ou WebSocket para atualizar automaticamente.
+            // Por simplicidade, o usuário pode reabrir para ver as atualizações.
+        } catch (err) { 
+            showErrorToast(err.response?.data?.detail || "Erro ao agendar geração de títulos.");
+        } finally {
+            setIsGeneratingIA(false);
+        }
     };
 
+    // ATUALIZADO: Chama o endpoint Gemini para descrição.
     const handleGenerateDescription = async () => {
-        if (!product?.id) { showWarningToast("Salve o produto primeiro para gerar descrição."); return; }
+        if (!isEditing) { showWarningToast("Salve o produto primeiro."); return; }
         setIsGeneratingIA(true);
         try {
-            await productService.gerarDescricaoProduto(product.id);
-            showInfoToast("Geração de descrição iniciada. Verifique em breve.");
-             setTimeout(async () => {
-                const updatedProduct = await productService.getProdutoById(product.id);
-                setFormData(prev => ({...prev, descricao_principal_gerada: updatedProduct.descricao_principal_gerada }));
-                if (onProductUpdated) onProductUpdated(updatedProduct);
-            }, 7000); 
-        } catch (err) { showErrorToast(err.response?.data?.detail || "Erro ao gerar descrição."); } 
-        finally { setIsGeneratingIA(false); }
+             // Assumindo que o productService foi atualizado
+            await productService.gerarDescricaoGemini(product.id);
+            showInfoToast("Geração de descrição com Gemini iniciada. O resultado aparecerá em breve.");
+        } catch (err) { 
+            showErrorToast(err.response?.data?.detail || "Erro ao agendar geração de descrição.");
+        } finally {
+            setIsGeneratingIA(false);
+        }
     };
     
-    // Lógica para obter os templates de atributos baseados no tipo de produto selecionado
     const selectedProductType = productTypes.find(type => type.id === parseInt(formData.product_type_id));
     const attributeTemplates = selectedProductType ? selectedProductType.attribute_templates : [];
 
     return (
         <Modal isOpen={isOpen} onClose={onClose} title={isEditing ? `Editar Produto: ${product.nome_base}` : "Criar Novo Produto"}>
-            <form onSubmit={handleSubmit}>
+            <form onSubmit={handleSubmit} className="product-modal-form">
                 <div className="tab-navigation">
-                    <button type="button" className={activeTab === 'info' ? 'active' : ''} onClick={() => setActiveTab('info')}>Info Principais</button>
-                    <button type="button" className={activeTab === 'atributos' ? 'active' : ''} onClick={() => setActiveTab('atributos')} disabled={!formData.product_type_id}>Atributos</button>
-                    <button type="button" className={activeTab === 'midia' ? 'active' : ''} onClick={() => setActiveTab('midia')}>Mídia</button>
-                    <button type="button" className={activeTab === 'conteudo-ia' ? 'active' : ''} onClick={() => setActiveTab('conteudo-ia')}>Conteúdo IA</button>
-                    <button type="button" className={activeTab === 'sugestoes-ia' ? 'active' : ''} onClick={() => setActiveTab('sugestoes-ia')}>Sugestões IA</button>
-                    <button type="button" className={activeTab === 'log' ? 'active' : ''} onClick={() => setActiveTab('log')}>Log</button>
+                    <button type="button" className={activeTab === 'info' ? 'active' : ''} onClick={() => setActiveTab('info')}>Info</button>
+                    <button type="button" className={activeTab === 'atributos' ? 'active' : ''} onClick={() => setActiveTab('atributos')}>Atributos</button>
+                    <button type="button" className={activeTab === 'conteudo' ? 'active' : ''} onClick={() => setActiveTab('conteudo')}>Conteúdo</button>
+                    <button type="button" className={activeTab === 'sugestoes-ia' ? 'active' : ''} onClick={() => setActiveTab('sugestoes-ia')} disabled={!isEditing}>Sugestões IA</button>
                 </div>
 
                 <div className="tab-content">
-                    {/* Renderização do conteúdo de cada aba, baseado em `activeTab` */}
                     {activeTab === 'info' && (
-                        <div className="form-section">
-                             <label>
-                                Tipo de Produto:
+                        <div className="form-grid">
+                            <label>Nome Base*<input name="nome_base" value={formData.nome_base} onChange={handleChange} required /></label>
+                            <label>Marca<input name="marca" value={formData.marca} onChange={handleChange} /></label>
+                            <label>SKU<input name="sku" value={formData.sku} onChange={handleChange} /></label>
+                            <label>EAN<input name="ean" value={formData.ean} onChange={handleChange} /></label>
+                            <label>Tipo de Produto*
                                 <select name="product_type_id" value={formData.product_type_id} onChange={handleChange} required>
-                                    <option value="">Selecione um tipo</option>
-                                    {(productTypes || []).map(type => (
-                                        <option key={type.id} value={type.id}>{type.friendly_name}</option>
-                                    ))}
+                                    <option value="">Selecione...</option>
+                                    {(productTypes || []).map(type => (<option key={type.id} value={type.id}>{type.friendly_name}</option>))}
                                 </select>
                             </label>
-                            <label> Nome Base: <input type="text" name="nome_base" value={formData.nome_base} onChange={handleChange} required /> </label>
-                            <label> Marca: <input type="text" name="marca" value={formData.marca} onChange={handleChange} /> </label>
-                            <label> SKU: <input type="text" name="sku" value={formData.sku} onChange={handleChange} /> </label>
-                             <label> Fornecedor:
+                            <label>Fornecedor
                                 <select name="fornecedor_id" value={formData.fornecedor_id} onChange={handleChange}>
-                                    <option value="">Selecione um fornecedor</option>
+                                    <option value="">Selecione...</option>
                                     {fornecedores.map(f => (<option key={f.id} value={f.id}>{f.nome}</option>))}
                                 </select>
                             </label>
                         </div>
                     )}
-                     {activeTab === 'atributos' && (
+                    {activeTab === 'atributos' && (
                         <div className="form-section">
-                             <h3>Atributos Dinâmicos e de Template</h3>
-                             {!formData.product_type_id && <p>Selecione um Tipo de Produto na aba "Info Principais".</p>}
-                             {attributeTemplates && attributeTemplates.length > 0 && (
-                                 <div>
-                                     <h4>Atributos do Tipo ({selectedProductType?.friendly_name})</h4>
-                                     {attributeTemplates.map(attr => (
-                                         <AttributeField
-                                             key={attr.attribute_key} 
-                                             attributeTemplate={attr} 
-                                             value={formData.dynamic_attributes[attr.attribute_key]}
-                                             onChange={handleDynamicAttributeChange}
-                                         />
-                                     ))}
-                                 </div>
-                             )}
-                             <h4>Outros Atributos (Manuais)</h4>
-                             {Object.entries(formData.dynamic_attributes)
-                                 .filter(([key]) => !attributeTemplates.some(template => template.attribute_key === key))
-                                 .map(([key, value]) => (
-                                     <div key={key} style={{display: 'flex', gap: '10px', alignItems: 'center', marginBottom:'5px'}}>
-                                         <input type="text" value={key} disabled style={{flex:'1', backgroundColor:'#f0f0f0'}} />
-                                         <input type="text" value={value || ''} onChange={(e) => handleDynamicAttributeChange(key, e.target.value)} style={{flex:'2'}} />
-                                         <button type="button" onClick={() => {
-                                             const {[key]: _, ...rest} = formData.dynamic_attributes;
-                                             setFormData(prev => ({...prev, dynamic_attributes: rest}));
-                                             showInfoToast(`Atributo manual "${key}" removido.`);
-                                         }} title="Remover este atributo manual" style={{padding:'5px', color:'red', border:'none', background:'transparent', cursor:'pointer'}}>🗑️</button>
-                                     </div>
-                             ))}
-                              <button type="button" onClick={addDynamicAttribute} style={{marginTop:'10px'}}>Adicionar Atributo Manual</button>
+                           {!formData.product_type_id && <p className="info-text">Selecione um Tipo de Produto na aba "Info" para ver os atributos.</p>}
+                           {attributeTemplates.length > 0 && <h4>Atributos de "{selectedProductType?.friendly_name}"</h4>}
+                           <div className="form-grid">
+                            {attributeTemplates.map(attr => (
+                                <AttributeField key={attr.id} attributeTemplate={attr} value={formData.dynamic_attributes[attr.attribute_key]} onChange={handleDynamicAttributeChange} />
+                            ))}
+                           </div>
                         </div>
                     )}
-                    {/* ... outras abas aqui ... */}
+                    {activeTab === 'conteudo' && (
+                        <div className="form-section">
+                            <h4>Conteúdo Original</h4>
+                            <label>Descrição Original <textarea name="descricao_original" value={formData.descricao_original} onChange={handleChange} rows="5"></textarea></label>
+                            
+                            <hr />
+
+                            <h4>Conteúdo Gerado por IA</h4>
+                            <div className='ia-generation-box'>
+                               <label>Título Gerado <input name="nome_chat_api" value={formData.nome_chat_api} onChange={handleChange} /></label>
+                               <button type="button" onClick={handleGenerateTitles} disabled={isGeneratingIA || !isEditing}>Gerar Títulos com IA</button>
+                            </div>
+                            <div className='ia-generation-box'>
+                                <label>Descrição Gerada <textarea name="descricao_principal_gerada" value={formData.descricao_principal_gerada} onChange={handleChange} rows="5"></textarea></label>
+                                <button type="button" onClick={handleGenerateDescription} disabled={isGeneratingIA || !isEditing}>Gerar Descrição com IA</button>
+                            </div>
+                        </div>
+                    )}
+                     {activeTab === 'sugestoes-ia' && (
+                        <div className="form-section">
+                            <div className="suggestion-action-box">
+                                <p>Clique no botão para usar a Gemini para analisar os dados do produto e sugerir valores para os atributos.</p>
+                                <button type="button" onClick={handleFetchGeminiSuggestions} disabled={isSuggestingGemini}>
+                                    {isSuggestingGemini ? 'Analisando...' : 'Buscar Sugestões com Gemini'}
+                                </button>
+                            </div>
+                            {geminiSuggestions.length > 0 && (
+                                <div className="ia-suggestions-container">
+                                    <h4>Sugestões Encontradas:</h4>
+                                    <div className="ia-suggestions-grid">
+                                        {geminiSuggestions.map((sug) => (
+                                            <div key={sug.chave_atributo} className={`ia-suggestion-item ${selectedGeminiSuggestions[sug.chave_atributo] ? 'selected' : ''}`}>
+                                                <label>
+                                                    <input
+                                                        type="checkbox"
+                                                        checked={!!selectedGeminiSuggestions[sug.chave_atributo]}
+                                                        onChange={() => handleSuggestionToggle(sug.chave_atributo)}
+                                                    />
+                                                    <div className="suggestion-text">
+                                                        <strong>{sug.chave_atributo}:</strong>
+                                                        <span>{sug.valor_sugerido}</span>
+                                                    </div>
+                                                </label>
+                                            </div>
+                                        ))}
+                                    </div>
+                                    <button type="button" onClick={applySelectedSuggestions} className="btn-apply-suggestions">Aplicar Selecionados</button>
+                                </div>
+                            )}
+                        </div>
+                    )}
                 </div>
 
                 <div className="modal-actions">
                     <button type="button" onClick={onClose} disabled={isLoading} className="btn-secondary">Cancelar</button>
-                    <button type="submit" disabled={isLoading} className="btn-success">{isLoading ? 'Salvando...' : 'Salvar Produto'}</button>
+                    <button type="submit" disabled={isLoading || isGeneratingIA || isSuggestingGemini} className="btn-primary">
+                        {isLoading ? 'Salvando...' : 'Salvar Produto'}
+                    </button>
                 </div>
             </form>
         </Modal>

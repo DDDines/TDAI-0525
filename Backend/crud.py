@@ -326,13 +326,13 @@ def create_product_type(db: Session, product_type_create: schemas.ProductTypeCre
     if existing_pt:
         # Se for um tipo global e o usuário está tentando criar um com a mesma chave
         if existing_pt.user_id is None and user_id is not None:
-             raise IntegrityError(f"Um Tipo de Produto global com a chave '{product_type_create.key_name}' já existe.", params={}, orig=None)
+            raise IntegrityError(f"Um Tipo de Produto global com a chave '{product_type_create.key_name}' já existe.", params={}, orig=None)
         # Se for um tipo do usuário e ele está tentando criar um com a mesma chave
         elif existing_pt.user_id == user_id:
-             raise IntegrityError(f"Você já possui um Tipo de Produto com a chave '{product_type_create.key_name}'.", params={}, orig=None)
+            raise IntegrityError(f"Você já possui um Tipo de Produto com a chave '{product_type_create.key_name}'.", params={}, orig=None)
         # Se for uma tentativa de criar um global que já existe
         elif user_id is None and existing_pt.user_id is None:
-             raise IntegrityError(f"Um Tipo de Produto global com a chave '{product_type_create.key_name}' já existe.", params={}, orig=None)
+            raise IntegrityError(f"Um Tipo de Produto global com a chave '{product_type_create.key_name}' já existe.", params={}, orig=None)
 
 
     db_product_type = ProductType(
@@ -390,8 +390,8 @@ def get_product_types_for_user(db: Session, user_id: Optional[int], skip: int = 
     if user_id:
         query = query.filter(or_(ProductType.user_id == user_id, ProductType.user_id == None))
     else: # Se user_id não for fornecido (ex: admin buscando todos os globais, ou lógica específica)
-          # Por agora, vamos assumir que se user_id é None, busca apenas globais.
-          # Se a intenção for "todos os tipos de todos os usuários" para um superadmin, a lógica mudaria.
+        # Por agora, vamos assumir que se user_id é None, busca apenas globais.
+        # Se a intenção for "todos os tipos de todos os usuários" para um superadmin, a lógica mudaria.
         query = query.filter(ProductType.user_id == None) # Apenas globais
 
     if search:
@@ -459,7 +459,7 @@ def delete_product_type(db: Session, db_product_type: ProductType) -> ProductTyp
     if num_associated_products > 0:
         raise IntegrityError(
             f"Não é possível excluir o Tipo de Produto '{db_product_type.friendly_name}' pois ele está associado a {num_associated_products} produto(s).",
-             params={}, orig=None
+            params={}, orig=None
         )
 
     # AttributeTemplates são deletados por cascade="all, delete-orphan" no modelo ProductType
@@ -565,34 +565,6 @@ def reorder_attribute_template(db: Session, attribute_id: int, direction: str) -
 
 # --- Produto CRUD ---
 def create_produto(db: Session, produto: schemas.ProdutoCreate, user_id: int) -> Produto:
-    # Converte dynamic_attributes para dict se for string JSON
-    # dynamic_attrs_dict = {}
-    # if produto.dynamic_attributes:
-    #     if isinstance(produto.dynamic_attributes, str):
-    #         try:
-    #             dynamic_attrs_dict = json.loads(produto.dynamic_attributes)
-    #         except json.JSONDecodeError:
-    #             raise ValueError("Dynamic attributes não é um JSON válido.")
-    #     elif isinstance(produto.dynamic_attributes, dict):
-    #         dynamic_attrs_dict = produto.dynamic_attributes
-    #     else:
-    #         raise ValueError("Dynamic attributes deve ser um JSON string ou um dict.")
-
-    # dados_brutos_dict = {}
-    # if produto.dados_brutos:
-    #     if isinstance(produto.dados_brutos, str):
-    #         try:
-    #             dados_brutos_dict = json.loads(produto.dados_brutos)
-    #         except json.JSONDecodeError:
-    #             raise ValueError("Dados brutos não são um JSON válido.")
-    #     elif isinstance(produto.dados_brutos, dict):
-    #         dados_brutos_dict = produto.dados_brutos
-    #     else:
-    #         raise ValueError("Dados brutos devem ser um JSON string ou um dict.")
-            
-    # Pydantic v2 com Json[Type] já deve lidar com a conversão no schema.
-    # O modelo SQLAlchemy espera um dict para colunas JSON.
-
     produto_data = produto.model_dump(exclude_unset=True)
     
     # Assegura que campos JSON estejam como dicts
@@ -607,20 +579,6 @@ def create_produto(db: Session, produto: schemas.ProdutoCreate, user_id: int) ->
             produto_data['dados_brutos'] = json.loads(produto_data['dados_brutos'])
         except json.JSONDecodeError:
             raise ValueError("dados_brutos não é um JSON string válido.")
-
-    # Se imagens_secundarias_urls for uma string JSON, converter para lista
-    # (Pydantic List[HttpUrl] deve tratar isso na entrada se o cliente enviar JSON string,
-    # mas se for de um form multipart, pode precisar de tratamento especial no router)
-    # if 'imagens_secundarias_urls' in produto_data and isinstance(produto_data['imagens_secundarias_urls'], str):
-    # try:
-    #         parsed_urls = json.loads(produto_data['imagens_secundarias_urls'])
-    # if isinstance(parsed_urls, list):
-    #             produto_data['imagens_secundarias_urls'] = parsed_urls
-    # else:
-    # raise ValueError("imagens_secundarias_urls deve ser uma lista de URLs.")
-    # except json.JSONDecodeError:
-    # raise ValueError("imagens_secundarias_urls não é um JSON string válido representando uma lista.")
-
 
     db_produto = Produto(**produto_data, user_id=user_id)
     db.add(db_produto)
@@ -728,7 +686,7 @@ def count_produtos_by_user(
     if search:
         search_term = f"%{search.lower()}%"
         query = query.filter(
-             or_(
+            or_(
                 func.lower(Produto.nome_base).ilike(search_term),
                 func.lower(Produto.nome_chat_api).ilike(search_term),
                 func.lower(Produto.descricao_original).ilike(search_term),
@@ -757,16 +715,6 @@ def count_produtos_by_user(
 
 def update_produto(db: Session, db_produto: Produto, produto_update: schemas.ProdutoUpdate) -> Produto:
     update_data = produto_update.model_dump(exclude_unset=True)
-
-    # Lógica para campos JSON (dynamic_attributes, dados_brutos, imagens_secundarias_urls)
-    # Pydantic deve entregar dict/list se o schema estiver correto (não Json[Type])
-    # O modelo SQLAlchemy aceita dict/list para colunas JSON.
-    for field in ['dynamic_attributes', 'dados_brutos', 'imagens_secundarias_urls']:
-        if field in update_data and update_data[field] is not None:
-            # Se o schema já garante o tipo correto (dict/list), apenas atribua
-            # Se o schema ainda for Json[Type] e vier uma string, precisa de json.loads aqui
-            # Assumindo que o schema.ProdutoUpdate terá Dict/List para esses campos:
-            pass # setattr abaixo cuidará disso
 
     for key, value in update_data.items():
         setattr(db_produto, key, value)
@@ -921,14 +869,10 @@ def get_uso_ia_por_plano_no_mes(db: Session) -> List[Dict[str, Any]]:
             "total_geracoes_ia_no_mes": row.total_geracoes_ia_no_mes
         })
     
-    # Se houveram usos por usuários sem plano E não foi capturado por um plano NULL no join
-    # (o outerjoin deveria capturar PlanoInfo.id como None, mas a query agrupa por PlanoInfo.id)
-    # A melhor forma é um count separado e adicionar se > 0
     if count_sem_plano > 0:
-        # Verificar se "Sem Plano" já está na lista (caso o outerjoin tenha funcionado com plano_id=None)
         sem_plano_presente = any(item["plano_id"] is None for item in output)
         if not sem_plano_presente:
-             output.append({
+            output.append({
                 "plano_id": None,
                 "nome_plano": "Sem Plano",
                 "total_geracoes_ia_no_mes": count_sem_plano
@@ -936,7 +880,7 @@ def get_uso_ia_por_plano_no_mes(db: Session) -> List[Dict[str, Any]]:
         else: # Atualizar a contagem se já existir
             for item in output:
                 if item["plano_id"] is None:
-                    item["total_geracoes_ia_no_mes"] = count_sem_plano # Assume que a query principal pode não pegar todos
+                    item["total_geracoes_ia_no_mes"] = count_sem_plano
                     break
     return output
 
@@ -988,10 +932,6 @@ def get_uso_ia_por_tipo_no_mes(db: Session) -> List[Dict[str, Any]]:
 
 
 def get_active_users_with_activity(db: Session, limit: int = 20) -> List[User]:
-    """
-    Retorna usuários ativos com algumas informações de atividade.
-    Esta é uma função de exemplo, pode precisar de mais otimizações ou campos.
-    """
     now = datetime.now(timezone.utc)
     start_of_month = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
 
@@ -1019,38 +959,14 @@ def get_active_users_with_activity(db: Session, limit: int = 20) -> List[User]:
      .limit(limit)\
      .all()
     
-    # O resultado é uma lista de tuplas (User, total_produtos, total_geracoes_ia_mes_corrente)
-    # Precisamos transformar isso para que o schema UserActivity possa ser populado.
-    # O schema UserActivity espera atributos no objeto principal.
-    # Uma forma é adicionar esses atributos dinamicamente ao objeto User antes de retornar.
-    
+    # Adicionar atributos dinamicamente para o schema UserActivity funcionar
     user_activity_list = []
     for user_model, total_prods, total_ia in users:
-        # Criar um dicionário para popular UserActivity schema
-        activity_data = {
-            "user_id": user_model.id,
-            "email": user_model.email,
-            "nome_completo": user_model.nome_completo,
-            "created_at": user_model.created_at,
-            "total_produtos": total_prods or 0,
-            "total_geracoes_ia_mes_corrente": total_ia or 0,
-        }
-        # Isso não é ideal para popular um schema `from_attributes` diretamente do user_model
-        # se o schema espera os campos de contagem como atributos do User.
-        # Em vez disso, retornamos o objeto User e o router constrói o UserActivity.
-        # Ou, o schema UserActivity deve ser construído a partir de um dict.
-        
-        # Por agora, vamos adicionar dinamicamente, mas isso pode não ser a melhor prática.
-        setattr(user_model, 'total_produtos_count', total_prods or 0) # Nome diferente para não colidir
-        setattr(user_model, 'total_geracoes_ia_mes_corrente_count', total_ia or 0)
+        setattr(user_model, 'total_produtos', total_prods or 0)
+        setattr(user_model, 'total_geracoes_ia_mes_corrente', total_ia or 0)
         user_activity_list.append(user_model)
 
-    # return user_activity_list
-    # O router /admin/analytics/user-activity espera uma lista de schemas.UserActivity
-    # É melhor construir o schema no router a partir dos dados.
-    # A função CRUD deve retornar os dados brutos ou objetos do modelo.
-
-    return users # Retorna a lista de tuplas (User, count1, count2)
+    return user_activity_list
 
 
 # Função auxiliar para o startup (main.py)
@@ -1061,7 +977,6 @@ def create_initial_data(db: Session):
     roles_padrao = [
         {"name": "admin", "description": "Administrador do sistema"},
         {"name": "user", "description": "Usuário padrão da plataforma"},
-        # {"name": "gerente", "description": "Usuário com permissões de gerenciamento de equipe"},
     ]
     for role_data in roles_padrao:
         role = get_role_by_name(db, role_data["name"])
@@ -1097,7 +1012,6 @@ def create_initial_data(db: Session):
     admin_user = get_user_by_email(db, admin_email)
     if not admin_user:
         admin_role = get_role_by_name(db, "admin")
-        # Atribuir plano Pro ao admin como exemplo, ou um plano específico de admin
         admin_plano = get_plano_by_name(db, "Pro") 
 
         user_in = schemas.UserCreate(
@@ -1115,7 +1029,7 @@ def create_initial_data(db: Session):
         db.refresh(db_admin_user)
         logger.info(f"Usuário administrador '{admin_email}' criado com sucesso.")
     else:
-        logger.info(f"Usuário administrador '{admin_email}' já existe (ID: {admin_user.id}, Superuser: {admin_user.is_superuser}, Role ID: {admin_user.role_id}, Plano ID: {admin_user.plano_id}).")
+        logger.info(f"Usuário administrador '{admin_email}' já existe.")
 
 
     # Criar Tipos de Produto Globais Padrão (user_id = None)
@@ -1139,7 +1053,7 @@ def create_initial_data(db: Session):
                     attribute_key="tamanho",
                     label="Tamanho",
                     field_type=AttributeFieldTypeEnum.SELECT,
-                    options=["P", "M", "G", "GG"],   # Correto: lista Python!
+                    options='["P", "M", "G", "GG"]',
                     is_required=True,
                     display_order=1
                 ),
@@ -1160,7 +1074,7 @@ def create_initial_data(db: Session):
                     attribute_key="genero_vestuario",
                     label="Gênero",
                     field_type=AttributeFieldTypeEnum.SELECT,
-                    options=["Masculino", "Feminino", "Unissex"],  # Correto: lista Python!
+                    options='["Masculino", "Feminino", "Unissex"]',
                     display_order=4
                 ),
             ]
@@ -1168,17 +1082,7 @@ def create_initial_data(db: Session):
     ]
 
     for pt_data in tipos_produto_globais:
-        # pt_schema = schemas.ProductTypeCreate(**{k:v for k,v in pt_data.items() if k != 'attribute_templates'})
-        # attr_schemas = [schemas.AttributeTemplateCreate(**attr) for attr in pt_data.get("attribute_templates", [])]
-        
-        # Criando o schema Pydantic corretamente
-        attr_template_schemas = [schemas.AttributeTemplateCreate(**attr) for attr in pt_data.get("attribute_templates", [])]
-        pt_create_schema = schemas.ProductTypeCreate(
-            key_name=pt_data["key_name"],
-            friendly_name=pt_data["friendly_name"],
-            description=pt_data.get("description"),
-            attribute_templates=attr_template_schemas
-        )
+        pt_create_schema = schemas.ProductTypeCreate(**pt_data)
 
         existing_pt = get_product_type_by_key_name(db, key_name=pt_create_schema.key_name, user_id=None) # user_id=None para globais
         if not existing_pt:
@@ -1186,9 +1090,9 @@ def create_initial_data(db: Session):
                 create_product_type(db, product_type_create=pt_create_schema, user_id=None) # user_id=None para globais
                 logger.info(f"Tipo de Produto Global '{pt_create_schema.friendly_name}' criado.")
             except IntegrityError as e:
-                 logger.warning(f"Não foi possível criar o tipo de produto global '{pt_create_schema.key_name}': {e}")
+                logger.warning(f"Não foi possível criar o tipo de produto global '{pt_create_schema.key_name}': {e}")
             except Exception as e:
-                 logger.error(f"Erro inesperado ao criar tipo de produto global '{pt_create_schema.key_name}': {e}", exc_info=True)
+                logger.error(f"Erro inesperado ao criar tipo de produto global '{pt_create_schema.key_name}': {e}", exc_info=True)
         else:
             logger.info(f"Tipo de Produto Global '{pt_create_schema.friendly_name}' já existe.")
 
