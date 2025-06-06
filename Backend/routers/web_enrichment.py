@@ -83,11 +83,20 @@ async def _tarefa_enriquecer_produto_web(
             log_mensagens.append("AVISO CRÍTICO: Nem OpenAI nem Google API configuradas. Enriquecimento web não pode prosseguir efetivamente.")
             status_para_salvar_no_final = models.StatusEnriquecimentoEnum.FALHA_CONFIGURACAO_API_EXTERNA
             # Opcional: Registrar uso da IA para falha de configuração
-            crud.create_uso_ia(db=db, uso_ia=schemas.UsoIACreate(
-                produto_id=produto_id, tipo_geracao="enriquecimento_config_faltante_geral", modelo_ia_usado="N/A",
-                resultado_gerado="Falha: Configurações de API (OpenAI e Google) ausentes.",
-                prompt_utilizado="N/A"
-            ), user_id=user.id)
+            crud.create_registro_uso_ia(
+                db=db,
+                registro_uso=schemas.RegistroUsoIACreate(
+                    user_id=user.id,
+                    produto_id=produto_id,
+                    tipo_acao=models.TipoAcaoIAEnum.ENRIQUECIMENTO_WEB_PRODUTO,
+                    modelo_ia="N/A",
+                    provedor_ia=None,
+                    prompt_utilizado="N/A",
+                    resposta_ia="Falha: Configurações de API (OpenAI e Google) ausentes.",
+                    creditos_consumidos=0,
+                    status="FALHA",
+                ),
+            )
             return # Vai para o finally para salvar este status
 
         # Se especificamente a OpenAI não está configurada, mas a Google pode estar.
@@ -97,11 +106,20 @@ async def _tarefa_enriquecer_produto_web(
             # Não definimos status_para_salvar_no_final como FALHA_CONFIGURACAO_API_EXTERNA ainda,
             # pois a busca Google e extração de metadados podem funcionar.
             # O status final dependerá se essas outras etapas coletam algo.
-            crud.create_uso_ia(db=db, uso_ia=schemas.UsoIACreate(
-                produto_id=produto_id, tipo_geracao="enriquecimento_config_faltante_openai", modelo_ia_usado="N/A",
-                resultado_gerado="Falha Parcial: Chave API OpenAI não configurada para LLM.",
-                prompt_utilizado="N/A - Config OpenAI pendente para LLM"
-            ), user_id=user.id)
+            crud.create_registro_uso_ia(
+                db=db,
+                registro_uso=schemas.RegistroUsoIACreate(
+                    user_id=user.id,
+                    produto_id=produto_id,
+                    tipo_acao=models.TipoAcaoIAEnum.ENRIQUECIMENTO_WEB_PRODUTO,
+                    modelo_ia="N/A",
+                    provedor_ia=None,
+                    prompt_utilizado="N/A - Config OpenAI pendente para LLM",
+                    resposta_ia="Falha Parcial: Chave API OpenAI não configurada para LLM.",
+                    creditos_consumidos=0,
+                    status="FALHA",
+                ),
+            )
             # A tarefa continua para tentar coletar dados de outras fontes
 
         # ----- AGORA, definimos o status para EM_PROGRESSO no banco -----
