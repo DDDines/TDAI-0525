@@ -3,6 +3,7 @@ import React, { createContext, useContext, useState, useEffect, useCallback } fr
 import productTypeService from '../services/productTypeService';
 import { showErrorToast, showSuccessToast } from '../utils/notifications';
 import { useAuth } from './AuthContext'; // Importar useAuth para acessar o estado de autenticação
+import logger from '../utils/logger';
 
 const ProductTypeContext = createContext(null);
 
@@ -15,14 +16,14 @@ export const ProductTypeProvider = ({ children }) => {
   const fetchProductTypes = useCallback(async () => {
     // Adicionada verificação explícita do usuário aqui também, embora o useEffect já faça.
     if (!user) {
-      console.log("ProductTypeContext: Usuário não autenticado (ou nulo), não buscando tipos de produto em fetchProductTypes.");
+      logger.log("ProductTypeContext: Usuário não autenticado (ou nulo), não buscando tipos de produto em fetchProductTypes.");
       setProductTypes([]); // Limpa se não houver usuário
       setIsLoading(false); // Garante que o loading pare
       setError(null);
       return;
     }
 
-    console.log("ProductTypeContext: Iniciando busca de tipos de produto (usuário autenticado).");
+    logger.log("ProductTypeContext: Iniciando busca de tipos de produto (usuário autenticado).");
     setIsLoading(true);
     setError(null);
     try {
@@ -31,7 +32,7 @@ export const ProductTypeProvider = ({ children }) => {
       
       // FIX: Ajustar a condição para verificar se 'data' é um array diretamente
       if (data && Array.isArray(data)) { 
-        console.log("ProductTypeContext: Tipos de produto recebidos:", data.length); 
+        logger.log("ProductTypeContext: Tipos de produto recebidos:", data.length);
         setProductTypes(data); 
       } else {
         console.warn("ProductTypeContext: Resposta de getProductTypes não era um array. Data:", data);
@@ -44,32 +45,32 @@ export const ProductTypeProvider = ({ children }) => {
       setProductTypes([]);
     } finally {
       setIsLoading(false);
-      console.log("ProductTypeContext: Busca de tipos de produto finalizada.");
+      logger.log("ProductTypeContext: Busca de tipos de produto finalizada.");
     }
   }, [user]); // Dependência 'user' é crucial aqui
 
   useEffect(() => {
-    console.log("ProductTypeContext useEffect: user mudou ou isAuthSessionLoading mudou.");
-    console.log("ProductTypeContext useEffect: isAuthSessionLoading:", isAuthSessionLoading, "user:", user ? user.email : null);
+    logger.log("ProductTypeContext useEffect: user mudou ou isAuthSessionLoading mudou.");
+    logger.log("ProductTypeContext useEffect: isAuthSessionLoading:", isAuthSessionLoading, "user:", user ? user.email : null);
 
     // Só tenta buscar se a sessão de autenticação foi completamente verificada (não está mais carregando)
     if (!isAuthSessionLoading) {
       if (user) { 
-        console.log("ProductTypeContext: AuthContext carregado e usuário existe, chamando fetchProductTypes.");
+        logger.log("ProductTypeContext: AuthContext carregado e usuário existe, chamando fetchProductTypes.");
         fetchProductTypes();
       } else {
-        console.log("ProductTypeContext: AuthContext carregado, mas nenhum usuário logado (user é null). Limpando tipos de produto.");
+        logger.log("ProductTypeContext: AuthContext carregado, mas nenhum usuário logado (user é null). Limpando tipos de produto.");
         setProductTypes([]); // Limpa os tipos se não houver usuário
         setError(null);      // Limpa erros anteriores
         setIsLoading(false); // Garante que o estado de loading seja resetado
       }
     } else {
-        console.log("ProductTypeContext: Aguardando AuthContext carregar (isAuthSessionLoading é true).");
+        logger.log("ProductTypeContext: Aguardando AuthContext carregar (isAuthSessionLoading é true).");
     }
   }, [user, isAuthSessionLoading, fetchProductTypes]);
 
   const refreshProductTypes = useCallback(() => {
-    console.log("ProductTypeContext: Chamada para refreshProductTypes.");
+    logger.log("ProductTypeContext: Chamada para refreshProductTypes.");
     if (user) { // Só recarrega se houver usuário
         fetchProductTypes();
     } else {
@@ -82,7 +83,7 @@ export const ProductTypeProvider = ({ children }) => {
         showErrorToast("Você precisa estar logado para adicionar um tipo de produto.");
         throw new Error("Usuário não autenticado");
     }
-    console.log("ProductTypeContext: Adicionando novo tipo de produto:", productTypeData);
+    logger.log("ProductTypeContext: Adicionando novo tipo de produto:", productTypeData);
     try {
       const newProductType = await productTypeService.createProductType(productTypeData);
       setProductTypes(prevTypes => [...prevTypes, newProductType].sort((a, b) => a.friendly_name.localeCompare(b.friendly_name)));
@@ -105,7 +106,7 @@ export const ProductTypeProvider = ({ children }) => {
         showErrorToast("Você precisa estar logado para atualizar um tipo de produto.");
         throw new Error("Usuário não autenticado");
     }
-    console.log(`ProductTypeContext: Atualizando tipo de produto ID ${id}:`, productTypeData);
+    logger.log(`ProductTypeContext: Atualizando tipo de produto ID ${id}:`, productTypeData);
     try {
       const updatedProductType = await productTypeService.updateProductType(id, productTypeData);
       setProductTypes(prevTypes => 
@@ -126,7 +127,7 @@ export const ProductTypeProvider = ({ children }) => {
         showErrorToast("Você precisa estar logado para remover um tipo de produto.");
         throw new Error("Usuário não autenticado");
     }
-    console.log(`ProductTypeContext: Removendo tipo de produto ID ${id}`);
+    logger.log(`ProductTypeContext: Removendo tipo de produto ID ${id}`);
     try {
       await productTypeService.deleteProductType(id);
       setProductTypes(prevTypes => prevTypes.filter(pt => pt.id !== id));
