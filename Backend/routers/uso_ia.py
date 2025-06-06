@@ -33,7 +33,7 @@ def create_uso_ia_endpoint(
     try:
         # A função no CRUD foi nomeada como create_registro_uso_ia
         uso_ia_data.user_id = current_user.id
-        return crud.create_registro_uso_ia(db=db, registro_uso=uso_ia_data)
+        return crud.create_registro_uso_ia(db, registro_uso=uso_ia_data)
     except HTTPException as e:
         raise e
     except Exception as e:
