@@ -119,16 +119,14 @@ source venv/bin/activate  # Linux/macOS
 # venv\Scripts\activate    # Windows
 4. Instalar Dependências:
 
-Crie um arquivo requirements.txt se ainda não existir, e depois instale as dependências.
+Já existe um arquivo Backend/requirements.txt com as principais bibliotecas.
 Execute na raiz do projeto:
 
 Bash
 
-# Se você ainda não tem um requirements.txt (geralmente para o Backend):
-# pip freeze > Backend/requirements.txt # Ou apenas requirements.txt na raiz se preferir
+pip install -r Backend/requirements.txt
+playwright install
 
-pip install -r Backend/requirements.txt # Ou o caminho correto para seu requirements.txt
-(Nota: Se você já tem um requirements.txt para o backend, apenas execute o pip install.)
 
 5. Configurar Variáveis de Ambiente:
 
