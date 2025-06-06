@@ -210,9 +210,11 @@ def update_product_type_endpoint(
         type_id,
         current_user.id,
     )
-    updated_type = crud.update_product_type(db=db, product_type_id=type_id, product_type_data=product_type_in, user_id=current_user.id)
-    if not updated_type:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Tipo de produto não encontrado ou falha na atualização.")
+    db_product_type = crud.get_product_type(db, type_id)
+    if not db_product_type:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Tipo de produto não encontrado.")
+
+    updated_type = crud.update_product_type(db=db, db_product_type=db_product_type, product_type_update=product_type_in)
 
     logger.info("ROUTER (update_product_type): Tipo de produto ID %s atualizado com sucesso.", type_id)
 
@@ -235,9 +237,11 @@ def delete_product_type_endpoint(
         type_id,
         current_user.id,
     )
-    deleted_type = crud.delete_product_type(db=db, product_type_id=type_id, user_id=current_user.id)
-    if not deleted_type:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Tipo de Produto não encontrado para deleção ou não pôde ser deletado.")
+    db_product_type = crud.get_product_type(db, type_id)
+    if not db_product_type:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Tipo de Produto não encontrado para deleção.")
+
+    deleted_type = crud.delete_product_type(db=db, db_product_type=db_product_type)
 
     logger.info("ROUTER (delete_product_type): Tipo de produto ID %s deletado com sucesso.", type_id)
 
