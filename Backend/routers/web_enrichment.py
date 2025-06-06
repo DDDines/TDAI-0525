@@ -67,7 +67,7 @@ async def _tarefa_enriquecer_produto_web(
         status_para_salvar_no_final = models.StatusEnriquecimentoEnum.PENDENTE
 
 
-    dados_extraidos_agregados: Dict[str, Any] = db_produto_obj.dados_brutos.copy() if isinstance(db_produto_obj.dados_brutos, dict) else {}
+    dados_extraidos_agregados: Dict[str, Any] = db_produto_obj.dados_brutos_web.copy() if isinstance(db_produto_obj.dados_brutos_web, dict) else {}
     
     try:
         user = crud.get_user(db, user_id)
@@ -86,11 +86,20 @@ async def _tarefa_enriquecer_produto_web(
             log_mensagens.append("AVISO CRÍTICO: Nem OpenAI nem Google API configuradas. Enriquecimento web não pode prosseguir efetivamente.")
             status_para_salvar_no_final = models.StatusEnriquecimentoEnum.FALHA_CONFIGURACAO_API_EXTERNA
             # Opcional: Registrar uso da IA para falha de configuração
-            crud.create_uso_ia(db=db, uso_ia=schemas.UsoIACreate(
-                produto_id=produto_id, tipo_geracao="enriquecimento_config_faltante_geral", modelo_ia_usado="N/A",
-                resultado_gerado="Falha: Configurações de API (OpenAI e Google) ausentes.",
-                prompt_utilizado="N/A"
-            ), user_id=user.id)
+            crud.create_registro_uso_ia(
+                db=db,
+                registro_uso=schemas.RegistroUsoIACreate(
+                    user_id=user.id,
+                    produto_id=produto_id,
+                    tipo_acao=models.TipoAcaoIAEnum.ENRIQUECIMENTO_WEB_PRODUTO,
+                    modelo_ia="N/A",
+                    provedor_ia=None,
+                    prompt_utilizado="N/A",
+                    resposta_ia="Falha: Configurações de API (OpenAI e Google) ausentes.",
+                    creditos_consumidos=0,
+                    status="FALHA",
+                ),
+            )
             return # Vai para o finally para salvar este status
 
         # Se especificamente a OpenAI não está configurada, mas a Google pode estar.
@@ -100,11 +109,20 @@ async def _tarefa_enriquecer_produto_web(
             # Não definimos status_para_salvar_no_final como FALHA_CONFIGURACAO_API_EXTERNA ainda,
             # pois a busca Google e extração de metadados podem funcionar.
             # O status final dependerá se essas outras etapas coletam algo.
-            crud.create_uso_ia(db=db, uso_ia=schemas.UsoIACreate(
-                produto_id=produto_id, tipo_geracao="enriquecimento_config_faltante_openai", modelo_ia_usado="N/A",
-                resultado_gerado="Falha Parcial: Chave API OpenAI não configurada para LLM.",
-                prompt_utilizado="N/A - Config OpenAI pendente para LLM"
-            ), user_id=user.id)
+            crud.create_registro_uso_ia(
+                db=db,
+                registro_uso=schemas.RegistroUsoIACreate(
+                    user_id=user.id,
+                    produto_id=produto_id,
+                    tipo_acao=models.TipoAcaoIAEnum.ENRIQUECIMENTO_WEB_PRODUTO,
+                    modelo_ia="N/A",
+                    provedor_ia=None,
+                    prompt_utilizado="N/A - Config OpenAI pendente para LLM",
+                    resposta_ia="Falha Parcial: Chave API OpenAI não configurada para LLM.",
+                    creditos_consumidos=0,
+                    status="FALHA",
+                ),
+            )
             # A tarefa continua para tentar coletar dados de outras fontes
 
         # ----- AGORA, definimos o status para EM_PROGRESSO no banco -----
@@ -123,8 +141,8 @@ async def _tarefa_enriquecer_produto_web(
         # ----- Início do Processamento Principal -----
         query_parts = [db_produto_obj.nome_base]
         if db_produto_obj.marca: query_parts.append(db_produto_obj.marca)
-        if isinstance(db_produto_obj.dados_brutos, dict):
-            codigo_original = db_produto_obj.dados_brutos.get("codigo_original") or db_produto_obj.dados_brutos.get("sku_original")
+        if isinstance(db_produto_obj.dados_brutos_web, dict):
+            codigo_original = db_produto_obj.dados_brutos_web.get("codigo_original") or db_produto_obj.dados_brutos_web.get("sku_original")
             if codigo_original: query_parts.append(str(codigo_original))
         query_base = " ".join(query_parts)
         query = termos_busca_override or (query_base + " especificações técnicas detalhadas")
@@ -198,8 +216,8 @@ async def _tarefa_enriquecer_produto_web(
                 "especificacoes_tecnicas_dict", "palavras_chave_seo_relevantes_lista"
             ]
             texto_para_llm = dados_extraidos_agregados.get("texto_relevante_coletado") # Usa o texto coletado
-            if not texto_para_llm and isinstance(db_produto_obj.dados_brutos, dict): # Fallback para dados brutos se nenhum texto web
-                texto_para_llm = json.dumps(db_produto_obj.dados_brutos.get("dados_brutos_originais", db_produto_obj.dados_brutos), ensure_ascii=False)
+            if not texto_para_llm and isinstance(db_produto_obj.dados_brutos_web, dict): # Fallback para dados brutos se nenhum texto web
+                texto_para_llm = json.dumps(db_produto_obj.dados_brutos_web.get("dados_brutos_originais", db_produto_obj.dados_brutos_web), ensure_ascii=False)
             
             metadados_para_llm = {k: v for k, v in dados_extraidos_agregados.items() if k != "texto_relevante_coletado"}
 
@@ -274,7 +292,7 @@ async def _tarefa_enriquecer_produto_web(
                 status_valor_str = status_para_salvar_no_final.value
 
                 payload_final_update = schemas.ProdutoUpdate(
-                    dados_brutos=dados_extraidos_agregados,
+                    dados_brutos_web=dados_extraidos_agregados,
                     status_enriquecimento_web=status_valor_str, # Passa a string (valor do enum)
                     log_enriquecimento_web={"historico_mensagens": log_mensagens}
                 )

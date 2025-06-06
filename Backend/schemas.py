@@ -287,6 +287,10 @@ class ProdutoBase(BaseModel):
     dados_brutos_web: Optional[Dict[str, Any]] = Field(None, description="JSON com dados extraídos da web (textos, metadados).")
     dynamic_attributes: Optional[Dict[str, Any]] = Field(None, description="Atributos dinâmicos baseados no ProductType (JSON).")
 
+    # Log de enriquecimento web; estrutura flexível (lista ou dict) mantida como JSON.
+    log_enriquecimento_web: Optional[Any] = Field(
+        None, description="Log do processo de enriquecimento web.")
+
     log_processamento: Optional[List[Dict[str, Any]]] = Field(None, description="Log de eventos de processamento do produto.")
 
 
@@ -303,6 +307,7 @@ class ProdutoResponse(ProdutoBase):
     updated_at: datetime
     fornecedor: Optional[FornecedorResponse] = None
     product_type: Optional[ProductTypeResponse] = None
+    log_enriquecimento_web: Optional[Any] = None
     
     class Config:
         from_attributes = True

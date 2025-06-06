@@ -41,6 +41,10 @@ class Settings(BaseSettings):
     REFRESH_SECRET_KEY: str = os.getenv("REFRESH_SECRET_KEY", "super-refresh-secret-change-me")
     REFRESH_SECRET_KEY: str = os.getenv("REFRESH_SECRET_KEY", "super-refresh-secret-change-me")
       
+    REFRESH_SECRET_KEY: str = os.getenv(
+        "REFRESH_SECRET_KEY",
+        "super-refresh-secret-key-deve-ser-alterada-imediatamente",
+    )
     ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", 60 * 24 * 1)) # Default 1 dia
     REFRESH_TOKEN_EXPIRE_DAYS: int = int(os.getenv("REFRESH_TOKEN_EXPIRE_DAYS", 7))
@@ -81,8 +85,12 @@ class Settings(BaseSettings):
     UPLOAD_DIRECTORY: str = os.getenv("UPLOAD_DIRECTORY", "static/uploads")
 
     OPENAI_API_KEY: Optional[str] = os.getenv("OPENAI_API_KEY")
+    # Chave para acessar a API Google Gemini (modelo generativo)
     GOOGLE_GEMINI_API_KEY: Optional[str] = os.getenv("GOOGLE_GEMINI_API_KEY")
     CREDITOS_CUSTO_SUGESTAO_ATRIBUTOS_GEMINI: int = int(os.getenv("CREDITOS_CUSTO_SUGESTAO_ATRIBUTOS_GEMINI", 1))
+    # Configurações para usar a API Google Custom Search
+    GOOGLE_CSE_API_KEY: Optional[str] = os.getenv("GOOGLE_CSE_API_KEY")
+    GOOGLE_CSE_ID: Optional[str] = os.getenv("GOOGLE_CSE_ID")
     
     ALLOW_USERS_TO_EDIT_GLOBAL_PRODUCT_TYPES: bool = Field(default=False, validation_alias=env_var_name_with_prefix('ALLOW_USERS_TO_EDIT_GLOBAL_PRODUCT_TYPES'))
     ALLOW_USERS_TO_DELETE_GLOBAL_PRODUCT_TYPES: bool = Field(default=False, validation_alias=env_var_name_with_prefix('ALLOW_USERS_TO_DELETE_GLOBAL_PRODUCT_TYPES'))

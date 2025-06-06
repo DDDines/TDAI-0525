@@ -63,4 +63,27 @@ playwright
 trafilatura
 extruct
 google-api-python-client
+fastapi
+uvicorn
+sqlalchemy
+pydantic
+pydantic-settings
+python-dotenv
+passlib[bcrypt]
+python-jose[cryptography]
+authlib
+httpx
+fastapi-mail
+python-multipart
+pandas
+openpyxl
+pdfplumber
+bs4
+trafilatura
+extruct
+google-api-python-client
+playwright
+python-magic
+jinja2
+psycopg2-binary
 

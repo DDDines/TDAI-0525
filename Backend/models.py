@@ -170,7 +170,7 @@ class ProductType(Base):
 
     __table_args__ = (
         UniqueConstraint('user_id', 'key_name', name='_user_key_name_uc'),
-        Index('ix_product_types_global_key_name_unique', 'key_name', unique=True, postgresql_where=(Column('user_id') == None)),
+        Index('ix_product_types_global_key_name_unique', 'key_name', unique=True, postgresql_where=(user_id.is_(None))),
         Index('ix_product_types_user_id_key_name', 'user_id', 'key_name'),
     )
 
@@ -257,6 +257,10 @@ class Produto(Base):
     # Dados Brutos e Atributos
     dados_brutos_web = Column(MutableDict.as_mutable(JSON), nullable=True, comment="JSON com dados extraídos da web (textos, metadados)")
     dynamic_attributes = Column(MutableDict.as_mutable(JSON), nullable=True, comment="Atributos dinâmicos preenchidos baseados no ProductType (JSON)")
+
+    # Histórico de mensagens do processo de enriquecimento web/IA.
+    # Estrutura flexível armazenada como JSON (lista ou dict).
+    log_enriquecimento_web = Column(JSON, nullable=True, comment="Log de enriquecimento web do produto")
 
     # Log de Processamento (simplificado, pode ser uma tabela separada para logs detalhados)
     log_processamento = Column(MutableList.as_mutable(JSON), nullable=True, comment="Lista de mensagens/eventos de log para este produto")
