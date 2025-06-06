@@ -64,7 +64,7 @@ async def _tarefa_enriquecer_produto_web(
         status_para_salvar_no_final = models.StatusEnriquecimentoEnum.PENDENTE
 
 
-    dados_extraidos_agregados: Dict[str, Any] = db_produto_obj.dados_brutos.copy() if isinstance(db_produto_obj.dados_brutos, dict) else {}
+    dados_extraidos_agregados: Dict[str, Any] = db_produto_obj.dados_brutos_web.copy() if isinstance(db_produto_obj.dados_brutos_web, dict) else {}
     
     try:
         user = crud.get_user(db, user_id)
@@ -138,8 +138,8 @@ async def _tarefa_enriquecer_produto_web(
         # ----- Início do Processamento Principal -----
         query_parts = [db_produto_obj.nome_base]
         if db_produto_obj.marca: query_parts.append(db_produto_obj.marca)
-        if isinstance(db_produto_obj.dados_brutos, dict):
-            codigo_original = db_produto_obj.dados_brutos.get("codigo_original") or db_produto_obj.dados_brutos.get("sku_original")
+        if isinstance(db_produto_obj.dados_brutos_web, dict):
+            codigo_original = db_produto_obj.dados_brutos_web.get("codigo_original") or db_produto_obj.dados_brutos_web.get("sku_original")
             if codigo_original: query_parts.append(str(codigo_original))
         query_base = " ".join(query_parts)
         query = termos_busca_override or (query_base + " especificações técnicas detalhadas")
@@ -213,8 +213,8 @@ async def _tarefa_enriquecer_produto_web(
                 "especificacoes_tecnicas_dict", "palavras_chave_seo_relevantes_lista"
             ]
             texto_para_llm = dados_extraidos_agregados.get("texto_relevante_coletado") # Usa o texto coletado
-            if not texto_para_llm and isinstance(db_produto_obj.dados_brutos, dict): # Fallback para dados brutos se nenhum texto web
-                texto_para_llm = json.dumps(db_produto_obj.dados_brutos.get("dados_brutos_originais", db_produto_obj.dados_brutos), ensure_ascii=False)
+            if not texto_para_llm and isinstance(db_produto_obj.dados_brutos_web, dict): # Fallback para dados brutos se nenhum texto web
+                texto_para_llm = json.dumps(db_produto_obj.dados_brutos_web.get("dados_brutos_originais", db_produto_obj.dados_brutos_web), ensure_ascii=False)
             
             metadados_para_llm = {k: v for k, v in dados_extraidos_agregados.items() if k != "texto_relevante_coletado"}
 
@@ -285,7 +285,7 @@ async def _tarefa_enriquecer_produto_web(
                 status_valor_str = status_para_salvar_no_final.value
 
                 payload_final_update = schemas.ProdutoUpdate(
-                    dados_brutos=dados_extraidos_agregados,
+                    dados_brutos_web=dados_extraidos_agregados,
                     status_enriquecimento_web=status_valor_str, # Passa a string (valor do enum)
                     log_enriquecimento_web={"historico_mensagens": log_mensagens}
                 )

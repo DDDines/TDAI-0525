@@ -310,14 +310,15 @@ async def extract_relevant_data_from_url( # <--- NOME CORRETO DA FUNÇÃO PRINCI
     dados_normalizados_de_meta = _normalizar_dados_de_metadados(metadados_estruturados)
     if dados_normalizados_de_meta: add_log("INFO", "Metadados normalizados.", {"normalized_keys": list(dados_normalizados_de_meta.keys())})
 
-    # Atualizar dados_brutos do produto com o que foi encontrado até agora
-    if produto.dados_brutos is None: produto.dados_brutos = {}
+    # Atualizar dados_brutos_web do produto com o que foi encontrado até agora
+    if produto.dados_brutos_web is None:
+        produto.dados_brutos_web = {}
     
-    # Merge inteligente dos dados normalizados em dados_brutos
+    # Merge inteligente dos dados normalizados em dados_brutos_web
     # Prioriza novos valores, mas não sobrescreve com None se já existir algo
     for key, value in dados_normalizados_de_meta.items():
-        if value is not None or key not in produto.dados_brutos:
-            produto.dados_brutos[key] = value
+        if value is not None or key not in produto.dados_brutos_web:
+            produto.dados_brutos_web[key] = value
     
     # Se houver texto principal, tentar usar LLM para refinar/extrair mais campos
     # Esta é uma decisão de design - quais campos a LLM deve tentar preencher?
@@ -346,15 +347,15 @@ async def extract_relevant_data_from_url( # <--- NOME CORRETO DA FUNÇÃO PRINCI
     #             add_log("INFO", "Dados extraídos/refinados com LLM.", {"llm_extracted_keys": list(dados_llm.keys())})
     #             for key, value in dados_llm.items():
     #                 # Merge mais uma vez, priorizando LLM se não for erro
-    #                 if value is not None or key not in produto.dados_brutos:
-    #                     produto.dados_brutos[key] = value
+    #                 if value is not None or key not in produto.dados_brutos_web:
+    #                     produto.dados_brutos_web[key] = value
     #     else:
     #         add_log("INFO", "Nenhum dado adicional retornado pela LLM ou LLM desabilitada.")
 
 
     # Salva o texto principal se extraído, para referência ou uso posterior
-    if texto_principal and isinstance(produto.dados_brutos, dict):
-         produto.dados_brutos['texto_pagina_extraido'] = texto_principal[:15000] # Limita o tamanho
+    if texto_principal and isinstance(produto.dados_brutos_web, dict):
+         produto.dados_brutos_web['texto_pagina_extraido'] = texto_principal[:15000]  # Limita o tamanho
 
     produto.status_enriquecimento_web = models.StatusEnriquecimentoEnum.CONCLUIDO_SUCESSO
     if not dados_normalizados_de_meta and not texto_principal : # Se nada útil foi extraído
