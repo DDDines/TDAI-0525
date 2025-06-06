@@ -210,6 +210,8 @@ cd <PASTA_DO_PROJETO>
 
 ### 3. **Configuração do Backend**
 
+As dependências Python necessárias estão listadas em `Backend/requirements.txt`.
+
 ```sh
 python -m venv venv
 source venv/bin/activate    # Ou .\venv\Scripts\activate no Windows
