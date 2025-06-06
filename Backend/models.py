@@ -176,7 +176,12 @@ class ProductType(Base):
 
     __table_args__ = (
         UniqueConstraint('user_id', 'key_name', name='_user_key_name_uc'),
-        Index('ix_product_types_global_key_name_unique', 'key_name', unique=True, postgresql_where=(user_id.is_(None))),
+        Index(
+            'ix_product_types_global_key_name_unique',
+            'key_name',
+            unique=True,
+            postgresql_where=lambda: ProductType.user_id.is_(None)
+        ),
         Index('ix_product_types_user_id_key_name', 'user_id', 'key_name'),
     )
 
