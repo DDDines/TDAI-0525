@@ -28,19 +28,17 @@ from routers.password_recovery import router as password_recovery_router
 from routers.admin_analytics import router as admin_analytics_router
 from routers.social_auth import router as social_auth_router
 
-# Configuração do logging
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
+from core.config import logger
 
 
 try:
-    print("INFO:     Tentando criar tabelas no banco de dados (models.Base.metadata.create_all)...")
+    logger.info("Tentando criar tabelas no banco de dados (models.Base.metadata.create_all)...")
     # A LINHA ABAIXO FOI COMENTADA PARA EVITAR ERROS COM O RELOADER DO UVICORN.
     # O GERENCIAMENTO DO SCHEMA DO BANCO DE DADOS DEVE SER FEITO VIA ALEMBIC.
     # models.Base.metadata.create_all(bind=engine)
-    print("INFO:     Criação/verificação de tabelas concluída.")
+    logger.info("Criação/verificação de tabelas concluída.")
 except Exception as e:
-    print(f"ERRO: Falha ao criar/verificar tabelas: {e}")
+    logger.error("Falha ao criar/verificar tabelas: %s", e)
 
 
 app = FastAPI(
@@ -80,7 +78,10 @@ except Exception:
 if exact_frontend_origin not in current_allowed_origins:
     current_allowed_origins.insert(0, exact_frontend_origin)
 final_unique_allowed_origins = sorted(list(set(current_allowed_origins)))
-print(f"INFO: Final unique allowed_origins para CORSMiddleware: {final_unique_allowed_origins}")
+logger.info(
+    "Final unique allowed_origins para CORSMiddleware: %s",
+    final_unique_allowed_origins,
+)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=final_unique_allowed_origins,
