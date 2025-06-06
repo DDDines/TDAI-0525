@@ -866,7 +866,7 @@ def get_geracoes_ia_count_no_mes_corrente(db: Session, user_id: Optional[int] = 
     
     query = db.query(func.count(RegistroUsoIA.id)).filter(
         RegistroUsoIA.created_at >= start_of_month,  # CORRIGIDO de .timestamp
-        RegistroUsoIA.tipo_acao.not_in([TipoAcaoIAEnum.ENRIQUECIMENTO_WEB_PRODUTO]) # Exclui enriquecimento
+        RegistroUsoIA.tipo_acao.notin_([TipoAcaoIAEnum.ENRIQUECIMENTO_WEB_PRODUTO]) # Exclui enriquecimento
     )
     if user_id:
         query = query.filter(RegistroUsoIA.user_id == user_id)
