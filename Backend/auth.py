@@ -285,8 +285,8 @@ async def _get_or_create_social_user(
         
         created_user = crud.create_user_oauth(
             db=db,
-            user_data=user_in_create,
-            plano_id=default_plano.id if default_plano else None,
+            user_oauth=user_in_create,
+            plano_id_default=default_plano.id if default_plano else None,
         )
         logger.info("Novo usuário criado via %s: %s", provider, email)
         return created_user
