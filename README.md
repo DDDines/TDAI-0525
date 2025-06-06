@@ -251,6 +251,7 @@ DATABASE_URL="postgresql://usuario:senha@localhost:5432/tdai_db"
 
 # Segurança
 SECRET_KEY="sua_chave_forte"
+REFRESH_SECRET_KEY="sua_chave_refresh_forte"
 ALGORITHM="HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES=60
 

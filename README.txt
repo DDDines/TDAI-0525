@@ -143,6 +143,7 @@ Snippet de código
 # Backend/core/config.py espera estas variáveis
 DATABASE_URL="postgresql://USER:PASSWORD@HOST:PORT/DB_NAME" # Ex: postgresql://postgres:password@localhost:5432/tdai_db
 SECRET_KEY="sua_chave_secreta_super_forte_aqui" # Importante para JWT
+REFRESH_SECRET_KEY="sua_chave_refresh_super_forte_aqui"
 ALGORITHM="HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES=60
 
