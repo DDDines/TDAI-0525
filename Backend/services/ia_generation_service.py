@@ -45,6 +45,9 @@ async def get_gemini_api_key(db: Session, user: models.User) -> Optional[str]:
     if user.chave_google_gemini_pessoal:
         logger.info(f"Usando chave Gemini pessoal para usuário ID: {user.id}")
         return user.chave_google_gemini_pessoal
+
+    if settings.GOOGLE_GEMINI_API_KEY: # Supondo que GOOGLE_GEMINI_API_KEY_GLOBAL exista em settings
+          
     # A chave global agora é definida em settings.GOOGLE_GEMINI_API_KEY
     if settings.GOOGLE_GEMINI_API_KEY:
         logger.info("Usando chave Gemini global do sistema.")
@@ -182,6 +185,46 @@ async def call_gemini_api_for_suggestions(
             raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Erro inesperado ao comunicar com Gemini: {str(e)}")
 
 
+async def call_gemini_api(
+    prompt_text: str,
+    api_key: str,
+    model_name: str = "gemini-1.5-flash-latest",
+    temperature: float = 0.6,
+    max_tokens: int = 1024,
+) -> str:
+    """Realiza chamada simples à API Gemini e retorna o texto gerado."""
+    if not api_key:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Chave da API Gemini não configurada.")
+
+    endpoint = f"https://generativelanguage.googleapis.com/v1beta/models/{model_name}:generateContent"
+    payload = {
+        "contents": [{"role": "user", "parts": [{"text": prompt_text}]}],
+        "generationConfig": {"temperature": temperature, "maxOutputTokens": max_tokens},
+    }
+    url = f"{endpoint}?key={api_key}"
+    headers = {"Content-Type": "application/json"}
+    async with httpx.AsyncClient(timeout=90.0) as client:
+        try:
+            response = await client.post(url, json=payload, headers=headers)
+            response.raise_for_status()
+            data = response.json()
+            if (
+                data.get("candidates")
+                and data["candidates"]
+                and data["candidates"][0].get("content")
+                and data["candidates"][0]["content"].get("parts")
+                and data["candidates"][0]["content"]["parts"]
+            ):
+                return data["candidates"][0]["content"]["parts"][0].get("text", "").strip()
+            logger.error(f"Estrutura inesperada na resposta Gemini: {data}")
+            raise HTTPException(status_code=500, detail="Resposta inesperada da API Gemini")
+        except httpx.HTTPStatusError as e:
+            logger.error(f"Erro na API Gemini: {e.response.status_code} - {e.response.text}", exc_info=True)
+            raise HTTPException(status_code=e.response.status_code, detail=f"Erro na API Gemini: {e.response.text}")
+        except Exception as e:
+            logger.error(f"Erro inesperado ao chamar API Gemini: {str(e)}", exc_info=True)
+            raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Erro inesperado ao comunicar com Gemini: {str(e)}")
+
 async def gerar_titulos_com_openai(db: Session, produto_id: int, user: models.User, num_titulos: int = 3) -> List[str]:
     # ... (código existente para gerar títulos com OpenAI - manter como está)
     # Apenas garanta que ele use get_openai_api_key e registre o uso corretamente
@@ -241,6 +284,70 @@ async def gerar_descricao_com_openai(db: Session, produto_id: int, user: models.
     ))
     return descricao
 
+
+async def gerar_titulos_com_gemini(db: Session, produto_id: int, user: models.User, num_titulos: int = 3) -> List[str]:
+    """Gera títulos usando a API Gemini."""
+    logger.info(f"Iniciando geração de títulos Gemini para produto ID {produto_id} pelo usuário ID {user.id}")
+    api_key = await get_gemini_api_key(db, user)
+    if not api_key:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Chave da API Gemini não disponível.")
+
+    db_produto = crud.get_produto(db, produto_id=produto_id)
+    if not db_produto:
+        raise HTTPException(status_code=404, detail="Produto não encontrado")
+
+    prompt_text = (
+        f"Crie {num_titulos} sugestões de títulos curtos e atrativos para o seguinte produto:\n"
+        f"Nome: {db_produto.nome_base}\n"
+        f"Descrição: {db_produto.descricao_original or db_produto.descricao_chat_api or ''}\n"
+        f"Marca: {db_produto.marca or ''}"
+    )
+
+    resultado = await call_gemini_api(prompt_text, api_key, max_tokens=150 * num_titulos)
+    titulos_list = [t.strip() for t in resultado.split('\n') if t.strip()]
+
+    crud.create_registro_uso_ia(db, registro_uso=schemas.RegistroUsoIACreate(
+        user_id=user.id,
+        produto_id=produto_id,
+        tipo_acao=models.TipoAcaoIAEnum.CRIACAO_TITULO_PRODUTO,
+        provedor_ia="gemini",
+        modelo_ia="gemini-1.5-flash-latest",
+        creditos_consumidos=1,
+    ))
+    return titulos_list[:num_titulos]
+
+
+async def gerar_descricao_com_gemini(db: Session, produto_id: int, user: models.User, tamanho_palavras: int = 150) -> str:
+    """Gera descrição usando a API Gemini."""
+    logger.info(f"Iniciando geração de descrição Gemini para produto ID {produto_id} pelo usuário ID {user.id}")
+    api_key = await get_gemini_api_key(db, user)
+    if not api_key:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Chave da API Gemini não disponível.")
+
+    db_produto = crud.get_produto(db, produto_id=produto_id)
+    if not db_produto:
+        raise HTTPException(status_code=404, detail="Produto não encontrado")
+
+    prompt_text = (
+        f"Escreva uma descrição de aproximadamente {tamanho_palavras} palavras para o seguinte produto:\n"
+        f"Nome: {db_produto.nome_base}\n"
+        f"Informações adicionais: {db_produto.descricao_original or ''}\n"
+        f"Marca: {db_produto.marca or ''}\n"
+        f"Modelo: {db_produto.modelo or ''}"
+    )
+
+    descricao = await call_gemini_api(prompt_text, api_key, max_tokens=tamanho_palavras + 100)
+
+    crud.create_registro_uso_ia(db, registro_uso=schemas.RegistroUsoIACreate(
+        user_id=user.id,
+        produto_id=produto_id,
+        tipo_acao=models.TipoAcaoIAEnum.CRIACAO_DESCRICAO_PRODUTO,
+        provedor_ia="gemini",
+        modelo_ia="gemini-1.5-flash-latest",
+        creditos_consumidos=1,
+    ))
+    return descricao
+
 # --- NOVA FUNÇÃO PARA SUGESTÕES GEMINI ---
 async def sugerir_valores_atributos_com_gemini(
     db: Session,
@@ -255,15 +362,14 @@ async def sugerir_valores_atributos_com_gemini(
     
     # 1. Verificar créditos do usuário
     creditos_necessarios = settings.CREDITOS_CUSTO_SUGESTAO_ATRIBUTOS_GEMINI if hasattr(settings, 'CREDITOS_CUSTO_SUGESTAO_ATRIBUTOS_GEMINI') else 1 # Custo padrão de 1 crédito
-    if not await limit_service.verificar_e_consumir_creditos_geracao_ia(db, user.id, creditos_necessarios): # Ajustar nome da função se necessário
-        logger.warning(f"Usuário ID {user.id} com créditos insuficientes para sugestão de atributos (necessário: {creditos_necessarios}).")
-        raise HTTPException(
-            status_code=status.HTTP_402_PAYMENT_REQUIRED,
-            detail=f"Créditos de IA insuficientes ({creditos_necessarios} necessários) para gerar sugestões de atributos."
-        )
+    # A verificação de crédito foi movida para o router para uma resposta mais imediata ao usuário.
+    # No entanto, pode ser mantida aqui como uma segunda camada de segurança.
+    # if not await limit_service.verificar_e_consumir_creditos_geracao_ia(db, user.id, creditos_necessarios):
+    #     logger.warning(f"Usuário ID {user.id} com créditos insuficientes para sugestão de atributos (necessário: {creditos_necessarios}).")
+    #     raise HTTPException(...)
 
     # 2. Buscar Produto e seus AttributeTemplates
-    db_produto = crud.get_produto(db, produto_id=produto_id) # Assume que get_produto carrega product_type e attribute_templates
+    db_produto = crud.get_produto(db, produto_id=produto_id)
     if not db_produto:
         logger.error(f"Produto ID {produto_id} não encontrado para sugestão de atributos.")
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Produto não encontrado")
@@ -381,11 +487,6 @@ async def sugerir_valores_atributos_com_gemini(
         )
 
     except HTTPException as e: # Repassa HTTPExceptions de call_gemini_api_for_suggestions ou de verificações
-        # Registrar falha no uso da IA
-        # A lógica de consumo de crédito precisa de ajuste. Se a falha for da API, o crédito foi gasto.
-        # Se for antes, não. A lógica atual consome no início.
-        # Poderíamos reverter o crédito aqui se a falha não for culpa do usuário.
-        # Por simplicidade, mantemos o consumo.
         crud.create_registro_uso_ia(db, registro_uso=schemas.RegistroUsoIACreate(
             user_id=user.id, produto_id=produto_id, tipo_acao=models.TipoAcaoIAEnum.SUGESTAO_ATRIBUTOS_GEMINI,
             provedor_ia="gemini", modelo_ia=modelo_utilizado, creditos_consumidos=creditos_necessarios,
@@ -400,3 +501,4 @@ async def sugerir_valores_atributos_com_gemini(
             status="FALHA", detalhes_erro=f"Erro inesperado no serviço de sugestão: {str(e)}"
         ))
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Erro inesperado ao gerar sugestões: {str(e)}")
+
