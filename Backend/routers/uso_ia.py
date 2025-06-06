@@ -3,6 +3,7 @@ from typing import List, Optional
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session
 from datetime import datetime # Necessário para filtros de data
+from core.config import logger
 
 import crud
 import models
@@ -32,7 +33,7 @@ def create_uso_ia_endpoint(
     except HTTPException as e:
         raise e
     except Exception as e:
-        print(f"ERRO INESPERADO ao criar registro de uso de IA: {e}")
+        logger.error("ERRO INESPERADO ao criar registro de uso de IA: %s", e)
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Erro interno ao registrar uso de IA.")
 
 # Endpoint para listar os registros de uso de IA para o usuário logado

@@ -3,6 +3,7 @@ from typing import List, Optional
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session
 from sqlalchemy import func, cast, String # Importar cast e String
+from core.config import logger
 from datetime import datetime, timedelta, timezone 
 
 import crud 
@@ -50,7 +51,7 @@ async def get_total_counts_endpoint(db: Session = Depends(get_db)):
             total_enriquecimentos_mes=total_enriquecimentos_mes,
         )
     except Exception as e:
-        print(f"Erro ao buscar contagens de admin: {e}")
+        logger.error("Erro ao buscar contagens de admin: %s", e)
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Erro interno ao buscar estatísticas.")
 
 
