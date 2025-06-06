@@ -261,7 +261,10 @@ async def _get_or_create_social_user(
             db.refresh(db_user)
         return db_user
     else:
-        default_plano = crud.get_plano_by_nome(db, "Gratuito")
+        # Utiliza a função correta do CRUD para buscar o plano pelo nome
+        # (get_plano_by_name). A versão 'get_plano_by_nome' não existe e
+        # geraria AttributeError em tempo de execução.
+        default_plano = crud.get_plano_by_name(db, "Gratuito")
         
         user_in_create = schemas.UserCreateOAuth( 
             email=email,
