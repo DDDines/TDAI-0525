@@ -1,128 +1,92 @@
-# tdai_project/Backend/routers/admin_analytics.py
-from fastapi import APIRouter, Depends, HTTPException, status, Query
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 from sqlalchemy.orm import Session
-from sqlalchemy import func, extract, and_ 
-from typing import List, Dict, Any, Optional
-from datetime import datetime, timedelta, timezone
-
-# CORREÇÕES DOS IMPORTS:
-# Como 'run_backend.py' coloca 'Backend/' no sys.path e define como CWD,
-# podemos tratar módulos em 'Backend/' como se fossem de nível superior.
-import crud #
-import models #
-import schemas #
-from database import get_db #
-
-# '.' refere-se ao diretório atual ('routers')
-from .auth_utils import get_current_active_superuser #
-
-router = APIRouter(
-    prefix="/admin/analytics",
-    tags=["Admin Analytics"],
-    dependencies=[Depends(get_current_active_superuser)]
+from auth import (
+    oauth,
+    OAuthError,
+    process_google_login,
+    process_facebook_login,
+    create_access_token,
+    create_refresh_token,
 )
+from core.config import settings
+from database import get_db
+import schemas
 
-@router.get("/counts", response_model=schemas.TotalCounts)
-async def get_total_counts(db: Session = Depends(get_db)):
-    total_users = db.query(func.count(models.User.id)).scalar() or 0
-    total_produtos = db.query(func.count(models.Produto.id)).scalar() or 0
-    total_fornecedores = db.query(func.count(models.Fornecedor.id)).scalar() or 0
-    total_usos_ia = db.query(func.count(models.UsoIA.id)).scalar() or 0
-    
-    return schemas.TotalCounts(
-        total_users=total_users,
-        total_produtos=total_produtos,
-        total_fornecedores=total_fornecedores,
-        total_usos_ia=total_usos_ia
-    )
+router = APIRouter()
 
-@router.get("/uso-ia/por-plano", response_model=List[schemas.UsoIAPorPlano])
-async def get_uso_ia_por_plano(
-    db: Session = Depends(get_db),
-    data_inicio: Optional[datetime] = Query(None, description="Data de início (YYYY-MM-DD ou ISO format) para filtrar usos da IA"),
-    data_fim: Optional[datetime] = Query(None, description="Data de fim (YYYY-MM-DD ou ISO format) para filtrar usos da IA")
-):
-    query = (
-        db.query(
-            models.Plano.name.label("plano_nome"),
-            func.count(models.UsoIA.id).label("total_usos")
+
+@router.get("/google/login")
+async def google_login(request: Request):
+    """Redirects the user to Google's OAuth consent page."""
+    if "google" not in oauth._clients:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Google OAuth não configurado."
         )
-        .select_from(models.UsoIA)
-        .join(models.User, models.UsoIA.user_id == models.User.id)
-        .outerjoin(models.Plano, models.User.plano_id == models.Plano.id)
-    )
-    
-    if data_inicio:
-        query = query.filter(models.UsoIA.timestamp >= data_inicio)
-    if data_fim:
-        query = query.filter(models.UsoIA.timestamp < (data_fim + timedelta(days=1)))
-        
-    results = query.group_by(models.Plano.name).all()
-    
-    return [schemas.UsoIAPorPlano(plano_nome=(nome if nome else "Sem Plano"), total_usos=contagem) for nome, contagem in results]
+    redirect_uri = settings.GOOGLE_REDIRECT_URI
+    return await oauth.google.authorize_redirect(request, redirect_uri)
 
-@router.get("/uso-ia/por-tipo", response_model=List[schemas.UsoIAPorTipo])
-async def get_uso_ia_por_tipo(
-    db: Session = Depends(get_db),
-    data_inicio: Optional[datetime] = Query(None),
-    data_fim: Optional[datetime] = Query(None)
-):
-    query = db.query(models.UsoIA.tipo_geracao, func.count(models.UsoIA.id).label("total_usos"))
-    
-    if data_inicio:
-        query = query.filter(models.UsoIA.timestamp >= data_inicio)
-    if data_fim:
-        query = query.filter(models.UsoIA.timestamp < (data_fim + timedelta(days=1)))
-        
-    results = query.group_by(models.UsoIA.tipo_geracao).order_by(models.UsoIA.tipo_geracao).all()
-    
-    return [schemas.UsoIAPorTipo(tipo_geracao=tipo, total_usos=contagem) for tipo, contagem in results]
 
-@router.get("/user-activity/", response_model=List[schemas.UserActivity])
-async def get_user_activity_summary(
-    db: Session = Depends(get_db),
-    skip: int = Query(0, ge=0),
-    limit: int = Query(100, ge=1, le=500),
-    min_usos_mes: Optional[int] = Query(None, ge=0, description="[Admin] Filtrar usuários com no mínimo X usos da IA no mês corrente")
-):
-    hoje_utc = datetime.now(timezone.utc)
-    inicio_mes_corrente_utc = hoje_utc.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
-
-    subquery_usos_mes = (
-        db.query(
-            models.UsoIA.user_id.label("sq_user_id"),
-            func.count(models.UsoIA.id).label("usos_no_mes")
+@router.get("/google/callback", response_model=schemas.Token)
+async def google_callback(request: Request, db: Session = Depends(get_db)):
+    """Handles Google OAuth callback and returns API tokens."""
+    if "google" not in oauth._clients:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Google OAuth não configurado."
         )
-        .filter(models.UsoIA.timestamp >= inicio_mes_corrente_utc)
-        .group_by(models.UsoIA.user_id)
-        .subquery('usos_mes_subquery')
-    )
+    try:
+        token = await oauth.google.authorize_access_token(request)
+    except OAuthError:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Erro ao autorizar com Google.")
 
-    query = (
-        db.query(
-            models.User.id,
-            models.User.email,
-            models.Plano.name.label("plano_nome"),
-            func.coalesce(subquery_usos_mes.c.usos_no_mes, 0).label("usos_ia_mes_corrente_calc")
+    try:
+        userinfo = await oauth.google.parse_id_token(request, token)
+    except Exception:
+        resp = await oauth.google.get("userinfo", token=token)
+        userinfo = resp.json()
+
+    user = await process_google_login(db, userinfo)
+    if not user:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Não foi possível autenticar o usuário Google.")
+
+    access = create_access_token({"sub": user.email, "user_id": user.id})
+    refresh = create_refresh_token({"sub": user.email, "user_id": user.id})
+    return {"access_token": access, "refresh_token": refresh, "token_type": "bearer"}
+
+
+@router.get("/facebook/login")
+async def facebook_login(request: Request):
+    """Redirects the user to Facebook's OAuth consent page."""
+    if "facebook" not in oauth._clients:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Facebook OAuth não configurado."
         )
-        .outerjoin(models.Plano, models.User.plano_id == models.Plano.id)
-        .outerjoin(subquery_usos_mes, models.User.id == subquery_usos_mes.c.sq_user_id)
-        .order_by(models.User.id)
-    )
+    redirect_uri = settings.FACEBOOK_REDIRECT_URI
+    return await oauth.facebook.authorize_redirect(request, redirect_uri)
 
-    if min_usos_mes is not None:
-        query = query.filter(func.coalesce(subquery_usos_mes.c.usos_no_mes, 0) >= min_usos_mes)
 
-    results = query.offset(skip).limit(limit).all()
-    
-    user_activities = []
-    for user_id_res, email_res, plano_nome_res, usos_ia_mes_res in results:
-        user_activities.append(
-            schemas.UserActivity(
-                user_id=user_id_res,
-                user_email=email_res,
-                plano_nome=plano_nome_res if plano_nome_res else "Sem Plano",
-                usos_ia_mes_corrente=usos_ia_mes_res
-            )
+@router.get("/facebook/callback", response_model=schemas.Token)
+async def facebook_callback(request: Request, db: Session = Depends(get_db)):
+    """Handles Facebook OAuth callback and returns API tokens."""
+    if "facebook" not in oauth._clients:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Facebook OAuth não configurado."
         )
-    return user_activities
+    try:
+        token = await oauth.facebook.authorize_access_token(request)
+    except OAuthError:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Erro ao autorizar com Facebook.")
+
+    resp = await oauth.facebook.get("userinfo", token=token)
+    userinfo = resp.json()
+
+    user = await process_facebook_login(db, userinfo)
+    if not user:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Não foi possível autenticar o usuário Facebook.")
+
+    access = create_access_token({"sub": user.email, "user_id": user.id})
+    refresh = create_refresh_token({"sub": user.email, "user_id": user.id})
+    return {"access_token": access, "refresh_token": refresh, "token_type": "bearer"}
