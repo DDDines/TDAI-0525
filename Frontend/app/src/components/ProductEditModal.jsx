@@ -510,3 +510,4 @@ const ProductEditModal = ({ isOpen, onClose, product, onProductUpdated }) => {
 };
 
 export default ProductEditModal;
+

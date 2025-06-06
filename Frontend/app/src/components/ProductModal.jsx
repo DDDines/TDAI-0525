@@ -361,3 +361,4 @@ const ProductModal = ({ isOpen, onClose, product, onProductUpdated }) => {
 };
 
 export default ProductModal;
+
