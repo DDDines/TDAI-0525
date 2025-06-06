@@ -1,8 +1,11 @@
 // Frontend/app/src/pages/ProdutosPage.jsx
 import React, { useState, useEffect, useCallback } from 'react';
 import ProductTable from '../components/produtos/ProductTable';
-import NewProductModal from '../components/produtos/NewProductModal';
-import ProductEditModal from '../components/ProductEditModal';
+// REMOVIDO: import NewProductModal from '../components/produtos/NewProductModal';
+// REMOVIDO: import ProductEditModal from '../components/ProductEditModal';
+// NOVO: Importando o modal unificado.
+// (O nome do arquivo pode ser ProductModal.jsx, estou mantendo este por consistência com o passo anterior)
+import ProductModal from '../components/ProductEditModal';
 import PaginationControls from '../components/common/PaginationControls';
 import productService from '../services/productService';
 import { showErrorToast, showSuccessToast, showInfoToast, showWarningToast } from '../utils/notifications';
@@ -13,9 +16,15 @@ function ProdutosPage() {
   const [produtos, setProdutos] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [isNewProductModalOpen, setIsNewProductModalOpen] = useState(false);
-  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  
+  // ALTERADO: Estados de controle dos modais unificados em dois.
+  const [isModalOpen, setIsModalOpen] = useState(false);
   const [produtoParaEditar, setProdutoParaEditar] = useState(null);
+
+  // REMOVIDO: Estados antigos para os modais separados.
+  // const [isNewProductModalOpen, setIsNewProductModalOpen] = useState(false);
+  // const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  
   const [currentPage, setCurrentPage] = useState(0);
   const [limitPerPage, setLimitPerPage] = useState(10);
   const [totalProdutos, setTotalProdutos] = useState(0);
@@ -79,20 +88,23 @@ function ProdutosPage() {
     setProdutos(prevProdutos => 
         prevProdutos.map(p => (p.id === updatedProduct.id ? updatedProduct : p))
     );
-    // Opcional: Chamar fetchProdutos() se a atualização puder afetar a ordenação/paginação
-    // fetchProdutos(); 
   };
 
-  const handleOpenNewProductModal = () => setIsNewProductModalOpen(true);
-  const handleCloseNewProductModal = () => setIsNewProductModalOpen(false);
-  const handleOpenEditModal = (produto) => {
-    setProdutoParaEditar(produto);
-    setIsEditModalOpen(true);
+  // NOVO: Funções unificadas para abrir e fechar o modal
+  const handleOpenModal = (produto = null) => {
+    setProdutoParaEditar(produto); // null para criar, objeto para editar
+    setIsModalOpen(true);
   };
-  const handleCloseEditModal = () => {
-    setIsEditModalOpen(false);
+  const handleCloseModal = () => {
+    setIsModalOpen(false);
     setProdutoParaEditar(null);
   };
+
+  // REMOVIDO: Handlers antigos dos modais separados
+  // const handleOpenNewProductModal = () => setIsNewProductModalOpen(true);
+  // const handleCloseNewProductModal = () => setIsNewProductModalOpen(false);
+  // const handleOpenEditModal = (produto) => { ... };
+  // const handleCloseEditModal = () => { ... };
 
   const handleSaveProdutoCallback = async (produtoData, produtoId = null) => {
     try {
@@ -162,8 +174,6 @@ function ProdutosPage() {
     }
   };
 
-  // --- FUNÇÕES DE AÇÃO EM LOTE MODIFICADAS ---
-
   const updateLocalProductStatus = (ids, statusField, newStatus) => {
     setProdutos(prev => 
       prev.map(p => 
@@ -196,7 +206,7 @@ function ProdutosPage() {
     setTimeout(() => {
         showInfoToast("Atualizando lista para verificar resultados do enriquecimento...");
         fetchProdutos();
-    }, 15000); // Aumentar o tempo se o processo for longo
+    }, 15000);
   };
   
   const handleGenerateContentForSelected = async (contentType) => {
@@ -242,7 +252,8 @@ function ProdutosPage() {
     <div className="produtos-page-container">
       <div className="page-header">
         <h1>Meus Produtos</h1>
-        <button onClick={handleOpenNewProductModal} className="btn-primary">
+        {/* ALTERADO: Botão de novo produto chama o handler unificado */}
+        <button onClick={() => handleOpenModal(null)} className="btn-primary">
           <span className="icon-add"></span> Novo Produto
         </button>
       </div>
@@ -311,7 +322,8 @@ function ProdutosPage() {
       ) : (
         <ProductTable
           produtos={produtos}
-          onEdit={handleOpenEditModal}
+          // ALTERADO: onEdit agora usa o handler unificado
+          onEdit={handleOpenModal}
           onSort={handleSort}
           sortConfig={sortConfig}
           onSelectProduto={handleSelectProduto}
@@ -330,20 +342,17 @@ function ProdutosPage() {
             totalItems={totalProdutos}
           />
         )}
-      {isNewProductModalOpen && (
-        <NewProductModal
-          isOpen={isNewProductModalOpen}
-          onClose={handleCloseNewProductModal}
-          onSave={handleSaveProdutoCallback}
-          productTypes={productTypes}
-          loadingProductTypes={loadingProductTypes}
-          isLoading={loading}
-        />
-      )}
-      {isEditModalOpen && produtoParaEditar && (
-        <ProductEditModal
-          isOpen={isEditModalOpen}
-          onClose={handleCloseEditModal}
+        
+      {/* REMOVIDO: A renderização dos dois componentes de modal separados
+      {isNewProductModalOpen && ( ... )}
+      {isEditModalOpen && produtoParaEditar && ( ... )}
+      */}
+
+      {/* NOVO: Renderiza um único modal unificado */}
+      {isModalOpen && (
+        <ProductModal
+          isOpen={isModalOpen}
+          onClose={handleCloseModal}
           product={produtoParaEditar}
           onProductUpdated={handleProductUpdated}
         />
