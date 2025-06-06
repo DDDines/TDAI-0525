@@ -34,7 +34,9 @@ class Settings(BaseSettings):
     SQLITE_DB_FILE: str = os.getenv("SQLITE_DB_FILE", "tdai_app.db")
 
     SECRET_KEY: str = os.getenv("SECRET_KEY", "super-secret-key-deve-ser-alterada-imediatamente")
-    REFRESH_SECRET_KEY: str = os.getenv("REFRESH_SECRET_KEY", "change-me")
+    REFRESH_SECRET_KEY: str = os.getenv("REFRESH_SECRET_KEY", "super-refresh-secret-change-me")
+    REFRESH_SECRET_KEY: str = os.getenv("REFRESH_SECRET_KEY", "super-refresh-secret-change-me")
+      
     ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", 60 * 24 * 1)) # Default 1 dia
     REFRESH_TOKEN_EXPIRE_DAYS: int = int(os.getenv("REFRESH_TOKEN_EXPIRE_DAYS", 7))
@@ -45,6 +47,8 @@ class Settings(BaseSettings):
     ADMIN_EMAIL: str = os.getenv("ADMIN_EMAIL", "admin@example.com")
     ADMIN_PASSWORD: str = os.getenv("ADMIN_PASSWORD", "adminpassword")
     ADMIN_IDIOMA_PREFERIDO: Optional[str] = os.getenv("ADMIN_IDIOMA_PREFERIDO", "pt-BR")
+    FIRST_SUPERUSER_EMAIL: str = os.getenv("FIRST_SUPERUSER_EMAIL", "admin@example.com")
+    FIRST_SUPERUSER_PASSWORD: str = os.getenv("FIRST_SUPERUSER_PASSWORD", "adminpassword")
 
     DEFAULT_LIMIT_PRODUTOS_SEM_PLANO: int = int(os.getenv("DEFAULT_LIMIT_PRODUTOS_SEM_PLANO", 50))
     DEFAULT_LIMIT_ENRIQUECIMENTO_SEM_PLANO: int = int(os.getenv("DEFAULT_LIMIT_ENRIQUECIMENTO_SEM_PLANO", 10))
@@ -74,6 +78,7 @@ class Settings(BaseSettings):
 
     OPENAI_API_KEY: Optional[str] = os.getenv("OPENAI_API_KEY")
     GOOGLE_GEMINI_API_KEY: Optional[str] = os.getenv("GOOGLE_GEMINI_API_KEY")
+    CREDITOS_CUSTO_SUGESTAO_ATRIBUTOS_GEMINI: int = int(os.getenv("CREDITOS_CUSTO_SUGESTAO_ATRIBUTOS_GEMINI", 1))
     
     ALLOW_USERS_TO_EDIT_GLOBAL_PRODUCT_TYPES: bool = Field(default=False, validation_alias=env_var_name_with_prefix('ALLOW_USERS_TO_EDIT_GLOBAL_PRODUCT_TYPES'))
     ALLOW_USERS_TO_DELETE_GLOBAL_PRODUCT_TYPES: bool = Field(default=False, validation_alias=env_var_name_with_prefix('ALLOW_USERS_TO_DELETE_GLOBAL_PRODUCT_TYPES'))
