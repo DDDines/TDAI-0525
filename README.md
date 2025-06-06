@@ -106,13 +106,11 @@ TDAI-0525-Dev/
 │   │   ├── uso_ia.py
 │   │   └── web_enrichment.py
 │   ├── schemas.py
-│   ├── schemas_backup.py
 │   ├── services/
 │   │   ├── __init__.py
 │   │   ├── file_processing_service.py
 │   │   ├── ia_generation_service.py
 │   │   ├── limit_service.py
-│   │   ├── web_data_extractor_service backup.py
 │   │   └── web_data_extractor_service.py
 │   ├── templates/
 │   │   └── password_reset_email.html
@@ -148,7 +146,6 @@ TDAI-0525-Dev/
 │       │   │   ├── ProtectedRoute.jsx
 │       │   │   ├── Sidebar.jsx
 │       │   │   └── Topbar.jsx
-│       │   ├── index backup2605.css
 │       │   ├── index.css
 │       │   ├── main.jsx
 │       │   ├── pages/
