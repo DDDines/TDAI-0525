@@ -119,6 +119,14 @@ source venv/bin/activate  # Linux/macOS
 # venv\Scripts\activate    # Windows
 4. Instalar Dependências:
 
+
+Todas as bibliotecas necessárias para o backend já estão listadas em
+`Backend/requirements.txt`. Execute na raiz do projeto:
+
+```bash
+pip install -r Backend/requirements.txt
+```
+
 Já existe um arquivo Backend/requirements.txt com as principais bibliotecas.
 Execute na raiz do projeto:
 

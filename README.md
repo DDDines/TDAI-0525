@@ -212,7 +212,7 @@ As dependências Python necessárias estão listadas em `Backend/requirements.tx
 ```sh
 python -m venv venv
 source venv/bin/activate    # Ou .\venv\Scripts\activate no Windows
-pip install -r Backend/requirements.txt
+pip install -r Backend/requirements.txt   # dependências fixas do backend
 cd Backend
 alembic upgrade head        # Cria as tabelas do banco
 cd ..
