@@ -5,7 +5,7 @@ import NewProductModal from '../components/produtos/NewProductModal';
 import ProductEditModal from '../components/ProductEditModal';
 import PaginationControls from '../components/common/PaginationControls';
 import productService from '../services/productService';
-import { showErrorToast, showSuccessToast } from '../utils/notifications';
+import { showErrorToast, showSuccessToast, showInfoToast, showWarningToast } from '../utils/notifications';
 import './ProdutosPage.css';
 import { useProductTypes } from '../contexts/ProductTypeContext';
 
@@ -48,7 +48,7 @@ function ProdutosPage() {
         skip: currentPage * limitPerPage,
         limit: limitPerPage,
         sort_by: sortConfig.key,
-        sort_order: sortConfig.direction,
+        sort_order: sortConfig.direction === 'ascending' ? 'asc' : 'desc',
         search: searchTerm,
         status_enriquecimento_web: filtroStatusEnriquecimento || undefined,
         status_titulo_ia: filtroStatusTituloIA || undefined,
@@ -73,6 +73,15 @@ function ProdutosPage() {
   useEffect(() => {
     fetchProdutos();
   }, [fetchProdutos]);
+  
+  const handleProductUpdated = (updatedProduct) => {
+    // Atualiza a lista de produtos no estado para refletir a mudança imediatamente
+    setProdutos(prevProdutos => 
+        prevProdutos.map(p => (p.id === updatedProduct.id ? updatedProduct : p))
+    );
+    // Opcional: Chamar fetchProdutos() se a atualização puder afetar a ordenação/paginação
+    // fetchProdutos(); 
+  };
 
   const handleOpenNewProductModal = () => setIsNewProductModalOpen(true);
   const handleCloseNewProductModal = () => setIsNewProductModalOpen(false);
@@ -88,16 +97,16 @@ function ProdutosPage() {
   const handleSaveProdutoCallback = async (produtoData, produtoId = null) => {
     try {
       if (produtoId) {
-        await productService.updateProduto(produtoId, produtoData);
+        const updatedProduct = await productService.updateProduto(produtoId, produtoData);
+        handleProductUpdated(updatedProduct);
       } else {
         await productService.createProduto(produtoData);
+        fetchProdutos(); // Recarrega tudo ao criar um novo produto
       }
-      fetchProdutos();
       showSuccessToast(`Produto ${produtoId ? 'atualizado' : 'criado'} com sucesso!`);
       return Promise.resolve();
     } catch (err) {
       const actionType = produtoId ? 'atualizar' : 'criar';
-      console.error(`ProdutosPage: Erro ao ${actionType} produto:`, err.response?.data || err.message);
       const errorMsg = err.response?.data?.detail || err.message || `Falha ao ${actionType} produto.`;
       showErrorToast(errorMsg);
       return Promise.reject(err);
@@ -133,7 +142,6 @@ function ProdutosPage() {
     }
   };
 
-  // --- BATCH ACTIONS ---
   const handleDeleteSelected = async () => {
     if (selectedProdutos.size === 0) {
       showErrorToast('Nenhum produto selecionado para deletar.');
@@ -147,7 +155,6 @@ function ProdutosPage() {
         setSelectedProdutos(new Set());
         fetchProdutos();
       } catch (err) {
-        console.error('Erro ao deletar produtos selecionados:', err.response?.data || err.message);
         showErrorToast(err.response?.data?.detail || err.message || 'Falha ao deletar produtos.');
       } finally {
         setLoading(false);
@@ -155,50 +162,76 @@ function ProdutosPage() {
     }
   };
 
-  const handleEnrichSelectedWeb = async () => {
-    if (selectedProdutos.size === 0) {
-      showErrorToast('Nenhum produto selecionado para enriquecimento web.');
-      return;
-    }
-    showSuccessToast(`Enriquecimento web iniciado para ${selectedProdutos.size} produto(s).`);
-    setLoading(true);
-    try {
-      for (const produtoId of selectedProdutos) {
-        await productService.iniciarEnriquecimentoWebProduto(produtoId);
-      }
-      setTimeout(fetchProdutos, 3000);
-    } catch (err) {
-      console.error('Erro ao iniciar enriquecimento web:', err.response?.data || err.message);
-      showErrorToast(err.response?.data?.detail || err.message || 'Falha ao iniciar enriquecimento web.');
-    } finally {
-      setLoading(false);
-    }
+  // --- FUNÇÕES DE AÇÃO EM LOTE MODIFICADAS ---
+
+  const updateLocalProductStatus = (ids, statusField, newStatus) => {
+    setProdutos(prev => 
+      prev.map(p => 
+        ids.has(p.id) ? { ...p, [statusField]: newStatus } : p
+      )
+    );
   };
 
-  const handleGenerateContentForSelected = async (contentType) => {
+  const handleEnrichSelectedWeb = async () => {
     if (selectedProdutos.size === 0) {
-      showErrorToast(`Nenhum produto selecionado para gerar ${contentType}s.`);
+      showWarningToast('Nenhum produto selecionado para enriquecimento web.');
       return;
     }
-    showSuccessToast(`Geração de ${contentType}s iniciada para ${selectedProdutos.size} produto(s).`);
-    setLoading(true);
-    try {
-      for (const produtoId of selectedProdutos) {
+    
+    showInfoToast(`Enriquecimento web iniciado para ${selectedProdutos.size} produto(s).`);
+    updateLocalProductStatus(selectedProdutos, 'status_enriquecimento_web', 'EM_PROGRESSO');
+
+    const idsToProcess = Array.from(selectedProdutos);
+    setSelectedProdutos(new Set()); 
+
+    for (const produtoId of idsToProcess) {
+      try {
+        await productService.iniciarEnriquecimentoWebProduto(produtoId);
+      } catch (err) {
+        showErrorToast(`Erro ao iniciar enriquecimento para produto ID ${produtoId}: ${err.response?.data?.detail || err.message}`);
+        updateLocalProductStatus(new Set([produtoId]), 'status_enriquecimento_web', 'FALHA');
+      }
+    }
+    
+    setTimeout(() => {
+        showInfoToast("Atualizando lista para verificar resultados do enriquecimento...");
+        fetchProdutos();
+    }, 15000); // Aumentar o tempo se o processo for longo
+  };
+  
+  const handleGenerateContentForSelected = async (contentType) => {
+    if (selectedProdutos.size === 0) {
+      showWarningToast(`Nenhum produto selecionado para gerar ${contentType}s.`);
+      return;
+    }
+    const contentTypePlural = contentType === 'titulo' ? 'títulos' : 'descrições';
+    showInfoToast(`Geração de ${contentTypePlural} iniciada para ${selectedProdutos.size} produto(s).`);
+
+    const statusField = `status_${contentType}_ia`;
+    updateLocalProductStatus(selectedProdutos, statusField, 'EM_PROGRESSO');
+
+    const idsToProcess = Array.from(selectedProdutos);
+    setSelectedProdutos(new Set()); 
+
+    for (const produtoId of idsToProcess) {
+      try {
         if (contentType === 'titulo') {
           await productService.gerarTitulosProduto(produtoId);
         } else if (contentType === 'descricao') {
           await productService.gerarDescricaoProduto(produtoId);
         }
+      } catch (err) {
+        showErrorToast(`Erro ao gerar ${contentType} para produto ID ${produtoId}: ${err.response?.data?.detail || err.message}`);
+        updateLocalProductStatus(new Set([produtoId]), statusField, 'FALHA');
       }
-      setTimeout(fetchProdutos, 3000);
-    } catch (err) {
-      console.error(`Erro ao gerar ${contentType}s:`, err.response?.data || err.message);
-      showErrorToast(err.response?.data?.detail || err.message || `Falha ao gerar ${contentType}s.`);
-    } finally {
-      setLoading(false);
     }
-  };
 
+    setTimeout(() => {
+      showInfoToast(`Atualizando lista para verificar resultados da geração de ${contentTypePlural}...`);
+      fetchProdutos();
+    }, 15000);
+  };
+  
   const totalPages = Math.ceil(totalProdutos / limitPerPage);
 
   if (error && !loading && (!produtos || produtos.length === 0)) {
@@ -227,7 +260,7 @@ function ProdutosPage() {
             <option value="NAO_INICIADO">Não Iniciado</option>
             <option value="PENDENTE">Pendente</option>
             <option value="EM_PROGRESSO">Em Progresso</option>
-            <option value="CONCLUIDO">Concluído</option>
+            <option value="CONCLUIDO_SUCESSO">Concluído</option>
             <option value="FALHA">Falha</option>
           </select>
           <select value={filtroStatusTituloIA} onChange={(e) => {setFiltroStatusTituloIA(e.target.value); setCurrentPage(0);}} className="filtro-select">
@@ -237,7 +270,6 @@ function ProdutosPage() {
             <option value="EM_PROGRESSO">Em Progresso</option>
             <option value="CONCLUIDO">Concluído</option>
             <option value="FALHA">Falha</option>
-            <option value="NAO_APLICAVEL">Não Aplicável</option>
           </select>
           <select value={filtroStatusDescricaoIA} onChange={(e) => {setFiltroStatusDescricaoIA(e.target.value); setCurrentPage(0);}} className="filtro-select">
             <option value="">Status Descrição IA</option>
@@ -246,7 +278,6 @@ function ProdutosPage() {
             <option value="EM_PROGRESSO">Em Progresso</option>
             <option value="CONCLUIDO">Concluído</option>
             <option value="FALHA">Falha</option>
-            <option value="NAO_APLICAVEL">Não Aplicável</option>
           </select>
           <select
             value={filtroTipoProduto}
@@ -255,29 +286,21 @@ function ProdutosPage() {
             disabled={loadingProductTypes || (productTypes && productTypes.length === 0)}
           >
             <option value="">
-                {loadingProductTypes ? "Carregando Tipos..." : ((productTypes && productTypes.length === 0 && !productTypesError) ? "Nenhum Tipo Cadastrado" : "Todos Tipos de Produto")}
+                {loadingProductTypes ? "Carregando Tipos..." : "Todos Tipos"}
             </option>
             {productTypes && productTypes.map(pt => (
               <option key={pt.id} value={pt.id}>{pt.friendly_name}</option>
             ))}
           </select>
         </div>
-        <div className="atualizar-lista-container" style={{ marginTop: 8, marginBottom: 8 }}>
-          <button
-            onClick={fetchProdutos}
-            className="btn btn-outline btn-sm"
-            disabled={loading}
-            title="Atualizar lista de produtos"
-          >
+        <button onClick={fetchProdutos} className="btn btn-outline btn-sm" disabled={loading} title="Atualizar lista de produtos">
             Atualizar Lista
-          </button>
-        </div>
-
+        </button>
       </div>
       {selectedProdutos.size > 0 && (
         <div className="acoes-em-lote-container">
           <span>{selectedProdutos.size} produto(s) selecionado(s)</span>
-          <button onClick={handleDeleteSelected} className="btn-danger btn-sm">Deletar Selecionados</button>
+          <button onClick={handleDeleteSelected} className="btn-danger btn-sm">Deletar</button>
           <button onClick={handleEnrichSelectedWeb} className="btn-secondary btn-sm">Enriquecer Web</button>
           <button onClick={() => handleGenerateContentForSelected('titulo')} className="btn-secondary btn-sm">Gerar Títulos IA</button>
           <button onClick={() => handleGenerateContentForSelected('descricao')} className="btn-secondary btn-sm">Gerar Descrições IA</button>
@@ -311,7 +334,7 @@ function ProdutosPage() {
         <NewProductModal
           isOpen={isNewProductModalOpen}
           onClose={handleCloseNewProductModal}
-          onSave={(produtoData) => handleSaveProdutoCallback(produtoData)}
+          onSave={handleSaveProdutoCallback}
           productTypes={productTypes}
           loadingProductTypes={loadingProductTypes}
           isLoading={loading}
@@ -321,11 +344,8 @@ function ProdutosPage() {
         <ProductEditModal
           isOpen={isEditModalOpen}
           onClose={handleCloseEditModal}
-          productData={produtoParaEditar}
-          onSave={(produtoId, produtoUpdateData) => handleSaveProdutoCallback(produtoUpdateData, produtoId)}
-          productTypes={productTypes}
-          loadingProductTypes={loadingProductTypes}
-          isLoading={loading}
+          product={produtoParaEditar}
+          onProductUpdated={handleProductUpdated}
         />
       )}
     </div>
