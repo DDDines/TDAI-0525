@@ -1,7 +1,7 @@
 # TDAI – Plataforma Inteligente de Enriquecimento e Geração de Conteúdo para Catálogos
 
 > **Autor:** Julio Cesar Barizon Montes
-> **Licença:** Todos os direitos reservados
+> **Licença:** [MIT](LICENSE)
 
 ---
 
@@ -350,8 +350,7 @@ ADMIN_PASSWORD="adminpassword"
 
 ## 📜 Licença
 
-**Todos os direitos reservados.**
-Julio Cesar Barizon Montes
+Distribuído sob os termos da [licença MIT](LICENSE).
 
 ---
 
