@@ -24,7 +24,7 @@ O **TDAI** é uma plataforma SaaS de automação e inteligência artificial para
 * [Arquitetura e Estrutura de Pastas](#arquitetura-e-estrutura-de-pastas)
 * [Fluxo de Uso](#fluxo-de-uso)
 * [Guia de Instalação Rápida](#guia-de-instalação-rápida)
-* [Variáveis de Ambiente – Exemplo `.env`](#variáveis-de-ambiente--exemplo-env)
+* [Variáveis de Ambiente](#variáveis-de-ambiente)
 * [Comandos Úteis](#comandos-úteis)
 * [Roadmap e Futuro](#roadmap-e-futuro)
 * [Segurança e Boas Práticas](#segurança-e-boas-práticas)
@@ -192,7 +192,7 @@ TDAI-0525-Dev/
 * Navegadores Playwright (para scraping):
   `playwright install`
 * Chaves de API: OpenAI, Google Search, SMTP
-* Variáveis no arquivo `.env`
+* Copie o arquivo `.env.example` para `.env` e ajuste os valores
 
 ---
 
@@ -244,6 +244,12 @@ npm run dev                 # Roda o frontend em http://localhost:5173
   [http://localhost:8000/redoc](http://localhost:8000/redoc)
 
 ---
+
+
+## ⚙️ Variáveis de Ambiente
+
+Todas as variáveis necessárias para o backend e o frontend estão documentadas em [`.env.example`](./.env.example).
+Copie este arquivo para `.env` e preencha com seus valores antes de iniciar a aplicação.
 
 ### 6. **Testes**
 
@@ -304,9 +310,9 @@ ADMIN_EMAIL="admin@email.com"
 ADMIN_PASSWORD="adminpassword"
 FIRST_SUPERUSER_EMAIL="admin@example.com"
 FIRST_SUPERUSER_PASSWORD="adminpassword"
-```
+```Dev
 
-> ⚠️ **Nunca suba este arquivo para o git!**
+> ⚠️ **Nunca suba arquivos `.env` com dados sensíveis para o git!**
 
 ---
 
