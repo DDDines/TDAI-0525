@@ -849,6 +849,19 @@ def get_enriquecimentos_count_no_mes_corrente(db: Session, user_id: Optional[int
         query = query.filter(RegistroUsoIA.user_id == user_id)
     return query.scalar() or 0
 
+def count_usos_ia_by_user_and_type_no_mes_corrente(db: Session, user_id: int, tipo_geracao_prefix: str) -> int:
+    """Retorna a quantidade de usos de IA de um tipo dado para o usuário no mês corrente."""
+    start_of_month = datetime.now(timezone.utc).replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+    query = (
+        db.query(func.count(RegistroUsoIA.id))
+        .filter(
+            RegistroUsoIA.user_id == user_id,
+            RegistroUsoIA.created_at >= start_of_month,
+            RegistroUsoIA.tipo_acao.ilike(f"{tipo_geracao_prefix}%")
+        )
+    )
+    return query.scalar() or 0
+
 def get_uso_ia_por_plano_no_mes(db: Session) -> List[Dict[str, Any]]:
     now = datetime.now(timezone.utc)
     start_of_month = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
