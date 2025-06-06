@@ -229,6 +229,9 @@ python run_backend.py       # Inicia o backend (http://localhost:8000)
 ```sh
 cd Frontend/app
 npm install
+# Certifique-se de que as dependências de desenvolvimento (como @eslint/js)
+# foram instaladas. Elas são necessárias para o comando de lint.
+npm run lint            # Opcional: verifica padrões de código
 npm run dev                 # Roda o frontend em http://localhost:5173
 ```
 
@@ -315,6 +318,8 @@ ADMIN_PASSWORD="adminpassword"
 
 * **Iniciar Frontend:**
   `npm run dev` (na pasta `Frontend/app`)
+* **Verificar código com ESLint:**
+  `npm run lint` (exige dependências de desenvolvimento instaladas)
 
 * **Explorar Endpoints API:**
 
