@@ -2,8 +2,18 @@
 
 from typing import List, Optional, Union
 
-from fastapi import (APIRouter, Depends, HTTPException, Query, BackgroundTasks,
-                     status, UploadFile, File, Form)
+from fastapi import (
+    APIRouter,
+    Depends,
+    HTTPException,
+    Query,
+    BackgroundTasks,
+    status,
+    UploadFile,
+    File,
+    Form,
+    Body,
+)
 from sqlalchemy.orm import Session
 from sqlalchemy import func, or_
 
@@ -162,7 +172,7 @@ def delete_produto( # Nome da função mantido como no arquivo do usuário
 
 @router.post("/batch-delete/", response_model=List[schemas.ProdutoResponse]) # Este já estava correto
 def batch_delete_produtos(
-    produto_ids: List[int], # No User File estava schemas.ProdutoBatchDeleteRequest
+    produto_ids: List[int] = Body(...),  # Accept list of IDs directly from the request body
     db: Session = Depends(database.get_db),
     current_user: models.User = Depends(auth_utils.get_current_active_user)
 ):
