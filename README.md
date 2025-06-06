@@ -256,6 +256,8 @@ ACCESS_TOKEN_EXPIRE_MINUTES=60
 
 # OpenAI
 OPENAI_API_KEY="sk-..."
+# Google Gemini API
+GOOGLE_GEMINI_API_KEY="..."
 
 # Google Search API
 GOOGLE_CSE_ID="..."
