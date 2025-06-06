@@ -16,6 +16,7 @@ from core import security
 from core.logging_config import get_logger
 from core.config import settings, logger  # Para FRONTEND_URL e logging
 from core.email_utils import send_password_reset_email  # Importa a função de envio de email
+from core import security
 
 router = APIRouter(
     prefix="/api/v1/auth", # Mantendo o prefixo como no arquivo original, se for este
@@ -54,7 +55,7 @@ async def recover_password(email: str, request: Request, db: Session = Depends(g
     expires_at = datetime.now(timezone.utc) + expires_delta # Usar timezone.utc
     
     # Salvar o token e a data de expiração no usuário
-    crud.update_user_password_reset_token(db, user_id=user.id, token=token, expires_at=expires_at)
+    crud.set_user_password_reset_token(db, user, token=token, expires_at=expires_at)
 
     # Enviar email
     reset_link = f"{settings.FRONTEND_URL}/reset-password?token={token}"
