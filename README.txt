@@ -119,16 +119,22 @@ source venv/bin/activate  # Linux/macOS
 # venv\Scripts\activate    # Windows
 4. Instalar Dependências:
 
-Crie um arquivo requirements.txt se ainda não existir, e depois instale as dependências.
+
+Todas as bibliotecas necessárias para o backend já estão listadas em
+`Backend/requirements.txt`. Execute na raiz do projeto:
+
+```bash
+pip install -r Backend/requirements.txt
+```
+
+Já existe um arquivo Backend/requirements.txt com as principais bibliotecas.
 Execute na raiz do projeto:
 
 Bash
 
-# Se você ainda não tem um requirements.txt (geralmente para o Backend):
-# pip freeze > Backend/requirements.txt # Ou apenas requirements.txt na raiz se preferir
+pip install -r Backend/requirements.txt
+playwright install
 
-pip install -r Backend/requirements.txt # Ou o caminho correto para seu requirements.txt
-(Nota: Se você já tem um requirements.txt para o backend, apenas execute o pip install.)
 
 5. Configurar Variáveis de Ambiente:
 
@@ -143,7 +149,10 @@ Snippet de código
 # Backend/core/config.py espera estas variáveis
 DATABASE_URL="postgresql://USER:PASSWORD@HOST:PORT/DB_NAME" # Ex: postgresql://postgres:password@localhost:5432/tdai_db
 SECRET_KEY="sua_chave_secreta_super_forte_aqui" # Importante para JWT
+
+REFRESH_SECRET_KEY="change-me"
 REFRESH_SECRET_KEY="sua_chave_refresh_super_forte_aqui"
+
 ALGORITHM="HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES=60
 

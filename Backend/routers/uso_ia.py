@@ -3,12 +3,14 @@ from typing import List, Optional
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session
 from datetime import datetime # Necessário para filtros de data
+from core.config import logger
 
 import crud
 import models
 import schemas # schemas é importado
 import database
 from . import auth_utils # Para obter o usuário logado
+from core.logging_config import get_logger
 
 router = APIRouter(
     prefix="/uso-ia", # FIX: Removido o '/api/v1' daqui
@@ -16,10 +18,12 @@ router = APIRouter(
     dependencies=[Depends(auth_utils.get_current_active_user)],
 )
 
+logger = get_logger(__name__)
+
 # Endpoint para registrar um novo uso de IA
-@router.post("/", response_model=schemas.RegistroUsoIAResponse, status_code=status.HTTP_201_CREATED) # CORRIGIDO AQUI
-def create_uso_ia_endpoint( 
-    uso_ia_data: schemas.RegistroUsoIACreate, 
+@router.post("/", response_model=schemas.RegistroUsoIAResponse, status_code=status.HTTP_201_CREATED)  # CORRIGIDO AQUI
+def create_uso_ia_endpoint(
+    uso_ia_data: schemas.RegistroUsoIACreate,
     db: Session = Depends(database.get_db),
     current_user: models.User = Depends(auth_utils.get_current_active_user),
 ):
@@ -28,15 +32,16 @@ def create_uso_ia_endpoint(
     """
     try:
         # A função no CRUD foi nomeada como create_registro_uso_ia
-        return crud.create_registro_uso_ia(db=db, uso_ia=uso_ia_data, user_id=current_user.id) 
+        uso_ia_data.user_id = current_user.id
+        return crud.create_registro_uso_ia(db=db, registro_uso=uso_ia_data)
     except HTTPException as e:
         raise e
     except Exception as e:
-        print(f"ERRO INESPERADO ao criar registro de uso de IA: {e}")
+        logger.error("ERRO INESPERADO ao criar registro de uso de IA: %s", e)
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Erro interno ao registrar uso de IA.")
 
 # Endpoint para listar os registros de uso de IA para o usuário logado
-@router.get("/", response_model=schemas.RegistroUsoIABase) 
+@router.get("/", response_model=schemas.UsoIAPage)
 def read_usos_ia_usuario_logado(
     db: Session = Depends(database.get_db),
     current_user: models.User = Depends(auth_utils.get_current_active_user),

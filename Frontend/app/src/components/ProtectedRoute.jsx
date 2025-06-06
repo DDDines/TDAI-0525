@@ -1,6 +1,7 @@
 import React from 'react';
 import { Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
+import logger from '../utils/logger';
 
 const ProtectedRoute = ({ children, allowedRoles }) => {
     const { isAuthenticated, user, isLoading } = useAuth();
@@ -17,7 +18,7 @@ const ProtectedRoute = ({ children, allowedRoles }) => {
     if (!isAuthenticated) {
         // Usuário não está logado, redireciona para a página de login.
         // Salva a localização atual para que possamos enviar o usuário de volta após o login.
-        console.log("ProtectedRoute: Usuário não autenticado. Redirecionando para /login.");
+        logger.log("ProtectedRoute: Usuário não autenticado. Redirecionando para /login.");
         return <Navigate to="/login" state={{ from: location }} replace />;
     }
 
@@ -33,7 +34,7 @@ const ProtectedRoute = ({ children, allowedRoles }) => {
 
     if (allowedRoles && allowedRoles.length > 0) {
         if (!userRole || !allowedRoles.includes(userRole)) {
-            console.log(`ProtectedRoute: Usuário autenticado mas sem permissão. Role: ${userRole}, Permitidas: ${allowedRoles}. Redirecionando para /nao-autorizado ou dashboard.`);
+            logger.log(`ProtectedRoute: Usuário autenticado mas sem permissão. Role: ${userRole}, Permitidas: ${allowedRoles}. Redirecionando para /nao-autorizado ou dashboard.`);
             // Redireciona para uma página de "Não Autorizado" ou para o dashboard como fallback
             return <Navigate to="/dashboard" state={{ from: location }} replace />; // Ou para uma página específica de "Não Autorizado"
         }
@@ -43,3 +44,4 @@ const ProtectedRoute = ({ children, allowedRoles }) => {
 };
 
 export default ProtectedRoute;
+

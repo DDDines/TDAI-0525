@@ -1,5 +1,6 @@
 // Frontend/app/src/services/productService.js
 import axios from 'axios';
+import logger from '../utils/logger';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000/api/v1';
 
@@ -24,7 +25,7 @@ export const getProdutos = async (params = {}) => {
   try {
     // ADICIONADA BARRA FINAL AQUI
     const response = await apiClient.get('/produtos/', { params });
-    console.log('API Response in productService (getProdutos):', response.data);
+    logger.log('API Response in productService (getProdutos):', response.data);
     return response.data;
   } catch (error) {
     console.error('Error fetching produtos:', error.response?.data || error.message);
@@ -36,7 +37,7 @@ export const getProdutoById = async (produtoId) => {
   try {
     // ADICIONADA BARRA FINAL AQUI
     const response = await apiClient.get(`/produtos/${produtoId}/`);
-    console.log('API Response in productService (getProdutoById):', response.data);
+    logger.log('API Response in productService (getProdutoById):', response.data);
     return response.data;
   } catch (error) {
     console.error(`Error fetching produto ${produtoId}:`, error.response?.data || error.message);
@@ -99,6 +100,27 @@ export const gerarDescricaoProduto = async (produtoId) => {
   }
 };
 
+// --- NOVAS FUNÇÕES PARA GEMINI ---
+export const gerarTitulosGemini = async (produtoId) => {
+  try {
+    const response = await apiClient.post(`/geracao/titulos/gemini/${produtoId}/`);
+    return response.data;
+  } catch (error) {
+    console.error(`Erro ao gerar titulos com Gemini para produto ${produtoId}:`, error.response?.data || error.message);
+    throw error.response?.data || new Error('Falha ao gerar titulos com Gemini');
+  }
+};
+
+export const gerarDescricaoGemini = async (produtoId) => {
+  try {
+    const response = await apiClient.post(`/geracao/descricao/gemini/${produtoId}/`);
+    return response.data;
+  } catch (error) {
+    console.error(`Erro ao gerar descricao com Gemini para produto ${produtoId}:`, error.response?.data || error.message);
+    throw error.response?.data || new Error('Falha ao gerar descricao com Gemini');
+  }
+};
+
 export const iniciarEnriquecimentoWebProduto = async (produtoId, termosBuscaOverride = null) => {
   try {
     let endpoint = `/enriquecimento-web/produto/${produtoId}/`;
@@ -139,6 +161,9 @@ export const getAtributoSugestions = async (produtoId) => {
 };
 // --- FIM DA FUNÇÃO ADICIONADA ---
 
+// Alias para o modal que usa este nome
+export const sugerirAtributosGemini = getAtributoSugestions;
+
 
 export default {
   getProdutos,
@@ -148,7 +173,10 @@ export default {
   deleteProduto,
   gerarTitulosProduto,
   gerarDescricaoProduto,
+  gerarTitulosGemini,
+  gerarDescricaoGemini,
   iniciarEnriquecimentoWebProduto,
   batchDeleteProdutos,
-  getAtributoSugestions, // <-- Adicionado ao export
+  getAtributoSugestions,
+  sugerirAtributosGemini,
 };

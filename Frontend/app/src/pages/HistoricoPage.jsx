@@ -8,6 +8,7 @@ import { showSuccessToast, showErrorToast, showInfoToast } from '../utils/notifi
 import PaginationControls from '../components/common/PaginationControls';
 import { format, parseISO } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
+import logger from '../utils/logger';
 
 function HistoricoPage() {
   const { user, isLoading: isAuthLoading } = useAuth();
@@ -23,12 +24,12 @@ function HistoricoPage() {
 
   const fetchHistorico = useCallback(async () => {
     if (isAuthLoading) {
-      console.log("HistoricoPage: Auth está carregando, aguardando...");
+      logger.log("HistoricoPage: Auth está carregando, aguardando...");
       return;
     }
 
     if (!user) {
-      console.log("HistoricoPage: Usuário não autenticado, não buscando histórico.");
+      logger.log("HistoricoPage: Usuário não autenticado, não buscando histórico.");
       setHistorico([]);
       setTotalHistoricoCount(0);
       setLoading(false);
