@@ -3,6 +3,7 @@ from fastapi.responses import JSONResponse
 from typing import List, Optional
 import shutil
 import os
+from core.config import logger
 from pathlib import Path
 import imghdr # Para detectar o tipo MIME de imagem
 import magic # Para detectar o tipo MIME de forma mais robusta (requer python-magic)
@@ -27,7 +28,9 @@ try:
     import magic
 except ImportError:
     magic = None
-    print("AVISO: python-magic não encontrado. A detecção de MIME type pode ser menos robusta.")
+    logger.warning(
+        "python-magic não encontrado. A detecção de MIME type pode ser menos robusta."
+    )
 
 
 def get_file_mimetype(file_content: bytes, filename: str) -> str:
