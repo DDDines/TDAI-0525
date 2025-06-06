@@ -1,7 +1,7 @@
 # TDAI – Plataforma Inteligente de Enriquecimento e Geração de Conteúdo para Catálogos
 
 > **Autor:** Julio Cesar Barizon Montes
-> **Licença:** Todos os direitos reservados
+> **Licença:** [MIT](LICENSE)
 
 ---
 
@@ -24,7 +24,7 @@ O **TDAI** é uma plataforma SaaS de automação e inteligência artificial para
 * [Arquitetura e Estrutura de Pastas](#arquitetura-e-estrutura-de-pastas)
 * [Fluxo de Uso](#fluxo-de-uso)
 * [Guia de Instalação Rápida](#guia-de-instalação-rápida)
-* [Variáveis de Ambiente – Exemplo `.env`](#variáveis-de-ambiente--exemplo-env)
+* [Variáveis de Ambiente](#variáveis-de-ambiente)
 * [Comandos Úteis](#comandos-úteis)
 * [Roadmap e Futuro](#roadmap-e-futuro)
 * [Segurança e Boas Práticas](#segurança-e-boas-práticas)
@@ -106,13 +106,11 @@ TDAI-0525-Dev/
 │   │   ├── uso_ia.py
 │   │   └── web_enrichment.py
 │   ├── schemas.py
-│   ├── schemas_backup.py
 │   ├── services/
 │   │   ├── __init__.py
 │   │   ├── file_processing_service.py
 │   │   ├── ia_generation_service.py
 │   │   ├── limit_service.py
-│   │   ├── web_data_extractor_service backup.py
 │   │   └── web_data_extractor_service.py
 │   ├── templates/
 │   │   └── password_reset_email.html
@@ -148,7 +146,6 @@ TDAI-0525-Dev/
 │       │   │   ├── ProtectedRoute.jsx
 │       │   │   ├── Sidebar.jsx
 │       │   │   └── Topbar.jsx
-│       │   ├── index backup2605.css
 │       │   ├── index.css
 │       │   ├── main.jsx
 │       │   ├── pages/
@@ -195,7 +192,7 @@ TDAI-0525-Dev/
 * Navegadores Playwright (para scraping):
   `playwright install`
 * Chaves de API: OpenAI, Google Search, SMTP
-* Variáveis no arquivo `.env`
+* Copie o arquivo `.env.example` para `.env` e ajuste os valores
 
 ---
 
@@ -210,10 +207,12 @@ cd <PASTA_DO_PROJETO>
 
 ### 3. **Configuração do Backend**
 
+As dependências Python necessárias estão listadas em `Backend/requirements.txt`.
+
 ```sh
 python -m venv venv
 source venv/bin/activate    # Ou .\venv\Scripts\activate no Windows
-pip install -r Backend/requirements.txt
+pip install -r Backend/requirements.txt   # dependências fixas do backend
 cd Backend
 alembic upgrade head        # Cria as tabelas do banco
 cd ..
@@ -227,6 +226,9 @@ python run_backend.py       # Inicia o backend (http://localhost:8000)
 ```sh
 cd Frontend/app
 npm install
+# Certifique-se de que as dependências de desenvolvimento (como @eslint/js)
+# foram instaladas. Elas são necessárias para o comando de lint.
+npm run lint            # Opcional: verifica padrões de código
 npm run dev                 # Roda o frontend em http://localhost:5173
 ```
 
@@ -243,6 +245,25 @@ npm run dev                 # Roda o frontend em http://localhost:5173
 
 ---
 
+
+## ⚙️ Variáveis de Ambiente
+
+Todas as variáveis necessárias para o backend e o frontend estão documentadas em [`.env.example`](./.env.example).
+Copie este arquivo para `.env` e preencha com seus valores antes de iniciar a aplicação.
+
+### 6. **Testes**
+
+```sh
+# Backend
+pytest
+
+# Frontend
+cd Frontend/app
+npm test
+```
+
+---
+
 ## ⚙️ Variáveis de Ambiente – Exemplo `.env`
 
 ```
@@ -251,7 +272,13 @@ DATABASE_URL="postgresql://usuario:senha@localhost:5432/tdai_db"
 
 # Segurança
 SECRET_KEY="sua_chave_forte"
+
+ codex/add-configuration-variables-to-config.py
+REFRESH_SECRET_KEY="sua_chave_refresh"
+
+REFRESH_SECRET_KEY="change-me"
 REFRESH_SECRET_KEY="sua_chave_refresh_forte"
+
 ALGORITHM="HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES=60
 
@@ -280,12 +307,17 @@ GOOGLE_CLIENT_SECRET="..."
 FACEBOOK_CLIENT_ID="..."
 FACEBOOK_CLIENT_SECRET="..."
 
+# Custos de IA
+CREDITOS_CUSTO_SUGESTAO_ATRIBUTOS_GEMINI=1
+
 # Admin padrão
 ADMIN_EMAIL="admin@email.com"
 ADMIN_PASSWORD="adminpassword"
-```
+FIRST_SUPERUSER_EMAIL="admin@example.com"
+FIRST_SUPERUSER_PASSWORD="adminpassword"
+```Dev
 
-> ⚠️ **Nunca suba este arquivo para o git!**
+> ⚠️ **Nunca suba arquivos `.env` com dados sensíveis para o git!**
 
 ---
 
@@ -302,6 +334,8 @@ ADMIN_PASSWORD="adminpassword"
 
 * **Iniciar Frontend:**
   `npm run dev` (na pasta `Frontend/app`)
+* **Verificar código com ESLint:**
+  `npm run lint` (exige dependências de desenvolvimento instaladas)
 
 * **Explorar Endpoints API:**
 
@@ -319,6 +353,21 @@ ADMIN_PASSWORD="adminpassword"
 * [ ] Personalização de conteúdo por persona/segmento
 * [ ] Sistema de feedback e aprendizado contínuo
 * [ ] Templates dinâmicos de prompt
+
+---
+
+## ✅ Conclusão da Fase Atual
+
+Esta etapa inclui avanços importantes de qualidade:
+
+* Implementados testes unitários e de integração (pasta `tests/`).
+* Estilos revistos no frontend para aderência ao protótipo.
+* Ajustes de performance e usabilidade documentados nesta versão.
+
+### Melhorias de Desempenho e Usabilidade
+
+* Utilização de variáveis CSS para acelerar o carregamento de estilos.
+* Layout do sidebar unificado, garantindo navegação mais consistente.
 
 ---
 
@@ -353,8 +402,7 @@ ADMIN_PASSWORD="adminpassword"
 
 ## 📜 Licença
 
-**Todos os direitos reservados.**
-Julio Cesar Barizon Montes
+Distribuído sob os termos da [licença MIT](LICENSE).
 
 ---
 

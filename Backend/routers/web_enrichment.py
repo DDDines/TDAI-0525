@@ -15,12 +15,15 @@ from .auth_utils import get_current_active_user
 
 from services import web_data_extractor_service as web_extractor
 from core.config import settings
+from core.logging_config import get_logger
 
 router = APIRouter(
     prefix="/enriquecimento-web",
     tags=["Enriquecimento de Produto via Web"],
     dependencies=[Depends(get_current_active_user)]
 )
+
+logger = get_logger(__name__)
 
 async def _tarefa_enriquecer_produto_web(
     db_session_factory,
@@ -38,7 +41,7 @@ async def _tarefa_enriquecer_produto_web(
         db_produto_obj = db.query(models.Produto).filter(models.Produto.id == produto_id).with_for_update().first()
         if not db_produto_obj:
             log_mensagens.append(f"ERRO FATAL PRECOCE: Produto ID {produto_id} não encontrado.")
-            print(log_mensagens[-1])
+            logger.error(log_mensagens[-1])
             db.close()
             return
         
@@ -47,7 +50,7 @@ async def _tarefa_enriquecer_produto_web(
 
     except SQLAlchemyError as e_sql_load:
         log_mensagens.append(f"ERRO SQL ao carregar produto ID {produto_id}: {e_sql_load}")
-        print(log_mensagens[-1])
+        logger.error(log_mensagens[-1])
         db.close()
         return
 
@@ -64,7 +67,7 @@ async def _tarefa_enriquecer_produto_web(
         status_para_salvar_no_final = models.StatusEnriquecimentoEnum.PENDENTE
 
 
-    dados_extraidos_agregados: Dict[str, Any] = db_produto_obj.dados_brutos.copy() if isinstance(db_produto_obj.dados_brutos, dict) else {}
+    dados_extraidos_agregados: Dict[str, Any] = db_produto_obj.dados_brutos_web.copy() if isinstance(db_produto_obj.dados_brutos_web, dict) else {}
     
     try:
         user = crud.get_user(db, user_id)
@@ -138,8 +141,8 @@ async def _tarefa_enriquecer_produto_web(
         # ----- Início do Processamento Principal -----
         query_parts = [db_produto_obj.nome_base]
         if db_produto_obj.marca: query_parts.append(db_produto_obj.marca)
-        if isinstance(db_produto_obj.dados_brutos, dict):
-            codigo_original = db_produto_obj.dados_brutos.get("codigo_original") or db_produto_obj.dados_brutos.get("sku_original")
+        if isinstance(db_produto_obj.dados_brutos_web, dict):
+            codigo_original = db_produto_obj.dados_brutos_web.get("codigo_original") or db_produto_obj.dados_brutos_web.get("sku_original")
             if codigo_original: query_parts.append(str(codigo_original))
         query_base = " ".join(query_parts)
         query = termos_busca_override or (query_base + " especificações técnicas detalhadas")
@@ -213,8 +216,8 @@ async def _tarefa_enriquecer_produto_web(
                 "especificacoes_tecnicas_dict", "palavras_chave_seo_relevantes_lista"
             ]
             texto_para_llm = dados_extraidos_agregados.get("texto_relevante_coletado") # Usa o texto coletado
-            if not texto_para_llm and isinstance(db_produto_obj.dados_brutos, dict): # Fallback para dados brutos se nenhum texto web
-                texto_para_llm = json.dumps(db_produto_obj.dados_brutos.get("dados_brutos_originais", db_produto_obj.dados_brutos), ensure_ascii=False)
+            if not texto_para_llm and isinstance(db_produto_obj.dados_brutos_web, dict): # Fallback para dados brutos se nenhum texto web
+                texto_para_llm = json.dumps(db_produto_obj.dados_brutos_web.get("dados_brutos_originais", db_produto_obj.dados_brutos_web), ensure_ascii=False)
             
             metadados_para_llm = {k: v for k, v in dados_extraidos_agregados.items() if k != "texto_relevante_coletado"}
 
@@ -266,7 +269,11 @@ async def _tarefa_enriquecer_produto_web(
         error_full = traceback.format_exc()
         log_mensagens.append(f"ERRO CRÍTICO INESPERADO NO PROCESSO: {str(e_main_try)}. Trace: {error_full}")
         status_para_salvar_no_final = models.StatusEnriquecimentoEnum.FALHOU 
-        print(f"ERRO CRÍTICO INESPERADO na tarefa de enriquecimento para produto ID {produto_id}: {error_full}")
+        logger.error(
+            "ERRO CRÍTICO INESPERADO na tarefa de enriquecimento para produto ID %s: %s",
+            produto_id,
+            error_full,
+        )
     
     finally:
         if db_produto_obj:
@@ -285,18 +292,30 @@ async def _tarefa_enriquecer_produto_web(
                 status_valor_str = status_para_salvar_no_final.value
 
                 payload_final_update = schemas.ProdutoUpdate(
-                    dados_brutos=dados_extraidos_agregados,
+                    dados_brutos_web=dados_extraidos_agregados,
                     status_enriquecimento_web=status_valor_str, # Passa a string (valor do enum)
                     log_enriquecimento_web={"historico_mensagens": log_mensagens}
                 )
                 crud.update_produto(db, db_produto=db_produto_obj, produto_update=payload_final_update)
                 log_mensagens.append(f"Produto ID {produto_id} FINALMENTE atualizado com status: {status_valor_str}.")
-                print(f"INFO (web_enrichment.py _finally_): Produto ID {produto_id} status ATUALIZADO PARA {status_valor_str}.")
+                logger.info(
+                    "INFO (web_enrichment.py _finally_): Produto ID %s status ATUALIZADO PARA %s.",
+                    produto_id,
+                    status_valor_str,
+                )
             except Exception as e_final_update:
-                print(f"ERRO CRÍTICO ao tentar atualização final do produto {produto_id} no finally: {e_final_update}")
+                logger.error(
+                    "ERRO CRÍTICO ao tentar atualização final do produto %s no finally: %s",
+                    produto_id,
+                    e_final_update,
+                )
         
         final_status_value_print = status_para_salvar_no_final.value
-        print(f"Finalizando tarefa de enriquecimento para produto ID: {produto_id}. Status determinado para gravação: {final_status_value_print}")
+        logger.info(
+            "Finalizando tarefa de enriquecimento para produto ID: %s. Status determinado para gravação: %s",
+            produto_id,
+            final_status_value_print,
+        )
         
         db.close()
 

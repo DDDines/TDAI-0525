@@ -3,6 +3,7 @@ from typing import List, Optional
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session
 from sqlalchemy import func, cast, String # Importar cast e String
+from core.config import logger
 from datetime import datetime, timedelta, timezone 
 
 import crud 
@@ -10,8 +11,11 @@ import models
 import schemas 
 from database import get_db 
 from auth import get_current_active_user # Importa a dependência correta
+from core.logging_config import get_logger
 
 router = APIRouter()
+
+logger = get_logger(__name__)
 
 async def get_current_active_admin_user(current_user: models.User = Depends(get_current_active_user)):
     if not current_user.is_superuser:
@@ -50,7 +54,7 @@ async def get_total_counts_endpoint(db: Session = Depends(get_db)):
             total_enriquecimentos_mes=total_enriquecimentos_mes,
         )
     except Exception as e:
-        print(f"Erro ao buscar contagens de admin: {e}")
+        logger.error("Erro ao buscar contagens de admin: %s", e)
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Erro interno ao buscar estatísticas.")
 
 

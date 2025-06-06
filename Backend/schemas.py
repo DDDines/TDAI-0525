@@ -417,3 +417,4 @@ ProductTypeResponse.model_rebuild()
 ProdutoResponse.model_rebuild()
 RegistroUsoIAResponse.model_rebuild()
 UserActivity.model_rebuild()
+

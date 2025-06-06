@@ -4,6 +4,9 @@ import pdfplumber
 import csv
 import io # Para ler o conteúdo do arquivo em memória
 from typing import List, Dict, Any, Union, Optional
+from core.logging_config import get_logger
+
+logger = get_logger(__name__)
 
 def _limpar_valor_extraido(valor: Any) -> Optional[str]:
     """Helper para limpar strings ou converter outros tipos para string, retornando None se vazio."""
@@ -109,7 +112,7 @@ async def processar_arquivo_excel(conteudo_arquivo: bytes, mapeamento_colunas_us
                 produtos_extraidos.append(produto_padronizado)
         return produtos_extraidos
     except Exception as e:
-        print(f"Erro ao processar arquivo Excel: {e}")
+        logger.error("Erro ao processar arquivo Excel: %s", e)
         return [{"erro_processamento_excel": f"Falha ao ler arquivo Excel: {str(e)}"}]
 
 
@@ -138,7 +141,7 @@ async def processar_arquivo_csv(conteudo_arquivo: bytes, mapeamento_colunas_usua
                 produtos_extraidos.append(produto_padronizado)
         return produtos_extraidos
     except Exception as e:
-        print(f"Erro ao processar arquivo CSV: {e}")
+        logger.error("Erro ao processar arquivo CSV: %s", e)
         return [{"erro_processamento_csv": f"Falha ao ler arquivo CSV: {str(e)}"}]
 
 async def processar_arquivo_pdf(conteudo_arquivo: bytes, mapeamento_colunas_usuario: Optional[Dict[str, str]] = None) -> List[Dict[str, Any]]:
@@ -197,5 +200,5 @@ async def processar_arquivo_pdf(conteudo_arquivo: bytes, mapeamento_colunas_usua
     except Exception as e:
         import traceback
         log_pdf.append(f"Erro crítico ao processar arquivo PDF: {str(e)}")
-        print(f"Erro ao processar arquivo PDF: {traceback.format_exc()}")
+        logger.error("Erro ao processar arquivo PDF: %s", traceback.format_exc())
         return [{"erro_processamento_pdf": f"Falha crítica ao ler arquivo PDF: {str(e)}", "log_pdf": log_pdf}]

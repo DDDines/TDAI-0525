@@ -75,6 +75,7 @@ async def facebook_callback(request: Request, db: Session = Depends(get_db)):
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail="Facebook OAuth não configurado."
         )
+
     try:
         token = await oauth.facebook.authorize_access_token(request)
     except OAuthError:
@@ -90,3 +91,6 @@ async def facebook_callback(request: Request, db: Session = Depends(get_db)):
     access = create_access_token({"sub": user.email, "user_id": user.id})
     refresh = create_refresh_token({"sub": user.email, "user_id": user.id})
     return {"access_token": access, "refresh_token": refresh, "token_type": "bearer"}
+
+    return user_activities
+

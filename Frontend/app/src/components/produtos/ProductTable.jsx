@@ -1,8 +1,9 @@
 // Frontend/app/src/components/produtos/ProductTable.jsx
 import React from 'react';
 import './ProductTable.css'; // Seu CSS para a tabela. Deve existir em src/components/produtos/ProductTable.css
-import { format } from 'date-fns'; 
-import { ptBR } from 'date-fns/locale'; 
+import { format } from 'date-fns';
+import { ptBR } from 'date-fns/locale';
+import logger from '../../utils/logger';
 
 const StatusIcon = ({ status }) => {
   let iconClass = "status-icon ";
@@ -32,9 +33,9 @@ function ProductTable({
   onSelectAllProdutos, 
   loading, 
 }) {
-  console.log('ProductTable: Props recebidos - produtos:', produtos); 
-  console.log('ProductTable: Props recebidos - loading:', loading); 
-  console.log('ProductTable: Props recebidos - selectedProdutos:', selectedProdutos); 
+  logger.log('ProductTable: Props recebidos - produtos:', produtos);
+  logger.log('ProductTable: Props recebidos - loading:', loading);
+  logger.log('ProductTable: Props recebidos - selectedProdutos:', selectedProdutos);
 
   const getSortDirectionIcon = (key) => {
     if (sortConfig.key === key) {
