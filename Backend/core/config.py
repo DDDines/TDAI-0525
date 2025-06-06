@@ -5,12 +5,18 @@ from typing import List, Union, Optional
 from pydantic_settings import BaseSettings
 from pydantic import AnyHttpUrl, ValidationError, Field
 from pathlib import Path
+from .logging_config import get_logger
+
+logger = get_logger(__name__)
 
 dotenv_path = Path(__file__).resolve().parent.parent.parent / ".env"
 if dotenv_path.exists():
     load_dotenv(dotenv_path=dotenv_path)
 else:
-    print(f"AVISO: Arquivo .env não encontrado em {dotenv_path}. Usando valores padrão ou variáveis de ambiente do sistema.")
+    logger.warning(
+        "Arquivo .env não encontrado em %s. Usando valores padrão ou variáveis de ambiente do sistema.",
+        dotenv_path,
+    )
 
 def env_var_name_with_prefix(field_name: str) -> str:
     return field_name
@@ -81,9 +87,9 @@ if settings.DATABASE_URL is None:
     backend_dir = Path(__file__).resolve().parent.parent
     sqlite_file_path = backend_dir / settings.SQLITE_DB_FILE
     settings.DATABASE_URL = f"sqlite:///{sqlite_file_path.resolve()}"
-    print(f"INFO: DATABASE_URL não encontrada no .env. Usando SQLite em: {settings.DATABASE_URL}")
+    logger.info("DATABASE_URL não encontrada no .env. Usando SQLite em: %s", settings.DATABASE_URL)
 else:
-    print(f"INFO: DATABASE_URL carregada do .env: {settings.DATABASE_URL}")
+    logger.info("DATABASE_URL carregada do .env: %s", settings.DATABASE_URL)
 
 if settings._cors_origins_str:
     try:
@@ -93,10 +99,10 @@ if settings._cors_origins_str:
             try:
                 valid_origins.append(AnyHttpUrl(origin_str))
             except ValidationError:
-                print(f"AVISO: Origem CORS inválida '{origin_str}' em BACKEND_CORS_ORIGINS. Será ignorada.")
+                logger.warning("Origem CORS inválida '%s' em BACKEND_CORS_ORIGINS. Será ignorada.", origin_str)
         settings.BACKEND_CORS_ORIGINS = valid_origins
     except Exception as e:
-        print(f"ERRO ao processar BACKEND_CORS_ORIGINS do .env: {e}. Usando fallback.")
+        logger.error("Erro ao processar BACKEND_CORS_ORIGINS do .env: %s. Usando fallback.", e)
         settings.BACKEND_CORS_ORIGINS = []
 
 if not settings.BACKEND_CORS_ORIGINS:
@@ -110,9 +116,9 @@ if not settings.BACKEND_CORS_ORIGINS:
         try: default_origins_httpurl.append(AnyHttpUrl(origin_url))
         except ValidationError: pass
     settings.BACKEND_CORS_ORIGINS = default_origins_httpurl
-    print(f"INFO: Usando CORS origins padrão: {[str(o) for o in settings.BACKEND_CORS_ORIGINS]}")
+    logger.info("Usando CORS origins padrão: %s", [str(o) for o in settings.BACKEND_CORS_ORIGINS])
 else:
-    print(f"INFO: Usando CORS origins de settings: {[str(o) for o in settings.BACKEND_CORS_ORIGINS]}")
+    logger.info("Usando CORS origins de settings: %s", [str(o) for o in settings.BACKEND_CORS_ORIGINS])
 
 from passlib.context import CryptContext
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")

@@ -4,7 +4,10 @@ from pydantic import EmailStr
 from typing import List, Dict, Any, Optional # Adicionado Optional
 from pathlib import Path
 
+logger = get_logger(__name__)
+
 from .config import settings # Importa as configurações (settings)
+from .logging_config import get_logger
 # Removido import desnecessário de auth que estava no arquivo do usuário
 # import auth # Cuidado com import circular se auth importar email_utils
 
@@ -29,7 +32,9 @@ if settings.MAIL_USERNAME and settings.MAIL_PASSWORD and settings.MAIL_FROM and 
         TEMPLATE_FOLDER=TEMPLATE_FOLDER # Adiciona o diretório de templates à configuração
     )
 else:
-    print("AVISO: Configurações de Email (MAIL_USERNAME, MAIL_PASSWORD, MAIL_FROM, MAIL_SERVER) incompletas no .env. Funcionalidade de envio de email desabilitada.")
+    logger.warning(
+        "Configurações de Email (MAIL_USERNAME, MAIL_PASSWORD, MAIL_FROM, MAIL_SERVER) incompletas no .env. Funcionalidade de envio de email desabilitada."
+    )
 
 
 async def send_email(
@@ -41,7 +46,11 @@ async def send_email(
     template_name: Optional[str] = None
 ):
     if not conf:
-        print(f"AVISO: Tentativa de enviar email para {email_to} com assunto '{subject}', mas a configuração de email está desabilitada.")
+        logger.warning(
+            "Tentativa de enviar email para %s com assunto '%s', mas a configuração de email está desabilitada.",
+            email_to,
+            subject,
+        )
         return
 
     message_data = {
@@ -60,9 +69,9 @@ async def send_email(
         fm = FastMail(conf)
         try:
             await fm.send_message(message, template_name=template_name)
-            print(f"INFO: Email com template '{template_name}' enviado para {email_to}.")
+            logger.info("Email com template '%s' enviado para %s.", template_name, email_to)
         except Exception as e:
-            print(f"ERRO: Falha ao enviar email com template para {email_to}. Erro: {e}")
+            logger.error("Falha ao enviar email com template para %s. Erro: %s", email_to, e)
             # Considerar levantar uma exceção aqui ou retornar um status de falha
             # raise HTTPException(status_code=500, detail=f"Erro ao enviar email: {e}")
             pass # Evita quebrar a aplicação se o email falhar, mas loga o erro
@@ -74,12 +83,12 @@ async def send_email(
         fm = FastMail(conf)
         try:
             await fm.send_message(message)
-            print(f"INFO: Email HTML enviado para {email_to}.")
+            logger.info("Email HTML enviado para %s.", email_to)
         except Exception as e:
-            print(f"ERRO: Falha ao enviar email HTML para {email_to}. Erro: {e}")
+            logger.error("Falha ao enviar email HTML para %s. Erro: %s", email_to, e)
             pass
     else:
-        print(f"AVISO: Tentativa de enviar email para {email_to} sem template_name ou html_content.")
+        logger.warning("Tentativa de enviar email para %s sem template_name ou html_content.", email_to)
 
 
 # NOVA FUNÇÃO ADICIONADA
@@ -88,13 +97,16 @@ async def send_password_reset_email(email_to: EmailStr, username: str, reset_lin
     Envia um email de redefinição de senha para o usuário.
     """
     if not conf:
-        print(f"AVISO: Tentativa de enviar email de reset de senha para {email_to}, mas a configuração de email está desabilitada.")
+        logger.warning(
+            "Tentativa de enviar email de reset de senha para %s, mas a configuração de email está desabilitada.",
+            email_to,
+        )
         # Em um cenário real, você pode querer levantar uma exceção aqui
         # ou retornar um status que indique que o email não pôde ser enviado.
         # Por enquanto, apenas logamos e não enviamos.
         # Se esta função for chamada de um endpoint, o endpoint deve lidar com a falha.
         # raise HTTPException(status_code=500, detail="Serviço de email não configurado.")
-        return 
+        return
 
     subject = "Redefinição de Senha - TDAI"
     template_name = "password_reset_email.html" # Nome do arquivo de template em Backend/templates/
@@ -117,9 +129,9 @@ async def send_password_reset_email(email_to: EmailStr, username: str, reset_lin
     fm = FastMail(conf)
     try:
         await fm.send_message(message, template_name=template_name)
-        print(f"INFO: Email de reset de senha enviado para {email_to}")
+        logger.info("Email de reset de senha enviado para %s", email_to)
     except Exception as e:
-        print(f"ERRO: Falha ao enviar email de reset de senha para {email_to}. Erro: {e}")
+        logger.error("Falha ao enviar email de reset de senha para %s. Erro: %s", email_to, e)
         # Considerar levantar uma exceção aqui para que o chamador possa tratar
         raise RuntimeError(f"Falha ao enviar email de reset de senha: {e}")
 
@@ -129,7 +141,10 @@ async def send_new_account_email(email_to: EmailStr, username: str, login_link: 
     Envia um email de boas-vindas para um novo usuário. (Exemplo, não usado ainda)
     """
     if not conf:
-        print(f"AVISO: Tentativa de enviar email de boas-vindas para {email_to}, mas a configuração de email está desabilitada.")
+        logger.warning(
+            "Tentativa de enviar email de boas-vindas para %s, mas a configuração de email está desabilitada.",
+            email_to,
+        )
         return
 
     subject = f"Bem-vindo ao {settings.PROJECT_NAME}!"
@@ -152,7 +167,7 @@ async def send_new_account_email(email_to: EmailStr, username: str, login_link: 
     fm = FastMail(conf)
     try:
         await fm.send_message(message, template_name=template_name)
-        print(f"INFO: Email de boas-vindas enviado para {email_to}")
+        logger.info("Email de boas-vindas enviado para %s", email_to)
     except Exception as e:
-        print(f"ERRO: Falha ao enviar email de boas-vindas para {email_to}. Erro: {e}")
+        logger.error("Falha ao enviar email de boas-vindas para %s. Erro: %s", email_to, e)
         raise RuntimeError(f"Falha ao enviar email de boas-vindas: {e}")

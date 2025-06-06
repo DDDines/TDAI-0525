@@ -10,8 +10,11 @@ import models
 import schemas 
 from database import get_db 
 from auth import get_current_active_user # Importa a dependência correta
+from core.logging_config import get_logger
 
 router = APIRouter()
+
+logger = get_logger(__name__)
 
 async def get_current_active_admin_user(current_user: models.User = Depends(get_current_active_user)):
     if not current_user.is_superuser:
@@ -50,7 +53,7 @@ async def get_total_counts_endpoint(db: Session = Depends(get_db)):
             total_enriquecimentos_mes=total_enriquecimentos_mes,
         )
     except Exception as e:
-        print(f"Erro ao buscar contagens de admin: {e}")
+        logger.error("Erro ao buscar contagens de admin: %s", e)
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Erro interno ao buscar estatísticas.")
 
 
