@@ -10,12 +10,15 @@ import models
 import schemas # schemas é importado
 import database
 from . import auth_utils # Para obter o usuário logado
+from core.logging_config import get_logger
 
 router = APIRouter(
     prefix="/uso-ia", # FIX: Removido o '/api/v1' daqui
     tags=["uso-ia"],
     dependencies=[Depends(auth_utils.get_current_active_user)],
 )
+
+logger = get_logger(__name__)
 
 # Endpoint para registrar um novo uso de IA
 @router.post("/", response_model=schemas.RegistroUsoIAResponse, status_code=status.HTTP_201_CREATED) # CORRIGIDO AQUI

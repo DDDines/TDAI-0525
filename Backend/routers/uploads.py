@@ -15,8 +15,11 @@ from models import User
 from schemas import FileProcessResponse
 from sqlalchemy.orm import Session
 # --- FIM DOS IMPORTS ALTERADOS ---
+from core.logging_config import get_logger
 
 router = APIRouter()
+
+logger = get_logger(__name__)
 
 # O UPLOAD_DIRECTORY DEVE SER O MESMO MONTADO EM main.py /static
 # E DEVE SER RELATIVO AO DIRETÓRIO RAIZ DO BACKEND

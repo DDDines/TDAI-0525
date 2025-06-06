@@ -7,7 +7,7 @@ from pathlib import Path
 from typing import List, Optional, Any
 import json
 import traceback
-import logging
+from core.logging_config import get_logger
 
 import models
 import schemas
@@ -28,11 +28,21 @@ from routers.password_recovery import router as password_recovery_router
 from routers.admin_analytics import router as admin_analytics_router
 from routers.social_auth import router as social_auth_router
 
+refatorar-print-para-logging
+logger = get_logger(__name__)
+
+
+try:
+    logger.info(
+        "Tentando criar tabelas no banco de dados (models.Base.metadata.create_all)..."
+    )
+
 from core.config import logger
 
 
 try:
     logger.info("Tentando criar tabelas no banco de dados (models.Base.metadata.create_all)...")
+
     # A LINHA ABAIXO FOI COMENTADA PARA EVITAR ERROS COM O RELOADER DO UVICORN.
     # O GERENCIAMENTO DO SCHEMA DO BANCO DE DADOS DEVE SER FEITO VIA ALEMBIC.
     # models.Base.metadata.create_all(bind=engine)

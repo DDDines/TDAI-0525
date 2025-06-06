@@ -11,7 +11,13 @@ from authlib.integrations.starlette_client import OAuth, OAuthError # type: igno
 from starlette.config import Config as AuthlibConfig 
 from sqlalchemy.orm import Session
 
+refatorar-print-para-logging
+from core.config import settings, pwd_context
+from core.logging_config import get_logger
+
+logger = get_logger(__name__)
 from core.config import settings, pwd_context, logger
+
 import schemas 
 import models 
 import crud 
@@ -285,10 +291,17 @@ async def _get_or_create_social_user(
 async def process_google_login(db: Session, google_userinfo: Dict[str, Any]) -> Optional[models.User]:
     email = google_userinfo.get('email')
     if not email:
+        refatorar-print-para-logging
+        logger.error("Email do Google não encontrado nas informações do usuário.")
+        return None
+    if not google_userinfo.get('email_verified', False):
+        logger.warning("Email %s do Google não está verificado.", email)
+
         logger.warning("Email do Google não encontrado nas informações do usuário.")
         return None
     if not google_userinfo.get('email_verified', False):
         logger.info("Email %s do Google não está verificado.", email)
+
     
     nome_completo = google_userinfo.get('name')
     if not nome_completo:
@@ -298,7 +311,11 @@ async def process_google_login(db: Session, google_userinfo: Dict[str, Any]) -> 
     
     google_user_id = google_userinfo.get('sub') 
     if not google_user_id:
+        refatorar-print-para-logging
+        logger.error("ID de usuário do Google (sub) não encontrado.")
+
         logger.warning("ID de usuário do Google (sub) não encontrado.")
+
         return None
 
     return await _get_or_create_social_user(db, email, nome_completo, "Google", google_user_id)
@@ -306,13 +323,21 @@ async def process_google_login(db: Session, google_userinfo: Dict[str, Any]) -> 
 async def process_facebook_login(db: Session, facebook_userinfo: Dict[str, Any]) -> Optional[models.User]:
     email = facebook_userinfo.get('email')
     if not email:
+        refatorar-print-para-logging
+        logger.error(
+            "Email do Facebook não fornecido. Não é possível prosseguir com login/registro baseado em email."
+        )
         logger.warning("Email do Facebook não fornecido. Não é possível prosseguir com login/registro baseado em email.")
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Email não fornecido pelo Facebook. Verifique suas permissões.")
         
     nome_completo = facebook_userinfo.get('name', '')
     facebook_user_id = facebook_userinfo.get('id')
     if not facebook_user_id:
+        refatorar-print-para-logging
+        logger.error("ID de usuário do Facebook não encontrado.")
+
         logger.warning("ID de usuário do Facebook não encontrado.")
+
         return None
 
     return await _get_or_create_social_user(db, email, nome_completo, "Facebook", facebook_user_id)

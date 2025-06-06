@@ -4,7 +4,13 @@ from pydantic import EmailStr
 from typing import List, Dict, Any, Optional # Adicionado Optional
 from pathlib import Path
 
+refatorar-print-para-logging
+logger = get_logger(__name__)
+
+from .config import settings # Importa as configurações (settings)
+from .logging_config import get_logger
 from .config import settings, logger  # Importa as configurações (settings) e logger
+
 # Removido import desnecessário de auth que estava no arquivo do usuário
 # import auth # Cuidado com import circular se auth importar email_utils
 
@@ -85,6 +91,9 @@ async def send_email(
             logger.error("Falha ao enviar email HTML para %s. Erro: %s", email_to, e)
             pass
     else:
+        refatorar-print-para-logging
+        logger.warning("Tentativa de enviar email para %s sem template_name ou html_content.", email_to)
+
         logger.warning(
             "Tentativa de enviar email para %s sem template_name ou html_content.",
             email_to,
@@ -106,7 +115,7 @@ async def send_password_reset_email(email_to: EmailStr, username: str, reset_lin
         # Por enquanto, apenas logamos e não enviamos.
         # Se esta função for chamada de um endpoint, o endpoint deve lidar com a falha.
         # raise HTTPException(status_code=500, detail="Serviço de email não configurado.")
-        return 
+        return
 
     subject = "Redefinição de Senha - TDAI"
     template_name = "password_reset_email.html" # Nome do arquivo de template em Backend/templates/
@@ -169,9 +178,14 @@ async def send_new_account_email(email_to: EmailStr, username: str, login_link: 
         await fm.send_message(message, template_name=template_name)
         logger.info("Email de boas-vindas enviado para %s", email_to)
     except Exception as e:
+        refatorar-print-para-logging
+        logger.error("Falha ao enviar email de boas-vindas para %s. Erro: %s", email_to, e)
+        raise RuntimeError(f"Falha ao enviar email de boas-vindas: {e}")
+
         codex/refatorar-módulos-para-usar-logging
         logger.error("Falha ao enviar email de boas-vindas para %s. Erro: %s", email_to, e)
 
         print(f"ERRO: Falha ao enviar email de boas-vindas para {email_to}. Erro: {e}")
         Dev
          raise RuntimeError(f"Falha ao enviar email de boas-vindas: {e}")
+

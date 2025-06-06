@@ -6,6 +6,9 @@ from typing import List, Union, Optional
 from pydantic_settings import BaseSettings
 from pydantic import AnyHttpUrl, ValidationError, Field
 from pathlib import Path
+from .logging_config import get_logger
+
+logger = get_logger(__name__)
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("tdai")
@@ -18,6 +21,7 @@ else:
         "Arquivo .env não encontrado em %s. Usando valores padrão ou variáveis de ambiente do sistema.",
         dotenv_path,
     )
+    refatorar-print-para-logging
 
 
 def env_var_name_with_prefix(field_name: str) -> str:
@@ -95,10 +99,14 @@ if settings.DATABASE_URL is None:
     backend_dir = Path(__file__).resolve().parent.parent
     sqlite_file_path = backend_dir / settings.SQLITE_DB_FILE
     settings.DATABASE_URL = f"sqlite:///{sqlite_file_path.resolve()}"
+    refatorar-print-para-logging
+    logger.info("DATABASE_URL não encontrada no .env. Usando SQLite em: %s", settings.DATABASE_URL)
+
     logger.info(
         "DATABASE_URL não encontrada no .env. Usando SQLite em: %s",
         settings.DATABASE_URL,
     )
+
 else:
     logger.info("DATABASE_URL carregada do .env: %s", settings.DATABASE_URL)
 
@@ -110,6 +118,11 @@ if settings._cors_origins_str:
             try:
                 valid_origins.append(AnyHttpUrl(origin_str))
             except ValidationError:
+                refatorar-print-para-logging
+                logger.warning("Origem CORS inválida '%s' em BACKEND_CORS_ORIGINS. Será ignorada.", origin_str)
+        settings.BACKEND_CORS_ORIGINS = valid_origins
+    except Exception as e:
+        logger.error("Erro ao processar BACKEND_CORS_ORIGINS do .env: %s. Usando fallback.", e)
                 logger.warning(
                     "Origem CORS inválida '%s' em BACKEND_CORS_ORIGINS. Será ignorada.",
                     origin_str,
@@ -133,6 +146,10 @@ if not settings.BACKEND_CORS_ORIGINS:
         try: default_origins_httpurl.append(AnyHttpUrl(origin_url))
         except ValidationError: pass
     settings.BACKEND_CORS_ORIGINS = default_origins_httpurl
+    refatorar-print-para-logging
+    logger.info("Usando CORS origins padrão: %s", [str(o) for o in settings.BACKEND_CORS_ORIGINS])
+else:
+    logger.info("Usando CORS origins de settings: %s", [str(o) for o in settings.BACKEND_CORS_ORIGINS])
     logger.info(
         "Usando CORS origins padrão: %s",
         [str(o) for o in settings.BACKEND_CORS_ORIGINS],

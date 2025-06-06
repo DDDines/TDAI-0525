@@ -11,8 +11,11 @@ import models
 import schemas 
 from database import get_db 
 from auth import get_current_active_user # Importa a dependência correta
+from core.logging_config import get_logger
 
 router = APIRouter()
+
+logger = get_logger(__name__)
 
 async def get_current_active_admin_user(current_user: models.User = Depends(get_current_active_user)):
     if not current_user.is_superuser:
