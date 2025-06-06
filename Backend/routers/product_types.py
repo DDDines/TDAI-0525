@@ -9,9 +9,12 @@ import models
 import schemas
 import database
 from . import auth_utils
+refatorar-print-para-logging
 from core.logging_config import get_logger
 
 logger = get_logger(__name__)
+
+from core.config import logger
 
 router = APIRouter(
     prefix="/product-types", 
@@ -27,7 +30,9 @@ def create_product_type_endpoint(
 ):
     user_id_for_type = None if current_user.is_superuser else current_user.id
     
+refatorar-print-para-logging
     logger.info(
+    logger.debug(
         "ROUTER (create_product_type): Verificando existência de key_name '%s' para user_id: %s",
         product_type_in.key_name,
         user_id_for_type,
@@ -41,7 +46,9 @@ def create_product_type_endpoint(
 
     if existing_type:
         scope_msg = "globalmente" if existing_type.user_id is None else f"para o usuário ID {existing_type.user_id}"
+        refatorar-print-para-logging
         logger.warning(
+        logger.info(
             "ROUTER (create_product_type): Conflito! Tipo com key_name '%s' já existe %s.",
             product_type_in.key_name,
             scope_msg,
@@ -67,16 +74,21 @@ def read_product_types_endpoint(
     db: Session = Depends(database.get_db),
     current_user: models.User = Depends(auth_utils.get_current_active_user)
 ):
-    logger.info(
+    logger.info()
+    logger.debug(
         "ROUTER (read_product_types): Buscando tipos de produto para user_id: %s, skip: %s, limit: %s",
         current_user.id,
         skip,
         limit,
     )
     product_types = crud.get_product_types_for_user(db, skip=skip, limit=limit, user_id=current_user.id)
+    refatorar-print-para-logging
     logger.info(
         "ROUTER (read_product_types): Encontrados %s tipos de produto.",
         len(product_types),
+
+    logger.debug(
+        "ROUTER (read_product_types): Encontrados %s tipos de produto.", len(product_types)
     )
     return product_types
 
@@ -87,20 +99,37 @@ async def read_product_type_details_route(
     current_user: models.User = Depends(auth_utils.get_current_active_user)
 ):
     identifier = type_id_or_key_path 
+    refatorar-print-para-logging
     logger.info("ROUTER (read_product_type_details): Iniciando busca por '%s'", identifier)
+    logger.debug(
+        "ROUTER (read_product_type_details): Iniciando busca por '%s'",
+        identifier,
+    )
     db_product_type = None
     
     try:
         numeric_id = int(identifier)
+        refatorar-print-para-logging
         logger.info("ROUTER: Identificador '%s' é numérico. Tentando buscar por ID: %s", identifier, numeric_id)
         db_product_type = crud.get_product_type(db, product_type_id=numeric_id)
         if db_product_type:
             logger.info(
+
+        logger.debug(
+            "ROUTER: Identificador '%s' é numérico. Tentando buscar por ID: %s",
+            identifier,
+            numeric_id,
+        )
+        db_product_type = crud.get_product_type(db, product_type_id=numeric_id) 
+        if db_product_type:
+            logger.debug(
+
                 "ROUTER: Encontrado por ID: %s - %s",
                 db_product_type.id,
                 db_product_type.friendly_name,
             )
     except ValueError:
+        refatorar-print-para-logging
         logger.info(
             "ROUTER: Identificador '%s' não é puramente numérico. Será tratado como key_name.",
             identifier,
@@ -110,6 +139,15 @@ async def read_product_type_details_route(
     if not db_product_type: 
         key_name_to_search = str(identifier)
         logger.info(
+        logger.debug(
+            "ROUTER: Identificador '%s' não é puramente numérico. Será tratado como key_name.",
+            identifier,
+        )
+        pass 
+
+    if not db_product_type: 
+        key_name_to_search = str(identifier) 
+        logger.debug(
             "ROUTER: Não encontrado por ID (ou não era ID numérico válido). Tentando buscar por key_name: '%s' para user_id: %s (específico)",
             key_name_to_search,
             current_user.id,
@@ -117,7 +155,10 @@ async def read_product_type_details_route(
         db_product_type = crud.get_product_type_by_key_name(db, key_name=key_name_to_search, user_id=current_user.id)
         
         if not db_product_type:
+            refatorar-print-para-logging
             logger.info(
+
+            logger.debug(
                 "ROUTER: Não encontrado como tipo do usuário. Tentando buscar globalmente por key_name: '%s' (user_id: None)",
                 key_name_to_search,
             )
@@ -143,7 +184,11 @@ async def read_product_type_details_route(
         )
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Não autorizado a visualizar este tipo de produto.")
     
+refatorar-print-para-logging
     logger.info(
+
+    logger.debug(
+
         "ROUTER: Permissão CONCEDIDA. Retornando tipo de produto ID %s ('%s')",
         db_product_type.id,
         db_product_type.friendly_name,
@@ -158,7 +203,9 @@ def update_product_type_endpoint(
     db: Session = Depends(database.get_db),
     current_user: models.User = Depends(auth_utils.get_current_active_user)
 ):
-    logger.info(
+
+    logger.info()
+    logger.debug(
         "ROUTER (update_product_type): Tentando atualizar tipo de produto ID %s para usuário ID %s",
         type_id,
         current_user.id,
@@ -166,7 +213,13 @@ def update_product_type_endpoint(
     updated_type = crud.update_product_type(db=db, product_type_id=type_id, product_type_data=product_type_in, user_id=current_user.id)
     if not updated_type:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Tipo de produto não encontrado ou falha na atualização.")
+
     logger.info("ROUTER (update_product_type): Tipo de produto ID %s atualizado com sucesso.", type_id)
+
+    logger.info(
+        "ROUTER (update_product_type): Tipo de produto ID %s atualizado com sucesso.",
+        type_id,
+    )
     return updated_type
 
 @router.delete("/{type_id}", response_model=schemas.ProductTypeResponse) 
@@ -176,6 +229,8 @@ def delete_product_type_endpoint(
     current_user: models.User = Depends(auth_utils.get_current_active_user)
 ):
     logger.info(
+
+    logger.debug(
         "ROUTER (delete_product_type): Tentando deletar tipo de produto ID %s para usuário ID %s",
         type_id,
         current_user.id,
@@ -183,7 +238,13 @@ def delete_product_type_endpoint(
     deleted_type = crud.delete_product_type(db=db, product_type_id=type_id, user_id=current_user.id)
     if not deleted_type:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Tipo de Produto não encontrado para deleção ou não pôde ser deletado.")
+
     logger.info("ROUTER (delete_product_type): Tipo de produto ID %s deletado com sucesso.", type_id)
+
+    logger.info(
+        "ROUTER (delete_product_type): Tipo de produto ID %s deletado com sucesso.",
+        type_id,
+    )
     return deleted_type
 
 @router.post("/{type_id}/attributes/", response_model=schemas.AttributeTemplateResponse, status_code=status.HTTP_201_CREATED)
@@ -193,7 +254,11 @@ def add_attribute_to_product_type_endpoint(
     db: Session = Depends(database.get_db),
     current_user: models.User = Depends(auth_utils.get_current_active_user)
 ):
+
     logger.info(
+
+    logger.debug(
+
         "ROUTER (add_attribute): Tentando adicionar atributo ao tipo ID %s para usuário ID %s",
         type_id,
         current_user.id,
@@ -224,7 +289,11 @@ def update_attribute_for_product_type_endpoint(
     db: Session = Depends(database.get_db),
     current_user: models.User = Depends(auth_utils.get_current_active_user)
 ):
-    logger.info(
+
+    logger.info()
+
+    logger.debug(
+
         "ROUTER (update_attribute): Tentando atualizar atributo ID %s do tipo ID %s para usuário ID %s",
         attribute_id,
         type_id,
@@ -249,7 +318,13 @@ def update_attribute_for_product_type_endpoint(
     updated_attribute = crud.update_attribute_template(db=db, attribute_template_id=attribute_id, attribute_template_data=attribute_in, user_id=current_user.id)
     if not updated_attribute:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Falha ao atualizar o atributo.")
+
     logger.info("ROUTER (update_attribute): Atributo ID %s atualizado.", attribute_id)
+
+    logger.info(
+        "ROUTER (update_attribute): Atributo ID %s atualizado.",
+        attribute_id,
+    )
     return updated_attribute
 
 @router.delete("/{type_id}/attributes/{attribute_id}", response_model=schemas.AttributeTemplateResponse)
@@ -259,7 +334,10 @@ def remove_attribute_from_product_type_endpoint(
     db: Session = Depends(database.get_db),
     current_user: models.User = Depends(auth_utils.get_current_active_user)
 ):
-    logger.info(
+
+    logger.info()
+
+    logger.debug(
         "ROUTER (delete_attribute): Tentando deletar atributo ID %s do tipo ID %s para usuário ID %s",
         attribute_id,
         type_id,
@@ -272,7 +350,14 @@ def remove_attribute_from_product_type_endpoint(
     deleted_attribute = crud.delete_attribute_template(db=db, attribute_template_id=attribute_id, user_id=current_user.id)
     if not deleted_attribute: 
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Falha ao deletar o atributo.")
+
     logger.info("ROUTER (delete_attribute): Atributo ID %s deletado.", attribute_id)
+
+    logger.info(
+        "ROUTER (delete_attribute): Atributo ID %s deletado.",
+        attribute_id,
+    )
+
     return deleted_attribute
 
 # --- NOVO ENDPOINT PARA REORDENAR ---
