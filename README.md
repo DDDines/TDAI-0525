@@ -210,6 +210,8 @@ cd <PASTA_DO_PROJETO>
 
 ### 3. **Configuração do Backend**
 
+As dependências Python necessárias estão listadas em `Backend/requirements.txt`.
+
 ```sh
 python -m venv venv
 source venv/bin/activate    # Ou .\venv\Scripts\activate no Windows
@@ -251,6 +253,7 @@ DATABASE_URL="postgresql://usuario:senha@localhost:5432/tdai_db"
 
 # Segurança
 SECRET_KEY="sua_chave_forte"
+REFRESH_SECRET_KEY="change-me"
 ALGORITHM="HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES=60
 

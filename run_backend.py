@@ -2,6 +2,7 @@
 import sys
 import os
 import uvicorn
+from Backend.core.config import logger
 
 if __name__ == "__main__":
     project_root = os.path.dirname(os.path.abspath(__file__))
@@ -17,15 +18,15 @@ if __name__ == "__main__":
     try:
         os.chdir(backend_dir)
     except FileNotFoundError:
-        print(f"ERRO: O diretório Backend não foi encontrado em {backend_dir}")
+        logger.error("ERRO: O diretório Backend não foi encontrado em %s", backend_dir)
         sys.exit(1)
 
-    print("--- sys.path atual ---")
+    logger.debug("--- sys.path atual ---")
     for p in sys.path:
-        print(p)
-    print("----------------------")
-    print(f"Diretório de Trabalho Atual (CWD): {os.getcwd()}") # Deve ser .../Project/Backend
-    print("Tentando iniciar Uvicorn com 'main:app' a partir da pasta Backend...")
+        logger.debug(p)
+    logger.debug("----------------------")
+    logger.debug("Diretório de Trabalho Atual (CWD): %s", os.getcwd())
+    logger.info("Tentando iniciar Uvicorn com 'main:app' a partir da pasta Backend...")
 
     try:
         uvicorn.run(
@@ -36,10 +37,8 @@ if __name__ == "__main__":
             workers=1
         )
     except ImportError as e:
-        print(f"\n!!!!!! Erro de Importação ao tentar carregar a aplicação Uvicorn !!!!!!!")
-        print(f"Detalhe do Erro: {e}")
-        print("Verifique se o arquivo 'main.py' existe em 'Backend/' e contém 'app = FastAPI()'.")
-        print("Verifique também os imports dentro de 'main.py'.")
+        logger.error("Erro de Importação ao tentar carregar a aplicação Uvicorn: %s", e)
+        logger.error("Verifique se o arquivo 'main.py' existe em 'Backend/' e contém 'app = FastAPI()'.")
+        logger.error("Verifique também os imports dentro de 'main.py'.")
     except Exception as e:
-        print(f"\n!!!!!! Ocorreu um erro inesperado ao tentar iniciar o Uvicorn !!!!!!!")
-        print(f"Detalhe do Erro: {e}")
+        logger.error("Ocorreu um erro inesperado ao tentar iniciar o Uvicorn: %s", e)
