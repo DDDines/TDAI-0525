@@ -283,3 +283,4 @@ async def sugerir_atributos_para_produto_com_gemini(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Ocorreu um erro inesperado: {str(e)}"
         )
+

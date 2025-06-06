@@ -497,3 +497,4 @@ async def sugerir_valores_atributos_com_gemini(
             status="FALHA", detalhes_erro=f"Erro inesperado no serviço de sugestão: {str(e)}"
         ))
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Erro inesperado ao gerar sugestões: {str(e)}")
+

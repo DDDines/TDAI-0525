@@ -1097,3 +1097,4 @@ def create_initial_data(db: Session):
             logger.info(f"Tipo de Produto Global '{pt_create_schema.friendly_name}' já existe.")
 
     logger.info("Criação/verificação de dados iniciais concluída.")
+
