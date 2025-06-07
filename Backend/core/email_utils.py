@@ -1,7 +1,7 @@
 # Backend/core/email_utils.py
 from fastapi_mail import FastMail, MessageSchema, ConnectionConfig, MessageType
 from pydantic import EmailStr
-from typing import List, Dict, Any, Optional # Adicionado Optional
+from typing import Dict, Any, Optional
 from pathlib import Path
 
 from .logging_config import get_logger
@@ -173,6 +173,11 @@ async def send_new_account_email(email_to: EmailStr, username: str, login_link: 
         await fm.send_message(message, template_name=template_name)
         logger.info("Email de boas-vindas enviado para %s", email_to)
     except Exception as e:
+        logger.error(
+            "Falha ao enviar email de boas-vindas para %s. Erro: %s",
+            email_to,
+            e,
+        )
         logger.error("Falha ao enviar email de boas-vindas para %s. Erro: %s", email_to, e)
         raise RuntimeError(f"Falha ao enviar email de boas-vindas: {e}")
 
