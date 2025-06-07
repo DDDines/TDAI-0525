@@ -162,14 +162,16 @@ def get_user_by_provider(db: Session, provider: str, provider_user_id: str) -> O
     return db.query(User).filter(User.provider == provider, User.provider_user_id == provider_user_id).first()
 
 
-def set_user_password_reset_token(db: Session, user: User, token: str, expires_at: datetime) -> None:
-    user.reset_password_token = token
+def set_user_password_reset_token(db: Session, user: User, token_hash: str, expires_at: datetime) -> None:
+    """Persist the hashed password reset token for a user."""
+    user.reset_password_token = token_hash
     user.reset_password_token_expires_at = expires_at
     db.commit()
     db.refresh(user)
 
-def get_user_by_reset_token(db: Session, token: str) -> Optional[User]:
-    return db.query(User).filter(User.reset_password_token == token).first()
+def get_user_by_reset_token(db: Session, token_hash: str) -> Optional[User]:
+    """Retrieve a user by the hashed password reset token."""
+    return db.query(User).filter(User.reset_password_token == token_hash).first()
 
 # --- Role CRUD ---
 def get_role(db: Session, role_id: int) -> Optional[Role]:

@@ -1,6 +1,8 @@
 # Backend/auth.py
 from datetime import datetime, timedelta, timezone
 from typing import Optional, Dict, Any
+import secrets
+import hashlib
 
 from fastapi import APIRouter, Depends, HTTPException, status # Imports do FastAPI
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm # Para o formulário de login
@@ -107,31 +109,19 @@ def create_refresh_token(data: dict, expires_delta: Optional[timedelta] = None) 
     encoded_jwt = jwt.encode(to_encode, settings.SECRET_KEY, algorithm=settings.ALGORITHM)
     return encoded_jwt
 
-def create_password_reset_token(email: str) -> str:
-    expire = datetime.now(timezone.utc) + timedelta(hours=PASSWORD_RESET_TOKEN_EXPIRE_HOURS)
-    to_encode = {
-        "exp": expire,
-        "nbf": datetime.now(timezone.utc),
-        "sub": email,
-        "type": "password_reset"
-    }
-    encoded_jwt = jwt.encode(to_encode, settings.SECRET_KEY, algorithm=settings.ALGORITHM)
-    return encoded_jwt
+def create_password_reset_token() -> str:
+    """Generate a random password reset token."""
+    return secrets.token_urlsafe(32)
 
-def verify_password_reset_token(token: str) -> Optional[str]:
-    try:
-        payload = jwt.decode(token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM])
-        if payload.get("type") != "password_reset":
-            return None
-        expire = payload.get("exp")
-        if expire is None or datetime.fromtimestamp(expire, tz=timezone.utc) < datetime.now(timezone.utc):
-             return None 
-        email: Optional[str] = payload.get("sub")
-        if email is None:
-            return None
-        return email
-    except JWTError:
-        return None
+
+def hash_password_reset_token(token: str) -> str:
+    """Return a deterministic hash of the reset token."""
+    return hashlib.sha256(token.encode()).hexdigest()
+
+
+def verify_password_reset_token(token: str, token_hash: str) -> bool:
+    """Compare a provided token against the stored hash."""
+    return hash_password_reset_token(token) == token_hash
 
 # --- Funções de Autenticação de Usuário ---
 def authenticate_user(db: Session, email: str, password: str) -> Optional[models.User]:
