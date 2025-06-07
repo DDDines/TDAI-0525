@@ -1,12 +1,12 @@
 alembic
 authlib
-bs4
-dotenv
+beautifulsoup4
+python-dotenv
 extruct
 fastapi
 fastapi-mail
 google-api-python-client
-magic
+python-magic
 openai
 pandas
 passlib
@@ -14,6 +14,7 @@ pdfplumber
 playwright
 pydantic
 pydantic-settings
+python-jose
 sqlalchemy
 starlette
 trafilatura
