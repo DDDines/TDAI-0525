@@ -9,7 +9,6 @@ import crud
 import schemas # schemas é importado
 import models # models é importado
 from database import get_db # Corrigido para get_db
-refatorar-print-para-logging
 from core.config import settings # Para FRONTEND_URL
 from core.email_utils import send_password_reset_email # Importa a função de envio de email
 from core import security
@@ -40,7 +39,6 @@ async def recover_password(email: str, request: Request, db: Session = Depends(g
         # detail="O email fornecido não foi encontrado em nosso sistema.",
         # )
         # No entanto, para evitar enumeração de usuários, retornamos sucesso mesmo se não encontrado.
-        refatorar-print-para-logging
         logger.info("Solicitação de recuperação de senha para email não registrado: %s", email)
         logger.info(
             "Solicitação de recuperação de senha para email não registrado: %s",

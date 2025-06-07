@@ -10,8 +10,6 @@ from jose import JWTError, jwt
 from authlib.integrations.starlette_client import OAuth, OAuthError # type: ignore
 from starlette.config import Config as AuthlibConfig 
 from sqlalchemy.orm import Session
-
-refatorar-print-para-logging
 from core.config import settings, pwd_context
 from core.logging_config import get_logger
 
@@ -294,7 +292,6 @@ async def _get_or_create_social_user(
 async def process_google_login(db: Session, google_userinfo: Dict[str, Any]) -> Optional[models.User]:
     email = google_userinfo.get('email')
     if not email:
-        refatorar-print-para-logging
         logger.error("Email do Google não encontrado nas informações do usuário.")
         return None
     if not google_userinfo.get('email_verified', False):
@@ -314,7 +311,6 @@ async def process_google_login(db: Session, google_userinfo: Dict[str, Any]) -> 
     
     google_user_id = google_userinfo.get('sub') 
     if not google_user_id:
-        refatorar-print-para-logging
         logger.error("ID de usuário do Google (sub) não encontrado.")
 
         logger.warning("ID de usuário do Google (sub) não encontrado.")
@@ -326,7 +322,6 @@ async def process_google_login(db: Session, google_userinfo: Dict[str, Any]) -> 
 async def process_facebook_login(db: Session, facebook_userinfo: Dict[str, Any]) -> Optional[models.User]:
     email = facebook_userinfo.get('email')
     if not email:
-        refatorar-print-para-logging
         logger.error(
             "Email do Facebook não fornecido. Não é possível prosseguir com login/registro baseado em email."
         )
@@ -336,7 +331,6 @@ async def process_facebook_login(db: Session, facebook_userinfo: Dict[str, Any])
     nome_completo = facebook_userinfo.get('name', '')
     facebook_user_id = facebook_userinfo.get('id')
     if not facebook_user_id:
-        refatorar-print-para-logging
         logger.error("ID de usuário do Facebook não encontrado.")
 
         logger.warning("ID de usuário do Facebook não encontrado.")

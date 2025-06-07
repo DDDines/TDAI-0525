@@ -28,14 +28,13 @@ from routers.password_recovery import router as password_recovery_router
 from routers.admin_analytics import router as admin_analytics_router
 from routers.social_auth import router as social_auth_router
 
-refatorar-print-para-logging
 logger = get_logger(__name__)
 
 
 try:
-    logger.info(
-        "Tentando criar tabelas no banco de dados (models.Base.metadata.create_all)..."
-    )
+    logger.info("Tentando criar tabelas no banco de dados ...")
+except Exception as e:
+    logger.error(f"Erro ao criar tabelas: {e}")
 
 from core.config import logger
 

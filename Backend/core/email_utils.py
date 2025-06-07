@@ -3,10 +3,6 @@ from fastapi_mail import FastMail, MessageSchema, ConnectionConfig, MessageType
 from pydantic import EmailStr
 from typing import List, Dict, Any, Optional # Adicionado Optional
 from pathlib import Path
-
-refatorar-print-para-logging
-logger = get_logger(__name__)
-
 from .config import settings # Importa as configurações (settings)
 from .logging_config import get_logger
 from .config import settings, logger  # Importa as configurações (settings) e logger
@@ -18,6 +14,8 @@ from .config import settings, logger  # Importa as configurações (settings) e 
 # Se email_utils.py está em Backend/core/ e templates está em Backend/templates/
 TEMPLATE_FOLDER = Path(__file__).parent.parent / 'templates'
 # print(f"DEBUG: Email Template folder: {TEMPLATE_FOLDER.resolve()}") # Para depuração
+
+logger = get_logger(__name__)
 
 conf = None
 if settings.MAIL_USERNAME and settings.MAIL_PASSWORD and settings.MAIL_FROM and settings.MAIL_SERVER:
@@ -91,7 +89,6 @@ async def send_email(
             logger.error("Falha ao enviar email HTML para %s. Erro: %s", email_to, e)
             pass
     else:
-        refatorar-print-para-logging
         logger.warning("Tentativa de enviar email para %s sem template_name ou html_content.", email_to)
 
         logger.warning(
@@ -174,18 +171,10 @@ async def send_new_account_email(email_to: EmailStr, username: str, login_link: 
     )
 
     fm = FastMail(conf)
+    
     try:
         await fm.send_message(message, template_name=template_name)
         logger.info("Email de boas-vindas enviado para %s", email_to)
     except Exception as e:
-        refatorar-print-para-logging
         logger.error("Falha ao enviar email de boas-vindas para %s. Erro: %s", email_to, e)
         raise RuntimeError(f"Falha ao enviar email de boas-vindas: {e}")
-
-        codex/refatorar-módulos-para-usar-logging
-        logger.error("Falha ao enviar email de boas-vindas para %s. Erro: %s", email_to, e)
-
-        print(f"ERRO: Falha ao enviar email de boas-vindas para {email_to}. Erro: {e}")
-        Dev
-         raise RuntimeError(f"Falha ao enviar email de boas-vindas: {e}")
-

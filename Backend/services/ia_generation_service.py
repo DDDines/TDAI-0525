@@ -47,11 +47,11 @@ async def get_gemini_api_key(db: Session, user: models.User) -> Optional[str]:
         return user.chave_google_gemini_pessoal
 
     if settings.GOOGLE_GEMINI_API_KEY: # Supondo que GOOGLE_GEMINI_API_KEY_GLOBAL exista em settings
-          
-    # A chave global agora é definida em settings.GOOGLE_GEMINI_API_KEY
-    if settings.GOOGLE_GEMINI_API_KEY:
-        logger.info("Usando chave Gemini global do sistema.")
-        return settings.GOOGLE_GEMINI_API_KEY
+        # A chave global agora é definida em settings.GOOGLE_GEMINI_API_KEY
+        if settings.GOOGLE_GEMINI_API_KEY:
+            logger.info("Usando chave Gemini global do sistema.")
+            return settings.GOOGLE_GEMINI_API_KEY
+    
     logger.warning("Nenhuma chave Gemini encontrada (nem pessoal, nem global).")
     return None
 
