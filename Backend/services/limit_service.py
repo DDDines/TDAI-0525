@@ -79,9 +79,6 @@ def verificar_limite_uso(
     )
     return True
 
-    print(f"INFO: Verificação de limite para usuário {user.id} ({tipo_geracao_principal}): {usos_no_mes}/{limite_mensal} usos.")
-    return True
-
 
 async def verificar_creditos_disponiveis_geracao_ia(
     db: Session,

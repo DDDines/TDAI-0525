@@ -8,6 +8,10 @@ from alembic import context
 import os
 import sys
 
+from core.logging_config import get_logger
+
+logger = get_logger(__name__)
+
 # Obtém o caminho para o diretório atual do env.py (Backend/alembic/)
 current_alembic_env_dir = os.path.dirname(os.path.abspath(__file__))
 # Obtém o caminho para o diretório Backend (um nível acima de alembic/)
@@ -19,7 +23,7 @@ project_root_dir = os.path.join(backend_root_dir, '..')
 # Isso permite importar 'database' e 'models' diretamente quando executado de 'Backend'.
 if backend_root_dir not in sys.path:
     sys.path.insert(0, backend_root_dir)
-    print(f"INFO: '{backend_root_dir}' adicionado ao sys.path.")
+    logger.info("'%s' adicionado ao sys.path.", backend_root_dir)
 
 # Tenta importar Base e models.
 # Se a execução é a partir do diretório Backend, esses imports devem funcionar.
@@ -27,22 +31,32 @@ try:
     from database import Base  # Importa a Base definida em Backend/database.py
     import models              # Importa todos os modelos definidos em Backend/models.py
     target_metadata = Base.metadata
-    print("INFO: models.Base e models importados com sucesso para Alembic.")
+    logger.info("models.Base e models importados com sucesso para Alembic.")
 except ImportError as e:
     # Se o import direto falhou, é possível que 'Backend' não esteja sendo tratado como um pacote raiz
     # Tenta adicionar a raiz do projeto ao sys.path e importar usando o prefixo do pacote.
-    print(f"AVISO: Tentativa de importação direta falhou: {e}. Tentando importação absoluta via raiz do projeto.")
+    logger.warning(
+        "Tentativa de importação direta falhou: %s. Tentando importação absoluta via raiz do projeto.",
+        e,
+    )
     if project_root_dir not in sys.path:
         sys.path.insert(0, project_root_dir)
-        print(f"INFO: '{project_root_dir}' (raiz do projeto) adicionado ao sys.path para imports de pacote.")
+        logger.info("'%s' (raiz do projeto) adicionado ao sys.path para imports de pacote.", project_root_dir)
     try:
         from Backend.database import Base  # Importação absoluta: do pacote Backend
         import Backend.models as models    # Importação absoluta: do pacote Backend
         target_metadata = Base.metadata
-        print("INFO: models.Base e models importados com sucesso usando caminho absoluto para Alembic.")
+        logger.info(
+            "models.Base e models importados com sucesso usando caminho absoluto para Alembic."
+        )
     except ImportError as inner_e:
-        print(f"ERRO: Falha crítica ao importar Base ou models para Alembic mesmo com sys.path ajustado: {inner_e}")
-        print("Verifique se 'database.py' e 'models.py' estão no diretório 'Backend' e se a estrutura de pacotes está correta.")
+        logger.error(
+            "Falha crítica ao importar Base ou models para Alembic mesmo com sys.path ajustado: %s",
+            inner_e,
+        )
+        logger.error(
+            "Verifique se 'database.py' e 'models.py' estão no diretório 'Backend' e se a estrutura de pacotes está correta."
+        )
         target_metadata = None # Fallback, mas causará problemas de autogenerate
 
 
@@ -52,9 +66,9 @@ try:
     # Usamos a URL de settings para garantir consistência.
     # alembic.ini também pode ter 'sqlalchemy.url', mas a de settings é preferível.
     SQLALCHEMY_DATABASE_URL = str(app_settings.DATABASE_URL)
-    print("INFO: app_settings.DATABASE_URL carregada com sucesso.")
+    logger.info("app_settings.DATABASE_URL carregada com sucesso.")
 except ImportError as e:
-    print(f"ERRO: Falha ao importar settings do core: {e}")
+    logger.error("Falha ao importar settings do core: %s", e)
     SQLALCHEMY_DATABASE_URL = None # Deixa Alembic usar a URL do alembic.ini
 # --- FIM DAS MODIFICAÇÕES PARA O SEU PROJETO ---
 
