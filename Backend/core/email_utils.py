@@ -178,5 +178,6 @@ async def send_new_account_email(email_to: EmailStr, username: str, login_link: 
             email_to,
             e,
         )
+        logger.error("Falha ao enviar email de boas-vindas para %s. Erro: %s", email_to, e)
         raise RuntimeError(f"Falha ao enviar email de boas-vindas: {e}")
 
