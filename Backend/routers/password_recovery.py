@@ -67,7 +67,6 @@ async def recover_password(email: str, request: Request, db: Session = Depends(g
         return {"msg": "Email de recuperação de senha enviado com sucesso."}
     except Exception as e:
         # Logar o erro 'e' aqui seria importante
-        refatorar-print-para-logging
         logger.error("Falha ao enviar email de recuperação de senha para %s: %s", user.email, e)
 
         logger.error(
