@@ -131,7 +131,7 @@ if settings._cors_origins_str:
         settings.BACKEND_CORS_ORIGINS = valid_origins
     except Exception as e:
         logger.error("Erro ao processar BACKEND_CORS_ORIGINS do .env: %s. Usando fallback.", e)
-                logger.warning(
+        logger.warning(
                     "Origem CORS inválida '%s' em BACKEND_CORS_ORIGINS. Será ignorada.",
                     origin_str,
                 )
