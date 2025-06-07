@@ -21,8 +21,6 @@ else:
         "Arquivo .env não encontrado em %s. Usando valores padrão ou variáveis de ambiente do sistema.",
         dotenv_path,
     )
-    refatorar-print-para-logging
-
 
 def env_var_name_with_prefix(field_name: str) -> str:
     return field_name
@@ -30,21 +28,13 @@ def env_var_name_with_prefix(field_name: str) -> str:
 class Settings(BaseSettings):
     PROJECT_NAME: str = "TDAI - Transformador de Dados Assistido por IA"
     PROJECT_VERSION: str = "1.0.0"
-
-    # Add this line:
     API_V1_STR: str = "/api/v1"
-
     DATABASE_URL: Optional[str] = os.getenv("DATABASE_URL")
     SQLITE_DB_FILE: str = os.getenv("SQLITE_DB_FILE", "tdai_app.db")
 
     SECRET_KEY: str = os.getenv("SECRET_KEY", "super-secret-key-deve-ser-alterada-imediatamente")
     REFRESH_SECRET_KEY: str = os.getenv("REFRESH_SECRET_KEY", "super-refresh-secret-change-me")
-    REFRESH_SECRET_KEY: str = os.getenv("REFRESH_SECRET_KEY", "super-refresh-secret-change-me")
-      
-    REFRESH_SECRET_KEY: str = os.getenv(
-        "REFRESH_SECRET_KEY",
-        "super-refresh-secret-key-deve-ser-alterada-imediatamente",
-    )
+
     ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", 60 * 24 * 1)) # Default 1 dia
     REFRESH_TOKEN_EXPIRE_DAYS: int = int(os.getenv("REFRESH_TOKEN_EXPIRE_DAYS", 7))
@@ -85,10 +75,8 @@ class Settings(BaseSettings):
     UPLOAD_DIRECTORY: str = os.getenv("UPLOAD_DIRECTORY", "static/uploads")
 
     OPENAI_API_KEY: Optional[str] = os.getenv("OPENAI_API_KEY")
-    # Chave para acessar a API Google Gemini (modelo generativo)
     GOOGLE_GEMINI_API_KEY: Optional[str] = os.getenv("GOOGLE_GEMINI_API_KEY")
     CREDITOS_CUSTO_SUGESTAO_ATRIBUTOS_GEMINI: int = int(os.getenv("CREDITOS_CUSTO_SUGESTAO_ATRIBUTOS_GEMINI", 1))
-    # Configurações para usar a API Google Custom Search
     GOOGLE_CSE_API_KEY: Optional[str] = os.getenv("GOOGLE_CSE_API_KEY")
     GOOGLE_CSE_ID: Optional[str] = os.getenv("GOOGLE_CSE_ID")
     
@@ -107,17 +95,11 @@ if settings.DATABASE_URL is None:
     backend_dir = Path(__file__).resolve().parent.parent
     sqlite_file_path = backend_dir / settings.SQLITE_DB_FILE
     settings.DATABASE_URL = f"sqlite:///{sqlite_file_path.resolve()}"
-    refatorar-print-para-logging
     logger.info("DATABASE_URL não encontrada no .env. Usando SQLite em: %s", settings.DATABASE_URL)
-
-    logger.info(
-        "DATABASE_URL não encontrada no .env. Usando SQLite em: %s",
-        settings.DATABASE_URL,
-    )
-
 else:
     logger.info("DATABASE_URL carregada do .env: %s", settings.DATABASE_URL)
 
+# CORS
 if settings._cors_origins_str:
     try:
         raw_origins = [origin.strip() for origin in settings._cors_origins_str.split(",") if origin.strip()]
@@ -126,24 +108,13 @@ if settings._cors_origins_str:
             try:
                 valid_origins.append(AnyHttpUrl(origin_str))
             except ValidationError:
-                refatorar-print-para-logging
                 logger.warning("Origem CORS inválida '%s' em BACKEND_CORS_ORIGINS. Será ignorada.", origin_str)
         settings.BACKEND_CORS_ORIGINS = valid_origins
     except Exception as e:
         logger.error("Erro ao processar BACKEND_CORS_ORIGINS do .env: %s. Usando fallback.", e)
-        logger.warning(
-                    "Origem CORS inválida '%s' em BACKEND_CORS_ORIGINS. Será ignorada.",
-                    origin_str,
-                )
-        settings.BACKEND_CORS_ORIGINS = valid_origins
-    except Exception as e:
-        logger.error(
-            "ERRO ao processar BACKEND_CORS_ORIGINS do .env: %s. Usando fallback.",
-            e,
-        )
         settings.BACKEND_CORS_ORIGINS = []
-
-if not settings.BACKEND_CORS_ORIGINS:
+else:
+    # Padrão
     default_origins_httpurl = []
     default_list = [
         "http://localhost:5173",
@@ -151,22 +122,14 @@ if not settings.BACKEND_CORS_ORIGINS:
         "http://localhost",
     ]
     for origin_url in default_list:
-        try: default_origins_httpurl.append(AnyHttpUrl(origin_url))
-        except ValidationError: pass
+        try:
+            default_origins_httpurl.append(AnyHttpUrl(origin_url))
+        except ValidationError:
+            pass
     settings.BACKEND_CORS_ORIGINS = default_origins_httpurl
-    refatorar-print-para-logging
     logger.info("Usando CORS origins padrão: %s", [str(o) for o in settings.BACKEND_CORS_ORIGINS])
-else:
-    logger.info("Usando CORS origins de settings: %s", [str(o) for o in settings.BACKEND_CORS_ORIGINS])
-    logger.info(
-        "Usando CORS origins padrão: %s",
-        [str(o) for o in settings.BACKEND_CORS_ORIGINS],
-    )
-else:
-    logger.info(
-        "Usando CORS origins de settings: %s",
-        [str(o) for o in settings.BACKEND_CORS_ORIGINS],
-    )
+
+logger.info("Usando CORS origins de settings: %s", [str(o) for o in settings.BACKEND_CORS_ORIGINS])
 
 from passlib.context import CryptContext
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
