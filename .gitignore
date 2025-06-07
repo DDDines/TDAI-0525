@@ -131,5 +131,7 @@ Frontend/app/.env.*.local
 # .settings/
 # .tmPreferences
 # Ignore bulky prototype files
+
 Prototipos/Itens - exemplo/
 Prototipos/*.pdf
+
