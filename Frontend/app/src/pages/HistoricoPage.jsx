@@ -1,10 +1,8 @@
 // Frontend/app/src/pages/HistoricoPage.jsx
 import React, { useState, useEffect, useCallback } from 'react';
-// REMOVA ESTA LINHA: import authService from '../services/authService';
-// ADICIONE ESTA LINHA:
-import usoIAService from '../services/usoIAService'; // Importa o serviço de uso de IA
+import usoIAService from '../services/usoIAService';
 import { useAuth } from '../contexts/AuthContext';
-import { showSuccessToast, showErrorToast, showInfoToast } from '../utils/notifications';
+import { showErrorToast, showInfoToast } from '../utils/notifications';
 import PaginationControls from '../components/common/PaginationControls';
 import { format, parseISO } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
@@ -137,12 +135,21 @@ function HistoricoPage() {
                     <td>{registro.produto_id ? registro.produto_id : 'N/A'}</td>
                     <td>{registro.tipo_acao.replace(/_/g, ' ')}</td>
                     <td>
-                      <div className="resultado-cell" title={registro.resultado_gerado}>
-                        {registro.resultado_gerado ? registro.resultado_gerado.substring(0, 100) + '...' : 'N/A'}
+                      <div className="resultado-cell" title={registro.resposta_ia}>
+                        {registro.resposta_ia ? registro.resposta_ia.substring(0, 100) + '...' : 'N/A'}
                       </div>
                     </td>
-                    <td>{registro.custo_tokens_total} tokens</td>
-                    <td>{registro.timestamp ? format(parseISO(registro.timestamp), 'dd/MM/yyyy HH:mm:ss', { locale: ptBR }) : 'N/A'}</td>
+                    <td>
+                      {registro.tokens_prompt != null && registro.tokens_resposta != null
+                        ? registro.tokens_prompt + registro.tokens_resposta
+                        : 'N/A'}{' '}
+                      tokens
+                    </td>
+                    <td>
+                      {registro.created_at
+                        ? format(parseISO(registro.created_at), 'dd/MM/yyyy HH:mm:ss', { locale: ptBR })
+                        : 'N/A'}
+                    </td>
                   </tr>
                 ))}
               </tbody>
