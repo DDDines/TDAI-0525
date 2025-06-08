@@ -4,16 +4,16 @@ from fastapi import APIRouter, Depends, HTTPException, status, Path as FastAPIPa
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
-import crud_product_types
-import models
-import schemas
-import database
+from Backend import crud_product_types
+from Backend import models
+from Backend import schemas
+from Backend import database
 from . import auth_utils
-from core.logging_config import get_logger
+from Backend.core.logging_config import get_logger
 
 logger = get_logger(__name__)
 
-from core.config import logger
+from Backend.core.config import logger
 
 router = APIRouter(
     prefix="/product-types", 

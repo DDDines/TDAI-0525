@@ -4,7 +4,7 @@ import pdfplumber
 import csv
 import io # Para ler o conteúdo do arquivo em memória
 from typing import List, Dict, Any, Union, Optional
-from core.logging_config import get_logger
+from Backend.core.logging_config import get_logger
 
 logger = get_logger(__name__)
 

@@ -7,27 +7,27 @@ from pathlib import Path
 from typing import List, Optional, Any
 import json
 import traceback
-from core.logging_config import get_logger
+from Backend.core.logging_config import get_logger
 
-import models
-import schemas
-import crud_users
-import crud_product_types
-from auth import router as auth_router_direct
-from database import SessionLocal, engine, get_db
-from core.config import settings
+from Backend import models
+from Backend import schemas
+from Backend import crud_users
+from Backend import crud_product_types
+from Backend.auth import router as auth_router_direct
+from Backend.database import SessionLocal, engine, get_db
+from Backend.core.config import settings
 
 # Importa os routers da subpasta 'routers'
-from routers.produtos import router as produtos_router
-from routers.fornecedores import router as fornecedores_router
-from routers.generation import router as generation_router
-from routers.web_enrichment import router as web_enrichment_router
-from routers.uploads import router as uploads_router
-from routers.product_types import router as product_types_router
-from routers.uso_ia import router as uso_ia_router
-from routers.password_recovery import router as password_recovery_router
-from routers.admin_analytics import router as admin_analytics_router
-from routers.social_auth import router as social_auth_router
+from Backend.routers.produtos import router as produtos_router
+from Backend.routers.fornecedores import router as fornecedores_router
+from Backend.routers.generation import router as generation_router
+from Backend.routers.web_enrichment import router as web_enrichment_router
+from Backend.routers.uploads import router as uploads_router
+from Backend.routers.product_types import router as product_types_router
+from Backend.routers.uso_ia import router as uso_ia_router
+from Backend.routers.password_recovery import router as password_recovery_router
+from Backend.routers.admin_analytics import router as admin_analytics_router
+from Backend.routers.social_auth import router as social_auth_router
 
 logger = get_logger(__name__)
 
@@ -37,7 +37,7 @@ try:
 except Exception as e:
     logger.error(f"Erro ao criar tabelas: {e}")
 
-from core.config import logger
+from Backend.core.config import logger
 
 
 try:

@@ -7,12 +7,12 @@ from datetime import datetime
 import logging # <-- ADICIONADO
 
 from . import auth_utils
-import crud_users
-import crud_produtos
-import models
-import schemas
-from database import get_db, SessionLocal
-from services import ia_generation_service, limit_service
+from Backend import crud_users
+from Backend import crud_produtos
+from Backend import models
+from Backend import schemas
+from Backend.database import get_db, SessionLocal
+from Backend.services import ia_generation_service, limit_service
 from .auth_utils import get_current_active_user
 
 # Configuração do logger para este módulo

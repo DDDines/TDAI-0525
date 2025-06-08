@@ -24,7 +24,7 @@ if backend_root_dir not in sys.path:
 # Tenta importar Base e models.
 # Se a execução é a partir do diretório Backend, esses imports devem funcionar.
 try:
-    from database import Base  # Importa a Base definida em Backend/database.py
+    from Backend.database import Base  # Importa a Base definida em Backend/database.py
     import models              # Importa todos os modelos definidos em Backend/models.py
     target_metadata = Base.metadata
     print("INFO: models.Base e models importados com sucesso para Alembic.")
@@ -48,7 +48,7 @@ except ImportError as e:
 
 # Importa as configurações do seu projeto para obter a URL do banco de dados (se necessário)
 try:
-    from core.config import settings as app_settings
+    from Backend.core.config import settings as app_settings
     # Usamos a URL de settings para garantir consistência.
     # alembic.ini também pode ter 'sqlalchemy.url', mas a de settings é preferível.
     SQLALCHEMY_DATABASE_URL = str(app_settings.DATABASE_URL)

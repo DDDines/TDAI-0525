@@ -7,10 +7,10 @@ from typing import List, Optional
 from sqlalchemy import func, or_, desc, asc
 from sqlalchemy.orm import Session, selectinload
 
-from core.config import settings
-from models import Produto, Fornecedor, ProductType, StatusEnriquecimentoEnum, StatusGeracaoIAEnum
+from Backend.core.config import settings
+from Backend.models import Produto, Fornecedor, ProductType, StatusEnriquecimentoEnum, StatusGeracaoIAEnum
 from fastapi import UploadFile
-import schemas
+from Backend import schemas
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)

@@ -6,18 +6,18 @@ from typing import List, Dict, Any, Optional
 import asyncio
 import json
 
-import crud_users
-import crud_produtos
-import crud
-import models
-import schemas
-from database import get_db, SessionLocal
+from Backend import crud_users
+from Backend import crud_produtos
+from Backend import crud
+from Backend import models
+from Backend import schemas
+from Backend.database import get_db, SessionLocal
 
 from .auth_utils import get_current_active_user
 
-from services import web_data_extractor_service as web_extractor
-from core.config import settings
-from core.logging_config import get_logger
+from Backend.services import web_data_extractor_service as web_extractor
+from Backend.core.config import settings
+from Backend.core.logging_config import get_logger
 
 router = APIRouter(
     prefix="/enriquecimento-web",

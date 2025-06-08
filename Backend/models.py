@@ -4,7 +4,7 @@ from sqlalchemy import (Column, Integer, String, Boolean, DateTime, ForeignKey, 
                         Float, Enum as SQLAlchemyEnum, JSON, Index, UniqueConstraint, func)
 from sqlalchemy.orm import relationship, backref
 from sqlalchemy.ext.mutable import MutableDict, MutableList # Para tipos JSON mutáveis
-from database import Base # Assume que database.py define Base = declarative_base()
+from Backend.database import Base # Assume que database.py define Base = declarative_base()
 from datetime import datetime, timezone # Corrigido para importar timezone
 import enum
 

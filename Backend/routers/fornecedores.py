@@ -6,10 +6,10 @@ from sqlalchemy.orm import Session
 import logging
 
 
-import crud_fornecedores
-import models
-import schemas # schemas é importado
-import database
+from Backend import crud_fornecedores
+from Backend import models
+from Backend import schemas  # schemas é importado
+from Backend import database
 from . import auth_utils # Para obter o usuário 
 
 logger = logging.getLogger(__name__)

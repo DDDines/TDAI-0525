@@ -9,12 +9,12 @@ from jose import JWTError, jwt # JWTError pode ser útil para tratamento especí
 # from passlib.context import CryptContext # Removido, agora em core.security
 from sqlalchemy.orm import Session
 
-import crud_users
-import models
-import schemas
-from core import config # Mantido para settings que não são de segurança direta
-from core import security # <<< ADICIONADO: Importa o novo módulo de segurança
-from database import get_db
+from Backend import crud_users
+from Backend import models
+from Backend import schemas
+from Backend.core import config  # Mantido para settings que não são de segurança direta
+from Backend.core import security  # <<< ADICIONADO: Importa o novo módulo de segurança
+from Backend.database import get_db
 
 # Configuração básica de logging
 logger = logging.getLogger(__name__)
