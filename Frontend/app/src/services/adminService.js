@@ -14,6 +14,26 @@ const adminService = {
     }
   },
 
+  async getProductStatusCounts() {
+    try {
+      const response = await apiClient.get('/admin/analytics/product-status-counts');
+      return response.data;
+    } catch (error) {
+      console.error('Error fetching product status counts:', error.response?.data || error.message);
+      throw error.response?.data || new Error('Falha ao buscar contagem de status dos produtos.');
+    }
+  },
+
+  async getRecentActivities() {
+    try {
+      const response = await apiClient.get('/admin/analytics/recent-activities');
+      return response.data;
+    } catch (error) {
+      console.error('Error fetching recent activities:', error.response?.data || error.message);
+      throw error.response?.data || new Error('Falha ao buscar atividades recentes.');
+    }
+  },
+
   // Você pode adicionar outras funções de admin aqui no futuro, como:
   // async getUsoIaPorPlano() { ... }
   // async getUserActivity() { ... }

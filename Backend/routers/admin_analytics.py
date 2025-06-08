@@ -123,10 +123,42 @@ async def get_user_activity_endpoint(
         
         activities.append(schemas.UserActivity(
             user_id=user_model.id,
-            email=user_model.email, 
+            email=user_model.email,
             nome_completo=user_model.nome_completo,
             created_at=user_model.created_at, # Incluído created_at do modelo User
             total_produtos=total_produtos_user,
             total_geracoes_ia_mes_corrente=total_ia_mes_user
         ))
+    return activities
+
+
+@router.get("/product-status-counts", response_model=List[schemas.ProductStatusCount], dependencies=[Depends(get_current_active_admin_user)])
+async def get_product_status_counts(db: Session = Depends(get_db)):
+    """Contagem de produtos agrupada por status de enriquecimento."""
+    results = db.query(
+        models.Produto.status_enriquecimento_web,
+        func.count(models.Produto.id).label("total")
+    ).group_by(models.Produto.status_enriquecimento_web).all()
+    return [
+        schemas.ProductStatusCount(status=row[0], total=row.total)
+        for row in results
+    ]
+
+
+@router.get("/recent-activities", response_model=List[schemas.RecentActivity], dependencies=[Depends(get_current_active_admin_user)])
+async def get_recent_activities(db: Session = Depends(get_db), limit: int = Query(10, ge=1, le=50)):
+    """Retorna lista das atividades mais recentes registradas."""
+    registros = db.query(models.RegistroUsoIA).order_by(models.RegistroUsoIA.created_at.desc()).limit(limit).all()
+    activities = []
+    for reg in registros:
+        user = db.query(models.User).get(reg.user_id)
+        activities.append(
+            schemas.RecentActivity(
+                id=reg.id,
+                user_id=reg.user_id,
+                user_email=user.email if user else None,
+                tipo_acao=reg.tipo_acao,
+                created_at=reg.created_at,
+            )
+        )
     return activities
