@@ -6,6 +6,8 @@ from typing import List, Dict, Any, Optional
 import asyncio
 import json
 
+import crud_users
+import crud_produtos
 import crud
 import models
 import schemas
@@ -70,7 +72,7 @@ async def _tarefa_enriquecer_produto_web(
     dados_extraidos_agregados: Dict[str, Any] = db_produto_obj.dados_brutos_web.copy() if isinstance(db_produto_obj.dados_brutos_web, dict) else {}
     
     try:
-        user = crud.get_user(db, user_id)
+        user = crud_users.get_user(db, user_id)
         if not user:
             log_mensagens.append(f"ERRO FATAL: Usuário ID {user_id} não encontrado.")
             # Define um status de falha se o usuário não for encontrado.
@@ -296,7 +298,7 @@ async def _tarefa_enriquecer_produto_web(
                     status_enriquecimento_web=status_valor_str, # Passa a string (valor do enum)
                     log_enriquecimento_web={"historico_mensagens": log_mensagens}
                 )
-                crud.update_produto(db, db_produto=db_produto_obj, produto_update=payload_final_update)
+                crud_produtos.update_produto(db, db_produto=db_produto_obj, produto_update=payload_final_update)
                 log_mensagens.append(f"Produto ID {produto_id} FINALMENTE atualizado com status: {status_valor_str}.")
                 logger.info(
                     "INFO (web_enrichment.py _finally_): Produto ID %s status ATUALIZADO PARA %s.",
@@ -328,7 +330,7 @@ async def iniciar_enriquecimento_produto_web_endpoint(
 ):
     db_temp = SessionLocal()
     try:
-        db_produto_check = crud.get_produto(db_temp, produto_id=produto_id)
+        db_produto_check = crud_produtos.get_produto(db_temp, produto_id=produto_id)
         if not db_produto_check:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Produto não encontrado")
         if db_produto_check.user_id != current_user.id and not current_user.is_superuser:

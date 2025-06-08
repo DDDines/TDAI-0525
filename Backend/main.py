@@ -11,7 +11,8 @@ from core.logging_config import get_logger
 
 import models
 import schemas
-import crud
+import crud_users
+import crud_product_types
 from auth import router as auth_router_direct
 from database import SessionLocal, engine, get_db
 from core.config import settings
@@ -120,9 +121,9 @@ async def startup_event_create_defaults():
         admin_role_obj = None
         user_role_obj = None
         for role_data in roles_a_criar:
-            role = crud.get_role_by_name(db, name=role_data["name"])
+            role = crud_users.get_role_by_name(db, name=role_data["name"])
             if not role:
-                role = crud.create_role(db, role=schemas.RoleCreate(**role_data))
+                role = crud_users.create_role(db, role=schemas.RoleCreate(**role_data))
                 logger.info(f"Role '{role.name}' criada.")
             if role.name == "admin":
                 admin_role_obj = role
@@ -161,9 +162,9 @@ async def startup_event_create_defaults():
         admin_plano_obj = None 
         plano_gratuito_obj = None 
         for plano_data in planos_a_criar:
-            plano = crud.get_plano_by_name(db, nome=plano_data.nome)
+            plano = crud_users.get_plano_by_name(db, nome=plano_data.nome)
             if not plano:
-                plano = crud.create_plano(db, plano=plano_data)
+                plano = crud_users.create_plano(db, plano=plano_data)
                 logger.info(f"Plano '{plano.nome}' criado.")
             if plano.nome == "Pro": 
                 admin_plano_obj = plano
@@ -177,7 +178,7 @@ async def startup_event_create_defaults():
             logger.error("ERRO CRÍTICO: Plano 'Gratuito' não encontrado. Novos usuários podem não ser associados a um plano padrão.")
 
         # 3. Criação do Usuário Administrador
-        admin_user = crud.get_user_by_email(db, email=settings.ADMIN_EMAIL)
+        admin_user = crud_users.get_user_by_email(db, email=settings.ADMIN_EMAIL)
         if not admin_user:
             if not admin_role_obj:
                    logger.error(f"ERRO: Não foi possível criar o usuário admin '{settings.ADMIN_EMAIL}' porque o role 'admin' não existe.")
@@ -193,7 +194,7 @@ async def startup_event_create_defaults():
                 
                 user_in_create = schemas.UserCreate(**user_in_data)
                 
-                created_admin = crud.create_user(db=db, user=user_in_create)
+                created_admin = crud_users.create_user(db=db, user=user_in_create)
                 
                 if created_admin:
                     created_admin.is_superuser = True 
@@ -225,7 +226,7 @@ async def startup_event_create_defaults():
                 needs_update = True
                 logger.info(f"Atualizando admin '{settings.ADMIN_EMAIL}' para superuser.")
             
-            admin_plano_obj = crud.get_plano_by_name(db, "Pro")
+            admin_plano_obj = crud_users.get_plano_by_name(db, "Pro")
             if admin_plano_obj and admin_user.plano_id != admin_plano_obj.id:
                 admin_user.plano_id = admin_plano_obj.id
                 needs_update = True
@@ -260,11 +261,11 @@ async def startup_event_create_defaults():
         ]
 
         for pt_data in product_types_data:
-            product_type_in_db = crud.get_product_type_by_key_name(db, key_name=pt_data["key_name"], user_id=None) 
+            product_type_in_db = crud_product_types.get_product_type_by_key_name(db, key_name=pt_data["key_name"], user_id=None) 
 
             if not product_type_in_db:
                 product_type_create_schema = schemas.ProductTypeCreate(**pt_data)
-                crud.create_product_type(db=db, product_type_create=product_type_create_schema, user_id=None)
+                crud_product_types.create_product_type(db=db, product_type_create=product_type_create_schema, user_id=None)
                 logger.info(f"Tipo de Produto Global '{product_type_create_schema.friendly_name}' criado.")
             else:
                 logger.info(f"Tipo de Produto Global '{pt_data['friendly_name']}' já existe.")
@@ -281,7 +282,7 @@ def create_new_user(
     user_in: schemas.UserCreate,
     db: Session = Depends(get_db)
 ):
-    db_user_check = crud.get_user_by_email(db, email=user_in.email)
+    db_user_check = crud_users.get_user_by_email(db, email=user_in.email)
     if db_user_check:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -289,7 +290,7 @@ def create_new_user(
         )
     
     plano_id_para_novo_usuario = user_in.plano_id
-    plano_gratuito_obj_check = crud.get_plano_by_name(db, nome="Gratuito")
+    plano_gratuito_obj_check = crud_users.get_plano_by_name(db, nome="Gratuito")
 
     if plano_id_para_novo_usuario is None:
         if plano_gratuito_obj_check:
@@ -298,7 +299,7 @@ def create_new_user(
             logger.error("ERRO CRÍTICO: Plano padrão 'Gratuito' não encontrado no DB.")
             plano_id_para_novo_usuario = None 
 
-    role_user_check = crud.get_role_by_name(db, name="user")
+    role_user_check = crud_users.get_role_by_name(db, name="user")
     if not role_user_check: 
         logger.error("ERRO CRÍTICO: Role padrão 'user' não encontrado.")
         raise HTTPException(status_code=500, detail="Erro de configuração do sistema: Role padrão 'user' não encontrado.")
@@ -306,7 +307,7 @@ def create_new_user(
     user_in.role_id = role_user_check.id
     user_in.plano_id = plano_id_para_novo_usuario
     
-    new_user_created = crud.create_user(db=db, user=user_in)
+    new_user_created = crud_users.create_user(db=db, user=user_in)
     
     return new_user_created
 

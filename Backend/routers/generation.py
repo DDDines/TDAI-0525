@@ -7,7 +7,8 @@ from datetime import datetime
 import logging # <-- ADICIONADO
 
 from . import auth_utils
-import crud
+import crud_users
+import crud_produtos
 import models
 import schemas
 from database import get_db, SessionLocal
@@ -55,13 +56,13 @@ async def _tarefa_processar_geracao_e_registrar_uso(
     log_entry_prefix = f"IA {tipo_geracao_principal.capitalize()}"
 
     try:
-        user = crud.get_user(db, user_id=user_id)
+        user = crud_users.get_user(db, user_id=user_id)
         if not user:
             logger.error(f"Tarefa Background {log_entry_prefix}: Usuário {user_id} não encontrado.")
             db.close()
             return
 
-        db_produto = crud.get_produto(db, produto_id=produto_id)
+        db_produto = crud_produtos.get_produto(db, produto_id=produto_id)
         if not db_produto:
             logger.error(f"Tarefa Background {log_entry_prefix}: Produto {produto_id} não encontrado.")
             db.close()
@@ -78,7 +79,7 @@ async def _tarefa_processar_geracao_e_registrar_uso(
             log_atual_obj = list(db_produto.log_processamento or [])
             log_atual_obj.append({"timestamp": datetime.utcnow().isoformat(), "actor": "system", "action": f"{log_entry_prefix}: Geração com Gemini iniciada."})
             update_data_progresso["log_processamento"] = log_atual_obj
-            crud.update_produto(db, db_produto=db_produto, produto_update=schemas.ProdutoUpdate(**update_data_progresso))
+            crud_produtos.update_produto(db, db_produto=db_produto, produto_update=schemas.ProdutoUpdate(**update_data_progresso))
 
         logger.info(f"Tarefa Background {log_entry_prefix}: Chamando serviço Gemini para produto {produto_id}.")
         
@@ -110,7 +111,7 @@ async def _tarefa_processar_geracao_e_registrar_uso(
         
         update_data_final_dict["log_processamento"] = log_final_obj
         if update_data_final_dict:
-             crud.update_produto(db, db_produto=db_produto, produto_update=schemas.ProdutoUpdate(**update_data_final_dict))
+             crud_produtos.update_produto(db, db_produto=db_produto, produto_update=schemas.ProdutoUpdate(**update_data_final_dict))
         logger.info(f"Tarefa Background {log_entry_prefix}: Produto {produto_id} atualizado com resultado e status final.")
 
     except HTTPException as http_exc:
@@ -122,7 +123,7 @@ async def _tarefa_processar_geracao_e_registrar_uso(
                 status_field_to_update: models.StatusGeracaoIAEnum.FALHA,
                 "log_processamento": log_erro_obj
             }
-            crud.update_produto(db, db_produto=db_produto, produto_update=schemas.ProdutoUpdate(**update_data_falha_http))
+            crud_produtos.update_produto(db, db_produto=db_produto, produto_update=schemas.ProdutoUpdate(**update_data_falha_http))
     except Exception as e:
         import traceback
         logger.error(f"Tarefa Background {log_entry_prefix}: Erro inesperado para produto {produto_id}: {traceback.format_exc()}")
@@ -133,7 +134,7 @@ async def _tarefa_processar_geracao_e_registrar_uso(
                 status_field_to_update: models.StatusGeracaoIAEnum.FALHA,
                 "log_processamento": log_erro_inesperado_obj
             }
-            crud.update_produto(db, db_produto=db_produto, produto_update=schemas.ProdutoUpdate(**update_data_falha_critica))
+            crud_produtos.update_produto(db, db_produto=db_produto, produto_update=schemas.ProdutoUpdate(**update_data_falha_critica))
     finally:
         logger.info(f"Tarefa Background {log_entry_prefix}: Finalizando para produto ID: {produto_id}")
         db.close()
@@ -149,7 +150,7 @@ async def agendar_geracao_novos_titulos_openai(
     current_user: models.User = Depends(auth_utils.get_current_active_user)
 ):
     """(Legado) Agenda a geração de títulos de produto usando a API OpenAI."""
-    db_produto_check = crud.get_produto(db, produto_id=produto_id)
+    db_produto_check = crud_produtos.get_produto(db, produto_id=produto_id)
     if not db_produto_check:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Produto não encontrado")
     if db_produto_check.user_id != current_user.id and not current_user.is_superuser:
@@ -175,7 +176,7 @@ async def agendar_geracao_nova_descricao_openai(
     current_user: models.User = Depends(auth_utils.get_current_active_user)
 ):
     """(Legado) Agenda a geração de descrição de produto usando a API OpenAI."""
-    db_produto_check = crud.get_produto(db, produto_id=produto_id)
+    db_produto_check = crud_produtos.get_produto(db, produto_id=produto_id)
     if not db_produto_check:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Produto não encontrado")
     if db_produto_check.user_id != current_user.id and not current_user.is_superuser:
@@ -204,7 +205,7 @@ async def agendar_geracao_novos_titulos_gemini(
     current_user: models.User = Depends(auth_utils.get_current_active_user)
 ):
     """Agenda a geração de títulos de produto usando a API Gemini."""
-    db_produto_check = crud.get_produto(db, produto_id=produto_id)
+    db_produto_check = crud_produtos.get_produto(db, produto_id=produto_id)
     if not db_produto_check:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Produto não encontrado")
     if db_produto_check.user_id != current_user.id and not current_user.is_superuser:
@@ -213,7 +214,7 @@ async def agendar_geracao_novos_titulos_gemini(
     # limit_service.verificar_limite_uso(db, current_user, "titulo") # Verificação de limite
 
     update_data_pendente = {"status_titulo_ia": models.StatusGeracaoIAEnum.PENDENTE}
-    crud.update_produto(db, db_produto=db_produto_check, produto_update=schemas.ProdutoUpdate(**update_data_pendente))
+    crud_produtos.update_produto(db, db_produto=db_produto_check, produto_update=schemas.ProdutoUpdate(**update_data_pendente))
     
     background_tasks.add_task(
         _tarefa_processar_geracao_e_registrar_uso,
@@ -235,7 +236,7 @@ async def agendar_geracao_nova_descricao_gemini(
     current_user: models.User = Depends(auth_utils.get_current_active_user)
 ):
     """Agenda a geração de descrição de produto usando a API Gemini."""
-    db_produto_check = crud.get_produto(db, produto_id=produto_id)
+    db_produto_check = crud_produtos.get_produto(db, produto_id=produto_id)
     if not db_produto_check:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Produto não encontrado")
     if db_produto_check.user_id != current_user.id and not current_user.is_superuser:
@@ -244,7 +245,7 @@ async def agendar_geracao_nova_descricao_gemini(
     # limit_service.verificar_limite_uso(db, current_user, "descricao") # Verificação de limite
     
     update_data_pendente = {"status_descricao_ia": models.StatusGeracaoIAEnum.PENDENTE}
-    crud.update_produto(db, db_produto=db_produto_check, produto_update=schemas.ProdutoUpdate(**update_data_pendente))
+    crud_produtos.update_produto(db, db_produto=db_produto_check, produto_update=schemas.ProdutoUpdate(**update_data_pendente))
 
     background_tasks.add_task(
         _tarefa_processar_geracao_e_registrar_uso,

@@ -5,7 +5,8 @@ from sqlalchemy.orm import Session
 # CORREÇÕES DOS IMPORTS:
 # Como 'run_backend.py' coloca 'Backend/' no sys.path e define como CWD,
 # 'crud' e 'models' (que estão em Backend/) são importados diretamente.
-import crud #
+import crud
+import crud_users #
 import models #
 # Se 'database.py' fosse necessário, seria: from database import get_db
 from core.logging_config import get_logger
@@ -96,7 +97,7 @@ async def verificar_creditos_disponiveis_geracao_ia(
     ``None`` considera-se que o usuário possui uso ilimitado.
     """
 
-    user = crud.get_user(db, user_id=user_id)
+    user = crud_users.get_user(db, user_id=user_id)
     if not user:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Usuário não encontrado")
 

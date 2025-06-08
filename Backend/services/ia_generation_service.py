@@ -10,6 +10,7 @@ from jose import JWTError, jwt
 from fastapi import HTTPException, status, Depends
 
 import crud
+import crud_produtos
 import models # models completo para acesso a TipoAcaoIAEnum
 import schemas
 from core.config import settings
@@ -238,7 +239,7 @@ async def gerar_titulos_com_openai(db: Session, produto_id: int, user: models.Us
     # ... (construção do prompt e chamada à API OpenAI) ...
     # ... (registro do uso com crud.create_registro_uso_ia) ...
     # Este código é apenas um placeholder, o seu código original para esta função deve ser mantido e adaptado.
-    db_produto = crud.get_produto(db, produto_id=produto_id)
+    db_produto = crud_produtos.get_produto(db, produto_id=produto_id)
     if not db_produto:
         raise HTTPException(status_code=404, detail="Produto não encontrado")
 
@@ -267,7 +268,7 @@ async def gerar_descricao_com_openai(db: Session, produto_id: int, user: models.
     if not api_key:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Chave da API OpenAI não disponível.")
         
-    db_produto = crud.get_produto(db, produto_id=produto_id)
+    db_produto = crud_produtos.get_produto(db, produto_id=produto_id)
     if not db_produto:
         raise HTTPException(status_code=404, detail="Produto não encontrado")
 
@@ -292,7 +293,7 @@ async def gerar_titulos_com_gemini(db: Session, produto_id: int, user: models.Us
     if not api_key:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Chave da API Gemini não disponível.")
 
-    db_produto = crud.get_produto(db, produto_id=produto_id)
+    db_produto = crud_produtos.get_produto(db, produto_id=produto_id)
     if not db_produto:
         raise HTTPException(status_code=404, detail="Produto não encontrado")
 
@@ -324,7 +325,7 @@ async def gerar_descricao_com_gemini(db: Session, produto_id: int, user: models.
     if not api_key:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Chave da API Gemini não disponível.")
 
-    db_produto = crud.get_produto(db, produto_id=produto_id)
+    db_produto = crud_produtos.get_produto(db, produto_id=produto_id)
     if not db_produto:
         raise HTTPException(status_code=404, detail="Produto não encontrado")
 
@@ -369,7 +370,7 @@ async def sugerir_valores_atributos_com_gemini(
     #     raise HTTPException(...)
 
     # 2. Buscar Produto e seus AttributeTemplates
-    db_produto = crud.get_produto(db, produto_id=produto_id)
+    db_produto = crud_produtos.get_produto(db, produto_id=produto_id)
     if not db_produto:
         logger.error(f"Produto ID {produto_id} não encontrado para sugestão de atributos.")
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Produto não encontrado")

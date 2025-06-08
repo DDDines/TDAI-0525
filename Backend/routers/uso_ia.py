@@ -6,6 +6,7 @@ from datetime import datetime # Necessário para filtros de data
 from core.config import logger
 
 import crud
+import crud_produtos
 import models
 import schemas # schemas é importado
 import database
@@ -116,7 +117,7 @@ def read_usos_ia_por_produto(
     Verifica se o produto pertence ao usuário ou se o usuário é admin.
     """
     # Primeiro, verifica o acesso ao produto
-    produto = crud.get_produto(db, produto_id=produto_id) 
+    produto = crud_produtos.get_produto(db, produto_id=produto_id) 
     if not produto:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Produto não encontrado")
     if not current_user.is_superuser and produto.user_id != current_user.id:

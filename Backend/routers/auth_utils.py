@@ -9,7 +9,7 @@ from jose import JWTError, jwt # JWTError pode ser útil para tratamento especí
 # from passlib.context import CryptContext # Removido, agora em core.security
 from sqlalchemy.orm import Session
 
-import crud
+import crud_users
 import models
 import schemas
 from core import config # Mantido para settings que não são de segurança direta
@@ -63,7 +63,7 @@ async def get_current_user(
         logger.warning(f"Token inválido ou user_id ausente no payload. Token: {token[:20]}...")
         raise credentials_exception
         
-    user = crud.get_user(db, user_id=token_payload.user_id)
+    user = crud_users.get_user(db, user_id=token_payload.user_id)
     if user is None:
         logger.warning(f"Usuário não encontrado no DB para user_id: {token_payload.user_id}")
         raise credentials_exception
@@ -104,7 +104,7 @@ async def get_user_from_refresh_token(
         if user_id is None:
             return None
         
-        user = crud.get_user(db, user_id=int(user_id))
+        user = crud_users.get_user(db, user_id=int(user_id))
         return user
     except JWTError:
         return None

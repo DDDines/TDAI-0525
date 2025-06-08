@@ -63,7 +63,7 @@ async def get_uso_ia_por_plano_endpoint(db: Session = Depends(get_db)):
     """
     Retorna o uso de IA agrupado por plano no mês corrente (apenas para admin).
     """
-    planos = crud.get_planos(db, skip=0, limit=1000) 
+    planos = crud_users.get_planos(db, skip=0, limit=1000) 
     resultado = []
     now = datetime.now(timezone.utc)
     start_of_month = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
@@ -109,7 +109,7 @@ async def get_user_activity_endpoint(
     """
     Retorna uma lista de atividades de usuários (apenas para admin).
     """
-    users = crud.get_users(db, skip=skip, limit=limit) 
+    users = crud_users.get_users(db, skip=skip, limit=limit) 
     activities = []
     now = datetime.now(timezone.utc)
     start_of_month = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
