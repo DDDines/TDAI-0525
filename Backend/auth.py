@@ -21,6 +21,7 @@ from Backend.core.config import settings, pwd_context, logger
 from Backend import schemas
 from Backend import models
 from Backend import crud
+from Backend import crud_users
 from Backend.database import get_db  # Para Depends(get_db)
 
 # Constante para expiração do token de reset de senha
