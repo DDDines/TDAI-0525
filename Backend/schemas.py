@@ -384,6 +384,19 @@ class UserActivity(BaseModel):
     class Config:
         from_attributes = True
 
+class ProductStatusCount(BaseModel):
+    status: StatusEnriquecimentoEnum
+    total: int
+
+class RecentActivity(BaseModel):
+    id: int
+    user_id: int
+    user_email: Optional[EmailStr] = None
+    tipo_acao: TipoAcaoIAEnum
+    created_at: datetime
+    class Config:
+        from_attributes = True
+
 # ----- NOVOS SCHEMAS PARA SUGESTÃO DE ATRIBUTOS GEMINI -----
 class SugestaoAtributoItem(BaseModel):
     chave_atributo: str = Field(..., description="A chave do atributo para o qual o valor é sugerido (ex: 'cor', 'material').")

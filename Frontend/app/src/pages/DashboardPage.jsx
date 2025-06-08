@@ -4,21 +4,11 @@ import authService from '../services/authService'; // Mantido para getCurrentUse
 import adminService from '../services/adminService'; // NOVO: Importar o adminService
 import { showErrorToast } from '../utils/notifications';
 
-// Os dados mockados restantes podem ser usados para as partes do dashboard que ainda não têm dados reais
+// Dados mock apenas para seções ainda não implementadas
 const mockDashboardData = {
-  productsByStatus: [
-    { label: "Pendentes", value: 38, barWidth: "38%", barColor: "var(--warning)" },
-    { label: "Enriquecidos", value: 54, barWidth: "54%", barColor: "var(--success)" },
-    { label: "Completos", value: 8, barWidth: "8%", barColor: "var(--info)" }
-  ],
   alerts: [
     { id: 1, messageHtml: "⚠️ <b>2 produto(s)</b> sem descrição" },
     { id: 2, messageHtml: "🔄 <b>2 produto(s)</b> pendente(s) de enriquecimento" }
-  ],
-  activityFeed: [
-    { id: 1, icon: "📝", message: "3 títulos gerados por IA", date: "18/05/2025" },
-    { id: 2, icon: "✅", message: "Produto MINI REFRIGERATOR enriquecido", date: "17/05/2025" },
-    { id: 3, icon: "📦", message: "Planilha importada", date: "16/05/2025" }
   ],
   searchResults: [
     { id: 1, typeIcon: "📦", name: "MINI REFRIGERATOR 18L DREIHA CBX QUADRIVOLT", status: "Pendente", statusColor: "#d99a18" },
@@ -31,6 +21,8 @@ function DashboardPage() {
   const [currentUser, setCurrentUser] = useState(null);
   const [adminStats, setAdminStats] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [statusCounts, setStatusCounts] = useState([]);
+  const [recentActivities, setRecentActivities] = useState([]);
   // const [error, setError] = useState(null); // Erros serão tratados por toasts
 
   useEffect(() => {
@@ -44,6 +36,15 @@ function DashboardPage() {
           // CORREÇÃO: Usar adminService para getTotalCounts
           const counts = await adminService.getTotalCounts();
           setAdminStats(counts);
+
+          try {
+            const statusData = await adminService.getProductStatusCounts();
+            setStatusCounts(statusData);
+            const activities = await adminService.getRecentActivities();
+            setRecentActivities(activities);
+          } catch (innerErr) {
+            console.error('Erro ao buscar dados adicionais do dashboard:', innerErr);
+          }
         }
       } catch (err) {
         const errorMsg = err.message || err.detail || 'Falha ao carregar dados do dashboard.';
@@ -97,7 +98,22 @@ function DashboardPage() {
     }
   ] : [];
 
-  const data = mockDashboardData; 
+  const maxStatus = Math.max(...statusCounts.map(s => s.total), 1);
+  const statusChart = statusCounts.map(sc => ({
+    label: sc.status,
+    value: sc.total,
+    barWidth: `${Math.round((sc.total / maxStatus) * 100)}%`,
+    barColor: 'var(--info)'
+  }));
+
+  const activityFeed = recentActivities.map(act => ({
+    id: act.id,
+    icon: '🔔',
+    message: `${act.tipo_acao} - ${act.user_email || act.user_id}`,
+    date: new Date(act.created_at).toLocaleDateString()
+  }));
+
+  const data = mockDashboardData;
 
   if (loading) {
     return <p style={{padding: "20px"}}>Carregando dashboard...</p>;
@@ -132,8 +148,8 @@ function DashboardPage() {
         <div className="dashboard-flex-row">
           <div className="dashboard-col dashboard-col-esq">
             <div className="pro-bar-chart">
-              <div className="pro-bar-title">Produtos por Status (Mock)</div>
-              {data.productsByStatus.map((item, index) => (
+              <div className="pro-bar-title">Produtos por Status</div>
+              {statusChart.map((item, index) => (
                 <div className="pro-bar-row" key={index}>
                   <span className="pro-bar-label">{item.label}</span>
                   <div className="pro-bar-bg">
@@ -152,9 +168,9 @@ function DashboardPage() {
               </div>
             </div>
             <div className="pro-feed-card">
-              <div className="pro-feed-title">Últimas Atividades (Mock)</div>
+              <div className="pro-feed-title">Últimas Atividades</div>
               <ul className="pro-feed-list">
-                {data.activityFeed.map(item => (
+                {activityFeed.map(item => (
                   <li className="pro-feed-item" key={item.id}>
                     <span className="pro-feed-ico">{item.icon}</span>
                     <span className="pro-feed-msg">{item.message}</span>
