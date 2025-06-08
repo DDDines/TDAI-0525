@@ -6,7 +6,7 @@ function FornecedorTable({ fornecedores, onRowClick, onSelectRow, selectedIds, o
     return <p>Carregando tabela de fornecedores...</p>;
   }
   return (
-    <table style={{ width: '100%' }} id="forn-table"> {/* Adicionado ID para consistência se necessário */}
+    <table style={{ width: '100%' }} id="forn-table">
       <thead>
         <tr>
           <th className="select">
