@@ -74,7 +74,7 @@ class UserResponse(UserBase): # O que é retornado pela API
     limite_geracao_ia: Optional[int] = None
     data_expiracao_plano: Optional[datetime] = None
     # Adicionar informações do plano e role se desejado na resposta
-    # plano: Optional[PlanoResponse] = None # Evitar dependência circular aqui, resolver no router
+    plano: Optional['PlanoResponse'] = None  # type: ignore  # Evitar dependência circular
     # role: Optional[RoleResponse] = None  # Evitar dependência circular
 
     class Config:

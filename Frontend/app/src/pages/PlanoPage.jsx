@@ -81,15 +81,15 @@ function PlanoPage() {
         <div className="plano-details-grid">
           <div className="plano-card current-plan-card">
             <div className="current-plan-header">
-              <span className={`plan-badge ${plano.name?.toLowerCase()}`}>{plano.name || "N/D"}</span>
+              <span className={`plan-badge ${plano.nome?.toLowerCase()}`}>{plano.nome || "N/D"}</span>
               <span className="current-plan-label">Plano Atual</span>
             </div>
             <ul className="plan-features">
-              <li><strong>{formatLimit(plano.max_titulos_mes)}</strong> títulos/mês</li>
-              <li><strong>{formatLimit(plano.max_descricoes_mes)}</strong> descrições/mês</li>
-              {/* Adicionar mais características do plano conforme necessário */}
+              <li><strong>{formatLimit(plano.limite_produtos)}</strong> produtos</li>
+              <li><strong>{formatLimit(plano.limite_enriquecimento_web)}</strong> enriquecimentos/mês</li>
+              <li><strong>{formatLimit(plano.limite_geracao_ia)}</strong> gerações IA/mês</li>
               <li>Suporte via Email</li>
-              {plano.name?.toLowerCase() !== 'gratuito' && <li>Suporte Prioritário</li>}
+              {plano.nome?.toLowerCase() !== 'gratuito' && <li>Suporte Prioritário</li>}
             </ul>
             <div className="plan-renewal">
               {/* Data de renovação não está no modelo User/Plano ainda */}
