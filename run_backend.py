@@ -13,6 +13,16 @@ if __name__ == "__main__":
     if project_root not in sys.path:
         sys.path.insert(0, project_root)
 
+    # Alguns módulos dentro de "Backend" usam imports sem o prefixo do pacote
+    # (por exemplo, ``from core.logging_config import get_logger``). Esses
+    # imports funcionam apenas se o diretório ``Backend`` também estiver
+    # presente em ``sys.path``. Ao incluir explicitamente ``backend_dir``,
+    # garantimos que esses módulos possam ser resolvidos corretamente, mesmo
+    # quando ``run_backend.py`` é executado a partir do diretório raiz do
+    # projeto.
+    if backend_dir not in sys.path:
+        sys.path.insert(0, backend_dir)
+
     # Não alteramos o diretório de trabalho para evitar que módulos dentro do
     # pacote sejam carregados como scripts de nível superior. Isso garante que
     # imports relativos (como os utilizados em crud.py) funcionem corretamente.
