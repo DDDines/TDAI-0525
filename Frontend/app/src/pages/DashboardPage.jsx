@@ -60,8 +60,7 @@ function DashboardPage() {
     {
       value: adminStats.total_produtos?.toString() || "0",
       label: "Total Produtos",
-      // MODIFICADO: Usando total_usuarios de adminStats se disponível
-      comparison: `Usuários: ${adminStats.total_usuarios || adminStats.total_users || 0}`, 
+      comparison: `Usuários: ${adminStats.total_usuarios || 0}`,
       barWidth: "75%",
       barColor: "var(--success)",
       barGradient: "linear-gradient(90deg,var(--success),#e8faed 85%)",
@@ -77,9 +76,8 @@ function DashboardPage() {
       icon: "🏢"
     },
     {
-      value: adminStats.total_usos_ia?.toString() || // Se o backend retornar total_usos_ia
-                 adminStats.total_geracoes_ia_mes?.toString() || "0", // Fallback para total_geracoes_ia_mes
-      label: "Total Usos IA (mês)", // Rótulo mais específico
+      value: adminStats.total_geracoes_ia_mes?.toString() || "0",
+      label: "Total Gerações IA (mês)",
       comparison: `Enriquecimentos (mês): ${adminStats.total_enriquecimentos_mes || 0}`,
       barWidth: "80%",
       barColor: "var(--info)",
@@ -87,7 +85,7 @@ function DashboardPage() {
       icon: "🤖"
     },
     {
-      value: adminStats.total_usuarios?.toString() || adminStats.total_users?.toString() || "0",
+      value: adminStats.total_usuarios?.toString() || "0",
       label: "Total Usuários",
       comparison: "",
       barWidth: "50%",
