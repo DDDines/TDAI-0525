@@ -4,7 +4,7 @@ from fastapi import APIRouter, Depends, HTTPException, status, Path as FastAPIPa
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
-import crud
+import crud_product_types
 import models
 import schemas
 import database
@@ -34,10 +34,10 @@ def create_product_type_endpoint(
         product_type_in.key_name,
         user_id_for_type,
     )
-    existing_type = crud.get_product_type_by_key_name(db, key_name=product_type_in.key_name, user_id=user_id_for_type)
+    existing_type = crud_product_types.get_product_type_by_key_name(db, key_name=product_type_in.key_name, user_id=user_id_for_type)
     
     if user_id_for_type is None and not existing_type: 
-        existing_type_global_check = crud.get_product_type_by_key_name(db, key_name=product_type_in.key_name, user_id=None)
+        existing_type_global_check = crud_product_types.get_product_type_by_key_name(db, key_name=product_type_in.key_name, user_id=None)
         if existing_type_global_check:
              existing_type = existing_type_global_check
 
@@ -60,7 +60,7 @@ def create_product_type_endpoint(
         product_type_in.key_name,
         user_id_for_type,
     )
-    return crud.create_product_type(db=db, product_type_create=product_type_in, user_id=user_id_for_type)
+    return crud_product_types.create_product_type(db=db, product_type_create=product_type_in, user_id=user_id_for_type)
 
 
 @router.get("/", response_model=List[schemas.ProductTypeResponse])
@@ -77,7 +77,7 @@ def read_product_types_endpoint(
         skip,
         limit,
     )
-    product_types = crud.get_product_types_for_user(db, skip=skip, limit=limit, user_id=current_user.id)
+    product_types = crud_product_types.get_product_types_for_user(db, skip=skip, limit=limit, user_id=current_user.id)
     logger.info(
         "ROUTER (read_product_types): Encontrados %s tipos de produto.",
         len(product_types),
@@ -105,7 +105,7 @@ async def read_product_type_details_route(
     try:
         numeric_id = int(identifier)
         logger.info("ROUTER: Identificador '%s' é numérico. Tentando buscar por ID: %s", identifier, numeric_id)
-        db_product_type = crud.get_product_type(db, product_type_id=numeric_id)
+        db_product_type = crud_product_types.get_product_type(db, product_type_id=numeric_id)
         if db_product_type:
             logger.info()
         logger.debug(
@@ -113,7 +113,7 @@ async def read_product_type_details_route(
             identifier,
             numeric_id,
         )
-        db_product_type = crud.get_product_type(db, product_type_id=numeric_id) 
+        db_product_type = crud_product_types.get_product_type(db, product_type_id=numeric_id) 
         if db_product_type:
             logger.debug(
 
@@ -144,7 +144,7 @@ async def read_product_type_details_route(
             key_name_to_search,
             current_user.id,
         )
-        db_product_type = crud.get_product_type_by_key_name(db, key_name=key_name_to_search, user_id=current_user.id)
+        db_product_type = crud_product_types.get_product_type_by_key_name(db, key_name=key_name_to_search, user_id=current_user.id)
         
         if not db_product_type:
             logger.info()
@@ -153,7 +153,7 @@ async def read_product_type_details_route(
                 "ROUTER: Não encontrado como tipo do usuário. Tentando buscar globalmente por key_name: '%s' (user_id: None)",
                 key_name_to_search,
             )
-            db_product_type = crud.get_product_type_by_key_name(db, key_name=key_name_to_search, user_id=None)
+            db_product_type = crud_product_types.get_product_type_by_key_name(db, key_name=key_name_to_search, user_id=None)
 
     if db_product_type is None:
         logger.info(
@@ -201,11 +201,11 @@ def update_product_type_endpoint(
         type_id,
         current_user.id,
     )
-    db_product_type = crud.get_product_type(db, type_id)
+    db_product_type = crud_product_types.get_product_type(db, type_id)
     if not db_product_type:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Tipo de produto não encontrado.")
 
-    updated_type = crud.update_product_type(db=db, db_product_type=db_product_type, product_type_update=product_type_in)
+    updated_type = crud_product_types.update_product_type(db=db, db_product_type=db_product_type, product_type_update=product_type_in)
 
     logger.info("ROUTER (update_product_type): Tipo de produto ID %s atualizado com sucesso.", type_id)
 
@@ -228,11 +228,11 @@ def delete_product_type_endpoint(
         type_id,
         current_user.id,
     )
-    db_product_type = crud.get_product_type(db, type_id)
+    db_product_type = crud_product_types.get_product_type(db, type_id)
     if not db_product_type:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Tipo de Produto não encontrado para deleção.")
 
-    deleted_type = crud.delete_product_type(db=db, db_product_type=db_product_type)
+    deleted_type = crud_product_types.delete_product_type(db=db, db_product_type=db_product_type)
 
     logger.info("ROUTER (delete_product_type): Tipo de produto ID %s deletado com sucesso.", type_id)
 
@@ -268,7 +268,7 @@ def add_attribute_to_product_type_endpoint(
             detail=f"Um atributo com a chave '{attribute_in.attribute_key}' já existe para este tipo de produto."
         )
     
-    new_attribute = crud.create_attribute_template(db=db, attribute_template_data=attribute_in, product_type_id=type_id, user_id=current_user.id)
+    new_attribute = crud_product_types.create_attribute_template(db=db, attribute_template_data=attribute_in, product_type_id=type_id, user_id=current_user.id)
     logger.info(
         "ROUTER (add_attribute): Atributo '%s' adicionado ao tipo ID %s.",
         new_attribute.label,
@@ -294,7 +294,7 @@ def update_attribute_for_product_type_endpoint(
         type_id,
         current_user.id,
     )
-    db_attribute_to_check = crud.get_attribute_template(db, attribute_id)
+    db_attribute_to_check = crud_product_types.get_attribute_template(db, attribute_id)
     if not db_attribute_to_check or db_attribute_to_check.product_type_id != type_id:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Atributo não encontrado ou não pertence ao tipo de produto especificado.")
 
@@ -310,7 +310,7 @@ def update_attribute_for_product_type_endpoint(
                 detail=f"Um atributo com a nova chave '{attribute_in.attribute_key}' já existe para este tipo de produto."
             )
 
-    updated_attribute = crud.update_attribute_template(db=db, attribute_template_id=attribute_id, attribute_template_data=attribute_in, user_id=current_user.id)
+    updated_attribute = crud_product_types.update_attribute_template(db=db, attribute_template_id=attribute_id, attribute_template_data=attribute_in, user_id=current_user.id)
     if not updated_attribute:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Falha ao atualizar o atributo.")
 
@@ -338,11 +338,11 @@ def remove_attribute_from_product_type_endpoint(
         type_id,
         current_user.id,
     )
-    db_attribute_to_check = crud.get_attribute_template(db, attribute_id)
+    db_attribute_to_check = crud_product_types.get_attribute_template(db, attribute_id)
     if not db_attribute_to_check or db_attribute_to_check.product_type_id != type_id:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Atributo não encontrado ou não pertence ao tipo de produto especificado para deleção.")
 
-    deleted_attribute = crud.delete_attribute_template(db=db, attribute_template_id=attribute_id, user_id=current_user.id)
+    deleted_attribute = crud_product_types.delete_attribute_template(db=db, attribute_template_id=attribute_id, user_id=current_user.id)
     if not deleted_attribute: 
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Falha ao deletar o atributo.")
 
@@ -368,7 +368,7 @@ def reorder_attribute_endpoint(
     current_user: models.User = Depends(auth_utils.get_current_active_user)
 ):
     # Primeiro, verificação de permissão no tipo de produto
-    product_type = crud.get_product_type(db, type_id)
+    product_type = crud_product_types.get_product_type(db, type_id)
     if not product_type:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Tipo de produto não encontrado.")
     
@@ -377,7 +377,7 @@ def reorder_attribute_endpoint(
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Não autorizado a modificar este tipo de produto.")
     
     # Chama a nova função do CRUD
-    reordered_attribute = crud.reorder_attribute_template(db, attribute_id=attribute_id, direction=reorder_request.direction)
+    reordered_attribute = crud_product_types.reorder_attribute_template(db, attribute_id=attribute_id, direction=reorder_request.direction)
     
     if not reordered_attribute:
         # A função CRUD pode retornar None se o atributo não for encontrado ou se o movimento for impossível

@@ -4,7 +4,7 @@ from datetime import datetime, timedelta, timezone  # Adicionado timezone
 from fastapi import APIRouter, Depends, HTTPException, Request, status, Body # Adicionado Body
 from sqlalchemy.orm import Session
 
-import crud
+import crud_users
 import schemas # schemas é importado
 import models # models é importado
 from database import get_db # Corrigido para get_db
@@ -27,7 +27,7 @@ async def recover_password(email: str, request: Request, db: Session = Depends(g
     """
     Envia um email de recuperação de senha para o usuário.
     """
-    user = crud.get_user_by_email(db, email=email)
+    user = crud_users.get_user_by_email(db, email=email)
     if not user:
         # Não revelar se o usuário existe ou não por motivos de segurança,
         # mas para depuração, um erro 404 seria mais claro.
@@ -52,7 +52,7 @@ async def recover_password(email: str, request: Request, db: Session = Depends(g
     expires_at = datetime.now(timezone.utc) + expires_delta # Usar timezone.utc
     
     # Salvar o hash do token e a data de expiração no usuário
-    crud.set_user_password_reset_token(db, user, token_hash=token_hash, expires_at=expires_at)
+    crud_users.set_user_password_reset_token(db, user, token_hash=token_hash, expires_at=expires_at)
 
     # Enviar email
     reset_link = f"{settings.FRONTEND_URL}/reset-password?token={token}"
@@ -90,7 +90,7 @@ def reset_password(
     Define uma nova senha usando o token de reset.
     """
     token_hash = hash_password_reset_token(reset_data.token)
-    user = crud.get_user_by_reset_token(db, token_hash=token_hash)
+    user = crud_users.get_user_by_reset_token(db, token_hash=token_hash)
     
     if not user:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Token de reset inválido.")
@@ -103,7 +103,7 @@ def reset_password(
     user_update_data = schemas.UserUpdate(password=reset_data.new_password) # Criar um schema de update
     
     # Para atualizar apenas a senha e limpar o token:
-    db_user = crud.get_user(db, user_id=user.id) # Busca o usuário novamente para garantir que temos o objeto da sessão
+    db_user = crud_users.get_user(db, user_id=user.id) # Busca o usuário novamente para garantir que temos o objeto da sessão
     if db_user:
         db_user.hashed_password = hashed_password
         db_user.reset_password_token = None # Limpa o token após o uso

@@ -125,7 +125,7 @@ def verify_password_reset_token(token: str, token_hash: str) -> bool:
 
 # --- Funções de Autenticação de Usuário ---
 def authenticate_user(db: Session, email: str, password: str) -> Optional[models.User]:
-    user = crud.get_user_by_email(db, email=email)
+    user = crud_users.get_user_by_email(db, email=email)
     if not user:
         return None
     if not user.is_active:
@@ -154,7 +154,7 @@ async def get_current_user(
     except JWTError:
         raise credentials_exception
     
-    user = crud.get_user(db, user_id=token_data.user_id) 
+    user = crud_users.get_user(db, user_id=token_data.user_id) 
     if user is None or user.email != token_data.email : 
         raise credentials_exception
     return user
@@ -208,7 +208,7 @@ async def refresh_access_token(
         if email is None or user_id is None:
             raise credentials_exception
         
-        user = crud.get_user(db, user_id=user_id)
+        user = crud_users.get_user(db, user_id=user_id)
         if not user or user.email != email or not user.is_active:
             raise credentials_exception
 
@@ -236,7 +236,7 @@ async def _get_or_create_social_user(
     provider: str,
     provider_user_id: str 
     ) -> Optional[models.User]:
-    db_user = crud.get_user_by_email(db, email=email)
+    db_user = crud_users.get_user_by_email(db, email=email)
     if db_user:
         if not db_user.is_active:
             logger.warning("Usuário existente %s (via %s) está inativo.", email, provider)
@@ -262,7 +262,7 @@ async def _get_or_create_social_user(
         # Utiliza a função correta do CRUD para buscar o plano pelo nome
         # (get_plano_by_name). A versão 'get_plano_by_nome' não existe e
         # geraria AttributeError em tempo de execução.
-        default_plano = crud.get_plano_by_name(db, "Gratuito")
+        default_plano = crud_users.get_plano_by_name(db, "Gratuito")
         
         user_in_create = schemas.UserCreateOAuth( 
             email=email,
@@ -271,7 +271,7 @@ async def _get_or_create_social_user(
             provider_user_id=provider_user_id 
         )
         
-        created_user = crud.create_user_oauth(
+        created_user = crud_users.create_user_oauth(
             db=db,
             user_oauth=user_in_create,
             plano_id_default=default_plano.id if default_plano else None,

@@ -17,7 +17,9 @@ from fastapi import (
 from sqlalchemy.orm import Session
 from sqlalchemy import func, or_
 
-import crud
+import crud_produtos
+import crud_fornecedores
+import crud_product_types
 import models 
 import schemas # schemas é importado
 import database
@@ -42,19 +44,19 @@ def create_produto( # Nome da função mantido como no arquivo do usuário
     """
     # Validação do fornecedor, se fornecido
     if produto.fornecedor_id:
-        fornecedor = crud.get_fornecedor(db, fornecedor_id=produto.fornecedor_id) # Assume que user_id não é necessário aqui ou é validado no get_fornecedor se não for admin
+        fornecedor = crud_fornecedores.get_fornecedor(db, fornecedor_id=produto.fornecedor_id) # Assume que user_id não é necessário aqui ou é validado no get_fornecedor se não for admin
         if not fornecedor: # Adicionar ( or (not current_user.is_superuser and fornecedor.user_id != current_user.id) ) se necessário
             raise HTTPException(status_code=404, detail=f"Fornecedor com ID {produto.fornecedor_id} não encontrado.")
 
     # Validação do tipo de produto, se fornecido
     if produto.product_type_id:
-        product_type = crud.get_product_type(db, product_type_id=produto.product_type_id)
+        product_type = crud_product_types.get_product_type(db, product_type_id=produto.product_type_id)
         if not product_type: # Adicionar validação de owner se tipos de produto forem específicos do usuário
             raise HTTPException(status_code=404, detail=f"Tipo de Produto com ID {produto.product_type_id} não encontrado.")
 
-    # A função crud.create_produto (ou create_user_produto) lida com a lógica de criação
+    # A função crud_produtos.create_produto (ou create_user_produto) lida com a lógica de criação
     # usando nome_base e nome_chat_api como definido nos schemas.
-    return crud.create_produto(db=db, produto=produto, user_id=current_user.id)
+    return crud_produtos.create_produto(db=db, produto=produto, user_id=current_user.id)
 
 
 @router.get("/{produto_id}", response_model=schemas.ProdutoResponse) # CORRIGIDO AQUI
@@ -66,7 +68,7 @@ def read_produto( # Nome da função mantido como no arquivo do usuário
     """
     Obtém os detalhes de um produto específico.
     """
-    db_produto = crud.get_produto(db, produto_id=produto_id) # crud.get_produto não filtra por user_id por padrão
+    db_produto = crud_produtos.get_produto(db, produto_id=produto_id) # crud_produtos.get_produto não filtra por user_id por padrão
     
     if db_produto is None:
         raise HTTPException(status_code=404, detail="Produto não encontrado")
@@ -96,7 +98,7 @@ def read_produtos( # Nome da função mantido como no arquivo do usuário
     user_id_filter = None if current_user.is_superuser else current_user.id
 
     # Usando get_produtos_by_user do crud, que foi ajustado para receber user_id opcional ou is_admin
-    produtos_db = crud.get_produtos_by_user( # Nome da função no CRUD
+    produtos_db = crud_produtos.get_produtos_by_user( # Nome da função no CRUD
         db,
         user_id=user_id_filter, 
         skip=skip,
@@ -112,7 +114,7 @@ def read_produtos( # Nome da função mantido como no arquivo do usuário
         product_type_id=product_type_id,
         is_admin=current_user.is_superuser # Passando is_admin para o CRUD
     )
-    total_items = crud.count_produtos_by_user( # Nome da função no CRUD
+    total_items = crud_produtos.count_produtos_by_user( # Nome da função no CRUD
         db,
         user_id=user_id_filter, 
         search=search,
@@ -134,24 +136,24 @@ def update_produto( # Nome da função mantido como no arquivo do usuário
     db: Session = Depends(database.get_db),
     current_user: models.User = Depends(auth_utils.get_current_active_user)
 ):
-    db_produto = crud.get_produto(db, produto_id=produto_id)
+    db_produto = crud_produtos.get_produto(db, produto_id=produto_id)
     if db_produto is None:
         raise HTTPException(status_code=404, detail="Produto não encontrado")
     if not current_user.is_superuser and db_produto.user_id != current_user.id:
         raise HTTPException(status_code=403, detail="Não autorizado a modificar este produto")
 
     if produto.fornecedor_id is not None and produto.fornecedor_id != db_produto.fornecedor_id:
-        fornecedor = crud.get_fornecedor(db, fornecedor_id=produto.fornecedor_id)
+        fornecedor = crud_fornecedores.get_fornecedor(db, fornecedor_id=produto.fornecedor_id)
         if not fornecedor : # Adicionar ( or (not current_user.is_superuser and fornecedor.user_id != current_user.id) ) se necessário
             raise HTTPException(status_code=404, detail=f"Fornecedor com ID {produto.fornecedor_id} não encontrado.")
 
     if produto.product_type_id is not None and produto.product_type_id != db_produto.product_type_id:
-        product_type = crud.get_product_type(db, product_type_id=produto.product_type_id)
+        product_type = crud_product_types.get_product_type(db, product_type_id=produto.product_type_id)
         if not product_type: 
             raise HTTPException(status_code=404, detail=f"Tipo de Produto com ID {produto.product_type_id} não encontrado.")
 
-    # A função crud.update_produto espera o objeto db_produto
-    return crud.update_produto(db=db, db_produto=db_produto, produto_update=produto)
+    # A função crud_produtos.update_produto espera o objeto db_produto
+    return crud_produtos.update_produto(db=db, db_produto=db_produto, produto_update=produto)
 
 
 @router.delete("/{produto_id}", response_model=schemas.ProdutoResponse) # CORRIGIDO AQUI
@@ -160,14 +162,14 @@ def delete_produto( # Nome da função mantido como no arquivo do usuário
     db: Session = Depends(database.get_db),
     current_user: models.User = Depends(auth_utils.get_current_active_user)
 ):
-    db_produto = crud.get_produto(db, produto_id=produto_id) 
+    db_produto = crud_produtos.get_produto(db, produto_id=produto_id) 
     if db_produto is None:
         raise HTTPException(status_code=404, detail="Produto não encontrado")
     if not current_user.is_superuser and db_produto.user_id != current_user.id:
         raise HTTPException(status_code=403, detail="Não autorizado a deletar este produto")
     
-    # A função crud.delete_produto espera o objeto db_produto
-    return crud.delete_produto(db=db, db_produto=db_produto)
+    # A função crud_produtos.delete_produto espera o objeto db_produto
+    return crud_produtos.delete_produto(db=db, db_produto=db_produto)
 
 
 @router.post("/batch-delete/", response_model=List[schemas.ProdutoResponse]) # Este já estava correto
@@ -181,7 +183,7 @@ def batch_delete_produtos(
     not_authorized_ids = []
 
     for produto_id_val in produto_ids: # Ajustado nome da variável
-        db_produto = crud.get_produto(db, produto_id=produto_id_val)
+        db_produto = crud_produtos.get_produto(db, produto_id=produto_id_val)
         if db_produto is None:
             not_found_ids.append(produto_id_val)
             continue
@@ -190,7 +192,7 @@ def batch_delete_produtos(
             not_authorized_ids.append(produto_id_val)
             continue
         
-        crud.delete_produto(db=db, db_produto=db_produto) # Passa o objeto
+        crud_produtos.delete_produto(db=db, db_produto=db_produto) # Passa o objeto
         deleted_produtos.append(db_produto) # Adiciona o objeto que foi deletado (já é um objeto do modelo)
 
     # Construindo a resposta
@@ -224,14 +226,14 @@ async def upload_produto_image( # Nome da função mantido como no arquivo do us
     db: Session = Depends(database.get_db),
     current_user: models.User = Depends(auth_utils.get_current_active_user)
 ):
-    db_produto = crud.get_produto(db, produto_id=produto_id)
+    db_produto = crud_produtos.get_produto(db, produto_id=produto_id)
     if not db_produto:
         raise HTTPException(status_code=404, detail="Produto não encontrado")
     if not current_user.is_superuser and db_produto.user_id != current_user.id:
         raise HTTPException(status_code=403, detail="Não autorizado a modificar este produto")
 
     try:
-        file_path_in_db = await crud.save_produto_image(db, produto_id, file)
+        file_path_in_db = await crud_produtos.save_produto_image(db, produto_id, file)
     except ValueError as e: 
         raise HTTPException(status_code=400, detail=str(e))
     except IOError as e: # Captura erro de IO de save_produto_image
@@ -242,9 +244,9 @@ async def upload_produto_image( # Nome da função mantido como no arquivo do us
     # Atualiza o campo imagem_principal_url no produto
     # O schema ProdutoUpdate pode não ter imagem_principal_url se não for editável diretamente
     # mas o modelo tem. O CRUD pode ter uma lógica para isso.
-    # Assumindo que crud.update_produto pode receber um dict com o campo a ser atualizado
+    # Assumindo que crud_produtos.update_produto pode receber um dict com o campo a ser atualizado
     
     produto_update_schema = schemas.ProdutoUpdate(imagem_principal_url=file_path_in_db)
-    updated_produto = crud.update_produto(db=db, db_produto=db_produto, produto_update=produto_update_schema)
+    updated_produto = crud_produtos.update_produto(db=db, db_produto=db_produto, produto_update=produto_update_schema)
     
     return updated_produto
