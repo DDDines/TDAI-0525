@@ -5,11 +5,11 @@ from sqlalchemy.orm import Session
 # CORREÇÕES DOS IMPORTS:
 # Como 'run_backend.py' coloca 'Backend/' no sys.path e define como CWD,
 # 'crud' e 'models' (que estão em Backend/) são importados diretamente.
-import crud
-import crud_users #
-import models #
+from Backend import crud
+from Backend import crud_users #
+from Backend import models #
 # Se 'database.py' fosse necessário, seria: from database import get_db
-from core.logging_config import get_logger
+from Backend.core.logging_config import get_logger
 # Se 'database.py' fosse necessário, seria: from database import get_db
 
 def verificar_limite_uso(

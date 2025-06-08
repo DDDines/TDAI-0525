@@ -17,14 +17,14 @@ from fastapi import (
 from sqlalchemy.orm import Session
 from sqlalchemy import func, or_
 
-import crud_produtos
-import crud_fornecedores
-import crud_product_types
-import models 
-import schemas # schemas é importado
-import database
+from Backend import crud_produtos
+from Backend import crud_fornecedores
+from Backend import crud_product_types
+from Backend import models
+from Backend import schemas  # schemas é importado
+from Backend import database
 from . import auth_utils # Para obter o usuário logado
-from core import config # Pode ser necessário para settings, se usado diretamente
+from Backend.core import config # Pode ser necessário para settings, se usado diretamente
 
 router = APIRouter(
     prefix="/produtos",

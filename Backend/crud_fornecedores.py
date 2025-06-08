@@ -4,8 +4,8 @@ from typing import List, Optional
 from sqlalchemy import func, or_
 from sqlalchemy.orm import Session
 
-from models import Fornecedor
-import schemas
+from Backend.models import Fornecedor
+from Backend import schemas
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)

@@ -5,7 +5,7 @@
 
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 from sqlalchemy.orm import Session
-from auth import (
+from Backend.auth import (
     oauth,
     OAuthError,
     process_google_login,
@@ -13,10 +13,10 @@ from auth import (
     create_access_token,
     create_refresh_token,
 )
-from database import get_db
-from core.config import settings
-from core.logging_config import get_logger
-import schemas
+from Backend.database import get_db
+from Backend.core.config import settings
+from Backend.core.logging_config import get_logger
+from Backend import schemas
 
 router = APIRouter()
 logger = get_logger(__name__)
@@ -85,9 +85,9 @@ async def facebook_callback(request: Request, db: Session = Depends(get_db)):
     access_token = create_access_token({"sub": user.email, "user_id": user.id})
     refresh_token = create_refresh_token({"sub": user.email, "user_id": user.id})
     return {"access_token": access_token, "refresh_token": refresh_token, "token_type": "bearer"}
-from core.config import settings
-from database import get_db
-import schemas
+from Backend.core.config import settings
+from Backend.database import get_db
+from Backend import schemas
 
 router = APIRouter()
 

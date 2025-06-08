@@ -4,16 +4,16 @@ from datetime import datetime, timedelta, timezone  # Adicionado timezone
 from fastapi import APIRouter, Depends, HTTPException, Request, status, Body # Adicionado Body
 from sqlalchemy.orm import Session
 
-import crud_users
-import schemas # schemas é importado
-import models # models é importado
-from database import get_db # Corrigido para get_db
-from core.config import settings # Para FRONTEND_URL
-from core.email_utils import send_password_reset_email  # Importa a função de envio de email
-from core import security
-from core.logging_config import get_logger
-from core.config import settings, logger  # Para FRONTEND_URL e logging
-from auth import create_password_reset_token, hash_password_reset_token
+from Backend import crud_users
+from Backend import schemas  # schemas é importado
+from Backend import models  # models é importado
+from Backend.database import get_db  # Corrigido para get_db
+from Backend.core.config import settings  # Para FRONTEND_URL
+from Backend.core.email_utils import send_password_reset_email  # Importa a função de envio de email
+from Backend.core import security
+from Backend.core.logging_config import get_logger
+from Backend.core.config import settings, logger  # Para FRONTEND_URL e logging
+from Backend.auth import create_password_reset_token, hash_password_reset_token
 
 router = APIRouter(
     prefix="/api/v1/auth", # Mantendo o prefixo como no arquivo original, se for este

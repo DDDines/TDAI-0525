@@ -12,16 +12,16 @@ from jose import JWTError, jwt
 from authlib.integrations.starlette_client import OAuth, OAuthError # type: ignore
 from starlette.config import Config as AuthlibConfig 
 from sqlalchemy.orm import Session
-from core.config import settings, pwd_context
-from core.logging_config import get_logger
+from Backend.core.config import settings, pwd_context
+from Backend.core.logging_config import get_logger
 
 logger = get_logger(__name__)
-from core.config import settings, pwd_context, logger
+from Backend.core.config import settings, pwd_context, logger
 
-import schemas 
-import models 
-import crud 
-from database import get_db # Para Depends(get_db)
+from Backend import schemas
+from Backend import models
+from Backend import crud
+from Backend.database import get_db  # Para Depends(get_db)
 
 # Constante para expiração do token de reset de senha
 PASSWORD_RESET_TOKEN_EXPIRE_HOURS = 1 

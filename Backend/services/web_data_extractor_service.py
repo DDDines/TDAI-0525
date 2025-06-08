@@ -10,7 +10,7 @@ from typing import List, Dict, Optional, Any
 from urllib.parse import urlparse
 from sqlalchemy.orm import Session # Importar Session para type hinting, se necessário
 from datetime import datetime, timezone
-from core.logging_config import get_logger
+from Backend.core.logging_config import get_logger
 
 logger = get_logger(__name__)
 
@@ -26,9 +26,9 @@ except ImportError:
 
 # Ajustando as importações para serem absolutas a partir da raiz do projeto (Backend)
 # Assumindo que 'Backend' está no sys.path ou é o diretório de trabalho.
-from core.config import settings 
-import models 
-from services import ia_generation_service # Importação absoluta para o módulo irmão
+from Backend.core.config import settings
+from Backend import models
+from Backend.services import ia_generation_service  # Importação absoluta para o módulo irmão
 
 # --- Google Search Service ---
 async def buscar_urls_google(query: str, num_results: int = 3) -> List[str]:

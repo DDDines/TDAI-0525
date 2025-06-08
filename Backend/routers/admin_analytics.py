@@ -3,15 +3,15 @@ from typing import List, Optional
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session
 from sqlalchemy import func, cast, String # Importar cast e String
-from core.config import logger
+from Backend.core.config import logger
 from datetime import datetime, timedelta, timezone 
 
-import crud 
-import models 
-import schemas 
-from database import get_db 
-from auth import get_current_active_user # Importa a dependência correta
-from core.logging_config import get_logger
+from Backend import crud
+from Backend import models
+from Backend import schemas
+from Backend.database import get_db
+from Backend.auth import get_current_active_user  # Importa a dependência correta
+from Backend.core.logging_config import get_logger
 
 router = APIRouter()
 

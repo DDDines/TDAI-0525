@@ -9,11 +9,11 @@ import logging # Adicionado para logging
 from jose import JWTError, jwt
 from fastapi import HTTPException, status, Depends
 
-import crud
-import crud_produtos
-import models # models completo para acesso a TipoAcaoIAEnum
-import schemas
-from core.config import settings
+from Backend import crud
+from Backend import crud_produtos
+from Backend import models  # models completo para acesso a TipoAcaoIAEnum
+from Backend import schemas
+from Backend.core.config import settings
 from . import limit_service # Para verificar e consumir limites/créditos
 
 # Configuração do logger

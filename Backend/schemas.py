@@ -10,7 +10,7 @@ import json # Para validação de JSON string
 # a importação direta pode funcionar. Caso contrário, pode ser necessário um ajuste
 # relativo ou absoluto dependendo de como o projeto é executado.
 # Assumindo que 'models.py' está no mesmo diretório (Backend) e é acessível:
-from models import StatusEnriquecimentoEnum, StatusGeracaoIAEnum, TipoAcaoIAEnum, AttributeFieldTypeEnum
+from Backend.models import StatusEnriquecimentoEnum, StatusGeracaoIAEnum, TipoAcaoIAEnum, AttributeFieldTypeEnum
 
 # Schemas de Autenticação e Usuário
 class Token(BaseModel):

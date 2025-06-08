@@ -5,10 +5,10 @@ from datetime import datetime
 from sqlalchemy.orm import Session
 from sqlalchemy.exc import IntegrityError
 
-from core.config import settings
-from core import security
-from models import User, Role, Plano
-import schemas
+from Backend.core.config import settings
+from Backend.core import security
+from Backend.models import User, Role, Plano
+from Backend import schemas
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)

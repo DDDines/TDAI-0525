@@ -3,15 +3,15 @@ from typing import List, Optional
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session
 from datetime import datetime # Necessário para filtros de data
-from core.config import logger
+from Backend.core.config import logger
 
-import crud
-import crud_produtos
-import models
-import schemas # schemas é importado
-import database
+from Backend import crud
+from Backend import crud_produtos
+from Backend import models
+from Backend import schemas  # schemas é importado
+from Backend import database
 from . import auth_utils # Para obter o usuário logado
-from core.logging_config import get_logger
+from Backend.core.logging_config import get_logger
 
 router = APIRouter(
     prefix="/uso-ia", # FIX: Removido o '/api/v1' daqui

@@ -6,7 +6,7 @@ from jose import jwt, JWTError
 from passlib.context import CryptContext
 from pydantic import BaseModel, ValidationError # Adicionado ValidationError
 
-from core.config import settings # Importa o objeto settings diretamente
+from Backend.core.config import settings # Importa o objeto settings diretamente
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
