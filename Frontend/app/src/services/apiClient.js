@@ -2,7 +2,10 @@
 import axios from 'axios';
 import logger from '../utils/logger';
 
-const API_BASE_URL = '/api/v1'; // Conforme configuração com proxy do Vite
+// Use VITE_API_BASE_URL if defined (e.g. in production) otherwise fall back to
+// the relative path so Vite's dev proxy can handle API requests during
+// development.
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/api/v1';
 
 const apiClient = axios.create({
   baseURL: API_BASE_URL,
