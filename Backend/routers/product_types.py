@@ -10,16 +10,15 @@ from Backend import schemas
 from Backend import database
 from . import auth_utils
 from Backend.core.logging_config import get_logger
-
-logger = get_logger(__name__)
-
 from Backend.core.config import logger
 
 router = APIRouter(
-    prefix="/product-types", 
+    prefix="/product-types",
     tags=["Tipos de Produto e Templates de Atributos"],
     dependencies=[Depends(auth_utils.get_current_active_user)],
 )
+
+logger = get_logger(__name__)
 
 @router.post("/", response_model=schemas.ProductTypeResponse, status_code=status.HTTP_201_CREATED)
 def create_product_type_endpoint( 
@@ -28,7 +27,11 @@ def create_product_type_endpoint(
     current_user: models.User = Depends(auth_utils.get_current_active_user)
 ):
     user_id_for_type = None if current_user.is_superuser else current_user.id
-    logger.info()
+    logger.info(
+        "ROUTER (create_product_type): requisição recebida do usuário ID %s para alvo %s",
+        current_user.id,
+        user_id_for_type,
+    )
     logger.debug(
         "ROUTER (create_product_type): Verificando existência de key_name '%s' para user_id: %s",
         product_type_in.key_name,
@@ -43,7 +46,11 @@ def create_product_type_endpoint(
 
     if existing_type:
         scope_msg = "globalmente" if existing_type.user_id is None else f"para o usuário ID {existing_type.user_id}"
-        logger.warning()
+        logger.warning(
+            "ROUTER (create_product_type): tipo com key_name '%s' já existe %s",
+            product_type_in.key_name,
+            scope_msg,
+        )
         logger.info(
             "ROUTER (create_product_type): Conflito! Tipo com key_name '%s' já existe %s.",
             product_type_in.key_name,
@@ -64,13 +71,16 @@ def create_product_type_endpoint(
 
 
 @router.get("/", response_model=List[schemas.ProductTypeResponse])
-def read_product_types_endpoint( 
-    skip: int = 0, 
-    limit: int = 100, 
+def read_product_types_endpoint(
+    skip: int = 0,
+    limit: int = 100,
     db: Session = Depends(database.get_db),
     current_user: models.User = Depends(auth_utils.get_current_active_user)
 ):
-    logger.info()
+    logger.info(
+        "ROUTER (read_product_types): iniciando busca para usuário ID %s",
+        current_user.id,
+    )
     logger.debug(
         "ROUTER (read_product_types): Buscando tipos de produto para user_id: %s, skip: %s, limit: %s",
         current_user.id,
@@ -107,7 +117,11 @@ async def read_product_type_details_route(
         logger.info("ROUTER: Identificador '%s' é numérico. Tentando buscar por ID: %s", identifier, numeric_id)
         db_product_type = crud_product_types.get_product_type(db, product_type_id=numeric_id)
         if db_product_type:
-            logger.info()
+            logger.info(
+                "ROUTER: Encontrado por ID: %s - %s",
+                db_product_type.id,
+                db_product_type.friendly_name,
+            )
         logger.debug(
             "ROUTER: Identificador '%s' é numérico. Tentando buscar por ID: %s",
             identifier,
@@ -128,9 +142,12 @@ async def read_product_type_details_route(
         )
         pass
 
-    if not db_product_type: 
+    if not db_product_type:
         key_name_to_search = str(identifier)
-        logger.info()
+        logger.info(
+            "ROUTER: Tentando buscar por key_name específico '%s'",
+            key_name_to_search,
+        )
         logger.debug(
             "ROUTER: Identificador '%s' não é puramente numérico. Será tratado como key_name.",
             identifier,
@@ -145,9 +162,12 @@ async def read_product_type_details_route(
             current_user.id,
         )
         db_product_type = crud_product_types.get_product_type_by_key_name(db, key_name=key_name_to_search, user_id=current_user.id)
-        
+
         if not db_product_type:
-            logger.info()
+            logger.info(
+                "ROUTER: Não encontrado como tipo do usuário. Tentando busca global por key_name '%s'",
+                key_name_to_search,
+            )
 
             logger.debug(
                 "ROUTER: Não encontrado como tipo do usuário. Tentando buscar globalmente por key_name: '%s' (user_id: None)",
@@ -176,7 +196,11 @@ async def read_product_type_details_route(
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Não autorizado a visualizar este tipo de produto.")
     
 
-    logger.info()
+    logger.info(
+        "ROUTER: Permissão concedida para usuário ID %s acessar tipo ID %s",
+        current_user.id,
+        db_product_type.id,
+    )
 
     logger.debug(
 
@@ -195,7 +219,11 @@ def update_product_type_endpoint(
     current_user: models.User = Depends(auth_utils.get_current_active_user)
 ):
 
-    logger.info()
+    logger.info(
+        "ROUTER (update_product_type): requisição recebida para ID %s pelo usuário %s",
+        type_id,
+        current_user.id,
+    )
     logger.debug(
         "ROUTER (update_product_type): Tentando atualizar tipo de produto ID %s para usuário ID %s",
         type_id,
@@ -216,12 +244,16 @@ def update_product_type_endpoint(
     return updated_type
 
 @router.delete("/{type_id}", response_model=schemas.ProductTypeResponse) 
-def delete_product_type_endpoint( 
-    type_id: int, 
+def delete_product_type_endpoint(
+    type_id: int,
     db: Session = Depends(database.get_db),
     current_user: models.User = Depends(auth_utils.get_current_active_user)
 ):
-    logger.info()
+    logger.info(
+        "ROUTER (delete_product_type): requisição recebida para ID %s pelo usuário %s",
+        type_id,
+        current_user.id,
+    )
 
     logger.debug(
         "ROUTER (delete_product_type): Tentando deletar tipo de produto ID %s para usuário ID %s",
@@ -243,14 +275,18 @@ def delete_product_type_endpoint(
     return deleted_type
 
 @router.post("/{type_id}/attributes/", response_model=schemas.AttributeTemplateResponse, status_code=status.HTTP_201_CREATED)
-def add_attribute_to_product_type_endpoint( 
+def add_attribute_to_product_type_endpoint(
     type_id: int,
     attribute_in: schemas.AttributeTemplateCreate,
     db: Session = Depends(database.get_db),
     current_user: models.User = Depends(auth_utils.get_current_active_user)
 ):
 
-    logger.info()
+    logger.info(
+        "ROUTER (add_attribute): requisição recebida para tipo ID %s pelo usuário %s",
+        type_id,
+        current_user.id,
+    )
 
     logger.debug(
 
@@ -277,15 +313,20 @@ def add_attribute_to_product_type_endpoint(
     return new_attribute
 
 @router.put("/{type_id}/attributes/{attribute_id}", response_model=schemas.AttributeTemplateResponse)
-def update_attribute_for_product_type_endpoint( 
-    type_id: int, 
+def update_attribute_for_product_type_endpoint(
+    type_id: int,
     attribute_id: int,
     attribute_in: schemas.AttributeTemplateUpdate,
     db: Session = Depends(database.get_db),
     current_user: models.User = Depends(auth_utils.get_current_active_user)
 ):
 
-    logger.info()
+    logger.info(
+        "ROUTER (update_attribute): requisição recebida para atributo %s do tipo %s pelo usuário %s",
+        attribute_id,
+        type_id,
+        current_user.id,
+    )
 
     logger.debug(
 
@@ -323,14 +364,19 @@ def update_attribute_for_product_type_endpoint(
     return updated_attribute
 
 @router.delete("/{type_id}/attributes/{attribute_id}", response_model=schemas.AttributeTemplateResponse)
-def remove_attribute_from_product_type_endpoint( 
-    type_id: int, 
+def remove_attribute_from_product_type_endpoint(
+    type_id: int,
     attribute_id: int,
     db: Session = Depends(database.get_db),
     current_user: models.User = Depends(auth_utils.get_current_active_user)
 ):
 
-    logger.info()
+    logger.info(
+        "ROUTER (delete_attribute): requisição recebida para atributo %s do tipo %s pelo usuário %s",
+        attribute_id,
+        type_id,
+        current_user.id,
+    )
 
     logger.debug(
         "ROUTER (delete_attribute): Tentando deletar atributo ID %s do tipo ID %s para usuário ID %s",
