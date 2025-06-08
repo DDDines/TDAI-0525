@@ -80,6 +80,33 @@ const authService = {
     }
   },
 
+  async requestPasswordRecovery(email) {
+    try {
+      const response = await apiClient.post(`/auth/password-recovery/${encodeURIComponent(email)}`);
+      showSuccessToast('Se o email existir, um link de redefinição será enviado.');
+      return response.data;
+    } catch (error) {
+      console.error('Error requesting password recovery (authService):', error.response?.data || error.message);
+      showErrorToast(error.response?.data?.detail || 'Falha ao solicitar recuperação de senha.');
+      throw error.response?.data || new Error('Falha ao solicitar recuperação de senha.');
+    }
+  },
+
+  async resetPassword(token, newPassword) {
+    try {
+      const response = await apiClient.post('/auth/reset-password/', {
+        token,
+        new_password: newPassword,
+      });
+      showSuccessToast('Senha redefinida com sucesso!');
+      return response.data;
+    } catch (error) {
+      console.error('Error resetting password (authService):', error.response?.data || error.message);
+      showErrorToast(error.response?.data?.detail || 'Falha ao redefinir senha.');
+      throw error.response?.data || new Error('Falha ao redefinir senha.');
+    }
+  },
+
   // Adicione outras funções de autenticação/usuário conforme necessário
   // Ex: forgotPassword, resetPassword, etc.
 };

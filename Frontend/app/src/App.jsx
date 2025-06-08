@@ -15,6 +15,8 @@ import EnriquecimentoPage from './pages/EnriquecimentoPage';
 import HistoricoPage from './pages/HistoricoPage';
 import PlanoPage from './pages/PlanoPage';
 import ConfiguracoesPage from './pages/ConfiguracoesPage';
+import RecuperarSenhaPage from './pages/RecuperarSenhaPage';
+import ResetSenhaPage from './pages/ResetSenhaPage';
 import ProtectedRoute from './components/ProtectedRoute';
 // Importe outras páginas e componentes necessários
 
@@ -43,6 +45,8 @@ function AppContent() {
   return (
     <Routes>
       <Route path="/login" element={<LoginPage />} />
+      <Route path="/recuperar-senha" element={<RecuperarSenhaPage />} />
+      <Route path="/resetar-senha" element={<ResetSenhaPage />} />
       
       {/* Rotas Protegidas */}
       <Route 
