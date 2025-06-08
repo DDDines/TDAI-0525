@@ -2,7 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation, Link } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { toast } from 'react-toastify';
-import './LoginPage.css'; // Mantenha seu CSS
+import './LoginPage.css';
+import { FaGoogle, FaFacebookF } from 'react-icons/fa';
 import logger from '../utils/logger';
 
 const LoginPage = () => {
@@ -45,8 +46,8 @@ const LoginPage = () => {
     // Se o AuthContext ainda está carregando a sessão, pode mostrar um loader
     if (authIsLoading && !isAuthenticated) { // Apenas mostra o loader se não estiver autenticado ainda
         return (
-            <div className="login-page-container">
-                <div className="login-form-container">
+            <div className="login-page-wrapper">
+                <div className="login-form-card">
                     <h2>Carregando...</h2>
                 </div>
             </div>
@@ -55,8 +56,8 @@ const LoginPage = () => {
 
 
     return (
-        <div className="login-page-container">
-            <div className="login-form-container">
+        <div className="login-page-wrapper">
+            <div className="login-form-card">
                 <h2>Login TDAI</h2>
                 <form onSubmit={handleSubmit}>
                     {error && <p className="error-message">{error}</p>}
@@ -85,6 +86,14 @@ const LoginPage = () => {
                     <button type="submit" className="login-button" disabled={isSubmitting || authIsLoading}>
                         {isSubmitting ? 'Entrando...' : 'Entrar'}
                     </button>
+                    <div className="social-login-buttons">
+                        <a href="/api/v1/auth/google/login" className="social-login-button google-btn" title="Entrar com Google">
+                            <FaGoogle /> Entrar com Google
+                        </a>
+                        <a href="/api/v1/auth/facebook/login" className="social-login-button facebook-btn" title="Entrar com Facebook">
+                            <FaFacebookF /> Entrar com Facebook
+                        </a>
+                    </div>
                     <div className="login-links">
                         <Link to="/recuperar-senha">Esqueceu a senha?</Link>
                         {/* Adicionar link para registro se houver */}
