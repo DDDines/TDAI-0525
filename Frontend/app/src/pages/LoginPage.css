@@ -87,3 +87,38 @@
 .login-links a:hover {
   text-decoration: underline;
 }
+
+.social-login-buttons {
+  margin-top: 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.social-login-button {
+  width: 100%;
+  padding: 0.65rem;
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  border: none;
+  border-radius: 4px;
+  font-size: 1rem;
+  font-weight: bold;
+  cursor: pointer;
+  text-decoration: none;
+}
+
+.google-btn {
+  background-color: #db4437;
+}
+
+.facebook-btn {
+  background-color: #4267B2;
+}
+
+.social-login-button:hover {
+  filter: brightness(90%);
+}
