@@ -5,8 +5,7 @@ import shutil
 import os
 from Backend.core.config import logger
 from pathlib import Path
-import imghdr # Para detectar o tipo MIME de imagem
-import magic # Para detectar o tipo MIME de forma mais robusta (requer python-magic)
+import imghdr  # Para detectar o tipo MIME de imagem
 
 # --- IMPORTS ALTERADOS ---
 from Backend.database import get_db
