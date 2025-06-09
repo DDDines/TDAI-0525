@@ -6,7 +6,8 @@ import Modal from '../common/Modal';
 import { showSuccessToast, showErrorToast, showInfoToast, showWarningToast } from '../../utils/notifications';
 import productService from '../../services/productService';
 import fornecedorService from '../../services/fornecedorService';
-import AttributeField from './shared/AttributeField';
+// Ajuste do caminho para o componente de atributo
+import AttributeField from './produtos/shared/AttributeField';
 import { useProductTypes } from '../../contexts/ProductTypeContext';
 import '../ProductEditModal.css';
 
