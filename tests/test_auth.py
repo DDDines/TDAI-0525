@@ -1,11 +1,15 @@
 import os
 import pytest
 
+# Capture any existing DATABASE_URL so it can be restored later
+PREV_DATABASE_URL = os.environ.get("DATABASE_URL")
+
 pytest.importorskip("sqlalchemy")
 
 from fastapi.testclient import TestClient
 
-# Configure an in-memory SQLite database for tests
+# Configure an in-memory SQLite database for tests; this overrides any
+# existing value but we'll restore it after the tests finish
 os.environ["DATABASE_URL"] = "sqlite:///:memory:"
 
 from Backend.database import Base, engine, SessionLocal, get_db
@@ -29,6 +33,16 @@ def override_get_db():
 
 app.dependency_overrides[get_db] = override_get_db
 client = TestClient(app)
+
+
+@pytest.fixture(scope="module", autouse=True)
+def restore_database_url():
+    """Restore the original DATABASE_URL after the tests in this module."""
+    yield
+    if PREV_DATABASE_URL is not None:
+        os.environ["DATABASE_URL"] = PREV_DATABASE_URL
+    else:
+        os.environ.pop("DATABASE_URL", None)
 
 
 def test_user_registration_and_login():
