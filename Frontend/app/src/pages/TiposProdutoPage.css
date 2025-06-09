@@ -3,10 +3,10 @@
 .tipos-produto-container {
   padding: 20px;
   background-color: var(--main-bg);
-  min-height: calc(100vh - 60px);
+  height: calc(100vh - 60px); /* ocupa a altura da tela sem exceder */
   display: flex;
   flex-direction: column;
-  height: 100%;
+  box-sizing: border-box; /* padding incluído na altura */
 }
 
 .tipos-produto-header {
