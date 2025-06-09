@@ -148,52 +148,65 @@ const ProductEditModal = ({ isOpen, onClose, product, onProductUpdated }) => {
         setSelectedIaSuggestions(initialSelections);
     }, []);
 
-    useEffect(() => {
-        if (isOpen) {
-            if (product) {
-                const dynamicAttrsRaw = (product.dynamic_attributes && typeof product.dynamic_attributes === 'object') ? product.dynamic_attributes : {};
-                const dynamicAttrs = Object.fromEntries(
-                    Object.entries(dynamicAttrsRaw).filter(([key]) => !BASE_PRODUCT_FIELDS.has(key))
-                );
-                const dadosBrutos = (product.dados_brutos && typeof product.dados_brutos === 'object') ? product.dados_brutos : {};
+    const populateFormData = useCallback((prod) => {
+        if (!prod) return;
+        const dynamicAttrsRaw = (prod.dynamic_attributes && typeof prod.dynamic_attributes === 'object') ? prod.dynamic_attributes : {};
+        const dynamicAttrs = Object.fromEntries(
+            Object.entries(dynamicAttrsRaw).filter(([key]) => !BASE_PRODUCT_FIELDS.has(key))
+        );
+        const dadosBrutos = (prod.dados_brutos && typeof prod.dados_brutos === 'object') ? prod.dados_brutos : {};
 
-                setFormData({
-                    nome_base: product.nome_base || '',
-                    nome_chat_api: product.nome_chat_api || '',
-                    descricao_original: product.descricao_original || '',
-                    descricao_curta_orig: product.descricao_curta_orig || '',
-                    descricao_principal_gerada: product.descricao_principal_gerada || '',
-                    descricao_curta_gerada: product.descricao_curta_gerada || '',
-                    sku: product.sku || '',
-                    ean: product.ean || '',
-                    ncm: product.ncm || '',
-                    marca: product.marca || '',
-                    modelo: product.modelo || '',
-                    categoria_original: product.categoria_original || '',
-                    categoria_mapeada: product.categoria_mapeada || '',
-                    preco_custo: product.preco_custo || '',
-                    preco_venda: product.preco_venda || '',
-                    preco_promocional: product.preco_promocional || '',
-                    estoque_disponivel: product.estoque_disponivel || '',
-                    peso_kg: product.peso_kg || '',
-                    altura_cm: product.altura_cm || '',
-                    largura_cm: product.largura_cm || '',
-                    profundidade_cm: product.profundidade_cm || '',
-                    imagem_principal_url: product.imagem_principal_url || '',
-                    imagens_secundarias_urls: product.imagens_secundarias_urls || [],
-                    fornecedor_id: product.fornecedor_id || '',
-                    product_type_id: product.product_type_id || '',
-                    dynamic_attributes: dynamicAttrs,
-                    dados_brutos: dadosBrutos,
-                    titulos_sugeridos: product.titulos_sugeridos || [],
-                    ativo_marketplace: product.ativo_marketplace || false,
-                    data_publicacao_marketplace: product.data_publicacao_marketplace || null,
-                    log_enriquecimento_web: product.log_enriquecimento_web || { historico_mensagens: [] },
-                    status_enriquecimento_web: product.status_enriquecimento_web || null,
-                    status_titulo_ia: product.status_titulo_ia || null,
-                    status_descricao_ia: product.status_descricao_ia || null,
-                });
-                extractIaSuggestions(dadosBrutos);
+        setFormData({
+            nome_base: prod.nome_base || '',
+            nome_chat_api: prod.nome_chat_api || '',
+            descricao_original: prod.descricao_original || '',
+            descricao_curta_orig: prod.descricao_curta_orig || '',
+            descricao_principal_gerada: prod.descricao_principal_gerada || '',
+            descricao_curta_gerada: prod.descricao_curta_gerada || '',
+            sku: prod.sku || '',
+            ean: prod.ean || '',
+            ncm: prod.ncm || '',
+            marca: prod.marca || '',
+            modelo: prod.modelo || '',
+            categoria_original: prod.categoria_original || '',
+            categoria_mapeada: prod.categoria_mapeada || '',
+            preco_custo: prod.preco_custo || '',
+            preco_venda: prod.preco_venda || '',
+            preco_promocional: prod.preco_promocional || '',
+            estoque_disponivel: prod.estoque_disponivel || '',
+            peso_kg: prod.peso_kg || '',
+            altura_cm: prod.altura_cm || '',
+            largura_cm: prod.largura_cm || '',
+            profundidade_cm: prod.profundidade_cm || '',
+            imagem_principal_url: prod.imagem_principal_url || '',
+            imagens_secundarias_urls: prod.imagens_secundarias_urls || [],
+            fornecedor_id: prod.fornecedor_id || '',
+            product_type_id: prod.product_type_id || '',
+            dynamic_attributes: dynamicAttrs,
+            dados_brutos: dadosBrutos,
+            titulos_sugeridos: prod.titulos_sugeridos || [],
+            ativo_marketplace: prod.ativo_marketplace || false,
+            data_publicacao_marketplace: prod.data_publicacao_marketplace || null,
+            log_enriquecimento_web: prod.log_enriquecimento_web || { historico_mensagens: [] },
+            status_enriquecimento_web: prod.status_enriquecimento_web || null,
+            status_titulo_ia: prod.status_titulo_ia || null,
+            status_descricao_ia: prod.status_descricao_ia || null,
+        });
+        extractIaSuggestions(dadosBrutos);
+    }, [extractIaSuggestions]);
+
+    useEffect(() => {
+        const loadDetails = async () => {
+            if (!isOpen) return;
+            if (product && product.id) {
+                try {
+                    const fullProduct = await productService.getProdutoById(product.id);
+                    populateFormData(fullProduct);
+                } catch (err) {
+                    console.error('Erro ao carregar produto:', err);
+                    showErrorToast('Erro ao carregar dados completos do produto.');
+                    populateFormData(product);
+                }
             } else {
                 setFormData(initialFormData);
                 setIaAttributeSuggestions({});
@@ -204,8 +217,9 @@ const ProductEditModal = ({ isOpen, onClose, product, onProductUpdated }) => {
             }
             setActiveTab('info');
             setError(null);
-        }
-    }, [product, isOpen, extractIaSuggestions]);
+        };
+        loadDetails();
+    }, [product, isOpen, populateFormData]);
 
     const handleChange = (e) => {
         const { name, value, type, checked } = e.target;
