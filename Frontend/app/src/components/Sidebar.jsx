@@ -22,7 +22,6 @@ const Sidebar = ({ isOpen, toggleSidebar }) => {
 
   const handleLogout = () => {
     logout();
-    // navigate('/login'); // O logout no AuthContext já deve redirecionar
   };
 
   const menuItems = [
