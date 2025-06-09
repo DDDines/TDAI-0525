@@ -141,7 +141,6 @@ TDAI-0525-Dev/
 │       │   │   ├── MainLayout.jsx
 │       │   │   ├── NewFornecedorModal.jsx
 │       │   │   ├── NewProductModal.jsx
-│       │   │   ├── ProductCard.jsx
 │       │   │   ├── ProductEditModal.jsx
 │       │   │   ├── ProductTable.jsx
 │       │   │   ├── ProtectedRoute.jsx

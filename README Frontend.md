@@ -85,10 +85,6 @@
 
 * `NewProductModal({ isOpen, onClose, onSave })`: Modal para cadastro de novo produto. Props para controle de abertura/fechamento e callback de salvar.
 
-## Frontend/app/src/components/ProductCard.jsx
-
-* `ProductCard({ produto, onEdit, onDelete })`: Card que exibe detalhes de um produto. Permite editar/deletar via props.
-
 ## Frontend/app/src/components/ProductEditModal.jsx
 
 * `ProductEditModal({ isOpen, onClose, produto, onSave })`: Modal para editar produto já existente. Props para abertura, produto ativo e salvar.
