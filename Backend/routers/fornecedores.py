@@ -69,8 +69,8 @@ def read_user_fornecedores(
         items_paginados = fornecedores.order_by(models.Fornecedor.nome).offset(skip).limit(limit).all()
     else:
         # Usuário normal vê apenas os seus, filtrando por termo_busca se fornecido
-        items_paginados = crud_fornecedores.get_fornecedores_by_user(db, user_id=current_user.id, skip=skip, limit=limit, termo_busca=termo_busca)
-        total_items = crud_fornecedores.count_fornecedores_by_user(db=db, user_id=current_user.id, termo_busca=termo_busca)
+        items_paginados = crud_fornecedores.get_fornecedores_by_user(db, user_id=current_user.id, skip=skip, limit=limit, search=termo_busca)
+        total_items = crud_fornecedores.count_fornecedores_by_user(db=db, user_id=current_user.id, search=termo_busca)
     
     return {"items": items_paginados, "total_items": total_items, "page": skip // limit, "limit": limit}
 
@@ -81,13 +81,13 @@ def read_fornecedor(
     db: Session = Depends(database.get_db), 
     current_user: models.User = Depends(auth_utils.get_current_active_user)
 ):
-    if current_user.is_superuser:
-        db_fornecedor = crud_fornecedores.get_fornecedor(db, fornecedor_id=fornecedor_id) # Admin pode buscar qualquer um
-    else:
-        db_fornecedor = crud_fornecedores.get_fornecedor(db, fornecedor_id=fornecedor_id, user_id=current_user.id) # Usuário só busca os seus
-        
+    db_fornecedor = crud_fornecedores.get_fornecedor(db, fornecedor_id=fornecedor_id)
+
     if db_fornecedor is None:
         raise HTTPException(status_code=404, detail="Fornecedor não encontrado ou não pertence ao usuário")
+
+    if not current_user.is_superuser and db_fornecedor.user_id != current_user.id:
+        raise HTTPException(status_code=403, detail="Não autorizado a acessar este fornecedor.")
     return db_fornecedor
 
 # Endpoint para atualizar um fornecedor
