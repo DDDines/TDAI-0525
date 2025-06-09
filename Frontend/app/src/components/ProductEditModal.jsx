@@ -56,7 +56,10 @@ const ProductEditModal = ({ isOpen, onClose, product, onProductUpdated }) => {
     const [isSuggestingGemini, setIsSuggestingGemini] = useState(false);
     const [error, setError] = useState(null);
     const [fornecedores, setFornecedores] = useState([]);
-    const { productTypes } = useProductTypes(); 
+    const { productTypes } = useProductTypes();
+
+    // Para novos produtos, mostramos primeiro a seleção do tipo
+    const [stage, setStage] = useState('form'); // 'selectType' ou 'form'
 
     const [iaAttributeSuggestions, setIaAttributeSuggestions] = useState({});
     const [selectedIaSuggestions, setSelectedIaSuggestions] = useState({});
@@ -66,7 +69,7 @@ const ProductEditModal = ({ isOpen, onClose, product, onProductUpdated }) => {
         const fetchDependencies = async () => {
             if (isOpen) {
                 try {
-                    const fetchedFornecedores = await fornecedorService.getFornecedores({skip: 0, limit: 100}); 
+                    const fetchedFornecedores = await fornecedorService.getFornecedores({skip: 0, limit: 100});
                     setFornecedores(fetchedFornecedores.items || []);
                 } catch (err) {
                     console.error("Erro ao carregar fornecedores:", err);
@@ -76,6 +79,17 @@ const ProductEditModal = ({ isOpen, onClose, product, onProductUpdated }) => {
         };
         fetchDependencies();
     }, [isOpen]);
+
+    // Define o estágio inicial quando o modal é aberto
+    useEffect(() => {
+        if (isOpen) {
+            if (isNewProduct) {
+                setStage(formData.product_type_id ? 'form' : 'selectType');
+            } else {
+                setStage('form');
+            }
+        }
+    }, [isOpen, isNewProduct, formData.product_type_id]);
 
     const extractIaSuggestions = useCallback((dadosBrutos) => {
         const extracted = {};
@@ -174,6 +188,23 @@ const ProductEditModal = ({ isOpen, onClose, product, onProductUpdated }) => {
         }));
     };
 
+    const initializeAttributesForType = useCallback((typeId) => {
+        const selectedType = productTypes.find(pt => pt.id === parseInt(typeId, 10));
+        if (selectedType && selectedType.attribute_templates) {
+            const initialAttrs = {};
+            selectedType.attribute_templates.forEach(template => {
+                if (template.default_value !== null && template.default_value !== undefined) {
+                    initialAttrs[template.attribute_key] = template.field_type === 'boolean'
+                        ? (String(template.default_value).toLowerCase() === 'true' || template.default_value === '1')
+                        : template.default_value;
+                } else {
+                    initialAttrs[template.attribute_key] = template.field_type === 'boolean' ? false : '';
+                }
+            });
+            setFormData(prev => ({ ...prev, dynamic_attributes: initialAttrs }));
+        }
+    }, [productTypes]);
+
     const addDynamicAttribute = () => {
         const newKey = prompt("Digite a chave do novo atributo (ex: 'cor', 'voltagem'):");
         if (newKey && !formData.dynamic_attributes.hasOwnProperty(newKey)) {
@@ -212,6 +243,15 @@ const ProductEditModal = ({ isOpen, onClose, product, onProductUpdated }) => {
         }));
         showSuccessToast(`${appliedCount} sugest${appliedCount > 1 ? 'ões' : 'ão'} aplicada${appliedCount > 1 ? 's' : ''} aos atributos dinâmicos!`);
         setActiveTab('atributos');
+    };
+
+    const handleContinueAfterTypeSelect = () => {
+        if (formData.product_type_id) {
+            initializeAttributesForType(formData.product_type_id);
+            setStage('form');
+        } else {
+            showWarningToast('Selecione um Tipo de Produto para continuar.');
+        }
     };
 
     const handleEnrichWeb = async () => {
@@ -369,6 +409,23 @@ const ProductEditModal = ({ isOpen, onClose, product, onProductUpdated }) => {
 
     return (
         <Modal isOpen={isOpen} onClose={onClose} title={isNewProduct ? "Criar Novo Produto" : `Editar Produto: ${formData.nome_base || 'ID ' + product?.id}`}>
+            {stage === 'selectType' ? (
+                <div className="form-section" style={{padding:'1rem'}}>
+                    <label>
+                        Tipo de Produto:
+                        <select name="product_type_id" value={formData.product_type_id} onChange={handleChange} required>
+                            <option value="">Selecione um tipo</option>
+                            {(productTypes || []).map(type => (
+                                <option key={type.id} value={type.id}>{type.friendly_name}</option>
+                            ))}
+                        </select>
+                    </label>
+                    <div className="modal-actions" style={{marginTop:'20px'}}>
+                        <button type="button" onClick={onClose} className="btn-secondary">Cancelar</button>
+                        <button type="button" onClick={handleContinueAfterTypeSelect} className="btn-primary" disabled={!formData.product_type_id}>Continuar</button>
+                    </div>
+                </div>
+            ) : (
             <form onSubmit={handleSubmit}>
                 <div className="tab-navigation">
                     <button type="button" className={activeTab === 'info' ? 'active' : ''} onClick={() => setActiveTab('info')}>Info Principais</button>
@@ -505,6 +562,7 @@ const ProductEditModal = ({ isOpen, onClose, product, onProductUpdated }) => {
                     <button type="submit" disabled={isLoading || isEnrichingWeb || isGeneratingIA || isSuggestingGemini} className="btn-success">{isLoading ? 'Salvando...' : 'Salvar Produto'}</button>
                 </div>
             </form>
+            )}
         </Modal>
     );
 };
