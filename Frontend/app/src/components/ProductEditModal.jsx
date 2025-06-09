@@ -1,5 +1,6 @@
 // Frontend/app/src/components/ProductEditModal.jsx
 import React, { useState, useEffect, useCallback } from 'react';
+import { useAuth } from '../contexts/AuthContext';
 import Modal from './common/Modal';
 import { showSuccessToast, showErrorToast, showInfoToast, showWarningToast } from '../utils/notifications'; 
 import productService from '../services/productService'; 
@@ -83,6 +84,8 @@ const initialFormData = {
 
 const ProductEditModal = ({ isOpen, onClose, product, onProductUpdated }) => {
     const isNewProduct = !product?.id;
+
+    const { isAuthenticated } = useAuth();
 
     const [formData, setFormData] = useState(initialFormData);
     const [activeTab, setActiveTab] = useState('info'); 
@@ -199,6 +202,17 @@ const ProductEditModal = ({ isOpen, onClose, product, onProductUpdated }) => {
         const loadDetails = async () => {
             if (!isOpen) return;
             if (product && product.id) {
+                const token = localStorage.getItem('accessToken');
+                if (token && isAuthenticated) {
+                    try {
+                        const fullProduct = await productService.getProdutoById(product.id);
+                        populateFormData(fullProduct);
+                    } catch (err) {
+                        console.error('Erro ao carregar produto:', err);
+                        showErrorToast('Erro ao carregar dados completos do produto.');
+                        populateFormData(product);
+                    }
+                } else {
                 try {
                     const fullProduct = await productService.getProdutoById(product.id);
                     populateFormData(fullProduct);
