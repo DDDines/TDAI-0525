@@ -16,7 +16,6 @@ from Backend.core.config import settings, pwd_context
 from Backend.core.logging_config import get_logger
 
 logger = get_logger(__name__)
-from Backend.core.config import settings, pwd_context, logger
 
 from Backend import schemas
 from Backend import models

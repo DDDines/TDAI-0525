@@ -41,7 +41,6 @@ try:
 except Exception as e:
     logger.error(f"Erro ao criar tabelas: {e}")
 
-from Backend.core.config import logger
 
 
 try:
