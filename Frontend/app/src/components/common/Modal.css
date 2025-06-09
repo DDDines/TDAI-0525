@@ -16,12 +16,12 @@
     background: white;
     padding: 20px;
     border-radius: 8px;
-    width: 90%;
-    max-width: 800px; /* Limita a largura para melhor visualização */
+    width: 95%;
+    max-width: 1200px; /* Usa grande parte da tela para edições complexas */
     box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
     display: flex;
     flex-direction: column;
-    max-height: 90vh; /* Limita a altura para modais grandes */
+    max-height: 95vh; /* Mais espaço para o conteúdo interno */
     overflow-y: auto; /* Adiciona scroll se o conteúdo for muito alto */
 }
 
@@ -271,4 +271,16 @@
 
 .log-container p:last-child {
     margin-bottom: 0;
+}
+
+/* Layout utilitário para formulários em grade */
+.form-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+    gap: 15px;
+}
+
+.form-grid label {
+    display: flex;
+    flex-direction: column;
 }
