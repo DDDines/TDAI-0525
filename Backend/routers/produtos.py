@@ -80,6 +80,16 @@ def read_produto( # Nome da função mantido como no arquivo do usuário
         raise HTTPException(status_code=403, detail="Não autorizado a visualizar este produto")
     return db_produto
 
+# Também expõe a rota com barra ao final para evitar redirecionamentos que podem
+# levar à perda do cabeçalho Authorization em alguns clientes HTTP.
+router.add_api_route(
+    "/{produto_id}/",
+    read_produto,
+    methods=["GET"],
+    response_model=schemas.ProdutoResponse,
+    include_in_schema=False,
+)
+
 
 @router.get("/", response_model=schemas.ProdutoPage) # Este já estava correto
 def read_produtos( # Nome da função mantido como no arquivo do usuário
