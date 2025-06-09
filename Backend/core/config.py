@@ -11,7 +11,6 @@ from .logging_config import get_logger
 logger = get_logger(__name__)
 
 logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger("tdai")
 
 dotenv_path = Path(__file__).resolve().parent.parent.parent / ".env"
 if dotenv_path.exists():
