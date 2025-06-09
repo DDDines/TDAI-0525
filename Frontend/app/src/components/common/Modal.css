@@ -92,6 +92,11 @@
     font-weight: bold;
 }
 
+.tab-navigation button:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
 .form-section {
     margin-bottom: 20px;
     padding: 15px;
