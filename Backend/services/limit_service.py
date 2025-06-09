@@ -34,11 +34,11 @@ def verificar_limite_uso(
     limite_mensal = 0
 
     if tipo_geracao_principal == "descricao":
-        limite_mensal = getattr(user.plano, "max_descricoes_mes", user.plano.limite_geracao_ia)
+        limite_mensal = user.plano.limite_geracao_ia
         tipo_geracao_prefix_db = "descricao"
 
     elif tipo_geracao_principal == "titulo":
-        limite_mensal = getattr(user.plano, "max_titulos_mes", user.plano.limite_geracao_ia)
+        limite_mensal = user.plano.limite_geracao_ia
         tipo_geracao_prefix_db = "titulo"
     else:
         logger.warning(
