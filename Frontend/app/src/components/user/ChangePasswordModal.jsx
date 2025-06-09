@@ -2,8 +2,12 @@
 import React, { useState } from 'react';
 import authService from '../../services/authService'; // Ajuste o caminho se o seu authService estiver noutro local
 import { showSuccessToast, showErrorToast } from '../../utils/notifications'; // Ajuste o caminho se necessário
+import { useAuth } from '../../contexts/AuthContext';
 
-function ChangePasswordModal({ isOpen, onClose }) {
+function ChangePasswordModal({ isOpen, onClose, userId: propUserId }) {
+  const { user } = useAuth();
+  const userId = propUserId || user?.id;
+
   const [passwordData, setPasswordData] = useState({
     current_password: '',
     new_password: '',
@@ -22,6 +26,10 @@ function ChangePasswordModal({ isOpen, onClose }) {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (!userId) {
+      showErrorToast('Usuário não identificado.');
+      return;
+    }
     if (passwordData.new_password !== passwordData.confirm_new_password) {
       showErrorToast('A nova senha e a confirmação não coincidem.');
       return;
@@ -38,7 +46,7 @@ function ChangePasswordModal({ isOpen, onClose }) {
         current_password: passwordData.current_password,
         new_password: passwordData.new_password
       };
-      const response = await authService.changePassword(payload);
+      const response = await authService.changePassword(userId, payload);
       showSuccessToast(response.message || 'Senha alterada com sucesso!');
       clearForm();
       onClose(); // Fecha o modal após o sucesso
