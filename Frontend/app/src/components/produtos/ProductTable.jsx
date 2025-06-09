@@ -5,62 +5,25 @@ import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import logger from '../../utils/logger';
 
-const StatusIcon = ({ status }) => {
-  let iconClass = "status-icon ";
-  let iconText = "";
-  let title = status;
+const STATUS_CONFIG = {
+  NAO_INICIADO: { class: 'grey', text: '➖', title: 'Não Iniciado' },
+  PENDENTE: { class: 'orange', text: '⏳', title: 'Pendente' },
+  EM_PROGRESSO: { class: 'blue', text: '⚙️', title: 'Em Progresso' },
+  CONCLUIDO: { class: 'green', text: '✔️', title: 'Concluído' },
+  CONCLUIDO_SUCESSO: { class: 'green', text: '✔️', title: 'Concluído' },
+  CONCLUIDO_COM_DADOS_PARCIAIS: { class: 'blue', text: '✔️', title: 'Parcial' },
+  FALHA: { class: 'red', text: '❌', title: 'Falha' },
+  FALHOU: { class: 'red', text: '❌', title: 'Falhou' },
+  FALHA_API_EXTERNA: { class: 'red', text: '❌', title: 'Falha API Externa' },
+  FALHA_CONFIGURACAO_API_EXTERNA: { class: 'red', text: '❌', title: 'Falha Configuração API' },
+  NENHUMA_FONTE_ENCONTRADA: { class: 'grey', text: '➖', title: 'Fonte Não Encontrada' },
+  NAO_APLICAVEL: { class: 'grey', text: '➖', title: 'Não Aplicável' },
+};
 
-  switch (status) {
-    case 'NAO_INICIADO':
-      iconClass += 'grey';
-      iconText = '➖';
-      title = 'Não Iniciado';
-      break;
-    case 'PENDENTE':
-      iconClass += 'orange';
-      iconText = '⏳';
-      title = 'Pendente';
-      break;
-    case 'EM_PROGRESSO':
-      iconClass += 'blue';
-      iconText = '⚙️';
-      title = 'Em Progresso';
-      break;
-    case 'CONCLUIDO':
-    case 'CONCLUIDO_SUCESSO':
-      iconClass += 'green';
-      iconText = '✔️';
-      title = 'Concluído';
-      break;
-    case 'CONCLUIDO_COM_DADOS_PARCIAIS':
-      iconClass += 'blue';
-      iconText = '✔️';
-      title = 'Parcial';
-      break;
-    case 'FALHA':
-    case 'FALHOU':
-    case 'FALHA_API_EXTERNA':
-    case 'FALHA_CONFIGURACAO_API_EXTERNA':
-      iconClass += 'red';
-      iconText = '❌';
-      title = 'Falha';
-      break;
-    case 'NENHUMA_FONTE_ENCONTRADA':
-      iconClass += 'grey';
-      iconText = '➖';
-      title = 'Fonte Não Encontrada';
-      break;
-    case 'NAO_APLICAVEL':
-      iconClass += 'grey';
-      iconText = '➖';
-      title = 'Não Aplicável';
-      break;
-    default:
-      iconClass += 'grey';
-      iconText = '?';
-      title = 'Desconhecido';
-  }
-  return <span className={iconClass} title={title}>{iconText}</span>;
+const StatusIcon = ({ status }) => {
+  const cfg = STATUS_CONFIG[status] || { class: 'grey', text: '?', title: 'Desconhecido' };
+  const { class: colorClass, text, title } = cfg;
+  return <span className={`status-icon ${colorClass}`} title={title}>{text}</span>;
 };
 
 
