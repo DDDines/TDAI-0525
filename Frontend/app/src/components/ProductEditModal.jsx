@@ -471,10 +471,10 @@ const ProductEditModal = ({ isOpen, onClose, product, onProductUpdated }) => {
                 <div className="tab-navigation">
                     <button type="button" className={activeTab === 'info' ? 'active' : ''} onClick={() => setActiveTab('info')}>Info Principais</button>
                     <button type="button" className={activeTab === 'atributos' ? 'active' : ''} onClick={() => setActiveTab('atributos')} disabled={!formData.product_type_id}>Atributos</button>
-                    <button type="button" className={activeTab === 'midia' ? 'active' : ''} onClick={() => setActiveTab('midia')}>Mídia</button>
-                    <button type="button" className={activeTab === 'conteudo-ia' ? 'active' : ''} onClick={() => setActiveTab('conteudo-ia')}>Conteúdo IA</button>
-                    <button type="button" className={activeTab === 'sugestoes-ia' ? 'active' : ''} onClick={() => setActiveTab('sugestoes-ia')}>Sugestões IA</button> 
-                    <button type="button" className={activeTab === 'log' ? 'active' : ''} onClick={() => setActiveTab('log')}>Log</button>
+                    <button type="button" className={activeTab === 'midia' ? 'active' : ''} onClick={() => setActiveTab('midia')} disabled={!formData.product_type_id}>Mídia</button>
+                    <button type="button" className={activeTab === 'conteudo-ia' ? 'active' : ''} onClick={() => setActiveTab('conteudo-ia')} disabled={!formData.product_type_id}>Conteúdo IA</button>
+                    <button type="button" className={activeTab === 'sugestoes-ia' ? 'active' : ''} onClick={() => setActiveTab('sugestoes-ia')} disabled={!formData.product_type_id}>Sugestões IA</button>
+                    <button type="button" className={activeTab === 'log' ? 'active' : ''} onClick={() => setActiveTab('log')} disabled={!formData.product_type_id}>Log</button>
                 </div>
 
                 <div className="tab-content">
@@ -489,15 +489,19 @@ const ProductEditModal = ({ isOpen, onClose, product, onProductUpdated }) => {
                                     ))}
                                 </select>
                             </label>
-                            <label> Nome Base: <input type="text" name="nome_base" value={formData.nome_base} onChange={handleChange} required /> </label>
-                            <label> Marca: <input type="text" name="marca" value={formData.marca} onChange={handleChange} /> </label>
-                            <label> SKU: <input type="text" name="sku" value={formData.sku} onChange={handleChange} /> </label>
-                             <label> Fornecedor:
-                                <select name="fornecedor_id" value={formData.fornecedor_id} onChange={handleChange}>
-                                    <option value="">Selecione um fornecedor</option>
-                                    {fornecedores.map(f => (<option key={f.id} value={f.id}>{f.nome}</option>))}
-                                </select>
-                            </label>
+                            {formData.product_type_id && (
+                                <>
+                                    <label> Nome Base: <input type="text" name="nome_base" value={formData.nome_base} onChange={handleChange} required /> </label>
+                                    <label> Marca: <input type="text" name="marca" value={formData.marca} onChange={handleChange} /> </label>
+                                    <label> SKU: <input type="text" name="sku" value={formData.sku} onChange={handleChange} /> </label>
+                                    <label> Fornecedor:
+                                        <select name="fornecedor_id" value={formData.fornecedor_id} onChange={handleChange}>
+                                            <option value="">Selecione um fornecedor</option>
+                                            {fornecedores.map(f => (<option key={f.id} value={f.id}>{f.nome}</option>))}
+                                        </select>
+                                    </label>
+                                </>
+                            )}
                         </div>
                     )}
                     {activeTab === 'atributos' && (
