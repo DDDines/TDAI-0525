@@ -123,5 +123,12 @@ def read_usos_ia_por_produto(
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Não autorizado a ver usos de IA para este produto")
         
     # A função no CRUD foi nomeada como get_usos_ia_by_produto
-    usos = crud.get_usos_ia_by_produto(db, produto_id=produto_id, user_id=current_user.id, skip=skip, limit=limit)
+    query_user_id = produto.user_id if current_user.is_superuser else current_user.id
+    usos = crud.get_usos_ia_by_produto(
+        db,
+        produto_id=produto_id,
+        user_id=query_user_id,
+        skip=skip,
+        limit=limit,
+    )
     return usos
