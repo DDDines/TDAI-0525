@@ -219,6 +219,10 @@ cd ..
 python run_backend.py       # Inicia o backend (http://localhost:8000)
 ```
 
+Após a primeira execução, o backend cria automaticamente um usuário administrador
+e um **produto de exemplo**. Utilize as credenciais definidas em `.env` para
+acessar a plataforma e visualizar esse item inicial.
+
 ---
 
 ### 4. **Configuração do Frontend**
