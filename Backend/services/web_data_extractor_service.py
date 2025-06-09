@@ -244,13 +244,19 @@ async def extrair_dados_produto_com_llm(
 
     try:
         # A função call_openai_api está em ia_generation_service
+        prompt_messages = [
+            {
+                "role": "system",
+                "content": "Sua tarefa é extrair informações de um texto e retorná-las em formato JSON conforme o schema solicitado. Seja preciso e não adicione campos extras.",
+            },
+            {"role": "user", "content": prompt},
+        ]
         json_str_resposta = await ia_generation_service.call_openai_api(
-            prompt=prompt,
+            prompt_messages=prompt_messages,
             api_key=api_key_para_usar,
             model="gpt-3.5-turbo-0125", # Exemplo de modelo, pode ser configurável
             max_tokens=2048, # Ajustar conforme necessidade
             temperature=0.0, # Baixa temperatura para extração factual
-            system_message="Sua tarefa é extrair informações de um texto e retorná-las em formato JSON conforme o schema solicitado. Seja preciso e não adicione campos extras."
         )
         
         # Tentativa de limpar a resposta da LLM para pegar apenas o JSON
