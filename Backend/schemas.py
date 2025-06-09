@@ -140,7 +140,6 @@ class PlanoResponse(PlanoBase):
 
 
 # Adicionar UserResponse ao final para resolver dependência circular se PlanoResponse referenciar UserResponse
-UserResponse.model_rebuild()
 
 
 # Schemas para Fornecedor
