@@ -151,7 +151,7 @@ async def get_recent_activities(db: Session = Depends(get_db), limit: int = Quer
     registros = db.query(models.RegistroUsoIA).order_by(models.RegistroUsoIA.created_at.desc()).limit(limit).all()
     activities = []
     for reg in registros:
-        user = db.query(models.User).get(reg.user_id)
+        user = db.get(models.User, reg.user_id)
         activities.append(
             schemas.RecentActivity(
                 id=reg.id,
