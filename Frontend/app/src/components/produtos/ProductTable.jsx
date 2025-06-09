@@ -11,13 +11,54 @@ const StatusIcon = ({ status }) => {
   let title = status;
 
   switch (status) {
-    case 'NAO_INICIADO': iconClass += "grey"; iconText = "➖"; title="Não Iniciado"; break;
-    case 'PENDENTE': iconClass += "orange"; iconText = "⏳"; title="Pendente"; break;
-    case 'EM_PROGRESSO': iconClass += "blue"; iconText = "⚙️"; title="Em Progresso"; break;
-    case 'CONCLUIDO': iconClass += "green"; iconText = "✔️"; title="Concluído"; break;
-    case 'FALHA': iconClass += "red"; iconText = "❌"; title="Falha"; break;
-    case 'NAO_APLICAVEL': iconClass += "grey"; iconText = "➖"; title="Não Aplicável"; break; 
-    default: iconClass += "grey"; iconText = "?"; title="Desconhecido";
+    case 'NAO_INICIADO':
+      iconClass += 'grey';
+      iconText = '➖';
+      title = 'Não Iniciado';
+      break;
+    case 'PENDENTE':
+      iconClass += 'orange';
+      iconText = '⏳';
+      title = 'Pendente';
+      break;
+    case 'EM_PROGRESSO':
+      iconClass += 'blue';
+      iconText = '⚙️';
+      title = 'Em Progresso';
+      break;
+    case 'CONCLUIDO':
+    case 'CONCLUIDO_SUCESSO':
+      iconClass += 'green';
+      iconText = '✔️';
+      title = 'Concluído';
+      break;
+    case 'CONCLUIDO_COM_DADOS_PARCIAIS':
+      iconClass += 'blue';
+      iconText = '✔️';
+      title = 'Parcial';
+      break;
+    case 'FALHA':
+    case 'FALHOU':
+    case 'FALHA_API_EXTERNA':
+    case 'FALHA_CONFIGURACAO_API_EXTERNA':
+      iconClass += 'red';
+      iconText = '❌';
+      title = 'Falha';
+      break;
+    case 'NENHUMA_FONTE_ENCONTRADA':
+      iconClass += 'grey';
+      iconText = '➖';
+      title = 'Fonte Não Encontrada';
+      break;
+    case 'NAO_APLICAVEL':
+      iconClass += 'grey';
+      iconText = '➖';
+      title = 'Não Aplicável';
+      break;
+    default:
+      iconClass += 'grey';
+      iconText = '?';
+      title = 'Desconhecido';
   }
   return <span className={iconClass} title={title}>{iconText}</span>;
 };
