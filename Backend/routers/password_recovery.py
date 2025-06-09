@@ -15,7 +15,7 @@ from Backend.core.logging_config import get_logger
 from Backend.auth import create_password_reset_token, hash_password_reset_token
 
 router = APIRouter(
-    prefix="/api/v1/auth", # Mantendo o prefixo como no arquivo original, se for este
+    prefix="/auth",  # Prefixo reduzido; '/api/v1' será adicionado em main.py
     tags=["password-recovery"],
 )
 
