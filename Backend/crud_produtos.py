@@ -12,7 +12,6 @@ from Backend.models import Produto, Fornecedor, ProductType, StatusEnriqueciment
 from fastapi import UploadFile
 from Backend import schemas
 
-logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 # --- Produto CRUD ---

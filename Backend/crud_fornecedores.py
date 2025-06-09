@@ -7,7 +7,6 @@ from sqlalchemy.orm import Session
 from Backend.models import Fornecedor
 from Backend import schemas
 
-logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 # --- Fornecedor CRUD ---

@@ -10,7 +10,6 @@ from Backend.core import security
 from Backend.models import User, Role, Plano
 from Backend import schemas
 
-logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 # --- User CRUD ---
