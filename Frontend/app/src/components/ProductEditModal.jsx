@@ -5,8 +5,44 @@ import { showSuccessToast, showErrorToast, showInfoToast, showWarningToast } fro
 import productService from '../services/productService'; 
 import fornecedorService from '../services/fornecedorService'; 
 import AttributeField from './produtos/shared/AttributeField';
-import { useProductTypes } from '../contexts/ProductTypeContext'; 
+import { useProductTypes } from '../contexts/ProductTypeContext';
 import './ProductEditModal.css';
+
+// Campos base que não devem aparecer como atributos dinâmicos
+const BASE_PRODUCT_FIELDS = new Set([
+    'nome_base',
+    'nome_chat_api',
+    'descricao_original',
+    'descricao_curta_orig',
+    'descricao_principal_gerada',
+    'descricao_curta_gerada',
+    'sku',
+    'ean',
+    'ncm',
+    'marca',
+    'modelo',
+    'categoria_original',
+    'categoria_mapeada',
+    'preco_custo',
+    'preco_venda',
+    'preco_promocional',
+    'estoque_disponivel',
+    'peso_kg',
+    'altura_cm',
+    'largura_cm',
+    'profundidade_cm',
+    'imagem_principal_url',
+    'imagens_secundarias_urls',
+    'fornecedor_id',
+    'product_type_id',
+    'ativo_marketplace',
+    'data_publicacao_marketplace',
+    'status_enriquecimento_web',
+    'status_titulo_ia',
+    'status_descricao_ia',
+    'log_enriquecimento_web',
+    'titulos_sugeridos',
+]);
 
 const initialFormData = {
     nome_base: '',
@@ -113,7 +149,10 @@ const ProductEditModal = ({ isOpen, onClose, product, onProductUpdated }) => {
     useEffect(() => {
         if (isOpen) {
             if (product) {
-                const dynamicAttrs = (product.dynamic_attributes && typeof product.dynamic_attributes === 'object') ? product.dynamic_attributes : {};
+                const dynamicAttrsRaw = (product.dynamic_attributes && typeof product.dynamic_attributes === 'object') ? product.dynamic_attributes : {};
+                const dynamicAttrs = Object.fromEntries(
+                    Object.entries(dynamicAttrsRaw).filter(([key]) => !BASE_PRODUCT_FIELDS.has(key))
+                );
                 const dadosBrutos = (product.dados_brutos && typeof product.dados_brutos === 'object') ? product.dados_brutos : {};
 
                 setFormData({
@@ -192,22 +231,24 @@ const ProductEditModal = ({ isOpen, onClose, product, onProductUpdated }) => {
         const selectedType = productTypes.find(pt => pt.id === parseInt(typeId, 10));
         if (selectedType && selectedType.attribute_templates) {
             const initialAttrs = {};
-            selectedType.attribute_templates.forEach(template => {
-                if (template.default_value !== null && template.default_value !== undefined) {
-                    initialAttrs[template.attribute_key] = template.field_type === 'boolean'
-                        ? (String(template.default_value).toLowerCase() === 'true' || template.default_value === '1')
-                        : template.default_value;
-                } else {
-                    initialAttrs[template.attribute_key] = template.field_type === 'boolean' ? false : '';
-                }
-            });
+            selectedType.attribute_templates
+                .filter(tpl => !BASE_PRODUCT_FIELDS.has(tpl.attribute_key))
+                .forEach(template => {
+                    if (template.default_value !== null && template.default_value !== undefined) {
+                        initialAttrs[template.attribute_key] = template.field_type === 'boolean'
+                            ? (String(template.default_value).toLowerCase() === 'true' || template.default_value === '1')
+                            : template.default_value;
+                    } else {
+                        initialAttrs[template.attribute_key] = template.field_type === 'boolean' ? false : '';
+                    }
+                });
             setFormData(prev => ({ ...prev, dynamic_attributes: initialAttrs }));
         }
     }, [productTypes]);
 
     const addDynamicAttribute = () => {
         const newKey = prompt("Digite a chave do novo atributo (ex: 'cor', 'voltagem'):");
-        if (newKey && !formData.dynamic_attributes.hasOwnProperty(newKey)) {
+        if (newKey && !formData.dynamic_attributes.hasOwnProperty(newKey) && !BASE_PRODUCT_FIELDS.has(newKey)) {
             setFormData(prev => ({
                 ...prev,
                 dynamic_attributes: {
@@ -216,7 +257,7 @@ const ProductEditModal = ({ isOpen, onClose, product, onProductUpdated }) => {
                 },
             }));
         } else if (newKey) {
-            showWarningToast("Atributo com esta chave já existe.");
+            showWarningToast("Atributo com esta chave já existe ou é um campo básico.");
         }
     };
 
@@ -466,10 +507,10 @@ const ProductEditModal = ({ isOpen, onClose, product, onProductUpdated }) => {
                              {attributeTemplates && attributeTemplates.length > 0 && (
                                  <div>
                                      <h4>Atributos do Tipo ({selectedProductType?.friendly_name})</h4>
-                                     {attributeTemplates.map(attr => (
+                                     {attributeTemplates.filter(attr => !BASE_PRODUCT_FIELDS.has(attr.attribute_key)).map(attr => (
                                          <AttributeField
-                                             key={attr.attribute_key} 
-                                             attributeTemplate={attr} 
+                                             key={attr.attribute_key}
+                                             attributeTemplate={attr}
                                              value={formData.dynamic_attributes[attr.attribute_key]}
                                              onChange={handleDynamicAttributeChange}
                                          />
@@ -479,6 +520,7 @@ const ProductEditModal = ({ isOpen, onClose, product, onProductUpdated }) => {
                              <h4>Outros Atributos (Manuais)</h4>
                              {Object.entries(formData.dynamic_attributes)
                                  .filter(([key]) => !attributeTemplates.some(template => template.attribute_key === key))
+                                 .filter(([key]) => !BASE_PRODUCT_FIELDS.has(key))
                                  .map(([key, value]) => (
                                      <div key={key} style={{display: 'flex', gap: '10px', alignItems: 'center', marginBottom:'5px'}}>
                                          <input type="text" value={key} disabled style={{flex:'1', backgroundColor:'#f0f0f0'}} />
