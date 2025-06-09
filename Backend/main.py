@@ -31,6 +31,7 @@ from Backend.routers.uso_ia import router as uso_ia_router
 from Backend.routers.password_recovery import router as password_recovery_router
 from Backend.routers.admin_analytics import router as admin_analytics_router
 from Backend.routers.social_auth import router as social_auth_router
+from Backend.routers.search import router as search_router
 
 logger = get_logger(__name__)
 
@@ -356,6 +357,7 @@ app.include_router(generation_router, prefix=settings.API_V1_STR, tags=["Geraç�
 app.include_router(web_enrichment_router, prefix=settings.API_V1_STR, tags=["Enriquecimento Web"])
 app.include_router(uploads_router, prefix=settings.API_V1_STR, tags=["Uploads de Arquivos"])
 app.include_router(product_types_router, prefix=settings.API_V1_STR, tags=["Tipos de Produto e Templates"])
+app.include_router(search_router, prefix=settings.API_V1_STR, tags=["Busca"])
 app.include_router(uso_ia_router, prefix=settings.API_V1_STR, tags=["Registro de Uso de IA"])
 app.include_router(password_recovery_router, prefix=settings.API_V1_STR, tags=["Recuperação de Senha"])
 app.include_router(admin_analytics_router, prefix=settings.API_V1_STR + "/admin/analytics", tags=["Analytics (Admin)"])
