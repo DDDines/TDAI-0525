@@ -654,5 +654,16 @@ def create_initial_data(db: Session):
         else:
             logger.info(f"Tipo de Produto Global '{pt_create_schema.friendly_name}' já existe.")
 
+    # Criar um produto de exemplo para o administrador na primeira execução
+    if db.query(Produto).count() == 0:
+        admin_user = get_user_by_email(db, admin_email)
+        if admin_user:
+            exemplo = schemas.ProdutoCreate(
+                nome_base="Produto de Exemplo",
+                descricao_original="Item criado automaticamente na inicialização"
+            )
+            create_produto(db, exemplo, user_id=admin_user.id)
+            logger.info("Produto de exemplo criado para o administrador.")
+
     logger.info("Criação/verificação de dados iniciais concluída.")
 
