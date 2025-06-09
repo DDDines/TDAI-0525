@@ -209,16 +209,26 @@ function DashboardPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {searchResults.map(item => (
-                    <tr key={item.id}>
-                      <td>{item.type}</td>
-                      <td style={{ fontWeight: 600 }}>{item.name}</td>
-                      <td>-</td>
-                      <td style={{ textAlign: 'right' }}>
-                        <button className="btn-detalhe">Ver Detalhes</button>
-                      </td>
-                    </tr>
-                  ))}
+                  {searchResults.length > 0 ? (
+                    searchResults.map(item => (
+                      <tr key={item.id}>
+                        <td>{item.type}</td>
+                        <td style={{ fontWeight: 600 }}>{item.name}</td>
+                        <td>-</td>
+                        <td style={{ textAlign: 'right' }}>
+                          <button className="btn-detalhe">Ver Detalhes</button>
+                        </td>
+                      </tr>
+                    ))
+                  ) : (
+                    searchTerm.trim() !== '' && (
+                      <tr>
+                        <td colSpan="4" style={{ textAlign: 'center', padding: '20px' }}>
+                          Nenhum resultado encontrado.
+                        </td>
+                      </tr>
+                    )
+                  )}
                 </tbody>
               </table>
             </div>
