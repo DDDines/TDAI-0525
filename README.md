@@ -277,10 +277,6 @@ DATABASE_URL="postgresql://usuario:senha@localhost:5432/tdai_db"
 # Segurança
 SECRET_KEY="sua_chave_forte"
 
- codex/add-configuration-variables-to-config.py
-REFRESH_SECRET_KEY="sua_chave_refresh"
-
-REFRESH_SECRET_KEY="change-me"
 REFRESH_SECRET_KEY="sua_chave_refresh_forte"
 
 ALGORITHM="HS256"
@@ -319,7 +315,7 @@ ADMIN_EMAIL="admin@email.com"
 ADMIN_PASSWORD="adminpassword"
 FIRST_SUPERUSER_EMAIL="admin@example.com"
 FIRST_SUPERUSER_PASSWORD="adminpassword"
-```Dev
+```
 
 > ⚠️ **Nunca suba arquivos `.env` com dados sensíveis para o git!**
 
