@@ -15,6 +15,7 @@ from fastapi import (
     Body,
 )
 from sqlalchemy.orm import Session
+from pathlib import Path
 from sqlalchemy import func, or_
 
 from Backend import crud_produtos
@@ -23,6 +24,7 @@ from Backend import crud_product_types
 from Backend import models
 from Backend import schemas  # schemas é importado
 from Backend import database
+from Backend.services import file_processing_service
 from . import auth_utils # Para obter o usuário logado
 from Backend.core import config # Pode ser necessário para settings, se usado diretamente
 
@@ -248,5 +250,47 @@ async def upload_produto_image( # Nome da função mantido como no arquivo do us
     
     produto_update_schema = schemas.ProdutoUpdate(imagem_principal_url=file_path_in_db)
     updated_produto = crud_produtos.update_produto(db=db, db_produto=db_produto, produto_update=produto_update_schema)
-    
+
     return updated_produto
+
+
+@router.post("/importar-catalogo/{fornecedor_id}/", response_model=List[schemas.ProdutoResponse])
+async def importar_catalogo_fornecedor(
+    fornecedor_id: int,
+    file: UploadFile = File(...),
+    db: Session = Depends(database.get_db),
+    current_user: models.User = Depends(auth_utils.get_current_active_user),
+):
+    """Importa um arquivo de catálogo e cria produtos vinculados ao fornecedor."""
+    content = await file.read()
+    ext = Path(file.filename).suffix.lower()
+    if ext in [".xlsx", ".xls"]:
+        produtos_data = await file_processing_service.processar_arquivo_excel(content)
+    elif ext == ".csv":
+        produtos_data = await file_processing_service.processar_arquivo_csv(content)
+    elif ext == ".pdf":
+        produtos_data = await file_processing_service.processar_arquivo_pdf(content)
+    else:
+        raise HTTPException(status_code=400, detail="Formato de arquivo não suportado")
+
+    produtos_create = []
+    for prod in produtos_data:
+        try:
+            produto_schema = schemas.ProdutoCreate(
+                nome_base=prod.get("nome_base") or prod.get("sku_original") or "Produto Importado",
+                sku=prod.get("sku_original"),
+                ean=prod.get("ean_original"),
+                descricao_original=prod.get("descricao_original"),
+                marca=prod.get("marca"),
+                categoria_original=prod.get("categoria_original"),
+                fornecedor_id=fornecedor_id,
+            )
+            produtos_create.append(produto_schema)
+        except Exception:
+            continue
+
+    if not produtos_create:
+        raise HTTPException(status_code=400, detail="Nenhum produto válido encontrado no arquivo")
+
+    created = crud_produtos.create_produtos_bulk(db, produtos_create, user_id=current_user.id)
+    return created
