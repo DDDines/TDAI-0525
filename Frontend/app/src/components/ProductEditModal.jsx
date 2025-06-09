@@ -213,6 +213,12 @@ const ProductEditModal = ({ isOpen, onClose, product, onProductUpdated }) => {
                         populateFormData(product);
                     }
                 } else {
+                try {
+                    const fullProduct = await productService.getProdutoById(product.id);
+                    populateFormData(fullProduct);
+                } catch (err) {
+                    console.error('Erro ao carregar produto:', err);
+                    showErrorToast('Erro ao carregar dados completos do produto.');
                     populateFormData(product);
                 }
             } else {
