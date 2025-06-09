@@ -6,7 +6,7 @@ import { useAuth } from '../../contexts/AuthContext';
 
 function ChangePasswordModal({ isOpen, onClose, userId: propUserId }) {
   const { user } = useAuth();
-  const userId = propUserId || user?.id;
+  const userId = propUserId ?? user?.id;
 
   const [passwordData, setPasswordData] = useState({
     current_password: '',
