@@ -429,6 +429,12 @@ class FileProcessResponse(BaseModel):
     size_bytes: Optional[int] = None
 
 
+class SocialLoginConfig(BaseModel):
+    """Indica quais provedores de login social estão configurados."""
+    google_enabled: bool
+    facebook_enabled: bool
+
+
 # --- Rebuilds Finais ---
 UserResponse.model_rebuild()
 PlanoResponse.model_rebuild()
@@ -439,4 +445,5 @@ ProductTypeResponse.model_rebuild()
 ProdutoResponse.model_rebuild()
 RegistroUsoIAResponse.model_rebuild()
 UserActivity.model_rebuild()
+SocialLoginConfig.model_rebuild()
 
