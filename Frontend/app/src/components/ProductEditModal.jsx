@@ -381,7 +381,7 @@ const ProductEditModal = ({ isOpen, onClose, product, onProductUpdated }) => {
 
                 <div className="tab-content">
                     {activeTab === 'info' && (
-                        <div className="form-section">
+                        <div className="form-section form-grid">
                             <label>
                                 Tipo de Produto:
                                 <select name="product_type_id" value={formData.product_type_id} onChange={handleChange} required>
