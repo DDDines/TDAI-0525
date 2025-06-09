@@ -15,6 +15,7 @@ from Backend import schemas
 from Backend import crud_users
 from Backend import crud_product_types
 from Backend import crud_fornecedores
+from Backend import crud_produtos
 from Backend.auth import router as auth_router_direct
 from Backend.database import SessionLocal, engine, get_db
 from Backend.core.config import settings
@@ -290,6 +291,15 @@ async def startup_event_create_defaults():
                 logger.info("Fornecedor de exemplo 'UouU' criado para o administrador.")
             else:
                 logger.info("Fornecedor de exemplo 'UouU' já existe para o administrador.")
+
+        # 6. Criar Produto de Exemplo para o Administrador
+        if admin_user and db.query(models.Produto).count() == 0:
+            exemplo_produto = schemas.ProdutoCreate(
+                nome_base="Produto de Exemplo",
+                descricao_original="Item criado automaticamente na inicialização"
+            )
+            crud_produtos.create_produto(db=db, produto=exemplo_produto, user_id=admin_user.id)
+            logger.info("Produto de exemplo criado para o administrador.")
 
     except Exception as e_startup:
         logger.error(f"ERRO CRÍTICO durante o evento de startup: {e_startup}", exc_info=True)
