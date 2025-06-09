@@ -57,10 +57,6 @@ function DashboardPage() {
 
   useEffect(() => {
     const doSearch = async () => {
-      if (!searchTerm) {
-        setSearchResults([]);
-        return;
-      }
       try {
         const data = await searchService.searchAll(searchTerm);
         setSearchResults(Array.isArray(data.results) ? data.results : []);

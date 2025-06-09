@@ -2,7 +2,8 @@ import apiClient from './apiClient';
 
 const searchService = {
   async searchAll(term) {
-    const response = await apiClient.get('/search', { params: { q: term } });
+    const params = term ? { q: term } : {};
+    const response = await apiClient.get('/search', { params });
     return response.data;
   }
 };
