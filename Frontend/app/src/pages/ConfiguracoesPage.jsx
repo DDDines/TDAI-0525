@@ -3,8 +3,10 @@ import React, { useState, useEffect } from 'react';
 import authService from '../services/authService';
 import { showSuccessToast, showErrorToast } from '../utils/notifications';
 import ChangePasswordModal from '../components/user/ChangePasswordModal'; // Importar o novo modal
+import { useAuth } from '../contexts/AuthContext';
 
 function ConfiguracoesPage() {
+  const { user } = useAuth();
   const [profileData, setProfileData] = useState({
     nome: '',
     email: '',
@@ -150,9 +152,10 @@ function ConfiguracoesPage() {
         </button>
       </div>
 
-      <ChangePasswordModal 
+      <ChangePasswordModal
         isOpen={isChangePasswordModalOpen}
         onClose={handleCloseChangePasswordModal}
+        userId={user?.id}
       />
     </div>
   );
