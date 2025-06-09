@@ -73,7 +73,7 @@ function NewProductModal({
       const initializeAttributes = (templates) => {
         const initialAttrs = {};
         templates.forEach(template => {
-          const typeLower = template.field_type ? template.field_type.toLowerCase() : '';
+          const typeLower = template.field_type ? String(template.field_type).toLowerCase() : '';
           if (template.default_value !== null && template.default_value !== undefined) {
             initialAttrs[template.attribute_key] = typeLower === 'boolean'
               ? (String(template.default_value).toLowerCase() === 'true' || template.default_value === '1')
