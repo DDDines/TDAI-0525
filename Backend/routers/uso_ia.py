@@ -3,7 +3,6 @@ from typing import List, Optional
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session
 from datetime import datetime # Necessário para filtros de data
-from Backend.core.config import logger
 
 from Backend import crud
 from Backend import crud_produtos
