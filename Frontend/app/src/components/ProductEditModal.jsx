@@ -94,8 +94,8 @@ const ProductEditModal = ({ isOpen, onClose, product, onProductUpdated }) => {
     const [fornecedores, setFornecedores] = useState([]);
     const { productTypes } = useProductTypes();
 
-    // Para novos produtos, mostramos primeiro a seleção do tipo
-    const [stage, setStage] = useState('form'); // 'selectType' ou 'form'
+    // Para novos produtos, mostramos primeiro a seleção do fornecedor e do tipo
+    const [stage, setStage] = useState('form'); // 'selectFornecedor' | 'selectType' | 'form'
 
     const [iaAttributeSuggestions, setIaAttributeSuggestions] = useState({});
     const [selectedIaSuggestions, setSelectedIaSuggestions] = useState({});
@@ -119,13 +119,15 @@ const ProductEditModal = ({ isOpen, onClose, product, onProductUpdated }) => {
     // Define o estágio inicial quando o modal é aberto
     useEffect(() => {
         if (isOpen) {
-            if (isNewProduct) {
-                setStage(formData.product_type_id ? 'form' : 'selectType');
+            if (!formData.fornecedor_id) {
+                setStage('selectFornecedor');
+            } else if (!formData.product_type_id) {
+                setStage('selectType');
             } else {
                 setStage('form');
             }
         }
-    }, [isOpen, isNewProduct, formData.product_type_id]);
+    }, [isOpen, formData.fornecedor_id, formData.product_type_id]);
 
     const extractIaSuggestions = useCallback((dadosBrutos) => {
         const extracted = {};
@@ -295,6 +297,14 @@ const ProductEditModal = ({ isOpen, onClose, product, onProductUpdated }) => {
         }
     };
 
+    const handleContinueAfterFornecedorSelect = () => {
+        if (formData.fornecedor_id) {
+            setStage(formData.product_type_id ? 'form' : 'selectType');
+        } else {
+            showWarningToast('Selecione um Fornecedor para continuar.');
+        }
+    };
+
     const handleEnrichWeb = async () => {
         if (!product?.id) {
             showWarningToast("Salve o produto primeiro antes de enriquecer a web.");
@@ -450,7 +460,23 @@ const ProductEditModal = ({ isOpen, onClose, product, onProductUpdated }) => {
 
     return (
         <Modal isOpen={isOpen} onClose={onClose} title={isNewProduct ? "Criar Novo Produto" : `Editar Produto: ${formData.nome_base || 'ID ' + product?.id}`}>
-            {stage === 'selectType' ? (
+            {stage === 'selectFornecedor' ? (
+                <div className="form-section" style={{padding:'1rem'}}>
+                    <label className="full-width">
+                        Fornecedor:
+                        <select name="fornecedor_id" value={formData.fornecedor_id} onChange={handleChange} required>
+                            <option value="">Selecione um fornecedor</option>
+                            {fornecedores.map(f => (
+                                <option key={f.id} value={f.id}>{f.nome}</option>
+                            ))}
+                        </select>
+                    </label>
+                    <div className="modal-actions" style={{marginTop:'20px'}}>
+                        <button type="button" onClick={onClose} className="btn-secondary">Cancelar</button>
+                        <button type="button" onClick={handleContinueAfterFornecedorSelect} className="btn-primary" disabled={!formData.fornecedor_id}>Continuar</button>
+                    </div>
+                </div>
+            ) : stage === 'selectType' ? (
                 <div className="form-section" style={{padding:'1rem'}}>
                     <label className="full-width">
                         Tipo de Produto:
@@ -470,36 +496,41 @@ const ProductEditModal = ({ isOpen, onClose, product, onProductUpdated }) => {
             <form onSubmit={handleSubmit}>
                 <div className="tab-navigation">
                     <button type="button" className={activeTab === 'info' ? 'active' : ''} onClick={() => setActiveTab('info')}>Info Principais</button>
-                    <button type="button" className={activeTab === 'atributos' ? 'active' : ''} onClick={() => setActiveTab('atributos')} disabled={!formData.product_type_id}>Atributos</button>
-                    <button type="button" className={activeTab === 'midia' ? 'active' : ''} onClick={() => setActiveTab('midia')} disabled={!formData.product_type_id}>Mídia</button>
-                    <button type="button" className={activeTab === 'conteudo-ia' ? 'active' : ''} onClick={() => setActiveTab('conteudo-ia')} disabled={!formData.product_type_id}>Conteúdo IA</button>
-                    <button type="button" className={activeTab === 'sugestoes-ia' ? 'active' : ''} onClick={() => setActiveTab('sugestoes-ia')} disabled={!formData.product_type_id}>Sugestões IA</button>
-                    <button type="button" className={activeTab === 'log' ? 'active' : ''} onClick={() => setActiveTab('log')} disabled={!formData.product_type_id}>Log</button>
+                    <button type="button" className={activeTab === 'atributos' ? 'active' : ''} onClick={() => setActiveTab('atributos')} disabled={!formData.fornecedor_id || !formData.product_type_id}>Atributos</button>
+                    <button type="button" className={activeTab === 'midia' ? 'active' : ''} onClick={() => setActiveTab('midia')} disabled={!formData.fornecedor_id || !formData.product_type_id}>Mídia</button>
+                    <button type="button" className={activeTab === 'conteudo-ia' ? 'active' : ''} onClick={() => setActiveTab('conteudo-ia')} disabled={!formData.fornecedor_id || !formData.product_type_id}>Conteúdo IA</button>
+                    <button type="button" className={activeTab === 'sugestoes-ia' ? 'active' : ''} onClick={() => setActiveTab('sugestoes-ia')} disabled={!formData.fornecedor_id || !formData.product_type_id}>Sugestões IA</button>
+                    <button type="button" className={activeTab === 'log' ? 'active' : ''} onClick={() => setActiveTab('log')} disabled={!formData.fornecedor_id || !formData.product_type_id}>Log</button>
                 </div>
 
                 <div className="tab-content">
                     {activeTab === 'info' && (
                         <div className="form-section form-grid">
                             <label className="full-width">
-                                Tipo de Produto:
-                                <select name="product_type_id" value={formData.product_type_id} onChange={handleChange} required>
-                                    <option value="">Selecione um tipo</option>
-                                    {(productTypes || []).map(type => (
-                                        <option key={type.id} value={type.id}>{type.friendly_name}</option>
+                                Fornecedor:
+                                <select name="fornecedor_id" value={formData.fornecedor_id} onChange={handleChange} required>
+                                    <option value="">Selecione um fornecedor</option>
+                                    {fornecedores.map(f => (
+                                        <option key={f.id} value={f.id}>{f.nome}</option>
                                     ))}
                                 </select>
                             </label>
-                            {formData.product_type_id && (
+                            {formData.fornecedor_id && (
+                                <label className="full-width">
+                                    Tipo de Produto:
+                                    <select name="product_type_id" value={formData.product_type_id} onChange={handleChange} required>
+                                        <option value="">Selecione um tipo</option>
+                                        {(productTypes || []).map(type => (
+                                            <option key={type.id} value={type.id}>{type.friendly_name}</option>
+                                        ))}
+                                    </select>
+                                </label>
+                            )}
+                            {formData.fornecedor_id && formData.product_type_id && (
                                 <>
                                     <label> Nome Base: <input type="text" name="nome_base" value={formData.nome_base} onChange={handleChange} required /> </label>
                                     <label> Marca: <input type="text" name="marca" value={formData.marca} onChange={handleChange} /> </label>
                                     <label> SKU: <input type="text" name="sku" value={formData.sku} onChange={handleChange} /> </label>
-                                    <label> Fornecedor:
-                                        <select name="fornecedor_id" value={formData.fornecedor_id} onChange={handleChange}>
-                                            <option value="">Selecione um fornecedor</option>
-                                            {fornecedores.map(f => (<option key={f.id} value={f.id}>{f.nome}</option>))}
-                                        </select>
-                                    </label>
                                 </>
                             )}
                         </div>
