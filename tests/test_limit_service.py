@@ -64,9 +64,8 @@ limit_service = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(limit_service)
 
 class DummyPlan:
-    def __init__(self, max_descricoes_mes=5, max_titulos_mes=5):
-        self.max_descricoes_mes = max_descricoes_mes
-        self.max_titulos_mes = max_titulos_mes
+    def __init__(self, limite_geracao_ia=5):
+        self.limite_geracao_ia = limite_geracao_ia
 
 class DummyUser:
     def __init__(self, id=1, plano=None):
@@ -75,7 +74,7 @@ class DummyUser:
 
 
 def test_verificar_limite_uso_abaixo_limite(monkeypatch):
-    user = DummyUser(plano=DummyPlan(max_descricoes_mes=5))
+    user = DummyUser(plano=DummyPlan(limite_geracao_ia=5))
 
     def mock_count(db, user_id, tipo_geracao_prefix):
         return 3
@@ -85,7 +84,7 @@ def test_verificar_limite_uso_abaixo_limite(monkeypatch):
 
 
 def test_verificar_limite_uso_acima_limite(monkeypatch):
-    user = DummyUser(plano=DummyPlan(max_descricoes_mes=5))
+    user = DummyUser(plano=DummyPlan(limite_geracao_ia=5))
 
     def mock_count(db, user_id, tipo_geracao_prefix):
         return 5
