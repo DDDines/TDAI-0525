@@ -570,7 +570,7 @@ def create_initial_data(db: Session):
     admin_user = get_user_by_email(db, admin_email)
     if not admin_user:
         admin_role = get_role_by_name(db, "admin")
-        admin_plano = get_plano_by_name(db, "Pro") 
+        admin_plano = get_plano_by_name(db, "Pro")
 
         user_in = schemas.UserCreate(
             email=admin_email,
@@ -585,6 +585,7 @@ def create_initial_data(db: Session):
         
         db.commit()
         db.refresh(db_admin_user)
+        admin_user = db_admin_user
         logger.info(f"Usuário administrador '{admin_email}' criado com sucesso.")
     else:
         logger.info(f"Usuário administrador '{admin_email}' já existe.")
@@ -653,6 +654,22 @@ def create_initial_data(db: Session):
                 logger.error(f"Erro inesperado ao criar tipo de produto global '{pt_create_schema.key_name}': {e}", exc_info=True)
         else:
             logger.info(f"Tipo de Produto Global '{pt_create_schema.friendly_name}' já existe.")
+
+    # Criar Fornecedor Padrão do Administrador
+    if admin_user:
+        fornecedor_existente = db.query(Fornecedor).filter(
+            func.lower(Fornecedor.nome) == "uouu",
+            Fornecedor.user_id == admin_user.id,
+        ).first()
+        if not fornecedor_existente:
+            fornecedor_schema = schemas.FornecedorCreate(
+                nome="UouU",
+                site_url="www.uouu.com.br",
+            )
+            create_fornecedor(db, fornecedor_schema, user_id=admin_user.id)
+            logger.info("Fornecedor de exemplo 'UouU' criado para o administrador.")
+        else:
+            logger.info("Fornecedor de exemplo 'UouU' já existe para o administrador.")
 
     logger.info("Criação/verificação de dados iniciais concluída.")
 
