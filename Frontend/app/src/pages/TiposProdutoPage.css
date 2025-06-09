@@ -44,7 +44,8 @@
 .type-management-container {
   display: flex;
   gap: 1.5rem;
-  align-items: flex-start;
+  align-items: stretch; /* Painéis ocupam toda a altura disponível */
+  min-height: calc(100vh - 160px); /* Altura aproximada da viewport sem a topbar e cabeçalho */
 }
 
 .type-list-panel {
@@ -55,7 +56,9 @@
   padding: 1.25rem;
   border-radius: var(--radius);
   box-shadow: var(--shadow-sm);
-  height: fit-content; /* Para que não estique desnecessariamente */
+  height: 100%;
+  display: flex;
+  flex-direction: column;
 }
 
 .type-list-panel h4 {
@@ -128,6 +131,9 @@
   border-radius: var(--radius);
   box-shadow: var(--shadow-sm);
   min-height: 400px;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
 }
 
 .panel-header {
