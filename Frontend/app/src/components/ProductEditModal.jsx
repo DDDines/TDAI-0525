@@ -221,6 +221,7 @@ const ProductEditModal = ({ isOpen, onClose, product, onProductUpdated }) => {
                     showErrorToast('Erro ao carregar dados completos do produto.');
                     populateFormData(product);
                 }
+                }
             } else {
                 setFormData(initialFormData);
                 setIaAttributeSuggestions({});
