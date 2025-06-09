@@ -3,17 +3,13 @@ import React, { useState, useEffect } from 'react';
 import authService from '../services/authService'; // Mantido para getCurrentUser
 import adminService from '../services/adminService'; // NOVO: Importar o adminService
 import { showErrorToast } from '../utils/notifications';
+import searchService from '../services/searchService';
 
-// Dados mock apenas para seções ainda não implementadas
+// Alerts exibidos enquanto funcionalidades não estão completas
 const mockDashboardData = {
   alerts: [
     { id: 1, messageHtml: "⚠️ <b>2 produto(s)</b> sem descrição" },
     { id: 2, messageHtml: "🔄 <b>2 produto(s)</b> pendente(s) de enriquecimento" }
-  ],
-  searchResults: [
-    { id: 1, typeIcon: "📦", name: "MINI REFRIGERATOR 18L DREIHA CBX QUADRIVOLT", status: "Pendente", statusColor: "#d99a18" },
-    { id: 2, typeIcon: "📦", name: "MINI COOLER 10L COMPACT", status: "Enriquecido", statusColor: "#39b664" },
-    { id: 3, typeIcon: "🏢", name: "MiniDistribuidora", status: "Ativo", statusColor: "#39b664" },
   ]
 };
 
@@ -23,6 +19,8 @@ function DashboardPage() {
   const [loading, setLoading] = useState(true);
   const [statusCounts, setStatusCounts] = useState([]);
   const [recentActivities, setRecentActivities] = useState([]);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [searchResults, setSearchResults] = useState([]);
   // const [error, setError] = useState(null); // Erros serão tratados por toasts
 
   useEffect(() => {
@@ -56,6 +54,22 @@ function DashboardPage() {
     };
     fetchData();
   }, []);
+
+  useEffect(() => {
+    const doSearch = async () => {
+      if (!searchTerm) {
+        setSearchResults([]);
+        return;
+      }
+      try {
+        const data = await searchService.searchAll(searchTerm);
+        setSearchResults(Array.isArray(data.results) ? data.results : []);
+      } catch (err) {
+        console.error('Erro ao buscar:', err);
+      }
+    };
+    doSearch();
+  }, [searchTerm]);
 
   const formattedStats = adminStats ? [
     {
@@ -111,7 +125,7 @@ function DashboardPage() {
     date: new Date(act.created_at).toLocaleDateString()
   }));
 
-  const data = mockDashboardData;
+  const alertsData = mockDashboardData;
 
   if (loading) {
     return <p style={{padding: "20px"}}>Carregando dashboard...</p>;
@@ -160,7 +174,7 @@ function DashboardPage() {
             <div className="pro-alert-card">
               <div className="pro-alert-title">Pendências (Mock)</div>
               <div className="pro-alert-list">
-                {data.alerts.map(alert => (
+                {alertsData.alerts.map(alert => (
                   <div key={alert.id} dangerouslySetInnerHTML={{ __html: alert.messageHtml }} />
                 ))}
               </div>
@@ -179,13 +193,18 @@ function DashboardPage() {
             </div>
           </div>
           <div className="dashboard-col dashboard-col-dir">
-            <div className="pro-search-bar">
-              <span className="pro-search-ico">🔎</span>
-              <input type="text" defaultValue="MINI (Mock)" readOnly />
-            </div>
-            <div className="search-results-table table-scroll-box">
-              <table>
-                <thead>
+          <div className="pro-search-bar">
+            <span className="pro-search-ico">🔎</span>
+              <input
+                type="text"
+                value={searchTerm}
+                onChange={e => setSearchTerm(e.target.value)}
+                placeholder="Pesquisar..."
+              />
+          </div>
+          <div className="search-results-table table-scroll-box">
+            <table>
+              <thead>
                   <tr>
                     <th style={{ textAlign: 'left' }}>Tipo</th>
                     <th style={{ textAlign: 'left' }}>Nome</th>
@@ -194,11 +213,11 @@ function DashboardPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {data.searchResults.map(item => (
+                  {searchResults.map(item => (
                     <tr key={item.id}>
-                      <td><span title={item.typeIcon === "📦" ? "Produto" : "Fornecedor"}>{item.typeIcon}</span></td>
+                      <td>{item.type}</td>
                       <td style={{ fontWeight: 600 }}>{item.name}</td>
-                      <td><span style={{ color: item.statusColor, fontWeight: 500 }}>{item.status}</span></td>
+                      <td>-</td>
                       <td style={{ textAlign: 'right' }}>
                         <button className="btn-detalhe">Ver Detalhes</button>
                       </td>

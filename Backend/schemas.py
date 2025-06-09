@@ -407,6 +407,15 @@ class SugestoesAtributosResponse(BaseModel):
     produto_id: int = Field(..., description="ID do produto para o qual as sugestões foram geradas.")
     modelo_ia_utilizado: Optional[str] = Field(None, description="Modelo de IA utilizado para a sugestão.")
 
+# --- Schemas para busca unificada ---
+class SearchItem(BaseModel):
+    id: int
+    type: str
+    name: str
+
+class SearchResults(BaseModel):
+    results: List[SearchItem]
+
 # --- Utility Schemas ---
 class Msg(BaseModel):
     msg: str
