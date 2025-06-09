@@ -10,7 +10,6 @@ from .logging_config import get_logger
 
 logger = get_logger(__name__)
 
-logging.basicConfig(level=logging.INFO)
 
 dotenv_path = Path(__file__).resolve().parent.parent.parent / ".env"
 if dotenv_path.exists():

@@ -11,7 +11,6 @@ from Backend.crud_fornecedores import create_fornecedor
 from Backend.crud_produtos import create_produto
 from Backend.crud_product_types import create_product_type, get_product_type_by_key_name
 
-logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 
