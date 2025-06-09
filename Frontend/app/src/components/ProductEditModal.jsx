@@ -452,7 +452,7 @@ const ProductEditModal = ({ isOpen, onClose, product, onProductUpdated }) => {
         <Modal isOpen={isOpen} onClose={onClose} title={isNewProduct ? "Criar Novo Produto" : `Editar Produto: ${formData.nome_base || 'ID ' + product?.id}`}>
             {stage === 'selectType' ? (
                 <div className="form-section" style={{padding:'1rem'}}>
-                    <label>
+                    <label className="full-width">
                         Tipo de Produto:
                         <select name="product_type_id" value={formData.product_type_id} onChange={handleChange} required>
                             <option value="">Selecione um tipo</option>
@@ -480,7 +480,7 @@ const ProductEditModal = ({ isOpen, onClose, product, onProductUpdated }) => {
                 <div className="tab-content">
                     {activeTab === 'info' && (
                         <div className="form-section form-grid">
-                            <label>
+                            <label className="full-width">
                                 Tipo de Produto:
                                 <select name="product_type_id" value={formData.product_type_id} onChange={handleChange} required>
                                     <option value="">Selecione um tipo</option>

@@ -69,26 +69,23 @@
 }
 
 .tab-navigation button {
-    background-color: #f0f0f0;
-    border: 1px solid #ddd;
-    border-bottom: none;
+    background-color: transparent;
+    border: none;
+    border-bottom: 3px solid transparent;
     padding: 10px 15px;
     cursor: pointer;
     font-size: 0.9em;
-    border-top-left-radius: 5px;
-    border-top-right-radius: 5px;
     margin-right: 5px;
-    transition: background-color 0.2s ease, color 0.2s ease;
+    transition: border-color 0.2s ease, color 0.2s ease;
 }
 
 .tab-navigation button:hover:not(.active) {
-    background-color: #e0e0e0;
+    color: #007bff;
 }
 
 .tab-navigation button.active {
-    background-color: #007bff;
-    color: white;
-    border-color: #007bff;
+    border-bottom-color: #007bff;
+    color: #007bff;
     font-weight: bold;
 }
 
@@ -288,4 +285,12 @@
 .form-grid label {
     display: flex;
     flex-direction: column;
+}
+
+.form-grid label.full-width {
+    grid-column: 1 / -1;
+}
+
+.form-grid label.full-width select {
+    width: 100%;
 }
