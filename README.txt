@@ -1,6 +1,3 @@
-admin@example.com
-adminpassword
-
 # TDAI - Backend do Sistema Inteligente de Geração de Títulos e Descrições
 
 Este é o backend para o projeto TDAI (Titles and Descriptions Artificial Intelligence), um sistema SaaS projetado para auxiliar na gestão e enriquecimento de informações de produtos de e-commerce, com foco em geração de conteúdo por IA.
@@ -142,6 +139,8 @@ As configurações da aplicação são carregadas a partir de um arquivo .env lo
 
 Crie um arquivo chamado .env na raiz do projeto.
 
+**Nunca coloque senhas ou chaves reais diretamente neste arquivo.** Use variáveis de ambiente ou um gerenciador de segredos para armazenar credenciais com segurança.
+
 Você precisará adicionar as seguintes variáveis (um arquivo .env.example seria ideal para listar todas as chaves necessárias):
 
 Snippet de código
@@ -189,8 +188,8 @@ VALIDATE_CERTS="True"  # True ou False
 FRONTEND_URL="http://localhost:5173" # Ou a porta do seu frontend Vite/React
 
 # Opcional: para o usuário admin padrão criado no startup
-ADMIN_EMAIL="admin@example.com"
-ADMIN_PASSWORD="adminpassword"
+ADMIN_EMAIL="<ADMIN_EMAIL>"
+ADMIN_PASSWORD="<ADMIN_PASSWORD>"
 Preencha os valores corretos para cada variável. O arquivo Backend/core/config.py define como essas variáveis são lidas.
 
 6. Migrações do Banco de Dados:

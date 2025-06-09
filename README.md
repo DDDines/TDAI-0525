@@ -313,13 +313,14 @@ FACEBOOK_CLIENT_SECRET="..."
 CREDITOS_CUSTO_SUGESTAO_ATRIBUTOS_GEMINI=1
 
 # Admin padrão
-ADMIN_EMAIL="admin@email.com"
-ADMIN_PASSWORD="adminpassword"
-FIRST_SUPERUSER_EMAIL="admin@example.com"
-FIRST_SUPERUSER_PASSWORD="adminpassword"
+ADMIN_EMAIL="<ADMIN_EMAIL>"
+ADMIN_PASSWORD="<ADMIN_PASSWORD>"
+FIRST_SUPERUSER_EMAIL="<FIRST_SUPERUSER_EMAIL>"
+FIRST_SUPERUSER_PASSWORD="<FIRST_SUPERUSER_PASSWORD>"
 ```
 
 > ⚠️ **Nunca suba arquivos `.env` com dados sensíveis para o git!**
+> Configure senhas e chaves reais via variáveis de ambiente ou um gerenciador de segredos seguro.
 
 ---
 
