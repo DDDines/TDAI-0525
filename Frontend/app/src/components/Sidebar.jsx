@@ -1,5 +1,5 @@
 import React from 'react';
-import { NavLink, useNavigate } from 'react-router-dom';
+import { NavLink } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext'; // Se precisar do logout ou dados do usuário
 import './Sidebar.css'; // Certifique-se de que este arquivo CSS existe e está correto
 
@@ -19,7 +19,6 @@ import {
 
 const Sidebar = ({ isOpen, toggleSidebar }) => {
   const { user, logout } = useAuth(); // Obtenha o usuário e a função de logout do AuthContext
-  const navigate = useNavigate();
 
   const handleLogout = () => {
     logout();
