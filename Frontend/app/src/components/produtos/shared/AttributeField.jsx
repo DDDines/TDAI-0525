@@ -25,7 +25,7 @@ function AttributeField({ attributeTemplate, value, onChange, disabled = false }
     default_value // default_value vem do template
   } = attributeTemplate;
 
-  const fieldType = field_type ? String(field_type).toLowerCase() : '';
+  const fieldType = field_type ? field_type.toLowerCase() : '';
 
   const fieldId = `attr-${attribute_key}`;
 
