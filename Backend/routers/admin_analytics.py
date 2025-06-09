@@ -2,9 +2,8 @@
 from typing import List, Optional
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session
-from sqlalchemy import func, cast, String # Importar cast e String
-from Backend.core.config import logger
-from datetime import datetime, timedelta, timezone 
+from sqlalchemy import func, cast, String  # Importar cast e String
+from datetime import datetime, timedelta, timezone
 
 from Backend import crud
 from Backend import models

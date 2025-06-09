@@ -3,7 +3,6 @@ from fastapi.responses import JSONResponse
 from typing import List, Optional
 import shutil
 import os
-from Backend.core.config import logger
 from pathlib import Path
 import imghdr  # Para detectar o tipo MIME de imagem
 

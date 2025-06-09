@@ -3,9 +3,8 @@ from fastapi_mail import FastMail, MessageSchema, ConnectionConfig, MessageType
 from pydantic import EmailStr
 from typing import List, Dict, Any, Optional # Adicionado Optional
 from pathlib import Path
-from .config import settings # Importa as configurações (settings)
+from .config import settings  # Importa as configurações (settings)
 from .logging_config import get_logger
-from .config import settings, logger  # Importa as configurações (settings) e logger
 
 # Removido import desnecessário de auth que estava no arquivo do usuário
 # import auth # Cuidado com import circular se auth importar email_utils
