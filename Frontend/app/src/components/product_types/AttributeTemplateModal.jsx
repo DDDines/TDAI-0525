@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { showErrorToast } from '../../utils/notifications';
+import '../common/Modal.css';
 
 // Estilos para o Modal. Podem ser movidos para um arquivo CSS.
 const styles = {
@@ -9,7 +10,7 @@ const styles = {
     modalContent: { background: 'white', padding: '2rem', borderRadius: 'var(--radius)', width: '90%', maxWidth: '600px', boxShadow: 'var(--shadow-md)' },
     modalHeader: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem', paddingBottom: '1rem', borderBottom: '1px solid var(--border-color)'},
     modalTitle: { margin: 0, fontSize: '1.4rem' },
-    closeButton: { background: 'none', border: 'none', fontSize: '1.5rem', cursor: 'pointer'},
+    closeButton: { background: 'none', border: 'none', fontSize: '1.5rem', cursor: 'pointer', color: '#888', lineHeight: 1 },
     formGroup: { marginBottom: '1rem' },
     label: { display: 'block', marginBottom: '0.5rem', fontWeight: '500' },
     input: { width: '100%', padding: '0.7rem', border: '1px solid #ccc', borderRadius: 'var(--radius)', fontSize: '1rem', boxSizing: 'border-box' },
@@ -84,7 +85,14 @@ const AttributeTemplateModal = ({ isOpen, onClose, attribute, onSave, isSubmitti
       <div style={styles.modalContent}>
         <div style={styles.modalHeader}>
           <h3 style={styles.modalTitle}>{isEditing ? 'Editar Atributo' : 'Novo Atributo'}</h3>
-          <button onClick={onClose} style={styles.closeButton} disabled={isSubmitting}>&times;</button>
+          <button
+            onClick={onClose}
+            className="modal-close-button"
+            style={styles.closeButton}
+            disabled={isSubmitting}
+          >
+            &times;
+          </button>
         </div>
         <form onSubmit={handleSubmit}>
           <div style={styles.formGroup}>
