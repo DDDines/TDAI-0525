@@ -5,12 +5,14 @@ import { toast } from 'react-toastify';
 import './LoginPage.css';
 import { FaGoogle, FaFacebookF } from 'react-icons/fa';
 import logger from '../utils/logger';
+import configService from '../services/configService';
 
 const LoginPage = () => {
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [error, setError] = useState('');
     const [isSubmitting, setIsSubmitting] = useState(false);
+    const [socialConfig, setSocialConfig] = useState({ google_enabled: false, facebook_enabled: false });
     const { login, isAuthenticated, isLoading: authIsLoading, user } = useAuth();
     const navigate = useNavigate();
     const location = useLocation();
@@ -23,6 +25,18 @@ const LoginPage = () => {
             navigate(from, { replace: true });
         }
     }, [isAuthenticated, authIsLoading, navigate, location.state]);
+
+    useEffect(() => {
+        async function fetchSocialConfig() {
+            try {
+                const cfg = await configService.getSocialLoginConfig();
+                setSocialConfig(cfg);
+            } catch (err) {
+                console.error('LoginPage: Erro ao obter config de social login', err);
+            }
+        }
+        fetchSocialConfig();
+    }, []);
 
     const handleSubmit = async (e) => {
         e.preventDefault();
@@ -87,10 +101,20 @@ const LoginPage = () => {
                         {isSubmitting ? 'Entrando...' : 'Entrar'}
                     </button>
                     <div className="social-login-buttons">
-                        <a href="/api/v1/auth/google/login" className="social-login-button google-btn" title="Entrar com Google">
+                        <a
+                            href={socialConfig.google_enabled ? "/api/v1/auth/google/login" : undefined}
+                            className={`social-login-button google-btn ${socialConfig.google_enabled ? '' : 'disabled'}`}
+                            title={socialConfig.google_enabled ? "Entrar com Google" : "Login Google indisponível"}
+                            onClick={(e) => { if (!socialConfig.google_enabled) e.preventDefault(); }}
+                        >
                             <FaGoogle /> Entrar com Google
                         </a>
-                        <a href="/api/v1/auth/facebook/login" className="social-login-button facebook-btn" title="Entrar com Facebook">
+                        <a
+                            href={socialConfig.facebook_enabled ? "/api/v1/auth/facebook/login" : undefined}
+                            className={`social-login-button facebook-btn ${socialConfig.facebook_enabled ? '' : 'disabled'}`}
+                            title={socialConfig.facebook_enabled ? "Entrar com Facebook" : "Login Facebook indisponível"}
+                            onClick={(e) => { if (!socialConfig.facebook_enabled) e.preventDefault(); }}
+                        >
                             <FaFacebookF /> Entrar com Facebook
                         </a>
                     </div>

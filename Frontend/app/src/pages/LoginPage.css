@@ -122,3 +122,9 @@
 .social-login-button:hover {
   filter: brightness(90%);
 }
+
+.social-login-button.disabled {
+  background-color: #9ca3af;
+  cursor: not-allowed;
+  pointer-events: none;
+}

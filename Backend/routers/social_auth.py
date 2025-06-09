@@ -18,6 +18,15 @@ router = APIRouter()
 logger = get_logger(__name__)
 
 
+@router.get("/social/config", response_model=schemas.SocialLoginConfig)
+async def social_login_config():
+    """Retorna se Google/Facebook OAuth estão configurados."""
+    return schemas.SocialLoginConfig(
+        google_enabled="google" in oauth._clients,
+        facebook_enabled="facebook" in oauth._clients,
+    )
+
+
 @router.get("/google/login")
 async def google_login(request: Request):
     """Redirects the user to Google's OAuth consent page."""
