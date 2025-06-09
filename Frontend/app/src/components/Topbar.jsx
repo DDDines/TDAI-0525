@@ -1,20 +1,10 @@
 // Frontend/app/src/components/Topbar.jsx
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import authService from '../services/authService';
-import logger from '../utils/logger';
+import { useAuth } from '../contexts/AuthContext';
 // Se você criar um AuthContext, importe-o:
-// import { AuthContext } from '../contexts/AuthContext'; 
+// import { AuthContext } from '../contexts/AuthContext';
 
-const handleLogout = (navigate, authContextSetter) => { 
-  localStorage.removeItem('accessToken');
-  // Limpar também o refresh token se estiver usando e armazenando-o
-  // localStorage.removeItem('refreshToken'); 
-  if (authContextSetter) {
-    authContextSetter(null); 
-  }
-  navigate('/login');
-};
 
 const getInitials = (name) => {
   if (!name || typeof name !== 'string') return '??';
@@ -29,51 +19,11 @@ const getInitials = (name) => {
 function Topbar({ viewTitle }) {
   const navigate = useNavigate();
   const [userMenuOpen, setUserMenuOpen] = useState(false);
-  
-  // const { currentUser, setCurrentUser } = useContext(AuthContext); // Exemplo com Contexto
-  const [currentUser, setCurrentUser] = useState(null); 
-  const [loadingUser, setLoadingUser] = useState(true);
-
-  useEffect(() => {
-    const fetchUserData = async () => {
-      const token = localStorage.getItem('accessToken');
-      logger.log('Topbar useEffect: token from localStorage:', token); // DEBUG
-      if (token) { 
-        setLoadingUser(true);
-        try {
-          logger.log('Topbar: Fetching user data...'); // DEBUG
-          const user = await authService.getCurrentUser(); 
-          logger.log('Topbar: User data fetched:', user); // DEBUG
-          if (user) {
-            setCurrentUser(user);
-          } else {
-            logger.log('Topbar: No user data returned from getCurrentUser, logging out.'); // DEBUG
-            handleLogout(navigate, setCurrentUser); 
-          }
-        } catch (error) {
-          console.error("Topbar: Erro ao buscar dados do usuário:", error.response || error.message || error); // DEBUG
-          if (error.response && error.response.status === 401) {
-            logger.log('Topbar: 401 error on fetching user, logging out.'); // DEBUG
-            handleLogout(navigate, setCurrentUser);
-          }
-          // Mesmo se não for 401, mas houver erro, talvez seja melhor deslogar
-          // ou pelo menos limpar o estado currentUser.
-          // setCurrentUser(null); // Limpa usuário em caso de outros erros
-        } finally {
-          setLoadingUser(false);
-        }
-      } else {
-        logger.log('Topbar: No token found, user not logged in or already logged out.'); // DEBUG
-        setLoadingUser(false); 
-        // Não é necessário redirecionar aqui, ProtectedRoute deve cuidar disso
-      }
-    };
-    fetchUserData();
-  }, [navigate]); 
+  const { user, logout, isLoading: loadingUser } = useAuth();
 
 
-  const userNameDisplay = loadingUser ? "Carregando..." : (currentUser?.nome_completo || currentUser?.email || "Usuário");
-  const userInitials = loadingUser ? "..." : getInitials(currentUser?.nome_completo || currentUser?.email);
+  const userNameDisplay = loadingUser ? "Carregando..." : (user?.nome_completo || user?.email || "Usuário");
+  const userInitials = loadingUser ? "..." : getInitials(user?.nome_completo || user?.email);
 
   return (
     <header className="topbar">
@@ -98,8 +48,8 @@ function Topbar({ viewTitle }) {
               <span style={{color:"#7c3aed",verticalAlign:"middle", marginRight:"5px"}}>&#9881;&#65039;</span> 
               Configurações
             </button>
-            <button onClick={() => { setUserMenuOpen(false); handleLogout(navigate, setCurrentUser); }}>
-              <span style={{color:"var(--danger)",verticalAlign:"middle", marginRight:"5px"}}>➔</span> 
+            <button onClick={() => { setUserMenuOpen(false); logout(); }}>
+              <span style={{color:"var(--danger)",verticalAlign:"middle", marginRight:"5px"}}>➔</span>
               Sair
             </button>
           </div>
