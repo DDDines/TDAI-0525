@@ -45,6 +45,19 @@ def create_produto(db: Session, produto: schemas.ProdutoCreate, user_id: int) ->
     return db_produto
 
 
+def create_produtos_bulk(db: Session, produtos: List[schemas.ProdutoCreate], user_id: int) -> List[Produto]:
+    """Cria múltiplos produtos em uma única transação."""
+    db_produtos: List[Produto] = []
+    for produto_schema in produtos:
+        db_produto = Produto(**produto_schema.model_dump(exclude_unset=True), user_id=user_id)
+        db.add(db_produto)
+        db_produtos.append(db_produto)
+    db.commit()
+    for p in db_produtos:
+        db.refresh(p)
+    return db_produtos
+
+
 def get_produto(db: Session, produto_id: int) -> Optional[Produto]:
     # Usar selectinload para carregar relacionamentos de forma eficiente se sempre forem acessados
     return db.query(Produto).options(

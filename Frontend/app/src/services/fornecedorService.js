@@ -85,10 +85,29 @@ export const deleteFornecedor = async (fornecedorId) => {
   }
 };
 
+export const importCatalogo = async (fornecedorId, file) => {
+  try {
+    const formData = new FormData();
+    formData.append('file', file);
+    const response = await apiClient.post(`/produtos/importar-catalogo/${fornecedorId}/`, formData);
+    return response.data;
+  } catch (error) {
+    console.error(`Erro ao importar catálogo para fornecedor ${fornecedorId}:`, JSON.stringify(error.response?.data || error.message || error));
+    if (error.response && error.response.data) {
+      throw error.response.data;
+    } else if (error.request) {
+      throw new Error('Nenhuma resposta do servidor ao tentar importar catálogo.');
+    } else {
+      throw new Error(error.message || 'Erro ao configurar requisição de importação de catálogo.');
+    }
+  }
+};
+
 export default {
   getFornecedores,
   getFornecedorById,
   createFornecedor,
   updateFornecedor,
   deleteFornecedor,
+  importCatalogo,
 };

@@ -1,15 +1,22 @@
 // Frontend/app/src/components/fornecedores/EditFornecedorModal.jsx
 import React, { useState, useEffect } from 'react';
+import fornecedorService from '../../services/fornecedorService';
+import { showSuccessToast, showErrorToast } from '../../utils/notifications';
 
 function EditFornecedorModal({ isOpen, onClose, fornecedorData, onSave, isLoading }) {
   const [formData, setFormData] = useState({ nome: '', site_url: ''});
+  const [activeTab, setActiveTab] = useState('info');
+  const [importFile, setImportFile] = useState(null);
+  const [importLoading, setImportLoading] = useState(false);
 
   useEffect(() => {
     if (fornecedorData) {
-      setFormData({ 
-        nome: fornecedorData.nome || '', 
+      setFormData({
+        nome: fornecedorData.nome || '',
         site_url: fornecedorData.site_url || '',
       });
+      setActiveTab('info');
+      setImportFile(null);
     } else {
       setFormData({ nome: '', site_url: ''});
     }
@@ -57,30 +64,65 @@ function EditFornecedorModal({ isOpen, onClose, fornecedorData, onSave, isLoadin
     }
   };
 
+  const handleImport = async () => {
+    if (!importFile) {
+      alert('Selecione um arquivo para importar.');
+      return;
+    }
+    setImportLoading(true);
+    try {
+      await fornecedorService.importCatalogo(fornecedorData.id, importFile);
+      showSuccessToast('Catálogo importado com sucesso!');
+      setImportFile(null);
+    } catch (err) {
+      const errMsg = err?.detail || err.message || 'Erro ao importar catálogo.';
+      showErrorToast(errMsg);
+    } finally {
+      setImportLoading(false);
+    }
+  };
+
   if (!isOpen || !fornecedorData) return null;
 
   return (
     <div className="modal active" id="edit-forn-modal">
       <div className="modal-content">
-        <button className="modal-close" onClick={onClose} disabled={isLoading}>×</button>
+        <button className="modal-close" onClick={onClose} disabled={isLoading || importLoading}>×</button>
         <h3>Editar Fornecedor: {fornecedorData.nome}</h3>
-        <div>
-            <label htmlFor="edit-forn-nome">Nome*</label>
-            <input id="edit-forn-nome" name="nome" type="text" value={formData.nome || ''} onChange={handleChange} disabled={isLoading} />
+        <div className="tab-navigation">
+          <button type="button" className={activeTab === 'info' ? 'active' : ''} onClick={() => setActiveTab('info')}>Info</button>
+          <button type="button" className={activeTab === 'import' ? 'active' : ''} onClick={() => setActiveTab('import')}>Importar Catálogo</button>
         </div>
-        <div>
-            <label htmlFor="edit-forn-siteurl">Site URL</label>
-            <input 
-              id="edit-forn-siteurl" 
-              name="site_url" 
-              type="text" 
-              value={formData.site_url || ''} 
-              onChange={handleChange} 
-              placeholder="www.exemplo.com" 
-              disabled={isLoading} 
-            />
-        </div>
-        <button onClick={handleSubmit} disabled={isLoading}>{isLoading ? 'Salvando...' : 'Salvar Alterações'}</button>
+
+        {activeTab === 'info' && (
+          <div className="form-section">
+            <div>
+              <label htmlFor="edit-forn-nome">Nome*</label>
+              <input id="edit-forn-nome" name="nome" type="text" value={formData.nome || ''} onChange={handleChange} disabled={isLoading} />
+            </div>
+            <div>
+              <label htmlFor="edit-forn-siteurl">Site URL</label>
+              <input
+                id="edit-forn-siteurl"
+                name="site_url"
+                type="text"
+                value={formData.site_url || ''}
+                onChange={handleChange}
+                placeholder="www.exemplo.com"
+                disabled={isLoading}
+              />
+            </div>
+            <button onClick={handleSubmit} disabled={isLoading}>{isLoading ? 'Salvando...' : 'Salvar Alterações'}</button>
+          </div>
+        )}
+
+        {activeTab === 'import' && (
+          <div className="form-section">
+            <p>Envie um arquivo CSV, Excel ou PDF para importar produtos deste fornecedor.</p>
+            <input type="file" accept=".csv,.xls,.xlsx,.pdf" onChange={(e) => setImportFile(e.target.files[0])} disabled={importLoading} />
+            <button onClick={handleImport} disabled={importLoading || !importFile}>{importLoading ? 'Importando...' : 'Importar'}</button>
+          </div>
+        )}
       </div>
     </div>
   );
