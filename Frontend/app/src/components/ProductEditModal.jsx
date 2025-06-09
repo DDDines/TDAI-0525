@@ -479,6 +479,15 @@ const ProductEditModal = ({ isOpen, onClose, product, onProductUpdated }) => {
             ) : stage === 'selectType' ? (
                 <div className="form-section" style={{padding:'1rem'}}>
                     <label className="full-width">
+                        Fornecedor:
+                        <select name="fornecedor_id" value={formData.fornecedor_id} onChange={handleChange} required>
+                            <option value="">Selecione um fornecedor</option>
+                            {fornecedores.map(f => (
+                                <option key={f.id} value={f.id}>{f.nome}</option>
+                            ))}
+                        </select>
+                    </label>
+                    <label className="full-width">
                         Tipo de Produto:
                         <select name="product_type_id" value={formData.product_type_id} onChange={handleChange} required>
                             <option value="">Selecione um tipo</option>
