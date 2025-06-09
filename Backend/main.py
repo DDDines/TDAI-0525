@@ -3,6 +3,7 @@ from fastapi import FastAPI, Depends, HTTPException, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from sqlalchemy.orm import Session
+from sqlalchemy import func
 from pathlib import Path
 from typing import List, Optional, Any
 import json
@@ -13,6 +14,7 @@ from Backend import models
 from Backend import schemas
 from Backend import crud_users
 from Backend import crud_product_types
+from Backend import crud_fornecedores
 from Backend.auth import router as auth_router_direct
 from Backend.database import SessionLocal, engine, get_db
 from Backend.core.config import settings
@@ -195,9 +197,9 @@ async def startup_event_create_defaults():
                 user_in_create = schemas.UserCreate(**user_in_data)
                 
                 created_admin = crud_users.create_user(db=db, user=user_in_create)
-                
+
                 if created_admin:
-                    created_admin.is_superuser = True 
+                    created_admin.is_superuser = True
                     if admin_role_obj:
                         created_admin.role_id = admin_role_obj.id
                     
@@ -208,9 +210,10 @@ async def startup_event_create_defaults():
                         created_admin.limite_enriquecimento_web = admin_plano_obj.limite_enriquecimento_web
                         created_admin.limite_geracao_ia = admin_plano_obj.limite_geracao_ia
                     
-                    db.add(created_admin) 
+                    db.add(created_admin)
                     db.commit()
                     db.refresh(created_admin)
+                    admin_user = created_admin
                     logger.info(f"Usuário administrador '{settings.ADMIN_EMAIL}' criado com sucesso.")
                 else:
                     logger.error(f"ERRO: Falha ao criar o usuário administrador '{settings.ADMIN_EMAIL}'.")
@@ -261,7 +264,7 @@ async def startup_event_create_defaults():
         ]
 
         for pt_data in product_types_data:
-            product_type_in_db = crud_product_types.get_product_type_by_key_name(db, key_name=pt_data["key_name"], user_id=None) 
+            product_type_in_db = crud_product_types.get_product_type_by_key_name(db, key_name=pt_data["key_name"], user_id=None)
 
             if not product_type_in_db:
                 product_type_create_schema = schemas.ProductTypeCreate(**pt_data)
@@ -269,6 +272,24 @@ async def startup_event_create_defaults():
                 logger.info(f"Tipo de Produto Global '{product_type_create_schema.friendly_name}' criado.")
             else:
                 logger.info(f"Tipo de Produto Global '{pt_data['friendly_name']}' já existe.")
+
+        # 5. Criar Fornecedor de Exemplo para o Administrador
+        if admin_user:
+            fornecedor_existente = db.query(models.Fornecedor).filter(
+                func.lower(models.Fornecedor.nome) == "uouu",
+                models.Fornecedor.user_id == admin_user.id,
+            ).first()
+            if not fornecedor_existente:
+                fornecedor_schema = schemas.FornecedorCreate(
+                    nome="UouU",
+                    site_url="www.uouu.com.br",
+                )
+                crud_fornecedores.create_fornecedor(
+                    db=db, fornecedor=fornecedor_schema, user_id=admin_user.id
+                )
+                logger.info("Fornecedor de exemplo 'UouU' criado para o administrador.")
+            else:
+                logger.info("Fornecedor de exemplo 'UouU' já existe para o administrador.")
 
     except Exception as e_startup:
         logger.error(f"ERRO CRÍTICO durante o evento de startup: {e_startup}", exc_info=True)
