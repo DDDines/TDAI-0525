@@ -11,6 +11,7 @@ function ConfiguracoesPage() {
     idioma_preferido: 'pt',
     chave_openai_pessoal: ''
   });
+  const [userId, setUserId] = useState(null);
   const [loadingProfile, setLoadingProfile] = useState(false);
   const [initialUserDataLoaded, setInitialUserDataLoaded] = useState(false);
   const [isChangePasswordModalOpen, setIsChangePasswordModalOpen] = useState(false);
@@ -22,6 +23,7 @@ function ConfiguracoesPage() {
       try {
         const user = await authService.getCurrentUser();
         if (user) {
+          setUserId(user.id);
           setProfileData({
             nome: user.nome || '',
             email: user.email || '',
@@ -55,7 +57,7 @@ function ConfiguracoesPage() {
         chave_openai_pessoal: profileData.chave_openai_pessoal
       };
       
-      const updatedUser = await authService.updateCurrentUser(updatePayload);
+      const updatedUser = await authService.updateUser(userId, updatePayload);
       showSuccessToast('Perfil atualizado com sucesso!');
       if (updatedUser) {
           setProfileData(prev => ({
