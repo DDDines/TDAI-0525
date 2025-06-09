@@ -36,7 +36,6 @@ async def recover_password(email: str, request: Request, db: Session = Depends(g
         # detail="O email fornecido não foi encontrado em nosso sistema.",
         # )
         # No entanto, para evitar enumeração de usuários, retornamos sucesso mesmo se não encontrado.
-        logger.info("Solicitação de recuperação de senha para email não registrado: %s", email)
         logger.info(
             "Solicitação de recuperação de senha para email não registrado: %s",
             email,
