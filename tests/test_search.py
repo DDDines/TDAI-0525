@@ -47,3 +47,11 @@ def test_search_endpoint_returns_results():
     assert resp.status_code == 200
     assert "results" in resp.json()
     assert len(resp.json()["results"]) > 0
+
+
+def test_search_endpoint_returns_recent_results_without_query():
+    headers = get_headers()
+    resp = client.get("/api/v1/search", headers=headers)
+    assert resp.status_code == 200
+    assert "results" in resp.json()
+    assert len(resp.json()["results"]) > 0
