@@ -26,6 +26,7 @@ O **TDAI** é uma plataforma SaaS de automação e inteligência artificial para
 * [Guia de Instalação Rápida](#guia-de-instalação-rápida)
 * [Variáveis de Ambiente](#variáveis-de-ambiente)
 * [Comandos Úteis](#comandos-úteis)
+* [Testes](#testes)
 * [Roadmap e Futuro](#roadmap-e-futuro)
 * [Segurança e Boas Práticas](#segurança-e-boas-práticas)
 * [FAQ](#faq)
@@ -259,6 +260,7 @@ Copie este arquivo para `.env` e preencha com seus valores antes de iniciar a ap
 
 ```sh
 # Backend
+pip install -r requirements-backend.txt
 pytest
 
 # Frontend
@@ -341,6 +343,17 @@ FIRST_SUPERUSER_PASSWORD="adminpassword"
 
   * `/produtos/`, `/fornecedores/`, `/uploads/`, `/generation/`, `/web-enrichment/`, `/uso_ia/` etc.
   * Veja todos em `/docs`
+
+---
+
+## 🧪 Testes
+
+Os testes do backend dependem das bibliotecas listadas em `requirements-backend.txt`. Para executá-los:
+
+```sh
+pip install -r requirements-backend.txt
+pytest
+```
 
 ---
 
