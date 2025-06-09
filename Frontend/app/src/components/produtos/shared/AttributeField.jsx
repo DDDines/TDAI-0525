@@ -25,6 +25,8 @@ function AttributeField({ attributeTemplate, value, onChange, disabled = false }
     default_value // default_value vem do template
   } = attributeTemplate;
 
+  const fieldType = field_type ? field_type.toLowerCase() : '';
+
   const fieldId = `attr-${attribute_key}`;
 
   // Determinar o valor inicial/atual do campo
@@ -34,21 +36,21 @@ function AttributeField({ attributeTemplate, value, onChange, disabled = false }
   if (value !== undefined && value !== null) {
     currentValue = value;
   } else if (default_value !== undefined && default_value !== null) {
-    currentValue = field_type === 'boolean'
+    currentValue = fieldType === 'boolean'
       ? (String(default_value).toLowerCase() === 'true' || default_value === '1')
       : default_value;
   } else {
-    currentValue = field_type === 'boolean' ? false : '';
+    currentValue = fieldType === 'boolean' ? false : '';
   }
 
 
   const handleChange = (e) => {
-    const eventValue = field_type === 'boolean' ? e.target.checked : e.target.value;
+    const eventValue = fieldType === 'boolean' ? e.target.checked : e.target.value;
     onChange(attribute_key, eventValue);
   };
 
   let parsedOptions = [];
-  if ((field_type === 'select' || field_type === 'multiselect') && optionsString) {
+  if ((fieldType === 'select' || fieldType === 'multiselect') && optionsString) {
     try {
       parsedOptions = JSON.parse(optionsString);
       if (parsedOptions.length > 0 && typeof parsedOptions[0] === 'string') {
@@ -68,42 +70,42 @@ function AttributeField({ attributeTemplate, value, onChange, disabled = false }
         {tooltip_text && <span title={tooltip_text} style={fieldStyles.tooltipIcon}>ⓘ</span>}
       </label>
 
-      {field_type === 'text' && (
+      {fieldType === 'text' && (
         <input
           type="text"
           id={fieldId}
           value={String(currentValue)} // Garantir que seja string
           onChange={handleChange}
           style={fieldStyles.input}
-          placeholder={field_type === 'text' && default_value ? String(default_value) : `Digite ${label.toLowerCase()}`}
+          placeholder={fieldType === 'text' && default_value ? String(default_value) : `Digite ${label.toLowerCase()}`}
           disabled={disabled}
           required={is_required}
         />
       )}
-      {field_type === 'textarea' && (
+      {fieldType === 'textarea' && (
         <textarea
           id={fieldId}
           value={String(currentValue)} // Garantir que seja string
           onChange={handleChange}
           style={fieldStyles.textarea}
-          placeholder={field_type === 'textarea' && default_value ? String(default_value) : `Digite ${label.toLowerCase()}`}
+          placeholder={fieldType === 'textarea' && default_value ? String(default_value) : `Digite ${label.toLowerCase()}`}
           disabled={disabled}
           required={is_required}
         />
       )}
-      {field_type === 'number' && (
+      {fieldType === 'number' && (
         <input
           type="number"
           id={fieldId}
           value={String(currentValue)} // Garantir que seja string, o browser converte
           onChange={handleChange}
           style={fieldStyles.input}
-          placeholder={field_type === 'number' && default_value ? String(default_value) : `Digite ${label.toLowerCase()}`}
+          placeholder={fieldType === 'number' && default_value ? String(default_value) : `Digite ${label.toLowerCase()}`}
           disabled={disabled}
           required={is_required}
         />
       )}
-      {field_type === 'boolean' && (
+      {fieldType === 'boolean' && (
         <div style={fieldStyles.checkboxContainer}>
           <input
             type="checkbox"
@@ -119,7 +121,7 @@ function AttributeField({ attributeTemplate, value, onChange, disabled = false }
           </label>
         </div>
       )}
-      {field_type === 'select' && (
+      {fieldType === 'select' && (
         <select
           id={fieldId}
           value={String(currentValue)} // Garantir que seja string para correspondência de <option value>
@@ -136,7 +138,7 @@ function AttributeField({ attributeTemplate, value, onChange, disabled = false }
           ))}
         </select>
       )}
-      {field_type === 'date' && (
+      {fieldType === 'date' && (
         <input
           type="date"
           id={fieldId}
@@ -148,8 +150,8 @@ function AttributeField({ attributeTemplate, value, onChange, disabled = false }
         />
       )}
       {/* Adicionar suporte para 'multiselect' aqui no futuro */}
-      {!['text', 'textarea', 'number', 'boolean', 'select', 'date'].includes(field_type) && (
-          <p style={{color: 'var(--danger)', fontSize: '0.8em'}}>Tipo de campo '{field_type}' não suportado por AttributeField.jsx.</p>
+      {!['text', 'textarea', 'number', 'boolean', 'select', 'date'].includes(fieldType) && (
+          <p style={{color: 'var(--danger)', fontSize: '0.8em'}}>Tipo de campo '{fieldType}' não suportado por AttributeField.jsx.</p>
       )}
     </div>
   );

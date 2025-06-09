@@ -265,12 +265,13 @@ const ProductEditModal = ({ isOpen, onClose, product, onProductUpdated }) => {
             selectedType.attribute_templates
                 .filter(tpl => !BASE_PRODUCT_FIELDS.has(tpl.attribute_key))
                 .forEach(template => {
+                    const typeLower = template.field_type ? template.field_type.toLowerCase() : '';
                     if (template.default_value !== null && template.default_value !== undefined) {
-                        initialAttrs[template.attribute_key] = template.field_type === 'boolean'
+                        initialAttrs[template.attribute_key] = typeLower === 'boolean'
                             ? (String(template.default_value).toLowerCase() === 'true' || template.default_value === '1')
                             : template.default_value;
                     } else {
-                        initialAttrs[template.attribute_key] = template.field_type === 'boolean' ? false : '';
+                        initialAttrs[template.attribute_key] = typeLower === 'boolean' ? false : '';
                     }
                 });
             setFormData(prev => ({ ...prev, dynamic_attributes: initialAttrs }));
