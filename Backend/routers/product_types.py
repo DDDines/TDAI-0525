@@ -10,7 +10,6 @@ from Backend import schemas
 from Backend import database
 from . import auth_utils
 from Backend.core.logging_config import get_logger
-from Backend.core.config import logger
 
 router = APIRouter(
     prefix="/product-types",
