@@ -26,6 +26,7 @@ O **TDAI** é uma plataforma SaaS de automação e inteligência artificial para
 * [Guia de Instalação Rápida](#guia-de-instalação-rápida)
 * [Variáveis de Ambiente](#variáveis-de-ambiente)
 * [Comandos Úteis](#comandos-úteis)
+* [Testes](#testes)
 * [Roadmap e Futuro](#roadmap-e-futuro)
 * [Segurança e Boas Práticas](#segurança-e-boas-práticas)
 * [FAQ](#faq)
@@ -259,6 +260,7 @@ Copie este arquivo para `.env` e preencha com seus valores antes de iniciar a ap
 
 ```sh
 # Backend
+pip install -r requirements-backend.txt
 pytest
 
 # Frontend
@@ -277,10 +279,6 @@ DATABASE_URL="postgresql://usuario:senha@localhost:5432/tdai_db"
 # Segurança
 SECRET_KEY="sua_chave_forte"
 
- codex/add-configuration-variables-to-config.py
-REFRESH_SECRET_KEY="sua_chave_refresh"
-
-REFRESH_SECRET_KEY="change-me"
 REFRESH_SECRET_KEY="sua_chave_refresh_forte"
 
 ALGORITHM="HS256"
@@ -319,7 +317,7 @@ ADMIN_EMAIL="admin@email.com"
 ADMIN_PASSWORD="adminpassword"
 FIRST_SUPERUSER_EMAIL="admin@example.com"
 FIRST_SUPERUSER_PASSWORD="adminpassword"
-```Dev
+```
 
 > ⚠️ **Nunca suba arquivos `.env` com dados sensíveis para o git!**
 
@@ -345,6 +343,17 @@ FIRST_SUPERUSER_PASSWORD="adminpassword"
 
   * `/produtos/`, `/fornecedores/`, `/uploads/`, `/generation/`, `/web-enrichment/`, `/uso_ia/` etc.
   * Veja todos em `/docs`
+
+---
+
+## 🧪 Testes
+
+Os testes do backend dependem das bibliotecas listadas em `requirements-backend.txt`. Para executá-los:
+
+```sh
+pip install -r requirements-backend.txt
+pytest
+```
 
 ---
 
