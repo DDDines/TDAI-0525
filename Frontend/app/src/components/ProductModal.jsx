@@ -7,7 +7,7 @@ import { showSuccessToast, showErrorToast, showInfoToast, showWarningToast } fro
 import productService from '../../services/productService';
 import fornecedorService from '../../services/fornecedorService';
 // Ajuste do caminho para o componente de atributo
-import AttributeField from '../components/produtos/shared/AttributeField';
+import AttributeField from './produtos/shared/AttributeField';
 import { useProductTypes } from '../../contexts/ProductTypeContext';
 import '../ProductEditModal.css';
 
