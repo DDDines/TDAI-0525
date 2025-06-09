@@ -40,11 +40,11 @@ class Settings(BaseSettings):
     _cors_origins_str: Optional[str] = os.getenv("BACKEND_CORS_ORIGINS")
     BACKEND_CORS_ORIGINS: List[AnyHttpUrl] = []
 
-    ADMIN_EMAIL: str = os.getenv("ADMIN_EMAIL", "admin@example.com")
-    ADMIN_PASSWORD: str = os.getenv("ADMIN_PASSWORD", "adminpassword")
+    ADMIN_EMAIL: str = os.getenv("ADMIN_EMAIL", "<ADMIN_EMAIL>")
+    ADMIN_PASSWORD: str = os.getenv("ADMIN_PASSWORD", "<ADMIN_PASSWORD>")
     ADMIN_IDIOMA_PREFERIDO: Optional[str] = os.getenv("ADMIN_IDIOMA_PREFERIDO", "pt-BR")
-    FIRST_SUPERUSER_EMAIL: str = os.getenv("FIRST_SUPERUSER_EMAIL", "admin@example.com")
-    FIRST_SUPERUSER_PASSWORD: str = os.getenv("FIRST_SUPERUSER_PASSWORD", "adminpassword")
+    FIRST_SUPERUSER_EMAIL: str = os.getenv("FIRST_SUPERUSER_EMAIL", "<FIRST_SUPERUSER_EMAIL>")
+    FIRST_SUPERUSER_PASSWORD: str = os.getenv("FIRST_SUPERUSER_PASSWORD", "<FIRST_SUPERUSER_PASSWORD>")
 
     DEFAULT_LIMIT_PRODUTOS_SEM_PLANO: int = int(os.getenv("DEFAULT_LIMIT_PRODUTOS_SEM_PLANO", 50))
     DEFAULT_LIMIT_ENRIQUECIMENTO_SEM_PLANO: int = int(os.getenv("DEFAULT_LIMIT_ENRIQUECIMENTO_SEM_PLANO", 10))
