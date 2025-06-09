@@ -57,8 +57,11 @@ function DashboardPage() {
 
   useEffect(() => {
     const doSearch = async () => {
+      // Clear previous results immediately so old data isn't shown
+      setSearchResults([]);
       try {
-        const data = await searchService.searchAll(searchTerm);
+        const trimmed = searchTerm.trim();
+        const data = await searchService.searchAll(trimmed);
         setSearchResults(Array.isArray(data.results) ? data.results : []);
       } catch (err) {
         console.error('Erro ao buscar:', err);
