@@ -491,9 +491,9 @@ tr:hover {
 }
 .modal.active { display: flex; }
 .modal-content {
-  background: var(--card-bg); padding: 1.8rem 2rem; 
-  border-radius: var(--radius); width: 90%; max-width: 500px; 
-  box-shadow: var(--shadow-md); position: relative; 
+  background: var(--card-bg); padding: 1.8rem 2rem;
+  border-radius: var(--radius); width: 95%; max-width: 1200px;
+  box-shadow: var(--shadow-md); position: relative;
   max-height: 90vh; overflow-y: auto;
 }
 .modal-close {
