@@ -13,6 +13,8 @@
   --radius: 8px;
   --shadow-sm: 0 1px 4px rgba(0,0,0,0.1);
   --shadow-md: 0 4px 8px rgba(0,0,0,0.15);
+  --text-color-light: #777;
+  --border-color: #ccc;
 
   font-family: var(--font);
   line-height: 1.5;
