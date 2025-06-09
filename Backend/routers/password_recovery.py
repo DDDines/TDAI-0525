@@ -12,7 +12,6 @@ from Backend.core.config import settings  # Para FRONTEND_URL
 from Backend.core.email_utils import send_password_reset_email  # Importa a função de envio de email
 from Backend.core import security
 from Backend.core.logging_config import get_logger
-from Backend.core.config import settings, logger  # Para FRONTEND_URL e logging
 from Backend.auth import create_password_reset_token, hash_password_reset_token
 
 router = APIRouter(
