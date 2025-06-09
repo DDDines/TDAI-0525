@@ -42,13 +42,6 @@ async def get_current_user(
     # logger.debug(f"--- DEBUG: auth_utils.get_current_user ---")
     # logger.debug(f"Path da Requisição: {request.url.path}")
     # logger.debug(f"Headers Recebidos (raw): {dict(request.headers)}")
-    auth_header = request.headers.get('authorization')
-    if auth_header:
-        # logger.debug(f"Cabeçalho 'authorization' encontrado: {auth_header[:30]}...") # Log apenas uma parte do token
-        pass
-    else:
-        # logger.debug("Cabeçalho 'authorization' NÃO encontrado.")
-        pass
     # logger.debug(f"--- FIM DEBUG: auth_utils.get_current_user ---")
 
 
