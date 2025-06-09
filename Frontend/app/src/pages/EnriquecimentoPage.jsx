@@ -1,6 +1,6 @@
 // Frontend/app/src/pages/EnriquecimentoPage.jsx
 import React, { useState, useEffect, useCallback } from 'react';
-import { getProdutos, createProduto, updateProduto, deleteProduto, iniciarEnriquecimentoWebProduto, gerarTitulosProduto, gerarDescricaoProduto, batchDeleteProdutos } from '../services/productService';
+import productService from '../services/productService';
 import usoIAService from '../services/usoIAService';
 import ProductTable from '../components/produtos/ProductTable';
 import PaginationControls from '../components/common/PaginationControls';
