@@ -6,6 +6,7 @@ from sqlalchemy import func, cast, String  # Importar cast e String
 from datetime import datetime, timedelta, timezone
 
 from Backend import crud
+from Backend import crud_users
 from Backend import models
 from Backend import schemas
 from Backend.database import get_db
