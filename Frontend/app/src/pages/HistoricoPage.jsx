@@ -3,7 +3,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import usoIAService from '../services/usoIAService';
 import historicoService from '../services/historicoService';
 import { useAuth } from '../contexts/AuthContext';
-import { showErrorToast, showInfoToast } from '../utils/notifications';
+import { showErrorToast } from '../utils/notifications';
 import PaginationControls from '../components/common/PaginationControls';
 import { format, parseISO } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
@@ -53,7 +53,6 @@ function HistoricoPage() {
       if (responseData && Array.isArray(responseData.items) && typeof responseData.total_items === 'number') {
         setHistorico(responseData.items);
         setTotalHistoricoCount(responseData.total_items);
-        showInfoToast(`Histórico carregado: ${responseData.total_items} registros.`);
       } else {
         console.warn('HistoricoPage: Formato de dados inesperado recebido:', responseData);
         setHistorico([]);
