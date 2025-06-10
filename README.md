@@ -191,7 +191,7 @@ TDAI-0525-Dev/
 * Git
 * Navegadores Playwright (para scraping):
   `playwright install`
-* Chaves de API: OpenAI, Google Search, SMTP
+* Chaves de API: OpenAI, Google Search, serviço de e-mail (SMTP)
 * Copie o arquivo `.env.example` para `.env` e ajuste os valores
 
 ---
@@ -292,12 +292,15 @@ GOOGLE_GEMINI_API_KEY="..."
 GOOGLE_CSE_ID="..."
 GOOGLE_CSE_API_KEY="..."
 
-# SMTP/Email
-SMTP_SERVER="smtp.seuprovedor.com"
-SMTP_PORT=587
-SMTP_USER="seu@email.com"
-SMTP_PASSWORD="senha"
-EMAIL_FROM="TDAI Platform <nao-responda@tdai.com>"
+# Email
+MAIL_USERNAME=""
+MAIL_PASSWORD=""
+MAIL_FROM=""
+MAIL_PORT=587
+MAIL_SERVER="smtp.example.com"
+MAIL_STARTTLS=True
+MAIL_SSL_TLS=False
+MAIL_FROM_NAME="TDAI Platform"
 
 # Frontend
 FRONTEND_URL="http://localhost:5173"
