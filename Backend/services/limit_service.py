@@ -15,11 +15,14 @@ from Backend.core.logging_config import get_logger
 def verificar_limite_uso(
     db: Session,
     user: models.User,
-    tipo_geracao_principal: str # "descricao" ou "titulo"
-) -> bool:
-    """
-    Verifica se o usuário atingiu o limite de uso para o tipo de geração no mês corrente,
-    baseado no seu plano. Lança HTTPException se o limite foi atingido.
+    tipo_geracao_principal: str,  # "descricao" ou "titulo"
+) -> int:
+    """Verifica se o usuário atingiu o limite de uso para o tipo de geração no
+    mês corrente, baseado no seu plano.
+
+    Retorna a quantidade restante de usos se ainda houver quota disponível,
+    retornando ``-1`` quando o usuário possui uso ilimitado. Lança
+    ``HTTPException`` quando o limite já foi atingido.
     """
 
     logger = get_logger(__name__)
@@ -50,35 +53,49 @@ def verificar_limite_uso(
             detail=f"Tipo de geração '{tipo_geracao_principal}' não é válido para verificação de limite."
         )
 
-    if limite_mensal is None or limite_mensal <= 0: # Considera 0 ou None como ilimitado
-        return True
+    if limite_mensal is None or limite_mensal <= 0:  # Considera 0 ou None como ilimitado
+        logger.info(
+            "Usuário %s possui geração ilimitada para %s.",
+            user.id,
+            tipo_geracao_principal,
+        )
+        return -1
 
     usos_no_mes = crud.count_usos_ia_by_user_and_type_no_mes_corrente(
         db, user_id=user.id, tipo_geracao_prefix=tipo_geracao_prefix_db
     )
     
-    if usos_no_mes >= limite_mensal:
+    remaining = limite_mensal - usos_no_mes
+
+    if remaining <= 0:
         limite_atingido = True
         if tipo_geracao_principal == "descricao":
-            mensagem_limite = f"Limite mensal de {limite_mensal} descrições atingido ({usos_no_mes} já utilizadas)."
+            mensagem_limite = (
+                f"Limite mensal de {limite_mensal} descrições atingido. "
+                f"Você utilizou {usos_no_mes} e não possui descrições restantes."
+            )
         elif tipo_geracao_principal == "titulo":
-            mensagem_limite = f"Limite mensal de {limite_mensal} títulos atingido ({usos_no_mes} já utilizados)."
+            mensagem_limite = (
+                f"Limite mensal de {limite_mensal} títulos atingido. "
+                f"Você utilizou {usos_no_mes} e não possui títulos restantes."
+            )
 
     if limite_atingido:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail=mensagem_limite
+            detail=mensagem_limite,
         )
     
 
     logger.info(
-        "Verificação de limite para usuário %s (%s): %s/%s usos.",
+        "Verificação de limite para usuário %s (%s): %s/%s usos (%s restantes).",
         user.id,
         tipo_geracao_principal,
         usos_no_mes,
         limite_mensal,
+        remaining if remaining > 0 else 0,
     )
-    return True
+    return remaining
 
 
 
