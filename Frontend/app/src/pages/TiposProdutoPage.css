@@ -132,6 +132,11 @@
     color: white;
 }
 
+.type-list-panel .type-actions {
+    display: flex;
+    gap: 0.25rem;
+}
+
 .type-detail-panel {
   flex: 2.5; /* Painel de detalhes um pouco maior */
   background-color: var(--card-bg);
