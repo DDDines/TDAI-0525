@@ -120,8 +120,7 @@ async def send_password_reset_email(email_to: EmailStr, username: str, reset_lin
     template_body = {
         "username": username,
         "reset_url": reset_link,
-        "project_name": settings.PROJECT_NAME,  # Passa o nome do projeto para o template
-        "expiration_hours": int(settings.ACCESS_TOKEN_EXPIRE_MINUTES / 60),
+        "expiration_hours": settings.ACCESS_TOKEN_EXPIRE_MINUTES // 60,
         "current_year": datetime.now().year,
     }
 
