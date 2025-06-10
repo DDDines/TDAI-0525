@@ -11,6 +11,7 @@ from Backend.core.config import settings
 from Backend.models import Produto, Fornecedor, ProductType, StatusEnriquecimentoEnum, StatusGeracaoIAEnum
 from fastapi import UploadFile
 from Backend import schemas
+from Backend import utils
 
 logger = logging.getLogger(__name__)
 
@@ -92,17 +93,16 @@ def get_produtos_by_user(
         query = query.filter(Produto.user_id == user_id)
 
     if search:
-        search_term = f"%{search.lower()}%"
         query = query.filter(
             or_(
-                func.lower(Produto.nome_base).ilike(search_term),
-                func.lower(Produto.nome_chat_api).ilike(search_term),
-                func.lower(Produto.descricao_original).ilike(search_term),
-                func.lower(Produto.descricao_chat_api).ilike(search_term),
-                func.lower(Produto.sku).ilike(search_term),
-                func.lower(Produto.ean).ilike(search_term),
-                func.lower(Produto.marca).ilike(search_term),
-                func.lower(Produto.modelo).ilike(search_term)
+                utils.case_insensitive_like(Produto.nome_base, search),
+                utils.case_insensitive_like(Produto.nome_chat_api, search),
+                utils.case_insensitive_like(Produto.descricao_original, search),
+                utils.case_insensitive_like(Produto.descricao_chat_api, search),
+                utils.case_insensitive_like(Produto.sku, search),
+                utils.case_insensitive_like(Produto.ean, search),
+                utils.case_insensitive_like(Produto.marca, search),
+                utils.case_insensitive_like(Produto.modelo, search)
             )
         )
     
@@ -111,7 +111,7 @@ def get_produtos_by_user(
     if product_type_id is not None:
         query = query.filter(Produto.product_type_id == product_type_id)
     if categoria:
-        query = query.filter(func.lower(Produto.categoria_original).ilike(f"%{categoria.lower()}%")) # Ou categoria_mapeada
+        query = query.filter(utils.case_insensitive_like(Produto.categoria_original, categoria))  # Ou categoria_mapeada
     if status_enriquecimento_web:
         query = query.filter(Produto.status_enriquecimento_web == status_enriquecimento_web)
     if status_titulo_ia:
@@ -154,17 +154,16 @@ def count_produtos_by_user(
         query = query.filter(Produto.user_id == user_id)
 
     if search:
-        search_term = f"%{search.lower()}%"
         query = query.filter(
             or_(
-                func.lower(Produto.nome_base).ilike(search_term),
-                func.lower(Produto.nome_chat_api).ilike(search_term),
-                func.lower(Produto.descricao_original).ilike(search_term),
-                func.lower(Produto.descricao_chat_api).ilike(search_term),
-                func.lower(Produto.sku).ilike(search_term),
-                func.lower(Produto.ean).ilike(search_term),
-                func.lower(Produto.marca).ilike(search_term),
-                func.lower(Produto.modelo).ilike(search_term)
+                utils.case_insensitive_like(Produto.nome_base, search),
+                utils.case_insensitive_like(Produto.nome_chat_api, search),
+                utils.case_insensitive_like(Produto.descricao_original, search),
+                utils.case_insensitive_like(Produto.descricao_chat_api, search),
+                utils.case_insensitive_like(Produto.sku, search),
+                utils.case_insensitive_like(Produto.ean, search),
+                utils.case_insensitive_like(Produto.marca, search),
+                utils.case_insensitive_like(Produto.modelo, search)
             )
         )
     if fornecedor_id is not None:
@@ -172,7 +171,7 @@ def count_produtos_by_user(
     if product_type_id is not None:
         query = query.filter(Produto.product_type_id == product_type_id)
     if categoria:
-        query = query.filter(func.lower(Produto.categoria_original).ilike(f"%{categoria.lower()}%"))
+        query = query.filter(utils.case_insensitive_like(Produto.categoria_original, categoria))
     if status_enriquecimento_web:
         query = query.filter(Produto.status_enriquecimento_web == status_enriquecimento_web)
     if status_titulo_ia:

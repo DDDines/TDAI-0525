@@ -87,7 +87,7 @@ def count_usos_ia_by_user_and_type_no_mes_corrente(
         .filter(
             models.RegistroUsoIA.user_id == user_id,
             models.RegistroUsoIA.created_at >= inicio_mes,
-            models.RegistroUsoIA.tipo_acao.ilike(f"{tipo_geracao_prefix}%"),
+            func.lower(models.RegistroUsoIA.tipo_acao).like(f"{tipo_geracao_prefix.lower()}%"),
         )
         .scalar()
         or 0
