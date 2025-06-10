@@ -87,8 +87,7 @@ def update_user(db: Session, db_user: User, user_update: Union[schemas.UserUpdat
                 logger.warning(
                     f"Plano com ID {new_plano_id} não encontrado ao atualizar usuário {db_user.email}. Plano não alterado."
                 )
-        if "plano_id" in update_data:
-            del update_data["plano_id"]
+        update_data.pop("plano_id", None)
 
     for field, value in update_data.items():
         if hasattr(db_user, field):
