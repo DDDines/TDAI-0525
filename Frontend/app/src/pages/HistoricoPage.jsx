@@ -17,6 +17,7 @@ function HistoricoPage() {
   const [limitPerPage] = useState(10);
   const [totalHistoricoCount, setTotalHistoricoCount] = useState(0);
   const [filterTipoAcao, setFilterTipoAcao] = useState('');
+  const [tiposAcao, setTiposAcao] = useState([]);
 
   const totalPages = Math.ceil(totalHistoricoCount / limitPerPage);
 
@@ -76,6 +77,20 @@ function HistoricoPage() {
     fetchHistorico();
   }, [fetchHistorico]);
 
+  useEffect(() => {
+    const loadTipos = async () => {
+      try {
+        const data = await usoIAService.getTiposHistorico();
+        if (Array.isArray(data)) {
+          setTiposAcao(data);
+        }
+      } catch (err) {
+        console.error('Erro ao carregar tipos de histórico:', err);
+      }
+    };
+    loadTipos();
+  }, []);
+
   const handlePageChange = (newPage) => {
     setCurrentPage(newPage);
   };
@@ -101,11 +116,9 @@ function HistoricoPage() {
             disabled={loading}
           >
             <option value="">Todos</option>
-            <option value="geracao_titulo_produto">Geração Título Produto</option>
-            <option value="geracao_descricao_produto">Geração Descrição Produto</option>
-            <option value="enriquecimento_web_produto">Enriquecimento Web Produto</option>
-            <option value="criacao_produto">Criação de Produto</option>
-            {/* Adicione outras opções conforme as TipoAcaoIAEnum do seu backend */}
+            {tiposAcao.map((tipo) => (
+              <option key={tipo} value={tipo}>{tipo.replace(/_/g, ' ')}</option>
+            ))}
           </select>
         </div>
 
