@@ -46,6 +46,16 @@ with TestingSessionLocal() as db:
             tipo_acao=models.TipoAcaoEnum.CRIACAO_TITULO_PRODUTO,
         ),
     )
+    # create extra registros for pagination tests
+    for i in range(15):
+        crud.create_registro_uso_ia(
+            db,
+            schemas.RegistroUsoIACreate(
+                user_id=normal_user.id,
+                produto_id=produto.id,
+                tipo_acao=models.TipoAcaoEnum.CRIACAO_TITULO_PRODUTO,
+            ),
+        )
 
 
 def get_admin_headers():
@@ -100,3 +110,16 @@ def test_product_creation_creates_uso_ia_record():
             .all()
         )
         assert len(registros) == 1
+
+
+def test_pagination_returns_1_based_page_for_uso_ia():
+    headers = get_user_headers()
+    resp = client.get("/api/v1/uso-ia", params={"skip": 0, "limit": 10}, headers=headers)
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["page"] == 1
+
+    resp = client.get("/api/v1/uso-ia", params={"skip": 10, "limit": 10}, headers=headers)
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["page"] == 2

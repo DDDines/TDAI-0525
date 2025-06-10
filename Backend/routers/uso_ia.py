@@ -73,7 +73,12 @@ def read_usos_ia_usuario_logado(
         data_fim=data_fim
     )
     
-    return {"items": registros, "total_items": total_items, "page": skip // limit, "limit": limit}
+    return {
+        "items": registros,
+        "total_items": total_items,
+        "page": skip // limit + 1,
+        "limit": limit,
+    }
 
 
 # Endpoint para obter detalhes de um registro de uso de IA específico (se necessário)
