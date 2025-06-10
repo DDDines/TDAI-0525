@@ -37,40 +37,39 @@ async def _tarefa_processar_geracao_e_registrar_uso(
     Tarefa de fundo para executar a geração de conteúdo com IA,
     atualizar o produto e registrar o uso da IA no banco de dados.
     """
-    db: Session = db_session_factory()
+    db: Optional[Session] = None
     db_produto: Optional[models.Produto] = None
     status_field_to_update: Optional[str] = None
     campo_produto_para_atualizar_com_resultado: Optional[str] = None
-
-    if tipo_geracao_principal == "titulo":
-        status_field_to_update = "status_titulo_ia"
-        campo_produto_para_atualizar_com_resultado = "titulos_sugeridos"
-    elif tipo_geracao_principal == "descricao":
-        status_field_to_update = "status_descricao_ia"
-        campo_produto_para_atualizar_com_resultado = "descricao_chat_api"
-    else:
-        logger.error(f"Tarefa Background: Tipo de geração principal '{tipo_geracao_principal}' desconhecido.")
-        db.close()
-        return
-
     log_entry_prefix = f"IA {tipo_geracao_principal.capitalize()}"
 
     try:
+        db = db_session_factory()
+
+        if tipo_geracao_principal == "titulo":
+            status_field_to_update = "status_titulo_ia"
+            campo_produto_para_atualizar_com_resultado = "titulos_sugeridos"
+        elif tipo_geracao_principal == "descricao":
+            status_field_to_update = "status_descricao_ia"
+            campo_produto_para_atualizar_com_resultado = "descricao_chat_api"
+        else:
+            logger.error(
+                f"Tarefa Background: Tipo de geração principal '{tipo_geracao_principal}' desconhecido."
+            )
+            return
+
         user = crud_users.get_user(db, user_id=user_id)
         if not user:
             logger.error(f"Tarefa Background {log_entry_prefix}: Usuário {user_id} não encontrado.")
-            db.close()
             return
 
         db_produto = crud_produtos.get_produto(db, produto_id=produto_id)
         if not db_produto:
             logger.error(f"Tarefa Background {log_entry_prefix}: Produto {produto_id} não encontrado.")
-            db.close()
             return
-        
+
         if db_produto.user_id != user.id and not user.is_superuser:
             logger.warning(f"Tarefa Background {log_entry_prefix}: Usuário {user_id} não autorizado para produto {produto_id}.")
-            db.close()
             return
 
         # Atualizar status para EM_PROGRESSO
@@ -136,8 +135,11 @@ async def _tarefa_processar_geracao_e_registrar_uso(
             }
             crud_produtos.update_produto(db, db_produto=db_produto, produto_update=schemas.ProdutoUpdate(**update_data_falha_critica))
     finally:
-        logger.info(f"Tarefa Background {log_entry_prefix}: Finalizando para produto ID: {produto_id}")
-        db.close()
+        logger.info(
+            f"Tarefa Background {log_entry_prefix}: Finalizando para produto ID: {produto_id}"
+        )
+        if db:
+            db.close()
 
 # --- Endpoints Legados (OpenAI) ---
 
