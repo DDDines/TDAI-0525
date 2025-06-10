@@ -3,6 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { useProductTypes } from '../contexts/ProductTypeContext';
 import { showErrorToast, showSuccessToast } from '../utils/notifications';
 import productTypeService from '../services/productTypeService';
+import EditProductTypeModal from '../components/product_types/EditProductTypeModal.jsx';
 
 import AttributeTemplateList from '../components/product_types/AttributeTemplateList';
 import AttributeTemplateModal from '../components/product_types/AttributeTemplateModal';
@@ -11,7 +12,7 @@ import Modal from '../components/common/Modal'; // Usaremos um Modal genérico p
 import './TiposProdutoPage.css';
 
 function TiposProdutoPage() {
-  const { productTypes, isLoading, error, refreshProductTypes } = useProductTypes();
+  const { productTypes, isLoading, error, refreshProductTypes, updateProductType } = useProductTypes();
   
   const [selectedProductType, setSelectedProductType] = useState(null);
   const [isAttributeModalOpen, setIsAttributeModalOpen] = useState(false);
@@ -20,6 +21,8 @@ function TiposProdutoPage() {
   const [isNewTypeModalOpen, setIsNewTypeModalOpen] = useState(false);
   const [newTypeFriendlyName, setNewTypeFriendlyName] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isEditTypeModalOpen, setIsEditTypeModalOpen] = useState(false);
+  const [editingType, setEditingType] = useState(null);
 
   // Atualiza os detalhes do tipo selecionado se a lista geral for atualizada
   useEffect(() => {
@@ -35,6 +38,16 @@ function TiposProdutoPage() {
   };
 
   const handleCloseNewTypeModal = () => setIsNewTypeModalOpen(false);
+
+  const handleOpenEditTypeModal = (type) => {
+    setEditingType(type);
+    setIsEditTypeModalOpen(true);
+  };
+
+  const handleCloseEditTypeModal = () => {
+    setIsEditTypeModalOpen(false);
+    setEditingType(null);
+  };
 
   const handleSaveNewType = async () => {
     if (!newTypeFriendlyName.trim()) {
@@ -91,6 +104,20 @@ function TiposProdutoPage() {
   const handleCloseAttributeModal = () => {
     setIsAttributeModalOpen(false);
     setEditingAttribute(null);
+  };
+
+  const handleSaveEditedType = async (payload) => {
+    if (!editingType) return;
+    setIsSubmitting(true);
+    try {
+      await updateProductType(editingType.id, payload);
+      refreshProductTypes();
+      handleCloseEditTypeModal();
+    } catch (err) {
+      // Toasts são tratados no contexto
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const handleSaveAttribute = async (attributeData) => {
@@ -169,15 +196,16 @@ function TiposProdutoPage() {
           ) : (
             <ul>
               {productTypes.map(type => (
-                <li 
-                  key={type.id} 
+                <li
+                  key={type.id}
                   onClick={() => handleSelectType(type)}
                   className={selectedProductType?.id === type.id ? 'selected' : ''}
                 >
                   <span>{type.friendly_name} <span className="usage-count">({type.attribute_templates?.length || 0} attrs)</span></span>
-                  <button onClick={(e) => { e.stopPropagation(); handleDeleteType(type.id, type.friendly_name); }} title="Deletar Tipo" className="btn-icon">
-                    🗑️
-                  </button>
+                  <span className="type-actions">
+                    <button onClick={(e) => { e.stopPropagation(); handleOpenEditTypeModal(type); }} title="Editar Tipo" className="btn-icon">✏️</button>
+                    <button onClick={(e) => { e.stopPropagation(); handleDeleteType(type.id, type.friendly_name); }} title="Deletar Tipo" className="btn-icon">🗑️</button>
+                  </span>
                 </li>
               ))}
             </ul>
@@ -217,6 +245,16 @@ function TiposProdutoPage() {
             <button onClick={handleSaveNewType} className="btn-success" disabled={isSubmitting}>{isSubmitting ? 'Salvando...' : 'Salvar Tipo'}</button>
         </div>
       </Modal>
+
+      {isEditTypeModalOpen && (
+        <EditProductTypeModal
+          isOpen={isEditTypeModalOpen}
+          onClose={handleCloseEditTypeModal}
+          type={editingType}
+          onSave={handleSaveEditedType}
+          isSubmitting={isSubmitting}
+        />
+      )}
 
 
       {isAttributeModalOpen && (
