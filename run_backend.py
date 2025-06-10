@@ -1,6 +1,7 @@
 # CatalogAI 2025/Project/run_backend.py
 import sys
 import os
+import argparse
 import uvicorn
 from Backend.core.config import logger
 
@@ -26,13 +27,43 @@ if __name__ == "__main__":
     logger.debug("Diretório de Trabalho Atual (CWD): %s", os.getcwd())
     logger.info("Tentando iniciar Uvicorn com 'Backend.main:app' ...")
 
+    parser = argparse.ArgumentParser(description="Run CatalogAI backend")
+
+    def str_to_bool(value: str) -> bool:
+        return str(value).lower() in {"1", "true", "yes", "y"}
+    parser.add_argument(
+        "--host",
+        default=os.getenv("BACKEND_HOST", "127.0.0.1"),
+        help="Host interface to bind",
+    )
+    parser.add_argument(
+        "--port",
+        type=int,
+        default=int(os.getenv("BACKEND_PORT", 8000)),
+        help="Port to bind",
+    )
+    parser.add_argument(
+        "--reload",
+        type=str_to_bool,
+        default=str_to_bool(os.getenv("BACKEND_RELOAD", "True")),
+        help="Enable auto-reload",
+    )
+    parser.add_argument(
+        "--workers",
+        type=int,
+        default=int(os.getenv("BACKEND_WORKERS", 1)),
+        help="Number of worker processes",
+    )
+
+    args = parser.parse_args()
+
     try:
         uvicorn.run(
             "Backend.main:app",  # Alvo: pacote Backend, módulo main.py, objeto app
-            host="127.0.0.1",
-            port=8000,
-            reload=True,
-            workers=1,
+            host=args.host,
+            port=args.port,
+            reload=args.reload,
+            workers=args.workers,
         )
     except ImportError as e:
         logger.error("Erro de Importação ao tentar carregar a aplicação Uvicorn: %s", e)
