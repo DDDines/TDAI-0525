@@ -57,8 +57,13 @@ const AttributeTemplateModal = ({ isOpen, onClose, attribute, onSave, isSubmitti
 
     const payload = { ...formData };
 
+    // Converte o tipo de campo para minúsculas, conforme esperado pelo backend
+    if (payload.field_type) {
+      payload.field_type = payload.field_type.toLowerCase();
+    }
+
     // Valida e formata o campo 'options' se for um tipo de seleção
-    if (payload.field_type === 'SELECT' || payload.field_type === 'MULTISELECT') {
+    if (payload.field_type === 'select' || payload.field_type === 'multiselect') {
       try {
         // Tenta parsear para garantir que é um JSON Array válido
         const parsedOptions = JSON.parse(payload.options);
