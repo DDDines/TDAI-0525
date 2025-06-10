@@ -51,6 +51,12 @@ def test_pagination_returns_1_based_page():
     data = resp.json()
     assert data["page"] == 1
 
+    # intermediate skip values should still report page 1
+    resp = client.get("/api/v1/produtos", params={"skip": 5, "limit": 10}, headers=headers)
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["page"] == 1
+
     resp = client.get("/api/v1/produtos", params={"skip": 10, "limit": 10}, headers=headers)
     assert resp.status_code == 200
     data = resp.json()
