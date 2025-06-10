@@ -264,19 +264,14 @@ Para que o envio de emails de recuperação de senha funcione é obrigatório de
 
 ### 6. **Testes**
 
-Antes de executar os testes do backend, instale as dependências listadas em
-`requirements-backend.txt`, que incluem pacotes como **SQLAlchemy**. Para isso,
-rode:
-
-```sh
-pip install -r requirements-backend.txt
-```
-
-Você também pode utilizar o script abaixo, que instala as dependências e executa
-o `pytest` automaticamente:
+Para rodar os testes do backend utilize o script de conveniência:
 
 ```sh
 ./scripts/run_tests.sh
+```
+
+Esse comando instala as dependências definidas em `requirements-backend.txt` e,
+em seguida, executa o `pytest`.
 
 # Frontend
 cd Frontend/app
@@ -398,19 +393,14 @@ console.log(historico.items);
 
 ## 🧪 Testes
 
-Os testes do backend dependem das bibliotecas listadas em `requirements-backend.txt`,
-que incluem pacotes como **SQLAlchemy**. Instale-as com:
-
-```sh
-pip install -r requirements-backend.txt
-```
-
-Em seguida execute o `pytest` manualmente ou utilize o script de conveniência abaixo,
-que realiza a instalação das dependências e roda os testes:
+Para executar os testes do backend de forma idêntica ao ambiente de CI, utilize:
 
 ```sh
 ./scripts/run_tests.sh
 ```
+
+O script instalará as dependências listadas em `requirements-backend.txt` e logo
+após rodará o `pytest`.
 
 ---
 
