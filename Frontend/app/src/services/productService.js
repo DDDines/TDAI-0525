@@ -132,7 +132,7 @@ export const batchDeleteProdutos = async (produtoIds) => {
 export const getAtributoSuggestions = async (produtoId) => {
   try {
     // O endpoint no backend é: POST /api/v1/geracao/sugerir-atributos-gemini/{produto_id}
-    const response = await apiClient.post(`/geracao/sugerir-atributos-gemini/${produtoId}`);
+    const response = await apiClient.post(`/geracao/sugerir-atributos-gemini/${produtoId}/`);
     return response.data; // Deve retornar um objeto schemas.SugestoesAtributosResponse
   } catch (error) {
     console.error(`Erro ao buscar sugestões de atributos para produto ${produtoId}:`, error.response?.data || error.message);
