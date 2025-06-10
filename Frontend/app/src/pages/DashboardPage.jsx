@@ -152,7 +152,7 @@ function DashboardPage() {
 
       {(!currentUser || !currentUser.is_superuser) && !loading && (
         <div style={{ padding: '20px', textAlign: 'center' }}>
-          <h2>Bem-vindo ao TDAI!</h2>
+          <h2>Bem-vindo ao CatalogAI!</h2>
           <p>Seu dashboard personalizado será implementado aqui em breve.</p>
         </div>
       )}

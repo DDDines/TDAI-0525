@@ -72,7 +72,7 @@ const LoginPage = () => {
     return (
         <div className="login-page-wrapper">
             <div className="login-form-card">
-                <h2>Login TDAI</h2>
+                <h2>Login CatalogAI</h2>
                 <form onSubmit={handleSubmit}>
                     {error && <p className="error-message">{error}</p>}
                     <div className="form-group">

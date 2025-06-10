@@ -14,7 +14,7 @@
 
 * **Sem funções**: Versão antiga da documentação.
 
-## TDAI.pdf
+## CatalogAI.pdf
 
 * **Sem funções**: Documento visual/protótipo do sistema.
 

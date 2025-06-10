@@ -1,4 +1,4 @@
-# tdai_project/Backend/services/web_data_extractor_service.py
+# catalogai_project/Backend/services/web_data_extractor_service.py
 import asyncio
 from playwright.async_api import async_playwright, TimeoutError as PlaywrightTimeoutError
 from bs4 import BeautifulSoup

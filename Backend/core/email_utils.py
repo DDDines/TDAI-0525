@@ -113,7 +113,7 @@ async def send_password_reset_email(email_to: EmailStr, username: str, reset_lin
         # raise HTTPException(status_code=500, detail="Serviço de email não configurado.")
         return
 
-    subject = "Redefinição de Senha - TDAI"
+    subject = "Redefinição de Senha - CatalogAI"
     template_name = "password_reset_email.html" # Nome do arquivo de template em Backend/templates/
     
     template_body = {

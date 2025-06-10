@@ -39,7 +39,7 @@ const Sidebar = ({ isOpen, toggleSidebar }) => {
     <aside className={`sidebar ${isOpen ? 'open' : 'closed'}`}>
       <div className="sidebar-header">
         {/* Pode adicionar um logo ou título aqui */}
-        <h1 className="sidebar-title">{isOpen ? "TDAI" : "T"}</h1>
+        <h1 className="sidebar-title">{isOpen ? "CatalogAI" : "T"}</h1>
         {/* O botão de toggle pode ser movido para o Topbar se preferir */}
         {/* <button onClick={toggleSidebar} className="sidebar-toggle-btn">
           {isOpen ? <LuX /> : <LuMenu />}
