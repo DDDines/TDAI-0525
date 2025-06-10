@@ -332,6 +332,19 @@ você não tenha PostgreSQL disponível, remova ou comente a variável
 
 ---
 
+## 🔍 Verificando Credenciais do PostgreSQL
+
+Certifique-se de que a senha definida em `DATABASE_URL` está correta e que o
+usuário informado possui a mesma senha cadastrada no PostgreSQL. Você pode testar
+a conexão executando:
+
+```sh
+psql -h <host> -U <usuario> -W
+```
+
+Se a conexão falhar, ajuste `DATABASE_URL` ou atualize a senha do usuário para
+que coincidam.
+
 ## 🛠️ Comandos Úteis
 
 * **Iniciar Backend:**
