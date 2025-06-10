@@ -2,7 +2,6 @@ import React from 'react';
 import { NavLink } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext'; // Se precisar do logout ou dados do usuário
 import './Sidebar.css'; // Certifique-se de que este arquivo CSS existe e está correto
-import UserMenu from './UserMenu.jsx';
 
 // Ícones (exemplo, substitua pelos seus ou remova se não usar)
 import {
@@ -19,7 +18,7 @@ import {
 } from 'react-icons/lu'; // Exemplo com react-icons
 
 const Sidebar = ({ isOpen, toggleSidebar }) => {
-  const { user, logout } = useAuth(); // Obtenha o usuário e a função de logout do AuthContext
+  const { logout } = useAuth();
 
   const handleLogout = () => {
     logout();
@@ -63,11 +62,6 @@ const Sidebar = ({ isOpen, toggleSidebar }) => {
         </ul>
       </nav>
       <div className="sidebar-footer">
-        {user && (
-          <div className="user-info">
-            <UserMenu onLogout={handleLogout} showDropdown={isOpen} />
-          </div>
-        )}
         <button onClick={handleLogout} className="logout-button" title="Sair">
           <LuLogOut />
           {isOpen && <span className="nav-text">Sair</span>}

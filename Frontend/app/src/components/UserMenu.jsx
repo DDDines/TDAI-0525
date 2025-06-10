@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 
@@ -16,6 +16,7 @@ function UserMenu({ onLogout, onNavigate, showDropdown = true }) {
   const navigate = useNavigate();
   const { user, logout, isLoading } = useAuth();
   const [menuOpen, setMenuOpen] = useState(false);
+  const menuRef = useRef(null);
 
   const userNameDisplay = isLoading ? 'Carregando...' : (user?.nome_completo || user?.email || 'Usuário');
   const userInitials = isLoading ? '...' : getInitials(user?.nome_completo || user?.email);
@@ -40,18 +41,25 @@ function UserMenu({ onLogout, onNavigate, showDropdown = true }) {
 
   const enableMenu = showDropdown;
 
+  useEffect(() => {
+    if (!menuOpen) return;
+    function handleClickOutside(e) {
+      if (menuRef.current && !menuRef.current.contains(e.target)) {
+        setMenuOpen(false);
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [menuOpen]);
+
+  const toggleMenu = () => {
+    if (enableMenu) setMenuOpen(prev => !prev);
+  };
+
   return (
-    <div
-      className="user-area"
-      tabIndex={enableMenu ? '0' : undefined}
-      onMouseEnter={() => enableMenu && setMenuOpen(true)}
-      onMouseLeave={() => enableMenu && setMenuOpen(false)}
-      onClick={() => enableMenu && setMenuOpen(prev => !prev)}
-      onFocus={() => enableMenu && setMenuOpen(true)}
-      onBlur={() => enableMenu && setTimeout(() => setMenuOpen(false), 150)}
-    >
-      <div className="user-avatar">{userInitials}</div>
-      <span className="user-name">{userNameDisplay}</span>
+    <div className="user-area" ref={menuRef} tabIndex={enableMenu ? '0' : undefined}>
+      <div className="user-avatar" onClick={toggleMenu}>{userInitials}</div>
+      <span className="user-name" onClick={toggleMenu}>{userNameDisplay}</span>
 
       {enableMenu && menuOpen && (
         <div className="user-menu" style={{ display: 'flex' }}>
