@@ -22,7 +22,7 @@ export const getFornecedores = async (params = {}) => { // params pode incluir s
 
 export const getFornecedorById = async (fornecedorId) => {
   try {
-    const response = await apiClient.get(`/fornecedores/${fornecedorId}/`);
+    const response = await apiClient.get(`/fornecedores/${fornecedorId}`);
     return response.data;
   } catch (error) {
     console.error(`Error fetching fornecedor ${fornecedorId} (SERVICE LEVEL):`, JSON.stringify(error.response?.data || error.message || error));
@@ -55,7 +55,7 @@ export const createFornecedor = async (fornecedorData) => {
 
 export const updateFornecedor = async (fornecedorId, fornecedorUpdateData) => {
   try {
-    const response = await apiClient.put(`/fornecedores/${fornecedorId}/`, fornecedorUpdateData);
+    const response = await apiClient.put(`/fornecedores/${fornecedorId}`, fornecedorUpdateData);
     return response.data;
   } catch (error) {
     console.error(`Error updating fornecedor ${fornecedorId} (SERVICE LEVEL):`, JSON.stringify(error.response?.data || error.message || error));
@@ -71,7 +71,7 @@ export const updateFornecedor = async (fornecedorId, fornecedorUpdateData) => {
 
 export const deleteFornecedor = async (fornecedorId) => {
   try {
-    const response = await apiClient.delete(`/fornecedores/${fornecedorId}/`);
+    const response = await apiClient.delete(`/fornecedores/${fornecedorId}`);
     return response.data;
   } catch (error) {
     console.error(`Error deleting fornecedor ${fornecedorId} (SERVICE LEVEL):`, JSON.stringify(error.response?.data || error.message || error));
