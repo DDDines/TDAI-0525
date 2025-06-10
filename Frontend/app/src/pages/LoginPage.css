@@ -63,7 +63,7 @@
 }
 
 .login-button:hover {
-  background-color: #2563eb; /* Tom mais escuro do primary */
+  background-color: #555; /* Cinza escuro no hover */
 }
 
 .login-button:disabled {
