@@ -14,14 +14,18 @@ from Backend.schemas import FileProcessResponse
 from sqlalchemy.orm import Session
 # --- FIM DOS IMPORTS ALTERADOS ---
 from Backend.core.logging_config import get_logger
+from Backend.core.config import settings
 
 router = APIRouter()
 
 logger = get_logger(__name__)
 
-# O UPLOAD_DIRECTORY DEVE SER O MESMO MONTADO EM main.py /static
-# E DEVE SER RELATIVO AO DIRETÓRIO RAIZ DO BACKEND
-UPLOAD_DIRECTORY = Path("static") # Alterado para 'static' para corresponder a main.py e ser público
+# Diretório de upload configurado em settings. Usa o mesmo caminho montado em
+# main.py ("/static") para que os arquivos fiquem disponíveis publicamente.
+UPLOAD_DIRECTORY = Path(settings.UPLOAD_DIRECTORY)
+if not UPLOAD_DIRECTORY.is_absolute():
+    # Esta pasta está em Backend/static/uploads por padrão
+    UPLOAD_DIRECTORY = Path(__file__).resolve().parent.parent / UPLOAD_DIRECTORY
 
 # Instalar python-magic: pip install python-magic (ou python-magic-bin no Windows se der problema)
 # Se magic.from_buffer falhar, pode-se usar imghdr para imagens ou verificar extensões.
@@ -80,7 +84,7 @@ async def upload_product_image(
 ):
     """
     Carrega uma única imagem de produto e retorna sua URL pública e metadados.
-    A imagem é salva no diretório 'static' e acessível via /static/.
+    O arquivo é salvo em ``settings.UPLOAD_DIRECTORY`` e acessível via ``/static/``.
     """
     if not file.filename:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Nome do arquivo não fornecido.")
@@ -112,8 +116,8 @@ async def upload_product_image(
     finally:
         await file.close() # Garante que o UploadFile seja fechado
 
-    # A URL pública será /static/nome_do_arquivo_unico.ext
-    public_url = f"/static/{unique_filename}"
+    # A URL pública será baseada em settings.UPLOAD_DIRECTORY
+    public_url = f"/{(Path(settings.UPLOAD_DIRECTORY) / unique_filename).as_posix()}"
     
     # Retorna as informações necessárias para o frontend criar um ImageSchema
     return FileProcessResponse(
@@ -133,7 +137,7 @@ async def upload_product_video(
 ):
     """
     Carrega um único vídeo de produto e retorna sua URL pública e metadados.
-    O vídeo é salvo no diretório 'static' e acessível via /static/.
+    O arquivo é salvo em ``settings.UPLOAD_DIRECTORY`` e acessível via ``/static/``.
     """
     if not file.filename:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Nome do arquivo não fornecido.")
@@ -160,7 +164,7 @@ async def upload_product_video(
     finally:
         await file.close()
 
-    public_url = f"/static/{unique_filename}"
+    public_url = f"/{(Path(settings.UPLOAD_DIRECTORY) / unique_filename).as_posix()}"
     
     return FileProcessResponse(
         filename=unique_filename,
@@ -198,7 +202,8 @@ async def create_upload_file(
     finally:
         file.file.close()
     # Retorna a URL pública usando o nome único gerado
-    return {"info": f"file '{unique_filename}' (original: '{file.filename}') saved at '{file_location}'", "url": f"/static/{unique_filename}"}
+    public_url = f"/{(Path(settings.UPLOAD_DIRECTORY) / unique_filename).as_posix()}"
+    return {"info": f"file '{unique_filename}' (original: '{file.filename}') saved at '{file_location}'", "url": public_url}
 
 @router.post("/uploadfiles/", status_code=status.HTTP_201_CREATED)
 async def create_upload_files(
@@ -221,7 +226,8 @@ async def create_upload_files(
         try:
             with open(file_location, "wb+") as file_object:
                 shutil.copyfileobj(file.file, file_object)
-            responses.append({"info": f"file '{unique_filename}' (original: '{file.filename}') saved at '{file_location}'", "url": f"/static/{unique_filename}"}) # Retorna URL pública
+            public_url = f"/{(Path(settings.UPLOAD_DIRECTORY) / unique_filename).as_posix()}"
+            responses.append({"info": f"file '{unique_filename}' (original: '{file.filename}') saved at '{file_location}'", "url": public_url})
         except Exception as e:
             responses.append({"error": f"Could not upload file '{file.filename}': {e}"})
         finally:
