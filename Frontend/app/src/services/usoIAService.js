@@ -2,6 +2,7 @@
 import apiClient from './apiClient';
 
 const USO_IA_RESOURCE_URL = '/uso-ia';
+const HISTORICO_RESOURCE_URL = '/historico';
 
 const usoIAService = {
   /**
@@ -34,6 +35,16 @@ const usoIAService = {
     } catch (error) {
       console.error('Error fetching my IA usage history:', error.response?.data || error.message);
       throw error.response?.data || new Error('Failed to fetch my IA usage history');
+    }
+  },
+
+  async getTiposHistorico() {
+    try {
+      const response = await apiClient.get(`${HISTORICO_RESOURCE_URL}/tipos`);
+      return response.data;
+    } catch (error) {
+      console.error('Error fetching historico types:', error.response?.data || error.message);
+      throw error.response?.data || new Error('Failed to fetch historico types');
     }
   },
 };
