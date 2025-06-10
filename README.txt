@@ -197,6 +197,11 @@ FRONTEND_URL="http://localhost:5173" # Ou a porta do seu frontend Vite/React
 # Opcional: para o usuário admin padrão criado no startup
 ADMIN_EMAIL="<ADMIN_EMAIL>"
 ADMIN_PASSWORD="<ADMIN_PASSWORD>"
+# Opções do servidor Uvicorn
+BACKEND_HOST="127.0.0.1"
+BACKEND_PORT=8000
+BACKEND_RELOAD=True
+BACKEND_WORKERS=1
 Preencha os valores corretos para cada variável. O arquivo Backend/core/config.py define como essas variáveis são lidas.
 
 Se `DATABASE_URL` não for informado, o backend irá utilizar automaticamente
@@ -222,6 +227,9 @@ Na raiz do projeto (<PROJECT_ROOT_DIRECTORY_NAME>), execute o script run_backend
 Bash
 
 python run_backend.py
+Ajuste host, porta e workers via flags opcionais:
+python run_backend.py --host 0.0.0.0 --port 8000 --reload True --workers 1
+Também é possível definir `BACKEND_HOST`, `BACKEND_PORT`, `BACKEND_RELOAD` e `BACKEND_WORKERS` no ambiente.
 Este script (run_backend.py) irá configurar o ambiente e iniciar o servidor Uvicorn.
 A API estará disponível em http://localhost:8000 e a documentação interativa (Swagger UI) em http://localhost:8000/docs.
 

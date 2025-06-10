@@ -360,6 +360,11 @@ ADMIN_EMAIL="<ADMIN_EMAIL>"
 ADMIN_PASSWORD="<ADMIN_PASSWORD>"
 FIRST_SUPERUSER_EMAIL="<FIRST_SUPERUSER_EMAIL>"
 FIRST_SUPERUSER_PASSWORD="<FIRST_SUPERUSER_PASSWORD>"
+# Uvicorn server options
+BACKEND_HOST="127.0.0.1"
+BACKEND_PORT=8000
+BACKEND_RELOAD=True
+BACKEND_WORKERS=1
 ```
 
 Se `DATABASE_URL` não estiver definido, o backend utilizará automaticamente
@@ -388,7 +393,8 @@ que coincidam.
 ## 🛠️ Comandos Úteis
 
 * **Iniciar Backend:**
-  `python run_backend.py`
+  `python run_backend.py [--host 0.0.0.0 --port 8000 --reload True --workers 1]`
+  (ou configure `BACKEND_HOST`, `BACKEND_PORT`, `BACKEND_RELOAD` e `BACKEND_WORKERS`)
 
 * **Rodar Migrations:**
   `cd Backend && alembic upgrade head`  # aplica migrações, inclusive a tabela RegistroHistorico
