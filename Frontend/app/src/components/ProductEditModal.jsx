@@ -99,6 +99,7 @@ const ProductEditModal = ({ isOpen, onClose, product, onProductUpdated }) => {
 
     const [iaAttributeSuggestions, setIaAttributeSuggestions] = useState({});
     const [selectedIaSuggestions, setSelectedIaSuggestions] = useState({});
+    const [newAttrKey, setNewAttrKey] = useState('');
 
 
     useEffect(() => {
@@ -282,7 +283,7 @@ const ProductEditModal = ({ isOpen, onClose, product, onProductUpdated }) => {
     }, [productTypes]);
 
     const addDynamicAttribute = () => {
-        const newKey = prompt("Digite a chave do novo atributo (ex: 'cor', 'voltagem'):");
+        const newKey = newAttrKey.trim();
         if (newKey && !formData.dynamic_attributes.hasOwnProperty(newKey) && !BASE_PRODUCT_FIELDS.has(newKey)) {
             setFormData(prev => ({
                 ...prev,
@@ -291,6 +292,7 @@ const ProductEditModal = ({ isOpen, onClose, product, onProductUpdated }) => {
                     [newKey]: '',
                 },
             }));
+            setNewAttrKey('');
         } else if (newKey) {
             showWarningToast("Atributo com esta chave já existe ou é um campo básico.");
         }
@@ -622,7 +624,10 @@ const ProductEditModal = ({ isOpen, onClose, product, onProductUpdated }) => {
                                          }} title="Remover este atributo manual" style={{padding:'5px', color:'red', border:'none', background:'transparent', cursor:'pointer'}}>🗑️</button>
                                      </div>
                              ))}
-                              <button type="button" onClick={addDynamicAttribute} style={{marginTop:'10px'}}>Adicionar Atributo Manual</button>
+                              <div style={{display:'flex', gap:'10px', marginTop:'10px'}}>
+                                  <input type="text" placeholder="Nova chave" value={newAttrKey} onChange={e => setNewAttrKey(e.target.value)} style={{flex:'1'}} />
+                                  <button type="button" onClick={addDynamicAttribute}>Adicionar Atributo Manual</button>
+                              </div>
                         </div>
                     )}
                     {activeTab === 'midia' && (

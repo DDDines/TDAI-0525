@@ -5,6 +5,7 @@ import authService from '../services/authService'; // Mantido para getCurrentUse
 import adminService from '../services/adminService'; // NOVO: Importar o adminService
 import { showErrorToast } from '../utils/notifications';
 import searchService from '../services/searchService';
+import DOMPurify from 'dompurify';
 
 // Alerts exibidos enquanto funcionalidades não estão completas
 const mockDashboardData = {
@@ -176,7 +177,7 @@ function DashboardPage() {
               <div className="pro-alert-title">Pendências (Mock)</div>
               <div className="pro-alert-list">
                 {alertsData.alerts.map(alert => (
-                  <div key={alert.id} dangerouslySetInnerHTML={{ __html: alert.messageHtml }} />
+                  <div key={alert.id} dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(alert.messageHtml) }} />
                 ))}
               </div>
             </div>

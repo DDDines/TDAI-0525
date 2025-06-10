@@ -7,6 +7,13 @@ import PaginationControls from '../components/common/PaginationControls';
 import { showSuccessToast, showErrorToast, showInfoToast, showWarningToast } from '../utils/notifications';
 import logger from '../utils/logger';
 
+// Exibe log detalhado no console e uma notificação resumida
+const notifyWithConsoleLog = (title, message) => {
+  console.log(`${title}:\n${message}`);
+  const truncated = message.length > 200 ? message.slice(0, 200) + '...' : message;
+  showInfoToast(`${title}: ${truncated}`);
+};
+
 function EnriquecimentoPage() {
   const [produtos, setProdutos] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -185,25 +192,25 @@ function EnriquecimentoPage() {
     // Tenta mostrar o log do enriquecimento web primeiro
     if (produto.log_enriquecimento_web && produto.log_enriquecimento_web.historico_mensagens && produto.log_enriquecimento_web.historico_mensagens.length > 0) {
       const logMessages = produto.log_enriquecimento_web.historico_mensagens.join("\n");
-      alert(`Log de Enriquecimento para \"${produto.nome_base}\":\n--------------------------------------\n${logMessages}`);
-    } 
+      notifyWithConsoleLog(`Log de Enriquecimento para \"${produto.nome_base}\"`, logMessages);
+    }
     // Se não houver log de enriquecimento, tenta mostrar o último erro do histórico de IA
-    else if (produto.status_enriquecimento_web && 
+    else if (produto.status_enriquecimento_web &&
              (produto.status_enriquecimento_web.includes('falha') || produto.status_enriquecimento_web.includes('erro'))) {
-      usoIAService.getHistoricoUsoIAPorProduto(produto.id, { limit: 1, skip: 0 }) 
+      usoIAService.getHistoricoUsoIAPorProduto(produto.id, { limit: 1, skip: 0 })
         .then(historicoProduto => {
           if (historicoProduto && historicoProduto.length > 0 && historicoProduto[0].resultado_gerado) {
-            alert(`Último erro registado para \"${produto.nome_base}\":\n--------------------------------------\n${historicoProduto[0].resultado_gerado}`);
+            notifyWithConsoleLog(`Último erro registrado para \"${produto.nome_base}\"`, historicoProduto[0].resultado_gerado);
           } else {
-            alert(`Produto \"${produto.nome_base}\" com status \"${String(produto.status_enriquecimento_web).replace(/_/g, ' ')}\", mas sem log detalhado disponível.`);
+            showInfoToast(`Produto \"${produto.nome_base}\" com status \"${String(produto.status_enriquecimento_web).replace(/_/g, ' ')}\", mas sem log detalhado disponível.`);
           }
         })
         .catch(err => {
           console.error("Erro ao buscar histórico para detalhes do clique:", err);
-          alert(`Produto \"${produto.nome_base}\" com status \"${String(produto.status_enriquecimento_web).replace(/_/g, ' ')}\". Não foi possível carregar o log detalhado.`);
+          showErrorToast(`Produto \"${produto.nome_base}\" com status \"${String(produto.status_enriquecimento_web).replace(/_/g, ' ')}\". Não foi possível carregar o log detalhado.`);
         });
     } else if (produto.status_enriquecimento_web) {
-        alert(`Produto \"${produto.nome_base}\" com status \"${String(produto.status_enriquecimento_web).replace(/_/g, ' ')}\".`);
+        showInfoToast(`Produto \"${produto.nome_base}\" com status \"${String(produto.status_enriquecimento_web).replace(/_/g, ' ')}\".`);
     }
   };
 

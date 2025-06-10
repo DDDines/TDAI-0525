@@ -1,7 +1,7 @@
 // Frontend/app/src/components/fornecedores/EditFornecedorModal.jsx
 import React, { useState, useEffect, useRef } from 'react';
 import fornecedorService from '../../services/fornecedorService';
-import { showSuccessToast, showErrorToast } from '../../utils/notifications';
+import { showSuccessToast, showErrorToast, showWarningToast } from '../../utils/notifications';
 
 function EditFornecedorModal({ isOpen, onClose, fornecedorData, onSave, isLoading }) {
   const [formData, setFormData] = useState({ nome: '', site_url: ''});
@@ -56,13 +56,13 @@ function EditFornecedorModal({ isOpen, onClose, fornecedorData, onSave, isLoadin
   
   const handleSubmit = () => {
     const trimmedNome = formData.nome?.trim();
-    if (!trimmedNome) { 
-      alert('Nome é obrigatório.'); 
-      return; 
+    if (!trimmedNome) {
+      showWarningToast('Nome é obrigatório.');
+      return;
     }
-    if (trimmedNome.length < 2) { 
-      alert('Nome deve ter pelo menos 2 caracteres.'); 
-      return; 
+    if (trimmedNome.length < 2) {
+      showWarningToast('Nome deve ter pelo menos 2 caracteres.');
+      return;
     }
     
     const payload = {
@@ -87,13 +87,13 @@ function EditFornecedorModal({ isOpen, onClose, fornecedorData, onSave, isLoadin
         onSave(fornecedorData.id, payload);
     } else {
         console.error("ID do fornecedor não encontrado para atualização.");
-        alert("Erro: ID do fornecedor não encontrado.");
+        showErrorToast("Erro: ID do fornecedor não encontrado.");
     }
   };
 
   const handleImport = async () => {
     if (!importFile) {
-      alert('Selecione um arquivo para importar.');
+      showWarningToast('Selecione um arquivo para importar.');
       return;
     }
     setImportLoading(true);
