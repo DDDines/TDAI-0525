@@ -220,6 +220,10 @@ cd ..
 python run_backend.py       # Inicia o backend (http://localhost:8000)
 ```
 
+> **Importante:** as migrações do Alembic **devem** ser executadas antes de iniciar o backend.
+> Em ambientes de desenvolvimento é possível definir `AUTO_CREATE_TABLES=true` no `.env`
+> para que as tabelas sejam criadas automaticamente no startup.
+
 Após a primeira execução, o backend cria automaticamente um usuário administrador
 e um **produto de exemplo**. Utilize as credenciais definidas em `.env` para
 acessar a plataforma e visualizar esse item inicial.
@@ -388,6 +392,7 @@ que coincidam.
 
 * **Rodar Migrations:**
   `cd Backend && alembic upgrade head`  # aplica migrações, inclusive a tabela RegistroHistorico
+  (obrigatório antes do primeiro `python run_backend.py`; use `AUTO_CREATE_TABLES=true` no `.env` apenas em desenvolvimento)
 
 * **Instalar navegadores Playwright:**
   `playwright install`

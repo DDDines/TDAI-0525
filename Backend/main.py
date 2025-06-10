@@ -36,23 +36,10 @@ from Backend.routers.search import router as search_router
 
 logger = get_logger(__name__)
 
-
-try:
-    logger.info("Tentando criar tabelas no banco de dados ...")
-except Exception as e:
-    logger.error(f"Erro ao criar tabelas: {e}")
-
-
-
-try:
-    logger.info("Tentando criar tabelas no banco de dados (models.Base.metadata.create_all)...")
-
-    # A LINHA ABAIXO FOI COMENTADA PARA EVITAR ERROS COM O RELOADER DO UVICORN.
-    # O GERENCIAMENTO DO SCHEMA DO BANCO DE DADOS DEVE SER FEITO VIA ALEMBIC.
-    # models.Base.metadata.create_all(bind=engine)
-    logger.info("Criação/verificação de tabelas concluída.")
-except Exception as e:
-    logger.error("Falha ao criar/verificar tabelas: %s", e)
+# Apenas um lembrete no log para executar as migrations antes de iniciar.
+logger.info(
+    "Inicializando aplicação. Certifique-se de rodar 'alembic upgrade head' antes de usar."
+)
 
 
 app = FastAPI(
@@ -116,6 +103,13 @@ app.mount("/static", StaticFiles(directory=static_files_path), name="static")
 async def startup_event_create_defaults():
     logger.info("Executando evento de startup para criar defaults (roles, planos, admin user, product types)...")
     db: Session = SessionLocal()
+    if settings.AUTO_CREATE_TABLES:
+        try:
+            logger.info("AUTO_CREATE_TABLES habilitado - criando/verificando tabelas via SQLAlchemy...")
+            models.Base.metadata.create_all(bind=engine)
+            logger.info("Criação/verificação de tabelas concluída.")
+        except Exception as e:
+            logger.error("Falha ao criar/verificar tabelas automaticamente: %s", e)
     try:
         # 1. Criação de Roles
         roles_a_criar = [
