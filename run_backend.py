@@ -35,8 +35,11 @@ if __name__ == "__main__":
             workers=1,
         )
     except ImportError as e:
-        logger.error("Erro de Importação ao tentar carregar a aplicação Uvicorn: %s", e)
-        logger.error("Verifique se o arquivo 'main.py' existe em 'Backend/' e contém 'app = FastAPI()'.")
-        logger.error("Verifique também os imports dentro de 'main.py'.")
+        logger.error(
+            "Erro de Importação ao tentar carregar a aplicação Uvicorn: %s. "
+            "Verifique se o arquivo 'main.py' existe em 'Backend/' e contém 'app = FastAPI()'. "
+            "Verifique também os imports dentro de 'main.py'.",
+            e,
+        )
     except Exception as e:
         logger.error("Ocorreu um erro inesperado ao tentar iniciar o Uvicorn: %s", e)
