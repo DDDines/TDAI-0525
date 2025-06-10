@@ -296,6 +296,19 @@ const ProductEditModal = ({ isOpen, onClose, product, onProductUpdated }) => {
         }
     };
 
+    // Helper para sanitizar e converter campos numéricos antes de enviar ao backend
+    const sanitizeProdutoData = (data) => {
+        const sanitized = { ...data };
+        sanitized.preco_custo = data.preco_custo !== '' ? parseFloat(data.preco_custo) : null;
+        sanitized.preco_venda = data.preco_venda !== '' ? parseFloat(data.preco_venda) : null;
+        sanitized.preco_promocional = data.preco_promocional !== '' ? parseFloat(data.preco_promocional) : null;
+        sanitized.estoque_disponivel = data.estoque_disponivel !== '' ? parseInt(data.estoque_disponivel, 10) : null;
+        sanitized.peso_gramas = data.peso_gramas !== '' ? parseInt(data.peso_gramas, 10) : null;
+        sanitized.fornecedor_id = data.fornecedor_id !== '' ? parseInt(data.fornecedor_id, 10) : null;
+        sanitized.product_type_id = data.product_type_id !== '' ? parseInt(data.product_type_id, 10) : null;
+        return sanitized;
+    };
+
     const handleIaSuggestionToggle = (key) => {
         setSelectedIaSuggestions(prev => ({ ...prev, [key]: !prev[key] }));
     };
@@ -411,7 +424,7 @@ const ProductEditModal = ({ isOpen, onClose, product, onProductUpdated }) => {
         }
         
         try {
-            const productDataToSave = { ...formData };
+            const productDataToSave = sanitizeProdutoData(formData);
             let responseProduct;
             if (isNewProduct) {
                 responseProduct = await productService.createProduto(productDataToSave);
