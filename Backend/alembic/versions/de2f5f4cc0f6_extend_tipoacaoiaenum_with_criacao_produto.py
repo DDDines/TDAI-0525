@@ -1,4 +1,4 @@
-"""extend TipoAcaoIAEnum with criacao_produto value
+"""extend TipoAcaoIAEnum with CRIACAO_PRODUTO value
 
 Revision ID: de2f5f4cc0f6
 Revises: e82d95b0cae0
@@ -15,7 +15,7 @@ depends_on: Union[str, Sequence[str], None] = None
 
 
 def upgrade() -> None:
-    op.execute("ALTER TYPE tipoacaoiaenum ADD VALUE IF NOT EXISTS 'criacao_produto'")
+    op.execute("ALTER TYPE tipoacaoiaenum ADD VALUE IF NOT EXISTS 'CRIACAO_PRODUTO'")
 
 
 def downgrade() -> None:
