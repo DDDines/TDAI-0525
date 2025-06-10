@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import List, Optional
+from typing import List, Optional, Union
 
 from sqlalchemy import func
 from sqlalchemy.orm import Session
@@ -20,10 +20,16 @@ def get_registros_uso_ia(
     user_id: int,
     skip: int = 0,
     limit: int = 100,
-    tipo_acao: Optional[str] = None,
+    tipo_acao: Optional[models.TipoAcaoEnum] = None,
     data_inicio: Optional[datetime] = None,
     data_fim: Optional[datetime] = None,
 ) -> List[models.RegistroUsoIA]:
+    if isinstance(tipo_acao, str):
+        try:
+            tipo_acao = models.TipoAcaoEnum(tipo_acao)
+        except ValueError as exc:
+            raise ValueError(f"tipo_acao inválido: {tipo_acao}") from exc
+
     query = db.query(models.RegistroUsoIA).filter(models.RegistroUsoIA.user_id == user_id)
     if tipo_acao:
         query = query.filter(models.RegistroUsoIA.tipo_acao == tipo_acao)
@@ -42,10 +48,16 @@ def get_registros_uso_ia(
 def count_registros_uso_ia(
     db: Session,
     user_id: int,
-    tipo_acao: Optional[str] = None,
+    tipo_acao: Optional[models.TipoAcaoEnum] = None,
     data_inicio: Optional[datetime] = None,
     data_fim: Optional[datetime] = None,
 ) -> int:
+    if isinstance(tipo_acao, str):
+        try:
+            tipo_acao = models.TipoAcaoEnum(tipo_acao)
+        except ValueError as exc:
+            raise ValueError(f"tipo_acao inválido: {tipo_acao}") from exc
+
     query = db.query(func.count(models.RegistroUsoIA.id)).filter(models.RegistroUsoIA.user_id == user_id)
     if tipo_acao:
         query = query.filter(models.RegistroUsoIA.tipo_acao == tipo_acao)
