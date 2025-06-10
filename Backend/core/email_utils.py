@@ -98,20 +98,25 @@ async def send_email(
 
 
 # NOVA FUNÇÃO ADICIONADA
-async def send_password_reset_email(email_to: EmailStr, username: str, reset_link: str):
-    """
-    Envia um email de redefinição de senha para o usuário.
-    """
+async def send_password_reset_email(
+    email_to: EmailStr,
+    username: str,
+    reset_link: str,
+    *,
+    raise_if_unconfigured: Optional[bool] = None,
+):
+    """Envia um email de redefinição de senha para o usuário."""
+
+    if raise_if_unconfigured is None:
+        raise_if_unconfigured = settings.RAISE_ON_MISSING_EMAIL_CONFIG
+
     if not conf:
         logger.warning(
             "Tentativa de enviar email de reset de senha para %s, mas a configuração de email está desabilitada.",
             email_to,
         )
-        # Em um cenário real, você pode querer levantar uma exceção aqui
-        # ou retornar um status que indique que o email não pôde ser enviado.
-        # Por enquanto, apenas logamos e não enviamos.
-        # Se esta função for chamada de um endpoint, o endpoint deve lidar com a falha.
-        # raise HTTPException(status_code=500, detail="Serviço de email não configurado.")
+        if raise_if_unconfigured:
+            raise RuntimeError("Configuração de email ausente")
         return
 
     subject = "Redefinição de Senha - CatalogAI"
