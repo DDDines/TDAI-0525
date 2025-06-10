@@ -8,11 +8,11 @@ from fastapi import APIRouter, Depends, HTTPException, status # Imports do FastA
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm # Para o formulário de login
 
 from jose import JWTError, jwt
-# passlib.context.CryptContext é importado de core.config como pwd_context
-from authlib.integrations.starlette_client import OAuth, OAuthError # type: ignore
-from starlette.config import Config as AuthlibConfig 
+from authlib.integrations.starlette_client import OAuth, OAuthError  # type: ignore
+from starlette.config import Config as AuthlibConfig
 from sqlalchemy.orm import Session
-from Backend.core.config import settings, pwd_context
+from Backend.core.config import settings
+from Backend.core.security import pwd_context
 from Backend.core.logging_config import get_logger
 
 logger = get_logger(__name__)
