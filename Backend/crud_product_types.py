@@ -83,6 +83,10 @@ def get_product_type_by_key_name(db: Session, key_name: str, user_id: Optional[i
 
 
 def get_product_types_for_user(db: Session, user_id: Optional[int], skip: int = 0, limit: int = 100, search: Optional[str] = None) -> List[ProductType]:
+    if skip < 0:
+        raise ValueError("skip must be non-negative")
+    if limit <= 0:
+        raise ValueError("limit must be positive")
     query = db.query(ProductType).options(selectinload(ProductType.attribute_templates))
     
     # Filtra para tipos do usuário específico OU tipos globais (user_id IS NULL)

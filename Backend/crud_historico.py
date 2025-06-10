@@ -21,6 +21,10 @@ def get_registros_historico(
     entidade: Optional[str] = None,
     acao: Optional[models.TipoAcaoSistemaEnum] = None,
 ) -> List[models.RegistroHistorico]:
+    if skip < 0:
+        raise ValueError("skip must be non-negative")
+    if limit <= 0:
+        raise ValueError("limit must be positive")
     query = db.query(models.RegistroHistorico)
     if user_id is not None:
         query = query.filter(models.RegistroHistorico.user_id == user_id)

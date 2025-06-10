@@ -20,6 +20,10 @@ def get_user_by_email(db: Session, email: str) -> Optional[User]:
     return db.query(User).filter(User.email == email).first()
 
 def get_users(db: Session, skip: int = 0, limit: int = 100) -> List[User]:
+    if skip < 0:
+        raise ValueError("skip must be non-negative")
+    if limit <= 0:
+        raise ValueError("limit must be positive")
     return db.query(User).offset(skip).limit(limit).all()
 
 def create_user(db: Session, user: schemas.UserCreate) -> User:
@@ -151,6 +155,10 @@ def get_role_by_name(db: Session, name: str) -> Optional[Role]:
     return db.query(Role).filter(Role.name == name).first()
 
 def get_roles(db: Session, skip: int = 0, limit: int = 10) -> List[Role]:
+    if skip < 0:
+        raise ValueError("skip must be non-negative")
+    if limit <= 0:
+        raise ValueError("limit must be positive")
     return db.query(Role).offset(skip).limit(limit).all()
 
 def create_role(db: Session, role: schemas.RoleCreate) -> Role:
@@ -168,6 +176,10 @@ def get_plano_by_name(db: Session, nome: str) -> Optional[Plano]:
     return db.query(Plano).filter(Plano.nome == nome).first()
 
 def get_planos(db: Session, skip: int = 0, limit: int = 10) -> List[Plano]:
+    if skip < 0:
+        raise ValueError("skip must be non-negative")
+    if limit <= 0:
+        raise ValueError("limit must be positive")
     return db.query(Plano).offset(skip).limit(limit).all()
 
 def create_plano(db: Session, plano: schemas.PlanoCreate) -> Plano:

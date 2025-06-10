@@ -81,6 +81,10 @@ def get_produtos_by_user(
     status_titulo_ia: Optional[StatusGeracaoIAEnum] = None, # Adicionado
     status_descricao_ia: Optional[StatusGeracaoIAEnum] = None # Adicionado
 ) -> List[Produto]:
+    if skip < 0:
+        raise ValueError("skip must be non-negative")
+    if limit <= 0:
+        raise ValueError("limit must be positive")
     query = db.query(Produto).options(
         selectinload(Produto.fornecedor),
         selectinload(Produto.product_type) # Carrega product_type, mas não seus atributos aqui para a lista

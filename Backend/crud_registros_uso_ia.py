@@ -24,6 +24,10 @@ def get_registros_uso_ia(
     data_inicio: Optional[datetime] = None,
     data_fim: Optional[datetime] = None,
 ) -> List[models.RegistroUsoIA]:
+    if skip < 0:
+        raise ValueError("skip must be non-negative")
+    if limit <= 0:
+        raise ValueError("limit must be positive")
     query = db.query(models.RegistroUsoIA).filter(models.RegistroUsoIA.user_id == user_id)
     if tipo_acao:
         query = query.filter(models.RegistroUsoIA.tipo_acao == tipo_acao)
@@ -63,6 +67,10 @@ def get_usos_ia_by_produto(
     skip: int = 0,
     limit: int = 100,
 ) -> List[models.RegistroUsoIA]:
+    if skip < 0:
+        raise ValueError("skip must be non-negative")
+    if limit <= 0:
+        raise ValueError("limit must be positive")
     return (
         db.query(models.RegistroUsoIA)
         .filter(

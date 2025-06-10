@@ -34,6 +34,10 @@ def get_fornecedores_by_user(
     limit: int = 10,
     search: Optional[str] = None,
 ) -> List[Fornecedor]:
+    if skip < 0:
+        raise ValueError("skip must be non-negative")
+    if limit <= 0:
+        raise ValueError("limit must be positive")
     query = db.query(Fornecedor)
     if not is_admin and user_id:
         query = query.filter(Fornecedor.user_id == user_id)

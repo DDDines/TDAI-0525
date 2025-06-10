@@ -87,6 +87,10 @@ def read_product_types_endpoint(
     db: Session = Depends(database.get_db),
     current_user: models.User = Depends(auth_utils.get_current_active_user)
 ):
+    if skip < 0:
+        raise HTTPException(status_code=400, detail="skip must be non-negative")
+    if limit <= 0:
+        raise HTTPException(status_code=400, detail="limit must be positive")
     logger.info(
         "ROUTER (read_product_types): iniciando busca para usuário ID %s",
         current_user.id,
