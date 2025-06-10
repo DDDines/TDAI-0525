@@ -72,7 +72,8 @@ def read_user_fornecedores(
         items_paginados = crud_fornecedores.get_fornecedores_by_user(db, user_id=current_user.id, skip=skip, limit=limit, search=termo_busca)
         total_items = crud_fornecedores.count_fornecedores_by_user(db=db, user_id=current_user.id, search=termo_busca)
     
-    return {"items": items_paginados, "total_items": total_items, "page": skip // limit, "limit": limit}
+    page_number = skip // limit + 1
+    return {"items": items_paginados, "total_items": total_items, "page": page_number, "limit": limit}
 
 # Endpoint para obter um fornecedor específico
 @router.get("/{fornecedor_id}", response_model=schemas.FornecedorResponse) # CORRIGIDO AQUI
