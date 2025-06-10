@@ -260,7 +260,7 @@ npm run dev                 # Roda o frontend em http://localhost:5173
 
 Todas as variáveis necessárias para o backend e o frontend estão documentadas em [`.env.example`](./.env.example).
 Copie este arquivo para `.env` e preencha com seus valores antes de iniciar a aplicação.
-Para que o envio de emails de recuperação de senha funcione é obrigatório definir `MAIL_USERNAME`, `MAIL_PASSWORD`, `MAIL_FROM` e `MAIL_SERVER`.
+Para que o envio de emails de recuperação de senha funcione é obrigatório definir `MAIL_USERNAME`, `MAIL_PASSWORD`, `MAIL_FROM` e `MAIL_SERVER`. Por padrão o backend gera erro caso essas configurações estejam ausentes; defina `RAISE_ON_MISSING_EMAIL_CONFIG=false` se preferir apenas registrar um aviso.
 
 Principais variáveis obrigatórias:
 - `SECRET_KEY` e `REFRESH_SECRET_KEY`
@@ -337,7 +337,7 @@ MAIL_SERVER="smtp.example.com"
 MAIL_STARTTLS=True
 MAIL_SSL_TLS=False
 MAIL_FROM_NAME="CatalogAI Platform"
-RAISE_ON_MISSING_EMAIL_CONFIG=False  # opcional: gera erro se a configuração de email estiver incompleta
+RAISE_ON_MISSING_EMAIL_CONFIG=True  # gera erro se a configuração de email estiver incompleta (defina como False para ignorar)
 
 # Frontend
 FRONTEND_URL="http://localhost:5173"

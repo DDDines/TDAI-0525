@@ -68,8 +68,9 @@ class Settings(BaseSettings):
 
     # When True, functions like send_password_reset_email will raise an
     # exception instead of returning silently if the email configuration is
-    # incomplete. Defaults to False for backward compatibility.
-    RAISE_ON_MISSING_EMAIL_CONFIG: bool = os.getenv("RAISE_ON_MISSING_EMAIL_CONFIG", "False").lower() in ("true", "1", "t", "yes")
+    # incomplete. Defaults to True so callers are notified when emails are
+    # skipped due to missing settings.
+    RAISE_ON_MISSING_EMAIL_CONFIG: bool = os.getenv("RAISE_ON_MISSING_EMAIL_CONFIG", "True").lower() in ("true", "1", "t", "yes")
 
     GOOGLE_CLIENT_ID: Optional[str] = os.getenv("GOOGLE_CLIENT_ID")
     GOOGLE_CLIENT_SECRET: Optional[str] = os.getenv("GOOGLE_CLIENT_SECRET")
