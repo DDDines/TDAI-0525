@@ -283,6 +283,18 @@ cd Frontend/app
 npm test
 ```
 
+Se preferir utilizar **Docker**, construa a imagem de testes com:
+
+```sh
+docker build -f Dockerfile.test -t catalogai-test .
+```
+
+E execute os testes via container:
+
+```sh
+docker run --rm catalogai-test
+```
+
 ---
 
 ## ⚙️ Variáveis de Ambiente – Exemplo `.env`
@@ -410,6 +422,18 @@ que realiza a instalação das dependências e roda os testes:
 
 ```sh
 ./scripts/run_tests.sh
+```
+
+Também é possível executar os testes em um container Docker. Construa a imagem:
+
+```sh
+docker build -f Dockerfile.test -t catalogai-test .
+```
+
+E rode:
+
+```sh
+docker run --rm catalogai-test
 ```
 
 ---
