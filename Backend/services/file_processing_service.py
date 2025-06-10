@@ -128,12 +128,18 @@ async def processar_arquivo_csv(conteudo_arquivo: bytes, mapeamento_colunas_usua
             except UnicodeDecodeError:
                 conteudo_str = conteudo_arquivo.decode('cp1252', errors='replace') # Windows Latin-1
             
-        # Detectar delimitador (simples, pode ser melhorado com sniffer completo)
-        delimitador_provavel = ','
-        if ';' in conteudo_str.splitlines()[0]: # Checa na primeira linha
-            delimitador_provavel = ';'
-        elif '\t' in conteudo_str.splitlines()[0]:
-            delimitador_provavel = '\t'
+        # Detectar delimitador usando csv.Sniffer para maior confiabilidade
+        sample = conteudo_str[:1024]
+        try:
+            dialect = csv.Sniffer().sniff(sample, delimiters=[",", ";", "\t", "|"])
+            delimitador_provavel = dialect.delimiter
+        except Exception:
+            delimitador_provavel = ","
+            primeira_linha = conteudo_str.splitlines()[0] if conteudo_str.splitlines() else ""
+            if ";" in primeira_linha:
+                delimitador_provavel = ";"
+            elif "\t" in primeira_linha:
+                delimitador_provavel = "\t"
 
         leitor_csv = csv.DictReader(io.StringIO(conteudo_str), delimiter=delimitador_provavel)
         for linha_dict_raw in leitor_csv:
@@ -237,12 +243,17 @@ async def preview_arquivo_csv(conteudo_arquivo: bytes, max_rows: int = 5) -> Dic
         except UnicodeDecodeError:
             conteudo_str = conteudo_arquivo.decode("latin-1")
 
-        delimitador = ","
-        primeira_linha = conteudo_str.splitlines()[0]
-        if ";" in primeira_linha:
-            delimitador = ";"
-        elif "\t" in primeira_linha:
-            delimitador = "\t"
+        sample = conteudo_str[:1024]
+        try:
+            dialect = csv.Sniffer().sniff(sample, delimiters=[",", ";", "\t", "|"])
+            delimitador = dialect.delimiter
+        except Exception:
+            delimitador = ","
+            primeira_linha = conteudo_str.splitlines()[0] if conteudo_str.splitlines() else ""
+            if ";" in primeira_linha:
+                delimitador = ";"
+            elif "\t" in primeira_linha:
+                delimitador = "\t"
 
         leitor_csv = csv.DictReader(io.StringIO(conteudo_str), delimiter=delimitador)
         headers = leitor_csv.fieldnames or []
