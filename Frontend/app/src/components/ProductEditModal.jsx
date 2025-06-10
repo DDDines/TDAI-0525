@@ -15,7 +15,7 @@ const BASE_PRODUCT_FIELDS = new Set([
     'nome_chat_api',
     'descricao_original',
     'descricao_curta_orig',
-    'descricao_principal_gerada',
+    'descricao_chat_api',
     'descricao_curta_gerada',
     'sku',
     'ean',
@@ -28,10 +28,8 @@ const BASE_PRODUCT_FIELDS = new Set([
     'preco_venda',
     'preco_promocional',
     'estoque_disponivel',
-    'peso_kg',
-    'altura_cm',
-    'largura_cm',
-    'profundidade_cm',
+    'peso_gramas',
+    'dimensoes_cm',
     'imagem_principal_url',
     'imagens_secundarias_urls',
     'fornecedor_id',
@@ -50,7 +48,7 @@ const initialFormData = {
     nome_chat_api: '',
     descricao_original: '',
     descricao_curta_orig: '',
-    descricao_principal_gerada: '',
+    descricao_chat_api: '',
     descricao_curta_gerada: '',
     sku: '',
     ean: '',
@@ -63,16 +61,14 @@ const initialFormData = {
     preco_venda: '',
     preco_promocional: '',
     estoque_disponivel: '',
-    peso_kg: '',
-    altura_cm: '',
-    largura_cm: '',
-    profundidade_cm: '',
+    peso_gramas: '',
+    dimensoes_cm: '',
     imagem_principal_url: '',
     imagens_secundarias_urls: [],
     fornecedor_id: '',
     product_type_id: '',
     dynamic_attributes: {},
-    dados_brutos: {},
+    dados_brutos_web: {},
     titulos_sugeridos: [],
     ativo_marketplace: false,
     data_publicacao_marketplace: null,
@@ -161,14 +157,14 @@ const ProductEditModal = ({ isOpen, onClose, product, onProductUpdated }) => {
         const dynamicAttrs = Object.fromEntries(
             Object.entries(dynamicAttrsRaw).filter(([key]) => !BASE_PRODUCT_FIELDS.has(key))
         );
-        const dadosBrutos = (prod.dados_brutos && typeof prod.dados_brutos === 'object') ? prod.dados_brutos : {};
+        const dadosBrutos = (prod.dados_brutos_web && typeof prod.dados_brutos_web === 'object') ? prod.dados_brutos_web : {};
 
         setFormData({
             nome_base: prod.nome_base || '',
             nome_chat_api: prod.nome_chat_api || '',
             descricao_original: prod.descricao_original || '',
             descricao_curta_orig: prod.descricao_curta_orig || '',
-            descricao_principal_gerada: prod.descricao_principal_gerada || '',
+            descricao_chat_api: prod.descricao_chat_api || '',
             descricao_curta_gerada: prod.descricao_curta_gerada || '',
             sku: prod.sku || '',
             ean: prod.ean || '',
@@ -181,16 +177,14 @@ const ProductEditModal = ({ isOpen, onClose, product, onProductUpdated }) => {
             preco_venda: prod.preco_venda || '',
             preco_promocional: prod.preco_promocional || '',
             estoque_disponivel: prod.estoque_disponivel || '',
-            peso_kg: prod.peso_kg || '',
-            altura_cm: prod.altura_cm || '',
-            largura_cm: prod.largura_cm || '',
-            profundidade_cm: prod.profundidade_cm || '',
+            peso_gramas: prod.peso_gramas || '',
+            dimensoes_cm: prod.dimensoes_cm || '',
             imagem_principal_url: prod.imagem_principal_url || '',
             imagens_secundarias_urls: prod.imagens_secundarias_urls || [],
             fornecedor_id: prod.fornecedor_id || '',
             product_type_id: prod.product_type_id || '',
             dynamic_attributes: dynamicAttrs,
-            dados_brutos: dadosBrutos,
+            dados_brutos_web: dadosBrutos,
             titulos_sugeridos: prod.titulos_sugeridos || [],
             ativo_marketplace: prod.ativo_marketplace || false,
             data_publicacao_marketplace: prod.data_publicacao_marketplace || null,
@@ -458,7 +452,7 @@ const ProductEditModal = ({ isOpen, onClose, product, onProductUpdated }) => {
                 const updatedProduct = await productService.getProdutoById(product.id);
                 setFormData(prev => ({
                     ...prev,
-                    descricao_principal_gerada: updatedProduct.descricao_principal_gerada,
+                    descricao_chat_api: updatedProduct.descricao_chat_api,
                 }));
                 if (onProductUpdated) onProductUpdated(updatedProduct);
             }, 7000); 
@@ -620,7 +614,7 @@ const ProductEditModal = ({ isOpen, onClose, product, onProductUpdated }) => {
                             {formData.titulos_sugeridos && formData.titulos_sugeridos.length > 0 && ( <div> <h4>Títulos Sugeridos:</h4> <ul> {formData.titulos_sugeridos.map((title, index) => ( <li key={index}>{title}</li> ))} </ul> </div> )}
                             <hr />
                             <button type="button" onClick={handleGenerateDescription} disabled={isGeneratingIA || isNewProduct}> {isGeneratingIA ? 'Gerando Descrição...' : 'Gerar Descrição (OpenAI)'} </button>
-                            {formData.descricao_principal_gerada && ( <div style={{ marginTop: '10px' }}> <h4>Descrição Principal Gerada:</h4> <textarea value={formData.descricao_principal_gerada} readOnly rows="10" style={{ width: '100%', backgroundColor: '#f9f9f9' }} /> </div> )}
+                            {formData.descricao_chat_api && ( <div style={{ marginTop: '10px' }}> <h4>Descrição Principal Gerada:</h4> <textarea value={formData.descricao_chat_api} readOnly rows="10" style={{ width: '100%', backgroundColor: '#f9f9f9' }} /> </div> )}
                         </div>
                     )}
                     {activeTab === 'sugestoes-ia' && (
