@@ -58,3 +58,31 @@ def test_historico_created_on_product_crud():
         assert models.TipoAcaoSistemaEnum.CRIACAO in actions
         assert models.TipoAcaoSistemaEnum.ATUALIZACAO in actions
         assert models.TipoAcaoSistemaEnum.DELECAO in actions
+
+
+def test_list_historico_endpoint():
+    headers = get_user_headers()
+    # cria um registro para garantir algum resultado
+    with TestingSessionLocal() as db:
+        crud.create_registro_historico(
+            db,
+            schemas.RegistroHistoricoCreate(
+                user_id=normal_user.id,
+                entidade="Teste",
+                acao=models.TipoAcaoSistemaEnum.CRIACAO,
+                entity_id=123,
+            ),
+        )
+
+    resp = client.get("/api/v1/historico/", headers=headers)
+    assert resp.status_code == 200
+    data = resp.json()
+    assert "items" in data
+
+
+def test_get_tipos_acao_endpoint():
+    headers = get_user_headers()
+    resp = client.get("/api/v1/historico/tipos", headers=headers)
+    assert resp.status_code == 200
+    data = resp.json()
+    assert isinstance(data, list)
