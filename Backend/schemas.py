@@ -13,11 +13,10 @@ import json # Para validação de JSON string
 from Backend.models import (
     StatusEnriquecimentoEnum,
     StatusGeracaoIAEnum,
-    TipoAcaoIAEnum,
+    TipoAcaoEnum,
     TipoAcaoSistemaEnum,
     AttributeFieldTypeEnum,
 )
-from Backend.models import StatusEnriquecimentoEnum, StatusGeracaoIAEnum, TipoAcaoEnum, AttributeFieldTypeEnum
 
 # Schemas de Autenticação e Usuário
 class Token(BaseModel):

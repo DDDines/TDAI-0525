@@ -37,5 +37,5 @@ router = APIRouter(
 
 @router.get("/tipos", response_model=List[str])
 def get_tipos_acao(db: Session = Depends(get_db)):
-    """Retorna todos os valores possíveis de TipoAcaoIAEnum."""
-    return [enum_member.value for enum_member in models.TipoAcaoIAEnum]
+    """Retorna todos os valores possíveis de TipoAcaoEnum."""
+    return [enum_member.value for enum_member in models.TipoAcaoEnum]
