@@ -188,7 +188,7 @@
 ## Backend/routers/fornecedores.py
 
 * `create_supplier(fornecedor: FornecedorCreate, db: Session)`: Cria novo fornecedor.
-* `list_suppliers(skip: int = 0, limit: int = 100, db: Session)`: Lista fornecedores com paginação.
+* `list_suppliers(skip: int = 0, limit: int = 100, db: Session)`: Lista fornecedores com paginação (campo `page` inicia em 1).
 * `get_supplier(supplier_id: int, db: Session)`: Busca fornecedor pelo ID.
 * `update_supplier(supplier_id: int, update: FornecedorUpdate, db: Session)`: Atualiza fornecedor.
 * `delete_supplier(supplier_id: int, db: Session)`: Remove fornecedor.
