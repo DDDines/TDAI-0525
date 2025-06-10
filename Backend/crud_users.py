@@ -4,6 +4,7 @@ from datetime import datetime
 
 from sqlalchemy.orm import Session
 from sqlalchemy.exc import IntegrityError
+from fastapi import HTTPException
 
 from Backend.core.config import settings
 from Backend.core import security
@@ -56,7 +57,12 @@ def create_user(db: Session, user: schemas.UserCreate) -> User:
             )
 
     db.add(db_user)
-    db.commit()
+    try:
+        db.commit()
+    except IntegrityError:
+        db.rollback()
+        logger.warning(f"Falha ao criar usuário, email duplicado: {user.email}")
+        raise HTTPException(status_code=400, detail="Um usuário com este email já existe.")
     db.refresh(db_user)
     return db_user
 
@@ -127,7 +133,12 @@ def create_user_oauth(db: Session, user_oauth: schemas.UserCreateOAuth, plano_id
         db_user.role_id = default_role.id
 
     db.add(db_user)
-    db.commit()
+    try:
+        db.commit()
+    except IntegrityError:
+        db.rollback()
+        logger.warning(f"Falha ao criar usuário (OAuth), email duplicado: {user_oauth.email}")
+        raise HTTPException(status_code=400, detail="Um usuário com este email já existe.")
     db.refresh(db_user)
     return db_user
 
