@@ -104,6 +104,7 @@ function HistoricoPage() {
             <option value="geracao_titulo_produto">Geração Título Produto</option>
             <option value="geracao_descricao_produto">Geração Descrição Produto</option>
             <option value="enriquecimento_web_produto">Enriquecimento Web Produto</option>
+            <option value="criacao_produto">Criação de Produto</option>
             {/* Adicione outras opções conforme as TipoAcaoIAEnum do seu backend */}
           </select>
         </div>

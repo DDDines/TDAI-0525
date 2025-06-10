@@ -21,6 +21,7 @@ from sqlalchemy import func, or_
 from Backend import crud_produtos
 from Backend import crud_fornecedores
 from Backend import crud_product_types
+from Backend import crud
 from Backend import models
 from Backend import schemas  # schemas é importado
 from Backend import database
@@ -58,7 +59,17 @@ def create_produto( # Nome da função mantido como no arquivo do usuário
 
     # A função crud_produtos.create_produto (ou create_user_produto) lida com a lógica de criação
     # usando nome_base e nome_chat_api como definido nos schemas.
-    return crud_produtos.create_produto(db=db, produto=produto, user_id=current_user.id)
+    db_produto = crud_produtos.create_produto(db=db, produto=produto, user_id=current_user.id)
+    crud.create_registro_uso_ia(
+        db,
+        schemas.RegistroUsoIACreate(
+            user_id=current_user.id,
+            produto_id=db_produto.id,
+            tipo_acao=models.TipoAcaoIAEnum.CRIACAO_PRODUTO,
+            creditos_consumidos=0,
+        ),
+    )
+    return db_produto
 
 
 @router.get("/{produto_id}", response_model=schemas.ProdutoResponse) # CORRIGIDO AQUI
@@ -320,4 +331,14 @@ async def importar_catalogo_fornecedor(
         raise HTTPException(status_code=400, detail="Nenhum produto válido encontrado no arquivo")
 
     created = crud_produtos.create_produtos_bulk(db, produtos_create, user_id=current_user.id)
+    for db_produto in created:
+        crud.create_registro_uso_ia(
+            db,
+            schemas.RegistroUsoIACreate(
+                user_id=current_user.id,
+                produto_id=db_produto.id,
+                tipo_acao=models.TipoAcaoIAEnum.CRIACAO_PRODUTO,
+                creditos_consumidos=0,
+            ),
+        )
     return created

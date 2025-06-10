@@ -58,6 +58,16 @@ def get_admin_headers():
     return {"Authorization": f"Bearer {token}"}
 
 
+def get_user_headers():
+    resp = client.post(
+        "/api/v1/auth/token",
+        data={"username": "user@example.com", "password": "secret"},
+    )
+    assert resp.status_code == 200
+    token = resp.json()["access_token"]
+    return {"Authorization": f"Bearer {token}"}
+
+
 def test_admin_can_view_usos_ia_of_other_user_product():
     headers = get_admin_headers()
     # get product id created earlier
@@ -69,3 +79,24 @@ def test_admin_can_view_usos_ia_of_other_user_product():
     assert isinstance(data, list)
     assert len(data) == 1
     assert data[0]["produto_id"] == produto.id
+
+
+def test_product_creation_creates_uso_ia_record():
+    headers = get_user_headers()
+    resp = client.post(
+        "/api/v1/produtos/",
+        json={"nome_base": "Novo Produto"},
+        headers=headers,
+    )
+    assert resp.status_code == 201
+    produto_id = resp.json()["id"]
+    with TestingSessionLocal() as db:
+        registros = (
+            db.query(models.RegistroUsoIA)
+            .filter(
+                models.RegistroUsoIA.produto_id == produto_id,
+                models.RegistroUsoIA.tipo_acao == models.TipoAcaoIAEnum.CRIACAO_PRODUTO,
+            )
+            .all()
+        )
+        assert len(registros) == 1
