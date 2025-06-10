@@ -195,11 +195,11 @@ def _normalizar_dados_de_metadados(metadata_bruta: Dict[str, Any]) -> Dict[str, 
 # --- LLM-based Data Extraction from Text ---
 async def extrair_dados_produto_com_llm(
     texto_pagina: Optional[str],
-    metadados_normalizados: Optional[Dict[str, Any]],
-    campos_desejados: List[str],
-    produto_nome_base: str,
-    user: models.User 
-    ) -> Optional[Dict[str, Any]]:
+    metadados_normalizados: Optional[Dict[str, Any]] = None,
+    campos_desejados: Optional[List[str]] = None,
+    produto_nome_base: str = "Produto",
+    user: Optional[models.User] = None,
+) -> Optional[Dict[str, Any]]:
     
     if not texto_pagina and not metadados_normalizados:
         logger.info("Nenhum texto de página nem metadados fornecidos para extração LLM.")
@@ -222,7 +222,17 @@ async def extrair_dados_produto_com_llm(
             "Contexto insuficiente para LLM (metadados e texto da página vazios ou muito curtos)."
         )
         return {"erro_llm": "Contexto insuficiente para processar"}
-        
+
+    if not campos_desejados:
+        campos_desejados = [
+            "nome_base",
+            "marca",
+            "sku_original",
+            "descricao_original",
+            "preco_original",
+            "imagem_url_original",
+        ]
+
     campos_formatados_prompt = ",\n".join([f'    "{campo}": "..."' for campo in campos_desejados])
     
     prompt = (
@@ -235,7 +245,10 @@ async def extrair_dados_produto_com_llm(
         f"\nContexto e Texto para Análise:\n{contexto_para_llm}"
     )
     
-    api_key_para_usar = user.chave_openai_pessoal or settings.OPENAI_API_KEY
+    if user is not None:
+        api_key_para_usar = user.chave_openai_pessoal or settings.OPENAI_API_KEY
+    else:
+        api_key_para_usar = settings.OPENAI_API_KEY
     if not api_key_para_usar:
         logger.warning(
             "Nenhuma chave API OpenAI disponível para extração de dados com LLM."

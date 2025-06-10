@@ -2,9 +2,10 @@
 import pandas as pd
 import pdfplumber
 import csv
-import io # Para ler o conteúdo do arquivo em memória
+import io  # Para ler o conteúdo do arquivo em memória
 from typing import List, Dict, Any, Union, Optional
 from Backend.core.logging_config import get_logger
+from Backend.services import web_data_extractor_service
 
 logger = get_logger(__name__)
 
@@ -179,17 +180,29 @@ async def processar_arquivo_pdf(conteudo_arquivo: bytes, mapeamento_colunas_usua
                 else:
                     log_pdf.append(f"Página {i+1}: Nenhuma tabela encontrada com as configurações atuais.")
 
-            if not produtos_extraidos and len(pdf.pages) > 0: # Fallback se nenhuma tabela extraiu dados
-                log_pdf.append("Nenhum produto extraído de tabelas. Tentando extrair texto completo da primeira página como fallback.")
-                page_text = pdf.pages[0].extract_text(x_tolerance=2, y_tolerance=2) # Ajustar tolerâncias pode ajudar
+            if not produtos_extraidos and len(pdf.pages) > 0:  # Fallback se nenhuma tabela extraiu dados
+                log_pdf.append(
+                    "Nenhum produto extraído de tabelas. Tentando extrair texto completo da primeira página como fallback."
+                )
+                page_text = pdf.pages[0].extract_text(x_tolerance=2, y_tolerance=2)  # Ajustar tolerâncias pode ajudar
                 if page_text and page_text.strip():
-                     # Aqui, a IA seria necessária para estruturar este texto.
-                     # Por agora, apenas salvamos o texto bruto.
-                     produtos_extraidos.append({
-                         "nome_base": f"Conteúdo Bruto da Página 1 do PDF (Requer Análise IA)", 
-                         "dados_brutos_adicionais": {"texto_completo_pagina_1": page_text.strip()[:20000]} # Limita tamanho
-                    })
-                     log_pdf.append("Texto da primeira página extraído como fallback.")
+                    try:
+                        dados_produto = await web_data_extractor_service.extrair_dados_produto_com_llm(page_text)
+                        if isinstance(dados_produto, dict):
+                            dados_produto["texto_bruto"] = page_text.strip()[:20000]
+                            produtos_extraidos.append(dados_produto)
+                        else:
+                            produtos_extraidos.append({
+                                "nome_base": "Texto do PDF analisado",
+                                "dados_brutos_adicionais": {"texto_completo_pagina_1": page_text.strip()[:20000]},
+                            })
+                        log_pdf.append("Texto da primeira página extraído e processado com LLM.")
+                    except Exception as llm_e:
+                        log_pdf.append(f"Erro ao extrair dados com LLM: {str(llm_e)}")
+                        produtos_extraidos.append({
+                            "nome_base": "Conteúdo Bruto da Página 1 do PDF",
+                            "dados_brutos_adicionais": {"texto_completo_pagina_1": page_text.strip()[:20000]},
+                        })
                 else:
                     log_pdf.append("Nenhum texto extraível encontrado na primeira página.")
             
