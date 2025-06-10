@@ -61,6 +61,7 @@ async def buscar_urls_google(query: str, num_results: int = 3) -> List[str]:
 async def coletar_conteudo_pagina_playwright(url: str) -> Optional[str]:
     async with async_playwright() as p_instance:
         browser = None
+        html_content: Optional[str] = None
         try:
             browser = await p_instance.chromium.launch(headless=True)
             context = await browser.new_context(
@@ -71,10 +72,8 @@ async def coletar_conteudo_pagina_playwright(url: str) -> Optional[str]:
             page = await context.new_page()
             await page.goto(url, timeout=30000, wait_until="networkidle")
             html_content = await page.content()
-            return html_content
         except PlaywrightTimeoutError:
             logger.error("Timeout ao carregar URL com Playwright: %s", url)
-            return None
         except Exception as e:
             import traceback
             logger.error(
@@ -83,10 +82,10 @@ async def coletar_conteudo_pagina_playwright(url: str) -> Optional[str]:
                 e,
                 traceback.format_exc(),
             )
-            return None
         finally:
             if browser:
                 await browser.close()
+        return html_content
 
 # --- Text Extraction Service ---
 def extrair_texto_principal_com_trafilatura(html_content: str) -> Optional[str]:
