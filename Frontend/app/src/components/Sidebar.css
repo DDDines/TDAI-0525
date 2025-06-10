@@ -79,8 +79,8 @@
 }
 
 .nav-link.active {
-  background-color: var(--primary);
-  color: #ffffff;
+  background-color: var(--sidebar-active-bg, #e0e0e0);
+  color: #000;
   font-weight: bold;
 }
 
