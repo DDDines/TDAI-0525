@@ -180,14 +180,17 @@ class ProductType(Base):
 
     __table_args__ = (
         UniqueConstraint('user_id', 'key_name', name='_user_key_name_uc'),
-        Index(
-            'ix_product_types_global_key_name_unique',
-            'key_name',
-            unique=True,
-            postgresql_where=lambda: ProductType.user_id.is_(None)
-        ),
         Index('ix_product_types_user_id_key_name', 'user_id', 'key_name'),
     )
+
+
+# Índice parcial para garantir key_name único quando user_id é NULL
+Index(
+    'ix_product_types_global_key_name_unique',
+    ProductType.key_name,
+    unique=True,
+    postgresql_where=(ProductType.user_id.is_(None))
+)
 
 
 # Modelo de Template de Atributo (AttributeTemplate)
