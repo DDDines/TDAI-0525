@@ -1,5 +1,6 @@
 // Frontend/app/src/pages/DashboardPage.jsx
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import authService from '../services/authService'; // Mantido para getCurrentUser
 import adminService from '../services/adminService'; // NOVO: Importar o adminService
 import { showErrorToast } from '../utils/notifications';
@@ -14,6 +15,7 @@ const mockDashboardData = {
 };
 
 function DashboardPage() {
+  const navigate = useNavigate();
   const [currentUser, setCurrentUser] = useState(null);
   const [adminStats, setAdminStats] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -219,7 +221,12 @@ function DashboardPage() {
                         <td style={{ fontWeight: 600 }}>{item.name}</td>
                         <td>-</td>
                         <td style={{ textAlign: 'right' }}>
-                          <button className="btn-detalhe">Ver Detalhes</button>
+                          <button
+                            className="btn-detalhe"
+                            onClick={() => navigate(`/produtos?id=${item.id}`)}
+                          >
+                            Ver Detalhes
+                          </button>
                         </td>
                       </tr>
                     ))
