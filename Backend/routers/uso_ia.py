@@ -55,20 +55,25 @@ def read_usos_ia_usuario_logado(
     Lista os registros de uso de IA para o usuário autenticado, com filtros e paginação.
     """
     # FIX: Change 'get_registros_uso_ia_by_user' to 'get_registros_uso_ia'
-    registros = crud.get_registros_uso_ia( # Corrected function name
+    try:
+        tipo_enum = models.TipoAcaoEnum(tipo_geracao) if tipo_geracao else None
+    except ValueError:
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="tipo_geracao inválido")
+
+    registros = crud.get_registros_uso_ia(
         db,
         user_id=current_user.id,
         skip=skip,
         limit=limit,
-        tipo_acao=tipo_geracao, # Changed from tipo_geracao to tipo_acao to match crud function
+        tipo_acao=tipo_enum,
         data_inicio=data_inicio,
         data_fim=data_fim
     )
     # FIX: Change 'count_registros_uso_ia_by_user' to 'count_registros_uso_ia'
-    total_items = crud.count_registros_uso_ia( # Corrected function name
+    total_items = crud.count_registros_uso_ia(
         db,
         user_id=current_user.id,
-        tipo_acao=tipo_geracao, # Changed from tipo_geracao to tipo_acao to match crud function
+        tipo_acao=tipo_enum,
         data_inicio=data_inicio,
         data_fim=data_fim
     )
