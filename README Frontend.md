@@ -49,61 +49,61 @@
 
 ## Frontend/app/src/common/Modal.jsx
 
-* `Modal(props)`: Componente modal genérico. Recebe props para exibir formulários ou mensagens, controla abertura/fechamento, e define ações de confirmação/cancelamento.
+* `Modal({ isOpen, onClose, title, children })`: Componente modal genérico. Recebe props para exibir formulários ou mensagens, controla abertura/fechamento, e define ações de confirmação/cancelamento.
 
 ## Frontend/app/src/common/PaginationControls.jsx
 
-* `PaginationControls(props)`: Componente de paginação. Recebe props para controlar página atual, total de itens e ações de navegação (próxima, anterior).
+* `PaginationControls({ currentPage, totalPages, onPageChange, isLoading, itemsPerPage, onItemsPerPageChange, totalItems })`: Componente de paginação. Recebe props para controlar página atual, total de itens e ações de navegação (próxima, anterior).
 
 ---
 
 ## Frontend/app/src/components/product_types/AttributeTemplateList.jsx
 
-* `AttributeTemplateList({ templates, onEdit, onDelete })`: Lista templates de atributos de produto, exibe botões de editar/deletar e dispara callbacks recebidos via props.
+* `AttributeTemplateList({ attributes, onEdit, onDelete, onReorder })`: Lista templates de atributos de produto, exibe botões de editar/deletar e dispara callbacks recebidos via props.
 
 ## Frontend/app/src/components/product_types/AttributeTemplateModal.jsx
 
-* `AttributeTemplateModal({ isOpen, onClose, template, onSave })`: Modal para criação/edição de template de atributos. Recebe props para controlar abertura, template ativo e callback de salvar.
+* `AttributeTemplateModal({ isOpen, onClose, attribute, onSave, isSubmitting })`: Modal para criação/edição de template de atributos. Recebe props para controlar abertura, template ativo e callback de salvar.
 
 ## Frontend/app/src/components/fornecedores/EditFornecedorModal.jsx
 
-* `EditFornecedorModal({ isOpen, onClose, fornecedor, onSave })`: Modal para editar dados de um fornecedor. Recebe props para controlar abertura, fornecedor ativo e callback de salvar.
+* `EditFornecedorModal({ isOpen, onClose, fornecedorData, onSave, isLoading })`: Modal para editar dados de um fornecedor. Recebe props para controlar abertura, fornecedor ativo e callback de salvar.
 
 ## Frontend/app/src/components/fornecedores/FornecedorTable.jsx
 
-* `FornecedorTable({ fornecedores, onEdit, onDelete })`: Tabela que exibe fornecedores cadastrados. Permite editar/deletar via callbacks recebidos.
+* `FornecedorTable({ fornecedores, onRowClick, onSelectRow, selectedIds, onSelectAllRows, isLoading })`: Tabela que exibe fornecedores cadastrados. Permite editar/deletar via callbacks recebidos.
 
 ## Frontend/app/src/components/MainLayout.jsx
 
-* `MainLayout({ children })`: Componente de layout principal. Renderiza menu lateral (Sidebar), barra superior (Topbar) e área principal (`children`).
+* `MainLayout()`: Componente de layout principal. Renderiza menu lateral (Sidebar), barra superior (Topbar) e área principal (`children`).
 
 ## Frontend/app/src/components/fornecedores/NewFornecedorModal.jsx
 
-* `NewFornecedorModal({ isOpen, onClose, onSave })`: Modal para cadastro de novo fornecedor. Recebe props para abertura/fechamento e callback de salvar.
+* `NewFornecedorModal({ isOpen, onClose, onSave, isLoading })`: Modal para cadastro de novo fornecedor. Recebe props para abertura/fechamento e callback de salvar.
 
 ## Frontend/app/src/components/produtos/NewProductModal.jsx
 
-* `NewProductModal({ isOpen, onClose, onSave })`: Modal para cadastro de novo produto. Props para controle de abertura/fechamento e callback de salvar.
+* `NewProductModal({ isOpen, onClose, onSave, isLoading, productTypes, loadingProductTypes })`: Modal para cadastro de novo produto. Props para controle de abertura/fechamento e callback de salvar.
 
 ## Frontend/app/src/components/ProductEditModal.jsx
 
-* `ProductEditModal({ isOpen, onClose, produto, onSave })`: Modal para editar produto já existente. Props para abertura, produto ativo e salvar.
+* `ProductEditModal({ isOpen, onClose, product, onProductUpdated })`: Modal para editar produto já existente. Props para abertura, produto ativo e salvar.
 
 ## Frontend/app/src/components/produtos/ProductTable.jsx
 
-* `ProductTable({ produtos, onEdit, onDelete })`: Tabela que lista todos os produtos cadastrados. Permite editar/deletar via callbacks.
+* `ProductTable({ produtos, onEdit, onSort, sortConfig, onSelectProduto, selectedProdutos, onSelectAllProdutos, loading })`: Tabela que lista todos os produtos cadastrados. Permite editar/deletar via callbacks.
 
 ## Frontend/app/src/components/ProtectedRoute.jsx
 
-* `ProtectedRoute({ children })`: Wrapper para proteger rotas; exige autenticação. Redireciona para login se usuário não estiver autenticado.
+* `ProtectedRoute({ children, allowedRoles })`: Wrapper para proteger rotas; exige autenticação. Redireciona para login se usuário não estiver autenticado.
 
 ## Frontend/app/src/components/Sidebar.jsx
 
-* `Sidebar({ links })`: Menu lateral de navegação. Recebe lista de links/menu via props.
+* `Sidebar({ isOpen, toggleSidebar })`: Menu lateral de navegação. Recebe lista de links/menu via props.
 
 ## Frontend/app/src/components/Topbar.jsx
 
-* `Topbar({ user, onLogout })`: Barra superior. Exibe usuário logado, botão de logout e atalhos do sistema.
+* `Topbar({ viewTitle })`: Barra superior. Exibe usuário logado, botão de logout e atalhos do sistema.
 
 ---
 
@@ -127,7 +127,7 @@
 
 ## Frontend/app/src/components/produtos/shared/AttributeField.jsx
 
-* `AttributeField({ atributo, valor, onChange })`: Componente para campo de atributo dinâmico em formulários de produto. Renderiza campo de input/select conforme tipo do atributo. Dispara callback ao alterar valor.
+* `AttributeField({ attributeTemplate, value, onChange, disabled })`: Componente para campo de atributo dinâmico em formulários de produto. Renderiza campo de input/select conforme tipo do atributo. Dispara callback ao alterar valor.
 
 ---
 
