@@ -123,3 +123,11 @@ def test_pagination_returns_1_based_page_for_uso_ia():
     assert resp.status_code == 200
     data = resp.json()
     assert data["page"] == 2
+
+
+def test_first_page_number_for_uso_ia():
+    headers = get_user_headers()
+    resp = client.get("/api/v1/uso-ia", params={"skip": 0, "limit": 5}, headers=headers)
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["page"] == 1
