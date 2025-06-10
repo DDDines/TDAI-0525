@@ -11,7 +11,7 @@ from fastapi import HTTPException, status, Depends
 
 from Backend import crud
 from Backend import crud_produtos
-from Backend import models  # models completo para acesso a TipoAcaoIAEnum
+from Backend import models  # models completo para acesso a TipoAcaoEnum
 from Backend import schemas
 from Backend.core.config import settings
 from . import limit_service # Para verificar e consumir limites/créditos
@@ -252,7 +252,7 @@ async def gerar_titulos_com_openai(db: Session, produto_id: int, user: models.Us
     titulos_list = [t.strip() for t in titulos_str.split('\n') if t.strip()]
 
     crud.create_registro_uso_ia(db, registro_uso=schemas.RegistroUsoIACreate(
-        user_id=user.id, produto_id=produto_id, tipo_acao=models.TipoAcaoIAEnum.CRIACAO_TITULO_PRODUTO,
+        user_id=user.id, produto_id=produto_id, tipo_acao=models.TipoAcaoEnum.CRIACAO_TITULO_PRODUTO,
         provedor_ia="openai", modelo_ia=OPENAI_DEFAULT_MODEL, creditos_consumidos=1 # Ajustar créditos
     ))
     return titulos_list[:num_titulos]
@@ -280,7 +280,7 @@ async def gerar_descricao_com_openai(db: Session, produto_id: int, user: models.
     descricao = await call_openai_api(prompt_messages, api_key, max_tokens=tamanho_palavras + 100) # Estimar tokens
 
     crud.create_registro_uso_ia(db, registro_uso=schemas.RegistroUsoIACreate(
-        user_id=user.id, produto_id=produto_id, tipo_acao=models.TipoAcaoIAEnum.CRIACAO_DESCRICAO_PRODUTO,
+        user_id=user.id, produto_id=produto_id, tipo_acao=models.TipoAcaoEnum.CRIACAO_DESCRICAO_PRODUTO,
         provedor_ia="openai", modelo_ia=OPENAI_DEFAULT_MODEL, creditos_consumidos=1 # Ajustar créditos
     ))
     return descricao
@@ -310,7 +310,7 @@ async def gerar_titulos_com_gemini(db: Session, produto_id: int, user: models.Us
     crud.create_registro_uso_ia(db, registro_uso=schemas.RegistroUsoIACreate(
         user_id=user.id,
         produto_id=produto_id,
-        tipo_acao=models.TipoAcaoIAEnum.CRIACAO_TITULO_PRODUTO,
+        tipo_acao=models.TipoAcaoEnum.CRIACAO_TITULO_PRODUTO,
         provedor_ia="gemini",
         modelo_ia="gemini-1.5-flash-latest",
         creditos_consumidos=1,
@@ -342,7 +342,7 @@ async def gerar_descricao_com_gemini(db: Session, produto_id: int, user: models.
     crud.create_registro_uso_ia(db, registro_uso=schemas.RegistroUsoIACreate(
         user_id=user.id,
         produto_id=produto_id,
-        tipo_acao=models.TipoAcaoIAEnum.CRIACAO_DESCRICAO_PRODUTO,
+        tipo_acao=models.TipoAcaoEnum.CRIACAO_DESCRICAO_PRODUTO,
         provedor_ia="gemini",
         modelo_ia="gemini-1.5-flash-latest",
         creditos_consumidos=1,
@@ -385,7 +385,7 @@ async def sugerir_valores_atributos_com_gemini(
     if not chaves_para_sugerir:
         logger.info(f"Nenhum atributo definido no Tipo de Produto para produto ID {produto_id}. Retornando sugestões vazias.")
         crud.create_registro_uso_ia(db, registro_uso=schemas.RegistroUsoIACreate(
-            user_id=user.id, produto_id=produto_id, tipo_acao=models.TipoAcaoIAEnum.SUGESTAO_ATRIBUTOS_GEMINI,
+            user_id=user.id, produto_id=produto_id, tipo_acao=models.TipoAcaoEnum.SUGESTAO_ATRIBUTOS_GEMINI,
             provedor_ia="gemini", creditos_consumidos=0, status="INFO", # Não consumiu créditos se não houve chamada
             detalhes_erro="Nenhum atributo definido no Tipo de Produto para gerar sugestões."
         ))
@@ -475,7 +475,7 @@ async def sugerir_valores_atributos_com_gemini(
         
         # 7. Registrar Uso
         crud.create_registro_uso_ia(db, registro_uso=schemas.RegistroUsoIACreate(
-            user_id=user.id, produto_id=produto_id, tipo_acao=models.TipoAcaoIAEnum.SUGESTAO_ATRIBUTOS_GEMINI,
+            user_id=user.id, produto_id=produto_id, tipo_acao=models.TipoAcaoEnum.SUGESTAO_ATRIBUTOS_GEMINI,
             provedor_ia="gemini", modelo_ia=modelo_utilizado, creditos_consumidos=creditos_necessarios, status="SUCESSO",
             prompt_utilizado=prompt_final # Para auditoria
             # resposta_ia=json.dumps(sugestoes_dict) # Pode ser muito grande, opcional
@@ -489,7 +489,7 @@ async def sugerir_valores_atributos_com_gemini(
 
     except HTTPException as e: # Repassa HTTPExceptions de call_gemini_api_for_suggestions ou de verificações
         crud.create_registro_uso_ia(db, registro_uso=schemas.RegistroUsoIACreate(
-            user_id=user.id, produto_id=produto_id, tipo_acao=models.TipoAcaoIAEnum.SUGESTAO_ATRIBUTOS_GEMINI,
+            user_id=user.id, produto_id=produto_id, tipo_acao=models.TipoAcaoEnum.SUGESTAO_ATRIBUTOS_GEMINI,
             provedor_ia="gemini", modelo_ia=modelo_utilizado, creditos_consumidos=creditos_necessarios,
             status="FALHA", detalhes_erro=str(e.detail)
         ))
@@ -497,7 +497,7 @@ async def sugerir_valores_atributos_com_gemini(
     except Exception as e:
         logger.error(f"Erro geral no serviço de sugestão Gemini: {str(e)}", exc_info=True)
         crud.create_registro_uso_ia(db, registro_uso=schemas.RegistroUsoIACreate(
-            user_id=user.id, produto_id=produto_id, tipo_acao=models.TipoAcaoIAEnum.SUGESTAO_ATRIBUTOS_GEMINI,
+            user_id=user.id, produto_id=produto_id, tipo_acao=models.TipoAcaoEnum.SUGESTAO_ATRIBUTOS_GEMINI,
             provedor_ia="gemini", modelo_ia=modelo_utilizado, creditos_consumidos=creditos_necessarios,
             status="FALHA", detalhes_erro=f"Erro inesperado no serviço de sugestão: {str(e)}"
         ))
