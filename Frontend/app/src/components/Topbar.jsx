@@ -2,6 +2,7 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
+import { LuMenu } from 'react-icons/lu';
 // Se você criar um AuthContext, importe-o:
 // import { AuthContext } from '../contexts/AuthContext';
 
@@ -16,7 +17,7 @@ const getInitials = (name) => {
   return initials;
 };
 
-function Topbar({ viewTitle }) {
+function Topbar({ viewTitle, toggleSidebar }) {
   const navigate = useNavigate();
   const [userMenuOpen, setUserMenuOpen] = useState(false);
   const { user, logout, isLoading: loadingUser } = useAuth();
@@ -27,6 +28,9 @@ function Topbar({ viewTitle }) {
 
   return (
     <header className="topbar">
+      <button onClick={toggleSidebar} className="sidebar-toggle-btn" aria-label="Alternar menu">
+        <LuMenu />
+      </button>
       <h1>{viewTitle || "Dashboard"}</h1>
       <div 
         className="user-area"

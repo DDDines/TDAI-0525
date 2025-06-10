@@ -6,6 +6,7 @@ import Topbar from './Topbar';   // Certifique-se que o caminho está correto
 
 function MainLayout() {
   const [viewTitle, setViewTitle] = useState('Dashboard');
+  const [sidebarOpen, setSidebarOpen] = useState(true);
   const location = useLocation();
 
   useEffect(() => {
@@ -38,11 +39,11 @@ function MainLayout() {
   // As classes .main e .content no JSX abaixo irão buscar os seus estilos do index.css.
   return (
     <div style={{ display: 'flex', height: '100%', width: '100%', fontFamily: 'var(--font)' }}>
-      <Sidebar /> {/* A Sidebar terá largura fixa e altura 100% via CSS */}
+      <Sidebar isOpen={sidebarOpen} toggleSidebar={() => setSidebarOpen(o => !o)} /> {/* A Sidebar terá largura fixa e altura 100% via CSS */}
       
       {/* A classe "main" agora será um item flex que ocupa o espaço restante */}
       <div className="main"> 
-        <Topbar viewTitle={viewTitle} />
+        <Topbar viewTitle={viewTitle} toggleSidebar={() => setSidebarOpen(o => !o)} />
         {/* A classe "content" é o container interno que terá overflow-y: auto */}
         <main className="content"> 
           <Outlet />
