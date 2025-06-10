@@ -10,6 +10,13 @@ import json # Para validação de JSON string
 # a importação direta pode funcionar. Caso contrário, pode ser necessário um ajuste
 # relativo ou absoluto dependendo de como o projeto é executado.
 # Assumindo que 'models.py' está no mesmo diretório (Backend) e é acessível:
+from Backend.models import (
+    StatusEnriquecimentoEnum,
+    StatusGeracaoIAEnum,
+    TipoAcaoIAEnum,
+    TipoAcaoSistemaEnum,
+    AttributeFieldTypeEnum,
+)
 from Backend.models import StatusEnriquecimentoEnum, StatusGeracaoIAEnum, TipoAcaoEnum, AttributeFieldTypeEnum
 
 # Schemas de Autenticação e Usuário
@@ -351,6 +358,29 @@ class UsoIAPage(BaseModel):
     page: int
     limit: int
 
+# Schemas para RegistroHistorico
+class RegistroHistoricoBase(BaseModel):
+    user_id: Optional[int] = None
+    entidade: str
+    acao: TipoAcaoSistemaEnum
+    entity_id: Optional[int] = None
+    detalhes_json: Optional[dict] = None
+
+class RegistroHistoricoCreate(RegistroHistoricoBase):
+    pass
+
+class RegistroHistoricoResponse(RegistroHistoricoBase):
+    id: int
+    created_at: datetime
+    class Config:
+        from_attributes = True
+
+class HistoricoPage(BaseModel):
+    items: List[RegistroHistoricoResponse]
+    total_items: int
+    page: int
+    limit: int
+
 # --- Password Recovery Schemas ---
 class PasswordResetSchema(BaseModel):
     new_password: str = Field(..., min_length=8)
@@ -443,6 +473,7 @@ AttributeTemplateResponse.model_rebuild()
 ProductTypeResponse.model_rebuild()
 ProdutoResponse.model_rebuild()
 RegistroUsoIAResponse.model_rebuild()
+RegistroHistoricoResponse.model_rebuild()
 UserActivity.model_rebuild()
 SocialLoginConfig.model_rebuild()
 

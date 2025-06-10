@@ -48,6 +48,11 @@ class TipoAcaoEnum(str, enum.Enum):
     CRIACAO_PRODUTO = "criacao_produto"
     OUTRO = "outro"
 
+class TipoAcaoSistemaEnum(str, enum.Enum):
+    CRIACAO = "CRIACAO"
+    ATUALIZACAO = "ATUALIZACAO"
+    DELECAO = "DELECAO"
+
 class AttributeFieldTypeEnum(str, enum.Enum):
     TEXT = "text"
     NUMBER = "number"
@@ -101,6 +106,7 @@ class User(Base):
     fornecedores = relationship("Fornecedor", back_populates="owner", cascade="all, delete-orphan")
     product_types_criados = relationship("ProductType", back_populates="owner", cascade="all, delete-orphan") # Tipos criados pelo usuário
     registros_uso_ia_feitos = relationship("RegistroUsoIA", back_populates="usuario", cascade="all, delete-orphan")
+    historicos = relationship("RegistroHistorico", back_populates="usuario", cascade="all, delete-orphan")
 
     __table_args__ = (UniqueConstraint('provider', 'provider_user_id', name='uq_provider_user_id'),)
 
@@ -329,3 +335,17 @@ class RegistroUsoIA(Base):
 
     usuario = relationship("User", back_populates="registros_uso_ia_feitos")
     produto = relationship("Produto", back_populates="registros_uso_ia")
+
+
+class RegistroHistorico(Base):
+    __tablename__ = "registros_historico"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=True)
+    entidade = Column(String, nullable=False)
+    acao = Column(SQLAlchemyEnum(TipoAcaoSistemaEnum), nullable=False)
+    entity_id = Column(Integer, nullable=True)
+    detalhes_json = Column(JSON, nullable=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    usuario = relationship("User", back_populates="historicos")

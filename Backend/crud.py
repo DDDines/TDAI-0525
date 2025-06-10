@@ -65,4 +65,10 @@ from .crud_registros_uso_ia import (
     get_geracoes_ia_count_no_mes_corrente,
 )
 
+from .crud_historico import (
+    create_registro_historico,
+    get_registros_historico,
+    count_registros_historico,
+)
+
 from .initial_data import create_initial_data

@@ -9,6 +9,7 @@ import logging
 from Backend import crud_fornecedores
 from Backend import models
 from Backend import schemas  # schemas é importado
+from Backend import crud_historico
 from Backend import database
 from . import auth_utils # Para obter o usuário 
 
@@ -41,8 +42,17 @@ def create_user_fornecedor(
     # --- FIM DO LOGGING DE DEPURÇÃO ---
 
     try:
-        # A função crud_fornecedores.create_fornecedor já lida com a verificação de nome duplicado para o usuário
-        return crud_fornecedores.create_fornecedor(db=db, fornecedor=fornecedor, user_id=current_user.id) 
+        db_forn = crud_fornecedores.create_fornecedor(db=db, fornecedor=fornecedor, user_id=current_user.id)
+        crud_historico.create_registro_historico(
+            db,
+            schemas.RegistroHistoricoCreate(
+                user_id=current_user.id,
+                entidade="Fornecedor",
+                acao=models.TipoAcaoSistemaEnum.CRIACAO,
+                entity_id=db_forn.id,
+            ),
+        )
+        return db_forn
     except HTTPException as e: # Repassa HTTPExceptions do CRUD (ex: nome duplicado)
         logger.warning(f"HTTPException ao criar fornecedor: {e.detail}")
         raise e
@@ -122,8 +132,17 @@ def update_fornecedor_endpoint( # Renomeado para evitar conflito com crud_fornec
             )
             
     try:
-        # A função crud_fornecedores.update_fornecedor espera o objeto db_fornecedor
-        return crud_fornecedores.update_fornecedor(db=db, db_fornecedor=db_fornecedor, fornecedor_update=fornecedor_update)
+        updated = crud_fornecedores.update_fornecedor(db=db, db_fornecedor=db_fornecedor, fornecedor_update=fornecedor_update)
+        crud_historico.create_registro_historico(
+            db,
+            schemas.RegistroHistoricoCreate(
+                user_id=current_user.id,
+                entidade="Fornecedor",
+                acao=models.TipoAcaoSistemaEnum.ATUALIZACAO,
+                entity_id=updated.id,
+            ),
+        )
+        return updated
     except HTTPException as e:
         raise e
     except Exception as e:
@@ -147,8 +166,17 @@ def delete_fornecedor_endpoint( # Renomeado para evitar conflito
         raise HTTPException(status_code=403, detail="Não autorizado a deletar este fornecedor.")
     
     try:
-        # A função crud_fornecedores.delete_fornecedor espera o objeto db_fornecedor
-        return crud_fornecedores.delete_fornecedor(db=db, db_fornecedor=db_fornecedor)
+        deleted = crud_fornecedores.delete_fornecedor(db=db, db_fornecedor=db_fornecedor)
+        crud_historico.create_registro_historico(
+            db,
+            schemas.RegistroHistoricoCreate(
+                user_id=current_user.id,
+                entidade="Fornecedor",
+                acao=models.TipoAcaoSistemaEnum.DELECAO,
+                entity_id=deleted.id,
+            ),
+        )
+        return deleted
     except HTTPException as e: # Se o CRUD levantar HTTP 409 por produtos associados
         raise e
     except Exception as e:

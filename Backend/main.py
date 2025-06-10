@@ -359,6 +359,7 @@ app.include_router(uploads_router, prefix=settings.API_V1_STR, tags=["Uploads de
 app.include_router(product_types_router, prefix=settings.API_V1_STR, tags=["Tipos de Produto e Templates"])
 app.include_router(search_router, prefix=settings.API_V1_STR, tags=["Busca"])
 app.include_router(uso_ia_router, prefix=settings.API_V1_STR, tags=["Registro de Uso de IA"])
+app.include_router(historico_router, prefix=settings.API_V1_STR, tags=["Historico"])
 app.include_router(historico_router, prefix=settings.API_V1_STR, tags=["Registro de Uso de IA"])
 app.include_router(password_recovery_router, prefix=settings.API_V1_STR, tags=["Recuperação de Senha"])
 app.include_router(admin_analytics_router, prefix=settings.API_V1_STR + "/admin/analytics", tags=["Analytics (Admin)"])
