@@ -209,6 +209,7 @@ const ProductEditModal = ({ isOpen, onClose, product, onProductUpdated }) => {
                     console.error('Erro ao carregar produto:', err);
                     showErrorToast('Erro ao carregar dados completos do produto.');
                     populateFormData(product);
+                    showWarningToast('Dados carregados parcialmente.');
                 }
             } else {
                 setFormData(initialFormData);
