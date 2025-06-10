@@ -365,7 +365,7 @@ const ProductEditModal = ({ isOpen, onClose, product, onProductUpdated }) => {
         showInfoToast("Buscando sugestões de atributos com a IA (Gemini)... Isso pode levar um momento.");
 
         try {
-            const suggestionsData = await productService.getAtributoSugestions(product.id);
+            const suggestionsData = await productService.getAtributoSuggestions(product.id);
             if (suggestionsData && suggestionsData.sugestoes_atributos && suggestionsData.sugestoes_atributos.length > 0) {
                 const newSuggestions = suggestionsData.sugestoes_atributos.reduce((acc, item) => {
                     acc[item.chave_atributo] = item.valor_sugerido;
