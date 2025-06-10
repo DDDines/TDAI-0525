@@ -264,10 +264,11 @@ Para que o envio de emails de recuperação de senha funcione é obrigatório de
 
 ### 6. **Testes**
 
+Execute o script `scripts/run_tests.sh` para instalar automaticamente as dependên
+cias do backend e rodar o `pytest`.
+
 ```sh
-# Backend
-pip install -r requirements-backend.txt
-pytest
+./scripts/run_tests.sh
 
 # Frontend
 cd Frontend/app
@@ -389,11 +390,10 @@ console.log(historico.items);
 
 ## 🧪 Testes
 
-Os testes do backend dependem das bibliotecas listadas em `requirements-backend.txt`. Para executá-los:
+Os testes do backend dependem das bibliotecas listadas em `requirements-backend.txt`. Utilize o script abaixo, que já instala essas dependências antes de rodar os testes:
 
 ```sh
-pip install -r requirements-backend.txt
-pytest
+./scripts/run_tests.sh
 ```
 
 ---
