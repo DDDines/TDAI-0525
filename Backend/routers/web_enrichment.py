@@ -99,7 +99,7 @@ async def _tarefa_enriquecer_produto_web(
                 registro_uso=schemas.RegistroUsoIACreate(
                     user_id=user.id,
                     produto_id=produto_id,
-                    tipo_acao=models.TipoAcaoIAEnum.ENRIQUECIMENTO_WEB_PRODUTO,
+                    tipo_acao=models.TipoAcaoEnum.ENRIQUECIMENTO_WEB_PRODUTO,
                     modelo_ia="N/A",
                     provedor_ia=None,
                     prompt_utilizado="N/A",
@@ -122,7 +122,7 @@ async def _tarefa_enriquecer_produto_web(
                 registro_uso=schemas.RegistroUsoIACreate(
                     user_id=user.id,
                     produto_id=produto_id,
-                    tipo_acao=models.TipoAcaoIAEnum.ENRIQUECIMENTO_WEB_PRODUTO,
+                    tipo_acao=models.TipoAcaoEnum.ENRIQUECIMENTO_WEB_PRODUTO,
                     modelo_ia="N/A",
                     provedor_ia=None,
                     prompt_utilizado="N/A - Config OpenAI pendente para LLM",

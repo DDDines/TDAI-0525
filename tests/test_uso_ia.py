@@ -43,7 +43,7 @@ with TestingSessionLocal() as db:
         schemas.RegistroUsoIACreate(
             user_id=normal_user.id,
             produto_id=produto.id,
-            tipo_acao=models.TipoAcaoIAEnum.CRIACAO_TITULO_PRODUTO,
+            tipo_acao=models.TipoAcaoEnum.CRIACAO_TITULO_PRODUTO,
         ),
     )
 
@@ -95,7 +95,7 @@ def test_product_creation_creates_uso_ia_record():
             db.query(models.RegistroUsoIA)
             .filter(
                 models.RegistroUsoIA.produto_id == produto_id,
-                models.RegistroUsoIA.tipo_acao == models.TipoAcaoIAEnum.CRIACAO_PRODUTO,
+                models.RegistroUsoIA.tipo_acao == models.TipoAcaoEnum.CRIACAO_PRODUTO,
             )
             .all()
         )

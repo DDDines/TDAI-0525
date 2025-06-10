@@ -31,7 +31,7 @@ with TestingSessionLocal() as db:
     crud.create_initial_data(db)
     admin = crud_users.get_user_by_email(db, settings.FIRST_SUPERUSER_EMAIL)
     crud_produtos.create_produto(db, schemas.ProdutoCreate(nome_base="Teste"), user_id=admin.id)
-    crud.create_registro_uso_ia(db, schemas.RegistroUsoIACreate(user_id=admin.id, tipo_acao=models.TipoAcaoIAEnum.CRIACAO_TITULO_PRODUTO))
+    crud.create_registro_uso_ia(db, schemas.RegistroUsoIACreate(user_id=admin.id, tipo_acao=models.TipoAcaoEnum.CRIACAO_TITULO_PRODUTO))
 
 def get_auth_headers():
     resp = client.post("/api/v1/auth/token", data={"username": settings.FIRST_SUPERUSER_EMAIL, "password": settings.FIRST_SUPERUSER_PASSWORD})
