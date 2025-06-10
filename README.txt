@@ -186,6 +186,8 @@ MAIL_STARTTLS="True" # True ou False
 MAIL_SSL_TLS="False"  # True ou False
 USE_CREDENTIALS="True" # True ou False
 VALIDATE_CERTS="True"  # True ou False
+RAISE_ON_MISSING_EMAIL_CONFIG="False"  # opcional: gera erro se a configuracao estiver incompleta
+# Preencha todas as variáveis acima para que o envio de emails de recuperação de senha funcione
 
 # URL do Frontend (para links em emails, etc.)
 FRONTEND_URL="http://localhost:5173" # Ou a porta do seu frontend Vite/React
