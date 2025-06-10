@@ -37,11 +37,11 @@ class Settings(BaseSettings):
     ACCESS_TOKEN_EXPIRE_MINUTES: int = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", 60 * 24 * 1)) # Default 1 dia
     REFRESH_TOKEN_EXPIRE_DAYS: int = int(os.getenv("REFRESH_TOKEN_EXPIRE_DAYS", 7))
 
-    # ``_cors_origins_str`` captura o valor cru da variável de ambiente
+    # ``cors_origins_str`` captura o valor cru da variável de ambiente
     # ``BACKEND_CORS_ORIGINS``. ``BACKEND_CORS_ORIGINS`` em si utiliza um alias
     # inexistente para evitar que o ``BaseSettings`` tente processá-la
     # automaticamente (o que falharia quando o valor não está em formato JSON).
-    _cors_origins_str: Optional[str] = Field(default=None, alias="BACKEND_CORS_ORIGINS")
+    cors_origins_str: Optional[str] = Field(default=None, alias="BACKEND_CORS_ORIGINS")
     BACKEND_CORS_ORIGINS: List[AnyHttpUrl] = Field(default_factory=list, alias="BACKEND_CORS_ORIGINS_PARSED")
 
     ADMIN_EMAIL: str = os.getenv("ADMIN_EMAIL", "<ADMIN_EMAIL>")
@@ -102,9 +102,9 @@ else:
     logger.info("DATABASE_URL carregada do .env: %s", settings.DATABASE_URL)
 
 # CORS
-if settings._cors_origins_str:
+if settings.cors_origins_str:
     try:
-        raw_origins = [origin.strip() for origin in settings._cors_origins_str.split(",") if origin.strip()]
+        raw_origins = [origin.strip() for origin in settings.cors_origins_str.split(",") if origin.strip()]
         valid_origins = []
         for origin_str in raw_origins:
             try:
