@@ -40,7 +40,13 @@ async def _tarefa_enriquecer_produto_web(
     status_original_do_produto_no_inicio_da_tarefa: models.StatusEnriquecimentoEnum = models.StatusEnriquecimentoEnum.PENDENTE
     
     try:
-        db_produto_obj = db.query(models.Produto).filter(models.Produto.id == produto_id).with_for_update().first()
+        query = db.query(models.Produto).filter(models.Produto.id == produto_id)
+        engine = db.get_bind()
+        dialect_name = engine.dialect.name if engine and engine.dialect else None
+        if dialect_name == "sqlite":
+            db_produto_obj = query.first()
+        else:
+            db_produto_obj = query.with_for_update().first()
         if not db_produto_obj:
             log_mensagens.append(f"ERRO FATAL PRECOCE: Produto ID {produto_id} não encontrado.")
             logger.error(log_mensagens[-1])
