@@ -1,7 +1,7 @@
 from datetime import datetime
 from typing import List, Optional
 
-from sqlalchemy import func
+from sqlalchemy import func, cast, String
 from sqlalchemy.orm import Session
 
 from Backend import models, schemas
@@ -82,12 +82,18 @@ def count_usos_ia_by_user_and_type_no_mes_corrente(
     tipo_geracao_prefix: str,
 ) -> int:
     inicio_mes = datetime.utcnow().replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+    tipo_col = cast(models.RegistroUsoIA.tipo_acao, String)
+    if db.bind and db.bind.dialect.name == "postgresql":
+        tipo_filter = tipo_col.ilike(f"{tipo_geracao_prefix}%")
+    else:
+        tipo_filter = func.lower(tipo_col).like(f"{tipo_geracao_prefix.lower()}%")
+
     return (
         db.query(func.count(models.RegistroUsoIA.id))
         .filter(
             models.RegistroUsoIA.user_id == user_id,
             models.RegistroUsoIA.created_at >= inicio_mes,
-            models.RegistroUsoIA.tipo_acao.ilike(f"{tipo_geracao_prefix}%"),
+            tipo_filter,
         )
         .scalar()
         or 0
