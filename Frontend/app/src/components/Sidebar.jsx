@@ -2,6 +2,7 @@ import React from 'react';
 import { NavLink } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext'; // Se precisar do logout ou dados do usuário
 import './Sidebar.css'; // Certifique-se de que este arquivo CSS existe e está correto
+import LogoImg from '../assets/Logo.png';
 
 // Ícones (exemplo, substitua pelos seus ou remova se não usar)
 import {
@@ -38,8 +39,8 @@ const Sidebar = ({ isOpen, toggleSidebar }) => {
   return (
     <aside className={`sidebar ${isOpen ? 'open' : 'closed'}`}>
       <div className="sidebar-header">
-        {/* Pode adicionar um logo ou título aqui */}
-        <h1 className="sidebar-title">{isOpen ? "CatalogAI" : "T"}</h1>
+        <img src={LogoImg} alt="CatalogAI logo" className="sidebar-logo" />
+        {isOpen && <h1 className="sidebar-title">CatalogAI</h1>}
         {/* O botão de toggle pode ser movido para o Topbar se preferir */}
         {/* <button onClick={toggleSidebar} className="sidebar-toggle-btn">
           {isOpen ? <LuX /> : <LuMenu />}
