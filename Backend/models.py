@@ -45,6 +45,7 @@ class TipoAcaoIAEnum(str, enum.Enum):
     TRADUCAO_CONTEUDO_PRODUTO = "traducao_conteudo_produto"
     SUMARIZACAO_CARACTERISTICAS = "sumarizacao_caracteristicas"
     SUGESTAO_ATRIBUTOS_GEMINI = "sugestao_atributos_gemini" # <-- NOVO VALOR ADICIONADO
+    CRIACAO_PRODUTO = "criacao_produto"
     OUTRO = "outro"
 
 class AttributeFieldTypeEnum(str, enum.Enum):
