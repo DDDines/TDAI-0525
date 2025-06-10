@@ -1,5 +1,6 @@
 // Frontend/app/src/pages/ProdutosPage.jsx
 import React, { useState, useEffect, useCallback } from 'react';
+import { useSearchParams, useNavigate } from 'react-router-dom';
 import ProductTable from '../components/produtos/ProductTable';
 // REMOVIDO: import NewProductModal from '../components/produtos/NewProductModal';
 // REMOVIDO: import ProductEditModal from '../components/ProductEditModal';
@@ -13,6 +14,8 @@ import './ProdutosPage.css';
 import { useProductTypes } from '../contexts/ProductTypeContext';
 
 function ProdutosPage() {
+  const [searchParams] = useSearchParams();
+  const navigate = useNavigate();
   const [produtos, setProdutos] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -99,6 +102,24 @@ function ProdutosPage() {
     setIsModalOpen(false);
     setProdutoParaEditar(null);
   };
+
+  // Abra o modal automaticamente se um ID de produto for fornecido na URL
+  useEffect(() => {
+    const productId = searchParams.get('id');
+    if (productId) {
+      const openById = async () => {
+        try {
+          const prod = await productService.getProdutoById(productId);
+          handleOpenModal(prod);
+          navigate('/produtos', { replace: true });
+        } catch (err) {
+          const msg = err.response?.data?.detail || err.message || 'Falha ao carregar produto.';
+          showErrorToast(msg);
+        }
+      };
+      openById();
+    }
+  }, [searchParams]);
 
   // REMOVIDO: Handlers antigos dos modais separados
   // const handleOpenNewProductModal = () => setIsNewProductModalOpen(true);
