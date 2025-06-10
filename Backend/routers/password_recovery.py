@@ -42,7 +42,7 @@ async def recover_password(email: str, request: Request, db: Session = Depends(g
     # Gerar token de reset
     token = create_password_reset_token()
     token_hash = hash_password_reset_token(token)
-    expires_delta = timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES) # Usar uma configuração específica para reset seria melhor
+    expires_delta = timedelta(hours=settings.PASSWORD_RESET_TOKEN_EXPIRE_HOURS)
     expires_at = datetime.now(timezone.utc) + expires_delta # Usar timezone.utc
     
     # Salvar o hash do token e a data de expiração no usuário
