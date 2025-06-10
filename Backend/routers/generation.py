@@ -47,7 +47,7 @@ async def _tarefa_processar_geracao_e_registrar_uso(
         campo_produto_para_atualizar_com_resultado = "titulos_sugeridos"
     elif tipo_geracao_principal == "descricao":
         status_field_to_update = "status_descricao_ia"
-        campo_produto_para_atualizar_com_resultado = "descricao_principal_gerada"
+        campo_produto_para_atualizar_com_resultado = "descricao_chat_api"
     else:
         logger.error(f"Tarefa Background: Tipo de geração principal '{tipo_geracao_principal}' desconhecido.")
         db.close()
