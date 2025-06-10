@@ -221,7 +221,7 @@
   font-size: 0.95rem;
 }
 
-.modal-content button:not(.modal-close) { /* Botão de salvar no modal */
+.modal-content button:not(.modal-close):not(.modal-close-button):not(.tipos-produto-modal-close-button) { /* Botão de salvar no modal */
   display: block;
   width: 100%;
   padding: 12px;
@@ -233,7 +233,7 @@
   cursor: pointer;
   margin-top: 20px;
 }
-.modal-content button:not(.modal-close):hover {
+.modal-content button:not(.modal-close):not(.modal-close-button):not(.tipos-produto-modal-close-button):hover {
   background-color: var(--success-dark); /* Definir essa variável */
 }
 .modal-content button:disabled {

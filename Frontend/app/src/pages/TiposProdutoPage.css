@@ -294,15 +294,6 @@
     font-size: 1.5rem;
     color: var(--sidebar-bg);
 }
-.tipos-produto-modal-close-button {
-    background: none;
-    border: none;
-    font-size: 1.8rem;
-    font-weight: 300;
-    color: #6b7280;
-    cursor: pointer;
-    line-height: 1;
-}
 .tipos-produto-modal-actions {
     margin-top: 20px;
     display: flex;

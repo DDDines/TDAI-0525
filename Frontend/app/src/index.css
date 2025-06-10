@@ -526,6 +526,24 @@ tr:hover {
   cursor: pointer; color: #777; transition: color 0.2s;
 }
 .modal-close-button:hover { color: #333; }
+.tipos-produto-modal-close-button {
+  position: absolute;
+  top: 0.75rem;
+  right: 0.75rem;
+  background: none;
+  border: none;
+  font-size: 1.5rem;
+  line-height: 1;
+  width: 2rem;
+  height: 2rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  color: #777;
+  transition: color 0.2s;
+}
+.tipos-produto-modal-close-button:hover { color: #333; }
 .modal-content h3 { margin-bottom: 1.5rem; font-size: 1.4rem; color: #333; }
 .modal-content label { 
   display: block; font-weight: 500; margin-bottom: 0.5rem; color: #444;
@@ -536,7 +554,7 @@ tr:hover {
 }
 .modal-content textarea { resize: vertical; min-height: 100px; }
 .modal-content button[type="submit"],
-.modal-content button:not(.modal-close):not(.modal-close-button) {
+.modal-content button:not(.modal-close):not(.modal-close-button):not(.tipos-produto-modal-close-button) {
   display: block; width: 100%; margin-top: 0.5rem;
   padding: 0.75rem; font-size: 1.05rem;
 }
