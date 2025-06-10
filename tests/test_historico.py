@@ -58,3 +58,8 @@ def test_historico_created_on_product_crud():
         assert models.TipoAcaoSistemaEnum.CRIACAO in actions
         assert models.TipoAcaoSistemaEnum.ATUALIZACAO in actions
         assert models.TipoAcaoSistemaEnum.DELECAO in actions
+
+    resp = client.get("/api/v1/historico/", headers=headers)
+    assert resp.status_code == 200
+    data = resp.json()
+    assert len(data["items"]) >= 1
