@@ -66,7 +66,7 @@ def create_produto( # Nome da função mantido como no arquivo do usuário
         schemas.RegistroUsoIACreate(
             user_id=current_user.id,
             produto_id=db_produto.id,
-            tipo_acao=models.TipoAcaoIAEnum.CRIACAO_PRODUTO,
+            tipo_acao=models.TipoAcaoEnum.CRIACAO_PRODUTO,
             creditos_consumidos=0,
         ),
     )
@@ -376,7 +376,7 @@ async def importar_catalogo_fornecedor(
             schemas.RegistroUsoIACreate(
                 user_id=current_user.id,
                 produto_id=db_produto.id,
-                tipo_acao=models.TipoAcaoIAEnum.CRIACAO_PRODUTO,
+                tipo_acao=models.TipoAcaoEnum.CRIACAO_PRODUTO,
                 creditos_consumidos=0,
             ),
         )

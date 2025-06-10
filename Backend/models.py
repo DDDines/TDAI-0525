@@ -35,7 +35,7 @@ class StatusGeracaoIAEnum(str, enum.Enum):
     FALHA = "FALHA"
     NAO_APLICAVEL = "NAO_APLICAVEL" # Se IA não for usada para este campo/produto
 
-class TipoAcaoIAEnum(str, enum.Enum):
+class TipoAcaoEnum(str, enum.Enum):
     CRIACAO_TITULO_PRODUTO = "criacao_titulo_produto"
     CRIACAO_DESCRICAO_PRODUTO = "criacao_descricao_produto"
     ENRIQUECIMENTO_WEB_PRODUTO = "enriquecimento_web_produto" # Ação de buscar dados na web com ou sem IA
@@ -315,7 +315,7 @@ class RegistroUsoIA(Base):
     user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
     produto_id = Column(Integer, ForeignKey("produtos.id", ondelete="SET NULL"), nullable=True) # Se o produto for deletado, manter o registro de uso
     
-    tipo_acao = Column(SQLAlchemyEnum(TipoAcaoIAEnum), nullable=False) # Usar o Enum Python
+    tipo_acao = Column(SQLAlchemyEnum(TipoAcaoEnum, name="tipoacaoenum"), nullable=False)  # Usar o Enum Python
     provedor_ia = Column(String, nullable=True) # ex: "openai", "gemini"
     modelo_ia = Column(String, nullable=True) # ex: "gpt-3.5-turbo", "gemini-1.5-flash-latest"
     

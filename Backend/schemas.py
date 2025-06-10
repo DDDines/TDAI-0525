@@ -17,6 +17,7 @@ from Backend.models import (
     TipoAcaoSistemaEnum,
     AttributeFieldTypeEnum,
 )
+from Backend.models import StatusEnriquecimentoEnum, StatusGeracaoIAEnum, TipoAcaoEnum, AttributeFieldTypeEnum
 
 # Schemas de Autenticação e Usuário
 class Token(BaseModel):
@@ -330,7 +331,7 @@ class ProdutoPage(BaseModel):
 class RegistroUsoIABase(BaseModel):
     user_id: int
     produto_id: Optional[int] = None
-    tipo_acao: TipoAcaoIAEnum
+    tipo_acao: TipoAcaoEnum
     provedor_ia: Optional[str] = None
     modelo_ia: Optional[str] = None
     prompt_utilizado: Optional[str] = None
@@ -420,7 +421,7 @@ class RecentActivity(BaseModel):
     id: int
     user_id: int
     user_email: Optional[EmailStr] = None
-    tipo_acao: TipoAcaoIAEnum
+    tipo_acao: TipoAcaoEnum
     created_at: datetime
     class Config:
         from_attributes = True

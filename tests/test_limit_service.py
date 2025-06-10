@@ -19,12 +19,12 @@ async def test_verificar_e_consumir_creditos_geracao_ia():
     db.refresh(user)
 
     for _ in range(4):
-        db.add(models.RegistroUsoIA(user_id=user.id, tipo_acao=models.TipoAcaoIAEnum.CRIACAO_TITULO_PRODUTO))
+        db.add(models.RegistroUsoIA(user_id=user.id, tipo_acao=models.TipoAcaoEnum.CRIACAO_TITULO_PRODUTO))
     db.commit()
 
     assert await limit_service.verificar_e_consumir_creditos_geracao_ia(db, user.id, 1)
 
-    db.add(models.RegistroUsoIA(user_id=user.id, tipo_acao=models.TipoAcaoIAEnum.CRIACAO_TITULO_PRODUTO))
+    db.add(models.RegistroUsoIA(user_id=user.id, tipo_acao=models.TipoAcaoEnum.CRIACAO_TITULO_PRODUTO))
     db.commit()
 
     assert not await limit_service.verificar_e_consumir_creditos_geracao_ia(db, user.id, 1)

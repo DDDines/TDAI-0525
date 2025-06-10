@@ -20,3 +20,22 @@ def list_historico(
     total = crud_historico.count_registros_historico(db, user_id=user_id_filter)
     page = skip // limit + 1
     return {"items": items, "total_items": total, "page": page, "limit": limit}
+
+from typing import List
+from fastapi import APIRouter, Depends
+from sqlalchemy.orm import Session
+
+from Backend.database import get_db
+from Backend import models
+from . import auth_utils
+
+router = APIRouter(
+    prefix="/historico",
+    tags=["Histórico de IA"],
+    dependencies=[Depends(auth_utils.get_current_active_user)],
+)
+
+@router.get("/tipos", response_model=List[str])
+def get_tipos_acao(db: Session = Depends(get_db)):
+    """Retorna todos os valores possíveis de TipoAcaoIAEnum."""
+    return [enum_member.value for enum_member in models.TipoAcaoIAEnum]
