@@ -15,6 +15,7 @@ O **TDAI** é uma plataforma SaaS de automação e inteligência artificial para
 * Controle total de fornecedores, tipos e atributos
 * Administração de planos, permissões, créditos e limites
 * Painéis de analytics e controle de uso de IA
+* Registro histórico de ações realizadas e execuções de IA
 
 ---
 
@@ -214,7 +215,7 @@ python -m venv venv
 source venv/bin/activate    # Ou .\venv\Scripts\activate no Windows
 pip install -r requirements-backend.txt   # dependências fixas do backend
 cd Backend
-alembic upgrade head        # Cria as tabelas do banco
+alembic upgrade head        # Cria/atualiza tabelas, incluindo RegistroHistorico
 cd ..
 python run_backend.py       # Inicia o backend (http://localhost:8000)
 ```
@@ -351,7 +352,7 @@ que coincidam.
   `python run_backend.py`
 
 * **Rodar Migrations:**
-  `cd Backend && alembic upgrade head`
+  `cd Backend && alembic upgrade head`  # aplica migrações, inclusive a tabela RegistroHistorico
 
 * **Instalar navegadores Playwright:**
   `playwright install`
@@ -363,8 +364,19 @@ que coincidam.
 
 * **Explorar Endpoints API:**
 
-  * `/produtos/`, `/fornecedores/`, `/uploads/`, `/generation/`, `/web-enrichment/`, `/uso_ia/` etc.
+  * `/produtos/`, `/fornecedores/`, `/uploads/`, `/generation/`, `/web-enrichment/`, `/uso_ia/`, `/historico/` etc.
   * Veja todos em `/docs`
+  * Para listar os tipos de ações suportados, consulte `GET /historico/tipos`
+
+### Exemplo de uso no Frontend
+
+```javascript
+import usoIAService from './services/usoIAService';
+
+// Buscar histórico de IA do usuário logado
+const historico = await usoIAService.getMeuHistoricoUsoIA({ skip: 0, limit: 10 });
+console.log(historico.items);
+```
 
 ---
 

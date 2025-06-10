@@ -51,6 +51,8 @@
 * `upgrade()`: Cria todas as tabelas e constraints necessárias.
 * `downgrade()`: Remove as tabelas criadas na migration.
 
+* Nova migration cria a tabela `registros_historico` para armazenar ações.
+
 ---
 
 ## Backend/auth.py
@@ -169,6 +171,11 @@
 
   * **Atributos**: id, user\_id, tipo, tokens, data.
   * `__repr__()`: Retorna representação textual do uso de IA.
+* `class RegistroHistorico(Base)`: Armazena ações realizadas e execuções de IA.
+
+  * **Atributos**: id, user_id, produto_id, tipo_acao, detalhes e timestamps.
+  * `__repr__()`: Retorna representação textual do registro.
+
 
 ---
 
@@ -234,6 +241,11 @@
 
 * `get_ia_usage(user_id: int, db: Session)`: Retorna uso de IA do usuário.
 * `get_ia_usage_admin(db: Session)`: Retorna relatório geral de uso IA.
+
+## Backend/routers/historico.py
+
+* `list_historico(...)`: Lista ações salvas no RegistroHistorico por usuário.
+* `get_tipos_acao()`: Retorna os valores do enum TipoAcaoIAEnum.
 
 ## Backend/routers/web\_enrichment.py
 
