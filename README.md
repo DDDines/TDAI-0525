@@ -1,4 +1,4 @@
-# TDAI – Plataforma Inteligente de Enriquecimento e Geração de Conteúdo para Catálogos
+# CatalogAI – Plataforma Inteligente de Enriquecimento e Geração de Conteúdo para Catálogos
 
 > **Autor:** Julio Cesar Barizon Montes
 > **Licença:** [MIT](LICENSE)
@@ -7,7 +7,7 @@
 
 ## 🚀 Visão Geral
 
-O **TDAI** é uma plataforma SaaS de automação e inteligência artificial para catálogos de produtos. O sistema facilita o cadastro, enriquecimento e geração de títulos e descrições para grandes listas de produtos, reduzindo trabalho manual e elevando o padrão de qualidade do conteúdo – pronto para marketplaces, e-commerce e operações B2B.
+O **CatalogAI** é uma plataforma SaaS de automação e inteligência artificial para catálogos de produtos. O sistema facilita o cadastro, enriquecimento e geração de títulos e descrições para grandes listas de produtos, reduzindo trabalho manual e elevando o padrão de qualidade do conteúdo – pronto para marketplaces, e-commerce e operações B2B.
 
 * Upload em massa (planilhas, PDFs)
 * Enriquecimento automático via web scraping & IA
@@ -69,11 +69,11 @@ O **TDAI** é uma plataforma SaaS de automação e inteligência artificial para
 ## 🗂️ Arquitetura e Estrutura de Pastas
 
 ```
-TDAI-0525-Dev/
+CatalogAI-0525-Dev/
 ├── .gitignore
 ├── README.md
 ├── README.txt
-├── TDAI.pdf
+├── CatalogAI.pdf
 ├── run_backend.py
 ├── Backend/
 │   ├── __init__.py
@@ -274,8 +274,8 @@ npm test
 
 ```
 # Banco de Dados
-DATABASE_URL="postgresql://usuario:senha@localhost:5432/tdai_db"
-SQLITE_DB_FILE="tdai_app.db"  # usado automaticamente se DATABASE_URL estiver ausente
+DATABASE_URL="postgresql://usuario:senha@localhost:5432/catalogai_db"
+SQLITE_DB_FILE="catalogai_app.db"  # usado automaticamente se DATABASE_URL estiver ausente
 
 # Segurança
 SECRET_KEY="sua_chave_forte"
@@ -302,7 +302,7 @@ MAIL_PORT=587
 MAIL_SERVER="smtp.example.com"
 MAIL_STARTTLS=True
 MAIL_SSL_TLS=False
-MAIL_FROM_NAME="TDAI Platform"
+MAIL_FROM_NAME="CatalogAI Platform"
 
 # Frontend
 FRONTEND_URL="http://localhost:5173"
