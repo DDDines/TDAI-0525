@@ -56,11 +56,9 @@ def search_all(
         for user in user_query.limit(limit).all():
             results_items.append((user.created_at, schemas.SearchItem(id=user.id, type="usuario", name=user.email)))
 
-    if q:
-        # When searching, simply return the combined results limited by `limit`
-        results = [item[1] for item in results_items][:limit]
-    else:
-        # Sort all items by creation date and take the most recent ones
-        results = [item for _, item in sorted(results_items, key=lambda x: x[0], reverse=True)][:limit]
+    # Sort collected items by creation timestamp so the most recent ones appear
+    # first regardless of query or entity type.
+    sorted_items = sorted(results_items, key=lambda x: x[0], reverse=True)
+    results = [item for _, item in sorted_items][:limit]
 
     return {"results": results}
