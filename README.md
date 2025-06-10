@@ -188,7 +188,7 @@ CatalogAI-0525-Dev/
 
 * Python 3.8+
 * Node.js 18+
-* PostgreSQL 12+
+* PostgreSQL 12+ (obrigatório em produção; SQLite pode ser usado apenas para desenvolvimento e testes)
 * Git
 * Navegadores Playwright (para scraping):
   `playwright install`
@@ -488,7 +488,7 @@ Esta etapa inclui avanços importantes de qualidade:
 ## 💬 FAQ
 
 **P:** Posso usar outro banco de dados?
-**R:** O suporte principal é para PostgreSQL, mas há fallback para SQLite em dev.
+**R:** A aplicação depende de funcionalidades específicas do PostgreSQL (como índices parciais). Utilize PostgreSQL em produção; o SQLite está disponível apenas para desenvolvimento e testes.
 
 **P:** Como funciona o limite de IA?
 **R:** Cada plano tem créditos e limites definidos; ao atingir, novos enriquecimentos/gerações são bloqueados.
