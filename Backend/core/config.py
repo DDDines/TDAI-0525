@@ -139,5 +139,3 @@ else:
 
 logger.info("Usando CORS origins de settings: %s", [str(o) for o in settings.BACKEND_CORS_ORIGINS])
 
-from passlib.context import CryptContext
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
