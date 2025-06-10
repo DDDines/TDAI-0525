@@ -1,0 +1,28 @@
+name: Python tests
+
+on:
+  push:
+    paths:
+      - '**.py'
+      - 'requirements-backend.txt'
+      - '.github/workflows/python-tests.yml'
+      - 'tests/**'
+  pull_request:
+    paths:
+      - '**.py'
+      - 'requirements-backend.txt'
+      - '.github/workflows/python-tests.yml'
+      - 'tests/**'
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+    - uses: actions/setup-python@v5
+      with:
+        python-version: '3.11'
+    - name: Install dependencies
+      run: pip install -r requirements-backend.txt
+    - name: Run tests
+      run: pytest
