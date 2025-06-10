@@ -7,6 +7,7 @@ from datetime import datetime, timedelta, timezone
 
 from Backend import crud
 from Backend import crud_users
+from Backend import crud_historico
 from Backend import models
 from Backend import schemas
 from Backend.database import get_db
@@ -162,3 +163,14 @@ async def get_recent_activities(db: Session = Depends(get_db), limit: int = Quer
             )
         )
     return activities
+
+
+@router.get("/recent-historico", response_model=List[schemas.RegistroHistoricoResponse],
+            dependencies=[Depends(get_current_active_admin_user)])
+async def get_recent_historico(
+    db: Session = Depends(get_db),
+    limit: int = Query(10, ge=1, le=50)
+):
+    """Retorna os registros históricos mais recentes."""
+    registros = crud_historico.get_registros_historico(db, skip=0, limit=limit)
+    return registros
