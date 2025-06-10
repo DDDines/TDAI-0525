@@ -87,7 +87,15 @@ function EditFornecedorModal({ isOpen, onClose, fornecedorData, onSave, isLoadin
   return (
     <div className="modal active" id="edit-forn-modal">
       <div className="modal-content">
-        <button className="modal-close" onClick={onClose} disabled={isLoading || importLoading}>×</button>
+        <button
+          type="button"
+          className="modal-close-button"
+          aria-label="Fechar"
+          onClick={onClose}
+          disabled={isLoading || importLoading}
+        >
+          ×
+        </button>
         <h3>Editar Fornecedor: {fornecedorData.nome}</h3>
         <div className="tab-navigation">
           <button type="button" className={activeTab === 'info' ? 'active' : ''} onClick={() => setActiveTab('info')}>Info</button>
