@@ -129,7 +129,7 @@ export const batchDeleteProdutos = async (produtoIds) => {
 };
 
 // --- FUNÇÃO ADICIONADA ---
-export const getAtributoSugestions = async (produtoId) => {
+export const getAtributoSuggestions = async (produtoId) => {
   try {
     // O endpoint no backend é: POST /api/v1/geracao/sugerir-atributos-gemini/{produto_id}
     const response = await apiClient.post(`/geracao/sugerir-atributos-gemini/${produtoId}`);
@@ -143,7 +143,7 @@ export const getAtributoSugestions = async (produtoId) => {
 // --- FIM DA FUNÇÃO ADICIONADA ---
 
 // Alias para o modal que usa este nome
-export const sugerirAtributosGemini = getAtributoSugestions;
+export const sugerirAtributosGemini = getAtributoSuggestions;
 
 
 export default {
@@ -158,6 +158,6 @@ export default {
   gerarDescricaoGemini,
   iniciarEnriquecimentoWebProduto,
   batchDeleteProdutos,
-  getAtributoSugestions,
+  getAtributoSuggestions,
   sugerirAtributosGemini,
 };
