@@ -1,4 +1,4 @@
-# tdai_project/Backend/services/limit_service.py
+# catalogai_project/Backend/services/limit_service.py
 from fastapi import HTTPException, status # Removido Depends se não for usado diretamente
 from sqlalchemy.orm import Session
 

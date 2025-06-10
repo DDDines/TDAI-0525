@@ -2,7 +2,7 @@
 <html lang="pt-BR">
 <head>
   <meta charset="UTF-8">
-  <title>TDAI - Produtos & Categorias</title>
+  <title>CatalogAI - Produtos & Categorias</title>
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <style>
     body {margin:0;padding:0;background:#f4f6fa;font-family:'Segoe UI',Arial,sans-serif;}
@@ -121,12 +121,12 @@ function showToast(msg) {
 }
 // Produto lista
 function getProdutos() {
-  let d = localStorage.getItem('tdai_produtos');
+  let d = localStorage.getItem('catalogai_produtos');
   if (!d) return [];
   try { return JSON.parse(d); } catch { return []; }
 }
 function saveProdutos(prods) {
-  localStorage.setItem('tdai_produtos', JSON.stringify(prods));
+  localStorage.setItem('catalogai_produtos', JSON.stringify(prods));
 }
 function renderProdList() {
   let list = getProdutos();
@@ -152,12 +152,12 @@ function limparProdutoForm() {
 }
 // --- Categoria ---
 function getCategorias() {
-  let data = localStorage.getItem('tdai_categorias2');
+  let data = localStorage.getItem('catalogai_categorias2');
   if (!data) return [];
   try { return JSON.parse(data); } catch { return []; }
 }
 function saveCategorias(cats) {
-  localStorage.setItem('tdai_categorias2', JSON.stringify(cats));
+  localStorage.setItem('catalogai_categorias2', JSON.stringify(cats));
 }
 function categoriasExemplo() {
   if(getCategorias().length) return;

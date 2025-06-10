@@ -1,10 +1,10 @@
-# TDAI - Backend do Sistema Inteligente de Geração de Títulos e Descrições
+# CatalogAI - Backend do Sistema Inteligente de Geração de Títulos e Descrições
 
-Este é o backend para o projeto TDAI (Titles and Descriptions Artificial Intelligence), um sistema SaaS projetado para auxiliar na gestão e enriquecimento de informações de produtos de e-commerce, com foco em geração de conteúdo por IA.
+Este é o backend para o projeto CatalogAI (Titles and Descriptions Artificial Intelligence), um sistema SaaS projetado para auxiliar na gestão e enriquecimento de informações de produtos de e-commerce, com foco em geração de conteúdo por IA.
 
 ## 📜 Sobre o Projeto
 
-O TDAI visa processar listas de itens de produtos (inicialmente automotivos, mas com potencial de expansão), que muitas vezes chegam com informações mínimas via planilhas ou catálogos PDF. O sistema enriquece essas informações buscando dados na web (sites de fornecedores, catálogos, Google Search) e, por fim, gera títulos e descrições otimizados utilizando inteligência artificial. O backend é construído com FastAPI e PostgreSQL.
+O CatalogAI visa processar listas de itens de produtos (inicialmente automotivos, mas com potencial de expansão), que muitas vezes chegam com informações mínimas via planilhas ou catálogos PDF. O sistema enriquece essas informações buscando dados na web (sites de fornecedores, catálogos, Google Search) e, por fim, gera títulos e descrições otimizados utilizando inteligência artificial. O backend é construído com FastAPI e PostgreSQL.
 
 ## ✨ Funcionalidades Principais do Backend
 
@@ -104,7 +104,7 @@ Siga os passos abaixo para configurar e executar o backend localmente.
 
 ```bash
 git clone <url-do-seu-repositorio>
-cd <PROJECT_ROOT_DIRECTORY_NAME> # Navegue até a raiz do projeto TDAI
+cd <PROJECT_ROOT_DIRECTORY_NAME> # Navegue até a raiz do projeto CatalogAI
 3. Criar e Ativar um Ambiente Virtual:
 
 Recomendado para isolar as dependências do projeto. Execute na raiz do projeto (<PROJECT_ROOT_DIRECTORY_NAME>):
@@ -148,8 +148,8 @@ Você precisará adicionar as seguintes variáveis (um arquivo .env.example seri
 Snippet de código
 
 # Backend/core/config.py espera estas variáveis
-DATABASE_URL="postgresql://USER:PASSWORD@HOST:PORT/DB_NAME" # Ex: postgresql://postgres:password@localhost:5432/tdai_db
-SQLITE_DB_FILE="tdai_app.db"  # usado se DATABASE_URL não estiver presente
+DATABASE_URL="postgresql://USER:PASSWORD@HOST:PORT/DB_NAME" # Ex: postgresql://postgres:password@localhost:5432/catalogai_db
+SQLITE_DB_FILE="catalogai_app.db"  # usado se DATABASE_URL não estiver presente
 SECRET_KEY="sua_chave_secreta_super_forte_aqui" # Importante para JWT
 
 REFRESH_SECRET_KEY="change-me"
@@ -181,7 +181,7 @@ MAIL_PASSWORD="..."
 MAIL_FROM="seu_email@example.com"
 MAIL_PORT=587
 MAIL_SERVER="smtp.example.com"
-MAIL_FROM_NAME="Equipe TDAI"
+MAIL_FROM_NAME="Equipe CatalogAI"
 MAIL_STARTTLS="True" # True ou False
 MAIL_SSL_TLS="False"  # True ou False
 USE_CREDENTIALS="True" # True ou False

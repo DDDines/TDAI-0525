@@ -24,11 +24,11 @@ def env_var_name_with_prefix(field_name: str) -> str:
     return field_name
 
 class Settings(BaseSettings):
-    PROJECT_NAME: str = "TDAI - Transformador de Dados Assistido por IA"
+    PROJECT_NAME: str = "CatalogAI - Transformador de Dados Assistido por IA"
     PROJECT_VERSION: str = "1.0.0"
     API_V1_STR: str = "/api/v1"
     DATABASE_URL: Optional[str] = os.getenv("DATABASE_URL")
-    SQLITE_DB_FILE: str = os.getenv("SQLITE_DB_FILE", "tdai_app.db")
+    SQLITE_DB_FILE: str = os.getenv("SQLITE_DB_FILE", "catalogai_app.db")
 
     SECRET_KEY: str = os.getenv("SECRET_KEY", "super-secret-key-deve-ser-alterada-imediatamente")
     REFRESH_SECRET_KEY: str = os.getenv("REFRESH_SECRET_KEY", "super-refresh-secret-change-me")
@@ -63,7 +63,7 @@ class Settings(BaseSettings):
     MAIL_SSL_TLS: bool = os.getenv("MAIL_SSL_TLS", "False").lower() in ("true", "1", "t")
     USE_CREDENTIALS: bool = bool(os.getenv("MAIL_USERNAME") and os.getenv("MAIL_PASSWORD"))
     VALIDATE_CERTS: bool = True
-    MAIL_FROM_NAME: Optional[str] = os.getenv("MAIL_FROM_NAME", "TDAI Platform")
+    MAIL_FROM_NAME: Optional[str] = os.getenv("MAIL_FROM_NAME", "CatalogAI Platform")
 
     GOOGLE_CLIENT_ID: Optional[str] = os.getenv("GOOGLE_CLIENT_ID")
     GOOGLE_CLIENT_SECRET: Optional[str] = os.getenv("GOOGLE_CLIENT_SECRET")

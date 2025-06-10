@@ -1,4 +1,4 @@
-# tdai_project/Backend/routers/web_enrichment.py
+# catalogai_project/Backend/routers/web_enrichment.py
 from fastapi import APIRouter, Depends, HTTPException, status, BackgroundTasks, Query
 from sqlalchemy.orm import Session
 from sqlalchemy.exc import SQLAlchemyError # Para capturar exceções do SQLAlchemy

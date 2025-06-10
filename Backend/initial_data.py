@@ -58,7 +58,7 @@ def create_initial_data(db: Session):
         user_in = schemas.UserCreate(
             email=admin_email,
             password=admin_password,
-            nome_completo="Admin TDAI",
+            nome_completo="Admin CatalogAI",
             plano_id=admin_plano.id if admin_plano else None
         )
         db_admin_user = create_user(db, user_in)

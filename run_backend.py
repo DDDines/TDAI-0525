@@ -1,4 +1,4 @@
-# TDAI 2025/Project/run_backend.py
+# CatalogAI 2025/Project/run_backend.py
 import sys
 import os
 import uvicorn

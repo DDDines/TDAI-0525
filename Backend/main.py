@@ -58,7 +58,7 @@ except Exception as e:
 app = FastAPI(
     title=settings.PROJECT_NAME,
     version=settings.PROJECT_VERSION,
-    description="API para o sistema TDAI - Ferramenta de Descrição Assistida por IA.",
+    description="API para o sistema CatalogAI - Ferramenta de Descrição Assistida por IA.",
 )
 
 # Configuração do CORS
@@ -190,7 +190,7 @@ async def startup_event_create_defaults():
                 user_in_data = {
                     "email": settings.ADMIN_EMAIL,
                     "password": settings.ADMIN_PASSWORD,
-                    "nome_completo": "Administrador TDAI",
+                    "nome_completo": "Administrador CatalogAI",
                     "plano_id": admin_plano_obj.id if admin_plano_obj else None,
                 }
                 if hasattr(settings, 'ADMIN_IDIOMA_PREFERIDO'):
