@@ -1,15 +1,15 @@
-// Frontend/app/src/components/produtos/ProductModal.jsx
+// Frontend/app/src/components/ProductModal.jsx
 // ARQUIVO UNIFICADO para Criar e Editar Produtos
 
 import React, { useState, useEffect, useCallback } from 'react';
-import Modal from '../common/Modal';
-import { showSuccessToast, showErrorToast, showInfoToast, showWarningToast } from '../../utils/notifications';
-import productService from '../../services/productService';
-import fornecedorService from '../../services/fornecedorService';
+import Modal from './common/Modal';
+import { showSuccessToast, showErrorToast, showInfoToast, showWarningToast } from '../utils/notifications';
+import productService from '../services/productService';
+import fornecedorService from '../services/fornecedorService';
 // Ajuste do caminho para o componente de atributo
 import AttributeField from './produtos/shared/AttributeField';
-import { useProductTypes } from '../../contexts/ProductTypeContext';
-import '../ProductEditModal.css';
+import { useProductTypes } from '../contexts/ProductTypeContext';
+import './ProductEditModal.css';
 
 // Estado inicial do formulário, com todos os campos do seu modelo.
 const initialFormData = {
