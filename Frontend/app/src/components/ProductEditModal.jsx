@@ -98,7 +98,8 @@ const ProductEditModal = ({ isOpen, onClose, product, onProductUpdated }) => {
     const { productTypes } = useProductTypes();
 
     // Para novos produtos, mostramos primeiro a seleção do fornecedor e do tipo
-    const [stage, setStage] = useState('form'); // 'selectFornecedor' | 'selectType' | 'form'
+    // Se estiver editando (product fornecido), iniciamos diretamente no formulário
+    const [stage, setStage] = useState(product ? 'form' : 'selectFornecedor'); // 'selectFornecedor' | 'selectType' | 'form'
 
     const [iaAttributeSuggestions, setIaAttributeSuggestions] = useState({});
     const [selectedIaSuggestions, setSelectedIaSuggestions] = useState({});
@@ -119,10 +120,13 @@ const ProductEditModal = ({ isOpen, onClose, product, onProductUpdated }) => {
         fetchDependencies();
     }, [isOpen]);
 
-    // Define o estágio inicial quando o modal é aberto
+    // Define o estágio inicial quando o modal é aberto ou quando o produto muda
     useEffect(() => {
         if (isOpen) {
-            if (!formData.fornecedor_id) {
+            // Se estivermos editando, já vamos direto para o formulário
+            if (product && product.id) {
+                setStage('form');
+            } else if (!formData.fornecedor_id) {
                 setStage('selectFornecedor');
             } else if (!formData.product_type_id) {
                 setStage('selectType');
@@ -130,7 +134,7 @@ const ProductEditModal = ({ isOpen, onClose, product, onProductUpdated }) => {
                 setStage('form');
             }
         }
-    }, [isOpen, formData.fornecedor_id, formData.product_type_id]);
+    }, [isOpen, product, formData.fornecedor_id, formData.product_type_id]);
 
     const extractIaSuggestions = useCallback((dadosBrutos) => {
         const extracted = {};
@@ -210,6 +214,8 @@ const ProductEditModal = ({ isOpen, onClose, product, onProductUpdated }) => {
                     showErrorToast('Erro ao carregar dados completos do produto.');
                     populateFormData(product);
                 }
+                // Garantir que o estágio seja o formulário ao editar
+                setStage('form');
             } else {
                 setFormData(initialFormData);
                 setIaAttributeSuggestions({});
