@@ -274,6 +274,7 @@ npm test
 ```
 # Banco de Dados
 DATABASE_URL="postgresql://usuario:senha@localhost:5432/tdai_db"
+SQLITE_DB_FILE="tdai_app.db"  # usado automaticamente se DATABASE_URL estiver ausente
 
 # Segurança
 SECRET_KEY="sua_chave_forte"
@@ -320,6 +321,11 @@ ADMIN_PASSWORD="<ADMIN_PASSWORD>"
 FIRST_SUPERUSER_EMAIL="<FIRST_SUPERUSER_EMAIL>"
 FIRST_SUPERUSER_PASSWORD="<FIRST_SUPERUSER_PASSWORD>"
 ```
+
+Se `DATABASE_URL` não estiver definido, o backend utilizará automaticamente
+SQLite, criando o arquivo no caminho especificado por `SQLITE_DB_FILE`. Caso
+você não tenha PostgreSQL disponível, remova ou comente a variável
+`DATABASE_URL` ou ajuste o caminho do arquivo SQLite conforme necessário.
 
 > ⚠️ **Nunca suba arquivos `.env` com dados sensíveis para o git!**
 > Configure senhas e chaves reais via variáveis de ambiente ou um gerenciador de segredos seguro.
