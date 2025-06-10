@@ -3,6 +3,7 @@ from fastapi_mail import FastMail, MessageSchema, ConnectionConfig, MessageType
 from pydantic import EmailStr
 from typing import List, Dict, Any, Optional # Adicionado Optional
 from pathlib import Path
+from datetime import datetime
 from .config import settings  # Importa as configurações (settings)
 from .logging_config import get_logger
 
@@ -118,9 +119,10 @@ async def send_password_reset_email(email_to: EmailStr, username: str, reset_lin
     
     template_body = {
         "username": username,
-        "reset_link": reset_link,
-        "project_name": settings.PROJECT_NAME, # Passa o nome do projeto para o template
-        "valid_minutes": settings.ACCESS_TOKEN_EXPIRE_MINUTES # Passa o tempo de validade do token
+        "reset_url": reset_link,
+        "project_name": settings.PROJECT_NAME,  # Passa o nome do projeto para o template
+        "expiration_hours": int(settings.ACCESS_TOKEN_EXPIRE_MINUTES / 60),
+        "current_year": datetime.now().year,
     }
 
     # Construindo MessageSchema
