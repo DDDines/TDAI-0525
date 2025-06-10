@@ -202,17 +202,6 @@ const ProductEditModal = ({ isOpen, onClose, product, onProductUpdated }) => {
         const loadDetails = async () => {
             if (!isOpen) return;
             if (product && product.id) {
-                const token = localStorage.getItem('accessToken');
-                if (token && isAuthenticated) {
-                    try {
-                        const fullProduct = await productService.getProdutoById(product.id);
-                        populateFormData(fullProduct);
-                    } catch (err) {
-                        console.error('Erro ao carregar produto:', err);
-                        showErrorToast('Erro ao carregar dados completos do produto.');
-                        populateFormData(product);
-                    }
-                } else {
                 try {
                     const fullProduct = await productService.getProdutoById(product.id);
                     populateFormData(fullProduct);
@@ -220,7 +209,6 @@ const ProductEditModal = ({ isOpen, onClose, product, onProductUpdated }) => {
                     console.error('Erro ao carregar produto:', err);
                     showErrorToast('Erro ao carregar dados completos do produto.');
                     populateFormData(product);
-                }
                 }
             } else {
                 setFormData(initialFormData);
