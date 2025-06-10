@@ -86,6 +86,8 @@ const AttributeTemplateModal = ({ isOpen, onClose, attribute, onSave, isSubmitti
         <div style={styles.modalHeader}>
           <h3 style={styles.modalTitle}>{isEditing ? 'Editar Atributo' : 'Novo Atributo'}</h3>
           <button
+            type="button"
+            aria-label="Fechar"
             onClick={onClose}
             className="modal-close-button"
             style={styles.closeButton}

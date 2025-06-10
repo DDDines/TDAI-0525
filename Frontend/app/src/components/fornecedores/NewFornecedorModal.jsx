@@ -57,7 +57,15 @@ function NewFornecedorModal({ isOpen, onClose, onSave, isLoading }) {
   return (
     <div className="modal active" id="new-forn-modal">
       <div className="modal-content">
-        <button className="modal-close" onClick={onClose} disabled={isLoading}>×</button>
+        <button
+          type="button"
+          className="modal-close-button"
+          aria-label="Fechar"
+          onClick={onClose}
+          disabled={isLoading}
+        >
+          ×
+        </button>
         <h3>Novo Fornecedor</h3>
         <div>
             <label htmlFor="new-forn-nome">Nome*</label>
