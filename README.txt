@@ -118,18 +118,20 @@ source venv/bin/activate  # Linux/macOS
 
 
 Todas as bibliotecas necessárias para o backend já estão listadas em
-`Backend/requirements.txt`. Execute na raiz do projeto:
+`requirements-backend.txt`. Execute na raiz do projeto:
 
 ```bash
-pip install -r Backend/requirements.txt
+pip install -r requirements-backend.txt
 ```
 
-Já existe um arquivo Backend/requirements.txt com as principais bibliotecas.
+Bash
+
+Já existe um arquivo requirements-backend.txt com as principais bibliotecas.
 Execute na raiz do projeto:
 
 Bash
 
-pip install -r Backend/requirements.txt
+pip install -r requirements-backend.txt
 playwright install
 
 
