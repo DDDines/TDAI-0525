@@ -186,7 +186,9 @@ MAIL_STARTTLS="True" # True ou False
 MAIL_SSL_TLS="False"  # True ou False
 USE_CREDENTIALS="True" # True ou False
 VALIDATE_CERTS="True"  # True ou False
-RAISE_ON_MISSING_EMAIL_CONFIG="False"  # opcional: gera erro se a configuracao estiver incompleta
+RAISE_ON_MISSING_EMAIL_CONFIG="True"  # gera erro se a configuracao estiver incompleta (defina como False para ignorar)
+# Por padrão o backend gera erro caso as variáveis acima não estejam configuradas corretamente.
+# Ajuste RAISE_ON_MISSING_EMAIL_CONFIG="False" se preferir apenas um aviso no log.
 # Preencha todas as variáveis acima para que o envio de emails de recuperação de senha funcione
 
 # URL do Frontend (para links em emails, etc.)
