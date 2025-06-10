@@ -33,13 +33,18 @@ async def _tarefa_enriquecer_produto_web(
     user_id: int,
     termos_busca_override: Optional[str] = None
 ):
-    db: Session = db_session_factory()
-    log_mensagens: List[str] = [f"INICIANDO tarefa de enriquecimento web para produto ID: {produto_id}."]
+    db: Optional[Session] = None
+    log_mensagens: List[str] = [
+        f"INICIANDO tarefa de enriquecimento web para produto ID: {produto_id}."
+    ]
     
     db_produto_obj: Optional[models.Produto] = None
-    status_original_do_produto_no_inicio_da_tarefa: models.StatusEnriquecimentoEnum = models.StatusEnriquecimentoEnum.PENDENTE
-    
+    status_original_do_produto_no_inicio_da_tarefa: models.StatusEnriquecimentoEnum = (
+        models.StatusEnriquecimentoEnum.PENDENTE
+    )
+
     try:
+        db = db_session_factory()
         query = db.query(models.Produto).filter(models.Produto.id == produto_id)
         engine = db.get_bind()
         dialect_name = engine.dialect.name if engine and engine.dialect else None
@@ -50,16 +55,16 @@ async def _tarefa_enriquecer_produto_web(
         if not db_produto_obj:
             log_mensagens.append(f"ERRO FATAL PRECOCE: Produto ID {produto_id} não encontrado.")
             logger.error(log_mensagens[-1])
-            db.close()
             return
         
         status_original_do_produto_no_inicio_da_tarefa = db_produto_obj.status_enriquecimento_web
         # Não mudamos o status para EM_PROGRESSO aqui ainda.
 
     except SQLAlchemyError as e_sql_load:
-        log_mensagens.append(f"ERRO SQL ao carregar produto ID {produto_id}: {e_sql_load}")
+        log_mensagens.append(
+            f"ERRO SQL ao carregar produto ID {produto_id}: {e_sql_load}"
+        )
         logger.error(log_mensagens[-1])
-        db.close()
         return
 
     # Esta será a variável que controlará o status a ser salvo no final.
@@ -325,7 +330,8 @@ async def _tarefa_enriquecer_produto_web(
             final_status_value_print,
         )
         
-        db.close()
+        if db:
+            db.close()
 
 @router.post("/produto/{produto_id}", status_code=status.HTTP_202_ACCEPTED, response_model=schemas.Msg)
 async def iniciar_enriquecimento_produto_web_endpoint(
