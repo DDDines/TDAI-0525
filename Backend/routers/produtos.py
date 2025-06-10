@@ -159,7 +159,8 @@ def read_produtos( # Nome da função mantido como no arquivo do usuário
         product_type_id=product_type_id,
         is_admin=current_user.is_superuser # Passando is_admin para o CRUD
     )
-    return {"items": produtos_db, "total_items": total_items, "page": skip // limit, "limit": limit}
+    page_number = skip // limit + 1
+    return {"items": produtos_db, "total_items": total_items, "page": page_number, "limit": limit}
 
 
 @router.put("/{produto_id}", response_model=schemas.ProdutoResponse) # CORRIGIDO AQUI
