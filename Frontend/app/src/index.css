@@ -233,8 +233,23 @@ button[disabled], button:disabled {
 .user-menu button:hover { 
   background: var(--main-bg); 
 }
-.user-menu button > span { 
+.user-menu button > span {
   opacity: 0.7;
+}
+
+/* Ajustes para o UserMenu dentro da sidebar */
+.sidebar .user-area {
+  justify-content: center;
+}
+.sidebar .user-menu {
+  left: 0;
+  right: auto;
+}
+.sidebar.closed .user-menu {
+  display: none;
+}
+.sidebar.closed .user-name {
+  display: none;
 }
 
 .content {
