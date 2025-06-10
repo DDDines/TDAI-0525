@@ -264,8 +264,16 @@ Para que o envio de emails de recuperação de senha funcione é obrigatório de
 
 ### 6. **Testes**
 
-Execute o script `scripts/run_tests.sh` para instalar automaticamente as dependên
-cias do backend e rodar o `pytest`.
+Antes de executar os testes do backend, instale as dependências listadas em
+`requirements-backend.txt`, que incluem pacotes como **SQLAlchemy**. Para isso,
+rode:
+
+```sh
+pip install -r requirements-backend.txt
+```
+
+Você também pode utilizar o script abaixo, que instala as dependências e executa
+o `pytest` automaticamente:
 
 ```sh
 ./scripts/run_tests.sh
@@ -390,7 +398,15 @@ console.log(historico.items);
 
 ## 🧪 Testes
 
-Os testes do backend dependem das bibliotecas listadas em `requirements-backend.txt`. Utilize o script abaixo, que já instala essas dependências antes de rodar os testes:
+Os testes do backend dependem das bibliotecas listadas em `requirements-backend.txt`,
+que incluem pacotes como **SQLAlchemy**. Instale-as com:
+
+```sh
+pip install -r requirements-backend.txt
+```
+
+Em seguida execute o `pytest` manualmente ou utilize o script de conveniência abaixo,
+que realiza a instalação das dependências e roda os testes:
 
 ```sh
 ./scripts/run_tests.sh
