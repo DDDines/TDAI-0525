@@ -34,6 +34,16 @@ const adminService = {
     }
   },
 
+  async getRecentHistorico(limit = 5) {
+    try {
+      const response = await apiClient.get('/admin/analytics/recent-historico', { params: { limit } });
+      return response.data;
+    } catch (error) {
+      console.error('Error fetching recent historico:', error.response?.data || error.message);
+      throw error.response?.data || new Error('Falha ao buscar histórico recente.');
+    }
+  },
+
   // Você pode adicionar outras funções de admin aqui no futuro, como:
   // async getUsoIaPorPlano() { ... }
   // async getUserActivity() { ... }

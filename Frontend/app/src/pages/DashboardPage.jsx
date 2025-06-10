@@ -40,7 +40,7 @@ function DashboardPage() {
           try {
             const statusData = await adminService.getProductStatusCounts();
             setStatusCounts(statusData);
-            const activities = await adminService.getRecentActivities();
+            const activities = await adminService.getRecentHistorico(5);
             setRecentActivities(activities);
           } catch (innerErr) {
             console.error('Erro ao buscar dados adicionais do dashboard:', innerErr);
@@ -122,7 +122,7 @@ function DashboardPage() {
   const activityFeed = recentActivities.map(act => ({
     id: act.id,
     icon: '🔔',
-    message: `${act.tipo_acao} - ${act.user_email || act.user_id}`,
+    message: `${act.entidade} - ${act.acao} - ${act.user_id}`,
     date: new Date(act.created_at).toLocaleDateString()
   }));
 
