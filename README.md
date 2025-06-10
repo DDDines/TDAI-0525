@@ -228,11 +228,14 @@ acessar a plataforma e visualizar esse item inicial.
 
 ### 4. **Configuração do Frontend**
 
+Siga os passos abaixo para rodar a interface em React.
+Caso o `npm install` retorne o erro `ERESOLVE` (conflito de *peer dependencies*),
+execute `npm install --legacy-peer-deps` ou atualize o `package.json` para
+versões compatíveis e tente novamente.
+
 ```sh
 cd Frontend/app
 npm install
-# Se a instalação falhar com erro ERESOLVE (conflito de peer dependencies),
-# execute `npm install --legacy-peer-deps` ou atualize o package.json para versões compatíveis.
 # Certifique-se de que as dependências de desenvolvimento (como @eslint/js)
 # foram instaladas. Elas são necessárias para o comando de lint.
 npm run lint            # Opcional: verifica padrões de código
