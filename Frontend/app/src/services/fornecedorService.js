@@ -85,10 +85,28 @@ export const deleteFornecedor = async (fornecedorId) => {
   }
 };
 
-export const importCatalogo = async (fornecedorId, file) => {
+export const previewCatalogo = async (file) => {
   try {
     const formData = new FormData();
     formData.append('file', file);
+    const response = await apiClient.post('/produtos/importar-catalogo-preview/', formData);
+    return response.data;
+  } catch (error) {
+    console.error('Erro ao gerar preview do catálogo:', JSON.stringify(error.response?.data || error.message || error));
+    if (error.response && error.response.data) {
+      throw error.response.data;
+    }
+    throw new Error(error.message || 'Falha ao solicitar preview do catálogo');
+  }
+};
+
+export const importCatalogo = async (fornecedorId, file, mapping = null) => {
+  try {
+    const formData = new FormData();
+    formData.append('file', file);
+    if (mapping) {
+      formData.append('mapeamento_colunas_usuario', JSON.stringify(mapping));
+    }
     const response = await apiClient.post(`/produtos/importar-catalogo/${fornecedorId}/`, formData);
     return response.data;
   } catch (error) {
@@ -109,5 +127,6 @@ export default {
   createFornecedor,
   updateFornecedor,
   deleteFornecedor,
+  previewCatalogo,
   importCatalogo,
 };

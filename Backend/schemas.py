@@ -320,6 +320,13 @@ class ProdutoResponse(ProdutoBase):
 class ProdutoBatchDeleteRequest(BaseModel):
     produto_ids: List[int]
 
+
+class ImportPreviewResponse(BaseModel):
+    headers: List[str]
+    sample_rows: List[Dict[str, Any]]
+    message: Optional[str] = None
+    error: Optional[str] = None
+
 class ProdutoPage(BaseModel):
     items: List[ProdutoResponse]
     total_items: int

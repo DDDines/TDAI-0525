@@ -14,6 +14,7 @@ from fastapi import (
     Form,
     Body,
 )
+import json
 from sqlalchemy.orm import Session
 from pathlib import Path
 from sqlalchemy import func, or_
@@ -332,22 +333,45 @@ async def upload_produto_image( # Nome da função mantido como no arquivo do us
     return updated_produto
 
 
+@router.post("/importar-catalogo-preview/", response_model=schemas.ImportPreviewResponse)
+async def importar_catalogo_preview(
+    file: UploadFile = File(...),
+    db: Session = Depends(database.get_db),
+    current_user: models.User = Depends(auth_utils.get_current_active_user),
+):
+    """Retorna cabeçalhos detectados e linhas de amostra do arquivo enviado."""
+    content = await file.read()
+    ext = Path(file.filename).suffix.lower()
+    try:
+        preview = await file_processing_service.gerar_preview(content, ext)
+        return preview
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Formato de arquivo não suportado")
+
+
 @router.post("/importar-catalogo/{fornecedor_id}/", response_model=List[schemas.ProdutoResponse])
 async def importar_catalogo_fornecedor(
     fornecedor_id: int,
     file: UploadFile = File(...),
+    mapeamento_colunas_usuario: Optional[str] = Form(None),
     db: Session = Depends(database.get_db),
     current_user: models.User = Depends(auth_utils.get_current_active_user),
 ):
     """Importa um arquivo de catálogo e cria produtos vinculados ao fornecedor."""
     content = await file.read()
     ext = Path(file.filename).suffix.lower()
+    mapping_dict = None
+    if mapeamento_colunas_usuario:
+        try:
+            mapping_dict = json.loads(mapeamento_colunas_usuario)
+        except Exception:
+            raise HTTPException(status_code=400, detail="mapeamento_colunas_usuario inválido")
     if ext in [".xlsx", ".xls"]:
-        produtos_data = await file_processing_service.processar_arquivo_excel(content)
+        produtos_data = await file_processing_service.processar_arquivo_excel(content, mapping_dict)
     elif ext == ".csv":
-        produtos_data = await file_processing_service.processar_arquivo_csv(content)
+        produtos_data = await file_processing_service.processar_arquivo_csv(content, mapping_dict)
     elif ext == ".pdf":
-        produtos_data = await file_processing_service.processar_arquivo_pdf(content)
+        produtos_data = await file_processing_service.processar_arquivo_pdf(content, mapping_dict)
     else:
         raise HTTPException(status_code=400, detail="Formato de arquivo não suportado")
 
