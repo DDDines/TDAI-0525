@@ -1,5 +1,6 @@
 // Frontend/app/src/components/fornecedores/NewFornecedorModal.jsx
 import React, { useState, useEffect } from 'react';
+import { showWarningToast } from '../../utils/notifications';
 
 function NewFornecedorModal({ isOpen, onClose, onSave, isLoading }) {
   const [nome, setNome] = useState('');
@@ -12,12 +13,12 @@ function NewFornecedorModal({ isOpen, onClose, onSave, isLoading }) {
 
   const handleSubmit = () => {
     const trimmedNome = nome.trim();
-    if (!trimmedNome) { 
-      alert('Nome é obrigatório.'); 
-      return; 
+    if (!trimmedNome) {
+      showWarningToast('Nome é obrigatório.');
+      return;
     }
     if (trimmedNome.length < 2) {
-        alert('Nome deve ter pelo menos 2 caracteres.');
+        showWarningToast('Nome deve ter pelo menos 2 caracteres.');
         return;
     }
 
