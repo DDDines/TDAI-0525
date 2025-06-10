@@ -149,6 +149,7 @@ Snippet de código
 
 # Backend/core/config.py espera estas variáveis
 DATABASE_URL="postgresql://USER:PASSWORD@HOST:PORT/DB_NAME" # Ex: postgresql://postgres:password@localhost:5432/tdai_db
+SQLITE_DB_FILE="tdai_app.db"  # usado se DATABASE_URL não estiver presente
 SECRET_KEY="sua_chave_secreta_super_forte_aqui" # Importante para JWT
 
 REFRESH_SECRET_KEY="change-me"
@@ -193,6 +194,11 @@ FRONTEND_URL="http://localhost:5173" # Ou a porta do seu frontend Vite/React
 ADMIN_EMAIL="<ADMIN_EMAIL>"
 ADMIN_PASSWORD="<ADMIN_PASSWORD>"
 Preencha os valores corretos para cada variável. O arquivo Backend/core/config.py define como essas variáveis são lidas.
+
+Se `DATABASE_URL` não for informado, o backend irá utilizar automaticamente
+SQLite no caminho definido por `SQLITE_DB_FILE`. Remova ou comente a variável
+`DATABASE_URL` caso não disponha de um servidor PostgreSQL ou ajuste o caminho
+do arquivo SQLite conforme necessário.
 
 6. Migrações do Banco de Dados:
 
