@@ -158,12 +158,23 @@ button[disabled], button:disabled {
   justify-content: space-between;
   min-height: 60px; /* Altura mínima da topbar */
   flex-shrink: 0; /* Topbar não encolhe */
-  z-index: 50; 
+  z-index: 50;
 }
-.topbar h1 { 
-  font-size: 1.65rem; 
-  color: #333; 
-  margin-bottom: 0; 
+.sidebar-toggle-btn {
+  background: none;
+  border: none;
+  font-size: 1.5rem;
+  margin-right: 1rem;
+  cursor: pointer;
+  color: var(--primary);
+}
+.sidebar-toggle-btn:hover {
+  filter: brightness(90%);
+}
+.topbar h1 {
+  font-size: 1.65rem;
+  color: #333;
+  margin-bottom: 0;
 }
 
 .user-area {
