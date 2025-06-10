@@ -213,6 +213,7 @@ const ProductEditModal = ({ isOpen, onClose, product, onProductUpdated }) => {
                     console.error('Erro ao carregar produto:', err);
                     showErrorToast('Erro ao carregar dados completos do produto.');
                     populateFormData(product);
+                    showWarningToast('Dados carregados parcialmente.');
                 }
                 // Garantir que o estágio seja o formulário ao editar
                 setStage('form');
