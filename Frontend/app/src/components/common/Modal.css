@@ -301,3 +301,31 @@
 .form-grid label.full-width select {
     width: 100%;
 }
+
+/* Área de drop para importação de arquivos */
+.file-drop-area {
+    border: 2px dashed #d1d5db;
+    padding: 1.5rem;
+    text-align: center;
+    background-color: #f9fafb;
+    border-radius: var(--radius);
+    cursor: pointer;
+    transition: border-color 0.2s, background-color 0.2s;
+    margin-bottom: 1rem;
+}
+
+.file-drop-area.drag-over {
+    border-color: var(--primary);
+    background-color: #eef2ff;
+}
+
+.file-drop-area p {
+    margin: 0;
+    font-size: 1rem;
+    color: var(--text-color-light);
+}
+
+.file-drop-area small {
+    font-size: 0.85em;
+    color: #9ca3af;
+}

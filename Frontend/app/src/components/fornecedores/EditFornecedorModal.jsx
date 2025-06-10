@@ -1,5 +1,5 @@
 // Frontend/app/src/components/fornecedores/EditFornecedorModal.jsx
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import fornecedorService from '../../services/fornecedorService';
 import { showSuccessToast, showErrorToast } from '../../utils/notifications';
 
@@ -8,6 +8,8 @@ function EditFornecedorModal({ isOpen, onClose, fornecedorData, onSave, isLoadin
   const [activeTab, setActiveTab] = useState('info');
   const [importFile, setImportFile] = useState(null);
   const [importLoading, setImportLoading] = useState(false);
+  const [isDragOver, setIsDragOver] = useState(false);
+  const inputRef = useRef(null);
 
   useEffect(() => {
     if (fornecedorData) {
@@ -25,6 +27,31 @@ function EditFornecedorModal({ isOpen, onClose, fornecedorData, onSave, isLoadin
   const handleChange = e => {
     const { name, value } = e.target;
     setFormData(prev => ({ ...prev, [name]: value }));
+  };
+
+  const handleFileChange = (e) => {
+    setImportFile(e.target.files[0]);
+  };
+
+  const handleDragOver = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragOver(true);
+  };
+
+  const handleDragLeave = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragOver(false);
+  };
+
+  const handleDrop = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragOver(false);
+    if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+      setImportFile(e.dataTransfer.files[0]);
+    }
   };
   
   const handleSubmit = () => {
@@ -127,7 +154,30 @@ function EditFornecedorModal({ isOpen, onClose, fornecedorData, onSave, isLoadin
         {activeTab === 'import' && (
           <div className="form-section">
             <p>Envie um arquivo CSV, Excel ou PDF para importar produtos deste fornecedor.</p>
-            <input type="file" accept=".csv,.xls,.xlsx,.pdf" onChange={(e) => setImportFile(e.target.files[0])} disabled={importLoading} />
+            <div
+              className={`file-drop-area ${isDragOver ? 'drag-over' : ''}`}
+              onDragOver={handleDragOver}
+              onDragLeave={handleDragLeave}
+              onDrop={handleDrop}
+              onClick={() => !importLoading && inputRef.current?.click()}
+            >
+              {importFile ? (
+                <p>{importFile.name}</p>
+              ) : (
+                <>
+                  <p>Arraste e solte o arquivo aqui ou clique para selecionar</p>
+                  <small>Formatos aceitos: CSV, Excel ou PDF</small>
+                </>
+              )}
+              <input
+                ref={inputRef}
+                type="file"
+                accept=".csv,.xls,.xlsx,.pdf"
+                onChange={handleFileChange}
+                disabled={importLoading}
+                style={{ display: 'none' }}
+              />
+            </div>
             <button onClick={handleImport} disabled={importLoading || !importFile}>{importLoading ? 'Importando...' : 'Importar'}</button>
           </div>
         )}
