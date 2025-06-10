@@ -124,23 +124,26 @@ async def read_product_type_details_route(
     
     try:
         numeric_id = int(identifier)
-        logger.info("ROUTER: Identificador '%s' é numérico. Tentando buscar por ID: %s", identifier, numeric_id)
-        db_product_type = crud_product_types.get_product_type(db, product_type_id=numeric_id)
+        logger.info(
+            "ROUTER: Identificador '%s' é numérico. Tentando buscar por ID: %s",
+            identifier,
+            numeric_id,
+        )
+        logger.debug(
+            "ROUTER: Identificador '%s' é numérico. Tentando buscar por ID: %s",
+            identifier,
+            numeric_id,
+        )
+        db_product_type = crud_product_types.get_product_type(
+            db, product_type_id=numeric_id
+        )
         if db_product_type:
             logger.info(
                 "ROUTER: Encontrado por ID: %s - %s",
                 db_product_type.id,
                 db_product_type.friendly_name,
             )
-        logger.debug(
-            "ROUTER: Identificador '%s' é numérico. Tentando buscar por ID: %s",
-            identifier,
-            numeric_id,
-        )
-        db_product_type = crud_product_types.get_product_type(db, product_type_id=numeric_id) 
-        if db_product_type:
             logger.debug(
-
                 "ROUTER: Encontrado por ID: %s - %s",
                 db_product_type.id,
                 db_product_type.friendly_name,
