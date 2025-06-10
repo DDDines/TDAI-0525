@@ -80,7 +80,8 @@ def test_verificar_limite_uso_abaixo_limite(monkeypatch):
         return 3
     monkeypatch.setattr(limit_service.crud, "count_usos_ia_by_user_and_type_no_mes_corrente", mock_count)
 
-    assert limit_service.verificar_limite_uso(None, user, "descricao") is True
+    remaining = limit_service.verificar_limite_uso(None, user, "descricao")
+    assert remaining == 2
 
 
 def test_verificar_limite_uso_acima_limite(monkeypatch):
@@ -93,4 +94,5 @@ def test_verificar_limite_uso_acima_limite(monkeypatch):
     with pytest.raises(HTTPException) as exc:
         limit_service.verificar_limite_uso(None, user, "descricao")
     assert exc.value.status_code == status.HTTP_403_FORBIDDEN
+    assert "descrições" in exc.value.detail
 
