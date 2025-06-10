@@ -94,7 +94,6 @@ def reset_password(
 
     # Atualizar a senha do usuário
     hashed_password = security.get_password_hash(reset_data.new_password)
-    user_update_data = schemas.UserUpdate(password=reset_data.new_password) # Criar um schema de update
     
     # Para atualizar apenas a senha e limpar o token:
     db_user = crud_users.get_user(db, user_id=user.id) # Busca o usuário novamente para garantir que temos o objeto da sessão
