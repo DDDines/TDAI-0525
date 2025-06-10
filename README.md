@@ -262,6 +262,13 @@ Todas as variáveis necessárias para o backend e o frontend estão documentadas
 Copie este arquivo para `.env` e preencha com seus valores antes de iniciar a aplicação.
 Para que o envio de emails de recuperação de senha funcione é obrigatório definir `MAIL_USERNAME`, `MAIL_PASSWORD`, `MAIL_FROM` e `MAIL_SERVER`.
 
+Principais variáveis obrigatórias:
+- `SECRET_KEY` e `REFRESH_SECRET_KEY`
+- `FIRST_SUPERUSER_EMAIL` e `FIRST_SUPERUSER_PASSWORD`
+- `ADMIN_EMAIL` e `ADMIN_PASSWORD`
+- `MAIL_USERNAME`, `MAIL_PASSWORD`, `MAIL_FROM` e `MAIL_SERVER`
+
+
 ### 6. **Testes**
 
 Antes de executar os testes do backend, instale as dependências listadas em

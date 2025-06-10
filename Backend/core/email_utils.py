@@ -41,17 +41,24 @@ else:
 async def send_email(
     email_to: EmailStr,
     subject: str,
-    html_content: str, # Alterado de body para html_content para clareza
+    html_content: str,  # Alterado de body para html_content para clareza
     # attachments: Optional[List[UploadFile]] = None, # Se precisar enviar anexos
-    template_body: Optional[Dict[str, Any]] = None, # Para usar com templates
-    template_name: Optional[str] = None
+    template_body: Optional[Dict[str, Any]] = None,  # Para usar com templates
+    template_name: Optional[str] = None,
+    *,
+    raise_if_unconfigured: Optional[bool] = None,
 ):
+    if raise_if_unconfigured is None:
+        raise_if_unconfigured = settings.RAISE_ON_MISSING_EMAIL_CONFIG
+
     if not conf:
         logger.warning(
             "Tentativa de enviar email para %s com assunto '%s', mas a configuração de email está desabilitada.",
             email_to,
             subject,
         )
+        if raise_if_unconfigured:
+            raise RuntimeError("Configuração de email ausente")
         return
 
     message_data = {
