@@ -202,3 +202,79 @@ async def processar_arquivo_pdf(conteudo_arquivo: bytes, mapeamento_colunas_usua
         log_pdf.append(f"Erro crítico ao processar arquivo PDF: {str(e)}")
         logger.error("Erro ao processar arquivo PDF: %s", traceback.format_exc())
         return [{"erro_processamento_pdf": f"Falha crítica ao ler arquivo PDF: {str(e)}", "log_pdf": log_pdf}]
+
+
+async def preview_arquivo_excel(conteudo_arquivo: bytes, max_rows: int = 5) -> Dict[str, Any]:
+    """Retorna cabeçalhos e linhas de amostra de um arquivo Excel."""
+    try:
+        df = pd.read_excel(io.BytesIO(conteudo_arquivo), sheet_name=0)
+        headers = [str(col) for col in df.columns]
+        sample_rows = df.head(max_rows).fillna("").to_dict(orient="records")
+        return {"headers": headers, "sample_rows": sample_rows}
+    except Exception as e:
+        logger.error("Erro ao gerar preview de arquivo Excel: %s", e)
+        return {"error": f"Falha ao ler arquivo Excel: {str(e)}"}
+
+
+async def preview_arquivo_csv(conteudo_arquivo: bytes, max_rows: int = 5) -> Dict[str, Any]:
+    """Retorna cabeçalhos e linhas de amostra de um arquivo CSV."""
+    try:
+        try:
+            conteudo_str = conteudo_arquivo.decode("utf-8-sig")
+        except UnicodeDecodeError:
+            conteudo_str = conteudo_arquivo.decode("latin-1")
+
+        delimitador = ","
+        primeira_linha = conteudo_str.splitlines()[0]
+        if ";" in primeira_linha:
+            delimitador = ";"
+        elif "\t" in primeira_linha:
+            delimitador = "\t"
+
+        leitor_csv = csv.DictReader(io.StringIO(conteudo_str), delimiter=delimitador)
+        headers = leitor_csv.fieldnames or []
+        sample_rows = []
+        for i, row in enumerate(leitor_csv):
+            if i >= max_rows:
+                break
+            sample_rows.append(row)
+        return {"headers": headers, "sample_rows": sample_rows}
+    except Exception as e:
+        logger.error("Erro ao gerar preview de arquivo CSV: %s", e)
+        return {"error": f"Falha ao ler arquivo CSV: {str(e)}"}
+
+
+async def preview_arquivo_pdf(conteudo_arquivo: bytes, max_rows: int = 5) -> Dict[str, Any]:
+    """Tenta extrair cabeçalhos e linhas de amostra de tabelas em um PDF."""
+    try:
+        with pdfplumber.open(io.BytesIO(conteudo_arquivo)) as pdf:
+            for page in pdf.pages:
+                tables = page.extract_tables(table_settings={"vertical_strategy": "lines", "horizontal_strategy": "lines"})
+                if tables:
+                    primeira_tabela = tables[0]
+                    if len(primeira_tabela) < 2:
+                        continue
+                    headers_raw = primeira_tabela[0]
+                    headers = [str(h).strip() if h is not None else f"coluna_vazia_{idx}" for idx, h in enumerate(headers_raw)]
+                    sample_rows = []
+                    for row in primeira_tabela[1: max_rows + 1]:
+                        if len(row) != len(headers):
+                            continue
+                        sample_rows.append({headers[i]: row[i] for i in range(len(headers))})
+                    return {"headers": headers, "sample_rows": sample_rows}
+        return {"headers": [], "sample_rows": [], "message": "Nenhuma tabela encontrada no PDF"}
+    except Exception as e:
+        logger.error("Erro ao gerar preview de arquivo PDF: %s", e)
+        return {"error": f"Falha ao ler arquivo PDF: {str(e)}"}
+
+
+async def gerar_preview(conteudo_arquivo: bytes, ext: str, max_rows: int = 5) -> Dict[str, Any]:
+    """Despacha para a função de preview correta com base na extensão."""
+    ext = ext.lower()
+    if ext in [".xlsx", ".xls"]:
+        return await preview_arquivo_excel(conteudo_arquivo, max_rows)
+    if ext == ".csv":
+        return await preview_arquivo_csv(conteudo_arquivo, max_rows)
+    if ext == ".pdf":
+        return await preview_arquivo_pdf(conteudo_arquivo, max_rows)
+    raise ValueError("Formato de arquivo não suportado para preview")
