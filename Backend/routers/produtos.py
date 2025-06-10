@@ -22,6 +22,7 @@ from Backend import crud_produtos
 from Backend import crud_fornecedores
 from Backend import crud_product_types
 from Backend import crud
+from Backend import crud_historico
 from Backend import models
 from Backend import schemas  # schemas é importado
 from Backend import database
@@ -67,6 +68,15 @@ def create_produto( # Nome da função mantido como no arquivo do usuário
             produto_id=db_produto.id,
             tipo_acao=models.TipoAcaoIAEnum.CRIACAO_PRODUTO,
             creditos_consumidos=0,
+        ),
+    )
+    crud_historico.create_registro_historico(
+        db,
+        schemas.RegistroHistoricoCreate(
+            user_id=current_user.id,
+            entidade="Produto",
+            acao=models.TipoAcaoSistemaEnum.CRIACAO,
+            entity_id=db_produto.id,
         ),
     )
     return db_produto
@@ -176,7 +186,17 @@ def update_produto( # Nome da função mantido como no arquivo do usuário
             raise HTTPException(status_code=404, detail=f"Tipo de Produto com ID {produto.product_type_id} não encontrado.")
 
     # A função crud_produtos.update_produto espera o objeto db_produto
-    return crud_produtos.update_produto(db=db, db_produto=db_produto, produto_update=produto)
+    updated = crud_produtos.update_produto(db=db, db_produto=db_produto, produto_update=produto)
+    crud_historico.create_registro_historico(
+        db,
+        schemas.RegistroHistoricoCreate(
+            user_id=current_user.id,
+            entidade="Produto",
+            acao=models.TipoAcaoSistemaEnum.ATUALIZACAO,
+            entity_id=updated.id,
+        ),
+    )
+    return updated
 
 
 @router.delete("/{produto_id}", response_model=schemas.ProdutoResponse) # CORRIGIDO AQUI
@@ -192,7 +212,17 @@ def delete_produto( # Nome da função mantido como no arquivo do usuário
         raise HTTPException(status_code=403, detail="Não autorizado a deletar este produto")
     
     # A função crud_produtos.delete_produto espera o objeto db_produto
-    return crud_produtos.delete_produto(db=db, db_produto=db_produto)
+    deleted = crud_produtos.delete_produto(db=db, db_produto=db_produto)
+    crud_historico.create_registro_historico(
+        db,
+        schemas.RegistroHistoricoCreate(
+            user_id=current_user.id,
+            entidade="Produto",
+            acao=models.TipoAcaoSistemaEnum.DELECAO,
+            entity_id=deleted.id,
+        ),
+    )
+    return deleted
 
 
 # Expondo rotas com barra final para operações de atualização e deleção.
@@ -233,6 +263,15 @@ def batch_delete_produtos(
             continue
         
         crud_produtos.delete_produto(db=db, db_produto=db_produto) # Passa o objeto
+        crud_historico.create_registro_historico(
+            db,
+            schemas.RegistroHistoricoCreate(
+                user_id=current_user.id,
+                entidade="Produto",
+                acao=models.TipoAcaoSistemaEnum.DELECAO,
+                entity_id=db_produto.id,
+            ),
+        )
         deleted_produtos.append(db_produto) # Adiciona o objeto que foi deletado (já é um objeto do modelo)
 
     # Construindo a resposta
@@ -339,6 +378,15 @@ async def importar_catalogo_fornecedor(
                 produto_id=db_produto.id,
                 tipo_acao=models.TipoAcaoIAEnum.CRIACAO_PRODUTO,
                 creditos_consumidos=0,
+            ),
+        )
+        crud_historico.create_registro_historico(
+            db,
+            schemas.RegistroHistoricoCreate(
+                user_id=current_user.id,
+                entidade="Produto",
+                acao=models.TipoAcaoSistemaEnum.CRIACAO,
+                entity_id=db_produto.id,
             ),
         )
     return created

@@ -8,6 +8,7 @@ from Backend import crud_product_types
 from Backend import models
 from Backend import schemas
 from Backend import database
+from Backend import crud_historico
 from . import auth_utils
 from Backend.core.logging_config import get_logger
 
@@ -66,7 +67,17 @@ def create_product_type_endpoint(
         product_type_in.key_name,
         user_id_for_type,
     )
-    return crud_product_types.create_product_type(db=db, product_type_create=product_type_in, user_id=user_id_for_type)
+    created = crud_product_types.create_product_type(db=db, product_type_create=product_type_in, user_id=user_id_for_type)
+    crud_historico.create_registro_historico(
+        db,
+        schemas.RegistroHistoricoCreate(
+            user_id=current_user.id,
+            entidade="ProductType",
+            acao=models.TipoAcaoSistemaEnum.CRIACAO,
+            entity_id=created.id,
+        ),
+    )
+    return created
 
 
 @router.get("/", response_model=List[schemas.ProductTypeResponse])
@@ -233,6 +244,15 @@ def update_product_type_endpoint(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Tipo de produto não encontrado.")
 
     updated_type = crud_product_types.update_product_type(db=db, db_product_type=db_product_type, product_type_update=product_type_in)
+    crud_historico.create_registro_historico(
+        db,
+        schemas.RegistroHistoricoCreate(
+            user_id=current_user.id,
+            entidade="ProductType",
+            acao=models.TipoAcaoSistemaEnum.ATUALIZACAO,
+            entity_id=updated_type.id,
+        ),
+    )
 
     logger.info("ROUTER (update_product_type): Tipo de produto ID %s atualizado com sucesso.", type_id)
 
@@ -264,6 +284,15 @@ def delete_product_type_endpoint(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Tipo de Produto não encontrado para deleção.")
 
     deleted_type = crud_product_types.delete_product_type(db=db, db_product_type=db_product_type)
+    crud_historico.create_registro_historico(
+        db,
+        schemas.RegistroHistoricoCreate(
+            user_id=current_user.id,
+            entidade="ProductType",
+            acao=models.TipoAcaoSistemaEnum.DELECAO,
+            entity_id=deleted_type.id,
+        ),
+    )
 
     logger.info("ROUTER (delete_product_type): Tipo de produto ID %s deletado com sucesso.", type_id)
 

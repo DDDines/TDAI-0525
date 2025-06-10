@@ -1,6 +1,7 @@
 // Frontend/app/src/pages/HistoricoPage.jsx
 import React, { useState, useEffect, useCallback } from 'react';
 import usoIAService from '../services/usoIAService';
+import historicoService from '../services/historicoService';
 import { useAuth } from '../contexts/AuthContext';
 import { showErrorToast, showInfoToast } from '../utils/notifications';
 import PaginationControls from '../components/common/PaginationControls';
@@ -16,6 +17,8 @@ function HistoricoPage() {
   const [currentPage, setCurrentPage] = useState(0);
   const [limitPerPage] = useState(10);
   const [totalHistoricoCount, setTotalHistoricoCount] = useState(0);
+  const [historicoSistema, setHistoricoSistema] = useState([]);
+  const [totalHistoricoSistemaCount, setTotalHistoricoSistemaCount] = useState(0);
   const [filterTipoAcao, setFilterTipoAcao] = useState('');
 
   const totalPages = Math.ceil(totalHistoricoCount / limitPerPage);
@@ -71,10 +74,28 @@ function HistoricoPage() {
     }
   }, [user, isAuthLoading, currentPage, limitPerPage, filterTipoAcao]); // Adicionar dependências
 
+  const fetchHistoricoSistema = useCallback(async () => {
+    if (isAuthLoading || !user) return;
+    try {
+      const params = {
+        skip: currentPage * limitPerPage,
+        limit: limitPerPage,
+      };
+      const data = await historicoService.getHistorico(params);
+      if (data && Array.isArray(data.items)) {
+        setHistoricoSistema(data.items);
+        setTotalHistoricoSistemaCount(data.total_items);
+      }
+    } catch (err) {
+      console.error('Erro ao buscar histórico do sistema', err);
+    }
+  }, [user, isAuthLoading, currentPage, limitPerPage]);
+
 
   useEffect(() => {
     fetchHistorico();
-  }, [fetchHistorico]);
+    fetchHistoricoSistema();
+  }, [fetchHistorico, fetchHistoricoSistema]);
 
   const handlePageChange = (newPage) => {
     setCurrentPage(newPage);
@@ -157,6 +178,37 @@ function HistoricoPage() {
             </table>
           </div>
         )}
+
+        <div style={{ marginTop: '2rem' }}>
+          <h4>Eventos Recentes</h4>
+          {!loading && historicoSistema.length === 0 && <p>Nenhum evento encontrado.</p>}
+          {!loading && historicoSistema.length > 0 && (
+            <div className="table-responsive">
+              <table className="historico-table">
+                <thead>
+                  <tr>
+                    <th>ID</th>
+                    <th>Entidade</th>
+                    <th>Ação</th>
+                    <th>Entity ID</th>
+                    <th>Data/Hora</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {historicoSistema.map((reg) => (
+                    <tr key={reg.id}>
+                      <td>{reg.id}</td>
+                      <td>{reg.entidade}</td>
+                      <td>{reg.acao}</td>
+                      <td>{reg.entity_id}</td>
+                      <td>{reg.created_at ? format(parseISO(reg.created_at), 'dd/MM/yyyy HH:mm:ss', { locale: ptBR }) : 'N/A'}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
 
         {totalPages > 0 && !error && (
           <PaginationControls
