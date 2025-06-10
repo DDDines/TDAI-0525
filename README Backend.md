@@ -245,7 +245,7 @@
 ## Backend/routers/historico.py
 
 * `list_historico(...)`: Lista ações salvas no RegistroHistorico por usuário.
-* `get_tipos_acao()`: Retorna os valores do enum TipoAcaoIAEnum.
+* `get_tipos_acao()`: Retorna os valores do enum TipoAcaoEnum.
 
 ## Backend/routers/web\_enrichment.py
 
