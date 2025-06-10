@@ -23,6 +23,10 @@ def get_users(db: Session, skip: int = 0, limit: int = 100) -> List[User]:
     return db.query(User).offset(skip).limit(limit).all()
 
 def create_user(db: Session, user: schemas.UserCreate) -> User:
+    existing_user = get_user_by_email(db, user.email)
+    if existing_user:
+        return existing_user
+
     hashed_password = security.get_password_hash(user.password)
 
     default_limite_produtos = settings.DEFAULT_LIMIT_PRODUTOS_SEM_PLANO
@@ -56,7 +60,12 @@ def create_user(db: Session, user: schemas.UserCreate) -> User:
             )
 
     db.add(db_user)
-    db.commit()
+    try:
+        db.commit()
+    except IntegrityError:
+        db.rollback()
+        return get_user_by_email(db, user.email)
+
     db.refresh(db_user)
     return db_user
 
