@@ -106,7 +106,21 @@ const ProductEditModal = ({ isOpen, onClose, product, onProductUpdated }) => {
             if (isOpen) {
                 try {
                     const fetchedFornecedores = await fornecedorService.getFornecedores({skip: 0, limit: 100});
-                    setFornecedores(fetchedFornecedores.items || []);
+                    let list = fetchedFornecedores.items || [];
+
+                    // Se estiver editando e o fornecedor do produto não estiver na lista, buscamos especificamente
+                    if (product?.fornecedor_id && !list.some(f => f.id === product.fornecedor_id)) {
+                        try {
+                            const fornecedorCompleto = await fornecedorService.getFornecedorById(product.fornecedor_id);
+                            if (fornecedorCompleto) {
+                                list = [...list, fornecedorCompleto];
+                            }
+                        } catch (innerErr) {
+                            console.error("Erro ao buscar fornecedor pelo ID:", innerErr);
+                        }
+                    }
+
+                    setFornecedores(list);
                 } catch (err) {
                     console.error("Erro ao carregar fornecedores:", err);
                     showErrorToast("Erro ao carregar lista de fornecedores para o modal.");
