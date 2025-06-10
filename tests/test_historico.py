@@ -59,7 +59,6 @@ def test_historico_created_on_product_crud():
         assert models.TipoAcaoSistemaEnum.ATUALIZACAO in actions
         assert models.TipoAcaoSistemaEnum.DELECAO in actions
 
-
 def test_list_historico_endpoint():
     headers = get_user_headers()
     # cria um registro para garantir algum resultado
@@ -86,3 +85,9 @@ def test_get_tipos_acao_endpoint():
     assert resp.status_code == 200
     data = resp.json()
     assert isinstance(data, list)
+
+    resp = client.get("/api/v1/historico/", headers=headers)
+    assert resp.status_code == 200
+    data = resp.json()
+    assert len(data["items"]) >= 1
+
