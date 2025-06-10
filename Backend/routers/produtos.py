@@ -90,23 +90,6 @@ router.add_api_route(
     include_in_schema=False,
 )
 
-# Expondo rotas com barra final para operações de atualização e deleção.
-router.add_api_route(
-    "/{produto_id}/",
-    update_produto,
-    methods=["PUT"],
-    response_model=schemas.ProdutoResponse,
-    include_in_schema=False,
-)
-
-router.add_api_route(
-    "/{produto_id}/",
-    delete_produto,
-    methods=["DELETE"],
-    response_model=schemas.ProdutoResponse,
-    include_in_schema=False,
-)
-
 
 @router.get("/", response_model=schemas.ProdutoPage) # Este já estava correto
 def read_produtos( # Nome da função mantido como no arquivo do usuário
@@ -200,6 +183,23 @@ def delete_produto( # Nome da função mantido como no arquivo do usuário
     # A função crud_produtos.delete_produto espera o objeto db_produto
     return crud_produtos.delete_produto(db=db, db_produto=db_produto)
 
+
+# Expondo rotas com barra final para operações de atualização e deleção.
+router.add_api_route(
+    "/{produto_id}/",
+    update_produto,
+    methods=["PUT"],
+    response_model=schemas.ProdutoResponse,
+    include_in_schema=False,
+)
+
+router.add_api_route(
+    "/{produto_id}/",
+    delete_produto,
+    methods=["DELETE"],
+    response_model=schemas.ProdutoResponse,
+    include_in_schema=False,
+)
 
 @router.post("/batch-delete/", response_model=List[schemas.ProdutoResponse]) # Este já estava correto
 def batch_delete_produtos(
