@@ -37,7 +37,7 @@ def create_product_type(db: Session, product_type_create: schemas.ProductTypeCre
     db_product_type = ProductType(
         key_name=product_type_create.key_name,
         friendly_name=product_type_create.friendly_name,
-        description=product_type_create.description if hasattr(product_type_create, 'description') else None,
+        description=product_type_create.description if hasattr(product_type_create, "description") else None,
         user_id=user_id
     )
     db.add(db_product_type)
