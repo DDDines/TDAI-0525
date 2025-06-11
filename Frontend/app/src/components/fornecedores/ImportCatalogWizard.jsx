@@ -24,7 +24,6 @@ function ImportCatalogWizard({ isOpen, onClose, fornecedorId }) {
   const [productTypeId, setProductTypeId] = useState('');
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState('');
-  const { productTypes } = useProductTypes();
   const [selectedType, setSelectedType] = useState(null);
   const [isNewTypeModalOpen, setIsNewTypeModalOpen] = useState(false);
   const [newTypeName, setNewTypeName] = useState('');
@@ -84,7 +83,13 @@ function ImportCatalogWizard({ isOpen, onClose, fornecedorId }) {
 
   const handleContinueAfterTypeSelect = () => {
     if (productTypeId) {
+      const id = parseInt(productTypeId, 10);
+      const type = productTypes.find((pt) => pt.id === id);
+      setSelectedType(type || null);
       setStep(3);
+    }
+  };
+
   const handleTypeChange = (e) => {
     const id = parseInt(e.target.value, 10);
     const type = productTypes.find((pt) => pt.id === id);
@@ -149,24 +154,7 @@ function ImportCatalogWizard({ isOpen, onClose, fornecedorId }) {
     </div>
   );
 
-  const renderStep2 = () => (
-    <div>
-      <label>
-        Tipo de Produto:
-        <select value={productTypeId} onChange={(e) => setProductTypeId(e.target.value)}>
-          <option value="">Selecione um tipo</option>
-          {(productTypes || []).map((t) => (
-            <option key={t.id} value={t.id}>
-              {t.friendly_name}
-            </option>
-          ))}
-        </select>
-      </label>
-      <button onClick={handleContinueAfterTypeSelect} disabled={!productTypeId}>Continuar</button>
-    </div>
-  );
-
-  const renderStep3 = () => {
+  const renderStep2 = () => {
     if (!preview) return null;
     if (preview.message && !preview.headers?.length) {
       return <p>{preview.message}</p>;
