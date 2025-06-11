@@ -86,8 +86,8 @@ const AttributeTemplateModal = ({ isOpen, onClose, attribute, onSave, isSubmitti
   if (!isOpen) return null;
 
   return (
-    <div style={styles.modalOverlay}>
-      <div style={styles.modalContent}>
+    <div className="modal-overlay" style={styles.modalOverlay}>
+      <div className="modal-content" style={styles.modalContent}>
         <div style={styles.modalHeader} className="modal-header">
           <h3 style={styles.modalTitle}>{isEditing ? 'Editar Atributo' : 'Novo Atributo'}</h3>
           <button

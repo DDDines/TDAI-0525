@@ -56,7 +56,7 @@ function NewFornecedorModal({ isOpen, onClose, onSave, isLoading }) {
   if (!isOpen) return null;
 
   return (
-    <div className="modal active" id="new-forn-modal">
+    <div className="modal-overlay" id="new-forn-modal">
       <div className="modal-content">
         <button
           type="button"
