@@ -96,21 +96,30 @@ def _processar_linha_padronizada(
     return produto_dados_padronizados
 
 
-async def processar_arquivo_excel(conteudo_arquivo: bytes, mapeamento_colunas_usuario: Optional[Dict[str, str]] = None) -> List[Dict[str, Any]]:
+async def processar_arquivo_excel(
+    conteudo_arquivo: bytes,
+    mapeamento_colunas_usuario: Optional[Dict[str, str]] = None,
+    sheet_name: Optional[str] = None,
+) -> List[Dict[str, Any]]:
     produtos_extraidos: List[Dict[str, Any]] = []
     try:
-        df = pd.read_excel(io.BytesIO(conteudo_arquivo), sheet_name=0) # Lê a primeira aba
-        df.dropna(how='all', inplace=True) # Remove linhas totalmente vazias
-        
-        # Não converter para string globalmente aqui, _limpar_valor_extraido fará isso por célula
-        # df = df.astype(str).replace({'nan': None, 'None': None}) 
+        xls = pd.ExcelFile(io.BytesIO(conteudo_arquivo))
+        abas_processar = [sheet_name] if sheet_name else xls.sheet_names
 
-        for _, linha_pandas in df.iterrows():
-            # Converte a Series do pandas para dict, tratando NaNs que podem virar float
-            linha_dict_raw = {col: val if pd.notna(val) else None for col, val in linha_pandas.to_dict().items()}
-            produto_padronizado = _processar_linha_padronizada(linha_dict_raw, mapeamento_colunas_usuario)
-            if produto_padronizado:
-                produtos_extraidos.append(produto_padronizado)
+        for aba in abas_processar:
+            df = pd.read_excel(xls, sheet_name=aba)
+            df.dropna(how="all", inplace=True)
+
+            for _, linha_pandas in df.iterrows():
+                linha_dict_raw = {
+                    col: val if pd.notna(val) else None
+                    for col, val in linha_pandas.to_dict().items()
+                }
+                produto_padronizado = _processar_linha_padronizada(
+                    linha_dict_raw, mapeamento_colunas_usuario
+                )
+                if produto_padronizado:
+                    produtos_extraidos.append(produto_padronizado)
         return produtos_extraidos
     except Exception as e:
         logger.error("Erro ao processar arquivo Excel: %s", e)
