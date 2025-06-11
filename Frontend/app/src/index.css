@@ -16,6 +16,10 @@
   --shadow-md: 0 4px 8px rgba(0,0,0,0.15);
   --text-color-light: #777;
   --border-color: #ccc;
+  --radius-sm: 4px;
+  --radius-lg: 12px;
+  --primary-dark: #2563eb;
+  --success-dark: #059669;
 
   font-family: var(--font);
   line-height: 1.5;
