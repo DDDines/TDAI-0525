@@ -1,15 +1,15 @@
 import pytest
-from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker
-
-from Backend.database import Base
-import Backend.crud as crud
-import Backend.schemas as schemas
 
 SQLALCHEMY_DATABASE_URL = "sqlite:///:memory:"
 
 @pytest.fixture()
 def db_session():
+    from sqlalchemy import create_engine
+    from sqlalchemy.orm import sessionmaker
+    from Backend.database import Base
+    import Backend.crud as crud
+    import Backend.schemas as schemas
+
     engine = create_engine(
         SQLALCHEMY_DATABASE_URL, connect_args={"check_same_thread": False}
     )
