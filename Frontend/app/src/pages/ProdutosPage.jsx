@@ -6,7 +6,8 @@ import ProductTable from '../components/produtos/ProductTable';
 // REMOVIDO: import ProductEditModal from '../components/ProductEditModal';
 // NOVO: Importando o modal unificado.
 // (O nome do arquivo pode ser ProductModal.jsx, estou mantendo este por consistência com o passo anterior)
-import ProductModal from '../components/ProductEditModal';
+import Modal from '../components/common/Modal';
+import ProductEditModal from '../components/ProductEditModal';
 import PaginationControls from '../components/common/PaginationControls';
 import productService from '../services/productService';
 import { showErrorToast, showSuccessToast, showInfoToast, showWarningToast } from '../utils/notifications';
@@ -371,12 +372,14 @@ function ProdutosPage() {
 
       {/* NOVO: Renderiza um único modal unificado */}
       {isModalOpen && (
-        <ProductModal
-          isOpen={isModalOpen}
-          onClose={handleCloseModal}
-          product={produtoParaEditar}
-          onProductUpdated={handleProductUpdated}
-        />
+        <Modal isOpen={isModalOpen} onClose={handleCloseModal} title={produtoParaEditar ? `Editar Produto` : 'Criar Novo Produto'}>
+          <ProductEditModal
+            isOpen={isModalOpen}
+            onClose={handleCloseModal}
+            product={produtoParaEditar}
+            onProductUpdated={handleProductUpdated}
+          />
+        </Modal>
       )}
     </div>
   );
