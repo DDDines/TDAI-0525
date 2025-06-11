@@ -1,12 +1,13 @@
 // Frontend/app/src/components/fornecedores/FornecedorTable.jsx
 import React from 'react';
+import './FornecedorTable.css';
 
 function FornecedorTable({ fornecedores, onRowClick, onSelectRow, selectedIds, onSelectAllRows, isLoading }) {
   if (isLoading && (!fornecedores || fornecedores.length === 0)) {
     return <p>Carregando tabela de fornecedores...</p>;
   }
   return (
-    <table style={{ width: '100%' }} id="forn-table">
+    <table className="fornecedor-table" id="forn-table">
       <thead>
         <tr>
           <th className="select">
@@ -25,7 +26,7 @@ function FornecedorTable({ fornecedores, onRowClick, onSelectRow, selectedIds, o
       </thead>
       <tbody>
         {fornecedores.length > 0 ? fornecedores.map(f => (
-          <tr key={f.id} onClick={() => onRowClick(f)} style={{ cursor: 'pointer' }}>
+          <tr key={f.id} onClick={() => onRowClick(f)} className="clickable-row">
             <td className="select" onClick={(e) => e.stopPropagation()}>
               <input 
                 type="checkbox" 
