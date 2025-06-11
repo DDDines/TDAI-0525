@@ -2,17 +2,13 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
-import { LuMenu, LuSun, LuMoon } from 'react-icons/lu';
-import { useTheme } from '../contexts/ThemeContext';
+import { LuMenu } from 'react-icons/lu';
 import UserMenu from './UserMenu.jsx';
-// Se você criar um AuthContext, importe-o:
-// import { AuthContext } from '../contexts/AuthContext';
-
+import ThemeToggle from './ThemeToggle.jsx';
 
 function Topbar({ viewTitle, toggleSidebar }) {
   const navigate = useNavigate();
   const { logout } = useAuth();
-  const { mode, toggleTheme } = useTheme();
 
   return (
     <header className="topbar">
@@ -20,9 +16,7 @@ function Topbar({ viewTitle, toggleSidebar }) {
         <LuMenu />
       </button>
       <h1>{viewTitle || "Dashboard"}</h1>
-      <button onClick={toggleTheme} className="theme-toggle-btn" aria-label="Alternar tema">
-        {mode === 'dark' ? <LuSun /> : <LuMoon />}
-      </button>
+      <ThemeToggle className="theme-toggle-btn" />
       <UserMenu onLogout={logout} onNavigate={path => navigate(path)} />
     </header>
   );

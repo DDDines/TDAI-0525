@@ -1,4 +1,3 @@
-
 import React, { createContext, useContext, useEffect, useState } from 'react';
 
 const ThemeContext = createContext(null);
@@ -15,6 +14,9 @@ export const ThemeProvider = ({ children }) => {
   }, [mode]);
 
   const toggleTheme = () => setMode(prev => (prev === 'dark' ? 'light' : 'dark'));
+  const toggleTheme = () => {
+    setMode(prev => (prev === 'light' ? 'dark' : 'light'));
+  };
 
   return (
     <ThemeContext.Provider value={{ mode, toggleTheme }}>
@@ -27,6 +29,8 @@ export const useTheme = () => {
   const context = useContext(ThemeContext);
   if (context === undefined || context === null) {
     throw new Error('useTheme deve ser usado dentro de um ThemeProvider');
+  if (context === null) {
+    throw new Error('useTheme must be used within a ThemeProvider');
   }
   return context;
 };
