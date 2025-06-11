@@ -134,22 +134,13 @@ export const finalizarImportacaoCatalogo = async (
   productTypeId = null,
 ) => {
   try {
-    const payload = {
-      file_id: fileId,
-      product_type_id: productTypeId,
-    };
+    const payload = { file_id: fileId };
+    if (productTypeId) payload.product_type_id = productTypeId;
     if (mapping) {
       payload.mapping = mapping;
     }
     if (rows) {
       payload.rows = rows;
-    }
-    const response = await apiClient.post(
-      '/produtos/importar-catalogo-finalizar/',
-      payload,
-    );
-    if (productTypeId) {
-      payload.product_type_id = productTypeId;
     }
     const response = await apiClient.post(`/produtos/importar-catalogo-finalizar/${fileId}/`, payload);
     return response.data;
