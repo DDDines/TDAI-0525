@@ -322,6 +322,7 @@ class ProdutoBatchDeleteRequest(BaseModel):
 
 
 class ImportPreviewResponse(BaseModel):
+    file_id: int
     headers: List[str]
     sample_rows: List[Dict[str, Any]]
     message: Optional[str] = None
@@ -391,6 +392,27 @@ class HistoricoPage(BaseModel):
     total_items: int
     page: int
     limit: int
+
+
+class CatalogImportFileBase(BaseModel):
+    original_filename: str
+    stored_filename: str
+    status: str
+
+
+class CatalogImportFileCreate(CatalogImportFileBase):
+    user_id: int
+    fornecedor_id: Optional[int] = None
+
+
+class CatalogImportFileResponse(CatalogImportFileBase):
+    id: int
+    user_id: int
+    fornecedor_id: Optional[int] = None
+    created_at: datetime
+
+    class Config:
+        from_attributes = True
 
 # --- Password Recovery Schemas ---
 class PasswordResetSchema(BaseModel):
@@ -486,6 +508,7 @@ ProdutoResponse.model_rebuild()
 ImportCatalogoResponse.model_rebuild()
 RegistroUsoIAResponse.model_rebuild()
 RegistroHistoricoResponse.model_rebuild()
+CatalogImportFileResponse.model_rebuild()
 UserActivity.model_rebuild()
 SocialLoginConfig.model_rebuild()
 
