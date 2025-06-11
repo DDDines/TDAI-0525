@@ -300,12 +300,6 @@ function ImportCatalogWizard({ isOpen, onClose, fornecedorId }) {
   );
 
   return (
-    <Modal isOpen={isOpen} onClose={onClose} title="Importar Catálogo">
-      {step === 1 && renderStep1()}
-      {step === 2 && renderStep2()}
-      {step === 3 && renderStep3()}
-      {step === 4 && renderStep4()}
-    </Modal>
     <>
       <Modal isOpen={isOpen} onClose={onClose} title="Importar Catálogo">
         {step === 1 && renderStep1()}

@@ -129,11 +129,10 @@ export const importCatalogo = async (fornecedorId, file, mapping = null) => {
 
 export const finalizarImportacaoCatalogo = async (
   fileId,
-  productTypeId,
   mapping = null,
   rows = null,
+  productTypeId = null,
 ) => {
-export const finalizarImportacaoCatalogo = async (fileId, mapping = null, rows = null, productTypeId = null) => {
   try {
     const payload = {
       file_id: fileId,
