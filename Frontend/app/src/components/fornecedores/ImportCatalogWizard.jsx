@@ -32,7 +32,7 @@ function ImportCatalogWizard({ isOpen, onClose, fornecedorId }) {
     setLoading(true);
     try {
       const data = await fornecedorService.previewCatalogo(file);
-      setPreview({ headers: data.headers });
+      setPreview({ headers: data.headers, previewImages: data.previewImages || [] });
       setFileId(data.fileId);
       setSampleRows(data.sampleRows || []);
       setStep(2);
@@ -86,6 +86,18 @@ function ImportCatalogWizard({ isOpen, onClose, fornecedorId }) {
     }
     return (
       <div>
+        {preview.previewImages && preview.previewImages.length > 0 && (
+          <div className="pdf-preview-images">
+            {preview.previewImages.map((img, idx) => (
+              <img
+                key={idx}
+                src={`data:image/png;base64,${img}`}
+                alt={`Página ${idx + 1}`}
+                style={{ maxWidth: '100%', marginBottom: '1em' }}
+              />
+            ))}
+          </div>
+        )}
         <table className="mapping-table">
           <thead>
             <tr>

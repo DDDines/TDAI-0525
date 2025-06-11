@@ -10,6 +10,7 @@ jest.mock('../../../services/fornecedorService', () => ({
       fileId: 'f1',
       headers: ['Nome'],
       sampleRows: [{ Nome: 'Item' }],
+      previewImages: ['abc'],
     })),
     finalizarImportacaoCatalogo: jest.fn(() => Promise.resolve({ success: true })),
   },
@@ -27,6 +28,7 @@ test('shows preview rows and sends fileId on confirm', async () => {
   await userEvent.upload(fileInput, file);
   await userEvent.click(screen.getByText('Gerar Preview'));
   expect(await screen.findByDisplayValue('Item')).toBeInTheDocument();
+  expect(screen.getByRole('img')).toHaveAttribute('src', expect.stringContaining('data:image/png;base64,'));
   await userEvent.click(screen.getByText('Confirmar Importação'));
   expect(fornecedorService.finalizarImportacaoCatalogo).toHaveBeenCalledWith('f1', expect.any(Object), expect.any(Array));
 });

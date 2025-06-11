@@ -90,11 +90,12 @@ export const previewCatalogo = async (file) => {
     const formData = new FormData();
     formData.append('file', file);
     const response = await apiClient.post('/produtos/importar-catalogo-preview/', formData);
-    const { file_id, headers, sample_rows } = response.data;
+    const { file_id, headers, sample_rows, preview_images } = response.data;
     return {
       fileId: file_id,
       headers,
       sampleRows: sample_rows,
+      previewImages: preview_images,
     };
   } catch (error) {
     console.error('Erro ao gerar preview do catálogo:', JSON.stringify(error.response?.data || error.message || error));

@@ -358,6 +358,10 @@ async def importar_catalogo_preview(
     except ValueError:
         raise HTTPException(status_code=400, detail="Formato de arquivo não suportado")
 
+    if ext == ".pdf":
+        preview_images = await file_processing_service.pdf_pages_to_images(content)
+        preview["preview_images"] = preview_images
+
     preview["file_id"] = saved.id
     return preview
 
