@@ -24,3 +24,5 @@ google-api-python-client==2.119.0
 lxml==4.9.3
 psycopg2-binary
 jinja2
+pytest
+pytest-asyncio

@@ -276,8 +276,8 @@ Principais variáveis obrigatórias:
 ### 6. **Testes**
 
 Antes de executar os testes do backend, instale as dependências listadas em
-`requirements-backend.txt`, que incluem pacotes como **SQLAlchemy**. Para isso,
-rode:
+`requirements-backend.txt`, que incluem pacotes como **SQLAlchemy** e as
+dependências de testes `pytest` e `pytest-asyncio`. Para isso, rode:
 
 ```sh
 pip install -r requirements-backend.txt
@@ -449,7 +449,8 @@ correção do arquivo de origem.
 ## 🧪 Testes
 
 Os testes do backend dependem das bibliotecas listadas em `requirements-backend.txt`,
-que incluem pacotes como **SQLAlchemy**. Instale-as com:
+que incluem pacotes como **SQLAlchemy** e as dependências `pytest` e
+`pytest-asyncio`. Instale-as com:
 
 ```sh
 pip install -r requirements-backend.txt
