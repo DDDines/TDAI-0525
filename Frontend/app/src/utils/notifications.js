@@ -13,7 +13,7 @@ const baseOptions = {
 
 const getOptions = () => ({
   ...baseOptions,
-  theme: document.documentElement.classList.contains('dark') ? 'dark' : 'light',
+  theme: document.body.classList.contains('dark') ? 'dark' : 'light',
 });
 
 export const showSuccessToast = (message) => {
