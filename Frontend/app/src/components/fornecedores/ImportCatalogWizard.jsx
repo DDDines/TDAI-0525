@@ -89,11 +89,15 @@ function ImportCatalogWizard({ isOpen, onClose, fornecedorId }) {
         {preview.previewImages && preview.previewImages.length > 0 && (
           <div className="pdf-preview-images">
             {preview.previewImages.map((img, idx) => (
+        {preview.preview_images && (
+          <div className="preview-images">
+            {preview.preview_images.map((img, idx) => (
               <img
                 key={idx}
                 src={`data:image/png;base64,${img}`}
                 alt={`Página ${idx + 1}`}
                 style={{ maxWidth: '100%', marginBottom: '1em' }}
+                style={{ maxWidth: '100px', marginRight: '4px' }}
               />
             ))}
           </div>
