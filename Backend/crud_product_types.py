@@ -7,6 +7,7 @@ from sqlalchemy.exc import IntegrityError
 
 from Backend.models import Produto, ProductType, AttributeTemplate
 from Backend import schemas
+from Backend import utils
 
 logger = logging.getLogger(__name__)
 
@@ -94,12 +95,11 @@ def get_product_types_for_user(db: Session, user_id: Optional[int], skip: int = 
         query = query.filter(ProductType.user_id == None) # Apenas globais
 
     if search:
-        search_term = f"%{search.lower()}%"
         query = query.filter(
             or_(
-                func.lower(ProductType.key_name).ilike(search_term),
-                func.lower(ProductType.friendly_name).ilike(search_term),
-                func.lower(ProductType.description).ilike(search_term)
+                utils.case_insensitive_like(ProductType.key_name, search),
+                utils.case_insensitive_like(ProductType.friendly_name, search),
+                utils.case_insensitive_like(ProductType.description, search)
             )
         )
         
@@ -113,12 +113,11 @@ def count_product_types_for_user(db: Session, user_id: Optional[int], search: Op
         query = query.filter(ProductType.user_id == None)
 
     if search:
-        search_term = f"%{search.lower()}%"
         query = query.filter(
             or_(
-                func.lower(ProductType.key_name).ilike(search_term),
-                func.lower(ProductType.friendly_name).ilike(search_term),
-                func.lower(ProductType.description).ilike(search_term)
+                utils.case_insensitive_like(ProductType.key_name, search),
+                utils.case_insensitive_like(ProductType.friendly_name, search),
+                utils.case_insensitive_like(ProductType.description, search)
             )
         )
     count = query.scalar()

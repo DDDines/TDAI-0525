@@ -11,7 +11,8 @@ from Backend import models
 from Backend import schemas  # schemas é importado
 from Backend import crud_historico
 from Backend import database
-from . import auth_utils # Para obter o usuário 
+from . import auth_utils # Para obter o usuário
+from Backend import utils
 
 logger = logging.getLogger(__name__)
 
@@ -74,7 +75,9 @@ def read_user_fornecedores(
         # Admin vê todos, mas ainda pode filtrar por termo_busca
         fornecedores = db.query(models.Fornecedor)
         if termo_busca:
-            fornecedores = fornecedores.filter(models.Fornecedor.nome.ilike(f"%{termo_busca}%"))
+            fornecedores = fornecedores.filter(
+                utils.case_insensitive_like(models.Fornecedor.nome, termo_busca)
+            )
         total_items = fornecedores.count() # Conta após o filtro
         items_paginados = fornecedores.order_by(models.Fornecedor.nome).offset(skip).limit(limit).all()
     else:
