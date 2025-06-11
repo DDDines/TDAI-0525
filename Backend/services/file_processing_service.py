@@ -3,6 +3,7 @@ import pandas as pd
 import pdfplumber
 import csv
 import io  # Para ler o conteúdo do arquivo em memória
+import chardet
 from typing import List, Dict, Any, Union, Optional
 from Backend.core.logging_config import get_logger
 from Backend.services import web_data_extractor_service
@@ -120,16 +121,22 @@ async def processar_arquivo_excel(conteudo_arquivo: bytes, mapeamento_colunas_us
 async def processar_arquivo_csv(conteudo_arquivo: bytes, mapeamento_colunas_usuario: Optional[Dict[str, str]] = None) -> List[Dict[str, Any]]:
     produtos_extraidos: List[Dict[str, Any]] = []
     try:
+        # Detectar encoding usando chardet para lidar com diferentes formatos
         try:
-            conteudo_str = conteudo_arquivo.decode('utf-8-sig') # Tenta utf-8 com BOM
-        except UnicodeDecodeError:
-            try:
-                conteudo_str = conteudo_arquivo.decode('latin-1')
-            except UnicodeDecodeError:
-                conteudo_str = conteudo_arquivo.decode('cp1252', errors='replace') # Windows Latin-1
+            import chardet  # Lazy import para evitar dependência desnecessária em outros caminhos
+            detection = chardet.detect(conteudo_arquivo)
+            encoding_detectada = (detection.get("encoding") or "utf-8").lower()
+        except Exception:  # Falha na detecção: assume utf-8
+            encoding_detectada = "utf-8"
+
+        if encoding_detectada.startswith("utf-8"):
+            conteudo_str = conteudo_arquivo.decode("utf-8-sig", errors="replace")
+        else:
+            conteudo_str = conteudo_arquivo.decode(encoding_detectada, errors="replace")
             
-        # Detectar delimitador usando csv.Sniffer para maior confiabilidade
-        sample = conteudo_str[:1024]
+        # Detectar delimitador usando csv.Sniffer em uma amostra de linhas
+        linhas = conteudo_str.splitlines()
+        sample = "\n".join(linhas[:5]) if linhas else conteudo_str
         try:
             dialect = csv.Sniffer().sniff(sample, delimiters=[",", ";", "\t", "|"])
             delimitador_provavel = dialect.delimiter

@@ -8,6 +8,7 @@ fastapi-mail
 google-api-python-client
 python-magic
 openai
+chardet
 pandas
 passlib
 pdfplumber
