@@ -444,6 +444,11 @@ relatório de erros junto com os produtos criados. O formato da resposta é:
 Cada item em `erros` descreve a linha descartada e o motivo para facilitar a
 correção do arquivo de origem.
 
+Ao finalizar a importação de um arquivo previamente enviado com
+`/produtos/importar-catalogo-finalizar/{file_id}/`, é necessário informar
+o `product_type_id` no corpo da requisição. Esse identificador será anexado a
+todos os produtos extraídos do arquivo.
+
 ---
 
 ## 🧪 Testes

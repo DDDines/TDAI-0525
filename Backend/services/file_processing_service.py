@@ -132,6 +132,7 @@ async def processar_arquivo_excel(
     conteudo_arquivo: bytes,
     mapeamento_colunas_usuario: Optional[Dict[str, str]] = None,
     sheet_name: Optional[str] = None,
+    product_type_id: Optional[int] = None,
 ) -> List[Dict[str, Any]]:
     produtos_extraidos: List[Dict[str, Any]] = []
     try:
@@ -151,6 +152,8 @@ async def processar_arquivo_excel(
                     linha_dict_raw, mapeamento_colunas_usuario
                 )
                 if produto_padronizado:
+                    if product_type_id is not None:
+                        produto_padronizado["product_type_id"] = product_type_id
                     produtos_extraidos.append(produto_padronizado)
         return produtos_extraidos
     except Exception as e:
@@ -158,7 +161,11 @@ async def processar_arquivo_excel(
         return [{"erro_processamento_excel": f"Falha ao ler arquivo Excel: {str(e)}"}]
 
 
-async def processar_arquivo_csv(conteudo_arquivo: bytes, mapeamento_colunas_usuario: Optional[Dict[str, str]] = None) -> List[Dict[str, Any]]:
+async def processar_arquivo_csv(
+    conteudo_arquivo: bytes,
+    mapeamento_colunas_usuario: Optional[Dict[str, str]] = None,
+    product_type_id: Optional[int] = None,
+) -> List[Dict[str, Any]]:
     produtos_extraidos: List[Dict[str, Any]] = []
     try:
         # Detectar encoding usando chardet para lidar com diferentes formatos
@@ -192,6 +199,8 @@ async def processar_arquivo_csv(conteudo_arquivo: bytes, mapeamento_colunas_usua
         for linha_dict_raw in leitor_csv:
             produto_padronizado = _processar_linha_padronizada(linha_dict_raw, mapeamento_colunas_usuario)
             if produto_padronizado:
+                if product_type_id is not None:
+                    produto_padronizado["product_type_id"] = product_type_id
                 produtos_extraidos.append(produto_padronizado)
         return produtos_extraidos
     except Exception as e:
@@ -202,6 +211,7 @@ async def processar_arquivo_pdf(
     conteudo_arquivo: bytes,
     mapeamento_colunas_usuario: Optional[Dict[str, str]] = None,
     usar_llm: bool = True,
+    product_type_id: Optional[int] = None,
 ) -> List[Dict[str, Any]]:
     produtos_extraidos: List[Dict[str, Any]] = []
     log_pdf: List[str] = []
@@ -233,6 +243,8 @@ async def processar_arquivo_pdf(
                             linha_dict_raw = {headers[col_idx]: cell_data for col_idx, cell_data in enumerate(row_data)}
                             produto_padronizado = _processar_linha_padronizada(linha_dict_raw, mapeamento_colunas_usuario)
                             if produto_padronizado:
+                                if product_type_id is not None:
+                                    produto_padronizado["product_type_id"] = product_type_id
                                 produtos_extraidos.append(produto_padronizado)
                 else:
                     log_pdf.append(f"Página {i+1}: Nenhuma tabela encontrada com as configurações atuais.")
@@ -251,24 +263,35 @@ async def processar_arquivo_pdf(
                                 dados_produto = await web_data_extractor_service.extrair_dados_produto_com_llm(page_text)
                                 if isinstance(dados_produto, dict):
                                     dados_produto["texto_bruto"] = page_text.strip()[:20000]
+                                    if product_type_id is not None:
+                                        dados_produto["product_type_id"] = product_type_id
                                     produtos_extraidos.append(dados_produto)
                                 else:
-                                    produtos_extraidos.append({
+                                    item = {
                                         "nome_base": f"Texto da página {i+1}",
                                         "dados_brutos_adicionais": {texto_chave: page_text.strip()[:20000]},
-                                    })
+                                    }
+                                    if product_type_id is not None:
+                                        item["product_type_id"] = product_type_id
+                                    produtos_extraidos.append(item)
                                 log_pdf.append(f"Página {i+1}: Texto processado com LLM.")
                             except Exception as llm_e:
                                 log_pdf.append(f"Página {i+1}: Erro ao extrair dados com LLM: {str(llm_e)}")
-                                produtos_extraidos.append({
+                                item = {
                                     "nome_base": f"Conteúdo Bruto da Página {i+1} do PDF",
                                     "dados_brutos_adicionais": {texto_chave: page_text.strip()[:20000]},
-                                })
+                                }
+                                if product_type_id is not None:
+                                    item["product_type_id"] = product_type_id
+                                produtos_extraidos.append(item)
                         else:
-                            produtos_extraidos.append({
+                            item = {
                                 "nome_base": f"Conteúdo da Página {i+1}",
                                 "dados_brutos_adicionais": {texto_chave: page_text.strip()[:20000]},
-                            })
+                            }
+                            if product_type_id is not None:
+                                item["product_type_id"] = product_type_id
+                            produtos_extraidos.append(item)
                             log_pdf.append(f"Página {i+1}: Texto armazenado sem uso do LLM.")
                     else:
                         log_pdf.append(f"Página {i+1}: Nenhum texto extraível encontrado.")
