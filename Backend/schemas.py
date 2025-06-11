@@ -327,6 +327,11 @@ class ImportPreviewResponse(BaseModel):
     message: Optional[str] = None
     error: Optional[str] = None
 
+
+class ImportCatalogoResponse(BaseModel):
+    produtos_criados: List[ProdutoResponse]
+    erros: List[Dict[str, Any]]
+
 class ProdutoPage(BaseModel):
     items: List[ProdutoResponse]
     total_items: int
@@ -478,6 +483,7 @@ FornecedorResponse.model_rebuild()
 AttributeTemplateResponse.model_rebuild()
 ProductTypeResponse.model_rebuild()
 ProdutoResponse.model_rebuild()
+ImportCatalogoResponse.model_rebuild()
 RegistroUsoIAResponse.model_rebuild()
 RegistroHistoricoResponse.model_rebuild()
 UserActivity.model_rebuild()

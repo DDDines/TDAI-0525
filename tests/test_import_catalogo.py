@@ -1,0 +1,57 @@
+import io
+from fastapi.testclient import TestClient
+from sqlalchemy import create_engine
+from sqlalchemy.orm import sessionmaker
+
+from Backend.main import app
+from Backend.database import Base, get_db
+from Backend import crud, schemas
+from Backend.core.config import settings
+
+# disable heavy startup events
+app.router.on_startup.clear()
+
+engine = create_engine("sqlite:///:memory:", connect_args={"check_same_thread": False})
+TestingSessionLocal = sessionmaker(bind=engine)
+Base.metadata.create_all(bind=engine)
+
+
+def override_get_db():
+    db = TestingSessionLocal()
+    try:
+        yield db
+    finally:
+        db.close()
+
+
+app.dependency_overrides[get_db] = override_get_db
+client = TestClient(app)
+
+# setup initial data
+with TestingSessionLocal() as db:
+    crud.create_initial_data(db)
+
+
+def get_admin_headers():
+    resp = client.post(
+        "/api/v1/auth/token",
+        data={"username": settings.FIRST_SUPERUSER_EMAIL, "password": settings.FIRST_SUPERUSER_PASSWORD},
+    )
+    assert resp.status_code == 200
+    token = resp.json()["access_token"]
+    return {"Authorization": f"Bearer {token}"}
+
+
+def test_importacao_relatorio_de_erros():
+    headers = get_admin_headers()
+    csv_content = "nome,sku\nProduto Válido,123\n,\n"
+    file_bytes = csv_content.encode()
+    files = {"file": ("catalogo.csv", io.BytesIO(file_bytes), "text/csv")}
+    resp = client.post("/api/v1/produtos/importar-catalogo/1/", files=files, headers=headers)
+    assert resp.status_code == 200
+    data = resp.json()
+    assert "produtos_criados" in data
+    assert "erros" in data
+    assert len(data["produtos_criados"]) == 1
+    assert len(data["erros"]) == 1
+    assert "motivo_descarte" in data["erros"][0]
