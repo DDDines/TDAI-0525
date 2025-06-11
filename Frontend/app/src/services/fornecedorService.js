@@ -90,7 +90,12 @@ export const previewCatalogo = async (file) => {
     const formData = new FormData();
     formData.append('file', file);
     const response = await apiClient.post('/produtos/importar-catalogo-preview/', formData);
-    return response.data;
+    const { file_id, headers, sample_rows } = response.data;
+    return {
+      fileId: file_id,
+      headers,
+      sampleRows: sample_rows,
+    };
   } catch (error) {
     console.error('Erro ao gerar preview do catálogo:', JSON.stringify(error.response?.data || error.message || error));
     if (error.response && error.response.data) {
@@ -121,6 +126,28 @@ export const importCatalogo = async (fornecedorId, file, mapping = null) => {
   }
 };
 
+export const finalizarImportacaoCatalogo = async (fileId, mapping = null, rows = null) => {
+  try {
+    const payload = {
+      file_id: fileId,
+    };
+    if (mapping) {
+      payload.mapping = mapping;
+    }
+    if (rows) {
+      payload.rows = rows;
+    }
+    const response = await apiClient.post(`/produtos/importar-catalogo-finalizar/${fileId}/`, payload);
+    return response.data;
+  } catch (error) {
+    console.error(`Erro ao finalizar importação do catálogo ${fileId}:`, JSON.stringify(error.response?.data || error.message || error));
+    if (error.response && error.response.data) {
+      throw error.response.data;
+    }
+    throw new Error(error.message || 'Falha ao confirmar importação do catálogo');
+  }
+};
+
 export default {
   getFornecedores,
   getFornecedorById,
@@ -129,4 +156,5 @@ export default {
   deleteFornecedor,
   previewCatalogo,
   importCatalogo,
+  finalizarImportacaoCatalogo,
 };

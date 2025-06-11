@@ -1,6 +1,6 @@
 # Backend/routers/produtos.py
 
-from typing import List, Optional, Union
+from typing import List, Optional, Union, Dict, Any
 
 from fastapi import (
     APIRouter,
@@ -30,6 +30,7 @@ from Backend import database
 from Backend.services import file_processing_service
 from . import auth_utils # Para obter o usuário logado
 from Backend.core import config # Pode ser necessário para settings, se usado diretamente
+from Backend.core.config import settings
 
 router = APIRouter(
     prefix="/produtos",
@@ -339,9 +340,19 @@ async def importar_catalogo_preview(
     db: Session = Depends(database.get_db),
     current_user: models.User = Depends(auth_utils.get_current_active_user),
 ):
-    """Retorna cabeçalhos detectados e linhas de amostra do arquivo enviado."""
-    content = await file.read()
-    ext = Path(file.filename).suffix.lower()
+    """Salva o arquivo enviado, gera preview e registra no banco."""
+    saved = await file_processing_service.save_uploaded_catalog(file)
+    saved.user_id = current_user.id
+    db.add(saved)
+    db.commit()
+    db.refresh(saved)
+
+    ext = Path(saved.stored_filename).suffix.lower()
+    file_path = Path(settings.UPLOAD_DIRECTORY) / "catalogs" / saved.stored_filename
+    if not file_path.is_absolute():
+        file_path = Path(__file__).resolve().parent.parent / file_path
+    content = file_path.read_bytes()
+
     try:
         preview = await file_processing_service.gerar_preview(content, ext)
         if ext == ".pdf":
@@ -350,6 +361,9 @@ async def importar_catalogo_preview(
         return preview
     except ValueError:
         raise HTTPException(status_code=400, detail="Formato de arquivo não suportado")
+
+    preview["file_id"] = saved.id
+    return preview
 
 
 @router.post(
@@ -427,3 +441,39 @@ async def importar_catalogo_fornecedor(
             ),
         )
     return {"produtos_criados": created, "erros": erros}
+
+
+@router.post("/importar-catalogo-finalizar/{file_id}/")
+async def importar_catalogo_finalizar(
+    file_id: int,
+    db: Session = Depends(database.get_db),
+    current_user: models.User = Depends(auth_utils.get_current_active_user),
+):
+    """Processa o arquivo salvo e marca o registro como importado."""
+    catalog_file = db.query(models.CatalogImportFile).filter_by(id=file_id, user_id=current_user.id).first()
+    if not catalog_file:
+        raise HTTPException(status_code=404, detail="Arquivo não encontrado")
+
+    file_path = Path(settings.UPLOAD_DIRECTORY) / "catalogs" / catalog_file.stored_filename
+    if not file_path.is_absolute():
+        file_path = Path(__file__).resolve().parent.parent / file_path
+    if not file_path.exists():
+        raise HTTPException(status_code=404, detail="Arquivo não encontrado no disco")
+
+    content = file_path.read_bytes()
+    ext = file_path.suffix.lower()
+
+    if ext in [".xlsx", ".xls"]:
+        produtos = await file_processing_service.processar_arquivo_excel(content)
+    elif ext == ".csv":
+        produtos = await file_processing_service.processar_arquivo_csv(content)
+    elif ext == ".pdf":
+        produtos = await file_processing_service.processar_arquivo_pdf(content)
+    else:
+        raise HTTPException(status_code=400, detail="Formato de arquivo não suportado")
+
+    catalog_file.status = "IMPORTED"
+    db.add(catalog_file)
+    db.commit()
+
+    return {"produtos": produtos}

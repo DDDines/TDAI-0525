@@ -7,10 +7,39 @@ import chardet
 import base64
 from pdf2image import convert_from_bytes
 from typing import List, Dict, Any, Union, Optional
+from pathlib import Path
+from uuid import uuid4
+from fastapi import UploadFile
+
 from Backend.core.logging_config import get_logger
+from Backend.core.config import settings
+from Backend import models
 from Backend.services import web_data_extractor_service
 
 logger = get_logger(__name__)
+
+
+async def save_uploaded_catalog(file: UploadFile) -> models.CatalogImportFile:
+    """Salva o arquivo de catálogo no disco e retorna um objeto CatalogImportFile."""
+    directory = Path(settings.UPLOAD_DIRECTORY) / "catalogs"
+    if not directory.is_absolute():
+        directory = Path(__file__).resolve().parent.parent / directory
+    directory.mkdir(parents=True, exist_ok=True)
+
+    ext = Path(file.filename).suffix
+    unique_name = f"{uuid4().hex}{ext}"
+    stored_path = directory / unique_name
+
+    content = await file.read()
+    with open(stored_path, "wb") as f_out:
+        f_out.write(content)
+    await file.close()
+
+    return models.CatalogImportFile(
+        original_filename=file.filename,
+        stored_filename=unique_name,
+        status="UPLOADED",
+    )
 
 def _limpar_valor_extraido(valor: Any) -> Optional[str]:
     """Helper para limpar strings ou converter outros tipos para string, retornando None se vazio."""

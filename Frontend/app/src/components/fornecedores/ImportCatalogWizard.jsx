@@ -17,6 +17,8 @@ function ImportCatalogWizard({ isOpen, onClose, fornecedorId }) {
   const [step, setStep] = useState(1);
   const [file, setFile] = useState(null);
   const [preview, setPreview] = useState(null);
+  const [fileId, setFileId] = useState(null);
+  const [sampleRows, setSampleRows] = useState([]);
   const [mapping, setMapping] = useState({});
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState('');
@@ -30,7 +32,9 @@ function ImportCatalogWizard({ isOpen, onClose, fornecedorId }) {
     setLoading(true);
     try {
       const data = await fornecedorService.previewCatalogo(file);
-      setPreview(data);
+      setPreview({ headers: data.headers });
+      setFileId(data.fileId);
+      setSampleRows(data.sampleRows || []);
       setStep(2);
     } catch (err) {
       alert(err.detail || err.message || 'Erro ao gerar preview');
@@ -43,11 +47,20 @@ function ImportCatalogWizard({ isOpen, onClose, fornecedorId }) {
     setMapping((prev) => ({ ...prev, [header]: value }));
   };
 
-  const handleImport = async () => {
-    if (!file) return;
+  const handleRowChange = (rowIndex, header, value) => {
+    setSampleRows((prev) => {
+      const updated = [...prev];
+      const row = { ...updated[rowIndex], [header]: value };
+      updated[rowIndex] = row;
+      return updated;
+    });
+  };
+
+  const handleConfirmImport = async () => {
+    if (!fileId) return;
     setLoading(true);
     try {
-      await fornecedorService.importCatalogo(fornecedorId, file, mapping);
+      await fornecedorService.finalizarImportacaoCatalogo(fileId, mapping, sampleRows);
       setMessage('Importação concluída com sucesso');
       setStep(3);
     } catch (err) {
@@ -61,7 +74,7 @@ function ImportCatalogWizard({ isOpen, onClose, fornecedorId }) {
     <div>
       <input type="file" accept=".csv,.xls,.xlsx,.pdf" onChange={handleFileChange} />
       <button onClick={handleGeneratePreview} disabled={!file || loading}>
-        {loading ? 'Enviando...' : 'Enviar'}
+        {loading ? 'Enviando...' : 'Gerar Preview'}
       </button>
     </div>
   );
@@ -108,8 +121,33 @@ function ImportCatalogWizard({ isOpen, onClose, fornecedorId }) {
             ))}
           </tbody>
         </table>
-        <button onClick={handleImport} disabled={loading}>
-          {loading ? 'Importando...' : 'Importar'}
+        {sampleRows.length > 0 && (
+          <table className="preview-table">
+            <thead>
+              <tr>
+                {preview.headers.map((h) => (
+                  <th key={h}>{h}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {sampleRows.map((row, rowIdx) => (
+                <tr key={rowIdx}>
+                  {preview.headers.map((h) => (
+                    <td key={h}>
+                      <input
+                        value={row[h] || ''}
+                        onChange={(e) => handleRowChange(rowIdx, h, e.target.value)}
+                      />
+                    </td>
+                  ))}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+        <button onClick={handleConfirmImport} disabled={loading}>
+          {loading ? 'Importando...' : 'Confirmar Importação'}
         </button>
       </div>
     );
