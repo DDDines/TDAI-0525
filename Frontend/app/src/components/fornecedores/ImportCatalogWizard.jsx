@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Modal from '../common/Modal.jsx';
 import fornecedorService from '../../services/fornecedorService';
 
@@ -22,6 +22,19 @@ function ImportCatalogWizard({ isOpen, onClose, fornecedorId }) {
   const [mapping, setMapping] = useState({});
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState('');
+
+  useEffect(() => {
+    if (!isOpen) {
+      setStep(1);
+      setFile(null);
+      setPreview(null);
+      setFileId(null);
+      setSampleRows([]);
+      setMapping({});
+      setMessage('');
+      setLoading(false);
+    }
+  }, [isOpen]);
 
   const handleFileChange = (e) => {
     setFile(e.target.files[0]);
@@ -89,6 +102,15 @@ function ImportCatalogWizard({ isOpen, onClose, fornecedorId }) {
         {preview.previewImages && preview.previewImages.length > 0 && (
           <div className="pdf-preview-images">
             {preview.previewImages.map((img, idx) => (
+              <img
+                key={idx}
+                src={`data:image/png;base64,${img}`}
+                alt={`Página ${idx + 1}`}
+                style={{ maxWidth: '100%', marginBottom: '1em' }}
+              />
+            ))}
+          </div>
+        )}
         {preview.preview_images && (
           <div className="preview-images">
             {preview.preview_images.map((img, idx) => (
@@ -96,7 +118,6 @@ function ImportCatalogWizard({ isOpen, onClose, fornecedorId }) {
                 key={idx}
                 src={`data:image/png;base64,${img}`}
                 alt={`Página ${idx + 1}`}
-                style={{ maxWidth: '100%', marginBottom: '1em' }}
                 style={{ maxWidth: '100px', marginRight: '4px' }}
               />
             ))}
