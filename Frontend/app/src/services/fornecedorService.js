@@ -127,10 +127,16 @@ export const importCatalogo = async (fornecedorId, file, mapping = null) => {
   }
 };
 
-export const finalizarImportacaoCatalogo = async (fileId, mapping = null, rows = null) => {
+export const finalizarImportacaoCatalogo = async (
+  fileId,
+  productTypeId,
+  mapping = null,
+  rows = null,
+) => {
   try {
     const payload = {
       file_id: fileId,
+      product_type_id: productTypeId,
     };
     if (mapping) {
       payload.mapping = mapping;
@@ -138,10 +144,16 @@ export const finalizarImportacaoCatalogo = async (fileId, mapping = null, rows =
     if (rows) {
       payload.rows = rows;
     }
-    const response = await apiClient.post(`/produtos/importar-catalogo-finalizar/${fileId}/`, payload);
+    const response = await apiClient.post(
+      '/produtos/importar-catalogo-finalizar/',
+      payload,
+    );
     return response.data;
   } catch (error) {
-    console.error(`Erro ao finalizar importação do catálogo ${fileId}:`, JSON.stringify(error.response?.data || error.message || error));
+    console.error(
+      `Erro ao finalizar importação do catálogo ${fileId}:`,
+      JSON.stringify(error.response?.data || error.message || error),
+    );
     if (error.response && error.response.data) {
       throw error.response.data;
     }
