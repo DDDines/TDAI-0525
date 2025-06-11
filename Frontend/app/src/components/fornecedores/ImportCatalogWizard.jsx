@@ -86,6 +86,18 @@ function ImportCatalogWizard({ isOpen, onClose, fornecedorId }) {
     }
     return (
       <div>
+        {preview.preview_images && (
+          <div className="preview-images">
+            {preview.preview_images.map((img, idx) => (
+              <img
+                key={idx}
+                src={`data:image/png;base64,${img}`}
+                alt={`Página ${idx + 1}`}
+                style={{ maxWidth: '100px', marginRight: '4px' }}
+              />
+            ))}
+          </div>
+        )}
         <table className="mapping-table">
           <thead>
             <tr>
