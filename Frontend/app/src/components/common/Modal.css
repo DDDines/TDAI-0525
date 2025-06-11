@@ -87,13 +87,14 @@
     transition: border-color 0.2s ease, color 0.2s ease;
 }
 
+
 .tab-navigation button:hover:not(.active) {
-    color: #007bff;
+    color: var(--primary);
 }
 
 .tab-navigation button.active {
-    border-bottom-color: #007bff;
-    color: #007bff;
+    border-bottom-color: var(--primary);
+    color: var(--primary);
     font-weight: bold;
 }
 
@@ -180,13 +181,13 @@
 }
 
 .modal-actions button[type="submit"] {
-    background-color: #007bff;
+    background-color: var(--primary);
     color: white;
     border: none;
 }
 
 .modal-actions button[type="submit"]:hover {
-    background-color: #0056b3;
+    background-color: var(--primary-dark);
 }
 
 .modal-actions button[type="button"] { /* Cancelar */
@@ -257,7 +258,7 @@
 }
 
 .ia-suggestion-item strong {
-    color: #0056b3; /* Cor para a chave do atributo */
+    color: var(--primary-dark); /* Cor para a chave do atributo */
     margin-right: 5px;
 }
 

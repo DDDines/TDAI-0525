@@ -4,7 +4,7 @@
   --sidebar-text: #cfd8e5;
   --main-bg: #f4f6f8;
   --card-bg: #fff;
-  --primary: #3b82f6;
+  --primary: #131313;
   --success: #10b981;
   --info: #6366f1;
   --warning: #f59e0b;
@@ -18,7 +18,7 @@
   --border-color: #ccc;
   --radius-sm: 4px;
   --radius-lg: 12px;
-  --primary-dark: #2563eb;
+  --primary-dark: #000000;
   --success-dark: #059669;
 
   font-family: var(--font);
