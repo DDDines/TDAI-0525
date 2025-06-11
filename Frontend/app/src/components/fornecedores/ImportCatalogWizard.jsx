@@ -21,8 +21,10 @@ function ImportCatalogWizard({ isOpen, onClose, fornecedorId }) {
   const [fileId, setFileId] = useState(null);
   const [sampleRows, setSampleRows] = useState([]);
   const [mapping, setMapping] = useState({});
+  const [productTypeId, setProductTypeId] = useState('');
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState('');
+  const { productTypes } = useProductTypes();
   const [selectedType, setSelectedType] = useState(null);
   const [isNewTypeModalOpen, setIsNewTypeModalOpen] = useState(false);
   const [newTypeName, setNewTypeName] = useState('');
@@ -38,6 +40,7 @@ function ImportCatalogWizard({ isOpen, onClose, fornecedorId }) {
       setFileId(null);
       setSampleRows([]);
       setMapping({});
+      setProductTypeId('');
       setMessage('');
       setLoading(false);
       setSelectedType(null);
@@ -79,6 +82,9 @@ function ImportCatalogWizard({ isOpen, onClose, fornecedorId }) {
     });
   };
 
+  const handleContinueAfterTypeSelect = () => {
+    if (productTypeId) {
+      setStep(3);
   const handleTypeChange = (e) => {
     const id = parseInt(e.target.value, 10);
     const type = productTypes.find((pt) => pt.id === id);
@@ -108,6 +114,7 @@ function ImportCatalogWizard({ isOpen, onClose, fornecedorId }) {
   };
 
   const handleConfirmImport = async () => {
+    if (!fileId || !productTypeId) return;
     if (!fileId) return;
     if (!selectedType) {
       alert('Selecione um tipo de produto.');
@@ -117,6 +124,9 @@ function ImportCatalogWizard({ isOpen, onClose, fornecedorId }) {
     try {
       await fornecedorService.finalizarImportacaoCatalogo(
         fileId,
+        productTypeId,
+        mapping,
+        sampleRows,
         mapping,
         sampleRows,
         selectedType.id
@@ -139,7 +149,24 @@ function ImportCatalogWizard({ isOpen, onClose, fornecedorId }) {
     </div>
   );
 
-  const renderStep2 = () => {
+  const renderStep2 = () => (
+    <div>
+      <label>
+        Tipo de Produto:
+        <select value={productTypeId} onChange={(e) => setProductTypeId(e.target.value)}>
+          <option value="">Selecione um tipo</option>
+          {(productTypes || []).map((t) => (
+            <option key={t.id} value={t.id}>
+              {t.friendly_name}
+            </option>
+          ))}
+        </select>
+      </label>
+      <button onClick={handleContinueAfterTypeSelect} disabled={!productTypeId}>Continuar</button>
+    </div>
+  );
+
+  const renderStep3 = () => {
     if (!preview) return null;
     if (preview.message && !preview.headers?.length) {
       return <p>{preview.message}</p>;
@@ -273,6 +300,12 @@ function ImportCatalogWizard({ isOpen, onClose, fornecedorId }) {
   );
 
   return (
+    <Modal isOpen={isOpen} onClose={onClose} title="Importar Catálogo">
+      {step === 1 && renderStep1()}
+      {step === 2 && renderStep2()}
+      {step === 3 && renderStep3()}
+      {step === 4 && renderStep4()}
+    </Modal>
     <>
       <Modal isOpen={isOpen} onClose={onClose} title="Importar Catálogo">
         {step === 1 && renderStep1()}
