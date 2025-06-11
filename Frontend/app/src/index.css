@@ -32,7 +32,6 @@
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
-
 :root.dark {
   color-scheme: dark;
   --sidebar-bg: #1f2937;
@@ -43,6 +42,17 @@
   --sidebar-active-bg: #334155;
   --text-color-light: #94a3b8;
   --border-color: #475569;
+body.dark {
+  --sidebar-bg: #121212;
+  --main-bg: #121212;
+  --card-bg: #1E1E1E;
+  --sidebar-active-bg: #1E1E1E;
+  --sidebar-text: #e2e2e2;
+  --border-color: #333;
+  --text-color-light: #aaa;
+  color-scheme: dark;
+  color: #e0e0e0;
+  background-color: var(--main-bg);
 }
 
 * { 
