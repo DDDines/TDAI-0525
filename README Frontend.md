@@ -67,7 +67,7 @@
 
 ## Frontend/app/src/components/fornecedores/EditFornecedorModal.jsx
 
-* `EditFornecedorModal({ isOpen, onClose, fornecedorData, onSave, isLoading })`: Modal para editar dados de um fornecedor. Recebe props para controlar abertura, fornecedor ativo e callback de salvar.
+* `EditFornecedorModal({ isOpen, onClose, fornecedorData, onSave, isLoading })`: Modal para editar dados de um fornecedor. Recebe props para controlar abertura, fornecedor ativo e callback de salvar. Na aba **Importar Catálogo**, o botão abre o `ImportCatalogWizard` permitindo pré-visualizar e mapear colunas antes do envio final.
 
 ## Frontend/app/src/components/fornecedores/FornecedorTable.jsx
 

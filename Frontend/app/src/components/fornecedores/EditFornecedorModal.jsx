@@ -1,15 +1,12 @@
 // Frontend/app/src/components/fornecedores/EditFornecedorModal.jsx
-import React, { useState, useEffect, useRef } from 'react';
-import fornecedorService from '../../services/fornecedorService';
-import { showSuccessToast, showErrorToast, showWarningToast } from '../../utils/notifications';
+import React, { useState, useEffect } from 'react';
+import { showErrorToast, showWarningToast } from '../../utils/notifications';
+import ImportCatalogWizard from './ImportCatalogWizard.jsx';
 
 function EditFornecedorModal({ isOpen, onClose, fornecedorData, onSave, isLoading }) {
   const [formData, setFormData] = useState({ nome: '', site_url: ''});
   const [activeTab, setActiveTab] = useState('info');
-  const [importFile, setImportFile] = useState(null);
-  const [importLoading, setImportLoading] = useState(false);
-  const [isDragOver, setIsDragOver] = useState(false);
-  const inputRef = useRef(null);
+  const [isImportWizardOpen, setIsImportWizardOpen] = useState(false);
 
   useEffect(() => {
     if (fornecedorData) {
@@ -18,7 +15,6 @@ function EditFornecedorModal({ isOpen, onClose, fornecedorData, onSave, isLoadin
         site_url: fornecedorData.site_url || '',
       });
       setActiveTab('info');
-      setImportFile(null);
     } else {
       setFormData({ nome: '', site_url: ''});
     }
@@ -29,30 +25,6 @@ function EditFornecedorModal({ isOpen, onClose, fornecedorData, onSave, isLoadin
     setFormData(prev => ({ ...prev, [name]: value }));
   };
 
-  const handleFileChange = (e) => {
-    setImportFile(e.target.files[0]);
-  };
-
-  const handleDragOver = (e) => {
-    e.preventDefault();
-    e.stopPropagation();
-    setIsDragOver(true);
-  };
-
-  const handleDragLeave = (e) => {
-    e.preventDefault();
-    e.stopPropagation();
-    setIsDragOver(false);
-  };
-
-  const handleDrop = (e) => {
-    e.preventDefault();
-    e.stopPropagation();
-    setIsDragOver(false);
-    if (e.dataTransfer.files && e.dataTransfer.files[0]) {
-      setImportFile(e.dataTransfer.files[0]);
-    }
-  };
   
   const handleSubmit = () => {
     const trimmedNome = formData.nome?.trim();
@@ -91,23 +63,6 @@ function EditFornecedorModal({ isOpen, onClose, fornecedorData, onSave, isLoadin
     }
   };
 
-  const handleImport = async () => {
-    if (!importFile) {
-      showWarningToast('Selecione um arquivo para importar.');
-      return;
-    }
-    setImportLoading(true);
-    try {
-      await fornecedorService.importCatalogo(fornecedorData.id, importFile);
-      showSuccessToast('Catálogo importado com sucesso!');
-      setImportFile(null);
-    } catch (err) {
-      const errMsg = err?.detail || err.message || 'Erro ao importar catálogo.';
-      showErrorToast(errMsg);
-    } finally {
-      setImportLoading(false);
-    }
-  };
 
   if (!isOpen || !fornecedorData) return null;
 
@@ -119,7 +74,7 @@ function EditFornecedorModal({ isOpen, onClose, fornecedorData, onSave, isLoadin
           className="modal-close-button"
           aria-label="Fechar"
           onClick={onClose}
-          disabled={isLoading || importLoading}
+          disabled={isLoading}
         >
           ×
         </button>
@@ -153,34 +108,17 @@ function EditFornecedorModal({ isOpen, onClose, fornecedorData, onSave, isLoadin
 
         {activeTab === 'import' && (
           <div className="form-section">
-            <p>Envie um arquivo CSV, Excel ou PDF para importar produtos deste fornecedor.</p>
-            <div
-              className={`file-drop-area ${isDragOver ? 'drag-over' : ''}`}
-              onDragOver={handleDragOver}
-              onDragLeave={handleDragLeave}
-              onDrop={handleDrop}
-              onClick={() => !importLoading && inputRef.current?.click()}
-            >
-              {importFile ? (
-                <p>{importFile.name}</p>
-              ) : (
-                <>
-                  <p>Arraste e solte o arquivo aqui ou clique para selecionar</p>
-                  <small>Formatos aceitos: CSV, Excel ou PDF</small>
-                </>
-              )}
-              <input
-                ref={inputRef}
-                type="file"
-                accept=".csv,.xls,.xlsx,.pdf"
-                onChange={handleFileChange}
-                disabled={importLoading}
-                style={{ display: 'none' }}
-              />
-            </div>
-            <button onClick={handleImport} disabled={importLoading || !importFile}>{importLoading ? 'Importando...' : 'Importar'}</button>
+            <p>Use o assistente abaixo para importar produtos deste fornecedor.</p>
+            <button onClick={() => setIsImportWizardOpen(true)}>
+              Importar Catálogo
+            </button>
           </div>
         )}
+        <ImportCatalogWizard
+          isOpen={isImportWizardOpen}
+          onClose={() => setIsImportWizardOpen(false)}
+          fornecedorId={fornecedorData.id}
+        />
       </div>
     </div>
   );
