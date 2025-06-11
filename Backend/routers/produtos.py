@@ -349,7 +349,10 @@ async def importar_catalogo_preview(
         raise HTTPException(status_code=400, detail="Formato de arquivo não suportado")
 
 
-@router.post("/importar-catalogo/{fornecedor_id}/", response_model=List[schemas.ProdutoResponse])
+@router.post(
+    "/importar-catalogo/{fornecedor_id}/",
+    response_model=schemas.ImportCatalogoResponse,
+)
 async def importar_catalogo_fornecedor(
     fornecedor_id: int,
     file: UploadFile = File(...),
@@ -376,7 +379,14 @@ async def importar_catalogo_fornecedor(
         raise HTTPException(status_code=400, detail="Formato de arquivo não suportado")
 
     produtos_create = []
+    erros: List[Dict[str, Any]] = []
     for prod in produtos_data:
+        if isinstance(prod, dict) and (
+            prod.get("motivo_descarte")
+            or any(key.startswith("erro_processamento") for key in prod.keys())
+        ):
+            erros.append(prod)
+            continue
         try:
             produto_schema = schemas.ProdutoCreate(
                 nome_base=prod.get("nome_base") or prod.get("sku_original") or "Produto Importado",
@@ -388,16 +398,15 @@ async def importar_catalogo_fornecedor(
                 fornecedor_id=fornecedor_id,
             )
             produtos_create.append(produto_schema)
-        except Exception:
-            continue
+        except Exception as e:
+            erros.append({"motivo_descarte": f"Erro ao converter linha: {str(e)}", "linha_original": prod})
 
-    if not produtos_create:
-        raise HTTPException(status_code=400, detail="Nenhum produto válido encontrado no arquivo")
-
-    created = crud_produtos.create_produtos_bulk(db, produtos_create, user_id=current_user.id)
-    for db_produto in created:
-        crud.create_registro_uso_ia(
-            db,
+    created: List[models.Produto] = []
+    if produtos_create:
+        created = crud_produtos.create_produtos_bulk(db, produtos_create, user_id=current_user.id)
+        for db_produto in created:
+            crud.create_registro_uso_ia(
+                db,
             schemas.RegistroUsoIACreate(
                 user_id=current_user.id,
                 produto_id=db_produto.id,
@@ -414,4 +423,4 @@ async def importar_catalogo_fornecedor(
                 entity_id=db_produto.id,
             ),
         )
-    return created
+    return {"produtos_criados": created, "erros": erros}

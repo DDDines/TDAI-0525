@@ -424,6 +424,26 @@ const historico = await usoIAService.getMeuHistoricoUsoIA({ skip: 0, limit: 10 }
 console.log(historico.items);
 ```
 
+### Importação de catálogos
+
+O endpoint `/produtos/importar-catalogo/{fornecedor_id}/` agora retorna um
+relatório de erros junto com os produtos criados. O formato da resposta é:
+
+```json
+{
+  "produtos_criados": [ /* lista de produtos */ ],
+  "erros": [
+    {
+      "motivo_descarte": "Faltam nome_base e sku_original",
+      "linha_original": { /* dados enviados */ }
+    }
+  ]
+}
+```
+
+Cada item em `erros` descreve a linha descartada e o motivo para facilitar a
+correção do arquivo de origem.
+
 ---
 
 ## 🧪 Testes

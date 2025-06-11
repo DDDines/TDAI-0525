@@ -84,10 +84,10 @@ def _processar_linha_padronizada(
             primeiro_valor_util = next((v for v in dados_brutos_nao_mapeados.values() if v), None)
             if primeiro_valor_util:
                  produto_dados_padronizados["nome_base"] = primeiro_valor_util
-            else: # Se realmente não há nada que possa ser um nome/identificador
-                return None # Ignora a linha
+            else:  # Se realmente não há nada que possa ser um nome/identificador
+                return {"motivo_descarte": "Faltam nome_base e sku_original", "linha_original": linha_original}
         else:
-            return None # Ignora a linha
+            return {"motivo_descarte": "Faltam nome_base e sku_original", "linha_original": linha_original}
 
     # Adiciona os campos não mapeados ao dicionário principal
     if dados_brutos_nao_mapeados:
