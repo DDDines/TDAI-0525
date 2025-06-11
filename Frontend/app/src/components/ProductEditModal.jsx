@@ -7,6 +7,7 @@ import productService from '../services/productService';
 import fornecedorService from '../services/fornecedorService'; 
 import AttributeField from './produtos/shared/AttributeField';
 import { useProductTypes } from '../contexts/ProductTypeContext';
+import NewProductTypeModal from './product_types/NewProductTypeModal.jsx';
 import './ProductEditModal.css';
 
 // Campos base que não devem aparecer como atributos dinâmicos
@@ -100,6 +101,7 @@ const ProductEditModal = ({ isOpen, onClose, product, onProductUpdated }) => {
     const [iaAttributeSuggestions, setIaAttributeSuggestions] = useState({});
     const [selectedIaSuggestions, setSelectedIaSuggestions] = useState({});
     const [newAttrKey, setNewAttrKey] = useState('');
+    const [isNewTypeModalOpen, setIsNewTypeModalOpen] = useState(false);
 
 
     useEffect(() => {
@@ -353,6 +355,12 @@ const ProductEditModal = ({ isOpen, onClose, product, onProductUpdated }) => {
         }
     };
 
+    const handleOpenNewTypeModal = () => setIsNewTypeModalOpen(true);
+    const handleCloseNewTypeModal = () => setIsNewTypeModalOpen(false);
+    const handleNewTypeCreated = (newType) => {
+        setFormData(prev => ({ ...prev, product_type_id: newType.id }));
+    };
+
     const handleEnrichWeb = async () => {
         if (!product?.id) {
             showWarningToast("Salve o produto primeiro antes de enriquecer a web.");
@@ -507,6 +515,7 @@ const ProductEditModal = ({ isOpen, onClose, product, onProductUpdated }) => {
     const attributeTemplates = selectedProductType ? selectedProductType.attribute_templates : [];
 
     return (
+        <>
         <Modal isOpen={isOpen} onClose={onClose} title={isNewProduct ? "Criar Novo Produto" : `Editar Produto: ${formData.nome_base || 'ID ' + product?.id}`}>
             {stage === 'selectFornecedor' ? (
                 <div className="form-section" style={{padding:'1rem'}}>
@@ -544,6 +553,7 @@ const ProductEditModal = ({ isOpen, onClose, product, onProductUpdated }) => {
                             ))}
                         </select>
                     </label>
+                    <button type="button" className="btn-small" onClick={handleOpenNewTypeModal} style={{marginTop:'8px'}}>+ Novo Tipo</button>
                     <div className="modal-actions" style={{marginTop:'20px'}}>
                         <button type="button" onClick={onClose} className="btn-secondary">Cancelar</button>
                         <button type="button" onClick={handleContinueAfterTypeSelect} className="btn-primary" disabled={!formData.product_type_id}>Continuar</button>
@@ -701,6 +711,12 @@ const ProductEditModal = ({ isOpen, onClose, product, onProductUpdated }) => {
             </form>
             )}
         </Modal>
+        <NewProductTypeModal
+            isOpen={isNewTypeModalOpen}
+            onClose={handleCloseNewTypeModal}
+            onCreated={handleNewTypeCreated}
+        />
+        </>
     );
 };
 
