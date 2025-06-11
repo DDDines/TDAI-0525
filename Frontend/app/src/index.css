@@ -9,7 +9,7 @@
   --info: #6366f1;
   --warning: #f59e0b;
   --danger: #ef4444;
-  --sidebar-active-bg: #e0e0e0;
+  --sidebar-active-bg: #ffffff;
   --font: 'Helvetica Neue', Arial, sans-serif;
   --radius: 8px;
   --shadow-sm: 0 1px 4px rgba(0,0,0,0.1);
@@ -129,8 +129,8 @@ button[disabled], button:disabled {
   transition: background-color 0.2s, color 0.2s;
 }
 .sidebar nav a.active, .sidebar nav a:hover {
-  background: #16203a; 
-  color: #fff;
+  background: var(--sidebar-active-bg, #e0e0e0);
+  color: #000;
 }
 
 .sidebar .logout {
