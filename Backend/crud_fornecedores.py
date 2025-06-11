@@ -4,6 +4,8 @@ from typing import List, Optional
 from sqlalchemy import func, or_
 from sqlalchemy.orm import Session
 
+from Backend import utils
+
 from Backend.models import Fornecedor
 from Backend import schemas
 
@@ -39,12 +41,11 @@ def get_fornecedores_by_user(
         query = query.filter(Fornecedor.user_id == user_id)
 
     if search:
-        search_term = f"%{search.lower()}%"
         query = query.filter(
             or_(
-                func.lower(Fornecedor.nome).ilike(search_term),
-                func.lower(Fornecedor.email_contato).ilike(search_term),
-                func.lower(Fornecedor.contato_principal).ilike(search_term),
+                utils.case_insensitive_like(Fornecedor.nome, search),
+                utils.case_insensitive_like(Fornecedor.email_contato, search),
+                utils.case_insensitive_like(Fornecedor.contato_principal, search),
             )
         )
     return query.order_by(Fornecedor.nome).offset(skip).limit(limit).all()
@@ -60,12 +61,11 @@ def count_fornecedores_by_user(
         query = query.filter(Fornecedor.user_id == user_id)
 
     if search:
-        search_term = f"%{search.lower()}%"
         query = query.filter(
             or_(
-                func.lower(Fornecedor.nome).ilike(search_term),
-                func.lower(Fornecedor.email_contato).ilike(search_term),
-                func.lower(Fornecedor.contato_principal).ilike(search_term),
+                utils.case_insensitive_like(Fornecedor.nome, search),
+                utils.case_insensitive_like(Fornecedor.email_contato, search),
+                utils.case_insensitive_like(Fornecedor.contato_principal, search),
             )
         )
     return query.scalar() or 0

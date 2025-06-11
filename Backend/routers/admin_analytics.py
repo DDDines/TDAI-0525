@@ -43,8 +43,8 @@ async def get_total_counts_endpoint(db: Session = Depends(get_db)):
         
         # FIX APLICADO AQUI: Adicionado o cast para String para permitir o operador ILIKE em colunas ENUM
         total_enriquecimentos_mes = db.query(func.count(models.RegistroUsoIA.id)).filter(
-            models.RegistroUsoIA.created_at >= start_of_month, # Using created_at
-            cast(models.RegistroUsoIA.tipo_acao, String).ilike("%enriquecimento_web%") 
+            models.RegistroUsoIA.created_at >= start_of_month,
+            func.lower(cast(models.RegistroUsoIA.tipo_acao, String)).like("%enriquecimento_web%")
         ).scalar() or 0
 
         return schemas.TotalCounts(
