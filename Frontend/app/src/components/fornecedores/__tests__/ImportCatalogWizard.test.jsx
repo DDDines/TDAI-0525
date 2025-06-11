@@ -3,6 +3,13 @@ import '@testing-library/jest-dom';
 import userEvent from '@testing-library/user-event';
 import ImportCatalogWizard from '../ImportCatalogWizard.jsx';
 
+jest.mock('../../../contexts/ProductTypeContext', () => ({
+  useProductTypes: () => ({
+    productTypes: [{ id: 1, friendly_name: 'Tipo1', attribute_templates: [] }],
+    addProductType: jest.fn(),
+  }),
+}));
+
 jest.mock('../../../services/fornecedorService', () => ({
   __esModule: true,
   default: {
@@ -27,10 +34,12 @@ test('shows preview rows and sends fileId on confirm', async () => {
   const file = new File(['a'], 'test.csv', { type: 'text/csv' });
   await userEvent.upload(fileInput, file);
   await userEvent.click(screen.getByText('Gerar Preview'));
-  expect(await screen.findByDisplayValue('Item')).toBeInTheDocument();
-  expect(screen.getByRole('img')).toHaveAttribute('src', expect.stringContaining('data:image/png;base64,'));
+  expect(await screen.findByText('Item')).toBeInTheDocument();
+  await userEvent.selectOptions(screen.getByLabelText(/Tipo de Produto/i), '1');
+  await userEvent.click(screen.getByText('Continuar'));
+  await userEvent.type(screen.getAllByRole('textbox')[0], 'X');
   await userEvent.click(screen.getByText('Confirmar Importação'));
-  expect(fornecedorService.finalizarImportacaoCatalogo).toHaveBeenCalledWith('f1', expect.any(Object), expect.any(Array));
+  expect(fornecedorService.finalizarImportacaoCatalogo).toHaveBeenCalledWith('f1', expect.any(Object), expect.any(Array), 1);
 });
 
 test('calls onClose after finishing import', async () => {
@@ -40,7 +49,9 @@ test('calls onClose after finishing import', async () => {
   const file = new File(['a'], 'test.csv', { type: 'text/csv' });
   await userEvent.upload(fileInput, file);
   await userEvent.click(screen.getByText('Gerar Preview'));
-  await userEvent.click(await screen.findByText('Confirmar Importação'));
+  await userEvent.selectOptions(await screen.findByLabelText(/Tipo de Produto/i), '1');
+  await userEvent.click(screen.getByText('Continuar'));
+  await userEvent.click(screen.getByText('Confirmar Importação'));
   await userEvent.click(screen.getByText('Fechar'));
   expect(onClose).toHaveBeenCalled();
 });
