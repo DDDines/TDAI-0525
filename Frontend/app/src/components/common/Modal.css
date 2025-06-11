@@ -23,6 +23,7 @@
     flex-direction: column;
     max-height: 95vh; /* Mais espaço para o conteúdo interno */
     overflow-y: auto; /* Adiciona scroll se o conteúdo for muito alto */
+    position: relative; /* Mantém botões posicionados dentro do modal */
 }
 
 .modal-header {
