@@ -4,10 +4,10 @@ import { useProductTypes } from '../contexts/ProductTypeContext';
 import { showErrorToast, showSuccessToast } from '../utils/notifications';
 import productTypeService from '../services/productTypeService';
 import EditProductTypeModal from '../components/product_types/EditProductTypeModal.jsx';
+import NewProductTypeModal from '../components/product_types/NewProductTypeModal.jsx';
 
 import AttributeTemplateList from '../components/product_types/AttributeTemplateList';
 import AttributeTemplateModal from '../components/product_types/AttributeTemplateModal';
-import Modal from '../components/common/Modal'; // Usaremos um Modal genérico para o novo tipo
 
 import './TiposProdutoPage.css';
 
@@ -19,7 +19,6 @@ function TiposProdutoPage() {
   const [editingAttribute, setEditingAttribute] = useState(null);
 
   const [isNewTypeModalOpen, setIsNewTypeModalOpen] = useState(false);
-  const [newTypeFriendlyName, setNewTypeFriendlyName] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isEditTypeModalOpen, setIsEditTypeModalOpen] = useState(false);
   const [editingType, setEditingType] = useState(null);
@@ -33,7 +32,6 @@ function TiposProdutoPage() {
   }, [productTypes, selectedProductType]);
 
   const handleOpenNewTypeModal = () => {
-    setNewTypeFriendlyName('');
     setIsNewTypeModalOpen(true);
   };
 
@@ -49,33 +47,11 @@ function TiposProdutoPage() {
     setEditingType(null);
   };
 
-  const handleSaveNewType = async () => {
-    if (!newTypeFriendlyName.trim()) {
-      showErrorToast("O Nome Amigável é obrigatório.");
-      return;
-    }
-    const keyName = newTypeFriendlyName.trim().toLowerCase().replace(/\s+/g, '_').replace(/[^a-z0-9_]/g, '');
-    if (!keyName) {
-        showErrorToast("Não foi possível gerar uma chave válida a partir do nome.");
-        return;
-    }
-
-    setIsSubmitting(true);
-    try {
-      await productTypeService.createProductType({
-        key_name: keyName,
-        friendly_name: newTypeFriendlyName.trim(),
-        attribute_templates: []
-      });
-      showSuccessToast("Tipo de Produto criado com sucesso!");
-      refreshProductTypes(); // Recarrega a lista
-      handleCloseNewTypeModal();
-    } catch (err) {
-      showErrorToast(err.response?.data?.detail || err.message || "Falha ao criar Tipo de Produto.");
-    } finally {
-      setIsSubmitting(false);
-    }
+  const handleNewTypeCreated = (newType) => {
+    refreshProductTypes();
+    setSelectedProductType(newType);
   };
+
   
   const handleDeleteType = async (typeId, typeName) => {
     if (window.confirm(`Tem certeza que deseja deletar o tipo de produto "${typeName}"? Isso não poderá ser desfeito.`)) {
@@ -234,17 +210,11 @@ function TiposProdutoPage() {
         </div>
       </div>
 
-      <Modal isOpen={isNewTypeModalOpen} onClose={handleCloseNewTypeModal} title="Criar Novo Tipo de Produto">
-        <div className="form-group">
-            <label htmlFor="type-friendly-name">Nome Amigável*:</label>
-            <input type="text" id="type-friendly-name" value={newTypeFriendlyName} onChange={(e) => setNewTypeFriendlyName(e.target.value)} className="form-control" placeholder="Ex: Eletrônicos, Vestuário" disabled={isSubmitting} />
-            <small>A "chave" será gerada automaticamente a partir do nome (ex: 'eletronicos').</small>
-        </div>
-        <div className="modal-actions">
-            <button onClick={handleCloseNewTypeModal} className="btn-secondary" disabled={isSubmitting}>Cancelar</button>
-            <button onClick={handleSaveNewType} className="btn-success" disabled={isSubmitting}>{isSubmitting ? 'Salvando...' : 'Salvar Tipo'}</button>
-        </div>
-      </Modal>
+      <NewProductTypeModal
+        isOpen={isNewTypeModalOpen}
+        onClose={handleCloseNewTypeModal}
+        onCreated={handleNewTypeCreated}
+      />
 
       {isEditTypeModalOpen && (
         <EditProductTypeModal
