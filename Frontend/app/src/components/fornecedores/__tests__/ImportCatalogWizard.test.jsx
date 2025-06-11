@@ -44,9 +44,9 @@ test('shows preview rows and sends productTypeId on confirm', async () => {
   await userEvent.click(screen.getByText('Confirmar Importação'));
   expect(fornecedorService.finalizarImportacaoCatalogo).toHaveBeenCalledWith(
     'f1',
-    '1',
     expect.any(Object),
     expect.any(Array),
+    1,
   );
   expect(await screen.findByText('Item')).toBeInTheDocument();
   await userEvent.selectOptions(screen.getByLabelText(/Tipo de Produto/i), '1');
