@@ -1,0 +1,31 @@
+/* Frontend/app/src/pages/DashboardPage.css */
+
+.dashboard-loading {
+  padding: 20px;
+}
+
+.dashboard-welcome {
+  padding: 20px;
+  text-align: center;
+}
+
+.search-results-table th.left {
+  text-align: left;
+}
+
+.search-results-table th.right {
+  text-align: right;
+}
+
+.search-results-table td.bold-cell {
+  font-weight: 600;
+}
+
+.search-results-table td.text-right {
+  text-align: right;
+}
+
+.search-results-table td.no-results {
+  text-align: center;
+  padding: 20px;
+}

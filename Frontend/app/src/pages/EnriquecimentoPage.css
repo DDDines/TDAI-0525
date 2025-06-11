@@ -1,0 +1,18 @@
+/* Frontend/app/src/pages/EnriquecimentoPage.css */
+
+.error-text {
+  color: red;
+  padding: 1rem;
+}
+
+.btn-info {
+  background-color: var(--info);
+  color: #fff;
+}
+
+.enrich-note {
+  font-size: 0.9rem;
+  color: #777;
+  text-align: right;
+  margin-top: 1rem;
+}

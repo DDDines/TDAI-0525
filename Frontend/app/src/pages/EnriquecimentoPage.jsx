@@ -1,5 +1,6 @@
 // Frontend/app/src/pages/EnriquecimentoPage.jsx
 import React, { useState, useEffect, useCallback } from 'react';
+import './EnriquecimentoPage.css';
 import productService from '../services/productService';
 import usoIAService from '../services/usoIAService';
 import ProductTable from '../components/produtos/ProductTable';
@@ -216,7 +217,7 @@ function EnriquecimentoPage() {
 
   return (
     <div>
-      <div className="search-container" style={{ marginTop: 0, marginBottom: '1.5rem' }}>
+      <div className="search-container">
         <label htmlFor="search-enr-prod">Buscar Produtos para Enriquecer:</label>
         <input
           type="text"
@@ -233,7 +234,7 @@ function EnriquecimentoPage() {
           <h3>Produtos para Enriquecimento Web</h3>
         </div>
 
-        {error && !loading && <p style={{ color: 'red', padding: '1rem' }}>Erro ao carregar produtos: {error}</p>}
+        {error && !loading && <p className="error-text">Erro ao carregar produtos: {error}</p>}
 
         <ProductTable
             produtos={produtos}
@@ -257,16 +258,16 @@ function EnriquecimentoPage() {
             />
         )}
 
-        <div className="table-actions" style={{ marginTop: '1.5rem' }}>
+        <div className="table-actions">
           <button
             onClick={handleEnrichSelected}
             disabled={loading || actionLoading || selectedProductIds.size === 0} // Usar .size
-            style={{backgroundColor: 'var(--info)'}}
+            className="btn-info"
           >
             {actionLoading ? 'Processando...' : `Enriquecer Web (${selectedProductIds.size}) Selecionado(s)`}
           </button>
         </div>
-        <div style={{fontSize: '.9rem', color: '#777', textAlign: 'right', marginTop: '1rem'}}>
+        <div className="enrich-note">
             * O status do enriquecimento será atualizado na tabela conforme o processo ocorre no backend. Clique numa linha para ver logs (se disponíveis).
         </div>
       </div>

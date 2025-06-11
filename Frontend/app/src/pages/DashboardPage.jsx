@@ -1,6 +1,7 @@
 // Frontend/app/src/pages/DashboardPage.jsx
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import './DashboardPage.css';
 import authService from '../services/authService'; // Mantido para getCurrentUser
 import adminService from '../services/adminService'; // NOVO: Importar o adminService
 import { showErrorToast } from '../utils/notifications';
@@ -130,7 +131,7 @@ function DashboardPage() {
   const alertsData = mockDashboardData;
 
   if (loading) {
-    return <p style={{padding: "20px"}}>Carregando dashboard...</p>;
+    return <p className="dashboard-loading">Carregando dashboard...</p>;
   }
 
   return (
@@ -152,7 +153,7 @@ function DashboardPage() {
       )}
 
       {(!currentUser || !currentUser.is_superuser) && !loading && (
-        <div style={{ padding: '20px', textAlign: 'center' }}>
+        <div className="dashboard-welcome">
           <h2>Bem-vindo ao CatalogAI!</h2>
           <p>Seu dashboard personalizado será implementado aqui em breve.</p>
         </div>
@@ -208,10 +209,10 @@ function DashboardPage() {
             <table>
               <thead>
                   <tr>
-                    <th style={{ textAlign: 'left' }}>Tipo</th>
-                    <th style={{ textAlign: 'left' }}>Nome</th>
-                    <th style={{ textAlign: 'left' }}>Status</th>
-                    <th style={{ textAlign: 'right' }}>Ação</th>
+                    <th className="left">Tipo</th>
+                    <th className="left">Nome</th>
+                    <th className="left">Status</th>
+                    <th className="right">Ação</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -219,9 +220,9 @@ function DashboardPage() {
                     searchResults.map(item => (
                       <tr key={item.id}>
                         <td>{item.type}</td>
-                        <td style={{ fontWeight: 600 }}>{item.name}</td>
+                        <td className="bold-cell">{item.name}</td>
                         <td>-</td>
-                        <td style={{ textAlign: 'right' }}>
+                        <td className="text-right">
                           <button
                             className="btn-detalhe"
                             onClick={() => navigate(`/produtos?id=${item.id}`)}
@@ -234,7 +235,7 @@ function DashboardPage() {
                   ) : (
                     searchTerm.trim() !== '' && (
                       <tr>
-                        <td colSpan="4" style={{ textAlign: 'center', padding: '20px' }}>
+                        <td colSpan="4" className="no-results">
                           Nenhum resultado encontrado.
                         </td>
                       </tr>

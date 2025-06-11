@@ -1,5 +1,6 @@
 // Frontend/app/src/components/common/PaginationControls.jsx
 import React from 'react';
+import './PaginationControls.css';
 
 function PaginationControls({
   currentPage,
@@ -28,42 +29,30 @@ function PaginationControls({
   };
 
   return (
-    <div
-      className="pagination-controls"
-      style={{
-        marginTop: '1.5rem',
-        marginBottom: '0.5rem',
-        textAlign: 'center',
-        display: 'flex',
-        justifyContent: 'center',
-        alignItems: 'center',
-        gap: '10px',
-        flexWrap: 'wrap',
-      }}
-    >
+    <div className="pagination-controls">
       <button
         onClick={handlePrevious}
         disabled={currentPage === 0 || isLoading}
-        style={{ padding: '0.5em 1em' }}
+        className="pagination-button"
       >
         Anterior
       </button>
-      <span style={{ margin: '0 10px', fontSize: '0.9em', color: '#555' }}>
+      <span className="pagination-info">
         Página {currentPage + 1} de {totalPages}
         {typeof totalItems === 'number' && (
-          <span style={{ marginLeft: '0.5rem' }}>({totalItems} itens)</span>
+          <span className="total-items">({totalItems} itens)</span>
         )}
       </span>
       <button
         onClick={handleNext}
         disabled={currentPage === totalPages - 1 || isLoading}
-        style={{ padding: '0.5em 1em' }}
+        className="pagination-button"
       >
         Próxima
       </button>
       {typeof itemsPerPage === 'number' && onItemsPerPageChange && (
         <select
-          style={{ marginLeft: '0.5rem' }}
+          className="items-per-page-select"
           value={itemsPerPage}
           onChange={(e) => onItemsPerPageChange(e.target.value)}
         >
