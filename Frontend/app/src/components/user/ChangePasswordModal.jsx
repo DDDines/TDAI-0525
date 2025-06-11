@@ -75,9 +75,9 @@ function ChangePasswordModal({ isOpen, onClose, userId: propUserId }) {
 
 
   return (
-    <div className="modal active" id="change-password-modal">
+    <div className="modal-overlay" id="change-password-modal">
       <div className="modal-content">
-        <button className="modal-close" onClick={onClose} disabled={loading}>×</button>
+        <button className="modal-close-button" onClick={onClose} disabled={loading}>×</button>
         <h2>Alterar Senha</h2>
         <form onSubmit={handleSubmit}>
           <div style={inputGroupStyle}>

@@ -265,69 +265,6 @@
   border-radius: var(--radius);
 }
 
-/* Modal de criação de TIPO (existente, mas revisado) */
-.tipos-produto-modal {
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    background-color: rgba(0, 0, 0, 0.5);
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    z-index: 1050;
-}
-.tipos-produto-modal-content {
-    background-color: white;
-    padding: 25px;
-    border-radius: var(--radius);
-    box-shadow: var(--shadow-md);
-    width: 90%;
-    max-width: 500px;
-}
-.tipos-produto-modal-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 20px;
-    padding-bottom: 15px;
-    border-bottom: 1px solid var(--border-color);
-}
-.tipos-produto-modal-header h2 {
-    margin: 0;
-    font-size: 1.5rem;
-    color: var(--sidebar-bg);
-}
-.tipos-produto-modal-actions {
-    margin-top: 20px;
-    display: flex;
-    justify-content: flex-end;
-    gap: 10px;
-}
-.tipos-produto-modal-button {
-    padding: 10px 15px;
-    border: none;
-    border-radius: var(--radius);
-    cursor: pointer;
-    font-size: 0.95rem;
-}
-.tipos-produto-modal-button.save {
-    background-color: var(--success);
-    color: white;
-}
-.tipos-produto-modal-button.cancel {
-    background-color: var(--text-color-light);
-    color: white;
-}
-
-/* Necessário para o modal genérico de confirmação */
-.modal-actions {
-    display: flex;
-    justify-content: flex-end;
-    gap: 1rem;
-    margin-top: 1.5rem;
-}
 
 .form-group {
     margin-bottom: 1rem;

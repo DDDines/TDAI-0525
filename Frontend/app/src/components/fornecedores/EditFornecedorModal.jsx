@@ -112,7 +112,7 @@ function EditFornecedorModal({ isOpen, onClose, fornecedorData, onSave, isLoadin
   if (!isOpen || !fornecedorData) return null;
 
   return (
-    <div className="modal active" id="edit-forn-modal">
+    <div className="modal-overlay" id="edit-forn-modal">
       <div className="modal-content">
         <button
           type="button"
