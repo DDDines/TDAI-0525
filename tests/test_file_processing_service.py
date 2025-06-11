@@ -1,5 +1,18 @@
 import pytest
+import base64
+import io
+import subprocess
+import sys
 from Backend.services import file_processing_service
+
+# Ensure reportlab is available
+try:
+    import reportlab  # type: ignore
+except ImportError:  # pragma: no cover - install at runtime
+    subprocess.check_call([sys.executable, "-m", "pip", "install", "reportlab"])
+    import reportlab  # type: ignore
+
+from reportlab.pdfgen import canvas
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize(
@@ -16,3 +29,17 @@ async def test_processar_arquivo_csv_encodings(data, encoding, esperado_nome, es
     assert resultado
     assert resultado[0]["nome_base"] == esperado_nome
     assert resultado[0]["marca"] == esperada_marca
+
+
+@pytest.mark.asyncio
+async def test_pdf_pages_to_images_returns_base64():
+    buf = io.BytesIO()
+    c = canvas.Canvas(buf)
+    c.drawString(100, 750, "Test")
+    c.save()
+    pdf_bytes = buf.getvalue()
+
+    images = await file_processing_service.pdf_pages_to_images(pdf_bytes, max_pages=1)
+    assert len(images) == 1
+    decoded = base64.b64decode(images[0])
+    assert decoded.startswith(b"\x89PNG")

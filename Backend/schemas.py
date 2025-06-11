@@ -325,6 +325,7 @@ class ImportPreviewResponse(BaseModel):
     file_id: int
     headers: List[str]
     sample_rows: List[Dict[str, Any]]
+    preview_images: List[str] | None = None
     preview_images: Optional[List[str]] = None
     message: Optional[str] = None
     error: Optional[str] = None

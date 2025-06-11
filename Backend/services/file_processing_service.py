@@ -380,3 +380,20 @@ async def gerar_preview(conteudo_arquivo: bytes, ext: str, max_rows: int = 5) ->
     if ext == ".pdf":
         return await preview_arquivo_pdf(conteudo_arquivo, max_rows)
     raise ValueError("Formato de arquivo não suportado para preview")
+
+
+async def pdf_pages_to_images(conteudo_arquivo: bytes, max_pages: int = 1) -> List[str]:
+    """Converte páginas de um PDF em strings base64 de imagens PNG."""
+    import base64
+    from pdf2image import convert_from_bytes
+
+    imagens_base64: List[str] = []
+    try:
+        pages = convert_from_bytes(conteudo_arquivo, first_page=1, last_page=max_pages)
+        for img in pages:
+            with io.BytesIO() as buf:
+                img.save(buf, format="PNG")
+                imagens_base64.append(base64.b64encode(buf.getvalue()).decode())
+    except Exception as e:
+        logger.error("Erro ao converter páginas do PDF em imagens: %s", e)
+    return imagens_base64
