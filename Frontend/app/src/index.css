@@ -32,7 +32,16 @@
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
-
+:root.dark {
+  color-scheme: dark;
+  --sidebar-bg: #1f2937;
+  --sidebar-text: #cbd5e1;
+  --main-bg: #0f172a;
+  --card-bg: #1e293b;
+  --primary: #f3f4f6;
+  --sidebar-active-bg: #334155;
+  --text-color-light: #94a3b8;
+  --border-color: #475569;
 body.dark {
   --sidebar-bg: #121212;
   --main-bg: #121212;
@@ -187,6 +196,17 @@ button[disabled], button:disabled {
   color: var(--primary);
 }
 .sidebar-toggle-btn:hover {
+  filter: brightness(90%);
+}
+.theme-toggle-btn {
+  background: none;
+  border: none;
+  font-size: 1.25rem;
+  margin-right: 1rem;
+  cursor: pointer;
+  color: var(--primary);
+}
+.theme-toggle-btn:hover {
   filter: brightness(90%);
 }
 .topbar h1 {

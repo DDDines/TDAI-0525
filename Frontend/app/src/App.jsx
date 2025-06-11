@@ -2,6 +2,7 @@ import React, { useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { ProductTypeProvider } from './contexts/ProductTypeContext'; // Certifique-se que o caminho está correto
+import { ThemeProvider, useTheme } from './contexts/ThemeContext';
 import { ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 
@@ -75,6 +76,28 @@ function AppContent() {
   );
 }
 
+function ProvidersWrapper() {
+  const { mode } = useTheme();
+
+  return (
+    <>
+      <AppContent />
+      <ToastContainer
+        position="top-right"
+        autoClose={5000}
+        hideProgressBar={false}
+        newestOnTop={false}
+        closeOnClick
+        rtl={false}
+        pauseOnFocusLoss
+        draggable
+        pauseOnHover
+        theme={mode === 'dark' ? 'dark' : 'colored'}
+      />
+    </>
+  );
+}
+
 function App() {
   useEffect(() => {
     logger.log("App.jsx está a ser renderizado com AuthProvider e ProductTypeProvider");
@@ -82,23 +105,13 @@ function App() {
 
   return (
     <Router>
-      <AuthProvider>
-        <ProductTypeProvider> {/* Envolve com ProductTypeProvider se ele também usa useAuth ou precisa estar no contexto */}
-          <AppContent />
-          <ToastContainer
-            position="top-right"
-            autoClose={5000}
-            hideProgressBar={false}
-            newestOnTop={false}
-            closeOnClick
-            rtl={false}
-            pauseOnFocusLoss
-            draggable
-            pauseOnHover
-            theme="colored"
-          />
-        </ProductTypeProvider>
-      </AuthProvider>
+      <ThemeProvider>
+        <AuthProvider>
+          <ProductTypeProvider>
+            <ProvidersWrapper />
+          </ProductTypeProvider>
+        </AuthProvider>
+      </ThemeProvider>
     </Router>
   );
 }
