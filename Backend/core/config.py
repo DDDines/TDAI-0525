@@ -3,7 +3,10 @@ import os
 import logging
 from dotenv import load_dotenv
 from typing import List, Union, Optional
-from pydantic_settings import BaseSettings
+try:
+    from pydantic_settings import BaseSettings  # type: ignore
+except ModuleNotFoundError:  # Compatibilidade para ambientes sem pydantic_settings
+    from pydantic import BaseSettings
 from pydantic import AnyHttpUrl, ValidationError, Field
 from pathlib import Path
 from .logging_config import get_logger
@@ -116,7 +119,8 @@ if settings.cors_origins_str:
         valid_origins = []
         for origin_str in raw_origins:
             try:
-                valid_origins.append(AnyHttpUrl(origin_str))
+                from pydantic import parse_obj_as
+                valid_origins.append(parse_obj_as(AnyHttpUrl, origin_str))
             except ValidationError:
                 logger.warning("Origem CORS inválida '%s' em BACKEND_CORS_ORIGINS. Será ignorada.", origin_str)
         settings.BACKEND_CORS_ORIGINS = valid_origins
@@ -133,7 +137,8 @@ else:
     ]
     for origin_url in default_list:
         try:
-            default_origins_httpurl.append(AnyHttpUrl(origin_url))
+            from pydantic import parse_obj_as
+            default_origins_httpurl.append(parse_obj_as(AnyHttpUrl, origin_url))
         except ValidationError:
             pass
     settings.BACKEND_CORS_ORIGINS = default_origins_httpurl
