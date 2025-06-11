@@ -349,3 +349,18 @@ class RegistroHistorico(Base):
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
     usuario = relationship("User", back_populates="historicos")
+
+
+class CatalogImportFile(Base):
+    __tablename__ = "catalog_import_files"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    fornecedor_id = Column(Integer, ForeignKey("fornecedores.id"), nullable=True)
+    original_filename = Column(String, nullable=False)
+    stored_filename = Column(String, nullable=False)
+    status = Column(String, nullable=False, default="UPLOADED")
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    user = relationship("User")
+    fornecedor = relationship("Fornecedor")
