@@ -94,6 +94,9 @@ function ImportCatalogWizard({ isOpen, onClose, fornecedorId }) {
     const id = parseInt(e.target.value, 10);
     const type = productTypes.find((pt) => pt.id === id);
     setSelectedType(type || null);
+    if (!Number.isNaN(id)) {
+      setProductTypeId(id);
+    }
   };
 
   const handleSaveNewType = async () => {
@@ -129,9 +132,6 @@ function ImportCatalogWizard({ isOpen, onClose, fornecedorId }) {
     try {
       await fornecedorService.finalizarImportacaoCatalogo(
         fileId,
-        productTypeId,
-        mapping,
-        sampleRows,
         mapping,
         sampleRows,
         selectedType.id
