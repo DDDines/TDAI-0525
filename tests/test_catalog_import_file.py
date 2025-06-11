@@ -67,7 +67,14 @@ def test_finalize_updates_status():
     assert resp.status_code == 200
     file_id = resp.json()["file_id"]
 
-    resp = client.post(f"/api/v1/produtos/importar-catalogo-finalizar/{file_id}/", headers=headers)
+    with TestingSessionLocal() as db:
+        pt_id = db.query(models.ProductType.id).first()[0]
+
+    resp = client.post(
+        f"/api/v1/produtos/importar-catalogo-finalizar/{file_id}/",
+        headers=headers,
+        json={"product_type_id": pt_id},
+    )
     assert resp.status_code == 200
     data = resp.json()
     assert "produtos" in data
