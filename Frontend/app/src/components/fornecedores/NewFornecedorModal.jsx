@@ -1,6 +1,7 @@
 // Frontend/app/src/components/fornecedores/NewFornecedorModal.jsx
 import React, { useState, useEffect } from 'react';
 import { showWarningToast } from '../../utils/notifications';
+import '../common/Modal.css';
 
 function NewFornecedorModal({ isOpen, onClose, onSave, isLoading }) {
   const [nome, setNome] = useState('');
@@ -68,22 +69,32 @@ function NewFornecedorModal({ isOpen, onClose, onSave, isLoading }) {
           ×
         </button>
         <h3>Novo Fornecedor</h3>
-        <div>
-            <label htmlFor="new-forn-nome">Nome*</label>
-            <input id="new-forn-nome" type="text" value={nome} onChange={e => setNome(e.target.value)} disabled={isLoading} />
+        <div className="form-section">
+          <label htmlFor="new-forn-nome">Nome*</label>
+          <input
+            id="new-forn-nome"
+            type="text"
+            value={nome}
+            onChange={e => setNome(e.target.value)}
+            disabled={isLoading}
+          />
         </div>
-        <div>
-            <label htmlFor="new-forn-siteurl">Site URL</label>
-            <input 
-              id="new-forn-siteurl" 
-              type="text"
-              value={siteUrl} 
-              onChange={e => setSiteUrl(e.target.value)} 
-              placeholder="www.exemplo.com"
-              disabled={isLoading} 
-            />
+        <div className="form-section">
+          <label htmlFor="new-forn-siteurl">Site URL</label>
+          <input
+            id="new-forn-siteurl"
+            type="text"
+            value={siteUrl}
+            onChange={e => setSiteUrl(e.target.value)}
+            placeholder="www.exemplo.com"
+            disabled={isLoading}
+          />
         </div>
-        <button onClick={handleSubmit} disabled={isLoading}>{isLoading ? 'Salvando...' : 'Salvar'}</button>
+        <div className="modal-actions">
+          <button onClick={handleSubmit} disabled={isLoading}>
+            {isLoading ? 'Salvando...' : 'Salvar'}
+          </button>
+        </div>
       </div>
     </div>
   );
