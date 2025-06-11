@@ -3,7 +3,7 @@ import Modal from '../common/Modal.jsx';
 import fornecedorService from '../../services/fornecedorService';
 import { useProductTypes } from '../../contexts/ProductTypeContext';
 
-const FIELD_OPTIONS = [
+const BASE_FIELD_OPTIONS = [
   { value: 'nome_base', label: 'Nome Base' },
   { value: 'sku_original', label: 'SKU' },
   { value: 'descricao_original', label: 'Descrição' },
@@ -25,6 +25,12 @@ function ImportCatalogWizard({ isOpen, onClose, fornecedorId }) {
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState('');
   const { productTypes } = useProductTypes();
+  const [selectedType, setSelectedType] = useState(null);
+  const [isNewTypeModalOpen, setIsNewTypeModalOpen] = useState(false);
+  const [newTypeName, setNewTypeName] = useState('');
+  const [isSubmittingType, setIsSubmittingType] = useState(false);
+
+  const { productTypes, addProductType } = useProductTypes();
 
   useEffect(() => {
     if (!isOpen) {
@@ -37,6 +43,9 @@ function ImportCatalogWizard({ isOpen, onClose, fornecedorId }) {
       setProductTypeId('');
       setMessage('');
       setLoading(false);
+      setSelectedType(null);
+      setNewTypeName('');
+      setIsNewTypeModalOpen(false);
     }
   }, [isOpen]);
 
@@ -76,11 +85,41 @@ function ImportCatalogWizard({ isOpen, onClose, fornecedorId }) {
   const handleContinueAfterTypeSelect = () => {
     if (productTypeId) {
       setStep(3);
+  const handleTypeChange = (e) => {
+    const id = parseInt(e.target.value, 10);
+    const type = productTypes.find((pt) => pt.id === id);
+    setSelectedType(type || null);
+  };
+
+  const handleSaveNewType = async () => {
+    if (!newTypeName.trim()) return;
+    const keyName = newTypeName.trim()
+      .toLowerCase()
+      .replace(/\s+/g, '_')
+      .replace(/[^a-z0-9_]/g, '');
+    setIsSubmittingType(true);
+    try {
+      const newType = await addProductType({
+        key_name: keyName,
+        friendly_name: newTypeName.trim(),
+        attribute_templates: [],
+      });
+      setSelectedType(newType);
+      setIsNewTypeModalOpen(false);
+    } catch (err) {
+      // erros tratados no contexto
+    } finally {
+      setIsSubmittingType(false);
     }
   };
 
   const handleConfirmImport = async () => {
     if (!fileId || !productTypeId) return;
+    if (!fileId) return;
+    if (!selectedType) {
+      alert('Selecione um tipo de produto.');
+      return;
+    }
     setLoading(true);
     try {
       await fornecedorService.finalizarImportacaoCatalogo(
@@ -88,6 +127,9 @@ function ImportCatalogWizard({ isOpen, onClose, fornecedorId }) {
         productTypeId,
         mapping,
         sampleRows,
+        mapping,
+        sampleRows,
+        selectedType.id
       );
       setMessage('Importação concluída com sucesso');
       setStep(4);
@@ -143,18 +185,55 @@ function ImportCatalogWizard({ isOpen, onClose, fornecedorId }) {
             ))}
           </div>
         )}
-        {preview.preview_images && (
-          <div className="preview-images">
-            {preview.preview_images.map((img, idx) => (
-              <img
-                key={idx}
-                src={`data:image/png;base64,${img}`}
-                alt={`Página ${idx + 1}`}
-                style={{ maxWidth: '100px', marginRight: '4px' }}
-              />
-            ))}
-          </div>
+        {sampleRows.length > 0 && (
+          <table className="preview-table">
+            <thead>
+              <tr>
+                {preview.headers.map((h) => (
+                  <th key={h}>{h}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {sampleRows.map((row, rowIdx) => (
+                <tr key={rowIdx}>
+                  {preview.headers.map((h) => (
+                    <td key={h}>{row[h]}</td>
+                  ))}
+                </tr>
+              ))}
+            </tbody>
+          </table>
         )}
+        <div className="form-group">
+          <label htmlFor="product-type-select">Tipo de Produto:</label>
+          <select id="product-type-select" value={selectedType?.id || ''} onChange={handleTypeChange}>
+            <option value="">Selecione...</option>
+            {productTypes.map((pt) => (
+              <option key={pt.id} value={pt.id}>{pt.friendly_name}</option>
+            ))}
+          </select>
+          <button type="button" onClick={() => setIsNewTypeModalOpen(true)} className="btn-small">Criar novo tipo</button>
+        </div>
+        <div className="modal-actions">
+          <button onClick={() => setStep(1)} className="btn-secondary">Voltar</button>
+          <button onClick={() => selectedType && setStep(3)} className="btn-primary" disabled={!selectedType}>Continuar</button>
+        </div>
+      </div>
+    );
+  };
+
+  const renderStep3 = () => {
+    if (!preview) return null;
+    const FIELD_OPTIONS = [
+      ...BASE_FIELD_OPTIONS,
+      ...(selectedType?.attribute_templates || []).map((attr) => ({
+        value: attr.attribute_key,
+        label: attr.label,
+      })),
+    ];
+    return (
+      <div>
         <table className="mapping-table">
           <thead>
             <tr>
@@ -203,9 +282,12 @@ function ImportCatalogWizard({ isOpen, onClose, fornecedorId }) {
             </tbody>
           </table>
         )}
-        <button onClick={handleConfirmImport} disabled={loading}>
-          {loading ? 'Importando...' : 'Confirmar Importação'}
-        </button>
+        <div className="modal-actions">
+          <button onClick={() => setStep(2)} className="btn-secondary">Voltar</button>
+          <button onClick={handleConfirmImport} disabled={loading} className="btn-primary">
+            {loading ? 'Importando...' : 'Confirmar Importação'}
+          </button>
+        </div>
       </div>
     );
   };
@@ -224,6 +306,25 @@ function ImportCatalogWizard({ isOpen, onClose, fornecedorId }) {
       {step === 3 && renderStep3()}
       {step === 4 && renderStep4()}
     </Modal>
+    <>
+      <Modal isOpen={isOpen} onClose={onClose} title="Importar Catálogo">
+        {step === 1 && renderStep1()}
+        {step === 2 && renderStep2()}
+        {step === 3 && renderStep3()}
+        {step === 4 && renderStep4()}
+      </Modal>
+
+      <Modal isOpen={isNewTypeModalOpen} onClose={() => setIsNewTypeModalOpen(false)} title="Criar Novo Tipo de Produto">
+        <div className="form-group">
+          <label htmlFor="new-type-name">Nome do Tipo*</label>
+          <input id="new-type-name" value={newTypeName} onChange={(e) => setNewTypeName(e.target.value)} disabled={isSubmittingType} />
+        </div>
+        <div className="modal-actions">
+          <button className="btn-secondary" onClick={() => setIsNewTypeModalOpen(false)} disabled={isSubmittingType}>Cancelar</button>
+          <button className="btn-success" onClick={handleSaveNewType} disabled={isSubmittingType}>{isSubmittingType ? 'Salvando...' : 'Salvar Tipo'}</button>
+        </div>
+      </Modal>
+    </>
   );
 }
 

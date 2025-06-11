@@ -446,6 +446,7 @@ async def importar_catalogo_fornecedor(
 @router.post("/importar-catalogo-finalizar/{file_id}/")
 async def importar_catalogo_finalizar(
     file_id: int,
+    product_type_id: int = Body(..., embed=True),
     db: Session = Depends(database.get_db),
     current_user: models.User = Depends(auth_utils.get_current_active_user),
 ):
@@ -464,11 +465,11 @@ async def importar_catalogo_finalizar(
     ext = file_path.suffix.lower()
 
     if ext in [".xlsx", ".xls"]:
-        produtos = await file_processing_service.processar_arquivo_excel(content)
+        produtos = await file_processing_service.processar_arquivo_excel(content, product_type_id=product_type_id)
     elif ext == ".csv":
-        produtos = await file_processing_service.processar_arquivo_csv(content)
+        produtos = await file_processing_service.processar_arquivo_csv(content, product_type_id=product_type_id)
     elif ext == ".pdf":
-        produtos = await file_processing_service.processar_arquivo_pdf(content)
+        produtos = await file_processing_service.processar_arquivo_pdf(content, product_type_id=product_type_id)
     else:
         raise HTTPException(status_code=400, detail="Formato de arquivo não suportado")
 
