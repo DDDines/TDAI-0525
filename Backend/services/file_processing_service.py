@@ -151,7 +151,11 @@ async def processar_arquivo_csv(conteudo_arquivo: bytes, mapeamento_colunas_usua
         logger.error("Erro ao processar arquivo CSV: %s", e)
         return [{"erro_processamento_csv": f"Falha ao ler arquivo CSV: {str(e)}"}]
 
-async def processar_arquivo_pdf(conteudo_arquivo: bytes, mapeamento_colunas_usuario: Optional[Dict[str, str]] = None) -> List[Dict[str, Any]]:
+async def processar_arquivo_pdf(
+    conteudo_arquivo: bytes,
+    mapeamento_colunas_usuario: Optional[Dict[str, str]] = None,
+    usar_llm: bool = True,
+) -> List[Dict[str, Any]]:
     produtos_extraidos: List[Dict[str, Any]] = []
     log_pdf: List[str] = []
     try:
@@ -188,29 +192,39 @@ async def processar_arquivo_pdf(conteudo_arquivo: bytes, mapeamento_colunas_usua
 
             if not produtos_extraidos and len(pdf.pages) > 0:  # Fallback se nenhuma tabela extraiu dados
                 log_pdf.append(
-                    "Nenhum produto extraído de tabelas. Tentando extrair texto completo da primeira página como fallback."
+                    "Nenhum produto extraído de tabelas. Extraindo texto de todas as páginas."
                 )
-                page_text = pdf.pages[0].extract_text(x_tolerance=2, y_tolerance=2)  # Ajustar tolerâncias pode ajudar
-                if page_text and page_text.strip():
-                    try:
-                        dados_produto = await web_data_extractor_service.extrair_dados_produto_com_llm(page_text)
-                        if isinstance(dados_produto, dict):
-                            dados_produto["texto_bruto"] = page_text.strip()[:20000]
-                            produtos_extraidos.append(dados_produto)
+                for i, page in enumerate(pdf.pages):
+                    page_text = page.extract_text(x_tolerance=2, y_tolerance=2)
+                    if page_text and page_text.strip():
+                        log_pdf.append(f"Página {i+1}: Texto extraído.")
+                        texto_chave = f"texto_completo_pagina_{i+1}"
+                        if usar_llm:
+                            try:
+                                dados_produto = await web_data_extractor_service.extrair_dados_produto_com_llm(page_text)
+                                if isinstance(dados_produto, dict):
+                                    dados_produto["texto_bruto"] = page_text.strip()[:20000]
+                                    produtos_extraidos.append(dados_produto)
+                                else:
+                                    produtos_extraidos.append({
+                                        "nome_base": f"Texto da página {i+1}",
+                                        "dados_brutos_adicionais": {texto_chave: page_text.strip()[:20000]},
+                                    })
+                                log_pdf.append(f"Página {i+1}: Texto processado com LLM.")
+                            except Exception as llm_e:
+                                log_pdf.append(f"Página {i+1}: Erro ao extrair dados com LLM: {str(llm_e)}")
+                                produtos_extraidos.append({
+                                    "nome_base": f"Conteúdo Bruto da Página {i+1} do PDF",
+                                    "dados_brutos_adicionais": {texto_chave: page_text.strip()[:20000]},
+                                })
                         else:
                             produtos_extraidos.append({
-                                "nome_base": "Texto do PDF analisado",
-                                "dados_brutos_adicionais": {"texto_completo_pagina_1": page_text.strip()[:20000]},
+                                "nome_base": f"Conteúdo da Página {i+1}",
+                                "dados_brutos_adicionais": {texto_chave: page_text.strip()[:20000]},
                             })
-                        log_pdf.append("Texto da primeira página extraído e processado com LLM.")
-                    except Exception as llm_e:
-                        log_pdf.append(f"Erro ao extrair dados com LLM: {str(llm_e)}")
-                        produtos_extraidos.append({
-                            "nome_base": "Conteúdo Bruto da Página 1 do PDF",
-                            "dados_brutos_adicionais": {"texto_completo_pagina_1": page_text.strip()[:20000]},
-                        })
-                else:
-                    log_pdf.append("Nenhum texto extraível encontrado na primeira página.")
+                            log_pdf.append(f"Página {i+1}: Texto armazenado sem uso do LLM.")
+                    else:
+                        log_pdf.append(f"Página {i+1}: Nenhum texto extraível encontrado.")
             
             if not produtos_extraidos: # Se ainda vazio
                  return [{"erro_processamento_pdf": "Nenhum dado de produto pôde ser extraído do PDF.", "log_pdf": log_pdf}]
