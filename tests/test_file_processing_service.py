@@ -43,3 +43,18 @@ async def test_pdf_pages_to_images_returns_base64():
     assert len(images) == 1
     decoded = base64.b64decode(images[0])
     assert decoded.startswith(b"\x89PNG")
+
+
+@pytest.mark.asyncio
+async def test_preview_arquivo_pdf_returns_page_info():
+    buf = io.BytesIO()
+    c = canvas.Canvas(buf)
+    c.drawString(100, 750, "Hello")
+    c.showPage()
+    c.drawString(100, 750, "World")
+    c.save()
+    pdf_bytes = buf.getvalue()
+
+    res = await file_processing_service.preview_arquivo_pdf(pdf_bytes)
+    assert res.get("num_pages") == 2
+    assert res.get("table_pages") == [] or isinstance(res.get("table_pages"), list)

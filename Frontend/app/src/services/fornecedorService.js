@@ -85,17 +85,19 @@ export const deleteFornecedor = async (fornecedorId) => {
   }
 };
 
-export const previewCatalogo = async (file) => {
+export const previewCatalogo = async (file, pageCount = 1) => {
   try {
     const formData = new FormData();
     formData.append('file', file);
-    const response = await apiClient.post('/produtos/importar-catalogo-preview/', formData);
-    const { file_id, headers, sample_rows, preview_images } = response.data;
+    const response = await apiClient.post('/produtos/importar-catalogo-preview/', formData, { params: { page_count: pageCount } });
+    const { file_id, headers, sample_rows, preview_images, num_pages, table_pages } = response.data;
     return {
       fileId: file_id,
       headers,
       sampleRows: sample_rows,
       previewImages: preview_images,
+      numPages: num_pages,
+      tablePages: table_pages,
     };
   } catch (error) {
     console.error('Erro ao gerar preview do catálogo:', JSON.stringify(error.response?.data || error.message || error));
