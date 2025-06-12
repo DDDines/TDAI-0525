@@ -2,6 +2,7 @@ import React from 'react';
 import { Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import logger from '../utils/logger';
+import LoadingPopup from './common/LoadingPopup.jsx';
 
 const ProtectedRoute = ({ children, allowedRoles }) => {
     const { isAuthenticated, user, isLoading } = useAuth();
@@ -12,7 +13,7 @@ const ProtectedRoute = ({ children, allowedRoles }) => {
         // pode-se exibir um loader global ou simplesmente não renderizar nada ainda.
         // Retornar null ou um spinner evita renderização prematura da página de login
         // ou do conteúdo protegido.
-        return <div>Carregando autenticação...</div>; // Ou um componente de Spinner/Loading
+        return <LoadingPopup isOpen={true} message="Carregando autenticação..." />;
     }
 
     if (!isAuthenticated) {

@@ -1,10 +1,11 @@
 // Frontend/app/src/components/fornecedores/FornecedorTable.jsx
 import React from 'react';
 import './FornecedorTable.css';
+import LoadingPopup from '../common/LoadingPopup.jsx';
 
 function FornecedorTable({ fornecedores, onRowClick, onSelectRow, selectedIds, onSelectAllRows, isLoading }) {
   if (isLoading && (!fornecedores || fornecedores.length === 0)) {
-    return <p>Carregando tabela de fornecedores...</p>;
+    return <LoadingPopup isOpen={true} message="Carregando tabela de fornecedores..." />;
   }
   return (
     <table className="fornecedor-table" id="forn-table">

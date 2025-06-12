@@ -1,6 +1,7 @@
 // Frontend/app/src/components/produtos/ProductTable.jsx
 import React from 'react';
 import './ProductTable.css'; // Seu CSS para a tabela. Deve existir em src/components/produtos/ProductTable.css
+import LoadingPopup from '../common/LoadingPopup.jsx';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import logger from '../../utils/logger';
@@ -75,8 +76,8 @@ function ProductTable({
   );
 
   const renderTableBody = () => {
-    if (loading && (!produtos || produtos.length === 0)) { 
-        return <tbody><tr><td colSpan="10" style={{ textAlign: 'center', padding: '20px' }}>Carregando produtos...</td></tr></tbody>;
+    if (loading && (!produtos || produtos.length === 0)) {
+        return <tbody><tr><td colSpan="10" style={{ textAlign: 'center', padding: '20px' }}><LoadingPopup isOpen={true} message="Carregando produtos..." /></td></tr></tbody>;
     }
     if (!produtos || produtos.length === 0) {
       return <tbody><tr><td colSpan="10" style={{ textAlign: 'center', padding: '20px' }}>Nenhum produto encontrado.</td></tr></tbody>;

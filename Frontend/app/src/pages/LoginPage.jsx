@@ -6,6 +6,7 @@ import './LoginPage.css';
 import { FaGoogle, FaFacebookF } from 'react-icons/fa';
 import logger from '../utils/logger';
 import configService from '../services/configService';
+import LoadingPopup from '../components/common/LoadingPopup.jsx';
 
 const LoginPage = () => {
     const [email, setEmail] = useState('');
@@ -59,13 +60,7 @@ const LoginPage = () => {
 
     // Se o AuthContext ainda está carregando a sessão, pode mostrar um loader
     if (authIsLoading && !isAuthenticated) { // Apenas mostra o loader se não estiver autenticado ainda
-        return (
-            <div className="login-page-wrapper">
-                <div className="login-form-card">
-                    <h2>Carregando...</h2>
-                </div>
-            </div>
-        );
+        return <LoadingPopup isOpen={true} message="Carregando..." />;
     }
 
 

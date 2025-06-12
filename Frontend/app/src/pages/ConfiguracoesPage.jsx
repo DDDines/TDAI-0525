@@ -4,6 +4,7 @@ import authService from '../services/authService';
 import { showSuccessToast, showErrorToast } from '../utils/notifications';
 import ChangePasswordModal from '../components/user/ChangePasswordModal'; // Importar o novo modal
 import { useAuth } from '../contexts/AuthContext';
+import LoadingPopup from '../components/common/LoadingPopup.jsx';
 
 function ConfiguracoesPage() {
   const { user } = useAuth();
@@ -99,7 +100,7 @@ function ConfiguracoesPage() {
   const smallTextStyle = { display: 'block', marginTop: '0.25rem', fontSize: '0.85em', color: '#666'};
 
   if (!initialUserDataLoaded && loadingProfile) {
-      return <p>Carregando configurações...</p>;
+      return <LoadingPopup isOpen={true} message="Carregando configurações..." />;
   }
 
   return (

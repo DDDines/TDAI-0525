@@ -8,6 +8,7 @@ import PaginationControls from '../components/common/PaginationControls';
 import { format, parseISO } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import logger from '../utils/logger';
+import LoadingPopup from '../components/common/LoadingPopup.jsx';
 
 function HistoricoPage() {
   const { user, isLoading: isAuthLoading } = useAuth();
@@ -142,7 +143,7 @@ function HistoricoPage() {
           </select>
         </div>
 
-        {loading && <p>Carregando histórico...</p>}
+        {loading && <LoadingPopup isOpen={true} message="Carregando histórico..." />}
         {error && <p style={{ color: 'red' }}>Erro ao carregar histórico: {error}</p>}
 
         {!loading && historico.length === 0 && !error && (
