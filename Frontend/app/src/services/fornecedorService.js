@@ -164,7 +164,7 @@ export const finalizarImportacaoCatalogo = async (
 
 export const getCatalogImportFiles = async (params = {}) => {
   try {
-    const response = await apiClient.get('/catalog-import-files/', { params });
+    const response = await apiClient.get('/produtos/catalog-import-files/', { params });
     return response.data;
   } catch (error) {
     console.error('Erro ao buscar arquivos de importação:', JSON.stringify(error.response?.data || error.message || error));
