@@ -150,6 +150,39 @@ def update_fornecedor_endpoint( # Renomeado para evitar conflito com crud_fornec
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Erro interno ao atualizar fornecedor.")
 
 
+@router.get("/{fornecedor_id}/mapping", response_model=Optional[dict])
+def get_mapping(
+    fornecedor_id: int,
+    db: Session = Depends(database.get_db),
+    current_user: models.User = Depends(auth_utils.get_current_active_user),
+):
+    fornecedor = crud_fornecedores.get_fornecedor(db, fornecedor_id=fornecedor_id)
+    if not fornecedor:
+        raise HTTPException(status_code=404, detail="Fornecedor não encontrado")
+    if not current_user.is_superuser and fornecedor.user_id != current_user.id:
+        raise HTTPException(status_code=403, detail="Não autorizado")
+    return fornecedor.default_column_mapping
+
+
+@router.put("/{fornecedor_id}/mapping", response_model=schemas.FornecedorResponse)
+def update_mapping(
+    fornecedor_id: int,
+    mapping: Optional[dict] = None,
+    db: Session = Depends(database.get_db),
+    current_user: models.User = Depends(auth_utils.get_current_active_user),
+):
+    fornecedor = crud_fornecedores.get_fornecedor(db, fornecedor_id=fornecedor_id)
+    if not fornecedor:
+        raise HTTPException(status_code=404, detail="Fornecedor não encontrado")
+    if not current_user.is_superuser and fornecedor.user_id != current_user.id:
+        raise HTTPException(status_code=403, detail="Não autorizado")
+    fornecedor.default_column_mapping = mapping
+    db.add(fornecedor)
+    db.commit()
+    db.refresh(fornecedor)
+    return fornecedor
+
+
 # Endpoint para deletar um fornecedor
 @router.delete("/{fornecedor_id}", response_model=schemas.FornecedorResponse) # CORRIGIDO AQUI
 def delete_fornecedor_endpoint( # Renomeado para evitar conflito

@@ -157,6 +157,7 @@ class Fornecedor(Base):
     contato_principal = Column(String, nullable=True)
     observacoes = Column(Text, nullable=True)
     link_busca_padrao = Column(String, nullable=True) # Link base para buscar produtos deste fornecedor
+    default_column_mapping = Column(MutableDict.as_mutable(JSON), nullable=True)
 
     user_id = Column(Integer, ForeignKey("users.id"), nullable=False) # Dono do registro do fornecedor
     owner = relationship("User", back_populates="fornecedores")
