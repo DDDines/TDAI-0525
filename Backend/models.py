@@ -302,8 +302,10 @@ class Produto(Base):
     # Índices para otimizar buscas comuns
     __table_args__ = (
         Index('ix_produtos_user_id_nome_base', 'user_id', 'nome_base'),
-        Index('ix_produtos_user_id_sku', 'user_id', 'sku', unique=False), # SKU pode não ser único globalmente, mas talvez por usuário
-        Index('ix_produtos_user_id_ean', 'user_id', 'ean', unique=False), # Mesma lógica para EAN
+        Index('ix_produtos_user_id_sku', 'user_id', 'sku', unique=False),
+        Index('ix_produtos_user_id_ean', 'user_id', 'ean', unique=False),
+        UniqueConstraint('user_id', 'sku', name='uq_produtos_user_sku'),
+        UniqueConstraint('user_id', 'ean', name='uq_produtos_user_ean'),
     )
 
 
