@@ -788,37 +788,6 @@ async def importar_catalogo_finalizar(
     )
 
     return {"status": "PROCESSING", "file_id": file_id}
-    created: List[models.Produto] = []
-    if produtos_create:
-        created, dup_errors = crud_produtos.create_produtos_bulk(
-            db, produtos_create, user_id=current_user.id
-        )
-        erros.extend(dup_errors)
-        for db_produto in created:
-            crud.create_registro_uso_ia(
-                db,
-                schemas.RegistroUsoIACreate(
-                    user_id=current_user.id,
-                    produto_id=db_produto.id,
-                    tipo_acao=models.TipoAcaoEnum.CRIACAO_PRODUTO,
-                    creditos_consumidos=0,
-                ),
-            )
-            crud_historico.create_registro_historico(
-                db,
-                schemas.RegistroHistoricoCreate(
-                    user_id=current_user.id,
-                    entidade="Produto",
-                    acao=models.TipoAcaoSistemaEnum.CRIACAO,
-                    entity_id=db_produto.id,
-                ),
-            )
-
-    catalog_file.status = "IMPORTED"
-    db.add(catalog_file)
-    db.commit()
-
-    return {"produtos_criados": created, "erros": erros}
 
 
 @router.get(
