@@ -446,8 +446,8 @@ correção do arquivo de origem.
 
 Ao finalizar a importação de um arquivo previamente enviado com
 `/produtos/importar-catalogo-finalizar/{file_id}/`, é necessário informar
-o `product_type_id` no corpo da requisição. Esse identificador será anexado a
-todos os produtos extraídos do arquivo.
+tanto o `product_type_id` quanto o `fornecedor_id` no corpo da requisição.
+Esses identificadores serão anexados a todos os produtos extraídos do arquivo.
 
 ---
 
