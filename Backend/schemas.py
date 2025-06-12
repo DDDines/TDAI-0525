@@ -159,6 +159,7 @@ class FornecedorBase(BaseModel):
     contato_principal: Optional[str] = Field(None, max_length=100)
     observacoes: Optional[str] = None
     link_busca_padrao: Optional[str] = None # Usando str para flexibilidade
+    default_column_mapping: Optional[Dict[str, str]] = None
 
 class FornecedorCreate(FornecedorBase):
     pass
@@ -173,6 +174,7 @@ class FornecedorResponse(FornecedorBase):
     user_id: int
     created_at: datetime
     updated_at: datetime
+    default_column_mapping: Optional[Dict[str, str]] = None
     class Config:
         from_attributes = True
 
@@ -326,6 +328,8 @@ class ImportPreviewResponse(BaseModel):
     headers: List[str]
     sample_rows: List[Dict[str, Any]]
     preview_images: Optional[List[str]] = None
+    num_pages: Optional[int] = None
+    table_pages: Optional[List[int]] = None
     message: Optional[str] = None
     error: Optional[str] = None
 

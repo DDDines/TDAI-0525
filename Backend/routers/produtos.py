@@ -561,6 +561,8 @@ async def upload_produto_image(  # Nome da função mantido como no arquivo do u
 async def importar_catalogo_preview(
     file: UploadFile = File(...),
     fornecedor_id: Optional[int] = Form(None),
+    page_count: int = Query(1, ge=1),
+    page_count: int = Query(1, ge=1, description="Número de páginas de preview do PDF"),
     db: Session = Depends(database.get_db),
     current_user: models.User = Depends(auth_utils.get_current_active_user),
 ):
@@ -583,7 +585,9 @@ async def importar_catalogo_preview(
         raise HTTPException(status_code=400, detail="Formato de arquivo não suportado")
 
     if ext == ".pdf":
-        preview_images = await file_processing_service.pdf_pages_to_images(content)
+        preview_images = await file_processing_service.pdf_pages_to_images(
+            content, max_pages=page_count
+        )
         preview["preview_images"] = preview_images
 
     preview["file_id"] = saved.id
@@ -612,6 +616,10 @@ async def importar_catalogo_fornecedor(
             raise HTTPException(
                 status_code=400, detail="mapeamento_colunas_usuario inválido"
             )
+    else:
+        fornecedor = crud_fornecedores.get_fornecedor(db, fornecedor_id)
+        if fornecedor and fornecedor.default_column_mapping:
+            mapping_dict = fornecedor.default_column_mapping
     if ext in [".xlsx", ".xls"]:
         produtos_data = await file_processing_service.processar_arquivo_excel(
             content, mapping_dict
@@ -659,9 +667,10 @@ async def importar_catalogo_fornecedor(
 
     created: List[models.Produto] = []
     if produtos_create:
-        created = crud_produtos.create_produtos_bulk(
+        created, dup_errors = crud_produtos.create_produtos_bulk(
             db, produtos_create, user_id=current_user.id
         )
+        erros.extend(dup_errors)
         for db_produto in created:
             crud.create_registro_uso_ia(
                 db,
@@ -713,6 +722,35 @@ async def importar_catalogo_finalizar(
     from sqlalchemy.orm import sessionmaker
 
     db_session_factory = sessionmaker(bind=db.get_bind())
+    # Sempre reprocessa o arquivo completo para evitar importar apenas as linhas de preview
+    content = file_path.read_bytes()
+    ext = file_path.suffix.lower()
+    if mapping is None:
+        fornecedor = crud_fornecedores.get_fornecedor(db, fornecedor_id)
+        if fornecedor and fornecedor.default_column_mapping:
+            mapping = fornecedor.default_column_mapping
+    if ext in [".xlsx", ".xls"]:
+        produtos_data = await file_processing_service.processar_arquivo_excel(
+            content,
+            mapeamento_colunas_usuario=mapping,
+            product_type_id=product_type_id,
+        )
+    elif ext == ".csv":
+        produtos_data = await file_processing_service.processar_arquivo_csv(
+            content,
+            mapeamento_colunas_usuario=mapping,
+            product_type_id=product_type_id,
+        )
+    elif ext == ".pdf":
+        produtos_data = await file_processing_service.processar_arquivo_pdf(
+            content,
+            mapeamento_colunas_usuario=mapping,
+            product_type_id=product_type_id,
+        )
+    else:
+        raise HTTPException(
+            status_code=400, detail="Formato de arquivo não suportado"
+        )
 
     background_tasks.add_task(
         _tarefa_processar_catalogo,
@@ -725,7 +763,31 @@ async def importar_catalogo_finalizar(
     )
 
     return {"status": "PROCESSING", "file_id": file_id}
-
+    created: List[models.Produto] = []
+    if produtos_create:
+        created, dup_errors = crud_produtos.create_produtos_bulk(
+            db, produtos_create, user_id=current_user.id
+        )
+        erros.extend(dup_errors)
+        for db_produto in created:
+            crud.create_registro_uso_ia(
+                db,
+                schemas.RegistroUsoIACreate(
+                    user_id=current_user.id,
+                    produto_id=db_produto.id,
+                    tipo_acao=models.TipoAcaoEnum.CRIACAO_PRODUTO,
+                    creditos_consumidos=0,
+                ),
+            )
+            crud_historico.create_registro_historico(
+                db,
+                schemas.RegistroHistoricoCreate(
+                    user_id=current_user.id,
+                    entidade="Produto",
+                    acao=models.TipoAcaoSistemaEnum.CRIACAO,
+                    entity_id=db_produto.id,
+                ),
+            )
 
 @router.get(
     "/importar-catalogo-status/{file_id}/",

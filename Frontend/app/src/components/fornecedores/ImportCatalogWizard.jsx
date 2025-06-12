@@ -15,6 +15,8 @@ const BASE_FIELD_OPTIONS = [
   { value: 'imagem_url_original', label: 'URL Imagem' },
 ];
 
+const PREVIEW_PAGE_COUNT = 3;
+
 function ImportCatalogWizard({ isOpen, onClose, fornecedorId }) {
   const [step, setStep] = useState(1);
   const [file, setFile] = useState(null);
@@ -30,6 +32,7 @@ function ImportCatalogWizard({ isOpen, onClose, fornecedorId }) {
   const [newTypeName, setNewTypeName] = useState('');
   const [isSubmittingType, setIsSubmittingType] = useState(false);
   const intervalRef = useRef(null);
+  const [currentPreviewPage, setCurrentPreviewPage] = useState(0);
 
   const { productTypes, addProductType } = useProductTypes();
 
@@ -51,6 +54,7 @@ function ImportCatalogWizard({ isOpen, onClose, fornecedorId }) {
         clearInterval(intervalRef.current);
         intervalRef.current = null;
       }
+      setCurrentPreviewPage(0);
     }
   }, [isOpen]);
 
@@ -62,10 +66,18 @@ function ImportCatalogWizard({ isOpen, onClose, fornecedorId }) {
     if (!file) return;
     setLoading(true);
     try {
-      const data = await fornecedorService.previewCatalogo(file);
+      const data = await fornecedorService.previewCatalogo(file, 5);
       setPreview({ headers: data.headers, previewImages: data.previewImages || [] });
+      const data = await fornecedorService.previewCatalogo(file, PREVIEW_PAGE_COUNT);
+      setPreview({
+        headers: data.headers,
+        previewImages: data.previewImages || [],
+        numPages: data.numPages,
+        tablePages: data.tablePages || [],
+      });
       setFileId(data.fileId);
       setSampleRows(data.sampleRows || []);
+      setCurrentPreviewPage(0);
       setStep(2);
     } catch (err) {
       alert(err.detail || err.message || 'Erro ao gerar preview');
@@ -128,7 +140,7 @@ function ImportCatalogWizard({ isOpen, onClose, fornecedorId }) {
   };
 
   const handleConfirmImport = async () => {
-    if (!fileId || !productTypeId) return;
+    if (!productTypeId) return;
     if (!selectedType) {
       alert('Selecione um tipo de produto.');
       return;
@@ -185,14 +197,35 @@ function ImportCatalogWizard({ isOpen, onClose, fornecedorId }) {
       <div>
         {preview.previewImages && preview.previewImages.length > 0 && (
           <div className="pdf-preview-images">
-            {preview.previewImages.map((img, idx) => (
-              <img
-                key={idx}
-                src={`data:image/png;base64,${img}`}
-                alt={`Página ${idx + 1}`}
-                style={{ maxWidth: '100%', marginBottom: '1em' }}
-              />
-            ))}
+            <div className="preview-nav">
+              <button
+                type="button"
+                onClick={() => setCurrentPreviewPage((p) => Math.max(p - 1, 0))}
+                disabled={currentPreviewPage === 0}
+              >
+                Anterior
+              </button>
+              <span style={{ margin: '0 1em' }}>
+                Página {currentPreviewPage + 1} de {preview.numPages || preview.previewImages.length}
+              </span>
+              <button
+                type="button"
+                onClick={() =>
+                  setCurrentPreviewPage((p) => Math.min(p + 1, preview.previewImages.length - 1))
+                }
+                disabled={currentPreviewPage >= preview.previewImages.length - 1}
+              >
+                Próxima
+              </button>
+            </div>
+            <img
+              src={`data:image/png;base64,${preview.previewImages[currentPreviewPage]}`}
+              alt={`Página ${currentPreviewPage + 1}`}
+              style={{ maxWidth: '100%', marginBottom: '1em' }}
+            />
+            {preview.tablePages && preview.tablePages.length > 0 && (
+              <p>Páginas com tabelas: {preview.tablePages.join(', ')}</p>
+            )}
           </div>
         )}
         {sampleRows.length > 0 && (
