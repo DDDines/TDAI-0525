@@ -338,6 +338,11 @@ class ImportCatalogoResponse(BaseModel):
     produtos_criados: List[ProdutoResponse]
     erros: List[Dict[str, Any]]
 
+
+class RegionExtractionResponse(BaseModel):
+    produtos: List[Dict[str, Any]]
+    log: Optional[List[str]] = None
+
 class ProdutoPage(BaseModel):
     items: List[ProdutoResponse]
     total_items: int
@@ -517,6 +522,7 @@ AttributeTemplateResponse.model_rebuild()
 ProductTypeResponse.model_rebuild()
 ProdutoResponse.model_rebuild()
 ImportCatalogoResponse.model_rebuild()
+RegionExtractionResponse.model_rebuild()
 RegistroUsoIAResponse.model_rebuild()
 RegistroHistoricoResponse.model_rebuild()
 CatalogImportFileResponse.model_rebuild()
