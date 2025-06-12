@@ -2,7 +2,7 @@ import React from 'react';
 import { format } from 'date-fns';
 import getBackendBaseUrl from '../../utils/backend.js';
 
-function CatalogFileList({ files = [], onReprocess }) {
+function CatalogFileList({ files = [], onReprocess, onDelete }) {
   const backendBaseUrl = getBackendBaseUrl();
   if (!files || files.length === 0) {
     return <p>Nenhum arquivo encontrado.</p>;
@@ -16,7 +16,7 @@ function CatalogFileList({ files = [], onReprocess }) {
           <th>Status</th>
           <th>Enviado em</th>
           <th>Processado</th>
-          {onReprocess && <th>Ações</th>}
+          {(onReprocess || onDelete) && <th>Ações</th>}
         </tr>
       </thead>
       <tbody>
@@ -34,9 +34,19 @@ function CatalogFileList({ files = [], onReprocess }) {
                 {f.stored_filename}
               </a>
             </td>
-            {onReprocess && (
+            {(onReprocess || onDelete) && (
               <td>
-                <button onClick={() => onReprocess(f.id)}>Reprocessar</button>
+                {onReprocess && (
+                  <button onClick={() => onReprocess(f.id)}>Reprocessar</button>
+                )}
+                {onDelete && (
+                  <button
+                    onClick={() => onDelete(f.id)}
+                    style={{ marginLeft: '0.5em' }}
+                  >
+                    Excluir
+                  </button>
+                )}
               </td>
             )}
           </tr>
