@@ -13,6 +13,7 @@ import productService from '../services/productService';
 import { showErrorToast, showSuccessToast, showInfoToast, showWarningToast } from '../utils/notifications';
 import './ProdutosPage.css';
 import { useProductTypes } from '../contexts/ProductTypeContext';
+import LoadingPopup from '../components/common/LoadingPopup.jsx';
 
 function ProdutosPage() {
   const [searchParams] = useSearchParams();
@@ -340,7 +341,7 @@ function ProdutosPage() {
         </div>
       )}
       {loading && (!produtos || produtos.length === 0) ? (
-        <div className="loading-message">Carregando produtos...</div>
+        <LoadingPopup isOpen={true} message="Carregando produtos..." />
       ) : (
         <ProductTable
           produtos={produtos}

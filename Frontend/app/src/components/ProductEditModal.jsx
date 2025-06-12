@@ -2,6 +2,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import Modal from './common/Modal';
+import LoadingPopup from './common/LoadingPopup.jsx';
 import { showSuccessToast, showErrorToast, showInfoToast, showWarningToast } from '../utils/notifications'; 
 import productService from '../services/productService'; 
 import fornecedorService from '../services/fornecedorService'; 
@@ -715,6 +716,10 @@ const ProductEditModal = ({ isOpen, onClose, product, onProductUpdated }) => {
             isOpen={isNewTypeModalOpen}
             onClose={handleCloseNewTypeModal}
             onCreated={handleNewTypeCreated}
+        />
+        <LoadingPopup
+            isOpen={isLoading || isEnrichingWeb || isGeneratingIA || isSuggestingGemini}
+            message="Processando..."
         />
         </>
     );

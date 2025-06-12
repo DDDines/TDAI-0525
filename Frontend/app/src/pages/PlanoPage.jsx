@@ -3,6 +3,7 @@ import React, { useState, useEffect } from 'react';
 import authService from '../services/authService';
 import { showErrorToast } from '../utils/notifications';
 import './PlanoPage.css'; // Criaremos este arquivo para estilos específicos
+import LoadingPopup from '../components/common/LoadingPopup.jsx';
 
 function PlanoPage() {
   const [currentUser, setCurrentUser] = useState(null);
@@ -28,13 +29,7 @@ function PlanoPage() {
   }, []);
 
   if (loading) {
-    return (
-      <div className="plano-page-container">
-        <div className="card">
-          <p>Carregando informações do plano...</p>
-        </div>
-      </div>
-    );
+    return <LoadingPopup isOpen={true} message="Carregando informações do plano..." />;
   }
 
   if (error) {
