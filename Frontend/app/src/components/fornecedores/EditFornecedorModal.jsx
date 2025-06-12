@@ -24,21 +24,24 @@ function EditFornecedorModal({ isOpen, onClose, fornecedorData, onSave, isLoadin
     }
   }, [fornecedorData]);
 
+  const fetchFiles = async () => {
+    if (!fornecedorData?.id) return;
+    setLoadingFiles(true);
+    try {
+      const data = await fornecedorService.getCatalogImportFiles({
+        fornecedor_id: fornecedorData.id,
+      });
+      setCatalogFiles(data.items || data);
+    } catch (err) {
+      console.error('Erro ao carregar arquivos de catálogo:', err);
+    } finally {
+      setLoadingFiles(false);
+    }
+  };
+
   useEffect(() => {
-    const loadFiles = async () => {
-      if (!fornecedorData?.id) return;
-      setLoadingFiles(true);
-      try {
-        const data = await fornecedorService.getCatalogImportFiles({ fornecedor_id: fornecedorData.id });
-        setCatalogFiles(data.items || data);
-      } catch (err) {
-        console.error('Erro ao carregar arquivos de catálogo:', err);
-      } finally {
-        setLoadingFiles(false);
-      }
-    };
     if (isOpen && activeTab === 'files') {
-      loadFiles();
+      fetchFiles();
     }
   }, [isOpen, activeTab, fornecedorData]);
 
@@ -82,6 +85,24 @@ function EditFornecedorModal({ isOpen, onClose, fornecedorData, onSave, isLoadin
     } else {
         console.error("ID do fornecedor não encontrado para atualização.");
         showErrorToast("Erro: ID do fornecedor não encontrado.");
+    }
+  };
+
+  const handleReprocessFile = async (fileId) => {
+    try {
+      await fornecedorService.reprocessCatalogFile(fileId);
+      await fetchFiles();
+    } catch (err) {
+      console.error('Erro ao reprocessar arquivo:', err);
+    }
+  };
+
+  const handleDeleteFile = async (fileId) => {
+    try {
+      await fornecedorService.deleteCatalogFile(fileId);
+      await fetchFiles();
+    } catch (err) {
+      console.error('Erro ao excluir arquivo:', err);
     }
   };
 
@@ -140,7 +161,22 @@ function EditFornecedorModal({ isOpen, onClose, fornecedorData, onSave, isLoadin
 
         {activeTab === 'files' && (
           <div className="form-section" style={{ marginTop: '1em' }}>
-            {loadingFiles ? <p>Carregando...</p> : <CatalogFileList files={catalogFiles} />}
+            <button
+              type="button"
+              onClick={() => setIsImportWizardOpen(true)}
+              style={{ marginBottom: '0.5em' }}
+            >
+              Adicionar Arquivo
+            </button>
+            {loadingFiles ? (
+              <p>Carregando...</p>
+            ) : (
+              <CatalogFileList
+                files={catalogFiles}
+                onReprocess={handleReprocessFile}
+                onDelete={handleDeleteFile}
+              />
+            )}
           </div>
         )}
         <ImportCatalogWizard

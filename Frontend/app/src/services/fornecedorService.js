@@ -178,6 +178,42 @@ export const getCatalogImportFiles = async (params = {}) => {
   }
 };
 
+export const deleteCatalogFile = async (fileId) => {
+  try {
+    const response = await apiClient.delete(
+      `/produtos/catalog-import-files/${fileId}/`
+    );
+    return response.data;
+  } catch (error) {
+    console.error(
+      `Erro ao excluir arquivo ${fileId}:`,
+      JSON.stringify(error.response?.data || error.message || error)
+    );
+    if (error.response && error.response.data) {
+      throw error.response.data;
+    }
+    throw new Error(error.message || 'Falha ao excluir arquivo');
+  }
+};
+
+export const reprocessCatalogFile = async (fileId) => {
+  try {
+    const response = await apiClient.post(
+      `/produtos/catalog-import-files/${fileId}/reprocess/`
+    );
+    return response.data;
+  } catch (error) {
+    console.error(
+      `Erro ao reprocessar arquivo ${fileId}:`,
+      JSON.stringify(error.response?.data || error.message || error)
+    );
+    if (error.response && error.response.data) {
+      throw error.response.data;
+    }
+    throw new Error(error.message || 'Falha ao reprocessar arquivo');
+  }
+};
+
 export const getImportacaoStatus = async (fileId) => {
   try {
     const response = await apiClient.get(`/produtos/importar-catalogo-status/${fileId}/`);
@@ -236,6 +272,8 @@ export default {
   importCatalogo,
   finalizarImportacaoCatalogo,
   getCatalogImportFiles,
+  deleteCatalogFile,
+  reprocessCatalogFile,
   getImportacaoStatus,
   selecionarRegiaoPdf,
   selecionarRegiao,

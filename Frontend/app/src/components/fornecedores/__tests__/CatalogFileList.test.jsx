@@ -1,5 +1,6 @@
 import { render, screen } from '@testing-library/react';
 import '@testing-library/jest-dom';
+import userEvent from '@testing-library/user-event';
 import CatalogFileList from '../CatalogFileList.jsx';
 
 jest.mock('../../../utils/backend.js', () => ({
@@ -33,4 +34,18 @@ test('renders link to stored file for each entry', () => {
     'href',
     'http://backend/static/uploads/catalogs/stored1.csv'
   );
+});
+
+test('calls handlers when buttons clicked', async () => {
+  const onDelete = jest.fn();
+  const onReprocess = jest.fn();
+  render(
+    <CatalogFileList files={files} onDelete={onDelete} onReprocess={onReprocess} />
+  );
+  const reprocessBtn = screen.getAllByText('Reprocessar')[0];
+  const deleteBtn = screen.getAllByText('Excluir')[0];
+  await userEvent.click(reprocessBtn);
+  await userEvent.click(deleteBtn);
+  expect(onReprocess).toHaveBeenCalledWith(files[0].id);
+  expect(onDelete).toHaveBeenCalledWith(files[0].id);
 });
