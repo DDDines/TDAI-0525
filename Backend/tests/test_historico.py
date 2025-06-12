@@ -4,6 +4,8 @@ os.environ.setdefault("FIRST_SUPERUSER_PASSWORD", "password")
 os.environ.setdefault("ADMIN_EMAIL", "admin@example.com")
 os.environ.setdefault("ADMIN_PASSWORD", "password")
 import pytest
+pytest.importorskip("httpx")
+pytest.importorskip("sqlalchemy")
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker

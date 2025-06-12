@@ -1,3 +1,5 @@
+import pytest
+pytest.importorskip("httpx")
 from fastapi.testclient import TestClient
 # Use absolute import so tests run correctly regardless of working directory
 from Backend.main import app
