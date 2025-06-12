@@ -172,6 +172,66 @@ def test_finalize_processes_full_file():
         assert all(p.fornecedor_id == fornec_id for p in produtos[2:])
 
 
+def test_list_catalog_files_pagination():
+    headers = get_admin_headers()
+    with TestingSessionLocal() as db:
+        admin = crud.get_user_by_email(db, settings.FIRST_SUPERUSER_EMAIL)
+        fornec_id = db.query(models.Fornecedor.id).first()[0]
+        for i in range(15):
+            db.add(
+                models.CatalogImportFile(
+                    user_id=admin.id,
+                    fornecedor_id=fornec_id,
+                    original_filename=f"file{i}.csv",
+                    stored_filename=f"stored{i}.csv",
+                )
+            )
+        db.commit()
+
+    resp = client.get(
+        "/api/v1/produtos/catalog-import-files/",
+        params={"skip": 10, "limit": 10},
+        headers=headers,
+    )
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["page"] == 2
+    assert data["limit"] == 10
+
+
+def test_list_catalog_files_filter_by_fornecedor():
+    headers = get_admin_headers()
+    with TestingSessionLocal() as db:
+        admin = crud.get_user_by_email(db, settings.FIRST_SUPERUSER_EMAIL)
+        fornec_base = db.query(models.Fornecedor).first()
+        new_forn = crud.create_fornecedor(db, schemas.FornecedorCreate(nome="F2"), user_id=admin.id)
+        new_forn_id = new_forn.id
+        db.add(
+            models.CatalogImportFile(
+                user_id=admin.id,
+                fornecedor_id=new_forn_id,
+                original_filename="f.csv",
+                stored_filename="s.csv",
+            )
+        )
+        db.add(
+            models.CatalogImportFile(
+                user_id=admin.id,
+                fornecedor_id=fornec_base.id,
+                original_filename="b.csv",
+                stored_filename="b.csv",
+            )
+        )
+        db.commit()
+
+    resp = client.get(
+        "/api/v1/produtos/catalog-import-files/",
+        params={"fornecedor_id": new_forn_id},
+        headers=headers,
+    )
+    assert resp.status_code == 200
+    data = resp.json()
+    assert all(item["fornecedor_id"] == new_forn_id for item in data["items"])
 def test_status_endpoint_returns_progress():
     headers = get_admin_headers()
     csv_content = "nome,sku\nC,3\n"

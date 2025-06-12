@@ -223,6 +223,30 @@ def create_produto(  # Nome da função mantido como no arquivo do usuário
     return db_produto
 
 
+@router.get("/catalog-import-files/", response_model=schemas.CatalogImportFilePage)
+def list_catalog_import_files(
+    db: Session = Depends(database.get_db),
+    fornecedor_id: Optional[int] = Query(None, description="ID do fornecedor"),
+    skip: int = Query(0, ge=0, description="Número de itens para pular"),
+    limit: int = Query(10, ge=1, le=100, description="Número máximo de itens por página"),
+    current_user: models.User = Depends(auth_utils.get_current_active_user),
+):
+    query = db.query(models.CatalogImportFile).filter(models.CatalogImportFile.user_id == current_user.id)
+    if fornecedor_id is not None:
+        query = query.filter(models.CatalogImportFile.fornecedor_id == fornecedor_id)
+    total_items = query.count()
+    items = (
+        query.order_by(models.CatalogImportFile.created_at.desc())
+        .offset(skip)
+        .limit(limit)
+        .all()
+    )
+    page = skip // limit + 1
+    return {"items": items, "total_items": total_items, "page": page, "limit": limit}
+
+
+
+
 @router.get("/{produto_id}", response_model=schemas.ProdutoResponse)  # CORRIGIDO AQUI
 def read_produto(  # Nome da função mantido como no arquivo do usuário
     produto_id: int,
@@ -788,6 +812,13 @@ async def importar_catalogo_finalizar(
                     entity_id=db_produto.id,
                 ),
             )
+
+    catalog_file.status = "IMPORTED"
+    db.add(catalog_file)
+    db.commit()
+
+    return {"produtos_criados": created, "erros": erros}
+
 
 @router.get(
     "/importar-catalogo-status/{file_id}/",

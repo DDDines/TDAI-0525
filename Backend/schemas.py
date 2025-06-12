@@ -419,6 +419,12 @@ class CatalogImportFileResponse(CatalogImportFileBase):
     class Config:
         from_attributes = True
 
+class CatalogImportFilePage(BaseModel):
+    items: List[CatalogImportFileResponse]
+    total_items: int
+    page: int
+    limit: int
+
 # --- Password Recovery Schemas ---
 class PasswordResetSchema(BaseModel):
     new_password: str = Field(..., min_length=8)
