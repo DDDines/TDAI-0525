@@ -15,6 +15,27 @@ depends_on: Union[str, Sequence[str], None] = None
 
 
 def upgrade() -> None:
+    conn = op.get_bind()
+    conn.execute(sa.text(
+        """
+        DELETE FROM produtos a
+        USING produtos b
+        WHERE a.id < b.id
+          AND a.user_id = b.user_id
+          AND a.sku IS NOT NULL AND b.sku IS NOT NULL
+          AND a.sku = b.sku
+        """
+    ))
+    conn.execute(sa.text(
+        """
+        DELETE FROM produtos a
+        USING produtos b
+        WHERE a.id < b.id
+          AND a.user_id = b.user_id
+          AND a.ean IS NOT NULL AND b.ean IS NOT NULL
+          AND a.ean = b.ean
+        """
+    ))
     op.create_unique_constraint('uq_produtos_user_sku', 'produtos', ['user_id', 'sku'])
     op.create_unique_constraint('uq_produtos_user_ean', 'produtos', ['user_id', 'ean'])
 
