@@ -344,3 +344,75 @@ def test_region_selection_endpoint():
     assert len(data["produtos"]) == 2
     assert data["produtos"][0]["nome_base"] == "P0"
     assert data["produtos"][1]["marca"] == "M1"
+
+
+def test_delete_catalog_import_file_removes_file_and_record():
+    headers = get_admin_headers()
+    csv_content = "nome,sku\nX,10\n"
+    files = {"file": ("cat.csv", io.BytesIO(csv_content.encode()), "text/csv")}
+    with TestingSessionLocal() as db:
+        fornec_id = db.query(models.Fornecedor.id).first()[0]
+    resp = client.post(
+        "/api/v1/produtos/importar-catalogo-preview/",
+        files=files,
+        data={"fornecedor_id": fornec_id},
+        headers=headers,
+    )
+    file_id = resp.json()["file_id"]
+    with TestingSessionLocal() as db:
+        record = db.query(models.CatalogImportFile).get(file_id)
+        stored = record.stored_filename
+    uploads = (
+        Path(__file__).resolve().parents[1]
+        / "Backend"
+        / "static"
+        / "uploads"
+        / "catalogs"
+    )
+    file_path = uploads / stored
+    assert file_path.exists()
+
+    del_resp = client.delete(
+        f"/api/v1/produtos/catalog-import-files/{file_id}/",
+        headers=headers,
+    )
+    assert del_resp.status_code == 200
+    assert not file_path.exists()
+    with TestingSessionLocal() as db:
+        assert db.query(models.CatalogImportFile).get(file_id) is None
+
+
+def test_reprocess_catalog_import_file_creates_again():
+    headers = get_admin_headers()
+    csv_content = "nome,sku\nY,11\n"
+    files = {"file": ("cat.csv", io.BytesIO(csv_content.encode()), "text/csv")}
+    with TestingSessionLocal() as db:
+        fornec_id = db.query(models.Fornecedor.id).first()[0]
+        pt_id = db.query(models.ProductType.id).first()[0]
+
+    resp = client.post(
+        "/api/v1/produtos/importar-catalogo-preview/",
+        files=files,
+        data={"fornecedor_id": fornec_id},
+        headers=headers,
+    )
+    file_id = resp.json()["file_id"]
+
+    client.post(
+        f"/api/v1/produtos/importar-catalogo-finalizar/{file_id}/",
+        headers=headers,
+        json={"product_type_id": pt_id, "fornecedor_id": fornec_id},
+    )
+    with TestingSessionLocal() as db:
+        initial_count = db.query(models.Produto).count()
+
+    resp = client.post(
+        f"/api/v1/produtos/catalog-import-files/{file_id}/reprocess/",
+        headers=headers,
+        json={"product_type_id": pt_id, "fornecedor_id": fornec_id},
+    )
+    assert resp.status_code == 202
+    with TestingSessionLocal() as db:
+        assert db.query(models.Produto).count() >= initial_count
+        record = db.query(models.CatalogImportFile).get(file_id)
+        assert record.status == "IMPORTED"

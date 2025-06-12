@@ -126,7 +126,8 @@ async def _tarefa_processar_catalogo(
                 erros.append({"motivo_descarte": f"Erro ao converter linha: {str(e)}", "linha_original": prod})
 
         if produtos_create:
-            created = crud_produtos.create_produtos_bulk(db, produtos_create, user_id=user_id)
+            created, dup_errors = crud_produtos.create_produtos_bulk(db, produtos_create, user_id=user_id)
+            erros.extend(dup_errors)
             for db_produto in created:
                 crud.create_registro_uso_ia(
                     db,
@@ -245,6 +246,76 @@ def list_catalog_import_files(
     )
     page = skip // limit + 1
     return {"items": items, "total_items": total_items, "page": page, "limit": limit}
+
+
+@router.delete(
+    "/catalog-import-files/{file_id}/",
+    response_model=schemas.CatalogImportFileResponse,
+)
+def delete_catalog_import_file(
+    file_id: int,
+    db: Session = Depends(database.get_db),
+    current_user: models.User = Depends(auth_utils.get_current_active_user),
+):
+    record = (
+        db.query(models.CatalogImportFile)
+        .filter_by(id=file_id, user_id=current_user.id)
+        .first()
+    )
+    if not record:
+        raise HTTPException(status_code=404, detail="Arquivo não encontrado")
+
+    file_processing_service.delete_catalog_file(record.stored_filename)
+    db.delete(record)
+    db.commit()
+    return record
+
+
+@router.post(
+    "/catalog-import-files/{file_id}/reprocess/",
+    status_code=status.HTTP_202_ACCEPTED,
+)
+async def reprocess_catalog_import_file(
+    background_tasks: BackgroundTasks,
+    file_id: int,
+    product_type_id: int = Body(..., embed=True),
+    fornecedor_id: int = Body(..., embed=True),
+    mapping: Optional[Dict[str, str]] = Body(None),
+    db: Session = Depends(database.get_db),
+    current_user: models.User = Depends(auth_utils.get_current_active_user),
+):
+    catalog_file = (
+        db.query(models.CatalogImportFile)
+        .filter_by(id=file_id, user_id=current_user.id)
+        .first()
+    )
+    if not catalog_file:
+        raise HTTPException(status_code=404, detail="Arquivo não encontrado")
+
+    catalog_file.status = "PROCESSING"
+    catalog_file.fornecedor_id = fornecedor_id
+    db.commit()
+
+    if mapping is None:
+        fornecedor = crud_fornecedores.get_fornecedor(db, fornecedor_id)
+        if fornecedor and fornecedor.default_column_mapping:
+            mapping = fornecedor.default_column_mapping
+
+    from sqlalchemy.orm import sessionmaker
+
+    db_session_factory = sessionmaker(bind=db.get_bind())
+
+    background_tasks.add_task(
+        _tarefa_processar_catalogo,
+        db_session_factory=db_session_factory,
+        file_id=file_id,
+        user_id=current_user.id,
+        product_type_id=product_type_id,
+        fornecedor_id=fornecedor_id,
+        mapping=mapping,
+    )
+
+    return {"status": "PROCESSING", "file_id": file_id}
 
 
 
