@@ -2,6 +2,7 @@ import pytest
 pytest.importorskip("sqlalchemy")
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
+from sqlalchemy.pool import StaticPool
 
 from Backend.database import Base
 from Backend import models
@@ -9,7 +10,11 @@ from Backend.services import limit_service
 
 @pytest.mark.asyncio
 async def test_verificar_e_consumir_creditos_geracao_ia():
-    engine = create_engine("sqlite:///:memory:", connect_args={"check_same_thread": False})
+    engine = create_engine(
+        "sqlite:///:memory:",
+        connect_args={"check_same_thread": False},
+        poolclass=StaticPool,
+    )
     Session = sessionmaker(bind=engine)
     Base.metadata.create_all(bind=engine)
     db = Session()

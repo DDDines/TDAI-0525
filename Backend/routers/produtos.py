@@ -552,15 +552,15 @@ async def importar_catalogo_fornecedor(
                     creditos_consumidos=0,
                 ),
             )
-        crud_historico.create_registro_historico(
-            db,
-            schemas.RegistroHistoricoCreate(
-                user_id=current_user.id,
-                entidade="Produto",
-                acao=models.TipoAcaoSistemaEnum.CRIACAO,
-                entity_id=db_produto.id,
-            ),
-        )
+            crud_historico.create_registro_historico(
+                db,
+                schemas.RegistroHistoricoCreate(
+                    user_id=current_user.id,
+                    entidade="Produto",
+                    acao=models.TipoAcaoSistemaEnum.CRIACAO,
+                    entity_id=db_produto.id,
+                ),
+            )
     return {"produtos_criados": created, "erros": erros}
 
 
