@@ -65,3 +65,28 @@ test('calls onClose after finishing import', async () => {
   await userEvent.click(screen.getByText('Fechar'));
   expect(onClose).toHaveBeenCalled();
 });
+
+test('confirms import even when fileId is missing', async () => {
+  fornecedorService.previewCatalogo.mockResolvedValueOnce({
+    fileId: null,
+    headers: ['Nome'],
+    sampleRows: [{ Nome: 'Item' }],
+    previewImages: [],
+  });
+
+  render(<ImportCatalogWizard isOpen={true} onClose={() => {}} fornecedorId={1} />);
+  const fileInput = document.querySelector('input[type="file"]');
+  const file = new File(['a'], 'test.csv', { type: 'text/csv' });
+  await userEvent.upload(fileInput, file);
+  await userEvent.click(screen.getByText('Gerar Preview'));
+  await userEvent.selectOptions(screen.getByRole('combobox'), '1');
+  await userEvent.click(screen.getByText('Continuar'));
+  await userEvent.click(screen.getByText('Confirmar Importação'));
+  expect(fornecedorService.finalizarImportacaoCatalogo).toHaveBeenCalledWith(
+    null,
+    1,
+    expect.any(Object),
+    expect.any(Array),
+    1,
+  );
+});
