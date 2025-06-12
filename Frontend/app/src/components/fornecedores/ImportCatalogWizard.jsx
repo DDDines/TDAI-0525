@@ -132,6 +132,7 @@ function ImportCatalogWizard({ isOpen, onClose, fornecedorId }) {
     try {
       await fornecedorService.finalizarImportacaoCatalogo(
         fileId,
+        fornecedorId,
         mapping,
         sampleRows,
         selectedType.id
