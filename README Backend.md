@@ -226,6 +226,13 @@
 * `get_product(product_id: int, db: Session)`: Busca produto pelo ID.
 * `update_product(product_id: int, update: ProdutoUpdate, db: Session)`: Atualiza produto.
 * `delete_product(product_id: int, db: Session)`: Remove produto.
+* `list_catalog_import_files(fornecedor_id: Optional[int], skip: int = 0, limit: int = 100, db: Session)`: Lista arquivos de importação de catálogos do usuário.
+* `importar_catalogo_preview(file: UploadFile, fornecedor_id: Optional[int], page_count: int, db: Session)`: Envia um arquivo e retorna cabeçalhos, amostras e `file_id` para processamento posterior.
+* `importar_catalogo_fornecedor(fornecedor_id: int, file: UploadFile, mapeamento_colunas_usuario: Optional[str], db: Session)`: Importa catálogo e cria produtos imediatamente.
+* `importar_catalogo_finalizar(file_id: int, product_type_id: int, fornecedor_id: int, mapping: Optional[dict], db: Session)`: Processa em background um arquivo já enviado.
+* `importar_catalogo_status(file_id: int, db: Session)`: Consulta o status do processamento do catálogo.
+* `selecionar_regiao_pdf(req: PdfRegionRequest, db: Session)`: Extrai texto de uma região específica de um PDF.
+* `selecionar_regiao(file_id: int, page: int, bbox: List[float], db: Session)`: Processa região selecionada e retorna produtos detectados.
 
 ## Backend/routers/social\_auth.py
 

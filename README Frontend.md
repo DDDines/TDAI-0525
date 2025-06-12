@@ -55,6 +55,10 @@
 
 * `PaginationControls({ currentPage, totalPages, onPageChange, isLoading, itemsPerPage, onItemsPerPageChange, totalItems })`: Componente de paginação. Recebe props para controlar página atual, total de itens e ações de navegação (próxima, anterior).
 
+## Frontend/app/src/common/PdfRegionSelector.jsx
+
+* `PdfRegionSelector({ file, onSelect })`: Permite desenhar uma região em um PDF e envia as coordenadas ao callback.
+
 ---
 
 ## Frontend/app/src/components/product_types/AttributeTemplateList.jsx
@@ -67,7 +71,7 @@
 
 ## Frontend/app/src/components/fornecedores/EditFornecedorModal.jsx
 
-* `EditFornecedorModal({ isOpen, onClose, fornecedorData, onSave, isLoading })`: Modal para editar dados de um fornecedor. Recebe props para controlar abertura, fornecedor ativo e callback de salvar. Na aba **Importar Catálogo**, o botão abre o `ImportCatalogWizard`.
+* `EditFornecedorModal({ isOpen, onClose, fornecedorData, onSave, isLoading })`: Modal para editar dados de um fornecedor. Conta agora com a aba **Arquivos**, que lista catálogos enviados e permite reprocessá-los. Na aba **Importar Catálogo**, o botão abre o `ImportCatalogWizard`.
 
 ## Frontend/app/src/components/fornecedores/ImportCatalogWizard.jsx
 
@@ -75,7 +79,11 @@
   1. **Pré-visualização e seleção do tipo** – upload do arquivo, exibição de amostras e escolha do tipo de produto.
   2. **Mapeamento de colunas** – associa colunas da planilha a campos padrão e atributos dinâmicos. Permite criar um novo tipo de produto caso não exista.
   3. **Confirmação** – revisão final e importação.
-  O wizard mostra linhas de amostra e miniaturas antes do envio definitivo, garantindo que as colunas estejam corretas.
+O wizard mostra linhas de amostra e miniaturas antes do envio definitivo, garantindo que as colunas estejam corretas.
+
+## Frontend/app/src/components/fornecedores/CatalogFileList.jsx
+
+* `CatalogFileList({ files = [], onReprocess })`: Exibe tabela com arquivos importados, mostrando link de download e botão opcional de reprocessar.
 
 ## Frontend/app/src/components/fornecedores/FornecedorTable.jsx
 
@@ -136,6 +144,10 @@
 ## Frontend/app/src/components/produtos/shared/AttributeField.jsx
 
 * `AttributeField({ attributeTemplate, value, onChange, disabled })`: Componente para campo de atributo dinâmico em formulários de produto. Renderiza campo de input/select conforme tipo do atributo. Dispara callback ao alterar valor.
+
+### Instruções de gerenciamento de arquivos
+
+Na aba **Arquivos** do `EditFornecedorModal` é possível visualizar catálogos já enviados. Clique no nome para baixar o arquivo ou use **Reprocessar** para importá-lo novamente. Durante o assistente de importação, o `PdfRegionSelector` ajuda a escolher a região do PDF contendo a tabela de produtos.
 
 ---
 
