@@ -3,7 +3,7 @@
 }
 
 .loading-logo {
-  width: 100px;
+  width: 200px;
   margin-bottom: 20px;
 }
 
@@ -15,6 +15,11 @@
   border-radius: 50%;
   animation: loading-spin 1s linear infinite;
   margin: 0 auto 10px auto;
+}
+
+.loading-text {
+  margin-bottom: 10px;
+  font-size: 1.1em;
 }
 
 @keyframes loading-spin {
