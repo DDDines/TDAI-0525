@@ -18,8 +18,18 @@ from Backend.services import web_data_extractor_service
 logger = get_logger(__name__)
 
 
-async def save_uploaded_catalog(file: UploadFile) -> models.CatalogImportFile:
-    """Salva o arquivo de catálogo no disco e retorna um objeto CatalogImportFile."""
+async def save_uploaded_catalog(
+    file: UploadFile, fornecedor_id: Optional[int] = None
+) -> models.CatalogImportFile:
+    """Salva o arquivo de catálogo no disco e retorna um objeto CatalogImportFile.
+
+    Parameters
+    ----------
+    file: UploadFile
+        Arquivo recebido na requisição.
+    fornecedor_id: Optional[int]
+        Identificador do fornecedor para o qual o catálogo será importado.
+    """
     directory = Path(settings.UPLOAD_DIRECTORY) / "catalogs"
     if not directory.is_absolute():
         directory = Path(__file__).resolve().parent.parent / directory
@@ -38,6 +48,7 @@ async def save_uploaded_catalog(file: UploadFile) -> models.CatalogImportFile:
         original_filename=file.filename,
         stored_filename=unique_name,
         status="UPLOADED",
+        fornecedor_id=fornecedor_id,
     )
 
 def _limpar_valor_extraido(valor: Any) -> Optional[str]:
