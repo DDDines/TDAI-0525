@@ -1,4 +1,10 @@
+import os
 import pytest
+
+os.environ.setdefault("FIRST_SUPERUSER_EMAIL", "admin@example.com")
+os.environ.setdefault("FIRST_SUPERUSER_PASSWORD", "password")
+os.environ.setdefault("ADMIN_EMAIL", "admin@example.com")
+os.environ.setdefault("ADMIN_PASSWORD", "password")
 
 SQLALCHEMY_DATABASE_URL = "sqlite:///:memory:"
 
@@ -10,8 +16,12 @@ def db_session():
     import Backend.crud as crud
     import Backend.schemas as schemas
 
+    from sqlalchemy.pool import StaticPool
+
     engine = create_engine(
-        SQLALCHEMY_DATABASE_URL, connect_args={"check_same_thread": False}
+        SQLALCHEMY_DATABASE_URL,
+        connect_args={"check_same_thread": False},
+        poolclass=StaticPool,
     )
     TestingSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
     Base.metadata.create_all(bind=engine)
