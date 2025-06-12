@@ -497,6 +497,10 @@ async def importar_catalogo_fornecedor(
             raise HTTPException(
                 status_code=400, detail="mapeamento_colunas_usuario inválido"
             )
+    else:
+        fornecedor = crud_fornecedores.get_fornecedor(db, fornecedor_id)
+        if fornecedor and fornecedor.default_column_mapping:
+            mapping_dict = fornecedor.default_column_mapping
     if ext in [".xlsx", ".xls"]:
         produtos_data = await file_processing_service.processar_arquivo_excel(
             content, mapping_dict
@@ -605,6 +609,10 @@ async def importar_catalogo_finalizar(
     # Sempre reprocessa o arquivo completo para evitar importar apenas as linhas de preview
     content = file_path.read_bytes()
     ext = file_path.suffix.lower()
+    if mapping is None:
+        fornecedor = crud_fornecedores.get_fornecedor(db, fornecedor_id)
+        if fornecedor and fornecedor.default_column_mapping:
+            mapping = fornecedor.default_column_mapping
     if ext in [".xlsx", ".xls"]:
         produtos_data = await file_processing_service.processar_arquivo_excel(
             content,
