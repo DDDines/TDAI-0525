@@ -12,6 +12,7 @@ chardet
 pandas
 passlib
 pdfplumber
+pdf2image==1.17.0
 playwright
 pydantic
 pydantic-settings
