@@ -73,6 +73,7 @@ def test_preview_saves_file_and_record():
         record = db.query(models.CatalogImportFile).get(file_id)
         assert record is not None
         assert record.status == "UPLOADED"
+        assert record.fornecedor_id == fornec_id
         path = (
             Path(__file__).resolve().parents[1]
             / "Backend"
