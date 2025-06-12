@@ -21,4 +21,3 @@ starlette
 trafilatura
 uvicorn
 httpx
-httpx
