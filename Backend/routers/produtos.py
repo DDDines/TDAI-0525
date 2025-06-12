@@ -540,9 +540,10 @@ async def importar_catalogo_fornecedor(
 
     created: List[models.Produto] = []
     if produtos_create:
-        created = crud_produtos.create_produtos_bulk(
+        created, dup_errors = crud_produtos.create_produtos_bulk(
             db, produtos_create, user_id=current_user.id
         )
+        erros.extend(dup_errors)
         for db_produto in created:
             crud.create_registro_uso_ia(
                 db,
@@ -656,9 +657,10 @@ async def importar_catalogo_finalizar(
 
     created: List[models.Produto] = []
     if produtos_create:
-        created = crud_produtos.create_produtos_bulk(
+        created, dup_errors = crud_produtos.create_produtos_bulk(
             db, produtos_create, user_id=current_user.id
         )
+        erros.extend(dup_errors)
         for db_produto in created:
             crud.create_registro_uso_ia(
                 db,
