@@ -18,7 +18,7 @@ jest.mock('../../../services/fornecedorService', () => ({
 
 import fornecedorService from '../../../services/fornecedorService';
 
-test('loads and displays catalog files on import tab', async () => {
+test('loads and displays catalog files on Arquivos tab', async () => {
   render(
     <EditFornecedorModal
       isOpen={true}
@@ -28,7 +28,7 @@ test('loads and displays catalog files on import tab', async () => {
       isLoading={false}
     />
   );
-  await userEvent.click(screen.getByText('Importar Catálogo'));
+  await userEvent.click(screen.getByText('Arquivos'));
   await waitFor(() => expect(fornecedorService.getCatalogImportFiles).toHaveBeenCalledWith({ fornecedor_id: 5 }));
   expect(await screen.findByText('file1.csv')).toBeInTheDocument();
 });
