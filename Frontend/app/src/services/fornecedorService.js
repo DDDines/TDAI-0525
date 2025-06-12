@@ -175,6 +175,9 @@ export const getCatalogImportFiles = async (params = {}) => {
     } else {
       throw new Error(error.message || 'Erro ao configurar requisição para buscar arquivos de importação.');
     }
+  }
+};
+
 export const getImportacaoStatus = async (fileId) => {
   try {
     const response = await apiClient.get(`/produtos/importar-catalogo-status/${fileId}/`);
@@ -188,6 +191,21 @@ export const getImportacaoStatus = async (fileId) => {
   }
 };
 
+export const selecionarRegiaoPdf = async (
+  fileId,
+  page,
+  bbox,
+) => {
+  try {
+    const payload = { file_id: fileId, page, ...bbox };
+    const response = await apiClient.post('/produtos/selecionar-regiao/', payload);
+    return response.data;
+  } catch (error) {
+    console.error('Erro ao selecionar região do PDF:', JSON.stringify(error.response?.data || error.message || error));
+    if (error.response && error.response.data) {
+      throw error.response.data;
+    }
+    throw new Error(error.message || 'Falha ao solicitar região do PDF');
 export const selecionarRegiao = async (fileId, page, bbox) => {
   try {
     const response = await apiClient.post('/produtos/selecionar-regiao/', {
@@ -216,5 +234,6 @@ export default {
   finalizarImportacaoCatalogo,
   getCatalogImportFiles,
   getImportacaoStatus,
+  selecionarRegiaoPdf,
   selecionarRegiao,
 };

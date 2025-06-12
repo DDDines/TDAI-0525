@@ -20,6 +20,8 @@ import pdfplumber
 from sqlalchemy.orm import Session
 from pathlib import Path
 from sqlalchemy import func, or_
+import io
+import pdfplumber
 
 from Backend import crud_produtos
 from Backend import crud_fornecedores
@@ -788,37 +790,6 @@ async def importar_catalogo_finalizar(
     )
 
     return {"status": "PROCESSING", "file_id": file_id}
-    created: List[models.Produto] = []
-    if produtos_create:
-        created, dup_errors = crud_produtos.create_produtos_bulk(
-            db, produtos_create, user_id=current_user.id
-        )
-        erros.extend(dup_errors)
-        for db_produto in created:
-            crud.create_registro_uso_ia(
-                db,
-                schemas.RegistroUsoIACreate(
-                    user_id=current_user.id,
-                    produto_id=db_produto.id,
-                    tipo_acao=models.TipoAcaoEnum.CRIACAO_PRODUTO,
-                    creditos_consumidos=0,
-                ),
-            )
-            crud_historico.create_registro_historico(
-                db,
-                schemas.RegistroHistoricoCreate(
-                    user_id=current_user.id,
-                    entidade="Produto",
-                    acao=models.TipoAcaoSistemaEnum.CRIACAO,
-                    entity_id=db_produto.id,
-                ),
-            )
-
-    catalog_file.status = "IMPORTED"
-    db.add(catalog_file)
-    db.commit()
-
-    return {"produtos_criados": created, "erros": erros}
 
 
 @router.get(
@@ -841,6 +812,16 @@ def importar_catalogo_status(
     return record
 
 
+
+@router.post("/selecionar-regiao/", response_model=schemas.PdfRegionResponse)
+async def selecionar_regiao_pdf(
+    req: schemas.PdfRegionRequest,
+    db: Session = Depends(database.get_db),
+    current_user: models.User = Depends(auth_utils.get_current_active_user),
+):
+    record = (
+        db.query(models.CatalogImportFile)
+        .filter_by(id=req.file_id, user_id=current_user.id)
 @router.post(
     "/selecionar-regiao/",
     response_model=schemas.RegionExtractionResponse,
@@ -868,6 +849,28 @@ async def selecionar_regiao(
         raise HTTPException(status_code=404, detail="Arquivo não encontrado")
 
     content = file_path.read_bytes()
+
+    try:
+        with pdfplumber.open(io.BytesIO(content)) as pdf:
+            if req.page < 1 or req.page > len(pdf.pages):
+                raise HTTPException(status_code=400, detail="Página inválida")
+            page = pdf.pages[req.page - 1]
+            cropped = page.crop((req.x0, req.y0, req.x1, req.y1))
+            text = cropped.extract_text(x_tolerance=2, y_tolerance=2) or ""
+            return {
+                "file_id": req.file_id,
+                "page": req.page,
+                "x0": req.x0,
+                "y0": req.y0,
+                "x1": req.x1,
+                "y1": req.y1,
+                "text": text,
+            }
+    except HTTPException:
+        raise
+    except Exception:
+        logger.exception("Erro ao extrair região do PDF")
+        raise HTTPException(status_code=500, detail="Falha ao processar PDF")
     produtos: List[Dict[str, Any]] = []
     log: List[str] = []
     try:
