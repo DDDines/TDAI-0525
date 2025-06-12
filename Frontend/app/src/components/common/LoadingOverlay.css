@@ -1,5 +1,7 @@
+
 .loading-overlay-content {
   text-align: center;
+  color: white; /* Ensure loading text is visible on dark overlay */
 }
 
 .loading-logo {
@@ -8,9 +10,9 @@
 }
 
 .loading-spinner {
-  width: 100px;
-  height: 100px;
-  border: 12px solid #ddd;
+  width: 50px; /* 50% smaller spinner */
+  height: 50px;
+  border: 6px solid #ddd;
   border-top-color: #333;
   border-radius: 50%;
   animation: loading-spin 1s linear infinite;
