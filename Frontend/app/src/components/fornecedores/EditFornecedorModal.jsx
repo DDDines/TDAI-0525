@@ -7,7 +7,7 @@ import fornecedorService from '../../services/fornecedorService';
 
 function EditFornecedorModal({ isOpen, onClose, fornecedorData, onSave, isLoading }) {
   const [formData, setFormData] = useState({ nome: '', site_url: ''});
-  const [activeTab, setActiveTab] = useState('info');
+  const [activeTab, setActiveTab] = useState('info'); // 'info' | 'import' | 'files'
   const [isImportWizardOpen, setIsImportWizardOpen] = useState(false);
   const [catalogFiles, setCatalogFiles] = useState([]);
   const [loadingFiles, setLoadingFiles] = useState(false);
@@ -37,7 +37,7 @@ function EditFornecedorModal({ isOpen, onClose, fornecedorData, onSave, isLoadin
         setLoadingFiles(false);
       }
     };
-    if (isOpen && activeTab === 'import') {
+    if (isOpen && activeTab === 'files') {
       loadFiles();
     }
   }, [isOpen, activeTab, fornecedorData]);
@@ -104,6 +104,7 @@ function EditFornecedorModal({ isOpen, onClose, fornecedorData, onSave, isLoadin
         <div className="tab-navigation">
           <button type="button" className={activeTab === 'info' ? 'active' : ''} onClick={() => setActiveTab('info')}>Info</button>
           <button type="button" className={activeTab === 'import' ? 'active' : ''} onClick={() => setActiveTab('import')}>Importar Catálogo</button>
+          <button type="button" className={activeTab === 'files' ? 'active' : ''} onClick={() => setActiveTab('files')}>Arquivos</button>
         </div>
 
         {activeTab === 'info' && (
@@ -134,9 +135,12 @@ function EditFornecedorModal({ isOpen, onClose, fornecedorData, onSave, isLoadin
             <button onClick={() => setIsImportWizardOpen(true)}>
               Importar Catálogo
             </button>
-            <div style={{ marginTop: '1em' }}>
-              {loadingFiles ? <p>Carregando...</p> : <CatalogFileList files={catalogFiles} />}
-            </div>
+          </div>
+        )}
+
+        {activeTab === 'files' && (
+          <div className="form-section" style={{ marginTop: '1em' }}>
+            {loadingFiles ? <p>Carregando...</p> : <CatalogFileList files={catalogFiles} />}
           </div>
         )}
         <ImportCatalogWizard
