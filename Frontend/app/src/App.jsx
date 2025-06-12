@@ -20,7 +20,7 @@ import RecuperarSenhaPage from './pages/RecuperarSenhaPage';
 import ResetSenhaPage from './pages/ResetSenhaPage';
 import ProtectedRoute from './components/ProtectedRoute';
 // Importe outras páginas e componentes necessários
-import LoadingPopup from './components/common/LoadingPopup.jsx';
+import LoadingOverlay from './components/common/LoadingOverlay.jsx';
 
 import './App.css';
 import logger from './utils/logger';
@@ -37,7 +37,7 @@ function AppContent() {
   // ou deixar o ProtectedRoute lidar com isso individualmente.
   // Para evitar piscar a tela de login, é bom ter um estado de carregamento aqui.
   if (isLoading) {
-    return <LoadingPopup isOpen={true} message="Carregando Aplicação..." />;
+    return <LoadingOverlay isOpen={true} message="Carregando Aplicação..." />;
   }
 
   return (

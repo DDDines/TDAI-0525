@@ -7,7 +7,7 @@ import adminService from '../services/adminService'; // NOVO: Importar o adminSe
 import { showErrorToast } from '../utils/notifications';
 import searchService from '../services/searchService';
 import DOMPurify from 'dompurify';
-import LoadingPopup from '../components/common/LoadingPopup.jsx';
+import LoadingOverlay from '../components/common/LoadingOverlay.jsx';
 
 // Alerts exibidos enquanto funcionalidades não estão completas
 const mockDashboardData = {
@@ -132,7 +132,7 @@ function DashboardPage() {
   const alertsData = mockDashboardData;
 
   if (loading) {
-    return <LoadingPopup isOpen={true} message="Carregando dashboard..." />;
+    return <LoadingOverlay isOpen={true} message="Carregando dashboard..." />;
   }
 
   return (

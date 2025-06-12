@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import Modal from '../common/Modal.jsx';
 import fornecedorService from '../../services/fornecedorService';
 import { useProductTypes } from '../../contexts/ProductTypeContext';
-import LoadingPopup from '../common/LoadingPopup.jsx';
+import LoadingOverlay from '../common/LoadingOverlay.jsx';
 
 const BASE_FIELD_OPTIONS = [
   { value: 'nome_base', label: 'Nome Base' },
@@ -308,7 +308,7 @@ function ImportCatalogWizard({ isOpen, onClose, fornecedorId }) {
           <button className="btn-success" onClick={handleSaveNewType} disabled={isSubmittingType}>{isSubmittingType ? 'Salvando...' : 'Salvar Tipo'}</button>
         </div>
       </Modal>
-      <LoadingPopup isOpen={loading || isSubmittingType} message="Processando..." />
+      <LoadingOverlay isOpen={loading || isSubmittingType} message="Processando..." />
     </>
   );
 }
