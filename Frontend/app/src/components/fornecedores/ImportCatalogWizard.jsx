@@ -1,8 +1,9 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, lazy, Suspense } from 'react';
 import Modal from '../common/Modal.jsx';
 import fornecedorService from '../../services/fornecedorService';
 import { useProductTypes } from '../../contexts/ProductTypeContext';
 import LoadingOverlay from '../common/LoadingOverlay.jsx';
+const PdfRegionSelector = lazy(() => import('../common/PdfRegionSelector.jsx'));
 
 const BASE_FIELD_OPTIONS = [
   { value: 'nome_base', label: 'Nome Base' },
@@ -33,6 +34,8 @@ function ImportCatalogWizard({ isOpen, onClose, fornecedorId }) {
   const [isSubmittingType, setIsSubmittingType] = useState(false);
   const intervalRef = useRef(null);
   const [currentPreviewPage, setCurrentPreviewPage] = useState(0);
+  const [regionProducts, setRegionProducts] = useState(null);
+  const [isRegionModalOpen, setIsRegionModalOpen] = useState(false);
 
   const { productTypes, addProductType } = useProductTypes();
 
@@ -66,8 +69,6 @@ function ImportCatalogWizard({ isOpen, onClose, fornecedorId }) {
     if (!file) return;
     setLoading(true);
     try {
-      const data = await fornecedorService.previewCatalogo(file, 5);
-      setPreview({ headers: data.headers, previewImages: data.previewImages || [] });
       const data = await fornecedorService.previewCatalogo(file, PREVIEW_PAGE_COUNT);
       setPreview({
         headers: data.headers,
@@ -97,6 +98,25 @@ function ImportCatalogWizard({ isOpen, onClose, fornecedorId }) {
       updated[rowIndex] = row;
       return updated;
     });
+  };
+
+  const handleRegionConfirm = async (selection) => {
+    if (!fileId) return;
+    setLoading(true);
+    try {
+      const data = await fornecedorService.selecionarRegiao(
+        fileId,
+        selection.page,
+        selection.bbox,
+      );
+      setRegionProducts(data.produtos);
+      setSampleRows(data.produtos);
+      setIsRegionModalOpen(false);
+    } catch (err) {
+      alert(err.detail || err.message || 'Erro ao processar região');
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleContinueAfterTypeSelect = () => {
@@ -223,6 +243,9 @@ function ImportCatalogWizard({ isOpen, onClose, fornecedorId }) {
               alt={`Página ${currentPreviewPage + 1}`}
               style={{ maxWidth: '100%', marginBottom: '1em' }}
             />
+            <button type="button" onClick={() => setIsRegionModalOpen(true)} className="btn-small">
+              Selecionar Região
+            </button>
             {preview.tablePages && preview.tablePages.length > 0 && (
               <p>Páginas com tabelas: {preview.tablePages.join(', ')}</p>
             )}
@@ -360,6 +383,13 @@ function ImportCatalogWizard({ isOpen, onClose, fornecedorId }) {
           <button className="btn-secondary" onClick={() => setIsNewTypeModalOpen(false)} disabled={isSubmittingType}>Cancelar</button>
           <button className="btn-success" onClick={handleSaveNewType} disabled={isSubmittingType}>{isSubmittingType ? 'Salvando...' : 'Salvar Tipo'}</button>
         </div>
+      </Modal>
+      <Modal isOpen={isRegionModalOpen} onClose={() => setIsRegionModalOpen(false)} title="Selecionar Região">
+        {file && (
+          <Suspense fallback={<div>Carregando...</div>}>
+            <PdfRegionSelector file={file} onSelect={handleRegionConfirm} />
+          </Suspense>
+        )}
       </Modal>
       <LoadingOverlay isOpen={loading || isSubmittingType} message="Processando..." />
     </>
