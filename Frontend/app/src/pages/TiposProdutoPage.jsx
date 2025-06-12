@@ -10,7 +10,7 @@ import AttributeTemplateList from '../components/product_types/AttributeTemplate
 import AttributeTemplateModal from '../components/product_types/AttributeTemplateModal';
 
 import './TiposProdutoPage.css';
-import LoadingPopup from '../components/common/LoadingPopup.jsx';
+import LoadingOverlay from '../components/common/LoadingOverlay.jsx';
 
 function TiposProdutoPage() {
   const { productTypes, isLoading, error, refreshProductTypes, updateProductType } = useProductTypes();
@@ -149,7 +149,7 @@ function TiposProdutoPage() {
   };
 
   if (isLoading && productTypes.length === 0) {
-    return <LoadingPopup isOpen={true} message="Carregando tipos de produto..." />;
+    return <LoadingOverlay isOpen={true} message="Carregando tipos de produto..." />;
   }
 
   if (error) {
