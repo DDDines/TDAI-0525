@@ -129,12 +129,13 @@ export const importCatalogo = async (fornecedorId, file, mapping = null) => {
 
 export const finalizarImportacaoCatalogo = async (
   fileId,
+  fornecedorId,
   mapping = null,
   rows = null,
   productTypeId = null,
 ) => {
   try {
-    const payload = { file_id: fileId };
+    const payload = { file_id: fileId, fornecedor_id: fornecedorId };
     if (productTypeId) payload.product_type_id = productTypeId;
     if (mapping) {
       payload.mapping = mapping;

@@ -44,16 +44,12 @@ test('shows preview rows and sends productTypeId on confirm', async () => {
   await userEvent.click(screen.getByText('Confirmar Importação'));
   expect(fornecedorService.finalizarImportacaoCatalogo).toHaveBeenCalledWith(
     'f1',
+    1,
     expect.any(Object),
     expect.any(Array),
     1,
   );
-  expect(await screen.findByText('Item')).toBeInTheDocument();
-  await userEvent.selectOptions(screen.getByLabelText(/Tipo de Produto/i), '1');
-  await userEvent.click(screen.getByText('Continuar'));
-  await userEvent.type(screen.getAllByRole('textbox')[0], 'X');
-  await userEvent.click(screen.getByText('Confirmar Importação'));
-  expect(fornecedorService.finalizarImportacaoCatalogo).toHaveBeenCalledWith('f1', expect.any(Object), expect.any(Array), 1);
+  expect(await screen.findByText('Importação concluída com sucesso')).toBeInTheDocument();
 });
 
 test('calls onClose after finishing import', async () => {
@@ -66,9 +62,6 @@ test('calls onClose after finishing import', async () => {
   await userEvent.selectOptions(screen.getByRole('combobox'), '1');
   await userEvent.click(screen.getByText('Continuar'));
   await userEvent.click(await screen.findByText('Confirmar Importação'));
-  await userEvent.selectOptions(await screen.findByLabelText(/Tipo de Produto/i), '1');
-  await userEvent.click(screen.getByText('Continuar'));
-  await userEvent.click(screen.getByText('Confirmar Importação'));
   await userEvent.click(screen.getByText('Fechar'));
   expect(onClose).toHaveBeenCalled();
 });
