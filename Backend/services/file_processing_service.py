@@ -51,6 +51,19 @@ async def save_uploaded_catalog(
         fornecedor_id=fornecedor_id,
     )
 
+
+def delete_catalog_file(stored_filename: str) -> None:
+    """Remove a stored catalog file from disk if it exists."""
+    directory = Path(settings.UPLOAD_DIRECTORY) / "catalogs"
+    if not directory.is_absolute():
+        directory = Path(__file__).resolve().parent.parent / directory
+    path = directory / stored_filename
+    try:
+        if path.exists():
+            path.unlink()
+    except Exception:
+        logger.exception("Erro ao remover arquivo %s", stored_filename)
+
 def _limpar_valor_extraido(valor: Any) -> Optional[str]:
     """Helper para limpar strings ou converter outros tipos para string, retornando None se vazio."""
     if valor is None:
