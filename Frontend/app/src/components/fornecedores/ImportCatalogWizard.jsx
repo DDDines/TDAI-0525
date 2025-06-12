@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import Modal from '../common/Modal.jsx';
 import fornecedorService from '../../services/fornecedorService';
 import { useProductTypes } from '../../contexts/ProductTypeContext';
@@ -29,6 +29,7 @@ function ImportCatalogWizard({ isOpen, onClose, fornecedorId }) {
   const [isNewTypeModalOpen, setIsNewTypeModalOpen] = useState(false);
   const [newTypeName, setNewTypeName] = useState('');
   const [isSubmittingType, setIsSubmittingType] = useState(false);
+  const intervalRef = useRef(null);
 
   const { productTypes, addProductType } = useProductTypes();
 
@@ -46,6 +47,10 @@ function ImportCatalogWizard({ isOpen, onClose, fornecedorId }) {
       setSelectedType(null);
       setNewTypeName('');
       setIsNewTypeModalOpen(false);
+      if (intervalRef.current) {
+        clearInterval(intervalRef.current);
+        intervalRef.current = null;
+      }
     }
   }, [isOpen]);
 
@@ -137,8 +142,24 @@ function ImportCatalogWizard({ isOpen, onClose, fornecedorId }) {
         sampleRows,
         selectedType.id
       );
-      setMessage('Importação concluída com sucesso');
+      setMessage('Processando...');
       setStep(4);
+      const checkStatus = async () => {
+        try {
+          const { status } = await fornecedorService.getImportacaoStatus(fileId);
+          if (status === 'IMPORTED') {
+            setMessage('Importação concluída com sucesso');
+            clearInterval(intervalRef.current);
+          } else if (status !== 'PROCESSING') {
+            setMessage('Falha na importação');
+            clearInterval(intervalRef.current);
+          }
+        } catch {
+          clearInterval(intervalRef.current);
+        }
+      };
+      await checkStatus();
+      intervalRef.current = setInterval(checkStatus, 2000);
     } catch (err) {
       alert(err.detail || err.message || 'Erro ao importar catálogo');
     } finally {
