@@ -34,7 +34,10 @@ with TestingSessionLocal() as db:
 def get_admin_headers():
     resp = client.post(
         "/api/v1/auth/token",
-        data={"username": settings.FIRST_SUPERUSER_EMAIL, "password": settings.FIRST_SUPERUSER_PASSWORD},
+        data={
+            "username": settings.FIRST_SUPERUSER_EMAIL,
+            "password": settings.FIRST_SUPERUSER_PASSWORD,
+        },
     )
     assert resp.status_code == 200
     token = resp.json()["access_token"]
@@ -45,7 +48,9 @@ def test_preview_saves_file_and_record():
     headers = get_admin_headers()
     csv_content = "nome,sku\nA,1\n"
     files = {"file": ("catalogo.csv", io.BytesIO(csv_content.encode()), "text/csv")}
-    resp = client.post("/api/v1/produtos/importar-catalogo-preview/", files=files, headers=headers)
+    resp = client.post(
+        "/api/v1/produtos/importar-catalogo-preview/", files=files, headers=headers
+    )
     assert resp.status_code == 200
     data = resp.json()
     assert "file_id" in data
@@ -55,7 +60,14 @@ def test_preview_saves_file_and_record():
         record = db.query(models.CatalogImportFile).get(file_id)
         assert record is not None
         assert record.status == "UPLOADED"
-        path = Path(__file__).resolve().parents[1] / "Backend" / "static" / "uploads" / "catalogs" / record.stored_filename
+        path = (
+            Path(__file__).resolve().parents[1]
+            / "Backend"
+            / "static"
+            / "uploads"
+            / "catalogs"
+            / record.stored_filename
+        )
         assert path.exists()
 
 
@@ -63,7 +75,9 @@ def test_finalize_updates_status():
     headers = get_admin_headers()
     csv_content = "nome,sku\nB,2\n"
     files = {"file": ("catalogo.csv", io.BytesIO(csv_content.encode()), "text/csv")}
-    resp = client.post("/api/v1/produtos/importar-catalogo-preview/", files=files, headers=headers)
+    resp = client.post(
+        "/api/v1/produtos/importar-catalogo-preview/", files=files, headers=headers
+    )
     assert resp.status_code == 200
     file_id = resp.json()["file_id"]
 
@@ -77,9 +91,11 @@ def test_finalize_updates_status():
     )
     assert resp.status_code == 200
     data = resp.json()
-    assert "produtos" in data
-    assert len(data["produtos"]) == 1
+    assert "produtos_criados" in data
+    assert len(data["produtos_criados"]) == 1
 
     with TestingSessionLocal() as db:
         record = db.query(models.CatalogImportFile).get(file_id)
         assert record.status == "IMPORTED"
+        produtos = db.query(models.Produto).all()
+        assert len(produtos) == 1
