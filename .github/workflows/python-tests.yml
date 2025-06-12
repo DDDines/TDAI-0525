@@ -19,6 +19,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - name: Install backend requirements
+        run: pip install -r requirements-backend.txt
       - name: Build test image
         run: docker build -f Dockerfile.test -t catalogai-test .
       - name: Run tests
