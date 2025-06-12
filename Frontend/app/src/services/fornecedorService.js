@@ -151,7 +151,10 @@ export const finalizarImportacaoCatalogo = async (
     if (rows) {
       payload.rows = rows;
     }
-    const response = await apiClient.post(`/produtos/importar-catalogo-finalizar/${fileId}/`, payload);
+    const response = await apiClient.post(
+      `/produtos/importar-catalogo-finalizar/${fileId}/`,
+      payload
+    );
     return response.data;
   } catch (error) {
     console.error(
@@ -165,6 +168,19 @@ export const finalizarImportacaoCatalogo = async (
   }
 };
 
+export const getImportacaoStatus = async (fileId) => {
+  try {
+    const response = await apiClient.get(`/produtos/importar-catalogo-status/${fileId}/`);
+    return response.data;
+  } catch (error) {
+    console.error(`Erro ao consultar status do arquivo ${fileId}:`, JSON.stringify(error.response?.data || error.message || error));
+    if (error.response && error.response.data) {
+      throw error.response.data;
+    }
+    throw new Error(error.message || 'Falha ao consultar status da importação');
+  }
+};
+
 export default {
   getFornecedores,
   getFornecedorById,
@@ -174,4 +190,5 @@ export default {
   previewCatalogo,
   importCatalogo,
   finalizarImportacaoCatalogo,
+  getImportacaoStatus,
 };

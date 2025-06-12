@@ -129,10 +129,9 @@ def test_finalize_updates_status():
         headers=headers,
         json={"product_type_id": pt_id, "fornecedor_id": fornec_id},
     )
-    assert resp.status_code == 200
-    data = resp.json()
-    assert "produtos_criados" in data
-    assert len(data["produtos_criados"]) == 1
+    assert resp.status_code == 202
+    assert resp.json()["status"] == "PROCESSING"
+    assert resp.json()["status"] == "PROCESSING"
 
     with TestingSessionLocal() as db:
         record = db.query(models.CatalogImportFile).get(file_id)
@@ -166,15 +165,21 @@ def test_finalize_processes_full_file():
         headers=headers,
         json={"product_type_id": pt_id, "fornecedor_id": fornec_id},
     )
-    assert resp.status_code == 200
-    data = resp.json()
-    assert len(data["produtos_criados"]) == 8
+    assert resp.status_code == 202
     with TestingSessionLocal() as db:
         produtos = db.query(models.Produto).all()
         assert len(produtos) == 10  # 2 existentes + 8 novos
         assert all(p.fornecedor_id == fornec_id for p in produtos[2:])
 
 
+def test_status_endpoint_returns_progress():
+    headers = get_admin_headers()
+    csv_content = "nome,sku\nC,3\n"
+    files = {"file": ("catalogo.csv", io.BytesIO(csv_content.encode()), "text/csv")}
+    with TestingSessionLocal() as db:
+        fornec_id = db.query(models.Fornecedor.id).first()[0]
+    resp = client.post(
+        "/api/v1/produtos/importar-catalogo-preview/",
 def test_preview_pdf_respects_page_count():
     headers = get_admin_headers()
     pdf_bytes = _create_pdf(3)
@@ -187,6 +192,25 @@ def test_preview_pdf_respects_page_count():
         data={"fornecedor_id": fornec_id},
         headers=headers,
     )
+    file_id = resp.json()["file_id"]
+    status_resp = client.get(
+        f"/api/v1/produtos/importar-catalogo-status/{file_id}/",
+        headers=headers,
+    )
+    assert status_resp.status_code == 200
+    assert status_resp.json()["status"] == "UPLOADED"
+    with TestingSessionLocal() as db:
+        pt_id = db.query(models.ProductType.id).first()[0]
+    client.post(
+        f"/api/v1/produtos/importar-catalogo-finalizar/{file_id}/",
+        headers=headers,
+        json={"product_type_id": pt_id, "fornecedor_id": fornec_id},
+    )
+    status_resp = client.get(
+        f"/api/v1/produtos/importar-catalogo-status/{file_id}/",
+        headers=headers,
+    )
+    assert status_resp.json()["status"] == "IMPORTED"
     assert resp.status_code == 200
     data = resp.json()
     assert "preview_images" in data
