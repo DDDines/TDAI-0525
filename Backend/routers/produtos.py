@@ -20,8 +20,6 @@ import pdfplumber
 from sqlalchemy.orm import Session
 from pathlib import Path
 from sqlalchemy import func, or_
-import io
-import pdfplumber
 
 from Backend import crud_produtos
 from Backend import crud_fornecedores
@@ -822,21 +820,6 @@ async def selecionar_regiao_pdf(
     record = (
         db.query(models.CatalogImportFile)
         .filter_by(id=req.file_id, user_id=current_user.id)
-@router.post(
-    "/selecionar-regiao/",
-    response_model=schemas.RegionExtractionResponse,
-)
-async def selecionar_regiao(
-    file_id: int = Body(..., embed=True),
-    page: int = Body(..., embed=True),
-    bbox: List[float] = Body(..., embed=True),
-    db: Session = Depends(database.get_db),
-    current_user: models.User = Depends(auth_utils.get_current_active_user),
-):
-    """Extrai produtos de uma região selecionada de um PDF."""
-    record = (
-        db.query(models.CatalogImportFile)
-        .filter_by(id=file_id, user_id=current_user.id)
         .first()
     )
     if not record:
@@ -871,6 +854,35 @@ async def selecionar_regiao(
     except Exception:
         logger.exception("Erro ao extrair região do PDF")
         raise HTTPException(status_code=500, detail="Falha ao processar PDF")
+
+
+@router.post(
+    "/selecionar-regiao/",
+    response_model=schemas.RegionExtractionResponse,
+)
+async def selecionar_regiao(
+    file_id: int = Body(..., embed=True),
+    page: int = Body(..., embed=True),
+    bbox: List[float] = Body(..., embed=True),
+    db: Session = Depends(database.get_db),
+    current_user: models.User = Depends(auth_utils.get_current_active_user),
+):
+    """Extrai produtos de uma região selecionada de um PDF."""
+    record = (
+        db.query(models.CatalogImportFile)
+        .filter_by(id=file_id, user_id=current_user.id)
+        .first()
+    )
+    if not record:
+        raise HTTPException(status_code=404, detail="Arquivo não encontrado")
+
+    file_path = Path(settings.UPLOAD_DIRECTORY) / "catalogs" / record.stored_filename
+    if not file_path.is_absolute():
+        file_path = Path(__file__).resolve().parent.parent / file_path
+    if not file_path.exists():
+        raise HTTPException(status_code=404, detail="Arquivo não encontrado")
+
+    content = file_path.read_bytes()
     produtos: List[Dict[str, Any]] = []
     log: List[str] = []
     try:
