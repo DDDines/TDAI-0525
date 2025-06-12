@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import Modal from '../common/Modal.jsx';
 import fornecedorService from '../../services/fornecedorService';
 import { useProductTypes } from '../../contexts/ProductTypeContext';
@@ -31,6 +31,7 @@ function ImportCatalogWizard({ isOpen, onClose, fornecedorId }) {
   const [isNewTypeModalOpen, setIsNewTypeModalOpen] = useState(false);
   const [newTypeName, setNewTypeName] = useState('');
   const [isSubmittingType, setIsSubmittingType] = useState(false);
+  const intervalRef = useRef(null);
   const [currentPreviewPage, setCurrentPreviewPage] = useState(0);
 
   const { productTypes, addProductType } = useProductTypes();
@@ -49,6 +50,10 @@ function ImportCatalogWizard({ isOpen, onClose, fornecedorId }) {
       setSelectedType(null);
       setNewTypeName('');
       setIsNewTypeModalOpen(false);
+      if (intervalRef.current) {
+        clearInterval(intervalRef.current);
+        intervalRef.current = null;
+      }
       setCurrentPreviewPage(0);
     }
   }, [isOpen]);
@@ -61,6 +66,8 @@ function ImportCatalogWizard({ isOpen, onClose, fornecedorId }) {
     if (!file) return;
     setLoading(true);
     try {
+      const data = await fornecedorService.previewCatalogo(file, 5);
+      setPreview({ headers: data.headers, previewImages: data.previewImages || [] });
       const data = await fornecedorService.previewCatalogo(file, PREVIEW_PAGE_COUNT);
       setPreview({
         headers: data.headers,
@@ -133,7 +140,7 @@ function ImportCatalogWizard({ isOpen, onClose, fornecedorId }) {
   };
 
   const handleConfirmImport = async () => {
-    if (!fileId || !productTypeId) return;
+    if (!productTypeId) return;
     if (!selectedType) {
       alert('Selecione um tipo de produto.');
       return;
@@ -147,8 +154,24 @@ function ImportCatalogWizard({ isOpen, onClose, fornecedorId }) {
         sampleRows,
         selectedType.id
       );
-      setMessage('Importação concluída com sucesso');
+      setMessage('Processando...');
       setStep(4);
+      const checkStatus = async () => {
+        try {
+          const { status } = await fornecedorService.getImportacaoStatus(fileId);
+          if (status === 'IMPORTED') {
+            setMessage('Importação concluída com sucesso');
+            clearInterval(intervalRef.current);
+          } else if (status !== 'PROCESSING') {
+            setMessage('Falha na importação');
+            clearInterval(intervalRef.current);
+          }
+        } catch {
+          clearInterval(intervalRef.current);
+        }
+      };
+      await checkStatus();
+      intervalRef.current = setInterval(checkStatus, 2000);
     } catch (err) {
       alert(err.detail || err.message || 'Erro ao importar catálogo');
     } finally {

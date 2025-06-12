@@ -123,3 +123,30 @@ def test_historico_records_bulk_import():
     ]
     ids_in_hist = [h["entity_id"] for h in historicos if h["entity_id"] in created_ids]
     assert len(ids_in_hist) == len(created_ids)
+
+
+def test_fornecedor_mapping_endpoints():
+    headers = get_user_headers()
+    resp = client.post(
+        "/api/v1/fornecedores/",
+        json={"nome": "Map Forn"},
+        headers=headers,
+    )
+    assert resp.status_code == 201
+    fornecedor_id = resp.json()["id"]
+
+    mapping = {"nome_base": "Nome", "sku": "SKU"}
+    resp = client.put(
+        f"/api/v1/fornecedores/{fornecedor_id}/mapping",
+        json=mapping,
+        headers=headers,
+    )
+    assert resp.status_code == 200
+    assert resp.json()["default_column_mapping"] == mapping
+
+    resp = client.get(
+        f"/api/v1/fornecedores/{fornecedor_id}/mapping",
+        headers=headers,
+    )
+    assert resp.status_code == 200
+    assert resp.json() == mapping

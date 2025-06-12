@@ -159,6 +159,7 @@ class FornecedorBase(BaseModel):
     contato_principal: Optional[str] = Field(None, max_length=100)
     observacoes: Optional[str] = None
     link_busca_padrao: Optional[str] = None # Usando str para flexibilidade
+    default_column_mapping: Optional[Dict[str, str]] = None
 
 class FornecedorCreate(FornecedorBase):
     pass
@@ -173,6 +174,7 @@ class FornecedorResponse(FornecedorBase):
     user_id: int
     created_at: datetime
     updated_at: datetime
+    default_column_mapping: Optional[Dict[str, str]] = None
     class Config:
         from_attributes = True
 
@@ -416,6 +418,12 @@ class CatalogImportFileResponse(CatalogImportFileBase):
 
     class Config:
         from_attributes = True
+
+class CatalogImportFilePage(BaseModel):
+    items: List[CatalogImportFileResponse]
+    total_items: int
+    page: int
+    limit: int
 
 # --- Password Recovery Schemas ---
 class PasswordResetSchema(BaseModel):

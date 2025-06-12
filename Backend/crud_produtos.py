@@ -2,7 +2,7 @@ import logging
 import json
 import uuid
 from pathlib import Path
-from typing import List, Optional
+from typing import List, Optional, Dict, Any, Tuple, Set
 
 from sqlalchemy import func, or_, desc, asc
 from sqlalchemy.orm import Session, selectinload
@@ -44,17 +44,66 @@ def create_produto(db: Session, produto: schemas.ProdutoCreate, user_id: int) ->
     return db_produto
 
 
-def create_produtos_bulk(db: Session, produtos: List[schemas.ProdutoCreate], user_id: int) -> List[Produto]:
-    """Cria múltiplos produtos em uma única transação."""
+def create_produtos_bulk(
+    db: Session, produtos: List[schemas.ProdutoCreate], user_id: int
+) -> Tuple[List[Produto], List[Dict[str, Any]]]:
+    """Cria múltiplos produtos em uma única transação.
+
+    Produtos com SKU ou EAN já existentes para o mesmo usuário são ignorados e
+    retornados na lista de erros.
+    """
     db_produtos: List[Produto] = []
+    erros: List[Dict[str, Any]] = []
+
+    skus = [p.sku for p in produtos if p.sku]
+    eans = [p.ean for p in produtos if p.ean]
+    existing_skus: Set[str] = set()
+    existing_eans: Set[str] = set()
+
+    if skus or eans:
+        existing = (
+            db.query(Produto)
+            .filter(Produto.user_id == user_id)
+            .filter(or_(Produto.sku.in_(skus), Produto.ean.in_(eans)))
+            .all()
+        )
+        existing_skus.update(p.sku for p in existing if p.sku)
+        existing_eans.update(p.ean for p in existing if p.ean)
+
+    new_skus: Set[str] = set()
+    new_eans: Set[str] = set()
+
     for produto_schema in produtos:
-        db_produto = Produto(**produto_schema.model_dump(exclude_unset=True), user_id=user_id)
+        data = produto_schema.model_dump(exclude_unset=True)
+        sku = data.get("sku")
+        ean = data.get("ean")
+        duplicado = False
+        if sku and (sku in existing_skus or sku in new_skus):
+            duplicado = True
+        if ean and (ean in existing_eans or ean in new_eans):
+            duplicado = True
+        if duplicado:
+            erros.append(
+                {
+                    "motivo_descarte": "Produto duplicado por SKU ou EAN",
+                    "linha_original": data,
+                }
+            )
+            continue
+
+        db_produto = Produto(**data, user_id=user_id)
         db.add(db_produto)
         db_produtos.append(db_produto)
+        if sku:
+            new_skus.add(sku)
+        if ean:
+            new_eans.add(ean)
+
     db.commit()
     for p in db_produtos:
         db.refresh(p)
-    return db_produtos
+
+    return db_produtos, erros
 
 
 def get_produto(db: Session, produto_id: int) -> Optional[Produto]:

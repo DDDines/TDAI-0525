@@ -1,6 +1,8 @@
 import io
 from pathlib import Path
 import pytest
+import subprocess
+import sys
 pytest.importorskip("httpx")
 pytest.importorskip("sqlalchemy")
 from fastapi.testclient import TestClient
@@ -12,6 +14,13 @@ from Backend.main import app
 from Backend.database import Base, get_db
 from Backend import crud, schemas, models
 from Backend.core.config import settings
+
+# ensure reportlab for PDF generation
+try:
+    from reportlab.pdfgen import canvas
+except ImportError:  # pragma: no cover - install at runtime
+    subprocess.check_call([sys.executable, "-m", "pip", "install", "reportlab"])
+    from reportlab.pdfgen import canvas
 
 app.router.on_startup.clear()
 
@@ -37,6 +46,18 @@ client = TestClient(app)
 
 with TestingSessionLocal() as db:
     crud.create_initial_data(db)
+
+
+def _create_pdf(pages: int = 1):
+    buf = io.BytesIO()
+    c = canvas.Canvas(buf)
+    for i in range(pages):
+        c.drawString(100, 750, f"Page {i+1}")
+        if i < pages - 1:
+            c.showPage()
+    c.save()
+    buf.seek(0)
+    return buf.getvalue()
 
 
 def get_admin_headers():
@@ -108,10 +129,9 @@ def test_finalize_updates_status():
         headers=headers,
         json={"product_type_id": pt_id, "fornecedor_id": fornec_id},
     )
-    assert resp.status_code == 200
-    data = resp.json()
-    assert "produtos_criados" in data
-    assert len(data["produtos_criados"]) == 1
+    assert resp.status_code == 202
+    assert resp.json()["status"] == "PROCESSING"
+    assert resp.json()["status"] == "PROCESSING"
 
     with TestingSessionLocal() as db:
         record = db.query(models.CatalogImportFile).get(file_id)
@@ -145,10 +165,113 @@ def test_finalize_processes_full_file():
         headers=headers,
         json={"product_type_id": pt_id, "fornecedor_id": fornec_id},
     )
-    assert resp.status_code == 200
-    data = resp.json()
-    assert len(data["produtos_criados"]) == 8
+    assert resp.status_code == 202
     with TestingSessionLocal() as db:
         produtos = db.query(models.Produto).all()
         assert len(produtos) == 10  # 2 existentes + 8 novos
         assert all(p.fornecedor_id == fornec_id for p in produtos[2:])
+
+
+def test_list_catalog_files_pagination():
+    headers = get_admin_headers()
+    with TestingSessionLocal() as db:
+        admin = crud.get_user_by_email(db, settings.FIRST_SUPERUSER_EMAIL)
+        fornec_id = db.query(models.Fornecedor.id).first()[0]
+        for i in range(15):
+            db.add(
+                models.CatalogImportFile(
+                    user_id=admin.id,
+                    fornecedor_id=fornec_id,
+                    original_filename=f"file{i}.csv",
+                    stored_filename=f"stored{i}.csv",
+                )
+            )
+        db.commit()
+
+    resp = client.get(
+        "/api/v1/produtos/catalog-import-files/",
+        params={"skip": 10, "limit": 10},
+        headers=headers,
+    )
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["page"] == 2
+    assert data["limit"] == 10
+
+
+def test_list_catalog_files_filter_by_fornecedor():
+    headers = get_admin_headers()
+    with TestingSessionLocal() as db:
+        admin = crud.get_user_by_email(db, settings.FIRST_SUPERUSER_EMAIL)
+        fornec_base = db.query(models.Fornecedor).first()
+        new_forn = crud.create_fornecedor(db, schemas.FornecedorCreate(nome="F2"), user_id=admin.id)
+        new_forn_id = new_forn.id
+        db.add(
+            models.CatalogImportFile(
+                user_id=admin.id,
+                fornecedor_id=new_forn_id,
+                original_filename="f.csv",
+                stored_filename="s.csv",
+            )
+        )
+        db.add(
+            models.CatalogImportFile(
+                user_id=admin.id,
+                fornecedor_id=fornec_base.id,
+                original_filename="b.csv",
+                stored_filename="b.csv",
+            )
+        )
+        db.commit()
+
+    resp = client.get(
+        "/api/v1/produtos/catalog-import-files/",
+        params={"fornecedor_id": new_forn_id},
+        headers=headers,
+    )
+    assert resp.status_code == 200
+    data = resp.json()
+    assert all(item["fornecedor_id"] == new_forn_id for item in data["items"])
+def test_status_endpoint_returns_progress():
+    headers = get_admin_headers()
+    csv_content = "nome,sku\nC,3\n"
+    files = {"file": ("catalogo.csv", io.BytesIO(csv_content.encode()), "text/csv")}
+    with TestingSessionLocal() as db:
+        fornec_id = db.query(models.Fornecedor.id).first()[0]
+    resp = client.post(
+        "/api/v1/produtos/importar-catalogo-preview/",
+def test_preview_pdf_respects_page_count():
+    headers = get_admin_headers()
+    pdf_bytes = _create_pdf(3)
+    files = {"file": ("catalogo.pdf", io.BytesIO(pdf_bytes), "application/pdf")}
+    with TestingSessionLocal() as db:
+        fornec_id = db.query(models.Fornecedor.id).first()[0]
+    resp = client.post(
+        "/api/v1/produtos/importar-catalogo-preview/?page_count=2",
+        files=files,
+        data={"fornecedor_id": fornec_id},
+        headers=headers,
+    )
+    file_id = resp.json()["file_id"]
+    status_resp = client.get(
+        f"/api/v1/produtos/importar-catalogo-status/{file_id}/",
+        headers=headers,
+    )
+    assert status_resp.status_code == 200
+    assert status_resp.json()["status"] == "UPLOADED"
+    with TestingSessionLocal() as db:
+        pt_id = db.query(models.ProductType.id).first()[0]
+    client.post(
+        f"/api/v1/produtos/importar-catalogo-finalizar/{file_id}/",
+        headers=headers,
+        json={"product_type_id": pt_id, "fornecedor_id": fornec_id},
+    )
+    status_resp = client.get(
+        f"/api/v1/produtos/importar-catalogo-status/{file_id}/",
+        headers=headers,
+    )
+    assert status_resp.json()["status"] == "IMPORTED"
+    assert resp.status_code == 200
+    data = resp.json()
+    assert "preview_images" in data
+    assert len(data["preview_images"]) == 2

@@ -27,6 +27,8 @@ from Backend import crud_historico
 from Backend import models
 from Backend import schemas  # schemas é importado
 from Backend import database
+from Backend.database import SessionLocal
+import logging
 from Backend.services import file_processing_service
 from . import auth_utils  # Para obter o usuário logado
 from Backend.core import (
@@ -39,6 +41,123 @@ router = APIRouter(
     tags=["produtos"],
     dependencies=[Depends(auth_utils.get_current_active_user)],
 )
+
+logger = logging.getLogger(__name__)
+
+
+async def _tarefa_processar_catalogo(
+    db_session_factory,
+    file_id: int,
+    user_id: int,
+    product_type_id: int,
+    fornecedor_id: int,
+    mapping: Optional[Dict[str, str]] = None,
+):
+    """Processa o arquivo salvo em background e cria os produtos."""
+    db: Optional[Session] = None
+    try:
+        db = db_session_factory()
+        catalog_file = db.query(models.CatalogImportFile).filter_by(id=file_id, user_id=user_id).first()
+        if not catalog_file:
+            logger.error("Catalog file %s not found", file_id)
+            return
+        catalog_file.status = "PROCESSING"
+        catalog_file.fornecedor_id = fornecedor_id
+        db.commit()
+
+        file_path = Path(settings.UPLOAD_DIRECTORY) / "catalogs" / catalog_file.stored_filename
+        if not file_path.is_absolute():
+            file_path = Path(__file__).resolve().parent.parent / file_path
+        if not file_path.exists():
+            catalog_file.status = "FAILED"
+            db.commit()
+            return
+        content = file_path.read_bytes()
+        ext = file_path.suffix.lower()
+        if ext in [".xlsx", ".xls"]:
+            produtos_data = await file_processing_service.processar_arquivo_excel(
+                content,
+                mapeamento_colunas_usuario=mapping,
+                product_type_id=product_type_id,
+            )
+        elif ext == ".csv":
+            produtos_data = await file_processing_service.processar_arquivo_csv(
+                content,
+                mapeamento_colunas_usuario=mapping,
+                product_type_id=product_type_id,
+            )
+        elif ext == ".pdf":
+            produtos_data = await file_processing_service.processar_arquivo_pdf(
+                content,
+                mapeamento_colunas_usuario=mapping,
+                product_type_id=product_type_id,
+            )
+        else:
+            catalog_file.status = "FAILED"
+            db.commit()
+            return
+
+        produtos_create: List[schemas.ProdutoCreate] = []
+        erros: List[Dict[str, Any]] = []
+        for prod in produtos_data:
+            if isinstance(prod, dict) and (
+                prod.get("motivo_descarte")
+                or any(key.startswith("erro_processamento") for key in prod.keys())
+            ):
+                erros.append(prod)
+                continue
+            try:
+                produto_schema = schemas.ProdutoCreate(
+                    nome_base=prod.get("nome_base")
+                    or prod.get("sku_original")
+                    or "Produto Importado",
+                    sku=prod.get("sku_original"),
+                    ean=prod.get("ean_original"),
+                    descricao_original=prod.get("descricao_original"),
+                    marca=prod.get("marca"),
+                    categoria_original=prod.get("categoria_original"),
+                    fornecedor_id=catalog_file.fornecedor_id,
+                    product_type_id=product_type_id,
+                )
+                produtos_create.append(produto_schema)
+            except Exception as e:
+                erros.append({"motivo_descarte": f"Erro ao converter linha: {str(e)}", "linha_original": prod})
+
+        if produtos_create:
+            created = crud_produtos.create_produtos_bulk(db, produtos_create, user_id=user_id)
+            for db_produto in created:
+                crud.create_registro_uso_ia(
+                    db,
+                    schemas.RegistroUsoIACreate(
+                        user_id=user_id,
+                        produto_id=db_produto.id,
+                        tipo_acao=models.TipoAcaoEnum.CRIACAO_PRODUTO,
+                        creditos_consumidos=0,
+                    ),
+                )
+                crud_historico.create_registro_historico(
+                    db,
+                    schemas.RegistroHistoricoCreate(
+                        user_id=user_id,
+                        entidade="Produto",
+                        acao=models.TipoAcaoSistemaEnum.CRIACAO,
+                        entity_id=db_produto.id,
+                    ),
+                )
+
+        catalog_file.status = "IMPORTED"
+        db.add(catalog_file)
+        db.commit()
+    except Exception:
+        logger.exception("Erro ao processar importacao de catalogo")
+        if db:
+            catalog_file = db.query(models.CatalogImportFile).filter_by(id=file_id).first()
+            if catalog_file:
+                catalog_file.status = "FAILED"
+                db.commit()
+    finally:
+        if db:
+            db.close()
 
 
 @router.post(
@@ -102,6 +221,30 @@ def create_produto(  # Nome da função mantido como no arquivo do usuário
         ),
     )
     return db_produto
+
+
+@router.get("/catalog-import-files/", response_model=schemas.CatalogImportFilePage)
+def list_catalog_import_files(
+    db: Session = Depends(database.get_db),
+    fornecedor_id: Optional[int] = Query(None, description="ID do fornecedor"),
+    skip: int = Query(0, ge=0, description="Número de itens para pular"),
+    limit: int = Query(10, ge=1, le=100, description="Número máximo de itens por página"),
+    current_user: models.User = Depends(auth_utils.get_current_active_user),
+):
+    query = db.query(models.CatalogImportFile).filter(models.CatalogImportFile.user_id == current_user.id)
+    if fornecedor_id is not None:
+        query = query.filter(models.CatalogImportFile.fornecedor_id == fornecedor_id)
+    total_items = query.count()
+    items = (
+        query.order_by(models.CatalogImportFile.created_at.desc())
+        .offset(skip)
+        .limit(limit)
+        .all()
+    )
+    page = skip // limit + 1
+    return {"items": items, "total_items": total_items, "page": page, "limit": limit}
+
+
 
 
 @router.get("/{produto_id}", response_model=schemas.ProdutoResponse)  # CORRIGIDO AQUI
@@ -442,6 +585,7 @@ async def upload_produto_image(  # Nome da função mantido como no arquivo do u
 async def importar_catalogo_preview(
     file: UploadFile = File(...),
     fornecedor_id: Optional[int] = Form(None),
+    page_count: int = Query(1, ge=1),
     page_count: int = Query(1, ge=1, description="Número de páginas de preview do PDF"),
     db: Session = Depends(database.get_db),
     current_user: models.User = Depends(auth_utils.get_current_active_user),
@@ -496,6 +640,10 @@ async def importar_catalogo_fornecedor(
             raise HTTPException(
                 status_code=400, detail="mapeamento_colunas_usuario inválido"
             )
+    else:
+        fornecedor = crud_fornecedores.get_fornecedor(db, fornecedor_id)
+        if fornecedor and fornecedor.default_column_mapping:
+            mapping_dict = fornecedor.default_column_mapping
     if ext in [".xlsx", ".xls"]:
         produtos_data = await file_processing_service.processar_arquivo_excel(
             content, mapping_dict
@@ -543,9 +691,10 @@ async def importar_catalogo_fornecedor(
 
     created: List[models.Produto] = []
     if produtos_create:
-        created = crud_produtos.create_produtos_bulk(
+        created, dup_errors = crud_produtos.create_produtos_bulk(
             db, produtos_create, user_id=current_user.id
         )
+        erros.extend(dup_errors)
         for db_produto in created:
             crud.create_registro_uso_ia(
                 db,
@@ -570,9 +719,10 @@ async def importar_catalogo_fornecedor(
 
 @router.post(
     "/importar-catalogo-finalizar/{file_id}/",
-    response_model=schemas.ImportCatalogoResponse,
+    status_code=status.HTTP_202_ACCEPTED,
 )
 async def importar_catalogo_finalizar(
+    background_tasks: BackgroundTasks,
     file_id: int,
     product_type_id: int = Body(..., embed=True),
     fornecedor_id: int = Body(..., embed=True),
@@ -580,7 +730,7 @@ async def importar_catalogo_finalizar(
     db: Session = Depends(database.get_db),
     current_user: models.User = Depends(auth_utils.get_current_active_user),
 ):
-    """Processa o arquivo salvo e cria produtos definitivos."""
+    """Agenda o processamento do arquivo salvo e retorna imediatamente."""
     catalog_file = (
         db.query(models.CatalogImportFile)
         .filter_by(id=file_id, user_id=current_user.id)
@@ -589,20 +739,20 @@ async def importar_catalogo_finalizar(
     if not catalog_file:
         raise HTTPException(status_code=404, detail="Arquivo não encontrado")
 
-    # persiste o fornecedor definido nesta etapa
+    catalog_file.status = "PROCESSING"
     catalog_file.fornecedor_id = fornecedor_id
+    db.commit()
 
-    file_path = (
-        Path(settings.UPLOAD_DIRECTORY) / "catalogs" / catalog_file.stored_filename
-    )
-    if not file_path.is_absolute():
-        file_path = Path(__file__).resolve().parent.parent / file_path
-    if not file_path.exists():
-        raise HTTPException(status_code=404, detail="Arquivo não encontrado no disco")
+    from sqlalchemy.orm import sessionmaker
 
+    db_session_factory = sessionmaker(bind=db.get_bind())
     # Sempre reprocessa o arquivo completo para evitar importar apenas as linhas de preview
     content = file_path.read_bytes()
     ext = file_path.suffix.lower()
+    if mapping is None:
+        fornecedor = crud_fornecedores.get_fornecedor(db, fornecedor_id)
+        if fornecedor and fornecedor.default_column_mapping:
+            mapping = fornecedor.default_column_mapping
     if ext in [".xlsx", ".xls"]:
         produtos_data = await file_processing_service.processar_arquivo_excel(
             content,
@@ -626,42 +776,23 @@ async def importar_catalogo_finalizar(
             status_code=400, detail="Formato de arquivo não suportado"
         )
 
-    produtos_create: List[schemas.ProdutoCreate] = []
-    erros: List[Dict[str, Any]] = []
-    for prod in produtos_data:
-        if isinstance(prod, dict) and (
-            prod.get("motivo_descarte")
-            or any(key.startswith("erro_processamento") for key in prod.keys())
-        ):
-            erros.append(prod)
-            continue
-        try:
-            produto_schema = schemas.ProdutoCreate(
-                nome_base=prod.get("nome_base")
-                or prod.get("sku_original")
-                or "Produto Importado",
-                sku=prod.get("sku_original"),
-                ean=prod.get("ean_original"),
-                descricao_original=prod.get("descricao_original"),
-                marca=prod.get("marca"),
-                categoria_original=prod.get("categoria_original"),
-                fornecedor_id=catalog_file.fornecedor_id,
-                product_type_id=product_type_id,
-            )
-            produtos_create.append(produto_schema)
-        except Exception as e:
-            erros.append(
-                {
-                    "motivo_descarte": f"Erro ao converter linha: {str(e)}",
-                    "linha_original": prod,
-                }
-            )
+    background_tasks.add_task(
+        _tarefa_processar_catalogo,
+        db_session_factory=db_session_factory,
+        file_id=file_id,
+        user_id=current_user.id,
+        product_type_id=product_type_id,
+        fornecedor_id=fornecedor_id,
+        mapping=mapping,
+    )
 
+    return {"status": "PROCESSING", "file_id": file_id}
     created: List[models.Produto] = []
     if produtos_create:
-        created = crud_produtos.create_produtos_bulk(
+        created, dup_errors = crud_produtos.create_produtos_bulk(
             db, produtos_create, user_id=current_user.id
         )
+        erros.extend(dup_errors)
         for db_produto in created:
             crud.create_registro_uso_ia(
                 db,
@@ -687,3 +818,23 @@ async def importar_catalogo_finalizar(
     db.commit()
 
     return {"produtos_criados": created, "erros": erros}
+
+
+@router.get(
+    "/importar-catalogo-status/{file_id}/",
+    response_model=schemas.CatalogImportFileResponse,
+)
+def importar_catalogo_status(
+    file_id: int,
+    db: Session = Depends(database.get_db),
+    current_user: models.User = Depends(auth_utils.get_current_active_user),
+):
+    """Retorna o status atual do processamento do catálogo."""
+    record = (
+        db.query(models.CatalogImportFile)
+        .filter_by(id=file_id, user_id=current_user.id)
+        .first()
+    )
+    if not record:
+        raise HTTPException(status_code=404, detail="Arquivo não encontrado")
+    return record
