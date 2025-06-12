@@ -5,7 +5,6 @@ pdfjs.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/$
 
 function PdfRegionSelector({ file, onSelect }) {
   const canvasRef = useRef(null);
-  const [pdfDoc, setPdfDoc] = useState(null);
   const [pageNum] = useState(1);
   const startPos = useRef(null);
   const [rect, setRect] = useState(null);
@@ -14,10 +13,9 @@ function PdfRegionSelector({ file, onSelect }) {
   useEffect(() => {
     const load = async () => {
       if (!file) return;
-      const task = pdfjs.getDocument({ data: file });
-      const doc = await task.promise;
-      setPdfDoc(doc);
-      const page = await doc.getPage(pageNum);
+    const task = pdfjs.getDocument({ data: file });
+    const doc = await task.promise;
+    const page = await doc.getPage(pageNum);
       const viewport = page.getViewport({ scale: 1.5 });
       const canvas = canvasRef.current;
       const ctx = canvas.getContext('2d');

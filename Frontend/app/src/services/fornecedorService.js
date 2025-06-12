@@ -85,12 +85,6 @@ export const deleteFornecedor = async (fornecedorId) => {
   }
 };
 
-export const previewCatalogo = async (file, pageCount = 5) => {
-  try {
-    const formData = new FormData();
-    formData.append('file', file);
-    const response = await apiClient.post(`/produtos/importar-catalogo-preview/?page_count=${pageCount}`, formData);
-    const { file_id, headers, sample_rows, preview_images } = response.data;
 export const previewCatalogo = async (file, pageCount = 1) => {
   try {
     const formData = new FormData();
@@ -181,6 +175,9 @@ export const getCatalogImportFiles = async (params = {}) => {
     } else {
       throw new Error(error.message || 'Erro ao configurar requisição para buscar arquivos de importação.');
     }
+  }
+};
+
 export const getImportacaoStatus = async (fileId) => {
   try {
     const response = await apiClient.get(`/produtos/importar-catalogo-status/${fileId}/`);
