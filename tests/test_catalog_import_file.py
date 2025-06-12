@@ -251,8 +251,38 @@ def test_status_endpoint_returns_progress():
     files = {"file": ("catalogo.csv", io.BytesIO(csv_content.encode()), "text/csv")}
     with TestingSessionLocal() as db:
         fornec_id = db.query(models.Fornecedor.id).first()[0]
+
     resp = client.post(
         "/api/v1/produtos/importar-catalogo-preview/",
+        files=files,
+        data={"fornecedor_id": fornec_id},
+        headers=headers,
+    )
+    assert resp.status_code == 200
+    file_id = resp.json()["file_id"]
+    status_resp = client.get(
+        f"/api/v1/produtos/importar-catalogo-status/{file_id}/",
+        headers=headers,
+    )
+    assert status_resp.status_code == 200
+    assert status_resp.json()["status"] == "UPLOADED"
+
+    with TestingSessionLocal() as db:
+        pt_id = db.query(models.ProductType.id).first()[0]
+
+    client.post(
+        f"/api/v1/produtos/importar-catalogo-finalizar/{file_id}/",
+        headers=headers,
+        json={"product_type_id": pt_id, "fornecedor_id": fornec_id},
+    )
+
+    status_resp = client.get(
+        f"/api/v1/produtos/importar-catalogo-status/{file_id}/",
+        headers=headers,
+    )
+    assert status_resp.status_code == 200
+    assert status_resp.json()["status"] == "IMPORTED"
+
 def test_preview_pdf_respects_page_count():
     headers = get_admin_headers()
     pdf_bytes = _create_pdf(3)

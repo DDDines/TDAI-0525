@@ -206,6 +206,9 @@ export const selecionarRegiaoPdf = async (
       throw error.response.data;
     }
     throw new Error(error.message || 'Falha ao solicitar região do PDF');
+  }
+};
+
 export const selecionarRegiao = async (fileId, page, bbox) => {
   try {
     const response = await apiClient.post('/produtos/selecionar-regiao/', {
