@@ -11,6 +11,7 @@ except ImportError:  # pragma: no cover - install at runtime
     from reportlab.pdfgen import canvas
 
 from Backend.services.file_processing_service import pdf_pages_to_images
+import pytest
 
 
 def _create_pdf():
@@ -23,9 +24,10 @@ def _create_pdf():
     return buf.getvalue()
 
 
-def test_pdf_pages_to_images_basic():
+@pytest.mark.asyncio
+async def test_pdf_pages_to_images_basic():
     pdf_bytes = _create_pdf()
-    images = pdf_pages_to_images(pdf_bytes)
+    images = await pdf_pages_to_images(pdf_bytes)
     assert len(images) >= 1
     decoded = base64.b64decode(images[0])
     assert decoded.startswith(b"\x89PNG")

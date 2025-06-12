@@ -5,7 +5,6 @@ import csv
 import io  # Para ler o conteúdo do arquivo em memória
 import chardet
 import base64
-from pdf2image import convert_from_bytes
 from typing import List, Dict, Any, Union, Optional
 from pathlib import Path
 from uuid import uuid4
@@ -376,21 +375,6 @@ async def preview_arquivo_pdf(conteudo_arquivo: bytes, max_rows: int = 5) -> Dic
         return {"error": f"Falha ao ler arquivo PDF: {str(e)}"}
 
 
-def pdf_pages_to_images(conteudo_arquivo: bytes, max_pages: int = 1) -> List[str]:
-    """Converte páginas de um PDF em imagens base64."""
-    try:
-        pages = convert_from_bytes(conteudo_arquivo, fmt="png")
-        images_b64: List[str] = []
-        for i, page in enumerate(pages):
-            if i >= max_pages:
-                break
-            buf = io.BytesIO()
-            page.save(buf, format="PNG")
-            images_b64.append(base64.b64encode(buf.getvalue()).decode("utf-8"))
-        return images_b64
-    except Exception as e:
-        logger.error("Erro ao converter PDF em imagens: %s", e)
-        return []
 
 
 async def gerar_preview(conteudo_arquivo: bytes, ext: str, max_rows: int = 5) -> Dict[str, Any]:

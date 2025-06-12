@@ -1,3 +1,8 @@
+import os
+os.environ.setdefault("FIRST_SUPERUSER_EMAIL", "admin@example.com")
+os.environ.setdefault("FIRST_SUPERUSER_PASSWORD", "password")
+os.environ.setdefault("ADMIN_EMAIL", "admin@example.com")
+os.environ.setdefault("ADMIN_PASSWORD", "password")
 import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine
@@ -11,7 +16,13 @@ from Backend import crud, schemas
 app.router.on_startup.clear()
 
 # In-memory SQLite for isolated tests
-engine = create_engine("sqlite:///:memory:", connect_args={"check_same_thread": False})
+from sqlalchemy.pool import StaticPool
+
+engine = create_engine(
+    "sqlite:///:memory:",
+    connect_args={"check_same_thread": False},
+    poolclass=StaticPool,
+)
 TestingSessionLocal = sessionmaker(bind=engine)
 Base.metadata.create_all(bind=engine)
 
@@ -74,3 +85,40 @@ def test_historico_records_product_creation():
     data = resp.json()
     assert data["total_items"] >= 1
     assert any(item["produto_id"] == produto_id for item in data["items"])
+
+
+def test_historico_records_bulk_import():
+    headers = get_user_headers()
+
+    resp = client.post(
+        "/api/v1/fornecedores/",
+        json={"nome": "Fornecedor Bulk"},
+        headers=headers,
+    )
+    assert resp.status_code == 201
+    fornecedor_id = resp.json()["id"]
+
+    resp = client.get("/api/v1/historico/", headers=headers)
+    assert resp.status_code == 200
+    before_produto = [h for h in resp.json()["items"] if h["entidade"] == "Produto"]
+
+    csv_content = "nome,sku\nProd1,S1\nProd2,S2\n"
+    files = {"file": ("catalog.csv", csv_content, "text/csv")}
+    resp = client.post(
+        f"/api/v1/produtos/importar-catalogo/{fornecedor_id}/",
+        files=files,
+        headers=headers,
+    )
+    assert resp.status_code == 200
+    created_ids = [p["id"] for p in resp.json()["produtos_criados"]]
+    assert len(created_ids) == 2
+
+    resp = client.get("/api/v1/historico/", headers=headers)
+    assert resp.status_code == 200
+    historicos = [
+        h
+        for h in resp.json()["items"]
+        if h["entidade"] == "Produto" and h["acao"] == "CRIACAO"
+    ]
+    ids_in_hist = [h["entity_id"] for h in historicos if h["entity_id"] in created_ids]
+    assert len(ids_in_hist) == len(created_ids)
