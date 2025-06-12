@@ -9,6 +9,7 @@ pytest.importorskip("sqlalchemy")
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
+from sqlalchemy.pool import StaticPool
 
 from Backend.main import app, create_new_user
 from Backend.database import Base, get_db
@@ -18,8 +19,6 @@ from Backend import crud, schemas
 app.router.on_startup.clear()
 
 # In-memory SQLite for isolated tests
-from sqlalchemy.pool import StaticPool
-
 engine = create_engine(
     "sqlite:///:memory:",
     connect_args={"check_same_thread": False},
