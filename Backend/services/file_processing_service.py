@@ -366,21 +366,43 @@ async def preview_arquivo_pdf(conteudo_arquivo: bytes, max_rows: int = 5) -> Dic
     """Tenta extrair cabeçalhos e linhas de amostra de tabelas em um PDF."""
     try:
         with pdfplumber.open(io.BytesIO(conteudo_arquivo)) as pdf:
-            for page in pdf.pages:
-                tables = page.extract_tables(table_settings={"vertical_strategy": "lines", "horizontal_strategy": "lines"})
+            num_pages = len(pdf.pages)
+            table_pages: List[int] = []
+            headers: List[str] = []
+            sample_rows: List[Dict[str, Any]] = []
+            for idx, page in enumerate(pdf.pages):
+                tables = page.extract_tables(
+                    table_settings={"vertical_strategy": "lines", "horizontal_strategy": "lines"}
+                )
                 if tables:
-                    primeira_tabela = tables[0]
-                    if len(primeira_tabela) < 2:
-                        continue
-                    headers_raw = primeira_tabela[0]
-                    headers = [str(h).strip() if h is not None else f"coluna_vazia_{idx}" for idx, h in enumerate(headers_raw)]
-                    sample_rows = []
-                    for row in primeira_tabela[1: max_rows + 1]:
-                        if len(row) != len(headers):
+                    table_pages.append(idx + 1)
+                    if not headers:
+                        primeira_tabela = tables[0]
+                        if len(primeira_tabela) < 2:
                             continue
-                        sample_rows.append({headers[i]: row[i] for i in range(len(headers))})
-                    return {"headers": headers, "sample_rows": sample_rows}
-        return {"headers": [], "sample_rows": [], "message": "Nenhuma tabela encontrada no PDF"}
+                        headers_raw = primeira_tabela[0]
+                        headers = [
+                            str(h).strip() if h is not None else f"coluna_vazia_{h_idx}"
+                            for h_idx, h in enumerate(headers_raw)
+                        ]
+                        for row in primeira_tabela[1 : max_rows + 1]:
+                            if len(row) != len(headers):
+                                continue
+                            sample_rows.append({headers[i]: row[i] for i in range(len(headers))})
+            if headers:
+                return {
+                    "headers": headers,
+                    "sample_rows": sample_rows,
+                    "num_pages": num_pages,
+                    "table_pages": table_pages,
+                }
+            return {
+                "headers": [],
+                "sample_rows": [],
+                "num_pages": num_pages,
+                "table_pages": table_pages,
+                "message": "Nenhuma tabela encontrada no PDF",
+            }
     except Exception as e:
         logger.error("Erro ao gerar preview de arquivo PDF: %s", e)
         return {"error": f"Falha ao ler arquivo PDF: {str(e)}"}
