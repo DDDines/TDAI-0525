@@ -1,5 +1,6 @@
 alembic==1.13.1
 authlib==1.2.1
+chardet==5.2.0
 beautifulsoup4==4.12.2
 extruct==0.16.0
 fastapi-mail==1.4.1
