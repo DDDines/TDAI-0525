@@ -441,11 +441,12 @@ async def upload_produto_image(  # Nome da função mantido como no arquivo do u
 )
 async def importar_catalogo_preview(
     file: UploadFile = File(...),
+    fornecedor_id: Optional[int] = Form(None),
     db: Session = Depends(database.get_db),
     current_user: models.User = Depends(auth_utils.get_current_active_user),
 ):
     """Salva o arquivo enviado, gera preview e registra no banco."""
-    saved = await file_processing_service.save_uploaded_catalog(file)
+    saved = await file_processing_service.save_uploaded_catalog(file, fornecedor_id)
     saved.user_id = current_user.id
     db.add(saved)
     db.commit()
@@ -571,8 +572,8 @@ async def importar_catalogo_fornecedor(
 async def importar_catalogo_finalizar(
     file_id: int,
     product_type_id: int = Body(..., embed=True),
+    fornecedor_id: int = Body(..., embed=True),
     mapping: Optional[Dict[str, str]] = Body(None),
-    rows: Optional[List[Dict[str, Any]]] = Body(None),
     db: Session = Depends(database.get_db),
     current_user: models.User = Depends(auth_utils.get_current_active_user),
 ):
@@ -585,6 +586,9 @@ async def importar_catalogo_finalizar(
     if not catalog_file:
         raise HTTPException(status_code=404, detail="Arquivo não encontrado")
 
+    # persiste o fornecedor definido nesta etapa
+    catalog_file.fornecedor_id = fornecedor_id
+
     file_path = (
         Path(settings.UPLOAD_DIRECTORY) / "catalogs" / catalog_file.stored_filename
     )
@@ -593,34 +597,31 @@ async def importar_catalogo_finalizar(
     if not file_path.exists():
         raise HTTPException(status_code=404, detail="Arquivo não encontrado no disco")
 
-    produtos_data: List[Dict[str, Any]] = []
-    if rows:
-        produtos_data = rows
+    # Sempre reprocessa o arquivo completo para evitar importar apenas as linhas de preview
+    content = file_path.read_bytes()
+    ext = file_path.suffix.lower()
+    if ext in [".xlsx", ".xls"]:
+        produtos_data = await file_processing_service.processar_arquivo_excel(
+            content,
+            mapeamento_colunas_usuario=mapping,
+            product_type_id=product_type_id,
+        )
+    elif ext == ".csv":
+        produtos_data = await file_processing_service.processar_arquivo_csv(
+            content,
+            mapeamento_colunas_usuario=mapping,
+            product_type_id=product_type_id,
+        )
+    elif ext == ".pdf":
+        produtos_data = await file_processing_service.processar_arquivo_pdf(
+            content,
+            mapeamento_colunas_usuario=mapping,
+            product_type_id=product_type_id,
+        )
     else:
-        content = file_path.read_bytes()
-        ext = file_path.suffix.lower()
-        if ext in [".xlsx", ".xls"]:
-            produtos_data = await file_processing_service.processar_arquivo_excel(
-                content,
-                mapeamento_colunas_usuario=mapping,
-                product_type_id=product_type_id,
-            )
-        elif ext == ".csv":
-            produtos_data = await file_processing_service.processar_arquivo_csv(
-                content,
-                mapeamento_colunas_usuario=mapping,
-                product_type_id=product_type_id,
-            )
-        elif ext == ".pdf":
-            produtos_data = await file_processing_service.processar_arquivo_pdf(
-                content,
-                mapeamento_colunas_usuario=mapping,
-                product_type_id=product_type_id,
-            )
-        else:
-            raise HTTPException(
-                status_code=400, detail="Formato de arquivo não suportado"
-            )
+        raise HTTPException(
+            status_code=400, detail="Formato de arquivo não suportado"
+        )
 
     produtos_create: List[schemas.ProdutoCreate] = []
     erros: List[Dict[str, Any]] = []
