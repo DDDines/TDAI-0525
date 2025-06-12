@@ -1,7 +1,6 @@
 import io
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine
-from sqlalchemy.pool import StaticPool
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
 
@@ -14,7 +13,6 @@ from Backend.core.config import settings
 app.router.on_startup.clear()
 
 engine = create_engine(
-    "sqlite:///:memory:", connect_args={"check_same_thread": False}, poolclass=StaticPool
     "sqlite:///:memory:",
     connect_args={"check_same_thread": False},
     poolclass=StaticPool,
