@@ -178,16 +178,16 @@ function ImportCatalogWizard({ isOpen, onClose, fornecedorId }) {
           <table className="preview-table">
             <thead>
               <tr>
-                {preview.headers.map((h) => (
-                  <th key={h}>{h}</th>
+                {preview.headers.map((h, idx) => (
+                  <th key={`${idx}-${h}`}>{h}</th>
                 ))}
               </tr>
             </thead>
             <tbody>
               {sampleRows.map((row, rowIdx) => (
                 <tr key={rowIdx}>
-                  {preview.headers.map((h) => (
-                    <td key={h}>{row[h]}</td>
+                  {preview.headers.map((h, idx) => (
+                    <td key={`${rowIdx}-${idx}`}>{row[h]}</td>
                   ))}
                 </tr>
               ))}
@@ -231,8 +231,8 @@ function ImportCatalogWizard({ isOpen, onClose, fornecedorId }) {
             </tr>
           </thead>
           <tbody>
-            {preview.headers.map((h) => (
-              <tr key={h}>
+            {preview.headers.map((h, idx) => (
+              <tr key={`${idx}-${h}`}>
                 <td>{h}</td>
                 <td>
                   <select value={mapping[h] || ''} onChange={(e) => handleMappingChange(h, e.target.value)}>
@@ -250,16 +250,16 @@ function ImportCatalogWizard({ isOpen, onClose, fornecedorId }) {
           <table className="preview-table">
             <thead>
               <tr>
-                {preview.headers.map((h) => (
-                  <th key={h}>{h}</th>
+                {preview.headers.map((h, idx) => (
+                  <th key={`${idx}-${h}`}>{h}</th>
                 ))}
               </tr>
             </thead>
             <tbody>
               {sampleRows.map((row, rowIdx) => (
                 <tr key={rowIdx}>
-                  {preview.headers.map((h) => (
-                    <td key={h}>
+                  {preview.headers.map((h, idx) => (
+                    <td key={`${rowIdx}-${idx}`}>
                       <input
                         value={row[h] || ''}
                         onChange={(e) => handleRowChange(rowIdx, h, e.target.value)}
