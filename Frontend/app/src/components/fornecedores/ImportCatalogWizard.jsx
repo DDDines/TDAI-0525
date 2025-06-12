@@ -133,7 +133,7 @@ function ImportCatalogWizard({ isOpen, onClose, fornecedorId }) {
   };
 
   const handleConfirmImport = async () => {
-    if (!fileId || !productTypeId) return;
+    if (!productTypeId) return;
     if (!selectedType) {
       alert('Selecione um tipo de produto.');
       return;
