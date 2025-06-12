@@ -1,4 +1,7 @@
 import io
+import pytest
+pytest.importorskip("httpx")
+pytest.importorskip("sqlalchemy")
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
