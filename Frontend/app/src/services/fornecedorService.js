@@ -168,6 +168,19 @@ export const finalizarImportacaoCatalogo = async (
   }
 };
 
+export const getCatalogImportFiles = async (params = {}) => {
+  try {
+    const response = await apiClient.get('/catalog-import-files/', { params });
+    return response.data;
+  } catch (error) {
+    console.error('Erro ao buscar arquivos de importação:', JSON.stringify(error.response?.data || error.message || error));
+    if (error.response && error.response.data) {
+      throw error.response.data;
+    } else if (error.request) {
+      throw new Error('Nenhuma resposta do servidor ao buscar arquivos de importação.');
+    } else {
+      throw new Error(error.message || 'Erro ao configurar requisição para buscar arquivos de importação.');
+    }
 export const getImportacaoStatus = async (fileId) => {
   try {
     const response = await apiClient.get(`/produtos/importar-catalogo-status/${fileId}/`);
@@ -190,5 +203,6 @@ export default {
   previewCatalogo,
   importCatalogo,
   finalizarImportacaoCatalogo,
+  getCatalogImportFiles,
   getImportacaoStatus,
 };

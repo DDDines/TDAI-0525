@@ -2,11 +2,15 @@
 import React, { useState, useEffect } from 'react';
 import { showErrorToast, showWarningToast } from '../../utils/notifications';
 import ImportCatalogWizard from './ImportCatalogWizard.jsx';
+import CatalogFileList from './CatalogFileList.jsx';
+import fornecedorService from '../../services/fornecedorService';
 
 function EditFornecedorModal({ isOpen, onClose, fornecedorData, onSave, isLoading }) {
   const [formData, setFormData] = useState({ nome: '', site_url: ''});
   const [activeTab, setActiveTab] = useState('info');
   const [isImportWizardOpen, setIsImportWizardOpen] = useState(false);
+  const [catalogFiles, setCatalogFiles] = useState([]);
+  const [loadingFiles, setLoadingFiles] = useState(false);
 
   useEffect(() => {
     if (fornecedorData) {
@@ -19,6 +23,24 @@ function EditFornecedorModal({ isOpen, onClose, fornecedorData, onSave, isLoadin
       setFormData({ nome: '', site_url: ''});
     }
   }, [fornecedorData]);
+
+  useEffect(() => {
+    const loadFiles = async () => {
+      if (!fornecedorData?.id) return;
+      setLoadingFiles(true);
+      try {
+        const data = await fornecedorService.getCatalogImportFiles({ fornecedor_id: fornecedorData.id });
+        setCatalogFiles(data.items || data);
+      } catch (err) {
+        console.error('Erro ao carregar arquivos de catálogo:', err);
+      } finally {
+        setLoadingFiles(false);
+      }
+    };
+    if (isOpen && activeTab === 'import') {
+      loadFiles();
+    }
+  }, [isOpen, activeTab, fornecedorData]);
 
   const handleChange = e => {
     const { name, value } = e.target;
@@ -112,6 +134,9 @@ function EditFornecedorModal({ isOpen, onClose, fornecedorData, onSave, isLoadin
             <button onClick={() => setIsImportWizardOpen(true)}>
               Importar Catálogo
             </button>
+            <div style={{ marginTop: '1em' }}>
+              {loadingFiles ? <p>Carregando...</p> : <CatalogFileList files={catalogFiles} />}
+            </div>
           </div>
         )}
         <ImportCatalogWizard
