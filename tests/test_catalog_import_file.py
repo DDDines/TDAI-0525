@@ -60,6 +60,19 @@ def _create_pdf(pages: int = 1):
     return buf.getvalue()
 
 
+def _create_pdf_region():
+    buf = io.BytesIO()
+    c = canvas.Canvas(buf)
+    for i in range(2):
+        c.drawString(100, 750, f"Nome: P{i}")
+        c.drawString(100, 730, f"Marca: M{i}")
+        if i < 1:
+            c.showPage()
+    c.save()
+    buf.seek(0)
+    return buf.getvalue()
+
+
 def get_admin_headers():
     resp = client.post(
         "/api/v1/auth/token",
@@ -275,3 +288,29 @@ def test_preview_pdf_respects_page_count():
     data = resp.json()
     assert "preview_images" in data
     assert len(data["preview_images"]) == 2
+
+
+def test_region_selection_endpoint():
+    headers = get_admin_headers()
+    pdf_bytes = _create_pdf_region()
+    files = {"file": ("catalogo.pdf", io.BytesIO(pdf_bytes), "application/pdf")}
+    with TestingSessionLocal() as db:
+        fornec_id = db.query(models.Fornecedor.id).first()[0]
+    resp = client.post(
+        "/api/v1/produtos/importar-catalogo-preview/",
+        files=files,
+        data={"fornecedor_id": fornec_id},
+        headers=headers,
+    )
+    assert resp.status_code == 200
+    file_id = resp.json()["file_id"]
+    region_resp = client.post(
+        "/api/v1/produtos/selecionar-regiao/",
+        headers=headers,
+        json={"file_id": file_id, "page": 1, "bbox": [90, 720, 200, 760]},
+    )
+    assert region_resp.status_code == 200
+    data = region_resp.json()
+    assert len(data["produtos"]) == 2
+    assert data["produtos"][0]["nome_base"] == "P0"
+    assert data["produtos"][1]["marca"] == "M1"

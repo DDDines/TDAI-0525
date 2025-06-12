@@ -206,6 +206,20 @@ export const selecionarRegiaoPdf = async (
       throw error.response.data;
     }
     throw new Error(error.message || 'Falha ao solicitar região do PDF');
+export const selecionarRegiao = async (fileId, page, bbox) => {
+  try {
+    const response = await apiClient.post('/produtos/selecionar-regiao/', {
+      file_id: fileId,
+      page,
+      bbox,
+    });
+    return response.data;
+  } catch (error) {
+    console.error('Erro ao selecionar região:', JSON.stringify(error.response?.data || error.message || error));
+    if (error.response && error.response.data) {
+      throw error.response.data;
+    }
+    throw new Error(error.message || 'Falha ao processar região selecionada');
   }
 };
 
@@ -221,4 +235,5 @@ export default {
   getCatalogImportFiles,
   getImportacaoStatus,
   selecionarRegiaoPdf,
+  selecionarRegiao,
 };

@@ -15,6 +15,8 @@ from fastapi import (
     Body,
 )
 import json
+import io
+import pdfplumber
 from sqlalchemy.orm import Session
 from pathlib import Path
 from sqlalchemy import func, or_
@@ -810,6 +812,7 @@ def importar_catalogo_status(
     return record
 
 
+
 @router.post("/selecionar-regiao/", response_model=schemas.PdfRegionResponse)
 async def selecionar_regiao_pdf(
     req: schemas.PdfRegionRequest,
@@ -819,6 +822,21 @@ async def selecionar_regiao_pdf(
     record = (
         db.query(models.CatalogImportFile)
         .filter_by(id=req.file_id, user_id=current_user.id)
+@router.post(
+    "/selecionar-regiao/",
+    response_model=schemas.RegionExtractionResponse,
+)
+async def selecionar_regiao(
+    file_id: int = Body(..., embed=True),
+    page: int = Body(..., embed=True),
+    bbox: List[float] = Body(..., embed=True),
+    db: Session = Depends(database.get_db),
+    current_user: models.User = Depends(auth_utils.get_current_active_user),
+):
+    """Extrai produtos de uma região selecionada de um PDF."""
+    record = (
+        db.query(models.CatalogImportFile)
+        .filter_by(id=file_id, user_id=current_user.id)
         .first()
     )
     if not record:
@@ -853,3 +871,32 @@ async def selecionar_regiao_pdf(
     except Exception:
         logger.exception("Erro ao extrair região do PDF")
         raise HTTPException(status_code=500, detail="Falha ao processar PDF")
+    produtos: List[Dict[str, Any]] = []
+    log: List[str] = []
+    try:
+        with pdfplumber.open(io.BytesIO(content)) as pdf:
+            for idx, pg in enumerate(pdf.pages):
+                if idx + 1 < page:
+                    continue
+                region = pg.crop(bbox)
+                text = region.extract_text(x_tolerance=2, y_tolerance=2)
+                if not text:
+                    continue
+                log.append(f"Pagina {idx+1} processada")
+                lines = [l.strip() for l in text.splitlines() if l.strip()]
+                data_dict: Dict[str, Any] = {}
+                for line in lines:
+                    if ":" in line:
+                        k, v = line.split(":", 1)
+                        data_dict[k.strip()] = v.strip()
+                if not data_dict:
+                    data_dict = {f"col_{i}": v for i, v in enumerate(lines)}
+                produto = file_processing_service._processar_linha_padronizada(
+                    data_dict, None
+                )
+                if produto:
+                    produtos.append(produto)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+    return {"produtos": produtos, "log": log}
