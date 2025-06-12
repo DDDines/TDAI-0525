@@ -1,4 +1,6 @@
 # Backend/alembic/env.py
+import os
+import sys
 from logging.config import fileConfig
 import logging
 from sqlalchemy import engine_from_config
@@ -9,8 +11,6 @@ from alembic import context
 logger = logging.getLogger(__name__)
 
 # --- INÍCIO DAS MODIFICAÇÕES PARA O SEU PROJETO ---
-import os
-import sys
 
 # Obtém o caminho para o diretório atual do env.py (Backend/alembic/)
 current_alembic_env_dir = os.path.dirname(os.path.abspath(__file__))
@@ -29,9 +29,8 @@ if backend_root_dir not in sys.path:
 # Se a execução é a partir do diretório Backend, esses imports devem funcionar.
 try:
     from Backend.database import Base  # Importa a Base definida em Backend/database.py
-    import models              # Importa todos os modelos definidos em Backend/models.py
     target_metadata = Base.metadata
-    logger.info("models.Base e models importados com sucesso para Alembic.")
+    logger.info("Base importada com sucesso para Alembic.")
 except ImportError as e:
     # Se o import direto falhou, é possível que 'Backend' não esteja sendo tratado como um pacote raiz
     # Tenta adicionar a raiz do projeto ao sys.path e importar usando o prefixo do pacote.
@@ -44,9 +43,8 @@ except ImportError as e:
         logger.info("'%s' (raiz do projeto) adicionado ao sys.path para imports de pacote.", project_root_dir)
     try:
         from Backend.database import Base  # Importação absoluta: do pacote Backend
-        import Backend.models as models    # Importação absoluta: do pacote Backend
         target_metadata = Base.metadata
-        logger.info("models.Base e models importados com sucesso usando caminho absoluto para Alembic.")
+        logger.info("Base importada com sucesso usando caminho absoluto para Alembic.")
     except ImportError as inner_e:
         logger.error(
             "Falha crítica ao importar Base ou models para Alembic mesmo com sys.path ajustado: %s",
