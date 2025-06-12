@@ -748,6 +748,11 @@ async def importar_catalogo_finalizar(
 
     db_session_factory = sessionmaker(bind=db.get_bind())
     # Sempre reprocessa o arquivo completo para evitar importar apenas as linhas de preview
+    file_path = Path(settings.UPLOAD_DIRECTORY) / "catalogs" / catalog_file.stored_filename
+    if not file_path.is_absolute():
+        file_path = Path(__file__).resolve().parent.parent / file_path
+    if not file_path.exists():
+        raise HTTPException(status_code=404, detail="Arquivo não encontrado")
     content = file_path.read_bytes()
     ext = file_path.suffix.lower()
     if mapping is None:
