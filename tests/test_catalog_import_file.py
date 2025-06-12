@@ -1,6 +1,8 @@
 import io
 from pathlib import Path
 import pytest
+import subprocess
+import sys
 pytest.importorskip("httpx")
 pytest.importorskip("sqlalchemy")
 from fastapi.testclient import TestClient
@@ -12,6 +14,13 @@ from Backend.main import app
 from Backend.database import Base, get_db
 from Backend import crud, schemas, models
 from Backend.core.config import settings
+
+# ensure reportlab for PDF generation
+try:
+    from reportlab.pdfgen import canvas
+except ImportError:  # pragma: no cover - install at runtime
+    subprocess.check_call([sys.executable, "-m", "pip", "install", "reportlab"])
+    from reportlab.pdfgen import canvas
 
 app.router.on_startup.clear()
 
@@ -37,6 +46,18 @@ client = TestClient(app)
 
 with TestingSessionLocal() as db:
     crud.create_initial_data(db)
+
+
+def _create_pdf(pages: int = 1):
+    buf = io.BytesIO()
+    c = canvas.Canvas(buf)
+    for i in range(pages):
+        c.drawString(100, 750, f"Page {i+1}")
+        if i < pages - 1:
+            c.showPage()
+    c.save()
+    buf.seek(0)
+    return buf.getvalue()
 
 
 def get_admin_headers():
@@ -152,3 +173,21 @@ def test_finalize_processes_full_file():
         produtos = db.query(models.Produto).all()
         assert len(produtos) == 10  # 2 existentes + 8 novos
         assert all(p.fornecedor_id == fornec_id for p in produtos[2:])
+
+
+def test_preview_pdf_respects_page_count():
+    headers = get_admin_headers()
+    pdf_bytes = _create_pdf(3)
+    files = {"file": ("catalogo.pdf", io.BytesIO(pdf_bytes), "application/pdf")}
+    with TestingSessionLocal() as db:
+        fornec_id = db.query(models.Fornecedor.id).first()[0]
+    resp = client.post(
+        "/api/v1/produtos/importar-catalogo-preview/?page_count=2",
+        files=files,
+        data={"fornecedor_id": fornec_id},
+        headers=headers,
+    )
+    assert resp.status_code == 200
+    data = resp.json()
+    assert "preview_images" in data
+    assert len(data["preview_images"]) == 2

@@ -57,7 +57,7 @@ function ImportCatalogWizard({ isOpen, onClose, fornecedorId }) {
     if (!file) return;
     setLoading(true);
     try {
-      const data = await fornecedorService.previewCatalogo(file);
+      const data = await fornecedorService.previewCatalogo(file, 5);
       setPreview({ headers: data.headers, previewImages: data.previewImages || [] });
       setFileId(data.fileId);
       setSampleRows(data.sampleRows || []);
