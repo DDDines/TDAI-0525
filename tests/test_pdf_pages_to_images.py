@@ -14,6 +14,11 @@ from Backend.services.file_processing_service import pdf_pages_to_images
 import pytest
 
 
+def _create_pdf(pages: int = 1):
+    buf = io.BytesIO()
+    c = canvas.Canvas(buf)
+    for i in range(pages):
+        c.drawString(100, 750, f"Page {i+1}")
 def _create_pdf(pages=1):
     buf = io.BytesIO()
     c = canvas.Canvas(buf)
@@ -36,6 +41,8 @@ async def test_pdf_pages_to_images_basic():
 
 
 @pytest.mark.asyncio
+async def test_pdf_pages_to_images_respects_max_pages():
+    pdf_bytes = _create_pdf(3)
 async def test_pdf_pages_respects_max_pages():
     pdf_bytes = _create_pdf(pages=3)
     images = await pdf_pages_to_images(pdf_bytes, max_pages=2)

@@ -85,6 +85,12 @@ export const deleteFornecedor = async (fornecedorId) => {
   }
 };
 
+export const previewCatalogo = async (file, pageCount = 5) => {
+  try {
+    const formData = new FormData();
+    formData.append('file', file);
+    const response = await apiClient.post(`/produtos/importar-catalogo-preview/?page_count=${pageCount}`, formData);
+    const { file_id, headers, sample_rows, preview_images } = response.data;
 export const previewCatalogo = async (file, pageCount = 1) => {
   try {
     const formData = new FormData();
@@ -145,7 +151,10 @@ export const finalizarImportacaoCatalogo = async (
     if (rows) {
       payload.rows = rows;
     }
-    const response = await apiClient.post(`/produtos/importar-catalogo-finalizar/${fileId}/`, payload);
+    const response = await apiClient.post(
+      `/produtos/importar-catalogo-finalizar/${fileId}/`,
+      payload
+    );
     return response.data;
   } catch (error) {
     console.error(
@@ -159,6 +168,19 @@ export const finalizarImportacaoCatalogo = async (
   }
 };
 
+export const getImportacaoStatus = async (fileId) => {
+  try {
+    const response = await apiClient.get(`/produtos/importar-catalogo-status/${fileId}/`);
+    return response.data;
+  } catch (error) {
+    console.error(`Erro ao consultar status do arquivo ${fileId}:`, JSON.stringify(error.response?.data || error.message || error));
+    if (error.response && error.response.data) {
+      throw error.response.data;
+    }
+    throw new Error(error.message || 'Falha ao consultar status da importação');
+  }
+};
+
 export default {
   getFornecedores,
   getFornecedorById,
@@ -168,4 +190,5 @@ export default {
   previewCatalogo,
   importCatalogo,
   finalizarImportacaoCatalogo,
+  getImportacaoStatus,
 };
