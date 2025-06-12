@@ -18,6 +18,8 @@ import json
 from sqlalchemy.orm import Session
 from pathlib import Path
 from sqlalchemy import func, or_
+import io
+import pdfplumber
 
 from Backend import crud_produtos
 from Backend import crud_fornecedores
@@ -585,7 +587,6 @@ async def upload_produto_image(  # Nome da função mantido como no arquivo do u
 async def importar_catalogo_preview(
     file: UploadFile = File(...),
     fornecedor_id: Optional[int] = Form(None),
-    page_count: int = Query(1, ge=1),
     page_count: int = Query(1, ge=1, description="Número de páginas de preview do PDF"),
     db: Session = Depends(database.get_db),
     current_user: models.User = Depends(auth_utils.get_current_active_user),
@@ -838,3 +839,48 @@ def importar_catalogo_status(
     if not record:
         raise HTTPException(status_code=404, detail="Arquivo não encontrado")
     return record
+
+
+@router.post("/selecionar-regiao/", response_model=schemas.PdfRegionResponse)
+async def selecionar_regiao_pdf(
+    req: schemas.PdfRegionRequest,
+    db: Session = Depends(database.get_db),
+    current_user: models.User = Depends(auth_utils.get_current_active_user),
+):
+    record = (
+        db.query(models.CatalogImportFile)
+        .filter_by(id=req.file_id, user_id=current_user.id)
+        .first()
+    )
+    if not record:
+        raise HTTPException(status_code=404, detail="Arquivo não encontrado")
+
+    file_path = Path(settings.UPLOAD_DIRECTORY) / "catalogs" / record.stored_filename
+    if not file_path.is_absolute():
+        file_path = Path(__file__).resolve().parent.parent / file_path
+    if not file_path.exists():
+        raise HTTPException(status_code=404, detail="Arquivo não encontrado")
+
+    content = file_path.read_bytes()
+
+    try:
+        with pdfplumber.open(io.BytesIO(content)) as pdf:
+            if req.page < 1 or req.page > len(pdf.pages):
+                raise HTTPException(status_code=400, detail="Página inválida")
+            page = pdf.pages[req.page - 1]
+            cropped = page.crop((req.x0, req.y0, req.x1, req.y1))
+            text = cropped.extract_text(x_tolerance=2, y_tolerance=2) or ""
+            return {
+                "file_id": req.file_id,
+                "page": req.page,
+                "x0": req.x0,
+                "y0": req.y0,
+                "x1": req.x1,
+                "y1": req.y1,
+                "text": text,
+            }
+    except HTTPException:
+        raise
+    except Exception:
+        logger.exception("Erro ao extrair região do PDF")
+        raise HTTPException(status_code=500, detail="Falha ao processar PDF")

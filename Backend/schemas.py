@@ -502,6 +502,19 @@ class FileProcessResponse(BaseModel):
     size_bytes: Optional[int] = None
 
 
+class PdfRegionRequest(BaseModel):
+    file_id: int
+    page: int
+    x0: float
+    y0: float
+    x1: float
+    y1: float
+
+
+class PdfRegionResponse(PdfRegionRequest):
+    text: str
+
+
 class SocialLoginConfig(BaseModel):
     """Indica quais provedores de login social estão configurados."""
     google_enabled: bool
@@ -522,4 +535,5 @@ RegistroHistoricoResponse.model_rebuild()
 CatalogImportFileResponse.model_rebuild()
 UserActivity.model_rebuild()
 SocialLoginConfig.model_rebuild()
+PdfRegionResponse.model_rebuild()
 
