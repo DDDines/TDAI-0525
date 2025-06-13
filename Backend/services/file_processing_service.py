@@ -436,6 +436,12 @@ async def pdf_pages_to_images(
         kwargs = {}
         if poppler_dir:
             kwargs["poppler_path"] = poppler_dir
+        end_page = start_page + max_pages - 1
+        kwargs = {}
+        poppler_dir = os.getenv("POPPLER_PATH") or settings.POPPLER_PATH
+        if poppler_dir:
+            kwargs["poppler_path"] = poppler_dir
+
         pages = convert_from_bytes(
             conteudo_arquivo,
             first_page=start_page,
