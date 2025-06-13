@@ -231,7 +231,7 @@
 * `update_product(product_id: int, update: ProdutoUpdate, db: Session)`: Atualiza produto.
 * `delete_product(product_id: int, db: Session)`: Remove produto.
 * `list_catalog_import_files(fornecedor_id: Optional[int], skip: int = 0, limit: int = 100, db: Session)`: Lista arquivos de importação de catálogos do usuário.
-* `importar_catalogo_preview(file: UploadFile, fornecedor_id: Optional[int], page_count: int, start_page: int, db: Session)`: Envia um arquivo e retorna cabeçalhos, amostras e `file_id` para processamento posterior. O parâmetro `start_page` define a página inicial usada para gerar as imagens de preview do PDF.
+* `importar_catalogo_preview(file: UploadFile, fornecedor_id: Optional[int], page_count: int, start_page: int, db: Session)`: Envia um arquivo e retorna apenas o número de páginas e imagens para visualização, sem extrair cabeçalhos ou amostras. O parâmetro `start_page` define a página inicial usada para gerar as imagens de preview do PDF.
 * `importar_catalogo_fornecedor(fornecedor_id: int, file: UploadFile, mapeamento_colunas_usuario: Optional[str], db: Session)`: Importa catálogo e cria produtos imediatamente.
 * `importar_catalogo_finalizar(file_id: int, product_type_id: int, fornecedor_id: int, mapping: Optional[dict], db: Session)`: Processa em background um arquivo já enviado.
 * `importar_catalogo_status(file_id: int, db: Session)`: Consulta o status do processamento do catálogo.
