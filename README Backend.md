@@ -231,8 +231,7 @@
 * `importar_catalogo_fornecedor(fornecedor_id: int, file: UploadFile, mapeamento_colunas_usuario: Optional[str], db: Session)`: Importa catálogo e cria produtos imediatamente.
 * `importar_catalogo_finalizar(file_id: int, product_type_id: int, fornecedor_id: int, mapping: Optional[dict], db: Session)`: Processa em background um arquivo já enviado.
 * `importar_catalogo_status(file_id: int, db: Session)`: Consulta o status do processamento do catálogo.
-* `selecionar_regiao_pdf(req: PdfRegionRequest, db: Session)`: Extrai texto de uma região específica de um PDF.
-* `selecionar_regiao(file_id: int, page: int, bbox: List[float], db: Session)`: Processa região selecionada e retorna produtos detectados.
+* `selecionar_regiao(file_id: int, page: int, bbox: List[float], db: Session)`: Processa região selecionada de um PDF e retorna produtos detectados.
 
 ## Backend/routers/social\_auth.py
 
