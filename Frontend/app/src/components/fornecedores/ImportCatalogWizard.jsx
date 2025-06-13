@@ -211,10 +211,8 @@ function ImportCatalogWizard({ isOpen, onClose, fornecedorId }) {
         fileId,
         fornecedorId,
         mapping,
-        selectedType.id
-        sampleRows,
         selectedType.id,
-        selectedPages
+        selectedPages,
       );
       setMessage('Processando...');
       setStep(4);
@@ -302,14 +300,6 @@ function ImportCatalogWizard({ isOpen, onClose, fornecedorId }) {
               alt={`Página ${currentPreviewPage + 1}`}
               style={{ maxWidth: '100%', marginBottom: '1em' }}
             />
-            <button
-              type="button"
-              onClick={() => {
-                setRegionPage(currentPreviewPage + 1);
-                setIsRegionModalOpen(true);
-              }}
-              className="btn-small"
-            >
             <div style={{ position: 'relative', display: 'inline-block' }}>
               <input
                 type="checkbox"
@@ -323,7 +313,14 @@ function ImportCatalogWizard({ isOpen, onClose, fornecedorId }) {
                 style={{ maxWidth: '100%', marginBottom: '1em' }}
               />
             </div>
-            <button type="button" onClick={() => setIsRegionModalOpen(true)} className="btn-small">
+            <button
+              type="button"
+              onClick={() => {
+                setRegionPage(currentPreviewPage + 1);
+                setIsRegionModalOpen(true);
+              }}
+              className="btn-small"
+            >
               Selecionar Região
             </button>
             {preview.tablePages && preview.tablePages.length > 0 && (

@@ -146,9 +146,6 @@ export const finalizarImportacaoCatalogo = async (
     if (mapping) {
       payload.mapping = mapping;
     }
-    if (rows) {
-      payload.rows = rows;
-    }
     if (pages) {
       payload.pages = Array.from(pages);
     }
