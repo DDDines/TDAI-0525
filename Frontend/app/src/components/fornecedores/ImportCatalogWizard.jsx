@@ -16,7 +16,7 @@ const BASE_FIELD_OPTIONS = [
   { value: 'imagem_url_original', label: 'URL Imagem' },
 ];
 
-const PREVIEW_PAGE_COUNT = 3;
+const INITIAL_PREVIEW_PAGE_COUNT = 3;
 
 function ImportCatalogWizard({ isOpen, onClose, fornecedorId }) {
   const [step, setStep] = useState(1);
@@ -36,11 +36,15 @@ function ImportCatalogWizard({ isOpen, onClose, fornecedorId }) {
   const [currentPreviewPage, setCurrentPreviewPage] = useState(0);
   const [regionProducts, setRegionProducts] = useState(null);
   const [isRegionModalOpen, setIsRegionModalOpen] = useState(false);
+  const [pdfUrl, setPdfUrl] = useState(null);
 
   const { productTypes, addProductType } = useProductTypes();
 
   useEffect(() => {
     if (!isOpen) {
+      if (pdfUrl) {
+        URL.revokeObjectURL(pdfUrl);
+      }
       setStep(1);
       setFile(null);
       setPreview(null);
@@ -58,18 +62,33 @@ function ImportCatalogWizard({ isOpen, onClose, fornecedorId }) {
         intervalRef.current = null;
       }
       setCurrentPreviewPage(0);
+      setPdfUrl(null);
     }
   }, [isOpen]);
 
   const handleFileChange = (e) => {
-    setFile(e.target.files[0]);
+    const f = e.target.files[0];
+    if (pdfUrl) {
+      URL.revokeObjectURL(pdfUrl);
+      setPdfUrl(null);
+    }
+    setFile(f);
+    if (f && f.type === 'application/pdf') {
+      setPdfUrl(URL.createObjectURL(f));
+    }
   };
 
   const handleGeneratePreview = async () => {
     if (!file) return;
     setLoading(true);
     try {
-      const data = await fornecedorService.previewCatalogo(file, PREVIEW_PAGE_COUNT);
+      let data = await fornecedorService.previewCatalogo(
+        file,
+        INITIAL_PREVIEW_PAGE_COUNT,
+      );
+      if (data.numPages && data.numPages > INITIAL_PREVIEW_PAGE_COUNT) {
+        data = await fornecedorService.previewCatalogo(file, data.numPages);
+      }
       setPreview({
         headers: data.headers,
         previewImages: data.previewImages || [],
@@ -215,6 +234,23 @@ function ImportCatalogWizard({ isOpen, onClose, fornecedorId }) {
     }
     return (
       <div>
+        {pdfUrl && (
+          <div style={{ marginBottom: '1em' }}>
+            <object
+              data={pdfUrl}
+              type="application/pdf"
+              width="100%"
+              height="500px"
+            >
+              <p>
+                Visualização não disponível.{' '}
+                <a href={pdfUrl} target="_blank" rel="noopener noreferrer">
+                  Baixar PDF
+                </a>
+              </p>
+            </object>
+          </div>
+        )}
         {preview.previewImages && preview.previewImages.length > 0 && (
           <div className="pdf-preview-images">
             <div className="preview-nav">
