@@ -5,6 +5,10 @@
 
 * **Sem funções**: Documentação do frontend.
 
+## Dependência para pré-visualização de PDF
+
+* A geração de previews de PDF depende do pacote `poppler-utils` instalado no sistema (por exemplo, `apt install poppler-utils`). Sem ele o backend não consegue converter PDFs em imagens, e o frontend não exibirá a pré-visualização do arquivo.
+
 ## Frontend/app/eslint.config.js
 
 * **Configuração**: Arquivo de configuração do ESLint para garantir o padrão e a qualidade do código JavaScript/React.

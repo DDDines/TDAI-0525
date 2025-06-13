@@ -22,6 +22,10 @@
 
 * **Função principal**: Executa o servidor FastAPI/Uvicorn utilizando configurações do projeto.
 
+## Dependência para conversão de PDF
+
+* Para gerar previews de PDF é necessário instalar o pacote `poppler-utils` (ex.: `apt install poppler-utils`). Sem ele o backend não conseguirá converter PDFs em imagens, e o preview de PDF não será gerado.
+
 ---
 
 ## Backend/**init**.py
