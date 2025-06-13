@@ -887,50 +887,6 @@ def importar_catalogo_status(
 
 
 
-@router.post("/selecionar-regiao/", response_model=schemas.PdfRegionResponse)
-async def selecionar_regiao_pdf(
-    req: schemas.PdfRegionRequest,
-    db: Session = Depends(database.get_db),
-    current_user: models.User = Depends(auth_utils.get_current_active_user),
-):
-    record = (
-        db.query(models.CatalogImportFile)
-        .filter_by(id=req.file_id, user_id=current_user.id)
-        .first()
-    )
-    if not record:
-        raise HTTPException(status_code=404, detail="Arquivo não encontrado")
-
-    file_path = Path(settings.UPLOAD_DIRECTORY) / "catalogs" / record.stored_filename
-    if not file_path.is_absolute():
-        file_path = Path(__file__).resolve().parent.parent / file_path
-    if not file_path.exists():
-        raise HTTPException(status_code=404, detail="Arquivo não encontrado")
-
-    content = file_path.read_bytes()
-
-    try:
-        with pdfplumber.open(io.BytesIO(content)) as pdf:
-            if req.page < 1 or req.page > len(pdf.pages):
-                raise HTTPException(status_code=400, detail="Página inválida")
-            page = pdf.pages[req.page - 1]
-            cropped = page.crop((req.x0, req.y0, req.x1, req.y1))
-            text = cropped.extract_text(x_tolerance=2, y_tolerance=2) or ""
-            return {
-                "file_id": req.file_id,
-                "page": req.page,
-                "x0": req.x0,
-                "y0": req.y0,
-                "x1": req.x1,
-                "y1": req.y1,
-                "text": text,
-            }
-    except HTTPException:
-        raise
-    except Exception:
-        logger.exception("Erro ao extrair região do PDF")
-        raise HTTPException(status_code=500, detail="Falha ao processar PDF")
-
 
 @router.post(
     "/selecionar-regiao/",
