@@ -6,6 +6,10 @@ import io  # Para ler o conteúdo do arquivo em memória
 import chardet
 import base64
 import os
+from pdf2image import convert_from_bytes
+import io, base64
+# Ajuste para o seu ambiente:
+POPPLER_PATH = r"/usr/bin"
 from typing import List, Dict, Any, Union, Optional
 from pathlib import Path
 from uuid import uuid4
@@ -387,7 +391,6 @@ async def preview_arquivo_pdf(
     conteudo_arquivo: bytes, ext: str, start_page: int = 1, page_count: int = 0
 ) -> Dict[str, Any]:
     """Gera preview com miniaturas, texto e detecção de tabelas."""
-    from pdf2image import convert_from_bytes
 
     try:
         reader = pdf_open(io.BytesIO(conteudo_arquivo))
@@ -458,29 +461,16 @@ async def pdf_pages_to_images(
     ambiente ``POPPLER_PATH`` apontando para o diretório onde ele está
     localizado.
     """
-    import base64
-    from pdf2image import convert_from_bytes
-
     imagens_base64: List[str] = []
     try:
-        poppler_dir = settings.POPPLER_PATH or os.getenv("POPPLER_PATH")
-        end_page = start_page + max_pages - 1
-        kwargs = {}
-        if poppler_dir:
-            kwargs["poppler_path"] = poppler_dir
-        end_page = start_page + max_pages - 1
-        kwargs = {}
-        poppler_dir = os.getenv("POPPLER_PATH") or settings.POPPLER_PATH
-        if poppler_dir:
-            kwargs["poppler_path"] = poppler_dir
-
-        pages = convert_from_bytes(
+        images = convert_from_bytes(
             conteudo_arquivo,
+            poppler_path=POPPLER_PATH,
             first_page=start_page,
-            last_page=end_page,
-            **kwargs,
+            last_page=start_page + max_pages - 1,
+            fmt="png",
         )
-        for img in pages:
+        for img in images:
             with io.BytesIO() as buf:
                 img.save(buf, format="PNG")
                 imagens_base64.append(base64.b64encode(buf.getvalue()).decode())
