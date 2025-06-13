@@ -190,7 +190,6 @@ function ImportCatalogWizard({ isOpen, onClose, fornecedorId }) {
         fileId,
         fornecedorId,
         mapping,
-        sampleRows,
         selectedType.id
       );
       setMessage('Processando...');

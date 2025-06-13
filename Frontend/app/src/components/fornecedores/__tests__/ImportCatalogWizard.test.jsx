@@ -52,7 +52,6 @@ test('shows preview rows and sends productTypeId on confirm', async () => {
     'f1',
     1,
     expect.any(Object),
-    expect.any(Array),
     1,
   );
   expect(fornecedorService.getImportacaoStatus).toHaveBeenCalled();
@@ -94,7 +93,6 @@ test('confirms import even when fileId is missing', async () => {
     null,
     1,
     expect.any(Object),
-    expect.any(Array),
     1,
   );
 });
