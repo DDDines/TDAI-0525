@@ -10,7 +10,6 @@ function LoadingOverlay({ isOpen, message = 'Carregando...' }) {
       <div className="loading-overlay-content">
         <img src={LogoImg} alt="CatalogAI logo" className="loading-logo" />
         <div className="loading-spinner" />
-        <p className="loading-text">Loading...</p>
         <p>{message}</p>
       </div>
     </div>
