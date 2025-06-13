@@ -34,6 +34,7 @@ function ImportCatalogWizard({ isOpen, onClose, fornecedorId }) {
   const [isSubmittingType, setIsSubmittingType] = useState(false);
   const intervalRef = useRef(null);
   const [currentPreviewPage, setCurrentPreviewPage] = useState(0);
+  const [regionPage, setRegionPage] = useState(1);
   const [regionProducts, setRegionProducts] = useState(null);
   const [isRegionModalOpen, setIsRegionModalOpen] = useState(false);
   const [pdfUrl, setPdfUrl] = useState(null);
@@ -63,6 +64,7 @@ function ImportCatalogWizard({ isOpen, onClose, fornecedorId }) {
         intervalRef.current = null;
       }
       setCurrentPreviewPage(0);
+      setRegionPage(1);
       setPdfUrl(null);
       setSelectedPages(new Set());
     }
@@ -294,6 +296,19 @@ function ImportCatalogWizard({ isOpen, onClose, fornecedorId }) {
                 Próxima
               </button>
             </div>
+            <img
+              src={`data:image/png;base64,${preview.previewImages[currentPreviewPage]}`}
+              alt={`Página ${currentPreviewPage + 1}`}
+              style={{ maxWidth: '100%', marginBottom: '1em' }}
+            />
+            <button
+              type="button"
+              onClick={() => {
+                setRegionPage(currentPreviewPage + 1);
+                setIsRegionModalOpen(true);
+              }}
+              className="btn-small"
+            >
             <div style={{ position: 'relative', display: 'inline-block' }}>
               <input
                 type="checkbox"
@@ -451,8 +466,42 @@ function ImportCatalogWizard({ isOpen, onClose, fornecedorId }) {
       <Modal isOpen={isRegionModalOpen} onClose={() => setIsRegionModalOpen(false)} title="Selecionar Região">
         {file && (
           <Suspense fallback={<div>Carregando...</div>}>
-            <PdfRegionSelector file={file} onSelect={handleRegionConfirm} />
+            <PdfRegionSelector
+              file={file}
+              onSelect={handleRegionConfirm}
+              initialPage={regionPage}
+            />
           </Suspense>
+        )}
+        {preview && (
+          <div className="preview-nav" style={{ marginTop: '1em' }}>
+            <button
+              type="button"
+              onClick={() => setRegionPage((p) => Math.max(1, p - 1))}
+              disabled={regionPage <= 1}
+            >
+              Anterior
+            </button>
+            <span style={{ margin: '0 1em' }}>
+              Página {regionPage} de {preview.numPages || preview.previewImages.length}
+            </span>
+            <button
+              type="button"
+              onClick={() =>
+                setRegionPage((p) =>
+                  Math.min(
+                    preview.numPages || preview.previewImages.length,
+                    p + 1,
+                  )
+                )
+              }
+              disabled={
+                regionPage >= (preview.numPages || preview.previewImages.length)
+              }
+            >
+              Próxima
+            </button>
+          </div>
         )}
       </Modal>
       <LoadingOverlay isOpen={loading || isSubmittingType} message="Processando..." />
