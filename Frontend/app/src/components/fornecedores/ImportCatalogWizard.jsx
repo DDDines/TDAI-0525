@@ -42,6 +42,7 @@ function ImportCatalogWizard({ isOpen, onClose, fornecedorId }) {
   const previewImageRef = useRef(null);
   const [isTextModalOpen, setIsTextModalOpen] = useState(false);
   const [textPreview, setTextPreview] = useState('');
+  const [startPage, setStartPage] = useState(1);
 
   const { productTypes, addProductType } = useProductTypes();
 
@@ -70,8 +71,20 @@ function ImportCatalogWizard({ isOpen, onClose, fornecedorId }) {
       setRegionPage(1);
       setPdfUrl(null);
       setSelectedPages(new Set());
+      setStartPage(1);
     }
   }, [isOpen]);
+
+  useEffect(() => {
+    if (preview?.numPages) {
+      const value = Math.min(Math.max(startPage, 1), preview.numPages);
+      setSelectedPages(
+        new Set(
+          Array.from({ length: preview.numPages - value + 1 }, (_, i) => value + i),
+        ),
+      );
+    }
+  }, [startPage, preview]);
 
   const handleFileChange = (e) => {
     const f = e.target.files[0];
@@ -103,8 +116,10 @@ function ImportCatalogWizard({ isOpen, onClose, fornecedorId }) {
         tablePages: data.tablePages || [],
       });
       if (data.numPages) {
+        setStartPage(1);
         setSelectedPages(new Set(Array.from({ length: data.numPages }, (_, i) => i + 1)));
       } else {
+        setStartPage(1);
         setSelectedPages(new Set());
       }
       setFileId(data.fileId);
@@ -180,6 +195,19 @@ function ImportCatalogWizard({ isOpen, onClose, fornecedorId }) {
       }
       return next;
     });
+  };
+
+  const handleStartPageChange = (e) => {
+    if (!preview?.numPages) return;
+    let value = parseInt(e.target.value, 10);
+    if (Number.isNaN(value)) value = 1;
+    value = Math.min(Math.max(value, 1), preview.numPages);
+    setStartPage(value);
+    setSelectedPages(
+      new Set(
+        Array.from({ length: preview.numPages - value + 1 }, (_, i) => value + i),
+      ),
+    );
   };
 
   const handleContinueAfterTypeSelect = () => {
@@ -361,6 +389,26 @@ function ImportCatalogWizard({ isOpen, onClose, fornecedorId }) {
         )}
         {sampleRows.length > 0 && (
           <table className="preview-table">
+          {preview.tablePages && preview.tablePages.length > 0 && (
+            <p>Páginas com tabelas: {preview.tablePages.join(', ')}</p>
+          )}
+        </div>
+      )}
+      {preview.numPages > 1 && (
+        <div className="form-group">
+          <label htmlFor="start-page-input">Página inicial:</label>
+          <input
+            id="start-page-input"
+            type="number"
+            min="1"
+            max={preview.numPages}
+            value={startPage}
+            onChange={handleStartPageChange}
+          />
+        </div>
+      )}
+      {sampleRows.length > 0 && (
+        <table className="preview-table">
             <thead>
               <tr>
                 {preview.headers.map((h, idx) => (
