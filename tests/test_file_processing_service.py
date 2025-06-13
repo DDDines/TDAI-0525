@@ -55,8 +55,8 @@ async def test_preview_arquivo_pdf_returns_page_info():
     c.save()
     pdf_bytes = buf.getvalue()
 
-    res = await file_processing_service.preview_arquivo_pdf(pdf_bytes)
+    res = await file_processing_service.preview_arquivo_pdf(pdf_bytes, ".pdf")
     assert res.get("num_pages") == 2
-    assert res.get("table_pages") == [] or isinstance(res.get("table_pages"), list)
-    assert res.get("headers") == []
-    assert res.get("sample_rows") == []
+    assert isinstance(res.get("table_pages"), list)
+    assert len(res["preview_images"]) == 2
+    assert 1 in res["sample_rows"]

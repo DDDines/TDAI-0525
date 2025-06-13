@@ -661,8 +661,8 @@ async def upload_produto_image(  # Nome da função mantido como no arquivo do u
 async def importar_catalogo_preview(
     file: UploadFile = File(...),
     fornecedor_id: Optional[int] = Form(None),
-    page_count: int = Query(1, ge=1, description="Número de páginas de preview do PDF"),
-    start_page: int = Query(1, ge=1, description="Página inicial do preview do PDF"),
+    start_page: int = Form(1),
+    page_count: int = Form(0),
     db: Session = Depends(database.get_db),
     current_user: models.User = Depends(auth_utils.get_current_active_user),
 ):
@@ -679,16 +679,12 @@ async def importar_catalogo_preview(
         file_path = Path(__file__).resolve().parent.parent / file_path
     content = file_path.read_bytes()
 
-    try:
-        preview = await file_processing_service.gerar_preview(content, ext)
-    except ValueError:
-        raise HTTPException(status_code=400, detail="Formato de arquivo não suportado")
-
     if ext == ".pdf":
-        preview_images = await file_processing_service.pdf_pages_to_images(
-            content, max_pages=page_count, start_page=start_page
+        preview = await file_processing_service.preview_arquivo_pdf(
+            content, ext, start_page, page_count
         )
-        preview["preview_images"] = preview_images
+    else:
+        preview = await file_processing_service.gerar_preview(content, ext)
 
     preview["file_id"] = saved.id
     return preview

@@ -325,13 +325,10 @@ class ProdutoBatchDeleteRequest(BaseModel):
 
 class ImportPreviewResponse(BaseModel):
     file_id: int
-    headers: List[str]
-    sample_rows: List[Dict[str, Any]]
-    preview_images: Optional[List[str]] = None
-    num_pages: Optional[int] = None
-    table_pages: Optional[List[int]] = None
-    message: Optional[str] = None
-    error: Optional[str] = None
+    num_pages: int
+    table_pages: List[int]
+    sample_rows: Dict[int, str]
+    preview_images: List[Dict[str, Any]]
 
 
 class ImportCatalogoResponse(BaseModel):

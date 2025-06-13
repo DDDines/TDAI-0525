@@ -290,9 +290,9 @@ def test_preview_pdf_respects_page_count():
     with TestingSessionLocal() as db:
         fornec_id = db.query(models.Fornecedor.id).first()[0]
     resp = client.post(
-        "/api/v1/produtos/importar-catalogo-preview/?page_count=2",
+        "/api/v1/produtos/importar-catalogo-preview/",
         files=files,
-        data={"fornecedor_id": fornec_id},
+        data={"fornecedor_id": fornec_id, "page_count": 2},
         headers=headers,
     )
     file_id = resp.json()["file_id"]
@@ -318,6 +318,7 @@ def test_preview_pdf_respects_page_count():
     data = resp.json()
     assert "preview_images" in data
     assert len(data["preview_images"]) == 2
+    assert all("page" in img for img in data["preview_images"])
 
 
 def test_region_selection_endpoint():
