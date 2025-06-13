@@ -5,6 +5,7 @@ import csv
 import io  # Para ler o conteúdo do arquivo em memória
 import chardet
 import base64
+import os
 from typing import List, Dict, Any, Union, Optional
 from pathlib import Path
 from uuid import uuid4
@@ -420,15 +421,23 @@ async def pdf_pages_to_images(
     :param conteudo_arquivo: conteúdo bruto do PDF
     :param max_pages: quantidade de páginas a converter
     :param start_page: página inicial (1-indexada)
+    
+    Se o executável ``pdftoppm`` não estiver no ``PATH``, defina a variável de
+    ambiente ``POPPLER_PATH`` apontando para o diretório onde ele está
+    localizado.
     """
     import base64
     from pdf2image import convert_from_bytes
 
     imagens_base64: List[str] = []
     try:
+        poppler_dir = os.getenv("POPPLER_PATH")
         end_page = start_page + max_pages - 1
         pages = convert_from_bytes(
-            conteudo_arquivo, first_page=start_page, last_page=end_page
+            conteudo_arquivo,
+            first_page=start_page,
+            last_page=end_page,
+            poppler_path=poppler_dir,
         )
         for img in pages:
             with io.BytesIO() as buf:

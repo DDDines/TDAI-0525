@@ -26,6 +26,11 @@
 
 * Para gerar previews de PDF é necessário instalar o pacote `poppler-utils` (ex.: `apt install poppler-utils`). Sem ele o backend não conseguirá converter PDFs em imagens, e o preview de PDF não será gerado.
 
+### Poppler no Windows
+
+Para usuários do Windows, instale o Poppler via Chocolatey (`choco install poppler`) ou baixe os binários em <https://github.com/oschwartz10612/poppler-windows/releases>.
+Após a instalação, adicione o diretório que contém `pdftoppm.exe` ao `PATH` ou defina a variável `POPPLER_PATH`. A função `pdf_pages_to_images` lê essa variável se o executável não estiver no `PATH`.
+
 ---
 
 ## Backend/**init**.py
