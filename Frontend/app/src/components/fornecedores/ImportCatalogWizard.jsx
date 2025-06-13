@@ -39,6 +39,9 @@ function ImportCatalogWizard({ isOpen, onClose, fornecedorId }) {
   const [isRegionModalOpen, setIsRegionModalOpen] = useState(false);
   const [pdfUrl, setPdfUrl] = useState(null);
   const [selectedPages, setSelectedPages] = useState(new Set());
+  const previewImageRef = useRef(null);
+  const [isTextModalOpen, setIsTextModalOpen] = useState(false);
+  const [textPreview, setTextPreview] = useState('');
 
   const { productTypes, addProductType } = useProductTypes();
 
@@ -142,6 +145,26 @@ function ImportCatalogWizard({ isOpen, onClose, fornecedorId }) {
       setIsRegionModalOpen(false);
     } catch (err) {
       alert(err.detail || err.message || 'Erro ao processar região');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handlePreviewText = async () => {
+    if (!fileId || !previewImageRef.current) return;
+    const { naturalWidth, naturalHeight } = previewImageRef.current;
+    setLoading(true);
+    try {
+      const data = await fornecedorService.selecionarRegiao(
+        fileId,
+        currentPreviewPage + 1,
+        [0, 0, naturalWidth, naturalHeight],
+      );
+      const texto = data.texto || JSON.stringify(data.produtos || data, null, 2);
+      setTextPreview(texto);
+      setIsTextModalOpen(true);
+    } catch (err) {
+      alert(err.detail || err.message || 'Erro ao pré-visualizar texto');
     } finally {
       setLoading(false);
     }
@@ -308,6 +331,7 @@ function ImportCatalogWizard({ isOpen, onClose, fornecedorId }) {
                 style={{ position: 'absolute', top: 10, left: 10, zIndex: 1 }}
               />
               <img
+                ref={previewImageRef}
                 src={`data:image/png;base64,${preview.previewImages[currentPreviewPage]}`}
                 alt={`Página ${currentPreviewPage + 1}`}
                 style={{ maxWidth: '100%', marginBottom: '1em' }}
@@ -322,6 +346,13 @@ function ImportCatalogWizard({ isOpen, onClose, fornecedorId }) {
               className="btn-small"
             >
               Selecionar Região
+            </button>
+            <button
+              type="button"
+              onClick={handlePreviewText}
+              className="btn-small"
+            >
+              Pré-visualizar texto
             </button>
             {preview.tablePages && preview.tablePages.length > 0 && (
               <p>Páginas com tabelas: {preview.tablePages.join(', ')}</p>
@@ -460,6 +491,9 @@ function ImportCatalogWizard({ isOpen, onClose, fornecedorId }) {
           <button className="btn-secondary" onClick={() => setIsNewTypeModalOpen(false)} disabled={isSubmittingType}>Cancelar</button>
           <button className="btn-success" onClick={handleSaveNewType} disabled={isSubmittingType}>{isSubmittingType ? 'Salvando...' : 'Salvar Tipo'}</button>
         </div>
+      </Modal>
+      <Modal isOpen={isTextModalOpen} onClose={() => setIsTextModalOpen(false)} title="Pré-visualização do Texto">
+        <pre style={{ whiteSpace: 'pre-wrap' }}>{textPreview}</pre>
       </Modal>
       <Modal isOpen={isRegionModalOpen} onClose={() => setIsRegionModalOpen(false)} title="Selecionar Região">
         {file && (

@@ -84,6 +84,7 @@
   2. **Mapeamento de colunas** – associa colunas da planilha a campos padrão e atributos dinâmicos. Permite criar um novo tipo de produto caso não exista.
   3. **Confirmação** – revisão final e importação.
 O wizard mostra linhas de amostra e miniaturas antes do envio definitivo, garantindo que as colunas estejam corretas.
+  Durante a pré-visualização é possível clicar em **Pré-visualizar texto** para extrair o texto completo da página atual do PDF. O sistema chama `fornecedorService.selecionarRegiao` cobrindo toda a página e exibe o resultado em um modal para verificação.
 
 ## Frontend/app/src/components/fornecedores/CatalogFileList.jsx
 
