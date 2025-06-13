@@ -9,6 +9,11 @@
 
 * A geração de previews de PDF depende do pacote `poppler-utils` instalado no sistema (por exemplo, `apt install poppler-utils`). Sem ele o backend não consegue converter PDFs em imagens, e o frontend não exibirá a pré-visualização do arquivo.
 
+### Poppler no Windows
+
+Em ambientes Windows é possível instalar o Poppler pelo Chocolatey (`choco install poppler`) ou baixar os binários de <https://github.com/oschwartz10612/poppler-windows/releases>.
+Após instalar, inclua o diretório com `pdftoppm.exe` no `PATH` ou defina `POPPLER_PATH`. A função `pdf_pages_to_images` usa essa variável quando o executável não está no `PATH`.
+
 ## Frontend/app/eslint.config.js
 
 * **Configuração**: Arquivo de configuração do ESLint para garantir o padrão e a qualidade do código JavaScript/React.

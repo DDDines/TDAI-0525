@@ -196,6 +196,14 @@ CatalogAI-0525-Dev/
 * Chaves de API: OpenAI, Google Search, serviço de e-mail (SMTP)
 * Copie o arquivo `.env.example` para `.env` e ajuste os valores
 
+#### Poppler no Windows
+
+Para Windows, instale o Poppler usando o Chocolatey (`choco install poppler`) ou
+baixe os binários em <https://github.com/oschwartz10612/poppler-windows/releases>.
+Inclua o diretório que contém `pdftoppm.exe` no `PATH` ou defina a variável
+`POPPLER_PATH` apontando para esse diretório. A função `pdf_pages_to_images`
+usa essa variável para localizar o executável caso ele não esteja no `PATH`.
+
 ---
 
 ### 2. **Clonar o Projeto**
