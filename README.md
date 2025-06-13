@@ -274,6 +274,8 @@ Principais variáveis obrigatórias:
 - `ADMIN_EMAIL` e `ADMIN_PASSWORD`
 - `MAIL_USERNAME`, `MAIL_PASSWORD`, `MAIL_FROM` e `MAIL_SERVER`
 
+Em ambientes Windows, defina também `POPPLER_PATH` apontando para os binários do Poppler para que a conversão de PDFs funcione.
+
 
 ### 6. **Testes**
 
@@ -347,6 +349,8 @@ RAISE_ON_MISSING_EMAIL_CONFIG=True  # gera erro se a configuração de email est
 
 # Frontend
 FRONTEND_URL="http://localhost:5173"
+# Path to poppler binaries (required on Windows)
+POPPLER_PATH=""
 
 # OAuth2 (Google/Facebook)
 GOOGLE_CLIENT_ID="..."

@@ -427,8 +427,11 @@ async def pdf_pages_to_images(
     imagens_base64: List[str] = []
     try:
         end_page = start_page + max_pages - 1
+        kwargs = {}
+        if settings.POPPLER_PATH:
+            kwargs["poppler_path"] = settings.POPPLER_PATH
         pages = convert_from_bytes(
-            conteudo_arquivo, first_page=start_page, last_page=end_page
+            conteudo_arquivo, first_page=start_page, last_page=end_page, **kwargs
         )
         for img in pages:
             with io.BytesIO() as buf:
