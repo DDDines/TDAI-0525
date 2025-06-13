@@ -34,9 +34,11 @@ function ImportCatalogWizard({ isOpen, onClose, fornecedorId }) {
   const [isSubmittingType, setIsSubmittingType] = useState(false);
   const intervalRef = useRef(null);
   const [currentPreviewPage, setCurrentPreviewPage] = useState(0);
+  const [regionPage, setRegionPage] = useState(1);
   const [regionProducts, setRegionProducts] = useState(null);
   const [isRegionModalOpen, setIsRegionModalOpen] = useState(false);
   const [pdfUrl, setPdfUrl] = useState(null);
+  const [selectedPages, setSelectedPages] = useState(new Set());
 
   const { productTypes, addProductType } = useProductTypes();
 
@@ -62,7 +64,9 @@ function ImportCatalogWizard({ isOpen, onClose, fornecedorId }) {
         intervalRef.current = null;
       }
       setCurrentPreviewPage(0);
+      setRegionPage(1);
       setPdfUrl(null);
+      setSelectedPages(new Set());
     }
   }, [isOpen]);
 
@@ -95,6 +99,11 @@ function ImportCatalogWizard({ isOpen, onClose, fornecedorId }) {
         numPages: data.numPages,
         tablePages: data.tablePages || [],
       });
+      if (data.numPages) {
+        setSelectedPages(new Set(Array.from({ length: data.numPages }, (_, i) => i + 1)));
+      } else {
+        setSelectedPages(new Set());
+      }
       setFileId(data.fileId);
       setSampleRows(data.sampleRows || []);
       setCurrentPreviewPage(0);
@@ -136,6 +145,18 @@ function ImportCatalogWizard({ isOpen, onClose, fornecedorId }) {
     } finally {
       setLoading(false);
     }
+  };
+
+  const toggleSelectedPage = (page) => {
+    setSelectedPages((prev) => {
+      const next = new Set(prev);
+      if (next.has(page)) {
+        next.delete(page);
+      } else {
+        next.add(page);
+      }
+      return next;
+    });
   };
 
   const handleContinueAfterTypeSelect = () => {
@@ -191,6 +212,9 @@ function ImportCatalogWizard({ isOpen, onClose, fornecedorId }) {
         fornecedorId,
         mapping,
         selectedType.id
+        sampleRows,
+        selectedType.id,
+        selectedPages
       );
       setMessage('Processando...');
       setStep(4);
@@ -278,6 +302,27 @@ function ImportCatalogWizard({ isOpen, onClose, fornecedorId }) {
               alt={`Página ${currentPreviewPage + 1}`}
               style={{ maxWidth: '100%', marginBottom: '1em' }}
             />
+            <button
+              type="button"
+              onClick={() => {
+                setRegionPage(currentPreviewPage + 1);
+                setIsRegionModalOpen(true);
+              }}
+              className="btn-small"
+            >
+            <div style={{ position: 'relative', display: 'inline-block' }}>
+              <input
+                type="checkbox"
+                checked={selectedPages.has(currentPreviewPage + 1)}
+                onChange={() => toggleSelectedPage(currentPreviewPage + 1)}
+                style={{ position: 'absolute', top: 10, left: 10, zIndex: 1 }}
+              />
+              <img
+                src={`data:image/png;base64,${preview.previewImages[currentPreviewPage]}`}
+                alt={`Página ${currentPreviewPage + 1}`}
+                style={{ maxWidth: '100%', marginBottom: '1em' }}
+              />
+            </div>
             <button type="button" onClick={() => setIsRegionModalOpen(true)} className="btn-small">
               Selecionar Região
             </button>
@@ -422,8 +467,42 @@ function ImportCatalogWizard({ isOpen, onClose, fornecedorId }) {
       <Modal isOpen={isRegionModalOpen} onClose={() => setIsRegionModalOpen(false)} title="Selecionar Região">
         {file && (
           <Suspense fallback={<div>Carregando...</div>}>
-            <PdfRegionSelector file={file} onSelect={handleRegionConfirm} />
+            <PdfRegionSelector
+              file={file}
+              onSelect={handleRegionConfirm}
+              initialPage={regionPage}
+            />
           </Suspense>
+        )}
+        {preview && (
+          <div className="preview-nav" style={{ marginTop: '1em' }}>
+            <button
+              type="button"
+              onClick={() => setRegionPage((p) => Math.max(1, p - 1))}
+              disabled={regionPage <= 1}
+            >
+              Anterior
+            </button>
+            <span style={{ margin: '0 1em' }}>
+              Página {regionPage} de {preview.numPages || preview.previewImages.length}
+            </span>
+            <button
+              type="button"
+              onClick={() =>
+                setRegionPage((p) =>
+                  Math.min(
+                    preview.numPages || preview.previewImages.length,
+                    p + 1,
+                  )
+                )
+              }
+              disabled={
+                regionPage >= (preview.numPages || preview.previewImages.length)
+              }
+            >
+              Próxima
+            </button>
+          </div>
         )}
       </Modal>
       <LoadingOverlay isOpen={loading || isSubmittingType} message="Processando..." />

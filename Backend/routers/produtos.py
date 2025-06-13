@@ -54,6 +54,7 @@ async def _tarefa_processar_catalogo(
     product_type_id: int,
     fornecedor_id: int,
     mapping: Optional[Dict[str, str]] = None,
+    pages: Optional[List[int]] = None,
 ):
     """Processa o arquivo salvo em background e cria os produtos."""
     db: Optional[Session] = None
@@ -93,6 +94,7 @@ async def _tarefa_processar_catalogo(
                 content,
                 mapeamento_colunas_usuario=mapping,
                 product_type_id=product_type_id,
+                pages=pages,
             )
         else:
             catalog_file.status = "FAILED"
@@ -313,6 +315,7 @@ async def reprocess_catalog_import_file(
         product_type_id=product_type_id,
         fornecedor_id=fornecedor_id,
         mapping=mapping,
+        pages=pages,
     )
 
     return {"status": "PROCESSING", "file_id": file_id}
@@ -799,6 +802,7 @@ async def importar_catalogo_finalizar(
     product_type_id: int = Body(..., embed=True),
     fornecedor_id: int = Body(..., embed=True),
     mapping: Optional[Dict[str, str]] = Body(None),
+    pages: Optional[List[int]] = Body(None),
     db: Session = Depends(database.get_db),
     current_user: models.User = Depends(auth_utils.get_current_active_user),
 ):
@@ -847,6 +851,7 @@ async def importar_catalogo_finalizar(
             content,
             mapeamento_colunas_usuario=mapping,
             product_type_id=product_type_id,
+            pages=pages,
         )
     else:
         raise HTTPException(
@@ -861,6 +866,7 @@ async def importar_catalogo_finalizar(
         product_type_id=product_type_id,
         fornecedor_id=fornecedor_id,
         mapping=mapping,
+        pages=pages,
     )
 
     return {"status": "PROCESSING", "file_id": file_id}
@@ -886,50 +892,6 @@ def importar_catalogo_status(
     return record
 
 
-
-@router.post("/selecionar-regiao/", response_model=schemas.PdfRegionResponse)
-async def selecionar_regiao_pdf(
-    req: schemas.PdfRegionRequest,
-    db: Session = Depends(database.get_db),
-    current_user: models.User = Depends(auth_utils.get_current_active_user),
-):
-    record = (
-        db.query(models.CatalogImportFile)
-        .filter_by(id=req.file_id, user_id=current_user.id)
-        .first()
-    )
-    if not record:
-        raise HTTPException(status_code=404, detail="Arquivo não encontrado")
-
-    file_path = Path(settings.UPLOAD_DIRECTORY) / "catalogs" / record.stored_filename
-    if not file_path.is_absolute():
-        file_path = Path(__file__).resolve().parent.parent / file_path
-    if not file_path.exists():
-        raise HTTPException(status_code=404, detail="Arquivo não encontrado")
-
-    content = file_path.read_bytes()
-
-    try:
-        with pdfplumber.open(io.BytesIO(content)) as pdf:
-            if req.page < 1 or req.page > len(pdf.pages):
-                raise HTTPException(status_code=400, detail="Página inválida")
-            page = pdf.pages[req.page - 1]
-            cropped = page.crop((req.x0, req.y0, req.x1, req.y1))
-            text = cropped.extract_text(x_tolerance=2, y_tolerance=2) or ""
-            return {
-                "file_id": req.file_id,
-                "page": req.page,
-                "x0": req.x0,
-                "y0": req.y0,
-                "x1": req.x1,
-                "y1": req.y1,
-                "text": text,
-            }
-    except HTTPException:
-        raise
-    except Exception:
-        logger.exception("Erro ao extrair região do PDF")
-        raise HTTPException(status_code=500, detail="Falha ao processar PDF")
 
 
 @router.post(

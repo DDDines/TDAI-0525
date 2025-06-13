@@ -134,12 +134,19 @@ export const finalizarImportacaoCatalogo = async (
   fornecedorId,
   mapping = null,
   productTypeId = null,
+  pages = null,
 ) => {
   try {
     const payload = { file_id: fileId, fornecedor_id: fornecedorId };
     if (productTypeId) payload.product_type_id = productTypeId;
     if (mapping) {
       payload.mapping = mapping;
+    }
+    if (rows) {
+      payload.rows = rows;
+    }
+    if (pages) {
+      payload.pages = Array.from(pages);
     }
     const response = await apiClient.post(
       `/produtos/importar-catalogo-finalizar/${fileId}/`,
@@ -223,23 +230,6 @@ export const getImportacaoStatus = async (fileId) => {
   }
 };
 
-export const selecionarRegiaoPdf = async (
-  fileId,
-  page,
-  bbox,
-) => {
-  try {
-    const payload = { file_id: fileId, page, ...bbox };
-    const response = await apiClient.post('/produtos/selecionar-regiao/', payload);
-    return response.data;
-  } catch (error) {
-    console.error('Erro ao selecionar região do PDF:', JSON.stringify(error.response?.data || error.message || error));
-    if (error.response && error.response.data) {
-      throw error.response.data;
-    }
-    throw new Error(error.message || 'Falha ao solicitar região do PDF');
-  }
-};
 
 export const selecionarRegiao = async (fileId, page, bbox) => {
   try {
@@ -271,6 +261,5 @@ export default {
   deleteCatalogFile,
   reprocessCatalogFile,
   getImportacaoStatus,
-  selecionarRegiaoPdf,
   selecionarRegiao,
 };

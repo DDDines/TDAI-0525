@@ -69,7 +69,7 @@ def get_admin_headers():
     return {"Authorization": f"Bearer {token}"}
 
 
-def test_selecionar_regiao_returns_text():
+def test_selecionar_regiao_returns_empty_products():
     headers = get_admin_headers()
     pdf_bytes = _create_pdf()
     uploads = Path(__file__).resolve().parents[1] / "Backend" / "static" / "uploads" / "catalogs"
@@ -89,14 +89,15 @@ def test_selecionar_regiao_returns_text():
         db.refresh(record)
         file_id = record.id
 
-    payload = {"file_id": file_id, "page": 1, "x0": 90, "y0": 80, "x1": 200, "y1": 100}
+    payload = {"file_id": file_id, "page": 1, "bbox": [90, 80, 200, 100]}
     resp = client.post("/api/v1/produtos/selecionar-regiao/", json=payload, headers=headers)
     assert resp.status_code == 200
-    assert "Hello" in resp.json()["text"]
+    data = resp.json()
+    assert data["produtos"] == []
 
 
 def test_selecionar_regiao_file_not_found():
     headers = get_admin_headers()
-    payload = {"file_id": 999, "page": 1, "x0": 0, "y0": 0, "x1": 10, "y1": 10}
+    payload = {"file_id": 999, "page": 1, "bbox": [0, 0, 10, 10]}
     resp = client.post("/api/v1/produtos/selecionar-regiao/", json=payload, headers=headers)
     assert resp.status_code == 404
