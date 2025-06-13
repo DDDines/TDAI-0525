@@ -133,7 +133,6 @@ export const finalizarImportacaoCatalogo = async (
   fileId,
   fornecedorId,
   mapping = null,
-  rows = null,
   productTypeId = null,
   pages = null,
 ) => {

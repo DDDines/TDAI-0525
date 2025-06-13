@@ -211,6 +211,7 @@ function ImportCatalogWizard({ isOpen, onClose, fornecedorId }) {
         fileId,
         fornecedorId,
         mapping,
+        selectedType.id
         sampleRows,
         selectedType.id,
         selectedPages
