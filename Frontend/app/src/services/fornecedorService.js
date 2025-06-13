@@ -85,11 +85,15 @@ export const deleteFornecedor = async (fornecedorId) => {
   }
 };
 
-export const previewCatalogo = async (file, pageCount = 1) => {
+export const previewCatalogo = async (file, pageCount = 1, startPage = 1) => {
   try {
     const formData = new FormData();
     formData.append('file', file);
-    const response = await apiClient.post('/produtos/importar-catalogo-preview/', formData, { params: { page_count: pageCount } });
+    const response = await apiClient.post(
+      '/produtos/importar-catalogo-preview/',
+      formData,
+      { params: { page_count: pageCount, start_page: startPage } },
+    );
     const { file_id, headers, sample_rows, preview_images, num_pages, table_pages } = response.data;
     return {
       fileId: file_id,
