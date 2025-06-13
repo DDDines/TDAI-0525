@@ -85,6 +85,7 @@ test('shows preview rows and sends productTypeId on confirm', async () => {
     expect.any(Object),
     expect.any(Array),
     1,
+    expect.any(Set),
   );
   expect(fornecedorService.getImportacaoStatus).toHaveBeenCalled();
   expect(await screen.findByText('Importação concluída com sucesso')).toBeInTheDocument();
@@ -127,12 +128,22 @@ test('confirms import even when fileId is missing', async () => {
     expect.any(Object),
     expect.any(Array),
     1,
+    expect.any(Set),
   );
 });
+
 
 });
 
 test.skip('region modal sends selected page', async () => {
+test('sends only selected pages', async () => {
+  fornecedorService.previewCatalogo.mockResolvedValueOnce({
+    fileId: 'f1',
+    headers: ['Nome'],
+    sampleRows: [{ Nome: 'Item' }],
+    previewImages: ['a', 'b'],
+    numPages: 2,
+  });
   render(<ImportCatalogWizard isOpen={true} onClose={() => {}} fornecedorId={1} />);
   const fileInput = document.querySelector('input[type="file"]');
   const file = new File(['a'], 'test.pdf', { type: 'application/pdf' });
@@ -149,4 +160,13 @@ test.skip('region modal sends selected page', async () => {
   const call = fornecedorService.selecionarRegiao.mock.calls[0];
   expect(call[0]).toBe('f1');
   expect(call[1]).toBe(2);
+  await userEvent.click(screen.getByText('Próxima'));
+  await userEvent.click(screen.getByRole('checkbox'));
+  await userEvent.click(screen.getByText('Anterior'));
+  await userEvent.selectOptions(screen.getByRole('combobox'), '1');
+  await userEvent.click(screen.getByText('Continuar'));
+  await userEvent.click(screen.getByText('Confirmar Importação'));
+  const pages = fornecedorService.finalizarImportacaoCatalogo.mock.calls[0][5];
+  expect(Array.from(pages)).toEqual([1]);
+});
 });

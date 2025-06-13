@@ -54,6 +54,7 @@ async def _tarefa_processar_catalogo(
     product_type_id: int,
     fornecedor_id: int,
     mapping: Optional[Dict[str, str]] = None,
+    pages: Optional[List[int]] = None,
 ):
     """Processa o arquivo salvo em background e cria os produtos."""
     db: Optional[Session] = None
@@ -93,6 +94,7 @@ async def _tarefa_processar_catalogo(
                 content,
                 mapeamento_colunas_usuario=mapping,
                 product_type_id=product_type_id,
+                pages=pages,
             )
         else:
             catalog_file.status = "FAILED"
@@ -313,6 +315,7 @@ async def reprocess_catalog_import_file(
         product_type_id=product_type_id,
         fornecedor_id=fornecedor_id,
         mapping=mapping,
+        pages=pages,
     )
 
     return {"status": "PROCESSING", "file_id": file_id}
@@ -799,6 +802,7 @@ async def importar_catalogo_finalizar(
     product_type_id: int = Body(..., embed=True),
     fornecedor_id: int = Body(..., embed=True),
     mapping: Optional[Dict[str, str]] = Body(None),
+    pages: Optional[List[int]] = Body(None),
     db: Session = Depends(database.get_db),
     current_user: models.User = Depends(auth_utils.get_current_active_user),
 ):
@@ -847,6 +851,7 @@ async def importar_catalogo_finalizar(
             content,
             mapeamento_colunas_usuario=mapping,
             product_type_id=product_type_id,
+            pages=pages,
         )
     else:
         raise HTTPException(
@@ -861,6 +866,7 @@ async def importar_catalogo_finalizar(
         product_type_id=product_type_id,
         fornecedor_id=fornecedor_id,
         mapping=mapping,
+        pages=pages,
     )
 
     return {"status": "PROCESSING", "file_id": file_id}
