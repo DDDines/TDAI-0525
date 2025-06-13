@@ -85,6 +85,7 @@ class Settings(BaseSettings):
 
     FRONTEND_URL: str = os.getenv("FRONTEND_URL", "http://localhost:5173")
     UPLOAD_DIRECTORY: str = os.getenv("UPLOAD_DIRECTORY", "static/uploads")
+    POPPLER_PATH: Optional[str] = os.getenv("POPPLER_PATH")
 
     OPENAI_API_KEY: Optional[str] = os.getenv("OPENAI_API_KEY")
     GOOGLE_GEMINI_API_KEY: Optional[str] = os.getenv("GOOGLE_GEMINI_API_KEY")
