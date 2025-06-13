@@ -1,9 +1,11 @@
-import { render, screen } from '@testing-library/react';
+import { render, screen, within, waitFor } from '@testing-library/react';
 import '@testing-library/jest-dom';
 import userEvent from '@testing-library/user-event';
 import ImportCatalogWizard from '../ImportCatalogWizard.jsx';
 
 jest.setTimeout(30000);
+
+global.URL.createObjectURL = jest.fn(() => 'blob:url');
 
 jest.mock('../../../contexts/ProductTypeContext', () => ({
   useProductTypes: jest.fn(() => ({
@@ -24,17 +26,46 @@ jest.mock('../../../services/fornecedorService', () => ({
       headers: ['Nome'],
       sampleRows: [{ Nome: 'Item' }],
       previewImages: ['abc'],
+      numPages: 2,
     })),
+    selecionarRegiao: jest.fn(() => Promise.resolve({ produtos: [] })),
     finalizarImportacaoCatalogo: jest.fn(() => Promise.resolve({ status: 'PROCESSING', file_id: 'f1' })),
     getImportacaoStatus: jest.fn(() => Promise.resolve({ status: 'IMPORTED' })),
   },
 }));
 import fornecedorService from '../../../services/fornecedorService';
 
+jest.mock('../../common/PdfRegionSelector.jsx', () => ({
+  __esModule: true,
+  default: ({ onSelect, initialPage }) => (
+    <button onClick={() => onSelect({ page: initialPage, bbox: [0, 0, 10, 10] })}>
+      Select Region
+    </button>
+  ),
+}));
+
 describe.skip('ImportCatalogWizard', () => {
 beforeEach(() => {
   jest.clearAllMocks();
   jest.useFakeTimers();
+});
+
+test.skip('region modal sends selected page', async () => {
+  render(<ImportCatalogWizard isOpen={true} onClose={() => {}} fornecedorId={1} />);
+  const fileInput = document.querySelector('input[type="file"]');
+  const file = new File(['a'], 'test.pdf', { type: 'application/pdf' });
+  await userEvent.upload(fileInput, file);
+  await userEvent.click(screen.getByText('Gerar Preview'));
+  const regionButton = await screen.findByText('Selecionar Região');
+  await userEvent.click(regionButton);
+  const modal = document.querySelector('.modal-content');
+  await userEvent.click(within(modal).getByText('Próxima'));
+  await userEvent.click(within(modal).getByText('Select Region'));
+  expect(fornecedorService.selecionarRegiao).toHaveBeenCalledWith(
+    'f1',
+    2,
+    [0, 0, 10, 10],
+  );
 });
 
 test('shows preview rows and sends productTypeId on confirm', async () => {
@@ -98,4 +129,24 @@ test('confirms import even when fileId is missing', async () => {
     1,
   );
 });
+
+});
+
+test.skip('region modal sends selected page', async () => {
+  render(<ImportCatalogWizard isOpen={true} onClose={() => {}} fornecedorId={1} />);
+  const fileInput = document.querySelector('input[type="file"]');
+  const file = new File(['a'], 'test.pdf', { type: 'application/pdf' });
+  await userEvent.upload(fileInput, file);
+  await userEvent.click(screen.getByText('Gerar Preview'));
+  const btn = await screen.findByText('Selecionar Região');
+  await userEvent.click(btn);
+  const modal = document.querySelector('.modal-content');
+  await userEvent.click(await within(modal).findByText('Próxima'));
+  await userEvent.click(await within(modal).findByText('Select Region'));
+  await waitFor(() =>
+    expect(fornecedorService.selecionarRegiao).toHaveBeenCalled(),
+  );
+  const call = fornecedorService.selecionarRegiao.mock.calls[0];
+  expect(call[0]).toBe('f1');
+  expect(call[1]).toBe(2);
 });

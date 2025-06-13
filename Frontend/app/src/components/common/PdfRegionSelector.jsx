@@ -7,19 +7,23 @@ if (pdfjs.GlobalWorkerOptions) {
   pdfjs.GlobalWorkerOptions.workerSrc = require('pdfjs-dist/build/pdf.worker.js');
 }
 
-function PdfRegionSelector({ file, onSelect }) {
+function PdfRegionSelector({ file, onSelect, initialPage = 1 }) {
   const canvasRef = useRef(null);
-  const [pageNum] = useState(1);
+  const [pageNum, setPageNum] = useState(initialPage);
   const startPos = useRef(null);
   const [rect, setRect] = useState(null);
   const [isDrawing, setIsDrawing] = useState(false);
 
   useEffect(() => {
+    setPageNum(initialPage);
+  }, [initialPage, file]);
+
+  useEffect(() => {
     const load = async () => {
       if (!file) return;
-    const task = pdfjs.getDocument({ data: file });
-    const doc = await task.promise;
-    const page = await doc.getPage(pageNum);
+      const task = pdfjs.getDocument({ data: file });
+      const doc = await task.promise;
+      const page = await doc.getPage(pageNum);
       const viewport = page.getViewport({ scale: 1.5 });
       const canvas = canvasRef.current;
       const ctx = canvas.getContext('2d');
@@ -51,7 +55,7 @@ function PdfRegionSelector({ file, onSelect }) {
 
   const handleMouseUp = () => {
     if (isDrawing && rect) {
-      onSelect({ page: pageNum, ...rect });
+      onSelect({ page: pageNum, bbox: [rect.x0, rect.y0, rect.x1, rect.y1] });
     }
     setIsDrawing(false);
     startPos.current = null;
