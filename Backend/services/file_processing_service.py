@@ -431,6 +431,11 @@ async def pdf_pages_to_images(
 
     imagens_base64: List[str] = []
     try:
+        poppler_dir = settings.POPPLER_PATH or os.getenv("POPPLER_PATH")
+        end_page = start_page + max_pages - 1
+        kwargs = {}
+        if poppler_dir:
+            kwargs["poppler_path"] = poppler_dir
         end_page = start_page + max_pages - 1
         kwargs = {}
         poppler_dir = os.getenv("POPPLER_PATH") or settings.POPPLER_PATH
