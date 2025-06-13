@@ -387,13 +387,6 @@ function ImportCatalogWizard({ isOpen, onClose, fornecedorId }) {
             )}
           </div>
         )}
-        {sampleRows.length > 0 && (
-          <table className="preview-table">
-          {preview.tablePages && preview.tablePages.length > 0 && (
-            <p>Páginas com tabelas: {preview.tablePages.join(', ')}</p>
-          )}
-        </div>
-      )}
       {preview.numPages > 1 && (
         <div className="form-group">
           <label htmlFor="start-page-input">Página inicial:</label>
