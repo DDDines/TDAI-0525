@@ -190,6 +190,7 @@ CatalogAI-0525-Dev/
 * Node.js 18+
 * PostgreSQL 12+ (obrigatório em produção; SQLite pode ser usado apenas para desenvolvimento e testes)
 * Git
+* Pacote `poppler-utils` (ex.: `apt install poppler-utils`) para que a conversão de PDFs em imagens funcione. Sem ele o preview de PDF não será gerado
 * Navegadores Playwright (para scraping):
   `playwright install`
 * Chaves de API: OpenAI, Google Search, serviço de e-mail (SMTP)
