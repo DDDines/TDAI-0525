@@ -660,34 +660,27 @@ async def upload_produto_image(  # Nome da função mantido como no arquivo do u
 )
 async def importar_catalogo_preview(
     file: UploadFile = File(...),
-    fornecedor_id: Optional[int] = Form(None),
     start_page: int = Form(1),
     page_count: int = Form(0),
     db: Session = Depends(database.get_db),
     current_user: models.User = Depends(auth_utils.get_current_active_user),
 ):
-    """Salva o arquivo enviado, gera preview e registra no banco."""
-    saved = await file_processing_service.save_uploaded_catalog(file, fornecedor_id)
-    saved.user_id = current_user.id
-    db.add(saved)
-    db.commit()
-    db.refresh(saved)
-
-    ext = Path(saved.stored_filename).suffix.lower()
-    file_path = Path(settings.UPLOAD_DIRECTORY) / "catalogs" / saved.stored_filename
-    if not file_path.is_absolute():
-        file_path = Path(__file__).resolve().parent.parent / file_path
-    content = file_path.read_bytes()
-
-    if ext == ".pdf":
+    """Gera preview de um catálogo enviado sem salvar permanentemente."""
+    content = await file.read()
+    ext = Path(file.filename).suffix.lower()
+    try:
         preview = await file_processing_service.preview_arquivo_pdf(
             content, ext, start_page, page_count
         )
-    else:
-        preview = await file_processing_service.gerar_preview(content, ext)
-
-    preview["file_id"] = saved.id
-    return preview
+        return schemas.ImportPreviewResponse(**preview, error=None)
+    except Exception as e:
+        return schemas.ImportPreviewResponse(
+            num_pages=0,
+            table_pages=[],
+            sample_rows={},
+            preview_images=[],
+            error=f"Falha ao gerar preview de PDF: {e}",
+        )
 
 
 @router.post(
