@@ -455,16 +455,18 @@ Esses identificadores serão anexados a todos os produtos extraídos do arquivo.
 
 ## 🧪 Testes
 
-Os testes do backend dependem das bibliotecas listadas em `requirements-backend.txt`,
-que incluem pacotes como **SQLAlchemy** e as dependências `pytest` e
-`pytest-asyncio`. Instale-as com:
+Os testes do backend dependem **de todas** as bibliotecas listadas em
+`requirements-backend.txt`. Elas incluem desde o **SQLAlchemy** até o
+próprio `pytest` (e `pytest-asyncio`).
+Instale **todas** essas dependências antes de executar qualquer teste,
+com o comando:
 
 ```sh
 pip install -r requirements-backend.txt
 ```
 
 Em seguida execute o `pytest` manualmente ou utilize o script de conveniência abaixo,
-que realiza a instalação das dependências e roda os testes:
+que já realiza essa instalação automaticamente antes de rodar os testes:
 
 ```sh
 ./scripts/run_tests.sh
