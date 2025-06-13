@@ -38,3 +38,14 @@ def test_processar_pdf_sem_tabelas_extrai_texto():
     assert res[0]["dados_brutos_adicionais"]["texto_completo_pagina_1"].startswith("Primeira")
     assert res[1]["dados_brutos_adicionais"]["texto_completo_pagina_2"].startswith("Segunda")
 
+
+def test_processar_pdf_pages_param():
+    pdf_bytes = _create_pdf(["A", "B", "C"])
+    res = asyncio.run(
+        file_processing_service.processar_arquivo_pdf(pdf_bytes, usar_llm=False, pages=[1, 3])
+    )
+    textos = [list(r["dados_brutos_adicionais"].values())[0] for r in res]
+    assert len(res) == 2
+    assert textos[0].startswith("A")
+    assert textos[1].startswith("C")
+
