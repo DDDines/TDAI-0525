@@ -1,6 +1,6 @@
 # catalogai_project/Backend/services/file_processing_service.py
 import pandas as pd
-import pdfplumber
+from pdfplumber import open as pdf_open
 import csv
 import io  # Para ler o conteúdo do arquivo em memória
 import chardet
@@ -383,17 +383,49 @@ async def preview_arquivo_csv(conteudo_arquivo: bytes, max_rows: int = 5) -> Dic
         return {"error": f"Falha ao ler arquivo CSV: {str(e)}"}
 
 
-async def preview_arquivo_pdf(conteudo_arquivo: bytes, max_rows: int = 5) -> Dict[str, Any]:
-    """Retorna somente informações básicas do PDF sem tentar extrair dados."""
+async def preview_arquivo_pdf(
+    conteudo_arquivo: bytes, ext: str, start_page: int = 1, page_count: int = 0
+) -> Dict[str, Any]:
+    """Gera preview com miniaturas, texto e detecção de tabelas."""
+    from pdf2image import convert_from_bytes
+
     try:
-        with pdfplumber.open(io.BytesIO(conteudo_arquivo)) as pdf:
-            num_pages = len(pdf.pages)
-        return {
-            "headers": [],
-            "sample_rows": [],
+        reader = pdf_open(io.BytesIO(conteudo_arquivo))
+        num_pages = len(reader.pages)
+        if page_count == 0:
+            page_count = num_pages
+        end_page = min(start_page + page_count - 1, num_pages)
+
+        preview: Dict[str, Any] = {
             "num_pages": num_pages,
             "table_pages": [],
+            "sample_rows": {},
+            "preview_images": [],
         }
+
+        poppler_dir = os.getenv("POPPLER_PATH") or settings.POPPLER_PATH
+        kwargs = {"poppler_path": poppler_dir} if poppler_dir else {}
+
+        for p in range(start_page, end_page + 1):
+            page = reader.pages[p - 1]
+
+            tables = page.extract_tables()
+            if tables:
+                preview["table_pages"].append(p)
+
+            text = page.extract_text() or ""
+            snippet = "\n".join(text.splitlines()[:3])
+            preview["sample_rows"][p] = snippet
+
+            img = convert_from_bytes(
+                conteudo_arquivo, first_page=p, last_page=p, fmt="png", **kwargs
+            )[0]
+            buf = io.BytesIO()
+            img.save(buf, format="PNG")
+            b64 = base64.b64encode(buf.getvalue()).decode()
+            preview["preview_images"].append({"page": p, "image": f"data:image/png;base64,{b64}"})
+
+        return preview
     except Exception as e:
         logger.error("Erro ao gerar preview de arquivo PDF: %s", e)
         return {"error": f"Falha ao ler arquivo PDF: {str(e)}"}
@@ -409,7 +441,7 @@ async def gerar_preview(conteudo_arquivo: bytes, ext: str, max_rows: int = 5) ->
     if ext == ".csv":
         return await preview_arquivo_csv(conteudo_arquivo, max_rows)
     if ext == ".pdf":
-        return await preview_arquivo_pdf(conteudo_arquivo, max_rows)
+        return await preview_arquivo_pdf(conteudo_arquivo, ext, 1, 0)
     raise ValueError("Formato de arquivo não suportado para preview")
 
 
