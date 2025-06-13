@@ -235,6 +235,7 @@ async def processar_arquivo_pdf(
     mapeamento_colunas_usuario: Optional[Dict[str, str]] = None,
     usar_llm: bool = True,
     product_type_id: Optional[int] = None,
+    pages: Optional[List[int]] = None,
 ) -> List[Dict[str, Any]]:
     produtos_extraidos: List[Dict[str, Any]] = []
     log_pdf: List[str] = []
@@ -242,6 +243,9 @@ async def processar_arquivo_pdf(
         with pdfplumber.open(io.BytesIO(conteudo_arquivo)) as pdf:
             log_pdf.append(f"PDF com {len(pdf.pages)} páginas.")
             for i, page in enumerate(pdf.pages):
+                page_num = i + 1
+                if pages and page_num not in pages:
+                    continue
                 # Tenta extrair tabelas da página
                 # Configurações para extração de tabela podem ser ajustadas
                 tables = page.extract_tables(table_settings={
@@ -277,6 +281,9 @@ async def processar_arquivo_pdf(
                     "Nenhum produto extraído de tabelas. Extraindo texto de todas as páginas."
                 )
                 for i, page in enumerate(pdf.pages):
+                    page_num = i + 1
+                    if pages and page_num not in pages:
+                        continue
                     page_text = page.extract_text(x_tolerance=2, y_tolerance=2)
                     if page_text and page_text.strip():
                         log_pdf.append(f"Página {i+1}: Texto extraído.")

@@ -135,6 +135,7 @@ export const finalizarImportacaoCatalogo = async (
   mapping = null,
   rows = null,
   productTypeId = null,
+  pages = null,
 ) => {
   try {
     const payload = { file_id: fileId, fornecedor_id: fornecedorId };
@@ -144,6 +145,9 @@ export const finalizarImportacaoCatalogo = async (
     }
     if (rows) {
       payload.rows = rows;
+    }
+    if (pages) {
+      payload.pages = Array.from(pages);
     }
     const response = await apiClient.post(
       `/produtos/importar-catalogo-finalizar/${fileId}/`,

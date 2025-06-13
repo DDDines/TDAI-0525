@@ -37,6 +37,7 @@ function ImportCatalogWizard({ isOpen, onClose, fornecedorId }) {
   const [regionProducts, setRegionProducts] = useState(null);
   const [isRegionModalOpen, setIsRegionModalOpen] = useState(false);
   const [pdfUrl, setPdfUrl] = useState(null);
+  const [selectedPages, setSelectedPages] = useState(new Set());
 
   const { productTypes, addProductType } = useProductTypes();
 
@@ -63,6 +64,7 @@ function ImportCatalogWizard({ isOpen, onClose, fornecedorId }) {
       }
       setCurrentPreviewPage(0);
       setPdfUrl(null);
+      setSelectedPages(new Set());
     }
   }, [isOpen]);
 
@@ -95,6 +97,11 @@ function ImportCatalogWizard({ isOpen, onClose, fornecedorId }) {
         numPages: data.numPages,
         tablePages: data.tablePages || [],
       });
+      if (data.numPages) {
+        setSelectedPages(new Set(Array.from({ length: data.numPages }, (_, i) => i + 1)));
+      } else {
+        setSelectedPages(new Set());
+      }
       setFileId(data.fileId);
       setSampleRows(data.sampleRows || []);
       setCurrentPreviewPage(0);
@@ -136,6 +143,18 @@ function ImportCatalogWizard({ isOpen, onClose, fornecedorId }) {
     } finally {
       setLoading(false);
     }
+  };
+
+  const toggleSelectedPage = (page) => {
+    setSelectedPages((prev) => {
+      const next = new Set(prev);
+      if (next.has(page)) {
+        next.delete(page);
+      } else {
+        next.add(page);
+      }
+      return next;
+    });
   };
 
   const handleContinueAfterTypeSelect = () => {
@@ -191,7 +210,8 @@ function ImportCatalogWizard({ isOpen, onClose, fornecedorId }) {
         fornecedorId,
         mapping,
         sampleRows,
-        selectedType.id
+        selectedType.id,
+        selectedPages
       );
       setMessage('Processando...');
       setStep(4);
@@ -274,11 +294,19 @@ function ImportCatalogWizard({ isOpen, onClose, fornecedorId }) {
                 Próxima
               </button>
             </div>
-            <img
-              src={`data:image/png;base64,${preview.previewImages[currentPreviewPage]}`}
-              alt={`Página ${currentPreviewPage + 1}`}
-              style={{ maxWidth: '100%', marginBottom: '1em' }}
-            />
+            <div style={{ position: 'relative', display: 'inline-block' }}>
+              <input
+                type="checkbox"
+                checked={selectedPages.has(currentPreviewPage + 1)}
+                onChange={() => toggleSelectedPage(currentPreviewPage + 1)}
+                style={{ position: 'absolute', top: 10, left: 10, zIndex: 1 }}
+              />
+              <img
+                src={`data:image/png;base64,${preview.previewImages[currentPreviewPage]}`}
+                alt={`Página ${currentPreviewPage + 1}`}
+                style={{ maxWidth: '100%', marginBottom: '1em' }}
+              />
+            </div>
             <button type="button" onClick={() => setIsRegionModalOpen(true)} className="btn-small">
               Selecionar Região
             </button>
