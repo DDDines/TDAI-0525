@@ -78,80 +78,151 @@ async def _tarefa_processar_catalogo(
             return
         content = file_path.read_bytes()
         ext = file_path.suffix.lower()
-        if ext in [".xlsx", ".xls"]:
-            produtos_data = await file_processing_service.processar_arquivo_excel(
-                content,
-                mapeamento_colunas_usuario=mapping,
-                product_type_id=product_type_id,
-            )
-        elif ext == ".csv":
-            produtos_data = await file_processing_service.processar_arquivo_csv(
-                content,
-                mapeamento_colunas_usuario=mapping,
-                product_type_id=product_type_id,
-            )
-        elif ext == ".pdf":
-            produtos_data = await file_processing_service.processar_arquivo_pdf(
-                content,
-                mapeamento_colunas_usuario=mapping,
-                product_type_id=product_type_id,
-                pages=pages,
-            )
-        else:
-            catalog_file.status = "FAILED"
-            db.commit()
-            return
-
-        produtos_create: List[schemas.ProdutoCreate] = []
         erros: List[Dict[str, Any]] = []
-        for prod in produtos_data:
-            if isinstance(prod, dict) and (
-                prod.get("motivo_descarte")
-                or any(key.startswith("erro_processamento") for key in prod.keys())
-            ):
-                erros.append(prod)
-                continue
-            try:
-                produto_schema = schemas.ProdutoCreate(
-                    nome_base=prod.get("nome_base")
-                    or prod.get("sku_original")
-                    or "Produto Importado",
-                    sku=prod.get("sku_original"),
-                    ean=prod.get("ean_original"),
-                    descricao_original=prod.get("descricao_original"),
-                    marca=prod.get("marca"),
-                    categoria_original=prod.get("categoria_original"),
-                    fornecedor_id=catalog_file.fornecedor_id,
+        produtos_create: List[schemas.ProdutoCreate] = []
+        if ext == ".pdf":
+            import pdfplumber, io
+            with pdfplumber.open(io.BytesIO(content)) as pdf:
+                total = len(pages) if pages else len(pdf.pages)
+            catalog_file.total_pages = total
+            catalog_file.pages_processed = 0
+            db.commit()
+            page_list = pages or list(range(1, total + 1))
+            for page in page_list:
+                produtos_data = await file_processing_service.processar_arquivo_pdf(
+                    content,
+                    mapeamento_colunas_usuario=mapping,
+                    product_type_id=product_type_id,
+                    pages=[page],
+                )
+                for prod in produtos_data:
+                    if isinstance(prod, dict) and (
+                        prod.get("motivo_descarte")
+                        or any(key.startswith("erro_processamento") for key in prod.keys())
+                    ):
+                        erros.append(prod)
+                        continue
+                    try:
+                        produto_schema = schemas.ProdutoCreate(
+                            nome_base=prod.get("nome_base")
+                            or prod.get("sku_original")
+                            or "Produto Importado",
+                            sku=prod.get("sku_original"),
+                            ean=prod.get("ean_original"),
+                            descricao_original=prod.get("descricao_original"),
+                            marca=prod.get("marca"),
+                            categoria_original=prod.get("categoria_original"),
+                            fornecedor_id=catalog_file.fornecedor_id,
+                            product_type_id=product_type_id,
+                        )
+                        produtos_create.append(produto_schema)
+                    except Exception as e:
+                        erros.append({"motivo_descarte": f"Erro ao converter linha: {str(e)}", "linha_original": prod})
+
+                if produtos_create:
+                    created, dup_errors = crud_produtos.create_produtos_bulk(db, produtos_create, user_id=user_id)
+                    erros.extend(dup_errors)
+                    for db_produto in created:
+                        crud.create_registro_uso_ia(
+                            db,
+                            schemas.RegistroUsoIACreate(
+                                user_id=user_id,
+                                produto_id=db_produto.id,
+                                tipo_acao=models.TipoAcaoEnum.CRIACAO_PRODUTO,
+                                creditos_consumidos=0,
+                            ),
+                        )
+                        crud_historico.create_registro_historico(
+                            db,
+                            schemas.RegistroHistoricoCreate(
+                                user_id=user_id,
+                                entidade="Produto",
+                                acao=models.TipoAcaoSistemaEnum.CRIACAO,
+                                entity_id=db_produto.id,
+                            ),
+                        )
+                    produtos_create = []
+                catalog_file.pages_processed += 1
+                db.commit()
+        else:
+            catalog_file.total_pages = 1
+            catalog_file.pages_processed = 0
+            db.commit()
+            if ext in [".xlsx", ".xls"]:
+                produtos_data = await file_processing_service.processar_arquivo_excel(
+                    content,
+                    mapeamento_colunas_usuario=mapping,
                     product_type_id=product_type_id,
                 )
-                produtos_create.append(produto_schema)
-            except Exception as e:
-                erros.append({"motivo_descarte": f"Erro ao converter linha: {str(e)}", "linha_original": prod})
+            elif ext == ".csv":
+                produtos_data = await file_processing_service.processar_arquivo_csv(
+                    content,
+                    mapeamento_colunas_usuario=mapping,
+                    product_type_id=product_type_id,
+                )
+            else:
+                catalog_file.status = "FAILED"
+                db.commit()
+                return
+            for prod in produtos_data:
+                if isinstance(prod, dict) and (
+                    prod.get("motivo_descarte")
+                    or any(key.startswith("erro_processamento") for key in prod.keys())
+                ):
+                    erros.append(prod)
+                    continue
+                try:
+                    produto_schema = schemas.ProdutoCreate(
+                        nome_base=prod.get("nome_base")
+                        or prod.get("sku_original")
+                        or "Produto Importado",
+                        sku=prod.get("sku_original"),
+                        ean=prod.get("ean_original"),
+                        descricao_original=prod.get("descricao_original"),
+                        marca=prod.get("marca"),
+                        categoria_original=prod.get("categoria_original"),
+                        fornecedor_id=catalog_file.fornecedor_id,
+                        product_type_id=product_type_id,
+                    )
+                    produtos_create.append(produto_schema)
+                except Exception as e:
+                    erros.append({"motivo_descarte": f"Erro ao converter linha: {str(e)}", "linha_original": prod})
+            if produtos_create:
+                created, dup_errors = crud_produtos.create_produtos_bulk(db, produtos_create, user_id=user_id)
+                erros.extend(dup_errors)
+                for db_produto in created:
+                    crud.create_registro_uso_ia(
+                        db,
+                        schemas.RegistroUsoIACreate(
+                            user_id=user_id,
+                            produto_id=db_produto.id,
+                            tipo_acao=models.TipoAcaoEnum.CRIACAO_PRODUTO,
+                            creditos_consumidos=0,
+                        ),
+                    )
+                    crud_historico.create_registro_historico(
+                        db,
+                        schemas.RegistroHistoricoCreate(
+                            user_id=user_id,
+                            entidade="Produto",
+                            acao=models.TipoAcaoSistemaEnum.CRIACAO,
+                            entity_id=db_produto.id,
+                        ),
+                    )
+            catalog_file.pages_processed = catalog_file.total_pages
+            db.commit()
 
-        if produtos_create:
-            created, dup_errors = crud_produtos.create_produtos_bulk(db, produtos_create, user_id=user_id)
-            erros.extend(dup_errors)
-            for db_produto in created:
-                crud.create_registro_uso_ia(
-                    db,
-                    schemas.RegistroUsoIACreate(
-                        user_id=user_id,
-                        produto_id=db_produto.id,
-                        tipo_acao=models.TipoAcaoEnum.CRIACAO_PRODUTO,
-                        creditos_consumidos=0,
-                    ),
-                )
-                crud_historico.create_registro_historico(
-                    db,
-                    schemas.RegistroHistoricoCreate(
-                        user_id=user_id,
-                        entidade="Produto",
-                        acao=models.TipoAcaoSistemaEnum.CRIACAO,
-                        entity_id=db_produto.id,
-                    ),
-                )
+        result_summary = {
+            "created": [
+                schemas.ProdutoResponse.model_validate(p).model_dump()
+                for p in created
+            ],
+            "updated": [],
+            "errors": erros,
+        }
 
         catalog_file.status = "IMPORTED"
+        catalog_file.result_summary = result_summary
         db.add(catalog_file)
         db.commit()
     except Exception:
@@ -297,6 +368,8 @@ async def reprocess_catalog_import_file(
 
     catalog_file.status = "PROCESSING"
     catalog_file.fornecedor_id = fornecedor_id
+    catalog_file.pages_processed = 0
+    catalog_file.total_pages = 0
     db.commit()
 
     if mapping is None:
@@ -661,6 +734,7 @@ async def upload_produto_image(  # Nome da função mantido como no arquivo do u
 )
 async def importar_catalogo_preview(
     file: UploadFile = File(...),
+    fornecedor_id: Optional[int] = Form(None),
     start_page: int = Form(1),
     page_count: int = Form(0),
     fornecedor_id: Optional[int] = Form(None),
@@ -692,11 +766,34 @@ async def importar_catalogo_preview(
     db.commit()
     db.refresh(record)
 
+    """Gera preview de um catálogo enviado e salva o arquivo para posterior processamento."""
+
+    # Lê o conteúdo para gerar o preview
+    content = await file.read()
+    await file.seek(0)
+
+    # Salva o arquivo e registra no banco
+    catalog_record = await file_processing_service.save_uploaded_catalog(
+        file, fornecedor_id
+    )
+    catalog_record.user_id = current_user.id
+    db.add(catalog_record)
+    db.commit()
+    db.refresh(catalog_record)
+
+    ext = Path(catalog_record.original_filename).suffix.lower()
     try:
-        preview = await file_processing_service.preview_arquivo_pdf(
-            content, ext, start_page, page_count
+        if ext == ".pdf":
+            preview = await file_processing_service.preview_arquivo_pdf(
+                content, ext, start_page, page_count
+            )
+        else:
+            preview = await file_processing_service.gerar_preview(content, ext)
+        return schemas.ImportPreviewResponse(
+            **preview, error=None, file_id=catalog_record.id
         )
         return schemas.ImportPreviewResponse(**preview, file_id=record.id, error=None)
+        return schemas.ImportPreviewResponse(**preview)
     except Exception as e:
         return schemas.ImportPreviewResponse(
             file_id=record.id,
@@ -705,6 +802,7 @@ async def importar_catalogo_preview(
             sample_rows={},
             preview_images=[],
             error=f"Falha ao gerar preview de PDF: {e}",
+            file_id=catalog_record.id,
         )
 
 
@@ -905,6 +1003,27 @@ def importar_catalogo_status(
     if not record:
         raise HTTPException(status_code=404, detail="Arquivo não encontrado")
     return record
+
+
+@router.get(
+    "/importar-catalogo-result/{file_id}/",
+    response_model=schemas.CatalogImportResult,
+)
+def importar_catalogo_result(
+    file_id: int,
+    db: Session = Depends(database.get_db),
+    current_user: models.User = Depends(auth_utils.get_current_active_user),
+):
+    record = (
+        db.query(models.CatalogImportFile)
+        .filter_by(id=file_id, user_id=current_user.id)
+        .first()
+    )
+    if not record:
+        raise HTTPException(status_code=404, detail="Arquivo não encontrado")
+    if record.status != "IMPORTED" or not record.result_summary:
+        raise HTTPException(status_code=400, detail="Resultados ainda nao disponiveis")
+    return record.result_summary
 
 
 

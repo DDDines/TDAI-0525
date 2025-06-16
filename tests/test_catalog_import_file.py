@@ -154,6 +154,14 @@ def test_finalize_updates_status():
         assert len(produtos) == 2  # 1 de exemplo + 1 importado
         assert produtos[-1].fornecedor_id == fornec_id
 
+    result_resp = client.get(
+        f"/api/v1/produtos/importar-catalogo-result/{file_id}/",
+        headers=headers,
+    )
+    assert result_resp.status_code == 200
+    result = result_resp.json()
+    assert len(result["created"]) >= 1
+
 
 def test_finalize_processes_full_file():
     headers = get_admin_headers()
@@ -265,7 +273,10 @@ def test_status_endpoint_returns_progress():
         headers=headers,
     )
     assert status_resp.status_code == 200
-    assert status_resp.json()["status"] == "UPLOADED"
+    data = status_resp.json()
+    assert data["status"] == "UPLOADED"
+    assert data["pages_processed"] == 0
+
 
     with TestingSessionLocal() as db:
         pt_id = db.query(models.ProductType.id).first()[0]
@@ -281,7 +292,10 @@ def test_status_endpoint_returns_progress():
         headers=headers,
     )
     assert status_resp.status_code == 200
-    assert status_resp.json()["status"] == "IMPORTED"
+    data = status_resp.json()
+    assert data["status"] == "IMPORTED"
+    assert data["pages_processed"] == data["total_pages"]
+    assert data["total_pages"] >= 1
 
 def test_preview_pdf_respects_page_count():
     headers = get_admin_headers()
