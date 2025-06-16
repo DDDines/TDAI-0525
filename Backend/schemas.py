@@ -330,7 +330,6 @@ class ImportPreviewResponse(BaseModel):
     sample_rows: Dict[int, str]
     preview_images: List[Dict[str, Any]]
     error: Optional[str] = None
-    file_id: Optional[int] = None
 
 
 class ImportCatalogoResponse(BaseModel):
