@@ -3,7 +3,7 @@ import { act } from 'react-dom/test-utils';
 import '@testing-library/jest-dom';
 import PdfRegionSelector from '../PdfRegionSelector.jsx';
 
-jest.mock('pdfjs-dist/build/pdf', () => ({
+jest.mock('pdfjs-dist/legacy/build/pdf', () => ({
   GlobalWorkerOptions: { workerSrc: '' },
   getDocument: jest.fn(() => ({
     promise: Promise.resolve({

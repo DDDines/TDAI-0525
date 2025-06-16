@@ -1,10 +1,11 @@
 import React, { useRef, useEffect, useState } from 'react';
-import * as pdfjs from 'pdfjs-dist/build/pdf';
+// Use the legacy build of pdfjs which provides an ES module compatible bundle.
+import * as pdfjs from 'pdfjs-dist/legacy/build/pdf';
 
 if (pdfjs.GlobalWorkerOptions) {
   // Use bundled worker for both browser and test environments
   // eslint-disable-next-line global-require
-  pdfjs.GlobalWorkerOptions.workerSrc = require('pdfjs-dist/build/pdf.worker.js');
+  pdfjs.GlobalWorkerOptions.workerSrc = require('pdfjs-dist/legacy/build/pdf.worker.js');
 }
 
 function PdfRegionSelector({ file, onSelect, initialPage = 1 }) {
