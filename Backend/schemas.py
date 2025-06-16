@@ -336,6 +336,12 @@ class ImportCatalogoResponse(BaseModel):
     erros: List[Dict[str, Any]]
 
 
+class CatalogImportResult(BaseModel):
+    created: List[ProdutoResponse]
+    updated: List[ProdutoResponse]
+    errors: List[Dict[str, Any]]
+
+
 class RegionExtractionResponse(BaseModel):
     produtos: List[Dict[str, Any]]
     log: Optional[List[str]] = None
@@ -405,6 +411,7 @@ class CatalogImportFileBase(BaseModel):
     original_filename: str
     stored_filename: str
     status: str
+    result_summary: Optional[Dict[str, Any]] = None
 
 
 class CatalogImportFileCreate(CatalogImportFileBase):
@@ -519,6 +526,7 @@ AttributeTemplateResponse.model_rebuild()
 ProductTypeResponse.model_rebuild()
 ProdutoResponse.model_rebuild()
 ImportCatalogoResponse.model_rebuild()
+CatalogImportResult.model_rebuild()
 RegionExtractionResponse.model_rebuild()
 RegistroUsoIAResponse.model_rebuild()
 RegistroHistoricoResponse.model_rebuild()

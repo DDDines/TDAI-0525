@@ -231,6 +231,19 @@ export const getImportacaoStatus = async (fileId) => {
   }
 };
 
+export const getImportacaoResult = async (fileId) => {
+  try {
+    const response = await apiClient.get(`/produtos/importar-catalogo-result/${fileId}/`);
+    return response.data;
+  } catch (error) {
+    console.error(`Erro ao obter resultado do arquivo ${fileId}:`, JSON.stringify(error.response?.data || error.message || error));
+    if (error.response && error.response.data) {
+      throw error.response.data;
+    }
+    throw new Error(error.message || 'Falha ao obter resultado da importação');
+  }
+};
+
 
 export const selecionarRegiao = async (fileId, page, bbox) => {
   try {
@@ -262,5 +275,6 @@ export default {
   deleteCatalogFile,
   reprocessCatalogFile,
   getImportacaoStatus,
+  getImportacaoResult,
   selecionarRegiao,
 };

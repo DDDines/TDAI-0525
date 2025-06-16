@@ -39,6 +39,7 @@ function ImportCatalogWizard({ isOpen, onClose, fornecedorId }) {
   const [isRegionModalOpen, setIsRegionModalOpen] = useState(false);
   const [pdfUrl, setPdfUrl] = useState(null);
   const [selectedPages, setSelectedPages] = useState(new Set());
+  const [resultSummary, setResultSummary] = useState(null);
   const previewImageRef = useRef(null);
   const [isTextModalOpen, setIsTextModalOpen] = useState(false);
   const [textPreview, setTextPreview] = useState('');
@@ -72,6 +73,7 @@ function ImportCatalogWizard({ isOpen, onClose, fornecedorId }) {
       setPdfUrl(null);
       setSelectedPages(new Set());
       setStartPage(1);
+      setResultSummary(null);
     }
   }, [isOpen]);
 
@@ -271,7 +273,10 @@ function ImportCatalogWizard({ isOpen, onClose, fornecedorId }) {
         try {
           const { status } = await fornecedorService.getImportacaoStatus(fileId);
           if (status === 'IMPORTED') {
-            setMessage('Importação concluída com sucesso');
+            const result = await fornecedorService.getImportacaoResult(fileId);
+            setResultSummary(result);
+            setMessage('Importação concluída');
+            setStep(5);
             clearInterval(intervalRef.current);
           } else if (status !== 'PROCESSING') {
             setMessage('Falha na importação');
@@ -507,12 +512,53 @@ function ImportCatalogWizard({ isOpen, onClose, fornecedorId }) {
     );
   };
 
-  const renderStep4 = () => (
-    <div>
-      <p>{message || 'Processo finalizado.'}</p>
-      <button onClick={onClose}>Fechar</button>
-    </div>
-  );
+const renderStep4 = () => (
+  <div>
+    <p>{message || 'Processo finalizado.'}</p>
+    <button onClick={onClose}>Fechar</button>
+  </div>
+);
+
+const renderStep5 = () => (
+  <div>
+    <h4>Resumo da Importação</h4>
+    {resultSummary && (
+      <>
+        {resultSummary.created?.length > 0 && (
+          <div>
+            <h5>Criados</h5>
+            <ul>
+              {resultSummary.created.map((p) => (
+                <li key={p.id}>{p.nome_base} ({p.sku || p.ean})</li>
+              ))}
+            </ul>
+          </div>
+        )}
+        {resultSummary.updated?.length > 0 && (
+          <div>
+            <h5>Atualizados</h5>
+            <ul>
+              {resultSummary.updated.map((p) => (
+                <li key={p.id}>{p.nome_base} ({p.sku || p.ean})</li>
+              ))}
+            </ul>
+          </div>
+        )}
+        {resultSummary.errors?.length > 0 && (
+          <div>
+            <h5>Erros</h5>
+            <ul>
+              {resultSummary.errors.map((e, idx) => (
+                <li key={idx}>{e.motivo_descarte || JSON.stringify(e)}</li>
+              ))}
+            </ul>
+          </div>
+        )}
+      </>
+    )}
+    <button onClick={onClose}>Fechar</button>
+  </div>
+);
 
   return (
     <>
@@ -521,6 +567,7 @@ function ImportCatalogWizard({ isOpen, onClose, fornecedorId }) {
         {step === 2 && renderStep2()}
         {step === 3 && renderStep3()}
         {step === 4 && renderStep4()}
+        {step === 5 && renderStep5()}
       </Modal>
 
       <Modal isOpen={isNewTypeModalOpen} onClose={() => setIsNewTypeModalOpen(false)} title="Criar Novo Tipo de Produto">

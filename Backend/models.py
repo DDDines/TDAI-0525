@@ -364,6 +364,7 @@ class CatalogImportFile(Base):
     stored_filename = Column(String, nullable=False)
     status = Column(String, nullable=False, default="UPLOADED")
     created_at = Column(DateTime(timezone=True), server_default=func.now())
+    result_summary = Column(MutableDict.as_mutable(JSON), nullable=True)
 
     user = relationship("User")
     fornecedor = relationship("Fornecedor")

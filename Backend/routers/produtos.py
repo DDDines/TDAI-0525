@@ -150,7 +150,17 @@ async def _tarefa_processar_catalogo(
                     ),
                 )
 
+        result_summary = {
+            "created": [
+                schemas.ProdutoResponse.model_validate(p).model_dump()
+                for p in created
+            ],
+            "updated": [],
+            "errors": erros,
+        }
+
         catalog_file.status = "IMPORTED"
+        catalog_file.result_summary = result_summary
         db.add(catalog_file)
         db.commit()
     except Exception:
@@ -672,7 +682,7 @@ async def importar_catalogo_preview(
         preview = await file_processing_service.preview_arquivo_pdf(
             content, ext, start_page, page_count
         )
-        return schemas.ImportPreviewResponse(**preview, error=None)
+        return schemas.ImportPreviewResponse(**preview)
     except Exception as e:
         return schemas.ImportPreviewResponse(
             num_pages=0,
@@ -880,6 +890,27 @@ def importar_catalogo_status(
     if not record:
         raise HTTPException(status_code=404, detail="Arquivo não encontrado")
     return record
+
+
+@router.get(
+    "/importar-catalogo-result/{file_id}/",
+    response_model=schemas.CatalogImportResult,
+)
+def importar_catalogo_result(
+    file_id: int,
+    db: Session = Depends(database.get_db),
+    current_user: models.User = Depends(auth_utils.get_current_active_user),
+):
+    record = (
+        db.query(models.CatalogImportFile)
+        .filter_by(id=file_id, user_id=current_user.id)
+        .first()
+    )
+    if not record:
+        raise HTTPException(status_code=404, detail="Arquivo não encontrado")
+    if record.status != "IMPORTED" or not record.result_summary:
+        raise HTTPException(status_code=400, detail="Resultados ainda nao disponiveis")
+    return record.result_summary
 
 
 
