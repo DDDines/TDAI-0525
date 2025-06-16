@@ -1055,3 +1055,41 @@ async def selecionar_regiao(
         raise HTTPException(status_code=500, detail=str(e))
 
     return {"produtos": produtos, "log": log}
+
+
+@router.post(
+    "/extrair-pagina-unica/",
+    response_model=schemas.SinglePageExtractionResponse,
+)
+async def extrair_pagina_unica(
+    file_id: int = Body(..., embed=True),
+    page_number: int = Body(..., embed=True),
+    db: Session = Depends(database.get_db),
+    current_user: models.User = Depends(auth_utils.get_current_active_user),
+):
+    """Retorna imagem, texto e tabela de uma única página de um PDF."""
+    record = (
+        db.query(models.CatalogImportFile)
+        .filter_by(id=file_id, user_id=current_user.id)
+        .first()
+    )
+    if not record:
+        raise HTTPException(status_code=404, detail="Arquivo não encontrado")
+
+    file_path = Path(settings.UPLOAD_DIRECTORY) / "catalogs" / record.stored_filename
+    if not file_path.is_absolute():
+        file_path = Path(__file__).resolve().parent.parent / file_path
+    if not file_path.exists():
+        raise HTTPException(status_code=404, detail="Arquivo não encontrado")
+
+    content = file_path.read_bytes()
+    try:
+        page_data = await file_processing_service.extrair_pagina_pdf(
+            content, page_number
+        )
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+    return page_data

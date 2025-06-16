@@ -347,6 +347,12 @@ class RegionExtractionResponse(BaseModel):
     produtos: List[Dict[str, Any]]
     log: Optional[List[str]] = None
 
+
+class SinglePageExtractionResponse(BaseModel):
+    image: str
+    text: str
+    table: Optional[List[List[Any]]] = None
+
 class ProdutoPage(BaseModel):
     items: List[ProdutoResponse]
     total_items: int
@@ -531,6 +537,7 @@ ProdutoResponse.model_rebuild()
 ImportCatalogoResponse.model_rebuild()
 CatalogImportResult.model_rebuild()
 RegionExtractionResponse.model_rebuild()
+SinglePageExtractionResponse.model_rebuild()
 RegistroUsoIAResponse.model_rebuild()
 RegistroHistoricoResponse.model_rebuild()
 CatalogImportFileResponse.model_rebuild()
