@@ -405,6 +405,8 @@ class CatalogImportFileBase(BaseModel):
     original_filename: str
     stored_filename: str
     status: str
+    total_pages: Optional[int] = None
+    pages_processed: Optional[int] = None
 
 
 class CatalogImportFileCreate(CatalogImportFileBase):

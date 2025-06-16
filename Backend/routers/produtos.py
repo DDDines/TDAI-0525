@@ -77,78 +77,139 @@ async def _tarefa_processar_catalogo(
             return
         content = file_path.read_bytes()
         ext = file_path.suffix.lower()
-        if ext in [".xlsx", ".xls"]:
-            produtos_data = await file_processing_service.processar_arquivo_excel(
-                content,
-                mapeamento_colunas_usuario=mapping,
-                product_type_id=product_type_id,
-            )
-        elif ext == ".csv":
-            produtos_data = await file_processing_service.processar_arquivo_csv(
-                content,
-                mapeamento_colunas_usuario=mapping,
-                product_type_id=product_type_id,
-            )
-        elif ext == ".pdf":
-            produtos_data = await file_processing_service.processar_arquivo_pdf(
-                content,
-                mapeamento_colunas_usuario=mapping,
-                product_type_id=product_type_id,
-                pages=pages,
-            )
-        else:
-            catalog_file.status = "FAILED"
-            db.commit()
-            return
-
-        produtos_create: List[schemas.ProdutoCreate] = []
         erros: List[Dict[str, Any]] = []
-        for prod in produtos_data:
-            if isinstance(prod, dict) and (
-                prod.get("motivo_descarte")
-                or any(key.startswith("erro_processamento") for key in prod.keys())
-            ):
-                erros.append(prod)
-                continue
-            try:
-                produto_schema = schemas.ProdutoCreate(
-                    nome_base=prod.get("nome_base")
-                    or prod.get("sku_original")
-                    or "Produto Importado",
-                    sku=prod.get("sku_original"),
-                    ean=prod.get("ean_original"),
-                    descricao_original=prod.get("descricao_original"),
-                    marca=prod.get("marca"),
-                    categoria_original=prod.get("categoria_original"),
-                    fornecedor_id=catalog_file.fornecedor_id,
+        produtos_create: List[schemas.ProdutoCreate] = []
+        if ext == ".pdf":
+            import pdfplumber, io
+            with pdfplumber.open(io.BytesIO(content)) as pdf:
+                total = len(pages) if pages else len(pdf.pages)
+            catalog_file.total_pages = total
+            catalog_file.pages_processed = 0
+            db.commit()
+            page_list = pages or list(range(1, total + 1))
+            for page in page_list:
+                produtos_data = await file_processing_service.processar_arquivo_pdf(
+                    content,
+                    mapeamento_colunas_usuario=mapping,
+                    product_type_id=product_type_id,
+                    pages=[page],
+                )
+                for prod in produtos_data:
+                    if isinstance(prod, dict) and (
+                        prod.get("motivo_descarte")
+                        or any(key.startswith("erro_processamento") for key in prod.keys())
+                    ):
+                        erros.append(prod)
+                        continue
+                    try:
+                        produto_schema = schemas.ProdutoCreate(
+                            nome_base=prod.get("nome_base")
+                            or prod.get("sku_original")
+                            or "Produto Importado",
+                            sku=prod.get("sku_original"),
+                            ean=prod.get("ean_original"),
+                            descricao_original=prod.get("descricao_original"),
+                            marca=prod.get("marca"),
+                            categoria_original=prod.get("categoria_original"),
+                            fornecedor_id=catalog_file.fornecedor_id,
+                            product_type_id=product_type_id,
+                        )
+                        produtos_create.append(produto_schema)
+                    except Exception as e:
+                        erros.append({"motivo_descarte": f"Erro ao converter linha: {str(e)}", "linha_original": prod})
+
+                if produtos_create:
+                    created, dup_errors = crud_produtos.create_produtos_bulk(db, produtos_create, user_id=user_id)
+                    erros.extend(dup_errors)
+                    for db_produto in created:
+                        crud.create_registro_uso_ia(
+                            db,
+                            schemas.RegistroUsoIACreate(
+                                user_id=user_id,
+                                produto_id=db_produto.id,
+                                tipo_acao=models.TipoAcaoEnum.CRIACAO_PRODUTO,
+                                creditos_consumidos=0,
+                            ),
+                        )
+                        crud_historico.create_registro_historico(
+                            db,
+                            schemas.RegistroHistoricoCreate(
+                                user_id=user_id,
+                                entidade="Produto",
+                                acao=models.TipoAcaoSistemaEnum.CRIACAO,
+                                entity_id=db_produto.id,
+                            ),
+                        )
+                    produtos_create = []
+                catalog_file.pages_processed += 1
+                db.commit()
+        else:
+            catalog_file.total_pages = 1
+            catalog_file.pages_processed = 0
+            db.commit()
+            if ext in [".xlsx", ".xls"]:
+                produtos_data = await file_processing_service.processar_arquivo_excel(
+                    content,
+                    mapeamento_colunas_usuario=mapping,
                     product_type_id=product_type_id,
                 )
-                produtos_create.append(produto_schema)
-            except Exception as e:
-                erros.append({"motivo_descarte": f"Erro ao converter linha: {str(e)}", "linha_original": prod})
-
-        if produtos_create:
-            created, dup_errors = crud_produtos.create_produtos_bulk(db, produtos_create, user_id=user_id)
-            erros.extend(dup_errors)
-            for db_produto in created:
-                crud.create_registro_uso_ia(
-                    db,
-                    schemas.RegistroUsoIACreate(
-                        user_id=user_id,
-                        produto_id=db_produto.id,
-                        tipo_acao=models.TipoAcaoEnum.CRIACAO_PRODUTO,
-                        creditos_consumidos=0,
-                    ),
+            elif ext == ".csv":
+                produtos_data = await file_processing_service.processar_arquivo_csv(
+                    content,
+                    mapeamento_colunas_usuario=mapping,
+                    product_type_id=product_type_id,
                 )
-                crud_historico.create_registro_historico(
-                    db,
-                    schemas.RegistroHistoricoCreate(
-                        user_id=user_id,
-                        entidade="Produto",
-                        acao=models.TipoAcaoSistemaEnum.CRIACAO,
-                        entity_id=db_produto.id,
-                    ),
-                )
+            else:
+                catalog_file.status = "FAILED"
+                db.commit()
+                return
+            for prod in produtos_data:
+                if isinstance(prod, dict) and (
+                    prod.get("motivo_descarte")
+                    or any(key.startswith("erro_processamento") for key in prod.keys())
+                ):
+                    erros.append(prod)
+                    continue
+                try:
+                    produto_schema = schemas.ProdutoCreate(
+                        nome_base=prod.get("nome_base")
+                        or prod.get("sku_original")
+                        or "Produto Importado",
+                        sku=prod.get("sku_original"),
+                        ean=prod.get("ean_original"),
+                        descricao_original=prod.get("descricao_original"),
+                        marca=prod.get("marca"),
+                        categoria_original=prod.get("categoria_original"),
+                        fornecedor_id=catalog_file.fornecedor_id,
+                        product_type_id=product_type_id,
+                    )
+                    produtos_create.append(produto_schema)
+                except Exception as e:
+                    erros.append({"motivo_descarte": f"Erro ao converter linha: {str(e)}", "linha_original": prod})
+            if produtos_create:
+                created, dup_errors = crud_produtos.create_produtos_bulk(db, produtos_create, user_id=user_id)
+                erros.extend(dup_errors)
+                for db_produto in created:
+                    crud.create_registro_uso_ia(
+                        db,
+                        schemas.RegistroUsoIACreate(
+                            user_id=user_id,
+                            produto_id=db_produto.id,
+                            tipo_acao=models.TipoAcaoEnum.CRIACAO_PRODUTO,
+                            creditos_consumidos=0,
+                        ),
+                    )
+                    crud_historico.create_registro_historico(
+                        db,
+                        schemas.RegistroHistoricoCreate(
+                            user_id=user_id,
+                            entidade="Produto",
+                            acao=models.TipoAcaoSistemaEnum.CRIACAO,
+                            entity_id=db_produto.id,
+                        ),
+                    )
+            catalog_file.pages_processed = catalog_file.total_pages
+            db.commit()
 
         catalog_file.status = "IMPORTED"
         db.add(catalog_file)
@@ -296,6 +357,8 @@ async def reprocess_catalog_import_file(
 
     catalog_file.status = "PROCESSING"
     catalog_file.fornecedor_id = fornecedor_id
+    catalog_file.pages_processed = 0
+    catalog_file.total_pages = 0
     db.commit()
 
     if mapping is None:

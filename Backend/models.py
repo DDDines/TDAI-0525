@@ -363,6 +363,8 @@ class CatalogImportFile(Base):
     original_filename = Column(String, nullable=False)
     stored_filename = Column(String, nullable=False)
     status = Column(String, nullable=False, default="UPLOADED")
+    total_pages = Column(Integer, nullable=True)
+    pages_processed = Column(Integer, nullable=False, server_default="0")
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
     user = relationship("User")
