@@ -1,11 +1,9 @@
 import React, { useRef, useEffect, useState } from 'react';
-// Using the "legacy" build of pdfjs works better with bundlers such as Vite
 import * as pdfjs from 'pdfjs-dist/legacy/build/pdf';
 
 if (pdfjs.GlobalWorkerOptions) {
   // Use bundled worker for both browser and test environments
   // eslint-disable-next-line global-require
-  // The worker file also lives in the legacy folder
   pdfjs.GlobalWorkerOptions.workerSrc = require('pdfjs-dist/legacy/build/pdf.worker.js');
 }
 
