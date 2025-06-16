@@ -1,5 +1,4 @@
 import React, { useRef, useEffect, useState } from 'react';
-// Use the legacy build of pdfjs which provides an ES module compatible bundle.
 import * as pdfjs from 'pdfjs-dist/legacy/build/pdf';
 
 if (pdfjs.GlobalWorkerOptions) {
