@@ -997,6 +997,62 @@ def importar_catalogo_result(
     return record.result_summary
 
 
+@router.post("/importar-catalogo-finalizar/", response_model=schemas.CatalogImportResult)
+async def importar_catalogo_finalizar_todas_paginas(
+    file_id: int = Body(..., embed=True),
+    start_page: int = Body(1, embed=True),
+    mapping: Optional[Dict[str, str]] = Body(None),
+    db: Session = Depends(database.get_db),
+    current_user: models.User = Depends(auth_utils.get_current_active_user),
+):
+    """Processa todas as páginas de um catálogo PDF a partir de ``start_page``."""
+    record = (
+        db.query(models.CatalogImportFile)
+        .filter_by(id=file_id, user_id=current_user.id)
+        .first()
+    )
+    if not record:
+        raise HTTPException(status_code=404, detail="Arquivo não encontrado")
+
+    file_path = Path(settings.UPLOAD_DIRECTORY) / "catalogs" / record.stored_filename
+    if not file_path.is_absolute():
+        file_path = Path(__file__).resolve().parent.parent / file_path
+    if not file_path.exists():
+        raise HTTPException(status_code=404, detail="Arquivo não encontrado")
+
+    content = file_path.read_bytes()
+    ext = file_path.suffix.lower()
+    if ext != ".pdf":
+        raise HTTPException(status_code=400, detail="Formato de arquivo não suportado")
+
+    with pdfplumber.open(io.BytesIO(content)) as pdf:
+        total_pages = len(pdf.pages)
+
+    pages = list(range(start_page, total_pages + 1))
+
+    if mapping is None and record.fornecedor_id:
+        fornecedor = crud_fornecedores.get_fornecedor(db, record.fornecedor_id)
+        if fornecedor and fornecedor.default_column_mapping:
+            mapping = fornecedor.default_column_mapping
+
+    from sqlalchemy.orm import sessionmaker
+
+    db_session_factory = sessionmaker(bind=db.get_bind())
+
+    await _tarefa_processar_catalogo(
+        db_session_factory=db_session_factory,
+        file_id=file_id,
+        user_id=current_user.id,
+        product_type_id=None,
+        fornecedor_id=record.fornecedor_id,
+        mapping=mapping,
+        pages=pages,
+    )
+
+    db.refresh(record)
+    return record.result_summary
+
+
 
 
 @router.post(
