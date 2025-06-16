@@ -1,6 +1,6 @@
 # Backend/schemas.py
 
-from typing import List, Optional, Dict, Any, Union
+from typing import List, Optional, Dict, Any, Union, Literal
 from pydantic import BaseModel, EmailStr, HttpUrl, Field, field_validator, model_validator
 from datetime import datetime
 import json # Para validação de JSON string
@@ -430,6 +430,14 @@ class CatalogImportFileResponse(CatalogImportFileBase):
 
     class Config:
         from_attributes = True
+
+
+class CatalogImportStatus(BaseModel):
+    """Status simplificado de importação de catálogo."""
+
+    status: Literal["PROCESSING", "DONE"]
+    pages_total: int
+    pages_processed: int
 
 class CatalogImportFilePage(BaseModel):
     items: List[CatalogImportFileResponse]
