@@ -324,6 +324,7 @@ class ProdutoBatchDeleteRequest(BaseModel):
 
 
 class ImportPreviewResponse(BaseModel):
+    file_id: int
     num_pages: int
     table_pages: List[int]
     sample_rows: Dict[int, str]

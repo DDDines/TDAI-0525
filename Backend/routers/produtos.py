@@ -20,6 +20,7 @@ import pdfplumber
 from sqlalchemy.orm import Session
 from pathlib import Path
 from sqlalchemy import func, or_
+from uuid import uuid4
 
 from Backend import crud_produtos
 from Backend import crud_fornecedores
@@ -736,9 +737,35 @@ async def importar_catalogo_preview(
     fornecedor_id: Optional[int] = Form(None),
     start_page: int = Form(1),
     page_count: int = Form(0),
+    fornecedor_id: Optional[int] = Form(None),
     db: Session = Depends(database.get_db),
     current_user: models.User = Depends(auth_utils.get_current_active_user),
 ):
+    """Gera preview de um catálogo enviado e registra o arquivo para posterior processamento."""
+    content = await file.read()
+
+    directory = Path(settings.UPLOAD_DIRECTORY) / "catalogs"
+    if not directory.is_absolute():
+        directory = Path(__file__).resolve().parent.parent / directory
+    directory.mkdir(parents=True, exist_ok=True)
+
+    ext = Path(file.filename).suffix.lower()
+    unique_name = f"{uuid4().hex}{ext}"
+    stored_path = directory / unique_name
+    with open(stored_path, "wb") as f_out:
+        f_out.write(content)
+
+    record = models.CatalogImportFile(
+        user_id=current_user.id,
+        fornecedor_id=fornecedor_id,
+        original_filename=file.filename,
+        stored_filename=unique_name,
+        status="UPLOADED",
+    )
+    db.add(record)
+    db.commit()
+    db.refresh(record)
+
     """Gera preview de um catálogo enviado e salva o arquivo para posterior processamento."""
 
     # Lê o conteúdo para gerar o preview
@@ -765,9 +792,11 @@ async def importar_catalogo_preview(
         return schemas.ImportPreviewResponse(
             **preview, error=None, file_id=catalog_record.id
         )
+        return schemas.ImportPreviewResponse(**preview, file_id=record.id, error=None)
         return schemas.ImportPreviewResponse(**preview)
     except Exception as e:
         return schemas.ImportPreviewResponse(
+            file_id=record.id,
             num_pages=0,
             table_pages=[],
             sample_rows={},

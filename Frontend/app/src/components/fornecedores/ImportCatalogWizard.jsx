@@ -107,9 +107,16 @@ function ImportCatalogWizard({ isOpen, onClose, fornecedorId }) {
       let data = await fornecedorService.previewCatalogo(
         file,
         INITIAL_PREVIEW_PAGE_COUNT,
+        1,
+        fornecedorId,
       );
       if (data.numPages && data.numPages > INITIAL_PREVIEW_PAGE_COUNT) {
-        data = await fornecedorService.previewCatalogo(file, data.numPages);
+        data = await fornecedorService.previewCatalogo(
+          file,
+          data.numPages,
+          1,
+          fornecedorId,
+        );
       }
       setPreview({
         headers: data.headers,
