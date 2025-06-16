@@ -977,6 +977,32 @@ def importar_catalogo_status(
 
 
 @router.get(
+    "/importar-catalogo-status/{file_id}",
+    response_model=schemas.CatalogImportStatus,
+    include_in_schema=False,
+)
+def importar_catalogo_status_simple(
+    file_id: int,
+    db: Session = Depends(database.get_db),
+    current_user: models.User = Depends(auth_utils.get_current_active_user),
+):
+    """Versão simplificada do status de importação."""
+    record = (
+        db.query(models.CatalogImportFile)
+        .filter_by(id=file_id, user_id=current_user.id)
+        .first()
+    )
+    if not record:
+        raise HTTPException(status_code=404, detail="Arquivo não encontrado")
+    status = "DONE" if record.status == "IMPORTED" else "PROCESSING"
+    return {
+        "status": status,
+        "pages_total": record.total_pages or 0,
+        "pages_processed": record.pages_processed,
+    }
+
+
+@router.get(
     "/importar-catalogo-result/{file_id}/",
     response_model=schemas.CatalogImportResult,
 )

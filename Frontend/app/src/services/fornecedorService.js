@@ -229,7 +229,9 @@ export const reprocessCatalogFile = async (fileId) => {
 
 export const getImportacaoStatus = async (fileId) => {
   try {
-    const response = await apiClient.get(`/produtos/importar-catalogo-status/${fileId}/`);
+    const response = await apiClient.get(
+      `/produtos/importar-catalogo-status/${fileId}`
+    );
     return response.data;
   } catch (error) {
     console.error(`Erro ao consultar status do arquivo ${fileId}:`, JSON.stringify(error.response?.data || error.message || error));

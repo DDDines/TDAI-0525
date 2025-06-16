@@ -28,6 +28,8 @@ function ImportCatalogWizard({ isOpen, onClose, fornecedorId }) {
   const [productTypeId, setProductTypeId] = useState('');
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState('');
+  const [pagesTotal, setPagesTotal] = useState(0);
+  const [pagesProcessed, setPagesProcessed] = useState(0);
   const [selectedType, setSelectedType] = useState(null);
   const [isNewTypeModalOpen, setIsNewTypeModalOpen] = useState(false);
   const [newTypeName, setNewTypeName] = useState('');
@@ -60,6 +62,8 @@ function ImportCatalogWizard({ isOpen, onClose, fornecedorId }) {
       setMapping({});
       setProductTypeId('');
       setMessage('');
+      setPagesTotal(0);
+      setPagesProcessed(0);
       setLoading(false);
       setSelectedType(null);
       setNewTypeName('');
@@ -278,15 +282,17 @@ function ImportCatalogWizard({ isOpen, onClose, fornecedorId }) {
       setStep(4);
       const checkStatus = async () => {
         try {
-          const { status, pages_processed, total_pages } = await fornecedorService.getImportacaoStatus(fileId);
-          if (status === 'IMPORTED') {
+          const { status, pages_total, pages_processed } = await fornecedorService.getImportacaoStatus(fileId);
+          setPagesTotal(pages_total);
+          setPagesProcessed(pages_processed);
+          if (status === 'DONE') {
             const result = await fornecedorService.getImportacaoResult(fileId);
             setResultSummary(result);
             setMessage('Importação concluída');
             setStep(5);
             clearInterval(intervalRef.current);
-          } else if (status === 'PROCESSING' && total_pages) {
-            setMessage(`${pages_processed} de ${total_pages}`);
+          } else if (status === 'PROCESSING' && pages_total) {
+            setMessage(`${pages_processed} de ${pages_total}`);
           } else if (status !== 'PROCESSING') {
             setMessage('Falha na importação');
             clearInterval(intervalRef.current);
@@ -524,6 +530,14 @@ function ImportCatalogWizard({ isOpen, onClose, fornecedorId }) {
 const renderStep4 = () => (
   <div>
     <p>{message || 'Processo finalizado.'}</p>
+    {pagesTotal > 0 && (
+      <>
+        <progress value={pagesProcessed} max={pagesTotal} style={{ width: '100%' }} />
+        <p>
+          {pagesProcessed} / {pagesTotal}
+        </p>
+      </>
+    )}
     <button onClick={onClose}>Fechar</button>
   </div>
 );
