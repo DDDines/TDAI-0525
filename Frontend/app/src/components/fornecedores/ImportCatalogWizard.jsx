@@ -271,13 +271,15 @@ function ImportCatalogWizard({ isOpen, onClose, fornecedorId }) {
       setStep(4);
       const checkStatus = async () => {
         try {
-          const { status } = await fornecedorService.getImportacaoStatus(fileId);
+          const { status, pages_processed, total_pages } = await fornecedorService.getImportacaoStatus(fileId);
           if (status === 'IMPORTED') {
             const result = await fornecedorService.getImportacaoResult(fileId);
             setResultSummary(result);
             setMessage('Importação concluída');
             setStep(5);
             clearInterval(intervalRef.current);
+          } else if (status === 'PROCESSING' && total_pages) {
+            setMessage(`${pages_processed} de ${total_pages}`);
           } else if (status !== 'PROCESSING') {
             setMessage('Falha na importação');
             clearInterval(intervalRef.current);

@@ -273,7 +273,10 @@ def test_status_endpoint_returns_progress():
         headers=headers,
     )
     assert status_resp.status_code == 200
-    assert status_resp.json()["status"] == "UPLOADED"
+    data = status_resp.json()
+    assert data["status"] == "UPLOADED"
+    assert data["pages_processed"] == 0
+
 
     with TestingSessionLocal() as db:
         pt_id = db.query(models.ProductType.id).first()[0]
@@ -289,7 +292,10 @@ def test_status_endpoint_returns_progress():
         headers=headers,
     )
     assert status_resp.status_code == 200
-    assert status_resp.json()["status"] == "IMPORTED"
+    data = status_resp.json()
+    assert data["status"] == "IMPORTED"
+    assert data["pages_processed"] == data["total_pages"]
+    assert data["total_pages"] >= 1
 
 def test_preview_pdf_respects_page_count():
     headers = get_admin_headers()
