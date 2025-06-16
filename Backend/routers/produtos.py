@@ -211,7 +211,17 @@ async def _tarefa_processar_catalogo(
             catalog_file.pages_processed = catalog_file.total_pages
             db.commit()
 
+        result_summary = {
+            "created": [
+                schemas.ProdutoResponse.model_validate(p).model_dump()
+                for p in created
+            ],
+            "updated": [],
+            "errors": erros,
+        }
+
         catalog_file.status = "IMPORTED"
+        catalog_file.result_summary = result_summary
         db.add(catalog_file)
         db.commit()
     except Exception:
@@ -723,19 +733,39 @@ async def upload_produto_image(  # Nome da função mantido como no arquivo do u
 )
 async def importar_catalogo_preview(
     file: UploadFile = File(...),
+    fornecedor_id: Optional[int] = Form(None),
     start_page: int = Form(1),
     page_count: int = Form(0),
     db: Session = Depends(database.get_db),
     current_user: models.User = Depends(auth_utils.get_current_active_user),
 ):
-    """Gera preview de um catálogo enviado sem salvar permanentemente."""
+    """Gera preview de um catálogo enviado e salva o arquivo para posterior processamento."""
+
+    # Lê o conteúdo para gerar o preview
     content = await file.read()
-    ext = Path(file.filename).suffix.lower()
+    await file.seek(0)
+
+    # Salva o arquivo e registra no banco
+    catalog_record = await file_processing_service.save_uploaded_catalog(
+        file, fornecedor_id
+    )
+    catalog_record.user_id = current_user.id
+    db.add(catalog_record)
+    db.commit()
+    db.refresh(catalog_record)
+
+    ext = Path(catalog_record.original_filename).suffix.lower()
     try:
-        preview = await file_processing_service.preview_arquivo_pdf(
-            content, ext, start_page, page_count
+        if ext == ".pdf":
+            preview = await file_processing_service.preview_arquivo_pdf(
+                content, ext, start_page, page_count
+            )
+        else:
+            preview = await file_processing_service.gerar_preview(content, ext)
+        return schemas.ImportPreviewResponse(
+            **preview, error=None, file_id=catalog_record.id
         )
-        return schemas.ImportPreviewResponse(**preview, error=None)
+        return schemas.ImportPreviewResponse(**preview)
     except Exception as e:
         return schemas.ImportPreviewResponse(
             num_pages=0,
@@ -743,6 +773,7 @@ async def importar_catalogo_preview(
             sample_rows={},
             preview_images=[],
             error=f"Falha ao gerar preview de PDF: {e}",
+            file_id=catalog_record.id,
         )
 
 
@@ -943,6 +974,27 @@ def importar_catalogo_status(
     if not record:
         raise HTTPException(status_code=404, detail="Arquivo não encontrado")
     return record
+
+
+@router.get(
+    "/importar-catalogo-result/{file_id}/",
+    response_model=schemas.CatalogImportResult,
+)
+def importar_catalogo_result(
+    file_id: int,
+    db: Session = Depends(database.get_db),
+    current_user: models.User = Depends(auth_utils.get_current_active_user),
+):
+    record = (
+        db.query(models.CatalogImportFile)
+        .filter_by(id=file_id, user_id=current_user.id)
+        .first()
+    )
+    if not record:
+        raise HTTPException(status_code=404, detail="Arquivo não encontrado")
+    if record.status != "IMPORTED" or not record.result_summary:
+        raise HTTPException(status_code=400, detail="Resultados ainda nao disponiveis")
+    return record.result_summary
 
 
 

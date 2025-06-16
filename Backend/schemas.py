@@ -329,11 +329,18 @@ class ImportPreviewResponse(BaseModel):
     sample_rows: Dict[int, str]
     preview_images: List[Dict[str, Any]]
     error: Optional[str] = None
+    file_id: Optional[int] = None
 
 
 class ImportCatalogoResponse(BaseModel):
     produtos_criados: List[ProdutoResponse]
     erros: List[Dict[str, Any]]
+
+
+class CatalogImportResult(BaseModel):
+    created: List[ProdutoResponse]
+    updated: List[ProdutoResponse]
+    errors: List[Dict[str, Any]]
 
 
 class RegionExtractionResponse(BaseModel):
@@ -407,6 +414,7 @@ class CatalogImportFileBase(BaseModel):
     status: str
     total_pages: Optional[int] = None
     pages_processed: Optional[int] = None
+    result_summary: Optional[Dict[str, Any]] = None
 
 
 class CatalogImportFileCreate(CatalogImportFileBase):
@@ -521,6 +529,7 @@ AttributeTemplateResponse.model_rebuild()
 ProductTypeResponse.model_rebuild()
 ProdutoResponse.model_rebuild()
 ImportCatalogoResponse.model_rebuild()
+CatalogImportResult.model_rebuild()
 RegionExtractionResponse.model_rebuild()
 RegistroUsoIAResponse.model_rebuild()
 RegistroHistoricoResponse.model_rebuild()

@@ -89,10 +89,11 @@ export const previewCatalogo = async (file, pageCount = 1, startPage = 1) => {
   try {
     const formData = new FormData();
     formData.append('file', file);
+    formData.append('page_count', pageCount);
+    formData.append('start_page', startPage);
     const response = await apiClient.post(
       '/produtos/importar-catalogo-preview/',
       formData,
-      { params: { page_count: pageCount, start_page: startPage } },
     );
     const { file_id, headers, sample_rows, preview_images, num_pages, table_pages } = response.data;
     return {
@@ -231,6 +232,19 @@ export const getImportacaoStatus = async (fileId) => {
   }
 };
 
+export const getImportacaoResult = async (fileId) => {
+  try {
+    const response = await apiClient.get(`/produtos/importar-catalogo-result/${fileId}/`);
+    return response.data;
+  } catch (error) {
+    console.error(`Erro ao obter resultado do arquivo ${fileId}:`, JSON.stringify(error.response?.data || error.message || error));
+    if (error.response && error.response.data) {
+      throw error.response.data;
+    }
+    throw new Error(error.message || 'Falha ao obter resultado da importação');
+  }
+};
+
 
 export const selecionarRegiao = async (fileId, page, bbox) => {
   try {
@@ -262,5 +276,6 @@ export default {
   deleteCatalogFile,
   reprocessCatalogFile,
   getImportacaoStatus,
+  getImportacaoResult,
   selecionarRegiao,
 };

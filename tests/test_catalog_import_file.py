@@ -154,6 +154,14 @@ def test_finalize_updates_status():
         assert len(produtos) == 2  # 1 de exemplo + 1 importado
         assert produtos[-1].fornecedor_id == fornec_id
 
+    result_resp = client.get(
+        f"/api/v1/produtos/importar-catalogo-result/{file_id}/",
+        headers=headers,
+    )
+    assert result_resp.status_code == 200
+    result = result_resp.json()
+    assert len(result["created"]) >= 1
+
 
 def test_finalize_processes_full_file():
     headers = get_admin_headers()
