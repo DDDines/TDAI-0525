@@ -7,9 +7,6 @@ import chardet
 import base64
 import os
 from pdf2image import convert_from_bytes
-import io, base64
-# Ajuste para o seu ambiente:
-POPPLER_PATH = r"/usr/bin"
 from typing import List, Dict, Any, Union, Optional
 from pathlib import Path
 from uuid import uuid4
@@ -463,12 +460,15 @@ async def pdf_pages_to_images(
     """
     imagens_base64: List[str] = []
     try:
+        poppler_dir = os.getenv("POPPLER_PATH") or settings.POPPLER_PATH
+        kwargs = {"poppler_path": poppler_dir} if poppler_dir else {}
+
         images = convert_from_bytes(
             conteudo_arquivo,
-            poppler_path=POPPLER_PATH,
             first_page=start_page,
             last_page=start_page + max_pages - 1,
             fmt="png",
+            **kwargs,
         )
         for img in images:
             with io.BytesIO() as buf:
