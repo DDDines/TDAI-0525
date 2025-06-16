@@ -85,10 +85,18 @@ export const deleteFornecedor = async (fornecedorId) => {
   }
 };
 
-export const previewCatalogo = async (file, pageCount = 1, startPage = 1) => {
+export const previewCatalogo = async (
+  file,
+  pageCount = 1,
+  startPage = 1,
+  fornecedorId = null,
+) => {
   try {
     const formData = new FormData();
     formData.append('file', file);
+    if (fornecedorId) {
+      formData.append('fornecedor_id', fornecedorId);
+    }
     const response = await apiClient.post(
       '/produtos/importar-catalogo-preview/',
       formData,
