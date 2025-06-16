@@ -89,10 +89,11 @@ export const previewCatalogo = async (file, pageCount = 1, startPage = 1) => {
   try {
     const formData = new FormData();
     formData.append('file', file);
+    formData.append('page_count', pageCount);
+    formData.append('start_page', startPage);
     const response = await apiClient.post(
       '/produtos/importar-catalogo-preview/',
       formData,
-      { params: { page_count: pageCount, start_page: startPage } },
     );
     const { file_id, headers, sample_rows, preview_images, num_pages, table_pages } = response.data;
     return {
