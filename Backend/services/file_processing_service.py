@@ -477,3 +477,30 @@ async def pdf_pages_to_images(
     except Exception as e:
         logger.error("Erro ao converter páginas do PDF em imagens: %s", e)
     return imagens_base64
+
+
+async def extrair_pagina_pdf(conteudo_arquivo: bytes, page_number: int) -> Dict[str, Any]:
+    """Extrai imagem, texto e tabela de uma única página de um PDF."""
+    try:
+        with pdf_open(io.BytesIO(conteudo_arquivo)) as pdf:
+            if page_number < 1 or page_number > len(pdf.pages):
+                raise ValueError("Número de página inválido")
+            page = pdf.pages[page_number - 1]
+            text = page.extract_text(x_tolerance=2, y_tolerance=2) or ""
+            tables = page.extract_tables(
+                table_settings={"vertical_strategy": "lines", "horizontal_strategy": "lines"}
+            )
+            table = tables[0] if tables else None
+
+        poppler_dir = os.getenv("POPPLER_PATH") or settings.POPPLER_PATH
+        kwargs = {"poppler_path": poppler_dir} if poppler_dir else {}
+        image = convert_from_bytes(
+            conteudo_arquivo, first_page=page_number, last_page=page_number, fmt="png", **kwargs
+        )[0]
+        with io.BytesIO() as buf:
+            image.save(buf, format="PNG")
+            b64 = base64.b64encode(buf.getvalue()).decode()
+        return {"image": f"data:image/png;base64,{b64}", "text": text, "table": table}
+    except Exception as e:
+        logger.error("Erro ao extrair página do PDF: %s", e)
+        raise
