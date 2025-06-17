@@ -46,19 +46,23 @@ def create_produto(db: Session, produto: schemas.ProdutoCreate, user_id: int) ->
 
 def create_produtos_bulk(
     db: Session, produtos: List[schemas.ProdutoCreate], user_id: int
-) -> Tuple[List[Produto], List[Dict[str, Any]]]:
-    """Cria múltiplos produtos em uma única transação.
+) -> Tuple[List[Produto], List[Produto], List[Dict[str, Any]]]:
+    """Cria ou atualiza múltiplos produtos em uma única transação.
 
-    Produtos com SKU ou EAN já existentes para o mesmo usuário são ignorados e
-    retornados na lista de erros.
+    Produtos com SKU ou EAN já existentes para o mesmo usuário são atualizados
+    e retornados na lista ``updated``. Linhas duplicadas na mesma importação são
+    descartadas e registradas em ``errors``.
     """
-    db_produtos: List[Produto] = []
+    created_produtos: List[Produto] = []
+    updated_produtos: List[Produto] = []
     erros: List[Dict[str, Any]] = []
 
     skus = [p.sku for p in produtos if p.sku]
     eans = [p.ean for p in produtos if p.ean]
     existing_skus: Set[str] = set()
     existing_eans: Set[str] = set()
+    sku_map: Dict[str, Produto] = {}
+    ean_map: Dict[str, Produto] = {}
 
     if skus or eans:
         existing = (
@@ -67,8 +71,13 @@ def create_produtos_bulk(
             .filter(or_(Produto.sku.in_(skus), Produto.ean.in_(eans)))
             .all()
         )
-        existing_skus.update(p.sku for p in existing if p.sku)
-        existing_eans.update(p.ean for p in existing if p.ean)
+        for p in existing:
+            if p.sku:
+                existing_skus.add(p.sku)
+                sku_map[p.sku] = p
+            if p.ean:
+                existing_eans.add(p.ean)
+                ean_map[p.ean] = p
 
     new_skus: Set[str] = set()
     new_eans: Set[str] = set()
@@ -77,12 +86,8 @@ def create_produtos_bulk(
         data = produto_schema.model_dump(exclude_unset=True)
         sku = data.get("sku")
         ean = data.get("ean")
-        duplicado = False
-        if sku and (sku in existing_skus or sku in new_skus):
-            duplicado = True
-        if ean and (ean in existing_eans or ean in new_eans):
-            duplicado = True
-        if duplicado:
+
+        if sku and sku in new_skus or ean and ean in new_eans:
             erros.append(
                 {
                     "motivo_descarte": "Produto duplicado por SKU ou EAN",
@@ -92,19 +97,34 @@ def create_produtos_bulk(
             )
             continue
 
-        db_produto = Produto(**data, user_id=user_id)
-        db.add(db_produto)
-        db_produtos.append(db_produto)
-        if sku:
-            new_skus.add(sku)
-        if ean:
-            new_eans.add(ean)
+        existing_prod = None
+        if sku and sku in sku_map:
+            existing_prod = sku_map[sku]
+        elif ean and ean in ean_map:
+            existing_prod = ean_map[ean]
+
+        if existing_prod:
+            for key, value in data.items():
+                setattr(existing_prod, key, value)
+            updated_produtos.append(existing_prod)
+            if sku:
+                new_skus.add(sku)
+            if ean:
+                new_eans.add(ean)
+        else:
+            db_produto = Produto(**data, user_id=user_id)
+            db.add(db_produto)
+            created_produtos.append(db_produto)
+            if sku:
+                new_skus.add(sku)
+            if ean:
+                new_eans.add(ean)
 
     db.commit()
-    for p in db_produtos:
+    for p in created_produtos + updated_produtos:
         db.refresh(p)
 
-    return db_produtos, erros
+    return created_produtos, updated_produtos, erros
 
 
 def get_produto(db: Session, produto_id: int) -> Optional[Produto]:

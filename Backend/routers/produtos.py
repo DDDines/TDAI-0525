@@ -80,6 +80,8 @@ async def _tarefa_processar_catalogo(
         ext = file_path.suffix.lower()
         erros: List[Dict[str, Any]] = []
         produtos_create: List[schemas.ProdutoCreate] = []
+        created: List[models.Produto] = []
+        updated: List[models.Produto] = []
         if ext == ".pdf":
             import pdfplumber, io
             with pdfplumber.open(io.BytesIO(content)) as pdf:
@@ -88,8 +90,6 @@ async def _tarefa_processar_catalogo(
             catalog_file.pages_processed = 0
             db.commit()
             page_list = pages or list(range(1, total + 1))
-
-            created: List[models.Produto] = []
             for page in page_list:
                 produtos_data = await file_processing_service.processar_arquivo_pdf(
                     content,
@@ -123,9 +123,12 @@ async def _tarefa_processar_catalogo(
                         erros.append({"motivo_descarte": f"Erro ao converter linha: {str(e)}", "linha_original": prod})
 
                 if produtos_create:
-                    page_created, dup_errors = crud_produtos.create_produtos_bulk(db, produtos_create, user_id=user_id)
+                    page_created, page_updated, dup_errors = crud_produtos.create_produtos_bulk(
+                        db, produtos_create, user_id=user_id
+                    )
                     erros.extend(dup_errors)
                     created.extend(page_created)
+                    updated.extend(page_updated)
                     for db_produto in page_created:
                         crud.create_registro_uso_ia(
                             db,
@@ -192,9 +195,13 @@ async def _tarefa_processar_catalogo(
                 except Exception as e:
                     erros.append({"motivo_descarte": f"Erro ao converter linha: {str(e)}", "linha_original": prod})
             if produtos_create:
-                created, dup_errors = crud_produtos.create_produtos_bulk(db, produtos_create, user_id=user_id)
+                created_page, updated_page, dup_errors = crud_produtos.create_produtos_bulk(
+                    db, produtos_create, user_id=user_id
+                )
                 erros.extend(dup_errors)
-                for db_produto in created:
+                created.extend(created_page)
+                updated.extend(updated_page)
+                for db_produto in created_page:
                     crud.create_registro_uso_ia(
                         db,
                         schemas.RegistroUsoIACreate(
@@ -221,7 +228,10 @@ async def _tarefa_processar_catalogo(
                 schemas.ProdutoResponse.model_validate(p).model_dump()
                 for p in created
             ],
-            "updated": [],
+            "updated": [
+                schemas.ProdutoResponse.model_validate(p).model_dump()
+                for p in updated
+            ],
             "errors": erros,
         }
 
@@ -853,8 +863,9 @@ async def importar_catalogo_fornecedor(
             )
 
     created: List[models.Produto] = []
+    updated: List[models.Produto] = []
     if produtos_create:
-        created, dup_errors = crud_produtos.create_produtos_bulk(
+        created, updated, dup_errors = crud_produtos.create_produtos_bulk(
             db, produtos_create, user_id=current_user.id
         )
         erros.extend(dup_errors)
@@ -877,7 +888,7 @@ async def importar_catalogo_fornecedor(
                     entity_id=db_produto.id,
                 ),
             )
-    return {"produtos_criados": created, "erros": erros}
+    return {"produtos_criados": created, "produtos_atualizados": updated, "erros": erros}
 
 
 @router.post(
