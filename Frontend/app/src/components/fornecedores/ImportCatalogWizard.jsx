@@ -10,6 +10,7 @@ if (pdfjs.GlobalWorkerOptions) {
 import fornecedorService from '../../services/fornecedorService';
 import { createProduto } from '../../services/productService';
 import { useProductTypes } from '../../contexts/ProductTypeContext';
+import { showErrorToast } from '../../utils/notifications';
 import LoadingOverlay from '../common/LoadingOverlay.jsx';
 const PdfRegionSelector = lazy(() => import('../common/PdfRegionSelector.jsx'));
 
@@ -25,6 +26,7 @@ const BASE_FIELD_OPTIONS = [
 ];
 
 const INITIAL_PREVIEW_PAGE_COUNT = 3;
+const MAX_FILE_SIZE_MB = 10;
 
 function ImportCatalogWizard({ isOpen, onClose, fornecedorId }) {
   const [step, setStep] = useState(1);
@@ -52,11 +54,13 @@ function ImportCatalogWizard({ isOpen, onClose, fornecedorId }) {
   const [selectedPages, setSelectedPages] = useState(new Set());
   const [resultSummary, setResultSummary] = useState(null);
   const [duplicateSelections, setDuplicateSelections] = useState(new Set());
+  const [filterText, setFilterText] = useState('');
   const previewImageRef = useRef(null);
   const [isTextModalOpen, setIsTextModalOpen] = useState(false);
   const [textPreview, setTextPreview] = useState('');
   const [startPage, setStartPage] = useState(1);
   const [dragOver, setDragOver] = useState(false);
+  const fileInputRef = useRef(null);
 
   const { productTypes, addProductType } = useProductTypes();
 
@@ -121,15 +125,36 @@ function ImportCatalogWizard({ isOpen, onClose, fornecedorId }) {
   }, [startPage, preview]);
 
   const handleFileChange = (e) => {
-    const f = e.target.files[0];
+    const files = Array.from(e.target.files || []);
+    if (files.length === 0) return;
+
+    const allowed = ['pdf', 'csv', 'xls', 'xlsx'];
+    const valid = files.find((fileItem) => {
+      const ext = fileItem.name.split('.').pop().toLowerCase();
+      if (!allowed.includes(ext)) {
+        showErrorToast('Formato de arquivo não suportado.');
+        return false;
+      }
+      if (fileItem.size > MAX_FILE_SIZE_MB * 1024 * 1024) {
+        showErrorToast(`Arquivo muito grande (limite de ${MAX_FILE_SIZE_MB}MB).`);
+        return false;
+      }
+      return true;
+    });
+
+    if (!valid) return;
+
     if (pdfUrl) {
       URL.revokeObjectURL(pdfUrl);
       setPdfUrl(null);
     }
-    setFile(f);
+
+    setFile(valid);
     setFirstPageThumb(null);
-    if (f && f.type === 'application/pdf') {
-      const url = URL.createObjectURL(f);
+    const isPdf =
+      valid.type === 'application/pdf' || valid.name.toLowerCase().endsWith('.pdf');
+    if (isPdf) {
+      const url = URL.createObjectURL(valid);
       setPdfUrl(url);
 
       const reader = new FileReader();
@@ -149,7 +174,7 @@ function ImportCatalogWizard({ isOpen, onClose, fornecedorId }) {
           console.error('Failed to load first page', err);
         }
       };
-      reader.readAsArrayBuffer(f);
+      reader.readAsArrayBuffer(valid);
     }
   };
 
@@ -453,7 +478,6 @@ function ImportCatalogWizard({ isOpen, onClose, fornecedorId }) {
 
   const renderStep1 = () => (
     <div>
-      <input type="file" accept=".csv,.xls,.xlsx,.pdf" onChange={handleFileChange} />
       {firstPageThumb && (
         <div style={{ marginTop: '1em' }}>
           <img src={firstPageThumb} alt="Primeira página" style={{ maxWidth: '100%' }} />
@@ -464,8 +488,12 @@ function ImportCatalogWizard({ isOpen, onClose, fornecedorId }) {
         onDragOver={onDragOver}
         onDragLeave={onDragLeave}
         onDrop={onDrop}
+        onClick={() => fileInputRef.current && fileInputRef.current.click()}
       >
+        <p>Arraste o PDF ou clique para selecionar</p>
+        <small>Tamanho máximo {MAX_FILE_SIZE_MB}MB</small>
         <input
+          ref={fileInputRef}
           type="file"
           accept=".csv,.xls,.xlsx,.pdf"
           onChange={handleFileChange}
@@ -691,19 +719,32 @@ function ImportCatalogWizard({ isOpen, onClose, fornecedorId }) {
 
 const renderStep4 = () => (
   <div>
-    {pagesTotal > 0 && (
+    {pagesTotal > 0 ? (
       <>
         <progress
+          role="progressbar"
           value={pagesProcessed}
           max={pagesTotal}
+          aria-valuenow={pagesProcessed}
+          aria-valuemin={0}
+          aria-valuemax={pagesTotal}
           style={{ width: '100%' }}
-        />
+        >
+          <span className="visually-hidden">
+            Progresso: {pagesProcessed} de {pagesTotal}
+          </span>
+        </progress>
         <p>
           Página {pagesProcessed} de {pagesTotal}
         </p>
+        {message && !message.startsWith('Página') && <p>{message}</p>}
+      </>
+    ) : (
+      <>
+        <div className="loading-spinner" style={{ margin: '20px auto' }} />
+        {message && <p>{message}</p>}
       </>
     )}
-    {message && !message.startsWith('Página') && <p>{message}</p>}
     <button onClick={onClose}>Fechar</button>
   </div>
 );
@@ -717,22 +758,41 @@ const renderStep5 = () => {
   ) || [];
   const otherErrors = resultSummary.errors?.filter((e) => !duplicateErrors.includes(e)) || [];
 
+  const matchesFilter = (p) => {
+    if (!filterText) return true;
+    const val = `${p.nome_base || ''} ${p.sku || p.ean || ''}`.toLowerCase();
+    return val.includes(filterText.toLowerCase());
+  };
+
+  const createdFiltered = (resultSummary.created || []).filter(matchesFilter);
+  const updatedFiltered = (resultSummary.updated || []).filter(matchesFilter);
+
   return (
     <div>
       <h4>Resumo da Importação</h4>
-      {resultSummary.created?.length > 0 && (
+      <div className="form-group">
+        <label htmlFor="filter-preview">Filtrar produtos:</label>
+        <input
+          id="filter-preview"
+          type="text"
+          value={filterText}
+          onChange={(e) => setFilterText(e.target.value)}
+          placeholder="Buscar por nome ou SKU"
+        />
+      </div>
+      {createdFiltered.length > 0 && (
         <div>
-          <h5>Criados</h5>
+          <h5 style={{ color: 'green' }}>Criados ({createdFiltered.length})</h5>
           <ul>
-            {resultSummary.created.map((p) => (
+            {createdFiltered.map((p) => (
               <li key={p.id}>{p.nome_base} ({p.sku || p.ean})</li>
             ))}
           </ul>
         </div>
       )}
-      {resultSummary.updated?.length > 0 && (
+      {updatedFiltered.length > 0 && (
         <div>
-          <h5>Atualizados</h5>
+          <h5 style={{ color: 'red' }}>Atualizados ({updatedFiltered.length})</h5>
           <ul>
             {resultSummary.updated.map((u, idx) => (
               <li key={u.after.id || idx}>
@@ -759,6 +819,8 @@ const renderStep5 = () => {
                   )}
                 </ul>
               </li>
+            {updatedFiltered.map((p) => (
+              <li key={p.id}>{p.nome_base} ({p.sku || p.ean})</li>
             ))}
           </ul>
         </div>

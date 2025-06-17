@@ -1,17 +1,13 @@
 # Backend/routers/auth_utils.py
 import logging
-from datetime import datetime, timedelta, timezone # Mantido para uso potencial
-from typing import Optional
 
 from fastapi import Depends, HTTPException, status, Request
 from fastapi.security import OAuth2PasswordBearer
-from jose import JWTError, jwt # JWTError pode ser útil para tratamento específico de erros de token
 # from passlib.context import CryptContext # Removido, agora em core.security
 from sqlalchemy.orm import Session
 
 from Backend import crud_users
 from Backend import models
-from Backend import schemas
 from Backend.core import config  # Mantido para settings que não são de segurança direta
 from Backend.core import security  # <<< ADICIONADO: Importa o novo módulo de segurança
 from Backend.database import get_db
@@ -80,26 +76,3 @@ async def get_current_active_superuser(
         )
     return current_user
 
-# Função para decodificar refresh token (exemplo, pode ser mais robusta)
-async def get_user_from_refresh_token(
-    db: Session,
-    refresh_token: str,
-) -> Optional[models.User]:
-    try:
-        payload = jwt.decode(
-            refresh_token, config.settings.REFRESH_SECRET_KEY, algorithms=[security.ALGORITHM]
-        )
-        token_type = payload.get("token_type")
-        if token_type != "refresh":
-            return None # Não é um refresh token
-
-        user_id = payload.get("user_id")
-        if user_id is None:
-            return None
-        
-        user = crud_users.get_user(db, user_id=int(user_id))
-        return user
-    except JWTError:
-        return None
-    except ValueError: # Erro na conversão de user_id para int
-        return None

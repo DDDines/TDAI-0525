@@ -497,9 +497,27 @@ async def preview_arquivo_csv(
 
 
 async def preview_arquivo_pdf(
-    conteudo_arquivo: bytes, ext: str, start_page: int = 1, page_count: int = 1
+    conteudo_arquivo: bytes,
+    ext: str,
+    start_page: int = 1,
+    page_count: int = 1,
+    dpi: int = 72,
 ) -> Dict[str, Any]:
-    """Gera preview com miniaturas, texto e detecção de tabelas."""
+    """Gera preview de um PDF com miniaturas e extração de texto.
+
+    Parameters
+    ----------
+    conteudo_arquivo: bytes
+        Conteúdo do arquivo PDF.
+    ext: str
+        Extensão do arquivo (mantida para compatibilidade).
+    start_page: int, optional
+        Página inicial (1-indexada) para geração do preview, por padrão ``1``.
+    page_count: int, optional
+        Quantidade de páginas a incluir no preview. ``0`` usa todas as páginas.
+    dpi: int, optional
+        Resolução usada ao converter as páginas em imagem. Padrão ``72``.
+    """
 
     try:
         reader = pdf_open(io.BytesIO(conteudo_arquivo))
@@ -518,10 +536,16 @@ async def preview_arquivo_pdf(
         poppler_dir = os.getenv("POPPLER_PATH") or settings.POPPLER_PATH
         kwargs = {"poppler_path": poppler_dir} if poppler_dir else {}
 
-        loop = asyncio.get_running_loop()
+        images = convert_from_bytes(
+            conteudo_arquivo,
+            first_page=start_page,
+            last_page=end_page,
+            fmt="png",
+            **kwargs,
+        )
 
-        def _process_page(page_number: int):
-            page = reader.pages[page_number - 1]
+        for idx, p in enumerate(range(start_page, end_page + 1)):
+            page = reader.pages[p - 1]
             tables = page.extract_tables()
             text = page.extract_text() or ""
             img = convert_from_bytes(
@@ -529,15 +553,12 @@ async def preview_arquivo_pdf(
                 first_page=page_number,
                 last_page=page_number,
                 fmt="png",
+                dpi=dpi,
                 **kwargs,
             )[0]
             buf = io.BytesIO()
-            img.save(buf, format="PNG")
+            images[idx].save(buf, format="PNG")
             b64 = base64.b64encode(buf.getvalue()).decode()
-            return tables, text, b64
-
-        for p in range(start_page, end_page + 1):
-            tables, text, b64 = await loop.run_in_executor(None, _process_page, p)
             if tables:
                 preview["table_pages"].append(p)
             snippet = "\n".join(text.splitlines()[:3])
