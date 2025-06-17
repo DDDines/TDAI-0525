@@ -1,5 +1,12 @@
 import React, { useState, useEffect, useRef, lazy, Suspense } from 'react';
+import * as pdfjs from 'pdfjs-dist/legacy/build/pdf';
 import Modal from '../common/Modal.jsx';
+
+if (pdfjs.GlobalWorkerOptions) {
+  // Use bundled worker for both browser and test environments
+  // eslint-disable-next-line global-require
+  pdfjs.GlobalWorkerOptions.workerSrc = require('pdfjs-dist/legacy/build/pdf.worker.js');
+}
 import fornecedorService from '../../services/fornecedorService';
 import { useProductTypes } from '../../contexts/ProductTypeContext';
 import LoadingOverlay from '../common/LoadingOverlay.jsx';
@@ -40,6 +47,7 @@ function ImportCatalogWizard({ isOpen, onClose, fornecedorId }) {
   const [regionProducts, setRegionProducts] = useState(null);
   const [isRegionModalOpen, setIsRegionModalOpen] = useState(false);
   const [pdfUrl, setPdfUrl] = useState(null);
+  const [firstPageThumb, setFirstPageThumb] = useState(null);
   const [selectedPages, setSelectedPages] = useState(new Set());
   const [resultSummary, setResultSummary] = useState(null);
   const previewImageRef = useRef(null);
@@ -75,6 +83,7 @@ function ImportCatalogWizard({ isOpen, onClose, fornecedorId }) {
       setCurrentPreviewPage(0);
       setRegionPage(1);
       setPdfUrl(null);
+      setFirstPageThumb(null);
       setSelectedPages(new Set());
       setStartPage(1);
       setResultSummary(null);
@@ -99,8 +108,29 @@ function ImportCatalogWizard({ isOpen, onClose, fornecedorId }) {
       setPdfUrl(null);
     }
     setFile(f);
+    setFirstPageThumb(null);
     if (f && f.type === 'application/pdf') {
-      setPdfUrl(URL.createObjectURL(f));
+      const url = URL.createObjectURL(f);
+      setPdfUrl(url);
+
+      const reader = new FileReader();
+      reader.onload = async () => {
+        try {
+          const data = reader.result;
+          const doc = await pdfjs.getDocument({ data }).promise;
+          const page = await doc.getPage(1);
+          const viewport = page.getViewport({ scale: 1.5 });
+          const canvas = document.createElement('canvas');
+          canvas.width = viewport.width;
+          canvas.height = viewport.height;
+          const ctx = canvas.getContext('2d');
+          await page.render({ canvasContext: ctx, viewport }).promise;
+          setFirstPageThumb(canvas.toDataURL('image/png'));
+        } catch (err) {
+          console.error('Failed to load first page', err);
+        }
+      };
+      reader.readAsArrayBuffer(f);
     }
   };
 
@@ -313,6 +343,11 @@ function ImportCatalogWizard({ isOpen, onClose, fornecedorId }) {
   const renderStep1 = () => (
     <div>
       <input type="file" accept=".csv,.xls,.xlsx,.pdf" onChange={handleFileChange} />
+      {firstPageThumb && (
+        <div style={{ marginTop: '1em' }}>
+          <img src={firstPageThumb} alt="Primeira página" style={{ maxWidth: '100%' }} />
+        </div>
+      )}
       <button onClick={handleGeneratePreview} disabled={!file || loading}>
         {loading ? 'Enviando...' : 'Gerar Preview'}
       </button>
