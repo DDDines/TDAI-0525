@@ -31,6 +31,10 @@
 Para usuários do Windows, instale o Poppler via Chocolatey (`choco install poppler`) ou baixe os binários em <https://github.com/oschwartz10612/poppler-windows/releases>.
 Após a instalação, adicione o diretório que contém `pdftoppm.exe` ao `PATH` ou defina a variável `POPPLER_PATH`. A função `pdf_pages_to_images` lê essa variável se o executável não estiver no `PATH`.
 
+Para reduzir o tamanho das prévias, a função `preview_arquivo_pdf` salva cada página em JPEG
+com `optimize=True` e qualidade inicial 70. Se o resultado não for menor que a versão PNG,
+a qualidade é reduzida para 50.
+
 ---
 
 ## Backend/**init**.py

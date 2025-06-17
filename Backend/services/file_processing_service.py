@@ -8,6 +8,7 @@ import base64
 import os
 import asyncio
 from pdf2image import convert_from_bytes
+import time
 from typing import List, Dict, Any, Union, Optional
 from pathlib import Path
 from uuid import uuid4
@@ -519,12 +520,15 @@ async def preview_arquivo_pdf(
         Resolução usada ao converter as páginas em imagem. Padrão ``72``.
     """
 
+    start = time.perf_counter()
+
     try:
         reader = pdf_open(io.BytesIO(conteudo_arquivo))
         num_pages = len(reader.pages)
         if page_count == 0:
             page_count = num_pages
         end_page = min(start_page + page_count - 1, num_pages)
+        pages_processed = end_page - start_page + 1
 
         preview: Dict[str, Any] = {
             "num_pages": num_pages,
@@ -541,32 +545,60 @@ async def preview_arquivo_pdf(
             first_page=start_page,
             last_page=end_page,
             fmt="png",
+            dpi=dpi,
             **kwargs,
         )
 
-        for idx, p in enumerate(range(start_page, end_page + 1)):
-            page = reader.pages[p - 1]
+        idx = 0
+        for p, page in enumerate(reader.pages, start=1):
             tables = page.extract_tables()
-            text = page.extract_text() or ""
-            img = convert_from_bytes(
-                conteudo_arquivo,
-                first_page=page_number,
-                last_page=page_number,
-                fmt="png",
-                dpi=dpi,
-                **kwargs,
-            )[0]
-            buf = io.BytesIO()
-            images[idx].save(buf, format="PNG")
-            b64 = base64.b64encode(buf.getvalue()).decode()
             if tables:
                 preview["table_pages"].append(p)
-            snippet = "\n".join(text.splitlines()[:3])
-            preview["sample_rows"][p] = snippet
-            preview["preview_images"].append(
-                {"page": p, "image": f"data:image/png;base64,{b64}"}
-            )
 
+            if start_page <= p <= end_page:
+                text = page.extract_text() or ""
+
+                png_buf = io.BytesIO()
+                images[idx].save(png_buf, format="PNG")
+                png_b64 = base64.b64encode(png_buf.getvalue())
+
+                jpeg_buf = io.BytesIO()
+                images[idx].convert("RGB").save(
+                    jpeg_buf,
+                    format="JPEG",
+                    optimize=True,
+                    quality=70,
+                )
+                jpeg_b64 = base64.b64encode(jpeg_buf.getvalue())
+
+                if len(jpeg_b64) >= len(png_b64):
+                    jpeg_buf = io.BytesIO()
+                    images[idx].convert("RGB").save(
+                        jpeg_buf,
+                        format="JPEG",
+                        optimize=True,
+                        quality=50,
+                    )
+                    jpeg_b64 = base64.b64encode(jpeg_buf.getvalue())
+
+                if len(jpeg_b64) < len(png_b64):
+                    b64 = jpeg_b64.decode()
+                    mime = "jpeg"
+                else:
+                    b64 = png_b64.decode()
+                    mime = "png"
+
+                snippet = "\n".join(text.splitlines()[:3])
+                preview["sample_rows"][p] = snippet
+                preview["preview_images"].append(
+                    {"page": p, "image": f"data:image/{mime};base64,{b64}"}
+                )
+                idx += 1
+
+        duration = time.perf_counter() - start
+        logger.info(
+            "PDF preview processed %s page(s) in %.4f seconds", pages_processed, duration
+        )
         return preview
     except Exception as e:
         logger.error("Erro ao gerar preview de arquivo PDF: %s", e)

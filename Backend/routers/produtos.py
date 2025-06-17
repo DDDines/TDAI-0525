@@ -32,6 +32,7 @@ from Backend import schemas  # schemas é importado
 from Backend import database
 from Backend.database import SessionLocal
 import logging
+import time
 from Backend.services import file_processing_service
 from . import auth_utils  # Para obter o usuário logado
 from Backend.core import (
@@ -240,6 +241,25 @@ async def _tarefa_processar_catalogo(
                                 continue
                         erros.append(err)
                 for db_produto in page_created:
+                    if err.get("duplicado"):
+                        linha = err.get("linha_original", {})
+                        sku = linha.get("sku")
+                        ean = linha.get("ean")
+                        query = db.query(models.Produto).filter(models.Produto.user_id == user_id)
+                        if sku:
+                            query = query.filter(models.Produto.sku == sku)
+                        elif ean:
+                            query = query.filter(models.Produto.ean == ean)
+                        existing = query.first()
+                        if existing:
+                            before = schemas.ProdutoResponse.model_validate(existing).model_dump()
+                            update_schema = schemas.ProdutoUpdate(**linha)
+                            updated_prod = crud_produtos.update_produto(db, existing, update_schema)
+                            after = schemas.ProdutoResponse.model_validate(updated_prod).model_dump()
+                            updated.append({"before": before, "after": after})
+                            continue
+                    erros.append(err)
+                for db_produto in created_page:
                     crud.create_registro_uso_ia(
                         db,
                         schemas.RegistroUsoIACreate(
@@ -797,6 +817,7 @@ async def importar_catalogo_preview(
 
     # Lê o conteúdo para gerar o preview
     content = await file.read()
+    start = time.perf_counter()
     await file.seek(0)
 
     # Salva o arquivo e registra no banco
@@ -816,6 +837,12 @@ async def importar_catalogo_preview(
             )
         else:
             preview = await file_processing_service.gerar_preview(content, ext)
+        duration = time.perf_counter() - start
+        logger.info(
+            "Preview generation for catalog file %s took %.4f seconds",
+            catalog_record.id,
+            duration,
+        )
         return schemas.ImportPreviewResponse(
             **preview, error=None, file_id=catalog_record.id
         )
