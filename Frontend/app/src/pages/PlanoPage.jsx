@@ -1,7 +1,7 @@
 // Frontend/app/src/pages/PlanoPage.jsx
 import React, { useState, useEffect } from 'react';
 import authService from '../services/authService';
-import { showErrorToast } from '../utils/notifications';
+import { showErrorToast, showInfoToast } from '../utils/notifications';
 import './PlanoPage.css'; // Criaremos este arquivo para estilos específicos
 import LoadingPopup from '../components/common/LoadingPopup.jsx';
 
@@ -59,11 +59,24 @@ function PlanoPage() {
   // A forma como "ilimitado" é representado (e.g., 0, -1, 9999999 ou null)
   // vem do backend (models.Plano e schemas.Plano).
   // O plano "Ilimitado" criado no startup usa 9999999.
-  const formatLimit = (limit) => {
-    if (limit === null || limit === undefined || limit >= 999999) { // Considera valores grandes como ilimitado
-      return "Ilimitado";
-    }
-    return new Intl.NumberFormat('pt-BR').format(limit);
+const formatLimit = (limit) => {
+  if (limit === null || limit === undefined || limit >= 999999) { // Considera valores grandes como ilimitado
+    return "Ilimitado";
+  }
+  return new Intl.NumberFormat('pt-BR').format(limit);
+};
+
+  const handleUpgradeClick = () => {
+    showInfoToast('Recurso de upgrade ainda não disponível.');
+  };
+
+  const handleCancelSubscriptionClick = () => {
+    showInfoToast('Funcionalidade de cancelamento ainda não disponível.');
+  };
+
+  const handleBillingHistoryClick = (e) => {
+    e.preventDefault();
+    showInfoToast('Histórico de cobrança ainda não disponível.');
   };
 
 
@@ -96,11 +109,11 @@ function PlanoPage() {
             <h4>Gerenciar Assinatura</h4>
             <p>Gostaria de mais recursos ou precisa de menos? Explore outras opções.</p>
             <div className="plano-buttons">
-              <button className="btn-upgrade" disabled>Upgrade de Plano</button>
-              <button className="btn-cancel" disabled>Cancelar Assinatura</button>
+              <button className="btn-upgrade" onClick={handleUpgradeClick}>Upgrade de Plano</button>
+              <button className="btn-cancel" onClick={handleCancelSubscriptionClick}>Cancelar Assinatura</button>
             </div>
             <p className="billing-history-link" style={{marginTop: '1rem', textAlign: 'center'}}>
-                <a href="#" onClick={(e) => e.preventDefault()} style={{opacity: 0.5, cursor: 'not-allowed'}}>Ver Histórico de Cobrança</a>
+                <a href="#" onClick={handleBillingHistoryClick}>Ver Histórico de Cobrança</a>
             </p>
           </div>
         </div>
