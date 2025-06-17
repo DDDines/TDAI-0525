@@ -181,6 +181,12 @@ function ImportCatalogWizard({ isOpen, onClose, fornecedorId }) {
         numPages: data.numPages,
         tablePages: data.tablePages || [],
       });
+      setMapping(
+        data.headers.reduce((acc, h) => {
+          acc[h] = '';
+          return acc;
+        }, {})
+      );
       if (data.numPages) {
         setStartPage(1);
         setSelectedPages(new Set(Array.from({ length: data.numPages }, (_, i) => i + 1)));
@@ -320,6 +326,11 @@ function ImportCatalogWizard({ isOpen, onClose, fornecedorId }) {
     if (!productTypeId) return;
     if (!selectedType) {
       alert('Selecione um tipo de produto.');
+      return;
+    }
+    const mappedValues = Object.values(mapping || {});
+    if (!mappedValues.includes('sku_original') && !mappedValues.includes('nome_base')) {
+      alert('Mapeie pelo menos Nome ou SKU antes de continuar.');
       return;
     }
     setLoading(true);
@@ -537,6 +548,10 @@ function ImportCatalogWizard({ isOpen, onClose, fornecedorId }) {
         label: attr.label,
       })),
     ];
+    const mappedValues = Object.values(mapping || {});
+    const isMappingValid =
+      mappedValues.includes('sku_original') || mappedValues.includes('nome_base');
+
     return (
       <div>
         <table className="mapping-table">
@@ -589,7 +604,7 @@ function ImportCatalogWizard({ isOpen, onClose, fornecedorId }) {
         )}
         <div className="modal-actions">
           <button onClick={() => setStep(2)} className="btn-secondary">Voltar</button>
-          <button onClick={handleConfirmImport} disabled={loading} className="btn-primary">
+          <button onClick={handleConfirmImport} disabled={loading || !isMappingValid} className="btn-primary">
             {loading ? 'Importando...' : 'Confirmar Importação'}
           </button>
         </div>
