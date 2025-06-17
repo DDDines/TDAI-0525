@@ -4,6 +4,11 @@ pdfjsLib.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.j
 
 import Modal from '../common/Modal.jsx';
 
+if (pdfjs.GlobalWorkerOptions) {
+  // Use bundled worker for both browser and test environments
+  // eslint-disable-next-line global-require
+  pdfjs.GlobalWorkerOptions.workerSrc = require('pdfjs-dist/legacy/build/pdf.worker.js');
+}
 import fornecedorService from '../../services/fornecedorService';
 import { createProduto } from '../../services/productService';
 import { useProductTypes } from '../../contexts/ProductTypeContext';
@@ -160,7 +165,7 @@ function ImportCatalogWizard({ isOpen, onClose, fornecedorId }) {
       reader.onload = async () => {
         try {
           const data = reader.result;
-          const doc = await pdfjs.getDocument({ data }).promise;
+          const doc = await pdfjsLib.getDocument({ data }).promise;
           const page = await doc.getPage(1);
           const viewport = page.getViewport({ scale: 1.5 });
           const canvas = document.createElement('canvas');
