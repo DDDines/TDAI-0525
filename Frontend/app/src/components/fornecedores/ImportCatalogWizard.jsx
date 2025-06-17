@@ -1,10 +1,15 @@
 import React, { useState, useEffect, useRef, lazy, Suspense } from 'react';
-import * as pdfjs from 'pdfjs-dist/legacy/build/pdf.js';
-import workerSrc from 'pdfjs-dist/legacy/build/pdf.worker.js?url';
+import * as pdfjsLib from 'pdfjs-dist/build/pdf';
+import pdfjsWorker from 'pdfjs-dist/build/pdf.worker.js';
+
+pdfjsLib.GlobalWorkerOptions.workerSrc = pdfjsWorker;
+
 import Modal from '../common/Modal.jsx';
 
 if (pdfjs.GlobalWorkerOptions) {
-  pdfjs.GlobalWorkerOptions.workerSrc = workerSrc;
+  // Use bundled worker for both browser and test environments
+  // eslint-disable-next-line global-require
+  pdfjs.GlobalWorkerOptions.workerSrc = require('pdfjs-dist/legacy/build/pdf.worker.js');
 }
 import fornecedorService from '../../services/fornecedorService';
 import { createProduto } from '../../services/productService';
@@ -24,8 +29,8 @@ const BASE_FIELD_OPTIONS = [
   { value: 'imagem_url_original', label: 'URL Imagem' },
 ];
 
-const INITIAL_PREVIEW_PAGE_COUNT = 3;
-const MAX_FILE_SIZE_MB = 10;
+const INITIAL_PREVIEW_PAGE_COUNT = 20;
+const MAX_FILE_SIZE_MB = 60;
 
 function ImportCatalogWizard({ isOpen, onClose, fornecedorId }) {
   const [step, setStep] = useState(1);
