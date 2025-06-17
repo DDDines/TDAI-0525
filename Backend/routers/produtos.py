@@ -224,8 +224,6 @@ async def _tarefa_processar_catalogo(
                 erros.extend(dup_errors)
                 created.extend(created_page)
                 updated.extend(updated_page)
-                for db_produto in created_page:
-                created, dup_errors = crud_produtos.create_produtos_bulk(db, produtos_create, user_id=user_id)
                 for err in dup_errors:
                     if err.get("duplicado"):
                         linha = err.get("linha_original", {})
@@ -245,7 +243,7 @@ async def _tarefa_processar_catalogo(
                             updated.append({"before": before, "after": after})
                             continue
                     erros.append(err)
-                for db_produto in created:
+                for db_produto in created_page:
                     crud.create_registro_uso_ia(
                         db,
                         schemas.RegistroUsoIACreate(
