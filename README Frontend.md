@@ -89,7 +89,7 @@ Após instalar, inclua o diretório com `pdftoppm.exe` no `PATH` ou defina `POPP
   2. **Mapeamento de colunas** – associa colunas da planilha a campos padrão e atributos dinâmicos. Permite criar um novo tipo de produto caso não exista.
   3. **Confirmação** – revisão final e importação.
 O wizard mostra linhas de amostra e miniaturas antes do envio definitivo, garantindo que as colunas estejam corretas.
-  Durante a pré-visualização é possível clicar em **Pré-visualizar texto** para extrair o texto completo da página atual do PDF. O sistema chama `fornecedorService.selecionarRegiao` cobrindo toda a página e exibe o resultado em um modal para verificação.
+  Durante a pré-visualização é possível clicar em **Pré-visualizar texto** para extrair o texto completo da página atual do PDF. O sistema chama `fornecedorService.selecionarRegiao` cobrindo toda a página e exibe o resultado em um modal para verificação. Se nenhum texto aparecer, provavelmente o PDF contém apenas imagens; utilize então uma ferramenta de OCR ou a própria seleção de região para capturar o conteúdo desejado. Para converter um PDF escaneado em um arquivo pesquisável antes da importação, você pode rodar, por exemplo: `ocrmypdf entrada.pdf saida.pdf`.
 
 ## Frontend/app/src/components/fornecedores/CatalogFileList.jsx
 
