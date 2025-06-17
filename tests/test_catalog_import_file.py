@@ -12,7 +12,7 @@ from sqlalchemy.pool import StaticPool
 
 from Backend.main import app
 from Backend.database import Base, get_db
-from Backend import crud, schemas, models
+from Backend import crud, crud_produtos, schemas, models
 from Backend.core.config import settings
 
 # ensure reportlab for PDF generation
@@ -191,6 +191,46 @@ def test_finalize_processes_full_file():
         produtos = db.query(models.Produto).all()
         assert len(produtos) == 10  # 2 existentes + 8 novos
         assert all(p.fornecedor_id == fornec_id for p in produtos[2:])
+
+
+def test_import_updates_existing_product():
+    headers = get_admin_headers()
+    csv_content = "nome,sku\nNovo,999\n"
+    files = {"file": ("cat.csv", io.BytesIO(csv_content.encode()), "text/csv")}
+    with TestingSessionLocal() as db:
+        admin = crud.get_user_by_email(db, settings.FIRST_SUPERUSER_EMAIL)
+        existing = crud_produtos.create_produto(
+            db, schemas.ProdutoCreate(nome_base="Antigo", sku="999"), user_id=admin.id
+        )
+        fornec_id = db.query(models.Fornecedor.id).first()[0]
+        pt_id = db.query(models.ProductType.id).first()[0]
+
+    resp = client.post(
+        "/api/v1/produtos/importar-catalogo-preview/",
+        files=files,
+        data={"fornecedor_id": fornec_id},
+        headers=headers,
+    )
+    file_id = resp.json()["file_id"]
+
+    resp = client.post(
+        f"/api/v1/produtos/importar-catalogo-finalizar/{file_id}/",
+        headers=headers,
+        json={"product_type_id": pt_id, "fornecedor_id": fornec_id},
+    )
+    assert resp.status_code == 202
+
+    result_resp = client.get(
+        f"/api/v1/produtos/importar-catalogo-result/{file_id}/",
+        headers=headers,
+    )
+    assert result_resp.status_code == 200
+    data = result_resp.json()
+    assert any(item["id"] == existing.id for item in data["updated"])
+
+    with TestingSessionLocal() as db:
+        refreshed = db.query(models.Produto).get(existing.id)
+        assert refreshed.nome_base == "Novo"
 
 
 def test_list_catalog_files_pagination():

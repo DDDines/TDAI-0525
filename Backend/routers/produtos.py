@@ -81,6 +81,7 @@ async def _tarefa_processar_catalogo(
         erros: List[Dict[str, Any]] = []
         produtos_create: List[schemas.ProdutoCreate] = []
         created: List[models.Produto] = []
+        updated: List[models.Produto] = []
         updated: List[Dict[str, Any]] = []
         if ext == ".pdf":
             import pdfplumber, io
@@ -90,7 +91,6 @@ async def _tarefa_processar_catalogo(
             catalog_file.pages_processed = 0
             db.commit()
             page_list = pages or list(range(1, total + 1))
-
             for page in page_list:
                 produtos_data = await file_processing_service.processar_arquivo_pdf(
                     content,
@@ -124,6 +124,12 @@ async def _tarefa_processar_catalogo(
                         erros.append({"motivo_descarte": f"Erro ao converter linha: {str(e)}", "linha_original": prod})
 
                 if produtos_create:
+                    page_created, page_updated, dup_errors = crud_produtos.create_produtos_bulk(
+                        db, produtos_create, user_id=user_id
+                    )
+                    erros.extend(dup_errors)
+                    created.extend(page_created)
+                    updated.extend(page_updated)
                     page_created, dup_errors = crud_produtos.create_produtos_bulk(db, produtos_create, user_id=user_id)
                     created.extend(page_created)
                     for err in dup_errors:
@@ -211,6 +217,13 @@ async def _tarefa_processar_catalogo(
                 except Exception as e:
                     erros.append({"motivo_descarte": f"Erro ao converter linha: {str(e)}", "linha_original": prod})
             if produtos_create:
+                created_page, updated_page, dup_errors = crud_produtos.create_produtos_bulk(
+                    db, produtos_create, user_id=user_id
+                )
+                erros.extend(dup_errors)
+                created.extend(created_page)
+                updated.extend(updated_page)
+                for db_produto in created_page:
                 created, dup_errors = crud_produtos.create_produtos_bulk(db, produtos_create, user_id=user_id)
                 for err in dup_errors:
                     if err.get("duplicado"):
@@ -257,6 +270,10 @@ async def _tarefa_processar_catalogo(
             "created": [
                 schemas.ProdutoResponse.model_validate(p).model_dump(mode="json")
                 for p in created
+            ],
+            "updated": [
+                schemas.ProdutoResponse.model_validate(p).model_dump()
+                for p in updated
             ],
             "updated": updated,
             "errors": erros,
@@ -891,8 +908,9 @@ async def importar_catalogo_fornecedor(
             )
 
     created: List[models.Produto] = []
+    updated: List[models.Produto] = []
     if produtos_create:
-        created, dup_errors = crud_produtos.create_produtos_bulk(
+        created, updated, dup_errors = crud_produtos.create_produtos_bulk(
             db, produtos_create, user_id=current_user.id
         )
         erros.extend(dup_errors)
@@ -915,7 +933,7 @@ async def importar_catalogo_fornecedor(
                     entity_id=db_produto.id,
                 ),
             )
-    return {"produtos_criados": created, "erros": erros}
+    return {"produtos_criados": created, "produtos_atualizados": updated, "erros": erros}
 
 
 @router.post(
