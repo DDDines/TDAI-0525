@@ -10,6 +10,7 @@ if (pdfjs.GlobalWorkerOptions) {
 import fornecedorService from '../../services/fornecedorService';
 import { createProduto } from '../../services/productService';
 import { useProductTypes } from '../../contexts/ProductTypeContext';
+import { showErrorToast } from '../../utils/notifications';
 import LoadingOverlay from '../common/LoadingOverlay.jsx';
 const PdfRegionSelector = lazy(() => import('../common/PdfRegionSelector.jsx'));
 
@@ -25,6 +26,7 @@ const BASE_FIELD_OPTIONS = [
 ];
 
 const INITIAL_PREVIEW_PAGE_COUNT = 3;
+const MAX_FILE_SIZE_MB = 10;
 
 function ImportCatalogWizard({ isOpen, onClose, fornecedorId }) {
   const [step, setStep] = useState(1);
@@ -58,6 +60,7 @@ function ImportCatalogWizard({ isOpen, onClose, fornecedorId }) {
   const [textPreview, setTextPreview] = useState('');
   const [startPage, setStartPage] = useState(1);
   const [dragOver, setDragOver] = useState(false);
+  const fileInputRef = useRef(null);
 
   const { productTypes, addProductType } = useProductTypes();
 
@@ -122,15 +125,36 @@ function ImportCatalogWizard({ isOpen, onClose, fornecedorId }) {
   }, [startPage, preview]);
 
   const handleFileChange = (e) => {
-    const f = e.target.files[0];
+    const files = Array.from(e.target.files || []);
+    if (files.length === 0) return;
+
+    const allowed = ['pdf', 'csv', 'xls', 'xlsx'];
+    const valid = files.find((fileItem) => {
+      const ext = fileItem.name.split('.').pop().toLowerCase();
+      if (!allowed.includes(ext)) {
+        showErrorToast('Formato de arquivo não suportado.');
+        return false;
+      }
+      if (fileItem.size > MAX_FILE_SIZE_MB * 1024 * 1024) {
+        showErrorToast(`Arquivo muito grande (limite de ${MAX_FILE_SIZE_MB}MB).`);
+        return false;
+      }
+      return true;
+    });
+
+    if (!valid) return;
+
     if (pdfUrl) {
       URL.revokeObjectURL(pdfUrl);
       setPdfUrl(null);
     }
-    setFile(f);
+
+    setFile(valid);
     setFirstPageThumb(null);
-    if (f && f.type === 'application/pdf') {
-      const url = URL.createObjectURL(f);
+    const isPdf =
+      valid.type === 'application/pdf' || valid.name.toLowerCase().endsWith('.pdf');
+    if (isPdf) {
+      const url = URL.createObjectURL(valid);
       setPdfUrl(url);
 
       const reader = new FileReader();
@@ -150,7 +174,7 @@ function ImportCatalogWizard({ isOpen, onClose, fornecedorId }) {
           console.error('Failed to load first page', err);
         }
       };
-      reader.readAsArrayBuffer(f);
+      reader.readAsArrayBuffer(valid);
     }
   };
 
@@ -454,7 +478,6 @@ function ImportCatalogWizard({ isOpen, onClose, fornecedorId }) {
 
   const renderStep1 = () => (
     <div>
-      <input type="file" accept=".csv,.xls,.xlsx,.pdf" onChange={handleFileChange} />
       {firstPageThumb && (
         <div style={{ marginTop: '1em' }}>
           <img src={firstPageThumb} alt="Primeira página" style={{ maxWidth: '100%' }} />
@@ -465,8 +488,12 @@ function ImportCatalogWizard({ isOpen, onClose, fornecedorId }) {
         onDragOver={onDragOver}
         onDragLeave={onDragLeave}
         onDrop={onDrop}
+        onClick={() => fileInputRef.current && fileInputRef.current.click()}
       >
+        <p>Arraste o PDF ou clique para selecionar</p>
+        <small>Tamanho máximo {MAX_FILE_SIZE_MB}MB</small>
         <input
+          ref={fileInputRef}
           type="file"
           accept=".csv,.xls,.xlsx,.pdf"
           onChange={handleFileChange}
