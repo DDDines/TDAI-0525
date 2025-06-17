@@ -691,7 +691,7 @@ function ImportCatalogWizard({ isOpen, onClose, fornecedorId }) {
 
 const renderStep4 = () => (
   <div>
-    {pagesTotal > 0 && (
+    {pagesTotal > 0 ? (
       <>
         <progress
           value={pagesProcessed}
@@ -701,9 +701,14 @@ const renderStep4 = () => (
         <p>
           Página {pagesProcessed} de {pagesTotal}
         </p>
+        {message && !message.startsWith('Página') && <p>{message}</p>}
+      </>
+    ) : (
+      <>
+        <div className="loading-spinner" style={{ margin: '20px auto' }} />
+        {message && <p>{message}</p>}
       </>
     )}
-    {message && !message.startsWith('Página') && <p>{message}</p>}
     <button onClick={onClose}>Fechar</button>
   </div>
 );
