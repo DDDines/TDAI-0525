@@ -393,8 +393,11 @@ const ProductEditModal = ({ isOpen, onClose, product, onProductUpdated }) => {
 
         try {
             const suggestionsData = await productService.getAtributoSuggestions(product.id);
-            if (suggestionsData && suggestionsData.sugestoes_atributos && suggestionsData.sugestoes_atributos.length > 0) {
-                const newSuggestions = suggestionsData.sugestoes_atributos.reduce((acc, item) => {
+            const sugestoes = Array.isArray(suggestionsData?.sugestoes_atributos)
+                ? suggestionsData.sugestoes_atributos
+                : [];
+            if (sugestoes.length > 0) {
+                const newSuggestions = sugestoes.reduce((acc, item) => {
                     acc[item.chave_atributo] = item.valor_sugerido;
                     return acc;
                 }, {});
