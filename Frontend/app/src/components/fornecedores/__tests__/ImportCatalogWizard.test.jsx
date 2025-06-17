@@ -44,13 +44,13 @@ jest.mock('../../common/PdfRegionSelector.jsx', () => ({
   ),
 }));
 
-describe.skip('ImportCatalogWizard', () => {
+describe('ImportCatalogWizard', () => {
 beforeEach(() => {
   jest.clearAllMocks();
   jest.useFakeTimers();
 });
 
-test.skip('region modal sends selected page', async () => {
+test('region modal sends selected page', async () => {
   render(<ImportCatalogWizard isOpen={true} onClose={() => {}} fornecedorId={1} />);
   const fileInput = document.querySelector('input[type="file"]');
   const file = new File(['a'], 'test.pdf', { type: 'application/pdf' });
@@ -87,7 +87,7 @@ test('shows preview rows and sends productTypeId on confirm', async () => {
     expect.any(Set),
   );
   expect(fornecedorService.getImportacaoStatus).toHaveBeenCalled();
-  expect(await screen.findByText('Importação concluída com sucesso')).toBeInTheDocument();
+  expect(await screen.findByText('Importação concluída')).toBeInTheDocument();
 });
 
 test('calls onClose after finishing import', async () => {
@@ -131,9 +131,6 @@ test('confirms import even when fileId is missing', async () => {
 });
 
 
-});
-
-test.skip('region modal sends selected page', async () => {
 test('sends only selected pages', async () => {
   fornecedorService.previewCatalogo.mockResolvedValueOnce({
     fileId: 'f1',

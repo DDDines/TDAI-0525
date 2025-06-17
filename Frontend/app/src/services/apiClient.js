@@ -5,7 +5,19 @@ import logger from '../utils/logger';
 // Use VITE_API_BASE_URL if defined (e.g. in production) otherwise fall back to
 // the relative path so Vite's dev proxy can handle API requests during
 // development.
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/api/v1';
+let metaEnv;
+try {
+  // eslint-disable-next-line no-new-func
+  metaEnv = new Function(
+    'return typeof import.meta !== "undefined" ? import.meta.env : undefined',
+  )();
+} catch {
+  metaEnv = undefined;
+}
+const API_BASE_URL =
+  (metaEnv && metaEnv.VITE_API_BASE_URL) ||
+  (typeof process !== 'undefined' && process.env && process.env.VITE_API_BASE_URL) ||
+  '/api/v1';
 
 const apiClient = axios.create({
   baseURL: API_BASE_URL,
