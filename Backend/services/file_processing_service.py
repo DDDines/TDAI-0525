@@ -497,9 +497,27 @@ async def preview_arquivo_csv(
 
 
 async def preview_arquivo_pdf(
-    conteudo_arquivo: bytes, ext: str, start_page: int = 1, page_count: int = 1
+    conteudo_arquivo: bytes,
+    ext: str,
+    start_page: int = 1,
+    page_count: int = 1,
+    dpi: int = 72,
 ) -> Dict[str, Any]:
-    """Gera preview com miniaturas, texto e detecção de tabelas."""
+    """Gera preview de um PDF com miniaturas e extração de texto.
+
+    Parameters
+    ----------
+    conteudo_arquivo: bytes
+        Conteúdo do arquivo PDF.
+    ext: str
+        Extensão do arquivo (mantida para compatibilidade).
+    start_page: int, optional
+        Página inicial (1-indexada) para geração do preview, por padrão ``1``.
+    page_count: int, optional
+        Quantidade de páginas a incluir no preview. ``0`` usa todas as páginas.
+    dpi: int, optional
+        Resolução usada ao converter as páginas em imagem. Padrão ``72``.
+    """
 
     try:
         reader = pdf_open(io.BytesIO(conteudo_arquivo))
@@ -529,6 +547,7 @@ async def preview_arquivo_pdf(
                 first_page=page_number,
                 last_page=page_number,
                 fmt="png",
+                dpi=dpi,
                 **kwargs,
             )[0]
             buf = io.BytesIO()
