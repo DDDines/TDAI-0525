@@ -218,7 +218,7 @@ function ImportCatalogWizard({ isOpen, onClose, fornecedorId }) {
           fornecedorId,
         );
       }
-      const headers = Array.isArray(data.headers) ? data.headers : [];
+      const headers = Array.isArray(data?.headers) ? data.headers : [];
       setPreview({
         headers,
         previewImages: data.previewImages || [],
