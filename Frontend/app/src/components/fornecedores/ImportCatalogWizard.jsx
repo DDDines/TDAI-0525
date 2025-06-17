@@ -694,10 +694,18 @@ const renderStep4 = () => (
     {pagesTotal > 0 && (
       <>
         <progress
+          role="progressbar"
           value={pagesProcessed}
           max={pagesTotal}
+          aria-valuenow={pagesProcessed}
+          aria-valuemin={0}
+          aria-valuemax={pagesTotal}
           style={{ width: '100%' }}
-        />
+        >
+          <span className="visually-hidden">
+            Progresso: {pagesProcessed} de {pagesTotal}
+          </span>
+        </progress>
         <p>
           Página {pagesProcessed} de {pagesTotal}
         </p>
