@@ -218,7 +218,7 @@ async def _tarefa_processar_catalogo(
 
         result_summary = {
             "created": [
-                schemas.ProdutoResponse.model_validate(p).model_dump()
+                schemas.ProdutoResponse.model_validate(p).model_dump(mode="json")
                 for p in created
             ],
             "updated": [],
