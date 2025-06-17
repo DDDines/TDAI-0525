@@ -8,6 +8,7 @@ import base64
 import os
 import asyncio
 from pdf2image import convert_from_bytes
+import time
 from typing import List, Dict, Any, Union, Optional
 from pathlib import Path
 from uuid import uuid4
@@ -519,12 +520,15 @@ async def preview_arquivo_pdf(
         Resolução usada ao converter as páginas em imagem. Padrão ``72``.
     """
 
+    start = time.perf_counter()
+
     try:
         reader = pdf_open(io.BytesIO(conteudo_arquivo))
         num_pages = len(reader.pages)
         if page_count == 0:
             page_count = num_pages
         end_page = min(start_page + page_count - 1, num_pages)
+        pages_processed = end_page - start_page + 1
 
         preview: Dict[str, Any] = {
             "num_pages": num_pages,
@@ -567,6 +571,10 @@ async def preview_arquivo_pdf(
                 {"page": p, "image": f"data:image/png;base64,{b64}"}
             )
 
+        duration = time.perf_counter() - start
+        logger.info(
+            "PDF preview processed %s page(s) in %.4f seconds", pages_processed, duration
+        )
         return preview
     except Exception as e:
         logger.error("Erro ao gerar preview de arquivo PDF: %s", e)
