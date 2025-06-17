@@ -7,6 +7,7 @@ import chardet
 import base64
 import os
 import asyncio
+from concurrent.futures import ThreadPoolExecutor
 from pdf2image import convert_from_bytes
 import time
 from typing import List, Dict, Any, Union, Optional
@@ -20,6 +21,14 @@ from Backend import models
 from Backend.services import web_data_extractor_service
 
 logger = get_logger(__name__)
+
+# Maximum number of worker threads used when processing PDF pages
+MAX_PREVIEW_WORKERS = int(os.getenv("PDF_PREVIEW_WORKERS", "0"))
+_preview_executor = (
+    ThreadPoolExecutor(max_workers=MAX_PREVIEW_WORKERS)
+    if MAX_PREVIEW_WORKERS > 0
+    else None
+)
 
 
 async def save_uploaded_catalog(
@@ -523,6 +532,7 @@ async def preview_arquivo_pdf(
     start = time.perf_counter()
 
     try:
+        loop = asyncio.get_running_loop()
         reader = pdf_open(io.BytesIO(conteudo_arquivo))
         num_pages = len(reader.pages)
         if page_count == 0:
@@ -549,15 +559,15 @@ async def preview_arquivo_pdf(
             **kwargs,
         )
 
-        idx = 0
-        for p, page in enumerate(reader.pages, start=1):
+        def _process_page(p: int) -> Dict[str, Any]:
+            page = reader.pages[p - 1]
+            result: Dict[str, Any] = {"page": p, "table": False}
             tables = page.extract_tables()
             if tables:
-                preview["table_pages"].append(p)
-
+                result["table"] = True
             if start_page <= p <= end_page:
                 text = page.extract_text() or ""
-
+                idx = p - start_page
                 png_buf = io.BytesIO()
                 images[idx].save(png_buf, format="PNG")
                 png_b64 = base64.b64encode(png_buf.getvalue())
@@ -589,11 +599,23 @@ async def preview_arquivo_pdf(
                     mime = "png"
 
                 snippet = "\n".join(text.splitlines()[:3])
-                preview["sample_rows"][p] = snippet
-                preview["preview_images"].append(
-                    {"page": p, "image": f"data:image/{mime};base64,{b64}"}
-                )
-                idx += 1
+                result["snippet"] = snippet
+                result["image"] = {"page": p, "image": f"data:image/{mime};base64,{b64}"}
+            return result
+
+        tasks = [
+            loop.run_in_executor(_preview_executor, _process_page, p)
+            for p in range(1, num_pages + 1)
+        ]
+        results = await asyncio.gather(*tasks)
+
+        for r in sorted(results, key=lambda x: x["page"]):
+            if r.get("table"):
+                preview["table_pages"].append(r["page"])
+            if "snippet" in r:
+                preview["sample_rows"][r["page"]] = r["snippet"]
+            if "image" in r:
+                preview["preview_images"].append(r["image"])
 
         duration = time.perf_counter() - start
         logger.info(
