@@ -734,8 +734,31 @@ const renderStep5 = () => {
         <div>
           <h5>Atualizados</h5>
           <ul>
-            {resultSummary.updated.map((p) => (
-              <li key={p.id}>{p.nome_base} ({p.sku || p.ean})</li>
+            {resultSummary.updated.map((u, idx) => (
+              <li key={u.after.id || idx}>
+                <strong>
+                  {u.after.nome_base} ({u.after.sku || u.after.ean})
+                </strong>
+                <ul>
+                  {u.before.nome_base !== u.after.nome_base && (
+                    <li>
+                      Nome: {u.before.nome_base || '—'} → {u.after.nome_base || '—'}
+                    </li>
+                  )}
+                  {u.before.sku !== u.after.sku && (
+                    <li>SKU: {u.before.sku || '—'} → {u.after.sku || '—'}</li>
+                  )}
+                  {u.before.ean !== u.after.ean && (
+                    <li>EAN: {u.before.ean || '—'} → {u.after.ean || '—'}</li>
+                  )}
+                  {u.before.descricao_original !== u.after.descricao_original && (
+                    <li>
+                      Descrição: {u.before.descricao_original || '—'} →{' '}
+                      {u.after.descricao_original || '—'}
+                    </li>
+                  )}
+                </ul>
+              </li>
             ))}
           </ul>
         </div>
