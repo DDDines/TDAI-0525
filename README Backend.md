@@ -34,6 +34,9 @@ Após a instalação, adicione o diretório que contém `pdftoppm.exe` ao `PATH`
 Para reduzir o tamanho das prévias, a função `preview_arquivo_pdf` salva cada página em JPEG
 com `optimize=True` e qualidade inicial 70. Se o resultado não for menor que a versão PNG,
 a qualidade é reduzida para 50.
+O processamento de cada página é assíncrono e utiliza ``asyncio.run_in_executor``. O número de
+threads pode ser ajustado definindo a variável ``PDF_PREVIEW_WORKERS``; caso não seja
+especificado, é usado o executador padrão do ``asyncio``.
 
 ---
 
