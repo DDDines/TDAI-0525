@@ -52,6 +52,7 @@ function ImportCatalogWizard({ isOpen, onClose, fornecedorId }) {
   const [selectedPages, setSelectedPages] = useState(new Set());
   const [resultSummary, setResultSummary] = useState(null);
   const [duplicateSelections, setDuplicateSelections] = useState(new Set());
+  const [filterText, setFilterText] = useState('');
   const previewImageRef = useRef(null);
   const [isTextModalOpen, setIsTextModalOpen] = useState(false);
   const [textPreview, setTextPreview] = useState('');
@@ -717,24 +718,43 @@ const renderStep5 = () => {
   ) || [];
   const otherErrors = resultSummary.errors?.filter((e) => !duplicateErrors.includes(e)) || [];
 
+  const matchesFilter = (p) => {
+    if (!filterText) return true;
+    const val = `${p.nome_base || ''} ${p.sku || p.ean || ''}`.toLowerCase();
+    return val.includes(filterText.toLowerCase());
+  };
+
+  const createdFiltered = (resultSummary.created || []).filter(matchesFilter);
+  const updatedFiltered = (resultSummary.updated || []).filter(matchesFilter);
+
   return (
     <div>
       <h4>Resumo da Importação</h4>
-      {resultSummary.created?.length > 0 && (
+      <div className="form-group">
+        <label htmlFor="filter-preview">Filtrar produtos:</label>
+        <input
+          id="filter-preview"
+          type="text"
+          value={filterText}
+          onChange={(e) => setFilterText(e.target.value)}
+          placeholder="Buscar por nome ou SKU"
+        />
+      </div>
+      {createdFiltered.length > 0 && (
         <div>
-          <h5>Criados</h5>
+          <h5 style={{ color: 'green' }}>Criados ({createdFiltered.length})</h5>
           <ul>
-            {resultSummary.created.map((p) => (
+            {createdFiltered.map((p) => (
               <li key={p.id}>{p.nome_base} ({p.sku || p.ean})</li>
             ))}
           </ul>
         </div>
       )}
-      {resultSummary.updated?.length > 0 && (
+      {updatedFiltered.length > 0 && (
         <div>
-          <h5>Atualizados</h5>
+          <h5 style={{ color: 'red' }}>Atualizados ({updatedFiltered.length})</h5>
           <ul>
-            {resultSummary.updated.map((p) => (
+            {updatedFiltered.map((p) => (
               <li key={p.id}>{p.nome_base} ({p.sku || p.ean})</li>
             ))}
           </ul>
