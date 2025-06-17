@@ -38,6 +38,10 @@ O processamento de cada página é assíncrono e utiliza ``asyncio.run_in_execut
 threads pode ser ajustado definindo a variável ``PDF_PREVIEW_WORKERS``; caso não seja
 especificado, é usado o executador padrão do ``asyncio``.
 
+As páginas são processadas em paralelo utilizando a pool de threads padrão do
+Python (``asyncio`` + ``run_in_executor``). O limite segue ``min(32,
+os.cpu_count() + 4)`` se nenhuma outra configuração for informada.
+
 ---
 
 ## Backend/**init**.py
