@@ -4,11 +4,6 @@ pdfjsLib.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.j
 
 import Modal from '../common/Modal.jsx';
 
-if (pdfjs.GlobalWorkerOptions) {
-  // Use bundled worker for both browser and test environments
-  // eslint-disable-next-line global-require
-  pdfjs.GlobalWorkerOptions.workerSrc = require('pdfjs-dist/legacy/build/pdf.worker.js');
-}
 import fornecedorService from '../../services/fornecedorService';
 import { createProduto } from '../../services/productService';
 import { useProductTypes } from '../../contexts/ProductTypeContext';
