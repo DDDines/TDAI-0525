@@ -97,3 +97,4 @@ def test_importacao_ignora_duplicados_por_sku_ean():
     assert len(data["erros"]) == 2
     for err in data["erros"]:
         assert "duplicado" in err["motivo_descarte"].lower()
+        assert err.get("duplicado") is True
