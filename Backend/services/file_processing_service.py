@@ -518,26 +518,21 @@ async def preview_arquivo_pdf(
         poppler_dir = os.getenv("POPPLER_PATH") or settings.POPPLER_PATH
         kwargs = {"poppler_path": poppler_dir} if poppler_dir else {}
 
-        loop = asyncio.get_running_loop()
+        images = convert_from_bytes(
+            conteudo_arquivo,
+            first_page=start_page,
+            last_page=end_page,
+            fmt="png",
+            **kwargs,
+        )
 
-        def _process_page(page_number: int):
-            page = reader.pages[page_number - 1]
+        for idx, p in enumerate(range(start_page, end_page + 1)):
+            page = reader.pages[p - 1]
             tables = page.extract_tables()
             text = page.extract_text() or ""
-            img = convert_from_bytes(
-                conteudo_arquivo,
-                first_page=page_number,
-                last_page=page_number,
-                fmt="png",
-                **kwargs,
-            )[0]
             buf = io.BytesIO()
-            img.save(buf, format="PNG")
+            images[idx].save(buf, format="PNG")
             b64 = base64.b64encode(buf.getvalue()).decode()
-            return tables, text, b64
-
-        for p in range(start_page, end_page + 1):
-            tables, text, b64 = await loop.run_in_executor(None, _process_page, p)
             if tables:
                 preview["table_pages"].append(p)
             snippet = "\n".join(text.splitlines()[:3])
