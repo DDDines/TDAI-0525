@@ -154,39 +154,3 @@ async def send_password_reset_email(
         raise RuntimeError(f"Falha ao enviar email de reset de senha: {e}")
 
 
-async def send_new_account_email(email_to: EmailStr, username: str, login_link: str):
-    """
-    Envia um email de boas-vindas para um novo usuário. (Exemplo, não usado ainda)
-    """
-    if not conf:
-        logger.warning(
-            "Tentativa de enviar email de boas-vindas para %s, mas a configuração de email está desabilitada.",
-            email_to,
-        )
-        return
-
-    subject = f"Bem-vindo ao {settings.PROJECT_NAME}!"
-    # Você precisaria de um template new_account_email.html
-    template_name = "new_account_email.html" # Supondo que você crie este template
-    
-    template_body = {
-        "username": username,
-        "login_link": login_link,
-        "project_name": settings.PROJECT_NAME
-    }
-    
-    message = MessageSchema(
-        subject=subject,
-        recipients=[email_to],
-        template_body=template_body,
-        subtype=MessageType.html
-    )
-
-    fm = FastMail(conf)
-    
-    try:
-        await fm.send_message(message, template_name=template_name)
-        logger.info("Email de boas-vindas enviado para %s", email_to)
-    except Exception as e:
-        logger.error("Falha ao enviar email de boas-vindas para %s. Erro: %s", email_to, e)
-        raise RuntimeError(f"Falha ao enviar email de boas-vindas: {e}")
