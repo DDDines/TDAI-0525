@@ -19,7 +19,6 @@ O CatalogAI visa processar listas de itens de produtos (inicialmente automotivos
     * CRUD completo para `Fornecedores` (`routers/fornecedores.py`).
     * Associação de produtos a fornecedores e utilizadores.
 * **Processamento e Enriquecimento de Produtos:**
-    * Upload de ficheiros (Excel, CSV, PDF) para criação de produtos em lote (`routers/uploads.py`, `services/file_processing_service.py`).
     * Enriquecimento web automatizado via tarefas de fundo (`routers/web_enrichment.py`, `services/web_data_extractor_service.py`):
         * Busca de informações no Google (Google Custom Search API).
         * Scraping de conteúdo de páginas web com Playwright.
@@ -65,7 +64,6 @@ Backend/
 │   ├── password_recovery.py
 │   ├── produtos.py
 │   ├── social_auth.py    # (Requer revisão do conteúdo)
-│   ├── uploads.py
 │   ├── uso_ia.py
 │   └── web_enrichment.py
 ├── services/             # Lógica de negócios e integrações.
