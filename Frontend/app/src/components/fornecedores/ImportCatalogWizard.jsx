@@ -223,8 +223,9 @@ function ImportCatalogWizard({ isOpen, onClose, fornecedorId }) {
           fornecedorId,
         );
       }
+      const headers = Array.isArray(data.headers) ? data.headers : [];
       setPreview({
-        headers: data.headers,
+        headers,
         previewImages: data.previewImages || [],
         numPages: data.numPages,
         tablePages: data.tablePages || [],
@@ -233,7 +234,7 @@ function ImportCatalogWizard({ isOpen, onClose, fornecedorId }) {
       console.log('Preview latency:', latency);
       setPreviewLatency(latency);
       setMapping(
-        data.headers.reduce((acc, h) => {
+        headers.reduce((acc, h) => {
           acc[h] = '';
           return acc;
         }, {})

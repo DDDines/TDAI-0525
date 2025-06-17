@@ -183,4 +183,23 @@ test('sends only selected pages', async () => {
   const pages = fornecedorService.finalizarImportacaoCatalogo.mock.calls[0][5];
   expect(Array.from(pages)).toEqual([1]);
 });
+
+test('handles missing headers gracefully', async () => {
+  fornecedorService.previewCatalogo.mockResolvedValueOnce({
+    fileId: 'f1',
+    sampleRows: [],
+    previewImages: [],
+    numPages: 1,
+  });
+
+  render(<ImportCatalogWizard isOpen={true} onClose={() => {}} fornecedorId={1} />);
+  const fileInput = document.querySelector('input[type="file"]');
+  const file = new File(['a'], 'test.csv', { type: 'text/csv' });
+  await userEvent.upload(fileInput, file);
+  await userEvent.click(screen.getByText('Gerar Preview'));
+  await userEvent.selectOptions(screen.getByRole('combobox'), '1');
+  await userEvent.click(screen.getByText('Continuar'));
+  const confirmBtn = await screen.findByText('Confirmar Importação');
+  expect(confirmBtn).toBeDisabled();
+});
 });
