@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, lazy, Suspense } from 'react';
-import * as pdfjs from 'pdfjs-dist/legacy/build/pdf';
+import * as pdfjs from 'pdfjs-dist/legacy/build/pdf.js';
 import Modal from '../common/Modal.jsx';
 
 if (pdfjs.GlobalWorkerOptions) {
