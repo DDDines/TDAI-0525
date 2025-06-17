@@ -291,18 +291,31 @@ function ImportCatalogWizard({ isOpen, onClose, fornecedorId }) {
             setMessage('Importação concluída');
             setStep(5);
             clearInterval(intervalRef.current);
-          } else if (status === 'PROCESSING' && pages_total) {
-            setMessage(`${pages_processed} de ${pages_total}`);
-          } else if (status !== 'PROCESSING') {
+            intervalRef.current = null;
+          } else if (status === 'FAILED') {
             setMessage('Falha na importação');
             clearInterval(intervalRef.current);
+            intervalRef.current = null;
+          } else if (status === 'PROCESSING' && pages_total) {
+            setMessage(`Página ${pages_processed} de ${pages_total}`);
           }
+          return status;
         } catch {
           clearInterval(intervalRef.current);
+          intervalRef.current = null;
+          return 'FAILED';
         }
       };
-      await checkStatus();
-      intervalRef.current = setInterval(checkStatus, 2000);
+      const initialStatus = await checkStatus();
+      if (initialStatus === 'PROCESSING') {
+        intervalRef.current = setInterval(async () => {
+          const s = await checkStatus();
+          if (s !== 'PROCESSING' && intervalRef.current) {
+            clearInterval(intervalRef.current);
+            intervalRef.current = null;
+          }
+        }, 2000);
+      }
     } catch (err) {
       alert(err.detail || err.message || 'Erro ao importar catálogo');
     } finally {
@@ -529,15 +542,19 @@ function ImportCatalogWizard({ isOpen, onClose, fornecedorId }) {
 
 const renderStep4 = () => (
   <div>
-    <p>{message || 'Processo finalizado.'}</p>
     {pagesTotal > 0 && (
       <>
-        <progress value={pagesProcessed} max={pagesTotal} style={{ width: '100%' }} />
+        <progress
+          value={pagesProcessed}
+          max={pagesTotal}
+          style={{ width: '100%' }}
+        />
         <p>
-          {pagesProcessed} / {pagesTotal}
+          Página {pagesProcessed} de {pagesTotal}
         </p>
       </>
     )}
+    {message && !message.startsWith('Página') && <p>{message}</p>}
     <button onClick={onClose}>Fechar</button>
   </div>
 );
