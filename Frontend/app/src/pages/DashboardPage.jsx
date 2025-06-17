@@ -219,7 +219,7 @@ function DashboardPage() {
                 <tbody>
                   {searchResults.length > 0 ? (
                     searchResults.map(item => (
-                      <tr key={item.id}>
+                      <tr key={`${item.type}-${item.id}`}>
                         <td>{item.type}</td>
                         <td className="bold-cell">{item.name}</td>
                         <td>-</td>
