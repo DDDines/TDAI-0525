@@ -32,6 +32,7 @@ from Backend import schemas  # schemas é importado
 from Backend import database
 from Backend.database import SessionLocal
 import logging
+import time
 from Backend.services import file_processing_service
 from . import auth_utils  # Para obter o usuário logado
 from Backend.core import (
@@ -803,6 +804,7 @@ async def importar_catalogo_preview(
 
     # Lê o conteúdo para gerar o preview
     content = await file.read()
+    start = time.perf_counter()
     await file.seek(0)
 
     # Salva o arquivo e registra no banco
@@ -822,6 +824,12 @@ async def importar_catalogo_preview(
             )
         else:
             preview = await file_processing_service.gerar_preview(content, ext)
+        duration = time.perf_counter() - start
+        logger.info(
+            "Preview generation for catalog file %s took %.4f seconds",
+            catalog_record.id,
+            duration,
+        )
         return schemas.ImportPreviewResponse(
             **preview, error=None, file_id=catalog_record.id
         )
