@@ -104,7 +104,6 @@ CatalogAI-0525-Dev/
 │   │   ├── product_types.py
 │   │   ├── produtos.py
 │   │   ├── social_auth.py
-│   │   ├── uploads.py
 │   │   ├── uso_ia.py
 │   │   └── web_enrichment.py
 │   ├── schemas.py
@@ -424,7 +423,7 @@ que coincidam.
 
 * **Explorar Endpoints API:**
 
-  * `/produtos/`, `/fornecedores/`, `/uploads/`, `/generation/`, `/web-enrichment/`, `/uso_ia/`, `/historico/` etc.
+  * `/produtos/`, `/fornecedores/`, `/generation/`, `/web-enrichment/`, `/uso_ia/`, `/historico/` etc.
   * Veja todos em `/docs`
   * Para listar os tipos de ações suportados, consulte `GET /historico/tipos`
 

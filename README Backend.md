@@ -247,11 +247,6 @@ Após a instalação, adicione o diretório que contém `pdftoppm.exe` ao `PATH`
 * `login_google(token: str, db: Session)`: Login/cadastro via Google OAuth2.
 * `login_facebook(token: str, db: Session)`: Login/cadastro via Facebook OAuth2.
 
-## Backend/routers/uploads.py
-
-* `upload_file(file: UploadFile, db: Session)`: Recebe e processa arquivo de upload.
-* `get_upload_status(upload_id: int, db: Session)`: Consulta status de upload/processamento.
-
 ## Backend/routers/uso\_ia.py
 
 * `get_ia_usage(user_id: int, db: Session)`: Retorna uso de IA do usuário.
