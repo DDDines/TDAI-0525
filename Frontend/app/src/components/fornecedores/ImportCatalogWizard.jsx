@@ -819,6 +819,7 @@ const renderStep5 = () => {
                   )}
                 </ul>
               </li>
+            ))}
             {updatedFiltered.map((p) => (
               <li key={p.id}>{p.nome_base} ({p.sku || p.ean})</li>
             ))}
