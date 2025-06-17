@@ -540,8 +540,6 @@ async def preview_arquivo_pdf(
         with pdf_open(io.BytesIO(conteudo_arquivo)) as reader:
             num_pages = len(reader.pages)
         loop = asyncio.get_running_loop()
-        reader = pdf_open(io.BytesIO(conteudo_arquivo))
-        num_pages = len(reader.pages)
         if page_count == 0:
             page_count = num_pages
         end_page = min(start_page + page_count - 1, num_pages)
@@ -558,101 +556,80 @@ async def preview_arquivo_pdf(
         kwargs = {"poppler_path": poppler_dir} if poppler_dir else {}
 
         def _process_page(p: int) -> Dict[str, Any]:
+            """Extract information for a single page."""
             with pdf_open(io.BytesIO(conteudo_arquivo)) as r:
                 page = r.pages[p - 1]
                 tables = page.extract_tables()
-                text = page.extract_text() or ""
+                result: Dict[str, Any] = {"page": p, "has_table": bool(tables)}
 
-            result: Dict[str, Any] = {"page": p, "has_table": bool(tables)}
+                if start_page <= p <= end_page:
+                    text = page.extract_text() or ""
+                    image = convert_from_bytes(
+                        conteudo_arquivo,
+                        first_page=p,
+                        last_page=p,
+                        fmt="png",
+                        dpi=dpi,
+                        **kwargs,
+                    )[0]
 
-            if start_page <= p <= end_page:
-                image = convert_from_bytes(
-                    conteudo_arquivo,
-                    first_page=p,
-                    last_page=p,
-                    fmt="png",
-                    dpi=dpi,
-                    **kwargs,
-                )[0]
-        def _process_page(p: int) -> Dict[str, Any]:
-            page = reader.pages[p - 1]
-            result: Dict[str, Any] = {"page": p, "table": False}
-            tables = page.extract_tables()
-            if tables:
-                result["table"] = True
-            if start_page <= p <= end_page:
-                text = page.extract_text() or ""
-                idx = p - start_page
-                png_buf = io.BytesIO()
-                image.save(png_buf, format="PNG")
-                png_b64 = base64.b64encode(png_buf.getvalue())
+                    png_buf = io.BytesIO()
+                    image.save(png_buf, format="PNG")
+                    png_b64 = base64.b64encode(png_buf.getvalue())
 
-                jpeg_buf = io.BytesIO()
-                image.convert("RGB").save(
-                    jpeg_buf,
-                    format="JPEG",
-                    optimize=True,
-                    quality=70,
-                )
-                jpeg_b64 = base64.b64encode(jpeg_buf.getvalue())
-
-                if len(jpeg_b64) >= len(png_b64):
                     jpeg_buf = io.BytesIO()
                     image.convert("RGB").save(
                         jpeg_buf,
                         format="JPEG",
                         optimize=True,
-                        quality=50,
+                        quality=70,
                     )
                     jpeg_b64 = base64.b64encode(jpeg_buf.getvalue())
 
-                if len(jpeg_b64) < len(png_b64):
-                    b64 = jpeg_b64.decode()
-                    mime = "jpeg"
-                else:
-                    b64 = png_b64.decode()
-                    mime = "png"
+                    if len(jpeg_b64) >= len(png_b64):
+                        jpeg_buf = io.BytesIO()
+                        image.convert("RGB").save(
+                            jpeg_buf,
+                            format="JPEG",
+                            optimize=True,
+                            quality=50,
+                        )
+                        jpeg_b64 = base64.b64encode(jpeg_buf.getvalue())
 
-                snippet = "\n".join(text.splitlines()[:3])
-                result.update(
-                    {
-                        "snippet": snippet,
-                        "preview_image": {
-                            "page": p,
-                            "image": f"data:image/{mime};base64,{b64}",
-                        },
-                    }
-                )
+                    if len(jpeg_b64) < len(png_b64):
+                        b64 = jpeg_b64.decode()
+                        mime = "jpeg"
+                    else:
+                        b64 = png_b64.decode()
+                        mime = "png"
+
+                    snippet = "\n".join(text.splitlines()[:3])
+                    result.update(
+                        {
+                            "snippet": snippet,
+                            "preview_image": {
+                                "page": p,
+                                "image": f"data:image/{mime};base64,{b64}",
+                            },
+                        }
+                    )
 
             return result
 
-        loop = asyncio.get_running_loop()
-        tasks = [loop.run_in_executor(None, _process_page, p) for p in range(1, num_pages + 1)]
-        results = await asyncio.gather(*tasks)
-
-        for res in results:
-            if res.get("has_table"):
-                preview["table_pages"].append(res["page"])
-            if "preview_image" in res:
-                preview["sample_rows"][res["page"]] = res["snippet"]
-                preview["preview_images"].append(res["preview_image"])
-                result["snippet"] = snippet
-                result["image"] = {"page": p, "image": f"data:image/{mime};base64,{b64}"}
-            return result
-
+        executor = _preview_executor
         tasks = [
-            loop.run_in_executor(_preview_executor, _process_page, p)
+            loop.run_in_executor(executor, _process_page, p)
             for p in range(1, num_pages + 1)
         ]
         results = await asyncio.gather(*tasks)
 
         for r in sorted(results, key=lambda x: x["page"]):
-            if r.get("table"):
+            if r.get("has_table"):
                 preview["table_pages"].append(r["page"])
             if "snippet" in r:
                 preview["sample_rows"][r["page"]] = r["snippet"]
-            if "image" in r:
-                preview["preview_images"].append(r["image"])
+            if "preview_image" in r:
+                preview["preview_images"].append(r["preview_image"])
 
         duration = time.perf_counter() - start
         logger.info(
