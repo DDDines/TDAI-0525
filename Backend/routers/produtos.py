@@ -741,6 +741,7 @@ async def importar_catalogo_preview(
     fornecedor_id: Optional[int] = Form(None),
     start_page: int = Form(1),
     page_count: int = Form(0),
+    dpi: int = Form(72),
     db: Session = Depends(database.get_db),
     current_user: models.User = Depends(auth_utils.get_current_active_user),
 ):
@@ -763,7 +764,7 @@ async def importar_catalogo_preview(
     try:
         if ext == ".pdf":
             preview = await file_processing_service.preview_arquivo_pdf(
-                content, ext, start_page, page_count
+                content, ext, start_page, page_count, dpi
             )
         else:
             preview = await file_processing_service.gerar_preview(content, ext)
