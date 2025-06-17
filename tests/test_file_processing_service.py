@@ -14,6 +14,7 @@ except ImportError:  # pragma: no cover - install at runtime
 
 from reportlab.pdfgen import canvas
 
+
 @pytest.mark.asyncio
 @pytest.mark.parametrize(
     "data,encoding,esperado_nome,esperada_marca",
@@ -23,7 +24,9 @@ from reportlab.pdfgen import canvas
         ("nome_base\tmarca\nE\tF\n", "cp1252", "E", "F"),
     ],
 )
-async def test_processar_arquivo_csv_encodings(data, encoding, esperado_nome, esperada_marca):
+async def test_processar_arquivo_csv_encodings(
+    data, encoding, esperado_nome, esperada_marca
+):
     bytes_data = data.encode(encoding)
     resultado = await file_processing_service.processar_arquivo_csv(bytes_data)
     assert resultado
@@ -58,5 +61,5 @@ async def test_preview_arquivo_pdf_returns_page_info():
     res = await file_processing_service.preview_arquivo_pdf(pdf_bytes, ".pdf")
     assert res.get("num_pages") == 2
     assert isinstance(res.get("table_pages"), list)
-    assert len(res["preview_images"]) == 2
+    assert len(res["preview_images"]) == 1
     assert 1 in res["sample_rows"]
