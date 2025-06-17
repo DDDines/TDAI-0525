@@ -60,6 +60,7 @@ function ImportCatalogWizard({ isOpen, onClose, fornecedorId }) {
   const [textPreview, setTextPreview] = useState('');
   const [startPage, setStartPage] = useState(1);
   const [dragOver, setDragOver] = useState(false);
+  const [previewLatency, setPreviewLatency] = useState(null);
   const fileInputRef = useRef(null);
 
   const { productTypes, addProductType } = useProductTypes();
@@ -109,6 +110,7 @@ function ImportCatalogWizard({ isOpen, onClose, fornecedorId }) {
       setFirstPageThumb(null);
       setSelectedPages(new Set());
       setStartPage(1);
+      setPreviewLatency(null);
       setResultSummary(null);
     }
   }, [isOpen]);
@@ -203,6 +205,7 @@ function ImportCatalogWizard({ isOpen, onClose, fornecedorId }) {
   const handleGeneratePreview = async () => {
     if (!file) return;
     setLoading(true);
+    const t0 = performance.now();
     try {
       let data = await fornecedorService.previewCatalogo(
         file,
@@ -224,6 +227,9 @@ function ImportCatalogWizard({ isOpen, onClose, fornecedorId }) {
         numPages: data.numPages,
         tablePages: data.tablePages || [],
       });
+      const latency = performance.now() - t0;
+      console.log('Preview latency:', latency);
+      setPreviewLatency(latency);
       setMapping(
         data.headers.reduce((acc, h) => {
           acc[h] = '';
@@ -512,6 +518,9 @@ function ImportCatalogWizard({ isOpen, onClose, fornecedorId }) {
     }
     return (
       <div>
+        {previewLatency !== null && (
+          <p>Tempo para gerar preview: {Math.round(previewLatency)} ms</p>
+        )}
         {pdfUrl && (
           <div style={{ marginBottom: '1em' }}>
             <object
