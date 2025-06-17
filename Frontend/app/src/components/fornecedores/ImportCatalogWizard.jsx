@@ -375,6 +375,10 @@ function ImportCatalogWizard({ isOpen, onClose, fornecedorId }) {
       alert('Selecione um tipo de produto.');
       return;
     }
+    if (selectedPages.size === 0) {
+      alert('Selecione pelo menos uma página para importar.');
+      return;
+    }
     const mappedValues = Object.values(mapping || {});
     if (!mappedValues.includes('sku_original') && !mappedValues.includes('nome_base')) {
       alert('Mapeie pelo menos Nome ou SKU antes de continuar.');
@@ -714,6 +718,7 @@ function ImportCatalogWizard({ isOpen, onClose, fornecedorId }) {
             </tbody>
           </table>
         )}
+        <p>Páginas selecionadas: {Array.from(selectedPages).join(', ')}</p>
         <div className="modal-actions">
           <button onClick={() => setStep(2)} className="btn-secondary">Voltar</button>
           <button onClick={handleConfirmImport} disabled={loading || !isMappingValid} className="btn-primary">
@@ -744,6 +749,7 @@ const renderStep4 = () => (
         <p>
           Página {pagesProcessed} de {pagesTotal}
         </p>
+        <p>Páginas selecionadas: {Array.from(selectedPages).join(', ')}</p>
         {message && !message.startsWith('Página') && <p>{message}</p>}
       </>
     ) : (
