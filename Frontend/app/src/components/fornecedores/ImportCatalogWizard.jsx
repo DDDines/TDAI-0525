@@ -54,6 +54,7 @@ function ImportCatalogWizard({ isOpen, onClose, fornecedorId }) {
   const [isTextModalOpen, setIsTextModalOpen] = useState(false);
   const [textPreview, setTextPreview] = useState('');
   const [startPage, setStartPage] = useState(1);
+  const [dragOver, setDragOver] = useState(false);
 
   const { productTypes, addProductType } = useProductTypes();
 
@@ -131,6 +132,28 @@ function ImportCatalogWizard({ isOpen, onClose, fornecedorId }) {
         }
       };
       reader.readAsArrayBuffer(f);
+    }
+  };
+
+  const onDragOver = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setDragOver(true);
+  };
+
+  const onDragLeave = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setDragOver(false);
+  };
+
+  const onDrop = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setDragOver(false);
+    if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+      handleFileChange({ target: { files: e.dataTransfer.files } });
+      e.dataTransfer.clearData();
     }
   };
 
@@ -348,6 +371,18 @@ function ImportCatalogWizard({ isOpen, onClose, fornecedorId }) {
           <img src={firstPageThumb} alt="Primeira página" style={{ maxWidth: '100%' }} />
         </div>
       )}
+      <div
+        className={`file-drop-area${dragOver ? ' drag-over' : ''}`}
+        onDragOver={onDragOver}
+        onDragLeave={onDragLeave}
+        onDrop={onDrop}
+      >
+        <input
+          type="file"
+          accept=".csv,.xls,.xlsx,.pdf"
+          onChange={handleFileChange}
+        />
+      </div>
       <button onClick={handleGeneratePreview} disabled={!file || loading}>
         {loading ? 'Enviando...' : 'Gerar Preview'}
       </button>
