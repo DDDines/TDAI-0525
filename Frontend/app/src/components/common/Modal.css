@@ -331,3 +331,7 @@
     font-size: 0.85em;
     color: #9ca3af;
 }
+
+.file-drop-area input[type="file"] {
+    display: none;
+}
