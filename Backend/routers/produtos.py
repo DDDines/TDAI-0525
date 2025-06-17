@@ -82,6 +82,7 @@ async def _tarefa_processar_catalogo(
         produtos_create: List[schemas.ProdutoCreate] = []
         created: List[models.Produto] = []
         updated: List[models.Produto] = []
+        updated: List[Dict[str, Any]] = []
         if ext == ".pdf":
             import pdfplumber, io
             with pdfplumber.open(io.BytesIO(content)) as pdf:
@@ -129,6 +130,27 @@ async def _tarefa_processar_catalogo(
                     erros.extend(dup_errors)
                     created.extend(page_created)
                     updated.extend(page_updated)
+                    page_created, dup_errors = crud_produtos.create_produtos_bulk(db, produtos_create, user_id=user_id)
+                    created.extend(page_created)
+                    for err in dup_errors:
+                        if err.get("duplicado"):
+                            linha = err.get("linha_original", {})
+                            sku = linha.get("sku")
+                            ean = linha.get("ean")
+                            query = db.query(models.Produto).filter(models.Produto.user_id == user_id)
+                            if sku:
+                                query = query.filter(models.Produto.sku == sku)
+                            elif ean:
+                                query = query.filter(models.Produto.ean == ean)
+                            existing = query.first()
+                            if existing:
+                                before = schemas.ProdutoResponse.model_validate(existing).model_dump()
+                                update_schema = schemas.ProdutoUpdate(**linha)
+                                updated_prod = crud_produtos.update_produto(db, existing, update_schema)
+                                after = schemas.ProdutoResponse.model_validate(updated_prod).model_dump()
+                                updated.append({"before": before, "after": after})
+                                continue
+                        erros.append(err)
                     for db_produto in page_created:
                         crud.create_registro_uso_ia(
                             db,
@@ -202,6 +224,27 @@ async def _tarefa_processar_catalogo(
                 created.extend(created_page)
                 updated.extend(updated_page)
                 for db_produto in created_page:
+                created, dup_errors = crud_produtos.create_produtos_bulk(db, produtos_create, user_id=user_id)
+                for err in dup_errors:
+                    if err.get("duplicado"):
+                        linha = err.get("linha_original", {})
+                        sku = linha.get("sku")
+                        ean = linha.get("ean")
+                        query = db.query(models.Produto).filter(models.Produto.user_id == user_id)
+                        if sku:
+                            query = query.filter(models.Produto.sku == sku)
+                        elif ean:
+                            query = query.filter(models.Produto.ean == ean)
+                        existing = query.first()
+                        if existing:
+                            before = schemas.ProdutoResponse.model_validate(existing).model_dump()
+                            update_schema = schemas.ProdutoUpdate(**linha)
+                            updated_prod = crud_produtos.update_produto(db, existing, update_schema)
+                            after = schemas.ProdutoResponse.model_validate(updated_prod).model_dump()
+                            updated.append({"before": before, "after": after})
+                            continue
+                    erros.append(err)
+                for db_produto in created:
                     crud.create_registro_uso_ia(
                         db,
                         schemas.RegistroUsoIACreate(
@@ -220,18 +263,19 @@ async def _tarefa_processar_catalogo(
                             entity_id=db_produto.id,
                         ),
                     )
-            catalog_file.pages_processed = catalog_file.total_pages
+                catalog_file.pages_processed = catalog_file.total_pages
             db.commit()
 
         result_summary = {
             "created": [
-                schemas.ProdutoResponse.model_validate(p).model_dump()
+                schemas.ProdutoResponse.model_validate(p).model_dump(mode="json")
                 for p in created
             ],
             "updated": [
                 schemas.ProdutoResponse.model_validate(p).model_dump()
                 for p in updated
             ],
+            "updated": updated,
             "errors": erros,
         }
 
@@ -751,6 +795,7 @@ async def importar_catalogo_preview(
     fornecedor_id: Optional[int] = Form(None),
     start_page: int = Form(1),
     page_count: int = Form(0),
+    dpi: int = Form(72),
     db: Session = Depends(database.get_db),
     current_user: models.User = Depends(auth_utils.get_current_active_user),
 ):
@@ -773,7 +818,7 @@ async def importar_catalogo_preview(
     try:
         if ext == ".pdf":
             preview = await file_processing_service.preview_arquivo_pdf(
-                content, ext, start_page, page_count
+                content, ext, start_page, page_count, dpi
             )
         else:
             preview = await file_processing_service.gerar_preview(content, ext)

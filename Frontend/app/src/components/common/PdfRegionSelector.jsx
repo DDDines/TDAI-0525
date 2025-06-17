@@ -9,6 +9,7 @@ if (pdfjs.GlobalWorkerOptions) {
 
 function PdfRegionSelector({ file, onSelect, initialPage = 1 }) {
   const canvasRef = useRef(null);
+  const pdfDocumentRef = useRef(null);
   const [pageNum, setPageNum] = useState(initialPage);
   const startPos = useRef(null);
   const [rect, setRect] = useState(null);
@@ -19,10 +20,22 @@ function PdfRegionSelector({ file, onSelect, initialPage = 1 }) {
   }, [initialPage, file]);
 
   useEffect(() => {
+    let task;
+    let doc;
+    let cancelled = false;
+
     const load = async () => {
       if (!file) return;
-      const task = pdfjs.getDocument({ data: file });
-      const doc = await task.promise;
+      task = pdfjs.getDocument({ data: file });
+      doc = await task.promise;
+      if (cancelled) {
+        doc.destroy();
+        return;
+      }
+      if (pdfDocumentRef.current) {
+        await pdfDocumentRef.current.destroy();
+      }
+      pdfDocumentRef.current = doc;
       const page = await doc.getPage(pageNum);
       const viewport = page.getViewport({ scale: 1.5 });
       const canvas = canvasRef.current;
@@ -31,8 +44,31 @@ function PdfRegionSelector({ file, onSelect, initialPage = 1 }) {
       canvas.height = viewport.height;
       await page.render({ canvasContext: ctx, viewport }).promise;
     };
+
     load();
-  }, [file, pageNum]);
+
+    return () => {
+      cancelled = true;
+      if (task) task.destroy();
+      if (doc) doc.destroy();
+      pdfDocumentRef.current = null;
+    };
+  }, [file]);
+
+  useEffect(() => {
+    const renderPage = async () => {
+      const doc = pdfDocumentRef.current;
+      if (!doc) return;
+      const page = await doc.getPage(pageNum);
+      const viewport = page.getViewport({ scale: 1.5 });
+      const canvas = canvasRef.current;
+      const ctx = canvas.getContext('2d');
+      canvas.width = viewport.width;
+      canvas.height = viewport.height;
+      await page.render({ canvasContext: ctx, viewport }).promise;
+    };
+    renderPage();
+  }, [pageNum]);
 
   const handleMouseDown = (e) => {
     const rect = canvasRef.current.getBoundingClientRect();

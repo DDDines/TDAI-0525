@@ -337,9 +337,16 @@ class ImportCatalogoResponse(BaseModel):
     erros: List[Dict[str, Any]]
 
 
+class UpdatedProductInfo(BaseModel):
+    """Representa um produto atualizado durante a importação."""
+
+    before: ProdutoResponse
+    after: ProdutoResponse
+
+
 class CatalogImportResult(BaseModel):
     created: List[ProdutoResponse]
-    updated: List[ProdutoResponse]
+    updated: List[UpdatedProductInfo]
     errors: List[Dict[str, Any]]
 
 
@@ -543,6 +550,7 @@ AttributeTemplateResponse.model_rebuild()
 ProductTypeResponse.model_rebuild()
 ProdutoResponse.model_rebuild()
 ImportCatalogoResponse.model_rebuild()
+UpdatedProductInfo.model_rebuild()
 CatalogImportResult.model_rebuild()
 RegionExtractionResponse.model_rebuild()
 SinglePageExtractionResponse.model_rebuild()
