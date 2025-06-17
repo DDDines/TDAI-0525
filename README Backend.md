@@ -35,6 +35,10 @@ Para reduzir o tamanho das prévias, a função `preview_arquivo_pdf` salva cada
 com `optimize=True` e qualidade inicial 70. Se o resultado não for menor que a versão PNG,
 a qualidade é reduzida para 50.
 
+As páginas são processadas em paralelo utilizando a pool de threads padrão do
+Python (``asyncio`` + ``run_in_executor``). O limite segue ``min(32,
+os.cpu_count() + 4)`` se nenhuma outra configuração for informada.
+
 ---
 
 ## Backend/**init**.py

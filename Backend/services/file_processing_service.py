@@ -518,13 +518,18 @@ async def preview_arquivo_pdf(
         Quantidade de páginas a incluir no preview. ``0`` usa todas as páginas.
     dpi: int, optional
         Resolução usada ao converter as páginas em imagem. Padrão ``72``.
+
+    As páginas são processadas em paralelo usando ``asyncio`` e a pool de
+    ``ThreadPoolExecutor`` padrão do Python. O número de threads segue o limite
+    ``min(32, os.cpu_count() + 4)`` a menos que outro executor seja
+    configurado.
     """
 
     start = time.perf_counter()
 
     try:
-        reader = pdf_open(io.BytesIO(conteudo_arquivo))
-        num_pages = len(reader.pages)
+        with pdf_open(io.BytesIO(conteudo_arquivo)) as reader:
+            num_pages = len(reader.pages)
         if page_count == 0:
             page_count = num_pages
         end_page = min(start_page + page_count - 1, num_pages)
@@ -540,30 +545,30 @@ async def preview_arquivo_pdf(
         poppler_dir = os.getenv("POPPLER_PATH") or settings.POPPLER_PATH
         kwargs = {"poppler_path": poppler_dir} if poppler_dir else {}
 
-        images = convert_from_bytes(
-            conteudo_arquivo,
-            first_page=start_page,
-            last_page=end_page,
-            fmt="png",
-            dpi=dpi,
-            **kwargs,
-        )
-
-        idx = 0
-        for p, page in enumerate(reader.pages, start=1):
-            tables = page.extract_tables()
-            if tables:
-                preview["table_pages"].append(p)
-
-            if start_page <= p <= end_page:
+        def _process_page(p: int) -> Dict[str, Any]:
+            with pdf_open(io.BytesIO(conteudo_arquivo)) as r:
+                page = r.pages[p - 1]
+                tables = page.extract_tables()
                 text = page.extract_text() or ""
 
+            result: Dict[str, Any] = {"page": p, "has_table": bool(tables)}
+
+            if start_page <= p <= end_page:
+                image = convert_from_bytes(
+                    conteudo_arquivo,
+                    first_page=p,
+                    last_page=p,
+                    fmt="png",
+                    dpi=dpi,
+                    **kwargs,
+                )[0]
+
                 png_buf = io.BytesIO()
-                images[idx].save(png_buf, format="PNG")
+                image.save(png_buf, format="PNG")
                 png_b64 = base64.b64encode(png_buf.getvalue())
 
                 jpeg_buf = io.BytesIO()
-                images[idx].convert("RGB").save(
+                image.convert("RGB").save(
                     jpeg_buf,
                     format="JPEG",
                     optimize=True,
@@ -573,7 +578,7 @@ async def preview_arquivo_pdf(
 
                 if len(jpeg_b64) >= len(png_b64):
                     jpeg_buf = io.BytesIO()
-                    images[idx].convert("RGB").save(
+                    image.convert("RGB").save(
                         jpeg_buf,
                         format="JPEG",
                         optimize=True,
@@ -589,11 +594,28 @@ async def preview_arquivo_pdf(
                     mime = "png"
 
                 snippet = "\n".join(text.splitlines()[:3])
-                preview["sample_rows"][p] = snippet
-                preview["preview_images"].append(
-                    {"page": p, "image": f"data:image/{mime};base64,{b64}"}
+                result.update(
+                    {
+                        "snippet": snippet,
+                        "preview_image": {
+                            "page": p,
+                            "image": f"data:image/{mime};base64,{b64}",
+                        },
+                    }
                 )
-                idx += 1
+
+            return result
+
+        loop = asyncio.get_running_loop()
+        tasks = [loop.run_in_executor(None, _process_page, p) for p in range(1, num_pages + 1)]
+        results = await asyncio.gather(*tasks)
+
+        for res in results:
+            if res.get("has_table"):
+                preview["table_pages"].append(res["page"])
+            if "preview_image" in res:
+                preview["sample_rows"][res["page"]] = res["snippet"]
+                preview["preview_images"].append(res["preview_image"])
 
         duration = time.perf_counter() - start
         logger.info(
