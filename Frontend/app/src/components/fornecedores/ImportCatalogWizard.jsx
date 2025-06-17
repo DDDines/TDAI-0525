@@ -1,11 +1,10 @@
 import React, { useState, useEffect, useRef, lazy, Suspense } from 'react';
 import * as pdfjs from 'pdfjs-dist/legacy/build/pdf.js';
+import workerSrc from 'pdfjs-dist/legacy/build/pdf.worker.js?url';
 import Modal from '../common/Modal.jsx';
 
 if (pdfjs.GlobalWorkerOptions) {
-  // Use bundled worker for both browser and test environments
-  // eslint-disable-next-line global-require
-  pdfjs.GlobalWorkerOptions.workerSrc = require('pdfjs-dist/legacy/build/pdf.worker.js');
+  pdfjs.GlobalWorkerOptions.workerSrc = workerSrc;
 }
 import fornecedorService from '../../services/fornecedorService';
 import { createProduto } from '../../services/productService';

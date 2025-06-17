@@ -3,6 +3,25 @@ import '@testing-library/jest-dom';
 import userEvent from '@testing-library/user-event';
 import ImportCatalogWizard from '../ImportCatalogWizard.jsx';
 
+jest.mock('pdfjs-dist/legacy/build/pdf.worker.js?url', () => 'worker-src-stub', { virtual: true });
+jest.mock(
+  'pdfjs-dist/legacy/build/pdf.js',
+  () => ({
+    GlobalWorkerOptions: { workerSrc: '' },
+    getDocument: jest.fn(() => ({
+      promise: Promise.resolve({
+        getPage: jest.fn(() =>
+          Promise.resolve({
+            getViewport: () => ({ width: 100, height: 100 }),
+            render: () => ({ promise: Promise.resolve() }),
+          }),
+        ),
+      }),
+    })),
+  }),
+  { virtual: true },
+);
+
 jest.setTimeout(30000);
 
 global.URL.createObjectURL = jest.fn(() => 'blob:url');

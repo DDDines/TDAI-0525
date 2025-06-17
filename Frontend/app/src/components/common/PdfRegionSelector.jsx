@@ -1,10 +1,9 @@
 import React, { useRef, useEffect, useState } from 'react';
 import * as pdfjs from 'pdfjs-dist/legacy/build/pdf';
+import workerSrc from 'pdfjs-dist/legacy/build/pdf.worker.js?url';
 
 if (pdfjs.GlobalWorkerOptions) {
-  // Use bundled worker for both browser and test environments
-  // eslint-disable-next-line global-require
-  pdfjs.GlobalWorkerOptions.workerSrc = require('pdfjs-dist/legacy/build/pdf.worker.js');
+  pdfjs.GlobalWorkerOptions.workerSrc = workerSrc;
 }
 
 function PdfRegionSelector({ file, onSelect, initialPage = 1 }) {
