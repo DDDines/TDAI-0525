@@ -87,6 +87,7 @@ def create_produtos_bulk(
                 {
                     "motivo_descarte": "Produto duplicado por SKU ou EAN",
                     "linha_original": data,
+                    "duplicado": True,
                 }
             )
             continue

@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef, lazy, Suspense } from 'react';
 import Modal from '../common/Modal.jsx';
 import fornecedorService from '../../services/fornecedorService';
+import { createProduto } from '../../services/productService';
 import { useProductTypes } from '../../contexts/ProductTypeContext';
 import LoadingOverlay from '../common/LoadingOverlay.jsx';
 const PdfRegionSelector = lazy(() => import('../common/PdfRegionSelector.jsx'));
@@ -42,12 +43,29 @@ function ImportCatalogWizard({ isOpen, onClose, fornecedorId }) {
   const [pdfUrl, setPdfUrl] = useState(null);
   const [selectedPages, setSelectedPages] = useState(new Set());
   const [resultSummary, setResultSummary] = useState(null);
+  const [duplicateSelections, setDuplicateSelections] = useState(new Set());
   const previewImageRef = useRef(null);
   const [isTextModalOpen, setIsTextModalOpen] = useState(false);
   const [textPreview, setTextPreview] = useState('');
   const [startPage, setStartPage] = useState(1);
 
   const { productTypes, addProductType } = useProductTypes();
+
+  useEffect(() => {
+    if (resultSummary && resultSummary.errors) {
+      const dupIndexes = resultSummary.errors
+        .map((e, idx) =>
+          e.duplicado ||
+          (e.motivo_descarte && e.motivo_descarte.toLowerCase().includes('duplicado'))
+            ? idx
+            : null,
+        )
+        .filter((v) => v !== null);
+      setDuplicateSelections(new Set(dupIndexes));
+    } else {
+      setDuplicateSelections(new Set());
+    }
+  }, [resultSummary]);
 
   useEffect(() => {
     if (!isOpen) {
@@ -310,6 +328,52 @@ function ImportCatalogWizard({ isOpen, onClose, fornecedorId }) {
     }
   };
 
+  const toggleDuplicateSelection = (idx) => {
+    setDuplicateSelections((prev) => {
+      const newSet = new Set(prev);
+      if (newSet.has(idx)) {
+        newSet.delete(idx);
+      } else {
+        newSet.add(idx);
+      }
+      return newSet;
+    });
+  };
+
+  const handleRetryDuplicates = async () => {
+    if (!resultSummary || !resultSummary.errors) return;
+    const duplicates = resultSummary.errors.filter(
+      (e) =>
+        e.duplicado ||
+        (e.motivo_descarte && e.motivo_descarte.toLowerCase().includes('duplicado')),
+    );
+    const selected = duplicates.filter((_, idx) => duplicateSelections.has(idx));
+    if (selected.length === 0) return;
+    setLoading(true);
+    try {
+      const created = [];
+      for (const item of selected) {
+        const prod = await createProduto(item.linha_original);
+        created.push(prod);
+      }
+      if (created.length) {
+        setResultSummary((prev) => ({
+          ...prev,
+          created: [...(prev.created || []), ...created],
+          errors: prev.errors.filter(
+            (e, idx) =>
+              !(duplicates.includes(e) && duplicateSelections.has(duplicates.indexOf(e))),
+          ),
+        }));
+        setDuplicateSelections(new Set());
+      }
+    } catch (err) {
+      alert(err.detail || err.message || 'Erro ao reimportar duplicados');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const renderStep1 = () => (
     <div>
       <input type="file" accept=".csv,.xls,.xlsx,.pdf" onChange={handleFileChange} />
@@ -542,46 +606,74 @@ const renderStep4 = () => (
   </div>
 );
 
-const renderStep5 = () => (
-  <div>
-    <h4>Resumo da Importação</h4>
-    {resultSummary && (
-      <>
-        {resultSummary.created?.length > 0 && (
-          <div>
-            <h5>Criados</h5>
-            <ul>
-              {resultSummary.created.map((p) => (
-                <li key={p.id}>{p.nome_base} ({p.sku || p.ean})</li>
-              ))}
-            </ul>
-          </div>
-        )}
-        {resultSummary.updated?.length > 0 && (
-          <div>
-            <h5>Atualizados</h5>
-            <ul>
-              {resultSummary.updated.map((p) => (
-                <li key={p.id}>{p.nome_base} ({p.sku || p.ean})</li>
-              ))}
-            </ul>
-          </div>
-        )}
-        {resultSummary.errors?.length > 0 && (
-          <div>
-            <h5>Erros</h5>
-            <ul>
-              {resultSummary.errors.map((e, idx) => (
-                <li key={idx}>{e.motivo_descarte || JSON.stringify(e)}</li>
-              ))}
-            </ul>
-          </div>
-        )}
-      </>
-    )}
-    <button onClick={onClose}>Fechar</button>
-  </div>
-);
+const renderStep5 = () => {
+  if (!resultSummary) return null;
+  const duplicateErrors = resultSummary.errors?.filter(
+    (e) =>
+      e.duplicado ||
+      (e.motivo_descarte && e.motivo_descarte.toLowerCase().includes('duplicado')),
+  ) || [];
+  const otherErrors = resultSummary.errors?.filter((e) => !duplicateErrors.includes(e)) || [];
+
+  return (
+    <div>
+      <h4>Resumo da Importação</h4>
+      {resultSummary.created?.length > 0 && (
+        <div>
+          <h5>Criados</h5>
+          <ul>
+            {resultSummary.created.map((p) => (
+              <li key={p.id}>{p.nome_base} ({p.sku || p.ean})</li>
+            ))}
+          </ul>
+        </div>
+      )}
+      {resultSummary.updated?.length > 0 && (
+        <div>
+          <h5>Atualizados</h5>
+          <ul>
+            {resultSummary.updated.map((p) => (
+              <li key={p.id}>{p.nome_base} ({p.sku || p.ean})</li>
+            ))}
+          </ul>
+        </div>
+      )}
+      {duplicateErrors.length > 0 && (
+        <div>
+          <h5>Duplicados/Ignorados</h5>
+          <ul>
+            {duplicateErrors.map((e, idx) => (
+              <li key={idx}>
+                <label>
+                  <input
+                    type="checkbox"
+                    checked={duplicateSelections.has(idx)}
+                    onChange={() => toggleDuplicateSelection(idx)}
+                  />{' '}
+                  {e.linha_original?.nome_base || e.linha_original?.sku || e.motivo_descarte}
+                </label>
+              </li>
+            ))}
+          </ul>
+          <button onClick={handleRetryDuplicates} disabled={loading || duplicateSelections.size === 0}>
+            {loading ? 'Processando...' : 'Importar Selecionados'}
+          </button>
+        </div>
+      )}
+      {otherErrors.length > 0 && (
+        <div>
+          <h5>Erros</h5>
+          <ul>
+            {otherErrors.map((e, idx) => (
+              <li key={idx}>{e.motivo_descarte || JSON.stringify(e)}</li>
+            ))}
+          </ul>
+        </div>
+      )}
+      <button onClick={onClose}>Fechar</button>
+    </div>
+  );
+};
 
   return (
     <>
