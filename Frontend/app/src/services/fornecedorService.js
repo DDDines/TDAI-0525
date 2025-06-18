@@ -121,6 +121,26 @@ export const previewCatalogo = async (
   }
 };
 
+export const previewPdf = async (file, offset = 0, limit = 20) => {
+  try {
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('offset', offset);
+    formData.append('limit', limit);
+    const response = await apiClient.post('/produtos/preview-pdf/', formData);
+    return response.data;
+  } catch (error) {
+    console.error(
+      'Erro ao pré-visualizar PDF:',
+      JSON.stringify(error.response?.data || error.message || error),
+    );
+    if (error.response && error.response.data) {
+      throw error.response.data;
+    }
+    throw new Error(error.message || 'Falha ao solicitar preview do PDF');
+  }
+};
+
 export const importCatalogo = async (fornecedorId, file, mapping = null) => {
   try {
     const formData = new FormData();
@@ -287,5 +307,6 @@ export default {
   reprocessCatalogFile,
   getImportacaoStatus,
   getImportacaoResult,
+  previewPdf,
   selecionarRegiao,
 };
