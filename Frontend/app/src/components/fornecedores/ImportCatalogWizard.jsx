@@ -47,6 +47,7 @@ function ImportCatalogWizard({ isOpen, onClose, fornecedorId }) {
   const [regionProducts, setRegionProducts] = useState(null);
   const [isRegionModalOpen, setIsRegionModalOpen] = useState(false);
   const [pdfUrl, setPdfUrl] = useState(null);
+  const [isPdfFile, setIsPdfFile] = useState(false);
   const [firstPageThumb, setFirstPageThumb] = useState(null);
   const [selectedPages, setSelectedPages] = useState(new Set());
   const [resultSummary, setResultSummary] = useState(null);
@@ -106,6 +107,7 @@ function ImportCatalogWizard({ isOpen, onClose, fornecedorId }) {
       setCurrentPreviewPage(0);
       setRegionPage(1);
       setPdfUrl(null);
+      setIsPdfFile(false);
       setFirstPageThumb(null);
       setSelectedPages(new Set());
       setStartPage(1);
@@ -154,6 +156,7 @@ function ImportCatalogWizard({ isOpen, onClose, fornecedorId }) {
     setFirstPageThumb(null);
     const isPdf =
       valid.type === 'application/pdf' || valid.name.toLowerCase().endsWith('.pdf');
+    setIsPdfFile(isPdf);
     if (isPdf) {
       const url = URL.createObjectURL(valid);
       setPdfUrl(url);
@@ -206,6 +209,15 @@ function ImportCatalogWizard({ isOpen, onClose, fornecedorId }) {
     setLoading(true);
     const t0 = performance.now();
     try {
+      const previewFn = isPdfFile ? fornecedorService.previewPdf : fornecedorService.previewCatalogo;
+      let data = await previewFn(
+        file,
+        INITIAL_PREVIEW_PAGE_COUNT,
+        1,
+        fornecedorId,
+      );
+      if (data.numPages && data.numPages > INITIAL_PREVIEW_PAGE_COUNT) {
+        data = await previewFn(
       let data;
       const isPdf =
         file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf');

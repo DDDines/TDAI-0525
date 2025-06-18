@@ -121,6 +121,36 @@ export const previewCatalogo = async (
   }
 };
 
+
+export const previewPdf = async (
+  file,
+  pageCount = 1,
+  startPage = 1,
+  fornecedorId = null,
+) => {
+  try {
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('page_count', pageCount);
+    formData.append('start_page', startPage);
+    if (fornecedorId) {
+      formData.append('fornecedor_id', fornecedorId);
+    }
+    const response = await apiClient.post(
+      '/produtos/importar-catalogo-preview/',
+      formData,
+    );
+    const { file_id, headers, sample_rows, preview_images, num_pages, table_pages } = response.data;
+    return {
+      fileId: file_id,
+      headers,
+      sampleRows: sample_rows,
+      previewImages: preview_images,
+      numPages: num_pages,
+      tablePages: table_pages,
+    };
+  } catch (error) {
+    console.error('Erro ao gerar preview do PDF:', JSON.stringify(error.response?.data || error.message || error));
 export const previewPdf = async (file, offset = 0, limit = 20) => {
   try {
     const formData = new FormData();
@@ -311,6 +341,7 @@ export default {
   updateFornecedor,
   deleteFornecedor,
   previewCatalogo,
+  previewPdf,
   importCatalogo,
   finalizarImportacaoCatalogo,
   getCatalogImportFiles,
