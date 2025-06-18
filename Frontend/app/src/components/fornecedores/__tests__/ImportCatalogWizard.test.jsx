@@ -193,6 +193,45 @@ test('sends only selected pages', async () => {
   expect(Array.from(pages)).toEqual([1]);
 });
 
+test('loads more pages with correct offset', async () => {
+  fornecedorService.previewCatalogo.mockResolvedValueOnce({
+    fileId: 'f1',
+    headers: ['Nome'],
+    sampleRows: [{ Nome: 'Item' }],
+    previewImages: Array(2).fill('a'),
+    numPages: 4,
+  });
+  fornecedorService.previewCatalogo.mockResolvedValueOnce({
+    fileId: 'f1',
+    headers: ['Nome'],
+    sampleRows: [{ Nome: 'Item' }],
+    previewImages: Array(2).fill('b'),
+    numPages: 4,
+  });
+
+  render(<ImportCatalogWizard isOpen={true} onClose={() => {}} fornecedorId={1} />);
+  const fileInput = document.querySelector('input[type="file"]');
+  const file = new File(['a'], 'test.pdf', { type: 'application/pdf' });
+  await userEvent.upload(fileInput, file);
+  await userEvent.click(screen.getByText('Gerar Preview'));
+
+  expect(fornecedorService.previewCatalogo).toHaveBeenCalledWith(
+    file,
+    20,
+    1,
+    1,
+  );
+
+  await userEvent.click(screen.getByText('Próxima'));
+
+  expect(fornecedorService.previewCatalogo).toHaveBeenLastCalledWith(
+    file,
+    20,
+    3,
+    1,
+  );
+});
+
 test('handles missing headers gracefully', async () => {
   fornecedorService.previewCatalogo.mockResolvedValueOnce({
     fileId: 'f1',
