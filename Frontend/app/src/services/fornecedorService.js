@@ -275,6 +275,17 @@ export const getImportacaoResult = async (fileId) => {
   }
 };
 
+export const previewPdf = async (fornecedorId, file, offset = 0, limit = 20) => {
+  const formData = new FormData();
+  formData.append('file', file);
+  const resp = await apiClient.post(
+    `/fornecedores/${fornecedorId}/preview-pdf?offset=${offset}&limit=${limit}`,
+    formData,
+    { headers: { 'Content-Type': 'multipart/form-data' } }
+  );
+  return resp.data;
+};
+
 
 export const selecionarRegiao = async (fileId, page, bbox) => {
   try {
