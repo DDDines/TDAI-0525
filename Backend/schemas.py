@@ -458,6 +458,17 @@ class CatalogImportFilePage(BaseModel):
     page: int
     limit: int
 
+
+class PdfPreviewResponse(BaseModel):
+    """Preview data for PDF page images."""
+
+    image_urls: List[str]
+    total_pages: int
+    import_file_id: int
+
+    class Config:
+        from_attributes = True
+
 # --- Password Recovery Schemas ---
 class PasswordResetSchema(BaseModel):
     new_password: str = Field(..., min_length=8)
@@ -559,4 +570,5 @@ RegistroHistoricoResponse.model_rebuild()
 CatalogImportFileResponse.model_rebuild()
 UserActivity.model_rebuild()
 SocialLoginConfig.model_rebuild()
+PdfPreviewResponse.model_rebuild()
 
