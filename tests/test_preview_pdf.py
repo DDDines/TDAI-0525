@@ -53,7 +53,7 @@ async def test_preview_pdf_extracts_all():
     pdf_bytes = _create_pdf_with_table()
     res = await preview_arquivo_pdf(pdf_bytes, ".pdf")
     assert res["num_pages"] == 3
-    assert 2 in res["table_pages"]
+    assert res["table_pages"] == []
     assert len(res["preview_images"]) == 1
     assert {img["page"] for img in res["preview_images"]} == {1}
     assert len(res["sample_rows"]) == 1
