@@ -82,7 +82,7 @@ test('region modal sends selected page', async () => {
   const file = new File(['a'], 'test.pdf', { type: 'application/pdf' });
   await userEvent.upload(fileInput, file);
   await userEvent.click(screen.getByText('Gerar Preview'));
-  expect(fornecedorService.previewPdf).toHaveBeenCalled();
+  expect(fornecedorService.previewPdf).toHaveBeenCalledWith(file, 0, 20, 1);
   const regionButton = await screen.findByText('Selecionar Região');
   await userEvent.click(regionButton);
   const modal = document.querySelector('.modal-content');
@@ -171,7 +171,7 @@ test('sends only selected pages', async () => {
   const file = new File(['a'], 'test.pdf', { type: 'application/pdf' });
   await userEvent.upload(fileInput, file);
   await userEvent.click(screen.getByText('Gerar Preview'));
-  expect(fornecedorService.previewPdf).toHaveBeenCalled();
+  expect(fornecedorService.previewPdf).toHaveBeenCalledWith(file, 0, 20, 1);
   const btn = await screen.findByText('Selecionar Região');
   await userEvent.click(btn);
   const modal = document.querySelector('.modal-content');
