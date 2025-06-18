@@ -121,6 +121,7 @@ export const previewCatalogo = async (
   }
 };
 
+
 export const previewPdf = async (
   file,
   pageCount = 1,
@@ -150,6 +151,19 @@ export const previewPdf = async (
     };
   } catch (error) {
     console.error('Erro ao gerar preview do PDF:', JSON.stringify(error.response?.data || error.message || error));
+export const previewPdf = async (file, offset = 0, limit = 20) => {
+  try {
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('offset', offset);
+    formData.append('limit', limit);
+    const response = await apiClient.post('/produtos/preview-pdf/', formData);
+    return response.data;
+  } catch (error) {
+    console.error(
+      'Erro ao pré-visualizar PDF:',
+      JSON.stringify(error.response?.data || error.message || error),
+    );
     if (error.response && error.response.data) {
       throw error.response.data;
     }
@@ -291,6 +305,17 @@ export const getImportacaoResult = async (fileId) => {
   }
 };
 
+export const previewPdf = async (fornecedorId, file, offset = 0, limit = 20) => {
+  const formData = new FormData();
+  formData.append('file', file);
+  const resp = await apiClient.post(
+    `/fornecedores/${fornecedorId}/preview-pdf?offset=${offset}&limit=${limit}`,
+    formData,
+    { headers: { 'Content-Type': 'multipart/form-data' } }
+  );
+  return resp.data;
+};
+
 
 export const selecionarRegiao = async (fileId, page, bbox) => {
   try {
@@ -324,5 +349,6 @@ export default {
   reprocessCatalogFile,
   getImportacaoStatus,
   getImportacaoResult,
+  previewPdf,
   selecionarRegiao,
 };

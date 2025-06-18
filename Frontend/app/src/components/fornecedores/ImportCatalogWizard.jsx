@@ -60,6 +60,8 @@ function ImportCatalogWizard({ isOpen, onClose, fornecedorId }) {
   const [dragOver, setDragOver] = useState(false);
   const [previewLatency, setPreviewLatency] = useState(null);
   const fileInputRef = useRef(null);
+  const [totalPages, setTotalPages] = useState(0);
+  const [loadedPages, setLoadedPages] = useState(0);
 
   const { productTypes, addProductType } = useProductTypes();
 
@@ -216,11 +218,30 @@ function ImportCatalogWizard({ isOpen, onClose, fornecedorId }) {
       );
       if (data.numPages && data.numPages > INITIAL_PREVIEW_PAGE_COUNT) {
         data = await previewFn(
+      let data;
+      const isPdf =
+        file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf');
+      if (isPdf) {
+        data = await fornecedorService.previewPdf(file, 0, 20);
+        setTotalPages(data.totalPages || data.total_pages || 0);
+        setLoadedPages((data.pages || data.previewImages || []).length);
+      } else {
+        data = await fornecedorService.previewCatalogo(
           file,
-          data.numPages,
+          INITIAL_PREVIEW_PAGE_COUNT,
           1,
           fornecedorId,
         );
+        if (data.numPages && data.numPages > INITIAL_PREVIEW_PAGE_COUNT) {
+          data = await fornecedorService.previewCatalogo(
+            file,
+            data.numPages,
+            1,
+            fornecedorId,
+          );
+        }
+        setTotalPages(data.numPages || 0);
+        setLoadedPages((data.previewImages || []).length);
       }
       const headers = Array.isArray(data?.headers) ? data.headers : [];
       setPreview({
@@ -303,6 +324,29 @@ function ImportCatalogWizard({ isOpen, onClose, fornecedorId }) {
       setIsTextModalOpen(true);
     } catch (err) {
       alert(err.detail || err.message || 'Erro ao pré-visualizar texto');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleLoadMore = async () => {
+    if (!file) return;
+    setLoading(true);
+    try {
+      const data = await fornecedorService.previewPdf(file, loadedPages, 20);
+      setPreview((prev) => ({
+        ...prev,
+        previewImages: [
+          ...(prev.previewImages || []),
+          ...(data.pages || data.previewImages || []),
+        ],
+      }));
+      setLoadedPages((prev) => prev + (data.pages ? data.pages.length : (data.previewImages || []).length));
+      if (data.totalPages || data.total_pages) {
+        setTotalPages(data.totalPages || data.total_pages);
+      }
+    } catch (err) {
+      alert(err.detail || err.message || 'Erro ao carregar mais páginas');
     } finally {
       setLoading(false);
     }
@@ -605,6 +649,11 @@ function ImportCatalogWizard({ isOpen, onClose, fornecedorId }) {
             </button>
             {preview.tablePages && preview.tablePages.length > 0 && (
               <p>Páginas com tabelas: {preview.tablePages.join(', ')}</p>
+            )}
+            {loadedPages < totalPages && (
+              <button type="button" onClick={handleLoadMore} className="btn-small">
+                Carregar mais
+              </button>
             )}
           </div>
         )}
