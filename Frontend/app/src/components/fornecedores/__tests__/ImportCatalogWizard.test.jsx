@@ -49,7 +49,7 @@ describe('ImportCatalogWizard', () => {
       .mockResolvedValueOnce({ pages: ['a', 'b'], totalPages: 3 })
       .mockResolvedValueOnce({ pages: ['c'], totalPages: 3 });
 
-    render(<ImportCatalogWizard isOpen={true} onClose={() => {}} fornecedorId={1} />);
+    render(<ImportCatalogWizard fornecedor={{ id: 1 }} onClose={() => {}} />);
 
     const fileInput = document.querySelector('input[type="file"]');
     const file = new File(['a'], 'test.pdf', { type: 'application/pdf' });
