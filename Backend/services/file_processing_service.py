@@ -657,37 +657,50 @@ async def gerar_preview(
 
 
 async def pdf_pages_to_images(
-    conteudo_arquivo: bytes, max_pages: int = 1, start_page: int = 1
-) -> List[str]:
-    """Converte páginas de um PDF em strings base64 de imagens PNG.
+    conteudo_arquivo: bytes,
+    offset: int = 0,
+    limit: int = 1,
+    import_file_id: int | None = None,
+) -> Dict[str, Any]:
+    """Converte páginas selecionadas de um PDF em imagens base64.
 
-    :param conteudo_arquivo: conteúdo bruto do PDF
-    :param max_pages: quantidade de páginas a converter
-    :param start_page: página inicial (1-indexada)
+    ``offset`` determina quantas páginas pular a partir do início do documento e
+    ``limit`` especifica quantas páginas converter. A função também devolve o
+    número total de páginas do documento."""
 
-    Se o executável ``pdftoppm`` não estiver no ``PATH``, defina a variável de
-    ambiente ``POPPLER_PATH`` apontando para o diretório onde ele está
-    localizado.
-    """
-    imagens_base64: List[str] = []
+    image_urls: List[str] = []
+    total_pages = 0
     try:
-        poppler_dir = os.getenv("POPPLER_PATH") or settings.POPPLER_PATH
-        kwargs = {"poppler_path": poppler_dir} if poppler_dir else {}
+        with pdf_open(io.BytesIO(conteudo_arquivo)) as pdf:
+            total_pages = len(pdf.pages)
 
-        images = convert_from_bytes(
-            conteudo_arquivo,
-            first_page=start_page,
-            last_page=start_page + max_pages - 1,
-            fmt="png",
-            **kwargs,
-        )
-        for img in images:
-            with io.BytesIO() as buf:
-                img.save(buf, format="PNG")
-                imagens_base64.append(base64.b64encode(buf.getvalue()).decode())
+        start_page = offset + 1
+        end_page = min(offset + limit, total_pages)
+
+        if start_page <= end_page:
+            poppler_dir = os.getenv("POPPLER_PATH") or settings.POPPLER_PATH
+            kwargs = {"poppler_path": poppler_dir} if poppler_dir else {}
+
+            images = convert_from_bytes(
+                conteudo_arquivo,
+                first_page=start_page,
+                last_page=end_page,
+                fmt="png",
+                **kwargs,
+            )
+            for img in images:
+                with io.BytesIO() as buf:
+                    img.save(buf, format="PNG")
+                    b64 = base64.b64encode(buf.getvalue()).decode()
+                    image_urls.append(f"data:image/png;base64,{b64}")
     except Exception as e:
         logger.error("Erro ao converter páginas do PDF em imagens: %s", e)
-    return imagens_base64
+
+    return {
+        "image_urls": image_urls,
+        "total_pages": total_pages,
+        "import_file_id": import_file_id if import_file_id is not None else 0,
+    }
 
 
 async def extrair_pagina_pdf(

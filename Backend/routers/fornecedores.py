@@ -1,7 +1,7 @@
 # Backend/routers/fornecedores.py
 from typing import List, Optional
 from sqlalchemy import func
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status, UploadFile, File
 from sqlalchemy.orm import Session
 import logging
 
@@ -11,6 +11,7 @@ from Backend import models
 from Backend import schemas  # schemas é importado
 from Backend import crud_historico
 from Backend import database
+from Backend.services import file_processing_service
 from . import auth_utils # Para obter o usuário 
 
 logger = logging.getLogger(__name__)
@@ -181,6 +182,35 @@ def update_mapping(
     db.commit()
     db.refresh(fornecedor)
     return fornecedor
+
+
+@router.post("/{fornecedor_id}/preview-pdf", response_model=schemas.PdfPreviewResponse)
+async def preview_pdf_fornecedor(
+    fornecedor_id: int,
+    file: UploadFile = File(...),
+    offset: int = Query(0, ge=0),
+    limit: int = Query(1, ge=1),
+    db: Session = Depends(database.get_db),
+    current_user: models.User = Depends(auth_utils.get_current_active_user),
+):
+    fornecedor = crud_fornecedores.get_fornecedor(db, fornecedor_id=fornecedor_id)
+    if not fornecedor:
+        raise HTTPException(status_code=404, detail="Fornecedor não encontrado")
+    if not current_user.is_superuser and fornecedor.user_id != current_user.id:
+        raise HTTPException(status_code=403, detail="Não autorizado")
+
+    content = await file.read()
+    await file.seek(0)
+    catalog_record = await file_processing_service.save_uploaded_catalog(file, fornecedor_id)
+    catalog_record.user_id = current_user.id
+    db.add(catalog_record)
+    db.commit()
+    db.refresh(catalog_record)
+
+    preview = await file_processing_service.pdf_pages_to_images(
+        content, offset=offset, limit=limit, import_file_id=catalog_record.id
+    )
+    return preview
 
 
 # Endpoint para deletar um fornecedor
