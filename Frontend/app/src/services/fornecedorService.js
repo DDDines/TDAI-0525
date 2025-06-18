@@ -121,13 +121,21 @@ export const previewCatalogo = async (
   }
 };
 
-export const previewPdf = async (file, offset = 0, limit = 20) => {
+export const previewPdf = async (
+  file,
+  offset = 0,
+  limit = 20,
+  fornecedorId,
+) => {
   try {
     const formData = new FormData();
     formData.append('file', file);
     formData.append('offset', offset);
     formData.append('limit', limit);
-    const response = await apiClient.post('/produtos/preview-pdf/', formData);
+    const response = await apiClient.post(
+      `/fornecedores/${fornecedorId}/preview-pdf`,
+      formData,
+    );
     return response.data;
   } catch (error) {
     console.error(

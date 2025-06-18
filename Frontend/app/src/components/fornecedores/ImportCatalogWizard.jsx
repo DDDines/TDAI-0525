@@ -210,7 +210,7 @@ function ImportCatalogWizard({ isOpen, onClose, fornecedorId }) {
       const isPdf =
         file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf');
       if (isPdf) {
-        data = await fornecedorService.previewPdf(file, 0, 20);
+        data = await fornecedorService.previewPdf(file, 0, 20, fornecedorId);
         setTotalPages(data.totalPages || data.total_pages || 0);
         setLoadedPages((data.pages || data.previewImages || []).length);
       } else {
@@ -321,7 +321,12 @@ function ImportCatalogWizard({ isOpen, onClose, fornecedorId }) {
     if (!file) return;
     setLoading(true);
     try {
-      const data = await fornecedorService.previewPdf(file, loadedPages, 20);
+      const data = await fornecedorService.previewPdf(
+        file,
+        loadedPages,
+        20,
+        fornecedorId,
+      );
       setPreview((prev) => ({
         ...prev,
         previewImages: [

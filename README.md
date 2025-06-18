@@ -462,6 +462,11 @@ Ao finalizar a importação de um arquivo previamente enviado com
 tanto o `product_type_id` quanto o `fornecedor_id` no corpo da requisição.
 Esses identificadores serão anexados a todos os produtos extraídos do arquivo.
 
+Para gerar um preview das páginas de um PDF antes da importação utilize
+`POST /fornecedores/{fornecedor_id}/preview-pdf` enviando o arquivo em
+`multipart/form-data` e, opcionalmente, os parâmetros `offset` e `limit` para
+paginação.
+
 ---
 
 ## 🧪 Testes
