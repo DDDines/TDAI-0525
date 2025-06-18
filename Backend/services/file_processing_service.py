@@ -525,6 +525,8 @@ async def preview_arquivo_pdf(
         Página inicial (1-indexada) para geração do preview, por padrão ``1``.
     page_count: int, optional
         Quantidade de páginas a incluir no preview. ``0`` usa todas as páginas.
+        Apenas as páginas nesse intervalo são analisadas para extrair texto,
+        identificar tabelas e gerar imagens.
     dpi: int, optional
         Resolução usada ao converter as páginas em imagem. Padrão ``72``.
 
@@ -562,64 +564,63 @@ async def preview_arquivo_pdf(
                 tables = page.extract_tables()
                 result: Dict[str, Any] = {"page": p, "has_table": bool(tables)}
 
-                if start_page <= p <= end_page:
-                    text = page.extract_text() or ""
-                    image = convert_from_bytes(
-                        conteudo_arquivo,
-                        first_page=p,
-                        last_page=p,
-                        fmt="png",
-                        dpi=dpi,
-                        **kwargs,
-                    )[0]
+                text = page.extract_text() or ""
+                image = convert_from_bytes(
+                    conteudo_arquivo,
+                    first_page=p,
+                    last_page=p,
+                    fmt="png",
+                    dpi=dpi,
+                    **kwargs,
+                )[0]
 
-                    png_buf = io.BytesIO()
-                    image.save(png_buf, format="PNG")
-                    png_b64 = base64.b64encode(png_buf.getvalue())
+                png_buf = io.BytesIO()
+                image.save(png_buf, format="PNG")
+                png_b64 = base64.b64encode(png_buf.getvalue())
 
+                jpeg_buf = io.BytesIO()
+                image.convert("RGB").save(
+                    jpeg_buf,
+                    format="JPEG",
+                    optimize=True,
+                    quality=70,
+                )
+                jpeg_b64 = base64.b64encode(jpeg_buf.getvalue())
+
+                if len(jpeg_b64) >= len(png_b64):
                     jpeg_buf = io.BytesIO()
                     image.convert("RGB").save(
                         jpeg_buf,
                         format="JPEG",
                         optimize=True,
-                        quality=70,
+                        quality=50,
                     )
                     jpeg_b64 = base64.b64encode(jpeg_buf.getvalue())
 
-                    if len(jpeg_b64) >= len(png_b64):
-                        jpeg_buf = io.BytesIO()
-                        image.convert("RGB").save(
-                            jpeg_buf,
-                            format="JPEG",
-                            optimize=True,
-                            quality=50,
-                        )
-                        jpeg_b64 = base64.b64encode(jpeg_buf.getvalue())
+                if len(jpeg_b64) < len(png_b64):
+                    b64 = jpeg_b64.decode()
+                    mime = "jpeg"
+                else:
+                    b64 = png_b64.decode()
+                    mime = "png"
 
-                    if len(jpeg_b64) < len(png_b64):
-                        b64 = jpeg_b64.decode()
-                        mime = "jpeg"
-                    else:
-                        b64 = png_b64.decode()
-                        mime = "png"
-
-                    snippet = "\n".join(text.splitlines()[:3])
-                    result.update(
-                        {
-                            "snippet": snippet,
-                            "preview_image": {
-                                "page": p,
-                                "image": f"data:image/{mime};base64,{b64}",
-                            },
-                        }
-                    )
+                snippet = "\n".join(text.splitlines()[:3])
+                result.update(
+                    {
+                        "snippet": snippet,
+                        "preview_image": {
+                            "page": p,
+                            "image": f"data:image/{mime};base64,{b64}",
+                        },
+                    }
+                )
 
             return result
 
         executor = _preview_executor
         tasks = [
             loop.run_in_executor(executor, _process_page, p)
-            for p in range(1, num_pages + 1)
+            for p in range(start_page, end_page + 1)
         ]
         results = await asyncio.gather(*tasks)
 
