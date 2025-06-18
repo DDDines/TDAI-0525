@@ -58,6 +58,9 @@ function ImportCatalogWizard({ isOpen, onClose, fornecedorId }) {
         selectedFile.type === 'application/pdf' ||
         selectedFile.name.toLowerCase().endsWith('.pdf');
       if (isPdf) {
+        data = await fornecedorService.previewPdf(fornecedorId, file, 0, 20);
+        setTotalPages(data.totalPages || data.total_pages || 0);
+        setLoadedPages((data.pages || data.previewImages || []).length);
         data = await fornecedorService.previewPdf(selectedFile, 0, 20, fornecedorId);
       } else {
         data = await fornecedorService.previewCatalogo(selectedFile, 20, 1, fornecedorId);
@@ -107,6 +110,32 @@ function ImportCatalogWizard({ isOpen, onClose, fornecedorId }) {
     setCurrentPage((p) => Math.min(p + 1, previewImages.length - 1));
   };
 
+  const handleLoadMore = async () => {
+    if (!file) return;
+    setLoading(true);
+    try {
+      const data = await fornecedorService.previewPdf(
+        fornecedorId,
+        file,
+        loadedPages,
+        20,
+      );
+      setPreview((prev) => ({
+        ...prev,
+        previewImages: [
+          ...(prev.previewImages || []),
+          ...(data.pages || data.previewImages || []),
+        ],
+      }));
+      setLoadedPages((prev) => prev + (data.pages ? data.pages.length : (data.previewImages || []).length));
+      if (data.totalPages || data.total_pages) {
+        setTotalPages(data.totalPages || data.total_pages);
+      }
+    } catch (err) {
+      alert(err.detail || err.message || 'Erro ao carregar mais páginas');
+    } finally {
+      setLoading(false);
+    }
   const handlePrevPage = () => {
     setCurrentPage((p) => Math.max(p - 1, 0));
   };
