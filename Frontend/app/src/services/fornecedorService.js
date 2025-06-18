@@ -122,10 +122,10 @@ export const previewCatalogo = async (
 };
 
 export const previewPdf = async (
+  fornecedorId,
   file,
   offset = 0,
   limit = 20,
-  fornecedorId,
 ) => {
   try {
     const formData = new FormData();

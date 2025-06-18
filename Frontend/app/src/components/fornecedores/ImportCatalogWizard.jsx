@@ -210,7 +210,7 @@ function ImportCatalogWizard({ isOpen, onClose, fornecedorId }) {
       const isPdf =
         file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf');
       if (isPdf) {
-        data = await fornecedorService.previewPdf(file, 0, 20, fornecedorId);
+        data = await fornecedorService.previewPdf(fornecedorId, file, 0, 20);
         setTotalPages(data.totalPages || data.total_pages || 0);
         setLoadedPages((data.pages || data.previewImages || []).length);
       } else {
@@ -322,10 +322,10 @@ function ImportCatalogWizard({ isOpen, onClose, fornecedorId }) {
     setLoading(true);
     try {
       const data = await fornecedorService.previewPdf(
+        fornecedorId,
         file,
         loadedPages,
         20,
-        fornecedorId,
       );
       setPreview((prev) => ({
         ...prev,
