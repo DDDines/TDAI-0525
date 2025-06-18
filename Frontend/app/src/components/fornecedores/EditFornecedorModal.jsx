@@ -180,9 +180,8 @@ function EditFornecedorModal({ isOpen, onClose, fornecedorData, onSave, isLoadin
           </div>
         )}
         <ImportCatalogWizard
-          isOpen={isImportWizardOpen}
+          fornecedor={fornecedorData}
           onClose={() => setIsImportWizardOpen(false)}
-          fornecedorId={fornecedorData.id}
         />
       </div>
     </div>
