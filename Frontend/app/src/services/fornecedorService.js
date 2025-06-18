@@ -130,11 +130,10 @@ export const previewPdf = async (
   try {
     const formData = new FormData();
     formData.append('file', file);
-    formData.append('offset', offset);
-    formData.append('limit', limit);
     const response = await apiClient.post(
-      `/fornecedores/${fornecedorId}/preview-pdf`,
+      `/fornecedores/${fornecedorId}/preview-pdf?offset=${offset}&limit=${limit}`,
       formData,
+      { headers: { 'Content-Type': 'multipart/form-data' } },
     );
     return response.data;
   } catch (error) {
