@@ -47,6 +47,13 @@ jest.mock('../../../services/fornecedorService', () => ({
       previewImages: ['abc'],
       numPages: 2,
     })),
+    previewPdf: jest.fn(() => Promise.resolve({
+      fileId: 'f1',
+      headers: ['Nome'],
+      sampleRows: [{ Nome: 'Item' }],
+      previewImages: ['abc'],
+      numPages: 2,
+    })),
     selecionarRegiao: jest.fn(() => Promise.resolve({ produtos: [] })),
     finalizarImportacaoCatalogo: jest.fn(() => Promise.resolve({ status: 'PROCESSING', file_id: 'f1' })),
     getImportacaoStatus: jest.fn(() => Promise.resolve({ status: 'IMPORTED' })),
@@ -75,6 +82,7 @@ test('region modal sends selected page', async () => {
   const file = new File(['a'], 'test.pdf', { type: 'application/pdf' });
   await userEvent.upload(fileInput, file);
   await userEvent.click(screen.getByText('Gerar Preview'));
+  expect(fornecedorService.previewPdf).toHaveBeenCalled();
   const regionButton = await screen.findByText('Selecionar Região');
   await userEvent.click(regionButton);
   const modal = document.querySelector('.modal-content');
@@ -151,7 +159,7 @@ test('confirms import even when fileId is missing', async () => {
 
 
 test('sends only selected pages', async () => {
-  fornecedorService.previewCatalogo.mockResolvedValueOnce({
+  fornecedorService.previewPdf.mockResolvedValueOnce({
     fileId: 'f1',
     headers: ['Nome'],
     sampleRows: [{ Nome: 'Item' }],
@@ -163,6 +171,7 @@ test('sends only selected pages', async () => {
   const file = new File(['a'], 'test.pdf', { type: 'application/pdf' });
   await userEvent.upload(fileInput, file);
   await userEvent.click(screen.getByText('Gerar Preview'));
+  expect(fornecedorService.previewPdf).toHaveBeenCalled();
   const btn = await screen.findByText('Selecionar Região');
   await userEvent.click(btn);
   const modal = document.querySelector('.modal-content');
