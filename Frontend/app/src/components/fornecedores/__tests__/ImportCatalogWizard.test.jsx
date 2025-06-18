@@ -50,6 +50,8 @@ describe('ImportCatalogWizard', () => {
       .mockResolvedValueOnce({ pages: ['c'], totalPages: 3 });
 
     render(<ImportCatalogWizard fornecedor={{ id: 1 }} onClose={() => {}} />);
+    render(<ImportCatalogWizard onClose={() => {}} fornecedor={{ id: 1 }} />);
+
 
     const fileInput = document.querySelector('input[type="file"]');
     const file = new File(['a'], 'test.pdf', { type: 'application/pdf' });
@@ -59,7 +61,7 @@ describe('ImportCatalogWizard', () => {
     expect(fornecedorService.previewPdf).toHaveBeenCalledWith(1, file, 0, 20);
     await screen.findByAltText('Página 1');
 
-    await userEvent.click(screen.getByText('Carregar mais'));
+    await userEvent.click(screen.getByText('Carregar mais páginas'));
     expect(fornecedorService.previewPdf).toHaveBeenLastCalledWith(1, file, 2, 20);
   });
 });
