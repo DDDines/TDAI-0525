@@ -665,7 +665,12 @@ def pdf_pages_to_images(db: Session, file: UploadFile, fornecedor_id: int, user_
     """
     upload_dir = Path(settings.UPLOAD_DIRECTORY)
     catalogs_dir = upload_dir / "catalogs"
-    previews_dir = upload_dir / "previews"
+    previews_dir = Path(settings.PREVIEW_DIRECTORY)
+
+    if not catalogs_dir.is_absolute():
+        catalogs_dir = Path(__file__).resolve().parent.parent / catalogs_dir
+    if not previews_dir.is_absolute():
+        previews_dir = Path(__file__).resolve().parent.parent / previews_dir
     
     catalogs_dir.mkdir(parents=True, exist_ok=True)
     previews_dir.mkdir(parents=True, exist_ok=True)
@@ -731,7 +736,7 @@ def pdf_pages_to_images(db: Session, file: UploadFile, fornecedor_id: int, user_
                 image_path = previews_dir / image_filename
                 image.save(image_path, "PNG")
                 
-                image_url = f"/static/uploads/previews/{image_filename}"
+                image_url = f"/static/previews/{image_filename}"
                 image_urls.append(image_url)
 
         except Exception as e:
