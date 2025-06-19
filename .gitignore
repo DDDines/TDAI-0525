@@ -124,7 +124,7 @@ Frontend/app/.env.*.local
 !Frontend/app/.env.sample
 
 Backend/static/uploads/
-
+static/uploads/
 # Arquivos específicos de IDEs para o frontend (se não cobertos pelo geral)
 # .project
 # .classpath
