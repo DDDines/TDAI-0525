@@ -818,6 +818,14 @@ def extract_data_from_pdf_region(
         return pd.DataFrame()
 
 
+def extract_data_from_single_page(file_path: str, page_number: int) -> Dict[str, Any]:
+    """Return column names and data extracted from a single PDF page."""
+    df = extract_data_from_pdf_region(file_path, page_number)
+    if df.empty:
+        return {"columns": [], "data": []}
+    return {"columns": df.columns.astype(str).tolist(), "data": df.to_dict(orient="records")}
+
+
 async def extrair_pagina_pdf(
     conteudo_pdf: bytes, page_number: int, region: Optional[List[float]] = None
 ) -> Dict[str, Any]:
