@@ -859,12 +859,92 @@ async def extrair_pagina_pdf(
     return {"image": f"data:image/png;base64,{image_b64}", "text": text, "table": table}
 
 
+def extract_data_from_single_page(file_path: str, page_number: int) -> dict:
+    """Extract table/text content from a single PDF page.
+
+    First attempts structured extraction with ``pdfplumber``.  If nothing useful
+    is found, the page is rendered with ``PyMuPDF`` and OCR is applied using
+    ``pytesseract``.
 def generate_pdf_page_images(file_path: str, file_id: str) -> list[str]:
     """Render pages of a PDF into PNG images and return their relative URLs.
 
     Parameters
     ----------
     file_path: str
+        Path to the PDF file on disk.
+    page_number: int
+        The page number to extract (1-indexed).
+
+    Returns
+    -------
+    dict
+        JSON friendly structure with ``headers`` and ``rows`` keys.
+    """
+
+    headers: List[str] = []
+    rows: List[List[str]] = []
+
+    try:
+        with pdfplumber.open(file_path) as pdf:
+            if not (1 <= page_number <= len(pdf.pages)):
+                raise ValueError(
+                    f"Número de página inválido: {page_number}. PDF tem {len(pdf.pages)} páginas."
+                )
+
+            page = pdf.pages[page_number - 1]
+
+            tables = page.extract_tables(
+                table_settings={"vertical_strategy": "lines", "horizontal_strategy": "lines"}
+            )
+
+            if tables:
+                for table in tables:
+                    if table and len(table) >= 2:
+                        headers = [str(h or "").strip() for h in table[0]]
+                        rows = [[str(c or "").strip() for c in r] for r in table[1:]]
+                        if any(any(cell for cell in r) for r in rows):
+                            return {"headers": headers, "rows": rows}
+
+            text = page.extract_text() or ""
+            lines = [l.strip() for l in text.splitlines() if l.strip()]
+            if len(lines) >= 2:
+                headers = lines[0].split()
+                rows = [ln.split() for ln in lines[1:]]
+                if rows:
+                    return {"headers": headers, "rows": rows}
+    except Exception as e:  # pragma: no cover - runtime logging
+        logger.error("Erro ao extrair com pdfplumber: %s", e)
+
+    # Fallback using OCR
+    try:  # pragma: no cover - optional dependency at runtime
+        import fitz  # type: ignore
+        import pytesseract  # type: ignore
+        from PIL import Image  # type: ignore
+
+        doc = fitz.open(file_path)
+        if not (1 <= page_number <= doc.page_count):
+            raise ValueError(
+                f"Número de página inválido: {page_number}. PDF tem {doc.page_count} páginas."
+            )
+
+        page = doc.load_page(page_number - 1)
+        pix = page.get_pixmap(dpi=300)
+        img = Image.open(io.BytesIO(pix.tobytes()))
+
+        text = pytesseract.image_to_string(img)
+        lines = [l.strip() for l in text.splitlines() if l.strip()]
+        if lines:
+            headers = lines[0].split()
+            rows = [ln.split() for ln in lines[1:]]
+    except Exception as e:  # pragma: no cover - optional dependency might be missing
+        logger.error("Erro ao executar OCR da página do PDF: %s", e)
+    finally:
+        try:
+            doc.close()  # type: ignore
+        except Exception:
+            pass
+
+    return {"headers": headers, "rows": rows}
         Absolute path to the PDF file to render.
     file_id: str
         Identifier used to create the output directory name.
@@ -897,3 +977,4 @@ def generate_pdf_page_images(file_path: str, file_id: str) -> list[str]:
             urls.append(url)
 
     return urls
+
