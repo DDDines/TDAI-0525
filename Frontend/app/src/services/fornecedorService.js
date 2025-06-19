@@ -319,6 +319,41 @@ export const previewCatalogRegion = async (previewRequest) => {
   }
 };
 
+export const getReviewData = async (jobId, params = {}) => {
+  try {
+    const response = await apiClient.get(
+      `/produtos/import-jobs/${jobId}/review`,
+      { params },
+    );
+    return response.data;
+  } catch (error) {
+    console.error(
+      `Erro ao obter dados de revisão para job ${jobId}:`,
+      JSON.stringify(error.response?.data || error.message || error),
+    );
+    if (error.response && error.response.data) {
+      throw error.response.data;
+    }
+    throw new Error(error.message || 'Falha ao buscar dados de revisão');
+  }
+};
+
+export const commitImport = async (jobId) => {
+  try {
+    const response = await apiClient.post(`/produtos/import-jobs/${jobId}/commit`);
+    return response.data;
+  } catch (error) {
+    console.error(
+      `Erro ao confirmar importação do job ${jobId}:`,
+      JSON.stringify(error.response?.data || error.message || error),
+    );
+    if (error.response && error.response.data) {
+      throw error.response.data;
+    }
+    throw new Error(error.message || 'Falha ao confirmar importação');
+  }
+};
+
 export default {
   getFornecedores,
   getFornecedorById,
@@ -336,4 +371,6 @@ export default {
   previewPdf,
   selecionarRegiao,
   previewCatalogRegion,
+  getReviewData,
+  commitImport,
 };
