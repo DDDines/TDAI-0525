@@ -282,6 +282,9 @@ export const getImportacaoResult = async (fileId) => {
   }
 };
 
+export const getImportProgress = async (jobId) => {
+  try {
+    const response = await apiClient.get(`/produtos/import-progress/${jobId}/`);
 // -------- NOVAS FUNCOES ---------
 
 // Faz upload de um arquivo de catálogo apenas para gerar o preview de páginas
@@ -471,4 +474,5 @@ export default {
   fetchPageDataForMapping,
   selecionarRegiao,
   previewCatalogRegion,
+  getImportProgress,
 };
