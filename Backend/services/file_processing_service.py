@@ -857,3 +857,43 @@ async def extrair_pagina_pdf(
             pass
 
     return {"image": f"data:image/png;base64,{image_b64}", "text": text, "table": table}
+
+
+def generate_pdf_page_images(file_path: str, file_id: str) -> list[str]:
+    """Render pages of a PDF into PNG images and return their relative URLs.
+
+    Parameters
+    ----------
+    file_path: str
+        Absolute path to the PDF file to render.
+    file_id: str
+        Identifier used to create the output directory name.
+
+    Returns
+    -------
+    list[str]
+        Relative URLs for the generated preview images.
+    """
+
+    try:
+        import fitz  # PyMuPDF
+    except Exception as e:  # pragma: no cover - library might be missing
+        logger.error("PyMuPDF (fitz) not available: %s", e)
+        raise
+
+    output_dir = Path("Backend") / "static" / "previews" / str(file_id)
+    output_dir.mkdir(parents=True, exist_ok=True)
+
+    urls: list[str] = []
+
+    with fitz.open(file_path) as doc:
+        page_count = min(len(doc), 20)
+        for i in range(page_count):
+            page = doc.load_page(i)
+            pix = page.get_pixmap(dpi=150)
+            image_path = output_dir / f"page-{i + 1}.png"
+            pix.save(str(image_path))
+            url = f"/static/previews/{file_id}/page-{i + 1}.png"
+            urls.append(url)
+
+    return urls
