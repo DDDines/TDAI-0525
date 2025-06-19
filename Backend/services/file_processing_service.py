@@ -857,3 +857,26 @@ async def extrair_pagina_pdf(
             pass
 
     return {"image": f"data:image/png;base64,{image_b64}", "text": text, "table": table}
+
+
+def generate_pdf_page_images(pdf_path: str) -> List[str]:
+    """Gera imagens PNG para todas as páginas de um PDF.
+
+    As imagens são salvas no mesmo diretório do arquivo e os caminhos
+    completos são retornados em uma lista.
+    """
+
+    poppler_dir = os.getenv("POPPLER_PATH") or settings.POPPLER_PATH
+    kwargs = {"poppler_path": poppler_dir} if poppler_dir else {}
+
+    images = convert_from_path(pdf_path, dpi=200, **kwargs)
+    base_dir = Path(pdf_path).parent
+    base_name = Path(pdf_path).stem
+    urls: List[str] = []
+
+    for idx, image in enumerate(images, start=1):
+        img_path = base_dir / f"{base_name}_{idx}.png"
+        image.save(img_path, "PNG")
+        urls.append(str(img_path))
+
+    return urls
