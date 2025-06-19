@@ -6,6 +6,9 @@ from fastapi import APIRouter, Depends, HTTPException, Query, status, UploadFile
 from sqlalchemy.orm import Session
 from pathlib import Path
 import logging
+import uuid
+import os
+from pathlib import Path
 
 
 from Backend import crud_fornecedores
@@ -178,6 +181,27 @@ def update_mapping(
     db.commit()
     db.refresh(fornecedor)
     return fornecedor
+
+
+@router.post("/import/preview-pages")
+async def preview_pages(file: UploadFile = File(...)):
+    """Gera imagens de todas as páginas de um PDF enviado."""
+
+    if not file.filename.lower().endswith(".pdf"):
+        raise HTTPException(status_code=400, detail="Apenas arquivos PDF são permitidos.")
+
+    file_id = uuid.uuid4().hex
+    tmp_dir = Path(os.getenv("TMPDIR", "/tmp"))
+    tmp_dir.mkdir(parents=True, exist_ok=True)
+    pdf_path = tmp_dir / f"{file_id}.pdf"
+
+    contents = await file.read()
+    with open(pdf_path, "wb") as out_file:
+        out_file.write(contents)
+
+    page_image_urls = file_processing_service.generate_pdf_page_images(str(pdf_path))
+
+    return {"file_id": file_id, "page_image_urls": page_image_urls}
 
 
 @router.post("/{fornecedor_id}/preview-pdf", response_model=schemas.PdfPreviewResponse)
