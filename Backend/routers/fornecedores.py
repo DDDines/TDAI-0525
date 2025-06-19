@@ -205,6 +205,35 @@ async def preview_pdf(
     return result
 
 
+# Novo endpoint para pré-visualizar uma região específica de um catálogo PDF
+@router.post("/preview-catalog-region", response_model=schemas.CatalogPreview)
+def preview_catalog_from_region(
+    preview_request: schemas.CatalogRegionPreviewRequest,
+    db: Session = Depends(database.get_db)
+):
+    """Gera uma pré-visualização dos dados de uma região específica de um PDF."""
+    file_path = file_processing_service.get_file_path_by_id(db, file_id=preview_request.file_id)
+    if not file_path:
+        raise HTTPException(status_code=404, detail="Arquivo de catálogo não encontrado")
+
+    df = file_processing_service.extract_data_from_pdf_region(
+        file_path=file_path,
+        page_number=preview_request.page_number,
+        region=preview_request.region
+    )
+
+    if df.empty:
+        raise HTTPException(
+            status_code=400,
+            detail="Não foi possível extrair dados da região selecionada. Tente selecionar uma área diferente ou ajustar as configurações."
+        )
+
+    columns = df.columns.astype(str).tolist()
+    sample_data = df.head(10).to_dict(orient='records')
+
+    return schemas.CatalogPreview(columns=columns, data=sample_data)
+
+
 # Endpoint para deletar um fornecedor
 @router.delete("/{fornecedor_id}", response_model=schemas.FornecedorResponse)
 def delete_fornecedor_endpoint(
