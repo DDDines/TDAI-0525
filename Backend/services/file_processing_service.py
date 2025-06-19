@@ -739,3 +739,121 @@ def pdf_pages_to_images(db: Session, file: UploadFile, fornecedor_id: int, user_
             raise HTTPException(status_code=500, detail=f"Erro ao processar o PDF. Verifique se o Poppler está instalado corretamente.")
 
     return {"image_urls": image_urls, "total_pages": total_pages, "import_file_id": import_file.id}
+
+
+def get_file_path_by_id(db: Session, file_id: str) -> str:
+    """Retrieve the stored file path for a catalog import by ID."""
+    import_file = (
+        db.query(models.CatalogImportFile)
+        .filter(models.CatalogImportFile.id == file_id)
+        .first()
+    )
+    if not import_file:
+        return None
+
+    base_dir = os.path.join("Backend", "static", "uploads", "catalogs")
+    return os.path.join(base_dir, import_file.file_name)
+
+
+def extract_data_from_pdf_region(
+    file_path: str, page_number: int, region: Optional[List[float]] = None
+) -> pd.DataFrame:
+    """Extract tables from a specific region of a PDF page."""
+
+    all_rows: List[List[Any]] = []
+    try:
+        with pdfplumber.open(file_path) as pdf:
+            if not (1 <= page_number <= len(pdf.pages)):
+                raise ValueError(
+                    f"Número de página inválido: {page_number}. PDF tem {len(pdf.pages)} páginas."
+                )
+
+            page = pdf.pages[page_number - 1]
+            page_to_process = page
+            if region and len(region) == 4:
+                bbox = tuple(map(float, region))
+                page_to_process = page.crop(bbox)
+
+            tables = page_to_process.extract_tables(
+                table_settings={
+                    "vertical_strategy": "lines",
+                    "horizontal_strategy": "text",
+                    "snap_tolerance": 5,
+                }
+            )
+
+            if not tables:
+                tables = page_to_process.extract_tables()
+
+            if not tables:
+                text = page_to_process.extract_text()
+                if text:
+                    lines = text.strip().split("\n")
+                    header = [h.strip() for h in lines[0].split("  ")]
+                    for line in lines[1:]:
+                        all_rows.append([l.strip() for l in line.split("  ")])
+                    return pd.DataFrame(all_rows, columns=header)
+                return pd.DataFrame()
+
+            header: List[str] = []
+            for i, table in enumerate(tables):
+                if i == 0:
+                    header = table[0]
+                    all_rows.extend(table[1:])
+                else:
+                    all_rows.extend(table)
+
+        if not all_rows:
+            return pd.DataFrame()
+
+        return pd.DataFrame(all_rows, columns=header)
+
+    except Exception as e:
+        print(f"Erro ao processar o PDF: {e}")
+        return pd.DataFrame()
+
+
+async def extrair_pagina_pdf(
+    conteudo_pdf: bytes, page_number: int, region: Optional[List[float]] = None
+) -> Dict[str, Any]:
+    """Return an image, text and optional table extracted from a PDF page."""
+
+    with pdfplumber.open(io.BytesIO(conteudo_pdf)) as pdf:
+        if not (1 <= page_number <= len(pdf.pages)):
+            raise ValueError(
+                f"Número de página inválido: {page_number}. PDF tem {len(pdf.pages)} páginas."
+            )
+
+        page = pdf.pages[page_number - 1]
+        page_to_process = page
+        if region and len(region) == 4:
+            bbox = tuple(map(float, region))
+            page_to_process = page.crop(bbox)
+
+        image = convert_from_bytes(
+            conteudo_pdf,
+            first_page=page_number,
+            last_page=page_number,
+            dpi=200,
+            fmt="png",
+        )[0]
+
+        buf = io.BytesIO()
+        image.save(buf, format="PNG")
+        image_b64 = base64.b64encode(buf.getvalue()).decode()
+
+        text = page_to_process.extract_text() or ""
+
+    # Use temporary file path for table extraction
+    tmp_path = Path(os.getenv("TMPDIR", "/tmp")) / f"temp_{uuid.uuid4().hex}.pdf"
+    tmp_path.write_bytes(conteudo_pdf)
+    try:
+        df = extract_data_from_pdf_region(str(tmp_path), page_number, region)
+        table = df.values.tolist() if not df.empty else None
+    finally:
+        try:
+            tmp_path.unlink()
+        except Exception:
+            pass
+
+    return {"image": f"data:image/png;base64,{image_b64}", "text": text, "table": table}
