@@ -363,14 +363,15 @@ def get_import_progress(
 async def process_full_catalog(
     background_tasks: BackgroundTasks,
     file_id: int = Body(..., embed=True),
-    start_page: int = Body(1, embed=True),
-    mapping: Optional[dict] = Body(None),
     fornecedor_id: int = Body(..., embed=True),
     tipo_produto_id: int = Body(..., embed=True),
+    start_page: int = Body(1, embed=True),
+    mapping: Optional[dict] = Body(None),
     db: Session = Depends(database.get_db),
     current_user: models.User = Depends(auth_utils.get_current_active_user),
 ):
     """Processa todas as páginas de um catálogo em background."""
+
     fornecedor = crud_fornecedores.get_fornecedor(db, fornecedor_id=fornecedor_id)
     if not fornecedor:
         raise HTTPException(status_code=404, detail="Fornecedor não encontrado")
@@ -378,21 +379,28 @@ async def process_full_catalog(
         raise HTTPException(status_code=403, detail="Não autorizado")
 
     source = (
-@router.get("/import/extract-page-data", response_model=schemas.CatalogPreview)
-def extract_page_data(
-    file_id: int = Query(..., description="ID do arquivo importado"),
-    page_number: int = Query(..., ge=1, description="Número da página a extrair"),
-    db: Session = Depends(database.get_db),
-    current_user: models.User = Depends(auth_utils.get_current_active_user),
-):
-    """Extrai dados tabulares de uma única página de um catálogo PDF armazenado."""
-    record = (
         db.query(models.CatalogImportFile)
         .filter_by(id=file_id, user_id=current_user.id)
         .first()
     )
     if not source:
         raise HTTPException(status_code=404, detail="Arquivo não encontrado")
+
+    file_path = Path(settings.UPLOAD_DIRECTORY) / "catalogs" / source.stored_filename
+    if not file_path.is_absolute():
+        file_path = Path(__file__).resolve().parent.parent / file_path
+    if not file_path.exists():
+        raise HTTPException(status_code=404, detail="Arquivo não encontrado")
+
+    content = file_path.read_bytes()
+    import pdfplumber, io
+    with pdfplumber.open(io.BytesIO(content)) as pdf:
+        total_pages = len(pdf.pages)
+
+    pages = list(range(start_page, total_pages + 1))
+
+    if mapping is None and fornecedor.default_column_mapping:
+        mapping = fornecedor.default_column_mapping
 
     job = models.CatalogImportFile(
         user_id=current_user.id,
@@ -404,30 +412,6 @@ def extract_page_data(
     db.add(job)
     db.commit()
     db.refresh(job)
-
-    file_path = Path(settings.UPLOAD_DIRECTORY) / "catalogs" / source.stored_filename
-    if not record:
-        raise HTTPException(status_code=404, detail="Arquivo não encontrado")
-
-    file_path = Path(settings.UPLOAD_DIRECTORY) / "catalogs" / record.stored_filename
-    if not file_path.is_absolute():
-        file_path = Path(__file__).resolve().parent.parent / file_path
-    if not file_path.exists():
-        raise HTTPException(status_code=404, detail="Arquivo não encontrado")
-
-    content = file_path.read_bytes()
-    ext = file_path.suffix.lower()
-    if ext != ".pdf":
-        raise HTTPException(status_code=400, detail="Formato de arquivo não suportado")
-
-    import pdfplumber, io
-    with pdfplumber.open(io.BytesIO(content)) as pdf:
-        total_pages = len(pdf.pages)
-
-    pages = list(range(start_page, total_pages + 1))
-
-    if mapping is None and fornecedor.default_column_mapping:
-        mapping = fornecedor.default_column_mapping
 
     from sqlalchemy.orm import sessionmaker
 
@@ -445,6 +429,31 @@ def extract_page_data(
     )
 
     return {"job_id": job.id, "status": "PROCESSING"}
+
+
+@router.get("/import/extract-page-data", response_model=schemas.CatalogPreview)
+def extract_page_data(
+    file_id: int = Query(..., description="ID do arquivo importado"),
+    page_number: int = Query(..., ge=1, description="Número da página a extrair"),
+    db: Session = Depends(database.get_db),
+    current_user: models.User = Depends(auth_utils.get_current_active_user),
+):
+    """Extrai dados tabulares de uma única página de um catálogo PDF armazenado."""
+
+    record = (
+        db.query(models.CatalogImportFile)
+        .filter_by(id=file_id, user_id=current_user.id)
+        .first()
+    )
+    if not record:
+        raise HTTPException(status_code=404, detail="Arquivo não encontrado")
+
+    file_path = Path(settings.UPLOAD_DIRECTORY) / "catalogs" / record.stored_filename
+    if not file_path.is_absolute():
+        file_path = Path(__file__).resolve().parent.parent / file_path
+    if not file_path.exists():
+        raise HTTPException(status_code=404, detail="Arquivo não encontrado")
+
     try:
         result = file_processing_service.extract_data_from_single_page(
             str(file_path), page_number
