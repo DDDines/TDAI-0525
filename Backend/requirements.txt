@@ -28,3 +28,6 @@ psycopg2-binary
 jinja2
 pytest==8.2.1
 pytest-asyncio==0.23.6
+PyMuPDF
+pytesseract
+Pillow

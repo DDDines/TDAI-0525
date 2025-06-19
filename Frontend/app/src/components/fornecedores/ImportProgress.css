@@ -1,0 +1,15 @@
+.import-progress .progress-container {
+  margin-top: 0.5rem;
+  width: 100%;
+  background-color: #e5e7eb;
+  border-radius: 4px;
+  height: 10px;
+}
+
+.import-progress .progress-bar {
+  width: 0%;
+  height: 10px;
+  background-color: var(--success);
+  border-radius: 4px;
+  transition: width 0.3s ease;
+}
