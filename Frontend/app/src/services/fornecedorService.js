@@ -282,6 +282,22 @@ export const getImportacaoResult = async (fileId) => {
   }
 };
 
+export const getImportProgress = async (jobId) => {
+  try {
+    const response = await apiClient.get(`/produtos/import-progress/${jobId}/`);
+    return response.data;
+  } catch (error) {
+    console.error(
+      `Erro ao consultar progresso do job ${jobId}:`,
+      JSON.stringify(error.response?.data || error.message || error),
+    );
+    if (error.response && error.response.data) {
+      throw error.response.data;
+    }
+    throw new Error(error.message || 'Falha ao consultar progresso da importação');
+  }
+};
+
 
 export const selecionarRegiao = async (fileId, page, bbox) => {
   try {
@@ -336,4 +352,5 @@ export default {
   previewPdf,
   selecionarRegiao,
   previewCatalogRegion,
+  getImportProgress,
 };
