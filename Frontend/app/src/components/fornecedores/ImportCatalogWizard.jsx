@@ -74,6 +74,7 @@ const ImportCatalogWizard = ({ fornecedor, onClose }) => {
         setLoading(true);
         setLoadingMessage('A carregar mais páginas...');
         setError('');
+        setPdfPreviewError('');
         try {
             const response = await fornecedorService.previewPdf(
                 fornecedor.id,
@@ -120,10 +121,18 @@ const ImportCatalogWizard = ({ fornecedor, onClose }) => {
         }
     };
 
+    const handlePreviewError = (error) => {
+        console.error('Falha ao carregar a pré-visualização do PDF:', error);
+        setPdfPreviewError('Não foi possível carregar a pré-visualização do PDF. O arquivo pode estar corrompido ou em um formato não suportado. Por favor, tente com outro arquivo.');
+    };
+
     return (
         <div className="wizard-container">
             {loading && <LoadingPopup message={loadingMessage} isOpen={loading} />}
             {error && <p style={{ color: 'red', fontWeight: 'bold', border: '1px solid red', padding: '10px', marginTop: '10px' }}>{error}</p>}
+            {pdfPreviewError && (
+                <p style={{ color: 'red', fontWeight: 'bold', border: '1px solid red', padding: '10px', marginTop: '10px' }}>{pdfPreviewError}</p>
+            )}
             
             {step === 1 && (
                 <div>
@@ -139,6 +148,11 @@ const ImportCatalogWizard = ({ fornecedor, onClose }) => {
             {step === 2 && (
                 <div>
                     <h3>Passo 2: Selecione a Região da Tabela</h3>
+                    <PdfRegionSelector
+                        imageUrls={previewImages}
+                        onSelect={handleRegionSelect}
+                        onError={handlePreviewError}
+                    />
                     {pdfPreviewError ? (
                         <div style={{ color: 'red', textAlign: 'center' }}>
                             <p>Erro ao carregar PDF</p>

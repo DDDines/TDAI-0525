@@ -43,6 +43,8 @@ function PdfRegionSelector({ file, onSelect, initialPage = 1, onLoadError = () =
         canvas.width = viewport.width;
         canvas.height = viewport.height;
         await page.render({ canvasContext: ctx, viewport }).promise;
+      } catch (err) {
+        onError(err);
       } catch (e) {
         onLoadError(e);
       } catch (err) {
@@ -77,6 +79,8 @@ function PdfRegionSelector({ file, onSelect, initialPage = 1, onLoadError = () =
         canvas.width = viewport.width;
         canvas.height = viewport.height;
         await page.render({ canvasContext: ctx, viewport }).promise;
+      } catch (err) {
+        onError(err);
       } catch (e) {
         onLoadError(e);
       }
