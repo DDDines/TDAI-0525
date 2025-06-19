@@ -190,7 +190,10 @@ CatalogAI-0525-Dev/
 * PostgreSQL 12+ (obrigatório em produção; SQLite pode ser usado apenas para desenvolvimento e testes)
 * Git
 * Pacote `poppler-utils` (ex.: `apt install poppler-utils`) para que a conversão de PDFs em imagens funcione. Sem ele o preview de PDF não será gerado
-* Bibliotecas **PyMuPDF**, **pytesseract** e **Pillow** – instaladas via `pip`
+* Bibliotecas **PyMuPDF**, **pytesseract** e **Pillow** – instaladas via `pip`,
+  necessárias para extrair texto e gerar previews de PDFs
+* Diretório `Backend/static/previews/` (ou defina `PREVIEW_DIRECTORY` no `.env`)
+  para armazenar as miniaturas geradas
 * Ferramenta **Tesseract OCR** no sistema (`apt install tesseract-ocr`)
 * Navegadores Playwright (para scraping):
   `playwright install`
@@ -472,17 +475,16 @@ paginação.
 #### Processo de importação de PDF em quatro etapas
 
 1. **Pré-visualizar** – envie o arquivo pelo endpoint
-   `POST /produtos/importar-catalogo-preview/`. A resposta traz o `file_id`
+   `POST /fornecedores/import/preview-pages`. A resposta traz o `file_id`
    e miniaturas das páginas.
-2. **Selecionar região** – com o `file_id` em mãos, chame
-   `POST /produtos/selecionar-regiao/` definindo página e `bbox` para extrair
-   colunas e linhas de amostra. O endpoint `POST /fornecedores/preview-catalog-region`
-   pode ser usado para testar diferentes áreas.
+2. **Selecionar região** – utilize
+   `GET /fornecedores/import/extract-page-data` informando `file_id` e
+   `page_number` para obter colunas e linhas de amostra.
 3. **Finalizar** – confirme o processamento com
-   `POST /produtos/importar-catalogo-finalizar/{file_id}/`, enviando o mapeamento,
-   `fornecedor_id`, `product_type_id` e as páginas desejadas.
-4. **Acompanhar** – consulte `GET /produtos/importar-catalogo-status/{file_id}/`
-   ou `GET /produtos/importar-catalogo-result/{file_id}/` para verificar o resumo
+   `POST /fornecedores/import/process-full-catalog`, enviando o `file_id`,
+   `fornecedor_id` e `tipo_produto_id`.
+4. **Acompanhar** – consulte `GET /fornecedores/import/progress/{job_id}` ou
+   `GET /fornecedores/import/review/{job_id}` para verificar o status e o resumo
    final da importação.
 
 ---

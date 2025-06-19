@@ -25,7 +25,9 @@
 ## Dependência para conversão de PDF
 
 * Para gerar previews de PDF é necessário instalar o pacote `poppler-utils` (ex.: `apt install poppler-utils`). Sem ele o backend não conseguirá converter PDFs em imagens, e o preview de PDF não será gerado.
-* Instale também `PyMuPDF`, `pytesseract` e `Pillow` via `pip`, além do executável **Tesseract OCR** (`apt install tesseract-ocr`). Estes componentes são usados para extrair texto de PDFs e imagens.
+* Instale também `PyMuPDF`, `pytesseract` e `Pillow` via `pip` – bibliotecas necessárias para extrair texto e gerar previews.
+* Certifique-se de que o diretório `Backend/static/previews/` exista (ou ajuste `PREVIEW_DIRECTORY` no `.env`) para armazenar as miniaturas.
+* Executável **Tesseract OCR** (`apt install tesseract-ocr`). Estes componentes são usados para extrair texto de PDFs e imagens.
 
 ### Poppler no Windows
 
@@ -260,10 +262,10 @@ os.cpu_count() + 4)`` se nenhuma outra configuração for informada.
 
 ### Fluxo completo de importação de PDF
 
-1. **Pré-visualização** – `POST /produtos/importar-catalogo-preview/` salva o arquivo e retorna `file_id` com miniaturas das páginas.
-2. **Seleção de região** – `POST /produtos/selecionar-regiao/` identifica colunas e amostras a partir de uma área escolhida. O endpoint `POST /fornecedores/preview-catalog-region` pode auxiliar nessa etapa.
-3. **Finalização** – `POST /produtos/importar-catalogo-finalizar/{file_id}/` processa o PDF por completo usando o mapeamento definido.
-4. **Acompanhamento** – `GET /produtos/importar-catalogo-status/{file_id}/` e `GET /produtos/importar-catalogo-result/{file_id}/` permitem consultar o progresso e o resumo da importação.
+1. **Pré-visualização** – `POST /fornecedores/import/preview-pages` salva o arquivo e retorna `file_id` com miniaturas das páginas.
+2. **Seleção de região** – `GET /fornecedores/import/extract-page-data` usa `file_id` e `page_number` para identificar colunas e amostras de uma página.
+3. **Finalização** – `POST /fornecedores/import/process-full-catalog` processa o PDF por completo usando o mapeamento definido.
+4. **Acompanhamento** – `GET /fornecedores/import/progress/{job_id}` e `GET /fornecedores/import/review/{job_id}` permitem consultar o progresso e o resumo da importação.
 
 ## Backend/routers/social\_auth.py
 
