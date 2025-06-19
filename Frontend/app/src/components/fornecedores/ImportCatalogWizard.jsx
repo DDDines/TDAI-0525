@@ -18,6 +18,13 @@ const ImportCatalogWizard = ({ fornecedor, onClose }) => {
     const [totalPages, setTotalPages] = useState(0);
     const [loadedPages, setLoadedPages] = useState(0);
 
+    // Informações retornadas após upload inicial do PDF
+    const [uploadedFile, setUploadedFile] = useState(null);
+
+    // Dados extraídos da seleção de região
+    const [extractedColumns, setExtractedColumns] = useState([]);
+    const [previewRows, setPreviewRows] = useState([]);
+
     const handleFileChange = (event) => {
         const file = event.target.files[0];
         if (file && file.type === 'application/pdf') {
@@ -40,12 +47,15 @@ const ImportCatalogWizard = ({ fornecedor, onClose }) => {
         setError('');
         try {
             const response = await fornecedorService.previewPdf(fornecedor.id, selectedFile);
-            
+
             // CORREÇÃO CRÍTICA: Usa 'image_urls' e 'total_pages' como vem da API
             setPreviewImages(response.image_urls || []);
             setTotalPages(response.total_pages || 0);
             setLoadedPages((response.image_urls || []).length);
-            
+            if (response.import_file_id) {
+                setUploadedFile({ id: response.import_file_id });
+            }
+
             setStep(2); // Avança para o passo de visualização
         } catch (err) {
             console.error("Erro ao gerar pré-visualização:", err);
@@ -79,6 +89,28 @@ const ImportCatalogWizard = ({ fornecedor, onClose }) => {
         }
     };
 
+    const handleRegionSelect = async (selection) => {
+        // selection deve conter { page: number, bbox: [x0, y0, x1, y1] }
+        if (!uploadedFile) return;
+        setLoading(true);
+        try {
+            const requestBody = {
+                file_id: uploadedFile.id,
+                page_number: selection.page,
+                region: selection.bbox,
+            };
+            const previewData = await fornecedorService.previewCatalogRegion(requestBody);
+            setExtractedColumns(previewData.columns);
+            setPreviewRows(previewData.data);
+            setStep(3);
+        } catch (error) {
+            console.error('Erro ao pré-visualizar dados da região:', error);
+            alert('Não foi possível extrair dados. Tente selecionar novamente.');
+        } finally {
+            setLoading(false);
+        }
+    };
+
     return (
         <div className="wizard-container">
             {loading && <LoadingPopup message={loadingMessage} isOpen={loading} />}
@@ -98,7 +130,10 @@ const ImportCatalogWizard = ({ fornecedor, onClose }) => {
             {step === 2 && (
                 <div>
                     <h3>Passo 2: Selecione a Região da Tabela</h3>
-                    <PdfRegionSelector imageUrls={previewImages} />
+                    <PdfRegionSelector
+                        imageUrls={previewImages}
+                        onSelect={handleRegionSelect}
+                    />
                     
                     {loadedPages > 0 && (
                         <div style={{ textAlign: 'center', marginTop: '1rem' }}>
