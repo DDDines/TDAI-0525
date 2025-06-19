@@ -6,7 +6,7 @@ if (pdfjs.GlobalWorkerOptions) {
   pdfjs.GlobalWorkerOptions.workerSrc = workerSrc;
 }
 
-function PdfRegionSelector({ file, onSelect, initialPage = 1, onError = () => {} }) {
+function PdfRegionSelector({ file, onSelect, initialPage = 1, onLoadError = () => {} }) {
   const canvasRef = useRef(null);
   const pdfDocumentRef = useRef(null);
   const [pageNum, setPageNum] = useState(initialPage);
@@ -45,6 +45,15 @@ function PdfRegionSelector({ file, onSelect, initialPage = 1, onError = () => {}
         await page.render({ canvasContext: ctx, viewport }).promise;
       } catch (err) {
         onError(err);
+      } catch (e) {
+        onLoadError(e);
+      } catch (err) {
+        if (!cancelled && onLoadError) onLoadError(err);
+        return;
+      }
+      if (cancelled) {
+        doc.destroy();
+        return;
       }
     };
 
@@ -56,7 +65,7 @@ function PdfRegionSelector({ file, onSelect, initialPage = 1, onError = () => {}
       if (doc) doc.destroy();
       pdfDocumentRef.current = null;
     };
-  }, [file]);
+  }, [file, onLoadError]);
 
   useEffect(() => {
     const renderPage = async () => {
@@ -72,6 +81,8 @@ function PdfRegionSelector({ file, onSelect, initialPage = 1, onError = () => {}
         await page.render({ canvasContext: ctx, viewport }).promise;
       } catch (err) {
         onError(err);
+      } catch (e) {
+        onLoadError(e);
       }
     };
     renderPage();

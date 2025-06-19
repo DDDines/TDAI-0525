@@ -1,6 +1,6 @@
 // Caminho: Frontend/app/src/components/fornecedores/ImportCatalogWizard.jsx
 
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import * as fornecedorService from '../../services/fornecedorService';
 import LoadingPopup from '../common/LoadingPopup';
 import PdfRegionSelector from '../common/PdfRegionSelector';
@@ -12,7 +12,7 @@ const ImportCatalogWizard = ({ fornecedor, onClose }) => {
     const [loading, setLoading] = useState(false);
     const [loadingMessage, setLoadingMessage] = useState('');
     const [error, setError] = useState('');
-    const [pdfPreviewError, setPdfPreviewError] = useState('');
+    const [pdfPreviewError, setPdfPreviewError] = useState(null);
 
     // Estados para a nossa lógica de pré-visualização paginada
     const [previewImages, setPreviewImages] = useState([]);
@@ -93,6 +93,12 @@ const ImportCatalogWizard = ({ fornecedor, onClose }) => {
         }
     };
 
+    const handlePreviewError = (err) => {
+        console.error('Erro ao carregar PDF para seleção de região:', err);
+        const msg = err?.message || 'Falha ao carregar visualização do PDF.';
+        setPdfPreviewError(msg);
+    };
+
     const handleRegionSelect = async (selection) => {
         // selection deve conter { page: number, bbox: [x0, y0, x1, y1] }
         if (!uploadedFile) return;
@@ -147,6 +153,19 @@ const ImportCatalogWizard = ({ fornecedor, onClose }) => {
                         onSelect={handleRegionSelect}
                         onError={handlePreviewError}
                     />
+                    {pdfPreviewError ? (
+                        <div style={{ color: 'red', textAlign: 'center' }}>
+                            <p>Erro ao carregar PDF</p>
+                            <p>{pdfPreviewError}</p>
+                            <button onClick={() => setStep(1)}>Voltar</button>
+                        </div>
+                    ) : (
+                        <PdfRegionSelector
+                            imageUrls={previewImages}
+                            onSelect={handleRegionSelect}
+                            onLoadError={handlePreviewError}
+                        />
+                    )}
                     
                     {loadedPages > 0 && (
                         <div style={{ textAlign: 'center', marginTop: '1rem' }}>
