@@ -148,11 +148,6 @@ const ImportCatalogWizard = ({ fornecedor, onClose }) => {
             {step === 2 && (
                 <div>
                     <h3>Passo 2: Selecione a Região da Tabela</h3>
-                    <PdfRegionSelector
-                        imageUrls={previewImages}
-                        onSelect={handleRegionSelect}
-                        onError={handlePreviewError}
-                    />
                     {pdfPreviewError ? (
                         <div style={{ color: 'red', textAlign: 'center' }}>
                             <p>Erro ao carregar PDF</p>
