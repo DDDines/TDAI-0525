@@ -865,6 +865,8 @@ def extract_data_from_single_page(file_path: str, page_number: int) -> dict:
     First attempts structured extraction with ``pdfplumber``.  If nothing useful
     is found, the page is rendered with ``PyMuPDF`` and OCR is applied using
     ``pytesseract``.
+def generate_pdf_page_images(file_path: str, file_id: str) -> list[str]:
+    """Render pages of a PDF into PNG images and return their relative URLs.
 
     Parameters
     ----------
@@ -943,3 +945,36 @@ def extract_data_from_single_page(file_path: str, page_number: int) -> dict:
             pass
 
     return {"headers": headers, "rows": rows}
+        Absolute path to the PDF file to render.
+    file_id: str
+        Identifier used to create the output directory name.
+
+    Returns
+    -------
+    list[str]
+        Relative URLs for the generated preview images.
+    """
+
+    try:
+        import fitz  # PyMuPDF
+    except Exception as e:  # pragma: no cover - library might be missing
+        logger.error("PyMuPDF (fitz) not available: %s", e)
+        raise
+
+    output_dir = Path("Backend") / "static" / "previews" / str(file_id)
+    output_dir.mkdir(parents=True, exist_ok=True)
+
+    urls: list[str] = []
+
+    with fitz.open(file_path) as doc:
+        page_count = min(len(doc), 20)
+        for i in range(page_count):
+            page = doc.load_page(i)
+            pix = page.get_pixmap(dpi=150)
+            image_path = output_dir / f"page-{i + 1}.png"
+            pix.save(str(image_path))
+            url = f"/static/previews/{file_id}/page-{i + 1}.png"
+            urls.append(url)
+
+    return urls
+

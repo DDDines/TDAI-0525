@@ -26,3 +26,6 @@ psycopg2-binary
 jinja2
 pytest
 pytest-asyncio
+PyMuPDF
+pytesseract
+Pillow
