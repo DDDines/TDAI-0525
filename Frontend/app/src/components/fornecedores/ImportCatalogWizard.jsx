@@ -4,7 +4,7 @@ import React, { useState } from 'react';
 import * as fornecedorService from '../../services/fornecedorService';
 import LoadingPopup from '../common/LoadingPopup';
 import ColumnMappingModal from '../common/ColumnMappingModal.jsx';
-import ImportProgress from '../common/ImportProgress.jsx';
+import ImportProgress from './ImportProgress.jsx';
 import getBackendBaseUrl from '../../utils/backend.js';
 
 const FIELD_OPTIONS = [
@@ -21,14 +21,13 @@ const ImportCatalogWizard = ({ fornecedor, onClose }) => {
   const [error, setError] = useState('');
 
   const [fileId, setFileId] = useState(null);
+  const [jobId, setJobId] = useState(null);
   const [pageImages, setPageImages] = useState([]);
-  const [totalPages, setTotalPages] = useState(0);
 
   const [mappingHeaders, setMappingHeaders] = useState([]);
   const [mappingRows, setMappingRows] = useState([]);
   const [showMappingModal, setShowMappingModal] = useState(false);
   const [mapping, setMapping] = useState(null);
-  const [importResult, setImportResult] = useState(null);
 
   const backendBaseUrl = getBackendBaseUrl();
 
@@ -49,13 +48,9 @@ const ImportCatalogWizard = ({ fornecedor, onClose }) => {
     setLoadingMessage('A gerar pré-visualização inicial...');
     setError('');
     try {
-      const response = await fornecedorService.previewPdf(
-        fornecedor.id,
-        selectedFile,
-      );
-      setFileId(response.import_file_id);
-      setPageImages(response.image_urls || []);
-      setTotalPages(response.total_pages || 0);
+      const response = await fornecedorService.uploadForPagePreview(selectedFile);
+      setFileId(response.file_id);
+      setPageImages(response.page_image_urls || []);
       setStep('select_page');
     } catch (err) {
       const detail = err.response?.data?.detail || err.message;
@@ -65,25 +60,6 @@ const ImportCatalogWizard = ({ fornecedor, onClose }) => {
     }
   };
 
-  const handleLoadMore = async () => {
-    if (!selectedFile) return;
-    setLoading(true);
-    setLoadingMessage('A carregar mais páginas...');
-    try {
-      const response = await fornecedorService.previewPdf(
-        fornecedor.id,
-        selectedFile,
-        pageImages.length,
-        20,
-      );
-      setPageImages((prev) => [...prev, ...(response.image_urls || [])]);
-    } catch (err) {
-      const detail = err.response?.data?.detail || err.message;
-      setError(`Erro: ${detail}`);
-    } finally {
-      setLoading(false);
-    }
-  };
 
   const handlePageClick = async (page) => {
     if (!fileId) return;
@@ -121,11 +97,12 @@ const ImportCatalogWizard = ({ fornecedor, onClose }) => {
     setLoading(true);
     setLoadingMessage('Iniciando processamento...');
     try {
-      await fornecedorService.finalizarImportacaoCatalogo(
-        fileId,
-        fornecedor.id,
-        map,
-      );
+      const resp = await fornecedorService.startFullProcess({
+        file_id: fileId,
+        fornecedor_id: fornecedor.id,
+        mapping: map,
+      });
+      setJobId(resp.job_id);
       setStep('processing');
     } catch (err) {
       const detail = err.response?.data?.detail || err.message;
@@ -135,10 +112,6 @@ const ImportCatalogWizard = ({ fornecedor, onClose }) => {
     }
   };
 
-  const handleProcessDone = (result) => {
-    setImportResult(result);
-    setStep('review');
-  };
 
 
   return (
@@ -175,24 +148,14 @@ const ImportCatalogWizard = ({ fornecedor, onClose }) => {
               />
             ))}
           </div>
-          {pageImages.length < totalPages && (
-            <button onClick={handleLoadMore} disabled={loading}>
-              Carregar mais páginas
-            </button>
-          )}
         </div>
       )}
 
-      {step === 'processing' && fileId && (
-        <ImportProgress fileId={fileId} onDone={handleProcessDone} />
+      {step === 'processing' && jobId && (
+        <ImportProgress jobId={jobId} onPendingReview={() => setStep('review')} />
       )}
 
-      {step === 'review' && importResult && (
-        <div>
-          <h3>Importação Concluída</h3>
-          <pre>{JSON.stringify(importResult, null, 2)}</pre>
-        </div>
-      )}
+      {step === 'review' && <p>Processamento concluído. Revise os dados.</p>}
 
       <ColumnMappingModal
         isOpen={showMappingModal}
