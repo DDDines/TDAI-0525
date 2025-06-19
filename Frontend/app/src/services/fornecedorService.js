@@ -428,6 +428,25 @@ export const previewCatalogRegion = async (previewRequest) => {
   }
 };
 
+export const fetchPageDataForMapping = async (fileId, pageNumber) => {
+  try {
+    const response = await apiClient.post('/produtos/extrair-pagina-unica/', {
+      file_id: fileId,
+      page_number: pageNumber,
+    });
+    return response.data;
+  } catch (error) {
+    console.error(
+      'Erro ao extrair pagina:',
+      JSON.stringify(error.response?.data || error.message || error),
+    );
+    if (error.response && error.response.data) {
+      throw error.response.data;
+    }
+    throw new Error(error.message || 'Falha ao extrair dados da pagina');
+  }
+};
+
 export default {
   getFornecedores,
   getFornecedorById,
@@ -449,6 +468,7 @@ export default {
   getReviewData,
   commitImport,
   previewPdf,
+  fetchPageDataForMapping,
   selecionarRegiao,
   previewCatalogRegion,
 };
