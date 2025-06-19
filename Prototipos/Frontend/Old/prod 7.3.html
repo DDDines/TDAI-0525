@@ -400,7 +400,18 @@
                     document.getElementById('p-nome_base').value = data.nome_base || '';
                     document.getElementById('p-sku_original').value = data.sku_original || '';
                     document.getElementById('p-marca').value = data.marca || '';
-                    // TODO: Popular campos de mídia (imagens, vídeos) e conteúdo IA se 'data' os contiver
+                    if (data.midia && data.midia.imagens) {
+                        data.midia.imagens.forEach(img => addImageField(img.url, img.alt, img.principal));
+                    }
+                    if (data.midia && data.midia.videos) {
+                        data.midia.videos.forEach(vid => addVideoField(vid.url, vid.titulo));
+                    }
+                    document.getElementById('p-descricao_principal').value = data.descricao_principal || '';
+                    document.getElementById('p-descricao-original-display').value = data.descricao_original || '';
+                    document.getElementById('p-titles-list').innerHTML = '';
+                    if (data.titulos_sugeridos) {
+                        data.titulos_sugeridos.forEach(t => addTitleField(t));
+                    }
                     const productTypeToSelect = data.productTypeId || '';
                     document.getElementById('productTypeSelector').value = productTypeToSelect;
                     // Passar os atributos específicos do produto para handleProductTypeChange
@@ -666,11 +677,32 @@
             return attrDiv;
         }
         function addAttributeManually() { /* ... */ }
-        function addTitleField() { /* ... */ }
-        function addImageField() { /* ... */ }
-        function updateImagePreview(previewId, url){ /* ... */ }
-        function setMainImage(selectedItem){ /* ... */ }
-        function addVideoField() { /* ... */ }
+        function addTitleField(titleText = '') {
+            const list = document.getElementById('p-titles-list');
+            const div = document.createElement('div');
+            div.className = 'form-group';
+            div.innerHTML = `<input type="text" value="${titleText}" placeholder="Título do produto">`;
+            list.appendChild(div);
+        }
+        function addImageField(url = '', alt = '', isPrincipal = false) {
+            const list = document.getElementById('p-images-list');
+            const div = document.createElement('div');
+            div.className = 'media-item';
+            div.innerHTML = `<img class="preview" src="${url || 'https://placehold.co/60x60'}" alt="${alt || ''}">`+
+                `<input type="text" value="${url}" placeholder="URL da Imagem">`+
+                `<input type="text" value="${alt}" placeholder="Alt">`;
+            list.appendChild(div);
+        }
+        function updateImagePreview(previewId, url){ }
+        function setMainImage(selectedItem){ }
+        function addVideoField(url = '', titulo = '') {
+            const list = document.getElementById('p-videos-list');
+            const div = document.createElement('div');
+            div.className = 'media-item';
+            div.innerHTML = `<input type="url" value="${url}" placeholder="URL do Vídeo">`+
+                `<input type="text" value="${titulo}" placeholder="Título do Vídeo">`;
+            list.appendChild(div);
+        }
         function simulateAICall(buttonElement, loadingMessage, successMessage, failureMessage, callback) { /* ... */ }
         function generateAITitles(btn) { /* ... */ }
         function generateAIDescription(btn) { /* ... */ }

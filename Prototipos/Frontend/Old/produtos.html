@@ -286,7 +286,7 @@
 
       </div>
       <div class="modal-footer">
-        <button onclick="alert('Salvar Alterações (Simulado)'); closeEditProductModal();" style="background-color:var(--success)">Salvar Alterações</button>
+        <button onclick="saveEditProduct();" style="background-color:var(--success)">Salvar Alterações</button>
         <button onclick="closeEditProductModal()">Cancelar</button>
       </div>
     </div>
@@ -485,11 +485,17 @@
         }
     }
 
-    // TODO: Ao clicar em "Salvar Alterações" no modal, você precisará coletar
-    // os dados de tempAttributes e tempTitles e enviá-los para o backend.
-    // Por exemplo, no ProductEditModal.jsx real, você passaria currentEditingProduct.id
-    // e um objeto com { dados_brutos: tempAttributes, titulos_sugeridos: tempTitles, ...outrosCampos }
-    // para a função onSave.
+
+    function saveEditProduct() {
+        const payload = {
+            id: currentEditingProduct ? currentEditingProduct.id : null,
+            dados_brutos: tempAttributes,
+            titulos_sugeridos: tempTitles
+        };
+        console.log('Dados enviados para salvar:', payload);
+        alert('Salvar Alterações (Simulado). Veja o console.');
+        closeEditProductModal();
+    }
 
   </script>
 </body>
