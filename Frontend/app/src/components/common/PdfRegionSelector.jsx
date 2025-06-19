@@ -6,7 +6,7 @@ if (pdfjs.GlobalWorkerOptions) {
   pdfjs.GlobalWorkerOptions.workerSrc = workerSrc;
 }
 
-function PdfRegionSelector({ file, onSelect, initialPage = 1, onLoadError }) {
+function PdfRegionSelector({ file, onSelect, initialPage = 1, onLoadError = () => {} }) {
   const canvasRef = useRef(null);
   const pdfDocumentRef = useRef(null);
   const [pageNum, setPageNum] = useState(initialPage);
@@ -28,6 +28,23 @@ function PdfRegionSelector({ file, onSelect, initialPage = 1, onLoadError }) {
       try {
         task = pdfjs.getDocument({ data: file });
         doc = await task.promise;
+        if (cancelled) {
+          doc.destroy();
+          return;
+        }
+        if (pdfDocumentRef.current) {
+          await pdfDocumentRef.current.destroy();
+        }
+        pdfDocumentRef.current = doc;
+        const page = await doc.getPage(pageNum);
+        const viewport = page.getViewport({ scale: 1.5 });
+        const canvas = canvasRef.current;
+        const ctx = canvas.getContext('2d');
+        canvas.width = viewport.width;
+        canvas.height = viewport.height;
+        await page.render({ canvasContext: ctx, viewport }).promise;
+      } catch (e) {
+        onLoadError(e);
       } catch (err) {
         if (!cancelled && onLoadError) onLoadError(err);
         return;
@@ -36,17 +53,6 @@ function PdfRegionSelector({ file, onSelect, initialPage = 1, onLoadError }) {
         doc.destroy();
         return;
       }
-      if (pdfDocumentRef.current) {
-        await pdfDocumentRef.current.destroy();
-      }
-      pdfDocumentRef.current = doc;
-      const page = await doc.getPage(pageNum);
-      const viewport = page.getViewport({ scale: 1.5 });
-      const canvas = canvasRef.current;
-      const ctx = canvas.getContext('2d');
-      canvas.width = viewport.width;
-      canvas.height = viewport.height;
-      await page.render({ canvasContext: ctx, viewport }).promise;
     };
 
     load();
@@ -63,13 +69,17 @@ function PdfRegionSelector({ file, onSelect, initialPage = 1, onLoadError }) {
     const renderPage = async () => {
       const doc = pdfDocumentRef.current;
       if (!doc) return;
-      const page = await doc.getPage(pageNum);
-      const viewport = page.getViewport({ scale: 1.5 });
-      const canvas = canvasRef.current;
-      const ctx = canvas.getContext('2d');
-      canvas.width = viewport.width;
-      canvas.height = viewport.height;
-      await page.render({ canvasContext: ctx, viewport }).promise;
+      try {
+        const page = await doc.getPage(pageNum);
+        const viewport = page.getViewport({ scale: 1.5 });
+        const canvas = canvasRef.current;
+        const ctx = canvas.getContext('2d');
+        canvas.width = viewport.width;
+        canvas.height = viewport.height;
+        await page.render({ canvasContext: ctx, viewport }).promise;
+      } catch (e) {
+        onLoadError(e);
+      }
     };
     renderPage();
   }, [pageNum]);
