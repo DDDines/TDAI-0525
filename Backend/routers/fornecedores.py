@@ -263,6 +263,27 @@ def preview_catalog_from_region(
     return schemas.CatalogPreview(columns=columns, data=sample_data)
 
 
+# Endpoint para consultar progresso de importação de catálogo
+@router.get("/import/progress/{job_id}")
+def get_import_progress(
+    job_id: int,
+    db: Session = Depends(database.get_db),
+    current_user: models.User = Depends(auth_utils.get_current_active_user),
+):
+    """Retorna o status e o progresso da importação de catálogo."""
+    record = (
+        db.query(models.CatalogImportFile)
+        .filter_by(id=job_id, user_id=current_user.id)
+        .first()
+    )
+    if not record:
+        raise HTTPException(status_code=404, detail="Importação não encontrada")
+
+    return {
+        "status": record.status,
+        "progress": record.pages_processed,
+        "total_pages": record.total_pages or 0,
+    }
 @router.post("/import/process-full-catalog", status_code=status.HTTP_202_ACCEPTED)
 async def process_full_catalog(
     background_tasks: BackgroundTasks,
