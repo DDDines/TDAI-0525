@@ -1,6 +1,6 @@
 // Caminho: Frontend/app/src/components/fornecedores/ImportCatalogWizard.jsx
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState } from 'react';
 import * as fornecedorService from '../../services/fornecedorService';
 import LoadingPopup from '../common/LoadingPopup';
 import PdfRegionSelector from '../common/PdfRegionSelector';
@@ -121,10 +121,6 @@ const ImportCatalogWizard = ({ fornecedor, onClose }) => {
         }
     };
 
-    const handlePreviewError = (error) => {
-        console.error('Falha ao carregar a pré-visualização do PDF:', error);
-        setPdfPreviewError('Não foi possível carregar a pré-visualização do PDF. O arquivo pode estar corrompido ou em um formato não suportado. Por favor, tente com outro arquivo.');
-    };
 
     return (
         <div className="wizard-container">
