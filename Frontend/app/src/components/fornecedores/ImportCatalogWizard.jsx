@@ -12,6 +12,7 @@ const ImportCatalogWizard = ({ fornecedor, onClose }) => {
     const [loading, setLoading] = useState(false);
     const [loadingMessage, setLoadingMessage] = useState('');
     const [error, setError] = useState('');
+    const [pdfPreviewError, setPdfPreviewError] = useState('');
 
     // Estados para a nossa lógica de pré-visualização paginada
     const [previewImages, setPreviewImages] = useState([]);
@@ -30,6 +31,7 @@ const ImportCatalogWizard = ({ fornecedor, onClose }) => {
         if (file && file.type === 'application/pdf') {
             setSelectedFile(file);
             setError('');
+            setPdfPreviewError('');
             setPreviewImages([]);
             setTotalPages(0);
             setLoadedPages(0);
@@ -45,6 +47,7 @@ const ImportCatalogWizard = ({ fornecedor, onClose }) => {
         setLoading(true);
         setLoadingMessage('A gerar pré-visualização inicial...');
         setError('');
+        setPdfPreviewError('');
         try {
             const response = await fornecedorService.previewPdf(fornecedor.id, selectedFile);
 
@@ -71,6 +74,7 @@ const ImportCatalogWizard = ({ fornecedor, onClose }) => {
         setLoading(true);
         setLoadingMessage('A carregar mais páginas...');
         setError('');
+        setPdfPreviewError('');
         try {
             const response = await fornecedorService.previewPdf(
                 fornecedor.id,
@@ -111,10 +115,18 @@ const ImportCatalogWizard = ({ fornecedor, onClose }) => {
         }
     };
 
+    const handlePreviewError = (error) => {
+        console.error('Falha ao carregar a pré-visualização do PDF:', error);
+        setPdfPreviewError('Não foi possível carregar a pré-visualização do PDF. O arquivo pode estar corrompido ou em um formato não suportado. Por favor, tente com outro arquivo.');
+    };
+
     return (
         <div className="wizard-container">
             {loading && <LoadingPopup message={loadingMessage} isOpen={loading} />}
             {error && <p style={{ color: 'red', fontWeight: 'bold', border: '1px solid red', padding: '10px', marginTop: '10px' }}>{error}</p>}
+            {pdfPreviewError && (
+                <p style={{ color: 'red', fontWeight: 'bold', border: '1px solid red', padding: '10px', marginTop: '10px' }}>{pdfPreviewError}</p>
+            )}
             
             {step === 1 && (
                 <div>
@@ -133,6 +145,7 @@ const ImportCatalogWizard = ({ fornecedor, onClose }) => {
                     <PdfRegionSelector
                         imageUrls={previewImages}
                         onSelect={handleRegionSelect}
+                        onError={handlePreviewError}
                     />
                     
                     {loadedPages > 0 && (
