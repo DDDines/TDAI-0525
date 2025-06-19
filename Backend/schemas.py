@@ -1,4 +1,4 @@
-# Backend/schemas.py
+# Caminho: Backend/schemas.py
 
 from typing import List, Optional, Dict, Any, Union, Literal
 from pydantic import BaseModel, EmailStr, HttpUrl, Field, field_validator, model_validator
@@ -143,9 +143,6 @@ class PlanoResponse(PlanoBase):
 
     class Config:
         from_attributes = True
-
-
-# Adicionar UserResponse ao final para resolver dependência circular se PlanoResponse referenciar UserResponse
 
 
 # Schemas para Fornecedor
@@ -339,7 +336,6 @@ class ImportCatalogoResponse(BaseModel):
 
 class UpdatedProductInfo(BaseModel):
     """Representa um produto atualizado durante a importação."""
-
     before: ProdutoResponse
     after: ProdutoResponse
 
@@ -447,7 +443,6 @@ class CatalogImportFileResponse(CatalogImportFileBase):
 
 class CatalogImportStatus(BaseModel):
     """Status simplificado de importação de catálogo."""
-
     status: Literal["PROCESSING", "DONE"]
     pages_total: int
     pages_processed: int
@@ -461,7 +456,6 @@ class CatalogImportFilePage(BaseModel):
 
 class PdfPreviewResponse(BaseModel):
     """Preview data for PDF page images."""
-
     image_urls: List[str]
     total_pages: int
     import_file_id: int
@@ -551,7 +545,11 @@ class SocialLoginConfig(BaseModel):
     google_enabled: bool
     facebook_enabled: bool
 
-
+class RegionExtractionRequest(BaseModel):
+    import_file_id: int
+    page_number: int
+    region: List[float]
+    
 # --- Rebuilds Finais ---
 UserResponse.model_rebuild()
 PlanoResponse.model_rebuild()
@@ -571,4 +569,3 @@ CatalogImportFileResponse.model_rebuild()
 UserActivity.model_rebuild()
 SocialLoginConfig.model_rebuild()
 PdfPreviewResponse.model_rebuild()
-

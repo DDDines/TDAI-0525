@@ -2,22 +2,25 @@
 import pandas as pd
 from pdfplumber import open as pdf_open
 import csv
-import io  # Para ler o conteúdo do arquivo em memória
+import io
 import chardet
 import base64
 import os
 import asyncio
+from sqlalchemy.orm import Session
 from concurrent.futures import ThreadPoolExecutor
-from pdf2image import convert_from_bytes
+from pdf2image import convert_from_bytes, convert_from_path
 import time
 from typing import List, Dict, Any, Union, Optional
 from pathlib import Path
 from uuid import uuid4
-from fastapi import UploadFile
+from fastapi import UploadFile, HTTPException
+import uuid
+import pdfplumber
 
 from Backend.core.logging_config import get_logger
 from Backend.core.config import settings
-from Backend import models
+from Backend import models, crud_fornecedores, schemas
 from Backend.services import web_data_extractor_service
 
 logger = get_logger(__name__)
@@ -656,84 +659,83 @@ async def gerar_preview(
     raise ValueError("Formato de arquivo não suportado para preview")
 
 
-async def pdf_pages_to_images(
-    conteudo_arquivo: bytes,
-    offset: int = 0,
-    limit: int = 1,
-    import_file_id: int | None = None,
-) -> Dict[str, Any]:
-    """Converte páginas selecionadas de um PDF em imagens base64.
+def pdf_pages_to_images(db: Session, file: UploadFile, fornecedor_id: int, user_id: int, offset: int, limit: int) -> Dict[str, Any]:
+    """
+    Salva um ficheiro PDF, cria um registo na base de dados, e converte um lote de páginas em imagens.
+    """
+    upload_dir = Path(settings.UPLOAD_DIRECTORY)
+    catalogs_dir = upload_dir / "catalogs"
+    previews_dir = upload_dir / "previews"
+    
+    catalogs_dir.mkdir(parents=True, exist_ok=True)
+    previews_dir.mkdir(parents=True, exist_ok=True)
+    
+    random_filename = f"{uuid.uuid4().hex}.pdf"
+    file_location = catalogs_dir / random_filename
 
-    ``offset`` determina quantas páginas pular a partir do início do documento e
-    ``limit`` especifica quantas páginas converter. A função também devolve o
-    número total de páginas do documento."""
-
-    image_urls: List[str] = []
-    total_pages = 0
+    # LÊ O FICHEIRO PARA A MEMÓRIA UMA ÚNICA VEZ
     try:
-        with pdf_open(io.BytesIO(conteudo_arquivo)) as pdf:
+        content = file.file.read()
+    except Exception as e:
+        logger.error(f"Erro ao ler o conteúdo do ficheiro stream: {e}")
+        raise HTTPException(status_code=500, detail="Erro interno ao ler o ficheiro.")
+    finally:
+        file.file.close()
+
+    # Guarda o conteúdo lido no disco
+    try:
+        with open(file_location, "wb") as file_object:
+            file_object.write(content)
+    except Exception as e:
+        logger.error(f"Erro ao salvar o arquivo carregado: {e}")
+        raise HTTPException(status_code=500, detail="Erro interno ao salvar o arquivo.")
+
+    # A chamada à função que já corrigimos
+    import_file = crud_fornecedores.create_catalog_import_file(
+        db=db,
+        fornecedor_id=fornecedor_id,
+        user_id=user_id,
+        file_name=file.filename,
+        original_file_path=str(file_location)
+    )
+
+    try:
+        # USA O CONTEÚDO EM MEMÓRIA PARA OBTER O TOTAL DE PÁGINAS
+        with pdfplumber.open(io.BytesIO(content)) as pdf:
             total_pages = len(pdf.pages)
+    except Exception as e:
+        logger.error(f"Erro ao ler PDF com pdfplumber: {e}")
+        raise HTTPException(status_code=500, detail="Não foi possível ler o ficheiro PDF.")
 
-        start_page = offset + 1
-        end_page = min(offset + limit, total_pages)
+    first_page_to_convert = offset + 1
+    last_page_to_convert = min(offset + limit, total_pages)
+    
+    image_urls = []
 
-        if start_page <= end_page:
-            poppler_dir = os.getenv("POPPLER_PATH") or settings.POPPLER_PATH
-            kwargs = {"poppler_path": poppler_dir} if poppler_dir else {}
-
+    if first_page_to_convert <= last_page_to_convert:
+        try:
+            poppler_path = settings.POPPLER_PATH if settings.POPPLER_PATH else None
+            
+            # USA O CONTEÚDO EM MEMÓRIA PARA CONVERTER AS IMAGENS
             images = convert_from_bytes(
-                conteudo_arquivo,
-                first_page=start_page,
-                last_page=end_page,
-                fmt="png",
-                **kwargs,
+                content, # <-- MUDANÇA IMPORTANTE: usa o conteúdo em memória
+                dpi=200,
+                poppler_path=poppler_path,
+                first_page=first_page_to_convert,
+                last_page=last_page_to_convert
             )
-            for img in images:
-                with io.BytesIO() as buf:
-                    img.save(buf, format="PNG")
-                    b64 = base64.b64encode(buf.getvalue()).decode()
-                    image_urls.append(f"data:image/png;base64,{b64}")
-    except Exception as e:
-        logger.error("Erro ao converter páginas do PDF em imagens: %s", e)
 
-    return {
-        "image_urls": image_urls,
-        "total_pages": total_pages,
-        "import_file_id": import_file_id if import_file_id is not None else 0,
-    }
+            for i, image in enumerate(images):
+                page_number = offset + i + 1
+                image_filename = f"preview_{import_file.id}_{page_number}.png"
+                image_path = previews_dir / image_filename
+                image.save(image_path, "PNG")
+                
+                image_url = f"/static/uploads/previews/{image_filename}"
+                image_urls.append(image_url)
 
+        except Exception as e:
+            logger.error(f"Falha ao converter PDF para imagens: {e}", exc_info=True)
+            raise HTTPException(status_code=500, detail=f"Erro ao processar o PDF. Verifique se o Poppler está instalado corretamente.")
 
-async def extrair_pagina_pdf(
-    conteudo_arquivo: bytes, page_number: int
-) -> Dict[str, Any]:
-    """Extrai imagem, texto e tabela de uma única página de um PDF."""
-    try:
-        with pdf_open(io.BytesIO(conteudo_arquivo)) as pdf:
-            if page_number < 1 or page_number > len(pdf.pages):
-                raise ValueError("Número de página inválido")
-            page = pdf.pages[page_number - 1]
-            text = page.extract_text(x_tolerance=2, y_tolerance=2) or ""
-            tables = page.extract_tables(
-                table_settings={
-                    "vertical_strategy": "lines",
-                    "horizontal_strategy": "lines",
-                }
-            )
-            table = tables[0] if tables else None
-
-        poppler_dir = os.getenv("POPPLER_PATH") or settings.POPPLER_PATH
-        kwargs = {"poppler_path": poppler_dir} if poppler_dir else {}
-        image = convert_from_bytes(
-            conteudo_arquivo,
-            first_page=page_number,
-            last_page=page_number,
-            fmt="png",
-            **kwargs,
-        )[0]
-        with io.BytesIO() as buf:
-            image.save(buf, format="PNG")
-            b64 = base64.b64encode(buf.getvalue()).decode()
-        return {"image": f"data:image/png;base64,{b64}", "text": text, "table": table}
-    except Exception as e:
-        logger.error("Erro ao extrair página do PDF: %s", e)
-        raise
+    return {"image_urls": image_urls, "total_pages": total_pages, "import_file_id": import_file.id}

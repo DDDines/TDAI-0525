@@ -1,11 +1,14 @@
+# Caminho: Backend/crud_fornecedores.py
+import os
 import logging
 from typing import List, Optional
 
 from sqlalchemy import func, or_
 from sqlalchemy.orm import Session
 
-from Backend.models import Fornecedor
+from Backend.models import Fornecedor, CatalogImportFile # Adicionado CatalogImportFile
 from Backend import schemas
+
 
 logger = logging.getLogger(__name__)
 
@@ -88,3 +91,23 @@ def delete_fornecedor(db: Session, db_fornecedor: Fornecedor) -> Fornecedor:
     db.delete(db_fornecedor)
     db.commit()
     return db_fornecedor
+
+# --- FUNÇÃO ADICIONADA PARA CORRIGIR O ERRO ---
+def create_catalog_import_file(db: Session, user_id: int, fornecedor_id: int, file_name: str, original_file_path: str) -> CatalogImportFile:
+    """
+    Cria um registro para um arquivo de catálogo importado.
+    """
+    # Extrai apenas o nome do ficheiro do caminho completo
+    stored_filename = original_file_path.split(os.path.sep)[-1]
+
+    db_import_file = CatalogImportFile(
+        original_filename=file_name,
+        stored_filename=stored_filename,
+        status="UPLOADED",
+        fornecedor_id=fornecedor_id,
+        user_id=user_id
+    )
+    db.add(db_import_file)
+    db.commit()
+    db.refresh(db_import_file)
+    return db_import_file
