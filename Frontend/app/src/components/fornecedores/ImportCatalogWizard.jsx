@@ -1,6 +1,6 @@
 // Caminho: Frontend/app/src/components/fornecedores/ImportCatalogWizard.jsx
 
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import * as fornecedorService from '../../services/fornecedorService';
 import LoadingPopup from '../common/LoadingPopup';
 import PdfRegionSelector from '../common/PdfRegionSelector';
@@ -12,7 +12,7 @@ const ImportCatalogWizard = ({ fornecedor, onClose }) => {
     const [loading, setLoading] = useState(false);
     const [loadingMessage, setLoadingMessage] = useState('');
     const [error, setError] = useState('');
-    const [pdfPreviewError, setPdfPreviewError] = useState('');
+    const [pdfPreviewError, setPdfPreviewError] = useState(null);
 
     // Estados para a nossa lógica de pré-visualização paginada
     const [previewImages, setPreviewImages] = useState([]);

@@ -45,6 +45,13 @@ function PdfRegionSelector({ file, onSelect, initialPage = 1, onLoadError = () =
         await page.render({ canvasContext: ctx, viewport }).promise;
       } catch (e) {
         onLoadError(e);
+      } catch (err) {
+        if (!cancelled && onLoadError) onLoadError(err);
+        return;
+      }
+      if (cancelled) {
+        doc.destroy();
+        return;
       }
     };
 
@@ -56,7 +63,7 @@ function PdfRegionSelector({ file, onSelect, initialPage = 1, onLoadError = () =
       if (doc) doc.destroy();
       pdfDocumentRef.current = null;
     };
-  }, [file]);
+  }, [file, onLoadError]);
 
   useEffect(() => {
     const renderPage = async () => {
