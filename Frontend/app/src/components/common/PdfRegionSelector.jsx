@@ -1,9 +1,16 @@
 import React, { useRef, useEffect, useState } from 'react';
 import * as pdfjs from 'pdfjs-dist/legacy/build/pdf';
-import workerSrc from 'pdfjs-dist/legacy/build/pdf.worker.js?url';
-
-if (pdfjs.GlobalWorkerOptions) {
-  pdfjs.GlobalWorkerOptions.workerSrc = workerSrc;
+// Vite has trouble resolving the worker through the ?url syntax on some setups.
+// Use the "new URL" pattern recommended by pdf.js/React-PDF so the bundler
+// generates the correct worker file URL.
+let workerSrc;
+try {
+  workerSrc = new URL('pdfjs-dist/legacy/build/pdf.worker.js', import.meta.url);
+  if (pdfjs.GlobalWorkerOptions) {
+    pdfjs.GlobalWorkerOptions.workerSrc = workerSrc.toString();
+  }
+} catch (_) {
+  // Ignore errors during tests or if the worker cannot be resolved.
 }
 
 function PdfRegionSelector({ file, onSelect, initialPage = 1, onLoadError }) {
