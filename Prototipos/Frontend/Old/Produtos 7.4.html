@@ -423,10 +423,12 @@
                         data.midia.videos.forEach(vid => addVideoField(vid.url, vid.titulo));
                     }
 
-                    // TODO: Popular campos de conteúdo IA se 'data' os contiver
                     document.getElementById('p-descricao_principal').value = data.descricao_principal || '';
                     document.getElementById('p-descricao-original-display').value = data.descricao_original || '';
-                    // (Lógica para títulos IA precisaria ser implementada se 'data' os contiver)
+                    document.getElementById('p-titles-list').innerHTML = '';
+                    if (data.titulos_sugeridos) {
+                        data.titulos_sugeridos.forEach(t => addTitleField(t, true));
+                    }
 
 
                     const productTypeToSelect = data.productTypeId || '';
