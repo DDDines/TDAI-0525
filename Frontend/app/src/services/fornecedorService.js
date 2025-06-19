@@ -300,6 +300,25 @@ export const selecionarRegiao = async (fileId, page, bbox) => {
   }
 };
 
+export const previewCatalogRegion = async (previewRequest) => {
+  try {
+    const response = await apiClient.post(
+      '/fornecedores/preview-catalog-region',
+      previewRequest,
+    );
+    return response.data;
+  } catch (error) {
+    console.error(
+      'Erro ao pré-visualizar região do catálogo:',
+      JSON.stringify(error.response?.data || error.message || error),
+    );
+    if (error.response && error.response.data) {
+      throw error.response.data;
+    }
+    throw new Error(error.message || 'Falha ao pré-visualizar região do catálogo');
+  }
+};
+
 export default {
   getFornecedores,
   getFornecedorById,
@@ -316,4 +335,5 @@ export default {
   getImportacaoResult,
   previewPdf,
   selecionarRegiao,
+  previewCatalogRegion,
 };
