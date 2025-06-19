@@ -4,6 +4,7 @@ from typing import List, Optional
 from sqlalchemy import func
 from fastapi import APIRouter, Depends, HTTPException, Query, status, UploadFile, File
 from sqlalchemy.orm import Session
+from pathlib import Path
 import logging
 import uuid
 import os
@@ -16,6 +17,7 @@ from Backend import schemas
 from Backend import crud_historico
 from Backend import database
 from Backend.services import file_processing_service
+from Backend.core.config import settings
 from . import auth_utils # Para obter o usuário 
 
 logger = logging.getLogger(__name__)
@@ -256,6 +258,40 @@ def preview_catalog_from_region(
     sample_data = df.head(10).to_dict(orient='records')
 
     return schemas.CatalogPreview(columns=columns, data=sample_data)
+
+
+@router.get("/import/extract-page-data", response_model=schemas.CatalogPreview)
+def extract_page_data(
+    file_id: int = Query(..., description="ID do arquivo importado"),
+    page_number: int = Query(..., ge=1, description="Número da página a extrair"),
+    db: Session = Depends(database.get_db),
+    current_user: models.User = Depends(auth_utils.get_current_active_user),
+):
+    """Extrai dados tabulares de uma única página de um catálogo PDF armazenado."""
+    record = (
+        db.query(models.CatalogImportFile)
+        .filter_by(id=file_id, user_id=current_user.id)
+        .first()
+    )
+    if not record:
+        raise HTTPException(status_code=404, detail="Arquivo não encontrado")
+
+    file_path = Path(settings.UPLOAD_DIRECTORY) / "catalogs" / record.stored_filename
+    if not file_path.is_absolute():
+        file_path = Path(__file__).resolve().parent.parent / file_path
+    if not file_path.exists():
+        raise HTTPException(status_code=404, detail="Arquivo não encontrado")
+
+    try:
+        result = file_processing_service.extract_data_from_single_page(
+            str(file_path), page_number
+        )
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+    return result
 
 
 # Endpoint para deletar um fornecedor
