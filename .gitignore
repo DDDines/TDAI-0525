@@ -124,6 +124,9 @@ Frontend/app/.env.*.local
 !Frontend/app/.env.sample
 
 Backend/static/uploads/
+Backend/static/previews/*
+!Backend/static/previews/
+!Backend/static/previews/.gitkeep
 static/uploads/
 # Arquivos específicos de IDEs para o frontend (se não cobertos pelo geral)
 # .project
