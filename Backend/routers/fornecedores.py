@@ -268,7 +268,9 @@ async def preview_pages(file: UploadFile = File(...)):
     with open(pdf_path, "wb") as out_file:
         out_file.write(contents)
 
-    page_image_urls = file_processing_service.generate_pdf_page_images(str(pdf_path))
+    page_image_urls = file_processing_service.generate_pdf_page_images(
+        str(pdf_path), file_id
+    )
 
     return {"file_id": file_id, "page_image_urls": page_image_urls}
 

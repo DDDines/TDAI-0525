@@ -818,12 +818,6 @@ def extract_data_from_pdf_region(
         return pd.DataFrame()
 
 
-def extract_data_from_single_page(file_path: str, page_number: int) -> Dict[str, Any]:
-    """Return column names and data extracted from a single PDF page."""
-    df = extract_data_from_pdf_region(file_path, page_number)
-    if df.empty:
-        return {"columns": [], "data": []}
-    return {"columns": df.columns.astype(str).tolist(), "data": df.to_dict(orient="records")}
 
 
 async def extrair_pagina_pdf(
@@ -872,53 +866,6 @@ async def extrair_pagina_pdf(
     return {"image": f"data:image/png;base64,{image_b64}", "text": text, "table": table}
 
 
-def extract_data_from_single_page(file_path: str, page_number: int) -> List[Dict[str, Any]]:
-    """Return raw row dictionaries extracted from a single PDF page."""
-
-    rows: List[Dict[str, Any]] = []
-    with pdfplumber.open(file_path) as pdf:
-        if not (1 <= page_number <= len(pdf.pages)):
-            raise ValueError(
-                f"Número de página inválido: {page_number}. PDF tem {len(pdf.pages)} páginas."
-            )
-
-        page = pdf.pages[page_number - 1]
-
-        tables = page.extract_tables(
-            table_settings={"vertical_strategy": "lines", "horizontal_strategy": "lines"}
-        )
-
-        if tables:
-            for table in tables:
-                if not table or len(table) < 2:
-                    continue
-
-                headers_raw = table[0]
-                headers = [
-                    _limpar_valor_extraido(h) or f"coluna_{idx}"
-                    for idx, h in enumerate(headers_raw)
-                ]
-
-                for row in table[1:]:
-                    if len(row) != len(headers):
-                        continue
-                    rows.append({headers[i]: row[i] for i in range(len(headers))})
-
-        if not rows:
-            text = page.extract_text(x_tolerance=2, y_tolerance=2) or ""
-            if text:
-                lines = [l.strip() for l in text.splitlines() if l.strip()]
-                data_dict: Dict[str, Any] = {}
-                for line in lines:
-                    if ":" in line:
-                        k, v = line.split(":", 1)
-                        data_dict[k.strip()] = v.strip()
-                if data_dict:
-                    rows.append(data_dict)
-                elif lines:
-                    rows.append({f"col_{i}": v for i, v in enumerate(lines)})
-
-    return rows
 
 
 async def process_pdf_job(
@@ -972,48 +919,25 @@ async def process_pdf_job(
     finally:
         if db:
             db.close()
-def generate_pdf_page_images(pdf_path: str) -> List[str]:
-    """Gera imagens PNG para todas as páginas de um PDF.
-
-    As imagens são salvas no mesmo diretório do arquivo e os caminhos
-    completos são retornados em uma lista.
-    """
-
-    poppler_dir = os.getenv("POPPLER_PATH") or settings.POPPLER_PATH
-    kwargs = {"poppler_path": poppler_dir} if poppler_dir else {}
-
-    images = convert_from_path(pdf_path, dpi=200, **kwargs)
-    base_dir = Path(pdf_path).parent
-    base_name = Path(pdf_path).stem
-    urls: List[str] = []
-
-    for idx, image in enumerate(images, start=1):
-        img_path = base_dir / f"{base_name}_{idx}.png"
-        image.save(img_path, "PNG")
-        urls.append(str(img_path))
-
-    return urls
   
-def extract_data_from_single_page(file_path: str, page_number: int) -> dict:
-    """Extract table/text content from a single PDF page.
+def extract_data_from_single_page(file_path: str, page_number: int) -> Dict[str, Any]:
+    """Extract structured data from a single PDF page.
 
-    First attempts structured extraction with ``pdfplumber``.  If nothing useful
-    is found, the page is rendered with ``PyMuPDF`` and OCR is applied using
-    ``pytesseract``.
-def generate_pdf_page_images(file_path: str, file_id: str) -> list[str]:
-    """Render pages of a PDF into PNG images and return their relative URLs.
+    The function first tries to parse tables and plain text using
+    :mod:`pdfplumber`. If no data is extracted, the page is rendered
+    with :mod:`PyMuPDF` and OCR is executed via ``pytesseract``.
 
     Parameters
     ----------
     file_path: str
-        Path to the PDF file on disk.
+        Absolute path to the PDF file on disk.
     page_number: int
-        The page number to extract (1-indexed).
+        1-indexed page number to extract.
 
     Returns
     -------
-    dict
-        JSON friendly structure with ``headers`` and ``rows`` keys.
+    Dict[str, Any]
+        A dictionary with ``headers`` and ``rows`` keys.
     """
 
     headers: List[str] = []
@@ -1027,7 +951,6 @@ def generate_pdf_page_images(file_path: str, file_id: str) -> list[str]:
                 )
 
             page = pdf.pages[page_number - 1]
-
             tables = page.extract_tables(
                 table_settings={"vertical_strategy": "lines", "horizontal_strategy": "lines"}
             )
@@ -1050,8 +973,7 @@ def generate_pdf_page_images(file_path: str, file_id: str) -> list[str]:
     except Exception as e:  # pragma: no cover - runtime logging
         logger.error("Erro ao extrair com pdfplumber: %s", e)
 
-    # Fallback using OCR
-    try:  # pragma: no cover - optional dependency at runtime
+    try:  # OCR fallback
         import fitz  # type: ignore
         import pytesseract  # type: ignore
         from PIL import Image  # type: ignore
@@ -1080,13 +1002,21 @@ def generate_pdf_page_images(file_path: str, file_id: str) -> list[str]:
             pass
 
     return {"headers": headers, "rows": rows}
+
+
+def generate_pdf_page_images(file_path: str, file_id: str) -> List[str]:
+    """Render pages of a PDF into PNG images.
+
+    Parameters
+    ----------
+    file_path: str
         Absolute path to the PDF file to render.
     file_id: str
-        Identifier used to create the output directory name.
+        Identifier used to build the output directory name.
 
     Returns
     -------
-    list[str]
+    List[str]
         Relative URLs for the generated preview images.
     """
 
@@ -1099,7 +1029,7 @@ def generate_pdf_page_images(file_path: str, file_id: str) -> list[str]:
     output_dir = Path("Backend") / "static" / "previews" / str(file_id)
     output_dir.mkdir(parents=True, exist_ok=True)
 
-    urls: list[str] = []
+    urls: List[str] = []
 
     with fitz.open(file_path) as doc:
         page_count = min(len(doc), 20)
