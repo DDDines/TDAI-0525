@@ -121,32 +121,6 @@ export const previewCatalogo = async (
   }
 };
 
-export const previewPdf = async (
-  fornecedorId,
-  file,
-  offset = 0,
-  limit = 20,
-) => {
-  try {
-    const formData = new FormData();
-    formData.append('file', file);
-    const response = await apiClient.post(
-      `/fornecedores/${fornecedorId}/preview-pdf?offset=${offset}&limit=${limit}`,
-      formData,
-      { headers: { 'Content-Type': 'multipart/form-data' } },
-    );
-    return response.data;
-  } catch (error) {
-    console.error(
-      'Erro ao pré-visualizar PDF:',
-      JSON.stringify(error.response?.data || error.message || error),
-    );
-    if (error.response && error.response.data) {
-      throw error.response.data;
-    }
-    throw new Error(error.message || 'Falha ao solicitar preview do PDF');
-  }
-};
 
 export const importCatalogo = async (fornecedorId, file, mapping = null) => {
   try {
@@ -169,38 +143,6 @@ export const importCatalogo = async (fornecedorId, file, mapping = null) => {
   }
 };
 
-export const finalizarImportacaoCatalogo = async (
-  fileId,
-  fornecedorId,
-  mapping = null,
-  productTypeId = null,
-  pages = null,
-) => {
-  try {
-    const payload = { file_id: fileId, fornecedor_id: fornecedorId };
-    if (productTypeId) payload.product_type_id = productTypeId;
-    if (mapping) {
-      payload.mapping = mapping;
-    }
-    if (pages) {
-      payload.pages = Array.from(pages);
-    }
-    const response = await apiClient.post(
-      `/produtos/importar-catalogo-finalizar/${fileId}/`,
-      payload
-    );
-    return response.data;
-  } catch (error) {
-    console.error(
-      `Erro ao finalizar importação do catálogo ${fileId}:`,
-      JSON.stringify(error.response?.data || error.message || error),
-    );
-    if (error.response && error.response.data) {
-      throw error.response.data;
-    }
-    throw new Error(error.message || 'Falha ao confirmar importação do catálogo');
-  }
-};
 
 export const getCatalogImportFiles = async (params = {}) => {
   try {
@@ -282,17 +224,14 @@ export const getImportacaoResult = async (fileId) => {
   }
 };
 
-export const getImportProgress = async (jobId) => {
-  try {
-    const response = await apiClient.get(`/produtos/import-progress/${jobId}/`);
-// -------- NOVAS FUNCOES ---------
+// -------- NOVAS FUNÇÕES ---------
 
-// Faz upload de um arquivo de catálogo apenas para gerar o preview de páginas
+// Envia um PDF e obtém imagens de todas as páginas
 export const uploadForPagePreview = async (file) => {
   try {
     const formData = new FormData();
     formData.append('file', file);
-    const response = await apiClient.post('/produtos/importar-catalogo-preview/', formData);
+    const response = await apiClient.post('/fornecedores/import/preview-pages', formData);
     return response.data;
   } catch (error) {
     console.error(
@@ -306,12 +245,11 @@ export const uploadForPagePreview = async (file) => {
   }
 };
 
-// Obtém imagem, texto e tabela de uma página específica para auxiliar no mapeamento
+// Extrai dados de uma página específica de um PDF já enviado
 export const fetchPageDataForMapping = async (fileId, pageNumber) => {
   try {
-    const response = await apiClient.post('/produtos/extrair-pagina-unica/', {
-      file_id: fileId,
-      page_number: pageNumber,
+    const response = await apiClient.get('/fornecedores/import/extract-page-data', {
+      params: { file_id: fileId, page_number: pageNumber },
     });
     return response.data;
   } catch (error) {
@@ -326,10 +264,10 @@ export const fetchPageDataForMapping = async (fileId, pageNumber) => {
   }
 };
 
-// Inicia o processamento completo de um arquivo previamente enviado
+// Inicia o processamento completo do catálogo
 export const startFullProcess = async (payload) => {
   try {
-    const response = await apiClient.post('/produtos/importar-catalogo-finalizar/', payload);
+    const response = await apiClient.post('/fornecedores/import/process-full-catalog', payload);
     return response.data;
   } catch (error) {
     console.error(
@@ -343,10 +281,10 @@ export const startFullProcess = async (payload) => {
   }
 };
 
-// Consulta o progresso de importação para um job
+// Consulta o progresso de um job de importação
 export const getImportProgress = async (jobId) => {
   try {
-    const response = await apiClient.get(`/produtos/importar-catalogo-status/${jobId}`);
+    const response = await apiClient.get(`/fornecedores/import/progress/${jobId}`);
     return response.data;
   } catch (error) {
     console.error(
@@ -360,84 +298,10 @@ export const getImportProgress = async (jobId) => {
   }
 };
 
-// Obtém os dados resultantes para revisão após o processamento
-export const getReviewData = async (jobId) => {
-  try {
-    const response = await apiClient.get(`/produtos/importar-catalogo-result/${jobId}/`);
-    return response.data;
-  } catch (error) {
-    console.error(
-      `Erro ao obter dados de revisão para o job ${jobId}:`,
-      JSON.stringify(error.response?.data || error.message || error),
-    );
-    if (error.response && error.response.data) {
-      throw error.response.data;
-    }
-    throw new Error(error.message || 'Falha ao obter dados para revisão');
-  }
-};
-
-// Confirma a importação após revisão
-export const commitImport = async (jobId) => {
-  try {
-    const response = await apiClient.post(`/produtos/catalog-import-files/${jobId}/commit/`);
-    return response.data;
-  } catch (error) {
-    console.error(
-      `Erro ao confirmar importação do job ${jobId}:`,
-      JSON.stringify(error.response?.data || error.message || error),
-    );
-    if (error.response && error.response.data) {
-      throw error.response.data;
-    }
-    throw new Error(error.message || 'Falha ao confirmar importação');
-  }
-};
-
-
-export const selecionarRegiao = async (fileId, page, bbox) => {
-  try {
-    const response = await apiClient.post('/produtos/selecionar-regiao/', {
-      file_id: fileId,
-      page,
-      bbox,
-    });
-    return response.data;
-  } catch (error) {
-    console.error('Erro ao selecionar região:', JSON.stringify(error.response?.data || error.message || error));
-    if (error.response && error.response.data) {
-      throw error.response.data;
-    }
-    throw new Error(error.message || 'Falha ao processar região selecionada');
-  }
-};
-
-export const previewCatalogRegion = async (previewRequest) => {
-  try {
-    const response = await apiClient.post(
-      '/fornecedores/preview-catalog-region',
-      previewRequest,
-    );
-    return response.data;
-  } catch (error) {
-    console.error(
-      'Erro ao pré-visualizar região do catálogo:',
-      JSON.stringify(error.response?.data || error.message || error),
-    );
-    if (error.response && error.response.data) {
-      throw error.response.data;
-    }
-    throw new Error(error.message || 'Falha ao pré-visualizar região do catálogo');
-  }
-};
-
-
+// Obtém os dados para revisão após o processamento
 export const getReviewData = async (jobId, params = {}) => {
   try {
-    const response = await apiClient.get(
-      `/produtos/import-jobs/${jobId}/review`,
-      { params },
-    );
+    const response = await apiClient.get(`/fornecedores/import/review/${jobId}`, { params });
     return response.data;
   } catch (error) {
     console.error(
@@ -451,30 +315,20 @@ export const getReviewData = async (jobId, params = {}) => {
   }
 };
 
+// Confirma a importação após revisão
 export const commitImport = async (jobId) => {
   try {
-    const response = await apiClient.post(`/produtos/import-jobs/${jobId}/commit`);
+    const response = await apiClient.post(`/fornecedores/import/commit/${jobId}`);
     return response.data;
   } catch (error) {
     console.error(
       `Erro ao confirmar importação do job ${jobId}:`,
-export const fetchPageDataForMapping = async (fileId, pageNumber) => {
-  try {
-    const response = await apiClient.post('/produtos/extrair-pagina-unica/', {
-      file_id: fileId,
-      page_number: pageNumber,
-    });
-    return response.data;
-  } catch (error) {
-    console.error(
-      'Erro ao extrair pagina:',
       JSON.stringify(error.response?.data || error.message || error),
     );
     if (error.response && error.response.data) {
       throw error.response.data;
     }
     throw new Error(error.message || 'Falha ao confirmar importação');
-    throw new Error(error.message || 'Falha ao extrair dados da pagina');
   }
 };
 
@@ -486,7 +340,6 @@ export default {
   deleteFornecedor,
   previewCatalogo,
   importCatalogo,
-  finalizarImportacaoCatalogo,
   getCatalogImportFiles,
   deleteCatalogFile,
   reprocessCatalogFile,
@@ -498,11 +351,4 @@ export default {
   getImportProgress,
   getReviewData,
   commitImport,
-  previewPdf,
-  fetchPageDataForMapping,
-  selecionarRegiao,
-  previewCatalogRegion,
-  getReviewData,
-  commitImport,
-  getImportProgress,
 };

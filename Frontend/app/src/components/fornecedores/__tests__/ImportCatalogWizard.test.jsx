@@ -34,7 +34,8 @@ jest.mock('../../../contexts/ProductTypeContext', () => ({
 jest.mock('../../../services/fornecedorService', () => ({
   __esModule: true,
   default: {
-    previewPdf: jest.fn(),
+    uploadForPagePreview: jest.fn(),
+    startFullProcess: jest.fn(() => Promise.resolve({ job_id: 1 })),
   },
 }));
 import fornecedorService from '../../../services/fornecedorService';
@@ -44,10 +45,11 @@ describe('ImportCatalogWizard', () => {
     jest.clearAllMocks();
   });
 
-  test('generates preview and loads more pages', async () => {
-    fornecedorService.previewPdf
-      .mockResolvedValueOnce({ pages: ['a', 'b'], totalPages: 3 })
-      .mockResolvedValueOnce({ pages: ['c'], totalPages: 3 });
+  test('generates preview', async () => {
+    fornecedorService.uploadForPagePreview.mockResolvedValue({
+      file_id: 1,
+      page_image_urls: ['a', 'b'],
+    });
 
     render(<ImportCatalogWizard fornecedor={{ id: 1 }} onClose={() => {}} />);
     render(<ImportCatalogWizard onClose={() => {}} fornecedor={{ id: 1 }} />);
@@ -58,10 +60,7 @@ describe('ImportCatalogWizard', () => {
     await userEvent.upload(fileInput, file);
     await userEvent.click(screen.getByText('Gerar Preview'));
 
-    expect(fornecedorService.previewPdf).toHaveBeenCalledWith(1, file, 0, 20);
+    expect(fornecedorService.uploadForPagePreview).toHaveBeenCalledWith(file);
     await screen.findByAltText('Página 1');
-
-    await userEvent.click(screen.getByText('Carregar mais páginas'));
-    expect(fornecedorService.previewPdf).toHaveBeenLastCalledWith(1, file, 2, 20);
   });
 });
