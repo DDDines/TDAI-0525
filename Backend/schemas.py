@@ -549,6 +549,15 @@ class RegionExtractionRequest(BaseModel):
     import_file_id: int
     page_number: int
     region: List[float]
+
+class CatalogRegionPreviewRequest(BaseModel):
+    file_id: str
+    page_number: int
+    region: Optional[List[float]] = None
+
+class CatalogPreview(BaseModel):
+    columns: List[str]
+    data: List[Dict[str, Any]]
     
 # --- Rebuilds Finais ---
 UserResponse.model_rebuild()
@@ -569,3 +578,4 @@ CatalogImportFileResponse.model_rebuild()
 UserActivity.model_rebuild()
 SocialLoginConfig.model_rebuild()
 PdfPreviewResponse.model_rebuild()
+CatalogPreview.model_rebuild()
