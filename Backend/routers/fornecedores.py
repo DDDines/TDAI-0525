@@ -4,7 +4,11 @@ from typing import List, Optional
 from sqlalchemy import func
 from fastapi import APIRouter, Depends, HTTPException, Query, status, UploadFile, File, BackgroundTasks, Body
 from sqlalchemy.orm import Session
+from pathlib import Path
 import logging
+import uuid
+import os
+from pathlib import Path
 
 
 from Backend import crud_fornecedores
@@ -17,6 +21,7 @@ from Backend.core.config import settings
 from . import auth_utils  # Para obter o usuário
 from Backend.routers.produtos import _tarefa_processar_catalogo
 from pathlib import Path
+from . import auth_utils # Para obter o usuário 
 
 logger = logging.getLogger(__name__)
 
@@ -181,6 +186,27 @@ def update_mapping(
     return fornecedor
 
 
+@router.post("/import/preview-pages")
+async def preview_pages(file: UploadFile = File(...)):
+    """Gera imagens de todas as páginas de um PDF enviado."""
+
+    if not file.filename.lower().endswith(".pdf"):
+        raise HTTPException(status_code=400, detail="Apenas arquivos PDF são permitidos.")
+
+    file_id = uuid.uuid4().hex
+    tmp_dir = Path(os.getenv("TMPDIR", "/tmp"))
+    tmp_dir.mkdir(parents=True, exist_ok=True)
+    pdf_path = tmp_dir / f"{file_id}.pdf"
+
+    contents = await file.read()
+    with open(pdf_path, "wb") as out_file:
+        out_file.write(contents)
+
+    page_image_urls = file_processing_service.generate_pdf_page_images(str(pdf_path))
+
+    return {"file_id": file_id, "page_image_urls": page_image_urls}
+
+
 @router.post("/{fornecedor_id}/preview-pdf", response_model=schemas.PdfPreviewResponse)
 async def preview_pdf(
     fornecedor_id: int,
@@ -256,6 +282,15 @@ async def process_full_catalog(
         raise HTTPException(status_code=403, detail="Não autorizado")
 
     source = (
+@router.get("/import/extract-page-data", response_model=schemas.CatalogPreview)
+def extract_page_data(
+    file_id: int = Query(..., description="ID do arquivo importado"),
+    page_number: int = Query(..., ge=1, description="Número da página a extrair"),
+    db: Session = Depends(database.get_db),
+    current_user: models.User = Depends(auth_utils.get_current_active_user),
+):
+    """Extrai dados tabulares de uma única página de um catálogo PDF armazenado."""
+    record = (
         db.query(models.CatalogImportFile)
         .filter_by(id=file_id, user_id=current_user.id)
         .first()
@@ -275,6 +310,10 @@ async def process_full_catalog(
     db.refresh(job)
 
     file_path = Path(settings.UPLOAD_DIRECTORY) / "catalogs" / source.stored_filename
+    if not record:
+        raise HTTPException(status_code=404, detail="Arquivo não encontrado")
+
+    file_path = Path(settings.UPLOAD_DIRECTORY) / "catalogs" / record.stored_filename
     if not file_path.is_absolute():
         file_path = Path(__file__).resolve().parent.parent / file_path
     if not file_path.exists():
@@ -310,6 +349,16 @@ async def process_full_catalog(
     )
 
     return {"job_id": job.id, "status": "PROCESSING"}
+    try:
+        result = file_processing_service.extract_data_from_single_page(
+            str(file_path), page_number
+        )
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+    return result
 
 
 # Endpoint para deletar um fornecedor
