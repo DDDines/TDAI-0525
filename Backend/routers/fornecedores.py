@@ -2,7 +2,7 @@
 
 from typing import List, Optional
 from sqlalchemy import func
-from fastapi import APIRouter, Depends, HTTPException, Query, status, UploadFile, File
+from fastapi import APIRouter, Depends, HTTPException, Query, status, UploadFile, File, BackgroundTasks, Body
 from sqlalchemy.orm import Session
 from pathlib import Path
 import logging
@@ -18,6 +18,9 @@ from Backend import crud_historico
 from Backend import database
 from Backend.services import file_processing_service
 from Backend.core.config import settings
+from . import auth_utils  # Para obter o usuário
+from Backend.routers.produtos import _tarefa_processar_catalogo
+from pathlib import Path
 from . import auth_utils # Para obter o usuário 
 
 logger = logging.getLogger(__name__)
@@ -260,6 +263,25 @@ def preview_catalog_from_region(
     return schemas.CatalogPreview(columns=columns, data=sample_data)
 
 
+@router.post("/import/process-full-catalog", status_code=status.HTTP_202_ACCEPTED)
+async def process_full_catalog(
+    background_tasks: BackgroundTasks,
+    file_id: int = Body(..., embed=True),
+    start_page: int = Body(1, embed=True),
+    mapping: Optional[dict] = Body(None),
+    fornecedor_id: int = Body(..., embed=True),
+    tipo_produto_id: int = Body(..., embed=True),
+    db: Session = Depends(database.get_db),
+    current_user: models.User = Depends(auth_utils.get_current_active_user),
+):
+    """Processa todas as páginas de um catálogo em background."""
+    fornecedor = crud_fornecedores.get_fornecedor(db, fornecedor_id=fornecedor_id)
+    if not fornecedor:
+        raise HTTPException(status_code=404, detail="Fornecedor não encontrado")
+    if not current_user.is_superuser and fornecedor.user_id != current_user.id:
+        raise HTTPException(status_code=403, detail="Não autorizado")
+
+    source = (
 @router.get("/import/extract-page-data", response_model=schemas.CatalogPreview)
 def extract_page_data(
     file_id: int = Query(..., description="ID do arquivo importado"),
@@ -273,6 +295,21 @@ def extract_page_data(
         .filter_by(id=file_id, user_id=current_user.id)
         .first()
     )
+    if not source:
+        raise HTTPException(status_code=404, detail="Arquivo não encontrado")
+
+    job = models.CatalogImportFile(
+        user_id=current_user.id,
+        fornecedor_id=fornecedor_id,
+        original_filename=source.original_filename,
+        stored_filename=source.stored_filename,
+        status="PROCESSING",
+    )
+    db.add(job)
+    db.commit()
+    db.refresh(job)
+
+    file_path = Path(settings.UPLOAD_DIRECTORY) / "catalogs" / source.stored_filename
     if not record:
         raise HTTPException(status_code=404, detail="Arquivo não encontrado")
 
@@ -282,6 +319,36 @@ def extract_page_data(
     if not file_path.exists():
         raise HTTPException(status_code=404, detail="Arquivo não encontrado")
 
+    content = file_path.read_bytes()
+    ext = file_path.suffix.lower()
+    if ext != ".pdf":
+        raise HTTPException(status_code=400, detail="Formato de arquivo não suportado")
+
+    import pdfplumber, io
+    with pdfplumber.open(io.BytesIO(content)) as pdf:
+        total_pages = len(pdf.pages)
+
+    pages = list(range(start_page, total_pages + 1))
+
+    if mapping is None and fornecedor.default_column_mapping:
+        mapping = fornecedor.default_column_mapping
+
+    from sqlalchemy.orm import sessionmaker
+
+    db_session_factory = sessionmaker(bind=db.get_bind())
+
+    background_tasks.add_task(
+        _tarefa_processar_catalogo,
+        db_session_factory=db_session_factory,
+        file_id=job.id,
+        user_id=current_user.id,
+        product_type_id=tipo_produto_id,
+        fornecedor_id=fornecedor_id,
+        mapping=mapping,
+        pages=pages,
+    )
+
+    return {"job_id": job.id, "status": "PROCESSING"}
     try:
         result = file_processing_service.extract_data_from_single_page(
             str(file_path), page_number
