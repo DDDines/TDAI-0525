@@ -25,6 +25,7 @@
 ## Dependência para conversão de PDF
 
 * Para gerar previews de PDF é necessário instalar o pacote `poppler-utils` (ex.: `apt install poppler-utils`). Sem ele o backend não conseguirá converter PDFs em imagens, e o preview de PDF não será gerado.
+* Instale também `PyMuPDF`, `pytesseract` e `Pillow` via `pip`, além do executável **Tesseract OCR** (`apt install tesseract-ocr`). Estes componentes são usados para extrair texto de PDFs e imagens.
 
 ### Poppler no Windows
 
@@ -219,6 +220,8 @@ os.cpu_count() + 4)`` se nenhuma outra configuração for informada.
 * `get_supplier(supplier_id: int, db: Session)`: Busca fornecedor pelo ID.
 * `update_supplier(supplier_id: int, update: FornecedorUpdate, db: Session)`: Atualiza fornecedor.
 * `delete_supplier(supplier_id: int, db: Session)`: Remove fornecedor.
+* `preview_pdf(fornecedor_id: int, file: UploadFile, offset: int, limit: int, db: Session)`: Converte páginas de um PDF em imagens para visualização.
+* `preview_catalog_from_region(preview_request: CatalogRegionPreviewRequest, db: Session)`: Extrai colunas e linhas de uma área selecionada do PDF.
 
 ## Backend/routers/generation.py
 
@@ -252,6 +255,15 @@ os.cpu_count() + 4)`` se nenhuma outra configuração for informada.
 * `importar_catalogo_finalizar(file_id: int, product_type_id: int, fornecedor_id: int, mapping: Optional[dict], db: Session)`: Processa em background um arquivo já enviado.
 * `importar_catalogo_status(file_id: int, db: Session)`: Consulta o status do processamento do catálogo.
 * `selecionar_regiao(file_id: int, page: int, bbox: List[float], db: Session)`: Processa região selecionada de um PDF e retorna produtos detectados.
+* `extrair_pagina_unica(file_id: int, page_number: int, db: Session)`: Retorna imagem, texto e tabela de uma página do PDF.
+* `importar_catalogo_result(file_id: int, db: Session)`: Obtém o resumo final de uma importação.
+
+### Fluxo completo de importação de PDF
+
+1. **Pré-visualização** – `POST /produtos/importar-catalogo-preview/` salva o arquivo e retorna `file_id` com miniaturas das páginas.
+2. **Seleção de região** – `POST /produtos/selecionar-regiao/` identifica colunas e amostras a partir de uma área escolhida. O endpoint `POST /fornecedores/preview-catalog-region` pode auxiliar nessa etapa.
+3. **Finalização** – `POST /produtos/importar-catalogo-finalizar/{file_id}/` processa o PDF por completo usando o mapeamento definido.
+4. **Acompanhamento** – `GET /produtos/importar-catalogo-status/{file_id}/` e `GET /produtos/importar-catalogo-result/{file_id}/` permitem consultar o progresso e o resumo da importação.
 
 ## Backend/routers/social\_auth.py
 

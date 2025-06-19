@@ -190,6 +190,8 @@ CatalogAI-0525-Dev/
 * PostgreSQL 12+ (obrigatório em produção; SQLite pode ser usado apenas para desenvolvimento e testes)
 * Git
 * Pacote `poppler-utils` (ex.: `apt install poppler-utils`) para que a conversão de PDFs em imagens funcione. Sem ele o preview de PDF não será gerado
+* Bibliotecas **PyMuPDF**, **pytesseract** e **Pillow** – instaladas via `pip`
+* Ferramenta **Tesseract OCR** no sistema (`apt install tesseract-ocr`)
 * Navegadores Playwright (para scraping):
   `playwright install`
 * Chaves de API: OpenAI, Google Search, serviço de e-mail (SMTP)
@@ -466,6 +468,22 @@ Para gerar um preview das páginas de um PDF antes da importação utilize
 `POST /fornecedores/{fornecedor_id}/preview-pdf` enviando o arquivo em
 `multipart/form-data` e, opcionalmente, os parâmetros `offset` e `limit` para
 paginação.
+
+#### Processo de importação de PDF em quatro etapas
+
+1. **Pré-visualizar** – envie o arquivo pelo endpoint
+   `POST /produtos/importar-catalogo-preview/`. A resposta traz o `file_id`
+   e miniaturas das páginas.
+2. **Selecionar região** – com o `file_id` em mãos, chame
+   `POST /produtos/selecionar-regiao/` definindo página e `bbox` para extrair
+   colunas e linhas de amostra. O endpoint `POST /fornecedores/preview-catalog-region`
+   pode ser usado para testar diferentes áreas.
+3. **Finalizar** – confirme o processamento com
+   `POST /produtos/importar-catalogo-finalizar/{file_id}/`, enviando o mapeamento,
+   `fornecedor_id`, `product_type_id` e as páginas desejadas.
+4. **Acompanhar** – consulte `GET /produtos/importar-catalogo-status/{file_id}/`
+   ou `GET /produtos/importar-catalogo-result/{file_id}/` para verificar o resumo
+   final da importação.
 
 ---
 
