@@ -543,7 +543,12 @@ async def preview_arquivo_pdf(
     start = time.perf_counter()
 
     poppler_dir = os.getenv("POPPLER_PATH") or settings.POPPLER_PATH
-    if shutil.which("pdftoppm", path=poppler_dir) is None:
+    pdftoppm_path = (
+        shutil.which("pdftoppm", path=poppler_dir)
+        if poppler_dir
+        else shutil.which("pdftoppm")
+    )
+    if pdftoppm_path is None:
         msg = (
             "Poppler (pdftoppm) executable not found. Install poppler-utils on Linux "
             "or set POPPLER_PATH to its directory."
@@ -681,9 +686,14 @@ async def pdf_bytes_to_images(
 
     def _convert() -> List[str]:
         poppler_dir = os.getenv("POPPLER_PATH") or settings.POPPLER_PATH
-        if shutil.which("pdftoppm", path=poppler_dir) is None:
+        pdftoppm_path = (
+            shutil.which("pdftoppm", path=poppler_dir)
+            if poppler_dir
+            else shutil.which("pdftoppm")
+        )
+        if pdftoppm_path is None:
             msg = (
-                "Poppler (pdftoppm) executable not found. Install poppler-utils "
+                "Poppler (pdftoppm) executable not found. Install poppler-utils"
                 "on Linux or set POPPLER_PATH to its directory."
             )
             logger.error(msg)
@@ -728,7 +738,12 @@ def pdf_pages_to_images(db: Session, file: UploadFile, fornecedor_id: int, user_
     previews_dir.mkdir(parents=True, exist_ok=True)
 
     poppler_dir = os.getenv("POPPLER_PATH") or settings.POPPLER_PATH
-    if shutil.which("pdftoppm", path=poppler_dir) is None:
+    pdftoppm_path = (
+        shutil.which("pdftoppm", path=poppler_dir)
+        if poppler_dir
+        else shutil.which("pdftoppm")
+    )
+    if pdftoppm_path is None:
         msg = (
             "Poppler (pdftoppm) executable not found. Install poppler-utils on Linux "
             "or set POPPLER_PATH to its directory."
