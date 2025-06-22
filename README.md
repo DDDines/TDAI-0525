@@ -189,7 +189,7 @@ CatalogAI-0525-Dev/
 * Node.js 18+
 * PostgreSQL 12+ (obrigatório em produção; SQLite pode ser usado apenas para desenvolvimento e testes)
 * Git
-* Pacote `poppler-utils` (ex.: `apt install poppler-utils`) para que a conversão de PDFs em imagens funcione. Sem ele o preview de PDF não será gerado
+* Pacote `poppler-utils` (ex.: `apt install poppler-utils`) para que a conversão de PDFs em imagens funcione. Sem ele o preview de PDF não será gerado e os testes relacionados a PDF falharão
 * Bibliotecas **PyMuPDF**, **pytesseract** e **Pillow** – instaladas via `pip`,
   necessárias para extrair texto e gerar previews de PDFs
 * Diretório `Backend/static/previews/` (ou defina `PREVIEW_DIRECTORY` no `.env`)
@@ -298,6 +298,11 @@ dependências de testes `pytest` e `pytest-asyncio`. Para isso, rode:
 ```sh
 pip install -r requirements-backend.txt
 ```
+
+Para que os testes que lidam com PDFs funcionem é necessário ter o Poppler instalados.
+Em distribuições Linux instale o pacote `poppler-utils` (`apt install poppler-utils`).
+Em outros sistemas, disponibilize o executável `pdftoppm` e defina a variável de
+ambiente `POPPLER_PATH` apontando para seu diretório.
 
 Você também pode utilizar o script abaixo, que instala as dependências e executa
 o `pytest` automaticamente:

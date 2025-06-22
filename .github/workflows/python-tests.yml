@@ -24,4 +24,4 @@ jobs:
       - name: Build test image
         run: docker build -f Dockerfile.test -t catalogai-test .
       - name: Run tests
-        run: docker run --rm catalogai-test
+        run: docker run --rm -e POPPLER_PATH=/usr/bin catalogai-test
