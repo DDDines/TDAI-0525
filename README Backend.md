@@ -24,7 +24,7 @@
 
 ## Dependência para conversão de PDF
 
-* Para gerar previews de PDF é necessário instalar o pacote `poppler-utils` (ex.: `apt install poppler-utils`). Sem ele o backend não conseguirá converter PDFs em imagens, o preview não será gerado e os testes que lidam com PDFs irão falhar.
+* Para gerar previews de PDF é necessário instalar o pacote `poppler-utils` (ex.: `apt install poppler-utils`). Sem ele o backend não conseguirá converter PDFs em imagens, o preview não será gerado e os testes que lidam com PDFs irão falhar. Se utilizar binários externos, defina a variável `POPPLER_PATH` apontando para o diretório que contém `pdftoppm`. Nos pipelines de CI essa variável é configurada como `/usr/bin`.
 * Instale também `PyMuPDF`, `pytesseract` e `Pillow` via `pip` – bibliotecas necessárias para extrair texto e gerar previews.
 * Certifique-se de que o diretório `Backend/static/previews/` exista (ou ajuste `PREVIEW_DIRECTORY` no `.env`) para armazenar as miniaturas.
 * Executável **Tesseract OCR** (`apt install tesseract-ocr`). Estes componentes são usados para extrair texto de PDFs e imagens.

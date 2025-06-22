@@ -189,7 +189,8 @@ CatalogAI-0525-Dev/
 * Node.js 18+
 * PostgreSQL 12+ (obrigatório em produção; SQLite pode ser usado apenas para desenvolvimento e testes)
 * Git
-* Pacote `poppler-utils` (ex.: `apt install poppler-utils`) para que a conversão de PDFs em imagens funcione. Sem ele o preview de PDF não será gerado e os testes relacionados a PDF falharão
+* Pacote `poppler-utils` (ex.: `apt install poppler-utils`) para que a conversão de PDFs em imagens funcione. Sem ele o preview de PDF não será gerado e os testes relacionados a PDF falharão. Caso utilize binários próprios, defina `POPPLER_PATH` apontando para o diretório que contém `pdftoppm`.
+  O Dockerfile de testes e os workflows de CI já instalam esse pacote por padrão.
 * Bibliotecas **PyMuPDF**, **pytesseract** e **Pillow** – instaladas via `pip`,
   necessárias para extrair texto e gerar previews de PDFs
 * Diretório `Backend/static/previews/` (ou defina `PREVIEW_DIRECTORY` no `.env`)
@@ -287,6 +288,7 @@ Principais variáveis obrigatórias:
 - `MAIL_USERNAME`, `MAIL_PASSWORD`, `MAIL_FROM` e `MAIL_SERVER`
 
 Em ambientes Windows, defina também `POPPLER_PATH` apontando para os binários do Poppler para que a conversão de PDFs funcione.
+Nos pipelines de CI, essa variável é configurada como `/usr/bin`.
 
 
 ### 6. **Testes**
@@ -303,6 +305,8 @@ Para que os testes que lidam com PDFs funcionem é necessário ter o Poppler ins
 Em distribuições Linux instale o pacote `poppler-utils` (`apt install poppler-utils`).
 Em outros sistemas, disponibilize o executável `pdftoppm` e defina a variável de
 ambiente `POPPLER_PATH` apontando para seu diretório.
+
+Nos pipelines de **CI** o pacote `poppler-utils` é instalado automaticamente e a variável `POPPLER_PATH` é definida para `/usr/bin`.
 
 Você também pode utilizar o script abaixo, que instala as dependências e executa
 o `pytest` automaticamente:
@@ -326,6 +330,8 @@ E execute os testes via container:
 ```sh
 docker run --rm catalogai-test
 ```
+
+O workflow de **CI** deste repositório também utiliza essa imagem para rodar os testes.
 
 ---
 
