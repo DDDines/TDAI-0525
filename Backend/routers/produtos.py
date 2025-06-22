@@ -62,7 +62,11 @@ async def _tarefa_processar_catalogo(
     db: Optional[Session] = None
     try:
         db = db_session_factory()
-        catalog_file = db.query(models.CatalogImportFile).filter_by(id=file_id, user_id=user_id).first()
+        catalog_file = (
+            db.query(models.CatalogImportFile)
+            .filter_by(id=file_id, user_id=user_id)
+            .first()
+        )
         if not catalog_file:
             logger.error("Catalog file %s not found", file_id)
             return
@@ -70,7 +74,9 @@ async def _tarefa_processar_catalogo(
         catalog_file.fornecedor_id = fornecedor_id
         db.commit()
 
-        file_path = Path(settings.UPLOAD_DIRECTORY) / "catalogs" / catalog_file.stored_filename
+        file_path = (
+            Path(settings.UPLOAD_DIRECTORY) / "catalogs" / catalog_file.stored_filename
+        )
         if not file_path.is_absolute():
             file_path = Path(__file__).resolve().parent.parent / file_path
         if not file_path.exists():
@@ -85,6 +91,7 @@ async def _tarefa_processar_catalogo(
         updated: List[models.Produto] = []
         if ext == ".pdf":
             import pdfplumber, io
+
             with pdfplumber.open(io.BytesIO(content)) as pdf:
                 total = len(pages) if pages else len(pdf.pages)
             catalog_file.total_pages = total
@@ -92,8 +99,8 @@ async def _tarefa_processar_catalogo(
             db.commit()
             page_list = pages or list(range(1, total + 1))
             for page in page_list:
-                page_created: List[models.Produto] = []
-                page_updated: List[models.Produto] = []
+                created_page: List[models.Produto] = []
+                updated_page: List[models.Produto] = []
                 produtos_data = await file_processing_service.processar_arquivo_pdf(
                     content,
                     mapeamento_colunas_usuario=mapping,
@@ -104,7 +111,9 @@ async def _tarefa_processar_catalogo(
                 for prod in produtos_data:
                     if isinstance(prod, dict) and (
                         prod.get("motivo_descarte")
-                        or any(key.startswith("erro_processamento") for key in prod.keys())
+                        or any(
+                            key.startswith("erro_processamento") for key in prod.keys()
+                        )
                     ):
                         erros.append(prod)
                         continue
@@ -123,54 +132,70 @@ async def _tarefa_processar_catalogo(
                         )
                         produtos_create.append(produto_schema)
                     except Exception as e:
-                        erros.append({"motivo_descarte": f"Erro ao converter linha: {str(e)}", "linha_original": prod})
+                        erros.append(
+                            {
+                                "motivo_descarte": f"Erro ao converter linha: {str(e)}",
+                                "linha_original": prod,
+                            }
+                        )
 
                 if produtos_create:
-                    page_created, page_updated, dup_errors = crud_produtos.create_produtos_bulk(
+                    (
+                        created_page,
+                        updated_page,
+                        dup_errors,
+                    ) = crud_produtos.create_produtos_bulk(
                         db, produtos_create, user_id=user_id
                     )
-                    erros.extend(dup_errors)
-                    created.extend(page_created)
-                    updated.extend(page_updated)
+                    created.extend(created_page)
+                    updated.extend(updated_page)
                     for err in dup_errors:
                         if err.get("duplicado"):
                             linha = err.get("linha_original", {})
                             sku = linha.get("sku")
                             ean = linha.get("ean")
-                            query = db.query(models.Produto).filter(models.Produto.user_id == user_id)
+                            query = db.query(models.Produto).filter(
+                                models.Produto.user_id == user_id
+                            )
                             if sku:
                                 query = query.filter(models.Produto.sku == sku)
                             elif ean:
                                 query = query.filter(models.Produto.ean == ean)
                             existing = query.first()
                             if existing:
-                                before = schemas.ProdutoResponse.model_validate(existing).model_dump()
+                                before = schemas.ProdutoResponse.model_validate(
+                                    existing
+                                ).model_dump()
                                 update_schema = schemas.ProdutoUpdate(**linha)
-                                updated_prod = crud_produtos.update_produto(db, existing, update_schema)
-                                after = schemas.ProdutoResponse.model_validate(updated_prod).model_dump()
+                                updated_prod = crud_produtos.update_produto(
+                                    db, existing, update_schema
+                                )
+                                after = schemas.ProdutoResponse.model_validate(
+                                    updated_prod
+                                ).model_dump()
                                 updated.append({"before": before, "after": after})
                                 continue
                         erros.append(err)
-                    if page_created:
-                        for db_produto in page_created:
-                            crud.create_registro_uso_ia(
-                                db,
-                                schemas.RegistroUsoIACreate(
-                                    user_id=user_id,
-                                    produto_id=db_produto.id,
-                                    tipo_acao=models.TipoAcaoEnum.CRIACAO_PRODUTO,
-                                    creditos_consumidos=0,
-                                ),
-                            )
-                            crud_historico.create_registro_historico(
-                                db,
-                                schemas.RegistroHistoricoCreate(
-                                    user_id=user_id,
-                                    entidade="Produto",
-                                    acao=models.TipoAcaoSistemaEnum.CRIACAO,
-                                    entity_id=db_produto.id,
-                                ),
-                            )
+
+                    for db_produto in created_page:
+                        crud.create_registro_uso_ia(
+                            db,
+                            schemas.RegistroUsoIACreate(
+                                user_id=user_id,
+                                produto_id=db_produto.id,
+                                tipo_acao=models.TipoAcaoEnum.CRIACAO_PRODUTO,
+                                creditos_consumidos=0,
+                            ),
+                        )
+                        crud_historico.create_registro_historico(
+                            db,
+                            schemas.RegistroHistoricoCreate(
+                                user_id=user_id,
+                                entidade="Produto",
+                                acao=models.TipoAcaoSistemaEnum.CRIACAO,
+                                entity_id=db_produto.id,
+                            ),
+                        )
                     produtos_create = []
                 catalog_file.pages_processed += 1
                 db.commit()
@@ -194,8 +219,8 @@ async def _tarefa_processar_catalogo(
                 catalog_file.status = "FAILED"
                 db.commit()
                 return
-            page_created: List[models.Produto] = []
-            page_updated: List[models.Produto] = []
+            created_page: List[models.Produto] = []
+            updated_page: List[models.Produto] = []
 
             for prod in produtos_data:
                 if isinstance(prod, dict) and (
@@ -219,73 +244,69 @@ async def _tarefa_processar_catalogo(
                     )
                     produtos_create.append(produto_schema)
                 except Exception as e:
-                    erros.append({"motivo_descarte": f"Erro ao converter linha: {str(e)}", "linha_original": prod})
+                    erros.append(
+                        {
+                            "motivo_descarte": f"Erro ao converter linha: {str(e)}",
+                            "linha_original": prod,
+                        }
+                    )
             if produtos_create:
-                created_page, updated_page, dup_errors = crud_produtos.create_produtos_bulk(
+                (
+                    created_page,
+                    updated_page,
+                    dup_errors,
+                ) = crud_produtos.create_produtos_bulk(
                     db, produtos_create, user_id=user_id
                 )
-                erros.extend(dup_errors)
                 created.extend(created_page)
                 updated.extend(updated_page)
                 for err in dup_errors:
-                        if err.get("duplicado"):
-                            linha = err.get("linha_original", {})
-                            sku = linha.get("sku")
-                            ean = linha.get("ean")
-                            query = db.query(models.Produto).filter(models.Produto.user_id == user_id)
-                            if sku:
-                                query = query.filter(models.Produto.sku == sku)
-                            elif ean:
-                                query = query.filter(models.Produto.ean == ean)
-                            existing = query.first()
-                            if existing:
-                                before = schemas.ProdutoResponse.model_validate(existing).model_dump()
-                                update_schema = schemas.ProdutoUpdate(**linha)
-                                updated_prod = crud_produtos.update_produto(db, existing, update_schema)
-                                after = schemas.ProdutoResponse.model_validate(updated_prod).model_dump()
-                                updated.append({"before": before, "after": after})
-                                continue
-                        erros.append(err)
-                if page_created:
-                    for db_produto in page_created:
-                        if err.get("duplicado"):
-                            linha = err.get("linha_original", {})
-                            sku = linha.get("sku")
-                            ean = linha.get("ean")
-                            query = db.query(models.Produto).filter(models.Produto.user_id == user_id)
-                            if sku:
-                                query = query.filter(models.Produto.sku == sku)
-                            elif ean:
-                                query = query.filter(models.Produto.ean == ean)
-                            existing = query.first()
-                            if existing:
-                                before = schemas.ProdutoResponse.model_validate(existing).model_dump()
-                                update_schema = schemas.ProdutoUpdate(**linha)
-                                updated_prod = crud_produtos.update_produto(db, existing, update_schema)
-                                after = schemas.ProdutoResponse.model_validate(updated_prod).model_dump()
-                                updated.append({"before": before, "after": after})
-                                continue
-                        erros.append(err)
-                if created_page:
-                    for db_produto in created_page:
-                        crud.create_registro_uso_ia(
-                            db,
-                            schemas.RegistroUsoIACreate(
-                                user_id=user_id,
-                                produto_id=db_produto.id,
-                                tipo_acao=models.TipoAcaoEnum.CRIACAO_PRODUTO,
-                                creditos_consumidos=0,
-                            ),
+                    if err.get("duplicado"):
+                        linha = err.get("linha_original", {})
+                        sku = linha.get("sku")
+                        ean = linha.get("ean")
+                        query = db.query(models.Produto).filter(
+                            models.Produto.user_id == user_id
                         )
-                        crud_historico.create_registro_historico(
-                            db,
-                            schemas.RegistroHistoricoCreate(
-                                user_id=user_id,
-                                entidade="Produto",
-                                acao=models.TipoAcaoSistemaEnum.CRIACAO,
-                                entity_id=db_produto.id,
-                            ),
-                        )
+                        if sku:
+                            query = query.filter(models.Produto.sku == sku)
+                        elif ean:
+                            query = query.filter(models.Produto.ean == ean)
+                        existing = query.first()
+                        if existing:
+                            before = schemas.ProdutoResponse.model_validate(
+                                existing
+                            ).model_dump()
+                            update_schema = schemas.ProdutoUpdate(**linha)
+                            updated_prod = crud_produtos.update_produto(
+                                db, existing, update_schema
+                            )
+                            after = schemas.ProdutoResponse.model_validate(
+                                updated_prod
+                            ).model_dump()
+                            updated.append({"before": before, "after": after})
+                            continue
+                    erros.append(err)
+
+                for db_produto in created_page:
+                    crud.create_registro_uso_ia(
+                        db,
+                        schemas.RegistroUsoIACreate(
+                            user_id=user_id,
+                            produto_id=db_produto.id,
+                            tipo_acao=models.TipoAcaoEnum.CRIACAO_PRODUTO,
+                            creditos_consumidos=0,
+                        ),
+                    )
+                    crud_historico.create_registro_historico(
+                        db,
+                        schemas.RegistroHistoricoCreate(
+                            user_id=user_id,
+                            entidade="Produto",
+                            acao=models.TipoAcaoSistemaEnum.CRIACAO,
+                            entity_id=db_produto.id,
+                        ),
+                    )
                 catalog_file.pages_processed = catalog_file.total_pages
             db.commit()
 
@@ -308,7 +329,9 @@ async def _tarefa_processar_catalogo(
     except Exception:
         logger.exception("Erro ao processar importacao de catalogo")
         if db:
-            catalog_file = db.query(models.CatalogImportFile).filter_by(id=file_id).first()
+            catalog_file = (
+                db.query(models.CatalogImportFile).filter_by(id=file_id).first()
+            )
             if catalog_file:
                 catalog_file.status = "FAILED"
                 db.commit()
@@ -385,10 +408,14 @@ def list_catalog_import_files(
     db: Session = Depends(database.get_db),
     fornecedor_id: Optional[int] = Query(None, description="ID do fornecedor"),
     skip: int = Query(0, ge=0, description="Número de itens para pular"),
-    limit: int = Query(10, ge=1, le=100, description="Número máximo de itens por página"),
+    limit: int = Query(
+        10, ge=1, le=100, description="Número máximo de itens por página"
+    ),
     current_user: models.User = Depends(auth_utils.get_current_active_user),
 ):
-    query = db.query(models.CatalogImportFile).filter(models.CatalogImportFile.user_id == current_user.id)
+    query = db.query(models.CatalogImportFile).filter(
+        models.CatalogImportFile.user_id == current_user.id
+    )
     if fornecedor_id is not None:
         query = query.filter(models.CatalogImportFile.fornecedor_id == fornecedor_id)
     total_items = query.count()
@@ -473,8 +500,6 @@ async def reprocess_catalog_import_file(
     )
 
     return {"status": "PROCESSING", "file_id": file_id}
-
-
 
 
 @router.get("/{produto_id}", response_model=schemas.ProdutoResponse)  # CORRIGIDO AQUI
@@ -962,7 +987,11 @@ async def importar_catalogo_fornecedor(
                     entity_id=db_produto.id,
                 ),
             )
-    return {"produtos_criados": created, "produtos_atualizados": updated, "erros": erros}
+    return {
+        "produtos_criados": created,
+        "produtos_atualizados": updated,
+        "erros": erros,
+    }
 
 
 @router.post(
@@ -996,7 +1025,9 @@ async def importar_catalogo_finalizar(
 
     db_session_factory = sessionmaker(bind=db.get_bind())
     # Sempre reprocessa o arquivo completo para evitar importar apenas as linhas de preview
-    file_path = Path(settings.UPLOAD_DIRECTORY) / "catalogs" / catalog_file.stored_filename
+    file_path = (
+        Path(settings.UPLOAD_DIRECTORY) / "catalogs" / catalog_file.stored_filename
+    )
     if not file_path.is_absolute():
         file_path = Path(__file__).resolve().parent.parent / file_path
     if not file_path.exists():
@@ -1088,7 +1119,9 @@ def importar_catalogo_result(
     return record.result_summary
 
 
-@router.post("/importar-catalogo-finalizar/", response_model=schemas.CatalogImportResult)
+@router.post(
+    "/importar-catalogo-finalizar/", response_model=schemas.CatalogImportResult
+)
 async def importar_catalogo_finalizar_todas_paginas(
     file_id: int = Body(..., embed=True),
     start_page: int = Body(1, embed=True),
@@ -1142,8 +1175,6 @@ async def importar_catalogo_finalizar_todas_paginas(
 
     db.refresh(record)
     return record.result_summary
-
-
 
 
 @router.post(
