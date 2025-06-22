@@ -757,7 +757,7 @@ def get_file_path_by_id(db: Session, file_id: str) -> str:
         return None
 
     base_dir = os.path.join("Backend", "static", "uploads", "catalogs")
-    return os.path.join(base_dir, import_file.file_name)
+    return os.path.join(base_dir, import_file.stored_filename)
 
 
 def extract_data_from_pdf_region(
