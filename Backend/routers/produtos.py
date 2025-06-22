@@ -92,6 +92,8 @@ async def _tarefa_processar_catalogo(
             db.commit()
             page_list = pages or list(range(1, total + 1))
             for page in page_list:
+                page_created: List[models.Produto] = []
+                page_updated: List[models.Produto] = []
                 produtos_data = await file_processing_service.processar_arquivo_pdf(
                     content,
                     mapeamento_colunas_usuario=mapping,
@@ -149,25 +151,26 @@ async def _tarefa_processar_catalogo(
                                 updated.append({"before": before, "after": after})
                                 continue
                         erros.append(err)
-                for db_produto in page_created:
-                    crud.create_registro_uso_ia(
-                        db,
-                        schemas.RegistroUsoIACreate(
-                            user_id=user_id,
-                            produto_id=db_produto.id,
-                            tipo_acao=models.TipoAcaoEnum.CRIACAO_PRODUTO,
-                            creditos_consumidos=0,
-                        ),
-                    )
-                    crud_historico.create_registro_historico(
-                        db,
-                        schemas.RegistroHistoricoCreate(
-                            user_id=user_id,
-                            entidade="Produto",
-                            acao=models.TipoAcaoSistemaEnum.CRIACAO,
-                            entity_id=db_produto.id,
-                        ),
-                    )
+                    if page_created:
+                        for db_produto in page_created:
+                            crud.create_registro_uso_ia(
+                                db,
+                                schemas.RegistroUsoIACreate(
+                                    user_id=user_id,
+                                    produto_id=db_produto.id,
+                                    tipo_acao=models.TipoAcaoEnum.CRIACAO_PRODUTO,
+                                    creditos_consumidos=0,
+                                ),
+                            )
+                            crud_historico.create_registro_historico(
+                                db,
+                                schemas.RegistroHistoricoCreate(
+                                    user_id=user_id,
+                                    entidade="Produto",
+                                    acao=models.TipoAcaoSistemaEnum.CRIACAO,
+                                    entity_id=db_produto.id,
+                                ),
+                            )
                     produtos_create = []
                 catalog_file.pages_processed += 1
                 db.commit()
@@ -191,6 +194,9 @@ async def _tarefa_processar_catalogo(
                 catalog_file.status = "FAILED"
                 db.commit()
                 return
+            page_created: List[models.Produto] = []
+            page_updated: List[models.Produto] = []
+
             for prod in produtos_data:
                 if isinstance(prod, dict) and (
                     prod.get("motivo_descarte")
@@ -240,44 +246,46 @@ async def _tarefa_processar_catalogo(
                                 updated.append({"before": before, "after": after})
                                 continue
                         erros.append(err)
-                for db_produto in page_created:
-                    if err.get("duplicado"):
-                        linha = err.get("linha_original", {})
-                        sku = linha.get("sku")
-                        ean = linha.get("ean")
-                        query = db.query(models.Produto).filter(models.Produto.user_id == user_id)
-                        if sku:
-                            query = query.filter(models.Produto.sku == sku)
-                        elif ean:
-                            query = query.filter(models.Produto.ean == ean)
-                        existing = query.first()
-                        if existing:
-                            before = schemas.ProdutoResponse.model_validate(existing).model_dump()
-                            update_schema = schemas.ProdutoUpdate(**linha)
-                            updated_prod = crud_produtos.update_produto(db, existing, update_schema)
-                            after = schemas.ProdutoResponse.model_validate(updated_prod).model_dump()
-                            updated.append({"before": before, "after": after})
-                            continue
-                    erros.append(err)
-                for db_produto in created_page:
-                    crud.create_registro_uso_ia(
-                        db,
-                        schemas.RegistroUsoIACreate(
-                            user_id=user_id,
-                            produto_id=db_produto.id,
-                            tipo_acao=models.TipoAcaoEnum.CRIACAO_PRODUTO,
-                            creditos_consumidos=0,
-                        ),
-                    )
-                    crud_historico.create_registro_historico(
-                        db,
-                        schemas.RegistroHistoricoCreate(
-                            user_id=user_id,
-                            entidade="Produto",
-                            acao=models.TipoAcaoSistemaEnum.CRIACAO,
-                            entity_id=db_produto.id,
-                        ),
-                    )
+                if page_created:
+                    for db_produto in page_created:
+                        if err.get("duplicado"):
+                            linha = err.get("linha_original", {})
+                            sku = linha.get("sku")
+                            ean = linha.get("ean")
+                            query = db.query(models.Produto).filter(models.Produto.user_id == user_id)
+                            if sku:
+                                query = query.filter(models.Produto.sku == sku)
+                            elif ean:
+                                query = query.filter(models.Produto.ean == ean)
+                            existing = query.first()
+                            if existing:
+                                before = schemas.ProdutoResponse.model_validate(existing).model_dump()
+                                update_schema = schemas.ProdutoUpdate(**linha)
+                                updated_prod = crud_produtos.update_produto(db, existing, update_schema)
+                                after = schemas.ProdutoResponse.model_validate(updated_prod).model_dump()
+                                updated.append({"before": before, "after": after})
+                                continue
+                        erros.append(err)
+                if created_page:
+                    for db_produto in created_page:
+                        crud.create_registro_uso_ia(
+                            db,
+                            schemas.RegistroUsoIACreate(
+                                user_id=user_id,
+                                produto_id=db_produto.id,
+                                tipo_acao=models.TipoAcaoEnum.CRIACAO_PRODUTO,
+                                creditos_consumidos=0,
+                            ),
+                        )
+                        crud_historico.create_registro_historico(
+                            db,
+                            schemas.RegistroHistoricoCreate(
+                                user_id=user_id,
+                                entidade="Produto",
+                                acao=models.TipoAcaoSistemaEnum.CRIACAO,
+                                entity_id=db_produto.id,
+                            ),
+                        )
                 catalog_file.pages_processed = catalog_file.total_pages
             db.commit()
 
