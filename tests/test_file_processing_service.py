@@ -42,7 +42,7 @@ async def test_pdf_pages_to_images_returns_base64():
     c.save()
     pdf_bytes = buf.getvalue()
 
-    images = await file_processing_service.pdf_pages_to_images(pdf_bytes, max_pages=1)
+    images = await file_processing_service.pdf_bytes_to_images(pdf_bytes, max_pages=1)
     assert len(images) == 1
     decoded = base64.b64decode(images[0])
     assert decoded.startswith(b"\x89PNG")

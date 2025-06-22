@@ -659,6 +659,41 @@ async def gerar_preview(
     raise ValueError("Formato de arquivo não suportado para preview")
 
 
+async def pdf_bytes_to_images(
+    conteudo_arquivo: bytes,
+    max_pages: int = 1,
+    start_page: int = 1,
+    dpi: int = 200,
+) -> List[str]:
+    """Convert PDF bytes to base64 encoded PNG images."""
+
+    loop = asyncio.get_running_loop()
+
+    def _convert() -> List[str]:
+        poppler_dir = os.getenv("POPPLER_PATH") or settings.POPPLER_PATH
+        kwargs = {"poppler_path": poppler_dir} if poppler_dir else {}
+
+        last_page = None if max_pages == 0 else start_page + max_pages - 1
+
+        images = convert_from_bytes(
+            conteudo_arquivo,
+            first_page=start_page,
+            last_page=last_page,
+            dpi=dpi,
+            fmt="png",
+            **kwargs,
+        )
+
+        result: List[str] = []
+        for img in images:
+            buf = io.BytesIO()
+            img.save(buf, format="PNG")
+            result.append(base64.b64encode(buf.getvalue()).decode())
+        return result
+
+    return await loop.run_in_executor(None, _convert)
+
+
 def pdf_pages_to_images(db: Session, file: UploadFile, fornecedor_id: int, user_id: int, offset: int, limit: int) -> Dict[str, Any]:
     """
     Salva um ficheiro PDF, cria um registo na base de dados, e converte um lote de páginas em imagens.
