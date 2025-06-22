@@ -1,7 +1,11 @@
 FROM python:3.11-slim
 WORKDIR /app
 COPY requirements-backend.txt .
-RUN pip install --no-cache-dir -r requirements-backend.txt
+# install poppler-utils for pdftoppm
+RUN apt-get update && \
+    apt-get install -y poppler-utils && \
+    pip install --no-cache-dir -r requirements-backend.txt && \
+    apt-get clean && rm -rf /var/lib/apt/lists/*
 COPY . .
 ENV FIRST_SUPERUSER_EMAIL="admin@example.com" \
     FIRST_SUPERUSER_PASSWORD="adminpass" \

@@ -7,7 +7,7 @@
 
 ## Dependência para pré-visualização de PDF
 
-* A geração de previews de PDF depende do pacote `poppler-utils` instalado no sistema (por exemplo, `apt install poppler-utils`). Sem ele o backend não consegue converter PDFs em imagens, e o frontend não exibirá a pré-visualização do arquivo.
+* A geração de previews de PDF depende do pacote `poppler-utils` instalado no sistema (por exemplo, `apt install poppler-utils`). Sem ele o backend não consegue converter PDFs em imagens, o frontend não exibirá a pré-visualização do arquivo e os testes relacionados a PDF irão falhar.
 
 ### Poppler no Windows
 

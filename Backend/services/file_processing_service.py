@@ -12,6 +12,7 @@ from concurrent.futures import ThreadPoolExecutor
 from pdf2image import convert_from_bytes, convert_from_path
 import time
 from typing import List, Dict, Any, Union, Optional
+import shutil
 from pathlib import Path
 from uuid import uuid4
 from fastapi import UploadFile, HTTPException
@@ -541,6 +542,12 @@ async def preview_arquivo_pdf(
 
     start = time.perf_counter()
 
+    poppler_dir = os.getenv("POPPLER_PATH") or settings.POPPLER_PATH
+    if shutil.which("pdftoppm", path=poppler_dir) is None:
+        msg = "Poppler pdftoppm executable not found. Install poppler-utils or set POPPLER_PATH."
+        logger.error(msg)
+        return {"error": msg}
+
     try:
         with pdf_open(io.BytesIO(conteudo_arquivo)) as reader:
             num_pages = len(reader.pages)
@@ -674,6 +681,12 @@ def pdf_pages_to_images(db: Session, file: UploadFile, fornecedor_id: int, user_
     
     catalogs_dir.mkdir(parents=True, exist_ok=True)
     previews_dir.mkdir(parents=True, exist_ok=True)
+
+    poppler_dir = os.getenv("POPPLER_PATH") or settings.POPPLER_PATH
+    if shutil.which("pdftoppm", path=poppler_dir) is None:
+        msg = "Poppler pdftoppm executable not found. Install poppler-utils or set POPPLER_PATH."
+        logger.error(msg)
+        raise HTTPException(status_code=500, detail=msg)
     
     random_filename = f"{uuid.uuid4().hex}.pdf"
     file_location = catalogs_dir / random_filename
