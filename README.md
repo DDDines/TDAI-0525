@@ -489,6 +489,7 @@ obsoleto. Opcionalmente podem ser informados `offset` e `limit` para paginação
 1. **Pré-visualizar** – envie o arquivo pelo endpoint
    `POST /fornecedores/{fornecedor_id}/preview-pdf`. A resposta traz o
    `import_file_id` (inteiro) e miniaturas das páginas.
+   `import_file_id` e miniaturas das páginas.
 2. **Selecionar região** – utilize
    `GET /fornecedores/import/extract-page-data` informando `file_id=<import_file_id>`
    e `page_number` para obter colunas e linhas de amostra.

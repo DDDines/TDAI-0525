@@ -47,8 +47,8 @@ describe('ImportCatalogWizard', () => {
 
   test('generates preview', async () => {
     fornecedorService.uploadForPagePreview.mockResolvedValue({
-      file_id: 1,
-      page_image_urls: ['a', 'b'],
+      fileId: 1,
+      image_urls: ['a', 'b'],
     });
 
     render(<ImportCatalogWizard fornecedor={{ id: 1 }} onClose={() => {}} />);
@@ -60,7 +60,7 @@ describe('ImportCatalogWizard', () => {
     await userEvent.upload(fileInput, file);
     await userEvent.click(screen.getByText('Gerar Preview'));
 
-    expect(fornecedorService.uploadForPagePreview).toHaveBeenCalledWith(file);
+    expect(fornecedorService.uploadForPagePreview).toHaveBeenCalledWith(file, 1);
     await screen.findByAltText('Página 1');
   });
 });

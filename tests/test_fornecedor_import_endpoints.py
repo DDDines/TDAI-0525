@@ -52,7 +52,7 @@ def test_preview_pages():
     headers = get_admin_headers()
     csv_content = "nome,sku\nA,1\n"
     files = {"file": ("catalog.csv", io.BytesIO(csv_content.encode()), "text/csv")}
-    resp = client.post("/api/v1/fornecedores/import/preview-pages", files=files, headers=headers)
+    resp = client.post("/api/v1/fornecedores/1/preview-pdf", files=files, headers=headers)
     assert resp.status_code < 500
 
 
