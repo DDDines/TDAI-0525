@@ -6,7 +6,6 @@ import logging
 from sqlalchemy import engine_from_config
 from sqlalchemy import pool
 from alembic import context
-from Backend.models import Base
 
 # Initialize logger for this module
 logger = logging.getLogger(__name__)
