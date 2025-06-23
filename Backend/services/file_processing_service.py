@@ -1121,6 +1121,7 @@ def generate_pdf_page_images(file_path: str, file_id: str) -> List[str]:
 
 def extract_pdf_region_image(file_path: str, page_number: int, region: Optional[List[float]] = None, dpi: int = 300) -> bytes:
     """Return PNG bytes for a specific region of a PDF page."""
+    logger.debug("Recebendo coordenadas: %s", region)
     with pdfplumber.open(file_path) as pdf:
         if not (1 <= page_number <= len(pdf.pages)):
             raise ValueError(
@@ -1129,6 +1130,7 @@ def extract_pdf_region_image(file_path: str, page_number: int, region: Optional[
         page = pdf.pages[page_number - 1]
         page_to_process = page
         if region and len(region) == 4:
+            logger.debug("Recortando imagem")
             bbox = tuple(map(float, region))
             page_to_process = page.crop(bbox)
         page_image = page_to_process.to_image(resolution=dpi)
@@ -1139,42 +1141,47 @@ def extract_pdf_region_image(file_path: str, page_number: int, region: Optional[
 
 def parse_annotation_to_dataframe(annotation: object, vertical_tolerance: int = 5) -> pd.DataFrame:
     """Parse OCR annotation with geometry into a structured DataFrame."""
-    words: List[Dict[str, Any]] = []
-    for page in getattr(annotation, "pages", []):
-        for block in getattr(page, "blocks", []):
-            for paragraph in getattr(block, "paragraphs", []):
-                for word in getattr(paragraph, "words", []):
-                    text = "".join([s.text for s in getattr(word, "symbols", [])])
-                    vertices = getattr(word.bounding_box, "vertices", [])
-                    xs = [v.x for v in vertices]
-                    ys = [v.y for v in vertices]
-                    x_min = min(xs) if xs else 0
-                    y_min = min(ys) if ys else 0
-                    words.append({"text": text, "x": x_min, "y": y_min})
-    if not words:
-        return pd.DataFrame()
-    words.sort(key=lambda w: w["y"])
-    lines: List[List[Dict[str, Any]]] = []
-    for w in words:
-        if lines and abs(w["y"] - lines[-1][0]["y"]) <= vertical_tolerance:
-            lines[-1].append(w)
-        else:
-            lines.append([w])
-    for line in lines:
-        line.sort(key=lambda w: w["x"])
-    x_positions = sorted({w["x"] for line in lines for w in line})
-    column_boundaries: List[int] = []
-    x_tol = 20
-    for x in x_positions:
-        if not column_boundaries or abs(x - column_boundaries[-1]) > x_tol:
-            column_boundaries.append(x)
-    rows: List[List[str]] = []
-    for line in lines:
-        row = ["" for _ in column_boundaries]
-        for w in line:
-            col_idx = min(range(len(column_boundaries)), key=lambda i: abs(w["x"] - column_boundaries[i]))
-            row[col_idx] = (row[col_idx] + " " + w["text"]).strip()
-        rows.append(row)
-    columns = [f"col_{i+1}" for i in range(len(column_boundaries))]
-    return pd.DataFrame(rows, columns=columns)
+    logger.debug("Iniciando análise do texto")
+    try:
+        words: List[Dict[str, Any]] = []
+        for page in getattr(annotation, "pages", []):
+            for block in getattr(page, "blocks", []):
+                for paragraph in getattr(block, "paragraphs", []):
+                    for word in getattr(paragraph, "words", []):
+                        text = "".join([s.text for s in getattr(word, "symbols", [])])
+                        vertices = getattr(word.bounding_box, "vertices", [])
+                        xs = [v.x for v in vertices]
+                        ys = [v.y for v in vertices]
+                        x_min = min(xs) if xs else 0
+                        y_min = min(ys) if ys else 0
+                        words.append({"text": text, "x": x_min, "y": y_min})
+        if not words:
+            return pd.DataFrame()
+        words.sort(key=lambda w: w["y"])
+        lines: List[List[Dict[str, Any]]] = []
+        for w in words:
+            if lines and abs(w["y"] - lines[-1][0]["y"]) <= vertical_tolerance:
+                lines[-1].append(w)
+            else:
+                lines.append([w])
+        for line in lines:
+            line.sort(key=lambda w: w["x"])
+        x_positions = sorted({w["x"] for line in lines for w in line})
+        column_boundaries: List[int] = []
+        x_tol = 20
+        for x in x_positions:
+            if not column_boundaries or abs(x - column_boundaries[-1]) > x_tol:
+                column_boundaries.append(x)
+        rows: List[List[str]] = []
+        for line in lines:
+            row = ["" for _ in column_boundaries]
+            for w in line:
+                col_idx = min(range(len(column_boundaries)), key=lambda i: abs(w["x"] - column_boundaries[i]))
+                row[col_idx] = (row[col_idx] + " " + w["text"]).strip()
+            rows.append(row)
+        columns = [f"col_{i+1}" for i in range(len(column_boundaries))]
+        return pd.DataFrame(rows, columns=columns)
+    except Exception as e:
+        logger.exception("Falha ao processar texto extraído")
+        raise HTTPException(status_code=500, detail="Ocorreu um erro durante a extração de dados.") from e
 
