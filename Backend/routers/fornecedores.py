@@ -28,6 +28,7 @@ from Backend import models
 from Backend import schemas
 from Backend import crud_historico
 from Backend import database
+from Backend.services import file_processing_service, web_data_extractor_service
 from Backend.services import file_processing_service
 from Backend.tasks import process_pdf_extraction_task
 from . import auth_utils  # Para obter o usuário
@@ -323,11 +324,13 @@ def preview_catalog_from_region(
             status_code=404, detail="Arquivo de catálogo não encontrado"
         )
 
-    df = file_processing_service.extract_data_from_pdf_region(
+    image_bytes = file_processing_service.extract_pdf_region_image(
         file_path=file_path,
         page_number=preview_request.page_number,
         region=preview_request.region,
     )
+    annotation = web_data_extractor_service.extract_text_from_image_region(image_bytes)
+    df = file_processing_service.parse_annotation_to_dataframe(annotation)
 
     if df.empty:
         raise HTTPException(
