@@ -4,6 +4,8 @@ import React, { useState } from 'react';
 import * as fornecedorService from '../../services/fornecedorService';
 import LoadingPopup from '../common/LoadingPopup';
 import ColumnMappingModal from '../common/ColumnMappingModal.jsx';
+import PdfRegionSelector from '../common/PdfRegionSelector.jsx';
+import Modal from '../common/Modal.jsx';
 import ImportProgress from './ImportProgress.jsx';
 import getBackendBaseUrl from '../../utils/backend.js';
 
@@ -29,6 +31,12 @@ const ImportCatalogWizard = ({ fornecedor, onClose }) => {
   const [showMappingModal, setShowMappingModal] = useState(false);
   const [mapping, setMapping] = useState(null);
 
+  const [showRegionModal, setShowRegionModal] = useState(false);
+  const [regionPreview, setRegionPreview] = useState(null);
+  const [regionError, setRegionError] = useState('');
+  const [currentPage, setCurrentPage] = useState(null);
+  const [pdfBytes, setPdfBytes] = useState(null);
+
   const backendBaseUrl = getBackendBaseUrl();
 
   const handleFileChange = (e) => {
@@ -48,9 +56,12 @@ const ImportCatalogWizard = ({ fornecedor, onClose }) => {
     setLoadingMessage('A gerar pré-visualização inicial...');
     setError('');
     try {
-      const response = await fornecedorService.uploadForPagePreview(selectedFile);
-      setFileId(response.file_id);
-      setPageImages(response.page_image_urls || []);
+      const response = await fornecedorService.uploadForPagePreview(
+        selectedFile,
+        fornecedor.id,
+      );
+      setFileId(response.fileId);
+      setPageImages(response.image_urls || []);
       setStep('select_page');
     } catch (err) {
       const detail = err.response?.data?.detail || err.message;
@@ -62,33 +73,44 @@ const ImportCatalogWizard = ({ fornecedor, onClose }) => {
 
 
   const handlePageClick = async (page) => {
+    if (!fileId || !selectedFile) return;
+    const buffer = await selectedFile.arrayBuffer();
+    setPdfBytes(new Uint8Array(buffer));
+    setCurrentPage(page);
+    setRegionPreview(null);
+    setRegionError('');
+    setShowRegionModal(true);
+  };
+
+  const handleRegionSelect = async ({ page, bbox }) => {
     if (!fileId) return;
     setLoading(true);
-    setLoadingMessage('Extraindo dados da página...');
+    setLoadingMessage('Extraindo região selecionada...');
     try {
-      const data = await fornecedorService.fetchPageDataForMapping(fileId, page);
-      if (data.table && data.table.length > 0) {
-        const headers = data.table[0].map((h) => String(h));
-        const rows = data.table.slice(1).map((r) => {
-          const obj = {};
-          headers.forEach((h, idx) => {
-            obj[h] = r[idx];
-          });
-          return obj;
-        });
-        setMappingHeaders(headers);
-        setMappingRows(rows.slice(0, 5));
-      } else {
-        setMappingHeaders([]);
-        setMappingRows([]);
-      }
-      setShowMappingModal(true);
+      const data = await fornecedorService.selecionarRegiao({
+        fileId,
+        pageNumber: page,
+        bbox,
+      });
+      const headers = data.columns.map((h) => String(h));
+      setRegionPreview({
+        headers,
+        rows: data.data,
+      });
     } catch (err) {
       const detail = err.response?.data?.detail || err.message;
-      setError(`Erro: ${detail}`);
+      setRegionError(`Erro: ${detail}`);
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleUseRegion = () => {
+    if (!regionPreview) return;
+    setShowRegionModal(false);
+    setMappingHeaders(regionPreview.headers);
+    setMappingRows(regionPreview.rows.slice(0, 5));
+    setShowMappingModal(true);
   };
 
   const handleConfirmMapping = async (map) => {
@@ -156,6 +178,48 @@ const ImportCatalogWizard = ({ fornecedor, onClose }) => {
       )}
 
       {step === 'review' && <p>Processamento concluído. Revise os dados.</p>}
+
+      <Modal
+        isOpen={showRegionModal}
+        onClose={() => setShowRegionModal(false)}
+        title="Selecione a região da tabela"
+      >
+        {pdfBytes && (
+          <PdfRegionSelector
+            file={pdfBytes}
+            onSelect={handleRegionSelect}
+            initialPage={currentPage}
+          />
+        )}
+        {regionError && (
+          <p style={{ color: 'red', marginTop: '0.5em' }}>{regionError}</p>
+        )}
+        {regionPreview && (
+          <div style={{ marginTop: '1em' }}>
+            <table className="preview-table">
+              <thead>
+                <tr>
+                  {regionPreview.headers.map((h) => (
+                    <th key={h}>{h}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {regionPreview.rows.slice(0, 5).map((row, idx) => (
+                  <tr key={idx}>
+                    {regionPreview.headers.map((h) => (
+                      <td key={h}>{row[h]}</td>
+                    ))}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            <button type="button" onClick={handleUseRegion} style={{ marginTop: '0.5em' }}>
+              Usar Esta Região
+            </button>
+          </div>
+        )}
+      </Modal>
 
       <ColumnMappingModal
         isOpen={showMappingModal}

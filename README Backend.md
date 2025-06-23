@@ -262,8 +262,12 @@ os.cpu_count() + 4)`` se nenhuma outra configuração for informada.
 
 ### Fluxo completo de importação de PDF
 
-1. **Pré-visualização** – `POST /fornecedores/import/preview-pages` salva o arquivo e retorna `file_id` com miniaturas das páginas.
+1. **Pré-visualização** – `POST /fornecedores/{fornecedor_id}/preview-pdf` salva o arquivo e retorna `import_file_id` (inteiro) com miniaturas das páginas. O endpoint antigo `/fornecedores/import/preview-pages` está obsoleto.
+2. **Seleção de região** – `GET /fornecedores/import/extract-page-data` usa `file_id=<import_file_id>` e `page_number` para identificar colunas e amostras de uma página.
+
+1. **Pré-visualização** – `POST /fornecedores/{fornecedor_id}/preview-pdf` salva o arquivo e retorna `import_file_id` com miniaturas das páginas.
 2. **Seleção de região** – `GET /fornecedores/import/extract-page-data` usa `file_id` e `page_number` para identificar colunas e amostras de uma página.
+
 3. **Finalização** – `POST /fornecedores/import/process-full-catalog` processa o PDF por completo usando o mapeamento definido.
 4. **Acompanhamento** – `GET /fornecedores/import/progress/{job_id}` e `GET /fornecedores/import/review/{job_id}` permitem consultar o progresso e o resumo da importação.
 

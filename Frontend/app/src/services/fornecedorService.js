@@ -227,12 +227,16 @@ export const getImportacaoResult = async (fileId) => {
 // -------- NOVAS FUNÇÕES ---------
 
 // Envia um PDF e obtém imagens de todas as páginas
-export const uploadForPagePreview = async (file) => {
+export const uploadForPagePreview = async (file, fornecedorId) => {
   try {
     const formData = new FormData();
     formData.append('file', file);
-    const response = await apiClient.post('/fornecedores/import/preview-pages', formData);
-    return response.data;
+    const response = await apiClient.post(
+      `/fornecedores/${fornecedorId}/preview-pdf`,
+      formData,
+    );
+    const { import_file_id, image_urls } = response.data;
+    return { fileId: import_file_id, image_urls };
   } catch (error) {
     console.error(
       'Erro ao enviar arquivo para preview de páginas:',
@@ -298,6 +302,28 @@ export const getImportProgress = async (jobId) => {
   }
 };
 
+// Pré-visualiza os dados contidos em uma região específica do PDF
+export const selecionarRegiao = async ({ fileId, pageNumber, bbox }) => {
+  try {
+    const payload = {
+      file_id: fileId,
+      page_number: pageNumber,
+      region: bbox,
+    };
+    const response = await apiClient.post('/fornecedores/preview-catalog-region', payload);
+    return response.data;
+  } catch (error) {
+    console.error(
+      'Erro ao pré-visualizar região do catálogo:',
+      JSON.stringify(error.response?.data || error.message || error),
+    );
+    if (error.response && error.response.data) {
+      throw error.response.data;
+    }
+    throw new Error(error.message || 'Falha ao pré-visualizar região do catálogo');
+  }
+};
+
 // Obtém os dados para revisão após o processamento
 export const getReviewData = async (jobId, params = {}) => {
   try {
@@ -351,4 +377,5 @@ export default {
   getImportProgress,
   getReviewData,
   commitImport,
+  selecionarRegiao,
 };
