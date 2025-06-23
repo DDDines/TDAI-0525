@@ -480,20 +480,23 @@ Esses identificadores serão anexados a todos os produtos extraídos do arquivo.
 
 Para gerar um preview das páginas de um PDF antes da importação utilize
 `POST /fornecedores/{fornecedor_id}/preview-pdf` enviando o arquivo em
-`multipart/form-data` e, opcionalmente, os parâmetros `offset` e `limit` para
-paginação.
+`multipart/form-data`. A resposta inclui `import_file_id` (inteiro) e miniaturas
+das páginas. O endpoint antigo `/fornecedores/import/preview-pages` está
+obsoleto. Opcionalmente podem ser informados `offset` e `limit` para paginação.
 
 #### Processo de importação de PDF em quatro etapas
 
 1. **Pré-visualizar** – envie o arquivo pelo endpoint
    `POST /fornecedores/{fornecedor_id}/preview-pdf`. A resposta traz o
+   `import_file_id` (inteiro) e miniaturas das páginas.
    `import_file_id` e miniaturas das páginas.
 2. **Selecionar região** – utilize
-   `GET /fornecedores/import/extract-page-data` informando `file_id` e
-   `page_number` para obter colunas e linhas de amostra.
+   `GET /fornecedores/import/extract-page-data` informando `file_id=<import_file_id>`
+   e `page_number` para obter colunas e linhas de amostra.
 3. **Finalizar** – confirme o processamento com
-   `POST /fornecedores/import/process-full-catalog`, enviando o `file_id`,
-   `fornecedor_id` e `tipo_produto_id`.
+   `POST /fornecedores/import/process-full-catalog`, enviando o `file_id`
+   (o mesmo `import_file_id` da etapa anterior), `fornecedor_id` e
+   `tipo_produto_id`.
 4. **Acompanhar** – consulte `GET /fornecedores/import/progress/{job_id}` ou
    `GET /fornecedores/import/review/{job_id}` para verificar o status e o resumo
    final da importação.
