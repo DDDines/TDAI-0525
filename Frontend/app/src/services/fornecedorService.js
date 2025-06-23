@@ -324,6 +324,29 @@ export const selecionarRegiao = async ({ fileId, pageNumber, bbox }) => {
   }
 };
 
+// Inicia extração em lote de uma região do PDF
+export const extractRegionBulk = async ({ fileId, bbox, pages = null, allPages = false }) => {
+  try {
+    const payload = {
+      file_id: fileId,
+      region: bbox,
+      pages,
+      all_pages: allPages,
+    };
+    const response = await apiClient.post('/fornecedores/extract_data_from_pdf_bulk', payload);
+    return response.data;
+  } catch (error) {
+    console.error(
+      'Erro ao iniciar extração em lote:',
+      JSON.stringify(error.response?.data || error.message || error),
+    );
+    if (error.response && error.response.data) {
+      throw error.response.data;
+    }
+    throw new Error(error.message || 'Falha ao iniciar extração em lote');
+  }
+};
+
 // Obtém os dados para revisão após o processamento
 export const getReviewData = async (jobId, params = {}) => {
   try {
@@ -378,4 +401,5 @@ export default {
   getReviewData,
   commitImport,
   selecionarRegiao,
+  extractRegionBulk,
 };

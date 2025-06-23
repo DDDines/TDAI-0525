@@ -728,6 +728,13 @@ class CatalogRegionPreviewRequest(BaseModel):
     region: Optional[List[float]] = None
 
 
+class PdfRegionBulkRequest(BaseModel):
+    file_id: int
+    region: List[float]
+    pages: Optional[List[int]] = None
+    all_pages: Optional[bool] = False
+
+
 class CatalogPreview(BaseModel):
     columns: List[str]
     data: List[Dict[str, Any]]
@@ -753,3 +760,4 @@ UserActivity.model_rebuild()
 SocialLoginConfig.model_rebuild()
 PdfPreviewResponse.model_rebuild()
 CatalogPreview.model_rebuild()
+PdfRegionBulkRequest.model_rebuild()

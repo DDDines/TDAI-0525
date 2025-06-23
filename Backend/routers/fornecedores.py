@@ -340,6 +340,38 @@ def preview_catalog_from_region(
     return schemas.CatalogPreview(columns=columns, data=sample_data)
 
 
+@router.post("/extract_data_from_pdf_bulk", status_code=status.HTTP_202_ACCEPTED)
+def extract_data_from_pdf_bulk(
+    background_tasks: BackgroundTasks,
+    request: schemas.PdfRegionBulkRequest,
+    db: Session = Depends(database.get_db),
+    current_user: models.User = Depends(auth_utils.get_current_active_user),
+):
+    """Inicia a extração de uma região do PDF em várias páginas."""
+    file_path = file_processing_service.get_file_path_by_id(db, file_id=request.file_id)
+    if not file_path:
+        raise HTTPException(status_code=404, detail="Arquivo de catálogo não encontrado")
+
+    import pdfplumber
+    with pdfplumber.open(file_path) as pdf:
+        total_pages = len(pdf.pages)
+
+    pages = request.pages
+    if request.all_pages or not pages:
+        pages = list(range(1, total_pages + 1))
+
+    for pg in pages:
+        if 1 <= pg <= total_pages:
+            background_tasks.add_task(
+                file_processing_service.extract_data_from_pdf_region,
+                file_path=file_path,
+                page_number=pg,
+                region=request.region,
+            )
+
+    return {"detail": "Batch processing started", "total_pages": total_pages}
+
+
 # Endpoint para consultar progresso de importação de catálogo
 @router.get("/import/progress/{job_id}")
 def get_import_progress(

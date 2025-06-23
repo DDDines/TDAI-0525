@@ -36,6 +36,8 @@ const ImportCatalogWizard = ({ fornecedor, onClose }) => {
   const [regionError, setRegionError] = useState('');
   const [currentPage, setCurrentPage] = useState(null);
   const [pdfBytes, setPdfBytes] = useState(null);
+  const [applyAllPages, setApplyAllPages] = useState(false);
+  const [selectedBbox, setSelectedBbox] = useState(null);
 
   const backendBaseUrl = getBackendBaseUrl();
 
@@ -82,10 +84,12 @@ const ImportCatalogWizard = ({ fornecedor, onClose }) => {
     setShowRegionModal(true);
   };
 
-  const handleRegionSelect = async ({ page, bbox }) => {
+  const handleRegionSelect = async ({ page, bbox, applyAllPages }) => {
     if (!fileId) return;
     setLoading(true);
     setLoadingMessage('Extraindo região selecionada...');
+    setApplyAllPages(!!applyAllPages);
+    setSelectedBbox(bbox);
     try {
       const data = await fornecedorService.selecionarRegiao({
         fileId,
@@ -119,11 +123,20 @@ const ImportCatalogWizard = ({ fornecedor, onClose }) => {
     setLoading(true);
     setLoadingMessage('Iniciando processamento...');
     try {
-      const resp = await fornecedorService.startFullProcess({
-        file_id: fileId,
-        fornecedor_id: fornecedor.id,
-        mapping: map,
-      });
+      let resp;
+      if (applyAllPages) {
+        resp = await fornecedorService.extractRegionBulk({
+          fileId,
+          bbox: selectedBbox,
+          allPages: true,
+        });
+      } else {
+        resp = await fornecedorService.startFullProcess({
+          file_id: fileId,
+          fornecedor_id: fornecedor.id,
+          mapping: map,
+        });
+      }
       setJobId(resp.job_id);
       setStep('processing');
     } catch (err) {
@@ -189,6 +202,7 @@ const ImportCatalogWizard = ({ fornecedor, onClose }) => {
             file={pdfBytes}
             onSelect={handleRegionSelect}
             initialPage={currentPage}
+            onApplyAllChange={setApplyAllPages}
           />
         )}
         {regionError && (
