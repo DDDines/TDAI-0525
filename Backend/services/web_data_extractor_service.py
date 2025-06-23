@@ -415,3 +415,20 @@ async def extract_relevant_data_from_url( # <--- NOME CORRETO DA FUNÇÃO PRINCI
     db.refresh(produto, attribute_names=['fornecedor']) # Garante que o fornecedor seja carregado se o schema de resposta o incluir
     
     return produto
+
+
+def extract_text_from_image_region(image_bytes: bytes):
+    """Extract text annotation for an image region using Google Vision."""
+    try:
+        from google.cloud import vision  # type: ignore
+    except Exception as e:  # pragma: no cover - optional dependency
+        logger.error("Google Cloud Vision not available: %s", e)
+        raise
+
+    client = vision.ImageAnnotatorClient()
+    image = vision.Image(content=image_bytes)
+    response = client.document_text_detection(image=image)
+    if response.error.message:
+        raise RuntimeError(response.error.message)
+    return response.full_text_annotation
+
