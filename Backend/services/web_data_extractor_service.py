@@ -7,6 +7,7 @@ import extruct # type: ignore
 import json
 import re
 from typing import List, Dict, Optional, Any
+from fastapi import HTTPException
 from urllib.parse import urlparse
 from sqlalchemy.orm import Session # Importar Session para type hinting, se necessário
 from datetime import datetime, timezone
@@ -422,13 +423,19 @@ def extract_text_from_image_region(image_bytes: bytes):
     try:
         from google.cloud import vision  # type: ignore
     except Exception as e:  # pragma: no cover - optional dependency
-        logger.error("Google Cloud Vision not available: %s", e)
-        raise
+        logger.exception("Google Cloud Vision not available")
+        raise HTTPException(status_code=500, detail="Ocorreu um erro durante a extração de dados.") from e
 
-    client = vision.ImageAnnotatorClient()
-    image = vision.Image(content=image_bytes)
-    response = client.document_text_detection(image=image)
-    if response.error.message:
-        raise RuntimeError(response.error.message)
-    return response.full_text_annotation
+    try:
+        logger.debug("Enviando para a API de OCR")
+        client = vision.ImageAnnotatorClient()
+        image = vision.Image(content=image_bytes)
+        response = client.document_text_detection(image=image)
+        logger.debug("Recebendo resposta da API")
+        if response.error.message:
+            raise RuntimeError(response.error.message)
+        return response.full_text_annotation
+    except Exception as e:
+        logger.exception("Falha ao extrair texto da imagem")
+        raise HTTPException(status_code=500, detail="Ocorreu um erro durante a extração de dados.") from e
 
