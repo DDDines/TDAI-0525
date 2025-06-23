@@ -13,13 +13,20 @@ try {
   // Ignore errors during tests or if the worker cannot be resolved.
 }
 
-function PdfRegionSelector({ file, onSelect, initialPage = 1, onLoadError }) {
+function PdfRegionSelector({
+  file,
+  onSelect,
+  initialPage = 1,
+  onLoadError,
+  onApplyAllChange,
+}) {
   const canvasRef = useRef(null);
   const pdfDocumentRef = useRef(null);
   const [pageNum, setPageNum] = useState(initialPage);
   const startPos = useRef(null);
   const [rect, setRect] = useState(null);
   const [isDrawing, setIsDrawing] = useState(false);
+  const [applyAll, setApplyAll] = useState(false);
 
   useEffect(() => {
     setPageNum(initialPage);
@@ -102,7 +109,11 @@ function PdfRegionSelector({ file, onSelect, initialPage = 1, onLoadError }) {
 
   const handleMouseUp = () => {
     if (isDrawing && rect) {
-      onSelect({ page: pageNum, bbox: [rect.x0, rect.y0, rect.x1, rect.y1] });
+      onSelect({
+        page: pageNum,
+        bbox: [rect.x0, rect.y0, rect.x1, rect.y1],
+        applyAllPages: applyAll,
+      });
     }
     setIsDrawing(false);
     startPos.current = null;
@@ -129,6 +140,17 @@ function PdfRegionSelector({ file, onSelect, initialPage = 1, onLoadError }) {
           }}
         />
       )}
+      <label style={{ display: 'block', marginTop: '0.5em' }}>
+        <input
+          type="checkbox"
+          checked={applyAll}
+          onChange={(e) => {
+            setApplyAll(e.target.checked);
+            if (onApplyAllChange) onApplyAllChange(e.target.checked);
+          }}
+        />{' '}
+        Aplicar esta seleção a todas as páginas
+      </label>
     </div>
   );
 }
