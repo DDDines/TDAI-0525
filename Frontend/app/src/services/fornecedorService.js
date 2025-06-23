@@ -302,6 +302,28 @@ export const getImportProgress = async (jobId) => {
   }
 };
 
+// Pré-visualiza os dados contidos em uma região específica do PDF
+export const selecionarRegiao = async ({ fileId, pageNumber, bbox }) => {
+  try {
+    const payload = {
+      file_id: fileId,
+      page_number: pageNumber,
+      region: bbox,
+    };
+    const response = await apiClient.post('/fornecedores/preview-catalog-region', payload);
+    return response.data;
+  } catch (error) {
+    console.error(
+      'Erro ao pré-visualizar região do catálogo:',
+      JSON.stringify(error.response?.data || error.message || error),
+    );
+    if (error.response && error.response.data) {
+      throw error.response.data;
+    }
+    throw new Error(error.message || 'Falha ao pré-visualizar região do catálogo');
+  }
+};
+
 // Obtém os dados para revisão após o processamento
 export const getReviewData = async (jobId, params = {}) => {
   try {
@@ -355,4 +377,5 @@ export default {
   getImportProgress,
   getReviewData,
   commitImport,
+  selecionarRegiao,
 };
