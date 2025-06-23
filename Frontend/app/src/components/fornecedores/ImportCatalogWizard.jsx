@@ -48,9 +48,12 @@ const ImportCatalogWizard = ({ fornecedor, onClose }) => {
     setLoadingMessage('A gerar pré-visualização inicial...');
     setError('');
     try {
-      const response = await fornecedorService.uploadForPagePreview(selectedFile);
-      setFileId(response.file_id);
-      setPageImages(response.page_image_urls || []);
+      const response = await fornecedorService.uploadForPagePreview(
+        selectedFile,
+        fornecedor.id,
+      );
+      setFileId(response.fileId);
+      setPageImages(response.image_urls || []);
       setStep('select_page');
     } catch (err) {
       const detail = err.response?.data?.detail || err.message;

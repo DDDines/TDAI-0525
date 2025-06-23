@@ -486,8 +486,8 @@ paginação.
 #### Processo de importação de PDF em quatro etapas
 
 1. **Pré-visualizar** – envie o arquivo pelo endpoint
-   `POST /fornecedores/import/preview-pages`. A resposta traz o `file_id`
-   e miniaturas das páginas.
+   `POST /fornecedores/{fornecedor_id}/preview-pdf`. A resposta traz o
+   `import_file_id` e miniaturas das páginas.
 2. **Selecionar região** – utilize
    `GET /fornecedores/import/extract-page-data` informando `file_id` e
    `page_number` para obter colunas e linhas de amostra.
