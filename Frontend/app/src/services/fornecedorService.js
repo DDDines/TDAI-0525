@@ -227,12 +227,16 @@ export const getImportacaoResult = async (fileId) => {
 // -------- NOVAS FUNÇÕES ---------
 
 // Envia um PDF e obtém imagens de todas as páginas
-export const uploadForPagePreview = async (file) => {
+export const uploadForPagePreview = async (file, fornecedorId) => {
   try {
     const formData = new FormData();
     formData.append('file', file);
-    const response = await apiClient.post('/fornecedores/import/preview-pages', formData);
-    return response.data;
+    const response = await apiClient.post(
+      `/fornecedores/${fornecedorId}/preview-pdf`,
+      formData,
+    );
+    const { import_file_id, image_urls } = response.data;
+    return { fileId: import_file_id, image_urls };
   } catch (error) {
     console.error(
       'Erro ao enviar arquivo para preview de páginas:',
