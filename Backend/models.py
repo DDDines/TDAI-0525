@@ -511,6 +511,7 @@ class CatalogImportFile(Base):
     pages_processed = Column(Integer, nullable=False, server_default="0")
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     result_summary = Column(MutableDict.as_mutable(JSON), nullable=True)
+    resultado_json = Column(JSON, nullable=True)
 
     user = relationship("User")
     fornecedor = relationship("Fornecedor")
