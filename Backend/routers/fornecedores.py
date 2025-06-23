@@ -29,6 +29,8 @@ from Backend import schemas
 from Backend import crud_historico
 from Backend import database
 from Backend.services import file_processing_service, web_data_extractor_service
+from Backend.services import file_processing_service
+from Backend.tasks import process_pdf_extraction_task
 from . import auth_utils  # Para obter o usuário
 from Backend.core.config import settings
 from . import auth_utils  # Para obter o usuário
@@ -342,6 +344,38 @@ def preview_catalog_from_region(
     return schemas.CatalogPreview(columns=columns, data=sample_data)
 
 
+@router.post("/extract_data_from_pdf_bulk", status_code=status.HTTP_202_ACCEPTED)
+def extract_data_from_pdf_bulk(
+    background_tasks: BackgroundTasks,
+    request: schemas.PdfRegionBulkRequest,
+    db: Session = Depends(database.get_db),
+    current_user: models.User = Depends(auth_utils.get_current_active_user),
+):
+    """Inicia a extração de uma região do PDF em várias páginas."""
+    file_path = file_processing_service.get_file_path_by_id(db, file_id=request.file_id)
+    if not file_path:
+        raise HTTPException(status_code=404, detail="Arquivo de catálogo não encontrado")
+
+    import pdfplumber
+    with pdfplumber.open(file_path) as pdf:
+        total_pages = len(pdf.pages)
+
+    pages = request.pages
+    if request.all_pages or not pages:
+        pages = list(range(1, total_pages + 1))
+
+    for pg in pages:
+        if 1 <= pg <= total_pages:
+            background_tasks.add_task(
+                file_processing_service.extract_data_from_pdf_region,
+                file_path=file_path,
+                page_number=pg,
+                region=request.region,
+            )
+
+    return {"detail": "Batch processing started", "total_pages": total_pages}
+
+
 # Endpoint para consultar progresso de importação de catálogo
 @router.get("/import/progress/{job_id}")
 def get_import_progress(
@@ -435,14 +469,15 @@ async def process_full_catalog(
     return {"job_id": job.id, "status": "PROCESSING"}
 
 
-@router.get("/import/extract-page-data", response_model=schemas.CatalogPreview)
+@router.get("/import/extract-page-data", status_code=status.HTTP_202_ACCEPTED)
 def extract_page_data(
+    background_tasks: BackgroundTasks,
     file_id: int = Query(..., description="ID do arquivo importado"),
     page_number: int = Query(..., ge=1, description="Número da página a extrair"),
     db: Session = Depends(database.get_db),
     current_user: models.User = Depends(auth_utils.get_current_active_user),
 ):
-    """Extrai dados tabulares de uma única página de um catálogo PDF armazenado."""
+    """Agenda a extração de dados de uma página de um catálogo PDF."""
 
     record = (
         db.query(models.CatalogImportFile)
@@ -452,22 +487,14 @@ def extract_page_data(
     if not record:
         raise HTTPException(status_code=404, detail="Arquivo não encontrado")
 
-    file_path = Path(settings.UPLOAD_DIRECTORY) / "catalogs" / record.stored_filename
-    if not file_path.is_absolute():
-        file_path = Path(__file__).resolve().parent.parent / file_path
-    if not file_path.exists():
-        raise HTTPException(status_code=404, detail="Arquivo não encontrado")
+    background_tasks.add_task(
+        process_pdf_extraction_task,
+        import_job_id=record.id,
+        page_number=page_number,
+        db_url=str(database.engine.url),
+    )
 
-    try:
-        result = file_processing_service.extract_data_from_single_page(
-            str(file_path), page_number
-        )
-    except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
-
-    return result
+    return {"job_id": record.id, "status": "PROCESSING"}
 
 
 # Endpoint para deletar um fornecedor
@@ -561,3 +588,24 @@ def commit_import_job(
         user_id=current_user.id,
     )
     return {"status": "PROCESSING", "job_id": job_id}
+
+
+@router.get("/import_job/{job_id}/status")
+def get_import_job_status(
+    job_id: int,
+    db: Session = Depends(database.get_db),
+    current_user: models.User = Depends(auth_utils.get_current_active_user),
+):
+    """Retorna o status de processamento de um job de importação."""
+    record = (
+        db.query(models.CatalogImportFile)
+        .filter_by(id=job_id, user_id=current_user.id)
+        .first()
+    )
+    if not record:
+        raise HTTPException(status_code=404, detail="Job não encontrado")
+
+    response = {"status": record.status}
+    if record.status == "COMPLETED":
+        response["resultado_json"] = record.resultado_json
+    return response
