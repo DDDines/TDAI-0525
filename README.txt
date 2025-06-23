@@ -214,9 +214,9 @@ Este projeto utiliza SQLAlchemy.
 Se estiver usando Alembic (recomendado para produção): Certifique-se de que o Alembic está configurado (normalmente com alembic.ini e uma pasta alembic/ dentro de Backend/). Execute as migrações:
 Bash
 
-cd Backend  # Navegue para a pasta Backend onde alembic.ini geralmente reside
-alembic upgrade head
-cd ..     # Volte para a raiz do projeto
+alembic -c Backend/alembic.ini upgrade head
+
+(Se preferir rodar o comando dentro de `Backend/`, defina `PYTHONPATH=..`.)
 Se NÃO estiver usando Alembic: A linha models.Base.metadata.create_all(bind=engine) em Backend/main.py (atualmente comentada) precisaria ser descomentada para criar as tabelas automaticamente ao iniciar a aplicação. No entanto, isso não é recomendado para gerenciamento de schema a longo prazo.
 7. Executar a Aplicação Backend:
 

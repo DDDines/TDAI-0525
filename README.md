@@ -228,9 +228,7 @@ As dependências Python necessárias estão listadas em `requirements-backend.tx
 python -m venv venv
 source venv/bin/activate    # Ou .\venv\Scripts\activate no Windows
 pip install -r requirements-backend.txt   # dependências fixas do backend
-cd Backend
-alembic upgrade head        # Cria/atualiza tabelas, incluindo RegistroHistorico
-cd ..
+alembic -c Backend/alembic.ini upgrade head  # Cria/atualiza tabelas, incluindo RegistroHistorico
 python run_backend.py       # Inicia o backend (http://localhost:8000)
 ```
 
@@ -426,7 +424,7 @@ que coincidam.
   (ou configure `BACKEND_HOST`, `BACKEND_PORT`, `BACKEND_RELOAD` e `BACKEND_WORKERS`)
 
 * **Rodar Migrations:**
-  `cd Backend && alembic upgrade head`  # aplica migrações, inclusive a tabela RegistroHistorico
+  `alembic -c Backend/alembic.ini upgrade head`  # aplica migrações, inclusive a tabela RegistroHistorico
   (obrigatório antes do primeiro `python run_backend.py`; use `AUTO_CREATE_TABLES=true` no `.env` apenas em desenvolvimento)
 
 * **Instalar navegadores Playwright:**

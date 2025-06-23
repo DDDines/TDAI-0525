@@ -75,7 +75,7 @@ os.cpu_count() + 4)`` se nenhuma outra configuração for informada.
 * `downgrade()`: Remove as tabelas criadas na migration.
 
 * Nova migration cria a tabela `registros_historico` para armazenar ações.
-* Nova migration `7e98d5d6d0a1_add_resultado_json_column.py` adiciona a coluna `resultado_json` em `catalog_import_files`. Após atualizar o projeto, execute `alembic upgrade head` para aplicar a mudança.
+* Nova migration `7e98d5d6d0a1_add_resultado_json_column.py` adiciona a coluna `resultado_json` em `catalog_import_files`. Após atualizar o projeto, execute `alembic -c Backend/alembic.ini upgrade head` para aplicar a mudança (rode a partir da raiz do projeto ou defina `PYTHONPATH=..` se estiver dentro de `Backend/`).
 
 ---
 
