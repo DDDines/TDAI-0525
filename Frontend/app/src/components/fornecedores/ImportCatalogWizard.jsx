@@ -1,12 +1,13 @@
 // Caminho: Frontend/app/src/components/fornecedores/ImportCatalogWizard.jsx
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import * as fornecedorService from '../../services/fornecedorService';
 import LoadingPopup from '../common/LoadingPopup';
 import ColumnMappingModal from '../common/ColumnMappingModal.jsx';
 import PdfRegionSelector from '../common/PdfRegionSelector.jsx';
 import Modal from '../common/Modal.jsx';
 import ImportProgress from './ImportProgress.jsx';
+import PaginationControls from '../common/PaginationControls';
 import getBackendBaseUrl from '../../utils/backend.js';
 
 const FIELD_OPTIONS = [
@@ -24,6 +25,9 @@ const ImportCatalogWizard = ({ fornecedor, onClose }) => {
 
   const [fileId, setFileId] = useState(null);
   const [jobId, setJobId] = useState(null);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [limit, setLimit] = useState(5);
+  const [totalPdfPages, setTotalPdfPages] = useState(0);
   const [pageImages, setPageImages] = useState([]);
 
   const [mappingHeaders, setMappingHeaders] = useState([]);
@@ -35,6 +39,8 @@ const ImportCatalogWizard = ({ fornecedor, onClose }) => {
   const [regionPreview, setRegionPreview] = useState(null);
   const [regionError, setRegionError] = useState('');
   const [currentPage, setCurrentPage] = useState(null);
+  const [limit, setLimit] = useState(10);
+  const [totalPdfPages, setTotalPdfPages] = useState(0);
   const [pdfBytes, setPdfBytes] = useState(null);
   const [applyAllPages, setApplyAllPages] = useState(false);
   const [selectedBbox, setSelectedBbox] = useState(null);
@@ -58,12 +64,18 @@ const ImportCatalogWizard = ({ fornecedor, onClose }) => {
     setLoadingMessage('A gerar pré-visualização inicial...');
     setError('');
     try {
-      const response = await fornecedorService.uploadForPagePreview(
+      const offset = (currentPage - 1) * limit;
+      const response = await fornecedorService.getPdfPreview(
         selectedFile,
         fornecedor.id,
+        offset,
+        limit,
       );
-      setFileId(response.fileId);
+      setFileId(response.import_file_id);
       setPageImages(response.image_urls || []);
+      setTotalPdfPages((response.image_urls || []).length);
+      setCurrentPage(1);
+      setTotalPdfPages(response.total_pages || 0);
       setStep('select_page');
     } catch (err) {
       const detail = err.response?.data?.detail || err.message;
@@ -147,6 +159,34 @@ const ImportCatalogWizard = ({ fornecedor, onClose }) => {
     }
   };
 
+  useEffect(() => {
+    const fetchPreview = async () => {
+      if (!selectedFile || step !== 'select_page') return;
+      setLoading(true);
+      setLoadingMessage('A gerar pré-visualização...');
+      setError('');
+      try {
+        const offset = (currentPage - 1) * limit;
+        const response = await fornecedorService.getPdfPreview(
+          selectedFile,
+          fornecedor.id,
+          offset,
+          limit,
+        );
+        setFileId(response.import_file_id);
+        setPageImages(response.image_urls || []);
+        setTotalPdfPages(response.total_pages || 0);
+      } catch (err) {
+        const detail = err.response?.data?.detail || err.message;
+        setError(`Erro: ${detail}`);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchPreview();
+  }, [currentPage, selectedFile]);
+
 
 
   return (
@@ -173,16 +213,51 @@ const ImportCatalogWizard = ({ fornecedor, onClose }) => {
         <div>
           <h3>Passo 2: Escolha a página da tabela</h3>
           <div style={{ display: 'flex', flexWrap: 'wrap' }}>
-            {pageImages.map((url, idx) => (
-              <img
-                key={idx}
-                src={`${backendBaseUrl}${url}`}
-                alt={`Página ${idx + 1}`}
-                style={{ maxWidth: '120px', margin: '0.5em', cursor: 'pointer' }}
-                onClick={() => handlePageClick(idx + 1)}
-              />
-            ))}
+            {pageImages
+              .slice(
+                (currentPage ? currentPage - 1 : 0) * limit,
+                (currentPage ? currentPage - 1 : 0) * limit + limit,
+              )
+              .map((url, idx) => {
+                const realIndex = (currentPage ? currentPage - 1 : 0) * limit + idx;
+                return (
+                  <img
+                    key={realIndex}
+                    src={`${backendBaseUrl}${url}`}
+                    alt={`Página ${realIndex + 1}`}
+                    style={{ maxWidth: '120px', margin: '0.5em', cursor: 'pointer' }}
+                    onClick={() => handlePageClick(realIndex + 1)}
+                  />
+                );
+              })}
+            {pageImages.map((url, idx) => {
+              const pageNumber = (currentPage - 1) * limit + idx + 1;
+              return (
+                <img
+                  key={idx}
+                  src={`${backendBaseUrl}${url}`}
+                  alt={`Página ${pageNumber}`}
+                  style={{
+                    maxWidth: '120px',
+                    margin: '0.5em',
+                    cursor: 'pointer',
+                  }}
+                  onClick={() => handlePageClick(pageNumber)}
+                />
+              );
+            })}
           </div>
+          <PaginationControls
+            currentPage={currentPage ? currentPage - 1 : 0}
+            totalPages={Math.ceil(totalPdfPages / limit)}
+            onPageChange={(page) => setCurrentPage(page + 1)}
+            itemsPerPage={limit}
+            onItemsPerPageChange={(value) => {
+              setLimit(parseInt(value, 10));
+              setCurrentPage(1);
+            }}
+            totalItems={totalPdfPages}
+          />
         </div>
       )}
 
