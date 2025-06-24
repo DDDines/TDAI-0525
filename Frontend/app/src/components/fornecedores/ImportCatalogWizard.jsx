@@ -188,6 +188,12 @@ const ImportCatalogWizard = ({ fornecedor, onClose }) => {
   return (
     <div className="wizard-container">
       {loading && <LoadingPopup message={loadingMessage} isOpen={loading} />}
+      {isLoadingPreview && (
+        <LoadingPopup
+          message="A gerar pré-visualização..."
+          isOpen={isLoadingPreview}
+        />
+      )}
       {error && (
         <p style={{ color: 'red', fontWeight: 'bold', border: '1px solid red', padding: '10px', marginTop: '10px' }}>
           {error}
