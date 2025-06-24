@@ -52,8 +52,13 @@ describe('ImportCatalogWizard', () => {
       total_pages: 10,
     });
 
-    render(<ImportCatalogWizard fornecedor={{ id: 1 }} onClose={() => {}} />);
-    render(<ImportCatalogWizard onClose={() => {}} fornecedor={{ id: 1 }} />);
+    render(
+      <ImportCatalogWizard
+        fornecedor={{ id: 1 }}
+        onClose={() => {}}
+        isOpen
+      />,
+    );
 
 
     const fileInput = document.querySelector('input[type="file"]');
