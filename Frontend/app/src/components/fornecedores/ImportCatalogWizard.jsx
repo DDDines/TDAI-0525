@@ -45,14 +45,11 @@ const ImportCatalogWizard = ({ fornecedor, onClose }) => {
 
   const backendBaseUrl = getBackendBaseUrl();
 
-  const handleFileChange = (e) => {
-    const file = e.target.files[0];
-    if (file && file.type === 'application/pdf') {
-      setSelectedFile(file);
-      setError('');
-    } else {
-      setError('Por favor, selecione um ficheiro PDF válido.');
-      setSelectedFile(null);
+  const handleFileChange = (event) => {
+    const file = event.target.files[0];
+    if (file) {
+      setSelectedFile(file); // Supondo que você tenha um estado 'selectedFile'
+      setCurrentPage(1); // Reseta para a página 1 ao selecionar um novo arquivo
     }
   };
 
