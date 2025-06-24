@@ -172,7 +172,15 @@ const ImportCatalogWizard = ({ fornecedor, onClose }) => {
     <div className="wizard-container">
       {loading && <LoadingPopup message={loadingMessage} isOpen={loading} />}
       {error && (
-        <p style={{ color: 'red', fontWeight: 'bold', border: '1px solid red', padding: '10px', marginTop: '10px' }}>
+        <p
+          style={{
+            color: 'red',
+            fontWeight: 'bold',
+            border: '1px solid red',
+            padding: '10px',
+            marginTop: '10px',
+          }}
+        >
           {error}
         </p>
       )}
@@ -182,7 +190,10 @@ const ImportCatalogWizard = ({ fornecedor, onClose }) => {
           <h3>Passo 1: Selecione o Catálogo PDF</h3>
           <input type="file" accept=".pdf" onChange={handleFileChange} />
           {selectedFile && <p>Ficheiro selecionado: {selectedFile.name}</p>}
-          <button onClick={handleGeneratePreview} disabled={!selectedFile || loading}>
+          <button
+            onClick={handleGeneratePreview}
+            disabled={!selectedFile || loading}
+          >
             Gerar Preview
           </button>
         </div>
@@ -204,7 +215,11 @@ const ImportCatalogWizard = ({ fornecedor, onClose }) => {
                     key={realIndex}
                     src={`${backendBaseUrl}${url}`}
                     alt={`Página ${realIndex + 1}`}
-                    style={{ maxWidth: '120px', margin: '0.5em', cursor: 'pointer' }}
+                    style={{
+                      maxWidth: '120px',
+                      margin: '0.5em',
+                      cursor: 'pointer',
+                    }}
                     onClick={() => handlePageClick(realIndex + 1)}
                   />
                 );
