@@ -20,9 +20,7 @@ const FIELD_OPTIONS = [
 const ImportCatalogWizard = ({ fornecedor, onClose }) => {
   const [step, setStep] = useState(1);
   const [selectedFile, setSelectedFile] = useState(null);
-  const [mapping, setMapping] = useState(
-    fornecedor.default_column_mapping || {}
-  );
+  const [mapping, setMapping] = useState(fornecedor.default_column_mapping || {});
   const [isLoading, setIsLoading] = useState(false);
   const [extractionResult, setExtractionResult] = useState(null);
   const [isLoadingPreview, setIsLoadingPreview] = useState(false);
