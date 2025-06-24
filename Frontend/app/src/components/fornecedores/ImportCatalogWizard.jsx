@@ -32,11 +32,11 @@ const ImportCatalogWizard = ({ fornecedor, onClose }) => {
 
   const fetchPreviewPages = useCallback(async () => {
     if (!selectedFile) return;
-
     setIsLoadingPreview(true);
+    setError('');
     const offset = (currentPage - 1) * limit;
-
     try {
+      // Usando o nome da função correto: 'previewPdf'
       const data = await fornecedorService.previewPdf(
         fornecedor.id,
         selectedFile,
@@ -51,9 +51,9 @@ const ImportCatalogWizard = ({ fornecedor, onClose }) => {
         setPreviewPages([]);
         setTotalPages(0);
       }
-    } catch (error) {
-      console.error('Falha ao carregar o preview do PDF:', error);
-      showErrorToast('Erro ao carregar o preview do PDF.');
+    } catch (err) {
+      const detail = err.response?.data?.detail || err.message;
+      setError(`Erro: ${detail}`);
     } finally {
       setIsLoadingPreview(false);
     }
