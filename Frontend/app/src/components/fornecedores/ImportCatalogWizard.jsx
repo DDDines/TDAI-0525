@@ -145,7 +145,7 @@ const ImportCatalogWizard = ({ fornecedor, onClose }) => {
 
   return (
     <div className="wizard-container">
-      {loading && <LoadingPopup message={loadingMessage} isOpen={loading} />}
+      {isLoading && <LoadingPopup message={loadingMessage} isOpen={isLoading} />}
       {isLoadingPreview && (
         <LoadingPopup
           message="A gerar pré-visualização..."
@@ -179,7 +179,7 @@ const ImportCatalogWizard = ({ fornecedor, onClose }) => {
           {selectedFile && <p>Ficheiro selecionado: {selectedFile.name}</p>}
           <button
             onClick={() => setStep('select_page')}
-            disabled={!selectedFile || loading}
+            disabled={!selectedFile || isLoading}
           >
             Gerar Preview
           </button>
