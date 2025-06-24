@@ -251,6 +251,8 @@ export const uploadForPagePreview = async (file, fornecedorId) => {
 
 // Obtém miniaturas de páginas de um PDF com suporte a offset e limit
 export const getPdfPreview = async (file, fornecedorId, offset = 0, limit = 5) => {
+// Gera pré-visualizações do PDF com suporte a paginação
+export const getPdfPreview = async (file, fornecedorId, offset, limit) => {
   try {
     const formData = new FormData();
     formData.append('file', file);
@@ -263,12 +265,22 @@ export const getPdfPreview = async (file, fornecedorId, offset = 0, limit = 5) =
   } catch (error) {
     console.error(
       'Erro ao obter preview do PDF:',
+      {
+        params: { offset, limit },
+      },
+    );
+    const { image_urls, total_pages } = response.data;
+    return { image_urls, total_pages };
+  } catch (error) {
+    console.error(
+      'Erro ao obter pré-visualização do PDF:',
       JSON.stringify(error.response?.data || error.message || error),
     );
     if (error.response && error.response.data) {
       throw error.response.data;
     }
     throw new Error(error.message || 'Falha ao obter preview do PDF');
+    throw new Error(error.message || 'Falha ao obter pré-visualização do PDF');
   }
 };
 
