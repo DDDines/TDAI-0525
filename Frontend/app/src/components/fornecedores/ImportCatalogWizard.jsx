@@ -29,6 +29,10 @@ const ImportCatalogWizard = ({ fornecedor, onClose }) => {
   const [previewPages, setPreviewPages] = useState([]);
   const [totalPages, setTotalPages] = useState(0);
   const [currentPage, setCurrentPage] = useState(1);
+  const [limit, setLimit] = useState(5);
+  const [previewPages, setPreviewPages] = useState([]);
+  const [totalPages, setTotalPages] = useState(0);
+  const [isLoadingPreview, setIsLoadingPreview] = useState(false);
   const [limit] = useState(5);
 
   const [mappingHeaders, setMappingHeaders] = useState([]);
@@ -159,6 +163,27 @@ const ImportCatalogWizard = ({ fornecedor, onClose }) => {
     }
   };
 
+  const fetchPages = async () => {
+    if (!selectedFile) return;
+    const offset = (currentPage - 1) * limit;
+    setIsLoadingPreview(true);
+    setError('');
+    try {
+      const response = await fornecedorService.getPdfPreview(
+        selectedFile,
+        fornecedor.id,
+        offset,
+        limit,
+      );
+      setPreviewPages(response.image_urls || []);
+      setTotalPages(response.total_pages || 0);
+    } catch (err) {
+      const detail = err.response?.data?.detail || err.message;
+      setError(`Erro: ${detail}`);
+    } finally {
+      setIsLoadingPreview(false);
+    }
+  };
   useEffect(() => {
     const fetchPreview = async () => {
       if (!selectedFile || step !== 'select_page') return;
@@ -187,14 +212,27 @@ const ImportCatalogWizard = ({ fornecedor, onClose }) => {
       }
     };
 
-    fetchPreview();
-  }, [currentPage, selectedFile]);
+  useEffect(() => {
+    fetchPages();
+  }, [currentPage, selectedFile, fornecedor.id, limit]);
 
 
 
   return (
     <div className="wizard-container">
       {loading && <LoadingPopup message={loadingMessage} isOpen={loading} />}
+      {isLoadingPreview && (
+        <LoadingPopup
+          message="A gerar pré-visualização..."
+          isOpen={isLoadingPreview}
+        />
+      )}
+      {isLoadingPreview && (
+        <LoadingPopup
+          message="A gerar pré-visualização..."
+          isOpen={isLoadingPreview}
+        />
+      )}
       {error && (
         <p style={{ color: 'red', fontWeight: 'bold', border: '1px solid red', padding: '10px', marginTop: '10px' }}>
           {error}
@@ -238,6 +276,12 @@ const ImportCatalogWizard = ({ fornecedor, onClose }) => {
             currentPage={currentPage ? currentPage - 1 : 0}
             totalPages={Math.ceil(totalPages / limit)}
             onPageChange={(page) => setCurrentPage(page + 1)}
+
+            itemsPerPage={limit}
+            onItemsPerPageChange={(value) => {
+              setLimit(parseInt(value, 10));
+              setCurrentPage(1);
+            }}
             isLoading={isLoadingPreview}
             totalItems={totalPages}
           />
