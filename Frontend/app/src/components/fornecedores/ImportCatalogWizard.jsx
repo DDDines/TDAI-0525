@@ -74,40 +74,6 @@ const backendBaseUrl = getBackendBaseUrl();
     }
   };
 
-  const handleGeneratePreview = () => {
-    if (!selectedFile) return;
-    setCurrentPage(1);
-    setPageImages([]);
-    setTotalPdfPages(0);
-    setStep('select_page');
-    setLoading(true);
-    setLoadingMessage('A gerar pré-visualização inicial...');
-    setError('');
-    setIsLoadingPreview(true);
-    try {
-      const offset = (currentPage - 1) * limit;
-      const response = await fornecedorService.getPdfPreview(
-        selectedFile,
-        fornecedor.id,
-        offset,
-        limit,
-      );
-      console.log('DADOS RECEBIDOS DA API:', response);
-      setFileId(response.import_file_id);
-      setPreviewPages(response.image_urls || []);
-      setCurrentPage(1);
-      setTotalPages(response.total_pages || 0);
-      setStep('select_page');
-    } catch (err) {
-      const detail = err.response?.data?.detail || err.message;
-      setError(`Erro: ${detail}`);
-    } finally {
-      setLoading(false);
-      setIsLoadingPreview(false);
-    }
-  };
-
-
   const handlePageClick = async (page) => {
     if (!fileId || !selectedFile) return;
     const buffer = await selectedFile.arrayBuffer();
@@ -182,39 +148,6 @@ const backendBaseUrl = getBackendBaseUrl();
   };
 
 
-  useEffect(() => {
-    fetchPreviewPages();
-  }, [fetchPreviewPages]);
-  useEffect(() => {
-    const fetchPreview = async () => {
-      if (!selectedFile || step !== 'select_page') return;
-      setLoading(true);
-      setLoadingMessage('A gerar pré-visualização...');
-      setError('');
-      setIsLoadingPreview(true);
-      try {
-        const offset = (currentPage - 1) * limit;
-        const response = await fornecedorService.getPdfPreview(
-          selectedFile,
-          fornecedor.id,
-          offset,
-          limit,
-        );
-        console.log('DADOS RECEBIDOS DA API:', response);
-        setFileId(response.import_file_id);
-        setPreviewPages(response.image_urls || []);
-        setTotalPages(response.total_pages || 0);
-      } catch (err) {
-        const detail = err.response?.data?.detail || err.message;
-        setError(`Erro: ${detail}`);
-      } finally {
-        setLoading(false);
-        setIsLoadingPreview(false);
-      }
-    };
-
-    fetchPreview();
-  }, [currentPage, selectedFile, step]);
 
 
 
@@ -253,7 +186,7 @@ const backendBaseUrl = getBackendBaseUrl();
           <input type="file" accept=".pdf" onChange={handleFileChange} />
           {selectedFile && <p>Ficheiro selecionado: {selectedFile.name}</p>}
           <button
-            onClick={handleGeneratePreview}
+            onClick={() => setStep('select_page')}
             disabled={!selectedFile || loading}
           >
             Gerar Preview
