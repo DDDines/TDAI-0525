@@ -84,7 +84,7 @@ Após instalar, inclua o diretório com `pdftoppm.exe` no `PATH` ou defina `POPP
 
 ## Frontend/app/src/components/fornecedores/ImportCatalogWizard.jsx
 
-* `ImportCatalogWizard({ fornecedor, onClose })`: Assistente em três passos para importar catálogos.
+* `ImportCatalogWizard({ fornecedor, onClose, isOpen })`: Assistente em três passos para importar catálogos. O wizard só é exibido quando `isOpen` é verdadeiro.
   1. **Pré-visualização e seleção do tipo** – upload do arquivo, exibição de amostras e escolha do tipo de produto. Agora é possível definir a **Página inicial** para filtrar as páginas a serem importadas.
   2. **Mapeamento de colunas** – associa colunas da planilha a campos padrão e atributos dinâmicos. Permite criar um novo tipo de produto caso não exista.
   3. **Confirmação** – revisão final e importação.

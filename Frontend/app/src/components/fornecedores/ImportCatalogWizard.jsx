@@ -15,7 +15,7 @@ const FIELD_OPTIONS = [
   { value: 'preco_venda', label: 'Preço' },
 ];
 
-const ImportCatalogWizard = ({ fornecedor, onClose }) => {
+const ImportCatalogWizard = ({ fornecedor, onClose, isOpen }) => {
   const [step, setStep] = useState(1);
   const [selectedFile, setSelectedFile] = useState(null);
   const [mapping, setMapping] = useState(fornecedor.default_column_mapping || {});
@@ -39,6 +39,8 @@ const ImportCatalogWizard = ({ fornecedor, onClose }) => {
   const [selectedBbox, setSelectedBbox] = useState(null);
   const [applyAllPages, setApplyAllPages] = useState(false);
   const [jobId, setJobId] = useState(null);
+
+  if (!isOpen) return null;
 
   const fetchPreviewPages = useCallback(async () => {
     if (!selectedFile) return;
