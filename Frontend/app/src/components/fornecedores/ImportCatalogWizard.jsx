@@ -25,10 +25,15 @@ const ImportCatalogWizard = ({ fornecedor, onClose }) => {
 
   const [fileId, setFileId] = useState(null);
   const [jobId, setJobId] = useState(null);
+  const [isLoadingPreview, setIsLoadingPreview] = useState(false);
+  const [previewPages, setPreviewPages] = useState([]);
+  const [totalPages, setTotalPages] = useState(0);
   const [currentPage, setCurrentPage] = useState(1);
   const [limit, setLimit] = useState(5);
-  const [totalPdfPages, setTotalPdfPages] = useState(0);
-  const [pageImages, setPageImages] = useState([]);
+  const [previewPages, setPreviewPages] = useState([]);
+  const [totalPages, setTotalPages] = useState(0);
+  const [isLoadingPreview, setIsLoadingPreview] = useState(false);
+  const [limit] = useState(5);
 
   const [mappingHeaders, setMappingHeaders] = useState([]);
   const [mappingRows, setMappingRows] = useState([]);
@@ -61,6 +66,31 @@ const ImportCatalogWizard = ({ fornecedor, onClose }) => {
     setPageImages([]);
     setTotalPdfPages(0);
     setStep('select_page');
+    setLoading(true);
+    setLoadingMessage('A gerar pré-visualização inicial...');
+    setError('');
+    setIsLoadingPreview(true);
+    try {
+      const offset = (currentPage - 1) * limit;
+      const response = await fornecedorService.getPdfPreview(
+        selectedFile,
+        fornecedor.id,
+        offset,
+        limit,
+      );
+      console.log('DADOS RECEBIDOS DA API:', response);
+      setFileId(response.import_file_id);
+      setPreviewPages(response.image_urls || []);
+      setCurrentPage(1);
+      setTotalPages(response.total_pages || 0);
+      setStep('select_page');
+    } catch (err) {
+      const detail = err.response?.data?.detail || err.message;
+      setError(`Erro: ${detail}`);
+    } finally {
+      setLoading(false);
+      setIsLoadingPreview(false);
+    }
   };
 
 
@@ -137,12 +167,34 @@ const ImportCatalogWizard = ({ fornecedor, onClose }) => {
     }
   };
 
+  const fetchPages = async () => {
+    if (!selectedFile) return;
+    const offset = (currentPage - 1) * limit;
+    setIsLoadingPreview(true);
+    setError('');
+    try {
+      const response = await fornecedorService.getPdfPreview(
+        selectedFile,
+        fornecedor.id,
+        offset,
+        limit,
+      );
+      setPreviewPages(response.image_urls || []);
+      setTotalPages(response.total_pages || 0);
+    } catch (err) {
+      const detail = err.response?.data?.detail || err.message;
+      setError(`Erro: ${detail}`);
+    } finally {
+      setIsLoadingPreview(false);
+    }
+  };
   useEffect(() => {
     const fetchPreview = async () => {
       if (!selectedFile || step !== 'select_page') return;
       setLoading(true);
       setLoadingMessage('A gerar pré-visualização...');
       setError('');
+      setIsLoadingPreview(true);
       try {
         const offset = (currentPage - 1) * limit;
         const response = await fornecedorService.getPdfPreview(
@@ -153,24 +205,40 @@ const ImportCatalogWizard = ({ fornecedor, onClose }) => {
         );
         console.log('DADOS RECEBIDOS DA API:', response);
         setFileId(response.import_file_id);
-        setPageImages(response.image_urls || []);
-        setTotalPdfPages(response.total_pages || 0);
+        setPreviewPages(response.image_urls || []);
+        setTotalPages(response.total_pages || 0);
       } catch (err) {
         const detail = err.response?.data?.detail || err.message;
         setError(`Erro: ${detail}`);
       } finally {
         setLoading(false);
+        setIsLoadingPreview(false);
       }
     };
 
     fetchPreview();
   }, [currentPage, selectedFile, step]);
+  useEffect(() => {
+    fetchPages();
+  }, [currentPage, selectedFile, fornecedor.id, limit]);
 
 
 
   return (
     <div className="wizard-container">
       {loading && <LoadingPopup message={loadingMessage} isOpen={loading} />}
+      {isLoadingPreview && (
+        <LoadingPopup
+          message="A gerar pré-visualização..."
+          isOpen={isLoadingPreview}
+        />
+      )}
+      {isLoadingPreview && (
+        <LoadingPopup
+          message="A gerar pré-visualização..."
+          isOpen={isLoadingPreview}
+        />
+      )}
       {error && (
         <p
           style={{
@@ -203,7 +271,7 @@ const ImportCatalogWizard = ({ fornecedor, onClose }) => {
         <div>
           <h3>Passo 2: Escolha a página da tabela</h3>
           <div style={{ display: 'flex', flexWrap: 'wrap' }}>
-            {pageImages
+            {previewPages
               .slice(
                 (currentPage ? currentPage - 1 : 0) * limit,
                 (currentPage ? currentPage - 1 : 0) * limit + limit,
@@ -227,14 +295,16 @@ const ImportCatalogWizard = ({ fornecedor, onClose }) => {
           </div>
           <PaginationControls
             currentPage={currentPage ? currentPage - 1 : 0}
-            totalPages={Math.ceil(totalPdfPages / limit)}
+            totalPages={Math.ceil(totalPages / limit)}
             onPageChange={(page) => setCurrentPage(page + 1)}
+
             itemsPerPage={limit}
             onItemsPerPageChange={(value) => {
               setLimit(parseInt(value, 10));
               setCurrentPage(1);
             }}
-            totalItems={totalPdfPages}
+            isLoading={isLoadingPreview}
+            totalItems={totalPages}
           />
         </div>
       )}
