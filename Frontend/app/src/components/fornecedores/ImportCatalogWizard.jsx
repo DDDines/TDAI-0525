@@ -89,10 +89,10 @@ const ImportCatalogWizard = ({ fornecedor, onClose }) => {
     } catch (err) {
       const detail = err.response?.data?.detail || err.message;
       setError(`Erro: ${detail}`);
-  } finally {
-    setIsLoadingPreview(false);
-    setLoading(false);
-  }
+    } finally {
+      setIsLoadingPreview(false);
+      setLoading(false);
+    }
   };
 
 
