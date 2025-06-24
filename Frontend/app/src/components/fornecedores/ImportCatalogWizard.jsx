@@ -96,8 +96,8 @@ const backendBaseUrl = getBackendBaseUrl();
   const handleFileChange = (event) => {
     const file = event.target.files[0];
     if (file) {
-      setSelectedFile(file); // Supondo que você tenha um estado 'selectedFile'
-      setCurrentPage(1); // Reseta para a página 1 ao selecionar um novo arquivo
+      setSelectedFile(file);
+      setCurrentPage(1); // Reseta para a página 1
     }
   };
 
@@ -311,9 +311,9 @@ const backendBaseUrl = getBackendBaseUrl();
       {step === 'select_page' && (
         <div>
           <h3>Passo 2: Escolha a página da tabela</h3>
-          <div>
+          <div className="pdf-preview-section">
             {isLoadingPreview && (
-              <p style={{ textAlign: 'center', margin: '20px' }}>
+              <p style={{ textAlign: 'center', padding: '20px' }}>
                 Carregando preview...
               </p>
             )}
@@ -337,7 +337,13 @@ const backendBaseUrl = getBackendBaseUrl();
               </div>
             )}
 
-            {!isLoadingPreview && totalPages > limit && (
+            {!isLoadingPreview && selectedFile && previewPages.length === 0 && (
+              <p style={{ textAlign: 'center', padding: '20px' }}>
+                Nenhuma página para exibir. O arquivo pode estar vazio ou ocorreu um erro.
+              </p>
+            )}
+
+            {!isLoadingPreview && totalPages > 0 && (
               <PaginationControls
                 currentPage={currentPage}
                 totalPages={Math.ceil(totalPages / limit)}
@@ -345,16 +351,6 @@ const backendBaseUrl = getBackendBaseUrl();
               />
             )}
           </div>
-                );
-              })}
-          </div>
-          <PaginationControls
-            currentPage={currentPage ? currentPage - 1 : 0}
-            totalPages={Math.ceil(totalPages / limit)}
-            onPageChange={(page) => setCurrentPage(page + 1)}
-            isLoading={isLoadingPreview}
-            totalItems={totalPages}
-          />
         </div>
       )}
 
