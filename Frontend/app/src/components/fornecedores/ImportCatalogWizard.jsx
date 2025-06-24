@@ -27,6 +27,7 @@ const ImportCatalogWizard = ({ fornecedor, onClose }) => {
   const [currentPage, setCurrentPage] = useState(1);
   const [limit] = useState(5); // Define 5 páginas por vez
   const [fileId, setFileId] = useState(null);
+  const [error, setError] = useState('');
 
   const fetchPreviewPages = useCallback(async () => {
     if (!selectedFile) return;
