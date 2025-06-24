@@ -70,7 +70,6 @@ const ImportCatalogWizard = ({ fornecedor, onClose }) => {
       );
       setFileId(response.import_file_id);
       setPageImages(response.image_urls || []);
-      setTotalPdfPages((response.image_urls || []).length);
       setCurrentPage(1);
       setTotalPdfPages(response.total_pages || 0);
       setStep('select_page');
