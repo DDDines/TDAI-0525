@@ -55,31 +55,12 @@ const ImportCatalogWizard = ({ fornecedor, onClose }) => {
     }
   };
 
-  const handleGeneratePreview = async () => {
+  const handleGeneratePreview = () => {
     if (!selectedFile) return;
-    setLoading(true);
-    setLoadingMessage('A gerar pré-visualização inicial...');
-    setError('');
-    try {
-      const offset = (currentPage - 1) * limit;
-      const response = await fornecedorService.getPdfPreview(
-        selectedFile,
-        fornecedor.id,
-        offset,
-        limit,
-      );
-      console.log('DADOS RECEBIDOS DA API:', response);
-      setFileId(response.import_file_id);
-      setPageImages(response.image_urls || []);
-      setCurrentPage(1);
-      setTotalPdfPages(response.total_pages || 0);
-      setStep('select_page');
-    } catch (err) {
-      const detail = err.response?.data?.detail || err.message;
-      setError(`Erro: ${detail}`);
-    } finally {
-      setLoading(false);
-    }
+    setCurrentPage(1);
+    setPageImages([]);
+    setTotalPdfPages(0);
+    setStep('select_page');
   };
 
 
