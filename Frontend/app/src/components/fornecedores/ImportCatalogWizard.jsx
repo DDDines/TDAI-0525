@@ -164,7 +164,7 @@ const ImportCatalogWizard = ({ fornecedor, onClose }) => {
     };
 
     fetchPreview();
-  }, [currentPage, selectedFile]);
+  }, [currentPage, selectedFile, step]);
 
 
 
