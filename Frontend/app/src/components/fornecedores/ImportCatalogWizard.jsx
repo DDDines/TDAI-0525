@@ -23,17 +23,13 @@ const ImportCatalogWizard = ({ fornecedor, onClose }) => {
   const [loadingMessage, setLoadingMessage] = useState('');
   const [error, setError] = useState('');
 
-  const [fileId, setFileId] = useState(null);
-  const [jobId, setJobId] = useState(null);
   const [isLoadingPreview, setIsLoadingPreview] = useState(false);
   const [previewPages, setPreviewPages] = useState([]);
   const [totalPages, setTotalPages] = useState(0);
   const [currentPage, setCurrentPage] = useState(1);
-  const [limit, setLimit] = useState(5);
-  const [previewPages, setPreviewPages] = useState([]);
-  const [totalPages, setTotalPages] = useState(0);
-  const [isLoadingPreview, setIsLoadingPreview] = useState(false);
   const [limit] = useState(5);
+  const [fileId, setFileId] = useState(null);
+  const [jobId, setJobId] = useState(null);
 
   const [mappingHeaders, setMappingHeaders] = useState([]);
   const [mappingRows, setMappingRows] = useState([]);
@@ -297,12 +293,6 @@ const ImportCatalogWizard = ({ fornecedor, onClose }) => {
             currentPage={currentPage ? currentPage - 1 : 0}
             totalPages={Math.ceil(totalPages / limit)}
             onPageChange={(page) => setCurrentPage(page + 1)}
-
-            itemsPerPage={limit}
-            onItemsPerPageChange={(value) => {
-              setLimit(parseInt(value, 10));
-              setCurrentPage(1);
-            }}
             isLoading={isLoadingPreview}
             totalItems={totalPages}
           />
