@@ -59,6 +59,10 @@ const ImportCatalogWizard = ({ fornecedor, onClose }) => {
     }
   }, [currentPage, selectedFile, fornecedor.id, limit]);
 
+  useEffect(() => {
+    fetchPreviewPages();
+  }, [fetchPreviewPages]);
+
 
 const backendBaseUrl = getBackendBaseUrl();
 
