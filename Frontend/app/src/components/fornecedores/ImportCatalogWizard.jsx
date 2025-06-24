@@ -59,39 +59,8 @@ const ImportCatalogWizard = ({ fornecedor, onClose }) => {
     }
   }, [currentPage, selectedFile, fornecedor.id, limit]);
 
+
 const backendBaseUrl = getBackendBaseUrl();
-
-  useEffect(() => {
-    if (!selectedFile) return;
-
-    const fetchPages = async () => {
-      setIsLoadingPreview(true);
-      const offset = (currentPage - 1) * limit;
-      try {
-        const data = await fornecedorService.previewPdf(
-          fornecedor.id,
-          selectedFile,
-          offset,
-          limit,
-        );
-        if (data && data.pages) {
-          setPreviewPages(data.pages);
-          setTotalPages(data.total_pages);
-          if (data.file_id) setFileId(data.file_id);
-        } else {
-          setPreviewPages([]);
-          setTotalPages(0);
-        }
-      } catch (error) {
-        console.error("Falha ao carregar o preview do PDF:", error);
-        showErrorToast("Erro ao carregar o preview do PDF.");
-      } finally {
-        setIsLoadingPreview(false);
-      }
-    };
-
-    fetchPages();
-  }, [currentPage, selectedFile]);
 
   const handleFileChange = (event) => {
     const file = event.target.files[0];
@@ -208,7 +177,7 @@ const backendBaseUrl = getBackendBaseUrl();
     }
   };
 
-  const fetchPages = async () => {
+  const fetchPreviewPages = useCallback(async () => {
     if (!selectedFile) return;
     const offset = (currentPage - 1) * limit;
     setIsLoadingPreview(true);
@@ -228,7 +197,11 @@ const backendBaseUrl = getBackendBaseUrl();
     } finally {
       setIsLoadingPreview(false);
     }
-  };
+  }, [selectedFile, currentPage, fornecedor.id, limit]);
+
+  useEffect(() => {
+    fetchPreviewPages();
+  }, [fetchPreviewPages]);
   useEffect(() => {
     const fetchPreview = async () => {
       if (!selectedFile || step !== 'select_page') return;
@@ -259,9 +232,6 @@ const backendBaseUrl = getBackendBaseUrl();
 
     fetchPreview();
   }, [currentPage, selectedFile, step]);
-  useEffect(() => {
-    fetchPages();
-  }, [currentPage, selectedFile, fornecedor.id, limit]);
 
 
 
