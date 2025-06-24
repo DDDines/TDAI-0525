@@ -68,6 +68,7 @@ const ImportCatalogWizard = ({ fornecedor, onClose }) => {
         offset,
         limit,
       );
+      console.log('DADOS RECEBIDOS DA API:', response);
       setFileId(response.import_file_id);
       setPageImages(response.image_urls || []);
       setTotalPdfPages((response.image_urls || []).length);
@@ -170,6 +171,7 @@ const ImportCatalogWizard = ({ fornecedor, onClose }) => {
           offset,
           limit,
         );
+        console.log('DADOS RECEBIDOS DA API:', response);
         setFileId(response.import_file_id);
         setPageImages(response.image_urls || []);
         setTotalPdfPages(response.total_pages || 0);
