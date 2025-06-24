@@ -1,6 +1,6 @@
 // Caminho: Frontend/app/src/components/fornecedores/ImportCatalogWizard.jsx
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import * as fornecedorService from '../../services/fornecedorService';
 import LoadingPopup from '../common/LoadingPopup';
 import ColumnMappingModal from '../common/ColumnMappingModal.jsx';
@@ -29,6 +29,8 @@ const ImportCatalogWizard = ({ fornecedor, onClose }) => {
   const [limit, setLimit] = useState(5);
   const [totalPdfPages, setTotalPdfPages] = useState(0);
   const [pageImages, setPageImages] = useState([]);
+  const [isLoadingPreview, setIsLoadingPreview] = useState(false);
+  const totalPages = totalPdfPages;
 
   const [mappingHeaders, setMappingHeaders] = useState([]);
   const [mappingRows, setMappingRows] = useState([]);
@@ -41,6 +43,15 @@ const ImportCatalogWizard = ({ fornecedor, onClose }) => {
   const [pdfBytes, setPdfBytes] = useState(null);
   const [applyAllPages, setApplyAllPages] = useState(false);
   const [selectedBbox, setSelectedBbox] = useState(null);
+
+  const previewPages = useMemo(
+    () =>
+      pageImages.slice(
+        (currentPage - 1) * limit,
+        (currentPage - 1) * limit + limit,
+      ),
+    [pageImages, currentPage, limit],
+  );
 
   const backendBaseUrl = getBackendBaseUrl();
 
@@ -57,6 +68,7 @@ const ImportCatalogWizard = ({ fornecedor, onClose }) => {
 
   const handleGeneratePreview = async () => {
     if (!selectedFile) return;
+    setIsLoadingPreview(true);
     setLoading(true);
     setLoadingMessage('A gerar pré-visualização inicial...');
     setError('');
@@ -77,9 +89,10 @@ const ImportCatalogWizard = ({ fornecedor, onClose }) => {
     } catch (err) {
       const detail = err.response?.data?.detail || err.message;
       setError(`Erro: ${detail}`);
-    } finally {
-      setLoading(false);
-    }
+  } finally {
+    setIsLoadingPreview(false);
+    setLoading(false);
+  }
   };
 
 
@@ -159,6 +172,7 @@ const ImportCatalogWizard = ({ fornecedor, onClose }) => {
   useEffect(() => {
     const fetchPreview = async () => {
       if (!selectedFile || step !== 'select_page') return;
+      setIsLoadingPreview(true);
       setLoading(true);
       setLoadingMessage('A gerar pré-visualização...');
       setError('');
@@ -178,6 +192,7 @@ const ImportCatalogWizard = ({ fornecedor, onClose }) => {
         const detail = err.response?.data?.detail || err.message;
         setError(`Erro: ${detail}`);
       } finally {
+        setIsLoadingPreview(false);
         setLoading(false);
       }
     };
@@ -210,35 +225,22 @@ const ImportCatalogWizard = ({ fornecedor, onClose }) => {
       {step === 'select_page' && (
         <div>
           <h3>Passo 2: Escolha a página da tabela</h3>
+          {isLoadingPreview && <p>A carregar pré-visualização...</p>}
           <div style={{ display: 'flex', flexWrap: 'wrap' }}>
-            {pageImages
-              .slice(
-                (currentPage ? currentPage - 1 : 0) * limit,
-                (currentPage ? currentPage - 1 : 0) * limit + limit,
-              )
-              .map((url, idx) => {
-                const realIndex = (currentPage ? currentPage - 1 : 0) * limit + idx;
-                return (
-                  <img
-                    key={realIndex}
-                    src={`${backendBaseUrl}${url}`}
-                    alt={`Página ${realIndex + 1}`}
-                    style={{ maxWidth: '120px', margin: '0.5em', cursor: 'pointer' }}
-                    onClick={() => handlePageClick(realIndex + 1)}
-                  />
-                );
-              })}
+            {previewPages.map((imgData, index) => (
+              <img
+                key={`${fileId}-${currentPage}-${index}`}
+                src={`data:image/png;base64,${imgData}`}
+                alt={`Página ${(currentPage - 1) * limit + index + 1}`}
+                style={{ maxWidth: '120px', margin: '0.5em', cursor: 'pointer' }}
+                onClick={() => handlePageClick((currentPage - 1) * limit + index + 1)}
+              />
+            ))}
           </div>
           <PaginationControls
-            currentPage={currentPage ? currentPage - 1 : 0}
-            totalPages={Math.ceil(totalPdfPages / limit)}
-            onPageChange={(page) => setCurrentPage(page + 1)}
-            itemsPerPage={limit}
-            onItemsPerPageChange={(value) => {
-              setLimit(parseInt(value, 10));
-              setCurrentPage(1);
-            }}
-            totalItems={totalPdfPages}
+            currentPage={currentPage}
+            totalPages={Math.ceil(totalPages / limit)}
+            onPageChange={(page) => setCurrentPage(page)}
           />
         </div>
       )}
