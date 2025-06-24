@@ -8,8 +8,6 @@ import PdfRegionSelector from '../common/PdfRegionSelector.jsx';
 import Modal from '../common/Modal.jsx';
 import ImportProgress from './ImportProgress.jsx';
 import PaginationControls from '../common/PaginationControls';
-import getBackendBaseUrl from '../../utils/backend.js';
-import { showErrorToast } from '../../utils/notifications';
 
 const FIELD_OPTIONS = [
   { value: 'nome_base', label: 'Nome Base' },
@@ -63,8 +61,6 @@ const ImportCatalogWizard = ({ fornecedor, onClose }) => {
     fetchPreviewPages();
   }, [fetchPreviewPages]);
 
-
-const backendBaseUrl = getBackendBaseUrl();
 
   const handleFileChange = (event) => {
     const file = event.target.files[0];
@@ -146,10 +142,6 @@ const backendBaseUrl = getBackendBaseUrl();
       setLoading(false);
     }
   };
-
-
-
-
 
   return (
     <div className="wizard-container">
