@@ -9,6 +9,7 @@ import Modal from '../common/Modal.jsx';
 import ImportProgress from './ImportProgress.jsx';
 import PaginationControls from '../common/PaginationControls';
 import getBackendBaseUrl from '../../utils/backend.js';
+import { showErrorToast } from '../../utils/notifications';
 
 const FIELD_OPTIONS = [
   { value: 'nome_base', label: 'Nome Base' },
@@ -23,17 +24,13 @@ const ImportCatalogWizard = ({ fornecedor, onClose }) => {
   const [loadingMessage, setLoadingMessage] = useState('');
   const [error, setError] = useState('');
 
-  const [fileId, setFileId] = useState(null);
-  const [jobId, setJobId] = useState(null);
   const [isLoadingPreview, setIsLoadingPreview] = useState(false);
   const [previewPages, setPreviewPages] = useState([]);
   const [totalPages, setTotalPages] = useState(0);
   const [currentPage, setCurrentPage] = useState(1);
-  const [limit, setLimit] = useState(5);
-  const [previewPages, setPreviewPages] = useState([]);
-  const [totalPages, setTotalPages] = useState(0);
-  const [isLoadingPreview, setIsLoadingPreview] = useState(false);
   const [limit] = useState(5);
+  const [fileId, setFileId] = useState(null);
+  const [jobId, setJobId] = useState(null);
 
   const [mappingHeaders, setMappingHeaders] = useState([]);
   const [mappingRows, setMappingRows] = useState([]);
@@ -47,16 +44,45 @@ const ImportCatalogWizard = ({ fornecedor, onClose }) => {
   const [applyAllPages, setApplyAllPages] = useState(false);
   const [selectedBbox, setSelectedBbox] = useState(null);
 
-  const backendBaseUrl = getBackendBaseUrl();
+const backendBaseUrl = getBackendBaseUrl();
 
-  const handleFileChange = (e) => {
-    const file = e.target.files[0];
-    if (file && file.type === 'application/pdf') {
-      setSelectedFile(file);
-      setError('');
-    } else {
-      setError('Por favor, selecione um ficheiro PDF válido.');
-      setSelectedFile(null);
+  useEffect(() => {
+    if (!selectedFile) return;
+
+    const fetchPages = async () => {
+      setIsLoadingPreview(true);
+      const offset = (currentPage - 1) * limit;
+      try {
+        const data = await fornecedorService.previewPdf(
+          fornecedor.id,
+          selectedFile,
+          offset,
+          limit,
+        );
+        if (data && data.pages) {
+          setPreviewPages(data.pages);
+          setTotalPages(data.total_pages);
+          if (data.file_id) setFileId(data.file_id);
+        } else {
+          setPreviewPages([]);
+          setTotalPages(0);
+        }
+      } catch (error) {
+        console.error("Falha ao carregar o preview do PDF:", error);
+        showErrorToast("Erro ao carregar o preview do PDF.");
+      } finally {
+        setIsLoadingPreview(false);
+      }
+    };
+
+    fetchPages();
+  }, [currentPage, selectedFile]);
+
+  const handleFileChange = (event) => {
+    const file = event.target.files[0];
+    if (file) {
+      setSelectedFile(file); // Supondo que você tenha um estado 'selectedFile'
+      setCurrentPage(1); // Reseta para a página 1 ao selecionar um novo arquivo
     }
   };
 
@@ -304,6 +330,16 @@ const ImportCatalogWizard = ({ fornecedor, onClose }) => {
               />
             )}
           </div>
+                );
+              })}
+          </div>
+          <PaginationControls
+            currentPage={currentPage ? currentPage - 1 : 0}
+            totalPages={Math.ceil(totalPages / limit)}
+            onPageChange={(page) => setCurrentPage(page + 1)}
+            isLoading={isLoadingPreview}
+            totalItems={totalPages}
+          />
         </div>
       )}
 
