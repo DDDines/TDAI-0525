@@ -249,6 +249,32 @@ export const uploadForPagePreview = async (file, fornecedorId) => {
   }
 };
 
+// Gera pré-visualizações do PDF com suporte a paginação
+export const getPdfPreview = async (file, fornecedorId, offset, limit) => {
+  try {
+    const formData = new FormData();
+    formData.append('file', file);
+    const response = await apiClient.post(
+      `/fornecedores/${fornecedorId}/preview-pdf`,
+      formData,
+      {
+        params: { offset, limit },
+      },
+    );
+    const { image_urls, total_pages } = response.data;
+    return { image_urls, total_pages };
+  } catch (error) {
+    console.error(
+      'Erro ao obter pré-visualização do PDF:',
+      JSON.stringify(error.response?.data || error.message || error),
+    );
+    if (error.response && error.response.data) {
+      throw error.response.data;
+    }
+    throw new Error(error.message || 'Falha ao obter pré-visualização do PDF');
+  }
+};
+
 // Extrai dados de uma página específica de um PDF já enviado
 export const fetchPageDataForMapping = async (fileId, pageNumber) => {
   try {
@@ -395,6 +421,7 @@ export default {
   getImportacaoStatus,
   getImportacaoResult,
   uploadForPagePreview,
+  getPdfPreview,
   fetchPageDataForMapping,
   startFullProcess,
   getImportProgress,
