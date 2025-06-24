@@ -270,42 +270,40 @@ const ImportCatalogWizard = ({ fornecedor, onClose }) => {
       {step === 'select_page' && (
         <div>
           <h3>Passo 2: Escolha a página da tabela</h3>
-          <div style={{ display: 'flex', flexWrap: 'wrap' }}>
-            {previewPages
-              .slice(
-                (currentPage ? currentPage - 1 : 0) * limit,
-                (currentPage ? currentPage - 1 : 0) * limit + limit,
-              )
-              .map((url, idx) => {
-                const realIndex = (currentPage ? currentPage - 1 : 0) * limit + idx;
-                return (
-                  <img
-                    key={realIndex}
-                    src={`${backendBaseUrl}${url}`}
-                    alt={`Página ${realIndex + 1}`}
-                    style={{
-                      maxWidth: '120px',
-                      margin: '0.5em',
-                      cursor: 'pointer',
-                    }}
-                    onClick={() => handlePageClick(realIndex + 1)}
-                  />
-                );
-              })}
-          </div>
-          <PaginationControls
-            currentPage={currentPage ? currentPage - 1 : 0}
-            totalPages={Math.ceil(totalPages / limit)}
-            onPageChange={(page) => setCurrentPage(page + 1)}
+          <div>
+            {isLoadingPreview && (
+              <p style={{ textAlign: 'center', margin: '20px' }}>
+                Carregando preview...
+              </p>
+            )}
 
-            itemsPerPage={limit}
-            onItemsPerPageChange={(value) => {
-              setLimit(parseInt(value, 10));
-              setCurrentPage(1);
-            }}
-            isLoading={isLoadingPreview}
-            totalItems={totalPages}
-          />
+            {!isLoadingPreview && previewPages.length > 0 && (
+              <div className="pdf-preview-container">
+                {previewPages.map((imgData, index) => (
+                  <img
+                    key={`${fileId}-${currentPage}-${index}`}
+                    src={`data:image/png;base64,${imgData}`}
+                    alt={`Página de preview ${
+                      (currentPage - 1) * limit + index + 1
+                    }`}
+                    style={{
+                      width: '100%',
+                      marginBottom: '10px',
+                      border: '1px solid #ddd',
+                    }}
+                  />
+                ))}
+              </div>
+            )}
+
+            {!isLoadingPreview && totalPages > limit && (
+              <PaginationControls
+                currentPage={currentPage}
+                totalPages={Math.ceil(totalPages / limit)}
+                onPageChange={(page) => setCurrentPage(page)}
+              />
+            )}
+          </div>
         </div>
       )}
 
