@@ -61,7 +61,7 @@ describe('ImportCatalogWizard', () => {
     await userEvent.upload(fileInput, file);
     await userEvent.click(screen.getByText('Gerar Preview'));
 
-    expect(fornecedorService.getPdfPreview).toHaveBeenCalledWith(file, 1, 0, 5);
     await screen.findByAltText('Página 1');
+    expect(fornecedorService.getPdfPreview).toHaveBeenCalledWith(file, 1, 0, 5);
   });
 });

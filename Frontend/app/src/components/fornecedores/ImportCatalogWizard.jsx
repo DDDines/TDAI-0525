@@ -25,11 +25,15 @@ const ImportCatalogWizard = ({ fornecedor, onClose }) => {
 
   const [fileId, setFileId] = useState(null);
   const [jobId, setJobId] = useState(null);
+  const [isLoadingPreview, setIsLoadingPreview] = useState(false);
+  const [previewPages, setPreviewPages] = useState([]);
+  const [totalPages, setTotalPages] = useState(0);
   const [currentPage, setCurrentPage] = useState(1);
   const [limit, setLimit] = useState(5);
   const [previewPages, setPreviewPages] = useState([]);
   const [totalPages, setTotalPages] = useState(0);
   const [isLoadingPreview, setIsLoadingPreview] = useState(false);
+  const [limit] = useState(5);
 
   const [mappingHeaders, setMappingHeaders] = useState([]);
   const [mappingRows, setMappingRows] = useState([]);
@@ -61,6 +65,7 @@ const ImportCatalogWizard = ({ fornecedor, onClose }) => {
     setLoading(true);
     setLoadingMessage('A gerar pré-visualização inicial...');
     setError('');
+    setIsLoadingPreview(true);
     try {
       const offset = (currentPage - 1) * limit;
       const response = await fornecedorService.getPdfPreview(
@@ -80,6 +85,7 @@ const ImportCatalogWizard = ({ fornecedor, onClose }) => {
       setError(`Erro: ${detail}`);
     } finally {
       setLoading(false);
+      setIsLoadingPreview(false);
     }
   };
 
@@ -178,6 +184,33 @@ const ImportCatalogWizard = ({ fornecedor, onClose }) => {
       setIsLoadingPreview(false);
     }
   };
+  useEffect(() => {
+    const fetchPreview = async () => {
+      if (!selectedFile || step !== 'select_page') return;
+      setLoading(true);
+      setLoadingMessage('A gerar pré-visualização...');
+      setError('');
+      setIsLoadingPreview(true);
+      try {
+        const offset = (currentPage - 1) * limit;
+        const response = await fornecedorService.getPdfPreview(
+          selectedFile,
+          fornecedor.id,
+          offset,
+          limit,
+        );
+        console.log('DADOS RECEBIDOS DA API:', response);
+        setFileId(response.import_file_id);
+        setPreviewPages(response.image_urls || []);
+        setTotalPages(response.total_pages || 0);
+      } catch (err) {
+        const detail = err.response?.data?.detail || err.message;
+        setError(`Erro: ${detail}`);
+      } finally {
+        setLoading(false);
+        setIsLoadingPreview(false);
+      }
+    };
 
   useEffect(() => {
     fetchPages();
@@ -243,11 +276,13 @@ const ImportCatalogWizard = ({ fornecedor, onClose }) => {
             currentPage={currentPage ? currentPage - 1 : 0}
             totalPages={Math.ceil(totalPages / limit)}
             onPageChange={(page) => setCurrentPage(page + 1)}
+
             itemsPerPage={limit}
             onItemsPerPageChange={(value) => {
               setLimit(parseInt(value, 10));
               setCurrentPage(1);
             }}
+            isLoading={isLoadingPreview}
             totalItems={totalPages}
           />
         </div>
