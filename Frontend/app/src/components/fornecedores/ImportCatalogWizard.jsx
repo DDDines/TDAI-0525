@@ -38,9 +38,6 @@ const ImportCatalogWizard = ({ fornecedor, onClose }) => {
   const [showRegionModal, setShowRegionModal] = useState(false);
   const [regionPreview, setRegionPreview] = useState(null);
   const [regionError, setRegionError] = useState('');
-  const [currentPage, setCurrentPage] = useState(null);
-  const [limit, setLimit] = useState(10);
-  const [totalPdfPages, setTotalPdfPages] = useState(0);
   const [pdfBytes, setPdfBytes] = useState(null);
   const [applyAllPages, setApplyAllPages] = useState(false);
   const [selectedBbox, setSelectedBbox] = useState(null);
