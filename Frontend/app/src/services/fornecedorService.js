@@ -249,6 +249,29 @@ export const uploadForPagePreview = async (file, fornecedorId) => {
   }
 };
 
+// Obtém miniaturas de páginas de um PDF com suporte a offset e limit
+export const getPdfPreview = async (file, fornecedorId, offset = 0, limit = 5) => {
+  try {
+    const formData = new FormData();
+    formData.append('file', file);
+    const response = await apiClient.post(
+      `/fornecedores/${fornecedorId}/preview-pdf`,
+      formData,
+      { params: { offset, limit } },
+    );
+    return response.data;
+  } catch (error) {
+    console.error(
+      'Erro ao obter preview do PDF:',
+      JSON.stringify(error.response?.data || error.message || error),
+    );
+    if (error.response && error.response.data) {
+      throw error.response.data;
+    }
+    throw new Error(error.message || 'Falha ao obter preview do PDF');
+  }
+};
+
 // Extrai dados de uma página específica de um PDF já enviado
 export const fetchPageDataForMapping = async (fileId, pageNumber) => {
   try {
@@ -395,6 +418,7 @@ export default {
   getImportacaoStatus,
   getImportacaoResult,
   uploadForPagePreview,
+  getPdfPreview,
   fetchPageDataForMapping,
   startFullProcess,
   getImportProgress,
