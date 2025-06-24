@@ -179,27 +179,6 @@ const backendBaseUrl = getBackendBaseUrl();
     }
   };
 
-  const fetchPreviewPages = useCallback(async () => {
-    if (!selectedFile) return;
-    const offset = (currentPage - 1) * limit;
-    setIsLoadingPreview(true);
-    setError('');
-    try {
-      const response = await fornecedorService.getPdfPreview(
-        selectedFile,
-        fornecedor.id,
-        offset,
-        limit,
-      );
-      setPreviewPages(response.image_urls || []);
-      setTotalPages(response.total_pages || 0);
-    } catch (err) {
-      const detail = err.response?.data?.detail || err.message;
-      setError(`Erro: ${detail}`);
-    } finally {
-      setIsLoadingPreview(false);
-    }
-  }, [selectedFile, currentPage, fornecedor.id, limit]);
 
   useEffect(() => {
     fetchPreviewPages();
