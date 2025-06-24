@@ -37,20 +37,25 @@ const ImportCatalogWizard = ({ fornecedor, onClose }) => {
     const offset = (currentPage - 1) * limit;
 
     try {
-        const data = await fornecedorService.previewPdf(fornecedor.id, selectedFile, offset, limit);
-        if (data && data.pages) {
-            setPreviewPages(data.pages);
-            setTotalPages(data.total_pages);
-            if (data.file_id) setFileId(data.file_id);
-        } else {
-            setPreviewPages([]);
-            setTotalPages(0);
-        }
+      const data = await fornecedorService.previewPdf(
+        fornecedor.id,
+        selectedFile,
+        offset,
+        limit,
+      );
+      if (data && data.pages) {
+        setPreviewPages(data.pages);
+        setTotalPages(data.total_pages);
+        if (data.file_id) setFileId(data.file_id);
+      } else {
+        setPreviewPages([]);
+        setTotalPages(0);
+      }
     } catch (error) {
-        console.error("Falha ao carregar o preview do PDF:", error);
-        showErrorToast("Erro ao carregar o preview do PDF.");
+      console.error('Falha ao carregar o preview do PDF:', error);
+      showErrorToast('Erro ao carregar o preview do PDF.');
     } finally {
-        setIsLoadingPreview(false);
+      setIsLoadingPreview(false);
     }
   }, [currentPage, selectedFile, fornecedor.id, limit]);
 
