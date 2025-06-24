@@ -296,9 +296,7 @@ const backendBaseUrl = getBackendBaseUrl();
                   <img
                     key={`${fileId}-${currentPage}-${index}`}
                     src={`data:image/png;base64,${imgData}`}
-                    alt={`Página de preview ${
-                      (currentPage - 1) * limit + index + 1
-                    }`}
+                    alt={`Página de preview ${(currentPage - 1) * limit + index + 1}`}
                     style={{
                       width: '100%',
                       marginBottom: '10px',
@@ -315,7 +313,7 @@ const backendBaseUrl = getBackendBaseUrl();
               </p>
             )}
 
-            {!isLoadingPreview && totalPages > 0 && (
+            {!isLoadingPreview && totalPages > 0 && totalPages > limit && (
               <PaginationControls
                 currentPage={currentPage}
                 totalPages={Math.ceil(totalPages / limit)}
