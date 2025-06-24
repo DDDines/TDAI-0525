@@ -34,6 +34,7 @@ const ImportCatalogWizard = ({ fornecedor, onClose }) => {
     setError('');
     const offset = (currentPage - 1) * limit;
     try {
+      // Usando o nome da função correto: 'previewPdf'
       const data = await fornecedorService.previewPdf(
         fornecedor.id,
         selectedFile,
