@@ -227,22 +227,6 @@ const ImportCatalogWizard = ({ fornecedor, onClose }) => {
                   />
                 );
               })}
-            {pageImages.map((url, idx) => {
-              const pageNumber = (currentPage - 1) * limit + idx + 1;
-              return (
-                <img
-                  key={idx}
-                  src={`${backendBaseUrl}${url}`}
-                  alt={`Página ${pageNumber}`}
-                  style={{
-                    maxWidth: '120px',
-                    margin: '0.5em',
-                    cursor: 'pointer',
-                  }}
-                  onClick={() => handlePageClick(pageNumber)}
-                />
-              );
-            })}
           </div>
           <PaginationControls
             currentPage={currentPage ? currentPage - 1 : 0}
