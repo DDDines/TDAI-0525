@@ -29,6 +29,16 @@ const ImportCatalogWizard = ({ fornecedor, onClose }) => {
   const [fileId, setFileId] = useState(null);
   const [error, setError] = useState('');
   const [showRegionModal, setShowRegionModal] = useState(false);
+  const [pdfBytes, setPdfBytes] = useState(null);
+  const [regionPreview, setRegionPreview] = useState(null);
+  const [regionError, setRegionError] = useState('');
+  const [mappingHeaders, setMappingHeaders] = useState([]);
+  const [mappingRows, setMappingRows] = useState([]);
+  const [showMappingModal, setShowMappingModal] = useState(false);
+  const [loadingMessage, setLoadingMessage] = useState('');
+  const [selectedBbox, setSelectedBbox] = useState(null);
+  const [applyAllPages, setApplyAllPages] = useState(false);
+  const [jobId, setJobId] = useState(null);
 
   const fetchPreviewPages = useCallback(async () => {
     if (!selectedFile) return;
