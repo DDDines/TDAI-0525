@@ -18,31 +18,19 @@ const FIELD_OPTIONS = [
 ];
 
 const ImportCatalogWizard = ({ fornecedor, onClose }) => {
-  const [step, setStep] = useState('upload');
+  const [step, setStep] = useState(1);
   const [selectedFile, setSelectedFile] = useState(null);
-  const [loading, setLoading] = useState(false);
-  const [loadingMessage, setLoadingMessage] = useState('');
-  const [error, setError] = useState('');
-
+  const [mapping, setMapping] = useState(
+    fornecedor.default_column_mapping || {}
+  );
+  const [isLoading, setIsLoading] = useState(false);
+  const [extractionResult, setExtractionResult] = useState(null);
   const [isLoadingPreview, setIsLoadingPreview] = useState(false);
   const [previewPages, setPreviewPages] = useState([]);
   const [totalPages, setTotalPages] = useState(0);
   const [currentPage, setCurrentPage] = useState(1);
-  const [limit] = useState(5);
+  const [limit] = useState(5); // Define 5 páginas por vez
   const [fileId, setFileId] = useState(null);
-  const [jobId, setJobId] = useState(null);
-
-  const [mappingHeaders, setMappingHeaders] = useState([]);
-  const [mappingRows, setMappingRows] = useState([]);
-  const [showMappingModal, setShowMappingModal] = useState(false);
-  const [mapping, setMapping] = useState(null);
-
-  const [showRegionModal, setShowRegionModal] = useState(false);
-  const [regionPreview, setRegionPreview] = useState(null);
-  const [regionError, setRegionError] = useState('');
-  const [pdfBytes, setPdfBytes] = useState(null);
-  const [applyAllPages, setApplyAllPages] = useState(false);
-  const [selectedBbox, setSelectedBbox] = useState(null);
 
 const backendBaseUrl = getBackendBaseUrl();
 
