@@ -7,6 +7,7 @@ import ColumnMappingModal from '../common/ColumnMappingModal.jsx';
 import PdfRegionSelector from '../common/PdfRegionSelector.jsx';
 import Modal from '../common/Modal.jsx';
 import ImportProgress from './ImportProgress.jsx';
+import PaginationControls from '../common/PaginationControls';
 import getBackendBaseUrl from '../../utils/backend.js';
 
 const FIELD_OPTIONS = [
@@ -37,6 +38,9 @@ const ImportCatalogWizard = ({ fornecedor, onClose }) => {
   const [showRegionModal, setShowRegionModal] = useState(false);
   const [regionPreview, setRegionPreview] = useState(null);
   const [regionError, setRegionError] = useState('');
+  const [currentPage, setCurrentPage] = useState(null);
+  const [limit, setLimit] = useState(10);
+  const [totalPdfPages, setTotalPdfPages] = useState(0);
   const [pdfBytes, setPdfBytes] = useState(null);
   const [applyAllPages, setApplyAllPages] = useState(false);
   const [selectedBbox, setSelectedBbox] = useState(null);
@@ -69,6 +73,8 @@ const ImportCatalogWizard = ({ fornecedor, onClose }) => {
       );
       setFileId(response.import_file_id);
       setPageImages(response.image_urls || []);
+      setTotalPdfPages((response.image_urls || []).length);
+      setCurrentPage(1);
       setTotalPdfPages(response.total_pages || 0);
       setStep('select_page');
     } catch (err) {
@@ -207,6 +213,23 @@ const ImportCatalogWizard = ({ fornecedor, onClose }) => {
         <div>
           <h3>Passo 2: Escolha a página da tabela</h3>
           <div style={{ display: 'flex', flexWrap: 'wrap' }}>
+            {pageImages
+              .slice(
+                (currentPage ? currentPage - 1 : 0) * limit,
+                (currentPage ? currentPage - 1 : 0) * limit + limit,
+              )
+              .map((url, idx) => {
+                const realIndex = (currentPage ? currentPage - 1 : 0) * limit + idx;
+                return (
+                  <img
+                    key={realIndex}
+                    src={`${backendBaseUrl}${url}`}
+                    alt={`Página ${realIndex + 1}`}
+                    style={{ maxWidth: '120px', margin: '0.5em', cursor: 'pointer' }}
+                    onClick={() => handlePageClick(realIndex + 1)}
+                  />
+                );
+              })}
             {pageImages.map((url, idx) => {
               const pageNumber = (currentPage - 1) * limit + idx + 1;
               return (
@@ -224,6 +247,17 @@ const ImportCatalogWizard = ({ fornecedor, onClose }) => {
               );
             })}
           </div>
+          <PaginationControls
+            currentPage={currentPage ? currentPage - 1 : 0}
+            totalPages={Math.ceil(totalPdfPages / limit)}
+            onPageChange={(page) => setCurrentPage(page + 1)}
+            itemsPerPage={limit}
+            onItemsPerPageChange={(value) => {
+              setLimit(parseInt(value, 10));
+              setCurrentPage(1);
+            }}
+            totalItems={totalPdfPages}
+          />
         </div>
       )}
 
