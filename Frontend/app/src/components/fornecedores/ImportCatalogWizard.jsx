@@ -40,16 +40,13 @@ const ImportCatalogWizard = ({ fornecedor, onClose, isOpen }) => {
   const [applyAllPages, setApplyAllPages] = useState(false);
   const [jobId, setJobId] = useState(null);
 
-  if (!isOpen) return null;
-
   const fetchPreviewPages = useCallback(async () => {
     if (!selectedFile) return;
     setIsLoadingPreview(true);
     setError('');
     const offset = (currentPage - 1) * limit;
     try {
-      // Usando o nome da função correto: 'previewPdf'
-      const data = await fornecedorService.previewPdf(
+      const data = await fornecedorService.getPdfPreview(
         fornecedor.id,
         selectedFile,
         offset,
@@ -72,8 +69,10 @@ const ImportCatalogWizard = ({ fornecedor, onClose, isOpen }) => {
   }, [currentPage, selectedFile, fornecedor.id, limit]);
 
   useEffect(() => {
-    fetchPreviewPages();
-  }, [fetchPreviewPages]);
+    if (isOpen) {
+      fetchPreviewPages();
+    }
+  }, [fetchPreviewPages, isOpen]);
 
 
   const handleFileChange = (event) => {
@@ -156,6 +155,8 @@ const ImportCatalogWizard = ({ fornecedor, onClose, isOpen }) => {
       setLoading(false);
     }
   };
+
+  if (!isOpen) return null;
 
   return (
     <div className="wizard-container">
