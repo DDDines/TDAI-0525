@@ -15,19 +15,41 @@ from Backend.models import (
     StatusEnriquecimentoEnum,
     StatusGeracaoIAEnum,
 )
-from fastapi import UploadFile
+from fastapi import UploadFile, HTTPException, status 
 from Backend import schemas
 
 logger = logging.getLogger(__name__)
 
 
-# --- Produto CRUD ---
 def create_produto(
     db: Session, produto: schemas.ProdutoCreate, user_id: int
 ) -> Produto:
     produto_data = produto.model_dump(exclude_unset=True)
 
-    # Assegura que campos JSON estejam como dicts
+    # 1. Tratamento de campos vazios (A nossa correção anterior)
+    if "sku" in produto_data and produto_data["sku"] == "":
+        produto_data["sku"] = None
+    if "ean" in produto_data and produto_data["ean"] == "":
+        produto_data["ean"] = None
+
+    # 2. Verificação de Duplicados (NOVO: Evita o erro 500)
+    if produto_data.get("sku"):
+        existe_sku = db.query(Produto).filter(Produto.user_id == user_id, Produto.sku == produto_data["sku"]).first()
+        if existe_sku:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail=f"Já existe um produto com o SKU '{produto_data['sku']}'."
+            )
+            
+    if produto_data.get("ean"):
+        existe_ean = db.query(Produto).filter(Produto.user_id == user_id, Produto.ean == produto_data["ean"]).first()
+        if existe_ean:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail=f"Já existe um produto com o EAN '{produto_data['ean']}'."
+            )
+
+    # 3. Tratamento de JSONs (Código original)
     if "dynamic_attributes" in produto_data and isinstance(
         produto_data["dynamic_attributes"], str
     ):
