@@ -404,6 +404,7 @@ async def process_full_catalog(
     fornecedor_id: int = Body(..., embed=True),
     tipo_produto_id: int = Body(..., embed=True),
     start_page: int = Body(1, embed=True),
+    region: Optional[List[float]] = Body(None, embed=True),  # NOVO
     mapping: Optional[dict] = Body(None),
     db: Session = Depends(database.get_db),
     current_user: models.User = Depends(auth_utils.get_current_active_user),
@@ -464,6 +465,7 @@ async def process_full_catalog(
         fornecedor_id=fornecedor_id,
         mapping=mapping,
         pages=pages,
+        region=region, # NOVO
     )
 
     return {"job_id": job.id, "status": "PROCESSING"}

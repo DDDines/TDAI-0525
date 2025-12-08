@@ -49,6 +49,57 @@ router = APIRouter(
 logger = logging.getLogger(__name__)
 
 
+# Backend/routers/produtos.py
+
+from typing import List, Optional, Union, Dict, Any
+
+from fastapi import (
+    APIRouter,
+    Depends,
+    HTTPException,
+    Query,
+    BackgroundTasks,
+    status,
+    UploadFile,
+    File,
+    Form,
+    Body,
+)
+import json
+import io
+import pdfplumber
+from sqlalchemy.orm import Session
+from pathlib import Path
+from sqlalchemy import func, or_
+from uuid import uuid4
+
+from Backend import crud_produtos
+from Backend import crud_fornecedores
+from Backend import crud_product_types
+from Backend import crud
+from Backend import crud_historico
+from Backend import models
+from Backend import schemas  # schemas é importado
+from Backend import database
+from Backend.database import SessionLocal
+import logging
+import time
+from Backend.services import file_processing_service, validator_crew
+from . import auth_utils  # Para obter o usuário logado
+from Backend.core import (
+    config,
+)  # Pode ser necessário para settings, se usado diretamente
+from Backend.core.config import settings
+
+router = APIRouter(
+    prefix="/produtos",
+    tags=["produtos"],
+    dependencies=[Depends(auth_utils.get_current_active_user)],
+)
+
+logger = logging.getLogger(__name__)
+
+
 async def _tarefa_processar_catalogo(
     db_session_factory,
     file_id: int,
@@ -57,6 +108,7 @@ async def _tarefa_processar_catalogo(
     fornecedor_id: int,
     mapping: Optional[Dict[str, str]] = None,
     pages: Optional[List[int]] = None,
+    region: Optional[List[float]] = None,
 ):
     """Processa o arquivo salvo em background e cria os produtos."""
     db: Optional[Session] = None
@@ -106,6 +158,7 @@ async def _tarefa_processar_catalogo(
                     mapeamento_colunas_usuario=mapping,
                     product_type_id=product_type_id,
                     pages=[page],
+                    region=region,
                 )
 
                 for prod in produtos_data:
@@ -117,16 +170,20 @@ async def _tarefa_processar_catalogo(
                     ):
                         erros.append(prod)
                         continue
+                    
+                    # Executa a crew de validação
+                    validated_prod = validator_crew.run_validation_crew(prod)
+
                     try:
                         produto_schema = schemas.ProdutoCreate(
-                            nome_base=prod.get("nome_base")
-                            or prod.get("sku_original")
+                            nome_base=validated_prod.get("nome_base")
+                            or validated_prod.get("sku_original")
                             or "Produto Importado",
-                            sku=prod.get("sku_original"),
-                            ean=prod.get("ean_original"),
-                            descricao_original=prod.get("descricao_original"),
-                            marca=prod.get("marca"),
-                            categoria_original=prod.get("categoria_original"),
+                            sku=validated_prod.get("sku_original"),
+                            ean=validated_prod.get("ean_original"),
+                            descricao_original=validated_prod.get("descricao_original"),
+                            marca=validated_prod.get("marca"),
+                            categoria_original=validated_prod.get("categoria_original"),
                             fornecedor_id=catalog_file.fornecedor_id,
                             product_type_id=product_type_id,
                         )
@@ -136,6 +193,7 @@ async def _tarefa_processar_catalogo(
                             {
                                 "motivo_descarte": f"Erro ao converter linha: {str(e)}",
                                 "linha_original": prod,
+                                "linha_validada": validated_prod,
                             }
                         )
 
@@ -149,33 +207,7 @@ async def _tarefa_processar_catalogo(
                     )
                     created.extend(created_page)
                     updated.extend(updated_page)
-                    for err in dup_errors:
-                        if err.get("duplicado"):
-                            linha = err.get("linha_original", {})
-                            sku = linha.get("sku")
-                            ean = linha.get("ean")
-                            query = db.query(models.Produto).filter(
-                                models.Produto.user_id == user_id
-                            )
-                            if sku:
-                                query = query.filter(models.Produto.sku == sku)
-                            elif ean:
-                                query = query.filter(models.Produto.ean == ean)
-                            existing = query.first()
-                            if existing:
-                                before = schemas.ProdutoResponse.model_validate(
-                                    existing
-                                ).model_dump()
-                                update_schema = schemas.ProdutoUpdate(**linha)
-                                updated_prod = crud_produtos.update_produto(
-                                    db, existing, update_schema
-                                )
-                                after = schemas.ProdutoResponse.model_validate(
-                                    updated_prod
-                                ).model_dump()
-                                updated.append({"before": before, "after": after})
-                                continue
-                        erros.append(err)
+                    erros.extend(dup_errors) # Simplificado
 
                     for db_produto in created_page:
                         crud.create_registro_uso_ia(
@@ -199,7 +231,7 @@ async def _tarefa_processar_catalogo(
                     produtos_create = []
                 catalog_file.pages_processed += 1
                 db.commit()
-        else:
+        else: # Lógica para outros tipos de arquivo (Excel, CSV)
             catalog_file.total_pages = 1
             catalog_file.pages_processed = 0
             db.commit()
@@ -219,6 +251,7 @@ async def _tarefa_processar_catalogo(
                 catalog_file.status = "FAILED"
                 db.commit()
                 return
+            
             created_page: List[models.Produto] = []
             updated_page: List[models.Produto] = []
 
@@ -229,16 +262,20 @@ async def _tarefa_processar_catalogo(
                 ):
                     erros.append(prod)
                     continue
+
+                # Executa a crew de validação
+                validated_prod = validator_crew.run_validation_crew(prod)
+                
                 try:
                     produto_schema = schemas.ProdutoCreate(
-                        nome_base=prod.get("nome_base")
-                        or prod.get("sku_original")
+                        nome_base=validated_prod.get("nome_base")
+                        or validated_prod.get("sku_original")
                         or "Produto Importado",
-                        sku=prod.get("sku_original"),
-                        ean=prod.get("ean_original"),
-                        descricao_original=prod.get("descricao_original"),
-                        marca=prod.get("marca"),
-                        categoria_original=prod.get("categoria_original"),
+                        sku=validated_prod.get("sku_original"),
+                        ean=validated_prod.get("ean_original"),
+                        descricao_original=validated_prod.get("descricao_original"),
+                        marca=validated_prod.get("marca"),
+                        categoria_original=validated_prod.get("categoria_original"),
                         fornecedor_id=catalog_file.fornecedor_id,
                         product_type_id=product_type_id,
                     )
@@ -246,8 +283,9 @@ async def _tarefa_processar_catalogo(
                 except Exception as e:
                     erros.append(
                         {
-                            "motivo_descarte": f"Erro ao converter linha: {str(e)}",
+                            "motivo_descarte": f"Erro ao converter linha pós-validação: {str(e)}",
                             "linha_original": prod,
+                            "linha_validada": validated_prod
                         }
                     )
             if produtos_create:
@@ -260,33 +298,7 @@ async def _tarefa_processar_catalogo(
                 )
                 created.extend(created_page)
                 updated.extend(updated_page)
-                for err in dup_errors:
-                    if err.get("duplicado"):
-                        linha = err.get("linha_original", {})
-                        sku = linha.get("sku")
-                        ean = linha.get("ean")
-                        query = db.query(models.Produto).filter(
-                            models.Produto.user_id == user_id
-                        )
-                        if sku:
-                            query = query.filter(models.Produto.sku == sku)
-                        elif ean:
-                            query = query.filter(models.Produto.ean == ean)
-                        existing = query.first()
-                        if existing:
-                            before = schemas.ProdutoResponse.model_validate(
-                                existing
-                            ).model_dump()
-                            update_schema = schemas.ProdutoUpdate(**linha)
-                            updated_prod = crud_produtos.update_produto(
-                                db, existing, update_schema
-                            )
-                            after = schemas.ProdutoResponse.model_validate(
-                                updated_prod
-                            ).model_dump()
-                            updated.append({"before": before, "after": after})
-                            continue
-                    erros.append(err)
+                erros.extend(dup_errors)
 
                 for db_produto in created_page:
                     crud.create_registro_uso_ia(
@@ -338,6 +350,7 @@ async def _tarefa_processar_catalogo(
     finally:
         if db:
             db.close()
+
 
 
 @router.post(

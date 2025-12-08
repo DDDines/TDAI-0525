@@ -5,6 +5,7 @@ from typing import List, Optional
 
 from sqlalchemy import func, or_
 from sqlalchemy.orm import Session
+from fastapi import HTTPException, status
 
 from Backend.models import Fornecedor, CatalogImportFile # Adicionado CatalogImportFile
 from Backend import schemas
@@ -15,6 +16,18 @@ logger = logging.getLogger(__name__)
 # --- Fornecedor CRUD ---
 def create_fornecedor(db: Session, fornecedor: schemas.FornecedorCreate, user_id: int) -> Fornecedor:
     fornecedor_data = fornecedor.model_dump()
+    
+    # Verificação de Duplicados (case-insensitive no nome)
+    existing_fornecedor = db.query(Fornecedor).filter(
+        Fornecedor.user_id == user_id,
+        func.lower(Fornecedor.nome) == func.lower(fornecedor_data["nome"])
+    ).first()
+    if existing_fornecedor:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=f"Já existe um fornecedor com o nome '{fornecedor_data['nome']}'."
+        )
+
     if fornecedor_data.get("site_url"):
         fornecedor_data["site_url"] = str(fornecedor_data["site_url"])
     if fornecedor_data.get("link_busca_padrao"):

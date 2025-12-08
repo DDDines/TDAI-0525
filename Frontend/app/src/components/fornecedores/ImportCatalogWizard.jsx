@@ -144,6 +144,7 @@ const ImportCatalogWizard = ({ fornecedor, onClose, isOpen }) => {
           file_id: fileId,
           fornecedor_id: fornecedor.id,
           mapping: map,
+          region: selectedBbox,
         });
       }
       setJobId(resp.job_id);

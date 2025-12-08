@@ -305,158 +305,117 @@ async def processar_arquivo_pdf(
     usar_llm: bool = True,
     product_type_id: Optional[int] = None,
     pages: Optional[List[int]] = None,
+    region: Optional[List[float]] = None,
 ) -> List[Dict[str, Any]]:
     produtos_extraidos: List[Dict[str, Any]] = []
     log_pdf: List[str] = []
     try:
         with pdfplumber.open(io.BytesIO(conteudo_arquivo)) as pdf:
             log_pdf.append(f"PDF com {len(pdf.pages)} páginas.")
-            for i, page in enumerate(pdf.pages):
-                page_num = i + 1
-                if pages and page_num not in pages:
+            
+            page_list_to_process = pages if pages else range(1, len(pdf.pages) + 1)
+            
+            for page_num in page_list_to_process:
+                if not (1 <= page_num <= len(pdf.pages)):
                     continue
+
+                page = pdf.pages[page_num - 1]
+                page_to_process = page
+                
+                if region and len(region) == 4:
+                    bbox = tuple(map(float, region))
+                    page_to_process = page.crop(bbox)
+                    log_pdf.append(f"Página {page_num}: Aplicando recorte (crop) com bbox {bbox}.")
+
                 # Tenta extrair tabelas da página
-                # Configurações para extração de tabela podem ser ajustadas
-                tables = page.extract_tables(
+                tables = page_to_process.extract_tables(
                     table_settings={
-                        "vertical_strategy": "lines",  # ou "text"
-                        "horizontal_strategy": "lines",  # ou "text"
+                        "vertical_strategy": "lines",
+                        "horizontal_strategy": "lines",
                     }
                 )
+
                 if tables:
-                    log_pdf.append(f"Página {i+1}: Encontradas {len(tables)} tabelas.")
+                    log_pdf.append(f"Página {page_num}: Encontradas {len(tables)} tabelas.")
                     for table_num, table_data in enumerate(tables):
-                        if (
-                            not table_data or len(table_data) < 2
-                        ):  # Precisa de cabeçalho e pelo menos uma linha de dados
-                            log_pdf.append(
-                                f"Página {i+1}, Tabela {table_num+1}: Tabela vazia ou sem dados suficientes."
-                            )
+                        if not table_data or len(table_data) < 2:
+                            log_pdf.append(f"Página {page_num}, Tabela {table_num+1}: Tabela vazia ou sem dados.")
                             continue
 
                         headers_raw = table_data[0]
-                        headers = [
-                            _limpar_valor_extraido(h) or f"coluna_vazia_{idx}"
-                            for idx, h in enumerate(headers_raw)
-                        ]
+                        headers = [_limpar_valor_extraido(h) or f"coluna_vazia_{idx}" for idx, h in enumerate(headers_raw)]
 
                         for row_idx, row_data in enumerate(table_data[1:]):
                             if len(row_data) != len(headers):
-                                log_pdf.append(
-                                    f"Página {i+1}, Tabela {table_num+1}, Linha {row_idx+1}: Número de colunas ({len(row_data)}) não corresponde ao cabeçalho ({len(headers)}). Pulando."
-                                )
+                                log_pdf.append(f"Página {page_num}, Tabela {table_num+1}, Linha {row_idx+1}: Incompatibilidade de colunas. Pulando.")
                                 continue
-
-                            linha_dict_raw = {
-                                headers[col_idx]: cell_data
-                                for col_idx, cell_data in enumerate(row_data)
-                            }
-                            produto_padronizado = _processar_linha_padronizada(
-                                linha_dict_raw, mapeamento_colunas_usuario
-                            )
+                            
+                            linha_dict_raw = {headers[col_idx]: cell_data for col_idx, cell_data in enumerate(row_data)}
+                            produto_padronizado = _processar_linha_padronizada(linha_dict_raw, mapeamento_colunas_usuario)
+                            
                             if produto_padronizado:
                                 if product_type_id is not None:
-                                    produto_padronizado["product_type_id"] = (
-                                        product_type_id
-                                    )
+                                    produto_padronizado["product_type_id"] = product_type_id
                                 produtos_extraidos.append(produto_padronizado)
                 else:
-                    log_pdf.append(
-                        f"Página {i+1}: Nenhuma tabela encontrada com as configurações atuais."
-                    )
+                    log_pdf.append(f"Página {page_num}: Nenhuma tabela encontrada.")
 
-            if (
-                not produtos_extraidos and len(pdf.pages) > 0
-            ):  # Fallback se nenhuma tabela extraiu dados
-                log_pdf.append(
-                    "Nenhum produto extraído de tabelas. Extraindo texto de todas as páginas."
-                )
-                for i, page in enumerate(pdf.pages):
-                    page_num = i + 1
-                    if pages and page_num not in pages:
+            if not produtos_extraidos and page_list_to_process:
+                log_pdf.append("Nenhum produto extraído de tabelas. Tentando extração de texto bruto.")
+                for page_num in page_list_to_process:
+                    if not (1 <= page_num <= len(pdf.pages)):
                         continue
-                    page_text = page.extract_text(x_tolerance=2, y_tolerance=2)
+                    
+                    page = pdf.pages[page_num - 1]
+                    page_to_process = page
+                    
+                    if region and len(region) == 4:
+                        bbox = tuple(map(float, region))
+                        page_to_process = page.crop(bbox)
+
+                    page_text = page_to_process.extract_text(x_tolerance=2, y_tolerance=2)
                     if page_text and page_text.strip():
-                        log_pdf.append(f"Página {i+1}: Texto extraído.")
-                        texto_chave = f"texto_completo_pagina_{i+1}"
+                        log_pdf.append(f"Página {page_num}: Texto extraído.")
+                        texto_chave = f"texto_completo_pagina_{page_num}"
+                        
                         if usar_llm:
                             try:
-                                dados_produto = await web_data_extractor_service.extrair_dados_produto_com_llm(
-                                    page_text
-                                )
+                                dados_produto = await web_data_extractor_service.extrair_dados_produto_com_llm(page_text)
                                 if isinstance(dados_produto, dict):
-                                    dados_produto["texto_bruto"] = page_text.strip()[
-                                        :20000
-                                    ]
+                                    dados_produto["texto_bruto"] = page_text.strip()[:20000]
                                     if product_type_id is not None:
-                                        dados_produto["product_type_id"] = (
-                                            product_type_id
-                                        )
+                                        dados_produto["product_type_id"] = product_type_id
                                     produtos_extraidos.append(dados_produto)
-                                else:
-                                    item = {
-                                        "nome_base": f"Texto da página {i+1}",
-                                        "dados_brutos_adicionais": {
-                                            texto_chave: page_text.strip()[:20000]
-                                        },
-                                    }
+                                    log_pdf.append(f"Página {page_num}: Texto processado com LLM.")
+                                else: # Fallback se LLM não retornar dict
+                                    item = {"nome_base": f"Texto da página {page_num}", "dados_brutos_adicionais": {texto_chave: page_text.strip()[:20000]}}
                                     if product_type_id is not None:
                                         item["product_type_id"] = product_type_id
                                     produtos_extraidos.append(item)
-                                log_pdf.append(
-                                    f"Página {i+1}: Texto processado com LLM."
-                                )
                             except Exception as llm_e:
-                                log_pdf.append(
-                                    f"Página {i+1}: Erro ao extrair dados com LLM: {str(llm_e)}"
-                                )
-                                item = {
-                                    "nome_base": f"Conteúdo Bruto da Página {i+1} do PDF",
-                                    "dados_brutos_adicionais": {
-                                        texto_chave: page_text.strip()[:20000]
-                                    },
-                                }
+                                log_pdf.append(f"Página {page_num}: Erro ao processar com LLM: {str(llm_e)}")
+                                item = {"nome_base": f"Conteúdo Bruto da Página {page_num}", "dados_brutos_adicionais": {texto_chave: page_text.strip()[:20000]}}
                                 if product_type_id is not None:
                                     item["product_type_id"] = product_type_id
                                 produtos_extraidos.append(item)
-                        else:
-                            item = {
-                                "nome_base": f"Conteúdo da Página {i+1}",
-                                "dados_brutos_adicionais": {
-                                    texto_chave: page_text.strip()[:20000]
-                                },
-                            }
+                        else: # Se não for para usar LLM
+                            item = {"nome_base": f"Conteúdo da Página {page_num}", "dados_brutos_adicionais": {texto_chave: page_text.strip()[:20000]}}
                             if product_type_id is not None:
                                 item["product_type_id"] = product_type_id
                             produtos_extraidos.append(item)
-                            log_pdf.append(
-                                f"Página {i+1}: Texto armazenado sem uso do LLM."
-                            )
+                            log_pdf.append(f"Página {page_num}: Texto armazenado sem LLM.")
                     else:
-                        log_pdf.append(
-                            f"Página {i+1}: Nenhum texto extraível encontrado."
-                        )
+                        log_pdf.append(f"Página {page_num}: Nenhum texto extraível.")
 
-            if not produtos_extraidos:  # Se ainda vazio
-                return [
-                    {
-                        "erro_processamento_pdf": "Nenhum dado de produto pôde ser extraído do PDF.",
-                        "log_pdf": log_pdf,
-                    }
-                ]
+            if not produtos_extraidos:
+                return [{"erro_processamento_pdf": "Nenhum dado de produto pôde ser extraído do PDF.", "log_pdf": log_pdf}]
 
         return produtos_extraidos
     except Exception as e:
         import traceback
-
         log_pdf.append(f"Erro crítico ao processar arquivo PDF: {str(e)}")
         logger.error("Erro ao processar arquivo PDF: %s", traceback.format_exc())
-        return [
-            {
-                "erro_processamento_pdf": f"Falha crítica ao ler arquivo PDF: {str(e)}",
-                "log_pdf": log_pdf,
-            }
-        ]
+        return [{"erro_processamento_pdf": f"Falha crítica ao ler arquivo PDF: {str(e)}", "log_pdf": log_pdf}]
 
 
 async def preview_arquivo_excel(

@@ -4,6 +4,7 @@ from typing import List, Optional
 from sqlalchemy import func, or_
 from sqlalchemy.orm import Session, selectinload
 from sqlalchemy.exc import IntegrityError
+from fastapi import HTTPException, status
 
 from Backend.models import Produto, ProductType, AttributeTemplate
 from Backend import schemas
@@ -13,25 +14,25 @@ logger = logging.getLogger(__name__)
 # --- ProductType CRUD ---
 def create_product_type(db: Session, product_type_create: schemas.ProductTypeCreate, user_id: Optional[int] = None) -> ProductType:
     logger.debug(f"CRUD (create_product_type): Recebido para user_id: {user_id}, key_name: {product_type_create.key_name}")
+
+    # Verifica se já existe um tipo de produto com o mesmo key_name (global ou do usuário), case-insensitive
+    existing_pt_query = db.query(ProductType).filter(func.lower(ProductType.key_name) == func.lower(product_type_create.key_name))
     
-    # Verifica se já existe um tipo de produto com o mesmo key_name (global ou do usuário)
-    existing_pt_query = db.query(ProductType).filter(ProductType.key_name == product_type_create.key_name)
     if user_id:
-        existing_pt_query = existing_pt_query.filter(or_(ProductType.user_id == user_id, ProductType.user_id == None))
+        existing_pt_query = existing_pt_query.filter(or_(ProductType.user_id == user_id, ProductType.user_id.is_(None)))
     else: # Global
-        existing_pt_query = existing_pt_query.filter(ProductType.user_id == None)
+        existing_pt_query = existing_pt_query.filter(ProductType.user_id.is_(None))
     
     existing_pt = existing_pt_query.first()
     if existing_pt:
-        # Se for um tipo global e o usuário está tentando criar um com a mesma chave
-        if existing_pt.user_id is None and user_id is not None:
-            raise IntegrityError(f"Um Tipo de Produto global com a chave '{product_type_create.key_name}' já existe.", params={}, orig=None)
-        # Se for um tipo do usuário e ele está tentando criar um com a mesma chave
-        elif existing_pt.user_id == user_id:
-            raise IntegrityError(f"Você já possui um Tipo de Produto com a chave '{product_type_create.key_name}'.", params={}, orig=None)
-        # Se for uma tentativa de criar um global que já existe
-        elif user_id is None and existing_pt.user_id is None:
-            raise IntegrityError(f"Um Tipo de Produto global com a chave '{product_type_create.key_name}' já existe.", params={}, orig=None)
+        detail = f"Já existe um Tipo de Produto com a chave '{product_type_create.key_name}'."
+        if existing_pt.user_id is None:
+            detail = f"Um Tipo de Produto global com a chave '{product_type_create.key_name}' já existe e não pode ser duplicado."
+
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=detail
+        )
 
 
     db_product_type = ProductType(
