@@ -13,7 +13,7 @@ function ImportProgress({ jobId, onPendingReview }) {
     const fetchProgress = async () => {
       try {
         const data = await fornecedorService.getImportProgress(jobId);
-        setProgress(data.pages_processed ?? 0);
+        setProgress(data.pages_processed ?? data.progress ?? 0);
         setTotalPages(data.total_pages ?? 0);
         if (data.status === 'PENDING_REVIEW') {
           clearInterval(intervalId);

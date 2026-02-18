@@ -56,6 +56,6 @@ test('calls delete and reprocess when buttons clicked', async () => {
   const deleteBtn = await screen.findByText('Excluir');
   await userEvent.click(reprocessBtn);
   await userEvent.click(deleteBtn);
-  expect(fornecedorService.reprocessCatalogFile).toHaveBeenCalledWith(1);
+  expect(fornecedorService.reprocessCatalogFile).toHaveBeenCalledWith(1, { fornecedor_id: 5 });
   expect(fornecedorService.deleteCatalogFile).toHaveBeenCalledWith(1);
 });

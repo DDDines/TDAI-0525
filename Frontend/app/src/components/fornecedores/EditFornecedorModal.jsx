@@ -90,7 +90,9 @@ function EditFornecedorModal({ isOpen, onClose, fornecedorData, onSave, isLoadin
 
   const handleReprocessFile = async (fileId) => {
     try {
-      await fornecedorService.reprocessCatalogFile(fileId);
+      await fornecedorService.reprocessCatalogFile(fileId, {
+        fornecedor_id: fornecedorData?.id,
+      });
       await fetchFiles();
     } catch (err) {
       console.error('Erro ao reprocessar arquivo:', err);
@@ -153,7 +155,7 @@ function EditFornecedorModal({ isOpen, onClose, fornecedorData, onSave, isLoadin
         {activeTab === 'import' && (
           <div className="form-section">
             <p>Use o assistente abaixo para importar produtos deste fornecedor.</p>
-            <button onClick={() => setIsImportWizardOpen(true)}>
+            <button type="button" onClick={() => setIsImportWizardOpen(true)}>
               Importar Catálogo
             </button>
           </div>

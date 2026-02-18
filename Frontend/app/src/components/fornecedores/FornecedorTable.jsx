@@ -38,7 +38,18 @@ function FornecedorTable({ fornecedores, onRowClick, onSelectRow, selectedIds, o
               />
             </td>
             <td className="name-cell">{f.nome}</td>
-            <td>{f.site_url ? <a href={f.site_url} target="_blank" rel="noopener noreferrer">{f.site_url}</a> : 'N/A'}</td>
+            <td>
+              {f.site_url ? (
+                <a
+                  href={f.site_url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  onClick={(e) => e.stopPropagation()} // Evita interferir no clique da linha/modal
+                >
+                  {f.site_url}
+                </a>
+              ) : 'N/A'}
+            </td>
             <td>{new Date(f.created_at).toLocaleDateString()}</td>
           </tr>
         )) : (

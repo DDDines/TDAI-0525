@@ -5,7 +5,7 @@ import ImportCatalogWizard from '../ImportCatalogWizard.jsx';
 
 jest.mock('pdfjs-dist/legacy/build/pdf.worker.js?url', () => 'worker-src-stub', { virtual: true });
 jest.mock(
-  'pdfjs-dist/legacy/build/pdf.js',
+  'pdfjs-dist/legacy/build/pdf',
   () => ({
     GlobalWorkerOptions: { workerSrc: '' },
     getDocument: jest.fn(() => ({
@@ -22,23 +22,24 @@ jest.mock(
   { virtual: true },
 );
 
-global.URL.createObjectURL = jest.fn(() => 'blob:url');
-
-jest.mock('../../../contexts/ProductTypeContext', () => ({
-  useProductTypes: () => ({
-    productTypes: [],
-    addProductType: jest.fn(),
-  }),
+jest.mock('../../../services/productTypeService', () => ({
+  __esModule: true,
+  default: {
+    getProductTypes: jest.fn(() => Promise.resolve({ items: [] })),
+    getProductTypeDetails: jest.fn(() => Promise.resolve({ attribute_templates: [] })),
+  },
 }));
 
 jest.mock('../../../services/fornecedorService', () => ({
   __esModule: true,
-  default: {
-    getPdfPreview: jest.fn(),
-    startFullProcess: jest.fn(() => Promise.resolve({ job_id: 1 })),
-  },
+  previewCatalogo: jest.fn(),
+  selecionarRegiaoProduto: jest.fn(),
+  finalizarImportacaoCatalogo: jest.fn(),
+  getImportacaoStatus: jest.fn(),
+  getImportacaoResult: jest.fn(),
+  setFornecedorMapping: jest.fn(),
 }));
-import fornecedorService from '../../../services/fornecedorService';
+import * as fornecedorService from '../../../services/fornecedorService';
 
 describe('ImportCatalogWizard', () => {
   beforeEach(() => {
@@ -46,10 +47,13 @@ describe('ImportCatalogWizard', () => {
   });
 
   test('generates preview', async () => {
-    fornecedorService.getPdfPreview.mockResolvedValue({
-      import_file_id: 1,
-      image_urls: ['a', 'b'],
-      total_pages: 10,
+    fornecedorService.previewCatalogo.mockResolvedValue({
+      fileId: 1,
+      headers: null,
+      sampleRows: null,
+      previewImages: [{ page: 1, image: 'data:image/png;base64,abc' }],
+      numPages: 1,
+      tablePages: [],
     });
 
     render(
@@ -60,13 +64,12 @@ describe('ImportCatalogWizard', () => {
       />,
     );
 
-
     const fileInput = document.querySelector('input[type="file"]');
     const file = new File(['a'], 'test.pdf', { type: 'application/pdf' });
     await userEvent.upload(fileInput, file);
     await userEvent.click(screen.getByText('Gerar Preview'));
 
-    await screen.findByAltText('Página 1');
-    expect(fornecedorService.getPdfPreview).toHaveBeenCalledWith(file, 1, 0, 5);
+    await screen.findByRole('img', { name: /1/ });
+    expect(fornecedorService.previewCatalogo).toHaveBeenCalledWith(file, 15, 1, 1);
   });
 });

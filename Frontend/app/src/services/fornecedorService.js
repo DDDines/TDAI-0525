@@ -69,6 +69,20 @@ export const updateFornecedor = async (fornecedorId, fornecedorUpdateData) => {
   }
 };
 
+// Atualiza o mapeamento padrão de colunas de um fornecedor
+export const setFornecedorMapping = async (fornecedorId, mapping = {}) => {
+  try {
+    const response = await apiClient.put(`/fornecedores/${fornecedorId}/mapping`, mapping);
+    return response.data;
+  } catch (error) {
+    console.error(`Erro ao salvar mapping do fornecedor ${fornecedorId}:`, JSON.stringify(error.response?.data || error.message || error));
+    if (error.response && error.response.data) {
+      throw error.response.data;
+    }
+    throw new Error(error.message || 'Falha ao salvar mapeamento do fornecedor');
+  }
+};
+
 export const deleteFornecedor = async (fornecedorId) => {
   try {
     const response = await apiClient.delete(`/fornecedores/${fornecedorId}`);
@@ -87,7 +101,7 @@ export const deleteFornecedor = async (fornecedorId) => {
 
 export const previewCatalogo = async (
   file,
-  pageCount = 1,
+  pageCount = 15,
   startPage = 1,
   fornecedorId = null,
 ) => {
@@ -178,10 +192,11 @@ export const deleteCatalogFile = async (fileId) => {
   }
 };
 
-export const reprocessCatalogFile = async (fileId) => {
+export const reprocessCatalogFile = async (fileId, payload = {}) => {
   try {
     const response = await apiClient.post(
-      `/produtos/catalog-import-files/${fileId}/reprocess/`
+      `/produtos/catalog-import-files/${fileId}/reprocess/`,
+      payload,
     );
     return response.data;
   } catch (error) {
@@ -372,6 +387,31 @@ export const extractRegionBulk = async ({ fileId, bbox, pages = null, allPages =
   }
 };
 
+// Seleciona região em um PDF já enviado (usa endpoint do router de produtos)
+export const selecionarRegiaoProduto = async ({ fileId, pageNumber, bbox, bboxNorm, canvasWidth, canvasHeight }) => {
+  try {
+    const payload = {
+      file_id: fileId,
+      page: pageNumber,
+      bbox,
+      bbox_norm: bboxNorm,
+      canvas_width: canvasWidth,
+      canvas_height: canvasHeight,
+    };
+    const response = await apiClient.post('/produtos/selecionar-regiao/', payload);
+    return response.data;
+  } catch (error) {
+    console.error(
+      'Erro ao selecionar região do PDF (produtos):',
+      JSON.stringify(error.response?.data || error.message || error),
+    );
+    if (error.response && error.response.data) {
+      throw error.response.data;
+    }
+    throw new Error(error.message || 'Falha ao selecionar região do PDF');
+  }
+};
+
 // Obtém os dados para revisão após o processamento
 export const getReviewData = async (jobId, params = {}) => {
   try {
@@ -406,11 +446,35 @@ export const commitImport = async (jobId) => {
   }
 };
 
+export const finalizarImportacaoCatalogo = async ({ fileId, productTypeId, fornecedorId, mapping, pages, region }) => {
+  try {
+    const payload = {
+      product_type_id: productTypeId,
+      fornecedor_id: fornecedorId,
+      mapping,
+      pages,
+      region,
+    };
+    const response = await apiClient.post(`/produtos/importar-catalogo-finalizar/${fileId}/`, payload);
+    return response.data;
+  } catch (error) {
+    console.error(
+      `Erro ao finalizar importação do catálogo ${fileId}:`,
+      JSON.stringify(error.response?.data || error.message || error),
+    );
+    if (error.response && error.response.data) {
+      throw error.response.data;
+    }
+    throw new Error(error.message || 'Falha ao finalizar importação do catálogo');
+  }
+}
+
 export default {
   getFornecedores,
   getFornecedorById,
   createFornecedor,
   updateFornecedor,
+  setFornecedorMapping,
   deleteFornecedor,
   previewCatalogo,
   importCatalogo,
@@ -428,4 +492,6 @@ export default {
   commitImport,
   selecionarRegiao,
   extractRegionBulk,
+  selecionarRegiaoProduto,
+  finalizarImportacaoCatalogo,
 };

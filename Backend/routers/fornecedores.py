@@ -11,14 +11,13 @@ from fastapi import (
     UploadFile,
     File,
     BackgroundTasks,
+    Body,
 )
-from fastapi import APIRouter, Depends, HTTPException, Query, status, UploadFile, File, BackgroundTasks, Body
 from sqlalchemy.orm import Session
 from pathlib import Path
 import logging
 import uuid
 import os
-from pathlib import Path
 
 
 from Backend import crud_fornecedores
@@ -29,14 +28,10 @@ from Backend import schemas
 from Backend import crud_historico
 from Backend import database
 from Backend.services import file_processing_service, web_data_extractor_service
-from Backend.services import file_processing_service
 from Backend.tasks import process_pdf_extraction_task
 from . import auth_utils  # Para obter o usuário
 from Backend.core.config import settings
-from . import auth_utils  # Para obter o usuário
 from Backend.routers.produtos import _tarefa_processar_catalogo
-from pathlib import Path
-from . import auth_utils # Para obter o usuário 
 
 logger = logging.getLogger(__name__)
 
@@ -395,6 +390,7 @@ def get_import_progress(
     return {
         "status": record.status,
         "progress": record.pages_processed,
+        "pages_processed": record.pages_processed,
         "total_pages": record.total_pages or 0,
     }
 @router.post("/import/process-full-catalog", status_code=status.HTTP_202_ACCEPTED)

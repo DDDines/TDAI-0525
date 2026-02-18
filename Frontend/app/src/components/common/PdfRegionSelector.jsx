@@ -1,17 +1,9 @@
 import React, { useRef, useEffect, useState } from 'react';
 import * as pdfjs from 'pdfjs-dist/legacy/build/pdf';
-// Vite has trouble resolving the worker through the ?url syntax on some setups.
-// Use the "new URL" pattern recommended by pdf.js/React-PDF so the bundler
-// generates the correct worker file URL.
-let workerSrc;
-try {
-  workerSrc = new URL('pdfjs-dist/legacy/build/pdf.worker.js', import.meta.url);
-  if (pdfjs.GlobalWorkerOptions) {
-    pdfjs.GlobalWorkerOptions.workerSrc = workerSrc.toString();
-  }
-} catch (_) {
-  // Ignore errors during tests or if the worker cannot be resolved.
-}
+import pdfWorkerSrc from 'pdfjs-dist/legacy/build/pdf.worker.js?url';
+
+// Configura o worker do pdf.js para ambiente Vite
+pdfjs.GlobalWorkerOptions.workerSrc = pdfWorkerSrc;
 
 function PdfRegionSelector({
   file,
@@ -27,6 +19,8 @@ function PdfRegionSelector({
   const [rect, setRect] = useState(null);
   const [isDrawing, setIsDrawing] = useState(false);
   const [applyAll, setApplyAll] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
 
   useEffect(() => {
     setPageNum(initialPage);
@@ -39,11 +33,14 @@ function PdfRegionSelector({
 
     const load = async () => {
       if (!file) return;
+      setLoading(true);
+      setError(null);
       try {
         task = pdfjs.getDocument({ data: file });
         doc = await task.promise;
       } catch (err) {
         if (!cancelled && onLoadError) onLoadError(err);
+        if (!cancelled) setError('Falha ao carregar PDF');
         return;
       }
       if (cancelled) {
@@ -61,6 +58,7 @@ function PdfRegionSelector({
       canvas.width = viewport.width;
       canvas.height = viewport.height;
       await page.render({ canvasContext: ctx, viewport }).promise;
+      setLoading(false);
     };
 
     load();
@@ -109,9 +107,15 @@ function PdfRegionSelector({
 
   const handleMouseUp = () => {
     if (isDrawing && rect) {
+      const canvas = canvasRef.current;
+      const cw = canvas?.width || 1;
+      const ch = canvas?.height || 1;
       onSelect({
         page: pageNum,
         bbox: [rect.x0, rect.y0, rect.x1, rect.y1],
+        bboxNorm: [rect.x0 / cw, rect.y0 / ch, rect.x1 / cw, rect.y1 / ch],
+        canvasWidth: cw,
+        canvasHeight: ch,
         applyAllPages: applyAll,
       });
     }
@@ -120,9 +124,12 @@ function PdfRegionSelector({
   };
 
   return (
-    <div style={{ position: 'relative' }}>
+    <div style={{ position: 'relative', maxHeight: '70vh', overflow: 'auto', border: '1px solid #ddd', padding: '8px', background: '#f8f8f8' }}>
+      {loading && <p>Carregando PDF...</p>}
+      {error && <p style={{ color: 'red' }}>{error}</p>}
       <canvas
         ref={canvasRef}
+        style={{ border: '1px solid #ccc', width: '100%' }}
         onMouseDown={handleMouseDown}
         onMouseMove={handleMouseMove}
         onMouseUp={handleMouseUp}

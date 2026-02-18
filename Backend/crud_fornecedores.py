@@ -17,7 +17,7 @@ logger = logging.getLogger(__name__)
 def create_fornecedor(db: Session, fornecedor: schemas.FornecedorCreate, user_id: int) -> Fornecedor:
     fornecedor_data = fornecedor.model_dump()
     
-    # Verificação de Duplicados (case-insensitive no nome)
+    # Verificação de Duplicados (case-insensitive no nome e no identificador_unico)
     existing_fornecedor = db.query(Fornecedor).filter(
         Fornecedor.user_id == user_id,
         func.lower(Fornecedor.nome) == func.lower(fornecedor_data["nome"])
@@ -27,6 +27,17 @@ def create_fornecedor(db: Session, fornecedor: schemas.FornecedorCreate, user_id
             status_code=status.HTTP_409_CONFLICT,
             detail=f"Já existe um fornecedor com o nome '{fornecedor_data['nome']}'."
         )
+
+    if fornecedor_data.get("identificador_unico"):
+        existing_identificador = db.query(Fornecedor).filter(
+            Fornecedor.user_id == user_id,
+            func.lower(Fornecedor.identificador_unico) == func.lower(fornecedor_data["identificador_unico"])
+        ).first()
+        if existing_identificador:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail=f"Já existe um fornecedor com o identificador único '{fornecedor_data['identificador_unico']}'."
+            )
 
     if fornecedor_data.get("site_url"):
         fornecedor_data["site_url"] = str(fornecedor_data["site_url"])

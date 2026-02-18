@@ -436,10 +436,11 @@ class ProdutoBatchDeleteRequest(BaseModel):
 
 class ImportPreviewResponse(BaseModel):
     file_id: int
-    num_pages: int
-    table_pages: List[int]
-    sample_rows: Dict[int, str]
-    preview_images: List[Dict[str, Any]]
+    num_pages: int = 0
+    table_pages: List[int] = Field(default_factory=list)
+    sample_rows: Union[Dict[int, str], List[Dict[str, Any]]] = Field(default_factory=dict)
+    preview_images: List[Dict[str, Any]] = Field(default_factory=list)
+    headers: Optional[List[str]] = None
     error: Optional[str] = None
 
 
@@ -457,13 +458,17 @@ class UpdatedProductInfo(BaseModel):
 
 class CatalogImportResult(BaseModel):
     created: List[ProdutoResponse]
-    updated: List[UpdatedProductInfo]
+    updated: List[ProdutoResponse]
     errors: List[Dict[str, Any]]
+    stats: Optional[Dict[str, Any]] = None
+    log: Optional[List[str]] = None
 
 
 class RegionExtractionResponse(BaseModel):
     produtos: List[Dict[str, Any]]
     log: Optional[List[str]] = None
+    preview_headers: Optional[List[str]] = None
+    preview_rows: Optional[List[Dict[str, Any]]] = None
 
 
 class SinglePageExtractionResponse(BaseModel):
@@ -570,7 +575,7 @@ class CatalogImportFileResponse(CatalogImportFileBase):
 class CatalogImportStatus(BaseModel):
     """Status simplificado de importação de catálogo."""
 
-    status: Literal["PROCESSING", "DONE"]
+    status: Literal["PROCESSING", "DONE", "FAILED"]
     pages_total: int
     pages_processed: int
 

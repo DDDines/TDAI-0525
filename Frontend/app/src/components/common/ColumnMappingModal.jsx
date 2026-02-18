@@ -7,6 +7,9 @@ function ColumnMappingModal({
   headers = [],
   rows = [],
   fieldOptions = [],
+  productTypes = [],
+  productTypeId = '',
+  onProductTypeChange,
   onConfirm,
 }) {
   const [mapping, setMapping] = useState({});
@@ -27,6 +30,30 @@ function ColumnMappingModal({
 
   return (
     <Modal isOpen={isOpen} onClose={onClose} title="Mapear Colunas">
+      {productTypes.length > 0 && (
+        <div style={{ marginBottom: '12px' }}>
+          <label>
+            Tipo de Produto:
+            <select
+              value={productTypeId || ''}
+              onChange={(e) => onProductTypeChange && onProductTypeChange(e.target.value)}
+              style={{ marginLeft: '8px' }}
+            >
+              <option value="">Selecione...</option>
+              {productTypes.map((pt) => {
+                const value = pt.id;
+                if (value === null || value === undefined) return null;
+                const label = pt.friendly_name || pt.nome || pt.name || pt.slug || pt.key_name || value;
+                return (
+                  <option key={value} value={value}>
+                    {label}
+                  </option>
+                );
+              })}
+            </select>
+          </label>
+        </div>
+      )}
       <table className="mapping-table">
         <thead>
           <tr>
@@ -67,9 +94,16 @@ function ColumnMappingModal({
           <tbody>
             {rows.map((row, idx) => (
               <tr key={idx}>
-                {headers.map((h) => (
-                  <td key={h}>{row[h]}</td>
-                ))}
+                {headers.map((h) => {
+                  const cell = row?.[h];
+                  const display =
+                    cell === null || cell === undefined
+                      ? ''
+                      : typeof cell === 'object'
+                        ? JSON.stringify(cell)
+                        : cell;
+                  return <td key={h}>{display}</td>;
+                })}
               </tr>
             ))}
           </tbody>
