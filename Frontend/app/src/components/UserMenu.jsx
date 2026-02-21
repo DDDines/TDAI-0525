@@ -1,10 +1,11 @@
-import React, { useState, useEffect, useRef } from 'react';
+﻿import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
+import { LuSettings, LuLogOut } from 'react-icons/lu';
 
 const getInitials = (name) => {
-  if (!name || typeof name !== 'string') return '??';
-  const names = name.split(' ');
+  if (!name || typeof name !== 'string') return '--';
+  const names = name.split(' ').filter(Boolean);
   let initials = names[0].substring(0, 1).toUpperCase();
   if (names.length > 1) {
     initials += names[names.length - 1].substring(0, 1).toUpperCase();
@@ -53,7 +54,7 @@ function UserMenu({ onLogout, onNavigate, showDropdown = true }) {
   }, [menuOpen]);
 
   const toggleMenu = () => {
-    if (enableMenu) setMenuOpen(prev => !prev);
+    if (enableMenu) setMenuOpen((prev) => !prev);
   };
 
   return (
@@ -62,13 +63,13 @@ function UserMenu({ onLogout, onNavigate, showDropdown = true }) {
       <span className="user-name" onClick={toggleMenu}>{userNameDisplay}</span>
 
       {enableMenu && menuOpen && (
-        <div className="user-menu" style={{ display: 'flex' }}>
+        <div className="user-menu">
           <button onClick={() => handleNavigate('/configuracoes')}>
-            <span style={{color:'#7c3aed',verticalAlign:'middle',marginRight:'5px'}}>&#9881;&#65039;</span>
+            <span className="menu-item-icon"><LuSettings /></span>
             Configurações
           </button>
           <button onClick={handleLogout}>
-            <span style={{color:'var(--danger)',verticalAlign:'middle',marginRight:'5px'}}>➔</span>
+            <span className="menu-item-icon"><LuLogOut /></span>
             Sair
           </button>
         </div>

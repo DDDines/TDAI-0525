@@ -52,7 +52,7 @@ def get_admin_headers():
 
 def test_importacao_relatorio_de_erros():
     headers = get_admin_headers()
-    csv_content = "nome,sku\nProduto Válido,123\n,\n"
+    csv_content = "nome,sku\nProduto Valido,123\nDuplicado,123\n"
     file_bytes = csv_content.encode()
     files = {"file": ("catalogo.csv", io.BytesIO(file_bytes), "text/csv")}
     resp = client.post("/api/v1/produtos/importar-catalogo/1/", files=files, headers=headers)
@@ -87,7 +87,7 @@ def test_historico_criado_para_produtos_importados():
 
 def test_importacao_ignora_duplicados_por_sku_ean():
     headers = get_admin_headers()
-    csv_content = "nome,sku,ean\nProdA,111,999\nProdB,111,888\nProdC,222,999\n"
+    csv_content = "nome,sku,ean\nProdA,777,999\nProdB,777,888\nProdC,666,999\n"
     file_bytes = csv_content.encode()
     files = {"file": ("catalogo.csv", io.BytesIO(file_bytes), "text/csv")}
     resp = client.post("/api/v1/produtos/importar-catalogo/1/", files=files, headers=headers)
@@ -98,3 +98,4 @@ def test_importacao_ignora_duplicados_por_sku_ean():
     for err in data["erros"]:
         assert "duplicado" in err["motivo_descarte"].lower()
         assert err.get("duplicado") is True
+

@@ -12,12 +12,16 @@ function Topbar({ viewTitle, toggleSidebar }) {
 
   return (
     <header className="topbar">
-      <button onClick={toggleSidebar} className="sidebar-toggle-btn" aria-label="Alternar menu">
-        <LuMenu />
-      </button>
-      <h1>{viewTitle || "Dashboard"}</h1>
-      <ThemeToggle className="theme-toggle-btn" />
-      <UserMenu onLogout={logout} onNavigate={path => navigate(path)} />
+      <div className="topbar-left">
+        <button onClick={toggleSidebar} className="sidebar-toggle-btn" aria-label="Alternar menu">
+          <LuMenu />
+        </button>
+        <h1>{viewTitle || 'Dashboard'}</h1>
+      </div>
+      <div className="topbar-actions">
+        <ThemeToggle className="theme-toggle-btn" />
+        <UserMenu onLogout={logout} onNavigate={(path) => navigate(path)} />
+      </div>
     </header>
   );
 }

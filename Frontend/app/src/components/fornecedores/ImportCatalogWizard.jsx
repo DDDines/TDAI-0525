@@ -1,26 +1,126 @@
-// Caminho: Frontend/app/src/components/fornecedores/ImportCatalogWizard.jsx
-
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import * as fornecedorService from '../../services/fornecedorService';
 import productTypeService from '../../services/productTypeService';
 import LoadingPopup from '../common/LoadingPopup';
 import ColumnMappingModal from '../common/ColumnMappingModal.jsx';
 import PdfRegionSelector from '../common/PdfRegionSelector.jsx';
 import Modal from '../common/Modal.jsx';
+import LogoImg from '../../assets/Logo.png';
+import './ImportCatalogWizard.css';
 
 const BASE_FIELD_OPTIONS = [
   { value: 'nome_base', label: 'Nome Base' },
   { value: 'sku_original', label: 'SKU' },
   { value: 'auto:sku_nome', label: 'SKU + Nome (Auto)' },
-  { value: 'ean_original', label: 'EAN' },
-  { value: 'preco_original', label: 'Preco' },
-  { value: 'descricao_original', label: 'Descricao' },
+  { value: 'ean_original', label: 'Codigo de Barras (EAN)' },
+  { value: 'preco_original', label: 'Preço' },
+  { value: 'descricao_original', label: 'Descrição' },
   { value: 'marca', label: 'Marca' },
   { value: 'categoria_original', label: 'Categoria' },
+  { value: 'attr:codigo_original', label: 'Atributo: Código Original' },
+  { value: 'attr:aplicacao', label: 'Atributo: Aplicação' },
+  { value: 'attr:material', label: 'Atributo: Material' },
 ];
 
+const FALLBACK_HEADERS = ['col_0', 'col_1', 'col_2', 'col_3', 'col_4'];
+const STEP_FLOW = ['upload', 'preview', 'processing'];
+const STEP_LABELS = {
+  upload: 'Upload',
+  preview: 'Preview e Mapeamento',
+  processing: 'Processamento',
+};
+
+const formatCellValue = (value) => {
+  if (value === null || value === undefined) return '';
+  if (typeof value === 'object') return JSON.stringify(value);
+  return String(value);
+};
+
+const getPreviewImageSrc = (img) => {
+  if (typeof img === 'string') {
+    if (!img.trim()) return null;
+    return img.startsWith('data:image') ? img : `data:image/png;base64,${img}`;
+  }
+  if (img && typeof img === 'object' && img.image) return img.image;
+  return null;
+};
+
+const toErrorDetail = (err, fallback) => {
+  if (!err) return fallback;
+  if (typeof err?.detail === 'string') return err.detail;
+  if (typeof err?.message === 'string') return err.message;
+  if (err?.detail && typeof err.detail === 'object') return JSON.stringify(err.detail);
+  return fallback;
+};
+
+const timestamp = () => new Date().toLocaleTimeString('pt-BR');
+
+const normalizeDisplayText = (value) => {
+  if (value === null || value === undefined) return '';
+  let text = String(value);
+  const hasMarkers = () => /[\u00c3\u00c2\u00e2\u0192\ufffd]|[?]{2,}/.test(text);
+  for (let i = 0; i < 3 && hasMarkers(); i += 1) {
+    try {
+      const bytes = Uint8Array.from(Array.from(text).map((ch) => ch.charCodeAt(0) & 0xff));
+      const decoded = new TextDecoder('utf-8', { fatal: false }).decode(bytes);
+      if (!decoded || decoded === text) break;
+      text = decoded;
+    } catch {
+      break;
+    }
+  }
+
+  const replacements = [
+    ['n??o', 'n\u00e3o'],
+    ['n?o', 'n\u00e3o'],
+    ['n\u00c3\u00a3o', 'n\u00e3o'],
+    ['p??gina', 'p\u00e1gina'],
+    ['p?gina', 'p\u00e1gina'],
+    ['P??gina', 'P\u00e1gina'],
+    ['P?gina', 'P\u00e1gina'],
+    ['P\u00c3\u00a1gina', 'P\u00e1gina'],
+    ['p\u00c3\u00a1gina', 'p\u00e1gina'],
+    ['extra??do', 'extra\u00eddo'],
+    ['extra?do', 'extra\u00eddo'],
+    ['extra??vel', 'extra\u00edvel'],
+    ['extra?vel', 'extra\u00edvel'],
+    ['cat??logo', 'cat\u00e1logo'],
+    ['cat?logo', 'cat\u00e1logo'],
+    ['conte??do', 'conte\u00fado'],
+    ['conte?do', 'conte\u00fado'],
+    ['poss??vel', 'poss\u00edvel'],
+    ['poss?vel', 'poss\u00edvel'],
+    ['cr??tico', 'cr\u00edtico'],
+    ['cr?tico', 'cr\u00edtico'],
+    ['cr??tica', 'cr\u00edtica'],
+    ['cr?tica', 'cr\u00edtica'],
+    ['Importa??o', 'Importa\u00e7\u00e3o'],
+    ['importa??o', 'importa\u00e7\u00e3o'],
+    ['Relat?rio', 'Relat\u00f3rio'],
+    ['relat?rio', 'relat\u00f3rio'],
+    ['n?o cr?ticos', 'n\u00e3o cr\u00edticos'],
+    ['n?o dispon?veis', 'n\u00e3o dispon\u00edveis'],
+  ];
+  replacements.forEach(([src, dst]) => {
+    text = text.replaceAll(src, dst);
+  });
+
+  return text.replace(/\s+/g, ' ').trim();
+};
+
+const normalizePayloadStrings = (payload) => {
+  if (Array.isArray(payload)) return payload.map((item) => normalizePayloadStrings(item));
+  if (payload && typeof payload === 'object') {
+    return Object.fromEntries(
+      Object.entries(payload).map(([k, v]) => [k, normalizePayloadStrings(v)])
+    );
+  }
+  if (typeof payload === 'string') return normalizeDisplayText(payload);
+  return payload;
+};
+
 const ImportCatalogWizard = ({ fornecedor, productTypeId: initialProductTypeId, onClose, isOpen }) => {
-  const [step, setStep] = useState('upload'); // upload -> preview -> processing
+  const [step, setStep] = useState('upload');
   const [selectedFile, setSelectedFile] = useState(null);
   const [fileId, setFileId] = useState(null);
   const [previewData, setPreviewData] = useState(null);
@@ -48,85 +148,99 @@ const ImportCatalogWizard = ({ fornecedor, productTypeId: initialProductTypeId, 
   const [resultData, setResultData] = useState(null);
   const [error, setError] = useState('');
   const [regionError, setRegionError] = useState('');
+  const [statusTimeline, setStatusTimeline] = useState([]);
+  const [expectedPages, setExpectedPages] = useState(0);
+  const [processingStartedAt, setProcessingStartedAt] = useState(null);
+
+  const appendTimeline = useCallback((message) => {
+    if (!message) return;
+    const safeMessage = normalizeDisplayText(message);
+    setStatusTimeline((prev) => [...prev, `[${timestamp()}] ${safeMessage}`].slice(-120));
+  }, []);
 
   useEffect(() => {
-    if (isOpen) {
-      setStep('upload');
-      setSelectedFile(null);
-      setFileId(null);
-      setPreviewData(null);
-      setPreviewError('');
-      setStartPage(1);
-      setPageCount(15);
-      setShowRegionModal(false);
-      setPdfBytes(null);
-      setSelectedBbox(null);
-      setSelectedBboxNorm(null);
-      setSelectedPageForRegion(null);
-      setApplyAllPages(false);
-      setRegionPreview(null);
-      setManualMappingRows([]);
-      setShowPagePicker(false);
-      setSelectedPreviewIndex(null);
-      setMapping(fornecedor?.default_column_mapping || {});
-      setProductTypeId(initialProductTypeId || '');
-      setStatusData(null);
-      setResultData(null);
-      setError('');
-      setRegionError('');
-    }
+    if (!isOpen) return;
+    setStep('upload');
+    setSelectedFile(null);
+    setFileId(null);
+    setPreviewData(null);
+    setPreviewError('');
+    setStartPage(1);
+    setPageCount(15);
+    setShowRegionModal(false);
+    setPdfBytes(null);
+    setSelectedBbox(null);
+    setSelectedBboxNorm(null);
+    setSelectedPageForRegion(null);
+    setApplyAllPages(false);
+    setRegionPreview(null);
+    setManualMappingRows([]);
+    setShowPagePicker(false);
+    setSelectedPreviewIndex(null);
+    setMapping(fornecedor?.default_column_mapping || {});
+    setProductTypeId(initialProductTypeId || '');
+    setStatusData(null);
+    setResultData(null);
+    setError('');
+    setRegionError('');
+    setStatusTimeline([]);
   }, [isOpen, fornecedor, initialProductTypeId]);
 
   useEffect(() => {
+    if (!isOpen) return;
     const loadProductTypes = async () => {
       try {
         const data = await productTypeService.getProductTypes({ limit: 100 });
-        const fetched = data.items || data || [];
-        setProductTypes(fetched);
+        setProductTypes(data.items || data || []);
       } catch (err) {
         console.error('Erro ao carregar tipos de produto:', err);
         setProductTypes([]);
       }
     };
-    if (isOpen) loadProductTypes();
+    loadProductTypes();
   }, [isOpen]);
 
-  const refreshFieldOptionsByProductType = async (ptId) => {
-    const base = [...BASE_FIELD_OPTIONS];
-    if (!ptId) {
+  useEffect(() => {
+    const refreshFieldOptionsByProductType = async () => {
+      const base = [...BASE_FIELD_OPTIONS];
+      if (!productTypeId) {
         setFieldOptions(base);
         return;
-    }
-    try {
-      const details = await productTypeService.getProductTypeDetails(ptId);
-      const attrs = details?.attribute_templates || details?.attributeTemplates || [];
-      const attrOptions = attrs.map((a) => ({
-        value: `attr:${a.attribute_key}`,
-        label: `Atributo: ${a.label || a.attribute_key}`,
-      }));
-      setFieldOptions([...base, ...attrOptions]);
-    } catch (err) {
-      console.warn('Falha ao carregar atributos do tipo de produto:', err);
-      setFieldOptions(base);
-    }
-  };
-
-  useEffect(() => {
-    refreshFieldOptionsByProductType(productTypeId);
+      }
+      try {
+        const details = await productTypeService.getProductTypeDetails(productTypeId);
+        const attrs = details?.attribute_templates || details?.attributeTemplates || [];
+        const attrOptions = attrs.map((a) => ({
+          value: `attr:${a.attribute_key}`,
+          label: `Atributo: ${a.label || a.attribute_key}`,
+        }));
+        setFieldOptions([...base, ...attrOptions]);
+      } catch (err) {
+        console.warn('Falha ao carregar atributos do tipo de produto:', err);
+        setFieldOptions(base);
+      }
+    };
+    refreshFieldOptionsByProductType();
   }, [productTypeId]);
+
+  const previewImages = useMemo(() => previewData?.previewImages || [], [previewData]);
+  const sampleRows = useMemo(
+    () => (Array.isArray(previewData?.sampleRows) ? previewData.sampleRows : []),
+    [previewData]
+  );
 
   const handleProductTypeChange = (nextValue) => {
     setProductTypeId(nextValue);
   };
 
   const handleFileChange = (event) => {
-    const file = event.target.files[0];
-    if (file) {
-      setSelectedFile(file);
-      setPreviewData(null);
-      setPreviewError('');
-      setStep('upload');
-    }
+    const file = event.target.files?.[0];
+    if (!file) return;
+    setSelectedFile(file);
+    setPreviewData(null);
+    setPreviewError('');
+    setStep('upload');
+    setStatusTimeline([]);
   };
 
   const handlePreview = async () => {
@@ -134,6 +248,7 @@ const ImportCatalogWizard = ({ fornecedor, productTypeId: initialProductTypeId, 
     setIsLoading(true);
     setLoadingMessage('Gerando preview...');
     setPreviewError('');
+    appendTimeline('Iniciando geração de preview do arquivo.');
     try {
       const preview = await fornecedorService.previewCatalogo(
         selectedFile,
@@ -144,33 +259,27 @@ const ImportCatalogWizard = ({ fornecedor, productTypeId: initialProductTypeId, 
       if (preview.error) {
         setPreviewError(preview.error);
         setPreviewData(null);
-      } else {
-        setFileId(preview.fileId);
-        setPreviewData(preview);
-        setStep('preview');
-        setSelectedPageForRegion(startPage);
-        setSelectedPreviewIndex(null);
-        // Se houver mÃºltiplas pÃ¡ginas no preview, jÃ¡ abre o seletor de pÃ¡gina
-        if (preview.previewImages && preview.previewImages.length > 1) {
-          setShowPagePicker(true);
-        }
+        appendTimeline(`Falha no preview: ${preview.error}`);
+        return;
+      }
+      setFileId(preview.fileId);
+      setPreviewData(preview);
+      setStep('preview');
+      setSelectedPageForRegion(startPage);
+      setSelectedPreviewIndex(null);
+      appendTimeline(
+        `Preview gerado com sucesso. File ID ${preview.fileId}. ${preview.numPages || 0} páginas detectadas.`
+      );
+      if (preview.previewImages?.length > 1) {
+        setShowPagePicker(true);
       }
     } catch (err) {
-      const detail = err?.detail || err?.message || 'Falha ao gerar preview';
+      const detail = toErrorDetail(err, 'Falha ao gerar preview.');
       setPreviewError(detail);
+      appendTimeline(`Erro ao gerar preview: ${detail}`);
     } finally {
       setIsLoading(false);
       setLoadingMessage('');
-    }
-  };
-
-  const handleOpenRegionSelector = async () => {
-    if (!selectedFile || !fileId) return;
-    // Se houver mÃºltiplas prÃ©vias, pedir para escolher a pÃ¡gina primeiro
-    if (previewData?.previewImages && previewData.previewImages.length > 1) {
-      setShowPagePicker(true);
-    } else {
-      await launchRegionSelector(selectedPageForRegion || startPage);
     }
   };
 
@@ -179,26 +288,43 @@ const ImportCatalogWizard = ({ fornecedor, productTypeId: initialProductTypeId, 
     const buffer = await selectedFile.arrayBuffer();
     setPdfBytes(new Uint8Array(buffer));
     setSelectedPageForRegion(pageToUse);
-    if (previewData?.previewImages && previewData.previewImages.length > 0) {
-      const idx = Math.max(0, Math.min(previewData.previewImages.length - 1, pageToUse - startPage));
+    if (previewImages.length > 0) {
+      const idx = Math.max(0, Math.min(previewImages.length - 1, pageToUse - startPage));
       setSelectedPreviewIndex(idx);
     }
     setSelectedBbox(null);
-    setApplyAllPages(false);
     setRegionPreview(null);
     setShowRegionModal(true);
+    appendTimeline(`Abrindo seletor de região para a página ${pageToUse}.`);
   };
 
-  const handleRegionSelect = async ({ page, bbox, bboxNorm, canvasWidth, canvasHeight, applyAllPages: applyAll }) => {
+  const handleOpenRegionSelector = async () => {
+    if (!selectedFile || !fileId) return;
+    if (previewImages.length > 1) {
+      setShowPagePicker(true);
+      return;
+    }
+    await launchRegionSelector(selectedPageForRegion || startPage);
+  };
+
+  const handleRegionSelect = async ({
+    page,
+    bbox,
+    bboxNorm,
+    canvasWidth,
+    canvasHeight,
+    applyAllPages: applyAll,
+  }) => {
     if (!fileId) return;
     setSelectedPageForRegion(page);
     setSelectedBbox(bbox);
     setSelectedBboxNorm(bboxNorm);
-    setApplyAllPages(!!applyAll);
+    setApplyAllPages(Boolean(applyAll));
     setShowRegionModal(false);
     setShowPagePicker(false);
     setIsLoading(true);
-    setLoadingMessage('Extraindo regiÃ£o selecionada...');
+    setLoadingMessage('Extraindo região selecionada...');
+    appendTimeline(`Região selecionada na página ${page}. Iniciando extração de dados.`);
     try {
       const data = await fornecedorService.selecionarRegiaoProduto({
         fileId,
@@ -212,63 +338,32 @@ const ImportCatalogWizard = ({ fornecedor, productTypeId: initialProductTypeId, 
       const previewHeaders = data?.preview_headers || [];
       const previewRows = data?.preview_rows || [];
 
-      // Preferir sempre os dados crus retornados pelo backend (preview_rows),
-      // pois os produtos jÃ¡ processados podem vir descartados por falta de nome/SKU.
       if (previewHeaders.length > 0 && previewRows.length > 0) {
         setRegionPreview({ headers: previewHeaders, rows: previewRows });
         setManualMappingRows(previewRows);
-        console.debug('Region preview (raw rows):', previewRows.slice(0, 5));
         setShowMappingModal(true);
-      } else if (produtosArr.length > 0) {
+        appendTimeline(`Extração concluída: ${previewRows.length} linhas de preview prontas para mapeamento.`);
+        return;
+      }
+
+      if (produtosArr.length > 0) {
         const headers = Object.keys(produtosArr[0]);
         const rows = produtosArr.slice(0, 5);
         setRegionPreview({ headers, rows });
         setManualMappingRows(rows);
-        console.debug('Region preview (produtos):', rows);
         setShowMappingModal(true);
-      } else {
-        // fallback: nÃ£o veio nada processado, cria headers genÃ©ricos
-        const headers = ['col_0', 'col_1', 'col_2', 'col_3', 'col_4'];
-        setRegionPreview({ headers, rows: [] });
-        setManualMappingRows([]);
-        setPreviewError('Nenhum dado extraÃ­do da regiÃ£o selecionada.');
+        appendTimeline(`Extração concluída: ${produtosArr.length} itens detectados na região.`);
+        return;
       }
-    } catch (err) {
-      const detail = err?.detail || err?.message || 'Falha ao extrair regiÃ£o';
-      setRegionError(detail);
-    } finally {
-      setIsLoading(false);
-      setLoadingMessage('');
-    }
-  };
 
-  const startImport = async () => {
-    if (!fileId) {
-      setError('Gere o preview primeiro.');
-      return;
-    }
-    const ptId = productTypeId ? parseInt(productTypeId, 10) : null;
-    if (!ptId) {
-      setError('Selecione um tipo de produto.');
-      return;
-    }
-    setIsLoading(true);
-    setLoadingMessage('Iniciando processamento...');
-    setError('');
-    try {
-      await fornecedorService.finalizarImportacaoCatalogo({
-        fileId,
-        productTypeId: ptId,
-        fornecedorId: fornecedor.id,
-        mapping: mapping && Object.keys(mapping).length ? mapping : null,
-        pages: applyAllPages ? null : (selectedPageForRegion ? [selectedPageForRegion] : null),
-        region: selectedBboxNorm || selectedBbox,
-      });
-      setStep('processing');
-      pollStatus(fileId);
+      setRegionPreview({ headers: FALLBACK_HEADERS, rows: [] });
+      setManualMappingRows([]);
+      setPreviewError('Nenhum dado extraído da região selecionada.');
+      appendTimeline('Nenhum dado útil encontrado na região selecionada.');
     } catch (err) {
-      const detail = err?.detail || err?.message || 'Falha ao iniciar processamento';
-      setError(detail);
+      const detail = toErrorDetail(err, 'Falha ao extrair região.');
+      setRegionError(detail);
+      appendTimeline(`Erro ao extrair região: ${detail}`);
     } finally {
       setIsLoading(false);
       setLoadingMessage('');
@@ -276,30 +371,29 @@ const ImportCatalogWizard = ({ fornecedor, productTypeId: initialProductTypeId, 
   };
 
   const openManualMapping = () => {
-    // Usa os headers/rows atuais ou cria placeholders
     const headers =
-      regionPreview?.headers && regionPreview.headers.length > 0
+      regionPreview?.headers?.length
         ? regionPreview.headers
         : manualMappingRows.length > 0
           ? Object.keys(manualMappingRows[0])
-          : ['col_0', 'col_1', 'col_2', 'col_3', 'col_4'];
-    const rows =
-      manualMappingRows && manualMappingRows.length > 0
-        ? manualMappingRows
-        : [];
+          : FALLBACK_HEADERS;
+    const rows = manualMappingRows?.length ? manualMappingRows : [];
     setRegionPreview({ headers, rows });
     setShowMappingModal(true);
+    appendTimeline('Abrindo mapeamento manual de colunas.');
   };
 
   const handleConfirmMapping = async (map) => {
     setMapping(map);
-    // Salva mapping no fornecedor para reutilizar
+    appendTimeline(`Mapeamento atualizado com ${Object.keys(map || {}).length} coluna(s).`);
     try {
       if (fornecedor?.id) {
         await fornecedorService.setFornecedorMapping(fornecedor.id, map);
+        appendTimeline('Mapeamento salvo no fornecedor com sucesso.');
       }
     } catch (err) {
-      console.warn('Falha ao salvar mapping no fornecedor:', err);
+      console.warn('Falha ao salvar mapeamento no fornecedor:', err);
+      appendTimeline('Falha ao salvar mapeamento padrão no fornecedor.');
     }
     setShowMappingModal(false);
   };
@@ -310,269 +404,460 @@ const ImportCatalogWizard = ({ fornecedor, productTypeId: initialProductTypeId, 
       try {
         const status = await fornecedorService.getImportacaoStatus(id);
         setStatusData(status);
+
+        const pagesProcessed = status?.pages_processed ?? 0;
+        const pagesTotal = status?.total_pages ?? status?.pages_total ?? expectedPages ?? 0;
+        appendTimeline(`Status: ${status.status} | Páginas: ${pagesProcessed}/${pagesTotal}`);
+
         if (status.status && status.status !== 'PROCESSING') {
           keepPolling = false;
-          if (status.status === 'IMPORTED' || status.status === 'FAILED') {
-            try {
-              const res = await fornecedorService.getImportacaoResult(id);
-              setResultData(res);
-            } catch (err) {
-              console.error('Erro ao obter resultado final:', err);
-              const detail = err?.detail || err?.message || 'Falha ao obter resultado final da importaÃ§Ã£o.';
-              setError(detail);
-            }
+          appendTimeline(`Processamento finalizado com status ${status.status}. Buscando resultado final...`);
+          try {
+            const res = await fornecedorService.getImportacaoResult(id);
+            setResultData(normalizePayloadStrings(res));
+            appendTimeline('Resultado final carregado.');
+          } catch (err) {
+            console.error('Erro ao obter resultado final:', err);
+            const detail = toErrorDetail(err, 'Falha ao obter resultado final da importação.');
+            setError(detail);
+            appendTimeline(`Erro ao obter resultado final: ${detail}`);
           }
         }
       } catch (err) {
         console.error('Erro ao consultar status:', err);
-        const detail = err?.detail || err?.message || 'Falha ao consultar status da importaÃ§Ã£o.';
+        const detail = toErrorDetail(err, 'Falha ao consultar status da importação.');
         setError(detail);
+        appendTimeline(`Erro de monitoramento: ${detail}`);
         keepPolling = false;
       }
       if (keepPolling) {
-        // eslint-disable-next-line no-await-in-loop
         await new Promise((r) => setTimeout(r, 2500));
       }
     }
   };
 
+  const startImport = async () => {
+    if (!fileId) {
+      setError('Gere o preview primeiro.');
+      return;
+    }
+
+    const ptId = productTypeId ? parseInt(productTypeId, 10) : null;
+    if (!ptId) {
+      setError('Selecione um tipo de produto.');
+      return;
+    }
+
+    setIsLoading(true);
+    setLoadingMessage('Iniciando processamento...');
+    setError('');
+    setStatusData(null);
+    setResultData(null);
+    setStatusTimeline([]);
+    appendTimeline('Solicitação de processamento enviada para o backend.');
+    try {
+      const selectedPages = applyAllPages
+        ? null
+        : selectedPageForRegion
+          ? [selectedPageForRegion]
+          : null;
+
+      const estimatedTotal = selectedPages?.length
+        ? selectedPages.length
+        : previewData?.numPages || 0;
+      setExpectedPages(estimatedTotal);
+      setProcessingStartedAt(Date.now());
+      setStatusData((prev) => ({
+        status: 'PROCESSING',
+        pages_processed: 0,
+        total_pages: prev?.total_pages || estimatedTotal,
+      }));
+
+      await fornecedorService.finalizarImportacaoCatalogo({
+        fileId,
+        productTypeId: ptId,
+        fornecedorId: fornecedor.id,
+        mapping: mapping && Object.keys(mapping).length ? mapping : null,
+        pages: selectedPages,
+        region: selectedBboxNorm || selectedBbox,
+      });
+      setStep('processing');
+      appendTimeline('Importação iniciada. Acompanhando progresso em tempo real.');
+      pollStatus(fileId);
+    } catch (err) {
+      const detail = normalizeDisplayText(toErrorDetail(err, 'Falha ao iniciar processamento.'));
+      setError(detail);
+      appendTimeline(`Erro ao iniciar processamento: ${detail}`);
+    } finally {
+      setIsLoading(false);
+      setLoadingMessage('');
+    }
+  };
+
   if (!isOpen) return null;
 
+  const mappedHeaders = regionPreview?.headers || previewData?.headers || FALLBACK_HEADERS;
+  const mappedRows = Array.isArray(regionPreview?.rows)
+    ? regionPreview.rows
+    : Array.isArray(previewData?.sampleRows)
+      ? previewData.sampleRows
+      : Array.isArray(manualMappingRows)
+        ? manualMappingRows
+        : [];
+
+  const criticalErrorsCount = resultData?.stats?.erros ?? (resultData?.errors?.length || 0);
+  const hasPartialSuccess = Boolean(resultData?.stats?.partial_success) || (
+    (resultData?.stats?.produtos_criados ?? 0) + (resultData?.stats?.produtos_atualizados ?? 0) > 0 &&
+    criticalErrorsCount > 0
+  );
+
+  const pagesProcessed = statusData?.pages_processed ?? resultData?.stats?.pages_processed ?? 0;
+  const pagesTotal =
+    statusData?.total_pages ??
+    statusData?.pages_total ??
+    resultData?.stats?.pages_total ??
+    expectedPages ??
+    0;
+  const progressPct = pagesTotal > 0 ? Math.min(100, Math.round((pagesProcessed / pagesTotal) * 100)) : 0;
+  const processingActive = !statusData || statusData.status === 'PROCESSING';
+  const elapsedSec = processingStartedAt ? Math.max(0, Math.floor((Date.now() - processingStartedAt) / 1000)) : 0;
+  const currentStepIndex = Math.max(0, STEP_FLOW.indexOf(step));
+  const selectedScopeLabel = applyAllPages
+    ? 'todas as páginas do PDF'
+    : `somente página ${selectedPageForRegion || startPage}`;
+  const canStartImport = Boolean(fileId && productTypeId) && !isLoading;
+
   return (
-    <div className="wizard-container">
-      {isLoading && <LoadingPopup message={loadingMessage || 'Processando...'} isOpen={isLoading} />}
+    <div className="wizard-container" aria-live="polite">
+      {isLoading && (
+        <LoadingPopup
+          message={loadingMessage || 'Processando...'}
+          isOpen={isLoading}
+          details={statusTimeline.slice(-3)}
+        />
+      )}
+
+      <div className="wizard-stepper" role="list" aria-label="Etapas da importa\u00e7\u00e3o">
+        {STEP_FLOW.map((stepKey, index) => {
+          const isCurrent = step === stepKey;
+          const isDone = currentStepIndex > index;
+          return (
+            <div
+              key={stepKey}
+              role="listitem"
+              className={`wizard-step-item ${isCurrent ? 'is-current' : ''} ${isDone ? 'is-done' : ''}`}
+            >
+              <span className="wizard-step-index">{index + 1}</span>
+              <span className="wizard-step-label">{STEP_LABELS[stepKey]}</span>
+            </div>
+          );
+        })}
+      </div>
+
       {error && (
-        <p
-          style={{
-            color: 'red',
-            fontWeight: 'bold',
-            border: '1px solid red',
-            padding: '10px',
-            marginTop: '10px',
-          }}
-        >
-          {error}
-        </p>
+        <p className="wizard-error-banner">{error}</p>
       )}
 
       {step === 'upload' && (
-        <div>
-          <h3>Passo 1: Selecione o CatÃ¡logo (PDF, XLSX ou CSV)</h3>
-          <div style={{ marginBottom: '1em' }}>
+        <section className="wizard-panel">
+          <header className="wizard-panel-header">
+            <h3>Passo 1: Enviar catálogo</h3>
+            <p>Selecione o arquivo e defina um recorte inicial de páginas para gerar o preview.</p>
+          </header>
+
+          <div className="wizard-upload-block">
+            <label htmlFor="wizard-file-input" className="wizard-file-label">
+              Arquivo do catálogo (PDF, XLSX ou CSV)
+            </label>
             <input
+              id="wizard-file-input"
               type="file"
               accept=".pdf,.xlsx,.xls,.csv"
               onChange={handleFileChange}
-              aria-label="Arquivo de catÃ¡logo"
+              aria-label="Arquivo de catálogo"
             />
-            {selectedFile && <p>Ficheiro selecionado: {selectedFile.name}</p>}
-            <div style={{ display: 'flex', gap: '10px', marginTop: '10px', flexWrap: 'wrap' }}>
-              <label>
-                PÃ¡gina inicial:
+            {selectedFile && <p className="wizard-selected-file">Arquivo selecionado: {selectedFile.name}</p>}
+            <div className="wizard-inline-fields">
+              <label htmlFor="wizard-start-page">
+                Página inicial
                 <input
+                  id="wizard-start-page"
                   type="number"
                   min="1"
                   value={startPage}
                   onChange={(e) => setStartPage(Math.max(1, parseInt(e.target.value || '1', 10)))}
-                  style={{ marginLeft: '6px', width: '80px' }}
+                  className="wizard-small-number-input"
                 />
               </label>
-              <label>
-                Quantidade de pÃ¡ginas:
+              <label htmlFor="wizard-page-count">
+                Quantidade de páginas
                 <input
+                  id="wizard-page-count"
                   type="number"
                   min="1"
                   value={pageCount}
                   onChange={(e) => setPageCount(Math.max(1, parseInt(e.target.value || '1', 10)))}
-                  style={{ marginLeft: '6px', width: '80px' }}
+                  className="wizard-small-number-input"
                 />
               </label>
             </div>
           </div>
-          <button onClick={handlePreview} disabled={!selectedFile || isLoading} type="button">
-            Gerar Preview
-          </button>
-          {previewError && <p style={{ color: 'red', marginTop: '0.5em' }}>{previewError}</p>}
-        </div>
+          <div className="wizard-actions-row">
+            <button onClick={handlePreview} disabled={!selectedFile || isLoading} type="button">
+              Gerar Preview
+            </button>
+          </div>
+          {previewError && <p className="wizard-error-text">{previewError}</p>}
+        </section>
       )}
 
       {step === 'preview' && previewData && (
-        <div>
-          <h3>Passo 2: Revisar Preview</h3>
-          {!previewData.headers && !previewData.previewImages && (
-            <p style={{ color: '#a76b00' }}>Nenhum preview disponÃ­vel. Verifique se o arquivo Ã© suportado.</p>
+        <section className="wizard-panel">
+          <header className="wizard-panel-header">
+            <h3>Passo 2: Revisar e mapear dados</h3>
+            <p>
+              File ID {fileId || '-'} | páginas no arquivo: {previewData.numPages || 0}
+            </p>
+          </header>
+
+          {!previewData.headers && !previewImages.length && (
+            <p className="wizard-warning-text">
+              Nenhum preview disponível. Verifique se o arquivo é suportado.
+            </p>
           )}
-          {previewData.headers && previewData.sampleRows && (
-            <div>
-              <p>PrÃ©via das colunas detectadas:</p>
-              <table className="preview-table">
-                <thead>
-                  <tr>
-                    {previewData.headers.map((h) => (
-                      <th key={h}>{h}</th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {previewData.sampleRows.slice(0, 5).map((row, idx) => (
-                    <tr key={idx}>
+
+          {previewData.headers && sampleRows.length > 0 && (
+            <div className="wizard-table-block">
+              <p>Prévia das colunas detectadas:</p>
+              <div className="wizard-table-wrap">
+                <table className="preview-table">
+                  <thead>
+                    <tr>
                       {previewData.headers.map((h) => (
-                        <td key={h}>{row[h]}</td>
+                        <th key={h}>{h}</th>
                       ))}
                     </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
-          {previewData.previewImages && previewData.previewImages.length > 0 && (
-            <div style={{ marginTop: '1em' }}>
-              <p>PrÃ©via de pÃ¡ginas (PDF): mostrando {selectedPreviewIndex != null ? 1 : previewData.previewImages.length} pÃ¡gina(s)</p>
-              {(selectedPreviewIndex != null ? [previewData.previewImages[selectedPreviewIndex]] : previewData.previewImages).map((img, idx) => {
-                const absoluteIdx = selectedPreviewIndex != null ? selectedPreviewIndex : idx;
-                const pageNumber = startPage + absoluteIdx;
-                return (
-                <img
-                  key={idx}
-                  src={
-                    typeof img === 'string'
-                    ? (img.startsWith('data:image') ? img : `data:image/png;base64,${img}`)
-                    : (img && img.image ? img.image : '')
-                  }
-                  alt={`PÃ¡gina ${pageNumber}`}
-                  style={{ width: '100%', maxHeight: '320px', objectFit: 'contain', marginBottom: '10px', border: '1px solid #ddd' }}
-                />
-                );
-              })}
+                  </thead>
+                  <tbody>
+                    {sampleRows.slice(0, 5).map((row, idx) => (
+                      <tr key={idx}>
+                        {previewData.headers.map((h) => (
+                          <td key={h}>{formatCellValue(row?.[h])}</td>
+                        ))}
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             </div>
           )}
 
-          <div style={{ marginTop: '1em', display: 'flex', gap: '1em', alignItems: 'center', flexWrap: 'wrap' }}>
-            <button type="button" onClick={() => setShowMappingModal(true)}>
-              Definir mapeamento
-            </button>
-            <button type="button" onClick={handleOpenRegionSelector} disabled={!fileId}>
-              Selecionar regiÃ£o
-            </button>
-            <button type="button" onClick={openManualMapping}>
-              Mapear manualmente
-            </button>
-            <label>
-              PÃ¡gina para seleÃ§Ã£o:
-              <input
-                type="number"
-                min="1"
-                value={selectedPageForRegion || startPage}
-                onChange={(e) => {
-                  const val = Math.max(1, parseInt(e.target.value || '1', 10));
-                  setSelectedPageForRegion(val);
-                }}
-                style={{ marginLeft: '6px', width: '80px' }}
-              />
-            </label>
-            <label>
-              Tipo de Produto:
-              <select
-                value={productTypeId}
-                onChange={(e) => handleProductTypeChange(e.target.value)}
-                style={{ marginLeft: '0.5em' }}
-              >
-                <option value="">Selecione...</option>
-                {productTypes.map((pt) => {
-                  const value = pt.id;
-                  if (value === null || value === undefined) return null;
-                  const label = pt.friendly_name || pt.nome || pt.name || pt.slug || pt.key_name || value;
+          {previewImages.length > 0 && (
+            <div className="wizard-preview-images-block">
+              <p>
+                Prévia de páginas (PDF): mostrando{' '}
+                {selectedPreviewIndex != null ? 1 : previewImages.length} página(s)
+              </p>
+              <div className="wizard-preview-images-grid">
+                {(selectedPreviewIndex != null ? [previewImages[selectedPreviewIndex]] : previewImages).map((img, idx) => {
+                  const absoluteIdx = selectedPreviewIndex != null ? selectedPreviewIndex : idx;
+                  const pageNumber = startPage + absoluteIdx;
+                  const src = getPreviewImageSrc(img);
+                  if (!src) return null;
                   return (
-                    <option key={value} value={value}>
-                      {label}
-                    </option>
+                    <figure key={`${pageNumber}-${idx}`} className="wizard-preview-figure">
+                      <img
+                        src={src}
+                        alt={`Página ${pageNumber}`}
+                        className="wizard-preview-image"
+                      />
+                      <figcaption>Página {pageNumber}</figcaption>
+                    </figure>
                   );
                 })}
-              </select>
-            </label>
-            <button type="button" onClick={startImport} disabled={isLoading}>
-              Iniciar Processamento
-            </button>
-          </div>
-
-          {regionPreview && regionPreview.headers && (
-            <div style={{ marginTop: '1em' }}>
-              <p>PrÃ©via da regiÃ£o selecionada:</p>
-              <table className="preview-table">
-                <thead>
-                  <tr>
-                    {regionPreview.headers.map((h) => (
-                      <th key={h}>{h}</th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {regionPreview.rows.map((row, idx) => (
-                    <tr key={idx}>
-                      {regionPreview.headers.map((h) => {
-                        const cell = row?.[h];
-                        const display =
-                          cell === null || cell === undefined
-                            ? ''
-                            : typeof cell === 'object'
-                              ? JSON.stringify(cell)
-                              : cell;
-                        return <td key={h}>{display}</td>;
-                      })}
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+              </div>
             </div>
           )}
-          {regionError && <p style={{ color: 'red', marginTop: '0.5em' }}>{regionError}</p>}
+
+          <div className="wizard-action-grid">
+            <section className="wizard-action-card">
+              <h4>1) Definir extração e mapeamento</h4>
+              <p>Ajuste a região da tabela e confira o mapeamento de colunas antes de importar.</p>
+              <div className="wizard-actions-row">
+                <button type="button" onClick={() => setShowMappingModal(true)}>
+                  Definir mapeamento
+                </button>
+                <button type="button" onClick={handleOpenRegionSelector} disabled={!fileId}>
+                  Selecionar região
+                </button>
+                <button type="button" onClick={openManualMapping}>
+                  Mapear manualmente
+                </button>
+              </div>
+            </section>
+
+            <section className="wizard-action-card">
+              <h4>2) Definir escopo e tipo de produto</h4>
+              <div className="wizard-inline-fields">
+                <label htmlFor="wizard-page-select">
+                  Página para seleção
+                  <input
+                    id="wizard-page-select"
+                    type="number"
+                    min="1"
+                    value={selectedPageForRegion || startPage}
+                    onChange={(e) => {
+                      const val = Math.max(1, parseInt(e.target.value || '1', 10));
+                      setSelectedPageForRegion(val);
+                    }}
+                    className="wizard-small-number-input"
+                  />
+                </label>
+
+                <label htmlFor="wizard-product-type">
+                  Tipo de Produto
+                  <select
+                    id="wizard-product-type"
+                    value={productTypeId}
+                    onChange={(e) => handleProductTypeChange(e.target.value)}
+                    className="wizard-inline-select"
+                  >
+                    <option value="">Selecione...</option>
+                    {productTypes.map((pt) => {
+                      const value = pt.id;
+                      if (value === null || value === undefined) return null;
+                      const label = pt.friendly_name || pt.nome || pt.name || pt.slug || pt.key_name || value;
+                      return (
+                        <option key={value} value={value}>
+                          {label}
+                        </option>
+                      );
+                    })}
+                  </select>
+                </label>
+              </div>
+              <label className="wizard-checkbox-label" htmlFor="wizard-apply-all">
+                <input
+                  id="wizard-apply-all"
+                  type="checkbox"
+                  checked={applyAllPages}
+                  onChange={(e) => setApplyAllPages(e.target.checked)}
+                  className="wizard-inline-checkbox"
+                />
+                Aplicar região em todas as páginas
+              </label>
+              <button type="button" onClick={startImport} disabled={!canStartImport}>
+                Iniciar Processamento
+              </button>
+              {!productTypeId && (
+                <p className="wizard-warning-text">
+                  Selecione o tipo de produto para habilitar a importação final.
+                </p>
+              )}
+            </section>
+          </div>
+
+          <p className="wizard-scope-hint">
+            Escopo atual: {selectedScopeLabel}
+          </p>
+
+          {regionPreview?.headers && (
+            <div className="wizard-region-preview-block wizard-table-block">
+              <p>Prévia da região selecionada:</p>
+              <div className="wizard-table-wrap">
+                <table className="preview-table">
+                  <thead>
+                    <tr>
+                      {regionPreview.headers.map((h) => (
+                        <th key={h}>{h}</th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {regionPreview.rows.map((row, idx) => (
+                      <tr key={idx}>
+                        {regionPreview.headers.map((h) => (
+                          <td key={h}>{formatCellValue(row?.[h])}</td>
+                        ))}
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+          {regionError && <p className="wizard-error-text">{regionError}</p>}
 
           <ColumnMappingModal
             isOpen={showMappingModal}
             onClose={() => setShowMappingModal(false)}
-            headers={
-              (regionPreview && regionPreview.headers) ||
-              (previewData && previewData.headers) ||
-              ['col_0', 'col_1', 'col_2', 'col_3']
-            }
-            rows={
-              (regionPreview && regionPreview.rows) ||
-              (previewData && previewData.sampleRows) ||
-              manualMappingRows ||
-              []
-            }
+            headers={mappedHeaders}
+            rows={mappedRows}
             fieldOptions={fieldOptions}
             productTypes={productTypes}
             productTypeId={productTypeId}
             onProductTypeChange={handleProductTypeChange}
+            initialMapping={mapping}
             onConfirm={handleConfirmMapping}
           />
-        </div>
+        </section>
       )}
 
       {step === 'processing' && (
-        <div>
-          <h3>Processando...</h3>
-          {statusData && (
-            <p>
-              Status: {statusData.status} | Páginas: {statusData.pages_processed}/
-              {statusData.total_pages ?? statusData.pages_total ?? 0}
-            </p>
-          )}
-          {!statusData && <p>Aguarde, verificando status...</p>}
+        <section className="wizard-panel">
+          <header className="wizard-panel-header">
+            <h3>Passo 3: Processando importação</h3>
+            <p>Acompanhe o status em tempo real e revise o resumo final ao concluir.</p>
+          </header>
+
+          <div className="wizard-processing-card">
+            <div className="wizard-processing-header">
+              {LogoImg ? <img src={LogoImg} alt="CatalogAI" className="wizard-processing-logo" /> : null}
+              <div>
+                <strong>Status:</strong> {statusData?.status || 'PROCESSING'}
+                <div>{`Páginas: ${pagesProcessed}/${pagesTotal || '?'}`}</div>
+              </div>
+              {processingActive ? <div className="wizard-processing-spinner" /> : <div className="wizard-processing-done">OK</div>}
+            </div>
+
+            <div className="wizard-progress-track" role="progressbar" aria-valuenow={progressPct} aria-valuemin={0} aria-valuemax={100}>
+              <div className="wizard-progress-fill" style={{ width: `${progressPct}%` }} />
+            </div>
+            <small>{progressPct}% concluído</small>
+
+            <div className="wizard-live-log" aria-live="polite">
+              <h4>Atualizações em tempo real</h4>
+              {statusTimeline.length === 0 ? (
+                <p>Aguardando atualizações...</p>
+              ) : (
+                <ul>
+                  {statusTimeline.map((line, idx) => (
+                    <li key={`${line}-${idx}`}>{line}</li>
+                  ))}
+                </ul>
+              )}
+            </div>
+          </div>
+
           {resultData && (
-            <div style={{ marginTop: '1em' }}>
+            <div className="wizard-result-block">
               <h4>Resultado</h4>
               {statusData?.status === 'FAILED' && resultData?.errors?.length > 0 && (
-                <p style={{ color: '#b00020', fontWeight: 600 }}>
+                <p className="wizard-result-error">
                   Falha: {resultData.errors[0]?.erro_processamento_pdf || resultData.errors[0]?.erro_processamento || 'Verifique os detalhes em Erros/Log.'}
+                </p>
+              )}
+              {(statusData?.status === 'IMPORTED' || statusData?.status === 'PARTIAL') && hasPartialSuccess && (
+                <p className="wizard-result-warning">
+                  Importação concluída com alertas: há erros críticos que exigem revisão.
                 </p>
               )}
               {(resultData.stats || resultData.created || resultData.updated || resultData.errors) && (
                 <ul>
                   <li>Criados: {resultData?.stats?.produtos_criados ?? (resultData?.created?.length || 0)}</li>
                   <li>Atualizados: {resultData?.stats?.produtos_atualizados ?? (resultData?.updated?.length || 0)}</li>
-                  <li>Erros: {resultData?.stats?.erros ?? (resultData?.errors?.length || 0)}</li>
+                  <li>Erros críticos: {criticalErrorsCount}</li>
+                  <li>Descartes não críticos: {resultData?.stats?.descartes_nao_criticos ?? 0}</li>
                   <li>
                     Páginas: {resultData?.stats?.pages_processed ?? statusData?.pages_processed ?? 0}/
                     {resultData?.stats?.pages_total ?? statusData?.total_pages ?? statusData?.pages_total ?? 0}
@@ -580,34 +865,31 @@ const ImportCatalogWizard = ({ fornecedor, productTypeId: initialProductTypeId, 
                   <li>Formato: {resultData?.stats?.ext || selectedFile?.name?.split('.').pop()?.toLowerCase() || '-'}</li>
                 </ul>
               )}
-              {resultData.errors && resultData.errors.length > 0 && (
+              {resultData.errors?.length > 0 && (
                 <details>
                   <summary>Erros</summary>
-                  <pre style={{ whiteSpace: 'pre-wrap' }}>{JSON.stringify(resultData.errors, null, 2)}</pre>
+                  <pre className="wizard-result-pre">{JSON.stringify(resultData.errors, null, 2)}</pre>
                 </details>
               )}
-              {resultData.log && resultData.log.length > 0 && (
+              {resultData.log?.length > 0 && (
                 <details>
                   <summary>Log</summary>
-                  <pre style={{ whiteSpace: 'pre-wrap' }}>{resultData.log.join('\n')}</pre>
+                  <pre className="wizard-result-pre">{resultData.log.join('\n')}</pre>
                 </details>
               )}
             </div>
           )}
-        </div>
+        </section>
       )}
 
-      <Modal
-        isOpen={showRegionModal}
-        onClose={() => setShowRegionModal(false)}
-        title="Selecione a regiÃ£o da tabela"
-      >
+      <Modal isOpen={showRegionModal} onClose={() => setShowRegionModal(false)} title="Selecione a região da tabela">
         {pdfBytes && (
           <PdfRegionSelector
             key={`pdf-region-${selectedPageForRegion || startPage}`}
             file={pdfBytes}
             onSelect={handleRegionSelect}
             initialPage={selectedPageForRegion || startPage}
+            initialApplyAll={applyAllPages}
             onApplyAllChange={setApplyAllPages}
           />
         )}
@@ -616,37 +898,29 @@ const ImportCatalogWizard = ({ fornecedor, productTypeId: initialProductTypeId, 
       <Modal
         isOpen={showPagePicker}
         onClose={() => setShowPagePicker(false)}
-        title="Escolha a pÃ¡gina para selecionar a regiÃ£o"
+        title="Escolha a página para selecionar a região"
       >
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(120px, 1fr))', gap: '10px' }}>
-          {previewData?.previewImages?.map((img, idx) => {
-            const src =
-              typeof img === 'string'
-                ? (img.startsWith('data:image') ? img : `data:image/png;base64,${img}`)
-                : (img && img.image ? img.image : '');
+        <div className="wizard-page-picker-grid">
+          {previewImages.map((img, idx) => {
+            const src = getPreviewImageSrc(img);
+            if (!src) return null;
             const pageNumber = startPage + idx;
-              return (
-                <button
-                  key={idx}
-                  type="button"
-                  onClick={() => {
+            return (
+              <button
+                key={`preview-page-${idx}`}
+                type="button"
+                onClick={() => {
                   setShowPagePicker(false);
                   setSelectedPreviewIndex(idx);
-                  // Aguarda o fechamento do modal e abre o recorte na pÃ¡gina escolhida
                   setTimeout(() => launchRegionSelector(pageNumber), 0);
                 }}
-                style={{
-                  border: '1px solid #ccc',
-                  padding: 0,
-                  background: '#fff',
-                  cursor: 'pointer',
-                }}
+                className="wizard-page-picker-item"
               >
-                <div style={{ fontSize: '0.85em', padding: '4px' }}>PÃ¡gina {pageNumber}</div>
+                <div className="wizard-page-picker-label">Página {pageNumber}</div>
                 <img
                   src={src}
-                  alt={`PÃ¡gina ${pageNumber}`}
-                  style={{ width: '100%', maxHeight: '160px', objectFit: 'cover', display: 'block' }}
+                  alt={`Página ${pageNumber}`}
+                  className="wizard-page-picker-image"
                 />
               </button>
             );
@@ -654,7 +928,7 @@ const ImportCatalogWizard = ({ fornecedor, productTypeId: initialProductTypeId, 
         </div>
       </Modal>
 
-      <hr style={{ margin: '20px 0' }} />
+      <hr className="wizard-footer-divider" />
       <button type="button" onClick={onClose}>
         Fechar
       </button>
@@ -663,4 +937,3 @@ const ImportCatalogWizard = ({ fornecedor, productTypeId: initialProductTypeId, 
 };
 
 export default ImportCatalogWizard;
-

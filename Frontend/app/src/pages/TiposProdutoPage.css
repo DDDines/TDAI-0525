@@ -1,35 +1,15 @@
-/* Frontend/app/src/pages/TiposProdutoPage.css */
+﻿/* Frontend/app/src/pages/TiposProdutoPage.css */
 
 .tipos-produto-container {
-  padding: 20px;
-  background-color: var(--main-bg);
-  height: calc(100vh - 60px); /* ocupa a altura da tela sem exceder */
-  display: flex;
-  flex-direction: column;
-  box-sizing: border-box; /* padding incluído na altura */
-  min-height: calc(100vh - 60px);
-  display: flex;
-  flex-direction: column;
-  height: 100%;
+  width: 100%;
 }
 
 .tipos-produto-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 20px;
-  padding-bottom: 15px;
-  border-bottom: 1px solid var(--border-color);
-}
-
-.tipos-produto-header h1 {
-  font-size: 1.8rem;
-  font-weight: 600;
-  color: var(--sidebar-bg);
+  margin-bottom: 0.2rem;
 }
 
 .tipos-produto-button {
-  background-color: var(--primary);
+  background-color: #111111;
   color: white;
   padding: 10px 18px;
   border: none;
@@ -39,32 +19,32 @@
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  transition: background-color 0.2s ease;
 }
 
 .tipos-produto-button:hover {
-  filter: brightness(90%);
+  filter: brightness(0.92);
 }
-
-/* --- ESTILOS ATUALIZADOS E NOVOS PARA O LAYOUT DE DOIS PAINÉIS --- */
 
 .type-management-container {
   display: flex;
-  gap: 1.5rem;
-  align-items: stretch; /* Painéis ocupam toda a altura disponível */
-  flex: 1;
-  overflow: hidden; /* Evita que painéis extravasem */
+  gap: 1rem;
+  align-items: stretch;
+  min-height: 520px;
+}
+
+.type-list-panel,
+.type-detail-panel {
+  background-color: var(--card-bg);
+  padding: 1.25rem;
+  border-radius: 14px;
+  box-shadow: 0 1px 8px rgba(60, 100, 150, 0.1);
+  border: 1px solid rgba(148, 163, 184, 0.22);
 }
 
 .type-list-panel {
   flex: 1;
   min-width: 280px;
-  max-width: 400px; /* Aumentado um pouco para mais espaço */
-  background-color: var(--card-bg);
-  padding: 1.25rem;
-  border-radius: var(--radius);
-  box-shadow: var(--shadow-sm);
-  height: 100%;
+  max-width: 400px;
   display: flex;
   flex-direction: column;
 }
@@ -73,7 +53,7 @@
   margin-top: 0;
   margin-bottom: 1rem;
   font-size: 1.1rem;
-  color: #333;
+  color: #1f2937;
   padding-bottom: 0.75rem;
   border-bottom: 1px solid var(--border-color);
 }
@@ -98,7 +78,7 @@
 }
 
 .type-list-panel li:last-child {
-    border-bottom: none;
+  border-bottom: none;
 }
 
 .type-list-panel li:hover {
@@ -106,9 +86,9 @@
 }
 
 .type-list-panel li.selected {
-  background-color: var(--primary);
+  background-color: #111111;
   color: white;
-  font-weight: bold;
+  font-weight: 700;
 }
 
 .type-list-panel li .usage-count {
@@ -118,33 +98,37 @@
   font-weight: normal;
 }
 
-/* Ajuste para botões de ação na lista de tipos */
 .type-list-panel .btn-icon {
-    background: transparent;
-    border: none;
-    color: var(--text-color-light);
-    padding: 4px;
+  background: transparent;
+  border: none;
+  color: var(--text-color-light);
+  padding: 4px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
 }
+
+.type-list-panel .btn-icon svg {
+  width: 0.95rem;
+  height: 0.95rem;
+}
+
 .type-list-panel li:hover .btn-icon {
-    color: var(--danger);
+  color: var(--danger);
 }
+
 .type-list-panel li.selected .btn-icon {
-    color: white;
+  color: white;
 }
 
 .type-list-panel .type-actions {
-    display: flex;
-    gap: 0.25rem;
+  display: flex;
+  gap: 0.25rem;
 }
 
 .type-detail-panel {
-  flex: 2.5; /* Painel de detalhes um pouco maior */
-  background-color: var(--card-bg);
-  padding: 1.5rem;
-  border-radius: var(--radius);
-  box-shadow: var(--shadow-sm);
-  min-height: 400px;
-  height: 100%;
+  flex: 2.5;
+  min-height: 420px;
   display: flex;
   flex-direction: column;
   overflow-y: auto;
@@ -154,18 +138,22 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 1.5rem;
-  padding-bottom: 1rem;
+  margin-bottom: 1.2rem;
+  padding-bottom: 0.9rem;
   border-bottom: 1px solid var(--border-color);
 }
 
 .panel-header h5 {
   margin: 0;
-  font-size: 1.2rem;
-  color: #333;
+  font-size: 1.15rem;
+  color: #1f2937;
 }
 
-/* --- ESTILOS ADICIONADOS PARA A LISTA DE ATRIBUTOS --- */
+.type-empty-state {
+  text-align: center;
+  color: var(--text-color-light);
+  padding-top: 2rem;
+}
 
 .attribute-template-card {
   display: flex;
@@ -175,36 +163,43 @@
   border: 1px solid #d1d5db;
   margin-bottom: 0.75rem;
   border-radius: var(--radius);
-  background: #f9fafb; /* Fundo levemente diferente para cada card */
+  background: #f9fafb;
   transition: box-shadow 0.2s;
 }
+
 .attribute-template-card:hover {
-    box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
 }
+
 .attribute-template-card .main-info {
   flex-grow: 1;
 }
+
 .attribute-template-card .main-info strong {
   font-size: 1.05em;
   color: var(--sidebar-bg);
   display: block;
   margin-bottom: 0.25em;
 }
+
 .attribute-template-card .details {
   font-size: 0.85em;
   color: var(--text-color-light);
   line-height: 1.4;
   display: flex;
   flex-wrap: wrap;
-  gap: 0 1rem; /* Espaçamento entre os itens de detalhe */
+  gap: 0 1rem;
 }
+
 .attribute-template-card .details .detail-item {
   margin-right: 10px;
   display: inline-block;
 }
+
 .attribute-template-card .details .detail-item strong {
   color: #555;
 }
+
 .attribute-template-card .attr-controls {
   display: flex;
   flex-direction: column;
@@ -213,43 +208,41 @@
   flex-shrink: 0;
   margin-left: 1rem;
 }
+
 .attribute-template-card .attr-actions {
   display: flex;
   gap: 0.5rem;
 }
 
-/* --- INÍCIO DAS NOVAS CLASSES (ADIÇÕES) --- */
-
 .attribute-template-card .attr-order-icons {
-    display: flex;
-    gap: 0.5rem;
-    margin-bottom: 0.5rem;
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 0.5rem;
 }
 
 .attribute-template-card .attr-order-icons button {
-    background: transparent;
-    border: 1px solid #ccc;
-    color: #666;
-    padding: 2px 6px;
-    cursor: pointer;
+  background: transparent;
+  border: 1px solid #ccc;
+  color: #666;
+  padding: 2px 6px;
+  cursor: pointer;
 }
 
 .attribute-template-card .attr-order-icons button:disabled {
-    opacity: 0.4;
-    cursor: not-allowed;
+  opacity: 0.4;
+  cursor: not-allowed;
 }
 
 .btn-secondary {
   background-color: var(--text-color-light);
   color: white;
 }
+
 .btn-small {
-    padding: 0.4rem 0.8rem;
-    font-size: 0.8rem;
+  padding: 0.4rem 0.8rem;
+  font-size: 0.8rem;
 }
 
-
-/* Estilos para mensagens de estado (loading, erro) e modal herdados de index.css ou App.css, mas podemos garantir aqui */
 .loading-message,
 .error-message {
   text-align: center;
@@ -265,26 +258,13 @@
   border-radius: var(--radius);
 }
 
+@media (max-width: 980px) {
+  .type-management-container {
+    flex-direction: column;
+  }
 
-.form-group {
-    margin-bottom: 1rem;
-}
-
-.form-group label {
-    display: block;
-    margin-bottom: 0.5rem;
-    font-weight: 500;
-}
-
-.form-group input, .form-group small {
-    width: 100%;
-    padding: 0.5rem;
-    font-size: 1rem;
-}
-
-.form-group small {
-    display: block;
-    margin-top: 0.25rem;
-    color: #6b7280;
-    font-size: 0.85rem;
+  .type-list-panel {
+    max-width: none;
+    min-width: 0;
+  }
 }

@@ -1,8 +1,8 @@
 import { render, screen } from '@testing-library/react';
 import '@testing-library/jest-dom';
 import { TextEncoder, TextDecoder } from 'util';
-global.TextEncoder = TextEncoder;
-global.TextDecoder = TextDecoder;
+globalThis.TextEncoder = TextEncoder;
+globalThis.TextDecoder = TextDecoder;
 import userEvent from '@testing-library/user-event';
 import Topbar from '../../Topbar.jsx';
 import { ThemeProvider } from '../../../contexts/ThemeContext.jsx';

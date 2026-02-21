@@ -1,4 +1,4 @@
-from datetime import datetime
+﻿from datetime import datetime, timezone
 from typing import List, Optional, Union
 
 from sqlalchemy import func, cast, String
@@ -28,7 +28,7 @@ def get_registros_uso_ia(
         try:
             tipo_acao = models.TipoAcaoEnum(tipo_acao)
         except ValueError as exc:
-            raise ValueError(f"tipo_acao inválido: {tipo_acao}") from exc
+            raise ValueError(f"tipo_acao invÃ¡lido: {tipo_acao}") from exc
 
     query = db.query(models.RegistroUsoIA).filter(models.RegistroUsoIA.user_id == user_id)
     if tipo_acao:
@@ -56,7 +56,7 @@ def count_registros_uso_ia(
         try:
             tipo_acao = models.TipoAcaoEnum(tipo_acao)
         except ValueError as exc:
-            raise ValueError(f"tipo_acao inválido: {tipo_acao}") from exc
+            raise ValueError(f"tipo_acao invÃ¡lido: {tipo_acao}") from exc
 
     query = db.query(func.count(models.RegistroUsoIA.id)).filter(models.RegistroUsoIA.user_id == user_id)
     if tipo_acao:
@@ -93,7 +93,7 @@ def count_usos_ia_by_user_and_type_no_mes_corrente(
     user_id: int,
     tipo_geracao_prefix: str,
 ) -> int:
-    inicio_mes = datetime.utcnow().replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+    inicio_mes = datetime.now(timezone.utc).replace(day=1, hour=0, minute=0, second=0, microsecond=0).replace(tzinfo=None)
     tipo_col = cast(models.RegistroUsoIA.tipo_acao, String)
     if db.bind and db.bind.dialect.name == "postgresql":
         tipo_filter = tipo_col.ilike(f"{tipo_geracao_prefix}%")
@@ -113,7 +113,7 @@ def count_usos_ia_by_user_and_type_no_mes_corrente(
 
 
 def get_geracoes_ia_count_no_mes_corrente(db: Session, user_id: int) -> int:
-    inicio_mes = datetime.utcnow().replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+    inicio_mes = datetime.now(timezone.utc).replace(day=1, hour=0, minute=0, second=0, microsecond=0).replace(tzinfo=None)
     return (
         db.query(func.count(models.RegistroUsoIA.id))
         .filter(
@@ -123,3 +123,4 @@ def get_geracoes_ia_count_no_mes_corrente(db: Session, user_id: int) -> int:
         .scalar()
         or 0
     )
+

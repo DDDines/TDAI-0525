@@ -1,20 +1,19 @@
-// Frontend/app/src/pages/DashboardPage.jsx
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import './DashboardPage.css';
-import authService from '../services/authService'; // Mantido para getCurrentUser
-import adminService from '../services/adminService'; // NOVO: Importar o adminService
+import authService from '../services/authService';
+import adminService from '../services/adminService';
 import { showErrorToast } from '../utils/notifications';
 import searchService from '../services/searchService';
 import DOMPurify from 'dompurify';
 import LoadingOverlay from '../components/common/LoadingOverlay.jsx';
+import { LuBox, LuUsers, LuZap, LuLayers, LuSearch, LuBell } from 'react-icons/lu';
 
-// Alerts exibidos enquanto funcionalidades não estão completas
 const mockDashboardData = {
   alerts: [
-    { id: 1, messageHtml: "⚠️ <b>2 produto(s)</b> sem descrição" },
-    { id: 2, messageHtml: "🔄 <b>2 produto(s)</b> pendente(s) de enriquecimento" }
-  ]
+    { id: 1, messageHtml: 'Aviso: <b>2 produto(s)</b> sem descrição' },
+    { id: 2, messageHtml: 'Aviso: <b>2 produto(s)</b> pendente(s) de enriquecimento' },
+  ],
 };
 
 function DashboardPage() {
@@ -26,7 +25,6 @@ function DashboardPage() {
   const [recentActivities, setRecentActivities] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [searchResults, setSearchResults] = useState([]);
-  // const [error, setError] = useState(null); // Erros serão tratados por toasts
 
   useEffect(() => {
     const fetchData = async () => {
@@ -36,7 +34,6 @@ function DashboardPage() {
         setCurrentUser(user);
 
         if (user && user.is_superuser) {
-          // CORREÇÃO: Usar adminService para getTotalCounts
           const counts = await adminService.getTotalCounts();
           setAdminStats(counts);
 
@@ -52,7 +49,7 @@ function DashboardPage() {
       } catch (err) {
         const errorMsg = err.message || err.detail || 'Falha ao carregar dados do dashboard.';
         showErrorToast(errorMsg);
-        console.error("Erro ao carregar dados do dashboard:", err);
+        console.error('Erro ao carregar dados do dashboard:', err);
       } finally {
         setLoading(false);
       }
@@ -62,7 +59,6 @@ function DashboardPage() {
 
   useEffect(() => {
     const doSearch = async () => {
-      // Clear previous results immediately so old data isn't shown
       setSearchResults([]);
       try {
         const trimmed = searchTerm.trim();
@@ -75,61 +71,61 @@ function DashboardPage() {
     doSearch();
   }, [searchTerm]);
 
-  const formattedStats = adminStats ? [
-    {
-      value: adminStats.total_produtos?.toString() || "0",
-      label: "Total Produtos",
-      comparison: `Usuários: ${adminStats.total_usuarios || 0}`,
-      barWidth: "75%",
-      barColor: "var(--success)",
-      barGradient: "linear-gradient(90deg,var(--success),#e8faed 85%)",
-      icon: "📦"
-    },
-    {
-      value: adminStats.total_fornecedores?.toString() || "0",
-      label: "Total Fornecedores",
-      comparison: `Gerações IA (mês): ${adminStats.total_geracoes_ia_mes || 0}`, // Usando outro stat aqui
-      barWidth: "60%",
-      barColor: "var(--warning)",
-      barGradient: "linear-gradient(90deg,var(--warning),#fff4d5 85%)",
-      icon: "🏢"
-    },
-    {
-      value: adminStats.total_geracoes_ia_mes?.toString() || "0",
-      label: "Total Gerações IA (mês)",
-      comparison: `Enriquecimentos (mês): ${adminStats.total_enriquecimentos_mes || 0}`,
-      barWidth: "80%",
-      barColor: "var(--info)",
-      barGradient: "linear-gradient(90deg,var(--info),#eef6fa 85%)",
-      icon: "🤖"
-    },
-    {
-      value: adminStats.total_usuarios?.toString() || "0",
-      label: "Total Usuários",
-      comparison: "",
-      barWidth: "50%",
-      barColor: "var(--primary)",
-      barGradient: "linear-gradient(90deg,var(--primary),#e8ebff 85%)",
-      icon: "👥"
-    }
-  ] : [];
+  const formattedStats = adminStats
+    ? [
+        {
+          value: adminStats.total_produtos?.toString() || '0',
+          label: 'Total Produtos',
+          comparison: `Usuários: ${adminStats.total_usuarios || 0}`,
+          barWidth: '75%',
+          barColor: 'var(--success)',
+          barGradient: 'linear-gradient(90deg,var(--success),#e8faed 85%)',
+          icon: <LuBox />,
+        },
+        {
+          value: adminStats.total_fornecedores?.toString() || '0',
+          label: 'Total Fornecedores',
+          comparison: `Gerações IA (mês): ${adminStats.total_geracoes_ia_mes || 0}`,
+          barWidth: '60%',
+          barColor: 'var(--warning)',
+          barGradient: 'linear-gradient(90deg,var(--warning),#fff4d5 85%)',
+          icon: <LuUsers />,
+        },
+        {
+          value: adminStats.total_geracoes_ia_mes?.toString() || '0',
+          label: 'Total Gerações IA (mês)',
+          comparison: `Enriquecimentos (mês): ${adminStats.total_enriquecimentos_mes || 0}`,
+          barWidth: '80%',
+          barColor: 'var(--info)',
+          barGradient: 'linear-gradient(90deg,var(--info),#eef6fa 85%)',
+          icon: <LuZap />,
+        },
+        {
+          value: adminStats.total_usuarios?.toString() || '0',
+          label: 'Total Usuários',
+          comparison: '',
+          barWidth: '50%',
+          barColor: 'var(--primary)',
+          barGradient: 'linear-gradient(90deg,var(--primary),#e8ebff 85%)',
+          icon: <LuLayers />,
+        },
+      ]
+    : [];
 
-  const maxStatus = Math.max(...statusCounts.map(s => s.total), 1);
-  const statusChart = statusCounts.map(sc => ({
+  const maxStatus = Math.max(...statusCounts.map((s) => s.total), 1);
+  const statusChart = statusCounts.map((sc) => ({
     label: sc.status,
     value: sc.total,
     barWidth: `${Math.round((sc.total / maxStatus) * 100)}%`,
-    barColor: 'var(--info)'
+    barColor: 'var(--info)',
   }));
 
-  const activityFeed = recentActivities.map(act => ({
+  const activityFeed = recentActivities.map((act) => ({
     id: act.id,
-    icon: '🔔',
+    icon: <LuBell />,
     message: `${act.entidade} - ${act.acao} - ${act.user_id}`,
-    date: new Date(act.created_at).toLocaleDateString()
+    date: new Date(act.created_at).toLocaleDateString(),
   }));
-
-  const alertsData = mockDashboardData;
 
   if (loading) {
     return <LoadingOverlay isOpen={true} message="Carregando dashboard..." />;
@@ -142,7 +138,7 @@ function DashboardPage() {
           {formattedStats.map((stat, index) => (
             <div className="pro-card-metric" key={index} style={{ '--bar-color': stat.barColor }}>
               <div className="pro-metric-bar-bg">
-                <div className="pro-metric-bar" style={{ width: stat.barWidth, background: stat.barGradient }}></div>
+                <div className="pro-metric-bar" style={{ width: stat.barWidth, background: stat.barGradient }} />
               </div>
               <div className="pro-metric-icon">{stat.icon}</div>
               <span className="pro-metric-value">{stat.value}</span>
@@ -169,24 +165,26 @@ function DashboardPage() {
                 <div className="pro-bar-row" key={index}>
                   <span className="pro-bar-label">{item.label}</span>
                   <div className="pro-bar-bg">
-                    <div className="pro-bar" style={{ width: item.barWidth, background: item.barColor }}></div>
+                    <div className="pro-bar" style={{ width: item.barWidth, background: item.barColor }} />
                   </div>
                   <span className="pro-bar-value">{item.value}</span>
                 </div>
               ))}
             </div>
+
             <div className="pro-alert-card">
               <div className="pro-alert-title">Pendências (Mock)</div>
               <div className="pro-alert-list">
-                {alertsData.alerts.map(alert => (
+                {mockDashboardData.alerts.map((alert) => (
                   <div key={alert.id} dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(alert.messageHtml) }} />
                 ))}
               </div>
             </div>
+
             <div className="pro-feed-card">
               <div className="pro-feed-title">Últimas Atividades</div>
               <ul className="pro-feed-list">
-                {activityFeed.map(item => (
+                {activityFeed.map((item) => (
                   <li className="pro-feed-item" key={item.id}>
                     <span className="pro-feed-ico">{item.icon}</span>
                     <span className="pro-feed-msg">{item.message}</span>
@@ -196,19 +194,21 @@ function DashboardPage() {
               </ul>
             </div>
           </div>
+
           <div className="dashboard-col dashboard-col-dir">
-          <div className="pro-search-bar">
-            <span className="pro-search-ico">🔎</span>
+            <div className="pro-search-bar">
+              <span className="pro-search-ico"><LuSearch /></span>
               <input
                 type="text"
                 value={searchTerm}
-                onChange={e => setSearchTerm(e.target.value)}
+                onChange={(e) => setSearchTerm(e.target.value)}
                 placeholder="Pesquisar..."
               />
-          </div>
-          <div className="search-results-table table-scroll-box">
-            <table>
-              <thead>
+            </div>
+
+            <div className="search-results-table table-scroll-box">
+              <table>
+                <thead>
                   <tr>
                     <th className="left">Tipo</th>
                     <th className="left">Nome</th>
@@ -218,16 +218,13 @@ function DashboardPage() {
                 </thead>
                 <tbody>
                   {searchResults.length > 0 ? (
-                    searchResults.map(item => (
+                    searchResults.map((item) => (
                       <tr key={`${item.type}-${item.id}`}>
                         <td>{item.type}</td>
                         <td className="bold-cell">{item.name}</td>
                         <td>-</td>
                         <td className="text-right">
-                          <button
-                            className="btn-detalhe"
-                            onClick={() => navigate(`/produtos?id=${item.id}`)}
-                          >
+                          <button className="btn-detalhe" onClick={() => navigate(`/produtos?id=${item.id}`)}>
                             Ver Detalhes
                           </button>
                         </td>

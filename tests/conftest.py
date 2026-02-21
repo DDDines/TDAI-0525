@@ -1,12 +1,44 @@
 import os
 import pytest
 
+# Garantir DB de testes antes de carregar app/database.
+os.environ.setdefault("DATABASE_URL", "sqlite:///:memory:")
+
+from Backend.main import app
+from Backend.database import get_db
+
 os.environ.setdefault("FIRST_SUPERUSER_EMAIL", "admin@example.com")
 os.environ.setdefault("FIRST_SUPERUSER_PASSWORD", "password")
 os.environ.setdefault("ADMIN_EMAIL", "admin@example.com")
 os.environ.setdefault("ADMIN_PASSWORD", "password")
 
 SQLALCHEMY_DATABASE_URL = "sqlite:///:memory:"
+
+
+@pytest.fixture(autouse=True)
+def _bind_get_db_override_per_module(request):
+    """
+    Evita vazamento de dependency override entre modulos de teste.
+
+    Varios testes definem `override_get_db` no escopo de modulo; como todos usam o
+    mesmo `Backend.main.app`, o ultimo override importado sobrescreve os demais.
+    Este fixture reaplica o override do modulo atual antes de cada teste.
+    """
+    module_override = getattr(request.module, "override_get_db", None)
+    previous_override = app.dependency_overrides.get(get_db)
+
+    if module_override is not None:
+        app.dependency_overrides[get_db] = module_override
+    else:
+        app.dependency_overrides.pop(get_db, None)
+
+    try:
+        yield
+    finally:
+        if previous_override is not None:
+            app.dependency_overrides[get_db] = previous_override
+        else:
+            app.dependency_overrides.pop(get_db, None)
 
 @pytest.fixture()
 def db_session():

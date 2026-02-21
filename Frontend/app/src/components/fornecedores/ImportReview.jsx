@@ -5,16 +5,23 @@ import PaginationControls from '../common/PaginationControls';
 import fornecedorService from '../../services/fornecedorService';
 import { showErrorToast, showSuccessToast } from '../../utils/notifications';
 
+const formatCellValue = (value) => {
+  if (value === null || value === undefined) return '';
+  if (typeof value === 'object') return JSON.stringify(value);
+  return String(value);
+};
+
 const ImportReview = ({ jobId, isOpen, onClose }) => {
   const [items, setItems] = useState([]);
   const [totalItems, setTotalItems] = useState(0);
   const [page, setPage] = useState(0);
-  const [limit, setLimit] = useState(10);
+  const [limit] = useState(10);
   const [loading, setLoading] = useState(false);
   const [committing, setCommitting] = useState(false);
 
   useEffect(() => {
     if (!isOpen || !jobId) return;
+
     const fetchData = async () => {
       setLoading(true);
       try {
@@ -37,6 +44,7 @@ const ImportReview = ({ jobId, isOpen, onClose }) => {
         setLoading(false);
       }
     };
+
     fetchData();
   }, [jobId, page, limit, isOpen]);
 
@@ -77,7 +85,7 @@ const ImportReview = ({ jobId, isOpen, onClose }) => {
             {items.map((row, idx) => (
               <tr key={idx}>
                 {headers.map((h) => (
-                  <td key={h}>{row[h]}</td>
+                  <td key={h}>{formatCellValue(row[h])}</td>
                 ))}
               </tr>
             ))}
@@ -91,7 +99,9 @@ const ImportReview = ({ jobId, isOpen, onClose }) => {
         isLoading={loading}
       />
       <div style={{ marginTop: '1rem' }}>
-        <button onClick={onClose} disabled={loading || committing}>Fechar</button>
+        <button onClick={onClose} disabled={loading || committing}>
+          Fechar
+        </button>
         <button
           onClick={handleCommit}
           disabled={loading || committing}

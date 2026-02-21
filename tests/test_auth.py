@@ -1,5 +1,6 @@
 import os
 import pytest
+from uuid import uuid4
 
 # Capture any existing DATABASE_URL so it can be restored later
 PREV_DATABASE_URL = os.environ.get("DATABASE_URL")
@@ -66,7 +67,7 @@ def test_user_registration_and_login():
             )
 
     user_data = {
-        "email": "test@example.com",
+        "email": f"test-{uuid4().hex[:12]}@example.com",
         "password": "secret",
         "nome_completo": "Test User",
     }

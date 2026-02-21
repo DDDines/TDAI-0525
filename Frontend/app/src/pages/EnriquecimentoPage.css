@@ -1,8 +1,21 @@
-/* Frontend/app/src/pages/EnriquecimentoPage.css */
+﻿/* Frontend/app/src/pages/EnriquecimentoPage.css */
+
+.enriquecimento-page-shell {
+  width: 100%;
+}
+
+.enrich-search-row {
+  margin: 0;
+}
+
+.enrich-search-row input {
+  max-width: 460px;
+}
 
 .error-text {
-  color: red;
-  padding: 1rem;
+  color: #dc2626;
+  padding: 0.4rem 0 0.9rem;
+  font-weight: 500;
 }
 
 .btn-info {
@@ -10,9 +23,22 @@
   color: #fff;
 }
 
+.btn-info:hover:not(:disabled) {
+  filter: brightness(0.92);
+}
+
 .enrich-note {
-  font-size: 0.9rem;
-  color: #777;
   text-align: right;
-  margin-top: 1rem;
+  margin-top: 0.9rem;
+}
+
+@media (max-width: 768px) {
+  .enrich-note {
+    text-align: left;
+  }
+
+  .enrich-search-row {
+    flex-direction: column;
+    align-items: flex-start;
+  }
 }

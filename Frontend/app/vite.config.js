@@ -5,6 +5,21 @@ import react from '@vitejs/plugin-react-swc' // Seu plugin React atual
 // https://vitejs.dev/config/
 export default defineConfig({
   plugins: [react()],
+  build: {
+    chunkSizeWarningLimit: 2500,
+    rollupOptions: {
+      onwarn(warning, warn) {
+        if (
+          warning?.code === 'EVAL' &&
+          typeof warning?.id === 'string' &&
+          warning.id.includes('pdfjs-dist/legacy/build/pdf.js')
+        ) {
+          return
+        }
+        warn(warning)
+      },
+    },
+  },
   server: {
     port: 5173, // Mantém a porta padrão do Vite, ou a que você estiver usando
     proxy: {

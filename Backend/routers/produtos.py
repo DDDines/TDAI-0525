@@ -1,6 +1,11 @@
 # Backend/routers/produtos.py
 
 from typing import Any, Dict, List, Optional, Union
+from collections import Counter
+import asyncio
+import os
+import threading
+import unicodedata
 
 from fastapi import (
     APIRouter,
@@ -59,6 +64,260 @@ if not catalog_logger.handlers:
     fh.setFormatter(Formatter("%(asctime)s [%(levelname)s] %(message)s"))
     catalog_logger.addHandler(fh)
     catalog_logger.setLevel(logging.INFO)
+
+
+def _normalize_import_text(value: str) -> str:
+    """Corrige artefatos comuns de encoding em mensagens de importacao."""
+    text = str(value or "")
+
+    # Tenta corrigir mojibake comum (UTF-8 lido como latin-1/cp1252).
+    markers = ("\u00c3", "\u00c2", "\u00e2", "\ufffd", "\u0192", "?")
+    for _ in range(4):
+        if not any(marker in text for marker in markers):
+            break
+        try:
+            fixed = text.encode("latin-1", errors="ignore").decode("utf-8", errors="ignore")
+        except Exception:
+            break
+        if not fixed or fixed == text:
+            break
+        text = fixed
+
+    replacements = {
+        "n\u00e3o": "n\u00e3o",
+        "n\u00c3\u00a3o": "n\u00e3o",
+        "P\u00e1gina": "P\u00e1gina",
+        "p\u00e1gina": "p\u00e1gina",
+        "P\u00c3\u00a1gina": "P\u00e1gina",
+        "p\u00c3\u00a1gina": "p\u00e1gina",
+        "p\u00f4de": "p\u00f4de",
+        "p\u00c3\u00b4de": "p\u00f4de",
+        "extra\u00eddo": "extra\u00eddo",
+        "extra\u00edvel": "extra\u00edvel",
+        "extra\u00c3\u00addo": "extra\u00eddo",
+        "extra\u00c3\u00advel": "extra\u00edvel",
+        "cat\u00e1logo": "cat\u00e1logo",
+        "cat\u00c3\u00a1logo": "cat\u00e1logo",
+        "Conte\u00fado": "Conte\u00fado",
+        "conte\u00fado": "conte\u00fado",
+        "Conte\u00c3\u00bado": "Conte\u00fado",
+        "conte\u00c3\u00bado": "conte\u00fado",
+        "poss\u00edvel": "poss\u00edvel",
+        "poss\u00c3\u00advel": "poss\u00edvel",
+        "inv\u00e1lido": "inv\u00e1lido",
+        "inv\u00c3\u00a1lido": "inv\u00e1lido",
+        "cr\u00edtico": "cr\u00edtico",
+        "cr\u00edtica": "cr\u00edtica",
+        "cr\u00c3\u00adtico": "cr\u00edtico",
+        "cr\u00c3\u00adtica": "cr\u00edtica",
+        "relat\u00f3rio": "relat\u00f3rio",
+        "Relat\u00f3rio": "Relat\u00f3rio",
+        "Importa\u00e7\u00e3o": "Importa\u00e7\u00e3o",
+        "importa\u00e7\u00e3o": "importa\u00e7\u00e3o",
+        "descri??o": "descri\u00e7\u00e3o",
+        "ordena??o": "ordena\u00e7\u00e3o",
+        "n\u00e3o cr\u00edticos": "n\u00e3o cr\u00edticos",
+        "n\u00e3o dispon\u00edveis": "n\u00e3o dispon\u00edveis",
+        "obrigat\u00f3rio": "obrigat\u00f3rio",
+        "conclu\u00edda": "conclu\u00edda",
+    }
+    for source, target in replacements.items():
+        text = text.replace(source, target)
+    return re.sub(r"\s+", " ", text).strip()
+
+
+def _normalize_import_issue_item(item: Dict[str, Any]) -> Dict[str, Any]:
+    """Normaliza campos textuais exibidos ao usuario no resumo de importacao."""
+    if not isinstance(item, dict):
+        return item
+    normalized = dict(item)
+    for key in ("motivo_descarte", "erro_processamento_pdf", "erro_processamento"):
+        if key in normalized and isinstance(normalized[key], str):
+            normalized[key] = _normalize_import_text(normalized[key])
+    if isinstance(normalized.get("log_pdf"), list):
+        normalized["log_pdf"] = [
+            _normalize_import_text(entry) if isinstance(entry, str) else entry
+            for entry in normalized["log_pdf"]
+        ]
+    return normalized
+
+
+def _extract_import_error_reason(error_item: Dict[str, Any]) -> str:
+    """Extrai uma razao curta e consistente para agregacao de erros."""
+    if not isinstance(error_item, dict):
+        return "erro_sem_motivo"
+    for key in ("motivo_descarte", "erro_processamento_pdf", "erro_processamento"):
+        value = error_item.get(key)
+        if value:
+            line = _normalize_import_text(str(value).strip()).splitlines()[0].strip()
+            if line:
+                return line[:300]
+    return "erro_sem_motivo"
+
+
+def _is_non_critical_import_reason(reason: str) -> bool:
+    reason_norm = str(reason or "").strip().lower()
+    if not reason_norm:
+        return False
+    # Descartes esperados/operacionais (ruido OCR ou paginas sem dados).
+    if reason_norm.startswith("linha descartada por baixa qualidade"):
+        return True
+    if "faltam nome_base e sku_original" in reason_norm:
+        return True
+    if "nenhum dado de produto" in reason_norm and "pdf" in reason_norm:
+        return True
+    if reason_norm.startswith("nome_base sem conte"):
+        return True
+    return False
+
+
+def _alnum_len(value: Any) -> int:
+    return len(re.sub(r"[^0-9A-Za-z]", "", str(value or "")))
+
+
+def _texto_tem_contexto(value: Any) -> bool:
+    text = str(value or "").strip()
+    if not text:
+        return False
+    if _alnum_len(text) < 4:
+        return False
+    if not re.search(r"[A-Za-z?-?]", text):
+        return False
+    if re.fullmatch(r"[-_=|./\s0-9]+", text):
+        return False
+    return True
+
+
+def _avaliar_qualidade_linha_produto(data: Dict[str, Any]) -> Optional[str]:
+    """Detecta ruído OCR que ainda passou no parser e evita contaminar base."""
+    if not isinstance(data, dict):
+        return "Linha descartada por baixa qualidade: formato invalido"
+
+    nome = str(data.get("nome_base") or "").strip()
+    sku = str(data.get("sku_original") or "").strip()
+    ean = str(data.get("ean_original") or "").strip()
+    descricao = str(data.get("descricao_original") or "").strip()
+    marca = str(data.get("marca") or "").strip()
+    categoria = str(data.get("categoria_original") or "").strip()
+    dynamic_attributes = data.get("dynamic_attributes") or {}
+    has_dynamic = isinstance(dynamic_attributes, dict) and any(
+        _texto_tem_contexto(v) for v in dynamic_attributes.values()
+    )
+    has_context = any(
+        (
+            _texto_tem_contexto(descricao),
+            _texto_tem_contexto(marca),
+            _texto_tem_contexto(categoria),
+            has_dynamic,
+        )
+    )
+
+    nome_alnum = _alnum_len(nome)
+    sku_alnum = _alnum_len(sku)
+    nome_compacto = re.sub(r"[^0-9A-Za-z]", "", nome).lower()
+    sku_compacto = re.sub(r"[^0-9A-Za-z]", "", sku).lower()
+    nome_fold = (
+        unicodedata.normalize("NFKD", nome)
+        .encode("ascii", errors="ignore")
+        .decode("ascii")
+        .lower()
+    )
+    nome_fold = re.sub(r"[^a-z0-9 ]+", " ", nome_fold)
+    nome_fold = re.sub(r"\s+", " ", nome_fold).strip()
+
+    if (
+        nome_fold.startswith(("anotac", "anotag", "observac", "obs"))
+        and not sku
+        and not ean
+    ):
+        return "Linha descartada por baixa qualidade: cabecalho de anotacoes"
+
+    # Sem identificador e sem nome relevante => ruído.
+    if not sku and not ean:
+        if nome_alnum < 3:
+            return "Linha descartada por baixa qualidade: nome fraco sem SKU/EAN"
+        tokens_nome = re.findall(r"[0-9A-Za-z]+", nome)
+        if len(tokens_nome) == 1 and len(tokens_nome[0]) <= 2:
+            return "Linha descartada por baixa qualidade: nome curto isolado"
+        if len(tokens_nome) == 1 and not has_context:
+            return "Linha descartada por baixa qualidade: nome isolado sem contexto"
+        if not has_context and nome_alnum < 6:
+            return "Linha descartada por baixa qualidade: nome curto sem contexto"
+        if not has_context and nome and nome.upper() == nome and len(tokens_nome) <= 2:
+            return "Linha descartada por baixa qualidade: nome em caixa alta sem contexto"
+
+    # SKU sem digitos tende a ser lixo OCR ("a", "o", "|", etc.).
+    if sku and sku_alnum <= 2 and not any(ch.isdigit() for ch in sku):
+        return "Linha descartada por baixa qualidade: SKU sem digitos"
+    if sku and nome and sku_compacto and sku_compacto == nome_compacto and not has_context:
+        return "Linha descartada por baixa qualidade: SKU duplicado em nome sem contexto"
+    if sku and not nome and not has_context:
+        return "Linha descartada por baixa qualidade: SKU sem contexto"
+
+    # Nome muito curto/s?mbolos tamb?m ? ru?do.
+    if nome:
+        if nome_alnum < 2:
+            return "Linha descartada por baixa qualidade: nome sem conteudo"
+        tokens_nome = re.findall(r"[0-9A-Za-z]+", nome)
+        if len(tokens_nome) == 1 and len(tokens_nome[0]) <= 1 and not sku:
+            return "Linha descartada por baixa qualidade: nome muito curto"
+        if nome_compacto:
+            digits_ratio = sum(ch.isdigit() for ch in nome_compacto) / len(nome_compacto)
+            if digits_ratio >= 0.85 and not has_context and (not sku or sku_compacto == nome_compacto):
+                return "Linha descartada por baixa qualidade: nome numerico sem contexto"
+
+    return None
+
+
+def _write_catalog_import_report(
+    *,
+    file_id: int,
+    status: str,
+    created_count: int,
+    updated_count: int,
+    errors: List[Dict[str, Any]],
+    ignored_count: int = 0,
+    ignored_reasons: Optional[List[tuple[str, int]]] = None,
+    ignored_samples: Optional[List[Dict[str, Any]]] = None,
+    pages_processed: int,
+    pages_total: int,
+    ext: str,
+) -> Optional[Path]:
+    """Persist reports for each import to simplify post-mortem diagnostics."""
+    try:
+        report_dir = catalog_log_dir / "import_jobs"
+        report_dir.mkdir(parents=True, exist_ok=True)
+        reasons = Counter(_extract_import_error_reason(err) for err in errors if isinstance(err, dict))
+        payload = {
+            "file_id": file_id,
+            "status": status,
+            "stats": {
+                "created": created_count,
+                "updated": updated_count,
+                "errors": len(errors),
+                "ignored_non_critical": ignored_count,
+                "pages_processed": pages_processed,
+                "pages_total": pages_total,
+                "ext": ext,
+            },
+            "error_reasons_top": reasons.most_common(30),
+            "ignored_reasons_top": ignored_reasons or [],
+            "ignored_samples": ignored_samples or [],
+            "errors": errors,
+        }
+        report_path = report_dir / f"import_{file_id}.json"
+        report_path.write_text(
+            json.dumps(payload, ensure_ascii=False, indent=2),
+            encoding="utf-8",
+        )
+        return report_path
+    except Exception as report_err:
+        catalog_logger.warning(
+            "falha ao salvar relatorio detalhado file_id=%s erro=%s",
+            file_id,
+            report_err,
+        )
+        return None
 
 
 def _resolve_storage_path(path_value: Union[str, Path]) -> Path:
@@ -128,17 +387,46 @@ def _sanitize_produto_extraido(prod: Dict[str, Any]) -> Dict[str, Any]:
             sku_original = sku_original[:100]
         data["sku_original"] = sku_original or None
 
+    marca = data.get("marca")
+    if marca is not None:
+        marca = str(marca).strip()
+        if len(marca) > 100:
+            extras["marca_truncada_de"] = marca
+            marca = marca[:100]
+        data["marca"] = marca or None
+
+    modelo = data.get("modelo")
+    if modelo is not None:
+        modelo = str(modelo).strip()
+        if len(modelo) > 100:
+            extras["modelo_truncado_de"] = modelo
+            modelo = modelo[:100]
+        data["modelo"] = modelo or None
+
+    categoria_original = data.get("categoria_original")
+    if categoria_original is not None:
+        categoria_original = str(categoria_original).strip()
+        if len(categoria_original) > 150:
+            extras["categoria_original_truncada_de"] = categoria_original
+            categoria_original = categoria_original[:150]
+        data["categoria_original"] = categoria_original or None
+
     ean_original = data.get("ean_original")
     if ean_original is not None:
         ean_text = str(ean_original).strip()
         if ean_text:
-            normalized = re.sub(r"[\s\-_/.]", "", ean_text).upper()
-            normalized = normalized.replace("O", "0").replace("I", "1").replace("L", "1")
-            if re.search(r"[^0-9]", normalized) or len(normalized) not in {8, 12, 13}:
+            # Aceita apenas EAN informado como numero + separadores.
+            # Evita transformar textos livres ("Actros 2651 - 2016") em falso EAN.
+            if not re.fullmatch(r"[\d\s\-_/.]+", ean_text):
                 extras["ean_original_descartado"] = ean_text
                 data["ean_original"] = None
             else:
-                data["ean_original"] = normalized
+                normalized = re.sub(r"[\s\-_/.]", "", ean_text)
+                if 1 <= len(normalized) <= 13:
+                    data["ean_original"] = normalized
+                else:
+                    extras["ean_original_descartado"] = ean_text
+                    data["ean_original"] = None
         else:
             data["ean_original"] = None
 
@@ -212,7 +500,7 @@ async def _tarefa_processar_catalogo(
                 "updated": [],
                 "errors": [
                     {
-                        "erro_processamento": "Arquivo de catÃ¡logo nÃ£o encontrado no armazenamento.",
+                        "erro_processamento": "Arquivo de catálogo não encontrado no armazenamento.",
                         "file_id": file_id,
                         "stored_filename": catalog_file.stored_filename,
                     }
@@ -228,6 +516,21 @@ async def _tarefa_processar_catalogo(
         ext = file_path.suffix.lower()
 
         erros: List[Dict[str, Any]] = []
+        quality_filter_enabled = ext == ".pdf"
+        ignored_non_critical: List[Dict[str, Any]] = []
+        ignored_reason_counter: Counter = Counter()
+        ignored_samples: List[Dict[str, Any]] = []
+
+        def _append_import_issue(item: Dict[str, Any]) -> None:
+            normalized_item = _normalize_import_issue_item(item)
+            reason = _extract_import_error_reason(normalized_item)
+            if _is_non_critical_import_reason(reason):
+                ignored_non_critical.append(normalized_item)
+                ignored_reason_counter[reason] += 1
+                if len(ignored_samples) < 30:
+                    ignored_samples.append(normalized_item)
+                return
+            erros.append(normalized_item)
 
         produtos_create: List[schemas.ProdutoCreate] = []
 
@@ -291,18 +594,33 @@ async def _tarefa_processar_catalogo(
 
                     ):
 
-                        erros.append(prod)
+                        _append_import_issue(prod)
 
                         continue
 
                     
 
-                    # Executa validaÃ§Ã£o IA com fallback resiliente.
+                    # Executa validação IA com fallback resiliente.
                     validated_prod = _normalizar_dados_validados(
                         validator_crew.run_validation_crew(prod),
                         prod,
                     )
                     cleaned_prod = _sanitize_produto_extraido(validated_prod)
+                    qualidade_issue = (
+                        _avaliar_qualidade_linha_produto(cleaned_prod)
+                        if quality_filter_enabled
+                        else None
+                    )
+                    if qualidade_issue:
+                        _append_import_issue(
+                            {
+                                "motivo_descarte": qualidade_issue,
+                                "linha_original": prod,
+                                "linha_validada": validated_prod,
+                                "linha_sanitizada": cleaned_prod,
+                            }
+                        )
+                        continue
 
 
 
@@ -339,7 +657,7 @@ async def _tarefa_processar_catalogo(
 
                     except Exception as e:
 
-                        erros.append(
+                        _append_import_issue(
 
                             {
 
@@ -376,7 +694,8 @@ async def _tarefa_processar_catalogo(
 
                     updated.extend(updated_page)
 
-                    erros.extend(dup_errors) # Simplificado
+                    for err in dup_errors:
+                        _append_import_issue(err)
 
 
 
@@ -424,17 +743,18 @@ async def _tarefa_processar_catalogo(
 
                 db.commit()
                 catalog_logger.info(
-                    "file_id=%s page=%s processed_rows=%s created=%s updated=%s errors_total=%s elapsed=%.2fs",
+                    "file_id=%s page=%s processed_rows=%s created=%s updated=%s errors_total=%s ignored_total=%s elapsed=%.2fs",
                     file_id,
                     page,
                     len(produtos_data) if "produtos_data" in locals() else 0,
                     len(created_page),
                     len(updated_page),
                     len(erros),
+                    len(ignored_non_critical),
                     time.perf_counter() - page_start,
                 )
 
-        else: # L+Ã‚Â¦gica para outros tipos de arquivo (Excel, CSV)
+        else:  # L?gica para outros tipos de arquivo (Excel, CSV)
 
             catalog_file.total_pages = 1
 
@@ -492,18 +812,33 @@ async def _tarefa_processar_catalogo(
 
                 ):
 
-                    erros.append(prod)
+                    _append_import_issue(prod)
 
                     continue
 
 
 
-                # Executa validaÃ§Ã£o IA com fallback resiliente.
+                # Executa validação IA com fallback resiliente.
                 validated_prod = _normalizar_dados_validados(
                     validator_crew.run_validation_crew(prod),
                     prod,
                 )
                 cleaned_prod = _sanitize_produto_extraido(validated_prod)
+                qualidade_issue = (
+                    _avaliar_qualidade_linha_produto(cleaned_prod)
+                    if quality_filter_enabled
+                    else None
+                )
+                if qualidade_issue:
+                    _append_import_issue(
+                        {
+                            "motivo_descarte": qualidade_issue,
+                            "linha_original": prod,
+                            "linha_validada": validated_prod,
+                            "linha_sanitizada": cleaned_prod,
+                        }
+                    )
+                    continue
 
                 
 
@@ -540,11 +875,11 @@ async def _tarefa_processar_catalogo(
 
                 except Exception as e:
 
-                    erros.append(
+                    _append_import_issue(
 
                         {
 
-                            "motivo_descarte": f"Erro ao converter linha p+Ã‚Â¦s-valida+Ã‚Âº+ÃƒÂºo: {str(e)}",
+                            "motivo_descarte": f"Erro ao converter linha p?s-valida??o: {str(e)}",
 
                             "linha_original": prod,
 
@@ -575,7 +910,8 @@ async def _tarefa_processar_catalogo(
 
                 updated.extend(updated_page)
 
-                erros.extend(dup_errors)
+                for err in dup_errors:
+                    _append_import_issue(err)
 
 
 
@@ -626,9 +962,20 @@ async def _tarefa_processar_catalogo(
         created_count = len(created)
         updated_count = len(updated)
         errors_count = len(erros)
+        ignored_count = len(ignored_non_critical)
+        total_success = created_count + updated_count
+        has_partial_success = total_success > 0 and errors_count > 0
         final_status = "IMPORTED"
-        if created_count + updated_count == 0 and errors_count > 0:
+        if total_success == 0 and (errors_count > 0 or ignored_count > 0):
             final_status = "FAILED"
+        elif has_partial_success:
+            final_status = "PARTIAL"
+
+        error_reasons = Counter(
+            _extract_import_error_reason(err) for err in erros if isinstance(err, dict)
+        )
+        top_reasons = error_reasons.most_common(10)
+        top_ignored_reasons = ignored_reason_counter.most_common(10)
 
         result_summary = {
             "created": [
@@ -640,19 +987,51 @@ async def _tarefa_processar_catalogo(
                 for p in updated
             ],
             "errors": erros,
+            "ignored_non_critical": ignored_non_critical,
             "stats": {
                 "produtos_criados": created_count,
                 "produtos_atualizados": updated_count,
                 "erros": errors_count,
+                "critical_errors": errors_count,
+                "descartes_nao_criticos": ignored_count,
+                "partial_success": has_partial_success,
                 "pages_processed": catalog_file.pages_processed or 0,
                 "pages_total": catalog_file.total_pages or 0,
                 "ext": ext,
             },
             "log": [
                 f"Resumo final: status={final_status}",
-                f"Criados={created_count}, Atualizados={updated_count}, Erros={errors_count}",
+                f"Criados={created_count}, Atualizados={updated_count}, Erros={errors_count}, DescartesNaoCriticos={ignored_count}",
             ],
         }
+        if top_reasons:
+            top_reasons_log = "; ".join([f"{reason} ({count})" for reason, count in top_reasons])
+            result_summary["log"].append(f"Top motivos de erro: {top_reasons_log}")
+        if top_ignored_reasons:
+            top_ignored_log = "; ".join(
+                [f"{reason} ({count})" for reason, count in top_ignored_reasons]
+            )
+            result_summary["log"].append(f"Top descartes n\u00e3o cr\u00edticos: {top_ignored_log}")
+        if has_partial_success:
+            result_summary["log"].append(
+                "Importa\u00e7\u00e3o conclu\u00edda com sucesso parcial: produtos foram gravados, mas houve erros cr\u00edticos."
+            )
+
+        report_path = _write_catalog_import_report(
+            file_id=file_id,
+            status=final_status,
+            created_count=created_count,
+            updated_count=updated_count,
+            errors=erros,
+            ignored_count=ignored_count,
+            ignored_reasons=top_ignored_reasons,
+            ignored_samples=ignored_samples,
+            pages_processed=catalog_file.pages_processed or 0,
+            pages_total=catalog_file.total_pages or 0,
+            ext=ext,
+        )
+        if report_path:
+            result_summary["log"].append(f"Relat\u00f3rio detalhado: {report_path}")
 
         catalog_file.status = final_status
         catalog_file.result_summary = result_summary
@@ -670,19 +1049,23 @@ async def _tarefa_processar_catalogo(
                 str(first_error)[:1000],
             )
         catalog_logger.info(
-            "fim file_id=%s status=%s created=%s updated=%s errors=%s pages=%s/%s",
+            "fim file_id=%s status=%s created=%s updated=%s errors=%s ignored=%s pages=%s/%s top_reasons=%s top_ignored=%s report=%s",
             file_id,
             final_status,
             created_count,
             updated_count,
             errors_count,
+            ignored_count,
             catalog_file.pages_processed,
             catalog_file.total_pages,
+            top_reasons,
+            top_ignored_reasons,
+            str(report_path) if report_path else "-",
         )
 
     except Exception as e:
 
-        logger.exception("Erro ao processar importacao de catalogo")
+        logger.exception("Erro ao processar importa\u00e7\u00e3o de cat\u00e1logo")
         catalog_logger.exception("falha file_id=%s erro=%s", file_id, e)
 
         if db:
@@ -721,13 +1104,36 @@ async def _tarefa_processar_catalogo(
 
 
 
+def _run_catalog_task_in_thread(task_kwargs: Dict[str, Any]) -> None:
+    """Executa a tarefa assíncrona em thread separada para não bloquear o worker HTTP."""
+    try:
+        asyncio.run(_tarefa_processar_catalogo(**task_kwargs))
+    except Exception as exc:  # pragma: no cover - erro inesperado de agendamento
+        catalog_logger.exception(
+            "falha ao executar thread de importa\u00e7\u00e3o file_id=%s erro=%s",
+            task_kwargs.get("file_id"),
+            exc,
+        )
+
+
+def _dispatch_catalog_task(**task_kwargs: Any) -> None:
+    file_id = task_kwargs.get("file_id", "unknown")
+    thread = threading.Thread(
+        target=_run_catalog_task_in_thread,
+        args=(task_kwargs,),
+        name=f"catalog-import-{file_id}",
+        daemon=True,
+    )
+    thread.start()
+
+
 @router.post(
 
     "/", response_model=schemas.ProdutoResponse, status_code=status.HTTP_201_CREATED
 
 )  # CORRIGIDO AQUI
 
-def create_produto(  # Nome da fun+Ã‚Âº+ÃƒÂºo mantido como no arquivo do usu+ÃƒÂ­rio
+def create_produto(  # Nome da fun??o mantido como no arquivo do usu?rio
 
     produto: schemas.ProdutoCreate,
 
@@ -739,11 +1145,11 @@ def create_produto(  # Nome da fun+Ã‚Âº+ÃƒÂºo mantido como no arquivo d
 
     """
 
-    Cria um novo produto para o usu+ÃƒÂ­rio logado.
+    Cria um novo produto para o usu?rio logado.
 
     """
 
-    # Valida+Ã‚Âº+ÃƒÂºo do fornecedor, se fornecido
+    # Valida??o do fornecedor, se fornecido
 
     if produto.fornecedor_id:
 
@@ -751,25 +1157,25 @@ def create_produto(  # Nome da fun+Ã‚Âº+ÃƒÂºo mantido como no arquivo d
 
             db, fornecedor_id=produto.fornecedor_id
 
-        )  # Assume que user_id n+ÃƒÂºo +Ã‚Â¬ necess+ÃƒÂ­rio aqui ou +Ã‚Â¬ validado no get_fornecedor se n+ÃƒÂºo for admin
+        )  # Assume que user_id n?o ? necess?rio aqui ou ? validado no get_fornecedor se n?o for admin
 
         if (
 
             not fornecedor
 
-        ):  # Adicionar ( or (not current_user.is_superuser and fornecedor.user_id != current_user.id) ) se necess+ÃƒÂ­rio
+        ):  # Adicionar (or (not current_user.is_superuser and fornecedor.user_id != current_user.id)) se necess?rio
 
             raise HTTPException(
 
                 status_code=404,
 
-                detail=f"Fornecedor com ID {produto.fornecedor_id} n+ÃƒÂºo encontrado.",
+                detail=f"Fornecedor com ID {produto.fornecedor_id} n\u00e3o encontrado.",
 
             )
 
 
 
-    # Valida+Ã‚Âº+ÃƒÂºo do tipo de produto, se fornecido
+    # Valida??o do tipo de produto, se fornecido
 
     if produto.product_type_id:
 
@@ -783,19 +1189,19 @@ def create_produto(  # Nome da fun+Ã‚Âº+ÃƒÂºo mantido como no arquivo d
 
             not product_type
 
-        ):  # Adicionar valida+Ã‚Âº+ÃƒÂºo de owner se tipos de produto forem espec+Ã‚Â¡ficos do usu+ÃƒÂ­rio
+        ):  # Adicionar valida??o de owner se tipos de produto forem espec?ficos do usu?rio
 
             raise HTTPException(
 
                 status_code=404,
 
-                detail=f"Tipo de Produto com ID {produto.product_type_id} n+ÃƒÂºo encontrado.",
+                detail=f"Tipo de Produto com ID {produto.product_type_id} n\u00e3o encontrado.",
 
             )
 
 
 
-    # A fun+Ã‚Âº+ÃƒÂºo crud_produtos.create_produto (ou create_user_produto) lida com a l+Ã‚Â¦gica de cria+Ã‚Âº+ÃƒÂºo
+    # A fun??o crud_produtos.create_produto (ou create_user_produto) lida com a l?gica de cria??o
 
     # usando nome_base e nome_chat_api como definido nos schemas.
 
@@ -855,11 +1261,11 @@ def list_catalog_import_files(
 
     fornecedor_id: Optional[int] = Query(None, description="ID do fornecedor"),
 
-    skip: int = Query(0, ge=0, description="N+Ã‚Â¦mero de itens para pular"),
+    skip: int = Query(0, ge=0, description="N?mero de itens para pular"),
 
     limit: int = Query(
 
-        10, ge=1, le=100, description="N+Ã‚Â¦mero m+ÃƒÂ­ximo de itens por p+ÃƒÂ­gina"
+        10, ge=1, le=100, description="N?mero m?ximo de itens por p?gina"
 
     ),
 
@@ -929,7 +1335,7 @@ def delete_catalog_import_file(
 
     if not record:
 
-        raise HTTPException(status_code=404, detail="Arquivo n+ÃƒÂºo encontrado")
+        raise HTTPException(status_code=404, detail="Arquivo n\u00e3o encontrado")
 
 
 
@@ -985,13 +1391,13 @@ async def reprocess_catalog_import_file(
 
     if not catalog_file:
 
-        raise HTTPException(status_code=404, detail="Arquivo n+ÃƒÂºo encontrado")
+        raise HTTPException(status_code=404, detail="Arquivo n\u00e3o encontrado")
 
     fornecedor_id_final = fornecedor_id or catalog_file.fornecedor_id
     if not fornecedor_id_final:
         raise HTTPException(
             status_code=400,
-            detail="fornecedor_id Ã© obrigatÃ³rio para reprocessar este arquivo.",
+            detail="fornecedor_id \u00e9 obrigat\u00f3rio para reprocessar este arquivo.",
         )
 
 
@@ -1025,26 +1431,24 @@ async def reprocess_catalog_import_file(
 
 
 
-    background_tasks.add_task(
+    task_kwargs = {
+        "db_session_factory": db_session_factory,
+        "file_id": file_id,
+        "user_id": current_user.id,
+        "product_type_id": product_type_id,
+        "fornecedor_id": fornecedor_id_final,
+        "mapping": mapping,
+        "pages": pages,
+        "region": region,
+    }
 
-        _tarefa_processar_catalogo,
-
-        db_session_factory=db_session_factory,
-
-        file_id=file_id,
-
-        user_id=current_user.id,
-
-        product_type_id=product_type_id,
-
-        fornecedor_id=fornecedor_id_final,
-
-        mapping=mapping,
-
-        pages=pages,
-        region=region,
-
-    )
+    # No ambiente de testes, executa inline para manter previsibilidade.
+    # Em execucao normal, dispara em thread para nao bloquear respostas HTTP.
+    if os.getenv("PYTEST_CURRENT_TEST"):
+        asyncio.run(_tarefa_processar_catalogo(**task_kwargs))
+    else:
+        _ = background_tasks  # Mantido por compatibilidade de assinatura da rota.
+        _dispatch_catalog_task(**task_kwargs)
 
 
 
@@ -1056,7 +1460,7 @@ async def reprocess_catalog_import_file(
 
 @router.get("/{produto_id}", response_model=schemas.ProdutoResponse)  # CORRIGIDO AQUI
 
-def read_produto(  # Nome da fun+Ã‚Âº+ÃƒÂºo mantido como no arquivo do usu+ÃƒÂ­rio
+def read_produto(  # Nome da fun??o mantido como no arquivo do usu?rio
 
     produto_id: int,
 
@@ -1068,7 +1472,7 @@ def read_produto(  # Nome da fun+Ã‚Âº+ÃƒÂºo mantido como no arquivo do 
 
     """
 
-    Obt+Ã‚Â¬m os detalhes de um produto espec+Ã‚Â¡fico.
+    Obt?m os detalhes de um produto espec?fico.
 
     """
 
@@ -1076,23 +1480,23 @@ def read_produto(  # Nome da fun+Ã‚Âº+ÃƒÂºo mantido como no arquivo do 
 
         db, produto_id=produto_id
 
-    )  # crud_produtos.get_produto n+ÃƒÂºo filtra por user_id por padr+ÃƒÂºo
+    )  # crud_produtos.get_produto n?o filtra por user_id por padr?o
 
 
 
     if db_produto is None:
 
-        raise HTTPException(status_code=404, detail="Produto n+ÃƒÂºo encontrado")
+        raise HTTPException(status_code=404, detail="Produto não encontrado")
 
 
 
-    # Verifica a permiss+ÃƒÂºo para visualizar
+    # Verifica a permiss?o para visualizar
 
     if not current_user.is_superuser and db_produto.user_id != current_user.id:
 
         raise HTTPException(
 
-            status_code=403, detail="N+ÃƒÂºo autorizado a visualizar este produto"
+            status_code=403, detail="N?o autorizado a visualizar este produto"
 
         )
 
@@ -1102,9 +1506,9 @@ def read_produto(  # Nome da fun+Ã‚Âº+ÃƒÂºo mantido como no arquivo do 
 
 
 
-# Tamb+Ã‚Â¬m exp+Ã‚Â¦e a rota com barra ao final para evitar redirecionamentos que podem
+# Tamb?m exp?e a rota com barra ao final para evitar redirecionamentos que podem
 
-# levar +ÃƒÂ¡ perda do cabe+Ã‚Âºalho Authorization em alguns clientes HTTP.
+# levar ? perda do cabe?alho Authorization em alguns clientes HTTP.
 
 router.add_api_route(
 
@@ -1124,35 +1528,35 @@ router.add_api_route(
 
 
 
-@router.get("/", response_model=schemas.ProdutoPage)  # Este j+ÃƒÂ­ estava correto
+@router.get("/", response_model=schemas.ProdutoPage)  # Este j? estava correto
 
-def read_produtos(  # Nome da fun+Ã‚Âº+ÃƒÂºo mantido como no arquivo do usu+ÃƒÂ­rio
+def read_produtos(  # Nome da fun??o mantido como no arquivo do usu?rio
 
     db: Session = Depends(database.get_db),
 
-    skip: int = Query(0, ge=0, description="N+Ã‚Â¦mero de itens para pular"),
+    skip: int = Query(0, ge=0, description="N?mero de itens para pular"),
 
     limit: int = Query(
 
-        10, ge=1, le=200, description="N+Ã‚Â¦mero m+ÃƒÂ­ximo de itens por p+ÃƒÂ­gina"
+        10, ge=1, le=200, description="N?mero m?ximo de itens por p?gina"
 
     ),
 
     sort_by: Optional[str] = Query(
 
-        None, description="Campo para ordena+Ã‚Âº+ÃƒÂºo (ex: nome_base, preco_venda)"
+        None, description="Campo para ordena??o (ex: nome_base, preco_venda)"
 
     ),  # Ajustado para nome_base
 
     sort_order: Optional[str] = Query(
 
-        "asc", description="Ordem da ordena+Ã‚Âº+ÃƒÂºo (asc ou desc)"
+        "asc", description="Ordem da ordena??o (asc ou desc)"
 
     ),
 
     search: Optional[str] = Query(
 
-        None, description="Termo de busca para nome, descri+Ã‚Âº+ÃƒÂºo, SKU, EAN"
+        None, description="Termo de busca para nome, descri??o, SKU, EAN"
 
     ),
 
@@ -1178,13 +1582,13 @@ def read_produtos(  # Nome da fun+Ã‚Âº+ÃƒÂºo mantido como no arquivo do
 
     status_titulo_ia: Optional[models.StatusGeracaoIAEnum] = Query(
 
-        None, description="Filtrar por status de gera+Ã‚Âº+ÃƒÂºo de t+Ã‚Â¡tulo por IA"
+        None, description="Filtrar por status de gera??o de t?tulo por IA"
 
     ),
 
     status_descricao_ia: Optional[models.StatusGeracaoIAEnum] = Query(
 
-        None, description="Filtrar por status de gera+Ã‚Âº+ÃƒÂºo de descri+Ã‚Âº+ÃƒÂºo por IA"
+        None, description="Filtrar por status de gera??o de descri??o por IA"
 
     ),
 
@@ -1204,7 +1608,7 @@ def read_produtos(  # Nome da fun+Ã‚Âº+ÃƒÂºo mantido como no arquivo do
 
     # Usando get_produtos_by_user do crud, que foi ajustado para receber user_id opcional ou is_admin
 
-    produtos_db = crud_produtos.get_produtos_by_user(  # Nome da fun+Ã‚Âº+ÃƒÂºo no CRUD
+    produtos_db = crud_produtos.get_produtos_by_user(  # Nome da fun??o no CRUD
 
         db,
 
@@ -1236,7 +1640,7 @@ def read_produtos(  # Nome da fun+Ã‚Âº+ÃƒÂºo mantido como no arquivo do
 
     )
 
-    total_items = crud_produtos.count_produtos_by_user(  # Nome da fun+Ã‚Âº+ÃƒÂºo no CRUD
+    total_items = crud_produtos.count_produtos_by_user(  # Nome da fun??o no CRUD
 
         db,
 
@@ -1280,7 +1684,7 @@ def read_produtos(  # Nome da fun+Ã‚Âº+ÃƒÂºo mantido como no arquivo do
 
 @router.put("/{produto_id}", response_model=schemas.ProdutoResponse)  # CORRIGIDO AQUI
 
-def update_produto(  # Nome da fun+Ã‚Âº+ÃƒÂºo mantido como no arquivo do usu+ÃƒÂ­rio
+def update_produto(  # Nome da fun??o mantido como no arquivo do usu?rio
 
     produto_id: int,
 
@@ -1296,13 +1700,13 @@ def update_produto(  # Nome da fun+Ã‚Âº+ÃƒÂºo mantido como no arquivo d
 
     if db_produto is None:
 
-        raise HTTPException(status_code=404, detail="Produto n+ÃƒÂºo encontrado")
+        raise HTTPException(status_code=404, detail="Produto não encontrado")
 
     if not current_user.is_superuser and db_produto.user_id != current_user.id:
 
         raise HTTPException(
 
-            status_code=403, detail="N+ÃƒÂºo autorizado a modificar este produto"
+            status_code=403, detail="N?o autorizado a modificar este produto"
 
         )
 
@@ -1326,13 +1730,13 @@ def update_produto(  # Nome da fun+Ã‚Âº+ÃƒÂºo mantido como no arquivo d
 
             not fornecedor
 
-        ):  # Adicionar ( or (not current_user.is_superuser and fornecedor.user_id != current_user.id) ) se necess+ÃƒÂ­rio
+        ):  # Adicionar (or (not current_user.is_superuser and fornecedor.user_id != current_user.id)) se necess?rio
 
             raise HTTPException(
 
                 status_code=404,
 
-                detail=f"Fornecedor com ID {produto.fornecedor_id} n+ÃƒÂºo encontrado.",
+                detail=f"Fornecedor com ID {produto.fornecedor_id} n\u00e3o encontrado.",
 
             )
 
@@ -1358,13 +1762,13 @@ def update_produto(  # Nome da fun+Ã‚Âº+ÃƒÂºo mantido como no arquivo d
 
                 status_code=404,
 
-                detail=f"Tipo de Produto com ID {produto.product_type_id} n+ÃƒÂºo encontrado.",
+                detail=f"Tipo de Produto com ID {produto.product_type_id} n\u00e3o encontrado.",
 
             )
 
 
 
-    # A fun+Ã‚Âº+ÃƒÂºo crud_produtos.update_produto espera o objeto db_produto
+    # A fun??o crud_produtos.update_produto espera o objeto db_produto
 
     updated = crud_produtos.update_produto(
 
@@ -1402,7 +1806,7 @@ def update_produto(  # Nome da fun+Ã‚Âº+ÃƒÂºo mantido como no arquivo d
 
 )  # CORRIGIDO AQUI
 
-def delete_produto(  # Nome da fun+Ã‚Âº+ÃƒÂºo mantido como no arquivo do usu+ÃƒÂ­rio
+def delete_produto(  # Nome da fun??o mantido como no arquivo do usu?rio
 
     produto_id: int,
 
@@ -1416,19 +1820,19 @@ def delete_produto(  # Nome da fun+Ã‚Âº+ÃƒÂºo mantido como no arquivo d
 
     if db_produto is None:
 
-        raise HTTPException(status_code=404, detail="Produto n+ÃƒÂºo encontrado")
+        raise HTTPException(status_code=404, detail="Produto não encontrado")
 
     if not current_user.is_superuser and db_produto.user_id != current_user.id:
 
         raise HTTPException(
 
-            status_code=403, detail="N+ÃƒÂºo autorizado a deletar este produto"
+            status_code=403, detail="N?o autorizado a deletar este produto"
 
         )
 
 
 
-    # A fun+Ã‚Âº+ÃƒÂºo crud_produtos.delete_produto espera o objeto db_produto
+    # A fun??o crud_produtos.delete_produto espera o objeto db_produto
 
     deleted = crud_produtos.delete_produto(db=db, db_produto=db_produto)
 
@@ -1456,7 +1860,7 @@ def delete_produto(  # Nome da fun+Ã‚Âº+ÃƒÂºo mantido como no arquivo d
 
 
 
-# Expondo rotas com barra final para opera+Ã‚Âº+Ã‚Â¦es de atualiza+Ã‚Âº+ÃƒÂºo e dele+Ã‚Âº+ÃƒÂºo.
+# Expondo rotas com barra final para opera??es de atualiza??o e dele??o.
 
 router.add_api_route(
 
@@ -1496,7 +1900,7 @@ router.add_api_route(
 
     "/batch-delete/", response_model=List[schemas.ProdutoResponse]
 
-)  # Este j+ÃƒÂ­ estava correto
+)  # Este j? estava correto
 
 def batch_delete_produtos(
 
@@ -1520,7 +1924,7 @@ def batch_delete_produtos(
 
 
 
-    for produto_id_val in produto_ids:  # Ajustado nome da vari+ÃƒÂ­vel
+    for produto_id_val in produto_ids:  # Ajustado nome da vari?vel
 
         db_produto = crud_produtos.get_produto(db, produto_id=produto_id_val)
 
@@ -1564,13 +1968,13 @@ def batch_delete_produtos(
 
             db_produto
 
-        )  # Adiciona o objeto que foi deletado (j+ÃƒÂ­ +Ã‚Â¬ um objeto do modelo)
+        )  # Adiciona o objeto que foi deletado (j? ? um objeto do modelo)
 
 
 
     # Construindo a resposta
 
-    # A convers+ÃƒÂºo para schemas.ProdutoResponse +Ã‚Â¬ feita automaticamente pelo FastAPI
+    # A convers?o para schemas.ProdutoResponse ? feita automaticamente pelo FastAPI
 
     # devido ao response_model=List[schemas.ProdutoResponse]
 
@@ -1582,19 +1986,19 @@ def batch_delete_produtos(
 
         if not_found_ids:
 
-            error_detail_parts.append(f"Produtos n+ÃƒÂºo encontrados: IDs {not_found_ids}.")
+            error_detail_parts.append(f"Produtos n\u00e3o encontrados: IDs {not_found_ids}.")
 
         if not_authorized_ids:
 
             error_detail_parts.append(
 
-                f"N+ÃƒÂºo autorizado a deletar produtos: IDs {not_authorized_ids}."
+                f"N?o autorizado a deletar produtos: IDs {not_authorized_ids}.",
 
             )
 
 
 
-        # Se nenhum produto foi deletado com sucesso E houve erros, levanta uma exce+Ã‚Âº+ÃƒÂºo.
+        # Se nenhum produto foi deletado com sucesso e houve erros, levanta uma exce??o.
 
         # Se alguns foram deletados, retorna os deletados e o cliente pode precisar ser informado das falhas.
 
@@ -1608,9 +2012,9 @@ def batch_delete_produtos(
 
             )
 
-        # Se alguns foram deletados, a resposta incluir+ÃƒÂ­ apenas eles.
+        # Se alguns foram deletados, a resposta incluir? apenas eles.
 
-        # O frontend pode precisar verificar a diferen+Ã‚Âºa entre a lista enviada e a recebida.
+        # O frontend pode precisar verificar a diferen?a entre a lista enviada e a recebida.
 
 
 
@@ -1642,7 +2046,7 @@ def batch_delete_produtos(
 
 )  # CORRIGIDO AQUI
 
-async def upload_produto_image(  # Nome da fun+Ã‚Âº+ÃƒÂºo mantido como no arquivo do usu+ÃƒÂ­rio
+async def upload_produto_image(  # Nome da fun??o mantido como no arquivo do usu?rio
 
     produto_id: int,
 
@@ -1658,13 +2062,13 @@ async def upload_produto_image(  # Nome da fun+Ã‚Âº+ÃƒÂºo mantido como 
 
     if not db_produto:
 
-        raise HTTPException(status_code=404, detail="Produto n+ÃƒÂºo encontrado")
+        raise HTTPException(status_code=404, detail="Produto não encontrado")
 
     if not current_user.is_superuser and db_produto.user_id != current_user.id:
 
         raise HTTPException(
 
-            status_code=403, detail="N+ÃƒÂºo autorizado a modificar este produto"
+            status_code=403, detail="N?o autorizado a modificar este produto"
 
         )
 
@@ -1686,7 +2090,7 @@ async def upload_produto_image(  # Nome da fun+Ã‚Âº+ÃƒÂºo mantido como 
 
         raise HTTPException(
 
-            status_code=500, detail=f"N+ÃƒÂºo foi poss+Ã‚Â¡vel salvar a imagem: {str(e)}"
+            status_code=500, detail=f"N?o foi poss?vel salvar a imagem: {str(e)}"
 
         )
 
@@ -1694,9 +2098,9 @@ async def upload_produto_image(  # Nome da fun+Ã‚Âº+ÃƒÂºo mantido como 
 
     # Atualiza o campo imagem_principal_url no produto
 
-    # O schema ProdutoUpdate pode n+ÃƒÂºo ter imagem_principal_url se n+ÃƒÂºo for edit+ÃƒÂ­vel diretamente
+    # O schema ProdutoUpdate pode n?o ter imagem_principal_url se n?o for edit?vel diretamente
 
-    # mas o modelo tem. O CRUD pode ter uma l+Ã‚Â¦gica para isso.
+    # mas o modelo tem. O CRUD pode ter uma l?gica para isso.
 
     # Assumindo que crud_produtos.update_produto pode receber um dict com o campo a ser atualizado
 
@@ -1742,11 +2146,11 @@ async def importar_catalogo_preview(
 
 ):
 
-    """Gera preview de um cat+ÃƒÂ­logo enviado e salva o arquivo para posterior processamento."""
+    """Gera preview de um cat?logo enviado e salva o arquivo para posterior processamento."""
 
 
 
-    # L+Ã‚Â¬ o conte+Ã‚Â¦do para gerar o preview
+    # L? o conte?do para gerar o preview
 
     content = await file.read()
 
@@ -1869,7 +2273,7 @@ async def importar_catalogo_fornecedor(
 
 ):
 
-    """Importa um arquivo de cat+ÃƒÂ­logo e cria produtos vinculados ao fornecedor."""
+    """Importa um arquivo de cat?logo e cria produtos vinculados ao fornecedor."""
 
     content = await file.read()
 
@@ -1887,7 +2291,7 @@ async def importar_catalogo_fornecedor(
 
             raise HTTPException(
 
-                status_code=400, detail="mapeamento_colunas_usuario inv+ÃƒÂ­lido"
+                status_code=400, detail="mapeamento_colunas_usuario inválido"
 
             )
 
@@ -1925,13 +2329,23 @@ async def importar_catalogo_fornecedor(
 
     else:
 
-        raise HTTPException(status_code=400, detail="Formato de arquivo n+ÃƒÂºo suportado")
+        raise HTTPException(status_code=400, detail="Formato de arquivo não suportado")
 
 
 
     produtos_create = []
 
     erros: List[Dict[str, Any]] = []
+    quality_filter_enabled = ext == ".pdf"
+    ignored_non_critical: List[Dict[str, Any]] = []
+
+    def _append_import_issue(item: Dict[str, Any]) -> None:
+        normalized_item = _normalize_import_issue_item(item)
+        reason = _extract_import_error_reason(normalized_item)
+        if _is_non_critical_import_reason(reason):
+            ignored_non_critical.append(normalized_item)
+            return
+        erros.append(normalized_item)
 
     for prod in produtos_data:
 
@@ -1943,11 +2357,25 @@ async def importar_catalogo_fornecedor(
 
         ):
 
-            erros.append(prod)
+            _append_import_issue(prod)
 
             continue
 
         cleaned_prod = _sanitize_produto_extraido(prod)
+        qualidade_issue = (
+            _avaliar_qualidade_linha_produto(cleaned_prod)
+            if quality_filter_enabled
+            else None
+        )
+        if qualidade_issue:
+            _append_import_issue(
+                {
+                    "motivo_descarte": qualidade_issue,
+                    "linha_original": prod,
+                    "linha_sanitizada": cleaned_prod,
+                }
+            )
+            continue
 
         try:
 
@@ -1980,7 +2408,7 @@ async def importar_catalogo_fornecedor(
 
         except Exception as e:
 
-            erros.append(
+            _append_import_issue(
 
                 {
 
@@ -2007,7 +2435,8 @@ async def importar_catalogo_fornecedor(
 
         )
 
-        erros.extend(dup_errors)
+        for err in dup_errors:
+            _append_import_issue(err)
 
         for db_produto in created:
 
@@ -2104,7 +2533,7 @@ async def importar_catalogo_finalizar(
 
     if not catalog_file:
 
-        raise HTTPException(status_code=404, detail="Arquivo n+ÃƒÂºo encontrado")
+        raise HTTPException(status_code=404, detail="Arquivo n\u00e3o encontrado")
 
 
 
@@ -2130,7 +2559,7 @@ async def importar_catalogo_finalizar(
 
     if not file_path.exists():
 
-        raise HTTPException(status_code=404, detail="Arquivo n+ÃƒÂºo encontrado")
+        raise HTTPException(status_code=404, detail="Arquivo n\u00e3o encontrado")
 
 
 
@@ -2144,25 +2573,16 @@ async def importar_catalogo_finalizar(
 
 
 
-    background_tasks.add_task(
-
-        _tarefa_processar_catalogo,
-
+    _ = background_tasks  # Mantido por compatibilidade de assinatura da rota.
+    _dispatch_catalog_task(
         db_session_factory=db_session_factory,
-
         file_id=file_id,
-
         user_id=current_user.id,
-
         product_type_id=product_type_id,
-
         fornecedor_id=fornecedor_id,
-
         mapping=mapping,
-
         pages=pages,
         region=region,
-
     )
 
 
@@ -2191,7 +2611,7 @@ def importar_catalogo_status(
 
 ):
 
-    """Retorna o status atual do processamento do cat+ÃƒÂ­logo."""
+    """Retorna o status atual do processamento do cat?logo."""
 
     record = (
 
@@ -2205,7 +2625,7 @@ def importar_catalogo_status(
 
     if not record:
 
-        raise HTTPException(status_code=404, detail="Arquivo n+ÃƒÂºo encontrado")
+        raise HTTPException(status_code=404, detail="Arquivo n\u00e3o encontrado")
 
     return record
 
@@ -2233,7 +2653,7 @@ def importar_catalogo_status_simple(
 
 ):
 
-    """Vers+ÃƒÂºo simplificada do status de importa+Ã‚Âº+ÃƒÂºo."""
+    """Vers?o simplificada do status de importa??o."""
 
     record = (
 
@@ -2247,23 +2667,23 @@ def importar_catalogo_status_simple(
 
     if not record:
 
-        raise HTTPException(status_code=404, detail="Arquivo n+ÃƒÂºo encontrado")
+        raise HTTPException(status_code=404, detail="Arquivo n\u00e3o encontrado")
 
-    if record.status == "IMPORTED":
+    if record.status in {"IMPORTED", "DONE"}:
         status = "DONE"
+    elif record.status == "PARTIAL":
+        status = "PARTIAL"
     elif record.status == "FAILED":
         status = "FAILED"
     else:
         status = "PROCESSING"
 
+    total_pages = record.total_pages or 0
     return {
-
         "status": status,
-
-        "pages_total": record.total_pages or 0,
-
+        "total_pages": total_pages,
+        "pages_total": total_pages,
         "pages_processed": record.pages_processed,
-
     }
 
 
@@ -2300,11 +2720,11 @@ def importar_catalogo_result(
 
     if not record:
 
-        raise HTTPException(status_code=404, detail="Arquivo n+ÃƒÂºo encontrado")
+        raise HTTPException(status_code=404, detail="Arquivo n\u00e3o encontrado")
 
-    if record.status not in ["IMPORTED", "FAILED"] or not record.result_summary:
+    if record.status not in ["IMPORTED", "PARTIAL", "DONE", "FAILED"] or not record.result_summary:
 
-        raise HTTPException(status_code=400, detail="Resultados ainda nao disponiveis")
+        raise HTTPException(status_code=400, detail="Resultados ainda n\u00e3o dispon\u00edveis")
 
     return record.result_summary
 
@@ -2332,7 +2752,7 @@ async def importar_catalogo_finalizar_todas_paginas(
 
 ):
 
-    """Processa todas as p+ÃƒÂ­ginas de um cat+ÃƒÂ­logo PDF a partir de ``start_page``."""
+    """Processa todas as p?ginas de um cat?logo PDF a partir de ``start_page``."""
 
     record = (
 
@@ -2346,7 +2766,7 @@ async def importar_catalogo_finalizar_todas_paginas(
 
     if not record:
 
-        raise HTTPException(status_code=404, detail="Arquivo n+ÃƒÂºo encontrado")
+        raise HTTPException(status_code=404, detail="Arquivo n\u00e3o encontrado")
 
 
 
@@ -2356,7 +2776,7 @@ async def importar_catalogo_finalizar_todas_paginas(
 
     if not file_path.exists():
 
-        raise HTTPException(status_code=404, detail="Arquivo n+ÃƒÂºo encontrado")
+        raise HTTPException(status_code=404, detail="Arquivo n\u00e3o encontrado")
 
 
 
@@ -2366,7 +2786,7 @@ async def importar_catalogo_finalizar_todas_paginas(
 
     if ext != ".pdf":
 
-        raise HTTPException(status_code=400, detail="Formato de arquivo n+ÃƒÂºo suportado")
+        raise HTTPException(status_code=400, detail="Formato de arquivo não suportado")
 
 
 
@@ -2442,7 +2862,7 @@ async def selecionar_regiao(
     db: Session = Depends(database.get_db),
     current_user: models.User = Depends(auth_utils.get_current_active_user),
 ):
-    """Extrai linhas tabulares de uma regiao selecionada de um PDF para mapeamento."""
+    """Extrai linhas tabulares de uma regi?o selecionada de um PDF para mapeamento."""
     record = (
         db.query(models.CatalogImportFile)
         .filter_by(id=file_id, user_id=current_user.id)
@@ -2461,6 +2881,44 @@ async def selecionar_regiao(
     log: List[str] = []
     preview_headers: List[str] = []
     preview_rows: List[Dict[str, Any]] = []
+
+    def _parse_key_value_rows(raw_text: str) -> List[Dict[str, str]]:
+        """Converte texto simples `chave: valor` em linhas estruturadas."""
+        rows: List[Dict[str, str]] = []
+        current: Dict[str, str] = {}
+        aliases = {
+            "nome": "nome",
+            "nome base": "nome_base",
+            "marca": "marca",
+            "descricao": "descricao",
+            "descrição": "descricao",
+            "sku": "sku",
+            "ean": "ean",
+            "codigo": "sku",
+            "código": "sku",
+        }
+
+        for line in (raw_text or "").splitlines():
+            line = str(line).strip()
+            if not line:
+                continue
+            match = re.match(r"^\s*([^:]{1,60})\s*:\s*(.?)\s*$", line)
+            if not match:
+                continue
+            raw_key = match.group(1).strip().lower()
+            value = match.group(2).strip()
+            if not value:
+                continue
+
+            key = aliases.get(raw_key, raw_key.replace(" ", "_"))
+            if key in current and current:
+                rows.append(current)
+                current = {}
+            current[key] = value
+
+        if current:
+            rows.append(current)
+        return rows
 
     try:
         with pdfplumber.open(file_path) as pdf:
@@ -2508,6 +2966,11 @@ async def selecionar_regiao(
             ]
 
             for row in preview_rows:
+                non_empty_values = [str(v).strip() for v in row.values() if str(v).strip()]
+                joined = " ".join(non_empty_values)
+                # Evita transformar texto solto/ruido em "produto" no preview da regiao.
+                if len(non_empty_values) == 1 and not re.search(r"\d", joined):
+                    continue
                 produto = file_processing_service._processar_linha_padronizada(row, None)
                 if produto:
                     produtos.append(produto)
@@ -2516,7 +2979,30 @@ async def selecionar_regiao(
                 f"Pagina {page}: extraidas {len(preview_rows)} linhas e {len(preview_headers)} colunas da regiao."
             )
         else:
-            log.append(f"Pagina {page}: nenhuma linha extraida da regiao selecionada.")
+            text_rows: List[Dict[str, str]] = []
+            with pdfplumber.open(file_path) as pdf:
+                target_page = pdf.pages[page - 1]
+                cropped = target_page.crop(tuple(selected_bbox))
+                raw_text = cropped.extract_text() or ""
+                text_rows = _parse_key_value_rows(raw_text)
+
+            if text_rows:
+                header_order: List[str] = []
+                for row in text_rows:
+                    for key in row.keys():
+                        if key not in header_order:
+                            header_order.append(key)
+                preview_headers = header_order
+                preview_rows = text_rows
+                for row in text_rows:
+                    produto = file_processing_service._processar_linha_padronizada(row, None)
+                    if produto:
+                        produtos.append(produto)
+                log.append(
+                    f"Pagina {page}: extraidas {len(text_rows)} linhas por fallback de texto (chave:valor)."
+                )
+            else:
+                log.append(f"Pagina {page}: nenhuma linha extraida da regiao selecionada.")
 
         logger.info(
             "selecionar_regiao: file_id=%s, page=%s, bbox=%s, bbox_norm=%s, produtos_extraidos=%s",
@@ -2559,7 +3045,7 @@ async def extrair_pagina_unica(
 
 ):
 
-    """Retorna imagem, texto e tabela de uma +Ã‚Â¦nica p+ÃƒÂ­gina de um PDF."""
+    """Retorna imagem, texto e tabela de uma ?nica p?gina de um PDF."""
 
     record = (
 
@@ -2573,7 +3059,7 @@ async def extrair_pagina_unica(
 
     if not record:
 
-        raise HTTPException(status_code=404, detail="Arquivo n+ÃƒÂºo encontrado")
+        raise HTTPException(status_code=404, detail="Arquivo n\u00e3o encontrado")
 
 
 
@@ -2583,7 +3069,7 @@ async def extrair_pagina_unica(
 
     if not file_path.exists():
 
-        raise HTTPException(status_code=404, detail="Arquivo n+ÃƒÂºo encontrado")
+        raise HTTPException(status_code=404, detail="Arquivo n\u00e3o encontrado")
 
 
 
@@ -2608,4 +3094,5 @@ async def extrair_pagina_unica(
 
 
     return page_data
+
 

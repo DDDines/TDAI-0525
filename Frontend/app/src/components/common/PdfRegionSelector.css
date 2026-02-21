@@ -1,0 +1,48 @@
+.pdf-region-selector {
+  position: relative;
+  max-height: 70vh;
+  overflow: auto;
+  border: 1px solid #d5dbe5;
+  padding: 8px;
+  background: #f8fafc;
+  border-radius: 8px;
+}
+
+.pdf-region-selector-tip {
+  margin: 0 0 8px 0;
+  color: #334155;
+  font-size: 0.9rem;
+}
+
+.pdf-region-selector-loading {
+  margin: 0 0 8px 0;
+  color: #475569;
+  font-size: 0.9rem;
+}
+
+.pdf-region-selector-error {
+  margin: 0 0 8px 0;
+  color: #b00020;
+  font-weight: 600;
+}
+
+.pdf-region-selector-canvas {
+  border: 1px solid #cbd5e1;
+  width: 100%;
+  background: #ffffff;
+}
+
+.pdf-region-selector-overlay {
+  position: absolute;
+  border: 2px solid #ef4444;
+  pointer-events: none;
+}
+
+.pdf-region-selector-apply-all {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 10px;
+  color: #334155;
+  font-size: 0.9rem;
+}

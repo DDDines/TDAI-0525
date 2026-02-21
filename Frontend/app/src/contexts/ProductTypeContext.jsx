@@ -97,7 +97,6 @@ export const ProductTypeProvider = ({ children }) => {
       console.error("ProductTypeContext: Erro ao adicionar tipo de produto:", errorMessage, err);
       showErrorToast(errorMessage);
       throw err;
-    } finally {
     }
   }, [user]);
 

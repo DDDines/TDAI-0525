@@ -39,7 +39,7 @@ const NewProductTypeModal = ({ isOpen, onClose, onCreated }) => {
       });
       if (onCreated) onCreated(newType);
       onClose();
-    } catch (err) {
+    } catch {
       // Erros já são tratados no contexto
     } finally {
       setIsSubmitting(false);

@@ -1,30 +1,47 @@
-/* Frontend/app/src/pages/ProdutosPage.css */
+﻿/* Frontend/app/src/pages/ProdutosPage.css */
 
-.produtos-page-container {
-  padding: 20px;
-  background-color: #f9fafb; /* Um fundo levemente diferente para a área da página */
-  min-height: calc(100vh - 60px); /* Ajustar conforme altura do seu Topbar */
+.produtos-page-shell {
+  width: 100%;
 }
 
-.page-header {
+.produtos-page-header {
+  margin-bottom: 0.2rem;
+}
+
+.filtros-e-busca-container {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 20px;
-  padding-bottom: 15px;
-  border-bottom: 1px solid #e5e7eb; /* Divisor sutil */
+  gap: 0.9rem;
+  margin-bottom: 0;
 }
 
-.page-header h1 {
-  font-size: 1.8rem;
-  font-weight: 600;
-  color: #111827;
+.search-input {
+  padding: 10px;
+  border: 1px solid #d1d5db;
+  border-radius: var(--radius);
+  min-width: 280px;
+  font-size: 0.92rem;
 }
 
-/* Estilos básicos para botões, podem ser mais genéricos e vir de index.css */
+.filtros-dropdowns {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.filtro-select {
+  padding: 9px;
+  border: 1px solid #d1d5db;
+  border-radius: var(--radius);
+  background-color: white;
+  font-size: 0.9rem;
+  min-width: 120px;
+}
+
 .btn-primary {
-  background-color: var(--primary); /* Usando variável CSS definida em index.css */
-  color: white;
+  background-color: #111111;
+  color: #fff;
   padding: 10px 18px;
   border: none;
   border-radius: var(--radius);
@@ -33,25 +50,26 @@
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  transition: background-color 0.2s ease;
 }
 
 .btn-primary:hover {
-  background-color: var(--primary-dark); /* Definir essa variável em index.css */
+  filter: brightness(0.9);
 }
 
 .btn-danger {
-  background-color: #ef4444; /* Vermelho para perigo */
+  background-color: #ef4444;
   color: white;
 }
+
 .btn-danger:hover {
   background-color: #dc2626;
 }
 
 .btn-secondary {
-  background-color: #6b7280; /* Cinza para secundário */
+  background-color: #6b7280;
   color: white;
 }
+
 .btn-secondary:hover {
   background-color: #4b5563;
 }
@@ -61,59 +79,22 @@
   font-size: 0.85rem;
 }
 
-/* Placeholder para ícone - você pode usar uma biblioteca de ícones SVG ou font icons */
-.icon-add::before {
-  content: '+'; /* Exemplo simples */
-  font-weight: bold;
-  margin-right: 0px; /* Ajustado no gap do btn-primary */
-}
-
-.filtros-e-busca-container {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 20px;
-  padding: 15px;
-  background-color: #fff;
-  border-radius: var(--radius);
-  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
-}
-
-.search-input {
-  padding: 10px;
-  border: 1px solid #d1d5db;
-  border-radius: var(--radius);
-  min-width: 300px; /* Ajustar conforme necessidade */
-  font-size: 0.9rem;
-}
-
-.filtros-dropdowns {
-  display: flex;
-  gap: 10px;
-}
-
-.filtro-select {
-  padding: 10px;
-  border: 1px solid #d1d5db;
-  border-radius: var(--radius);
-  background-color: white;
-  font-size: 0.9rem;
-}
-
 .acoes-em-lote-container {
-  background-color: #e0e7ff; /* Um fundo suave para destacar */
+  background-color: #e8eefb;
+  border: 1px solid #d6e1f9;
   padding: 10px 15px;
-  margin-bottom: 20px;
-  border-radius: var(--radius);
+  margin-top: -0.2rem;
+  border-radius: 10px;
   display: flex;
   align-items: center;
-  gap: 15px;
+  gap: 10px;
   font-size: 0.9rem;
+  flex-wrap: wrap;
 }
 
 .acoes-em-lote-container span {
-  font-weight: 500;
-  color: #3730a3;
+  font-weight: 600;
+  color: #1f3a8a;
 }
 
 .loading-message,
@@ -134,13 +115,38 @@
 .error-message button {
   margin-left: 15px;
   padding: 8px 15px;
-  background-color: var(--primary);
+  background-color: #111111;
   color: white;
   border: none;
   border-radius: var(--radius);
   cursor: pointer;
 }
+
 .error-message button:hover {
-  background-color: var(--primary-dark);
+  filter: brightness(0.9);
 }
 
+@media (max-width: 1200px) {
+  .filtros-e-busca-container {
+    flex-wrap: wrap;
+  }
+
+  .search-input {
+    width: 100%;
+  }
+}
+
+@media (max-width: 768px) {
+  .produtos-page-header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .filtros-dropdowns {
+    width: 100%;
+  }
+
+  .filtro-select {
+    flex: 1 1 170px;
+  }
+}

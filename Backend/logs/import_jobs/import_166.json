@@ -1,0 +1,590 @@
+{
+  "file_id": 166,
+  "status": "IMPORTED",
+  "stats": {
+    "created": 254,
+    "updated": 1765,
+    "errors": 0,
+    "ignored_non_critical": 1671,
+    "pages_processed": 231,
+    "pages_total": 231,
+    "ext": ".pdf"
+  },
+  "error_reasons_top": [],
+  "ignored_reasons_top": [
+    [
+      "Faltam nome_base e sku_original",
+      1433
+    ],
+    [
+      "Linha descartada por baixa qualidade: SKU sem contexto",
+      133
+    ],
+    [
+      "Linha descartada por baixa qualidade: nome fraco sem SKU/EAN",
+      50
+    ],
+    [
+      "Linha descartada por baixa qualidade: nome isolado sem contexto",
+      23
+    ],
+    [
+      "Linha descartada por baixa qualidade: nome curto sem contexto",
+      16
+    ],
+    [
+      "Nenhum dado de produto pÃƒÂ´de ser extraido do PDF (pode estar protegido, vazio ou somente imagem sem OCR).",
+      9
+    ],
+    [
+      "Linha descartada por baixa qualidade: nome sem conteudo",
+      7
+    ]
+  ],
+  "ignored_samples": [
+    {
+      "motivo_descarte": "Faltam nome_base e sku_original",
+      "linha_original": {
+        "col_0": "",
+        "col_1": "— il",
+        "col_2": "",
+        "col_3": "",
+        "col_4": "",
+        "col_5": "",
+        "col_6": "~",
+        "col_7": "=",
+        "col_8": "",
+        "col_9": ""
+      },
+      "product_type_id": 4
+    },
+    {
+      "motivo_descarte": "Linha descartada por baixa qualidade: nome curto sem contexto",
+      "linha_original": {
+        "nome_base": "Se aa",
+        "dados_brutos_adicionais": {
+          "col_4": "i,",
+          "col_7": "4",
+          "col_8": ">",
+          "col_9": "aie!"
+        },
+        "product_type_id": 4
+      },
+      "linha_validada": {
+        "nome_base": "Se aa",
+        "dados_brutos_adicionais": {
+          "col_4": "i,",
+          "col_7": "4",
+          "col_8": ">",
+          "col_9": "aie!"
+        },
+        "product_type_id": 4
+      },
+      "linha_sanitizada": {
+        "nome_base": "Se aa",
+        "dados_brutos_adicionais": {
+          "col_4": "i,",
+          "col_7": "4",
+          "col_8": ">",
+          "col_9": "aie!"
+        },
+        "product_type_id": 4
+      }
+    },
+    {
+      "motivo_descarte": "Faltam nome_base e sku_original",
+      "linha_original": {
+        "col_0": "",
+        "col_1": "",
+        "col_2": "",
+        "col_3": "",
+        "col_4": "",
+        "col_5": "ee",
+        "col_6": "",
+        "col_7": "",
+        "col_8": "",
+        "col_9": ""
+      },
+      "product_type_id": 4
+    },
+    {
+      "motivo_descarte": "Faltam nome_base e sku_original",
+      "linha_original": {
+        "col_0": "",
+        "col_1": "",
+        "col_2": "GERAU DE",
+        "col_3": "",
+        "col_4": "",
+        "col_5": "",
+        "col_6": "",
+        "col_7": "",
+        "col_8": "",
+        "col_9": ""
+      },
+      "product_type_id": 4
+    },
+    {
+      "motivo_descarte": "Faltam nome_base e sku_original",
+      "linha_original": {
+        "col_0": "",
+        "col_1": "AMALCABURIO",
+        "col_2": "",
+        "col_3": "",
+        "col_4": "",
+        "col_5": "",
+        "col_6": "",
+        "col_7": "",
+        "col_8": ""
+      },
+      "product_type_id": 4
+    },
+    {
+      "motivo_descarte": "Linha descartada por baixa qualidade: nome fraco sem SKU/EAN",
+      "linha_original": {
+        "nome_base": "bi!",
+        "categoria_original": "eee a",
+        "dados_brutos_adicionais": {
+          "col_7": "ad",
+          "col_8": "4"
+        },
+        "dynamic_attributes": {
+          "aplicacao": "="
+        },
+        "product_type_id": 4
+      },
+      "linha_validada": {
+        "nome_base": "bi!",
+        "categoria_original": "eee a",
+        "dados_brutos_adicionais": {
+          "col_7": "ad",
+          "col_8": "4"
+        },
+        "dynamic_attributes": {
+          "aplicacao": "="
+        },
+        "product_type_id": 4
+      },
+      "linha_sanitizada": {
+        "nome_base": "bi!",
+        "categoria_original": "eee a",
+        "dados_brutos_adicionais": {
+          "col_7": "ad",
+          "col_8": "4"
+        },
+        "dynamic_attributes": {
+          "aplicacao": "="
+        },
+        "product_type_id": 4
+      }
+    },
+    {
+      "motivo_descarte": "Faltam nome_base e sku_original",
+      "linha_original": {
+        "col_0": "",
+        "col_1": "",
+        "col_2": "",
+        "col_3": "",
+        "col_4": "rT",
+        "col_5": "— ——",
+        "col_6": "",
+        "col_7": "",
+        "col_8": ""
+      },
+      "product_type_id": 4
+    },
+    {
+      "motivo_descarte": "Faltam nome_base e sku_original",
+      "linha_original": {
+        "col_0": "",
+        "col_1": "",
+        "col_2": "",
+        "col_3": "",
+        "col_4": "",
+        "col_5": "",
+        "col_6": "Padrao Original",
+        "col_7": "",
+        "col_8": ""
+      },
+      "product_type_id": 4
+    },
+    {
+      "motivo_descarte": "Faltam nome_base e sku_original",
+      "linha_original": {
+        "col_0": "",
+        "col_1": "",
+        "col_2": "",
+        "col_3": "",
+        "col_4": "",
+        "col_5": "",
+        "col_6": "Qualidade Amalcaburio",
+        "col_7": "",
+        "col_8": ""
+      },
+      "product_type_id": 4
+    },
+    {
+      "erro_processamento_pdf": "Nenhum dado de produto pÃƒÂ´de ser extraido do PDF (pode estar protegido, vazio ou somente imagem sem OCR).",
+      "log_pdf": [
+        "PDF com 231 pÃƒÂ¡ginas.",
+        "PÃƒÂ¡gina 3: Aplicando recorte (crop) com bbox (28.696040358744394, 176.9399112272187, 595.276, 776.002684602813) [modo=normalized].",
+        "PÃƒÂ¡gina 3: ExtraÃƒÂ§ÃƒÂ£o por regiÃƒÂ£o nÃƒÂ£o retornou linhas.",
+        "PÃƒÂ¡gina 3: Nenhuma tabela encontrada.",
+        "Nenhum produto extraido de tabelas/regiÃƒÂ£o. Tentando extraÃƒÂ§ÃƒÂ£o de texto bruto.",
+        "PÃƒÂ¡gina 3: Nenhum texto extraivel (pode ser imagem ou protegido)."
+      ]
+    },
+    {
+      "motivo_descarte": "Faltam nome_base e sku_original",
+      "linha_original": {
+        "col": ""
+      },
+      "product_type_id": 4
+    },
+    {
+      "erro_processamento_pdf": "Nenhum dado de produto pÃƒÂ´de ser extraido do PDF (pode estar protegido, vazio ou somente imagem sem OCR).",
+      "log_pdf": [
+        "PDF com 231 pÃƒÂ¡ginas.",
+        "PÃƒÂ¡gina 5: Aplicando recorte (crop) com bbox (28.696040358744394, 176.9399112272187, 595.276, 776.002684602813) [modo=normalized].",
+        "PÃƒÂ¡gina 5: ExtraÃƒÂ§ÃƒÂ£o por regiÃƒÂ£o nÃƒÂ£o retornou linhas.",
+        "PÃƒÂ¡gina 5: Encontradas 3 tabelas.",
+        "PÃƒÂ¡gina 5, Tabela 1: Tabela vazia ou sem dados.",
+        "PÃƒÂ¡gina 5, Tabela 2: Tabela vazia ou sem dados.",
+        "PÃƒÂ¡gina 5, Tabela 3: Tabela vazia ou sem dados.",
+        "Nenhum produto extraido de tabelas/regiÃƒÂ£o. Tentando extraÃƒÂ§ÃƒÂ£o de texto bruto.",
+        "PÃƒÂ¡gina 5: Nenhum texto extraivel (pode ser imagem ou protegido)."
+      ]
+    },
+    {
+      "erro_processamento_pdf": "Nenhum dado de produto pÃƒÂ´de ser extraido do PDF (pode estar protegido, vazio ou somente imagem sem OCR).",
+      "log_pdf": [
+        "PDF com 231 pÃƒÂ¡ginas.",
+        "PÃƒÂ¡gina 6: Aplicando recorte (crop) com bbox (28.696040358744394, 176.9399112272187, 595.276, 776.002684602813) [modo=normalized].",
+        "PÃƒÂ¡gina 6: ExtraÃƒÂ§ÃƒÂ£o por regiÃƒÂ£o nÃƒÂ£o retornou linhas.",
+        "PÃƒÂ¡gina 6: Encontradas 6 tabelas.",
+        "PÃƒÂ¡gina 6, Tabela 1: Tabela vazia ou sem dados.",
+        "PÃƒÂ¡gina 6, Tabela 2: Tabela vazia ou sem dados.",
+        "PÃƒÂ¡gina 6, Tabela 3: Tabela vazia ou sem dados.",
+        "PÃƒÂ¡gina 6, Tabela 4: Tabela vazia ou sem dados.",
+        "PÃƒÂ¡gina 6, Tabela 5: Tabela vazia ou sem dados.",
+        "PÃƒÂ¡gina 6, Tabela 6: Tabela vazia ou sem dados.",
+        "Nenhum produto extraido de tabelas/regiÃƒÂ£o. Tentando extraÃƒÂ§ÃƒÂ£o de texto bruto.",
+        "PÃƒÂ¡gina 6: Nenhum texto extraivel (pode ser imagem ou protegido)."
+      ]
+    },
+    {
+      "erro_processamento_pdf": "Nenhum dado de produto pÃƒÂ´de ser extraido do PDF (pode estar protegido, vazio ou somente imagem sem OCR).",
+      "log_pdf": [
+        "PDF com 231 pÃƒÂ¡ginas.",
+        "PÃƒÂ¡gina 7: Aplicando recorte (crop) com bbox (28.696040358744394, 176.9399112272187, 595.276, 776.002684602813) [modo=normalized].",
+        "PÃƒÂ¡gina 7: ExtraÃƒÂ§ÃƒÂ£o por regiÃƒÂ£o nÃƒÂ£o retornou linhas.",
+        "PÃƒÂ¡gina 7: Encontradas 8 tabelas.",
+        "PÃƒÂ¡gina 7, Tabela 1: Tabela vazia ou sem dados.",
+        "PÃƒÂ¡gina 7, Tabela 2: Tabela vazia ou sem dados.",
+        "PÃƒÂ¡gina 7, Tabela 3: Tabela vazia ou sem dados.",
+        "PÃƒÂ¡gina 7, Tabela 4: Tabela vazia ou sem dados.",
+        "PÃƒÂ¡gina 7, Tabela 5: Tabela vazia ou sem dados.",
+        "PÃƒÂ¡gina 7, Tabela 6: Tabela vazia ou sem dados.",
+        "PÃƒÂ¡gina 7, Tabela 7: Tabela vazia ou sem dados.",
+        "PÃƒÂ¡gina 7, Tabela 8: Tabela vazia ou sem dados.",
+        "Nenhum produto extraido de tabelas/regiÃƒÂ£o. Tentando extraÃƒÂ§ÃƒÂ£o de texto bruto.",
+        "PÃƒÂ¡gina 7: Nenhum texto extraivel (pode ser imagem ou protegido)."
+      ]
+    },
+    {
+      "erro_processamento_pdf": "Nenhum dado de produto pÃƒÂ´de ser extraido do PDF (pode estar protegido, vazio ou somente imagem sem OCR).",
+      "log_pdf": [
+        "PDF com 231 pÃƒÂ¡ginas.",
+        "PÃƒÂ¡gina 8: Aplicando recorte (crop) com bbox (28.696040358744394, 176.9399112272187, 595.276, 776.002684602813) [modo=normalized].",
+        "PÃƒÂ¡gina 8: ExtraÃƒÂ§ÃƒÂ£o por regiÃƒÂ£o nÃƒÂ£o retornou linhas.",
+        "PÃƒÂ¡gina 8: Encontradas 3 tabelas.",
+        "PÃƒÂ¡gina 8, Tabela 1: Tabela vazia ou sem dados.",
+        "PÃƒÂ¡gina 8, Tabela 2: Tabela vazia ou sem dados.",
+        "PÃƒÂ¡gina 8, Tabela 3: Tabela vazia ou sem dados.",
+        "Nenhum produto extraido de tabelas/regiÃƒÂ£o. Tentando extraÃƒÂ§ÃƒÂ£o de texto bruto.",
+        "PÃƒÂ¡gina 8: Nenhum texto extraivel (pode ser imagem ou protegido)."
+      ]
+    },
+    {
+      "motivo_descarte": "Faltam nome_base e sku_original",
+      "linha_original": {
+        "col": ""
+      },
+      "product_type_id": 4
+    },
+    {
+      "motivo_descarte": "Faltam nome_base e sku_original",
+      "linha_original": {
+        "col": ""
+      },
+      "product_type_id": 4
+    },
+    {
+      "motivo_descarte": "Faltam nome_base e sku_original",
+      "linha_original": {
+        "col": ""
+      },
+      "product_type_id": 4
+    },
+    {
+      "motivo_descarte": "Faltam nome_base e sku_original",
+      "linha_original": {
+        "col_0": "",
+        "col_1": "",
+        "col_2": "",
+        "col_3": "",
+        "col_4": "",
+        "col_5": "",
+        "col_6": "",
+        "col_7": "",
+        "col_8": "",
+        "col_9": "",
+        "col_10": "",
+        "col_11": "",
+        "col_12": "",
+        "col_13": "",
+        "col_14": "",
+        "col_15": "1834"
+      },
+      "product_type_id": 4
+    },
+    {
+      "motivo_descarte": "Faltam nome_base e sku_original",
+      "linha_original": {
+        "col_0": "",
+        "col_1": "1838",
+        "col_2": "",
+        "col_3": "",
+        "col_4": "",
+        "col_5": "",
+        "col_6": "",
+        "col_7": "——",
+        "col_8": "",
+        "col_9": "",
+        "col_10": "",
+        "col_11": "",
+        "col_12": "",
+        "col_13": "",
+        "col_14": "",
+        "col_15": ""
+      },
+      "product_type_id": 4
+    },
+    {
+      "motivo_descarte": "Faltam nome_base e sku_original",
+      "linha_original": {
+        "col_0": "",
+        "col_1": "",
+        "col_2": "=,",
+        "col_3": "",
+        "col_4": "",
+        "col_5": "Le",
+        "col_6": "",
+        "col_7": "",
+        "col_8": "-",
+        "col_9": "",
+        "col_10": "ail re",
+        "col_11": "",
+        "col_12": "",
+        "col_13": "",
+        "col_14": "",
+        "col_15": ""
+      },
+      "product_type_id": 4
+    },
+    {
+      "motivo_descarte": "Faltam nome_base e sku_original",
+      "linha_original": {
+        "col_0": "",
+        "col_1": "",
+        "col_2": "",
+        "col_3": "",
+        "col_4": "",
+        "col_5": "-",
+        "col_6": "",
+        "col_7": "a",
+        "col_8": "",
+        "col_9": "",
+        "col_10": "",
+        "col_11": "",
+        "col_12": "",
+        "col_13": "",
+        "col_14": "",
+        "col_15": "1816"
+      },
+      "product_type_id": 4
+    },
+    {
+      "motivo_descarte": "Faltam nome_base e sku_original",
+      "linha_original": {
+        "col_0": "",
+        "col_1": "",
+        "col_2": "1828",
+        "col_3": "",
+        "col_4": "",
+        "col_5": "",
+        "col_6": "",
+        "col_7": "",
+        "col_8": "",
+        "col_9": "",
+        "col_10": "",
+        "col_11": "",
+        "col_12": "",
+        "col_13": "",
+        "col_14": "",
+        "col_15": ""
+      },
+      "product_type_id": 4
+    },
+    {
+      "motivo_descarte": "Faltam nome_base e sku_original",
+      "linha_original": {
+        "col_0": "",
+        "col_1": "",
+        "col_2": "",
+        "col_3": "",
+        "col_4": "",
+        "col_5": "",
+        "col_6": "",
+        "col_7": "",
+        "col_8": "",
+        "col_9": "1830",
+        "col_10": "",
+        "col_11": "",
+        "col_12": "",
+        "col_13": "",
+        "col_14": "",
+        "col_15": ""
+      },
+      "product_type_id": 4
+    },
+    {
+      "motivo_descarte": "Faltam nome_base e sku_original",
+      "linha_original": {
+        "col_0": "",
+        "col_1": "",
+        "col_2": "Vee",
+        "col_3": "",
+        "col_4": "#",
+        "col_5": "",
+        "col_6": "",
+        "col_7": "",
+        "col_8": "",
+        "col_9": "f",
+        "col_10": "",
+        "col_11": "",
+        "col_12": "",
+        "col_13": "",
+        "col_14": "",
+        "col_15": ""
+      },
+      "product_type_id": 4
+    },
+    {
+      "motivo_descarte": "Faltam nome_base e sku_original",
+      "linha_original": {
+        "col_0": "",
+        "col_1": "",
+        "col_2": "",
+        "col_3": "",
+        "col_4": "1824",
+        "col_5": "",
+        "col_6": "",
+        "col_7": "",
+        "col_8": "",
+        "col_9": "",
+        "col_10": "",
+        "col_11": "",
+        "col_12": "",
+        "col_13": "",
+        "col_14": "",
+        "col_15": ""
+      },
+      "product_type_id": 4
+    },
+    {
+      "motivo_descarte": "Faltam nome_base e sku_original",
+      "linha_original": {
+        "col_0": "",
+        "col_1": "",
+        "col_2": "",
+        "col_3": "",
+        "col_4": "",
+        "col_5": "-",
+        "col_6": "",
+        "col_7": "",
+        "col_8": "",
+        "col_9": "",
+        "col_10": "",
+        "col_11": "1837",
+        "col_12": "",
+        "col_13": "",
+        "col_14": "",
+        "col_15": ""
+      },
+      "product_type_id": 4
+    },
+    {
+      "motivo_descarte": "Linha descartada por baixa qualidade: nome sem conteudo",
+      "linha_original": {
+        "sku_original": "18320",
+        "nome_base": "a =",
+        "product_type_id": 4
+      },
+      "linha_validada": {
+        "sku_original": "18320",
+        "nome_base": "a =",
+        "product_type_id": 4
+      },
+      "linha_sanitizada": {
+        "sku_original": "18320",
+        "nome_base": "a =",
+        "product_type_id": 4
+      }
+    },
+    {
+      "motivo_descarte": "Faltam nome_base e sku_original",
+      "linha_original": {
+        "col_0": "",
+        "col_1": "\\",
+        "col_2": "",
+        "col_3": "",
+        "col_4": "",
+        "col_5": "",
+        "col_6": "1832 E",
+        "col_7": "",
+        "col_8": "",
+        "col_9": "",
+        "col_10": "",
+        "col_11": "i",
+        "col_12": "",
+        "col_13": "",
+        "col_14": "",
+        "col_15": ""
+      },
+      "product_type_id": 4
+    },
+    {
+      "motivo_descarte": "Faltam nome_base e sku_original",
+      "linha_original": {
+        "col_0": "",
+        "col_1": "|",
+        "col_2": "",
+        "col_3": "",
+        "col_4": "",
+        "col_5": "|",
+        "col_6": "",
+        "col_7": "",
+        "col_8": "",
+        "col_9": "",
+        "col_10": "",
+        "col_11": "",
+        "col_12": "1826",
+        "col_13": "",
+        "col_14": "",
+        "col_15": ""
+      },
+      "product_type_id": 4
+    }
+  ],
+  "errors": []
+}

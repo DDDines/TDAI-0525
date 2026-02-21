@@ -80,7 +80,6 @@
     background-color: #f3f4f6;
     border: 1px solid #d1d5db;
     border-bottom: 3px solid transparent;
-    border-bottom: 3px solid transparent;
     padding: 10px 15px;
     cursor: pointer;
     font-size: 0.95em;
@@ -147,7 +146,7 @@
 }
 
 .form-section button {
-    background-color: #28a745; /* Verde para botões de ação */
+    background-color: #111111;
     color: white;
     padding: 10px 15px;
     border: none;
@@ -156,11 +155,11 @@
     font-size: 1em;
     margin-top: 10px;
     margin-right: 10px;
-    transition: background-color 0.2s ease;
+    transition: filter 0.2s ease;
 }
 
 .form-section button:hover {
-    background-color: #218838;
+    filter: brightness(0.92);
 }
 
 .form-section button:disabled {
@@ -202,6 +201,17 @@
 
 .modal-actions button[type="button"]:hover {
     background-color: #5a6268;
+}
+
+.modal-actions button.btn-primary {
+    background-color: #111111;
+    color: #ffffff;
+    border: none;
+}
+
+.modal-actions button.btn-primary:hover {
+    filter: brightness(0.92);
+    background-color: #111111;
 }
 
 .error-message {

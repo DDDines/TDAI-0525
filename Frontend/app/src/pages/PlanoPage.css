@@ -1,29 +1,36 @@
 /* Frontend/app/src/pages/PlanoPage.css */
-.plano-page-container .card {
-  padding: 1.5rem 2.1rem; /* Similar ao .card global mas podemos ajustar */
+.plano-page-shell {
+  width: 100%;
+  max-width: 1480px;
+  margin: 0 auto;
 }
 
-.plano-page-container .card-header h1 {
-  font-size: 1.8rem;
-  margin-bottom: 1rem; /* Ajustado para dar espaço antes do grid */
+.plano-card-box {
+  background: var(--card-bg);
+  border-radius: 18px;
+  box-shadow: 0 2px 12px 0 rgba(60, 100, 150, 0.11);
+  padding: 1.6rem 2.1rem;
+}
+
+.plano-page-title {
+  margin: 0 0 1.25rem;
+  font-size: 2.1rem;
+  color: #1f2937;
 }
 
 .plano-details-grid {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 2rem; /* Espaço entre os cards de plano e ações */
-  align-items: flex-start;
+  display: grid;
+  grid-template-columns: 1.6fr 1fr;
+  gap: 1.25rem;
 }
 
-.plano-card {
-  background: linear-gradient(135deg, #f0f4ff 0%, #f9fafb 100%);
-  border-radius: 12px;
-  box-shadow: 0 2px 12px 0 rgba(60, 60, 110, 0.08);
-  padding: 1.8rem 2rem 1.5rem 2rem;
-  flex: 2 1 350px; /* Ocupa mais espaço e permite encolher */
-  min-width: 300px;
-  display: flex;
-  flex-direction: column;
+.plano-info-card,
+.plano-actions-card {
+  background: var(--card-bg);
+  border-radius: 14px;
+  box-shadow: 0 1px 8px rgba(60, 100, 150, 0.1);
+  border: 1px solid rgba(148, 163, 184, 0.25);
+  padding: 1.4rem;
 }
 
 .current-plan-header {
@@ -40,83 +47,76 @@
   border-radius: 7px;
   padding: 0.25em 1em;
   letter-spacing: 0.01em;
-  box-shadow: 0 1px 6px 0 rgba(0,0,0,0.1);
   text-transform: uppercase;
 }
 
-.plan-badge.gratuito { background-color: var(--info); }
-.plan-badge.ilimitado { background-color: var(--success); }
-/* Adicione mais estilos para outros nomes de planos, como 'pro', 'premium', etc. */
-.plan-badge.pro { background-color: var(--primary); } /* Exemplo */
+.plan-badge.gratuito {
+  background-color: var(--info);
+}
 
+.plan-badge.ilimitado {
+  background-color: var(--success);
+}
+
+.plan-badge.pro {
+  background-color: var(--primary);
+}
 
 .current-plan-label {
-  color: #555;
+  color: #475569;
   font-size: 1rem;
-  font-weight: 500;
+  font-weight: 600;
 }
 
 .plan-features {
   list-style: none;
   padding-left: 0;
-  margin-bottom: 1.5rem;
-  font-size: 1.05rem;
-  line-height: 1.9;
-  color: #333;
+  margin-bottom: 1.35rem;
+  font-size: 1.08rem;
+  line-height: 1.8;
+  color: #1f2937;
 }
 
 .plan-features li strong {
-  color: var(--primary);
+  color: #111827;
 }
 
 .plan-renewal {
-  color: #555;
-  font-size: 0.95rem;
+  color: #475569;
+  font-size: 0.98rem;
   font-weight: 500;
-  margin-top: auto; /* Empurra para baixo se o card crescer */
-  padding-top: 1rem;
-  border-top: 1px solid #e0e8f3;
+  margin-top: auto;
+  padding-top: 0.95rem;
+  border-top: 1px solid #e2e8f0;
 }
 
-.plano-actions-card {
-  flex: 1 1 280px; /* Ocupa menos espaço, mas pode crescer */
-  min-width: 250px;
-  padding: 1.5rem;
-  background-color: var(--card-bg);
-  border-radius: 12px;
-  box-shadow: 0 2px 8px 0 rgba(60, 60, 110, 0.06);
+.plano-actions-card h2 {
+  font-size: 1.95rem;
+  color: #1f2937;
+  margin: 0 0 0.55rem;
 }
 
-.plano-actions-card h4 {
-  font-size: 1.2rem;
-  color: #333;
-  margin-bottom: 0.5rem;
-}
 .plano-actions-card p {
-  font-size: 0.95rem;
-  color: #666;
-  margin-bottom: 1.5rem;
+  font-size: 1rem;
+  color: #475569;
+  margin-bottom: 1.2rem;
   line-height: 1.5;
 }
 
 .plano-buttons {
   display: flex;
   gap: 1rem;
-  flex-wrap: wrap; /* Para telas menores */
+  flex-wrap: wrap;
 }
 
 .plano-buttons button {
-  flex-grow: 1; /* Faz os botões ocuparem o espaço disponível */
-  padding: 0.7rem 1rem;
-  font-weight: 600;
-  font-size: 0.95rem;
-  border-radius: var(--radius);
+  flex: 1 1 240px;
+  min-height: 46px;
+  border-radius: 8px;
   border: none;
+  font-size: 1.05rem;
+  font-weight: 700;
   cursor: pointer;
-  transition: filter 0.2s;
-}
-.plano-buttons button:hover:not(:disabled) {
-  filter: brightness(90%);
 }
 
 .btn-upgrade {
@@ -129,11 +129,64 @@
   color: white;
 }
 
-.billing-history-link a {
-    color: var(--primary);
-    text-decoration: none;
-    font-weight: 500;
+.billing-history-link {
+  margin: 1rem 0 0;
+  text-align: center;
 }
+
+.billing-history-link a {
+  color: #111827;
+  text-decoration: none;
+  font-weight: 600;
+}
+
 .billing-history-link a:hover {
-    text-decoration: underline;
+  text-decoration: underline;
+}
+
+.plano-error {
+  color: #dc2626;
+  font-weight: 600;
+}
+
+body.dark .plano-page-title,
+body.dark .plano-actions-card h2,
+body.dark .plan-features,
+body.dark .plan-features li strong {
+  color: #f8fafc;
+}
+
+body.dark .plano-info-card,
+body.dark .plano-actions-card {
+  border-color: #334155;
+}
+
+body.dark .current-plan-label,
+body.dark .plan-renewal,
+body.dark .plano-actions-card p {
+  color: #cbd5e1;
+}
+
+body.dark .billing-history-link a {
+  color: #e2e8f0;
+}
+
+@media (max-width: 1100px) {
+  .plano-details-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 768px) {
+  .plano-card-box {
+    padding: 1.2rem 1rem;
+  }
+
+  .plano-page-title {
+    font-size: 1.75rem;
+  }
+
+  .plano-actions-card h2 {
+    font-size: 1.5rem;
+  }
 }

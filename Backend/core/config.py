@@ -1,13 +1,14 @@
-# Backend/core/config.py
+﻿# Backend/core/config.py
 import os
 import logging
 from dotenv import load_dotenv
 from typing import List, Union, Optional
 try:
-    from pydantic_settings import BaseSettings  # type: ignore
+    from pydantic_settings import BaseSettings, SettingsConfigDict  # type: ignore
 except ModuleNotFoundError:  # Compatibilidade para ambientes sem pydantic_settings
     from pydantic import BaseSettings
-from pydantic import AnyHttpUrl, ValidationError, Field
+    SettingsConfigDict = dict  # type: ignore
+from pydantic import AnyHttpUrl, ValidationError, Field, TypeAdapter
 from pathlib import Path
 from .logging_config import get_logger
 
@@ -19,7 +20,7 @@ if dotenv_path.exists():
     load_dotenv(dotenv_path=dotenv_path)
 else:
     logger.warning(
-        "Arquivo .env não encontrado em %s. Usando valores padrão ou variáveis de ambiente do sistema.",
+        "Arquivo .env nÃ£o encontrado em %s. Usando valores padrÃ£o ou variÃ¡veis de ambiente do sistema.",
         dotenv_path,
     )
 
@@ -41,10 +42,10 @@ class Settings(BaseSettings):
     PASSWORD_RESET_TOKEN_EXPIRE_HOURS: int = int(os.getenv("PASSWORD_RESET_TOKEN_EXPIRE_HOURS", 1))
     REFRESH_TOKEN_EXPIRE_DAYS: int = int(os.getenv("REFRESH_TOKEN_EXPIRE_DAYS", 7))
 
-    # ``cors_origins_str`` captura o valor cru da variável de ambiente
+    # ``cors_origins_str`` captura o valor cru da variÃ¡vel de ambiente
     # ``BACKEND_CORS_ORIGINS``. ``BACKEND_CORS_ORIGINS`` em si utiliza um alias
-    # inexistente para evitar que o ``BaseSettings`` tente processá-la
-    # automaticamente (o que falharia quando o valor não está em formato JSON).
+    # inexistente para evitar que o ``BaseSettings`` tente processÃ¡-la
+    # automaticamente (o que falharia quando o valor nÃ£o estÃ¡ em formato JSON).
     cors_origins_str: Optional[str] = Field(default=None, alias="BACKEND_CORS_ORIGINS")
     BACKEND_CORS_ORIGINS: List[AnyHttpUrl] = Field(default_factory=list, alias="BACKEND_CORS_ORIGINS_PARSED")
 
@@ -98,19 +99,21 @@ class Settings(BaseSettings):
     ALLOW_USERS_TO_EDIT_GLOBAL_PRODUCT_TYPES: bool = Field(default=False, validation_alias=env_var_name_with_prefix('ALLOW_USERS_TO_EDIT_GLOBAL_PRODUCT_TYPES'))
     ALLOW_USERS_TO_DELETE_GLOBAL_PRODUCT_TYPES: bool = Field(default=False, validation_alias=env_var_name_with_prefix('ALLOW_USERS_TO_DELETE_GLOBAL_PRODUCT_TYPES'))
     
-    class Config:
-        case_sensitive = True
-        env_file = ".env"
-        env_file_encoding = 'utf-8'
-        extra = 'ignore'
+    model_config = SettingsConfigDict(
+        case_sensitive=True,
+        env_file=".env",
+        env_file_encoding="utf-8",
+        extra="ignore",
+    )
 
 settings = Settings()
+http_url_adapter = TypeAdapter(AnyHttpUrl)
 
 if settings.DATABASE_URL is None:
     backend_dir = Path(__file__).resolve().parent.parent
     sqlite_file_path = backend_dir / settings.SQLITE_DB_FILE
     settings.DATABASE_URL = f"sqlite:///{sqlite_file_path.resolve()}"
-    logger.info("DATABASE_URL não encontrada no .env. Usando SQLite em: %s", settings.DATABASE_URL)
+    logger.info("DATABASE_URL nÃ£o encontrada no .env. Usando SQLite em: %s", settings.DATABASE_URL)
 else:
     logger.info("DATABASE_URL carregada do .env: %s", settings.DATABASE_URL)
 
@@ -121,16 +124,15 @@ if settings.cors_origins_str:
         valid_origins = []
         for origin_str in raw_origins:
             try:
-                from pydantic import parse_obj_as
-                valid_origins.append(parse_obj_as(AnyHttpUrl, origin_str))
+                valid_origins.append(http_url_adapter.validate_python(origin_str))
             except ValidationError:
-                logger.warning("Origem CORS inválida '%s' em BACKEND_CORS_ORIGINS. Será ignorada.", origin_str)
+                logger.warning("Origem CORS invÃ¡lida '%s' em BACKEND_CORS_ORIGINS. SerÃ¡ ignorada.", origin_str)
         settings.BACKEND_CORS_ORIGINS = valid_origins
     except Exception as e:
         logger.error("Erro ao processar BACKEND_CORS_ORIGINS do .env: %s. Usando fallback.", e)
         settings.BACKEND_CORS_ORIGINS = []
 else:
-    # Padrão
+    # PadrÃ£o
     default_origins_httpurl = []
     default_list = [
         "http://localhost:5173",
@@ -139,12 +141,12 @@ else:
     ]
     for origin_url in default_list:
         try:
-            from pydantic import parse_obj_as
-            default_origins_httpurl.append(parse_obj_as(AnyHttpUrl, origin_url))
+            default_origins_httpurl.append(http_url_adapter.validate_python(origin_url))
         except ValidationError:
             pass
     settings.BACKEND_CORS_ORIGINS = default_origins_httpurl
-    logger.info("Usando CORS origins padrão: %s", [str(o) for o in settings.BACKEND_CORS_ORIGINS])
+    logger.info("Usando CORS origins padrÃ£o: %s", [str(o) for o in settings.BACKEND_CORS_ORIGINS])
 
 logger.info("Usando CORS origins de settings: %s", [str(o) for o in settings.BACKEND_CORS_ORIGINS])
+
 

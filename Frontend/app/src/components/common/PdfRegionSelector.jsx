@@ -1,14 +1,15 @@
-import React, { useRef, useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import * as pdfjs from 'pdfjs-dist/legacy/build/pdf';
 import pdfWorkerSrc from 'pdfjs-dist/legacy/build/pdf.worker.js?url';
+import './PdfRegionSelector.css';
 
-// Configura o worker do pdf.js para ambiente Vite
 pdfjs.GlobalWorkerOptions.workerSrc = pdfWorkerSrc;
 
 function PdfRegionSelector({
   file,
   onSelect,
   initialPage = 1,
+  initialApplyAll = true,
   onLoadError,
   onApplyAllChange,
 }) {
@@ -18,13 +19,17 @@ function PdfRegionSelector({
   const startPos = useRef(null);
   const [rect, setRect] = useState(null);
   const [isDrawing, setIsDrawing] = useState(false);
-  const [applyAll, setApplyAll] = useState(false);
+  const [applyAll, setApplyAll] = useState(Boolean(initialApplyAll));
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
   useEffect(() => {
     setPageNum(initialPage);
   }, [initialPage, file]);
+
+  useEffect(() => {
+    setApplyAll(Boolean(initialApplyAll));
+  }, [initialApplyAll, file]);
 
   useEffect(() => {
     let task;
@@ -69,7 +74,7 @@ function PdfRegionSelector({
       if (doc) doc.destroy();
       pdfDocumentRef.current = null;
     };
-  }, [file, onLoadError]);
+  }, [file, onLoadError, pageNum]);
 
   useEffect(() => {
     const renderPage = async () => {
@@ -87,16 +92,16 @@ function PdfRegionSelector({
   }, [pageNum]);
 
   const handleMouseDown = (e) => {
-    const rect = canvasRef.current.getBoundingClientRect();
-    startPos.current = { x: e.clientX - rect.left, y: e.clientY - rect.top };
+    const bounds = canvasRef.current.getBoundingClientRect();
+    startPos.current = { x: e.clientX - bounds.left, y: e.clientY - bounds.top };
     setIsDrawing(true);
   };
 
   const handleMouseMove = (e) => {
     if (!isDrawing) return;
-    const rectPos = canvasRef.current.getBoundingClientRect();
-    const x = e.clientX - rectPos.left;
-    const y = e.clientY - rectPos.top;
+    const bounds = canvasRef.current.getBoundingClientRect();
+    const x = e.clientX - bounds.left;
+    const y = e.clientY - bounds.top;
     setRect({
       x0: Math.min(startPos.current.x, x),
       y0: Math.min(startPos.current.y, y),
@@ -108,14 +113,14 @@ function PdfRegionSelector({
   const handleMouseUp = () => {
     if (isDrawing && rect) {
       const canvas = canvasRef.current;
-      const cw = canvas?.width || 1;
-      const ch = canvas?.height || 1;
+      const canvasWidth = canvas?.width || 1;
+      const canvasHeight = canvas?.height || 1;
       onSelect({
         page: pageNum,
         bbox: [rect.x0, rect.y0, rect.x1, rect.y1],
-        bboxNorm: [rect.x0 / cw, rect.y0 / ch, rect.x1 / cw, rect.y1 / ch],
-        canvasWidth: cw,
-        canvasHeight: ch,
+        bboxNorm: [rect.x0 / canvasWidth, rect.y0 / canvasHeight, rect.x1 / canvasWidth, rect.y1 / canvasHeight],
+        canvasWidth,
+        canvasHeight,
         applyAllPages: applyAll,
       });
     }
@@ -124,30 +129,36 @@ function PdfRegionSelector({
   };
 
   return (
-    <div style={{ position: 'relative', maxHeight: '70vh', overflow: 'auto', border: '1px solid #ddd', padding: '8px', background: '#f8f8f8' }}>
-      {loading && <p>Carregando PDF...</p>}
-      {error && <p style={{ color: 'red' }}>{error}</p>}
+    <div className="pdf-region-selector">
+      <p className="pdf-region-selector-tip">
+        Clique e arraste para desenhar a área da tabela que será extraída.
+      </p>
+
+      {loading && <p className="pdf-region-selector-loading">Carregando PDF...</p>}
+      {error && <p className="pdf-region-selector-error">{error}</p>}
+
       <canvas
         ref={canvasRef}
-        style={{ border: '1px solid #ccc', width: '100%' }}
+        className="pdf-region-selector-canvas"
         onMouseDown={handleMouseDown}
         onMouseMove={handleMouseMove}
         onMouseUp={handleMouseUp}
+        aria-label="Área para seleção da região do PDF"
       />
+
       {rect && isDrawing && (
         <div
+          className="pdf-region-selector-overlay"
           style={{
-            position: 'absolute',
-            border: '2px solid red',
             left: rect.x0,
             top: rect.y0,
             width: rect.x1 - rect.x0,
             height: rect.y1 - rect.y0,
-            pointerEvents: 'none',
           }}
         />
       )}
-      <label style={{ display: 'block', marginTop: '0.5em' }}>
+
+      <label className="pdf-region-selector-apply-all">
         <input
           type="checkbox"
           checked={applyAll}
@@ -155,7 +166,7 @@ function PdfRegionSelector({
             setApplyAll(e.target.checked);
             if (onApplyAllChange) onApplyAllChange(e.target.checked);
           }}
-        />{' '}
+        />
         Aplicar esta seleção a todas as páginas
       </label>
     </div>

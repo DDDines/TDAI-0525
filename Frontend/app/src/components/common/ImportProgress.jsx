@@ -6,28 +6,50 @@ function ImportProgress({ fileId, onDone }) {
   const [error, setError] = useState('');
 
   useEffect(() => {
+    if (!fileId) return undefined;
+
     let timer;
+    let cancelled = false;
+
+    const stopPolling = () => {
+      if (timer) clearInterval(timer);
+    };
+
     const poll = async () => {
       try {
         const s = await fornecedorService.getImportacaoStatus(fileId);
+        if (cancelled) return;
+
         setStatus(s);
-        if (s.status === 'IMPORTED' || s.status === 'DONE') {
-          clearInterval(timer);
+        if (
+          s.status === 'IMPORTED' ||
+          s.status === 'DONE' ||
+          s.status === 'PARTIAL' ||
+          s.status === 'FAILED'
+        ) {
+          stopPolling();
           try {
             const result = await fornecedorService.getImportacaoResult(fileId);
-            if (onDone) onDone(result);
-          } catch (e) {
-            if (onDone) onDone(null);
+            if (!cancelled && onDone) onDone(result);
+          } catch {
+            if (!cancelled && onDone) onDone(null);
           }
         }
       } catch (e) {
-        setError(e.message || 'Erro ao consultar status');
-        clearInterval(timer);
+        if (!cancelled) {
+          setError(e.message || 'Erro ao consultar status');
+        }
+        stopPolling();
       }
     };
+
     poll();
     timer = setInterval(poll, 3000);
-    return () => clearInterval(timer);
+
+    return () => {
+      cancelled = true;
+      stopPolling();
+    };
   }, [fileId, onDone]);
 
   if (error) {
@@ -39,7 +61,7 @@ function ImportProgress({ fileId, onDone }) {
   return (
     <div>
       <p>
-        Processando {status.pages_processed} de {status.pages_total} páginas...
+        Status: {status.status} | Processando {status.pages_processed} de {status.pages_total} páginas...
       </p>
     </div>
   );

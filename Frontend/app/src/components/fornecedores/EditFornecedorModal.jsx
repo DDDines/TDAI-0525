@@ -1,13 +1,12 @@
-// Frontend/app/src/components/fornecedores/EditFornecedorModal.jsx
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { showErrorToast, showWarningToast } from '../../utils/notifications';
 import ImportCatalogWizard from './ImportCatalogWizard.jsx';
 import CatalogFileList from './CatalogFileList.jsx';
 import fornecedorService from '../../services/fornecedorService';
 
 function EditFornecedorModal({ isOpen, onClose, fornecedorData, onSave, isLoading }) {
-  const [formData, setFormData] = useState({ nome: '', site_url: ''});
-  const [activeTab, setActiveTab] = useState('info'); // 'info' | 'import' | 'files'
+  const [formData, setFormData] = useState({ nome: '', site_url: '' });
+  const [activeTab, setActiveTab] = useState('info');
   const [isImportWizardOpen, setIsImportWizardOpen] = useState(false);
   const [catalogFiles, setCatalogFiles] = useState([]);
   const [loadingFiles, setLoadingFiles] = useState(false);
@@ -19,38 +18,35 @@ function EditFornecedorModal({ isOpen, onClose, fornecedorData, onSave, isLoadin
         site_url: fornecedorData.site_url || '',
       });
       setActiveTab('info');
-    } else {
-      setFormData({ nome: '', site_url: ''});
+      return;
     }
+    setFormData({ nome: '', site_url: '' });
   }, [fornecedorData]);
 
-  const fetchFiles = async () => {
+  const fetchFiles = useCallback(async () => {
     if (!fornecedorData?.id) return;
     setLoadingFiles(true);
     try {
-      const data = await fornecedorService.getCatalogImportFiles({
-        fornecedor_id: fornecedorData.id,
-      });
+      const data = await fornecedorService.getCatalogImportFiles({ fornecedor_id: fornecedorData.id });
       setCatalogFiles(data.items || data);
     } catch (err) {
       console.error('Erro ao carregar arquivos de catálogo:', err);
     } finally {
       setLoadingFiles(false);
     }
-  };
+  }, [fornecedorData?.id]);
 
   useEffect(() => {
     if (isOpen && activeTab === 'files') {
       fetchFiles();
     }
-  }, [isOpen, activeTab, fornecedorData]);
+  }, [isOpen, activeTab, fetchFiles]);
 
-  const handleChange = e => {
+  const handleChange = (e) => {
     const { name, value } = e.target;
-    setFormData(prev => ({ ...prev, [name]: value }));
+    setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
-  
   const handleSubmit = () => {
     const trimmedNome = formData.nome?.trim();
     if (!trimmedNome) {
@@ -61,38 +57,31 @@ function EditFornecedorModal({ isOpen, onClose, fornecedorData, onSave, isLoadin
       showWarningToast('Nome deve ter pelo menos 2 caracteres.');
       return;
     }
-    
-    const payload = {
-        nome: trimmedNome,
-    };
 
-    let finalSiteUrl = null;
+    const payload = { nome: trimmedNome };
     const trimmedSiteUrlInput = formData.site_url?.trim();
 
-    if (trimmedSiteUrlInput && trimmedSiteUrlInput !== "") {
-      if (!trimmedSiteUrlInput.startsWith('http://') && !trimmedSiteUrlInput.startsWith('https://')) {
-        finalSiteUrl = 'http://' + trimmedSiteUrlInput;
-      } else {
-        finalSiteUrl = trimmedSiteUrlInput;
-      }
-      payload.site_url = finalSiteUrl;
+    if (trimmedSiteUrlInput) {
+      payload.site_url =
+        trimmedSiteUrlInput.startsWith('http://') || trimmedSiteUrlInput.startsWith('https://')
+          ? trimmedSiteUrlInput
+          : `http://${trimmedSiteUrlInput}`;
     } else {
-        payload.site_url = null;
+      payload.site_url = null;
     }
 
-    if (fornecedorData && fornecedorData.id) {
-        onSave(fornecedorData.id, payload);
-    } else {
-        console.error("ID do fornecedor não encontrado para atualização.");
-        showErrorToast("Erro: ID do fornecedor não encontrado.");
+    if (fornecedorData?.id) {
+      onSave(fornecedorData.id, payload);
+      return;
     }
+
+    console.error('ID do fornecedor não encontrado para atualização.');
+    showErrorToast('Erro: ID do fornecedor não encontrado.');
   };
 
   const handleReprocessFile = async (fileId) => {
     try {
-      await fornecedorService.reprocessCatalogFile(fileId, {
-        fornecedor_id: fornecedorData?.id,
-      });
+      await fornecedorService.reprocessCatalogFile(fileId, { fornecedor_id: fornecedorData?.id });
       await fetchFiles();
     } catch (err) {
       console.error('Erro ao reprocessar arquivo:', err);
@@ -108,7 +97,6 @@ function EditFornecedorModal({ isOpen, onClose, fornecedorData, onSave, isLoadin
     }
   };
 
-
   if (!isOpen || !fornecedorData) return null;
 
   return (
@@ -121,20 +109,34 @@ function EditFornecedorModal({ isOpen, onClose, fornecedorData, onSave, isLoadin
           onClick={onClose}
           disabled={isLoading}
         >
-          ×
+          &times;
         </button>
-        <h3>Editar Fornecedor: {fornecedorData.nome}</h3>
+        <h3>Editar fornecedor: {fornecedorData.nome}</h3>
+
         <div className="tab-navigation">
-          <button type="button" className={activeTab === 'info' ? 'active' : ''} onClick={() => setActiveTab('info')}>Info</button>
-          <button type="button" className={activeTab === 'import' ? 'active' : ''} onClick={() => setActiveTab('import')}>Importar Catálogo</button>
-          <button type="button" className={activeTab === 'files' ? 'active' : ''} onClick={() => setActiveTab('files')}>Arquivos</button>
+          <button type="button" className={activeTab === 'info' ? 'active' : ''} onClick={() => setActiveTab('info')}>
+            Info
+          </button>
+          <button type="button" className={activeTab === 'import' ? 'active' : ''} onClick={() => setActiveTab('import')}>
+            Importar Catálogo
+          </button>
+          <button type="button" className={activeTab === 'files' ? 'active' : ''} onClick={() => setActiveTab('files')}>
+            Arquivos
+          </button>
         </div>
 
         {activeTab === 'info' && (
           <div className="form-section">
             <div>
               <label htmlFor="edit-forn-nome">Nome*</label>
-              <input id="edit-forn-nome" name="nome" type="text" value={formData.nome || ''} onChange={handleChange} disabled={isLoading} />
+              <input
+                id="edit-forn-nome"
+                name="nome"
+                type="text"
+                value={formData.nome || ''}
+                onChange={handleChange}
+                disabled={isLoading}
+              />
             </div>
             <div>
               <label htmlFor="edit-forn-siteurl">Site URL</label>
@@ -148,7 +150,9 @@ function EditFornecedorModal({ isOpen, onClose, fornecedorData, onSave, isLoadin
                 disabled={isLoading}
               />
             </div>
-            <button onClick={handleSubmit} disabled={isLoading}>{isLoading ? 'Salvando...' : 'Salvar Alterações'}</button>
+            <button onClick={handleSubmit} disabled={isLoading}>
+              {isLoading ? 'Salvando...' : 'Salvar alterações'}
+            </button>
           </div>
         )}
 
@@ -162,13 +166,13 @@ function EditFornecedorModal({ isOpen, onClose, fornecedorData, onSave, isLoadin
         )}
 
         {activeTab === 'files' && (
-          <div className="form-section" style={{ marginTop: '1em' }}>
+          <div className="form-section catalog-files-section">
             <button
               type="button"
+              className="catalog-files-add-btn"
               onClick={() => setIsImportWizardOpen(true)}
-              style={{ marginBottom: '0.5em' }}
             >
-              Adicionar Arquivo
+              Adicionar arquivo
             </button>
             {loadingFiles ? (
               <p>Carregando...</p>
@@ -181,6 +185,7 @@ function EditFornecedorModal({ isOpen, onClose, fornecedorData, onSave, isLoadin
             )}
           </div>
         )}
+
         <ImportCatalogWizard
           fornecedor={fornecedorData}
           onClose={() => setIsImportWizardOpen(false)}

@@ -1,20 +1,19 @@
-// Frontend/app/src/pages/TiposProdutoPage.jsx
+﻿// Frontend/app/src/pages/TiposProdutoPage.jsx
 import React, { useState, useEffect } from 'react';
 import { useProductTypes } from '../contexts/ProductTypeContext';
 import { showErrorToast, showSuccessToast } from '../utils/notifications';
 import productTypeService from '../services/productTypeService';
 import EditProductTypeModal from '../components/product_types/EditProductTypeModal.jsx';
 import NewProductTypeModal from '../components/product_types/NewProductTypeModal.jsx';
-
 import AttributeTemplateList from '../components/product_types/AttributeTemplateList';
 import AttributeTemplateModal from '../components/product_types/AttributeTemplateModal';
-
+import { LuPencil, LuTrash2 } from 'react-icons/lu';
 import './TiposProdutoPage.css';
 import LoadingOverlay from '../components/common/LoadingOverlay.jsx';
 
 function TiposProdutoPage() {
   const { productTypes, isLoading, error, refreshProductTypes, updateProductType } = useProductTypes();
-  
+
   const [selectedProductType, setSelectedProductType] = useState(null);
   const [isAttributeModalOpen, setIsAttributeModalOpen] = useState(false);
   const [editingAttribute, setEditingAttribute] = useState(null);
@@ -24,10 +23,9 @@ function TiposProdutoPage() {
   const [isEditTypeModalOpen, setIsEditTypeModalOpen] = useState(false);
   const [editingType, setEditingType] = useState(null);
 
-  // Atualiza os detalhes do tipo selecionado se a lista geral for atualizada
   useEffect(() => {
     if (selectedProductType) {
-      const updatedType = productTypes.find(pt => pt.id === selectedProductType.id);
+      const updatedType = productTypes.find((pt) => pt.id === selectedProductType.id);
       setSelectedProductType(updatedType || null);
     }
   }, [productTypes, selectedProductType]);
@@ -53,7 +51,6 @@ function TiposProdutoPage() {
     setSelectedProductType(newType);
   };
 
-  
   const handleDeleteType = async (typeId, typeName) => {
     if (window.confirm(`Tem certeza que deseja deletar o tipo de produto "${typeName}"? Isso não poderá ser desfeito.`)) {
       try {
@@ -72,7 +69,7 @@ function TiposProdutoPage() {
   const handleSelectType = (type) => {
     setSelectedProductType(type);
   };
-  
+
   const handleOpenAttributeModal = (attribute = null) => {
     setEditingAttribute(attribute);
     setIsAttributeModalOpen(true);
@@ -90,8 +87,8 @@ function TiposProdutoPage() {
       await updateProductType(editingType.id, payload);
       refreshProductTypes();
       handleCloseEditTypeModal();
-    } catch (err) {
-      // Toasts são tratados no contexto
+    } catch {
+      // toasts tratados no contexto
     } finally {
       setIsSubmitting(false);
     }
@@ -99,7 +96,7 @@ function TiposProdutoPage() {
 
   const handleSaveAttribute = async (attributeData) => {
     if (!selectedProductType) {
-      showErrorToast("Nenhum tipo de produto selecionado.");
+      showErrorToast('Nenhum tipo de produto selecionado.');
       return;
     }
 
@@ -107,15 +104,15 @@ function TiposProdutoPage() {
     try {
       if (editingAttribute) {
         await productTypeService.updateAttributeInType(selectedProductType.id, editingAttribute.id, attributeData);
-        showSuccessToast("Atributo atualizado com sucesso!");
+        showSuccessToast('Atributo atualizado com sucesso!');
       } else {
         await productTypeService.addAttributeToType(selectedProductType.id, attributeData);
-        showSuccessToast("Atributo adicionado com sucesso!");
+        showSuccessToast('Atributo adicionado com sucesso!');
       }
       refreshProductTypes();
       handleCloseAttributeModal();
     } catch (err) {
-      const errorMsg = err.response?.data?.detail || "Falha ao salvar o atributo.";
+      const errorMsg = err.response?.data?.detail || 'Falha ao salvar o atributo.';
       showErrorToast(errorMsg);
     } finally {
       setIsSubmitting(false);
@@ -123,27 +120,27 @@ function TiposProdutoPage() {
   };
 
   const handleDeleteAttribute = async (attributeId) => {
-     if (!selectedProductType) return;
-     if (window.confirm(`Tem certeza que deseja remover este atributo do template?`)) {
-       try {
-         await productTypeService.removeAttributeFromType(selectedProductType.id, attributeId);
-         showSuccessToast("Atributo removido com sucesso.");
-         refreshProductTypes();
-       } catch (err) {
-         const errorMsg = err.response?.data?.detail || "Falha ao remover o atributo.";
-         showErrorToast(errorMsg);
-       }
-     }
+    if (!selectedProductType) return;
+    if (window.confirm('Tem certeza que deseja remover este atributo do template?')) {
+      try {
+        await productTypeService.removeAttributeFromType(selectedProductType.id, attributeId);
+        showSuccessToast('Atributo removido com sucesso.');
+        refreshProductTypes();
+      } catch (err) {
+        const errorMsg = err.response?.data?.detail || 'Falha ao remover o atributo.';
+        showErrorToast(errorMsg);
+      }
+    }
   };
 
   const handleReorderAttribute = async (attributeId, direction) => {
     if (!selectedProductType) return;
     try {
       await productTypeService.reorderAttributeInType(selectedProductType.id, attributeId, direction);
-      showSuccessToast("Ordem do atributo atualizada.");
+      showSuccessToast('Ordem do atributo atualizada.');
       refreshProductTypes();
     } catch (err) {
-      const errorMsg = err.response?.data?.detail || "Falha ao reordenar o atributo.";
+      const errorMsg = err.response?.data?.detail || 'Falha ao reordenar o atributo.';
       showErrorToast(errorMsg);
     }
   };
@@ -157,14 +154,14 @@ function TiposProdutoPage() {
   }
 
   return (
-    <div className="tipos-produto-container">
-      <div className="tipos-produto-header">
-        <h1>Gerenciar Tipos de Produto</h1>
+    <div className="app-page-shell tipos-produto-container">
+      <div className="app-page-header tipos-produto-header">
+        <h2 className="app-page-heading">Gerenciar Tipos de Produto</h2>
         <button onClick={handleOpenNewTypeModal} className="tipos-produto-button">
           + Novo Tipo de Produto
         </button>
       </div>
-      
+
       <div className="type-management-container">
         <div className="type-list-panel">
           <h4>Tipos Cadastrados</h4>
@@ -172,16 +169,37 @@ function TiposProdutoPage() {
             <p>Nenhum tipo cadastrado.</p>
           ) : (
             <ul>
-              {productTypes.map(type => (
+              {productTypes.map((type) => (
                 <li
                   key={type.id}
                   onClick={() => handleSelectType(type)}
                   className={selectedProductType?.id === type.id ? 'selected' : ''}
                 >
-                  <span>{type.friendly_name} <span className="usage-count">({type.attribute_templates?.length || 0} attrs)</span></span>
+                  <span>
+                    {type.friendly_name}{' '}
+                    <span className="usage-count">({type.attribute_templates?.length || 0} atrib.)</span>
+                  </span>
                   <span className="type-actions">
-                    <button onClick={(e) => { e.stopPropagation(); handleOpenEditTypeModal(type); }} title="Editar Tipo" className="btn-icon">✏️</button>
-                    <button onClick={(e) => { e.stopPropagation(); handleDeleteType(type.id, type.friendly_name); }} title="Deletar Tipo" className="btn-icon">🗑️</button>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleOpenEditTypeModal(type);
+                      }}
+                      title="Editar tipo"
+                      className="btn-icon"
+                    >
+                      <LuPencil />
+                    </button>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleDeleteType(type.id, type.friendly_name);
+                      }}
+                      title="Deletar tipo"
+                      className="btn-icon"
+                    >
+                      <LuTrash2 />
+                    </button>
                   </span>
                 </li>
               ))}
@@ -194,7 +212,9 @@ function TiposProdutoPage() {
             <>
               <div className="panel-header">
                 <h5>Atributos para: {selectedProductType.friendly_name}</h5>
-                <button className="btn-small btn-primary" onClick={() => handleOpenAttributeModal(null)}>+ Novo Atributo</button>
+                <button className="btn-small btn-primary" onClick={() => handleOpenAttributeModal(null)}>
+                  + Novo Atributo
+                </button>
               </div>
               <AttributeTemplateList
                 attributes={selectedProductType.attribute_templates}
@@ -204,18 +224,14 @@ function TiposProdutoPage() {
               />
             </>
           ) : (
-            <p style={{ textAlign: 'center', color: 'var(--text-color-light)', paddingTop: '2rem' }}>
+            <p className="type-empty-state">
               Selecione um tipo de produto da lista para ver e gerenciar seus atributos.
             </p>
           )}
         </div>
       </div>
 
-      <NewProductTypeModal
-        isOpen={isNewTypeModalOpen}
-        onClose={handleCloseNewTypeModal}
-        onCreated={handleNewTypeCreated}
-      />
+      <NewProductTypeModal isOpen={isNewTypeModalOpen} onClose={handleCloseNewTypeModal} onCreated={handleNewTypeCreated} />
 
       {isEditTypeModalOpen && (
         <EditProductTypeModal
@@ -226,7 +242,6 @@ function TiposProdutoPage() {
           isSubmitting={isSubmitting}
         />
       )}
-
 
       {isAttributeModalOpen && (
         <AttributeTemplateModal

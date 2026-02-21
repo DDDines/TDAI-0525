@@ -1,32 +1,36 @@
-// Frontend/app/src/components/produtos/ProductTable.jsx
+﻿// Frontend/app/src/components/produtos/ProductTable.jsx
 import React from 'react';
-import './ProductTable.css'; // Seu CSS para a tabela. Deve existir em src/components/produtos/ProductTable.css
+import './ProductTable.css';
 import LoadingPopup from '../common/LoadingPopup.jsx';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import logger from '../../utils/logger';
+import { LuPencil } from 'react-icons/lu';
 
 const STATUS_CONFIG = {
-  NAO_INICIADO: { class: 'grey', text: '➖', title: 'Não Iniciado' },
-  PENDENTE: { class: 'orange', text: '⏳', title: 'Pendente' },
-  EM_PROGRESSO: { class: 'blue', text: '⚙️', title: 'Em Progresso' },
-  CONCLUIDO: { class: 'green', text: '✔️', title: 'Concluído' },
-  CONCLUIDO_SUCESSO: { class: 'green', text: '✔️', title: 'Concluído' },
-  CONCLUIDO_COM_DADOS_PARCIAIS: { class: 'blue', text: '✔️', title: 'Parcial' },
-  FALHA: { class: 'red', text: '❌', title: 'Falha' },
-  FALHOU: { class: 'red', text: '❌', title: 'Falhou' },
-  FALHA_API_EXTERNA: { class: 'red', text: '❌', title: 'Falha API Externa' },
-  FALHA_CONFIGURACAO_API_EXTERNA: { class: 'red', text: '❌', title: 'Falha Configuração API' },
-  NENHUMA_FONTE_ENCONTRADA: { class: 'grey', text: '➖', title: 'Fonte Não Encontrada' },
-  NAO_APLICAVEL: { class: 'grey', text: '➖', title: 'Não Aplicável' },
+  NAO_INICIADO: { class: 'grey', text: '-', title: 'Não iniciado' },
+  PENDENTE: { class: 'orange', text: 'P', title: 'Pendente' },
+  EM_PROGRESSO: { class: 'blue', text: '...', title: 'Em progresso' },
+  CONCLUIDO: { class: 'green', text: 'OK', title: 'Concluído' },
+  CONCLUIDO_SUCESSO: { class: 'green', text: 'OK', title: 'Concluído' },
+  CONCLUIDO_COM_DADOS_PARCIAIS: { class: 'blue', text: 'PAR', title: 'Concluído com dados parciais' },
+  FALHA: { class: 'red', text: 'X', title: 'Falha' },
+  FALHOU: { class: 'red', text: 'X', title: 'Falhou' },
+  FALHA_API_EXTERNA: { class: 'red', text: 'X', title: 'Falha de API externa' },
+  FALHA_CONFIGURACAO_API_EXTERNA: { class: 'red', text: 'X', title: 'Falha de configuração da API' },
+  NENHUMA_FONTE_ENCONTRADA: { class: 'grey', text: '-', title: 'Nenhuma fonte encontrada' },
+  NAO_APLICAVEL: { class: 'grey', text: '-', title: 'Não aplicável' },
 };
 
 const StatusIcon = ({ status }) => {
   const cfg = STATUS_CONFIG[status] || { class: 'grey', text: '?', title: 'Desconhecido' };
   const { class: colorClass, text, title } = cfg;
-  return <span className={`status-icon ${colorClass}`} title={title}>{text}</span>;
+  return (
+    <span className={`status-icon ${colorClass}`} title={title}>
+      {text}
+    </span>
+  );
 };
-
 
 function ProductTable({
   produtos,
@@ -35,75 +39,98 @@ function ProductTable({
   sortConfig,
   onSelectProduto,
   selectedProdutos,
-  onSelectAllProdutos, 
-  loading, 
+  onSelectAllProdutos,
+  loading,
+  isLoading,
 }) {
-  logger.log('ProductTable: Props recebidos - produtos:', produtos);
-  logger.log('ProductTable: Props recebidos - loading:', loading);
-  logger.log('ProductTable: Props recebidos - selectedProdutos:', selectedProdutos);
+  const tableLoading = Boolean(loading || isLoading);
+
+  logger.log('ProductTable: produtos:', produtos);
+  logger.log('ProductTable: loading:', tableLoading);
+  logger.log('ProductTable: selectedProdutos:', selectedProdutos);
 
   const getSortDirectionIcon = (key) => {
-    if (sortConfig.key === key) {
+    if (sortConfig?.key === key) {
       return sortConfig.direction === 'ascending' ? ' ▲' : ' ▼';
     }
-    return ''; 
+    return '';
   };
 
-  const isAllSelected = produtos && produtos.length > 0 && selectedProdutos.size === produtos.length;
+  const safeProdutos = Array.isArray(produtos) ? produtos : [];
+  const selectedSet = selectedProdutos instanceof Set ? selectedProdutos : new Set();
+  const isAllSelected = safeProdutos.length > 0 && selectedSet.size === safeProdutos.length;
 
   const renderTableHeader = () => (
     <thead>
       <tr>
         <th>
-          <input 
-            type="checkbox" 
+          <input
+            type="checkbox"
             checked={isAllSelected}
             onChange={(e) => onSelectAllProdutos(e.target.checked)}
-            disabled={!produtos || produtos.length === 0 || loading}
+            disabled={safeProdutos.length === 0 || tableLoading}
           />
         </th>
-        <th onClick={() => onSort('id')}>ID {getSortDirectionIcon('id')}</th>
-        <th onClick={() => onSort('nome_base')}>Nome Base {getSortDirectionIcon('nome_base')}</th>
-        <th onClick={() => onSort('sku')}>SKU {getSortDirectionIcon('sku')}</th>
-        <th onClick={() => onSort('fornecedor_id')}>Fornecedor {getSortDirectionIcon('fornecedor_id')}</th>
-        <th onClick={() => onSort('status_enriquecimento_web')}>Status Web {getSortDirectionIcon('status_enriquecimento_web')}</th>
-        <th onClick={() => onSort('status_titulo_ia')}>Status Título {getSortDirectionIcon('status_titulo_ia')}</th>
-        <th onClick={() => onSort('status_descricao_ia')}>Status Desc. {getSortDirectionIcon('status_descricao_ia')}</th>
-        <th onClick={() => onSort('data_atualizacao')}>Atualizado em {getSortDirectionIcon('data_atualizacao')}</th>
+        <th onClick={() => onSort('id')}>ID{getSortDirectionIcon('id')}</th>
+        <th onClick={() => onSort('nome_base')}>Nome Base{getSortDirectionIcon('nome_base')}</th>
+        <th onClick={() => onSort('sku')}>SKU{getSortDirectionIcon('sku')}</th>
+        <th onClick={() => onSort('fornecedor_id')}>Fornecedor{getSortDirectionIcon('fornecedor_id')}</th>
+        <th onClick={() => onSort('status_enriquecimento_web')}>Status Web{getSortDirectionIcon('status_enriquecimento_web')}</th>
+        <th onClick={() => onSort('status_titulo_ia')}>Status Título{getSortDirectionIcon('status_titulo_ia')}</th>
+        <th onClick={() => onSort('status_descricao_ia')}>Status Descrição{getSortDirectionIcon('status_descricao_ia')}</th>
+        <th onClick={() => onSort('data_atualizacao')}>Atualizado Em{getSortDirectionIcon('data_atualizacao')}</th>
         <th>Ações</th>
       </tr>
     </thead>
   );
 
   const renderTableBody = () => {
-    if (loading && (!produtos || produtos.length === 0)) {
-        return <tbody><tr><td colSpan="10" style={{ textAlign: 'center', padding: '20px' }}><LoadingPopup isOpen={true} message="Carregando produtos..." /></td></tr></tbody>;
+    if (tableLoading && safeProdutos.length === 0) {
+      return (
+        <tbody>
+          <tr>
+            <td colSpan="10" className="table-cell-message">
+              <LoadingPopup isOpen={true} message="Carregando produtos..." />
+            </td>
+          </tr>
+        </tbody>
+      );
     }
-    if (!produtos || produtos.length === 0) {
-      return <tbody><tr><td colSpan="10" style={{ textAlign: 'center', padding: '20px' }}>Nenhum produto encontrado.</td></tr></tbody>;
+
+    if (safeProdutos.length === 0) {
+      return (
+        <tbody>
+          <tr>
+            <td colSpan="10" className="table-cell-message">
+              Nenhum produto encontrado.
+            </td>
+          </tr>
+        </tbody>
+      );
     }
+
     return (
       <tbody>
-        {produtos.map((produto) => (
-          <tr key={produto.id} className={selectedProdutos.has(produto.id) ? 'selected-row' : ''}>
+        {safeProdutos.map((produto) => (
+          <tr key={produto.id} className={selectedSet.has(produto.id) ? 'selected-row' : ''}>
             <td>
-              <input 
+              <input
                 type="checkbox"
-                checked={selectedProdutos.has(produto.id)}
+                checked={selectedSet.has(produto.id)}
                 onChange={() => onSelectProduto(produto.id)}
               />
             </td>
             <td>{produto.id}</td>
             <td>{produto.nome_base || '--'}</td>
             <td>{produto.sku || '--'}</td>
-            <td>{produto.fornecedor_id ? `ID: ${produto.fornecedor_id}` : '--'}</td> 
+            <td>{produto.fornecedor_id ? `ID: ${produto.fornecedor_id}` : '--'}</td>
             <td><StatusIcon status={produto.status_enriquecimento_web} /></td>
             <td><StatusIcon status={produto.status_titulo_ia} /></td>
             <td><StatusIcon status={produto.status_descricao_ia} /></td>
             <td>{produto.data_atualizacao ? format(new Date(produto.data_atualizacao), 'dd/MM/yyyy HH:mm', { locale: ptBR }) : '--'}</td>
             <td>
-              <button onClick={() => onEdit(produto)} className="btn-icon btn-edit" title="Editar Produto">
-                ✏️
+              <button onClick={() => onEdit(produto)} className="btn-icon btn-edit" title="Editar produto">
+                <LuPencil />
               </button>
             </td>
           </tr>

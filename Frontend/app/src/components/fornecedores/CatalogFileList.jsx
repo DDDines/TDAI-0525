@@ -1,6 +1,7 @@
 import React from 'react';
 import { format } from 'date-fns';
 import getBackendBaseUrl from '../../utils/backend.js';
+import './CatalogFileList.css';
 
 function CatalogFileList({ files = [], onReprocess, onDelete }) {
   const backendBaseUrl = getBackendBaseUrl();
@@ -20,29 +21,36 @@ function CatalogFileList({ files = [], onReprocess, onDelete }) {
         </tr>
       </thead>
       <tbody>
-        {files.map((f) => (
-          <tr key={f.id}>
-            <td>{f.original_filename}</td>
-            <td>{f.status}</td>
-            <td>{format(new Date(f.created_at), 'dd/MM/yyyy HH:mm')}</td>
+        {files.map((file) => (
+          <tr key={file.id}>
+            <td>{file.original_filename}</td>
+            <td>{file.status}</td>
+            <td>{format(new Date(file.created_at), 'dd/MM/yyyy HH:mm')}</td>
             <td>
               <a
-                href={`${backendBaseUrl}/static/uploads/catalogs/${f.stored_filename}`}
+                href={`${backendBaseUrl}/static/uploads/catalogs/${file.stored_filename}`}
                 target="_blank"
                 rel="noopener noreferrer"
               >
-                {f.stored_filename}
+                {file.stored_filename}
               </a>
             </td>
             {(onReprocess || onDelete) && (
-              <td>
+              <td className="catalog-file-actions-cell">
                 {onReprocess && (
-                  <button onClick={() => onReprocess(f.id)}>Reprocessar</button>
+                  <button
+                    type="button"
+                    className="catalog-file-action"
+                    onClick={() => onReprocess(file.id)}
+                  >
+                    Reprocessar
+                  </button>
                 )}
                 {onDelete && (
                   <button
-                    onClick={() => onDelete(f.id)}
-                    style={{ marginLeft: '0.5em' }}
+                    type="button"
+                    className="catalog-file-action catalog-file-action-danger"
+                    onClick={() => onDelete(file.id)}
                   >
                     Excluir
                   </button>

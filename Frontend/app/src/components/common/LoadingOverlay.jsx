@@ -8,7 +8,7 @@ function LoadingOverlay({ isOpen, message = 'Carregando...' }) {
   return (
     <div className="modal-overlay loading-overlay">
       <div className="loading-overlay-content">
-        <img src={LogoImg} alt="CatalogAI logo" className="loading-logo" />
+        {LogoImg ? <img src={LogoImg} alt="CatalogAI logo" className="loading-logo" /> : null}
         <div className="loading-spinner" />
         <p>{message}</p>
       </div>

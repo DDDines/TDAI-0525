@@ -1,0 +1,29 @@
+﻿{
+  "simulation": "file_id_162_full_pdf_no_db_write",
+  "date": "2026-02-19",
+  "mapping": {
+    "col_0": "auto:sku_nome",
+    "col_1": "attr:codigo_original",
+    "col_3": "attr:material",
+    "col_5": "attr:aplicacao"
+  },
+  "region_norm": [0.03923766816143498, 0.20352119651347067, 1.2399103139013452, 0.8976574881141046],
+  "pages": 231,
+  "totals": {
+    "rows": 3480,
+    "ok": 2817,
+    "ignored_non_critical": 663,
+    "critical_errors": 0
+  },
+  "top_reasons": [
+    ["Linha descartada por baixa qualidade: nome fraco sem SKU/EAN", 316],
+    ["Faltam nome_base e sku_original", 296],
+    ["Linha descartada por baixa qualidade: SKU muito curto", 39],
+    ["Nenhum dado de produto pôde ser extraído do PDF (pode estar protegido, vazio ou somente imagem sem OCR).", 8],
+    ["Linha descartada por baixa qualidade: nome sem conteudo", 4]
+  ],
+  "notes": [
+    "Simulação executada com processar_arquivo_pdf + saneamento + filtro de qualidade + validação ProdutoCreate.",
+    "Não houve escrita em banco durante esta simulação."
+  ]
+}

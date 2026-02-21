@@ -1,7 +1,7 @@
-/* Frontend/app/src/components/produtos/ProductTable.css */
+﻿/* Frontend/app/src/components/produtos/ProductTable.css */
 
 .table-responsive {
-  overflow-x: auto; /* Permite rolagem horizontal em telas menores */
+  overflow-x: auto;
   background-color: #fff;
   border-radius: var(--radius);
   box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
@@ -9,7 +9,7 @@
 
 .product-table {
   width: 100%;
-  border-collapse: collapse; /* Remove espaços entre as células */
+  border-collapse: collapse;
   font-size: 0.9rem;
   color: #374151;
 }
@@ -18,16 +18,16 @@
 .product-table td {
   padding: 12px 15px;
   text-align: left;
-  border-bottom: 1px solid #e5e7eb; /* Linhas divisórias sutis */
-  white-space: nowrap; /* Evita quebra de linha no conteúdo da célula por padrão */
+  border-bottom: 1px solid #e5e7eb;
+  white-space: nowrap;
 }
 
 .product-table thead th {
-  background-color: #f9fafb; /* Fundo levemente acinzentado para o cabeçalho */
+  background-color: #f9fafb;
   font-weight: 600;
   color: #111827;
-  cursor: pointer; /* Indica que as colunas são clicáveis para ordenação */
-  user-select: none; /* Evita seleção de texto no header */
+  cursor: pointer;
+  user-select: none;
 }
 
 .product-table thead th:hover {
@@ -35,39 +35,37 @@
 }
 
 .product-table tbody tr:hover {
-  background-color: #f3f4f6; /* Destaque suave ao passar o mouse */
+  background-color: #f3f4f6;
 }
 
 .product-table tbody tr.selected-row {
-  background-color: #e0e7ff; /* Cor para linha selecionada */
-  /* Adicionar !important se o hover estiver sobrescrevendo */
+  background-color: #e0e7ff;
 }
+
 .product-table tbody tr.selected-row:hover {
-  background-color: #c7d2fe; 
+  background-color: #c7d2fe;
 }
 
-
-.product-table td:first-child, /* Checkbox e ID */
+.product-table td:first-child,
 .product-table th:first-child,
-.product-table td:nth-child(2), 
+.product-table td:nth-child(2),
 .product-table th:nth-child(2) {
-  white-space: normal; /* Permite quebra se necessário para IDs longos */
+  white-space: normal;
 }
 
-.product-table td:nth-child(3) { /* Coluna Nome Base */
-   min-width: 200px; /* Dar mais espaço para o nome */
-   white-space: normal; /* Permite quebra de linha para nomes longos */
+.product-table td:nth-child(3) {
+  min-width: 200px;
+  white-space: normal;
 }
-
 
 .status-icon {
   display: inline-block;
   padding: 3px 6px;
-  border-radius: var(--radius-sm); /* Raio menor para ícones */
-  font-size: 0.8em;
+  border-radius: var(--radius-sm);
+  font-size: 0.75em;
   font-weight: bold;
-  /* Para os emojis não ficarem muito grandes e coloridos demais */
-  filter: grayscale(30%); 
+  min-width: 32px;
+  text-align: center;
 }
 
 .status-icon.grey { background-color: #e5e7eb; color: #4b5563; }
@@ -76,20 +74,23 @@
 .status-icon.green { background-color: #d1fae5; color: #057a55; }
 .status-icon.red { background-color: #fee2e2; color: #b91c1c; }
 
-
 .btn-icon {
   background: none;
   border: none;
   cursor: pointer;
   padding: 5px;
-  font-size: 1.2rem; /* Tamanho do emoji/ícone */
+  font-size: 1.1rem;
   color: #6b7280;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .btn-icon:hover {
   color: var(--primary);
 }
 
-.btn-edit {
-  /* Estilos específicos se necessário, senão herda de btn-icon */
+.btn-icon svg {
+  width: 1rem;
+  height: 1rem;
 }

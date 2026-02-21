@@ -1,7 +1,7 @@
 # catalogai_project/Backend/database.py
 from sqlalchemy import create_engine
-from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.orm import sessionmaker
+from sqlalchemy.orm import declarative_base, sessionmaker
+from sqlalchemy.pool import StaticPool
 
 # CORREÇÃO: 'core' é uma subpasta de 'Backend/' (onde este arquivo database.py está,
 # e que será o CWD quando rodarmos via run_backend.py).
@@ -11,6 +11,8 @@ from Backend.core.config import settings #
 engine_args = {}
 if settings.DATABASE_URL.startswith("sqlite"):
     engine_args["connect_args"] = {"check_same_thread": False}
+    if ":memory:" in settings.DATABASE_URL:
+        engine_args["poolclass"] = StaticPool
 
 engine = create_engine(settings.DATABASE_URL, **engine_args)
 

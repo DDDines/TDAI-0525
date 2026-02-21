@@ -15,6 +15,7 @@ import base64
 import os
 import re
 import tempfile
+import unicodedata
 
 import asyncio
 
@@ -124,7 +125,7 @@ async def save_uploaded_catalog(
 
 ) -> models.CatalogImportFile:
 
-    """Salva o arquivo de catÃƒÂ¡logo no disco e retorna um objeto CatalogImportFile.
+    """Salva o arquivo de catálogo no disco e retorna um objeto CatalogImportFile.
 
 
 
@@ -134,11 +135,11 @@ async def save_uploaded_catalog(
 
     file: UploadFile
 
-        Arquivo recebido na requisiÃƒÂ§ÃƒÂ£o.
+        Arquivo recebido na requisição.
 
     fornecedor_id: Optional[int]
 
-        Identificador do fornecedor para o qual o catÃƒÂ¡logo serÃƒÂ¡ importado.
+        Identificador do fornecedor para o qual o catálogo será importado.
 
     """
 
@@ -216,7 +217,7 @@ def _limpar_valor_extraido(valor: Any) -> Optional[str]:
 
         s = str(valor).strip()
 
-        # Considerar 'nan', 'None' (string), '' como nulos apÃƒÂ³s strip
+        # Considerar 'nan', 'None' (string), '' como nulos após strip
 
         if s.lower() in [
 
@@ -247,7 +248,7 @@ def _limpar_valor_extraido(valor: Any) -> Optional[str]:
 
 
 def _valor_tem_conteudo_util(valor: Any) -> bool:
-    """Retorna True para valores ÃƒÂºteis (evita lixo de OCR como '!' ou '-')."""
+    """Retorna True para valores úteis (evita lixo de OCR como '!' ou '-')."""
     if valor is None:
         return False
     s = str(valor).strip()
@@ -345,13 +346,21 @@ def _coerce_region_bbox(
 def _token_looks_like_code(token: str) -> bool:
     """Heuristica para identificar token de codigo/SKU."""
     t = token.strip().upper()
-    if not t or "/" in t or len(t) > 10:
+    if not t or len(t) > 32:
         return False
-    if not re.fullmatch(r"[0-9A-Z.\-]+", t):
+    if not re.fullmatch(r"[0-9A-Z./\-]+", t):
         return False
-    if any(ch.isdigit() for ch in t):
+    digits = sum(1 for ch in t if ch.isdigit())
+    letters = sum(1 for ch in t if ch.isalpha())
+    if digits >= 2:
         return True
-    return len(t) <= 2 and t.isalpha()
+    # Ex.: A1, 1D, X3
+    if digits == 1 and letters >= 1 and len(t) <= 6:
+        return True
+    # Ex.: D / E / LD / LE (lado direito/esquerdo em catalogos automotivos).
+    if digits == 0 and t in {"D", "E", "LD", "LE", "RH", "LH", "DIR", "ESQ"}:
+        return True
+    return False
 
 
 def _split_sku_nome_auto(value: str) -> tuple[Optional[str], Optional[str]]:
@@ -364,11 +373,12 @@ def _split_sku_nome_auto(value: str) -> tuple[Optional[str], Optional[str]]:
     nome_tokens: List[str] = []
 
     for tok in tokens:
+        if tok in {"_", "-", "--", "|", "¦"}:
+            continue
         has_lower = any(ch.isalpha() and ch.islower() for ch in tok)
-        has_slash = "/" in tok
 
         if not nome_tokens:
-            if (has_lower or has_slash) and sku_tokens:
+            if has_lower and sku_tokens:
                 nome_tokens.append(tok)
                 continue
 
@@ -386,6 +396,8 @@ def _split_sku_nome_auto(value: str) -> tuple[Optional[str], Optional[str]]:
 
     sku = " ".join(sku_tokens).strip() or None
     nome = " ".join(nome_tokens).strip() or None
+    if nome:
+        nome = re.sub(r"^[\W_]+", "", nome).strip() or None
 
     if not sku and nome:
         return None, nome
@@ -424,6 +436,11 @@ def _processar_linha_padronizada(
         "ref": "sku_original",
         "referencia": "sku_original",
         "referencia": "sku_original",
+        "n fab": "auto:sku_nome",
+        "n_fab": "auto:sku_nome",
+        "no fab": "auto:sku_nome",
+        "nfab": "auto:sku_nome",
+        "fab": "auto:sku_nome",
         "marca": "marca",
         "fabricante": "marca",
         "brand": "marca",
@@ -439,6 +456,15 @@ def _processar_linha_padronizada(
         "preco": "preco_original",
         "price": "preco_original",
         "valor": "preco_original",
+        "n original": "attr:codigo_original",
+        "n_original": "attr:codigo_original",
+        "numero original": "attr:codigo_original",
+        "cod original": "attr:codigo_original",
+        "codigo original": "attr:codigo_original",
+        "original": "attr:codigo_original",
+        "aplicacao": "attr:aplicacao",
+        "application": "attr:aplicacao",
+        "material": "attr:material",
         "url_imagem": "imagem_url_original",
         "imagem": "imagem_url_original",
         "image_url": "imagem_url_original",
@@ -460,13 +486,28 @@ def _processar_linha_padronizada(
         "nome": "nome_base",
     }
 
+    fallback_dynamic_by_column = {
+        "aplicacao": "aplicacao",
+        "application": "aplicacao",
+        "material": "material",
+        "n original": "codigo_original",
+        "numero original": "codigo_original",
+        "codigo original": "codigo_original",
+        "original": "codigo_original",
+    }
+    fallback_sku_columns = {"n fab", "no fab", "nfab", "fab"}
+
     for nome_coluna_original, valor_original in linha_original.items():
         valor_limpo = _limpar_valor_extraido(valor_original)
         if valor_limpo is None:
             continue
 
         nome_coluna_norm = str(nome_coluna_original).lower().strip()
-        campo_produto_destino = mapeamento_final.get(nome_coluna_norm)
+        nome_coluna_flat = re.sub(r"[^a-z0-9]+", " ", nome_coluna_norm).strip()
+        campo_produto_destino = (
+            mapeamento_final.get(nome_coluna_norm)
+            or mapeamento_final.get(nome_coluna_flat)
+        )
         if campo_produto_destino:
             campo_produto_destino = aliases_destino.get(
                 str(campo_produto_destino).strip().lower(),
@@ -491,12 +532,56 @@ def _processar_linha_padronizada(
                 if attr_key:
                     dynamic_attributes[attr_key] = valor_limpo
             else:
+                if dest_norm == "nome_base":
+                    sku_auto, nome_auto = _split_sku_nome_auto(valor_limpo)
+                    if sku_auto and nome_auto:
+                        if not produto_dados_padronizados.get("sku_original"):
+                            produto_dados_padronizados["sku_original"] = sku_auto
+                        if not produto_dados_padronizados.get("nome_base"):
+                            produto_dados_padronizados["nome_base"] = nome_auto
+                        continue
+                if dest_norm == "sku_original":
+                    sku_auto, nome_auto = _split_sku_nome_auto(valor_limpo)
+                    if sku_auto:
+                        if not produto_dados_padronizados.get("sku_original"):
+                            produto_dados_padronizados["sku_original"] = sku_auto
+                        if nome_auto and not produto_dados_padronizados.get("nome_base"):
+                            produto_dados_padronizados["nome_base"] = nome_auto
+                        continue
+                if dest_norm == "descricao_original":
+                    descricao_existente = _limpar_valor_extraido(
+                        produto_dados_padronizados.get("descricao_original")
+                    )
+                    if descricao_existente:
+                        partes_existentes = [
+                            parte.strip()
+                            for parte in str(descricao_existente).split("|")
+                            if parte and parte.strip()
+                        ]
+                        if valor_limpo not in partes_existentes:
+                            produto_dados_padronizados["descricao_original"] = (
+                                f"{descricao_existente} | {valor_limpo}"
+                            )
+                    else:
+                        produto_dados_padronizados["descricao_original"] = valor_limpo
+                    continue
                 if campo_produto_destino not in produto_dados_padronizados:
                     produto_dados_padronizados[campo_produto_destino] = valor_limpo
         else:
+            if nome_coluna_flat in fallback_sku_columns and not produto_dados_padronizados.get("sku_original"):
+                produto_dados_padronizados["sku_original"] = valor_limpo
+                continue
+            dynamic_key = fallback_dynamic_by_column.get(nome_coluna_flat)
+            if dynamic_key and dynamic_key not in dynamic_attributes:
+                dynamic_attributes[dynamic_key] = valor_limpo
+                continue
             dados_brutos_nao_mapeados[str(nome_coluna_original).strip()] = valor_limpo
 
     if not produto_dados_padronizados.get("nome_base") and not produto_dados_padronizados.get("sku_original"):
+        # Quando existe mapeamento explicito do usuario, nao promovemos colunas nao mapeadas
+        # para nome_base automaticamente (isso costuma virar ruido de OCR).
+        if mapeamento_usuario_norm:
+            return {"motivo_descarte": "Faltam nome_base e sku_original", "linha_original": linha_original}
         if dados_brutos_nao_mapeados:
             primeiro_valor_util = next(
                 (v for v in dados_brutos_nao_mapeados.values() if _valor_tem_conteudo_util(v)),
@@ -513,7 +598,7 @@ def _processar_linha_padronizada(
         produto_dados_padronizados.get("nome_base")
     ):
         if not produto_dados_padronizados.get("sku_original"):
-            return {"motivo_descarte": "nome_base sem conteÃƒÂºdo ÃƒÂºtil", "linha_original": linha_original}
+            return {"motivo_descarte": "nome_base sem conteúdo útil", "linha_original": linha_original}
 
     if dados_brutos_nao_mapeados:
         produto_dados_padronizados["dados_brutos_adicionais"] = dados_brutos_nao_mapeados
@@ -611,7 +696,7 @@ async def processar_arquivo_csv(
 
         try:
 
-            import chardet  # Lazy import para evitar dependÃƒÂªncia desnecessÃƒÂ¡ria em outros caminhos
+            import chardet  # Lazy import para evitar dependência desnecessária em outros caminhos
 
 
 
@@ -619,7 +704,7 @@ async def processar_arquivo_csv(
 
             encoding_detectada = (detection.get("encoding") or "utf-8").lower()
 
-        except Exception:  # Falha na detecÃƒÂ§ÃƒÂ£o: assume utf-8
+        except Exception:  # Falha na detecção: assume utf-8
 
             encoding_detectada = "utf-8"
 
@@ -730,7 +815,7 @@ async def processar_arquivo_pdf(
             log_pdf.append(f'PDF protegido por senha: {str(e)}')
             return [
                 {
-                    'erro_processamento_pdf': 'PDF protegido por senha; nÃƒÂ£o foi possÃƒÂ­vel abrir sem senha.',
+                    'erro_processamento_pdf': 'PDF protegido por senha; não foi possível abrir sem senha.',
                     'log_pdf': log_pdf,
                 }
             ]
@@ -750,7 +835,7 @@ async def processar_arquivo_pdf(
         with pdf_obj as pdf:
             total_pages = len(pdf.pages)
             page_list_to_process = list(pages) if pages else list(range(1, total_pages + 1))
-            log_pdf.append(f'PDF com {total_pages} pÃƒÂ¡ginas.')
+            log_pdf.append(f'PDF com {total_pages} páginas.')
             logger.info(
                 'processar_arquivo_pdf: total_paginas=%s paginas_processadas=%s region=%s',
                 total_pages,
@@ -773,7 +858,7 @@ async def processar_arquivo_pdf(
                 if bbox_abs:
                     page_to_process = page.crop(bbox_abs)
                     log_pdf.append(
-                        f'PÃƒÂ¡gina {page_num}: Aplicando recorte (crop) com bbox {bbox_abs} [modo={bbox_mode}].'
+                        f'Página {page_num}: Aplicando recorte (crop) com bbox {bbox_abs} [modo={bbox_mode}].'
                     )
                     logger.info(
                         'processar_arquivo_pdf: page=%s bbox=%s mode=%s',
@@ -783,7 +868,7 @@ async def processar_arquivo_pdf(
                     )
                 elif region:
                     log_pdf.append(
-                        f'PÃƒÂ¡gina {page_num}: BBox invÃƒÂ¡lido ({bbox_mode}); ignorando recorte.'
+                        f'Página {page_num}: BBox inválido ({bbox_mode}); ignorando recorte.'
                     )
 
                 if bbox_abs and temp_pdf_path:
@@ -795,14 +880,14 @@ async def processar_arquivo_pdf(
                         )
                     except Exception as e_region:
                         log_pdf.append(
-                            f'PÃƒÂ¡gina {page_num}: Falha no extrator de regiÃƒÂ£o: {str(e_region)}'
+                            f'Página {page_num}: Falha no extrator de região: {str(e_region)}'
                         )
                         df_region = pd.DataFrame()
 
                     if not df_region.empty:
                         region_rows = df_region.to_dict(orient='records')
                         log_pdf.append(
-                            f'PÃƒÂ¡gina {page_num}: ExtraÃƒÂ§ÃƒÂ£o por regiÃƒÂ£o retornou {len(region_rows)} linhas.'
+                            f'Página {page_num}: Extração por região retornou {len(region_rows)} linhas.'
                         )
                         logger.info(
                             'processar_arquivo_pdf: page=%s region_rows=%s region_cols=%s',
@@ -822,7 +907,7 @@ async def processar_arquivo_pdf(
                         continue
 
                     log_pdf.append(
-                        f'PÃƒÂ¡gina {page_num}: ExtraÃƒÂ§ÃƒÂ£o por regiÃƒÂ£o nÃƒÂ£o retornou linhas.'
+                        f'Página {page_num}: Extração por região não retornou linhas.'
                     )
 
                 tables = page_to_process.extract_tables(
@@ -833,11 +918,11 @@ async def processar_arquivo_pdf(
                 )
 
                 if tables:
-                    log_pdf.append(f'PÃƒÂ¡gina {page_num}: Encontradas {len(tables)} tabelas.')
+                    log_pdf.append(f'Página {page_num}: Encontradas {len(tables)} tabelas.')
                     for table_num, table_data in enumerate(tables):
                         if not table_data or len(table_data) < 2:
                             log_pdf.append(
-                                f'PÃƒÂ¡gina {page_num}, Tabela {table_num+1}: Tabela vazia ou sem dados.'
+                                f'Página {page_num}, Tabela {table_num+1}: Tabela vazia ou sem dados.'
                             )
                             continue
 
@@ -850,7 +935,7 @@ async def processar_arquivo_pdf(
                         for row_idx, row_data in enumerate(table_data[1:]):
                             if len(row_data) != len(headers):
                                 log_pdf.append(
-                                    f'PÃƒÂ¡gina {page_num}, Tabela {table_num+1}, Linha {row_idx+1}: Incompatibilidade de colunas. Pulando.'
+                                    f'Página {page_num}, Tabela {table_num+1}, Linha {row_idx+1}: Incompatibilidade de colunas. Pulando.'
                                 )
                                 continue
 
@@ -868,11 +953,11 @@ async def processar_arquivo_pdf(
                                     produto_padronizado['product_type_id'] = product_type_id
                                 produtos_extraidos.append(produto_padronizado)
                 else:
-                    log_pdf.append(f'PÃƒÂ¡gina {page_num}: Nenhuma tabela encontrada.')
+                    log_pdf.append(f'Página {page_num}: Nenhuma tabela encontrada.')
 
             if not produtos_extraidos and page_list_to_process:
                 log_pdf.append(
-                    'Nenhum produto extraÃƒÂ­do de tabelas/regiÃƒÂ£o. Tentando extraÃƒÂ§ÃƒÂ£o de texto bruto.'
+                    'Nenhum produto extraído de tabelas/região. Tentando extração de texto bruto.'
                 )
                 for page_num in page_list_to_process:
                     if not (1 <= page_num <= total_pages):
@@ -890,7 +975,7 @@ async def processar_arquivo_pdf(
 
                     page_text = page_to_process.extract_text(x_tolerance=2, y_tolerance=2)
                     if page_text and page_text.strip():
-                        log_pdf.append(f'PÃƒÂ¡gina {page_num}: Texto extraÃƒÂ­do.')
+                        log_pdf.append(f'Página {page_num}: Texto extraído.')
                         texto_chave = f'texto_completo_pagina_{page_num}'
 
                         if usar_llm:
@@ -904,11 +989,11 @@ async def processar_arquivo_pdf(
                                         dados_produto['product_type_id'] = product_type_id
                                     produtos_extraidos.append(dados_produto)
                                     log_pdf.append(
-                                        f'PÃƒÂ¡gina {page_num}: Texto processado com LLM.'
+                                        f'Página {page_num}: Texto processado com LLM.'
                                     )
                                 else:
                                     item = {
-                                        'nome_base': f'Texto da pÃƒÂ¡gina {page_num}',
+                                        'nome_base': f'Texto da página {page_num}',
                                         'dados_brutos_adicionais': {
                                             texto_chave: page_text.strip()[:20000]
                                         },
@@ -918,10 +1003,10 @@ async def processar_arquivo_pdf(
                                     produtos_extraidos.append(item)
                             except Exception as llm_e:
                                 log_pdf.append(
-                                    f'PÃƒÂ¡gina {page_num}: Erro ao processar com LLM: {str(llm_e)}'
+                                    f'Página {page_num}: Erro ao processar com LLM: {str(llm_e)}'
                                 )
                                 item = {
-                                    'nome_base': f'ConteÃƒÂºdo Bruto da PÃƒÂ¡gina {page_num}',
+                                    'nome_base': f'Conteúdo Bruto da Página {page_num}',
                                     'dados_brutos_adicionais': {
                                         texto_chave: page_text.strip()[:20000]
                                     },
@@ -931,22 +1016,22 @@ async def processar_arquivo_pdf(
                                 produtos_extraidos.append(item)
                         else:
                             item = {
-                                'nome_base': f'ConteÃƒÂºdo da PÃƒÂ¡gina {page_num}',
+                                'nome_base': f'Conteúdo da Página {page_num}',
                                 'dados_brutos_adicionais': {texto_chave: page_text.strip()[:20000]},
                             }
                             if product_type_id is not None:
                                 item['product_type_id'] = product_type_id
                             produtos_extraidos.append(item)
-                            log_pdf.append(f'PÃƒÂ¡gina {page_num}: Texto armazenado sem LLM.')
+                            log_pdf.append(f'Página {page_num}: Texto armazenado sem LLM.')
                     else:
                         log_pdf.append(
-                            f'PÃƒÂ¡gina {page_num}: Nenhum texto extraÃƒÂ­vel (pode ser imagem ou protegido).'
+                            f'Página {page_num}: Nenhum texto extraível (pode ser imagem ou protegido).'
                         )
 
             if not produtos_extraidos:
                 return [
                     {
-                        'erro_processamento_pdf': 'Nenhum dado de produto pÃƒÂ´de ser extraÃƒÂ­do do PDF (pode estar protegido, vazio ou somente imagem sem OCR).',
+                        'erro_processamento_pdf': 'Nenhum dado de produto pôde ser extraído do PDF (pode estar protegido, vazio ou somente imagem sem OCR).',
                         'log_pdf': log_pdf,
                     }
                 ]
@@ -961,11 +1046,11 @@ async def processar_arquivo_pdf(
     except Exception as e:
         import traceback
 
-        log_pdf.append(f'Erro crÃƒÂ­tico ao processar arquivo PDF: {str(e)}')
+        log_pdf.append(f'Erro crítico ao processar arquivo PDF: {str(e)}')
         logger.error('Erro ao processar arquivo PDF: %s', traceback.format_exc())
         return [
             {
-                'erro_processamento_pdf': f'Falha crÃƒÂ­tica ao ler arquivo PDF: {str(e)}',
+                'erro_processamento_pdf': f'Falha crítica ao ler arquivo PDF: {str(e)}',
                 'log_pdf': log_pdf,
             }
         ]
@@ -985,7 +1070,7 @@ async def preview_arquivo_excel(
 
 ) -> Dict[str, Any]:
 
-    """Retorna cabeÃƒÂ§alhos e linhas de amostra de um arquivo Excel."""
+    """Retorna cabeçalhos e linhas de amostra de um arquivo Excel."""
 
     try:
 
@@ -1013,7 +1098,7 @@ async def preview_arquivo_csv(
 
 ) -> Dict[str, Any]:
 
-    """Retorna cabeÃƒÂ§alhos e linhas de amostra de um arquivo CSV."""
+    """Retorna cabeçalhos e linhas de amostra de um arquivo CSV."""
 
     try:
 
@@ -1095,7 +1180,7 @@ async def preview_arquivo_pdf(
 
 ) -> Dict[str, Any]:
 
-    """Gera preview de um PDF com miniaturas e extraÃƒÂ§ÃƒÂ£o de texto.
+    """Gera preview de um PDF com miniaturas e extração de texto.
 
 
 
@@ -1105,33 +1190,33 @@ async def preview_arquivo_pdf(
 
     conteudo_arquivo: bytes
 
-        ConteÃƒÂºdo do arquivo PDF.
+        Conteúdo do arquivo PDF.
 
     ext: str
 
-        ExtensÃƒÂ£o do arquivo (mantida para compatibilidade).
+        Extensão do arquivo (mantida para compatibilidade).
 
     start_page: int, optional
 
-        PÃƒÂ¡gina inicial (1-indexada) para geraÃƒÂ§ÃƒÂ£o do preview, por padrÃƒÂ£o ``1``.
+        Página inicial (1-indexada) para geração do preview, por padrão ``1``.
 
     page_count: int, optional
 
-        Quantidade de pÃƒÂ¡ginas a incluir no preview. ``0`` usa todas as pÃƒÂ¡ginas.
+        Quantidade de páginas a incluir no preview. ``0`` usa todas as páginas.
 
-        Apenas as pÃƒÂ¡ginas nesse intervalo sÃƒÂ£o analisadas para extrair texto,
+        Apenas as páginas nesse intervalo são analisadas para extrair texto,
 
         identificar tabelas e gerar imagens.
 
     dpi: int, optional
 
-        ResoluÃƒÂ§ÃƒÂ£o usada ao converter as pÃƒÂ¡ginas em imagem. PadrÃƒÂ£o ``72``.
+        Resolução usada ao converter as páginas em imagem. Padrão ``72``.
 
 
 
-    As pÃƒÂ¡ginas sÃƒÂ£o processadas em paralelo usando ``asyncio`` e a pool de
+    As páginas são processadas em paralelo usando ``asyncio`` e a pool de
 
-    ``ThreadPoolExecutor`` padrÃƒÂ£o do Python. O nÃƒÂºmero de threads segue o limite
+    ``ThreadPoolExecutor`` padrão do Python. O número de threads segue o limite
 
     ``min(32, os.cpu_count() + 4)`` a menos que outro executor seja
 
@@ -1387,7 +1472,7 @@ async def gerar_preview(
 
 ) -> Dict[str, Any]:
 
-    """Despacha para a funÃƒÂ§ÃƒÂ£o de preview correta com base na extensÃƒÂ£o."""
+    """Despacha para a função de preview correta com base na extensão."""
 
     ext = ext.lower()
 
@@ -1403,7 +1488,7 @@ async def gerar_preview(
 
         return await preview_arquivo_pdf(conteudo_arquivo, ext, 1, 1)
 
-    raise ValueError("Formato de arquivo nÃƒÂ£o suportado para preview")
+    raise ValueError("Formato de arquivo não suportado para preview")
 
 
 
@@ -1507,7 +1592,7 @@ def pdf_pages_to_images(db: Session, file: UploadFile, fornecedor_id: int, user_
 
     """
 
-    Salva um ficheiro PDF, cria um registo na base de dados, e converte um lote de pÃƒÂ¡ginas em imagens.
+    Salva um ficheiro PDF, cria um registo na base de dados, e converte um lote de páginas em imagens.
 
     """
 
@@ -1557,7 +1642,7 @@ def pdf_pages_to_images(db: Session, file: UploadFile, fornecedor_id: int, user_
 
 
 
-    # LÃƒÅ  O FICHEIRO PARA A MEMÃƒâ€œRIA UMA ÃƒÅ¡NICA VEZ
+    # LÊ O FICHEIRO PARA A MEMÓRIA UMA ÚNICA VEZ
 
     try:
 
@@ -1565,7 +1650,7 @@ def pdf_pages_to_images(db: Session, file: UploadFile, fornecedor_id: int, user_
 
     except Exception as e:
 
-        logger.error(f"Erro ao ler o conteÃƒÂºdo do ficheiro stream: {e}")
+        logger.error(f"Erro ao ler o conteúdo do ficheiro stream: {e}")
 
         raise HTTPException(status_code=500, detail="Erro interno ao ler o ficheiro.")
 
@@ -1575,7 +1660,7 @@ def pdf_pages_to_images(db: Session, file: UploadFile, fornecedor_id: int, user_
 
 
 
-    # Guarda o conteÃƒÂºdo lido no disco
+    # Guarda o conteúdo lido no disco
 
     try:
 
@@ -1591,7 +1676,7 @@ def pdf_pages_to_images(db: Session, file: UploadFile, fornecedor_id: int, user_
 
 
 
-    # A chamada ÃƒÂ  funÃƒÂ§ÃƒÂ£o que jÃƒÂ¡ corrigimos
+    # A chamada à função que já corrigimos
 
     import_file = crud_fornecedores.create_catalog_import_file(
 
@@ -1611,7 +1696,7 @@ def pdf_pages_to_images(db: Session, file: UploadFile, fornecedor_id: int, user_
 
     try:
 
-        # USA O CONTEÃƒÅ¡DO EM MEMÃƒâ€œRIA PARA OBTER O TOTAL DE PÃƒÂGINAS
+        # USA O CONTEÚDO EM MEMÓRIA PARA OBTER O TOTAL DE PGINAS
 
         with pdfplumber.open(io.BytesIO(content)) as pdf:
 
@@ -1621,7 +1706,7 @@ def pdf_pages_to_images(db: Session, file: UploadFile, fornecedor_id: int, user_
 
         logger.error(f"Erro ao ler PDF com pdfplumber: {e}")
 
-        raise HTTPException(status_code=500, detail="NÃƒÂ£o foi possÃƒÂ­vel ler o ficheiro PDF.")
+        raise HTTPException(status_code=500, detail="Não foi possível ler o ficheiro PDF.")
 
 
 
@@ -1643,11 +1728,11 @@ def pdf_pages_to_images(db: Session, file: UploadFile, fornecedor_id: int, user_
 
             
 
-            # USA O CONTEÃƒÅ¡DO EM MEMÃƒâ€œRIA PARA CONVERTER AS IMAGENS
+            # USA O CONTEÚDO EM MEMÓRIA PARA CONVERTER AS IMAGENS
 
             images = convert_from_bytes(
 
-                content, # <-- MUDANÃƒâ€¡A IMPORTANTE: usa o conteÃƒÂºdo em memÃƒÂ³ria
+                content, # <-- MUDANÇA IMPORTANTE: usa o conteúdo em memória
 
                 dpi=200,
 
@@ -1683,7 +1768,7 @@ def pdf_pages_to_images(db: Session, file: UploadFile, fornecedor_id: int, user_
 
             logger.error(f"Falha ao converter PDF para imagens: {e}", exc_info=True)
 
-            raise HTTPException(status_code=500, detail=f"Erro ao processar o PDF. Verifique se o Poppler estÃƒÂ¡ instalado corretamente.")
+            raise HTTPException(status_code=500, detail=f"Erro ao processar o PDF. Verifique se o Poppler está instalado corretamente.")
 
 
 
@@ -1762,6 +1847,126 @@ def extract_data_from_pdf_region(
             if not clusters or abs(x - clusters[-1]) > tolerance:
                 clusters.append(x)
         return clusters
+
+    def _normalize_ocr_snippet(text: Any) -> str:
+        normalized = unicodedata.normalize("NFKD", str(text or ""))
+        normalized = "".join(ch for ch in normalized if not unicodedata.combining(ch))
+        normalized = normalized.upper()
+        normalized = re.sub(r"[^A-Z0-9 ]+", " ", normalized)
+        normalized = re.sub(r"\s+", " ", normalized).strip()
+        return normalized
+
+    def _header_field_for_text(text: str) -> Optional[str]:
+        t = _normalize_ocr_snippet(text)
+        if not t:
+            return None
+        if "FAB" in t:
+            return "n_fab"
+        if "ORIGINAL" in t:
+            return "n_original"
+        if "DESCR" in t:
+            return "descricao"
+        if "APLIC" in t:
+            return "aplicacao"
+        if "MATERIAL" in t or t in {"MAT", "MATER"}:
+            return "material"
+        return None
+
+    def _detect_header_columns(
+        merged_lines: List[List[Dict[str, Any]]]
+    ) -> Optional[Dict[str, Any]]:
+        if not merged_lines:
+            return None
+
+        ratio_by_field = {
+            "n_fab": 0.04,
+            "n_original": 0.20,
+            "descricao": 0.38,
+            "aplicacao": 0.67,
+            "material": 0.88,
+        }
+        marker_pairs = [
+            ("FAB", "n_fab"),
+            ("ORIGINAL", "n_original"),
+            ("DESCR", "descricao"),
+            ("APLIC", "aplicacao"),
+            ("MATERIAL", "material"),
+        ]
+
+        best: Optional[Dict[str, Any]] = None
+        line_limit = min(len(merged_lines), 40)
+        for line_idx in range(line_limit):
+            line = merged_lines[line_idx]
+            field_positions: Dict[str, int] = {}
+            for seg in line:
+                field = _header_field_for_text(seg.get("text", ""))
+                if not field:
+                    continue
+                x0 = int(seg.get("x0", 0) or 0)
+                if field not in field_positions or x0 < field_positions[field]:
+                    field_positions[field] = x0
+
+            # Fallback when OCR merges whole header in a single segment.
+            line_norm = _normalize_ocr_snippet(" ".join(seg.get("text", "") for seg in line))
+            marker_fields = [field for marker, field in marker_pairs if marker in line_norm]
+            if len(field_positions) < 3 and len(marker_fields) >= 3:
+                line_x0 = min(int(seg.get("x0", 0) or 0) for seg in line)
+                line_x1 = max(int(seg.get("x1", seg.get("x0", 0)) or 0) for seg in line)
+                line_width = max(1, line_x1 - line_x0)
+                for field in marker_fields:
+                    if field in field_positions:
+                        continue
+                    ratio = ratio_by_field.get(field, 0.5)
+                    field_positions[field] = int(line_x0 + (line_width * ratio))
+
+            if len(field_positions) < 3:
+                continue
+
+            ordered = sorted(field_positions.items(), key=lambda item: item[1])
+            candidate = {
+                "line_idx": line_idx,
+                "headers": [name for name, _ in ordered],
+                "bounds": [x for _, x in ordered],
+                "score": len(field_positions),
+            }
+            if best is None:
+                best = candidate
+                continue
+            if candidate["score"] > best["score"]:
+                best = candidate
+                continue
+            if candidate["score"] == best["score"] and candidate["line_idx"] < best["line_idx"]:
+                best = candidate
+
+        return best
+
+    def _is_header_like_row(text: str) -> bool:
+        norm = _normalize_ocr_snippet(text)
+        if not norm:
+            return False
+        markers = ("FAB", "ORIGINAL", "DESCR", "APLIC", "MATERIAL")
+        hits = sum(1 for marker in markers if marker in norm)
+        return hits >= 2
+
+    def _filter_ocr_rows(raw_rows: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+        filtered_rows: List[Dict[str, Any]] = []
+        for row in raw_rows:
+            cleaned_row = {k: (v or "").strip() for k, v in row.items()}
+            non_empty_values = [v for v in cleaned_row.values() if v]
+            if not non_empty_values:
+                continue
+            joined = " ".join(non_empty_values).strip()
+            if _is_header_like_row(joined):
+                continue
+            if joined in {"-", "--", "!", "|", ":", ";", ".", ","}:
+                continue
+            alnum_count = len(re.sub(r"[^0-9A-Za-z\u00C0-\u00FF]", "", joined))
+            if alnum_count < 2:
+                continue
+            if len(non_empty_values) == 1 and len(non_empty_values[0]) <= 1:
+                continue
+            filtered_rows.append(cleaned_row)
+        return filtered_rows
 
     def _tables_to_df(tables: List[List[List[Any]]]) -> pd.DataFrame:
         rows: List[Dict[str, Any]] = []
@@ -2026,6 +2231,45 @@ def extract_data_from_pdf_region(
                 logger.info('OCR da regiao nao produziu segmentos validos.')
                 return pd.DataFrame()
 
+            # 3.1) Header-guided OCR parsing (improves scanned catalogs with stable table header).
+            header_guess = _detect_header_columns(merged_lines)
+            if header_guess:
+                guessed_headers: List[str] = header_guess["headers"]
+                guessed_bounds: List[int] = header_guess["bounds"]
+                row_start_idx = int(header_guess["line_idx"]) + 1
+                logger.info(
+                    "extract_data_from_pdf_region: OCR header detectado headers=%s line_idx=%s",
+                    guessed_headers,
+                    header_guess["line_idx"],
+                )
+
+                raw_rows_guided: List[Dict[str, Any]] = []
+                for line in merged_lines[row_start_idx:]:
+                    row = {header: "" for header in guessed_headers}
+                    for seg in line:
+                        idx_col = min(
+                            range(len(guessed_bounds)),
+                            key=lambda idx: abs(int(seg["x0"]) - guessed_bounds[idx]),
+                        )
+                        key = guessed_headers[idx_col]
+                        row[key] = (f"{row[key]} {seg['text']}").strip() if row[key] else seg["text"]
+                    raw_rows_guided.append(row)
+
+                filtered_guided = _filter_ocr_rows(raw_rows_guided)
+                if filtered_guided:
+                    df_ocr_guided = _clean_df(pd.DataFrame(filtered_guided, columns=guessed_headers))
+                    if not df_ocr_guided.empty:
+                        logger.info(
+                            "extract_data_from_pdf_region: OCR header-guided rows=%s cols=%s elapsed=%.2fs",
+                            len(df_ocr_guided.index),
+                            len(df_ocr_guided.columns),
+                            time.perf_counter() - started_at,
+                        )
+                        return df_ocr_guided
+                logger.info(
+                    "extract_data_from_pdf_region: OCR header-guided sem linhas validas; fallback para cluster"
+                )
+
             x_positions = sorted(int(seg['x0']) for line in merged_lines for seg in line)
             if not x_positions:
                 logger.info('OCR da regiao nao produziu colunas validas.')
@@ -2056,21 +2300,7 @@ def extract_data_from_pdf_region(
                     row[key] = (f"{row[key]} {seg['text']}").strip() if row[key] else seg['text']
                 ocr_rows.append(row)
 
-            filtered_rows: List[Dict[str, Any]] = []
-            for row in ocr_rows:
-                cleaned_row = {k: (v or '').strip() for k, v in row.items()}
-                non_empty_values = [v for v in cleaned_row.values() if v]
-                if not non_empty_values:
-                    continue
-                joined = ' '.join(non_empty_values).strip()
-                if joined in {'-', '--', '!', '|', ':', ';', '.', ','}:
-                    continue
-                alnum_count = len(re.sub(r'[^0-9A-Za-z\u00C0-\u00FF]', '', joined))
-                if alnum_count < 2:
-                    continue
-                if len(non_empty_values) == 1 and len(non_empty_values[0]) <= 1:
-                    continue
-                filtered_rows.append(cleaned_row)
+            filtered_rows = _filter_ocr_rows(ocr_rows)
 
             if not filtered_rows:
                 logger.info('OCR da regiao retornou somente ruido.')
@@ -2108,7 +2338,7 @@ async def extrair_pagina_pdf(
 
             raise ValueError(
 
-                f"NÃƒÂºmero de pÃƒÂ¡gina invÃƒÂ¡lido: {page_number}. PDF tem {len(pdf.pages)} pÃƒÂ¡ginas."
+                f"Número de página inválido: {page_number}. PDF tem {len(pdf.pages)} páginas."
 
             )
 
@@ -2154,26 +2384,21 @@ async def extrair_pagina_pdf(
 
 
 
-    # Use temporary file path for table extraction
-
-    tmp_path = Path(os.getenv("TMPDIR", "/tmp")) / f"temp_{uuid.uuid4().hex}.pdf"
-
-    tmp_path.write_bytes(conteudo_pdf)
+    # Use a real temporary file (portable across Linux/Windows).
+    with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as tmp_file:
+        tmp_file.write(conteudo_pdf)
+        tmp_path = Path(tmp_file.name)
 
     try:
-
         df = extract_data_from_pdf_region(str(tmp_path), page_number, region)
-
-        table = df.values.tolist() if not df.empty else None
-
+        if not df.empty:
+            table = [list(df.columns)] + df.values.tolist()
+        else:
+            table = None
     finally:
-
         try:
-
             tmp_path.unlink()
-
         except Exception:
-
             pass
 
 
@@ -2307,7 +2532,7 @@ def extract_data_from_single_page(file_path: str, page_number: int) -> Dict[str,
 
                 raise ValueError(
 
-                    f"NÃƒÂºmero de pÃƒÂ¡gina invÃƒÂ¡lido: {page_number}. PDF tem {len(pdf.pages)} pÃƒÂ¡ginas."
+                    f"Número de página inválido: {page_number}. PDF tem {len(pdf.pages)} páginas."
 
                 )
 
@@ -2375,7 +2600,7 @@ def extract_data_from_single_page(file_path: str, page_number: int) -> Dict[str,
 
             raise ValueError(
 
-                f"NÃƒÂºmero de pÃƒÂ¡gina invÃƒÂ¡lido: {page_number}. PDF tem {doc.page_count} pÃƒÂ¡ginas."
+                f"Número de página inválido: {page_number}. PDF tem {doc.page_count} páginas."
 
             )
 
@@ -2401,7 +2626,7 @@ def extract_data_from_single_page(file_path: str, page_number: int) -> Dict[str,
 
     except Exception as e:  # pragma: no cover - optional dependency might be missing
 
-        logger.error("Erro ao executar OCR da pÃƒÂ¡gina do PDF: %s", e)
+        logger.error("Erro ao executar OCR da página do PDF: %s", e)
 
     finally:
 
@@ -2511,7 +2736,7 @@ def extract_pdf_region_image(file_path: str, page_number: int, region: Optional[
 
             raise ValueError(
 
-                f"NÃƒÂºmero de pÃƒÂ¡gina invÃƒÂ¡lido: {page_number}. PDF tem {len(pdf.pages)} pÃƒÂ¡ginas."
+                f"Número de página inválido: {page_number}. PDF tem {len(pdf.pages)} páginas."
 
             )
 
@@ -2543,7 +2768,7 @@ def parse_annotation_to_dataframe(annotation: object, vertical_tolerance: int = 
 
     """Parse OCR annotation with geometry into a structured DataFrame."""
 
-    logger.debug("Iniciando anÃƒÂ¡lise do texto")
+    logger.debug("Iniciando análise do texto")
 
     try:
 
@@ -2625,9 +2850,9 @@ def parse_annotation_to_dataframe(annotation: object, vertical_tolerance: int = 
 
     except Exception as e:
 
-        logger.exception("Falha ao processar texto extraÃƒÂ­do")
+        logger.exception("Falha ao processar texto extraído")
 
-        raise HTTPException(status_code=500, detail="Ocorreu um erro durante a extraÃƒÂ§ÃƒÂ£o de dados.") from e
+        raise HTTPException(status_code=500, detail="Ocorreu um erro durante a extração de dados.") from e
 
 
 

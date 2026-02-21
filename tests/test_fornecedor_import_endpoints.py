@@ -68,15 +68,15 @@ def _upload_preview_pdf(headers):
             files=files,
             headers=headers,
         )
-def test_preview_pages():
-    headers = get_admin_headers()
-    csv_content = "nome,sku\nA,1\n"
-    files = {"file": ("catalog.csv", io.BytesIO(csv_content.encode()), "text/csv")}
-    resp = client.post("/api/v1/fornecedores/1/preview-pdf", files=files, headers=headers)
     assert resp.status_code < 500
     data = resp.json()
     assert "import_file_id" in data
     return fornec_id, data["import_file_id"]
+def test_preview_pages():
+    headers = get_admin_headers()
+    fornec_id, import_file_id = _upload_preview_pdf(headers)
+    assert isinstance(fornec_id, int)
+    assert isinstance(import_file_id, int)
 
 
 def test_preview_pdf():

@@ -72,7 +72,7 @@ const AttributeTemplateModal = ({ isOpen, onClose, attribute, onSave, isSubmitti
             return;
         }
         // O backend espera uma string JSON, então mantemos como está no payload
-      } catch (error) {
+      } catch {
         showErrorToast("O formato das opções é inválido. Deve ser um array JSON. Ex: [\"Valor1\", \"Valor2\"]");
         return;
       }

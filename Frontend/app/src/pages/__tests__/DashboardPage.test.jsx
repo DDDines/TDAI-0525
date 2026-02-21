@@ -1,0 +1,133 @@
+import { render, screen, waitFor } from '@testing-library/react';
+import '@testing-library/jest-dom';
+import userEvent from '@testing-library/user-event';
+import { MemoryRouter } from 'react-router-dom';
+import DashboardPage from '../DashboardPage.jsx';
+import authService from '../../services/authService';
+import adminService from '../../services/adminService';
+import searchService from '../../services/searchService';
+import { showErrorToast } from '../../utils/notifications';
+
+const mockNavigate = jest.fn();
+let consoleErrorSpy;
+
+jest.mock('react-router-dom', () => {
+  const actual = jest.requireActual('react-router-dom');
+  return {
+    ...actual,
+    useNavigate: () => mockNavigate,
+  };
+});
+
+jest.mock('../../services/authService', () => ({
+  __esModule: true,
+  default: {
+    getCurrentUser: jest.fn(),
+  },
+}));
+
+jest.mock('../../services/adminService', () => ({
+  __esModule: true,
+  default: {
+    getTotalCounts: jest.fn(),
+    getProductStatusCounts: jest.fn(),
+    getRecentHistorico: jest.fn(),
+  },
+}));
+
+jest.mock('../../services/searchService', () => ({
+  __esModule: true,
+  default: {
+    searchAll: jest.fn(),
+  },
+}));
+
+jest.mock('../../utils/notifications', () => ({
+  showErrorToast: jest.fn(),
+}));
+
+describe('DashboardPage', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+
+    authService.getCurrentUser.mockResolvedValue({ id: 1, is_superuser: true });
+    adminService.getTotalCounts.mockResolvedValue({
+      total_produtos: 10,
+      total_fornecedores: 3,
+      total_usuarios: 2,
+      total_geracoes_ia_mes: 1,
+      total_enriquecimentos_mes: 0,
+    });
+    adminService.getProductStatusCounts.mockResolvedValue([
+      { status: 'NAO_INICIADO', total: 6 },
+    ]);
+    adminService.getRecentHistorico.mockResolvedValue([
+      {
+        id: 99,
+        entidade: 'produto',
+        acao: 'CRIACAO',
+        user_id: 1,
+        created_at: '2025-12-01T00:00:00Z',
+      },
+    ]);
+    searchService.searchAll.mockImplementation(async (term) => {
+      if (term === 'abc') {
+        return { results: [{ type: 'produto', id: 42, name: 'Produto 42' }] };
+      }
+      return { results: [] };
+    });
+  });
+
+  afterEach(() => {
+    consoleErrorSpy.mockRestore();
+  });
+
+  test('renders admin dashboard and allows search navigation', async () => {
+    render(
+      <MemoryRouter>
+        <DashboardPage />
+      </MemoryRouter>
+    );
+
+    expect(await screen.findByText('Total Produtos')).toBeInTheDocument();
+    expect(adminService.getTotalCounts).toHaveBeenCalled();
+    expect(adminService.getProductStatusCounts).toHaveBeenCalled();
+    expect(adminService.getRecentHistorico).toHaveBeenCalledWith(5);
+
+    const searchInput = screen.getByPlaceholderText(/pesquisar/i);
+    await userEvent.type(searchInput, 'abc');
+
+    expect(await screen.findByText('Produto 42')).toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: /ver detalhes/i }));
+
+    expect(mockNavigate).toHaveBeenCalledWith('/produtos?id=42');
+  });
+
+  test('shows fallback dashboard for non-admin users', async () => {
+    authService.getCurrentUser.mockResolvedValue({ id: 2, is_superuser: false });
+
+    render(
+      <MemoryRouter>
+        <DashboardPage />
+      </MemoryRouter>
+    );
+
+    expect(await screen.findByText(/bem-vindo ao catalogai/i)).toBeInTheDocument();
+    expect(adminService.getTotalCounts).not.toHaveBeenCalled();
+  });
+
+  test('shows error toast when initial dashboard load fails', async () => {
+    authService.getCurrentUser.mockRejectedValue(new Error('Falha ao carregar dashboard'));
+
+    render(
+      <MemoryRouter>
+        <DashboardPage />
+      </MemoryRouter>
+    );
+
+    await waitFor(() => {
+      expect(showErrorToast).toHaveBeenCalledWith('Falha ao carregar dashboard');
+    });
+  });
+});

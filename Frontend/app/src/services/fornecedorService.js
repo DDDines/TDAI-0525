@@ -214,7 +214,7 @@ export const reprocessCatalogFile = async (fileId, payload = {}) => {
 export const getImportacaoStatus = async (fileId) => {
   try {
     const response = await apiClient.get(
-      `/produtos/importar-catalogo-status/${fileId}/`
+      `/produtos/importar-catalogo-status/${fileId}`
     );
     return response.data;
   } catch (error) {

@@ -1,4 +1,4 @@
-// Frontend/app/src/pages/HistoricoPage.jsx
+﻿// Frontend/app/src/pages/HistoricoPage.jsx
 import React, { useState, useEffect, useCallback } from 'react';
 import usoIAService from '../services/usoIAService';
 import historicoService from '../services/historicoService';
@@ -9,6 +9,28 @@ import { format, parseISO } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import logger from '../utils/logger';
 import LoadingPopup from '../components/common/LoadingPopup.jsx';
+import './HistoricoPage.css';
+
+const TIPO_ACAO_LABELS = {
+  criacao_produto: 'Criação de produto',
+  atualizacao_produto: 'Atualização de produto',
+  enriquecimento_web: 'Enriquecimento Web',
+  geracao_titulo_ia: 'Geração de título IA',
+  geracao_descricao_ia: 'Geração de descrição IA',
+};
+
+const formatTipoAcao = (tipoAcao = '') => {
+  const raw = String(tipoAcao || '').trim();
+  if (!raw) return 'N/A';
+  const normalized = raw.toLowerCase();
+  if (TIPO_ACAO_LABELS[normalized]) return TIPO_ACAO_LABELS[normalized];
+  return raw
+    .replace(/_/g, ' ')
+    .split(' ')
+    .filter(Boolean)
+    .map((word) => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+    .join(' ');
+};
 
 function HistoricoPage() {
   const { user, isLoading: isAuthLoading } = useAuth();
@@ -19,7 +41,7 @@ function HistoricoPage() {
   const [limitPerPage] = useState(10);
   const [totalHistoricoCount, setTotalHistoricoCount] = useState(0);
   const [historicoSistema, setHistoricoSistema] = useState([]);
-  const [totalHistoricoSistemaCount, setTotalHistoricoSistemaCount] = useState(0);
+  const [_totalHistoricoSistemaCount, setTotalHistoricoSistemaCount] = useState(0);
   const [filterTipoAcao, setFilterTipoAcao] = useState('');
   const [tiposAcao, setTiposAcao] = useState([]);
 
@@ -27,12 +49,12 @@ function HistoricoPage() {
 
   const fetchHistorico = useCallback(async () => {
     if (isAuthLoading) {
-      logger.log("HistoricoPage: Auth está carregando, aguardando...");
+      logger.log('HistoricoPage: auth está carregando, aguardando...');
       return;
     }
 
     if (!user) {
-      logger.log("HistoricoPage: Usuário não autenticado, não buscando histórico.");
+      logger.log('HistoricoPage: usuário não autenticado, não buscando histórico.');
       setHistorico([]);
       setTotalHistoricoCount(0);
       setLoading(false);
@@ -47,25 +69,20 @@ function HistoricoPage() {
         limit: limitPerPage,
         tipo_acao: filterTipoAcao || undefined,
       };
-      
-      // FIX: Chamar usoIAService.getMeuHistoricoUsoIA
+
       const responseData = await usoIAService.getMeuHistoricoUsoIA(params);
 
       if (responseData && Array.isArray(responseData.items) && typeof responseData.total_items === 'number') {
         setHistorico(responseData.items);
         setTotalHistoricoCount(responseData.total_items);
       } else {
-        console.warn('HistoricoPage: Formato de dados inesperado recebido:', responseData);
+        console.warn('HistoricoPage: formato de dados inesperado recebido:', responseData);
         setHistorico([]);
         setTotalHistoricoCount(0);
       }
     } catch (err) {
-      const errorMsg = (err && err.response && err.response.data && err.response.data.detail) 
-                       ? err.response.data.detail 
-                       : (err && err.message) 
-                       ? err.message 
-                       : 'Falha ao buscar histórico de uso de IA.';
-      console.error('HistoricoPage: Erro ao buscar histórico:', err);
+      const errorMsg = err?.response?.data?.detail || err?.message || 'Falha ao buscar histórico de uso de IA.';
+      console.error('HistoricoPage: erro ao buscar histórico:', err);
       setError(errorMsg);
       setHistorico([]);
       setTotalHistoricoCount(0);
@@ -73,7 +90,7 @@ function HistoricoPage() {
     } finally {
       setLoading(false);
     }
-  }, [user, isAuthLoading, currentPage, limitPerPage, filterTipoAcao]); // Adicionar dependências
+  }, [user, isAuthLoading, currentPage, limitPerPage, filterTipoAcao]);
 
   const fetchHistoricoSistema = useCallback(async () => {
     if (isAuthLoading || !user) return;
@@ -88,10 +105,9 @@ function HistoricoPage() {
         setTotalHistoricoSistemaCount(data.total_items);
       }
     } catch (err) {
-      console.error('Erro ao buscar histórico do sistema', err);
+      console.error('Erro ao buscar histórico do sistema:', err);
     }
   }, [user, isAuthLoading, currentPage, limitPerPage]);
-
 
   useEffect(() => {
     fetchHistorico();
@@ -118,18 +134,18 @@ function HistoricoPage() {
 
   const handleFilterChange = (event) => {
     setFilterTipoAcao(event.target.value);
-    setCurrentPage(0); // Resetar para a primeira página ao mudar o filtro
+    setCurrentPage(0);
   };
 
   return (
-    <div className="historico-page">
+    <div className="app-page-shell historico-page-shell">
       <div className="card">
         <div className="card-header">
           <h3>Histórico de Uso de IA</h3>
         </div>
 
-        <div className="filters-container" style={{ marginBottom: '1rem' }}>
-          <label htmlFor="filter-tipo-acao">Filtrar por Tipo de Ação:</label>
+        <div className="filters-container historico-filter-row">
+          <label htmlFor="filter-tipo-acao">Filtrar por tipo de ação:</label>
           <select
             id="filter-tipo-acao"
             value={filterTipoAcao}
@@ -138,17 +154,15 @@ function HistoricoPage() {
           >
             <option value="">Todos</option>
             {tiposAcao.map((tipo) => (
-              <option key={tipo} value={tipo}>{tipo.replace(/_/g, ' ')}</option>
+              <option key={tipo} value={tipo}>{formatTipoAcao(tipo)}</option>
             ))}
           </select>
         </div>
 
         {loading && <LoadingPopup isOpen={true} message="Carregando histórico..." />}
-        {error && <p style={{ color: 'red' }}>Erro ao carregar histórico: {error}</p>}
+        {error && <p className="historico-error">Erro ao carregar histórico: {error}</p>}
 
-        {!loading && historico.length === 0 && !error && (
-          <p>Nenhum registro de uso de IA encontrado.</p>
-        )}
+        {!loading && historico.length === 0 && !error && <p>Nenhum registro de uso de IA encontrado.</p>}
 
         {!loading && historico.length > 0 && (
           <div className="table-responsive">
@@ -167,11 +181,11 @@ function HistoricoPage() {
                 {historico.map((registro) => (
                   <tr key={registro.id}>
                     <td>{registro.id}</td>
-                    <td>{registro.produto_id ? registro.produto_id : 'N/A'}</td>
-                    <td>{registro.tipo_acao.replace(/_/g, ' ')}</td>
+                    <td>{registro.produto_id || 'N/A'}</td>
+                    <td>{formatTipoAcao(registro.tipo_acao)}</td>
                     <td>
                       <div className="resultado-cell" title={registro.resposta_ia}>
-                        {registro.resposta_ia ? registro.resposta_ia.substring(0, 100) + '...' : 'N/A'}
+                        {registro.resposta_ia ? `${registro.resposta_ia.substring(0, 100)}...` : 'N/A'}
                       </div>
                     </td>
                     <td>
@@ -192,7 +206,7 @@ function HistoricoPage() {
           </div>
         )}
 
-        <div style={{ marginTop: '2rem' }}>
+        <div className="historico-system-section">
           <h4>Eventos Recentes</h4>
           {!loading && historicoSistema.length === 0 && <p>Nenhum evento encontrado.</p>}
           {!loading && historicoSistema.length > 0 && (

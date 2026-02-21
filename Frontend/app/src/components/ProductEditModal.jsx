@@ -83,7 +83,7 @@ const initialFormData = {
 const ProductEditModal = ({ isOpen, onClose, product, onProductUpdated }) => {
     const isNewProduct = !product?.id;
 
-    const { isAuthenticated } = useAuth();
+    const { isAuthenticated: _isAuthenticated } = useAuth();
 
     const [formData, setFormData] = useState(initialFormData);
     const [activeTab, setActiveTab] = useState('info'); 
@@ -91,7 +91,7 @@ const ProductEditModal = ({ isOpen, onClose, product, onProductUpdated }) => {
     const [isGeneratingIA, setIsGeneratingIA] = useState(false);
     const [isEnrichingWeb, setIsEnrichingWeb] = useState(false);
     const [isSuggestingGemini, setIsSuggestingGemini] = useState(false);
-    const [error, setError] = useState(null);
+    const [_error, setError] = useState(null);
     const [fornecedores, setFornecedores] = useState([]);
     const { productTypes } = useProductTypes();
 
@@ -132,7 +132,7 @@ const ProductEditModal = ({ isOpen, onClose, product, onProductUpdated }) => {
             }
         };
         fetchDependencies();
-    }, [isOpen]);
+    }, [isOpen, product?.fornecedor_id]);
 
     // Define o estágio inicial quando o modal é aberto ou quando o produto muda
     useEffect(() => {
@@ -287,7 +287,7 @@ const ProductEditModal = ({ isOpen, onClose, product, onProductUpdated }) => {
 
     const addDynamicAttribute = () => {
         const newKey = newAttrKey.trim();
-        if (newKey && !formData.dynamic_attributes.hasOwnProperty(newKey) && !BASE_PRODUCT_FIELDS.has(newKey)) {
+        if (newKey && !Object.prototype.hasOwnProperty.call(formData.dynamic_attributes, newKey) && !BASE_PRODUCT_FIELDS.has(newKey)) {
             setFormData(prev => ({
                 ...prev,
                 dynamic_attributes: {
@@ -362,7 +362,7 @@ const ProductEditModal = ({ isOpen, onClose, product, onProductUpdated }) => {
         setFormData(prev => ({ ...prev, product_type_id: newType.id }));
     };
 
-    const handleEnrichWeb = async () => {
+    const _handleEnrichWeb = async () => {
         if (!product?.id) {
             showWarningToast("Salve o produto primeiro antes de enriquecer a web.");
             return;
@@ -505,12 +505,12 @@ const ProductEditModal = ({ isOpen, onClose, product, onProductUpdated }) => {
         }
     };
 
-    const handleCopyToDescriptionOriginal = (generatedText) => {
+    const _handleCopyToDescriptionOriginal = (generatedText) => {
         setFormData(prev => ({ ...prev, descricao_original: generatedText }));
         showInfoToast("Descrição gerada copiada para o campo original.");
     };
 
-    const handleCopyToDescriptionCurtaOriginal = (generatedText) => {
+    const _handleCopyToDescriptionCurtaOriginal = (generatedText) => {
         setFormData(prev => ({ ...prev, descricao_curta_orig: generatedText }));
         showInfoToast("Descrição curta gerada copiada para o campo original.");
     };

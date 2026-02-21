@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react';
+import { act, render, screen } from '@testing-library/react';
 import '@testing-library/jest-dom';
 import ImportProgress from '../ImportProgress.jsx';
 import fornecedorService from '../../../services/fornecedorService';
@@ -25,7 +25,10 @@ test('polls progress until pending review', async () => {
   expect(mockedService.getImportProgress).toHaveBeenCalledWith(10);
   await screen.findByText('Processando página 1 de 5');
 
-  await jest.runOnlyPendingTimersAsync();
+  await act(async () => {
+    await jest.runOnlyPendingTimersAsync();
+  });
+
   await screen.findByText('Processando página 2 de 5');
   expect(onPendingReview).toHaveBeenCalled();
 });

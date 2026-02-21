@@ -1,11 +1,7 @@
-// Frontend/app/src/pages/ProdutosPage.jsx
+﻿// Frontend/app/src/pages/ProdutosPage.jsx
 import React, { useState, useEffect, useCallback } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import ProductTable from '../components/produtos/ProductTable';
-// REMOVIDO: import NewProductModal from '../components/produtos/NewProductModal';
-// REMOVIDO: import ProductEditModal from '../components/ProductEditModal';
-// NOVO: Importando o modal unificado.
-// (O nome do arquivo pode ser ProductModal.jsx, estou mantendo este por consistência com o passo anterior)
 import Modal from '../components/common/Modal';
 import ProductEditModal from '../components/ProductEditModal';
 import PaginationControls from '../components/common/PaginationControls';
@@ -21,15 +17,10 @@ function ProdutosPage() {
   const [produtos, setProdutos] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  
-  // ALTERADO: Estados de controle dos modais unificados em dois.
+
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [produtoParaEditar, setProdutoParaEditar] = useState(null);
 
-  // REMOVIDO: Estados antigos para os modais separados.
-  // const [isNewProductModalOpen, setIsNewProductModalOpen] = useState(false);
-  // const [isEditModalOpen, setIsEditModalOpen] = useState(false);
-  
   const [currentPage, setCurrentPage] = useState(0);
   const [limitPerPage, setLimitPerPage] = useState(10);
   const [totalProdutos, setTotalProdutos] = useState(0);
@@ -39,18 +30,14 @@ function ProdutosPage() {
   const [filtroStatusEnriquecimento, setFiltroStatusEnriquecimento] = useState('');
   const [filtroStatusTituloIA, setFiltroStatusTituloIA] = useState('');
   const [filtroStatusDescricaoIA, setFiltroStatusDescricaoIA] = useState('');
-  const [filtroFornecedor, setFiltroFornecedor] = useState('');
+  const [filtroFornecedor, _setFiltroFornecedor] = useState('');
   const [filtroTipoProduto, setFiltroTipoProduto] = useState('');
 
-  const {
-    productTypes,
-    isLoading: loadingProductTypes,
-    error: productTypesError,
-  } = useProductTypes();
+  const { productTypes, isLoading: loadingProductTypes, error: productTypesError } = useProductTypes();
 
   useEffect(() => {
     if (productTypesError) {
-      console.error('ProdutosPage: Erro recebido do ProductTypeContext:', productTypesError);
+      console.error('ProdutosPage: erro recebido do ProductTypeContext:', productTypesError);
     }
   }, [productTypesError]);
 
@@ -70,7 +57,7 @@ function ProdutosPage() {
         fornecedor_id: filtroFornecedor || undefined,
         product_type_id: filtroTipoProduto || undefined,
       };
-      Object.keys(params).forEach(key => params[key] === undefined && delete params[key]);
+      Object.keys(params).forEach((key) => params[key] === undefined && delete params[key]);
       const data = await productService.getProdutos(params);
       setProdutos(Array.isArray(data.items) ? data.items : []);
       setTotalProdutos(data.total_items || 0);
@@ -82,30 +69,36 @@ function ProdutosPage() {
     } finally {
       setLoading(false);
     }
-  }, [currentPage, limitPerPage, sortConfig, searchTerm, filtroStatusEnriquecimento, filtroStatusTituloIA, filtroStatusDescricaoIA, filtroFornecedor, filtroTipoProduto]);
+  }, [
+    currentPage,
+    limitPerPage,
+    sortConfig,
+    searchTerm,
+    filtroStatusEnriquecimento,
+    filtroStatusTituloIA,
+    filtroStatusDescricaoIA,
+    filtroFornecedor,
+    filtroTipoProduto,
+  ]);
 
   useEffect(() => {
     fetchProdutos();
   }, [fetchProdutos]);
-  
+
   const handleProductUpdated = (updatedProduct) => {
-    // Atualiza a lista de produtos no estado para refletir a mudança imediatamente
-    setProdutos(prevProdutos => 
-        prevProdutos.map(p => (p.id === updatedProduct.id ? updatedProduct : p))
-    );
+    setProdutos((prevProdutos) => prevProdutos.map((p) => (p.id === updatedProduct.id ? updatedProduct : p)));
   };
 
-  // NOVO: Funções unificadas para abrir e fechar o modal
   const handleOpenModal = (produto = null) => {
-    setProdutoParaEditar(produto); // null para criar, objeto para editar
+    setProdutoParaEditar(produto);
     setIsModalOpen(true);
   };
+
   const handleCloseModal = () => {
     setIsModalOpen(false);
     setProdutoParaEditar(null);
   };
 
-  // Abra o modal automaticamente se um ID de produto for fornecido na URL
   useEffect(() => {
     const productId = searchParams.get('id');
     if (productId) {
@@ -121,32 +114,7 @@ function ProdutosPage() {
       };
       openById();
     }
-  }, [searchParams]);
-
-  // REMOVIDO: Handlers antigos dos modais separados
-  // const handleOpenNewProductModal = () => setIsNewProductModalOpen(true);
-  // const handleCloseNewProductModal = () => setIsNewProductModalOpen(false);
-  // const handleOpenEditModal = (produto) => { ... };
-  // const handleCloseEditModal = () => { ... };
-
-  const handleSaveProdutoCallback = async (produtoData, produtoId = null) => {
-    try {
-      if (produtoId) {
-        const updatedProduct = await productService.updateProduto(produtoId, produtoData);
-        handleProductUpdated(updatedProduct);
-      } else {
-        await productService.createProduto(produtoData);
-        fetchProdutos(); // Recarrega tudo ao criar um novo produto
-      }
-      showSuccessToast(`Produto ${produtoId ? 'atualizado' : 'criado'} com sucesso!`);
-      return Promise.resolve();
-    } catch (err) {
-      const actionType = produtoId ? 'atualizar' : 'criar';
-      const errorMsg = err.response?.data?.detail || err.message || `Falha ao ${actionType} produto.`;
-      showErrorToast(errorMsg);
-      return Promise.reject(err);
-    }
-  };
+  }, [searchParams, navigate]);
 
   const handleSort = (key) => {
     let direction = 'ascending';
@@ -158,7 +126,7 @@ function ProdutosPage() {
   };
 
   const handleSelectProduto = (produtoId) => {
-    setSelectedProdutos(prevSelected => {
+    setSelectedProdutos((prevSelected) => {
       const newSelected = new Set(prevSelected);
       if (newSelected.has(produtoId)) {
         newSelected.delete(produtoId);
@@ -171,7 +139,7 @@ function ProdutosPage() {
 
   const handleSelectAllProdutos = (isChecked) => {
     if (isChecked) {
-      setSelectedProdutos(new Set(produtos.map(p => p.id)));
+      setSelectedProdutos(new Set(produtos.map((p) => p.id)));
     } else {
       setSelectedProdutos(new Set());
     }
@@ -198,11 +166,7 @@ function ProdutosPage() {
   };
 
   const updateLocalProductStatus = (ids, statusField, newStatus) => {
-    setProdutos(prev => 
-      prev.map(p => 
-        ids.has(p.id) ? { ...p, [statusField]: newStatus } : p
-      )
-    );
+    setProdutos((prev) => prev.map((p) => (ids.has(p.id) ? { ...p, [statusField]: newStatus } : p)));
   };
 
   const handleEnrichSelectedWeb = async () => {
@@ -210,12 +174,12 @@ function ProdutosPage() {
       showWarningToast('Nenhum produto selecionado para enriquecimento web.');
       return;
     }
-    
+
     showInfoToast(`Enriquecimento web iniciado para ${selectedProdutos.size} produto(s).`);
     updateLocalProductStatus(selectedProdutos, 'status_enriquecimento_web', 'EM_PROGRESSO');
 
     const idsToProcess = Array.from(selectedProdutos);
-    setSelectedProdutos(new Set()); 
+    setSelectedProdutos(new Set());
 
     for (const produtoId of idsToProcess) {
       try {
@@ -225,18 +189,19 @@ function ProdutosPage() {
         updateLocalProductStatus(new Set([produtoId]), 'status_enriquecimento_web', 'FALHA');
       }
     }
-    
+
     setTimeout(() => {
-        showInfoToast("Atualizando lista para verificar resultados do enriquecimento...");
-        fetchProdutos();
+      showInfoToast('Atualizando lista para verificar resultados do enriquecimento...');
+      fetchProdutos();
     }, 15000);
   };
-  
+
   const handleGenerateContentForSelected = async (contentType) => {
     if (selectedProdutos.size === 0) {
       showWarningToast(`Nenhum produto selecionado para gerar ${contentType}s.`);
       return;
     }
+
     const contentTypePlural = contentType === 'titulo' ? 'títulos' : 'descrições';
     showInfoToast(`Geração de ${contentTypePlural} iniciada para ${selectedProdutos.size} produto(s).`);
 
@@ -244,7 +209,7 @@ function ProdutosPage() {
     updateLocalProductStatus(selectedProdutos, statusField, 'EM_PROGRESSO');
 
     const idsToProcess = Array.from(selectedProdutos);
-    setSelectedProdutos(new Set()); 
+    setSelectedProdutos(new Set());
 
     for (const produtoId of idsToProcess) {
       try {
@@ -264,73 +229,114 @@ function ProdutosPage() {
       fetchProdutos();
     }, 15000);
   };
-  
+
   const totalPages = Math.ceil(totalProdutos / limitPerPage);
 
   if (error && !loading && (!produtos || produtos.length === 0)) {
-    return <div className="error-message">Erro ao carregar produtos: {error} <button onClick={fetchProdutos}>Tentar Novamente</button></div>;
+    return (
+      <div className="error-message">
+        Erro ao carregar produtos: {error}
+        <button onClick={fetchProdutos}>Tentar novamente</button>
+      </div>
+    );
   }
 
   return (
-    <div className="produtos-page-container">
-      <div className="page-header">
-        <h1>Meus Produtos</h1>
-        {/* ALTERADO: Botão de novo produto chama o handler unificado */}
+    <div className="app-page-shell produtos-page-shell">
+      <div className="app-page-header produtos-page-header">
+        <h2 className="app-page-heading">Meus Produtos</h2>
         <button onClick={() => handleOpenModal(null)} className="btn-primary">
-          <span className="icon-add"></span> Novo Produto
+          + Novo Produto
         </button>
       </div>
-      <div className="filtros-e-busca-container">
+
+      <div className="app-toolbar-card filtros-e-busca-container">
         <input
           type="text"
           placeholder="Buscar por nome, SKU, EAN..."
           value={searchTerm}
-          onChange={(e) => { setSearchTerm(e.target.value); setCurrentPage(0); }}
+          onChange={(e) => {
+            setSearchTerm(e.target.value);
+            setCurrentPage(0);
+          }}
           className="search-input"
         />
+
         <div className="filtros-dropdowns">
-          <select value={filtroStatusEnriquecimento} onChange={(e) => {setFiltroStatusEnriquecimento(e.target.value); setCurrentPage(0);}} className="filtro-select">
+          <select
+            value={filtroStatusEnriquecimento}
+            onChange={(e) => {
+              setFiltroStatusEnriquecimento(e.target.value);
+              setCurrentPage(0);
+            }}
+            className="filtro-select"
+          >
             <option value="">Status Web</option>
-            <option value="NAO_INICIADO">Não Iniciado</option>
+            <option value="NAO_INICIADO">Não iniciado</option>
             <option value="PENDENTE">Pendente</option>
-            <option value="EM_PROGRESSO">Em Progresso</option>
+            <option value="EM_PROGRESSO">Em progresso</option>
             <option value="CONCLUIDO_SUCESSO">Concluído</option>
             <option value="FALHA">Falha</option>
           </select>
-          <select value={filtroStatusTituloIA} onChange={(e) => {setFiltroStatusTituloIA(e.target.value); setCurrentPage(0);}} className="filtro-select">
+
+          <select
+            value={filtroStatusTituloIA}
+            onChange={(e) => {
+              setFiltroStatusTituloIA(e.target.value);
+              setCurrentPage(0);
+            }}
+            className="filtro-select"
+          >
             <option value="">Status Título IA</option>
-            <option value="NAO_INICIADO">Não Iniciado</option>
+            <option value="NAO_INICIADO">Não iniciado</option>
             <option value="PENDENTE">Pendente</option>
-            <option value="EM_PROGRESSO">Em Progresso</option>
+            <option value="EM_PROGRESSO">Em progresso</option>
             <option value="CONCLUIDO">Concluído</option>
             <option value="FALHA">Falha</option>
           </select>
-          <select value={filtroStatusDescricaoIA} onChange={(e) => {setFiltroStatusDescricaoIA(e.target.value); setCurrentPage(0);}} className="filtro-select">
+
+          <select
+            value={filtroStatusDescricaoIA}
+            onChange={(e) => {
+              setFiltroStatusDescricaoIA(e.target.value);
+              setCurrentPage(0);
+            }}
+            className="filtro-select"
+          >
             <option value="">Status Descrição IA</option>
-            <option value="NAO_INICIADO">Não Iniciado</option>
+            <option value="NAO_INICIADO">Não iniciado</option>
             <option value="PENDENTE">Pendente</option>
-            <option value="EM_PROGRESSO">Em Progresso</option>
+            <option value="EM_PROGRESSO">Em progresso</option>
             <option value="CONCLUIDO">Concluído</option>
             <option value="FALHA">Falha</option>
           </select>
+
           <select
             value={filtroTipoProduto}
-            onChange={(e) => {setFiltroTipoProduto(e.target.value); setCurrentPage(0);}}
+            onChange={(e) => {
+              setFiltroTipoProduto(e.target.value);
+              setCurrentPage(0);
+            }}
             className="filtro-select"
             disabled={loadingProductTypes || (productTypes && productTypes.length === 0)}
           >
-            <option value="">
-                {loadingProductTypes ? "Carregando Tipos..." : "Todos Tipos"}
-            </option>
-            {productTypes && productTypes.map(pt => (
+            <option value="">{loadingProductTypes ? 'Carregando tipos...' : 'Todos os tipos'}</option>
+            {productTypes && productTypes.map((pt) => (
               <option key={pt.id} value={pt.id}>{pt.friendly_name}</option>
             ))}
           </select>
         </div>
-        <button onClick={fetchProdutos} className="btn btn-outline btn-sm" disabled={loading} title="Atualizar lista de produtos">
-            Atualizar Lista
+
+        <button
+          onClick={fetchProdutos}
+          className="btn btn-outline btn-sm"
+          disabled={loading}
+          title="Atualizar lista de produtos"
+        >
+          Atualizar Lista
         </button>
       </div>
+
       {selectedProdutos.size > 0 && (
         <div className="acoes-em-lote-container">
           <span>{selectedProdutos.size} produto(s) selecionado(s)</span>
@@ -340,12 +346,12 @@ function ProdutosPage() {
           <button onClick={() => handleGenerateContentForSelected('descricao')} className="btn-secondary btn-sm">Gerar Descrições IA</button>
         </div>
       )}
+
       {loading && (!produtos || produtos.length === 0) ? (
         <LoadingPopup isOpen={true} message="Carregando produtos..." />
       ) : (
         <ProductTable
           produtos={produtos}
-          // ALTERADO: onEdit agora usa o handler unificado
           onEdit={handleOpenModal}
           onSort={handleSort}
           sortConfig={sortConfig}
@@ -355,25 +361,23 @@ function ProdutosPage() {
           loading={loading && (produtos && produtos.length > 0)}
         />
       )}
-      {!loading && totalProdutos > 0 && (
-          <PaginationControls
-            currentPage={currentPage}
-            totalPages={totalPages}
-            onPageChange={(page) => setCurrentPage(page)}
-            itemsPerPage={limitPerPage}
-            onItemsPerPageChange={(value) => { setLimitPerPage(parseInt(value, 10)); setCurrentPage(0); }}
-            totalItems={totalProdutos}
-          />
-        )}
-        
-      {/* REMOVIDO: A renderização dos dois componentes de modal separados
-      {isNewProductModalOpen && ( ... )}
-      {isEditModalOpen && produtoParaEditar && ( ... )}
-      */}
 
-      {/* NOVO: Renderiza um único modal unificado */}
+      {!loading && totalProdutos > 0 && (
+        <PaginationControls
+          currentPage={currentPage}
+          totalPages={totalPages}
+          onPageChange={(page) => setCurrentPage(page)}
+          itemsPerPage={limitPerPage}
+          onItemsPerPageChange={(value) => {
+            setLimitPerPage(parseInt(value, 10));
+            setCurrentPage(0);
+          }}
+          totalItems={totalProdutos}
+        />
+      )}
+
       {isModalOpen && (
-        <Modal isOpen={isModalOpen} onClose={handleCloseModal} title={produtoParaEditar ? `Editar Produto` : 'Criar Novo Produto'}>
+        <Modal isOpen={isModalOpen} onClose={handleCloseModal} title={produtoParaEditar ? 'Editar Produto' : 'Criar Novo Produto'}>
           <ProductEditModal
             isOpen={isModalOpen}
             onClose={handleCloseModal}

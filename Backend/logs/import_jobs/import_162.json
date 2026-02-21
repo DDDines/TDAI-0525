@@ -1,0 +1,5049 @@
+{
+  "file_id": 162,
+  "status": "IMPORTED",
+  "stats": {
+    "created": 1273,
+    "updated": 1900,
+    "errors": 307,
+    "pages_processed": 231,
+    "pages_total": 231,
+    "ext": ".pdf"
+  },
+  "error_reasons_top": [
+    [
+      "Faltam nome_base e sku_original",
+      296
+    ],
+    [
+      "Nenhum dado de produto pÃƒÂ´de ser extraÃƒÂ­do do PDF (pode estar protegido, vazio ou somente imagem sem OCR).",
+      8
+    ],
+    [
+      "Produto duplicado por SKU ou EAN",
+      3
+    ]
+  ],
+  "errors": [
+    {
+      "motivo_descarte": "Faltam nome_base e sku_original",
+      "linha_original": {
+        "col_0": "",
+        "col_1": "",
+        "col_2": "",
+        "col_3": "",
+        "col_4": "",
+        "col_5": "eae 3 PF",
+        "col_6": "",
+        "col_7": "",
+        "col_8": "",
+        "col_9": "",
+        "col_10": "",
+        "col_11": ""
+      },
+      "product_type_id": 4
+    },
+    {
+      "motivo_descarte": "Faltam nome_base e sku_original",
+      "linha_original": {
+        "col_0": "",
+        "col_1": "",
+        "col_2": "",
+        "col_3": "Bary"
+      },
+      "product_type_id": 4
+    },
+    {
+      "erro_processamento_pdf": "Nenhum dado de produto pÃƒÂ´de ser extraÃƒÂ­do do PDF (pode estar protegido, vazio ou somente imagem sem OCR).",
+      "log_pdf": [
+        "PDF com 231 pÃƒÂ¡ginas.",
+        "PÃƒÂ¡gina 3: Aplicando recorte (crop) com bbox (23.357242152466366, 171.34246013272582, 595.276, 755.7288626683835) [modo=normalized].",
+        "PÃƒÂ¡gina 3: ExtraÃƒÂ§ÃƒÂ£o por regiÃƒÂ£o nÃƒÂ£o retornou linhas.",
+        "PÃƒÂ¡gina 3: Nenhuma tabela encontrada.",
+        "Nenhum produto extraÃƒÂ­do de tabelas/regiÃƒÂ£o. Tentando extraÃƒÂ§ÃƒÂ£o de texto bruto.",
+        "PÃƒÂ¡gina 3: Nenhum texto extraÃƒÂ­vel (pode ser imagem ou protegido)."
+      ]
+    },
+    {
+      "motivo_descarte": "Faltam nome_base e sku_original",
+      "linha_original": {
+        "col": ""
+      },
+      "product_type_id": 4
+    },
+    {
+      "erro_processamento_pdf": "Nenhum dado de produto pÃƒÂ´de ser extraÃƒÂ­do do PDF (pode estar protegido, vazio ou somente imagem sem OCR).",
+      "log_pdf": [
+        "PDF com 231 pÃƒÂ¡ginas.",
+        "PÃƒÂ¡gina 5: Aplicando recorte (crop) com bbox (23.357242152466366, 171.34246013272582, 595.276, 755.7288626683835) [modo=normalized].",
+        "PÃƒÂ¡gina 5: ExtraÃƒÂ§ÃƒÂ£o por regiÃƒÂ£o nÃƒÂ£o retornou linhas.",
+        "PÃƒÂ¡gina 5: Encontradas 3 tabelas.",
+        "PÃƒÂ¡gina 5, Tabela 1: Tabela vazia ou sem dados.",
+        "PÃƒÂ¡gina 5, Tabela 2: Tabela vazia ou sem dados.",
+        "PÃƒÂ¡gina 5, Tabela 3: Tabela vazia ou sem dados.",
+        "Nenhum produto extraÃƒÂ­do de tabelas/regiÃƒÂ£o. Tentando extraÃƒÂ§ÃƒÂ£o de texto bruto.",
+        "PÃƒÂ¡gina 5: Nenhum texto extraÃƒÂ­vel (pode ser imagem ou protegido)."
+      ]
+    },
+    {
+      "erro_processamento_pdf": "Nenhum dado de produto pÃƒÂ´de ser extraÃƒÂ­do do PDF (pode estar protegido, vazio ou somente imagem sem OCR).",
+      "log_pdf": [
+        "PDF com 231 pÃƒÂ¡ginas.",
+        "PÃƒÂ¡gina 6: Aplicando recorte (crop) com bbox (23.357242152466366, 171.34246013272582, 595.276, 755.7288626683835) [modo=normalized].",
+        "PÃƒÂ¡gina 6: ExtraÃƒÂ§ÃƒÂ£o por regiÃƒÂ£o nÃƒÂ£o retornou linhas.",
+        "PÃƒÂ¡gina 6: Encontradas 6 tabelas.",
+        "PÃƒÂ¡gina 6, Tabela 1: Tabela vazia ou sem dados.",
+        "PÃƒÂ¡gina 6, Tabela 2: Tabela vazia ou sem dados.",
+        "PÃƒÂ¡gina 6, Tabela 3: Tabela vazia ou sem dados.",
+        "PÃƒÂ¡gina 6, Tabela 4: Tabela vazia ou sem dados.",
+        "PÃƒÂ¡gina 6, Tabela 5: Tabela vazia ou sem dados.",
+        "PÃƒÂ¡gina 6, Tabela 6: Tabela vazia ou sem dados.",
+        "Nenhum produto extraÃƒÂ­do de tabelas/regiÃƒÂ£o. Tentando extraÃƒÂ§ÃƒÂ£o de texto bruto.",
+        "PÃƒÂ¡gina 6: Nenhum texto extraÃƒÂ­vel (pode ser imagem ou protegido)."
+      ]
+    },
+    {
+      "erro_processamento_pdf": "Nenhum dado de produto pÃƒÂ´de ser extraÃƒÂ­do do PDF (pode estar protegido, vazio ou somente imagem sem OCR).",
+      "log_pdf": [
+        "PDF com 231 pÃƒÂ¡ginas.",
+        "PÃƒÂ¡gina 7: Aplicando recorte (crop) com bbox (23.357242152466366, 171.34246013272582, 595.276, 755.7288626683835) [modo=normalized].",
+        "PÃƒÂ¡gina 7: ExtraÃƒÂ§ÃƒÂ£o por regiÃƒÂ£o nÃƒÂ£o retornou linhas.",
+        "PÃƒÂ¡gina 7: Encontradas 8 tabelas.",
+        "PÃƒÂ¡gina 7, Tabela 1: Tabela vazia ou sem dados.",
+        "PÃƒÂ¡gina 7, Tabela 2: Tabela vazia ou sem dados.",
+        "PÃƒÂ¡gina 7, Tabela 3: Tabela vazia ou sem dados.",
+        "PÃƒÂ¡gina 7, Tabela 4: Tabela vazia ou sem dados.",
+        "PÃƒÂ¡gina 7, Tabela 5: Tabela vazia ou sem dados.",
+        "PÃƒÂ¡gina 7, Tabela 6: Tabela vazia ou sem dados.",
+        "PÃƒÂ¡gina 7, Tabela 7: Tabela vazia ou sem dados.",
+        "PÃƒÂ¡gina 7, Tabela 8: Tabela vazia ou sem dados.",
+        "Nenhum produto extraÃƒÂ­do de tabelas/regiÃƒÂ£o. Tentando extraÃƒÂ§ÃƒÂ£o de texto bruto.",
+        "PÃƒÂ¡gina 7: Nenhum texto extraÃƒÂ­vel (pode ser imagem ou protegido)."
+      ]
+    },
+    {
+      "erro_processamento_pdf": "Nenhum dado de produto pÃƒÂ´de ser extraÃƒÂ­do do PDF (pode estar protegido, vazio ou somente imagem sem OCR).",
+      "log_pdf": [
+        "PDF com 231 pÃƒÂ¡ginas.",
+        "PÃƒÂ¡gina 8: Aplicando recorte (crop) com bbox (23.357242152466366, 171.34246013272582, 595.276, 755.7288626683835) [modo=normalized].",
+        "PÃƒÂ¡gina 8: ExtraÃƒÂ§ÃƒÂ£o por regiÃƒÂ£o nÃƒÂ£o retornou linhas.",
+        "PÃƒÂ¡gina 8: Encontradas 3 tabelas.",
+        "PÃƒÂ¡gina 8, Tabela 1: Tabela vazia ou sem dados.",
+        "PÃƒÂ¡gina 8, Tabela 2: Tabela vazia ou sem dados.",
+        "PÃƒÂ¡gina 8, Tabela 3: Tabela vazia ou sem dados.",
+        "Nenhum produto extraÃƒÂ­do de tabelas/regiÃƒÂ£o. Tentando extraÃƒÂ§ÃƒÂ£o de texto bruto.",
+        "PÃƒÂ¡gina 8: Nenhum texto extraÃƒÂ­vel (pode ser imagem ou protegido)."
+      ]
+    },
+    {
+      "motivo_descarte": "Faltam nome_base e sku_original",
+      "linha_original": {
+        "col": ""
+      },
+      "product_type_id": 4
+    },
+    {
+      "motivo_descarte": "Faltam nome_base e sku_original",
+      "linha_original": {
+        "col": ""
+      },
+      "product_type_id": 4
+    },
+    {
+      "motivo_descarte": "Faltam nome_base e sku_original",
+      "linha_original": {
+        "col": ""
+      },
+      "product_type_id": 4
+    },
+    {
+      "motivo_descarte": "Faltam nome_base e sku_original",
+      "linha_original": {
+        "col_0": "",
+        "col_1": "1838",
+        "col_2": "",
+        "col_3": "",
+        "col_4": "",
+        "col_5": "———",
+        "col_6": "",
+        "col_7": "",
+        "col_8": "",
+        "col_9": "",
+        "col_10": "",
+        "col_11": "",
+        "col_12": "",
+        "col_13": ""
+      },
+      "product_type_id": 4
+    },
+    {
+      "motivo_descarte": "Faltam nome_base e sku_original",
+      "linha_original": {
+        "col_0": "",
+        "col_1": "1828",
+        "col_2": "",
+        "col_3": "",
+        "col_4": "",
+        "col_5": "",
+        "col_6": "",
+        "col_7": "",
+        "col_8": "",
+        "col_9": "",
+        "col_10": "",
+        "col_11": "",
+        "col_12": "",
+        "col_13": ""
+      },
+      "product_type_id": 4
+    },
+    {
+      "motivo_descarte": "Faltam nome_base e sku_original",
+      "linha_original": {
+        "col_0": "",
+        "col_1": "",
+        "col_2": "",
+        "col_3": "1824",
+        "col_4": "",
+        "col_5": "",
+        "col_6": "",
+        "col_7": "",
+        "col_8": "",
+        "col_9": "",
+        "col_10": "",
+        "col_11": "",
+        "col_12": "",
+        "col_13": ""
+      },
+      "product_type_id": 4
+    },
+    {
+      "motivo_descarte": "Faltam nome_base e sku_original",
+      "linha_original": {
+        "col_0": "",
+        "col_1": "\\",
+        "col_2": "",
+        "col_3": "",
+        "col_4": "",
+        "col_5": "1832 E",
+        "col_6": "",
+        "col_7": "",
+        "col_8": "",
+        "col_9": "",
+        "col_10": "",
+        "col_11": "",
+        "col_12": "",
+        "col_13": ""
+      },
+      "product_type_id": 4
+    },
+    {
+      "motivo_descarte": "Faltam nome_base e sku_original",
+      "linha_original": {
+        "col_0": "",
+        "col_1": "— a",
+        "col_2": "",
+        "col_3": "",
+        "col_4": "",
+        "col_5": "1823 E",
+        "col_6": "",
+        "col_7": "",
+        "col_8": "",
+        "col_9": "",
+        "col_10": "",
+        "col_11": "",
+        "col_12": "",
+        "col_13": ""
+      },
+      "product_type_id": 4
+    },
+    {
+      "motivo_descarte": "Faltam nome_base e sku_original",
+      "linha_original": {
+        "col_0": "",
+        "col_1": "1834",
+        "col_2": "",
+        "col_3": "",
+        "col_4": ""
+      },
+      "product_type_id": 4
+    },
+    {
+      "motivo_descarte": "Faltam nome_base e sku_original",
+      "linha_original": {
+        "col_0": "",
+        "col_1": "1817",
+        "col_2": "",
+        "col_3": "",
+        "col_4": ""
+      },
+      "product_type_id": 4
+    },
+    {
+      "motivo_descarte": "Faltam nome_base e sku_original",
+      "linha_original": {
+        "col_0": "",
+        "col_1": "",
+        "col_2": "",
+        "col_3": "1750",
+        "col_4": "",
+        "col_5": "",
+        "col_6": "",
+        "col_7": "",
+        "col_8": "",
+        "col_9": "",
+        "col_10": "",
+        "col_11": ""
+      },
+      "product_type_id": 4
+    },
+    {
+      "motivo_descarte": "Faltam nome_base e sku_original",
+      "linha_original": {
+        "col_0": "",
+        "col_1": "1818",
+        "col_2": "",
+        "col_3": "",
+        "col_4": "",
+        "col_5": "",
+        "col_6": "",
+        "col_7": "",
+        "col_8": ":",
+        "col_9": "",
+        "col_10": "",
+        "col_11": ""
+      },
+      "product_type_id": 4
+    },
+    {
+      "motivo_descarte": "Faltam nome_base e sku_original",
+      "linha_original": {
+        "col_0": "",
+        "col_1": "1757 D",
+        "col_2": "",
+        "col_3": "",
+        "col_4": "",
+        "col_5": "",
+        "col_6": "",
+        "col_7": "",
+        "col_8": "",
+        "col_9": "",
+        "col_10": "",
+        "col_11": ""
+      },
+      "product_type_id": 4
+    },
+    {
+      "motivo_descarte": "Faltam nome_base e sku_original",
+      "linha_original": {
+        "col_0": "",
+        "col_1": "Sy:",
+        "col_2": "",
+        "col_3": "",
+        "col_4": "",
+        "col_5": "",
+        "col_6": "",
+        "col_7": "",
+        "col_8": "",
+        "col_9": "",
+        "col_10": "",
+        "col_11": "",
+        "col_12": ""
+      },
+      "product_type_id": 4
+    },
+    {
+      "motivo_descarte": "Faltam nome_base e sku_original",
+      "linha_original": {
+        "col_0": "",
+        "col_1": "er",
+        "col_2": "",
+        "col_3": "",
+        "col_4": "",
+        "col_5": "",
+        "col_6": "",
+        "col_7": "",
+        "col_8": "",
+        "col_9": "",
+        "col_10": "",
+        "col_11": "",
+        "col_12": ""
+      },
+      "product_type_id": 4
+    },
+    {
+      "motivo_descarte": "Faltam nome_base e sku_original",
+      "linha_original": {
+        "col_0": "",
+        "col_1": "1670",
+        "col_2": "",
+        "col_3": "",
+        "col_4": "",
+        "col_5": "",
+        "col_6": "",
+        "col_7": "",
+        "col_8": "",
+        "col_9": "",
+        "col_10": "",
+        "col_11": ""
+      },
+      "product_type_id": 4
+    },
+    {
+      "motivo_descarte": "Faltam nome_base e sku_original",
+      "linha_original": {
+        "col_0": "",
+        "col_1": "944 885 05 25 Para-choque Inferior Esquerdo Axor 2540/2644 Plastico Injetado",
+        "col_2": "",
+        "col_3": "",
+        "col_4": "",
+        "col_5": ""
+      },
+      "product_type_id": 4
+    },
+    {
+      "motivo_descarte": "Faltam nome_base e sku_original",
+      "linha_original": {
+        "col_0": "",
+        "col_1": "",
+        "col_2": "",
+        "col_3": "1695",
+        "col_4": "",
+        "col_5": "",
+        "col_6": "",
+        "col_7": "",
+        "col_8": "",
+        "col_9": ""
+      },
+      "product_type_id": 4
+    },
+    {
+      "motivo_descarte": "Faltam nome_base e sku_original",
+      "linha_original": {
+        "col_0": "",
+        "col_1": "",
+        "col_2": "",
+        "col_3": "1827D",
+        "col_4": "",
+        "col_5": "",
+        "col_6": "",
+        "col_7": "",
+        "col_8": "",
+        "col_9": ""
+      },
+      "product_type_id": 4
+    },
+    {
+      "motivo_descarte": "Faltam nome_base e sku_original",
+      "linha_original": {
+        "col_0": "",
+        "col_1": "1707",
+        "col_2": "",
+        "col_3": "",
+        "col_4": "",
+        "col_5": "",
+        "col_6": "",
+        "col_7": "",
+        "col_8": "",
+        "col_9": ""
+      },
+      "product_type_id": 4
+    },
+    {
+      "motivo_descarte": "Faltam nome_base e sku_original",
+      "linha_original": {
+        "col_0": "",
+        "col_1": "",
+        "col_2": "",
+        "col_3": "",
+        "col_4": "",
+        "col_5": "oh",
+        "col_6": "",
+        "col_7": "",
+        "col_8": "",
+        "col_9": ""
+      },
+      "product_type_id": 4
+    },
+    {
+      "motivo_descarte": "Faltam nome_base e sku_original",
+      "linha_original": {
+        "col_0": "",
+        "col_1": "",
+        "col_2": "",
+        "col_3": "",
+        "col_4": "",
+        "col_5": "La.",
+        "col_6": "",
+        "col_7": "",
+        "col_8": "",
+        "col_9": "",
+        "col_10": "",
+        "col_11": "",
+        "col_12": "",
+        "col_13": ""
+      },
+      "product_type_id": 4
+    },
+    {
+      "motivo_descarte": "Faltam nome_base e sku_original",
+      "linha_original": {
+        "col_0": "",
+        "col_1": "1678",
+        "col_2": "",
+        "col_3": "",
+        "col_4": "",
+        "col_5": "",
+        "col_6": "",
+        "col_7": "",
+        "col_8": "",
+        "col_9": "",
+        "col_10": "",
+        "col_11": "",
+        "col_12": "",
+        "col_13": ""
+      },
+      "product_type_id": 4
+    },
+    {
+      "motivo_descarte": "Faltam nome_base e sku_original",
+      "linha_original": {
+        "col_0": "",
+        "col_1": "",
+        "col_2": "",
+        "col_3": "1722",
+        "col_4": "",
+        "col_5": "",
+        "col_6": "",
+        "col_7": "",
+        "col_8": "",
+        "col_9": "",
+        "col_10": "",
+        "col_11": "",
+        "col_12": ""
+      },
+      "product_type_id": 4
+    },
+    {
+      "motivo_descarte": "Faltam nome_base e sku_original",
+      "linha_original": {
+        "col_0": "",
+        "col_1": "",
+        "col_2": "",
+        "col_3": "1727",
+        "col_4": "",
+        "col_5": "",
+        "col_6": "",
+        "col_7": "",
+        "col_8": "",
+        "col_9": "",
+        "col_10": "",
+        "col_11": "",
+        "col_12": ""
+      },
+      "product_type_id": 4
+    },
+    {
+      "motivo_descarte": "Faltam nome_base e sku_original",
+      "linha_original": {
+        "col_0": "",
+        "col_1": "1827 D |",
+        "col_2": "",
+        "col_3": "",
+        "col_4": "",
+        "col_5": "",
+        "col_6": "",
+        "col_7": "",
+        "col_8": "",
+        "col_9": "",
+        "col_10": "",
+        "col_11": "",
+        "col_12": ""
+      },
+      "product_type_id": 4
+    },
+    {
+      "motivo_descarte": "Faltam nome_base e sku_original",
+      "linha_original": {
+        "col_0": "",
+        "col_1": "",
+        "col_2": "",
+        "col_3": "1745",
+        "col_4": "",
+        "col_5": "",
+        "col_6": "",
+        "col_7": "",
+        "col_8": "",
+        "col_9": "",
+        "col_10": "—",
+        "col_11": "",
+        "col_12": ""
+      },
+      "product_type_id": 4
+    },
+    {
+      "motivo_descarte": "Faltam nome_base e sku_original",
+      "linha_original": {
+        "col_0": "",
+        "col_1": "",
+        "col_2": "",
+        "col_3": "1744",
+        "col_4": "",
+        "col_5": "",
+        "col_6": "",
+        "col_7": "",
+        "col_8": "",
+        "col_9": "",
+        "col_10": "",
+        "col_11": "",
+        "col_12": ""
+      },
+      "product_type_id": 4
+    },
+    {
+      "motivo_descarte": "Faltam nome_base e sku_original",
+      "linha_original": {
+        "col_0": "",
+        "col_1": "",
+        "col_2": "",
+        "col_3": "",
+        "col_4": "",
+        "col_5": "1747 E",
+        "col_6": "",
+        "col_7": "",
+        "col_8": "",
+        "col_9": "",
+        "col_10": "",
+        "col_11": "",
+        "col_12": ""
+      },
+      "product_type_id": 4
+    },
+    {
+      "motivo_descarte": "Faltam nome_base e sku_original",
+      "linha_original": {
+        "col_0": "",
+        "col_1": "",
+        "col_2": "",
+        "col_3": "",
+        "col_4": "",
+        "col_5": "1671",
+        "col_6": "",
+        "col_7": "",
+        "col_8": "",
+        "col_9": "",
+        "col_10": "",
+        "col_11": "",
+        "col_12": ""
+      },
+      "product_type_id": 4
+    },
+    {
+      "motivo_descarte": "Faltam nome_base e sku_original",
+      "linha_original": {
+        "col_0": "",
+        "col_1": "",
+        "col_2": "",
+        "col_3": "1678",
+        "col_4": "",
+        "col_5": "",
+        "col_6": "",
+        "col_7": "",
+        "col_8": "",
+        "col_9": "",
+        "col_10": "",
+        "col_11": "",
+        "col_12": ""
+      },
+      "product_type_id": 4
+    },
+    {
+      "motivo_descarte": "Faltam nome_base e sku_original",
+      "linha_original": {
+        "col_0": "",
+        "col_1": "",
+        "col_2": "",
+        "col_3": "1738",
+        "col_4": "",
+        "col_5": "",
+        "col_6": "",
+        "col_7": "",
+        "col_8": "",
+        "col_9": "",
+        "col_10": "",
+        "col_11": "",
+        "col_12": ""
+      },
+      "product_type_id": 4
+    },
+    {
+      "motivo_descarte": "Faltam nome_base e sku_original",
+      "linha_original": {
+        "col_0": "",
+        "col_1": "958 884 00 22 Defletor Interno",
+        "col_2": "",
+        "col_3": "1419/2426/3026 Plastico Injetado",
+        "col_4": ""
+      },
+      "product_type_id": 4
+    },
+    {
+      "motivo_descarte": "Faltam nome_base e sku_original",
+      "linha_original": {
+        "col_0": "",
+        "col_1": "958 884 02 22 Defletor Externo",
+        "col_2": "",
+        "col_3": "1419/2426/3026 Plastico Injetado",
+        "col_4": ""
+      },
+      "product_type_id": 4
+    },
+    {
+      "motivo_descarte": "Faltam nome_base e sku_original",
+      "linha_original": {
+        "col_0": "",
+        "col_1": "",
+        "col_2": "",
+        "col_3": "",
+        "col_4": "",
+        "col_5": "1678",
+        "col_6": "",
+        "col_7": "",
+        "col_8": "",
+        "col_9": "",
+        "col_10": "",
+        "col_11": "",
+        "col_12": ""
+      },
+      "product_type_id": 4
+    },
+    {
+      "motivo_descarte": "Faltam nome_base e sku_original",
+      "linha_original": {
+        "col_0": "",
+        "col_1": "1702 D",
+        "col_2": "",
+        "col_3": "",
+        "col_4": "",
+        "col_5": "",
+        "col_6": "",
+        "col_7": "",
+        "col_8": "",
+        "col_9": "",
+        "col_10": "",
+        "col_11": "",
+        "col_12": ""
+      },
+      "product_type_id": 4
+    },
+    {
+      "motivo_descarte": "Faltam nome_base e sku_original",
+      "linha_original": {
+        "col_0": "",
+        "col_1": "1442 By",
+        "col_2": "",
+        "col_3": "+",
+        "col_4": "",
+        "col_5": "",
+        "col_6": "",
+        "col_7": "",
+        "col_8": "",
+        "col_9": "",
+        "col_10": "|",
+        "col_11": "",
+        "col_12": "",
+        "col_13": "",
+        "col_14": "",
+        "col_15": ""
+      },
+      "product_type_id": 4
+    },
+    {
+      "motivo_descarte": "Faltam nome_base e sku_original",
+      "linha_original": {
+        "col_0": "",
+        "col_1": "",
+        "col_2": "",
+        "col_3": "",
+        "col_4": "",
+        "col_5": "} 1713",
+        "col_6": "",
+        "col_7": "",
+        "col_8": "",
+        "col_9": "",
+        "col_10": "",
+        "col_11": "",
+        "col_12": "",
+        "col_13": "",
+        "col_14": ""
+      },
+      "product_type_id": 4
+    },
+    {
+      "motivo_descarte": "Faltam nome_base e sku_original",
+      "linha_original": {
+        "col_0": "",
+        "col_1": "ha om ii",
+        "col_2": "",
+        "col_3": "",
+        "col_4": "",
+        "col_5": "",
+        "col_6": "",
+        "col_7": "",
+        "col_8": "",
+        "col_9": "",
+        "col_10": "",
+        "col_11": "",
+        "col_12": "",
+        "col_13": "",
+        "col_14": ""
+      },
+      "product_type_id": 4
+    },
+    {
+      "motivo_descarte": "Faltam nome_base e sku_original",
+      "linha_original": {
+        "col_0": "",
+        "col_1": "693 640 72 09 Canto Traseiro Esquerdo",
+        "col_2": "",
+        "col_3": "Atron 1719/2723/2726 Metalico"
+      },
+      "product_type_id": 4
+    },
+    {
+      "motivo_descarte": "Faltam nome_base e sku_original",
+      "linha_original": {
+        "col_0": "",
+        "col_1": "",
+        "col_2": "",
+        "col_3": "",
+        "col_4": "",
+        "col_5": "(ae 7",
+        "col_6": "",
+        "col_7": "",
+        "col_8": "",
+        "col_9": "",
+        "col_10": "",
+        "col_11": "",
+        "col_12": "",
+        "col_13": "",
+        "col_14": ""
+      },
+      "product_type_id": 4
+    },
+    {
+      "motivo_descarte": "Faltam nome_base e sku_original",
+      "linha_original": {
+        "col_0": "",
+        "col_1": "ir >",
+        "col_2": "",
+        "col_3": "",
+        "col_4": "",
+        "col_5": "",
+        "col_6": "",
+        "col_7": "",
+        "col_8": "",
+        "col_9": "",
+        "col_10": "",
+        "col_11": "",
+        "col_12": "",
+        "col_13": "",
+        "col_14": ""
+      },
+      "product_type_id": 4
+    },
+    {
+      "motivo_descarte": "Faltam nome_base e sku_original",
+      "linha_original": {
+        "col_0": "",
+        "col_1": "1713",
+        "col_2": "",
+        "col_3": "",
+        "col_4": "",
+        "col_5": "",
+        "col_6": "=",
+        "col_7": "",
+        "col_8": "",
+        "col_9": "",
+        "col_10": "",
+        "col_11": "",
+        "col_12": ""
+      },
+      "product_type_id": 4
+    },
+    {
+      "motivo_descarte": "Faltam nome_base e sku_original",
+      "linha_original": {
+        "col_0": "",
+        "col_1": "",
+        "col_2": "",
+        "col_3": "1922",
+        "col_4": "",
+        "col_5": "",
+        "col_6": "",
+        "col_7": "",
+        "col_8": "",
+        "col_9": "",
+        "col_10": "",
+        "col_11": "",
+        "col_12": ""
+      },
+      "product_type_id": 4
+    },
+    {
+      "motivo_descarte": "Faltam nome_base e sku_original",
+      "linha_original": {
+        "col_0": "",
+        "col_1": "1926",
+        "col_2": "",
+        "col_3": "",
+        "col_4": "",
+        "col_5": "",
+        "col_6": "",
+        "col_7": "",
+        "col_8": "",
+        "col_9": "",
+        "col_10": "",
+        "col_11": "",
+        "col_12": ""
+      },
+      "product_type_id": 4
+    },
+    {
+      "motivo_descarte": "Faltam nome_base e sku_original",
+      "linha_original": {
+        "col_0": "",
+        "col_1": "979 881 70 01 Para-lama do Estribo",
+        "col_2": "",
+        "col_3": "",
+        "col_4": "",
+        "col_5": "Accelo 715/815/915/1016/1316 Plastico",
+        "col_6": "",
+        "col_7": ""
+      },
+      "product_type_id": 4
+    },
+    {
+      "motivo_descarte": "Faltam nome_base e sku_original",
+      "linha_original": {
+        "col_0": "",
+        "col_1": "",
+        "col_2": "",
+        "col_3": "1560",
+        "col_4": "",
+        "col_5": "",
+        "col_6": "",
+        "col_7": "",
+        "col_8": "",
+        "col_9": "",
+        "col_10": "",
+        "col_11": "",
+        "col_12": "",
+        "col_13": "",
+        "col_14": "",
+        "col_15": ""
+      },
+      "product_type_id": 4
+    },
+    {
+      "motivo_descarte": "Faltam nome_base e sku_original",
+      "linha_original": {
+        "col_0": "",
+        "col_1": "",
+        "col_2": "",
+        "col_3": "1502",
+        "col_4": "",
+        "col_5": "",
+        "col_6": "",
+        "col_7": "",
+        "col_8": "",
+        "col_9": "",
+        "col_10": "",
+        "col_11": "",
+        "col_12": "",
+        "col_13": "",
+        "col_14": "",
+        "col_15": ""
+      },
+      "product_type_id": 4
+    },
+    {
+      "motivo_descarte": "Faltam nome_base e sku_original",
+      "linha_original": {
+        "col_0": "",
+        "col_1": "1248 D",
+        "col_2": "",
+        "col_3": "",
+        "col_4": "",
+        "col_5": "",
+        "col_6": "",
+        "col_7": "",
+        "col_8": "",
+        "col_9": "",
+        "col_10": "",
+        "col_11": "",
+        "col_12": "",
+        "col_13": "",
+        "col_14": "",
+        "col_15": ""
+      },
+      "product_type_id": 4
+    },
+    {
+      "motivo_descarte": "Faltam nome_base e sku_original",
+      "linha_original": {
+        "col_0": "",
+        "col_1": "> — wal as",
+        "col_2": "",
+        "col_3": "",
+        "col_4": "",
+        "col_5": "",
+        "col_6": "",
+        "col_7": "",
+        "col_8": "",
+        "col_9": "",
+        "col_10": "",
+        "col_11": "",
+        "col_12": "",
+        "col_13": "",
+        "col_14": "",
+        "col_15": ""
+      },
+      "product_type_id": 4
+    },
+    {
+      "motivo_descarte": "Faltam nome_base e sku_original",
+      "linha_original": {
+        "col_0": "",
+        "col_1": "1016",
+        "col_2": "",
+        "col_3": "",
+        "col_4": "",
+        "col_5": "",
+        "col_6": "",
+        "col_7": "",
+        "col_8": "",
+        "col_9": "",
+        "col_10": "",
+        "col_11": "",
+        "col_12": ""
+      },
+      "product_type_id": 4
+    },
+    {
+      "motivo_descarte": "Faltam nome_base e sku_original",
+      "linha_original": {
+        "col_0": "",
+        "col_1": "1793",
+        "col_2": "",
+        "col_3": "",
+        "col_4": "",
+        "col_5": "",
+        "col_6": "",
+        "col_7": "",
+        "col_8": "",
+        "col_9": "",
+        "col_10": "",
+        "col_11": ""
+      },
+      "product_type_id": 4
+    },
+    {
+      "motivo_descarte": "Faltam nome_base e sku_original",
+      "linha_original": {
+        "col_0": "",
+        "col_1": "",
+        "col_2": "",
+        "col_3": "1694 D",
+        "col_4": "",
+        "col_5": "",
+        "col_6": "",
+        "col_7": "",
+        "col_8": "",
+        "col_9": "",
+        "col_10": "",
+        "col_11": ""
+      },
+      "product_type_id": 4
+    },
+    {
+      "motivo_descarte": "Faltam nome_base e sku_original",
+      "linha_original": {
+        "col_0": "",
+        "col_1": "",
+        "col_2": "",
+        "col_3": "",
+        "col_4": "",
+        "col_5": "tee ee",
+        "col_6": "",
+        "col_7": "",
+        "col_8": "",
+        "col_9": "",
+        "col_10": "",
+        "col_11": "",
+        "col_12": ""
+      },
+      "product_type_id": 4
+    },
+    {
+      "motivo_descarte": "Faltam nome_base e sku_original",
+      "linha_original": {
+        "col_0": "",
+        "col_1": "",
+        "col_2": "",
+        "col_3": "1136",
+        "col_4": "",
+        "col_5": "",
+        "col_6": "",
+        "col_7": "",
+        "col_8": "",
+        "col_9": "",
+        "col_10": ":",
+        "col_11": "",
+        "col_12": ""
+      },
+      "product_type_id": 4
+    },
+    {
+      "motivo_descarte": "Faltam nome_base e sku_original",
+      "linha_original": {
+        "col_0": "",
+        "col_1": "",
+        "col_2": "",
+        "col_3": "4104",
+        "col_4": "",
+        "col_5": "",
+        "col_6": "",
+        "col_7": "",
+        "col_8": "",
+        "col_9": "",
+        "col_10": "",
+        "col_11": "",
+        "col_12": ""
+      },
+      "product_type_id": 4
+    },
+    {
+      "motivo_descarte": "Faltam nome_base e sku_original",
+      "linha_original": {
+        "col_0": "",
+        "col_1": "ae =k",
+        "col_2": "",
+        "col_3": "",
+        "col_4": "",
+        "col_5": "",
+        "col_6": "",
+        "col_7": "",
+        "col_8": "",
+        "col_9": "",
+        "col_10": "",
+        "col_11": "",
+        "col_12": "",
+        "col_13": ""
+      },
+      "product_type_id": 4
+    },
+    {
+      "motivo_descarte": "Faltam nome_base e sku_original",
+      "linha_original": {
+        "col_0": "",
+        "col_1": "",
+        "col_2": "",
+        "col_3": "ay",
+        "col_4": "\"",
+        "col_5": "",
+        "col_6": "-",
+        "col_7": "",
+        "col_8": "",
+        "col_9": "",
+        "col_10": "",
+        "col_11": "",
+        "col_12": "",
+        "col_13": ""
+      },
+      "product_type_id": 4
+    },
+    {
+      "motivo_descarte": "Faltam nome_base e sku_original",
+      "linha_original": {
+        "col_0": "",
+        "col_1": "",
+        "col_2": ",",
+        "col_3": "",
+        "col_4": "",
+        "col_5": "1145",
+        "col_6": "",
+        "col_7": "",
+        "col_8": "",
+        "col_9": "",
+        "col_10": "",
+        "col_11": "",
+        "col_12": "",
+        "col_13": ""
+      },
+      "product_type_id": 4
+    },
+    {
+      "motivo_descarte": "Faltam nome_base e sku_original",
+      "linha_original": {
+        "col_0": "",
+        "col_1": "1300",
+        "col_2": "",
+        "col_3": "",
+        "col_4": "",
+        "col_5": "",
+        "col_6": "",
+        "col_7": "",
+        "col_8": "",
+        "col_9": "",
+        "col_10": "",
+        "col_11": "",
+        "col_12": "",
+        "col_13": ""
+      },
+      "product_type_id": 4
+    },
+    {
+      "motivo_descarte": "Faltam nome_base e sku_original",
+      "linha_original": {
+        "col_0": "",
+        "col_1": "1533",
+        "col_2": "",
+        "col_3": "",
+        "col_4": "",
+        "col_5": "",
+        "col_6": "",
+        "col_7": "",
+        "col_8": "",
+        "col_9": "",
+        "col_10": "",
+        "col_11": "",
+        "col_12": "",
+        "col_13": ""
+      },
+      "product_type_id": 4
+    },
+    {
+      "motivo_descarte": "Faltam nome_base e sku_original",
+      "linha_original": {
+        "col_0": "",
+        "col_1": "",
+        "col_2": "",
+        "col_3": "1627 E",
+        "col_4": "",
+        "col_5": "",
+        "col_6": "",
+        "col_7": "",
+        "col_8": ""
+      },
+      "product_type_id": 4
+    },
+    {
+      "motivo_descarte": "Faltam nome_base e sku_original",
+      "linha_original": {
+        "col_0": "",
+        "col_1": "",
+        "col_2": "",
+        "col_3": "",
+        "col_4": "",
+        "col_5": "1250 E",
+        "col_6": "",
+        "col_7": "",
+        "col_8": ""
+      },
+      "product_type_id": 4
+    },
+    {
+      "motivo_descarte": "Faltam nome_base e sku_original",
+      "linha_original": {
+        "col_0": "",
+        "col_1": "",
+        "col_2": "",
+        "col_3": "al 1085",
+        "col_4": "",
+        "col_5": "",
+        "col_6": "",
+        "col_7": "",
+        "col_8": ""
+      },
+      "product_type_id": 4
+    },
+    {
+      "motivo_descarte": "Faltam nome_base e sku_original",
+      "linha_original": {
+        "col_0": "",
+        "col_1": "1156",
+        "col_2": "",
+        "col_3": "",
+        "col_4": "",
+        "col_5": "",
+        "col_6": "",
+        "col_7": "",
+        "col_8": ""
+      },
+      "product_type_id": 4
+    },
+    {
+      "motivo_descarte": "Faltam nome_base e sku_original",
+      "linha_original": {
+        "col_0": "",
+        "col_1": "",
+        "col_2": "",
+        "col_3": "4792",
+        "col_4": "",
+        "col_5": "",
+        "col_6": "",
+        "col_7": "",
+        "col_8": "",
+        "col_9": "",
+        "col_10": "",
+        "col_11": "",
+        "col_12": "",
+        "col_13": "",
+        "col_14": ""
+      },
+      "product_type_id": 4
+    },
+    {
+      "motivo_descarte": "Faltam nome_base e sku_original",
+      "linha_original": {
+        "col_0": "",
+        "col_1": "Gp $",
+        "col_2": "",
+        "col_3": "",
+        "col_4": "",
+        "col_5": "",
+        "col_6": "",
+        "col_7": "",
+        "col_8": "",
+        "col_9": "",
+        "col_10": "",
+        "col_11": "",
+        "col_12": "",
+        "col_13": "",
+        "col_14": ""
+      },
+      "product_type_id": 4
+    },
+    {
+      "motivo_descarte": "Faltam nome_base e sku_original",
+      "linha_original": {
+        "col_0": "",
+        "col_1": "1636",
+        "col_2": "",
+        "col_3": "",
+        "col_4": "",
+        "col_5": "",
+        "col_6": "",
+        "col_7": "",
+        "col_8": "",
+        "col_9": "",
+        "col_10": "",
+        "col_11": "",
+        "col_12": "",
+        "col_13": "",
+        "col_14": ""
+      },
+      "product_type_id": 4
+    },
+    {
+      "motivo_descarte": "Faltam nome_base e sku_original",
+      "linha_original": {
+        "col_0": "",
+        "col_1": "",
+        "col_2": "",
+        "col_3": "",
+        "col_4": "",
+        "col_5": "1031",
+        "col_6": "",
+        "col_7": "",
+        "col_8": "",
+        "col_9": ""
+      },
+      "product_type_id": 4
+    },
+    {
+      "motivo_descarte": "Faltam nome_base e sku_original",
+      "linha_original": {
+        "col_0": "",
+        "col_1": "",
+        "col_2": "",
+        "col_3": "ee ee",
+        "col_4": ""
+      },
+      "product_type_id": 4
+    },
+    {
+      "motivo_descarte": "Faltam nome_base e sku_original",
+      "linha_original": {
+        "col_0": "",
+        "col_1": "bal",
+        "col_2": "",
+        "col_3": ">",
+        "col_4": "",
+        "col_5": "ae",
+        "col_6": "",
+        "col_7": "",
+        "col_8": "",
+        "col_9": "",
+        "col_10": "£",
+        "col_11": "",
+        "col_12": "",
+        "col_13": "",
+        "col_14": ""
+      },
+      "product_type_id": 4
+    },
+    {
+      "motivo_descarte": "Faltam nome_base e sku_original",
+      "linha_original": {
+        "col_0": "",
+        "col_1": "et!",
+        "col_2": "",
+        "col_3": "",
+        "col_4": "",
+        "col_5": "",
+        "col_6": "",
+        "col_7": "",
+        "col_8": "",
+        "col_9": "",
+        "col_10": "",
+        "col_11": "",
+        "col_12": "",
+        "col_13": "",
+        "col_14": ""
+      },
+      "product_type_id": 4
+    },
+    {
+      "motivo_descarte": "Faltam nome_base e sku_original",
+      "linha_original": {
+        "col_0": "",
+        "col_1": "|",
+        "col_2": "",
+        "col_3": "cle",
+        "col_4": "",
+        "col_5": ""
+      },
+      "product_type_id": 4
+    },
+    {
+      "motivo_descarte": "Faltam nome_base e sku_original",
+      "linha_original": {
+        "col_0": "",
+        "col_1": "1519",
+        "col_2": "",
+        "col_3": "",
+        "col_4": "",
+        "col_5": "",
+        "col_6": "",
+        "col_7": "",
+        "col_8": "",
+        "col_9": "",
+        "col_10": "",
+        "col_11": "",
+        "col_12": "",
+        "col_13": "",
+        "col_14": ""
+      },
+      "product_type_id": 4
+    },
+    {
+      "motivo_descarte": "Faltam nome_base e sku_original",
+      "linha_original": {
+        "col_0": "",
+        "col_1": "",
+        "col_2": "",
+        "col_3": "",
+        "col_4": "",
+        "col_5": "1129",
+        "col_6": "",
+        "col_7": "",
+        "col_8": "",
+        "col_9": "",
+        "col_10": "",
+        "col_11": "",
+        "col_12": "",
+        "col_13": "",
+        "col_14": ""
+      },
+      "product_type_id": 4
+    },
+    {
+      "motivo_descarte": "Faltam nome_base e sku_original",
+      "linha_original": {
+        "col_0": "",
+        "col_1": "",
+        "col_2": "",
+        "col_3": "1093",
+        "col_4": "",
+        "col_5": "",
+        "col_6": "",
+        "col_7": "",
+        "col_8": "",
+        "col_9": "",
+        "col_10": "",
+        "col_11": "",
+        "col_12": "",
+        "col_13": "",
+        "col_14": ""
+      },
+      "product_type_id": 4
+    },
+    {
+      "motivo_descarte": "Faltam nome_base e sku_original",
+      "linha_original": {
+        "col_0": "",
+        "col_1": "1785 946",
+        "col_2": "",
+        "col_3": "7",
+        "col_4": "",
+        "col_5": "",
+        "col_6": "",
+        "col_7": "",
+        "col_8": "",
+        "col_9": "=",
+        "col_10": "",
+        "col_11": "",
+        "col_12": ""
+      },
+      "product_type_id": 4
+    },
+    {
+      "motivo_descarte": "Faltam nome_base e sku_original",
+      "linha_original": {
+        "col_0": "",
+        "col_1": "",
+        "col_2": "",
+        "col_3": "",
+        "col_4": "",
+        "col_5": "1787",
+        "col_6": "",
+        "col_7": "",
+        "col_8": "",
+        "col_9": "",
+        "col_10": "",
+        "col_11": "",
+        "col_12": ""
+      },
+      "product_type_id": 4
+    },
+    {
+      "motivo_descarte": "Faltam nome_base e sku_original",
+      "linha_original": {
+        "col_0": "",
+        "col_1": "EO en OIE EEE",
+        "col_2": "",
+        "col_3": "ETE NN SD",
+        "col_4": ""
+      },
+      "product_type_id": 4
+    },
+    {
+      "motivo_descarte": "Faltam nome_base e sku_original",
+      "linha_original": {
+        "col_0": "",
+        "col_1": "1812",
+        "col_2": "",
+        "col_3": "",
+        "col_4": "",
+        "col_5": ". ==> |",
+        "col_6": "",
+        "col_7": "",
+        "col_8": "",
+        "col_9": "",
+        "col_10": ""
+      },
+      "product_type_id": 4
+    },
+    {
+      "motivo_descarte": "Faltam nome_base e sku_original",
+      "linha_original": {
+        "col_0": "",
+        "col_1": "",
+        "col_2": "",
+        "col_3": "",
+        "col_4": "",
+        "col_5": "EE; = = Lay |",
+        "col_6": "",
+        "col_7": "",
+        "col_8": "",
+        "col_9": "",
+        "col_10": ""
+      },
+      "product_type_id": 4
+    },
+    {
+      "motivo_descarte": "Faltam nome_base e sku_original",
+      "linha_original": {
+        "col_0": "",
+        "col_1": "1044",
+        "col_2": "",
+        "col_3": "",
+        "col_4": "",
+        "col_5": "",
+        "col_6": "",
+        "col_7": "",
+        "col_8": "",
+        "col_9": "",
+        "col_10": "",
+        "col_11": "",
+        "col_12": ""
+      },
+      "product_type_id": 4
+    },
+    {
+      "motivo_descarte": "Faltam nome_base e sku_original",
+      "linha_original": {
+        "col_0": "",
+        "col_1": "",
+        "col_2": "",
+        "col_3": "1036",
+        "col_4": "",
+        "col_5": "",
+        "col_6": "",
+        "col_7": "",
+        "col_8": "",
+        "col_9": "",
+        "col_10": "",
+        "col_11": "",
+        "col_12": ""
+      },
+      "product_type_id": 4
+    },
+    {
+      "motivo_descarte": "Faltam nome_base e sku_original",
+      "linha_original": {
+        "col_0": "",
+        "col_1": "",
+        "col_2": "",
+        "col_3": "==> FF",
+        "col_4": "",
+        "col_5": "",
+        "col_6": "",
+        "col_7": ""
+      },
+      "product_type_id": 4
+    },
+    {
+      "motivo_descarte": "Faltam nome_base e sku_original",
+      "linha_original": {
+        "col_0": "",
+        "col_1": "",
+        "col_2": "",
+        "col_3": "een ver",
+        "col_4": "",
+        "col_5": "",
+        "col_6": "",
+        "col_7": ""
+      },
+      "product_type_id": 4
+    },
+    {
+      "motivo_descarte": "Faltam nome_base e sku_original",
+      "linha_original": {
+        "col_0": "",
+        "col_1": "1792",
+        "col_2": "",
+        "col_3": "",
+        "col_4": "",
+        "col_5": "",
+        "col_6": "",
+        "col_7": ""
+      },
+      "product_type_id": 4
+    },
+    {
+      "motivo_descarte": "Faltam nome_base e sku_original",
+      "linha_original": {
+        "col_0": "",
+        "col_1": "",
+        "col_2": "",
+        "col_3": "1708",
+        "col_4": "",
+        "col_5": "",
+        "col_6": "",
+        "col_7": ""
+      },
+      "product_type_id": 4
+    },
+    {
+      "motivo_descarte": "Faltam nome_base e sku_original",
+      "linha_original": {
+        "col_0": "",
+        "col_1": "",
+        "col_2": "",
+        "col_3": "",
+        "col_4": "",
+        "col_5": "1627 E",
+        "col_6": "",
+        "col_7": ""
+      },
+      "product_type_id": 4
+    },
+    {
+      "motivo_descarte": "Faltam nome_base e sku_original",
+      "linha_original": {
+        "col_0": "",
+        "col_1": "ee oe gy",
+        "col_2": "",
+        "col_3": "",
+        "col_4": "",
+        "col_5": "",
+        "col_6": "",
+        "col_7": "",
+        "col_8": "",
+        "col_9": "",
+        "col_10": "",
+        "col_11": "",
+        "col_12": "",
+        "col_13": ""
+      },
+      "product_type_id": 4
+    },
+    {
+      "motivo_descarte": "Faltam nome_base e sku_original",
+      "linha_original": {
+        "col_0": "",
+        "col_1": "1634",
+        "col_2": "",
+        "col_3": "",
+        "col_4": "",
+        "col_5": "",
+        "col_6": "",
+        "col_7": ""
+      },
+      "product_type_id": 4
+    },
+    {
+      "motivo_descarte": "Faltam nome_base e sku_original",
+      "linha_original": {
+        "col_0": "",
+        "col_1": "",
+        "col_2": "",
+        "col_3": "",
+        "col_4": "",
+        "col_5": "Gp.",
+        "col_6": "",
+        "col_7": "",
+        "col_8": "",
+        "col_9": "",
+        "col_10": "",
+        "col_11": "",
+        "col_12": ""
+      },
+      "product_type_id": 4
+    },
+    {
+      "motivo_descarte": "Faltam nome_base e sku_original",
+      "linha_original": {
+        "col_0": "",
+        "col_1": "",
+        "col_2": "",
+        "col_3": "",
+        "col_4": "",
+        "col_5": "1089",
+        "col_6": "",
+        "col_7": "",
+        "col_8": "",
+        "col_9": "",
+        "col_10": "",
+        "col_11": "",
+        "col_12": ""
+      },
+      "product_type_id": 4
+    },
+    {
+      "motivo_descarte": "Faltam nome_base e sku_original",
+      "linha_original": {
+        "col_0": "",
+        "col_1": "ens"
+      },
+      "product_type_id": 4
+    },
+    {
+      "motivo_descarte": "Faltam nome_base e sku_original",
+      "linha_original": {
+        "col_0": "",
+        "col_1": "",
+        "col_2": "",
+        "col_3": "EI"
+      },
+      "product_type_id": 4
+    },
+    {
+      "motivo_descarte": "Faltam nome_base e sku_original",
+      "linha_original": {
+        "col_0": "",
+        "col_1": "ae",
+        "col_2": "",
+        "col_3": "",
+        "col_4": ""
+      },
+      "product_type_id": 4
+    },
+    {
+      "motivo_descarte": "Faltam nome_base e sku_original",
+      "linha_original": {
+        "col_0": "",
+        "col_1": "1536",
+        "col_2": "",
+        "col_3": "",
+        "col_4": ""
+      },
+      "product_type_id": 4
+    },
+    {
+      "motivo_descarte": "Faltam nome_base e sku_original",
+      "linha_original": {
+        "col_0": "",
+        "col_1": "",
+        "col_2": "",
+        "col_3": "1003",
+        "col_4": ""
+      },
+      "product_type_id": 4
+    },
+    {
+      "motivo_descarte": "Faltam nome_base e sku_original",
+      "linha_original": {
+        "col_0": "",
+        "col_1": "a",
+        "col_2": "",
+        "col_3": "",
+        "col_4": "",
+        "col_5": "r",
+        "col_6": "",
+        "col_7": "",
+        "col_8": "",
+        "col_9": "",
+        "col_10": ""
+      },
+      "product_type_id": 4
+    },
+    {
+      "motivo_descarte": "Faltam nome_base e sku_original",
+      "linha_original": {
+        "col_0": "",
+        "col_1": "",
+        "col_2": "",
+        "col_3": "",
+        "col_4": "",
+        "col_5": "1547",
+        "col_6": "",
+        "col_7": "",
+        "col_8": "",
+        "col_9": "",
+        "col_10": ""
+      },
+      "product_type_id": 4
+    },
+    {
+      "motivo_descarte": "Faltam nome_base e sku_original",
+      "linha_original": {
+        "col_0": "",
+        "col_1": "1325",
+        "col_2": "",
+        "col_3": "",
+        "col_4": "",
+        "col_5": "",
+        "col_6": "",
+        "col_7": ""
+      },
+      "product_type_id": 4
+    },
+    {
+      "motivo_descarte": "Faltam nome_base e sku_original",
+      "linha_original": {
+        "col_0": "",
+        "col_1": "",
+        "col_2": "",
+        "col_3": "1628",
+        "col_4": "",
+        "col_5": "",
+        "col_6": "",
+        "col_7": ""
+      },
+      "product_type_id": 4
+    },
+    {
+      "motivo_descarte": "Faltam nome_base e sku_original",
+      "linha_original": {
+        "col_0": "",
+        "col_1": "Sa",
+        "col_2": "+",
+        "col_3": ">",
+        "col_4": "",
+        "col_5": "",
+        "col_6": "",
+        "col_7": "",
+        "col_8": ""
+      },
+      "product_type_id": 4
+    },
+    {
+      "motivo_descarte": "Faltam nome_base e sku_original",
+      "linha_original": {
+        "col_0": "",
+        "col_1": "",
+        "col_2": "",
+        "col_3": "<i 4",
+        "col_4": "",
+        "col_5": "",
+        "col_6": "",
+        "col_7": "",
+        "col_8": ""
+      },
+      "product_type_id": 4
+    },
+    {
+      "motivo_descarte": "Faltam nome_base e sku_original",
+      "linha_original": {
+        "col_13": ""
+      },
+      "product_type_id": 4
+    },
+    {
+      "motivo_descarte": "Faltam nome_base e sku_original",
+      "linha_original": {
+        "col_0": "",
+        "col_1": "602",
+        "col_2": "",
+        "col_3": "",
+        "col_4": "",
+        "col_5": "",
+        "col_6": "",
+        "col_7": "",
+        "col_8": "",
+        "col_9": "",
+        "col_10": "",
+        "col_11": "",
+        "col_12": "",
+        "col_13": ""
+      },
+      "product_type_id": 4
+    },
+    {
+      "motivo_descarte": "Faltam nome_base e sku_original",
+      "linha_original": {
+        "col_0": "",
+        "col_1": "",
+        "col_2": "",
+        "col_3": "877 ay 476 L",
+        "col_4": "",
+        "col_5": "",
+        "col_6": "",
+        "col_7": "",
+        "col_8": "",
+        "col_9": "",
+        "col_10": "",
+        "col_11": "",
+        "col_12": "",
+        "col_13": ""
+      },
+      "product_type_id": 4
+    },
+    {
+      "motivo_descarte": "Faltam nome_base e sku_original",
+      "linha_original": {
+        "col_0": "",
+        "col_1": "",
+        "col_2": "",
+        "col_3": "",
+        "col_4": "",
+        "col_5": "= 519",
+        "col_6": "",
+        "col_7": "",
+        "col_8": "",
+        "col_9": "",
+        "col_10": "",
+        "col_11": "",
+        "col_12": "",
+        "col_13": ""
+      },
+      "product_type_id": 4
+    },
+    {
+      "motivo_descarte": "Faltam nome_base e sku_original",
+      "linha_original": {
+        "col_0": "",
+        "col_1": "",
+        "col_2": "",
+        "col_3": "584",
+        "col_4": "",
+        "col_5": "",
+        "col_6": "",
+        "col_7": "",
+        "col_8": "",
+        "col_9": ""
+      },
+      "product_type_id": 4
+    },
+    {
+      "motivo_descarte": "Faltam nome_base e sku_original",
+      "linha_original": {
+        "col_0": "",
+        "col_1": "",
+        "col_2": "",
+        "col_3": "",
+        "col_4": "",
+        "col_5": "304",
+        "col_6": "",
+        "col_7": "",
+        "col_8": "",
+        "col_9": ""
+      },
+      "product_type_id": 4
+    },
+    {
+      "motivo_descarte": "Faltam nome_base e sku_original",
+      "linha_original": {
+        "col_0": "",
+        "col_1": "",
+        "col_2": "",
+        "col_3": "",
+        "col_4": "",
+        "col_5": "378",
+        "col_6": "",
+        "col_7": "",
+        "col_8": "",
+        "col_9": ""
+      },
+      "product_type_id": 4
+    },
+    {
+      "motivo_descarte": "Faltam nome_base e sku_original",
+      "linha_original": {
+        "col_0": "",
+        "col_1": "",
+        "col_2": "",
+        "col_3": "9 ee",
+        "col_4": "",
+        "col_5": "",
+        "col_6": "",
+        "col_7": "",
+        "col_8": "",
+        "col_9": ""
+      },
+      "product_type_id": 4
+    },
+    {
+      "motivo_descarte": "Faltam nome_base e sku_original",
+      "linha_original": {
+        "col_0": "",
+        "col_1": "",
+        "col_2": "",
+        "col_3": "344",
+        "col_4": "",
+        "col_5": "",
+        "col_6": "",
+        "col_7": "",
+        "col_8": "",
+        "col_9": ""
+      },
+      "product_type_id": 4
+    },
+    {
+      "motivo_descarte": "Faltam nome_base e sku_original",
+      "linha_original": {
+        "col_0": "",
+        "col_1": "",
+        "col_2": "",
+        "col_3": "",
+        "col_4": "",
+        "col_5": "ay",
+        "col_6": "",
+        "col_7": "",
+        "col_8": "",
+        "col_9": "",
+        "col_10": "",
+        "col_11": ""
+      },
+      "product_type_id": 4
+    },
+    {
+      "motivo_descarte": "Faltam nome_base e sku_original",
+      "linha_original": {
+        "col_0": "",
+        "col_1": "",
+        "col_2": "",
+        "col_3": "",
+        "col_4": "",
+        "col_5": "693",
+        "col_6": "",
+        "col_7": "",
+        "col_8": "&.",
+        "col_9": "",
+        "col_10": "",
+        "col_11": ""
+      },
+      "product_type_id": 4
+    },
+    {
+      "motivo_descarte": "Faltam nome_base e sku_original",
+      "linha_original": {
+        "col_0": "",
+        "col_1": "353",
+        "col_2": "",
+        "col_3": "",
+        "col_4": "",
+        "col_5": "",
+        "col_6": "",
+        "col_7": "",
+        "col_8": "",
+        "col_9": "",
+        "col_10": "",
+        "col_11": ""
+      },
+      "product_type_id": 4
+    },
+    {
+      "motivo_descarte": "Faltam nome_base e sku_original",
+      "linha_original": {
+        "col_0": "",
+        "col_1": "766",
+        "col_2": "",
+        "col_3": "767",
+        "col_4": "",
+        "col_5": "",
+        "col_6": "",
+        "col_7": "",
+        "col_8": "",
+        "col_9": "",
+        "col_10": "",
+        "col_11": ""
+      },
+      "product_type_id": 4
+    },
+    {
+      "motivo_descarte": "Faltam nome_base e sku_original",
+      "linha_original": {
+        "col_0": "",
+        "col_1": "",
+        "col_2": "",
+        "col_3": "",
+        "col_4": "",
+        "col_5": "717",
+        "col_6": "",
+        "col_7": "",
+        "col_8": "",
+        "col_9": "",
+        "col_10": "",
+        "col_11": ""
+      },
+      "product_type_id": 4
+    },
+    {
+      "motivo_descarte": "Faltam nome_base e sku_original",
+      "linha_original": {
+        "col_0": "",
+        "col_1": "i> 470",
+        "col_2": "",
+        "col_3": "",
+        "col_4": "",
+        "col_5": "",
+        "col_6": "",
+        "col_7": "",
+        "col_8": "",
+        "col_9": "",
+        "col_10": "",
+        "col_11": ""
+      },
+      "product_type_id": 4
+    },
+    {
+      "motivo_descarte": "Faltam nome_base e sku_original",
+      "linha_original": {
+        "col_0": "",
+        "col_1": "",
+        "col_2": "",
+        "col_3": "",
+        "col_4": "",
+        "col_5": "779",
+        "col_6": ""
+      },
+      "product_type_id": 4
+    },
+    {
+      "motivo_descarte": "Faltam nome_base e sku_original",
+      "linha_original": {
+        "col_0": "",
+        "col_1": "781",
+        "col_2": "",
+        "col_3": "",
+        "col_4": "",
+        "col_5": "",
+        "col_6": ""
+      },
+      "product_type_id": 4
+    },
+    {
+      "motivo_descarte": "Faltam nome_base e sku_original",
+      "linha_original": {
+        "col_0": "",
+        "col_1": "",
+        "col_2": "",
+        "col_3": "i",
+        "col_4": "",
+        "col_5": "A",
+        "col_6": ""
+      },
+      "product_type_id": 4
+    },
+    {
+      "motivo_descarte": "Faltam nome_base e sku_original",
+      "linha_original": {
+        "col_0": "",
+        "col_1": "",
+        "col_2": "",
+        "col_3": "",
+        "col_4": "",
+        "col_5": "rs 313",
+        "col_6": "",
+        "col_7": "",
+        "col_8": "",
+        "col_9": ""
+      },
+      "product_type_id": 4
+    },
+    {
+      "motivo_descarte": "Faltam nome_base e sku_original",
+      "linha_original": {
+        "col_0": "",
+        "col_1": "594",
+        "col_2": "",
+        "col_3": "",
+        "col_4": "",
+        "col_5": "",
+        "col_6": "",
+        "col_7": "",
+        "col_8": "",
+        "col_9": ""
+      },
+      "product_type_id": 4
+    },
+    {
+      "motivo_descarte": "Faltam nome_base e sku_original",
+      "linha_original": {
+        "col_0": "",
+        "col_1": "786",
+        "col_2": "",
+        "col_3": "",
+        "col_4": "",
+        "col_5": "",
+        "col_6": "",
+        "col_7": "",
+        "col_8": "",
+        "col_9": ""
+      },
+      "product_type_id": 4
+    },
+    {
+      "motivo_descarte": "Faltam nome_base e sku_original",
+      "linha_original": {
+        "col_0": "",
+        "col_1": "539",
+        "col_2": "",
+        "col_3": "",
+        "col_4": "",
+        "col_5": "",
+        "col_6": "",
+        "col_7": "",
+        "col_8": "",
+        "col_9": "",
+        "col_10": "",
+        "col_11": "",
+        "col_12": ""
+      },
+      "product_type_id": 4
+    },
+    {
+      "motivo_descarte": "Faltam nome_base e sku_original",
+      "linha_original": {
+        "col_0": "",
+        "col_1": "",
+        "col_2": "",
+        "col_3": "rs",
+        "col_4": "",
+        "col_5": "",
+        "col_6": "",
+        "col_7": "",
+        "col_8": "",
+        "col_9": "",
+        "col_10": "",
+        "col_11": "",
+        "col_12": ""
+      },
+      "product_type_id": 4
+    },
+    {
+      "motivo_descarte": "Faltam nome_base e sku_original",
+      "linha_original": {
+        "col_0": "",
+        "col_1": "as 927",
+        "col_2": "",
+        "col_3": "te"
+      },
+      "product_type_id": 4
+    },
+    {
+      "motivo_descarte": "Faltam nome_base e sku_original",
+      "linha_original": {
+        "col_0": "",
+        "col_1": "",
+        "col_2": "",
+        "col_3": "",
+        "col_4": "",
+        "col_5": "339",
+        "col_6": "",
+        "col_7": "",
+        "col_8": "",
+        "col_9": ""
+      },
+      "product_type_id": 4
+    },
+    {
+      "motivo_descarte": "Faltam nome_base e sku_original",
+      "linha_original": {
+        "col_0": "",
+        "col_1": "",
+        "col_2": "",
+        "col_3": "822",
+        "col_4": "",
+        "col_5": "",
+        "col_6": "",
+        "col_7": "",
+        "col_8": "",
+        "col_9": ""
+      },
+      "product_type_id": 4
+    },
+    {
+      "motivo_descarte": "Faltam nome_base e sku_original",
+      "linha_original": {
+        "col_0": "",
+        "col_1": "452",
+        "col_2": "",
+        "col_3": "",
+        "col_4": "",
+        "col_5": "",
+        "col_6": "",
+        "col_7": "",
+        "col_8": "",
+        "col_9": ""
+      },
+      "product_type_id": 4
+    },
+    {
+      "motivo_descarte": "Faltam nome_base e sku_original",
+      "linha_original": {
+        "col_0": "",
+        "col_1": "",
+        "col_2": "",
+        "col_3": "454",
+        "col_4": "",
+        "col_5": "",
+        "col_6": "",
+        "col_7": "",
+        "col_8": "",
+        "col_9": ""
+      },
+      "product_type_id": 4
+    },
+    {
+      "motivo_descarte": "Faltam nome_base e sku_original",
+      "linha_original": {
+        "col_0": "",
+        "col_1": "550",
+        "col_2": "",
+        "col_3": "",
+        "col_4": "",
+        "col_5": "4 ey",
+        "col_6": "",
+        "col_7": ""
+      },
+      "product_type_id": 4
+    },
+    {
+      "motivo_descarte": "Faltam nome_base e sku_original",
+      "linha_original": {
+        "col_0": "",
+        "col_1": "588",
+        "col_2": "",
+        "col_3": "",
+        "col_4": "",
+        "col_5": "",
+        "col_6": "",
+        "col_7": ""
+      },
+      "product_type_id": 4
+    },
+    {
+      "motivo_descarte": "Faltam nome_base e sku_original",
+      "linha_original": {
+        "col_0": "",
+        "col_1": "977",
+        "col_2": "",
+        "col_3": "",
+        "col_4": "",
+        "col_5": "",
+        "col_6": "",
+        "col_7": ""
+      },
+      "product_type_id": 4
+    },
+    {
+      "motivo_descarte": "Faltam nome_base e sku_original",
+      "linha_original": {
+        "col_0": "",
+        "col_1": "",
+        "col_2": "",
+        "col_3": "",
+        "col_4": "",
+        "col_5": "420",
+        "col_6": "",
+        "col_7": ""
+      },
+      "product_type_id": 4
+    },
+    {
+      "motivo_descarte": "Faltam nome_base e sku_original",
+      "linha_original": {
+        "col_0": "",
+        "col_1": "",
+        "col_2": "",
+        "col_3": "\\ 4",
+        "col_4": "",
+        "col_5": "349",
+        "col_6": "",
+        "col_7": "",
+        "col_8": ""
+      },
+      "product_type_id": 4
+    },
+    {
+      "motivo_descarte": "Faltam nome_base e sku_original",
+      "linha_original": {
+        "col_0": "",
+        "col_1": "938",
+        "col_2": "",
+        "col_3": "",
+        "col_4": "",
+        "col_5": "",
+        "col_6": "",
+        "col_7": "",
+        "col_8": ""
+      },
+      "product_type_id": 4
+    },
+    {
+      "motivo_descarte": "Faltam nome_base e sku_original",
+      "linha_original": {
+        "col_0": "",
+        "col_1": "970",
+        "col_2": "",
+        "col_3": "",
+        "col_4": "",
+        "col_5": "",
+        "col_6": "",
+        "col_7": "",
+        "col_8": ""
+      },
+      "product_type_id": 4
+    },
+    {
+      "erro_processamento_pdf": "Nenhum dado de produto pÃƒÂ´de ser extraÃƒÂ­do do PDF (pode estar protegido, vazio ou somente imagem sem OCR).",
+      "log_pdf": [
+        "PDF com 231 pÃƒÂ¡ginas.",
+        "PÃƒÂ¡gina 121: Aplicando recorte (crop) com bbox (23.357242152466366, 171.34246013272582, 595.276, 755.7288626683835) [modo=normalized].",
+        "PÃƒÂ¡gina 121: ExtraÃƒÂ§ÃƒÂ£o por regiÃƒÂ£o nÃƒÂ£o retornou linhas.",
+        "PÃƒÂ¡gina 121: Nenhuma tabela encontrada.",
+        "Nenhum produto extraÃƒÂ­do de tabelas/regiÃƒÂ£o. Tentando extraÃƒÂ§ÃƒÂ£o de texto bruto.",
+        "PÃƒÂ¡gina 121: Nenhum texto extraÃƒÂ­vel (pode ser imagem ou protegido)."
+      ]
+    },
+    {
+      "motivo_descarte": "Faltam nome_base e sku_original",
+      "linha_original": {
+        "col_0": "",
+        "col_1": "Moderna",
+        "col_2": "",
+        "col_3": "",
+        "col_4": "",
+        "col_5": "Antiga",
+        "col_6": "",
+        "col_7": "",
+        "col_8": "",
+        "col_9": "",
+        "col_10": "",
+        "col_11": "",
+        "col_12": ""
+      },
+      "product_type_id": 4
+    },
+    {
+      "motivo_descarte": "Faltam nome_base e sku_original",
+      "linha_original": {
+        "col_0": "",
+        "col_1": "",
+        "col_2": "",
+        "col_3": "562",
+        "col_4": "",
+        "col_5": "",
+        "col_6": "",
+        "col_7": "",
+        "col_8": "",
+        "col_9": "",
+        "col_10": "",
+        "col_11": "",
+        "col_12": ""
+      },
+      "product_type_id": 4
+    },
+    {
+      "motivo_descarte": "Faltam nome_base e sku_original",
+      "linha_original": {
+        "col_0": "",
+        "col_1": "647",
+        "col_2": "",
+        "col_3": "",
+        "col_4": "",
+        "col_5": ""
+      },
+      "product_type_id": 4
+    },
+    {
+      "motivo_descarte": "Faltam nome_base e sku_original",
+      "linha_original": {
+        "col_0": "",
+        "col_1": "",
+        "col_2": "",
+        "col_3": "",
+        "col_4": "",
+        "col_5": "402"
+      },
+      "product_type_id": 4
+    },
+    {
+      "motivo_descarte": "Faltam nome_base e sku_original",
+      "linha_original": {
+        "col_0": "",
+        "col_1": "ceil",
+        "col_2": "",
+        "col_3": "441",
+        "col_4": "",
+        "col_5": ""
+      },
+      "product_type_id": 4
+    },
+    {
+      "erro_processamento_pdf": "Nenhum dado de produto pÃƒÂ´de ser extraÃƒÂ­do do PDF (pode estar protegido, vazio ou somente imagem sem OCR).",
+      "log_pdf": [
+        "PDF com 231 pÃƒÂ¡ginas.",
+        "PÃƒÂ¡gina 127: Aplicando recorte (crop) com bbox (23.357242152466366, 171.34246013272582, 595.276, 755.7288626683835) [modo=normalized].",
+        "PÃƒÂ¡gina 127: ExtraÃƒÂ§ÃƒÂ£o por regiÃƒÂ£o nÃƒÂ£o retornou linhas.",
+        "PÃƒÂ¡gina 127: Nenhuma tabela encontrada.",
+        "Nenhum produto extraÃƒÂ­do de tabelas/regiÃƒÂ£o. Tentando extraÃƒÂ§ÃƒÂ£o de texto bruto.",
+        "PÃƒÂ¡gina 127: Nenhum texto extraÃƒÂ­vel (pode ser imagem ou protegido)."
+      ]
+    },
+    {
+      "motivo_descarte": "Faltam nome_base e sku_original",
+      "linha_original": {
+        "col_0": "",
+        "col_1": "",
+        "col_2": "",
+        "col_3": "Padrao Original",
+        "col_4": "",
+        "col_5": "",
+        "col_6": "",
+        "col_7": ""
+      },
+      "product_type_id": 4
+    },
+    {
+      "motivo_descarte": "Faltam nome_base e sku_original",
+      "linha_original": {
+        "col_0": "",
+        "col_1": "tell",
+        "col_2": "",
+        "col_3": "",
+        "col_4": "",
+        "col_5": "",
+        "col_6": "",
+        "col_7": "",
+        "col_8": "",
+        "col_9": "",
+        "col_10": "",
+        "col_11": "",
+        "col_12": "",
+        "col_13": "",
+        "col_14": ""
+      },
+      "product_type_id": 4
+    },
+    {
+      "motivo_descarte": "Faltam nome_base e sku_original",
+      "linha_original": {
+        "col_0": "",
+        "col_1": "",
+        "col_2": "",
+        "col_3": "",
+        "col_4": "",
+        "col_5": "Aare",
+        "col_6": "",
+        "col_7": "",
+        "col_8": "|",
+        "col_9": "",
+        "col_10": "",
+        "col_11": "",
+        "col_12": "",
+        "col_13": "",
+        "col_14": "",
+        "col_15": ""
+      },
+      "product_type_id": 4
+    },
+    {
+      "motivo_descarte": "Faltam nome_base e sku_original",
+      "linha_original": {
+        "col_0": "",
+        "col_1": "",
+        "col_2": "",
+        "col_3": "3026",
+        "col_4": "",
+        "col_5": "",
+        "col_6": "",
+        "col_7": "",
+        "col_8": "",
+        "col_9": "",
+        "col_10": "",
+        "col_11": ""
+      },
+      "product_type_id": 4
+    },
+    {
+      "motivo_descarte": "Faltam nome_base e sku_original",
+      "linha_original": {
+        "col_0": "",
+        "col_1": "ay | ay",
+        "col_2": "",
+        "col_3": "",
+        "col_4": "",
+        "col_5": "",
+        "col_6": "",
+        "col_7": "",
+        "col_8": ""
+      },
+      "product_type_id": 4
+    },
+    {
+      "motivo_descarte": "Faltam nome_base e sku_original",
+      "linha_original": {
+        "col_0": "",
+        "col_1": "oe A NE Ri IEEE ED OEE",
+        "col_2": "",
+        "col_3": ""
+      },
+      "product_type_id": 4
+    },
+    {
+      "motivo_descarte": "Faltam nome_base e sku_original",
+      "linha_original": {
+        "col_0": "",
+        "col_1": "",
+        "col_2": "",
+        "col_3": "3246",
+        "col_4": "",
+        "col_5": "",
+        "col_6": "",
+        "col_7": "",
+        "col_8": "",
+        "col_9": "|",
+        "col_10": "",
+        "col_11": "",
+        "col_12": "",
+        "col_13": ""
+      },
+      "product_type_id": 4
+    },
+    {
+      "motivo_descarte": "Faltam nome_base e sku_original",
+      "linha_original": {
+        "col_0": "",
+        "col_1": "3043",
+        "col_2": "",
+        "col_3": "a",
+        "col_4": "—",
+        "col_5": "",
+        "col_6": "",
+        "col_7": "",
+        "col_8": "",
+        "col_9": "",
+        "col_10": "",
+        "col_11": "",
+        "col_12": "",
+        "col_13": ""
+      },
+      "product_type_id": 4
+    },
+    {
+      "motivo_descarte": "Faltam nome_base e sku_original",
+      "linha_original": {
+        "col_0": "",
+        "col_1": "",
+        "col_2": "",
+        "col_3": "el 3102",
+        "col_4": "",
+        "col_5": "",
+        "col_6": ""
+      },
+      "product_type_id": 4
+    },
+    {
+      "motivo_descarte": "Faltam nome_base e sku_original",
+      "linha_original": {
+        "col_0": "",
+        "col_1": "3176",
+        "col_2": "",
+        "col_3": "",
+        "col_4": "",
+        "col_5": "",
+        "col_6": ""
+      },
+      "product_type_id": 4
+    },
+    {
+      "motivo_descarte": "Faltam nome_base e sku_original",
+      "linha_original": {
+        "col_0": "",
+        "col_1": "3184 D",
+        "col_2": "",
+        "col_3": "",
+        "col_4": "",
+        "col_5": "",
+        "col_6": "",
+        "col_7": "",
+        "col_8": "",
+        "col_9": "",
+        "col_10": "",
+        "col_11": "",
+        "col_12": "",
+        "col_13": "",
+        "col_14": ""
+      },
+      "product_type_id": 4
+    },
+    {
+      "motivo_descarte": "Faltam nome_base e sku_original",
+      "linha_original": {
+        "col_0": "",
+        "col_1": "",
+        "col_2": "",
+        "col_3": "3185 D",
+        "col_4": "",
+        "col_5": "",
+        "col_6": "",
+        "col_7": "",
+        "col_8": "",
+        "col_9": "",
+        "col_10": "",
+        "col_11": "",
+        "col_12": "",
+        "col_13": "",
+        "col_14": ""
+      },
+      "product_type_id": 4
+    },
+    {
+      "motivo_descarte": "Faltam nome_base e sku_original",
+      "linha_original": {
+        "col_0": "",
+        "col_1": "",
+        "col_2": "",
+        "col_3": "",
+        "col_4": "",
+        "col_5": "3172 D",
+        "col_6": "",
+        "col_7": "",
+        "col_8": "",
+        "col_9": "",
+        "col_10": "",
+        "col_11": "",
+        "col_12": "",
+        "col_13": "",
+        "col_14": ""
+      },
+      "product_type_id": 4
+    },
+    {
+      "motivo_descarte": "Faltam nome_base e sku_original",
+      "linha_original": {
+        "col_8": ""
+      },
+      "product_type_id": 4
+    },
+    {
+      "motivo_descarte": "Faltam nome_base e sku_original",
+      "linha_original": {
+        "col_0": "",
+        "col_1": "TS. SS",
+        "col_2": ""
+      },
+      "product_type_id": 4
+    },
+    {
+      "motivo_descarte": "Faltam nome_base e sku_original",
+      "linha_original": {
+        "col_0": "",
+        "col_1": "Cc",
+        "col_2": ""
+      },
+      "product_type_id": 4
+    },
+    {
+      "motivo_descarte": "Faltam nome_base e sku_original",
+      "linha_original": {
+        "col_0": "",
+        "col_1": "Cc",
+        "col_2": ""
+      },
+      "product_type_id": 4
+    },
+    {
+      "motivo_descarte": "Faltam nome_base e sku_original",
+      "linha_original": {
+        "col_0": "",
+        "col_1": "SSS",
+        "col_2": ""
+      },
+      "product_type_id": 4
+    },
+    {
+      "motivo_descarte": "Faltam nome_base e sku_original",
+      "linha_original": {
+        "col": ""
+      },
+      "product_type_id": 4
+    },
+    {
+      "motivo_descarte": "Faltam nome_base e sku_original",
+      "linha_original": {
+        "col": ""
+      },
+      "product_type_id": 4
+    },
+    {
+      "motivo_descarte": "Faltam nome_base e sku_original",
+      "linha_original": {
+        "col_0": "",
+        "col_1": "4488 D",
+        "col_2": "",
+        "col_3": "e",
+        "col_4": "",
+        "col_5": "",
+        "col_6": "",
+        "col_7": "",
+        "col_8": "",
+        "col_9": "",
+        "col_10": "",
+        "col_11": "",
+        "col_12": "",
+        "col_13": ""
+      },
+      "product_type_id": 4
+    },
+    {
+      "motivo_descarte": "Faltam nome_base e sku_original",
+      "linha_original": {
+        "col_0": "",
+        "col_1": "4484",
+        "col_2": "",
+        "col_3": "",
+        "col_4": "",
+        "col_5": "",
+        "col_6": "",
+        "col_7": "",
+        "col_8": "",
+        "col_9": "",
+        "col_10": "",
+        "col_11": "",
+        "col_12": "",
+        "col_13": ""
+      },
+      "product_type_id": 4
+    },
+    {
+      "motivo_descarte": "Faltam nome_base e sku_original",
+      "linha_original": {
+        "col_0": "",
+        "col_1": "272821686 Pisante Central do Estribo 3 degraus Constellation 19.320 Plastico Injetado",
+        "col_2": "",
+        "col_3": ""
+      },
+      "product_type_id": 4
+    },
+    {
+      "motivo_descarte": "Faltam nome_base e sku_original",
+      "linha_original": {
+        "col_0": "",
+        "col_1": "2R2809559B Defletor de AR",
+        "col_2": "",
+        "col_3": "Constellation 19.320 Plastico"
+      },
+      "product_type_id": 4
+    },
+    {
+      "motivo_descarte": "Faltam nome_base e sku_original",
+      "linha_original": {
+        "col_0": "",
+        "col_1": "",
+        "col_2": "",
+        "col_3": "",
+        "col_4": "",
+        "col_5": "4366",
+        "col_6": "",
+        "col_7": "",
+        "col_8": "",
+        "col_9": "",
+        "col_10": "",
+        "col_11": "",
+        "col_12": "—",
+        "col_13": "",
+        "col_14": "",
+        "col_15": ""
+      },
+      "product_type_id": 4
+    },
+    {
+      "motivo_descarte": "Faltam nome_base e sku_original",
+      "linha_original": {
+        "col_0": "",
+        "col_1": "",
+        "col_2": "",
+        "col_3": "",
+        "col_4": "",
+        "col_5": "4482",
+        "col_6": "",
+        "col_7": "",
+        "col_8": "",
+        "col_9": "",
+        "col_10": "",
+        "col_11": "",
+        "col_12": "",
+        "col_13": "",
+        "col_14": "",
+        "col_15": ""
+      },
+      "product_type_id": 4
+    },
+    {
+      "motivo_descarte": "Faltam nome_base e sku_original",
+      "linha_original": {
+        "col_0": "",
+        "col_1": "282803561 Suporte do Estribo",
+        "col_2": "",
+        "col_3": "Constellation 24.280 Metalico",
+        "col_4": ""
+      },
+      "product_type_id": 4
+    },
+    {
+      "motivo_descarte": "Faltam nome_base e sku_original",
+      "linha_original": {
+        "col_0": "",
+        "col_1": "2R2809559B Defletor de AR",
+        "col_2": "",
+        "col_3": "Constellation 24.280 Plastico",
+        "col_4": ""
+      },
+      "product_type_id": 4
+    },
+    {
+      "motivo_descarte": "Faltam nome_base e sku_original",
+      "linha_original": {
+        "col_0": "",
+        "col_1": "",
+        "col_2": "",
+        "col_3": "",
+        "col_4": "|",
+        "col_5": "LC",
+        "col_6": "",
+        "col_7": "",
+        "col_8": "",
+        "col_9": "",
+        "col_10": "",
+        "col_11": ""
+      },
+      "product_type_id": 4
+    },
+    {
+      "motivo_descarte": "Faltam nome_base e sku_original",
+      "linha_original": {
+        "col_0": "",
+        "col_1": "",
+        "col_2": "",
+        "col_3": "",
+        "col_4": "",
+        "col_5": "Tm re ce",
+        "col_6": "",
+        "col_7": "",
+        "col_8": "",
+        "col_9": "",
+        "col_10": "",
+        "col_11": "",
+        "col_12": "",
+        "col_13": "",
+        "col_14": ""
+      },
+      "product_type_id": 4
+    },
+    {
+      "motivo_descarte": "Faltam nome_base e sku_original",
+      "linha_original": {
+        "col_0": "",
+        "col_1": "",
+        "col_2": "",
+        "col_3": "",
+        "col_4": "",
+        "col_5": "=",
+        "col_6": "",
+        "col_7": "",
+        "col_8": "na",
+        "col_9": "",
+        "col_10": "",
+        "col_11": "",
+        "col_12": "",
+        "col_13": "",
+        "col_14": ""
+      },
+      "product_type_id": 4
+    },
+    {
+      "motivo_descarte": "Faltam nome_base e sku_original",
+      "linha_original": {
+        "col_0": "",
+        "col_1": "4286 D",
+        "col_2": "",
+        "col_3": "",
+        "col_4": "",
+        "col_5": "—",
+        "col_6": "",
+        "col_7": "",
+        "col_8": "",
+        "col_9": "",
+        "col_10": "",
+        "col_11": "",
+        "col_12": "",
+        "col_13": "",
+        "col_14": ""
+      },
+      "product_type_id": 4
+    },
+    {
+      "motivo_descarte": "Faltam nome_base e sku_original",
+      "linha_original": {
+        "col_0": "",
+        "col_1": "",
+        "col_2": "",
+        "col_3": "",
+        "col_4": "",
+        "col_5": "=i = = 7",
+        "col_6": "",
+        "col_7": "",
+        "col_8": "",
+        "col_9": "",
+        "col_10": "",
+        "col_11": "",
+        "col_12": "",
+        "col_13": "",
+        "col_14": ""
+      },
+      "product_type_id": 4
+    },
+    {
+      "motivo_descarte": "Faltam nome_base e sku_original",
+      "linha_original": {
+        "col_0": "",
+        "col_1": "4449",
+        "col_2": "",
+        "col_3": "",
+        "col_4": "",
+        "col_5": "",
+        "col_6": "",
+        "col_7": "",
+        "col_8": "",
+        "col_9": "",
+        "col_10": "",
+        "col_11": "",
+        "col_12": "",
+        "col_13": "",
+        "col_14": ""
+      },
+      "product_type_id": 4
+    },
+    {
+      "motivo_descarte": "Faltam nome_base e sku_original",
+      "linha_original": {
+        "col_0": "",
+        "col_1": "Chapa Externa da Porta com friso sem reforg¢o Worker apdés 2000",
+        "col_2": "",
+        "col_3": "Metalico"
+      },
+      "product_type_id": 4
+    },
+    {
+      "motivo_descarte": "Faltam nome_base e sku_original",
+      "linha_original": {
+        "col_0": "",
+        "col_1": "",
+        "col_2": "",
+        "col_3": "",
+        "col_4": "",
+        "col_5": "a 4052 we.",
+        "col_6": "",
+        "col_7": "",
+        "col_8": "",
+        "col_9": "",
+        "col_10": "",
+        "col_11": "",
+        "col_12": "",
+        "col_13": "",
+        "col_14": ""
+      },
+      "product_type_id": 4
+    },
+    {
+      "motivo_descarte": "Faltam nome_base e sku_original",
+      "linha_original": {
+        "col_0": "|",
+        "col_1": "",
+        "col_2": "",
+        "col_3": "4338",
+        "col_4": "",
+        "col_5": "",
+        "col_6": "",
+        "col_7": "",
+        "col_8": "",
+        "col_9": "",
+        "col_10": "",
+        "col_11": "",
+        "col_12": "",
+        "col_13": "",
+        "col_14": ""
+      },
+      "product_type_id": 4
+    },
+    {
+      "motivo_descarte": "Faltam nome_base e sku_original",
+      "linha_original": {
+        "col_0": "",
+        "col_1": "2RE831052 Porta Nua Completa",
+        "col_2": "",
+        "col_3": "Worker até 2000 Metalico",
+        "col_4": ""
+      },
+      "product_type_id": 4
+    },
+    {
+      "motivo_descarte": "Faltam nome_base e sku_original",
+      "linha_original": {
+        "col_0": "",
+        "col_1": "",
+        "col_2": "",
+        "col_3": "4234",
+        "col_4": "",
+        "col_5": "",
+        "col_6": "",
+        "col_7": "",
+        "col_8": "",
+        "col_9": "",
+        "col_10": "",
+        "col_11": "",
+        "col_12": "",
+        "col_13": "",
+        "col_14": "",
+        "col_15": ""
+      },
+      "product_type_id": 4
+    },
+    {
+      "motivo_descarte": "Faltam nome_base e sku_original",
+      "linha_original": {
+        "col_0": "",
+        "col_1": "4043 (ie",
+        "col_2": "",
+        "col_3": "",
+        "col_4": "",
+        "col_5": "",
+        "col_6": "",
+        "col_7": "",
+        "col_8": "",
+        "col_9": "",
+        "col_10": "",
+        "col_11": "",
+        "col_12": "",
+        "col_13": "",
+        "col_14": "",
+        "col_15": ""
+      },
+      "product_type_id": 4
+    },
+    {
+      "motivo_descarte": "Faltam nome_base e sku_original",
+      "linha_original": {
+        "col_0": "",
+        "col_1": "",
+        "col_2": "",
+        "col_3": "4006 <== = = Ly",
+        "col_4": "",
+        "col_5": "",
+        "col_6": "",
+        "col_7": "",
+        "col_8": "",
+        "col_9": "",
+        "col_10": "",
+        "col_11": "",
+        "col_12": "",
+        "col_13": "",
+        "col_14": "",
+        "col_15": ""
+      },
+      "product_type_id": 4
+    },
+    {
+      "motivo_descarte": "Faltam nome_base e sku_original",
+      "linha_original": {
+        "col_0": "",
+        "col_1": "4443",
+        "col_2": "",
+        "col_3": "",
+        "col_4": "",
+        "col_5": "",
+        "col_6": "",
+        "col_7": "",
+        "col_8": "",
+        "col_9": "",
+        "col_10": "",
+        "col_11": "",
+        "col_12": "",
+        "col_13": ""
+      },
+      "product_type_id": 4
+    },
+    {
+      "motivo_descarte": "Faltam nome_base e sku_original",
+      "linha_original": {
+        "col_0": "",
+        "col_1": "2RO831052A Porta Nua Completa c/friso",
+        "col_2": "",
+        "col_3": "Delivery 8.150 apdés 2000 Metalico",
+        "col_4": ""
+      },
+      "product_type_id": 4
+    },
+    {
+      "motivo_descarte": "Faltam nome_base e sku_original",
+      "linha_original": {
+        "col_0": "",
+        "col_1": "",
+        "col_2": "",
+        "col_3": "",
+        "col_4": "",
+        "col_5": "4318",
+        "col_6": "",
+        "col_7": "",
+        "col_8": ""
+      },
+      "product_type_id": 4
+    },
+    {
+      "motivo_descarte": "Faltam nome_base e sku_original",
+      "linha_original": {
+        "col_0": "",
+        "col_1": "",
+        "col_2": "",
+        "col_3": "4388 D",
+        "col_4": "",
+        "col_5": "",
+        "col_6": "",
+        "col_7": "",
+        "col_8": ""
+      },
+      "product_type_id": 4
+    },
+    {
+      "motivo_descarte": "Faltam nome_base e sku_original",
+      "linha_original": {
+        "col_0": "",
+        "col_1": "eee",
+        "col_2": "",
+        "col_3": "EEE ID"
+      },
+      "product_type_id": 4
+    },
+    {
+      "motivo_descarte": "Faltam nome_base e sku_original",
+      "linha_original": {
+        "col_0": "",
+        "col_1": "23B899306 Suporte do Para-choque",
+        "col_2": "",
+        "col_3": "New Delivery Metalico"
+      },
+      "product_type_id": 4
+    },
+    {
+      "motivo_descarte": "Faltam nome_base e sku_original",
+      "linha_original": {
+        "col_0": "",
+        "col_1": "",
+        "col_2": "",
+        "col_3": "Co",
+        "col_4": "",
+        "col_5": ""
+      },
+      "product_type_id": 4
+    },
+    {
+      "motivo_descarte": "Faltam nome_base e sku_original",
+      "linha_original": {
+        "col_0": "",
+        "col_1": "Cc",
+        "col_2": "",
+        "col_3": "",
+        "col_4": "",
+        "col_5": ""
+      },
+      "product_type_id": 4
+    },
+    {
+      "motivo_descarte": "Faltam nome_base e sku_original",
+      "linha_original": {
+        "col": ""
+      },
+      "product_type_id": 4
+    },
+    {
+      "motivo_descarte": "Faltam nome_base e sku_original",
+      "linha_original": {
+        "col": ""
+      },
+      "product_type_id": 4
+    },
+    {
+      "motivo_descarte": "Faltam nome_base e sku_original",
+      "linha_original": {
+        "col": ""
+      },
+      "product_type_id": 4
+    },
+    {
+      "motivo_descarte": "Faltam nome_base e sku_original",
+      "linha_original": {
+        "col_0": "",
+        "col_1": "",
+        "col_2": "",
+        "col_3": "oe _",
+        "col_4": "",
+        "col_5": "",
+        "col_6": "",
+        "col_7": "",
+        "col_8": "",
+        "col_9": "",
+        "col_10": ""
+      },
+      "product_type_id": 4
+    },
+    {
+      "motivo_descarte": "Faltam nome_base e sku_original",
+      "linha_original": {
+        "col_0": "",
+        "col_1": "",
+        "col_2": "",
+        "col_3": "Tee",
+        "col_4": "",
+        "col_5": "",
+        "col_6": "",
+        "col_7": "",
+        "col_8": "",
+        "col_9": ""
+      },
+      "product_type_id": 4
+    },
+    {
+      "motivo_descarte": "Faltam nome_base e sku_original",
+      "linha_original": {
+        "col_0": "",
+        "col_1": "",
+        "col_2": "",
+        "col_3": "",
+        "col_4": "",
+        "col_5": "ae",
+        "col_6": "",
+        "col_7": "",
+        "col_8": "",
+        "col_9": ""
+      },
+      "product_type_id": 4
+    },
+    {
+      "motivo_descarte": "Faltam nome_base e sku_original",
+      "linha_original": {
+        "col_0": "",
+        "col_1": "",
+        "col_2": "",
+        "col_3": "es",
+        "col_4": "",
+        "col_5": "",
+        "col_6": "",
+        "col_7": "",
+        "col_8": "",
+        "col_9": ""
+      },
+      "product_type_id": 4
+    },
+    {
+      "motivo_descarte": "Faltam nome_base e sku_original",
+      "linha_original": {
+        "col_0": "",
+        "col_1": "",
+        "col_2": "",
+        "col_3": "ii",
+        "col_4": "",
+        "col_5": "",
+        "col_6": "",
+        "col_7": "",
+        "col_8": "",
+        "col_9": ""
+      },
+      "product_type_id": 4
+    },
+    {
+      "motivo_descarte": "Faltam nome_base e sku_original",
+      "linha_original": {
+        "col_0": "",
+        "col_1": "",
+        "col_2": "",
+        "col_3": "",
+        "col_4": "",
+        "col_5": "Lh 00",
+        "col_6": "",
+        "col_7": "",
+        "col_8": "",
+        "col_9": ""
+      },
+      "product_type_id": 4
+    },
+    {
+      "motivo_descarte": "Faltam nome_base e sku_original",
+      "linha_original": {
+        "col_0": "",
+        "col_1": "",
+        "col_2": "",
+        "col_3": "",
+        "col_4": "",
+        "col_5": "ee ie SL",
+        "col_6": "",
+        "col_7": "",
+        "col_8": "",
+        "col_9": ""
+      },
+      "product_type_id": 4
+    },
+    {
+      "motivo_descarte": "Faltam nome_base e sku_original",
+      "linha_original": {
+        "col_0": "",
+        "col_1": "",
+        "col_2": "",
+        "col_3": "",
+        "col_4": "",
+        "col_5": "7135 E",
+        "col_6": "",
+        "col_7": ""
+      },
+      "product_type_id": 4
+    },
+    {
+      "motivo_descarte": "Faltam nome_base e sku_original",
+      "linha_original": {
+        "col_0": "",
+        "col_1": "",
+        "col_2": "",
+        "col_3": "7142",
+        "col_4": "",
+        "col_5": "",
+        "col_6": "",
+        "col_7": ""
+      },
+      "product_type_id": 4
+    },
+    {
+      "motivo_descarte": "Faltam nome_base e sku_original",
+      "linha_original": {
+        "col_0": "",
+        "col_1": "",
+        "col_2": "",
+        "col_3": "7143",
+        "col_4": "",
+        "col_5": "",
+        "col_6": "",
+        "col_7": ""
+      },
+      "product_type_id": 4
+    },
+    {
+      "motivo_descarte": "Faltam nome_base e sku_original",
+      "linha_original": {
+        "col_0": "",
+        "col_1": "",
+        "col_2": "",
+        "col_3": "SSS ,",
+        "col_4": "",
+        "col_5": "",
+        "col_6": "",
+        "col_7": ""
+      },
+      "product_type_id": 4
+    },
+    {
+      "motivo_descarte": "Faltam nome_base e sku_original",
+      "linha_original": {
+        "col_0": "",
+        "col_1": "7146",
+        "col_2": "",
+        "col_3": "",
+        "col_4": "",
+        "col_5": "",
+        "col_6": "",
+        "col_7": ""
+      },
+      "product_type_id": 4
+    },
+    {
+      "motivo_descarte": "Faltam nome_base e sku_original",
+      "linha_original": {
+        "col_0": "",
+        "col_1": "7147",
+        "col_2": "",
+        "col_3": "",
+        "col_4": "",
+        "col_5": "",
+        "col_6": "",
+        "col_7": ""
+      },
+      "product_type_id": 4
+    },
+    {
+      "motivo_descarte": "Faltam nome_base e sku_original",
+      "linha_original": {
+        "col_0": "",
+        "col_1": "7154",
+        "col_2": "",
+        "col_3": "",
+        "col_4": "",
+        "col_5": "7150",
+        "col_6": "",
+        "col_7": ""
+      },
+      "product_type_id": 4
+    },
+    {
+      "motivo_descarte": "Faltam nome_base e sku_original",
+      "linha_original": {
+        "col_0": "",
+        "col_1": "7148",
+        "col_2": "",
+        "col_3": "",
+        "col_4": "",
+        "col_5": "7149",
+        "col_6": "",
+        "col_7": ""
+      },
+      "product_type_id": 4
+    },
+    {
+      "motivo_descarte": "Faltam nome_base e sku_original",
+      "linha_original": {
+        "col_0": "",
+        "col_1": "",
+        "col_2": "",
+        "col_3": "7151",
+        "col_4": "",
+        "col_5": "‘",
+        "col_6": "",
+        "col_7": ""
+      },
+      "product_type_id": 4
+    },
+    {
+      "motivo_descarte": "Faltam nome_base e sku_original",
+      "linha_original": {
+        "col_0": "",
+        "col_1": "",
+        "col_2": "",
+        "col_3": "7136",
+        "col_4": "",
+        "col_5": "",
+        "col_6": "",
+        "col_7": ""
+      },
+      "product_type_id": 4
+    },
+    {
+      "motivo_descarte": "Faltam nome_base e sku_original",
+      "linha_original": {
+        "col_0": "",
+        "col_1": "",
+        "col_2": "",
+        "col_3": "7134",
+        "col_4": "",
+        "col_5": "",
+        "col_6": "",
+        "col_7": ""
+      },
+      "product_type_id": 4
+    },
+    {
+      "motivo_descarte": "Faltam nome_base e sku_original",
+      "linha_original": {
+        "col_0": "",
+        "col_1": "7075 4",
+        "col_2": "",
+        "col_3": "-",
+        "col_4": "",
+        "col_5": "",
+        "col_6": "",
+        "col_7": "",
+        "col_8": "",
+        "col_9": "",
+        "col_10": "",
+        "col_11": ""
+      },
+      "product_type_id": 4
+    },
+    {
+      "motivo_descarte": "Faltam nome_base e sku_original",
+      "linha_original": {
+        "col_0": "",
+        "col_1": "",
+        "col_2": "",
+        "col_3": "",
+        "col_4": "",
+        "col_5": "7075 E",
+        "col_6": "",
+        "col_7": "",
+        "col_8": "",
+        "col_9": "",
+        "col_10": "",
+        "col_11": ""
+      },
+      "product_type_id": 4
+    },
+    {
+      "motivo_descarte": "Faltam nome_base e sku_original",
+      "linha_original": {
+        "col_0": "",
+        "col_1": "",
+        "col_2": "",
+        "col_3": "",
+        "col_4": "",
+        "col_5": "a a",
+        "col_6": "",
+        "col_7": "",
+        "col_8": "",
+        "col_9": "",
+        "col_10": ""
+      },
+      "product_type_id": 4
+    },
+    {
+      "motivo_descarte": "Faltam nome_base e sku_original",
+      "linha_original": {
+        "col_0": "",
+        "col_1": "",
+        "col_2": "",
+        "col_3": "ra",
+        "col_4": "",
+        "col_5": "",
+        "col_6": "",
+        "col_7": "",
+        "col_8": "",
+        "col_9": "",
+        "col_10": ""
+      },
+      "product_type_id": 4
+    },
+    {
+      "motivo_descarte": "Faltam nome_base e sku_original",
+      "linha_original": {
+        "col_0": "",
+        "col_1": "",
+        "col_2": "",
+        "col_3": "be |",
+        "col_4": "",
+        "col_5": "",
+        "col_6": "",
+        "col_7": "",
+        "col_8": "",
+        "col_9": "",
+        "col_10": ""
+      },
+      "product_type_id": 4
+    },
+    {
+      "motivo_descarte": "Faltam nome_base e sku_original",
+      "linha_original": {
+        "col_0": "",
+        "col_1": "7037",
+        "col_2": "",
+        "col_3": "",
+        "col_4": "",
+        "col_5": "",
+        "col_6": "",
+        "col_7": "",
+        "col_8": "",
+        "col_9": "",
+        "col_10": ""
+      },
+      "product_type_id": 4
+    },
+    {
+      "motivo_descarte": "Faltam nome_base e sku_original",
+      "linha_original": {
+        "col_0": "",
+        "col_1": "7053 yaaa —",
+        "col_2": "",
+        "col_3": "",
+        "col_4": "",
+        "col_5": "",
+        "col_6": "",
+        "col_7": "",
+        "col_8": "",
+        "col_9": "",
+        "col_10": "",
+        "col_11": "",
+        "col_12": "",
+        "col_13": "",
+        "col_14": "",
+        "col_15": ""
+      },
+      "product_type_id": 4
+    },
+    {
+      "motivo_descarte": "Faltam nome_base e sku_original",
+      "linha_original": {
+        "col_0": "",
+        "col_1": "",
+        "col_2": "",
+        "col_3": "",
+        "col_4": "",
+        "col_5": "7085",
+        "col_6": "",
+        "col_7": "",
+        "col_8": "",
+        "col_9": "",
+        "col_10": "",
+        "col_11": "",
+        "col_12": "",
+        "col_13": "",
+        "col_14": "",
+        "col_15": ""
+      },
+      "product_type_id": 4
+    },
+    {
+      "motivo_descarte": "Faltam nome_base e sku_original",
+      "linha_original": {
+        "col_0": "",
+        "col_1": "3175938",
+        "col_2": "",
+        "col_3": "Acabamento Lateral do Paralama FH 2004 Plastico Injetado",
+        "col_4": "",
+        "col_5": "",
+        "col_6": ""
+      },
+      "product_type_id": 4
+    },
+    {
+      "motivo_descarte": "Faltam nome_base e sku_original",
+      "linha_original": {
+        "col_0": "",
+        "col_1": "",
+        "col_2": "",
+        "col_3": "",
+        "col_4": "",
+        "col_5": "7085",
+        "col_6": "",
+        "col_7": "",
+        "col_8": "",
+        "col_9": "",
+        "col_10": "",
+        "col_11": ""
+      },
+      "product_type_id": 4
+    },
+    {
+      "motivo_descarte": "Faltam nome_base e sku_original",
+      "linha_original": {
+        "col_0": "",
+        "col_1": "",
+        "col_2": "",
+        "col_3": "7013",
+        "col_4": "",
+        "col_5": "7014",
+        "col_6": "",
+        "col_7": ""
+      },
+      "product_type_id": 4
+    },
+    {
+      "motivo_descarte": "Faltam nome_base e sku_original",
+      "linha_original": {
+        "col_0": "",
+        "col_1": "",
+        "col_2": "",
+        "col_3": "7032",
+        "col_4": "",
+        "col_5": "",
+        "col_6": "",
+        "col_7": ""
+      },
+      "product_type_id": 4
+    },
+    {
+      "motivo_descarte": "Faltam nome_base e sku_original",
+      "linha_original": {
+        "col_0": "",
+        "col_1": "",
+        "col_2": "",
+        "col_3": "",
+        "col_4": "",
+        "col_5": "7016",
+        "col_6": "",
+        "col_7": ""
+      },
+      "product_type_id": 4
+    },
+    {
+      "motivo_descarte": "Faltam nome_base e sku_original",
+      "linha_original": {
+        "col_0": "",
+        "col_1": "7013",
+        "col_2": "",
+        "col_3": "",
+        "col_4": "",
+        "col_5": "",
+        "col_6": "",
+        "col_7": ""
+      },
+      "product_type_id": 4
+    },
+    {
+      "erro_processamento_pdf": "Nenhum dado de produto pÃƒÂ´de ser extraÃƒÂ­do do PDF (pode estar protegido, vazio ou somente imagem sem OCR).",
+      "log_pdf": [
+        "PDF com 231 pÃƒÂ¡ginas.",
+        "PÃƒÂ¡gina 185: Aplicando recorte (crop) com bbox (23.357242152466366, 171.34246013272582, 595.276, 755.7288626683835) [modo=normalized].",
+        "PÃƒÂ¡gina 185: ExtraÃƒÂ§ÃƒÂ£o por regiÃƒÂ£o nÃƒÂ£o retornou linhas.",
+        "PÃƒÂ¡gina 185: Nenhuma tabela encontrada.",
+        "Nenhum produto extraÃƒÂ­do de tabelas/regiÃƒÂ£o. Tentando extraÃƒÂ§ÃƒÂ£o de texto bruto.",
+        "PÃƒÂ¡gina 185: Nenhum texto extraÃƒÂ­vel (pode ser imagem ou protegido)."
+      ]
+    },
+    {
+      "motivo_descarte": "Faltam nome_base e sku_original",
+      "linha_original": {
+        "col": ""
+      },
+      "product_type_id": 4
+    },
+    {
+      "motivo_descarte": "Faltam nome_base e sku_original",
+      "linha_original": {
+        "col": ""
+      },
+      "product_type_id": 4
+    },
+    {
+      "motivo_descarte": "Faltam nome_base e sku_original",
+      "linha_original": {
+        "col_0": "",
+        "col_1": "",
+        "col_2": "",
+        "col_3": "",
+        "col_4": "",
+        "col_5": "6198",
+        "col_6": "",
+        "col_7": "",
+        "col_8": "",
+        "col_9": "",
+        "col_10": "",
+        "col_11": "",
+        "col_12": ""
+      },
+      "product_type_id": 4
+    },
+    {
+      "motivo_descarte": "Faltam nome_base e sku_original",
+      "linha_original": {
+        "col_0": "",
+        "col_1": "",
+        "col_2": "",
+        "col_3": "",
+        "col_4": "",
+        "col_5": "6158",
+        "col_6": "",
+        "col_7": "",
+        "col_8": "",
+        "col_9": "",
+        "col_10": "",
+        "col_11": "",
+        "col_12": ""
+      },
+      "product_type_id": 4
+    },
+    {
+      "motivo_descarte": "Faltam nome_base e sku_original",
+      "linha_original": {
+        "col_0": "",
+        "col_1": "6128",
+        "col_2": "",
+        "col_3": "",
+        "col_4": "",
+        "col_5": "",
+        "col_6": "",
+        "col_7": "",
+        "col_8": "",
+        "col_9": "",
+        "col_10": "",
+        "col_11": "",
+        "col_12": "",
+        "col_13": ""
+      },
+      "product_type_id": 4
+    },
+    {
+      "motivo_descarte": "Faltam nome_base e sku_original",
+      "linha_original": {
+        "col_0": "",
+        "col_1": "",
+        "col_2": "",
+        "col_3": "",
+        "col_4": "",
+        "col_5": "oy",
+        "col_6": "",
+        "col_7": "",
+        "col_8": "",
+        "col_9": "",
+        "col_10": "",
+        "col_11": "",
+        "col_12": "",
+        "col_13": ""
+      },
+      "product_type_id": 4
+    },
+    {
+      "motivo_descarte": "Faltam nome_base e sku_original",
+      "linha_original": {
+        "col_0": "",
+        "col_1": "6121",
+        "col_2": "",
+        "col_3": "",
+        "col_4": "",
+        "col_5": "",
+        "col_6": "",
+        "col_7": "",
+        "col_8": "",
+        "col_9": "",
+        "col_10": "",
+        "col_11": "",
+        "col_12": "",
+        "col_13": ""
+      },
+      "product_type_id": 4
+    },
+    {
+      "motivo_descarte": "Faltam nome_base e sku_original",
+      "linha_original": {
+        "col_0": "",
+        "col_1": "6118",
+        "col_2": "",
+        "col_3": "",
+        "col_4": "",
+        "col_5": "",
+        "col_6": "",
+        "col_7": "",
+        "col_8": "",
+        "col_9": "",
+        "col_10": "",
+        "col_11": "=",
+        "col_12": "",
+        "col_13": ""
+      },
+      "product_type_id": 4
+    },
+    {
+      "motivo_descarte": "Faltam nome_base e sku_original",
+      "linha_original": {
+        "col_0": "",
+        "col_1": "6146 E",
+        "col_2": "",
+        "col_3": "",
+        "col_4": "",
+        "col_5": "",
+        "col_6": "",
+        "col_7": "",
+        "col_8": "",
+        "col_9": "",
+        "col_10": "",
+        "col_11": "",
+        "col_12": "",
+        "col_13": ""
+      },
+      "product_type_id": 4
+    },
+    {
+      "motivo_descarte": "Faltam nome_base e sku_original",
+      "linha_original": {
+        "col_0": "",
+        "col_1": "1431920/1936674 Bojo do Farol",
+        "col_2": "",
+        "col_3": "Serie 5 P 2007até 2010 Plastico Injetado",
+        "col_4": ""
+      },
+      "product_type_id": 4
+    },
+    {
+      "motivo_descarte": "Faltam nome_base e sku_original",
+      "linha_original": {
+        "col_0": "",
+        "col_1": "",
+        "col_2": "",
+        "col_3": "6072",
+        "col_4": "",
+        "col_5": "ire",
+        "col_6": "",
+        "col_7": "",
+        "col_8": "",
+        "col_9": "",
+        "col_10": "|",
+        "col_11": "",
+        "col_12": "",
+        "col_13": ""
+      },
+      "product_type_id": 4
+    },
+    {
+      "motivo_descarte": "Faltam nome_base e sku_original",
+      "linha_original": {
+        "col_0": "",
+        "col_1": "",
+        "col_2": "",
+        "col_3": "",
+        "col_4": "",
+        "col_5": "EE"
+      },
+      "product_type_id": 4
+    },
+    {
+      "motivo_descarte": "Faltam nome_base e sku_original",
+      "linha_original": {
+        "col_0": "",
+        "col_1": "1408465/1485485/1335391 Meio Paralama Dianteiro Esquerdo/ Traseiro Direito Serie 4 - 1998 até 2007 Plastico Injetado",
+        "col_2": "",
+        "col_3": "",
+        "col_4": "",
+        "col_5": ""
+      },
+      "product_type_id": 4
+    },
+    {
+      "motivo_descarte": "Faltam nome_base e sku_original",
+      "linha_original": {
+        "col_0": "",
+        "col_1": "",
+        "col_2": "",
+        "col_3": "",
+        "col_4": ":",
+        "col_5": "ia",
+        "col_6": "—",
+        "col_7": "",
+        "col_8": "|",
+        "col_9": "",
+        "col_10": "",
+        "col_11": "",
+        "col_12": "",
+        "col_13": "",
+        "col_14": ""
+      },
+      "product_type_id": 4
+    },
+    {
+      "motivo_descarte": "Faltam nome_base e sku_original",
+      "linha_original": {
+        "col_0": "",
+        "col_1": "",
+        "col_2": "",
+        "col_3": "6085",
+        "col_4": "",
+        "col_5": "",
+        "col_6": "",
+        "col_7": "",
+        "col_8": "",
+        "col_9": "",
+        "col_10": "",
+        "col_11": "",
+        "col_12": "",
+        "col_13": "",
+        "col_14": ""
+      },
+      "product_type_id": 4
+    },
+    {
+      "motivo_descarte": "Faltam nome_base e sku_original",
+      "linha_original": {
+        "col_0": "",
+        "col_1": "Wi",
+        "col_2": "",
+        "col_3": "",
+        "col_4": "",
+        "col_5": "",
+        "col_6": "",
+        "col_7": "",
+        "col_8": "",
+        "col_9": "",
+        "col_10": "",
+        "col_11": "",
+        "col_12": "",
+        "col_13": "",
+        "col_14": ""
+      },
+      "product_type_id": 4
+    },
+    {
+      "motivo_descarte": "Faltam nome_base e sku_original",
+      "linha_original": {
+        "col_0": "",
+        "col_1": "",
+        "col_2": "",
+        "col_3": "",
+        "col_4": "",
+        "col_5": "6152",
+        "col_6": "",
+        "col_7": "",
+        "col_8": "",
+        "col_9": "",
+        "col_10": "",
+        "col_11": "",
+        "col_12": "",
+        "col_13": "",
+        "col_14": "",
+        "col_15": ""
+      },
+      "product_type_id": 4
+    },
+    {
+      "motivo_descarte": "Faltam nome_base e sku_original",
+      "linha_original": {
+        "col_0": "",
+        "col_1": "Co",
+        "col_2": "",
+        "col_3": "",
+        "col_4": ""
+      },
+      "product_type_id": 4
+    },
+    {
+      "motivo_descarte": "Produto duplicado por SKU ou EAN",
+      "linha_original": {
+        "nome_base": "UTS",
+        "descricao_original": null,
+        "sku": "oS",
+        "ean": null,
+        "marca": null,
+        "fornecedor_id": 3,
+        "product_type_id": 4,
+        "categoria_original": null,
+        "dados_brutos_web": null,
+        "dynamic_attributes": null
+      },
+      "duplicado": true
+    },
+    {
+      "motivo_descarte": "Produto duplicado por SKU ou EAN",
+      "linha_original": {
+        "nome_base": "Co",
+        "descricao_original": null,
+        "sku": "Co",
+        "ean": null,
+        "marca": null,
+        "fornecedor_id": 3,
+        "product_type_id": 4,
+        "categoria_original": null,
+        "dados_brutos_web": {
+          "col_0_raw": "Co"
+        },
+        "dynamic_attributes": null
+      },
+      "duplicado": true
+    },
+    {
+      "motivo_descarte": "Produto duplicado por SKU ou EAN",
+      "linha_original": {
+        "nome_base": "Co",
+        "descricao_original": null,
+        "sku": "Co",
+        "ean": null,
+        "marca": null,
+        "fornecedor_id": 3,
+        "product_type_id": 4,
+        "categoria_original": null,
+        "dados_brutos_web": {
+          "col_0_raw": "Co"
+        },
+        "dynamic_attributes": null
+      },
+      "duplicado": true
+    },
+    {
+      "motivo_descarte": "Faltam nome_base e sku_original",
+      "linha_original": {
+        "col": ""
+      },
+      "product_type_id": 4
+    },
+    {
+      "motivo_descarte": "Faltam nome_base e sku_original",
+      "linha_original": {
+        "col": ""
+      },
+      "product_type_id": 4
+    },
+    {
+      "motivo_descarte": "Faltam nome_base e sku_original",
+      "linha_original": {
+        "col_0": "",
+        "col_1": "",
+        "col_2": "",
+        "col_3": "",
+        "col_4": "",
+        "col_5": "Lz",
+        "col_6": "",
+        "col_7": "",
+        "col_8": "",
+        "col_9": "",
+        "col_10": "",
+        "col_11": "",
+        "col_12": ""
+      },
+      "product_type_id": 4
+    },
+    {
+      "motivo_descarte": "Faltam nome_base e sku_original",
+      "linha_original": {
+        "col_0": "",
+        "col_1": "5154",
+        "col_2": "",
+        "col_3": "",
+        "col_4": "",
+        "col_5": "5165",
+        "col_6": "",
+        "col_7": "",
+        "col_8": "",
+        "col_9": "",
+        "col_10": "",
+        "col_11": "",
+        "col_12": ""
+      },
+      "product_type_id": 4
+    },
+    {
+      "motivo_descarte": "Faltam nome_base e sku_original",
+      "linha_original": {
+        "col_0": "",
+        "col_1": "",
+        "col_2": "",
+        "col_3": "",
+        "col_4": "",
+        "col_5": "5168 E",
+        "col_6": "",
+        "col_7": "",
+        "col_8": "",
+        "col_9": "",
+        "col_10": "",
+        "col_11": "",
+        "col_12": ""
+      },
+      "product_type_id": 4
+    },
+    {
+      "motivo_descarte": "Faltam nome_base e sku_original",
+      "linha_original": {
+        "col_0": "",
+        "col_1": "5166",
+        "col_2": "",
+        "col_3": "",
+        "col_4": "",
+        "col_5": "",
+        "col_6": "",
+        "col_7": "",
+        "col_8": "",
+        "col_9": "",
+        "col_10": "",
+        "col_11": "",
+        "col_12": ""
+      },
+      "product_type_id": 4
+    },
+    {
+      "motivo_descarte": "Faltam nome_base e sku_original",
+      "linha_original": {
+        "col_0": "",
+        "col_1": "4280mm",
+        "col_2": "",
+        "col_3": "",
+        "col_4": "",
+        "col_5": "",
+        "col_6": "",
+        "col_7": "",
+        "col_8": "",
+        "col_9": "",
+        "col_10": "",
+        "col_11": "",
+        "col_12": ""
+      },
+      "product_type_id": 4
+    },
+    {
+      "motivo_descarte": "Faltam nome_base e sku_original",
+      "linha_original": {
+        "col_0": "",
+        "col_1": "504232506 Porta",
+        "col_2": "",
+        "col_3": "",
+        "col_4": ""
+      },
+      "product_type_id": 4
+    },
+    {
+      "motivo_descarte": "Faltam nome_base e sku_original",
+      "linha_original": {
+        "col_0": "",
+        "col_1": "fl",
+        "col_2": "",
+        "col_3": ""
+      },
+      "product_type_id": 4
+    },
+    {
+      "motivo_descarte": "Faltam nome_base e sku_original",
+      "linha_original": {
+        "col_0": "",
+        "col_1": "",
+        "col_2": "",
+        "col_3": "5188 E"
+      },
+      "product_type_id": 4
+    },
+    {
+      "motivo_descarte": "Faltam nome_base e sku_original",
+      "linha_original": {
+        "col": ""
+      },
+      "product_type_id": 4
+    },
+    {
+      "motivo_descarte": "Faltam nome_base e sku_original",
+      "linha_original": {
+        "col": ""
+      },
+      "product_type_id": 4
+    },
+    {
+      "motivo_descarte": "Faltam nome_base e sku_original",
+      "linha_original": {
+        "col_0": "",
+        "col_1": "",
+        "col_2": "",
+        "col_3": "580mm",
+        "col_4": "",
+        "col_5": "",
+        "col_6": "",
+        "col_7": "",
+        "col_8": "",
+        "col_9": "",
+        "col_10": "",
+        "col_11": "",
+        "col_12": ""
+      },
+      "product_type_id": 4
+    },
+    {
+      "motivo_descarte": "Faltam nome_base e sku_original",
+      "linha_original": {
+        "col_0": "",
+        "col_1": "",
+        "col_2": "",
+        "col_3": "",
+        "col_4": "",
+        "col_5": "695mm",
+        "col_6": "",
+        "col_7": "",
+        "col_8": "",
+        "col_9": "",
+        "col_10": "",
+        "col_11": "",
+        "col_12": ""
+      },
+      "product_type_id": 4
+    },
+    {
+      "motivo_descarte": "Faltam nome_base e sku_original",
+      "linha_original": {
+        "col_0": "",
+        "col_1": "(Para-lamas plasticos 1242/1638)",
+        "col_2": "",
+        "col_3": "",
+        "col_4": "",
+        "col_5": "",
+        "col_6": "",
+        "col_7": "",
+        "col_8": "",
+        "col_9": "",
+        "col_10": "",
+        "col_11": "",
+        "col_12": ""
+      },
+      "product_type_id": 4
+    },
+    {
+      "motivo_descarte": "Faltam nome_base e sku_original",
+      "linha_original": {
+        "col_0": "",
+        "col_1": "(Plastic fenders 1242/1638)",
+        "col_2": "",
+        "col_3": "",
+        "col_4": "",
+        "col_5": "",
+        "col_6": "",
+        "col_7": "",
+        "col_8": "",
+        "col_9": "",
+        "col_10": "",
+        "col_11": "",
+        "col_12": ""
+      },
+      "product_type_id": 4
+    },
+    {
+      "motivo_descarte": "Faltam nome_base e sku_original",
+      "linha_original": {
+        "col_0": "",
+        "col_1": "",
+        "col_2": "",
+        "col_3": "ee",
+        "col_4": "",
+        "col_5": "",
+        "col_6": "",
+        "col_7": "",
+        "col_8": "",
+        "col_9": "",
+        "col_10": "",
+        "col_11": "",
+        "col_12": "",
+        "col_13": "",
+        "col_14": "",
+        "col_15": ""
+      },
+      "product_type_id": 4
+    },
+    {
+      "motivo_descarte": "Faltam nome_base e sku_original",
+      "linha_original": {
+        "col_0": "",
+        "col_1": "",
+        "col_2": "",
+        "col_3": "os",
+        "col_4": "",
+        "col_5": "",
+        "col_6": "",
+        "col_7": "",
+        "col_8": "",
+        "col_9": "",
+        "col_10": "",
+        "col_11": "",
+        "col_12": "",
+        "col_13": "",
+        "col_14": "",
+        "col_15": ""
+      },
+      "product_type_id": 4
+    },
+    {
+      "motivo_descarte": "Faltam nome_base e sku_original",
+      "linha_original": {
+        "col_0": "",
+        "col_1": "",
+        "col_2": "",
+        "col_3": "om",
+        "col_4": "",
+        "col_5": "",
+        "col_6": "",
+        "col_7": "",
+        "col_8": "",
+        "col_9": "",
+        "col_10": "",
+        "col_11": "",
+        "col_12": "",
+        "col_13": "",
+        "col_14": "",
+        "col_15": ""
+      },
+      "product_type_id": 4
+    },
+    {
+      "motivo_descarte": "Faltam nome_base e sku_original",
+      "linha_original": {
+        "col_0": "",
+        "col_1": "1066",
+        "col_2": "",
+        "col_3": "",
+        "col_4": "",
+        "col_5": "",
+        "col_6": "",
+        "col_7": "",
+        "col_8": "",
+        "col_9": "",
+        "col_10": "",
+        "col_11": "",
+        "col_12": "",
+        "col_13": "",
+        "col_14": "",
+        "col_15": ""
+      },
+      "product_type_id": 4
+    },
+    {
+      "motivo_descarte": "Faltam nome_base e sku_original",
+      "linha_original": {
+        "col_0": "",
+        "col_1": "",
+        "col_2": "",
+        "col_3": "",
+        "col_4": "",
+        "col_5": "398",
+        "col_6": "",
+        "col_7": "",
+        "col_8": "",
+        "col_9": "",
+        "col_10": "",
+        "col_11": "",
+        "col_12": "",
+        "col_13": "",
+        "col_14": "",
+        "col_15": ""
+      },
+      "product_type_id": 4
+    },
+    {
+      "motivo_descarte": "Faltam nome_base e sku_original",
+      "linha_original": {
+        "col_0": "",
+        "col_1": "1635mm",
+        "col_2": "",
+        "col_3": "",
+        "col_4": "",
+        "col_5": "",
+        "col_6": "",
+        "col_7": "",
+        "col_8": "",
+        "col_9": "",
+        "col_10": "",
+        "col_11": "",
+        "col_12": "",
+        "col_13": ""
+      },
+      "product_type_id": 4
+    },
+    {
+      "motivo_descarte": "Faltam nome_base e sku_original",
+      "linha_original": {
+        "col_0": "",
+        "col_1": "7013",
+        "col_2": "",
+        "col_3": "",
+        "col_4": "",
+        "col_5": "",
+        "col_6": "",
+        "col_7": "",
+        "col_8": "",
+        "col_9": "",
+        "col_10": "",
+        "col_11": "",
+        "col_12": "",
+        "col_13": ""
+      },
+      "product_type_id": 4
+    },
+    {
+      "motivo_descarte": "Faltam nome_base e sku_original",
+      "linha_original": {
+        "col_0": "",
+        "col_1": "",
+        "col_2": "",
+        "col_3": "",
+        "col_4": "",
+        "col_5": "4130mm",
+        "col_6": "",
+        "col_7": "",
+        "col_8": "",
+        "col_9": "",
+        "col_10": "",
+        "col_11": "",
+        "col_12": "",
+        "col_13": ""
+      },
+      "product_type_id": 4
+    },
+    {
+      "motivo_descarte": "Faltam nome_base e sku_original",
+      "linha_original": {
+        "col_0": "",
+        "col_1": "",
+        "col_2": "",
+        "col_3": "i",
+        "col_4": "%",
+        "col_5": "4",
+        "col_6": "’",
+        "col_7": "",
+        "col_8": "",
+        "col_9": "",
+        "col_10": "",
+        "col_11": "",
+        "col_12": "",
+        "col_13": "",
+        "col_14": ""
+      },
+      "product_type_id": 4
+    },
+    {
+      "motivo_descarte": "Faltam nome_base e sku_original",
+      "linha_original": {
+        "col_0": "",
+        "col_1": "41400mm",
+        "col_2": "",
+        "col_3": "",
+        "col_4": "",
+        "col_5": "",
+        "col_6": "",
+        "col_7": "",
+        "col_8": "",
+        "col_9": "",
+        "col_10": "",
+        "col_11": "",
+        "col_12": "",
+        "col_13": "",
+        "col_14": ""
+      },
+      "product_type_id": 4
+    },
+    {
+      "motivo_descarte": "Faltam nome_base e sku_original",
+      "linha_original": {
+        "col_0": "",
+        "col_1": "4302",
+        "col_2": "",
+        "col_3": "",
+        "col_4": "",
+        "col_5": "",
+        "col_6": "",
+        "col_7": "",
+        "col_8": "",
+        "col_9": "",
+        "col_10": "",
+        "col_11": "",
+        "col_12": "",
+        "col_13": ""
+      },
+      "product_type_id": 4
+    },
+    {
+      "motivo_descarte": "Faltam nome_base e sku_original",
+      "linha_original": {
+        "col_0": "",
+        "col_1": "",
+        "col_2": "",
+        "col_3": "610mm",
+        "col_4": "",
+        "col_5": "",
+        "col_6": "",
+        "col_7": "",
+        "col_8": "",
+        "col_9": "",
+        "col_10": "",
+        "col_11": "",
+        "col_12": "",
+        "col_13": ""
+      },
+      "product_type_id": 4
+    },
+    {
+      "motivo_descarte": "Faltam nome_base e sku_original",
+      "linha_original": {
+        "col_0": "",
+        "col_1": "3224",
+        "col_2": "",
+        "col_3": "",
+        "col_4": "",
+        "col_5": "",
+        "col_6": "",
+        "col_7": "",
+        "col_8": "",
+        "col_9": "",
+        "col_10": "",
+        "col_11": "",
+        "col_12": "",
+        "col_13": ""
+      },
+      "product_type_id": 4
+    },
+    {
+      "motivo_descarte": "Faltam nome_base e sku_original",
+      "linha_original": {
+        "col_0": "",
+        "col_1": "8135 EX",
+        "col_2": "",
+        "col_3": "",
+        "col_4": "",
+        "col_5": "",
+        "col_6": "",
+        "col_7": "",
+        "col_8": "",
+        "col_9": "",
+        "col_10": "",
+        "col_11": "",
+        "col_12": "",
+        "col_13": "",
+        "col_14": ""
+      },
+      "product_type_id": 4
+    },
+    {
+      "motivo_descarte": "Faltam nome_base e sku_original",
+      "linha_original": {
+        "col_0": "",
+        "col_1": "1210mm.",
+        "col_2": "",
+        "col_3": "",
+        "col_4": "",
+        "col_5": "",
+        "col_6": "",
+        "col_7": "",
+        "col_8": "",
+        "col_9": "",
+        "col_10": "",
+        "col_11": "",
+        "col_12": "",
+        "col_13": "",
+        "col_14": ""
+      },
+      "product_type_id": 4
+    },
+    {
+      "motivo_descarte": "Faltam nome_base e sku_original",
+      "linha_original": {
+        "col_0": "",
+        "col_1": "",
+        "col_2": "",
+        "col_3": "",
+        "col_4": "",
+        "col_5": "660mm",
+        "col_6": "",
+        "col_7": "",
+        "col_8": "",
+        "col_9": "",
+        "col_10": "",
+        "col_11": "",
+        "col_12": "",
+        "col_13": "",
+        "col_14": ""
+      },
+      "product_type_id": 4
+    },
+    {
+      "motivo_descarte": "Faltam nome_base e sku_original",
+      "linha_original": {
+        "col_0": "",
+        "col_1": "",
+        "col_2": "",
+        "col_3": "8112",
+        "col_4": "",
+        "col_5": "",
+        "col_6": "",
+        "col_7": "",
+        "col_8": "",
+        "col_9": "",
+        "col_10": "",
+        "col_11": "",
+        "col_12": ""
+      },
+      "product_type_id": 4
+    },
+    {
+      "motivo_descarte": "Faltam nome_base e sku_original",
+      "linha_original": {
+        "col_0": "",
+        "col_1": "1220mm",
+        "col_2": "",
+        "col_3": "",
+        "col_4": "",
+        "col_5": "",
+        "col_6": "",
+        "col_7": "",
+        "col_8": "",
+        "col_9": "",
+        "col_10": "",
+        "col_11": "",
+        "col_12": ""
+      },
+      "product_type_id": 4
+    },
+    {
+      "motivo_descarte": "Faltam nome_base e sku_original",
+      "linha_original": {
+        "col_0": "",
+        "col_1": "",
+        "col_2": "",
+        "col_3": "",
+        "col_4": "",
+        "col_5": "690mm",
+        "col_6": "",
+        "col_7": "",
+        "col_8": "",
+        "col_9": "",
+        "col_10": "",
+        "col_11": "",
+        "col_12": ""
+      },
+      "product_type_id": 4
+    },
+    {
+      "motivo_descarte": "Faltam nome_base e sku_original",
+      "linha_original": {
+        "col_0": "",
+        "col_1": "a",
+        "col_2": "",
+        "col_3": "a",
+        "col_4": "",
+        "col_5": "",
+        "col_6": "",
+        "col_7": "",
+        "col_8": "",
+        "col_9": "",
+        "col_10": "",
+        "col_11": "",
+        "col_12": "",
+        "col_13": ""
+      },
+      "product_type_id": 4
+    },
+    {
+      "motivo_descarte": "Faltam nome_base e sku_original",
+      "linha_original": {
+        "col_0": "",
+        "col_1": "",
+        "col_2": "",
+        "col_3": "",
+        "col_4": "",
+        "col_5": "oo",
+        "col_6": "",
+        "col_7": "",
+        "col_8": "",
+        "col_9": "",
+        "col_10": "",
+        "col_11": "",
+        "col_12": "",
+        "col_13": ""
+      },
+      "product_type_id": 4
+    },
+    {
+      "motivo_descarte": "Faltam nome_base e sku_original",
+      "linha_original": {
+        "col_0": "",
+        "col_1": "8180",
+        "col_2": "",
+        "col_3": ":",
+        "col_4": "",
+        "col_5": "",
+        "col_6": "",
+        "col_7": "",
+        "col_8": "",
+        "col_9": "",
+        "col_10": "",
+        "col_11": "",
+        "col_12": "",
+        "col_13": ""
+      },
+      "product_type_id": 4
+    },
+    {
+      "motivo_descarte": "Faltam nome_base e sku_original",
+      "linha_original": {
+        "col_0": "",
+        "col_1": "",
+        "col_2": "",
+        "col_3": "690mm",
+        "col_4": "",
+        "col_5": "",
+        "col_6": "",
+        "col_7": "",
+        "col_8": "",
+        "col_9": "",
+        "col_10": "",
+        "col_11": "",
+        "col_12": "",
+        "col_13": "",
+        "col_14": ""
+      },
+      "product_type_id": 4
+    },
+    {
+      "motivo_descarte": "Faltam nome_base e sku_original",
+      "linha_original": {
+        "col_0": "",
+        "col_1": "",
+        "col_2": "",
+        "col_3": "",
+        "col_4": "",
+        "col_5": "5153",
+        "col_6": "",
+        "col_7": "",
+        "col_8": "",
+        "col_9": "",
+        "col_10": "",
+        "col_11": "",
+        "col_12": "",
+        "col_13": "",
+        "col_14": ""
+      },
+      "product_type_id": 4
+    },
+    {
+      "motivo_descarte": "Faltam nome_base e sku_original",
+      "linha_original": {
+        "col_0": "",
+        "col_1": "690mm.",
+        "col_2": "",
+        "col_3": "",
+        "col_4": "",
+        "col_5": "",
+        "col_6": "",
+        "col_7": "",
+        "col_8": "",
+        "col_9": "",
+        "col_10": "",
+        "col_11": "",
+        "col_12": "",
+        "col_13": "",
+        "col_14": ""
+      },
+      "product_type_id": 4
+    },
+    {
+      "motivo_descarte": "Faltam nome_base e sku_original",
+      "linha_original": {
+        "col_0": "",
+        "col_1": "",
+        "col_2": "",
+        "col_3": "8232",
+        "col_4": "",
+        "col_5": "",
+        "col_6": "",
+        "col_7": "",
+        "col_8": "",
+        "col_9": "",
+        "col_10": "",
+        "col_11": "",
+        "col_12": "",
+        "col_13": "",
+        "col_14": ""
+      },
+      "product_type_id": 4
+    },
+    {
+      "motivo_descarte": "Faltam nome_base e sku_original",
+      "linha_original": {
+        "col_0": "",
+        "col_1": "8214",
+        "col_2": "",
+        "col_3": "",
+        "col_4": "",
+        "col_5": "",
+        "col_6": "",
+        "col_7": "",
+        "col_8": "",
+        "col_9": "",
+        "col_10": "_—__",
+        "col_11": "",
+        "col_12": "",
+        "col_13": "",
+        "col_14": ""
+      },
+      "product_type_id": 4
+    },
+    {
+      "motivo_descarte": "Faltam nome_base e sku_original",
+      "linha_original": {
+        "col_0": "",
+        "col_1": "",
+        "col_2": "",
+        "col_3": "",
+        "col_4": "&",
+        "col_5": "538mm",
+        "col_6": "",
+        "col_7": "",
+        "col_8": "",
+        "col_9": "",
+        "col_10": "",
+        "col_11": "",
+        "col_12": "",
+        "col_13": "",
+        "col_14": ""
+      },
+      "product_type_id": 4
+    },
+    {
+      "motivo_descarte": "Faltam nome_base e sku_original",
+      "linha_original": {
+        "col_0": "",
+        "col_1": "",
+        "col_2": "",
+        "col_3": "C7 |"
+      },
+      "product_type_id": 4
+    },
+    {
+      "motivo_descarte": "Faltam nome_base e sku_original",
+      "linha_original": {
+        "col_0": "",
+        "col_1": "Com cr",
+        "col_2": "",
+        "col_3": ""
+      },
+      "product_type_id": 4
+    },
+    {
+      "motivo_descarte": "Faltam nome_base e sku_original",
+      "linha_original": {
+        "col": ""
+      },
+      "product_type_id": 4
+    },
+    {
+      "motivo_descarte": "Faltam nome_base e sku_original",
+      "linha_original": {
+        "col": ""
+      },
+      "product_type_id": 4
+    }
+  ]
+}

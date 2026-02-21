@@ -1,0 +1,54 @@
+﻿/* Frontend/app/src/pages/HistoricoPage.css */
+
+.historico-page-shell {
+  width: 100%;
+}
+
+.historico-filter-row {
+  margin-bottom: 1rem;
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+.historico-filter-row select {
+  min-width: 180px;
+  padding: 0.35rem 0.5rem;
+}
+
+.historico-error {
+  color: #dc2626;
+  font-weight: 500;
+}
+
+.historico-system-section {
+  margin-top: 2rem;
+}
+
+.historico-system-section h4 {
+  margin-bottom: 0.9rem;
+  color: #1f2937;
+}
+
+.resultado-cell {
+  max-width: 320px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.historico-table td,
+.historico-table th {
+  white-space: nowrap;
+}
+
+@media (max-width: 768px) {
+  .historico-filter-row {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .historico-filter-row select {
+    width: 100%;
+  }
+}

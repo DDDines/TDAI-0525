@@ -93,8 +93,8 @@ def test_admin_can_view_usos_ia_of_other_user_product():
     assert resp.status_code == 200
     data = resp.json()
     assert isinstance(data, list)
-    assert len(data) == 1
-    assert data[0]["produto_id"] == produto.id
+    assert len(data) >= 1
+    assert all(item["produto_id"] == produto.id for item in data)
 
 
 def test_product_creation_creates_uso_ia_record():

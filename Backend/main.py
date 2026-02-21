@@ -6,6 +6,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy import func
 from pathlib import Path
 from typing import List, Optional, Any
+from contextlib import asynccontextmanager
 import json
 import traceback
 from Backend.core.logging_config import get_logger
@@ -41,10 +42,17 @@ logger.info(
 )
 
 
+@asynccontextmanager
+async def lifespan(_app: FastAPI):
+    await startup_event_create_defaults()
+    yield
+
+
 app = FastAPI(
     title=settings.PROJECT_NAME,
     version=settings.PROJECT_VERSION,
     description="API para o sistema CatalogAI - Ferramenta de Descrição Assistida por IA.",
+    lifespan=lifespan,
 )
 
 # Configuração do CORS
@@ -98,7 +106,6 @@ if not static_files_path.exists():
 app.mount("/static", StaticFiles(directory=static_files_path), name="static")
 
 
-@app.on_event("startup")
 async def startup_event_create_defaults():
     logger.info("Executando evento de startup para criar defaults (roles, planos, admin user, product types)...")
     db: Session = SessionLocal()

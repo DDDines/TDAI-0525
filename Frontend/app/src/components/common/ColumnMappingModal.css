@@ -1,0 +1,69 @@
+.column-mapping-header {
+  margin-bottom: 10px;
+}
+
+.column-mapping-description {
+  margin: 0;
+  color: #475569;
+  font-size: 0.9rem;
+}
+
+.column-mapping-summary {
+  margin-top: 4px;
+  margin-bottom: 0;
+  color: #334155;
+  font-size: 0.88rem;
+}
+
+.column-mapping-product-type {
+  margin-bottom: 12px;
+}
+
+.column-mapping-product-type-select {
+  margin-left: 8px;
+  min-width: 220px;
+}
+
+.column-mapping-tip {
+  margin-top: 10px;
+  margin-bottom: 10px;
+  color: #555;
+  font-size: 0.9rem;
+}
+
+.column-mapping-table-wrap {
+  width: 100%;
+  overflow-x: auto;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  background: #ffffff;
+}
+
+.mapping-table,
+.preview-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 0;
+}
+
+.mapping-table th,
+.mapping-table td,
+.preview-table th,
+.preview-table td {
+  padding: 8px 10px;
+  border: 1px solid #e5e7eb;
+  text-align: left;
+  font-size: 0.9rem;
+  vertical-align: top;
+}
+
+.mapping-table td select {
+  width: 100%;
+  min-height: 36px;
+}
+
+.mapping-table thead th,
+.preview-table thead th {
+  background: #f8fafc;
+  font-weight: 700;
+}

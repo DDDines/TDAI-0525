@@ -1,6 +1,15 @@
 .loading-popup-content {
   text-align: center;
-  width: 120px;
+  width: min(92vw, 420px);
+  padding: 20px;
+  border-radius: 10px;
+}
+
+.loading-popup-logo {
+  width: 90px;
+  height: 90px;
+  object-fit: contain;
+  margin: 0 auto 10px auto;
 }
 
 .loading-spinner {
@@ -13,7 +22,29 @@
   margin: 0 auto 10px auto;
 }
 
+.loading-popup-message {
+  margin: 0;
+  font-weight: 600;
+}
+
+.loading-popup-details {
+  margin: 12px 0 0 0;
+  padding-left: 18px;
+  max-height: 110px;
+  overflow-y: auto;
+  text-align: left;
+}
+
+.loading-popup-details li {
+  font-size: 0.85rem;
+  margin-bottom: 4px;
+}
+
 @keyframes loading-spin {
-  from { transform: rotate(0deg); }
-  to { transform: rotate(360deg); }
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
 }

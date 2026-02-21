@@ -1,0 +1,17 @@
+{
+  "file_id": 25,
+  "status": "IMPORTED",
+  "stats": {
+    "created": 0,
+    "updated": 1,
+    "errors": 0,
+    "ignored_non_critical": 0,
+    "pages_processed": 1,
+    "pages_total": 1,
+    "ext": ".csv"
+  },
+  "error_reasons_top": [],
+  "ignored_reasons_top": [],
+  "ignored_samples": [],
+  "errors": []
+}
