@@ -1,87 +1,79 @@
-// Frontend/app/src/services/productService.js
+﻿// Frontend/app/src/services/productService.js
 import logger from '../utils/logger';
 import apiClient from './apiClient';
 
 export const getProdutos = async (params = {}) => {
   try {
-    // ADICIONADA BARRA FINAL AQUI
     const response = await apiClient.get('/produtos/', { params });
     logger.log('API Response in productService (getProdutos):', response.data);
     return response.data;
   } catch (error) {
-    console.error('Error fetching produtos:', error.response?.data || error.message);
-    throw error.response?.data || new Error('Failed to fetch produtos');
+    console.error('Erro ao buscar produtos:', error.response?.data || error.message);
+    throw error.response?.data || new Error('Falha ao buscar produtos');
   }
 };
 
 export const getProdutoById = async (produtoId) => {
   try {
-    // ADICIONADA BARRA FINAL AQUI
     const response = await apiClient.get(`/produtos/${produtoId}/`);
     logger.log('API Response in productService (getProdutoById):', response.data);
     return response.data;
   } catch (error) {
-    console.error(`Error fetching produto ${produtoId}:`, error.response?.data || error.message);
-    throw error.response?.data || new Error(`Failed to fetch produto ${produtoId}`);
+    console.error(`Erro ao buscar produto ${produtoId}:`, error.response?.data || error.message);
+    throw error.response?.data || new Error(`Falha ao buscar produto ${produtoId}`);
   }
 };
 
 export const createProduto = async (produtoData) => {
   try {
-    // ADICIONADA BARRA FINAL AQUI
     const response = await apiClient.post('/produtos/', produtoData);
     return response.data;
   } catch (error) {
-    console.error('Error creating produto:', error.response?.data || error.message);
-    throw error.response?.data || new Error('Failed to create produto');
+    console.error('Erro ao criar produto:', error.response?.data || error.message);
+    throw error.response?.data || new Error('Falha ao criar produto');
   }
 };
 
 export const updateProduto = async (produtoId, produtoUpdateData) => {
   try {
-    // ADICIONADA BARRA FINAL AQUI
     const response = await apiClient.put(`/produtos/${produtoId}/`, produtoUpdateData);
     return response.data;
   } catch (error) {
-    console.error(`Error updating produto ${produtoId}:`, error.response?.data || error.message);
-    throw error.response?.data || new Error(`Failed to update produto ${produtoId}`);
+    console.error(`Erro ao atualizar produto ${produtoId}:`, error.response?.data || error.message);
+    throw error.response?.data || new Error(`Falha ao atualizar produto ${produtoId}`);
   }
 };
 
 export const deleteProduto = async (produtoId) => {
   try {
-    // ADICIONADA BARRA FINAL AQUI
     const response = await apiClient.delete(`/produtos/${produtoId}/`);
     return response.data;
   } catch (error) {
-    console.error(`Error deleting produto ${produtoId}:`, error.response?.data || error.message);
-    throw error.response?.data || new Error(`Failed to delete produto ${produtoId}`);
+    console.error(`Erro ao apagar produto ${produtoId}:`, error.response?.data || error.message);
+    throw error.response?.data || new Error(`Falha ao apagar produto ${produtoId}`);
   }
 };
 
 export const gerarTitulosProduto = async (produtoId) => {
   try {
-    // Mantendo consistência com a barra final se o router de geração também a usar
-    // Verifique o prefixo do router 'generation.py'. Se for /geracao, então:
-    const response = await apiClient.post(`/geracao/titulos/openai/${produtoId}/`); // Assumindo barra final
+    const response = await apiClient.post(`/geracao/titulos/openai/${produtoId}/`);
     return response.data;
   } catch (error) {
-    console.error(`Error generating titles for produto ${produtoId}:`, error.response?.data || error.message);
-    throw error.response?.data || new Error('Failed to generate titles');
+    console.error(`Erro ao gerar titulos para produto ${produtoId}:`, error.response?.data || error.message);
+    throw error.response?.data || new Error('Falha ao gerar titulos');
   }
 };
 
 export const gerarDescricaoProduto = async (produtoId) => {
   try {
-    const response = await apiClient.post(`/geracao/descricao/openai/${produtoId}/`); // Assumindo barra final
+    const response = await apiClient.post(`/geracao/descricao/openai/${produtoId}/`);
     return response.data;
   } catch (error) {
-    console.error(`Error generating description for produto ${produtoId}:`, error.response?.data || error.message);
-    throw error.response?.data || new Error('Failed to generate description');
+    console.error(`Erro ao gerar descricao para produto ${produtoId}:`, error.response?.data || error.message);
+    throw error.response?.data || new Error('Falha ao gerar descricao');
   }
 };
 
-// --- NOVAS FUNÇÕES PARA GEMINI ---
 export const gerarTitulosGemini = async (produtoId) => {
   try {
     const response = await apiClient.post(`/geracao/titulos/gemini/${produtoId}/`);
@@ -104,22 +96,35 @@ export const gerarDescricaoGemini = async (produtoId) => {
 
 export const iniciarEnriquecimentoWebProduto = async (produtoId, termosBuscaOverride = null) => {
   try {
-    let endpoint = `/enriquecimento-web/produto/${produtoId}/`;
+    let endpoint = `/enriquecimento-web/produto/${produtoId}`;
     if (termosBuscaOverride) {
       endpoint += `?termos_busca_override=${encodeURIComponent(termosBuscaOverride)}`;
     }
-    // O endpoint é POST e espera uma resposta 202 Accepted com uma mensagem.
     const response = await apiClient.post(endpoint);
-    return response.data; // Geralmente { "message": "Processo ... iniciado..." }
+    return response.data;
   } catch (error) {
-    console.error(`Error starting web enrichment for produto ${produtoId}:`, error.response?.data || error.message);
-    throw error.response?.data || new Error('Failed to start web enrichment process');
+    const statusCode = error?.response?.status;
+    const detail =
+      error?.response?.data?.detail ||
+      error?.response?.data?.msg ||
+      error?.response?.data?.message ||
+      error?.message;
+
+    console.error(`Erro ao iniciar enriquecimento web do produto ${produtoId}:`, error.response?.data || error.message);
+
+    if (statusCode === 401) {
+      throw new Error('Sessao expirada. Faca login novamente para iniciar o enriquecimento.');
+    }
+    if (statusCode === 409) {
+      throw new Error(detail || 'Ja existe enriquecimento em andamento para este produto.');
+    }
+
+    throw new Error(detail || 'Falha ao iniciar processo de enriquecimento web');
   }
 };
 
 export const batchDeleteProdutos = async (produtoIds) => {
   try {
-    // O endpoint do backend é POST e espera a lista de IDs no corpo da requisição
     const response = await apiClient.post('/produtos/batch-delete/', produtoIds);
     return response.data;
   } catch (error) {
@@ -128,23 +133,17 @@ export const batchDeleteProdutos = async (produtoIds) => {
   }
 };
 
-// --- FUNÇÃO ADICIONADA ---
 export const getAtributoSuggestions = async (produtoId) => {
   try {
-    // O endpoint no backend é: POST /api/v1/geracao/sugerir-atributos-gemini/{produto_id}
     const response = await apiClient.post(`/geracao/sugerir-atributos-gemini/${produtoId}/`);
-    return response.data; // Deve retornar um objeto schemas.SugestoesAtributosResponse
+    return response.data;
   } catch (error) {
-    console.error(`Erro ao buscar sugestões de atributos para produto ${produtoId}:`, error.response?.data || error.message);
-    // Lança o erro para que o componente que o chamou possa tratá-lo
-    throw error.response?.data || new Error('Falha ao buscar sugestões de atributos da IA.');
+    console.error(`Erro ao buscar sugestoes de atributos para produto ${produtoId}:`, error.response?.data || error.message);
+    throw error.response?.data || new Error('Falha ao buscar sugestoes de atributos da IA.');
   }
 };
-// --- FIM DA FUNÇÃO ADICIONADA ---
 
-// Alias para o modal que usa este nome
 export const sugerirAtributosGemini = getAtributoSuggestions;
-
 
 export default {
   getProdutos,

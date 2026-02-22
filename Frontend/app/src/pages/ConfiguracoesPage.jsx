@@ -10,9 +10,9 @@ import './ConfiguracoesPage.css';
 function ConfiguracoesPage() {
   const { user } = useAuth();
   const [profileData, setProfileData] = useState({
-    nome: '',
+    nome_completo: '',
     email: '',
-    idioma_preferido: 'pt',
+    idioma_preferido: 'pt_BR',
     chave_openai_pessoal: '',
   });
   const [loadingProfile, setLoadingProfile] = useState(false);
@@ -26,9 +26,9 @@ function ConfiguracoesPage() {
         const user = await authService.getCurrentUser();
         if (user) {
           setProfileData({
-            nome: user.nome || '',
+            nome_completo: user.nome_completo || user.nome || '',
             email: user.email || '',
-            idioma_preferido: user.idioma_preferido || 'pt',
+            idioma_preferido: user.idioma_preferido || 'pt_BR',
             chave_openai_pessoal: user.chave_openai_pessoal || '',
           });
         }
@@ -54,18 +54,18 @@ function ConfiguracoesPage() {
     setLoadingProfile(true);
     try {
       const updatePayload = {
-        nome: profileData.nome,
+        nome_completo: profileData.nome_completo,
         idioma_preferido: profileData.idioma_preferido,
         chave_openai_pessoal: profileData.chave_openai_pessoal,
       };
 
-      const updatedUser = await authService.updateUser(user.id, updatePayload);
+      const updatedUser = await authService.updateCurrentUser(updatePayload);
       showSuccessToast('Perfil atualizado com sucesso!');
       if (updatedUser) {
         setProfileData((prev) => ({
           ...prev,
-          nome: updatedUser.nome || '',
-          idioma_preferido: updatedUser.idioma_preferido || 'pt',
+          nome_completo: updatedUser.nome_completo || updatedUser.nome || '',
+          idioma_preferido: updatedUser.idioma_preferido || 'pt_BR',
           chave_openai_pessoal: updatedUser.chave_openai_pessoal || '',
         }));
       }
@@ -115,8 +115,8 @@ function ConfiguracoesPage() {
             <input
               type="text"
               id="nome"
-              name="nome"
-              value={profileData.nome}
+              name="nome_completo"
+              value={profileData.nome_completo}
               onChange={handleProfileChange}
               className="settings-input"
               disabled={loadingProfile}
@@ -133,7 +133,7 @@ function ConfiguracoesPage() {
               className="settings-input"
               disabled={loadingProfile}
             >
-              <option value="pt">Português (pt)</option>
+              <option value="pt_BR">Portugues (pt-BR)</option>
               <option value="en">Inglês (en)</option>
             </select>
           </div>
@@ -179,3 +179,4 @@ function ConfiguracoesPage() {
 }
 
 export default ConfiguracoesPage;
+

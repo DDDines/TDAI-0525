@@ -1,5 +1,5 @@
 {
-  "file_id": 2,
+  "file_id": 168,
   "status": "IMPORTED",
   "stats": {
     "created": 1,
@@ -7,11 +7,11 @@
     "errors": 0,
     "ignored_non_critical": 0,
     "quarantine_non_critical": 0,
-    "quality_score_avg_accepted": 100.0,
+    "quality_score_avg_accepted": 55.0,
     "quality_score_avg_quarantine": null,
     "pages_processed": 1,
     "pages_total": 1,
-    "ext": ".csv"
+    "ext": ".pdf"
   },
   "error_reasons_top": [],
   "ignored_reasons_top": [],

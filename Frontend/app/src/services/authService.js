@@ -84,9 +84,21 @@ const authService = {
     }
   },
 
+  async updateCurrentUser(userData) {
+    try {
+      const response = await apiClient.put('/auth/users/me', userData);
+      showSuccessToast('Perfil atualizado com sucesso!');
+      return response.data;
+    } catch (error) {
+      console.error('Error updating current user (authService):', error.response?.data || error.message);
+      showErrorToast(error.response?.data?.detail || 'Falha ao atualizar perfil.');
+      throw error.response?.data || new Error('Falha ao atualizar perfil.');
+    }
+  },
+
   async changePassword(userId, passwordData) {
     try {
-      const response = await apiClient.put(`/auth/users/${userId}/change-password`, passwordData);
+      const response = await apiClient.put('/auth/users/me/change-password', passwordData);
       showSuccessToast('Senha alterada com sucesso!');
       return response.data;
     } catch (error) {

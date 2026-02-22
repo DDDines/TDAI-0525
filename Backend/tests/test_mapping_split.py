@@ -1,6 +1,7 @@
 from Backend.services.file_processing_service import _processar_linha_padronizada
 from Backend.routers.produtos import (
     _avaliar_qualidade_linha_produto,
+    _classificar_qualidade_linha_produto,
     _is_non_critical_import_reason,
     _sanitize_produto_extraido,
 )
@@ -116,6 +117,82 @@ def test_quality_filter_accepts_real_catalog_row():
     assert reason is None
 
 
+def test_quality_filter_rejects_annotation_header_even_with_context():
+    reason = _avaliar_qualidade_linha_produto(
+        {
+            "nome_base": "Anotacoes:",
+            "sku_original": None,
+            "ean_original": None,
+            "dynamic_attributes": {"material": "SMC"},
+        }
+    )
+    assert reason is not None
+    assert "cabecalho de anotacoes" in reason
+
+
+def test_quality_filter_rejects_annotation_header_variant():
+    reason = _avaliar_qualidade_linha_produto(
+        {
+            "nome_base": "Anotages:",
+            "sku_original": None,
+            "ean_original": None,
+        }
+    )
+    assert reason is not None
+    assert "cabecalho de anotacoes" in reason
+
+
+def test_quality_filter_rejects_numeric_name_with_sku_without_description():
+    reason = _avaliar_qualidade_linha_produto(
+        {
+            "nome_base": "8212",
+            "sku_original": "8212",
+            "ean_original": None,
+            "dynamic_attributes": {"material": "Metalico"},
+        }
+    )
+    assert reason is not None
+    assert "sem descricao" in reason
+
+
+def test_quality_filter_rejects_sku_duplicated_in_name_without_description():
+    reason = _avaliar_qualidade_linha_produto(
+        {
+            "nome_base": "1663 E",
+            "sku_original": "1663 E",
+            "ean_original": None,
+            "dynamic_attributes": {"aplicacao": "Actros 2651 - 2016"},
+        }
+    )
+    assert reason is not None
+    assert "SKU duplicado em nome sem descricao" in reason
+
+
+def test_quality_classifier_quarantines_code_like_name_with_application_context_only():
+    result = _classificar_qualidade_linha_produto(
+        {
+            "nome_base": "1663 E",
+            "sku_original": "1663 E",
+            "descricao_original": "Axor 2012",
+            "categoria_original": "",
+        }
+    )
+    assert result["decision"] == "quarantine"
+    assert "codigo" in (result["reason"] or "").lower()
+
+
+def test_quality_filter_accepts_numeric_name_when_description_is_good():
+    reason = _avaliar_qualidade_linha_produto(
+        {
+            "nome_base": "8212",
+            "sku_original": "8212",
+            "ean_original": None,
+            "descricao_original": "Paralama dianteiro superior",
+        }
+    )
+    assert reason is None
+
+
 def test_non_critical_reason_classifier():
     assert _is_non_critical_import_reason("Faltam nome_base e sku_original")
     assert _is_non_critical_import_reason(
@@ -153,3 +230,57 @@ def test_sanitize_truncates_fields_with_limits():
     assert len(sanitized.get("marca")) == 100
     assert len(sanitized.get("modelo")) == 100
     assert len(sanitized.get("categoria_original")) == 150
+
+
+def test_quality_classifier_quarantines_numeric_name_with_application_only():
+    result = _classificar_qualidade_linha_produto(
+        {
+            "nome_base": "8212",
+            "sku_original": "8212",
+            "descricao_original": "Actros 2651 - 2016",
+            "categoria_original": "",
+        }
+    )
+    assert result["decision"] == "quarantine"
+    assert "codigo" in result["reason"]
+
+
+def test_sanitize_promotes_part_name_from_raw_fields():
+    payload = {
+        "nome_base": "8212",
+        "sku_original": "8212",
+        "dados_brutos_adicionais": {"col_2": "Paralama Duplo"},
+    }
+
+    sanitized = _sanitize_produto_extraido(payload)
+
+    assert sanitized.get("descricao_original") == "Paralama Duplo"
+    assert sanitized.get("nome_base") == "Paralama Duplo"
+    extras = sanitized.get("dados_brutos_adicionais") or {}
+    assert extras.get("descricao_substituida_por_dados_brutos") == "col_2"
+
+
+def test_sanitize_promotes_category_part_name_when_name_is_code():
+    payload = {
+        "nome_base": "7092E 3175158",
+        "sku_original": "7092E 3175158",
+        "categoria_original": "Estribo Superior",
+    }
+
+    sanitized = _sanitize_produto_extraido(payload)
+
+    assert sanitized.get("descricao_original") == "Estribo Superior"
+    assert sanitized.get("nome_base") == "Estribo Superior"
+
+
+def test_sanitize_drops_placeholder_sku_values():
+    payload = {
+        "nome_base": "Paralama Dianteiro",
+        "sku_original": "None",
+    }
+
+    sanitized = _sanitize_produto_extraido(payload)
+
+    assert sanitized.get("sku_original") is None
+    extras = sanitized.get("dados_brutos_adicionais") or {}
+    assert extras.get("sku_original_descartado") == "None"

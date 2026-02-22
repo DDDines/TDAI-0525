@@ -6,6 +6,9 @@
     "updated": 0,
     "errors": 0,
     "ignored_non_critical": 0,
+    "quarantine_non_critical": 0,
+    "quality_score_avg_accepted": 55.0,
+    "quality_score_avg_quarantine": null,
     "pages_processed": 3,
     "pages_total": 3,
     "ext": ".pdf"
@@ -13,5 +16,7 @@
   "error_reasons_top": [],
   "ignored_reasons_top": [],
   "ignored_samples": [],
+  "quarantine_reasons_top": [],
+  "quarantine_samples": [],
   "errors": []
 }

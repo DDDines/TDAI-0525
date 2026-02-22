@@ -20,25 +20,39 @@ const styles = {
     checkboxInput: { width: 'auto' }
 };
 
+const DEFAULT_FORM_DATA = {
+  label: '',
+  attribute_key: '',
+  field_type: 'TEXT',
+  description: '',
+  options: '',
+  is_required: false,
+  default_value: '',
+  tooltip_text: '',
+  display_order: 0,
+};
 
 const AttributeTemplateModal = ({ isOpen, onClose, attribute, onSave, isSubmitting }) => {
-  const [formData, setFormData] = useState({});
+  const [formData, setFormData] = useState(DEFAULT_FORM_DATA);
   const isEditing = attribute && attribute.id;
 
   // Popula o formulário quando o modal abre ou o atributo a ser editado muda
   useEffect(() => {
     if (isOpen) {
       setFormData({
-        label: attribute?.label || '',
-        attribute_key: attribute?.attribute_key || '',
-        field_type: attribute?.field_type || 'TEXT',
-        description: attribute?.description || '',
+        ...DEFAULT_FORM_DATA,
+        label: attribute?.label || DEFAULT_FORM_DATA.label,
+        attribute_key: attribute?.attribute_key || DEFAULT_FORM_DATA.attribute_key,
+        field_type: attribute?.field_type || DEFAULT_FORM_DATA.field_type,
+        description: attribute?.description || DEFAULT_FORM_DATA.description,
         // Garante que 'options' seja uma string formatada corretamente para o textarea
-        options: Array.isArray(attribute?.options) ? JSON.stringify(attribute.options, null, 2) : (attribute?.options || ''),
-        is_required: attribute?.is_required || false,
-        default_value: attribute?.default_value || '',
-        tooltip_text: attribute?.tooltip_text || '',
-        display_order: attribute?.display_order || 0,
+        options: Array.isArray(attribute?.options)
+          ? JSON.stringify(attribute.options, null, 2)
+          : (attribute?.options || DEFAULT_FORM_DATA.options),
+        is_required: Boolean(attribute?.is_required),
+        default_value: attribute?.default_value || DEFAULT_FORM_DATA.default_value,
+        tooltip_text: attribute?.tooltip_text || DEFAULT_FORM_DATA.tooltip_text,
+        display_order: attribute?.display_order || DEFAULT_FORM_DATA.display_order,
       });
     }
   }, [attribute, isOpen]);

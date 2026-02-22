@@ -228,6 +228,57 @@ async def read_users_me(
 ):
     return current_user
 
+
+@router.put("/users/me", response_model=schemas.UserResponse)
+async def update_users_me(
+    user_update: schemas.UserUpdate,
+    current_user: models.User = Depends(get_current_active_user),
+    db: Session = Depends(get_db),
+):
+    update_data = user_update.model_dump(exclude_unset=True)
+
+    if "password" in update_data:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Use o endpoint de alteração de senha para atualizar a senha.",
+        )
+
+    new_email = update_data.get("email")
+    if new_email and new_email != current_user.email:
+        existing = crud_users.get_user_by_email(db, email=new_email)
+        if existing and existing.id != current_user.id:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Já existe um usuário com este email.",
+            )
+
+    return crud_users.update_user(db=db, db_user=current_user, user_update=user_update)
+
+
+@router.put("/users/me/change-password")
+async def change_password_me(
+    payload: schemas.UserChangePassword,
+    current_user: models.User = Depends(get_current_active_user),
+    db: Session = Depends(get_db),
+):
+    if not current_user.hashed_password or not verify_password(payload.current_password, current_user.hashed_password):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Senha atual incorreta.",
+        )
+
+    if payload.current_password == payload.new_password:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="A nova senha deve ser diferente da senha atual.",
+        )
+
+    current_user.hashed_password = get_password_hash(payload.new_password)
+    db.add(current_user)
+    db.commit()
+    db.refresh(current_user)
+    return {"message": "Senha alterada com sucesso."}
+
 # --- Funções de Processamento de Login Social (UTILITÁRIAS, chamadas por routers/social_auth.py) ---
 async def _get_or_create_social_user( 
     db: Session,

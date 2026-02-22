@@ -93,6 +93,11 @@ class UserUpdateOAuth(
     # Outros campos que o OAuth possa fornecer e queiramos atualizar
 
 
+class UserChangePassword(BaseModel):
+    current_password: str = Field(..., min_length=1)
+    new_password: str = Field(..., min_length=8)
+
+
 class UserResponse(UserBase):  # O que Ã© retornado pela API
     id: int
     created_at: datetime

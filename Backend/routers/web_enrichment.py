@@ -360,4 +360,14 @@ async def iniciar_enriquecimento_produto_web_endpoint(
         user_id=current_user.id,
         termos_busca_override=termos_busca_override
     )
-    return {"message": f"Processo de enriquecimento web para o produto ID {produto_id} iniciado em segundo plano."}
+    return {"msg": f"Processo de enriquecimento web para o produto ID {produto_id} iniciado em segundo plano."}
+
+
+router.add_api_route(
+    "/produto/{produto_id}/",
+    iniciar_enriquecimento_produto_web_endpoint,
+    methods=["POST"],
+    status_code=status.HTTP_202_ACCEPTED,
+    response_model=schemas.Msg,
+    include_in_schema=False,
+)

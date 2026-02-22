@@ -614,14 +614,14 @@ const ProductEditModal = ({ isOpen, onClose, product, onProductUpdated }) => {
                                  <div>
                                      <h4>Atributos do Tipo ({selectedProductType?.friendly_name})</h4>
                                      {attributeTemplates.filter(attr => !BASE_PRODUCT_FIELDS.has(attr.attribute_key)).map(attr => (
-                                         <AttributeField
-                                             key={attr.attribute_key}
-                                             attributeTemplate={attr}
-                                             value={formData.dynamic_attributes[attr.attribute_key]}
-                                             onChange={handleDynamicAttributeChange}
-                                         />
-                                     ))}
-                                 </div>
+                                        <AttributeField
+                                            key={attr.attribute_key}
+                                            attributeTemplate={attr}
+                                            value={formData.dynamic_attributes?.[attr.attribute_key] ?? ''}
+                                            onChange={handleDynamicAttributeChange}
+                                        />
+                                    ))}
+                                </div>
                              )}
                              <h4>Outros Atributos (Manuais)</h4>
                              {Object.entries(formData.dynamic_attributes)

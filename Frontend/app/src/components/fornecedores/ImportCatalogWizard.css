@@ -364,6 +364,15 @@
   font-weight: 600;
 }
 
+.wizard-result-list {
+  margin: 0.4rem 0 0.8rem 0;
+  padding-left: 1.1rem;
+}
+
+.wizard-result-list li {
+  margin-bottom: 0.2rem;
+}
+
 .wizard-result-pre {
   white-space: pre-wrap;
 }

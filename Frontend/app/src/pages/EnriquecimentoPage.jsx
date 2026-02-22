@@ -36,7 +36,7 @@ function EnriquecimentoPage() {
       const params = {
         skip: currentPage * limitPerPage,
         limit: limitPerPage,
-        termo_busca: searchTerm || undefined,
+        search: searchTerm || undefined,
         sort_by: sortConfig.key,
         sort_order: sortConfig.direction === 'ascending' ? 'asc' : 'desc',
       };

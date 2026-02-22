@@ -1,0 +1,179 @@
+{
+  "generated_at": "2026-02-21T22:32:34.838Z",
+  "totals": {
+    "passed": 33,
+    "failed": 0,
+    "steps": 33
+  },
+  "steps": [
+    {
+      "name": "Backend online",
+      "ok": true,
+      "details": "API respondeu"
+    },
+    {
+      "name": "Frontend online",
+      "ok": true,
+      "details": "Vite respondeu"
+    },
+    {
+      "name": "Login com admin",
+      "ok": true,
+      "details": "OK"
+    },
+    {
+      "name": "Dashboard carregou",
+      "ok": true,
+      "details": "OK"
+    },
+    {
+      "name": "Theme toggle alterna claro/escuro",
+      "ok": true,
+      "details": "OK"
+    },
+    {
+      "name": "Abrir menu do usuário e navegar para Configurações",
+      "ok": true,
+      "details": "OK"
+    },
+    {
+      "name": "Salvar perfil em Configurações",
+      "ok": true,
+      "details": "OK"
+    },
+    {
+      "name": "Abrir modal de alteração de senha e fechar",
+      "ok": true,
+      "details": "OK"
+    },
+    {
+      "name": "Navegação sidebar: Dashboard",
+      "ok": true,
+      "details": "OK"
+    },
+    {
+      "name": "Navegação sidebar: Produtos",
+      "ok": true,
+      "details": "OK"
+    },
+    {
+      "name": "Navegação sidebar: Fornecedores",
+      "ok": true,
+      "details": "OK"
+    },
+    {
+      "name": "Navegação sidebar: Tipos de Produto",
+      "ok": true,
+      "details": "OK"
+    },
+    {
+      "name": "Navegação sidebar: Enriquecimento",
+      "ok": true,
+      "details": "OK"
+    },
+    {
+      "name": "Navegação sidebar: Histórico",
+      "ok": true,
+      "details": "OK"
+    },
+    {
+      "name": "Navegação sidebar: Meu Plano",
+      "ok": true,
+      "details": "OK"
+    },
+    {
+      "name": "Navegação sidebar: Configurações",
+      "ok": true,
+      "details": "OK"
+    },
+    {
+      "name": "Produtos: atualizar lista",
+      "ok": true,
+      "details": "OK"
+    },
+    {
+      "name": "Produtos: abrir novo produto e fechar modal",
+      "ok": true,
+      "details": "OK"
+    },
+    {
+      "name": "Produtos: abrir edição do primeiro item e fechar modal",
+      "ok": true,
+      "details": "OK"
+    },
+    {
+      "name": "Produtos: iniciar enriquecimento em lote (1 item)",
+      "ok": true,
+      "details": "OK"
+    },
+    {
+      "name": "Enriquecimento: selecionar e iniciar enriquecimento",
+      "ok": true,
+      "details": "OK"
+    },
+    {
+      "name": "Fornecedores: abrir modal de edição na primeira linha",
+      "ok": true,
+      "details": "OK"
+    },
+    {
+      "name": "Fornecedor info: salvar alterações",
+      "ok": true,
+      "details": "OK"
+    },
+    {
+      "name": "Fornecedor importação: abrir wizard",
+      "ok": true,
+      "details": "OK"
+    },
+    {
+      "name": "Wizard passo 1->2: upload + gerar preview",
+      "ok": true,
+      "details": "OK"
+    },
+    {
+      "name": "Wizard passo 2: abrir mapeamento e confirmar",
+      "ok": true,
+      "details": "OK"
+    },
+    {
+      "name": "Wizard passo 2->3: iniciar processamento",
+      "ok": true,
+      "details": "OK"
+    },
+    {
+      "name": "Wizard processamento: aguardar status terminal",
+      "ok": true,
+      "details": "OK"
+    },
+    {
+      "name": "Fechar wizard e modal de fornecedor",
+      "ok": true,
+      "details": "OK"
+    },
+    {
+      "name": "Tipos de Produto: abrir modal novo tipo e fechar",
+      "ok": true,
+      "details": "OK"
+    },
+    {
+      "name": "Tipos de Produto: selecionar tipo e abrir modal de atributo",
+      "ok": true,
+      "details": "OK"
+    },
+    {
+      "name": "Meu Plano: clique em ações de assinatura",
+      "ok": true,
+      "details": "OK"
+    },
+    {
+      "name": "Logout pelo botão Sair",
+      "ok": true,
+      "details": "OK"
+    }
+  ],
+  "console_errors": [],
+  "page_errors": [],
+  "network_errors": [],
+  "background_logs_tail": []
+}

@@ -71,7 +71,8 @@ def _normalize_import_text(value: str) -> str:
     text = str(value or "")
 
     # Tenta corrigir mojibake comum (UTF-8 lido como latin-1/cp1252).
-    markers = ("\u00c3", "\u00c2", "\u00e2", "\ufffd", "\u0192", "?")
+    # Nao incluir "?" aqui para nao distorcer textos validos com interrogacao.
+    markers = ("\u00c3", "\u00c2", "\u00e2", "\ufffd", "\u0192")
     for _ in range(4):
         if not any(marker in text for marker in markers):
             break
@@ -86,40 +87,70 @@ def _normalize_import_text(value: str) -> str:
     replacements = {
         "n\u00e3o": "n\u00e3o",
         "n\u00c3\u00a3o": "n\u00e3o",
+        "nao": "n\u00e3o",
         "P\u00e1gina": "P\u00e1gina",
         "p\u00e1gina": "p\u00e1gina",
         "P\u00c3\u00a1gina": "P\u00e1gina",
         "p\u00c3\u00a1gina": "p\u00e1gina",
         "p\u00f4de": "p\u00f4de",
         "p\u00c3\u00b4de": "p\u00f4de",
+        "p\u00c3\u0192\u00c2\u00b4de": "p\u00f4de",
+        "p??de": "p\u00f4de",
+        "p????de": "p\u00f4de",
         "extra\u00eddo": "extra\u00eddo",
         "extra\u00edvel": "extra\u00edvel",
         "extra\u00c3\u00addo": "extra\u00eddo",
         "extra\u00c3\u00advel": "extra\u00edvel",
+        "extraido": "extra\u00eddo",
+        "extraivel": "extra\u00edvel",
         "cat\u00e1logo": "cat\u00e1logo",
         "cat\u00c3\u00a1logo": "cat\u00e1logo",
+        "catalogo": "cat\u00e1logo",
         "Conte\u00fado": "Conte\u00fado",
         "conte\u00fado": "conte\u00fado",
         "Conte\u00c3\u00bado": "Conte\u00fado",
         "conte\u00c3\u00bado": "conte\u00fado",
+        "conteudo": "conte\u00fado",
         "poss\u00edvel": "poss\u00edvel",
         "poss\u00c3\u00advel": "poss\u00edvel",
+        "possivel": "poss\u00edvel",
         "inv\u00e1lido": "inv\u00e1lido",
         "inv\u00c3\u00a1lido": "inv\u00e1lido",
+        "invalido": "inv\u00e1lido",
         "cr\u00edtico": "cr\u00edtico",
         "cr\u00edtica": "cr\u00edtica",
         "cr\u00c3\u00adtico": "cr\u00edtico",
         "cr\u00c3\u00adtica": "cr\u00edtica",
+        "critico": "cr\u00edtico",
+        "critica": "cr\u00edtica",
+        "criticos": "cr\u00edticos",
         "relat\u00f3rio": "relat\u00f3rio",
         "Relat\u00f3rio": "Relat\u00f3rio",
+        "relatorio": "relat\u00f3rio",
+        "Relatorio": "Relat\u00f3rio",
         "Importa\u00e7\u00e3o": "Importa\u00e7\u00e3o",
         "importa\u00e7\u00e3o": "importa\u00e7\u00e3o",
+        "Importacao": "Importa\u00e7\u00e3o",
+        "importacao": "importa\u00e7\u00e3o",
+        "p?s-valida??o": "p\u00f3s-valida\u00e7\u00e3o",
+        "p?s valida??o": "p\u00f3s valida\u00e7\u00e3o",
         "descri??o": "descri\u00e7\u00e3o",
+        "descricao": "descri\u00e7\u00e3o",
         "ordena??o": "ordena\u00e7\u00e3o",
+        "ordenacao": "ordena\u00e7\u00e3o",
         "n\u00e3o cr\u00edticos": "n\u00e3o cr\u00edticos",
+        "nao criticos": "n\u00e3o cr\u00edticos",
         "n\u00e3o dispon\u00edveis": "n\u00e3o dispon\u00edveis",
+        "nao disponiveis": "n\u00e3o dispon\u00edveis",
         "obrigat\u00f3rio": "obrigat\u00f3rio",
+        "obrigatorio": "obrigat\u00f3rio",
         "conclu\u00edda": "conclu\u00edda",
+        "concluida": "conclu\u00edda",
+        "P\u00c3\u0192\u00c2\u00a1gina": "P\u00e1gina",
+        "p\u00c3\u0192\u00c2\u00a1gina": "p\u00e1gina",
+        "extra\u00c3\u0192\u00c2\u00a7\u00c3\u0192\u00c2\u00a3o": "extra\u00e7\u00e3o",
+        "regi\u00c3\u0192\u00c2\u00a3o": "regi\u00e3o",
+        "n\u00c3\u0192\u00c2\u00a3o": "n\u00e3o",
     }
     for source, target in replacements.items():
         text = text.replace(source, target)
@@ -181,11 +212,138 @@ def _texto_tem_contexto(value: Any) -> bool:
         return False
     if _alnum_len(text) < 4:
         return False
-    if not re.search(r"[A-Za-z?-?]", text):
+    if not re.search(r"[^\W\d_]", text, flags=re.UNICODE):
         return False
     if re.fullmatch(r"[-_=|./\s0-9]+", text):
         return False
     return True
+
+
+_PART_KEYWORDS = (
+    "paralama",
+    "para choque",
+    "parachoque",
+    "estrib",
+    "ponteira",
+    "cobertura",
+    "porta",
+    "grade",
+    "tampa",
+    "defletor",
+    "farol",
+    "mascara",
+    "revest",
+    "painel",
+    "capo",
+    "pisante",
+    "suporte",
+    "acabamento",
+    "saia",
+    "chapa",
+    "moldura",
+    "sinaleira",
+    "lanterna",
+    "painel",
+    "grade frontal",
+)
+
+_APPLICATION_KEYWORDS = (
+    "actros",
+    "axor",
+    "cargo",
+    "volvo",
+    "scania",
+    "iveco",
+    "mercedes",
+    "facchini",
+    "randon",
+    "serie",
+    "apos",
+    "ate",
+    "acima",
+)
+
+
+def _fold_ascii_text(value: Any) -> str:
+    folded = (
+        unicodedata.normalize("NFKD", str(value or ""))
+        .encode("ascii", errors="ignore")
+        .decode("ascii")
+        .lower()
+    )
+    folded = re.sub(r"[^a-z0-9]+", " ", folded)
+    return re.sub(r"\s+", " ", folded).strip()
+
+
+def _texto_parece_nome_peca(value: Any) -> bool:
+    text = _fold_ascii_text(value)
+    if not text:
+        return False
+    return any(keyword in text for keyword in _PART_KEYWORDS)
+
+
+def _texto_parece_aplicacao_veicular(value: Any) -> bool:
+    text = _fold_ascii_text(value)
+    if not text:
+        return False
+    has_model = any(keyword in text for keyword in _APPLICATION_KEYWORDS)
+    has_year = bool(re.search(r"\b(?:19|20)\d{2}\b", text))
+    has_part = _texto_parece_nome_peca(text)
+    return (has_model or has_year) and not has_part
+
+
+def _texto_parece_codigo_peca(value: Any) -> bool:
+    text = str(value or "").strip()
+    if not text:
+        return False
+
+    compact = re.sub(r"[^0-9A-Za-z]", "", text)
+    if not compact:
+        return False
+
+    tokens = re.findall(r"[0-9A-Za-z./-]+", text)
+    if not tokens or len(tokens) > 6:
+        return False
+
+    digit_ratio = sum(ch.isdigit() for ch in compact) / len(compact)
+    has_lower = any(ch.isalpha() and ch.islower() for ch in text)
+
+    code_tokens = 0
+    for tok in tokens:
+        tok_u = tok.upper()
+        if not re.fullmatch(r"[0-9A-Z./-]+", tok_u):
+            continue
+        digits = sum(ch.isdigit() for ch in tok_u)
+        letters = sum(ch.isalpha() for ch in tok_u)
+        if digits >= 2:
+            code_tokens += 1
+            continue
+        if digits >= 1 and letters >= 1:
+            code_tokens += 1
+            continue
+        if tok_u in {"D", "E", "LD", "LE", "RH", "LH", "DIR", "ESQ"}:
+            code_tokens += 1
+
+    mostly_code_tokens = code_tokens >= max(1, len(tokens) - 1)
+    if mostly_code_tokens and not has_lower and digit_ratio >= 0.35:
+        return True
+    if compact.isdigit() and len(compact) >= 3:
+        return True
+    return False
+
+
+def _nome_parece_cabecalho_anotacao(value: Any) -> bool:
+    text = _fold_ascii_text(value)
+    if not text:
+        return False
+    compact = re.sub(r"\s+", "", text)
+    if compact in {"obs", "observacao", "observacoes", "anotacao", "anotacoes"}:
+        return True
+    if compact.startswith(("anotac", "anotag", "observac", "coment")):
+        return True
+    if compact.startswith("nota") and len(compact) <= 10:
+        return True
+    return False
 
 
 def _avaliar_qualidade_linha_produto(data: Dict[str, Any]) -> Optional[str]:
@@ -211,11 +369,19 @@ def _avaliar_qualidade_linha_produto(data: Dict[str, Any]) -> Optional[str]:
             has_dynamic,
         )
     )
+    descricao_tem_contexto = _texto_tem_contexto(descricao)
+    categoria_tem_contexto = _texto_tem_contexto(categoria)
+    descricao_peca = _texto_parece_nome_peca(descricao)
+    categoria_peca = _texto_parece_nome_peca(categoria)
+    descricao_aplicacao = _texto_parece_aplicacao_veicular(descricao)
+    categoria_aplicacao = _texto_parece_aplicacao_veicular(categoria)
 
     nome_alnum = _alnum_len(nome)
     sku_alnum = _alnum_len(sku)
     nome_compacto = re.sub(r"[^0-9A-Za-z]", "", nome).lower()
     sku_compacto = re.sub(r"[^0-9A-Za-z]", "", sku).lower()
+    nome_numerico = bool(nome_compacto) and nome_compacto.isdigit()
+    nome_codigo_peca = _texto_parece_codigo_peca(nome)
     nome_fold = (
         unicodedata.normalize("NFKD", nome)
         .encode("ascii", errors="ignore")
@@ -225,18 +391,25 @@ def _avaliar_qualidade_linha_produto(data: Dict[str, Any]) -> Optional[str]:
     nome_fold = re.sub(r"[^a-z0-9 ]+", " ", nome_fold)
     nome_fold = re.sub(r"\s+", " ", nome_fold).strip()
 
-    if (
-        nome_fold.startswith(("anotac", "anotag", "observac", "obs"))
-        and not sku
-        and not ean
-    ):
+    if _nome_parece_cabecalho_anotacao(nome):
         return "Linha descartada por baixa qualidade: cabecalho de anotacoes"
 
     # Sem identificador e sem nome relevante => ruído.
     if not sku and not ean:
+        if nome_codigo_peca and not (descricao_peca or categoria_peca):
+            if descricao_aplicacao or categoria_aplicacao:
+                return "Linha descartada por baixa qualidade: codigo sem descricao de peca"
         if nome_alnum < 3:
             return "Linha descartada por baixa qualidade: nome fraco sem SKU/EAN"
         tokens_nome = re.findall(r"[0-9A-Za-z]+", nome)
+        alpha_tokens = [tok for tok in tokens_nome if re.search(r"[A-Za-z]", tok)]
+        strong_alpha = any(len(re.sub(r"[^A-Za-z]", "", tok)) >= 4 for tok in alpha_tokens)
+        if not has_context and not strong_alpha:
+            return "Linha descartada por baixa qualidade: nome sem termo forte sem SKU/EAN"
+        if nome_compacto:
+            digits_ratio_nome = sum(ch.isdigit() for ch in nome_compacto) / len(nome_compacto)
+            if digits_ratio_nome >= 0.55 and not has_context and len(tokens_nome) <= 5:
+                return "Linha descartada por baixa qualidade: nome numerico sem contexto sem SKU/EAN"
         if len(tokens_nome) == 1 and len(tokens_nome[0]) <= 2:
             return "Linha descartada por baixa qualidade: nome curto isolado"
         if len(tokens_nome) == 1 and not has_context:
@@ -249,8 +422,23 @@ def _avaliar_qualidade_linha_produto(data: Dict[str, Any]) -> Optional[str]:
     # SKU sem digitos tende a ser lixo OCR ("a", "o", "|", etc.).
     if sku and sku_alnum <= 2 and not any(ch.isdigit() for ch in sku):
         return "Linha descartada por baixa qualidade: SKU sem digitos"
-    if sku and nome and sku_compacto and sku_compacto == nome_compacto and not has_context:
-        return "Linha descartada por baixa qualidade: SKU duplicado em nome sem contexto"
+    if (
+        sku
+        and nome
+        and sku_compacto
+        and sku_compacto == nome_compacto
+        and not descricao_peca
+        and not categoria_peca
+        and not descricao_tem_contexto
+        and not categoria_tem_contexto
+    ):
+        return "Linha descartada por baixa qualidade: SKU duplicado em nome sem descricao"
+    if sku and nome_numerico and not descricao_tem_contexto:
+        return "Linha descartada por baixa qualidade: nome numerico sem contexto"
+    if sku and nome_numerico and sku_compacto == nome_compacto and not descricao_tem_contexto:
+        return "Linha descartada por baixa qualidade: nome numerico igual ao SKU sem descricao"
+    if sku and not nome and not descricao_tem_contexto:
+        return "Linha descartada por baixa qualidade: SKU sem nome/descricao confiavel"
     if sku and not nome and not has_context:
         return "Linha descartada por baixa qualidade: SKU sem contexto"
 
@@ -265,8 +453,148 @@ def _avaliar_qualidade_linha_produto(data: Dict[str, Any]) -> Optional[str]:
             digits_ratio = sum(ch.isdigit() for ch in nome_compacto) / len(nome_compacto)
             if digits_ratio >= 0.85 and not has_context and (not sku or sku_compacto == nome_compacto):
                 return "Linha descartada por baixa qualidade: nome numerico sem contexto"
+            if nome_numerico and len(nome_compacto) <= 6 and not descricao_tem_contexto:
+                return "Linha descartada por baixa qualidade: nome apenas numerico sem descricao"
+            if nome_codigo_peca and not (descricao_peca or categoria_peca) and digits_ratio >= 0.45:
+                if (descricao_aplicacao or categoria_aplicacao) and sku:
+                    # Com SKU e contexto de aplicacao, mantemos para quarentena na fase de classificacao.
+                    pass
+                elif descricao_aplicacao or categoria_aplicacao or not has_context:
+                    return "Linha descartada por baixa qualidade: nome em formato de codigo sem contexto"
 
     return None
+
+
+def _score_qualidade_linha_produto(data: Dict[str, Any]) -> int:
+    if not isinstance(data, dict):
+        return 0
+
+    nome = str(data.get("nome_base") or "").strip()
+    sku = str(data.get("sku_original") or "").strip()
+    descricao = str(data.get("descricao_original") or "").strip()
+    categoria = str(data.get("categoria_original") or "").strip()
+    dynamic_attributes = data.get("dynamic_attributes") or {}
+
+    nome_compacto = re.sub(r"[^0-9A-Za-z]", "", nome).lower()
+    sku_compacto = re.sub(r"[^0-9A-Za-z]", "", sku).lower()
+    nome_numerico = bool(nome_compacto) and nome_compacto.isdigit()
+    nome_igual_sku = bool(nome_compacto and sku_compacto and nome_compacto == sku_compacto)
+    nome_codigo_peca = _texto_parece_codigo_peca(nome)
+
+    score = 35
+    if sku and any(ch.isdigit() for ch in sku):
+        score += 20
+    if sku and _alnum_len(sku) >= 8:
+        score += 5
+
+    if _texto_tem_contexto(nome):
+        score += 20
+    elif nome:
+        score += 8
+
+    if _texto_tem_contexto(descricao):
+        score += 14
+    if _texto_tem_contexto(categoria):
+        score += 6
+
+    if isinstance(dynamic_attributes, dict):
+        dynamic_hits = sum(1 for v in dynamic_attributes.values() if _texto_tem_contexto(v))
+        score += min(dynamic_hits * 4, 12)
+
+    if _texto_parece_nome_peca(descricao):
+        score += 8
+    if _texto_parece_nome_peca(categoria):
+        score += 8
+
+    if nome_igual_sku:
+        score -= 28
+    if nome_numerico:
+        score -= 18
+    if nome_codigo_peca:
+        score -= 12
+    if not _texto_tem_contexto(nome) and sku:
+        score -= 10
+    if _texto_parece_aplicacao_veicular(descricao):
+        score -= 8
+    if _texto_parece_aplicacao_veicular(categoria):
+        score -= 6
+
+    return max(0, min(100, int(score)))
+
+
+def _classificar_qualidade_linha_produto(data: Dict[str, Any]) -> Dict[str, Any]:
+    strict_reason = _avaliar_qualidade_linha_produto(data)
+    score = _score_qualidade_linha_produto(data)
+
+    if strict_reason:
+        return {
+            "decision": "discard",
+            "score": score,
+            "reason": strict_reason,
+        }
+
+    nome = str(data.get("nome_base") or "").strip()
+    sku = str(data.get("sku_original") or "").strip()
+    descricao = str(data.get("descricao_original") or "").strip()
+    categoria = str(data.get("categoria_original") or "").strip()
+
+    nome_compacto = re.sub(r"[^0-9A-Za-z]", "", nome).lower()
+    sku_compacto = re.sub(r"[^0-9A-Za-z]", "", sku).lower()
+    nome_igual_sku = bool(nome_compacto and sku_compacto and nome_compacto == sku_compacto)
+    nome_numerico = bool(nome_compacto) and nome_compacto.isdigit()
+    nome_codigo_peca = _texto_parece_codigo_peca(nome)
+
+    descricao_peca = _texto_parece_nome_peca(descricao)
+    categoria_peca = _texto_parece_nome_peca(categoria)
+    descricao_aplicacao = _texto_parece_aplicacao_veicular(descricao)
+    categoria_aplicacao = _texto_parece_aplicacao_veicular(categoria)
+
+    if (nome_igual_sku or nome_codigo_peca) and not descricao_peca and not categoria_peca:
+        reason = "Linha em quarentena: nome parece codigo sem descricao confiavel"
+        if descricao_aplicacao or categoria_aplicacao:
+            reason = (
+                "Linha em quarentena: nome parece codigo e contexto indica apenas aplicacao"
+            )
+        return {
+            "decision": "quarantine",
+            "score": min(score, 55),
+            "reason": reason,
+        }
+
+    if nome_numerico and not descricao_peca and not categoria_peca:
+        return {
+            "decision": "quarantine",
+            "score": min(score, 52),
+            "reason": "Linha em quarentena: nome parece apenas codigo sem contexto de peca",
+        }
+
+    if (
+        nome_codigo_peca
+        and (descricao_aplicacao or categoria_aplicacao)
+        and not descricao_peca
+        and not categoria_peca
+    ):
+        return {
+            "decision": "quarantine",
+            "score": min(score, 54),
+            "reason": "Linha em quarentena: codigo sem descricao de peca",
+        }
+
+    if score < 45:
+        return {
+            "decision": "quarantine",
+            "score": score,
+            "reason": "Linha em quarentena: score de qualidade muito baixo",
+        }
+
+    if score < 58 and not _texto_tem_contexto(nome) and not descricao_peca:
+        return {
+            "decision": "quarantine",
+            "score": score,
+            "reason": "Linha em quarentena: contexto fraco para nome do produto",
+        }
+
+    return {"decision": "accept", "score": score, "reason": None}
 
 
 def _write_catalog_import_report(
@@ -279,6 +607,11 @@ def _write_catalog_import_report(
     ignored_count: int = 0,
     ignored_reasons: Optional[List[tuple[str, int]]] = None,
     ignored_samples: Optional[List[Dict[str, Any]]] = None,
+    quarantine_count: int = 0,
+    quarantine_reasons: Optional[List[tuple[str, int]]] = None,
+    quarantine_samples: Optional[List[Dict[str, Any]]] = None,
+    accepted_quality_avg: Optional[float] = None,
+    quarantine_quality_avg: Optional[float] = None,
     pages_processed: int,
     pages_total: int,
     ext: str,
@@ -296,6 +629,9 @@ def _write_catalog_import_report(
                 "updated": updated_count,
                 "errors": len(errors),
                 "ignored_non_critical": ignored_count,
+                "quarantine_non_critical": quarantine_count,
+                "quality_score_avg_accepted": accepted_quality_avg,
+                "quality_score_avg_quarantine": quarantine_quality_avg,
                 "pages_processed": pages_processed,
                 "pages_total": pages_total,
                 "ext": ext,
@@ -303,6 +639,8 @@ def _write_catalog_import_report(
             "error_reasons_top": reasons.most_common(30),
             "ignored_reasons_top": ignored_reasons or [],
             "ignored_samples": ignored_samples or [],
+            "quarantine_reasons_top": quarantine_reasons or [],
+            "quarantine_samples": quarantine_samples or [],
             "errors": errors,
         }
         report_path = report_dir / f"import_{file_id}.json"
@@ -382,6 +720,9 @@ def _sanitize_produto_extraido(prod: Dict[str, Any]) -> Dict[str, Any]:
     sku_original = data.get("sku_original")
     if sku_original is not None:
         sku_original = str(sku_original).strip()
+        if sku_original.lower() in {"none", "null", "nan", "na", "n/a", "-", "--"}:
+            extras["sku_original_descartado"] = sku_original
+            sku_original = ""
         if len(sku_original) > 100:
             extras["sku_original_truncado_de"] = sku_original
             sku_original = sku_original[:100]
@@ -411,6 +752,14 @@ def _sanitize_produto_extraido(prod: Dict[str, Any]) -> Dict[str, Any]:
             categoria_original = categoria_original[:150]
         data["categoria_original"] = categoria_original or None
 
+    descricao_original = data.get("descricao_original")
+    if descricao_original is not None:
+        descricao_original = str(descricao_original).strip()
+        if len(descricao_original) > 5000:
+            extras["descricao_original_truncada_de"] = descricao_original
+            descricao_original = descricao_original[:5000]
+        data["descricao_original"] = descricao_original or None
+
     ean_original = data.get("ean_original")
     if ean_original is not None:
         ean_text = str(ean_original).strip()
@@ -429,6 +778,62 @@ def _sanitize_produto_extraido(prod: Dict[str, Any]) -> Dict[str, Any]:
                     data["ean_original"] = None
         else:
             data["ean_original"] = None
+
+    # Recupera nome quando OCR traz somente codigo no nome_base.
+    nome_base = str(data.get("nome_base") or "").strip()
+    sku_original = str(data.get("sku_original") or "").strip()
+    descricao_original = str(data.get("descricao_original") or "").strip()
+    categoria_original = str(data.get("categoria_original") or "").strip()
+    nome_compacto = re.sub(r"[^0-9A-Za-z]", "", nome_base).lower()
+    sku_compacto = re.sub(r"[^0-9A-Za-z]", "", sku_original).lower()
+    nome_numerico = bool(nome_compacto) and nome_compacto.isdigit()
+    nome_codigo_peca = _texto_parece_codigo_peca(nome_base)
+    nome_igual_sku = bool(nome_compacto and sku_compacto and nome_compacto == sku_compacto)
+    descricao_util = _texto_tem_contexto(descricao_original)
+    descricao_parece_peca = _texto_parece_nome_peca(descricao_original)
+    descricao_parece_aplicacao = _texto_parece_aplicacao_veicular(descricao_original)
+
+    if nome_base and _nome_parece_cabecalho_anotacao(nome_base):
+        extras["nome_base_descartado"] = nome_base
+        nome_base = ""
+        data["nome_base"] = None
+
+    # Quando categoria parece conter nome de peca e descricao esta vazia,
+    # aproveita categoria como descricao para nao perder contexto util.
+    if not descricao_util and categoria_original and _texto_parece_nome_peca(categoria_original):
+        data["descricao_original"] = categoria_original[:5000]
+        descricao_original = data["descricao_original"]
+        descricao_util = _texto_tem_contexto(descricao_original)
+        descricao_parece_peca = _texto_parece_nome_peca(descricao_original)
+        descricao_parece_aplicacao = _texto_parece_aplicacao_veicular(descricao_original)
+        extras["descricao_substituida_por_categoria"] = True
+
+    # Tenta recuperar descricao util a partir de dados brutos (colunas nao mapeadas).
+    if not descricao_util and isinstance(extras, dict):
+        for raw_key, raw_value in extras.items():
+            candidate = str(raw_value or "").strip()
+            if not candidate:
+                continue
+            if _texto_parece_nome_peca(candidate):
+                data["descricao_original"] = candidate[:5000]
+                descricao_original = data["descricao_original"]
+                descricao_util = _texto_tem_contexto(descricao_original)
+                descricao_parece_peca = _texto_parece_nome_peca(descricao_original)
+                descricao_parece_aplicacao = _texto_parece_aplicacao_veicular(descricao_original)
+                extras["descricao_substituida_por_dados_brutos"] = str(raw_key)
+                break
+
+    # Se nome e' apenas codigo/sku, tenta promover descricao util para nome_base.
+    if descricao_util and (
+        not nome_base
+        or nome_numerico
+        or nome_codigo_peca
+        or nome_igual_sku
+        or _nome_parece_cabecalho_anotacao(nome_base)
+    ):
+        if descricao_parece_peca or nome_numerico or (not nome_base and not descricao_parece_aplicacao):
+            data["nome_base"] = descricao_original[:255]
+            extras["nome_base_substituido_por_descricao"] = True
 
     if extras:
         data["dados_brutos_adicionais"] = extras
@@ -520,6 +925,11 @@ async def _tarefa_processar_catalogo(
         ignored_non_critical: List[Dict[str, Any]] = []
         ignored_reason_counter: Counter = Counter()
         ignored_samples: List[Dict[str, Any]] = []
+        quarantine_non_critical: List[Dict[str, Any]] = []
+        quarantine_reason_counter: Counter = Counter()
+        quarantine_samples: List[Dict[str, Any]] = []
+        accepted_quality_scores: List[int] = []
+        quarantine_quality_scores: List[int] = []
 
         def _append_import_issue(item: Dict[str, Any]) -> None:
             normalized_item = _normalize_import_issue_item(item)
@@ -532,11 +942,42 @@ async def _tarefa_processar_catalogo(
                 return
             erros.append(normalized_item)
 
+        def _append_quarantine_issue(item: Dict[str, Any]) -> None:
+            normalized_item = _normalize_import_issue_item(item)
+            reason = _extract_import_error_reason(normalized_item)
+            quarantine_non_critical.append(normalized_item)
+            quarantine_reason_counter[reason] += 1
+            score_value = normalized_item.get("qualidade_score")
+            if isinstance(score_value, (int, float)):
+                quarantine_quality_scores.append(int(score_value))
+            if len(quarantine_samples) < 30:
+                quarantine_samples.append(normalized_item)
+
         produtos_create: List[schemas.ProdutoCreate] = []
 
         created: List[models.Produto] = []
 
         updated: List[models.Produto] = []
+
+        def _registrar_auditoria_criacao(produtos_criados: List[models.Produto]) -> None:
+            """Registra uso IA e historico sem commits por item."""
+            for db_produto in produtos_criados:
+                db.add(
+                    models.RegistroUsoIA(
+                        user_id=user_id,
+                        produto_id=db_produto.id,
+                        tipo_acao=models.TipoAcaoEnum.CRIACAO_PRODUTO,
+                        creditos_consumidos=0,
+                    )
+                )
+                db.add(
+                    models.RegistroHistorico(
+                        user_id=user_id,
+                        entidade="Produto",
+                        acao=models.TipoAcaoSistemaEnum.CRIACAO,
+                        entity_id=db_produto.id,
+                    )
+                )
 
         if ext == ".pdf":
 
@@ -606,21 +1047,35 @@ async def _tarefa_processar_catalogo(
                         prod,
                     )
                     cleaned_prod = _sanitize_produto_extraido(validated_prod)
-                    qualidade_issue = (
-                        _avaliar_qualidade_linha_produto(cleaned_prod)
+                    quality_eval = (
+                        _classificar_qualidade_linha_produto(cleaned_prod)
                         if quality_filter_enabled
-                        else None
+                        else {"decision": "accept", "score": 100, "reason": None}
                     )
-                    if qualidade_issue:
+                    if quality_eval.get("decision") == "discard":
                         _append_import_issue(
                             {
-                                "motivo_descarte": qualidade_issue,
+                                "motivo_descarte": quality_eval.get("reason"),
                                 "linha_original": prod,
                                 "linha_validada": validated_prod,
                                 "linha_sanitizada": cleaned_prod,
+                                "qualidade_score": quality_eval.get("score"),
                             }
                         )
                         continue
+                    if quality_eval.get("decision") == "quarantine":
+                        _append_quarantine_issue(
+                            {
+                                "motivo_descarte": quality_eval.get("reason"),
+                                "linha_original": prod,
+                                "linha_validada": validated_prod,
+                                "linha_sanitizada": cleaned_prod,
+                                "qualidade_score": quality_eval.get("score"),
+                                "classificacao": "quarentena",
+                            }
+                        )
+                        continue
+                    accepted_quality_scores.append(int(quality_eval.get("score") or 0))
 
 
 
@@ -699,43 +1154,7 @@ async def _tarefa_processar_catalogo(
 
 
 
-                    for db_produto in created_page:
-
-                        crud.create_registro_uso_ia(
-
-                            db,
-
-                            schemas.RegistroUsoIACreate(
-
-                                user_id=user_id,
-
-                                produto_id=db_produto.id,
-
-                                tipo_acao=models.TipoAcaoEnum.CRIACAO_PRODUTO,
-
-                                creditos_consumidos=0,
-
-                            ),
-
-                        )
-
-                        crud_historico.create_registro_historico(
-
-                            db,
-
-                            schemas.RegistroHistoricoCreate(
-
-                                user_id=user_id,
-
-                                entidade="Produto",
-
-                                acao=models.TipoAcaoSistemaEnum.CRIACAO,
-
-                                entity_id=db_produto.id,
-
-                            ),
-
-                        )
+                    _registrar_auditoria_criacao(created_page)
 
                     produtos_create = []
 
@@ -824,21 +1243,35 @@ async def _tarefa_processar_catalogo(
                     prod,
                 )
                 cleaned_prod = _sanitize_produto_extraido(validated_prod)
-                qualidade_issue = (
-                    _avaliar_qualidade_linha_produto(cleaned_prod)
+                quality_eval = (
+                    _classificar_qualidade_linha_produto(cleaned_prod)
                     if quality_filter_enabled
-                    else None
+                    else {"decision": "accept", "score": 100, "reason": None}
                 )
-                if qualidade_issue:
+                if quality_eval.get("decision") == "discard":
                     _append_import_issue(
                         {
-                            "motivo_descarte": qualidade_issue,
+                            "motivo_descarte": quality_eval.get("reason"),
                             "linha_original": prod,
                             "linha_validada": validated_prod,
                             "linha_sanitizada": cleaned_prod,
+                            "qualidade_score": quality_eval.get("score"),
                         }
                     )
                     continue
+                if quality_eval.get("decision") == "quarantine":
+                    _append_quarantine_issue(
+                        {
+                            "motivo_descarte": quality_eval.get("reason"),
+                            "linha_original": prod,
+                            "linha_validada": validated_prod,
+                            "linha_sanitizada": cleaned_prod,
+                            "qualidade_score": quality_eval.get("score"),
+                            "classificacao": "quarentena",
+                        }
+                    )
+                    continue
+                accepted_quality_scores.append(int(quality_eval.get("score") or 0))
 
                 
 
@@ -879,7 +1312,7 @@ async def _tarefa_processar_catalogo(
 
                         {
 
-                            "motivo_descarte": f"Erro ao converter linha p?s-valida??o: {str(e)}",
+                            "motivo_descarte": f"Erro ao converter linha pós-validação: {str(e)}",
 
                             "linha_original": prod,
 
@@ -915,43 +1348,7 @@ async def _tarefa_processar_catalogo(
 
 
 
-                for db_produto in created_page:
-
-                    crud.create_registro_uso_ia(
-
-                        db,
-
-                        schemas.RegistroUsoIACreate(
-
-                            user_id=user_id,
-
-                            produto_id=db_produto.id,
-
-                            tipo_acao=models.TipoAcaoEnum.CRIACAO_PRODUTO,
-
-                            creditos_consumidos=0,
-
-                        ),
-
-                    )
-
-                    crud_historico.create_registro_historico(
-
-                        db,
-
-                        schemas.RegistroHistoricoCreate(
-
-                            user_id=user_id,
-
-                            entidade="Produto",
-
-                            acao=models.TipoAcaoSistemaEnum.CRIACAO,
-
-                            entity_id=db_produto.id,
-
-                        ),
-
-                    )
+                _registrar_auditoria_criacao(created_page)
 
                 catalog_file.pages_processed = catalog_file.total_pages
 
@@ -963,10 +1360,11 @@ async def _tarefa_processar_catalogo(
         updated_count = len(updated)
         errors_count = len(erros)
         ignored_count = len(ignored_non_critical)
+        quarantine_count = len(quarantine_non_critical)
         total_success = created_count + updated_count
         has_partial_success = total_success > 0 and errors_count > 0
         final_status = "IMPORTED"
-        if total_success == 0 and (errors_count > 0 or ignored_count > 0):
+        if total_success == 0 and (errors_count > 0 or ignored_count > 0 or quarantine_count > 0):
             final_status = "FAILED"
         elif has_partial_success:
             final_status = "PARTIAL"
@@ -976,6 +1374,17 @@ async def _tarefa_processar_catalogo(
         )
         top_reasons = error_reasons.most_common(10)
         top_ignored_reasons = ignored_reason_counter.most_common(10)
+        top_quarantine_reasons = quarantine_reason_counter.most_common(10)
+        accepted_quality_avg = (
+            round(sum(accepted_quality_scores) / len(accepted_quality_scores), 2)
+            if accepted_quality_scores
+            else None
+        )
+        quarantine_quality_avg = (
+            round(sum(quarantine_quality_scores) / len(quarantine_quality_scores), 2)
+            if quarantine_quality_scores
+            else None
+        )
 
         result_summary = {
             "created": [
@@ -988,12 +1397,16 @@ async def _tarefa_processar_catalogo(
             ],
             "errors": erros,
             "ignored_non_critical": ignored_non_critical,
+            "quarantine_non_critical": quarantine_non_critical,
             "stats": {
                 "produtos_criados": created_count,
                 "produtos_atualizados": updated_count,
                 "erros": errors_count,
                 "critical_errors": errors_count,
                 "descartes_nao_criticos": ignored_count,
+                "quarentena_nao_critica": quarantine_count,
+                "qualidade_score_medio_aceitas": accepted_quality_avg,
+                "qualidade_score_medio_quarentena": quarantine_quality_avg,
                 "partial_success": has_partial_success,
                 "pages_processed": catalog_file.pages_processed or 0,
                 "pages_total": catalog_file.total_pages or 0,
@@ -1001,17 +1414,36 @@ async def _tarefa_processar_catalogo(
             },
             "log": [
                 f"Resumo final: status={final_status}",
-                f"Criados={created_count}, Atualizados={updated_count}, Erros={errors_count}, DescartesNaoCriticos={ignored_count}",
+                (
+                    f"Criados={created_count}, Atualizados={updated_count}, "
+                    f"Erros={errors_count}, DescartesNaoCriticos={ignored_count}, "
+                    f"QuarentenaNaoCritica={quarantine_count}"
+                ),
             ],
         }
         if top_reasons:
-            top_reasons_log = "; ".join([f"{reason} ({count})" for reason, count in top_reasons])
+            top_reasons_log = "; ".join(
+                [f"{_normalize_import_text(reason)} ({count})" for reason, count in top_reasons]
+            )
             result_summary["log"].append(f"Top motivos de erro: {top_reasons_log}")
         if top_ignored_reasons:
             top_ignored_log = "; ".join(
-                [f"{reason} ({count})" for reason, count in top_ignored_reasons]
+                [f"{_normalize_import_text(reason)} ({count})" for reason, count in top_ignored_reasons]
             )
             result_summary["log"].append(f"Top descartes n\u00e3o cr\u00edticos: {top_ignored_log}")
+        if top_quarantine_reasons:
+            top_quarantine_log = "; ".join(
+                [f"{_normalize_import_text(reason)} ({count})" for reason, count in top_quarantine_reasons]
+            )
+            result_summary["log"].append(f"Top linhas em quarentena: {top_quarantine_log}")
+        if accepted_quality_avg is not None:
+            result_summary["log"].append(
+                f"Score medio de qualidade (aceitas): {accepted_quality_avg}"
+            )
+        if quarantine_quality_avg is not None:
+            result_summary["log"].append(
+                f"Score medio de qualidade (quarentena): {quarantine_quality_avg}"
+            )
         if has_partial_success:
             result_summary["log"].append(
                 "Importa\u00e7\u00e3o conclu\u00edda com sucesso parcial: produtos foram gravados, mas houve erros cr\u00edticos."
@@ -1026,6 +1458,11 @@ async def _tarefa_processar_catalogo(
             ignored_count=ignored_count,
             ignored_reasons=top_ignored_reasons,
             ignored_samples=ignored_samples,
+            quarantine_count=quarantine_count,
+            quarantine_reasons=top_quarantine_reasons,
+            quarantine_samples=quarantine_samples,
+            accepted_quality_avg=accepted_quality_avg,
+            quarantine_quality_avg=quarantine_quality_avg,
             pages_processed=catalog_file.pages_processed or 0,
             pages_total=catalog_file.total_pages or 0,
             ext=ext,
@@ -1049,17 +1486,21 @@ async def _tarefa_processar_catalogo(
                 str(first_error)[:1000],
             )
         catalog_logger.info(
-            "fim file_id=%s status=%s created=%s updated=%s errors=%s ignored=%s pages=%s/%s top_reasons=%s top_ignored=%s report=%s",
+            "fim file_id=%s status=%s created=%s updated=%s errors=%s ignored=%s quarantine=%s pages=%s/%s top_reasons=%s top_ignored=%s top_quarantine=%s quality_avg=%s quality_quarantine_avg=%s report=%s",
             file_id,
             final_status,
             created_count,
             updated_count,
             errors_count,
             ignored_count,
+            quarantine_count,
             catalog_file.pages_processed,
             catalog_file.total_pages,
             top_reasons,
             top_ignored_reasons,
+            top_quarantine_reasons,
+            accepted_quality_avg,
+            quarantine_quality_avg,
             str(report_path) if report_path else "-",
         )
 
@@ -1442,10 +1883,13 @@ async def reprocess_catalog_import_file(
         "region": region,
     }
 
+    test_sync_mode = bool(os.getenv("PYTEST_CURRENT_TEST")) or os.getenv(
+        "CATALOG_IMPORT_TEST_SYNC"
+    ) == "1"
     # No ambiente de testes, executa inline para manter previsibilidade.
     # Em execucao normal, dispara em thread para nao bloquear respostas HTTP.
-    if os.getenv("PYTEST_CURRENT_TEST"):
-        asyncio.run(_tarefa_processar_catalogo(**task_kwargs))
+    if test_sync_mode:
+        await _tarefa_processar_catalogo(**task_kwargs)
     else:
         _ = background_tasks  # Mantido por compatibilidade de assinatura da rota.
         _dispatch_catalog_task(**task_kwargs)
@@ -2338,6 +2782,7 @@ async def importar_catalogo_fornecedor(
     erros: List[Dict[str, Any]] = []
     quality_filter_enabled = ext == ".pdf"
     ignored_non_critical: List[Dict[str, Any]] = []
+    quarantine_non_critical: List[Dict[str, Any]] = []
 
     def _append_import_issue(item: Dict[str, Any]) -> None:
         normalized_item = _normalize_import_issue_item(item)
@@ -2346,6 +2791,10 @@ async def importar_catalogo_fornecedor(
             ignored_non_critical.append(normalized_item)
             return
         erros.append(normalized_item)
+
+    def _append_quarantine_issue(item: Dict[str, Any]) -> None:
+        normalized_item = _normalize_import_issue_item(item)
+        quarantine_non_critical.append(normalized_item)
 
     for prod in produtos_data:
 
@@ -2362,17 +2811,29 @@ async def importar_catalogo_fornecedor(
             continue
 
         cleaned_prod = _sanitize_produto_extraido(prod)
-        qualidade_issue = (
-            _avaliar_qualidade_linha_produto(cleaned_prod)
+        quality_eval = (
+            _classificar_qualidade_linha_produto(cleaned_prod)
             if quality_filter_enabled
-            else None
+            else {"decision": "accept", "score": 100, "reason": None}
         )
-        if qualidade_issue:
+        if quality_eval.get("decision") == "discard":
             _append_import_issue(
                 {
-                    "motivo_descarte": qualidade_issue,
+                    "motivo_descarte": quality_eval.get("reason"),
                     "linha_original": prod,
                     "linha_sanitizada": cleaned_prod,
+                    "qualidade_score": quality_eval.get("score"),
+                }
+            )
+            continue
+        if quality_eval.get("decision") == "quarantine":
+            _append_quarantine_issue(
+                {
+                    "motivo_descarte": quality_eval.get("reason"),
+                    "linha_original": prod,
+                    "linha_sanitizada": cleaned_prod,
+                    "qualidade_score": quality_eval.get("score"),
+                    "classificacao": "quarentena",
                 }
             )
             continue
@@ -2476,13 +2937,14 @@ async def importar_catalogo_fornecedor(
 
             )
 
+    all_issues = erros + ignored_non_critical + quarantine_non_critical
     return {
 
         "produtos_criados": created,
 
         "produtos_atualizados": updated,
 
-        "erros": erros,
+        "erros": all_issues,
 
     }
 
@@ -2573,17 +3035,24 @@ async def importar_catalogo_finalizar(
 
 
 
-    _ = background_tasks  # Mantido por compatibilidade de assinatura da rota.
-    _dispatch_catalog_task(
-        db_session_factory=db_session_factory,
-        file_id=file_id,
-        user_id=current_user.id,
-        product_type_id=product_type_id,
-        fornecedor_id=fornecedor_id,
-        mapping=mapping,
-        pages=pages,
-        region=region,
-    )
+    task_kwargs = {
+        "db_session_factory": db_session_factory,
+        "file_id": file_id,
+        "user_id": current_user.id,
+        "product_type_id": product_type_id,
+        "fornecedor_id": fornecedor_id,
+        "mapping": mapping,
+        "pages": pages,
+        "region": region,
+    }
+    test_sync_mode = bool(os.getenv("PYTEST_CURRENT_TEST")) or os.getenv(
+        "CATALOG_IMPORT_TEST_SYNC"
+    ) == "1"
+    if test_sync_mode:
+        await _tarefa_processar_catalogo(**task_kwargs)
+    else:
+        _ = background_tasks  # Mantido por compatibilidade de assinatura da rota.
+        _dispatch_catalog_task(**task_kwargs)
 
 
 

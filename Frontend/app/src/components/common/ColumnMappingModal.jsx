@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+﻿import React, { useEffect, useState } from 'react';
 import Modal from './Modal.jsx';
 import './ColumnMappingModal.css';
 
@@ -188,3 +188,4 @@ function ColumnMappingModal({
 }
 
 export default ColumnMappingModal;
+

@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+﻿import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import * as fornecedorService from '../../services/fornecedorService';
 import productTypeService from '../../services/productTypeService';
 import LoadingPopup from '../common/LoadingPopup';
@@ -12,7 +12,7 @@ const BASE_FIELD_OPTIONS = [
   { value: 'nome_base', label: 'Nome Base' },
   { value: 'sku_original', label: 'SKU' },
   { value: 'auto:sku_nome', label: 'SKU + Nome (Auto)' },
-  { value: 'ean_original', label: 'Codigo de Barras (EAN)' },
+  { value: 'ean_original', label: 'Código de Barras (EAN-13)' },
   { value: 'preco_original', label: 'Preço' },
   { value: 'descricao_original', label: 'Descrição' },
   { value: 'marca', label: 'Marca' },
@@ -69,6 +69,7 @@ const normalizeDisplayText = (value) => {
       break;
     }
   }
+  text = text.replaceAll('ÃƒÂ', 'Ã').replaceAll('Â', '');
 
   const replacements = [
     ['n??o', 'n\u00e3o'],
@@ -100,6 +101,12 @@ const normalizeDisplayText = (value) => {
     ['relat?rio', 'relat\u00f3rio'],
     ['n?o cr?ticos', 'n\u00e3o cr\u00edticos'],
     ['n?o dispon?veis', 'n\u00e3o dispon\u00edveis'],
+    ['pÃƒÂ´de', 'p\u00f4de'],
+    ['PÃƒÂ¡gina', 'P\u00e1gina'],
+    ['pÃƒÂ¡gina', 'p\u00e1gina'],
+    ['extraÃƒÂ§ÃƒÂ£o', 'extra\u00e7\u00e3o'],
+    ['regiÃƒÂ£o', 'regi\u00e3o'],
+    ['nÃƒÂ£o', 'n\u00e3o'],
   ];
   replacements.forEach(([src, dst]) => {
     text = text.replaceAll(src, dst);
@@ -151,6 +158,7 @@ const ImportCatalogWizard = ({ fornecedor, productTypeId: initialProductTypeId, 
   const [statusTimeline, setStatusTimeline] = useState([]);
   const [expectedPages, setExpectedPages] = useState(0);
   const [processingStartedAt, setProcessingStartedAt] = useState(null);
+  const pollRunRef = useRef(0);
 
   const appendTimeline = useCallback((message) => {
     if (!message) return;
@@ -198,6 +206,12 @@ const ImportCatalogWizard = ({ fornecedor, productTypeId: initialProductTypeId, 
       }
     };
     loadProductTypes();
+  }, [isOpen]);
+
+  useEffect(() => {
+    if (!isOpen) {
+      pollRunRef.current += 1;
+    }
   }, [isOpen]);
 
   useEffect(() => {
@@ -398,9 +412,9 @@ const ImportCatalogWizard = ({ fornecedor, productTypeId: initialProductTypeId, 
     setShowMappingModal(false);
   };
 
-  const pollStatus = async (id) => {
+  const pollStatus = async (id, runId) => {
     let keepPolling = true;
-    while (keepPolling) {
+    while (keepPolling && pollRunRef.current === runId) {
       try {
         const status = await fornecedorService.getImportacaoStatus(id);
         setStatusData(status);
@@ -409,7 +423,8 @@ const ImportCatalogWizard = ({ fornecedor, productTypeId: initialProductTypeId, 
         const pagesTotal = status?.total_pages ?? status?.pages_total ?? expectedPages ?? 0;
         appendTimeline(`Status: ${status.status} | Páginas: ${pagesProcessed}/${pagesTotal}`);
 
-        if (status.status && status.status !== 'PROCESSING') {
+        const terminalStatuses = new Set(['IMPORTED', 'FAILED', 'PARTIAL']);
+        if (status?.status && terminalStatuses.has(status.status)) {
           keepPolling = false;
           appendTimeline(`Processamento finalizado com status ${status.status}. Buscando resultado final...`);
           try {
@@ -430,8 +445,8 @@ const ImportCatalogWizard = ({ fornecedor, productTypeId: initialProductTypeId, 
         appendTimeline(`Erro de monitoramento: ${detail}`);
         keepPolling = false;
       }
-      if (keepPolling) {
-        await new Promise((r) => setTimeout(r, 2500));
+      if (keepPolling && pollRunRef.current === runId) {
+        await new Promise((r) => setTimeout(r, 2000));
       }
     }
   };
@@ -472,6 +487,12 @@ const ImportCatalogWizard = ({ fornecedor, productTypeId: initialProductTypeId, 
         pages_processed: 0,
         total_pages: prev?.total_pages || estimatedTotal,
       }));
+      setStep('processing');
+      appendTimeline('Importação iniciada. Acompanhando progresso em tempo real.');
+
+      const runId = Date.now();
+      pollRunRef.current = runId;
+      pollStatus(fileId, runId);
 
       await fornecedorService.finalizarImportacaoCatalogo({
         fileId,
@@ -481,10 +502,9 @@ const ImportCatalogWizard = ({ fornecedor, productTypeId: initialProductTypeId, 
         pages: selectedPages,
         region: selectedBboxNorm || selectedBbox,
       });
-      setStep('processing');
-      appendTimeline('Importação iniciada. Acompanhando progresso em tempo real.');
-      pollStatus(fileId);
     } catch (err) {
+      pollRunRef.current += 1;
+      setStep('preview');
       const detail = normalizeDisplayText(toErrorDetail(err, 'Falha ao iniciar processamento.'));
       setError(detail);
       appendTimeline(`Erro ao iniciar processamento: ${detail}`);
@@ -526,6 +546,15 @@ const ImportCatalogWizard = ({ fornecedor, productTypeId: initialProductTypeId, 
     ? 'todas as páginas do PDF'
     : `somente página ${selectedPageForRegion || startPage}`;
   const canStartImport = Boolean(fileId && productTypeId) && !isLoading;
+  const hasPrimaryMapping = Object.values(mapping || {}).some((dest) =>
+    ['auto:sku_nome', 'nome_base', 'sku_original'].includes(dest)
+  );
+  const canStartWithMapping = canStartImport && hasPrimaryMapping;
+  const discardedNonCritical = resultData?.stats?.descartes_nao_criticos ?? 0;
+  const quarantineCount =
+    resultData?.stats?.quarentena_nao_critica ?? (resultData?.quarantine_non_critical?.length || 0);
+  const acceptedQualityAvg = resultData?.stats?.qualidade_score_medio_aceitas;
+  const quarantineQualityAvg = resultData?.stats?.qualidade_score_medio_quarentena;
 
   return (
     <div className="wizard-container" aria-live="polite">
@@ -746,12 +775,17 @@ const ImportCatalogWizard = ({ fornecedor, productTypeId: initialProductTypeId, 
                 />
                 Aplicar região em todas as páginas
               </label>
-              <button type="button" onClick={startImport} disabled={!canStartImport}>
+              <button type="button" onClick={startImport} disabled={!canStartWithMapping}>
                 Iniciar Processamento
               </button>
               {!productTypeId && (
                 <p className="wizard-warning-text">
                   Selecione o tipo de produto para habilitar a importação final.
+                </p>
+              )}
+              {productTypeId && !hasPrimaryMapping && (
+                <p className="wizard-warning-text">
+                  Defina ao menos uma coluna como <strong>SKU + Nome (Auto)</strong>, <strong>Nome Base</strong> ou <strong>SKU</strong>.
                 </p>
               )}
             </section>
@@ -816,6 +850,7 @@ const ImportCatalogWizard = ({ fornecedor, productTypeId: initialProductTypeId, 
               <div>
                 <strong>Status:</strong> {statusData?.status || 'PROCESSING'}
                 <div>{`Páginas: ${pagesProcessed}/${pagesTotal || '?'}`}</div>
+                <div>{`Tempo decorrido: ${elapsedSec}s`}</div>
               </div>
               {processingActive ? <div className="wizard-processing-spinner" /> : <div className="wizard-processing-done">OK</div>}
             </div>
@@ -853,16 +888,23 @@ const ImportCatalogWizard = ({ fornecedor, productTypeId: initialProductTypeId, 
                 </p>
               )}
               {(resultData.stats || resultData.created || resultData.updated || resultData.errors) && (
-                <ul>
+                <ul className="wizard-result-list">
                   <li>Criados: {resultData?.stats?.produtos_criados ?? (resultData?.created?.length || 0)}</li>
                   <li>Atualizados: {resultData?.stats?.produtos_atualizados ?? (resultData?.updated?.length || 0)}</li>
                   <li>Erros críticos: {criticalErrorsCount}</li>
-                  <li>Descartes não críticos: {resultData?.stats?.descartes_nao_criticos ?? 0}</li>
+                  <li>Descartes não críticos: {discardedNonCritical}</li>
+                  <li>Quarentena (não importados): {quarantineCount}</li>
                   <li>
                     Páginas: {resultData?.stats?.pages_processed ?? statusData?.pages_processed ?? 0}/
                     {resultData?.stats?.pages_total ?? statusData?.total_pages ?? statusData?.pages_total ?? 0}
                   </li>
                   <li>Formato: {resultData?.stats?.ext || selectedFile?.name?.split('.').pop()?.toLowerCase() || '-'}</li>
+                  {acceptedQualityAvg != null && (
+                    <li>Qualidade média (aceitos): {acceptedQualityAvg}</li>
+                  )}
+                  {quarantineQualityAvg != null && (
+                    <li>Qualidade média (quarentena): {quarantineQualityAvg}</li>
+                  )}
                 </ul>
               )}
               {resultData.errors?.length > 0 && (
@@ -874,7 +916,15 @@ const ImportCatalogWizard = ({ fornecedor, productTypeId: initialProductTypeId, 
               {resultData.log?.length > 0 && (
                 <details>
                   <summary>Log</summary>
-                  <pre className="wizard-result-pre">{resultData.log.join('\n')}</pre>
+                  <pre className="wizard-result-pre">{resultData.log.map((line) => normalizeDisplayText(line)).join('\n')}</pre>
+                </details>
+              )}
+              {resultData.quarantine_non_critical?.length > 0 && (
+                <details>
+                  <summary>Linhas em quarentena</summary>
+                  <pre className="wizard-result-pre">
+                    {JSON.stringify(resultData.quarantine_non_critical.slice(0, 100), null, 2)}
+                  </pre>
                 </details>
               )}
             </div>
@@ -937,3 +987,4 @@ const ImportCatalogWizard = ({ fornecedor, productTypeId: initialProductTypeId, 
 };
 
 export default ImportCatalogWizard;
+
