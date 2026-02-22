@@ -80,6 +80,69 @@ const initialFormData = {
     status_descricao_ia: null,
 };
 
+const foldText = (value) =>
+    String(value || '')
+        .normalize('NFKD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, ' ')
+        .trim();
+
+const isEmptyLike = (value) => {
+    if (value === null || value === undefined) return true;
+    const text = String(value).trim();
+    if (!text) return true;
+    const folded = foldText(text);
+    return ['none', 'null', 'nan', 'na', '-', '--'].includes(folded);
+};
+
+const normalizeDynamicAttrsToTemplateKeys = (dynamicAttrsRaw, attributeTemplates) => {
+    const result = { ...(dynamicAttrsRaw || {}) };
+    const entries = Object.entries(dynamicAttrsRaw || {});
+
+    const findAliasValue = (aliases) => {
+        for (const [key, value] of entries) {
+            if (isEmptyLike(value)) continue;
+            const keyNorm = foldText(key);
+            for (const alias of aliases) {
+                const aliasNorm = foldText(alias);
+                if (!aliasNorm) continue;
+                if (keyNorm === aliasNorm || keyNorm.includes(aliasNorm) || aliasNorm.includes(keyNorm)) {
+                    return value;
+                }
+            }
+        }
+        return null;
+    };
+
+    (attributeTemplates || []).forEach((tpl) => {
+        const targetKey = tpl?.attribute_key;
+        if (!targetKey) return;
+        if (!isEmptyLike(result[targetKey])) return;
+
+        const label = tpl?.label || targetKey;
+        const labelNorm = foldText(label);
+        const aliases = [label, targetKey];
+
+        if (labelNorm.includes('titulo') || labelNorm.includes('title') || labelNorm.includes('nome')) {
+            aliases.push('titulo', 'title', 'nome');
+        }
+        if (labelNorm === 'id' || labelNorm.includes('codigo') || labelNorm.includes('referencia')) {
+            aliases.push('id', 'codigo_original', 'codigo', 'cod', 'referencia', 'ref');
+        }
+        if (labelNorm.includes('descricao') || labelNorm.includes('desc')) {
+            aliases.push('descricao', 'description', 'desc');
+        }
+
+        const value = findAliasValue(aliases);
+        if (!isEmptyLike(value)) {
+            result[targetKey] = value;
+        }
+    });
+
+    return result;
+};
+
 const ProductEditModal = ({ isOpen, onClose, product, onProductUpdated }) => {
     const isNewProduct = !product?.id;
 
@@ -172,8 +235,13 @@ const ProductEditModal = ({ isOpen, onClose, product, onProductUpdated }) => {
     const populateFormData = useCallback((prod) => {
         if (!prod) return;
         const dynamicAttrsRaw = (prod.dynamic_attributes && typeof prod.dynamic_attributes === 'object') ? prod.dynamic_attributes : {};
+        const typeTemplates =
+            prod?.product_type?.attribute_templates && Array.isArray(prod.product_type.attribute_templates)
+                ? prod.product_type.attribute_templates
+                : [];
+        const dynamicAttrsNormalized = normalizeDynamicAttrsToTemplateKeys(dynamicAttrsRaw, typeTemplates);
         const dynamicAttrs = Object.fromEntries(
-            Object.entries(dynamicAttrsRaw).filter(([key]) => !BASE_PRODUCT_FIELDS.has(key))
+            Object.entries(dynamicAttrsNormalized).filter(([key]) => !BASE_PRODUCT_FIELDS.has(key))
         );
         const dadosBrutos = (prod.dados_brutos_web && typeof prod.dados_brutos_web === 'object') ? prod.dados_brutos_web : {};
 

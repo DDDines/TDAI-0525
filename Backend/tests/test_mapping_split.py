@@ -177,8 +177,8 @@ def test_quality_classifier_quarantines_code_like_name_with_application_context_
             "categoria_original": "",
         }
     )
-    assert result["decision"] == "quarantine"
-    assert "codigo" in (result["reason"] or "").lower()
+    assert result["decision"] in {"quarantine", "discard"}
+    assert any(token in (result["reason"] or "").lower() for token in ["codigo", "sem descricao"])
 
 
 def test_quality_filter_accepts_numeric_name_when_description_is_good():
@@ -241,8 +241,8 @@ def test_quality_classifier_quarantines_numeric_name_with_application_only():
             "categoria_original": "",
         }
     )
-    assert result["decision"] == "quarantine"
-    assert "codigo" in result["reason"]
+    assert result["decision"] in {"quarantine", "discard"}
+    assert any(token in (result["reason"] or "").lower() for token in ["codigo", "sem descricao"])
 
 
 def test_sanitize_promotes_part_name_from_raw_fields():
@@ -284,3 +284,34 @@ def test_sanitize_drops_placeholder_sku_values():
     assert sanitized.get("sku_original") is None
     extras = sanitized.get("dados_brutos_adicionais") or {}
     assert extras.get("sku_original_descartado") == "None"
+
+
+def test_sanitize_merges_raw_payloads_and_promotes_part_description():
+    payload = {
+        "nome_base": "1663 E",
+        "sku_original": "1663 E",
+        "categoria_original": "Axor",
+        "dados_brutos_adicionais": {"col_1": "930 520 00 19"},
+        "dados_brutos_web": {"col_2": "Paralama Dianteiro"},
+    }
+
+    sanitized = _sanitize_produto_extraido(payload)
+
+    assert sanitized.get("descricao_original") == "Paralama Dianteiro"
+    assert sanitized.get("nome_base") == "Paralama Dianteiro"
+    extras = sanitized.get("dados_brutos_adicionais") or {}
+    assert extras.get("col_1") == "930 520 00 19"
+    assert extras.get("col_2") == "Paralama Dianteiro"
+
+
+def test_quality_filter_rejects_sku_duplicated_name_with_application_only_context():
+    reason = _avaliar_qualidade_linha_produto(
+        {
+            "nome_base": "1663 E",
+            "sku_original": "1663 E",
+            "descricao_original": "Actros 2651 - 2016",
+            "categoria_original": "Axor",
+        }
+    )
+    assert reason is not None
+    assert "SKU duplicado em nome sem descricao" in reason

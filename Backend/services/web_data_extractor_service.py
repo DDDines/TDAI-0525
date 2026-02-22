@@ -1,19 +1,23 @@
-# catalogai_project/Backend/services/web_data_extractor_service.py
+﻿# catalogai_project/Backend/services/web_data_extractor_service.py
 import asyncio
+import sys
+import time
 from playwright.async_api import async_playwright, TimeoutError as PlaywrightTimeoutError
 from bs4 import BeautifulSoup
 import trafilatura # type: ignore
 import extruct # type: ignore
 import json
 import re
-from typing import List, Dict, Optional, Any
+from typing import List, Dict, Optional, Any, Tuple
 from fastapi import HTTPException
-from urllib.parse import urlparse
-from sqlalchemy.orm import Session # Importar Session para type hinting, se necessário
+from urllib.parse import parse_qs, quote_plus, unquote, urljoin, urlparse
+from urllib.request import Request, urlopen
+from sqlalchemy.orm import Session # Importar Session para type hinting, se necessÃ¡rio
 from datetime import datetime, timezone
 from Backend.core.logging_config import get_logger
 
 logger = get_logger(__name__)
+PLAYWRIGHT_CHROMIUM_INDISPONIVEL = False
 
 
 try:
@@ -22,60 +26,392 @@ try:
 except ImportError:
     GOOGLE_API_CLIENT_INSTALLED = False
     logger.warning(
-        "Biblioteca google-api-python-client não instalada ou com problemas. Busca no Google pode não funcionar."
+        "Biblioteca google-api-python-client nÃ£o instalada ou com problemas. Busca no Google pode nÃ£o funcionar."
     )
 
-# Ajustando as importações para serem absolutas a partir da raiz do projeto (Backend)
-# Assumindo que 'Backend' está no sys.path ou é o diretório de trabalho.
+# Ajustando as importaÃ§Ãµes para serem absolutas a partir da raiz do projeto (Backend)
+# Assumindo que 'Backend' estÃ¡ no sys.path ou Ã© o diretÃ³rio de trabalho.
 from Backend.core.config import settings
 from Backend import models
-from Backend.services import ia_generation_service  # Importação absoluta para o módulo irmão
+from Backend.services import ia_generation_service  # ImportaÃ§Ã£o absoluta para o mÃ³dulo irmÃ£o
 
 # --- Google Search Service ---
+def busca_publica_disponivel() -> bool:
+    """Indica se busca web sem API key pode ser usada como fallback."""
+    return True
+
+
+_SEARCH_CACHE: Dict[str, Tuple[float, List[str]]] = {}
+_SEARCH_CACHE_TTL_SECONDS = 600.0
+_SEARCH_CACHE_MAX_ENTRIES = 300
+_SEARCH_CACHE_LOCK: Optional[asyncio.Lock] = None
+_SEARCH_SEMAPHORE: Optional[asyncio.Semaphore] = None
+
+
+def _get_search_cache_lock() -> asyncio.Lock:
+    global _SEARCH_CACHE_LOCK
+    if _SEARCH_CACHE_LOCK is None:
+        _SEARCH_CACHE_LOCK = asyncio.Lock()
+    return _SEARCH_CACHE_LOCK
+
+
+def _get_search_semaphore() -> asyncio.Semaphore:
+    global _SEARCH_SEMAPHORE
+    if _SEARCH_SEMAPHORE is None:
+        limit = int(getattr(settings, "WEB_SEARCH_CONCURRENCY", 3) or 3)
+        _SEARCH_SEMAPHORE = asyncio.Semaphore(max(1, limit))
+    return _SEARCH_SEMAPHORE
+
+
+async def _search_cache_get(query_key: str) -> Optional[List[str]]:
+    lock = _get_search_cache_lock()
+    now = time.monotonic()
+    async with lock:
+        cached = _SEARCH_CACHE.get(query_key)
+        if not cached:
+            return None
+        ts, urls = cached
+        if (now - ts) > _SEARCH_CACHE_TTL_SECONDS:
+            _SEARCH_CACHE.pop(query_key, None)
+            return None
+        return list(urls)
+
+
+async def _search_cache_set(query_key: str, urls: List[str]) -> None:
+    lock = _get_search_cache_lock()
+    now = time.monotonic()
+    async with lock:
+        if len(_SEARCH_CACHE) >= _SEARCH_CACHE_MAX_ENTRIES:
+            oldest_key = min(_SEARCH_CACHE.items(), key=lambda item: item[1][0])[0]
+            _SEARCH_CACHE.pop(oldest_key, None)
+        _SEARCH_CACHE[query_key] = (now, list(urls))
+
+
+def _normalizar_url_busca(candidata: str, base_url: str) -> Optional[str]:
+    if not candidata:
+        return None
+    url_final = str(candidata).strip()
+    if not url_final:
+        return None
+    if url_final.startswith("/"):
+        url_final = urljoin(base_url, url_final)
+
+    parsed = urlparse(url_final)
+    host = (parsed.netloc or "").lower()
+
+    # URLs internas/trackers de buscadores não devem entrar no pipeline.
+    if "duckduckgo.com" in host:
+        qs = parse_qs(parsed.query or "")
+        destino = None
+        for key in ("uddg", "u", "u3"):
+            vals = qs.get(key) or []
+            if vals:
+                destino = unquote(vals[0])
+                if destino:
+                    break
+
+        if destino:
+            url_final = destino.strip()
+            parsed = urlparse(url_final)
+            host = (parsed.netloc or "").lower()
+        else:
+            return None
+
+        # Se continuou no domínio DuckDuckGo, descarta.
+        if "duckduckgo.com" in host:
+            return None
+
+    # Alguns resultados vêm como click-tracker do Bing.
+    if "bing.com" in host and parsed.path.lower().startswith("/aclick"):
+        return None
+
+    if parsed.scheme not in {"http", "https"}:
+        return None
+    if not parsed.netloc:
+        return None
+    return url_final
+
+
+def _buscar_urls_publicas_sync(query: str, num_results: int = 3) -> List[str]:
+    if not query:
+        return []
+
+    headers = {
+        "User-Agent": (
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+            "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0 Safari/537.36"
+        )
+    }
+    endpoints = [
+        f"https://duckduckgo.com/html/?q={quote_plus(query)}",
+        f"https://html.duckduckgo.com/html/?q={quote_plus(query)}",
+        f"https://www.bing.com/search?q={quote_plus(query)}",
+    ]
+
+    urls: List[str] = []
+    vistos: set[str] = set()
+
+    for endpoint in endpoints:
+        try:
+            req = Request(endpoint, headers=headers, method="GET")
+            with urlopen(req, timeout=8) as resp:
+                content = resp.read().decode("utf-8", errors="ignore")
+        except Exception as search_err:
+            logger.warning(
+                "Busca publica falhou em %s (query='%s'): %s",
+                endpoint,
+                query,
+                search_err,
+            )
+            continue
+
+        soup = BeautifulSoup(content, "html.parser")
+        anchors = soup.select(
+            "a.result__a, .result a[href], a[href*='uddg='], li.b_algo h2 a, h2 a[href]"
+        )
+        for anchor in anchors:
+            href = anchor.get("href")
+            url_norm = _normalizar_url_busca(href or "", endpoint)
+            if not url_norm or url_norm in vistos:
+                continue
+            vistos.add(url_norm)
+            urls.append(url_norm)
+            if len(urls) >= max(1, num_results):
+                break
+        if len(urls) >= max(1, num_results):
+            break
+
+    # Fallback adicional: proxy textual que costuma escapar bloqueios de JS/anti-bot.
+    if len(urls) < max(1, num_results):
+        proxy_endpoint = f"https://r.jina.ai/http://duckduckgo.com/html/?q={quote_plus(query)}"
+        try:
+            req = Request(proxy_endpoint, headers=headers, method="GET")
+            with urlopen(req, timeout=10) as resp:
+                proxy_text = resp.read().decode("utf-8", errors="ignore")
+
+            for href in re.findall(r"\((https?://[^)]+)\)", proxy_text):
+                url_norm = _normalizar_url_busca(href, proxy_endpoint)
+                if not url_norm or url_norm in vistos:
+                    continue
+                vistos.add(url_norm)
+                urls.append(url_norm)
+                if len(urls) >= max(1, num_results):
+                    break
+        except Exception as proxy_err:
+            logger.warning(
+                "Fallback via r.jina.ai falhou (query='%s'): %s",
+                query,
+                proxy_err,
+            )
+
+    return urls
+
+
+async def buscar_urls_publicas(query: str, num_results: int = 3) -> List[str]:
+    return await asyncio.to_thread(_buscar_urls_publicas_sync, query, num_results)
+
+
 async def buscar_urls_google(query: str, num_results: int = 3) -> List[str]:
+    query_limpa = str(query or "").strip()
+    if not query_limpa:
+        return []
+    limite = max(1, num_results)
+    cache_key = query_limpa.lower()
+
+    cached_urls = await _search_cache_get(cache_key)
+    if cached_urls is not None:
+        logger.info(
+            "Busca web (cache) retornou %s URL(s) para query '%s'.",
+            len(cached_urls),
+            query_limpa,
+        )
+        return cached_urls[:limite]
+
     urls_encontradas: List[str] = []
-    if not GOOGLE_API_CLIENT_INSTALLED:
-        logger.error(
-            "google-api-python-client não está instalada. Busca no Google desabilitada."
-        )
-        return urls_encontradas
-        
-    if not settings.GOOGLE_CSE_API_KEY or not settings.GOOGLE_CSE_ID:
-        logger.warning(
-            "GOOGLE_CSE_API_KEY ou GOOGLE_CSE_ID não configurados. Busca no Google desabilitada."
-        )
-        return urls_encontradas
+    google_disponivel = (
+        GOOGLE_API_CLIENT_INSTALLED
+        and bool(settings.GOOGLE_CSE_API_KEY)
+        and bool(settings.GOOGLE_CSE_ID)
+    )
 
-    try:
-        def _executar_busca_google_interna_valida():
-            service = build("customsearch", "v1", developerKey=settings.GOOGLE_CSE_API_KEY, cache_discovery=False)
-            res = service.cse().list(q=query, cx=settings.GOOGLE_CSE_ID, num=num_results).execute()
-            return [item['link'] for item in res.get('items', []) if 'link' in item]
+    async with _get_search_semaphore():
+        if google_disponivel:
+            try:
+                def _executar_busca_google_interna_valida():
+                    service = build("customsearch", "v1", developerKey=settings.GOOGLE_CSE_API_KEY, cache_discovery=False)
+                    res = service.cse().list(q=query_limpa, cx=settings.GOOGLE_CSE_ID, num=limite).execute()
+                    return [item['link'] for item in res.get('items', []) if 'link' in item]
 
-        urls_encontradas = await asyncio.to_thread(_executar_busca_google_interna_valida)
-        
-    except Exception as e:
-        logger.error("Erro ao buscar no Google (query: '%s'): %s", query, e)
-    return urls_encontradas
+                urls_encontradas = await asyncio.to_thread(_executar_busca_google_interna_valida)
+                if urls_encontradas:
+                    logger.info(
+                        "Busca Google CSE retornou %s URL(s) para query '%s'.",
+                        len(urls_encontradas),
+                        query_limpa,
+                    )
+                    urls_unicas = list(dict.fromkeys(urls_encontradas))[:limite]
+                    await _search_cache_set(cache_key, urls_unicas)
+                    return urls_unicas
+                logger.warning(
+                    "Google CSE nao retornou URLs para query '%s'. Tentando fallback publico.",
+                    query_limpa,
+                )
+            except Exception as e:
+                logger.error("Erro ao buscar no Google (query: '%s'): %s", query_limpa, e)
+                logger.info("Tentando fallback de busca publica sem API key.")
+        else:
+            motivos_google_indisponivel: List[str] = []
+            if not GOOGLE_API_CLIENT_INSTALLED:
+                motivos_google_indisponivel.append("biblioteca ausente")
+            if not settings.GOOGLE_CSE_API_KEY:
+                motivos_google_indisponivel.append("GOOGLE_CSE_API_KEY ausente")
+            if not settings.GOOGLE_CSE_ID:
+                motivos_google_indisponivel.append("GOOGLE_CSE_ID ausente")
+            motivos_txt = ", ".join(motivos_google_indisponivel) if motivos_google_indisponivel else "configuracao ausente"
+            logger.warning(
+                "Google CSE indisponivel (%s). Usando fallback de busca publica.",
+                motivos_txt,
+            )
+
+        urls_encontradas = await buscar_urls_publicas(query=query_limpa, num_results=limite)
+        urls_unicas = list(dict.fromkeys(urls_encontradas))[:limite]
+        if urls_unicas:
+            logger.info(
+                "Fallback de busca publica retornou %s URL(s) para query '%s'.",
+                len(urls_unicas),
+                query_limpa,
+            )
+        else:
+            logger.warning("Fallback de busca publica nao retornou URLs para query '%s'.", query_limpa)
+        await _search_cache_set(cache_key, urls_unicas)
+        return urls_unicas
 
 # --- Playwright Content Fetching Service ---
-async def coletar_conteudo_pagina_playwright(url: str) -> Optional[str]:
+def _coletar_conteudo_pagina_http_sync(url: str, timeout: int = 20) -> Optional[str]:
+    headers = {
+        "User-Agent": (
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+            "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0 Safari/537.36"
+        )
+    }
+    req = Request(url, headers=headers, method="GET")
+    with urlopen(req, timeout=timeout) as resp:
+        content_type = (resp.headers.get("Content-Type") or "").lower()
+        raw = resp.read()
+
+    # Evita retornar binário/imagem quando a URL não é uma página HTML.
+    if "text/html" not in content_type and "application/xhtml+xml" not in content_type:
+        return None
+    return raw.decode("utf-8", errors="ignore")
+
+
+async def _coletar_conteudo_pagina_http(url: str, timeout: int = 20) -> Optional[str]:
+    try:
+        return await asyncio.to_thread(_coletar_conteudo_pagina_http_sync, url, timeout)
+    except Exception as e:
+        logger.warning("Falha ao coletar conteúdo HTTP direto para %s: %s", url, e)
+        return None
+
+
+async def _coletar_conteudo_pagina_playwright_core(url: str) -> Optional[str]:
+    browser = None
     async with async_playwright() as p_instance:
-        browser = None
-        html_content: Optional[str] = None
         try:
             browser = await p_instance.chromium.launch(headless=True)
             context = await browser.new_context(
-                user_agent='Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/98.0.4758.102 Safari/537.36',
+                user_agent=(
+                    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+                    "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/98.0.4758.102 Safari/537.36"
+                ),
                 java_script_enabled=True,
-                ignore_https_errors=True
+                ignore_https_errors=True,
             )
             page = await context.new_page()
             await page.goto(url, timeout=30000, wait_until="networkidle")
-            html_content = await page.content()
+            return await page.content()
+        finally:
+            if browser:
+                await browser.close()
+
+
+def _coletar_conteudo_playwright_em_thread_sync(url: str) -> Optional[str]:
+    loop = None
+    try:
+        if sys.platform.startswith("win") and hasattr(asyncio, "WindowsProactorEventLoopPolicy"):
+            loop = asyncio.WindowsProactorEventLoopPolicy().new_event_loop()  # type: ignore[attr-defined]
+        else:
+            loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        return loop.run_until_complete(_coletar_conteudo_pagina_playwright_core(url))
+    finally:
+        if loop is not None:
+            try:
+                loop.run_until_complete(loop.shutdown_asyncgens())
+            except Exception:
+                pass
+            loop.close()
+        asyncio.set_event_loop(None)
+
+
+async def coletar_conteudo_pagina_playwright(url: str) -> Optional[str]:
+    global PLAYWRIGHT_CHROMIUM_INDISPONIVEL
+    if PLAYWRIGHT_CHROMIUM_INDISPONIVEL:
+        return await _coletar_conteudo_pagina_http(url)
+
+    # Em alguns ambientes Windows o loop padrao nao suporta subprocesso.
+    # Nesses casos, tentamos executar Playwright em thread dedicada com loop Proactor.
+    loop_name = asyncio.get_running_loop().__class__.__name__.lower()
+    if sys.platform.startswith("win") and "selector" in loop_name:
+        logger.warning(
+            "Loop asyncio sem suporte a subprocesso detectado (%s). Tentando Playwright em thread dedicada.",
+            loop_name,
+        )
+        try:
+            html_from_thread = await asyncio.to_thread(
+                _coletar_conteudo_playwright_em_thread_sync, url
+            )
+            if html_from_thread:
+                logger.info("Playwright executado com sucesso via thread dedicada para %s.", url)
+                return html_from_thread
         except PlaywrightTimeoutError:
-            logger.error("Timeout ao carregar URL com Playwright: %s", url)
+            logger.error("Timeout ao carregar URL com Playwright (thread dedicada): %s", url)
         except Exception as e:
+            erro_str = str(e)
+            erro_curto = erro_str.splitlines()[0] if erro_str else "erro_desconhecido"
+            if "Executable doesn't exist" in erro_str:
+                if not PLAYWRIGHT_CHROMIUM_INDISPONIVEL:
+                    logger.warning(
+                        "Playwright Chromium indisponivel no ambiente. Usando fallback HTTP direto para proximas coletas."
+                    )
+                PLAYWRIGHT_CHROMIUM_INDISPONIVEL = True
+                logger.warning("Falha Playwright (thread dedicada) para %s: %s", url, erro_curto)
+            else:
+                logger.warning(
+                    "Falha Playwright via thread dedicada para %s: %s. Caindo para HTTP direto.",
+                    url,
+                    erro_curto,
+                )
+        return await _coletar_conteudo_pagina_http(url)
+
+    try:
+        return await _coletar_conteudo_pagina_playwright_core(url)
+    except PlaywrightTimeoutError:
+        logger.error("Timeout ao carregar URL com Playwright: %s", url)
+        html_content = await _coletar_conteudo_pagina_http(url)
+        if html_content:
+            logger.info("Fallback HTTP direto usado após timeout do Playwright para %s.", url)
+        return html_content
+    except Exception as e:
+        erro_str = str(e)
+        erro_curto = erro_str.splitlines()[0] if erro_str else "erro_desconhecido"
+        if "Executable doesn't exist" in erro_str:
+            if not PLAYWRIGHT_CHROMIUM_INDISPONIVEL:
+                logger.warning(
+                    "Playwright Chromium indisponivel no ambiente. Usando fallback HTTP direto para proximas coletas."
+                )
+            PLAYWRIGHT_CHROMIUM_INDISPONIVEL = True
+            logger.warning("Falha Playwright para %s: %s", url, erro_curto)
+        else:
             import traceback
             logger.error(
                 "Erro ao coletar conteúdo com Playwright para %s: %s\n%s",
@@ -83,11 +419,16 @@ async def coletar_conteudo_pagina_playwright(url: str) -> Optional[str]:
                 e,
                 traceback.format_exc(),
             )
-        finally:
-            if browser:
-                await browser.close()
+        html_content = await _coletar_conteudo_pagina_http(url)
+        if html_content:
+            logger.info("Fallback HTTP direto usado após falha do Playwright para %s.", url)
         return html_content
-
+    except NotImplementedError:
+        logger.warning(
+            "Playwright indisponivel neste loop asyncio. Usando fallback HTTP direto para %s.",
+            url,
+        )
+        return await _coletar_conteudo_pagina_http(url)
 # --- Text Extraction Service ---
 def extrair_texto_principal_com_trafilatura(html_content: str) -> Optional[str]:
     if not html_content: return None
@@ -202,12 +543,12 @@ async def extrair_dados_produto_com_llm(
 ) -> Optional[Dict[str, Any]]:
     
     if not texto_pagina and not metadados_normalizados:
-        logger.info("Nenhum texto de página nem metadados fornecidos para extração LLM.")
-        return {"erro_llm": "Nenhum conteúdo para processar"}
+        logger.info("Nenhum texto de pÃ¡gina nem metadados fornecidos para extraÃ§Ã£o LLM.")
+        return {"erro_llm": "Nenhum conteÃºdo para processar"}
 
     prompt_contexto_inicial = [
-        f"Você é um assistente especialista em extrair informações detalhadas de produtos de e-commerce para o produto '{produto_nome_base}'.",
-        "Seu objetivo é preencher um JSON com os campos solicitados da forma mais precisa possível, com base no contexto fornecido."
+        f"VocÃª Ã© um assistente especialista em extrair informaÃ§Ãµes detalhadas de produtos de e-commerce para o produto '{produto_nome_base}'.",
+        "Seu objetivo Ã© preencher um JSON com os campos solicitados da forma mais precisa possÃ­vel, com base no contexto fornecido."
     ]
     contexto_para_llm = ""
     if metadados_normalizados and isinstance(metadados_normalizados, dict) and any(metadados_normalizados.values()):
@@ -215,11 +556,11 @@ async def extrair_dados_produto_com_llm(
         for k, v_item in metadados_normalizados.items():
             contexto_para_llm += f"- {k.replace('_', ' ')}: {str(v_item)[:200]}\n" # Limita o tamanho da string de valor
     if texto_pagina:
-        contexto_para_llm += f"\nTexto Principal da Página (use para encontrar informações e complementar/corrigir metadados):\n\"\"\"\n{texto_pagina[:10000]}\n\"\"\"" # Limita o tamanho do texto
+        contexto_para_llm += f"\nTexto Principal da PÃ¡gina (use para encontrar informaÃ§Ãµes e complementar/corrigir metadados):\n\"\"\"\n{texto_pagina[:10000]}\n\"\"\"" # Limita o tamanho do texto
 
     if not contexto_para_llm.strip():
         logger.info(
-            "Contexto insuficiente para LLM (metadados e texto da página vazios ou muito curtos)."
+            "Contexto insuficiente para LLM (metadados e texto da pÃ¡gina vazios ou muito curtos)."
         )
         return {"erro_llm": "Contexto insuficiente para processar"}
 
@@ -237,12 +578,12 @@ async def extrair_dados_produto_com_llm(
     
     prompt = (
         "\n".join(prompt_contexto_inicial) +
-        f"\n\nA partir do contexto e do texto da página fornecidos, extraia RIGOROSAMENTE os seguintes campos e retorne APENAS um objeto JSON válido com esta estrutura:\n"
+        f"\n\nA partir do contexto e do texto da pÃ¡gina fornecidos, extraia RIGOROSAMENTE os seguintes campos e retorne APENAS um objeto JSON vÃ¡lido com esta estrutura:\n"
         f"{{\n{campos_formatados_prompt}\n}}\n"
-        f"Se uma informação para um campo específico não for encontrada de forma clara e inequívoca, retorne null para esse campo. Não invente informações.\n"
+        f"Se uma informaÃ§Ã£o para um campo especÃ­fico nÃ£o for encontrada de forma clara e inequÃ­voca, retorne null para esse campo. NÃ£o invente informaÃ§Ãµes.\n"
         f"Para campos do tipo lista (ex: 'lista_caracteristicas_beneficios_bullets', 'palavras_chave_seo_relevantes_lista'), retorne uma lista de strings.\n"
-        f"Para campos do tipo dicionário (ex: 'especificacoes_tecnicas_dict'), retorne um dicionário chave-valor.\n"
-        f"\nContexto e Texto para Análise:\n{contexto_para_llm}"
+        f"Para campos do tipo dicionÃ¡rio (ex: 'especificacoes_tecnicas_dict'), retorne um dicionÃ¡rio chave-valor.\n"
+        f"\nContexto e Texto para AnÃ¡lise:\n{contexto_para_llm}"
     )
     
     if user is not None:
@@ -251,25 +592,26 @@ async def extrair_dados_produto_com_llm(
         api_key_para_usar = settings.OPENAI_API_KEY
     if not api_key_para_usar:
         logger.warning(
-            "Nenhuma chave API OpenAI disponível para extração de dados com LLM."
+            "Nenhuma chave API OpenAI disponÃ­vel para extraÃ§Ã£o de dados com LLM."
         )
-        return {"erro_llm": "Chave API OpenAI não configurada"}
+        return {"erro_llm": "Chave API OpenAI nÃ£o configurada"}
 
+    json_str_resposta = "" # Inicializa para evitar UnboundLocalError no except
     try:
-        # A função call_openai_api está em ia_generation_service
+        # A funÃ§Ã£o call_openai_api estÃ¡ em ia_generation_service
         prompt_messages = [
             {
                 "role": "system",
-                "content": "Sua tarefa é extrair informações de um texto e retorná-las em formato JSON conforme o schema solicitado. Seja preciso e não adicione campos extras.",
+                "content": "Sua tarefa Ã© extrair informaÃ§Ãµes de um texto e retornÃ¡-las em formato JSON conforme o schema solicitado. Seja preciso e nÃ£o adicione campos extras.",
             },
             {"role": "user", "content": prompt},
         ]
         json_str_resposta = await ia_generation_service.call_openai_api(
             prompt_messages=prompt_messages,
             api_key=api_key_para_usar,
-            model="gpt-3.5-turbo-0125", # Exemplo de modelo, pode ser configurável
+            model="gpt-3.5-turbo-0125", # Exemplo de modelo, pode ser configurÃ¡vel
             max_tokens=2048, # Ajustar conforme necessidade
-            temperature=0.0, # Baixa temperatura para extração factual
+            temperature=0.0, # Baixa temperatura para extraÃ§Ã£o factual
         )
         
         # Tentativa de limpar a resposta da LLM para pegar apenas o JSON
@@ -277,16 +619,16 @@ async def extrair_dados_produto_com_llm(
         if match:
             json_str_limpo = match.group(0)
         else:
-            json_str_limpo = json_str_resposta # Se não encontrar JSON delimitado, usa a resposta como está
+            json_str_limpo = json_str_resposta # Se nÃ£o encontrar JSON delimitado, usa a resposta como estÃ¡
 
         dados_extraidos_llm = json.loads(json_str_limpo)
         
-        # Merge inteligente: prioriza dados da LLM, mas mantém metadados se LLM não fornecer
+        # Merge inteligente: prioriza dados da LLM, mas mantÃ©m metadados se LLM nÃ£o fornecer
         final_data = metadados_normalizados.copy() if metadados_normalizados and isinstance(metadados_normalizados, dict) else {}
         if isinstance(dados_extraidos_llm, dict):
             for key_llm, val_llm in dados_extraidos_llm.items():
-                # Sobrescreve ou adiciona apenas se o valor da LLM não for None,
-                # ou se a chave não existia nos metadados (para adicionar novos campos extraídos)
+                # Sobrescreve ou adiciona apenas se o valor da LLM nÃ£o for None,
+                # ou se a chave nÃ£o existia nos metadados (para adicionar novos campos extraÃ­dos)
                 if val_llm is not None or key_llm not in final_data:
                     final_data[key_llm] = val_llm
         return final_data
@@ -298,27 +640,27 @@ async def extrair_dados_produto_com_llm(
         )
         return {"extracao_bruta_llm_com_erro_json": json_str_resposta, **(metadados_normalizados or {})}
     except ValueError as ve: # Ex: erro de API key na chamada da OpenAI
-        logger.error("Erro na chamada da LLM para extração: %s", ve)
+        logger.error("Erro na chamada da LLM para extraÃ§Ã£o: %s", ve)
         return {"erro_llm": str(ve), **(metadados_normalizados or {})}
     except Exception as e:
         import traceback
-        logger.error("Erro inesperado na extração com LLM: %s", traceback.format_exc())
+        logger.error("Erro inesperado na extraÃ§Ã£o com LLM: %s", traceback.format_exc())
         return {"erro_llm_inesperado": str(e), **(metadados_normalizados or {})}
 
-# Função principal do serviço de extração, combinando as etapas
-async def extract_relevant_data_from_url( # <--- NOME CORRETO DA FUNÇÃO PRINCIPAL DO SERVIÇO
+# FunÃ§Ã£o principal do serviÃ§o de extraÃ§Ã£o, combinando as etapas
+async def extract_relevant_data_from_url( # <--- NOME CORRETO DA FUNÃ‡ÃƒO PRINCIPAL DO SERVIÃ‡O
     db: Session, 
     url: str, 
     produto: models.Produto
     ) -> models.Produto:
     """
-    Serviço completo para buscar dados de uma URL, extrair conteúdo, 
+    ServiÃ§o completo para buscar dados de uma URL, extrair conteÃºdo, 
     e atualizar o objeto Produto no banco de dados.
     """
     log_enriquecimento: List[Dict[str, Any]] = []
     
     def add_log(level: str, message: str, details: Optional[Dict] = None):
-        entry = {"timestamp": datetime.now(timezone.utc).isoformat(), "level": level, "message": message} # Necessário importar datetime, timezone
+        entry = {"timestamp": datetime.now(timezone.utc).isoformat(), "level": level, "message": message} # NecessÃ¡rio importar datetime, timezone
         if details: entry["details"] = details
         log_enriquecimento.append(entry)
 
@@ -330,7 +672,7 @@ async def extract_relevant_data_from_url( # <--- NOME CORRETO DA FUNÇÃO PRINCI
     html_content = await coletar_conteudo_pagina_playwright(url)
 
     if not html_content:
-        add_log("ERROR", "Falha ao coletar HTML da página.")
+        add_log("ERROR", "Falha ao coletar HTML da pÃ¡gina.")
         produto.status_enriquecimento_web = models.StatusEnriquecimentoEnum.FALHOU
         produto.log_enriquecimento_web = log_enriquecimento # Salva o log acumulado
         db.add(produto)
@@ -338,42 +680,42 @@ async def extract_relevant_data_from_url( # <--- NOME CORRETO DA FUNÇÃO PRINCI
         db.refresh(produto)
         return produto # Retorna o produto com status de falha
 
-    add_log("INFO", "Conteúdo HTML coletado com sucesso.")
+    add_log("INFO", "ConteÃºdo HTML coletado com sucesso.")
     
     texto_principal = extrair_texto_principal_com_trafilatura(html_content)
-    if texto_principal: add_log("INFO", "Texto principal extraído com Trafilatura.")
-    else: add_log("WARNING", "Não foi possível extrair texto principal com Trafilatura.")
+    if texto_principal: add_log("INFO", "Texto principal extraÃ­do com Trafilatura.")
+    else: add_log("WARNING", "NÃ£o foi possÃ­vel extrair texto principal com Trafilatura.")
 
     metadados_estruturados = extrair_metadados_estruturados(html_content, url)
-    if metadados_estruturados: add_log("INFO", "Metadados estruturados extraídos.", {"metadata_keys": list(metadados_estruturados.keys())})
+    if metadados_estruturados: add_log("INFO", "Metadados estruturados extraÃ­dos.", {"metadata_keys": list(metadados_estruturados.keys())})
     else: add_log("INFO", "Nenhum metadado estruturado (JSON-LD, Microdata, Opengraph) encontrado.")
 
     dados_normalizados_de_meta = _normalizar_dados_de_metadados(metadados_estruturados)
     if dados_normalizados_de_meta: add_log("INFO", "Metadados normalizados.", {"normalized_keys": list(dados_normalizados_de_meta.keys())})
 
-    # Atualizar dados_brutos_web do produto com o que foi encontrado até agora
+    # Atualizar dados_brutos_web do produto com o que foi encontrado atÃ© agora
     if produto.dados_brutos_web is None:
         produto.dados_brutos_web = {}
     
     # Merge inteligente dos dados normalizados em dados_brutos_web
-    # Prioriza novos valores, mas não sobrescreve com None se já existir algo
+    # Prioriza novos valores, mas nÃ£o sobrescreve com None se jÃ¡ existir algo
     for key, value in dados_normalizados_de_meta.items():
         if value is not None or key not in produto.dados_brutos_web:
             produto.dados_brutos_web[key] = value
     
     # Se houver texto principal, tentar usar LLM para refinar/extrair mais campos
-    # Esta é uma decisão de design - quais campos a LLM deve tentar preencher?
-    # Exemplo: campos que não foram bem preenchidos por metadados ou campos mais subjetivos.
+    # Esta Ã© uma decisÃ£o de design - quais campos a LLM deve tentar preencher?
+    # Exemplo: campos que nÃ£o foram bem preenchidos por metadados ou campos mais subjetivos.
     # campos_para_llm = ["descricao_detalhada_longa", "lista_caracteristicas_beneficios_bullets", "publico_alvo_sugestoes", "palavras_chave_seo_relevantes_lista"]
     
-    # Por enquanto, vamos focar em apenas usar os metadados e o texto extraído pelo trafilatura
-    # A integração com LLM para extração pode ser um passo futuro ou condicional
-    # Se você quiser habilitar a extração LLM aqui, descomente e ajuste a lógica abaixo.
+    # Por enquanto, vamos focar em apenas usar os metadados e o texto extraÃ­do pelo trafilatura
+    # A integraÃ§Ã£o com LLM para extraÃ§Ã£o pode ser um passo futuro ou condicional
+    # Se vocÃª quiser habilitar a extraÃ§Ã£o LLM aqui, descomente e ajuste a lÃ³gica abaixo.
     
     # if texto_principal or dados_normalizados_de_meta:
-    #     add_log("INFO", "Tentando extração adicional com LLM.")
-    #     # Pegar usuário do produto para chave API
-    #     user_owner = produto.owner # Assumindo que produto.owner é o objeto User
+    #     add_log("INFO", "Tentando extraÃ§Ã£o adicional com LLM.")
+    #     # Pegar usuÃ¡rio do produto para chave API
+    #     user_owner = produto.owner # Assumindo que produto.owner Ã© o objeto User
     #     dados_llm = await extrair_dados_produto_com_llm(
     #         texto_pagina=texto_principal,
     #         metadados_normalizados=dados_normalizados_de_meta,
@@ -383,30 +725,30 @@ async def extract_relevant_data_from_url( # <--- NOME CORRETO DA FUNÇÃO PRINCI
     #     )
     #     if dados_llm:
     #         if "erro_llm" in dados_llm or "erro_llm_inesperado" in dados_llm:
-    #             add_log("WARNING", "Extração com LLM encontrou um problema.", {"llm_error_details": dados_llm})
+    #             add_log("WARNING", "ExtraÃ§Ã£o com LLM encontrou um problema.", {"llm_error_details": dados_llm})
     #         else:
-    #             add_log("INFO", "Dados extraídos/refinados com LLM.", {"llm_extracted_keys": list(dados_llm.keys())})
+    #             add_log("INFO", "Dados extraÃ­dos/refinados com LLM.", {"llm_extracted_keys": list(dados_llm.keys())})
     #             for key, value in dados_llm.items():
-    #                 # Merge mais uma vez, priorizando LLM se não for erro
+    #                 # Merge mais uma vez, priorizando LLM se nÃ£o for erro
     #                 if value is not None or key not in produto.dados_brutos_web:
     #                     produto.dados_brutos_web[key] = value
     #     else:
     #         add_log("INFO", "Nenhum dado adicional retornado pela LLM ou LLM desabilitada.")
 
 
-    # Salva o texto principal se extraído, para referência ou uso posterior
+    # Salva o texto principal se extraÃ­do, para referÃªncia ou uso posterior
     if texto_principal and isinstance(produto.dados_brutos_web, dict):
          produto.dados_brutos_web['texto_pagina_extraido'] = texto_principal[:15000]  # Limita o tamanho
 
     produto.status_enriquecimento_web = models.StatusEnriquecimentoEnum.CONCLUIDO_SUCESSO
-    if not dados_normalizados_de_meta and not texto_principal : # Se nada útil foi extraído
+    if not dados_normalizados_de_meta and not texto_principal : # Se nada Ãºtil foi extraÃ­do
         produto.status_enriquecimento_web = models.StatusEnriquecimentoEnum.NENHUMA_FONTE_ENCONTRADA
-        add_log("WARNING", "Nenhuma informação útil (metadados ou texto principal) foi extraída da URL.")
+        add_log("WARNING", "Nenhuma informaÃ§Ã£o Ãºtil (metadados ou texto principal) foi extraÃ­da da URL.")
     elif not dados_normalizados_de_meta and texto_principal:
          produto.status_enriquecimento_web = models.StatusEnriquecimentoEnum.CONCLUIDO_COM_DADOS_PARCIAIS # Apenas texto, sem metadados estruturados
-         add_log("INFO", "Enriquecimento concluído com dados parciais (apenas texto da página).")
+         add_log("INFO", "Enriquecimento concluÃ­do com dados parciais (apenas texto da pÃ¡gina).")
     else:
-        add_log("INFO", "Enriquecimento web concluído com sucesso.")
+        add_log("INFO", "Enriquecimento web concluÃ­do com sucesso.")
 
 
     produto.log_enriquecimento_web = log_enriquecimento
@@ -424,7 +766,7 @@ def extract_text_from_image_region(image_bytes: bytes):
         from google.cloud import vision  # type: ignore
     except Exception as e:  # pragma: no cover - optional dependency
         logger.exception("Google Cloud Vision not available")
-        raise HTTPException(status_code=500, detail="Ocorreu um erro durante a extração de dados.") from e
+        raise HTTPException(status_code=500, detail="Ocorreu um erro durante a extraÃ§Ã£o de dados.") from e
 
     try:
         logger.debug("Enviando para a API de OCR")
@@ -437,5 +779,5 @@ def extract_text_from_image_region(image_bytes: bytes):
         return response.full_text_annotation
     except Exception as e:
         logger.exception("Falha ao extrair texto da imagem")
-        raise HTTPException(status_code=500, detail="Ocorreu um erro durante a extração de dados.") from e
+        raise HTTPException(status_code=500, detail="Ocorreu um erro durante a extraÃ§Ã£o de dados.") from e
 

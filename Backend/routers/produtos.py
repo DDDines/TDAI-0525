@@ -70,19 +70,42 @@ def _normalize_import_text(value: str) -> str:
     """Corrige artefatos comuns de encoding em mensagens de importacao."""
     text = str(value or "")
 
-    # Tenta corrigir mojibake comum (UTF-8 lido como latin-1/cp1252).
-    # Nao incluir "?" aqui para nao distorcer textos validos com interrogacao.
-    markers = ("\u00c3", "\u00c2", "\u00e2", "\ufffd", "\u0192")
-    for _ in range(4):
-        if not any(marker in text for marker in markers):
-            break
+    def _marker_count(candidate: str) -> int:
+        return sum(candidate.count(ch) for ch in ("\u00c3", "\u00c2", "\u00e2", "\u0192", "\ufffd"))
+
+    def _looks_mojibake(candidate: str) -> bool:
+        return _marker_count(candidate) > 0 or "??" in candidate
+
+    def _decode_maybe(candidate: str, source_encoding: str) -> str:
         try:
-            fixed = text.encode("latin-1", errors="ignore").decode("utf-8", errors="ignore")
+            return candidate.encode(source_encoding, errors="ignore").decode(
+                "utf-8", errors="ignore"
+            )
         except Exception:
+            return candidate
+
+    # Tenta corrigir mojibake comum (UTF-8 lido como latin-1/cp1252).
+    for _ in range(6):
+        if not _looks_mojibake(text):
             break
-        if not fixed or fixed == text:
+
+        best = text
+        best_markers = _marker_count(best)
+        best_alnum = sum(ch.isalnum() for ch in best)
+        for source_encoding in ("latin-1", "cp1252"):
+            decoded = _decode_maybe(text, source_encoding)
+            if not decoded or decoded == text:
+                continue
+            decoded_markers = _marker_count(decoded)
+            decoded_alnum = sum(ch.isalnum() for ch in decoded)
+            alnum_guard = decoded_alnum >= int(best_alnum * 0.8)
+            if decoded_markers < best_markers and alnum_guard:
+                best = decoded
+                best_markers = decoded_markers
+                best_alnum = decoded_alnum
+        if best == text:
             break
-        text = fixed
+        text = best
 
     replacements = {
         "n\u00e3o": "n\u00e3o",
@@ -95,6 +118,11 @@ def _normalize_import_text(value: str) -> str:
         "p\u00f4de": "p\u00f4de",
         "p\u00c3\u00b4de": "p\u00f4de",
         "p\u00c3\u0192\u00c2\u00b4de": "p\u00f4de",
+        "p\u00c3\u0192\u00c2\u0192\u00c3\u201a\u00c2\u00b4de": "p\u00f4de",
+        "p\u00c3\u201a\u00c2\u00b4de": "p\u00f4de",
+        "p\u00c3\u0192\u00c2\u00b4de": "p\u00f4de",
+        "p\u00c3\u0192\u00c2\u00a1gina": "p\u00e1gina",
+        "P\u00c3\u0192\u00c2\u00a1gina": "P\u00e1gina",
         "p??de": "p\u00f4de",
         "p????de": "p\u00f4de",
         "extra\u00eddo": "extra\u00eddo",
@@ -151,6 +179,8 @@ def _normalize_import_text(value: str) -> str:
         "extra\u00c3\u0192\u00c2\u00a7\u00c3\u0192\u00c2\u00a3o": "extra\u00e7\u00e3o",
         "regi\u00c3\u0192\u00c2\u00a3o": "regi\u00e3o",
         "n\u00c3\u0192\u00c2\u00a3o": "n\u00e3o",
+        "n\u00c3\u201a\u00c2\u00a3o": "n\u00e3o",
+        "n\u00c3\u0192\u00c2\u201ao": "n\u00e3o",
     }
     for source, target in replacements.items():
         text = text.replace(source, target)
@@ -341,6 +371,9 @@ def _nome_parece_cabecalho_anotacao(value: Any) -> bool:
         return True
     if compact.startswith(("anotac", "anotag", "observac", "coment")):
         return True
+    # Cobre variacoes OCR/encoding como "Anota¢es", "Anotag6es", etc.
+    if compact.startswith("anota") and len(compact) <= 14 and not re.search(r"\d{2,}", compact):
+        return True
     if compact.startswith("nota") and len(compact) <= 10:
         return True
     return False
@@ -429,15 +462,19 @@ def _avaliar_qualidade_linha_produto(data: Dict[str, Any]) -> Optional[str]:
         and sku_compacto == nome_compacto
         and not descricao_peca
         and not categoria_peca
-        and not descricao_tem_contexto
-        and not categoria_tem_contexto
     ):
         return "Linha descartada por baixa qualidade: SKU duplicado em nome sem descricao"
-    if sku and nome_numerico and not descricao_tem_contexto:
+    if sku and nome_numerico and not descricao_peca and not categoria_peca:
         return "Linha descartada por baixa qualidade: nome numerico sem contexto"
-    if sku and nome_numerico and sku_compacto == nome_compacto and not descricao_tem_contexto:
+    if (
+        sku
+        and nome_numerico
+        and sku_compacto == nome_compacto
+        and not descricao_peca
+        and not categoria_peca
+    ):
         return "Linha descartada por baixa qualidade: nome numerico igual ao SKU sem descricao"
-    if sku and not nome and not descricao_tem_contexto:
+    if sku and not nome and not descricao_peca and not categoria_peca:
         return "Linha descartada por baixa qualidade: SKU sem nome/descricao confiavel"
     if sku and not nome and not has_context:
         return "Linha descartada por baixa qualidade: SKU sem contexto"
@@ -705,9 +742,18 @@ def _sanitize_produto_extraido(prod: Dict[str, Any]) -> Dict[str, Any]:
     """Normaliza campos antes de instanciar ProdutoCreate para evitar descartes por validacao."""
     data = dict(prod) if isinstance(prod, dict) else {}
 
-    extras = data.get("dados_brutos_adicionais") or data.get("dados_brutos_web") or {}
-    if not isinstance(extras, dict):
-        extras = {"dados_brutos_raw": str(extras)}
+    # Une dados_brutos_adicionais + dados_brutos_web para nao perder contexto util.
+    extras: Dict[str, Any] = {}
+    for raw_key in ("dados_brutos_adicionais", "dados_brutos_web"):
+        raw_payload = data.get(raw_key)
+        if isinstance(raw_payload, dict):
+            for key, value in raw_payload.items():
+                if key in extras and extras.get(key) != value:
+                    extras[f"{raw_key}_{key}"] = value
+                else:
+                    extras[key] = value
+        elif raw_payload not in (None, "", [], {}):
+            extras[f"{raw_key}_raw"] = str(raw_payload)
 
     nome_base = data.get("nome_base")
     if nome_base is not None:
@@ -807,6 +853,21 @@ def _sanitize_produto_extraido(prod: Dict[str, Any]) -> Dict[str, Any]:
         descricao_parece_peca = _texto_parece_nome_peca(descricao_original)
         descricao_parece_aplicacao = _texto_parece_aplicacao_veicular(descricao_original)
         extras["descricao_substituida_por_categoria"] = True
+
+    # Se descricao atual e apenas aplicacao e categoria contem nome de peca,
+    # prioriza categoria como descricao principal.
+    if (
+        descricao_util
+        and descricao_parece_aplicacao
+        and categoria_original
+        and _texto_parece_nome_peca(categoria_original)
+    ):
+        data["descricao_original"] = categoria_original[:5000]
+        descricao_original = data["descricao_original"]
+        descricao_util = _texto_tem_contexto(descricao_original)
+        descricao_parece_peca = _texto_parece_nome_peca(descricao_original)
+        descricao_parece_aplicacao = _texto_parece_aplicacao_veicular(descricao_original)
+        extras["descricao_aplicacao_substituida_por_categoria"] = True
 
     # Tenta recuperar descricao util a partir de dados brutos (colunas nao mapeadas).
     if not descricao_util and isinstance(extras, dict):
@@ -1416,8 +1477,8 @@ async def _tarefa_processar_catalogo(
                 f"Resumo final: status={final_status}",
                 (
                     f"Criados={created_count}, Atualizados={updated_count}, "
-                    f"Erros={errors_count}, DescartesNaoCriticos={ignored_count}, "
-                    f"QuarentenaNaoCritica={quarantine_count}"
+                    f"Erros={errors_count}, Descartes n\u00e3o cr\u00edticos={ignored_count}, "
+                    f"Quarentena n\u00e3o cr\u00edtica={quarantine_count}"
                 ),
             ],
         }
@@ -1438,11 +1499,11 @@ async def _tarefa_processar_catalogo(
             result_summary["log"].append(f"Top linhas em quarentena: {top_quarantine_log}")
         if accepted_quality_avg is not None:
             result_summary["log"].append(
-                f"Score medio de qualidade (aceitas): {accepted_quality_avg}"
+                f"Score m\u00e9dio de qualidade (aceitas): {accepted_quality_avg}"
             )
         if quarantine_quality_avg is not None:
             result_summary["log"].append(
-                f"Score medio de qualidade (quarentena): {quarantine_quality_avg}"
+                f"Score m\u00e9dio de qualidade (quarentena): {quarantine_quality_avg}"
             )
         if has_partial_success:
             result_summary["log"].append(

@@ -58,17 +58,28 @@ const timestamp = () => new Date().toLocaleTimeString('pt-BR');
 const normalizeDisplayText = (value) => {
   if (value === null || value === undefined) return '';
   let text = String(value);
-  const hasMarkers = () => /[\u00c3\u00c2\u00e2\u0192\ufffd]|[?]{2,}/.test(text);
-  for (let i = 0; i < 3 && hasMarkers(); i += 1) {
+  const markerCount = (candidate) => (candidate.match(/[\u00c3\u00c2\u00e2\u0192\ufffd]/g) || []).length;
+  const hasMarkers = (candidate) => markerCount(candidate) > 0 || /[?]{2,}/.test(candidate);
+  const decodeMaybe = (candidate, source) => {
     try {
-      const bytes = Uint8Array.from(Array.from(text).map((ch) => ch.charCodeAt(0) & 0xff));
-      const decoded = new TextDecoder('utf-8', { fatal: false }).decode(bytes);
-      if (!decoded || decoded === text) break;
-      text = decoded;
+      return new TextDecoder('utf-8', { fatal: false }).decode(
+        Uint8Array.from(Array.from(candidate).map((ch) => ch.charCodeAt(0) & 0xff))
+      );
     } catch {
-      break;
+      return source;
     }
+  };
+
+  for (let i = 0; i < 5 && hasMarkers(text); i += 1) {
+    let improved = text;
+    const decoded = decodeMaybe(text, text);
+    if (decoded && decoded !== text && markerCount(decoded) <= markerCount(improved)) {
+      improved = decoded;
+    }
+    if (improved === text) break;
+    text = improved;
   }
+
   text = text.replaceAll('ÃƒÂ', 'Ã').replaceAll('Â', '');
 
   const replacements = [
@@ -163,7 +174,12 @@ const ImportCatalogWizard = ({ fornecedor, productTypeId: initialProductTypeId, 
   const appendTimeline = useCallback((message) => {
     if (!message) return;
     const safeMessage = normalizeDisplayText(message);
-    setStatusTimeline((prev) => [...prev, `[${timestamp()}] ${safeMessage}`].slice(-120));
+    setStatusTimeline((prev) => {
+      const last = prev[prev.length - 1] || '';
+      const lastMessage = last.replace(/^\[[^\]]+\]\s*/, '');
+      if (lastMessage === safeMessage) return prev;
+      return [...prev, `[${timestamp()}] ${safeMessage}`].slice(-120);
+    });
   }, []);
 
   useEffect(() => {
@@ -416,26 +432,41 @@ const ImportCatalogWizard = ({ fornecedor, productTypeId: initialProductTypeId, 
     let keepPolling = true;
     while (keepPolling && pollRunRef.current === runId) {
       try {
-        const status = await fornecedorService.getImportacaoStatus(id);
+        const statusRaw = await fornecedorService.getImportacaoStatus(id);
+        const statusValue = String(statusRaw?.status || '').trim().toUpperCase();
+        const status = {
+          ...statusRaw,
+          status: statusValue || statusRaw?.status || 'PROCESSING',
+        };
         setStatusData(status);
 
         const pagesProcessed = status?.pages_processed ?? 0;
         const pagesTotal = status?.total_pages ?? status?.pages_total ?? expectedPages ?? 0;
         appendTimeline(`Status: ${status.status} | Páginas: ${pagesProcessed}/${pagesTotal}`);
 
-        const terminalStatuses = new Set(['IMPORTED', 'FAILED', 'PARTIAL']);
+        const terminalStatuses = new Set(['IMPORTED', 'DONE', 'FAILED', 'PARTIAL']);
         if (status?.status && terminalStatuses.has(status.status)) {
-          keepPolling = false;
           appendTimeline(`Processamento finalizado com status ${status.status}. Buscando resultado final...`);
           try {
             const res = await fornecedorService.getImportacaoResult(id);
             setResultData(normalizePayloadStrings(res));
             appendTimeline('Resultado final carregado.');
+            keepPolling = false;
           } catch (err) {
-            console.error('Erro ao obter resultado final:', err);
-            const detail = toErrorDetail(err, 'Falha ao obter resultado final da importação.');
-            setError(detail);
-            appendTimeline(`Erro ao obter resultado final: ${detail}`);
+            const detail = normalizeDisplayText(
+              toErrorDetail(err, 'Falha ao obter resultado final da importação.')
+            );
+            const waitingResult =
+              /ainda n[aã]o dispon[ií]veis|not available|still processing/i.test(detail);
+            if (waitingResult) {
+              appendTimeline('Resultado final ainda não disponível. Continuando monitoramento...');
+              keepPolling = true;
+            } else {
+              console.error('Erro ao obter resultado final:', err);
+              setError(detail);
+              appendTimeline(`Erro ao obter resultado final: ${detail}`);
+              keepPolling = false;
+            }
           }
         }
       } catch (err) {
@@ -539,7 +570,7 @@ const ImportCatalogWizard = ({ fornecedor, productTypeId: initialProductTypeId, 
     expectedPages ??
     0;
   const progressPct = pagesTotal > 0 ? Math.min(100, Math.round((pagesProcessed / pagesTotal) * 100)) : 0;
-  const processingActive = !statusData || statusData.status === 'PROCESSING';
+  const processingActive = !statusData || !new Set(['IMPORTED', 'DONE', 'FAILED', 'PARTIAL']).has(String(statusData.status || '').trim().toUpperCase());
   const elapsedSec = processingStartedAt ? Math.max(0, Math.floor((Date.now() - processingStartedAt) / 1000)) : 0;
   const currentStepIndex = Math.max(0, STEP_FLOW.indexOf(step));
   const selectedScopeLabel = applyAllPages
@@ -882,7 +913,7 @@ const ImportCatalogWizard = ({ fornecedor, productTypeId: initialProductTypeId, 
                   Falha: {resultData.errors[0]?.erro_processamento_pdf || resultData.errors[0]?.erro_processamento || 'Verifique os detalhes em Erros/Log.'}
                 </p>
               )}
-              {(statusData?.status === 'IMPORTED' || statusData?.status === 'PARTIAL') && hasPartialSuccess && (
+              {(statusData?.status === 'IMPORTED' || statusData?.status === 'DONE' || statusData?.status === 'PARTIAL') && hasPartialSuccess && (
                 <p className="wizard-result-warning">
                   Importação concluída com alertas: há erros críticos que exigem revisão.
                 </p>

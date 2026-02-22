@@ -58,7 +58,13 @@ describe('ImportCatalogWizard', () => {
       tablePages: [],
     });
 
-    render(<ImportCatalogWizard fornecedor={{ id: 1 }} onClose={() => {}} isOpen />);
+    render(
+      <ImportCatalogWizard
+        fornecedor={{ id: 1, default_column_mapping: { col_0: 'auto:sku_nome' } }}
+        onClose={() => {}}
+        isOpen
+      />
+    );
 
     const fileInput = document.querySelector('input[type="file"]');
     const file = new File(['a'], 'test.pdf', { type: 'application/pdf' });
@@ -100,7 +106,13 @@ describe('ImportCatalogWizard', () => {
       log: [],
     });
 
-    render(<ImportCatalogWizard fornecedor={{ id: 1 }} onClose={() => {}} isOpen />);
+    render(
+      <ImportCatalogWizard
+        fornecedor={{ id: 1, default_column_mapping: { col_0: 'auto:sku_nome' } }}
+        onClose={() => {}}
+        isOpen
+      />
+    );
 
     const fileInput = document.querySelector('input[type="file"]');
     const file = new File(['a'], 'test.pdf', { type: 'application/pdf' });

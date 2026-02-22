@@ -57,6 +57,11 @@ if __name__ == "__main__":
 
     args = parser.parse_args()
 
+    # Uvicorn não permite workers > 1 com reload ativo
+    if args.reload and args.workers > 1:
+        logger.warning("Reload está ativo. Forçando workers=1 (Uvicorn não suporta múltiplos workers com reload).")
+        args.workers = 1
+
     try:
         uvicorn.run(
             "Backend.main:app",  # Alvo: pacote Backend, módulo main.py, objeto app

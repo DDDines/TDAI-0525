@@ -68,7 +68,6 @@ async def send_email(
     }
 
     if template_name:
-        message_data["template_body"] = template_body or {}
         message = MessageSchema(**message_data) # type: ignore
         # print(f"DEBUG: Enviando email com template '{template_name}' para {email_to}")
         # print(f"DEBUG: Template body: {template_body}")
@@ -76,7 +75,7 @@ async def send_email(
         
         fm = FastMail(conf)
         try:
-            await fm.send_message(message, template_name=template_name)
+            await fm.send_message(message, template_name=template_name, template_body=template_body or {})
             logger.info("Email com template '%s' enviado para %s.", template_name, email_to)
         except Exception as e:
             logger.error("Falha ao enviar email com template para %s. Erro: %s", email_to, e)
@@ -140,17 +139,14 @@ async def send_password_reset_email(
     message = MessageSchema(
         subject=subject,
         recipients=[email_to],
-        template_body=template_body, # Para uso com template_name
         subtype=MessageType.html # Garante que o email seja enviado como HTML
     )
 
     fm = FastMail(conf)
     try:
-        await fm.send_message(message, template_name=template_name)
+        await fm.send_message(message, template_name=template_name, template_body=template_body)
         logger.info("Email de reset de senha enviado para %s", email_to)
     except Exception as e:
         logger.error("Falha ao enviar email de reset de senha para %s. Erro: %s", email_to, e)
         # Considerar levantar uma exceção aqui para que o chamador possa tratar
         raise RuntimeError(f"Falha ao enviar email de reset de senha: {e}")
-
-
