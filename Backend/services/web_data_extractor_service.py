@@ -1,4 +1,4 @@
-﻿# catalogai_project/Backend/services/web_data_extractor_service.py
+# catalogai_project/Backend/services/web_data_extractor_service.py
 import asyncio
 import sys
 import time
@@ -12,7 +12,7 @@ from typing import List, Dict, Optional, Any, Tuple
 from fastapi import HTTPException
 from urllib.parse import parse_qs, quote_plus, unquote, urljoin, urlparse
 from urllib.request import Request, urlopen
-from sqlalchemy.orm import Session # Importar Session para type hinting, se necessÃ¡rio
+from sqlalchemy.orm import Session # Importar Session para type hinting, se necessário
 from datetime import datetime, timezone
 from Backend.core.logging_config import get_logger
 
@@ -26,14 +26,14 @@ try:
 except ImportError:
     GOOGLE_API_CLIENT_INSTALLED = False
     logger.warning(
-        "Biblioteca google-api-python-client nÃ£o instalada ou com problemas. Busca no Google pode nÃ£o funcionar."
+        "Biblioteca google-api-python-client não instalada ou com problemas. Busca no Google pode não funcionar."
     )
 
-# Ajustando as importaÃ§Ãµes para serem absolutas a partir da raiz do projeto (Backend)
-# Assumindo que 'Backend' estÃ¡ no sys.path ou Ã© o diretÃ³rio de trabalho.
+# Ajustando as importações para serem absolutas a partir da raiz do projeto (Backend)
+# Assumindo que 'Backend' está no sys.path ou é o diretório de trabalho.
 from Backend.core.config import settings
 from Backend import models
-from Backend.services import ia_generation_service  # ImportaÃ§Ã£o absoluta para o mÃ³dulo irmÃ£o
+from Backend.services import ia_generation_service  # Importação absoluta para o módulo irmão
 
 # --- Google Search Service ---
 def busca_publica_disponivel() -> bool:
@@ -46,6 +46,43 @@ _SEARCH_CACHE_TTL_SECONDS = 600.0
 _SEARCH_CACHE_MAX_ENTRIES = 300
 _SEARCH_CACHE_LOCK: Optional[asyncio.Lock] = None
 _SEARCH_SEMAPHORE: Optional[asyncio.Semaphore] = None
+
+_TRACKING_QUERY_HINTS = (
+    "ad_domain=",
+    "ad_provider=",
+    "click_metadata=",
+    "msclkid=",
+    "vqd=",
+    "ig=",
+    "cid=",
+    "utm_",
+)
+_LOW_RELEVANCE_HOST_HINTS = (
+    "duckduckgo.com",
+    "bing.com",
+    "google.com",
+    "facebook.com",
+    "instagram.com",
+    "tiktok.com",
+    "youtube.com",
+    "linkedin.com",
+    "pinterest.com",
+    "whatsapp.com",
+)
+_PREFERRED_PRODUCT_HOST_HINTS = (
+    "mercadolivre.",
+    "amazon.",
+    "shopee.",
+    "magazineluiza.",
+    "casasbahia.",
+    "jocar.",
+    "dipecarr.",
+    "dana.",
+    "jacto",
+    "minner.",
+    "mundodocaminhao.",
+    "essentra",
+)
 
 
 def _get_search_cache_lock() -> asyncio.Lock:
@@ -87,6 +124,28 @@ async def _search_cache_set(query_key: str, urls: List[str]) -> None:
         _SEARCH_CACHE[query_key] = (now, list(urls))
 
 
+def _score_url_publica(url: str) -> int:
+    parsed = urlparse(url)
+    host = (parsed.netloc or "").lower()
+    path = (parsed.path or "").lower()
+    query = (parsed.query or "").lower()
+    score = 0
+
+    if any(hint in host for hint in _PREFERRED_PRODUCT_HOST_HINTS):
+        score += 24
+    if any(seg in path for seg in ("/produto", "/product", "/peca", "/autopeca", "/p/")):
+        score += 10
+    if path.endswith(".pdf"):
+        score -= 8
+    if any(h in host for h in _LOW_RELEVANCE_HOST_HINTS):
+        score -= 12
+    if any(hint in query for hint in _TRACKING_QUERY_HINTS):
+        score -= 25
+    if len(query) > 280:
+        score -= 8
+    return score
+
+
 def _normalizar_url_busca(candidata: str, base_url: str) -> Optional[str]:
     if not candidata:
         return None
@@ -98,6 +157,8 @@ def _normalizar_url_busca(candidata: str, base_url: str) -> Optional[str]:
 
     parsed = urlparse(url_final)
     host = (parsed.netloc or "").lower()
+    path = (parsed.path or "").lower()
+    query = (parsed.query or "").lower()
 
     # URLs internas/trackers de buscadores não devem entrar no pipeline.
     if "duckduckgo.com" in host:
@@ -123,6 +184,16 @@ def _normalizar_url_busca(candidata: str, base_url: str) -> Optional[str]:
 
     # Alguns resultados vêm como click-tracker do Bing.
     if "bing.com" in host and parsed.path.lower().startswith("/aclick"):
+        return None
+    if "bing.com" in host and path in {"/search", "/images/search"}:
+        return None
+    if "google.com" in host and path in {"/search", "/imgres"}:
+        return None
+    if path in {"/y.js", "/redirect"}:
+        return None
+    if any(hint in query for hint in _TRACKING_QUERY_HINTS):
+        return None
+    if len(query) > 500:
         return None
 
     if parsed.scheme not in {"http", "https"}:
@@ -203,8 +274,10 @@ def _buscar_urls_publicas_sync(query: str, num_results: int = 3) -> List[str]:
                 query,
                 proxy_err,
             )
-
-    return urls
+    deduped_urls = list(dict.fromkeys(urls))
+    scored_urls = sorted(deduped_urls, key=_score_url_publica, reverse=True)
+    filtered_urls = [u for u in scored_urls if _score_url_publica(u) > -20]
+    return filtered_urls[: max(1, num_results)] if filtered_urls else scored_urls[: max(1, num_results)]
 
 
 async def buscar_urls_publicas(query: str, num_results: int = 3) -> List[str]:
@@ -543,12 +616,12 @@ async def extrair_dados_produto_com_llm(
 ) -> Optional[Dict[str, Any]]:
     
     if not texto_pagina and not metadados_normalizados:
-        logger.info("Nenhum texto de pÃ¡gina nem metadados fornecidos para extraÃ§Ã£o LLM.")
-        return {"erro_llm": "Nenhum conteÃºdo para processar"}
+        logger.info("Nenhum texto de página nem metadados fornecidos para extração LLM.")
+        return {"erro_llm": "Nenhum conteúdo para processar"}
 
     prompt_contexto_inicial = [
-        f"VocÃª Ã© um assistente especialista em extrair informaÃ§Ãµes detalhadas de produtos de e-commerce para o produto '{produto_nome_base}'.",
-        "Seu objetivo Ã© preencher um JSON com os campos solicitados da forma mais precisa possÃ­vel, com base no contexto fornecido."
+        f"Você é um assistente especialista em extrair informações detalhadas de produtos de e-commerce para o produto '{produto_nome_base}'.",
+        "Seu objetivo é preencher um JSON com os campos solicitados da forma mais precisa possível, com base no contexto fornecido."
     ]
     contexto_para_llm = ""
     if metadados_normalizados and isinstance(metadados_normalizados, dict) and any(metadados_normalizados.values()):
@@ -556,11 +629,11 @@ async def extrair_dados_produto_com_llm(
         for k, v_item in metadados_normalizados.items():
             contexto_para_llm += f"- {k.replace('_', ' ')}: {str(v_item)[:200]}\n" # Limita o tamanho da string de valor
     if texto_pagina:
-        contexto_para_llm += f"\nTexto Principal da PÃ¡gina (use para encontrar informaÃ§Ãµes e complementar/corrigir metadados):\n\"\"\"\n{texto_pagina[:10000]}\n\"\"\"" # Limita o tamanho do texto
+        contexto_para_llm += f"\nTexto Principal da Página (use para encontrar informações e complementar/corrigir metadados):\n\"\"\"\n{texto_pagina[:10000]}\n\"\"\"" # Limita o tamanho do texto
 
     if not contexto_para_llm.strip():
         logger.info(
-            "Contexto insuficiente para LLM (metadados e texto da pÃ¡gina vazios ou muito curtos)."
+            "Contexto insuficiente para LLM (metadados e texto da página vazios ou muito curtos)."
         )
         return {"erro_llm": "Contexto insuficiente para processar"}
 
@@ -578,12 +651,12 @@ async def extrair_dados_produto_com_llm(
     
     prompt = (
         "\n".join(prompt_contexto_inicial) +
-        f"\n\nA partir do contexto e do texto da pÃ¡gina fornecidos, extraia RIGOROSAMENTE os seguintes campos e retorne APENAS um objeto JSON vÃ¡lido com esta estrutura:\n"
+        f"\n\nA partir do contexto e do texto da página fornecidos, extraia RIGOROSAMENTE os seguintes campos e retorne APENAS um objeto JSON válido com esta estrutura:\n"
         f"{{\n{campos_formatados_prompt}\n}}\n"
-        f"Se uma informaÃ§Ã£o para um campo especÃ­fico nÃ£o for encontrada de forma clara e inequÃ­voca, retorne null para esse campo. NÃ£o invente informaÃ§Ãµes.\n"
+        f"Se uma informação para um campo específico não for encontrada de forma clara e inequívoca, retorne null para esse campo. Não invente informações.\n"
         f"Para campos do tipo lista (ex: 'lista_caracteristicas_beneficios_bullets', 'palavras_chave_seo_relevantes_lista'), retorne uma lista de strings.\n"
-        f"Para campos do tipo dicionÃ¡rio (ex: 'especificacoes_tecnicas_dict'), retorne um dicionÃ¡rio chave-valor.\n"
-        f"\nContexto e Texto para AnÃ¡lise:\n{contexto_para_llm}"
+        f"Para campos do tipo dicionário (ex: 'especificacoes_tecnicas_dict'), retorne um dicionário chave-valor.\n"
+        f"\nContexto e Texto para Análise:\n{contexto_para_llm}"
     )
     
     if user is not None:
@@ -592,26 +665,26 @@ async def extrair_dados_produto_com_llm(
         api_key_para_usar = settings.OPENAI_API_KEY
     if not api_key_para_usar:
         logger.warning(
-            "Nenhuma chave API OpenAI disponÃ­vel para extraÃ§Ã£o de dados com LLM."
+            "Nenhuma chave API OpenAI disponível para extração de dados com LLM."
         )
-        return {"erro_llm": "Chave API OpenAI nÃ£o configurada"}
+        return {"erro_llm": "Chave API OpenAI não configurada"}
 
     json_str_resposta = "" # Inicializa para evitar UnboundLocalError no except
     try:
-        # A funÃ§Ã£o call_openai_api estÃ¡ em ia_generation_service
+        # A função call_openai_api está em ia_generation_service
         prompt_messages = [
             {
                 "role": "system",
-                "content": "Sua tarefa Ã© extrair informaÃ§Ãµes de um texto e retornÃ¡-las em formato JSON conforme o schema solicitado. Seja preciso e nÃ£o adicione campos extras.",
+                "content": "Sua tarefa é extrair informações de um texto e retorná-las em formato JSON conforme o schema solicitado. Seja preciso e não adicione campos extras.",
             },
             {"role": "user", "content": prompt},
         ]
         json_str_resposta = await ia_generation_service.call_openai_api(
             prompt_messages=prompt_messages,
             api_key=api_key_para_usar,
-            model="gpt-3.5-turbo-0125", # Exemplo de modelo, pode ser configurÃ¡vel
+            model="gpt-3.5-turbo-0125", # Exemplo de modelo, pode ser configurável
             max_tokens=2048, # Ajustar conforme necessidade
-            temperature=0.0, # Baixa temperatura para extraÃ§Ã£o factual
+            temperature=0.0, # Baixa temperatura para extração factual
         )
         
         # Tentativa de limpar a resposta da LLM para pegar apenas o JSON
@@ -619,16 +692,16 @@ async def extrair_dados_produto_com_llm(
         if match:
             json_str_limpo = match.group(0)
         else:
-            json_str_limpo = json_str_resposta # Se nÃ£o encontrar JSON delimitado, usa a resposta como estÃ¡
+            json_str_limpo = json_str_resposta # Se não encontrar JSON delimitado, usa a resposta como está
 
         dados_extraidos_llm = json.loads(json_str_limpo)
         
-        # Merge inteligente: prioriza dados da LLM, mas mantÃ©m metadados se LLM nÃ£o fornecer
+        # Merge inteligente: prioriza dados da LLM, mas mantém metadados se LLM não fornecer
         final_data = metadados_normalizados.copy() if metadados_normalizados and isinstance(metadados_normalizados, dict) else {}
         if isinstance(dados_extraidos_llm, dict):
             for key_llm, val_llm in dados_extraidos_llm.items():
-                # Sobrescreve ou adiciona apenas se o valor da LLM nÃ£o for None,
-                # ou se a chave nÃ£o existia nos metadados (para adicionar novos campos extraÃ­dos)
+                # Sobrescreve ou adiciona apenas se o valor da LLM não for None,
+                # ou se a chave não existia nos metadados (para adicionar novos campos extraídos)
                 if val_llm is not None or key_llm not in final_data:
                     final_data[key_llm] = val_llm
         return final_data
@@ -640,27 +713,27 @@ async def extrair_dados_produto_com_llm(
         )
         return {"extracao_bruta_llm_com_erro_json": json_str_resposta, **(metadados_normalizados or {})}
     except ValueError as ve: # Ex: erro de API key na chamada da OpenAI
-        logger.error("Erro na chamada da LLM para extraÃ§Ã£o: %s", ve)
+        logger.error("Erro na chamada da LLM para extração: %s", ve)
         return {"erro_llm": str(ve), **(metadados_normalizados or {})}
     except Exception as e:
         import traceback
-        logger.error("Erro inesperado na extraÃ§Ã£o com LLM: %s", traceback.format_exc())
+        logger.error("Erro inesperado na extração com LLM: %s", traceback.format_exc())
         return {"erro_llm_inesperado": str(e), **(metadados_normalizados or {})}
 
-# FunÃ§Ã£o principal do serviÃ§o de extraÃ§Ã£o, combinando as etapas
-async def extract_relevant_data_from_url( # <--- NOME CORRETO DA FUNÃ‡ÃƒO PRINCIPAL DO SERVIÃ‡O
+# Função principal do serviço de extração, combinando as etapas
+async def extract_relevant_data_from_url( # <--- NOME CORRETO DA FUNCAO PRINCIPAL DO SERVICO
     db: Session, 
     url: str, 
     produto: models.Produto
     ) -> models.Produto:
     """
-    ServiÃ§o completo para buscar dados de uma URL, extrair conteÃºdo, 
+    Serviço completo para buscar dados de uma URL, extrair conteúdo,
     e atualizar o objeto Produto no banco de dados.
     """
     log_enriquecimento: List[Dict[str, Any]] = []
     
     def add_log(level: str, message: str, details: Optional[Dict] = None):
-        entry = {"timestamp": datetime.now(timezone.utc).isoformat(), "level": level, "message": message} # NecessÃ¡rio importar datetime, timezone
+        entry = {"timestamp": datetime.now(timezone.utc).isoformat(), "level": level, "message": message} # Necessário importar datetime, timezone
         if details: entry["details"] = details
         log_enriquecimento.append(entry)
 
@@ -672,7 +745,7 @@ async def extract_relevant_data_from_url( # <--- NOME CORRETO DA FUNÃ‡ÃƒO P
     html_content = await coletar_conteudo_pagina_playwright(url)
 
     if not html_content:
-        add_log("ERROR", "Falha ao coletar HTML da pÃ¡gina.")
+        add_log("ERROR", "Falha ao coletar HTML da página.")
         produto.status_enriquecimento_web = models.StatusEnriquecimentoEnum.FALHOU
         produto.log_enriquecimento_web = log_enriquecimento # Salva o log acumulado
         db.add(produto)
@@ -680,42 +753,42 @@ async def extract_relevant_data_from_url( # <--- NOME CORRETO DA FUNÃ‡ÃƒO P
         db.refresh(produto)
         return produto # Retorna o produto com status de falha
 
-    add_log("INFO", "ConteÃºdo HTML coletado com sucesso.")
+    add_log("INFO", "Conteúdo HTML coletado com sucesso.")
     
     texto_principal = extrair_texto_principal_com_trafilatura(html_content)
-    if texto_principal: add_log("INFO", "Texto principal extraÃ­do com Trafilatura.")
-    else: add_log("WARNING", "NÃ£o foi possÃ­vel extrair texto principal com Trafilatura.")
+    if texto_principal: add_log("INFO", "Texto principal extraído com Trafilatura.")
+    else: add_log("WARNING", "Não foi possível extrair texto principal com Trafilatura.")
 
     metadados_estruturados = extrair_metadados_estruturados(html_content, url)
-    if metadados_estruturados: add_log("INFO", "Metadados estruturados extraÃ­dos.", {"metadata_keys": list(metadados_estruturados.keys())})
+    if metadados_estruturados: add_log("INFO", "Metadados estruturados extraídos.", {"metadata_keys": list(metadados_estruturados.keys())})
     else: add_log("INFO", "Nenhum metadado estruturado (JSON-LD, Microdata, Opengraph) encontrado.")
 
     dados_normalizados_de_meta = _normalizar_dados_de_metadados(metadados_estruturados)
     if dados_normalizados_de_meta: add_log("INFO", "Metadados normalizados.", {"normalized_keys": list(dados_normalizados_de_meta.keys())})
 
-    # Atualizar dados_brutos_web do produto com o que foi encontrado atÃ© agora
+    # Atualizar dados_brutos_web do produto com o que foi encontrado até agora
     if produto.dados_brutos_web is None:
         produto.dados_brutos_web = {}
     
     # Merge inteligente dos dados normalizados em dados_brutos_web
-    # Prioriza novos valores, mas nÃ£o sobrescreve com None se jÃ¡ existir algo
+    # Prioriza novos valores, mas não sobrescreve com None se já existir algo
     for key, value in dados_normalizados_de_meta.items():
         if value is not None or key not in produto.dados_brutos_web:
             produto.dados_brutos_web[key] = value
     
     # Se houver texto principal, tentar usar LLM para refinar/extrair mais campos
-    # Esta Ã© uma decisÃ£o de design - quais campos a LLM deve tentar preencher?
-    # Exemplo: campos que nÃ£o foram bem preenchidos por metadados ou campos mais subjetivos.
+    # Esta é uma decisão de design - quais campos a LLM deve tentar preencher?
+    # Exemplo: campos que não foram bem preenchidos por metadados ou campos mais subjetivos.
     # campos_para_llm = ["descricao_detalhada_longa", "lista_caracteristicas_beneficios_bullets", "publico_alvo_sugestoes", "palavras_chave_seo_relevantes_lista"]
     
-    # Por enquanto, vamos focar em apenas usar os metadados e o texto extraÃ­do pelo trafilatura
-    # A integraÃ§Ã£o com LLM para extraÃ§Ã£o pode ser um passo futuro ou condicional
-    # Se vocÃª quiser habilitar a extraÃ§Ã£o LLM aqui, descomente e ajuste a lÃ³gica abaixo.
+    # Por enquanto, vamos focar em apenas usar os metadados e o texto extraído pelo trafilatura
+    # A integração com LLM para extração pode ser um passo futuro ou condicional
+    # Se você quiser habilitar a extração LLM aqui, descomente e ajuste a lógica abaixo.
     
     # if texto_principal or dados_normalizados_de_meta:
-    #     add_log("INFO", "Tentando extraÃ§Ã£o adicional com LLM.")
-    #     # Pegar usuÃ¡rio do produto para chave API
-    #     user_owner = produto.owner # Assumindo que produto.owner Ã© o objeto User
+    #     add_log("INFO", "Tentando extração adicional com LLM.")
+    #     # Pegar usuário do produto para chave API
+    #     user_owner = produto.owner # Assumindo que produto.owner é o objeto User
     #     dados_llm = await extrair_dados_produto_com_llm(
     #         texto_pagina=texto_principal,
     #         metadados_normalizados=dados_normalizados_de_meta,
@@ -725,30 +798,30 @@ async def extract_relevant_data_from_url( # <--- NOME CORRETO DA FUNÃ‡ÃƒO P
     #     )
     #     if dados_llm:
     #         if "erro_llm" in dados_llm or "erro_llm_inesperado" in dados_llm:
-    #             add_log("WARNING", "ExtraÃ§Ã£o com LLM encontrou um problema.", {"llm_error_details": dados_llm})
+    #             add_log("WARNING", "Extração com LLM encontrou um problema.", {"llm_error_details": dados_llm})
     #         else:
-    #             add_log("INFO", "Dados extraÃ­dos/refinados com LLM.", {"llm_extracted_keys": list(dados_llm.keys())})
+    #             add_log("INFO", "Dados extraídos/refinados com LLM.", {"llm_extracted_keys": list(dados_llm.keys())})
     #             for key, value in dados_llm.items():
-    #                 # Merge mais uma vez, priorizando LLM se nÃ£o for erro
+    #                 # Merge mais uma vez, priorizando LLM se não for erro
     #                 if value is not None or key not in produto.dados_brutos_web:
     #                     produto.dados_brutos_web[key] = value
     #     else:
     #         add_log("INFO", "Nenhum dado adicional retornado pela LLM ou LLM desabilitada.")
 
 
-    # Salva o texto principal se extraÃ­do, para referÃªncia ou uso posterior
+    # Salva o texto principal se extraído, para referência ou uso posterior
     if texto_principal and isinstance(produto.dados_brutos_web, dict):
          produto.dados_brutos_web['texto_pagina_extraido'] = texto_principal[:15000]  # Limita o tamanho
 
     produto.status_enriquecimento_web = models.StatusEnriquecimentoEnum.CONCLUIDO_SUCESSO
-    if not dados_normalizados_de_meta and not texto_principal : # Se nada Ãºtil foi extraÃ­do
+    if not dados_normalizados_de_meta and not texto_principal : # Se nada útil foi extraído
         produto.status_enriquecimento_web = models.StatusEnriquecimentoEnum.NENHUMA_FONTE_ENCONTRADA
-        add_log("WARNING", "Nenhuma informaÃ§Ã£o Ãºtil (metadados ou texto principal) foi extraÃ­da da URL.")
+        add_log("WARNING", "Nenhuma informação útil (metadados ou texto principal) foi extraída da URL.")
     elif not dados_normalizados_de_meta and texto_principal:
          produto.status_enriquecimento_web = models.StatusEnriquecimentoEnum.CONCLUIDO_COM_DADOS_PARCIAIS # Apenas texto, sem metadados estruturados
-         add_log("INFO", "Enriquecimento concluÃ­do com dados parciais (apenas texto da pÃ¡gina).")
+         add_log("INFO", "Enriquecimento concluído com dados parciais (apenas texto da página).")
     else:
-        add_log("INFO", "Enriquecimento web concluÃ­do com sucesso.")
+        add_log("INFO", "Enriquecimento web concluído com sucesso.")
 
 
     produto.log_enriquecimento_web = log_enriquecimento
@@ -766,7 +839,7 @@ def extract_text_from_image_region(image_bytes: bytes):
         from google.cloud import vision  # type: ignore
     except Exception as e:  # pragma: no cover - optional dependency
         logger.exception("Google Cloud Vision not available")
-        raise HTTPException(status_code=500, detail="Ocorreu um erro durante a extraÃ§Ã£o de dados.") from e
+        raise HTTPException(status_code=500, detail="Ocorreu um erro durante a extração de dados.") from e
 
     try:
         logger.debug("Enviando para a API de OCR")
@@ -779,5 +852,4 @@ def extract_text_from_image_region(image_bytes: bytes):
         return response.full_text_annotation
     except Exception as e:
         logger.exception("Falha ao extrair texto da imagem")
-        raise HTTPException(status_code=500, detail="Ocorreu um erro durante a extraÃ§Ã£o de dados.") from e
-
+        raise HTTPException(status_code=500, detail="Ocorreu um erro durante a extração de dados.") from e

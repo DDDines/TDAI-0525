@@ -19,6 +19,7 @@ from fastapi import (
     UploadFile,
     status,
 )
+from fastapi.responses import JSONResponse
 import io
 import json
 import logging
@@ -379,6 +380,42 @@ def _nome_parece_cabecalho_anotacao(value: Any) -> bool:
     return False
 
 
+def _nome_parece_ruido_ocr(value: Any) -> bool:
+    """Detecta nomes curtos/codificados típicos de ruído OCR sem semântica de peça."""
+    text = _fold_ascii_text(value)
+    if not text:
+        return False
+    if _texto_parece_nome_peca(text) or _nome_parece_cabecalho_anotacao(text):
+        return False
+
+    tokens = [tok for tok in text.split(" ") if tok]
+    if not tokens:
+        return False
+
+    meaningful_alpha = [tok for tok in tokens if tok.isalpha() and len(tok) >= 4]
+    if meaningful_alpha:
+        return False
+
+    numeric_tokens = [tok for tok in tokens if tok.isdigit()]
+    short_alpha_tokens = [tok for tok in tokens if tok.isalpha() and len(tok) <= 3]
+    mixed_tokens = [tok for tok in tokens if re.search(r"[a-z]", tok) and re.search(r"\d", tok)]
+
+    if len(tokens) <= 3 and (short_alpha_tokens or mixed_tokens):
+        if numeric_tokens or mixed_tokens:
+            return True
+        if sum(len(tok) for tok in tokens) <= 8:
+            return True
+
+    compact = "".join(tokens)
+    if compact:
+        letters = sum(ch.isalpha() for ch in compact)
+        digits = sum(ch.isdigit() for ch in compact)
+        if len(compact) <= 7 and letters <= 3 and digits >= 2:
+            return True
+
+    return False
+
+
 def _avaliar_qualidade_linha_produto(data: Dict[str, Any]) -> Optional[str]:
     """Detecta ruído OCR que ainda passou no parser e evita contaminar base."""
     if not isinstance(data, dict):
@@ -415,6 +452,7 @@ def _avaliar_qualidade_linha_produto(data: Dict[str, Any]) -> Optional[str]:
     sku_compacto = re.sub(r"[^0-9A-Za-z]", "", sku).lower()
     nome_numerico = bool(nome_compacto) and nome_compacto.isdigit()
     nome_codigo_peca = _texto_parece_codigo_peca(nome)
+    nome_ruido_ocr = _nome_parece_ruido_ocr(nome)
     nome_fold = (
         unicodedata.normalize("NFKD", nome)
         .encode("ascii", errors="ignore")
@@ -426,9 +464,14 @@ def _avaliar_qualidade_linha_produto(data: Dict[str, Any]) -> Optional[str]:
 
     if _nome_parece_cabecalho_anotacao(nome):
         return "Linha descartada por baixa qualidade: cabecalho de anotacoes"
+    if nome_ruido_ocr and not descricao_peca and not categoria_peca:
+        if descricao_aplicacao or categoria_aplicacao or not has_context:
+            return "Linha descartada por baixa qualidade: nome com padrao de ruido OCR"
 
     # Sem identificador e sem nome relevante => ruído.
     if not sku and not ean:
+        if nome_ruido_ocr and not (descricao_peca or categoria_peca):
+            return "Linha descartada por baixa qualidade: nome com padrao de ruido OCR"
         if nome_codigo_peca and not (descricao_peca or categoria_peca):
             if descricao_aplicacao or categoria_aplicacao:
                 return "Linha descartada por baixa qualidade: codigo sem descricao de peca"
@@ -464,6 +507,9 @@ def _avaliar_qualidade_linha_produto(data: Dict[str, Any]) -> Optional[str]:
         and not categoria_peca
     ):
         return "Linha descartada por baixa qualidade: SKU duplicado em nome sem descricao"
+    if sku and nome_ruido_ocr and not descricao_peca and not categoria_peca:
+        if descricao_aplicacao or categoria_aplicacao or not has_context:
+            return "Linha descartada por baixa qualidade: SKU com nome fraco sem descricao de peca"
     if sku and nome_numerico and not descricao_peca and not categoria_peca:
         return "Linha descartada por baixa qualidade: nome numerico sem contexto"
     if (
@@ -580,11 +626,22 @@ def _classificar_qualidade_linha_produto(data: Dict[str, Any]) -> Dict[str, Any]
     nome_igual_sku = bool(nome_compacto and sku_compacto and nome_compacto == sku_compacto)
     nome_numerico = bool(nome_compacto) and nome_compacto.isdigit()
     nome_codigo_peca = _texto_parece_codigo_peca(nome)
+    nome_ruido_ocr = _nome_parece_ruido_ocr(nome)
 
     descricao_peca = _texto_parece_nome_peca(descricao)
     categoria_peca = _texto_parece_nome_peca(categoria)
     descricao_aplicacao = _texto_parece_aplicacao_veicular(descricao)
     categoria_aplicacao = _texto_parece_aplicacao_veicular(categoria)
+
+    if nome_ruido_ocr and not descricao_peca and not categoria_peca:
+        reason = "Linha em quarentena: nome com padrao de ruido OCR"
+        if descricao_aplicacao or categoria_aplicacao:
+            reason = "Linha em quarentena: nome fraco e contexto apenas de aplicacao"
+        return {
+            "decision": "quarantine",
+            "score": min(score, 50),
+            "reason": reason,
+        }
 
     if (nome_igual_sku or nome_codigo_peca) and not descricao_peca and not categoria_peca:
         reason = "Linha em quarentena: nome parece codigo sem descricao confiavel"
@@ -835,6 +892,7 @@ def _sanitize_produto_extraido(prod: Dict[str, Any]) -> Dict[str, Any]:
     nome_numerico = bool(nome_compacto) and nome_compacto.isdigit()
     nome_codigo_peca = _texto_parece_codigo_peca(nome_base)
     nome_igual_sku = bool(nome_compacto and sku_compacto and nome_compacto == sku_compacto)
+    nome_ruido_ocr = _nome_parece_ruido_ocr(nome_base)
     descricao_util = _texto_tem_contexto(descricao_original)
     descricao_parece_peca = _texto_parece_nome_peca(descricao_original)
     descricao_parece_aplicacao = _texto_parece_aplicacao_veicular(descricao_original)
@@ -869,14 +927,30 @@ def _sanitize_produto_extraido(prod: Dict[str, Any]) -> Dict[str, Any]:
         descricao_parece_aplicacao = _texto_parece_aplicacao_veicular(descricao_original)
         extras["descricao_aplicacao_substituida_por_categoria"] = True
 
+    nome_fraco = (
+        not nome_base
+        or nome_numerico
+        or nome_codigo_peca
+        or nome_igual_sku
+        or nome_ruido_ocr
+        or _nome_parece_cabecalho_anotacao(nome_base)
+    )
+
     # Tenta recuperar descricao util a partir de dados brutos (colunas nao mapeadas).
-    if not descricao_util and isinstance(extras, dict):
+    # Também corrige casos em que a descricao atual é apenas aplicacao veicular.
+    should_try_raw_part = (
+        not descricao_util
+        or (descricao_parece_aplicacao and nome_fraco)
+        or (nome_fraco and not descricao_parece_peca)
+    )
+    if should_try_raw_part and isinstance(extras, dict):
         for raw_key, raw_value in extras.items():
             candidate = str(raw_value or "").strip()
             if not candidate:
                 continue
             if _texto_parece_nome_peca(candidate):
-                data["descricao_original"] = candidate[:5000]
+                if data.get("descricao_original") != candidate:
+                    data["descricao_original"] = candidate[:5000]
                 descricao_original = data["descricao_original"]
                 descricao_util = _texto_tem_contexto(descricao_original)
                 descricao_parece_peca = _texto_parece_nome_peca(descricao_original)
@@ -890,6 +964,7 @@ def _sanitize_produto_extraido(prod: Dict[str, Any]) -> Dict[str, Any]:
         or nome_numerico
         or nome_codigo_peca
         or nome_igual_sku
+        or nome_ruido_ocr
         or _nome_parece_cabecalho_anotacao(nome_base)
     ):
         if descricao_parece_peca or nome_numerico or (not nome_base and not descricao_parece_aplicacao):
@@ -3209,11 +3284,16 @@ def importar_catalogo_status_simple(
         status = "PROCESSING"
 
     total_pages = record.total_pages or 0
+    result_ready = bool(
+        record.status in {"IMPORTED", "PARTIAL", "DONE", "FAILED"}
+        and record.result_summary
+    )
     return {
         "status": status,
         "total_pages": total_pages,
         "pages_total": total_pages,
         "pages_processed": record.pages_processed,
+        "result_ready": result_ready,
     }
 
 
@@ -3224,7 +3304,7 @@ def importar_catalogo_status_simple(
 
     "/importar-catalogo-result/{file_id}/",
 
-    response_model=schemas.CatalogImportResult,
+    response_model=Union[schemas.CatalogImportResult, schemas.CatalogImportResultPending],
 
 )
 
@@ -3252,9 +3332,16 @@ def importar_catalogo_result(
 
         raise HTTPException(status_code=404, detail="Arquivo n\u00e3o encontrado")
 
-    if record.status not in ["IMPORTED", "PARTIAL", "DONE", "FAILED"] or not record.result_summary:
-
-        raise HTTPException(status_code=400, detail="Resultados ainda n\u00e3o dispon\u00edveis")
+    terminal_status = record.status in ["IMPORTED", "PARTIAL", "DONE", "FAILED"]
+    if not terminal_status or not record.result_summary:
+        return JSONResponse(
+            status_code=status.HTTP_202_ACCEPTED,
+            content={
+                "ready": False,
+                "status": record.status or "PROCESSING",
+                "detail": "Resultados ainda n\u00e3o dispon\u00edveis",
+            },
+        )
 
     return record.result_summary
 

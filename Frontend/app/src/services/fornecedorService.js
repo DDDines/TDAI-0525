@@ -229,11 +229,26 @@ export const getImportacaoStatus = async (fileId) => {
 export const getImportacaoResult = async (fileId) => {
   try {
     const response = await apiClient.get(`/produtos/importar-catalogo-result/${fileId}/`);
-    return response.data;
+    if (response.status === 202) {
+      return {
+        ready: false,
+        status: response.data?.status || 'PROCESSING',
+        detail:
+          response.data?.detail ||
+          'Resultado final ainda não disponível. Continue monitorando o status.',
+      };
+    }
+    return {
+      ready: true,
+      ...response.data,
+    };
   } catch (error) {
     console.error(`Erro ao obter resultado do arquivo ${fileId}:`, JSON.stringify(error.response?.data || error.message || error));
     if (error.response && error.response.data) {
-      throw error.response.data;
+      throw {
+        ...error.response.data,
+        http_status: error.response.status,
+      };
     }
     throw new Error(error.message || 'Falha ao obter resultado da importação');
   }

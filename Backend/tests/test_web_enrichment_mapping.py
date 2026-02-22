@@ -44,7 +44,7 @@ def test_build_payload_populates_visible_fields_and_dynamic_attributes():
         "moeda_preco": "BRL",
     }
 
-    update_fields, notes = _build_payload_enriquecimento_visivel(produto, dados)
+    update_fields, notes, ignored = _build_payload_enriquecimento_visivel(produto, dados)
 
     assert update_fields["nome_chat_api"] == "Suporte Fixacao Apara Barro Randon 695mm"
     assert update_fields["descricao_original"].startswith("Codigo: SP1081")
@@ -61,6 +61,7 @@ def test_build_payload_populates_visible_fields_and_dynamic_attributes():
     assert dyn["material"] == "metal"
     assert dyn["aplicacao"] == "Todos"
     assert any("dynamic_attributes=" in note for note in notes)
+    assert ignored == []
 
 
 def test_build_payload_does_not_override_existing_values():
@@ -87,7 +88,7 @@ def test_build_payload_does_not_override_existing_values():
         "preco": "199,90",
     }
 
-    update_fields, notes = _build_payload_enriquecimento_visivel(produto, dados)
+    update_fields, notes, ignored = _build_payload_enriquecimento_visivel(produto, dados)
 
     assert "nome_chat_api" not in update_fields
     assert "descricao_original" not in update_fields
@@ -105,6 +106,7 @@ def test_build_payload_does_not_override_existing_values():
     assert dyn["material"] == "smc"
     assert dyn["marca"] == "Nova Marca"
     assert any("dynamic_attributes=" in note for note in notes)
+    assert any(item.startswith("nome_chat_api:") for item in ignored)
 
 
 def test_build_payload_replaces_suspicious_code_on_dynamic_id():
@@ -117,7 +119,7 @@ def test_build_payload_replaces_suspicious_code_on_dynamic_id():
         "descricao_curta": "Codigo: SP1081 Marca: XPTO",
     }
 
-    update_fields, _ = _build_payload_enriquecimento_visivel(produto, dados)
+    update_fields, _, _ = _build_payload_enriquecimento_visivel(produto, dados)
 
     assert "dynamic_attributes" in update_fields
     assert update_fields["dynamic_attributes"]["id"] == "SP1081"
@@ -140,7 +142,7 @@ def test_build_payload_respects_template_key_with_suffix_using_label_alias():
         "sku": "ABC123",
     }
 
-    update_fields, _ = _build_payload_enriquecimento_visivel(produto, dados)
+    update_fields, _, _ = _build_payload_enriquecimento_visivel(produto, dados)
 
     dyn = update_fields["dynamic_attributes"]
     assert dyn["titulo_auto"] == "Paralama Dianteiro"
@@ -164,12 +166,35 @@ def test_build_payload_migrates_existing_alias_value_to_template_key():
         ),
     )
 
-    update_fields, _ = _build_payload_enriquecimento_visivel(produto, {})
+    update_fields, _, _ = _build_payload_enriquecimento_visivel(produto, {})
     dyn = update_fields["dynamic_attributes"]
 
     assert dyn["titulo_auto"] == "Titulo legado"
     assert dyn["id_auto"] == "ID-LEGADO"
     assert dyn["desc_auto"] == "Descricao legado"
+
+
+def test_build_payload_replaces_weak_existing_description_and_name():
+    produto = _make_product(
+        nome_chat_api="as 927",
+        descricao_original="Actros 2651 - 2016",
+        descricao_chat_api="Actros 2651 - 2016",
+    )
+    dados = {
+        "nome": "Suporte Fixacao do Para-choque",
+        "descricao_curta": "Suporte de fixacao em metal com aplicacao em linha pesada.",
+        "sku": "SP1081",
+    }
+
+    update_fields, notes, ignored = _build_payload_enriquecimento_visivel(produto, dados)
+
+    assert update_fields["nome_chat_api"] == "Suporte Fixacao do Para-choque"
+    assert update_fields["descricao_original"].startswith("Suporte de fixacao")
+    assert update_fields["descricao_chat_api"].startswith("Suporte de fixacao")
+    assert "nome_chat_api:substituido_valor_fraco" in notes
+    assert "descricao_original:substituido_valor_fraco" in notes
+    assert "descricao_chat_api:substituido_valor_fraco" in notes
+    assert not any(item.startswith("descricao_original:") for item in ignored)
 
 
 def test_source_relevance_rejects_unrelated_candidate():

@@ -178,7 +178,10 @@ def test_quality_classifier_quarantines_code_like_name_with_application_context_
         }
     )
     assert result["decision"] in {"quarantine", "discard"}
-    assert any(token in (result["reason"] or "").lower() for token in ["codigo", "sem descricao"])
+    assert any(
+        token in (result["reason"] or "").lower()
+        for token in ["codigo", "sem descricao", "ruido ocr"]
+    )
 
 
 def test_quality_filter_accepts_numeric_name_when_description_is_good():
@@ -242,7 +245,10 @@ def test_quality_classifier_quarantines_numeric_name_with_application_only():
         }
     )
     assert result["decision"] in {"quarantine", "discard"}
-    assert any(token in (result["reason"] or "").lower() for token in ["codigo", "sem descricao"])
+    assert any(
+        token in (result["reason"] or "").lower()
+        for token in ["codigo", "sem descricao", "ruido ocr"]
+    )
 
 
 def test_sanitize_promotes_part_name_from_raw_fields():
@@ -314,4 +320,39 @@ def test_quality_filter_rejects_sku_duplicated_name_with_application_only_contex
         }
     )
     assert reason is not None
-    assert "SKU duplicado em nome sem descricao" in reason
+    assert (
+        "SKU duplicado em nome sem descricao" in reason
+        or "ruido OCR" in reason
+    )
+
+
+def test_quality_filter_rejects_ocr_noise_name_with_application_only():
+    reason = _avaliar_qualidade_linha_produto(
+        {
+            "nome_base": "as 927",
+            "sku_original": "8199",
+            "descricao_original": "Actros 2651 - 2016",
+            "categoria_original": "",
+        }
+    )
+    assert reason is not None
+    assert "ruido OCR" in reason
+
+
+def test_sanitize_promotes_part_name_from_raw_when_description_is_application():
+    payload = {
+        "nome_base": "oof D",
+        "sku_original": "8199",
+        "descricao_original": "Actros 2651 - 2016",
+        "dados_brutos_adicionais": {
+            "col_1": "Paralama Duplo",
+            "col_2": "Actros 2651 - 2016",
+        },
+    }
+
+    sanitized = _sanitize_produto_extraido(payload)
+
+    assert sanitized.get("descricao_original") == "Paralama Duplo"
+    assert sanitized.get("nome_base") == "Paralama Duplo"
+    extras = sanitized.get("dados_brutos_adicionais") or {}
+    assert extras.get("descricao_substituida_por_dados_brutos") == "col_1"

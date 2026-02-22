@@ -585,6 +585,9 @@ const ProductEditModal = ({ isOpen, onClose, product, onProductUpdated }) => {
 
     const selectedProductType = productTypes.find(type => type.id === parseInt(formData.product_type_id));
     const attributeTemplates = selectedProductType ? selectedProductType.attribute_templates : [];
+    const enrichmentSummary = formData?.log_enriquecimento_web?.resumo_aplicacao || {};
+    const appliedFields = Array.isArray(enrichmentSummary?.aplicados) ? enrichmentSummary.aplicados : [];
+    const ignoredFields = Array.isArray(enrichmentSummary?.ignorados) ? enrichmentSummary.ignorados : [];
 
     return (
         <>
@@ -763,6 +766,20 @@ const ProductEditModal = ({ isOpen, onClose, product, onProductUpdated }) => {
                     {activeTab === 'log' && (
                         <div className="form-section">
                              <h3>Log de Processamento</h3>
+                             {(appliedFields.length > 0 || ignoredFields.length > 0) && (
+                                 <div style={{ marginBottom: '12px' }}>
+                                     {appliedFields.length > 0 && (
+                                         <div>
+                                             <strong>Campos aplicados:</strong> {appliedFields.join(', ')}
+                                         </div>
+                                     )}
+                                     {ignoredFields.length > 0 && (
+                                         <div>
+                                             <strong>Campos ignorados:</strong> {ignoredFields.join(', ')}
+                                         </div>
+                                     )}
+                                 </div>
+                             )}
                              {formData.log_enriquecimento_web && formData.log_enriquecimento_web.historico_mensagens && formData.log_enriquecimento_web.historico_mensagens.length > 0 ? (
                                  <div className="log-container">
                                      {formData.log_enriquecimento_web.historico_mensagens.map((msg, index) => (

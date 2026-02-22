@@ -1,12 +1,13 @@
 # catalogai_project/Backend/routers/web_enrichment.py
 from fastapi import APIRouter, Depends, HTTPException, status, BackgroundTasks, Query
 from sqlalchemy.orm import Session
-from sqlalchemy.exc import SQLAlchemyError # Para capturar exceÃ§Ãµes do SQLAlchemy
+from sqlalchemy.exc import SQLAlchemyError # Para capturar exceções do SQLAlchemy
 from typing import List, Dict, Any, Optional, Tuple
 import asyncio
 import json
 import re
 import unicodedata
+from urllib.parse import urlparse
 
 from Backend import crud_users
 from Backend import crud_produtos
@@ -157,6 +158,133 @@ def _extract_signals_from_description(text: Any) -> Dict[str, str]:
     return extracted
 
 
+_PLACEHOLDER_HINTS = {
+    "n a",
+    "na",
+    "none",
+    "null",
+    "sem descricao",
+    "sem informacao",
+    "nao informado",
+    "nao informada",
+    "todos",
+    "todas",
+    "geral",
+}
+_PART_NAME_HINTS = (
+    "paralama",
+    "estribo",
+    "suporte",
+    "defletor",
+    "ponteira",
+    "cobertura",
+    "mascara",
+    "revestimento",
+    "pisante",
+    "coluna",
+    "porta",
+    "grade",
+    "farol",
+    "lateral",
+    "painel",
+)
+_APPLICATION_HINTS = (
+    "actros",
+    "cargo",
+    "constellation",
+    "scania",
+    "randon",
+    "volks",
+    "mercedes",
+    "ford",
+    "iveco",
+    "volvo",
+    "man",
+    "dianteiro",
+    "traseiro",
+)
+
+
+def _contains_part_hint(text_folded: str) -> bool:
+    return any(hint in text_folded for hint in _PART_NAME_HINTS)
+
+
+def _looks_like_application_only(value: Any) -> bool:
+    text = _as_text(value, max_len=500)
+    if not text:
+        return False
+    folded = _fold_text(text)
+    if not folded:
+        return False
+    has_application_hint = any(hint in folded for hint in _APPLICATION_HINTS)
+    has_year = bool(re.search(r"\b(19|20)\d{2}\b", folded))
+    has_range = bool(re.search(r"\b\d{4}\s*-\s*\d{4}\b", text))
+    few_words = len(folded.split()) <= 10
+    return has_application_hint and (has_year or has_range) and few_words and not _contains_part_hint(folded)
+
+
+def _is_weak_existing_field(field_name: str, value: Any) -> bool:
+    text = _as_text(value, max_len=2500)
+    if not text:
+        return True
+    folded = _fold_text(text)
+    if not folded:
+        return True
+    if folded in _PLACEHOLDER_HINTS:
+        return True
+
+    if field_name == "nome_chat_api":
+        if len(folded) < 8:
+            return True
+        if re.fullmatch(r"[0-9./\-\s]+", text):
+            return True
+        if _looks_like_application_only(text):
+            return True
+        return False
+
+    if field_name in {"descricao_original", "descricao_chat_api"}:
+        if len(folded) < 20:
+            return True
+        if _looks_like_application_only(text):
+            return True
+        if "anotac" in folded or "observac" in folded:
+            return True
+        return False
+
+    if field_name == "marca":
+        if len(folded) < 3:
+            return True
+        if folded in {"sm", "s m", "sem marca", "generico"}:
+            return True
+        return False
+
+    return False
+
+
+def _is_weak_dynamic_value(attr_key: str, value: Any) -> bool:
+    text = _as_text(value, max_len=1500)
+    if not text:
+        return True
+    folded = _fold_text(text)
+    if not folded:
+        return True
+    if folded in _PLACEHOLDER_HINTS:
+        return True
+
+    attr_norm = _fold_text(attr_key)
+    if ("descr" in attr_norm or attr_norm == "titulo") and len(folded) < 12:
+        return True
+    if "descr" in attr_norm and _looks_like_application_only(text):
+        return True
+    if ("id" == attr_norm or "codigo" in attr_norm) and _is_suspicious_code(text):
+        return True
+    if ("aplic" in attr_norm or "application" in attr_norm) and folded in {"todos", "todas", "geral"}:
+        return True
+    if "material" in attr_norm and folded in {"todos", "todas", "geral"}:
+        return True
+    return False
+
+
 _RELEVANCE_STOPWORDS = {
     "de",
     "da",
@@ -237,6 +365,109 @@ def _is_source_relevant_for_product(
     return len(overlap) >= 2 or code_hit
 
 
+_URL_TRACKING_HINTS = (
+    "ad_domain=",
+    "ad_provider=",
+    "click_metadata=",
+    "msclkid=",
+    "utm_",
+    "vqd=",
+)
+_URL_HOST_LOW_SIGNAL = (
+    "duckduckgo.com",
+    "bing.com",
+    "google.com",
+    "facebook.com",
+    "instagram.com",
+    "linkedin.com",
+    "youtube.com",
+    "tiktok.com",
+)
+_URL_HOST_HIGH_SIGNAL = (
+    "mercadolivre.",
+    "amazon.",
+    "shopee.",
+    "magazineluiza.",
+    "casasbahia.",
+    "jocar.",
+    "dipecarr.",
+    "dana.",
+    "jacto",
+    "minner.",
+    "mundodocaminhao.",
+    "essentra",
+)
+
+
+def _extrair_dominio_fornecedor(site_url: Any) -> str:
+    try:
+        parsed = urlparse(str(site_url or "").strip())
+        if parsed.netloc:
+            return parsed.netloc.lower()
+        raw = str(site_url or "").strip().lower()
+        return raw.split("//")[-1].split("/")[0]
+    except Exception:
+        return ""
+
+
+def _score_url_para_produto(
+    db_produto_obj: models.Produto,
+    candidate_url: str,
+    fornecedor_domain: str = "",
+) -> int:
+    parsed = urlparse(str(candidate_url or "").strip())
+    host = (parsed.netloc or "").lower()
+    path = (parsed.path or "").lower()
+    query = (parsed.query or "").lower()
+    if not host:
+        return -999
+
+    score = 0
+    if fornecedor_domain and fornecedor_domain in host:
+        score += 45
+    if any(h in host for h in _URL_HOST_HIGH_SIGNAL):
+        score += 18
+    if any(h in host for h in _URL_HOST_LOW_SIGNAL):
+        score -= 20
+    if path.endswith(".pdf"):
+        score -= 10
+    if path in {"/y.js", "/redirect", "/search"}:
+        score -= 40
+    if any(h in query for h in _URL_TRACKING_HINTS):
+        score -= 35
+    if len(query) > 280:
+        score -= 10
+
+    ref_text = " ".join(
+        str(x or "")
+        for x in [db_produto_obj.nome_base, db_produto_obj.sku, db_produto_obj.ean, db_produto_obj.marca]
+    )
+    ref_tokens = set(_tokens_for_relevance(ref_text))
+    src_tokens = set(_tokens_for_relevance(f"{host} {path} {query}"))
+    overlap = len(ref_tokens.intersection(src_tokens))
+    score += min(overlap * 6, 24)
+
+    return score
+
+
+def _priorizar_urls_para_enriquecimento(
+    db_produto_obj: models.Produto,
+    urls_candidatas: List[str],
+    fornecedor_domain: str = "",
+    max_urls: int = 4,
+) -> Tuple[List[str], List[Tuple[str, int]]]:
+    deduped = [u for u in dict.fromkeys(urls_candidatas or []) if u]
+    scored: List[Tuple[str, int]] = []
+    for url in deduped:
+        score = _score_url_para_produto(db_produto_obj, url, fornecedor_domain=fornecedor_domain)
+        if score <= -25:
+            continue
+        scored.append((url, score))
+
+    scored.sort(key=lambda item: item[1], reverse=True)
+    return [url for url, _ in scored[: max(1, max_urls)]], scored
+
+
 _LOW_QUALITY_CONTENT_MARKERS = (
     "errors edgesuite net",
     "access denied",
@@ -286,10 +517,11 @@ def _metadata_has_minimum_signal(metadata: Dict[str, Any]) -> bool:
 def _build_payload_enriquecimento_visivel(
     db_produto_obj: models.Produto,
     dados_extraidos_agregados: Dict[str, Any],
-) -> Tuple[Dict[str, Any], List[str]]:
+) -> Tuple[Dict[str, Any], List[str], List[str]]:
     """Converte dados extraidos da web em campos visiveis no modal de produto."""
     update_fields: Dict[str, Any] = {}
     notes: List[str] = []
+    ignored_notes: List[str] = []
 
     nome_web = _as_text(
         _first_non_empty(
@@ -331,34 +563,66 @@ def _build_payload_enriquecimento_visivel(
     material_web = _as_text(dados_extraidos_agregados.get("material"), max_len=120)
     aplicacao_web = _as_text(dados_extraidos_agregados.get("aplicacao"), max_len=400)
 
-    if _is_empty(db_produto_obj.nome_chat_api) and nome_web:
-        update_fields["nome_chat_api"] = nome_web
-        notes.append("nome_chat_api")
+    def _apply_if_empty_or_weak(
+        field_name: str,
+        current_value: Any,
+        new_value: Any,
+        *,
+        allow_replace_weak: bool = False,
+    ) -> None:
+        if _is_empty(new_value):
+            return
+        if _is_empty(current_value):
+            update_fields[field_name] = new_value
+            notes.append(field_name)
+        elif (
+            allow_replace_weak
+            and _is_weak_existing_field(field_name, current_value)
+            and not _is_weak_existing_field(field_name, new_value)
+        ):
+            update_fields[field_name] = new_value
+            notes.append(f"{field_name}:substituido_valor_fraco")
+        else:
+            ignored_notes.append(f"{field_name}:mantido_valor_existente")
 
-    if _is_empty(db_produto_obj.descricao_original) and descricao_web:
-        update_fields["descricao_original"] = descricao_web
-        notes.append("descricao_original")
-
-    if _is_empty(db_produto_obj.descricao_chat_api) and descricao_web:
-        update_fields["descricao_chat_api"] = descricao_web
-        notes.append("descricao_chat_api")
-
-    if _is_empty(db_produto_obj.imagem_principal_url) and imagem_url_web:
-        update_fields["imagem_principal_url"] = imagem_url_web
-        notes.append("imagem_principal_url")
-
-    if _is_empty(db_produto_obj.marca) and marca_web:
-        update_fields["marca"] = marca_web
-        notes.append("marca")
-
+    _apply_if_empty_or_weak(
+        "nome_chat_api",
+        db_produto_obj.nome_chat_api,
+        nome_web,
+        allow_replace_weak=True,
+    )
+    _apply_if_empty_or_weak(
+        "descricao_original",
+        db_produto_obj.descricao_original,
+        descricao_web,
+        allow_replace_weak=True,
+    )
+    _apply_if_empty_or_weak(
+        "descricao_chat_api",
+        db_produto_obj.descricao_chat_api,
+        descricao_web,
+        allow_replace_weak=True,
+    )
+    _apply_if_empty_or_weak(
+        "imagem_principal_url",
+        db_produto_obj.imagem_principal_url,
+        imagem_url_web,
+    )
+    _apply_if_empty_or_weak(
+        "marca",
+        db_produto_obj.marca,
+        marca_web,
+        allow_replace_weak=True,
+    )
     # Evita conflitos de unique com SKU atual: preenche apenas quando vazio.
-    if _is_empty(db_produto_obj.sku) and sku_web:
-        update_fields["sku"] = sku_web
-        notes.append("sku")
+    _apply_if_empty_or_weak("sku", db_produto_obj.sku, sku_web)
 
-    if db_produto_obj.preco_venda is None and preco_web is not None:
-        update_fields["preco_venda"] = preco_web
-        notes.append("preco_venda")
+    if preco_web is not None:
+        if db_produto_obj.preco_venda is None:
+            update_fields["preco_venda"] = preco_web
+            notes.append("preco_venda")
+        else:
+            ignored_notes.append("preco_venda:mantido_valor_existente")
 
     dynamic_current = (
         dict(db_produto_obj.dynamic_attributes)
@@ -377,20 +641,23 @@ def _build_payload_enriquecimento_visivel(
             if attr_key:
                 normalized_key_to_real[_fold_text(attr_key)] = attr_key
             # Labels do template costumam representar o nome funcional (ex.: "ID"),
-            # mesmo quando a chave tÃ©cnica Ã© sufixada (ex.: "id_auto").
+            # mesmo quando a chave técnica é sufixada (ex.: "id_auto").
             label = getattr(tpl, "label", None)
             if attr_key and label:
                 normalized_key_to_real[_fold_text(label)] = attr_key
+
+    dynamic_ignored: List[str] = []
 
     def _set_dynamic_if_empty(
         candidates: List[str],
         value: Any,
         *,
         allow_replace_suspicious: bool = False,
+        allow_replace_weak: bool = False,
     ) -> Optional[str]:
         text_value = _as_text(value)
-        # Se o valor novo vier vazio, tenta reaproveitar aliases antigos jÃ¡ existentes
-        # (ex.: "titulo" -> "titulo_auto") para nÃ£o perder dados em migraÃ§Ãµes.
+        # Se o valor novo vier vazio, tenta reaproveitar aliases antigos já existentes
+        # (ex.: "titulo" -> "titulo_auto") para não perder dados em migrações.
         if not text_value:
             for candidate in candidates:
                 candidate_norm = _fold_text(candidate)
@@ -433,6 +700,14 @@ def _build_payload_enriquecimento_visivel(
         if allow_replace_suspicious and _is_suspicious_code(dynamic_current.get(target_key)):
             dynamic_current[target_key] = text_value
             return target_key
+        if (
+            allow_replace_weak
+            and _is_weak_dynamic_value(target_key, dynamic_current.get(target_key))
+            and not _is_weak_dynamic_value(target_key, text_value)
+        ):
+            dynamic_current[target_key] = text_value
+            return target_key
+        dynamic_ignored.append(str(target_key))
         return None
 
     dynamic_filled: List[str] = []
@@ -461,6 +736,7 @@ def _build_payload_enriquecimento_visivel(
             aliases,
             value,
             allow_replace_suspicious=(aliases[0] in {"id", "codigo_original"}),
+            allow_replace_weak=(aliases[0] in {"titulo", "descricao", "material", "aplicacao", "marca"}),
         )
         if target:
             dynamic_filled.append(target)
@@ -484,8 +760,16 @@ def _build_payload_enriquecimento_visivel(
                     seen.add(item)
                     unique_dynamic.append(item)
             notes.append(f"dynamic_attributes={','.join(unique_dynamic)}")
+    if dynamic_ignored:
+        unique_ignored = []
+        seen_ignored = set()
+        for item in dynamic_ignored:
+            if item not in seen_ignored:
+                seen_ignored.add(item)
+                unique_ignored.append(item)
+        ignored_notes.append(f"dynamic_attributes={','.join(unique_ignored)}")
 
-    return update_fields, notes
+    return update_fields, notes, ignored_notes
 
 async def _tarefa_enriquecer_produto_web(
     db_session_factory,
@@ -513,12 +797,12 @@ async def _tarefa_enriquecer_produto_web(
         else:
             db_produto_obj = query.with_for_update().first()
         if not db_produto_obj:
-            log_mensagens.append(f"ERRO FATAL PRECOCE: Produto ID {produto_id} nÃ£o encontrado.")
+            log_mensagens.append(f"ERRO FATAL PRECOCE: Produto ID {produto_id} não encontrado.")
             logger.error(log_mensagens[-1])
             return
         
         status_original_do_produto_no_inicio_da_tarefa = db_produto_obj.status_enriquecimento_web
-        # NÃ£o mudamos o status para EM_PROGRESSO aqui ainda.
+        # Não mudamos o status para EM_PROGRESSO aqui ainda.
 
     except SQLAlchemyError as e_sql_load:
         log_mensagens.append(
@@ -527,16 +811,16 @@ async def _tarefa_enriquecer_produto_web(
         logger.error(log_mensagens[-1])
         return
 
-    # Esta serÃ¡ a variÃ¡vel que controlarÃ¡ o status a ser salvo no final.
-    # Inicializa com o status que o produto tinha antes da tarefa comeÃ§ar,
+    # Esta será a variável que controlará o status a ser salvo no final.
+    # Inicializa com o status que o produto tinha antes da tarefa começar,
     # ou FALHOU se algo der muito errado antes mesmo de verificarmos as APIs.
     status_para_salvar_no_final: models.StatusEnriquecimentoEnum = status_original_do_produto_no_inicio_da_tarefa
     
-    # Se o status original jÃ¡ era EM_PROGRESSO por algum motivo (ex: tarefa anterior falhou ao limpar),
-    # Ã© melhor considerÃ¡-lo como PENDENTE para esta nova execuÃ§Ã£o ou FALHOU para evitar loops.
+    # Se o status original já era EM_PROGRESSO por algum motivo (ex: tarefa anterior falhou ao limpar),
+    # é melhor considerá-lo como PENDENTE para esta nova execução ou FALHOU para evitar loops.
     # Para simplificar, se estava EM_PROGRESSO, vamos reverter para PENDENTE como base para esta tentativa.
     if status_original_do_produto_no_inicio_da_tarefa == models.StatusEnriquecimentoEnum.EM_PROGRESSO:
-        log_mensagens.append(f"AVISO: Produto {produto_id} encontrado como EM_PROGRESSO no inÃ­cio. Considerando como PENDENTE para esta execuÃ§Ã£o.")
+        log_mensagens.append(f"AVISO: Produto {produto_id} encontrado como EM_PROGRESSO no início. Considerando como PENDENTE para esta execução.")
         status_para_salvar_no_final = models.StatusEnriquecimentoEnum.PENDENTE
 
 
@@ -545,12 +829,12 @@ async def _tarefa_enriquecer_produto_web(
     try:
         user = crud_users.get_user(db, user_id)
         if not user:
-            log_mensagens.append(f"ERRO FATAL: UsuÃ¡rio ID {user_id} nÃ£o encontrado.")
-            # Define um status de falha se o usuÃ¡rio nÃ£o for encontrado.
+            log_mensagens.append(f"ERRO FATAL: Usuário ID {user_id} não encontrado.")
+            # Define um status de falha se o usuário não for encontrado.
             status_para_salvar_no_final = models.StatusEnriquecimentoEnum.FALHOU
-            return # O finally cuidarÃ¡ da atualizaÃ§Ã£o do produto
+            return # O finally cuidará da atualização do produto
 
-        # Verifica configuraÃ§Ãµes crÃ­ticas ANTES de mudar para EM_PROGRESSO
+        # Verifica configurações críticas ANTES de mudar para EM_PROGRESSO
         openai_user_configurada = bool(user.chave_openai_pessoal)
         openai_system_configurada = bool(settings.OPENAI_API_KEY)
         openai_api_configurada = bool(openai_user_configurada or openai_system_configurada)
@@ -565,14 +849,14 @@ async def _tarefa_enriquecer_produto_web(
             f"busca_publica={'sim' if busca_publica_fallback else 'nao'}."
         )
 
-        # Sem OpenAI e sem mecanismo de busca web, nÃ£o hÃ¡ como enriquecer.
+        # Sem OpenAI e sem mecanismo de busca web, não há como enriquecer.
         if not openai_api_configurada and not busca_web_disponivel:
             log_mensagens.append(
-                "AVISO CRÃTICO: Sem OpenAI e sem mecanismo de busca web disponÃ­vel. "
-                "Configure OPENAI_API_KEY (ou chave pessoal do usuÃ¡rio) e/ou Google CSE."
+                "AVISO CRITICO: Sem OpenAI e sem mecanismo de busca web disponivel. "
+                "Configure OPENAI_API_KEY (ou chave pessoal do usuário) e/ou Google CSE."
             )
             status_para_salvar_no_final = models.StatusEnriquecimentoEnum.FALHA_CONFIGURACAO_API_EXTERNA
-            # Opcional: Registrar uso da IA para falha de configuraÃ§Ã£o
+            # Opcional: Registrar uso da IA para falha de configuração
             crud.create_registro_uso_ia(
                 db=db,
                 registro_uso=schemas.RegistroUsoIACreate(
@@ -582,7 +866,7 @@ async def _tarefa_enriquecer_produto_web(
                     modelo_ia="N/A",
                     provedor_ia=None,
                     prompt_utilizado="N/A",
-                    resposta_ia="Falha: ConfiguraÃ§Ãµes de API externas ausentes.",
+                    resposta_ia="Falha: Configurações de API externas ausentes.",
                     creditos_consumidos=0,
                     status="FALHA",
                 ),
@@ -591,16 +875,16 @@ async def _tarefa_enriquecer_produto_web(
 
         if not google_api_configurada and busca_publica_fallback:
             log_mensagens.append(
-                "Google CSE nÃ£o configurado. Usando fallback de busca pÃºblica sem API key."
+                "Google CSE não configurado. Usando fallback de busca pública sem API key."
             )
 
-        # Se especificamente a OpenAI nÃ£o estÃ¡ configurada, mas a Google pode estar.
-        # O enriquecimento LLM nÃ£o serÃ¡ possÃ­vel, mas a busca e extraÃ§Ã£o de metadados sim.
+        # Se especificamente a OpenAI não está configurada, mas a Google pode estar.
+        # O enriquecimento LLM não será possível, mas a busca e extração de metadados sim.
         if not openai_api_configurada:
-            log_mensagens.append("AVISO: Chave API OpenAI nÃ£o configurada. Enriquecimento via LLM serÃ¡ pulado. Outras coletas de dados (Google, metadados) tentarÃ£o prosseguir.")
-            # NÃ£o definimos status_para_salvar_no_final como FALHA_CONFIGURACAO_API_EXTERNA ainda,
-            # pois a busca Google e extraÃ§Ã£o de metadados podem funcionar.
-            # O status final dependerÃ¡ se essas outras etapas coletam algo.
+            log_mensagens.append("AVISO: Chave API OpenAI não configurada. Enriquecimento via LLM será pulado. Outras coletas de dados (Google, metadados) tentarão prosseguir.")
+            # Não definimos status_para_salvar_no_final como FALHA_CONFIGURACAO_API_EXTERNA ainda,
+            # pois a busca Google e extração de metadados podem funcionar.
+            # O status final dependerá se essas outras etapas coletam algo.
             crud.create_registro_uso_ia(
                 db=db,
                 registro_uso=schemas.RegistroUsoIACreate(
@@ -610,7 +894,7 @@ async def _tarefa_enriquecer_produto_web(
                     modelo_ia="N/A",
                     provedor_ia=None,
                     prompt_utilizado="N/A - Config OpenAI pendente para LLM",
-                    resposta_ia="Falha Parcial: Chave API OpenAI nÃ£o configurada para LLM.",
+                    resposta_ia="Falha Parcial: Chave API OpenAI não configurada para LLM.",
                     creditos_consumidos=0,
                     status="FALHA",
                 ),
@@ -618,19 +902,19 @@ async def _tarefa_enriquecer_produto_web(
             # A tarefa continua para tentar coletar dados de outras fontes
 
         # ----- AGORA, definimos o status para EM_PROGRESSO no banco -----
-        # Isso sinaliza que as verificaÃ§Ãµes iniciais passaram e o trabalho real comeÃ§ou.
+        # Isso sinaliza que as verificações iniciais passaram e o trabalho real começou.
         log_mensagens.append(f"Definindo status do produto ID {produto_id} para EM_PROGRESSO no banco.")
         db_produto_obj.status_enriquecimento_web = models.StatusEnriquecimentoEnum.EM_PROGRESSO
         db_produto_obj.log_enriquecimento_web = {"historico_mensagens": log_mensagens} # Salva o log inicial
         db.commit()
         db.refresh(db_produto_obj)
         
-        # O status_para_salvar_no_final serÃ¡ o que resultar do processamento.
-        # Se tudo correr bem, serÃ¡ CONCLUIDO_SUCESSO. Se houver problemas, serÃ¡ outro.
-        # Por default, se nada mudar, consideramos uma falha genÃ©rica ao final do try.
+        # O status_para_salvar_no_final será o que resultar do processamento.
+        # Se tudo correr bem, será CONCLUIDO_SUCESSO. Se houver problemas, será outro.
+        # Por default, se nada mudar, consideramos uma falha genérica ao final do try.
         status_para_salvar_no_final = models.StatusEnriquecimentoEnum.FALHOU 
         
-        # ----- InÃ­cio do Processamento Principal -----
+        # ----- Início do Processamento Principal -----
         query_parts = [db_produto_obj.nome_base]
         if db_produto_obj.sku:
             query_parts.append(db_produto_obj.sku)
@@ -697,28 +981,28 @@ async def _tarefa_enriquecer_produto_web(
                     )
         else:
             log_mensagens.append("Busca web pulada: nenhum provedor de busca disponivel.")
-
-        urls_priorizadas = []
-        if db_produto_obj.fornecedor and db_produto_obj.fornecedor.site_url:
-            try:
-                site_fornecedor_str = str(db_produto_obj.fornecedor.site_url)
-                site_fornecedor_domain = site_fornecedor_str.split("//")[-1].split("/")[0].lower()
-                for url_g in urls_encontradas_brutas:
-                    if site_fornecedor_domain in url_g.lower(): urls_priorizadas.insert(0, url_g)
-                    else: urls_priorizadas.append(url_g)
-            except Exception as e_url_forn:
-                log_mensagens.append(f"AVISO: Erro ao processar URL do fornecedor para priorizaÃ§Ã£o: {e_url_forn}")
-                urls_priorizadas = urls_encontradas_brutas
-        else: urls_priorizadas = urls_encontradas_brutas
-        
-        # Remove duplicatas, prioriza URLs não-PDF e amplia o leque para reduzir falso negativo.
-        urls_priorizadas = [u for u in dict.fromkeys(urls_priorizadas) if u]
-        urls_priorizadas.sort(key=lambda u: 1 if str(u).lower().endswith(".pdf") else 0)
-        urls_a_processar = urls_priorizadas[:4]
+        fornecedor_domain = _extrair_dominio_fornecedor(
+            db_produto_obj.fornecedor.site_url
+            if db_produto_obj.fornecedor and db_produto_obj.fornecedor.site_url
+            else ""
+        )
+        urls_a_processar, urls_scored = _priorizar_urls_para_enriquecimento(
+            db_produto_obj=db_produto_obj,
+            urls_candidatas=urls_encontradas_brutas,
+            fornecedor_domain=fornecedor_domain,
+            max_urls=4,
+        )
+        if urls_scored:
+            ranking_log = ", ".join([f"{score}:{url}" for url, score in urls_scored[:6]])
+            log_mensagens.append(f"Ranking de URLs por relevância: {ranking_log}")
+        elif urls_encontradas_brutas:
+            log_mensagens.append(
+                "URLs encontradas, mas descartadas por baixa relevância/sinal de tracking."
+            )
         dados_coletados_de_fontes_web = False # Flag para saber se algo foi coletado da web
 
         if not urls_a_processar and not busca_web_disponivel:
-            log_mensagens.append("Nenhuma URL para processar (busca web indisponÃ­vel e sem override).")
+            log_mensagens.append("Nenhuma URL para processar (busca web indisponível e sem override).")
             # Sem busca web, o LLM ainda pode tentar com dados brutos.
         elif not urls_a_processar and busca_web_disponivel:
             log_mensagens.append("Nenhuma URL encontrada ou selecionada para processar.")
@@ -728,8 +1012,8 @@ async def _tarefa_enriquecer_produto_web(
             log_mensagens.append(f"Processando URL {i+1}/{len(urls_a_processar)}: {url_processar}")
             html_content = await web_extractor.coletar_conteudo_pagina_playwright(url_processar)
             if not html_content:
-                log_mensagens.append(f"NÃ£o foi possÃ­vel obter conteÃºdo HTML da URL: {url_processar}")
-                continue # Tenta a prÃ³xima URL
+                log_mensagens.append(f"Não foi possível obter conteúdo HTML da URL: {url_processar}")
+                continue # Tenta a próxima URL
 
             texto_principal = web_extractor.extrair_texto_principal_com_trafilatura(html_content)
             metadados_extruct = web_extractor.extrair_metadados_estruturados(html_content, url_processar)
@@ -761,20 +1045,20 @@ async def _tarefa_enriquecer_produto_web(
                 continue
 
             if metadados_normalizados_pagina:
-                log_mensagens.append(f"Metadados normalizados extraÃ­dos da URL {url_processar}: {json.dumps(metadados_normalizados_pagina, indent=2, ensure_ascii=False)}")
+                log_mensagens.append(f"Metadados normalizados extraídos da URL {url_processar}: {json.dumps(metadados_normalizados_pagina, indent=2, ensure_ascii=False)}")
                 dados_extraidos_agregados.update(metadados_normalizados_pagina) # Atualiza com prioridade para novos dados
                 dados_coletados_de_fontes_web = True
             
             if texto_principal:
-                log_mensagens.append(f"Texto principal extraÃ­do da URL {url_processar} (primeiros 300 chars): {texto_principal[:300]}")
-                # Guarda o texto da primeira pÃ¡gina processada com sucesso para possÃ­vel uso pelo LLM
+                log_mensagens.append(f"Texto principal extraído da URL {url_processar} (primeiros 300 chars): {texto_principal[:300]}")
+                # Guarda o texto da primeira página processada com sucesso para possível uso pelo LLM
                 if "texto_relevante_coletado" not in dados_extraidos_agregados:
                     dados_extraidos_agregados["texto_relevante_coletado"] = texto_principal
                 dados_coletados_de_fontes_web = True
             
-            # Se jÃ¡ temos dados suficientes de metadados e texto, podemos parar antes
+            # Se já temos dados suficientes de metadados e texto, podemos parar antes
             if metadados_normalizados_pagina.get("nome") and metadados_normalizados_pagina.get("descricao_curta"):
-                log_mensagens.append(f"Dados chave (nome, descriÃ§Ã£o) encontrados em {url_processar}. Considerando suficiente desta URL.")
+                log_mensagens.append(f"Dados chave (nome, descrição) encontrados em {url_processar}. Considerando suficiente desta URL.")
                 break 
         
         # Etapa de enriquecimento com LLM, se configurado
@@ -790,7 +1074,7 @@ async def _tarefa_enriquecer_produto_web(
             metadados_para_llm = {k: v for k, v in dados_extraidos_agregados.items() if k != "texto_relevante_coletado"}
 
             if texto_para_llm or metadados_para_llm:
-                log_mensagens.append("Iniciando extraÃ§Ã£o/geraÃ§Ã£o com LLM.")
+                log_mensagens.append("Iniciando extração/geração com LLM.")
                 dados_do_llm = await web_extractor.extrair_dados_produto_com_llm(
                     texto_pagina=texto_para_llm,
                     metadados_normalizados=metadados_para_llm,
@@ -802,46 +1086,46 @@ async def _tarefa_enriquecer_produto_web(
                     log_mensagens.append(f"Dados recebidos do LLM: {json.dumps(dados_do_llm, indent=2, ensure_ascii=False)}")
                     if "erro_llm" in dados_do_llm or "erro_llm_inesperado" in dados_do_llm:
                         log_mensagens.append(f"ERRO do LLM: {dados_do_llm.get('erro_llm') or dados_do_llm.get('erro_llm_inesperado')}")
-                        # NÃ£o necessariamente uma falha total do enriquecimento se outros dados foram coletados
-                        if not dados_coletados_de_fontes_web: # Se LLM era a Ãºnica esperanÃ§a e falhou
+                        # Não necessariamente uma falha total do enriquecimento se outros dados foram coletados
+                        if not dados_coletados_de_fontes_web: # Se LLM era a única esperança e falhou
                             status_para_salvar_no_final = models.StatusEnriquecimentoEnum.FALHA_API_EXTERNA
                     else:
                         dados_extraidos_agregados.update(dados_do_llm)
                         dados_coletados_de_fontes_web = True # Se o LLM produziu algo, consideramos coleta
                 else:
-                    log_mensagens.append("LLM nÃ£o retornou dados ou ocorreu erro nÃ£o capturado explicitamente.")
+                    log_mensagens.append("LLM não retornou dados ou ocorreu erro não capturado explicitamente.")
             else:
                 log_mensagens.append("Nenhum texto ou metadado suficiente para enviar ao LLM.")
-        else: # openai_api_configurada Ã© False
-            log_mensagens.append("LLM nÃ£o foi chamado pois a API OpenAI nÃ£o estÃ¡ configurada.")
+        else: # openai_api_configurada é False
+            log_mensagens.append("LLM não foi chamado pois a API OpenAI não está configurada.")
 
-        # DeterminaÃ§Ã£o do status final com base no que foi coletado
-        if status_para_salvar_no_final == models.StatusEnriquecimentoEnum.EM_PROGRESSO or status_para_salvar_no_final == models.StatusEnriquecimentoEnum.FALHOU : # Se nÃ£o houve falha crÃ­tica antes
+        # Determinação do status final com base no que foi coletado
+        if status_para_salvar_no_final == models.StatusEnriquecimentoEnum.EM_PROGRESSO or status_para_salvar_no_final == models.StatusEnriquecimentoEnum.FALHOU : # Se não houve falha crítica antes
             if dados_coletados_de_fontes_web:
                 status_para_salvar_no_final = models.StatusEnriquecimentoEnum.CONCLUIDO_SUCESSO
-                if not openai_api_configurada: # Se coletou dados web mas LLM nÃ£o rodou por config
+                if not openai_api_configurada: # Se coletou dados web mas LLM não rodou por config
                     status_para_salvar_no_final = models.StatusEnriquecimentoEnum.CONCLUIDO_COM_DADOS_PARCIAIS # Ou um novo status como "CONCLUIDO_SEM_LLM"
             elif urls_a_processar: # Tentou processar URLs mas nada foi efetivamente coletado
                 status_para_salvar_no_final = models.StatusEnriquecimentoEnum.NENHUMA_FONTE_ENCONTRADA
             elif busca_web_disponivel and not urls_a_processar:
                 # Busca disponivel, mas nenhum link elegivel foi retornado.
                 status_para_salvar_no_final = models.StatusEnriquecimentoEnum.NENHUMA_FONTE_ENCONTRADA
-            elif not busca_web_disponivel and not openai_api_configurada: # Se nenhuma API/fallback estava ativa e nÃ£o havia URLs override
+            elif not busca_web_disponivel and not openai_api_configurada: # Se nenhuma API/fallback estava ativa e não havia URLs override
                  status_para_salvar_no_final = models.StatusEnriquecimentoEnum.FALHA_CONFIGURACAO_API_EXTERNA
-            elif not busca_web_disponivel and openai_api_configurada and not dados_coletados_de_fontes_web: # Busca off, OpenAI on mas nÃ£o produziu nada
+            elif not busca_web_disponivel and openai_api_configurada and not dados_coletados_de_fontes_web: # Busca off, OpenAI on mas não produziu nada
                  status_para_salvar_no_final = models.StatusEnriquecimentoEnum.NENHUMA_FONTE_ENCONTRADA
-            else: # Caso geral se nÃ£o se encaixar acima, mas o processo "correu"
+            else: # Caso geral se não se encaixar acima, mas o processo "correu"
                  status_para_salvar_no_final = models.StatusEnriquecimentoEnum.FALHOU
 
-        log_mensagens.append(f"Processamento principal concluÃ­do. Status determinado internamente: {status_para_salvar_no_final.value}")
+        log_mensagens.append(f"Processamento principal concluído. Status determinado internamente: {status_para_salvar_no_final.value}")
 
     except Exception as e_main_try:
         import traceback
         error_full = traceback.format_exc()
-        log_mensagens.append(f"ERRO CRÃTICO INESPERADO NO PROCESSO: {str(e_main_try)}. Trace: {error_full}")
+        log_mensagens.append(f"ERRO CRITICO INESPERADO NO PROCESSO: {str(e_main_try)}. Trace: {error_full}")
         status_para_salvar_no_final = models.StatusEnriquecimentoEnum.FALHOU 
         logger.error(
-            "ERRO CRÃTICO INESPERADO na tarefa de enriquecimento para produto ID %s: %s",
+            "ERRO CRITICO INESPERADO na tarefa de enriquecimento para produto ID %s: %s",
             produto_id,
             error_full,
         )
@@ -850,19 +1134,23 @@ async def _tarefa_enriquecer_produto_web(
         if db_produto_obj:
             try:
                 # O status atual no db_produto_obj pode ser EM_PROGRESSO se chegou a commitar.
-                # status_para_salvar_no_final contÃ©m o status que REALMENTE deve ser salvo.
+                # status_para_salvar_no_final contém o status que REALMENTE deve ser salvo.
                 
-                # Se o status no banco ainda Ã© EM_PROGRESSO (porque foi commitado),
-                # mas o status_para_salvar_no_final tambÃ©m ficou EM_PROGRESSO (indicando que talvez a lÃ³gica de determinaÃ§Ã£o final nÃ£o pegou todos os casos),
-                # entÃ£o forÃ§amos para FALHOU para nÃ£o deixar o produto preso em EM_PROGRESSO.
+                # Se o status no banco ainda é EM_PROGRESSO (porque foi commitado),
+                # mas o status_para_salvar_no_final também ficou EM_PROGRESSO (indicando que talvez a lógica de determinação final não pegou todos os casos),
+                # então forçamos para FALHOU para não deixar o produto preso em EM_PROGRESSO.
                 if db_produto_obj.status_enriquecimento_web == models.StatusEnriquecimentoEnum.EM_PROGRESSO and \
                    status_para_salvar_no_final == models.StatusEnriquecimentoEnum.EM_PROGRESSO:
                     status_para_salvar_no_final = models.StatusEnriquecimentoEnum.FALHOU
-                    log_mensagens.append("ALERTA FINALLY: Status final e do DB eram EM_PROGRESSO, forÃ§ando para FALHOU.")
+                    log_mensagens.append("ALERTA FINALLY: Status final e do DB eram EM_PROGRESSO, forçando para FALHOU.")
                 
                 status_valor_str = status_para_salvar_no_final.value
 
-                campos_visiveis_update, notas_campos = _build_payload_enriquecimento_visivel(
+                (
+                    campos_visiveis_update,
+                    notas_campos,
+                    notas_ignoradas,
+                ) = _build_payload_enriquecimento_visivel(
                     db_produto_obj=db_produto_obj,
                     dados_extraidos_agregados=dados_extraidos_agregados,
                 )
@@ -875,12 +1163,25 @@ async def _tarefa_enriquecer_produto_web(
                     log_mensagens.append(
                         "Enriquecimento finalizado sem novos campos visiveis para preencher no produto."
                     )
+                if notas_ignoradas:
+                    log_mensagens.append(
+                        "Campos ignorados (mantidos os valores atuais): "
+                        + ", ".join(notas_ignoradas)
+                    )
+
+                resumo_aplicacao = {
+                    "aplicados": notas_campos,
+                    "ignorados": notas_ignoradas,
+                }
 
                 payload_final_update = schemas.ProdutoUpdate(
                     **campos_visiveis_update,
                     dados_brutos_web=dados_extraidos_agregados,
                     status_enriquecimento_web=status_valor_str, # Passa a string (valor do enum)
-                    log_enriquecimento_web={"historico_mensagens": log_mensagens}
+                    log_enriquecimento_web={
+                        "historico_mensagens": log_mensagens,
+                        "resumo_aplicacao": resumo_aplicacao,
+                    }
                 )
                 crud_produtos.update_produto(db, db_produto=db_produto_obj, produto_update=payload_final_update)
                 log_mensagens.append(f"Produto ID {produto_id} FINALMENTE atualizado com status: {status_valor_str}.")
@@ -891,14 +1192,14 @@ async def _tarefa_enriquecer_produto_web(
                 )
             except Exception as e_final_update:
                 logger.error(
-                    "ERRO CRÃTICO ao tentar atualizaÃ§Ã£o final do produto %s no finally: %s",
+                    "ERRO CRITICO ao tentar atualizacao final do produto %s no finally: %s",
                     produto_id,
                     e_final_update,
                 )
         
         final_status_value_print = status_para_salvar_no_final.value
         logger.info(
-            "Finalizando tarefa de enriquecimento para produto ID: %s. Status determinado para gravaÃ§Ã£o: %s",
+            "Finalizando tarefa de enriquecimento para produto ID: %s. Status determinado para gravação: %s",
             produto_id,
             final_status_value_print,
         )
@@ -911,18 +1212,18 @@ async def iniciar_enriquecimento_produto_web_endpoint(
     produto_id: int,
     background_tasks: BackgroundTasks,
     current_user: models.User = Depends(get_current_active_user),
-    termos_busca_override: Optional[str] = Query(None, description="Opcional: Termos de busca especÃ­ficos para o Google Search."),
+    termos_busca_override: Optional[str] = Query(None, description="Opcional: Termos de busca específicos para o Google Search."),
 ):
     db_temp = SessionLocal()
     try:
         db_produto_check = crud_produtos.get_produto(db_temp, produto_id=produto_id)
         if not db_produto_check:
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Produto nÃ£o encontrado")
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Produto não encontrado")
         if db_produto_check.user_id != current_user.id and not current_user.is_superuser:
-            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="NÃ£o autorizado a enriquecer este produto")
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Não autorizado a enriquecer este produto")
         
         if db_produto_check.status_enriquecimento_web == models.StatusEnriquecimentoEnum.EM_PROGRESSO:
-             raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Processo de enriquecimento jÃ¡ estÃ¡ em andamento para este produto.")
+             raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Processo de enriquecimento já está em andamento para este produto.")
     finally:
         db_temp.close()
 

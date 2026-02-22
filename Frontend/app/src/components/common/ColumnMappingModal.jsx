@@ -1,4 +1,4 @@
-﻿import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import Modal from './Modal.jsx';
 import './ColumnMappingModal.css';
 
@@ -12,6 +12,24 @@ const UNIQUE_BASE_FIELDS = new Set([
   'auto:sku_nome',
 ]);
 
+const normalizeMapping = (value) => {
+  if (!value || typeof value !== 'object') return {};
+  return { ...value };
+};
+
+const areMappingsEqual = (left, right) => {
+  const a = left || {};
+  const b = right || {};
+  const aKeys = Object.keys(a);
+  const bKeys = Object.keys(b);
+
+  if (aKeys.length !== bKeys.length) return false;
+  for (const key of aKeys) {
+    if ((a[key] || '') !== (b[key] || '')) return false;
+  }
+  return true;
+};
+
 function ColumnMappingModal({
   isOpen,
   onClose,
@@ -21,15 +39,27 @@ function ColumnMappingModal({
   productTypes = [],
   productTypeId = '',
   onProductTypeChange,
-  initialMapping = {},
+  initialMapping = null,
   onConfirm,
 }) {
   const [mapping, setMapping] = useState({});
+  const lastSyncedInitialRef = useRef(null);
 
   useEffect(() => {
-    if (isOpen) {
-      setMapping(initialMapping || {});
+    if (!isOpen) {
+      lastSyncedInitialRef.current = null;
+      return;
     }
+
+    const normalizedInitial = normalizeMapping(initialMapping);
+    const shouldSync =
+      lastSyncedInitialRef.current === null ||
+      !areMappingsEqual(lastSyncedInitialRef.current, normalizedInitial);
+
+    if (!shouldSync) return;
+
+    setMapping((prev) => (areMappingsEqual(prev, normalizedInitial) ? prev : normalizedInitial));
+    lastSyncedInitialRef.current = normalizedInitial;
   }, [isOpen, initialMapping]);
 
   const handleChange = (header, value) => {
@@ -188,4 +218,3 @@ function ColumnMappingModal({
 }
 
 export default ColumnMappingModal;
-

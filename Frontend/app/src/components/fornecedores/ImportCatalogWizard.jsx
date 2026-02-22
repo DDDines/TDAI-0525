@@ -1,4 +1,4 @@
-﻿import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import * as fornecedorService from '../../services/fornecedorService';
 import productTypeService from '../../services/productTypeService';
 import LoadingPopup from '../common/LoadingPopup';
@@ -24,6 +24,9 @@ const BASE_FIELD_OPTIONS = [
 
 const FALLBACK_HEADERS = ['col_0', 'col_1', 'col_2', 'col_3', 'col_4'];
 const STEP_FLOW = ['upload', 'preview', 'processing'];
+const POLL_INTERVAL_MS = 2000;
+const MAX_RESULT_WAIT_MS = 60000;
+const MAX_RESULT_ATTEMPTS = 30;
 const STEP_LABELS = {
   upload: 'Upload',
   preview: 'Preview e Mapeamento',
@@ -430,6 +433,9 @@ const ImportCatalogWizard = ({ fornecedor, productTypeId: initialProductTypeId, 
 
   const pollStatus = async (id, runId) => {
     let keepPolling = true;
+    let terminalDetectedAt = null;
+    let resultAttempts = 0;
+    let lastStatusSnapshot = '';
     while (keepPolling && pollRunRef.current === runId) {
       try {
         const statusRaw = await fornecedorService.getImportacaoStatus(id);
@@ -442,23 +448,64 @@ const ImportCatalogWizard = ({ fornecedor, productTypeId: initialProductTypeId, 
 
         const pagesProcessed = status?.pages_processed ?? 0;
         const pagesTotal = status?.total_pages ?? status?.pages_total ?? expectedPages ?? 0;
-        appendTimeline(`Status: ${status.status} | Páginas: ${pagesProcessed}/${pagesTotal}`);
+        const statusSnapshot = `${status.status}|${pagesProcessed}|${pagesTotal}`;
+        if (statusSnapshot !== lastStatusSnapshot) {
+          appendTimeline(`Status: ${status.status} | Páginas: ${pagesProcessed}/${pagesTotal}`);
+          lastStatusSnapshot = statusSnapshot;
+        }
 
         const terminalStatuses = new Set(['IMPORTED', 'DONE', 'FAILED', 'PARTIAL']);
         if (status?.status && terminalStatuses.has(status.status)) {
-          appendTimeline(`Processamento finalizado com status ${status.status}. Buscando resultado final...`);
+          if (!terminalDetectedAt) {
+            terminalDetectedAt = Date.now();
+            appendTimeline(`Processamento finalizado com status ${status.status}. Buscando resultado final...`);
+          }
+          resultAttempts += 1;
+
+          const elapsedWaitingMs = Date.now() - terminalDetectedAt;
+          const statusSignalsReady = Boolean(status?.result_ready);
+          const timeoutExceeded =
+            elapsedWaitingMs >= MAX_RESULT_WAIT_MS || resultAttempts >= MAX_RESULT_ATTEMPTS;
+
+          if (!statusSignalsReady && !timeoutExceeded) {
+            keepPolling = true;
+            continue;
+          }
+
+          if (!statusSignalsReady && timeoutExceeded) {
+            const timeoutMessage =
+              'Processamento concluído, mas o resultado final ainda não ficou disponível. Tente atualizar em instantes.';
+            setError(timeoutMessage);
+            appendTimeline(timeoutMessage);
+            keepPolling = false;
+            continue;
+          }
+
           try {
             const res = await fornecedorService.getImportacaoResult(id);
-            setResultData(normalizePayloadStrings(res));
-            appendTimeline('Resultado final carregado.');
-            keepPolling = false;
+            if (res?.ready === false) {
+              if (timeoutExceeded) {
+                const timeoutMessage =
+                  'Resultado ainda pendente após o tempo limite de espera. Tente atualizar em instantes.';
+                setError(timeoutMessage);
+                appendTimeline(timeoutMessage);
+                keepPolling = false;
+              } else {
+                appendTimeline('Resultado final ainda não disponível. Continuando monitoramento...');
+                keepPolling = true;
+              }
+            } else {
+              setResultData(normalizePayloadStrings(res));
+              appendTimeline('Resultado final carregado.');
+              keepPolling = false;
+            }
           } catch (err) {
             const detail = normalizeDisplayText(
               toErrorDetail(err, 'Falha ao obter resultado final da importação.')
             );
             const waitingResult =
               /ainda n[aã]o dispon[ií]veis|not available|still processing/i.test(detail);
-            if (waitingResult) {
+            if (waitingResult && !timeoutExceeded) {
               appendTimeline('Resultado final ainda não disponível. Continuando monitoramento...');
               keepPolling = true;
             } else {
@@ -477,7 +524,7 @@ const ImportCatalogWizard = ({ fornecedor, productTypeId: initialProductTypeId, 
         keepPolling = false;
       }
       if (keepPolling && pollRunRef.current === runId) {
-        await new Promise((r) => setTimeout(r, 2000));
+        await new Promise((r) => setTimeout(r, POLL_INTERVAL_MS));
       }
     }
   };
@@ -570,8 +617,19 @@ const ImportCatalogWizard = ({ fornecedor, productTypeId: initialProductTypeId, 
     expectedPages ??
     0;
   const progressPct = pagesTotal > 0 ? Math.min(100, Math.round((pagesProcessed / pagesTotal) * 100)) : 0;
-  const processingActive = !statusData || !new Set(['IMPORTED', 'DONE', 'FAILED', 'PARTIAL']).has(String(statusData.status || '').trim().toUpperCase());
+  const terminalStatuses = new Set(['IMPORTED', 'DONE', 'FAILED', 'PARTIAL']);
+  const statusNormalized = String(statusData?.status || '').trim().toUpperCase();
+  const isTerminalStatus = terminalStatuses.has(statusNormalized);
+  const processingActive = !statusData || !isTerminalStatus;
+  const waitingFinalResult = step === 'processing' && isTerminalStatus && !resultData && !error;
   const elapsedSec = processingStartedAt ? Math.max(0, Math.floor((Date.now() - processingStartedAt) / 1000)) : 0;
+  const showLoadingPopup = isLoading || (step === 'processing' && (processingActive || waitingFinalResult));
+  const loadingPopupMessage =
+    step === 'processing' && processingActive
+      ? 'Processando importação do catálogo...'
+      : step === 'processing' && waitingFinalResult
+        ? 'Aguardando consolidação do resultado final...'
+        : loadingMessage || 'Processando...';
   const currentStepIndex = Math.max(0, STEP_FLOW.indexOf(step));
   const selectedScopeLabel = applyAllPages
     ? 'todas as páginas do PDF'
@@ -589,11 +647,11 @@ const ImportCatalogWizard = ({ fornecedor, productTypeId: initialProductTypeId, 
 
   return (
     <div className="wizard-container" aria-live="polite">
-      {isLoading && (
+      {showLoadingPopup && (
         <LoadingPopup
-          message={loadingMessage || 'Processando...'}
-          isOpen={isLoading}
-          details={statusTimeline.slice(-3)}
+          message={loadingPopupMessage}
+          isOpen={showLoadingPopup}
+          details={statusTimeline.slice(-5)}
         />
       )}
 

@@ -1,4 +1,4 @@
-﻿# Caminho: Backend/schemas.py
+# Caminho: Backend/schemas.py
 
 from typing import List, Optional, Dict, Any, Union, Literal
 from pydantic import (
@@ -11,13 +11,13 @@ from pydantic import (
     model_validator,
 )
 from datetime import datetime
-import json  # Para validaÃ§Ã£o de JSON string
+import json  # Para validação de JSON string
 
-# Ã‰ crucial que a importaÃ§Ã£o de 'models' funcione corretamente.
-# Se 'models' estiver no mesmo diretÃ³rio ou em um caminho Python reconhecido,
-# a importaÃ§Ã£o direta pode funcionar. Caso contrÃ¡rio, pode ser necessÃ¡rio um ajuste
-# relativo ou absoluto dependendo de como o projeto Ã© executado.
-# Assumindo que 'models.py' estÃ¡ no mesmo diretÃ³rio (Backend) e Ã© acessÃ­vel:
+# É crucial que a importação de 'models' funcione corretamente.
+# Se 'models' estiver no mesmo diretório ou em um caminho Python reconhecido,
+# a importação direta pode funcionar. Caso contrário, pode ser necessário um ajuste
+# relativo ou absoluto dependendo de como o projeto é executado.
+# Assumindo que 'models.py' está no mesmo diretório (Backend) e é acessível:
 from Backend.models import (
     StatusEnriquecimentoEnum,
     StatusGeracaoIAEnum,
@@ -27,7 +27,7 @@ from Backend.models import (
 )
 
 
-# Schemas de AutenticaÃ§Ã£o e UsuÃ¡rio
+# Schemas de Autenticação e Usuário
 class Token(BaseModel):
     access_token: str
     token_type: str
@@ -35,7 +35,7 @@ class Token(BaseModel):
 
 class TokenData(BaseModel):
     email: Optional[str] = None
-    user_id: Optional[int] = None  # Adicionado para identificar o usuÃ¡rio pelo ID
+    user_id: Optional[int] = None  # Adicionado para identificar o usuário pelo ID
 
 
 class RefreshTokenRequest(BaseModel):
@@ -58,16 +58,16 @@ class UserCreate(UserBase):
     password: str
 
 
-class UserCreateOAuth(UserBase):  # Para criaÃ§Ã£o via OAuth
+class UserCreateOAuth(UserBase):  # Para criação via OAuth
     provider: Optional[str] = None
     provider_user_id: Optional[str] = None
-    # NÃ£o requer password na criaÃ§Ã£o OAuth
+    # Não requer password na criação OAuth
 
 
-class UserUpdate(BaseModel):  # O que o prÃ³prio usuÃ¡rio pode atualizar
+class UserUpdate(BaseModel):  # O que o próprio usuário pode atualizar
     email: Optional[EmailStr] = None
     nome_completo: Optional[str] = None
-    password: Optional[str] = None  # Para alteraÃ§Ã£o de senha
+    password: Optional[str] = None  # Para alteração de senha
     idioma_preferido: Optional[str] = None
     chave_openai_pessoal: Optional[str] = None
     chave_google_gemini_pessoal: Optional[str] = None
@@ -75,7 +75,7 @@ class UserUpdate(BaseModel):  # O que o prÃ³prio usuÃ¡rio pode atualizar
 
 class UserUpdateByAdmin(
     UserUpdate
-):  # O que um admin pode atualizar em qualquer usuÃ¡rio
+):  # O que um admin pode atualizar em qualquer usuário
     is_active: Optional[bool] = None
     is_superuser: Optional[bool] = None
     plano_id: Optional[int] = None
@@ -98,7 +98,7 @@ class UserChangePassword(BaseModel):
     new_password: str = Field(..., min_length=8)
 
 
-class UserResponse(UserBase):  # O que Ã© retornado pela API
+class UserResponse(UserBase):  # O que é retornado pela API
     id: int
     created_at: datetime
     updated_at: datetime
@@ -106,9 +106,9 @@ class UserResponse(UserBase):  # O que Ã© retornado pela API
     limite_enriquecimento_web: Optional[int] = None
     limite_geracao_ia: Optional[int] = None
     data_expiracao_plano: Optional[datetime] = None
-    # Adicionar informaÃ§Ãµes do plano e role se desejado na resposta
-    plano: Optional["PlanoResponse"] = None  # type: ignore  # Evitar dependÃªncia circular
-    # role: Optional[RoleResponse] = None  # Evitar dependÃªncia circular
+    # Adicionar informações do plano e role se desejado na resposta
+    plano: Optional["PlanoResponse"] = None  # type: ignore  # Evitar dependência circular
+    # role: Optional[RoleResponse] = None  # Evitar dependência circular
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -134,14 +134,14 @@ class RoleCreate(RoleBase):
 class RoleUpdate(RoleBase):
     name: Optional[str] = Field(
         None, min_length=3, max_length=50
-    )  # Tornar opcional na atualizaÃ§Ã£o
+    )  # Tornar opcional na atualização
 
 
 class RoleResponse(RoleBase):
     id: int
     created_at: datetime
     updated_at: datetime
-    # users: List[UserResponse] = [] # Cuidado com recursÃ£o, talvez apenas IDs ou omitir
+    # users: List[UserResponse] = [] # Cuidado com recursão, talvez apenas IDs ou omitir
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -167,14 +167,14 @@ class PlanoUpdate(PlanoBase):
     limite_produtos: Optional[int] = Field(None, ge=0)
     limite_enriquecimento_web: Optional[int] = Field(None, ge=0)
     limite_geracao_ia: Optional[int] = Field(None, ge=0)
-    # Demais campos tambÃ©m opcionais na atualizaÃ§Ã£o, se desejado
+    # Demais campos também opcionais na atualização, se desejado
 
 
 class PlanoResponse(PlanoBase):
     id: int
     created_at: datetime
     updated_at: datetime
-    # users: List[UserResponse] = [] # Cuidado com recursÃ£o
+    # users: List[UserResponse] = [] # Cuidado com recursão
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -197,9 +197,9 @@ class FornecedorCreate(FornecedorBase):
 
 
 class FornecedorUpdate(FornecedorBase):
-    # Tornar campos opcionais para atualizaÃ§Ã£o parcial
+    # Tornar campos opcionais para atualização parcial
     nome: Optional[str] = Field(None, max_length=200)
-    # Adicionar Optional para todos os outros campos se desejar atualizaÃ§Ã£o parcial
+    # Adicionar Optional para todos os outros campos se desejar atualização parcial
 
 
 class FornecedorResponse(FornecedorBase):
@@ -222,32 +222,32 @@ class FornecedorPage(BaseModel):
 class AttributeTemplateBase(BaseModel):
     attribute_key: str = Field(
         ...,
-        description="Chave Ãºnica do atributo no template (ex: 'cor', 'tamanho_tela').",
+        description="Chave única do atributo no template (ex: 'cor', 'tamanho_tela').",
     )
     label: str = Field(
         ...,
-        description="Nome amigÃ¡vel do atributo para exibiÃ§Ã£o (ex: 'Cor', 'Tamanho da Tela').",
+        description="Nome amigável do atributo para exibição (ex: 'Cor', 'Tamanho da Tela').",
     )
     field_type: AttributeFieldTypeEnum = Field(
         AttributeFieldTypeEnum.TEXT,
         description="Tipo de campo para o atributo (text, number, boolean, select, multiselect, date).",
     )
     description: Optional[str] = Field(
-        None, description="DescriÃ§Ã£o ou ajuda sobre o atributo."
+        None, description="Descrição ou ajuda sobre o atributo."
     )
     default_value: Optional[str] = Field(
         None,
-        description="Valor padrÃ£o para o atributo (string, pode precisar de conversÃ£o).",
+        description="Valor padrão para o atributo (string, pode precisar de conversão).",
     )
     options: Optional[Union[List[str], str]] = Field(
         None,
-        description="Lista de opÃ§Ãµes para tipos 'select' ou 'multiselect', pode ser string JSON.",
+        description="Lista de opções para tipos 'select' ou 'multiselect', pode ser string JSON.",
     )
-    is_required: bool = Field(False, description="Indica se o atributo Ã© obrigatÃ³rio.")
+    is_required: bool = Field(False, description="Indica se o atributo é obrigatório.")
     is_filterable: bool = Field(
         False, description="Indica se o atributo pode ser usado para filtros."
     )
-    display_order: int = Field(0, description="Ordem de exibiÃ§Ã£o do atributo.")
+    display_order: int = Field(0, description="Ordem de exibição do atributo.")
 
     @field_validator("options", mode="before")
     @classmethod
@@ -261,16 +261,16 @@ class AttributeTemplateBase(BaseModel):
                     )
                 return parsed_value  # Retorna a lista Python
             except json.JSONDecodeError:
-                raise ValueError("String para 'options' nÃ£o Ã© um JSON vÃ¡lido.")
-        return value  # Se jÃ¡ for lista ou None, retorna como estÃ¡
+                raise ValueError("String para 'options' não é um JSON válido.")
+        return value  # Se já for lista ou None, retorna como está
 
 
 class AttributeTemplateCreate(AttributeTemplateBase):
-    pass  # product_type_id serÃ¡ atribuÃ­do no CRUD
+    pass  # product_type_id será atribuído no CRUD
 
 
 class AttributeTemplateUpdate(AttributeTemplateBase):
-    # Todos os campos sÃ£o opcionais na atualizaÃ§Ã£o
+    # Todos os campos são opcionais na atualização
     attribute_key: Optional[str] = None
     label: Optional[str] = None
     field_type: Optional[AttributeFieldTypeEnum] = None
@@ -288,14 +288,14 @@ class AttributeTemplateResponse(AttributeTemplateBase):
 class ProductTypeBase(BaseModel):
     key_name: str = Field(
         ...,
-        description="Chave Ãºnica para identificar o tipo de produto (ex: 'smartphones', 'camisetas_manga_longa').",
+        description="Chave única para identificar o tipo de produto (ex: 'smartphones', 'camisetas_manga_longa').",
     )
     friendly_name: str = Field(
         ...,
-        description="Nome amigÃ¡vel do tipo de produto (ex: 'Smartphones', 'Camisetas Manga Longa').",
+        description="Nome amigável do tipo de produto (ex: 'Smartphones', 'Camisetas Manga Longa').",
     )
     description: Optional[str] = Field(
-        None, description="DescriÃ§Ã£o do tipo de produto."
+        None, description="Descrição do tipo de produto."
     )
 
 
@@ -307,13 +307,13 @@ class ProductTypeUpdate(ProductTypeBase):
     key_name: Optional[str] = None
     friendly_name: Optional[str] = None
     # attribute_templates: Opcionalmente, permitir atualizar/adicionar/remover atributos aqui,
-    # mas geralmente Ã© melhor ter endpoints separados para gerenciar atributos de um tipo.
+    # mas geralmente é melhor ter endpoints separados para gerenciar atributos de um tipo.
 
 
 class ProductTypeResponse(ProductTypeBase):
     id: int
     user_id: Optional[int] = (
-        None  # Tipos podem ser globais (user_id=None) ou especÃ­ficos do usuÃ¡rio
+        None  # Tipos podem ser globais (user_id=None) ou específicos do usuário
     )
     attribute_templates: List[AttributeTemplateResponse] = []
     created_at: datetime
@@ -330,10 +330,10 @@ class ProdutoBase(BaseModel):
         None, max_length=255, description="Nome otimizado ou gerado pela IA."
     )
     descricao_original: Optional[str] = Field(
-        None, description="DescriÃ§Ã£o original fornecida ou importada."
+        None, description="Descrição original fornecida ou importada."
     )
     descricao_chat_api: Optional[str] = Field(
-        None, description="DescriÃ§Ã£o otimizada ou gerada pela IA."
+        None, description="Descrição otimizada ou gerada pela IA."
     )
 
     sku: Optional[str] = Field(
@@ -369,7 +369,7 @@ class ProdutoBase(BaseModel):
     categoria_original: Optional[str] = Field(None, max_length=150)
     categoria_mapeada: Optional[str] = Field(
         None, max_length=150
-    )  # Categoria apÃ³s algum processamento/padronizaÃ§Ã£o
+    )  # Categoria após algum processamento/padronização
     tags_palavras_chave: Optional[List[str]] = Field(None)  # Lista de strings
 
     imagem_principal_url: Optional[str] = None
@@ -385,13 +385,13 @@ class ProdutoBase(BaseModel):
     )
 
     dados_brutos_web: Optional[Dict[str, Any]] = Field(
-        None, description="JSON com dados extraÃ­dos da web (textos, metadados)."
+        None, description="JSON com dados extraídos da web (textos, metadados)."
     )
     dynamic_attributes: Optional[Dict[str, Any]] = Field(
-        None, description="Atributos dinÃ¢micos baseados no ProductType (JSON)."
+        None, description="Atributos dinâmicos baseados no ProductType (JSON)."
     )
 
-    # Log de enriquecimento web; estrutura flexÃ­vel (lista ou dict) mantida como JSON.
+    # Log de enriquecimento web; estrutura flexível (lista ou dict) mantida como JSON.
     log_enriquecimento_web: Optional[Any] = Field(
         None, description="Log do processo de enriquecimento web."
     )
@@ -440,7 +440,7 @@ class ImportCatalogoResponse(BaseModel):
 
 
 class UpdatedProductInfo(BaseModel):
-    """Representa um produto atualizado durante a importaÃ§Ã£o."""
+    """Representa um produto atualizado durante a importação."""
 
     before: ProdutoResponse
     after: ProdutoResponse
@@ -452,6 +452,12 @@ class CatalogImportResult(BaseModel):
     errors: List[Dict[str, Any]]
     stats: Optional[Dict[str, Any]] = None
     log: Optional[List[str]] = None
+
+
+class CatalogImportResultPending(BaseModel):
+    ready: bool = False
+    status: str
+    detail: str
 
 
 class RegionExtractionResponse(BaseModel):
@@ -557,11 +563,12 @@ class CatalogImportFileResponse(CatalogImportFileBase):
     model_config = ConfigDict(from_attributes=True)
 
 class CatalogImportStatus(BaseModel):
-    """Status simplificado de importaÃ§Ã£o de catÃ¡logo."""
+    """Status simplificado de importação de catálogo."""
 
     status: Literal["PROCESSING", "DONE", "PARTIAL", "FAILED"]
     pages_total: int
     pages_processed: int
+    result_ready: bool = False
 
 
 class CatalogImportFilePage(BaseModel):
@@ -642,11 +649,11 @@ class RecentActivity(BaseModel):
 
     model_config = ConfigDict(from_attributes=True)
 
-# ----- NOVOS SCHEMAS PARA SUGESTÃƒO DE ATRIBUTOS GEMINI -----
+# ----- NOVOS SCHEMAS PARA SUGESTAO DE ATRIBUTOS GEMINI -----
 class SugestaoAtributoItem(BaseModel):
     chave_atributo: str = Field(
         ...,
-        description="A chave do atributo para o qual o valor Ã© sugerido (ex: 'cor', 'material').",
+        description="A chave do atributo para o qual o valor é sugerido (ex: 'cor', 'material').",
     )
     valor_sugerido: str = Field(
         ..., description="O valor sugerido pela IA para o atributo."
@@ -655,13 +662,13 @@ class SugestaoAtributoItem(BaseModel):
 
 class SugestoesAtributosResponse(BaseModel):
     sugestoes_atributos: List[SugestaoAtributoItem] = Field(
-        ..., description="Lista de sugestÃµes de atributos e seus valores."
+        ..., description="Lista de sugestões de atributos e seus valores."
     )
     produto_id: int = Field(
-        ..., description="ID do produto para o qual as sugestÃµes foram geradas."
+        ..., description="ID do produto para o qual as sugestões foram geradas."
     )
     modelo_ia_utilizado: Optional[str] = Field(
-        None, description="Modelo de IA utilizado para a sugestÃ£o."
+        None, description="Modelo de IA utilizado para a sugestão."
     )
 
 
@@ -691,7 +698,7 @@ class FileProcessResponse(BaseModel):
 
 
 class SocialLoginConfig(BaseModel):
-    """Indica quais provedores de login social estÃ£o configurados."""
+    """Indica quais provedores de login social estão configurados."""
 
     google_enabled: bool
     facebook_enabled: bool
@@ -732,6 +739,7 @@ ProdutoResponse.model_rebuild()
 ImportCatalogoResponse.model_rebuild()
 UpdatedProductInfo.model_rebuild()
 CatalogImportResult.model_rebuild()
+CatalogImportResultPending.model_rebuild()
 RegionExtractionResponse.model_rebuild()
 SinglePageExtractionResponse.model_rebuild()
 RegistroUsoIAResponse.model_rebuild()
@@ -742,5 +750,4 @@ SocialLoginConfig.model_rebuild()
 PdfPreviewResponse.model_rebuild()
 CatalogPreview.model_rebuild()
 PdfRegionBulkRequest.model_rebuild()
-
 

@@ -134,4 +134,76 @@ describe('ImportCatalogWizard', () => {
       );
     });
   });
+
+  test('waits for result_ready before fetching final result', async () => {
+    productTypeService.getProductTypes.mockResolvedValue({
+      items: [{ id: 4, friendly_name: 'Automotivo' }],
+    });
+    productTypeService.getProductTypeDetails.mockResolvedValue({ attribute_templates: [] });
+    fornecedorService.previewCatalogo.mockResolvedValue({
+      fileId: 1,
+      headers: null,
+      sampleRows: null,
+      previewImages: [{ page: 1, image: 'data:image/png;base64,abc' }],
+      numPages: 231,
+      tablePages: [],
+    });
+    fornecedorService.finalizarImportacaoCatalogo.mockResolvedValue({
+      status: 'PROCESSING',
+      file_id: 1,
+    });
+    fornecedorService.getImportacaoStatus
+      .mockResolvedValueOnce({
+        status: 'IMPORTED',
+        result_ready: false,
+        pages_processed: 231,
+        total_pages: 231,
+      })
+      .mockResolvedValueOnce({
+        status: 'IMPORTED',
+        result_ready: true,
+        pages_processed: 231,
+        total_pages: 231,
+      });
+    fornecedorService.getImportacaoResult.mockResolvedValue({
+      ready: true,
+      stats: {
+        produtos_criados: 3,
+        produtos_atualizados: 1,
+        erros: 0,
+        pages_processed: 231,
+        pages_total: 231,
+      },
+      created: [],
+      updated: [],
+      errors: [],
+      log: ['ok'],
+    });
+
+    render(
+      <ImportCatalogWizard
+        fornecedor={{ id: 1, default_column_mapping: { col_0: 'auto:sku_nome' } }}
+        onClose={() => {}}
+        isOpen
+      />
+    );
+
+    const fileInput = document.querySelector('input[type="file"]');
+    const file = new File(['a'], 'test.pdf', { type: 'application/pdf' });
+    await userEvent.upload(fileInput, file);
+    await userEvent.click(screen.getByText('Gerar Preview'));
+    await screen.findByRole('img', { name: /1/ });
+
+    await userEvent.selectOptions(screen.getByRole('combobox', { name: /tipo de produto/i }), '4');
+    await userEvent.click(screen.getByText('Iniciar Processamento'));
+
+    await waitFor(
+      () => {
+        expect(screen.getByText(/Criados: 3/i)).toBeInTheDocument();
+      },
+      { timeout: 6000 }
+    );
+
+    expect(fornecedorService.getImportacaoResult).toHaveBeenCalledTimes(1);
+  });
 });
