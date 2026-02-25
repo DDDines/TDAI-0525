@@ -5,7 +5,7 @@ import logger from '../utils/logger';
 
 function getAuthErrorMessage(error, fallbackMessage) {
   if (!error || !error.response) {
-    return 'Nao foi possivel autenticar agora. Tente novamente em alguns instantes.';
+    return 'Não foi possível autenticar agora. Tente novamente em alguns instantes.';
   }
 
   const response = error.response;
@@ -17,7 +17,7 @@ function getAuthErrorMessage(error, fallbackMessage) {
   }
 
   if (response.status >= 500) {
-    return 'Nao foi possivel autenticar agora. Tente novamente em alguns instantes.';
+    return 'Não foi possível autenticar agora. Tente novamente em alguns instantes.';
   }
 
   return detailMessage || fallbackMessage;

@@ -146,6 +146,40 @@ def _score_url_publica(url: str) -> int:
     return score
 
 
+def _url_deve_ser_ignorada_antes_da_coleta(url: str) -> bool:
+    """Evita coletar links de tracking, redirecionamento e páginas de busca."""
+    parsed = urlparse(str(url or "").strip())
+    host = (parsed.netloc or "").lower()
+    path = (parsed.path or "").lower()
+    query = (parsed.query or "").lower()
+
+    if parsed.scheme not in {"http", "https"}:
+        return True
+    if not host:
+        return True
+
+    # Endpoints de tracking/redirect de buscadores.
+    if "duckduckgo.com" in host and path in {"/y.js", "/redirect"}:
+        return True
+    if "bing.com" in host and path.startswith("/aclick"):
+        return True
+    if "bing.com" in host and path in {"/search", "/images/search"}:
+        return True
+    if "google.com" in host and path in {"/search", "/imgres", "/url"}:
+        return True
+
+    # Consultas com assinatura típica de tracking.
+    if any(hint in query for hint in _TRACKING_QUERY_HINTS):
+        return True
+
+    # Links diretos para PDF costumam abortar no Playwright e não são úteis
+    # no enriquecimento web textual padrão.
+    if path.endswith(".pdf"):
+        return True
+
+    return False
+
+
 def _normalizar_url_busca(candidata: str, base_url: str) -> Optional[str]:
     if not candidata:
         return None
@@ -199,6 +233,8 @@ def _normalizar_url_busca(candidata: str, base_url: str) -> Optional[str]:
     if parsed.scheme not in {"http", "https"}:
         return None
     if not parsed.netloc:
+        return None
+    if _url_deve_ser_ignorada_antes_da_coleta(url_final):
         return None
     return url_final
 
@@ -317,6 +353,11 @@ async def buscar_urls_google(query: str, num_results: int = 3) -> List[str]:
 
                 urls_encontradas = await asyncio.to_thread(_executar_busca_google_interna_valida)
                 if urls_encontradas:
+                    urls_encontradas = [
+                        _normalizar_url_busca(url, "https://www.google.com")
+                        for url in urls_encontradas
+                    ]
+                    urls_encontradas = [url for url in urls_encontradas if url]
                     logger.info(
                         "Busca Google CSE retornou %s URL(s) para query '%s'.",
                         len(urls_encontradas),
@@ -428,6 +469,12 @@ def _coletar_conteudo_playwright_em_thread_sync(url: str) -> Optional[str]:
 
 async def coletar_conteudo_pagina_playwright(url: str) -> Optional[str]:
     global PLAYWRIGHT_CHROMIUM_INDISPONIVEL
+    if _url_deve_ser_ignorada_antes_da_coleta(url):
+        logger.info(
+            "URL ignorada antes da coleta por baixa relevancia/tracking: %s",
+            url,
+        )
+        return None
     if PLAYWRIGHT_CHROMIUM_INDISPONIVEL:
         return await _coletar_conteudo_pagina_http(url)
 

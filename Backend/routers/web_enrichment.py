@@ -7,13 +7,20 @@ import asyncio
 import json
 import re
 import unicodedata
-from urllib.parse import urlparse
 
 from Backend import crud_users
 from Backend import crud_produtos
 from Backend import crud
 from Backend import models
 from Backend import schemas
+from Backend.application.contracts.pipeline_commands import WebEnrichmentStartCommand
+from Backend.application.orchestrators.web_enrichment import (
+    WebEnrichmentPipelineOrchestrator,
+)
+from Backend.application.services import (
+    PipelineDispatcher,
+    WebEnrichmentRelevanceService,
+)
 from Backend.database import get_db, SessionLocal
 
 from .auth_utils import get_current_active_user
@@ -31,6 +38,67 @@ router = APIRouter(
 )
 
 logger = get_logger(__name__)
+relevance_service = WebEnrichmentRelevanceService()
+
+
+def _encoding_marker_count(candidate: str) -> int:
+    return sum(1 for ch in candidate if ch in {"Ã", "Â", "\ufffd"})
+
+
+def _normalize_human_text(value: Any) -> str:
+    text = str(value or "")
+    if not text:
+        return ""
+
+    def _has_markers(candidate: str) -> bool:
+        return _encoding_marker_count(candidate) > 0 or "??" in candidate
+
+    for _ in range(4):
+        if not _has_markers(text):
+            break
+        try:
+            decoded = bytes((ord(ch) & 0xFF for ch in text)).decode("utf-8")
+        except Exception:
+            break
+        if not decoded or decoded == text:
+            break
+        if _encoding_marker_count(decoded) <= _encoding_marker_count(text):
+            text = decoded
+            continue
+        break
+
+    replacements = {
+        "n??o": "não",
+        "N??o": "Não",
+        "p??de": "pôde",
+        "P??gina": "Página",
+        "p??gina": "página",
+        "descri??o": "descrição",
+        "Descri??o": "Descrição",
+        "conte??do": "conteúdo",
+        "extra??o": "extração",
+        "extra??vel": "extraível",
+        "situa??o": "situação",
+        "configura??o": "configuração",
+        "Configura??o": "Configuração",
+        "nÃ£o": "não",
+        "NÃ£o": "Não",
+        "pÃ´de": "pôde",
+        "pÃ¡gina": "página",
+        "PÃ¡gina": "Página",
+        "descriÃ§Ã£o": "descrição",
+        "DescriÃ§Ã£o": "Descrição",
+        "conteÃºdo": "conteúdo",
+        "extraÃ§Ã£o": "extração",
+        "extraÃ­vel": "extraível",
+        "situaÃ§Ã£o": "situação",
+        "configuraÃ§Ã£o": "configuração",
+        "ConfiguraÃ§Ã£o": "Configuração",
+    }
+    for src, dst in replacements.items():
+        text = text.replace(src, dst)
+
+    return re.sub(r"\s+", " ", text).strip()
 
 
 def _fold_text(value: Any) -> str:
@@ -167,6 +235,8 @@ _PLACEHOLDER_HINTS = {
     "sem informacao",
     "nao informado",
     "nao informada",
+    "não informado",
+    "não informada",
     "todos",
     "todas",
     "geral",
@@ -285,49 +355,13 @@ def _is_weak_dynamic_value(attr_key: str, value: Any) -> bool:
     return False
 
 
-_RELEVANCE_STOPWORDS = {
-    "de",
-    "da",
-    "do",
-    "das",
-    "dos",
-    "para",
-    "com",
-    "sem",
-    "em",
-    "ate",
-    "até",
-    "todos",
-    "todas",
-    "lado",
-    "peca",
-    "peça",
-    "pecas",
-    "peças",
-}
-
 
 def _tokens_for_relevance(value: Any) -> List[str]:
-    base = _fold_text(value)
-    if not base:
-        return []
-    tokens = [t for t in base.split(" ") if len(t) >= 3 and t not in _RELEVANCE_STOPWORDS]
-    return tokens
+    return relevance_service.tokens_for_relevance(value)
 
 
 def _extract_code_tokens(*values: Any) -> List[str]:
-    combined = " ".join(str(v or "") for v in values)
-    upper = unicodedata.normalize("NFKD", combined).encode("ascii", "ignore").decode("ascii").upper()
-    tokens = re.findall(r"[A-Z0-9][A-Z0-9./-]{3,}", upper)
-    cleaned = []
-    for token in tokens:
-        tok = token.strip("./-")
-        if len(tok) < 4:
-            continue
-        if re.fullmatch(r"[A-Z]+", tok):
-            continue
-        cleaned.append(tok)
-    return list(dict.fromkeys(cleaned))
+    return relevance_service.extract_code_tokens(*values)
 
 
 def _is_source_relevant_for_product(
@@ -337,77 +371,17 @@ def _is_source_relevant_for_product(
     source_desc: Any,
     source_url: str,
 ) -> bool:
-    ref_parts = [db_produto_obj.nome_base, db_produto_obj.marca, db_produto_obj.sku, db_produto_obj.ean]
-    if isinstance(db_produto_obj.dados_brutos_web, dict):
-        ref_parts.append(db_produto_obj.dados_brutos_web.get("codigo_original"))
-        ref_parts.append(db_produto_obj.dados_brutos_web.get("sku_original"))
-
-    ref_tokens = _tokens_for_relevance(" ".join(str(x or "") for x in ref_parts))
-    if not ref_tokens:
-        return True
-
-    source_text = " ".join(
-        str(x or "") for x in [source_name, source_desc, source_url]
+    return relevance_service.is_source_relevant_for_product(
+        db_produto_obj,
+        source_name=source_name,
+        source_desc=source_desc,
+        source_url=source_url,
     )
-    src_tokens = set(_tokens_for_relevance(source_text))
-    overlap = [t for t in ref_tokens if t in src_tokens]
 
-    code_tokens = _extract_code_tokens(*ref_parts)
-    src_compact = re.sub(r"[^A-Z0-9]", "", str(source_text).upper())
-    code_hit = any(re.sub(r"[^A-Z0-9]", "", token) in src_compact for token in code_tokens)
-
-    if code_tokens and not code_hit and len(overlap) < 3:
-        return False
-
-    if len(ref_tokens) <= 4:
-        return bool(overlap) or code_hit
-
-    return len(overlap) >= 2 or code_hit
-
-
-_URL_TRACKING_HINTS = (
-    "ad_domain=",
-    "ad_provider=",
-    "click_metadata=",
-    "msclkid=",
-    "utm_",
-    "vqd=",
-)
-_URL_HOST_LOW_SIGNAL = (
-    "duckduckgo.com",
-    "bing.com",
-    "google.com",
-    "facebook.com",
-    "instagram.com",
-    "linkedin.com",
-    "youtube.com",
-    "tiktok.com",
-)
-_URL_HOST_HIGH_SIGNAL = (
-    "mercadolivre.",
-    "amazon.",
-    "shopee.",
-    "magazineluiza.",
-    "casasbahia.",
-    "jocar.",
-    "dipecarr.",
-    "dana.",
-    "jacto",
-    "minner.",
-    "mundodocaminhao.",
-    "essentra",
-)
 
 
 def _extrair_dominio_fornecedor(site_url: Any) -> str:
-    try:
-        parsed = urlparse(str(site_url or "").strip())
-        if parsed.netloc:
-            return parsed.netloc.lower()
-        raw = str(site_url or "").strip().lower()
-        return raw.split("//")[-1].split("/")[0]
-    except Exception:
-        return ""
+    return relevance_service.extract_supplier_domain(site_url)
 
 
 def _score_url_para_produto(
@@ -415,39 +389,11 @@ def _score_url_para_produto(
     candidate_url: str,
     fornecedor_domain: str = "",
 ) -> int:
-    parsed = urlparse(str(candidate_url or "").strip())
-    host = (parsed.netloc or "").lower()
-    path = (parsed.path or "").lower()
-    query = (parsed.query or "").lower()
-    if not host:
-        return -999
-
-    score = 0
-    if fornecedor_domain and fornecedor_domain in host:
-        score += 45
-    if any(h in host for h in _URL_HOST_HIGH_SIGNAL):
-        score += 18
-    if any(h in host for h in _URL_HOST_LOW_SIGNAL):
-        score -= 20
-    if path.endswith(".pdf"):
-        score -= 10
-    if path in {"/y.js", "/redirect", "/search"}:
-        score -= 40
-    if any(h in query for h in _URL_TRACKING_HINTS):
-        score -= 35
-    if len(query) > 280:
-        score -= 10
-
-    ref_text = " ".join(
-        str(x or "")
-        for x in [db_produto_obj.nome_base, db_produto_obj.sku, db_produto_obj.ean, db_produto_obj.marca]
+    return relevance_service.score_url_for_product(
+        db_produto_obj,
+        candidate_url,
+        fornecedor_domain=fornecedor_domain,
     )
-    ref_tokens = set(_tokens_for_relevance(ref_text))
-    src_tokens = set(_tokens_for_relevance(f"{host} {path} {query}"))
-    overlap = len(ref_tokens.intersection(src_tokens))
-    score += min(overlap * 6, 24)
-
-    return score
 
 
 def _priorizar_urls_para_enriquecimento(
@@ -456,16 +402,12 @@ def _priorizar_urls_para_enriquecimento(
     fornecedor_domain: str = "",
     max_urls: int = 4,
 ) -> Tuple[List[str], List[Tuple[str, int]]]:
-    deduped = [u for u in dict.fromkeys(urls_candidatas or []) if u]
-    scored: List[Tuple[str, int]] = []
-    for url in deduped:
-        score = _score_url_para_produto(db_produto_obj, url, fornecedor_domain=fornecedor_domain)
-        if score <= -25:
-            continue
-        scored.append((url, score))
-
-    scored.sort(key=lambda item: item[1], reverse=True)
-    return [url for url, _ in scored[: max(1, max_urls)]], scored
+    return relevance_service.prioritize_urls_for_enrichment(
+        db_produto_obj,
+        urls_candidatas,
+        fornecedor_domain=fornecedor_domain,
+        max_urls=max_urls,
+    )
 
 
 _LOW_QUALITY_CONTENT_MARKERS = (
@@ -656,8 +598,9 @@ def _build_payload_enriquecimento_visivel(
         allow_replace_weak: bool = False,
     ) -> Optional[str]:
         text_value = _as_text(value)
-        # Se o valor novo vier vazio, tenta reaproveitar aliases antigos já existentes
-        # (ex.: "titulo" -> "titulo_auto") para não perder dados em migrações.
+        value_from_existing = False
+        # Se o valor novo vier vazio, tenta reaproveitar aliases antigos ja existentes
+        # (ex.: "titulo" -> "titulo_auto") para nao perder dados em migracoes.
         if not text_value:
             for candidate in candidates:
                 candidate_norm = _fold_text(candidate)
@@ -667,6 +610,7 @@ def _build_payload_enriquecimento_visivel(
                         maybe_value = _as_text(current_val)
                         if maybe_value:
                             text_value = maybe_value
+                            value_from_existing = True
                             break
                 if text_value:
                     break
@@ -683,10 +627,17 @@ def _build_payload_enriquecimento_visivel(
             for known_norm, known_key in normalized_key_to_real.items():
                 if not known_norm:
                     continue
-                if candidate_norm and (
-                    candidate_norm in known_norm
-                    or known_norm in candidate_norm
-                    or (candidate_norm == "descricao" and "desc" in known_norm)
+                if not candidate_norm:
+                    continue
+                if candidate_norm == known_norm:
+                    target_key = known_key
+                    break
+                if candidate_norm == "descricao" and "desc" in known_norm:
+                    target_key = known_key
+                    break
+                # Evita matches por substring muito curta (ex.: "id" em "disponibilidade").
+                if len(candidate_norm) >= 4 and len(known_norm) >= 4 and (
+                    candidate_norm in known_norm or known_norm in candidate_norm
                 ):
                     target_key = known_key
                     break
@@ -694,15 +645,20 @@ def _build_payload_enriquecimento_visivel(
                 break
         if not target_key:
             target_key = candidates[0]
-        if _is_empty(dynamic_current.get(target_key)):
+        current_value = dynamic_current.get(target_key)
+        current_text = _as_text(current_value)
+        if _is_empty(current_value):
             dynamic_current[target_key] = text_value
             return target_key
-        if allow_replace_suspicious and _is_suspicious_code(dynamic_current.get(target_key)):
+        # Reaproveitamento de alias sem alteracao efetiva nao deve virar "ignored".
+        if value_from_existing and current_text == text_value:
+            return None
+        if allow_replace_suspicious and _is_suspicious_code(current_value):
             dynamic_current[target_key] = text_value
             return target_key
         if (
             allow_replace_weak
-            and _is_weak_dynamic_value(target_key, dynamic_current.get(target_key))
+            and _is_weak_dynamic_value(target_key, current_value)
             and not _is_weak_dynamic_value(target_key, text_value)
         ):
             dynamic_current[target_key] = text_value
@@ -843,16 +799,16 @@ async def _tarefa_enriquecer_produto_web(
         busca_web_disponivel = google_api_configurada or busca_publica_fallback
         log_mensagens.append(
             "Config API: "
-            f"openai_user={'sim' if openai_user_configurada else 'nao'}, "
-            f"openai_sistema={'sim' if openai_system_configurada else 'nao'}, "
-            f"google_cse={'sim' if google_api_configurada else 'nao'}, "
-            f"busca_publica={'sim' if busca_publica_fallback else 'nao'}."
+            f"openai_user={'sim' if openai_user_configurada else 'não'}, "
+            f"openai_sistema={'sim' if openai_system_configurada else 'não'}, "
+            f"google_cse={'sim' if google_api_configurada else 'não'}, "
+            f"busca_publica={'sim' if busca_publica_fallback else 'não'}."
         )
 
         # Sem OpenAI e sem mecanismo de busca web, não há como enriquecer.
         if not openai_api_configurada and not busca_web_disponivel:
             log_mensagens.append(
-                "AVISO CRITICO: Sem OpenAI e sem mecanismo de busca web disponivel. "
+                "AVISO CRÍTICO: Sem OpenAI e sem mecanismo de busca web disponível. "
                 "Configure OPENAI_API_KEY (ou chave pessoal do usuário) e/ou Google CSE."
             )
             status_para_salvar_no_final = models.StatusEnriquecimentoEnum.FALHA_CONFIGURACAO_API_EXTERNA
@@ -977,10 +933,10 @@ async def _tarefa_enriquecer_produto_web(
                     )
                 else:
                     log_mensagens.append(
-                        "Nenhum termo de busca valido pode ser montado para este produto."
+                        "Nenhum termo de busca válido pode ser montado para este produto."
                     )
         else:
-            log_mensagens.append("Busca web pulada: nenhum provedor de busca disponivel.")
+            log_mensagens.append("Busca web pulada: nenhum provedor de busca disponível.")
         fornecedor_domain = _extrair_dominio_fornecedor(
             db_produto_obj.fornecedor.site_url
             if db_produto_obj.fornecedor and db_produto_obj.fornecedor.site_url
@@ -1161,7 +1117,7 @@ async def _tarefa_enriquecer_produto_web(
                     )
                 else:
                     log_mensagens.append(
-                        "Enriquecimento finalizado sem novos campos visiveis para preencher no produto."
+                        "Enriquecimento finalizado sem novos campos visíveis para preencher no produto."
                     )
                 if notas_ignoradas:
                     log_mensagens.append(
@@ -1173,13 +1129,18 @@ async def _tarefa_enriquecer_produto_web(
                     "aplicados": notas_campos,
                     "ignorados": notas_ignoradas,
                 }
+                log_mensagens_normalizadas: List[str] = []
+                for message in log_mensagens:
+                    normalized_message = _normalize_human_text(message)
+                    if normalized_message:
+                        log_mensagens_normalizadas.append(normalized_message)
 
                 payload_final_update = schemas.ProdutoUpdate(
                     **campos_visiveis_update,
                     dados_brutos_web=dados_extraidos_agregados,
                     status_enriquecimento_web=status_valor_str, # Passa a string (valor do enum)
                     log_enriquecimento_web={
-                        "historico_mensagens": log_mensagens,
+                        "historico_mensagens": log_mensagens_normalizadas,
                         "resumo_aplicacao": resumo_aplicacao,
                     }
                 )
@@ -1212,7 +1173,7 @@ async def iniciar_enriquecimento_produto_web_endpoint(
     produto_id: int,
     background_tasks: BackgroundTasks,
     current_user: models.User = Depends(get_current_active_user),
-    termos_busca_override: Optional[str] = Query(None, description="Opcional: Termos de busca específicos para o Google Search."),
+    termos_busca_override: Optional[str] = Query(None, description="Opcional: termos de busca específicos para o Google Search."),
 ):
     db_temp = SessionLocal()
     try:
@@ -1227,13 +1188,19 @@ async def iniciar_enriquecimento_produto_web_endpoint(
     finally:
         db_temp.close()
 
-    background_tasks.add_task(
-        _tarefa_enriquecer_produto_web,
-        db_session_factory=SessionLocal,
+    orchestrator = WebEnrichmentPipelineOrchestrator(
+        legacy_executor=_tarefa_enriquecer_produto_web,
+    )
+    command = WebEnrichmentStartCommand(
         produto_id=produto_id,
         user_id=current_user.id,
-        termos_busca_override=termos_busca_override
+        termos_busca_override=termos_busca_override,
     )
+    selected_plan = orchestrator.select_start_plan(
+        db_session_factory=SessionLocal,
+        command=command,
+    )
+    PipelineDispatcher.dispatch_background(background_tasks, selected_plan)
     return {"msg": f"Processo de enriquecimento web para o produto ID {produto_id} iniciado em segundo plano."}
 
 
@@ -1245,3 +1212,5 @@ router.add_api_route(
     response_model=schemas.Msg,
     include_in_schema=False,
 )
+
+

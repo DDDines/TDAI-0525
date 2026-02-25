@@ -1,4 +1,4 @@
-// Frontend/app/src/services/fornecedorService.js
+﻿// Frontend/app/src/services/fornecedorService.js
 import logger from '../utils/logger';
 import apiClient from './apiClient';
 
@@ -510,3 +510,4 @@ export default {
   selecionarRegiaoProduto,
   finalizarImportacaoCatalogo,
 };
+

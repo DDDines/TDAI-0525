@@ -88,6 +88,53 @@ const foldText = (value) =>
         .replace(/[^a-z0-9]+/g, ' ')
         .trim();
 
+const normalizeDisplayText = (value) => {
+    if (value === null || value === undefined) return '';
+    let text = String(value);
+    const markerCount = (candidate) => (candidate.match(/[\u00c3\u00c2\u00e2\u0192\ufffd]/g) || []).length;
+    const hasMarkers = (candidate) => markerCount(candidate) > 0 || /[?]{2,}/.test(candidate);
+    const decodeMaybe = (candidate, source) => {
+        try {
+            return new TextDecoder('utf-8', { fatal: false }).decode(
+                Uint8Array.from(Array.from(candidate).map((ch) => ch.charCodeAt(0) & 0xff))
+            );
+        } catch {
+            return source;
+        }
+    };
+
+    for (let i = 0; i < 4 && hasMarkers(text); i += 1) {
+        const decoded = decodeMaybe(text, text);
+        if (!decoded || decoded === text) break;
+        if (markerCount(decoded) <= markerCount(text)) {
+            text = decoded;
+        } else {
+            break;
+        }
+    }
+
+    const replacements = [
+        ['n??o', 'não'],
+        ['N??o', 'Não'],
+        ['p??de', 'pôde'],
+        ['P??gina', 'Página'],
+        ['p??gina', 'página'],
+        ['descri??o', 'descrição'],
+        ['Descri??o', 'Descrição'],
+        ['conte??do', 'conteúdo'],
+        ['extra??o', 'extração'],
+        ['extra??vel', 'extraível'],
+        ['situa??o', 'situação'],
+        ['configura??o', 'configuração'],
+        ['Configura??o', 'Configuração'],
+    ];
+    replacements.forEach(([src, dst]) => {
+        text = text.replaceAll(src, dst);
+    });
+
+    return text.replace(/\s+/g, ' ').trim();
+};
+
 const isEmptyLike = (value) => {
     if (value === null || value === undefined) return true;
     const text = String(value).trim();
@@ -783,7 +830,7 @@ const ProductEditModal = ({ isOpen, onClose, product, onProductUpdated }) => {
                              {formData.log_enriquecimento_web && formData.log_enriquecimento_web.historico_mensagens && formData.log_enriquecimento_web.historico_mensagens.length > 0 ? (
                                  <div className="log-container">
                                      {formData.log_enriquecimento_web.historico_mensagens.map((msg, index) => (
-                                         <p key={index}>{msg}</p>
+                                         <p key={index}>{normalizeDisplayText(msg)}</p>
                                      ))}
                                  </div>
                              ) : (

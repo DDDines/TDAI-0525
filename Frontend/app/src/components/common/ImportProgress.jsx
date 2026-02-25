@@ -9,6 +9,11 @@ function ImportProgress({ fileId, onDone }) {
   const [status, setStatus] = useState(null);
   const [error, setError] = useState('');
   const pollingRunRef = useRef(0);
+  const onDoneRef = useRef(onDone);
+
+  useEffect(() => {
+    onDoneRef.current = onDone;
+  }, [onDone]);
 
   useEffect(() => {
     if (!fileId) return undefined;
@@ -51,7 +56,7 @@ function ImportProgress({ fileId, onDone }) {
                 setError(
                   'Importação concluída, mas o resultado final ainda não foi consolidado. Tente novamente em instantes.'
                 );
-                if (onDone) onDone(null);
+                if (onDoneRef.current) onDoneRef.current(null);
               }
               keepPolling = false;
               continue;
@@ -65,17 +70,17 @@ function ImportProgress({ fileId, onDone }) {
                   setError(
                     'Resultado final ainda pendente após o tempo limite de espera. Atualize em instantes.'
                   );
-                  if (onDone) onDone(null);
+                  if (onDoneRef.current) onDoneRef.current(null);
                   keepPolling = false;
                 } else {
                   keepPolling = true;
                 }
               } else {
-                if (onDone) onDone(result);
+                if (onDoneRef.current) onDoneRef.current(result);
                 keepPolling = false;
               }
             } catch {
-              if (!cancelled && onDone) onDone(null);
+              if (!cancelled && onDoneRef.current) onDoneRef.current(null);
               keepPolling = false;
             }
           }
@@ -87,7 +92,7 @@ function ImportProgress({ fileId, onDone }) {
       } catch (e) {
         if (!cancelled) {
           setError(e.message || 'Erro ao consultar status');
-          if (onDone) onDone(null);
+          if (onDoneRef.current) onDoneRef.current(null);
         }
       }
     };
@@ -98,7 +103,7 @@ function ImportProgress({ fileId, onDone }) {
       cancelled = true;
       pollingRunRef.current += 1;
     };
-  }, [fileId, onDone]);
+  }, [fileId]);
 
   if (error) {
     return <p style={{ color: 'red' }}>{error}</p>;
@@ -106,10 +111,20 @@ function ImportProgress({ fileId, onDone }) {
   if (!status) {
     return <p>Iniciando processamento...</p>;
   }
+
+  const statusNormalized = String(status?.status || '').trim().toUpperCase();
+  const terminalStatuses = new Set(['IMPORTED', 'DONE', 'PARTIAL', 'FAILED']);
+  const isTerminal = terminalStatuses.has(statusNormalized);
+  const pagesProcessed = status?.pages_processed ?? 0;
+  const pagesTotal = status?.pages_total ?? status?.total_pages ?? 0;
+
   return (
     <div>
       <p>
-        Status: {status.status} | Processando {status.pages_processed} de {status.pages_total} páginas...
+        Status: {status.status} |{' '}
+        {isTerminal
+          ? `Páginas: ${pagesProcessed}/${pagesTotal}`
+          : `Processando ${pagesProcessed} de ${pagesTotal} páginas...`}
       </p>
     </div>
   );

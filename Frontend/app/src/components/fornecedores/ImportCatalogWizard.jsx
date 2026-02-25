@@ -83,7 +83,7 @@ const normalizeDisplayText = (value) => {
     text = improved;
   }
 
-  text = text.replaceAll('ÃƒÂ', 'Ã').replaceAll('Â', '');
+  text = text.replaceAll('ÃƒÆ’Ã‚', 'Ãƒ').replaceAll('Ã‚', '');
 
   const replacements = [
     ['n??o', 'n\u00e3o'],
@@ -115,12 +115,12 @@ const normalizeDisplayText = (value) => {
     ['relat?rio', 'relat\u00f3rio'],
     ['n?o cr?ticos', 'n\u00e3o cr\u00edticos'],
     ['n?o dispon?veis', 'n\u00e3o dispon\u00edveis'],
-    ['pÃƒÂ´de', 'p\u00f4de'],
-    ['PÃƒÂ¡gina', 'P\u00e1gina'],
-    ['pÃƒÂ¡gina', 'p\u00e1gina'],
-    ['extraÃƒÂ§ÃƒÂ£o', 'extra\u00e7\u00e3o'],
-    ['regiÃƒÂ£o', 'regi\u00e3o'],
-    ['nÃƒÂ£o', 'n\u00e3o'],
+    ['pÃƒÆ’Ã‚Â´de', 'p\u00f4de'],
+    ['PÃƒÆ’Ã‚Â¡gina', 'P\u00e1gina'],
+    ['pÃƒÆ’Ã‚Â¡gina', 'p\u00e1gina'],
+    ['extraÃƒÆ’Ã‚Â§ÃƒÆ’Ã‚Â£o', 'extra\u00e7\u00e3o'],
+    ['regiÃƒÆ’Ã‚Â£o', 'regi\u00e3o'],
+    ['nÃƒÆ’Ã‚Â£o', 'n\u00e3o'],
   ];
   replacements.forEach(([src, dst]) => {
     text = text.replaceAll(src, dst);
@@ -173,6 +173,10 @@ const ImportCatalogWizard = ({ fornecedor, productTypeId: initialProductTypeId, 
   const [expectedPages, setExpectedPages] = useState(0);
   const [processingStartedAt, setProcessingStartedAt] = useState(null);
   const pollRunRef = useRef(0);
+  const pollLoopActiveRef = useRef(false);
+  const lastStatusSnapshotRef = useRef('');
+  const terminalStatusAnnouncedRef = useRef(false);
+  const terminalTrackerRef = useRef({ runId: 0, detectedAt: null, attempts: 0 });
 
   const appendTimeline = useCallback((message) => {
     if (!message) return;
@@ -211,6 +215,9 @@ const ImportCatalogWizard = ({ fornecedor, productTypeId: initialProductTypeId, 
     setError('');
     setRegionError('');
     setStatusTimeline([]);
+    lastStatusSnapshotRef.current = '';
+    terminalStatusAnnouncedRef.current = false;
+    terminalTrackerRef.current = { runId: 0, detectedAt: null, attempts: 0 };
   }, [isOpen, fornecedor, initialProductTypeId]);
 
   useEffect(() => {
@@ -230,6 +237,10 @@ const ImportCatalogWizard = ({ fornecedor, productTypeId: initialProductTypeId, 
   useEffect(() => {
     if (!isOpen) {
       pollRunRef.current += 1;
+      pollLoopActiveRef.current = false;
+      lastStatusSnapshotRef.current = '';
+      terminalStatusAnnouncedRef.current = false;
+      terminalTrackerRef.current = { runId: 0, detectedAt: null, attempts: 0 };
     }
   }, [isOpen]);
 
@@ -432,99 +443,123 @@ const ImportCatalogWizard = ({ fornecedor, productTypeId: initialProductTypeId, 
   };
 
   const pollStatus = async (id, runId) => {
+    if (pollLoopActiveRef.current && pollRunRef.current === runId) return;
+
+    pollLoopActiveRef.current = true;
+    if (terminalTrackerRef.current.runId !== runId) {
+      terminalTrackerRef.current = { runId, detectedAt: null, attempts: 0 };
+    }
+
     let keepPolling = true;
-    let terminalDetectedAt = null;
-    let resultAttempts = 0;
-    let lastStatusSnapshot = '';
-    while (keepPolling && pollRunRef.current === runId) {
-      try {
-        const statusRaw = await fornecedorService.getImportacaoStatus(id);
-        const statusValue = String(statusRaw?.status || '').trim().toUpperCase();
-        const status = {
-          ...statusRaw,
-          status: statusValue || statusRaw?.status || 'PROCESSING',
-        };
-        setStatusData(status);
+    try {
+      while (keepPolling && pollRunRef.current === runId) {
+        try {
+          const statusRaw = await fornecedorService.getImportacaoStatus(id);
+          const statusValue = String(statusRaw?.status || '').trim().toUpperCase();
+          const canonicalStatus =
+            statusValue === 'DONE' || statusValue === 'COMPLETED' ? 'IMPORTED' : statusValue;
+          const status = {
+            ...statusRaw,
+            status: canonicalStatus || statusRaw?.status || 'PROCESSING',
+          };
+          setStatusData(status);
 
-        const pagesProcessed = status?.pages_processed ?? 0;
-        const pagesTotal = status?.total_pages ?? status?.pages_total ?? expectedPages ?? 0;
-        const statusSnapshot = `${status.status}|${pagesProcessed}|${pagesTotal}`;
-        if (statusSnapshot !== lastStatusSnapshot) {
-          appendTimeline(`Status: ${status.status} | Páginas: ${pagesProcessed}/${pagesTotal}`);
-          lastStatusSnapshot = statusSnapshot;
-        }
-
-        const terminalStatuses = new Set(['IMPORTED', 'DONE', 'FAILED', 'PARTIAL']);
-        if (status?.status && terminalStatuses.has(status.status)) {
-          if (!terminalDetectedAt) {
-            terminalDetectedAt = Date.now();
-            appendTimeline(`Processamento finalizado com status ${status.status}. Buscando resultado final...`);
-          }
-          resultAttempts += 1;
-
-          const elapsedWaitingMs = Date.now() - terminalDetectedAt;
-          const statusSignalsReady = Boolean(status?.result_ready);
-          const timeoutExceeded =
-            elapsedWaitingMs >= MAX_RESULT_WAIT_MS || resultAttempts >= MAX_RESULT_ATTEMPTS;
-
-          if (!statusSignalsReady && !timeoutExceeded) {
-            keepPolling = true;
-            continue;
+          const pagesProcessed = status?.pages_processed ?? 0;
+          const pagesTotal = status?.total_pages ?? status?.pages_total ?? expectedPages ?? 0;
+          const terminalStatuses = new Set(['IMPORTED', 'DONE', 'FAILED', 'PARTIAL']);
+          const isTerminal = Boolean(status?.status && terminalStatuses.has(status.status));
+          if (!isTerminal) {
+            const statusSnapshot = `${status.status}|${pagesProcessed}|${pagesTotal}`;
+            if (statusSnapshot !== lastStatusSnapshotRef.current) {
+              appendTimeline(`Status: ${status.status} | Páginas: ${pagesProcessed}/${pagesTotal}`);
+              lastStatusSnapshotRef.current = statusSnapshot;
+            }
+          } else if (!terminalStatusAnnouncedRef.current) {
+            appendTimeline(`Status: ${status.status} | Páginas: ${pagesProcessed}/${pagesTotal}`);
+            terminalStatusAnnouncedRef.current = true;
           }
 
-          if (!statusSignalsReady && timeoutExceeded) {
-            const timeoutMessage =
-              'Processamento concluído, mas o resultado final ainda não ficou disponível. Tente atualizar em instantes.';
-            setError(timeoutMessage);
-            appendTimeline(timeoutMessage);
-            keepPolling = false;
-            continue;
-          }
+          if (status?.status && terminalStatuses.has(status.status)) {
+            const tracker = terminalTrackerRef.current;
+            if (!tracker.detectedAt) {
+              tracker.detectedAt = Date.now();
+              appendTimeline(
+                `Processamento finalizado com status ${status.status}. Buscando resultado final...`
+              );
+            }
+            tracker.attempts += 1;
 
-          try {
-            const res = await fornecedorService.getImportacaoResult(id);
-            if (res?.ready === false) {
-              if (timeoutExceeded) {
-                const timeoutMessage =
-                  'Resultado ainda pendente após o tempo limite de espera. Tente atualizar em instantes.';
-                setError(timeoutMessage);
-                appendTimeline(timeoutMessage);
-                keepPolling = false;
-              } else {
-                appendTimeline('Resultado final ainda não disponível. Continuando monitoramento...');
-                keepPolling = true;
+            const elapsedWaitingMs = Date.now() - tracker.detectedAt;
+            const statusSignalsReady = Boolean(status?.result_ready);
+            const timeoutExceeded =
+              elapsedWaitingMs >= MAX_RESULT_WAIT_MS || tracker.attempts >= MAX_RESULT_ATTEMPTS;
+
+            let shouldFetchResult = true;
+            if (!statusSignalsReady && !timeoutExceeded) {
+              shouldFetchResult = false;
+            }
+
+            if (!statusSignalsReady && timeoutExceeded) {
+              const timeoutMessage =
+                'Processamento concluído, mas o resultado final ainda não ficou disponível. Tente atualizar em instantes.';
+              setError(timeoutMessage);
+              appendTimeline(timeoutMessage);
+              keepPolling = false;
+              shouldFetchResult = false;
+            }
+
+            if (shouldFetchResult && keepPolling) {
+              try {
+                const res = await fornecedorService.getImportacaoResult(id);
+                if (res?.ready === false) {
+                  if (timeoutExceeded) {
+                    const timeoutMessage =
+                      'Resultado ainda pendente após o tempo limite de espera. Tente atualizar em instantes.';
+                    setError(timeoutMessage);
+                    appendTimeline(timeoutMessage);
+                    keepPolling = false;
+                  } else {
+                    appendTimeline('Resultado final ainda não disponível. Continuando monitoramento...');
+                    keepPolling = true;
+                  }
+                } else {
+                  setResultData(normalizePayloadStrings(res));
+                  appendTimeline('Resultado final carregado.');
+                  keepPolling = false;
+                }
+              } catch (err) {
+                const detail = normalizeDisplayText(
+                  toErrorDetail(err, 'Falha ao obter resultado final da importação.')
+                );
+                const waitingResult =
+                  /ainda n[ãa]o dispon[íi]vel|not available|still processing/i.test(detail);
+                if (waitingResult && !timeoutExceeded) {
+                  appendTimeline('Resultado final ainda não disponível. Continuando monitoramento...');
+                  keepPolling = true;
+                } else {
+                  console.error('Erro ao obter resultado final:', err);
+                  setError(detail);
+                  appendTimeline(`Erro ao obter resultado final: ${detail}`);
+                  keepPolling = false;
+                }
               }
-            } else {
-              setResultData(normalizePayloadStrings(res));
-              appendTimeline('Resultado final carregado.');
-              keepPolling = false;
-            }
-          } catch (err) {
-            const detail = normalizeDisplayText(
-              toErrorDetail(err, 'Falha ao obter resultado final da importação.')
-            );
-            const waitingResult =
-              /ainda n[aã]o dispon[ií]veis|not available|still processing/i.test(detail);
-            if (waitingResult && !timeoutExceeded) {
-              appendTimeline('Resultado final ainda não disponível. Continuando monitoramento...');
-              keepPolling = true;
-            } else {
-              console.error('Erro ao obter resultado final:', err);
-              setError(detail);
-              appendTimeline(`Erro ao obter resultado final: ${detail}`);
-              keepPolling = false;
             }
           }
+        } catch (err) {
+          console.error('Erro ao consultar status:', err);
+          const detail = toErrorDetail(err, 'Falha ao consultar status da importação.');
+          setError(detail);
+          appendTimeline(`Erro de monitoramento: ${detail}`);
+          keepPolling = false;
         }
-      } catch (err) {
-        console.error('Erro ao consultar status:', err);
-        const detail = toErrorDetail(err, 'Falha ao consultar status da importação.');
-        setError(detail);
-        appendTimeline(`Erro de monitoramento: ${detail}`);
-        keepPolling = false;
+
+        if (keepPolling && pollRunRef.current === runId) {
+          await new Promise((r) => setTimeout(r, POLL_INTERVAL_MS));
+        }
       }
-      if (keepPolling && pollRunRef.current === runId) {
-        await new Promise((r) => setTimeout(r, POLL_INTERVAL_MS));
+    } finally {
+      if (pollRunRef.current === runId) {
+        pollLoopActiveRef.current = false;
       }
     }
   };
@@ -547,6 +582,10 @@ const ImportCatalogWizard = ({ fornecedor, productTypeId: initialProductTypeId, 
     setStatusData(null);
     setResultData(null);
     setStatusTimeline([]);
+    lastStatusSnapshotRef.current = '';
+    terminalStatusAnnouncedRef.current = false;
+    terminalTrackerRef.current = { runId: 0, detectedAt: null, attempts: 0 };
+    pollLoopActiveRef.current = false;
     appendTimeline('Solicitação de processamento enviada para o backend.');
     try {
       const selectedPages = applyAllPages
@@ -570,6 +609,7 @@ const ImportCatalogWizard = ({ fornecedor, productTypeId: initialProductTypeId, 
 
       const runId = Date.now();
       pollRunRef.current = runId;
+      terminalTrackerRef.current = { runId, detectedAt: null, attempts: 0 };
       pollStatus(fileId, runId);
 
       await fornecedorService.finalizarImportacaoCatalogo({
@@ -1076,4 +1116,3 @@ const ImportCatalogWizard = ({ fornecedor, productTypeId: initialProductTypeId, 
 };
 
 export default ImportCatalogWizard;
-

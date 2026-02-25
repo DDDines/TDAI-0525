@@ -28,7 +28,7 @@ def get_registros_uso_ia(
         try:
             tipo_acao = models.TipoAcaoEnum(tipo_acao)
         except ValueError as exc:
-            raise ValueError(f"tipo_acao invÃ¡lido: {tipo_acao}") from exc
+            raise ValueError(f"tipo_acao inválido: {tipo_acao}") from exc
 
     query = db.query(models.RegistroUsoIA).filter(models.RegistroUsoIA.user_id == user_id)
     if tipo_acao:
@@ -56,7 +56,7 @@ def count_registros_uso_ia(
         try:
             tipo_acao = models.TipoAcaoEnum(tipo_acao)
         except ValueError as exc:
-            raise ValueError(f"tipo_acao invÃ¡lido: {tipo_acao}") from exc
+            raise ValueError(f"tipo_acao inválido: {tipo_acao}") from exc
 
     query = db.query(func.count(models.RegistroUsoIA.id)).filter(models.RegistroUsoIA.user_id == user_id)
     if tipo_acao:

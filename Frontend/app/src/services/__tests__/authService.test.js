@@ -54,7 +54,7 @@ describe('authService.login', () => {
     apiClient.post.mockRejectedValue({ code: 'ERR_NETWORK', message: 'Network Error' });
 
     await expect(authService.login('admin@example.com', 'secret')).rejects.toThrow(
-      'Nao foi possivel autenticar agora. Tente novamente em alguns instantes.'
+      'Não foi possível autenticar agora. Tente novamente em alguns instantes.'
     );
   });
 
@@ -84,7 +84,7 @@ describe('authService.login', () => {
     });
 
     await expect(authService.login('admin@example.com', 'secret')).rejects.toThrow(
-      'Nao foi possivel autenticar agora. Tente novamente em alguns instantes.'
+      'Não foi possível autenticar agora. Tente novamente em alguns instantes.'
     );
   });
 });

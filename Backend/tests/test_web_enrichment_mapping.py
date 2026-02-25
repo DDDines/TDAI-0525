@@ -67,8 +67,8 @@ def test_build_payload_populates_visible_fields_and_dynamic_attributes():
 def test_build_payload_does_not_override_existing_values():
     produto = _make_product(
         nome_chat_api="Nome Ja Definido",
-        descricao_original="Descricao existente",
-        descricao_chat_api="Descricao IA existente",
+        descricao_original="Descricao existente detalhada da peca automotiva",
+        descricao_chat_api="Descricao IA existente detalhada da peca automotiva",
         imagem_principal_url="https://img.existing/principal.webp",
         marca="Marca Existente",
         sku="SKU-EXISTENTE",
@@ -76,7 +76,7 @@ def test_build_payload_does_not_override_existing_values():
         dynamic_attributes={
             "titulo": "Titulo existente",
             "id": "ID-EXISTENTE",
-            "descricao": "Descricao existente",
+            "descricao": "Descricao existente detalhada",
         },
     )
     dados = {
@@ -101,7 +101,7 @@ def test_build_payload_does_not_override_existing_values():
     dyn = update_fields["dynamic_attributes"]
     assert dyn["titulo"] == "Titulo existente"
     assert dyn["id"] == "ID-EXISTENTE"
-    assert dyn["descricao"] == "Descricao existente"
+    assert dyn["descricao"] == "Descricao existente detalhada"
     # Pode complementar com novos atributos sem sobrescrever os existentes.
     assert dyn["material"] == "smc"
     assert dyn["marca"] == "Nova Marca"

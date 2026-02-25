@@ -20,7 +20,7 @@ if dotenv_path.exists():
     load_dotenv(dotenv_path=dotenv_path)
 else:
     logger.warning(
-        "Arquivo .env nÃ£o encontrado em %s. Usando valores padrÃ£o ou variÃ¡veis de ambiente do sistema.",
+        "Arquivo .env não encontrado em %s. Usando valores padrão ou variáveis de ambiente do sistema.",
         dotenv_path,
     )
 
@@ -42,10 +42,10 @@ class Settings(BaseSettings):
     PASSWORD_RESET_TOKEN_EXPIRE_HOURS: int = int(os.getenv("PASSWORD_RESET_TOKEN_EXPIRE_HOURS", 1))
     REFRESH_TOKEN_EXPIRE_DAYS: int = int(os.getenv("REFRESH_TOKEN_EXPIRE_DAYS", 7))
 
-    # ``cors_origins_str`` captura o valor cru da variÃ¡vel de ambiente
+    # ``cors_origins_str`` captura o valor cru da variável de ambiente
     # ``BACKEND_CORS_ORIGINS``. ``BACKEND_CORS_ORIGINS`` em si utiliza um alias
-    # inexistente para evitar que o ``BaseSettings`` tente processÃ¡-la
-    # automaticamente (o que falharia quando o valor nÃ£o estÃ¡ em formato JSON).
+    # inexistente para evitar que o ``BaseSettings`` tente processá-la
+    # automaticamente (o que falharia quando o valor não está em formato JSON).
     cors_origins_str: Optional[str] = Field(default=None, alias="BACKEND_CORS_ORIGINS")
     BACKEND_CORS_ORIGINS: List[AnyHttpUrl] = Field(default_factory=list, alias="BACKEND_CORS_ORIGINS_PARSED")
 
@@ -95,6 +95,7 @@ class Settings(BaseSettings):
     GOOGLE_CSE_API_KEY: Optional[str] = os.getenv("GOOGLE_CSE_API_KEY")
     GOOGLE_CSE_ID: Optional[str] = os.getenv("GOOGLE_CSE_ID")
     AUTO_CREATE_TABLES: bool = os.getenv("AUTO_CREATE_TABLES", "False").lower() in ("true", "1", "t", "yes")
+    APP_MODE: str = os.getenv("APP_MODE", "legacy")
     
     ALLOW_USERS_TO_EDIT_GLOBAL_PRODUCT_TYPES: bool = Field(default=False, validation_alias=env_var_name_with_prefix('ALLOW_USERS_TO_EDIT_GLOBAL_PRODUCT_TYPES'))
     ALLOW_USERS_TO_DELETE_GLOBAL_PRODUCT_TYPES: bool = Field(default=False, validation_alias=env_var_name_with_prefix('ALLOW_USERS_TO_DELETE_GLOBAL_PRODUCT_TYPES'))
@@ -113,7 +114,7 @@ if settings.DATABASE_URL is None:
     backend_dir = Path(__file__).resolve().parent.parent
     sqlite_file_path = backend_dir / settings.SQLITE_DB_FILE
     settings.DATABASE_URL = f"sqlite:///{sqlite_file_path.resolve()}"
-    logger.info("DATABASE_URL nÃ£o encontrada no .env. Usando SQLite em: %s", settings.DATABASE_URL)
+    logger.info("DATABASE_URL não encontrada no .env. Usando SQLite em: %s", settings.DATABASE_URL)
 else:
     logger.info("DATABASE_URL carregada do .env: %s", settings.DATABASE_URL)
 
@@ -126,13 +127,13 @@ if settings.cors_origins_str:
             try:
                 valid_origins.append(http_url_adapter.validate_python(origin_str))
             except ValidationError:
-                logger.warning("Origem CORS invÃ¡lida '%s' em BACKEND_CORS_ORIGINS. SerÃ¡ ignorada.", origin_str)
+                logger.warning("Origem CORS inválida '%s' em BACKEND_CORS_ORIGINS. Será ignorada.", origin_str)
         settings.BACKEND_CORS_ORIGINS = valid_origins
     except Exception as e:
         logger.error("Erro ao processar BACKEND_CORS_ORIGINS do .env: %s. Usando fallback.", e)
         settings.BACKEND_CORS_ORIGINS = []
 else:
-    # PadrÃ£o
+    # Padrão
     default_origins_httpurl = []
     default_list = [
         "http://localhost:5173",
@@ -145,8 +146,9 @@ else:
         except ValidationError:
             pass
     settings.BACKEND_CORS_ORIGINS = default_origins_httpurl
-    logger.info("Usando CORS origins padrÃ£o: %s", [str(o) for o in settings.BACKEND_CORS_ORIGINS])
+    logger.info("Usando CORS origins padrão: %s", [str(o) for o in settings.BACKEND_CORS_ORIGINS])
 
 logger.info("Usando CORS origins de settings: %s", [str(o) for o in settings.BACKEND_CORS_ORIGINS])
+logger.info("APP_MODE ativo: %s", settings.APP_MODE)
 
 
