@@ -176,15 +176,15 @@ const ImportCatalogWizard = ({ fornecedor, productTypeId: initialProductTypeId, 
   const pollLoopActiveRef = useRef(false);
   const lastStatusSnapshotRef = useRef('');
   const terminalStatusAnnouncedRef = useRef(false);
-  const terminalTrackerRef = useRef({ runId: 0, detectedAt: null, attempts: 0 });
 
   const appendTimeline = useCallback((message) => {
     if (!message) return;
     const safeMessage = normalizeDisplayText(message);
     setStatusTimeline((prev) => {
-      const last = prev[prev.length - 1] || '';
-      const lastMessage = last.replace(/^\[[^\]]+\]\s*/, '');
-      if (lastMessage === safeMessage) return prev;
+      const recentMessages = prev
+        .slice(-6)
+        .map((entry) => entry.replace(/^\[[^\]]+\]\s*/, ''));
+      if (recentMessages.includes(safeMessage)) return prev;
       return [...prev, `[${timestamp()}] ${safeMessage}`].slice(-120);
     });
   }, []);
@@ -217,7 +217,6 @@ const ImportCatalogWizard = ({ fornecedor, productTypeId: initialProductTypeId, 
     setStatusTimeline([]);
     lastStatusSnapshotRef.current = '';
     terminalStatusAnnouncedRef.current = false;
-    terminalTrackerRef.current = { runId: 0, detectedAt: null, attempts: 0 };
   }, [isOpen, fornecedor, initialProductTypeId]);
 
   useEffect(() => {
@@ -240,7 +239,6 @@ const ImportCatalogWizard = ({ fornecedor, productTypeId: initialProductTypeId, 
       pollLoopActiveRef.current = false;
       lastStatusSnapshotRef.current = '';
       terminalStatusAnnouncedRef.current = false;
-      terminalTrackerRef.current = { runId: 0, detectedAt: null, attempts: 0 };
     }
   }, [isOpen]);
 
@@ -446,11 +444,10 @@ const ImportCatalogWizard = ({ fornecedor, productTypeId: initialProductTypeId, 
     if (pollLoopActiveRef.current && pollRunRef.current === runId) return;
 
     pollLoopActiveRef.current = true;
-    if (terminalTrackerRef.current.runId !== runId) {
-      terminalTrackerRef.current = { runId, detectedAt: null, attempts: 0 };
-    }
 
     let keepPolling = true;
+    let terminalDetectedAt = null;
+    let terminalAttempts = 0;
     try {
       while (keepPolling && pollRunRef.current === runId) {
         try {
@@ -480,19 +477,18 @@ const ImportCatalogWizard = ({ fornecedor, productTypeId: initialProductTypeId, 
           }
 
           if (status?.status && terminalStatuses.has(status.status)) {
-            const tracker = terminalTrackerRef.current;
-            if (!tracker.detectedAt) {
-              tracker.detectedAt = Date.now();
+            if (!terminalDetectedAt) {
+              terminalDetectedAt = Date.now();
               appendTimeline(
                 `Processamento finalizado com status ${status.status}. Buscando resultado final...`
               );
             }
-            tracker.attempts += 1;
+            terminalAttempts += 1;
 
-            const elapsedWaitingMs = Date.now() - tracker.detectedAt;
+            const elapsedWaitingMs = Date.now() - terminalDetectedAt;
             const statusSignalsReady = Boolean(status?.result_ready);
             const timeoutExceeded =
-              elapsedWaitingMs >= MAX_RESULT_WAIT_MS || tracker.attempts >= MAX_RESULT_ATTEMPTS;
+              elapsedWaitingMs >= MAX_RESULT_WAIT_MS || terminalAttempts >= MAX_RESULT_ATTEMPTS;
 
             let shouldFetchResult = true;
             if (!statusSignalsReady && !timeoutExceeded) {
@@ -584,7 +580,6 @@ const ImportCatalogWizard = ({ fornecedor, productTypeId: initialProductTypeId, 
     setStatusTimeline([]);
     lastStatusSnapshotRef.current = '';
     terminalStatusAnnouncedRef.current = false;
-    terminalTrackerRef.current = { runId: 0, detectedAt: null, attempts: 0 };
     pollLoopActiveRef.current = false;
     appendTimeline('Solicitação de processamento enviada para o backend.');
     try {
@@ -609,7 +604,6 @@ const ImportCatalogWizard = ({ fornecedor, productTypeId: initialProductTypeId, 
 
       const runId = Date.now();
       pollRunRef.current = runId;
-      terminalTrackerRef.current = { runId, detectedAt: null, attempts: 0 };
       pollStatus(fileId, runId);
 
       await fornecedorService.finalizarImportacaoCatalogo({
