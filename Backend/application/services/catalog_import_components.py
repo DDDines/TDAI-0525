@@ -216,3 +216,154 @@ class CatalogImportAuditWriter:
                     entity_id=db_produto.id,
                 )
             )
+
+
+class CatalogImportResultBuilder:
+    """Monta summary final da importacao (stats/log/report) de forma consistente."""
+
+    def __init__(
+        self,
+        *,
+        schemas: Any,
+        normalize_import_text: Callable[[str], str],
+        write_catalog_import_report: Callable[..., Any],
+        outcome_resolver: CatalogImportOutcomeResolver,
+    ) -> None:
+        self._schemas = schemas
+        self._normalize_import_text = normalize_import_text
+        self._write_catalog_import_report = write_catalog_import_report
+        self._outcome_resolver = outcome_resolver
+
+    def build(
+        self,
+        *,
+        file_id: int,
+        created: List[Any],
+        updated: List[Any],
+        issue_tracker: CatalogImportIssueTracker,
+        quality_scores: CatalogImportQualityAccumulator,
+        pages_processed: int,
+        pages_total: int,
+        ext: str,
+    ) -> Dict[str, Any]:
+        created_count = len(created)
+        updated_count = len(updated)
+        errors_count = len(issue_tracker.errors)
+        ignored_count = len(issue_tracker.ignored_non_critical)
+        quarantine_count = len(issue_tracker.quarantine_non_critical)
+        final_status, has_partial_success = self._outcome_resolver.resolve(
+            created_count=created_count,
+            updated_count=updated_count,
+            errors_count=errors_count,
+            ignored_count=ignored_count,
+            quarantine_count=quarantine_count,
+        )
+
+        top_reasons = issue_tracker.top_error_reasons(limit=10)
+        top_ignored_reasons = issue_tracker.top_ignored_reasons(limit=10)
+        top_quarantine_reasons = issue_tracker.top_quarantine_reasons(limit=10)
+        accepted_quality_avg = quality_scores.accepted_avg
+        quarantine_quality_avg = quality_scores.quarantine_avg
+
+        result_summary: Dict[str, Any] = {
+            "created": [
+                self._schemas.ProdutoResponse.model_validate(p).model_dump(mode="json")
+                for p in created
+            ],
+            "updated": [
+                self._schemas.ProdutoResponse.model_validate(p).model_dump(mode="json")
+                for p in updated
+            ],
+            "errors": issue_tracker.errors,
+            "ignored_non_critical": issue_tracker.ignored_non_critical,
+            "quarantine_non_critical": issue_tracker.quarantine_non_critical,
+            "stats": {
+                "produtos_criados": created_count,
+                "produtos_atualizados": updated_count,
+                "erros": errors_count,
+                "critical_errors": errors_count,
+                "descartes_nao_criticos": ignored_count,
+                "quarentena_nao_critica": quarantine_count,
+                "qualidade_score_medio_aceitas": accepted_quality_avg,
+                "qualidade_score_medio_quarentena": quarantine_quality_avg,
+                "partial_success": has_partial_success,
+                "pages_processed": pages_processed or 0,
+                "pages_total": pages_total or 0,
+                "ext": ext,
+            },
+            "log": [
+                f"Resumo final: status={final_status}",
+                (
+                    f"Criados={created_count}, Atualizados={updated_count}, "
+                    f"Erros={errors_count}, Descartes não críticos={ignored_count}, "
+                    f"Quarentena não crítica={quarantine_count}"
+                ),
+            ],
+        }
+        if top_reasons:
+            top_reasons_log = "; ".join(
+                [f"{self._normalize_import_text(reason)} ({count})" for reason, count in top_reasons]
+            )
+            result_summary["log"].append(f"Top motivos de erro: {top_reasons_log}")
+        if top_ignored_reasons:
+            top_ignored_log = "; ".join(
+                [f"{self._normalize_import_text(reason)} ({count})" for reason, count in top_ignored_reasons]
+            )
+            result_summary["log"].append(f"Top descartes não críticos: {top_ignored_log}")
+        if top_quarantine_reasons:
+            top_quarantine_log = "; ".join(
+                [
+                    f"{self._normalize_import_text(reason)} ({count})"
+                    for reason, count in top_quarantine_reasons
+                ]
+            )
+            result_summary["log"].append(f"Top linhas em quarentena: {top_quarantine_log}")
+        if accepted_quality_avg is not None:
+            result_summary["log"].append(
+                f"Score médio de qualidade (aceitas): {accepted_quality_avg}"
+            )
+        if quarantine_quality_avg is not None:
+            result_summary["log"].append(
+                f"Score médio de qualidade (quarentena): {quarantine_quality_avg}"
+            )
+        if has_partial_success:
+            result_summary["log"].append(
+                "Importação concluída com sucesso parcial: produtos foram gravados, mas houve erros críticos."
+            )
+
+        report_path = self._write_catalog_import_report(
+            file_id=file_id,
+            status=final_status,
+            created_count=created_count,
+            updated_count=updated_count,
+            errors=issue_tracker.errors,
+            ignored_count=ignored_count,
+            ignored_reasons=top_ignored_reasons,
+            ignored_samples=issue_tracker.ignored_samples,
+            quarantine_count=quarantine_count,
+            quarantine_reasons=top_quarantine_reasons,
+            quarantine_samples=issue_tracker.quarantine_samples,
+            accepted_quality_avg=accepted_quality_avg,
+            quarantine_quality_avg=quarantine_quality_avg,
+            pages_processed=pages_processed or 0,
+            pages_total=pages_total or 0,
+            ext=ext,
+        )
+        if report_path:
+            result_summary["log"].append(f"Relatório detalhado: {report_path}")
+
+        return {
+            "final_status": final_status,
+            "result_summary": result_summary,
+            "created_count": created_count,
+            "updated_count": updated_count,
+            "errors_count": errors_count,
+            "ignored_count": ignored_count,
+            "quarantine_count": quarantine_count,
+            "top_reasons": top_reasons,
+            "top_ignored_reasons": top_ignored_reasons,
+            "top_quarantine_reasons": top_quarantine_reasons,
+            "accepted_quality_avg": accepted_quality_avg,
+            "quarantine_quality_avg": quarantine_quality_avg,
+            "report_path": report_path,
+        }

@@ -9,6 +9,7 @@ from Backend.application.services.catalog_import_components import (
     CatalogImportIssueTracker,
     CatalogImportOutcomeResolver,
     CatalogImportQualityAccumulator,
+    CatalogImportResultBuilder,
 )
 
 
@@ -154,3 +155,52 @@ def test_audit_writer_adds_usage_and_history_rows():
     assert db.added[1].payload["entity_id"] == 1
     assert db.added[2].payload["produto_id"] == 2
     assert db.added[3].payload["entity_id"] == 2
+
+
+def test_result_builder_generates_summary_and_report():
+    class _ProdutoResponse:
+        def __init__(self, payload):
+            self._payload = payload
+
+        @classmethod
+        def model_validate(cls, payload):
+            return cls(payload)
+
+        def model_dump(self, mode="json"):
+            return self._payload
+
+    schemas = SimpleNamespace(ProdutoResponse=_ProdutoResponse)
+    report_calls = []
+    resolver = CatalogImportOutcomeResolver()
+    builder = CatalogImportResultBuilder(
+        schemas=schemas,
+        normalize_import_text=lambda value: value,
+        write_catalog_import_report=lambda **kwargs: report_calls.append(kwargs) or "r.json",
+        outcome_resolver=resolver,
+    )
+    tracker = CatalogImportIssueTracker(
+        normalize_import_issue_item=lambda item: item,
+        extract_import_error_reason=lambda item: item.get("motivo_descarte", "x"),
+        is_non_critical_import_reason=lambda reason: False,
+    )
+    tracker.add_issue({"motivo_descarte": "erro x"})
+    quality = CatalogImportQualityAccumulator()
+    quality.add_accepted(90)
+
+    payload = builder.build(
+        file_id=99,
+        created=[{"id": 1}],
+        updated=[],
+        issue_tracker=tracker,
+        quality_scores=quality,
+        pages_processed=3,
+        pages_total=10,
+        ext=".pdf",
+    )
+
+    assert payload["final_status"] == "PARTIAL"
+    assert payload["created_count"] == 1
+    assert payload["errors_count"] == 1
+    assert payload["result_summary"]["stats"]["pages_processed"] == 3
+    assert payload["report_path"] == "r.json"
+    assert len(report_calls) == 1

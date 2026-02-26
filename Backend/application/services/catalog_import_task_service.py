@@ -9,6 +9,7 @@ from Backend.application.services.catalog_import_components import (
     CatalogImportIssueTracker,
     CatalogImportOutcomeResolver,
     CatalogImportQualityAccumulator,
+    CatalogImportResultBuilder,
 )
 
 
@@ -104,6 +105,12 @@ async def run_catalog_import_task(
         )
         quality_scores = CatalogImportQualityAccumulator()
         outcome_resolver = CatalogImportOutcomeResolver()
+        result_builder = CatalogImportResultBuilder(
+            schemas=schemas,
+            normalize_import_text=normalize_import_text,
+            write_catalog_import_report=write_catalog_import_report,
+            outcome_resolver=outcome_resolver,
+        )
         audit_writer = CatalogImportAuditWriter(models=models)
 
         produtos_create: List[schemas.ProdutoCreate] = []
@@ -509,108 +516,29 @@ async def run_catalog_import_task(
 
 
 
-        created_count = len(created)
-        updated_count = len(updated)
-        errors_count = len(issue_tracker.errors)
-        ignored_count = len(issue_tracker.ignored_non_critical)
-        quarantine_count = len(issue_tracker.quarantine_non_critical)
-        final_status, has_partial_success = outcome_resolver.resolve(
-            created_count=created_count,
-            updated_count=updated_count,
-            errors_count=errors_count,
-            ignored_count=ignored_count,
-            quarantine_count=quarantine_count,
-        )
-
-        top_reasons = issue_tracker.top_error_reasons(limit=10)
-        top_ignored_reasons = issue_tracker.top_ignored_reasons(limit=10)
-        top_quarantine_reasons = issue_tracker.top_quarantine_reasons(limit=10)
-        accepted_quality_avg = quality_scores.accepted_avg
-        quarantine_quality_avg = quality_scores.quarantine_avg
-
-        result_summary = {
-            "created": [
-                schemas.ProdutoResponse.model_validate(p).model_dump(mode="json")
-                for p in created
-            ],
-            "updated": [
-                schemas.ProdutoResponse.model_validate(p).model_dump(mode="json")
-                for p in updated
-            ],
-            "errors": issue_tracker.errors,
-            "ignored_non_critical": issue_tracker.ignored_non_critical,
-            "quarantine_non_critical": issue_tracker.quarantine_non_critical,
-            "stats": {
-                "produtos_criados": created_count,
-                "produtos_atualizados": updated_count,
-                "erros": errors_count,
-                "critical_errors": errors_count,
-                "descartes_nao_criticos": ignored_count,
-                "quarentena_nao_critica": quarantine_count,
-                "qualidade_score_medio_aceitas": accepted_quality_avg,
-                "qualidade_score_medio_quarentena": quarantine_quality_avg,
-                "partial_success": has_partial_success,
-                "pages_processed": catalog_file.pages_processed or 0,
-                "pages_total": catalog_file.total_pages or 0,
-                "ext": ext,
-            },
-            "log": [
-                f"Resumo final: status={final_status}",
-                (
-                    f"Criados={created_count}, Atualizados={updated_count}, "
-                    f"Erros={errors_count}, Descartes n\u00e3o cr\u00edticos={ignored_count}, "
-                    f"Quarentena n\u00e3o cr\u00edtica={quarantine_count}"
-                ),
-            ],
-        }
-        if top_reasons:
-            top_reasons_log = "; ".join(
-                [f"{normalize_import_text(reason)} ({count})" for reason, count in top_reasons]
-            )
-            result_summary["log"].append(f"Top motivos de erro: {top_reasons_log}")
-        if top_ignored_reasons:
-            top_ignored_log = "; ".join(
-                [f"{normalize_import_text(reason)} ({count})" for reason, count in top_ignored_reasons]
-            )
-            result_summary["log"].append(f"Top descartes n\u00e3o cr\u00edticos: {top_ignored_log}")
-        if top_quarantine_reasons:
-            top_quarantine_log = "; ".join(
-                [f"{normalize_import_text(reason)} ({count})" for reason, count in top_quarantine_reasons]
-            )
-            result_summary["log"].append(f"Top linhas em quarentena: {top_quarantine_log}")
-        if accepted_quality_avg is not None:
-            result_summary["log"].append(
-                f"Score m\u00e9dio de qualidade (aceitas): {accepted_quality_avg}"
-            )
-        if quarantine_quality_avg is not None:
-            result_summary["log"].append(
-                f"Score m\u00e9dio de qualidade (quarentena): {quarantine_quality_avg}"
-            )
-        if has_partial_success:
-            result_summary["log"].append(
-                "Importa\u00e7\u00e3o conclu\u00edda com sucesso parcial: produtos foram gravados, mas houve erros cr\u00edticos."
-            )
-
-        report_path = write_catalog_import_report(
+        result_payload = result_builder.build(
             file_id=file_id,
-            status=final_status,
-            created_count=created_count,
-            updated_count=updated_count,
-            errors=issue_tracker.errors,
-            ignored_count=ignored_count,
-            ignored_reasons=top_ignored_reasons,
-            ignored_samples=issue_tracker.ignored_samples,
-            quarantine_count=quarantine_count,
-            quarantine_reasons=top_quarantine_reasons,
-            quarantine_samples=issue_tracker.quarantine_samples,
-            accepted_quality_avg=accepted_quality_avg,
-            quarantine_quality_avg=quarantine_quality_avg,
+            created=created,
+            updated=updated,
+            issue_tracker=issue_tracker,
+            quality_scores=quality_scores,
             pages_processed=catalog_file.pages_processed or 0,
             pages_total=catalog_file.total_pages or 0,
             ext=ext,
         )
-        if report_path:
-            result_summary["log"].append(f"Relat\u00f3rio detalhado: {report_path}")
+        final_status = result_payload["final_status"]
+        result_summary = result_payload["result_summary"]
+        created_count = result_payload["created_count"]
+        updated_count = result_payload["updated_count"]
+        errors_count = result_payload["errors_count"]
+        ignored_count = result_payload["ignored_count"]
+        quarantine_count = result_payload["quarantine_count"]
+        top_reasons = result_payload["top_reasons"]
+        top_ignored_reasons = result_payload["top_ignored_reasons"]
+        top_quarantine_reasons = result_payload["top_quarantine_reasons"]
+        accepted_quality_avg = result_payload["accepted_quality_avg"]
+        quarantine_quality_avg = result_payload["quarantine_quality_avg"]
+        report_path = result_payload["report_path"]
 
         file_state_service.mark_final(
             db=db,

@@ -7,6 +7,7 @@ from Backend.application.services.catalog_import_components import (
     CatalogImportIssueTracker,
     CatalogImportOutcomeResolver,
     CatalogImportQualityAccumulator,
+    CatalogImportResultBuilder,
 )
 from Backend.application.services.pipeline_dispatcher import PipelineDispatcher
 from Backend.application.services.web_enrichment_components import (
@@ -27,6 +28,7 @@ __all__ = [
     "CatalogImportIssueTracker",
     "CatalogImportOutcomeResolver",
     "CatalogImportQualityAccumulator",
+    "CatalogImportResultBuilder",
     "PipelineDispatcher",
     "WebEnrichmentConfigInspector",
     "WebEnrichmentConfigSnapshot",

@@ -4,8 +4,8 @@
 
 - Estrutura OOP (modos, selector, dispatcher, contracts, testes): `100%`
 - Integracao das rotas criticas com estrutura OOP: `100%`
-- Migracao da logica para use cases/services OO (sem corpo pesado no router): `93%`
-- Migracao geral (estrutura + logica): `97%`
+- Migracao da logica para use cases/services OO (sem corpo pesado no router): `94%`
+- Migracao geral (estrutura + logica): `98%`
 
 ## O que ja esta pronto
 
@@ -31,7 +31,7 @@
   (`CatalogImportFinalizeCommand` e `WebEnrichmentStartCommand`).
 - Task services foram quebrados em componentes OO menores para reduzir acoplamento:
   - `CatalogImportIssueTracker` + `CatalogImportQualityAccumulator`
-  - `CatalogImportOutcomeResolver` + `CatalogImportFileStateService` + `CatalogImportAuditWriter`
+  - `CatalogImportOutcomeResolver` + `CatalogImportFileStateService` + `CatalogImportAuditWriter` + `CatalogImportResultBuilder`
   - `WebEnrichmentConfigInspector` + `WebEnrichmentQueryPlanner` + `WebEnrichmentStatusResolver`
   - `WebEnrichmentFinalizationService`
   - Cobertura dedicada em testes: `test_catalog_import_components.py` e
