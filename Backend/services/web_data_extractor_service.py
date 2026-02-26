@@ -318,11 +318,11 @@ def _buscar_urls_publicas_sync(query: str, num_results: int = 3) -> List[str]:
     return filtered_urls[: max(1, num_results)] if filtered_urls else scored_urls[: max(1, num_results)]
 
 
-async def buscar_urls_publicas(query: str, num_results: int = 3) -> List[str]:
+async def _buscar_urls_publicas_async_impl(query: str, num_results: int = 3) -> List[str]:
     return await asyncio.to_thread(_buscar_urls_publicas_sync, query, num_results)
 
 
-async def buscar_urls_google(query: str, num_results: int = 3) -> List[str]:
+async def _buscar_urls_google_async_impl(query: str, num_results: int = 3) -> List[str]:
     query_limpa = str(query or "").strip()
     if not query_limpa:
         return []
@@ -389,7 +389,9 @@ async def buscar_urls_google(query: str, num_results: int = 3) -> List[str]:
                 motivos_txt,
             )
 
-        urls_encontradas = await buscar_urls_publicas(query=query_limpa, num_results=limite)
+        urls_encontradas = await _buscar_urls_publicas_async_impl(
+            query=query_limpa, num_results=limite
+        )
         urls_unicas = list(dict.fromkeys(urls_encontradas))[:limite]
         if urls_unicas:
             logger.info(
@@ -469,7 +471,7 @@ def _coletar_conteudo_playwright_em_thread_sync(url: str) -> Optional[str]:
         asyncio.set_event_loop(None)
 
 
-async def coletar_conteudo_pagina_playwright(url: str) -> Optional[str]:
+async def _coletar_conteudo_pagina_playwright_impl(url: str) -> Optional[str]:
     global PLAYWRIGHT_CHROMIUM_INDISPONIVEL
     if _url_deve_ser_ignorada_antes_da_coleta(url):
         logger.info(
@@ -551,6 +553,45 @@ async def coletar_conteudo_pagina_playwright(url: str) -> Optional[str]:
             url,
         )
         return await _coletar_conteudo_pagina_http(url)
+class _WebSearchWorkflow:
+    """Workflow OO para estrategias de busca web."""
+
+    async def buscar_urls_publicas(self, query: str, num_results: int = 3) -> List[str]:
+        return await _buscar_urls_publicas_async_impl(query=query, num_results=num_results)
+
+    async def buscar_urls_google(self, query: str, num_results: int = 3) -> List[str]:
+        return await _buscar_urls_google_async_impl(query=query, num_results=num_results)
+
+
+class _WebContentCollectionWorkflow:
+    """Workflow OO para coleta de conteudo de pagina."""
+
+    async def coletar_conteudo_pagina_playwright(self, url: str) -> Optional[str]:
+        return await _coletar_conteudo_pagina_playwright_impl(url)
+
+
+_web_search_workflow = _WebSearchWorkflow()
+_web_content_collection_workflow = _WebContentCollectionWorkflow()
+
+
+async def buscar_urls_publicas(query: str, num_results: int = 3) -> List[str]:
+    return await _web_search_workflow.buscar_urls_publicas(
+        query=query,
+        num_results=num_results,
+    )
+
+
+async def buscar_urls_google(query: str, num_results: int = 3) -> List[str]:
+    return await _web_search_workflow.buscar_urls_google(
+        query=query,
+        num_results=num_results,
+    )
+
+
+async def coletar_conteudo_pagina_playwright(url: str) -> Optional[str]:
+    return await _web_content_collection_workflow.coletar_conteudo_pagina_playwright(url)
+
+
 # --- Text Extraction Service ---
 def extrair_texto_principal_com_trafilatura(html_content: str) -> Optional[str]:
     if not html_content: return None
