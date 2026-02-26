@@ -122,7 +122,7 @@ except Exception as e:
         e,
     )
 
-async def save_uploaded_catalog(
+async def _save_uploaded_catalog_impl(
 
     file: UploadFile, fornecedor_id: Optional[int] = None
 
@@ -186,7 +186,7 @@ async def save_uploaded_catalog(
 
 
 
-def delete_catalog_file(stored_filename: str) -> None:
+def _delete_catalog_file_impl(stored_filename: str) -> None:
 
     """Remove a stored catalog file from disk if it exists."""
 
@@ -1781,7 +1781,7 @@ def pdf_pages_to_images(db: Session, file: UploadFile, fornecedor_id: int, user_
 
 
 
-def get_file_path_by_id(db: Session, file_id: str) -> str:
+def _get_file_path_by_id_impl(db: Session, file_id: str) -> str:
 
     """Retrieve the stored file path for a catalog import by ID."""
 
@@ -2858,6 +2858,43 @@ def parse_annotation_to_dataframe(annotation: object, vertical_tolerance: int = 
         raise HTTPException(status_code=500, detail="Ocorreu um erro durante a extração de dados.") from e
 
 
+
+class _CatalogStorageWorkflow:
+    """Workflow OO para operacoes de storage de catalogo."""
+
+    async def save_uploaded_catalog(
+        self, file: UploadFile, fornecedor_id: Optional[int] = None
+    ) -> models.CatalogImportFile:
+        return await _save_uploaded_catalog_impl(
+            file=file,
+            fornecedor_id=fornecedor_id,
+        )
+
+    def delete_catalog_file(self, stored_filename: str) -> None:
+        _delete_catalog_file_impl(stored_filename)
+
+    def get_file_path_by_id(self, db: Session, file_id: str) -> str:
+        return _get_file_path_by_id_impl(db=db, file_id=file_id)
+
+
+_catalog_storage_workflow = _CatalogStorageWorkflow()
+
+
+async def save_uploaded_catalog(
+    file: UploadFile, fornecedor_id: Optional[int] = None
+) -> models.CatalogImportFile:
+    return await _catalog_storage_workflow.save_uploaded_catalog(
+        file=file,
+        fornecedor_id=fornecedor_id,
+    )
+
+
+def delete_catalog_file(stored_filename: str) -> None:
+    _catalog_storage_workflow.delete_catalog_file(stored_filename)
+
+
+def get_file_path_by_id(db: Session, file_id: str) -> str:
+    return _catalog_storage_workflow.get_file_path_by_id(db=db, file_id=file_id)
 
 
 class FileProcessingLegacyService:
