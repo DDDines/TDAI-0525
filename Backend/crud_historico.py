@@ -1,11 +1,15 @@
 from typing import List, Optional
+
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from Backend import models, schemas
 
 
-def create_registro_historico(db: Session, registro_in: schemas.RegistroHistoricoCreate) -> models.RegistroHistorico:
+def _create_registro_historico_impl(
+    db: Session,
+    registro_in: schemas.RegistroHistoricoCreate,
+) -> models.RegistroHistorico:
     db_obj = models.RegistroHistorico(**registro_in.model_dump(exclude_unset=True))
     db.add(db_obj)
     db.commit()
@@ -13,7 +17,7 @@ def create_registro_historico(db: Session, registro_in: schemas.RegistroHistoric
     return db_obj
 
 
-def get_registros_historico(
+def _get_registros_historico_impl(
     db: Session,
     user_id: Optional[int] = None,
     skip: int = 0,
@@ -36,7 +40,7 @@ def get_registros_historico(
     )
 
 
-def count_registros_historico(
+def _count_registros_historico_impl(
     db: Session,
     user_id: Optional[int] = None,
     entidade: Optional[str] = None,
@@ -50,3 +54,103 @@ def count_registros_historico(
     if acao:
         query = query.filter(models.RegistroHistorico.acao == acao)
     return query.scalar() or 0
+
+
+class _HistoricoCrudWorkflow:
+    def create_registro_historico(
+        self,
+        db: Session,
+        registro_in: schemas.RegistroHistoricoCreate,
+    ) -> models.RegistroHistorico:
+        return _create_registro_historico_impl(db=db, registro_in=registro_in)
+
+    def get_registros_historico(
+        self,
+        db: Session,
+        user_id: Optional[int] = None,
+        skip: int = 0,
+        limit: int = 100,
+        entidade: Optional[str] = None,
+        acao: Optional[models.TipoAcaoSistemaEnum] = None,
+    ) -> List[models.RegistroHistorico]:
+        return _get_registros_historico_impl(
+            db=db,
+            user_id=user_id,
+            skip=skip,
+            limit=limit,
+            entidade=entidade,
+            acao=acao,
+        )
+
+    def count_registros_historico(
+        self,
+        db: Session,
+        user_id: Optional[int] = None,
+        entidade: Optional[str] = None,
+        acao: Optional[models.TipoAcaoSistemaEnum] = None,
+    ) -> int:
+        return _count_registros_historico_impl(
+            db=db,
+            user_id=user_id,
+            entidade=entidade,
+            acao=acao,
+        )
+
+
+_historico_crud_workflow = _HistoricoCrudWorkflow()
+
+
+def create_registro_historico(
+    db: Session,
+    registro_in: schemas.RegistroHistoricoCreate,
+) -> models.RegistroHistorico:
+    return _historico_crud_workflow.create_registro_historico(
+        db=db,
+        registro_in=registro_in,
+    )
+
+
+def get_registros_historico(
+    db: Session,
+    user_id: Optional[int] = None,
+    skip: int = 0,
+    limit: int = 100,
+    entidade: Optional[str] = None,
+    acao: Optional[models.TipoAcaoSistemaEnum] = None,
+) -> List[models.RegistroHistorico]:
+    return _historico_crud_workflow.get_registros_historico(
+        db=db,
+        user_id=user_id,
+        skip=skip,
+        limit=limit,
+        entidade=entidade,
+        acao=acao,
+    )
+
+
+def count_registros_historico(
+    db: Session,
+    user_id: Optional[int] = None,
+    entidade: Optional[str] = None,
+    acao: Optional[models.TipoAcaoSistemaEnum] = None,
+) -> int:
+    return _historico_crud_workflow.count_registros_historico(
+        db=db,
+        user_id=user_id,
+        entidade=entidade,
+        acao=acao,
+    )
+
+
+class HistoricoCrudLegacyService:
+    def create_registro_historico(self, *args, **kwargs):
+        return create_registro_historico(*args, **kwargs)
+
+    def get_registros_historico(self, *args, **kwargs):
+        return get_registros_historico(*args, **kwargs)
+
+    def count_registros_historico(self, *args, **kwargs):
+        return count_registros_historico(*args, **kwargs)
+
+
+historico_crud_legacy_service = HistoricoCrudLegacyService()
