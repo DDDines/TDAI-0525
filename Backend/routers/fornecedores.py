@@ -14,10 +14,7 @@ from fastapi import (
     Body,
 )
 from sqlalchemy.orm import Session
-from pathlib import Path
 import logging
-import uuid
-import os
 
 
 from Backend import crud_fornecedores
@@ -38,6 +35,9 @@ from Backend.application.services.fornecedor_import_tracking_service import (
 )
 from Backend.application.services.fornecedor_management_service import (
     FornecedorManagementService,
+)
+from Backend.application.services.fornecedor_preview_service import (
+    FornecedorPreviewService,
 )
 from Backend.application.services.service_container import service_container
 from Backend.tasks import process_pdf_extraction_task
@@ -67,6 +67,10 @@ fornecedor_management_service = FornecedorManagementService(
     crud_fornecedores=crud_fornecedores,
     crud_historico=crud_historico,
     sqlalchemy_func=func,
+)
+fornecedor_preview_service = FornecedorPreviewService(
+    file_processing_service=file_processing_service,
+    web_data_extractor_service=web_data_extractor_service,
 )
 
 router = APIRouter(
@@ -195,25 +199,10 @@ def update_mapping(
 
 @router.post("/import/preview-pages")
 async def preview_pages(file: UploadFile = File(...)):
-    """Gera imagens de todas as páginas de um PDF enviado."""
-
-    if not file.filename.lower().endswith(".pdf"):
-        raise HTTPException(status_code=400, detail="Apenas arquivos PDF são permitidos.")
-
-    file_id = uuid.uuid4().hex
-    tmp_dir = Path(os.getenv("TMPDIR", "/tmp"))
-    tmp_dir.mkdir(parents=True, exist_ok=True)
-    pdf_path = tmp_dir / f"{file_id}.pdf"
-
-    contents = await file.read()
-    with open(pdf_path, "wb") as out_file:
-        out_file.write(contents)
-
-    page_image_urls = file_processing_service.generate_pdf_page_images(
-        str(pdf_path), file_id
+    """Gera imagens de todas as paginas de um PDF enviado."""
+    return await fornecedor_preview_service.preview_pages(
+        file=file,
     )
-
-    return {"file_id": file_id, "page_image_urls": page_image_urls}
 
 
 @router.post("/{fornecedor_id}/preview-pdf", response_model=schemas.PdfPreviewResponse)
@@ -235,13 +224,7 @@ async def preview_pdf(
         forbidden_detail="Nao autorizado a acessar este fornecedor.",
     )
 
-    if not file.filename.lower().endswith(".pdf"):
-        raise HTTPException(
-            status_code=400,
-            detail="Tipo de ficheiro inválido. Apenas PDFs são permitidos.",
-        )
-
-    result = file_processing_service.pdf_pages_to_images(
+    return fornecedor_preview_service.preview_pdf(
         db=db,
         file=file,
         fornecedor_id=fornecedor_id,
@@ -249,7 +232,6 @@ async def preview_pdf(
         offset=offset,
         limit=limit,
     )
-    return result
 
 
 # Novo endpoint para pré-visualizar uma região específica de um catálogo PDF
@@ -258,33 +240,13 @@ def preview_catalog_from_region(
     preview_request: schemas.CatalogRegionPreviewRequest,
     db: Session = Depends(database.get_db),
 ):
-    """Gera uma pré-visualização dos dados de uma região específica de um PDF."""
-    file_path = file_processing_service.get_file_path_by_id(
-        db, file_id=preview_request.file_id
-    )
-    if not file_path:
-        raise HTTPException(
-            status_code=404, detail="Arquivo de catálogo não encontrado"
-        )
-
-    image_bytes = file_processing_service.extract_pdf_region_image(
-        file_path=file_path,
+    """Gera uma pre-visualizacao dos dados de uma regiao especifica de um PDF."""
+    return fornecedor_preview_service.preview_catalog_from_region(
+        db=db,
+        file_id=preview_request.file_id,
         page_number=preview_request.page_number,
         region=preview_request.region,
     )
-    annotation = web_data_extractor_service.extract_text_from_image_region(image_bytes)
-    df = file_processing_service.parse_annotation_to_dataframe(annotation)
-
-    if df.empty:
-        raise HTTPException(
-            status_code=400,
-            detail="Não foi possível extrair dados da região selecionada. Tente selecionar uma área diferente ou ajustar as configurações.",
-        )
-
-    columns = df.columns.astype(str).tolist()
-    sample_data = df.head(10).to_dict(orient="records")
-
-    return schemas.CatalogPreview(columns=columns, data=sample_data)
 
 
 @router.post("/extract_data_from_pdf_bulk", status_code=status.HTTP_202_ACCEPTED)
@@ -294,29 +256,15 @@ def extract_data_from_pdf_bulk(
     db: Session = Depends(database.get_db),
     current_user: models.User = Depends(auth_utils.get_current_active_user),
 ):
-    """Inicia a extração de uma região do PDF em várias páginas."""
-    file_path = file_processing_service.get_file_path_by_id(db, file_id=request.file_id)
-    if not file_path:
-        raise HTTPException(status_code=404, detail="Arquivo de catálogo não encontrado")
-
-    import pdfplumber
-    with pdfplumber.open(file_path) as pdf:
-        total_pages = len(pdf.pages)
-
-    pages = request.pages
-    if request.all_pages or not pages:
-        pages = list(range(1, total_pages + 1))
-
-    for pg in pages:
-        if 1 <= pg <= total_pages:
-            background_tasks.add_task(
-                file_processing_service.extract_data_from_pdf_region,
-                file_path=file_path,
-                page_number=pg,
-                region=request.region,
-            )
-
-    return {"detail": "Batch processing started", "total_pages": total_pages}
+    """Inicia a extracao de uma regiao do PDF em varias paginas."""
+    return fornecedor_preview_service.extract_data_from_pdf_bulk(
+        background_tasks=background_tasks,
+        db=db,
+        file_id=request.file_id,
+        region=request.region,
+        pages=request.pages,
+        all_pages=request.all_pages,
+    )
 
 
 # Endpoint para consultar progresso de importação de catálogo
