@@ -37,6 +37,7 @@ from Backend import database
 from Backend import models
 from Backend import schemas
 from Backend.application.services import (
+    CatalogImportFileService,
     CatalogImportFinalizeService,
     CatalogImportStartService,
     CatalogImportStatusService,
@@ -477,6 +478,11 @@ catalog_import_start_service = CatalogImportStartService(
     finalize_service=catalog_import_finalize_service,
 )
 catalog_import_status_service = CatalogImportStatusService(models=models)
+catalog_import_file_service = CatalogImportFileService(
+    models=models,
+    file_processing_service=file_processing_service,
+    catalog_import_start_service=catalog_import_start_service,
+)
 
 
 
@@ -629,34 +635,13 @@ def list_catalog_import_files(
     current_user: models.User = Depends(auth_utils.get_current_active_user),
 
 ):
-
-    query = db.query(models.CatalogImportFile).filter(
-
-        models.CatalogImportFile.user_id == current_user.id
-
+    return catalog_import_file_service.list_user_files(
+        db=db,
+        user_id=current_user.id,
+        fornecedor_id=fornecedor_id,
+        skip=skip,
+        limit=limit,
     )
-
-    if fornecedor_id is not None:
-
-        query = query.filter(models.CatalogImportFile.fornecedor_id == fornecedor_id)
-
-    total_items = query.count()
-
-    items = (
-
-        query.order_by(models.CatalogImportFile.created_at.desc())
-
-        .offset(skip)
-
-        .limit(limit)
-
-        .all()
-
-    )
-
-    page = skip // limit + 1
-
-    return {"items": items, "total_items": total_items, "page": page, "limit": limit}
 
 
 
@@ -679,30 +664,11 @@ def delete_catalog_import_file(
     current_user: models.User = Depends(auth_utils.get_current_active_user),
 
 ):
-
-    record = (
-
-        db.query(models.CatalogImportFile)
-
-        .filter_by(id=file_id, user_id=current_user.id)
-
-        .first()
-
+    return catalog_import_file_service.delete_user_file(
+        db=db,
+        file_id=file_id,
+        user_id=current_user.id,
     )
-
-    if not record:
-
-        raise HTTPException(status_code=404, detail="Arquivo n\u00e3o encontrado")
-
-
-
-    file_processing_service.delete_catalog_file(record.stored_filename)
-
-    db.delete(record)
-
-    db.commit()
-
-    return record
 
 
 
@@ -735,45 +701,17 @@ async def reprocess_catalog_import_file(
     current_user: models.User = Depends(auth_utils.get_current_active_user),
 
 ):
-    catalog_file = catalog_import_start_service.get_catalog_file_or_404(
+    return await catalog_import_file_service.reprocess_catalog_file(
+        background_tasks=background_tasks,
         db=db,
-        file_id=file_id,
-        user_id=current_user.id,
-    )
-    fornecedor_id_final = catalog_import_start_service.resolve_fornecedor_id(
-        catalog_file=catalog_file,
-        fornecedor_id=fornecedor_id,
-        required_message="fornecedor_id e obrigatorio para reprocessar este arquivo.",
-    )
-    catalog_import_start_service.mark_processing(
-        db=db,
-        catalog_file=catalog_file,
-        fornecedor_id=fornecedor_id_final,
-        reset_pages=True,
-    )
-    mapping = catalog_import_start_service.resolve_mapping(
-        db=db,
-        fornecedor_id=fornecedor_id_final,
-        mapping=mapping,
-    )
-    command = catalog_import_start_service.build_finalize_command(
         file_id=file_id,
         user_id=current_user.id,
         product_type_id=product_type_id,
-        fornecedor_id=fornecedor_id_final,
+        fornecedor_id=fornecedor_id,
         mapping=mapping,
         pages=pages,
         region=region,
     )
-    await catalog_import_start_service.dispatch_finalize(
-        background_tasks=background_tasks,
-        db=db,
-        command=command,
-    )
-
-
-
-    return {"status": "PROCESSING", "file_id": file_id}
 
 
 
