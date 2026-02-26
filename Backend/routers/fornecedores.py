@@ -33,6 +33,9 @@ from Backend.application.services.fornecedor_catalog_process_service import (
 from Backend.application.services.fornecedor_import_job_service import (
     FornecedorImportJobService,
 )
+from Backend.application.services.fornecedor_import_tracking_service import (
+    FornecedorImportTrackingService,
+)
 from Backend.application.services.service_container import service_container
 from Backend.tasks import process_pdf_extraction_task
 from . import auth_utils  # Para obter o usuário
@@ -50,6 +53,10 @@ fornecedor_import_job_service = FornecedorImportJobService(
     crud_fornecedor_import_jobs=crud_fornecedor_import_jobs,
     crud_produtos=crud_produtos,
     produto_create_schema=schemas.ProdutoCreate,
+)
+fornecedor_import_tracking_service = FornecedorImportTrackingService(
+    models=models,
+    process_pdf_extraction_task=process_pdf_extraction_task,
 )
 
 router = APIRouter(
@@ -395,22 +402,14 @@ def get_import_progress(
     db: Session = Depends(database.get_db),
     current_user: models.User = Depends(auth_utils.get_current_active_user),
 ):
-    """Retorna o status e o progresso da importação de catálogo."""
-    record = (
-        db.query(models.CatalogImportFile)
-        .filter_by(id=job_id, user_id=current_user.id)
-        .first()
+    """Retorna o status e o progresso da importacao de catalogo."""
+    record = fornecedor_import_tracking_service.get_catalog_record_or_404(
+        db=db,
+        file_id=job_id,
+        user_id=current_user.id,
+        not_found_detail="Importacao nao encontrada",
     )
-    if not record:
-        raise HTTPException(status_code=404, detail="Importação não encontrada")
-
-    return {
-        "status": record.status,
-        "progress": record.pages_processed,
-        "pages_processed": record.pages_processed,
-        "total_pages": record.total_pages or 0,
-    }
-
+    return fornecedor_import_tracking_service.build_progress_payload(record=record)
 
 @router.post("/import/process-full-catalog", status_code=status.HTTP_202_ACCEPTED)
 async def process_full_catalog(
@@ -441,29 +440,24 @@ async def process_full_catalog(
 def extract_page_data(
     background_tasks: BackgroundTasks,
     file_id: int = Query(..., description="ID do arquivo importado"),
-    page_number: int = Query(..., ge=1, description="Número da página a extrair"),
+    page_number: int = Query(..., ge=1, description="Numero da pagina a extrair"),
     db: Session = Depends(database.get_db),
     current_user: models.User = Depends(auth_utils.get_current_active_user),
 ):
-    """Agenda a extração de dados de uma página de um catálogo PDF."""
-
-    record = (
-        db.query(models.CatalogImportFile)
-        .filter_by(id=file_id, user_id=current_user.id)
-        .first()
+    """Agenda a extracao de dados de uma pagina de um catalogo PDF."""
+    record = fornecedor_import_tracking_service.get_catalog_record_or_404(
+        db=db,
+        file_id=file_id,
+        user_id=current_user.id,
+        not_found_detail="Arquivo nao encontrado",
     )
-    if not record:
-        raise HTTPException(status_code=404, detail="Arquivo não encontrado")
-
-    background_tasks.add_task(
-        process_pdf_extraction_task,
+    fornecedor_import_tracking_service.schedule_page_extraction(
+        background_tasks=background_tasks,
         import_job_id=record.id,
         page_number=page_number,
         db_url=str(database.engine.url),
     )
-
     return {"job_id": record.id, "status": "PROCESSING"}
-
 
 # Endpoint para deletar um fornecedor
 @router.delete("/{fornecedor_id}", response_model=schemas.FornecedorResponse)
@@ -546,17 +540,14 @@ def get_import_job_status(
     db: Session = Depends(database.get_db),
     current_user: models.User = Depends(auth_utils.get_current_active_user),
 ):
-    """Retorna o status de processamento de um job de importação."""
-    record = (
-        db.query(models.CatalogImportFile)
-        .filter_by(id=job_id, user_id=current_user.id)
-        .first()
+    """Retorna o status de processamento de um job de importacao."""
+    record = fornecedor_import_tracking_service.get_catalog_record_or_404(
+        db=db,
+        file_id=job_id,
+        user_id=current_user.id,
+        not_found_detail="Job nao encontrado",
     )
-    if not record:
-        raise HTTPException(status_code=404, detail="Job não encontrado")
-
-    response = {"status": record.status}
-    if record.status == "COMPLETED":
-        response["resultado_json"] = record.resultado_json
-    return response
+    return fornecedor_import_tracking_service.build_import_job_status_payload(
+        record=record
+    )
 

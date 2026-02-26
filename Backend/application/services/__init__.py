@@ -31,6 +31,9 @@ from Backend.application.services.fornecedor_catalog_process_service import (
 from Backend.application.services.fornecedor_import_job_service import (
     FornecedorImportJobService,
 )
+from Backend.application.services.fornecedor_import_tracking_service import (
+    FornecedorImportTrackingService,
+)
 from Backend.application.services.file_processing_facade import FileProcessingFacade
 from Backend.application.services.file_processing_components import (
     CatalogExtractionService,
@@ -98,6 +101,7 @@ __all__ = [
     "CatalogImportStatusService",
     "FornecedorCatalogProcessService",
     "FornecedorImportJobService",
+    "FornecedorImportTrackingService",
     "CatalogImportTaskRunner",
     "CatalogExtractionService",
     "CatalogPreviewService",
