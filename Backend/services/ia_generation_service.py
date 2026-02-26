@@ -30,7 +30,7 @@ OPENAI_DEFAULT_MODEL = "gpt-3.5-turbo" # Ou o modelo que você preferir/tiver ac
 GEMINI_API_URL_GENERATE_CONTENT = "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent"
 
 
-async def get_openai_api_key(db: Session, user: models.User) -> Optional[str]:
+async def _get_openai_api_key_impl(db: Session, user: models.User) -> Optional[str]:
     """Obtém a chave da API OpenAI, priorizando a do usuário."""
     if user.chave_openai_pessoal:
         logger.info(f"Usando chave OpenAI pessoal para usuário ID: {user.id}")
@@ -41,7 +41,7 @@ async def get_openai_api_key(db: Session, user: models.User) -> Optional[str]:
     logger.warning("Nenhuma chave OpenAI encontrada (nem pessoal, nem global).")
     return None
 
-async def get_gemini_api_key(db: Session, user: models.User) -> Optional[str]:
+async def _get_gemini_api_key_impl(db: Session, user: models.User) -> Optional[str]:
     """Obtém a chave da API Gemini, priorizando a do usuário."""
     if user.chave_google_gemini_pessoal:
         logger.info(f"Usando chave Gemini pessoal para usuário ID: {user.id}")
@@ -57,7 +57,7 @@ async def get_gemini_api_key(db: Session, user: models.User) -> Optional[str]:
     return None
 
 
-async def call_openai_api(
+async def _call_openai_api_impl(
     prompt_messages: List[Dict[str, str]],
     api_key: str,
     model: str = OPENAI_DEFAULT_MODEL,
@@ -105,7 +105,7 @@ async def call_openai_api(
             raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Erro inesperado ao comunicar com OpenAI: {str(e)}")
 
 
-async def call_gemini_api_for_suggestions(
+async def _call_gemini_api_for_suggestions_impl(
     prompt_text: str,
     api_key: str,
     response_schema: Dict[str, Any],
@@ -186,7 +186,7 @@ async def call_gemini_api_for_suggestions(
             raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Erro inesperado ao comunicar com Gemini: {str(e)}")
 
 
-async def call_gemini_api(
+async def _call_gemini_api_impl(
     prompt_text: str,
     api_key: str,
     model_name: str = "gemini-1.5-flash-latest",
@@ -225,6 +225,120 @@ async def call_gemini_api(
         except Exception as e:
             logger.error(f"Erro inesperado ao chamar API Gemini: {str(e)}", exc_info=True)
             raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Erro inesperado ao comunicar com Gemini: {str(e)}")
+
+
+class _AiProviderWorkflow:
+    """Workflow OO para operações de provedor IA (chaves e chamadas HTTP)."""
+
+    async def get_openai_api_key(self, db: Session, user: models.User) -> Optional[str]:
+        return await _get_openai_api_key_impl(db=db, user=user)
+
+    async def get_gemini_api_key(self, db: Session, user: models.User) -> Optional[str]:
+        return await _get_gemini_api_key_impl(db=db, user=user)
+
+    async def call_openai_api(
+        self,
+        prompt_messages: List[Dict[str, str]],
+        api_key: str,
+        model: str = OPENAI_DEFAULT_MODEL,
+        temperature: float = 0.7,
+        max_tokens: int = 500,
+    ) -> str:
+        return await _call_openai_api_impl(
+            prompt_messages=prompt_messages,
+            api_key=api_key,
+            model=model,
+            temperature=temperature,
+            max_tokens=max_tokens,
+        )
+
+    async def call_gemini_api_for_suggestions(
+        self,
+        prompt_text: str,
+        api_key: str,
+        response_schema: Dict[str, Any],
+        model_name: str = "gemini-1.5-flash-latest",
+    ) -> Dict[str, Any]:
+        return await _call_gemini_api_for_suggestions_impl(
+            prompt_text=prompt_text,
+            api_key=api_key,
+            response_schema=response_schema,
+            model_name=model_name,
+        )
+
+    async def call_gemini_api(
+        self,
+        prompt_text: str,
+        api_key: str,
+        model_name: str = "gemini-1.5-flash-latest",
+        temperature: float = 0.6,
+        max_tokens: int = 1024,
+    ) -> str:
+        return await _call_gemini_api_impl(
+            prompt_text=prompt_text,
+            api_key=api_key,
+            model_name=model_name,
+            temperature=temperature,
+            max_tokens=max_tokens,
+        )
+
+
+_ai_provider_workflow = _AiProviderWorkflow()
+
+
+async def get_openai_api_key(db: Session, user: models.User) -> Optional[str]:
+    return await _ai_provider_workflow.get_openai_api_key(db=db, user=user)
+
+
+async def get_gemini_api_key(db: Session, user: models.User) -> Optional[str]:
+    return await _ai_provider_workflow.get_gemini_api_key(db=db, user=user)
+
+
+async def call_openai_api(
+    prompt_messages: List[Dict[str, str]],
+    api_key: str,
+    model: str = OPENAI_DEFAULT_MODEL,
+    temperature: float = 0.7,
+    max_tokens: int = 500,
+) -> str:
+    return await _ai_provider_workflow.call_openai_api(
+        prompt_messages=prompt_messages,
+        api_key=api_key,
+        model=model,
+        temperature=temperature,
+        max_tokens=max_tokens,
+    )
+
+
+async def call_gemini_api_for_suggestions(
+    prompt_text: str,
+    api_key: str,
+    response_schema: Dict[str, Any],
+    model_name: str = "gemini-1.5-flash-latest",
+) -> Dict[str, Any]:
+    return await _ai_provider_workflow.call_gemini_api_for_suggestions(
+        prompt_text=prompt_text,
+        api_key=api_key,
+        response_schema=response_schema,
+        model_name=model_name,
+    )
+
+
+async def call_gemini_api(
+    prompt_text: str,
+    api_key: str,
+    model_name: str = "gemini-1.5-flash-latest",
+    temperature: float = 0.6,
+    max_tokens: int = 1024,
+) -> str:
+    return await _ai_provider_workflow.call_gemini_api(
+        prompt_text=prompt_text,
+        api_key=api_key,
+        model_name=model_name,
+        temperature=temperature,
+        max_tokens=max_tokens,
+    )
+
 
 async def gerar_titulos_com_openai(db: Session, produto_id: int, user: models.User, num_titulos: int = 3) -> List[str]:
     # ... (código existente para gerar títulos com OpenAI - manter como está)
