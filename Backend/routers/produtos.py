@@ -39,6 +39,7 @@ from Backend import schemas
 from Backend.application.services import (
     CatalogImportFileService,
     CatalogImportFinalizeService,
+    CatalogImportPreviewService,
     CatalogImportStartService,
     CatalogImportStatusService,
     CatalogImportTaskRunner,
@@ -485,6 +486,14 @@ catalog_import_file_service = CatalogImportFileService(
     file_processing_service=file_processing_service,
     catalog_import_start_service=catalog_import_start_service,
 )
+catalog_import_preview_service = CatalogImportPreviewService(
+    models=models,
+    settings=settings,
+    file_processing_service=file_processing_service,
+    resolve_storage_path=_resolve_storage_path,
+    logger=logger,
+    pdfplumber_module=pdfplumber,
+)
 product_management_service = ProductManagementService(
     models=models,
     schemas=schemas,
@@ -915,105 +924,16 @@ async def importar_catalogo_preview(
 ):
 
     """Gera preview de um cat?logo enviado e salva o arquivo para posterior processamento."""
-
-
-
-    # L? o conte?do para gerar o preview
-
-    content = await file.read()
-
-    start = time.perf_counter()
-
-    await file.seek(0)
-
-
-
-    # Salva o arquivo e registra no banco
-
-    catalog_record = await file_processing_service.save_uploaded_catalog(
-
-        file, fornecedor_id
-
+    response_payload = await catalog_import_preview_service.importar_catalogo_preview(
+        file=file,
+        fornecedor_id=fornecedor_id,
+        start_page=start_page,
+        page_count=page_count,
+        dpi=dpi,
+        db=db,
+        user_id=current_user.id,
     )
-
-    catalog_record.user_id = current_user.id
-
-    db.add(catalog_record)
-
-    db.commit()
-
-    db.refresh(catalog_record)
-
-
-
-    ext = Path(catalog_record.original_filename).suffix.lower()
-
-    try:
-
-        if ext == ".pdf":
-
-            preview = await file_processing_service.preview_arquivo_pdf(
-
-                content, ext, start_page, page_count, dpi
-
-            )
-
-        else:
-
-            preview_tabular = await file_processing_service.gerar_preview(content, ext)
-            if preview_tabular.get("error"):
-                return schemas.ImportPreviewResponse(
-                    file_id=catalog_record.id,
-                    num_pages=0,
-                    table_pages=[],
-                    sample_rows=[],
-                    preview_images=[],
-                    headers=[],
-                    error=preview_tabular.get("error"),
-                )
-            preview = {
-                "num_pages": 1,
-                "table_pages": [1],
-                "sample_rows": preview_tabular.get("sample_rows", []),
-                "preview_images": [],
-                "headers": preview_tabular.get("headers", []),
-            }
-
-        duration = time.perf_counter() - start
-
-        logger.info(
-
-            "Preview generation for catalog file %s took %.4f seconds",
-
-            catalog_record.id,
-
-            duration,
-
-        )
-
-        return schemas.ImportPreviewResponse(
-
-            **preview, error=None, file_id=catalog_record.id
-
-        )
-
-    except Exception as e:
-
-        return schemas.ImportPreviewResponse(
-
-            file_id=catalog_record.id,
-
-            num_pages=0,
-
-            table_pages=[],
-
-            sample_rows={},
-
-            preview_images=[],
-
-            error=f"Falha ao gerar preview de PDF: {e}",
-
-        )
+    return schemas.ImportPreviewResponse(**response_payload)
 
 
 
@@ -1520,169 +1440,15 @@ async def selecionar_regiao(
     db: Session = Depends(database.get_db),
     current_user: models.User = Depends(auth_utils.get_current_active_user),
 ):
-    """Extrai linhas tabulares de uma regi?o selecionada de um PDF para mapeamento."""
-    record = (
-        db.query(models.CatalogImportFile)
-        .filter_by(id=file_id, user_id=current_user.id)
-        .first()
+    """Extrai linhas tabulares de uma regiao selecionada de um PDF para mapeamento."""
+    return catalog_import_preview_service.selecionar_regiao(
+        file_id=file_id,
+        page=page,
+        bbox=bbox,
+        bbox_norm=bbox_norm,
+        db=db,
+        user_id=current_user.id,
     )
-    if not record:
-        raise HTTPException(status_code=404, detail="Arquivo nao encontrado")
-
-    file_path = _resolve_storage_path(
-        Path(settings.UPLOAD_DIRECTORY) / "catalogs" / record.stored_filename
-    )
-    if not file_path.exists():
-        raise HTTPException(status_code=404, detail="Arquivo nao encontrado")
-
-    produtos: List[Dict[str, Any]] = []
-    log: List[str] = []
-    preview_headers: List[str] = []
-    preview_rows: List[Dict[str, Any]] = []
-
-    def _parse_key_value_rows(raw_text: str) -> List[Dict[str, str]]:
-        """Converte texto simples `chave: valor` em linhas estruturadas."""
-        rows: List[Dict[str, str]] = []
-        current: Dict[str, str] = {}
-        aliases = {
-            "nome": "nome",
-            "nome base": "nome_base",
-            "marca": "marca",
-            "descricao": "descricao",
-            "descrição": "descricao",
-            "sku": "sku",
-            "ean": "ean",
-            "codigo": "sku",
-            "código": "sku",
-        }
-
-        for line in (raw_text or "").splitlines():
-            line = str(line).strip()
-            if not line:
-                continue
-            match = re.match(r"^\s*([^:]{1,60})\s*:\s*(.?)\s*$", line)
-            if not match:
-                continue
-            raw_key = match.group(1).strip().lower()
-            value = match.group(2).strip()
-            if not value:
-                continue
-
-            key = aliases.get(raw_key, raw_key.replace(" ", "_"))
-            if key in current and current:
-                rows.append(current)
-                current = {}
-            current[key] = value
-
-        if current:
-            rows.append(current)
-        return rows
-
-    try:
-        with pdfplumber.open(file_path) as pdf:
-            if not (1 <= page <= len(pdf.pages)):
-                raise HTTPException(
-                    status_code=400,
-                    detail=f"Numero de pagina invalido: {page}. PDF tem {len(pdf.pages)} paginas.",
-                )
-            target_page = pdf.pages[page - 1]
-
-            selected_bbox = bbox
-            if bbox_norm and len(bbox_norm) == 4:
-                selected_bbox = [
-                    float(bbox_norm[0]) * target_page.width,
-                    float(bbox_norm[1]) * target_page.height,
-                    float(bbox_norm[2]) * target_page.width,
-                    float(bbox_norm[3]) * target_page.height,
-                ]
-
-            x0, y0, x1, y1 = map(float, selected_bbox)
-            x0 = max(0.0, min(x0, float(target_page.width)))
-            y0 = max(0.0, min(y0, float(target_page.height)))
-            x1 = max(0.0, min(x1, float(target_page.width)))
-            y1 = max(0.0, min(y1, float(target_page.height)))
-            if x1 <= x0 or y1 <= y0:
-                raise HTTPException(status_code=400, detail="BBox invalido para a pagina selecionada.")
-            selected_bbox = [x0, y0, x1, y1]
-
-        df_region = file_processing_service.extract_data_from_pdf_region(
-            str(file_path),
-            page,
-            selected_bbox,
-        )
-
-        if not df_region.empty:
-            preview_headers = [str(c) for c in df_region.columns.tolist()]
-            preview_rows = [
-                {
-                    str(k): (
-                        None if (v is None or (isinstance(v, float) and str(v) == "nan")) else v
-                    )
-                    for k, v in row.items()
-                }
-                for row in df_region.to_dict(orient="records")
-            ]
-
-            for row in preview_rows:
-                non_empty_values = [str(v).strip() for v in row.values() if str(v).strip()]
-                joined = " ".join(non_empty_values)
-                # Evita transformar texto solto/ruido em "produto" no preview da regiao.
-                if len(non_empty_values) == 1 and not re.search(r"\d", joined):
-                    continue
-                produto = file_processing_service.processar_linha_padronizada(row, None)
-                if produto:
-                    produtos.append(produto)
-
-            log.append(
-                f"Pagina {page}: extraidas {len(preview_rows)} linhas e {len(preview_headers)} colunas da regiao."
-            )
-        else:
-            text_rows: List[Dict[str, str]] = []
-            with pdfplumber.open(file_path) as pdf:
-                target_page = pdf.pages[page - 1]
-                cropped = target_page.crop(tuple(selected_bbox))
-                raw_text = cropped.extract_text() or ""
-                text_rows = _parse_key_value_rows(raw_text)
-
-            if text_rows:
-                header_order: List[str] = []
-                for row in text_rows:
-                    for key in row.keys():
-                        if key not in header_order:
-                            header_order.append(key)
-                preview_headers = header_order
-                preview_rows = text_rows
-                for row in text_rows:
-                    produto = file_processing_service.processar_linha_padronizada(row, None)
-                    if produto:
-                        produtos.append(produto)
-                log.append(
-                    f"Pagina {page}: extraidas {len(text_rows)} linhas por fallback de texto (chave:valor)."
-                )
-            else:
-                log.append(f"Pagina {page}: nenhuma linha extraida da regiao selecionada.")
-
-        logger.info(
-            "selecionar_regiao: file_id=%s, page=%s, bbox=%s, bbox_norm=%s, produtos_extraidos=%s",
-            file_id,
-            page,
-            selected_bbox,
-            bbox_norm,
-            len(produtos),
-        )
-        logger.info("selecionar_regiao: preview_headers=%s", preview_headers[:30])
-        logger.info("selecionar_regiao: preview_rows_sample=%s", preview_rows[:3])
-    except HTTPException:
-        raise
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
-
-    return {
-        "produtos": produtos,
-        "log": log,
-        "preview_headers": preview_headers,
-        "preview_rows": preview_rows[:100],
-    }
 @router.post(
 
     "/extrair-pagina-unica/",
@@ -1703,54 +1469,13 @@ async def extrair_pagina_unica(
 
 ):
 
-    """Retorna imagem, texto e tabela de uma ?nica p?gina de um PDF."""
-
-    record = (
-
-        db.query(models.CatalogImportFile)
-
-        .filter_by(id=file_id, user_id=current_user.id)
-
-        .first()
-
+    """Retorna imagem, texto e tabela de uma unica pagina de um PDF."""
+    return await catalog_import_preview_service.extrair_pagina_unica(
+        file_id=file_id,
+        page_number=page_number,
+        db=db,
+        user_id=current_user.id,
     )
 
-    if not record:
-
-        raise HTTPException(status_code=404, detail="Arquivo n\u00e3o encontrado")
-
-
-
-    file_path = _resolve_storage_path(
-        Path(settings.UPLOAD_DIRECTORY) / "catalogs" / record.stored_filename
-    )
-
-    if not file_path.exists():
-
-        raise HTTPException(status_code=404, detail="Arquivo n\u00e3o encontrado")
-
-
-
-    content = file_path.read_bytes()
-
-    try:
-
-        page_data = await file_processing_service.extrair_pagina_pdf(
-
-            content, page_number
-
-        )
-
-    except ValueError as e:
-
-        raise HTTPException(status_code=400, detail=str(e))
-
-    except Exception as e:
-
-        raise HTTPException(status_code=500, detail=str(e))
-
-
-
-    return page_data
 
 

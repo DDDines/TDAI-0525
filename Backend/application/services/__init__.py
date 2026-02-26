@@ -28,6 +28,9 @@ from Backend.application.services.catalog_import_status_service import (
 from Backend.application.services.catalog_import_file_service import (
     CatalogImportFileService,
 )
+from Backend.application.services.catalog_import_preview_service import (
+    CatalogImportPreviewService,
+)
 from Backend.application.services.fornecedor_catalog_process_service import (
     FornecedorCatalogProcessService,
 )
@@ -113,6 +116,7 @@ __all__ = [
     "CatalogImportResultBuilder",
     "CatalogImportFinalizeService",
     "CatalogImportFileService",
+    "CatalogImportPreviewService",
     "CatalogImportStartService",
     "CatalogImportStatusService",
     "FornecedorCatalogProcessService",
