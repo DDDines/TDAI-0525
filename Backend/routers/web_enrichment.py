@@ -1,6 +1,5 @@
 # catalogai_project/Backend/routers/web_enrichment.py
-from fastapi import APIRouter, Depends, HTTPException, status, BackgroundTasks, Query
-from sqlalchemy.orm import Session
+from fastapi import APIRouter, Depends, status, BackgroundTasks, Query
 from sqlalchemy.exc import SQLAlchemyError # Para capturar exceções do SQLAlchemy
 from typing import List, Dict, Any, Optional, Tuple
 import asyncio
@@ -14,17 +13,14 @@ from Backend import crud
 from Backend import models
 from Backend import schemas
 from Backend.application.contracts.pipeline_commands import WebEnrichmentStartCommand
-from Backend.application.orchestrators.web_enrichment import (
-    WebEnrichmentPipelineOrchestrator,
-)
 from Backend.application.services import (
-    PipelineDispatcher,
     WebEnrichmentNormalizationService,
     WebEnrichmentRelevanceService,
+    WebEnrichmentStartService,
     WebEnrichmentTaskRunner,
 )
 from Backend.application.services.service_container import service_container
-from Backend.database import get_db, SessionLocal
+from Backend.database import SessionLocal
 
 from .auth_utils import get_current_active_user
 from Backend.core.config import settings
@@ -42,6 +38,10 @@ logger = get_logger(__name__)
 relevance_service = WebEnrichmentRelevanceService()
 web_normalization_service = WebEnrichmentNormalizationService()
 web_extractor = service_container.web_data_extractor
+web_enrichment_start_service = WebEnrichmentStartService(
+    crud_produtos=crud_produtos,
+    models=models,
+)
 
 
 def _encoding_marker_count(candidate: str) -> int:
@@ -804,33 +804,25 @@ async def iniciar_enriquecimento_produto_web_endpoint(
     current_user: models.User = Depends(get_current_active_user),
     termos_busca_override: Optional[str] = Query(None, description="Opcional: termos de busca específicos para o Google Search."),
 ):
-    db_temp = SessionLocal()
-    try:
-        db_produto_check = crud_produtos.get_produto(db_temp, produto_id=produto_id)
-        if not db_produto_check:
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Produto não encontrado")
-        if db_produto_check.user_id != current_user.id and not current_user.is_superuser:
-            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Não autorizado a enriquecer este produto")
-        
-        if db_produto_check.status_enriquecimento_web == models.StatusEnriquecimentoEnum.EM_PROGRESSO:
-             raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Processo de enriquecimento já está em andamento para este produto.")
-    finally:
-        db_temp.close()
-
-    orchestrator = WebEnrichmentPipelineOrchestrator(
-        legacy_executor=_tarefa_enriquecer_produto_web,
-        oop_executor=_oop_tarefa_enriquecer_produto_web,
+    web_enrichment_start_service.validate_start_preconditions(
+        db_session_factory=SessionLocal,
+        produto_id=produto_id,
+        current_user=current_user,
     )
+
     command = WebEnrichmentStartCommand(
         produto_id=produto_id,
         user_id=current_user.id,
         termos_busca_override=termos_busca_override,
     )
-    selected_plan = orchestrator.select_start_plan(
+
+    web_enrichment_start_service.dispatch_start(
+        background_tasks=background_tasks,
         db_session_factory=SessionLocal,
         command=command,
+        legacy_executor=_tarefa_enriquecer_produto_web,
+        oop_executor=_oop_tarefa_enriquecer_produto_web,
     )
-    PipelineDispatcher.dispatch_background(background_tasks, selected_plan)
     return {"msg": f"Processo de enriquecimento web para o produto ID {produto_id} iniciado em segundo plano."}
 
 
