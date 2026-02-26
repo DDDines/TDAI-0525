@@ -15,7 +15,6 @@ from fastapi import (
     UploadFile,
     status,
 )
-from fastapi.responses import JSONResponse
 import io
 import json
 import logging
@@ -40,6 +39,7 @@ from Backend import schemas
 from Backend.application.contracts.pipeline_commands import CatalogImportFinalizeCommand
 from Backend.application.services import (
     CatalogImportFinalizeService,
+    CatalogImportStatusService,
     CatalogImportTaskRunner,
     CatalogImportSanitizationService,
     CatalogImportQualityService,
@@ -469,6 +469,7 @@ catalog_import_finalize_service = CatalogImportFinalizeService(
     legacy_executor=_tarefa_processar_catalogo,
     oop_executor=_oop_tarefa_processar_catalogo,
 )
+catalog_import_status_service = CatalogImportStatusService(models=models)
 
 
 
@@ -1978,22 +1979,11 @@ def importar_catalogo_status(
 ):
 
     """Retorna o status atual do processamento do cat?logo."""
-
-    record = (
-
-        db.query(models.CatalogImportFile)
-
-        .filter_by(id=file_id, user_id=current_user.id)
-
-        .first()
-
+    return catalog_import_status_service.get_record_or_404(
+        db=db,
+        file_id=file_id,
+        user_id=current_user.id,
     )
-
-    if not record:
-
-        raise HTTPException(status_code=404, detail="Arquivo n\u00e3o encontrado")
-
-    return record
 
 
 
@@ -2020,42 +2010,12 @@ def importar_catalogo_status_simple(
 ):
 
     """Vers?o simplificada do status de importa??o."""
-
-    record = (
-
-        db.query(models.CatalogImportFile)
-
-        .filter_by(id=file_id, user_id=current_user.id)
-
-        .first()
-
+    record = catalog_import_status_service.get_record_or_404(
+        db=db,
+        file_id=file_id,
+        user_id=current_user.id,
     )
-
-    if not record:
-
-        raise HTTPException(status_code=404, detail="Arquivo n\u00e3o encontrado")
-
-    if record.status in {"IMPORTED", "DONE"}:
-        status = "DONE"
-    elif record.status == "PARTIAL":
-        status = "PARTIAL"
-    elif record.status == "FAILED":
-        status = "FAILED"
-    else:
-        status = "PROCESSING"
-
-    total_pages = record.total_pages or 0
-    result_ready = bool(
-        record.status in {"IMPORTED", "PARTIAL", "DONE", "FAILED"}
-        and record.result_summary
-    )
-    return {
-        "status": status,
-        "total_pages": total_pages,
-        "pages_total": total_pages,
-        "pages_processed": record.pages_processed,
-        "result_ready": result_ready,
-    }
+    return catalog_import_status_service.build_simple_status(record=record)
 
 
 
@@ -2078,33 +2038,12 @@ def importar_catalogo_result(
     current_user: models.User = Depends(auth_utils.get_current_active_user),
 
 ):
-
-    record = (
-
-        db.query(models.CatalogImportFile)
-
-        .filter_by(id=file_id, user_id=current_user.id)
-
-        .first()
-
+    record = catalog_import_status_service.get_record_or_404(
+        db=db,
+        file_id=file_id,
+        user_id=current_user.id,
     )
-
-    if not record:
-
-        raise HTTPException(status_code=404, detail="Arquivo n\u00e3o encontrado")
-
-    terminal_status = record.status in ["IMPORTED", "PARTIAL", "DONE", "FAILED"]
-    if not terminal_status or not record.result_summary:
-        return JSONResponse(
-            status_code=status.HTTP_202_ACCEPTED,
-            content={
-                "ready": False,
-                "status": record.status or "PROCESSING",
-                "detail": "Resultados ainda n\u00e3o dispon\u00edveis",
-            },
-        )
-
-    return record.result_summary
+    return catalog_import_status_service.build_result_response(record=record)
 
 
 
