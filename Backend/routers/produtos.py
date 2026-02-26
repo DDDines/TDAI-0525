@@ -45,6 +45,7 @@ from Backend.application.services import (
     CatalogImportSanitizationService,
     CatalogImportQualityService,
     ProductManagementService,
+    ProductMediaService,
     ValidatorCrewFacade,
 )
 from Backend.application.services.service_container import service_container
@@ -493,6 +494,10 @@ product_management_service = ProductManagementService(
     crud_historico=crud_historico,
     crud_uso_ia=crud,
 )
+product_media_service = ProductMediaService(
+    crud_produtos=crud_produtos,
+    schemas=schemas,
+)
 
 
 
@@ -878,69 +883,12 @@ async def upload_produto_image(  # Nome da fun??o mantido como no arquivo do usu
 
 ):
 
-    db_produto = crud_produtos.get_produto(db, produto_id=produto_id)
-
-    if not db_produto:
-
-        raise HTTPException(status_code=404, detail="Produto não encontrado")
-
-    if not current_user.is_superuser and db_produto.user_id != current_user.id:
-
-        raise HTTPException(
-
-            status_code=403, detail="N?o autorizado a modificar este produto"
-
-        )
-
-
-
-    try:
-
-        file_path_in_db = await crud_produtos.save_produto_image(db, produto_id, file)
-
-    except ValueError as e:
-
-        raise HTTPException(status_code=400, detail=str(e))
-
-    except IOError as e:  # Captura erro de IO de save_produto_image
-
-        raise HTTPException(status_code=500, detail=str(e))
-
-    except Exception as e:
-
-        raise HTTPException(
-
-            status_code=500, detail=f"N?o foi poss?vel salvar a imagem: {str(e)}"
-
-        )
-
-
-
-    # Atualiza o campo imagem_principal_url no produto
-
-    # O schema ProdutoUpdate pode n?o ter imagem_principal_url se n?o for edit?vel diretamente
-
-    # mas o modelo tem. O CRUD pode ter uma l?gica para isso.
-
-    # Assumindo que crud_produtos.update_produto pode receber um dict com o campo a ser atualizado
-
-
-
-    produto_update_schema = schemas.ProdutoUpdate(imagem_principal_url=file_path_in_db)
-
-    updated_produto = crud_produtos.update_produto(
-
-        db=db, db_produto=db_produto, produto_update=produto_update_schema
-
+    return await product_media_service.upload_produto_image(
+        db=db,
+        produto_id=produto_id,
+        file=file,
+        current_user=current_user,
     )
-
-
-
-    return updated_produto
-
-
-
-
 
 @router.post(
 
