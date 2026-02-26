@@ -2394,7 +2394,7 @@ async def selecionar_regiao(
                 # Evita transformar texto solto/ruido em "produto" no preview da regiao.
                 if len(non_empty_values) == 1 and not re.search(r"\d", joined):
                     continue
-                produto = file_processing_service._processar_linha_padronizada(row, None)
+                produto = file_processing_service.processar_linha_padronizada(row, None)
                 if produto:
                     produtos.append(produto)
 
@@ -2418,7 +2418,7 @@ async def selecionar_regiao(
                 preview_headers = header_order
                 preview_rows = text_rows
                 for row in text_rows:
-                    produto = file_processing_service._processar_linha_padronizada(row, None)
+                    produto = file_processing_service.processar_linha_padronizada(row, None)
                     if produto:
                         produtos.append(produto)
                 log.append(

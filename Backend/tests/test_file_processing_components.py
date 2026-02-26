@@ -29,6 +29,10 @@ class _LegacyFileModuleStub:
         self.calls.append(("processar_arquivo_csv", args, kwargs))
         return {"produtos": []}
 
+    def _processar_linha_padronizada(self, *args, **kwargs):
+        self.calls.append(("_processar_linha_padronizada", args, kwargs))
+        return {"nome_base": "x"}
+
 
 @pytest.mark.asyncio
 async def test_catalog_storage_service_delegates_async_and_sync_calls():
@@ -65,3 +69,12 @@ async def test_catalog_extraction_service_delegates_processing_calls():
     assert result == {"produtos": []}
     assert legacy.calls[0][0] == "processar_arquivo_csv"
 
+
+def test_catalog_extraction_service_wraps_private_row_standardizer():
+    legacy = _LegacyFileModuleStub()
+    service = CatalogExtractionService(legacy)
+
+    result = service.processar_linha_padronizada({"a": 1}, None)
+
+    assert result == {"nome_base": "x"}
+    assert legacy.calls[0][0] == "_processar_linha_padronizada"

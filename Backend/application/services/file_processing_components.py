@@ -68,3 +68,5 @@ class CatalogExtractionService:
     def parse_annotation_to_dataframe(self, *args: Any, **kwargs: Any):
         return self._legacy.parse_annotation_to_dataframe(*args, **kwargs)
 
+    def processar_linha_padronizada(self, *args: Any, **kwargs: Any):
+        return self._legacy._processar_linha_padronizada(*args, **kwargs)

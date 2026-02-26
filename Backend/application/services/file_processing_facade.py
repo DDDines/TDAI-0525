@@ -44,6 +44,9 @@ class FileProcessingFacade:
     async def extrair_pagina_pdf(self, *args: Any, **kwargs: Any):
         return await self.extraction.extrair_pagina_pdf(*args, **kwargs)
 
+    def processar_linha_padronizada(self, *args: Any, **kwargs: Any):
+        return self.extraction.processar_linha_padronizada(*args, **kwargs)
+
     def delete_catalog_file(self, *args: Any, **kwargs: Any):
         return self.storage.delete_catalog_file(*args, **kwargs)
 
