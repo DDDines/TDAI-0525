@@ -30,9 +30,7 @@ class CatalogImportSanitizationService:
 
         def _decode_maybe(candidate: str, source_encoding: str) -> str:
             try:
-                return candidate.encode(source_encoding, errors="ignore").decode(
-                    "utf-8", errors="ignore"
-                )
+                return candidate.encode(source_encoding).decode("utf-8")
             except Exception:
                 return candidate
 
@@ -44,7 +42,7 @@ class CatalogImportSanitizationService:
             best = text
             best_markers = _marker_count(best)
             best_alnum = sum(ch.isalnum() for ch in best)
-            for source_encoding in ("latin-1", "cp1252"):
+            for source_encoding in ("cp1252", "latin-1"):
                 decoded = _decode_maybe(text, source_encoding)
                 if not decoded or decoded == text:
                     continue
@@ -134,8 +132,11 @@ class CatalogImportSanitizationService:
             "regiÃƒÂ£o": "região",
             "nÃƒÂ£o": "não",
         }
+        text = text.replace("\xad", "")
         for source, target in replacements.items():
             text = text.replace(source, target)
+        text = text.replace("p´de", "pôde").replace("P´de", "Pôde")
+        text = text.replace("extra­do", "extraído").replace("extra­vel", "extraível")
         return re.sub(r"\s+", " ", text).strip()
 
     def normalize_import_issue_item(self, item: Dict[str, Any]) -> Dict[str, Any]:

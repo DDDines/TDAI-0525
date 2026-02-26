@@ -25,7 +25,15 @@ class WebEnrichmentNormalizationService:
     }
 
     def _encoding_marker_count(self, candidate: str) -> int:
-        return sum(1 for ch in candidate if ch in {"Ãƒ", "Ã‚", "\ufffd"})
+        # Conta caracteres típicos de mojibake UTF-8->latin1/cp1252.
+        # A versão anterior usava tokens multi-char ("Ãƒ"), o que nunca
+        # batia com chars individuais iterados em `candidate`.
+        if not candidate:
+            return 0
+        return sum(
+            candidate.count(ch)
+            for ch in ("\u00c3", "\u00c2", "\u00e2", "\u0192", "\ufffd")
+        )
 
     def normalize_human_text(self, value: Any) -> str:
         text = str(value or "")
@@ -35,19 +43,32 @@ class WebEnrichmentNormalizationService:
         def _has_markers(candidate: str) -> bool:
             return self._encoding_marker_count(candidate) > 0 or "??" in candidate
 
-        for _ in range(4):
+        def _decode_maybe(candidate: str, source_encoding: str) -> str:
+            try:
+                return candidate.encode(source_encoding).decode("utf-8")
+            except Exception:
+                return candidate
+
+        for _ in range(6):
             if not _has_markers(text):
                 break
-            try:
-                decoded = bytes((ord(ch) & 0xFF for ch in text)).decode("utf-8")
-            except Exception:
+            best = text
+            best_markers = self._encoding_marker_count(best)
+            best_alnum = sum(ch.isalnum() for ch in best)
+            for source_encoding in ("cp1252", "latin-1"):
+                decoded = _decode_maybe(text, source_encoding)
+                if not decoded or decoded == text:
+                    continue
+                decoded_markers = self._encoding_marker_count(decoded)
+                decoded_alnum = sum(ch.isalnum() for ch in decoded)
+                alnum_guard = decoded_alnum >= int(best_alnum * 0.8)
+                if decoded_markers < best_markers and alnum_guard:
+                    best = decoded
+                    best_markers = decoded_markers
+                    best_alnum = decoded_alnum
+            if best == text:
                 break
-            if not decoded or decoded == text:
-                break
-            if self._encoding_marker_count(decoded) <= self._encoding_marker_count(text):
-                text = decoded
-                continue
-            break
+            text = best
 
         replacements = {
             "n??o": "não",
@@ -77,8 +98,11 @@ class WebEnrichmentNormalizationService:
             "configuraÃƒÂ§ÃƒÂ£o": "configuração",
             "ConfiguraÃƒÂ§ÃƒÂ£o": "Configuração",
         }
+        text = text.replace("\xad", "")
         for src, dst in replacements.items():
             text = text.replace(src, dst)
+        text = text.replace("p´de", "pôde").replace("P´de", "Pôde")
+        text = text.replace("extra­do", "extraído").replace("extra­vel", "extraível")
         return re.sub(r"\s+", " ", text).strip()
 
     @staticmethod

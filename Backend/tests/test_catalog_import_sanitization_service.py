@@ -22,3 +22,11 @@ def test_sanitize_extracted_product_discards_invalid_ean_text():
         }
     )
     assert sanitized["ean_original"] is None
+
+
+def test_normalize_import_text_decodes_mojibake_reason():
+    service = CatalogImportSanitizationService(CatalogImportQualityService())
+    raw = "Nenhum dado de produto pÃƒÂ´de ser extraÃƒÂ­do do PDF."
+    normalized = service.normalize_import_text(raw)
+    assert "pôde" in normalized
+    assert "extraído" in normalized
