@@ -5,7 +5,6 @@ from typing import List, Dict, Any, Optional, Tuple
 import asyncio
 import json
 import re
-import unicodedata
 
 from Backend import crud_users
 from Backend import crud_produtos
@@ -44,216 +43,40 @@ web_enrichment_start_service = WebEnrichmentStartService(
 )
 
 
-def _encoding_marker_count(candidate: str) -> int:
-    return sum(1 for ch in candidate if ch in {"Ã", "Â", "\ufffd"})
-
-
 def _normalize_human_text(value: Any) -> str:
     return web_normalization_service.normalize_human_text(value)
-
-    # Legacy fallback mantido apenas para rollback/comparacao historica.
-    text = str(value or "")
-    if not text:
-        return ""
-
-    def _has_markers(candidate: str) -> bool:
-        return _encoding_marker_count(candidate) > 0 or "??" in candidate
-
-    for _ in range(4):
-        if not _has_markers(text):
-            break
-        try:
-            decoded = bytes((ord(ch) & 0xFF for ch in text)).decode("utf-8")
-        except Exception:
-            break
-        if not decoded or decoded == text:
-            break
-        if _encoding_marker_count(decoded) <= _encoding_marker_count(text):
-            text = decoded
-            continue
-        break
-
-    replacements = {
-        "n??o": "não",
-        "N??o": "Não",
-        "p??de": "pôde",
-        "P??gina": "Página",
-        "p??gina": "página",
-        "descri??o": "descrição",
-        "Descri??o": "Descrição",
-        "conte??do": "conteúdo",
-        "extra??o": "extração",
-        "extra??vel": "extraível",
-        "situa??o": "situação",
-        "configura??o": "configuração",
-        "Configura??o": "Configuração",
-        "nÃ£o": "não",
-        "NÃ£o": "Não",
-        "pÃ´de": "pôde",
-        "pÃ¡gina": "página",
-        "PÃ¡gina": "Página",
-        "descriÃ§Ã£o": "descrição",
-        "DescriÃ§Ã£o": "Descrição",
-        "conteÃºdo": "conteúdo",
-        "extraÃ§Ã£o": "extração",
-        "extraÃ­vel": "extraível",
-        "situaÃ§Ã£o": "situação",
-        "configuraÃ§Ã£o": "configuração",
-        "ConfiguraÃ§Ã£o": "Configuração",
-    }
-    for src, dst in replacements.items():
-        text = text.replace(src, dst)
-
-    return re.sub(r"\s+", " ", text).strip()
 
 
 def _fold_text(value: Any) -> str:
     return web_normalization_service.fold_text(value)
 
-    # Legacy fallback mantido apenas para rollback/comparacao historica.
-    text = unicodedata.normalize("NFKD", str(value or ""))
-    text = text.encode("ascii", "ignore").decode("ascii")
-    text = re.sub(r"[^a-zA-Z0-9]+", " ", text).lower()
-    return re.sub(r"\s+", " ", text).strip()
-
 
 def _is_empty(value: Any) -> bool:
     return web_normalization_service.is_empty(value)
-
-    # Legacy fallback mantido apenas para rollback/comparacao historica.
-    if value is None:
-        return True
-    if isinstance(value, str):
-        raw = value.strip()
-        if not raw:
-            return True
-        folded = _fold_text(raw)
-        return folded in {"none", "null", "nan", "na", "n a", "-", "--"}
-    if isinstance(value, (list, tuple, set, dict)):
-        return len(value) == 0
-    return False
 
 
 def _as_text(value: Any, max_len: int = 8000) -> Optional[str]:
     return web_normalization_service.as_text(value, max_len=max_len)
 
-    # Legacy fallback mantido apenas para rollback/comparacao historica.
-    if _is_empty(value):
-        return None
-    if isinstance(value, (list, tuple, set)):
-        parts = [str(v).strip() for v in value if not _is_empty(v)]
-        text = " | ".join(parts)
-    else:
-        text = str(value).strip()
-    if not text:
-        return None
-    return text[:max_len] if len(text) > max_len else text
-
 
 def _first_non_empty(*values: Any) -> Optional[Any]:
     return web_normalization_service.first_non_empty(*values)
-
-    # Legacy fallback mantido apenas para rollback/comparacao historica.
-    for value in values:
-        if not _is_empty(value):
-            return value
-    return None
 
 
 def _parse_price(value: Any) -> Optional[float]:
     return web_normalization_service.parse_price(value)
 
-    # Legacy fallback mantido apenas para rollback/comparacao historica.
-    if value is None:
-        return None
-    if isinstance(value, (int, float)):
-        return float(value)
-    text = str(value).strip()
-    if not text:
-        return None
-    text = text.replace("R$", "").replace(" ", "")
-    if "," in text and "." in text:
-        if text.rfind(",") > text.rfind("."):
-            text = text.replace(".", "").replace(",", ".")
-        else:
-            text = text.replace(",", "")
-    else:
-        text = text.replace(",", ".")
-    text = re.sub(r"[^0-9.\-]", "", text)
-    try:
-        return float(text)
-    except Exception:
-        return None
-
 
 def _sanitize_code_value(value: Any) -> Optional[str]:
     return web_normalization_service.sanitize_code_value(value)
-
-    # Legacy fallback mantido apenas para rollback/comparacao historica.
-    text = _as_text(value, max_len=120)
-    if not text:
-        return None
-    clean = (
-        unicodedata.normalize("NFKD", text)
-        .encode("ascii", "ignore")
-        .decode("ascii")
-        .upper()
-        .strip()
-    )
-    clean = re.sub(r"[^A-Z0-9./-]", "", clean)
-    for suffix in ("MARCA", "MATERIAL", "PESO", "QUANTIDADE", "REFERENCIA", "CODIGO", "ATENCAO"):
-        if clean.endswith(suffix) and len(clean) > len(suffix) + 2:
-            clean = clean[: -len(suffix)]
-            break
-    clean = clean.strip("-./")
-    return clean or None
 
 
 def _is_suspicious_code(value: Any) -> bool:
     return web_normalization_service.is_suspicious_code(value)
 
-    # Legacy fallback mantido apenas para rollback/comparacao historica.
-    text = _sanitize_code_value(value)
-    if not text:
-        return False
-    return any(
-        str(value or "").upper().endswith(suffix)
-        for suffix in ("MARCA", "MATERIAL", "PESO", "QUANTIDADE", "ATENCAO")
-    )
-
 
 def _extract_signals_from_description(text: Any) -> Dict[str, str]:
     return web_normalization_service.extract_signals_from_description(text)
-
-    # Legacy fallback mantido apenas para rollback/comparacao historica.
-    raw = _as_text(text, max_len=12000)
-    if not raw:
-        return {}
-
-    compact = re.sub(r"\s+", " ", raw)
-    normalized = unicodedata.normalize("NFKD", compact).encode("ascii", "ignore").decode("ascii")
-    normalized_low = normalized.lower()
-    extracted: Dict[str, str] = {}
-
-    code_match = re.search(
-        r"\b(?:codigo(?:\s+original)?|referencia(?:\s+original)?)\s*[:\-]\s*([A-Za-z0-9./-]{2,40}?)(?=\s*(?:marca|material|peso|quantidade|$|[;,.]))",
-        normalized_low,
-        flags=re.IGNORECASE,
-    )
-    if code_match:
-        extracted["codigo_original"] = code_match.group(1).strip().upper()
-
-    material_match = re.search(
-        r"\bmaterial\s*[:\-]\s*(.+?)(?=\b(?:peso|quantidade|atencao|marca|codigo|referencia)\b|$)",
-        normalized_low,
-        flags=re.IGNORECASE,
-    )
-    if material_match:
-        material_value = material_match.group(1).strip(" -:;,.")
-        if material_value:
-            extracted["material"] = material_value
-
-    return extracted
 
 
 _PLACEHOLDER_HINTS = {
