@@ -4,6 +4,9 @@ from Backend.application.services.catalog_import_quality_service import (
 from Backend.application.services.catalog_import_sanitization_service import (
     CatalogImportSanitizationService,
 )
+from Backend.application.services.catalog_import_diagnostics_service import (
+    CatalogImportDiagnosticsService,
+)
 from Backend.application.services.catalog_import_components import (
     CatalogImportAuditWriter,
     CatalogImportFileStateService,
@@ -114,6 +117,7 @@ from Backend.application.services.service_container import (
 __all__ = [
     "CatalogImportQualityService",
     "CatalogImportSanitizationService",
+    "CatalogImportDiagnosticsService",
     "CatalogImportAuditWriter",
     "CatalogImportFileStateService",
     "CatalogImportIssueTracker",

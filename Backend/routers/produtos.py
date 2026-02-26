@@ -1,4 +1,4 @@
-# Backend/routers/produtos.py
+﻿# Backend/routers/produtos.py
 
 from typing import Any, Dict, List, Optional, Union
 from collections import Counter
@@ -15,14 +15,11 @@ from fastapi import (
     UploadFile,
     status,
 )
-import io
 import json
 import logging
-import re
 import time
 from logging import FileHandler, Formatter
 from pathlib import Path
-from uuid import uuid4
 
 import pdfplumber
 from sqlalchemy import func, or_
@@ -37,6 +34,7 @@ from Backend import database
 from Backend import models
 from Backend import schemas
 from Backend.application.services import (
+    CatalogImportDiagnosticsService,
     CatalogImportFileService,
     CatalogImportLegacyIngestService,
     CatalogImportFinalizeService,
@@ -83,332 +81,30 @@ catalog_sanitization_service = CatalogImportSanitizationService(
 file_processing_service = service_container.file_processing
 
 
-def _normalize_import_text(value: str) -> str:
-    return catalog_sanitization_service.normalize_import_text(value)
-
-
-def _normalize_import_issue_item(item: Dict[str, Any]) -> Dict[str, Any]:
-    return catalog_sanitization_service.normalize_import_issue_item(item)
-
-
-def _extract_import_error_reason(error_item: Dict[str, Any]) -> str:
-    return catalog_sanitization_service.extract_import_error_reason(error_item)
-
-
 def _is_non_critical_import_reason(reason: str) -> bool:
     return catalog_sanitization_service.is_non_critical_import_reason(reason)
-
-
-def _alnum_len(value: Any) -> int:
-    return catalog_quality_service.alnum_len(value)
-
-
-def _texto_tem_contexto(value: Any) -> bool:
-    return catalog_quality_service.text_has_context(value)
-
-
-
-def _fold_ascii_text(value: Any) -> str:
-    return catalog_quality_service.fold_ascii_text(value)
-
-
-def _texto_parece_nome_peca(value: Any) -> bool:
-    return catalog_quality_service.text_looks_like_part_name(value)
-
-
-def _texto_parece_aplicacao_veicular(value: Any) -> bool:
-    return catalog_quality_service.text_looks_like_vehicle_application(value)
-
-
-def _texto_parece_codigo_peca(value: Any) -> bool:
-    return catalog_quality_service.text_looks_like_part_code(value)
-
-
-def _nome_parece_cabecalho_anotacao(value: Any) -> bool:
-    return catalog_quality_service.name_looks_like_annotation_header(value)
-
-
-def _nome_parece_ruido_ocr(value: Any) -> bool:
-    return catalog_quality_service.name_looks_like_ocr_noise(value)
 
 
 def _avaliar_qualidade_linha_produto(data: Dict[str, Any]) -> Optional[str]:
     return catalog_quality_service.evaluate_product_row_quality(data)
 
 
-def _score_qualidade_linha_produto(data: Dict[str, Any]) -> int:
-    return catalog_quality_service.score_product_row_quality(data)
-
-
 def _classificar_qualidade_linha_produto(data: Dict[str, Any]) -> Dict[str, Any]:
     return catalog_quality_service.classify_product_row_quality(data)
 
 
-def _write_catalog_import_report(
-    *,
-    file_id: int,
-    status: str,
-    created_count: int,
-    updated_count: int,
-    errors: List[Dict[str, Any]],
-    ignored_count: int = 0,
-    ignored_reasons: Optional[List[tuple[str, int]]] = None,
-    ignored_samples: Optional[List[Dict[str, Any]]] = None,
-    quarantine_count: int = 0,
-    quarantine_reasons: Optional[List[tuple[str, int]]] = None,
-    quarantine_samples: Optional[List[Dict[str, Any]]] = None,
-    accepted_quality_avg: Optional[float] = None,
-    quarantine_quality_avg: Optional[float] = None,
-    pages_processed: int,
-    pages_total: int,
-    ext: str,
-) -> Optional[Path]:
-    """Persist reports for each import to simplify post-mortem diagnostics."""
-    try:
-        report_dir = catalog_log_dir / "import_jobs"
-        report_dir.mkdir(parents=True, exist_ok=True)
-        reasons = Counter(_extract_import_error_reason(err) for err in errors if isinstance(err, dict))
-        payload = {
-            "file_id": file_id,
-            "status": status,
-            "stats": {
-                "created": created_count,
-                "updated": updated_count,
-                "errors": len(errors),
-                "ignored_non_critical": ignored_count,
-                "quarantine_non_critical": quarantine_count,
-                "quality_score_avg_accepted": accepted_quality_avg,
-                "quality_score_avg_quarantine": quarantine_quality_avg,
-                "pages_processed": pages_processed,
-                "pages_total": pages_total,
-                "ext": ext,
-            },
-            "error_reasons_top": reasons.most_common(30),
-            "ignored_reasons_top": ignored_reasons or [],
-            "ignored_samples": ignored_samples or [],
-            "quarantine_reasons_top": quarantine_reasons or [],
-            "quarantine_samples": quarantine_samples or [],
-            "errors": errors,
-        }
-        report_path = report_dir / f"import_{file_id}.json"
-        report_path.write_text(
-            json.dumps(payload, ensure_ascii=False, indent=2),
-            encoding="utf-8",
-        )
-        return report_path
-    except Exception as report_err:
-        catalog_logger.warning(
-            "falha ao salvar relatorio detalhado file_id=%s erro=%s",
-            file_id,
-            report_err,
-        )
-        return None
-
-
-def _resolve_storage_path(path_value: Union[str, Path]) -> Path:
-    """Resolve caminhos relativos de storage sem duplicar prefixo Backend."""
-    p = Path(path_value)
-    if p.is_absolute():
-        return p
-
-    backend_root = Path(__file__).resolve().parent.parent
-    project_root = backend_root.parent
-    if p.parts and p.parts[0].lower() == "backend":
-        return project_root / p
-    return backend_root / p
-
+catalog_import_diagnostics_service = CatalogImportDiagnosticsService(
+    catalog_log_dir=catalog_log_dir,
+    logger=catalog_logger,
+    sanitization_service=catalog_sanitization_service,
+)
 
 validator_crew = ValidatorCrewFacade(logger=logger)
 
 
-def _normalizar_dados_validados(candidate: Any, fallback: Dict[str, Any]) -> Dict[str, Any]:
-    return catalog_sanitization_service.normalize_validated_data(candidate, fallback)
-
-
 def _sanitize_produto_extraido(prod: Dict[str, Any]) -> Dict[str, Any]:
-    """Normaliza campos antes de instanciar ProdutoCreate para evitar descartes por validacao."""
+    """Alias legado para testes existentes; implementacao real esta no servico."""
     return catalog_sanitization_service.sanitize_extracted_product(prod)
-
-    # Legacy fallback mantido apenas para rollback/comparacao historica.
-    data = dict(prod) if isinstance(prod, dict) else {}
-
-    # Une dados_brutos_adicionais + dados_brutos_web para nao perder contexto util.
-    extras: Dict[str, Any] = {}
-    for raw_key in ("dados_brutos_adicionais", "dados_brutos_web"):
-        raw_payload = data.get(raw_key)
-        if isinstance(raw_payload, dict):
-            for key, value in raw_payload.items():
-                if key in extras and extras.get(key) != value:
-                    extras[f"{raw_key}_{key}"] = value
-                else:
-                    extras[key] = value
-        elif raw_payload not in (None, "", [], {}):
-            extras[f"{raw_key}_raw"] = str(raw_payload)
-
-    nome_base = data.get("nome_base")
-    if nome_base is not None:
-        nome_base = str(nome_base).strip()
-        if len(nome_base) > 255:
-            extras["nome_base_truncado_de"] = nome_base
-            nome_base = nome_base[:255]
-        data["nome_base"] = nome_base or None
-
-    sku_original = data.get("sku_original")
-    if sku_original is not None:
-        sku_original = str(sku_original).strip()
-        if sku_original.lower() in {"none", "null", "nan", "na", "n/a", "-", "--"}:
-            extras["sku_original_descartado"] = sku_original
-            sku_original = ""
-        if len(sku_original) > 100:
-            extras["sku_original_truncado_de"] = sku_original
-            sku_original = sku_original[:100]
-        data["sku_original"] = sku_original or None
-
-    marca = data.get("marca")
-    if marca is not None:
-        marca = str(marca).strip()
-        if len(marca) > 100:
-            extras["marca_truncada_de"] = marca
-            marca = marca[:100]
-        data["marca"] = marca or None
-
-    modelo = data.get("modelo")
-    if modelo is not None:
-        modelo = str(modelo).strip()
-        if len(modelo) > 100:
-            extras["modelo_truncado_de"] = modelo
-            modelo = modelo[:100]
-        data["modelo"] = modelo or None
-
-    categoria_original = data.get("categoria_original")
-    if categoria_original is not None:
-        categoria_original = str(categoria_original).strip()
-        if len(categoria_original) > 150:
-            extras["categoria_original_truncada_de"] = categoria_original
-            categoria_original = categoria_original[:150]
-        data["categoria_original"] = categoria_original or None
-
-    descricao_original = data.get("descricao_original")
-    if descricao_original is not None:
-        descricao_original = str(descricao_original).strip()
-        if len(descricao_original) > 5000:
-            extras["descricao_original_truncada_de"] = descricao_original
-            descricao_original = descricao_original[:5000]
-        data["descricao_original"] = descricao_original or None
-
-    ean_original = data.get("ean_original")
-    if ean_original is not None:
-        ean_text = str(ean_original).strip()
-        if ean_text:
-            # Aceita apenas EAN informado como numero + separadores.
-            # Evita transformar textos livres ("Actros 2651 - 2016") em falso EAN.
-            if not re.fullmatch(r"[\d\s\-_/.]+", ean_text):
-                extras["ean_original_descartado"] = ean_text
-                data["ean_original"] = None
-            else:
-                normalized = re.sub(r"[\s\-_/.]", "", ean_text)
-                if 1 <= len(normalized) <= 13:
-                    data["ean_original"] = normalized
-                else:
-                    extras["ean_original_descartado"] = ean_text
-                    data["ean_original"] = None
-        else:
-            data["ean_original"] = None
-
-    # Recupera nome quando OCR traz somente codigo no nome_base.
-    nome_base = str(data.get("nome_base") or "").strip()
-    sku_original = str(data.get("sku_original") or "").strip()
-    descricao_original = str(data.get("descricao_original") or "").strip()
-    categoria_original = str(data.get("categoria_original") or "").strip()
-    nome_compacto = re.sub(r"[^0-9A-Za-z]", "", nome_base).lower()
-    sku_compacto = re.sub(r"[^0-9A-Za-z]", "", sku_original).lower()
-    nome_numerico = bool(nome_compacto) and nome_compacto.isdigit()
-    nome_codigo_peca = _texto_parece_codigo_peca(nome_base)
-    nome_igual_sku = bool(nome_compacto and sku_compacto and nome_compacto == sku_compacto)
-    nome_ruido_ocr = _nome_parece_ruido_ocr(nome_base)
-    descricao_util = _texto_tem_contexto(descricao_original)
-    descricao_parece_peca = _texto_parece_nome_peca(descricao_original)
-    descricao_parece_aplicacao = _texto_parece_aplicacao_veicular(descricao_original)
-
-    if nome_base and _nome_parece_cabecalho_anotacao(nome_base):
-        extras["nome_base_descartado"] = nome_base
-        nome_base = ""
-        data["nome_base"] = None
-
-    # Quando categoria parece conter nome de peca e descricao esta vazia,
-    # aproveita categoria como descricao para nao perder contexto util.
-    if not descricao_util and categoria_original and _texto_parece_nome_peca(categoria_original):
-        data["descricao_original"] = categoria_original[:5000]
-        descricao_original = data["descricao_original"]
-        descricao_util = _texto_tem_contexto(descricao_original)
-        descricao_parece_peca = _texto_parece_nome_peca(descricao_original)
-        descricao_parece_aplicacao = _texto_parece_aplicacao_veicular(descricao_original)
-        extras["descricao_substituida_por_categoria"] = True
-
-    # Se descricao atual e apenas aplicacao e categoria contem nome de peca,
-    # prioriza categoria como descricao principal.
-    if (
-        descricao_util
-        and descricao_parece_aplicacao
-        and categoria_original
-        and _texto_parece_nome_peca(categoria_original)
-    ):
-        data["descricao_original"] = categoria_original[:5000]
-        descricao_original = data["descricao_original"]
-        descricao_util = _texto_tem_contexto(descricao_original)
-        descricao_parece_peca = _texto_parece_nome_peca(descricao_original)
-        descricao_parece_aplicacao = _texto_parece_aplicacao_veicular(descricao_original)
-        extras["descricao_aplicacao_substituida_por_categoria"] = True
-
-    nome_fraco = (
-        not nome_base
-        or nome_numerico
-        or nome_codigo_peca
-        or nome_igual_sku
-        or nome_ruido_ocr
-        or _nome_parece_cabecalho_anotacao(nome_base)
-    )
-
-    # Tenta recuperar descricao util a partir de dados brutos (colunas nao mapeadas).
-    # Também corrige casos em que a descricao atual é apenas aplicacao veicular.
-    should_try_raw_part = (
-        not descricao_util
-        or (descricao_parece_aplicacao and nome_fraco)
-        or (nome_fraco and not descricao_parece_peca)
-    )
-    if should_try_raw_part and isinstance(extras, dict):
-        for raw_key, raw_value in extras.items():
-            candidate = str(raw_value or "").strip()
-            if not candidate:
-                continue
-            if _texto_parece_nome_peca(candidate):
-                if data.get("descricao_original") != candidate:
-                    data["descricao_original"] = candidate[:5000]
-                descricao_original = data["descricao_original"]
-                descricao_util = _texto_tem_contexto(descricao_original)
-                descricao_parece_peca = _texto_parece_nome_peca(descricao_original)
-                descricao_parece_aplicacao = _texto_parece_aplicacao_veicular(descricao_original)
-                extras["descricao_substituida_por_dados_brutos"] = str(raw_key)
-                break
-
-    # Se nome e' apenas codigo/sku, tenta promover descricao util para nome_base.
-    if descricao_util and (
-        not nome_base
-        or nome_numerico
-        or nome_codigo_peca
-        or nome_igual_sku
-        or nome_ruido_ocr
-        or _nome_parece_cabecalho_anotacao(nome_base)
-    ):
-        if descricao_parece_peca or nome_numerico or (not nome_base and not descricao_parece_aplicacao):
-            data["nome_base"] = descricao_original[:255]
-            extras["nome_base_substituido_por_descricao"] = True
-
-    if extras:
-        data["dados_brutos_adicionais"] = extras
-
-    return data
-
 
 catalog_import_task_runner = CatalogImportTaskRunner(
     logger=logger,
@@ -422,64 +118,26 @@ catalog_import_task_runner = CatalogImportTaskRunner(
     path_cls=Path,
     time_module=time,
     counter_cls=Counter,
-    resolve_storage_path=_resolve_storage_path,
-    normalize_import_issue_item=_normalize_import_issue_item,
-    extract_import_error_reason=_extract_import_error_reason,
-    is_non_critical_import_reason=_is_non_critical_import_reason,
-    normalizar_dados_validados=_normalizar_dados_validados,
-    sanitize_produto_extraido=_sanitize_produto_extraido,
-    classificar_qualidade_linha_produto=_classificar_qualidade_linha_produto,
-    write_catalog_import_report=_write_catalog_import_report,
-    normalize_import_text=_normalize_import_text,
+    resolve_storage_path=catalog_import_diagnostics_service.resolve_storage_path,
+    normalize_import_issue_item=catalog_sanitization_service.normalize_import_issue_item,
+    extract_import_error_reason=catalog_sanitization_service.extract_import_error_reason,
+    is_non_critical_import_reason=catalog_sanitization_service.is_non_critical_import_reason,
+    normalizar_dados_validados=catalog_sanitization_service.normalize_validated_data,
+    sanitize_produto_extraido=catalog_sanitization_service.sanitize_extracted_product,
+    classificar_qualidade_linha_produto=catalog_quality_service.classify_product_row_quality,
+    write_catalog_import_report=catalog_import_diagnostics_service.write_catalog_import_report,
+    normalize_import_text=catalog_sanitization_service.normalize_import_text,
 )
 
-async def _tarefa_processar_catalogo(
-
-    db_session_factory,
-
-    file_id: int,
-
-    user_id: int,
-
-    product_type_id: Optional[int],
-
-    fornecedor_id: int,
-
-    mapping: Optional[Dict[str, str]] = None,
-
-    pages: Optional[List[int]] = None,
-
-    region: Optional[List[float]] = None,
-
-):
-
-    """Processa o arquivo salvo em background e cria os produtos."""
-
-    await catalog_import_task_runner.execute_legacy(
-        db_session_factory=db_session_factory,
-        file_id=file_id,
-        user_id=user_id,
-        product_type_id=product_type_id,
-        fornecedor_id=fornecedor_id,
-        mapping=mapping,
-        pages=pages,
-        region=region,
-    )
-
-
-async def _oop_tarefa_processar_catalogo(**task_kwargs):
-    """Executor OOP dedicado (modo oop), separado do legado para comparacao futura."""
-    await catalog_import_task_runner.execute_oop(**task_kwargs)
-
 catalog_import_finalize_service = CatalogImportFinalizeService(
-    legacy_executor=_tarefa_processar_catalogo,
-    oop_executor=_oop_tarefa_processar_catalogo,
+    legacy_executor=catalog_import_task_runner.execute_legacy,
+    oop_executor=catalog_import_task_runner.execute_oop,
 )
 catalog_import_start_service = CatalogImportStartService(
     models=models,
     crud_fornecedores=crud_fornecedores,
     settings=settings,
-    resolve_storage_path=_resolve_storage_path,
+    resolve_storage_path=catalog_import_diagnostics_service.resolve_storage_path,
     finalize_service=catalog_import_finalize_service,
 )
 catalog_import_status_service = CatalogImportStatusService(models=models)
@@ -496,7 +154,7 @@ catalog_import_preview_service = CatalogImportPreviewService(
     models=models,
     settings=settings,
     file_processing_service=file_processing_service,
-    resolve_storage_path=_resolve_storage_path,
+    resolve_storage_path=catalog_import_diagnostics_service.resolve_storage_path,
     logger=logger,
     pdfplumber_module=pdfplumber,
 )
@@ -508,11 +166,11 @@ catalog_import_legacy_ingest_service = CatalogImportLegacyIngestService(
     crud_uso_ia=crud,
     crud_historico=crud_historico,
     file_processing_service=file_processing_service,
-    normalize_import_issue_item=_normalize_import_issue_item,
-    extract_import_error_reason=_extract_import_error_reason,
-    is_non_critical_import_reason=_is_non_critical_import_reason,
-    sanitize_produto_extraido=_sanitize_produto_extraido,
-    classificar_qualidade_linha_produto=_classificar_qualidade_linha_produto,
+    normalize_import_issue_item=catalog_sanitization_service.normalize_import_issue_item,
+    extract_import_error_reason=catalog_sanitization_service.extract_import_error_reason,
+    is_non_critical_import_reason=catalog_sanitization_service.is_non_critical_import_reason,
+    sanitize_produto_extraido=catalog_sanitization_service.sanitize_extracted_product,
+    classificar_qualidade_linha_produto=catalog_quality_service.classify_product_row_quality,
     json_module=json,
 )
 product_management_service = ProductManagementService(
