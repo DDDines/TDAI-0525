@@ -58,6 +58,9 @@ from Backend.application.services.web_data_extractor_components import (
 from Backend.application.services.generation_task_service import (
     GenerationTaskService,
 )
+from Backend.application.services.generation_scheduling_service import (
+    GenerationSchedulingService,
+)
 from Backend.application.services.web_enrichment_task_runner import (
     WebEnrichmentTaskRunner,
 )
@@ -82,6 +85,7 @@ __all__ = [
     "CatalogStorageService",
     "FileProcessingFacade",
     "GenerationTaskService",
+    "GenerationSchedulingService",
     "IAGenerationFacade",
     "LimitServiceFacade",
     "PipelineDispatcher",
