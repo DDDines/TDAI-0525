@@ -22,7 +22,7 @@ from Backend.application.services import (
     WebEnrichmentRelevanceService,
 )
 from Backend.application.services.web_enrichment_task_service import (
-    run_web_enrichment_task,
+    WebEnrichmentTaskService,
 )
 from Backend.database import get_db, SessionLocal
 
@@ -42,6 +42,7 @@ router = APIRouter(
 
 logger = get_logger(__name__)
 relevance_service = WebEnrichmentRelevanceService()
+_web_enrichment_task_service: Optional[WebEnrichmentTaskService] = None
 
 
 def _encoding_marker_count(candidate: str) -> int:
@@ -730,35 +731,43 @@ def _build_payload_enriquecimento_visivel(
 
     return update_fields, notes, ignored_notes
 
+
+def _get_web_enrichment_task_service() -> WebEnrichmentTaskService:
+    global _web_enrichment_task_service
+    if _web_enrichment_task_service is None:
+        _web_enrichment_task_service = WebEnrichmentTaskService(
+            logger=logger,
+            SQLAlchemyError=SQLAlchemyError,
+            crud_users=crud_users,
+            crud_produtos=crud_produtos,
+            crud=crud,
+            models=models,
+            schemas=schemas,
+            web_extractor=web_extractor,
+            settings=settings,
+            json=json,
+            re=re,
+            normalize_human_text=_normalize_human_text,
+            build_payload_enriquecimento_visivel=_build_payload_enriquecimento_visivel,
+            extrair_dominio_fornecedor=_extrair_dominio_fornecedor,
+            priorizar_urls_para_enriquecimento=_priorizar_urls_para_enriquecimento,
+            is_meaningful_extracted_text=_is_meaningful_extracted_text,
+            metadata_has_minimum_signal=_metadata_has_minimum_signal,
+            is_source_relevant_for_product=_is_source_relevant_for_product,
+        )
+    return _web_enrichment_task_service
+
 async def _tarefa_enriquecer_produto_web(
     db_session_factory,
     produto_id: int,
     user_id: int,
     termos_busca_override: Optional[str] = None
 ):
-    await run_web_enrichment_task(
+    await _get_web_enrichment_task_service().execute(
         db_session_factory=db_session_factory,
         produto_id=produto_id,
         user_id=user_id,
         termos_busca_override=termos_busca_override,
-        logger=logger,
-        SQLAlchemyError=SQLAlchemyError,
-        crud_users=crud_users,
-        crud_produtos=crud_produtos,
-        crud=crud,
-        models=models,
-        schemas=schemas,
-        web_extractor=web_extractor,
-        settings=settings,
-        json=json,
-        re=re,
-        normalize_human_text=_normalize_human_text,
-        build_payload_enriquecimento_visivel=_build_payload_enriquecimento_visivel,
-        extrair_dominio_fornecedor=_extrair_dominio_fornecedor,
-        priorizar_urls_para_enriquecimento=_priorizar_urls_para_enriquecimento,
-        is_meaningful_extracted_text=_is_meaningful_extracted_text,
-        metadata_has_minimum_signal=_metadata_has_minimum_signal,
-        is_source_relevant_for_product=_is_source_relevant_for_product,
     )
 
 

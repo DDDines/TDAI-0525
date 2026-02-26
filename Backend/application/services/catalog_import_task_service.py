@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Any, Dict, List, Optional, Callable
+from typing import Any, Callable, Dict, List, Optional
 from sqlalchemy.orm import Session
 
 
@@ -713,3 +713,78 @@ async def run_catalog_import_task(
         if db:
 
             db.close()
+
+
+class CatalogImportTaskService:
+    """Service OO para executar processamento de importacao de catalogo."""
+
+    def __init__(
+        self,
+        *,
+        logger,
+        catalog_logger,
+        models,
+        schemas,
+        crud_produtos,
+        file_processing_service,
+        validator_crew,
+        settings,
+        Path,
+        time,
+        Counter,
+        resolve_storage_path: Callable,
+        normalize_import_issue_item: Callable,
+        extract_import_error_reason: Callable,
+        is_non_critical_import_reason: Callable,
+        normalizar_dados_validados: Callable,
+        sanitize_produto_extraido: Callable,
+        classificar_qualidade_linha_produto: Callable,
+        write_catalog_import_report: Callable,
+        normalize_import_text: Callable,
+    ):
+        self._deps = {
+            "logger": logger,
+            "catalog_logger": catalog_logger,
+            "models": models,
+            "schemas": schemas,
+            "crud_produtos": crud_produtos,
+            "file_processing_service": file_processing_service,
+            "validator_crew": validator_crew,
+            "settings": settings,
+            "Path": Path,
+            "time": time,
+            "Counter": Counter,
+            "resolve_storage_path": resolve_storage_path,
+            "normalize_import_issue_item": normalize_import_issue_item,
+            "extract_import_error_reason": extract_import_error_reason,
+            "is_non_critical_import_reason": is_non_critical_import_reason,
+            "normalizar_dados_validados": normalizar_dados_validados,
+            "sanitize_produto_extraido": sanitize_produto_extraido,
+            "classificar_qualidade_linha_produto": classificar_qualidade_linha_produto,
+            "write_catalog_import_report": write_catalog_import_report,
+            "normalize_import_text": normalize_import_text,
+        }
+
+    async def execute(
+        self,
+        *,
+        db_session_factory,
+        file_id: int,
+        user_id: int,
+        product_type_id: Optional[int],
+        fornecedor_id: int,
+        mapping: Optional[Dict[str, str]] = None,
+        pages: Optional[List[int]] = None,
+        region: Optional[List[float]] = None,
+    ):
+        await run_catalog_import_task(
+            db_session_factory=db_session_factory,
+            file_id=file_id,
+            user_id=user_id,
+            product_type_id=product_type_id,
+            fornecedor_id=fornecedor_id,
+            mapping=mapping,
+            pages=pages,
+            region=region,
+            **self._deps,
+        )

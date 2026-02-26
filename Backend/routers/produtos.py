@@ -46,7 +46,7 @@ from Backend.application.services import (
     PipelineDispatcher,
 )
 from Backend.application.services.catalog_import_task_service import (
-    run_catalog_import_task,
+    CatalogImportTaskService,
 )
 from Backend.core import config
 from Backend.core.config import settings
@@ -74,6 +74,7 @@ if not catalog_logger.handlers:
     catalog_logger.setLevel(logging.INFO)
 
 catalog_quality_service = CatalogImportQualityService()
+_catalog_import_task_service: Optional[CatalogImportTaskService] = None
 
 
 def _normalize_import_text(value: str) -> str:
@@ -572,6 +573,34 @@ def _sanitize_produto_extraido(prod: Dict[str, Any]) -> Dict[str, Any]:
 
     return data
 
+
+def _get_catalog_import_task_service() -> CatalogImportTaskService:
+    global _catalog_import_task_service
+    if _catalog_import_task_service is None:
+        _catalog_import_task_service = CatalogImportTaskService(
+            logger=logger,
+            catalog_logger=catalog_logger,
+            models=models,
+            schemas=schemas,
+            crud_produtos=crud_produtos,
+            file_processing_service=file_processing_service,
+            validator_crew=validator_crew,
+            settings=settings,
+            Path=Path,
+            time=time,
+            Counter=Counter,
+            resolve_storage_path=_resolve_storage_path,
+            normalize_import_issue_item=_normalize_import_issue_item,
+            extract_import_error_reason=_extract_import_error_reason,
+            is_non_critical_import_reason=_is_non_critical_import_reason,
+            normalizar_dados_validados=_normalizar_dados_validados,
+            sanitize_produto_extraido=_sanitize_produto_extraido,
+            classificar_qualidade_linha_produto=_classificar_qualidade_linha_produto,
+            write_catalog_import_report=_write_catalog_import_report,
+            normalize_import_text=_normalize_import_text,
+        )
+    return _catalog_import_task_service
+
 async def _tarefa_processar_catalogo(
 
     db_session_factory,
@@ -594,7 +623,7 @@ async def _tarefa_processar_catalogo(
 
     """Processa o arquivo salvo em background e cria os produtos."""
 
-    await run_catalog_import_task(
+    await _get_catalog_import_task_service().execute(
         db_session_factory=db_session_factory,
         file_id=file_id,
         user_id=user_id,
@@ -603,26 +632,6 @@ async def _tarefa_processar_catalogo(
         mapping=mapping,
         pages=pages,
         region=region,
-        logger=logger,
-        catalog_logger=catalog_logger,
-        models=models,
-        schemas=schemas,
-        crud_produtos=crud_produtos,
-        file_processing_service=file_processing_service,
-        validator_crew=validator_crew,
-        settings=settings,
-        Path=Path,
-        time=time,
-        Counter=Counter,
-        resolve_storage_path=_resolve_storage_path,
-        normalize_import_issue_item=_normalize_import_issue_item,
-        extract_import_error_reason=_extract_import_error_reason,
-        is_non_critical_import_reason=_is_non_critical_import_reason,
-        normalizar_dados_validados=_normalizar_dados_validados,
-        sanitize_produto_extraido=_sanitize_produto_extraido,
-        classificar_qualidade_linha_produto=_classificar_qualidade_linha_produto,
-        write_catalog_import_report=_write_catalog_import_report,
-        normalize_import_text=_normalize_import_text,
     )
 
 

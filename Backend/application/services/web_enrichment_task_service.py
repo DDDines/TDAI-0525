@@ -463,3 +463,66 @@ async def run_web_enrichment_task(
         
         if db:
             db.close()
+
+
+class WebEnrichmentTaskService:
+    """Service OO para executar enriquecimento web."""
+
+    def __init__(
+        self,
+        *,
+        logger,
+        SQLAlchemyError,
+        crud_users,
+        crud_produtos,
+        crud,
+        models,
+        schemas,
+        web_extractor,
+        settings,
+        json,
+        re,
+        normalize_human_text,
+        build_payload_enriquecimento_visivel,
+        extrair_dominio_fornecedor,
+        priorizar_urls_para_enriquecimento,
+        is_meaningful_extracted_text,
+        metadata_has_minimum_signal,
+        is_source_relevant_for_product,
+    ):
+        self._deps = {
+            "logger": logger,
+            "SQLAlchemyError": SQLAlchemyError,
+            "crud_users": crud_users,
+            "crud_produtos": crud_produtos,
+            "crud": crud,
+            "models": models,
+            "schemas": schemas,
+            "web_extractor": web_extractor,
+            "settings": settings,
+            "json": json,
+            "re": re,
+            "normalize_human_text": normalize_human_text,
+            "build_payload_enriquecimento_visivel": build_payload_enriquecimento_visivel,
+            "extrair_dominio_fornecedor": extrair_dominio_fornecedor,
+            "priorizar_urls_para_enriquecimento": priorizar_urls_para_enriquecimento,
+            "is_meaningful_extracted_text": is_meaningful_extracted_text,
+            "metadata_has_minimum_signal": metadata_has_minimum_signal,
+            "is_source_relevant_for_product": is_source_relevant_for_product,
+        }
+
+    async def execute(
+        self,
+        *,
+        db_session_factory,
+        produto_id: int,
+        user_id: int,
+        termos_busca_override: Optional[str] = None,
+    ):
+        await run_web_enrichment_task(
+            db_session_factory=db_session_factory,
+            produto_id=produto_id,
+            user_id=user_id,
+            termos_busca_override=termos_busca_override,
+            **self._deps,
+        )
