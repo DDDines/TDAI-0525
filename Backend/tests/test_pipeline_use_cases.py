@@ -6,6 +6,10 @@ from Backend.application.use_cases.catalog_import_processing import (
 from Backend.application.use_cases.web_enrichment_processing import (
     WebEnrichmentProcessingUseCase,
 )
+from Backend.application.contracts.pipeline_commands import (
+    CatalogImportFinalizeCommand,
+    WebEnrichmentStartCommand,
+)
 
 
 async def _dummy_processor(**kwargs):
@@ -52,6 +56,27 @@ async def test_catalog_import_use_case_rejects_invalid_ids():
 
 
 @pytest.mark.asyncio
+async def test_catalog_import_use_case_execute_command_normalizes_payload():
+    use_case = CatalogImportProcessingUseCase(processor=_dummy_processor)
+    command = CatalogImportFinalizeCommand(
+        file_id=10,
+        user_id=20,
+        product_type_id=3,
+        fornecedor_id=8,
+        mapping={"col_0": "Nome Base"},
+        pages=[1, 2],
+        region=[1.0, 2.0, 3.0, 4.0],
+    )
+    result = await use_case.execute_command(
+        db_session_factory="factory",
+        command=command,
+    )
+
+    assert result["file_id"] == 10
+    assert result["pages"] == [1, 2]
+
+
+@pytest.mark.asyncio
 async def test_web_enrichment_use_case_normalizes_search_terms():
     use_case = WebEnrichmentProcessingUseCase(processor=_dummy_processor)
     result = await use_case.execute(
@@ -75,3 +100,20 @@ async def test_web_enrichment_use_case_rejects_invalid_produto_id():
             user_id=9,
             termos_busca_override=None,
         )
+
+
+@pytest.mark.asyncio
+async def test_web_enrichment_use_case_execute_command_normalizes_payload():
+    use_case = WebEnrichmentProcessingUseCase(processor=_dummy_processor)
+    command = WebEnrichmentStartCommand(
+        produto_id=12,
+        user_id=9,
+        termos_busca_override="  abc  ",
+    )
+    result = await use_case.execute_command(
+        db_session_factory="factory",
+        command=command,
+    )
+
+    assert result["produto_id"] == 12
+    assert result["termos_busca_override"] == "abc"

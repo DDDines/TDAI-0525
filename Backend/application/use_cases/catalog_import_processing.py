@@ -2,6 +2,8 @@ from __future__ import annotations
 
 from typing import Any, Awaitable, Callable, Dict, List, Optional
 
+from Backend.application.contracts.pipeline_commands import CatalogImportFinalizeCommand
+
 TaskExecutor = Callable[..., Awaitable[Any]]
 
 
@@ -15,26 +17,28 @@ class CatalogImportProcessingUseCase:
     def __init__(self, processor: TaskExecutor):
         self._processor = processor
 
-    async def execute(self, **task_kwargs: Any) -> Any:
-        file_id = self._require_positive_int(task_kwargs.get("file_id"), "file_id")
-        user_id = self._require_positive_int(task_kwargs.get("user_id"), "user_id")
-        fornecedor_id = self._require_positive_int(
-            task_kwargs.get("fornecedor_id"), "fornecedor_id"
-        )
+    async def execute_command(
+        self,
+        *,
+        db_session_factory: Any,
+        command: CatalogImportFinalizeCommand,
+    ) -> Any:
+        file_id = self._require_positive_int(command.file_id, "file_id")
+        user_id = self._require_positive_int(command.user_id, "user_id")
+        fornecedor_id = self._require_positive_int(command.fornecedor_id, "fornecedor_id")
 
-        product_type_id_raw = task_kwargs.get("product_type_id")
         product_type_id = None
-        if product_type_id_raw is not None:
+        if command.product_type_id is not None:
             product_type_id = self._require_positive_int(
-                product_type_id_raw, "product_type_id"
+                command.product_type_id, "product_type_id"
             )
 
-        mapping = self._normalize_mapping(task_kwargs.get("mapping"))
-        pages = self._normalize_pages(task_kwargs.get("pages"))
-        region = self._normalize_region(task_kwargs.get("region"))
+        mapping = self._normalize_mapping(command.mapping)
+        pages = self._normalize_pages(command.pages)
+        region = self._normalize_region(command.region)
 
         return await self._processor(
-            db_session_factory=task_kwargs.get("db_session_factory"),
+            db_session_factory=db_session_factory,
             file_id=file_id,
             user_id=user_id,
             product_type_id=product_type_id,
@@ -42,6 +46,21 @@ class CatalogImportProcessingUseCase:
             mapping=mapping,
             pages=pages,
             region=region,
+        )
+
+    async def execute(self, **task_kwargs: Any) -> Any:
+        command = CatalogImportFinalizeCommand(
+            file_id=task_kwargs.get("file_id"),
+            user_id=task_kwargs.get("user_id"),
+            product_type_id=task_kwargs.get("product_type_id"),
+            fornecedor_id=task_kwargs.get("fornecedor_id"),
+            mapping=task_kwargs.get("mapping"),
+            pages=task_kwargs.get("pages"),
+            region=task_kwargs.get("region"),
+        )
+        return await self.execute_command(
+            db_session_factory=task_kwargs.get("db_session_factory"),
+            command=command,
         )
 
     @staticmethod

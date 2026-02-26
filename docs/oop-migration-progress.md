@@ -4,8 +4,8 @@
 
 - Estrutura OOP (modos, selector, dispatcher, contracts, testes): `100%`
 - Integracao das rotas criticas com estrutura OOP: `100%`
-- Migracao da logica para use cases/services OO (sem corpo pesado no router): `68%`
-- Migracao geral (estrutura + logica): `82%`
+- Migracao da logica para use cases/services OO (sem corpo pesado no router): `72%`
+- Migracao geral (estrutura + logica): `85%`
 
 ## O que ja esta pronto
 
@@ -27,6 +27,8 @@
 - Tarefas de importacao/enriquecimento agora tambem possuem `TaskService` OO
   (`CatalogImportTaskService` e `WebEnrichmentTaskService`) usados pelos executores.
 - Executor OOP agora chama `TaskService` diretamente (sem encadear no executor legacy).
+- Use cases e executores OOP agora operam com comandos tipados
+  (`CatalogImportFinalizeCommand` e `WebEnrichmentStartCommand`).
 
 ## O que ainda falta para 100%
 

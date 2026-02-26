@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from typing import Any, Dict, List, Optional
 
+from Backend.application.contracts.pipeline_commands import CatalogImportFinalizeCommand
 from Backend.application.pipeline_selector import TaskExecutionPlan
 from Backend.application.use_cases.catalog_import_processing import (
     CatalogImportProcessingUseCase,
@@ -18,7 +19,19 @@ class OOPCatalogImportExecutor:
         self._use_case = use_case
 
     async def __call__(self, **task_kwargs: Any) -> Any:
-        return await self._use_case.execute(**task_kwargs)
+        command = CatalogImportFinalizeCommand(
+            file_id=task_kwargs.get("file_id"),
+            user_id=task_kwargs.get("user_id"),
+            product_type_id=task_kwargs.get("product_type_id"),
+            fornecedor_id=task_kwargs.get("fornecedor_id"),
+            mapping=task_kwargs.get("mapping"),
+            pages=task_kwargs.get("pages"),
+            region=task_kwargs.get("region"),
+        )
+        return await self._use_case.execute_command(
+            db_session_factory=task_kwargs.get("db_session_factory"),
+            command=command,
+        )
 
 
 class CatalogImportTaskBuilder:

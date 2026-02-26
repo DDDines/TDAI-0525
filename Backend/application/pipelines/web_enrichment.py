@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from typing import Any, Optional
 
+from Backend.application.contracts.pipeline_commands import WebEnrichmentStartCommand
 from Backend.application.pipeline_selector import TaskExecutionPlan
 from Backend.application.use_cases.web_enrichment_processing import (
     WebEnrichmentProcessingUseCase,
@@ -18,7 +19,15 @@ class OOPWebEnrichmentExecutor:
         self._use_case = use_case
 
     async def __call__(self, **task_kwargs: Any) -> Any:
-        return await self._use_case.execute(**task_kwargs)
+        command = WebEnrichmentStartCommand(
+            produto_id=task_kwargs.get("produto_id"),
+            user_id=task_kwargs.get("user_id"),
+            termos_busca_override=task_kwargs.get("termos_busca_override"),
+        )
+        return await self._use_case.execute_command(
+            db_session_factory=task_kwargs.get("db_session_factory"),
+            command=command,
+        )
 
 
 class WebEnrichmentTaskBuilder:
