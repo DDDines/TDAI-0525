@@ -1,10 +1,10 @@
-# catalogai_project/Backend/routers/web_enrichment.py
-from fastapi import APIRouter, Depends, status, BackgroundTasks, Query
-from sqlalchemy.exc import SQLAlchemyError # Para capturar exceções do SQLAlchemy
+﻿# catalogai_project/Backend/routers/web_enrichment.py
 from typing import List, Dict, Any, Optional, Tuple
-import asyncio
 import json
 import re
+
+from fastapi import APIRouter, Depends, status, BackgroundTasks, Query
+from sqlalchemy.exc import SQLAlchemyError
 
 from Backend import crud_users
 from Backend import crud_produtos
@@ -70,7 +70,6 @@ def _is_source_relevant_for_product(
     )
 
 
-
 def _extrair_dominio_fornecedor(site_url: Any) -> str:
     return relevance_service.extract_supplier_domain(site_url)
 
@@ -89,8 +88,6 @@ def _priorizar_urls_para_enriquecimento(
     )
 
 
-
-
 def _is_meaningful_extracted_text(value: Any) -> bool:
     return web_content_quality_service.is_meaningful_extracted_text(value)
 
@@ -107,6 +104,7 @@ def _build_payload_enriquecimento_visivel(
         db_produto_obj,
         dados_extraidos_agregados,
     )
+
 
 web_enrichment_task_runner = WebEnrichmentTaskRunner(
     logger=logger,
@@ -129,13 +127,68 @@ web_enrichment_task_runner = WebEnrichmentTaskRunner(
     is_source_relevant_for_product=_is_source_relevant_for_product,
 )
 
+
+class _WebEnrichmentRouterWorkflow:
+    async def tarefa_enriquecer_produto_web(
+        self,
+        db_session_factory,
+        produto_id: int,
+        user_id: int,
+        termos_busca_override: Optional[str] = None,
+    ):
+        await web_enrichment_task_runner.execute_legacy(
+            db_session_factory=db_session_factory,
+            produto_id=produto_id,
+            user_id=user_id,
+            termos_busca_override=termos_busca_override,
+        )
+
+    async def oop_tarefa_enriquecer_produto_web(self, **task_kwargs):
+        """Executor OOP dedicado (modo oop), separado do legado para comparacao futura."""
+        await web_enrichment_task_runner.execute_oop(**task_kwargs)
+
+    def iniciar_enriquecimento_produto_web(
+        self,
+        *,
+        produto_id: int,
+        background_tasks: BackgroundTasks,
+        current_user: models.User,
+        termos_busca_override: Optional[str] = None,
+    ) -> Dict[str, str]:
+        web_enrichment_start_service.validate_start_preconditions(
+            db_session_factory=SessionLocal,
+            produto_id=produto_id,
+            current_user=current_user,
+        )
+
+        command = WebEnrichmentStartCommand(
+            produto_id=produto_id,
+            user_id=current_user.id,
+            termos_busca_override=termos_busca_override,
+        )
+
+        web_enrichment_start_service.dispatch_start(
+            background_tasks=background_tasks,
+            db_session_factory=SessionLocal,
+            command=command,
+            legacy_executor=self.tarefa_enriquecer_produto_web,
+            oop_executor=self.oop_tarefa_enriquecer_produto_web,
+        )
+        return {
+            "msg": f"Processo de enriquecimento web para o produto ID {produto_id} iniciado em segundo plano."
+        }
+
+
+web_enrichment_router_workflow = _WebEnrichmentRouterWorkflow()
+
+
 async def _tarefa_enriquecer_produto_web(
     db_session_factory,
     produto_id: int,
     user_id: int,
-    termos_busca_override: Optional[str] = None
+    termos_busca_override: Optional[str] = None,
 ):
-    await web_enrichment_task_runner.execute_legacy(
+    await web_enrichment_router_workflow.tarefa_enriquecer_produto_web(
         db_session_factory=db_session_factory,
         produto_id=produto_id,
         user_id=user_id,
@@ -144,36 +197,25 @@ async def _tarefa_enriquecer_produto_web(
 
 
 async def _oop_tarefa_enriquecer_produto_web(**task_kwargs):
-    """Executor OOP dedicado (modo oop), separado do legado para comparacao futura."""
-    await web_enrichment_task_runner.execute_oop(**task_kwargs)
+    await web_enrichment_router_workflow.oop_tarefa_enriquecer_produto_web(**task_kwargs)
+
 
 @router.post("/produto/{produto_id}", status_code=status.HTTP_202_ACCEPTED, response_model=schemas.Msg)
 async def iniciar_enriquecimento_produto_web_endpoint(
     produto_id: int,
     background_tasks: BackgroundTasks,
     current_user: models.User = Depends(get_current_active_user),
-    termos_busca_override: Optional[str] = Query(None, description="Opcional: termos de busca específicos para o Google Search."),
+    termos_busca_override: Optional[str] = Query(
+        None,
+        description="Opcional: termos de busca especificos para o Google Search.",
+    ),
 ):
-    web_enrichment_start_service.validate_start_preconditions(
-        db_session_factory=SessionLocal,
+    return web_enrichment_router_workflow.iniciar_enriquecimento_produto_web(
         produto_id=produto_id,
+        background_tasks=background_tasks,
         current_user=current_user,
-    )
-
-    command = WebEnrichmentStartCommand(
-        produto_id=produto_id,
-        user_id=current_user.id,
         termos_busca_override=termos_busca_override,
     )
-
-    web_enrichment_start_service.dispatch_start(
-        background_tasks=background_tasks,
-        db_session_factory=SessionLocal,
-        command=command,
-        legacy_executor=_tarefa_enriquecer_produto_web,
-        oop_executor=_oop_tarefa_enriquecer_produto_web,
-    )
-    return {"msg": f"Processo de enriquecimento web para o produto ID {produto_id} iniciado em segundo plano."}
 
 
 router.add_api_route(
@@ -186,6 +228,15 @@ router.add_api_route(
 )
 
 
+class WebEnrichmentRouterLegacyService:
+    async def tarefa_enriquecer_produto_web(self, *args, **kwargs):
+        return await web_enrichment_router_workflow.tarefa_enriquecer_produto_web(*args, **kwargs)
+
+    async def oop_tarefa_enriquecer_produto_web(self, *args, **kwargs):
+        return await web_enrichment_router_workflow.oop_tarefa_enriquecer_produto_web(*args, **kwargs)
+
+    def iniciar_enriquecimento_produto_web(self, *args, **kwargs):
+        return web_enrichment_router_workflow.iniciar_enriquecimento_produto_web(*args, **kwargs)
 
 
-
+web_enrichment_router_legacy_service = WebEnrichmentRouterLegacyService()
