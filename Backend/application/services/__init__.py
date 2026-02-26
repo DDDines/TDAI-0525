@@ -85,6 +85,9 @@ from Backend.application.services.generation_task_service import (
 from Backend.application.services.generation_scheduling_service import (
     GenerationSchedulingService,
 )
+from Backend.application.services.product_management_service import (
+    ProductManagementService,
+)
 from Backend.application.services.web_enrichment_task_runner import (
     WebEnrichmentTaskRunner,
 )
@@ -121,6 +124,7 @@ __all__ = [
     "FileProcessingFacade",
     "GenerationTaskService",
     "GenerationSchedulingService",
+    "ProductManagementService",
     "IAGenerationFacade",
     "LimitServiceFacade",
     "PipelineDispatcher",

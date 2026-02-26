@@ -44,6 +44,7 @@ from Backend.application.services import (
     CatalogImportTaskRunner,
     CatalogImportSanitizationService,
     CatalogImportQualityService,
+    ProductManagementService,
     ValidatorCrewFacade,
 )
 from Backend.application.services.service_container import service_container
@@ -483,6 +484,15 @@ catalog_import_file_service = CatalogImportFileService(
     file_processing_service=file_processing_service,
     catalog_import_start_service=catalog_import_start_service,
 )
+product_management_service = ProductManagementService(
+    models=models,
+    schemas=schemas,
+    crud_produtos=crud_produtos,
+    crud_fornecedores=crud_fornecedores,
+    crud_product_types=crud_product_types,
+    crud_historico=crud_historico,
+    crud_uso_ia=crud,
+)
 
 
 
@@ -505,112 +515,11 @@ def create_produto(  # Nome da fun??o mantido como no arquivo do usu?rio
     current_user: models.User = Depends(auth_utils.get_current_active_user),
 
 ):
-
-    """
-
-    Cria um novo produto para o usu?rio logado.
-
-    """
-
-    # Valida??o do fornecedor, se fornecido
-
-    if produto.fornecedor_id:
-
-        fornecedor = crud_fornecedores.get_fornecedor(
-
-            db, fornecedor_id=produto.fornecedor_id
-
-        )  # Assume que user_id n?o ? necess?rio aqui ou ? validado no get_fornecedor se n?o for admin
-
-        if (
-
-            not fornecedor
-
-        ):  # Adicionar (or (not current_user.is_superuser and fornecedor.user_id != current_user.id)) se necess?rio
-
-            raise HTTPException(
-
-                status_code=404,
-
-                detail=f"Fornecedor com ID {produto.fornecedor_id} n\u00e3o encontrado.",
-
-            )
-
-
-
-    # Valida??o do tipo de produto, se fornecido
-
-    if produto.product_type_id:
-
-        product_type = crud_product_types.get_product_type(
-
-            db, product_type_id=produto.product_type_id
-
-        )
-
-        if (
-
-            not product_type
-
-        ):  # Adicionar valida??o de owner se tipos de produto forem espec?ficos do usu?rio
-
-            raise HTTPException(
-
-                status_code=404,
-
-                detail=f"Tipo de Produto com ID {produto.product_type_id} n\u00e3o encontrado.",
-
-            )
-
-
-
-    # A fun??o crud_produtos.create_produto (ou create_user_produto) lida com a l?gica de cria??o
-
-    # usando nome_base e nome_chat_api como definido nos schemas.
-
-    db_produto = crud_produtos.create_produto(
-
-        db=db, produto=produto, user_id=current_user.id
-
+    return product_management_service.create_produto(
+        db=db,
+        produto=produto,
+        current_user=current_user,
     )
-
-    crud.create_registro_uso_ia(
-
-        db,
-
-        schemas.RegistroUsoIACreate(
-
-            user_id=current_user.id,
-
-            produto_id=db_produto.id,
-
-            tipo_acao=models.TipoAcaoEnum.CRIACAO_PRODUTO,
-
-            creditos_consumidos=0,
-
-        ),
-
-    )
-
-    crud_historico.create_registro_historico(
-
-        db,
-
-        schemas.RegistroHistoricoCreate(
-
-            user_id=current_user.id,
-
-            entidade="Produto",
-
-            acao=models.TipoAcaoSistemaEnum.CRIACAO,
-
-            entity_id=db_produto.id,
-
-        ),
-
-    )
-
-    return db_produto
 
 
 
@@ -728,42 +637,11 @@ def read_produto(  # Nome da fun??o mantido como no arquivo do usu?rio
     current_user: models.User = Depends(auth_utils.get_current_active_user),
 
 ):
-
-    """
-
-    Obt?m os detalhes de um produto espec?fico.
-
-    """
-
-    db_produto = crud_produtos.get_produto(
-
-        db, produto_id=produto_id
-
-    )  # crud_produtos.get_produto n?o filtra por user_id por padr?o
-
-
-
-    if db_produto is None:
-
-        raise HTTPException(status_code=404, detail="Produto não encontrado")
-
-
-
-    # Verifica a permiss?o para visualizar
-
-    if not current_user.is_superuser and db_produto.user_id != current_user.id:
-
-        raise HTTPException(
-
-            status_code=403, detail="N?o autorizado a visualizar este produto"
-
-        )
-
-    return db_produto
-
-
-
-
+    return product_management_service.read_produto(
+        db=db,
+        produto_id=produto_id,
+        current_user=current_user,
+    )
 
 # Tamb?m exp?e a rota com barra ao final para evitar redirecionamentos que podem
 
@@ -861,85 +739,21 @@ def read_produtos(  # Nome da fun??o mantido como no arquivo do usu?rio
 
 ):
 
-    user_id_filter = None if current_user.is_superuser else current_user.id
-
-
-
-    # Usando get_produtos_by_user do crud, que foi ajustado para receber user_id opcional ou is_admin
-
-    produtos_db = crud_produtos.get_produtos_by_user(  # Nome da fun??o no CRUD
-
-        db,
-
-        user_id=user_id_filter,
-
+    return product_management_service.list_produtos(
+        db=db,
         skip=skip,
-
         limit=limit,
-
         sort_by=sort_by,
-
         sort_order=sort_order,
-
         search=search,
-
         fornecedor_id=fornecedor_id,
-
-        categoria=categoria,  # Passando categoria para o CRUD
-
+        categoria=categoria,
         status_enriquecimento_web=status_enriquecimento_web,
-
         status_titulo_ia=status_titulo_ia,
-
         status_descricao_ia=status_descricao_ia,
-
         product_type_id=product_type_id,
-
-        is_admin=current_user.is_superuser,  # Passando is_admin para o CRUD
-
+        current_user=current_user,
     )
-
-    total_items = crud_produtos.count_produtos_by_user(  # Nome da fun??o no CRUD
-
-        db,
-
-        user_id=user_id_filter,
-
-        search=search,
-
-        fornecedor_id=fornecedor_id,
-
-        categoria=categoria,  # Passando categoria para o CRUD
-
-        status_enriquecimento_web=status_enriquecimento_web,
-
-        status_titulo_ia=status_titulo_ia,
-
-        status_descricao_ia=status_descricao_ia,
-
-        product_type_id=product_type_id,
-
-        is_admin=current_user.is_superuser,  # Passando is_admin para o CRUD
-
-    )
-
-    page = skip // limit + 1
-
-    return {
-
-        "items": produtos_db,
-
-        "total_items": total_items,
-
-        "page": page,
-
-        "limit": limit,
-
-    }
-
-
-
-
 
 @router.put("/{produto_id}", response_model=schemas.ProdutoResponse)  # CORRIGIDO AQUI
 
@@ -955,109 +769,12 @@ def update_produto(  # Nome da fun??o mantido como no arquivo do usu?rio
 
 ):
 
-    db_produto = crud_produtos.get_produto(db, produto_id=produto_id)
-
-    if db_produto is None:
-
-        raise HTTPException(status_code=404, detail="Produto não encontrado")
-
-    if not current_user.is_superuser and db_produto.user_id != current_user.id:
-
-        raise HTTPException(
-
-            status_code=403, detail="N?o autorizado a modificar este produto"
-
-        )
-
-
-
-    if (
-
-        produto.fornecedor_id is not None
-
-        and produto.fornecedor_id != db_produto.fornecedor_id
-
-    ):
-
-        fornecedor = crud_fornecedores.get_fornecedor(
-
-            db, fornecedor_id=produto.fornecedor_id
-
-        )
-
-        if (
-
-            not fornecedor
-
-        ):  # Adicionar (or (not current_user.is_superuser and fornecedor.user_id != current_user.id)) se necess?rio
-
-            raise HTTPException(
-
-                status_code=404,
-
-                detail=f"Fornecedor com ID {produto.fornecedor_id} n\u00e3o encontrado.",
-
-            )
-
-
-
-    if (
-
-        produto.product_type_id is not None
-
-        and produto.product_type_id != db_produto.product_type_id
-
-    ):
-
-        product_type = crud_product_types.get_product_type(
-
-            db, product_type_id=produto.product_type_id
-
-        )
-
-        if not product_type:
-
-            raise HTTPException(
-
-                status_code=404,
-
-                detail=f"Tipo de Produto com ID {produto.product_type_id} n\u00e3o encontrado.",
-
-            )
-
-
-
-    # A fun??o crud_produtos.update_produto espera o objeto db_produto
-
-    updated = crud_produtos.update_produto(
-
-        db=db, db_produto=db_produto, produto_update=produto
-
+    return product_management_service.update_produto(
+        db=db,
+        produto_id=produto_id,
+        produto_update=produto,
+        current_user=current_user,
     )
-
-    crud_historico.create_registro_historico(
-
-        db,
-
-        schemas.RegistroHistoricoCreate(
-
-            user_id=current_user.id,
-
-            entidade="Produto",
-
-            acao=models.TipoAcaoSistemaEnum.ATUALIZACAO,
-
-            entity_id=updated.id,
-
-        ),
-
-    )
-
-    return updated
-
-
-
-
 
 @router.delete(
 
@@ -1075,49 +792,11 @@ def delete_produto(  # Nome da fun??o mantido como no arquivo do usu?rio
 
 ):
 
-    db_produto = crud_produtos.get_produto(db, produto_id=produto_id)
-
-    if db_produto is None:
-
-        raise HTTPException(status_code=404, detail="Produto não encontrado")
-
-    if not current_user.is_superuser and db_produto.user_id != current_user.id:
-
-        raise HTTPException(
-
-            status_code=403, detail="N?o autorizado a deletar este produto"
-
-        )
-
-
-
-    # A fun??o crud_produtos.delete_produto espera o objeto db_produto
-
-    deleted = crud_produtos.delete_produto(db=db, db_produto=db_produto)
-
-    crud_historico.create_registro_historico(
-
-        db,
-
-        schemas.RegistroHistoricoCreate(
-
-            user_id=current_user.id,
-
-            entidade="Produto",
-
-            acao=models.TipoAcaoSistemaEnum.DELECAO,
-
-            entity_id=deleted.id,
-
-        ),
-
+    return product_management_service.delete_produto(
+        db=db,
+        produto_id=produto_id,
+        current_user=current_user,
     )
-
-    return deleted
-
-
-
-
 
 # Expondo rotas com barra final para opera??es de atualiza??o e dele??o.
 
@@ -1175,129 +854,11 @@ def batch_delete_produtos(
 
 ):
 
-    deleted_produtos = []
-
-    not_found_ids = []
-
-    not_authorized_ids = []
-
-
-
-    for produto_id_val in produto_ids:  # Ajustado nome da vari?vel
-
-        db_produto = crud_produtos.get_produto(db, produto_id=produto_id_val)
-
-        if db_produto is None:
-
-            not_found_ids.append(produto_id_val)
-
-            continue
-
-
-
-        if not current_user.is_superuser and db_produto.user_id != current_user.id:
-
-            not_authorized_ids.append(produto_id_val)
-
-            continue
-
-
-
-        crud_produtos.delete_produto(db=db, db_produto=db_produto)  # Passa o objeto
-
-        crud_historico.create_registro_historico(
-
-            db,
-
-            schemas.RegistroHistoricoCreate(
-
-                user_id=current_user.id,
-
-                entidade="Produto",
-
-                acao=models.TipoAcaoSistemaEnum.DELECAO,
-
-                entity_id=db_produto.id,
-
-            ),
-
-        )
-
-        deleted_produtos.append(
-
-            db_produto
-
-        )  # Adiciona o objeto que foi deletado (j? ? um objeto do modelo)
-
-
-
-    # Construindo a resposta
-
-    # A convers?o para schemas.ProdutoResponse ? feita automaticamente pelo FastAPI
-
-    # devido ao response_model=List[schemas.ProdutoResponse]
-
-
-
-    if not_found_ids or not_authorized_ids:
-
-        error_detail_parts = []
-
-        if not_found_ids:
-
-            error_detail_parts.append(f"Produtos n\u00e3o encontrados: IDs {not_found_ids}.")
-
-        if not_authorized_ids:
-
-            error_detail_parts.append(
-
-                f"N?o autorizado a deletar produtos: IDs {not_authorized_ids}.",
-
-            )
-
-
-
-        # Se nenhum produto foi deletado com sucesso e houve erros, levanta uma exce??o.
-
-        # Se alguns foram deletados, retorna os deletados e o cliente pode precisar ser informado das falhas.
-
-        if not deleted_produtos:
-
-            raise HTTPException(
-
-                status_code=status.HTTP_400_BAD_REQUEST,
-
-                detail=" ".join(error_detail_parts),
-
-            )
-
-        # Se alguns foram deletados, a resposta incluir? apenas eles.
-
-        # O frontend pode precisar verificar a diferen?a entre a lista enviada e a recebida.
-
-
-
-    if not deleted_produtos and not (
-
-        not_found_ids or not_authorized_ids
-
-    ):  # Se a lista de entrada estava vazia
-
-        raise HTTPException(
-
-            status_code=status.HTTP_400_BAD_REQUEST,
-
-            detail="Nenhum ID de produto fornecido ou lista de IDs vazia.",
-
-        )
-
-
-
-    return deleted_produtos
-
-
-
-
+    return product_management_service.batch_delete_produtos(
+        db=db,
+        produto_ids=produto_ids,
+        current_user=current_user,
+    )
 
 @router.post(
 
