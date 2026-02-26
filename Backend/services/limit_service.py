@@ -141,3 +141,18 @@ async def verificar_e_consumir_creditos_geracao_ia(
     disponivel = await verificar_creditos_disponiveis_geracao_ia(db, user_id, creditos_necessarios)
     return disponivel
 
+
+class LimitServiceLegacyService:
+    """OO compatibility layer for legacy limit service module."""
+
+    def verificar_limite_uso(self, *args, **kwargs):
+        return verificar_limite_uso(*args, **kwargs)
+
+    async def verificar_creditos_disponiveis_geracao_ia(self, *args, **kwargs):
+        return await verificar_creditos_disponiveis_geracao_ia(*args, **kwargs)
+
+    async def verificar_e_consumir_creditos_geracao_ia(self, *args, **kwargs):
+        return await verificar_e_consumir_creditos_geracao_ia(*args, **kwargs)
+
+
+limit_service_legacy_service = LimitServiceLegacyService()

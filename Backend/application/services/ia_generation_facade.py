@@ -9,7 +9,9 @@ class IAGenerationFacade:
     """Adaptador OO para o módulo legado de geração de conteúdo IA."""
 
     def __init__(self, legacy_module: Any = legacy_ia_generation_service) -> None:
-        self._legacy = legacy_module
+        self._legacy = getattr(
+            legacy_module, "ia_generation_legacy_service", legacy_module
+        )
 
     async def gerar_titulos_com_openai(self, *args: Any, **kwargs: Any):
         return await self._legacy.gerar_titulos_com_openai(*args, **kwargs)
@@ -30,4 +32,3 @@ class IAGenerationFacade:
 
     def __getattr__(self, item: str) -> Any:
         return getattr(self._legacy, item)
-

@@ -9,7 +9,9 @@ class LimitServiceFacade:
     """Adaptador OO para o módulo legado de limites/créditos."""
 
     def __init__(self, legacy_module: Any = legacy_limit_service) -> None:
-        self._legacy = legacy_module
+        self._legacy = getattr(
+            legacy_module, "limit_service_legacy_service", legacy_module
+        )
 
     def verificar_limite_uso(self, *args: Any, **kwargs: Any):
         return self._legacy.verificar_limite_uso(*args, **kwargs)
@@ -30,4 +32,3 @@ class LimitServiceFacade:
 
     def __getattr__(self, item: str) -> Any:
         return getattr(self._legacy, item)
-

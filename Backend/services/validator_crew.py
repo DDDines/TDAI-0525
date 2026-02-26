@@ -169,3 +169,12 @@ def run_validation_crew(raw_data, timeout_seconds: int = 8):
         return raw_data
     except Exception:
         return raw_data
+
+class ValidatorCrewLegacyService:
+    """OO compatibility layer for legacy validator crew module."""
+
+    def run_validation_crew(self, *args, **kwargs):
+        return run_validation_crew(*args, **kwargs)
+
+
+validator_crew_legacy_service = ValidatorCrewLegacyService()

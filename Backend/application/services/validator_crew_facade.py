@@ -30,7 +30,11 @@ class ValidatorCrewFacade:
         try:
             from Backend.services import validator_crew as imported_runner  # type: ignore
 
-            self._runner = imported_runner
+            self._runner = getattr(
+                imported_runner,
+                "validator_crew_legacy_service",
+                imported_runner,
+            )
         except Exception as exc:  # pragma: no cover - depende de deps opcionais
             if self._logger:
                 self._logger.warning(
@@ -49,4 +53,3 @@ class ValidatorCrewFacade:
                     exc,
                 )
             return raw_data
-
