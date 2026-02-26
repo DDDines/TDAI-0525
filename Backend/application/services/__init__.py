@@ -79,6 +79,12 @@ from Backend.application.services.web_enrichment_normalization_service import (
 from Backend.application.services.web_enrichment_relevance_service import (
     WebEnrichmentRelevanceService,
 )
+from Backend.application.services.web_enrichment_content_quality_service import (
+    WebEnrichmentContentQualityService,
+)
+from Backend.application.services.web_enrichment_payload_service import (
+    WebEnrichmentPayloadService,
+)
 from Backend.application.services.web_data_extractor_facade import (
     WebDataExtractorFacade,
 )
@@ -161,6 +167,8 @@ __all__ = [
     "WebEnrichmentQueryPlanner",
     "WebEnrichmentStatusResolver",
     "WebEnrichmentRelevanceService",
+    "WebEnrichmentContentQualityService",
+    "WebEnrichmentPayloadService",
     "WebEnrichmentStartService",
     "WebEnrichmentTaskRunner",
     "WebSearchService",
