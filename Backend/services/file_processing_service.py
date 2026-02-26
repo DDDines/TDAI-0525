@@ -2416,7 +2416,7 @@ async def extrair_pagina_pdf(
 
 
 
-async def process_pdf_job(
+async def _process_pdf_job_impl(
     job_id: int, pdf_path: str, start_page: int = 1, mapping: Optional[Dict[str, str]] = None
 ) -> None:
     """Process remaining pages of a PDF catalog import job."""
@@ -2481,7 +2481,7 @@ async def process_pdf_job(
             db.close()
 
 
-def extract_data_from_single_page(file_path: str, page_number: int) -> Dict[str, Any]:
+def _extract_data_from_single_page_impl(file_path: str, page_number: int) -> Dict[str, Any]:
 
     """Extract structured data from a single PDF page.
 
@@ -3007,6 +3007,53 @@ def extract_data_from_pdf_region(
         file_path=file_path,
         page_number=page_number,
         region=region,
+    )
+
+
+class _PdfJobWorkflow:
+    """Workflow OO para processamento assíncrono de jobs de PDF."""
+
+    async def process_pdf_job(
+        self,
+        job_id: int,
+        pdf_path: str,
+        start_page: int = 1,
+        mapping: Optional[Dict[str, str]] = None,
+    ) -> None:
+        await _process_pdf_job_impl(
+            job_id=job_id,
+            pdf_path=pdf_path,
+            start_page=start_page,
+            mapping=mapping,
+        )
+
+    def extract_data_from_single_page(
+        self, file_path: str, page_number: int
+    ) -> Dict[str, Any]:
+        return _extract_data_from_single_page_impl(
+            file_path=file_path,
+            page_number=page_number,
+        )
+
+
+_pdf_job_workflow = _PdfJobWorkflow()
+
+
+async def process_pdf_job(
+    job_id: int, pdf_path: str, start_page: int = 1, mapping: Optional[Dict[str, str]] = None
+) -> None:
+    await _pdf_job_workflow.process_pdf_job(
+        job_id=job_id,
+        pdf_path=pdf_path,
+        start_page=start_page,
+        mapping=mapping,
+    )
+
+
+def extract_data_from_single_page(file_path: str, page_number: int) -> Dict[str, Any]:
+    return _pdf_job_workflow.extract_data_from_single_page(
+        file_path=file_path,
+        page_number=page_number,
     )
 
 
