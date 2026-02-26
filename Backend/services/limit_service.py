@@ -12,7 +12,7 @@ from Backend import models #
 from Backend.core.logging_config import get_logger
 # Se 'database.py' fosse necessário, seria: from database import get_db
 
-def verificar_limite_uso(
+def _verificar_limite_uso_impl(
     db: Session,
     user: models.User,
     tipo_geracao_principal: str,  # "descricao" ou "titulo"
@@ -99,7 +99,7 @@ def verificar_limite_uso(
 
 
 
-async def verificar_creditos_disponiveis_geracao_ia(
+async def _verificar_creditos_disponiveis_geracao_ia_impl(
     db: Session,
     user_id: int,
     creditos_necessarios: int = 1,
@@ -127,7 +127,7 @@ async def verificar_creditos_disponiveis_geracao_ia(
     return usos_no_mes + creditos_necessarios <= limite_mensal
 
 
-async def verificar_e_consumir_creditos_geracao_ia(
+async def _verificar_e_consumir_creditos_geracao_ia_impl(
     db: Session,
     user_id: int,
     creditos_necessarios: int = 1,
@@ -138,8 +138,89 @@ async def verificar_e_consumir_creditos_geracao_ia(
     efetivo é registrado quando um ``RegistroUsoIA`` é criado pelo serviço de IA.
     """
 
-    disponivel = await verificar_creditos_disponiveis_geracao_ia(db, user_id, creditos_necessarios)
+    disponivel = await _verificar_creditos_disponiveis_geracao_ia_impl(
+        db, user_id, creditos_necessarios
+    )
     return disponivel
+
+
+class _LimitWorkflow:
+    """Workflow OO para regras de limite e crédito."""
+
+    def verificar_limite_uso(
+        self,
+        db: Session,
+        user: models.User,
+        tipo_geracao_principal: str,
+    ) -> int:
+        return _verificar_limite_uso_impl(
+            db=db,
+            user=user,
+            tipo_geracao_principal=tipo_geracao_principal,
+        )
+
+    async def verificar_creditos_disponiveis_geracao_ia(
+        self,
+        db: Session,
+        user_id: int,
+        creditos_necessarios: int = 1,
+    ) -> bool:
+        return await _verificar_creditos_disponiveis_geracao_ia_impl(
+            db=db,
+            user_id=user_id,
+            creditos_necessarios=creditos_necessarios,
+        )
+
+    async def verificar_e_consumir_creditos_geracao_ia(
+        self,
+        db: Session,
+        user_id: int,
+        creditos_necessarios: int = 1,
+    ) -> bool:
+        return await _verificar_e_consumir_creditos_geracao_ia_impl(
+            db=db,
+            user_id=user_id,
+            creditos_necessarios=creditos_necessarios,
+        )
+
+
+_limit_workflow = _LimitWorkflow()
+
+
+def verificar_limite_uso(
+    db: Session,
+    user: models.User,
+    tipo_geracao_principal: str,
+) -> int:
+    return _limit_workflow.verificar_limite_uso(
+        db=db,
+        user=user,
+        tipo_geracao_principal=tipo_geracao_principal,
+    )
+
+
+async def verificar_creditos_disponiveis_geracao_ia(
+    db: Session,
+    user_id: int,
+    creditos_necessarios: int = 1,
+) -> bool:
+    return await _limit_workflow.verificar_creditos_disponiveis_geracao_ia(
+        db=db,
+        user_id=user_id,
+        creditos_necessarios=creditos_necessarios,
+    )
+
+
+async def verificar_e_consumir_creditos_geracao_ia(
+    db: Session,
+    user_id: int,
+    creditos_necessarios: int = 1,
+) -> bool:
+    return await _limit_workflow.verificar_e_consumir_creditos_geracao_ia(
+        db=db,
+        user_id=user_id,
+        creditos_necessarios=creditos_necessarios,
+    )
 
 
 class LimitServiceLegacyService:
