@@ -38,6 +38,7 @@ from Backend import models
 from Backend import schemas
 from Backend.application.services import (
     CatalogImportFileService,
+    CatalogImportLegacyIngestService,
     CatalogImportFinalizeService,
     CatalogImportPreviewService,
     CatalogImportStartService,
@@ -493,6 +494,21 @@ catalog_import_preview_service = CatalogImportPreviewService(
     resolve_storage_path=_resolve_storage_path,
     logger=logger,
     pdfplumber_module=pdfplumber,
+)
+catalog_import_legacy_ingest_service = CatalogImportLegacyIngestService(
+    schemas=schemas,
+    models=models,
+    crud_fornecedores=crud_fornecedores,
+    crud_produtos=crud_produtos,
+    crud_uso_ia=crud,
+    crud_historico=crud_historico,
+    file_processing_service=file_processing_service,
+    normalize_import_issue_item=_normalize_import_issue_item,
+    extract_import_error_reason=_extract_import_error_reason,
+    is_non_critical_import_reason=_is_non_critical_import_reason,
+    sanitize_produto_extraido=_sanitize_produto_extraido,
+    classificar_qualidade_linha_produto=_classificar_qualidade_linha_produto,
+    json_module=json,
 )
 product_management_service = ProductManagementService(
     models=models,
@@ -961,236 +977,14 @@ async def importar_catalogo_fornecedor(
 
 ):
 
-    """Importa um arquivo de cat?logo e cria produtos vinculados ao fornecedor."""
-
-    content = await file.read()
-
-    ext = Path(file.filename).suffix.lower()
-
-    mapping_dict = None
-
-    if mapeamento_colunas_usuario:
-
-        try:
-
-            mapping_dict = json.loads(mapeamento_colunas_usuario)
-
-        except Exception:
-
-            raise HTTPException(
-
-                status_code=400, detail="mapeamento_colunas_usuario inválido"
-
-            )
-
-    else:
-
-        fornecedor = crud_fornecedores.get_fornecedor(db, fornecedor_id)
-
-        if fornecedor and fornecedor.default_column_mapping:
-
-            mapping_dict = fornecedor.default_column_mapping
-
-    if ext in [".xlsx", ".xls"]:
-
-        produtos_data = await file_processing_service.processar_arquivo_excel(
-
-            content, mapping_dict
-
-        )
-
-    elif ext == ".csv":
-
-        produtos_data = await file_processing_service.processar_arquivo_csv(
-
-            content, mapping_dict
-
-        )
-
-    elif ext == ".pdf":
-
-        produtos_data = await file_processing_service.processar_arquivo_pdf(
-
-            content, mapping_dict
-
-        )
-
-    else:
-
-        raise HTTPException(status_code=400, detail="Formato de arquivo não suportado")
-
-
-
-    produtos_create = []
-
-    erros: List[Dict[str, Any]] = []
-    quality_filter_enabled = ext == ".pdf"
-    ignored_non_critical: List[Dict[str, Any]] = []
-    quarantine_non_critical: List[Dict[str, Any]] = []
-
-    def _append_import_issue(item: Dict[str, Any]) -> None:
-        normalized_item = _normalize_import_issue_item(item)
-        reason = _extract_import_error_reason(normalized_item)
-        if _is_non_critical_import_reason(reason):
-            ignored_non_critical.append(normalized_item)
-            return
-        erros.append(normalized_item)
-
-    def _append_quarantine_issue(item: Dict[str, Any]) -> None:
-        normalized_item = _normalize_import_issue_item(item)
-        quarantine_non_critical.append(normalized_item)
-
-    for prod in produtos_data:
-
-        if isinstance(prod, dict) and (
-
-            prod.get("motivo_descarte")
-
-            or any(key.startswith("erro_processamento") for key in prod.keys())
-
-        ):
-
-            _append_import_issue(prod)
-
-            continue
-
-        cleaned_prod = _sanitize_produto_extraido(prod)
-        quality_eval = (
-            _classificar_qualidade_linha_produto(cleaned_prod)
-            if quality_filter_enabled
-            else {"decision": "accept", "score": 100, "reason": None}
-        )
-        if quality_eval.get("decision") == "discard":
-            _append_import_issue(
-                {
-                    "motivo_descarte": quality_eval.get("reason"),
-                    "linha_original": prod,
-                    "linha_sanitizada": cleaned_prod,
-                    "qualidade_score": quality_eval.get("score"),
-                }
-            )
-            continue
-        if quality_eval.get("decision") == "quarantine":
-            _append_quarantine_issue(
-                {
-                    "motivo_descarte": quality_eval.get("reason"),
-                    "linha_original": prod,
-                    "linha_sanitizada": cleaned_prod,
-                    "qualidade_score": quality_eval.get("score"),
-                    "classificacao": "quarentena",
-                }
-            )
-            continue
-
-        try:
-
-            produto_schema = schemas.ProdutoCreate(
-
-                nome_base=cleaned_prod.get("nome_base")
-
-                or cleaned_prod.get("sku_original")
-
-                or "Produto Importado",
-
-                sku=cleaned_prod.get("sku_original"),
-
-                ean=cleaned_prod.get("ean_original"),
-
-                descricao_original=cleaned_prod.get("descricao_original"),
-
-                marca=cleaned_prod.get("marca"),
-
-                categoria_original=cleaned_prod.get("categoria_original"),
-                dados_brutos_web=cleaned_prod.get("dados_brutos_adicionais")
-                or cleaned_prod.get("dados_brutos_web"),
-                dynamic_attributes=cleaned_prod.get("dynamic_attributes"),
-
-                fornecedor_id=fornecedor_id,
-
-            )
-
-            produtos_create.append(produto_schema)
-
-        except Exception as e:
-
-            _append_import_issue(
-
-                {
-
-                    "motivo_descarte": f"Erro ao converter linha: {str(e)}",
-
-                    "linha_original": prod,
-                    "linha_sanitizada": cleaned_prod,
-
-                }
-
-            )
-
-
-
-    created: List[models.Produto] = []
-
-    updated: List[models.Produto] = []
-
-    if produtos_create:
-
-        created, updated, dup_errors = crud_produtos.create_produtos_bulk(
-
-            db, produtos_create, user_id=current_user.id
-
-        )
-
-        for err in dup_errors:
-            _append_import_issue(err)
-
-        for db_produto in created:
-
-            crud.create_registro_uso_ia(
-
-                db,
-
-                schemas.RegistroUsoIACreate(
-
-                    user_id=current_user.id,
-
-                    produto_id=db_produto.id,
-
-                    tipo_acao=models.TipoAcaoEnum.CRIACAO_PRODUTO,
-
-                    creditos_consumidos=0,
-
-                ),
-
-            )
-
-            crud_historico.create_registro_historico(
-
-                db,
-
-                schemas.RegistroHistoricoCreate(
-
-                    user_id=current_user.id,
-
-                    entidade="Produto",
-
-                    acao=models.TipoAcaoSistemaEnum.CRIACAO,
-
-                    entity_id=db_produto.id,
-
-                ),
-
-            )
-
-    all_issues = erros + ignored_non_critical + quarantine_non_critical
-    return {
-
-        "produtos_criados": created,
-
-        "produtos_atualizados": updated,
-
-        "erros": all_issues,
-
-    }
+    """Importa um arquivo de catalogo e cria produtos vinculados ao fornecedor."""
+    return await catalog_import_legacy_ingest_service.importar_catalogo_fornecedor(
+        fornecedor_id=fornecedor_id,
+        file=file,
+        mapeamento_colunas_usuario=mapeamento_colunas_usuario,
+        db=db,
+        current_user=current_user,
+    )
 
 
 
