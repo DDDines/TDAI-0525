@@ -1,12 +1,11 @@
-# Backend/core/security.py
 from datetime import datetime, timedelta, timezone
 from typing import Optional
 
-from jose import jwt, JWTError
+from jose import JWTError, jwt
 from passlib.context import CryptContext
-from pydantic import BaseModel, ValidationError # Adicionado ValidationError
+from pydantic import BaseModel, ValidationError
 
-from Backend.core.config import settings # Importa o objeto settings diretamente
+from Backend.core.config import settings
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
@@ -18,47 +17,129 @@ REFRESH_TOKEN_EXPIRE_DAYS = settings.REFRESH_TOKEN_EXPIRE_DAYS
 class TokenPayload(BaseModel):
     sub: Optional[str] = None
     user_id: Optional[int] = None
-    # Adicionar outros campos que você possa ter no payload
-    # exp: Optional[int] = None # exp é tratado pelo jose.jwt
 
-def verify_password(plain_password: str, hashed_password: str) -> bool:
+
+def _verify_password_impl(plain_password: str, hashed_password: str) -> bool:
     return pwd_context.verify(plain_password, hashed_password)
 
-def get_password_hash(password: str) -> str:
+
+def _get_password_hash_impl(password: str) -> str:
     return pwd_context.hash(password)
 
-def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -> str:
+
+def _create_access_token_impl(
+    data: dict,
+    expires_delta: Optional[timedelta] = None,
+) -> str:
     to_encode = data.copy()
-    if expires_delta:
-        expire = datetime.now(timezone.utc) + expires_delta
-    else:
-        expire = datetime.now(timezone.utc) + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+    expire = (
+        datetime.now(timezone.utc) + expires_delta
+        if expires_delta
+        else datetime.now(timezone.utc) + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+    )
     to_encode.update({"exp": expire})
-    encoded_jwt = jwt.encode(to_encode, settings.SECRET_KEY, algorithm=ALGORITHM)
-    return encoded_jwt
+    return jwt.encode(to_encode, settings.SECRET_KEY, algorithm=ALGORITHM)
 
-def create_refresh_token(data: dict, expires_delta: Optional[timedelta] = None) -> str:
+
+def _create_refresh_token_impl(
+    data: dict,
+    expires_delta: Optional[timedelta] = None,
+) -> str:
     to_encode = data.copy()
-    if expires_delta:
-        expire = datetime.now(timezone.utc) + expires_delta
-    else:
-        expire = datetime.now(timezone.utc) + timedelta(days=REFRESH_TOKEN_EXPIRE_DAYS)
-    # Adiciona um campo 'type' ou similar para diferenciar do access token se necessário no payload
+    expire = (
+        datetime.now(timezone.utc) + expires_delta
+        if expires_delta
+        else datetime.now(timezone.utc) + timedelta(days=REFRESH_TOKEN_EXPIRE_DAYS)
+    )
     to_encode.update({"exp": expire, "token_type": "refresh"})
-    encoded_jwt = jwt.encode(to_encode, settings.REFRESH_SECRET_KEY, algorithm=ALGORITHM)
-    return encoded_jwt
+    return jwt.encode(to_encode, settings.REFRESH_SECRET_KEY, algorithm=ALGORITHM)
 
-def decode_token(token: str, secret_key: str) -> Optional[TokenPayload]:
+
+def _decode_token_impl(token: str, secret_key: str) -> Optional[TokenPayload]:
     try:
         payload_dict = jwt.decode(token, secret_key, algorithms=[ALGORITHM])
-        # O campo 'sub' é o email, user_id é customizado
-        user_id_str = payload_dict.get("user_id")
-        user_id = int(user_id_str) if user_id_str is not None else None
-        
+        raw_user_id = payload_dict.get("user_id")
+        user_id = int(raw_user_id) if raw_user_id is not None else None
         return TokenPayload(sub=payload_dict.get("sub"), user_id=user_id)
-    except JWTError: # Erro de decodificação (expirado, inválido, etc)
+    except (JWTError, ValidationError, ValueError):
         return None
-    except ValidationError: # Erro de validação do TokenPayload (raro se o token for bem formado)
-        return None
-    except ValueError: # Erro ao converter user_id para int
-        return None
+
+
+class _SecurityWorkflow:
+    def verify_password(self, plain_password: str, hashed_password: str) -> bool:
+        return _verify_password_impl(
+            plain_password=plain_password,
+            hashed_password=hashed_password,
+        )
+
+    def get_password_hash(self, password: str) -> str:
+        return _get_password_hash_impl(password=password)
+
+    def create_access_token(
+        self,
+        data: dict,
+        expires_delta: Optional[timedelta] = None,
+    ) -> str:
+        return _create_access_token_impl(data=data, expires_delta=expires_delta)
+
+    def create_refresh_token(
+        self,
+        data: dict,
+        expires_delta: Optional[timedelta] = None,
+    ) -> str:
+        return _create_refresh_token_impl(data=data, expires_delta=expires_delta)
+
+    def decode_token(self, token: str, secret_key: str) -> Optional[TokenPayload]:
+        return _decode_token_impl(token=token, secret_key=secret_key)
+
+
+_security_workflow = _SecurityWorkflow()
+
+
+def verify_password(plain_password: str, hashed_password: str) -> bool:
+    return _security_workflow.verify_password(
+        plain_password=plain_password,
+        hashed_password=hashed_password,
+    )
+
+
+def get_password_hash(password: str) -> str:
+    return _security_workflow.get_password_hash(password=password)
+
+
+def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -> str:
+    return _security_workflow.create_access_token(
+        data=data,
+        expires_delta=expires_delta,
+    )
+
+
+def create_refresh_token(data: dict, expires_delta: Optional[timedelta] = None) -> str:
+    return _security_workflow.create_refresh_token(
+        data=data,
+        expires_delta=expires_delta,
+    )
+
+
+def decode_token(token: str, secret_key: str) -> Optional[TokenPayload]:
+    return _security_workflow.decode_token(token=token, secret_key=secret_key)
+
+
+class SecurityLegacyService:
+    def verify_password(self, *args, **kwargs):
+        return verify_password(*args, **kwargs)
+
+    def get_password_hash(self, *args, **kwargs):
+        return get_password_hash(*args, **kwargs)
+
+    def create_access_token(self, *args, **kwargs):
+        return create_access_token(*args, **kwargs)
+
+    def create_refresh_token(self, *args, **kwargs):
+        return create_refresh_token(*args, **kwargs)
+
+    def decode_token(self, *args, **kwargs):
+        return decode_token(*args, **kwargs)
+
+
+security_legacy_service = SecurityLegacyService()
