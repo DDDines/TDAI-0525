@@ -637,16 +637,7 @@ async def _tarefa_processar_catalogo(
 
 async def _oop_tarefa_processar_catalogo(**task_kwargs):
     """Executor OOP dedicado (modo oop), separado do legado para comparacao futura."""
-    await _tarefa_processar_catalogo(
-        db_session_factory=task_kwargs.get("db_session_factory"),
-        file_id=task_kwargs.get("file_id"),
-        user_id=task_kwargs.get("user_id"),
-        product_type_id=task_kwargs.get("product_type_id"),
-        fornecedor_id=task_kwargs.get("fornecedor_id"),
-        mapping=task_kwargs.get("mapping"),
-        pages=task_kwargs.get("pages"),
-        region=task_kwargs.get("region"),
-    )
+    await _get_catalog_import_task_service().execute(**task_kwargs)
 
 
 
