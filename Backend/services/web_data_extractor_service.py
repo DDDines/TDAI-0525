@@ -33,7 +33,9 @@ except ImportError:
 # Assumindo que 'Backend' está no sys.path ou é o diretório de trabalho.
 from Backend.core.config import settings
 from Backend import models
-from Backend.services import ia_generation_service  # Importação absoluta para o módulo irmão
+from Backend.application.services.ia_generation_facade import IAGenerationFacade
+
+ia_generation_service = IAGenerationFacade()
 
 # --- Google Search Service ---
 def busca_publica_disponivel() -> bool:
@@ -939,3 +941,4 @@ class WebDataExtractorLegacyService:
 
 
 web_data_extractor_legacy_service = WebDataExtractorLegacyService()
+

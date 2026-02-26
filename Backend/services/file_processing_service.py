@@ -51,11 +51,14 @@ from Backend.core.config import settings
 
 from Backend import models, crud_fornecedores, schemas
 
-from Backend.services import web_data_extractor_service
+from Backend.application.services.web_data_extractor_facade import (
+    WebDataExtractorFacade,
+)
 
 
 
 logger = get_logger(__name__)
+web_data_extractor_service = WebDataExtractorFacade()
 
 def _resolve_storage_path(path_value: Union[str, Path]) -> Path:
     """Resolve caminhos relativos de storage sem duplicar prefixo Backend."""
