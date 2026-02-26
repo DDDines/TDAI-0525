@@ -1,12 +1,11 @@
-# Salve este arquivo como Backend/create_tables.py
 import os
 import sys
+
 from sqlalchemy import create_engine
 
-print("Iniciando script de criação de tabelas (versão síncrona)...")
+print("Iniciando script de criacao de tabelas (versao sincrona)...")
 
-# --- Adiciona a pasta raiz do projeto ao Python Path ---
-project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
+project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 if project_root not in sys.path:
     sys.path.insert(0, project_root)
 print(f"Raiz do projeto ({project_root}) adicionada ao path.")
@@ -14,28 +13,50 @@ print(f"Raiz do projeto ({project_root}) adicionada ao path.")
 try:
     from Backend.core.config import settings
     from Backend.database import Base
-    import Backend.models  # Importa para registrar os modelos no Base
-    print("Módulos importados com sucesso.")
-except Exception as e:
-    print(f"ERRO ao importar módulos: {e}")
+    import Backend.models  # noqa: F401
+
+    print("Modulos importados com sucesso.")
+except Exception as exc:
+    print(f"ERRO ao importar modulos: {exc}")
     sys.exit(1)
 
-def create_all_tables():
-    print("Criando engine SÍNCRONO para a criação das tabelas...")
+
+def _create_all_tables_impl():
+    print("Criando engine sincrono para criacao das tabelas...")
     try:
-        # Pega a URL do banco do seu .env e a torna compatível com a engine síncrona
-        db_url = str(settings.DATABASE_URL).replace('+asyncpg', '')
+        db_url = str(settings.DATABASE_URL).replace("+asyncpg", "")
         sync_engine = create_engine(db_url)
-        
         print("Conectando ao banco de dados...")
-        # Conecta e cria todas as tabelas
         Base.metadata.create_all(sync_engine)
-        
         print("\n>>> SUCESSO! Todas as tabelas foram criadas no banco de dados. <<<")
-        print("Agora você pode iniciar a aplicação.")
-    except Exception as e:
-        print(f"\nERRO ao criar as tabelas: {e}")
-        print("Verifique se as credenciais do banco no arquivo .env estão corretas e se o banco de dados 'tdai_db' existe.")
+        print("Agora voce pode iniciar a aplicacao.")
+    except Exception as exc:
+        print(f"\nERRO ao criar as tabelas: {exc}")
+        print(
+            "Verifique as credenciais do banco no .env e se o banco "
+            "de dados configurado existe."
+        )
+
+
+class _CreateTablesWorkflow:
+    def create_all_tables(self):
+        _create_all_tables_impl()
+
+
+_create_tables_workflow = _CreateTablesWorkflow()
+
+
+def create_all_tables():
+    _create_tables_workflow.create_all_tables()
+
+
+class CreateTablesLegacyService:
+    def create_all_tables(self, *args, **kwargs):
+        return create_all_tables(*args, **kwargs)
+
+
+create_tables_legacy_service = CreateTablesLegacyService()
+
 
 if __name__ == "__main__":
     create_all_tables()
