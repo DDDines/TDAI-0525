@@ -36,6 +36,9 @@ from Backend.application.services.fornecedor_import_job_service import (
 from Backend.application.services.fornecedor_import_tracking_service import (
     FornecedorImportTrackingService,
 )
+from Backend.application.services.fornecedor_management_service import (
+    FornecedorManagementService,
+)
 from Backend.application.services.service_container import service_container
 from Backend.tasks import process_pdf_extraction_task
 from . import auth_utils  # Para obter o usuário
@@ -57,6 +60,13 @@ fornecedor_import_job_service = FornecedorImportJobService(
 fornecedor_import_tracking_service = FornecedorImportTrackingService(
     models=models,
     process_pdf_extraction_task=process_pdf_extraction_task,
+)
+fornecedor_management_service = FornecedorManagementService(
+    models=models,
+    schemas=schemas,
+    crud_fornecedores=crud_fornecedores,
+    crud_historico=crud_historico,
+    sqlalchemy_func=func,
 )
 
 router = APIRouter(
@@ -167,20 +177,13 @@ def read_fornecedor(
     db: Session = Depends(database.get_db),
     current_user: models.User = Depends(auth_utils.get_current_active_user),
 ):
-    db_fornecedor = crud_fornecedores.get_fornecedor(db, fornecedor_id=fornecedor_id)
-
-    if db_fornecedor is None:
-        raise HTTPException(
-            status_code=404,
-            detail="Fornecedor não encontrado ou não pertence ao usuário",
-        )
-
-    if not current_user.is_superuser and db_fornecedor.user_id != current_user.id:
-        raise HTTPException(
-            status_code=403, detail="Não autorizado a acessar este fornecedor."
-        )
-    return db_fornecedor
-
+    return fornecedor_management_service.resolve_fornecedor_for_user(
+        db=db,
+        fornecedor_id=fornecedor_id,
+        current_user=current_user,
+        not_found_detail="Fornecedor nao encontrado ou nao pertence ao usuario",
+        forbidden_detail="Nao autorizado a acessar este fornecedor.",
+    )
 
 # Endpoint para atualizar um fornecedor
 @router.put("/{fornecedor_id}", response_model=schemas.FornecedorResponse)
@@ -190,50 +193,16 @@ def update_fornecedor_endpoint(
     db: Session = Depends(database.get_db),
     current_user: models.User = Depends(auth_utils.get_current_active_user),
 ):
-    db_fornecedor = crud_fornecedores.get_fornecedor(db, fornecedor_id=fornecedor_id)
-
-    if db_fornecedor is None:
-        raise HTTPException(status_code=404, detail="Fornecedor não encontrado.")
-
-    if not current_user.is_superuser and db_fornecedor.user_id != current_user.id:
-        raise HTTPException(
-            status_code=403, detail="Não autorizado a modificar este fornecedor."
-        )
-
-    if fornecedor_update.nome and fornecedor_update.nome != db_fornecedor.nome:
-        existing_fornecedor_check = (
-            db.query(models.Fornecedor)
-            .filter(
-                models.Fornecedor.user_id == current_user.id,
-                func.lower(models.Fornecedor.nome)
-                == func.lower(fornecedor_update.nome),
-                models.Fornecedor.id != fornecedor_id,
-            )
-            .first()
-        )
-        if existing_fornecedor_check:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f"Já existe um fornecedor com o nome '{fornecedor_update.nome}'.",
-            )
-
     try:
-        updated = crud_fornecedores.update_fornecedor(
-            db=db, db_fornecedor=db_fornecedor, fornecedor_update=fornecedor_update
+        return fornecedor_management_service.update_fornecedor(
+            db=db,
+            fornecedor_id=fornecedor_id,
+            fornecedor_update=fornecedor_update,
+            current_user=current_user,
         )
-        crud_historico.create_registro_historico(
-            db,
-            schemas.RegistroHistoricoCreate(
-                user_id=current_user.id,
-                entidade="Fornecedor",
-                acao=models.TipoAcaoSistemaEnum.ATUALIZACAO,
-                entity_id=updated.id,
-            ),
-        )
-        return updated
     except HTTPException as e:
         raise e
-    except Exception as e:
+    except Exception:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Erro interno ao atualizar fornecedor.",
@@ -246,12 +215,11 @@ def get_mapping(
     db: Session = Depends(database.get_db),
     current_user: models.User = Depends(auth_utils.get_current_active_user),
 ):
-    fornecedor = crud_fornecedores.get_fornecedor(db, fornecedor_id=fornecedor_id)
-    if not fornecedor:
-        raise HTTPException(status_code=404, detail="Fornecedor não encontrado")
-    if not current_user.is_superuser and fornecedor.user_id != current_user.id:
-        raise HTTPException(status_code=403, detail="Não autorizado")
-    return fornecedor.default_column_mapping
+    return fornecedor_management_service.get_mapping(
+        db=db,
+        fornecedor_id=fornecedor_id,
+        current_user=current_user,
+    )
 
 
 @router.put("/{fornecedor_id}/mapping", response_model=schemas.FornecedorResponse)
@@ -261,16 +229,12 @@ def update_mapping(
     db: Session = Depends(database.get_db),
     current_user: models.User = Depends(auth_utils.get_current_active_user),
 ):
-    fornecedor = crud_fornecedores.get_fornecedor(db, fornecedor_id=fornecedor_id)
-    if not fornecedor:
-        raise HTTPException(status_code=404, detail="Fornecedor não encontrado")
-    if not current_user.is_superuser and fornecedor.user_id != current_user.id:
-        raise HTTPException(status_code=403, detail="Não autorizado")
-    fornecedor.default_column_mapping = mapping
-    db.add(fornecedor)
-    db.commit()
-    db.refresh(fornecedor)
-    return fornecedor
+    return fornecedor_management_service.update_mapping(
+        db=db,
+        fornecedor_id=fornecedor_id,
+        current_user=current_user,
+        mapping=mapping,
+    )
 
 
 @router.post("/import/preview-pages")
@@ -466,33 +430,15 @@ def delete_fornecedor_endpoint(
     db: Session = Depends(database.get_db),
     current_user: models.User = Depends(auth_utils.get_current_active_user),
 ):
-    db_fornecedor = crud_fornecedores.get_fornecedor(db, fornecedor_id=fornecedor_id)
-
-    if db_fornecedor is None:
-        raise HTTPException(status_code=404, detail="Fornecedor não encontrado.")
-
-    if not current_user.is_superuser and db_fornecedor.user_id != current_user.id:
-        raise HTTPException(
-            status_code=403, detail="Não autorizado a deletar este fornecedor."
-        )
-
     try:
-        deleted = crud_fornecedores.delete_fornecedor(
-            db=db, db_fornecedor=db_fornecedor
+        return fornecedor_management_service.delete_fornecedor(
+            db=db,
+            fornecedor_id=fornecedor_id,
+            current_user=current_user,
         )
-        crud_historico.create_registro_historico(
-            db,
-            schemas.RegistroHistoricoCreate(
-                user_id=current_user.id,
-                entidade="Fornecedor",
-                acao=models.TipoAcaoSistemaEnum.DELECAO,
-                entity_id=deleted.id,
-            ),
-        )
-        return deleted
-    except HTTPException as e:  # Se o CRUD levantar HTTP 409 por produtos associados
+    except HTTPException as e:
         raise e
-    except Exception as e:
+    except Exception:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Erro interno ao deletar fornecedor.",
