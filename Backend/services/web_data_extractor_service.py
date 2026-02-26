@@ -900,3 +900,42 @@ def extract_text_from_image_region(image_bytes: bytes):
     except Exception as e:
         logger.exception("Falha ao extrair texto da imagem")
         raise HTTPException(status_code=500, detail="Ocorreu um erro durante a extração de dados.") from e
+
+class WebDataExtractorLegacyService:
+    """OO compatibility layer for legacy web extractor module."""
+
+    def busca_publica_disponivel(self) -> bool:
+        return busca_publica_disponivel()
+
+    async def buscar_urls_publicas(self, *args: Any, **kwargs: Any):
+        return await buscar_urls_publicas(*args, **kwargs)
+
+    async def buscar_urls_google(self, *args: Any, **kwargs: Any):
+        return await buscar_urls_google(*args, **kwargs)
+
+    async def coletar_conteudo_pagina_playwright(self, *args: Any, **kwargs: Any):
+        return await coletar_conteudo_pagina_playwright(*args, **kwargs)
+
+    def extrair_texto_principal_com_trafilatura(self, *args: Any, **kwargs: Any):
+        return extrair_texto_principal_com_trafilatura(*args, **kwargs)
+
+    def extrair_metadados_estruturados(self, *args: Any, **kwargs: Any):
+        return extrair_metadados_estruturados(*args, **kwargs)
+
+    def normalizar_dados_de_metadados(self, *args: Any, **kwargs: Any):
+        return _normalizar_dados_de_metadados(*args, **kwargs)
+
+    def _normalizar_dados_de_metadados(self, *args: Any, **kwargs: Any):
+        return _normalizar_dados_de_metadados(*args, **kwargs)
+
+    async def extrair_dados_produto_com_llm(self, *args: Any, **kwargs: Any):
+        return await extrair_dados_produto_com_llm(*args, **kwargs)
+
+    async def extract_relevant_data_from_url(self, *args: Any, **kwargs: Any):
+        return await extract_relevant_data_from_url(*args, **kwargs)
+
+    def extract_text_from_image_region(self, *args: Any, **kwargs: Any):
+        return extract_text_from_image_region(*args, **kwargs)
+
+
+web_data_extractor_legacy_service = WebDataExtractorLegacyService()

@@ -21,11 +21,14 @@ class WebDataExtractorFacade:
     def __init__(
         self, legacy_module: Any = legacy_web_data_extractor_service
     ) -> None:
-        self._legacy = legacy_module
-        self.search = WebSearchService(legacy_module)
-        self.content = WebContentService(legacy_module)
-        self.llm = WebLLMService(legacy_module)
-        self.ocr = WebOCRService(legacy_module)
+        legacy_adapter = getattr(
+            legacy_module, "web_data_extractor_legacy_service", legacy_module
+        )
+        self._legacy = legacy_adapter
+        self.search = WebSearchService(legacy_adapter)
+        self.content = WebContentService(legacy_adapter)
+        self.llm = WebLLMService(legacy_adapter)
+        self.ocr = WebOCRService(legacy_adapter)
 
     def busca_publica_disponivel(self) -> bool:
         return self.search.busca_publica_disponivel()

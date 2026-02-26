@@ -18,10 +18,13 @@ class FileProcessingFacade:
     """
 
     def __init__(self, legacy_module: Any = legacy_file_processing_service) -> None:
-        self._legacy = legacy_module
-        self.storage = CatalogStorageService(legacy_module)
-        self.preview = CatalogPreviewService(legacy_module)
-        self.extraction = CatalogExtractionService(legacy_module)
+        legacy_adapter = getattr(
+            legacy_module, "file_processing_legacy_service", legacy_module
+        )
+        self._legacy = legacy_adapter
+        self.storage = CatalogStorageService(legacy_adapter)
+        self.preview = CatalogPreviewService(legacy_adapter)
+        self.extraction = CatalogExtractionService(legacy_adapter)
 
     async def save_uploaded_catalog(self, *args: Any, **kwargs: Any):
         return await self.storage.save_uploaded_catalog(*args, **kwargs)
