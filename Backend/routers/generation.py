@@ -2,8 +2,7 @@
 
 from fastapi import APIRouter, Depends, HTTPException, status, BackgroundTasks, Query
 from sqlalchemy.orm import Session
-from typing import List, Dict, Any, Optional
-from datetime import datetime
+from typing import List
 import logging # <-- ADICIONADO
 
 from . import auth_utils
@@ -11,6 +10,7 @@ from Backend import crud_users
 from Backend import crud_produtos
 from Backend import models
 from Backend import schemas
+from Backend.application.services.generation_task_service import GenerationTaskService
 from Backend.application.services.service_container import service_container
 from Backend.database import get_db, SessionLocal
 from .auth_utils import get_current_active_user
@@ -19,6 +19,13 @@ from .auth_utils import get_current_active_user
 logger = logging.getLogger(__name__) # <-- ADICIONADO
 ia_generation_service = service_container.ia_generation
 limit_service = service_container.limit
+generation_task_service = GenerationTaskService(
+    crud_users=crud_users,
+    crud_produtos=crud_produtos,
+    models=models,
+    schemas=schemas,
+    logger=logger,
+)
 
 router = APIRouter(
     prefix="/geracao",
@@ -26,122 +33,23 @@ router = APIRouter(
     dependencies=[Depends(get_current_active_user)],
 )
 
-# Função auxiliar adaptada do seu original para processar em background
+# Função auxiliar delegada para o serviço OO de geração
 async def _tarefa_processar_geracao_e_registrar_uso(
     db_session_factory,
     user_id: int,
     produto_id: int,
-    tipo_geracao_principal: str, # "titulo" ou "descricao"
+    tipo_geracao_principal: str,
     funcao_geracao_ia_no_servico,
-    **kwargs_para_funcao_servico
+    **kwargs_para_funcao_servico,
 ):
-    """
-    Tarefa de fundo para executar a geração de conteúdo com IA,
-    atualizar o produto e registrar o uso da IA no banco de dados.
-    """
-    db: Optional[Session] = None
-    db_produto: Optional[models.Produto] = None
-    status_field_to_update: Optional[str] = None
-    campo_produto_para_atualizar_com_resultado: Optional[str] = None
-    log_entry_prefix = f"IA {tipo_geracao_principal.capitalize()}"
-
-    try:
-        db = db_session_factory()
-
-        if tipo_geracao_principal == "titulo":
-            status_field_to_update = "status_titulo_ia"
-            campo_produto_para_atualizar_com_resultado = "titulos_sugeridos"
-        elif tipo_geracao_principal == "descricao":
-            status_field_to_update = "status_descricao_ia"
-            campo_produto_para_atualizar_com_resultado = "descricao_chat_api"
-        else:
-            logger.error(
-                f"Tarefa Background: Tipo de geração principal '{tipo_geracao_principal}' desconhecido."
-            )
-            return
-
-        user = crud_users.get_user(db, user_id=user_id)
-        if not user:
-            logger.error(f"Tarefa Background {log_entry_prefix}: Usuário {user_id} não encontrado.")
-            return
-
-        db_produto = crud_produtos.get_produto(db, produto_id=produto_id)
-        if not db_produto:
-            logger.error(f"Tarefa Background {log_entry_prefix}: Produto {produto_id} não encontrado.")
-            return
-
-        if db_produto.user_id != user.id and not user.is_superuser:
-            logger.warning(f"Tarefa Background {log_entry_prefix}: Usuário {user_id} não autorizado para produto {produto_id}.")
-            return
-
-        # Atualizar status para EM_PROGRESSO
-        if status_field_to_update:
-            update_data_progresso = {status_field_to_update: models.StatusGeracaoIAEnum.EM_PROGRESSO}
-            log_atual_obj = list(db_produto.log_processamento or [])
-            log_atual_obj.append({"timestamp": datetime.utcnow().isoformat(), "actor": "system", "action": f"{log_entry_prefix}: Geração com Gemini iniciada."})
-            update_data_progresso["log_processamento"] = log_atual_obj
-            crud_produtos.update_produto(db, db_produto=db_produto, produto_update=schemas.ProdutoUpdate(**update_data_progresso))
-
-        logger.info(f"Tarefa Background {log_entry_prefix}: Chamando serviço Gemini para produto {produto_id}.")
-        
-        # Chama a função de serviço Gemini correspondente
-        resultado_ia = await funcao_geracao_ia_no_servico(
-            db=db,
-            produto_id=produto_id,
-            user=user,
-            **kwargs_para_funcao_servico
-        )
-        
-        logger.info(f"Tarefa Background {log_entry_prefix}: Resultado Gemini para produto {produto_id} (truncado): {str(resultado_ia)[:200]}...")
-
-        update_data_final_dict: Dict[str, Any] = {}
-        log_final_obj = list(db_produto.log_processamento or [])
-        
-        if resultado_ia and ((isinstance(resultado_ia, str) and resultado_ia.strip()) or (isinstance(resultado_ia, list) and resultado_ia)):
-            if campo_produto_para_atualizar_com_resultado:
-                update_data_final_dict[campo_produto_para_atualizar_com_resultado] = resultado_ia
-
-            if status_field_to_update: 
-                update_data_final_dict[status_field_to_update] = models.StatusGeracaoIAEnum.CONCLUIDO
-            log_final_obj.append({"timestamp": datetime.utcnow().isoformat(), "actor": "system", "action": f"{log_entry_prefix}: Geração com Gemini concluída com sucesso."})
-        else:
-            if status_field_to_update: 
-                update_data_final_dict[status_field_to_update] = models.StatusGeracaoIAEnum.FALHA
-            log_final_obj.append({"timestamp": datetime.utcnow().isoformat(), "actor": "system", "action": f"{log_entry_prefix}: Falha na geração (resultado vazio ou IA não pôde gerar)."})
-            logger.warning(f"Tarefa Background {log_entry_prefix}: Gemini não retornou resultado válido para produto {produto_id}.")
-        
-        update_data_final_dict["log_processamento"] = log_final_obj
-        if update_data_final_dict:
-             crud_produtos.update_produto(db, db_produto=db_produto, produto_update=schemas.ProdutoUpdate(**update_data_final_dict))
-        logger.info(f"Tarefa Background {log_entry_prefix}: Produto {produto_id} atualizado com resultado e status final.")
-
-    except HTTPException as http_exc:
-        logger.error(f"Tarefa Background {log_entry_prefix}: HTTPException para produto {produto_id}: {http_exc.detail}")
-        if db_produto and status_field_to_update:
-            log_erro_obj = list(db_produto.log_processamento or [])
-            log_erro_obj.append({"timestamp": datetime.utcnow().isoformat(), "actor": "system", "action": f"{log_entry_prefix}: Falha ({http_exc.status_code}) - {http_exc.detail}"})
-            update_data_falha_http = {
-                status_field_to_update: models.StatusGeracaoIAEnum.FALHA,
-                "log_processamento": log_erro_obj
-            }
-            crud_produtos.update_produto(db, db_produto=db_produto, produto_update=schemas.ProdutoUpdate(**update_data_falha_http))
-    except Exception as e:
-        import traceback
-        logger.error(f"Tarefa Background {log_entry_prefix}: Erro inesperado para produto {produto_id}: {traceback.format_exc()}")
-        if db_produto and status_field_to_update:
-            log_erro_inesperado_obj = list(db_produto.log_processamento or [])
-            log_erro_inesperado_obj.append({"timestamp": datetime.utcnow().isoformat(), "actor": "system", "action": f"{log_entry_prefix}: Erro crítico inesperado - {str(e)}"})
-            update_data_falha_critica = {
-                status_field_to_update: models.StatusGeracaoIAEnum.FALHA,
-                "log_processamento": log_erro_inesperado_obj
-            }
-            crud_produtos.update_produto(db, db_produto=db_produto, produto_update=schemas.ProdutoUpdate(**update_data_falha_critica))
-    finally:
-        logger.info(
-            f"Tarefa Background {log_entry_prefix}: Finalizando para produto ID: {produto_id}"
-        )
-        if db:
-            db.close()
+    await generation_task_service.run_generation_task(
+        db_session_factory=db_session_factory,
+        user_id=user_id,
+        produto_id=produto_id,
+        tipo_geracao_principal=tipo_geracao_principal,
+        funcao_geracao_ia_no_servico=funcao_geracao_ia_no_servico,
+        **kwargs_para_funcao_servico,
+    )
 
 # --- Endpoints Legados (OpenAI) ---
 
