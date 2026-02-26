@@ -1067,7 +1067,7 @@ async def _processar_arquivo_pdf_impl(
                     temp_pdf_path,
                 )
 
-async def preview_arquivo_excel(
+async def _preview_arquivo_excel_impl(
 
     conteudo_arquivo: bytes, max_rows: int = 5
 
@@ -1095,7 +1095,7 @@ async def preview_arquivo_excel(
 
 
 
-async def preview_arquivo_csv(
+async def _preview_arquivo_csv_impl(
 
     conteudo_arquivo: bytes, max_rows: int = 5
 
@@ -1497,7 +1497,7 @@ async def _gerar_preview_impl(
 
 
 
-async def pdf_bytes_to_images(
+async def _pdf_bytes_to_images_impl(
 
     conteudo_arquivo: bytes,
 
@@ -1591,7 +1591,7 @@ async def pdf_bytes_to_images(
 
 
 
-def pdf_pages_to_images(db: Session, file: UploadFile, fornecedor_id: int, user_id: int, offset: int, limit: int) -> Dict[str, Any]:
+def _pdf_pages_to_images_impl(db: Session, file: UploadFile, fornecedor_id: int, user_id: int, offset: int, limit: int) -> Dict[str, Any]:
 
     """
 
@@ -2325,7 +2325,7 @@ def _extract_data_from_pdf_region_impl(
         logger.error('Erro ao processar o PDF na extracao da regiao: %s', e)
         return pd.DataFrame()
 
-async def extrair_pagina_pdf(
+async def _extrair_pagina_pdf_impl(
 
     conteudo_pdf: bytes, page_number: int, region: Optional[List[float]] = None
 
@@ -2649,7 +2649,7 @@ def _extract_data_from_single_page_impl(file_path: str, page_number: int) -> Dic
 
 
 
-def generate_pdf_page_images(file_path: str, file_id: str) -> List[str]:
+def _generate_pdf_page_images_impl(file_path: str, file_id: str) -> List[str]:
 
     """Render pages of a PDF into PNG images.
 
@@ -2727,7 +2727,7 @@ def generate_pdf_page_images(file_path: str, file_id: str) -> List[str]:
 
 
 
-def extract_pdf_region_image(file_path: str, page_number: int, region: Optional[List[float]] = None, dpi: int = 300) -> bytes:
+def _extract_pdf_region_image_impl(file_path: str, page_number: int, region: Optional[List[float]] = None, dpi: int = 300) -> bytes:
 
     """Return PNG bytes for a specific region of a PDF page."""
 
@@ -2767,7 +2767,7 @@ def extract_pdf_region_image(file_path: str, page_number: int, region: Optional[
 
 
 
-def parse_annotation_to_dataframe(annotation: object, vertical_tolerance: int = 5) -> pd.DataFrame:
+def _parse_annotation_to_dataframe_impl(annotation: object, vertical_tolerance: int = 5) -> pd.DataFrame:
 
     """Parse OCR annotation with geometry into a structured DataFrame."""
 
@@ -2895,6 +2895,192 @@ def delete_catalog_file(stored_filename: str) -> None:
 
 def get_file_path_by_id(db: Session, file_id: str) -> str:
     return _catalog_storage_workflow.get_file_path_by_id(db=db, file_id=file_id)
+
+
+class _TabularPreviewWorkflow:
+    """Workflow OO para preview tabular (Excel/CSV)."""
+
+    async def preview_arquivo_excel(
+        self, conteudo_arquivo: bytes, max_rows: int = 5
+    ) -> Dict[str, Any]:
+        return await _preview_arquivo_excel_impl(
+            conteudo_arquivo=conteudo_arquivo,
+            max_rows=max_rows,
+        )
+
+    async def preview_arquivo_csv(
+        self, conteudo_arquivo: bytes, max_rows: int = 5
+    ) -> Dict[str, Any]:
+        return await _preview_arquivo_csv_impl(
+            conteudo_arquivo=conteudo_arquivo,
+            max_rows=max_rows,
+        )
+
+
+_tabular_preview_workflow = _TabularPreviewWorkflow()
+
+
+async def preview_arquivo_excel(
+    conteudo_arquivo: bytes, max_rows: int = 5
+) -> Dict[str, Any]:
+    return await _tabular_preview_workflow.preview_arquivo_excel(
+        conteudo_arquivo=conteudo_arquivo,
+        max_rows=max_rows,
+    )
+
+
+async def preview_arquivo_csv(
+    conteudo_arquivo: bytes, max_rows: int = 5
+) -> Dict[str, Any]:
+    return await _tabular_preview_workflow.preview_arquivo_csv(
+        conteudo_arquivo=conteudo_arquivo,
+        max_rows=max_rows,
+    )
+
+
+class _PdfAssetWorkflow:
+    """Workflow OO para utilitarios de imagem/regiao de PDF."""
+
+    async def pdf_bytes_to_images(
+        self,
+        conteudo_arquivo: bytes,
+        max_pages: int = 1,
+        start_page: int = 1,
+        dpi: int = 200,
+    ) -> List[str]:
+        return await _pdf_bytes_to_images_impl(
+            conteudo_arquivo=conteudo_arquivo,
+            max_pages=max_pages,
+            start_page=start_page,
+            dpi=dpi,
+        )
+
+    def pdf_pages_to_images(
+        self,
+        db: Session,
+        file: UploadFile,
+        fornecedor_id: int,
+        user_id: int,
+        offset: int,
+        limit: int,
+    ) -> Dict[str, Any]:
+        return _pdf_pages_to_images_impl(
+            db=db,
+            file=file,
+            fornecedor_id=fornecedor_id,
+            user_id=user_id,
+            offset=offset,
+            limit=limit,
+        )
+
+    async def extrair_pagina_pdf(
+        self, conteudo_pdf: bytes, page_number: int, region: Optional[List[float]] = None
+    ) -> Dict[str, Any]:
+        return await _extrair_pagina_pdf_impl(
+            conteudo_pdf=conteudo_pdf,
+            page_number=page_number,
+            region=region,
+        )
+
+    def generate_pdf_page_images(self, file_path: str, file_id: str) -> List[str]:
+        return _generate_pdf_page_images_impl(file_path=file_path, file_id=file_id)
+
+    def extract_pdf_region_image(
+        self,
+        file_path: str,
+        page_number: int,
+        region: Optional[List[float]] = None,
+        dpi: int = 300,
+    ) -> bytes:
+        return _extract_pdf_region_image_impl(
+            file_path=file_path,
+            page_number=page_number,
+            region=region,
+            dpi=dpi,
+        )
+
+    def parse_annotation_to_dataframe(
+        self, annotation: object, vertical_tolerance: int = 5
+    ) -> pd.DataFrame:
+        return _parse_annotation_to_dataframe_impl(
+            annotation=annotation,
+            vertical_tolerance=vertical_tolerance,
+        )
+
+
+_pdf_asset_workflow = _PdfAssetWorkflow()
+
+
+async def pdf_bytes_to_images(
+    conteudo_arquivo: bytes,
+    max_pages: int = 1,
+    start_page: int = 1,
+    dpi: int = 200,
+) -> List[str]:
+    return await _pdf_asset_workflow.pdf_bytes_to_images(
+        conteudo_arquivo=conteudo_arquivo,
+        max_pages=max_pages,
+        start_page=start_page,
+        dpi=dpi,
+    )
+
+
+def pdf_pages_to_images(
+    db: Session,
+    file: UploadFile,
+    fornecedor_id: int,
+    user_id: int,
+    offset: int,
+    limit: int,
+) -> Dict[str, Any]:
+    return _pdf_asset_workflow.pdf_pages_to_images(
+        db=db,
+        file=file,
+        fornecedor_id=fornecedor_id,
+        user_id=user_id,
+        offset=offset,
+        limit=limit,
+    )
+
+
+async def extrair_pagina_pdf(
+    conteudo_pdf: bytes, page_number: int, region: Optional[List[float]] = None
+) -> Dict[str, Any]:
+    return await _pdf_asset_workflow.extrair_pagina_pdf(
+        conteudo_pdf=conteudo_pdf,
+        page_number=page_number,
+        region=region,
+    )
+
+
+def generate_pdf_page_images(file_path: str, file_id: str) -> List[str]:
+    return _pdf_asset_workflow.generate_pdf_page_images(
+        file_path=file_path,
+        file_id=file_id,
+    )
+
+
+def extract_pdf_region_image(
+    file_path: str,
+    page_number: int,
+    region: Optional[List[float]] = None,
+    dpi: int = 300,
+) -> bytes:
+    return _pdf_asset_workflow.extract_pdf_region_image(
+        file_path=file_path,
+        page_number=page_number,
+        region=region,
+        dpi=dpi,
+    )
+
+
+def parse_annotation_to_dataframe(
+    annotation: object, vertical_tolerance: int = 5
+) -> pd.DataFrame:
+    return _pdf_asset_workflow.parse_annotation_to_dataframe(
+        annotation=annotation,
+        vertical_tolerance=vertical_tolerance,
+    )
 
 
 class _PdfProcessingWorkflow:
