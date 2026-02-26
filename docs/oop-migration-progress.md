@@ -4,8 +4,8 @@
 
 - Estrutura OOP (modos, selector, dispatcher, contracts, testes): `100%`
 - Integracao das rotas criticas com estrutura OOP: `100%`
-- Migracao da logica para use cases/services OO (sem corpo pesado no router): `55%`
-- Migracao geral (estrutura + logica): `74%`
+- Migracao da logica para use cases/services OO (sem corpo pesado no router): `60%`
+- Migracao geral (estrutura + logica): `78%`
 
 ## O que ja esta pronto
 
@@ -22,6 +22,8 @@
   - `Backend/application/services/catalog_import_task_service.py`
   - `Backend/application/services/web_enrichment_task_service.py`
   - Routers agora atuam como delegadores dessas tarefas.
+- Rotas criticas agora informam `legacy_executor` e `oop_executor` separados
+  nos orquestradores, permitindo diferenciar caminho OOP em `APP_MODE=oop`.
 
 ## O que ainda falta para 100%
 

@@ -761,6 +761,16 @@ async def _tarefa_enriquecer_produto_web(
         is_source_relevant_for_product=_is_source_relevant_for_product,
     )
 
+
+async def _oop_tarefa_enriquecer_produto_web(**task_kwargs):
+    """Executor OOP dedicado (modo oop), separado do legado para comparacao futura."""
+    await _tarefa_enriquecer_produto_web(
+        db_session_factory=task_kwargs.get("db_session_factory"),
+        produto_id=task_kwargs.get("produto_id"),
+        user_id=task_kwargs.get("user_id"),
+        termos_busca_override=task_kwargs.get("termos_busca_override"),
+    )
+
 @router.post("/produto/{produto_id}", status_code=status.HTTP_202_ACCEPTED, response_model=schemas.Msg)
 async def iniciar_enriquecimento_produto_web_endpoint(
     produto_id: int,
@@ -783,6 +793,7 @@ async def iniciar_enriquecimento_produto_web_endpoint(
 
     orchestrator = WebEnrichmentPipelineOrchestrator(
         legacy_executor=_tarefa_enriquecer_produto_web,
+        oop_executor=_oop_tarefa_enriquecer_produto_web,
     )
     command = WebEnrichmentStartCommand(
         produto_id=produto_id,
