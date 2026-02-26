@@ -635,6 +635,9 @@ const ProductEditModal = ({ isOpen, onClose, product, onProductUpdated }) => {
     const enrichmentSummary = formData?.log_enriquecimento_web?.resumo_aplicacao || {};
     const appliedFields = Array.isArray(enrichmentSummary?.aplicados) ? enrichmentSummary.aplicados : [];
     const ignoredFields = Array.isArray(enrichmentSummary?.ignorados) ? enrichmentSummary.ignorados : [];
+    const appliedDetails = Array.isArray(enrichmentSummary?.campos_alterados_detalhe)
+        ? enrichmentSummary.campos_alterados_detalhe
+        : [];
 
     return (
         <>
@@ -823,6 +826,16 @@ const ProductEditModal = ({ isOpen, onClose, product, onProductUpdated }) => {
                                      {ignoredFields.length > 0 && (
                                          <div>
                                              <strong>Campos ignorados:</strong> {ignoredFields.join(', ')}
+                                         </div>
+                                     )}
+                                     {appliedDetails.length > 0 && (
+                                         <div style={{ marginTop: '8px' }}>
+                                             <strong>Alterações aplicadas:</strong>
+                                             <ul style={{ margin: '6px 0 0 18px' }}>
+                                                 {appliedDetails.map((item, idx) => (
+                                                     <li key={`${item}-${idx}`}>{normalizeDisplayText(item)}</li>
+                                                 ))}
+                                             </ul>
                                          </div>
                                      )}
                                  </div>

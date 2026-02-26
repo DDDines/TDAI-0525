@@ -17,10 +17,10 @@ class WebEnrichmentConfigSnapshot:
     def as_log_line(self) -> str:
         return (
             "Config API: "
-            f"openai_user={'sim' if self.openai_user_configurada else 'não'}, "
-            f"openai_sistema={'sim' if self.openai_system_configurada else 'não'}, "
-            f"google_cse={'sim' if self.google_api_configurada else 'não'}, "
-            f"busca_publica={'sim' if self.busca_publica_fallback else 'não'}."
+            f"openai_user={'sim' if self.openai_user_configurada else 'nao'}, "
+            f"openai_sistema={'sim' if self.openai_system_configurada else 'nao'}, "
+            f"google_cse={'sim' if self.google_api_configurada else 'nao'}, "
+            f"busca_publica={'sim' if self.busca_publica_fallback else 'nao'}."
         )
 
 
@@ -50,11 +50,48 @@ class WebEnrichmentConfigInspector:
 
 
 class WebEnrichmentQueryPlanner:
-    """Monta termos de busca para maximizar recall com baixo ruído."""
+    """Monta termos de busca para maximizar recall com baixo ruido."""
 
     @staticmethod
     def _dedupe(values: List[str]) -> List[str]:
         return [v for v in dict.fromkeys(v for v in values if v)]
+
+    @staticmethod
+    def _extract_code_tokens(value: Any) -> List[str]:
+        text = str(value or "").upper()
+        if not text:
+            return []
+        tokens = re.findall(r"\b[A-Z0-9][A-Z0-9./-]{4,}\b", text)
+        filtered: List[str] = []
+        for token in tokens:
+            compact = re.sub(r"[^A-Z0-9]", "", token)
+            if len(compact) < 5:
+                continue
+            if not any(ch.isdigit() for ch in compact):
+                continue
+            filtered.append(token)
+        return list(dict.fromkeys(filtered))
+
+    @staticmethod
+    def _dynamic_text_hints(dynamic_attributes: Any) -> Dict[str, str]:
+        hints = {"aplicacao": "", "material": "", "marca": ""}
+        if not isinstance(dynamic_attributes, dict):
+            return hints
+
+        for key, value in dynamic_attributes.items():
+            if value is None:
+                continue
+            key_norm = re.sub(r"[^a-z0-9]+", "", str(key or "").lower())
+            text_value = str(value).strip()
+            if not text_value:
+                continue
+            if not hints["aplicacao"] and ("aplic" in key_norm or "application" in key_norm):
+                hints["aplicacao"] = text_value
+            elif not hints["material"] and "material" in key_norm:
+                hints["material"] = text_value
+            elif not hints["marca"] and "marca" in key_norm:
+                hints["marca"] = text_value
+        return hints
 
     def build_candidates(
         self,
@@ -65,7 +102,8 @@ class WebEnrichmentQueryPlanner:
         if termos_busca_override:
             return self._dedupe([termos_busca_override.strip()])
 
-        query_parts: List[str] = [str(getattr(db_produto_obj, "nome_base", "") or "").strip()]
+        nome_base_clean = str(getattr(db_produto_obj, "nome_base", "") or "").strip()
+        query_parts: List[str] = [nome_base_clean]
         sku = str(getattr(db_produto_obj, "sku", "") or "").strip()
         if sku:
             query_parts.append(sku)
@@ -75,7 +113,6 @@ class WebEnrichmentQueryPlanner:
             query_parts.append(ean_digits)
         query_base = " ".join([part for part in query_parts if part])
 
-        nome_base_clean = str(getattr(db_produto_obj, "nome_base", "") or "").strip()
         fornecedor_obj = getattr(db_produto_obj, "fornecedor", None)
         fornecedor_nome = (
             str(getattr(fornecedor_obj, "nome", "") or "").strip() if fornecedor_obj else ""
@@ -88,6 +125,23 @@ class WebEnrichmentQueryPlanner:
                 or dados_brutos_web.get("sku_original")
                 or ""
             ).strip()
+        dynamic_attributes = getattr(db_produto_obj, "dynamic_attributes", None)
+        dynamic_hints = self._dynamic_text_hints(dynamic_attributes)
+
+        code_hints: List[str] = []
+        if codigo_original:
+            code_hints.extend(self._extract_code_tokens(codigo_original))
+        if sku:
+            code_hints.extend(self._extract_code_tokens(sku))
+        if ean_digits:
+            code_hints.extend([ean_digits])
+        code_hints.extend(self._extract_code_tokens(nome_base_clean))
+        if isinstance(dynamic_attributes, dict):
+            for key, value in dynamic_attributes.items():
+                key_norm = re.sub(r"[^a-z0-9]+", "", str(key or "").lower())
+                if any(marker in key_norm for marker in ("id", "codigo", "sku", "ref")):
+                    code_hints.extend(self._extract_code_tokens(value))
+        code_hints = self._dedupe([code.strip() for code in code_hints])[:6]
 
         query_candidates: List[str] = []
         if query_base:
@@ -101,6 +155,22 @@ class WebEnrichmentQueryPlanner:
             if codigo_original:
                 query_candidates.append(f"{nome_base_clean} {codigo_original}")
                 query_candidates.append(codigo_original)
+            if dynamic_hints["aplicacao"]:
+                query_candidates.append(f"{nome_base_clean} {dynamic_hints['aplicacao']}")
+            if dynamic_hints["material"]:
+                query_candidates.append(f"{nome_base_clean} {dynamic_hints['material']}")
+
+        for code_hint in code_hints:
+            if nome_base_clean:
+                query_candidates.append(f"{nome_base_clean} {code_hint}")
+            if fornecedor_nome:
+                query_candidates.append(f"{code_hint} {fornecedor_nome}")
+            if dynamic_hints["aplicacao"]:
+                query_candidates.append(f"{code_hint} {dynamic_hints['aplicacao']}")
+            query_candidates.append(f"{code_hint} peca automotiva")
+
+        if dynamic_hints["marca"] and nome_base_clean:
+            query_candidates.append(f"{nome_base_clean} {dynamic_hints['marca']}")
         return self._dedupe(query_candidates)
 
 
@@ -174,10 +244,15 @@ class WebEnrichmentFinalizationService:
         ):
             status_para_salvar_no_final = self._models.StatusEnriquecimentoEnum.FALHOU
             log_mensagens.append(
-                "ALERTA FINALLY: Status final e do DB eram EM_PROGRESSO, forçando para FALHOU."
+                "ALERTA FINALLY: Status final e do DB eram EM_PROGRESSO, forcando para FALHOU."
             )
 
         status_valor_str = status_para_salvar_no_final.value
+        dynamic_before = (
+            dict(db_produto_obj.dynamic_attributes)
+            if isinstance(getattr(db_produto_obj, "dynamic_attributes", None), dict)
+            else {}
+        )
         (
             campos_visiveis_update,
             notas_campos,
@@ -193,7 +268,7 @@ class WebEnrichmentFinalizationService:
             )
         else:
             log_mensagens.append(
-                "Enriquecimento finalizado sem novos campos visíveis para preencher no produto."
+                "Enriquecimento finalizado sem novos campos visiveis para preencher no produto."
             )
         if notas_ignoradas:
             log_mensagens.append(
@@ -201,10 +276,37 @@ class WebEnrichmentFinalizationService:
                 + ", ".join(notas_ignoradas)
             )
 
+        applied_details: List[str] = []
+        if isinstance(campos_visiveis_update, dict):
+            for field_name, new_value in campos_visiveis_update.items():
+                if field_name == "dynamic_attributes" and isinstance(new_value, dict):
+                    for dyn_key, dyn_value in new_value.items():
+                        previous_dyn = dynamic_before.get(dyn_key)
+                        if previous_dyn != dyn_value:
+                            applied_details.append(
+                                f"dynamic.{dyn_key}: {previous_dyn!r} -> {dyn_value!r}"
+                            )
+                    continue
+
+                previous_value = getattr(db_produto_obj, field_name, None)
+                if previous_value != new_value:
+                    applied_details.append(
+                        f"{field_name}: {previous_value!r} -> {new_value!r}"
+                    )
+
         resumo_aplicacao = {
             "aplicados": notas_campos,
             "ignorados": notas_ignoradas,
+            "aplicados_total": len(notas_campos),
+            "ignorados_total": len(notas_ignoradas),
+            "status_final": status_valor_str,
+            "campos_alterados_detalhe": applied_details,
         }
+        log_mensagens.append(
+            "Resumo de aplicação: "
+            f"{resumo_aplicacao['aplicados_total']} aplicado(s), "
+            f"{resumo_aplicacao['ignorados_total']} ignorado(s)."
+        )
         log_mensagens_normalizadas: List[str] = []
         for message in log_mensagens:
             normalized_message = self._normalize_human_text(message)
@@ -229,3 +331,4 @@ class WebEnrichmentFinalizationService:
             f"Produto ID {db_produto_obj.id} FINALMENTE atualizado com status: {status_valor_str}."
         )
         return status_para_salvar_no_final
+

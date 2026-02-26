@@ -27,6 +27,7 @@ const STEP_FLOW = ['upload', 'preview', 'processing'];
 const POLL_INTERVAL_MS = 2000;
 const MAX_RESULT_WAIT_MS = 60000;
 const MAX_RESULT_ATTEMPTS = 30;
+const MAX_ABSOLUTE_POLL_MS = 5 * 60 * 1000;
 const STEP_LABELS = {
   upload: 'Upload',
   preview: 'Preview e Mapeamento',
@@ -174,18 +175,22 @@ const ImportCatalogWizard = ({ fornecedor, productTypeId: initialProductTypeId, 
   const [processingStartedAt, setProcessingStartedAt] = useState(null);
   const pollRunRef = useRef(0);
   const pollLoopActiveRef = useRef(false);
+  const timelineSeenRef = useRef(new Set());
   const lastStatusSnapshotRef = useRef('');
   const terminalStatusAnnouncedRef = useRef(false);
 
   const appendTimeline = useCallback((message) => {
     if (!message) return;
     const safeMessage = normalizeDisplayText(message);
+    if (!safeMessage) return;
+    if (timelineSeenRef.current.has(safeMessage)) return;
     setStatusTimeline((prev) => {
       const recentMessages = prev
         .slice(-6)
         .map((entry) => entry.replace(/^\[[^\]]+\]\s*/, ''));
       if (recentMessages.includes(safeMessage)) return prev;
-      return [...prev, `[${timestamp()}] ${safeMessage}`].slice(-120);
+      timelineSeenRef.current.add(safeMessage);
+      return [...prev, `[${timestamp()}] ${safeMessage}`].slice(-160);
     });
   }, []);
 
@@ -215,6 +220,7 @@ const ImportCatalogWizard = ({ fornecedor, productTypeId: initialProductTypeId, 
     setError('');
     setRegionError('');
     setStatusTimeline([]);
+    timelineSeenRef.current = new Set();
     lastStatusSnapshotRef.current = '';
     terminalStatusAnnouncedRef.current = false;
   }, [isOpen, fornecedor, initialProductTypeId]);
@@ -237,6 +243,7 @@ const ImportCatalogWizard = ({ fornecedor, productTypeId: initialProductTypeId, 
     if (!isOpen) {
       pollRunRef.current += 1;
       pollLoopActiveRef.current = false;
+      timelineSeenRef.current = new Set();
       lastStatusSnapshotRef.current = '';
       terminalStatusAnnouncedRef.current = false;
     }
@@ -446,10 +453,20 @@ const ImportCatalogWizard = ({ fornecedor, productTypeId: initialProductTypeId, 
     pollLoopActiveRef.current = true;
 
     let keepPolling = true;
+    const pollingStartedAt = Date.now();
     let terminalDetectedAt = null;
     let terminalAttempts = 0;
     try {
       while (keepPolling && pollRunRef.current === runId) {
+        const absoluteElapsedMs = Date.now() - pollingStartedAt;
+        if (absoluteElapsedMs >= MAX_ABSOLUTE_POLL_MS) {
+          const hardTimeoutMessage =
+            'Monitoramento encerrado por tempo limite. Atualize em instantes para obter o resultado final.';
+          setError(hardTimeoutMessage);
+          appendTimeline(hardTimeoutMessage);
+          break;
+        }
+
         try {
           const statusRaw = await fornecedorService.getImportacaoStatus(id);
           const statusValue = String(statusRaw?.status || '').trim().toUpperCase();
@@ -491,7 +508,8 @@ const ImportCatalogWizard = ({ fornecedor, productTypeId: initialProductTypeId, 
               elapsedWaitingMs >= MAX_RESULT_WAIT_MS || terminalAttempts >= MAX_RESULT_ATTEMPTS;
 
             let shouldFetchResult = true;
-            if (!statusSignalsReady && !timeoutExceeded) {
+            const probeResultWhenNotReady = terminalAttempts % 5 === 0;
+            if (!statusSignalsReady && !timeoutExceeded && !probeResultWhenNotReady) {
               shouldFetchResult = false;
             }
 
@@ -578,6 +596,7 @@ const ImportCatalogWizard = ({ fornecedor, productTypeId: initialProductTypeId, 
     setStatusData(null);
     setResultData(null);
     setStatusTimeline([]);
+    timelineSeenRef.current = new Set();
     lastStatusSnapshotRef.current = '';
     terminalStatusAnnouncedRef.current = false;
     pollLoopActiveRef.current = false;

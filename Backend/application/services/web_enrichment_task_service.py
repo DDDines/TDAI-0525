@@ -1,4 +1,4 @@
-﻿from __future__ import annotations
+from __future__ import annotations
 
 from typing import Any, Dict, List, Optional
 from sqlalchemy.orm import Session
@@ -72,12 +72,12 @@ async def run_web_enrichment_task(
         else:
             db_produto_obj = query.with_for_update().first()
         if not db_produto_obj:
-            log_mensagens.append(f"ERRO FATAL PRECOCE: Produto ID {produto_id} nÃ£o encontrado.")
+            log_mensagens.append(f"ERRO FATAL PRECOCE: Produto ID {produto_id} nao encontrado.")
             logger.error(log_mensagens[-1])
             return
         
         status_original_do_produto_no_inicio_da_tarefa = db_produto_obj.status_enriquecimento_web
-        # NÃ£o mudamos o status para EM_PROGRESSO aqui ainda.
+        # Nao mudamos o status para EM_PROGRESSO aqui ainda.
 
     except SQLAlchemyError as e_sql_load:
         log_mensagens.append(
@@ -86,16 +86,16 @@ async def run_web_enrichment_task(
         logger.error(log_mensagens[-1])
         return
 
-    # Esta serÃ¡ a variÃ¡vel que controlarÃ¡ o status a ser salvo no final.
-    # Inicializa com o status que o produto tinha antes da tarefa comeÃ§ar,
+    # Esta sera a variavel que controlara o status a ser salvo no final.
+    # Inicializa com o status que o produto tinha antes da tarefa comecar,
     # ou FALHOU se algo der muito errado antes mesmo de verificarmos as APIs.
     status_para_salvar_no_final: models.StatusEnriquecimentoEnum = status_original_do_produto_no_inicio_da_tarefa
     
-    # Se o status original jÃ¡ era EM_PROGRESSO por algum motivo (ex: tarefa anterior falhou ao limpar),
-    # Ã© melhor considerÃ¡-lo como PENDENTE para esta nova execuÃ§Ã£o ou FALHOU para evitar loops.
+    # Se o status original ja era EM_PROGRESSO por algum motivo (ex: tarefa anterior falhou ao limpar),
+    # e melhor considera-lo como PENDENTE para esta nova execucao ou FALHOU para evitar loops.
     # Para simplificar, se estava EM_PROGRESSO, vamos reverter para PENDENTE como base para esta tentativa.
     if status_original_do_produto_no_inicio_da_tarefa == models.StatusEnriquecimentoEnum.EM_PROGRESSO:
-        log_mensagens.append(f"AVISO: Produto {produto_id} encontrado como EM_PROGRESSO no inÃ­cio. Considerando como PENDENTE para esta execuÃ§Ã£o.")
+        log_mensagens.append(f"AVISO: Produto {produto_id} encontrado como EM_PROGRESSO no inicio. Considerando como PENDENTE para esta execucao.")
         status_para_salvar_no_final = models.StatusEnriquecimentoEnum.PENDENTE
 
 
@@ -104,12 +104,12 @@ async def run_web_enrichment_task(
     try:
         user = crud_users.get_user(db, user_id)
         if not user:
-            log_mensagens.append(f"ERRO FATAL: UsuÃ¡rio ID {user_id} nÃ£o encontrado.")
-            # Define um status de falha se o usuÃ¡rio nÃ£o for encontrado.
+            log_mensagens.append(f"ERRO FATAL: Usuario ID {user_id} nao encontrado.")
+            # Define um status de falha se o usuario nao for encontrado.
             status_para_salvar_no_final = models.StatusEnriquecimentoEnum.FALHOU
-            return # O finally cuidarÃ¡ da atualizaÃ§Ã£o do produto
+            return # O finally cuidara da atualizacao do produto
 
-        # Verifica configuraÃ§Ãµes crÃ­ticas ANTES de mudar para EM_PROGRESSO
+        # Verifica configuracoes criticas ANTES de mudar para EM_PROGRESSO
         config_snapshot = config_inspector.inspect(
             user=user,
             settings=settings,
@@ -121,14 +121,14 @@ async def run_web_enrichment_task(
         busca_web_disponivel = config_snapshot.busca_web_disponivel
         log_mensagens.append(config_snapshot.as_log_line())
 
-        # Sem OpenAI e sem mecanismo de busca web, nÃ£o hÃ¡ como enriquecer.
+        # Sem OpenAI e sem mecanismo de busca web, nao ha como enriquecer.
         if not openai_api_configurada and not busca_web_disponivel:
             log_mensagens.append(
-                "AVISO CRÃTICO: Sem OpenAI e sem mecanismo de busca web disponÃ­vel. "
-                "Configure OPENAI_API_KEY (ou chave pessoal do usuÃ¡rio) e/ou Google CSE."
+                "AVISO CRITICO: Sem OpenAI e sem mecanismo de busca web disponivel. "
+                "Configure OPENAI_API_KEY (ou chave pessoal do usuario) e/ou Google CSE."
             )
             status_para_salvar_no_final = models.StatusEnriquecimentoEnum.FALHA_CONFIGURACAO_API_EXTERNA
-            # Opcional: Registrar uso da IA para falha de configuraÃ§Ã£o
+            # Opcional: Registrar uso da IA para falha de configuracao
             crud.create_registro_uso_ia(
                 db=db,
                 registro_uso=schemas.RegistroUsoIACreate(
@@ -138,7 +138,7 @@ async def run_web_enrichment_task(
                     modelo_ia="N/A",
                     provedor_ia=None,
                     prompt_utilizado="N/A",
-                    resposta_ia="Falha: ConfiguraÃ§Ãµes de API externas ausentes.",
+                    resposta_ia="Falha: Configuracoes de API externas ausentes.",
                     creditos_consumidos=0,
                     status="FALHA",
                 ),
@@ -147,16 +147,16 @@ async def run_web_enrichment_task(
 
         if not google_api_configurada and busca_publica_fallback:
             log_mensagens.append(
-                "Google CSE nÃ£o configurado. Usando fallback de busca pÃºblica sem API key."
+                "Google CSE nao configurado. Usando fallback de busca publica sem API key."
             )
 
-        # Se especificamente a OpenAI nÃ£o estÃ¡ configurada, mas a Google pode estar.
-        # O enriquecimento LLM nÃ£o serÃ¡ possÃ­vel, mas a busca e extraÃ§Ã£o de metadados sim.
+        # Se especificamente a OpenAI nao esta configurada, mas a Google pode estar.
+        # O enriquecimento LLM nao sera possivel, mas a busca e extracao de metadados sim.
         if not openai_api_configurada:
-            log_mensagens.append("AVISO: Chave API OpenAI nÃ£o configurada. Enriquecimento via LLM serÃ¡ pulado. Outras coletas de dados (Google, metadados) tentarÃ£o prosseguir.")
-            # NÃ£o definimos status_para_salvar_no_final como FALHA_CONFIGURACAO_API_EXTERNA ainda,
-            # pois a busca Google e extraÃ§Ã£o de metadados podem funcionar.
-            # O status final dependerÃ¡ se essas outras etapas coletam algo.
+            log_mensagens.append("AVISO: Chave API OpenAI nao configurada. Enriquecimento via LLM sera pulado. Outras coletas de dados (Google, metadados) tentarao prosseguir.")
+            # Nao definimos status_para_salvar_no_final como FALHA_CONFIGURACAO_API_EXTERNA ainda,
+            # pois a busca Google e extracao de metadados podem funcionar.
+            # O status final dependera se essas outras etapas coletam algo.
             crud.create_registro_uso_ia(
                 db=db,
                 registro_uso=schemas.RegistroUsoIACreate(
@@ -166,7 +166,7 @@ async def run_web_enrichment_task(
                     modelo_ia="N/A",
                     provedor_ia=None,
                     prompt_utilizado="N/A - Config OpenAI pendente para LLM",
-                    resposta_ia="Falha Parcial: Chave API OpenAI nÃ£o configurada para LLM.",
+                    resposta_ia="Falha Parcial: Chave API OpenAI nao configurada para LLM.",
                     creditos_consumidos=0,
                     status="FALHA",
                 ),
@@ -174,19 +174,19 @@ async def run_web_enrichment_task(
             # A tarefa continua para tentar coletar dados de outras fontes
 
         # ----- AGORA, definimos o status para EM_PROGRESSO no banco -----
-        # Isso sinaliza que as verificaÃ§Ãµes iniciais passaram e o trabalho real comeÃ§ou.
+        # Isso sinaliza que as verificacoes iniciais passaram e o trabalho real comecou.
         log_mensagens.append(f"Definindo status do produto ID {produto_id} para EM_PROGRESSO no banco.")
         db_produto_obj.status_enriquecimento_web = models.StatusEnriquecimentoEnum.EM_PROGRESSO
         db_produto_obj.log_enriquecimento_web = {"historico_mensagens": log_mensagens} # Salva o log inicial
         db.commit()
         db.refresh(db_produto_obj)
         
-        # O status_para_salvar_no_final serÃ¡ o que resultar do processamento.
-        # Se tudo correr bem, serÃ¡ CONCLUIDO_SUCESSO. Se houver problemas, serÃ¡ outro.
-        # Por default, se nada mudar, consideramos uma falha genÃ©rica ao final do try.
+        # O status_para_salvar_no_final sera o que resultar do processamento.
+        # Se tudo correr bem, sera CONCLUIDO_SUCESSO. Se houver problemas, sera outro.
+        # Por default, se nada mudar, consideramos uma falha generica ao final do try.
         status_para_salvar_no_final = models.StatusEnriquecimentoEnum.FALHOU 
         
-        # ----- InÃ­cio do Processamento Principal -----
+        # ----- Inicio do Processamento Principal -----
         query_candidates = query_planner.build_candidates(
             db_produto_obj=db_produto_obj,
             termos_busca_override=termos_busca_override,
@@ -211,10 +211,10 @@ async def run_web_enrichment_task(
                     )
                 else:
                     log_mensagens.append(
-                        "Nenhum termo de busca vÃ¡lido pode ser montado para este produto."
+                        "Nenhum termo de busca valido pode ser montado para este produto."
                     )
         else:
-            log_mensagens.append("Busca web pulada: nenhum provedor de busca disponÃ­vel.")
+            log_mensagens.append("Busca web pulada: nenhum provedor de busca disponivel.")
         fornecedor_domain = extrair_dominio_fornecedor(
             db_produto_obj.fornecedor.site_url
             if db_produto_obj.fornecedor and db_produto_obj.fornecedor.site_url
@@ -228,15 +228,15 @@ async def run_web_enrichment_task(
         )
         if urls_scored:
             ranking_log = ", ".join([f"{score}:{url}" for url, score in urls_scored[:6]])
-            log_mensagens.append(f"Ranking de URLs por relevÃ¢ncia: {ranking_log}")
+            log_mensagens.append(f"Ranking de URLs por relevancia: {ranking_log}")
         elif urls_encontradas_brutas:
             log_mensagens.append(
-                "URLs encontradas, mas descartadas por baixa relevÃ¢ncia/sinal de tracking."
+                "URLs encontradas, mas descartadas por baixa relevancia/sinal de tracking."
             )
         dados_coletados_de_fontes_web = False # Flag para saber se algo foi coletado da web
 
         if not urls_a_processar and not busca_web_disponivel:
-            log_mensagens.append("Nenhuma URL para processar (busca web indisponÃ­vel e sem override).")
+            log_mensagens.append("Nenhuma URL para processar (busca web indisponivel e sem override).")
             # Sem busca web, o LLM ainda pode tentar com dados brutos.
         elif not urls_a_processar and busca_web_disponivel:
             log_mensagens.append("Nenhuma URL encontrada ou selecionada para processar.")
@@ -246,8 +246,8 @@ async def run_web_enrichment_task(
             log_mensagens.append(f"Processando URL {i+1}/{len(urls_a_processar)}: {url_processar}")
             html_content = await web_extractor.coletar_conteudo_pagina_playwright(url_processar)
             if not html_content:
-                log_mensagens.append(f"NÃ£o foi possÃ­vel obter conteÃºdo HTML da URL: {url_processar}")
-                continue # Tenta a prÃ³xima URL
+                log_mensagens.append(f"Nao foi possivel obter conteudo HTML da URL: {url_processar}")
+                continue # Tenta a proxima URL
 
             texto_principal = web_extractor.extrair_texto_principal_com_trafilatura(html_content)
             metadados_extruct = web_extractor.extrair_metadados_estruturados(html_content, url_processar)
@@ -279,20 +279,20 @@ async def run_web_enrichment_task(
                 continue
 
             if metadados_normalizados_pagina:
-                log_mensagens.append(f"Metadados normalizados extraÃ­dos da URL {url_processar}: {json.dumps(metadados_normalizados_pagina, indent=2, ensure_ascii=False)}")
+                log_mensagens.append(f"Metadados normalizados extraidos da URL {url_processar}: {json.dumps(metadados_normalizados_pagina, indent=2, ensure_ascii=False)}")
                 dados_extraidos_agregados.update(metadados_normalizados_pagina) # Atualiza com prioridade para novos dados
                 dados_coletados_de_fontes_web = True
             
             if texto_principal:
-                log_mensagens.append(f"Texto principal extraÃ­do da URL {url_processar} (primeiros 300 chars): {texto_principal[:300]}")
-                # Guarda o texto da primeira pÃ¡gina processada com sucesso para possÃ­vel uso pelo LLM
+                log_mensagens.append(f"Texto principal extraido da URL {url_processar} (primeiros 300 chars): {texto_principal[:300]}")
+                # Guarda o texto da primeira pagina processada com sucesso para possivel uso pelo LLM
                 if "texto_relevante_coletado" not in dados_extraidos_agregados:
                     dados_extraidos_agregados["texto_relevante_coletado"] = texto_principal
                 dados_coletados_de_fontes_web = True
             
-            # Se jÃ¡ temos dados suficientes de metadados e texto, podemos parar antes
+            # Se ja temos dados suficientes de metadados e texto, podemos parar antes
             if metadados_normalizados_pagina.get("nome") and metadados_normalizados_pagina.get("descricao_curta"):
-                log_mensagens.append(f"Dados chave (nome, descriÃ§Ã£o) encontrados em {url_processar}. Considerando suficiente desta URL.")
+                log_mensagens.append(f"Dados chave (nome, descricao) encontrados em {url_processar}. Considerando suficiente desta URL.")
                 break 
         
         # Etapa de enriquecimento com LLM, se configurado
@@ -308,7 +308,7 @@ async def run_web_enrichment_task(
             metadados_para_llm = {k: v for k, v in dados_extraidos_agregados.items() if k != "texto_relevante_coletado"}
 
             if texto_para_llm or metadados_para_llm:
-                log_mensagens.append("Iniciando extraÃ§Ã£o/geraÃ§Ã£o com LLM.")
+                log_mensagens.append("Iniciando extracao/geracao com LLM.")
                 dados_do_llm = await web_extractor.extrair_dados_produto_com_llm(
                     texto_pagina=texto_para_llm,
                     metadados_normalizados=metadados_para_llm,
@@ -320,18 +320,18 @@ async def run_web_enrichment_task(
                     log_mensagens.append(f"Dados recebidos do LLM: {json.dumps(dados_do_llm, indent=2, ensure_ascii=False)}")
                     if "erro_llm" in dados_do_llm or "erro_llm_inesperado" in dados_do_llm:
                         log_mensagens.append(f"ERRO do LLM: {dados_do_llm.get('erro_llm') or dados_do_llm.get('erro_llm_inesperado')}")
-                        # NÃ£o necessariamente uma falha total do enriquecimento se outros dados foram coletados
-                        if not dados_coletados_de_fontes_web: # Se LLM era a Ãºnica esperanÃ§a e falhou
+                        # Nao necessariamente uma falha total do enriquecimento se outros dados foram coletados
+                        if not dados_coletados_de_fontes_web: # Se LLM era a unica esperanca e falhou
                             status_para_salvar_no_final = models.StatusEnriquecimentoEnum.FALHA_API_EXTERNA
                     else:
                         dados_extraidos_agregados.update(dados_do_llm)
                         dados_coletados_de_fontes_web = True # Se o LLM produziu algo, consideramos coleta
                 else:
-                    log_mensagens.append("LLM nÃ£o retornou dados ou ocorreu erro nÃ£o capturado explicitamente.")
+                    log_mensagens.append("LLM nao retornou dados ou ocorreu erro nao capturado explicitamente.")
             else:
                 log_mensagens.append("Nenhum texto ou metadado suficiente para enviar ao LLM.")
-        else: # openai_api_configurada Ã© False
-            log_mensagens.append("LLM nÃ£o foi chamado pois a API OpenAI nÃ£o estÃ¡ configurada.")
+        else: # openai_api_configurada e False
+            log_mensagens.append("LLM nao foi chamado pois a API OpenAI nao esta configurada.")
 
         # Determinação do status final com base no que foi coletado
         status_para_salvar_no_final = status_resolver.resolve(
