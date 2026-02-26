@@ -3,6 +3,14 @@ from __future__ import annotations
 from typing import Any, Callable, Dict, List, Optional
 from sqlalchemy.orm import Session
 
+from Backend.application.services.catalog_import_components import (
+    CatalogImportAuditWriter,
+    CatalogImportFileStateService,
+    CatalogImportIssueTracker,
+    CatalogImportOutcomeResolver,
+    CatalogImportQualityAccumulator,
+)
+
 
 async def run_catalog_import_task(
     db_session_factory,
@@ -60,11 +68,12 @@ async def run_catalog_import_task(
             return
         catalog_logger.info("inicio file_id=%s user_id=%s fornecedor_id=%s product_type_id=%s pages=%s region=%s mapping_keys=%s", file_id, user_id, fornecedor_id, product_type_id, pages, region, list(mapping.keys()) if mapping else [])
 
-        catalog_file.status = "PROCESSING"
-
-        catalog_file.fornecedor_id = fornecedor_id
-
-        db.commit()
+        file_state_service = CatalogImportFileStateService()
+        file_state_service.mark_processing(
+            db=db,
+            catalog_file=catalog_file,
+            fornecedor_id=fornecedor_id,
+        )
 
 
 
@@ -74,20 +83,12 @@ async def run_catalog_import_task(
 
         if not file_path.exists():
 
-            catalog_file.status = "FAILED"
-            catalog_file.result_summary = {
-                "created": [],
-                "updated": [],
-                "errors": [
-                    {
-                        "erro_processamento": "Arquivo de catálogo não encontrado no armazenamento.",
-                        "file_id": file_id,
-                        "stored_filename": catalog_file.stored_filename,
-                    }
-                ],
-            }
-
-            db.commit()
+            file_state_service.mark_file_missing(
+                db=db,
+                catalog_file=catalog_file,
+                file_id=file_id,
+                stored_filename=catalog_file.stored_filename,
+            )
 
             return
 
@@ -95,64 +96,21 @@ async def run_catalog_import_task(
 
         ext = file_path.suffix.lower()
 
-        erros: List[Dict[str, Any]] = []
         quality_filter_enabled = ext == ".pdf"
-        ignored_non_critical: List[Dict[str, Any]] = []
-        ignored_reason_counter: Counter = Counter()
-        ignored_samples: List[Dict[str, Any]] = []
-        quarantine_non_critical: List[Dict[str, Any]] = []
-        quarantine_reason_counter: Counter = Counter()
-        quarantine_samples: List[Dict[str, Any]] = []
-        accepted_quality_scores: List[int] = []
-        quarantine_quality_scores: List[int] = []
-
-        def _append_import_issue(item: Dict[str, Any]) -> None:
-            normalized_item = normalize_import_issue_item(item)
-            reason = extract_import_error_reason(normalized_item)
-            if is_non_critical_import_reason(reason):
-                ignored_non_critical.append(normalized_item)
-                ignored_reason_counter[reason] += 1
-                if len(ignored_samples) < 30:
-                    ignored_samples.append(normalized_item)
-                return
-            erros.append(normalized_item)
-
-        def _append_quarantine_issue(item: Dict[str, Any]) -> None:
-            normalized_item = normalize_import_issue_item(item)
-            reason = extract_import_error_reason(normalized_item)
-            quarantine_non_critical.append(normalized_item)
-            quarantine_reason_counter[reason] += 1
-            score_value = normalized_item.get("qualidade_score")
-            if isinstance(score_value, (int, float)):
-                quarantine_quality_scores.append(int(score_value))
-            if len(quarantine_samples) < 30:
-                quarantine_samples.append(normalized_item)
+        issue_tracker = CatalogImportIssueTracker(
+            normalize_import_issue_item=normalize_import_issue_item,
+            extract_import_error_reason=extract_import_error_reason,
+            is_non_critical_import_reason=is_non_critical_import_reason,
+        )
+        quality_scores = CatalogImportQualityAccumulator()
+        outcome_resolver = CatalogImportOutcomeResolver()
+        audit_writer = CatalogImportAuditWriter(models=models)
 
         produtos_create: List[schemas.ProdutoCreate] = []
 
         created: List[models.Produto] = []
 
         updated: List[models.Produto] = []
-
-        def _registrar_auditoria_criacao(produtos_criados: List[models.Produto]) -> None:
-            """Registra uso IA e historico sem commits por item."""
-            for db_produto in produtos_criados:
-                db.add(
-                    models.RegistroUsoIA(
-                        user_id=user_id,
-                        produto_id=db_produto.id,
-                        tipo_acao=models.TipoAcaoEnum.CRIACAO_PRODUTO,
-                        creditos_consumidos=0,
-                    )
-                )
-                db.add(
-                    models.RegistroHistorico(
-                        user_id=user_id,
-                        entidade="Produto",
-                        acao=models.TipoAcaoSistemaEnum.CRIACAO,
-                        entity_id=db_produto.id,
-                    )
-                )
 
         if ext == ".pdf":
 
@@ -164,11 +122,11 @@ async def run_catalog_import_task(
 
                 total = len(pages) if pages else len(pdf.pages)
 
-            catalog_file.total_pages = total
-
-            catalog_file.pages_processed = 0
-
-            db.commit()
+            file_state_service.initialize_pages(
+                db=db,
+                catalog_file=catalog_file,
+                total_pages=total,
+            )
 
             page_list = pages or list(range(1, total + 1))
 
@@ -210,7 +168,7 @@ async def run_catalog_import_task(
 
                     ):
 
-                        _append_import_issue(prod)
+                        issue_tracker.add_issue(prod)
 
                         continue
 
@@ -228,7 +186,7 @@ async def run_catalog_import_task(
                         else {"decision": "accept", "score": 100, "reason": None}
                     )
                     if quality_eval.get("decision") == "discard":
-                        _append_import_issue(
+                        issue_tracker.add_issue(
                             {
                                 "motivo_descarte": quality_eval.get("reason"),
                                 "linha_original": prod,
@@ -239,7 +197,8 @@ async def run_catalog_import_task(
                         )
                         continue
                     if quality_eval.get("decision") == "quarantine":
-                        _append_quarantine_issue(
+                        quality_scores.add_quarantine(quality_eval.get("score"))
+                        issue_tracker.add_quarantine_issue(
                             {
                                 "motivo_descarte": quality_eval.get("reason"),
                                 "linha_original": prod,
@@ -250,7 +209,7 @@ async def run_catalog_import_task(
                             }
                         )
                         continue
-                    accepted_quality_scores.append(int(quality_eval.get("score") or 0))
+                    quality_scores.add_accepted(quality_eval.get("score"))
 
 
 
@@ -287,7 +246,7 @@ async def run_catalog_import_task(
 
                     except Exception as e:
 
-                        _append_import_issue(
+                        issue_tracker.add_issue(
 
                             {
 
@@ -325,17 +284,19 @@ async def run_catalog_import_task(
                     updated.extend(updated_page)
 
                     for err in dup_errors:
-                        _append_import_issue(err)
+                        issue_tracker.add_issue(err)
 
 
 
-                    _registrar_auditoria_criacao(created_page)
+                    audit_writer.register_creation(
+                        db=db,
+                        user_id=user_id,
+                        produtos_criados=created_page,
+                    )
 
                     produtos_create = []
 
-                catalog_file.pages_processed += 1
-
-                db.commit()
+                file_state_service.increment_page(db=db, catalog_file=catalog_file)
                 catalog_logger.info(
                     "file_id=%s page=%s processed_rows=%s created=%s updated=%s errors_total=%s ignored_total=%s elapsed=%.2fs",
                     file_id,
@@ -343,18 +304,18 @@ async def run_catalog_import_task(
                     len(produtos_data) if "produtos_data" in locals() else 0,
                     len(created_page),
                     len(updated_page),
-                    len(erros),
-                    len(ignored_non_critical),
+                    len(issue_tracker.errors),
+                    len(issue_tracker.ignored_non_critical),
                     time.perf_counter() - page_start,
                 )
 
         else:  # L?gica para outros tipos de arquivo (Excel, CSV)
 
-            catalog_file.total_pages = 1
-
-            catalog_file.pages_processed = 0
-
-            db.commit()
+            file_state_service.initialize_pages(
+                db=db,
+                catalog_file=catalog_file,
+                total_pages=1,
+            )
 
             if ext in [".xlsx", ".xls"]:
 
@@ -382,9 +343,21 @@ async def run_catalog_import_task(
 
             else:
 
-                catalog_file.status = "FAILED"
-
-                db.commit()
+                file_state_service.mark_final(
+                    db=db,
+                    catalog_file=catalog_file,
+                    final_status="FAILED",
+                    result_summary={
+                        "created": [],
+                        "updated": [],
+                        "errors": [
+                            {
+                                "erro_processamento": f"Formato de arquivo nao suportado: {ext}",
+                                "file_id": file_id,
+                            }
+                        ],
+                    },
+                )
 
                 return
 
@@ -406,7 +379,7 @@ async def run_catalog_import_task(
 
                 ):
 
-                    _append_import_issue(prod)
+                    issue_tracker.add_issue(prod)
 
                     continue
 
@@ -424,7 +397,7 @@ async def run_catalog_import_task(
                     else {"decision": "accept", "score": 100, "reason": None}
                 )
                 if quality_eval.get("decision") == "discard":
-                    _append_import_issue(
+                    issue_tracker.add_issue(
                         {
                             "motivo_descarte": quality_eval.get("reason"),
                             "linha_original": prod,
@@ -435,7 +408,8 @@ async def run_catalog_import_task(
                     )
                     continue
                 if quality_eval.get("decision") == "quarantine":
-                    _append_quarantine_issue(
+                    quality_scores.add_quarantine(quality_eval.get("score"))
+                    issue_tracker.add_quarantine_issue(
                         {
                             "motivo_descarte": quality_eval.get("reason"),
                             "linha_original": prod,
@@ -446,7 +420,7 @@ async def run_catalog_import_task(
                         }
                     )
                     continue
-                accepted_quality_scores.append(int(quality_eval.get("score") or 0))
+                quality_scores.add_accepted(quality_eval.get("score"))
 
                 
 
@@ -483,7 +457,7 @@ async def run_catalog_import_task(
 
                 except Exception as e:
 
-                    _append_import_issue(
+                    issue_tracker.add_issue(
 
                         {
 
@@ -519,11 +493,15 @@ async def run_catalog_import_task(
                 updated.extend(updated_page)
 
                 for err in dup_errors:
-                    _append_import_issue(err)
+                    issue_tracker.add_issue(err)
 
 
 
-                _registrar_auditoria_criacao(created_page)
+                audit_writer.register_creation(
+                    db=db,
+                    user_id=user_id,
+                    produtos_criados=created_page,
+                )
 
                 catalog_file.pages_processed = catalog_file.total_pages
 
@@ -533,33 +511,22 @@ async def run_catalog_import_task(
 
         created_count = len(created)
         updated_count = len(updated)
-        errors_count = len(erros)
-        ignored_count = len(ignored_non_critical)
-        quarantine_count = len(quarantine_non_critical)
-        total_success = created_count + updated_count
-        has_partial_success = total_success > 0 and errors_count > 0
-        final_status = "IMPORTED"
-        if total_success == 0 and (errors_count > 0 or ignored_count > 0 or quarantine_count > 0):
-            final_status = "FAILED"
-        elif has_partial_success:
-            final_status = "PARTIAL"
+        errors_count = len(issue_tracker.errors)
+        ignored_count = len(issue_tracker.ignored_non_critical)
+        quarantine_count = len(issue_tracker.quarantine_non_critical)
+        final_status, has_partial_success = outcome_resolver.resolve(
+            created_count=created_count,
+            updated_count=updated_count,
+            errors_count=errors_count,
+            ignored_count=ignored_count,
+            quarantine_count=quarantine_count,
+        )
 
-        error_reasons = Counter(
-            extract_import_error_reason(err) for err in erros if isinstance(err, dict)
-        )
-        top_reasons = error_reasons.most_common(10)
-        top_ignored_reasons = ignored_reason_counter.most_common(10)
-        top_quarantine_reasons = quarantine_reason_counter.most_common(10)
-        accepted_quality_avg = (
-            round(sum(accepted_quality_scores) / len(accepted_quality_scores), 2)
-            if accepted_quality_scores
-            else None
-        )
-        quarantine_quality_avg = (
-            round(sum(quarantine_quality_scores) / len(quarantine_quality_scores), 2)
-            if quarantine_quality_scores
-            else None
-        )
+        top_reasons = issue_tracker.top_error_reasons(limit=10)
+        top_ignored_reasons = issue_tracker.top_ignored_reasons(limit=10)
+        top_quarantine_reasons = issue_tracker.top_quarantine_reasons(limit=10)
+        accepted_quality_avg = quality_scores.accepted_avg
+        quarantine_quality_avg = quality_scores.quarantine_avg
 
         result_summary = {
             "created": [
@@ -570,9 +537,9 @@ async def run_catalog_import_task(
                 schemas.ProdutoResponse.model_validate(p).model_dump(mode="json")
                 for p in updated
             ],
-            "errors": erros,
-            "ignored_non_critical": ignored_non_critical,
-            "quarantine_non_critical": quarantine_non_critical,
+            "errors": issue_tracker.errors,
+            "ignored_non_critical": issue_tracker.ignored_non_critical,
+            "quarantine_non_critical": issue_tracker.quarantine_non_critical,
             "stats": {
                 "produtos_criados": created_count,
                 "produtos_atualizados": updated_count,
@@ -629,13 +596,13 @@ async def run_catalog_import_task(
             status=final_status,
             created_count=created_count,
             updated_count=updated_count,
-            errors=erros,
+            errors=issue_tracker.errors,
             ignored_count=ignored_count,
             ignored_reasons=top_ignored_reasons,
-            ignored_samples=ignored_samples,
+            ignored_samples=issue_tracker.ignored_samples,
             quarantine_count=quarantine_count,
             quarantine_reasons=top_quarantine_reasons,
-            quarantine_samples=quarantine_samples,
+            quarantine_samples=issue_tracker.quarantine_samples,
             accepted_quality_avg=accepted_quality_avg,
             quarantine_quality_avg=quarantine_quality_avg,
             pages_processed=catalog_file.pages_processed or 0,
@@ -645,14 +612,14 @@ async def run_catalog_import_task(
         if report_path:
             result_summary["log"].append(f"Relat\u00f3rio detalhado: {report_path}")
 
-        catalog_file.status = final_status
-        catalog_file.result_summary = result_summary
-
-        db.add(catalog_file)
-
-        db.commit()
+        file_state_service.mark_final(
+            db=db,
+            catalog_file=catalog_file,
+            final_status=final_status,
+            result_summary=result_summary,
+        )
         if final_status == "FAILED":
-            first_error = erros[0] if erros else {}
+            first_error = issue_tracker.errors[0] if issue_tracker.errors else {}
             catalog_logger.warning(
                 "falha file_id=%s pages=%s/%s first_error=%s",
                 file_id,
@@ -694,19 +661,12 @@ async def run_catalog_import_task(
 
             if catalog_file:
 
-                catalog_file.status = "FAILED"
-                catalog_file.result_summary = {
-                    "created": [],
-                    "updated": [],
-                    "errors": [
-                        {
-                            "erro_processamento": str(e),
-                            "file_id": file_id,
-                        }
-                    ],
-                }
-
-                db.commit()
+                CatalogImportFileStateService.mark_failure_with_exception(
+                    db=db,
+                    catalog_file=catalog_file,
+                    file_id=file_id,
+                    error=e,
+                )
 
     finally:
 
@@ -788,3 +748,4 @@ class CatalogImportTaskService:
             region=region,
             **self._deps,
         )
+

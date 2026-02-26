@@ -1,0 +1,156 @@
+from __future__ import annotations
+
+from dataclasses import dataclass
+from types import SimpleNamespace
+
+from Backend.application.services.catalog_import_components import (
+    CatalogImportAuditWriter,
+    CatalogImportFileStateService,
+    CatalogImportIssueTracker,
+    CatalogImportOutcomeResolver,
+    CatalogImportQualityAccumulator,
+)
+
+
+def test_issue_tracker_classifies_critical_vs_non_critical():
+    tracker = CatalogImportIssueTracker(
+        normalize_import_issue_item=lambda item: dict(item),
+        extract_import_error_reason=lambda item: str(item.get("motivo", "")),
+        is_non_critical_import_reason=lambda reason: reason.startswith("nc:"),
+    )
+
+    tracker.add_issue({"motivo": "nc:linha fraca"})
+    tracker.add_issue({"motivo": "erro critico x"})
+    tracker.add_quarantine_issue({"motivo": "quarentena: score baixo", "qualidade_score": 58})
+
+    assert len(tracker.ignored_non_critical) == 1
+    assert len(tracker.errors) == 1
+    assert len(tracker.quarantine_non_critical) == 1
+    assert tracker.quarantine_quality_scores == [58]
+    assert tracker.top_error_reasons(limit=1)[0][0] == "erro critico x"
+    assert tracker.top_ignored_reasons(limit=1)[0][0] == "nc:linha fraca"
+    assert tracker.top_quarantine_reasons(limit=1)[0][0] == "quarentena: score baixo"
+
+
+def test_quality_accumulator_returns_averages():
+    quality = CatalogImportQualityAccumulator()
+    quality.add_accepted(90)
+    quality.add_accepted(80.0)
+    quality.add_quarantine(55)
+    quality.add_quarantine(65.0)
+
+    assert quality.accepted_avg == 85.0
+    assert quality.quarantine_avg == 60.0
+
+
+def test_outcome_resolver_returns_failed_when_no_success():
+    resolver = CatalogImportOutcomeResolver()
+    status, partial = resolver.resolve(
+        created_count=0,
+        updated_count=0,
+        errors_count=2,
+        ignored_count=3,
+        quarantine_count=1,
+    )
+    assert status == "FAILED"
+    assert partial is False
+
+
+def test_outcome_resolver_returns_partial_when_has_success_and_errors():
+    resolver = CatalogImportOutcomeResolver()
+    status, partial = resolver.resolve(
+        created_count=2,
+        updated_count=1,
+        errors_count=1,
+        ignored_count=0,
+        quarantine_count=0,
+    )
+    assert status == "PARTIAL"
+    assert partial is True
+
+
+class _FakeDB:
+    def __init__(self) -> None:
+        self.commits = 0
+        self.added = []
+
+    def commit(self) -> None:
+        self.commits += 1
+
+    def add(self, item) -> None:
+        self.added.append(item)
+
+
+@dataclass
+class _FakeCatalogFile:
+    status: str = "PENDING"
+    fornecedor_id: int | None = None
+    total_pages: int = 0
+    pages_processed: int = 0
+    stored_filename: str = "x.pdf"
+    result_summary: dict | None = None
+
+
+def test_file_state_service_persists_processing_and_final():
+    db = _FakeDB()
+    file_obj = _FakeCatalogFile()
+
+    CatalogImportFileStateService.mark_processing(
+        db=db,
+        catalog_file=file_obj,
+        fornecedor_id=9,
+    )
+    CatalogImportFileStateService.initialize_pages(
+        db=db,
+        catalog_file=file_obj,
+        total_pages=10,
+    )
+    CatalogImportFileStateService.increment_page(db=db, catalog_file=file_obj)
+    CatalogImportFileStateService.mark_final(
+        db=db,
+        catalog_file=file_obj,
+        final_status="IMPORTED",
+        result_summary={"stats": {"ok": True}},
+    )
+
+    assert file_obj.status == "IMPORTED"
+    assert file_obj.fornecedor_id == 9
+    assert file_obj.total_pages == 10
+    assert file_obj.pages_processed == 1
+    assert file_obj.result_summary == {"stats": {"ok": True}}
+    assert db.commits == 4
+    assert file_obj in db.added
+
+
+def test_audit_writer_adds_usage_and_history_rows():
+    class _Usage:
+        def __init__(self, **kwargs):
+            self.payload = kwargs
+
+    class _History:
+        def __init__(self, **kwargs):
+            self.payload = kwargs
+
+    class _Actions:
+        CRIACAO_PRODUTO = "CRIACAO_PRODUTO"
+
+    class _SysActions:
+        CRIACAO = "CRIACAO"
+
+    models = SimpleNamespace(
+        RegistroUsoIA=_Usage,
+        RegistroHistorico=_History,
+        TipoAcaoEnum=_Actions,
+        TipoAcaoSistemaEnum=_SysActions,
+    )
+    db = _FakeDB()
+    writer = CatalogImportAuditWriter(models=models)
+    produtos = [SimpleNamespace(id=1), SimpleNamespace(id=2)]
+
+    writer.register_creation(db=db, user_id=42, produtos_criados=produtos)
+
+    assert len(db.added) == 4
+    assert db.added[0].payload["produto_id"] == 1
+    assert db.added[1].payload["entity_id"] == 1
+    assert db.added[2].payload["produto_id"] == 2
+    assert db.added[3].payload["entity_id"] == 2
