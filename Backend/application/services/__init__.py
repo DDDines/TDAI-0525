@@ -14,6 +14,8 @@ from Backend.application.services.catalog_import_components import (
 )
 from Backend.application.services.pipeline_dispatcher import PipelineDispatcher
 from Backend.application.services.file_processing_facade import FileProcessingFacade
+from Backend.application.services.ia_generation_facade import IAGenerationFacade
+from Backend.application.services.limit_service_facade import LimitServiceFacade
 from Backend.application.services.shadow_result_comparator import (
     ShadowResultComparator,
 )
@@ -44,6 +46,8 @@ __all__ = [
     "CatalogImportQualityAccumulator",
     "CatalogImportResultBuilder",
     "FileProcessingFacade",
+    "IAGenerationFacade",
+    "LimitServiceFacade",
     "PipelineDispatcher",
     "ShadowResultComparator",
     "WebDataExtractorFacade",

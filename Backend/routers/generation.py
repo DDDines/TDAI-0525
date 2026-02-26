@@ -11,12 +11,14 @@ from Backend import crud_users
 from Backend import crud_produtos
 from Backend import models
 from Backend import schemas
+from Backend.application.services import IAGenerationFacade, LimitServiceFacade
 from Backend.database import get_db, SessionLocal
-from Backend.services import ia_generation_service, limit_service
 from .auth_utils import get_current_active_user
 
 # Configuração do logger para este módulo
 logger = logging.getLogger(__name__) # <-- ADICIONADO
+ia_generation_service = IAGenerationFacade()
+limit_service = LimitServiceFacade()
 
 router = APIRouter(
     prefix="/geracao",
