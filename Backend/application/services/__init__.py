@@ -14,6 +14,11 @@ from Backend.application.services.catalog_import_components import (
 )
 from Backend.application.services.pipeline_dispatcher import PipelineDispatcher
 from Backend.application.services.file_processing_facade import FileProcessingFacade
+from Backend.application.services.file_processing_components import (
+    CatalogExtractionService,
+    CatalogPreviewService,
+    CatalogStorageService,
+)
 from Backend.application.services.ia_generation_facade import IAGenerationFacade
 from Backend.application.services.limit_service_facade import LimitServiceFacade
 from Backend.application.services.shadow_result_comparator import (
@@ -38,6 +43,12 @@ from Backend.application.services.web_data_extractor_facade import (
 from Backend.application.services.validator_crew_facade import (
     ValidatorCrewFacade,
 )
+from Backend.application.services.web_data_extractor_components import (
+    WebContentService,
+    WebLLMService,
+    WebOCRService,
+    WebSearchService,
+)
 
 __all__ = [
     "CatalogImportQualityService",
@@ -48,13 +59,19 @@ __all__ = [
     "CatalogImportOutcomeResolver",
     "CatalogImportQualityAccumulator",
     "CatalogImportResultBuilder",
+    "CatalogExtractionService",
+    "CatalogPreviewService",
+    "CatalogStorageService",
     "FileProcessingFacade",
     "IAGenerationFacade",
     "LimitServiceFacade",
     "PipelineDispatcher",
     "ShadowResultComparator",
     "ValidatorCrewFacade",
+    "WebContentService",
     "WebDataExtractorFacade",
+    "WebLLMService",
+    "WebOCRService",
     "WebEnrichmentConfigInspector",
     "WebEnrichmentConfigSnapshot",
     "WebEnrichmentFinalizationService",
@@ -62,4 +79,5 @@ __all__ = [
     "WebEnrichmentQueryPlanner",
     "WebEnrichmentStatusResolver",
     "WebEnrichmentRelevanceService",
+    "WebSearchService",
 ]

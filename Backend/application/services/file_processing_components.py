@@ -1,0 +1,70 @@
+from __future__ import annotations
+
+from typing import Any
+
+
+class CatalogStorageService:
+    """Componente OO para operações de storage de catálogos."""
+
+    def __init__(self, legacy_module: Any) -> None:
+        self._legacy = legacy_module
+
+    async def save_uploaded_catalog(self, *args: Any, **kwargs: Any):
+        return await self._legacy.save_uploaded_catalog(*args, **kwargs)
+
+    def delete_catalog_file(self, *args: Any, **kwargs: Any):
+        return self._legacy.delete_catalog_file(*args, **kwargs)
+
+    def get_file_path_by_id(self, *args: Any, **kwargs: Any):
+        return self._legacy.get_file_path_by_id(*args, **kwargs)
+
+
+class CatalogPreviewService:
+    """Componente OO para preview e renderização de páginas."""
+
+    def __init__(self, legacy_module: Any) -> None:
+        self._legacy = legacy_module
+
+    async def gerar_preview(self, *args: Any, **kwargs: Any):
+        return await self._legacy.gerar_preview(*args, **kwargs)
+
+    async def preview_arquivo_pdf(self, *args: Any, **kwargs: Any):
+        return await self._legacy.preview_arquivo_pdf(*args, **kwargs)
+
+    def generate_pdf_page_images(self, *args: Any, **kwargs: Any):
+        return self._legacy.generate_pdf_page_images(*args, **kwargs)
+
+    def pdf_pages_to_images(self, *args: Any, **kwargs: Any):
+        return self._legacy.pdf_pages_to_images(*args, **kwargs)
+
+
+class CatalogExtractionService:
+    """Componente OO para extração/processamento de dados de catálogo."""
+
+    def __init__(self, legacy_module: Any) -> None:
+        self._legacy = legacy_module
+
+    async def processar_arquivo_pdf(self, *args: Any, **kwargs: Any):
+        return await self._legacy.processar_arquivo_pdf(*args, **kwargs)
+
+    async def processar_arquivo_excel(self, *args: Any, **kwargs: Any):
+        return await self._legacy.processar_arquivo_excel(*args, **kwargs)
+
+    async def processar_arquivo_csv(self, *args: Any, **kwargs: Any):
+        return await self._legacy.processar_arquivo_csv(*args, **kwargs)
+
+    async def extrair_pagina_pdf(self, *args: Any, **kwargs: Any):
+        return await self._legacy.extrair_pagina_pdf(*args, **kwargs)
+
+    def extract_data_from_pdf_region(self, *args: Any, **kwargs: Any):
+        return self._legacy.extract_data_from_pdf_region(*args, **kwargs)
+
+    def extract_data_from_single_page(self, *args: Any, **kwargs: Any):
+        return self._legacy.extract_data_from_single_page(*args, **kwargs)
+
+    def extract_pdf_region_image(self, *args: Any, **kwargs: Any):
+        return self._legacy.extract_pdf_region_image(*args, **kwargs)
+
+    def parse_annotation_to_dataframe(self, *args: Any, **kwargs: Any):
+        return self._legacy.parse_annotation_to_dataframe(*args, **kwargs)
+
