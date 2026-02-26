@@ -4,8 +4,8 @@
 
 - Estrutura OOP (modos, selector, dispatcher, contracts, testes): `100%`
 - Integracao das rotas criticas com estrutura OOP: `100%`
-- Migracao da logica para use cases (sem pass-through puro): `35%`
-- Migracao geral (estrutura + logica): `62%`
+- Migracao da logica para use cases/services OO (sem corpo pesado no router): `55%`
+- Migracao geral (estrutura + logica): `74%`
 
 ## O que ja esta pronto
 
@@ -18,22 +18,21 @@
 - Use cases com validacao/normalizacao de comando:
   - `CatalogImportProcessingUseCase` agora valida IDs e normaliza mapping/pages/region
   - `WebEnrichmentProcessingUseCase` agora valida IDs e normaliza termo de busca
+- Tarefas pesadas extraidas dos routers para camada `application/services`:
+  - `Backend/application/services/catalog_import_task_service.py`
+  - `Backend/application/services/web_enrichment_task_service.py`
+  - Routers agora atuam como delegadores dessas tarefas.
 
 ## O que ainda falta para 100%
 
-1. Remover o corpo principal de processamento dos routers:
-   - `Backend/routers/produtos.py::_tarefa_processar_catalogo`
-   - `Backend/routers/web_enrichment.py::_tarefa_enriquecer_produto_web`
-2. Extrair para services/use cases OO:
-   - parsing por formato
-   - validacao de qualidade e descarte
-   - persistencia de resumo e auditoria
-3. Fazer `APP_MODE=oop` executar fluxo totalmente OO (sem executor legado injetado).
+1. Fazer `APP_MODE=oop` executar fluxo OO dedicado (hoje legacy/oop apontam para o mesmo executor delegado).
+2. Quebrar `catalog_import_task_service` em servicos menores (parser, quality gate, persistence summary).
+3. Quebrar `web_enrichment_task_service` em servicos menores (source selection, extraction flow, merge/audit).
 4. Manter `legacy` como fallback permanente para rollback e comparacao.
 
 ## Proximo bloco recomendado
 
-1. Extrair `_tarefa_processar_catalogo` para `application/services` (primeiro alvo).
-2. Deixar router apenas com chamada de caso de uso.
-3. Validar `shadow` comparando saida legacy vs OOP.
-4. Repetir o mesmo padrao para enriquecimento web.
+1. Separar `catalog_import_task_service` em componentes OO menores e testaveis.
+2. Separar `web_enrichment_task_service` em componentes OO menores e testaveis.
+3. Ligar orchestrators para usar executor OOP dedicado no `APP_MODE=oop`.
+4. Validar `shadow` comparando payload/resultado de legacy vs OOP.
