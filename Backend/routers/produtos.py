@@ -39,6 +39,7 @@ from Backend import schemas
 from Backend.application.contracts.pipeline_commands import CatalogImportFinalizeCommand
 from Backend.application.services import (
     CatalogImportFinalizeService,
+    CatalogImportStartService,
     CatalogImportStatusService,
     CatalogImportTaskRunner,
     CatalogImportSanitizationService,
@@ -469,6 +470,13 @@ catalog_import_finalize_service = CatalogImportFinalizeService(
     legacy_executor=_tarefa_processar_catalogo,
     oop_executor=_oop_tarefa_processar_catalogo,
 )
+catalog_import_start_service = CatalogImportStartService(
+    models=models,
+    crud_fornecedores=crud_fornecedores,
+    settings=settings,
+    resolve_storage_path=_resolve_storage_path,
+    finalize_service=catalog_import_finalize_service,
+)
 catalog_import_status_service = CatalogImportStatusService(models=models)
 
 
@@ -728,60 +736,28 @@ async def reprocess_catalog_import_file(
     current_user: models.User = Depends(auth_utils.get_current_active_user),
 
 ):
-
-    catalog_file = (
-
-        db.query(models.CatalogImportFile)
-
-        .filter_by(id=file_id, user_id=current_user.id)
-
-        .first()
-
+    catalog_file = catalog_import_start_service.get_catalog_file_or_404(
+        db=db,
+        file_id=file_id,
+        user_id=current_user.id,
     )
-
-    if not catalog_file:
-
-        raise HTTPException(status_code=404, detail="Arquivo n\u00e3o encontrado")
-
-    fornecedor_id_final = fornecedor_id or catalog_file.fornecedor_id
-    if not fornecedor_id_final:
-        raise HTTPException(
-            status_code=400,
-            detail="fornecedor_id \u00e9 obrigat\u00f3rio para reprocessar este arquivo.",
-        )
-
-
-    catalog_file.status = "PROCESSING"
-
-    catalog_file.fornecedor_id = fornecedor_id_final
-
-    catalog_file.pages_processed = 0
-
-    catalog_file.total_pages = 0
-
-    db.commit()
-
-
-
-    if mapping is None:
-
-        fornecedor = crud_fornecedores.get_fornecedor(db, fornecedor_id_final)
-
-        if fornecedor and fornecedor.default_column_mapping:
-
-            mapping = fornecedor.default_column_mapping
-
-
-
-    from sqlalchemy.orm import sessionmaker
-
-
-
-    db_session_factory = sessionmaker(bind=db.get_bind())
-
-
-
-    command = CatalogImportFinalizeCommand(
+    fornecedor_id_final = catalog_import_start_service.resolve_fornecedor_id(
+        catalog_file=catalog_file,
+        fornecedor_id=fornecedor_id,
+        required_message="fornecedor_id e obrigatorio para reprocessar este arquivo.",
+    )
+    catalog_import_start_service.mark_processing(
+        db=db,
+        catalog_file=catalog_file,
+        fornecedor_id=fornecedor_id_final,
+        reset_pages=True,
+    )
+    mapping = catalog_import_start_service.resolve_mapping(
+        db=db,
+        fornecedor_id=fornecedor_id_final,
+        mapping=mapping,
+    )
+    command = catalog_import_start_service.build_finalize_command(
         file_id=file_id,
         user_id=current_user.id,
         product_type_id=product_type_id,
@@ -790,9 +766,9 @@ async def reprocess_catalog_import_file(
         pages=pages,
         region=region,
     )
-    await catalog_import_finalize_service.dispatch_or_run(
+    await catalog_import_start_service.dispatch_finalize(
         background_tasks=background_tasks,
-        db_session_factory=db_session_factory,
+        db=db,
         command=command,
     )
 
@@ -1884,60 +1860,25 @@ async def importar_catalogo_finalizar(
 ):
 
     """Agenda o processamento do arquivo salvo e retorna imediatamente."""
-
-    catalog_file = (
-
-        db.query(models.CatalogImportFile)
-
-        .filter_by(id=file_id, user_id=current_user.id)
-
-        .first()
-
+    catalog_file = catalog_import_start_service.get_catalog_file_or_404(
+        db=db,
+        file_id=file_id,
+        user_id=current_user.id,
     )
-
-    if not catalog_file:
-
-        raise HTTPException(status_code=404, detail="Arquivo n\u00e3o encontrado")
-
-
-
-    catalog_file.status = "PROCESSING"
-
-    catalog_file.fornecedor_id = fornecedor_id
-
-    db.commit()
-
-
-
-    from sqlalchemy.orm import sessionmaker
-
-
-
-    db_session_factory = sessionmaker(bind=db.get_bind())
-
-    # Sempre reprocessa o arquivo completo para evitar importar apenas as linhas de preview
-
-    file_path = _resolve_storage_path(
-        Path(settings.UPLOAD_DIRECTORY) / "catalogs" / catalog_file.stored_filename
+    catalog_import_start_service.mark_processing(
+        db=db,
+        catalog_file=catalog_file,
+        fornecedor_id=fornecedor_id,
+        reset_pages=False,
     )
-
-    if not file_path.exists():
-
-        raise HTTPException(status_code=404, detail="Arquivo n\u00e3o encontrado")
-
-
-
-    if mapping is None:
-
-        fornecedor = crud_fornecedores.get_fornecedor(db, fornecedor_id)
-
-        if fornecedor and fornecedor.default_column_mapping:
-
-            mapping = fornecedor.default_column_mapping
-
-
-
-    command = CatalogImportFinalizeCommand(
+    # Sempre reprocessa o arquivo completo para evitar importar apenas as linhas de preview.
+    catalog_import_start_service.ensure_catalog_binary_exists(catalog_file=catalog_file)
+    mapping = catalog_import_start_service.resolve_mapping(
+        db=db,
+        fornecedor_id=fornecedor_id,
+        mapping=mapping,
+    )
+    command = catalog_import_start_service.build_finalize_command(
         file_id=file_id,
         user_id=current_user.id,
         product_type_id=product_type_id,
@@ -1946,9 +1887,9 @@ async def importar_catalogo_finalizar(
         pages=pages,
         region=region,
     )
-    await catalog_import_finalize_service.dispatch_or_run(
+    await catalog_import_start_service.dispatch_finalize(
         background_tasks=background_tasks,
-        db_session_factory=db_session_factory,
+        db=db,
         command=command,
     )
 

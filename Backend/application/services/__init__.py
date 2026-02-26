@@ -19,6 +19,9 @@ from Backend.application.services.catalog_import_task_runner import (
 from Backend.application.services.catalog_import_finalize_service import (
     CatalogImportFinalizeService,
 )
+from Backend.application.services.catalog_import_start_service import (
+    CatalogImportStartService,
+)
 from Backend.application.services.catalog_import_status_service import (
     CatalogImportStatusService,
 )
@@ -85,6 +88,7 @@ __all__ = [
     "CatalogImportQualityAccumulator",
     "CatalogImportResultBuilder",
     "CatalogImportFinalizeService",
+    "CatalogImportStartService",
     "CatalogImportStatusService",
     "CatalogImportTaskRunner",
     "CatalogExtractionService",
