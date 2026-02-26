@@ -1,45 +1,35 @@
-# Backend/auth.py
+﻿# Backend/auth.py
 from datetime import datetime, timedelta, timezone
-from typing import Optional, Dict, Any
-import secrets
+from typing import Any, Dict, Optional
 import hashlib
+import secrets
 
-from fastapi import APIRouter, Depends, HTTPException, status # Imports do FastAPI
-from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm # Para o formulário de login
-
-from jose import JWTError, jwt
+from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from authlib.integrations.starlette_client import OAuth, OAuthError  # type: ignore
-from starlette.config import Config as AuthlibConfig
+from jose import JWTError, jwt
 from sqlalchemy.orm import Session
+from starlette.config import Config as AuthlibConfig
+
+from Backend import crud
+from Backend import crud_users
+from Backend import models
+from Backend import schemas
 from Backend.core.config import settings
-from Backend.core.security import pwd_context
 from Backend.core.logging_config import get_logger
+from Backend.core.security import pwd_context
+from Backend.database import get_db
 
 logger = get_logger(__name__)
 
-from Backend import schemas
-from Backend import models
-from Backend import crud
-from Backend import crud_users
-from Backend.database import get_db  # Para Depends(get_db)
+PASSWORD_RESET_TOKEN_EXPIRE_HOURS = 1
 
-# Constante para expiração do token de reset de senha
-PASSWORD_RESET_TOKEN_EXPIRE_HOURS = 1 
-
-# --- Definição do Router para este módulo ---
-router = APIRouter() # <--- DEFINIÇÃO DO ROUTER ADICIONADA AQUI
-
-# --- Esquema OAuth2 ---
-# O tokenUrl DEVE corresponder ao endpoint de login/token que este router define.
-# Se este router (auth.router) for montado em /api/v1/auth em main.py, 
-# e o endpoint de token neste arquivo for "/token",
-# então o tokenUrl completo para o cliente é "/api/v1/auth/token".
-# O FastAPI usa este tokenUrl internamente e para a documentação Swagger.
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token") # Relativo ao prefixo do router
+router = APIRouter()
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
 
 
-# --- Configuração Authlib OAuth (para login social) ---
-auth_config_dict_env = {}
+# --- Configuracao OAuth social ---
+auth_config_dict_env: Dict[str, str] = {}
 if settings.GOOGLE_CLIENT_ID:
     auth_config_dict_env["GOOGLE_CLIENT_ID"] = settings.GOOGLE_CLIENT_ID
 if settings.GOOGLE_CLIENT_SECRET:
@@ -52,169 +42,169 @@ if settings.FACEBOOK_CLIENT_SECRET:
 oauth = OAuth(config=AuthlibConfig(environ=auth_config_dict_env))
 
 if settings.GOOGLE_CLIENT_ID and settings.GOOGLE_CLIENT_SECRET:
-    if 'google' not in oauth._clients:
+    if "google" not in oauth._clients:
         oauth.register(
-            name='google',
-            server_metadata_url='https://accounts.google.com/.well-known/openid-configuration',
+            name="google",
+            server_metadata_url="https://accounts.google.com/.well-known/openid-configuration",
             client_id=settings.GOOGLE_CLIENT_ID,
             client_secret=settings.GOOGLE_CLIENT_SECRET,
-            client_kwargs={'scope': 'openid email profile'}
+            client_kwargs={"scope": "openid email profile"},
         )
 else:
     logger.warning(
-        "Credenciais do Google OAuth (CLIENT_ID ou CLIENT_SECRET) não configuradas no .env. Login com Google desabilitado."
+        "Credenciais do Google OAuth (CLIENT_ID ou CLIENT_SECRET) nao configuradas no .env. Login com Google desabilitado."
     )
 
 if settings.FACEBOOK_CLIENT_ID and settings.FACEBOOK_CLIENT_SECRET:
-    if 'facebook' not in oauth._clients:
+    if "facebook" not in oauth._clients:
         oauth.register(
-            name='facebook',
+            name="facebook",
             client_id=settings.FACEBOOK_CLIENT_ID,
             client_secret=settings.FACEBOOK_CLIENT_SECRET,
-            authorize_url='https://www.facebook.com/v19.0/dialog/oauth',
-            access_token_url='https://graph.facebook.com/v19.0/oauth/access_token',
-            userinfo_endpoint='https://graph.facebook.com/me?fields=id,name,email,first_name,last_name,picture',
-            client_kwargs={'scope': 'email public_profile'}
+            authorize_url="https://www.facebook.com/v19.0/dialog/oauth",
+            access_token_url="https://graph.facebook.com/v19.0/oauth/access_token",
+            userinfo_endpoint="https://graph.facebook.com/me?fields=id,name,email,first_name,last_name,picture",
+            client_kwargs={"scope": "email public_profile"},
         )
 else:
     logger.warning(
-        "Credenciais do Facebook OAuth (CLIENT_ID ou CLIENT_SECRET) não configuradas no .env. Login com Facebook desabilitado."
+        "Credenciais do Facebook OAuth (CLIENT_ID ou CLIENT_SECRET) nao configuradas no .env. Login com Facebook desabilitado."
     )
 
 
-# --- Funções de Senha e Token ---
-def verify_password(plain_password: str, hashed_password: str) -> bool:
+def _verify_password_impl(plain_password: str, hashed_password: str) -> bool:
     return pwd_context.verify(plain_password, hashed_password)
 
-def get_password_hash(password: str) -> str:
+
+def _get_password_hash_impl(password: str) -> str:
     return pwd_context.hash(password)
 
-def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -> str:
-    to_encode = data.copy()
-    if expires_delta:
-        expire = datetime.now(timezone.utc) + expires_delta
-    else:
-        expire = datetime.now(timezone.utc) + timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
-    to_encode.update({"exp": expire, "iat": datetime.now(timezone.utc)})
-    encoded_jwt = jwt.encode(to_encode, settings.SECRET_KEY, algorithm=settings.ALGORITHM)
-    return encoded_jwt
 
-def create_refresh_token(data: dict, expires_delta: Optional[timedelta] = None) -> str:
+def _create_access_token_impl(data: dict, expires_delta: Optional[timedelta] = None) -> str:
     to_encode = data.copy()
-    if expires_delta:
-        expire = datetime.now(timezone.utc) + expires_delta
-    else:
-        expire = datetime.now(timezone.utc) + timedelta(days=settings.REFRESH_TOKEN_EXPIRE_DAYS)
+    expire = (
+        datetime.now(timezone.utc) + expires_delta
+        if expires_delta
+        else datetime.now(timezone.utc)
+        + timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
+    )
     to_encode.update({"exp": expire, "iat": datetime.now(timezone.utc)})
-    encoded_jwt = jwt.encode(to_encode, settings.REFRESH_SECRET_KEY, algorithm=settings.ALGORITHM)
-    return encoded_jwt
+    return jwt.encode(to_encode, settings.SECRET_KEY, algorithm=settings.ALGORITHM)
 
-def create_password_reset_token() -> str:
-    """Generate a random password reset token."""
+
+def _create_refresh_token_impl(data: dict, expires_delta: Optional[timedelta] = None) -> str:
+    to_encode = data.copy()
+    expire = (
+        datetime.now(timezone.utc) + expires_delta
+        if expires_delta
+        else datetime.now(timezone.utc) + timedelta(days=settings.REFRESH_TOKEN_EXPIRE_DAYS)
+    )
+    to_encode.update({"exp": expire, "iat": datetime.now(timezone.utc)})
+    return jwt.encode(to_encode, settings.REFRESH_SECRET_KEY, algorithm=settings.ALGORITHM)
+
+
+def _create_password_reset_token_impl() -> str:
     return secrets.token_urlsafe(32)
 
 
-def hash_password_reset_token(token: str) -> str:
-    """Return a deterministic hash of the reset token."""
+def _hash_password_reset_token_impl(token: str) -> str:
     return hashlib.sha256(token.encode()).hexdigest()
 
 
-def verify_password_reset_token(token: str, token_hash: str) -> bool:
-    """Compare a provided token against the stored hash."""
-    return hash_password_reset_token(token) == token_hash
+def _verify_password_reset_token_impl(token: str, token_hash: str) -> bool:
+    return _hash_password_reset_token_impl(token) == token_hash
 
-# --- Funções de Autenticação de Usuário ---
-def authenticate_user(db: Session, email: str, password: str) -> Optional[models.User]:
+
+def _authenticate_user_impl(db: Session, email: str, password: str) -> Optional[models.User]:
     user = crud_users.get_user_by_email(db, email=email)
     if not user:
         return None
     if not user.is_active:
-        return None 
-    if not user.hashed_password or not verify_password(password, user.hashed_password): 
+        return None
+    if not user.hashed_password or not _verify_password_impl(password, user.hashed_password):
         return None
     return user
 
-# --- DEPENDÊNCIAS DE AUTENTICAÇÃO ---
-async def get_current_user(
-    token: str = Depends(oauth2_scheme), 
-    db: Session = Depends(get_db)
+
+async def _get_current_user_impl(
+    token: str,
+    db: Session,
 ) -> models.User:
     credentials_exception = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
-        detail="Não foi possível validar as credenciais",
+        detail="Nao foi possivel validar as credenciais",
         headers={"WWW-Authenticate": "Bearer"},
     )
     try:
         payload = jwt.decode(token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM])
         email: Optional[str] = payload.get("sub")
-        user_id: Optional[int] = payload.get("user_id") 
+        user_id: Optional[int] = payload.get("user_id")
         if email is None or user_id is None:
             raise credentials_exception
         token_data = schemas.TokenData(email=email, user_id=user_id)
     except JWTError:
         raise credentials_exception
-    
-    user = crud_users.get_user(db, user_id=token_data.user_id) 
-    if user is None or user.email != token_data.email : 
+
+    user = crud_users.get_user(db, user_id=token_data.user_id)
+    if user is None or user.email != token_data.email:
         raise credentials_exception
     return user
 
-async def get_current_active_user(
-    current_user: models.User = Depends(get_current_user)
-) -> models.User:
+
+def _ensure_active_user_impl(current_user: models.User) -> models.User:
     if not current_user.is_active:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Usuário inativo")
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Usuario inativo")
     return current_user
 
-# --- ENDPOINTS DE AUTENTICAÇÃO ---
-@router.post("/token", response_model=schemas.Token)
-async def login_for_access_token(
-    form_data: OAuth2PasswordRequestForm = Depends(), 
-    db: Session = Depends(get_db)
-):
-    user = authenticate_user(db, email=form_data.username, password=form_data.password) 
+
+async def _login_for_access_token_impl(
+    form_data: OAuth2PasswordRequestForm,
+    db: Session,
+) -> Dict[str, str]:
+    user = _authenticate_user_impl(db, email=form_data.username, password=form_data.password)
     if not user:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Email ou senha incorretos",
             headers={"WWW-Authenticate": "Bearer"},
         )
-    if not user.is_active: 
+    if not user.is_active:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Conta inativa.")
 
     access_token_expires = timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
-    access_token = create_access_token(
-        data={"sub": user.email, "user_id": user.id}, expires_delta=access_token_expires
+    access_token = _create_access_token_impl(
+        data={"sub": user.email, "user_id": user.id},
+        expires_delta=access_token_expires,
     )
-    refresh_token = create_refresh_token(data={"sub": user.email, "user_id": user.id})
+    refresh_token = _create_refresh_token_impl(data={"sub": user.email, "user_id": user.id})
     return {"access_token": access_token, "refresh_token": refresh_token, "token_type": "bearer"}
 
 
-@router.post("/token/refresh/", response_model=schemas.Token)
-async def refresh_access_token(
-    refresh_token_data: schemas.RefreshTokenRequest, 
-    db: Session = Depends(get_db)
-):
+async def _refresh_access_token_impl(
+    refresh_token_data: schemas.RefreshTokenRequest,
+    db: Session,
+) -> Dict[str, str]:
     token = refresh_token_data.refresh_token
     credentials_exception = HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Refresh token inválido",
-            headers={"WWW-Authenticate": "Bearer"},
-        )
+        status_code=status.HTTP_401_UNAUTHORIZED,
+        detail="Refresh token invalido",
+        headers={"WWW-Authenticate": "Bearer"},
+    )
     try:
         payload = jwt.decode(token, settings.REFRESH_SECRET_KEY, algorithms=[settings.ALGORITHM])
         email: Optional[str] = payload.get("sub")
         user_id: Optional[int] = payload.get("user_id")
         if email is None or user_id is None:
             raise credentials_exception
-        
+
         user = crud_users.get_user(db, user_id=user_id)
         if not user or user.email != email or not user.is_active:
             raise credentials_exception
 
         access_token_expires = timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
-        new_access_token = create_access_token(
-            data={"sub": user.email, "user_id": user.id}, expires_delta=access_token_expires
+        new_access_token = _create_access_token_impl(
+            data={"sub": user.email, "user_id": user.id},
+            expires_delta=access_token_expires,
         )
         return {"access_token": new_access_token, "refresh_token": token, "token_type": "bearer"}
 
@@ -222,25 +212,17 @@ async def refresh_access_token(
         raise credentials_exception
 
 
-@router.get("/users/me", response_model=schemas.UserResponse)
-async def read_users_me(
-    current_user: models.User = Depends(get_current_active_user) 
-):
-    return current_user
-
-
-@router.put("/users/me", response_model=schemas.UserResponse)
-async def update_users_me(
+async def _update_users_me_impl(
     user_update: schemas.UserUpdate,
-    current_user: models.User = Depends(get_current_active_user),
-    db: Session = Depends(get_db),
-):
+    current_user: models.User,
+    db: Session,
+) -> models.User:
     update_data = user_update.model_dump(exclude_unset=True)
 
     if "password" in update_data:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Use o endpoint de alteração de senha para atualizar a senha.",
+            detail="Use o endpoint de alteracao de senha para atualizar a senha.",
         )
 
     new_email = update_data.get("email")
@@ -249,19 +231,21 @@ async def update_users_me(
         if existing and existing.id != current_user.id:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Já existe um usuário com este email.",
+                detail="Ja existe um usuario com este email.",
             )
 
     return crud_users.update_user(db=db, db_user=current_user, user_update=user_update)
 
 
-@router.put("/users/me/change-password")
-async def change_password_me(
+async def _change_password_me_impl(
     payload: schemas.UserChangePassword,
-    current_user: models.User = Depends(get_current_active_user),
-    db: Session = Depends(get_db),
-):
-    if not current_user.hashed_password or not verify_password(payload.current_password, current_user.hashed_password):
+    current_user: models.User,
+    db: Session,
+) -> Dict[str, str]:
+    if not current_user.hashed_password or not _verify_password_impl(
+        payload.current_password,
+        current_user.hashed_password,
+    ):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Senha atual incorreta.",
@@ -273,71 +257,72 @@ async def change_password_me(
             detail="A nova senha deve ser diferente da senha atual.",
         )
 
-    current_user.hashed_password = get_password_hash(payload.new_password)
+    current_user.hashed_password = _get_password_hash_impl(payload.new_password)
     db.add(current_user)
     db.commit()
     db.refresh(current_user)
     return {"message": "Senha alterada com sucesso."}
 
-# --- Funções de Processamento de Login Social (UTILITÁRIAS, chamadas por routers/social_auth.py) ---
-async def _get_or_create_social_user( 
+
+async def _get_or_create_social_user_impl(
     db: Session,
     email: str,
-    nome: Optional[str], 
+    nome: Optional[str],
     provider: str,
-    provider_user_id: str 
-    ) -> Optional[models.User]:
+    provider_user_id: str,
+) -> Optional[models.User]:
     db_user = crud_users.get_user_by_email(db, email=email)
     if db_user:
         if not db_user.is_active:
-            logger.warning("Usuário existente %s (via %s) está inativo.", email, provider)
+            logger.warning("Usuario existente %s (via %s) esta inativo.", email, provider)
             return None
-        
+
         updated = False
-        if not db_user.nome_completo and nome: 
+        if not db_user.nome_completo and nome:
             db_user.nome_completo = nome
             updated = True
-        if not db_user.provider: 
+        if not db_user.provider:
             db_user.provider = provider
             updated = True
-        if not db_user.provider_user_id: # Salva o provider_user_id se não existir
+        if not db_user.provider_user_id:
             db_user.provider_user_id = provider_user_id
             updated = True
-        
+
         if updated:
             db.add(db_user)
             db.commit()
             db.refresh(db_user)
         return db_user
-    else:
-        # Utiliza a função correta do CRUD para buscar o plano pelo nome
-        # (get_plano_by_name). A versão 'get_plano_by_nome' não existe e
-        # geraria AttributeError em tempo de execução.
-        default_plano = crud_users.get_plano_by_name(db, "Gratuito")
-        
-        user_in_create = schemas.UserCreateOAuth( 
-            email=email,
-            nome_completo=(nome or email.split('@')[0]), 
-            provider=provider,
-            provider_user_id=provider_user_id 
-        )
-        
-        created_user = crud_users.create_user_oauth(
-            db=db,
-            user_oauth=user_in_create,
-            plano_id_default=default_plano.id if default_plano else None,
-        )
-        logger.info("Novo usuário criado via %s: %s", provider, email)
-        return created_user
 
-async def process_google_login(db: Session, google_userinfo: Dict[str, Any]) -> Optional[models.User]:
+    default_plano = crud_users.get_plano_by_name(db, "Gratuito")
+
+    user_in_create = schemas.UserCreateOAuth(
+        email=email,
+        nome_completo=(nome or email.split("@")[0]),
+        provider=provider,
+        provider_user_id=provider_user_id,
+    )
+
+    created_user = crud_users.create_user_oauth(
+        db=db,
+        user_oauth=user_in_create,
+        plano_id_default=default_plano.id if default_plano else None,
+    )
+    logger.info("Novo usuario criado via %s: %s", provider, email)
+    return created_user
+
+
+async def _process_google_login_impl(
+    db: Session,
+    google_userinfo: Dict[str, Any],
+) -> Optional[models.User]:
     email = google_userinfo.get("email")
     if not email:
-        logger.error("Email do Google não encontrado nas informações do usuário.")
+        logger.error("Email do Google nao encontrado nas informacoes do usuario.")
         return None
 
     if not google_userinfo.get("email_verified", False):
-        logger.warning("Email %s do Google não está verificado.", email)
+        logger.warning("Email %s do Google nao esta verificado.", email)
         return None
 
     nome_completo = google_userinfo.get("name")
@@ -348,26 +333,279 @@ async def process_google_login(db: Session, google_userinfo: Dict[str, Any]) -> 
 
     google_user_id = google_userinfo.get("sub")
     if not google_user_id:
-        logger.error("ID de usuário do Google (sub) não encontrado.")
+        logger.error("ID de usuario do Google (sub) nao encontrado.")
         return None
 
-    return await _get_or_create_social_user(db, email, nome_completo, "Google", google_user_id)
+    return await _get_or_create_social_user_impl(
+        db=db,
+        email=email,
+        nome=nome_completo,
+        provider="Google",
+        provider_user_id=google_user_id,
+    )
 
-async def process_facebook_login(db: Session, facebook_userinfo: Dict[str, Any]) -> Optional[models.User]:
+
+async def _process_facebook_login_impl(
+    db: Session,
+    facebook_userinfo: Dict[str, Any],
+) -> Optional[models.User]:
     email = facebook_userinfo.get("email")
     if not email:
         logger.error(
-            "Email do Facebook não fornecido. Não é possível prosseguir com login/registro baseado em email."
+            "Email do Facebook nao fornecido. Nao e possivel prosseguir com login/registro baseado em email."
         )
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Email não fornecido pelo Facebook. Verifique suas permissões.",
+            detail="Email nao fornecido pelo Facebook. Verifique suas permissoes.",
         )
 
     nome_completo = facebook_userinfo.get("name", "")
     facebook_user_id = facebook_userinfo.get("id")
     if not facebook_user_id:
-        logger.error("ID de usuário do Facebook não encontrado.")
+        logger.error("ID de usuario do Facebook nao encontrado.")
         return None
 
-    return await _get_or_create_social_user(db, email, nome_completo, "Facebook", facebook_user_id)
+    return await _get_or_create_social_user_impl(
+        db=db,
+        email=email,
+        nome=nome_completo,
+        provider="Facebook",
+        provider_user_id=facebook_user_id,
+    )
+
+
+class _AuthWorkflow:
+    def verify_password(self, plain_password: str, hashed_password: str) -> bool:
+        return _verify_password_impl(
+            plain_password=plain_password,
+            hashed_password=hashed_password,
+        )
+
+    def get_password_hash(self, password: str) -> str:
+        return _get_password_hash_impl(password=password)
+
+    def create_access_token(self, data: dict, expires_delta: Optional[timedelta] = None) -> str:
+        return _create_access_token_impl(data=data, expires_delta=expires_delta)
+
+    def create_refresh_token(self, data: dict, expires_delta: Optional[timedelta] = None) -> str:
+        return _create_refresh_token_impl(data=data, expires_delta=expires_delta)
+
+    def create_password_reset_token(self) -> str:
+        return _create_password_reset_token_impl()
+
+    def hash_password_reset_token(self, token: str) -> str:
+        return _hash_password_reset_token_impl(token=token)
+
+    def verify_password_reset_token(self, token: str, token_hash: str) -> bool:
+        return _verify_password_reset_token_impl(token=token, token_hash=token_hash)
+
+    def authenticate_user(self, db: Session, email: str, password: str) -> Optional[models.User]:
+        return _authenticate_user_impl(db=db, email=email, password=password)
+
+    async def get_current_user(self, token: str, db: Session) -> models.User:
+        return await _get_current_user_impl(token=token, db=db)
+
+    def get_current_active_user(self, current_user: models.User) -> models.User:
+        return _ensure_active_user_impl(current_user=current_user)
+
+    async def login_for_access_token(
+        self,
+        form_data: OAuth2PasswordRequestForm,
+        db: Session,
+    ) -> Dict[str, str]:
+        return await _login_for_access_token_impl(form_data=form_data, db=db)
+
+    async def refresh_access_token(
+        self,
+        refresh_token_data: schemas.RefreshTokenRequest,
+        db: Session,
+    ) -> Dict[str, str]:
+        return await _refresh_access_token_impl(refresh_token_data=refresh_token_data, db=db)
+
+    async def update_users_me(
+        self,
+        user_update: schemas.UserUpdate,
+        current_user: models.User,
+        db: Session,
+    ) -> models.User:
+        return await _update_users_me_impl(
+            user_update=user_update,
+            current_user=current_user,
+            db=db,
+        )
+
+    async def change_password_me(
+        self,
+        payload: schemas.UserChangePassword,
+        current_user: models.User,
+        db: Session,
+    ) -> Dict[str, str]:
+        return await _change_password_me_impl(
+            payload=payload,
+            current_user=current_user,
+            db=db,
+        )
+
+    async def process_google_login(
+        self,
+        db: Session,
+        google_userinfo: Dict[str, Any],
+    ) -> Optional[models.User]:
+        return await _process_google_login_impl(db=db, google_userinfo=google_userinfo)
+
+    async def process_facebook_login(
+        self,
+        db: Session,
+        facebook_userinfo: Dict[str, Any],
+    ) -> Optional[models.User]:
+        return await _process_facebook_login_impl(db=db, facebook_userinfo=facebook_userinfo)
+
+
+auth_workflow = _AuthWorkflow()
+
+
+def verify_password(plain_password: str, hashed_password: str) -> bool:
+    return auth_workflow.verify_password(
+        plain_password=plain_password,
+        hashed_password=hashed_password,
+    )
+
+
+def get_password_hash(password: str) -> str:
+    return auth_workflow.get_password_hash(password=password)
+
+
+def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -> str:
+    return auth_workflow.create_access_token(data=data, expires_delta=expires_delta)
+
+
+def create_refresh_token(data: dict, expires_delta: Optional[timedelta] = None) -> str:
+    return auth_workflow.create_refresh_token(data=data, expires_delta=expires_delta)
+
+
+def create_password_reset_token() -> str:
+    return auth_workflow.create_password_reset_token()
+
+
+def hash_password_reset_token(token: str) -> str:
+    return auth_workflow.hash_password_reset_token(token=token)
+
+
+def verify_password_reset_token(token: str, token_hash: str) -> bool:
+    return auth_workflow.verify_password_reset_token(token=token, token_hash=token_hash)
+
+
+def authenticate_user(db: Session, email: str, password: str) -> Optional[models.User]:
+    return auth_workflow.authenticate_user(db=db, email=email, password=password)
+
+
+async def get_current_user(
+    token: str = Depends(oauth2_scheme),
+    db: Session = Depends(get_db),
+) -> models.User:
+    return await auth_workflow.get_current_user(token=token, db=db)
+
+
+async def get_current_active_user(
+    current_user: models.User = Depends(get_current_user),
+) -> models.User:
+    return auth_workflow.get_current_active_user(current_user=current_user)
+
+
+@router.post("/token", response_model=schemas.Token)
+async def login_for_access_token(
+    form_data: OAuth2PasswordRequestForm = Depends(),
+    db: Session = Depends(get_db),
+):
+    return await auth_workflow.login_for_access_token(form_data=form_data, db=db)
+
+
+@router.post("/token/refresh/", response_model=schemas.Token)
+async def refresh_access_token(
+    refresh_token_data: schemas.RefreshTokenRequest,
+    db: Session = Depends(get_db),
+):
+    return await auth_workflow.refresh_access_token(
+        refresh_token_data=refresh_token_data,
+        db=db,
+    )
+
+
+@router.get("/users/me", response_model=schemas.UserResponse)
+async def read_users_me(current_user: models.User = Depends(get_current_active_user)):
+    return current_user
+
+
+@router.put("/users/me", response_model=schemas.UserResponse)
+async def update_users_me(
+    user_update: schemas.UserUpdate,
+    current_user: models.User = Depends(get_current_active_user),
+    db: Session = Depends(get_db),
+):
+    return await auth_workflow.update_users_me(
+        user_update=user_update,
+        current_user=current_user,
+        db=db,
+    )
+
+
+@router.put("/users/me/change-password")
+async def change_password_me(
+    payload: schemas.UserChangePassword,
+    current_user: models.User = Depends(get_current_active_user),
+    db: Session = Depends(get_db),
+):
+    return await auth_workflow.change_password_me(
+        payload=payload,
+        current_user=current_user,
+        db=db,
+    )
+
+
+async def process_google_login(db: Session, google_userinfo: Dict[str, Any]) -> Optional[models.User]:
+    return await auth_workflow.process_google_login(db=db, google_userinfo=google_userinfo)
+
+
+async def process_facebook_login(db: Session, facebook_userinfo: Dict[str, Any]) -> Optional[models.User]:
+    return await auth_workflow.process_facebook_login(
+        db=db,
+        facebook_userinfo=facebook_userinfo,
+    )
+
+
+class AuthLegacyService:
+    def verify_password(self, *args, **kwargs):
+        return verify_password(*args, **kwargs)
+
+    def get_password_hash(self, *args, **kwargs):
+        return get_password_hash(*args, **kwargs)
+
+    def create_access_token(self, *args, **kwargs):
+        return create_access_token(*args, **kwargs)
+
+    def create_refresh_token(self, *args, **kwargs):
+        return create_refresh_token(*args, **kwargs)
+
+    def create_password_reset_token(self, *args, **kwargs):
+        return create_password_reset_token(*args, **kwargs)
+
+    def hash_password_reset_token(self, *args, **kwargs):
+        return hash_password_reset_token(*args, **kwargs)
+
+    def verify_password_reset_token(self, *args, **kwargs):
+        return verify_password_reset_token(*args, **kwargs)
+
+    def authenticate_user(self, *args, **kwargs):
+        return authenticate_user(*args, **kwargs)
+
+    async def get_current_user(self, *args, **kwargs):
+        return await auth_workflow.get_current_user(*args, **kwargs)
+
+    async def process_google_login(self, *args, **kwargs):
+        return await process_google_login(*args, **kwargs)
+
+    async def process_facebook_login(self, *args, **kwargs):
+        return await process_facebook_login(*args, **kwargs)
+
+
+auth_legacy_service = AuthLegacyService()
