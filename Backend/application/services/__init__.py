@@ -16,6 +16,9 @@ from Backend.application.services.pipeline_dispatcher import PipelineDispatcher
 from Backend.application.services.catalog_import_task_runner import (
     CatalogImportTaskRunner,
 )
+from Backend.application.services.catalog_import_finalize_service import (
+    CatalogImportFinalizeService,
+)
 from Backend.application.services.file_processing_facade import FileProcessingFacade
 from Backend.application.services.file_processing_components import (
     CatalogExtractionService,
@@ -72,6 +75,7 @@ __all__ = [
     "CatalogImportOutcomeResolver",
     "CatalogImportQualityAccumulator",
     "CatalogImportResultBuilder",
+    "CatalogImportFinalizeService",
     "CatalogImportTaskRunner",
     "CatalogExtractionService",
     "CatalogPreviewService",

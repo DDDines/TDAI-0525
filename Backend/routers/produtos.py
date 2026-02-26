@@ -38,14 +38,11 @@ from Backend import database
 from Backend import models
 from Backend import schemas
 from Backend.application.contracts.pipeline_commands import CatalogImportFinalizeCommand
-from Backend.application.orchestrators.catalog_import import (
-    CatalogImportPipelineOrchestrator,
-)
 from Backend.application.services import (
+    CatalogImportFinalizeService,
     CatalogImportTaskRunner,
     CatalogImportSanitizationService,
     CatalogImportQualityService,
-    PipelineDispatcher,
     ValidatorCrewFacade,
 )
 from Backend.application.services.service_container import service_container
@@ -468,6 +465,11 @@ async def _oop_tarefa_processar_catalogo(**task_kwargs):
     """Executor OOP dedicado (modo oop), separado do legado para comparacao futura."""
     await catalog_import_task_runner.execute_oop(**task_kwargs)
 
+catalog_import_finalize_service = CatalogImportFinalizeService(
+    legacy_executor=_tarefa_processar_catalogo,
+    oop_executor=_oop_tarefa_processar_catalogo,
+)
+
 
 
 
@@ -778,10 +780,6 @@ async def reprocess_catalog_import_file(
 
 
 
-    orchestrator = CatalogImportPipelineOrchestrator(
-        legacy_executor=_tarefa_processar_catalogo,
-        oop_executor=_oop_tarefa_processar_catalogo,
-    )
     command = CatalogImportFinalizeCommand(
         file_id=file_id,
         user_id=current_user.id,
@@ -791,18 +789,11 @@ async def reprocess_catalog_import_file(
         pages=pages,
         region=region,
     )
-    selected_plan = orchestrator.select_finalize_plan(
+    await catalog_import_finalize_service.dispatch_or_run(
+        background_tasks=background_tasks,
         db_session_factory=db_session_factory,
         command=command,
     )
-    if PipelineDispatcher.should_run_inline_for_tests("CATALOG_IMPORT_TEST_SYNC"):
-        await PipelineDispatcher.run_inline(selected_plan)
-    else:
-        _ = background_tasks  # Mantido por compatibilidade de assinatura da rota.
-        PipelineDispatcher.dispatch_threaded(
-            selected_plan,
-            thread_name_prefix="catalog-import",
-        )
 
 
 
@@ -1945,10 +1936,6 @@ async def importar_catalogo_finalizar(
 
 
 
-    orchestrator = CatalogImportPipelineOrchestrator(
-        legacy_executor=_tarefa_processar_catalogo,
-        oop_executor=_oop_tarefa_processar_catalogo,
-    )
     command = CatalogImportFinalizeCommand(
         file_id=file_id,
         user_id=current_user.id,
@@ -1958,18 +1945,11 @@ async def importar_catalogo_finalizar(
         pages=pages,
         region=region,
     )
-    selected_plan = orchestrator.select_finalize_plan(
+    await catalog_import_finalize_service.dispatch_or_run(
+        background_tasks=background_tasks,
         db_session_factory=db_session_factory,
         command=command,
     )
-    if PipelineDispatcher.should_run_inline_for_tests("CATALOG_IMPORT_TEST_SYNC"):
-        await PipelineDispatcher.run_inline(selected_plan)
-    else:
-        _ = background_tasks  # Mantido por compatibilidade de assinatura da rota.
-        PipelineDispatcher.dispatch_threaded(
-            selected_plan,
-            thread_name_prefix="catalog-import",
-        )
 
 
 
@@ -2216,10 +2196,6 @@ async def importar_catalogo_finalizar_todas_paginas(
 
 
 
-    orchestrator = CatalogImportPipelineOrchestrator(
-        legacy_executor=_tarefa_processar_catalogo,
-        oop_executor=_oop_tarefa_processar_catalogo,
-    )
     command = CatalogImportFinalizeCommand(
         file_id=file_id,
         user_id=current_user.id,
@@ -2229,11 +2205,10 @@ async def importar_catalogo_finalizar_todas_paginas(
         pages=pages,
         region=None,
     )
-    selected_plan = orchestrator.select_finalize_plan(
+    await catalog_import_finalize_service.run_direct(
         db_session_factory=db_session_factory,
         command=command,
     )
-    await selected_plan.executor(**selected_plan.task_kwargs)
 
 
 
