@@ -789,7 +789,7 @@ async def processar_arquivo_csv(
 
 
 
-async def processar_arquivo_pdf(
+async def _processar_arquivo_pdf_impl(
     conteudo_arquivo: bytes,
     mapeamento_colunas_usuario: Optional[Dict[str, str]] = None,
     usar_llm: bool = True,
@@ -1169,7 +1169,7 @@ async def preview_arquivo_csv(
 
 
 
-async def preview_arquivo_pdf(
+async def _preview_arquivo_pdf_impl(
 
     conteudo_arquivo: bytes,
 
@@ -1469,7 +1469,7 @@ async def preview_arquivo_pdf(
 
 
 
-async def gerar_preview(
+async def _gerar_preview_impl(
 
     conteudo_arquivo: bytes, ext: str, max_rows: int = 5
 
@@ -1809,7 +1809,7 @@ def _get_file_path_by_id_impl(db: Session, file_id: str) -> str:
 
 
 
-def extract_data_from_pdf_region(
+def _extract_data_from_pdf_region_impl(
     file_path: str, page_number: int, region: Optional[List[float]] = None
 ) -> pd.DataFrame:
     """Extract table-like data from a PDF region with OCR fallback."""
@@ -2895,6 +2895,119 @@ def delete_catalog_file(stored_filename: str) -> None:
 
 def get_file_path_by_id(db: Session, file_id: str) -> str:
     return _catalog_storage_workflow.get_file_path_by_id(db=db, file_id=file_id)
+
+
+class _PdfProcessingWorkflow:
+    """Workflow OO para processamento e preview de PDF."""
+
+    async def processar_arquivo_pdf(
+        self,
+        conteudo_arquivo: bytes,
+        mapeamento_colunas_usuario: Optional[Dict[str, str]] = None,
+        usar_llm: bool = True,
+        product_type_id: Optional[int] = None,
+        pages: Optional[List[int]] = None,
+        region: Optional[List[float]] = None,
+    ) -> List[Dict[str, Any]]:
+        return await _processar_arquivo_pdf_impl(
+            conteudo_arquivo=conteudo_arquivo,
+            mapeamento_colunas_usuario=mapeamento_colunas_usuario,
+            usar_llm=usar_llm,
+            product_type_id=product_type_id,
+            pages=pages,
+            region=region,
+        )
+
+    async def preview_arquivo_pdf(
+        self,
+        conteudo_arquivo: bytes,
+        ext: str,
+        start_page: int = 1,
+        page_count: int = 1,
+        dpi: int = 72,
+    ) -> Dict[str, Any]:
+        return await _preview_arquivo_pdf_impl(
+            conteudo_arquivo=conteudo_arquivo,
+            ext=ext,
+            start_page=start_page,
+            page_count=page_count,
+            dpi=dpi,
+        )
+
+    async def gerar_preview(
+        self, conteudo_arquivo: bytes, ext: str, max_rows: int = 5
+    ) -> Dict[str, Any]:
+        return await _gerar_preview_impl(
+            conteudo_arquivo=conteudo_arquivo,
+            ext=ext,
+            max_rows=max_rows,
+        )
+
+    def extract_data_from_pdf_region(
+        self, file_path: str, page_number: int, region: Optional[List[float]] = None
+    ) -> pd.DataFrame:
+        return _extract_data_from_pdf_region_impl(
+            file_path=file_path,
+            page_number=page_number,
+            region=region,
+        )
+
+
+_pdf_processing_workflow = _PdfProcessingWorkflow()
+
+
+async def processar_arquivo_pdf(
+    conteudo_arquivo: bytes,
+    mapeamento_colunas_usuario: Optional[Dict[str, str]] = None,
+    usar_llm: bool = True,
+    product_type_id: Optional[int] = None,
+    pages: Optional[List[int]] = None,
+    region: Optional[List[float]] = None,
+) -> List[Dict[str, Any]]:
+    return await _pdf_processing_workflow.processar_arquivo_pdf(
+        conteudo_arquivo=conteudo_arquivo,
+        mapeamento_colunas_usuario=mapeamento_colunas_usuario,
+        usar_llm=usar_llm,
+        product_type_id=product_type_id,
+        pages=pages,
+        region=region,
+    )
+
+
+async def preview_arquivo_pdf(
+    conteudo_arquivo: bytes,
+    ext: str,
+    start_page: int = 1,
+    page_count: int = 1,
+    dpi: int = 72,
+) -> Dict[str, Any]:
+    return await _pdf_processing_workflow.preview_arquivo_pdf(
+        conteudo_arquivo=conteudo_arquivo,
+        ext=ext,
+        start_page=start_page,
+        page_count=page_count,
+        dpi=dpi,
+    )
+
+
+async def gerar_preview(
+    conteudo_arquivo: bytes, ext: str, max_rows: int = 5
+) -> Dict[str, Any]:
+    return await _pdf_processing_workflow.gerar_preview(
+        conteudo_arquivo=conteudo_arquivo,
+        ext=ext,
+        max_rows=max_rows,
+    )
+
+
+def extract_data_from_pdf_region(
+    file_path: str, page_number: int, region: Optional[List[float]] = None
+) -> pd.DataFrame:
+    return _pdf_processing_workflow.extract_data_from_pdf_region(
+        file_path=file_path,
+        page_number=page_number,
+        region=region,
+    )
 
 
 class FileProcessingLegacyService:
