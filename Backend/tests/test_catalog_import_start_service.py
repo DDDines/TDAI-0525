@@ -52,9 +52,14 @@ class _CrudFornecedoresStub:
 class _FinalizeServiceStub:
     def __init__(self):
         self.calls = []
+        self.direct_calls = []
 
     async def dispatch_or_run(self, *, background_tasks, db_session_factory, command):
         self.calls.append((background_tasks, db_session_factory, command))
+        return {"ok": True}
+
+    async def run_direct(self, *, db_session_factory, command):
+        self.direct_calls.append((db_session_factory, command))
         return {"ok": True}
 
 
@@ -184,3 +189,29 @@ async def test_dispatch_finalize_calls_finalize_service():
     _, factory, called_command = finalize_service.calls[0]
     assert callable(factory)
     assert called_command.file_id == 3
+
+
+@pytest.mark.asyncio
+async def test_run_finalize_direct_calls_finalize_service():
+    finalize_service = _FinalizeServiceStub()
+    service = _build_service(upload_dir=".", finalize_service=finalize_service)
+    db = _DbStub(record=object())
+    command = service.build_finalize_command(
+        file_id=12,
+        user_id=5,
+        product_type_id=None,
+        fornecedor_id=8,
+        mapping=None,
+        pages=[3],
+        region=None,
+    )
+
+    await service.run_finalize_direct(
+        db=db,
+        command=command,
+    )
+
+    assert len(finalize_service.direct_calls) == 1
+    factory, called_command = finalize_service.direct_calls[0]
+    assert callable(factory)
+    assert called_command.file_id == 12

@@ -123,3 +123,15 @@ class CatalogImportStartService:
             db_session_factory=db_session_factory,
             command=command,
         )
+
+    async def run_finalize_direct(
+        self,
+        *,
+        db: Any,
+        command: CatalogImportFinalizeCommand,
+    ) -> Any:
+        db_session_factory = self.build_db_session_factory(db=db)
+        return await self._finalize_service.run_direct(
+            db_session_factory=db_session_factory,
+            command=command,
+        )

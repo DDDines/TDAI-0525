@@ -36,7 +36,6 @@ from Backend import crud_produtos
 from Backend import database
 from Backend import models
 from Backend import schemas
-from Backend.application.contracts.pipeline_commands import CatalogImportFinalizeCommand
 from Backend.application.services import (
     CatalogImportFinalizeService,
     CatalogImportStartService,
@@ -2011,22 +2010,16 @@ async def importar_catalogo_finalizar_todas_paginas(
 ):
 
     """Processa todas as p?ginas de um cat?logo PDF a partir de ``start_page``."""
-
-    record = (
-
-        db.query(models.CatalogImportFile)
-
-        .filter_by(id=file_id, user_id=current_user.id)
-
-        .first()
-
+    record = catalog_import_start_service.get_catalog_file_or_404(
+        db=db,
+        file_id=file_id,
+        user_id=current_user.id,
     )
-
-    if not record:
-
-        raise HTTPException(status_code=404, detail="Arquivo n\u00e3o encontrado")
-
-
+    fornecedor_id_final = catalog_import_start_service.resolve_fornecedor_id(
+        catalog_file=record,
+        fornecedor_id=record.fornecedor_id,
+        required_message="fornecedor_id e obrigatorio para processar este arquivo.",
+    )
 
     file_path = _resolve_storage_path(
         Path(settings.UPLOAD_DIRECTORY) / "catalogs" / record.stored_filename
@@ -2058,35 +2051,22 @@ async def importar_catalogo_finalizar_todas_paginas(
 
 
 
-    if mapping is None and record.fornecedor_id:
-
-        fornecedor = crud_fornecedores.get_fornecedor(db, record.fornecedor_id)
-
-        if fornecedor and fornecedor.default_column_mapping:
-
-            mapping = fornecedor.default_column_mapping
-
-
-
-    from sqlalchemy.orm import sessionmaker
-
-
-
-    db_session_factory = sessionmaker(bind=db.get_bind())
-
-
-
-    command = CatalogImportFinalizeCommand(
+    mapping = catalog_import_start_service.resolve_mapping(
+        db=db,
+        fornecedor_id=fornecedor_id_final,
+        mapping=mapping,
+    )
+    command = catalog_import_start_service.build_finalize_command(
         file_id=file_id,
         user_id=current_user.id,
         product_type_id=None,
-        fornecedor_id=record.fornecedor_id,
+        fornecedor_id=fornecedor_id_final,
         mapping=mapping,
         pages=pages,
         region=None,
     )
-    await catalog_import_finalize_service.run_direct(
-        db_session_factory=db_session_factory,
+    await catalog_import_start_service.run_finalize_direct(
+        db=db,
         command=command,
     )
 
