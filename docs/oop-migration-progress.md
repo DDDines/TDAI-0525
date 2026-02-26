@@ -1,45 +1,39 @@
-# Migração OOP - Progresso Real
+# Migracao OOP - Progresso Real
 
-## Percentual consolidado
+## Percentual consolidado (atualizado)
 
 - Estrutura OOP (modos, selector, dispatcher, contracts, testes): `100%`
-- Integração de rotas críticas com a estrutura OOP: `100%`
-- Migração de lógica de negócio para use cases (sem delegar para legado): `20%`
-- Migração geral (estrutura + lógica): `55%`
+- Integracao das rotas criticas com estrutura OOP: `100%`
+- Migracao da logica para use cases (sem pass-through puro): `35%`
+- Migracao geral (estrutura + logica): `62%`
 
-## O que já está pronto
+## O que ja esta pronto
 
-- `APP_MODE` (`legacy`, `oop`, `shadow`) funcionando.
-- `PipelineSelector` com comparação em shadow mode.
+- `APP_MODE` (`legacy`, `oop`, `shadow`) funcional.
+- `PipelineSelector` com comparacao em shadow mode.
 - `PipelineDispatcher` unificado (inline/thread/background).
 - Orquestradores de:
-  - importação de catálogo
+  - importacao de catalogo
   - enriquecimento web
-- Testes de infraestrutura da migração:
-  - selector/app mode
-  - dispatcher
-  - orchestrators
-  - use cases base
+- Use cases com validacao/normalizacao de comando:
+  - `CatalogImportProcessingUseCase` agora valida IDs e normaliza mapping/pages/region
+  - `WebEnrichmentProcessingUseCase` agora valida IDs e normaliza termo de busca
 
-## O que ainda falta (para 100%)
+## O que ainda falta para 100%
 
-1. Tirar dependência de delegação nos use cases:
-   - `CatalogImportProcessingUseCase` ainda delega para executor legado.
-   - `WebEnrichmentProcessingUseCase` ainda delega para executor legado.
-2. Mover regras centrais do `routers/produtos.py` para camadas OO:
-   - parsing/normalização por tipo de arquivo
-   - pós-validação e scoring de qualidade
-   - persistência e resumo final de importação
-3. Mover regras centrais do `routers/web_enrichment.py` para camadas OO:
-   - seleção/filtro de fontes
-   - merge de campos e auditoria de alterações
-   - tratamento de fallback/API em serviços dedicados
-4. Deixar `legacy` como fallback permanente para comparação e rollback seguro.
+1. Remover o corpo principal de processamento dos routers:
+   - `Backend/routers/produtos.py::_tarefa_processar_catalogo`
+   - `Backend/routers/web_enrichment.py::_tarefa_enriquecer_produto_web`
+2. Extrair para services/use cases OO:
+   - parsing por formato
+   - validacao de qualidade e descarte
+   - persistencia de resumo e auditoria
+3. Fazer `APP_MODE=oop` executar fluxo totalmente OO (sem executor legado injetado).
+4. Manter `legacy` como fallback permanente para rollback e comparacao.
 
-## Próximo bloco recomendado
+## Proximo bloco recomendado
 
-1. Implementar `CatalogImportProcessingUseCase` real (sem delegação).
-2. Extrair etapa de persistência/resumo para `application/services`.
-3. Ligar esse fluxo no modo `oop` e validar em `shadow`.
-4. Repetir o mesmo padrão para enriquecimento web.
-
+1. Extrair `_tarefa_processar_catalogo` para `application/services` (primeiro alvo).
+2. Deixar router apenas com chamada de caso de uso.
+3. Validar `shadow` comparando saida legacy vs OOP.
+4. Repetir o mesmo padrao para enriquecimento web.
