@@ -35,6 +35,9 @@ from Backend.application.services.web_enrichment_relevance_service import (
 from Backend.application.services.web_data_extractor_facade import (
     WebDataExtractorFacade,
 )
+from Backend.application.services.validator_crew_facade import (
+    ValidatorCrewFacade,
+)
 
 __all__ = [
     "CatalogImportQualityService",
@@ -50,6 +53,7 @@ __all__ = [
     "LimitServiceFacade",
     "PipelineDispatcher",
     "ShadowResultComparator",
+    "ValidatorCrewFacade",
     "WebDataExtractorFacade",
     "WebEnrichmentConfigInspector",
     "WebEnrichmentConfigSnapshot",

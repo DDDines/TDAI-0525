@@ -46,6 +46,7 @@ from Backend.application.services import (
     CatalogImportSanitizationService,
     CatalogImportQualityService,
     PipelineDispatcher,
+    ValidatorCrewFacade,
 )
 from Backend.application.services.catalog_import_task_service import (
     CatalogImportTaskService,
@@ -218,20 +219,7 @@ def _resolve_storage_path(path_value: Union[str, Path]) -> Path:
     return backend_root / p
 
 
-try:
-    from Backend.services import validator_crew  # type: ignore
-except Exception as validator_import_error:  # pragma: no cover - depends on optional deps
-    logger.warning(
-        "Validador IA indisponivel no startup (%s). Importacao seguira em modo fallback.",
-        validator_import_error,
-    )
-
-    class _ValidatorCrewFallback:
-        @staticmethod
-        def run_validation_crew(raw_data):
-            return raw_data
-
-    validator_crew = _ValidatorCrewFallback()  # type: ignore
+validator_crew = ValidatorCrewFacade(logger=logger)
 
 
 def _normalizar_dados_validados(candidate: Any, fallback: Dict[str, Any]) -> Dict[str, Any]:
