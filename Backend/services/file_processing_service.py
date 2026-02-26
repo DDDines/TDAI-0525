@@ -615,7 +615,7 @@ def _processar_linha_padronizada(
 
 
 
-async def processar_arquivo_excel(
+async def _processar_arquivo_excel_impl(
 
     conteudo_arquivo: bytes,
 
@@ -681,7 +681,7 @@ async def processar_arquivo_excel(
 
 
 
-async def processar_arquivo_csv(
+async def _processar_arquivo_csv_impl(
 
     conteudo_arquivo: bytes,
 
@@ -2895,6 +2895,61 @@ def delete_catalog_file(stored_filename: str) -> None:
 
 def get_file_path_by_id(db: Session, file_id: str) -> str:
     return _catalog_storage_workflow.get_file_path_by_id(db=db, file_id=file_id)
+
+
+class _TabularIngestionWorkflow:
+    """Workflow OO para ingestão de arquivos tabulares (Excel/CSV)."""
+
+    async def processar_arquivo_excel(
+        self,
+        conteudo_arquivo: bytes,
+        mapeamento_colunas_usuario: Optional[Dict[str, str]] = None,
+        product_type_id: Optional[int] = None,
+    ) -> List[Dict[str, Any]]:
+        return await _processar_arquivo_excel_impl(
+            conteudo_arquivo=conteudo_arquivo,
+            mapeamento_colunas_usuario=mapeamento_colunas_usuario,
+            product_type_id=product_type_id,
+        )
+
+    async def processar_arquivo_csv(
+        self,
+        conteudo_arquivo: bytes,
+        mapeamento_colunas_usuario: Optional[Dict[str, str]] = None,
+        product_type_id: Optional[int] = None,
+    ) -> List[Dict[str, Any]]:
+        return await _processar_arquivo_csv_impl(
+            conteudo_arquivo=conteudo_arquivo,
+            mapeamento_colunas_usuario=mapeamento_colunas_usuario,
+            product_type_id=product_type_id,
+        )
+
+
+_tabular_ingestion_workflow = _TabularIngestionWorkflow()
+
+
+async def processar_arquivo_excel(
+    conteudo_arquivo: bytes,
+    mapeamento_colunas_usuario: Optional[Dict[str, str]] = None,
+    product_type_id: Optional[int] = None,
+) -> List[Dict[str, Any]]:
+    return await _tabular_ingestion_workflow.processar_arquivo_excel(
+        conteudo_arquivo=conteudo_arquivo,
+        mapeamento_colunas_usuario=mapeamento_colunas_usuario,
+        product_type_id=product_type_id,
+    )
+
+
+async def processar_arquivo_csv(
+    conteudo_arquivo: bytes,
+    mapeamento_colunas_usuario: Optional[Dict[str, str]] = None,
+    product_type_id: Optional[int] = None,
+) -> List[Dict[str, Any]]:
+    return await _tabular_ingestion_workflow.processar_arquivo_csv(
+        conteudo_arquivo=conteudo_arquivo,
+        mapeamento_colunas_usuario=mapeamento_colunas_usuario,
+        product_type_id=product_type_id,
+    )
 
 
 class _TabularPreviewWorkflow:
