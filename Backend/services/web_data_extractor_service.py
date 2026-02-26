@@ -593,7 +593,7 @@ async def coletar_conteudo_pagina_playwright(url: str) -> Optional[str]:
 
 
 # --- Text Extraction Service ---
-def extrair_texto_principal_com_trafilatura(html_content: str) -> Optional[str]:
+def _extrair_texto_principal_com_trafilatura_impl(html_content: str) -> Optional[str]:
     if not html_content: return None
     texto_principal = trafilatura.extract(
         html_content,
@@ -617,7 +617,7 @@ def _limpar_valor_metadado(valor: Any) -> Optional[Any]:
         return [item for item in lista_limpa if item is not None] or None
     return valor
 
-def extrair_metadados_estruturados(html_content: str, url: str) -> Dict[str, Any]:
+def _extrair_metadados_estruturados_impl(html_content: str, url: str) -> Dict[str, Any]:
     if not html_content: return {}
     metadata_extraida = {}
     try:
@@ -697,7 +697,7 @@ def _normalizar_dados_de_metadados(metadata_bruta: Dict[str, Any]) -> Dict[str, 
     return {k: v for k, v in dados_norm.items() if v is not None and v != ""}
 
 # --- LLM-based Data Extraction from Text ---
-async def extrair_dados_produto_com_llm(
+async def _extrair_dados_produto_com_llm_impl(
     texto_pagina: Optional[str],
     metadados_normalizados: Optional[Dict[str, Any]] = None,
     campos_desejados: Optional[List[str]] = None,
@@ -935,7 +935,7 @@ class _WebExtractionEnrichmentWorkflow:
         return self.produto
 
 
-async def extract_relevant_data_from_url(
+async def _extract_relevant_data_from_url_impl(
     db: Session,
     url: str,
     produto: models.Produto,
@@ -943,7 +943,7 @@ async def extract_relevant_data_from_url(
     workflow = _WebExtractionEnrichmentWorkflow(db=db, url=url, produto=produto)
     return await workflow.run()
 
-def extract_text_from_image_region(image_bytes: bytes):
+def _extract_text_from_image_region_impl(image_bytes: bytes):
     """Extract text annotation for an image region using Google Vision."""
     try:
         from google.cloud import vision  # type: ignore
@@ -963,6 +963,102 @@ def extract_text_from_image_region(image_bytes: bytes):
     except Exception as e:
         logger.exception("Falha ao extrair texto da imagem")
         raise HTTPException(status_code=500, detail="Ocorreu um erro durante a extraÃ§Ã£o de dados.") from e
+
+
+class _WebExtractionSupportWorkflow:
+    """Workflow OO para utilitarios de extração web e OCR."""
+
+    def extrair_texto_principal_com_trafilatura(
+        self, html_content: str
+    ) -> Optional[str]:
+        return _extrair_texto_principal_com_trafilatura_impl(html_content)
+
+    def extrair_metadados_estruturados(
+        self, html_content: str, url: str
+    ) -> Dict[str, Any]:
+        return _extrair_metadados_estruturados_impl(html_content, url)
+
+    async def extrair_dados_produto_com_llm(
+        self,
+        texto_pagina: Optional[str],
+        metadados_normalizados: Optional[Dict[str, Any]] = None,
+        campos_desejados: Optional[List[str]] = None,
+        produto_nome_base: str = "Produto",
+        user: Optional[models.User] = None,
+    ) -> Optional[Dict[str, Any]]:
+        return await _extrair_dados_produto_com_llm_impl(
+            texto_pagina=texto_pagina,
+            metadados_normalizados=metadados_normalizados,
+            campos_desejados=campos_desejados,
+            produto_nome_base=produto_nome_base,
+            user=user,
+        )
+
+    async def extract_relevant_data_from_url(
+        self,
+        db: Session,
+        url: str,
+        produto: models.Produto,
+    ) -> models.Produto:
+        return await _extract_relevant_data_from_url_impl(
+            db=db,
+            url=url,
+            produto=produto,
+        )
+
+    def extract_text_from_image_region(self, image_bytes: bytes):
+        return _extract_text_from_image_region_impl(image_bytes=image_bytes)
+
+
+_web_extraction_support_workflow = _WebExtractionSupportWorkflow()
+
+
+def extrair_texto_principal_com_trafilatura(html_content: str) -> Optional[str]:
+    return _web_extraction_support_workflow.extrair_texto_principal_com_trafilatura(
+        html_content
+    )
+
+
+def extrair_metadados_estruturados(html_content: str, url: str) -> Dict[str, Any]:
+    return _web_extraction_support_workflow.extrair_metadados_estruturados(
+        html_content,
+        url,
+    )
+
+
+async def extrair_dados_produto_com_llm(
+    texto_pagina: Optional[str],
+    metadados_normalizados: Optional[Dict[str, Any]] = None,
+    campos_desejados: Optional[List[str]] = None,
+    produto_nome_base: str = "Produto",
+    user: Optional[models.User] = None,
+) -> Optional[Dict[str, Any]]:
+    return await _web_extraction_support_workflow.extrair_dados_produto_com_llm(
+        texto_pagina=texto_pagina,
+        metadados_normalizados=metadados_normalizados,
+        campos_desejados=campos_desejados,
+        produto_nome_base=produto_nome_base,
+        user=user,
+    )
+
+
+async def extract_relevant_data_from_url(
+    db: Session,
+    url: str,
+    produto: models.Produto,
+) -> models.Produto:
+    return await _web_extraction_support_workflow.extract_relevant_data_from_url(
+        db=db,
+        url=url,
+        produto=produto,
+    )
+
+
+def extract_text_from_image_region(image_bytes: bytes):
+    return _web_extraction_support_workflow.extract_text_from_image_region(
+        image_bytes=image_bytes
+    )
+
 
 class WebDataExtractorLegacyService:
     """OO compatibility layer for legacy web extractor module."""
