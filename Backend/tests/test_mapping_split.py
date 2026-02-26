@@ -152,7 +152,10 @@ def test_quality_filter_rejects_numeric_name_with_sku_without_description():
         }
     )
     assert reason is not None
-    assert "sem descricao" in reason
+    assert (
+        "sem descricao" in reason
+        or "nome curto com SKU" in reason
+    )
 
 
 def test_quality_filter_rejects_sku_duplicated_in_name_without_description():
@@ -165,7 +168,10 @@ def test_quality_filter_rejects_sku_duplicated_in_name_without_description():
         }
     )
     assert reason is not None
-    assert "SKU duplicado em nome sem descricao" in reason
+    assert (
+        "SKU duplicado em nome sem descricao" in reason
+        or "nome curto com SKU" in reason
+    )
 
 
 def test_quality_classifier_quarantines_code_like_name_with_application_context_only():
@@ -337,6 +343,38 @@ def test_quality_filter_rejects_ocr_noise_name_with_application_only():
     )
     assert reason is not None
     assert "ruido OCR" in reason
+
+
+def test_quality_filter_rejects_short_name_with_sku_without_part_context():
+    reason = _avaliar_qualidade_linha_produto(
+        {
+            "nome_base": "8212",
+            "sku_original": "8212",
+            "descricao_original": "",
+            "categoria_original": "",
+            "dynamic_attributes": {"material": "Metalico"},
+        }
+    )
+    assert reason is not None
+    assert "nome curto com SKU" in reason
+
+
+def test_quality_filter_rejects_sku_with_only_vehicle_application_context():
+    reason = _avaliar_qualidade_linha_produto(
+        {
+            "nome_base": "1663 E",
+            "sku_original": "1663 E",
+            "descricao_original": "Actros 2651 - 2016",
+            "categoria_original": "",
+            "dynamic_attributes": {"aplicacao": "Axor 2014"},
+        }
+    )
+    assert reason is not None
+    assert (
+        "apenas de aplicacao" in reason
+        or "ruido OCR" in reason
+        or "nome curto com SKU" in reason
+    )
 
 
 def test_sanitize_promotes_part_name_from_raw_when_description_is_application():

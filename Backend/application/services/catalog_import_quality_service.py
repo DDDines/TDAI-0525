@@ -210,6 +210,7 @@ class CatalogImportQualityService:
         )
         descricao_tem_contexto = self.text_has_context(descricao)
         categoria_tem_contexto = self.text_has_context(categoria)
+        nome_peca = self.text_looks_like_part_name(nome)
         descricao_peca = self.text_looks_like_part_name(descricao)
         categoria_peca = self.text_looks_like_part_name(categoria)
         has_part_context = descricao_peca or categoria_peca or dynamic_part_context
@@ -258,8 +259,23 @@ class CatalogImportQualityService:
 
         if sku and sku_alnum <= 2 and not any(ch.isdigit() for ch in sku):
             return "Linha descartada por baixa qualidade: SKU sem digitos"
+        if (
+            sku
+            and nome
+            and nome_alnum <= 5
+            and not nome_peca
+            and not has_part_context
+        ):
+            return "Linha descartada por baixa qualidade: nome curto com SKU sem contexto de peca"
         if sku and nome and sku_compacto and sku_compacto == nome_compacto and not has_part_context:
             return "Linha descartada por baixa qualidade: SKU duplicado em nome sem descricao"
+        if (
+            sku
+            and not has_part_context
+            and (descricao_aplicacao or categoria_aplicacao)
+            and not nome_peca
+        ):
+            return "Linha descartada por baixa qualidade: SKU com contexto apenas de aplicacao"
         if sku and nome_ruido_ocr and not has_part_context:
             if descricao_aplicacao or categoria_aplicacao or not has_context:
                 return "Linha descartada por baixa qualidade: SKU com nome fraco sem descricao de peca"
