@@ -27,13 +27,18 @@ from Backend import models
 from Backend import schemas
 from Backend import crud_historico
 from Backend import database
-from Backend.services import file_processing_service, web_data_extractor_service
+from Backend.application.services import (
+    FileProcessingFacade,
+    WebDataExtractorFacade,
+)
 from Backend.tasks import process_pdf_extraction_task
 from . import auth_utils  # Para obter o usuário
 from Backend.core.config import settings
 from Backend.routers.produtos import _tarefa_processar_catalogo
 
 logger = logging.getLogger(__name__)
+file_processing_service = FileProcessingFacade()
+web_data_extractor_service = WebDataExtractorFacade()
 
 router = APIRouter(
     prefix="/fornecedores",

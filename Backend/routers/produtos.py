@@ -42,6 +42,7 @@ from Backend.application.orchestrators.catalog_import import (
     CatalogImportPipelineOrchestrator,
 )
 from Backend.application.services import (
+    FileProcessingFacade,
     CatalogImportSanitizationService,
     CatalogImportQualityService,
     PipelineDispatcher,
@@ -52,7 +53,6 @@ from Backend.application.services.catalog_import_task_service import (
 from Backend.core import config
 from Backend.core.config import settings
 from Backend.database import SessionLocal
-from Backend.services import file_processing_service
 
 from . import auth_utils
 
@@ -80,6 +80,7 @@ catalog_sanitization_service = CatalogImportSanitizationService(
 )
 _legacy_catalog_import_task_service: Optional[CatalogImportTaskService] = None
 _oop_catalog_import_task_service: Optional[CatalogImportTaskService] = None
+file_processing_service = FileProcessingFacade()
 
 
 def _normalize_import_text(value: str) -> str:

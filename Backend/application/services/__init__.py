@@ -13,6 +13,7 @@ from Backend.application.services.catalog_import_components import (
     CatalogImportResultBuilder,
 )
 from Backend.application.services.pipeline_dispatcher import PipelineDispatcher
+from Backend.application.services.file_processing_facade import FileProcessingFacade
 from Backend.application.services.shadow_result_comparator import (
     ShadowResultComparator,
 )
@@ -29,6 +30,9 @@ from Backend.application.services.web_enrichment_normalization_service import (
 from Backend.application.services.web_enrichment_relevance_service import (
     WebEnrichmentRelevanceService,
 )
+from Backend.application.services.web_data_extractor_facade import (
+    WebDataExtractorFacade,
+)
 
 __all__ = [
     "CatalogImportQualityService",
@@ -39,8 +43,10 @@ __all__ = [
     "CatalogImportOutcomeResolver",
     "CatalogImportQualityAccumulator",
     "CatalogImportResultBuilder",
+    "FileProcessingFacade",
     "PipelineDispatcher",
     "ShadowResultComparator",
+    "WebDataExtractorFacade",
     "WebEnrichmentConfigInspector",
     "WebEnrichmentConfigSnapshot",
     "WebEnrichmentFinalizationService",

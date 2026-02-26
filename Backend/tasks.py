@@ -5,9 +5,10 @@ from sqlalchemy.orm import sessionmaker
 
 from Backend.core.config import settings
 from Backend import models
-from Backend.services import file_processing_service
+from Backend.application.services import FileProcessingFacade
 
 logger = logging.getLogger(__name__)
+file_processing_service = FileProcessingFacade()
 
 
 def process_pdf_extraction_task(import_job_id: int, page_number: int, db_url: str) -> None:

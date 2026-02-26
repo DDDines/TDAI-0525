@@ -251,7 +251,9 @@ async def run_web_enrichment_task(
 
             texto_principal = web_extractor.extrair_texto_principal_com_trafilatura(html_content)
             metadados_extruct = web_extractor.extrair_metadados_estruturados(html_content, url_processar)
-            metadados_normalizados_pagina = web_extractor._normalizar_dados_de_metadados(metadados_extruct)
+            metadados_normalizados_pagina = web_extractor.normalizar_dados_de_metadados(
+                metadados_extruct
+            )
 
             if texto_principal and not is_meaningful_extracted_text(texto_principal):
                 log_mensagens.append(

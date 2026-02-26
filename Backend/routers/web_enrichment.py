@@ -19,6 +19,7 @@ from Backend.application.orchestrators.web_enrichment import (
 )
 from Backend.application.services import (
     PipelineDispatcher,
+    WebDataExtractorFacade,
     WebEnrichmentNormalizationService,
     WebEnrichmentRelevanceService,
 )
@@ -28,8 +29,6 @@ from Backend.application.services.web_enrichment_task_service import (
 from Backend.database import get_db, SessionLocal
 
 from .auth_utils import get_current_active_user
-
-from Backend.services import web_data_extractor_service as web_extractor
 from Backend.core.config import settings
 from Backend.core.logging_config import get_logger
 
@@ -44,6 +43,7 @@ router = APIRouter(
 logger = get_logger(__name__)
 relevance_service = WebEnrichmentRelevanceService()
 web_normalization_service = WebEnrichmentNormalizationService()
+web_extractor = WebDataExtractorFacade()
 _legacy_web_enrichment_task_service: Optional[WebEnrichmentTaskService] = None
 _oop_web_enrichment_task_service: Optional[WebEnrichmentTaskService] = None
 
