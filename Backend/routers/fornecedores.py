@@ -85,42 +85,19 @@ def create_user_fornecedor(
     db: Session = Depends(database.get_db),
     current_user: models.User = Depends(auth_utils.get_current_active_user),
 ):
-    logger.info(f"Requisição para criar fornecedor recebida.")
-    logger.info(
-        f"current_user (email): {current_user.email if current_user else 'N/A'}"
-    )
-    logger.info(f"current_user.id: {current_user.id if current_user else 'N/A'}")
-
-    if current_user is None or current_user.id is None:
-        logger.error(
-            "ERRO: Usuário autenticado ou seu ID é nulo ao tentar criar fornecedor. Isso pode indicar um problema de autenticação ou de sessão."
-        )
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Não foi possível identificar o usuário logado para criar o fornecedor. Por favor, tente fazer login novamente.",
-        )
+    logger.info("Requisicao para criar fornecedor recebida.")
 
     try:
-        db_forn = crud_fornecedores.create_fornecedor(
-            db=db, fornecedor=fornecedor, user_id=current_user.id
+        return fornecedor_management_service.create_fornecedor(
+            db=db,
+            fornecedor=fornecedor,
+            current_user=current_user,
         )
-        crud_historico.create_registro_historico(
-            db,
-            schemas.RegistroHistoricoCreate(
-                user_id=current_user.id,
-                entidade="Fornecedor",
-                acao=models.TipoAcaoSistemaEnum.CRIACAO,
-                entity_id=db_forn.id,
-            ),
-        )
-        return db_forn
-    except HTTPException as e:  # Repassa HTTPExceptions do CRUD (ex: nome duplicado)
+    except HTTPException as e:
         logger.warning(f"HTTPException ao criar fornecedor: {e.detail}")
         raise e
-    except Exception as e:  # Captura outros erros inesperados
-        logger.exception(
-            "Erro interno inesperado ao criar fornecedor:"
-        )  # Usa exception para incluir o traceback completo
+    except Exception:
+        logger.exception("Erro interno inesperado ao criar fornecedor:")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Erro interno ao criar fornecedor. Por favor, tente novamente mais tarde.",
@@ -140,34 +117,13 @@ def read_user_fornecedores(
     ),
     current_user: models.User = Depends(auth_utils.get_current_active_user),
 ):
-    if current_user.is_superuser:
-        fornecedores = db.query(models.Fornecedor)
-        if termo_busca:
-            fornecedores = fornecedores.filter(
-                models.Fornecedor.nome.ilike(f"%{termo_busca}%")
-            )
-        total_items = fornecedores.count()
-        items_paginados = (
-            fornecedores.order_by(models.Fornecedor.nome)
-            .offset(skip)
-            .limit(limit)
-            .all()
-        )
-    else:
-        items_paginados = crud_fornecedores.get_fornecedores_by_user(
-            db, user_id=current_user.id, skip=skip, limit=limit, search=termo_busca
-        )
-        total_items = crud_fornecedores.count_fornecedores_by_user(
-            db=db, user_id=current_user.id, search=termo_busca
-        )
-
-    page_number = skip // limit + 1
-    return {
-        "items": items_paginados,
-        "total_items": total_items,
-        "page": page_number,
-        "limit": limit,
-    }
+    return fornecedor_management_service.list_fornecedores_page(
+        db=db,
+        current_user=current_user,
+        skip=skip,
+        limit=limit,
+        termo_busca=termo_busca,
+    )
 
 
 # Endpoint para obter um fornecedor específico
@@ -271,9 +227,13 @@ async def preview_pdf(
     ),
     limit: int = Query(20, description="Número máximo de páginas para pré-visualizar."),
 ):
-    db_fornecedor = crud_fornecedores.get_fornecedor(db, fornecedor_id=fornecedor_id)
-    if not db_fornecedor or db_fornecedor.user_id != current_user.id:
-        raise HTTPException(status_code=404, detail="Fornecedor não encontrado")
+    _ = fornecedor_management_service.resolve_fornecedor_for_user(
+        db=db,
+        fornecedor_id=fornecedor_id,
+        current_user=current_user,
+        not_found_detail="Fornecedor nao encontrado",
+        forbidden_detail="Nao autorizado a acessar este fornecedor.",
+    )
 
     if not file.filename.lower().endswith(".pdf"):
         raise HTTPException(

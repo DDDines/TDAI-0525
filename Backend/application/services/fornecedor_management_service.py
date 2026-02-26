@@ -23,6 +23,17 @@ class FornecedorManagementService:
         self._crud_historico = crud_historico
         self._func = sqlalchemy_func
 
+    @staticmethod
+    def ensure_current_user_identified(*, current_user: Any) -> None:
+        if current_user is None or getattr(current_user, "id", None) is None:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=(
+                    "Nao foi possivel identificar o usuario logado para criar o fornecedor. "
+                    "Por favor, tente fazer login novamente."
+                ),
+            )
+
     def get_fornecedor_or_404(
         self,
         *,
@@ -83,6 +94,73 @@ class FornecedorManagementService:
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail=f"Ja existe um fornecedor com o nome '{new_name}'.",
             )
+
+    def create_fornecedor(
+        self,
+        *,
+        db: Any,
+        fornecedor: Any,
+        current_user: Any,
+    ) -> Any:
+        self.ensure_current_user_identified(current_user=current_user)
+        created = self._crud_fornecedores.create_fornecedor(
+            db=db,
+            fornecedor=fornecedor,
+            user_id=current_user.id,
+        )
+        self._crud_historico.create_registro_historico(
+            db,
+            self._schemas.RegistroHistoricoCreate(
+                user_id=current_user.id,
+                entidade="Fornecedor",
+                acao=self._models.TipoAcaoSistemaEnum.CRIACAO,
+                entity_id=created.id,
+            ),
+        )
+        return created
+
+    def list_fornecedores_page(
+        self,
+        *,
+        db: Any,
+        current_user: Any,
+        skip: int,
+        limit: int,
+        termo_busca: str | None,
+    ) -> dict[str, Any]:
+        if current_user.is_superuser:
+            fornecedores_query = db.query(self._models.Fornecedor)
+            if termo_busca:
+                fornecedores_query = fornecedores_query.filter(
+                    self._models.Fornecedor.nome.ilike(f"%{termo_busca}%")
+                )
+            total_items = fornecedores_query.count()
+            items = (
+                fornecedores_query.order_by(self._models.Fornecedor.nome)
+                .offset(skip)
+                .limit(limit)
+                .all()
+            )
+        else:
+            items = self._crud_fornecedores.get_fornecedores_by_user(
+                db,
+                user_id=current_user.id,
+                skip=skip,
+                limit=limit,
+                search=termo_busca,
+            )
+            total_items = self._crud_fornecedores.count_fornecedores_by_user(
+                db=db,
+                user_id=current_user.id,
+                search=termo_busca,
+            )
+
+        return {
+            "items": items,
+            "total_items": total_items,
+            "page": skip // limit + 1,
+            "limit": limit,
+        }
 
     def update_fornecedor(
         self,

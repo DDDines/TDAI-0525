@@ -47,12 +47,29 @@ class _DbStub:
 class _CrudFornecedoresStub:
     def __init__(self, fornecedor=None):
         self._fornecedor = fornecedor
+        self.created_calls = []
         self.updated_calls = []
         self.deleted_calls = []
+        self.list_items = []
+        self.list_total = 0
 
     def get_fornecedor(self, db, fornecedor_id):
         _ = (db, fornecedor_id)
         return self._fornecedor
+
+    def create_fornecedor(self, *, db, fornecedor, user_id):
+        _ = (db, user_id)
+        created = SimpleNamespace(id=fornecedor.id, nome=fornecedor.nome, user_id=user_id)
+        self.created_calls.append((fornecedor, user_id))
+        return created
+
+    def get_fornecedores_by_user(self, db, user_id, skip, limit, search):
+        _ = (db, user_id, skip, limit, search)
+        return self.list_items
+
+    def count_fornecedores_by_user(self, *, db, user_id, search):
+        _ = (db, user_id, search)
+        return self.list_total
 
     def update_fornecedor(self, *, db, db_fornecedor, fornecedor_update):
         _ = db
@@ -81,6 +98,7 @@ class _RegistroHistoricoCreateStub:
 
 
 class _TipoAcaoSistemaEnumStub:
+    CRIACAO = "CRIACAO"
     ATUALIZACAO = "ATUALIZACAO"
     DELECAO = "DELECAO"
 
@@ -132,6 +150,50 @@ def test_resolve_fornecedor_for_user_success():
     )
 
     assert result is fornecedor
+
+
+def test_ensure_current_user_identified_raises_400():
+    service, _, _ = _build_service(fornecedor=None)
+
+    with pytest.raises(HTTPException) as exc:
+        service.ensure_current_user_identified(current_user=SimpleNamespace(id=None))
+
+    assert exc.value.status_code == 400
+
+
+def test_create_fornecedor_records_historico():
+    service, crud_fornecedores, crud_historico = _build_service(fornecedor=None)
+    db = _DbStub()
+
+    created = service.create_fornecedor(
+        db=db,
+        fornecedor=SimpleNamespace(id=9, nome="Novo Fornecedor"),
+        current_user=SimpleNamespace(id=10, is_superuser=False),
+    )
+
+    assert created.nome == "Novo Fornecedor"
+    assert len(crud_fornecedores.created_calls) == 1
+    payload = crud_historico.calls[0][1].data
+    assert payload["acao"] == "CRIACAO"
+
+
+def test_list_fornecedores_page_for_regular_user():
+    service, crud_fornecedores, _ = _build_service(fornecedor=None)
+    crud_fornecedores.list_items = [SimpleNamespace(id=1), SimpleNamespace(id=2)]
+    crud_fornecedores.list_total = 2
+
+    payload = service.list_fornecedores_page(
+        db=_DbStub(),
+        current_user=SimpleNamespace(id=10, is_superuser=False),
+        skip=0,
+        limit=10,
+        termo_busca="forn",
+    )
+
+    assert payload["total_items"] == 2
+    assert len(payload["items"]) == 2
+    assert payload["page"] == 1
+    assert payload["limit"] == 10
 
 
 def test_resolve_fornecedor_for_user_raises_404():
