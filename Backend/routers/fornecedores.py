@@ -27,15 +27,30 @@ from Backend import models
 from Backend import schemas
 from Backend import crud_historico
 from Backend import database
+from Backend.application.services.fornecedor_catalog_process_service import (
+    FornecedorCatalogProcessService,
+)
+from Backend.application.services.fornecedor_import_job_service import (
+    FornecedorImportJobService,
+)
 from Backend.application.services.service_container import service_container
 from Backend.tasks import process_pdf_extraction_task
 from . import auth_utils  # Para obter o usuário
-from Backend.core.config import settings
-from Backend.routers.produtos import _tarefa_processar_catalogo
+from Backend.routers.produtos import catalog_import_start_service
 
 logger = logging.getLogger(__name__)
 file_processing_service = service_container.file_processing
 web_data_extractor_service = service_container.web_data_extractor
+fornecedor_catalog_process_service = FornecedorCatalogProcessService(
+    models=models,
+    crud_fornecedores=crud_fornecedores,
+    catalog_import_start_service=catalog_import_start_service,
+)
+fornecedor_import_job_service = FornecedorImportJobService(
+    crud_fornecedor_import_jobs=crud_fornecedor_import_jobs,
+    crud_produtos=crud_produtos,
+    produto_create_schema=schemas.ProdutoCreate,
+)
 
 router = APIRouter(
     prefix="/fornecedores",
@@ -395,6 +410,8 @@ def get_import_progress(
         "pages_processed": record.pages_processed,
         "total_pages": record.total_pages or 0,
     }
+
+
 @router.post("/import/process-full-catalog", status_code=status.HTTP_202_ACCEPTED)
 async def process_full_catalog(
     background_tasks: BackgroundTasks,
@@ -402,72 +419,23 @@ async def process_full_catalog(
     fornecedor_id: int = Body(..., embed=True),
     tipo_produto_id: int = Body(..., embed=True),
     start_page: int = Body(1, embed=True),
-    region: Optional[List[float]] = Body(None, embed=True),  # NOVO
+    region: Optional[List[float]] = Body(None, embed=True),
     mapping: Optional[dict] = Body(None),
     db: Session = Depends(database.get_db),
     current_user: models.User = Depends(auth_utils.get_current_active_user),
 ):
-    """Processa todas as páginas de um catálogo em background."""
-
-    fornecedor = crud_fornecedores.get_fornecedor(db, fornecedor_id=fornecedor_id)
-    if not fornecedor:
-        raise HTTPException(status_code=404, detail="Fornecedor não encontrado")
-    if not current_user.is_superuser and fornecedor.user_id != current_user.id:
-        raise HTTPException(status_code=403, detail="Não autorizado")
-
-    source = (
-        db.query(models.CatalogImportFile)
-        .filter_by(id=file_id, user_id=current_user.id)
-        .first()
-    )
-    if not source:
-        raise HTTPException(status_code=404, detail="Arquivo não encontrado")
-
-    file_path = Path(settings.UPLOAD_DIRECTORY) / "catalogs" / source.stored_filename
-    if not file_path.is_absolute():
-        file_path = Path(__file__).resolve().parent.parent / file_path
-    if not file_path.exists():
-        raise HTTPException(status_code=404, detail="Arquivo não encontrado")
-
-    content = file_path.read_bytes()
-    import pdfplumber, io
-    with pdfplumber.open(io.BytesIO(content)) as pdf:
-        total_pages = len(pdf.pages)
-
-    pages = list(range(start_page, total_pages + 1))
-
-    if mapping is None and fornecedor.default_column_mapping:
-        mapping = fornecedor.default_column_mapping
-
-    job = models.CatalogImportFile(
-        user_id=current_user.id,
+    """Processa todas as paginas de um catalogo em background."""
+    return await fornecedor_catalog_process_service.start_full_processing(
+        background_tasks=background_tasks,
+        db=db,
+        current_user=current_user,
+        file_id=file_id,
         fornecedor_id=fornecedor_id,
-        original_filename=source.original_filename,
-        stored_filename=source.stored_filename,
-        status="PROCESSING",
-    )
-    db.add(job)
-    db.commit()
-    db.refresh(job)
-
-    from sqlalchemy.orm import sessionmaker
-
-    db_session_factory = sessionmaker(bind=db.get_bind())
-
-    background_tasks.add_task(
-        _tarefa_processar_catalogo,
-        db_session_factory=db_session_factory,
-        file_id=job.id,
-        user_id=current_user.id,
-        product_type_id=tipo_produto_id,
-        fornecedor_id=fornecedor_id,
+        tipo_produto_id=tipo_produto_id,
+        start_page=start_page,
+        region=region,
         mapping=mapping,
-        pages=pages,
-        region=region, # NOVO
     )
-
-    return {"job_id": job.id, "status": "PROCESSING"}
-
 
 @router.get("/import/extract-page-data", status_code=status.HTTP_202_ACCEPTED)
 def extract_page_data(
@@ -537,34 +505,18 @@ def delete_fornecedor_endpoint(
         )
 
 
-async def _commit_import_job_task(db_session_factory, job_id: int, user_id: int):
-    db = db_session_factory()
-    try:
-        job = crud_fornecedor_import_jobs.get_import_job(db, job_id)
-        if not job:
-            return
-        summary = job.result_summary or []
-        for prod_data in summary:
-            try:
-                produto_schema = schemas.ProdutoCreate(**prod_data)
-            except Exception:
-                continue
-            crud_produtos.get_or_create_produto(db, produto_schema, user_id)
-        crud_fornecedor_import_jobs.update_job_status(db, job, "COMPLETED")
-    finally:
-        db.close()
-
-
 @router.get("/import/review/{job_id}", response_model=dict)
 def review_import_job(
     job_id: int,
     db: Session = Depends(database.get_db),
     current_user: models.User = Depends(auth_utils.get_current_active_user),
 ):
-    job = crud_fornecedor_import_jobs.get_import_job(db, job_id)
-    if not job or job.user_id != current_user.id:
-        raise HTTPException(status_code=404, detail="Job não encontrado")
-    return job.result_summary or {}
+    job = fornecedor_import_job_service.get_job_for_user_or_404(
+        db=db,
+        job_id=job_id,
+        user_id=current_user.id,
+    )
+    return fornecedor_import_job_service.build_review_payload(job=job)
 
 
 @router.post("/import/commit/{job_id}", status_code=status.HTTP_202_ACCEPTED)
@@ -574,16 +526,14 @@ def commit_import_job(
     db: Session = Depends(database.get_db),
     current_user: models.User = Depends(auth_utils.get_current_active_user),
 ):
-    job = crud_fornecedor_import_jobs.get_import_job(db, job_id)
-    if not job or job.user_id != current_user.id:
-        raise HTTPException(status_code=404, detail="Job não encontrado")
-
-    from sqlalchemy.orm import sessionmaker
-
-    db_session_factory = sessionmaker(bind=db.get_bind())
-    background_tasks.add_task(
-        _commit_import_job_task,
-        db_session_factory=db_session_factory,
+    _ = fornecedor_import_job_service.get_job_for_user_or_404(
+        db=db,
+        job_id=job_id,
+        user_id=current_user.id,
+    )
+    fornecedor_import_job_service.schedule_commit(
+        background_tasks=background_tasks,
+        db=db,
         job_id=job_id,
         user_id=current_user.id,
     )
@@ -609,3 +559,4 @@ def get_import_job_status(
     if record.status == "COMPLETED":
         response["resultado_json"] = record.resultado_json
     return response
+
