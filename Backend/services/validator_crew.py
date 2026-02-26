@@ -155,7 +155,7 @@ def _run_validation_crew_sync(raw_data):
     return crew.kickoff()
 
 
-def run_validation_crew(raw_data, timeout_seconds: int = 8):
+def _run_validation_crew_impl(raw_data, timeout_seconds: int = 8):
     """
     Executa a validação/limpeza via crewAI com timeout e fallback.
     Se houver falha ou estouro de tempo, devolve os dados brutos originais.
@@ -169,6 +169,26 @@ def run_validation_crew(raw_data, timeout_seconds: int = 8):
         return raw_data
     except Exception:
         return raw_data
+
+
+class _ValidationCrewWorkflow:
+    """Workflow OO para validação opcional via crewAI."""
+
+    def run_validation_crew(self, raw_data, timeout_seconds: int = 8):
+        return _run_validation_crew_impl(
+            raw_data=raw_data,
+            timeout_seconds=timeout_seconds,
+        )
+
+
+_validation_crew_workflow = _ValidationCrewWorkflow()
+
+
+def run_validation_crew(raw_data, timeout_seconds: int = 8):
+    return _validation_crew_workflow.run_validation_crew(
+        raw_data=raw_data,
+        timeout_seconds=timeout_seconds,
+    )
 
 class ValidatorCrewLegacyService:
     """OO compatibility layer for legacy validator crew module."""
