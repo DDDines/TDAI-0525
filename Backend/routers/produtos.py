@@ -42,6 +42,7 @@ from Backend.application.orchestrators.catalog_import import (
     CatalogImportPipelineOrchestrator,
 )
 from Backend.application.services import (
+    CatalogImportSanitizationService,
     CatalogImportQualityService,
     PipelineDispatcher,
 )
@@ -74,173 +75,27 @@ if not catalog_logger.handlers:
     catalog_logger.setLevel(logging.INFO)
 
 catalog_quality_service = CatalogImportQualityService()
-_catalog_import_task_service: Optional[CatalogImportTaskService] = None
+catalog_sanitization_service = CatalogImportSanitizationService(
+    quality_service=catalog_quality_service
+)
+_legacy_catalog_import_task_service: Optional[CatalogImportTaskService] = None
+_oop_catalog_import_task_service: Optional[CatalogImportTaskService] = None
 
 
 def _normalize_import_text(value: str) -> str:
-    """Corrige artefatos comuns de encoding em mensagens de importacao."""
-    text = str(value or "")
-
-    def _marker_count(candidate: str) -> int:
-        return sum(candidate.count(ch) for ch in ("\u00c3", "\u00c2", "\u00e2", "\u0192", "\ufffd"))
-
-    def _looks_mojibake(candidate: str) -> bool:
-        return _marker_count(candidate) > 0 or "??" in candidate
-
-    def _decode_maybe(candidate: str, source_encoding: str) -> str:
-        try:
-            return candidate.encode(source_encoding, errors="ignore").decode(
-                "utf-8", errors="ignore"
-            )
-        except Exception:
-            return candidate
-
-    # Tenta corrigir mojibake comum (UTF-8 lido como latin-1/cp1252).
-    for _ in range(6):
-        if not _looks_mojibake(text):
-            break
-
-        best = text
-        best_markers = _marker_count(best)
-        best_alnum = sum(ch.isalnum() for ch in best)
-        for source_encoding in ("latin-1", "cp1252"):
-            decoded = _decode_maybe(text, source_encoding)
-            if not decoded or decoded == text:
-                continue
-            decoded_markers = _marker_count(decoded)
-            decoded_alnum = sum(ch.isalnum() for ch in decoded)
-            alnum_guard = decoded_alnum >= int(best_alnum * 0.8)
-            if decoded_markers < best_markers and alnum_guard:
-                best = decoded
-                best_markers = decoded_markers
-                best_alnum = decoded_alnum
-        if best == text:
-            break
-        text = best
-
-    replacements = {
-        "n\u00e3o": "n\u00e3o",
-        "n\u00c3\u00a3o": "n\u00e3o",
-        "nao": "n\u00e3o",
-        "P\u00e1gina": "P\u00e1gina",
-        "p\u00e1gina": "p\u00e1gina",
-        "P\u00c3\u00a1gina": "P\u00e1gina",
-        "p\u00c3\u00a1gina": "p\u00e1gina",
-        "p\u00f4de": "p\u00f4de",
-        "p\u00c3\u00b4de": "p\u00f4de",
-        "p\u00c3\u0192\u00c2\u00b4de": "p\u00f4de",
-        "p\u00c3\u0192\u00c2\u0192\u00c3\u201a\u00c2\u00b4de": "p\u00f4de",
-        "p\u00c3\u201a\u00c2\u00b4de": "p\u00f4de",
-        "p\u00c3\u0192\u00c2\u00b4de": "p\u00f4de",
-        "p\u00c3\u0192\u00c2\u00a1gina": "p\u00e1gina",
-        "P\u00c3\u0192\u00c2\u00a1gina": "P\u00e1gina",
-        "p??de": "p\u00f4de",
-        "p????de": "p\u00f4de",
-        "extra\u00eddo": "extra\u00eddo",
-        "extra\u00edvel": "extra\u00edvel",
-        "extra\u00c3\u00addo": "extra\u00eddo",
-        "extra\u00c3\u00advel": "extra\u00edvel",
-        "extraido": "extra\u00eddo",
-        "extraivel": "extra\u00edvel",
-        "cat\u00e1logo": "cat\u00e1logo",
-        "cat\u00c3\u00a1logo": "cat\u00e1logo",
-        "catalogo": "cat\u00e1logo",
-        "Conte\u00fado": "Conte\u00fado",
-        "conte\u00fado": "conte\u00fado",
-        "Conte\u00c3\u00bado": "Conte\u00fado",
-        "conte\u00c3\u00bado": "conte\u00fado",
-        "conteudo": "conte\u00fado",
-        "poss\u00edvel": "poss\u00edvel",
-        "poss\u00c3\u00advel": "poss\u00edvel",
-        "possivel": "poss\u00edvel",
-        "inv\u00e1lido": "inv\u00e1lido",
-        "inv\u00c3\u00a1lido": "inv\u00e1lido",
-        "invalido": "inv\u00e1lido",
-        "cr\u00edtico": "cr\u00edtico",
-        "cr\u00edtica": "cr\u00edtica",
-        "cr\u00c3\u00adtico": "cr\u00edtico",
-        "cr\u00c3\u00adtica": "cr\u00edtica",
-        "critico": "cr\u00edtico",
-        "critica": "cr\u00edtica",
-        "criticos": "cr\u00edticos",
-        "relat\u00f3rio": "relat\u00f3rio",
-        "Relat\u00f3rio": "Relat\u00f3rio",
-        "relatorio": "relat\u00f3rio",
-        "Relatorio": "Relat\u00f3rio",
-        "Importa\u00e7\u00e3o": "Importa\u00e7\u00e3o",
-        "importa\u00e7\u00e3o": "importa\u00e7\u00e3o",
-        "Importacao": "Importa\u00e7\u00e3o",
-        "importacao": "importa\u00e7\u00e3o",
-        "p?s-valida??o": "p\u00f3s-valida\u00e7\u00e3o",
-        "p?s valida??o": "p\u00f3s valida\u00e7\u00e3o",
-        "descri??o": "descri\u00e7\u00e3o",
-        "descricao": "descri\u00e7\u00e3o",
-        "ordena??o": "ordena\u00e7\u00e3o",
-        "ordenacao": "ordena\u00e7\u00e3o",
-        "n\u00e3o cr\u00edticos": "n\u00e3o cr\u00edticos",
-        "nao criticos": "n\u00e3o cr\u00edticos",
-        "n\u00e3o dispon\u00edveis": "n\u00e3o dispon\u00edveis",
-        "nao disponiveis": "n\u00e3o dispon\u00edveis",
-        "obrigat\u00f3rio": "obrigat\u00f3rio",
-        "obrigatorio": "obrigat\u00f3rio",
-        "conclu\u00edda": "conclu\u00edda",
-        "concluida": "conclu\u00edda",
-        "P\u00c3\u0192\u00c2\u00a1gina": "P\u00e1gina",
-        "p\u00c3\u0192\u00c2\u00a1gina": "p\u00e1gina",
-        "extra\u00c3\u0192\u00c2\u00a7\u00c3\u0192\u00c2\u00a3o": "extra\u00e7\u00e3o",
-        "regi\u00c3\u0192\u00c2\u00a3o": "regi\u00e3o",
-        "n\u00c3\u0192\u00c2\u00a3o": "n\u00e3o",
-        "n\u00c3\u201a\u00c2\u00a3o": "n\u00e3o",
-        "n\u00c3\u0192\u00c2\u201ao": "n\u00e3o",
-    }
-    for source, target in replacements.items():
-        text = text.replace(source, target)
-    return re.sub(r"\s+", " ", text).strip()
+    return catalog_sanitization_service.normalize_import_text(value)
 
 
 def _normalize_import_issue_item(item: Dict[str, Any]) -> Dict[str, Any]:
-    """Normaliza campos textuais exibidos ao usuario no resumo de importacao."""
-    if not isinstance(item, dict):
-        return item
-    normalized = dict(item)
-    for key in ("motivo_descarte", "erro_processamento_pdf", "erro_processamento"):
-        if key in normalized and isinstance(normalized[key], str):
-            normalized[key] = _normalize_import_text(normalized[key])
-    if isinstance(normalized.get("log_pdf"), list):
-        normalized["log_pdf"] = [
-            _normalize_import_text(entry) if isinstance(entry, str) else entry
-            for entry in normalized["log_pdf"]
-        ]
-    return normalized
+    return catalog_sanitization_service.normalize_import_issue_item(item)
 
 
 def _extract_import_error_reason(error_item: Dict[str, Any]) -> str:
-    """Extrai uma razao curta e consistente para agregacao de erros."""
-    if not isinstance(error_item, dict):
-        return "erro_sem_motivo"
-    for key in ("motivo_descarte", "erro_processamento_pdf", "erro_processamento"):
-        value = error_item.get(key)
-        if value:
-            line = _normalize_import_text(str(value).strip()).splitlines()[0].strip()
-            if line:
-                return line[:300]
-    return "erro_sem_motivo"
+    return catalog_sanitization_service.extract_import_error_reason(error_item)
 
 
 def _is_non_critical_import_reason(reason: str) -> bool:
-    reason_norm = str(reason or "").strip().lower()
-    if not reason_norm:
-        return False
-    # Descartes esperados/operacionais (ruido OCR ou paginas sem dados).
-    if reason_norm.startswith("linha descartada por baixa qualidade"):
-        return True
-    if "faltam nome_base e sku_original" in reason_norm:
-        return True
-    if "nenhum dado de produto" in reason_norm and "pdf" in reason_norm:
-        return True
-    if reason_norm.startswith("nome_base sem conte"):
-        return True
-    return False
+    return catalog_sanitization_service.is_non_critical_import_reason(reason)
 
 
 def _alnum_len(value: Any) -> int:
@@ -379,21 +234,14 @@ except Exception as validator_import_error:  # pragma: no cover - depends on opt
 
 
 def _normalizar_dados_validados(candidate: Any, fallback: Dict[str, Any]) -> Dict[str, Any]:
-    """Garante dict para o pipeline mesmo quando o validador retorna texto/JSON string."""
-    if isinstance(candidate, dict):
-        return candidate
-    if isinstance(candidate, str):
-        try:
-            parsed = json.loads(candidate)
-            if isinstance(parsed, dict):
-                return parsed
-        except Exception:
-            pass
-    return fallback if isinstance(fallback, dict) else {}
+    return catalog_sanitization_service.normalize_validated_data(candidate, fallback)
 
 
 def _sanitize_produto_extraido(prod: Dict[str, Any]) -> Dict[str, Any]:
     """Normaliza campos antes de instanciar ProdutoCreate para evitar descartes por validacao."""
+    return catalog_sanitization_service.sanitize_extracted_product(prod)
+
+    # Legacy fallback mantido apenas para rollback/comparacao historica.
     data = dict(prod) if isinstance(prod, dict) else {}
 
     # Une dados_brutos_adicionais + dados_brutos_web para nao perder contexto util.
@@ -574,32 +422,48 @@ def _sanitize_produto_extraido(prod: Dict[str, Any]) -> Dict[str, Any]:
     return data
 
 
-def _get_catalog_import_task_service() -> CatalogImportTaskService:
-    global _catalog_import_task_service
-    if _catalog_import_task_service is None:
-        _catalog_import_task_service = CatalogImportTaskService(
-            logger=logger,
-            catalog_logger=catalog_logger,
-            models=models,
-            schemas=schemas,
-            crud_produtos=crud_produtos,
-            file_processing_service=file_processing_service,
-            validator_crew=validator_crew,
-            settings=settings,
-            Path=Path,
-            time=time,
-            Counter=Counter,
-            resolve_storage_path=_resolve_storage_path,
-            normalize_import_issue_item=_normalize_import_issue_item,
-            extract_import_error_reason=_extract_import_error_reason,
-            is_non_critical_import_reason=_is_non_critical_import_reason,
-            normalizar_dados_validados=_normalizar_dados_validados,
-            sanitize_produto_extraido=_sanitize_produto_extraido,
-            classificar_qualidade_linha_produto=_classificar_qualidade_linha_produto,
-            write_catalog_import_report=_write_catalog_import_report,
-            normalize_import_text=_normalize_import_text,
+def _build_catalog_import_task_service(pipeline_variant: str) -> CatalogImportTaskService:
+    return CatalogImportTaskService(
+        logger=logger,
+        catalog_logger=catalog_logger,
+        models=models,
+        schemas=schemas,
+        crud_produtos=crud_produtos,
+        file_processing_service=file_processing_service,
+        validator_crew=validator_crew,
+        settings=settings,
+        Path=Path,
+        time=time,
+        Counter=Counter,
+        resolve_storage_path=_resolve_storage_path,
+        normalize_import_issue_item=_normalize_import_issue_item,
+        extract_import_error_reason=_extract_import_error_reason,
+        is_non_critical_import_reason=_is_non_critical_import_reason,
+        normalizar_dados_validados=_normalizar_dados_validados,
+        sanitize_produto_extraido=_sanitize_produto_extraido,
+        classificar_qualidade_linha_produto=_classificar_qualidade_linha_produto,
+        write_catalog_import_report=_write_catalog_import_report,
+        normalize_import_text=_normalize_import_text,
+        pipeline_variant=pipeline_variant,
+    )
+
+
+def _get_legacy_catalog_import_task_service() -> CatalogImportTaskService:
+    global _legacy_catalog_import_task_service
+    if _legacy_catalog_import_task_service is None:
+        _legacy_catalog_import_task_service = _build_catalog_import_task_service(
+            pipeline_variant="legacy"
         )
-    return _catalog_import_task_service
+    return _legacy_catalog_import_task_service
+
+
+def _get_oop_catalog_import_task_service() -> CatalogImportTaskService:
+    global _oop_catalog_import_task_service
+    if _oop_catalog_import_task_service is None:
+        _oop_catalog_import_task_service = _build_catalog_import_task_service(
+            pipeline_variant="oop"
+        )
+    return _oop_catalog_import_task_service
 
 async def _tarefa_processar_catalogo(
 
@@ -623,7 +487,7 @@ async def _tarefa_processar_catalogo(
 
     """Processa o arquivo salvo em background e cria os produtos."""
 
-    await _get_catalog_import_task_service().execute(
+    await _get_legacy_catalog_import_task_service().execute(
         db_session_factory=db_session_factory,
         file_id=file_id,
         user_id=user_id,
@@ -637,7 +501,7 @@ async def _tarefa_processar_catalogo(
 
 async def _oop_tarefa_processar_catalogo(**task_kwargs):
     """Executor OOP dedicado (modo oop), separado do legado para comparacao futura."""
-    await _get_catalog_import_task_service().execute(**task_kwargs)
+    await _get_oop_catalog_import_task_service().execute(**task_kwargs)
 
 
 

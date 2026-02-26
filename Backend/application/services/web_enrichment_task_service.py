@@ -9,6 +9,10 @@ from Backend.application.services.web_enrichment_components import (
     WebEnrichmentQueryPlanner,
     WebEnrichmentStatusResolver,
 )
+from Backend.application.services.shadow_result_comparator import ShadowResultComparator
+
+
+_shadow_result_comparator = ShadowResultComparator()
 
 
 async def run_web_enrichment_task(
@@ -35,6 +39,7 @@ async def run_web_enrichment_task(
     is_meaningful_extracted_text,
     metadata_has_minimum_signal,
     is_source_relevant_for_product,
+    pipeline_variant: str = "unknown",
 ):
     config_inspector = WebEnrichmentConfigInspector()
     query_planner = WebEnrichmentQueryPlanner()
@@ -49,7 +54,7 @@ async def run_web_enrichment_task(
 
     db: Optional[Session] = None
     log_mensagens: List[str] = [
-        f"INICIANDO tarefa de enriquecimento web para produto ID: {produto_id}."
+        f"INICIANDO tarefa de enriquecimento web (variant={pipeline_variant}) para produto ID: {produto_id}."
     ]
     
     db_produto_obj: Optional[models.Produto] = None
@@ -374,9 +379,26 @@ async def run_web_enrichment_task(
         
         final_status_value_print = status_para_salvar_no_final.value
         logger.info(
-            "Finalizando tarefa de enriquecimento para produto ID: %s. Status determinado para gravaÃ§Ã£o: %s",
+            "Finalizando tarefa de enriquecimento (variant=%s) para produto ID: %s. Status determinado para gravacao: %s",
+            pipeline_variant,
             produto_id,
             final_status_value_print,
+        )
+        _shadow_result_comparator.record_result(
+            context="web_enrichment.start",
+            entity_id=produto_id,
+            variant=pipeline_variant,
+            payload={
+                "status": final_status_value_print,
+                "has_nome": bool(dados_extraidos_agregados.get("nome")),
+                "has_descricao_curta": bool(
+                    dados_extraidos_agregados.get("descricao_curta")
+                ),
+                "has_texto_relevante": bool(
+                    dados_extraidos_agregados.get("texto_relevante_coletado")
+                ),
+                "log_lines": len(log_mensagens),
+            },
         )
         
         if db:
@@ -407,6 +429,7 @@ class WebEnrichmentTaskService:
         is_meaningful_extracted_text,
         metadata_has_minimum_signal,
         is_source_relevant_for_product,
+        pipeline_variant: str = "unknown",
     ):
         self._deps = {
             "logger": logger,
@@ -427,6 +450,7 @@ class WebEnrichmentTaskService:
             "is_meaningful_extracted_text": is_meaningful_extracted_text,
             "metadata_has_minimum_signal": metadata_has_minimum_signal,
             "is_source_relevant_for_product": is_source_relevant_for_product,
+            "pipeline_variant": pipeline_variant,
         }
 
     async def execute(

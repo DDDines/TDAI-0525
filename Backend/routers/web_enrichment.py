@@ -19,6 +19,7 @@ from Backend.application.orchestrators.web_enrichment import (
 )
 from Backend.application.services import (
     PipelineDispatcher,
+    WebEnrichmentNormalizationService,
     WebEnrichmentRelevanceService,
 )
 from Backend.application.services.web_enrichment_task_service import (
@@ -42,7 +43,9 @@ router = APIRouter(
 
 logger = get_logger(__name__)
 relevance_service = WebEnrichmentRelevanceService()
-_web_enrichment_task_service: Optional[WebEnrichmentTaskService] = None
+web_normalization_service = WebEnrichmentNormalizationService()
+_legacy_web_enrichment_task_service: Optional[WebEnrichmentTaskService] = None
+_oop_web_enrichment_task_service: Optional[WebEnrichmentTaskService] = None
 
 
 def _encoding_marker_count(candidate: str) -> int:
@@ -50,6 +53,9 @@ def _encoding_marker_count(candidate: str) -> int:
 
 
 def _normalize_human_text(value: Any) -> str:
+    return web_normalization_service.normalize_human_text(value)
+
+    # Legacy fallback mantido apenas para rollback/comparacao historica.
     text = str(value or "")
     if not text:
         return ""
@@ -106,6 +112,9 @@ def _normalize_human_text(value: Any) -> str:
 
 
 def _fold_text(value: Any) -> str:
+    return web_normalization_service.fold_text(value)
+
+    # Legacy fallback mantido apenas para rollback/comparacao historica.
     text = unicodedata.normalize("NFKD", str(value or ""))
     text = text.encode("ascii", "ignore").decode("ascii")
     text = re.sub(r"[^a-zA-Z0-9]+", " ", text).lower()
@@ -113,6 +122,9 @@ def _fold_text(value: Any) -> str:
 
 
 def _is_empty(value: Any) -> bool:
+    return web_normalization_service.is_empty(value)
+
+    # Legacy fallback mantido apenas para rollback/comparacao historica.
     if value is None:
         return True
     if isinstance(value, str):
@@ -127,6 +139,9 @@ def _is_empty(value: Any) -> bool:
 
 
 def _as_text(value: Any, max_len: int = 8000) -> Optional[str]:
+    return web_normalization_service.as_text(value, max_len=max_len)
+
+    # Legacy fallback mantido apenas para rollback/comparacao historica.
     if _is_empty(value):
         return None
     if isinstance(value, (list, tuple, set)):
@@ -140,6 +155,9 @@ def _as_text(value: Any, max_len: int = 8000) -> Optional[str]:
 
 
 def _first_non_empty(*values: Any) -> Optional[Any]:
+    return web_normalization_service.first_non_empty(*values)
+
+    # Legacy fallback mantido apenas para rollback/comparacao historica.
     for value in values:
         if not _is_empty(value):
             return value
@@ -147,6 +165,9 @@ def _first_non_empty(*values: Any) -> Optional[Any]:
 
 
 def _parse_price(value: Any) -> Optional[float]:
+    return web_normalization_service.parse_price(value)
+
+    # Legacy fallback mantido apenas para rollback/comparacao historica.
     if value is None:
         return None
     if isinstance(value, (int, float)):
@@ -170,6 +191,9 @@ def _parse_price(value: Any) -> Optional[float]:
 
 
 def _sanitize_code_value(value: Any) -> Optional[str]:
+    return web_normalization_service.sanitize_code_value(value)
+
+    # Legacy fallback mantido apenas para rollback/comparacao historica.
     text = _as_text(value, max_len=120)
     if not text:
         return None
@@ -190,6 +214,9 @@ def _sanitize_code_value(value: Any) -> Optional[str]:
 
 
 def _is_suspicious_code(value: Any) -> bool:
+    return web_normalization_service.is_suspicious_code(value)
+
+    # Legacy fallback mantido apenas para rollback/comparacao historica.
     text = _sanitize_code_value(value)
     if not text:
         return False
@@ -200,6 +227,9 @@ def _is_suspicious_code(value: Any) -> bool:
 
 
 def _extract_signals_from_description(text: Any) -> Dict[str, str]:
+    return web_normalization_service.extract_signals_from_description(text)
+
+    # Legacy fallback mantido apenas para rollback/comparacao historica.
     raw = _as_text(text, max_len=12000)
     if not raw:
         return {}
@@ -732,30 +762,46 @@ def _build_payload_enriquecimento_visivel(
     return update_fields, notes, ignored_notes
 
 
-def _get_web_enrichment_task_service() -> WebEnrichmentTaskService:
-    global _web_enrichment_task_service
-    if _web_enrichment_task_service is None:
-        _web_enrichment_task_service = WebEnrichmentTaskService(
-            logger=logger,
-            SQLAlchemyError=SQLAlchemyError,
-            crud_users=crud_users,
-            crud_produtos=crud_produtos,
-            crud=crud,
-            models=models,
-            schemas=schemas,
-            web_extractor=web_extractor,
-            settings=settings,
-            json=json,
-            re=re,
-            normalize_human_text=_normalize_human_text,
-            build_payload_enriquecimento_visivel=_build_payload_enriquecimento_visivel,
-            extrair_dominio_fornecedor=_extrair_dominio_fornecedor,
-            priorizar_urls_para_enriquecimento=_priorizar_urls_para_enriquecimento,
-            is_meaningful_extracted_text=_is_meaningful_extracted_text,
-            metadata_has_minimum_signal=_metadata_has_minimum_signal,
-            is_source_relevant_for_product=_is_source_relevant_for_product,
+def _build_web_enrichment_task_service(pipeline_variant: str) -> WebEnrichmentTaskService:
+    return WebEnrichmentTaskService(
+        logger=logger,
+        SQLAlchemyError=SQLAlchemyError,
+        crud_users=crud_users,
+        crud_produtos=crud_produtos,
+        crud=crud,
+        models=models,
+        schemas=schemas,
+        web_extractor=web_extractor,
+        settings=settings,
+        json=json,
+        re=re,
+        normalize_human_text=_normalize_human_text,
+        build_payload_enriquecimento_visivel=_build_payload_enriquecimento_visivel,
+        extrair_dominio_fornecedor=_extrair_dominio_fornecedor,
+        priorizar_urls_para_enriquecimento=_priorizar_urls_para_enriquecimento,
+        is_meaningful_extracted_text=_is_meaningful_extracted_text,
+        metadata_has_minimum_signal=_metadata_has_minimum_signal,
+        is_source_relevant_for_product=_is_source_relevant_for_product,
+        pipeline_variant=pipeline_variant,
+    )
+
+
+def _get_legacy_web_enrichment_task_service() -> WebEnrichmentTaskService:
+    global _legacy_web_enrichment_task_service
+    if _legacy_web_enrichment_task_service is None:
+        _legacy_web_enrichment_task_service = _build_web_enrichment_task_service(
+            pipeline_variant="legacy"
         )
-    return _web_enrichment_task_service
+    return _legacy_web_enrichment_task_service
+
+
+def _get_oop_web_enrichment_task_service() -> WebEnrichmentTaskService:
+    global _oop_web_enrichment_task_service
+    if _oop_web_enrichment_task_service is None:
+        _oop_web_enrichment_task_service = _build_web_enrichment_task_service(
+            pipeline_variant="oop"
+        )
+    return _oop_web_enrichment_task_service
 
 async def _tarefa_enriquecer_produto_web(
     db_session_factory,
@@ -763,7 +809,7 @@ async def _tarefa_enriquecer_produto_web(
     user_id: int,
     termos_busca_override: Optional[str] = None
 ):
-    await _get_web_enrichment_task_service().execute(
+    await _get_legacy_web_enrichment_task_service().execute(
         db_session_factory=db_session_factory,
         produto_id=produto_id,
         user_id=user_id,
@@ -773,7 +819,7 @@ async def _tarefa_enriquecer_produto_web(
 
 async def _oop_tarefa_enriquecer_produto_web(**task_kwargs):
     """Executor OOP dedicado (modo oop), separado do legado para comparacao futura."""
-    await _get_web_enrichment_task_service().execute(**task_kwargs)
+    await _get_oop_web_enrichment_task_service().execute(**task_kwargs)
 
 @router.post("/produto/{produto_id}", status_code=status.HTTP_202_ACCEPTED, response_model=schemas.Msg)
 async def iniciar_enriquecimento_produto_web_endpoint(

@@ -11,6 +11,10 @@ from Backend.application.services.catalog_import_components import (
     CatalogImportQualityAccumulator,
     CatalogImportResultBuilder,
 )
+from Backend.application.services.shadow_result_comparator import ShadowResultComparator
+
+
+_shadow_result_comparator = ShadowResultComparator()
 
 
 async def run_catalog_import_task(
@@ -43,6 +47,7 @@ async def run_catalog_import_task(
     classificar_qualidade_linha_produto: Callable,
     write_catalog_import_report: Callable,
     normalize_import_text: Callable,
+    pipeline_variant: str = "unknown",
 ):
     """Processa o arquivo salvo em background e cria os produtos."""
 
@@ -67,7 +72,17 @@ async def run_catalog_import_task(
             logger.error("Catalog file %s not found", file_id)
 
             return
-        catalog_logger.info("inicio file_id=%s user_id=%s fornecedor_id=%s product_type_id=%s pages=%s region=%s mapping_keys=%s", file_id, user_id, fornecedor_id, product_type_id, pages, region, list(mapping.keys()) if mapping else [])
+        catalog_logger.info(
+            "inicio variant=%s file_id=%s user_id=%s fornecedor_id=%s product_type_id=%s pages=%s region=%s mapping_keys=%s",
+            pipeline_variant,
+            file_id,
+            user_id,
+            fornecedor_id,
+            product_type_id,
+            pages,
+            region,
+            list(mapping.keys()) if mapping else [],
+        )
 
         file_state_service = CatalogImportFileStateService()
         file_state_service.mark_processing(
@@ -556,7 +571,8 @@ async def run_catalog_import_task(
                 str(first_error)[:1000],
             )
         catalog_logger.info(
-            "fim file_id=%s status=%s created=%s updated=%s errors=%s ignored=%s quarantine=%s pages=%s/%s top_reasons=%s top_ignored=%s top_quarantine=%s quality_avg=%s quality_quarantine_avg=%s report=%s",
+            "fim variant=%s file_id=%s status=%s created=%s updated=%s errors=%s ignored=%s quarantine=%s pages=%s/%s top_reasons=%s top_ignored=%s top_quarantine=%s quality_avg=%s quality_quarantine_avg=%s report=%s",
+            pipeline_variant,
             file_id,
             final_status,
             created_count,
@@ -572,6 +588,21 @@ async def run_catalog_import_task(
             accepted_quality_avg,
             quarantine_quality_avg,
             str(report_path) if report_path else "-",
+        )
+        _shadow_result_comparator.record_result(
+            context="catalog_import.finalize",
+            entity_id=file_id,
+            variant=pipeline_variant,
+            payload={
+                "status": final_status,
+                "created": created_count,
+                "updated": updated_count,
+                "errors": errors_count,
+                "ignored_non_critical": ignored_count,
+                "quarantine_non_critical": quarantine_count,
+                "pages_processed": catalog_file.pages_processed or 0,
+                "pages_total": catalog_file.total_pages or 0,
+            },
         )
 
     except Exception as e:
@@ -629,6 +660,7 @@ class CatalogImportTaskService:
         classificar_qualidade_linha_produto: Callable,
         write_catalog_import_report: Callable,
         normalize_import_text: Callable,
+        pipeline_variant: str = "unknown",
     ):
         self._deps = {
             "logger": logger,
@@ -651,6 +683,7 @@ class CatalogImportTaskService:
             "classificar_qualidade_linha_produto": classificar_qualidade_linha_produto,
             "write_catalog_import_report": write_catalog_import_report,
             "normalize_import_text": normalize_import_text,
+            "pipeline_variant": pipeline_variant,
         }
 
     async def execute(
