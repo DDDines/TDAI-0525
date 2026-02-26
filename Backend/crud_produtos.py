@@ -1,84 +1,148 @@
-import logging
 import json
+import logging
 import uuid
 from pathlib import Path
-from typing import List, Optional, Dict, Any, Tuple, Set
+from typing import Any, Dict, List, Optional, Set, Tuple
 
-from sqlalchemy import func, or_, desc, asc
+from fastapi import HTTPException, UploadFile, status
+from sqlalchemy import asc, desc, func, or_
 from sqlalchemy.orm import Session, selectinload
 
+from Backend import schemas
 from Backend.core.config import settings
 from Backend.models import (
-    Produto,
-    Fornecedor,
     ProductType,
+    Produto,
     StatusEnriquecimentoEnum,
     StatusGeracaoIAEnum,
 )
-from fastapi import UploadFile, HTTPException, status 
-from Backend import schemas
 
 logger = logging.getLogger(__name__)
 
 
-def create_produto(
-    db: Session, produto: schemas.ProdutoCreate, user_id: int
+_JSON_FIELDS = (
+    "dynamic_attributes",
+    "dados_brutos_web",
+    "log_enriquecimento_web",
+)
+
+
+def _normalize_identifier_fields(produto_data: Dict[str, Any]) -> None:
+    for field_name in ("sku", "ean"):
+        if field_name in produto_data and produto_data[field_name] == "":
+            produto_data[field_name] = None
+
+
+def _parse_json_fields(produto_data: Dict[str, Any], fields: List[str]) -> None:
+    for field_name in fields:
+        if field_name in produto_data and isinstance(produto_data[field_name], str):
+            try:
+                produto_data[field_name] = json.loads(produto_data[field_name])
+            except json.JSONDecodeError as exc:
+                raise ValueError(
+                    f"{field_name} nao e um JSON string valido."
+                ) from exc
+
+
+def _validate_unique_identifiers(
+    db: Session,
+    user_id: int,
+    produto_data: Dict[str, Any],
+) -> None:
+    sku = produto_data.get("sku")
+    ean = produto_data.get("ean")
+
+    if sku:
+        existing_sku = (
+            db.query(Produto)
+            .filter(Produto.user_id == user_id, Produto.sku == sku)
+            .first()
+        )
+        if existing_sku:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail=f"Ja existe um produto com o SKU '{sku}'.",
+            )
+
+    if ean:
+        existing_ean = (
+            db.query(Produto)
+            .filter(Produto.user_id == user_id, Produto.ean == ean)
+            .first()
+        )
+        if existing_ean:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail=f"Ja existe um produto com o EAN '{ean}'.",
+            )
+
+
+def _apply_search_filter(query, search: Optional[str]):
+    if not search:
+        return query
+
+    search_term = f"%{search.lower()}%"
+    return query.filter(
+        or_(
+            func.lower(Produto.nome_base).ilike(search_term),
+            func.lower(Produto.nome_chat_api).ilike(search_term),
+            func.lower(Produto.descricao_original).ilike(search_term),
+            func.lower(Produto.descricao_chat_api).ilike(search_term),
+            func.lower(Produto.sku).ilike(search_term),
+            func.lower(Produto.ean).ilike(search_term),
+            func.lower(Produto.marca).ilike(search_term),
+            func.lower(Produto.modelo).ilike(search_term),
+        )
+    )
+
+
+def _apply_optional_filters(
+    query,
+    fornecedor_id: Optional[int],
+    product_type_id: Optional[int],
+    categoria: Optional[str],
+    status_enriquecimento_web: Optional[StatusEnriquecimentoEnum],
+    status_titulo_ia: Optional[StatusGeracaoIAEnum],
+    status_descricao_ia: Optional[StatusGeracaoIAEnum],
+):
+    if fornecedor_id is not None:
+        query = query.filter(Produto.fornecedor_id == fornecedor_id)
+    if product_type_id is not None:
+        query = query.filter(Produto.product_type_id == product_type_id)
+    if categoria:
+        query = query.filter(
+            func.lower(Produto.categoria_original).ilike(f"%{categoria.lower()}%")
+        )
+    if status_enriquecimento_web:
+        query = query.filter(
+            Produto.status_enriquecimento_web == status_enriquecimento_web
+        )
+    if status_titulo_ia:
+        query = query.filter(Produto.status_titulo_ia == status_titulo_ia)
+    if status_descricao_ia:
+        query = query.filter(Produto.status_descricao_ia == status_descricao_ia)
+    return query
+
+
+def _apply_ordering(query, sort_by: Optional[str], sort_order: Optional[str]):
+    if sort_by:
+        column_to_sort = getattr(Produto, sort_by, None)
+        if column_to_sort is not None:
+            if (sort_order or "asc").lower() == "desc":
+                return query.order_by(desc(column_to_sort))
+            return query.order_by(asc(column_to_sort))
+    return query.order_by(Produto.id)
+
+
+def _create_produto_impl(
+    db: Session,
+    produto: schemas.ProdutoCreate,
+    user_id: int,
 ) -> Produto:
     produto_data = produto.model_dump(exclude_unset=True)
-
-    # 1. Tratamento de campos vazios (A nossa correção anterior)
-    if "sku" in produto_data and produto_data["sku"] == "":
-        produto_data["sku"] = None
-    if "ean" in produto_data and produto_data["ean"] == "":
-        produto_data["ean"] = None
-
-    # 2. Verificação de Duplicados (NOVO: Evita o erro 500)
-    if produto_data.get("sku"):
-        existe_sku = db.query(Produto).filter(Produto.user_id == user_id, Produto.sku == produto_data["sku"]).first()
-        if existe_sku:
-            raise HTTPException(
-                status_code=status.HTTP_409_CONFLICT,
-                detail=f"Já existe um produto com o SKU '{produto_data['sku']}'."
-            )
-            
-    if produto_data.get("ean"):
-        existe_ean = db.query(Produto).filter(Produto.user_id == user_id, Produto.ean == produto_data["ean"]).first()
-        if existe_ean:
-            raise HTTPException(
-                status_code=status.HTTP_409_CONFLICT,
-                detail=f"Já existe um produto com o EAN '{produto_data['ean']}'."
-            )
-
-    # 3. Tratamento de JSONs (Código original)
-    if "dynamic_attributes" in produto_data and isinstance(
-        produto_data["dynamic_attributes"], str
-    ):
-        try:
-            produto_data["dynamic_attributes"] = json.loads(
-                produto_data["dynamic_attributes"]
-            )
-        except json.JSONDecodeError:
-            raise ValueError("dynamic_attributes não é um JSON string válido.")
-
-    if "dados_brutos_web" in produto_data and isinstance(
-        produto_data["dados_brutos_web"], str
-    ):
-        try:
-            produto_data["dados_brutos_web"] = json.loads(
-                produto_data["dados_brutos_web"]
-            )
-        except json.JSONDecodeError:
-            raise ValueError("dados_brutos_web não é um JSON string válido.")
-
-    if "log_enriquecimento_web" in produto_data and isinstance(
-        produto_data["log_enriquecimento_web"], str
-    ):
-        try:
-            produto_data["log_enriquecimento_web"] = json.loads(
-                produto_data["log_enriquecimento_web"]
-            )
-        except json.JSONDecodeError:
-            raise ValueError("log_enriquecimento_web não é um JSON string válido.")
+    _normalize_identifier_fields(produto_data)
+    _validate_unique_identifiers(db=db, user_id=user_id, produto_data=produto_data)
+    _parse_json_fields(produto_data, list(_JSON_FIELDS))
 
     db_produto = Produto(**produto_data, user_id=user_id)
     db.add(db_produto)
@@ -87,23 +151,17 @@ def create_produto(
     return db_produto
 
 
-def create_produtos_bulk(
-    db: Session, produtos: List[schemas.ProdutoCreate], user_id: int
+def _create_produtos_bulk_impl(
+    db: Session,
+    produtos: List[schemas.ProdutoCreate],
+    user_id: int,
 ) -> Tuple[List[Produto], List[Produto], List[Dict[str, Any]]]:
-    """Cria ou atualiza múltiplos produtos em uma única transação.
-
-    Produtos com SKU ou EAN já existentes para o mesmo usuário são atualizados
-    e retornados na lista ``updated``. Linhas duplicadas na mesma importação são
-    descartadas e registradas em ``errors``.
-    """
     created_produtos: List[Produto] = []
     updated_produtos: List[Produto] = []
     erros: List[Dict[str, Any]] = []
 
     skus = [p.sku for p in produtos if p.sku]
     eans = [p.ean for p in produtos if p.ean]
-    existing_skus: Set[str] = set()
-    existing_eans: Set[str] = set()
     sku_map: Dict[str, Produto] = {}
     ean_map: Dict[str, Produto] = {}
 
@@ -114,23 +172,24 @@ def create_produtos_bulk(
             .filter(or_(Produto.sku.in_(skus), Produto.ean.in_(eans)))
             .all()
         )
-        for p in existing:
-            if p.sku:
-                existing_skus.add(p.sku)
-                sku_map[p.sku] = p
-            if p.ean:
-                existing_eans.add(p.ean)
-                ean_map[p.ean] = p
+        for existing_produto in existing:
+            if existing_produto.sku:
+                sku_map[existing_produto.sku] = existing_produto
+            if existing_produto.ean:
+                ean_map[existing_produto.ean] = existing_produto
 
     new_skus: Set[str] = set()
     new_eans: Set[str] = set()
 
     for produto_schema in produtos:
         data = produto_schema.model_dump(exclude_unset=True)
+        _normalize_identifier_fields(data)
+        _parse_json_fields(data, list(_JSON_FIELDS))
+
         sku = data.get("sku")
         ean = data.get("ean")
 
-        if sku and sku in new_skus or ean and ean in new_eans:
+        if (sku and sku in new_skus) or (ean and ean in new_eans):
             erros.append(
                 {
                     "motivo_descarte": "Produto duplicado por SKU ou EAN",
@@ -140,38 +199,34 @@ def create_produtos_bulk(
             )
             continue
 
-        existing_prod = None
+        existing_produto = None
         if sku and sku in sku_map:
-            existing_prod = sku_map[sku]
+            existing_produto = sku_map[sku]
         elif ean and ean in ean_map:
-            existing_prod = ean_map[ean]
+            existing_produto = ean_map[ean]
 
-        if existing_prod:
+        if existing_produto:
             for key, value in data.items():
-                setattr(existing_prod, key, value)
-            updated_produtos.append(existing_prod)
-            if sku:
-                new_skus.add(sku)
-            if ean:
-                new_eans.add(ean)
+                setattr(existing_produto, key, value)
+            updated_produtos.append(existing_produto)
         else:
             db_produto = Produto(**data, user_id=user_id)
             db.add(db_produto)
             created_produtos.append(db_produto)
-            if sku:
-                new_skus.add(sku)
-            if ean:
-                new_eans.add(ean)
+
+        if sku:
+            new_skus.add(sku)
+        if ean:
+            new_eans.add(ean)
 
     db.commit()
-    for p in created_produtos + updated_produtos:
-        db.refresh(p)
+    for produto_db in created_produtos + updated_produtos:
+        db.refresh(produto_db)
 
     return created_produtos, updated_produtos, erros
 
 
-def get_produto(db: Session, produto_id: int) -> Optional[Produto]:
-    # Usar selectinload para carregar relacionamentos de forma eficiente se sempre forem acessados
+def _get_produto_impl(db: Session, produto_id: int) -> Optional[Produto]:
     return (
         db.query(Produto)
         .options(
@@ -185,11 +240,9 @@ def get_produto(db: Session, produto_id: int) -> Optional[Produto]:
     )
 
 
-def get_produtos_by_user(
+def _get_produtos_by_user_impl(
     db: Session,
-    user_id: Optional[
-        int
-    ],  # Se None e is_admin=True, busca todos. Se user_id e is_admin=False, busca do usuário.
+    user_id: Optional[int],
     is_admin: bool,
     skip: int = 0,
     limit: int = 10,
@@ -198,73 +251,37 @@ def get_produtos_by_user(
     search: Optional[str] = None,
     fornecedor_id: Optional[int] = None,
     product_type_id: Optional[int] = None,
-    categoria: Optional[str] = None,  # Adicionado
-    status_enriquecimento_web: Optional[StatusEnriquecimentoEnum] = None,  # Adicionado
-    status_titulo_ia: Optional[StatusGeracaoIAEnum] = None,  # Adicionado
-    status_descricao_ia: Optional[StatusGeracaoIAEnum] = None,  # Adicionado
+    categoria: Optional[str] = None,
+    status_enriquecimento_web: Optional[StatusEnriquecimentoEnum] = None,
+    status_titulo_ia: Optional[StatusGeracaoIAEnum] = None,
+    status_descricao_ia: Optional[StatusGeracaoIAEnum] = None,
 ) -> List[Produto]:
     query = db.query(Produto).options(
         selectinload(Produto.fornecedor),
-        selectinload(
-            Produto.product_type
-        ),  # Carrega product_type, mas não seus atributos aqui para a lista
+        selectinload(Produto.product_type),
     )
 
     if not is_admin:
-        if (
-            user_id is None
-        ):  # Não deveria acontecer se não for admin e não tiver user_id
+        if user_id is None:
             return []
         query = query.filter(Produto.user_id == user_id)
 
-    if search:
-        search_term = f"%{search.lower()}%"
-        query = query.filter(
-            or_(
-                func.lower(Produto.nome_base).ilike(search_term),
-                func.lower(Produto.nome_chat_api).ilike(search_term),
-                func.lower(Produto.descricao_original).ilike(search_term),
-                func.lower(Produto.descricao_chat_api).ilike(search_term),
-                func.lower(Produto.sku).ilike(search_term),
-                func.lower(Produto.ean).ilike(search_term),
-                func.lower(Produto.marca).ilike(search_term),
-                func.lower(Produto.modelo).ilike(search_term),
-            )
-        )
-
-    if fornecedor_id is not None:
-        query = query.filter(Produto.fornecedor_id == fornecedor_id)
-    if product_type_id is not None:
-        query = query.filter(Produto.product_type_id == product_type_id)
-    if categoria:
-        query = query.filter(
-            func.lower(Produto.categoria_original).ilike(f"%{categoria.lower()}%")
-        )  # Ou categoria_mapeada
-    if status_enriquecimento_web:
-        query = query.filter(
-            Produto.status_enriquecimento_web == status_enriquecimento_web
-        )
-    if status_titulo_ia:
-        query = query.filter(Produto.status_titulo_ia == status_titulo_ia)
-    if status_descricao_ia:
-        query = query.filter(Produto.status_descricao_ia == status_descricao_ia)
-
-    if sort_by:
-        column_to_sort = getattr(Produto, sort_by, None)
-        if column_to_sort:
-            if sort_order.lower() == "desc":
-                query = query.order_by(desc(column_to_sort))
-            else:
-                query = query.order_by(asc(column_to_sort))
-        else:  # Fallback ou log de erro se sort_by for inválido
-            query = query.order_by(Produto.id)
-    else:
-        query = query.order_by(Produto.id)  # Ordenação padrão
+    query = _apply_search_filter(query, search)
+    query = _apply_optional_filters(
+        query=query,
+        fornecedor_id=fornecedor_id,
+        product_type_id=product_type_id,
+        categoria=categoria,
+        status_enriquecimento_web=status_enriquecimento_web,
+        status_titulo_ia=status_titulo_ia,
+        status_descricao_ia=status_descricao_ia,
+    )
+    query = _apply_ordering(query, sort_by, sort_order)
 
     return query.offset(skip).limit(limit).all()
 
 
-def count_produtos_by_user(
+def _count_produtos_by_user_impl(
     db: Session,
     user_id: Optional[int],
     is_admin: bool,
@@ -283,87 +300,60 @@ def count_produtos_by_user(
             return 0
         query = query.filter(Produto.user_id == user_id)
 
-    if search:
-        search_term = f"%{search.lower()}%"
-        query = query.filter(
-            or_(
-                func.lower(Produto.nome_base).ilike(search_term),
-                func.lower(Produto.nome_chat_api).ilike(search_term),
-                func.lower(Produto.descricao_original).ilike(search_term),
-                func.lower(Produto.descricao_chat_api).ilike(search_term),
-                func.lower(Produto.sku).ilike(search_term),
-                func.lower(Produto.ean).ilike(search_term),
-                func.lower(Produto.marca).ilike(search_term),
-                func.lower(Produto.modelo).ilike(search_term),
-            )
-        )
-    if fornecedor_id is not None:
-        query = query.filter(Produto.fornecedor_id == fornecedor_id)
-    if product_type_id is not None:
-        query = query.filter(Produto.product_type_id == product_type_id)
-    if categoria:
-        query = query.filter(
-            func.lower(Produto.categoria_original).ilike(f"%{categoria.lower()}%")
-        )
-    if status_enriquecimento_web:
-        query = query.filter(
-            Produto.status_enriquecimento_web == status_enriquecimento_web
-        )
-    if status_titulo_ia:
-        query = query.filter(Produto.status_titulo_ia == status_titulo_ia)
-    if status_descricao_ia:
-        query = query.filter(Produto.status_descricao_ia == status_descricao_ia)
+    query = _apply_search_filter(query, search)
+    query = _apply_optional_filters(
+        query=query,
+        fornecedor_id=fornecedor_id,
+        product_type_id=product_type_id,
+        categoria=categoria,
+        status_enriquecimento_web=status_enriquecimento_web,
+        status_titulo_ia=status_titulo_ia,
+        status_descricao_ia=status_descricao_ia,
+    )
 
     count = query.scalar()
     return count if count is not None else 0
 
 
-def update_produto(
-    db: Session, db_produto: Produto, produto_update: schemas.ProdutoUpdate
+def _update_produto_impl(
+    db: Session,
+    db_produto: Produto,
+    produto_update: schemas.ProdutoUpdate,
 ) -> Produto:
     update_data = produto_update.model_dump(exclude_unset=True)
 
-    # Lógica para campos JSON (dynamic_attributes, dados_brutos_web, log_enriquecimento_web, imagens_secundarias_urls)
-    # Pydantic deve entregar dict/list se o schema estiver correto (não Json[Type])
-    # O modelo SQLAlchemy aceita dict/list para colunas JSON.
-    for field in [
-        "dynamic_attributes",
-        "dados_brutos_web",
-        "log_enriquecimento_web",
-        "imagens_secundarias_urls",
-    ]:
-        if field in update_data and update_data[field] is not None:
-            # Se o schema já garante o tipo correto (dict/list), apenas atribua
-            # Se o schema ainda for Json[Type] e vier uma string, precisa de json.loads aqui
-            # Assumindo que o schema.ProdutoUpdate terá Dict/List para esses campos:
-            pass  # setattr abaixo cuidará disso
+    _parse_json_fields(
+        update_data,
+        list(_JSON_FIELDS) + ["imagens_secundarias_urls"],
+    )
 
     for key, value in update_data.items():
         setattr(db_produto, key, value)
 
     db.commit()
     db.refresh(db_produto)
-    # Recarregar relacionamentos se forem modificados ou para garantir consistência na resposta
     db.refresh(db_produto, attribute_names=["fornecedor", "product_type"])
-    if (
-        db_produto.product_type
-    ):  # Para garantir que os atributos do tipo também sejam carregados se product_type for acessado
+    if db_produto.product_type:
         db.refresh(db_produto.product_type, attribute_names=["attribute_templates"])
     return db_produto
 
 
-def delete_produto(db: Session, db_produto: Produto) -> Produto:
-    # Antes de deletar, pode ser necessário limpar referências em RegistroUsoIA se não houver cascade
-    # No seu modelo, RegistroUsoIA tem cascade="all, delete-orphan" para produto, então está OK.
+def _delete_produto_impl(db: Session, db_produto: Produto) -> Produto:
     db.delete(db_produto)
     db.commit()
     return db_produto
 
 
-async def save_produto_image(db: Session, produto_id: int, file: UploadFile) -> str:
-    """Salva a imagem enviada para um produto e retorna o caminho relativo."""
+async def _save_produto_image_impl(
+    db: Session,
+    produto_id: int,
+    file: UploadFile,
+) -> str:
+    _ = db
+    _ = produto_id
+
     if not file.filename:
-        raise ValueError("Nome do arquivo não fornecido.")
+        raise ValueError("Nome do arquivo nao fornecido.")
 
     upload_dir = Path(settings.UPLOAD_DIRECTORY)
     if not upload_dir.is_absolute():
@@ -376,30 +366,306 @@ async def save_produto_image(db: Session, produto_id: int, file: UploadFile) -> 
 
     try:
         content = await file.read()
-        with open(file_path, "wb") as f_out:
-            f_out.write(content)
-    except Exception as e:
-        raise IOError(f"Não foi possível salvar o arquivo: {e}")
+        with open(file_path, "wb") as output_file:
+            output_file.write(content)
+    except Exception as exc:
+        raise IOError(f"Nao foi possivel salvar o arquivo: {exc}") from exc
     finally:
         await file.close()
 
-    relative = Path(settings.UPLOAD_DIRECTORY) / unique_filename
-    return f"/{relative.as_posix()}"
+    relative_path = Path(settings.UPLOAD_DIRECTORY) / unique_filename
+    return f"/{relative_path.as_posix()}"
 
 
-def get_or_create_produto(
-    db: Session, produto: schemas.ProdutoCreate, user_id: int
+def _get_or_create_produto_impl(
+    db: Session,
+    produto: schemas.ProdutoCreate,
+    user_id: int,
 ) -> Produto:
-    query = db.query(Produto).filter(Produto.user_id == user_id)
+    base_query = db.query(Produto).filter(Produto.user_id == user_id)
+    existing: Optional[Produto] = None
+
     if produto.sku:
-        query = query.filter(Produto.sku == produto.sku)
+        existing = base_query.filter(Produto.sku == produto.sku).first()
     elif produto.ean:
-        query = query.filter(Produto.ean == produto.ean)
-    existing = query.first()
+        existing = base_query.filter(Produto.ean == produto.ean).first()
+
     if existing:
         for key, value in produto.model_dump(exclude_unset=True).items():
             setattr(existing, key, value)
         db.commit()
         db.refresh(existing)
         return existing
-    return create_produto(db, produto, user_id)
+
+    return _create_produto_impl(db=db, produto=produto, user_id=user_id)
+
+
+class _ProdutoCrudWorkflow:
+    def create_produto(
+        self,
+        db: Session,
+        produto: schemas.ProdutoCreate,
+        user_id: int,
+    ) -> Produto:
+        return _create_produto_impl(db=db, produto=produto, user_id=user_id)
+
+    def create_produtos_bulk(
+        self,
+        db: Session,
+        produtos: List[schemas.ProdutoCreate],
+        user_id: int,
+    ) -> Tuple[List[Produto], List[Produto], List[Dict[str, Any]]]:
+        return _create_produtos_bulk_impl(db=db, produtos=produtos, user_id=user_id)
+
+    def get_produto(self, db: Session, produto_id: int) -> Optional[Produto]:
+        return _get_produto_impl(db=db, produto_id=produto_id)
+
+    def get_produtos_by_user(
+        self,
+        db: Session,
+        user_id: Optional[int],
+        is_admin: bool,
+        skip: int = 0,
+        limit: int = 10,
+        sort_by: Optional[str] = None,
+        sort_order: Optional[str] = "asc",
+        search: Optional[str] = None,
+        fornecedor_id: Optional[int] = None,
+        product_type_id: Optional[int] = None,
+        categoria: Optional[str] = None,
+        status_enriquecimento_web: Optional[StatusEnriquecimentoEnum] = None,
+        status_titulo_ia: Optional[StatusGeracaoIAEnum] = None,
+        status_descricao_ia: Optional[StatusGeracaoIAEnum] = None,
+    ) -> List[Produto]:
+        return _get_produtos_by_user_impl(
+            db=db,
+            user_id=user_id,
+            is_admin=is_admin,
+            skip=skip,
+            limit=limit,
+            sort_by=sort_by,
+            sort_order=sort_order,
+            search=search,
+            fornecedor_id=fornecedor_id,
+            product_type_id=product_type_id,
+            categoria=categoria,
+            status_enriquecimento_web=status_enriquecimento_web,
+            status_titulo_ia=status_titulo_ia,
+            status_descricao_ia=status_descricao_ia,
+        )
+
+    def count_produtos_by_user(
+        self,
+        db: Session,
+        user_id: Optional[int],
+        is_admin: bool,
+        search: Optional[str] = None,
+        fornecedor_id: Optional[int] = None,
+        product_type_id: Optional[int] = None,
+        categoria: Optional[str] = None,
+        status_enriquecimento_web: Optional[StatusEnriquecimentoEnum] = None,
+        status_titulo_ia: Optional[StatusGeracaoIAEnum] = None,
+        status_descricao_ia: Optional[StatusGeracaoIAEnum] = None,
+    ) -> int:
+        return _count_produtos_by_user_impl(
+            db=db,
+            user_id=user_id,
+            is_admin=is_admin,
+            search=search,
+            fornecedor_id=fornecedor_id,
+            product_type_id=product_type_id,
+            categoria=categoria,
+            status_enriquecimento_web=status_enriquecimento_web,
+            status_titulo_ia=status_titulo_ia,
+            status_descricao_ia=status_descricao_ia,
+        )
+
+    def update_produto(
+        self,
+        db: Session,
+        db_produto: Produto,
+        produto_update: schemas.ProdutoUpdate,
+    ) -> Produto:
+        return _update_produto_impl(
+            db=db,
+            db_produto=db_produto,
+            produto_update=produto_update,
+        )
+
+    def delete_produto(self, db: Session, db_produto: Produto) -> Produto:
+        return _delete_produto_impl(db=db, db_produto=db_produto)
+
+    async def save_produto_image(
+        self,
+        db: Session,
+        produto_id: int,
+        file: UploadFile,
+    ) -> str:
+        return await _save_produto_image_impl(
+            db=db,
+            produto_id=produto_id,
+            file=file,
+        )
+
+    def get_or_create_produto(
+        self,
+        db: Session,
+        produto: schemas.ProdutoCreate,
+        user_id: int,
+    ) -> Produto:
+        return _get_or_create_produto_impl(db=db, produto=produto, user_id=user_id)
+
+
+_produto_crud_workflow = _ProdutoCrudWorkflow()
+
+
+def create_produto(
+    db: Session,
+    produto: schemas.ProdutoCreate,
+    user_id: int,
+) -> Produto:
+    return _produto_crud_workflow.create_produto(db=db, produto=produto, user_id=user_id)
+
+
+def create_produtos_bulk(
+    db: Session,
+    produtos: List[schemas.ProdutoCreate],
+    user_id: int,
+) -> Tuple[List[Produto], List[Produto], List[Dict[str, Any]]]:
+    return _produto_crud_workflow.create_produtos_bulk(
+        db=db,
+        produtos=produtos,
+        user_id=user_id,
+    )
+
+
+def get_produto(db: Session, produto_id: int) -> Optional[Produto]:
+    return _produto_crud_workflow.get_produto(db=db, produto_id=produto_id)
+
+
+def get_produtos_by_user(
+    db: Session,
+    user_id: Optional[int],
+    is_admin: bool,
+    skip: int = 0,
+    limit: int = 10,
+    sort_by: Optional[str] = None,
+    sort_order: Optional[str] = "asc",
+    search: Optional[str] = None,
+    fornecedor_id: Optional[int] = None,
+    product_type_id: Optional[int] = None,
+    categoria: Optional[str] = None,
+    status_enriquecimento_web: Optional[StatusEnriquecimentoEnum] = None,
+    status_titulo_ia: Optional[StatusGeracaoIAEnum] = None,
+    status_descricao_ia: Optional[StatusGeracaoIAEnum] = None,
+) -> List[Produto]:
+    return _produto_crud_workflow.get_produtos_by_user(
+        db=db,
+        user_id=user_id,
+        is_admin=is_admin,
+        skip=skip,
+        limit=limit,
+        sort_by=sort_by,
+        sort_order=sort_order,
+        search=search,
+        fornecedor_id=fornecedor_id,
+        product_type_id=product_type_id,
+        categoria=categoria,
+        status_enriquecimento_web=status_enriquecimento_web,
+        status_titulo_ia=status_titulo_ia,
+        status_descricao_ia=status_descricao_ia,
+    )
+
+
+def count_produtos_by_user(
+    db: Session,
+    user_id: Optional[int],
+    is_admin: bool,
+    search: Optional[str] = None,
+    fornecedor_id: Optional[int] = None,
+    product_type_id: Optional[int] = None,
+    categoria: Optional[str] = None,
+    status_enriquecimento_web: Optional[StatusEnriquecimentoEnum] = None,
+    status_titulo_ia: Optional[StatusGeracaoIAEnum] = None,
+    status_descricao_ia: Optional[StatusGeracaoIAEnum] = None,
+) -> int:
+    return _produto_crud_workflow.count_produtos_by_user(
+        db=db,
+        user_id=user_id,
+        is_admin=is_admin,
+        search=search,
+        fornecedor_id=fornecedor_id,
+        product_type_id=product_type_id,
+        categoria=categoria,
+        status_enriquecimento_web=status_enriquecimento_web,
+        status_titulo_ia=status_titulo_ia,
+        status_descricao_ia=status_descricao_ia,
+    )
+
+
+def update_produto(
+    db: Session,
+    db_produto: Produto,
+    produto_update: schemas.ProdutoUpdate,
+) -> Produto:
+    return _produto_crud_workflow.update_produto(
+        db=db,
+        db_produto=db_produto,
+        produto_update=produto_update,
+    )
+
+
+def delete_produto(db: Session, db_produto: Produto) -> Produto:
+    return _produto_crud_workflow.delete_produto(db=db, db_produto=db_produto)
+
+
+async def save_produto_image(db: Session, produto_id: int, file: UploadFile) -> str:
+    return await _produto_crud_workflow.save_produto_image(
+        db=db,
+        produto_id=produto_id,
+        file=file,
+    )
+
+
+def get_or_create_produto(
+    db: Session,
+    produto: schemas.ProdutoCreate,
+    user_id: int,
+) -> Produto:
+    return _produto_crud_workflow.get_or_create_produto(
+        db=db,
+        produto=produto,
+        user_id=user_id,
+    )
+
+
+class ProdutoCrudLegacyService:
+    def create_produto(self, *args, **kwargs):
+        return create_produto(*args, **kwargs)
+
+    def create_produtos_bulk(self, *args, **kwargs):
+        return create_produtos_bulk(*args, **kwargs)
+
+    def get_produto(self, *args, **kwargs):
+        return get_produto(*args, **kwargs)
+
+    def get_produtos_by_user(self, *args, **kwargs):
+        return get_produtos_by_user(*args, **kwargs)
+
+    def count_produtos_by_user(self, *args, **kwargs):
+        return count_produtos_by_user(*args, **kwargs)
+
+    def update_produto(self, *args, **kwargs):
+        return update_produto(*args, **kwargs)
+
+    def delete_produto(self, *args, **kwargs):
+        return delete_produto(*args, **kwargs)
+
+    async def save_produto_image(self, *args, **kwargs):
+        return await save_produto_image(*args, **kwargs)
+
+    def get_or_create_produto(self, *args, **kwargs):
+        return get_or_create_produto(*args, **kwargs)
+
+
+produto_crud_legacy_service = ProdutoCrudLegacyService()
