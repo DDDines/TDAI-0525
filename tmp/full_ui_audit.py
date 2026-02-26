@@ -462,13 +462,26 @@ def cleanup():
         background_logs.append(f"[{label}] finalizado")
 
 
+
+class FullUiAuditWorkflow:
+    def run_ui_audit(self):
+        run_ui_audit()
+
+    def cleanup(self):
+        cleanup()
+
+
+full_ui_audit_workflow = FullUiAuditWorkflow()
+
+
 def main():
     try:
-        run_ui_audit()
+        full_ui_audit_workflow.run_ui_audit()
     except Exception as exc:
-        record("Execução geral do auditor", False, str(exc))
+        record("Execucao geral do auditor", False, str(exc))
     finally:
-        cleanup()
+        full_ui_audit_workflow.cleanup()
+
 
     passed = len([r for r in results if r["ok"]])
     failed = len([r for r in results if not r["ok"]])

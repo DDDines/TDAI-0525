@@ -297,28 +297,62 @@ def parse_args() -> argparse.Namespace:
     return parser.parse_args()
 
 
+class CatalogDeepStudyWorkflow:
+    def parse_args(self) -> argparse.Namespace:
+        return parse_args()
+
+    def study_pages(
+        self,
+        *,
+        pdf_path: Path,
+        out_path: Path,
+        start: int,
+        end: int,
+        append: bool,
+    ) -> None:
+        study_pages(
+            pdf_path=pdf_path,
+            out_path=out_path,
+            start=start,
+            end=end,
+            append=append,
+        )
+
+    def build_summary(self, *, study_path: Path, summary_path: Path) -> None:
+        build_summary(study_path, summary_path)
+
+
+catalog_deep_study_workflow = CatalogDeepStudyWorkflow()
+
+
 def main() -> None:
-    args = parse_args()
+    args = catalog_deep_study_workflow.parse_args()
     pdf_path = Path(args.pdf)
     out_dir = Path(args.out_dir)
     study_path = out_dir / "pages_study.jsonl"
     summary_path = out_dir / "study_summary.json"
 
     if args.summary_only:
-        build_summary(study_path, summary_path)
+        catalog_deep_study_workflow.build_summary(
+            study_path=study_path,
+            summary_path=summary_path,
+        )
         return
 
     if not pdf_path.exists():
         raise FileNotFoundError(f"PDF not found: {pdf_path}")
 
-    study_pages(
+    catalog_deep_study_workflow.study_pages(
         pdf_path=pdf_path,
         out_path=study_path,
         start=args.start,
         end=args.end,
         append=args.append,
     )
-    build_summary(study_path, summary_path)
+    catalog_deep_study_workflow.build_summary(
+        study_path=study_path,
+        summary_path=summary_path,
+    )
 
 
 if __name__ == "__main__":
