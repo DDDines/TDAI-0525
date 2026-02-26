@@ -1,0 +1,102 @@
+from __future__ import annotations
+
+from typing import Any, Dict, List, Optional
+
+from Backend.application.services.catalog_import_task_service import (
+    CatalogImportTaskService,
+)
+
+
+class CatalogImportTaskRunner:
+    """Orquestra instâncias legacy/oop do serviço de task de importação."""
+
+    def __init__(
+        self,
+        *,
+        logger: Any,
+        catalog_logger: Any,
+        models: Any,
+        schemas: Any,
+        crud_produtos: Any,
+        file_processing_service: Any,
+        validator_crew: Any,
+        settings: Any,
+        path_cls: Any,
+        time_module: Any,
+        counter_cls: Any,
+        resolve_storage_path: Any,
+        normalize_import_issue_item: Any,
+        extract_import_error_reason: Any,
+        is_non_critical_import_reason: Any,
+        normalizar_dados_validados: Any,
+        sanitize_produto_extraido: Any,
+        classificar_qualidade_linha_produto: Any,
+        write_catalog_import_report: Any,
+        normalize_import_text: Any,
+    ) -> None:
+        self._kwargs = {
+            "logger": logger,
+            "catalog_logger": catalog_logger,
+            "models": models,
+            "schemas": schemas,
+            "crud_produtos": crud_produtos,
+            "file_processing_service": file_processing_service,
+            "validator_crew": validator_crew,
+            "settings": settings,
+            "Path": path_cls,
+            "time": time_module,
+            "Counter": counter_cls,
+            "resolve_storage_path": resolve_storage_path,
+            "normalize_import_issue_item": normalize_import_issue_item,
+            "extract_import_error_reason": extract_import_error_reason,
+            "is_non_critical_import_reason": is_non_critical_import_reason,
+            "normalizar_dados_validados": normalizar_dados_validados,
+            "sanitize_produto_extraido": sanitize_produto_extraido,
+            "classificar_qualidade_linha_produto": classificar_qualidade_linha_produto,
+            "write_catalog_import_report": write_catalog_import_report,
+            "normalize_import_text": normalize_import_text,
+        }
+        self._legacy_service: Optional[CatalogImportTaskService] = None
+        self._oop_service: Optional[CatalogImportTaskService] = None
+
+    def _build(self, *, pipeline_variant: str) -> CatalogImportTaskService:
+        return CatalogImportTaskService(
+            pipeline_variant=pipeline_variant,
+            **self._kwargs,
+        )
+
+    def _get_service(self, variant: str) -> CatalogImportTaskService:
+        if variant == "legacy":
+            if self._legacy_service is None:
+                self._legacy_service = self._build(pipeline_variant="legacy")
+            return self._legacy_service
+        if self._oop_service is None:
+            self._oop_service = self._build(pipeline_variant="oop")
+        return self._oop_service
+
+    async def execute_legacy(
+        self,
+        *,
+        db_session_factory: Any,
+        file_id: int,
+        user_id: int,
+        product_type_id: Optional[int],
+        fornecedor_id: int,
+        mapping: Optional[Dict[str, str]] = None,
+        pages: Optional[List[int]] = None,
+        region: Optional[List[float]] = None,
+    ) -> None:
+        await self._get_service("legacy").execute(
+            db_session_factory=db_session_factory,
+            file_id=file_id,
+            user_id=user_id,
+            product_type_id=product_type_id,
+            fornecedor_id=fornecedor_id,
+            mapping=mapping,
+            pages=pages,
+            region=region,
+        )
+
+    async def execute_oop(self, **task_kwargs: Any) -> None:
+        await self._get_service("oop").execute(**task_kwargs)
+

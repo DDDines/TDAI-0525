@@ -42,15 +42,13 @@ from Backend.application.orchestrators.catalog_import import (
     CatalogImportPipelineOrchestrator,
 )
 from Backend.application.services import (
+    CatalogImportTaskRunner,
     CatalogImportSanitizationService,
     CatalogImportQualityService,
     PipelineDispatcher,
     ValidatorCrewFacade,
 )
 from Backend.application.services.service_container import service_container
-from Backend.application.services.catalog_import_task_service import (
-    CatalogImportTaskService,
-)
 from Backend.core import config
 from Backend.core.config import settings
 from Backend.database import SessionLocal
@@ -79,8 +77,6 @@ catalog_quality_service = CatalogImportQualityService()
 catalog_sanitization_service = CatalogImportSanitizationService(
     quality_service=catalog_quality_service
 )
-_legacy_catalog_import_task_service: Optional[CatalogImportTaskService] = None
-_oop_catalog_import_task_service: Optional[CatalogImportTaskService] = None
 file_processing_service = service_container.file_processing
 
 
@@ -411,48 +407,28 @@ def _sanitize_produto_extraido(prod: Dict[str, Any]) -> Dict[str, Any]:
     return data
 
 
-def _build_catalog_import_task_service(pipeline_variant: str) -> CatalogImportTaskService:
-    return CatalogImportTaskService(
-        logger=logger,
-        catalog_logger=catalog_logger,
-        models=models,
-        schemas=schemas,
-        crud_produtos=crud_produtos,
-        file_processing_service=file_processing_service,
-        validator_crew=validator_crew,
-        settings=settings,
-        Path=Path,
-        time=time,
-        Counter=Counter,
-        resolve_storage_path=_resolve_storage_path,
-        normalize_import_issue_item=_normalize_import_issue_item,
-        extract_import_error_reason=_extract_import_error_reason,
-        is_non_critical_import_reason=_is_non_critical_import_reason,
-        normalizar_dados_validados=_normalizar_dados_validados,
-        sanitize_produto_extraido=_sanitize_produto_extraido,
-        classificar_qualidade_linha_produto=_classificar_qualidade_linha_produto,
-        write_catalog_import_report=_write_catalog_import_report,
-        normalize_import_text=_normalize_import_text,
-        pipeline_variant=pipeline_variant,
-    )
-
-
-def _get_legacy_catalog_import_task_service() -> CatalogImportTaskService:
-    global _legacy_catalog_import_task_service
-    if _legacy_catalog_import_task_service is None:
-        _legacy_catalog_import_task_service = _build_catalog_import_task_service(
-            pipeline_variant="legacy"
-        )
-    return _legacy_catalog_import_task_service
-
-
-def _get_oop_catalog_import_task_service() -> CatalogImportTaskService:
-    global _oop_catalog_import_task_service
-    if _oop_catalog_import_task_service is None:
-        _oop_catalog_import_task_service = _build_catalog_import_task_service(
-            pipeline_variant="oop"
-        )
-    return _oop_catalog_import_task_service
+catalog_import_task_runner = CatalogImportTaskRunner(
+    logger=logger,
+    catalog_logger=catalog_logger,
+    models=models,
+    schemas=schemas,
+    crud_produtos=crud_produtos,
+    file_processing_service=file_processing_service,
+    validator_crew=validator_crew,
+    settings=settings,
+    path_cls=Path,
+    time_module=time,
+    counter_cls=Counter,
+    resolve_storage_path=_resolve_storage_path,
+    normalize_import_issue_item=_normalize_import_issue_item,
+    extract_import_error_reason=_extract_import_error_reason,
+    is_non_critical_import_reason=_is_non_critical_import_reason,
+    normalizar_dados_validados=_normalizar_dados_validados,
+    sanitize_produto_extraido=_sanitize_produto_extraido,
+    classificar_qualidade_linha_produto=_classificar_qualidade_linha_produto,
+    write_catalog_import_report=_write_catalog_import_report,
+    normalize_import_text=_normalize_import_text,
+)
 
 async def _tarefa_processar_catalogo(
 
@@ -476,7 +452,7 @@ async def _tarefa_processar_catalogo(
 
     """Processa o arquivo salvo em background e cria os produtos."""
 
-    await _get_legacy_catalog_import_task_service().execute(
+    await catalog_import_task_runner.execute_legacy(
         db_session_factory=db_session_factory,
         file_id=file_id,
         user_id=user_id,
@@ -490,7 +466,7 @@ async def _tarefa_processar_catalogo(
 
 async def _oop_tarefa_processar_catalogo(**task_kwargs):
     """Executor OOP dedicado (modo oop), separado do legado para comparacao futura."""
-    await _get_oop_catalog_import_task_service().execute(**task_kwargs)
+    await catalog_import_task_runner.execute_oop(**task_kwargs)
 
 
 
