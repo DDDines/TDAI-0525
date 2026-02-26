@@ -55,6 +55,9 @@ from Backend.application.services.web_data_extractor_components import (
 from Backend.application.services.generation_task_service import (
     GenerationTaskService,
 )
+from Backend.application.services.web_enrichment_task_runner import (
+    WebEnrichmentTaskRunner,
+)
 from Backend.application.services.service_container import (
     ServiceContainer,
     service_container,
@@ -91,6 +94,7 @@ __all__ = [
     "WebEnrichmentQueryPlanner",
     "WebEnrichmentStatusResolver",
     "WebEnrichmentRelevanceService",
+    "WebEnrichmentTaskRunner",
     "WebSearchService",
     "ServiceContainer",
     "service_container",

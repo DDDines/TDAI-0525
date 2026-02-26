@@ -21,11 +21,9 @@ from Backend.application.services import (
     PipelineDispatcher,
     WebEnrichmentNormalizationService,
     WebEnrichmentRelevanceService,
+    WebEnrichmentTaskRunner,
 )
 from Backend.application.services.service_container import service_container
-from Backend.application.services.web_enrichment_task_service import (
-    WebEnrichmentTaskService,
-)
 from Backend.database import get_db, SessionLocal
 
 from .auth_utils import get_current_active_user
@@ -44,8 +42,6 @@ logger = get_logger(__name__)
 relevance_service = WebEnrichmentRelevanceService()
 web_normalization_service = WebEnrichmentNormalizationService()
 web_extractor = service_container.web_data_extractor
-_legacy_web_enrichment_task_service: Optional[WebEnrichmentTaskService] = None
-_oop_web_enrichment_task_service: Optional[WebEnrichmentTaskService] = None
 
 
 def _encoding_marker_count(candidate: str) -> int:
@@ -762,46 +758,26 @@ def _build_payload_enriquecimento_visivel(
     return update_fields, notes, ignored_notes
 
 
-def _build_web_enrichment_task_service(pipeline_variant: str) -> WebEnrichmentTaskService:
-    return WebEnrichmentTaskService(
-        logger=logger,
-        SQLAlchemyError=SQLAlchemyError,
-        crud_users=crud_users,
-        crud_produtos=crud_produtos,
-        crud=crud,
-        models=models,
-        schemas=schemas,
-        web_extractor=web_extractor,
-        settings=settings,
-        json=json,
-        re=re,
-        normalize_human_text=_normalize_human_text,
-        build_payload_enriquecimento_visivel=_build_payload_enriquecimento_visivel,
-        extrair_dominio_fornecedor=_extrair_dominio_fornecedor,
-        priorizar_urls_para_enriquecimento=_priorizar_urls_para_enriquecimento,
-        is_meaningful_extracted_text=_is_meaningful_extracted_text,
-        metadata_has_minimum_signal=_metadata_has_minimum_signal,
-        is_source_relevant_for_product=_is_source_relevant_for_product,
-        pipeline_variant=pipeline_variant,
-    )
-
-
-def _get_legacy_web_enrichment_task_service() -> WebEnrichmentTaskService:
-    global _legacy_web_enrichment_task_service
-    if _legacy_web_enrichment_task_service is None:
-        _legacy_web_enrichment_task_service = _build_web_enrichment_task_service(
-            pipeline_variant="legacy"
-        )
-    return _legacy_web_enrichment_task_service
-
-
-def _get_oop_web_enrichment_task_service() -> WebEnrichmentTaskService:
-    global _oop_web_enrichment_task_service
-    if _oop_web_enrichment_task_service is None:
-        _oop_web_enrichment_task_service = _build_web_enrichment_task_service(
-            pipeline_variant="oop"
-        )
-    return _oop_web_enrichment_task_service
+web_enrichment_task_runner = WebEnrichmentTaskRunner(
+    logger=logger,
+    SQLAlchemyError=SQLAlchemyError,
+    crud_users=crud_users,
+    crud_produtos=crud_produtos,
+    crud=crud,
+    models=models,
+    schemas=schemas,
+    web_extractor=web_extractor,
+    settings=settings,
+    json_module=json,
+    re_module=re,
+    normalize_human_text=_normalize_human_text,
+    build_payload_enriquecimento_visivel=_build_payload_enriquecimento_visivel,
+    extrair_dominio_fornecedor=_extrair_dominio_fornecedor,
+    priorizar_urls_para_enriquecimento=_priorizar_urls_para_enriquecimento,
+    is_meaningful_extracted_text=_is_meaningful_extracted_text,
+    metadata_has_minimum_signal=_metadata_has_minimum_signal,
+    is_source_relevant_for_product=_is_source_relevant_for_product,
+)
 
 async def _tarefa_enriquecer_produto_web(
     db_session_factory,
@@ -809,7 +785,7 @@ async def _tarefa_enriquecer_produto_web(
     user_id: int,
     termos_busca_override: Optional[str] = None
 ):
-    await _get_legacy_web_enrichment_task_service().execute(
+    await web_enrichment_task_runner.execute_legacy(
         db_session_factory=db_session_factory,
         produto_id=produto_id,
         user_id=user_id,
@@ -819,7 +795,7 @@ async def _tarefa_enriquecer_produto_web(
 
 async def _oop_tarefa_enriquecer_produto_web(**task_kwargs):
     """Executor OOP dedicado (modo oop), separado do legado para comparacao futura."""
-    await _get_oop_web_enrichment_task_service().execute(**task_kwargs)
+    await web_enrichment_task_runner.execute_oop(**task_kwargs)
 
 @router.post("/produto/{produto_id}", status_code=status.HTTP_202_ACCEPTED, response_model=schemas.Msg)
 async def iniciar_enriquecimento_produto_web_endpoint(
