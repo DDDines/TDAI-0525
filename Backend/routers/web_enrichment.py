@@ -19,10 +19,10 @@ from Backend.application.orchestrators.web_enrichment import (
 )
 from Backend.application.services import (
     PipelineDispatcher,
-    WebDataExtractorFacade,
     WebEnrichmentNormalizationService,
     WebEnrichmentRelevanceService,
 )
+from Backend.application.services.service_container import service_container
 from Backend.application.services.web_enrichment_task_service import (
     WebEnrichmentTaskService,
 )
@@ -43,7 +43,7 @@ router = APIRouter(
 logger = get_logger(__name__)
 relevance_service = WebEnrichmentRelevanceService()
 web_normalization_service = WebEnrichmentNormalizationService()
-web_extractor = WebDataExtractorFacade()
+web_extractor = service_container.web_data_extractor
 _legacy_web_enrichment_task_service: Optional[WebEnrichmentTaskService] = None
 _oop_web_enrichment_task_service: Optional[WebEnrichmentTaskService] = None
 

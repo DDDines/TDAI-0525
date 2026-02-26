@@ -49,6 +49,10 @@ from Backend.application.services.web_data_extractor_components import (
     WebOCRService,
     WebSearchService,
 )
+from Backend.application.services.service_container import (
+    ServiceContainer,
+    service_container,
+)
 
 __all__ = [
     "CatalogImportQualityService",
@@ -80,4 +84,6 @@ __all__ = [
     "WebEnrichmentStatusResolver",
     "WebEnrichmentRelevanceService",
     "WebSearchService",
+    "ServiceContainer",
+    "service_container",
 ]
