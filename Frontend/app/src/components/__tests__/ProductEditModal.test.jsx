@@ -3,6 +3,18 @@ import '@testing-library/jest-dom';
 import userEvent from '@testing-library/user-event';
 import ProductEditModal from '../ProductEditModal.jsx';
 
+const mockProductTypes = [
+  {
+    id: 1,
+    friendly_name: 'Automotivo',
+    attribute_templates: [
+      { attribute_key: 'titulo_auto', label: 'Titulo', field_type: 'text', is_required: false },
+      { attribute_key: 'id_auto', label: 'ID', field_type: 'text', is_required: false },
+      { attribute_key: 'Desc_Auto', label: 'Descricao', field_type: 'textarea', is_required: false },
+    ],
+  },
+];
+
 jest.mock('../../services/productService', () => ({
   __esModule: true,
   default: {
@@ -11,6 +23,12 @@ jest.mock('../../services/productService', () => ({
       nome_base: 'Produto',
       fornecedor_id: 1,
       product_type_id: 1,
+      product_type: { id: 1 },
+      dynamic_attributes: {
+        titulo: 'Titulo extraido',
+        id: 'SP1081',
+        descricao: 'Descricao extraida',
+      },
     })),
     getAtributoSuggestions: jest.fn(() => Promise.resolve({})),
   },
@@ -25,22 +43,29 @@ jest.mock('../../services/fornecedorService', () => ({
 }));
 
 jest.mock('../../contexts/ProductTypeContext', () => ({
-  useProductTypes: () => ({ productTypes: [], addProductType: jest.fn() }),
+  useProductTypes: () => ({ productTypes: mockProductTypes, addProductType: jest.fn() }),
 }));
 
 jest.mock('../../contexts/AuthContext', () => ({
   useAuth: () => ({ isAuthenticated: true }),
 }));
 
-// Simple render helper
 const renderModal = () =>
   render(<ProductEditModal isOpen={true} onClose={() => {}} product={{ id: 1 }} />);
 
 test('fetchGeminiSuggestions does not crash when API returns empty object', async () => {
   renderModal();
-  // Switch to suggestions tab
-  await userEvent.click(screen.getByRole('button', { name: /sugestões ia/i }));
-  const btn = screen.getByRole('button', { name: /buscar sugestões \(gemini\)/i });
+  await userEvent.click(screen.getByRole('button', { name: /sugest/i }));
+  const btn = screen.getByRole('button', { name: /buscar sugest/i });
   await userEvent.click(btn);
   expect(btn).not.toBeDisabled();
+});
+
+test('maps alias dynamic attributes to template keys when product payload lacks templates', async () => {
+  renderModal();
+  await userEvent.click(screen.getByRole('button', { name: /atributos/i }));
+
+  expect(await screen.findByLabelText(/^titulo/i)).toHaveValue('Titulo extraido');
+  expect(screen.getByLabelText(/^id/i)).toHaveValue('SP1081');
+  expect(screen.getByLabelText(/^descricao/i)).toHaveValue('Descricao extraida');
 });

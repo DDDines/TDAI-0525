@@ -282,10 +282,13 @@ const ProductEditModal = ({ isOpen, onClose, product, onProductUpdated }) => {
     const populateFormData = useCallback((prod) => {
         if (!prod) return;
         const dynamicAttrsRaw = (prod.dynamic_attributes && typeof prod.dynamic_attributes === 'object') ? prod.dynamic_attributes : {};
+        const productTypeId = Number(prod?.product_type_id || prod?.product_type?.id || 0);
+        const fallbackTypeTemplates =
+            productTypes.find((type) => Number(type?.id) === productTypeId)?.attribute_templates || [];
         const typeTemplates =
             prod?.product_type?.attribute_templates && Array.isArray(prod.product_type.attribute_templates)
                 ? prod.product_type.attribute_templates
-                : [];
+                : fallbackTypeTemplates;
         const dynamicAttrsNormalized = normalizeDynamicAttrsToTemplateKeys(dynamicAttrsRaw, typeTemplates);
         const dynamicAttrs = Object.fromEntries(
             Object.entries(dynamicAttrsNormalized).filter(([key]) => !BASE_PRODUCT_FIELDS.has(key))
@@ -327,7 +330,7 @@ const ProductEditModal = ({ isOpen, onClose, product, onProductUpdated }) => {
             status_descricao_ia: prod.status_descricao_ia || null,
         });
         extractIaSuggestions(dadosBrutos);
-    }, [extractIaSuggestions]);
+    }, [extractIaSuggestions, productTypes]);
 
     useEffect(() => {
         const loadDetails = async () => {
