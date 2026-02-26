@@ -43,6 +43,7 @@ from Backend.application.services import (
     CatalogImportPreviewService,
     CatalogImportStartService,
     CatalogImportStatusService,
+    CatalogImportWorkflowService,
     CatalogImportTaskRunner,
     CatalogImportSanitizationService,
     CatalogImportQualityService,
@@ -482,6 +483,10 @@ catalog_import_start_service = CatalogImportStartService(
     finalize_service=catalog_import_finalize_service,
 )
 catalog_import_status_service = CatalogImportStatusService(models=models)
+catalog_import_workflow_service = CatalogImportWorkflowService(
+    start_service=catalog_import_start_service,
+    status_service=catalog_import_status_service,
+)
 catalog_import_file_service = CatalogImportFileService(
     models=models,
     file_processing_service=file_processing_service,
@@ -1020,42 +1025,17 @@ async def importar_catalogo_finalizar(
 ):
 
     """Agenda o processamento do arquivo salvo e retorna imediatamente."""
-    catalog_file = catalog_import_start_service.get_catalog_file_or_404(
-        db=db,
+    return await catalog_import_workflow_service.importar_catalogo_finalizar(
+        background_tasks=background_tasks,
         file_id=file_id,
-        user_id=current_user.id,
-    )
-    catalog_import_start_service.mark_processing(
-        db=db,
-        catalog_file=catalog_file,
-        fornecedor_id=fornecedor_id,
-        reset_pages=False,
-    )
-    # Sempre reprocessa o arquivo completo para evitar importar apenas as linhas de preview.
-    catalog_import_start_service.ensure_catalog_binary_exists(catalog_file=catalog_file)
-    mapping = catalog_import_start_service.resolve_mapping(
-        db=db,
-        fornecedor_id=fornecedor_id,
-        mapping=mapping,
-    )
-    command = catalog_import_start_service.build_finalize_command(
-        file_id=file_id,
-        user_id=current_user.id,
         product_type_id=product_type_id,
         fornecedor_id=fornecedor_id,
         mapping=mapping,
         pages=pages,
         region=region,
-    )
-    await catalog_import_start_service.dispatch_finalize(
-        background_tasks=background_tasks,
         db=db,
-        command=command,
+        user_id=current_user.id,
     )
-
-
-
-    return {"status": "PROCESSING", "file_id": file_id}
 
 
 
@@ -1080,9 +1060,9 @@ def importar_catalogo_status(
 ):
 
     """Retorna o status atual do processamento do cat?logo."""
-    return catalog_import_status_service.get_record_or_404(
-        db=db,
+    return catalog_import_workflow_service.importar_catalogo_status(
         file_id=file_id,
+        db=db,
         user_id=current_user.id,
     )
 
@@ -1111,12 +1091,11 @@ def importar_catalogo_status_simple(
 ):
 
     """Vers?o simplificada do status de importa??o."""
-    record = catalog_import_status_service.get_record_or_404(
-        db=db,
+    return catalog_import_workflow_service.importar_catalogo_status_simple(
         file_id=file_id,
+        db=db,
         user_id=current_user.id,
     )
-    return catalog_import_status_service.build_simple_status(record=record)
 
 
 
@@ -1139,12 +1118,11 @@ def importar_catalogo_result(
     current_user: models.User = Depends(auth_utils.get_current_active_user),
 
 ):
-    record = catalog_import_status_service.get_record_or_404(
-        db=db,
+    return catalog_import_workflow_service.importar_catalogo_result(
         file_id=file_id,
+        db=db,
         user_id=current_user.id,
     )
-    return catalog_import_status_service.build_result_response(record=record)
 
 
 
@@ -1171,48 +1149,13 @@ async def importar_catalogo_finalizar_todas_paginas(
 ):
 
     """Processa todas as p?ginas de um cat?logo PDF a partir de ``start_page``."""
-    record = catalog_import_start_service.get_catalog_file_or_404(
-        db=db,
+    return await catalog_import_workflow_service.importar_catalogo_finalizar_todas_paginas(
         file_id=file_id,
-        user_id=current_user.id,
-    )
-    fornecedor_id_final = catalog_import_start_service.resolve_fornecedor_id(
-        catalog_file=record,
-        fornecedor_id=record.fornecedor_id,
-        required_message="fornecedor_id e obrigatorio para processar este arquivo.",
-    )
-
-    pages = catalog_import_start_service.resolve_pdf_pages(
-        catalog_file=record,
         start_page=start_page,
-    )
-
-
-
-    mapping = catalog_import_start_service.resolve_mapping(
-        db=db,
-        fornecedor_id=fornecedor_id_final,
         mapping=mapping,
-    )
-    command = catalog_import_start_service.build_finalize_command(
-        file_id=file_id,
+        db=db,
         user_id=current_user.id,
-        product_type_id=None,
-        fornecedor_id=fornecedor_id_final,
-        mapping=mapping,
-        pages=pages,
-        region=None,
     )
-    await catalog_import_start_service.run_finalize_direct(
-        db=db,
-        command=command,
-    )
-
-
-
-    db.refresh(record)
-
-    return record.result_summary
 
 
 

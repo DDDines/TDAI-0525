@@ -34,6 +34,9 @@ from Backend.application.services.catalog_import_preview_service import (
 from Backend.application.services.catalog_import_legacy_ingest_service import (
     CatalogImportLegacyIngestService,
 )
+from Backend.application.services.catalog_import_workflow_service import (
+    CatalogImportWorkflowService,
+)
 from Backend.application.services.fornecedor_catalog_process_service import (
     FornecedorCatalogProcessService,
 )
@@ -121,6 +124,7 @@ __all__ = [
     "CatalogImportFileService",
     "CatalogImportPreviewService",
     "CatalogImportLegacyIngestService",
+    "CatalogImportWorkflowService",
     "CatalogImportStartService",
     "CatalogImportStatusService",
     "FornecedorCatalogProcessService",
