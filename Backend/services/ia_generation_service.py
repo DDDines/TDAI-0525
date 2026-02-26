@@ -340,7 +340,7 @@ async def call_gemini_api(
     )
 
 
-async def gerar_titulos_com_openai(db: Session, produto_id: int, user: models.User, num_titulos: int = 3) -> List[str]:
+async def _gerar_titulos_com_openai_impl(db: Session, produto_id: int, user: models.User, num_titulos: int = 3) -> List[str]:
     # ... (código existente para gerar títulos com OpenAI - manter como está)
     # Apenas garanta que ele use get_openai_api_key e registre o uso corretamente
     logger.info(f"Iniciando geração de títulos para produto ID {produto_id} pelo usuário ID {user.id}")
@@ -372,7 +372,7 @@ async def gerar_titulos_com_openai(db: Session, produto_id: int, user: models.Us
     return titulos_list[:num_titulos]
 
 
-async def gerar_descricao_com_openai(db: Session, produto_id: int, user: models.User, tamanho_palavras: int = 150) -> str:
+async def _gerar_descricao_com_openai_impl(db: Session, produto_id: int, user: models.User, tamanho_palavras: int = 150) -> str:
     # ... (código existente para gerar descrição com OpenAI - manter como está)
     # Apenas garanta que ele use get_openai_api_key e registre o uso corretamente
     logger.info(f"Iniciando geração de descrição para produto ID {produto_id} pelo usuário ID {user.id}")
@@ -400,7 +400,7 @@ async def gerar_descricao_com_openai(db: Session, produto_id: int, user: models.
     return descricao
 
 
-async def gerar_titulos_com_gemini(db: Session, produto_id: int, user: models.User, num_titulos: int = 3) -> List[str]:
+async def _gerar_titulos_com_gemini_impl(db: Session, produto_id: int, user: models.User, num_titulos: int = 3) -> List[str]:
     """Gera títulos usando a API Gemini."""
     logger.info(f"Iniciando geração de títulos Gemini para produto ID {produto_id} pelo usuário ID {user.id}")
     api_key = await get_gemini_api_key(db, user)
@@ -432,7 +432,7 @@ async def gerar_titulos_com_gemini(db: Session, produto_id: int, user: models.Us
     return titulos_list[:num_titulos]
 
 
-async def gerar_descricao_com_gemini(db: Session, produto_id: int, user: models.User, tamanho_palavras: int = 150) -> str:
+async def _gerar_descricao_com_gemini_impl(db: Session, produto_id: int, user: models.User, tamanho_palavras: int = 150) -> str:
     """Gera descrição usando a API Gemini."""
     logger.info(f"Iniciando geração de descrição Gemini para produto ID {produto_id} pelo usuário ID {user.id}")
     api_key = await get_gemini_api_key(db, user)
@@ -464,7 +464,7 @@ async def gerar_descricao_com_gemini(db: Session, produto_id: int, user: models.
     return descricao
 
 # --- NOVA FUNÇÃO PARA SUGESTÕES GEMINI ---
-async def sugerir_valores_atributos_com_gemini(
+async def _sugerir_valores_atributos_com_gemini_impl(
     db: Session,
     produto_id: int,
     user: models.User
@@ -616,6 +616,129 @@ async def sugerir_valores_atributos_com_gemini(
             status="FALHA", detalhes_erro=f"Erro inesperado no serviço de sugestão: {str(e)}"
         ))
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Erro inesperado ao gerar sugestões: {str(e)}")
+
+
+class _IAGenerationWorkflow:
+    """Workflow OO para operações de geração de conteúdo IA."""
+
+    async def gerar_titulos_com_openai(
+        self, db: Session, produto_id: int, user: models.User, num_titulos: int = 3
+    ) -> List[str]:
+        return await _gerar_titulos_com_openai_impl(
+            db=db,
+            produto_id=produto_id,
+            user=user,
+            num_titulos=num_titulos,
+        )
+
+    async def gerar_descricao_com_openai(
+        self,
+        db: Session,
+        produto_id: int,
+        user: models.User,
+        tamanho_palavras: int = 150,
+    ) -> str:
+        return await _gerar_descricao_com_openai_impl(
+            db=db,
+            produto_id=produto_id,
+            user=user,
+            tamanho_palavras=tamanho_palavras,
+        )
+
+    async def gerar_titulos_com_gemini(
+        self, db: Session, produto_id: int, user: models.User, num_titulos: int = 3
+    ) -> List[str]:
+        return await _gerar_titulos_com_gemini_impl(
+            db=db,
+            produto_id=produto_id,
+            user=user,
+            num_titulos=num_titulos,
+        )
+
+    async def gerar_descricao_com_gemini(
+        self,
+        db: Session,
+        produto_id: int,
+        user: models.User,
+        tamanho_palavras: int = 150,
+    ) -> str:
+        return await _gerar_descricao_com_gemini_impl(
+            db=db,
+            produto_id=produto_id,
+            user=user,
+            tamanho_palavras=tamanho_palavras,
+        )
+
+    async def sugerir_valores_atributos_com_gemini(
+        self,
+        db: Session,
+        produto_id: int,
+        user: models.User,
+    ) -> schemas.SugestoesAtributosResponse:
+        return await _sugerir_valores_atributos_com_gemini_impl(
+            db=db,
+            produto_id=produto_id,
+            user=user,
+        )
+
+
+_ia_generation_workflow = _IAGenerationWorkflow()
+
+
+async def gerar_titulos_com_openai(
+    db: Session, produto_id: int, user: models.User, num_titulos: int = 3
+) -> List[str]:
+    return await _ia_generation_workflow.gerar_titulos_com_openai(
+        db=db,
+        produto_id=produto_id,
+        user=user,
+        num_titulos=num_titulos,
+    )
+
+
+async def gerar_descricao_com_openai(
+    db: Session, produto_id: int, user: models.User, tamanho_palavras: int = 150
+) -> str:
+    return await _ia_generation_workflow.gerar_descricao_com_openai(
+        db=db,
+        produto_id=produto_id,
+        user=user,
+        tamanho_palavras=tamanho_palavras,
+    )
+
+
+async def gerar_titulos_com_gemini(
+    db: Session, produto_id: int, user: models.User, num_titulos: int = 3
+) -> List[str]:
+    return await _ia_generation_workflow.gerar_titulos_com_gemini(
+        db=db,
+        produto_id=produto_id,
+        user=user,
+        num_titulos=num_titulos,
+    )
+
+
+async def gerar_descricao_com_gemini(
+    db: Session, produto_id: int, user: models.User, tamanho_palavras: int = 150
+) -> str:
+    return await _ia_generation_workflow.gerar_descricao_com_gemini(
+        db=db,
+        produto_id=produto_id,
+        user=user,
+        tamanho_palavras=tamanho_palavras,
+    )
+
+
+async def sugerir_valores_atributos_com_gemini(
+    db: Session,
+    produto_id: int,
+    user: models.User,
+) -> schemas.SugestoesAtributosResponse:
+    return await _ia_generation_workflow.sugerir_valores_atributos_com_gemini(
+        db=db,
+        produto_id=produto_id,
+        user=user,
+    )
 
 
 class IAGenerationLegacyService:
