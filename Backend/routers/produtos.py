@@ -2021,33 +2021,10 @@ async def importar_catalogo_finalizar_todas_paginas(
         required_message="fornecedor_id e obrigatorio para processar este arquivo.",
     )
 
-    file_path = _resolve_storage_path(
-        Path(settings.UPLOAD_DIRECTORY) / "catalogs" / record.stored_filename
+    pages = catalog_import_start_service.resolve_pdf_pages(
+        catalog_file=record,
+        start_page=start_page,
     )
-
-    if not file_path.exists():
-
-        raise HTTPException(status_code=404, detail="Arquivo n\u00e3o encontrado")
-
-
-
-    content = file_path.read_bytes()
-
-    ext = file_path.suffix.lower()
-
-    if ext != ".pdf":
-
-        raise HTTPException(status_code=400, detail="Formato de arquivo não suportado")
-
-
-
-    with pdfplumber.open(io.BytesIO(content)) as pdf:
-
-        total_pages = len(pdf.pages)
-
-
-
-    pages = list(range(start_page, total_pages + 1))
 
 
 

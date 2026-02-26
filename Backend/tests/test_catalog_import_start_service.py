@@ -152,6 +152,45 @@ def test_ensure_catalog_binary_exists(tmp_path):
     assert exc.value.status_code == 404
 
 
+def test_resolve_pdf_pages_validates_file_presence_and_extension(tmp_path):
+    upload_dir = tmp_path / "uploads"
+    (upload_dir / "catalogs").mkdir(parents=True)
+    service = _build_service(upload_dir=str(upload_dir))
+
+    with pytest.raises(HTTPException) as exc_missing:
+        service.resolve_pdf_pages(
+            catalog_file=SimpleNamespace(stored_filename="missing.pdf"),
+            start_page=1,
+        )
+    assert exc_missing.value.status_code == 404
+
+    txt_file = upload_dir / "catalogs" / "arquivo.txt"
+    txt_file.write_text("conteudo", encoding="utf-8")
+    with pytest.raises(HTTPException) as exc_ext:
+        service.resolve_pdf_pages(
+            catalog_file=SimpleNamespace(stored_filename="arquivo.txt"),
+            start_page=1,
+        )
+    assert exc_ext.value.status_code == 400
+
+
+def test_resolve_pdf_pages_returns_range_from_start(tmp_path):
+    upload_dir = tmp_path / "uploads"
+    (upload_dir / "catalogs").mkdir(parents=True)
+    pdf_file = upload_dir / "catalogs" / "catalogo.pdf"
+    pdf_file.write_bytes(b"%PDF-1.4 fake")
+
+    service = _build_service(upload_dir=str(upload_dir))
+    service._count_pdf_pages = lambda _content: 5  # type: ignore[attr-defined]
+
+    pages = service.resolve_pdf_pages(
+        catalog_file=SimpleNamespace(stored_filename="catalogo.pdf"),
+        start_page=3,
+    )
+
+    assert pages == [3, 4, 5]
+
+
 def test_resolve_mapping_prefers_input_then_default():
     default_mapping = {"col_0": "nome_base"}
     service = _build_service(

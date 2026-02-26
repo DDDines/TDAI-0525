@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import io
 from pathlib import Path
 from typing import Any, Dict, Optional
 
@@ -65,11 +66,25 @@ class CatalogImportStartService:
         db.commit()
 
     def ensure_catalog_binary_exists(self, *, catalog_file: Any) -> None:
-        file_path = self._resolve_storage_path(
-            Path(self._settings.UPLOAD_DIRECTORY) / "catalogs" / catalog_file.stored_filename
-        )
+        file_path = self._catalog_path(catalog_file)
         if not file_path.exists():
             raise HTTPException(status_code=404, detail="Arquivo nao encontrado")
+
+    def resolve_pdf_pages(
+        self,
+        *,
+        catalog_file: Any,
+        start_page: int,
+    ) -> list[int]:
+        file_path = self._catalog_path(catalog_file)
+        if not file_path.exists():
+            raise HTTPException(status_code=404, detail="Arquivo nao encontrado")
+        if file_path.suffix.lower() != ".pdf":
+            raise HTTPException(status_code=400, detail="Formato de arquivo nao suportado")
+
+        content = file_path.read_bytes()
+        total_pages = self._count_pdf_pages(content)
+        return list(range(start_page, total_pages + 1))
 
     def resolve_mapping(
         self,
@@ -135,3 +150,15 @@ class CatalogImportStartService:
             db_session_factory=db_session_factory,
             command=command,
         )
+
+    def _catalog_path(self, catalog_file: Any) -> Path:
+        return self._resolve_storage_path(
+            Path(self._settings.UPLOAD_DIRECTORY) / "catalogs" / catalog_file.stored_filename
+        )
+
+    @staticmethod
+    def _count_pdf_pages(content: bytes) -> int:
+        import pdfplumber
+
+        with pdfplumber.open(io.BytesIO(content)) as pdf:
+            return len(pdf.pages)
