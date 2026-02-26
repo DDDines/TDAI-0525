@@ -1,0 +1,22 @@
+{
+  "file_id": 173,
+  "status": "IMPORTED",
+  "stats": {
+    "created": 2,
+    "updated": 0,
+    "errors": 0,
+    "ignored_non_critical": 0,
+    "quarantine_non_critical": 0,
+    "quality_score_avg_accepted": 100.0,
+    "quality_score_avg_quarantine": null,
+    "pages_processed": 1,
+    "pages_total": 1,
+    "ext": ".csv"
+  },
+  "error_reasons_top": [],
+  "ignored_reasons_top": [],
+  "ignored_samples": [],
+  "quarantine_reasons_top": [],
+  "quarantine_samples": [],
+  "errors": []
+}
