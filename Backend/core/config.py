@@ -1,31 +1,27 @@
 ﻿# Backend/core/config.py
 import os
-import logging
+from pathlib import Path
+from typing import List, Optional
+
 from dotenv import load_dotenv
-from typing import List, Union, Optional
+
 try:
     from pydantic_settings import BaseSettings, SettingsConfigDict  # type: ignore
-except ModuleNotFoundError:  # Compatibilidade para ambientes sem pydantic_settings
-    from pydantic import BaseSettings
+except ModuleNotFoundError:
+    from pydantic import BaseSettings  # type: ignore
     SettingsConfigDict = dict  # type: ignore
-from pydantic import AnyHttpUrl, ValidationError, Field, TypeAdapter
-from pathlib import Path
+
+from pydantic import AnyHttpUrl, Field, TypeAdapter, ValidationError
+
 from .logging_config import get_logger
 
 logger = get_logger(__name__)
+http_url_adapter = TypeAdapter(AnyHttpUrl)
 
-
-dotenv_path = Path(__file__).resolve().parent.parent.parent / ".env"
-if dotenv_path.exists():
-    load_dotenv(dotenv_path=dotenv_path)
-else:
-    logger.warning(
-        "Arquivo .env não encontrado em %s. Usando valores padrão ou variáveis de ambiente do sistema.",
-        dotenv_path,
-    )
 
 def env_var_name_with_prefix(field_name: str) -> str:
     return field_name
+
 
 class Settings(BaseSettings):
     PROJECT_NAME: str = "CatalogAI - Transformador de Dados Assistido por IA"
@@ -38,14 +34,10 @@ class Settings(BaseSettings):
     REFRESH_SECRET_KEY: str = os.getenv("REFRESH_SECRET_KEY", "super-refresh-secret-change-me")
 
     ALGORITHM: str = "HS256"
-    ACCESS_TOKEN_EXPIRE_MINUTES: int = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", 60 * 24 * 1)) # Default 1 dia
+    ACCESS_TOKEN_EXPIRE_MINUTES: int = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", 60 * 24 * 1))
     PASSWORD_RESET_TOKEN_EXPIRE_HOURS: int = int(os.getenv("PASSWORD_RESET_TOKEN_EXPIRE_HOURS", 1))
     REFRESH_TOKEN_EXPIRE_DAYS: int = int(os.getenv("REFRESH_TOKEN_EXPIRE_DAYS", 7))
 
-    # ``cors_origins_str`` captura o valor cru da variável de ambiente
-    # ``BACKEND_CORS_ORIGINS``. ``BACKEND_CORS_ORIGINS`` em si utiliza um alias
-    # inexistente para evitar que o ``BaseSettings`` tente processá-la
-    # automaticamente (o que falharia quando o valor não está em formato JSON).
     cors_origins_str: Optional[str] = Field(default=None, alias="BACKEND_CORS_ORIGINS")
     BACKEND_CORS_ORIGINS: List[AnyHttpUrl] = Field(default_factory=list, alias="BACKEND_CORS_ORIGINS_PARSED")
 
@@ -70,19 +62,26 @@ class Settings(BaseSettings):
     VALIDATE_CERTS: bool = True
     MAIL_FROM_NAME: Optional[str] = os.getenv("MAIL_FROM_NAME", "CatalogAI Platform")
 
-    # When True, functions like send_password_reset_email will raise an
-    # exception instead of returning silently if the email configuration is
-    # incomplete. Defaults to True so callers are notified when emails are
-    # skipped due to missing settings.
-    RAISE_ON_MISSING_EMAIL_CONFIG: bool = os.getenv("RAISE_ON_MISSING_EMAIL_CONFIG", "True").lower() in ("true", "1", "t", "yes")
+    RAISE_ON_MISSING_EMAIL_CONFIG: bool = os.getenv("RAISE_ON_MISSING_EMAIL_CONFIG", "True").lower() in (
+        "true",
+        "1",
+        "t",
+        "yes",
+    )
 
     GOOGLE_CLIENT_ID: Optional[str] = os.getenv("GOOGLE_CLIENT_ID")
     GOOGLE_CLIENT_SECRET: Optional[str] = os.getenv("GOOGLE_CLIENT_SECRET")
-    GOOGLE_REDIRECT_URI: Optional[str] = os.getenv("GOOGLE_REDIRECT_URI", "http://localhost:8000/api/v1/auth/google/callback")
+    GOOGLE_REDIRECT_URI: Optional[str] = os.getenv(
+        "GOOGLE_REDIRECT_URI",
+        "http://localhost:8000/api/v1/auth/google/callback",
+    )
 
     FACEBOOK_CLIENT_ID: Optional[str] = os.getenv("FACEBOOK_CLIENT_ID")
     FACEBOOK_CLIENT_SECRET: Optional[str] = os.getenv("FACEBOOK_CLIENT_SECRET")
-    FACEBOOK_REDIRECT_URI: Optional[str] = os.getenv("FACEBOOK_REDIRECT_URI", "http://localhost:8000/api/v1/auth/facebook/callback")
+    FACEBOOK_REDIRECT_URI: Optional[str] = os.getenv(
+        "FACEBOOK_REDIRECT_URI",
+        "http://localhost:8000/api/v1/auth/facebook/callback",
+    )
 
     FRONTEND_URL: str = os.getenv("FRONTEND_URL", "http://localhost:5173")
     UPLOAD_DIRECTORY: str = os.getenv("UPLOAD_DIRECTORY", "static/uploads")
@@ -91,15 +90,28 @@ class Settings(BaseSettings):
 
     OPENAI_API_KEY: Optional[str] = os.getenv("OPENAI_API_KEY")
     GOOGLE_GEMINI_API_KEY: Optional[str] = os.getenv("GOOGLE_GEMINI_API_KEY")
-    CREDITOS_CUSTO_SUGESTAO_ATRIBUTOS_GEMINI: int = int(os.getenv("CREDITOS_CUSTO_SUGESTAO_ATRIBUTOS_GEMINI", 1))
+    CREDITOS_CUSTO_SUGESTAO_ATRIBUTOS_GEMINI: int = int(
+        os.getenv("CREDITOS_CUSTO_SUGESTAO_ATRIBUTOS_GEMINI", 1)
+    )
     GOOGLE_CSE_API_KEY: Optional[str] = os.getenv("GOOGLE_CSE_API_KEY")
     GOOGLE_CSE_ID: Optional[str] = os.getenv("GOOGLE_CSE_ID")
-    AUTO_CREATE_TABLES: bool = os.getenv("AUTO_CREATE_TABLES", "False").lower() in ("true", "1", "t", "yes")
+    AUTO_CREATE_TABLES: bool = os.getenv("AUTO_CREATE_TABLES", "False").lower() in (
+        "true",
+        "1",
+        "t",
+        "yes",
+    )
     APP_MODE: str = os.getenv("APP_MODE", "legacy")
-    
-    ALLOW_USERS_TO_EDIT_GLOBAL_PRODUCT_TYPES: bool = Field(default=False, validation_alias=env_var_name_with_prefix('ALLOW_USERS_TO_EDIT_GLOBAL_PRODUCT_TYPES'))
-    ALLOW_USERS_TO_DELETE_GLOBAL_PRODUCT_TYPES: bool = Field(default=False, validation_alias=env_var_name_with_prefix('ALLOW_USERS_TO_DELETE_GLOBAL_PRODUCT_TYPES'))
-    
+
+    ALLOW_USERS_TO_EDIT_GLOBAL_PRODUCT_TYPES: bool = Field(
+        default=False,
+        validation_alias=env_var_name_with_prefix("ALLOW_USERS_TO_EDIT_GLOBAL_PRODUCT_TYPES"),
+    )
+    ALLOW_USERS_TO_DELETE_GLOBAL_PRODUCT_TYPES: bool = Field(
+        default=False,
+        validation_alias=env_var_name_with_prefix("ALLOW_USERS_TO_DELETE_GLOBAL_PRODUCT_TYPES"),
+    )
+
     model_config = SettingsConfigDict(
         case_sensitive=True,
         env_file=".env",
@@ -107,34 +119,24 @@ class Settings(BaseSettings):
         extra="ignore",
     )
 
-settings = Settings()
-http_url_adapter = TypeAdapter(AnyHttpUrl)
 
-if settings.DATABASE_URL is None:
-    backend_dir = Path(__file__).resolve().parent.parent
-    sqlite_file_path = backend_dir / settings.SQLITE_DB_FILE
-    settings.DATABASE_URL = f"sqlite:///{sqlite_file_path.resolve()}"
-    logger.info("DATABASE_URL não encontrada no .env. Usando SQLite em: %s", settings.DATABASE_URL)
-else:
-    logger.info("DATABASE_URL carregada do .env: %s", settings.DATABASE_URL)
+def _resolve_dotenv_path_impl() -> Path:
+    return Path(__file__).resolve().parent.parent.parent / ".env"
 
-# CORS
-if settings.cors_origins_str:
-    try:
-        raw_origins = [origin.strip() for origin in settings.cors_origins_str.split(",") if origin.strip()]
-        valid_origins = []
-        for origin_str in raw_origins:
-            try:
-                valid_origins.append(http_url_adapter.validate_python(origin_str))
-            except ValidationError:
-                logger.warning("Origem CORS inválida '%s' em BACKEND_CORS_ORIGINS. Será ignorada.", origin_str)
-        settings.BACKEND_CORS_ORIGINS = valid_origins
-    except Exception as e:
-        logger.error("Erro ao processar BACKEND_CORS_ORIGINS do .env: %s. Usando fallback.", e)
-        settings.BACKEND_CORS_ORIGINS = []
-else:
-    # Padrão
-    default_origins_httpurl = []
+
+def _load_dotenv_impl(dotenv_path: Path) -> None:
+    if dotenv_path.exists():
+        load_dotenv(dotenv_path=dotenv_path)
+        return
+
+    logger.warning(
+        "Arquivo .env nao encontrado em %s. Usando valores padrao ou variaveis de ambiente do sistema.",
+        dotenv_path,
+    )
+
+
+def _build_default_cors_origins_impl() -> List[AnyHttpUrl]:
+    default_origins: List[AnyHttpUrl] = []
     default_list = [
         "http://localhost:5173",
         "http://127.0.0.1:5173",
@@ -142,13 +144,77 @@ else:
     ]
     for origin_url in default_list:
         try:
-            default_origins_httpurl.append(http_url_adapter.validate_python(origin_url))
+            default_origins.append(http_url_adapter.validate_python(origin_url))
         except ValidationError:
-            pass
-    settings.BACKEND_CORS_ORIGINS = default_origins_httpurl
-    logger.info("Usando CORS origins padrão: %s", [str(o) for o in settings.BACKEND_CORS_ORIGINS])
-
-logger.info("Usando CORS origins de settings: %s", [str(o) for o in settings.BACKEND_CORS_ORIGINS])
-logger.info("APP_MODE ativo: %s", settings.APP_MODE)
+            continue
+    return default_origins
 
 
+def _parse_cors_origins_impl(cors_origins_str: str) -> List[AnyHttpUrl]:
+    raw_origins = [origin.strip() for origin in cors_origins_str.split(",") if origin.strip()]
+    valid_origins: List[AnyHttpUrl] = []
+    for origin_str in raw_origins:
+        try:
+            valid_origins.append(http_url_adapter.validate_python(origin_str))
+        except ValidationError:
+            logger.warning(
+                "Origem CORS invalida '%s' em BACKEND_CORS_ORIGINS. Sera ignorada.",
+                origin_str,
+            )
+    return valid_origins
+
+
+def _configure_database_url_impl(settings_obj: Settings) -> None:
+    if settings_obj.DATABASE_URL is not None:
+        logger.info("DATABASE_URL carregada do .env: %s", settings_obj.DATABASE_URL)
+        return
+
+    backend_dir = Path(__file__).resolve().parent.parent
+    sqlite_file_path = backend_dir / settings_obj.SQLITE_DB_FILE
+    settings_obj.DATABASE_URL = f"sqlite:///{sqlite_file_path.resolve()}"
+    logger.info("DATABASE_URL nao encontrada no .env. Usando SQLite em: %s", settings_obj.DATABASE_URL)
+
+
+def _configure_cors_origins_impl(settings_obj: Settings) -> None:
+    if settings_obj.cors_origins_str:
+        try:
+            settings_obj.BACKEND_CORS_ORIGINS = _parse_cors_origins_impl(settings_obj.cors_origins_str)
+        except Exception as exc:
+            logger.error("Erro ao processar BACKEND_CORS_ORIGINS do .env: %s. Usando fallback.", exc)
+            settings_obj.BACKEND_CORS_ORIGINS = []
+    else:
+        settings_obj.BACKEND_CORS_ORIGINS = _build_default_cors_origins_impl()
+        logger.info(
+            "Usando CORS origins padrao: %s",
+            [str(origin) for origin in settings_obj.BACKEND_CORS_ORIGINS],
+        )
+
+
+def _build_settings_impl() -> Settings:
+    dotenv_path = _resolve_dotenv_path_impl()
+    _load_dotenv_impl(dotenv_path)
+
+    settings_obj = Settings()
+    _configure_database_url_impl(settings_obj)
+    _configure_cors_origins_impl(settings_obj)
+
+    logger.info("Usando CORS origins de settings: %s", [str(origin) for origin in settings_obj.BACKEND_CORS_ORIGINS])
+    logger.info("APP_MODE ativo: %s", settings_obj.APP_MODE)
+    return settings_obj
+
+
+class _ConfigWorkflow:
+    def build_settings(self) -> Settings:
+        return _build_settings_impl()
+
+
+_config_workflow = _ConfigWorkflow()
+settings = _config_workflow.build_settings()
+
+
+class ConfigLegacyService:
+    def build_settings(self) -> Settings:
+        return _config_workflow.build_settings()
+
+
+config_legacy_service = ConfigLegacyService()
