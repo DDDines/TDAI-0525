@@ -21,24 +21,6 @@ except Exception as exc:
     print(f"ERRO ao importar modulos: {exc}")
     sys.exit(1)
 
-
-def _create_all_tables_impl():
-    print("Criando engine sincrono para criacao das tabelas...")
-    try:
-        db_url = str(settings.DATABASE_URL).replace("+asyncpg", "")
-        sync_engine = create_engine(db_url)
-        print("Conectando ao banco de dados...")
-        Base.metadata.create_all(sync_engine)
-        print("\n>>> SUCESSO! Todas as tabelas foram criadas no banco de dados. <<<")
-        print("Agora voce pode iniciar a aplicacao.")
-    except Exception as exc:
-        print(f"\nERRO ao criar as tabelas: {exc}")
-        print(
-            "Verifique as credenciais do banco no .env e se o banco "
-            "de dados configurado existe."
-        )
-
-
 class _CreateTablesWorkflow:
     def __init__(self, runtime: Optional["_CreateTablesRuntime"] = None) -> None:
         self._runtime = runtime or _CreateTablesRuntime()
@@ -49,7 +31,20 @@ class _CreateTablesWorkflow:
 
 class _CreateTablesRuntime:
     def create_all_tables(self):
-        _create_all_tables_impl()
+        print("Criando engine sincrono para criacao das tabelas...")
+        try:
+            db_url = str(settings.DATABASE_URL).replace("+asyncpg", "")
+            sync_engine = create_engine(db_url)
+            print("Conectando ao banco de dados...")
+            Base.metadata.create_all(sync_engine)
+            print("\n>>> SUCESSO! Todas as tabelas foram criadas no banco de dados. <<<")
+            print("Agora voce pode iniciar a aplicacao.")
+        except Exception as exc:
+            print(f"\nERRO ao criar as tabelas: {exc}")
+            print(
+                "Verifique as credenciais do banco no .env e se o banco "
+                "de dados configurado existe."
+            )
 
 
 _create_tables_workflow = _CreateTablesWorkflow()

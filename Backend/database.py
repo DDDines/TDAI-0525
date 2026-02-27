@@ -5,16 +5,6 @@ from typing import Optional
 
 from Backend.core.config import settings
 
-
-def _build_engine_args_impl(database_url: str):
-    engine_args = {}
-    if database_url.startswith("sqlite"):
-        engine_args["connect_args"] = {"check_same_thread": False}
-        if ":memory:" in database_url:
-            engine_args["poolclass"] = StaticPool
-    return engine_args
-
-
 class _DatabaseWorkflow:
     def __init__(self, runtime: Optional["_DatabaseRuntime"] = None) -> None:
         self._runtime = runtime or _DatabaseRuntime()
@@ -28,7 +18,12 @@ class _DatabaseWorkflow:
 
 class _DatabaseRuntime:
     def build_engine_args(self, database_url: str):
-        return _build_engine_args_impl(database_url=database_url)
+        engine_args = {}
+        if database_url.startswith("sqlite"):
+            engine_args["connect_args"] = {"check_same_thread": False}
+            if ":memory:" in database_url:
+                engine_args["poolclass"] = StaticPool
+        return engine_args
 
     def get_db(self):
         db = SessionLocal()
