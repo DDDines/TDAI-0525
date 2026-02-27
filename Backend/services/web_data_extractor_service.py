@@ -672,108 +672,176 @@ async def coletar_conteudo_pagina_playwright(url: str) -> Optional[str]:
 
 
 # --- Text Extraction Service ---
-def _extrair_texto_principal_com_trafilatura_impl(html_content: str) -> Optional[str]:
-    if not html_content: return None
-    texto_principal = trafilatura.extract(
-        html_content,
-        include_comments=False,
-        include_tables=True,
-        output_format='text',
-        favor_precision=False,
-        include_formatting=False
-    )
-    return texto_principal
+class _MetadataExtractionRuntime:
+    """Runtime OO para extracao de texto e metadados estruturados."""
 
-# --- Metadata Extraction Service ---
+    def extrair_texto_principal_com_trafilatura(self, html_content: str) -> Optional[str]:
+        if not html_content:
+            return None
+        return trafilatura.extract(
+            html_content,
+            include_comments=False,
+            include_tables=True,
+            output_format="text",
+            favor_precision=False,
+            include_formatting=False,
+        )
+
+    def limpar_valor_metadado(self, valor: Any) -> Optional[Any]:
+        if valor is None:
+            return None
+        if isinstance(valor, str):
+            texto = valor.strip()
+            texto = re.sub(r"\s+", " ", texto)
+            return texto if texto else None
+        if isinstance(valor, list):
+            lista_limpa = [self.limpar_valor_metadado(item) for item in valor]
+            return [item for item in lista_limpa if item is not None] or None
+        return valor
+
+    def extrair_metadados_estruturados(self, html_content: str, url: str) -> Dict[str, Any]:
+        if not html_content:
+            return {}
+        metadata_extraida: Dict[str, Any] = {}
+        try:
+            data = extruct.extract(
+                html_content,
+                base_url=url,
+                syntaxes=["json-ld", "microdata", "opengraph"],
+                uniform=True,
+            )
+            for syntax_type, items_list in data.items():
+                if not items_list:
+                    continue
+                if syntax_type in {"json-ld", "microdata"}:
+                    for item_data in items_list:
+                        is_product_candidate = isinstance(item_data, dict) and (
+                            "Product" in str(
+                                item_data.get("@type", "") or item_data.get("type", "")
+                            )
+                            or syntax_type == "microdata"
+                        )
+                        if not is_product_candidate:
+                            continue
+                        data_to_store = (
+                            item_data.get("properties", item_data)
+                            if syntax_type == "microdata"
+                            else item_data
+                        )
+                        metadata_extraida[f"{syntax_type}_product_candidate"] = data_to_store
+                        break
+                elif syntax_type == "opengraph":
+                    metadata_extraida["opengraph"] = items_list[0] if items_list else None
+        except Exception as e:
+            logger.error("Erro ao extrair metadados estruturados de %s com extruct: %s", url, e)
+        return metadata_extraida
+
+    def normalizar_dados_de_metadados(self, metadata_bruta: Dict[str, Any]) -> Dict[str, Any]:
+        dados_norm: Dict[str, Any] = {}
+        produto_json_ld = metadata_bruta.get("json-ld_product_candidate")
+        produto_microdata = metadata_bruta.get("microdata_product_candidate")
+        opengraph_props_list = metadata_bruta.get("opengraph")
+        opengraph = (
+            opengraph_props_list[0]
+            if isinstance(opengraph_props_list, list) and opengraph_props_list
+            else (opengraph_props_list if isinstance(opengraph_props_list, dict) else {})
+        )
+
+        def get_first_string(value: Any) -> Optional[str]:
+            if isinstance(value, list):
+                for item_val in value:
+                    cleaned = self.limpar_valor_metadado(item_val)
+                    if cleaned and isinstance(cleaned, str):
+                        return cleaned
+                return None
+            cleaned_val = self.limpar_valor_metadado(value)
+            return cleaned_val if isinstance(cleaned_val, str) else None
+
+        if produto_json_ld and isinstance(produto_json_ld, dict):
+            dados_norm["nome"] = get_first_string(produto_json_ld.get("name"))
+            dados_norm["descricao_curta"] = get_first_string(produto_json_ld.get("description"))
+            img = produto_json_ld.get("image")
+            if isinstance(img, dict):
+                img = img.get("url") or img.get("@id")
+            elif isinstance(img, list):
+                img = get_first_string([i.get("url") if isinstance(i, dict) else i for i in img])
+            dados_norm["imagem_url"] = get_first_string(img)
+
+            marca_info = produto_json_ld.get("brand")
+            if isinstance(marca_info, dict):
+                dados_norm["marca"] = get_first_string(marca_info.get("name"))
+            else:
+                dados_norm["marca"] = get_first_string(marca_info)
+
+            dados_norm["sku"] = get_first_string(
+                produto_json_ld.get("sku") or produto_json_ld.get("mpn")
+            )
+
+            offers = produto_json_ld.get("offers")
+            if isinstance(offers, list):
+                offers = offers[0] if offers else {}
+            if isinstance(offers, dict):
+                dados_norm["preco"] = get_first_string(
+                    offers.get("price") or offers.get("lowPrice") or offers.get("highPrice")
+                )
+                dados_norm["moeda_preco"] = get_first_string(offers.get("priceCurrency"))
+                disponibilidade = get_first_string(offers.get("availability"))
+                if disponibilidade and "schema.org" in disponibilidade:
+                    dados_norm["disponibilidade"] = disponibilidade.split("/")[-1]
+                else:
+                    dados_norm["disponibilidade"] = disponibilidade
+
+        if produto_microdata and isinstance(produto_microdata, dict):
+            if not dados_norm.get("nome"):
+                dados_norm["nome"] = get_first_string(produto_microdata.get("name"))
+            if not dados_norm.get("descricao_curta"):
+                dados_norm["descricao_curta"] = get_first_string(produto_microdata.get("description"))
+            if not dados_norm.get("imagem_url"):
+                dados_norm["imagem_url"] = get_first_string(produto_microdata.get("image"))
+            if not dados_norm.get("marca"):
+                dados_norm["marca"] = get_first_string(produto_microdata.get("brand"))
+            if not dados_norm.get("sku"):
+                dados_norm["sku"] = get_first_string(
+                    produto_microdata.get("sku") or produto_microdata.get("mpn")
+                )
+
+        if opengraph and isinstance(opengraph, dict):
+            if not dados_norm.get("nome"):
+                dados_norm["nome"] = get_first_string(opengraph.get("og:title"))
+            if not dados_norm.get("descricao_curta"):
+                dados_norm["descricao_curta"] = get_first_string(opengraph.get("og:description"))
+            if not dados_norm.get("imagem_url"):
+                dados_norm["imagem_url"] = get_first_string(opengraph.get("og:image"))
+            if not dados_norm.get("marca") and opengraph.get("og:type") == "product":
+                dados_norm["marca"] = get_first_string(
+                    opengraph.get("product:brand") or opengraph.get("og:site_name")
+                )
+            elif not dados_norm.get("marca"):
+                dados_norm["marca"] = get_first_string(opengraph.get("og:site_name"))
+
+        return {k: v for k, v in dados_norm.items() if v is not None and v != ""}
+
+
+_metadata_extraction_runtime = _MetadataExtractionRuntime()
+
+
+def _extrair_texto_principal_com_trafilatura_impl(html_content: str) -> Optional[str]:
+    return _metadata_extraction_runtime.extrair_texto_principal_com_trafilatura(html_content)
+
+
 def _limpar_valor_metadado(valor: Any) -> Optional[Any]:
-    if valor is None: return None
-    if isinstance(valor, str):
-        texto = valor.strip()
-        texto = re.sub(r'\s+', ' ', texto)
-        return texto if texto else None
-    if isinstance(valor, list):
-        lista_limpa = [_limpar_valor_metadado(item) for item in valor]
-        return [item for item in lista_limpa if item is not None] or None
-    return valor
+    return _metadata_extraction_runtime.limpar_valor_metadado(valor)
+
 
 def _extrair_metadados_estruturados_impl(html_content: str, url: str) -> Dict[str, Any]:
-    if not html_content: return {}
-    metadata_extraida = {}
-    try:
-        data = extruct.extract(html_content, base_url=url, syntaxes=['json-ld', 'microdata', 'opengraph'], uniform=True)
-        for syntax_type, items_list in data.items():
-            if not items_list: continue
-            if syntax_type == 'json-ld' or syntax_type == 'microdata':
-                for item_data in items_list:
-                    if isinstance(item_data, dict) and ('Product' in str(item_data.get('@type', '') or item_data.get('type', '')) or syntax_type == 'microdata'):
-                        data_to_store = item_data.get('properties', item_data) if syntax_type == 'microdata' else item_data
-                        metadata_extraida[f"{syntax_type}_product_candidate"] = data_to_store
-                        break 
-            elif syntax_type == 'opengraph':
-                 metadata_extraida['opengraph'] = items_list[0] if items_list else None
-    except Exception as e:
-        logger.error("Erro ao extrair metadados estruturados de %s com extruct: %s", url, e)
-    return metadata_extraida
+    return _metadata_extraction_runtime.extrair_metadados_estruturados(
+        html_content=html_content,
+        url=url,
+    )
+
 
 def _normalizar_dados_de_metadados(metadata_bruta: Dict[str, Any]) -> Dict[str, Any]:
-    dados_norm: Dict[str, Any] = {}
-    produto_json_ld = metadata_bruta.get('json-ld_product_candidate')
-    produto_microdata = metadata_bruta.get('microdata_product_candidate')
-    opengraph_props_list = metadata_bruta.get('opengraph')
-    opengraph = opengraph_props_list[0] if isinstance(opengraph_props_list, list) and opengraph_props_list else (opengraph_props_list if isinstance(opengraph_props_list, dict) else {})
-
-
-    def get_first_string(value: Any) -> Optional[str]:
-        if isinstance(value, list):
-            for item_val in value:
-                cleaned = _limpar_valor_metadado(item_val)
-                if cleaned and isinstance(cleaned, str): return cleaned
-            return None
-        cleaned_val = _limpar_valor_metadado(value)
-        return cleaned_val if isinstance(cleaned_val, str) else None
-
-    if produto_json_ld and isinstance(produto_json_ld, dict):
-        dados_norm['nome'] = get_first_string(produto_json_ld.get('name'))
-        dados_norm['descricao_curta'] = get_first_string(produto_json_ld.get('description'))
-        img = produto_json_ld.get('image')
-        if isinstance(img, dict): img = img.get('url') or img.get('@id')
-        elif isinstance(img, list): img = get_first_string([i.get('url') if isinstance(i, dict) else i for i in img])
-        dados_norm['imagem_url'] = get_first_string(img)
-        
-        marca_info = produto_json_ld.get('brand')
-        if isinstance(marca_info, dict): dados_norm['marca'] = get_first_string(marca_info.get('name'))
-        else: dados_norm['marca'] = get_first_string(marca_info)
-            
-        dados_norm['sku'] = get_first_string(produto_json_ld.get('sku') or produto_json_ld.get('mpn'))
-        
-        offers = produto_json_ld.get('offers')
-        if isinstance(offers, list): offers = offers[0] if offers else {}
-        if isinstance(offers, dict):
-            dados_norm['preco'] = get_first_string(offers.get('price') or offers.get('lowPrice') or offers.get('highPrice'))
-            dados_norm['moeda_preco'] = get_first_string(offers.get('priceCurrency'))
-            disponibilidade = get_first_string(offers.get('availability'))
-            if disponibilidade and 'schema.org' in disponibilidade:
-                dados_norm['disponibilidade'] = disponibilidade.split('/')[-1]
-            else:
-                dados_norm['disponibilidade'] = disponibilidade
-
-    if produto_microdata and isinstance(produto_microdata, dict):
-        if not dados_norm.get('nome'): dados_norm['nome'] = get_first_string(produto_microdata.get('name'))
-        if not dados_norm.get('descricao_curta'): dados_norm['descricao_curta'] = get_first_string(produto_microdata.get('description'))
-        if not dados_norm.get('imagem_url'): dados_norm['imagem_url'] = get_first_string(produto_microdata.get('image'))
-        if not dados_norm.get('marca'): dados_norm['marca'] = get_first_string(produto_microdata.get('brand'))
-        if not dados_norm.get('sku'): dados_norm['sku'] = get_first_string(produto_microdata.get('sku') or produto_microdata.get('mpn'))
-
-    if opengraph and isinstance(opengraph, dict):
-        if not dados_norm.get('nome'): dados_norm['nome'] = get_first_string(opengraph.get('og:title'))
-        if not dados_norm.get('descricao_curta'): dados_norm['descricao_curta'] = get_first_string(opengraph.get('og:description'))
-        if not dados_norm.get('imagem_url'): dados_norm['imagem_url'] = get_first_string(opengraph.get('og:image'))
-        if not dados_norm.get('marca') and opengraph.get('og:type') == 'product':
-            dados_norm['marca'] = get_first_string(opengraph.get('product:brand') or opengraph.get('og:site_name'))
-        elif not dados_norm.get('marca'):
-            dados_norm['marca'] = get_first_string(opengraph.get('og:site_name'))
-             
-    return {k: v for k, v in dados_norm.items() if v is not None and v != ""}
+    return _metadata_extraction_runtime.normalizar_dados_de_metadados(metadata_bruta)
 
 # --- LLM-based Data Extraction from Text ---
 async def _extrair_dados_produto_com_llm_impl(
@@ -1047,15 +1115,21 @@ def _extract_text_from_image_region_impl(image_bytes: bytes):
 class _WebExtractionSupportWorkflow:
     """Workflow OO para utilitarios de extração web e OCR."""
 
+    def __init__(self, metadata_runtime: _MetadataExtractionRuntime) -> None:
+        self._metadata_runtime = metadata_runtime
+
     def extrair_texto_principal_com_trafilatura(
         self, html_content: str
     ) -> Optional[str]:
-        return _extrair_texto_principal_com_trafilatura_impl(html_content)
+        return self._metadata_runtime.extrair_texto_principal_com_trafilatura(html_content)
 
     def extrair_metadados_estruturados(
         self, html_content: str, url: str
     ) -> Dict[str, Any]:
-        return _extrair_metadados_estruturados_impl(html_content, url)
+        return self._metadata_runtime.extrair_metadados_estruturados(
+            html_content=html_content,
+            url=url,
+        )
 
     async def extrair_dados_produto_com_llm(
         self,
@@ -1089,7 +1163,9 @@ class _WebExtractionSupportWorkflow:
         return _extract_text_from_image_region_impl(image_bytes=image_bytes)
 
 
-_web_extraction_support_workflow = _WebExtractionSupportWorkflow()
+_web_extraction_support_workflow = _WebExtractionSupportWorkflow(
+    metadata_runtime=_metadata_extraction_runtime
+)
 
 
 def extrair_texto_principal_com_trafilatura(html_content: str) -> Optional[str]:
