@@ -17,6 +17,84 @@ from Backend.application.services.shadow_result_comparator import ShadowResultCo
 _shadow_result_comparator = ShadowResultComparator()
 
 
+class _CatalogImportTaskRuntime:
+    RUNTIME_FIELDS = (
+        "logger",
+        "catalog_logger",
+        "models",
+        "schemas",
+        "crud_produtos",
+        "file_processing_service",
+        "validator_crew",
+        "settings",
+        "Path",
+        "time",
+        "Counter",
+        "resolve_storage_path",
+        "normalize_import_issue_item",
+        "extract_import_error_reason",
+        "is_non_critical_import_reason",
+        "normalizar_dados_validados",
+        "sanitize_produto_extraido",
+        "classificar_qualidade_linha_produto",
+        "write_catalog_import_report",
+        "normalize_import_text",
+        "pipeline_variant",
+    )
+
+    def __init__(
+        self,
+        *,
+        logger,
+        catalog_logger,
+        models,
+        schemas,
+        crud_produtos,
+        file_processing_service,
+        validator_crew,
+        settings,
+        Path,
+        time,
+        Counter,
+        resolve_storage_path: Callable,
+        normalize_import_issue_item: Callable,
+        extract_import_error_reason: Callable,
+        is_non_critical_import_reason: Callable,
+        normalizar_dados_validados: Callable,
+        sanitize_produto_extraido: Callable,
+        classificar_qualidade_linha_produto: Callable,
+        write_catalog_import_report: Callable,
+        normalize_import_text: Callable,
+        pipeline_variant: str,
+    ) -> None:
+        self.logger = logger
+        self.catalog_logger = catalog_logger
+        self.models = models
+        self.schemas = schemas
+        self.crud_produtos = crud_produtos
+        self.file_processing_service = file_processing_service
+        self.validator_crew = validator_crew
+        self.settings = settings
+        self.Path = Path
+        self.time = time
+        self.Counter = Counter
+        self.resolve_storage_path = resolve_storage_path
+        self.normalize_import_issue_item = normalize_import_issue_item
+        self.extract_import_error_reason = extract_import_error_reason
+        self.is_non_critical_import_reason = is_non_critical_import_reason
+        self.normalizar_dados_validados = normalizar_dados_validados
+        self.sanitize_produto_extraido = sanitize_produto_extraido
+        self.classificar_qualidade_linha_produto = classificar_qualidade_linha_produto
+        self.write_catalog_import_report = write_catalog_import_report
+        self.normalize_import_text = normalize_import_text
+        self.pipeline_variant = pipeline_variant
+
+    def apply_overrides(self, runtime: Any) -> "_CatalogImportTaskRuntime":
+        for field_name in self.RUNTIME_FIELDS:
+            setattr(self, field_name, getattr(runtime, field_name, getattr(self, field_name)))
+        return self
+
+
 class _CatalogImportTaskWorkflow:
     """Orquestra importacao de catalogo com pipeline em etapas OO."""
 
@@ -46,80 +124,66 @@ class _CatalogImportTaskWorkflow:
         pipeline_variant: str,
         runtime: Optional[Any] = None,
     ) -> None:
-        if runtime is not None:
-            logger = getattr(runtime, "logger", logger)
-            catalog_logger = getattr(runtime, "catalog_logger", catalog_logger)
-            models = getattr(runtime, "models", models)
-            schemas = getattr(runtime, "schemas", schemas)
-            crud_produtos = getattr(runtime, "crud_produtos", crud_produtos)
-            file_processing_service = getattr(
-                runtime, "file_processing_service", file_processing_service
-            )
-            validator_crew = getattr(runtime, "validator_crew", validator_crew)
-            settings = getattr(runtime, "settings", settings)
-            Path = getattr(runtime, "Path", Path)
-            time = getattr(runtime, "time", time)
-            Counter = getattr(runtime, "Counter", Counter)
-            resolve_storage_path = getattr(runtime, "resolve_storage_path", resolve_storage_path)
-            normalize_import_issue_item = getattr(
-                runtime, "normalize_import_issue_item", normalize_import_issue_item
-            )
-            extract_import_error_reason = getattr(
-                runtime, "extract_import_error_reason", extract_import_error_reason
-            )
-            is_non_critical_import_reason = getattr(
-                runtime, "is_non_critical_import_reason", is_non_critical_import_reason
-            )
-            normalizar_dados_validados = getattr(
-                runtime, "normalizar_dados_validados", normalizar_dados_validados
-            )
-            sanitize_produto_extraido = getattr(
-                runtime, "sanitize_produto_extraido", sanitize_produto_extraido
-            )
-            classificar_qualidade_linha_produto = getattr(
-                runtime,
-                "classificar_qualidade_linha_produto",
-                classificar_qualidade_linha_produto,
-            )
-            write_catalog_import_report = getattr(
-                runtime, "write_catalog_import_report", write_catalog_import_report
-            )
-            normalize_import_text = getattr(runtime, "normalize_import_text", normalize_import_text)
-            pipeline_variant = getattr(runtime, "pipeline_variant", pipeline_variant)
-
-        self.logger = logger
-        self.catalog_logger = catalog_logger
-        self.models = models
-        self.schemas = schemas
-        self.crud_produtos = crud_produtos
-        self.file_processing_service = file_processing_service
-        self.validator_crew = validator_crew
-        self.settings = settings
-        self.Path = Path
-        self.time = time
-        self.Counter = Counter
-
-        self.resolve_storage_path = resolve_storage_path
-        self.normalizar_dados_validados = normalizar_dados_validados
-        self.sanitize_produto_extraido = sanitize_produto_extraido
-        self.classificar_qualidade_linha_produto = classificar_qualidade_linha_produto
-        self.pipeline_variant = pipeline_variant
-
-        self.file_state_service = CatalogImportFileStateService()
-        self.issue_tracker = CatalogImportIssueTracker(
+        runtime_obj = _CatalogImportTaskRuntime(
+            logger=logger,
+            catalog_logger=catalog_logger,
+            models=models,
+            schemas=schemas,
+            crud_produtos=crud_produtos,
+            file_processing_service=file_processing_service,
+            validator_crew=validator_crew,
+            settings=settings,
+            Path=Path,
+            time=time,
+            Counter=Counter,
+            resolve_storage_path=resolve_storage_path,
             normalize_import_issue_item=normalize_import_issue_item,
             extract_import_error_reason=extract_import_error_reason,
             is_non_critical_import_reason=is_non_critical_import_reason,
+            normalizar_dados_validados=normalizar_dados_validados,
+            sanitize_produto_extraido=sanitize_produto_extraido,
+            classificar_qualidade_linha_produto=classificar_qualidade_linha_produto,
+            write_catalog_import_report=write_catalog_import_report,
+            normalize_import_text=normalize_import_text,
+            pipeline_variant=pipeline_variant,
+        )
+        if runtime is not None:
+            runtime_obj.apply_overrides(runtime)
+
+        self._runtime = runtime_obj
+        self.logger = runtime_obj.logger
+        self.catalog_logger = runtime_obj.catalog_logger
+        self.models = runtime_obj.models
+        self.schemas = runtime_obj.schemas
+        self.crud_produtos = runtime_obj.crud_produtos
+        self.file_processing_service = runtime_obj.file_processing_service
+        self.validator_crew = runtime_obj.validator_crew
+        self.settings = runtime_obj.settings
+        self.Path = runtime_obj.Path
+        self.time = runtime_obj.time
+        self.Counter = runtime_obj.Counter
+
+        self.resolve_storage_path = runtime_obj.resolve_storage_path
+        self.normalizar_dados_validados = runtime_obj.normalizar_dados_validados
+        self.sanitize_produto_extraido = runtime_obj.sanitize_produto_extraido
+        self.classificar_qualidade_linha_produto = runtime_obj.classificar_qualidade_linha_produto
+        self.pipeline_variant = runtime_obj.pipeline_variant
+
+        self.file_state_service = CatalogImportFileStateService()
+        self.issue_tracker = CatalogImportIssueTracker(
+            normalize_import_issue_item=runtime_obj.normalize_import_issue_item,
+            extract_import_error_reason=runtime_obj.extract_import_error_reason,
+            is_non_critical_import_reason=runtime_obj.is_non_critical_import_reason,
         )
         self.quality_scores = CatalogImportQualityAccumulator()
         self.outcome_resolver = CatalogImportOutcomeResolver()
         self.result_builder = CatalogImportResultBuilder(
-            schemas=schemas,
-            normalize_import_text=normalize_import_text,
-            write_catalog_import_report=write_catalog_import_report,
+            schemas=runtime_obj.schemas,
+            normalize_import_text=runtime_obj.normalize_import_text,
+            write_catalog_import_report=runtime_obj.write_catalog_import_report,
             outcome_resolver=self.outcome_resolver,
         )
-        self.audit_writer = CatalogImportAuditWriter(models=models)
+        self.audit_writer = CatalogImportAuditWriter(models=runtime_obj.models)
 
         self.db: Optional[Session] = None
         self.catalog_file = None

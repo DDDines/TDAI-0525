@@ -15,6 +15,75 @@ from Backend.application.services.shadow_result_comparator import ShadowResultCo
 _shadow_result_comparator = ShadowResultComparator()
 
 
+class _WebEnrichmentTaskRuntime:
+    RUNTIME_FIELDS = (
+        "logger",
+        "SQLAlchemyError",
+        "crud_users",
+        "crud_produtos",
+        "crud",
+        "models",
+        "schemas",
+        "web_extractor",
+        "settings",
+        "json",
+        "normalize_human_text",
+        "build_payload_enriquecimento_visivel",
+        "extrair_dominio_fornecedor",
+        "priorizar_urls_para_enriquecimento",
+        "is_meaningful_extracted_text",
+        "metadata_has_minimum_signal",
+        "is_source_relevant_for_product",
+        "pipeline_variant",
+    )
+
+    def __init__(
+        self,
+        *,
+        logger,
+        SQLAlchemyError,
+        crud_users,
+        crud_produtos,
+        crud,
+        models,
+        schemas,
+        web_extractor,
+        settings,
+        json,
+        normalize_human_text,
+        build_payload_enriquecimento_visivel,
+        extrair_dominio_fornecedor,
+        priorizar_urls_para_enriquecimento,
+        is_meaningful_extracted_text,
+        metadata_has_minimum_signal,
+        is_source_relevant_for_product,
+        pipeline_variant: str,
+    ) -> None:
+        self.logger = logger
+        self.SQLAlchemyError = SQLAlchemyError
+        self.crud_users = crud_users
+        self.crud_produtos = crud_produtos
+        self.crud = crud
+        self.models = models
+        self.schemas = schemas
+        self.web_extractor = web_extractor
+        self.settings = settings
+        self.json = json
+        self.normalize_human_text = normalize_human_text
+        self.build_payload_enriquecimento_visivel = build_payload_enriquecimento_visivel
+        self.extrair_dominio_fornecedor = extrair_dominio_fornecedor
+        self.priorizar_urls_para_enriquecimento = priorizar_urls_para_enriquecimento
+        self.is_meaningful_extracted_text = is_meaningful_extracted_text
+        self.metadata_has_minimum_signal = metadata_has_minimum_signal
+        self.is_source_relevant_for_product = is_source_relevant_for_product
+        self.pipeline_variant = pipeline_variant
+
+    def apply_overrides(self, runtime: Any) -> "_WebEnrichmentTaskRuntime":
+        for field_name in self.RUNTIME_FIELDS:
+            setattr(self, field_name, getattr(runtime, field_name, getattr(self, field_name)))
+        return self
+
+
 class _WebEnrichmentTaskWorkflow:
     """Orquestra o fluxo completo de enriquecimento web com etapas coesas."""
 
@@ -41,69 +110,57 @@ class _WebEnrichmentTaskWorkflow:
         pipeline_variant: str,
         runtime: Optional[Any] = None,
     ) -> None:
+        runtime_obj = _WebEnrichmentTaskRuntime(
+            logger=logger,
+            SQLAlchemyError=SQLAlchemyError,
+            crud_users=crud_users,
+            crud_produtos=crud_produtos,
+            crud=crud,
+            models=models,
+            schemas=schemas,
+            web_extractor=web_extractor,
+            settings=settings,
+            json=json,
+            normalize_human_text=normalize_human_text,
+            build_payload_enriquecimento_visivel=build_payload_enriquecimento_visivel,
+            extrair_dominio_fornecedor=extrair_dominio_fornecedor,
+            priorizar_urls_para_enriquecimento=priorizar_urls_para_enriquecimento,
+            is_meaningful_extracted_text=is_meaningful_extracted_text,
+            metadata_has_minimum_signal=metadata_has_minimum_signal,
+            is_source_relevant_for_product=is_source_relevant_for_product,
+            pipeline_variant=pipeline_variant,
+        )
         if runtime is not None:
-            logger = getattr(runtime, "logger", logger)
-            SQLAlchemyError = getattr(runtime, "SQLAlchemyError", SQLAlchemyError)
-            crud_users = getattr(runtime, "crud_users", crud_users)
-            crud_produtos = getattr(runtime, "crud_produtos", crud_produtos)
-            crud = getattr(runtime, "crud", crud)
-            models = getattr(runtime, "models", models)
-            schemas = getattr(runtime, "schemas", schemas)
-            web_extractor = getattr(runtime, "web_extractor", web_extractor)
-            settings = getattr(runtime, "settings", settings)
-            json = getattr(runtime, "json", json)
-            normalize_human_text = getattr(runtime, "normalize_human_text", normalize_human_text)
-            build_payload_enriquecimento_visivel = getattr(
-                runtime,
-                "build_payload_enriquecimento_visivel",
-                build_payload_enriquecimento_visivel,
-            )
-            extrair_dominio_fornecedor = getattr(
-                runtime, "extrair_dominio_fornecedor", extrair_dominio_fornecedor
-            )
-            priorizar_urls_para_enriquecimento = getattr(
-                runtime,
-                "priorizar_urls_para_enriquecimento",
-                priorizar_urls_para_enriquecimento,
-            )
-            is_meaningful_extracted_text = getattr(
-                runtime, "is_meaningful_extracted_text", is_meaningful_extracted_text
-            )
-            metadata_has_minimum_signal = getattr(
-                runtime, "metadata_has_minimum_signal", metadata_has_minimum_signal
-            )
-            is_source_relevant_for_product = getattr(
-                runtime, "is_source_relevant_for_product", is_source_relevant_for_product
-            )
-            pipeline_variant = getattr(runtime, "pipeline_variant", pipeline_variant)
+            runtime_obj.apply_overrides(runtime)
 
-        self.logger = logger
-        self.SQLAlchemyError = SQLAlchemyError
-        self.crud_users = crud_users
-        self.crud_produtos = crud_produtos
-        self.crud = crud
-        self.models = models
-        self.schemas = schemas
-        self.web_extractor = web_extractor
-        self.settings = settings
-        self.json = json
-        self.normalize_human_text = normalize_human_text
-        self.extrair_dominio_fornecedor = extrair_dominio_fornecedor
-        self.priorizar_urls_para_enriquecimento = priorizar_urls_para_enriquecimento
-        self.is_meaningful_extracted_text = is_meaningful_extracted_text
-        self.metadata_has_minimum_signal = metadata_has_minimum_signal
-        self.is_source_relevant_for_product = is_source_relevant_for_product
-        self.pipeline_variant = pipeline_variant
+        self._runtime = runtime_obj
+        self.logger = runtime_obj.logger
+        self.SQLAlchemyError = runtime_obj.SQLAlchemyError
+        self.crud_users = runtime_obj.crud_users
+        self.crud_produtos = runtime_obj.crud_produtos
+        self.crud = runtime_obj.crud
+        self.models = runtime_obj.models
+        self.schemas = runtime_obj.schemas
+        self.web_extractor = runtime_obj.web_extractor
+        self.settings = runtime_obj.settings
+        self.json = runtime_obj.json
+        self.normalize_human_text = runtime_obj.normalize_human_text
+        self.extrair_dominio_fornecedor = runtime_obj.extrair_dominio_fornecedor
+        self.priorizar_urls_para_enriquecimento = runtime_obj.priorizar_urls_para_enriquecimento
+        self.is_meaningful_extracted_text = runtime_obj.is_meaningful_extracted_text
+        self.metadata_has_minimum_signal = runtime_obj.metadata_has_minimum_signal
+        self.is_source_relevant_for_product = runtime_obj.is_source_relevant_for_product
+        self.pipeline_variant = runtime_obj.pipeline_variant
 
         self.config_inspector = WebEnrichmentConfigInspector()
         self.query_planner = WebEnrichmentQueryPlanner()
         self.status_resolver = WebEnrichmentStatusResolver()
         self.finalization_service = WebEnrichmentFinalizationService(
-            normalize_human_text=normalize_human_text,
-            build_payload_enriquecimento_visivel=build_payload_enriquecimento_visivel,
-            schemas=schemas,
-            crud_produtos=crud_produtos,
-            models=models,
+            normalize_human_text=runtime_obj.normalize_human_text,
+            build_payload_enriquecimento_visivel=runtime_obj.build_payload_enriquecimento_visivel,
+            schemas=runtime_obj.schemas,
+            crud_produtos=runtime_obj.crud_produtos,
+            models=runtime_obj.models,
         )
 
     def _load_locked_product(self, db: Session, produto_id: int):
