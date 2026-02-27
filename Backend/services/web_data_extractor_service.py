@@ -1195,6 +1195,35 @@ def _extract_text_from_image_region_impl(image_bytes: bytes):
         raise HTTPException(status_code=500, detail="Ocorreu um erro durante a extração de dados.") from e
 
 
+class _WebExtractionSupportRuntime:
+    """Runtime OO para utilitarios de extração web e OCR."""
+
+    RUNTIME_FIELDS = (
+        "metadata_runtime",
+        "llm_runtime",
+        "enrichment_runtime",
+        "ocr_runtime",
+    )
+
+    def __init__(
+        self,
+        *,
+        metadata_runtime: Optional[Any] = None,
+        llm_runtime: Optional[Any] = None,
+        enrichment_runtime: Optional[Any] = None,
+        ocr_runtime: Optional[Any] = None,
+    ) -> None:
+        self.metadata_runtime = metadata_runtime
+        self.llm_runtime = llm_runtime
+        self.enrichment_runtime = enrichment_runtime
+        self.ocr_runtime = ocr_runtime
+
+    def apply_overrides(self, runtime: Any) -> "_WebExtractionSupportRuntime":
+        for field_name in self.RUNTIME_FIELDS:
+            setattr(self, field_name, getattr(runtime, field_name, getattr(self, field_name)))
+        return self
+
+
 class _WebExtractionSupportWorkflow:
     """Workflow OO para utilitarios de extração web e OCR."""
 
@@ -1206,16 +1235,20 @@ class _WebExtractionSupportWorkflow:
         ocr_runtime: Optional["_WebOCRRuntime"] = None,
         runtime: Optional[Any] = None,
     ) -> None:
+        runtime_obj = _WebExtractionSupportRuntime(
+            metadata_runtime=metadata_runtime,
+            llm_runtime=llm_runtime,
+            enrichment_runtime=enrichment_runtime,
+            ocr_runtime=ocr_runtime,
+        )
         if runtime is not None:
-            metadata_runtime = getattr(runtime, "metadata_runtime", metadata_runtime)
-            llm_runtime = getattr(runtime, "llm_runtime", llm_runtime)
-            enrichment_runtime = getattr(runtime, "enrichment_runtime", enrichment_runtime)
-            ocr_runtime = getattr(runtime, "ocr_runtime", ocr_runtime)
+            runtime_obj.apply_overrides(runtime)
 
-        self._metadata_runtime = metadata_runtime or _metadata_extraction_runtime
-        self._llm_runtime = llm_runtime or _WebLLMExtractionRuntime()
-        self._enrichment_runtime = enrichment_runtime or _WebURLExtractionRuntime()
-        self._ocr_runtime = ocr_runtime or _WebOCRRuntime()
+        self._runtime = runtime_obj
+        self._metadata_runtime = runtime_obj.metadata_runtime or _metadata_extraction_runtime
+        self._llm_runtime = runtime_obj.llm_runtime or _WebLLMExtractionRuntime()
+        self._enrichment_runtime = runtime_obj.enrichment_runtime or _WebURLExtractionRuntime()
+        self._ocr_runtime = runtime_obj.ocr_runtime or _WebOCRRuntime()
 
     def extrair_texto_principal_com_trafilatura(
         self, html_content: str
