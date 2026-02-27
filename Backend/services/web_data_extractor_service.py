@@ -1063,6 +1063,130 @@ def _normalizar_dados_de_metadados(metadata_bruta: Dict[str, Any]) -> Dict[str, 
     return _metadata_extraction_runtime.normalizar_dados_de_metadados(metadata_bruta)
 
 # --- LLM-based Data Extraction from Text ---
+class _WebLLMExtractionEngineRuntime:
+    """Engine runtime OO para extração de dados de produto com LLM."""
+
+    async def extrair_dados_produto_com_llm_impl(
+        self,
+        texto_pagina: Optional[str],
+        metadados_normalizados: Optional[Dict[str, Any]] = None,
+        campos_desejados: Optional[List[str]] = None,
+        produto_nome_base: str = "Produto",
+        user: Optional[models.User] = None,
+    ) -> Optional[Dict[str, Any]]:
+        if not texto_pagina and not metadados_normalizados:
+            logger.info("Nenhum texto de página nem metadados fornecidos para extração LLM.")
+            return {"erro_llm": "Nenhum conteúdo para processar"}
+
+        prompt_contexto_inicial = [
+            f"Você é um assistente especialista em extrair informações detalhadas de produtos de e-commerce para o produto '{produto_nome_base}'.",
+            "Seu objetivo é preencher um JSON com os campos solicitados da forma mais precisa possível, com base no contexto fornecido.",
+        ]
+        contexto_para_llm = ""
+        if (
+            metadados_normalizados
+            and isinstance(metadados_normalizados, dict)
+            and any(metadados_normalizados.values())
+        ):
+            contexto_para_llm += "Contexto de Metadados Estruturados (use como base, valide e complemente com o texto principal):\n"
+            for k, v_item in metadados_normalizados.items():
+                contexto_para_llm += f"- {k.replace('_', ' ')}: {str(v_item)[:200]}\n"
+        if texto_pagina:
+            contexto_para_llm += f'\nTexto Principal da Página (use para encontrar informações e complementar/corrigir metadados):\n"""\n{texto_pagina[:10000]}\n"""'
+
+        if not contexto_para_llm.strip():
+            logger.info(
+                "Contexto insuficiente para LLM (metadados e texto da página vazios ou muito curtos)."
+            )
+            return {"erro_llm": "Contexto insuficiente para processar"}
+
+        if not campos_desejados:
+            campos_desejados = [
+                "nome_base",
+                "marca",
+                "sku_original",
+                "descricao_original",
+                "preco_original",
+                "imagem_url_original",
+            ]
+
+        campos_formatados_prompt = ",\n".join([f'    "{campo}": "..."' for campo in campos_desejados])
+
+        prompt = (
+            "\n".join(prompt_contexto_inicial)
+            + "\n\nA partir do contexto e do texto da página fornecidos, extraia RIGOROSAMENTE os seguintes campos e retorne APENAS um objeto JSON válido com esta estrutura:\n"
+            + f"{{\n{campos_formatados_prompt}\n}}\n"
+            + "Se uma informação para um campo específico não for encontrada de forma clara e inequívoca, retorne null para esse campo. Não invente informações.\n"
+            + "Para campos do tipo lista (ex: 'lista_caracteristicas_beneficios_bullets', 'palavras_chave_seo_relevantes_lista'), retorne uma lista de strings.\n"
+            + "Para campos do tipo dicionário (ex: 'especificacoes_tecnicas_dict'), retorne um dicionário chave-valor.\n"
+            + f"\nContexto e Texto para Análise:\n{contexto_para_llm}"
+        )
+
+        if user is not None:
+            api_key_para_usar = user.chave_openai_pessoal or settings.OPENAI_API_KEY
+        else:
+            api_key_para_usar = settings.OPENAI_API_KEY
+        if not api_key_para_usar:
+            logger.warning(
+                "Nenhuma chave API OpenAI disponível para extração de dados com LLM."
+            )
+            return {"erro_llm": "Chave API OpenAI não configurada"}
+
+        json_str_resposta = ""
+        try:
+            prompt_messages = [
+                {
+                    "role": "system",
+                    "content": "Sua tarefa é extrair informações de um texto e retorná-las em formato JSON conforme o schema solicitado. Seja preciso e não adicione campos extras.",
+                },
+                {"role": "user", "content": prompt},
+            ]
+            json_str_resposta = await ia_generation_service.call_openai_api(
+                prompt_messages=prompt_messages,
+                api_key=api_key_para_usar,
+                model="gpt-3.5-turbo-0125",
+                max_tokens=2048,
+                temperature=0.0,
+            )
+
+            match = re.search(r"\{.*\}", json_str_resposta, re.DOTALL)
+            if match:
+                json_str_limpo = match.group(0)
+            else:
+                json_str_limpo = json_str_resposta
+
+            dados_extraidos_llm = json.loads(json_str_limpo)
+
+            final_data = (
+                metadados_normalizados.copy()
+                if metadados_normalizados and isinstance(metadados_normalizados, dict)
+                else {}
+            )
+            if isinstance(dados_extraidos_llm, dict):
+                for key_llm, val_llm in dados_extraidos_llm.items():
+                    if val_llm is not None or key_llm not in final_data:
+                        final_data[key_llm] = val_llm
+            return final_data
+        except json.JSONDecodeError as json_e:
+            logger.error(
+                "Erro ao decodificar JSON da resposta da LLM: %s. Resposta bruta: %s",
+                json_e,
+                json_str_resposta,
+            )
+            return {"extracao_bruta_llm_com_erro_json": json_str_resposta, **(metadados_normalizados or {})}
+        except ValueError as ve:
+            logger.error("Erro na chamada da LLM para extração: %s", ve)
+            return {"erro_llm": str(ve), **(metadados_normalizados or {})}
+        except Exception as e:
+            import traceback
+
+            logger.error("Erro inesperado na extração com LLM: %s", traceback.format_exc())
+            return {"erro_llm_inesperado": str(e), **(metadados_normalizados or {})}
+
+
+_web_llm_extraction_engine_runtime = _WebLLMExtractionEngineRuntime()
+
+
 async def _extrair_dados_produto_com_llm_impl(
     texto_pagina: Optional[str],
     metadados_normalizados: Optional[Dict[str, Any]] = None,
@@ -1070,111 +1194,13 @@ async def _extrair_dados_produto_com_llm_impl(
     produto_nome_base: str = "Produto",
     user: Optional[models.User] = None,
 ) -> Optional[Dict[str, Any]]:
-    
-    if not texto_pagina and not metadados_normalizados:
-        logger.info("Nenhum texto de página nem metadados fornecidos para extração LLM.")
-        return {"erro_llm": "Nenhum conteúdo para processar"}
-
-    prompt_contexto_inicial = [
-        f"Você é um assistente especialista em extrair informações detalhadas de produtos de e-commerce para o produto '{produto_nome_base}'.",
-        "Seu objetivo é preencher um JSON com os campos solicitados da forma mais precisa possível, com base no contexto fornecido."
-    ]
-    contexto_para_llm = ""
-    if metadados_normalizados and isinstance(metadados_normalizados, dict) and any(metadados_normalizados.values()):
-        contexto_para_llm += "Contexto de Metadados Estruturados (use como base, valide e complemente com o texto principal):\n"
-        for k, v_item in metadados_normalizados.items():
-            contexto_para_llm += f"- {k.replace('_', ' ')}: {str(v_item)[:200]}\n" # Limita o tamanho da string de valor
-    if texto_pagina:
-        contexto_para_llm += f"\nTexto Principal da Página (use para encontrar informações e complementar/corrigir metadados):\n\"\"\"\n{texto_pagina[:10000]}\n\"\"\"" # Limita o tamanho do texto
-
-    if not contexto_para_llm.strip():
-        logger.info(
-            "Contexto insuficiente para LLM (metadados e texto da página vazios ou muito curtos)."
-        )
-        return {"erro_llm": "Contexto insuficiente para processar"}
-
-    if not campos_desejados:
-        campos_desejados = [
-            "nome_base",
-            "marca",
-            "sku_original",
-            "descricao_original",
-            "preco_original",
-            "imagem_url_original",
-        ]
-
-    campos_formatados_prompt = ",\n".join([f'    "{campo}": "..."' for campo in campos_desejados])
-    
-    prompt = (
-        "\n".join(prompt_contexto_inicial) +
-        f"\n\nA partir do contexto e do texto da página fornecidos, extraia RIGOROSAMENTE os seguintes campos e retorne APENAS um objeto JSON válido com esta estrutura:\n"
-        f"{{\n{campos_formatados_prompt}\n}}\n"
-        f"Se uma informação para um campo específico não for encontrada de forma clara e inequívoca, retorne null para esse campo. Não invente informações.\n"
-        f"Para campos do tipo lista (ex: 'lista_caracteristicas_beneficios_bullets', 'palavras_chave_seo_relevantes_lista'), retorne uma lista de strings.\n"
-        f"Para campos do tipo dicionário (ex: 'especificacoes_tecnicas_dict'), retorne um dicionário chave-valor.\n"
-        f"\nContexto e Texto para Análise:\n{contexto_para_llm}"
+    return await _web_llm_extraction_engine_runtime.extrair_dados_produto_com_llm_impl(
+        texto_pagina=texto_pagina,
+        metadados_normalizados=metadados_normalizados,
+        campos_desejados=campos_desejados,
+        produto_nome_base=produto_nome_base,
+        user=user,
     )
-    
-    if user is not None:
-        api_key_para_usar = user.chave_openai_pessoal or settings.OPENAI_API_KEY
-    else:
-        api_key_para_usar = settings.OPENAI_API_KEY
-    if not api_key_para_usar:
-        logger.warning(
-            "Nenhuma chave API OpenAI disponível para extração de dados com LLM."
-        )
-        return {"erro_llm": "Chave API OpenAI não configurada"}
-
-    json_str_resposta = "" # Inicializa para evitar UnboundLocalError no except
-    try:
-        # A função call_openai_api está em ia_generation_service
-        prompt_messages = [
-            {
-                "role": "system",
-                "content": "Sua tarefa é extrair informações de um texto e retorná-las em formato JSON conforme o schema solicitado. Seja preciso e não adicione campos extras.",
-            },
-            {"role": "user", "content": prompt},
-        ]
-        json_str_resposta = await ia_generation_service.call_openai_api(
-            prompt_messages=prompt_messages,
-            api_key=api_key_para_usar,
-            model="gpt-3.5-turbo-0125", # Exemplo de modelo, pode ser configurável
-            max_tokens=2048, # Ajustar conforme necessidade
-            temperature=0.0, # Baixa temperatura para extração factual
-        )
-        
-        # Tentativa de limpar a resposta da LLM para pegar apenas o JSON
-        match = re.search(r"\{.*\}", json_str_resposta, re.DOTALL)
-        if match:
-            json_str_limpo = match.group(0)
-        else:
-            json_str_limpo = json_str_resposta # Se não encontrar JSON delimitado, usa a resposta como está
-
-        dados_extraidos_llm = json.loads(json_str_limpo)
-        
-        # Merge inteligente: prioriza dados da LLM, mas mantém metadados se LLM não fornecer
-        final_data = metadados_normalizados.copy() if metadados_normalizados and isinstance(metadados_normalizados, dict) else {}
-        if isinstance(dados_extraidos_llm, dict):
-            for key_llm, val_llm in dados_extraidos_llm.items():
-                # Sobrescreve ou adiciona apenas se o valor da LLM não for None,
-                # ou se a chave não existia nos metadados (para adicionar novos campos extraídos)
-                if val_llm is not None or key_llm not in final_data:
-                    final_data[key_llm] = val_llm
-        return final_data
-    except json.JSONDecodeError as json_e:
-        logger.error(
-            "Erro ao decodificar JSON da resposta da LLM: %s. Resposta bruta: %s",
-            json_e,
-            json_str_resposta,
-        )
-        return {"extracao_bruta_llm_com_erro_json": json_str_resposta, **(metadados_normalizados or {})}
-    except ValueError as ve: # Ex: erro de API key na chamada da OpenAI
-        logger.error("Erro na chamada da LLM para extração: %s", ve)
-        return {"erro_llm": str(ve), **(metadados_normalizados or {})}
-    except Exception as e:
-        import traceback
-        logger.error("Erro inesperado na extração com LLM: %s", traceback.format_exc())
-        return {"erro_llm_inesperado": str(e), **(metadados_normalizados or {})}
 
 # Função principal do serviço de extração, combinando as etapas
 class _WebExtractionEnrichmentWorkflow:
@@ -1333,34 +1359,69 @@ class _WebExtractionEnrichmentRuntime:
         return _normalizar_dados_de_metadados(metadata)
 
 
+class _WebURLExtractionEngineRuntime:
+    """Engine runtime OO para enriquecimento de produto por URL."""
+
+    async def extract_relevant_data_from_url_impl(
+        self,
+        db: Session,
+        url: str,
+        produto: models.Produto,
+    ) -> models.Produto:
+        workflow = _WebExtractionEnrichmentWorkflow(db=db, url=url, produto=produto)
+        return await workflow.run()
+
+
+class _WebOCREngineRuntime:
+    """Engine runtime OO para OCR de região de imagem."""
+
+    def extract_text_from_image_region_impl(self, image_bytes: bytes):
+        try:
+            from google.cloud import vision  # type: ignore
+        except Exception as e:  # pragma: no cover - optional dependency
+            logger.exception("Google Cloud Vision not available")
+            raise HTTPException(
+                status_code=500,
+                detail="Ocorreu um erro durante a extração de dados.",
+            ) from e
+
+        try:
+            logger.debug("Enviando para a API de OCR")
+            client = vision.ImageAnnotatorClient()
+            image = vision.Image(content=image_bytes)
+            response = client.document_text_detection(image=image)
+            logger.debug("Recebendo resposta da API")
+            if response.error.message:
+                raise RuntimeError(response.error.message)
+            return response.full_text_annotation
+        except Exception as e:
+            logger.exception("Falha ao extrair texto da imagem")
+            raise HTTPException(
+                status_code=500,
+                detail="Ocorreu um erro durante a extração de dados.",
+            ) from e
+
+
+_web_url_extraction_engine_runtime = _WebURLExtractionEngineRuntime()
+_web_ocr_engine_runtime = _WebOCREngineRuntime()
+
+
 async def _extract_relevant_data_from_url_impl(
     db: Session,
     url: str,
     produto: models.Produto,
 ) -> models.Produto:
-    workflow = _WebExtractionEnrichmentWorkflow(db=db, url=url, produto=produto)
-    return await workflow.run()
+    return await _web_url_extraction_engine_runtime.extract_relevant_data_from_url_impl(
+        db=db,
+        url=url,
+        produto=produto,
+    )
+
 
 def _extract_text_from_image_region_impl(image_bytes: bytes):
-    """Extract text annotation for an image region using Google Vision."""
-    try:
-        from google.cloud import vision  # type: ignore
-    except Exception as e:  # pragma: no cover - optional dependency
-        logger.exception("Google Cloud Vision not available")
-        raise HTTPException(status_code=500, detail="Ocorreu um erro durante a extração de dados.") from e
-
-    try:
-        logger.debug("Enviando para a API de OCR")
-        client = vision.ImageAnnotatorClient()
-        image = vision.Image(content=image_bytes)
-        response = client.document_text_detection(image=image)
-        logger.debug("Recebendo resposta da API")
-        if response.error.message:
-            raise RuntimeError(response.error.message)
-        return response.full_text_annotation
-    except Exception as e:
-        logger.exception("Falha ao extrair texto da imagem")
-        raise HTTPException(status_code=500, detail="Ocorreu um erro durante a extração de dados.") from e
+    return _web_ocr_engine_runtime.extract_text_from_image_region_impl(
+        image_bytes=image_bytes
+    )
 
 
 class _WebExtractionSupportRuntime:
@@ -1468,6 +1529,12 @@ class _WebExtractionSupportWorkflow:
 class _WebLLMExtractionRuntime:
     """Runtime OO para extração de dados de produto via LLM."""
 
+    def __init__(
+        self,
+        engine_runtime: Optional[_WebLLMExtractionEngineRuntime] = None,
+    ) -> None:
+        self._engine_runtime = engine_runtime or _web_llm_extraction_engine_runtime
+
     async def extrair_dados_produto_com_llm(
         self,
         texto_pagina: Optional[str],
@@ -1476,7 +1543,7 @@ class _WebLLMExtractionRuntime:
         produto_nome_base: str = "Produto",
         user: Optional[models.User] = None,
     ) -> Optional[Dict[str, Any]]:
-        return await _extrair_dados_produto_com_llm_impl(
+        return await self._engine_runtime.extrair_dados_produto_com_llm_impl(
             texto_pagina=texto_pagina,
             metadados_normalizados=metadados_normalizados,
             campos_desejados=campos_desejados,
@@ -1488,13 +1555,19 @@ class _WebLLMExtractionRuntime:
 class _WebURLExtractionRuntime:
     """Runtime OO para enriquecimento de produto por URL."""
 
+    def __init__(
+        self,
+        engine_runtime: Optional[_WebURLExtractionEngineRuntime] = None,
+    ) -> None:
+        self._engine_runtime = engine_runtime or _web_url_extraction_engine_runtime
+
     async def extract_relevant_data_from_url(
         self,
         db: Session,
         url: str,
         produto: models.Produto,
     ) -> models.Produto:
-        return await _extract_relevant_data_from_url_impl(
+        return await self._engine_runtime.extract_relevant_data_from_url_impl(
             db=db,
             url=url,
             produto=produto,
@@ -1504,8 +1577,16 @@ class _WebURLExtractionRuntime:
 class _WebOCRRuntime:
     """Runtime OO para OCR de região de imagem."""
 
+    def __init__(
+        self,
+        engine_runtime: Optional[_WebOCREngineRuntime] = None,
+    ) -> None:
+        self._engine_runtime = engine_runtime or _web_ocr_engine_runtime
+
     def extract_text_from_image_region(self, image_bytes: bytes):
-        return _extract_text_from_image_region_impl(image_bytes=image_bytes)
+        return self._engine_runtime.extract_text_from_image_region_impl(
+            image_bytes=image_bytes
+        )
 
 
 _web_extraction_support_workflow = _WebExtractionSupportWorkflow(

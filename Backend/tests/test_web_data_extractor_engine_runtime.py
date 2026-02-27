@@ -75,3 +75,57 @@ def test_wrappers_busca_delegam_para_runtime_global(monkeypatch):
         == "https://base|item"
     )
 
+
+@pytest.mark.asyncio
+async def test_web_llm_runtime_delega_para_engine_runtime():
+    called = {}
+
+    class FakeEngine:
+        async def extrair_dados_produto_com_llm_impl(self, **kwargs):
+            called.update(kwargs)
+            return {"nome_base": "Produto X"}
+
+    runtime = web_extractor._WebLLMExtractionRuntime(engine_runtime=FakeEngine())
+    result = await runtime.extrair_dados_produto_com_llm(
+        texto_pagina="texto",
+        produto_nome_base="Produto X",
+    )
+
+    assert result == {"nome_base": "Produto X"}
+    assert called["produto_nome_base"] == "Produto X"
+
+
+@pytest.mark.asyncio
+async def test_web_url_runtime_delega_para_engine_runtime():
+    called = {}
+
+    class FakeEngine:
+        async def extract_relevant_data_from_url_impl(self, **kwargs):
+            called.update(kwargs)
+            return kwargs["produto"]
+
+    runtime = web_extractor._WebURLExtractionRuntime(engine_runtime=FakeEngine())
+    produto = object()
+    returned = await runtime.extract_relevant_data_from_url(
+        db="db",
+        url="https://example.com/p",
+        produto=produto,
+    )
+
+    assert returned is produto
+    assert called["url"] == "https://example.com/p"
+
+
+def test_web_ocr_runtime_delega_para_engine_runtime():
+    called = {}
+
+    class FakeEngine:
+        def extract_text_from_image_region_impl(self, image_bytes: bytes):
+            called["image_bytes"] = image_bytes
+            return {"text": "ok"}
+
+    runtime = web_extractor._WebOCRRuntime(engine_runtime=FakeEngine())
+    result = runtime.extract_text_from_image_region(b"img")
+
+    assert result == {"text": "ok"}
+    assert called["image_bytes"] == b"img"
