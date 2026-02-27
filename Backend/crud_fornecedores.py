@@ -73,103 +73,6 @@ def _apply_fornecedor_search_filter(query, search: Optional[str]):
     )
 
 
-def _create_fornecedor_impl(
-    db: Session,
-    fornecedor: schemas.FornecedorCreate,
-    user_id: int,
-) -> Fornecedor:
-    fornecedor_data = fornecedor.model_dump()
-    _validate_fornecedor_uniqueness(
-        db=db,
-        user_id=user_id,
-        fornecedor_data=fornecedor_data,
-    )
-    _normalize_supplier_url_fields(fornecedor_data)
-
-    db_fornecedor = Fornecedor(**fornecedor_data, user_id=user_id)
-    db.add(db_fornecedor)
-    db.commit()
-    db.refresh(db_fornecedor)
-    return db_fornecedor
-
-
-def _get_fornecedor_impl(db: Session, fornecedor_id: int) -> Optional[Fornecedor]:
-    return db.query(Fornecedor).filter(Fornecedor.id == fornecedor_id).first()
-
-
-def _get_fornecedores_by_user_impl(
-    db: Session,
-    user_id: Optional[int] = None,
-    is_admin: bool = False,
-    skip: int = 0,
-    limit: int = 10,
-    search: Optional[str] = None,
-) -> List[Fornecedor]:
-    query = db.query(Fornecedor)
-    if not is_admin and user_id:
-        query = query.filter(Fornecedor.user_id == user_id)
-
-    query = _apply_fornecedor_search_filter(query, search)
-    return query.order_by(Fornecedor.nome).offset(skip).limit(limit).all()
-
-
-def _count_fornecedores_by_user_impl(
-    db: Session,
-    user_id: Optional[int] = None,
-    is_admin: bool = False,
-    search: Optional[str] = None,
-) -> int:
-    query = db.query(func.count(Fornecedor.id))
-    if not is_admin and user_id:
-        query = query.filter(Fornecedor.user_id == user_id)
-
-    query = _apply_fornecedor_search_filter(query, search)
-    return query.scalar() or 0
-
-
-def _update_fornecedor_impl(
-    db: Session,
-    db_fornecedor: Fornecedor,
-    fornecedor_update: schemas.FornecedorUpdate,
-) -> Fornecedor:
-    update_data = fornecedor_update.model_dump(exclude_unset=True)
-    _normalize_supplier_url_fields(update_data)
-
-    for key, value in update_data.items():
-        setattr(db_fornecedor, key, value)
-    db.commit()
-    db.refresh(db_fornecedor)
-    return db_fornecedor
-
-
-def _delete_fornecedor_impl(db: Session, db_fornecedor: Fornecedor) -> Fornecedor:
-    db.delete(db_fornecedor)
-    db.commit()
-    return db_fornecedor
-
-
-def _create_catalog_import_file_impl(
-    db: Session,
-    user_id: int,
-    fornecedor_id: int,
-    file_name: str,
-    original_file_path: str,
-) -> CatalogImportFile:
-    stored_filename = Path(original_file_path).name
-
-    db_import_file = CatalogImportFile(
-        original_filename=file_name,
-        stored_filename=stored_filename,
-        status="UPLOADED",
-        fornecedor_id=fornecedor_id,
-        user_id=user_id,
-    )
-    db.add(db_import_file)
-    db.commit()
-    db.refresh(db_import_file)
-    return db_import_file
-
-
 class _FornecedorCrudWorkflow:
     def __init__(self, runtime: Optional["_FornecedorCrudRuntime"] = None) -> None:
         self._runtime = runtime or _FornecedorCrudRuntime()
@@ -256,10 +159,22 @@ class _FornecedorCrudRuntime:
         fornecedor: schemas.FornecedorCreate,
         user_id: int,
     ) -> Fornecedor:
-        return _create_fornecedor_impl(db=db, fornecedor=fornecedor, user_id=user_id)
+        fornecedor_data = fornecedor.model_dump()
+        _validate_fornecedor_uniqueness(
+            db=db,
+            user_id=user_id,
+            fornecedor_data=fornecedor_data,
+        )
+        _normalize_supplier_url_fields(fornecedor_data)
+
+        db_fornecedor = Fornecedor(**fornecedor_data, user_id=user_id)
+        db.add(db_fornecedor)
+        db.commit()
+        db.refresh(db_fornecedor)
+        return db_fornecedor
 
     def get_fornecedor(self, db: Session, fornecedor_id: int) -> Optional[Fornecedor]:
-        return _get_fornecedor_impl(db=db, fornecedor_id=fornecedor_id)
+        return db.query(Fornecedor).filter(Fornecedor.id == fornecedor_id).first()
 
     def get_fornecedores_by_user(
         self,
@@ -270,14 +185,11 @@ class _FornecedorCrudRuntime:
         limit: int = 10,
         search: Optional[str] = None,
     ) -> List[Fornecedor]:
-        return _get_fornecedores_by_user_impl(
-            db=db,
-            user_id=user_id,
-            is_admin=is_admin,
-            skip=skip,
-            limit=limit,
-            search=search,
-        )
+        query = db.query(Fornecedor)
+        if not is_admin and user_id:
+            query = query.filter(Fornecedor.user_id == user_id)
+        query = _apply_fornecedor_search_filter(query, search)
+        return query.order_by(Fornecedor.nome).offset(skip).limit(limit).all()
 
     def count_fornecedores_by_user(
         self,
@@ -286,12 +198,11 @@ class _FornecedorCrudRuntime:
         is_admin: bool = False,
         search: Optional[str] = None,
     ) -> int:
-        return _count_fornecedores_by_user_impl(
-            db=db,
-            user_id=user_id,
-            is_admin=is_admin,
-            search=search,
-        )
+        query = db.query(func.count(Fornecedor.id))
+        if not is_admin and user_id:
+            query = query.filter(Fornecedor.user_id == user_id)
+        query = _apply_fornecedor_search_filter(query, search)
+        return query.scalar() or 0
 
     def update_fornecedor(
         self,
@@ -299,14 +210,19 @@ class _FornecedorCrudRuntime:
         db_fornecedor: Fornecedor,
         fornecedor_update: schemas.FornecedorUpdate,
     ) -> Fornecedor:
-        return _update_fornecedor_impl(
-            db=db,
-            db_fornecedor=db_fornecedor,
-            fornecedor_update=fornecedor_update,
-        )
+        update_data = fornecedor_update.model_dump(exclude_unset=True)
+        _normalize_supplier_url_fields(update_data)
+
+        for key, value in update_data.items():
+            setattr(db_fornecedor, key, value)
+        db.commit()
+        db.refresh(db_fornecedor)
+        return db_fornecedor
 
     def delete_fornecedor(self, db: Session, db_fornecedor: Fornecedor) -> Fornecedor:
-        return _delete_fornecedor_impl(db=db, db_fornecedor=db_fornecedor)
+        db.delete(db_fornecedor)
+        db.commit()
+        return db_fornecedor
 
     def create_catalog_import_file(
         self,
@@ -316,13 +232,18 @@ class _FornecedorCrudRuntime:
         file_name: str,
         original_file_path: str,
     ) -> CatalogImportFile:
-        return _create_catalog_import_file_impl(
-            db=db,
-            user_id=user_id,
+        stored_filename = Path(original_file_path).name
+        db_import_file = CatalogImportFile(
+            original_filename=file_name,
+            stored_filename=stored_filename,
+            status="UPLOADED",
             fornecedor_id=fornecedor_id,
-            file_name=file_name,
-            original_file_path=original_file_path,
+            user_id=user_id,
         )
+        db.add(db_import_file)
+        db.commit()
+        db.refresh(db_import_file)
+        return db_import_file
 
 
 _fornecedor_crud_workflow = _FornecedorCrudWorkflow()
