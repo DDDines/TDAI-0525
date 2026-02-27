@@ -1090,7 +1090,7 @@ async def _processar_arquivo_pdf_impl(
     )
 
 
-async def _preview_arquivo_excel_impl(
+async def _preview_arquivo_excel_legacy_impl(
 
     conteudo_arquivo: bytes, max_rows: int = 5
 
@@ -1118,7 +1118,7 @@ async def _preview_arquivo_excel_impl(
 
 
 
-async def _preview_arquivo_csv_impl(
+async def _preview_arquivo_csv_legacy_impl(
 
     conteudo_arquivo: bytes, max_rows: int = 5
 
@@ -1190,6 +1190,47 @@ async def _preview_arquivo_csv_impl(
 
 
 
+
+
+class _TabularPreviewRuntime:
+    """Runtime OO para preview de planilhas/tabulares mantendo legado."""
+
+    async def preview_arquivo_excel(
+        self, conteudo_arquivo: bytes, max_rows: int = 5
+    ) -> Dict[str, Any]:
+        return await _preview_arquivo_excel_legacy_impl(
+            conteudo_arquivo=conteudo_arquivo,
+            max_rows=max_rows,
+        )
+
+    async def preview_arquivo_csv(
+        self, conteudo_arquivo: bytes, max_rows: int = 5
+    ) -> Dict[str, Any]:
+        return await _preview_arquivo_csv_legacy_impl(
+            conteudo_arquivo=conteudo_arquivo,
+            max_rows=max_rows,
+        )
+
+
+_tabular_preview_runtime = _TabularPreviewRuntime()
+
+
+async def _preview_arquivo_excel_impl(
+    conteudo_arquivo: bytes, max_rows: int = 5
+) -> Dict[str, Any]:
+    return await _tabular_preview_runtime.preview_arquivo_excel(
+        conteudo_arquivo=conteudo_arquivo,
+        max_rows=max_rows,
+    )
+
+
+async def _preview_arquivo_csv_impl(
+    conteudo_arquivo: bytes, max_rows: int = 5
+) -> Dict[str, Any]:
+    return await _tabular_preview_runtime.preview_arquivo_csv(
+        conteudo_arquivo=conteudo_arquivo,
+        max_rows=max_rows,
+    )
 
 
 async def _preview_arquivo_pdf_impl(
