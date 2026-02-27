@@ -171,6 +171,85 @@ def _create_catalog_import_file_impl(
 
 
 class _FornecedorCrudWorkflow:
+    def __init__(self, runtime: Optional["_FornecedorCrudRuntime"] = None) -> None:
+        self._runtime = runtime or _FornecedorCrudRuntime()
+
+    def create_fornecedor(
+        self,
+        db: Session,
+        fornecedor: schemas.FornecedorCreate,
+        user_id: int,
+    ) -> Fornecedor:
+        return self._runtime.create_fornecedor(db=db, fornecedor=fornecedor, user_id=user_id)
+
+    def get_fornecedor(self, db: Session, fornecedor_id: int) -> Optional[Fornecedor]:
+        return self._runtime.get_fornecedor(db=db, fornecedor_id=fornecedor_id)
+
+    def get_fornecedores_by_user(
+        self,
+        db: Session,
+        user_id: Optional[int] = None,
+        is_admin: bool = False,
+        skip: int = 0,
+        limit: int = 10,
+        search: Optional[str] = None,
+    ) -> List[Fornecedor]:
+        return self._runtime.get_fornecedores_by_user(
+            db=db,
+            user_id=user_id,
+            is_admin=is_admin,
+            skip=skip,
+            limit=limit,
+            search=search,
+        )
+
+    def count_fornecedores_by_user(
+        self,
+        db: Session,
+        user_id: Optional[int] = None,
+        is_admin: bool = False,
+        search: Optional[str] = None,
+    ) -> int:
+        return self._runtime.count_fornecedores_by_user(
+            db=db,
+            user_id=user_id,
+            is_admin=is_admin,
+            search=search,
+        )
+
+    def update_fornecedor(
+        self,
+        db: Session,
+        db_fornecedor: Fornecedor,
+        fornecedor_update: schemas.FornecedorUpdate,
+    ) -> Fornecedor:
+        return self._runtime.update_fornecedor(
+            db=db,
+            db_fornecedor=db_fornecedor,
+            fornecedor_update=fornecedor_update,
+        )
+
+    def delete_fornecedor(self, db: Session, db_fornecedor: Fornecedor) -> Fornecedor:
+        return self._runtime.delete_fornecedor(db=db, db_fornecedor=db_fornecedor)
+
+    def create_catalog_import_file(
+        self,
+        db: Session,
+        user_id: int,
+        fornecedor_id: int,
+        file_name: str,
+        original_file_path: str,
+    ) -> CatalogImportFile:
+        return self._runtime.create_catalog_import_file(
+            db=db,
+            user_id=user_id,
+            fornecedor_id=fornecedor_id,
+            file_name=file_name,
+            original_file_path=original_file_path,
+        )
+
+
+class _FornecedorCrudRuntime:
     def create_fornecedor(
         self,
         db: Session,

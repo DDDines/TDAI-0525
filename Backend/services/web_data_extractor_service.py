@@ -1012,11 +1012,19 @@ async def _extrair_dados_produto_com_llm_impl(
 class _WebExtractionEnrichmentWorkflow:
     """Workflow OO para extracao/enriquecimento de uma URL de produto."""
 
-    def __init__(self, *, db: Session, url: str, produto: models.Produto) -> None:
+    def __init__(
+        self,
+        *,
+        db: Session,
+        url: str,
+        produto: models.Produto,
+        runtime: Optional["_WebExtractionEnrichmentRuntime"] = None,
+    ) -> None:
         self.db = db
         self.url = url
         self.produto = produto
         self.log_enriquecimento: List[Dict[str, Any]] = []
+        self._runtime = runtime or _WebExtractionEnrichmentRuntime()
 
     def _add_log(
         self,
@@ -1025,7 +1033,7 @@ class _WebExtractionEnrichmentWorkflow:
         details: Optional[Dict[str, Any]] = None,
     ) -> None:
         entry = {
-            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "timestamp": self._runtime.now_iso(),
             "level": level,
             "message": message,
         }
@@ -1044,7 +1052,7 @@ class _WebExtractionEnrichmentWorkflow:
             f"Iniciando enriquecimento web para produto ID {self.produto.id} com URL: {self.url}",
         )
         self._persist_status(models.StatusEnriquecimentoEnum.EM_PROGRESSO)
-        return await coletar_conteudo_pagina_playwright(self.url)
+        return await self._runtime.collect_html(url=self.url)
 
     def _merge_metadata(self, dados_normalizados_de_meta: Dict[str, Any]) -> None:
         if self.produto.dados_brutos_web is None:
@@ -1086,7 +1094,7 @@ class _WebExtractionEnrichmentWorkflow:
             return self.produto
 
         self._add_log("INFO", "Conteudo HTML coletado com sucesso.")
-        texto_principal = extrair_texto_principal_com_trafilatura(html_content)
+        texto_principal = self._runtime.extract_main_text(html_content=html_content)
         if texto_principal:
             self._add_log("INFO", "Texto principal extraido com Trafilatura.")
         else:
@@ -1095,7 +1103,10 @@ class _WebExtractionEnrichmentWorkflow:
                 "Nao foi possivel extrair texto principal com Trafilatura.",
             )
 
-        metadados_estruturados = extrair_metadados_estruturados(html_content, self.url)
+        metadados_estruturados = self._runtime.extract_structured_metadata(
+            html_content=html_content,
+            url=self.url,
+        )
         if metadados_estruturados:
             self._add_log(
                 "INFO",
@@ -1108,7 +1119,9 @@ class _WebExtractionEnrichmentWorkflow:
                 "Nenhum metadado estruturado (JSON-LD, Microdata, Opengraph) encontrado.",
             )
 
-        dados_normalizados_de_meta = _normalizar_dados_de_metadados(metadados_estruturados)
+        dados_normalizados_de_meta = self._runtime.normalize_metadata(
+            metadata=metadados_estruturados
+        )
         if dados_normalizados_de_meta:
             self._add_log(
                 "INFO",
@@ -1131,6 +1144,25 @@ class _WebExtractionEnrichmentWorkflow:
         self.db.refresh(self.produto)
         self.db.refresh(self.produto, attribute_names=["fornecedor"])
         return self.produto
+
+
+class _WebExtractionEnrichmentRuntime:
+    def now_iso(self) -> str:
+        return datetime.now(timezone.utc).isoformat()
+
+    async def collect_html(self, *, url: str) -> Optional[str]:
+        return await coletar_conteudo_pagina_playwright(url)
+
+    def extract_main_text(self, *, html_content: str) -> Optional[str]:
+        return extrair_texto_principal_com_trafilatura(html_content)
+
+    def extract_structured_metadata(
+        self, *, html_content: str, url: str
+    ) -> Dict[str, Any]:
+        return extrair_metadados_estruturados(html_content, url)
+
+    def normalize_metadata(self, *, metadata: Dict[str, Any]) -> Dict[str, Any]:
+        return _normalizar_dados_de_metadados(metadata)
 
 
 async def _extract_relevant_data_from_url_impl(

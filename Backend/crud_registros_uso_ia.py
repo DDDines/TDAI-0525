@@ -138,6 +138,85 @@ def _get_geracoes_ia_count_no_mes_corrente_impl(db: Session, user_id: int) -> in
 
 
 class _RegistroUsoIACrudWorkflow:
+    def __init__(self, runtime: Optional["_RegistroUsoIACrudRuntime"] = None) -> None:
+        self._runtime = runtime or _RegistroUsoIACrudRuntime()
+
+    def create_registro_uso_ia(
+        self,
+        db: Session,
+        registro_uso: schemas.RegistroUsoIACreate,
+    ) -> models.RegistroUsoIA:
+        return self._runtime.create_registro_uso_ia(db=db, registro_uso=registro_uso)
+
+    def get_registros_uso_ia(
+        self,
+        db: Session,
+        user_id: int,
+        skip: int = 0,
+        limit: int = 100,
+        tipo_acao: Optional[models.TipoAcaoEnum] = None,
+        data_inicio: Optional[datetime] = None,
+        data_fim: Optional[datetime] = None,
+    ) -> List[models.RegistroUsoIA]:
+        return self._runtime.get_registros_uso_ia(
+            db=db,
+            user_id=user_id,
+            skip=skip,
+            limit=limit,
+            tipo_acao=tipo_acao,
+            data_inicio=data_inicio,
+            data_fim=data_fim,
+        )
+
+    def count_registros_uso_ia(
+        self,
+        db: Session,
+        user_id: int,
+        tipo_acao: Optional[models.TipoAcaoEnum] = None,
+        data_inicio: Optional[datetime] = None,
+        data_fim: Optional[datetime] = None,
+    ) -> int:
+        return self._runtime.count_registros_uso_ia(
+            db=db,
+            user_id=user_id,
+            tipo_acao=tipo_acao,
+            data_inicio=data_inicio,
+            data_fim=data_fim,
+        )
+
+    def get_usos_ia_by_produto(
+        self,
+        db: Session,
+        produto_id: int,
+        user_id: int,
+        skip: int = 0,
+        limit: int = 100,
+    ) -> List[models.RegistroUsoIA]:
+        return self._runtime.get_usos_ia_by_produto(
+            db=db,
+            produto_id=produto_id,
+            user_id=user_id,
+            skip=skip,
+            limit=limit,
+        )
+
+    def count_usos_ia_by_user_and_type_no_mes_corrente(
+        self,
+        db: Session,
+        user_id: int,
+        tipo_geracao_prefix: str,
+    ) -> int:
+        return self._runtime.count_usos_ia_by_user_and_type_no_mes_corrente(
+            db=db,
+            user_id=user_id,
+            tipo_geracao_prefix=tipo_geracao_prefix,
+        )
+
+    def get_geracoes_ia_count_no_mes_corrente(self, db: Session, user_id: int) -> int:
+        return self._runtime.get_geracoes_ia_count_no_mes_corrente(db=db, user_id=user_id)
+
+
+class _RegistroUsoIACrudRuntime:
     def create_registro_uso_ia(
         self,
         db: Session,

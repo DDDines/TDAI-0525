@@ -39,7 +39,44 @@ class _WebEnrichmentTaskWorkflow:
         metadata_has_minimum_signal,
         is_source_relevant_for_product,
         pipeline_variant: str,
+        runtime: Optional[Any] = None,
     ) -> None:
+        if runtime is not None:
+            logger = getattr(runtime, "logger", logger)
+            SQLAlchemyError = getattr(runtime, "SQLAlchemyError", SQLAlchemyError)
+            crud_users = getattr(runtime, "crud_users", crud_users)
+            crud_produtos = getattr(runtime, "crud_produtos", crud_produtos)
+            crud = getattr(runtime, "crud", crud)
+            models = getattr(runtime, "models", models)
+            schemas = getattr(runtime, "schemas", schemas)
+            web_extractor = getattr(runtime, "web_extractor", web_extractor)
+            settings = getattr(runtime, "settings", settings)
+            json = getattr(runtime, "json", json)
+            normalize_human_text = getattr(runtime, "normalize_human_text", normalize_human_text)
+            build_payload_enriquecimento_visivel = getattr(
+                runtime,
+                "build_payload_enriquecimento_visivel",
+                build_payload_enriquecimento_visivel,
+            )
+            extrair_dominio_fornecedor = getattr(
+                runtime, "extrair_dominio_fornecedor", extrair_dominio_fornecedor
+            )
+            priorizar_urls_para_enriquecimento = getattr(
+                runtime,
+                "priorizar_urls_para_enriquecimento",
+                priorizar_urls_para_enriquecimento,
+            )
+            is_meaningful_extracted_text = getattr(
+                runtime, "is_meaningful_extracted_text", is_meaningful_extracted_text
+            )
+            metadata_has_minimum_signal = getattr(
+                runtime, "metadata_has_minimum_signal", metadata_has_minimum_signal
+            )
+            is_source_relevant_for_product = getattr(
+                runtime, "is_source_relevant_for_product", is_source_relevant_for_product
+            )
+            pipeline_variant = getattr(runtime, "pipeline_variant", pipeline_variant)
+
         self.logger = logger
         self.SQLAlchemyError = SQLAlchemyError
         self.crud_users = crud_users

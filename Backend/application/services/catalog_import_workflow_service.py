@@ -11,7 +11,11 @@ class CatalogImportWorkflowService:
         *,
         start_service: Any,
         status_service: Any,
+        runtime: Optional[Any] = None,
     ) -> None:
+        if runtime is not None:
+            start_service = getattr(runtime, "start_service", start_service)
+            status_service = getattr(runtime, "status_service", status_service)
         self._start_service = start_service
         self._status_service = status_service
 

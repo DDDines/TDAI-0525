@@ -1,4 +1,5 @@
 import logging
+from typing import Optional
 from sqlalchemy.orm import Session
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy import func
@@ -164,6 +165,14 @@ def _create_initial_data_impl(db: Session):
 
 
 class _InitialDataWorkflow:
+    def __init__(self, runtime: Optional["_InitialDataRuntime"] = None) -> None:
+        self._runtime = runtime or _InitialDataRuntime()
+
+    def create_initial_data(self, db: Session):
+        return self._runtime.create_initial_data(db=db)
+
+
+class _InitialDataRuntime:
     def create_initial_data(self, db: Session):
         return _create_initial_data_impl(db=db)
 

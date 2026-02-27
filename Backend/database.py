@@ -1,6 +1,7 @@
 from sqlalchemy import create_engine
 from sqlalchemy.orm import declarative_base, sessionmaker
 from sqlalchemy.pool import StaticPool
+from typing import Optional
 
 from Backend.core.config import settings
 
@@ -15,6 +16,17 @@ def _build_engine_args_impl(database_url: str):
 
 
 class _DatabaseWorkflow:
+    def __init__(self, runtime: Optional["_DatabaseRuntime"] = None) -> None:
+        self._runtime = runtime or _DatabaseRuntime()
+
+    def build_engine_args(self, database_url: str):
+        return self._runtime.build_engine_args(database_url=database_url)
+
+    def get_db(self):
+        yield from self._runtime.get_db()
+
+
+class _DatabaseRuntime:
     def build_engine_args(self, database_url: str):
         return _build_engine_args_impl(database_url=database_url)
 

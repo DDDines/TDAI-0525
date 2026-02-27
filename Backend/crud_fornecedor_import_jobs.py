@@ -44,6 +44,45 @@ def _update_job_status_impl(
 
 
 class _FornecedorImportJobWorkflow:
+    def __init__(
+        self,
+        runtime: Optional["_FornecedorImportJobRuntime"] = None,
+    ) -> None:
+        self._runtime = runtime or _FornecedorImportJobRuntime()
+
+    def create_import_job(
+        self,
+        db: Session,
+        user_id: int,
+        result_summary: dict,
+    ) -> models.FornecedorImportJob:
+        return self._runtime.create_import_job(
+            db=db,
+            user_id=user_id,
+            result_summary=result_summary,
+        )
+
+    def get_import_job(
+        self,
+        db: Session,
+        job_id: int,
+    ) -> Optional[models.FornecedorImportJob]:
+        return self._runtime.get_import_job(db=db, job_id=job_id)
+
+    def update_job_status(
+        self,
+        db: Session,
+        job: models.FornecedorImportJob,
+        status: str,
+    ) -> models.FornecedorImportJob:
+        return self._runtime.update_job_status(
+            db=db,
+            job=job,
+            status=status,
+        )
+
+
+class _FornecedorImportJobRuntime:
     def create_import_job(
         self,
         db: Session,

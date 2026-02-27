@@ -1,5 +1,6 @@
 import os
 import sys
+from typing import Optional
 
 from sqlalchemy import create_engine
 
@@ -39,6 +40,14 @@ def _create_all_tables_impl():
 
 
 class _CreateTablesWorkflow:
+    def __init__(self, runtime: Optional["_CreateTablesRuntime"] = None) -> None:
+        self._runtime = runtime or _CreateTablesRuntime()
+
+    def create_all_tables(self):
+        self._runtime.create_all_tables()
+
+
+class _CreateTablesRuntime:
     def create_all_tables(self):
         _create_all_tables_impl()
 

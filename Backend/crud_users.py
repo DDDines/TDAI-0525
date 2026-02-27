@@ -262,6 +262,114 @@ def _delete_plano_impl(db: Session, db_plano: Plano) -> Plano:
 
 
 class _UserCrudWorkflow:
+    def __init__(self, runtime: Optional["_UserCrudRuntime"] = None) -> None:
+        self._runtime = runtime or _UserCrudRuntime()
+
+    def get_user(self, db: Session, user_id: int) -> Optional[User]:
+        return self._runtime.get_user(db=db, user_id=user_id)
+
+    def get_user_by_email(self, db: Session, email: str) -> Optional[User]:
+        return self._runtime.get_user_by_email(db=db, email=email)
+
+    def get_users(self, db: Session, skip: int = 0, limit: int = 100) -> List[User]:
+        return self._runtime.get_users(db=db, skip=skip, limit=limit)
+
+    def create_user(self, db: Session, user: schemas.UserCreate) -> User:
+        return self._runtime.create_user(db=db, user=user)
+
+    def update_user(
+        self,
+        db: Session,
+        db_user: User,
+        user_update: Union[
+            schemas.UserUpdate,
+            schemas.UserUpdateByAdmin,
+            schemas.UserUpdateOAuth,
+        ],
+    ) -> User:
+        return self._runtime.update_user(db=db, db_user=db_user, user_update=user_update)
+
+    def delete_user(self, db: Session, db_user: User) -> User:
+        return self._runtime.delete_user(db=db, db_user=db_user)
+
+    def create_user_oauth(
+        self,
+        db: Session,
+        user_oauth: schemas.UserCreateOAuth,
+        plano_id_default: Optional[int] = None,
+    ) -> User:
+        return self._runtime.create_user_oauth(
+            db=db,
+            user_oauth=user_oauth,
+            plano_id_default=plano_id_default,
+        )
+
+    def get_user_by_provider(
+        self,
+        db: Session,
+        provider: str,
+        provider_user_id: str,
+    ) -> Optional[User]:
+        return self._runtime.get_user_by_provider(
+            db=db,
+            provider=provider,
+            provider_user_id=provider_user_id,
+        )
+
+    def set_user_password_reset_token(
+        self,
+        db: Session,
+        user: User,
+        token_hash: str,
+        expires_at: datetime,
+    ) -> None:
+        self._runtime.set_user_password_reset_token(
+            db=db,
+            user=user,
+            token_hash=token_hash,
+            expires_at=expires_at,
+        )
+
+    def get_user_by_reset_token(self, db: Session, token_hash: str) -> Optional[User]:
+        return self._runtime.get_user_by_reset_token(db=db, token_hash=token_hash)
+
+    def get_role(self, db: Session, role_id: int) -> Optional[Role]:
+        return self._runtime.get_role(db=db, role_id=role_id)
+
+    def get_role_by_name(self, db: Session, name: str) -> Optional[Role]:
+        return self._runtime.get_role_by_name(db=db, name=name)
+
+    def get_roles(self, db: Session, skip: int = 0, limit: int = 10) -> List[Role]:
+        return self._runtime.get_roles(db=db, skip=skip, limit=limit)
+
+    def create_role(self, db: Session, role: schemas.RoleCreate) -> Role:
+        return self._runtime.create_role(db=db, role=role)
+
+    def get_plano(self, db: Session, plano_id: int) -> Optional[Plano]:
+        return self._runtime.get_plano(db=db, plano_id=plano_id)
+
+    def get_plano_by_name(self, db: Session, nome: str) -> Optional[Plano]:
+        return self._runtime.get_plano_by_name(db=db, nome=nome)
+
+    def get_planos(self, db: Session, skip: int = 0, limit: int = 10) -> List[Plano]:
+        return self._runtime.get_planos(db=db, skip=skip, limit=limit)
+
+    def create_plano(self, db: Session, plano: schemas.PlanoCreate) -> Plano:
+        return self._runtime.create_plano(db=db, plano=plano)
+
+    def update_plano(
+        self,
+        db: Session,
+        db_plano: Plano,
+        plano_update: schemas.PlanoUpdate,
+    ) -> Plano:
+        return self._runtime.update_plano(db=db, db_plano=db_plano, plano_update=plano_update)
+
+    def delete_plano(self, db: Session, db_plano: Plano) -> Plano:
+        return self._runtime.delete_plano(db=db, db_plano=db_plano)
+
+
+class _UserCrudRuntime:
     def get_user(self, db: Session, user_id: int) -> Optional[User]:
         return _get_user_impl(db=db, user_id=user_id)
 

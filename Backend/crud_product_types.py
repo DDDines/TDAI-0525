@@ -394,6 +394,137 @@ def _reorder_attribute_template_impl(
 
 
 class _ProductTypeCrudWorkflow:
+    def __init__(self, runtime: Optional["_ProductTypeCrudRuntime"] = None) -> None:
+        self._runtime = runtime or _ProductTypeCrudRuntime()
+
+    def create_product_type(
+        self,
+        db: Session,
+        product_type_create: schemas.ProductTypeCreate,
+        user_id: Optional[int] = None,
+    ) -> ProductType:
+        return self._runtime.create_product_type(
+            db=db,
+            product_type_create=product_type_create,
+            user_id=user_id,
+        )
+
+    def get_product_type(self, db: Session, product_type_id: int) -> Optional[ProductType]:
+        return self._runtime.get_product_type(db=db, product_type_id=product_type_id)
+
+    def get_product_type_by_key_name(
+        self,
+        db: Session,
+        key_name: str,
+        user_id: Optional[int] = None,
+    ) -> Optional[ProductType]:
+        return self._runtime.get_product_type_by_key_name(
+            db=db,
+            key_name=key_name,
+            user_id=user_id,
+        )
+
+    def get_product_types_for_user(
+        self,
+        db: Session,
+        user_id: Optional[int],
+        skip: int = 0,
+        limit: int = 100,
+        search: Optional[str] = None,
+    ) -> List[ProductType]:
+        return self._runtime.get_product_types_for_user(
+            db=db,
+            user_id=user_id,
+            skip=skip,
+            limit=limit,
+            search=search,
+        )
+
+    def count_product_types_for_user(
+        self,
+        db: Session,
+        user_id: Optional[int],
+        search: Optional[str] = None,
+    ) -> int:
+        return self._runtime.count_product_types_for_user(
+            db=db,
+            user_id=user_id,
+            search=search,
+        )
+
+    def update_product_type(
+        self,
+        db: Session,
+        db_product_type: ProductType,
+        product_type_update: schemas.ProductTypeUpdate,
+    ) -> ProductType:
+        return self._runtime.update_product_type(
+            db=db,
+            db_product_type=db_product_type,
+            product_type_update=product_type_update,
+        )
+
+    def delete_product_type(self, db: Session, db_product_type: ProductType) -> ProductType:
+        return self._runtime.delete_product_type(db=db, db_product_type=db_product_type)
+
+    def create_attribute_template(
+        self,
+        db: Session,
+        attr_template_create: schemas.AttributeTemplateCreate,
+        product_type_id: int,
+    ) -> AttributeTemplate:
+        return self._runtime.create_attribute_template(
+            db=db,
+            attr_template_create=attr_template_create,
+            product_type_id=product_type_id,
+        )
+
+    def get_attribute_template(
+        self,
+        db: Session,
+        attribute_template_id: int,
+    ) -> Optional[AttributeTemplate]:
+        return self._runtime.get_attribute_template(
+            db=db,
+            attribute_template_id=attribute_template_id,
+        )
+
+    def update_attribute_template(
+        self,
+        db: Session,
+        db_attr_template: AttributeTemplate,
+        attr_template_update: schemas.AttributeTemplateUpdate,
+    ) -> AttributeTemplate:
+        return self._runtime.update_attribute_template(
+            db=db,
+            db_attr_template=db_attr_template,
+            attr_template_update=attr_template_update,
+        )
+
+    def delete_attribute_template(
+        self,
+        db: Session,
+        db_attr_template: AttributeTemplate,
+    ) -> AttributeTemplate:
+        return self._runtime.delete_attribute_template(
+            db=db,
+            db_attr_template=db_attr_template,
+        )
+
+    def reorder_attribute_template(
+        self,
+        db: Session,
+        attribute_id: int,
+        direction: str,
+    ) -> Optional[AttributeTemplate]:
+        return self._runtime.reorder_attribute_template(
+            db=db,
+            attribute_id=attribute_id,
+            direction=direction,
+        )
+
+
+class _ProductTypeCrudRuntime:
     def create_product_type(
         self,
         db: Session,

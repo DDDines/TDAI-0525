@@ -520,12 +520,21 @@ class _LineMappingWorkflow:
 
     _FALLBACK_SKU_COLUMNS = {"n fab", "no fab", "nfab", "fab"}
 
+    def __init__(self, runtime: Optional[Any] = None) -> None:
+        # Runtime opcional para facilitar injeção em testes/migração OO.
+        self._runtime = runtime
+
     def processar_linha_padronizada(
         self,
         linha_original: Dict[str, Any],
         mapeamento_colunas_usuario: Optional[Dict[str, str]] = None,
     ) -> Optional[Dict[str, Any]]:
         """Padroniza uma linha para campos de Produto, suportando atributos dinamicos."""
+        if self._runtime is not None:
+            return self._runtime.processar_linha_padronizada(
+                linha_original=linha_original,
+                mapeamento_colunas_usuario=mapeamento_colunas_usuario,
+            )
 
         produto_dados_padronizados: Dict[str, Any] = {}
         dados_brutos_nao_mapeados: Dict[str, Any] = {}
@@ -3427,6 +3436,25 @@ def _parse_annotation_to_dataframe_impl(
 class _CatalogStorageWorkflow:
     """Workflow OO para operacoes de storage de catalogo."""
 
+    def __init__(self, runtime: Optional["_CatalogStorageRuntime"] = None) -> None:
+        self._runtime = runtime or _CatalogStorageRuntime()
+
+    async def save_uploaded_catalog(
+        self, file: UploadFile, fornecedor_id: Optional[int] = None
+    ) -> models.CatalogImportFile:
+        return await self._runtime.save_uploaded_catalog(
+            file=file,
+            fornecedor_id=fornecedor_id,
+        )
+
+    def delete_catalog_file(self, stored_filename: str) -> None:
+        self._runtime.delete_catalog_file(stored_filename=stored_filename)
+
+    def get_file_path_by_id(self, db: Session, file_id: str) -> str:
+        return self._runtime.get_file_path_by_id(db=db, file_id=file_id)
+
+
+class _CatalogStorageRuntime:
     async def save_uploaded_catalog(
         self, file: UploadFile, fornecedor_id: Optional[int] = None
     ) -> models.CatalogImportFile:
@@ -3465,6 +3493,37 @@ def get_file_path_by_id(db: Session, file_id: str) -> str:
 class _TabularIngestionWorkflow:
     """Workflow OO para ingestÃ£o de arquivos tabulares (Excel/CSV)."""
 
+    def __init__(self, runtime: Optional["_TabularIngestionRuntime"] = None) -> None:
+        self._runtime = runtime or _TabularIngestionRuntime()
+
+    async def processar_arquivo_excel(
+        self,
+        conteudo_arquivo: bytes,
+        mapeamento_colunas_usuario: Optional[Dict[str, str]] = None,
+        sheet_name: Optional[str] = None,
+        product_type_id: Optional[int] = None,
+    ) -> List[Dict[str, Any]]:
+        return await self._runtime.processar_arquivo_excel(
+            conteudo_arquivo=conteudo_arquivo,
+            mapeamento_colunas_usuario=mapeamento_colunas_usuario,
+            sheet_name=sheet_name,
+            product_type_id=product_type_id,
+        )
+
+    async def processar_arquivo_csv(
+        self,
+        conteudo_arquivo: bytes,
+        mapeamento_colunas_usuario: Optional[Dict[str, str]] = None,
+        product_type_id: Optional[int] = None,
+    ) -> List[Dict[str, Any]]:
+        return await self._runtime.processar_arquivo_csv(
+            conteudo_arquivo=conteudo_arquivo,
+            mapeamento_colunas_usuario=mapeamento_colunas_usuario,
+            product_type_id=product_type_id,
+        )
+
+
+class _TabularIngestionRuntime:
     async def processar_arquivo_excel(
         self,
         conteudo_arquivo: bytes,
@@ -3524,8 +3583,31 @@ async def processar_arquivo_csv(
 class _TabularPreviewWorkflow:
     """Workflow OO para preview tabular (Excel/CSV)."""
 
+    def __init__(self, runtime: Optional["_TabularPreviewRuntime"] = None) -> None:
+        self._runtime = runtime or _TabularPreviewRuntime()
+
     async def preview_arquivo_excel(
         self, conteudo_arquivo: bytes, max_rows: int = 5
+    ) -> Dict[str, Any]:
+        return await self._runtime.preview_arquivo_excel(
+            conteudo_arquivo=conteudo_arquivo,
+            max_rows=max_rows,
+        )
+
+    async def preview_arquivo_csv(
+        self, conteudo_arquivo: bytes, max_rows: int = 5
+    ) -> Dict[str, Any]:
+        return await self._runtime.preview_arquivo_csv(
+            conteudo_arquivo=conteudo_arquivo,
+            max_rows=max_rows,
+        )
+
+
+class _TabularPreviewRuntime:
+    async def preview_arquivo_excel(
+        self,
+        conteudo_arquivo: bytes,
+        max_rows: int = 5,
     ) -> Dict[str, Any]:
         return await _preview_arquivo_excel_impl(
             conteudo_arquivo=conteudo_arquivo,
@@ -3533,7 +3615,9 @@ class _TabularPreviewWorkflow:
         )
 
     async def preview_arquivo_csv(
-        self, conteudo_arquivo: bytes, max_rows: int = 5
+        self,
+        conteudo_arquivo: bytes,
+        max_rows: int = 5,
     ) -> Dict[str, Any]:
         return await _preview_arquivo_csv_impl(
             conteudo_arquivo=conteudo_arquivo,
@@ -3846,6 +3930,33 @@ def extract_data_from_pdf_region(
 class _PdfJobWorkflow:
     """Workflow OO para processamento assÃ­ncrono de jobs de PDF."""
 
+    def __init__(self, runtime: Optional["_PdfJobRuntime"] = None) -> None:
+        self._runtime = runtime or _PdfJobRuntime()
+
+    async def process_pdf_job(
+        self,
+        job_id: int,
+        pdf_path: str,
+        start_page: int = 1,
+        mapping: Optional[Dict[str, str]] = None,
+    ) -> None:
+        await self._runtime.process_pdf_job(
+            job_id=job_id,
+            pdf_path=pdf_path,
+            start_page=start_page,
+            mapping=mapping,
+        )
+
+    def extract_data_from_single_page(
+        self, file_path: str, page_number: int
+    ) -> Dict[str, Any]:
+        return self._runtime.extract_data_from_single_page(
+            file_path=file_path,
+            page_number=page_number,
+        )
+
+
+class _PdfJobRuntime:
     async def process_pdf_job(
         self,
         job_id: int,

@@ -44,7 +44,49 @@ class _CatalogImportTaskWorkflow:
         write_catalog_import_report: Callable,
         normalize_import_text: Callable,
         pipeline_variant: str,
+        runtime: Optional[Any] = None,
     ) -> None:
+        if runtime is not None:
+            logger = getattr(runtime, "logger", logger)
+            catalog_logger = getattr(runtime, "catalog_logger", catalog_logger)
+            models = getattr(runtime, "models", models)
+            schemas = getattr(runtime, "schemas", schemas)
+            crud_produtos = getattr(runtime, "crud_produtos", crud_produtos)
+            file_processing_service = getattr(
+                runtime, "file_processing_service", file_processing_service
+            )
+            validator_crew = getattr(runtime, "validator_crew", validator_crew)
+            settings = getattr(runtime, "settings", settings)
+            Path = getattr(runtime, "Path", Path)
+            time = getattr(runtime, "time", time)
+            Counter = getattr(runtime, "Counter", Counter)
+            resolve_storage_path = getattr(runtime, "resolve_storage_path", resolve_storage_path)
+            normalize_import_issue_item = getattr(
+                runtime, "normalize_import_issue_item", normalize_import_issue_item
+            )
+            extract_import_error_reason = getattr(
+                runtime, "extract_import_error_reason", extract_import_error_reason
+            )
+            is_non_critical_import_reason = getattr(
+                runtime, "is_non_critical_import_reason", is_non_critical_import_reason
+            )
+            normalizar_dados_validados = getattr(
+                runtime, "normalizar_dados_validados", normalizar_dados_validados
+            )
+            sanitize_produto_extraido = getattr(
+                runtime, "sanitize_produto_extraido", sanitize_produto_extraido
+            )
+            classificar_qualidade_linha_produto = getattr(
+                runtime,
+                "classificar_qualidade_linha_produto",
+                classificar_qualidade_linha_produto,
+            )
+            write_catalog_import_report = getattr(
+                runtime, "write_catalog_import_report", write_catalog_import_report
+            )
+            normalize_import_text = getattr(runtime, "normalize_import_text", normalize_import_text)
+            pipeline_variant = getattr(runtime, "pipeline_variant", pipeline_variant)
+
         self.logger = logger
         self.catalog_logger = catalog_logger
         self.models = models

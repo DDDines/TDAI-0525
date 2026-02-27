@@ -401,6 +401,125 @@ def _get_or_create_produto_impl(
 
 
 class _ProdutoCrudWorkflow:
+    def __init__(self, runtime: Optional["_ProdutoCrudRuntime"] = None) -> None:
+        self._runtime = runtime or _ProdutoCrudRuntime()
+
+    def create_produto(
+        self,
+        db: Session,
+        produto: schemas.ProdutoCreate,
+        user_id: int,
+    ) -> Produto:
+        return self._runtime.create_produto(db=db, produto=produto, user_id=user_id)
+
+    def create_produtos_bulk(
+        self,
+        db: Session,
+        produtos: List[schemas.ProdutoCreate],
+        user_id: int,
+    ) -> Tuple[List[Produto], List[Produto], List[Dict[str, Any]]]:
+        return self._runtime.create_produtos_bulk(db=db, produtos=produtos, user_id=user_id)
+
+    def get_produto(self, db: Session, produto_id: int) -> Optional[Produto]:
+        return self._runtime.get_produto(db=db, produto_id=produto_id)
+
+    def get_produtos_by_user(
+        self,
+        db: Session,
+        user_id: Optional[int],
+        is_admin: bool,
+        skip: int = 0,
+        limit: int = 10,
+        sort_by: Optional[str] = None,
+        sort_order: Optional[str] = "asc",
+        search: Optional[str] = None,
+        fornecedor_id: Optional[int] = None,
+        product_type_id: Optional[int] = None,
+        categoria: Optional[str] = None,
+        status_enriquecimento_web: Optional[StatusEnriquecimentoEnum] = None,
+        status_titulo_ia: Optional[StatusGeracaoIAEnum] = None,
+        status_descricao_ia: Optional[StatusGeracaoIAEnum] = None,
+    ) -> List[Produto]:
+        return self._runtime.get_produtos_by_user(
+            db=db,
+            user_id=user_id,
+            is_admin=is_admin,
+            skip=skip,
+            limit=limit,
+            sort_by=sort_by,
+            sort_order=sort_order,
+            search=search,
+            fornecedor_id=fornecedor_id,
+            product_type_id=product_type_id,
+            categoria=categoria,
+            status_enriquecimento_web=status_enriquecimento_web,
+            status_titulo_ia=status_titulo_ia,
+            status_descricao_ia=status_descricao_ia,
+        )
+
+    def count_produtos_by_user(
+        self,
+        db: Session,
+        user_id: Optional[int],
+        is_admin: bool,
+        search: Optional[str] = None,
+        fornecedor_id: Optional[int] = None,
+        product_type_id: Optional[int] = None,
+        categoria: Optional[str] = None,
+        status_enriquecimento_web: Optional[StatusEnriquecimentoEnum] = None,
+        status_titulo_ia: Optional[StatusGeracaoIAEnum] = None,
+        status_descricao_ia: Optional[StatusGeracaoIAEnum] = None,
+    ) -> int:
+        return self._runtime.count_produtos_by_user(
+            db=db,
+            user_id=user_id,
+            is_admin=is_admin,
+            search=search,
+            fornecedor_id=fornecedor_id,
+            product_type_id=product_type_id,
+            categoria=categoria,
+            status_enriquecimento_web=status_enriquecimento_web,
+            status_titulo_ia=status_titulo_ia,
+            status_descricao_ia=status_descricao_ia,
+        )
+
+    def update_produto(
+        self,
+        db: Session,
+        db_produto: Produto,
+        produto_update: schemas.ProdutoUpdate,
+    ) -> Produto:
+        return self._runtime.update_produto(
+            db=db,
+            db_produto=db_produto,
+            produto_update=produto_update,
+        )
+
+    def delete_produto(self, db: Session, db_produto: Produto) -> Produto:
+        return self._runtime.delete_produto(db=db, db_produto=db_produto)
+
+    async def save_produto_image(
+        self,
+        db: Session,
+        produto_id: int,
+        file: UploadFile,
+    ) -> str:
+        return await self._runtime.save_produto_image(
+            db=db,
+            produto_id=produto_id,
+            file=file,
+        )
+
+    def get_or_create_produto(
+        self,
+        db: Session,
+        produto: schemas.ProdutoCreate,
+        user_id: int,
+    ) -> Produto:
+        return self._runtime.get_or_create_produto(db=db, produto=produto, user_id=user_id)
+
+
+class _ProdutoCrudRuntime:
     def create_produto(
         self,
         db: Session,

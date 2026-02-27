@@ -1,5 +1,6 @@
 import logging
 from pathlib import Path
+from typing import Optional
 
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
@@ -59,6 +60,23 @@ def _process_pdf_extraction_task_impl(import_job_id: int, page_number: int, db_u
 
 
 class _TaskWorkflow:
+    def __init__(self, runtime: Optional["_TaskRuntime"] = None) -> None:
+        self._runtime = runtime or _TaskRuntime()
+
+    def process_pdf_extraction_task(
+        self,
+        import_job_id: int,
+        page_number: int,
+        db_url: str,
+    ) -> None:
+        self._runtime.process_pdf_extraction_task(
+            import_job_id=import_job_id,
+            page_number=page_number,
+            db_url=db_url,
+        )
+
+
+class _TaskRuntime:
     def process_pdf_extraction_task(
         self,
         import_job_id: int,
