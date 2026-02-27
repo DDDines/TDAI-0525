@@ -37,18 +37,6 @@ from Backend.application.services.ia_generation_facade import IAGenerationFacade
 
 ia_generation_service = IAGenerationFacade()
 
-# --- Google Search Service ---
-def busca_publica_disponivel() -> bool:
-    """Indica se busca web sem API key pode ser usada como fallback."""
-    return True
-
-
-_SEARCH_CACHE: Dict[str, Tuple[float, List[str]]] = {}
-_SEARCH_CACHE_TTL_SECONDS = 600.0
-_SEARCH_CACHE_MAX_ENTRIES = 300
-_SEARCH_CACHE_LOCK: Optional[asyncio.Lock] = None
-_SEARCH_SEMAPHORE: Optional[asyncio.Semaphore] = None
-
 _TRACKING_QUERY_HINTS = (
     "ad_domain=",
     "ad_provider=",
@@ -97,541 +85,705 @@ _PREFERRED_PRODUCT_HOST_HINTS = (
     "essentra",
 )
 
+# --- Google Search Service ---
+class _WebSearchEngineRuntime:
+    """Runtime OO para buscas web (cache + scoring + fallback publico/CSE)."""
 
-def _get_search_cache_lock() -> asyncio.Lock:
-    global _SEARCH_CACHE_LOCK
-    if _SEARCH_CACHE_LOCK is None:
-        _SEARCH_CACHE_LOCK = asyncio.Lock()
-    return _SEARCH_CACHE_LOCK
+    def __init__(self) -> None:
+        self._search_cache: Dict[str, Tuple[float, List[str]]] = {}
+        self._search_cache_ttl_seconds = 600.0
+        self._search_cache_max_entries = 300
+        self._search_cache_lock: Optional[asyncio.Lock] = None
+        self._search_semaphore: Optional[asyncio.Semaphore] = None
 
+    def busca_publica_disponivel(self) -> bool:
+        return True
 
-def _get_search_semaphore() -> asyncio.Semaphore:
-    global _SEARCH_SEMAPHORE
-    if _SEARCH_SEMAPHORE is None:
-        limit = int(getattr(settings, "WEB_SEARCH_CONCURRENCY", 3) or 3)
-        _SEARCH_SEMAPHORE = asyncio.Semaphore(max(1, limit))
-    return _SEARCH_SEMAPHORE
+    def get_search_cache_lock(self) -> asyncio.Lock:
+        if self._search_cache_lock is None:
+            self._search_cache_lock = asyncio.Lock()
+        return self._search_cache_lock
 
+    def get_search_semaphore(self) -> asyncio.Semaphore:
+        if self._search_semaphore is None:
+            limit = int(getattr(settings, "WEB_SEARCH_CONCURRENCY", 3) or 3)
+            self._search_semaphore = asyncio.Semaphore(max(1, limit))
+        return self._search_semaphore
 
-async def _search_cache_get(query_key: str) -> Optional[List[str]]:
-    lock = _get_search_cache_lock()
-    now = time.monotonic()
-    async with lock:
-        cached = _SEARCH_CACHE.get(query_key)
-        if not cached:
+    async def search_cache_get(self, query_key: str) -> Optional[List[str]]:
+        lock = self.get_search_cache_lock()
+        now = time.monotonic()
+        async with lock:
+            cached = self._search_cache.get(query_key)
+            if not cached:
+                return None
+            ts, urls = cached
+            if (now - ts) > self._search_cache_ttl_seconds:
+                self._search_cache.pop(query_key, None)
+                return None
+            return list(urls)
+
+    async def search_cache_set(self, query_key: str, urls: List[str]) -> None:
+        lock = self.get_search_cache_lock()
+        now = time.monotonic()
+        async with lock:
+            if len(self._search_cache) >= self._search_cache_max_entries:
+                oldest_key = min(self._search_cache.items(), key=lambda item: item[1][0])[0]
+                self._search_cache.pop(oldest_key, None)
+            self._search_cache[query_key] = (now, list(urls))
+
+    def score_url_publica(self, url: str) -> int:
+        parsed = urlparse(url)
+        host = (parsed.netloc or "").lower()
+        path = (parsed.path or "").lower()
+        query = (parsed.query or "").lower()
+        score = 0
+
+        if any(hint in host for hint in _PREFERRED_PRODUCT_HOST_HINTS):
+            score += 24
+        if any(seg in path for seg in ("/produto", "/product", "/peca", "/autopeca", "/p/")):
+            score += 10
+        if path.endswith(".pdf"):
+            score -= 8
+        if any(h in host for h in _LOW_RELEVANCE_HOST_HINTS):
+            score -= 12
+        if any(hint in query for hint in _TRACKING_QUERY_HINTS):
+            score -= 25
+        if len(query) > 280:
+            score -= 8
+        return score
+
+    def extract_redirect_destination(self, query: str) -> Optional[str]:
+        if not query:
             return None
-        ts, urls = cached
-        if (now - ts) > _SEARCH_CACHE_TTL_SECONDS:
-            _SEARCH_CACHE.pop(query_key, None)
-            return None
-        return list(urls)
-
-
-async def _search_cache_set(query_key: str, urls: List[str]) -> None:
-    lock = _get_search_cache_lock()
-    now = time.monotonic()
-    async with lock:
-        if len(_SEARCH_CACHE) >= _SEARCH_CACHE_MAX_ENTRIES:
-            oldest_key = min(_SEARCH_CACHE.items(), key=lambda item: item[1][0])[0]
-            _SEARCH_CACHE.pop(oldest_key, None)
-        _SEARCH_CACHE[query_key] = (now, list(urls))
-
-
-def _score_url_publica(url: str) -> int:
-    parsed = urlparse(url)
-    host = (parsed.netloc or "").lower()
-    path = (parsed.path or "").lower()
-    query = (parsed.query or "").lower()
-    score = 0
-
-    if any(hint in host for hint in _PREFERRED_PRODUCT_HOST_HINTS):
-        score += 24
-    if any(seg in path for seg in ("/produto", "/product", "/peca", "/autopeca", "/p/")):
-        score += 10
-    if path.endswith(".pdf"):
-        score -= 8
-    if any(h in host for h in _LOW_RELEVANCE_HOST_HINTS):
-        score -= 12
-    if any(hint in query for hint in _TRACKING_QUERY_HINTS):
-        score -= 25
-    if len(query) > 280:
-        score -= 8
-    return score
-
-
-def _extract_redirect_destination(query: str) -> Optional[str]:
-    if not query:
-        return None
-    qs = parse_qs(query or "")
-    for key in _REDIRECT_QUERY_KEYS:
-        values = qs.get(key) or []
-        for raw_value in values:
-            candidate = unquote(str(raw_value or "").strip())
-            if candidate.startswith(("http://", "https://")):
-                return candidate
-    return None
-
-
-def _unwrap_redirect_url(url: str, max_hops: int = 3) -> str:
-    current = str(url or "").strip()
-    for _ in range(max(1, max_hops)):
-        parsed = urlparse(current)
-        destination = _extract_redirect_destination(parsed.query or "")
-        if not destination or destination == current:
-            break
-        current = destination.strip()
-    return current
-
-
-def _url_deve_ser_ignorada_antes_da_coleta(url: str) -> bool:
-    """Evita coletar links de tracking, redirecionamento e paginas de busca."""
-    parsed = urlparse(str(url or "").strip())
-    host = (parsed.netloc or "").lower()
-    path = (parsed.path or "").lower()
-    query = (parsed.query or "").lower()
-    host_no_www = host[4:] if host.startswith("www.") else host
-
-    if parsed.scheme not in {"http", "https"}:
-        return True
-    if not host:
-        return True
-
-    # Endpoints de tracking/redirect de buscadores.
-    if "duckduckgo.com" in host_no_www and (
-        path.startswith("/y.js") or path.startswith("/redirect") or path.startswith("/l/")
-    ):
-        return True
-    if "bing.com" in host_no_www and (path.startswith("/aclick") or path.startswith("/ck/")):
-        return True
-    if "bing.com" in host_no_www and (
-        path.startswith("/search") or path.startswith("/images/search")
-    ):
-        return True
-    if ("google.com" in host_no_www or host_no_www.endswith(".google")) and (
-        path.startswith("/search") or path.startswith("/imgres") or path.startswith("/url")
-    ):
-        return True
-
-    # Consultas com assinatura típica de tracking.
-    if any(hint in query for hint in _TRACKING_QUERY_HINTS):
-        return True
-    if len(query) > 500:
-        return True
-    if _extract_redirect_destination(query) and any(
-        hint in host_no_www for hint in _LOW_RELEVANCE_HOST_HINTS
-    ):
-        return True
-
-    # Links diretos para PDF costumam abortar no Playwright e não são úteis
-    # no enriquecimento web textual padrão.
-    if path.endswith(".pdf"):
-        return True
-
-    return False
-
-
-def _normalizar_url_busca(candidata: str, base_url: str) -> Optional[str]:
-    if not candidata:
-        return None
-    url_final = str(candidata).strip()
-    if not url_final:
-        return None
-    if url_final.startswith("/"):
-        url_final = urljoin(base_url, url_final)
-
-    raw_parsed = urlparse(url_final)
-    raw_host = (raw_parsed.netloc or "").lower()
-    raw_host_no_www = raw_host[4:] if raw_host.startswith("www.") else raw_host
-    raw_path = (raw_parsed.path or "").lower()
-    raw_query = (raw_parsed.query or "").lower()
-
-    # Wrappers de tracking/search conhecidos devem ser descartados mesmo que
-    # carreguem um destino final potencialmente válido em query-string.
-    if "duckduckgo.com" in raw_host_no_www and (
-        raw_path.startswith("/y.js") or raw_path.startswith("/redirect")
-    ):
-        return None
-    if "bing.com" in raw_host_no_www and raw_path.startswith("/aclick"):
-        return None
-    if ("google.com" in raw_host_no_www or raw_host_no_www.endswith(".google")) and (
-        raw_path.startswith("/search")
-        or raw_path.startswith("/imgres")
-        or raw_path.startswith("/url")
-    ):
-        return None
-    if any(hint in raw_query for hint in _TRACKING_QUERY_HINTS) and any(
-        hint in raw_host_no_www for hint in _LOW_RELEVANCE_HOST_HINTS
-    ):
+        qs = parse_qs(query or "")
+        for key in _REDIRECT_QUERY_KEYS:
+            values = qs.get(key) or []
+            for raw_value in values:
+                candidate = unquote(str(raw_value or "").strip())
+                if candidate.startswith(("http://", "https://")):
+                    return candidate
         return None
 
-    url_final = _unwrap_redirect_url(url_final, max_hops=4)
-
-    parsed = urlparse(url_final)
-    host = (parsed.netloc or "").lower()
-    path = (parsed.path or "").lower()
-    query = (parsed.query or "").lower()
-    host_no_www = host[4:] if host.startswith("www.") else host
-
-    # URLs internas/trackers de buscadores não devem entrar no pipeline.
-    if "duckduckgo.com" in host_no_www:
-        qs = parse_qs(parsed.query or "")
-        destino = None
-        for key in ("uddg", "u", "u3"):
-            vals = qs.get(key) or []
-            if vals:
-                destino = unquote(vals[0])
-                if destino:
-                    break
-
-        if destino:
-            url_final = destino.strip()
-            parsed = urlparse(url_final)
-            host = (parsed.netloc or "").lower()
-            host_no_www = host[4:] if host.startswith("www.") else host
-        else:
-            return None
-
-        # Se continuou no domínio DuckDuckGo, descarta.
-        if "duckduckgo.com" in host_no_www:
-            return None
-
-    # Alguns resultados vêm como click-tracker do Bing.
-    if "bing.com" in host_no_www and parsed.path.lower().startswith("/aclick"):
-        return None
-    if "bing.com" in host_no_www and (path.startswith("/search") or path.startswith("/images/search")):
-        return None
-    if ("google.com" in host_no_www or host_no_www.endswith(".google")) and (
-        path.startswith("/search") or path.startswith("/imgres")
-    ):
-        return None
-    if path in {"/y.js", "/redirect"}:
-        return None
-    if any(hint in query for hint in _TRACKING_QUERY_HINTS):
-        return None
-    if len(query) > 500:
-        return None
-
-    if parsed.scheme not in {"http", "https"}:
-        return None
-    if not parsed.netloc:
-        return None
-    if _url_deve_ser_ignorada_antes_da_coleta(url_final):
-        return None
-    return url_final
-
-
-def _buscar_urls_publicas_sync(query: str, num_results: int = 3) -> List[str]:
-    if not query:
-        return []
-
-    headers = {
-        "User-Agent": (
-            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
-            "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0 Safari/537.36"
-        )
-    }
-    endpoints = [
-        f"https://duckduckgo.com/html/?q={quote_plus(query)}",
-        f"https://html.duckduckgo.com/html/?q={quote_plus(query)}",
-        f"https://www.bing.com/search?q={quote_plus(query)}",
-    ]
-
-    urls: List[str] = []
-    vistos: set[str] = set()
-
-    for endpoint in endpoints:
-        try:
-            req = Request(endpoint, headers=headers, method="GET")
-            with urlopen(req, timeout=8) as resp:
-                content = resp.read().decode("utf-8", errors="ignore")
-        except Exception as search_err:
-            logger.warning(
-                "Busca publica falhou em %s (query='%s'): %s",
-                endpoint,
-                query,
-                search_err,
-            )
-            continue
-
-        soup = BeautifulSoup(content, "html.parser")
-        anchors = soup.select(
-            "a.result__a, .result a[href], a[href*='uddg='], li.b_algo h2 a, h2 a[href]"
-        )
-        for anchor in anchors:
-            href = anchor.get("href")
-            url_norm = _normalizar_url_busca(href or "", endpoint)
-            if not url_norm or url_norm in vistos:
-                continue
-            vistos.add(url_norm)
-            urls.append(url_norm)
-            if len(urls) >= max(1, num_results):
+    def unwrap_redirect_url(self, url: str, max_hops: int = 3) -> str:
+        current = str(url or "").strip()
+        for _ in range(max(1, max_hops)):
+            parsed = urlparse(current)
+            destination = self.extract_redirect_destination(parsed.query or "")
+            if not destination or destination == current:
                 break
-        if len(urls) >= max(1, num_results):
-            break
+            current = destination.strip()
+        return current
 
-    # Fallback adicional: proxy textual que costuma escapar bloqueios de JS/anti-bot.
-    if len(urls) < max(1, num_results):
-        proxy_endpoint = f"https://r.jina.ai/http://duckduckgo.com/html/?q={quote_plus(query)}"
-        try:
-            req = Request(proxy_endpoint, headers=headers, method="GET")
-            with urlopen(req, timeout=10) as resp:
-                proxy_text = resp.read().decode("utf-8", errors="ignore")
+    def url_deve_ser_ignorada_antes_da_coleta(self, url: str) -> bool:
+        """Evita coletar links de tracking, redirecionamento e paginas de busca."""
+        parsed = urlparse(str(url or "").strip())
+        host = (parsed.netloc or "").lower()
+        path = (parsed.path or "").lower()
+        query = (parsed.query or "").lower()
+        host_no_www = host[4:] if host.startswith("www.") else host
 
-            for href in re.findall(r"\((https?://[^)]+)\)", proxy_text):
-                url_norm = _normalizar_url_busca(href, proxy_endpoint)
+        if parsed.scheme not in {"http", "https"}:
+            return True
+        if not host:
+            return True
+
+        if "duckduckgo.com" in host_no_www and (
+            path.startswith("/y.js") or path.startswith("/redirect") or path.startswith("/l/")
+        ):
+            return True
+        if "bing.com" in host_no_www and (path.startswith("/aclick") or path.startswith("/ck/")):
+            return True
+        if "bing.com" in host_no_www and (
+            path.startswith("/search") or path.startswith("/images/search")
+        ):
+            return True
+        if ("google.com" in host_no_www or host_no_www.endswith(".google")) and (
+            path.startswith("/search") or path.startswith("/imgres") or path.startswith("/url")
+        ):
+            return True
+
+        if any(hint in query for hint in _TRACKING_QUERY_HINTS):
+            return True
+        if len(query) > 500:
+            return True
+        if self.extract_redirect_destination(query) and any(
+            hint in host_no_www for hint in _LOW_RELEVANCE_HOST_HINTS
+        ):
+            return True
+
+        if path.endswith(".pdf"):
+            return True
+
+        return False
+
+    def normalizar_url_busca(self, candidata: str, base_url: str) -> Optional[str]:
+        if not candidata:
+            return None
+        url_final = str(candidata).strip()
+        if not url_final:
+            return None
+        if url_final.startswith("/"):
+            url_final = urljoin(base_url, url_final)
+
+        raw_parsed = urlparse(url_final)
+        raw_host = (raw_parsed.netloc or "").lower()
+        raw_host_no_www = raw_host[4:] if raw_host.startswith("www.") else raw_host
+        raw_path = (raw_parsed.path or "").lower()
+        raw_query = (raw_parsed.query or "").lower()
+
+        if "duckduckgo.com" in raw_host_no_www and (
+            raw_path.startswith("/y.js") or raw_path.startswith("/redirect")
+        ):
+            return None
+        if "bing.com" in raw_host_no_www and raw_path.startswith("/aclick"):
+            return None
+        if ("google.com" in raw_host_no_www or raw_host_no_www.endswith(".google")) and (
+            raw_path.startswith("/search")
+            or raw_path.startswith("/imgres")
+            or raw_path.startswith("/url")
+        ):
+            return None
+        if any(hint in raw_query for hint in _TRACKING_QUERY_HINTS) and any(
+            hint in raw_host_no_www for hint in _LOW_RELEVANCE_HOST_HINTS
+        ):
+            return None
+
+        url_final = self.unwrap_redirect_url(url_final, max_hops=4)
+
+        parsed = urlparse(url_final)
+        host = (parsed.netloc or "").lower()
+        path = (parsed.path or "").lower()
+        query = (parsed.query or "").lower()
+        host_no_www = host[4:] if host.startswith("www.") else host
+
+        if "duckduckgo.com" in host_no_www:
+            qs = parse_qs(parsed.query or "")
+            destino = None
+            for key in ("uddg", "u", "u3"):
+                vals = qs.get(key) or []
+                if vals:
+                    destino = unquote(vals[0])
+                    if destino:
+                        break
+
+            if destino:
+                url_final = destino.strip()
+                parsed = urlparse(url_final)
+                host = (parsed.netloc or "").lower()
+                host_no_www = host[4:] if host.startswith("www.") else host
+            else:
+                return None
+
+            if "duckduckgo.com" in host_no_www:
+                return None
+
+        if "bing.com" in host_no_www and parsed.path.lower().startswith("/aclick"):
+            return None
+        if "bing.com" in host_no_www and (path.startswith("/search") or path.startswith("/images/search")):
+            return None
+        if ("google.com" in host_no_www or host_no_www.endswith(".google")) and (
+            path.startswith("/search") or path.startswith("/imgres")
+        ):
+            return None
+        if path in {"/y.js", "/redirect"}:
+            return None
+        if any(hint in query for hint in _TRACKING_QUERY_HINTS):
+            return None
+        if len(query) > 500:
+            return None
+
+        if parsed.scheme not in {"http", "https"}:
+            return None
+        if not parsed.netloc:
+            return None
+        if self.url_deve_ser_ignorada_antes_da_coleta(url_final):
+            return None
+        return url_final
+
+    def buscar_urls_publicas_sync(self, query: str, num_results: int = 3) -> List[str]:
+        if not query:
+            return []
+
+        headers = {
+            "User-Agent": (
+                "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+                "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0 Safari/537.36"
+            )
+        }
+        endpoints = [
+            f"https://duckduckgo.com/html/?q={quote_plus(query)}",
+            f"https://html.duckduckgo.com/html/?q={quote_plus(query)}",
+            f"https://www.bing.com/search?q={quote_plus(query)}",
+        ]
+
+        urls: List[str] = []
+        vistos: set[str] = set()
+
+        for endpoint in endpoints:
+            try:
+                req = Request(endpoint, headers=headers, method="GET")
+                with urlopen(req, timeout=8) as resp:
+                    content = resp.read().decode("utf-8", errors="ignore")
+            except Exception as search_err:
+                logger.warning(
+                    "Busca publica falhou em %s (query='%s'): %s",
+                    endpoint,
+                    query,
+                    search_err,
+                )
+                continue
+
+            soup = BeautifulSoup(content, "html.parser")
+            anchors = soup.select(
+                "a.result__a, .result a[href], a[href*='uddg='], li.b_algo h2 a, h2 a[href]"
+            )
+            for anchor in anchors:
+                href = anchor.get("href")
+                url_norm = self.normalizar_url_busca(href or "", endpoint)
                 if not url_norm or url_norm in vistos:
                     continue
                 vistos.add(url_norm)
                 urls.append(url_norm)
                 if len(urls) >= max(1, num_results):
                     break
-        except Exception as proxy_err:
-            logger.warning(
-                "Fallback via r.jina.ai falhou (query='%s'): %s",
-                query,
-                proxy_err,
-            )
-    deduped_urls = list(dict.fromkeys(urls))
-    scored_urls = sorted(deduped_urls, key=_score_url_publica, reverse=True)
-    filtered_urls = [u for u in scored_urls if _score_url_publica(u) > -20]
-    return filtered_urls[: max(1, num_results)] if filtered_urls else scored_urls[: max(1, num_results)]
+            if len(urls) >= max(1, num_results):
+                break
 
-
-async def _buscar_urls_publicas_async_impl(query: str, num_results: int = 3) -> List[str]:
-    return await asyncio.to_thread(_buscar_urls_publicas_sync, query, num_results)
-
-
-async def _buscar_urls_google_async_impl(query: str, num_results: int = 3) -> List[str]:
-    query_limpa = str(query or "").strip()
-    if not query_limpa:
-        return []
-    limite = max(1, num_results)
-    cache_key = query_limpa.lower()
-
-    cached_urls = await _search_cache_get(cache_key)
-    if cached_urls is not None:
-        logger.info(
-            "Busca web (cache) retornou %s URL(s) para query '%s'.",
-            len(cached_urls),
-            query_limpa,
-        )
-        return cached_urls[:limite]
-
-    urls_encontradas: List[str] = []
-    google_disponivel = (
-        GOOGLE_API_CLIENT_INSTALLED
-        and bool(settings.GOOGLE_CSE_API_KEY)
-        and bool(settings.GOOGLE_CSE_ID)
-    )
-
-    async with _get_search_semaphore():
-        if google_disponivel:
+        if len(urls) < max(1, num_results):
+            proxy_endpoint = f"https://r.jina.ai/http://duckduckgo.com/html/?q={quote_plus(query)}"
             try:
-                def _executar_busca_google_interna_valida():
-                    service = build("customsearch", "v1", developerKey=settings.GOOGLE_CSE_API_KEY, cache_discovery=False)
-                    res = service.cse().list(q=query_limpa, cx=settings.GOOGLE_CSE_ID, num=limite).execute()
-                    return [item['link'] for item in res.get('items', []) if 'link' in item]
+                req = Request(proxy_endpoint, headers=headers, method="GET")
+                with urlopen(req, timeout=10) as resp:
+                    proxy_text = resp.read().decode("utf-8", errors="ignore")
 
-                urls_encontradas = await asyncio.to_thread(_executar_busca_google_interna_valida)
-                if urls_encontradas:
-                    urls_encontradas = [
-                        _normalizar_url_busca(url, "https://www.google.com")
-                        for url in urls_encontradas
-                    ]
-                    urls_encontradas = [url for url in urls_encontradas if url]
-                    logger.info(
-                        "Busca Google CSE retornou %s URL(s) para query '%s'.",
-                        len(urls_encontradas),
-                        query_limpa,
-                    )
-                    urls_unicas = list(dict.fromkeys(urls_encontradas))[:limite]
-                    await _search_cache_set(cache_key, urls_unicas)
-                    return urls_unicas
+                for href in re.findall(r"\((https?://[^)]+)\)", proxy_text):
+                    url_norm = self.normalizar_url_busca(href, proxy_endpoint)
+                    if not url_norm or url_norm in vistos:
+                        continue
+                    vistos.add(url_norm)
+                    urls.append(url_norm)
+                    if len(urls) >= max(1, num_results):
+                        break
+            except Exception as proxy_err:
                 logger.warning(
-                    "Google CSE nao retornou URLs para query '%s'. Tentando fallback publico.",
-                    query_limpa,
+                    "Fallback via r.jina.ai falhou (query='%s'): %s",
+                    query,
+                    proxy_err,
                 )
-            except Exception as e:
-                logger.error("Erro ao buscar no Google (query: '%s'): %s", query_limpa, e)
-                logger.info("Tentando fallback de busca publica sem API key.")
-        else:
-            motivos_google_indisponivel: List[str] = []
-            if not GOOGLE_API_CLIENT_INSTALLED:
-                motivos_google_indisponivel.append("biblioteca ausente")
-            if not settings.GOOGLE_CSE_API_KEY:
-                motivos_google_indisponivel.append("GOOGLE_CSE_API_KEY ausente")
-            if not settings.GOOGLE_CSE_ID:
-                motivos_google_indisponivel.append("GOOGLE_CSE_ID ausente")
-            motivos_txt = ", ".join(motivos_google_indisponivel) if motivos_google_indisponivel else "configuracao ausente"
-            logger.warning(
-                "Google CSE indisponivel (%s). Usando fallback de busca publica.",
-                motivos_txt,
-            )
-
-        urls_encontradas = await _buscar_urls_publicas_async_impl(
-            query=query_limpa, num_results=limite
+        deduped_urls = list(dict.fromkeys(urls))
+        scored_urls = sorted(deduped_urls, key=self.score_url_publica, reverse=True)
+        filtered_urls = [u for u in scored_urls if self.score_url_publica(u) > -20]
+        return (
+            filtered_urls[: max(1, num_results)]
+            if filtered_urls
+            else scored_urls[: max(1, num_results)]
         )
-        urls_unicas = list(dict.fromkeys(urls_encontradas))[:limite]
-        if urls_unicas:
+
+    async def buscar_urls_publicas_async(
+        self,
+        query: str,
+        num_results: int = 3,
+    ) -> List[str]:
+        return await asyncio.to_thread(self.buscar_urls_publicas_sync, query, num_results)
+
+    async def buscar_urls_google_async(
+        self,
+        query: str,
+        num_results: int = 3,
+    ) -> List[str]:
+        query_limpa = str(query or "").strip()
+        if not query_limpa:
+            return []
+        limite = max(1, num_results)
+        cache_key = query_limpa.lower()
+
+        cached_urls = await self.search_cache_get(cache_key)
+        if cached_urls is not None:
             logger.info(
-                "Fallback de busca publica retornou %s URL(s) para query '%s'.",
-                len(urls_unicas),
+                "Busca web (cache) retornou %s URL(s) para query '%s'.",
+                len(cached_urls),
                 query_limpa,
             )
-        else:
-            logger.warning("Fallback de busca publica nao retornou URLs para query '%s'.", query_limpa)
-        await _search_cache_set(cache_key, urls_unicas)
-        return urls_unicas
+            return cached_urls[:limite]
 
-# --- Playwright Content Fetching Service ---
-def _coletar_conteudo_pagina_http_sync(url: str, timeout: int = 20) -> Optional[str]:
-    headers = {
-        "User-Agent": (
-            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
-            "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0 Safari/537.36"
+        urls_encontradas: List[str] = []
+        google_disponivel = (
+            GOOGLE_API_CLIENT_INSTALLED
+            and bool(settings.GOOGLE_CSE_API_KEY)
+            and bool(settings.GOOGLE_CSE_ID)
         )
-    }
-    req = Request(url, headers=headers, method="GET")
-    with urlopen(req, timeout=timeout) as resp:
-        content_type = (resp.headers.get("Content-Type") or "").lower()
-        raw = resp.read()
 
-    # Evita retornar binário/imagem quando a URL não é uma página HTML.
-    if "text/html" not in content_type and "application/xhtml+xml" not in content_type:
-        return None
-    return raw.decode("utf-8", errors="ignore")
+        async with self.get_search_semaphore():
+            if google_disponivel:
+                try:
 
+                    def _executar_busca_google_interna_valida():
+                        service = build(
+                            "customsearch",
+                            "v1",
+                            developerKey=settings.GOOGLE_CSE_API_KEY,
+                            cache_discovery=False,
+                        )
+                        res = (
+                            service.cse()
+                            .list(q=query_limpa, cx=settings.GOOGLE_CSE_ID, num=limite)
+                            .execute()
+                        )
+                        return [item["link"] for item in res.get("items", []) if "link" in item]
 
-async def _coletar_conteudo_pagina_http(url: str, timeout: int = 20) -> Optional[str]:
-    try:
-        return await asyncio.to_thread(_coletar_conteudo_pagina_http_sync, url, timeout)
-    except Exception as e:
-        logger.warning("Falha ao coletar conteúdo HTTP direto para %s: %s", url, e)
-        return None
+                    urls_encontradas = await asyncio.to_thread(
+                        _executar_busca_google_interna_valida
+                    )
+                    if urls_encontradas:
+                        urls_encontradas = [
+                            self.normalizar_url_busca(url, "https://www.google.com")
+                            for url in urls_encontradas
+                        ]
+                        urls_encontradas = [url for url in urls_encontradas if url]
+                        logger.info(
+                            "Busca Google CSE retornou %s URL(s) para query '%s'.",
+                            len(urls_encontradas),
+                            query_limpa,
+                        )
+                        urls_unicas = list(dict.fromkeys(urls_encontradas))[:limite]
+                        await self.search_cache_set(cache_key, urls_unicas)
+                        return urls_unicas
+                    logger.warning(
+                        "Google CSE nao retornou URLs para query '%s'. Tentando fallback publico.",
+                        query_limpa,
+                    )
+                except Exception as e:
+                    logger.error("Erro ao buscar no Google (query: '%s'): %s", query_limpa, e)
+                    logger.info("Tentando fallback de busca publica sem API key.")
+            else:
+                motivos_google_indisponivel: List[str] = []
+                if not GOOGLE_API_CLIENT_INSTALLED:
+                    motivos_google_indisponivel.append("biblioteca ausente")
+                if not settings.GOOGLE_CSE_API_KEY:
+                    motivos_google_indisponivel.append("GOOGLE_CSE_API_KEY ausente")
+                if not settings.GOOGLE_CSE_ID:
+                    motivos_google_indisponivel.append("GOOGLE_CSE_ID ausente")
+                motivos_txt = (
+                    ", ".join(motivos_google_indisponivel)
+                    if motivos_google_indisponivel
+                    else "configuracao ausente"
+                )
+                logger.warning(
+                    "Google CSE indisponivel (%s). Usando fallback de busca publica.",
+                    motivos_txt,
+                )
 
-
-async def _coletar_conteudo_pagina_playwright_core(url: str) -> Optional[str]:
-    browser = None
-    async with async_playwright() as p_instance:
-        try:
-            browser = await p_instance.chromium.launch(headless=True)
-            context = await browser.new_context(
-                user_agent=(
-                    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
-                    "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/98.0.4758.102 Safari/537.36"
-                ),
-                java_script_enabled=True,
-                ignore_https_errors=True,
+            urls_encontradas = await self.buscar_urls_publicas_async(
+                query=query_limpa,
+                num_results=limite,
             )
-            page = await context.new_page()
-            await page.goto(url, timeout=30000, wait_until="networkidle")
-            return await page.content()
-        finally:
-            if browser:
-                await browser.close()
+            urls_unicas = list(dict.fromkeys(urls_encontradas))[:limite]
+            if urls_unicas:
+                logger.info(
+                    "Fallback de busca publica retornou %s URL(s) para query '%s'.",
+                    len(urls_unicas),
+                    query_limpa,
+                )
+            else:
+                logger.warning(
+                    "Fallback de busca publica nao retornou URLs para query '%s'.",
+                    query_limpa,
+                )
+            await self.search_cache_set(cache_key, urls_unicas)
+            return urls_unicas
 
 
-def _coletar_conteudo_playwright_em_thread_sync(url: str) -> Optional[str]:
-    loop = None
-    try:
-        if sys.platform.startswith("win") and hasattr(asyncio, "WindowsProactorEventLoopPolicy"):
-            loop = asyncio.WindowsProactorEventLoopPolicy().new_event_loop()  # type: ignore[attr-defined]
-        else:
-            loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(loop)
-        return loop.run_until_complete(_coletar_conteudo_pagina_playwright_core(url))
-    finally:
-        if loop is not None:
+class _WebContentFetchEngineRuntime:
+    """Runtime OO para coleta de conte?do HTML (Playwright + fallback HTTP)."""
+
+    def __init__(self, search_runtime: _WebSearchEngineRuntime) -> None:
+        self._search_runtime = search_runtime
+        self._playwright_chromium_indisponivel = False
+
+    def coletar_conteudo_pagina_http_sync(
+        self,
+        url: str,
+        timeout: int = 20,
+    ) -> Optional[str]:
+        headers = {
+            "User-Agent": (
+                "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+                "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0 Safari/537.36"
+            )
+        }
+        req = Request(url, headers=headers, method="GET")
+        with urlopen(req, timeout=timeout) as resp:
+            content_type = (resp.headers.get("Content-Type") or "").lower()
+            raw = resp.read()
+
+        if "text/html" not in content_type and "application/xhtml+xml" not in content_type:
+            return None
+        return raw.decode("utf-8", errors="ignore")
+
+    async def coletar_conteudo_pagina_http(
+        self,
+        url: str,
+        timeout: int = 20,
+    ) -> Optional[str]:
+        try:
+            return await asyncio.to_thread(
+                self.coletar_conteudo_pagina_http_sync,
+                url,
+                timeout,
+            )
+        except Exception as e:
+            logger.warning("Falha ao coletar conte?do HTTP direto para %s: %s", url, e)
+            return None
+
+    async def coletar_conteudo_pagina_playwright_core(
+        self,
+        url: str,
+    ) -> Optional[str]:
+        browser = None
+        async with async_playwright() as p_instance:
             try:
-                loop.run_until_complete(loop.shutdown_asyncgens())
-            except Exception:
-                pass
-            loop.close()
-        asyncio.set_event_loop(None)
+                browser = await p_instance.chromium.launch(headless=True)
+                context = await browser.new_context(
+                    user_agent=(
+                        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+                        "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/98.0.4758.102 Safari/537.36"
+                    ),
+                    java_script_enabled=True,
+                    ignore_https_errors=True,
+                )
+                page = await context.new_page()
+                await page.goto(url, timeout=30000, wait_until="networkidle")
+                return await page.content()
+            finally:
+                if browser:
+                    await browser.close()
 
-
-async def _coletar_conteudo_pagina_playwright_impl(url: str) -> Optional[str]:
-    global PLAYWRIGHT_CHROMIUM_INDISPONIVEL
-    if _url_deve_ser_ignorada_antes_da_coleta(url):
-        logger.info(
-            "URL ignorada antes da coleta por baixa relevancia/tracking: %s",
-            url,
-        )
-        return None
-    if PLAYWRIGHT_CHROMIUM_INDISPONIVEL:
-        return await _coletar_conteudo_pagina_http(url)
-
-    # Em alguns ambientes Windows o loop padrao nao suporta subprocesso.
-    # Nesses casos, tentamos executar Playwright em thread dedicada com loop Proactor.
-    loop_name = asyncio.get_running_loop().__class__.__name__.lower()
-    if sys.platform.startswith("win") and "selector" in loop_name:
-        logger.warning(
-            "Loop asyncio sem suporte a subprocesso detectado (%s). Tentando Playwright em thread dedicada.",
-            loop_name,
-        )
+    def coletar_conteudo_playwright_em_thread_sync(
+        self,
+        url: str,
+    ) -> Optional[str]:
+        loop = None
         try:
-            html_from_thread = await asyncio.to_thread(
-                _coletar_conteudo_playwright_em_thread_sync, url
+            if sys.platform.startswith("win") and hasattr(
+                asyncio,
+                "WindowsProactorEventLoopPolicy",
+            ):
+                loop = asyncio.WindowsProactorEventLoopPolicy().new_event_loop()  # type: ignore[attr-defined]
+            else:
+                loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+            return loop.run_until_complete(self.coletar_conteudo_pagina_playwright_core(url))
+        finally:
+            if loop is not None:
+                try:
+                    loop.run_until_complete(loop.shutdown_asyncgens())
+                except Exception:
+                    pass
+                loop.close()
+            asyncio.set_event_loop(None)
+
+    async def coletar_conteudo_pagina_playwright_impl(self, url: str) -> Optional[str]:
+        global PLAYWRIGHT_CHROMIUM_INDISPONIVEL
+        if self._search_runtime.url_deve_ser_ignorada_antes_da_coleta(url):
+            logger.info(
+                "URL ignorada antes da coleta por baixa relevancia/tracking: %s",
+                url,
             )
-            if html_from_thread:
-                logger.info("Playwright executado com sucesso via thread dedicada para %s.", url)
-                return html_from_thread
+            return None
+        if self._playwright_chromium_indisponivel:
+            return await self.coletar_conteudo_pagina_http(url)
+
+        loop_name = asyncio.get_running_loop().__class__.__name__.lower()
+        if sys.platform.startswith("win") and "selector" in loop_name:
+            logger.warning(
+                "Loop asyncio sem suporte a subprocesso detectado (%s). Tentando Playwright em thread dedicada.",
+                loop_name,
+            )
+            try:
+                html_from_thread = await asyncio.to_thread(
+                    self.coletar_conteudo_playwright_em_thread_sync,
+                    url,
+                )
+                if html_from_thread:
+                    logger.info(
+                        "Playwright executado com sucesso via thread dedicada para %s.",
+                        url,
+                    )
+                    return html_from_thread
+            except PlaywrightTimeoutError:
+                logger.error(
+                    "Timeout ao carregar URL com Playwright (thread dedicada): %s",
+                    url,
+                )
+            except Exception as e:
+                erro_str = str(e)
+                erro_curto = erro_str.splitlines()[0] if erro_str else "erro_desconhecido"
+                if "Executable doesn't exist" in erro_str:
+                    if not self._playwright_chromium_indisponivel:
+                        logger.warning(
+                            "Playwright Chromium indisponivel no ambiente. Usando fallback HTTP direto para proximas coletas."
+                        )
+                    self._playwright_chromium_indisponivel = True
+                    PLAYWRIGHT_CHROMIUM_INDISPONIVEL = True
+                    logger.warning(
+                        "Falha Playwright (thread dedicada) para %s: %s",
+                        url,
+                        erro_curto,
+                    )
+                else:
+                    logger.warning(
+                        "Falha Playwright via thread dedicada para %s: %s. Caindo para HTTP direto.",
+                        url,
+                        erro_curto,
+                    )
+            return await self.coletar_conteudo_pagina_http(url)
+
+        try:
+            return await self.coletar_conteudo_pagina_playwright_core(url)
         except PlaywrightTimeoutError:
-            logger.error("Timeout ao carregar URL com Playwright (thread dedicada): %s", url)
+            logger.error("Timeout ao carregar URL com Playwright: %s", url)
+            html_content = await self.coletar_conteudo_pagina_http(url)
+            if html_content:
+                logger.info(
+                    "Fallback HTTP direto usado ap?s timeout do Playwright para %s.",
+                    url,
+                )
+            return html_content
         except Exception as e:
             erro_str = str(e)
             erro_curto = erro_str.splitlines()[0] if erro_str else "erro_desconhecido"
             if "Executable doesn't exist" in erro_str:
-                if not PLAYWRIGHT_CHROMIUM_INDISPONIVEL:
+                if not self._playwright_chromium_indisponivel:
                     logger.warning(
                         "Playwright Chromium indisponivel no ambiente. Usando fallback HTTP direto para proximas coletas."
                     )
+                self._playwright_chromium_indisponivel = True
                 PLAYWRIGHT_CHROMIUM_INDISPONIVEL = True
-                logger.warning("Falha Playwright (thread dedicada) para %s: %s", url, erro_curto)
+                logger.warning("Falha Playwright para %s: %s", url, erro_curto)
             else:
-                logger.warning(
-                    "Falha Playwright via thread dedicada para %s: %s. Caindo para HTTP direto.",
-                    url,
-                    erro_curto,
-                )
-        return await _coletar_conteudo_pagina_http(url)
+                import traceback
 
-    try:
-        return await _coletar_conteudo_pagina_playwright_core(url)
-    except PlaywrightTimeoutError:
-        logger.error("Timeout ao carregar URL com Playwright: %s", url)
-        html_content = await _coletar_conteudo_pagina_http(url)
-        if html_content:
-            logger.info("Fallback HTTP direto usado após timeout do Playwright para %s.", url)
-        return html_content
-    except Exception as e:
-        erro_str = str(e)
-        erro_curto = erro_str.splitlines()[0] if erro_str else "erro_desconhecido"
-        if "Executable doesn't exist" in erro_str:
-            if not PLAYWRIGHT_CHROMIUM_INDISPONIVEL:
-                logger.warning(
-                    "Playwright Chromium indisponivel no ambiente. Usando fallback HTTP direto para proximas coletas."
+                logger.error(
+                    "Erro ao coletar conte?do com Playwright para %s: %s\n%s",
+                    url,
+                    e,
+                    traceback.format_exc(),
                 )
-            PLAYWRIGHT_CHROMIUM_INDISPONIVEL = True
-            logger.warning("Falha Playwright para %s: %s", url, erro_curto)
-        else:
-            import traceback
-            logger.error(
-                "Erro ao coletar conteúdo com Playwright para %s: %s\n%s",
+            html_content = await self.coletar_conteudo_pagina_http(url)
+            if html_content:
+                logger.info(
+                    "Fallback HTTP direto usado ap?s falha do Playwright para %s.",
+                    url,
+                )
+            return html_content
+        except NotImplementedError:
+            logger.warning(
+                "Playwright indisponivel neste loop asyncio. Usando fallback HTTP direto para %s.",
                 url,
-                e,
-                traceback.format_exc(),
             )
-        html_content = await _coletar_conteudo_pagina_http(url)
-        if html_content:
-            logger.info("Fallback HTTP direto usado após falha do Playwright para %s.", url)
-        return html_content
-    except NotImplementedError:
-        logger.warning(
-            "Playwright indisponivel neste loop asyncio. Usando fallback HTTP direto para %s.",
-            url,
-        )
-        return await _coletar_conteudo_pagina_http(url)
+            return await self.coletar_conteudo_pagina_http(url)
+
+
+_web_search_engine_runtime = _WebSearchEngineRuntime()
+_web_content_fetch_engine_runtime = _WebContentFetchEngineRuntime(
+    search_runtime=_web_search_engine_runtime
+)
+
+
+def busca_publica_disponivel() -> bool:
+    """Indica se busca web sem API key pode ser usada como fallback."""
+    return _web_search_engine_runtime.busca_publica_disponivel()
+
+
+def _get_search_cache_lock() -> asyncio.Lock:
+    return _web_search_engine_runtime.get_search_cache_lock()
+
+
+def _get_search_semaphore() -> asyncio.Semaphore:
+    return _web_search_engine_runtime.get_search_semaphore()
+
+
+async def _search_cache_get(query_key: str) -> Optional[List[str]]:
+    return await _web_search_engine_runtime.search_cache_get(query_key)
+
+
+async def _search_cache_set(query_key: str, urls: List[str]) -> None:
+    await _web_search_engine_runtime.search_cache_set(query_key, urls)
+
+
+def _score_url_publica(url: str) -> int:
+    return _web_search_engine_runtime.score_url_publica(url)
+
+
+def _extract_redirect_destination(query: str) -> Optional[str]:
+    return _web_search_engine_runtime.extract_redirect_destination(query)
+
+
+def _unwrap_redirect_url(url: str, max_hops: int = 3) -> str:
+    return _web_search_engine_runtime.unwrap_redirect_url(url, max_hops=max_hops)
+
+
+def _url_deve_ser_ignorada_antes_da_coleta(url: str) -> bool:
+    return _web_search_engine_runtime.url_deve_ser_ignorada_antes_da_coleta(url)
+
+
+def _normalizar_url_busca(candidata: str, base_url: str) -> Optional[str]:
+    return _web_search_engine_runtime.normalizar_url_busca(candidata, base_url)
+
+
+def _buscar_urls_publicas_sync(query: str, num_results: int = 3) -> List[str]:
+    return _web_search_engine_runtime.buscar_urls_publicas_sync(
+        query=query,
+        num_results=num_results,
+    )
+
+
+async def _buscar_urls_publicas_async_impl(query: str, num_results: int = 3) -> List[str]:
+    return await _web_search_engine_runtime.buscar_urls_publicas_async(
+        query=query,
+        num_results=num_results,
+    )
+
+
+async def _buscar_urls_google_async_impl(query: str, num_results: int = 3) -> List[str]:
+    return await _web_search_engine_runtime.buscar_urls_google_async(
+        query=query,
+        num_results=num_results,
+    )
+
+
+# --- Playwright Content Fetching Service ---
+def _coletar_conteudo_pagina_http_sync(url: str, timeout: int = 20) -> Optional[str]:
+    return _web_content_fetch_engine_runtime.coletar_conteudo_pagina_http_sync(
+        url=url,
+        timeout=timeout,
+    )
+
+
+async def _coletar_conteudo_pagina_http(url: str, timeout: int = 20) -> Optional[str]:
+    return await _web_content_fetch_engine_runtime.coletar_conteudo_pagina_http(
+        url=url,
+        timeout=timeout,
+    )
+
+
+async def _coletar_conteudo_pagina_playwright_core(url: str) -> Optional[str]:
+    return await _web_content_fetch_engine_runtime.coletar_conteudo_pagina_playwright_core(
+        url=url,
+    )
+
+
+def _coletar_conteudo_playwright_em_thread_sync(url: str) -> Optional[str]:
+    return _web_content_fetch_engine_runtime.coletar_conteudo_playwright_em_thread_sync(
+        url=url,
+    )
+
+
+async def _coletar_conteudo_pagina_playwright_impl(url: str) -> Optional[str]:
+    return await _web_content_fetch_engine_runtime.coletar_conteudo_pagina_playwright_impl(
+        url,
+    )
 
 
 class _WebSearchWorkflow:
@@ -668,12 +820,18 @@ class _WebContentCollectionWorkflow:
 class _WebSearchRuntime:
     """Runtime OO para buscas web (Google CSE + fallback público)."""
 
+    def __init__(
+        self,
+        engine_runtime: Optional[_WebSearchEngineRuntime] = None,
+    ) -> None:
+        self._engine_runtime = engine_runtime or _web_search_engine_runtime
+
     async def buscar_urls_publicas_async(
         self,
         query: str,
         num_results: int = 3,
     ) -> List[str]:
-        return await _buscar_urls_publicas_async_impl(
+        return await self._engine_runtime.buscar_urls_publicas_async(
             query=query,
             num_results=num_results,
         )
@@ -683,7 +841,7 @@ class _WebSearchRuntime:
         query: str,
         num_results: int = 3,
     ) -> List[str]:
-        return await _buscar_urls_google_async_impl(
+        return await self._engine_runtime.buscar_urls_google_async(
             query=query,
             num_results=num_results,
         )
@@ -692,12 +850,22 @@ class _WebSearchRuntime:
 class _WebContentCollectionRuntime:
     """Runtime OO para coleta de conteúdo de página."""
 
+    def __init__(
+        self,
+        engine_runtime: Optional[_WebContentFetchEngineRuntime] = None,
+    ) -> None:
+        self._engine_runtime = engine_runtime or _web_content_fetch_engine_runtime
+
     async def coletar_conteudo_pagina_playwright(self, url: str) -> Optional[str]:
-        return await _coletar_conteudo_pagina_playwright_impl(url)
+        return await self._engine_runtime.coletar_conteudo_pagina_playwright_impl(
+            url
+        )
 
 
-_web_search_runtime = _WebSearchRuntime()
-_web_content_collection_runtime = _WebContentCollectionRuntime()
+_web_search_runtime = _WebSearchRuntime(engine_runtime=_web_search_engine_runtime)
+_web_content_collection_runtime = _WebContentCollectionRuntime(
+    engine_runtime=_web_content_fetch_engine_runtime
+)
 _web_search_workflow = _WebSearchWorkflow(runtime=_web_search_runtime)
 _web_content_collection_workflow = _WebContentCollectionWorkflow(
     runtime=_web_content_collection_runtime
