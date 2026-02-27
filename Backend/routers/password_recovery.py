@@ -15,7 +15,60 @@ router = APIRouter(prefix="/auth", tags=["password-recovery"])
 logger = get_logger(__name__)
 
 
+class _PasswordRecoveryRuntime:
+    """Runtime OO para operações de recuperação de senha."""
+
+    def get_user_by_email(self, db: Session, email: str):
+        return crud_users.get_user_by_email(db, email=email)
+
+    def create_password_reset_token(self) -> str:
+        return create_password_reset_token()
+
+    def hash_password_reset_token(self, token: str) -> str:
+        return hash_password_reset_token(token)
+
+    def set_user_password_reset_token(
+        self,
+        db: Session,
+        user,
+        *,
+        token_hash: str,
+        expires_at: datetime,
+    ) -> None:
+        crud_users.set_user_password_reset_token(
+            db,
+            user,
+            token_hash=token_hash,
+            expires_at=expires_at,
+        )
+
+    async def send_password_reset_email(
+        self,
+        *,
+        email_to: str,
+        username: str,
+        reset_link: str,
+    ) -> None:
+        await send_password_reset_email(
+            email_to=email_to,
+            username=username,
+            reset_link=reset_link,
+        )
+
+    def get_user_by_reset_token(self, db: Session, token_hash: str):
+        return crud_users.get_user_by_reset_token(db, token_hash=token_hash)
+
+    def get_user(self, db: Session, user_id: int):
+        return crud_users.get_user(db, user_id=user_id)
+
+    def get_password_hash(self, raw_password: str) -> str:
+        return security.get_password_hash(raw_password)
+
+
 class _PasswordRecoveryWorkflow:
+    def __init__(self, runtime: _PasswordRecoveryRuntime | None = None) -> None:
+        self._runtime = runtime or _PasswordRecoveryRuntime()
+
     async def recover_password(
         self,
         db: Session,
@@ -23,7 +76,7 @@ class _PasswordRecoveryWorkflow:
         request: Request,
     ) -> schemas.Msg:
         _ = request
-        user = crud_users.get_user_by_email(db, email=email)
+        user = self._runtime.get_user_by_email(db, email=email)
         if not user:
             return schemas.Msg(
                 msg=(
@@ -32,12 +85,12 @@ class _PasswordRecoveryWorkflow:
                 )
             )
 
-        token = create_password_reset_token()
-        token_hash = hash_password_reset_token(token)
+        token = self._runtime.create_password_reset_token()
+        token_hash = self._runtime.hash_password_reset_token(token)
         expires_delta = timedelta(hours=settings.PASSWORD_RESET_TOKEN_EXPIRE_HOURS)
         expires_at = datetime.now(timezone.utc) + expires_delta
 
-        crud_users.set_user_password_reset_token(
+        self._runtime.set_user_password_reset_token(
             db,
             user,
             token_hash=token_hash,
@@ -46,7 +99,7 @@ class _PasswordRecoveryWorkflow:
 
         reset_link = f"{settings.FRONTEND_URL}/reset-password?token={token}"
         try:
-            await send_password_reset_email(
+            await self._runtime.send_password_reset_email(
                 email_to=user.email,
                 username=user.nome_completo or user.email,
                 reset_link=reset_link,
@@ -71,8 +124,8 @@ class _PasswordRecoveryWorkflow:
         db: Session,
         reset_data: schemas.PasswordResetSchema,
     ) -> schemas.Msg:
-        token_hash = hash_password_reset_token(reset_data.token)
-        user = crud_users.get_user_by_reset_token(db, token_hash=token_hash)
+        token_hash = self._runtime.hash_password_reset_token(reset_data.token)
+        user = self._runtime.get_user_by_reset_token(db, token_hash=token_hash)
         if not user:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
@@ -88,21 +141,22 @@ class _PasswordRecoveryWorkflow:
                 detail="Token de reset expirado.",
             )
 
-        db_user = crud_users.get_user(db, user_id=user.id)
+        db_user = self._runtime.get_user(db, user_id=user.id)
         if not db_user:
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail="Erro ao atualizar senha.",
             )
 
-        db_user.hashed_password = security.get_password_hash(reset_data.new_password)
+        db_user.hashed_password = self._runtime.get_password_hash(reset_data.new_password)
         db_user.reset_password_token = None
         db_user.reset_password_token_expires_at = None
         db.commit()
         return schemas.Msg(msg="Senha atualizada com sucesso.")
 
 
-_password_recovery_workflow = _PasswordRecoveryWorkflow()
+_password_recovery_runtime = _PasswordRecoveryRuntime()
+_password_recovery_workflow = _PasswordRecoveryWorkflow(runtime=_password_recovery_runtime)
 
 
 @router.post("/password-recovery/{email}", response_model=schemas.Msg)

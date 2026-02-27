@@ -1,13 +1,17 @@
 from __future__ import annotations
 
 from types import SimpleNamespace
+from datetime import datetime, timedelta, timezone
 
 import pytest
 from fastapi import HTTPException
 
+from Backend import schemas
 from Backend.routers.auth_utils import _AuthUtilsWorkflow
 from Backend.routers.historico import _HistoricoWorkflow
+from Backend.routers.password_recovery import _PasswordRecoveryWorkflow
 from Backend.routers.search import _SearchWorkflow
+from Backend.routers.social_auth import _SocialAuthRouterWorkflow
 
 
 @pytest.mark.asyncio
@@ -111,3 +115,158 @@ def test_search_workflow_delega_runtime_injetado():
     assert called[0]["db"] == "db"
     assert called[0]["q"] == "abc"
     assert called[0]["limit"] == 5
+
+
+@pytest.mark.asyncio
+async def test_password_recovery_workflow_recover_delega_runtime():
+    called = []
+
+    class FakeRuntime:
+        def get_user_by_email(self, db, email):
+            called.append(("get_user_by_email", db, email))
+            return SimpleNamespace(email=email, nome_completo="User Test")
+
+        def create_password_reset_token(self):
+            called.append(("create_token",))
+            return "token123"
+
+        def hash_password_reset_token(self, token):
+            called.append(("hash_token", token))
+            return "hash123"
+
+        def set_user_password_reset_token(self, db, user, *, token_hash, expires_at):
+            called.append(("set_token", db, user.email, token_hash, expires_at))
+
+        async def send_password_reset_email(self, **kwargs):
+            called.append(("send_email", kwargs))
+
+        def get_user_by_reset_token(self, db, token_hash):
+            return None
+
+        def get_user(self, db, user_id):
+            return None
+
+        def get_password_hash(self, raw_password):
+            return f"hashed:{raw_password}"
+
+    workflow = _PasswordRecoveryWorkflow(runtime=FakeRuntime())
+    response = await workflow.recover_password(db="db", email="user@test.com", request=object())
+
+    assert response.msg == "Email de recuperacao de senha enviado com sucesso."
+    assert called[0] == ("get_user_by_email", "db", "user@test.com")
+    assert called[1] == ("create_token",)
+    assert called[2] == ("hash_token", "token123")
+    assert called[3][0] == "set_token"
+    assert called[4][0] == "send_email"
+
+
+def test_password_recovery_workflow_reset_password_delega_runtime_e_commit():
+    class FakeDb:
+        def __init__(self):
+            self.committed = False
+
+        def commit(self):
+            self.committed = True
+
+    class FakeRuntime:
+        def hash_password_reset_token(self, token):
+            return "hash-token"
+
+        def get_user_by_reset_token(self, db, token_hash):
+            return SimpleNamespace(
+                id=42,
+                reset_password_token_expires_at=datetime.now(timezone.utc) + timedelta(hours=1),
+            )
+
+        def get_user(self, db, user_id):
+            return SimpleNamespace(
+                id=user_id,
+                hashed_password=None,
+                reset_password_token="hash-token",
+                reset_password_token_expires_at=datetime.now(timezone.utc) + timedelta(hours=1),
+            )
+
+        def get_password_hash(self, raw_password):
+            return f"hashed:{raw_password}"
+
+        def get_user_by_email(self, db, email):
+            return None
+
+        def create_password_reset_token(self):
+            return "token"
+
+        def set_user_password_reset_token(self, db, user, *, token_hash, expires_at):
+            return None
+
+        async def send_password_reset_email(self, **kwargs):
+            return None
+
+    workflow = _PasswordRecoveryWorkflow(runtime=FakeRuntime())
+    db = FakeDb()
+    reset_data = schemas.PasswordResetSchema(token="abc", new_password="NovaSenha123!")
+
+    response = workflow.reset_password(db=db, reset_data=reset_data)
+
+    assert response.msg == "Senha atualizada com sucesso."
+    assert db.committed is True
+
+
+def test_social_auth_workflow_social_login_config_delega_runtime():
+    class FakeRuntime:
+        def has_client(self, provider):
+            return provider == "google"
+
+    workflow = _SocialAuthRouterWorkflow(runtime=FakeRuntime())
+    config = workflow.social_login_config()
+
+    assert config.google_enabled is True
+    assert config.facebook_enabled is False
+
+
+@pytest.mark.asyncio
+async def test_social_auth_workflow_google_callback_delega_runtime_e_retorna_tokens():
+    called = []
+
+    class FakeRuntime:
+        def has_client(self, provider):
+            return True
+
+        async def authorize_access_token(self, provider, request):
+            called.append(("authorize_access_token", provider))
+            return {"access": "token"}
+
+        async def parse_google_id_token(self, request, token):
+            called.append(("parse_google_id_token", token))
+            return {"sub": "google-user"}
+
+        async def get_userinfo(self, provider, token):
+            called.append(("get_userinfo", provider))
+            return {"sub": "fallback"}
+
+        async def process_google_login(self, db, userinfo):
+            called.append(("process_google_login", db, userinfo))
+            return SimpleNamespace(id=9, email="google@test.com")
+
+        def create_access_token(self, payload):
+            called.append(("create_access_token", payload))
+            return "access.jwt"
+
+        def create_refresh_token(self, payload):
+            called.append(("create_refresh_token", payload))
+            return "refresh.jwt"
+
+        async def authorize_redirect(self, provider, request, redirect_uri):
+            return "redirect"
+
+        async def process_facebook_login(self, db, userinfo):
+            return None
+
+    workflow = _SocialAuthRouterWorkflow(runtime=FakeRuntime())
+    token = await workflow.google_callback(request=object(), db="db")
+
+    assert token.access_token == "access.jwt"
+    assert token.token_type == "bearer"
+    assert called[0] == ("authorize_access_token", "google")
+    assert called[1][0] == "parse_google_id_token"
+    assert called[2][0] == "process_google_login"
+    assert called[4][0] == "create_refresh_token"
