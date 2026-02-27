@@ -15,7 +15,9 @@ router = APIRouter(
 )
 
 
-class _SearchWorkflow:
+class _SearchRuntime:
+    """Runtime OO para consulta global de entidades no search."""
+
     def search_all(
         self,
         db: Session,
@@ -103,7 +105,27 @@ class _SearchWorkflow:
         return schemas.SearchResults(results=results)
 
 
-_search_workflow = _SearchWorkflow()
+class _SearchWorkflow:
+    def __init__(self, runtime: _SearchRuntime | None = None) -> None:
+        self._runtime = runtime or _SearchRuntime()
+
+    def search_all(
+        self,
+        db: Session,
+        current_user: models.User,
+        q: Optional[str],
+        limit: int,
+    ) -> schemas.SearchResults:
+        return self._runtime.search_all(
+            db=db,
+            current_user=current_user,
+            q=q,
+            limit=limit,
+        )
+
+
+_search_runtime = _SearchRuntime()
+_search_workflow = _SearchWorkflow(runtime=_search_runtime)
 
 
 @router.get("/", response_model=schemas.SearchResults)

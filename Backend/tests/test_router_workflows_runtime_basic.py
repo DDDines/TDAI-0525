@@ -7,6 +7,7 @@ from fastapi import HTTPException
 
 from Backend.routers.auth_utils import _AuthUtilsWorkflow
 from Backend.routers.historico import _HistoricoWorkflow
+from Backend.routers.search import _SearchWorkflow
 
 
 @pytest.mark.asyncio
@@ -88,3 +89,25 @@ def test_historico_workflow_get_tipos_acao_delega_runtime():
 
     workflow = _HistoricoWorkflow(runtime=FakeRuntime())
     assert workflow.get_tipos_acao() == ["CRIACAO", "DELECAO"]
+
+
+def test_search_workflow_delega_runtime_injetado():
+    called = []
+
+    class FakeRuntime:
+        def search_all(self, **kwargs):
+            called.append(kwargs)
+            return {"ok": True}
+
+    workflow = _SearchWorkflow(runtime=FakeRuntime())
+    result = workflow.search_all(
+        db="db",
+        current_user=SimpleNamespace(id=1),
+        q="abc",
+        limit=5,
+    )
+
+    assert result == {"ok": True}
+    assert called[0]["db"] == "db"
+    assert called[0]["q"] == "abc"
+    assert called[0]["limit"] == 5
