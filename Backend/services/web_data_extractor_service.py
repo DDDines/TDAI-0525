@@ -12,7 +12,7 @@ from typing import List, Dict, Optional, Any, Tuple
 from fastapi import HTTPException
 from urllib.parse import parse_qs, quote_plus, unquote, urljoin, urlparse
 from urllib.request import Request, urlopen
-from sqlalchemy.orm import Session # Importar Session para type hinting, se necessÃ¡rio
+from sqlalchemy.orm import Session # Importar Session para type hinting, se necessário
 from datetime import datetime, timezone
 from Backend.core.logging_config import get_logger
 
@@ -26,11 +26,11 @@ try:
 except ImportError:
     GOOGLE_API_CLIENT_INSTALLED = False
     logger.warning(
-        "Biblioteca google-api-python-client nÃ£o instalada ou com problemas. Busca no Google pode nÃ£o funcionar."
+        "Biblioteca google-api-python-client não instalada ou com problemas. Busca no Google pode não funcionar."
     )
 
-# Ajustando as importaÃ§Ãµes para serem absolutas a partir da raiz do projeto (Backend)
-# Assumindo que 'Backend' estÃ¡ no sys.path ou Ã© o diretÃ³rio de trabalho.
+# Ajustando as importações para serem absolutas a partir da raiz do projeto (Backend)
+# Assumindo que 'Backend' está no sys.path ou é o diretório de trabalho.
 from Backend.core.config import settings
 from Backend import models
 from Backend.application.services.ia_generation_facade import IAGenerationFacade
@@ -212,7 +212,7 @@ def _url_deve_ser_ignorada_antes_da_coleta(url: str) -> bool:
     ):
         return True
 
-    # Consultas com assinatura tÃ­pica de tracking.
+    # Consultas com assinatura típica de tracking.
     if any(hint in query for hint in _TRACKING_QUERY_HINTS):
         return True
     if len(query) > 500:
@@ -222,8 +222,8 @@ def _url_deve_ser_ignorada_antes_da_coleta(url: str) -> bool:
     ):
         return True
 
-    # Links diretos para PDF costumam abortar no Playwright e nÃ£o sÃ£o Ãºteis
-    # no enriquecimento web textual padrÃ£o.
+    # Links diretos para PDF costumam abortar no Playwright e não são úteis
+    # no enriquecimento web textual padrão.
     if path.endswith(".pdf"):
         return True
 
@@ -272,7 +272,7 @@ def _normalizar_url_busca(candidata: str, base_url: str) -> Optional[str]:
     query = (parsed.query or "").lower()
     host_no_www = host[4:] if host.startswith("www.") else host
 
-    # URLs internas/trackers de buscadores nÃ£o devem entrar no pipeline.
+    # URLs internas/trackers de buscadores não devem entrar no pipeline.
     if "duckduckgo.com" in host_no_www:
         qs = parse_qs(parsed.query or "")
         destino = None
@@ -291,11 +291,11 @@ def _normalizar_url_busca(candidata: str, base_url: str) -> Optional[str]:
         else:
             return None
 
-        # Se continuou no domÃ­nio DuckDuckGo, descarta.
+        # Se continuou no domínio DuckDuckGo, descarta.
         if "duckduckgo.com" in host_no_www:
             return None
 
-    # Alguns resultados vÃªm como click-tracker do Bing.
+    # Alguns resultados vêm como click-tracker do Bing.
     if "bing.com" in host_no_www and parsed.path.lower().startswith("/aclick"):
         return None
     if "bing.com" in host_no_www and (path.startswith("/search") or path.startswith("/images/search")):
@@ -496,7 +496,7 @@ def _coletar_conteudo_pagina_http_sync(url: str, timeout: int = 20) -> Optional[
         content_type = (resp.headers.get("Content-Type") or "").lower()
         raw = resp.read()
 
-    # Evita retornar binÃ¡rio/imagem quando a URL nÃ£o Ã© uma pÃ¡gina HTML.
+    # Evita retornar binário/imagem quando a URL não é uma página HTML.
     if "text/html" not in content_type and "application/xhtml+xml" not in content_type:
         return None
     return raw.decode("utf-8", errors="ignore")
@@ -506,7 +506,7 @@ async def _coletar_conteudo_pagina_http(url: str, timeout: int = 20) -> Optional
     try:
         return await asyncio.to_thread(_coletar_conteudo_pagina_http_sync, url, timeout)
     except Exception as e:
-        logger.warning("Falha ao coletar conteÃºdo HTTP direto para %s: %s", url, e)
+        logger.warning("Falha ao coletar conteúdo HTTP direto para %s: %s", url, e)
         return None
 
 
@@ -602,7 +602,7 @@ async def _coletar_conteudo_pagina_playwright_impl(url: str) -> Optional[str]:
         logger.error("Timeout ao carregar URL com Playwright: %s", url)
         html_content = await _coletar_conteudo_pagina_http(url)
         if html_content:
-            logger.info("Fallback HTTP direto usado apÃ³s timeout do Playwright para %s.", url)
+            logger.info("Fallback HTTP direto usado após timeout do Playwright para %s.", url)
         return html_content
     except Exception as e:
         erro_str = str(e)
@@ -617,14 +617,14 @@ async def _coletar_conteudo_pagina_playwright_impl(url: str) -> Optional[str]:
         else:
             import traceback
             logger.error(
-                "Erro ao coletar conteÃºdo com Playwright para %s: %s\n%s",
+                "Erro ao coletar conteúdo com Playwright para %s: %s\n%s",
                 url,
                 e,
                 traceback.format_exc(),
             )
         html_content = await _coletar_conteudo_pagina_http(url)
         if html_content:
-            logger.info("Fallback HTTP direto usado apÃ³s falha do Playwright para %s.", url)
+            logger.info("Fallback HTTP direto usado após falha do Playwright para %s.", url)
         return html_content
     except NotImplementedError:
         logger.warning(
@@ -785,12 +785,12 @@ async def _extrair_dados_produto_com_llm_impl(
 ) -> Optional[Dict[str, Any]]:
     
     if not texto_pagina and not metadados_normalizados:
-        logger.info("Nenhum texto de pÃ¡gina nem metadados fornecidos para extraÃ§Ã£o LLM.")
-        return {"erro_llm": "Nenhum conteÃºdo para processar"}
+        logger.info("Nenhum texto de página nem metadados fornecidos para extração LLM.")
+        return {"erro_llm": "Nenhum conteúdo para processar"}
 
     prompt_contexto_inicial = [
-        f"VocÃª Ã© um assistente especialista em extrair informaÃ§Ãµes detalhadas de produtos de e-commerce para o produto '{produto_nome_base}'.",
-        "Seu objetivo Ã© preencher um JSON com os campos solicitados da forma mais precisa possÃ­vel, com base no contexto fornecido."
+        f"Você é um assistente especialista em extrair informações detalhadas de produtos de e-commerce para o produto '{produto_nome_base}'.",
+        "Seu objetivo é preencher um JSON com os campos solicitados da forma mais precisa possível, com base no contexto fornecido."
     ]
     contexto_para_llm = ""
     if metadados_normalizados and isinstance(metadados_normalizados, dict) and any(metadados_normalizados.values()):
@@ -798,11 +798,11 @@ async def _extrair_dados_produto_com_llm_impl(
         for k, v_item in metadados_normalizados.items():
             contexto_para_llm += f"- {k.replace('_', ' ')}: {str(v_item)[:200]}\n" # Limita o tamanho da string de valor
     if texto_pagina:
-        contexto_para_llm += f"\nTexto Principal da PÃ¡gina (use para encontrar informaÃ§Ãµes e complementar/corrigir metadados):\n\"\"\"\n{texto_pagina[:10000]}\n\"\"\"" # Limita o tamanho do texto
+        contexto_para_llm += f"\nTexto Principal da Página (use para encontrar informações e complementar/corrigir metadados):\n\"\"\"\n{texto_pagina[:10000]}\n\"\"\"" # Limita o tamanho do texto
 
     if not contexto_para_llm.strip():
         logger.info(
-            "Contexto insuficiente para LLM (metadados e texto da pÃ¡gina vazios ou muito curtos)."
+            "Contexto insuficiente para LLM (metadados e texto da página vazios ou muito curtos)."
         )
         return {"erro_llm": "Contexto insuficiente para processar"}
 
@@ -820,12 +820,12 @@ async def _extrair_dados_produto_com_llm_impl(
     
     prompt = (
         "\n".join(prompt_contexto_inicial) +
-        f"\n\nA partir do contexto e do texto da pÃ¡gina fornecidos, extraia RIGOROSAMENTE os seguintes campos e retorne APENAS um objeto JSON vÃ¡lido com esta estrutura:\n"
+        f"\n\nA partir do contexto e do texto da página fornecidos, extraia RIGOROSAMENTE os seguintes campos e retorne APENAS um objeto JSON válido com esta estrutura:\n"
         f"{{\n{campos_formatados_prompt}\n}}\n"
-        f"Se uma informaÃ§Ã£o para um campo especÃ­fico nÃ£o for encontrada de forma clara e inequÃ­voca, retorne null para esse campo. NÃ£o invente informaÃ§Ãµes.\n"
+        f"Se uma informação para um campo específico não for encontrada de forma clara e inequívoca, retorne null para esse campo. Não invente informações.\n"
         f"Para campos do tipo lista (ex: 'lista_caracteristicas_beneficios_bullets', 'palavras_chave_seo_relevantes_lista'), retorne uma lista de strings.\n"
-        f"Para campos do tipo dicionÃ¡rio (ex: 'especificacoes_tecnicas_dict'), retorne um dicionÃ¡rio chave-valor.\n"
-        f"\nContexto e Texto para AnÃ¡lise:\n{contexto_para_llm}"
+        f"Para campos do tipo dicionário (ex: 'especificacoes_tecnicas_dict'), retorne um dicionário chave-valor.\n"
+        f"\nContexto e Texto para Análise:\n{contexto_para_llm}"
     )
     
     if user is not None:
@@ -834,26 +834,26 @@ async def _extrair_dados_produto_com_llm_impl(
         api_key_para_usar = settings.OPENAI_API_KEY
     if not api_key_para_usar:
         logger.warning(
-            "Nenhuma chave API OpenAI disponÃ­vel para extraÃ§Ã£o de dados com LLM."
+            "Nenhuma chave API OpenAI disponível para extração de dados com LLM."
         )
-        return {"erro_llm": "Chave API OpenAI nÃ£o configurada"}
+        return {"erro_llm": "Chave API OpenAI não configurada"}
 
     json_str_resposta = "" # Inicializa para evitar UnboundLocalError no except
     try:
-        # A funÃ§Ã£o call_openai_api estÃ¡ em ia_generation_service
+        # A função call_openai_api está em ia_generation_service
         prompt_messages = [
             {
                 "role": "system",
-                "content": "Sua tarefa Ã© extrair informaÃ§Ãµes de um texto e retornÃ¡-las em formato JSON conforme o schema solicitado. Seja preciso e nÃ£o adicione campos extras.",
+                "content": "Sua tarefa é extrair informações de um texto e retorná-las em formato JSON conforme o schema solicitado. Seja preciso e não adicione campos extras.",
             },
             {"role": "user", "content": prompt},
         ]
         json_str_resposta = await ia_generation_service.call_openai_api(
             prompt_messages=prompt_messages,
             api_key=api_key_para_usar,
-            model="gpt-3.5-turbo-0125", # Exemplo de modelo, pode ser configurÃ¡vel
+            model="gpt-3.5-turbo-0125", # Exemplo de modelo, pode ser configurável
             max_tokens=2048, # Ajustar conforme necessidade
-            temperature=0.0, # Baixa temperatura para extraÃ§Ã£o factual
+            temperature=0.0, # Baixa temperatura para extração factual
         )
         
         # Tentativa de limpar a resposta da LLM para pegar apenas o JSON
@@ -861,16 +861,16 @@ async def _extrair_dados_produto_com_llm_impl(
         if match:
             json_str_limpo = match.group(0)
         else:
-            json_str_limpo = json_str_resposta # Se nÃ£o encontrar JSON delimitado, usa a resposta como estÃ¡
+            json_str_limpo = json_str_resposta # Se não encontrar JSON delimitado, usa a resposta como está
 
         dados_extraidos_llm = json.loads(json_str_limpo)
         
-        # Merge inteligente: prioriza dados da LLM, mas mantÃ©m metadados se LLM nÃ£o fornecer
+        # Merge inteligente: prioriza dados da LLM, mas mantém metadados se LLM não fornecer
         final_data = metadados_normalizados.copy() if metadados_normalizados and isinstance(metadados_normalizados, dict) else {}
         if isinstance(dados_extraidos_llm, dict):
             for key_llm, val_llm in dados_extraidos_llm.items():
-                # Sobrescreve ou adiciona apenas se o valor da LLM nÃ£o for None,
-                # ou se a chave nÃ£o existia nos metadados (para adicionar novos campos extraÃ­dos)
+                # Sobrescreve ou adiciona apenas se o valor da LLM não for None,
+                # ou se a chave não existia nos metadados (para adicionar novos campos extraídos)
                 if val_llm is not None or key_llm not in final_data:
                     final_data[key_llm] = val_llm
         return final_data
@@ -882,14 +882,14 @@ async def _extrair_dados_produto_com_llm_impl(
         )
         return {"extracao_bruta_llm_com_erro_json": json_str_resposta, **(metadados_normalizados or {})}
     except ValueError as ve: # Ex: erro de API key na chamada da OpenAI
-        logger.error("Erro na chamada da LLM para extraÃ§Ã£o: %s", ve)
+        logger.error("Erro na chamada da LLM para extração: %s", ve)
         return {"erro_llm": str(ve), **(metadados_normalizados or {})}
     except Exception as e:
         import traceback
-        logger.error("Erro inesperado na extraÃ§Ã£o com LLM: %s", traceback.format_exc())
+        logger.error("Erro inesperado na extração com LLM: %s", traceback.format_exc())
         return {"erro_llm_inesperado": str(e), **(metadados_normalizados or {})}
 
-# FunÃ§Ã£o principal do serviÃ§o de extraÃ§Ã£o, combinando as etapas
+# Função principal do serviço de extração, combinando as etapas
 class _WebExtractionEnrichmentWorkflow:
     """Workflow OO para extracao/enriquecimento de uma URL de produto."""
 
@@ -1028,7 +1028,7 @@ def _extract_text_from_image_region_impl(image_bytes: bytes):
         from google.cloud import vision  # type: ignore
     except Exception as e:  # pragma: no cover - optional dependency
         logger.exception("Google Cloud Vision not available")
-        raise HTTPException(status_code=500, detail="Ocorreu um erro durante a extraÃ§Ã£o de dados.") from e
+        raise HTTPException(status_code=500, detail="Ocorreu um erro durante a extração de dados.") from e
 
     try:
         logger.debug("Enviando para a API de OCR")
@@ -1041,7 +1041,7 @@ def _extract_text_from_image_region_impl(image_bytes: bytes):
         return response.full_text_annotation
     except Exception as e:
         logger.exception("Falha ao extrair texto da imagem")
-        raise HTTPException(status_code=500, detail="Ocorreu um erro durante a extraÃ§Ã£o de dados.") from e
+        raise HTTPException(status_code=500, detail="Ocorreu um erro durante a extração de dados.") from e
 
 
 class _WebExtractionSupportWorkflow:
@@ -1177,5 +1177,6 @@ class WebDataExtractorLegacyService:
 
 
 web_data_extractor_legacy_service = WebDataExtractorLegacyService()
+
 
 
