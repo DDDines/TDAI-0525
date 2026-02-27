@@ -3565,6 +3565,14 @@ async def preview_arquivo_csv(
 class _PdfAssetWorkflow:
     """Workflow OO para utilitarios de imagem/regiao de PDF."""
 
+    def __init__(
+        self,
+        pdf_image_runtime: Optional[_PdfImageConversionRuntime] = None,
+        pdf_asset_runtime: Optional[_PdfAssetUtilityRuntime] = None,
+    ) -> None:
+        self._pdf_image_runtime = pdf_image_runtime or _pdf_image_conversion_runtime
+        self._pdf_asset_runtime = pdf_asset_runtime or _pdf_asset_utility_runtime
+
     async def pdf_bytes_to_images(
         self,
         conteudo_arquivo: bytes,
@@ -3572,7 +3580,7 @@ class _PdfAssetWorkflow:
         start_page: int = 1,
         dpi: int = 200,
     ) -> List[str]:
-        return await _pdf_bytes_to_images_impl(
+        return await self._pdf_image_runtime.pdf_bytes_to_images(
             conteudo_arquivo=conteudo_arquivo,
             max_pages=max_pages,
             start_page=start_page,
@@ -3607,7 +3615,10 @@ class _PdfAssetWorkflow:
         )
 
     def generate_pdf_page_images(self, file_path: str, file_id: str) -> List[str]:
-        return _generate_pdf_page_images_impl(file_path=file_path, file_id=file_id)
+        return self._pdf_asset_runtime.generate_pdf_page_images(
+            file_path=file_path,
+            file_id=file_id,
+        )
 
     def extract_pdf_region_image(
         self,
@@ -3616,7 +3627,7 @@ class _PdfAssetWorkflow:
         region: Optional[List[float]] = None,
         dpi: int = 300,
     ) -> bytes:
-        return _extract_pdf_region_image_impl(
+        return self._pdf_asset_runtime.extract_pdf_region_image(
             file_path=file_path,
             page_number=page_number,
             region=region,
@@ -3626,7 +3637,7 @@ class _PdfAssetWorkflow:
     def parse_annotation_to_dataframe(
         self, annotation: object, vertical_tolerance: int = 5
     ) -> pd.DataFrame:
-        return _parse_annotation_to_dataframe_impl(
+        return self._pdf_asset_runtime.parse_annotation_to_dataframe(
             annotation=annotation,
             vertical_tolerance=vertical_tolerance,
         )
