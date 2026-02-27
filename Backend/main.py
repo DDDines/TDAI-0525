@@ -38,7 +38,7 @@ logger.info(
 )
 
 
-def _build_allowed_origins_impl() -> List[str]:
+def _build_allowed_origins_core() -> List[str]:
     exact_frontend_origin = "http://localhost:5173"
     default_cors_origins_list = [
         exact_frontend_origin,
@@ -77,14 +77,14 @@ def _build_allowed_origins_impl() -> List[str]:
     return sorted(list(set(current_allowed_origins)))
 
 
-def _ensure_static_files_path_impl() -> Path:
+def _ensure_static_files_path_core() -> Path:
     static_files_path = Path(__file__).parent / "static"
     if not static_files_path.exists():
         static_files_path.mkdir(parents=True, exist_ok=True)
     return static_files_path
 
 
-async def _startup_event_create_defaults_impl() -> None:
+async def _startup_event_create_defaults_core() -> None:
     logger.info("Executando evento de startup para criar defaults (roles, planos, admin user, product types)...")
     db: Session = SessionLocal()
 
@@ -349,7 +349,7 @@ async def _startup_event_create_defaults_impl() -> None:
     logger.info("Evento de startup para defaults concluido.")
 
 
-def _create_new_user_impl(user_in: schemas.UserCreate, db: Session) -> models.User:
+def _create_new_user_core(user_in: schemas.UserCreate, db: Session) -> models.User:
     db_user_check = crud_users.get_user_by_email(db, email=user_in.email)
     if db_user_check:
         raise HTTPException(
@@ -399,16 +399,16 @@ class _MainBootstrapWorkflow:
 
 class _MainBootstrapRuntime:
     def build_allowed_origins(self) -> List[str]:
-        return _build_allowed_origins_impl()
+        return _build_allowed_origins_core()
 
     def ensure_static_files_path(self) -> Path:
-        return _ensure_static_files_path_impl()
+        return _ensure_static_files_path_core()
 
     async def startup_event_create_defaults(self) -> None:
-        await _startup_event_create_defaults_impl()
+        await _startup_event_create_defaults_core()
 
     def create_new_user(self, user_in: schemas.UserCreate, db: Session) -> models.User:
-        return _create_new_user_impl(user_in=user_in, db=db)
+        return _create_new_user_core(user_in=user_in, db=db)
 
 
 main_bootstrap_workflow = _MainBootstrapWorkflow()

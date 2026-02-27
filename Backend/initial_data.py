@@ -15,7 +15,7 @@ from Backend.crud_product_types import create_product_type, get_product_type_by_
 logger = logging.getLogger(__name__)
 
 
-def _create_initial_data_impl(db: Session):
+def _create_initial_data_core(db: Session):
     logger.info("Verificando/criando dados iniciais (roles, planos, admin)...")
 
     roles_padrao = [
@@ -174,7 +174,7 @@ class _InitialDataWorkflow:
 
 class _InitialDataRuntime:
     def create_initial_data(self, db: Session):
-        return _create_initial_data_impl(db=db)
+        return _create_initial_data_core(db=db)
 
 
 _initial_data_workflow = _InitialDataWorkflow()
