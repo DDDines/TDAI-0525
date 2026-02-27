@@ -30,203 +30,6 @@ OPENAI_DEFAULT_MODEL = "gpt-3.5-turbo" # Ou o modelo que você preferir/tiver ac
 GEMINI_API_URL_GENERATE_CONTENT = "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent"
 
 
-async def _get_openai_api_key_impl(db: Session, user: models.User) -> Optional[str]:
-    """Obtém a chave da API OpenAI, priorizando a do usuário."""
-    if user.chave_openai_pessoal:
-        logger.info(f"Usando chave OpenAI pessoal para usuário ID: {user.id}")
-        return user.chave_openai_pessoal
-    if settings.OPENAI_API_KEY:
-        logger.info("Usando chave OpenAI global do sistema.")
-        return settings.OPENAI_API_KEY
-    logger.warning("Nenhuma chave OpenAI encontrada (nem pessoal, nem global).")
-    return None
-
-async def _get_gemini_api_key_impl(db: Session, user: models.User) -> Optional[str]:
-    """Obtém a chave da API Gemini, priorizando a do usuário."""
-    if user.chave_google_gemini_pessoal:
-        logger.info(f"Usando chave Gemini pessoal para usuário ID: {user.id}")
-        return user.chave_google_gemini_pessoal
-
-    if settings.GOOGLE_GEMINI_API_KEY: # Supondo que GOOGLE_GEMINI_API_KEY_GLOBAL exista em settings
-        # A chave global agora é definida em settings.GOOGLE_GEMINI_API_KEY
-        if settings.GOOGLE_GEMINI_API_KEY:
-            logger.info("Usando chave Gemini global do sistema.")
-            return settings.GOOGLE_GEMINI_API_KEY
-    
-    logger.warning("Nenhuma chave Gemini encontrada (nem pessoal, nem global).")
-    return None
-
-
-async def _call_openai_api_impl(
-    prompt_messages: List[Dict[str, str]],
-    api_key: str,
-    model: str = OPENAI_DEFAULT_MODEL,
-    temperature: float = 0.7,
-    max_tokens: int = 500
-) -> str:
-    """Faz uma chamada para a API de Chat Completions da OpenAI."""
-    if not api_key:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Chave da API OpenAI não configurada.")
-
-    headers = {
-        "Authorization": f"Bearer {api_key}",
-        "Content-Type": "application/json",
-    }
-    payload = {
-        "model": model,
-        "messages": prompt_messages,
-        "temperature": temperature,
-        "max_tokens": max_tokens,
-    }
-    async with httpx.AsyncClient(timeout=60.0) as client: # Timeout aumentado
-        try:
-            logger.info(f"Chamando OpenAI API. Modelo: {model}, Tokens Máx: {max_tokens}, Temp: {temperature}")
-            response = await client.post(OPENAI_API_URL_COMPLETIONS, json=payload, headers=headers)
-            response.raise_for_status()
-            api_response_data = response.json()
-            
-            # Logging da resposta completa da OpenAI para depuração
-            # logger.debug(f"Resposta completa da OpenAI API: {json.dumps(api_response_data, indent=2)}")
-
-            if api_response_data.get("choices") and len(api_response_data["choices"]) > 0:
-                content = api_response_data["choices"][0].get("message", {}).get("content", "")
-                # prompt_tokens = api_response_data.get("usage", {}).get("prompt_tokens", 0)
-                # completion_tokens = api_response_data.get("usage", {}).get("completion_tokens", 0)
-                # logger.info(f"OpenAI API: Tokens de Prompt: {prompt_tokens}, Tokens de Conclusão: {completion_tokens}")
-                return content.strip()
-            else:
-                logger.error(f"Resposta da API OpenAI não contém 'choices' ou 'choices' está vazio: {api_response_data}")
-                raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Resposta inesperada da API OpenAI.")
-        except httpx.HTTPStatusError as e:
-            logger.error(f"Erro na API OpenAI: {e.response.status_code} - {e.response.text}", exc_info=True)
-            raise HTTPException(status_code=e.response.status_code, detail=f"Erro na API OpenAI: {e.response.text}")
-        except Exception as e:
-            logger.error(f"Erro inesperado ao chamar API OpenAI: {str(e)}", exc_info=True)
-            raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Erro inesperado ao comunicar com OpenAI: {str(e)}")
-
-
-async def _call_gemini_api_for_suggestions_impl(
-    prompt_text: str,
-    api_key: str,
-    response_schema: Dict[str, Any],
-    model_name: str = "gemini-1.5-flash-latest" # Ou "gemini-1.0-pro", etc.
-) -> Dict[str, Any]:
-    """
-    Faz uma chamada para a API Gemini (ou um LLM similar que suporte JSON schema na resposta)
-    para obter sugestões de atributos.
-    """
-    if not api_key:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Chave da API Gemini não configurada.")
-
-    # Ajuste da URL da API para incluir o modelo dinamicamente
-    gemini_api_endpoint = f"https://generativelanguage.googleapis.com/v1beta/models/{model_name}:generateContent"
-
-    headers = {
-        "Content-Type": "application/json",
-    }
-    
-    payload = {
-        "contents": [{"role": "user", "parts": [{"text": prompt_text}]}],
-        "generationConfig": {
-            "responseMimeType": "application/json",
-            "responseSchema": response_schema,
-            "temperature": 0.6, # Um pouco mais de criatividade para sugestões
-            # "maxOutputTokens": 1024, # Considerar o tamanho da resposta esperada
-        }
-    }
-    
-    url_com_chave = f"{gemini_api_endpoint}?key={api_key}"
-    logger.info(f"Chamando Gemini API: {url_com_chave} com schema e prompt.")
-    # logger.debug(f"Payload Gemini: {json.dumps(payload, indent=2)}") # Cuidado com dados sensíveis no prompt
-
-    async with httpx.AsyncClient(timeout=90.0) as client:
-        try:
-            response = await client.post(url_com_chave, json=payload, headers=headers)
-            # logger.debug(f"Resposta bruta da Gemini API: Status {response.status_code}, Conteúdo: {response.text}")
-            response.raise_for_status() 
-            
-            api_response_data = response.json()
-            # logger.debug(f"Resposta JSON da Gemini API: {json.dumps(api_response_data, indent=2)}")
-
-            if (api_response_data.get("candidates") and 
-                len(api_response_data["candidates"]) > 0 and
-                api_response_data["candidates"][0].get("content") and
-                api_response_data["candidates"][0]["content"].get("parts") and
-                len(api_response_data["candidates"][0]["content"]["parts"]) > 0 and
-                api_response_data["candidates"][0]["content"]["parts"][0].get("text")):
-                
-                json_text_response = api_response_data["candidates"][0]["content"]["parts"][0]["text"]
-                try:
-                    parsed_json = json.loads(json_text_response)
-                    # logger.info(f"Resposta JSON parseada da Gemini: {parsed_json}")
-                    return parsed_json
-                except json.JSONDecodeError as jde:
-                    logger.error(f"Erro ao decodificar JSON da resposta da Gemini: {jde}. Resposta: {json_text_response}", exc_info=True)
-                    raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Resposta da API Gemini não é um JSON válido.")
-            else:
-                error_detail = "Resposta da API Gemini não contém o conteúdo esperado."
-                if api_response_data.get("promptFeedback"):
-                    error_detail += f" Feedback do prompt: {api_response_data['promptFeedback']}"
-                logger.error(f"Estrutura inesperada da resposta da Gemini: {error_detail}. Resposta completa: {api_response_data}")
-                raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=error_detail)
-
-        except httpx.HTTPStatusError as e:
-            error_text = e.response.text
-            logger.error(f"Erro na API Gemini (HTTPStatusError): {e.response.status_code} - {error_text}", exc_info=True)
-            error_detail = f"Erro na API Gemini: {e.response.status_code}"
-            try:
-                error_data = e.response.json()
-                if error_data and "error" in error_data and "message" in error_data["error"]:
-                    error_detail = f"Erro na API Gemini: {error_data['error']['message']}"
-            except Exception:
-                error_detail += f" - {error_text}"
-            raise HTTPException(status_code=e.response.status_code, detail=error_detail)
-        except Exception as e:
-            logger.error(f"Erro inesperado ao chamar API Gemini: {str(e)}", exc_info=True)
-            raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Erro inesperado ao comunicar com Gemini: {str(e)}")
-
-
-async def _call_gemini_api_impl(
-    prompt_text: str,
-    api_key: str,
-    model_name: str = "gemini-1.5-flash-latest",
-    temperature: float = 0.6,
-    max_tokens: int = 1024,
-) -> str:
-    """Realiza chamada simples à API Gemini e retorna o texto gerado."""
-    if not api_key:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Chave da API Gemini não configurada.")
-
-    endpoint = f"https://generativelanguage.googleapis.com/v1beta/models/{model_name}:generateContent"
-    payload = {
-        "contents": [{"role": "user", "parts": [{"text": prompt_text}]}],
-        "generationConfig": {"temperature": temperature, "maxOutputTokens": max_tokens},
-    }
-    url = f"{endpoint}?key={api_key}"
-    headers = {"Content-Type": "application/json"}
-    async with httpx.AsyncClient(timeout=90.0) as client:
-        try:
-            response = await client.post(url, json=payload, headers=headers)
-            response.raise_for_status()
-            data = response.json()
-            if (
-                data.get("candidates")
-                and data["candidates"]
-                and data["candidates"][0].get("content")
-                and data["candidates"][0]["content"].get("parts")
-                and data["candidates"][0]["content"]["parts"]
-            ):
-                return data["candidates"][0]["content"]["parts"][0].get("text", "").strip()
-            logger.error(f"Estrutura inesperada na resposta Gemini: {data}")
-            raise HTTPException(status_code=500, detail="Resposta inesperada da API Gemini")
-        except httpx.HTTPStatusError as e:
-            logger.error(f"Erro na API Gemini: {e.response.status_code} - {e.response.text}", exc_info=True)
-            raise HTTPException(status_code=e.response.status_code, detail=f"Erro na API Gemini: {e.response.text}")
-        except Exception as e:
-            logger.error(f"Erro inesperado ao chamar API Gemini: {str(e)}", exc_info=True)
-            raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Erro inesperado ao comunicar com Gemini: {str(e)}")
-
-
 class _AiProviderWorkflow:
     """Workflow OO para operações de provedor IA (chaves e chamadas HTTP)."""
 
@@ -292,12 +95,28 @@ class _AiProviderRuntime:
     async def get_openai_api_key(
         self, db: Session, user: models.User
     ) -> Optional[str]:
-        return await _get_openai_api_key_impl(db=db, user=user)
+        if user.chave_openai_pessoal:
+            logger.info(f"Usando chave OpenAI pessoal para usuÃ¡rio ID: {user.id}")
+            return user.chave_openai_pessoal
+        if settings.OPENAI_API_KEY:
+            logger.info("Usando chave OpenAI global do sistema.")
+            return settings.OPENAI_API_KEY
+        logger.warning("Nenhuma chave OpenAI encontrada (nem pessoal, nem global).")
+        return None
 
     async def get_gemini_api_key(
         self, db: Session, user: models.User
     ) -> Optional[str]:
-        return await _get_gemini_api_key_impl(db=db, user=user)
+        if user.chave_google_gemini_pessoal:
+            logger.info(f"Usando chave Gemini pessoal para usuÃ¡rio ID: {user.id}")
+            return user.chave_google_gemini_pessoal
+
+        if settings.GOOGLE_GEMINI_API_KEY:
+            logger.info("Usando chave Gemini global do sistema.")
+            return settings.GOOGLE_GEMINI_API_KEY
+
+        logger.warning("Nenhuma chave Gemini encontrada (nem pessoal, nem global).")
+        return None
 
     async def call_openai_api(
         self,
@@ -307,13 +126,62 @@ class _AiProviderRuntime:
         temperature: float = 0.7,
         max_tokens: int = 500,
     ) -> str:
-        return await _call_openai_api_impl(
-            prompt_messages=prompt_messages,
-            api_key=api_key,
-            model=model,
-            temperature=temperature,
-            max_tokens=max_tokens,
-        )
+        if not api_key:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Chave da API OpenAI nÃ£o configurada.",
+            )
+
+        headers = {
+            "Authorization": f"Bearer {api_key}",
+            "Content-Type": "application/json",
+        }
+        payload = {
+            "model": model,
+            "messages": prompt_messages,
+            "temperature": temperature,
+            "max_tokens": max_tokens,
+        }
+        async with httpx.AsyncClient(timeout=60.0) as client:
+            try:
+                logger.info(
+                    f"Chamando OpenAI API. Modelo: {model}, Tokens MÃ¡x: {max_tokens}, Temp: {temperature}"
+                )
+                response = await client.post(
+                    OPENAI_API_URL_COMPLETIONS,
+                    json=payload,
+                    headers=headers,
+                )
+                response.raise_for_status()
+                api_response_data = response.json()
+
+                if api_response_data.get("choices") and len(api_response_data["choices"]) > 0:
+                    content = api_response_data["choices"][0].get("message", {}).get("content", "")
+                    return content.strip()
+
+                logger.error(
+                    "Resposta da API OpenAI nÃ£o contÃ©m 'choices' ou 'choices' estÃ¡ vazio: %s",
+                    api_response_data,
+                )
+                raise HTTPException(
+                    status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                    detail="Resposta inesperada da API OpenAI.",
+                )
+            except httpx.HTTPStatusError as e:
+                logger.error(
+                    f"Erro na API OpenAI: {e.response.status_code} - {e.response.text}",
+                    exc_info=True,
+                )
+                raise HTTPException(
+                    status_code=e.response.status_code,
+                    detail=f"Erro na API OpenAI: {e.response.text}",
+                )
+            except Exception as e:
+                logger.error(f"Erro inesperado ao chamar API OpenAI: {str(e)}", exc_info=True)
+                raise HTTPException(
+                    status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                    detail=f"Erro inesperado ao comunicar com OpenAI: {str(e)}",
+                )
 
     async def call_gemini_api_for_suggestions(
         self,
@@ -322,12 +190,88 @@ class _AiProviderRuntime:
         response_schema: Dict[str, Any],
         model_name: str = "gemini-1.5-flash-latest",
     ) -> Dict[str, Any]:
-        return await _call_gemini_api_for_suggestions_impl(
-            prompt_text=prompt_text,
-            api_key=api_key,
-            response_schema=response_schema,
-            model_name=model_name,
+        if not api_key:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Chave da API Gemini nÃ£o configurada.",
+            )
+
+        gemini_api_endpoint = (
+            f"https://generativelanguage.googleapis.com/v1beta/models/{model_name}:generateContent"
         )
+        headers = {"Content-Type": "application/json"}
+        payload = {
+            "contents": [{"role": "user", "parts": [{"text": prompt_text}]}],
+            "generationConfig": {
+                "responseMimeType": "application/json",
+                "responseSchema": response_schema,
+                "temperature": 0.6,
+            },
+        }
+
+        url_com_chave = f"{gemini_api_endpoint}?key={api_key}"
+        logger.info(f"Chamando Gemini API: {url_com_chave} com schema e prompt.")
+
+        async with httpx.AsyncClient(timeout=90.0) as client:
+            try:
+                response = await client.post(url_com_chave, json=payload, headers=headers)
+                response.raise_for_status()
+                api_response_data = response.json()
+
+                if (
+                    api_response_data.get("candidates")
+                    and len(api_response_data["candidates"]) > 0
+                    and api_response_data["candidates"][0].get("content")
+                    and api_response_data["candidates"][0]["content"].get("parts")
+                    and len(api_response_data["candidates"][0]["content"]["parts"]) > 0
+                    and api_response_data["candidates"][0]["content"]["parts"][0].get("text")
+                ):
+                    json_text_response = api_response_data["candidates"][0]["content"]["parts"][0]["text"]
+                    try:
+                        return json.loads(json_text_response)
+                    except json.JSONDecodeError as jde:
+                        logger.error(
+                            f"Erro ao decodificar JSON da resposta da Gemini: {jde}. Resposta: {json_text_response}",
+                            exc_info=True,
+                        )
+                        raise HTTPException(
+                            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                            detail="Resposta da API Gemini nÃ£o Ã© um JSON vÃ¡lido.",
+                        )
+
+                error_detail = "Resposta da API Gemini nÃ£o contÃ©m o conteÃºdo esperado."
+                if api_response_data.get("promptFeedback"):
+                    error_detail += f" Feedback do prompt: {api_response_data['promptFeedback']}"
+                logger.error(
+                    "Estrutura inesperada da resposta da Gemini: %s. Resposta completa: %s",
+                    error_detail,
+                    api_response_data,
+                )
+                raise HTTPException(
+                    status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                    detail=error_detail,
+                )
+
+            except httpx.HTTPStatusError as e:
+                error_text = e.response.text
+                logger.error(
+                    f"Erro na API Gemini (HTTPStatusError): {e.response.status_code} - {error_text}",
+                    exc_info=True,
+                )
+                error_detail = f"Erro na API Gemini: {e.response.status_code}"
+                try:
+                    error_data = e.response.json()
+                    if error_data and "error" in error_data and "message" in error_data["error"]:
+                        error_detail = f"Erro na API Gemini: {error_data['error']['message']}"
+                except Exception:
+                    error_detail += f" - {error_text}"
+                raise HTTPException(status_code=e.response.status_code, detail=error_detail)
+            except Exception as e:
+                logger.error(f"Erro inesperado ao chamar API Gemini: {str(e)}", exc_info=True)
+                raise HTTPException(
+                    status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                    detail=f"Erro inesperado ao comunicar com Gemini: {str(e)}",
+                )
 
     async def call_gemini_api(
         self,
@@ -337,13 +281,52 @@ class _AiProviderRuntime:
         temperature: float = 0.6,
         max_tokens: int = 1024,
     ) -> str:
-        return await _call_gemini_api_impl(
-            prompt_text=prompt_text,
-            api_key=api_key,
-            model_name=model_name,
-            temperature=temperature,
-            max_tokens=max_tokens,
-        )
+        if not api_key:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Chave da API Gemini nÃ£o configurada.",
+            )
+
+        endpoint = f"https://generativelanguage.googleapis.com/v1beta/models/{model_name}:generateContent"
+        payload = {
+            "contents": [{"role": "user", "parts": [{"text": prompt_text}]}],
+            "generationConfig": {"temperature": temperature, "maxOutputTokens": max_tokens},
+        }
+        url = f"{endpoint}?key={api_key}"
+        headers = {"Content-Type": "application/json"}
+        async with httpx.AsyncClient(timeout=90.0) as client:
+            try:
+                response = await client.post(url, json=payload, headers=headers)
+                response.raise_for_status()
+                data = response.json()
+                if (
+                    data.get("candidates")
+                    and data["candidates"]
+                    and data["candidates"][0].get("content")
+                    and data["candidates"][0]["content"].get("parts")
+                    and data["candidates"][0]["content"]["parts"]
+                ):
+                    return data["candidates"][0]["content"]["parts"][0].get("text", "").strip()
+                logger.error(f"Estrutura inesperada na resposta Gemini: {data}")
+                raise HTTPException(
+                    status_code=500,
+                    detail="Resposta inesperada da API Gemini",
+                )
+            except httpx.HTTPStatusError as e:
+                logger.error(
+                    f"Erro na API Gemini: {e.response.status_code} - {e.response.text}",
+                    exc_info=True,
+                )
+                raise HTTPException(
+                    status_code=e.response.status_code,
+                    detail=f"Erro na API Gemini: {e.response.text}",
+                )
+            except Exception as e:
+                logger.error(f"Erro inesperado ao chamar API Gemini: {str(e)}", exc_info=True)
+                raise HTTPException(
+                    status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                    detail=f"Erro inesperado ao comunicar com Gemini: {str(e)}",
+                )
 
 
 _ai_provider_runtime = _AiProviderRuntime()
@@ -908,3 +891,4 @@ class IAGenerationLegacyService:
 
 
 ia_generation_legacy_service = IAGenerationLegacyService()
+
