@@ -67,6 +67,22 @@ def test_application_services_do_not_define_dunder_getattr_fallbacks():
     assert not offenders, "Unexpected __getattr__ fallbacks:\n" + "\n".join(offenders)
 
 
+def test_application_services_do_not_import_legacy_infrastructure_bridges():
+    offenders: list[str] = []
+    for path in _iter_python_files(APPLICATION_SERVICES_ROOT):
+        rel = path.relative_to(PROJECT_ROOT)
+        for target in _import_targets(path):
+            if target == "Backend.infrastructure.legacy" or target.startswith(
+                "Backend.infrastructure.legacy."
+            ):
+                offenders.append(f"{rel}: {target}")
+
+    assert not offenders, (
+        "Unexpected imports to Backend.infrastructure.legacy:\n"
+        + "\n".join(offenders)
+    )
+
+
 def test_application_services_do_not_call_private_methods_from_external_objects():
     offenders: list[str] = []
     for path in _iter_python_files(APPLICATION_SERVICES_ROOT):

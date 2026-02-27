@@ -3,7 +3,9 @@ from __future__ import annotations
 from typing import Any
 
 from Backend.application.services.ports import IAGenerationPort
-from Backend.infrastructure.legacy.ia_generation_bridge import LegacyIAGenerationBridge
+from Backend.infrastructure.adapters.ia_generation_adapter import (
+    IAGenerationServiceAdapter,
+)
 
 
 class IAGenerationFacade:
@@ -15,7 +17,7 @@ class IAGenerationFacade:
         *,
         port: IAGenerationPort | None = None,
     ) -> None:
-        self._port = port or legacy_module or LegacyIAGenerationBridge()
+        self._port = port or legacy_module or IAGenerationServiceAdapter()
 
     async def gerar_titulos_com_openai(self, *args: Any, **kwargs: Any):
         return await self._port.gerar_titulos_com_openai(*args, **kwargs)

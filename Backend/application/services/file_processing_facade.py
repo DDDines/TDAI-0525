@@ -6,8 +6,8 @@ from Backend.application.services.file_processing import (
     FileProcessingOrchestratorService,
     FileProcessingPort,
 )
-from Backend.infrastructure.legacy.file_processing_bridge import (
-    LegacyFileProcessingBridge,
+from Backend.infrastructure.adapters.file_processing_adapter import (
+    FileProcessingServiceAdapter,
 )
 
 
@@ -20,7 +20,7 @@ class FileProcessingFacade:
         *,
         port: FileProcessingPort | None = None,
     ) -> None:
-        effective_port = port or legacy_module or LegacyFileProcessingBridge()
+        effective_port = port or legacy_module or FileProcessingServiceAdapter()
         self._orchestrator = FileProcessingOrchestratorService(effective_port)
         self.storage = self._orchestrator.storage
         self.preview = self._orchestrator.preview

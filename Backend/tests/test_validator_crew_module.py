@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from concurrent.futures import TimeoutError
 
-import Backend.services.validator_crew as validator_crew
+from Backend.testing.runtime_apis import validator_crew
 
 
 class _AgentStub:
@@ -103,3 +103,4 @@ def test_legacy_service_delegates_to_public_function(monkeypatch):
     result = validator_crew.validator_crew_legacy_service.run_validation_crew(payload, timeout_seconds=3)
 
     assert result == {"legacy": payload, "timeout": 3}
+

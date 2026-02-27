@@ -1,7 +1,7 @@
 import pandas as pd
 import pytest
 
-import Backend.services.file_processing_service as file_processing
+from Backend.testing.runtime_apis import file_processing
 
 
 @pytest.mark.asyncio
@@ -89,3 +89,4 @@ def test_pdf_asset_workflow_usa_runtime_de_assets():
         "dpi": 240,
     }
     assert called["parse"]["vertical_tolerance"] == 11
+

@@ -1,6 +1,6 @@
 import pytest
 
-import Backend.services.file_processing_service as file_processing
+from Backend.testing.runtime_apis import file_processing
 
 
 @pytest.mark.asyncio
@@ -60,3 +60,4 @@ async def test_gerar_preview_impl_usa_runtime(monkeypatch):
     assert called["conteudo_arquivo"] == b"x"
     assert called["ext"] == ".pdf"
     assert called["max_rows"] == 1
+

@@ -1,4 +1,4 @@
-from Backend.services.file_processing_service import _processar_linha_padronizada
+from Backend.testing.runtime_apis import _processar_linha_padronizada
 from Backend.routers.produtos import (
     _avaliar_qualidade_linha_produto,
     _classificar_qualidade_linha_produto,
@@ -412,3 +412,4 @@ def test_sanitize_promotes_part_name_from_raw_when_description_is_application():
     assert sanitized.get("nome_base") == "Paralama Duplo"
     extras = sanitized.get("dados_brutos_adicionais") or {}
     assert extras.get("descricao_substituida_por_dados_brutos") == "col_1"
+

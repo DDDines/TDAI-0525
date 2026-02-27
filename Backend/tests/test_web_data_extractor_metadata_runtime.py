@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-import Backend.services.web_data_extractor_service as web_extractor
+from Backend.testing.runtime_apis import web_extractor
 
 
 def test_metadata_runtime_limpa_strings_e_listas():
@@ -59,3 +59,4 @@ def test_metadata_runtime_fallback_para_opengraph():
         "imagem_url": "https://img.test/og.png",
         "marca": "Site OG",
     }
+

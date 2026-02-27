@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import pytest
 
-import Backend.services.web_data_extractor_service as web_extractor
+from Backend.testing.runtime_apis import web_extractor
 
 
 @pytest.mark.asyncio
@@ -129,3 +129,4 @@ def test_web_ocr_runtime_delega_para_engine_runtime():
 
     assert result == {"text": "ok"}
     assert called["image_bytes"] == b"img"
+

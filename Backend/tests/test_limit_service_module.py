@@ -5,7 +5,7 @@ from types import SimpleNamespace
 import pytest
 from fastapi import HTTPException, status
 
-import Backend.services.limit_service as limit_service
+from Backend.testing.runtime_apis import limit_service
 
 
 class _CrudStub:
@@ -116,3 +116,4 @@ async def test_legacy_service_delega_para_workflow(monkeypatch):
 
     assert result is True
     assert called["kwargs"] == {"user_id": 9}
+

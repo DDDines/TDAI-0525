@@ -1,6 +1,6 @@
 import pandas as pd
 
-import Backend.services.file_processing_service as file_processing
+from Backend.testing.runtime_apis import file_processing
 
 
 def test_generate_pdf_page_images_impl_usa_runtime(monkeypatch):
@@ -82,3 +82,4 @@ def test_parse_annotation_to_dataframe_impl_usa_runtime(monkeypatch):
     assert result.equals(expected_df)
     assert called["annotation"] is annotation
     assert called["vertical_tolerance"] == 9
+

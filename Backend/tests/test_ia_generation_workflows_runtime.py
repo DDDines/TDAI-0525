@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import pytest
 
-import Backend.services.ia_generation_service as ia_service
+from Backend.testing.runtime_apis import ia_service
 
 
 @pytest.mark.asyncio
@@ -109,4 +109,5 @@ async def test_ia_generation_workflow_usa_runtime_injetado():
         "desc_gemini",
         "sug_gemini",
     ]
+
 

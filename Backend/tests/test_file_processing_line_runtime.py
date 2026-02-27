@@ -1,4 +1,4 @@
-﻿import Backend.services.file_processing_service as file_processing
+from Backend.testing.runtime_apis import file_processing
 
 
 def test_line_runtime_normaliza_mapeamento_invertido():
@@ -70,3 +70,4 @@ def test_line_mapping_workflow_descarta_linha_sem_nome_e_sku_com_mapping_explici
 
     assert result is not None
     assert result.get("motivo_descarte") == "Faltam nome_base e sku_original"
+

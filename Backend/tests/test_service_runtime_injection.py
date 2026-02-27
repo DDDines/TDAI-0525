@@ -15,14 +15,14 @@ from Backend.crud_registros_uso_ia import _RegistroUsoIACrudWorkflow
 from Backend.crud_users import _UserCrudWorkflow
 from Backend.database import _DatabaseWorkflow
 from Backend.initial_data import _InitialDataWorkflow
-from Backend.services.file_processing_service import (
+from Backend.testing.runtime_apis import (
     _CatalogStorageWorkflow,
     _LineMappingWorkflow,
     _PdfJobWorkflow,
     _TabularIngestionWorkflow,
     _TabularPreviewWorkflow,
+    _WebExtractionEnrichmentWorkflow,
 )
-from Backend.services.web_data_extractor_service import _WebExtractionEnrichmentWorkflow
 from Backend.tasks import _TaskWorkflow
 
 
@@ -309,3 +309,4 @@ async def test_web_extraction_workflow_usa_runtime_injetado_para_timestamp_e_htm
     assert workflow.log_enriquecimento[0]["timestamp"] == "2026-02-01T12:00:00+00:00"
     assert produto.status_enriquecimento_web == models.StatusEnriquecimentoEnum.EM_PROGRESSO
     assert db.commits == 1
+

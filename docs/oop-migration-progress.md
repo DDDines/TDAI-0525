@@ -55,13 +55,15 @@ A base esta funcional e testada, mas ainda em transicao. O objetivo agora e conc
 - [x] `IAGenerationFacade` sem `__getattr__`.
 - [x] `LimitServiceFacade` sem `__getattr__`.
 - [x] `ValidatorCrewFacade` sem import direto de `Backend.services`.
-- [x] Bridges de legado centralizados em `Backend/infrastructure/legacy/`.
+- [x] Defaults OOP migrados para adapters explicitos em `Backend/infrastructure/adapters/` (sem bridge legado no caminho padrao OOP).
+- [x] Bridges de legado mantidos somente para compatibilidade em `Backend/infrastructure/legacy/`.
 
 ### Fase 4 - Orquestracao e desacoplamento de borda
 
 - [x] Import cruzado removido: `Backend/routers/fornecedores.py` nao depende mais de `Backend/routers/produtos.py`.
 - [x] Runners com implementacoes legacy/oop distintas por dependencia injetada.
 - [x] Garantia de teste: `APP_MODE=oop` executa apenas executor OOP selecionado pelo orquestrador.
+- [x] Fluxo real validado com `APP_MODE=oop` + `STRICT_OOP_NO_LEGACY=1` para endpoint de preview de catalogo sem bridge legado no caminho OOP.
 
 ### Fase 5 - Limpeza final
 
@@ -76,6 +78,7 @@ A base esta funcional e testada, mas ainda em transicao. O objetivo agora e conc
 - [x] Zero chamada a metodo privado de objeto externo em `Backend/application/services`.
 - [x] Zero import de `Backend/routers` em `Backend/application`.
 - [x] Fluxos legacy isolados por bridge/proxy temporario documentado.
+- [x] Acoplamento de testes a internals de `Backend/services` reduzido para shim central em `Backend/testing/runtime_apis.py` (sem imports privados diretos espalhados).
 
 ## Matriz de isolamento (transicao)
 
@@ -90,6 +93,7 @@ A base esta funcional e testada, mas ainda em transicao. O objetivo agora e conc
 ## Pontos de transicao planejados
 
 - Bridges temporarias concentradas em `Backend/infrastructure/legacy/`.
+- Adapters OOP padrao concentrados em `Backend/infrastructure/adapters/`.
 - Proxies de deprecacao de `*_legacy_service` centralizados em `Backend/core/deprecation.py`.
 - Guard opcional de execucao estrita: `STRICT_OOP_NO_LEGACY=1` bloqueia acesso legado quando `APP_MODE=oop`.
 - Remocao fisica de bridges/facades/shims: apos 2026-04-30.

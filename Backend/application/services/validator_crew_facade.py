@@ -2,8 +2,8 @@ from __future__ import annotations
 
 from typing import Any, Optional
 
-from Backend.infrastructure.legacy.validator_crew_bridge import (
-    LegacyValidatorCrewBridge,
+from Backend.infrastructure.adapters.validator_crew_adapter import (
+    ValidatorCrewServiceAdapter,
 )
 
 
@@ -20,15 +20,17 @@ class ValidatorCrewFacade:
         self,
         *,
         logger: Any = None,
+        runner: Optional[Any] = None,
         legacy_runner: Optional[Any] = None,
     ) -> None:
         self._logger = logger
-        if legacy_runner is not None:
-            self._runner = legacy_runner
+        provided_runner = runner or legacy_runner
+        if provided_runner is not None:
+            self._runner = provided_runner
             return
 
         try:
-            self._runner = LegacyValidatorCrewBridge()
+            self._runner = ValidatorCrewServiceAdapter()
         except Exception as exc:  # pragma: no cover
             if self._logger:
                 self._logger.warning(

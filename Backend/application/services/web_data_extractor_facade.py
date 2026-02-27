@@ -6,8 +6,8 @@ from Backend.application.services.web_data_extractor import (
     WebDataExtractorOrchestratorService,
     WebDataExtractorPort,
 )
-from Backend.infrastructure.legacy.web_data_extractor_bridge import (
-    LegacyWebDataExtractorBridge,
+from Backend.infrastructure.adapters.web_data_extractor_adapter import (
+    WebDataExtractorServiceAdapter,
 )
 
 
@@ -20,7 +20,7 @@ class WebDataExtractorFacade:
         *,
         port: WebDataExtractorPort | None = None,
     ) -> None:
-        effective_port = port or legacy_module or LegacyWebDataExtractorBridge()
+        effective_port = port or legacy_module or WebDataExtractorServiceAdapter()
         self._orchestrator = WebDataExtractorOrchestratorService(effective_port)
         self.search = self._orchestrator.search
         self.content = self._orchestrator.content

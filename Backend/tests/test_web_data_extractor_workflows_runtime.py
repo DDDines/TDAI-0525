@@ -4,7 +4,7 @@ from types import SimpleNamespace
 
 import pytest
 
-import Backend.services.web_data_extractor_service as web_extractor
+from Backend.testing.runtime_apis import web_extractor
 
 
 @pytest.mark.asyncio
@@ -124,3 +124,4 @@ async def test_web_extraction_support_workflow_usa_runtimes_injetados():
     assert calls["llm"]["produto_nome_base"] == "Produto X"
     assert calls["url_runtime"]["url"] == "https://example.com/item"
     assert calls["ocr"] == b"img"
+

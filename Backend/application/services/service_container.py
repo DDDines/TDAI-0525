@@ -8,20 +8,20 @@ from Backend.application.services.limit_service_facade import LimitServiceFacade
 from Backend.application.services.web_data_extractor import (
     WebDataExtractorOrchestratorService,
 )
-from Backend.infrastructure.legacy.file_processing_bridge import (
-    LegacyFileProcessingBridge,
+from Backend.infrastructure.adapters.file_processing_adapter import (
+    FileProcessingServiceAdapter,
 )
-from Backend.infrastructure.legacy.web_data_extractor_bridge import (
-    LegacyWebDataExtractorBridge,
+from Backend.infrastructure.adapters.web_data_extractor_adapter import (
+    WebDataExtractorServiceAdapter,
 )
 
 
 def _build_file_processing_service() -> FileProcessingOrchestratorService:
-    return FileProcessingOrchestratorService(LegacyFileProcessingBridge())
+    return FileProcessingOrchestratorService(FileProcessingServiceAdapter())
 
 
 def _build_web_data_extractor_service() -> WebDataExtractorOrchestratorService:
-    return WebDataExtractorOrchestratorService(LegacyWebDataExtractorBridge())
+    return WebDataExtractorOrchestratorService(WebDataExtractorServiceAdapter())
 
 
 @dataclass

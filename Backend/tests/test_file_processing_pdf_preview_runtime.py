@@ -1,6 +1,6 @@
 import pytest
 
-import Backend.services.file_processing_service as file_processing
+from Backend.testing.runtime_apis import file_processing
 
 
 @pytest.mark.asyncio
@@ -58,3 +58,4 @@ async def test_preview_pdf_impl_usa_runtime(monkeypatch):
     assert called["start_page"] == 1
     assert called["page_count"] == 1
     assert called["dpi"] == 72
+

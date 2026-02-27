@@ -2,7 +2,7 @@ import base64
 
 import pytest
 
-import Backend.services.file_processing_service as file_processing
+from Backend.testing.runtime_apis import file_processing
 
 
 class _FakeImage:
@@ -60,3 +60,4 @@ async def test_pdf_bytes_to_images_impl_usa_runtime(monkeypatch):
     assert called["max_pages"] == 3
     assert called["start_page"] == 2
     assert called["dpi"] == 150
+

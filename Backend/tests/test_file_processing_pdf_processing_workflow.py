@@ -1,6 +1,6 @@
 import pytest
 
-import Backend.services.file_processing_service as file_processing
+from Backend.testing.runtime_apis import file_processing
 
 
 @pytest.mark.asyncio
@@ -116,3 +116,4 @@ async def test_pdf_processing_workflow_usa_runtime_de_dispatch():
     assert called["conteudo_arquivo"] == b"raw"
     assert called["ext"] == ".csv"
     assert called["max_rows"] == 10
+

@@ -1,9 +1,9 @@
-﻿import io
+import io
 
 import pandas as pd
 import pytest
 
-import Backend.services.file_processing_service as file_processing
+from Backend.testing.runtime_apis import file_processing
 
 
 @pytest.mark.asyncio
@@ -53,3 +53,4 @@ async def test_tabular_runtime_processa_excel_com_sheet_especifica():
     assert result[0]["nome_base"] == "Ponteira do Para-choque"
     assert result[0]["dynamic_attributes"]["material"] == "Plastico"
     assert result[0]["product_type_id"] == 9
+

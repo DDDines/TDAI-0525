@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import pytest
 
-import Backend.services.web_data_extractor_service as web_extractor
+from Backend.testing.runtime_apis import web_extractor
 
 
 @pytest.mark.asyncio
@@ -52,3 +52,4 @@ def test_runtime_state_sincroniza_flag_playwright():
         )
     finally:
         web_extractor.apply_web_data_extractor_runtime_state(original_state)
+

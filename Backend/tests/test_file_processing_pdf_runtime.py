@@ -1,6 +1,6 @@
 import pytest
 
-import Backend.services.file_processing_service as file_processing
+from Backend.testing.runtime_apis import file_processing
 
 
 @pytest.mark.asyncio
@@ -80,3 +80,4 @@ async def test_processar_arquivo_pdf_impl_usa_runtime(monkeypatch):
     assert called["product_type_id"] == 11
     assert called["pages"] == [1]
     assert called["region"] is None
+

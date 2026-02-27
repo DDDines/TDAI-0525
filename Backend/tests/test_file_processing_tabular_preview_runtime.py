@@ -1,7 +1,7 @@
 import pytest
 import pandas as pd
 
-import Backend.services.file_processing_service as file_processing
+from Backend.testing.runtime_apis import file_processing
 
 
 @pytest.mark.asyncio
@@ -43,3 +43,4 @@ async def test_preview_csv_impl_usa_runtime(monkeypatch):
     assert result["headers"] == ["c1"]
     assert called["conteudo_arquivo"] == b"csv-bytes"
     assert called["max_rows"] == 3
+

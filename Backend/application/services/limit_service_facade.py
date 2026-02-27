@@ -3,7 +3,7 @@ from __future__ import annotations
 from typing import Any
 
 from Backend.application.services.ports import LimitPort
-from Backend.infrastructure.legacy.limit_bridge import LegacyLimitBridge
+from Backend.infrastructure.adapters.limit_adapter import LimitServiceAdapter
 
 
 class LimitServiceFacade:
@@ -15,7 +15,7 @@ class LimitServiceFacade:
         *,
         port: LimitPort | None = None,
     ) -> None:
-        self._port = port or legacy_module or LegacyLimitBridge()
+        self._port = port or legacy_module or LimitServiceAdapter()
 
     def verificar_limite_uso(self, *args: Any, **kwargs: Any):
         return self._port.verificar_limite_uso(*args, **kwargs)
