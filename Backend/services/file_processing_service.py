@@ -208,62 +208,184 @@ def _delete_catalog_file_impl(stored_filename: str) -> None:
 
 
 
-def _limpar_valor_extraido(valor: Any) -> Optional[str]:
+class _LineNormalizationRuntime:
+    """Runtime OO para normalizacao de valores, mapeamento e split SKU/Nome."""
 
-    """Helper para limpar strings ou converter outros tipos para string, retornando None se vazio."""
-
-    if valor is None:
-
-        return None
-
-    try:
-
-        s = str(valor).strip()
-
-        # Considerar 'nan', 'None' (string), '' como nulos após strip
-
-        if s.lower() in [
-
-            "",
-
-            "nan",
-
-            "none",
-
-            "#n/a",
-
-            "na",
-
-            "<na>",
-
-        ]:  # Adicionado #N/A, NA, <NA> comuns em planilhas
-
+    def limpar_valor_extraido(self, valor: Any) -> Optional[str]:
+        if valor is None:
+            return None
+        try:
+            cleaned = str(valor).strip()
+            if cleaned.lower() in {"", "nan", "none", "#n/a", "na", "<na>"}:
+                return None
+            return cleaned
+        except Exception:
             return None
 
-        return s
+    def valor_tem_conteudo_util(self, valor: Any) -> bool:
+        if valor is None:
+            return False
+        cleaned = str(valor).strip()
+        if not cleaned:
+            return False
+        if len(re.sub(r"[^0-9A-Za-z\u00C0-\u00FF]", "", cleaned)) < 1:
+            return False
+        return True
 
-    except:
+    def norm_text(self, value: Any) -> str:
+        return str(value).lower().strip()
 
-        return None
+    def normalizar_mapeamento_usuario(
+        self,
+        mapeamento_colunas_usuario: Optional[Dict[str, str]],
+        linha_original: Dict[str, Any],
+    ) -> Dict[str, str]:
+        if not mapeamento_colunas_usuario:
+            return {}
+
+        linha_keys = {self.norm_text(key) for key in linha_original.keys()}
+        normalized: Dict[str, str] = {}
+        for key, value in mapeamento_colunas_usuario.items():
+            if key is None or value is None:
+                continue
+            key_norm = self.norm_text(key)
+            value_raw = str(value).strip()
+            if not key_norm or not value_raw:
+                continue
+            normalized[key_norm] = value_raw
+
+        if not normalized or not linha_keys:
+            return normalized
+
+        key_hits = sum(1 for key in normalized.keys() if key in linha_keys)
+        value_hits = sum(
+            1 for value in normalized.values() if self.norm_text(value) in linha_keys
+        )
+
+        # Compatibilidade com mapeamentos antigos salvos como {campo_destino: coluna_origem}.
+        if value_hits > key_hits:
+            inverted: Dict[str, str] = {}
+            for destination, source_col in normalized.items():
+                source_norm = self.norm_text(source_col)
+                if source_norm:
+                    inverted[source_norm] = destination
+            logger.info(
+                "Mapeamento invertido detectado e normalizado: total=%s key_hits=%s value_hits=%s",
+                len(normalized),
+                key_hits,
+                value_hits,
+            )
+            return inverted
+
+        return normalized
+
+    def coerce_region_bbox(
+        self,
+        region: Optional[List[float]],
+        page_width: float,
+        page_height: float,
+    ) -> tuple[Optional[tuple[float, float, float, float]], Optional[str]]:
+        if not region or len(region) != 4:
+            return None, None
+
+        try:
+            x0, y0, x1, y1 = map(float, region)
+        except Exception:
+            return None, "invalid"
+
+        raw_bbox = (x0, y0, x1, y1)
+        normalized_mode = max(abs(value) for value in raw_bbox) <= 2.5
+
+        if normalized_mode:
+            x0 = max(0.0, min(x0, 1.0)) * page_width
+            y0 = max(0.0, min(y0, 1.0)) * page_height
+            x1 = max(0.0, min(x1, 1.0)) * page_width
+            y1 = max(0.0, min(y1, 1.0)) * page_height
+        else:
+            x0 = max(0.0, min(x0, page_width))
+            y0 = max(0.0, min(y0, page_height))
+            x1 = max(0.0, min(x1, page_width))
+            y1 = max(0.0, min(y1, page_height))
+
+        if x1 <= x0 or y1 <= y0:
+            return None, "invalid_after_clamp"
+
+        return (x0, y0, x1, y1), ("normalized" if normalized_mode else "absolute")
+
+    def token_looks_like_code(self, token: str) -> bool:
+        value = token.strip().upper()
+        if not value or len(value) > 32:
+            return False
+        if not re.fullmatch(r"[0-9A-Z./\-]+", value):
+            return False
+        digits = sum(1 for ch in value if ch.isdigit())
+        letters = sum(1 for ch in value if ch.isalpha())
+        if digits >= 2:
+            return True
+        # Ex.: A1, 1D, X3
+        if digits == 1 and letters >= 1 and len(value) <= 6:
+            return True
+        # Ex.: D / E / LD / LE (lado direito/esquerdo em catalogos automotivos).
+        if digits == 0 and value in {"D", "E", "LD", "LE", "RH", "LH", "DIR", "ESQ"}:
+            return True
+        return False
+
+    def split_sku_nome_auto(self, value: str) -> tuple[Optional[str], Optional[str]]:
+        tokens = [tok for tok in str(value).split() if tok]
+        if not tokens:
+            return None, None
+
+        sku_tokens: List[str] = []
+        nome_tokens: List[str] = []
+        for tok in tokens:
+            if tok in {"_", "-", "--", "|", "Â¦"}:
+                continue
+            has_lower = any(ch.isalpha() and ch.islower() for ch in tok)
+
+            if not nome_tokens:
+                if has_lower and sku_tokens:
+                    nome_tokens.append(tok)
+                    continue
+
+                if self.token_looks_like_code(tok):
+                    sku_tokens.append(tok)
+                    continue
+
+                if sku_tokens and any(ch.isalpha() for ch in tok):
+                    nome_tokens.append(tok)
+                    continue
+
+                nome_tokens.append(tok)
+            else:
+                nome_tokens.append(tok)
+
+        sku = " ".join(sku_tokens).strip() or None
+        nome = " ".join(nome_tokens).strip() or None
+        if nome:
+            nome = re.sub(r"^[\W_]+", "", nome).strip() or None
+
+        if not sku and nome:
+            return None, nome
+        if sku and not nome:
+            return sku, None
+        return sku, nome
 
 
+_line_normalization_runtime = _LineNormalizationRuntime()
 
+
+def _limpar_valor_extraido(valor: Any) -> Optional[str]:
+    """Helper para limpar strings ou converter outros tipos para string, retornando None se vazio."""
+    return _line_normalization_runtime.limpar_valor_extraido(valor)
 
 
 def _valor_tem_conteudo_util(valor: Any) -> bool:
     """Retorna True para valores úteis (evita lixo de OCR como '!' ou '-')."""
-    if valor is None:
-        return False
-    s = str(valor).strip()
-    if not s:
-        return False
-    if len(re.sub(r"[^0-9A-Za-z\u00C0-\u00FF]", "", s)) < 1:
-        return False
-    return True
+    return _line_normalization_runtime.valor_tem_conteudo_util(valor)
 
 
 def _norm_text(v: Any) -> str:
-    return str(v).lower().strip()
+    return _line_normalization_runtime.norm_text(v)
 
 
 def _normalizar_mapeamento_usuario(
@@ -271,42 +393,10 @@ def _normalizar_mapeamento_usuario(
     linha_original: Dict[str, Any],
 ) -> Dict[str, str]:
     """Normaliza mapping do usuario e corrige formato invertido (campo->coluna)."""
-    if not mapeamento_colunas_usuario:
-        return {}
-
-    linha_keys = {_norm_text(k) for k in linha_original.keys()}
-    normalized: Dict[str, str] = {}
-    for k, v in mapeamento_colunas_usuario.items():
-        if k is None or v is None:
-            continue
-        key_norm = _norm_text(k)
-        value_raw = str(v).strip()
-        if not key_norm or not value_raw:
-            continue
-        normalized[key_norm] = value_raw
-
-    if not normalized or not linha_keys:
-        return normalized
-
-    key_hits = sum(1 for k in normalized.keys() if k in linha_keys)
-    value_hits = sum(1 for v in normalized.values() if _norm_text(v) in linha_keys)
-
-    # Compatibilidade com mapeamentos antigos salvos como {campo_destino: coluna_origem}.
-    if value_hits > key_hits:
-        inverted: Dict[str, str] = {}
-        for destination, source_col in normalized.items():
-            source_norm = _norm_text(source_col)
-            if source_norm:
-                inverted[source_norm] = destination
-        logger.info(
-            "Mapeamento invertido detectado e normalizado: total=%s key_hits=%s value_hits=%s",
-            len(normalized),
-            key_hits,
-            value_hits,
-        )
-        return inverted
-
-    return normalized
+    return _line_normalization_runtime.normalizar_mapeamento_usuario(
+        mapeamento_colunas_usuario=mapeamento_colunas_usuario,
+        linha_original=linha_original,
+    )
 
 
 def _coerce_region_bbox(
@@ -315,99 +405,21 @@ def _coerce_region_bbox(
     page_height: float,
 ) -> tuple[Optional[tuple[float, float, float, float]], Optional[str]]:
     """Converte bbox para coordenada absoluta da pagina e faz clamp seguro."""
-    if not region or len(region) != 4:
-        return None, None
-
-    try:
-        x0, y0, x1, y1 = map(float, region)
-    except Exception:
-        return None, "invalid"
-
-    raw_bbox = (x0, y0, x1, y1)
-    max_abs = max(abs(v) for v in raw_bbox)
-    # Trata como normalizado quando os valores parecem estar na escala 0-1
-    # com pequena margem para selecao fora do canvas.
-    normalized_mode = max_abs <= 2.5
-
-    if normalized_mode:
-        x0 = max(0.0, min(x0, 1.0)) * page_width
-        y0 = max(0.0, min(y0, 1.0)) * page_height
-        x1 = max(0.0, min(x1, 1.0)) * page_width
-        y1 = max(0.0, min(y1, 1.0)) * page_height
-    else:
-        x0 = max(0.0, min(x0, page_width))
-        y0 = max(0.0, min(y0, page_height))
-        x1 = max(0.0, min(x1, page_width))
-        y1 = max(0.0, min(y1, page_height))
-
-    if x1 <= x0 or y1 <= y0:
-        return None, "invalid_after_clamp"
-
-    return (x0, y0, x1, y1), ("normalized" if normalized_mode else "absolute")
+    return _line_normalization_runtime.coerce_region_bbox(
+        region=region,
+        page_width=page_width,
+        page_height=page_height,
+    )
 
 
 def _token_looks_like_code(token: str) -> bool:
     """Heuristica para identificar token de codigo/SKU."""
-    t = token.strip().upper()
-    if not t or len(t) > 32:
-        return False
-    if not re.fullmatch(r"[0-9A-Z./\-]+", t):
-        return False
-    digits = sum(1 for ch in t if ch.isdigit())
-    letters = sum(1 for ch in t if ch.isalpha())
-    if digits >= 2:
-        return True
-    # Ex.: A1, 1D, X3
-    if digits == 1 and letters >= 1 and len(t) <= 6:
-        return True
-    # Ex.: D / E / LD / LE (lado direito/esquerdo em catalogos automotivos).
-    if digits == 0 and t in {"D", "E", "LD", "LE", "RH", "LH", "DIR", "ESQ"}:
-        return True
-    return False
+    return _line_normalization_runtime.token_looks_like_code(token)
 
 
 def _split_sku_nome_auto(value: str) -> tuple[Optional[str], Optional[str]]:
     """Divide um texto combinado em SKU e Nome Base quando possivel."""
-    tokens = [tok for tok in str(value).split() if tok]
-    if not tokens:
-        return None, None
-
-    sku_tokens: List[str] = []
-    nome_tokens: List[str] = []
-
-    for tok in tokens:
-        if tok in {"_", "-", "--", "|", "¦"}:
-            continue
-        has_lower = any(ch.isalpha() and ch.islower() for ch in tok)
-
-        if not nome_tokens:
-            if has_lower and sku_tokens:
-                nome_tokens.append(tok)
-                continue
-
-            if _token_looks_like_code(tok):
-                sku_tokens.append(tok)
-                continue
-
-            if sku_tokens and any(ch.isalpha() for ch in tok):
-                nome_tokens.append(tok)
-                continue
-
-            nome_tokens.append(tok)
-        else:
-            nome_tokens.append(tok)
-
-    sku = " ".join(sku_tokens).strip() or None
-    nome = " ".join(nome_tokens).strip() or None
-    if nome:
-        nome = re.sub(r"^[\W_]+", "", nome).strip() or None
-
-    if not sku and nome:
-        return None, nome
-    if sku and not nome:
-        return sku, None
-    return sku, nome
-
+    return _line_normalization_runtime.split_sku_nome_auto(value)
 
 def _processar_linha_padronizada(
     linha_original: Dict[str, Any],
