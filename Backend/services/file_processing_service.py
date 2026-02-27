@@ -1233,7 +1233,7 @@ async def _preview_arquivo_csv_impl(
     )
 
 
-async def _preview_arquivo_pdf_impl(
+async def _preview_arquivo_pdf_legacy_impl(
 
     conteudo_arquivo: bytes,
 
@@ -1531,6 +1531,45 @@ async def _preview_arquivo_pdf_impl(
 
 
 
+
+
+class _PdfPreviewRuntime:
+    """Runtime OO para preview de PDF mantendo fluxo legado."""
+
+    async def preview_arquivo_pdf(
+        self,
+        conteudo_arquivo: bytes,
+        ext: str,
+        start_page: int = 1,
+        page_count: int = 1,
+        dpi: int = 72,
+    ) -> Dict[str, Any]:
+        return await _preview_arquivo_pdf_legacy_impl(
+            conteudo_arquivo=conteudo_arquivo,
+            ext=ext,
+            start_page=start_page,
+            page_count=page_count,
+            dpi=dpi,
+        )
+
+
+_pdf_preview_runtime = _PdfPreviewRuntime()
+
+
+async def _preview_arquivo_pdf_impl(
+    conteudo_arquivo: bytes,
+    ext: str,
+    start_page: int = 1,
+    page_count: int = 1,
+    dpi: int = 72,
+) -> Dict[str, Any]:
+    return await _pdf_preview_runtime.preview_arquivo_pdf(
+        conteudo_arquivo=conteudo_arquivo,
+        ext=ext,
+        start_page=start_page,
+        page_count=page_count,
+        dpi=dpi,
+    )
 
 
 async def _gerar_preview_impl(
