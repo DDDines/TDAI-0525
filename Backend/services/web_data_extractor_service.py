@@ -1,4 +1,4 @@
-﻿# catalogai_project/Backend/services/web_data_extractor_service.py
+# catalogai_project/Backend/services/web_data_extractor_service.py
 import asyncio
 import sys
 import time
@@ -583,7 +583,7 @@ class _WebContentFetchEngineRuntime:
                 loop.close()
             asyncio.set_event_loop(None)
 
-    async def coletar_conteudo_pagina_playwright_impl(self, url: str) -> Optional[str]:
+    async def coletar_conteudo_pagina_playwright(self, url: str) -> Optional[str]:
         global PLAYWRIGHT_CHROMIUM_INDISPONIVEL
         if self._search_runtime.url_deve_ser_ignorada_antes_da_coleta(url):
             logger.info(
@@ -739,14 +739,14 @@ def _buscar_urls_publicas_sync(query: str, num_results: int = 3) -> List[str]:
     )
 
 
-async def _buscar_urls_publicas_async_impl(query: str, num_results: int = 3) -> List[str]:
+async def _buscar_urls_publicas_async(query: str, num_results: int = 3) -> List[str]:
     return await _web_search_engine_runtime.buscar_urls_publicas_async(
         query=query,
         num_results=num_results,
     )
 
 
-async def _buscar_urls_google_async_impl(query: str, num_results: int = 3) -> List[str]:
+async def _buscar_urls_google_async(query: str, num_results: int = 3) -> List[str]:
     return await _web_search_engine_runtime.buscar_urls_google_async(
         query=query,
         num_results=num_results,
@@ -780,8 +780,8 @@ def _coletar_conteudo_playwright_em_thread_sync(url: str) -> Optional[str]:
     )
 
 
-async def _coletar_conteudo_pagina_playwright_impl(url: str) -> Optional[str]:
-    return await _web_content_fetch_engine_runtime.coletar_conteudo_pagina_playwright_impl(
+async def _coletar_conteudo_pagina_playwright(url: str) -> Optional[str]:
+    return await _web_content_fetch_engine_runtime.coletar_conteudo_pagina_playwright(
         url,
     )
 
@@ -857,7 +857,7 @@ class _WebContentCollectionRuntime:
         self._engine_runtime = engine_runtime or _web_content_fetch_engine_runtime
 
     async def coletar_conteudo_pagina_playwright(self, url: str) -> Optional[str]:
-        return await self._engine_runtime.coletar_conteudo_pagina_playwright_impl(
+        return await self._engine_runtime.coletar_conteudo_pagina_playwright(
             url
         )
 
@@ -1044,7 +1044,7 @@ class _MetadataExtractionRuntime:
 _metadata_extraction_runtime = _MetadataExtractionRuntime()
 
 
-def _extrair_texto_principal_com_trafilatura_impl(html_content: str) -> Optional[str]:
+def _extrair_texto_principal_com_trafilatura(html_content: str) -> Optional[str]:
     return _metadata_extraction_runtime.extrair_texto_principal_com_trafilatura(html_content)
 
 
@@ -1052,7 +1052,7 @@ def _limpar_valor_metadado(valor: Any) -> Optional[Any]:
     return _metadata_extraction_runtime.limpar_valor_metadado(valor)
 
 
-def _extrair_metadados_estruturados_impl(html_content: str, url: str) -> Dict[str, Any]:
+def _extrair_metadados_estruturados(html_content: str, url: str) -> Dict[str, Any]:
     return _metadata_extraction_runtime.extrair_metadados_estruturados(
         html_content=html_content,
         url=url,
@@ -1066,7 +1066,7 @@ def _normalizar_dados_de_metadados(metadata_bruta: Dict[str, Any]) -> Dict[str, 
 class _WebLLMExtractionEngineRuntime:
     """Engine runtime OO para extração de dados de produto com LLM."""
 
-    async def extrair_dados_produto_com_llm_impl(
+    async def extrair_dados_produto_com_llm(
         self,
         texto_pagina: Optional[str],
         metadados_normalizados: Optional[Dict[str, Any]] = None,
@@ -1187,14 +1187,14 @@ class _WebLLMExtractionEngineRuntime:
 _web_llm_extraction_engine_runtime = _WebLLMExtractionEngineRuntime()
 
 
-async def _extrair_dados_produto_com_llm_impl(
+async def _extrair_dados_produto_com_llm(
     texto_pagina: Optional[str],
     metadados_normalizados: Optional[Dict[str, Any]] = None,
     campos_desejados: Optional[List[str]] = None,
     produto_nome_base: str = "Produto",
     user: Optional[models.User] = None,
 ) -> Optional[Dict[str, Any]]:
-    return await _web_llm_extraction_engine_runtime.extrair_dados_produto_com_llm_impl(
+    return await _web_llm_extraction_engine_runtime.extrair_dados_produto_com_llm(
         texto_pagina=texto_pagina,
         metadados_normalizados=metadados_normalizados,
         campos_desejados=campos_desejados,
@@ -1362,7 +1362,7 @@ class _WebExtractionEnrichmentRuntime:
 class _WebURLExtractionEngineRuntime:
     """Engine runtime OO para enriquecimento de produto por URL."""
 
-    async def extract_relevant_data_from_url_impl(
+    async def extract_relevant_data_from_url(
         self,
         db: Session,
         url: str,
@@ -1375,7 +1375,7 @@ class _WebURLExtractionEngineRuntime:
 class _WebOCREngineRuntime:
     """Engine runtime OO para OCR de região de imagem."""
 
-    def extract_text_from_image_region_impl(self, image_bytes: bytes):
+    def extract_text_from_image_region(self, image_bytes: bytes):
         try:
             from google.cloud import vision  # type: ignore
         except Exception as e:  # pragma: no cover - optional dependency
@@ -1406,20 +1406,20 @@ _web_url_extraction_engine_runtime = _WebURLExtractionEngineRuntime()
 _web_ocr_engine_runtime = _WebOCREngineRuntime()
 
 
-async def _extract_relevant_data_from_url_impl(
+async def _extract_relevant_data_from_url(
     db: Session,
     url: str,
     produto: models.Produto,
 ) -> models.Produto:
-    return await _web_url_extraction_engine_runtime.extract_relevant_data_from_url_impl(
+    return await _web_url_extraction_engine_runtime.extract_relevant_data_from_url(
         db=db,
         url=url,
         produto=produto,
     )
 
 
-def _extract_text_from_image_region_impl(image_bytes: bytes):
-    return _web_ocr_engine_runtime.extract_text_from_image_region_impl(
+def _extract_text_from_image_region(image_bytes: bytes):
+    return _web_ocr_engine_runtime.extract_text_from_image_region(
         image_bytes=image_bytes
     )
 
@@ -1543,7 +1543,7 @@ class _WebLLMExtractionRuntime:
         produto_nome_base: str = "Produto",
         user: Optional[models.User] = None,
     ) -> Optional[Dict[str, Any]]:
-        return await self._engine_runtime.extrair_dados_produto_com_llm_impl(
+        return await self._engine_runtime.extrair_dados_produto_com_llm(
             texto_pagina=texto_pagina,
             metadados_normalizados=metadados_normalizados,
             campos_desejados=campos_desejados,
@@ -1567,7 +1567,7 @@ class _WebURLExtractionRuntime:
         url: str,
         produto: models.Produto,
     ) -> models.Produto:
-        return await self._engine_runtime.extract_relevant_data_from_url_impl(
+        return await self._engine_runtime.extract_relevant_data_from_url(
             db=db,
             url=url,
             produto=produto,
@@ -1584,7 +1584,7 @@ class _WebOCRRuntime:
         self._engine_runtime = engine_runtime or _web_ocr_engine_runtime
 
     def extract_text_from_image_region(self, image_bytes: bytes):
-        return self._engine_runtime.extract_text_from_image_region_impl(
+        return self._engine_runtime.extract_text_from_image_region(
             image_bytes=image_bytes
         )
 

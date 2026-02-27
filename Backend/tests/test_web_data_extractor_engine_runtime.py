@@ -39,7 +39,7 @@ async def test_web_content_runtime_delega_para_engine_runtime():
     calls = []
 
     class FakeEngine:
-        async def coletar_conteudo_pagina_playwright_impl(self, url: str):
+        async def coletar_conteudo_pagina_playwright(self, url: str):
             calls.append(url)
             return "<html>ok</html>"
 
@@ -81,7 +81,7 @@ async def test_web_llm_runtime_delega_para_engine_runtime():
     called = {}
 
     class FakeEngine:
-        async def extrair_dados_produto_com_llm_impl(self, **kwargs):
+        async def extrair_dados_produto_com_llm(self, **kwargs):
             called.update(kwargs)
             return {"nome_base": "Produto X"}
 
@@ -100,7 +100,7 @@ async def test_web_url_runtime_delega_para_engine_runtime():
     called = {}
 
     class FakeEngine:
-        async def extract_relevant_data_from_url_impl(self, **kwargs):
+        async def extract_relevant_data_from_url(self, **kwargs):
             called.update(kwargs)
             return kwargs["produto"]
 
@@ -120,7 +120,7 @@ def test_web_ocr_runtime_delega_para_engine_runtime():
     called = {}
 
     class FakeEngine:
-        def extract_text_from_image_region_impl(self, image_bytes: bytes):
+        def extract_text_from_image_region(self, image_bytes: bytes):
             called["image_bytes"] = image_bytes
             return {"text": "ok"}
 
