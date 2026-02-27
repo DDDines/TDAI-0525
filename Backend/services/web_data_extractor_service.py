@@ -632,25 +632,76 @@ async def _coletar_conteudo_pagina_playwright_impl(url: str) -> Optional[str]:
             url,
         )
         return await _coletar_conteudo_pagina_http(url)
+
+
 class _WebSearchWorkflow:
     """Workflow OO para estrategias de busca web."""
 
+    def __init__(self, runtime: Optional["_WebSearchRuntime"] = None) -> None:
+        self._runtime = runtime or _WebSearchRuntime()
+
     async def buscar_urls_publicas(self, query: str, num_results: int = 3) -> List[str]:
-        return await _buscar_urls_publicas_async_impl(query=query, num_results=num_results)
+        return await self._runtime.buscar_urls_publicas_async(
+            query=query,
+            num_results=num_results,
+        )
 
     async def buscar_urls_google(self, query: str, num_results: int = 3) -> List[str]:
-        return await _buscar_urls_google_async_impl(query=query, num_results=num_results)
+        return await self._runtime.buscar_urls_google_async(
+            query=query,
+            num_results=num_results,
+        )
 
 
 class _WebContentCollectionWorkflow:
     """Workflow OO para coleta de conteudo de pagina."""
 
+    def __init__(
+        self, runtime: Optional["_WebContentCollectionRuntime"] = None
+    ) -> None:
+        self._runtime = runtime or _WebContentCollectionRuntime()
+
+    async def coletar_conteudo_pagina_playwright(self, url: str) -> Optional[str]:
+        return await self._runtime.coletar_conteudo_pagina_playwright(url)
+
+
+class _WebSearchRuntime:
+    """Runtime OO para buscas web (Google CSE + fallback público)."""
+
+    async def buscar_urls_publicas_async(
+        self,
+        query: str,
+        num_results: int = 3,
+    ) -> List[str]:
+        return await _buscar_urls_publicas_async_impl(
+            query=query,
+            num_results=num_results,
+        )
+
+    async def buscar_urls_google_async(
+        self,
+        query: str,
+        num_results: int = 3,
+    ) -> List[str]:
+        return await _buscar_urls_google_async_impl(
+            query=query,
+            num_results=num_results,
+        )
+
+
+class _WebContentCollectionRuntime:
+    """Runtime OO para coleta de conteúdo de página."""
+
     async def coletar_conteudo_pagina_playwright(self, url: str) -> Optional[str]:
         return await _coletar_conteudo_pagina_playwright_impl(url)
 
 
-_web_search_workflow = _WebSearchWorkflow()
-_web_content_collection_workflow = _WebContentCollectionWorkflow()
+_web_search_runtime = _WebSearchRuntime()
+_web_content_collection_runtime = _WebContentCollectionRuntime()
+_web_search_workflow = _WebSearchWorkflow(runtime=_web_search_runtime)
+_web_content_collection_workflow = _WebContentCollectionWorkflow(
+    runtime=_web_content_collection_runtime
+)
 
 
 async def buscar_urls_publicas(query: str, num_results: int = 3) -> List[str]:
@@ -1115,8 +1166,17 @@ def _extract_text_from_image_region_impl(image_bytes: bytes):
 class _WebExtractionSupportWorkflow:
     """Workflow OO para utilitarios de extração web e OCR."""
 
-    def __init__(self, metadata_runtime: _MetadataExtractionRuntime) -> None:
+    def __init__(
+        self,
+        metadata_runtime: _MetadataExtractionRuntime,
+        llm_runtime: Optional["_WebLLMExtractionRuntime"] = None,
+        enrichment_runtime: Optional["_WebURLExtractionRuntime"] = None,
+        ocr_runtime: Optional["_WebOCRRuntime"] = None,
+    ) -> None:
         self._metadata_runtime = metadata_runtime
+        self._llm_runtime = llm_runtime or _WebLLMExtractionRuntime()
+        self._enrichment_runtime = enrichment_runtime or _WebURLExtractionRuntime()
+        self._ocr_runtime = ocr_runtime or _WebOCRRuntime()
 
     def extrair_texto_principal_com_trafilatura(
         self, html_content: str
@@ -1139,7 +1199,7 @@ class _WebExtractionSupportWorkflow:
         produto_nome_base: str = "Produto",
         user: Optional[models.User] = None,
     ) -> Optional[Dict[str, Any]]:
-        return await _extrair_dados_produto_com_llm_impl(
+        return await self._llm_runtime.extrair_dados_produto_com_llm(
             texto_pagina=texto_pagina,
             metadados_normalizados=metadados_normalizados,
             campos_desejados=campos_desejados,
@@ -1153,18 +1213,66 @@ class _WebExtractionSupportWorkflow:
         url: str,
         produto: models.Produto,
     ) -> models.Produto:
-        return await _extract_relevant_data_from_url_impl(
+        return await self._enrichment_runtime.extract_relevant_data_from_url(
             db=db,
             url=url,
             produto=produto,
         )
 
     def extract_text_from_image_region(self, image_bytes: bytes):
+        return self._ocr_runtime.extract_text_from_image_region(
+            image_bytes=image_bytes
+        )
+
+
+class _WebLLMExtractionRuntime:
+    """Runtime OO para extração de dados de produto via LLM."""
+
+    async def extrair_dados_produto_com_llm(
+        self,
+        texto_pagina: Optional[str],
+        metadados_normalizados: Optional[Dict[str, Any]] = None,
+        campos_desejados: Optional[List[str]] = None,
+        produto_nome_base: str = "Produto",
+        user: Optional[models.User] = None,
+    ) -> Optional[Dict[str, Any]]:
+        return await _extrair_dados_produto_com_llm_impl(
+            texto_pagina=texto_pagina,
+            metadados_normalizados=metadados_normalizados,
+            campos_desejados=campos_desejados,
+            produto_nome_base=produto_nome_base,
+            user=user,
+        )
+
+
+class _WebURLExtractionRuntime:
+    """Runtime OO para enriquecimento de produto por URL."""
+
+    async def extract_relevant_data_from_url(
+        self,
+        db: Session,
+        url: str,
+        produto: models.Produto,
+    ) -> models.Produto:
+        return await _extract_relevant_data_from_url_impl(
+            db=db,
+            url=url,
+            produto=produto,
+        )
+
+
+class _WebOCRRuntime:
+    """Runtime OO para OCR de região de imagem."""
+
+    def extract_text_from_image_region(self, image_bytes: bytes):
         return _extract_text_from_image_region_impl(image_bytes=image_bytes)
 
 
 _web_extraction_support_workflow = _WebExtractionSupportWorkflow(
-    metadata_runtime=_metadata_extraction_runtime
+    metadata_runtime=_metadata_extraction_runtime,
+    llm_runtime=_WebLLMExtractionRuntime(),
+    enrichment_runtime=_WebURLExtractionRuntime(),
+    ocr_runtime=_WebOCRRuntime(),
 )
 
 
