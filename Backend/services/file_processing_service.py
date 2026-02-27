@@ -2124,6 +2124,76 @@ async def _gerar_preview_impl(
     )
 
 
+class _PdfImageConversionRuntime:
+    """Runtime OO para conversao de bytes PDF em imagens base64."""
+
+    def _resolve_poppler_path(self) -> Optional[str]:
+        return os.getenv("POPPLER_PATH") or settings.POPPLER_PATH
+
+    def _ensure_poppler_available(self, poppler_dir: Optional[str]) -> Dict[str, Any]:
+        pdftoppm_path = (
+            shutil.which("pdftoppm", path=poppler_dir)
+            if poppler_dir
+            else shutil.which("pdftoppm")
+        )
+        if pdftoppm_path is None:
+            msg = (
+                "Poppler (pdftoppm) executable not found. Install poppler-utils"
+                "on Linux or set POPPLER_PATH to its directory."
+            )
+            logger.error(msg)
+            raise RuntimeError(msg)
+        return {"poppler_path": poppler_dir} if poppler_dir else {}
+
+    def _convert_sync(
+        self,
+        conteudo_arquivo: bytes,
+        max_pages: int,
+        start_page: int,
+        dpi: int,
+    ) -> List[str]:
+        poppler_dir = self._resolve_poppler_path()
+        kwargs = self._ensure_poppler_available(poppler_dir)
+        last_page = None if max_pages == 0 else start_page + max_pages - 1
+
+        images = convert_from_bytes(
+            conteudo_arquivo,
+            first_page=start_page,
+            last_page=last_page,
+            dpi=dpi,
+            fmt="png",
+            **kwargs,
+        )
+
+        result: List[str] = []
+        for img in images:
+            buf = io.BytesIO()
+            img.save(buf, format="PNG")
+            result.append(base64.b64encode(buf.getvalue()).decode())
+        return result
+
+    async def pdf_bytes_to_images(
+        self,
+        conteudo_arquivo: bytes,
+        max_pages: int = 1,
+        start_page: int = 1,
+        dpi: int = 200,
+    ) -> List[str]:
+        loop = asyncio.get_running_loop()
+        return await loop.run_in_executor(
+            None,
+            lambda: self._convert_sync(
+                conteudo_arquivo=conteudo_arquivo,
+                max_pages=max_pages,
+                start_page=start_page,
+                dpi=dpi,
+            ),
+        )
+
+
+_pdf_image_conversion_runtime = _PdfImageConversionRuntime()
+
+
 async def _pdf_bytes_to_images_impl(
 
     conteudo_arquivo: bytes,
@@ -2137,82 +2207,12 @@ async def _pdf_bytes_to_images_impl(
 ) -> List[str]:
 
     """Convert PDF bytes to base64 encoded PNG images."""
-
-
-
-    loop = asyncio.get_running_loop()
-
-
-
-    def _convert() -> List[str]:
-
-        poppler_dir = os.getenv("POPPLER_PATH") or settings.POPPLER_PATH
-
-        pdftoppm_path = (
-
-            shutil.which("pdftoppm", path=poppler_dir)
-
-            if poppler_dir
-
-            else shutil.which("pdftoppm")
-
-        )
-
-        if pdftoppm_path is None:
-
-            msg = (
-
-                "Poppler (pdftoppm) executable not found. Install poppler-utils"
-
-                "on Linux or set POPPLER_PATH to its directory."
-
-            )
-
-            logger.error(msg)
-
-            raise RuntimeError(msg)
-
-        kwargs = {"poppler_path": poppler_dir} if poppler_dir else {}
-
-
-
-        last_page = None if max_pages == 0 else start_page + max_pages - 1
-
-
-
-        images = convert_from_bytes(
-
-            conteudo_arquivo,
-
-            first_page=start_page,
-
-            last_page=last_page,
-
-            dpi=dpi,
-
-            fmt="png",
-
-            **kwargs,
-
-        )
-
-
-
-        result: List[str] = []
-
-        for img in images:
-
-            buf = io.BytesIO()
-
-            img.save(buf, format="PNG")
-
-            result.append(base64.b64encode(buf.getvalue()).decode())
-
-        return result
-
-
-
-    return await loop.run_in_executor(None, _convert)
+    return await _pdf_image_conversion_runtime.pdf_bytes_to_images(
+        conteudo_arquivo=conteudo_arquivo,
+        max_pages=max_pages,
+        start_page=start_page,
+        dpi=dpi,
+    )
 
 
 
