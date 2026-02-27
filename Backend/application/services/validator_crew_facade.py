@@ -2,6 +2,10 @@ from __future__ import annotations
 
 from typing import Any, Optional
 
+from Backend.infrastructure.legacy.validator_crew_bridge import (
+    LegacyValidatorCrewBridge,
+)
+
 
 class _FallbackValidatorCrew:
     @staticmethod
@@ -10,11 +14,7 @@ class _FallbackValidatorCrew:
 
 
 class ValidatorCrewFacade:
-    """Adaptador OO para o validador IA com fallback seguro.
-
-    Se dependências opcionais do validador não estiverem disponíveis,
-    mantém o pipeline funcionando em modo pass-through.
-    """
+    """OOP facade for IA validator with safe fallback."""
 
     def __init__(
         self,
@@ -28,17 +28,11 @@ class ValidatorCrewFacade:
             return
 
         try:
-            from Backend.services import validator_crew as imported_runner  # type: ignore
-
-            self._runner = getattr(
-                imported_runner,
-                "validator_crew_legacy_service",
-                imported_runner,
-            )
-        except Exception as exc:  # pragma: no cover - depende de deps opcionais
+            self._runner = LegacyValidatorCrewBridge()
+        except Exception as exc:  # pragma: no cover
             if self._logger:
                 self._logger.warning(
-                    "Validador IA indisponivel no startup (%s). Importacao seguira em modo fallback.",
+                    "IA validator unavailable at startup (%s). Running in pass-through mode.",
                     exc,
                 )
             self._runner = _FallbackValidatorCrew()
@@ -49,7 +43,7 @@ class ValidatorCrewFacade:
         except Exception as exc:
             if self._logger:
                 self._logger.warning(
-                    "Validador IA falhou durante execucao (%s). Usando fallback pass-through.",
+                    "IA validator runtime failure (%s). Using pass-through fallback.",
                     exc,
                 )
             return raw_data

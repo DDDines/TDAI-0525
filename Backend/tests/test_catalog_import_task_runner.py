@@ -78,3 +78,20 @@ async def test_catalog_import_task_runner_dispatches_legacy_and_oop():
     assert len(oop_stub.calls) == 1
     assert oop_stub.calls[0]["file_id"] == 9
 
+
+@pytest.mark.asyncio
+async def test_catalog_import_task_runner_execute_oop_does_not_build_legacy():
+    runner = _build_runner()
+    oop_stub = _TaskServiceStub()
+
+    def _fake_build(*, pipeline_variant: str):
+        if pipeline_variant == "legacy":
+            raise AssertionError("legacy build should not happen in execute_oop")
+        return oop_stub
+
+    runner._build = _fake_build  # type: ignore[attr-defined]
+
+    await runner.execute_oop(file_id=77, user_id=88)
+
+    assert len(oop_stub.calls) == 1
+    assert oop_stub.calls[0]["file_id"] == 77

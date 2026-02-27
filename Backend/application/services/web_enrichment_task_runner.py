@@ -21,6 +21,8 @@ class WebEnrichmentTaskRunner:
         models: Any,
         schemas: Any,
         web_extractor: Any,
+        legacy_web_extractor: Any | None = None,
+        oop_web_extractor: Any | None = None,
         settings: Any,
         json_module: Any,
         re_module: Any,
@@ -40,7 +42,6 @@ class WebEnrichmentTaskRunner:
             "crud": crud,
             "models": models,
             "schemas": schemas,
-            "web_extractor": web_extractor,
             "settings": settings,
             "json": json_module,
             "re": re_module,
@@ -52,13 +53,21 @@ class WebEnrichmentTaskRunner:
             "metadata_has_minimum_signal": metadata_has_minimum_signal,
             "is_source_relevant_for_product": is_source_relevant_for_product,
         }
+        self._legacy_web_extractor = legacy_web_extractor or web_extractor
+        self._oop_web_extractor = oop_web_extractor or web_extractor
         self._legacy_service: Optional[WebEnrichmentTaskService] = None
         self._oop_service: Optional[WebEnrichmentTaskService] = None
 
     def _build(self, *, pipeline_variant: str) -> WebEnrichmentTaskService:
+        build_kwargs = dict(self._kwargs)
+        build_kwargs["web_extractor"] = (
+            self._legacy_web_extractor
+            if pipeline_variant == "legacy"
+            else self._oop_web_extractor
+        )
         return WebEnrichmentTaskService(
             pipeline_variant=pipeline_variant,
-            **self._kwargs,
+            **build_kwargs,
         )
 
     def _get_service(self, variant: str) -> WebEnrichmentTaskService:

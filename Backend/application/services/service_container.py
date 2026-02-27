@@ -2,25 +2,40 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 
-from Backend.application.services.file_processing_facade import FileProcessingFacade
+from Backend.application.services.file_processing import FileProcessingOrchestratorService
 from Backend.application.services.ia_generation_facade import IAGenerationFacade
 from Backend.application.services.limit_service_facade import LimitServiceFacade
-from Backend.application.services.web_data_extractor_facade import (
-    WebDataExtractorFacade,
+from Backend.application.services.web_data_extractor import (
+    WebDataExtractorOrchestratorService,
 )
+from Backend.infrastructure.legacy.file_processing_bridge import (
+    LegacyFileProcessingBridge,
+)
+from Backend.infrastructure.legacy.web_data_extractor_bridge import (
+    LegacyWebDataExtractorBridge,
+)
+
+
+def _build_file_processing_service() -> FileProcessingOrchestratorService:
+    return FileProcessingOrchestratorService(LegacyFileProcessingBridge())
+
+
+def _build_web_data_extractor_service() -> WebDataExtractorOrchestratorService:
+    return WebDataExtractorOrchestratorService(LegacyWebDataExtractorBridge())
 
 
 @dataclass
 class ServiceContainer:
-    """Registry simples de serviços OO compartilhados pela aplicação."""
+    """Registry simples de servicos OO compartilhados pela aplicacao."""
 
-    file_processing: FileProcessingFacade = field(default_factory=FileProcessingFacade)
-    web_data_extractor: WebDataExtractorFacade = field(
-        default_factory=WebDataExtractorFacade
+    file_processing: FileProcessingOrchestratorService = field(
+        default_factory=_build_file_processing_service
+    )
+    web_data_extractor: WebDataExtractorOrchestratorService = field(
+        default_factory=_build_web_data_extractor_service
     )
     ia_generation: IAGenerationFacade = field(default_factory=IAGenerationFacade)
     limit: LimitServiceFacade = field(default_factory=LimitServiceFacade)
 
 
 service_container = ServiceContainer()
-

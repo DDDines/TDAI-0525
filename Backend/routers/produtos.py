@@ -48,6 +48,9 @@ from Backend.application.services import (
 )
 from Backend.application.services.service_container import service_container
 from Backend.core.config import settings
+from Backend.infrastructure.legacy.file_processing_bridge import (
+    LegacyFileProcessingBridge,
+)
 
 from . import auth_utils
 
@@ -74,6 +77,7 @@ catalog_sanitization_service = CatalogImportSanitizationService(
     quality_service=catalog_quality_service
 )
 file_processing_service = service_container.file_processing
+legacy_file_processing_service = LegacyFileProcessingBridge()
 
 
 def _is_non_critical_import_reason(reason: str) -> bool:
@@ -109,6 +113,8 @@ catalog_import_task_runner = CatalogImportTaskRunner(
     schemas=schemas,
     crud_produtos=crud_produtos,
     file_processing_service=file_processing_service,
+    legacy_file_processing_service=legacy_file_processing_service,
+    oop_file_processing_service=file_processing_service,
     validator_crew=validator_crew,
     settings=settings,
     path_cls=Path,

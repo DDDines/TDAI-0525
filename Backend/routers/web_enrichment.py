@@ -22,6 +22,9 @@ from Backend.application.services import (
 )
 from Backend.application.services.service_container import service_container
 from Backend.database import SessionLocal
+from Backend.infrastructure.legacy.web_data_extractor_bridge import (
+    LegacyWebDataExtractorBridge,
+)
 
 from .auth_utils import get_current_active_user
 from Backend.core.config import settings
@@ -45,6 +48,7 @@ web_payload_service = WebEnrichmentPayloadService(
     normalization_service=web_normalization_service
 )
 web_extractor = service_container.web_data_extractor
+legacy_web_extractor = LegacyWebDataExtractorBridge()
 web_enrichment_start_service = WebEnrichmentStartService(
     crud_produtos=crud_produtos,
     models=models,
@@ -115,6 +119,8 @@ web_enrichment_task_runner = WebEnrichmentTaskRunner(
     models=models,
     schemas=schemas,
     web_extractor=web_extractor,
+    legacy_web_extractor=legacy_web_extractor,
+    oop_web_extractor=web_extractor,
     settings=settings,
     json_module=json,
     re_module=re,

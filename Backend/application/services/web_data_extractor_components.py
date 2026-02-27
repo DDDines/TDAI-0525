@@ -20,7 +20,7 @@ class WebSearchService:
 
 
 class WebContentService:
-    """Componente OO para coleta/extração de conteúdo web."""
+    """Componente OO para coleta/extracao de conteudo web."""
 
     def __init__(self, legacy_module: Any) -> None:
         self._legacy = legacy_module
@@ -35,7 +35,7 @@ class WebContentService:
         return self._legacy.extrair_metadados_estruturados(*args, **kwargs)
 
     def normalizar_dados_de_metadados(self, *args: Any, **kwargs: Any):
-        return self._legacy._normalizar_dados_de_metadados(*args, **kwargs)
+        return self._legacy.normalizar_dados_de_metadados(*args, **kwargs)
 
 
 class WebLLMService:
@@ -52,11 +52,10 @@ class WebLLMService:
 
 
 class WebOCRService:
-    """Componente OO para OCR de imagem/região."""
+    """Componente OO para OCR de imagem/regiao."""
 
     def __init__(self, legacy_module: Any) -> None:
         self._legacy = legacy_module
 
     def extract_text_from_image_region(self, *args: Any, **kwargs: Any):
         return self._legacy.extract_text_from_image_region(*args, **kwargs)
-

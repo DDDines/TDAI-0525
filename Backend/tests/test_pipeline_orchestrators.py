@@ -110,3 +110,75 @@ def test_web_enrichment_orchestrator_uses_oop_in_oop_mode():
     )
     assert plan.executor_name == "oop_web_enrichment_task"
     assert plan.task_kwargs["user_id"] == 11
+
+
+@pytest.mark.asyncio
+async def test_catalog_import_orchestrator_executes_only_oop_executor_in_oop_mode():
+    settings.APP_MODE = "oop"
+    calls = []
+
+    async def _legacy_executor(**kwargs):
+        _ = kwargs
+        raise AssertionError("legacy executor should not run in APP_MODE=oop")
+
+    async def _oop_executor(**kwargs):
+        calls.append(kwargs)
+        return kwargs
+
+    orchestrator = CatalogImportPipelineOrchestrator(
+        legacy_executor=_legacy_executor,
+        oop_executor=_oop_executor,
+    )
+    command = CatalogImportFinalizeCommand(
+        file_id=101,
+        user_id=202,
+        product_type_id=303,
+        fornecedor_id=404,
+        mapping={"col_0": "sku"},
+        pages=[1],
+        region=[0.0, 0.0, 1.0, 1.0],
+    )
+    plan = orchestrator.select_finalize_plan(
+        db_session_factory=SimpleNamespace(name="db_factory"),
+        command=command,
+    )
+
+    await plan.executor(**plan.task_kwargs)
+
+    assert plan.executor_name == "oop_catalog_import_task"
+    assert len(calls) == 1
+    assert calls[0]["file_id"] == 101
+
+
+@pytest.mark.asyncio
+async def test_web_enrichment_orchestrator_executes_only_oop_executor_in_oop_mode():
+    settings.APP_MODE = "oop"
+    calls = []
+
+    async def _legacy_executor(**kwargs):
+        _ = kwargs
+        raise AssertionError("legacy executor should not run in APP_MODE=oop")
+
+    async def _oop_executor(**kwargs):
+        calls.append(kwargs)
+        return kwargs
+
+    orchestrator = WebEnrichmentPipelineOrchestrator(
+        legacy_executor=_legacy_executor,
+        oop_executor=_oop_executor,
+    )
+    command = WebEnrichmentStartCommand(
+        produto_id=66,
+        user_id=77,
+        termos_busca_override="abc",
+    )
+    plan = orchestrator.select_start_plan(
+        db_session_factory=SimpleNamespace(name="db_factory"),
+        command=command,
+    )
+
+    await plan.executor(**plan.task_kwargs)
+
+    assert plan.executor_name == "oop_web_enrichment_task"
+    assert len(calls) == 1
+    assert calls[0]["produto_id"] == 66

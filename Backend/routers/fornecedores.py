@@ -1,5 +1,8 @@
 ﻿# Backend/routers/fornecedores.py
+from collections import Counter
+from pathlib import Path
 from typing import List, Optional
+import time
 
 from fastapi import (
     APIRouter,
@@ -37,17 +40,77 @@ from Backend.application.services.fornecedor_management_service import (
 from Backend.application.services.fornecedor_preview_service import (
     FornecedorPreviewService,
 )
+from Backend.application.services import (
+    CatalogImportDiagnosticsService,
+    CatalogImportFinalizeService,
+    CatalogImportQualityService,
+    CatalogImportSanitizationService,
+    CatalogImportStartService,
+    CatalogImportTaskRunner,
+    ValidatorCrewFacade,
+)
 from Backend.application.services.service_container import service_container
+from Backend.core.config import settings
 from Backend.core.logging_config import get_logger
+from Backend.infrastructure.legacy.file_processing_bridge import (
+    LegacyFileProcessingBridge,
+)
 from Backend.tasks import process_pdf_extraction_task
 
 from . import auth_utils
-from Backend.routers.produtos import catalog_import_start_service
 
 logger = get_logger(__name__)
 
 file_processing_service = service_container.file_processing
+legacy_file_processing_service = LegacyFileProcessingBridge()
 web_data_extractor_service = service_container.web_data_extractor
+catalog_log_dir = Path(__file__).resolve().parent.parent / "logs"
+catalog_log_dir.mkdir(parents=True, exist_ok=True)
+catalog_quality_service = CatalogImportQualityService()
+catalog_sanitization_service = CatalogImportSanitizationService(
+    quality_service=catalog_quality_service
+)
+catalog_import_diagnostics_service = CatalogImportDiagnosticsService(
+    catalog_log_dir=catalog_log_dir,
+    logger=logger,
+    sanitization_service=catalog_sanitization_service,
+)
+validator_crew = ValidatorCrewFacade(logger=logger)
+catalog_import_task_runner = CatalogImportTaskRunner(
+    logger=logger,
+    catalog_logger=logger,
+    models=models,
+    schemas=schemas,
+    crud_produtos=crud_produtos,
+    file_processing_service=file_processing_service,
+    legacy_file_processing_service=legacy_file_processing_service,
+    oop_file_processing_service=file_processing_service,
+    validator_crew=validator_crew,
+    settings=settings,
+    path_cls=Path,
+    time_module=time,
+    counter_cls=Counter,
+    resolve_storage_path=catalog_import_diagnostics_service.resolve_storage_path,
+    normalize_import_issue_item=catalog_sanitization_service.normalize_import_issue_item,
+    extract_import_error_reason=catalog_sanitization_service.extract_import_error_reason,
+    is_non_critical_import_reason=catalog_sanitization_service.is_non_critical_import_reason,
+    normalizar_dados_validados=catalog_sanitization_service.normalize_validated_data,
+    sanitize_produto_extraido=catalog_sanitization_service.sanitize_extracted_product,
+    classificar_qualidade_linha_produto=catalog_quality_service.classify_product_row_quality,
+    write_catalog_import_report=catalog_import_diagnostics_service.write_catalog_import_report,
+    normalize_import_text=catalog_sanitization_service.normalize_import_text,
+)
+catalog_import_finalize_service = CatalogImportFinalizeService(
+    legacy_executor=catalog_import_task_runner.execute_legacy,
+    oop_executor=catalog_import_task_runner.execute_oop,
+)
+catalog_import_start_service = CatalogImportStartService(
+    models=models,
+    crud_fornecedores=crud_fornecedores,
+    settings=settings,
+    resolve_storage_path=catalog_import_diagnostics_service.resolve_storage_path,
+    finalize_service=catalog_import_finalize_service,
+)
 fornecedor_catalog_process_service = FornecedorCatalogProcessService(
     models=models,
     crud_fornecedores=crud_fornecedores,
@@ -734,3 +797,5 @@ class FornecedoresRouterLegacyService:
 
 
 fornecedores_router_legacy_service = FornecedoresRouterLegacyService()
+
+

@@ -19,8 +19,8 @@ class _LegacyWebStub:
         self.calls.append(("buscar_urls_google", args, kwargs))
         return ["https://example.org/a"]
 
-    def _normalizar_dados_de_metadados(self, payload):
-        self.calls.append(("_normalizar_dados_de_metadados", (payload,), {}))
+    def normalizar_dados_de_metadados(self, payload):
+        self.calls.append(("normalizar_dados_de_metadados", (payload,), {}))
         return {"nome": "ok"}
 
 
@@ -44,12 +44,11 @@ async def test_web_data_extractor_facade_delegates_async_call():
     assert legacy.calls[0][2] == {"query": "abc", "num_results": 3}
 
 
-def test_web_data_extractor_facade_normalizes_metadata_via_adapter_method():
+def test_web_data_extractor_facade_normalizes_metadata_via_public_method():
     legacy = _LegacyWebStub()
     facade = WebDataExtractorFacade(legacy_module=legacy)
 
     result = facade.normalizar_dados_de_metadados({"a": 1})
 
     assert result == {"nome": "ok"}
-    assert legacy.calls[0][0] == "_normalizar_dados_de_metadados"
-
+    assert legacy.calls[0][0] == "normalizar_dados_de_metadados"

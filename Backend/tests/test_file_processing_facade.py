@@ -8,7 +8,6 @@ from Backend.application.services.file_processing_facade import FileProcessingFa
 class _LegacyStub:
     def __init__(self) -> None:
         self.calls = []
-        self.constant_value = 123
 
     async def save_uploaded_catalog(self, *args, **kwargs):
         self.calls.append(("save_uploaded_catalog", args, kwargs))
@@ -41,9 +40,9 @@ def test_file_processing_facade_delegates_sync_calls():
     assert legacy.calls[0][1] == ("abc.pdf",)
 
 
-def test_file_processing_facade_keeps_legacy_attribute_fallback():
+def test_file_processing_facade_does_not_expose_dynamic_attribute_fallback():
     legacy = _LegacyStub()
     facade = FileProcessingFacade(legacy_module=legacy)
 
-    assert facade.constant_value == 123
-
+    with pytest.raises(AttributeError):
+        _ = facade.constant_value

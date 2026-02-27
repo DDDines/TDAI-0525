@@ -18,6 +18,8 @@ import tempfile
 import unicodedata
 
 import asyncio
+import functools
+import warnings
 
 from sqlalchemy.orm import Session
 
@@ -59,6 +61,68 @@ from Backend.application.services.web_data_extractor_facade import (
 
 logger = get_logger(__name__)
 web_data_extractor_service = WebDataExtractorFacade()
+_LEGACY_WARNED_APIS: set[str] = set()
+
+
+def _warn_legacy_public_api(api_name: str) -> None:
+    if api_name in _LEGACY_WARNED_APIS:
+        return
+    _LEGACY_WARNED_APIS.add(api_name)
+    warnings.warn(
+        (
+            f"Backend.services.file_processing_service.{api_name} is deprecated and "
+            "will be removed after 2026-04-30. Use Backend.application.services.file_processing."
+        ),
+        DeprecationWarning,
+        stacklevel=3,
+    )
+
+
+def _decorate_legacy_public_api(func: Any):
+    if getattr(func, "__legacy_deprecation_wrapped__", False):
+        return func
+    if asyncio.iscoroutinefunction(func):
+        @functools.wraps(func)
+        async def _async_wrapper(*args: Any, **kwargs: Any):
+            _warn_legacy_public_api(func.__name__)
+            return await func(*args, **kwargs)
+
+        _async_wrapper.__legacy_deprecation_wrapped__ = True
+        return _async_wrapper
+
+    @functools.wraps(func)
+    def _sync_wrapper(*args: Any, **kwargs: Any):
+        _warn_legacy_public_api(func.__name__)
+        return func(*args, **kwargs)
+
+    _sync_wrapper.__legacy_deprecation_wrapped__ = True
+    return _sync_wrapper
+
+
+def _install_legacy_deprecation_wrappers() -> None:
+    for api_name in (
+        "save_uploaded_catalog",
+        "delete_catalog_file",
+        "get_file_path_by_id",
+        "processar_arquivo_excel",
+        "processar_arquivo_csv",
+        "processar_arquivo_pdf",
+        "preview_arquivo_excel",
+        "preview_arquivo_csv",
+        "preview_arquivo_pdf",
+        "gerar_preview",
+        "pdf_bytes_to_images",
+        "pdf_pages_to_images",
+        "extrair_pagina_pdf",
+        "generate_pdf_page_images",
+        "extract_pdf_region_image",
+        "parse_annotation_to_dataframe",
+        "extract_data_from_pdf_region",
+        "process_pdf_job",
+        "extract_data_from_single_page",
+        "processar_linha_padronizada",
+    ):
+        globals()[api_name] = _decorate_legacy_public_api(globals()[api_name])
 
 try:
     from pdfminer.pdfdocument import PDFPasswordIncorrect
@@ -698,6 +762,18 @@ def _processar_linha_padronizada(
         linha_original=linha_original,
         mapeamento_colunas_usuario=mapeamento_colunas_usuario,
     )
+
+
+def processar_linha_padronizada(
+    linha_original: Dict[str, Any],
+    mapeamento_colunas_usuario: Optional[Dict[str, str]] = None,
+) -> Optional[Dict[str, Any]]:
+    """API publica para padronizacao de linha durante a migracao OOP."""
+    return _processar_linha_padronizada(
+        linha_original=linha_original,
+        mapeamento_colunas_usuario=mapeamento_colunas_usuario,
+    )
+
 
 class _TabularIngestionEngineRuntime:
     """Runtime OO para ingestao de arquivos tabulares (Excel/CSV)."""
@@ -4087,6 +4163,9 @@ def extract_data_from_single_page(file_path: str, page_number: int) -> Dict[str,
     )
 
 
+_install_legacy_deprecation_wrappers()
+
+
 class FileProcessingLegacyService:
     """OO compatibility layer for legacy file processing module."""
 
@@ -4136,7 +4215,7 @@ class FileProcessingLegacyService:
         return extract_data_from_single_page(*args, **kwargs)
 
     def processar_linha_padronizada(self, *args: Any, **kwargs: Any):
-        return _processar_linha_padronizada(*args, **kwargs)
+        return processar_linha_padronizada(*args, **kwargs)
 
     def _processar_linha_padronizada(self, *args: Any, **kwargs: Any):
         return _processar_linha_padronizada(*args, **kwargs)

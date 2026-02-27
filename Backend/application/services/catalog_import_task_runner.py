@@ -19,6 +19,8 @@ class CatalogImportTaskRunner:
         schemas: Any,
         crud_produtos: Any,
         file_processing_service: Any,
+        legacy_file_processing_service: Any | None = None,
+        oop_file_processing_service: Any | None = None,
         validator_crew: Any,
         settings: Any,
         path_cls: Any,
@@ -40,7 +42,6 @@ class CatalogImportTaskRunner:
             "models": models,
             "schemas": schemas,
             "crud_produtos": crud_produtos,
-            "file_processing_service": file_processing_service,
             "validator_crew": validator_crew,
             "settings": settings,
             "Path": path_cls,
@@ -56,13 +57,25 @@ class CatalogImportTaskRunner:
             "write_catalog_import_report": write_catalog_import_report,
             "normalize_import_text": normalize_import_text,
         }
+        self._legacy_file_processing_service = (
+            legacy_file_processing_service or file_processing_service
+        )
+        self._oop_file_processing_service = (
+            oop_file_processing_service or file_processing_service
+        )
         self._legacy_service: Optional[CatalogImportTaskService] = None
         self._oop_service: Optional[CatalogImportTaskService] = None
 
     def _build(self, *, pipeline_variant: str) -> CatalogImportTaskService:
+        build_kwargs = dict(self._kwargs)
+        build_kwargs["file_processing_service"] = (
+            self._legacy_file_processing_service
+            if pipeline_variant == "legacy"
+            else self._oop_file_processing_service
+        )
         return CatalogImportTaskService(
             pipeline_variant=pipeline_variant,
-            **self._kwargs,
+            **build_kwargs,
         )
 
     def _get_service(self, variant: str) -> CatalogImportTaskService:
@@ -99,4 +112,3 @@ class CatalogImportTaskRunner:
 
     async def execute_oop(self, **task_kwargs: Any) -> None:
         await self._get_service("oop").execute(**task_kwargs)
-

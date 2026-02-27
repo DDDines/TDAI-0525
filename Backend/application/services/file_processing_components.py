@@ -4,7 +4,7 @@ from typing import Any
 
 
 class CatalogStorageService:
-    """Componente OO para operações de storage de catálogos."""
+    """Componente OO para operacoes de storage de catalogos."""
 
     def __init__(self, legacy_module: Any) -> None:
         self._legacy = legacy_module
@@ -20,7 +20,7 @@ class CatalogStorageService:
 
 
 class CatalogPreviewService:
-    """Componente OO para preview e renderização de páginas."""
+    """Componente OO para preview e renderizacao de paginas."""
 
     def __init__(self, legacy_module: Any) -> None:
         self._legacy = legacy_module
@@ -39,7 +39,7 @@ class CatalogPreviewService:
 
 
 class CatalogExtractionService:
-    """Componente OO para extração/processamento de dados de catálogo."""
+    """Componente OO para extracao/processamento de dados de catalogo."""
 
     def __init__(self, legacy_module: Any) -> None:
         self._legacy = legacy_module
@@ -69,4 +69,4 @@ class CatalogExtractionService:
         return self._legacy.parse_annotation_to_dataframe(*args, **kwargs)
 
     def processar_linha_padronizada(self, *args: Any, **kwargs: Any):
-        return self._legacy._processar_linha_padronizada(*args, **kwargs)
+        return self._legacy.processar_linha_padronizada(*args, **kwargs)

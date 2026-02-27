@@ -1,50 +1,78 @@
 # Migracao OOP - Progresso Real
 
-## Percentual consolidado (atualizado)
+## Visao geral
 
-- Estrutura OOP (modos, selector, dispatcher, contracts, testes): `100%`
-- Integracao das rotas criticas com estrutura OOP: `100%`
-- Migracao da logica para use cases/services OO (sem corpo pesado no router): `100%`
-- Migracao geral (estrutura + logica): `100%`
+A base esta funcional e testada, mas ainda em transicao. O objetivo agora e concluir a migracao para OOP completo no backend com compatibilidade de API durante a janela de transicao.
 
-## O que ja esta pronto
+## Checklist por dominio
 
-- `APP_MODE` (`legacy`, `oop`, `shadow`) funcional.
-- `PipelineSelector` com comparacao em shadow mode.
-- `PipelineDispatcher` unificado (inline/thread/background).
-- Orquestradores de:
-  - importacao de catalogo
-  - enriquecimento web
-- Use cases com validacao/normalizacao de comando:
-  - `CatalogImportProcessingUseCase` agora valida IDs e normaliza mapping/pages/region
-  - `WebEnrichmentProcessingUseCase` agora valida IDs e normaliza termo de busca
-- Tarefas pesadas extraidas dos routers para camada `application/services`:
-  - `Backend/application/services/catalog_import_task_service.py`
-  - `Backend/application/services/web_enrichment_task_service.py`
-  - Routers agora atuam como delegadores dessas tarefas.
-- Rotas criticas agora informam `legacy_executor` e `oop_executor` separados
-  nos orquestradores, permitindo diferenciar caminho OOP em `APP_MODE=oop`.
-- Tarefas de importacao/enriquecimento agora tambem possuem `TaskService` OO
-  (`CatalogImportTaskService` e `WebEnrichmentTaskService`) usados pelos executores.
-- Executor OOP agora chama `TaskService` diretamente (sem encadear no executor legacy).
-- Use cases e executores OOP agora operam com comandos tipados
-  (`CatalogImportFinalizeCommand` e `WebEnrichmentStartCommand`).
-- Task services foram quebrados em componentes OO menores para reduzir acoplamento:
-  - `CatalogImportIssueTracker` + `CatalogImportQualityAccumulator`
-  - `CatalogImportOutcomeResolver` + `CatalogImportFileStateService` + `CatalogImportAuditWriter` + `CatalogImportResultBuilder`
-  - `WebEnrichmentConfigInspector` + `WebEnrichmentQueryPlanner` + `WebEnrichmentStatusResolver`
-  - `WebEnrichmentFinalizationService`
-  - Cobertura dedicada em testes: `test_catalog_import_components.py` e
-    `test_web_enrichment_components.py`.
-- Sanitizacao/normalizacao remanescente de importacao foi extraida para
-  `CatalogImportSanitizationService`.
-- Normalizacao textual/campos do enriquecimento web foi extraida para
-  `WebEnrichmentNormalizationService`.
-- Comparacao automatica de resultados legacy/oop foi adicionada via
-  `ShadowResultComparator` com persistencia em `Backend/logs/shadow_compare`.
-- Pipelines de execucao agora usam instancias separadas por variante (`legacy`/`oop`)
-  nos task services, preservando rollback.
+### Fase 0 - Guardrails de arquitetura
 
-## O que ainda falta para 100%
+- [x] Teste de arquitetura criado: `Backend/tests/test_architecture_boundaries.py`.
+- [x] Regra: `Backend/application/**` nao pode importar `Backend/services/**`.
+- [x] Regra: `Backend/application/**` nao pode importar `Backend/routers/**`.
+- [x] Regra: `Backend/application/services/**` nao pode definir `__getattr__` em adapters/facades.
+- [x] Regra: `Backend/application/services/**` nao pode chamar metodo privado de objeto externo (`obj._algo()`).
 
-Concluido para a trilha OOP.
+### Fase 1 - Onda File Processing
+
+- [x] Novo pacote criado: `Backend/application/services/file_processing/`.
+- [x] Contrato criado: `FileProcessingPort`.
+- [x] Servicos por responsabilidade:
+  - `storage_service.py`
+  - `tabular_ingestion_service.py`
+  - `pdf_ingestion_service.py`
+  - `preview_service.py`
+  - `pdf_assets_service.py`
+  - `orchestrator_service.py`
+- [x] `FileProcessingFacade` migrado para adapter explicito sem fallback dinamico.
+- [x] `CatalogExtractionService.processar_linha_padronizada` passou a usar metodo publico.
+- [x] API publica adicionada no legado: `processar_linha_padronizada(...)`.
+- [x] Delegacao de todas as funcoes publicas do modulo legado com warning de deprecacao centralizado.
+
+### Fase 2 - Onda Web Data Extractor
+
+- [x] Novo pacote criado: `Backend/application/services/web_data_extractor/`.
+- [x] Contrato criado: `WebDataExtractorPort`.
+- [x] Servicos por responsabilidade:
+  - `search_service.py`
+  - `content_service.py`
+  - `metadata_service.py`
+  - `llm_service.py`
+  - `ocr_service.py`
+  - `orchestrator_service.py`
+- [x] `WebDataExtractorFacade` migrado para adapter explicito sem fallback dinamico.
+- [x] Chamada privada removida em componente (`_normalizar...` -> metodo publico).
+- [x] API publica adicionada no legado: `normalizar_dados_de_metadados(...)`.
+- [ ] Encapsulamento completo de estado global em runtime injetavel dedicado.
+
+### Fase 3 - Onda IA / Limit / Validator
+
+- [x] Contratos internos adicionados em `Backend/application/services/ports.py`:
+  - `IAGenerationPort`
+  - `LimitPort`
+  - `ValidationPort`
+- [x] `IAGenerationFacade` sem `__getattr__`.
+- [x] `LimitServiceFacade` sem `__getattr__`.
+- [x] `ValidatorCrewFacade` sem import direto de `Backend.services`.
+- [x] Bridges de legado centralizados em `Backend/infrastructure/legacy/`.
+
+### Fase 4 - Orquestracao e desacoplamento de borda
+
+- [x] Import cruzado removido: `Backend/routers/fornecedores.py` nao depende mais de `Backend/routers/produtos.py`.
+- [x] Runners com implementacoes legacy/oop distintas por dependencia injetada.
+- [x] Garantia de teste: `APP_MODE=oop` executa apenas executor OOP selecionado pelo orquestrador.
+
+### Fase 5 - Limpeza final
+
+- [ ] Marcar oficialmente `*_legacy_service` como deprecated em toda a base.
+- [ ] Remover bridges/facades de transicao apos prazo de compatibilidade.
+- [ ] Atualizar documentacao final de arquitetura e matriz de conclusao.
+
+## Criterios objetivos de fechamento
+
+- [x] Zero import de `Backend/services` dentro de `Backend/application/services`.
+- [x] Zero uso de `__getattr__` em adapters da camada de aplicacao.
+- [x] Zero chamada a metodo privado de objeto externo em `Backend/application/services`.
+- [x] Zero import de `Backend/routers` em `Backend/application`.
+- [ ] Fluxos legacy removidos ou isolados apenas em bridge temporaria documentada.
