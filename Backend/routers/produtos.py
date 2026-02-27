@@ -3,6 +3,7 @@ from collections import Counter
 from logging import FileHandler, Formatter
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Union
+import inspect
 import json
 import logging
 import time
@@ -183,37 +184,7 @@ product_media_service = ProductMediaService(
 )
 
 
-class _ProdutosRouterWorkflow:
-    _RUNTIME_METHOD_NAMES = (
-        "create_produto",
-        "list_catalog_import_files",
-        "delete_catalog_import_file",
-        "reprocess_catalog_import_file",
-        "read_produto",
-        "list_produtos",
-        "update_produto",
-        "delete_produto",
-        "batch_delete_produtos",
-        "upload_produto_image",
-        "importar_catalogo_preview",
-        "importar_catalogo_fornecedor",
-        "importar_catalogo_finalizar",
-        "importar_catalogo_status",
-        "importar_catalogo_status_simple",
-        "importar_catalogo_result",
-        "importar_catalogo_finalizar_todas_paginas",
-        "selecionar_regiao",
-        "extrair_pagina_unica",
-    )
-
-    def __init__(self, runtime: Optional[object] = None) -> None:
-        self._runtime = runtime
-        if runtime is not None:
-            for method_name in self._RUNTIME_METHOD_NAMES:
-                runtime_method = getattr(runtime, method_name, None)
-                if runtime_method is not None:
-                    setattr(self, method_name, runtime_method)
-
+class _ProdutosRouterRuntime:
     def create_produto(
         self,
         produto: schemas.ProdutoCreate,
@@ -478,6 +449,306 @@ class _ProdutosRouterWorkflow:
         user_id: int,
     ):
         return await catalog_import_preview_service.extrair_pagina_unica(
+            file_id=file_id,
+            page_number=page_number,
+            db=db,
+            user_id=user_id,
+        )
+
+
+class _ProdutosRouterWorkflow:
+    def __init__(self, runtime: Optional[object] = None) -> None:
+        self._default_runtime = _ProdutosRouterRuntime()
+        self._runtime = runtime or self._default_runtime
+
+    def _runtime_method(self, method_name: str):
+        runtime_method = getattr(self._runtime, method_name, None)
+        if runtime_method is not None:
+            return runtime_method
+        return getattr(self._default_runtime, method_name)
+
+    async def _invoke_async(self, method_name: str, **kwargs):
+        result = self._runtime_method(method_name)(**kwargs)
+        if inspect.isawaitable(result):
+            return await result
+        return result
+
+    def create_produto(
+        self,
+        produto: schemas.ProdutoCreate,
+        db: Session,
+        current_user: models.User,
+    ) -> models.Produto:
+        return self._runtime_method("create_produto")(
+            produto=produto,
+            db=db,
+            current_user=current_user,
+        )
+
+    def list_catalog_import_files(
+        self,
+        db: Session,
+        user_id: int,
+        fornecedor_id: Optional[int],
+        skip: int,
+        limit: int,
+    ) -> schemas.CatalogImportFilePage:
+        return self._runtime_method("list_catalog_import_files")(
+            db=db,
+            user_id=user_id,
+            fornecedor_id=fornecedor_id,
+            skip=skip,
+            limit=limit,
+        )
+
+    def delete_catalog_import_file(self, db: Session, file_id: int, user_id: int):
+        return self._runtime_method("delete_catalog_import_file")(
+            db=db,
+            file_id=file_id,
+            user_id=user_id,
+        )
+
+    async def reprocess_catalog_import_file(
+        self,
+        background_tasks: BackgroundTasks,
+        db: Session,
+        file_id: int,
+        user_id: int,
+        product_type_id: Optional[int],
+        fornecedor_id: Optional[int],
+        mapping: Optional[Dict[str, str]],
+        pages: Optional[List[int]],
+        region: Optional[List[float]],
+    ):
+        return await self._invoke_async(
+            "reprocess_catalog_import_file",
+            background_tasks=background_tasks,
+            db=db,
+            file_id=file_id,
+            user_id=user_id,
+            product_type_id=product_type_id,
+            fornecedor_id=fornecedor_id,
+            mapping=mapping,
+            pages=pages,
+            region=region,
+        )
+
+    def read_produto(self, db: Session, produto_id: int, current_user: models.User):
+        return self._runtime_method("read_produto")(
+            db=db,
+            produto_id=produto_id,
+            current_user=current_user,
+        )
+
+    def list_produtos(
+        self,
+        db: Session,
+        skip: int,
+        limit: int,
+        sort_by: Optional[str],
+        sort_order: Optional[str],
+        search: Optional[str],
+        fornecedor_id: Optional[int],
+        categoria: Optional[str],
+        status_enriquecimento_web: Optional[models.StatusEnriquecimentoEnum],
+        status_titulo_ia: Optional[models.StatusGeracaoIAEnum],
+        status_descricao_ia: Optional[models.StatusGeracaoIAEnum],
+        product_type_id: Optional[int],
+        current_user: models.User,
+    ):
+        return self._runtime_method("list_produtos")(
+            db=db,
+            skip=skip,
+            limit=limit,
+            sort_by=sort_by,
+            sort_order=sort_order,
+            search=search,
+            fornecedor_id=fornecedor_id,
+            categoria=categoria,
+            status_enriquecimento_web=status_enriquecimento_web,
+            status_titulo_ia=status_titulo_ia,
+            status_descricao_ia=status_descricao_ia,
+            product_type_id=product_type_id,
+            current_user=current_user,
+        )
+
+    def update_produto(
+        self,
+        db: Session,
+        produto_id: int,
+        produto_update: schemas.ProdutoUpdate,
+        current_user: models.User,
+    ):
+        return self._runtime_method("update_produto")(
+            db=db,
+            produto_id=produto_id,
+            produto_update=produto_update,
+            current_user=current_user,
+        )
+
+    def delete_produto(self, db: Session, produto_id: int, current_user: models.User):
+        return self._runtime_method("delete_produto")(
+            db=db,
+            produto_id=produto_id,
+            current_user=current_user,
+        )
+
+    def batch_delete_produtos(self, db: Session, produto_ids: List[int], current_user: models.User):
+        return self._runtime_method("batch_delete_produtos")(
+            db=db,
+            produto_ids=produto_ids,
+            current_user=current_user,
+        )
+
+    async def upload_produto_image(
+        self,
+        db: Session,
+        produto_id: int,
+        file: UploadFile,
+        current_user: models.User,
+    ):
+        return await self._invoke_async(
+            "upload_produto_image",
+            db=db,
+            produto_id=produto_id,
+            file=file,
+            current_user=current_user,
+        )
+
+    async def importar_catalogo_preview(
+        self,
+        file: UploadFile,
+        fornecedor_id: Optional[int],
+        start_page: int,
+        page_count: int,
+        dpi: int,
+        db: Session,
+        user_id: int,
+    ) -> schemas.ImportPreviewResponse:
+        result = await self._invoke_async(
+            "importar_catalogo_preview",
+            file=file,
+            fornecedor_id=fornecedor_id,
+            start_page=start_page,
+            page_count=page_count,
+            dpi=dpi,
+            db=db,
+            user_id=user_id,
+        )
+        if isinstance(result, schemas.ImportPreviewResponse):
+            return result
+        if isinstance(result, dict):
+            return schemas.ImportPreviewResponse(**result)
+        return result
+
+    async def importar_catalogo_fornecedor(
+        self,
+        fornecedor_id: int,
+        file: UploadFile,
+        mapeamento_colunas_usuario: Optional[str],
+        db: Session,
+        current_user: models.User,
+    ):
+        return await self._invoke_async(
+            "importar_catalogo_fornecedor",
+            fornecedor_id=fornecedor_id,
+            file=file,
+            mapeamento_colunas_usuario=mapeamento_colunas_usuario,
+            db=db,
+            current_user=current_user,
+        )
+
+    async def importar_catalogo_finalizar(
+        self,
+        background_tasks: BackgroundTasks,
+        file_id: int,
+        product_type_id: int,
+        fornecedor_id: int,
+        mapping: Optional[Dict[str, str]],
+        pages: Optional[List[int]],
+        region: Optional[List[float]],
+        db: Session,
+        user_id: int,
+    ):
+        return await self._invoke_async(
+            "importar_catalogo_finalizar",
+            background_tasks=background_tasks,
+            file_id=file_id,
+            product_type_id=product_type_id,
+            fornecedor_id=fornecedor_id,
+            mapping=mapping,
+            pages=pages,
+            region=region,
+            db=db,
+            user_id=user_id,
+        )
+
+    def importar_catalogo_status(self, file_id: int, db: Session, user_id: int):
+        return self._runtime_method("importar_catalogo_status")(
+            file_id=file_id,
+            db=db,
+            user_id=user_id,
+        )
+
+    def importar_catalogo_status_simple(self, file_id: int, db: Session, user_id: int):
+        return self._runtime_method("importar_catalogo_status_simple")(
+            file_id=file_id,
+            db=db,
+            user_id=user_id,
+        )
+
+    def importar_catalogo_result(self, file_id: int, db: Session, user_id: int):
+        return self._runtime_method("importar_catalogo_result")(
+            file_id=file_id,
+            db=db,
+            user_id=user_id,
+        )
+
+    async def importar_catalogo_finalizar_todas_paginas(
+        self,
+        file_id: int,
+        start_page: int,
+        mapping: Optional[Dict[str, str]],
+        db: Session,
+        user_id: int,
+    ):
+        return await self._invoke_async(
+            "importar_catalogo_finalizar_todas_paginas",
+            file_id=file_id,
+            start_page=start_page,
+            mapping=mapping,
+            db=db,
+            user_id=user_id,
+        )
+
+    async def selecionar_regiao(
+        self,
+        file_id: int,
+        page: int,
+        bbox: List[float],
+        bbox_norm: Optional[List[float]],
+        db: Session,
+        user_id: int,
+    ):
+        return await self._invoke_async(
+            "selecionar_regiao",
+            file_id=file_id,
+            page=page,
+            bbox=bbox,
+            bbox_norm=bbox_norm,
+            db=db,
+            user_id=user_id,
+        )
+
+    async def extrair_pagina_unica(
+        self,
+        file_id: int,
+        page_number: int,
+        db: Session,
+        user_id: int,
+    ):
+        return await self._invoke_async(
+            "extrair_pagina_unica",
             file_id=file_id,
             page_number=page_number,
             db=db,

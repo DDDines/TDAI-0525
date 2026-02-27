@@ -578,5 +578,21 @@ def test_produtos_workflow_runtime_parcial_preserva_fallback_nativo():
     assert created == {"ok": True}
     assert called[0]["db"] == "db"
 
-    native_list_method = _ProdutosRouterWorkflow.list_catalog_import_files.__get__(workflow, _ProdutosRouterWorkflow)
-    assert workflow.list_catalog_import_files.__func__ is native_list_method.__func__
+    fallback_called = []
+
+    class FakeDefaultRuntime:
+        def list_catalog_import_files(self, **kwargs):
+            fallback_called.append(kwargs)
+            return {"fallback": True}
+
+    workflow._default_runtime = FakeDefaultRuntime()
+    response = workflow.list_catalog_import_files(
+        db="db",
+        user_id=7,
+        fornecedor_id=3,
+        skip=0,
+        limit=10,
+    )
+
+    assert response == {"fallback": True}
+    assert fallback_called[0]["user_id"] == 7
