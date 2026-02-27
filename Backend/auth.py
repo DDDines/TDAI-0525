@@ -72,308 +72,6 @@ else:
     )
 
 
-def _verify_password_impl(plain_password: str, hashed_password: str) -> bool:
-    return pwd_context.verify(plain_password, hashed_password)
-
-
-def _get_password_hash_impl(password: str) -> str:
-    return pwd_context.hash(password)
-
-
-def _create_access_token_impl(data: dict, expires_delta: Optional[timedelta] = None) -> str:
-    to_encode = data.copy()
-    expire = (
-        datetime.now(timezone.utc) + expires_delta
-        if expires_delta
-        else datetime.now(timezone.utc)
-        + timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
-    )
-    to_encode.update({"exp": expire, "iat": datetime.now(timezone.utc)})
-    return jwt.encode(to_encode, settings.SECRET_KEY, algorithm=settings.ALGORITHM)
-
-
-def _create_refresh_token_impl(data: dict, expires_delta: Optional[timedelta] = None) -> str:
-    to_encode = data.copy()
-    expire = (
-        datetime.now(timezone.utc) + expires_delta
-        if expires_delta
-        else datetime.now(timezone.utc) + timedelta(days=settings.REFRESH_TOKEN_EXPIRE_DAYS)
-    )
-    to_encode.update({"exp": expire, "iat": datetime.now(timezone.utc)})
-    return jwt.encode(to_encode, settings.REFRESH_SECRET_KEY, algorithm=settings.ALGORITHM)
-
-
-def _create_password_reset_token_impl() -> str:
-    return secrets.token_urlsafe(32)
-
-
-def _hash_password_reset_token_impl(token: str) -> str:
-    return hashlib.sha256(token.encode()).hexdigest()
-
-
-def _verify_password_reset_token_impl(token: str, token_hash: str) -> bool:
-    return _hash_password_reset_token_impl(token) == token_hash
-
-
-def _authenticate_user_impl(db: Session, email: str, password: str) -> Optional[models.User]:
-    user = crud_users.get_user_by_email(db, email=email)
-    if not user:
-        return None
-    if not user.is_active:
-        return None
-    if not user.hashed_password or not _verify_password_impl(password, user.hashed_password):
-        return None
-    return user
-
-
-async def _get_current_user_impl(
-    token: str,
-    db: Session,
-) -> models.User:
-    credentials_exception = HTTPException(
-        status_code=status.HTTP_401_UNAUTHORIZED,
-        detail="Nao foi possivel validar as credenciais",
-        headers={"WWW-Authenticate": "Bearer"},
-    )
-    try:
-        payload = jwt.decode(token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM])
-        email: Optional[str] = payload.get("sub")
-        user_id: Optional[int] = payload.get("user_id")
-        if email is None or user_id is None:
-            raise credentials_exception
-        token_data = schemas.TokenData(email=email, user_id=user_id)
-    except JWTError:
-        raise credentials_exception
-
-    user = crud_users.get_user(db, user_id=token_data.user_id)
-    if user is None or user.email != token_data.email:
-        raise credentials_exception
-    return user
-
-
-def _ensure_active_user_impl(current_user: models.User) -> models.User:
-    if not current_user.is_active:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Usuario inativo")
-    return current_user
-
-
-async def _login_for_access_token_impl(
-    form_data: OAuth2PasswordRequestForm,
-    db: Session,
-) -> Dict[str, str]:
-    user = _authenticate_user_impl(db, email=form_data.username, password=form_data.password)
-    if not user:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Email ou senha incorretos",
-            headers={"WWW-Authenticate": "Bearer"},
-        )
-    if not user.is_active:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Conta inativa.")
-
-    access_token_expires = timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
-    access_token = _create_access_token_impl(
-        data={"sub": user.email, "user_id": user.id},
-        expires_delta=access_token_expires,
-    )
-    refresh_token = _create_refresh_token_impl(data={"sub": user.email, "user_id": user.id})
-    return {"access_token": access_token, "refresh_token": refresh_token, "token_type": "bearer"}
-
-
-async def _refresh_access_token_impl(
-    refresh_token_data: schemas.RefreshTokenRequest,
-    db: Session,
-) -> Dict[str, str]:
-    token = refresh_token_data.refresh_token
-    credentials_exception = HTTPException(
-        status_code=status.HTTP_401_UNAUTHORIZED,
-        detail="Refresh token invalido",
-        headers={"WWW-Authenticate": "Bearer"},
-    )
-    try:
-        payload = jwt.decode(token, settings.REFRESH_SECRET_KEY, algorithms=[settings.ALGORITHM])
-        email: Optional[str] = payload.get("sub")
-        user_id: Optional[int] = payload.get("user_id")
-        if email is None or user_id is None:
-            raise credentials_exception
-
-        user = crud_users.get_user(db, user_id=user_id)
-        if not user or user.email != email or not user.is_active:
-            raise credentials_exception
-
-        access_token_expires = timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
-        new_access_token = _create_access_token_impl(
-            data={"sub": user.email, "user_id": user.id},
-            expires_delta=access_token_expires,
-        )
-        return {"access_token": new_access_token, "refresh_token": token, "token_type": "bearer"}
-
-    except JWTError:
-        raise credentials_exception
-
-
-async def _update_users_me_impl(
-    user_update: schemas.UserUpdate,
-    current_user: models.User,
-    db: Session,
-) -> models.User:
-    update_data = user_update.model_dump(exclude_unset=True)
-
-    if "password" in update_data:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Use o endpoint de alteracao de senha para atualizar a senha.",
-        )
-
-    new_email = update_data.get("email")
-    if new_email and new_email != current_user.email:
-        existing = crud_users.get_user_by_email(db, email=new_email)
-        if existing and existing.id != current_user.id:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Ja existe um usuario com este email.",
-            )
-
-    return crud_users.update_user(db=db, db_user=current_user, user_update=user_update)
-
-
-async def _change_password_me_impl(
-    payload: schemas.UserChangePassword,
-    current_user: models.User,
-    db: Session,
-) -> Dict[str, str]:
-    if not current_user.hashed_password or not _verify_password_impl(
-        payload.current_password,
-        current_user.hashed_password,
-    ):
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Senha atual incorreta.",
-        )
-
-    if payload.current_password == payload.new_password:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="A nova senha deve ser diferente da senha atual.",
-        )
-
-    current_user.hashed_password = _get_password_hash_impl(payload.new_password)
-    db.add(current_user)
-    db.commit()
-    db.refresh(current_user)
-    return {"message": "Senha alterada com sucesso."}
-
-
-async def _get_or_create_social_user_impl(
-    db: Session,
-    email: str,
-    nome: Optional[str],
-    provider: str,
-    provider_user_id: str,
-) -> Optional[models.User]:
-    db_user = crud_users.get_user_by_email(db, email=email)
-    if db_user:
-        if not db_user.is_active:
-            logger.warning("Usuario existente %s (via %s) esta inativo.", email, provider)
-            return None
-
-        updated = False
-        if not db_user.nome_completo and nome:
-            db_user.nome_completo = nome
-            updated = True
-        if not db_user.provider:
-            db_user.provider = provider
-            updated = True
-        if not db_user.provider_user_id:
-            db_user.provider_user_id = provider_user_id
-            updated = True
-
-        if updated:
-            db.add(db_user)
-            db.commit()
-            db.refresh(db_user)
-        return db_user
-
-    default_plano = crud_users.get_plano_by_name(db, "Gratuito")
-
-    user_in_create = schemas.UserCreateOAuth(
-        email=email,
-        nome_completo=(nome or email.split("@")[0]),
-        provider=provider,
-        provider_user_id=provider_user_id,
-    )
-
-    created_user = crud_users.create_user_oauth(
-        db=db,
-        user_oauth=user_in_create,
-        plano_id_default=default_plano.id if default_plano else None,
-    )
-    logger.info("Novo usuario criado via %s: %s", provider, email)
-    return created_user
-
-
-async def _process_google_login_impl(
-    db: Session,
-    google_userinfo: Dict[str, Any],
-) -> Optional[models.User]:
-    email = google_userinfo.get("email")
-    if not email:
-        logger.error("Email do Google nao encontrado nas informacoes do usuario.")
-        return None
-
-    if not google_userinfo.get("email_verified", False):
-        logger.warning("Email %s do Google nao esta verificado.", email)
-        return None
-
-    nome_completo = google_userinfo.get("name")
-    if not nome_completo:
-        primeiro_nome = google_userinfo.get("given_name", "")
-        ultimo_nome = google_userinfo.get("family_name", "")
-        nome_completo = f"{primeiro_nome} {ultimo_nome}".strip()
-
-    google_user_id = google_userinfo.get("sub")
-    if not google_user_id:
-        logger.error("ID de usuario do Google (sub) nao encontrado.")
-        return None
-
-    return await _get_or_create_social_user_impl(
-        db=db,
-        email=email,
-        nome=nome_completo,
-        provider="Google",
-        provider_user_id=google_user_id,
-    )
-
-
-async def _process_facebook_login_impl(
-    db: Session,
-    facebook_userinfo: Dict[str, Any],
-) -> Optional[models.User]:
-    email = facebook_userinfo.get("email")
-    if not email:
-        logger.error(
-            "Email do Facebook nao fornecido. Nao e possivel prosseguir com login/registro baseado em email."
-        )
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Email nao fornecido pelo Facebook. Verifique suas permissoes.",
-        )
-
-    nome_completo = facebook_userinfo.get("name", "")
-    facebook_user_id = facebook_userinfo.get("id")
-    if not facebook_user_id:
-        logger.error("ID de usuario do Facebook nao encontrado.")
-        return None
-
-    return await _get_or_create_social_user_impl(
-        db=db,
-        email=email,
-        nome=nome_completo,
-        provider="Facebook",
-        provider_user_id=facebook_user_id,
-    )
-
-
 class _AuthWorkflow:
     def __init__(self, runtime: Optional["_AuthRuntime"] = None) -> None:
         self._runtime = runtime or _AuthRuntime()
@@ -469,51 +167,144 @@ class _AuthWorkflow:
 
 class _AuthRuntime:
     def verify_password(self, plain_password: str, hashed_password: str) -> bool:
-        return _verify_password_impl(
-            plain_password=plain_password,
-            hashed_password=hashed_password,
-        )
+        return pwd_context.verify(plain_password, hashed_password)
 
     def get_password_hash(self, password: str) -> str:
-        return _get_password_hash_impl(password=password)
+        return pwd_context.hash(password)
 
     def create_access_token(self, data: dict, expires_delta: Optional[timedelta] = None) -> str:
-        return _create_access_token_impl(data=data, expires_delta=expires_delta)
+        to_encode = data.copy()
+        expire = (
+            datetime.now(timezone.utc) + expires_delta
+            if expires_delta
+            else datetime.now(timezone.utc)
+            + timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
+        )
+        to_encode.update({"exp": expire, "iat": datetime.now(timezone.utc)})
+        return jwt.encode(to_encode, settings.SECRET_KEY, algorithm=settings.ALGORITHM)
 
     def create_refresh_token(self, data: dict, expires_delta: Optional[timedelta] = None) -> str:
-        return _create_refresh_token_impl(data=data, expires_delta=expires_delta)
+        to_encode = data.copy()
+        expire = (
+            datetime.now(timezone.utc) + expires_delta
+            if expires_delta
+            else datetime.now(timezone.utc)
+            + timedelta(days=settings.REFRESH_TOKEN_EXPIRE_DAYS)
+        )
+        to_encode.update({"exp": expire, "iat": datetime.now(timezone.utc)})
+        return jwt.encode(to_encode, settings.REFRESH_SECRET_KEY, algorithm=settings.ALGORITHM)
 
     def create_password_reset_token(self) -> str:
-        return _create_password_reset_token_impl()
+        return secrets.token_urlsafe(32)
 
     def hash_password_reset_token(self, token: str) -> str:
-        return _hash_password_reset_token_impl(token=token)
+        return hashlib.sha256(token.encode()).hexdigest()
 
     def verify_password_reset_token(self, token: str, token_hash: str) -> bool:
-        return _verify_password_reset_token_impl(token=token, token_hash=token_hash)
+        return self.hash_password_reset_token(token=token) == token_hash
 
     def authenticate_user(self, db: Session, email: str, password: str) -> Optional[models.User]:
-        return _authenticate_user_impl(db=db, email=email, password=password)
+        user = crud_users.get_user_by_email(db, email=email)
+        if not user:
+            return None
+        if not user.is_active:
+            return None
+        if not user.hashed_password or not self.verify_password(password, user.hashed_password):
+            return None
+        return user
 
     async def get_current_user(self, token: str, db: Session) -> models.User:
-        return await _get_current_user_impl(token=token, db=db)
+        credentials_exception = HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Nao foi possivel validar as credenciais",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+        try:
+            payload = jwt.decode(token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM])
+            email: Optional[str] = payload.get("sub")
+            user_id: Optional[int] = payload.get("user_id")
+            if email is None or user_id is None:
+                raise credentials_exception
+            token_data = schemas.TokenData(email=email, user_id=user_id)
+        except JWTError:
+            raise credentials_exception
+
+        user = crud_users.get_user(db, user_id=token_data.user_id)
+        if user is None or user.email != token_data.email:
+            raise credentials_exception
+        return user
 
     def get_current_active_user(self, current_user: models.User) -> models.User:
-        return _ensure_active_user_impl(current_user=current_user)
+        if not current_user.is_active:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Usuario inativo")
+        return current_user
 
     async def login_for_access_token(
         self,
         form_data: OAuth2PasswordRequestForm,
         db: Session,
     ) -> Dict[str, str]:
-        return await _login_for_access_token_impl(form_data=form_data, db=db)
+        user = self.authenticate_user(db, email=form_data.username, password=form_data.password)
+        if not user:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Email ou senha incorretos",
+                headers={"WWW-Authenticate": "Bearer"},
+            )
+        if not user.is_active:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Conta inativa.")
+
+        access_token_expires = timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
+        access_token = self.create_access_token(
+            data={"sub": user.email, "user_id": user.id},
+            expires_delta=access_token_expires,
+        )
+        refresh_token = self.create_refresh_token(data={"sub": user.email, "user_id": user.id})
+        return {
+            "access_token": access_token,
+            "refresh_token": refresh_token,
+            "token_type": "bearer",
+        }
 
     async def refresh_access_token(
         self,
         refresh_token_data: schemas.RefreshTokenRequest,
         db: Session,
     ) -> Dict[str, str]:
-        return await _refresh_access_token_impl(refresh_token_data=refresh_token_data, db=db)
+        token = refresh_token_data.refresh_token
+        credentials_exception = HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Refresh token invalido",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+        try:
+            payload = jwt.decode(
+                token,
+                settings.REFRESH_SECRET_KEY,
+                algorithms=[settings.ALGORITHM],
+            )
+            email: Optional[str] = payload.get("sub")
+            user_id: Optional[int] = payload.get("user_id")
+            if email is None or user_id is None:
+                raise credentials_exception
+
+            user = crud_users.get_user(db, user_id=user_id)
+            if not user or user.email != email or not user.is_active:
+                raise credentials_exception
+
+            access_token_expires = timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
+            new_access_token = self.create_access_token(
+                data={"sub": user.email, "user_id": user.id},
+                expires_delta=access_token_expires,
+            )
+            return {
+                "access_token": new_access_token,
+                "refresh_token": token,
+                "token_type": "bearer",
+            }
+
+        except JWTError:
+            raise credentials_exception
 
     async def update_users_me(
         self,
@@ -521,11 +312,24 @@ class _AuthRuntime:
         current_user: models.User,
         db: Session,
     ) -> models.User:
-        return await _update_users_me_impl(
-            user_update=user_update,
-            current_user=current_user,
-            db=db,
-        )
+        update_data = user_update.model_dump(exclude_unset=True)
+
+        if "password" in update_data:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Use o endpoint de alteracao de senha para atualizar a senha.",
+            )
+
+        new_email = update_data.get("email")
+        if new_email and new_email != current_user.email:
+            existing = crud_users.get_user_by_email(db, email=new_email)
+            if existing and existing.id != current_user.id:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="Ja existe um usuario com este email.",
+                )
+
+        return crud_users.update_user(db=db, db_user=current_user, user_update=user_update)
 
     async def change_password_me(
         self,
@@ -533,25 +337,136 @@ class _AuthRuntime:
         current_user: models.User,
         db: Session,
     ) -> Dict[str, str]:
-        return await _change_password_me_impl(
-            payload=payload,
-            current_user=current_user,
-            db=db,
+        if not current_user.hashed_password or not self.verify_password(
+            payload.current_password,
+            current_user.hashed_password,
+        ):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Senha atual incorreta.",
+            )
+
+        if payload.current_password == payload.new_password:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="A nova senha deve ser diferente da senha atual.",
+            )
+
+        current_user.hashed_password = self.get_password_hash(payload.new_password)
+        db.add(current_user)
+        db.commit()
+        db.refresh(current_user)
+        return {"message": "Senha alterada com sucesso."}
+
+    async def _get_or_create_social_user(
+        self,
+        db: Session,
+        email: str,
+        nome: Optional[str],
+        provider: str,
+        provider_user_id: str,
+    ) -> Optional[models.User]:
+        db_user = crud_users.get_user_by_email(db, email=email)
+        if db_user:
+            if not db_user.is_active:
+                logger.warning("Usuario existente %s (via %s) esta inativo.", email, provider)
+                return None
+
+            updated = False
+            if not db_user.nome_completo and nome:
+                db_user.nome_completo = nome
+                updated = True
+            if not db_user.provider:
+                db_user.provider = provider
+                updated = True
+            if not db_user.provider_user_id:
+                db_user.provider_user_id = provider_user_id
+                updated = True
+
+            if updated:
+                db.add(db_user)
+                db.commit()
+                db.refresh(db_user)
+            return db_user
+
+        default_plano = crud_users.get_plano_by_name(db, "Gratuito")
+
+        user_in_create = schemas.UserCreateOAuth(
+            email=email,
+            nome_completo=(nome or email.split("@")[0]),
+            provider=provider,
+            provider_user_id=provider_user_id,
         )
+
+        created_user = crud_users.create_user_oauth(
+            db=db,
+            user_oauth=user_in_create,
+            plano_id_default=default_plano.id if default_plano else None,
+        )
+        logger.info("Novo usuario criado via %s: %s", provider, email)
+        return created_user
 
     async def process_google_login(
         self,
         db: Session,
         google_userinfo: Dict[str, Any],
     ) -> Optional[models.User]:
-        return await _process_google_login_impl(db=db, google_userinfo=google_userinfo)
+        email = google_userinfo.get("email")
+        if not email:
+            logger.error("Email do Google nao encontrado nas informacoes do usuario.")
+            return None
+
+        if not google_userinfo.get("email_verified", False):
+            logger.warning("Email %s do Google nao esta verificado.", email)
+            return None
+
+        nome_completo = google_userinfo.get("name")
+        if not nome_completo:
+            primeiro_nome = google_userinfo.get("given_name", "")
+            ultimo_nome = google_userinfo.get("family_name", "")
+            nome_completo = f"{primeiro_nome} {ultimo_nome}".strip()
+
+        google_user_id = google_userinfo.get("sub")
+        if not google_user_id:
+            logger.error("ID de usuario do Google (sub) nao encontrado.")
+            return None
+
+        return await self._get_or_create_social_user(
+            db=db,
+            email=email,
+            nome=nome_completo,
+            provider="Google",
+            provider_user_id=google_user_id,
+        )
 
     async def process_facebook_login(
         self,
         db: Session,
         facebook_userinfo: Dict[str, Any],
     ) -> Optional[models.User]:
-        return await _process_facebook_login_impl(db=db, facebook_userinfo=facebook_userinfo)
+        email = facebook_userinfo.get("email")
+        if not email:
+            logger.error(
+                "Email do Facebook nao fornecido. Nao e possivel prosseguir com login/registro baseado em email."
+            )
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Email nao fornecido pelo Facebook. Verifique suas permissoes.",
+            )
+
+        nome_completo = facebook_userinfo.get("name", "")
+        facebook_user_id = facebook_userinfo.get("id")
+        if not facebook_user_id:
+            logger.error("ID de usuario do Facebook nao encontrado.")
+            return None
+
+        return await self._get_or_create_social_user(
+            db=db,
+            email=email,
+            nome=nome_completo,
+            provider="Facebook",
+            provider_user_id=facebook_user_id,
+        )
 
 
 auth_workflow = _AuthWorkflow()
