@@ -121,3 +121,16 @@ def reset_password(
     reset_data: schemas.PasswordResetSchema = Body(...),
 ):
     return _password_recovery_workflow.reset_password(db=db, reset_data=reset_data)
+
+
+class PasswordRecoveryRouterLegacyService:
+    """Camada de compatibilidade para chamadas legadas do router."""
+
+    async def recover_password(self, *args, **kwargs):
+        return await _password_recovery_workflow.recover_password(*args, **kwargs)
+
+    def reset_password(self, *args, **kwargs):
+        return _password_recovery_workflow.reset_password(*args, **kwargs)
+
+
+password_recovery_router_legacy_service = PasswordRecoveryRouterLegacyService()

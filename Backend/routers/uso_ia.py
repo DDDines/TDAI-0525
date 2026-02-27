@@ -196,3 +196,22 @@ def read_uso_ia_especifico(
         current_user=current_user,
         registro_id=registro_id,
     )
+
+
+class UsoIARouterLegacyService:
+    """Camada de compatibilidade para chamadas legadas do router."""
+
+    def create_uso_ia(self, *args, **kwargs):
+        return _uso_ia_workflow.create_uso_ia(*args, **kwargs)
+
+    def list_usos_ia_usuario(self, *args, **kwargs):
+        return _uso_ia_workflow.list_usos_ia_usuario(*args, **kwargs)
+
+    def read_uso_ia_especifico(self, *args, **kwargs):
+        return _uso_ia_workflow.read_uso_ia_especifico(*args, **kwargs)
+
+    def read_usos_ia_por_produto(self, *args, **kwargs):
+        return _uso_ia_workflow.read_usos_ia_por_produto(*args, **kwargs)
+
+
+uso_ia_router_legacy_service = UsoIARouterLegacyService()

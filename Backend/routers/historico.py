@@ -64,3 +64,16 @@ def list_historico(
 def get_tipos_acao(db: Session = Depends(database.get_db)):
     _ = db
     return _historico_workflow.get_tipos_acao()
+
+
+class HistoricoRouterLegacyService:
+    """Camada de compatibilidade para chamadas legadas do router."""
+
+    def list_historico(self, *args, **kwargs):
+        return _historico_workflow.list_historico(*args, **kwargs)
+
+    def get_tipos_acao(self, *args, **kwargs):
+        return _historico_workflow.get_tipos_acao(*args, **kwargs)
+
+
+historico_router_legacy_service = HistoricoRouterLegacyService()
