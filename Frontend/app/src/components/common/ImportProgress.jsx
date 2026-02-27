@@ -41,15 +41,11 @@ function ImportProgress({ fileId, onDone }) {
               terminalDetectedAt = Date.now();
             }
             resultAttempts += 1;
+
             const elapsedMs = Date.now() - terminalDetectedAt;
             const timeoutExceeded =
               elapsedMs >= MAX_RESULT_WAIT_MS || resultAttempts >= MAX_RESULT_ATTEMPTS;
             const statusSignalsReady = Boolean(s?.result_ready);
-
-            if (!statusSignalsReady && !timeoutExceeded) {
-              keepPolling = true;
-              continue;
-            }
 
             if (!statusSignalsReady && timeoutExceeded) {
               if (!cancelled) {
@@ -59,29 +55,29 @@ function ImportProgress({ fileId, onDone }) {
                 if (onDoneRef.current) onDoneRef.current(null);
               }
               keepPolling = false;
-              continue;
-            }
+            } else if (statusSignalsReady || timeoutExceeded) {
+              try {
+                const result = await fornecedorService.getImportacaoResult(fileId);
+                if (cancelled || pollingRunRef.current !== runId) return;
 
-            try {
-              const result = await fornecedorService.getImportacaoResult(fileId);
-              if (cancelled || pollingRunRef.current !== runId) return;
-              if (result?.ready === false) {
-                if (timeoutExceeded) {
-                  setError(
-                    'Resultado final ainda pendente após o tempo limite de espera. Atualize em instantes.'
-                  );
-                  if (onDoneRef.current) onDoneRef.current(null);
-                  keepPolling = false;
+                if (result?.ready === false) {
+                  if (timeoutExceeded) {
+                    setError(
+                      'Resultado final ainda pendente após o tempo limite de espera. Atualize em instantes.'
+                    );
+                    if (onDoneRef.current) onDoneRef.current(null);
+                    keepPolling = false;
+                  } else {
+                    keepPolling = true;
+                  }
                 } else {
-                  keepPolling = true;
+                  if (onDoneRef.current) onDoneRef.current(result);
+                  keepPolling = false;
                 }
-              } else {
-                if (onDoneRef.current) onDoneRef.current(result);
+              } catch {
+                if (!cancelled && onDoneRef.current) onDoneRef.current(null);
                 keepPolling = false;
               }
-            } catch {
-              if (!cancelled && onDoneRef.current) onDoneRef.current(null);
-              keepPolling = false;
             }
           }
 

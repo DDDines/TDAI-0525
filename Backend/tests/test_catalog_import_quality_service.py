@@ -76,3 +76,34 @@ def test_evaluate_keeps_sku_code_when_dynamic_part_context_exists():
         }
     )
     assert reason is None
+
+
+def test_evaluate_discards_short_numeric_code_without_strong_part_context():
+    service = CatalogImportQualityService()
+    reason = service.evaluate_product_row_quality(
+        {
+            "nome_base": "402",
+            "sku_original": "402",
+            "descricao_original": "Paralama",
+            "categoria_original": "",
+            "ean_original": None,
+            "dynamic_attributes": {"material": "metalico"},
+        }
+    )
+    assert reason is not None
+    assert "codigo curto sem contexto forte de peca" in reason
+
+
+def test_evaluate_accepts_short_numeric_code_with_strong_part_context():
+    service = CatalogImportQualityService()
+    reason = service.evaluate_product_row_quality(
+        {
+            "nome_base": "402",
+            "sku_original": "402",
+            "descricao_original": "Paralama dianteiro superior em plastico injetado",
+            "categoria_original": "",
+            "ean_original": None,
+            "dynamic_attributes": {"material": "plastico injetado"},
+        }
+    )
+    assert reason is None

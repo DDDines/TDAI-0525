@@ -155,6 +155,7 @@ def test_quality_filter_rejects_numeric_name_with_sku_without_description():
     assert (
         "sem descricao" in reason
         or "nome curto com SKU" in reason
+        or "codigo curto sem contexto forte de peca" in reason
     )
 
 
@@ -356,7 +357,24 @@ def test_quality_filter_rejects_short_name_with_sku_without_part_context():
         }
     )
     assert reason is not None
-    assert "nome curto com SKU" in reason
+    assert (
+        "nome curto com SKU" in reason
+        or "codigo curto sem contexto forte de peca" in reason
+    )
+
+
+def test_quality_filter_rejects_short_numeric_code_with_weak_part_context():
+    reason = _avaliar_qualidade_linha_produto(
+        {
+            "nome_base": "8199",
+            "sku_original": "8199",
+            "descricao_original": "Paralama",
+            "categoria_original": "",
+            "ean_original": None,
+        }
+    )
+    assert reason is not None
+    assert "codigo curto sem contexto forte de peca" in reason
 
 
 def test_quality_filter_rejects_sku_with_only_vehicle_application_context():

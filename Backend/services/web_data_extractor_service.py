@@ -59,6 +59,17 @@ _TRACKING_QUERY_HINTS = (
     "cid=",
     "utm_",
 )
+_REDIRECT_QUERY_KEYS = (
+    "uddg",
+    "u",
+    "u3",
+    "url",
+    "target",
+    "redirect",
+    "redirect_url",
+    "dest",
+    "destination",
+)
 _LOW_RELEVANCE_HOST_HINTS = (
     "duckduckgo.com",
     "bing.com",
@@ -148,12 +159,37 @@ def _score_url_publica(url: str) -> int:
     return score
 
 
+def _extract_redirect_destination(query: str) -> Optional[str]:
+    if not query:
+        return None
+    qs = parse_qs(query or "")
+    for key in _REDIRECT_QUERY_KEYS:
+        values = qs.get(key) or []
+        for raw_value in values:
+            candidate = unquote(str(raw_value or "").strip())
+            if candidate.startswith(("http://", "https://")):
+                return candidate
+    return None
+
+
+def _unwrap_redirect_url(url: str, max_hops: int = 3) -> str:
+    current = str(url or "").strip()
+    for _ in range(max(1, max_hops)):
+        parsed = urlparse(current)
+        destination = _extract_redirect_destination(parsed.query or "")
+        if not destination or destination == current:
+            break
+        current = destination.strip()
+    return current
+
+
 def _url_deve_ser_ignorada_antes_da_coleta(url: str) -> bool:
-    """Evita coletar links de tracking, redirecionamento e pÃ¡ginas de busca."""
+    """Evita coletar links de tracking, redirecionamento e paginas de busca."""
     parsed = urlparse(str(url or "").strip())
     host = (parsed.netloc or "").lower()
     path = (parsed.path or "").lower()
     query = (parsed.query or "").lower()
+    host_no_www = host[4:] if host.startswith("www.") else host
 
     if parsed.scheme not in {"http", "https"}:
         return True
@@ -161,17 +197,29 @@ def _url_deve_ser_ignorada_antes_da_coleta(url: str) -> bool:
         return True
 
     # Endpoints de tracking/redirect de buscadores.
-    if "duckduckgo.com" in host and path in {"/y.js", "/redirect"}:
+    if "duckduckgo.com" in host_no_www and (
+        path.startswith("/y.js") or path.startswith("/redirect") or path.startswith("/l/")
+    ):
         return True
-    if "bing.com" in host and path.startswith("/aclick"):
+    if "bing.com" in host_no_www and (path.startswith("/aclick") or path.startswith("/ck/")):
         return True
-    if "bing.com" in host and path in {"/search", "/images/search"}:
+    if "bing.com" in host_no_www and (
+        path.startswith("/search") or path.startswith("/images/search")
+    ):
         return True
-    if "google.com" in host and path in {"/search", "/imgres", "/url"}:
+    if ("google.com" in host_no_www or host_no_www.endswith(".google")) and (
+        path.startswith("/search") or path.startswith("/imgres") or path.startswith("/url")
+    ):
         return True
 
     # Consultas com assinatura tÃ­pica de tracking.
     if any(hint in query for hint in _TRACKING_QUERY_HINTS):
+        return True
+    if len(query) > 500:
+        return True
+    if _extract_redirect_destination(query) and any(
+        hint in host_no_www for hint in _LOW_RELEVANCE_HOST_HINTS
+    ):
         return True
 
     # Links diretos para PDF costumam abortar no Playwright e nÃ£o sÃ£o Ãºteis
@@ -191,13 +239,41 @@ def _normalizar_url_busca(candidata: str, base_url: str) -> Optional[str]:
     if url_final.startswith("/"):
         url_final = urljoin(base_url, url_final)
 
+    raw_parsed = urlparse(url_final)
+    raw_host = (raw_parsed.netloc or "").lower()
+    raw_host_no_www = raw_host[4:] if raw_host.startswith("www.") else raw_host
+    raw_path = (raw_parsed.path or "").lower()
+    raw_query = (raw_parsed.query or "").lower()
+
+    # Wrappers de tracking/search conhecidos devem ser descartados mesmo que
+    # carreguem um destino final potencialmente válido em query-string.
+    if "duckduckgo.com" in raw_host_no_www and (
+        raw_path.startswith("/y.js") or raw_path.startswith("/redirect")
+    ):
+        return None
+    if "bing.com" in raw_host_no_www and raw_path.startswith("/aclick"):
+        return None
+    if ("google.com" in raw_host_no_www or raw_host_no_www.endswith(".google")) and (
+        raw_path.startswith("/search")
+        or raw_path.startswith("/imgres")
+        or raw_path.startswith("/url")
+    ):
+        return None
+    if any(hint in raw_query for hint in _TRACKING_QUERY_HINTS) and any(
+        hint in raw_host_no_www for hint in _LOW_RELEVANCE_HOST_HINTS
+    ):
+        return None
+
+    url_final = _unwrap_redirect_url(url_final, max_hops=4)
+
     parsed = urlparse(url_final)
     host = (parsed.netloc or "").lower()
     path = (parsed.path or "").lower()
     query = (parsed.query or "").lower()
+    host_no_www = host[4:] if host.startswith("www.") else host
 
     # URLs internas/trackers de buscadores nÃ£o devem entrar no pipeline.
-    if "duckduckgo.com" in host:
+    if "duckduckgo.com" in host_no_www:
         qs = parse_qs(parsed.query or "")
         destino = None
         for key in ("uddg", "u", "u3"):
@@ -211,19 +287,22 @@ def _normalizar_url_busca(candidata: str, base_url: str) -> Optional[str]:
             url_final = destino.strip()
             parsed = urlparse(url_final)
             host = (parsed.netloc or "").lower()
+            host_no_www = host[4:] if host.startswith("www.") else host
         else:
             return None
 
         # Se continuou no domÃ­nio DuckDuckGo, descarta.
-        if "duckduckgo.com" in host:
+        if "duckduckgo.com" in host_no_www:
             return None
 
     # Alguns resultados vÃªm como click-tracker do Bing.
-    if "bing.com" in host and parsed.path.lower().startswith("/aclick"):
+    if "bing.com" in host_no_www and parsed.path.lower().startswith("/aclick"):
         return None
-    if "bing.com" in host and path in {"/search", "/images/search"}:
+    if "bing.com" in host_no_www and (path.startswith("/search") or path.startswith("/images/search")):
         return None
-    if "google.com" in host and path in {"/search", "/imgres"}:
+    if ("google.com" in host_no_www or host_no_www.endswith(".google")) and (
+        path.startswith("/search") or path.startswith("/imgres")
+    ):
         return None
     if path in {"/y.js", "/redirect"}:
         return None

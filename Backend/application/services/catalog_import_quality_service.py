@@ -94,6 +94,21 @@ class CatalogImportQualityService:
         has_part = self.text_looks_like_part_name(text)
         return (has_model or has_year) and not has_part
 
+    def part_context_strength(self, value: Any) -> int:
+        text = self.fold_ascii_text(value)
+        if not text or not self.text_looks_like_part_name(text):
+            return 0
+
+        tokens = [tok for tok in text.split(" ") if tok]
+        score = 1
+        if len(tokens) >= 2:
+            score += 1
+        if len(text) >= 12:
+            score += 1
+        if any(len(tok) >= 6 for tok in tokens):
+            score += 1
+        return score
+
     @staticmethod
     def text_looks_like_part_code(value: Any) -> bool:
         text = str(value or "").strip()
@@ -200,6 +215,17 @@ class CatalogImportQualityService:
         dynamic_part_context = isinstance(dynamic_attributes, dict) and any(
             self.text_looks_like_part_name(v) for v in dynamic_attributes.values()
         )
+        dynamic_part_strength = (
+            max(
+                (
+                    self.part_context_strength(v)
+                    for v in dynamic_attributes.values()
+                ),
+                default=0,
+            )
+            if isinstance(dynamic_attributes, dict)
+            else 0
+        )
         has_context = any(
             (
                 self.text_has_context(descricao),
@@ -213,6 +239,13 @@ class CatalogImportQualityService:
         nome_peca = self.text_looks_like_part_name(nome)
         descricao_peca = self.text_looks_like_part_name(descricao)
         categoria_peca = self.text_looks_like_part_name(categoria)
+        descricao_part_strength = self.part_context_strength(descricao)
+        categoria_part_strength = self.part_context_strength(categoria)
+        strongest_part_context = max(
+            descricao_part_strength,
+            categoria_part_strength,
+            dynamic_part_strength,
+        )
         has_part_context = descricao_peca or categoria_peca or dynamic_part_context
         descricao_aplicacao = self.text_looks_like_vehicle_application(descricao)
         categoria_aplicacao = self.text_looks_like_vehicle_application(categoria)
@@ -224,6 +257,13 @@ class CatalogImportQualityService:
         nome_numerico = bool(nome_compacto) and nome_compacto.isdigit()
         nome_codigo_peca = self.text_looks_like_part_code(nome)
         nome_ruido_ocr = self.name_looks_like_ocr_noise(nome)
+        short_numeric_code_name = (
+            bool(nome_compacto)
+            and bool(sku_compacto)
+            and nome_compacto == sku_compacto
+            and nome_compacto.isdigit()
+            and len(nome_compacto) <= 5
+        )
 
         if self.name_looks_like_annotation_header(nome):
             return "Linha descartada por baixa qualidade: cabecalho de anotacoes"
@@ -283,6 +323,8 @@ class CatalogImportQualityService:
             return "Linha descartada por baixa qualidade: nome numerico sem contexto"
         if sku and nome_numerico and sku_compacto == nome_compacto and not has_part_context:
             return "Linha descartada por baixa qualidade: nome numerico igual ao SKU sem descricao"
+        if short_numeric_code_name and not ean and strongest_part_context < 3:
+            return "Linha descartada por baixa qualidade: codigo curto sem contexto forte de peca"
         if sku and not nome and not has_part_context:
             return "Linha descartada por baixa qualidade: SKU sem nome/descricao confiavel"
         if sku and nome_codigo_peca and not has_part_context:
@@ -389,11 +431,35 @@ class CatalogImportQualityService:
         nome_numerico = bool(nome_compacto) and nome_compacto.isdigit()
         nome_codigo_peca = self.text_looks_like_part_code(nome)
         nome_ruido_ocr = self.name_looks_like_ocr_noise(nome)
+        short_numeric_code_name = (
+            bool(nome_compacto)
+            and bool(sku_compacto)
+            and nome_compacto == sku_compacto
+            and nome_compacto.isdigit()
+            and len(nome_compacto) <= 5
+        )
 
         descricao_peca = self.text_looks_like_part_name(descricao)
         categoria_peca = self.text_looks_like_part_name(categoria)
         descricao_aplicacao = self.text_looks_like_vehicle_application(descricao)
         categoria_aplicacao = self.text_looks_like_vehicle_application(categoria)
+        dynamic_attributes = data.get("dynamic_attributes") or {}
+        dynamic_part_strength = (
+            max(
+                (
+                    self.part_context_strength(v)
+                    for v in dynamic_attributes.values()
+                ),
+                default=0,
+            )
+            if isinstance(dynamic_attributes, dict)
+            else 0
+        )
+        strongest_part_context = max(
+            self.part_context_strength(descricao),
+            self.part_context_strength(categoria),
+            dynamic_part_strength,
+        )
 
         if nome_ruido_ocr and not descricao_peca and not categoria_peca:
             reason = "Linha em quarentena: nome com padrao de ruido OCR"
@@ -413,6 +479,13 @@ class CatalogImportQualityService:
                 "decision": "quarantine",
                 "score": min(score, 55),
                 "reason": reason,
+            }
+
+        if short_numeric_code_name and strongest_part_context < 4:
+            return {
+                "decision": "quarantine",
+                "score": min(score, 52),
+                "reason": "Linha em quarentena: codigo curto requer contexto forte de peca",
             }
 
         if nome_numerico and not descricao_peca and not categoria_peca:

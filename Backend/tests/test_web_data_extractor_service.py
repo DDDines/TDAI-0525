@@ -31,3 +31,16 @@ def test_normalizar_url_busca_expande_uddg_para_url_final():
     raw = "https://duckduckgo.com/l/?uddg=https%3A%2F%2Fexample.com%2Fproduto-1"
     normalized = _normalizar_url_busca(raw, "https://duckduckgo.com/html/?q=teste")
     assert normalized == "https://example.com/produto-1"
+
+
+def test_normalizar_url_busca_descarta_tracker_duckduckgo_yjs_com_u3():
+    raw = (
+        "https://duckduckgo.com/y.js?ad_domain=foo.com"
+        "&u3=https%3A%2F%2Fwww.bing.com%2Faclick%3Fu%3Dhttps%253A%252F%252Fexample.com%252Fproduto"
+    )
+    assert _normalizar_url_busca(raw, "https://duckduckgo.com/html/?q=teste") is None
+
+
+def test_url_deve_ser_ignorada_para_host_baixa_relevancia_com_redirect():
+    url = "https://www.google.com/url?url=https%3A%2F%2Fexample.com%2Fproduto&id=1"
+    assert _url_deve_ser_ignorada_antes_da_coleta(url) is True

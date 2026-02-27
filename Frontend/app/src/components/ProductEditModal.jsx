@@ -80,6 +80,17 @@ const initialFormData = {
     status_descricao_ia: null,
 };
 
+const WEB_ENRICHMENT_POLL_INTERVAL_MS = 3000;
+const WEB_ENRICHMENT_MAX_POLLS = 40;
+const WEB_ENRICHMENT_TERMINAL_STATUSES = new Set([
+    'CONCLUIDO_SUCESSO',
+    'CONCLUIDO_COM_DADOS_PARCIAIS',
+    'NENHUMA_FONTE_ENCONTRADA',
+    'FALHA_API_EXTERNA',
+    'FALHA_CONFIGURACAO_API_EXTERNA',
+    'FALHOU',
+]);
+
 const foldText = (value) =>
     String(value || '')
         .normalize('NFKD')
@@ -213,6 +224,7 @@ const ProductEditModal = ({ isOpen, onClose, product, onProductUpdated }) => {
     const [selectedIaSuggestions, setSelectedIaSuggestions] = useState({});
     const [newAttrKey, setNewAttrKey] = useState('');
     const [isNewTypeModalOpen, setIsNewTypeModalOpen] = useState(false);
+    const enrichmentPollRunRef = React.useRef(0);
 
 
     useEffect(() => {
@@ -259,6 +271,16 @@ const ProductEditModal = ({ isOpen, onClose, product, onProductUpdated }) => {
             }
         }
     }, [isOpen, product, formData.fornecedor_id, formData.product_type_id]);
+
+    useEffect(() => {
+        if (!isOpen) {
+            enrichmentPollRunRef.current += 1;
+            setIsEnrichingWeb(false);
+        }
+        return () => {
+            enrichmentPollRunRef.current += 1;
+        };
+    }, [isOpen]);
 
     const extractIaSuggestions = useCallback((dadosBrutos) => {
         const extracted = {};
@@ -480,23 +502,96 @@ const ProductEditModal = ({ isOpen, onClose, product, onProductUpdated }) => {
         setFormData(prev => ({ ...prev, product_type_id: newType.id }));
     };
 
+    const resolveErrorDetail = (err, fallback) => {
+        if (!err) return fallback;
+        if (typeof err?.message === 'string' && err.message.trim()) return err.message;
+        if (typeof err?.detail === 'string' && err.detail.trim()) return err.detail;
+        if (typeof err?.response?.data?.detail === 'string' && err.response.data.detail.trim()) {
+            return err.response.data.detail;
+        }
+        if (typeof err?.response?.data?.msg === 'string' && err.response.data.msg.trim()) {
+            return err.response.data.msg;
+        }
+        return fallback;
+    };
+
+    const pollEnrichmentUntilTerminal = async (produtoId, runId) => {
+        for (let attempt = 1; attempt <= WEB_ENRICHMENT_MAX_POLLS; attempt += 1) {
+            if (enrichmentPollRunRef.current !== runId) return null;
+            try {
+                const refreshedProduct = await productService.getProdutoById(produtoId);
+                if (enrichmentPollRunRef.current !== runId) return null;
+
+                const currentStatus = String(
+                    refreshedProduct?.status_enriquecimento_web || ''
+                ).toUpperCase();
+
+                if (
+                    currentStatus &&
+                    currentStatus !== 'EM_PROGRESSO' &&
+                    WEB_ENRICHMENT_TERMINAL_STATUSES.has(currentStatus)
+                ) {
+                    populateFormData(refreshedProduct);
+                    if (onProductUpdated) onProductUpdated(refreshedProduct);
+                    return refreshedProduct;
+                }
+            } catch (pollError) {
+                if (enrichmentPollRunRef.current !== runId) return null;
+                console.warn('Falha ao consultar status de enriquecimento web:', pollError);
+            }
+
+            if (attempt < WEB_ENRICHMENT_MAX_POLLS) {
+                await new Promise((resolve) =>
+                    setTimeout(resolve, WEB_ENRICHMENT_POLL_INTERVAL_MS)
+                );
+            }
+        }
+        return null;
+    };
+
     const _handleEnrichWeb = async () => {
         if (!product?.id) {
             showWarningToast("Salve o produto primeiro antes de enriquecer a web.");
             return;
         }
+        const runId = Date.now();
+        enrichmentPollRunRef.current = runId;
         setIsEnrichingWeb(true);
         setError(null);
         showInfoToast("Processo de enriquecimento web iniciado. Isso pode levar alguns minutos e atualizará o log e as sugestões.");
         try {
             await productService.iniciarEnriquecimentoWebProduto(product.id); 
-            showSuccessToast("Comando de enriquecimento enviado. O produto será atualizado em segundo plano.");
+            showSuccessToast("Comando de enriquecimento enviado. Aguardando atualização do produto.");
+            const refreshed = await pollEnrichmentUntilTerminal(product.id, runId);
+            if (enrichmentPollRunRef.current !== runId) return;
+
+            if (!refreshed) {
+                showWarningToast(
+                    "O enriquecimento continua em segundo plano. Reabra o produto em instantes para ver o resultado final."
+                );
+                return;
+            }
+
+            const summary = refreshed?.log_enriquecimento_web?.resumo_aplicacao || {};
+            const appliedTotal = Number(summary?.aplicados_total || 0);
+            const ignoredTotal = Number(summary?.ignorados_total || 0);
+            const statusFinal = String(refreshed?.status_enriquecimento_web || '').toUpperCase();
+
+            if (statusFinal === 'CONCLUIDO_SUCESSO' || statusFinal === 'CONCLUIDO_COM_DADOS_PARCIAIS') {
+                showSuccessToast(
+                    `Enriquecimento finalizado (${statusFinal}). Aplicados: ${appliedTotal}. Ignorados: ${ignoredTotal}.`
+                );
+            } else if (statusFinal) {
+                showWarningToast(`Enriquecimento finalizado com status ${statusFinal}.`);
+            }
         } catch (err) {
-            const errorDetail = err.response?.data?.detail || "Erro ao iniciar enriquecimento web.";
+            const errorDetail = resolveErrorDetail(err, "Erro ao iniciar enriquecimento web.");
             setError(errorDetail);
             showErrorToast(errorDetail);
         } finally {
-            setIsEnrichingWeb(false);
+            if (enrichmentPollRunRef.current === runId) {
+                setIsEnrichingWeb(false);
+            }
         }
     };
 

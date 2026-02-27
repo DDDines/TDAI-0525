@@ -2904,11 +2904,13 @@ class _TabularIngestionWorkflow:
         self,
         conteudo_arquivo: bytes,
         mapeamento_colunas_usuario: Optional[Dict[str, str]] = None,
+        sheet_name: Optional[str] = None,
         product_type_id: Optional[int] = None,
     ) -> List[Dict[str, Any]]:
         return await _processar_arquivo_excel_impl(
             conteudo_arquivo=conteudo_arquivo,
             mapeamento_colunas_usuario=mapeamento_colunas_usuario,
+            sheet_name=sheet_name,
             product_type_id=product_type_id,
         )
 
@@ -2931,11 +2933,13 @@ _tabular_ingestion_workflow = _TabularIngestionWorkflow()
 async def processar_arquivo_excel(
     conteudo_arquivo: bytes,
     mapeamento_colunas_usuario: Optional[Dict[str, str]] = None,
+    sheet_name: Optional[str] = None,
     product_type_id: Optional[int] = None,
 ) -> List[Dict[str, Any]]:
     return await _tabular_ingestion_workflow.processar_arquivo_excel(
         conteudo_arquivo=conteudo_arquivo,
         mapeamento_colunas_usuario=mapeamento_colunas_usuario,
+        sheet_name=sheet_name,
         product_type_id=product_type_id,
     )
 

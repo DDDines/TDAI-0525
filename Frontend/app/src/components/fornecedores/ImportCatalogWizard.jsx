@@ -142,6 +142,18 @@ const normalizePayloadStrings = (payload) => {
 };
 
 const ImportCatalogWizard = ({ fornecedor, productTypeId: initialProductTypeId, onClose, isOpen }) => {
+  const defaultFornecedorMappingJson = useMemo(
+    () => JSON.stringify(fornecedor?.default_column_mapping || {}),
+    [fornecedor?.default_column_mapping]
+  );
+  const defaultFornecedorMapping = useMemo(() => {
+    try {
+      return JSON.parse(defaultFornecedorMappingJson);
+    } catch {
+      return {};
+    }
+  }, [defaultFornecedorMappingJson]);
+
   const [step, setStep] = useState('upload');
   const [selectedFile, setSelectedFile] = useState(null);
   const [fileId, setFileId] = useState(null);
@@ -151,7 +163,7 @@ const ImportCatalogWizard = ({ fornecedor, productTypeId: initialProductTypeId, 
   const [pageCount, setPageCount] = useState(15);
   const [isLoading, setIsLoading] = useState(false);
   const [loadingMessage, setLoadingMessage] = useState('');
-  const [mapping, setMapping] = useState(fornecedor?.default_column_mapping || {});
+  const [mapping, setMapping] = useState(defaultFornecedorMapping);
   const [showMappingModal, setShowMappingModal] = useState(false);
   const [showRegionModal, setShowRegionModal] = useState(false);
   const [pdfBytes, setPdfBytes] = useState(null);
@@ -178,24 +190,45 @@ const ImportCatalogWizard = ({ fornecedor, productTypeId: initialProductTypeId, 
   const timelineSeenRef = useRef(new Set());
   const lastStatusSnapshotRef = useRef('');
   const terminalStatusAnnouncedRef = useRef(false);
+  const openResetKeyRef = useRef(null);
 
   const appendTimeline = useCallback((message) => {
     if (!message) return;
     const safeMessage = normalizeDisplayText(message);
     if (!safeMessage) return;
-    if (timelineSeenRef.current.has(safeMessage)) return;
+    const dedupeKey = safeMessage
+      .replace(/[\u200B-\u200D\uFEFF]/g, '')
+      .replace(/\s+/g, ' ')
+      .trim()
+      .toLowerCase();
+    if (!dedupeKey) return;
+    if (timelineSeenRef.current.has(dedupeKey)) return;
     setStatusTimeline((prev) => {
-      const recentMessages = prev
+      const recentKeys = prev
         .slice(-6)
-        .map((entry) => entry.replace(/^\[[^\]]+\]\s*/, ''));
-      if (recentMessages.includes(safeMessage)) return prev;
-      timelineSeenRef.current.add(safeMessage);
+        .map((entry) =>
+          entry
+            .replace(/^\[[^\]]+\]\s*/, '')
+            .replace(/[\u200B-\u200D\uFEFF]/g, '')
+            .replace(/\s+/g, ' ')
+            .trim()
+            .toLowerCase()
+        );
+      if (recentKeys.includes(dedupeKey)) return prev;
+      timelineSeenRef.current.add(dedupeKey);
       return [...prev, `[${timestamp()}] ${safeMessage}`].slice(-160);
     });
   }, []);
 
   useEffect(() => {
-    if (!isOpen) return;
+    if (!isOpen) {
+      openResetKeyRef.current = null;
+      return;
+    }
+    const resetKey = `${fornecedor?.id || 'none'}::${initialProductTypeId || 'none'}`;
+    if (openResetKeyRef.current === resetKey) return;
+    openResetKeyRef.current = resetKey;
+
     setStep('upload');
     setSelectedFile(null);
     setFileId(null);
@@ -213,7 +246,7 @@ const ImportCatalogWizard = ({ fornecedor, productTypeId: initialProductTypeId, 
     setManualMappingRows([]);
     setShowPagePicker(false);
     setSelectedPreviewIndex(null);
-    setMapping(fornecedor?.default_column_mapping || {});
+    setMapping({ ...defaultFornecedorMapping });
     setProductTypeId(initialProductTypeId || '');
     setStatusData(null);
     setResultData(null);
@@ -223,7 +256,7 @@ const ImportCatalogWizard = ({ fornecedor, productTypeId: initialProductTypeId, 
     timelineSeenRef.current = new Set();
     lastStatusSnapshotRef.current = '';
     terminalStatusAnnouncedRef.current = false;
-  }, [isOpen, fornecedor, initialProductTypeId]);
+  }, [isOpen, fornecedor?.id, initialProductTypeId, defaultFornecedorMapping]);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -456,6 +489,8 @@ const ImportCatalogWizard = ({ fornecedor, productTypeId: initialProductTypeId, 
     const pollingStartedAt = Date.now();
     let terminalDetectedAt = null;
     let terminalAttempts = 0;
+    let terminalStableCount = 0;
+    let lastTerminalSnapshot = '';
     try {
       while (keepPolling && pollRunRef.current === runId) {
         const absoluteElapsedMs = Date.now() - pollingStartedAt;
@@ -494,6 +529,14 @@ const ImportCatalogWizard = ({ fornecedor, productTypeId: initialProductTypeId, 
           }
 
           if (status?.status && terminalStatuses.has(status.status)) {
+            const terminalSnapshot = `${status.status}|${pagesProcessed}|${pagesTotal}`;
+            if (terminalSnapshot === lastTerminalSnapshot) {
+              terminalStableCount += 1;
+            } else {
+              lastTerminalSnapshot = terminalSnapshot;
+              terminalStableCount = 1;
+            }
+
             if (!terminalDetectedAt) {
               terminalDetectedAt = Date.now();
               appendTimeline(
@@ -505,7 +548,9 @@ const ImportCatalogWizard = ({ fornecedor, productTypeId: initialProductTypeId, 
             const elapsedWaitingMs = Date.now() - terminalDetectedAt;
             const statusSignalsReady = Boolean(status?.result_ready);
             const timeoutExceeded =
-              elapsedWaitingMs >= MAX_RESULT_WAIT_MS || terminalAttempts >= MAX_RESULT_ATTEMPTS;
+              elapsedWaitingMs >= MAX_RESULT_WAIT_MS ||
+              terminalAttempts >= MAX_RESULT_ATTEMPTS ||
+              terminalStableCount >= MAX_RESULT_ATTEMPTS;
 
             let shouldFetchResult = true;
             const probeResultWhenNotReady = terminalAttempts % 5 === 0;

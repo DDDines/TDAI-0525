@@ -127,6 +127,8 @@ Backend/static/uploads/
 Backend/static/previews/*
 !Backend/static/previews/
 !Backend/static/previews/.gitkeep
+Backend/logs/
+!Backend/logs/.gitkeep
 static/uploads/
 # Arquivos específicos de IDEs para o frontend (se não cobertos pelo geral)
 # .project
