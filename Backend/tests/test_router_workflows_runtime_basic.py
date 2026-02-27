@@ -8,6 +8,7 @@ from fastapi import HTTPException
 
 from Backend import schemas
 from Backend.routers.auth_utils import _AuthUtilsWorkflow
+from Backend.routers.generation import _GenerationRouterWorkflow
 from Backend.routers.historico import _HistoricoWorkflow
 from Backend.routers.password_recovery import _PasswordRecoveryWorkflow
 from Backend.routers.search import _SearchWorkflow
@@ -270,3 +271,109 @@ async def test_social_auth_workflow_google_callback_delega_runtime_e_retorna_tok
     assert called[1][0] == "parse_google_id_token"
     assert called[2][0] == "process_google_login"
     assert called[4][0] == "create_refresh_token"
+
+
+@pytest.mark.asyncio
+async def test_generation_workflow_tarefa_processar_delega_runtime():
+    called = []
+
+    class FakeRuntime:
+        async def run_generation_task(self, **kwargs):
+            called.append(("run_generation_task", kwargs))
+
+        def validate_product_access(self, **kwargs):
+            called.append(("validate_product_access", kwargs))
+            return SimpleNamespace(id=kwargs["produto_id"])
+
+        def mark_pending_status(self, **kwargs):
+            called.append(("mark_pending_status", kwargs))
+
+        def enqueue_generation_task(self, **kwargs):
+            called.append(("enqueue_generation_task", kwargs))
+
+        async def sugerir_valores_atributos_com_gemini(self, **kwargs):
+            called.append(("sugerir_valores_atributos_com_gemini", kwargs))
+            return {"ok": True}
+
+    workflow = _GenerationRouterWorkflow(runtime=FakeRuntime())
+
+    await workflow.tarefa_processar_geracao_e_registrar_uso(
+        db_session_factory="db_factory",
+        user_id=7,
+        produto_id=9,
+        tipo_geracao_principal="titulo",
+        funcao_geracao_ia_no_servico="fn",
+        num_titulos=3,
+    )
+
+    assert called[0][0] == "run_generation_task"
+    assert called[0][1]["produto_id"] == 9
+    assert called[0][1]["num_titulos"] == 3
+
+
+def test_generation_workflow_agendar_openai_titulos_delega_validacao_e_enqueue():
+    called = []
+
+    class FakeRuntime:
+        async def run_generation_task(self, **kwargs):
+            called.append(("run_generation_task", kwargs))
+
+        def validate_product_access(self, **kwargs):
+            called.append(("validate_product_access", kwargs))
+            return SimpleNamespace(id=kwargs["produto_id"])
+
+        def mark_pending_status(self, **kwargs):
+            called.append(("mark_pending_status", kwargs))
+
+        def enqueue_generation_task(self, **kwargs):
+            called.append(("enqueue_generation_task", kwargs))
+
+        async def sugerir_valores_atributos_com_gemini(self, **kwargs):
+            called.append(("sugerir_valores_atributos_com_gemini", kwargs))
+            return {"ok": True}
+
+    workflow = _GenerationRouterWorkflow(runtime=FakeRuntime())
+    user = SimpleNamespace(id=4)
+
+    response = workflow.agendar_geracao_novos_titulos_openai(
+        produto_id=22,
+        background_tasks=SimpleNamespace(),
+        num_titulos=5,
+        db="db",
+        current_user=user,
+    )
+
+    assert "22" in response["msg"]
+    assert called[0][0] == "validate_product_access"
+    assert called[1][0] == "enqueue_generation_task"
+    assert called[1][1]["produto_id"] == 22
+    assert called[1][1]["user_id"] == 4
+    assert called[1][1]["num_titulos"] == 5
+
+
+@pytest.mark.asyncio
+async def test_generation_workflow_sugerir_atributos_delega_runtime():
+    class FakeRuntime:
+        async def run_generation_task(self, **kwargs):
+            return None
+
+        def validate_product_access(self, **kwargs):
+            return SimpleNamespace(id=kwargs["produto_id"])
+
+        def mark_pending_status(self, **kwargs):
+            return None
+
+        def enqueue_generation_task(self, **kwargs):
+            return None
+
+        async def sugerir_valores_atributos_com_gemini(self, **kwargs):
+            return {"ok": True, "produto_id": kwargs["produto_id"]}
+
+    workflow = _GenerationRouterWorkflow(runtime=FakeRuntime())
+    result = await workflow.sugerir_atributos_para_produto_com_gemini(
+        produto_id=31,
+        db="db",
+        current_user=SimpleNamespace(id=5),
+    )
+
+    assert result == {"ok": True, "produto_id": 31}

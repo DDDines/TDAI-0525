@@ -1,7 +1,7 @@
 ﻿# Backend/routers/generation.py
 
 import logging
-from typing import Any, Dict
+from typing import Any, Dict, Optional
 
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session
@@ -43,6 +43,9 @@ router = APIRouter(
 
 
 class _GenerationRouterWorkflow:
+    def __init__(self, runtime: Optional["_GenerationRouterRuntime"] = None) -> None:
+        self._runtime = runtime or _GenerationRouterRuntime()
+
     async def tarefa_processar_geracao_e_registrar_uso(
         self,
         db_session_factory,
@@ -52,7 +55,7 @@ class _GenerationRouterWorkflow:
         funcao_geracao_ia_no_servico,
         **kwargs_para_funcao_servico,
     ):
-        await generation_task_service.run_generation_task(
+        await self._runtime.run_generation_task(
             db_session_factory=db_session_factory,
             user_id=user_id,
             produto_id=produto_id,
@@ -70,12 +73,12 @@ class _GenerationRouterWorkflow:
         db: Session,
         current_user: models.User,
     ) -> Dict[str, str]:
-        generation_scheduling_service.validate_product_access(
+        self._runtime.validate_product_access(
             db=db,
             produto_id=produto_id,
             current_user=current_user,
         )
-        generation_scheduling_service.enqueue_generation_task(
+        self._runtime.enqueue_generation_task(
             background_tasks=background_tasks,
             task_executor=self.tarefa_processar_geracao_e_registrar_uso,
             db_session_factory=SessionLocal,
@@ -96,12 +99,12 @@ class _GenerationRouterWorkflow:
         db: Session,
         current_user: models.User,
     ) -> Dict[str, str]:
-        generation_scheduling_service.validate_product_access(
+        self._runtime.validate_product_access(
             db=db,
             produto_id=produto_id,
             current_user=current_user,
         )
-        generation_scheduling_service.enqueue_generation_task(
+        self._runtime.enqueue_generation_task(
             background_tasks=background_tasks,
             task_executor=self.tarefa_processar_geracao_e_registrar_uso,
             db_session_factory=SessionLocal,
@@ -124,17 +127,17 @@ class _GenerationRouterWorkflow:
         db: Session,
         current_user: models.User,
     ) -> Dict[str, str]:
-        db_produto_check = generation_scheduling_service.validate_product_access(
+        db_produto_check = self._runtime.validate_product_access(
             db=db,
             produto_id=produto_id,
             current_user=current_user,
         )
-        generation_scheduling_service.mark_pending_status(
+        self._runtime.mark_pending_status(
             db=db,
             db_produto=db_produto_check,
             generation_type="titulo",
         )
-        generation_scheduling_service.enqueue_generation_task(
+        self._runtime.enqueue_generation_task(
             background_tasks=background_tasks,
             task_executor=self.tarefa_processar_geracao_e_registrar_uso,
             db_session_factory=SessionLocal,
@@ -157,17 +160,17 @@ class _GenerationRouterWorkflow:
         db: Session,
         current_user: models.User,
     ) -> Dict[str, str]:
-        db_produto_check = generation_scheduling_service.validate_product_access(
+        db_produto_check = self._runtime.validate_product_access(
             db=db,
             produto_id=produto_id,
             current_user=current_user,
         )
-        generation_scheduling_service.mark_pending_status(
+        self._runtime.mark_pending_status(
             db=db,
             db_produto=db_produto_check,
             generation_type="descricao",
         )
-        generation_scheduling_service.enqueue_generation_task(
+        self._runtime.enqueue_generation_task(
             background_tasks=background_tasks,
             task_executor=self.tarefa_processar_geracao_e_registrar_uso,
             db_session_factory=SessionLocal,
@@ -189,7 +192,7 @@ class _GenerationRouterWorkflow:
         current_user: models.User,
     ) -> schemas.SugestoesAtributosResponse:
         try:
-            return await ia_generation_service.sugerir_valores_atributos_com_gemini(
+            return await self._runtime.sugerir_valores_atributos_com_gemini(
                 db=db,
                 produto_id=produto_id,
                 user=current_user,
@@ -208,7 +211,27 @@ class _GenerationRouterWorkflow:
             )
 
 
-generation_router_workflow = _GenerationRouterWorkflow()
+class _GenerationRouterRuntime:
+    """Runtime OO para operações do router de geração IA."""
+
+    async def run_generation_task(self, **kwargs):
+        await generation_task_service.run_generation_task(**kwargs)
+
+    def validate_product_access(self, **kwargs):
+        return generation_scheduling_service.validate_product_access(**kwargs)
+
+    def mark_pending_status(self, **kwargs):
+        return generation_scheduling_service.mark_pending_status(**kwargs)
+
+    def enqueue_generation_task(self, **kwargs):
+        return generation_scheduling_service.enqueue_generation_task(**kwargs)
+
+    async def sugerir_valores_atributos_com_gemini(self, **kwargs):
+        return await ia_generation_service.sugerir_valores_atributos_com_gemini(**kwargs)
+
+
+generation_router_runtime = _GenerationRouterRuntime()
+generation_router_workflow = _GenerationRouterWorkflow(runtime=generation_router_runtime)
 
 
 async def _tarefa_processar_geracao_e_registrar_uso(
