@@ -60,6 +60,32 @@ from Backend.application.services.web_data_extractor_facade import (
 logger = get_logger(__name__)
 web_data_extractor_service = WebDataExtractorFacade()
 
+try:
+    from pdfminer.pdfdocument import PDFPasswordIncorrect
+except Exception:
+    PDFPasswordIncorrect = None
+
+
+def _is_pdf_password_error(error: Exception) -> bool:
+    """Detecta falha de senha em PDF sem depender de excecao especifica do pdfplumber."""
+    if error is None:
+        return False
+
+    error_type_name = error.__class__.__name__.lower()
+    message = str(error).lower()
+
+    if "password" in error_type_name:
+        return True
+    if "password" in message or "senha" in message:
+        return True
+    if "decrypt" in message and "pdf" in message:
+        return True
+
+    if PDFPasswordIncorrect is not None and isinstance(error, PDFPasswordIncorrect):
+        return True
+
+    return False
+
 def _resolve_storage_path(path_value: Union[str, Path]) -> Path:
     """Resolve caminhos relativos de storage sem duplicar prefixo Backend."""
     p = Path(path_value)
@@ -794,15 +820,15 @@ async def _processar_arquivo_pdf_legacy_impl(
         pdf_obj: Optional[PdfPlumberPDF] = None
         try:
             pdf_obj = pdfplumber.open(io.BytesIO(conteudo_arquivo))
-        except pdfplumber.pdf.PasswordError as e:
-            log_pdf.append(f'PDF protegido por senha: {str(e)}')
-            return [
-                {
-                    'erro_processamento_pdf': 'PDF protegido por senha; não foi possível abrir sem senha.',
-                    'log_pdf': log_pdf,
-                }
-            ]
         except Exception as open_err:
+            if _is_pdf_password_error(open_err):
+                log_pdf.append(f'PDF protegido por senha: {str(open_err)}')
+                return [
+                    {
+                        'erro_processamento_pdf': 'PDF protegido por senha; nao foi possivel abrir sem senha.',
+                        'log_pdf': log_pdf,
+                    }
+                ]
             log_pdf.append(f'Falha ao abrir PDF: {str(open_err)}')
             return [
                 {
@@ -1048,7 +1074,19 @@ async def _processar_arquivo_pdf_legacy_impl(
                 )
 
 class _PdfIngestionRuntime:
-    """Runtime OO para ingestao de PDF mantendo compatibilidade legada."""
+    """Runtime OO para ingestao de PDF."""
+
+    def _append_produto(
+        self,
+        produtos_extraidos: List[Dict[str, Any]],
+        produto_padronizado: Optional[Dict[str, Any]],
+        product_type_id: Optional[int],
+    ) -> None:
+        if not produto_padronizado:
+            return
+        if product_type_id is not None:
+            produto_padronizado["product_type_id"] = product_type_id
+        produtos_extraidos.append(produto_padronizado)
 
     async def processar_arquivo_pdf(
         self,
@@ -1059,14 +1097,282 @@ class _PdfIngestionRuntime:
         pages: Optional[List[int]] = None,
         region: Optional[List[float]] = None,
     ) -> List[Dict[str, Any]]:
-        return await _processar_arquivo_pdf_legacy_impl(
-            conteudo_arquivo=conteudo_arquivo,
-            mapeamento_colunas_usuario=mapeamento_colunas_usuario,
-            usar_llm=usar_llm,
-            product_type_id=product_type_id,
-            pages=pages,
-            region=region,
-        )
+        produtos_extraidos: List[Dict[str, Any]] = []
+        log_pdf: List[str] = []
+        temp_pdf_path: Optional[Path] = None
+        page_list_to_process: List[int] = []
+
+        try:
+            if region and len(region) == 4:
+                with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as tmp_pdf:
+                    tmp_pdf.write(conteudo_arquivo)
+                    temp_pdf_path = Path(tmp_pdf.name)
+                logger.info(
+                    "processar_arquivo_pdf: modo regiao ativo temp_pdf=%s",
+                    temp_pdf_path,
+                )
+
+            pdf_obj: Optional[PdfPlumberPDF] = None
+            try:
+                pdf_obj = pdfplumber.open(io.BytesIO(conteudo_arquivo))
+            except Exception as open_err:
+                if _is_pdf_password_error(open_err):
+                    log_pdf.append(f"PDF protegido por senha: {str(open_err)}")
+                    return [
+                        {
+                            "erro_processamento_pdf": "PDF protegido por senha; nao foi possivel abrir sem senha.",
+                            "log_pdf": log_pdf,
+                        }
+                    ]
+                log_pdf.append(f"Falha ao abrir PDF: {str(open_err)}")
+                return [
+                    {
+                        "erro_processamento_pdf": f"Falha ao abrir PDF: {str(open_err)}",
+                        "log_pdf": log_pdf,
+                    }
+                ]
+
+            if pdf_obj is None:
+                log_pdf.append("Falha desconhecida ao abrir o PDF.")
+                return [
+                    {
+                        "erro_processamento_pdf": "Falha desconhecida ao abrir o PDF.",
+                        "log_pdf": log_pdf,
+                    }
+                ]
+
+            with pdf_obj as pdf:
+                total_pages = len(pdf.pages)
+                page_list_to_process = list(pages) if pages else list(
+                    range(1, total_pages + 1)
+                )
+                log_pdf.append(f"PDF com {total_pages} paginas.")
+                logger.info(
+                    "processar_arquivo_pdf: total_paginas=%s paginas_processadas=%s region=%s",
+                    total_pages,
+                    page_list_to_process,
+                    region,
+                )
+
+                for page_num in page_list_to_process:
+                    if not (1 <= page_num <= total_pages):
+                        continue
+
+                    page = pdf.pages[page_num - 1]
+                    page_to_process = page
+
+                    bbox_abs, bbox_mode = _coerce_region_bbox(
+                        region,
+                        float(page.width),
+                        float(page.height),
+                    )
+                    if bbox_abs:
+                        page_to_process = page.crop(bbox_abs)
+                        log_pdf.append(
+                            f"Pagina {page_num}: Aplicando recorte (crop) com bbox {bbox_abs} [modo={bbox_mode}]."
+                        )
+                        logger.info(
+                            "processar_arquivo_pdf: page=%s bbox=%s mode=%s",
+                            page_num,
+                            bbox_abs,
+                            bbox_mode,
+                        )
+                    elif region:
+                        log_pdf.append(
+                            f"Pagina {page_num}: BBox invalido ({bbox_mode}); ignorando recorte."
+                        )
+
+                    if bbox_abs and temp_pdf_path:
+                        try:
+                            df_region = extract_data_from_pdf_region(
+                                str(temp_pdf_path),
+                                page_num,
+                                list(bbox_abs),
+                            )
+                        except Exception as e_region:
+                            log_pdf.append(
+                                f"Pagina {page_num}: Falha no extrator de regiao: {str(e_region)}"
+                            )
+                            df_region = pd.DataFrame()
+
+                        if not df_region.empty:
+                            region_rows = df_region.to_dict(orient="records")
+                            log_pdf.append(
+                                f"Pagina {page_num}: Extracao por regiao retornou {len(region_rows)} linhas."
+                            )
+                            logger.info(
+                                "processar_arquivo_pdf: page=%s region_rows=%s region_cols=%s",
+                                page_num,
+                                len(region_rows),
+                                list(df_region.columns),
+                            )
+                            for row in region_rows:
+                                self._append_produto(
+                                    produtos_extraidos=produtos_extraidos,
+                                    produto_padronizado=_processar_linha_padronizada(
+                                        row, mapeamento_colunas_usuario
+                                    ),
+                                    product_type_id=product_type_id,
+                                )
+                            continue
+
+                        log_pdf.append(
+                            f"Pagina {page_num}: Extracao por regiao nao retornou linhas."
+                        )
+
+                    tables = page_to_process.extract_tables(
+                        table_settings={
+                            "vertical_strategy": "lines",
+                            "horizontal_strategy": "lines",
+                        }
+                    )
+
+                    if tables:
+                        log_pdf.append(f"Pagina {page_num}: Encontradas {len(tables)} tabelas.")
+                        for table_num, table_data in enumerate(tables):
+                            if not table_data or len(table_data) < 2:
+                                log_pdf.append(
+                                    f"Pagina {page_num}, Tabela {table_num+1}: Tabela vazia ou sem dados."
+                                )
+                                continue
+
+                            headers_raw = table_data[0]
+                            headers = [
+                                _limpar_valor_extraido(h) or f"coluna_vazia_{idx}"
+                                for idx, h in enumerate(headers_raw)
+                            ]
+
+                            for row_idx, row_data in enumerate(table_data[1:]):
+                                if len(row_data) != len(headers):
+                                    log_pdf.append(
+                                        f"Pagina {page_num}, Tabela {table_num+1}, Linha {row_idx+1}: Incompatibilidade de colunas. Pulando."
+                                    )
+                                    continue
+
+                                linha_dict_raw = {
+                                    headers[col_idx]: cell_data
+                                    for col_idx, cell_data in enumerate(row_data)
+                                }
+                                self._append_produto(
+                                    produtos_extraidos=produtos_extraidos,
+                                    produto_padronizado=_processar_linha_padronizada(
+                                        linha_dict_raw, mapeamento_colunas_usuario
+                                    ),
+                                    product_type_id=product_type_id,
+                                )
+                    else:
+                        log_pdf.append(f"Pagina {page_num}: Nenhuma tabela encontrada.")
+
+                if not produtos_extraidos and page_list_to_process:
+                    log_pdf.append(
+                        "Nenhum produto extraido de tabelas/regiao. Tentando extracao de texto bruto."
+                    )
+                    for page_num in page_list_to_process:
+                        if not (1 <= page_num <= total_pages):
+                            continue
+
+                        page = pdf.pages[page_num - 1]
+                        page_to_process = page
+                        bbox_abs, _ = _coerce_region_bbox(
+                            region,
+                            float(page.width),
+                            float(page.height),
+                        )
+                        if bbox_abs:
+                            page_to_process = page.crop(bbox_abs)
+
+                        page_text = page_to_process.extract_text(x_tolerance=2, y_tolerance=2)
+                        if page_text and page_text.strip():
+                            log_pdf.append(f"Pagina {page_num}: Texto extraido.")
+                            texto_chave = f"texto_completo_pagina_{page_num}"
+
+                            if usar_llm:
+                                try:
+                                    dados_produto = await web_data_extractor_service.extrair_dados_produto_com_llm(
+                                        page_text
+                                    )
+                                    if isinstance(dados_produto, dict):
+                                        dados_produto["texto_bruto"] = page_text.strip()[:20000]
+                                        if product_type_id is not None:
+                                            dados_produto["product_type_id"] = product_type_id
+                                        produtos_extraidos.append(dados_produto)
+                                        log_pdf.append(
+                                            f"Pagina {page_num}: Texto processado com LLM."
+                                        )
+                                    else:
+                                        item = {
+                                            "nome_base": f"Texto da pagina {page_num}",
+                                            "dados_brutos_adicionais": {
+                                                texto_chave: page_text.strip()[:20000]
+                                            },
+                                        }
+                                        if product_type_id is not None:
+                                            item["product_type_id"] = product_type_id
+                                        produtos_extraidos.append(item)
+                                except Exception as llm_e:
+                                    log_pdf.append(
+                                        f"Pagina {page_num}: Erro ao processar com LLM: {str(llm_e)}"
+                                    )
+                                    item = {
+                                        "nome_base": f"Conteudo Bruto da Pagina {page_num}",
+                                        "dados_brutos_adicionais": {
+                                            texto_chave: page_text.strip()[:20000]
+                                        },
+                                    }
+                                    if product_type_id is not None:
+                                        item["product_type_id"] = product_type_id
+                                    produtos_extraidos.append(item)
+                            else:
+                                item = {
+                                    "nome_base": f"Conteudo da Pagina {page_num}",
+                                    "dados_brutos_adicionais": {
+                                        texto_chave: page_text.strip()[:20000]
+                                    },
+                                }
+                                if product_type_id is not None:
+                                    item["product_type_id"] = product_type_id
+                                produtos_extraidos.append(item)
+                                log_pdf.append(f"Pagina {page_num}: Texto armazenado sem LLM.")
+                        else:
+                            log_pdf.append(
+                                f"Pagina {page_num}: Nenhum texto extraivel (pode ser imagem ou protegido)."
+                            )
+
+                if not produtos_extraidos:
+                    return [
+                        {
+                            "erro_processamento_pdf": "Nenhum dado de produto pode ser extraido do PDF (pode estar protegido, vazio ou somente imagem sem OCR).",
+                            "log_pdf": log_pdf,
+                        }
+                    ]
+
+            logger.info(
+                "processar_arquivo_pdf: concluido produtos_extraidos=%s paginas=%s",
+                len(produtos_extraidos),
+                len(page_list_to_process),
+            )
+            return produtos_extraidos
+
+        except Exception as e:
+            import traceback
+
+            log_pdf.append(f"Erro critico ao processar arquivo PDF: {str(e)}")
+            logger.error("Erro ao processar arquivo PDF: %s", traceback.format_exc())
+            return [
+                {
+                    "erro_processamento_pdf": f"Falha critica ao ler arquivo PDF: {str(e)}",
+                    "log_pdf": log_pdf,
+                }
+            ]
+        finally:
+            if temp_pdf_path and temp_pdf_path.exists():
+                try:
+                    temp_pdf_path.unlink()
+                except Exception:
+                    logger.debug(
+                        "processar_arquivo_pdf: nao foi possivel remover temp_pdf=%s",
+                        temp_pdf_path,
+                    )
 
 
 _pdf_ingestion_runtime = _PdfIngestionRuntime()

@@ -4,36 +4,49 @@ import Backend.services.file_processing_service as file_processing
 
 
 @pytest.mark.asyncio
-async def test_pdf_runtime_delega_para_legacy(monkeypatch):
+async def test_pdf_runtime_retorna_erro_quando_falha_abrir_pdf(monkeypatch):
     runtime = file_processing._PdfIngestionRuntime()
-    called = {}
-
-    async def fake_legacy(**kwargs):
-        called.update(kwargs)
-        return [{"ok": True}]
 
     monkeypatch.setattr(
-        file_processing,
-        "_processar_arquivo_pdf_legacy_impl",
-        fake_legacy,
+        file_processing.pdfplumber,
+        "open",
+        lambda *_args, **_kwargs: (_ for _ in ()).throw(RuntimeError("falha-forcada")),
     )
 
     result = await runtime.processar_arquivo_pdf(
         conteudo_arquivo=b"pdf-bytes",
-        mapeamento_colunas_usuario={"col_0": "nome_base"},
         usar_llm=False,
-        product_type_id=7,
-        pages=[2, 3],
-        region=[0.1, 0.1, 0.9, 0.9],
     )
 
-    assert result == [{"ok": True}]
-    assert called["conteudo_arquivo"] == b"pdf-bytes"
-    assert called["mapeamento_colunas_usuario"] == {"col_0": "nome_base"}
-    assert called["usar_llm"] is False
-    assert called["product_type_id"] == 7
-    assert called["pages"] == [2, 3]
-    assert called["region"] == [0.1, 0.1, 0.9, 0.9]
+    assert isinstance(result, list)
+    assert "erro_processamento_pdf" in result[0]
+    assert "Falha ao abrir PDF" in result[0]["erro_processamento_pdf"]
+    assert "falha-forcada" in result[0]["erro_processamento_pdf"]
+
+
+@pytest.mark.asyncio
+async def test_pdf_runtime_detecta_erro_de_senha(monkeypatch):
+    runtime = file_processing._PdfIngestionRuntime()
+
+    class FakePasswordError(Exception):
+        pass
+
+    monkeypatch.setattr(
+        file_processing.pdfplumber,
+        "open",
+        lambda *_args, **_kwargs: (_ for _ in ()).throw(
+            FakePasswordError("PDF password required")
+        ),
+    )
+
+    result = await runtime.processar_arquivo_pdf(
+        conteudo_arquivo=b"pdf-bytes",
+        usar_llm=False,
+    )
+
+    assert isinstance(result, list)
+    assert "erro_processamento_pdf" in result[0]
+    assert "PDF protegido por senha" in result[0]["erro_processamento_pdf"]
 
 
 @pytest.mark.asyncio
