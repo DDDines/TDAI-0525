@@ -19,52 +19,6 @@ class TokenPayload(BaseModel):
     user_id: Optional[int] = None
 
 
-def _verify_password_impl(plain_password: str, hashed_password: str) -> bool:
-    return pwd_context.verify(plain_password, hashed_password)
-
-
-def _get_password_hash_impl(password: str) -> str:
-    return pwd_context.hash(password)
-
-
-def _create_access_token_impl(
-    data: dict,
-    expires_delta: Optional[timedelta] = None,
-) -> str:
-    to_encode = data.copy()
-    expire = (
-        datetime.now(timezone.utc) + expires_delta
-        if expires_delta
-        else datetime.now(timezone.utc) + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
-    )
-    to_encode.update({"exp": expire})
-    return jwt.encode(to_encode, settings.SECRET_KEY, algorithm=ALGORITHM)
-
-
-def _create_refresh_token_impl(
-    data: dict,
-    expires_delta: Optional[timedelta] = None,
-) -> str:
-    to_encode = data.copy()
-    expire = (
-        datetime.now(timezone.utc) + expires_delta
-        if expires_delta
-        else datetime.now(timezone.utc) + timedelta(days=REFRESH_TOKEN_EXPIRE_DAYS)
-    )
-    to_encode.update({"exp": expire, "token_type": "refresh"})
-    return jwt.encode(to_encode, settings.REFRESH_SECRET_KEY, algorithm=ALGORITHM)
-
-
-def _decode_token_impl(token: str, secret_key: str) -> Optional[TokenPayload]:
-    try:
-        payload_dict = jwt.decode(token, secret_key, algorithms=[ALGORITHM])
-        raw_user_id = payload_dict.get("user_id")
-        user_id = int(raw_user_id) if raw_user_id is not None else None
-        return TokenPayload(sub=payload_dict.get("sub"), user_id=user_id)
-    except (JWTError, ValidationError, ValueError):
-        return None
-
-
 class _SecurityWorkflow:
     def __init__(self, runtime: Optional["_SecurityRuntime"] = None) -> None:
         self._runtime = runtime or _SecurityRuntime()
@@ -106,13 +60,10 @@ class _SecurityRuntime:
     """Runtime OO para operações de hash e token JWT."""
 
     def verify_password(self, *, plain_password: str, hashed_password: str) -> bool:
-        return _verify_password_impl(
-            plain_password=plain_password,
-            hashed_password=hashed_password,
-        )
+        return pwd_context.verify(plain_password, hashed_password)
 
     def get_password_hash(self, *, password: str) -> str:
-        return _get_password_hash_impl(password=password)
+        return pwd_context.hash(password)
 
     def create_access_token(
         self,
@@ -120,7 +71,15 @@ class _SecurityRuntime:
         data: dict,
         expires_delta: Optional[timedelta] = None,
     ) -> str:
-        return _create_access_token_impl(data=data, expires_delta=expires_delta)
+        to_encode = data.copy()
+        expire = (
+            datetime.now(timezone.utc) + expires_delta
+            if expires_delta
+            else datetime.now(timezone.utc)
+            + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+        )
+        to_encode.update({"exp": expire})
+        return jwt.encode(to_encode, settings.SECRET_KEY, algorithm=ALGORITHM)
 
     def create_refresh_token(
         self,
@@ -128,10 +87,23 @@ class _SecurityRuntime:
         data: dict,
         expires_delta: Optional[timedelta] = None,
     ) -> str:
-        return _create_refresh_token_impl(data=data, expires_delta=expires_delta)
+        to_encode = data.copy()
+        expire = (
+            datetime.now(timezone.utc) + expires_delta
+            if expires_delta
+            else datetime.now(timezone.utc) + timedelta(days=REFRESH_TOKEN_EXPIRE_DAYS)
+        )
+        to_encode.update({"exp": expire, "token_type": "refresh"})
+        return jwt.encode(to_encode, settings.REFRESH_SECRET_KEY, algorithm=ALGORITHM)
 
     def decode_token(self, *, token: str, secret_key: str) -> Optional[TokenPayload]:
-        return _decode_token_impl(token=token, secret_key=secret_key)
+        try:
+            payload_dict = jwt.decode(token, secret_key, algorithms=[ALGORITHM])
+            raw_user_id = payload_dict.get("user_id")
+            user_id = int(raw_user_id) if raw_user_id is not None else None
+            return TokenPayload(sub=payload_dict.get("sub"), user_id=user_id)
+        except (JWTError, ValidationError, ValueError):
+            return None
 
 
 security_runtime = _SecurityRuntime()
