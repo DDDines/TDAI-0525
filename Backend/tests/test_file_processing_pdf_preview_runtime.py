@@ -4,19 +4,17 @@ import Backend.services.file_processing_service as file_processing
 
 
 @pytest.mark.asyncio
-async def test_pdf_preview_runtime_delega_legacy(monkeypatch):
+async def test_pdf_preview_runtime_retorna_erro_sem_poppler(monkeypatch):
     runtime = file_processing._PdfPreviewRuntime()
-    called = {}
-
-    async def fake_preview_legacy(**kwargs):
-        called.update(kwargs)
-        return {"num_pages": 10, "preview_images": []}
+    original_getenv = file_processing.os.getenv
 
     monkeypatch.setattr(
-        file_processing,
-        "_preview_arquivo_pdf_legacy_impl",
-        fake_preview_legacy,
+        file_processing.os,
+        "getenv",
+        lambda key, default=None: None if key == "POPPLER_PATH" else original_getenv(key, default),
     )
+    monkeypatch.setattr(file_processing.settings, "POPPLER_PATH", None, raising=False)
+    monkeypatch.setattr(file_processing.shutil, "which", lambda *_args, **_kwargs: None)
 
     result = await runtime.preview_arquivo_pdf(
         conteudo_arquivo=b"pdf",
@@ -26,12 +24,8 @@ async def test_pdf_preview_runtime_delega_legacy(monkeypatch):
         dpi=96,
     )
 
-    assert result["num_pages"] == 10
-    assert called["conteudo_arquivo"] == b"pdf"
-    assert called["ext"] == ".pdf"
-    assert called["start_page"] == 2
-    assert called["page_count"] == 4
-    assert called["dpi"] == 96
+    assert "error" in result
+    assert "Poppler" in result["error"]
 
 
 @pytest.mark.asyncio

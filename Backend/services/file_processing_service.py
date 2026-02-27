@@ -1873,7 +1873,86 @@ async def _preview_arquivo_pdf_legacy_impl(
 
 
 class _PdfPreviewRuntime:
-    """Runtime OO para preview de PDF mantendo fluxo legado."""
+    """Runtime OO para preview de PDF."""
+
+    def __init__(self, preview_executor: Optional[ThreadPoolExecutor] = None) -> None:
+        self._preview_executor = preview_executor or _preview_executor
+
+    def _resolve_poppler_path(self) -> Optional[str]:
+        return os.getenv("POPPLER_PATH") or settings.POPPLER_PATH
+
+    def _resolve_poppler_kwargs(self) -> Dict[str, Any]:
+        poppler_dir = self._resolve_poppler_path()
+        return {"poppler_path": poppler_dir} if poppler_dir else {}
+
+    def _build_page_processor(
+        self,
+        conteudo_arquivo: bytes,
+        dpi: int,
+        kwargs: Dict[str, Any],
+    ):
+        def _process_page(page_number: int) -> Dict[str, Any]:
+            with pdf_open(io.BytesIO(conteudo_arquivo)) as reader:
+                page = reader.pages[page_number - 1]
+                tables = page.extract_tables()
+                result: Dict[str, Any] = {
+                    "page": page_number,
+                    "has_table": bool(tables),
+                }
+
+                text = page.extract_text() or ""
+                image = convert_from_bytes(
+                    conteudo_arquivo,
+                    first_page=page_number,
+                    last_page=page_number,
+                    fmt="png",
+                    dpi=dpi,
+                    **kwargs,
+                )[0]
+
+                png_buf = io.BytesIO()
+                image.save(png_buf, format="PNG")
+                png_b64 = base64.b64encode(png_buf.getvalue())
+
+                jpeg_buf = io.BytesIO()
+                image.convert("RGB").save(
+                    jpeg_buf,
+                    format="JPEG",
+                    optimize=True,
+                    quality=70,
+                )
+                jpeg_b64 = base64.b64encode(jpeg_buf.getvalue())
+
+                if len(jpeg_b64) >= len(png_b64):
+                    jpeg_buf = io.BytesIO()
+                    image.convert("RGB").save(
+                        jpeg_buf,
+                        format="JPEG",
+                        optimize=True,
+                        quality=50,
+                    )
+                    jpeg_b64 = base64.b64encode(jpeg_buf.getvalue())
+
+                if len(jpeg_b64) < len(png_b64):
+                    b64 = jpeg_b64.decode()
+                    mime = "jpeg"
+                else:
+                    b64 = png_b64.decode()
+                    mime = "png"
+
+                snippet = "\n".join(text.splitlines()[:3])
+                result.update(
+                    {
+                        "snippet": snippet,
+                        "preview_image": {
+                            "page": page_number,
+                            "image": f"data:image/{mime};base64,{b64}",
+                        },
+                    }
+                )
+            return result
+
+        return _process_page
 
     async def preview_arquivo_pdf(
         self,
@@ -1883,13 +1962,69 @@ class _PdfPreviewRuntime:
         page_count: int = 1,
         dpi: int = 72,
     ) -> Dict[str, Any]:
-        return await _preview_arquivo_pdf_legacy_impl(
-            conteudo_arquivo=conteudo_arquivo,
-            ext=ext,
-            start_page=start_page,
-            page_count=page_count,
-            dpi=dpi,
+        start = time.perf_counter()
+
+        poppler_dir = self._resolve_poppler_path()
+        pdftoppm_path = (
+            shutil.which("pdftoppm", path=poppler_dir)
+            if poppler_dir
+            else shutil.which("pdftoppm")
         )
+        if pdftoppm_path is None:
+            msg = (
+                "Poppler (pdftoppm) executable not found. Install poppler-utils on Linux "
+                "or set POPPLER_PATH to its directory."
+            )
+            logger.error(msg)
+            return {"error": msg}
+
+        try:
+            with pdf_open(io.BytesIO(conteudo_arquivo)) as reader:
+                num_pages = len(reader.pages)
+
+            loop = asyncio.get_running_loop()
+            if page_count == 0:
+                page_count = num_pages
+            end_page = min(start_page + page_count - 1, num_pages)
+            pages_processed = end_page - start_page + 1
+            kwargs = self._resolve_poppler_kwargs()
+
+            preview: Dict[str, Any] = {
+                "num_pages": num_pages,
+                "table_pages": [],
+                "sample_rows": {},
+                "preview_images": [],
+            }
+
+            process_page = self._build_page_processor(
+                conteudo_arquivo=conteudo_arquivo,
+                dpi=dpi,
+                kwargs=kwargs,
+            )
+            tasks = [
+                loop.run_in_executor(self._preview_executor, process_page, p)
+                for p in range(start_page, end_page + 1)
+            ]
+            results = await asyncio.gather(*tasks)
+
+            for result in sorted(results, key=lambda item: item["page"]):
+                if result.get("has_table"):
+                    preview["table_pages"].append(result["page"])
+                if "snippet" in result:
+                    preview["sample_rows"][result["page"]] = result["snippet"]
+                if "preview_image" in result:
+                    preview["preview_images"].append(result["preview_image"])
+
+            duration = time.perf_counter() - start
+            logger.info(
+                "PDF preview processed %s page(s) in %.4f seconds",
+                pages_processed,
+                duration,
+            )
+            return preview
+        except Exception as e:
+            logger.error("Erro ao gerar preview de arquivo PDF: %s", e)
+            return {"error": f"Falha ao ler arquivo PDF: {str(e)}"}
 
 
 _pdf_preview_runtime = _PdfPreviewRuntime()
