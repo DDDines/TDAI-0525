@@ -699,7 +699,7 @@ def _processar_linha_padronizada(
         mapeamento_colunas_usuario=mapeamento_colunas_usuario,
     )
 
-class _TabularIngestionRuntime:
+class _TabularIngestionEngineRuntime:
     """Runtime OO para ingestao de arquivos tabulares (Excel/CSV)."""
 
     async def processar_arquivo_excel(
@@ -790,7 +790,7 @@ class _TabularIngestionRuntime:
             return [{"erro_processamento_csv": f"Falha ao ler arquivo CSV: {str(e)}"}]
 
 
-_tabular_ingestion_runtime = _TabularIngestionRuntime()
+_tabular_ingestion_runtime = _TabularIngestionEngineRuntime()
 
 
 async def _processar_arquivo_excel_impl(
@@ -1521,7 +1521,7 @@ async def _preview_arquivo_csv_legacy_impl(
 
 
 
-class _TabularPreviewRuntime:
+class _TabularPreviewEngineRuntime:
     """Runtime OO para preview de planilhas/tabulares."""
 
     def _decode_csv_bytes(self, conteudo_arquivo: bytes) -> str:
@@ -1574,7 +1574,7 @@ class _TabularPreviewRuntime:
             return {"error": f"Falha ao ler arquivo CSV: {str(e)}"}
 
 
-_tabular_preview_runtime = _TabularPreviewRuntime()
+_tabular_preview_runtime = _TabularPreviewEngineRuntime()
 
 
 async def _preview_arquivo_excel_impl(
@@ -2102,7 +2102,7 @@ class _PreviewDispatchRuntime:
 
     def __init__(
         self,
-        tabular_preview_runtime: Optional[_TabularPreviewRuntime] = None,
+        tabular_preview_runtime: Optional[_TabularPreviewEngineRuntime] = None,
         pdf_preview_runtime: Optional[_PdfPreviewRuntime] = None,
     ) -> None:
         self._tabular_preview_runtime = tabular_preview_runtime or _tabular_preview_runtime
