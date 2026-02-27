@@ -769,7 +769,7 @@ async def _processar_arquivo_csv_impl(
         product_type_id=product_type_id,
     )
 
-async def _processar_arquivo_pdf_impl(
+async def _processar_arquivo_pdf_legacy_impl(
     conteudo_arquivo: bytes,
     mapeamento_colunas_usuario: Optional[Dict[str, str]] = None,
     usar_llm: bool = True,
@@ -1046,6 +1046,49 @@ async def _processar_arquivo_pdf_impl(
                     'processar_arquivo_pdf: nao foi possivel remover temp_pdf=%s',
                     temp_pdf_path,
                 )
+
+class _PdfIngestionRuntime:
+    """Runtime OO para ingestao de PDF mantendo compatibilidade legada."""
+
+    async def processar_arquivo_pdf(
+        self,
+        conteudo_arquivo: bytes,
+        mapeamento_colunas_usuario: Optional[Dict[str, str]] = None,
+        usar_llm: bool = True,
+        product_type_id: Optional[int] = None,
+        pages: Optional[List[int]] = None,
+        region: Optional[List[float]] = None,
+    ) -> List[Dict[str, Any]]:
+        return await _processar_arquivo_pdf_legacy_impl(
+            conteudo_arquivo=conteudo_arquivo,
+            mapeamento_colunas_usuario=mapeamento_colunas_usuario,
+            usar_llm=usar_llm,
+            product_type_id=product_type_id,
+            pages=pages,
+            region=region,
+        )
+
+
+_pdf_ingestion_runtime = _PdfIngestionRuntime()
+
+
+async def _processar_arquivo_pdf_impl(
+    conteudo_arquivo: bytes,
+    mapeamento_colunas_usuario: Optional[Dict[str, str]] = None,
+    usar_llm: bool = True,
+    product_type_id: Optional[int] = None,
+    pages: Optional[List[int]] = None,
+    region: Optional[List[float]] = None,
+) -> List[Dict[str, Any]]:
+    return await _pdf_ingestion_runtime.processar_arquivo_pdf(
+        conteudo_arquivo=conteudo_arquivo,
+        mapeamento_colunas_usuario=mapeamento_colunas_usuario,
+        usar_llm=usar_llm,
+        product_type_id=product_type_id,
+        pages=pages,
+        region=region,
+    )
+
 
 async def _preview_arquivo_excel_impl(
 
