@@ -421,17 +421,10 @@ def _split_sku_nome_auto(value: str) -> tuple[Optional[str], Optional[str]]:
     """Divide um texto combinado em SKU e Nome Base quando possivel."""
     return _line_normalization_runtime.split_sku_nome_auto(value)
 
-def _processar_linha_padronizada(
-    linha_original: Dict[str, Any],
-    mapeamento_colunas_usuario: Optional[Dict[str, str]] = None,
-) -> Optional[Dict[str, Any]]:
-    """Padroniza uma linha para campos de Produto, suportando atributos dinamicos."""
+class _LineMappingWorkflow:
+    """Workflow OO para padronizacao de linhas extraidas de catalogos."""
 
-    produto_dados_padronizados: Dict[str, Any] = {}
-    dados_brutos_nao_mapeados: Dict[str, Any] = {}
-    dynamic_attributes: Dict[str, Any] = {}
-
-    mapeamento_default = {
+    _DEFAULT_MAPPING = {
         "nome_base": "nome_base",
         "sku_original": "sku_original",
         "ean_original": "ean_original",
@@ -447,9 +440,7 @@ def _processar_linha_padronizada(
         "tA-tulo": "nome_base",
         "sku": "sku_original",
         "codigo": "sku_original",
-        "codigo": "sku_original",
         "ref": "sku_original",
-        "referencia": "sku_original",
         "referencia": "sku_original",
         "n fab": "auto:sku_nome",
         "n_fab": "auto:sku_nome",
@@ -462,12 +453,10 @@ def _processar_linha_padronizada(
         "categoria": "categoria_original",
         "category": "categoria_original",
         "descricao": "descricao_original",
-        "descricao": "descricao_original",
         "description": "descricao_original",
         "ean": "ean_original",
         "gtin": "ean_original",
         "upc": "ean_original",
-        "preco": "preco_original",
         "preco": "preco_original",
         "price": "preco_original",
         "valor": "preco_original",
@@ -485,15 +474,7 @@ def _processar_linha_padronizada(
         "image_url": "imagem_url_original",
     }
 
-    mapeamento_final = mapeamento_default.copy()
-    mapeamento_usuario_norm = _normalizar_mapeamento_usuario(
-        mapeamento_colunas_usuario,
-        linha_original,
-    )
-    if mapeamento_usuario_norm:
-        mapeamento_final.update(mapeamento_usuario_norm)
-
-    aliases_destino = {
+    _ALIASES_DESTINO = {
         "sku": "sku_original",
         "ean": "ean_original",
         "preco": "preco_original",
@@ -501,7 +482,7 @@ def _processar_linha_padronizada(
         "nome": "nome_base",
     }
 
-    fallback_dynamic_by_column = {
+    _FALLBACK_DYNAMIC_BY_COLUMN = {
         "aplicacao": "aplicacao",
         "application": "aplicacao",
         "material": "material",
@@ -510,122 +491,164 @@ def _processar_linha_padronizada(
         "codigo original": "codigo_original",
         "original": "codigo_original",
     }
-    fallback_sku_columns = {"n fab", "no fab", "nfab", "fab"}
 
-    for nome_coluna_original, valor_original in linha_original.items():
-        valor_limpo = _limpar_valor_extraido(valor_original)
-        if valor_limpo is None:
-            continue
+    _FALLBACK_SKU_COLUMNS = {"n fab", "no fab", "nfab", "fab"}
 
-        nome_coluna_norm = str(nome_coluna_original).lower().strip()
-        nome_coluna_flat = re.sub(r"[^a-z0-9]+", " ", nome_coluna_norm).strip()
-        campo_produto_destino = (
-            mapeamento_final.get(nome_coluna_norm)
-            or mapeamento_final.get(nome_coluna_flat)
+    def processar_linha_padronizada(
+        self,
+        linha_original: Dict[str, Any],
+        mapeamento_colunas_usuario: Optional[Dict[str, str]] = None,
+    ) -> Optional[Dict[str, Any]]:
+        """Padroniza uma linha para campos de Produto, suportando atributos dinamicos."""
+
+        produto_dados_padronizados: Dict[str, Any] = {}
+        dados_brutos_nao_mapeados: Dict[str, Any] = {}
+        dynamic_attributes: Dict[str, Any] = {}
+
+        mapeamento_final = self._DEFAULT_MAPPING.copy()
+        mapeamento_usuario_norm = _normalizar_mapeamento_usuario(
+            mapeamento_colunas_usuario,
+            linha_original,
         )
-        if campo_produto_destino:
-            campo_produto_destino = aliases_destino.get(
-                str(campo_produto_destino).strip().lower(),
-                campo_produto_destino,
-            )
-
-        if campo_produto_destino:
-            dest_str = str(campo_produto_destino)
-            dest_norm = dest_str.strip().lower()
-            if dest_norm in {"auto:sku_nome", "split:sku_nome", "sku_nome_auto", "sku+nome"}:
-                sku_auto, nome_auto = _split_sku_nome_auto(valor_limpo)
-                if sku_auto and not produto_dados_padronizados.get("sku_original"):
-                    produto_dados_padronizados["sku_original"] = sku_auto
-                if nome_auto and not produto_dados_padronizados.get("nome_base"):
-                    produto_dados_padronizados["nome_base"] = nome_auto
-                if not nome_auto:
-                    dados_brutos_nao_mapeados[f"{nome_coluna_original}_raw"] = valor_limpo
-                continue
-
-            if dest_str.startswith(("attr:", "dynamic:")):
-                attr_key = dest_str.split(":", 1)[1]
-                if attr_key:
-                    dynamic_attributes[attr_key] = valor_limpo
-            else:
-                if dest_norm == "nome_base":
-                    sku_auto, nome_auto = _split_sku_nome_auto(valor_limpo)
-                    if sku_auto and nome_auto:
-                        if not produto_dados_padronizados.get("sku_original"):
-                            produto_dados_padronizados["sku_original"] = sku_auto
-                        if not produto_dados_padronizados.get("nome_base"):
-                            produto_dados_padronizados["nome_base"] = nome_auto
-                        continue
-                if dest_norm == "sku_original":
-                    sku_auto, nome_auto = _split_sku_nome_auto(valor_limpo)
-                    if sku_auto:
-                        if not produto_dados_padronizados.get("sku_original"):
-                            produto_dados_padronizados["sku_original"] = sku_auto
-                        if nome_auto and not produto_dados_padronizados.get("nome_base"):
-                            produto_dados_padronizados["nome_base"] = nome_auto
-                        continue
-                if dest_norm == "descricao_original":
-                    descricao_existente = _limpar_valor_extraido(
-                        produto_dados_padronizados.get("descricao_original")
-                    )
-                    if descricao_existente:
-                        partes_existentes = [
-                            parte.strip()
-                            for parte in str(descricao_existente).split("|")
-                            if parte and parte.strip()
-                        ]
-                        if valor_limpo not in partes_existentes:
-                            produto_dados_padronizados["descricao_original"] = (
-                                f"{descricao_existente} | {valor_limpo}"
-                            )
-                    else:
-                        produto_dados_padronizados["descricao_original"] = valor_limpo
-                    continue
-                if campo_produto_destino not in produto_dados_padronizados:
-                    produto_dados_padronizados[campo_produto_destino] = valor_limpo
-        else:
-            if nome_coluna_flat in fallback_sku_columns and not produto_dados_padronizados.get("sku_original"):
-                produto_dados_padronizados["sku_original"] = valor_limpo
-                continue
-            dynamic_key = fallback_dynamic_by_column.get(nome_coluna_flat)
-            if dynamic_key and dynamic_key not in dynamic_attributes:
-                dynamic_attributes[dynamic_key] = valor_limpo
-                continue
-            dados_brutos_nao_mapeados[str(nome_coluna_original).strip()] = valor_limpo
-
-    if not produto_dados_padronizados.get("nome_base") and not produto_dados_padronizados.get("sku_original"):
-        # Quando existe mapeamento explicito do usuario, nao promovemos colunas nao mapeadas
-        # para nome_base automaticamente (isso costuma virar ruido de OCR).
         if mapeamento_usuario_norm:
-            return {"motivo_descarte": "Faltam nome_base e sku_original", "linha_original": linha_original}
-        if dados_brutos_nao_mapeados:
-            primeiro_valor_util = next(
-                (v for v in dados_brutos_nao_mapeados.values() if _valor_tem_conteudo_util(v)),
-                None,
+            mapeamento_final.update(mapeamento_usuario_norm)
+
+        for nome_coluna_original, valor_original in linha_original.items():
+            valor_limpo = _limpar_valor_extraido(valor_original)
+            if valor_limpo is None:
+                continue
+
+            nome_coluna_norm = str(nome_coluna_original).lower().strip()
+            nome_coluna_flat = re.sub(r"[^a-z0-9]+", " ", nome_coluna_norm).strip()
+            campo_produto_destino = (
+                mapeamento_final.get(nome_coluna_norm)
+                or mapeamento_final.get(nome_coluna_flat)
             )
-            if primeiro_valor_util:
-                produto_dados_padronizados["nome_base"] = primeiro_valor_util
+            if campo_produto_destino:
+                campo_produto_destino = self._ALIASES_DESTINO.get(
+                    str(campo_produto_destino).strip().lower(),
+                    campo_produto_destino,
+                )
+
+            if campo_produto_destino:
+                dest_str = str(campo_produto_destino)
+                dest_norm = dest_str.strip().lower()
+                if dest_norm in {"auto:sku_nome", "split:sku_nome", "sku_nome_auto", "sku+nome"}:
+                    sku_auto, nome_auto = _split_sku_nome_auto(valor_limpo)
+                    if sku_auto and not produto_dados_padronizados.get("sku_original"):
+                        produto_dados_padronizados["sku_original"] = sku_auto
+                    if nome_auto and not produto_dados_padronizados.get("nome_base"):
+                        produto_dados_padronizados["nome_base"] = nome_auto
+                    if not nome_auto:
+                        dados_brutos_nao_mapeados[f"{nome_coluna_original}_raw"] = valor_limpo
+                    continue
+
+                if dest_str.startswith(("attr:", "dynamic:")):
+                    attr_key = dest_str.split(":", 1)[1]
+                    if attr_key:
+                        dynamic_attributes[attr_key] = valor_limpo
+                else:
+                    if dest_norm == "nome_base":
+                        sku_auto, nome_auto = _split_sku_nome_auto(valor_limpo)
+                        if sku_auto and nome_auto:
+                            if not produto_dados_padronizados.get("sku_original"):
+                                produto_dados_padronizados["sku_original"] = sku_auto
+                            if not produto_dados_padronizados.get("nome_base"):
+                                produto_dados_padronizados["nome_base"] = nome_auto
+                            continue
+                    if dest_norm == "sku_original":
+                        sku_auto, nome_auto = _split_sku_nome_auto(valor_limpo)
+                        if sku_auto:
+                            if not produto_dados_padronizados.get("sku_original"):
+                                produto_dados_padronizados["sku_original"] = sku_auto
+                            if nome_auto and not produto_dados_padronizados.get("nome_base"):
+                                produto_dados_padronizados["nome_base"] = nome_auto
+                            continue
+                    if dest_norm == "descricao_original":
+                        descricao_existente = _limpar_valor_extraido(
+                            produto_dados_padronizados.get("descricao_original")
+                        )
+                        if descricao_existente:
+                            partes_existentes = [
+                                parte.strip()
+                                for parte in str(descricao_existente).split("|")
+                                if parte and parte.strip()
+                            ]
+                            if valor_limpo not in partes_existentes:
+                                produto_dados_padronizados["descricao_original"] = (
+                                    f"{descricao_existente} | {valor_limpo}"
+                                )
+                        else:
+                            produto_dados_padronizados["descricao_original"] = valor_limpo
+                        continue
+                    if campo_produto_destino not in produto_dados_padronizados:
+                        produto_dados_padronizados[campo_produto_destino] = valor_limpo
             else:
-                return {"motivo_descarte": "Faltam nome_base e sku_original", "linha_original": linha_original}
-        else:
-            return {"motivo_descarte": "Faltam nome_base e sku_original", "linha_original": linha_original}
+                if (
+                    nome_coluna_flat in self._FALLBACK_SKU_COLUMNS
+                    and not produto_dados_padronizados.get("sku_original")
+                ):
+                    produto_dados_padronizados["sku_original"] = valor_limpo
+                    continue
+                dynamic_key = self._FALLBACK_DYNAMIC_BY_COLUMN.get(nome_coluna_flat)
+                if dynamic_key and dynamic_key not in dynamic_attributes:
+                    dynamic_attributes[dynamic_key] = valor_limpo
+                    continue
+                dados_brutos_nao_mapeados[str(nome_coluna_original).strip()] = valor_limpo
 
-    if produto_dados_padronizados.get("nome_base") and not _valor_tem_conteudo_util(
-        produto_dados_padronizados.get("nome_base")
-    ):
-        if not produto_dados_padronizados.get("sku_original"):
-            return {"motivo_descarte": "nome_base sem conteúdo útil", "linha_original": linha_original}
+        if not produto_dados_padronizados.get("nome_base") and not produto_dados_padronizados.get("sku_original"):
+            # Quando existe mapeamento explicito do usuario, nao promovemos colunas nao mapeadas
+            # para nome_base automaticamente (isso costuma virar ruido de OCR).
+            if mapeamento_usuario_norm:
+                return {
+                    "motivo_descarte": "Faltam nome_base e sku_original",
+                    "linha_original": linha_original,
+                }
+            if dados_brutos_nao_mapeados:
+                primeiro_valor_util = next(
+                    (v for v in dados_brutos_nao_mapeados.values() if _valor_tem_conteudo_util(v)),
+                    None,
+                )
+                if primeiro_valor_util:
+                    produto_dados_padronizados["nome_base"] = primeiro_valor_util
+                else:
+                    return {
+                        "motivo_descarte": "Faltam nome_base e sku_original",
+                        "linha_original": linha_original,
+                    }
+            else:
+                return {
+                    "motivo_descarte": "Faltam nome_base e sku_original",
+                    "linha_original": linha_original,
+                }
 
-    if dados_brutos_nao_mapeados:
-        produto_dados_padronizados["dados_brutos_adicionais"] = dados_brutos_nao_mapeados
+        if produto_dados_padronizados.get("nome_base") and not _valor_tem_conteudo_util(
+            produto_dados_padronizados.get("nome_base")
+        ):
+            if not produto_dados_padronizados.get("sku_original"):
+                return {"motivo_descarte": "nome_base sem conteúdo útil", "linha_original": linha_original}
 
-    if dynamic_attributes:
-        produto_dados_padronizados["dynamic_attributes"] = dynamic_attributes
+        if dados_brutos_nao_mapeados:
+            produto_dados_padronizados["dados_brutos_adicionais"] = dados_brutos_nao_mapeados
 
-    return produto_dados_padronizados
+        if dynamic_attributes:
+            produto_dados_padronizados["dynamic_attributes"] = dynamic_attributes
+
+        return produto_dados_padronizados
 
 
+_line_mapping_workflow = _LineMappingWorkflow()
 
 
+def _processar_linha_padronizada(
+    linha_original: Dict[str, Any],
+    mapeamento_colunas_usuario: Optional[Dict[str, str]] = None,
+) -> Optional[Dict[str, Any]]:
+    """Padroniza uma linha para campos de Produto, suportando atributos dinamicos."""
+    return _line_mapping_workflow.processar_linha_padronizada(
+        linha_original=linha_original,
+        mapeamento_colunas_usuario=mapeamento_colunas_usuario,
+    )
 
 async def _processar_arquivo_excel_impl(
 

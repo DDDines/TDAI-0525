@@ -45,3 +45,28 @@ def test_line_runtime_limpeza_e_conteudo_util():
     assert runtime.limpar_valor_extraido("  Valor X  ") == "Valor X"
     assert not runtime.valor_tem_conteudo_util("-")
     assert runtime.valor_tem_conteudo_util("SMC")
+
+def test_line_mapping_workflow_processa_coluna_auto_sku_nome():
+    workflow = file_processing._LineMappingWorkflow()
+
+    result = workflow.processar_linha_padronizada(
+        {"col_0": "1816D 943 666 39 01 Paralama/Estribo", "col_1": "SMC"},
+        {"col_0": "auto:sku_nome", "col_1": "attr:material"},
+    )
+
+    assert result is not None
+    assert result.get("sku_original") == "1816D 943 666 39 01"
+    assert result.get("nome_base") == "Paralama/Estribo"
+    assert result.get("dynamic_attributes", {}).get("material") == "SMC"
+
+
+def test_line_mapping_workflow_descarta_linha_sem_nome_e_sku_com_mapping_explicito():
+    workflow = file_processing._LineMappingWorkflow()
+
+    result = workflow.processar_linha_padronizada(
+        {"col_0": "", "col_1": None},
+        {"col_0": "descricao_original"},
+    )
+
+    assert result is not None
+    assert result.get("motivo_descarte") == "Faltam nome_base e sku_original"
