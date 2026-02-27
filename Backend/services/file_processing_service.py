@@ -1499,23 +1499,56 @@ async def _preview_arquivo_csv_legacy_impl(
 
 
 class _TabularPreviewRuntime:
-    """Runtime OO para preview de planilhas/tabulares mantendo legado."""
+    """Runtime OO para preview de planilhas/tabulares."""
+
+    def _decode_csv_bytes(self, conteudo_arquivo: bytes) -> str:
+        try:
+            return conteudo_arquivo.decode("utf-8-sig")
+        except UnicodeDecodeError:
+            return conteudo_arquivo.decode("latin-1")
+
+    def _detect_csv_delimiter(self, conteudo_str: str) -> str:
+        sample = conteudo_str[:1024]
+        try:
+            dialect = csv.Sniffer().sniff(sample, delimiters=[",", ";", "\t", "|"])
+            return dialect.delimiter
+        except Exception:
+            primeira_linha = conteudo_str.splitlines()[0] if conteudo_str.splitlines() else ""
+            if ";" in primeira_linha:
+                return ";"
+            if "\t" in primeira_linha:
+                return "\t"
+            return ","
 
     async def preview_arquivo_excel(
         self, conteudo_arquivo: bytes, max_rows: int = 5
     ) -> Dict[str, Any]:
-        return await _preview_arquivo_excel_legacy_impl(
-            conteudo_arquivo=conteudo_arquivo,
-            max_rows=max_rows,
-        )
+        try:
+            df = pd.read_excel(io.BytesIO(conteudo_arquivo), sheet_name=0)
+            headers = [str(col) for col in df.columns]
+            sample_rows = df.head(max_rows).fillna("").to_dict(orient="records")
+            return {"headers": headers, "sample_rows": sample_rows}
+        except Exception as e:
+            logger.error("Erro ao gerar preview de arquivo Excel: %s", e)
+            return {"error": f"Falha ao ler arquivo Excel: {str(e)}"}
 
     async def preview_arquivo_csv(
         self, conteudo_arquivo: bytes, max_rows: int = 5
     ) -> Dict[str, Any]:
-        return await _preview_arquivo_csv_legacy_impl(
-            conteudo_arquivo=conteudo_arquivo,
-            max_rows=max_rows,
-        )
+        try:
+            conteudo_str = self._decode_csv_bytes(conteudo_arquivo)
+            delimitador = self._detect_csv_delimiter(conteudo_str)
+            leitor_csv = csv.DictReader(io.StringIO(conteudo_str), delimiter=delimitador)
+            headers = leitor_csv.fieldnames or []
+            sample_rows: List[Dict[str, Any]] = []
+            for idx, row in enumerate(leitor_csv):
+                if idx >= max_rows:
+                    break
+                sample_rows.append(row)
+            return {"headers": headers, "sample_rows": sample_rows}
+        except Exception as e:
+            logger.error("Erro ao gerar preview de arquivo CSV: %s", e)
+            return {"error": f"Falha ao ler arquivo CSV: {str(e)}"}
 
 
 _tabular_preview_runtime = _TabularPreviewRuntime()
@@ -1909,14 +1942,38 @@ async def _gerar_preview_legacy_impl(
 class _PreviewDispatchRuntime:
     """Runtime OO para despacho de preview por extensao."""
 
+    def __init__(
+        self,
+        tabular_preview_runtime: Optional[_TabularPreviewRuntime] = None,
+        pdf_preview_runtime: Optional[_PdfPreviewRuntime] = None,
+    ) -> None:
+        self._tabular_preview_runtime = tabular_preview_runtime or _tabular_preview_runtime
+        self._pdf_preview_runtime = pdf_preview_runtime or _pdf_preview_runtime
+
     async def gerar_preview(
         self, conteudo_arquivo: bytes, ext: str, max_rows: int = 5
     ) -> Dict[str, Any]:
-        return await _gerar_preview_legacy_impl(
-            conteudo_arquivo=conteudo_arquivo,
-            ext=ext,
-            max_rows=max_rows,
-        )
+        ext_norm = ext.lower()
+
+        if ext_norm in [".xlsx", ".xls"]:
+            return await self._tabular_preview_runtime.preview_arquivo_excel(
+                conteudo_arquivo=conteudo_arquivo,
+                max_rows=max_rows,
+            )
+        if ext_norm == ".csv":
+            return await self._tabular_preview_runtime.preview_arquivo_csv(
+                conteudo_arquivo=conteudo_arquivo,
+                max_rows=max_rows,
+            )
+        if ext_norm == ".pdf":
+            return await self._pdf_preview_runtime.preview_arquivo_pdf(
+                conteudo_arquivo=conteudo_arquivo,
+                ext=ext_norm,
+                start_page=1,
+                page_count=1,
+            )
+
+        raise ValueError("Formato de arquivo nao suportado para preview")
 
 
 _preview_dispatch_runtime = _PreviewDispatchRuntime()

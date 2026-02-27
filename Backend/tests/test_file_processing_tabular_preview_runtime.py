@@ -1,28 +1,23 @@
 import pytest
+import pandas as pd
 
 import Backend.services.file_processing_service as file_processing
 
 
 @pytest.mark.asyncio
-async def test_tabular_preview_runtime_delega_excel_legacy(monkeypatch):
+async def test_tabular_preview_runtime_preview_excel(monkeypatch):
     runtime = file_processing._TabularPreviewRuntime()
-    called = {}
-
-    async def fake_excel_legacy(**kwargs):
-        called.update(kwargs)
-        return {"headers": ["a"], "sample_rows": [{"a": "1"}]}
 
     monkeypatch.setattr(
-        file_processing,
-        "_preview_arquivo_excel_legacy_impl",
-        fake_excel_legacy,
+        file_processing.pd,
+        "read_excel",
+        lambda *_args, **_kwargs: pd.DataFrame([{"a": "1"}, {"a": "2"}]),
     )
 
-    result = await runtime.preview_arquivo_excel(b"xlsx", max_rows=7)
+    result = await runtime.preview_arquivo_excel(b"xlsx", max_rows=1)
 
     assert result["headers"] == ["a"]
-    assert called["conteudo_arquivo"] == b"xlsx"
-    assert called["max_rows"] == 7
+    assert result["sample_rows"] == [{"a": "1"}]
 
 
 @pytest.mark.asyncio

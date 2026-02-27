@@ -4,18 +4,24 @@ import Backend.services.file_processing_service as file_processing
 
 
 @pytest.mark.asyncio
-async def test_preview_dispatch_runtime_delega_legacy(monkeypatch):
-    runtime = file_processing._PreviewDispatchRuntime()
+async def test_preview_dispatch_runtime_despacha_csv_para_runtime_tabular():
     called = {}
 
-    async def fake_legacy(**kwargs):
-        called.update(kwargs)
-        return {"headers": ["h1"], "sample_rows": []}
+    class FakeTabularRuntime:
+        async def preview_arquivo_excel(self, **kwargs):
+            return {"headers": ["excel"], "sample_rows": []}
 
-    monkeypatch.setattr(
-        file_processing,
-        "_gerar_preview_legacy_impl",
-        fake_legacy,
+        async def preview_arquivo_csv(self, **kwargs):
+            called.update(kwargs)
+            return {"headers": ["h1"], "sample_rows": []}
+
+    class FakePdfRuntime:
+        async def preview_arquivo_pdf(self, **kwargs):
+            return {"num_pages": 1, "preview_images": []}
+
+    runtime = file_processing._PreviewDispatchRuntime(
+        tabular_preview_runtime=FakeTabularRuntime(),
+        pdf_preview_runtime=FakePdfRuntime(),
     )
 
     result = await runtime.gerar_preview(
@@ -26,7 +32,6 @@ async def test_preview_dispatch_runtime_delega_legacy(monkeypatch):
 
     assert result["headers"] == ["h1"]
     assert called["conteudo_arquivo"] == b"raw"
-    assert called["ext"] == ".csv"
     assert called["max_rows"] == 9
 
 
