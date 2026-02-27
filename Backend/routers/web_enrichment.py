@@ -128,7 +128,62 @@ web_enrichment_task_runner = WebEnrichmentTaskRunner(
 )
 
 
+class _WebEnrichmentRouterRuntime:
+    """Runtime OO para rotas de enriquecimento web."""
+
+    async def execute_legacy_task(
+        self,
+        *,
+        db_session_factory,
+        produto_id: int,
+        user_id: int,
+        termos_busca_override: Optional[str] = None,
+    ) -> None:
+        await web_enrichment_task_runner.execute_legacy(
+            db_session_factory=db_session_factory,
+            produto_id=produto_id,
+            user_id=user_id,
+            termos_busca_override=termos_busca_override,
+        )
+
+    async def execute_oop_task(self, **task_kwargs) -> None:
+        await web_enrichment_task_runner.execute_oop(**task_kwargs)
+
+    def validate_start_preconditions(
+        self,
+        *,
+        db_session_factory,
+        produto_id: int,
+        current_user: models.User,
+    ) -> None:
+        web_enrichment_start_service.validate_start_preconditions(
+            db_session_factory=db_session_factory,
+            produto_id=produto_id,
+            current_user=current_user,
+        )
+
+    def dispatch_start(
+        self,
+        *,
+        background_tasks: BackgroundTasks,
+        db_session_factory,
+        command: WebEnrichmentStartCommand,
+        legacy_executor,
+        oop_executor,
+    ) -> None:
+        web_enrichment_start_service.dispatch_start(
+            background_tasks=background_tasks,
+            db_session_factory=db_session_factory,
+            command=command,
+            legacy_executor=legacy_executor,
+            oop_executor=oop_executor,
+        )
+
+
 class _WebEnrichmentRouterWorkflow:
+    def __init__(self, runtime: Optional["_WebEnrichmentRouterRuntime"] = None) -> None:
+        self._runtime = runtime or _WebEnrichmentRouterRuntime()
+
     async def tarefa_enriquecer_produto_web(
         self,
         db_session_factory,
@@ -136,7 +191,7 @@ class _WebEnrichmentRouterWorkflow:
         user_id: int,
         termos_busca_override: Optional[str] = None,
     ):
-        await web_enrichment_task_runner.execute_legacy(
+        await self._runtime.execute_legacy_task(
             db_session_factory=db_session_factory,
             produto_id=produto_id,
             user_id=user_id,
@@ -145,7 +200,7 @@ class _WebEnrichmentRouterWorkflow:
 
     async def oop_tarefa_enriquecer_produto_web(self, **task_kwargs):
         """Executor OOP dedicado (modo oop), separado do legado para comparacao futura."""
-        await web_enrichment_task_runner.execute_oop(**task_kwargs)
+        await self._runtime.execute_oop_task(**task_kwargs)
 
     def iniciar_enriquecimento_produto_web(
         self,
@@ -155,7 +210,7 @@ class _WebEnrichmentRouterWorkflow:
         current_user: models.User,
         termos_busca_override: Optional[str] = None,
     ) -> Dict[str, str]:
-        web_enrichment_start_service.validate_start_preconditions(
+        self._runtime.validate_start_preconditions(
             db_session_factory=SessionLocal,
             produto_id=produto_id,
             current_user=current_user,
@@ -167,7 +222,7 @@ class _WebEnrichmentRouterWorkflow:
             termos_busca_override=termos_busca_override,
         )
 
-        web_enrichment_start_service.dispatch_start(
+        self._runtime.dispatch_start(
             background_tasks=background_tasks,
             db_session_factory=SessionLocal,
             command=command,
@@ -179,7 +234,10 @@ class _WebEnrichmentRouterWorkflow:
         }
 
 
-web_enrichment_router_workflow = _WebEnrichmentRouterWorkflow()
+web_enrichment_router_runtime = _WebEnrichmentRouterRuntime()
+web_enrichment_router_workflow = _WebEnrichmentRouterWorkflow(
+    runtime=web_enrichment_router_runtime
+)
 
 
 async def _tarefa_enriquecer_produto_web(
