@@ -1572,7 +1572,7 @@ async def _preview_arquivo_pdf_impl(
     )
 
 
-async def _gerar_preview_impl(
+async def _gerar_preview_legacy_impl(
 
     conteudo_arquivo: bytes, ext: str, max_rows: int = 5
 
@@ -1598,6 +1598,32 @@ async def _gerar_preview_impl(
 
 
 
+
+
+class _PreviewDispatchRuntime:
+    """Runtime OO para despacho de preview por extensao."""
+
+    async def gerar_preview(
+        self, conteudo_arquivo: bytes, ext: str, max_rows: int = 5
+    ) -> Dict[str, Any]:
+        return await _gerar_preview_legacy_impl(
+            conteudo_arquivo=conteudo_arquivo,
+            ext=ext,
+            max_rows=max_rows,
+        )
+
+
+_preview_dispatch_runtime = _PreviewDispatchRuntime()
+
+
+async def _gerar_preview_impl(
+    conteudo_arquivo: bytes, ext: str, max_rows: int = 5
+) -> Dict[str, Any]:
+    return await _preview_dispatch_runtime.gerar_preview(
+        conteudo_arquivo=conteudo_arquivo,
+        ext=ext,
+        max_rows=max_rows,
+    )
 
 
 async def _pdf_bytes_to_images_impl(
