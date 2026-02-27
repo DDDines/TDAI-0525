@@ -3721,6 +3721,18 @@ def parse_annotation_to_dataframe(
 class _PdfProcessingWorkflow:
     """Workflow OO para processamento e preview de PDF."""
 
+    def __init__(
+        self,
+        pdf_ingestion_runtime: Optional[_PdfIngestionRuntime] = None,
+        pdf_preview_runtime: Optional[_PdfPreviewRuntime] = None,
+        preview_dispatch_runtime: Optional[_PreviewDispatchRuntime] = None,
+    ) -> None:
+        self._pdf_ingestion_runtime = pdf_ingestion_runtime or _pdf_ingestion_runtime
+        self._pdf_preview_runtime = pdf_preview_runtime or _pdf_preview_runtime
+        self._preview_dispatch_runtime = (
+            preview_dispatch_runtime or _preview_dispatch_runtime
+        )
+
     async def processar_arquivo_pdf(
         self,
         conteudo_arquivo: bytes,
@@ -3730,7 +3742,7 @@ class _PdfProcessingWorkflow:
         pages: Optional[List[int]] = None,
         region: Optional[List[float]] = None,
     ) -> List[Dict[str, Any]]:
-        return await _processar_arquivo_pdf_impl(
+        return await self._pdf_ingestion_runtime.processar_arquivo_pdf(
             conteudo_arquivo=conteudo_arquivo,
             mapeamento_colunas_usuario=mapeamento_colunas_usuario,
             usar_llm=usar_llm,
@@ -3747,7 +3759,7 @@ class _PdfProcessingWorkflow:
         page_count: int = 1,
         dpi: int = 72,
     ) -> Dict[str, Any]:
-        return await _preview_arquivo_pdf_impl(
+        return await self._pdf_preview_runtime.preview_arquivo_pdf(
             conteudo_arquivo=conteudo_arquivo,
             ext=ext,
             start_page=start_page,
@@ -3758,7 +3770,7 @@ class _PdfProcessingWorkflow:
     async def gerar_preview(
         self, conteudo_arquivo: bytes, ext: str, max_rows: int = 5
     ) -> Dict[str, Any]:
-        return await _gerar_preview_impl(
+        return await self._preview_dispatch_runtime.gerar_preview(
             conteudo_arquivo=conteudo_arquivo,
             ext=ext,
             max_rows=max_rows,
