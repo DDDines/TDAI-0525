@@ -27,7 +27,7 @@ def _apply_plano_limits(db: Session, db_user: User, plano_id: Optional[int]) -> 
         db_user.data_expiracao_plano = None
         return
 
-    plano = _get_plano_impl(db=db, plano_id=plano_id)
+    plano = db.query(Plano).filter(Plano.id == plano_id).first()
     if not plano:
         logger.warning(
             "Plano ID %s nao encontrado para usuario %s. Mantendo limites atuais.",
@@ -40,225 +40,6 @@ def _apply_plano_limits(db: Session, db_user: User, plano_id: Optional[int]) -> 
     db_user.limite_produtos = plano.limite_produtos
     db_user.limite_enriquecimento_web = plano.limite_enriquecimento_web
     db_user.limite_geracao_ia = plano.limite_geracao_ia
-
-
-def _get_user_impl(db: Session, user_id: int) -> Optional[User]:
-    return db.query(User).filter(User.id == user_id).first()
-
-
-def _get_user_by_email_impl(db: Session, email: str) -> Optional[User]:
-    return db.query(User).filter(User.email == email).first()
-
-
-def _get_users_impl(db: Session, skip: int = 0, limit: int = 100) -> List[User]:
-    return db.query(User).offset(skip).limit(limit).all()
-
-
-def _create_user_impl(db: Session, user: schemas.UserCreate) -> User:
-    hashed_password = security.get_password_hash(user.password)
-    db_user = User(
-        email=user.email,
-        hashed_password=hashed_password,
-        nome_completo=user.nome_completo,
-        idioma_preferido=user.idioma_preferido,
-        chave_openai_pessoal=user.chave_openai_pessoal,
-        chave_google_gemini_pessoal=user.chave_google_gemini_pessoal,
-        is_active=True,
-        is_superuser=False,
-    )
-    _apply_default_plan_limits(db_user)
-
-    if user.plano_id:
-        plano = _get_plano_impl(db, plano_id=user.plano_id)
-        if plano:
-            db_user.plano_id = plano.id
-            db_user.limite_produtos = plano.limite_produtos
-            db_user.limite_enriquecimento_web = plano.limite_enriquecimento_web
-            db_user.limite_geracao_ia = plano.limite_geracao_ia
-        else:
-            logger.warning(
-                "Plano ID %s nao encontrado ao criar usuario %s. Usando defaults.",
-                user.plano_id,
-                user.email,
-            )
-
-    db.add(db_user)
-    try:
-        db.commit()
-    except IntegrityError as exc:
-        db.rollback()
-        logger.warning("Falha ao criar usuario, email duplicado: %s", user.email)
-        raise HTTPException(
-            status_code=400,
-            detail="Um usuario com este email ja existe.",
-        ) from exc
-    db.refresh(db_user)
-    return db_user
-
-
-def _update_user_impl(
-    db: Session,
-    db_user: User,
-    user_update: Union[
-        schemas.UserUpdate,
-        schemas.UserUpdateByAdmin,
-        schemas.UserUpdateOAuth,
-    ],
-) -> User:
-    update_data = user_update.model_dump(exclude_unset=True)
-
-    if update_data.get("password"):
-        db_user.hashed_password = security.get_password_hash(update_data["password"])
-        del update_data["password"]
-
-    if "plano_id" in update_data:
-        _apply_plano_limits(db=db, db_user=db_user, plano_id=update_data["plano_id"])
-        update_data.pop("plano_id", None)
-
-    for field, value in update_data.items():
-        if hasattr(db_user, field):
-            setattr(db_user, field, value)
-
-    db.commit()
-    db.refresh(db_user)
-    return db_user
-
-
-def _delete_user_impl(db: Session, db_user: User) -> User:
-    db.delete(db_user)
-    db.commit()
-    return db_user
-
-
-def _create_user_oauth_impl(
-    db: Session,
-    user_oauth: schemas.UserCreateOAuth,
-    plano_id_default: Optional[int] = None,
-) -> User:
-    db_user = User(
-        email=user_oauth.email,
-        nome_completo=user_oauth.nome_completo,
-        provider=user_oauth.provider,
-        provider_user_id=user_oauth.provider_user_id,
-        is_active=True,
-        idioma_preferido=user_oauth.idioma_preferido,
-    )
-    _apply_default_plan_limits(db_user)
-
-    if plano_id_default:
-        plano = _get_plano_impl(db, plano_id=plano_id_default)
-        if plano:
-            db_user.plano_id = plano.id
-            db_user.limite_produtos = plano.limite_produtos
-            db_user.limite_enriquecimento_web = plano.limite_enriquecimento_web
-            db_user.limite_geracao_ia = plano.limite_geracao_ia
-
-    default_role = _get_role_by_name_impl(db=db, name="user")
-    if default_role:
-        db_user.role_id = default_role.id
-
-    db.add(db_user)
-    try:
-        db.commit()
-    except IntegrityError as exc:
-        db.rollback()
-        logger.warning(
-            "Falha ao criar usuario OAuth, email duplicado: %s",
-            user_oauth.email,
-        )
-        raise HTTPException(
-            status_code=400,
-            detail="Um usuario com este email ja existe.",
-        ) from exc
-    db.refresh(db_user)
-    return db_user
-
-
-def _get_user_by_provider_impl(
-    db: Session,
-    provider: str,
-    provider_user_id: str,
-) -> Optional[User]:
-    return (
-        db.query(User)
-        .filter(User.provider == provider, User.provider_user_id == provider_user_id)
-        .first()
-    )
-
-
-def _set_user_password_reset_token_impl(
-    db: Session,
-    user: User,
-    token_hash: str,
-    expires_at: datetime,
-) -> None:
-    user.reset_password_token = token_hash
-    user.reset_password_token_expires_at = expires_at
-    db.commit()
-    db.refresh(user)
-
-
-def _get_user_by_reset_token_impl(db: Session, token_hash: str) -> Optional[User]:
-    return db.query(User).filter(User.reset_password_token == token_hash).first()
-
-
-def _get_role_impl(db: Session, role_id: int) -> Optional[Role]:
-    return db.query(Role).filter(Role.id == role_id).first()
-
-
-def _get_role_by_name_impl(db: Session, name: str) -> Optional[Role]:
-    return db.query(Role).filter(Role.name == name).first()
-
-
-def _get_roles_impl(db: Session, skip: int = 0, limit: int = 10) -> List[Role]:
-    return db.query(Role).offset(skip).limit(limit).all()
-
-
-def _create_role_impl(db: Session, role: schemas.RoleCreate) -> Role:
-    db_role = Role(name=role.name, description=role.description)
-    db.add(db_role)
-    db.commit()
-    db.refresh(db_role)
-    return db_role
-
-
-def _get_plano_impl(db: Session, plano_id: int) -> Optional[Plano]:
-    return db.query(Plano).filter(Plano.id == plano_id).first()
-
-
-def _get_plano_by_name_impl(db: Session, nome: str) -> Optional[Plano]:
-    return db.query(Plano).filter(Plano.nome == nome).first()
-
-
-def _get_planos_impl(db: Session, skip: int = 0, limit: int = 10) -> List[Plano]:
-    return db.query(Plano).offset(skip).limit(limit).all()
-
-
-def _create_plano_impl(db: Session, plano: schemas.PlanoCreate) -> Plano:
-    db_plano = Plano(**plano.model_dump())
-    db.add(db_plano)
-    db.commit()
-    db.refresh(db_plano)
-    return db_plano
-
-
-def _update_plano_impl(
-    db: Session,
-    db_plano: Plano,
-    plano_update: schemas.PlanoUpdate,
-) -> Plano:
-    update_data = plano_update.model_dump(exclude_unset=True)
-    for key, value in update_data.items():
-        setattr(db_plano, key, value)
-    db.commit()
-    db.refresh(db_plano)
-    return db_plano
-
-
-def _delete_plano_impl(db: Session, db_plano: Plano) -> Plano:
-    db.delete(db_plano)
-    db.commit()
-    return db_plano
 
 
 class _UserCrudWorkflow:
@@ -371,16 +152,54 @@ class _UserCrudWorkflow:
 
 class _UserCrudRuntime:
     def get_user(self, db: Session, user_id: int) -> Optional[User]:
-        return _get_user_impl(db=db, user_id=user_id)
+        return db.query(User).filter(User.id == user_id).first()
 
     def get_user_by_email(self, db: Session, email: str) -> Optional[User]:
-        return _get_user_by_email_impl(db=db, email=email)
+        return db.query(User).filter(User.email == email).first()
 
     def get_users(self, db: Session, skip: int = 0, limit: int = 100) -> List[User]:
-        return _get_users_impl(db=db, skip=skip, limit=limit)
+        return db.query(User).offset(skip).limit(limit).all()
 
     def create_user(self, db: Session, user: schemas.UserCreate) -> User:
-        return _create_user_impl(db=db, user=user)
+        hashed_password = security.get_password_hash(user.password)
+        db_user = User(
+            email=user.email,
+            hashed_password=hashed_password,
+            nome_completo=user.nome_completo,
+            idioma_preferido=user.idioma_preferido,
+            chave_openai_pessoal=user.chave_openai_pessoal,
+            chave_google_gemini_pessoal=user.chave_google_gemini_pessoal,
+            is_active=True,
+            is_superuser=False,
+        )
+        _apply_default_plan_limits(db_user)
+
+        if user.plano_id:
+            plano = self.get_plano(db=db, plano_id=user.plano_id)
+            if plano:
+                db_user.plano_id = plano.id
+                db_user.limite_produtos = plano.limite_produtos
+                db_user.limite_enriquecimento_web = plano.limite_enriquecimento_web
+                db_user.limite_geracao_ia = plano.limite_geracao_ia
+            else:
+                logger.warning(
+                    "Plano ID %s nao encontrado ao criar usuario %s. Usando defaults.",
+                    user.plano_id,
+                    user.email,
+                )
+
+        db.add(db_user)
+        try:
+            db.commit()
+        except IntegrityError as exc:
+            db.rollback()
+            logger.warning("Falha ao criar usuario, email duplicado: %s", user.email)
+            raise HTTPException(
+                status_code=400,
+                detail="Um usuario com este email ja existe.",
+            ) from exc
+        db.refresh(db_user)
+        return db_user
 
     def update_user(
         self,
@@ -392,10 +211,28 @@ class _UserCrudRuntime:
             schemas.UserUpdateOAuth,
         ],
     ) -> User:
-        return _update_user_impl(db=db, db_user=db_user, user_update=user_update)
+        update_data = user_update.model_dump(exclude_unset=True)
+
+        if update_data.get("password"):
+            db_user.hashed_password = security.get_password_hash(update_data["password"])
+            del update_data["password"]
+
+        if "plano_id" in update_data:
+            _apply_plano_limits(db=db, db_user=db_user, plano_id=update_data["plano_id"])
+            update_data.pop("plano_id", None)
+
+        for field, value in update_data.items():
+            if hasattr(db_user, field):
+                setattr(db_user, field, value)
+
+        db.commit()
+        db.refresh(db_user)
+        return db_user
 
     def delete_user(self, db: Session, db_user: User) -> User:
-        return _delete_user_impl(db=db, db_user=db_user)
+        db.delete(db_user)
+        db.commit()
+        return db_user
 
     def create_user_oauth(
         self,
@@ -403,11 +240,43 @@ class _UserCrudRuntime:
         user_oauth: schemas.UserCreateOAuth,
         plano_id_default: Optional[int] = None,
     ) -> User:
-        return _create_user_oauth_impl(
-            db=db,
-            user_oauth=user_oauth,
-            plano_id_default=plano_id_default,
+        db_user = User(
+            email=user_oauth.email,
+            nome_completo=user_oauth.nome_completo,
+            provider=user_oauth.provider,
+            provider_user_id=user_oauth.provider_user_id,
+            is_active=True,
+            idioma_preferido=user_oauth.idioma_preferido,
         )
+        _apply_default_plan_limits(db_user)
+
+        if plano_id_default:
+            plano = self.get_plano(db=db, plano_id=plano_id_default)
+            if plano:
+                db_user.plano_id = plano.id
+                db_user.limite_produtos = plano.limite_produtos
+                db_user.limite_enriquecimento_web = plano.limite_enriquecimento_web
+                db_user.limite_geracao_ia = plano.limite_geracao_ia
+
+        default_role = self.get_role_by_name(db=db, name="user")
+        if default_role:
+            db_user.role_id = default_role.id
+
+        db.add(db_user)
+        try:
+            db.commit()
+        except IntegrityError as exc:
+            db.rollback()
+            logger.warning(
+                "Falha ao criar usuario OAuth, email duplicado: %s",
+                user_oauth.email,
+            )
+            raise HTTPException(
+                status_code=400,
+                detail="Um usuario com este email ja existe.",
+            ) from exc
+        db.refresh(db_user)
+        return db_user
 
     def get_user_by_provider(
         self,
@@ -415,10 +284,10 @@ class _UserCrudRuntime:
         provider: str,
         provider_user_id: str,
     ) -> Optional[User]:
-        return _get_user_by_provider_impl(
-            db=db,
-            provider=provider,
-            provider_user_id=provider_user_id,
+        return (
+            db.query(User)
+            .filter(User.provider == provider, User.provider_user_id == provider_user_id)
+            .first()
         )
 
     def set_user_password_reset_token(
@@ -428,39 +297,45 @@ class _UserCrudRuntime:
         token_hash: str,
         expires_at: datetime,
     ) -> None:
-        _set_user_password_reset_token_impl(
-            db=db,
-            user=user,
-            token_hash=token_hash,
-            expires_at=expires_at,
-        )
+        user.reset_password_token = token_hash
+        user.reset_password_token_expires_at = expires_at
+        db.commit()
+        db.refresh(user)
 
     def get_user_by_reset_token(self, db: Session, token_hash: str) -> Optional[User]:
-        return _get_user_by_reset_token_impl(db=db, token_hash=token_hash)
+        return db.query(User).filter(User.reset_password_token == token_hash).first()
 
     def get_role(self, db: Session, role_id: int) -> Optional[Role]:
-        return _get_role_impl(db=db, role_id=role_id)
+        return db.query(Role).filter(Role.id == role_id).first()
 
     def get_role_by_name(self, db: Session, name: str) -> Optional[Role]:
-        return _get_role_by_name_impl(db=db, name=name)
+        return db.query(Role).filter(Role.name == name).first()
 
     def get_roles(self, db: Session, skip: int = 0, limit: int = 10) -> List[Role]:
-        return _get_roles_impl(db=db, skip=skip, limit=limit)
+        return db.query(Role).offset(skip).limit(limit).all()
 
     def create_role(self, db: Session, role: schemas.RoleCreate) -> Role:
-        return _create_role_impl(db=db, role=role)
+        db_role = Role(name=role.name, description=role.description)
+        db.add(db_role)
+        db.commit()
+        db.refresh(db_role)
+        return db_role
 
     def get_plano(self, db: Session, plano_id: int) -> Optional[Plano]:
-        return _get_plano_impl(db=db, plano_id=plano_id)
+        return db.query(Plano).filter(Plano.id == plano_id).first()
 
     def get_plano_by_name(self, db: Session, nome: str) -> Optional[Plano]:
-        return _get_plano_by_name_impl(db=db, nome=nome)
+        return db.query(Plano).filter(Plano.nome == nome).first()
 
     def get_planos(self, db: Session, skip: int = 0, limit: int = 10) -> List[Plano]:
-        return _get_planos_impl(db=db, skip=skip, limit=limit)
+        return db.query(Plano).offset(skip).limit(limit).all()
 
     def create_plano(self, db: Session, plano: schemas.PlanoCreate) -> Plano:
-        return _create_plano_impl(db=db, plano=plano)
+        db_plano = Plano(**plano.model_dump())
+        db.add(db_plano)
+        db.commit()
+        db.refresh(db_plano)
+        return db_plano
 
     def update_plano(
         self,
@@ -468,10 +343,17 @@ class _UserCrudRuntime:
         db_plano: Plano,
         plano_update: schemas.PlanoUpdate,
     ) -> Plano:
-        return _update_plano_impl(db=db, db_plano=db_plano, plano_update=plano_update)
+        update_data = plano_update.model_dump(exclude_unset=True)
+        for key, value in update_data.items():
+            setattr(db_plano, key, value)
+        db.commit()
+        db.refresh(db_plano)
+        return db_plano
 
     def delete_plano(self, db: Session, db_plano: Plano) -> Plano:
-        return _delete_plano_impl(db=db, db_plano=db_plano)
+        db.delete(db_plano)
+        db.commit()
+        return db_plano
 
 
 _user_crud_workflow = _UserCrudWorkflow()
