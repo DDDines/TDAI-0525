@@ -120,89 +120,6 @@ class Settings(BaseSettings):
     )
 
 
-def _resolve_dotenv_path_impl() -> Path:
-    return Path(__file__).resolve().parent.parent.parent / ".env"
-
-
-def _load_dotenv_impl(dotenv_path: Path) -> None:
-    if dotenv_path.exists():
-        load_dotenv(dotenv_path=dotenv_path)
-        return
-
-    logger.warning(
-        "Arquivo .env nao encontrado em %s. Usando valores padrao ou variaveis de ambiente do sistema.",
-        dotenv_path,
-    )
-
-
-def _build_default_cors_origins_impl() -> List[AnyHttpUrl]:
-    default_origins: List[AnyHttpUrl] = []
-    default_list = [
-        "http://localhost:5173",
-        "http://127.0.0.1:5173",
-        "http://localhost",
-    ]
-    for origin_url in default_list:
-        try:
-            default_origins.append(http_url_adapter.validate_python(origin_url))
-        except ValidationError:
-            continue
-    return default_origins
-
-
-def _parse_cors_origins_impl(cors_origins_str: str) -> List[AnyHttpUrl]:
-    raw_origins = [origin.strip() for origin in cors_origins_str.split(",") if origin.strip()]
-    valid_origins: List[AnyHttpUrl] = []
-    for origin_str in raw_origins:
-        try:
-            valid_origins.append(http_url_adapter.validate_python(origin_str))
-        except ValidationError:
-            logger.warning(
-                "Origem CORS invalida '%s' em BACKEND_CORS_ORIGINS. Sera ignorada.",
-                origin_str,
-            )
-    return valid_origins
-
-
-def _configure_database_url_impl(settings_obj: Settings) -> None:
-    if settings_obj.DATABASE_URL is not None:
-        logger.info("DATABASE_URL carregada do .env: %s", settings_obj.DATABASE_URL)
-        return
-
-    backend_dir = Path(__file__).resolve().parent.parent
-    sqlite_file_path = backend_dir / settings_obj.SQLITE_DB_FILE
-    settings_obj.DATABASE_URL = f"sqlite:///{sqlite_file_path.resolve()}"
-    logger.info("DATABASE_URL nao encontrada no .env. Usando SQLite em: %s", settings_obj.DATABASE_URL)
-
-
-def _configure_cors_origins_impl(settings_obj: Settings) -> None:
-    if settings_obj.cors_origins_str:
-        try:
-            settings_obj.BACKEND_CORS_ORIGINS = _parse_cors_origins_impl(settings_obj.cors_origins_str)
-        except Exception as exc:
-            logger.error("Erro ao processar BACKEND_CORS_ORIGINS do .env: %s. Usando fallback.", exc)
-            settings_obj.BACKEND_CORS_ORIGINS = []
-    else:
-        settings_obj.BACKEND_CORS_ORIGINS = _build_default_cors_origins_impl()
-        logger.info(
-            "Usando CORS origins padrao: %s",
-            [str(origin) for origin in settings_obj.BACKEND_CORS_ORIGINS],
-        )
-
-
-def _build_settings_impl() -> Settings:
-    dotenv_path = _resolve_dotenv_path_impl()
-    _load_dotenv_impl(dotenv_path)
-
-    settings_obj = Settings()
-    _configure_database_url_impl(settings_obj)
-    _configure_cors_origins_impl(settings_obj)
-
-    logger.info("Usando CORS origins de settings: %s", [str(origin) for origin in settings_obj.BACKEND_CORS_ORIGINS])
-    logger.info("APP_MODE ativo: %s", settings_obj.APP_MODE)
-    return settings_obj
-
-
 class _ConfigWorkflow:
     def __init__(self, runtime: Optional["_ConfigRuntime"] = None) -> None:
         self._runtime = runtime or _ConfigRuntime()
@@ -214,8 +131,92 @@ class _ConfigWorkflow:
 class _ConfigRuntime:
     """Runtime OO para resolução e construção de settings."""
 
+    def resolve_dotenv_path(self) -> Path:
+        return Path(__file__).resolve().parent.parent.parent / ".env"
+
+    def load_dotenv(self, dotenv_path: Path) -> None:
+        if dotenv_path.exists():
+            load_dotenv(dotenv_path=dotenv_path)
+            return
+
+        logger.warning(
+            "Arquivo .env nao encontrado em %s. Usando valores padrao ou variaveis de ambiente do sistema.",
+            dotenv_path,
+        )
+
+    def build_default_cors_origins(self) -> List[AnyHttpUrl]:
+        default_origins: List[AnyHttpUrl] = []
+        default_list = [
+            "http://localhost:5173",
+            "http://127.0.0.1:5173",
+            "http://localhost",
+        ]
+        for origin_url in default_list:
+            try:
+                default_origins.append(http_url_adapter.validate_python(origin_url))
+            except ValidationError:
+                continue
+        return default_origins
+
+    def parse_cors_origins(self, cors_origins_str: str) -> List[AnyHttpUrl]:
+        raw_origins = [origin.strip() for origin in cors_origins_str.split(",") if origin.strip()]
+        valid_origins: List[AnyHttpUrl] = []
+        for origin_str in raw_origins:
+            try:
+                valid_origins.append(http_url_adapter.validate_python(origin_str))
+            except ValidationError:
+                logger.warning(
+                    "Origem CORS invalida '%s' em BACKEND_CORS_ORIGINS. Sera ignorada.",
+                    origin_str,
+                )
+        return valid_origins
+
+    def configure_database_url(self, settings_obj: Settings) -> None:
+        if settings_obj.DATABASE_URL is not None:
+            logger.info("DATABASE_URL carregada do .env: %s", settings_obj.DATABASE_URL)
+            return
+
+        backend_dir = Path(__file__).resolve().parent.parent
+        sqlite_file_path = backend_dir / settings_obj.SQLITE_DB_FILE
+        settings_obj.DATABASE_URL = f"sqlite:///{sqlite_file_path.resolve()}"
+        logger.info(
+            "DATABASE_URL nao encontrada no .env. Usando SQLite em: %s",
+            settings_obj.DATABASE_URL,
+        )
+
+    def configure_cors_origins(self, settings_obj: Settings) -> None:
+        if settings_obj.cors_origins_str:
+            try:
+                settings_obj.BACKEND_CORS_ORIGINS = self.parse_cors_origins(
+                    settings_obj.cors_origins_str
+                )
+            except Exception as exc:
+                logger.error(
+                    "Erro ao processar BACKEND_CORS_ORIGINS do .env: %s. Usando fallback.",
+                    exc,
+                )
+                settings_obj.BACKEND_CORS_ORIGINS = []
+        else:
+            settings_obj.BACKEND_CORS_ORIGINS = self.build_default_cors_origins()
+            logger.info(
+                "Usando CORS origins padrao: %s",
+                [str(origin) for origin in settings_obj.BACKEND_CORS_ORIGINS],
+            )
+
     def build_settings(self) -> Settings:
-        return _build_settings_impl()
+        dotenv_path = self.resolve_dotenv_path()
+        self.load_dotenv(dotenv_path)
+
+        settings_obj = Settings()
+        self.configure_database_url(settings_obj)
+        self.configure_cors_origins(settings_obj)
+
+        logger.info(
+            "Usando CORS origins de settings: %s",
+            [str(origin) for origin in settings_obj.BACKEND_CORS_ORIGINS],
+        )
+        logger.info("APP_MODE ativo: %s", settings_obj.APP_MODE)
+        return settings_obj
 
 
 config_runtime = _ConfigRuntime()
