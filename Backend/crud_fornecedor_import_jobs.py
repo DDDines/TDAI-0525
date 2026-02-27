@@ -1,3 +1,4 @@
+﻿from Backend.core.deprecation import deprecated_legacy_service_proxy
 import logging
 from typing import Optional
 
@@ -126,4 +127,7 @@ class FornecedorImportJobLegacyService:
         return update_job_status(*args, **kwargs)
 
 
-fornecedor_import_job_legacy_service = FornecedorImportJobLegacyService()
+fornecedor_import_job_legacy_service = deprecated_legacy_service_proxy(
+    FornecedorImportJobLegacyService(),
+    qualified_name="Backend.crud_fornecedor_import_jobs.fornecedor_import_job_legacy_service",
+)

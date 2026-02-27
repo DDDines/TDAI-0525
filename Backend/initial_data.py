@@ -1,9 +1,10 @@
-import logging
+﻿import logging
 from typing import Optional
 from sqlalchemy.orm import Session
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy import func
 
+from Backend.core.deprecation import deprecated_legacy_service_proxy
 from Backend.core.config import settings
 from Backend import schemas
 from Backend.models import Fornecedor, Produto, AttributeFieldTypeEnum
@@ -20,7 +21,7 @@ def _create_initial_data_core(db: Session):
 
     roles_padrao = [
         {"name": "admin", "description": "Administrador do sistema"},
-        {"name": "user", "description": "Usuário padrão da plataforma"},
+        {"name": "user", "description": "UsuÃ¡rio padrÃ£o da plataforma"},
     ]
     for role_data in roles_padrao:
         role = get_role_by_name(db, role_data["name"])
@@ -30,7 +31,7 @@ def _create_initial_data_core(db: Session):
 
     planos_padrao = [
         {
-            "nome": "Gratuito", "descricao": "Plano básico com limitações.",
+            "nome": "Gratuito", "descricao": "Plano bÃ¡sico com limitaÃ§Ãµes.",
             "preco_mensal": 0.0, "limite_produtos": settings.DEFAULT_LIMIT_PRODUTOS_SEM_PLANO,
             "limite_enriquecimento_web": settings.DEFAULT_LIMIT_ENRIQUECIMENTO_SEM_PLANO,
             "limite_geracao_ia": settings.DEFAULT_LIMIT_GERACAO_IA_SEM_PLANO,
@@ -70,15 +71,15 @@ def _create_initial_data_core(db: Session):
         db.commit()
         db.refresh(db_admin_user)
         admin_user = db_admin_user
-        logger.info(f"Usuário administrador '{admin_email}' criado com sucesso.")
+        logger.info(f"UsuÃ¡rio administrador '{admin_email}' criado com sucesso.")
     else:
-        logger.info(f"Usuário administrador '{admin_email}' já existe.")
+        logger.info(f"UsuÃ¡rio administrador '{admin_email}' jÃ¡ existe.")
 
     tipos_produto_globais = [
         {
             "key_name": "eletronicos",
-            "friendly_name": "Eletrônicos",
-            "description": "Tipo padrão para produtos eletrônicos.",
+            "friendly_name": "EletrÃ´nicos",
+            "description": "Tipo padrÃ£o para produtos eletrÃ´nicos.",
             "attribute_templates": [
                 schemas.AttributeTemplateCreate(attribute_key="voltagem", label="Voltagem", field_type=AttributeFieldTypeEnum.SELECT, options='["110V", "220V", "Bivolt"]', is_required=True, display_order=1),
                 schemas.AttributeTemplateCreate(attribute_key="cor_predominante", label="Cor Predominante", field_type=AttributeFieldTypeEnum.TEXT, is_required=False, display_order=2),
@@ -87,8 +88,8 @@ def _create_initial_data_core(db: Session):
         },
         {
             "key_name": "vestuario",
-            "friendly_name": "Vestuário",
-            "description": "Tipo padrão para peças de vestuário.",
+            "friendly_name": "VestuÃ¡rio",
+            "description": "Tipo padrÃ£o para peÃ§as de vestuÃ¡rio.",
             "attribute_templates": [
                 schemas.AttributeTemplateCreate(
                     attribute_key="tamanho",
@@ -113,7 +114,7 @@ def _create_initial_data_core(db: Session):
                 ),
                 schemas.AttributeTemplateCreate(
                     attribute_key="genero_vestuario",
-                    label="Gênero",
+                    label="GÃªnero",
                     field_type=AttributeFieldTypeEnum.SELECT,
                     options='["Masculino", "Feminino", "Unissex"]',
                     display_order=4
@@ -130,11 +131,11 @@ def _create_initial_data_core(db: Session):
                 create_product_type(db, product_type_create=pt_create_schema, user_id=None)
                 logger.info(f"Tipo de Produto Global '{pt_create_schema.friendly_name}' criado.")
             except IntegrityError as e:
-                logger.warning(f"Não foi possível criar o tipo de produto global '{pt_create_schema.key_name}': {e}")
+                logger.warning(f"NÃ£o foi possÃ­vel criar o tipo de produto global '{pt_create_schema.key_name}': {e}")
             except Exception as e:
                 logger.error(f"Erro inesperado ao criar tipo de produto global '{pt_create_schema.key_name}': {e}", exc_info=True)
         else:
-            logger.info(f"Tipo de Produto Global '{pt_create_schema.friendly_name}' já existe.")
+            logger.info(f"Tipo de Produto Global '{pt_create_schema.friendly_name}' jÃ¡ existe.")
 
     if admin_user:
         fornecedor_existente = db.query(Fornecedor).filter(
@@ -149,19 +150,19 @@ def _create_initial_data_core(db: Session):
             create_fornecedor(db, fornecedor_schema, user_id=admin_user.id)
             logger.info("Fornecedor de exemplo 'UouU' criado para o administrador.")
         else:
-            logger.info("Fornecedor de exemplo 'UouU' já existe para o administrador.")
+            logger.info("Fornecedor de exemplo 'UouU' jÃ¡ existe para o administrador.")
 
     if db.query(Produto).count() == 0:
         admin_user = get_user_by_email(db, admin_email)
         if admin_user:
             exemplo = schemas.ProdutoCreate(
                 nome_base="Produto de Exemplo",
-                descricao_original="Item criado automaticamente na inicialização"
+                descricao_original="Item criado automaticamente na inicializaÃ§Ã£o"
             )
             create_produto(db, exemplo, user_id=admin_user.id)
             logger.info("Produto de exemplo criado para o administrador.")
 
-    logger.info("Criação/verificação de dados iniciais concluída.")
+    logger.info("CriaÃ§Ã£o/verificaÃ§Ã£o de dados iniciais concluÃ­da.")
 
 
 class _InitialDataWorkflow:
@@ -189,4 +190,7 @@ class InitialDataLegacyService:
         return create_initial_data(*args, **kwargs)
 
 
-initial_data_legacy_service = InitialDataLegacyService()
+initial_data_legacy_service = deprecated_legacy_service_proxy(
+    InitialDataLegacyService(),
+    qualified_name="Backend.initial_data.initial_data_legacy_service",
+)

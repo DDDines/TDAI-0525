@@ -1,4 +1,4 @@
-import json
+﻿import json
 import logging
 import uuid
 from pathlib import Path
@@ -9,6 +9,7 @@ from sqlalchemy import asc, desc, func, or_
 from sqlalchemy.orm import Session, selectinload
 
 from Backend import schemas
+from Backend.core.deprecation import deprecated_legacy_service_proxy
 from Backend.core.config import settings
 from Backend.models import (
     ProductType,
@@ -669,4 +670,7 @@ class ProdutoCrudLegacyService:
         return get_or_create_produto(*args, **kwargs)
 
 
-produto_crud_legacy_service = ProdutoCrudLegacyService()
+produto_crud_legacy_service = deprecated_legacy_service_proxy(
+    ProdutoCrudLegacyService(),
+    qualified_name="Backend.crud_produtos.produto_crud_legacy_service",
+)

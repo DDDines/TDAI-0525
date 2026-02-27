@@ -64,6 +64,10 @@ async def test_web_extraction_support_workflow_usa_runtimes_injetados():
             calls["metadata"] = (html_content, url)
             return {"json-ld_product_candidate": {"name": "Produto X"}}
 
+        def normalizar_dados_de_metadados(self, metadata_bruta):
+            calls["metadata_normalized"] = metadata_bruta
+            return {"nome": "Produto X"}
+
     class FakeLLMRuntime:
         async def extrair_dados_produto_com_llm(self, **kwargs):
             calls["llm"] = kwargs
@@ -93,6 +97,9 @@ async def test_web_extraction_support_workflow_usa_runtimes_injetados():
     assert workflow.extrair_metadados_estruturados(
         "<html>ok</html>", "https://example.com"
     ) == {"json-ld_product_candidate": {"name": "Produto X"}}
+    assert workflow.normalizar_dados_de_metadados(
+        {"json-ld_product_candidate": {"name": "Produto X"}}
+    ) == {"nome": "Produto X"}
 
     llm_result = await workflow.extrair_dados_produto_com_llm(
         texto_pagina="texto",
@@ -113,7 +120,7 @@ async def test_web_extraction_support_workflow_usa_runtimes_injetados():
 
     assert calls["texto"] == "<html>ok</html>"
     assert calls["metadata"][1] == "https://example.com"
+    assert calls["metadata_normalized"] == {"json-ld_product_candidate": {"name": "Produto X"}}
     assert calls["llm"]["produto_nome_base"] == "Produto X"
     assert calls["url_runtime"]["url"] == "https://example.com/item"
     assert calls["ocr"] == b"img"
-

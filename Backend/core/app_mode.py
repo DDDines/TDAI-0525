@@ -1,4 +1,6 @@
-from __future__ import annotations
+﻿from __future__ import annotations
+
+from Backend.core.deprecation import deprecated_legacy_service_proxy
 
 import json
 from enum import Enum
@@ -48,7 +50,7 @@ class _AppModeWorkflow:
 
 
 class _AppModeRuntime:
-    """Runtime OO para resolução de modo de execução e comparação shadow."""
+    """Runtime OO para resoluÃ§Ã£o de modo de execuÃ§Ã£o e comparaÃ§Ã£o shadow."""
 
     def get_app_mode(self) -> AppMode:
         raw_mode = str(getattr(settings, "APP_MODE", AppMode.LEGACY.value) or "").strip().lower()
@@ -152,4 +154,7 @@ class AppModeLegacyService:
         return compare_shadow_payloads(*args, **kwargs)
 
 
-app_mode_legacy_service = AppModeLegacyService()
+app_mode_legacy_service = deprecated_legacy_service_proxy(
+    AppModeLegacyService(),
+    qualified_name="Backend.core.app_mode.app_mode_legacy_service",
+)

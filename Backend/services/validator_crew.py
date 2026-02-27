@@ -1,6 +1,8 @@
-import os
+﻿import os
 from concurrent.futures import ThreadPoolExecutor, TimeoutError
 from typing import Any
+
+from Backend.core.deprecation import deprecated_legacy_service_proxy
 
 ENABLE_VALIDATION_CREW = os.getenv("ENABLE_VALIDATION_CREW", "false").lower() in (
     "1",
@@ -208,4 +210,7 @@ class ValidatorCrewLegacyService:
         return run_validation_crew(*args, **kwargs)
 
 
-validator_crew_legacy_service = ValidatorCrewLegacyService()
+validator_crew_legacy_service = deprecated_legacy_service_proxy(
+    ValidatorCrewLegacyService(),
+    qualified_name="Backend.services.validator_crew.validator_crew_legacy_service",
+)

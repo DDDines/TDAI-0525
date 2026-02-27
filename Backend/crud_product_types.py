@@ -1,4 +1,4 @@
-import logging
+﻿import logging
 from typing import List, Optional
 
 from fastapi import HTTPException, status
@@ -7,6 +7,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, selectinload
 
 from Backend import schemas
+from Backend.core.deprecation import deprecated_legacy_service_proxy
 from Backend.models import AttributeTemplate, ProductType, Produto
 
 logger = logging.getLogger(__name__)
@@ -702,4 +703,7 @@ class ProductTypeCrudLegacyService:
         return reorder_attribute_template(*args, **kwargs)
 
 
-product_type_crud_legacy_service = ProductTypeCrudLegacyService()
+product_type_crud_legacy_service = deprecated_legacy_service_proxy(
+    ProductTypeCrudLegacyService(),
+    qualified_name="Backend.crud_product_types.product_type_crud_legacy_service",
+)

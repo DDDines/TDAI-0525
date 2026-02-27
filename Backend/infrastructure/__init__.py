@@ -1,15 +1,7 @@
-﻿from Backend.infrastructure.legacy import (
-    LegacyFileProcessingBridge,
-    LegacyIAGenerationBridge,
-    LegacyLimitBridge,
-    LegacyValidatorCrewBridge,
-    LegacyWebDataExtractorBridge,
-)
+"""Infrastructure package namespace.
 
-__all__ = [
-    "LegacyFileProcessingBridge",
-    "LegacyIAGenerationBridge",
-    "LegacyLimitBridge",
-    "LegacyValidatorCrewBridge",
-    "LegacyWebDataExtractorBridge",
-]
+Keep this module import-light to avoid eager loading of legacy bridges during
+package initialization (which can create circular imports in tests/runtime).
+"""
+
+__all__: list[str] = []

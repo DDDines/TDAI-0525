@@ -1,5 +1,6 @@
-# catalogai_project/Backend/services/web_data_extractor_service.py
+﻿# catalogai_project/Backend/services/web_data_extractor_service.py
 import asyncio
+from dataclasses import dataclass
 import functools
 import sys
 import time
@@ -14,9 +15,10 @@ from typing import List, Dict, Optional, Any, Tuple
 from fastapi import HTTPException
 from urllib.parse import parse_qs, quote_plus, unquote, urljoin, urlparse
 from urllib.request import Request, urlopen
-from sqlalchemy.orm import Session # Importar Session para type hinting, se necessário
+from sqlalchemy.orm import Session # Importar Session para type hinting, se necessÃ¡rio
 from datetime import datetime, timezone
 from Backend.core.logging_config import get_logger
+from Backend.core.deprecation import deprecated_legacy_service_proxy
 
 logger = get_logger(__name__)
 PLAYWRIGHT_CHROMIUM_INDISPONIVEL = False
@@ -28,11 +30,11 @@ try:
 except ImportError:
     GOOGLE_API_CLIENT_INSTALLED = False
     logger.warning(
-        "Biblioteca google-api-python-client não instalada ou com problemas. Busca no Google pode não funcionar."
+        "Biblioteca google-api-python-client nÃ£o instalada ou com problemas. Busca no Google pode nÃ£o funcionar."
     )
 
-# Ajustando as importações para serem absolutas a partir da raiz do projeto (Backend)
-# Assumindo que 'Backend' está no sys.path ou é o diretório de trabalho.
+# Ajustando as importaÃ§Ãµes para serem absolutas a partir da raiz do projeto (Backend)
+# Assumindo que 'Backend' estÃ¡ no sys.path ou Ã© o diretÃ³rio de trabalho.
 from Backend.core.config import settings
 from Backend import models
 from Backend.application.services.ia_generation_facade import IAGenerationFacade
@@ -555,6 +557,14 @@ class _WebContentFetchEngineRuntime:
         self._search_runtime = search_runtime
         self._playwright_chromium_indisponivel = False
 
+    def is_playwright_chromium_indisponivel(self) -> bool:
+        return self._playwright_chromium_indisponivel
+
+    def set_playwright_chromium_indisponivel(self, value: bool) -> None:
+        global PLAYWRIGHT_CHROMIUM_INDISPONIVEL
+        self._playwright_chromium_indisponivel = bool(value)
+        PLAYWRIGHT_CHROMIUM_INDISPONIVEL = self._playwright_chromium_indisponivel
+
     def coletar_conteudo_pagina_http_sync(
         self,
         url: str,
@@ -638,7 +648,6 @@ class _WebContentFetchEngineRuntime:
             asyncio.set_event_loop(None)
 
     async def coletar_conteudo_pagina_playwright(self, url: str) -> Optional[str]:
-        global PLAYWRIGHT_CHROMIUM_INDISPONIVEL
         if self._search_runtime.url_deve_ser_ignorada_antes_da_coleta(url):
             logger.info(
                 "URL ignorada antes da coleta por baixa relevancia/tracking: %s",
@@ -678,8 +687,7 @@ class _WebContentFetchEngineRuntime:
                         logger.warning(
                             "Playwright Chromium indisponivel no ambiente. Usando fallback HTTP direto para proximas coletas."
                         )
-                    self._playwright_chromium_indisponivel = True
-                    PLAYWRIGHT_CHROMIUM_INDISPONIVEL = True
+                    self.set_playwright_chromium_indisponivel(True)
                     logger.warning(
                         "Falha Playwright (thread dedicada) para %s: %s",
                         url,
@@ -712,8 +720,7 @@ class _WebContentFetchEngineRuntime:
                     logger.warning(
                         "Playwright Chromium indisponivel no ambiente. Usando fallback HTTP direto para proximas coletas."
                     )
-                self._playwright_chromium_indisponivel = True
-                PLAYWRIGHT_CHROMIUM_INDISPONIVEL = True
+                self.set_playwright_chromium_indisponivel(True)
                 logger.warning("Falha Playwright para %s: %s", url, erro_curto)
             else:
                 import traceback
@@ -872,7 +879,7 @@ class _WebContentCollectionWorkflow:
 
 
 class _WebSearchRuntime:
-    """Runtime OO para buscas web (Google CSE + fallback público)."""
+    """Runtime OO para buscas web (Google CSE + fallback pÃºblico)."""
 
     def __init__(
         self,
@@ -902,7 +909,7 @@ class _WebSearchRuntime:
 
 
 class _WebContentCollectionRuntime:
-    """Runtime OO para coleta de conteúdo de página."""
+    """Runtime OO para coleta de conteÃºdo de pÃ¡gina."""
 
     def __init__(
         self,
@@ -1118,7 +1125,7 @@ def _normalizar_dados_de_metadados(metadata_bruta: Dict[str, Any]) -> Dict[str, 
 
 # --- LLM-based Data Extraction from Text ---
 class _WebLLMExtractionEngineRuntime:
-    """Engine runtime OO para extração de dados de produto com LLM."""
+    """Engine runtime OO para extraÃ§Ã£o de dados de produto com LLM."""
 
     async def extrair_dados_produto_com_llm(
         self,
@@ -1129,12 +1136,12 @@ class _WebLLMExtractionEngineRuntime:
         user: Optional[models.User] = None,
     ) -> Optional[Dict[str, Any]]:
         if not texto_pagina and not metadados_normalizados:
-            logger.info("Nenhum texto de página nem metadados fornecidos para extração LLM.")
-            return {"erro_llm": "Nenhum conteúdo para processar"}
+            logger.info("Nenhum texto de pÃ¡gina nem metadados fornecidos para extraÃ§Ã£o LLM.")
+            return {"erro_llm": "Nenhum conteÃºdo para processar"}
 
         prompt_contexto_inicial = [
-            f"Você é um assistente especialista em extrair informações detalhadas de produtos de e-commerce para o produto '{produto_nome_base}'.",
-            "Seu objetivo é preencher um JSON com os campos solicitados da forma mais precisa possível, com base no contexto fornecido.",
+            f"VocÃª Ã© um assistente especialista em extrair informaÃ§Ãµes detalhadas de produtos de e-commerce para o produto '{produto_nome_base}'.",
+            "Seu objetivo Ã© preencher um JSON com os campos solicitados da forma mais precisa possÃ­vel, com base no contexto fornecido.",
         ]
         contexto_para_llm = ""
         if (
@@ -1146,11 +1153,11 @@ class _WebLLMExtractionEngineRuntime:
             for k, v_item in metadados_normalizados.items():
                 contexto_para_llm += f"- {k.replace('_', ' ')}: {str(v_item)[:200]}\n"
         if texto_pagina:
-            contexto_para_llm += f'\nTexto Principal da Página (use para encontrar informações e complementar/corrigir metadados):\n"""\n{texto_pagina[:10000]}\n"""'
+            contexto_para_llm += f'\nTexto Principal da PÃ¡gina (use para encontrar informaÃ§Ãµes e complementar/corrigir metadados):\n"""\n{texto_pagina[:10000]}\n"""'
 
         if not contexto_para_llm.strip():
             logger.info(
-                "Contexto insuficiente para LLM (metadados e texto da página vazios ou muito curtos)."
+                "Contexto insuficiente para LLM (metadados e texto da pÃ¡gina vazios ou muito curtos)."
             )
             return {"erro_llm": "Contexto insuficiente para processar"}
 
@@ -1168,12 +1175,12 @@ class _WebLLMExtractionEngineRuntime:
 
         prompt = (
             "\n".join(prompt_contexto_inicial)
-            + "\n\nA partir do contexto e do texto da página fornecidos, extraia RIGOROSAMENTE os seguintes campos e retorne APENAS um objeto JSON válido com esta estrutura:\n"
+            + "\n\nA partir do contexto e do texto da pÃ¡gina fornecidos, extraia RIGOROSAMENTE os seguintes campos e retorne APENAS um objeto JSON vÃ¡lido com esta estrutura:\n"
             + f"{{\n{campos_formatados_prompt}\n}}\n"
-            + "Se uma informação para um campo específico não for encontrada de forma clara e inequívoca, retorne null para esse campo. Não invente informações.\n"
+            + "Se uma informaÃ§Ã£o para um campo especÃ­fico nÃ£o for encontrada de forma clara e inequÃ­voca, retorne null para esse campo. NÃ£o invente informaÃ§Ãµes.\n"
             + "Para campos do tipo lista (ex: 'lista_caracteristicas_beneficios_bullets', 'palavras_chave_seo_relevantes_lista'), retorne uma lista de strings.\n"
-            + "Para campos do tipo dicionário (ex: 'especificacoes_tecnicas_dict'), retorne um dicionário chave-valor.\n"
-            + f"\nContexto e Texto para Análise:\n{contexto_para_llm}"
+            + "Para campos do tipo dicionÃ¡rio (ex: 'especificacoes_tecnicas_dict'), retorne um dicionÃ¡rio chave-valor.\n"
+            + f"\nContexto e Texto para AnÃ¡lise:\n{contexto_para_llm}"
         )
 
         if user is not None:
@@ -1182,16 +1189,16 @@ class _WebLLMExtractionEngineRuntime:
             api_key_para_usar = settings.OPENAI_API_KEY
         if not api_key_para_usar:
             logger.warning(
-                "Nenhuma chave API OpenAI disponível para extração de dados com LLM."
+                "Nenhuma chave API OpenAI disponÃ­vel para extraÃ§Ã£o de dados com LLM."
             )
-            return {"erro_llm": "Chave API OpenAI não configurada"}
+            return {"erro_llm": "Chave API OpenAI nÃ£o configurada"}
 
         json_str_resposta = ""
         try:
             prompt_messages = [
                 {
                     "role": "system",
-                    "content": "Sua tarefa é extrair informações de um texto e retorná-las em formato JSON conforme o schema solicitado. Seja preciso e não adicione campos extras.",
+                    "content": "Sua tarefa Ã© extrair informaÃ§Ãµes de um texto e retornÃ¡-las em formato JSON conforme o schema solicitado. Seja preciso e nÃ£o adicione campos extras.",
                 },
                 {"role": "user", "content": prompt},
             ]
@@ -1229,12 +1236,12 @@ class _WebLLMExtractionEngineRuntime:
             )
             return {"extracao_bruta_llm_com_erro_json": json_str_resposta, **(metadados_normalizados or {})}
         except ValueError as ve:
-            logger.error("Erro na chamada da LLM para extração: %s", ve)
+            logger.error("Erro na chamada da LLM para extraÃ§Ã£o: %s", ve)
             return {"erro_llm": str(ve), **(metadados_normalizados or {})}
         except Exception as e:
             import traceback
 
-            logger.error("Erro inesperado na extração com LLM: %s", traceback.format_exc())
+            logger.error("Erro inesperado na extraÃ§Ã£o com LLM: %s", traceback.format_exc())
             return {"erro_llm_inesperado": str(e), **(metadados_normalizados or {})}
 
 
@@ -1256,7 +1263,7 @@ async def _extrair_dados_produto_com_llm(
         user=user,
     )
 
-# Função principal do serviço de extração, combinando as etapas
+# FunÃ§Ã£o principal do serviÃ§o de extraÃ§Ã£o, combinando as etapas
 class _WebExtractionEnrichmentWorkflow:
     """Workflow OO para extracao/enriquecimento de uma URL de produto."""
 
@@ -1427,7 +1434,7 @@ class _WebURLExtractionEngineRuntime:
 
 
 class _WebOCREngineRuntime:
-    """Engine runtime OO para OCR de região de imagem."""
+    """Engine runtime OO para OCR de regiÃ£o de imagem."""
 
     def extract_text_from_image_region(self, image_bytes: bytes):
         try:
@@ -1436,7 +1443,7 @@ class _WebOCREngineRuntime:
             logger.exception("Google Cloud Vision not available")
             raise HTTPException(
                 status_code=500,
-                detail="Ocorreu um erro durante a extração de dados.",
+                detail="Ocorreu um erro durante a extraÃ§Ã£o de dados.",
             ) from e
 
         try:
@@ -1452,7 +1459,7 @@ class _WebOCREngineRuntime:
             logger.exception("Falha ao extrair texto da imagem")
             raise HTTPException(
                 status_code=500,
-                detail="Ocorreu um erro durante a extração de dados.",
+                detail="Ocorreu um erro durante a extraÃ§Ã£o de dados.",
             ) from e
 
 
@@ -1479,7 +1486,7 @@ def _extract_text_from_image_region(image_bytes: bytes):
 
 
 class _WebExtractionSupportRuntime:
-    """Runtime OO para utilitarios de extração web e OCR."""
+    """Runtime OO para utilitarios de extraÃ§Ã£o web e OCR."""
 
     RUNTIME_FIELDS = (
         "metadata_runtime",
@@ -1508,7 +1515,7 @@ class _WebExtractionSupportRuntime:
 
 
 class _WebExtractionSupportWorkflow:
-    """Workflow OO para utilitarios de extração web e OCR."""
+    """Workflow OO para utilitarios de extraÃ§Ã£o web e OCR."""
 
     def __init__(
         self,
@@ -1546,6 +1553,12 @@ class _WebExtractionSupportWorkflow:
             url=url,
         )
 
+    def normalizar_dados_de_metadados(
+        self,
+        metadata_bruta: Dict[str, Any],
+    ) -> Dict[str, Any]:
+        return self._metadata_runtime.normalizar_dados_de_metadados(metadata_bruta)
+
     async def extrair_dados_produto_com_llm(
         self,
         texto_pagina: Optional[str],
@@ -1581,7 +1594,7 @@ class _WebExtractionSupportWorkflow:
 
 
 class _WebLLMExtractionRuntime:
-    """Runtime OO para extração de dados de produto via LLM."""
+    """Runtime OO para extraÃ§Ã£o de dados de produto via LLM."""
 
     def __init__(
         self,
@@ -1629,7 +1642,7 @@ class _WebURLExtractionRuntime:
 
 
 class _WebOCRRuntime:
-    """Runtime OO para OCR de região de imagem."""
+    """Runtime OO para OCR de regiÃ£o de imagem."""
 
     def __init__(
         self,
@@ -1648,6 +1661,148 @@ _web_extraction_support_workflow = _WebExtractionSupportWorkflow(
     llm_runtime=_WebLLMExtractionRuntime(),
     enrichment_runtime=_WebURLExtractionRuntime(),
     ocr_runtime=_WebOCRRuntime(),
+)
+
+
+@dataclass
+class _WebDataExtractorRuntimeState:
+    search_engine_runtime: _WebSearchEngineRuntime
+    content_fetch_engine_runtime: _WebContentFetchEngineRuntime
+    search_runtime: _WebSearchRuntime
+    content_collection_runtime: _WebContentCollectionRuntime
+    search_workflow: _WebSearchWorkflow
+    content_collection_workflow: _WebContentCollectionWorkflow
+    metadata_extraction_runtime: _MetadataExtractionRuntime
+    llm_extraction_engine_runtime: _WebLLMExtractionEngineRuntime
+    url_extraction_engine_runtime: _WebURLExtractionEngineRuntime
+    ocr_engine_runtime: _WebOCREngineRuntime
+    extraction_support_workflow: _WebExtractionSupportWorkflow
+
+    @property
+    def playwright_chromium_indisponivel(self) -> bool:
+        return self.content_fetch_engine_runtime.is_playwright_chromium_indisponivel()
+
+
+def _build_web_data_extractor_runtime_state(
+    *,
+    search_engine_runtime: Optional[_WebSearchEngineRuntime] = None,
+    content_fetch_engine_runtime: Optional[_WebContentFetchEngineRuntime] = None,
+    search_runtime: Optional[_WebSearchRuntime] = None,
+    content_collection_runtime: Optional[_WebContentCollectionRuntime] = None,
+    search_workflow: Optional[_WebSearchWorkflow] = None,
+    content_collection_workflow: Optional[_WebContentCollectionWorkflow] = None,
+    metadata_extraction_runtime: Optional[_MetadataExtractionRuntime] = None,
+    llm_extraction_engine_runtime: Optional[_WebLLMExtractionEngineRuntime] = None,
+    url_extraction_engine_runtime: Optional[_WebURLExtractionEngineRuntime] = None,
+    ocr_engine_runtime: Optional[_WebOCREngineRuntime] = None,
+    extraction_support_workflow: Optional[_WebExtractionSupportWorkflow] = None,
+    playwright_chromium_indisponivel: bool = False,
+) -> _WebDataExtractorRuntimeState:
+    search_engine_obj = search_engine_runtime or _WebSearchEngineRuntime()
+    content_engine_obj = content_fetch_engine_runtime or _WebContentFetchEngineRuntime(
+        search_runtime=search_engine_obj
+    )
+    metadata_runtime_obj = metadata_extraction_runtime or _MetadataExtractionRuntime()
+    llm_engine_obj = llm_extraction_engine_runtime or _WebLLMExtractionEngineRuntime()
+    url_engine_obj = url_extraction_engine_runtime or _WebURLExtractionEngineRuntime()
+    ocr_engine_obj = ocr_engine_runtime or _WebOCREngineRuntime()
+
+    search_runtime_obj = search_runtime or _WebSearchRuntime(
+        engine_runtime=search_engine_obj
+    )
+    content_runtime_obj = content_collection_runtime or _WebContentCollectionRuntime(
+        engine_runtime=content_engine_obj
+    )
+    search_workflow_obj = search_workflow or _WebSearchWorkflow(runtime=search_runtime_obj)
+    content_workflow_obj = content_collection_workflow or _WebContentCollectionWorkflow(
+        runtime=content_runtime_obj
+    )
+
+    llm_runtime_obj = _WebLLMExtractionRuntime(engine_runtime=llm_engine_obj)
+    url_runtime_obj = _WebURLExtractionRuntime(engine_runtime=url_engine_obj)
+    ocr_runtime_obj = _WebOCRRuntime(engine_runtime=ocr_engine_obj)
+    support_workflow_obj = extraction_support_workflow or _WebExtractionSupportWorkflow(
+        metadata_runtime=metadata_runtime_obj,
+        llm_runtime=llm_runtime_obj,
+        enrichment_runtime=url_runtime_obj,
+        ocr_runtime=ocr_runtime_obj,
+    )
+    content_engine_obj.set_playwright_chromium_indisponivel(
+        playwright_chromium_indisponivel
+    )
+
+    return _WebDataExtractorRuntimeState(
+        search_engine_runtime=search_engine_obj,
+        content_fetch_engine_runtime=content_engine_obj,
+        search_runtime=search_runtime_obj,
+        content_collection_runtime=content_runtime_obj,
+        search_workflow=search_workflow_obj,
+        content_collection_workflow=content_workflow_obj,
+        metadata_extraction_runtime=metadata_runtime_obj,
+        llm_extraction_engine_runtime=llm_engine_obj,
+        url_extraction_engine_runtime=url_engine_obj,
+        ocr_engine_runtime=ocr_engine_obj,
+        extraction_support_workflow=support_workflow_obj,
+    )
+
+
+def apply_web_data_extractor_runtime_state(
+    runtime_state: _WebDataExtractorRuntimeState,
+) -> None:
+    global PLAYWRIGHT_CHROMIUM_INDISPONIVEL
+    global _web_data_extractor_runtime_state
+    global _web_search_engine_runtime
+    global _web_content_fetch_engine_runtime
+    global _web_search_runtime
+    global _web_content_collection_runtime
+    global _web_search_workflow
+    global _web_content_collection_workflow
+    global _metadata_extraction_runtime
+    global _web_llm_extraction_engine_runtime
+    global _web_url_extraction_engine_runtime
+    global _web_ocr_engine_runtime
+    global _web_extraction_support_workflow
+
+    _web_data_extractor_runtime_state = runtime_state
+    _web_search_engine_runtime = runtime_state.search_engine_runtime
+    _web_content_fetch_engine_runtime = runtime_state.content_fetch_engine_runtime
+    _web_search_runtime = runtime_state.search_runtime
+    _web_content_collection_runtime = runtime_state.content_collection_runtime
+    _web_search_workflow = runtime_state.search_workflow
+    _web_content_collection_workflow = runtime_state.content_collection_workflow
+    _metadata_extraction_runtime = runtime_state.metadata_extraction_runtime
+    _web_llm_extraction_engine_runtime = runtime_state.llm_extraction_engine_runtime
+    _web_url_extraction_engine_runtime = runtime_state.url_extraction_engine_runtime
+    _web_ocr_engine_runtime = runtime_state.ocr_engine_runtime
+    _web_extraction_support_workflow = runtime_state.extraction_support_workflow
+    PLAYWRIGHT_CHROMIUM_INDISPONIVEL = runtime_state.playwright_chromium_indisponivel
+
+
+def get_web_data_extractor_runtime_state() -> _WebDataExtractorRuntimeState:
+    return _web_data_extractor_runtime_state
+
+
+def reset_web_data_extractor_runtime_state() -> _WebDataExtractorRuntimeState:
+    runtime_state = _build_web_data_extractor_runtime_state()
+    apply_web_data_extractor_runtime_state(runtime_state)
+    return runtime_state
+
+
+_web_data_extractor_runtime_state = _WebDataExtractorRuntimeState(
+    search_engine_runtime=_web_search_engine_runtime,
+    content_fetch_engine_runtime=_web_content_fetch_engine_runtime,
+    search_runtime=_web_search_runtime,
+    content_collection_runtime=_web_content_collection_runtime,
+    search_workflow=_web_search_workflow,
+    content_collection_workflow=_web_content_collection_workflow,
+    metadata_extraction_runtime=_metadata_extraction_runtime,
+    llm_extraction_engine_runtime=_web_llm_extraction_engine_runtime,
+    url_extraction_engine_runtime=_web_url_extraction_engine_runtime,
+    ocr_engine_runtime=_web_ocr_engine_runtime,
+    extraction_support_workflow=_web_extraction_support_workflow,
+)
+PLAYWRIGHT_CHROMIUM_INDISPONIVEL = (
+    _web_data_extractor_runtime_state.playwright_chromium_indisponivel
 )
 
 
@@ -1744,7 +1899,12 @@ class WebDataExtractorLegacyService:
         return extract_text_from_image_region(*args, **kwargs)
 
 
-web_data_extractor_legacy_service = WebDataExtractorLegacyService()
+web_data_extractor_legacy_service = deprecated_legacy_service_proxy(
+    WebDataExtractorLegacyService(),
+    qualified_name=(
+        "Backend.services.web_data_extractor_service.web_data_extractor_legacy_service"
+    ),
+)
 
 
 

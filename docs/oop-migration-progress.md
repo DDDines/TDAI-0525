@@ -44,7 +44,7 @@ A base esta funcional e testada, mas ainda em transicao. O objetivo agora e conc
 - [x] `WebDataExtractorFacade` migrado para adapter explicito sem fallback dinamico.
 - [x] Chamada privada removida em componente (`_normalizar...` -> metodo publico).
 - [x] API publica adicionada no legado: `normalizar_dados_de_metadados(...)`.
-- [ ] Encapsulamento completo de estado global em runtime injetavel dedicado.
+- [x] Encapsulamento de estado global (cache/semaphore/flag Playwright) em runtime injetavel dedicado, com teste de isolamento.
 
 ### Fase 3 - Onda IA / Limit / Validator
 
@@ -65,9 +65,9 @@ A base esta funcional e testada, mas ainda em transicao. O objetivo agora e conc
 
 ### Fase 5 - Limpeza final
 
-- [ ] Marcar oficialmente `*_legacy_service` como deprecated em toda a base.
+- [x] Marcar oficialmente `*_legacy_service` como deprecated em toda a base (proxy unificado em `Backend/core/deprecation.py`).
 - [ ] Remover bridges/facades de transicao apos prazo de compatibilidade.
-- [ ] Atualizar documentacao final de arquitetura e matriz de conclusao.
+- [x] Atualizar documentacao final de arquitetura e matriz de conclusao.
 
 ## Criterios objetivos de fechamento
 
@@ -75,4 +75,21 @@ A base esta funcional e testada, mas ainda em transicao. O objetivo agora e conc
 - [x] Zero uso de `__getattr__` em adapters da camada de aplicacao.
 - [x] Zero chamada a metodo privado de objeto externo em `Backend/application/services`.
 - [x] Zero import de `Backend/routers` em `Backend/application`.
-- [ ] Fluxos legacy removidos ou isolados apenas em bridge temporaria documentada.
+- [x] Fluxos legacy isolados por bridge/proxy temporario documentado.
+
+## Matriz de isolamento (transicao)
+
+| Fluxo | Modulo OOP principal | Dependencia direta de `Backend/services` na aplicacao |
+|---|---|---|
+| Importacao de catalogo (arquivo) | `Backend/application/services/file_processing/` | Nao |
+| Enriquecimento web | `Backend/application/services/web_data_extractor/` | Nao |
+| IA generation | `Backend/application/services/ia_generation_facade.py` + `Backend/application/services/ports.py` | Nao |
+| Limites e creditos | `Backend/application/services/limit_service_facade.py` + `Backend/application/services/ports.py` | Nao |
+| Validator crew | `Backend/application/services/validator_crew_facade.py` + `Backend/application/services/ports.py` | Nao |
+
+## Pontos de transicao planejados
+
+- Bridges temporarias concentradas em `Backend/infrastructure/legacy/`.
+- Proxies de deprecacao de `*_legacy_service` centralizados em `Backend/core/deprecation.py`.
+- Guard opcional de execucao estrita: `STRICT_OOP_NO_LEGACY=1` bloqueia acesso legado quando `APP_MODE=oop`.
+- Remocao fisica de bridges/facades/shims: apos 2026-04-30.

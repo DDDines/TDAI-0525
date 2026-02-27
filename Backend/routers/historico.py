@@ -1,3 +1,4 @@
+﻿from Backend.core.deprecation import deprecated_legacy_service_proxy
 from typing import List
 
 from fastapi import APIRouter, Depends, Query
@@ -15,7 +16,7 @@ router = APIRouter(
 
 
 class _HistoricoRuntime:
-    """Runtime OO para operações de histórico."""
+    """Runtime OO para operaÃ§Ãµes de histÃ³rico."""
 
     def get_registros_historico(
         self,
@@ -105,4 +106,7 @@ class HistoricoRouterLegacyService:
         return _historico_workflow.get_tipos_acao(*args, **kwargs)
 
 
-historico_router_legacy_service = HistoricoRouterLegacyService()
+historico_router_legacy_service = deprecated_legacy_service_proxy(
+    HistoricoRouterLegacyService(),
+    qualified_name="Backend.routers.historico.historico_router_legacy_service",
+)

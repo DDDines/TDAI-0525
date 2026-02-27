@@ -1,10 +1,11 @@
-from datetime import datetime, timedelta, timezone
+﻿from datetime import datetime, timedelta, timezone
 from typing import Optional
 
 from jose import JWTError, jwt
 from passlib.context import CryptContext
 from pydantic import BaseModel, ValidationError
 
+from Backend.core.deprecation import deprecated_legacy_service_proxy
 from Backend.core.config import settings
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
@@ -57,7 +58,7 @@ class _SecurityWorkflow:
 
 
 class _SecurityRuntime:
-    """Runtime OO para operações de hash e token JWT."""
+    """Runtime OO para operaÃ§Ãµes de hash e token JWT."""
 
     def verify_password(self, *, plain_password: str, hashed_password: str) -> bool:
         return pwd_context.verify(plain_password, hashed_password)
@@ -156,4 +157,7 @@ class SecurityLegacyService:
         return decode_token(*args, **kwargs)
 
 
-security_legacy_service = SecurityLegacyService()
+security_legacy_service = deprecated_legacy_service_proxy(
+    SecurityLegacyService(),
+    qualified_name="Backend.core.security.security_legacy_service",
+)

@@ -10,6 +10,7 @@ from Backend import crud_historico
 from Backend import crud_users
 from Backend import models
 from Backend import schemas
+from Backend.core.deprecation import deprecated_legacy_service_proxy
 from Backend.auth import get_current_active_user
 from Backend.core.logging_config import get_logger
 from Backend.database import get_db
@@ -385,4 +386,7 @@ class AdminAnalyticsRouterLegacyService:
         return admin_analytics_router_workflow.get_recent_historico(*args, **kwargs)
 
 
-admin_analytics_router_legacy_service = AdminAnalyticsRouterLegacyService()
+admin_analytics_router_legacy_service = deprecated_legacy_service_proxy(
+    AdminAnalyticsRouterLegacyService(),
+    qualified_name="Backend.routers.admin_analytics.admin_analytics_router_legacy_service",
+)

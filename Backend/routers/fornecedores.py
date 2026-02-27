@@ -25,6 +25,7 @@ from Backend import crud_produtos
 from Backend import database
 from Backend import models
 from Backend import schemas
+from Backend.core.deprecation import deprecated_legacy_service_proxy
 from Backend.application.services.fornecedor_catalog_process_service import (
     FornecedorCatalogProcessService,
 )
@@ -796,6 +797,7 @@ class FornecedoresRouterLegacyService:
         return fornecedores_router_workflow.get_import_job_status(*args, **kwargs)
 
 
-fornecedores_router_legacy_service = FornecedoresRouterLegacyService()
-
-
+fornecedores_router_legacy_service = deprecated_legacy_service_proxy(
+    FornecedoresRouterLegacyService(),
+    qualified_name="Backend.routers.fornecedores.fornecedores_router_legacy_service",
+)

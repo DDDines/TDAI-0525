@@ -1,4 +1,4 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
 from typing import Any
 
@@ -6,6 +6,7 @@ from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
 
 from Backend import crud, crud_users, models
+from Backend.core.deprecation import deprecated_legacy_service_proxy
 from Backend.core.logging_config import get_logger
 
 
@@ -233,4 +234,7 @@ class LimitServiceLegacyService:
         return await verificar_e_consumir_creditos_geracao_ia(*args, **kwargs)
 
 
-limit_service_legacy_service = LimitServiceLegacyService()
+limit_service_legacy_service = deprecated_legacy_service_proxy(
+    LimitServiceLegacyService(),
+    qualified_name="Backend.services.limit_service.limit_service_legacy_service",
+)

@@ -10,6 +10,7 @@ from Backend import crud_product_types
 from Backend import database
 from Backend import models
 from Backend import schemas
+from Backend.core.deprecation import deprecated_legacy_service_proxy
 from Backend.core.logging_config import get_logger
 
 from . import auth_utils
@@ -604,4 +605,7 @@ class ProductTypesRouterLegacyService:
         return product_types_router_workflow.reorder_attribute(*args, **kwargs)
 
 
-product_types_router_legacy_service = ProductTypesRouterLegacyService()
+product_types_router_legacy_service = deprecated_legacy_service_proxy(
+    ProductTypesRouterLegacyService(),
+    qualified_name="Backend.routers.product_types.product_types_router_legacy_service",
+)

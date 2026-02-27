@@ -1,3 +1,4 @@
+﻿from Backend.core.deprecation import deprecated_legacy_service_proxy
 from typing import List, Optional
 
 from sqlalchemy import func
@@ -158,4 +159,7 @@ class HistoricoCrudLegacyService:
         return count_registros_historico(*args, **kwargs)
 
 
-historico_crud_legacy_service = HistoricoCrudLegacyService()
+historico_crud_legacy_service = deprecated_legacy_service_proxy(
+    HistoricoCrudLegacyService(),
+    qualified_name="Backend.crud_historico.historico_crud_legacy_service",
+)

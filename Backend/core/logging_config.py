@@ -1,3 +1,4 @@
+﻿from Backend.core.deprecation import deprecated_legacy_service_proxy
 import logging
 from typing import Optional
 
@@ -13,7 +14,7 @@ class _LoggingWorkflow:
 
 
 class _LoggingRuntime:
-    """Runtime OO para abstrair criação de logger."""
+    """Runtime OO para abstrair criaÃ§Ã£o de logger."""
 
     def get_logger(self, *, name: str) -> logging.Logger:
         return logging.getLogger(name)
@@ -32,4 +33,7 @@ class LoggingLegacyService:
         return get_logger(*args, **kwargs)
 
 
-logging_legacy_service = LoggingLegacyService()
+logging_legacy_service = deprecated_legacy_service_proxy(
+    LoggingLegacyService(),
+    qualified_name="Backend.core.logging_config.logging_legacy_service",
+)

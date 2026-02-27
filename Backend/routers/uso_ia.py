@@ -1,10 +1,11 @@
-from datetime import datetime
+﻿from datetime import datetime
 from typing import List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session
 
 from Backend import crud, crud_produtos, database, models, schemas
+from Backend.core.deprecation import deprecated_legacy_service_proxy
 from Backend.core.logging_config import get_logger
 from . import auth_utils
 
@@ -134,7 +135,7 @@ class _UsoIAWorkflow:
 
 
 class _UsoIARuntime:
-    """Runtime OO para integrações do router de uso de IA."""
+    """Runtime OO para integraÃ§Ãµes do router de uso de IA."""
 
     def create_registro_uso_ia(self, *, db: Session, registro_uso):
         return crud.create_registro_uso_ia(db, registro_uso=registro_uso)
@@ -243,4 +244,7 @@ class UsoIARouterLegacyService:
         return _uso_ia_workflow.read_usos_ia_por_produto(*args, **kwargs)
 
 
-uso_ia_router_legacy_service = UsoIARouterLegacyService()
+uso_ia_router_legacy_service = deprecated_legacy_service_proxy(
+    UsoIARouterLegacyService(),
+    qualified_name="Backend.routers.uso_ia.uso_ia_router_legacy_service",
+)

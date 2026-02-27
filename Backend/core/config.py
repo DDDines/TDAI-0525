@@ -1,4 +1,5 @@
-﻿# Backend/core/config.py
+﻿from Backend.core.deprecation import deprecated_legacy_service_proxy
+# Backend/core/config.py
 import os
 from pathlib import Path
 from typing import List, Optional
@@ -229,4 +230,7 @@ class ConfigLegacyService:
         return _config_workflow.build_settings()
 
 
-config_legacy_service = ConfigLegacyService()
+config_legacy_service = deprecated_legacy_service_proxy(
+    ConfigLegacyService(),
+    qualified_name="Backend.core.config.config_legacy_service",
+)
