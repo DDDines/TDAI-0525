@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import json
 from enum import Enum
-from typing import Any, Dict
+from typing import Any, Dict, Optional
 
 from Backend.core.config import settings
 from Backend.core.logging_config import get_logger
@@ -63,8 +63,11 @@ def _compare_shadow_payloads_impl(
 
 
 class _AppModeWorkflow:
+    def __init__(self, runtime: Optional["_AppModeRuntime"] = None) -> None:
+        self._runtime = runtime or _AppModeRuntime()
+
     def get_app_mode(self) -> AppMode:
-        return _get_app_mode_impl()
+        return self._runtime.get_app_mode()
 
     def is_legacy_mode(self) -> bool:
         return self.get_app_mode() == AppMode.LEGACY
@@ -76,10 +79,33 @@ class _AppModeWorkflow:
         return self.get_app_mode() == AppMode.SHADOW
 
     def normalize_for_compare(self, value: Any) -> Any:
+        return self._runtime.normalize_for_compare(value=value)
+
+    def compare_shadow_payloads(
+        self,
+        context: str,
+        legacy_payload: Dict[str, Any],
+        oop_payload: Dict[str, Any],
+    ) -> bool:
+        return self._runtime.compare_shadow_payloads(
+            context=context,
+            legacy_payload=legacy_payload,
+            oop_payload=oop_payload,
+        )
+
+
+class _AppModeRuntime:
+    """Runtime OO para resolução de modo de execução e comparação shadow."""
+
+    def get_app_mode(self) -> AppMode:
+        return _get_app_mode_impl()
+
+    def normalize_for_compare(self, value: Any) -> Any:
         return _normalize_for_compare_impl(value)
 
     def compare_shadow_payloads(
         self,
+        *,
         context: str,
         legacy_payload: Dict[str, Any],
         oop_payload: Dict[str, Any],
@@ -91,7 +117,8 @@ class _AppModeWorkflow:
         )
 
 
-_app_mode_workflow = _AppModeWorkflow()
+app_mode_runtime = _AppModeRuntime()
+_app_mode_workflow = _AppModeWorkflow(runtime=app_mode_runtime)
 
 
 def get_app_mode() -> AppMode:

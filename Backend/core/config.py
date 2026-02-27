@@ -204,11 +204,22 @@ def _build_settings_impl() -> Settings:
 
 
 class _ConfigWorkflow:
+    def __init__(self, runtime: Optional["_ConfigRuntime"] = None) -> None:
+        self._runtime = runtime or _ConfigRuntime()
+
+    def build_settings(self) -> Settings:
+        return self._runtime.build_settings()
+
+
+class _ConfigRuntime:
+    """Runtime OO para resolução e construção de settings."""
+
     def build_settings(self) -> Settings:
         return _build_settings_impl()
 
 
-_config_workflow = _ConfigWorkflow()
+config_runtime = _ConfigRuntime()
+_config_workflow = _ConfigWorkflow(runtime=config_runtime)
 settings = _config_workflow.build_settings()
 
 

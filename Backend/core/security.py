@@ -66,17 +66,57 @@ def _decode_token_impl(token: str, secret_key: str) -> Optional[TokenPayload]:
 
 
 class _SecurityWorkflow:
+    def __init__(self, runtime: Optional["_SecurityRuntime"] = None) -> None:
+        self._runtime = runtime or _SecurityRuntime()
+
     def verify_password(self, plain_password: str, hashed_password: str) -> bool:
-        return _verify_password_impl(
+        return self._runtime.verify_password(
             plain_password=plain_password,
             hashed_password=hashed_password,
         )
 
     def get_password_hash(self, password: str) -> str:
+        return self._runtime.get_password_hash(password=password)
+
+    def create_access_token(
+        self,
+        data: dict,
+        expires_delta: Optional[timedelta] = None,
+    ) -> str:
+        return self._runtime.create_access_token(
+            data=data,
+            expires_delta=expires_delta,
+        )
+
+    def create_refresh_token(
+        self,
+        data: dict,
+        expires_delta: Optional[timedelta] = None,
+    ) -> str:
+        return self._runtime.create_refresh_token(
+            data=data,
+            expires_delta=expires_delta,
+        )
+
+    def decode_token(self, token: str, secret_key: str) -> Optional[TokenPayload]:
+        return self._runtime.decode_token(token=token, secret_key=secret_key)
+
+
+class _SecurityRuntime:
+    """Runtime OO para operações de hash e token JWT."""
+
+    def verify_password(self, *, plain_password: str, hashed_password: str) -> bool:
+        return _verify_password_impl(
+            plain_password=plain_password,
+            hashed_password=hashed_password,
+        )
+
+    def get_password_hash(self, *, password: str) -> str:
         return _get_password_hash_impl(password=password)
 
     def create_access_token(
         self,
+        *,
         data: dict,
         expires_delta: Optional[timedelta] = None,
     ) -> str:
@@ -84,16 +124,18 @@ class _SecurityWorkflow:
 
     def create_refresh_token(
         self,
+        *,
         data: dict,
         expires_delta: Optional[timedelta] = None,
     ) -> str:
         return _create_refresh_token_impl(data=data, expires_delta=expires_delta)
 
-    def decode_token(self, token: str, secret_key: str) -> Optional[TokenPayload]:
+    def decode_token(self, *, token: str, secret_key: str) -> Optional[TokenPayload]:
         return _decode_token_impl(token=token, secret_key=secret_key)
 
 
-_security_workflow = _SecurityWorkflow()
+security_runtime = _SecurityRuntime()
+_security_workflow = _SecurityWorkflow(runtime=security_runtime)
 
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:

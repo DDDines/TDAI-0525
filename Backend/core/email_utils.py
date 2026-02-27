@@ -14,38 +14,16 @@ logger = get_logger(__name__)
 
 
 class _EmailWorkflow:
-    def __init__(self):
-        self._conf = self._build_connection_config()
+    def __init__(self, runtime: Optional["_EmailRuntime"] = None):
+        self._runtime = runtime or _EmailRuntime()
+        self._conf = self._runtime.build_connection_config()
 
     @property
     def conf(self):
         return self._conf
 
     def _build_connection_config(self) -> Optional[ConnectionConfig]:
-        if (
-            settings.MAIL_USERNAME
-            and settings.MAIL_PASSWORD
-            and settings.MAIL_FROM
-            and settings.MAIL_SERVER
-        ):
-            return ConnectionConfig(
-                MAIL_USERNAME=settings.MAIL_USERNAME,
-                MAIL_PASSWORD=settings.MAIL_PASSWORD,
-                MAIL_FROM=settings.MAIL_FROM,
-                MAIL_PORT=settings.MAIL_PORT,
-                MAIL_SERVER=settings.MAIL_SERVER,
-                MAIL_FROM_NAME=settings.MAIL_FROM_NAME,
-                MAIL_STARTTLS=settings.MAIL_STARTTLS,
-                MAIL_SSL_TLS=settings.MAIL_SSL_TLS,
-                USE_CREDENTIALS=settings.USE_CREDENTIALS,
-                VALIDATE_CERTS=settings.VALIDATE_CERTS,
-                TEMPLATE_FOLDER=TEMPLATE_FOLDER,
-            )
-
-        logger.warning(
-            "Configuracoes de Email (MAIL_USERNAME, MAIL_PASSWORD, MAIL_FROM, MAIL_SERVER) incompletas no .env. Funcionalidade de envio de email desabilitada."
-        )
-        return None
+        return self._runtime.build_connection_config()
 
     async def send_email(
         self,
@@ -58,7 +36,7 @@ class _EmailWorkflow:
         raise_if_unconfigured: Optional[bool] = None,
     ) -> None:
         if raise_if_unconfigured is None:
-            raise_if_unconfigured = settings.RAISE_ON_MISSING_EMAIL_CONFIG
+            raise_if_unconfigured = self._runtime.get_raise_on_missing_email_config()
 
         if not self._conf:
             logger.warning(
@@ -74,11 +52,11 @@ class _EmailWorkflow:
             "subject": subject,
             "recipients": [email_to],
         }
-        fm = FastMail(self._conf)
+        fm = self._runtime.create_fastmail(self._conf)
 
         try:
             if template_name:
-                message = MessageSchema(**message_data)
+                message = self._runtime.create_message_schema(**message_data)
                 await fm.send_message(
                     message,
                     template_name=template_name,
@@ -88,7 +66,7 @@ class _EmailWorkflow:
                 return
 
             if html_content:
-                message = MessageSchema(
+                message = self._runtime.create_message_schema(
                     **message_data,
                     body=html_content,
                     subtype=MessageType.html,
@@ -115,7 +93,7 @@ class _EmailWorkflow:
         raise_if_unconfigured: Optional[bool] = None,
     ) -> None:
         if raise_if_unconfigured is None:
-            raise_if_unconfigured = settings.RAISE_ON_MISSING_EMAIL_CONFIG
+            raise_if_unconfigured = self._runtime.get_raise_on_missing_email_config()
 
         if not self._conf:
             logger.warning(
@@ -132,16 +110,16 @@ class _EmailWorkflow:
             "username": username,
             "reset_url": reset_link,
             "expiration_hours": settings.ACCESS_TOKEN_EXPIRE_MINUTES // 60,
-            "current_year": datetime.now().year,
+            "current_year": self._runtime.current_year(),
         }
 
-        message = MessageSchema(
+        message = self._runtime.create_message_schema(
             subject=subject,
             recipients=[email_to],
             subtype=MessageType.html,
         )
 
-        fm = FastMail(self._conf)
+        fm = self._runtime.create_fastmail(self._conf)
         try:
             await fm.send_message(
                 message,
@@ -154,7 +132,50 @@ class _EmailWorkflow:
             raise RuntimeError(f"Falha ao enviar email de reset de senha: {exc}")
 
 
-email_workflow = _EmailWorkflow()
+class _EmailRuntime:
+    """Runtime OO para configuração e envio de email."""
+
+    def build_connection_config(self) -> Optional[ConnectionConfig]:
+        if (
+            settings.MAIL_USERNAME
+            and settings.MAIL_PASSWORD
+            and settings.MAIL_FROM
+            and settings.MAIL_SERVER
+        ):
+            return ConnectionConfig(
+                MAIL_USERNAME=settings.MAIL_USERNAME,
+                MAIL_PASSWORD=settings.MAIL_PASSWORD,
+                MAIL_FROM=settings.MAIL_FROM,
+                MAIL_PORT=settings.MAIL_PORT,
+                MAIL_SERVER=settings.MAIL_SERVER,
+                MAIL_FROM_NAME=settings.MAIL_FROM_NAME,
+                MAIL_STARTTLS=settings.MAIL_STARTTLS,
+                MAIL_SSL_TLS=settings.MAIL_SSL_TLS,
+                USE_CREDENTIALS=settings.USE_CREDENTIALS,
+                VALIDATE_CERTS=settings.VALIDATE_CERTS,
+                TEMPLATE_FOLDER=TEMPLATE_FOLDER,
+            )
+
+        logger.warning(
+            "Configuracoes de Email (MAIL_USERNAME, MAIL_PASSWORD, MAIL_FROM, MAIL_SERVER) incompletas no .env. Funcionalidade de envio de email desabilitada."
+        )
+        return None
+
+    def get_raise_on_missing_email_config(self) -> bool:
+        return settings.RAISE_ON_MISSING_EMAIL_CONFIG
+
+    def create_fastmail(self, conf: ConnectionConfig) -> FastMail:
+        return FastMail(conf)
+
+    def create_message_schema(self, **kwargs) -> MessageSchema:
+        return MessageSchema(**kwargs)
+
+    def current_year(self) -> int:
+        return datetime.now().year
+
+
+email_runtime = _EmailRuntime()
+email_workflow = _EmailWorkflow(runtime=email_runtime)
 conf = email_workflow.conf
 
 
