@@ -1,6 +1,6 @@
 ﻿# Backend/routers/admin_analytics.py
 from datetime import datetime, timezone
-from typing import List
+from typing import List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy import String, cast, func
@@ -19,6 +19,9 @@ logger = get_logger(__name__)
 
 
 class _AdminAnalyticsRouterWorkflow:
+    def __init__(self, runtime: Optional["_AdminAnalyticsRouterRuntime"] = None) -> None:
+        self._runtime = runtime or _AdminAnalyticsRouterRuntime()
+
     async def get_current_active_admin_user(
         self,
         current_user: models.User = Depends(get_current_active_user),
@@ -32,28 +35,20 @@ class _AdminAnalyticsRouterWorkflow:
 
     def get_total_counts(self, db: Session) -> schemas.TotalCounts:
         try:
-            total_usuarios = db.query(func.count(models.User.id)).scalar() or 0
-            total_produtos = db.query(func.count(models.Produto.id)).scalar() or 0
-            total_fornecedores = db.query(func.count(models.Fornecedor.id)).scalar() or 0
+            total_usuarios = self._runtime.count_total_usuarios(db=db)
+            total_produtos = self._runtime.count_total_produtos(db=db)
+            total_fornecedores = self._runtime.count_total_fornecedores(db=db)
 
-            now = datetime.now(timezone.utc)
+            now = self._runtime.now_utc()
             start_of_month = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
 
-            total_geracoes_ia_mes = (
-                db.query(func.count(models.RegistroUsoIA.id))
-                .filter(models.RegistroUsoIA.created_at >= start_of_month)
-                .scalar()
-                or 0
+            total_geracoes_ia_mes = self._runtime.count_total_geracoes_ia_mes(
+                db=db,
+                start_of_month=start_of_month,
             )
-
-            total_enriquecimentos_mes = (
-                db.query(func.count(models.RegistroUsoIA.id))
-                .filter(
-                    models.RegistroUsoIA.created_at >= start_of_month,
-                    cast(models.RegistroUsoIA.tipo_acao, String).ilike("%enriquecimento_web%"),
-                )
-                .scalar()
-                or 0
+            total_enriquecimentos_mes = self._runtime.count_total_enriquecimentos_mes(
+                db=db,
+                start_of_month=start_of_month,
             )
 
             return schemas.TotalCounts(
@@ -71,22 +66,17 @@ class _AdminAnalyticsRouterWorkflow:
             )
 
     def get_uso_ia_por_plano(self, db: Session) -> List[schemas.UsoIAPorPlano]:
-        planos = crud_users.get_planos(db, skip=0, limit=1000)
+        planos = self._runtime.get_planos(db=db, skip=0, limit=1000)
         resultado: List[schemas.UsoIAPorPlano] = []
 
-        now = datetime.now(timezone.utc)
+        now = self._runtime.now_utc()
         start_of_month = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
 
         for plano in planos:
-            count = (
-                db.query(func.count(models.RegistroUsoIA.id))
-                .join(models.User, models.RegistroUsoIA.user_id == models.User.id)
-                .filter(
-                    models.User.plano_id == plano.id,
-                    models.RegistroUsoIA.created_at >= start_of_month,
-                )
-                .scalar()
-                or 0
+            count = self._runtime.count_uso_ia_for_plano(
+                db=db,
+                plano_id=plano.id,
+                start_of_month=start_of_month,
             )
             resultado.append(
                 schemas.UsoIAPorPlano(
@@ -98,17 +88,12 @@ class _AdminAnalyticsRouterWorkflow:
         return resultado
 
     def get_uso_ia_por_tipo(self, db: Session) -> List[schemas.UsoIAPorTipo]:
-        now = datetime.now(timezone.utc)
+        now = self._runtime.now_utc()
         start_of_month = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
 
-        query_result = (
-            db.query(
-                models.RegistroUsoIA.tipo_acao,
-                func.count(models.RegistroUsoIA.id).label("total_no_mes"),
-            )
-            .filter(models.RegistroUsoIA.created_at >= start_of_month)
-            .group_by(models.RegistroUsoIA.tipo_acao)
-            .all()
+        query_result = self._runtime.get_uso_ia_por_tipo_since(
+            db=db,
+            start_of_month=start_of_month,
         )
 
         return [
@@ -123,27 +108,21 @@ class _AdminAnalyticsRouterWorkflow:
         skip: int,
         limit: int,
     ) -> List[schemas.UserActivity]:
-        users = crud_users.get_users(db, skip=skip, limit=limit)
+        users = self._runtime.get_users(db=db, skip=skip, limit=limit)
         activities: List[schemas.UserActivity] = []
 
-        now = datetime.now(timezone.utc)
+        now = self._runtime.now_utc()
         start_of_month = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
 
         for user_model in users:
-            total_produtos_user = (
-                db.query(func.count(models.Produto.id))
-                .filter(models.Produto.user_id == user_model.id)
-                .scalar()
-                or 0
+            total_produtos_user = self._runtime.count_produtos_for_user(
+                db=db,
+                user_id=user_model.id,
             )
-            total_ia_mes_user = (
-                db.query(func.count(models.RegistroUsoIA.id))
-                .filter(
-                    models.RegistroUsoIA.user_id == user_model.id,
-                    models.RegistroUsoIA.created_at >= start_of_month,
-                )
-                .scalar()
-                or 0
+            total_ia_mes_user = self._runtime.count_ia_for_user_since(
+                db=db,
+                user_id=user_model.id,
+                start_of_month=start_of_month,
             )
 
             activities.append(
@@ -159,26 +138,14 @@ class _AdminAnalyticsRouterWorkflow:
         return activities
 
     def get_product_status_counts(self, db: Session) -> List[schemas.ProductStatusCount]:
-        results = (
-            db.query(
-                models.Produto.status_enriquecimento_web,
-                func.count(models.Produto.id).label("total"),
-            )
-            .group_by(models.Produto.status_enriquecimento_web)
-            .all()
-        )
+        results = self._runtime.get_product_status_counts(db=db)
         return [schemas.ProductStatusCount(status=row[0], total=row.total) for row in results]
 
     def get_recent_activities(self, db: Session, *, limit: int) -> List[schemas.RecentActivity]:
-        registros = (
-            db.query(models.RegistroUsoIA)
-            .order_by(models.RegistroUsoIA.created_at.desc())
-            .limit(limit)
-            .all()
-        )
+        registros = self._runtime.get_recent_registros_uso_ia(db=db, limit=limit)
         activities: List[schemas.RecentActivity] = []
         for reg in registros:
-            user = db.get(models.User, reg.user_id)
+            user = self._runtime.get_user_by_id(db=db, user_id=reg.user_id)
             activities.append(
                 schemas.RecentActivity(
                     id=reg.id,
@@ -191,10 +158,120 @@ class _AdminAnalyticsRouterWorkflow:
         return activities
 
     def get_recent_historico(self, db: Session, *, limit: int) -> List[schemas.RegistroHistoricoResponse]:
-        return crud_historico.get_registros_historico(db, skip=0, limit=limit)
+        return self._runtime.get_registros_historico(db=db, skip=0, limit=limit)
 
 
-admin_analytics_router_workflow = _AdminAnalyticsRouterWorkflow()
+class _AdminAnalyticsRouterRuntime:
+    """Runtime OO com integrações e queries do router de analytics."""
+
+    def now_utc(self) -> datetime:
+        return datetime.now(timezone.utc)
+
+    def count_total_usuarios(self, *, db: Session) -> int:
+        return db.query(func.count(models.User.id)).scalar() or 0
+
+    def count_total_produtos(self, *, db: Session) -> int:
+        return db.query(func.count(models.Produto.id)).scalar() or 0
+
+    def count_total_fornecedores(self, *, db: Session) -> int:
+        return db.query(func.count(models.Fornecedor.id)).scalar() or 0
+
+    def count_total_geracoes_ia_mes(self, *, db: Session, start_of_month: datetime) -> int:
+        return (
+            db.query(func.count(models.RegistroUsoIA.id))
+            .filter(models.RegistroUsoIA.created_at >= start_of_month)
+            .scalar()
+            or 0
+        )
+
+    def count_total_enriquecimentos_mes(self, *, db: Session, start_of_month: datetime) -> int:
+        return (
+            db.query(func.count(models.RegistroUsoIA.id))
+            .filter(
+                models.RegistroUsoIA.created_at >= start_of_month,
+                cast(models.RegistroUsoIA.tipo_acao, String).ilike("%enriquecimento_web%"),
+            )
+            .scalar()
+            or 0
+        )
+
+    def get_planos(self, *, db: Session, skip: int, limit: int):
+        return crud_users.get_planos(db, skip=skip, limit=limit)
+
+    def count_uso_ia_for_plano(self, *, db: Session, plano_id: int, start_of_month: datetime) -> int:
+        return (
+            db.query(func.count(models.RegistroUsoIA.id))
+            .join(models.User, models.RegistroUsoIA.user_id == models.User.id)
+            .filter(
+                models.User.plano_id == plano_id,
+                models.RegistroUsoIA.created_at >= start_of_month,
+            )
+            .scalar()
+            or 0
+        )
+
+    def get_uso_ia_por_tipo_since(self, *, db: Session, start_of_month: datetime):
+        return (
+            db.query(
+                models.RegistroUsoIA.tipo_acao,
+                func.count(models.RegistroUsoIA.id).label("total_no_mes"),
+            )
+            .filter(models.RegistroUsoIA.created_at >= start_of_month)
+            .group_by(models.RegistroUsoIA.tipo_acao)
+            .all()
+        )
+
+    def get_users(self, *, db: Session, skip: int, limit: int):
+        return crud_users.get_users(db, skip=skip, limit=limit)
+
+    def count_produtos_for_user(self, *, db: Session, user_id: int) -> int:
+        return (
+            db.query(func.count(models.Produto.id))
+            .filter(models.Produto.user_id == user_id)
+            .scalar()
+            or 0
+        )
+
+    def count_ia_for_user_since(self, *, db: Session, user_id: int, start_of_month: datetime) -> int:
+        return (
+            db.query(func.count(models.RegistroUsoIA.id))
+            .filter(
+                models.RegistroUsoIA.user_id == user_id,
+                models.RegistroUsoIA.created_at >= start_of_month,
+            )
+            .scalar()
+            or 0
+        )
+
+    def get_product_status_counts(self, *, db: Session):
+        return (
+            db.query(
+                models.Produto.status_enriquecimento_web,
+                func.count(models.Produto.id).label("total"),
+            )
+            .group_by(models.Produto.status_enriquecimento_web)
+            .all()
+        )
+
+    def get_recent_registros_uso_ia(self, *, db: Session, limit: int):
+        return (
+            db.query(models.RegistroUsoIA)
+            .order_by(models.RegistroUsoIA.created_at.desc())
+            .limit(limit)
+            .all()
+        )
+
+    def get_user_by_id(self, *, db: Session, user_id: int):
+        return db.get(models.User, user_id)
+
+    def get_registros_historico(self, *, db: Session, skip: int, limit: int):
+        return crud_historico.get_registros_historico(db, skip=skip, limit=limit)
+
+
+admin_analytics_router_runtime = _AdminAnalyticsRouterRuntime()
+admin_analytics_router_workflow = _AdminAnalyticsRouterWorkflow(
+    runtime=admin_analytics_router_runtime
+)
 
 
 async def get_current_active_admin_user(

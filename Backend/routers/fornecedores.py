@@ -82,6 +82,9 @@ router = APIRouter(
 
 
 class _FornecedoresRouterWorkflow:
+    def __init__(self, runtime: Optional["_FornecedoresRouterRuntime"] = None) -> None:
+        self._runtime = runtime or _FornecedoresRouterRuntime()
+
     def create_fornecedor(
         self,
         fornecedor: schemas.FornecedorCreate,
@@ -89,7 +92,7 @@ class _FornecedoresRouterWorkflow:
         current_user: models.User,
     ) -> models.Fornecedor:
         logger.info("Requisicao para criar fornecedor recebida.")
-        return fornecedor_management_service.create_fornecedor(
+        return self._runtime.create_fornecedor(
             db=db,
             fornecedor=fornecedor,
             current_user=current_user,
@@ -103,7 +106,7 @@ class _FornecedoresRouterWorkflow:
         limit: int,
         termo_busca: Optional[str],
     ) -> schemas.FornecedorPage:
-        return fornecedor_management_service.list_fornecedores_page(
+        return self._runtime.list_fornecedores_page(
             db=db,
             current_user=current_user,
             skip=skip,
@@ -117,7 +120,7 @@ class _FornecedoresRouterWorkflow:
         db: Session,
         current_user: models.User,
     ) -> models.Fornecedor:
-        return fornecedor_management_service.resolve_fornecedor_for_user(
+        return self._runtime.resolve_fornecedor_for_user(
             db=db,
             fornecedor_id=fornecedor_id,
             current_user=current_user,
@@ -132,7 +135,7 @@ class _FornecedoresRouterWorkflow:
         db: Session,
         current_user: models.User,
     ) -> models.Fornecedor:
-        return fornecedor_management_service.update_fornecedor(
+        return self._runtime.update_fornecedor(
             db=db,
             fornecedor_id=fornecedor_id,
             fornecedor_update=fornecedor_update,
@@ -145,7 +148,7 @@ class _FornecedoresRouterWorkflow:
         db: Session,
         current_user: models.User,
     ) -> Optional[dict]:
-        return fornecedor_management_service.get_mapping(
+        return self._runtime.get_mapping(
             db=db,
             fornecedor_id=fornecedor_id,
             current_user=current_user,
@@ -158,7 +161,7 @@ class _FornecedoresRouterWorkflow:
         db: Session,
         current_user: models.User,
     ) -> models.Fornecedor:
-        return fornecedor_management_service.update_mapping(
+        return self._runtime.update_mapping(
             db=db,
             fornecedor_id=fornecedor_id,
             current_user=current_user,
@@ -166,7 +169,7 @@ class _FornecedoresRouterWorkflow:
         )
 
     async def preview_pages(self, file: UploadFile):
-        return await fornecedor_preview_service.preview_pages(file=file)
+        return await self._runtime.preview_pages(file=file)
 
     async def preview_pdf(
         self,
@@ -177,7 +180,7 @@ class _FornecedoresRouterWorkflow:
         offset: int,
         limit: int,
     ) -> schemas.PdfPreviewResponse:
-        _ = fornecedor_management_service.resolve_fornecedor_for_user(
+        _ = self._runtime.resolve_fornecedor_for_user(
             db=db,
             fornecedor_id=fornecedor_id,
             current_user=current_user,
@@ -185,7 +188,7 @@ class _FornecedoresRouterWorkflow:
             forbidden_detail="Nao autorizado a acessar este fornecedor.",
         )
 
-        return fornecedor_preview_service.preview_pdf(
+        return self._runtime.preview_pdf(
             db=db,
             file=file,
             fornecedor_id=fornecedor_id,
@@ -199,7 +202,7 @@ class _FornecedoresRouterWorkflow:
         preview_request: schemas.CatalogRegionPreviewRequest,
         db: Session,
     ) -> schemas.CatalogPreview:
-        return fornecedor_preview_service.preview_catalog_from_region(
+        return self._runtime.preview_catalog_from_region(
             db=db,
             file_id=preview_request.file_id,
             page_number=preview_request.page_number,
@@ -212,7 +215,7 @@ class _FornecedoresRouterWorkflow:
         request: schemas.PdfRegionBulkRequest,
         db: Session,
     ):
-        return fornecedor_preview_service.extract_data_from_pdf_bulk(
+        return self._runtime.extract_data_from_pdf_bulk(
             background_tasks=background_tasks,
             db=db,
             file_id=request.file_id,
@@ -227,13 +230,13 @@ class _FornecedoresRouterWorkflow:
         db: Session,
         current_user: models.User,
     ) -> dict:
-        record = fornecedor_import_tracking_service.get_catalog_record_or_404(
+        record = self._runtime.get_catalog_record_or_404(
             db=db,
             file_id=job_id,
             user_id=current_user.id,
             not_found_detail="Importacao nao encontrada",
         )
-        return fornecedor_import_tracking_service.build_progress_payload(record=record)
+        return self._runtime.build_progress_payload(record=record)
 
     async def process_full_catalog(
         self,
@@ -247,7 +250,7 @@ class _FornecedoresRouterWorkflow:
         db: Session,
         current_user: models.User,
     ):
-        return await fornecedor_catalog_process_service.start_full_processing(
+        return await self._runtime.start_full_processing(
             background_tasks=background_tasks,
             db=db,
             current_user=current_user,
@@ -267,13 +270,13 @@ class _FornecedoresRouterWorkflow:
         db: Session,
         current_user: models.User,
     ) -> dict:
-        record = fornecedor_import_tracking_service.get_catalog_record_or_404(
+        record = self._runtime.get_catalog_record_or_404(
             db=db,
             file_id=file_id,
             user_id=current_user.id,
             not_found_detail="Arquivo nao encontrado",
         )
-        fornecedor_import_tracking_service.schedule_page_extraction(
+        self._runtime.schedule_page_extraction(
             background_tasks=background_tasks,
             import_job_id=record.id,
             page_number=page_number,
@@ -287,7 +290,7 @@ class _FornecedoresRouterWorkflow:
         db: Session,
         current_user: models.User,
     ) -> models.Fornecedor:
-        return fornecedor_management_service.delete_fornecedor(
+        return self._runtime.delete_fornecedor(
             db=db,
             fornecedor_id=fornecedor_id,
             current_user=current_user,
@@ -299,12 +302,12 @@ class _FornecedoresRouterWorkflow:
         db: Session,
         current_user: models.User,
     ) -> dict:
-        job = fornecedor_import_job_service.get_job_for_user_or_404(
+        job = self._runtime.get_job_for_user_or_404(
             db=db,
             job_id=job_id,
             user_id=current_user.id,
         )
-        return fornecedor_import_job_service.build_review_payload(job=job)
+        return self._runtime.build_review_payload(job=job)
 
     def commit_import_job(
         self,
@@ -313,12 +316,12 @@ class _FornecedoresRouterWorkflow:
         db: Session,
         current_user: models.User,
     ) -> dict:
-        _ = fornecedor_import_job_service.get_job_for_user_or_404(
+        _ = self._runtime.get_job_for_user_or_404(
             db=db,
             job_id=job_id,
             user_id=current_user.id,
         )
-        fornecedor_import_job_service.schedule_commit(
+        self._runtime.schedule_commit(
             background_tasks=background_tasks,
             db=db,
             job_id=job_id,
@@ -332,16 +335,78 @@ class _FornecedoresRouterWorkflow:
         db: Session,
         current_user: models.User,
     ) -> dict:
-        record = fornecedor_import_tracking_service.get_catalog_record_or_404(
+        record = self._runtime.get_catalog_record_or_404(
             db=db,
             file_id=job_id,
             user_id=current_user.id,
             not_found_detail="Job nao encontrado",
         )
-        return fornecedor_import_tracking_service.build_import_job_status_payload(record=record)
+        return self._runtime.build_import_job_status_payload(record=record)
 
 
-fornecedores_router_workflow = _FornecedoresRouterWorkflow()
+class _FornecedoresRouterRuntime:
+    """Runtime OO para integrações do router de fornecedores."""
+
+    def create_fornecedor(self, **kwargs):
+        return fornecedor_management_service.create_fornecedor(**kwargs)
+
+    def list_fornecedores_page(self, **kwargs):
+        return fornecedor_management_service.list_fornecedores_page(**kwargs)
+
+    def resolve_fornecedor_for_user(self, **kwargs):
+        return fornecedor_management_service.resolve_fornecedor_for_user(**kwargs)
+
+    def update_fornecedor(self, **kwargs):
+        return fornecedor_management_service.update_fornecedor(**kwargs)
+
+    def get_mapping(self, **kwargs):
+        return fornecedor_management_service.get_mapping(**kwargs)
+
+    def update_mapping(self, **kwargs):
+        return fornecedor_management_service.update_mapping(**kwargs)
+
+    async def preview_pages(self, **kwargs):
+        return await fornecedor_preview_service.preview_pages(**kwargs)
+
+    def preview_pdf(self, **kwargs):
+        return fornecedor_preview_service.preview_pdf(**kwargs)
+
+    def preview_catalog_from_region(self, **kwargs):
+        return fornecedor_preview_service.preview_catalog_from_region(**kwargs)
+
+    def extract_data_from_pdf_bulk(self, **kwargs):
+        return fornecedor_preview_service.extract_data_from_pdf_bulk(**kwargs)
+
+    def get_catalog_record_or_404(self, **kwargs):
+        return fornecedor_import_tracking_service.get_catalog_record_or_404(**kwargs)
+
+    def build_progress_payload(self, **kwargs):
+        return fornecedor_import_tracking_service.build_progress_payload(**kwargs)
+
+    async def start_full_processing(self, **kwargs):
+        return await fornecedor_catalog_process_service.start_full_processing(**kwargs)
+
+    def schedule_page_extraction(self, **kwargs):
+        return fornecedor_import_tracking_service.schedule_page_extraction(**kwargs)
+
+    def delete_fornecedor(self, **kwargs):
+        return fornecedor_management_service.delete_fornecedor(**kwargs)
+
+    def get_job_for_user_or_404(self, **kwargs):
+        return fornecedor_import_job_service.get_job_for_user_or_404(**kwargs)
+
+    def build_review_payload(self, **kwargs):
+        return fornecedor_import_job_service.build_review_payload(**kwargs)
+
+    def schedule_commit(self, **kwargs):
+        return fornecedor_import_job_service.schedule_commit(**kwargs)
+
+    def build_import_job_status_payload(self, **kwargs):
+        return fornecedor_import_tracking_service.build_import_job_status_payload(**kwargs)
+
+
+fornecedores_router_runtime = _FornecedoresRouterRuntime()
+fornecedores_router_workflow = _FornecedoresRouterWorkflow(runtime=fornecedores_router_runtime)
 
 
 @router.post("/", response_model=schemas.FornecedorResponse, status_code=status.HTTP_201_CREATED)

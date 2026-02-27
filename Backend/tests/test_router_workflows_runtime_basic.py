@@ -7,12 +7,16 @@ import pytest
 from fastapi import HTTPException
 
 from Backend import schemas
+from Backend.routers.admin_analytics import _AdminAnalyticsRouterWorkflow
 from Backend.routers.auth_utils import _AuthUtilsWorkflow
+from Backend.routers.fornecedores import _FornecedoresRouterWorkflow
 from Backend.routers.generation import _GenerationRouterWorkflow
 from Backend.routers.historico import _HistoricoWorkflow
 from Backend.routers.password_recovery import _PasswordRecoveryWorkflow
+from Backend.routers.product_types import _ProductTypesRouterWorkflow
 from Backend.routers.search import _SearchWorkflow
 from Backend.routers.social_auth import _SocialAuthRouterWorkflow
+from Backend.routers.uso_ia import _UsoIAWorkflow
 
 
 @pytest.mark.asyncio
@@ -377,3 +381,85 @@ async def test_generation_workflow_sugerir_atributos_delega_runtime():
     )
 
     assert result == {"ok": True, "produto_id": 31}
+
+
+def test_admin_analytics_workflow_uso_ia_por_plano_delega_runtime():
+    called = []
+
+    class FakeRuntime:
+        def now_utc(self):
+            return datetime(2026, 2, 10, tzinfo=timezone.utc)
+
+        def get_planos(self, **kwargs):
+            called.append(("get_planos", kwargs))
+            return [SimpleNamespace(id=1, nome="Pro"), SimpleNamespace(id=2, nome="Free")]
+
+        def count_uso_ia_for_plano(self, **kwargs):
+            called.append(("count_uso_ia_for_plano", kwargs))
+            return 7 if kwargs["plano_id"] == 1 else 3
+
+    workflow = _AdminAnalyticsRouterWorkflow(runtime=FakeRuntime())
+    result = workflow.get_uso_ia_por_plano(db="db")
+
+    assert len(result) == 2
+    assert result[0].total_geracoes_ia_no_mes == 7
+    assert result[1].total_geracoes_ia_no_mes == 3
+    assert called[0][0] == "get_planos"
+    assert called[1][0] == "count_uso_ia_for_plano"
+
+
+@pytest.mark.asyncio
+async def test_fornecedores_workflow_preview_pages_delega_runtime():
+    class FakeRuntime:
+        async def preview_pages(self, **kwargs):
+            return {"ok": True, "file": kwargs["file"]}
+
+    workflow = _FornecedoresRouterWorkflow(runtime=FakeRuntime())
+    response = await workflow.preview_pages(file="arquivo.pdf")
+
+    assert response == {"ok": True, "file": "arquivo.pdf"}
+
+
+def test_product_types_workflow_read_product_types_delega_runtime():
+    called = []
+
+    class FakeRuntime:
+        def get_product_types_for_user(self, **kwargs):
+            called.append(kwargs)
+            return [SimpleNamespace(id=1, key_name="auto")]
+
+    workflow = _ProductTypesRouterWorkflow(runtime=FakeRuntime())
+    user = SimpleNamespace(id=9)
+    result = workflow.read_product_types(db="db", current_user=user, skip=5, limit=20)
+
+    assert len(result) == 1
+    assert called[0]["user_id"] == 9
+    assert called[0]["skip"] == 5
+    assert called[0]["limit"] == 20
+
+
+def test_uso_ia_workflow_create_delega_runtime_e_define_user_id():
+    called = []
+
+    class FakeRuntime:
+        def create_registro_uso_ia(self, **kwargs):
+            called.append(kwargs)
+            return {"id": 123}
+
+    workflow = _UsoIAWorkflow(runtime=FakeRuntime())
+    payload = schemas.RegistroUsoIACreate(
+        user_id=0,
+        produto_id=11,
+        tipo_acao=schemas.TipoAcaoEnum.CRIACAO_PRODUTO,
+        modelo_ia="gemini-1.5-flash",
+        creditos_consumidos=1,
+    )
+    response = workflow.create_uso_ia(
+        db="db",
+        current_user=SimpleNamespace(id=77),
+        uso_ia_data=payload,
+    )
+
+    assert response == {"id": 123}
+    assert payload.user_id == 77
+    assert called[0]["registro_uso"].user_id == 77

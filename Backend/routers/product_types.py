@@ -28,6 +28,9 @@ class ReorderRequest(BaseModel):
 
 
 class _ProductTypesRouterWorkflow:
+    def __init__(self, runtime: Optional["_ProductTypesRouterRuntime"] = None) -> None:
+        self._runtime = runtime or _ProductTypesRouterRuntime()
+
     def create_product_type(
         self,
         product_type_in: schemas.ProductTypeCreate,
@@ -41,15 +44,15 @@ class _ProductTypesRouterWorkflow:
             user_id_for_type,
         )
 
-        existing_type = crud_product_types.get_product_type_by_key_name(
-            db,
+        existing_type = self._runtime.get_product_type_by_key_name(
+            db=db,
             key_name=product_type_in.key_name,
             user_id=user_id_for_type,
         )
 
         if user_id_for_type is None and not existing_type:
-            existing_type = crud_product_types.get_product_type_by_key_name(
-                db,
+            existing_type = self._runtime.get_product_type_by_key_name(
+                db=db,
                 key_name=product_type_in.key_name,
                 user_id=None,
             )
@@ -68,14 +71,14 @@ class _ProductTypesRouterWorkflow:
                 ),
             )
 
-        created = crud_product_types.create_product_type(
+        created = self._runtime.create_product_type(
             db=db,
             product_type_create=product_type_in,
             user_id=user_id_for_type,
         )
-        crud_historico.create_registro_historico(
-            db,
-            schemas.RegistroHistoricoCreate(
+        self._runtime.create_registro_historico(
+            db=db,
+            payload=schemas.RegistroHistoricoCreate(
                 user_id=current_user.id,
                 entidade="ProductType",
                 acao=models.TipoAcaoSistemaEnum.CRIACAO,
@@ -95,8 +98,8 @@ class _ProductTypesRouterWorkflow:
             "ROUTER (read_product_types): iniciando busca para usuario ID %s",
             current_user.id,
         )
-        product_types = crud_product_types.get_product_types_for_user(
-            db,
+        product_types = self._runtime.get_product_types_for_user(
+            db=db,
             skip=skip,
             limit=limit,
             user_id=current_user.id,
@@ -118,20 +121,23 @@ class _ProductTypesRouterWorkflow:
 
         try:
             numeric_id = int(identifier)
-            db_product_type = crud_product_types.get_product_type(db, product_type_id=numeric_id)
+            db_product_type = self._runtime.get_product_type(
+                db=db,
+                product_type_id=numeric_id,
+            )
         except ValueError:
             pass
 
         if not db_product_type:
-            db_product_type = crud_product_types.get_product_type_by_key_name(
-                db,
+            db_product_type = self._runtime.get_product_type_by_key_name(
+                db=db,
                 key_name=str(identifier),
                 user_id=current_user.id,
             )
 
             if not db_product_type:
-                db_product_type = crud_product_types.get_product_type_by_key_name(
-                    db,
+                db_product_type = self._runtime.get_product_type_by_key_name(
+                    db=db,
                     key_name=str(identifier),
                     user_id=None,
                 )
@@ -159,18 +165,18 @@ class _ProductTypesRouterWorkflow:
         db: Session,
         current_user: models.User,
     ) -> models.ProductType:
-        db_product_type = crud_product_types.get_product_type(db, type_id)
+        db_product_type = self._runtime.get_product_type(db=db, product_type_id=type_id)
         if not db_product_type:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Tipo de produto nao encontrado.")
 
-        updated_type = crud_product_types.update_product_type(
+        updated_type = self._runtime.update_product_type(
             db=db,
             db_product_type=db_product_type,
             product_type_update=product_type_in,
         )
-        crud_historico.create_registro_historico(
-            db,
-            schemas.RegistroHistoricoCreate(
+        self._runtime.create_registro_historico(
+            db=db,
+            payload=schemas.RegistroHistoricoCreate(
                 user_id=current_user.id,
                 entidade="ProductType",
                 acao=models.TipoAcaoSistemaEnum.ATUALIZACAO,
@@ -185,17 +191,17 @@ class _ProductTypesRouterWorkflow:
         db: Session,
         current_user: models.User,
     ) -> models.ProductType:
-        db_product_type = crud_product_types.get_product_type(db, type_id)
+        db_product_type = self._runtime.get_product_type(db=db, product_type_id=type_id)
         if not db_product_type:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail="Tipo de Produto nao encontrado para delecao.",
             )
 
-        deleted_type = crud_product_types.delete_product_type(db=db, db_product_type=db_product_type)
-        crud_historico.create_registro_historico(
-            db,
-            schemas.RegistroHistoricoCreate(
+        deleted_type = self._runtime.delete_product_type(db=db, db_product_type=db_product_type)
+        self._runtime.create_registro_historico(
+            db=db,
+            payload=schemas.RegistroHistoricoCreate(
                 user_id=current_user.id,
                 entidade="ProductType",
                 acao=models.TipoAcaoSistemaEnum.DELECAO,
@@ -210,13 +216,10 @@ class _ProductTypesRouterWorkflow:
         attribute_in: schemas.AttributeTemplateCreate,
         db: Session,
     ) -> models.AttributeTemplate:
-        existing_attr_template = (
-            db.query(models.AttributeTemplate)
-            .filter(
-                models.AttributeTemplate.product_type_id == type_id,
-                models.AttributeTemplate.attribute_key == attribute_in.attribute_key,
-            )
-            .first()
+        existing_attr_template = self._runtime.find_attribute_template_by_key(
+            db=db,
+            type_id=type_id,
+            attribute_key=attribute_in.attribute_key,
         )
         if existing_attr_template:
             raise HTTPException(
@@ -227,7 +230,7 @@ class _ProductTypesRouterWorkflow:
                 ),
             )
 
-        return crud_product_types.create_attribute_template(
+        return self._runtime.create_attribute_template(
             db=db,
             attr_template_create=attribute_in,
             product_type_id=type_id,
@@ -240,7 +243,10 @@ class _ProductTypesRouterWorkflow:
         attribute_in: schemas.AttributeTemplateUpdate,
         db: Session,
     ) -> models.AttributeTemplate:
-        db_attribute_to_check = crud_product_types.get_attribute_template(db, attribute_id)
+        db_attribute_to_check = self._runtime.get_attribute_template(
+            db=db,
+            attribute_id=attribute_id,
+        )
         if not db_attribute_to_check or db_attribute_to_check.product_type_id != type_id:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
@@ -248,14 +254,11 @@ class _ProductTypesRouterWorkflow:
             )
 
         if attribute_in.attribute_key and attribute_in.attribute_key != db_attribute_to_check.attribute_key:
-            existing_attr_with_new_key = (
-                db.query(models.AttributeTemplate)
-                .filter(
-                    models.AttributeTemplate.product_type_id == type_id,
-                    models.AttributeTemplate.attribute_key == attribute_in.attribute_key,
-                    models.AttributeTemplate.id != attribute_id,
-                )
-                .first()
+            existing_attr_with_new_key = self._runtime.find_attribute_template_by_key(
+                db=db,
+                type_id=type_id,
+                attribute_key=attribute_in.attribute_key,
+                exclude_id=attribute_id,
             )
             if existing_attr_with_new_key:
                 raise HTTPException(
@@ -266,7 +269,7 @@ class _ProductTypesRouterWorkflow:
                     ),
                 )
 
-        updated_attribute = crud_product_types.update_attribute_template(
+        updated_attribute = self._runtime.update_attribute_template(
             db=db,
             db_attr_template=db_attribute_to_check,
             attr_template_update=attribute_in,
@@ -281,7 +284,10 @@ class _ProductTypesRouterWorkflow:
         attribute_id: int,
         db: Session,
     ) -> models.AttributeTemplate:
-        db_attribute_to_check = crud_product_types.get_attribute_template(db, attribute_id)
+        db_attribute_to_check = self._runtime.get_attribute_template(
+            db=db,
+            attribute_id=attribute_id,
+        )
         if not db_attribute_to_check or db_attribute_to_check.product_type_id != type_id:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
@@ -291,7 +297,7 @@ class _ProductTypesRouterWorkflow:
                 ),
             )
 
-        deleted_attribute = crud_product_types.delete_attribute_template(
+        deleted_attribute = self._runtime.delete_attribute_template(
             db=db,
             db_attr_template=db_attribute_to_check,
         )
@@ -307,7 +313,7 @@ class _ProductTypesRouterWorkflow:
         db: Session,
         current_user: models.User,
     ) -> models.AttributeTemplate:
-        product_type = crud_product_types.get_product_type(db, type_id)
+        product_type = self._runtime.get_product_type(db=db, product_type_id=type_id)
         if not product_type:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Tipo de produto nao encontrado.")
 
@@ -318,8 +324,8 @@ class _ProductTypesRouterWorkflow:
                 detail="Nao autorizado a modificar este tipo de produto.",
             )
 
-        reordered_attribute = crud_product_types.reorder_attribute_template(
-            db,
+        reordered_attribute = self._runtime.reorder_attribute_template(
+            db=db,
             attribute_id=attribute_id,
             direction=reorder_request.direction,
         )
@@ -333,7 +339,96 @@ class _ProductTypesRouterWorkflow:
         return reordered_attribute
 
 
-product_types_router_workflow = _ProductTypesRouterWorkflow()
+class _ProductTypesRouterRuntime:
+    """Runtime OO com operações de CRUD/histórico do router de tipos."""
+
+    def get_product_type_by_key_name(self, *, db: Session, key_name: str, user_id: Optional[int]):
+        return crud_product_types.get_product_type_by_key_name(
+            db,
+            key_name=key_name,
+            user_id=user_id,
+        )
+
+    def create_product_type(self, *, db: Session, product_type_create, user_id: Optional[int]):
+        return crud_product_types.create_product_type(
+            db=db,
+            product_type_create=product_type_create,
+            user_id=user_id,
+        )
+
+    def create_registro_historico(self, *, db: Session, payload):
+        return crud_historico.create_registro_historico(db, payload)
+
+    def get_product_types_for_user(self, *, db: Session, skip: int, limit: int, user_id: int):
+        return crud_product_types.get_product_types_for_user(
+            db,
+            skip=skip,
+            limit=limit,
+            user_id=user_id,
+        )
+
+    def get_product_type(self, *, db: Session, product_type_id: int):
+        return crud_product_types.get_product_type(db, product_type_id=product_type_id)
+
+    def update_product_type(self, *, db: Session, db_product_type, product_type_update):
+        return crud_product_types.update_product_type(
+            db=db,
+            db_product_type=db_product_type,
+            product_type_update=product_type_update,
+        )
+
+    def delete_product_type(self, *, db: Session, db_product_type):
+        return crud_product_types.delete_product_type(db=db, db_product_type=db_product_type)
+
+    def find_attribute_template_by_key(
+        self,
+        *,
+        db: Session,
+        type_id: int,
+        attribute_key: str,
+        exclude_id: Optional[int] = None,
+    ):
+        query = db.query(models.AttributeTemplate).filter(
+            models.AttributeTemplate.product_type_id == type_id,
+            models.AttributeTemplate.attribute_key == attribute_key,
+        )
+        if exclude_id is not None:
+            query = query.filter(models.AttributeTemplate.id != exclude_id)
+        return query.first()
+
+    def create_attribute_template(self, *, db: Session, attr_template_create, product_type_id: int):
+        return crud_product_types.create_attribute_template(
+            db=db,
+            attr_template_create=attr_template_create,
+            product_type_id=product_type_id,
+        )
+
+    def get_attribute_template(self, *, db: Session, attribute_id: int):
+        return crud_product_types.get_attribute_template(db, attribute_id)
+
+    def update_attribute_template(self, *, db: Session, db_attr_template, attr_template_update):
+        return crud_product_types.update_attribute_template(
+            db=db,
+            db_attr_template=db_attr_template,
+            attr_template_update=attr_template_update,
+        )
+
+    def delete_attribute_template(self, *, db: Session, db_attr_template):
+        return crud_product_types.delete_attribute_template(
+            db=db,
+            db_attr_template=db_attr_template,
+        )
+
+    def reorder_attribute_template(self, *, db: Session, attribute_id: int, direction: str):
+        return crud_product_types.reorder_attribute_template(
+            db,
+            attribute_id=attribute_id,
+            direction=direction,
+        )
+
+
+product_types_router_runtime = _ProductTypesRouterRuntime()
+product_types_router_workflow = _ProductTypesRouterWorkflow(runtime=product_types_router_runtime)
 
 
 @router.post("/", response_model=schemas.ProductTypeResponse, status_code=status.HTTP_201_CREATED)

@@ -18,6 +18,9 @@ logger = get_logger(__name__)
 
 
 class _UsoIAWorkflow:
+    def __init__(self, runtime: Optional["_UsoIARuntime"] = None) -> None:
+        self._runtime = runtime or _UsoIARuntime()
+
     def create_uso_ia(
         self,
         db: Session,
@@ -26,7 +29,7 @@ class _UsoIAWorkflow:
     ) -> schemas.RegistroUsoIAResponse:
         try:
             uso_ia_data.user_id = current_user.id
-            return crud.create_registro_uso_ia(db, registro_uso=uso_ia_data)
+            return self._runtime.create_registro_uso_ia(db=db, registro_uso=uso_ia_data)
         except HTTPException:
             raise
         except Exception as exc:
@@ -54,8 +57,8 @@ class _UsoIAWorkflow:
                 detail="tipo_geracao invalido",
             ) from exc
 
-        registros = crud.get_registros_uso_ia(
-            db,
+        registros = self._runtime.get_registros_uso_ia(
+            db=db,
             user_id=current_user.id,
             skip=skip,
             limit=limit,
@@ -63,8 +66,8 @@ class _UsoIAWorkflow:
             data_inicio=data_inicio,
             data_fim=data_fim,
         )
-        total_items = crud.count_registros_uso_ia(
-            db,
+        total_items = self._runtime.count_registros_uso_ia(
+            db=db,
             user_id=current_user.id,
             tipo_acao=tipo_enum,
             data_inicio=data_inicio,
@@ -84,10 +87,9 @@ class _UsoIAWorkflow:
         current_user: models.User,
         registro_id: int,
     ) -> schemas.RegistroUsoIAResponse:
-        db_registro = (
-            db.query(models.RegistroUsoIA)
-            .filter(models.RegistroUsoIA.id == registro_id)
-            .first()
+        db_registro = self._runtime.get_registro_uso_ia_by_id(
+            db=db,
+            registro_id=registro_id,
         )
         if db_registro is None:
             raise HTTPException(
@@ -109,7 +111,7 @@ class _UsoIAWorkflow:
         skip: int,
         limit: int,
     ) -> List[schemas.RegistroUsoIAResponse]:
-        produto = crud_produtos.get_produto(db, produto_id=produto_id)
+        produto = self._runtime.get_produto(db=db, produto_id=produto_id)
         if not produto:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
@@ -122,8 +124,8 @@ class _UsoIAWorkflow:
             )
 
         query_user_id = produto.user_id if current_user.is_superuser else current_user.id
-        return crud.get_usos_ia_by_produto(
-            db,
+        return self._runtime.get_usos_ia_by_produto(
+            db=db,
             produto_id=produto_id,
             user_id=query_user_id,
             skip=skip,
@@ -131,7 +133,34 @@ class _UsoIAWorkflow:
         )
 
 
-_uso_ia_workflow = _UsoIAWorkflow()
+class _UsoIARuntime:
+    """Runtime OO para integrações do router de uso de IA."""
+
+    def create_registro_uso_ia(self, *, db: Session, registro_uso):
+        return crud.create_registro_uso_ia(db, registro_uso=registro_uso)
+
+    def get_registros_uso_ia(self, *, db: Session, **kwargs):
+        return crud.get_registros_uso_ia(db, **kwargs)
+
+    def count_registros_uso_ia(self, *, db: Session, **kwargs):
+        return crud.count_registros_uso_ia(db, **kwargs)
+
+    def get_registro_uso_ia_by_id(self, *, db: Session, registro_id: int):
+        return (
+            db.query(models.RegistroUsoIA)
+            .filter(models.RegistroUsoIA.id == registro_id)
+            .first()
+        )
+
+    def get_produto(self, *, db: Session, produto_id: int):
+        return crud_produtos.get_produto(db, produto_id=produto_id)
+
+    def get_usos_ia_by_produto(self, *, db: Session, **kwargs):
+        return crud.get_usos_ia_by_produto(db, **kwargs)
+
+
+uso_ia_runtime = _UsoIARuntime()
+_uso_ia_workflow = _UsoIAWorkflow(runtime=uso_ia_runtime)
 
 
 @router.post("/", response_model=schemas.RegistroUsoIAResponse, status_code=status.HTTP_201_CREATED)
