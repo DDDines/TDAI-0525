@@ -1200,12 +1200,19 @@ class _WebExtractionSupportWorkflow:
 
     def __init__(
         self,
-        metadata_runtime: _MetadataExtractionRuntime,
+        metadata_runtime: Optional[_MetadataExtractionRuntime] = None,
         llm_runtime: Optional["_WebLLMExtractionRuntime"] = None,
         enrichment_runtime: Optional["_WebURLExtractionRuntime"] = None,
         ocr_runtime: Optional["_WebOCRRuntime"] = None,
+        runtime: Optional[Any] = None,
     ) -> None:
-        self._metadata_runtime = metadata_runtime
+        if runtime is not None:
+            metadata_runtime = getattr(runtime, "metadata_runtime", metadata_runtime)
+            llm_runtime = getattr(runtime, "llm_runtime", llm_runtime)
+            enrichment_runtime = getattr(runtime, "enrichment_runtime", enrichment_runtime)
+            ocr_runtime = getattr(runtime, "ocr_runtime", ocr_runtime)
+
+        self._metadata_runtime = metadata_runtime or _metadata_extraction_runtime
         self._llm_runtime = llm_runtime or _WebLLMExtractionRuntime()
         self._enrichment_runtime = enrichment_runtime or _WebURLExtractionRuntime()
         self._ocr_runtime = ocr_runtime or _WebOCRRuntime()

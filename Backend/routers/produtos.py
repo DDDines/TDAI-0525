@@ -184,6 +184,9 @@ product_media_service = ProductMediaService(
 
 
 class _ProdutosRouterWorkflow:
+    def __init__(self, runtime: Optional[object] = None) -> None:
+        self._runtime = runtime
+
     def create_produto(
         self,
         produto: schemas.ProdutoCreate,

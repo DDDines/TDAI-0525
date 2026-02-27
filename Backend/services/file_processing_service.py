@@ -3651,9 +3651,14 @@ class _PdfAssetWorkflow:
 
     def __init__(
         self,
+        runtime: Optional[Any] = None,
         pdf_image_runtime: Optional[_PdfImageConversionRuntime] = None,
         pdf_asset_runtime: Optional[_PdfAssetUtilityRuntime] = None,
     ) -> None:
+        if runtime is not None:
+            pdf_image_runtime = getattr(runtime, "pdf_image_runtime", pdf_image_runtime)
+            pdf_asset_runtime = getattr(runtime, "pdf_asset_runtime", pdf_asset_runtime)
+
         self._pdf_image_runtime = pdf_image_runtime or _pdf_image_conversion_runtime
         self._pdf_asset_runtime = pdf_asset_runtime or _pdf_asset_utility_runtime
 
@@ -3807,10 +3812,27 @@ class _PdfProcessingWorkflow:
 
     def __init__(
         self,
+        runtime: Optional[Any] = None,
         pdf_ingestion_runtime: Optional[_PdfIngestionRuntime] = None,
         pdf_preview_runtime: Optional[_PdfPreviewRuntime] = None,
         preview_dispatch_runtime: Optional[_PreviewDispatchRuntime] = None,
     ) -> None:
+        if runtime is not None:
+            pdf_ingestion_runtime = getattr(
+                runtime, "pdf_ingestion_runtime", pdf_ingestion_runtime
+            )
+            pdf_preview_runtime = getattr(
+                runtime, "pdf_preview_runtime", pdf_preview_runtime
+            )
+            preview_dispatch_runtime = getattr(
+                runtime, "preview_dispatch_runtime", preview_dispatch_runtime
+            )
+            self._extract_data_from_pdf_region = getattr(
+                runtime, "extract_data_from_pdf_region", _extract_data_from_pdf_region_impl
+            )
+        else:
+            self._extract_data_from_pdf_region = _extract_data_from_pdf_region_impl
+
         self._pdf_ingestion_runtime = pdf_ingestion_runtime or _pdf_ingestion_runtime
         self._pdf_preview_runtime = pdf_preview_runtime or _pdf_preview_runtime
         self._preview_dispatch_runtime = (
@@ -3863,7 +3885,7 @@ class _PdfProcessingWorkflow:
     def extract_data_from_pdf_region(
         self, file_path: str, page_number: int, region: Optional[List[float]] = None
     ) -> pd.DataFrame:
-        return _extract_data_from_pdf_region_impl(
+        return self._extract_data_from_pdf_region(
             file_path=file_path,
             page_number=page_number,
             region=region,

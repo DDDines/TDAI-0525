@@ -375,6 +375,99 @@ async def _process_facebook_login_impl(
 
 
 class _AuthWorkflow:
+    def __init__(self, runtime: Optional["_AuthRuntime"] = None) -> None:
+        self._runtime = runtime or _AuthRuntime()
+
+    def verify_password(self, plain_password: str, hashed_password: str) -> bool:
+        return self._runtime.verify_password(
+            plain_password=plain_password,
+            hashed_password=hashed_password,
+        )
+
+    def get_password_hash(self, password: str) -> str:
+        return self._runtime.get_password_hash(password=password)
+
+    def create_access_token(self, data: dict, expires_delta: Optional[timedelta] = None) -> str:
+        return self._runtime.create_access_token(data=data, expires_delta=expires_delta)
+
+    def create_refresh_token(self, data: dict, expires_delta: Optional[timedelta] = None) -> str:
+        return self._runtime.create_refresh_token(data=data, expires_delta=expires_delta)
+
+    def create_password_reset_token(self) -> str:
+        return self._runtime.create_password_reset_token()
+
+    def hash_password_reset_token(self, token: str) -> str:
+        return self._runtime.hash_password_reset_token(token=token)
+
+    def verify_password_reset_token(self, token: str, token_hash: str) -> bool:
+        return self._runtime.verify_password_reset_token(token=token, token_hash=token_hash)
+
+    def authenticate_user(self, db: Session, email: str, password: str) -> Optional[models.User]:
+        return self._runtime.authenticate_user(db=db, email=email, password=password)
+
+    async def get_current_user(self, token: str, db: Session) -> models.User:
+        return await self._runtime.get_current_user(token=token, db=db)
+
+    def get_current_active_user(self, current_user: models.User) -> models.User:
+        return self._runtime.get_current_active_user(current_user=current_user)
+
+    async def login_for_access_token(
+        self,
+        form_data: OAuth2PasswordRequestForm,
+        db: Session,
+    ) -> Dict[str, str]:
+        return await self._runtime.login_for_access_token(form_data=form_data, db=db)
+
+    async def refresh_access_token(
+        self,
+        refresh_token_data: schemas.RefreshTokenRequest,
+        db: Session,
+    ) -> Dict[str, str]:
+        return await self._runtime.refresh_access_token(refresh_token_data=refresh_token_data, db=db)
+
+    async def update_users_me(
+        self,
+        user_update: schemas.UserUpdate,
+        current_user: models.User,
+        db: Session,
+    ) -> models.User:
+        return await self._runtime.update_users_me(
+            user_update=user_update,
+            current_user=current_user,
+            db=db,
+        )
+
+    async def change_password_me(
+        self,
+        payload: schemas.UserChangePassword,
+        current_user: models.User,
+        db: Session,
+    ) -> Dict[str, str]:
+        return await self._runtime.change_password_me(
+            payload=payload,
+            current_user=current_user,
+            db=db,
+        )
+
+    async def process_google_login(
+        self,
+        db: Session,
+        google_userinfo: Dict[str, Any],
+    ) -> Optional[models.User]:
+        return await self._runtime.process_google_login(db=db, google_userinfo=google_userinfo)
+
+    async def process_facebook_login(
+        self,
+        db: Session,
+        facebook_userinfo: Dict[str, Any],
+    ) -> Optional[models.User]:
+        return await self._runtime.process_facebook_login(
+            db=db,
+            facebook_userinfo=facebook_userinfo,
+        )
+
+
+class _AuthRuntime:
     def verify_password(self, plain_password: str, hashed_password: str) -> bool:
         return _verify_password_impl(
             plain_password=plain_password,

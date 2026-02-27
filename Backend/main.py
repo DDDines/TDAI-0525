@@ -381,6 +381,23 @@ def _create_new_user_impl(user_in: schemas.UserCreate, db: Session) -> models.Us
 
 
 class _MainBootstrapWorkflow:
+    def __init__(self, runtime: Optional["_MainBootstrapRuntime"] = None) -> None:
+        self._runtime = runtime or _MainBootstrapRuntime()
+
+    def build_allowed_origins(self) -> List[str]:
+        return self._runtime.build_allowed_origins()
+
+    def ensure_static_files_path(self) -> Path:
+        return self._runtime.ensure_static_files_path()
+
+    async def startup_event_create_defaults(self) -> None:
+        await self._runtime.startup_event_create_defaults()
+
+    def create_new_user(self, user_in: schemas.UserCreate, db: Session) -> models.User:
+        return self._runtime.create_new_user(user_in=user_in, db=db)
+
+
+class _MainBootstrapRuntime:
     def build_allowed_origins(self) -> List[str]:
         return _build_allowed_origins_impl()
 
