@@ -14,7 +14,35 @@ router = APIRouter(
 )
 
 
+class _HistoricoRuntime:
+    """Runtime OO para operações de histórico."""
+
+    def get_registros_historico(
+        self,
+        db: Session,
+        *,
+        user_id: int | None,
+        skip: int,
+        limit: int,
+    ):
+        return crud_historico.get_registros_historico(
+            db,
+            user_id=user_id,
+            skip=skip,
+            limit=limit,
+        )
+
+    def count_registros_historico(self, db: Session, *, user_id: int | None) -> int:
+        return crud_historico.count_registros_historico(db, user_id=user_id)
+
+    def get_tipos_acao(self) -> List[str]:
+        return [enum_member.value for enum_member in models.TipoAcaoEnum]
+
+
 class _HistoricoWorkflow:
+    def __init__(self, runtime: _HistoricoRuntime | None = None) -> None:
+        self._runtime = runtime or _HistoricoRuntime()
+
     def list_historico(
         self,
         db: Session,
@@ -23,13 +51,13 @@ class _HistoricoWorkflow:
         limit: int,
     ) -> schemas.HistoricoPage:
         user_id_filter = None if current_user.is_superuser else current_user.id
-        items = crud_historico.get_registros_historico(
+        items = self._runtime.get_registros_historico(
             db,
             user_id=user_id_filter,
             skip=skip,
             limit=limit,
         )
-        total = crud_historico.count_registros_historico(db, user_id=user_id_filter)
+        total = self._runtime.count_registros_historico(db, user_id=user_id_filter)
         page = skip // limit + 1
         return schemas.HistoricoPage(
             items=items,
@@ -39,10 +67,11 @@ class _HistoricoWorkflow:
         )
 
     def get_tipos_acao(self) -> List[str]:
-        return [enum_member.value for enum_member in models.TipoAcaoEnum]
+        return self._runtime.get_tipos_acao()
 
 
-_historico_workflow = _HistoricoWorkflow()
+_historico_runtime = _HistoricoRuntime()
+_historico_workflow = _HistoricoWorkflow(runtime=_historico_runtime)
 
 
 @router.get("/", response_model=schemas.HistoricoPage)
