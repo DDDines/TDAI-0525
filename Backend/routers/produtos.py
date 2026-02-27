@@ -184,8 +184,35 @@ product_media_service = ProductMediaService(
 
 
 class _ProdutosRouterWorkflow:
+    _RUNTIME_METHOD_NAMES = (
+        "create_produto",
+        "list_catalog_import_files",
+        "delete_catalog_import_file",
+        "reprocess_catalog_import_file",
+        "read_produto",
+        "list_produtos",
+        "update_produto",
+        "delete_produto",
+        "batch_delete_produtos",
+        "upload_produto_image",
+        "importar_catalogo_preview",
+        "importar_catalogo_fornecedor",
+        "importar_catalogo_finalizar",
+        "importar_catalogo_status",
+        "importar_catalogo_status_simple",
+        "importar_catalogo_result",
+        "importar_catalogo_finalizar_todas_paginas",
+        "selecionar_regiao",
+        "extrair_pagina_unica",
+    )
+
     def __init__(self, runtime: Optional[object] = None) -> None:
         self._runtime = runtime
+        if runtime is not None:
+            for method_name in self._RUNTIME_METHOD_NAMES:
+                runtime_method = getattr(runtime, method_name, None)
+                if runtime_method is not None:
+                    setattr(self, method_name, runtime_method)
 
     def create_produto(
         self,
