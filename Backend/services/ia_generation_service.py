@@ -230,10 +230,73 @@ async def _call_gemini_api_impl(
 class _AiProviderWorkflow:
     """Workflow OO para operações de provedor IA (chaves e chamadas HTTP)."""
 
+    def __init__(self, runtime: Optional["_AiProviderRuntime"] = None) -> None:
+        self._runtime = runtime or _AiProviderRuntime()
+
     async def get_openai_api_key(self, db: Session, user: models.User) -> Optional[str]:
-        return await _get_openai_api_key_impl(db=db, user=user)
+        return await self._runtime.get_openai_api_key(db=db, user=user)
 
     async def get_gemini_api_key(self, db: Session, user: models.User) -> Optional[str]:
+        return await self._runtime.get_gemini_api_key(db=db, user=user)
+
+    async def call_openai_api(
+        self,
+        prompt_messages: List[Dict[str, str]],
+        api_key: str,
+        model: str = OPENAI_DEFAULT_MODEL,
+        temperature: float = 0.7,
+        max_tokens: int = 500,
+    ) -> str:
+        return await self._runtime.call_openai_api(
+            prompt_messages=prompt_messages,
+            api_key=api_key,
+            model=model,
+            temperature=temperature,
+            max_tokens=max_tokens,
+        )
+
+    async def call_gemini_api_for_suggestions(
+        self,
+        prompt_text: str,
+        api_key: str,
+        response_schema: Dict[str, Any],
+        model_name: str = "gemini-1.5-flash-latest",
+    ) -> Dict[str, Any]:
+        return await self._runtime.call_gemini_api_for_suggestions(
+            prompt_text=prompt_text,
+            api_key=api_key,
+            response_schema=response_schema,
+            model_name=model_name,
+        )
+
+    async def call_gemini_api(
+        self,
+        prompt_text: str,
+        api_key: str,
+        model_name: str = "gemini-1.5-flash-latest",
+        temperature: float = 0.6,
+        max_tokens: int = 1024,
+    ) -> str:
+        return await self._runtime.call_gemini_api(
+            prompt_text=prompt_text,
+            api_key=api_key,
+            model_name=model_name,
+            temperature=temperature,
+            max_tokens=max_tokens,
+        )
+
+
+class _AiProviderRuntime:
+    """Runtime OO para integracoes com provedores IA."""
+
+    async def get_openai_api_key(
+        self, db: Session, user: models.User
+    ) -> Optional[str]:
+        return await _get_openai_api_key_impl(db=db, user=user)
+
+    async def get_gemini_api_key(
+        self, db: Session, user: models.User
+    ) -> Optional[str]:
         return await _get_gemini_api_key_impl(db=db, user=user)
 
     async def call_openai_api(
@@ -283,7 +346,8 @@ class _AiProviderWorkflow:
         )
 
 
-_ai_provider_workflow = _AiProviderWorkflow()
+_ai_provider_runtime = _AiProviderRuntime()
+_ai_provider_workflow = _AiProviderWorkflow(runtime=_ai_provider_runtime)
 
 
 async def get_openai_api_key(db: Session, user: models.User) -> Optional[str]:
@@ -621,6 +685,73 @@ async def _sugerir_valores_atributos_com_gemini_impl(
 class _IAGenerationWorkflow:
     """Workflow OO para operações de geração de conteúdo IA."""
 
+    def __init__(self, runtime: Optional["_IAGenerationRuntime"] = None) -> None:
+        self._runtime = runtime or _IAGenerationRuntime()
+
+    async def gerar_titulos_com_openai(
+        self, db: Session, produto_id: int, user: models.User, num_titulos: int = 3
+    ) -> List[str]:
+        return await self._runtime.gerar_titulos_com_openai(
+            db=db,
+            produto_id=produto_id,
+            user=user,
+            num_titulos=num_titulos,
+        )
+
+    async def gerar_descricao_com_openai(
+        self,
+        db: Session,
+        produto_id: int,
+        user: models.User,
+        tamanho_palavras: int = 150,
+    ) -> str:
+        return await self._runtime.gerar_descricao_com_openai(
+            db=db,
+            produto_id=produto_id,
+            user=user,
+            tamanho_palavras=tamanho_palavras,
+        )
+
+    async def gerar_titulos_com_gemini(
+        self, db: Session, produto_id: int, user: models.User, num_titulos: int = 3
+    ) -> List[str]:
+        return await self._runtime.gerar_titulos_com_gemini(
+            db=db,
+            produto_id=produto_id,
+            user=user,
+            num_titulos=num_titulos,
+        )
+
+    async def gerar_descricao_com_gemini(
+        self,
+        db: Session,
+        produto_id: int,
+        user: models.User,
+        tamanho_palavras: int = 150,
+    ) -> str:
+        return await self._runtime.gerar_descricao_com_gemini(
+            db=db,
+            produto_id=produto_id,
+            user=user,
+            tamanho_palavras=tamanho_palavras,
+        )
+
+    async def sugerir_valores_atributos_com_gemini(
+        self,
+        db: Session,
+        produto_id: int,
+        user: models.User,
+    ) -> schemas.SugestoesAtributosResponse:
+        return await self._runtime.sugerir_valores_atributos_com_gemini(
+            db=db,
+            produto_id=produto_id,
+            user=user,
+        )
+
+
+class _IAGenerationRuntime:
+    """Runtime OO para operacoes de geracao de conteudo IA."""
+
     async def gerar_titulos_com_openai(
         self, db: Session, produto_id: int, user: models.User, num_titulos: int = 3
     ) -> List[str]:
@@ -682,7 +813,8 @@ class _IAGenerationWorkflow:
         )
 
 
-_ia_generation_workflow = _IAGenerationWorkflow()
+_ia_generation_runtime = _IAGenerationRuntime()
+_ia_generation_workflow = _IAGenerationWorkflow(runtime=_ia_generation_runtime)
 
 
 async def gerar_titulos_com_openai(
