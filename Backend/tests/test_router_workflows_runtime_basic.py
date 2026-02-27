@@ -2,11 +2,13 @@ from __future__ import annotations
 
 from types import SimpleNamespace
 from datetime import datetime, timedelta, timezone
+from pathlib import Path
 
 import pytest
 from fastapi import HTTPException
 
 from Backend import schemas
+from Backend.main import _MainBootstrapWorkflow
 from Backend.routers.admin_analytics import _AdminAnalyticsRouterWorkflow
 from Backend.routers.auth_utils import _AuthUtilsWorkflow
 from Backend.routers.fornecedores import _FornecedoresRouterWorkflow
@@ -14,6 +16,7 @@ from Backend.routers.generation import _GenerationRouterWorkflow
 from Backend.routers.historico import _HistoricoWorkflow
 from Backend.routers.password_recovery import _PasswordRecoveryWorkflow
 from Backend.routers.product_types import _ProductTypesRouterWorkflow
+from Backend.routers.produtos import _ProdutosRouterWorkflow
 from Backend.routers.search import _SearchWorkflow
 from Backend.routers.social_auth import _SocialAuthRouterWorkflow
 from Backend.routers.uso_ia import _UsoIAWorkflow
@@ -463,3 +466,117 @@ def test_uso_ia_workflow_create_delega_runtime_e_define_user_id():
     assert response == {"id": 123}
     assert payload.user_id == 77
     assert called[0]["registro_uso"].user_id == 77
+
+
+def test_main_bootstrap_workflow_delega_metodos_sync_para_runtime():
+    called = []
+
+    class FakeRuntime:
+        def build_allowed_origins(self):
+            called.append("build_allowed_origins")
+            return ["http://fake.local"]
+
+        def ensure_static_files_path(self):
+            called.append("ensure_static_files_path")
+            return Path("C:/tmp/static")
+
+        def create_new_user(self, user_in, db):
+            called.append(("create_new_user", user_in, db))
+            return {"ok": True}
+
+        async def startup_event_create_defaults(self):
+            called.append("startup_event_create_defaults")
+
+    workflow = _MainBootstrapWorkflow(runtime=FakeRuntime())
+    user_payload = SimpleNamespace(email="user@test.com")
+
+    assert workflow.build_allowed_origins() == ["http://fake.local"]
+    assert workflow.ensure_static_files_path() == Path("C:/tmp/static")
+    assert workflow.create_new_user(user_in=user_payload, db="db") == {"ok": True}
+    assert called[0] == "build_allowed_origins"
+    assert called[1] == "ensure_static_files_path"
+    assert called[2] == ("create_new_user", user_payload, "db")
+
+
+@pytest.mark.asyncio
+async def test_main_bootstrap_workflow_delega_metodo_async_para_runtime():
+    called = []
+
+    class FakeRuntime:
+        def build_allowed_origins(self):
+            return []
+
+        def ensure_static_files_path(self):
+            return Path("C:/tmp/static")
+
+        def create_new_user(self, user_in, db):
+            return None
+
+        async def startup_event_create_defaults(self):
+            called.append("startup")
+
+    workflow = _MainBootstrapWorkflow(runtime=FakeRuntime())
+    await workflow.startup_event_create_defaults()
+    assert called == ["startup"]
+
+
+def test_produtos_workflow_runtime_override_delega_metodos_injetados():
+    called = []
+
+    class FakeRuntime:
+        def create_produto(self, **kwargs):
+            called.append(("create_produto", kwargs))
+            return {"source": "runtime", "op": "create"}
+
+        def list_produtos(self, **kwargs):
+            called.append(("list_produtos", kwargs))
+            return {"source": "runtime", "op": "list"}
+
+    workflow = _ProdutosRouterWorkflow(runtime=FakeRuntime())
+
+    created = workflow.create_produto(
+        produto=SimpleNamespace(nome_base="x"),
+        db="db",
+        current_user=SimpleNamespace(id=1),
+    )
+    listed = workflow.list_produtos(
+        db="db",
+        skip=0,
+        limit=10,
+        sort_by=None,
+        sort_order="asc",
+        search=None,
+        fornecedor_id=None,
+        categoria=None,
+        status_enriquecimento_web=None,
+        status_titulo_ia=None,
+        status_descricao_ia=None,
+        product_type_id=None,
+        current_user=SimpleNamespace(id=1),
+    )
+
+    assert created["source"] == "runtime"
+    assert listed["source"] == "runtime"
+    assert called[0][0] == "create_produto"
+    assert called[1][0] == "list_produtos"
+
+
+def test_produtos_workflow_runtime_parcial_preserva_fallback_nativo():
+    called = []
+
+    class FakeRuntime:
+        def create_produto(self, **kwargs):
+            called.append(kwargs)
+            return {"ok": True}
+
+    workflow = _ProdutosRouterWorkflow(runtime=FakeRuntime())
+    created = workflow.create_produto(
+        produto=SimpleNamespace(nome_base="Teste"),
+        db="db",
+        current_user=SimpleNamespace(id=1),
+    )
+    assert created == {"ok": True}
+    assert called[0]["db"] == "db"
+
+    native_list_method = _ProdutosRouterWorkflow.list_catalog_import_files.__get__(workflow, _ProdutosRouterWorkflow)
+    assert workflow.list_catalog_import_files.__func__ is native_list_method.__func__
