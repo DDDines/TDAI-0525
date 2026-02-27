@@ -520,7 +520,7 @@ class _LineMappingWorkflow:
 
     _FALLBACK_SKU_COLUMNS = {"n fab", "no fab", "nfab", "fab"}
 
-    def __init__(self, runtime: Optional[Any] = None) -> None:
+    def __init__(self, runtime: Optional["_LineMappingRuntime"] = None) -> None:
         # Runtime opcional para facilitar injeção em testes/migração OO.
         self._runtime = runtime
 
@@ -670,6 +670,20 @@ class _LineMappingWorkflow:
             produto_dados_padronizados["dynamic_attributes"] = dynamic_attributes
 
         return produto_dados_padronizados
+
+
+class _LineMappingRuntime:
+    """Runtime OO para reutilizar a rotina padrão de mapeamento de linha."""
+
+    def processar_linha_padronizada(
+        self,
+        linha_original: Dict[str, Any],
+        mapeamento_colunas_usuario: Optional[Dict[str, str]] = None,
+    ) -> Optional[Dict[str, Any]]:
+        return _line_mapping_workflow.processar_linha_padronizada(
+            linha_original=linha_original,
+            mapeamento_colunas_usuario=mapeamento_colunas_usuario,
+        )
 
 
 _line_mapping_workflow = _LineMappingWorkflow()
@@ -3646,6 +3660,29 @@ async def preview_arquivo_csv(
     )
 
 
+class _PdfAssetRuntime:
+    """Runtime OO para dependencias de utilitarios de imagem/regiao de PDF."""
+
+    RUNTIME_FIELDS = (
+        "pdf_image_runtime",
+        "pdf_asset_runtime",
+    )
+
+    def __init__(
+        self,
+        *,
+        pdf_image_runtime: Optional[Any] = None,
+        pdf_asset_runtime: Optional[Any] = None,
+    ) -> None:
+        self.pdf_image_runtime = pdf_image_runtime or _pdf_image_conversion_runtime
+        self.pdf_asset_runtime = pdf_asset_runtime or _pdf_asset_utility_runtime
+
+    def apply_overrides(self, runtime: Any) -> "_PdfAssetRuntime":
+        for field_name in self.RUNTIME_FIELDS:
+            setattr(self, field_name, getattr(runtime, field_name, getattr(self, field_name)))
+        return self
+
+
 class _PdfAssetWorkflow:
     """Workflow OO para utilitarios de imagem/regiao de PDF."""
 
@@ -3653,14 +3690,18 @@ class _PdfAssetWorkflow:
         self,
         runtime: Optional[Any] = None,
         pdf_image_runtime: Optional[_PdfImageConversionRuntime] = None,
-        pdf_asset_runtime: Optional[_PdfAssetUtilityRuntime] = None,
+        pdf_asset_runtime: Optional[_PdfAssetRuntime] = None,
     ) -> None:
+        runtime_obj = _PdfAssetRuntime(
+            pdf_image_runtime=pdf_image_runtime,
+            pdf_asset_runtime=pdf_asset_runtime,
+        )
         if runtime is not None:
-            pdf_image_runtime = getattr(runtime, "pdf_image_runtime", pdf_image_runtime)
-            pdf_asset_runtime = getattr(runtime, "pdf_asset_runtime", pdf_asset_runtime)
+            runtime_obj.apply_overrides(runtime)
 
-        self._pdf_image_runtime = pdf_image_runtime or _pdf_image_conversion_runtime
-        self._pdf_asset_runtime = pdf_asset_runtime or _pdf_asset_utility_runtime
+        self._runtime = runtime_obj
+        self._pdf_image_runtime = runtime_obj.pdf_image_runtime
+        self._pdf_asset_runtime = runtime_obj.pdf_asset_runtime
 
     async def pdf_bytes_to_images(
         self,
@@ -3807,37 +3848,60 @@ def parse_annotation_to_dataframe(
     )
 
 
+class _PdfProcessingRuntime:
+    """Runtime OO para dependencias de processamento e preview de PDF."""
+
+    RUNTIME_FIELDS = (
+        "pdf_ingestion_runtime",
+        "pdf_preview_runtime",
+        "preview_dispatch_runtime",
+        "extract_data_from_pdf_region",
+    )
+
+    def __init__(
+        self,
+        *,
+        pdf_ingestion_runtime: Optional[Any] = None,
+        pdf_preview_runtime: Optional[Any] = None,
+        preview_dispatch_runtime: Optional[Any] = None,
+        extract_data_from_pdf_region: Optional[Any] = None,
+    ) -> None:
+        self.pdf_ingestion_runtime = pdf_ingestion_runtime or _pdf_ingestion_runtime
+        self.pdf_preview_runtime = pdf_preview_runtime or _pdf_preview_runtime
+        self.preview_dispatch_runtime = preview_dispatch_runtime or _preview_dispatch_runtime
+        self.extract_data_from_pdf_region = (
+            extract_data_from_pdf_region or _extract_data_from_pdf_region_impl
+        )
+
+    def apply_overrides(self, runtime: Any) -> "_PdfProcessingRuntime":
+        for field_name in self.RUNTIME_FIELDS:
+            setattr(self, field_name, getattr(runtime, field_name, getattr(self, field_name)))
+        return self
+
+
 class _PdfProcessingWorkflow:
     """Workflow OO para processamento e preview de PDF."""
 
     def __init__(
         self,
         runtime: Optional[Any] = None,
-        pdf_ingestion_runtime: Optional[_PdfIngestionRuntime] = None,
-        pdf_preview_runtime: Optional[_PdfPreviewRuntime] = None,
-        preview_dispatch_runtime: Optional[_PreviewDispatchRuntime] = None,
+        pdf_ingestion_runtime: Optional[Any] = None,
+        pdf_preview_runtime: Optional[Any] = None,
+        preview_dispatch_runtime: Optional[Any] = None,
     ) -> None:
-        if runtime is not None:
-            pdf_ingestion_runtime = getattr(
-                runtime, "pdf_ingestion_runtime", pdf_ingestion_runtime
-            )
-            pdf_preview_runtime = getattr(
-                runtime, "pdf_preview_runtime", pdf_preview_runtime
-            )
-            preview_dispatch_runtime = getattr(
-                runtime, "preview_dispatch_runtime", preview_dispatch_runtime
-            )
-            self._extract_data_from_pdf_region = getattr(
-                runtime, "extract_data_from_pdf_region", _extract_data_from_pdf_region_impl
-            )
-        else:
-            self._extract_data_from_pdf_region = _extract_data_from_pdf_region_impl
-
-        self._pdf_ingestion_runtime = pdf_ingestion_runtime or _pdf_ingestion_runtime
-        self._pdf_preview_runtime = pdf_preview_runtime or _pdf_preview_runtime
-        self._preview_dispatch_runtime = (
-            preview_dispatch_runtime or _preview_dispatch_runtime
+        runtime_obj = _PdfProcessingRuntime(
+            pdf_ingestion_runtime=pdf_ingestion_runtime,
+            pdf_preview_runtime=pdf_preview_runtime,
+            preview_dispatch_runtime=preview_dispatch_runtime,
         )
+        if runtime is not None:
+            runtime_obj.apply_overrides(runtime)
+
+        self._runtime = runtime_obj
+        self._extract_data_from_pdf_region = runtime_obj.extract_data_from_pdf_region
+        self._pdf_ingestion_runtime = runtime_obj.pdf_ingestion_runtime
+        self._pdf_preview_runtime = runtime_obj.pdf_preview_runtime
+        self._preview_dispatch_runtime = runtime_obj.preview_dispatch_runtime
 
     async def processar_arquivo_pdf(
         self,
