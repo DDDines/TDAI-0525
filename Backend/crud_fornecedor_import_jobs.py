@@ -8,41 +8,6 @@ from Backend import models
 logger = logging.getLogger(__name__)
 
 
-def _create_import_job_impl(
-    db: Session,
-    user_id: int,
-    result_summary: dict,
-) -> models.FornecedorImportJob:
-    job = models.FornecedorImportJob(user_id=user_id, result_summary=result_summary)
-    db.add(job)
-    db.commit()
-    db.refresh(job)
-    return job
-
-
-def _get_import_job_impl(
-    db: Session,
-    job_id: int,
-) -> Optional[models.FornecedorImportJob]:
-    return (
-        db.query(models.FornecedorImportJob)
-        .filter(models.FornecedorImportJob.id == job_id)
-        .first()
-    )
-
-
-def _update_job_status_impl(
-    db: Session,
-    job: models.FornecedorImportJob,
-    status: str,
-) -> models.FornecedorImportJob:
-    job.status = status
-    db.add(job)
-    db.commit()
-    db.refresh(job)
-    return job
-
-
 class _FornecedorImportJobWorkflow:
     def __init__(
         self,
@@ -89,14 +54,22 @@ class _FornecedorImportJobRuntime:
         user_id: int,
         result_summary: dict,
     ) -> models.FornecedorImportJob:
-        return _create_import_job_impl(db=db, user_id=user_id, result_summary=result_summary)
+        job = models.FornecedorImportJob(user_id=user_id, result_summary=result_summary)
+        db.add(job)
+        db.commit()
+        db.refresh(job)
+        return job
 
     def get_import_job(
         self,
         db: Session,
         job_id: int,
     ) -> Optional[models.FornecedorImportJob]:
-        return _get_import_job_impl(db=db, job_id=job_id)
+        return (
+            db.query(models.FornecedorImportJob)
+            .filter(models.FornecedorImportJob.id == job_id)
+            .first()
+        )
 
     def update_job_status(
         self,
@@ -104,7 +77,11 @@ class _FornecedorImportJobRuntime:
         job: models.FornecedorImportJob,
         status: str,
     ) -> models.FornecedorImportJob:
-        return _update_job_status_impl(db=db, job=job, status=status)
+        job.status = status
+        db.add(job)
+        db.commit()
+        db.refresh(job)
+        return job
 
 
 _fornecedor_import_job_workflow = _FornecedorImportJobWorkflow()
