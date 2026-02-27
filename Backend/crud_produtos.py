@@ -134,272 +134,6 @@ def _apply_ordering(query, sort_by: Optional[str], sort_order: Optional[str]):
     return query.order_by(Produto.id)
 
 
-def _create_produto_impl(
-    db: Session,
-    produto: schemas.ProdutoCreate,
-    user_id: int,
-) -> Produto:
-    produto_data = produto.model_dump(exclude_unset=True)
-    _normalize_identifier_fields(produto_data)
-    _validate_unique_identifiers(db=db, user_id=user_id, produto_data=produto_data)
-    _parse_json_fields(produto_data, list(_JSON_FIELDS))
-
-    db_produto = Produto(**produto_data, user_id=user_id)
-    db.add(db_produto)
-    db.commit()
-    db.refresh(db_produto)
-    return db_produto
-
-
-def _create_produtos_bulk_impl(
-    db: Session,
-    produtos: List[schemas.ProdutoCreate],
-    user_id: int,
-) -> Tuple[List[Produto], List[Produto], List[Dict[str, Any]]]:
-    created_produtos: List[Produto] = []
-    updated_produtos: List[Produto] = []
-    erros: List[Dict[str, Any]] = []
-
-    skus = [p.sku for p in produtos if p.sku]
-    eans = [p.ean for p in produtos if p.ean]
-    sku_map: Dict[str, Produto] = {}
-    ean_map: Dict[str, Produto] = {}
-
-    if skus or eans:
-        existing = (
-            db.query(Produto)
-            .filter(Produto.user_id == user_id)
-            .filter(or_(Produto.sku.in_(skus), Produto.ean.in_(eans)))
-            .all()
-        )
-        for existing_produto in existing:
-            if existing_produto.sku:
-                sku_map[existing_produto.sku] = existing_produto
-            if existing_produto.ean:
-                ean_map[existing_produto.ean] = existing_produto
-
-    new_skus: Set[str] = set()
-    new_eans: Set[str] = set()
-
-    for produto_schema in produtos:
-        data = produto_schema.model_dump(exclude_unset=True)
-        _normalize_identifier_fields(data)
-        _parse_json_fields(data, list(_JSON_FIELDS))
-
-        sku = data.get("sku")
-        ean = data.get("ean")
-
-        if (sku and sku in new_skus) or (ean and ean in new_eans):
-            erros.append(
-                {
-                    "motivo_descarte": "Produto duplicado por SKU ou EAN",
-                    "linha_original": data,
-                    "duplicado": True,
-                }
-            )
-            continue
-
-        existing_produto = None
-        if sku and sku in sku_map:
-            existing_produto = sku_map[sku]
-        elif ean and ean in ean_map:
-            existing_produto = ean_map[ean]
-
-        if existing_produto:
-            for key, value in data.items():
-                setattr(existing_produto, key, value)
-            updated_produtos.append(existing_produto)
-        else:
-            db_produto = Produto(**data, user_id=user_id)
-            db.add(db_produto)
-            created_produtos.append(db_produto)
-
-        if sku:
-            new_skus.add(sku)
-        if ean:
-            new_eans.add(ean)
-
-    db.commit()
-    for produto_db in created_produtos + updated_produtos:
-        db.refresh(produto_db)
-
-    return created_produtos, updated_produtos, erros
-
-
-def _get_produto_impl(db: Session, produto_id: int) -> Optional[Produto]:
-    return (
-        db.query(Produto)
-        .options(
-            selectinload(Produto.fornecedor),
-            selectinload(Produto.product_type).selectinload(
-                ProductType.attribute_templates
-            ),
-        )
-        .filter(Produto.id == produto_id)
-        .first()
-    )
-
-
-def _get_produtos_by_user_impl(
-    db: Session,
-    user_id: Optional[int],
-    is_admin: bool,
-    skip: int = 0,
-    limit: int = 10,
-    sort_by: Optional[str] = None,
-    sort_order: Optional[str] = "asc",
-    search: Optional[str] = None,
-    fornecedor_id: Optional[int] = None,
-    product_type_id: Optional[int] = None,
-    categoria: Optional[str] = None,
-    status_enriquecimento_web: Optional[StatusEnriquecimentoEnum] = None,
-    status_titulo_ia: Optional[StatusGeracaoIAEnum] = None,
-    status_descricao_ia: Optional[StatusGeracaoIAEnum] = None,
-) -> List[Produto]:
-    query = db.query(Produto).options(
-        selectinload(Produto.fornecedor),
-        selectinload(Produto.product_type),
-    )
-
-    if not is_admin:
-        if user_id is None:
-            return []
-        query = query.filter(Produto.user_id == user_id)
-
-    query = _apply_search_filter(query, search)
-    query = _apply_optional_filters(
-        query=query,
-        fornecedor_id=fornecedor_id,
-        product_type_id=product_type_id,
-        categoria=categoria,
-        status_enriquecimento_web=status_enriquecimento_web,
-        status_titulo_ia=status_titulo_ia,
-        status_descricao_ia=status_descricao_ia,
-    )
-    query = _apply_ordering(query, sort_by, sort_order)
-
-    return query.offset(skip).limit(limit).all()
-
-
-def _count_produtos_by_user_impl(
-    db: Session,
-    user_id: Optional[int],
-    is_admin: bool,
-    search: Optional[str] = None,
-    fornecedor_id: Optional[int] = None,
-    product_type_id: Optional[int] = None,
-    categoria: Optional[str] = None,
-    status_enriquecimento_web: Optional[StatusEnriquecimentoEnum] = None,
-    status_titulo_ia: Optional[StatusGeracaoIAEnum] = None,
-    status_descricao_ia: Optional[StatusGeracaoIAEnum] = None,
-) -> int:
-    query = db.query(func.count(Produto.id))
-
-    if not is_admin:
-        if user_id is None:
-            return 0
-        query = query.filter(Produto.user_id == user_id)
-
-    query = _apply_search_filter(query, search)
-    query = _apply_optional_filters(
-        query=query,
-        fornecedor_id=fornecedor_id,
-        product_type_id=product_type_id,
-        categoria=categoria,
-        status_enriquecimento_web=status_enriquecimento_web,
-        status_titulo_ia=status_titulo_ia,
-        status_descricao_ia=status_descricao_ia,
-    )
-
-    count = query.scalar()
-    return count if count is not None else 0
-
-
-def _update_produto_impl(
-    db: Session,
-    db_produto: Produto,
-    produto_update: schemas.ProdutoUpdate,
-) -> Produto:
-    update_data = produto_update.model_dump(exclude_unset=True)
-
-    _parse_json_fields(
-        update_data,
-        list(_JSON_FIELDS) + ["imagens_secundarias_urls"],
-    )
-
-    for key, value in update_data.items():
-        setattr(db_produto, key, value)
-
-    db.commit()
-    db.refresh(db_produto)
-    db.refresh(db_produto, attribute_names=["fornecedor", "product_type"])
-    if db_produto.product_type:
-        db.refresh(db_produto.product_type, attribute_names=["attribute_templates"])
-    return db_produto
-
-
-def _delete_produto_impl(db: Session, db_produto: Produto) -> Produto:
-    db.delete(db_produto)
-    db.commit()
-    return db_produto
-
-
-async def _save_produto_image_impl(
-    db: Session,
-    produto_id: int,
-    file: UploadFile,
-) -> str:
-    _ = db
-    _ = produto_id
-
-    if not file.filename:
-        raise ValueError("Nome do arquivo nao fornecido.")
-
-    upload_dir = Path(settings.UPLOAD_DIRECTORY)
-    if not upload_dir.is_absolute():
-        upload_dir = Path(__file__).resolve().parent / upload_dir
-    upload_dir.mkdir(parents=True, exist_ok=True)
-
-    file_extension = Path(file.filename).suffix
-    unique_filename = f"{uuid.uuid4().hex}{file_extension}"
-    file_path = upload_dir / unique_filename
-
-    try:
-        content = await file.read()
-        with open(file_path, "wb") as output_file:
-            output_file.write(content)
-    except Exception as exc:
-        raise IOError(f"Nao foi possivel salvar o arquivo: {exc}") from exc
-    finally:
-        await file.close()
-
-    relative_path = Path(settings.UPLOAD_DIRECTORY) / unique_filename
-    return f"/{relative_path.as_posix()}"
-
-
-def _get_or_create_produto_impl(
-    db: Session,
-    produto: schemas.ProdutoCreate,
-    user_id: int,
-) -> Produto:
-    base_query = db.query(Produto).filter(Produto.user_id == user_id)
-    existing: Optional[Produto] = None
-
-    if produto.sku:
-        existing = base_query.filter(Produto.sku == produto.sku).first()
-    elif produto.ean:
-        existing = base_query.filter(Produto.ean == produto.ean).first()
-
-    if existing:
-        for key, value in produto.model_dump(exclude_unset=True).items():
-            setattr(existing, key, value)
-        db.commit()
-        db.refresh(existing)
-        return existing
-
-    return _create_produto_impl(db=db, produto=produto, user_id=user_id)
-
-
 class _ProdutoCrudWorkflow:
     def __init__(self, runtime: Optional["_ProdutoCrudRuntime"] = None) -> None:
         self._runtime = runtime or _ProdutoCrudRuntime()
@@ -526,7 +260,16 @@ class _ProdutoCrudRuntime:
         produto: schemas.ProdutoCreate,
         user_id: int,
     ) -> Produto:
-        return _create_produto_impl(db=db, produto=produto, user_id=user_id)
+        produto_data = produto.model_dump(exclude_unset=True)
+        _normalize_identifier_fields(produto_data)
+        _validate_unique_identifiers(db=db, user_id=user_id, produto_data=produto_data)
+        _parse_json_fields(produto_data, list(_JSON_FIELDS))
+
+        db_produto = Produto(**produto_data, user_id=user_id)
+        db.add(db_produto)
+        db.commit()
+        db.refresh(db_produto)
+        return db_produto
 
     def create_produtos_bulk(
         self,
@@ -534,10 +277,87 @@ class _ProdutoCrudRuntime:
         produtos: List[schemas.ProdutoCreate],
         user_id: int,
     ) -> Tuple[List[Produto], List[Produto], List[Dict[str, Any]]]:
-        return _create_produtos_bulk_impl(db=db, produtos=produtos, user_id=user_id)
+        created_produtos: List[Produto] = []
+        updated_produtos: List[Produto] = []
+        erros: List[Dict[str, Any]] = []
+
+        skus = [p.sku for p in produtos if p.sku]
+        eans = [p.ean for p in produtos if p.ean]
+        sku_map: Dict[str, Produto] = {}
+        ean_map: Dict[str, Produto] = {}
+
+        if skus or eans:
+            existing = (
+                db.query(Produto)
+                .filter(Produto.user_id == user_id)
+                .filter(or_(Produto.sku.in_(skus), Produto.ean.in_(eans)))
+                .all()
+            )
+            for existing_produto in existing:
+                if existing_produto.sku:
+                    sku_map[existing_produto.sku] = existing_produto
+                if existing_produto.ean:
+                    ean_map[existing_produto.ean] = existing_produto
+
+        new_skus: Set[str] = set()
+        new_eans: Set[str] = set()
+
+        for produto_schema in produtos:
+            data = produto_schema.model_dump(exclude_unset=True)
+            _normalize_identifier_fields(data)
+            _parse_json_fields(data, list(_JSON_FIELDS))
+
+            sku = data.get("sku")
+            ean = data.get("ean")
+
+            if (sku and sku in new_skus) or (ean and ean in new_eans):
+                erros.append(
+                    {
+                        "motivo_descarte": "Produto duplicado por SKU ou EAN",
+                        "linha_original": data,
+                        "duplicado": True,
+                    }
+                )
+                continue
+
+            existing_produto = None
+            if sku and sku in sku_map:
+                existing_produto = sku_map[sku]
+            elif ean and ean in ean_map:
+                existing_produto = ean_map[ean]
+
+            if existing_produto:
+                for key, value in data.items():
+                    setattr(existing_produto, key, value)
+                updated_produtos.append(existing_produto)
+            else:
+                db_produto = Produto(**data, user_id=user_id)
+                db.add(db_produto)
+                created_produtos.append(db_produto)
+
+            if sku:
+                new_skus.add(sku)
+            if ean:
+                new_eans.add(ean)
+
+        db.commit()
+        for produto_db in created_produtos + updated_produtos:
+            db.refresh(produto_db)
+
+        return created_produtos, updated_produtos, erros
 
     def get_produto(self, db: Session, produto_id: int) -> Optional[Produto]:
-        return _get_produto_impl(db=db, produto_id=produto_id)
+        return (
+            db.query(Produto)
+            .options(
+                selectinload(Produto.fornecedor),
+                selectinload(Produto.product_type).selectinload(
+                    ProductType.attribute_templates
+                ),
+            )
+            .filter(Produto.id == produto_id)
+            .first()
+        )
 
     def get_produtos_by_user(
         self,
@@ -556,15 +376,19 @@ class _ProdutoCrudRuntime:
         status_titulo_ia: Optional[StatusGeracaoIAEnum] = None,
         status_descricao_ia: Optional[StatusGeracaoIAEnum] = None,
     ) -> List[Produto]:
-        return _get_produtos_by_user_impl(
-            db=db,
-            user_id=user_id,
-            is_admin=is_admin,
-            skip=skip,
-            limit=limit,
-            sort_by=sort_by,
-            sort_order=sort_order,
-            search=search,
+        query = db.query(Produto).options(
+            selectinload(Produto.fornecedor),
+            selectinload(Produto.product_type),
+        )
+
+        if not is_admin:
+            if user_id is None:
+                return []
+            query = query.filter(Produto.user_id == user_id)
+
+        query = _apply_search_filter(query, search)
+        query = _apply_optional_filters(
+            query=query,
             fornecedor_id=fornecedor_id,
             product_type_id=product_type_id,
             categoria=categoria,
@@ -572,6 +396,8 @@ class _ProdutoCrudRuntime:
             status_titulo_ia=status_titulo_ia,
             status_descricao_ia=status_descricao_ia,
         )
+        query = _apply_ordering(query, sort_by, sort_order)
+        return query.offset(skip).limit(limit).all()
 
     def count_produtos_by_user(
         self,
@@ -586,11 +412,16 @@ class _ProdutoCrudRuntime:
         status_titulo_ia: Optional[StatusGeracaoIAEnum] = None,
         status_descricao_ia: Optional[StatusGeracaoIAEnum] = None,
     ) -> int:
-        return _count_produtos_by_user_impl(
-            db=db,
-            user_id=user_id,
-            is_admin=is_admin,
-            search=search,
+        query = db.query(func.count(Produto.id))
+
+        if not is_admin:
+            if user_id is None:
+                return 0
+            query = query.filter(Produto.user_id == user_id)
+
+        query = _apply_search_filter(query, search)
+        query = _apply_optional_filters(
+            query=query,
             fornecedor_id=fornecedor_id,
             product_type_id=product_type_id,
             categoria=categoria,
@@ -599,20 +430,35 @@ class _ProdutoCrudRuntime:
             status_descricao_ia=status_descricao_ia,
         )
 
+        count = query.scalar()
+        return count if count is not None else 0
+
     def update_produto(
         self,
         db: Session,
         db_produto: Produto,
         produto_update: schemas.ProdutoUpdate,
     ) -> Produto:
-        return _update_produto_impl(
-            db=db,
-            db_produto=db_produto,
-            produto_update=produto_update,
+        update_data = produto_update.model_dump(exclude_unset=True)
+        _parse_json_fields(
+            update_data,
+            list(_JSON_FIELDS) + ["imagens_secundarias_urls"],
         )
 
+        for key, value in update_data.items():
+            setattr(db_produto, key, value)
+
+        db.commit()
+        db.refresh(db_produto)
+        db.refresh(db_produto, attribute_names=["fornecedor", "product_type"])
+        if db_produto.product_type:
+            db.refresh(db_produto.product_type, attribute_names=["attribute_templates"])
+        return db_produto
+
     def delete_produto(self, db: Session, db_produto: Produto) -> Produto:
-        return _delete_produto_impl(db=db, db_produto=db_produto)
+        db.delete(db_produto)
+        db.commit()
+        return db_produto
 
     async def save_produto_image(
         self,
@@ -620,11 +466,32 @@ class _ProdutoCrudRuntime:
         produto_id: int,
         file: UploadFile,
     ) -> str:
-        return await _save_produto_image_impl(
-            db=db,
-            produto_id=produto_id,
-            file=file,
-        )
+        _ = db
+        _ = produto_id
+
+        if not file.filename:
+            raise ValueError("Nome do arquivo nao fornecido.")
+
+        upload_dir = Path(settings.UPLOAD_DIRECTORY)
+        if not upload_dir.is_absolute():
+            upload_dir = Path(__file__).resolve().parent / upload_dir
+        upload_dir.mkdir(parents=True, exist_ok=True)
+
+        file_extension = Path(file.filename).suffix
+        unique_filename = f"{uuid.uuid4().hex}{file_extension}"
+        file_path = upload_dir / unique_filename
+
+        try:
+            content = await file.read()
+            with open(file_path, "wb") as output_file:
+                output_file.write(content)
+        except Exception as exc:
+            raise IOError(f"Nao foi possivel salvar o arquivo: {exc}") from exc
+        finally:
+            await file.close()
+
+        relative_path = Path(settings.UPLOAD_DIRECTORY) / unique_filename
+        return f"/{relative_path.as_posix()}"
 
     def get_or_create_produto(
         self,
@@ -632,7 +499,22 @@ class _ProdutoCrudRuntime:
         produto: schemas.ProdutoCreate,
         user_id: int,
     ) -> Produto:
-        return _get_or_create_produto_impl(db=db, produto=produto, user_id=user_id)
+        base_query = db.query(Produto).filter(Produto.user_id == user_id)
+        existing: Optional[Produto] = None
+
+        if produto.sku:
+            existing = base_query.filter(Produto.sku == produto.sku).first()
+        elif produto.ean:
+            existing = base_query.filter(Produto.ean == produto.ean).first()
+
+        if existing:
+            for key, value in produto.model_dump(exclude_unset=True).items():
+                setattr(existing, key, value)
+            db.commit()
+            db.refresh(existing)
+            return existing
+
+        return self.create_produto(db=db, produto=produto, user_id=user_id)
 
 
 _produto_crud_workflow = _ProdutoCrudWorkflow()
