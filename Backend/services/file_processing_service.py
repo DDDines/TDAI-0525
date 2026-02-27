@@ -1,4 +1,4 @@
-# catalogai_project/Backend/services/file_processing_service.py
+﻿# catalogai_project/Backend/services/file_processing_service.py
 
 import pandas as pd
 
@@ -154,7 +154,7 @@ async def _save_uploaded_catalog_impl(
 
 ) -> models.CatalogImportFile:
 
-    """Salva o arquivo de catálogo no disco e retorna um objeto CatalogImportFile.
+    """Salva o arquivo de catÃ¡logo no disco e retorna um objeto CatalogImportFile.
 
 
 
@@ -164,11 +164,11 @@ async def _save_uploaded_catalog_impl(
 
     file: UploadFile
 
-        Arquivo recebido na requisição.
+        Arquivo recebido na requisiÃ§Ã£o.
 
     fornecedor_id: Optional[int]
 
-        Identificador do fornecedor para o qual o catálogo será importado.
+        Identificador do fornecedor para o qual o catÃ¡logo serÃ¡ importado.
 
     """
 
@@ -364,7 +364,7 @@ class _LineNormalizationRuntime:
         sku_tokens: List[str] = []
         nome_tokens: List[str] = []
         for tok in tokens:
-            if tok in {"_", "-", "--", "|", "Â¦"}:
+            if tok in {"_", "-", "--", "|", "Ã‚Â¦"}:
                 continue
             has_lower = any(ch.isalpha() and ch.islower() for ch in tok)
 
@@ -406,7 +406,7 @@ def _limpar_valor_extraido(valor: Any) -> Optional[str]:
 
 
 def _valor_tem_conteudo_util(valor: Any) -> bool:
-    """Retorna True para valores úteis (evita lixo de OCR como '!' ou '-')."""
+    """Retorna True para valores Ãºteis (evita lixo de OCR como '!' ou '-')."""
     return _line_normalization_runtime.valor_tem_conteudo_util(valor)
 
 
@@ -652,7 +652,7 @@ class _LineMappingWorkflow:
             produto_dados_padronizados.get("nome_base")
         ):
             if not produto_dados_padronizados.get("sku_original"):
-                return {"motivo_descarte": "nome_base sem conteúdo útil", "linha_original": linha_original}
+                return {"motivo_descarte": "nome_base sem conteÃºdo Ãºtil", "linha_original": linha_original}
 
         if dados_brutos_nao_mapeados:
             produto_dados_padronizados["dados_brutos_adicionais"] = dados_brutos_nao_mapeados
@@ -844,7 +844,7 @@ async def _processar_arquivo_pdf_legacy_impl(
         with pdf_obj as pdf:
             total_pages = len(pdf.pages)
             page_list_to_process = list(pages) if pages else list(range(1, total_pages + 1))
-            log_pdf.append(f'PDF com {total_pages} páginas.')
+            log_pdf.append(f'PDF com {total_pages} pÃ¡ginas.')
             logger.info(
                 'processar_arquivo_pdf: total_paginas=%s paginas_processadas=%s region=%s',
                 total_pages,
@@ -867,7 +867,7 @@ async def _processar_arquivo_pdf_legacy_impl(
                 if bbox_abs:
                     page_to_process = page.crop(bbox_abs)
                     log_pdf.append(
-                        f'Página {page_num}: Aplicando recorte (crop) com bbox {bbox_abs} [modo={bbox_mode}].'
+                        f'PÃ¡gina {page_num}: Aplicando recorte (crop) com bbox {bbox_abs} [modo={bbox_mode}].'
                     )
                     logger.info(
                         'processar_arquivo_pdf: page=%s bbox=%s mode=%s',
@@ -877,7 +877,7 @@ async def _processar_arquivo_pdf_legacy_impl(
                     )
                 elif region:
                     log_pdf.append(
-                        f'Página {page_num}: BBox inválido ({bbox_mode}); ignorando recorte.'
+                        f'PÃ¡gina {page_num}: BBox invÃ¡lido ({bbox_mode}); ignorando recorte.'
                     )
 
                 if bbox_abs and temp_pdf_path:
@@ -889,14 +889,14 @@ async def _processar_arquivo_pdf_legacy_impl(
                         )
                     except Exception as e_region:
                         log_pdf.append(
-                            f'Página {page_num}: Falha no extrator de região: {str(e_region)}'
+                            f'PÃ¡gina {page_num}: Falha no extrator de regiÃ£o: {str(e_region)}'
                         )
                         df_region = pd.DataFrame()
 
                     if not df_region.empty:
                         region_rows = df_region.to_dict(orient='records')
                         log_pdf.append(
-                            f'Página {page_num}: Extração por região retornou {len(region_rows)} linhas.'
+                            f'PÃ¡gina {page_num}: ExtraÃ§Ã£o por regiÃ£o retornou {len(region_rows)} linhas.'
                         )
                         logger.info(
                             'processar_arquivo_pdf: page=%s region_rows=%s region_cols=%s',
@@ -916,7 +916,7 @@ async def _processar_arquivo_pdf_legacy_impl(
                         continue
 
                     log_pdf.append(
-                        f'Página {page_num}: Extração por região não retornou linhas.'
+                        f'PÃ¡gina {page_num}: ExtraÃ§Ã£o por regiÃ£o nÃ£o retornou linhas.'
                     )
 
                 tables = page_to_process.extract_tables(
@@ -927,11 +927,11 @@ async def _processar_arquivo_pdf_legacy_impl(
                 )
 
                 if tables:
-                    log_pdf.append(f'Página {page_num}: Encontradas {len(tables)} tabelas.')
+                    log_pdf.append(f'PÃ¡gina {page_num}: Encontradas {len(tables)} tabelas.')
                     for table_num, table_data in enumerate(tables):
                         if not table_data or len(table_data) < 2:
                             log_pdf.append(
-                                f'Página {page_num}, Tabela {table_num+1}: Tabela vazia ou sem dados.'
+                                f'PÃ¡gina {page_num}, Tabela {table_num+1}: Tabela vazia ou sem dados.'
                             )
                             continue
 
@@ -944,7 +944,7 @@ async def _processar_arquivo_pdf_legacy_impl(
                         for row_idx, row_data in enumerate(table_data[1:]):
                             if len(row_data) != len(headers):
                                 log_pdf.append(
-                                    f'Página {page_num}, Tabela {table_num+1}, Linha {row_idx+1}: Incompatibilidade de colunas. Pulando.'
+                                    f'PÃ¡gina {page_num}, Tabela {table_num+1}, Linha {row_idx+1}: Incompatibilidade de colunas. Pulando.'
                                 )
                                 continue
 
@@ -962,11 +962,11 @@ async def _processar_arquivo_pdf_legacy_impl(
                                     produto_padronizado['product_type_id'] = product_type_id
                                 produtos_extraidos.append(produto_padronizado)
                 else:
-                    log_pdf.append(f'Página {page_num}: Nenhuma tabela encontrada.')
+                    log_pdf.append(f'PÃ¡gina {page_num}: Nenhuma tabela encontrada.')
 
             if not produtos_extraidos and page_list_to_process:
                 log_pdf.append(
-                    'Nenhum produto extraído de tabelas/região. Tentando extração de texto bruto.'
+                    'Nenhum produto extraÃ­do de tabelas/regiÃ£o. Tentando extraÃ§Ã£o de texto bruto.'
                 )
                 for page_num in page_list_to_process:
                     if not (1 <= page_num <= total_pages):
@@ -984,7 +984,7 @@ async def _processar_arquivo_pdf_legacy_impl(
 
                     page_text = page_to_process.extract_text(x_tolerance=2, y_tolerance=2)
                     if page_text and page_text.strip():
-                        log_pdf.append(f'Página {page_num}: Texto extraído.')
+                        log_pdf.append(f'PÃ¡gina {page_num}: Texto extraÃ­do.')
                         texto_chave = f'texto_completo_pagina_{page_num}'
 
                         if usar_llm:
@@ -998,11 +998,11 @@ async def _processar_arquivo_pdf_legacy_impl(
                                         dados_produto['product_type_id'] = product_type_id
                                     produtos_extraidos.append(dados_produto)
                                     log_pdf.append(
-                                        f'Página {page_num}: Texto processado com LLM.'
+                                        f'PÃ¡gina {page_num}: Texto processado com LLM.'
                                     )
                                 else:
                                     item = {
-                                        'nome_base': f'Texto da página {page_num}',
+                                        'nome_base': f'Texto da pÃ¡gina {page_num}',
                                         'dados_brutos_adicionais': {
                                             texto_chave: page_text.strip()[:20000]
                                         },
@@ -1012,10 +1012,10 @@ async def _processar_arquivo_pdf_legacy_impl(
                                     produtos_extraidos.append(item)
                             except Exception as llm_e:
                                 log_pdf.append(
-                                    f'Página {page_num}: Erro ao processar com LLM: {str(llm_e)}'
+                                    f'PÃ¡gina {page_num}: Erro ao processar com LLM: {str(llm_e)}'
                                 )
                                 item = {
-                                    'nome_base': f'Conteúdo Bruto da Página {page_num}',
+                                    'nome_base': f'ConteÃºdo Bruto da PÃ¡gina {page_num}',
                                     'dados_brutos_adicionais': {
                                         texto_chave: page_text.strip()[:20000]
                                     },
@@ -1025,22 +1025,22 @@ async def _processar_arquivo_pdf_legacy_impl(
                                 produtos_extraidos.append(item)
                         else:
                             item = {
-                                'nome_base': f'Conteúdo da Página {page_num}',
+                                'nome_base': f'ConteÃºdo da PÃ¡gina {page_num}',
                                 'dados_brutos_adicionais': {texto_chave: page_text.strip()[:20000]},
                             }
                             if product_type_id is not None:
                                 item['product_type_id'] = product_type_id
                             produtos_extraidos.append(item)
-                            log_pdf.append(f'Página {page_num}: Texto armazenado sem LLM.')
+                            log_pdf.append(f'PÃ¡gina {page_num}: Texto armazenado sem LLM.')
                     else:
                         log_pdf.append(
-                            f'Página {page_num}: Nenhum texto extraível (pode ser imagem ou protegido).'
+                            f'PÃ¡gina {page_num}: Nenhum texto extraÃ­vel (pode ser imagem ou protegido).'
                         )
 
             if not produtos_extraidos:
                 return [
                     {
-                        'erro_processamento_pdf': 'Nenhum dado de produto pôde ser extraído do PDF (pode estar protegido, vazio ou somente imagem sem OCR).',
+                        'erro_processamento_pdf': 'Nenhum dado de produto pÃ´de ser extraÃ­do do PDF (pode estar protegido, vazio ou somente imagem sem OCR).',
                         'log_pdf': log_pdf,
                     }
                 ]
@@ -1055,11 +1055,11 @@ async def _processar_arquivo_pdf_legacy_impl(
     except Exception as e:
         import traceback
 
-        log_pdf.append(f'Erro crítico ao processar arquivo PDF: {str(e)}')
+        log_pdf.append(f'Erro crÃ­tico ao processar arquivo PDF: {str(e)}')
         logger.error('Erro ao processar arquivo PDF: %s', traceback.format_exc())
         return [
             {
-                'erro_processamento_pdf': f'Falha crítica ao ler arquivo PDF: {str(e)}',
+                'erro_processamento_pdf': f'Falha crÃ­tica ao ler arquivo PDF: {str(e)}',
                 'log_pdf': log_pdf,
             }
         ]
@@ -1402,7 +1402,7 @@ async def _preview_arquivo_excel_legacy_impl(
 
 ) -> Dict[str, Any]:
 
-    """Retorna cabeçalhos e linhas de amostra de um arquivo Excel."""
+    """Retorna cabeÃ§alhos e linhas de amostra de um arquivo Excel."""
 
     try:
 
@@ -1430,7 +1430,7 @@ async def _preview_arquivo_csv_legacy_impl(
 
 ) -> Dict[str, Any]:
 
-    """Retorna cabeçalhos e linhas de amostra de um arquivo CSV."""
+    """Retorna cabeÃ§alhos e linhas de amostra de um arquivo CSV."""
 
     try:
 
@@ -1586,7 +1586,7 @@ async def _preview_arquivo_pdf_legacy_impl(
 
 ) -> Dict[str, Any]:
 
-    """Gera preview de um PDF com miniaturas e extração de texto.
+    """Gera preview de um PDF com miniaturas e extraÃ§Ã£o de texto.
 
 
 
@@ -1596,33 +1596,33 @@ async def _preview_arquivo_pdf_legacy_impl(
 
     conteudo_arquivo: bytes
 
-        Conteúdo do arquivo PDF.
+        ConteÃºdo do arquivo PDF.
 
     ext: str
 
-        Extensão do arquivo (mantida para compatibilidade).
+        ExtensÃ£o do arquivo (mantida para compatibilidade).
 
     start_page: int, optional
 
-        Página inicial (1-indexada) para geração do preview, por padrão ``1``.
+        PÃ¡gina inicial (1-indexada) para geraÃ§Ã£o do preview, por padrÃ£o ``1``.
 
     page_count: int, optional
 
-        Quantidade de páginas a incluir no preview. ``0`` usa todas as páginas.
+        Quantidade de pÃ¡ginas a incluir no preview. ``0`` usa todas as pÃ¡ginas.
 
-        Apenas as páginas nesse intervalo são analisadas para extrair texto,
+        Apenas as pÃ¡ginas nesse intervalo sÃ£o analisadas para extrair texto,
 
         identificar tabelas e gerar imagens.
 
     dpi: int, optional
 
-        Resolução usada ao converter as páginas em imagem. Padrão ``72``.
+        ResoluÃ§Ã£o usada ao converter as pÃ¡ginas em imagem. PadrÃ£o ``72``.
 
 
 
-    As páginas são processadas em paralelo usando ``asyncio`` e a pool de
+    As pÃ¡ginas sÃ£o processadas em paralelo usando ``asyncio`` e a pool de
 
-    ``ThreadPoolExecutor`` padrão do Python. O número de threads segue o limite
+    ``ThreadPoolExecutor`` padrÃ£o do Python. O nÃºmero de threads segue o limite
 
     ``min(32, os.cpu_count() + 4)`` a menos que outro executor seja
 
@@ -2052,7 +2052,7 @@ async def _gerar_preview_legacy_impl(
 
 ) -> Dict[str, Any]:
 
-    """Despacha para a função de preview correta com base na extensão."""
+    """Despacha para a funÃ§Ã£o de preview correta com base na extensÃ£o."""
 
     ext = ext.lower()
 
@@ -2068,7 +2068,7 @@ async def _gerar_preview_legacy_impl(
 
         return await preview_arquivo_pdf(conteudo_arquivo, ext, 1, 1)
 
-    raise ValueError("Formato de arquivo não suportado para preview")
+    raise ValueError("Formato de arquivo nÃ£o suportado para preview")
 
 
 
@@ -2222,7 +2222,7 @@ def _pdf_pages_to_images_impl(db: Session, file: UploadFile, fornecedor_id: int,
 
     """
 
-    Salva um ficheiro PDF, cria um registo na base de dados, e converte um lote de páginas em imagens.
+    Salva um ficheiro PDF, cria um registo na base de dados, e converte um lote de pÃ¡ginas em imagens.
 
     """
 
@@ -2272,7 +2272,7 @@ def _pdf_pages_to_images_impl(db: Session, file: UploadFile, fornecedor_id: int,
 
 
 
-    # LÊ O FICHEIRO PARA A MEMÓRIA UMA ÚNICA VEZ
+    # LÃŠ O FICHEIRO PARA A MEMÃ“RIA UMA ÃšNICA VEZ
 
     try:
 
@@ -2280,7 +2280,7 @@ def _pdf_pages_to_images_impl(db: Session, file: UploadFile, fornecedor_id: int,
 
     except Exception as e:
 
-        logger.error(f"Erro ao ler o conteúdo do ficheiro stream: {e}")
+        logger.error(f"Erro ao ler o conteÃºdo do ficheiro stream: {e}")
 
         raise HTTPException(status_code=500, detail="Erro interno ao ler o ficheiro.")
 
@@ -2290,7 +2290,7 @@ def _pdf_pages_to_images_impl(db: Session, file: UploadFile, fornecedor_id: int,
 
 
 
-    # Guarda o conteúdo lido no disco
+    # Guarda o conteÃºdo lido no disco
 
     try:
 
@@ -2306,7 +2306,7 @@ def _pdf_pages_to_images_impl(db: Session, file: UploadFile, fornecedor_id: int,
 
 
 
-    # A chamada à função que já corrigimos
+    # A chamada Ã  funÃ§Ã£o que jÃ¡ corrigimos
 
     import_file = crud_fornecedores.create_catalog_import_file(
 
@@ -2326,7 +2326,7 @@ def _pdf_pages_to_images_impl(db: Session, file: UploadFile, fornecedor_id: int,
 
     try:
 
-        # USA O CONTEÚDO EM MEMÓRIA PARA OBTER O TOTAL DE PGINAS
+        # USA O CONTEÃšDO EM MEMÃ“RIA PARA OBTER O TOTAL DE PGINAS
 
         with pdfplumber.open(io.BytesIO(content)) as pdf:
 
@@ -2336,7 +2336,7 @@ def _pdf_pages_to_images_impl(db: Session, file: UploadFile, fornecedor_id: int,
 
         logger.error(f"Erro ao ler PDF com pdfplumber: {e}")
 
-        raise HTTPException(status_code=500, detail="Não foi possível ler o ficheiro PDF.")
+        raise HTTPException(status_code=500, detail="NÃ£o foi possÃ­vel ler o ficheiro PDF.")
 
 
 
@@ -2358,11 +2358,11 @@ def _pdf_pages_to_images_impl(db: Session, file: UploadFile, fornecedor_id: int,
 
             
 
-            # USA O CONTEÚDO EM MEMÓRIA PARA CONVERTER AS IMAGENS
+            # USA O CONTEÃšDO EM MEMÃ“RIA PARA CONVERTER AS IMAGENS
 
             images = convert_from_bytes(
 
-                content, # <-- MUDANÇA IMPORTANTE: usa o conteúdo em memória
+                content, # <-- MUDANÃ‡A IMPORTANTE: usa o conteÃºdo em memÃ³ria
 
                 dpi=200,
 
@@ -2398,7 +2398,7 @@ def _pdf_pages_to_images_impl(db: Session, file: UploadFile, fornecedor_id: int,
 
             logger.error(f"Falha ao converter PDF para imagens: {e}", exc_info=True)
 
-            raise HTTPException(status_code=500, detail=f"Erro ao processar o PDF. Verifique se o Poppler está instalado corretamente.")
+            raise HTTPException(status_code=500, detail=f"Erro ao processar o PDF. Verifique se o Poppler estÃ¡ instalado corretamente.")
 
 
 
@@ -2968,7 +2968,7 @@ async def _extrair_pagina_pdf_impl(
 
             raise ValueError(
 
-                f"Número de página inválido: {page_number}. PDF tem {len(pdf.pages)} páginas."
+                f"NÃºmero de pÃ¡gina invÃ¡lido: {page_number}. PDF tem {len(pdf.pages)} pÃ¡ginas."
 
             )
 
@@ -3162,7 +3162,7 @@ def _extract_data_from_single_page_impl(file_path: str, page_number: int) -> Dic
 
                 raise ValueError(
 
-                    f"Número de página inválido: {page_number}. PDF tem {len(pdf.pages)} páginas."
+                    f"NÃºmero de pÃ¡gina invÃ¡lido: {page_number}. PDF tem {len(pdf.pages)} pÃ¡ginas."
 
                 )
 
@@ -3230,7 +3230,7 @@ def _extract_data_from_single_page_impl(file_path: str, page_number: int) -> Dic
 
             raise ValueError(
 
-                f"Número de página inválido: {page_number}. PDF tem {doc.page_count} páginas."
+                f"NÃºmero de pÃ¡gina invÃ¡lido: {page_number}. PDF tem {doc.page_count} pÃ¡ginas."
 
             )
 
@@ -3256,7 +3256,7 @@ def _extract_data_from_single_page_impl(file_path: str, page_number: int) -> Dic
 
     except Exception as e:  # pragma: no cover - optional dependency might be missing
 
-        logger.error("Erro ao executar OCR da página do PDF: %s", e)
+        logger.error("Erro ao executar OCR da pÃ¡gina do PDF: %s", e)
 
     finally:
 
@@ -3276,213 +3276,151 @@ def _extract_data_from_single_page_impl(file_path: str, page_number: int) -> Dic
 
 
 
+class _PdfAssetUtilityRuntime:
+    """Runtime OO para utilitarios de assets PDF."""
+
+    def generate_pdf_page_images(self, file_path: str, file_id: str) -> List[str]:
+        try:
+            import fitz  # PyMuPDF
+        except Exception as e:  # pragma: no cover - library might be missing
+            logger.error("PyMuPDF (fitz) not available: %s", e)
+            raise
+
+        output_dir = Path("Backend") / "static" / "previews" / str(file_id)
+        output_dir.mkdir(parents=True, exist_ok=True)
+
+        urls: List[str] = []
+        with fitz.open(file_path) as doc:
+            page_count = min(len(doc), 20)
+            for i in range(page_count):
+                page = doc.load_page(i)
+                pix = page.get_pixmap(dpi=150)
+                image_path = output_dir / f"page-{i + 1}.png"
+                pix.save(str(image_path))
+                url = f"/static/previews/{file_id}/page-{i + 1}.png"
+                urls.append(url)
+        return urls
+
+    def extract_pdf_region_image(
+        self,
+        file_path: str,
+        page_number: int,
+        region: Optional[List[float]] = None,
+        dpi: int = 300,
+    ) -> bytes:
+        logger.debug("Recebendo coordenadas: %s", region)
+        with pdfplumber.open(file_path) as pdf:
+            if not (1 <= page_number <= len(pdf.pages)):
+                raise ValueError(
+                    f"Numero de pagina invalido: {page_number}. PDF tem {len(pdf.pages)} paginas."
+                )
+            page = pdf.pages[page_number - 1]
+            page_to_process = page
+            if region and len(region) == 4:
+                logger.debug("Recortando imagem")
+                bbox = tuple(map(float, region))
+                page_to_process = page.crop(bbox)
+            page_image = page_to_process.to_image(resolution=dpi)
+            buf = io.BytesIO()
+            page_image.original.save(buf, format="PNG")
+            return buf.getvalue()
+
+    def parse_annotation_to_dataframe(
+        self,
+        annotation: object,
+        vertical_tolerance: int = 5,
+    ) -> pd.DataFrame:
+        logger.debug("Iniciando analise do texto")
+        try:
+            words: List[Dict[str, Any]] = []
+            for page in getattr(annotation, "pages", []):
+                for block in getattr(page, "blocks", []):
+                    for paragraph in getattr(block, "paragraphs", []):
+                        for word in getattr(paragraph, "words", []):
+                            text = "".join(
+                                [symbol.text for symbol in getattr(word, "symbols", [])]
+                            )
+                            vertices = getattr(word.bounding_box, "vertices", [])
+                            xs = [vertex.x for vertex in vertices]
+                            ys = [vertex.y for vertex in vertices]
+                            x_min = min(xs) if xs else 0
+                            y_min = min(ys) if ys else 0
+                            words.append({"text": text, "x": x_min, "y": y_min})
+
+            if not words:
+                return pd.DataFrame()
+
+            words.sort(key=lambda word: word["y"])
+            lines: List[List[Dict[str, Any]]] = []
+            for word in words:
+                if lines and abs(word["y"] - lines[-1][0]["y"]) <= vertical_tolerance:
+                    lines[-1].append(word)
+                else:
+                    lines.append([word])
+
+            for line in lines:
+                line.sort(key=lambda word: word["x"])
+
+            x_positions = sorted({word["x"] for line in lines for word in line})
+            column_boundaries: List[int] = []
+            x_tol = 20
+            for x_pos in x_positions:
+                if not column_boundaries or abs(x_pos - column_boundaries[-1]) > x_tol:
+                    column_boundaries.append(x_pos)
+
+            rows: List[List[str]] = []
+            for line in lines:
+                row = ["" for _ in column_boundaries]
+                for word in line:
+                    col_idx = min(
+                        range(len(column_boundaries)),
+                        key=lambda i: abs(word["x"] - column_boundaries[i]),
+                    )
+                    row[col_idx] = (row[col_idx] + " " + word["text"]).strip()
+                rows.append(row)
+
+            columns = [f"col_{i+1}" for i in range(len(column_boundaries))]
+            return pd.DataFrame(rows, columns=columns)
+        except Exception as e:
+            logger.exception("Falha ao processar texto extraido")
+            raise HTTPException(
+                status_code=500,
+                detail="Ocorreu um erro durante a extracao de dados.",
+            ) from e
+
+
+_pdf_asset_utility_runtime = _PdfAssetUtilityRuntime()
+
+
 def _generate_pdf_page_images_impl(file_path: str, file_id: str) -> List[str]:
-
-    """Render pages of a PDF into PNG images.
-
-
-
-    Parameters
-
-    ----------
-
-    file_path: str
-
-        Absolute path to the PDF file to render.
-
-    file_id: str
-
-        Identifier used to build the output directory name.
-
-
-
-    Returns
-
-    -------
-
-    List[str]
-
-        Relative URLs for the generated preview images.
-
-    """
-
-
-
-    try:
-
-        import fitz  # PyMuPDF
-
-    except Exception as e:  # pragma: no cover - library might be missing
-
-        logger.error("PyMuPDF (fitz) not available: %s", e)
-
-        raise
-
-
-
-    output_dir = Path("Backend") / "static" / "previews" / str(file_id)
-
-    output_dir.mkdir(parents=True, exist_ok=True)
-
-
-
-    urls: List[str] = []
-
-
-
-    with fitz.open(file_path) as doc:
-
-        page_count = min(len(doc), 20)
-
-        for i in range(page_count):
-
-            page = doc.load_page(i)
-
-            pix = page.get_pixmap(dpi=150)
-
-            image_path = output_dir / f"page-{i + 1}.png"
-
-            pix.save(str(image_path))
-
-            url = f"/static/previews/{file_id}/page-{i + 1}.png"
-
-            urls.append(url)
-
-
-
-    return urls
-
-
-
-def _extract_pdf_region_image_impl(file_path: str, page_number: int, region: Optional[List[float]] = None, dpi: int = 300) -> bytes:
-
-    """Return PNG bytes for a specific region of a PDF page."""
-
-    logger.debug("Recebendo coordenadas: %s", region)
-
-    with pdfplumber.open(file_path) as pdf:
-
-        if not (1 <= page_number <= len(pdf.pages)):
-
-            raise ValueError(
-
-                f"Número de página inválido: {page_number}. PDF tem {len(pdf.pages)} páginas."
-
-            )
-
-        page = pdf.pages[page_number - 1]
-
-        page_to_process = page
-
-        if region and len(region) == 4:
-
-            logger.debug("Recortando imagem")
-
-            bbox = tuple(map(float, region))
-
-            page_to_process = page.crop(bbox)
-
-        page_image = page_to_process.to_image(resolution=dpi)
-
-        buf = io.BytesIO()
-
-        page_image.original.save(buf, format="PNG")
-
-        return buf.getvalue()
-
-
-
-
-
-def _parse_annotation_to_dataframe_impl(annotation: object, vertical_tolerance: int = 5) -> pd.DataFrame:
-
-    """Parse OCR annotation with geometry into a structured DataFrame."""
-
-    logger.debug("Iniciando análise do texto")
-
-    try:
-
-        words: List[Dict[str, Any]] = []
-
-        for page in getattr(annotation, "pages", []):
-
-            for block in getattr(page, "blocks", []):
-
-                for paragraph in getattr(block, "paragraphs", []):
-
-                    for word in getattr(paragraph, "words", []):
-
-                        text = "".join([s.text for s in getattr(word, "symbols", [])])
-
-                        vertices = getattr(word.bounding_box, "vertices", [])
-
-                        xs = [v.x for v in vertices]
-
-                        ys = [v.y for v in vertices]
-
-                        x_min = min(xs) if xs else 0
-
-                        y_min = min(ys) if ys else 0
-
-                        words.append({"text": text, "x": x_min, "y": y_min})
-
-        if not words:
-
-            return pd.DataFrame()
-
-        words.sort(key=lambda w: w["y"])
-
-        lines: List[List[Dict[str, Any]]] = []
-
-        for w in words:
-
-            if lines and abs(w["y"] - lines[-1][0]["y"]) <= vertical_tolerance:
-
-                lines[-1].append(w)
-
-            else:
-
-                lines.append([w])
-
-        for line in lines:
-
-            line.sort(key=lambda w: w["x"])
-
-        x_positions = sorted({w["x"] for line in lines for w in line})
-
-        column_boundaries: List[int] = []
-
-        x_tol = 20
-
-        for x in x_positions:
-
-            if not column_boundaries or abs(x - column_boundaries[-1]) > x_tol:
-
-                column_boundaries.append(x)
-
-        rows: List[List[str]] = []
-
-        for line in lines:
-
-            row = ["" for _ in column_boundaries]
-
-            for w in line:
-
-                col_idx = min(range(len(column_boundaries)), key=lambda i: abs(w["x"] - column_boundaries[i]))
-
-                row[col_idx] = (row[col_idx] + " " + w["text"]).strip()
-
-            rows.append(row)
-
-        columns = [f"col_{i+1}" for i in range(len(column_boundaries))]
-
-        return pd.DataFrame(rows, columns=columns)
-
-    except Exception as e:
-
-        logger.exception("Falha ao processar texto extraído")
-
-        raise HTTPException(status_code=500, detail="Ocorreu um erro durante a extração de dados.") from e
+    return _pdf_asset_utility_runtime.generate_pdf_page_images(
+        file_path=file_path,
+        file_id=file_id,
+    )
+
+
+def _extract_pdf_region_image_impl(
+    file_path: str,
+    page_number: int,
+    region: Optional[List[float]] = None,
+    dpi: int = 300,
+) -> bytes:
+    return _pdf_asset_utility_runtime.extract_pdf_region_image(
+        file_path=file_path,
+        page_number=page_number,
+        region=region,
+        dpi=dpi,
+    )
+
+
+def _parse_annotation_to_dataframe_impl(
+    annotation: object,
+    vertical_tolerance: int = 5,
+) -> pd.DataFrame:
+    return _pdf_asset_utility_runtime.parse_annotation_to_dataframe(
+        annotation=annotation,
+        vertical_tolerance=vertical_tolerance,
+    )
 
 
 
@@ -3525,7 +3463,7 @@ def get_file_path_by_id(db: Session, file_id: str) -> str:
 
 
 class _TabularIngestionWorkflow:
-    """Workflow OO para ingestão de arquivos tabulares (Excel/CSV)."""
+    """Workflow OO para ingestÃ£o de arquivos tabulares (Excel/CSV)."""
 
     async def processar_arquivo_excel(
         self,
@@ -3883,7 +3821,7 @@ def extract_data_from_pdf_region(
 
 
 class _PdfJobWorkflow:
-    """Workflow OO para processamento assíncrono de jobs de PDF."""
+    """Workflow OO para processamento assÃ­ncrono de jobs de PDF."""
 
     async def process_pdf_job(
         self,
