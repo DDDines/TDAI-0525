@@ -650,179 +650,124 @@ def _processar_linha_padronizada(
         mapeamento_colunas_usuario=mapeamento_colunas_usuario,
     )
 
-async def _processar_arquivo_excel_impl(
+class _TabularIngestionRuntime:
+    """Runtime OO para ingestao de arquivos tabulares (Excel/CSV)."""
 
-    conteudo_arquivo: bytes,
+    async def processar_arquivo_excel(
+        self,
+        conteudo_arquivo: bytes,
+        mapeamento_colunas_usuario: Optional[Dict[str, str]] = None,
+        sheet_name: Optional[str] = None,
+        product_type_id: Optional[int] = None,
+    ) -> List[Dict[str, Any]]:
+        produtos_extraidos: List[Dict[str, Any]] = []
+        try:
+            xls = pd.ExcelFile(io.BytesIO(conteudo_arquivo))
+            abas_processar = [sheet_name] if sheet_name else xls.sheet_names
 
-    mapeamento_colunas_usuario: Optional[Dict[str, str]] = None,
+            for aba in abas_processar:
+                df = pd.read_excel(xls, sheet_name=aba)
+                df.dropna(how="all", inplace=True)
 
-    sheet_name: Optional[str] = None,
+                for _, linha_pandas in df.iterrows():
+                    linha_dict_raw = {
+                        col: val if pd.notna(val) else None
+                        for col, val in linha_pandas.to_dict().items()
+                    }
+                    produto_padronizado = _processar_linha_padronizada(
+                        linha_dict_raw,
+                        mapeamento_colunas_usuario,
+                    )
+                    if produto_padronizado:
+                        if product_type_id is not None:
+                            produto_padronizado["product_type_id"] = product_type_id
+                        produtos_extraidos.append(produto_padronizado)
+            return produtos_extraidos
+        except Exception as e:
+            logger.error("Erro ao processar arquivo Excel: %s", e)
+            return [{"erro_processamento_excel": f"Falha ao ler arquivo Excel: {str(e)}"}]
 
-    product_type_id: Optional[int] = None,
+    async def processar_arquivo_csv(
+        self,
+        conteudo_arquivo: bytes,
+        mapeamento_colunas_usuario: Optional[Dict[str, str]] = None,
+        product_type_id: Optional[int] = None,
+    ) -> List[Dict[str, Any]]:
+        produtos_extraidos: List[Dict[str, Any]] = []
+        try:
+            # Detectar encoding usando chardet para lidar com diferentes formatos
+            try:
+                import chardet  # Lazy import para evitar dependencia desnecessaria em outros caminhos
 
-) -> List[Dict[str, Any]]:
+                detection = chardet.detect(conteudo_arquivo)
+                encoding_detectada = (detection.get("encoding") or "utf-8").lower()
+            except Exception:
+                encoding_detectada = "utf-8"
 
-    produtos_extraidos: List[Dict[str, Any]] = []
+            if encoding_detectada.startswith("utf-8"):
+                conteudo_str = conteudo_arquivo.decode("utf-8-sig", errors="replace")
+            else:
+                conteudo_str = conteudo_arquivo.decode(encoding_detectada, errors="replace")
 
-    try:
+            # Detectar delimitador usando csv.Sniffer em uma amostra de linhas
+            linhas = conteudo_str.splitlines()
+            sample = "\n".join(linhas[:5]) if linhas else conteudo_str
+            try:
+                dialect = csv.Sniffer().sniff(sample, delimiters=[",", ";", "\t", "|"])
+                delimitador_provavel = dialect.delimiter
+            except Exception:
+                delimitador_provavel = ","
+                primeira_linha = conteudo_str.splitlines()[0] if conteudo_str.splitlines() else ""
+                if ";" in primeira_linha:
+                    delimitador_provavel = ";"
+                elif "\t" in primeira_linha:
+                    delimitador_provavel = "\t"
 
-        xls = pd.ExcelFile(io.BytesIO(conteudo_arquivo))
-
-        abas_processar = [sheet_name] if sheet_name else xls.sheet_names
-
-
-
-        for aba in abas_processar:
-
-            df = pd.read_excel(xls, sheet_name=aba)
-
-            df.dropna(how="all", inplace=True)
-
-
-
-            for _, linha_pandas in df.iterrows():
-
-                linha_dict_raw = {
-
-                    col: val if pd.notna(val) else None
-
-                    for col, val in linha_pandas.to_dict().items()
-
-                }
-
+            leitor_csv = csv.DictReader(
+                io.StringIO(conteudo_str), delimiter=delimitador_provavel
+            )
+            for linha_dict_raw in leitor_csv:
                 produto_padronizado = _processar_linha_padronizada(
-
-                    linha_dict_raw, mapeamento_colunas_usuario
-
+                    linha_dict_raw,
+                    mapeamento_colunas_usuario,
                 )
-
                 if produto_padronizado:
-
                     if product_type_id is not None:
-
                         produto_padronizado["product_type_id"] = product_type_id
-
                     produtos_extraidos.append(produto_padronizado)
-
-        return produtos_extraidos
-
-    except Exception as e:
-
-        logger.error("Erro ao processar arquivo Excel: %s", e)
-
-        return [{"erro_processamento_excel": f"Falha ao ler arquivo Excel: {str(e)}"}]
+            return produtos_extraidos
+        except Exception as e:
+            logger.error("Erro ao processar arquivo CSV: %s", e)
+            return [{"erro_processamento_csv": f"Falha ao ler arquivo CSV: {str(e)}"}]
 
 
+_tabular_ingestion_runtime = _TabularIngestionRuntime()
 
+
+async def _processar_arquivo_excel_impl(
+    conteudo_arquivo: bytes,
+    mapeamento_colunas_usuario: Optional[Dict[str, str]] = None,
+    sheet_name: Optional[str] = None,
+    product_type_id: Optional[int] = None,
+) -> List[Dict[str, Any]]:
+    return await _tabular_ingestion_runtime.processar_arquivo_excel(
+        conteudo_arquivo=conteudo_arquivo,
+        mapeamento_colunas_usuario=mapeamento_colunas_usuario,
+        sheet_name=sheet_name,
+        product_type_id=product_type_id,
+    )
 
 
 async def _processar_arquivo_csv_impl(
-
     conteudo_arquivo: bytes,
-
     mapeamento_colunas_usuario: Optional[Dict[str, str]] = None,
-
     product_type_id: Optional[int] = None,
-
 ) -> List[Dict[str, Any]]:
-
-    produtos_extraidos: List[Dict[str, Any]] = []
-
-    try:
-
-        # Detectar encoding usando chardet para lidar com diferentes formatos
-
-        try:
-
-            import chardet  # Lazy import para evitar dependência desnecessária em outros caminhos
-
-
-
-            detection = chardet.detect(conteudo_arquivo)
-
-            encoding_detectada = (detection.get("encoding") or "utf-8").lower()
-
-        except Exception:  # Falha na detecção: assume utf-8
-
-            encoding_detectada = "utf-8"
-
-
-
-        if encoding_detectada.startswith("utf-8"):
-
-            conteudo_str = conteudo_arquivo.decode("utf-8-sig", errors="replace")
-
-        else:
-
-            conteudo_str = conteudo_arquivo.decode(encoding_detectada, errors="replace")
-
-
-
-        # Detectar delimitador usando csv.Sniffer em uma amostra de linhas
-
-        linhas = conteudo_str.splitlines()
-
-        sample = "\n".join(linhas[:5]) if linhas else conteudo_str
-
-        try:
-
-            dialect = csv.Sniffer().sniff(sample, delimiters=[",", ";", "\t", "|"])
-
-            delimitador_provavel = dialect.delimiter
-
-        except Exception:
-
-            delimitador_provavel = ","
-
-            primeira_linha = (
-
-                conteudo_str.splitlines()[0] if conteudo_str.splitlines() else ""
-
-            )
-
-            if ";" in primeira_linha:
-
-                delimitador_provavel = ";"
-
-            elif "\t" in primeira_linha:
-
-                delimitador_provavel = "\t"
-
-
-
-        leitor_csv = csv.DictReader(
-
-            io.StringIO(conteudo_str), delimiter=delimitador_provavel
-
-        )
-
-        for linha_dict_raw in leitor_csv:
-
-            produto_padronizado = _processar_linha_padronizada(
-
-                linha_dict_raw, mapeamento_colunas_usuario
-
-            )
-
-            if produto_padronizado:
-
-                if product_type_id is not None:
-
-                    produto_padronizado["product_type_id"] = product_type_id
-
-                produtos_extraidos.append(produto_padronizado)
-
-        return produtos_extraidos
-
-    except Exception as e:
-
-        logger.error("Erro ao processar arquivo CSV: %s", e)
-
-        return [{"erro_processamento_csv": f"Falha ao ler arquivo CSV: {str(e)}"}]
-
-
-
-
+    return await _tabular_ingestion_runtime.processar_arquivo_csv(
+        conteudo_arquivo=conteudo_arquivo,
+        mapeamento_colunas_usuario=mapeamento_colunas_usuario,
+        product_type_id=product_type_id,
+    )
 
 async def _processar_arquivo_pdf_impl(
     conteudo_arquivo: bytes,
