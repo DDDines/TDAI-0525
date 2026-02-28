@@ -82,6 +82,15 @@ class _FakeDB:
         self.added.append(item)
 
 
+class _FakeCatalogFileRepo:
+    def __init__(self) -> None:
+        self.saved = []
+
+    def update_catalog_file(self, *, catalog_file):
+        self.saved.append(catalog_file)
+        return catalog_file
+
+
 @dataclass
 class _FakeCatalogFile:
     status: str = "PENDING"
@@ -93,22 +102,25 @@ class _FakeCatalogFile:
 
 
 def test_file_state_service_persists_processing_and_final():
-    db = _FakeDB()
+    repo = _FakeCatalogFileRepo()
     file_obj = _FakeCatalogFile()
 
     CatalogImportFileStateService.mark_processing(
-        db=db,
+        catalog_file_repo=repo,
         catalog_file=file_obj,
         fornecedor_id=9,
     )
     CatalogImportFileStateService.initialize_pages(
-        db=db,
+        catalog_file_repo=repo,
         catalog_file=file_obj,
         total_pages=10,
     )
-    CatalogImportFileStateService.increment_page(db=db, catalog_file=file_obj)
+    CatalogImportFileStateService.increment_page(
+        catalog_file_repo=repo,
+        catalog_file=file_obj,
+    )
     CatalogImportFileStateService.mark_final(
-        db=db,
+        catalog_file_repo=repo,
         catalog_file=file_obj,
         final_status="IMPORTED",
         result_summary={"stats": {"ok": True}},
@@ -119,8 +131,8 @@ def test_file_state_service_persists_processing_and_final():
     assert file_obj.total_pages == 10
     assert file_obj.pages_processed == 1
     assert file_obj.result_summary == {"stats": {"ok": True}}
-    assert db.commits == 4
-    assert file_obj in db.added
+    assert len(repo.saved) == 4
+    assert repo.saved[-1] is file_obj
 
 
 def test_audit_writer_adds_usage_and_history_rows():

@@ -9,6 +9,7 @@ from sqlalchemy.orm import sessionmaker
 
 from Backend.application.contracts.pipeline_commands import CatalogImportFinalizeCommand
 from Backend.application.services.repository_runtime_support import (
+    bind_repository,
     call_repository_method,
 )
 
@@ -46,11 +47,48 @@ class CatalogImportStartService:
         self._finalize_service = finalize_service
         self._catalog_file_repository = catalog_file_repository
 
-    def get_catalog_file_or_404(self, *, db: Any, file_id: int, user_id: int) -> Any:
+    def _resolve_catalog_file_repo(
+        self,
+        *,
+        catalog_file_repo: Any | None = None,
+        **legacy_kwargs: Any,
+    ) -> Any:
+        if catalog_file_repo is not None:
+            return catalog_file_repo
+        db = legacy_kwargs.pop("db", None)
+        if db is not None:
+            return bind_repository(self._catalog_file_repository, db=db)
+        raise ValueError("catalog_file_repo or db is required")
+
+    def _resolve_fornecedor_repo(
+        self,
+        *,
+        fornecedor_repo: Any | None = None,
+        **legacy_kwargs: Any,
+    ) -> Any:
+        if fornecedor_repo is not None:
+            return fornecedor_repo
+        db = legacy_kwargs.pop("db", None)
+        if db is not None:
+            return bind_repository(self._fornecedor_repo, db=db)
+        return self._fornecedor_repo
+
+    def get_catalog_file_or_404(
+        self,
+        *,
+        file_id: int,
+        user_id: int,
+        catalog_file_repo: Any | None = None,
+        **legacy_kwargs: Any,
+    ) -> Any:
+        repo = self._resolve_catalog_file_repo(
+            catalog_file_repo=catalog_file_repo,
+            **legacy_kwargs,
+        )
         catalog_file = call_repository_method(
-            self._catalog_file_repository,
+            repo,
             "get_catalog_file_for_user",
-            db=db,
+            db=getattr(repo, "_db", None),
             file_id=file_id,
             user_id=user_id,
         )
@@ -73,17 +111,31 @@ class CatalogImportStartService:
     def mark_processing(
         self,
         *,
-        db: Any,
         catalog_file: Any,
         fornecedor_id: int,
         reset_pages: bool = False,
+        catalog_file_repo: Any | None = None,
+        **legacy_kwargs: Any,
     ) -> None:
+        legacy_db = legacy_kwargs.get("db")
+        repo = self._resolve_catalog_file_repo(
+            catalog_file_repo=catalog_file_repo,
+            **legacy_kwargs,
+        )
         catalog_file.status = "PROCESSING"
         catalog_file.fornecedor_id = fornecedor_id
         if reset_pages:
             catalog_file.pages_processed = 0
             catalog_file.total_pages = 0
-        db.commit()
+        if catalog_file_repo is None and legacy_db is not None:
+            legacy_db.commit()
+            return
+        call_repository_method(
+            repo,
+            "update_catalog_file",
+            db=getattr(repo, "_db", None),
+            catalog_file=catalog_file,
+        )
 
     def ensure_catalog_binary_exists(self, *, catalog_file: Any) -> None:
         file_path = self._catalog_path(catalog_file)
@@ -109,16 +161,21 @@ class CatalogImportStartService:
     def resolve_mapping(
         self,
         *,
-        db: Any,
         fornecedor_id: int,
         mapping: Optional[Dict[str, str]],
+        fornecedor_repo: Any | None = None,
+        **legacy_kwargs: Any,
     ) -> Optional[Dict[str, str]]:
         if mapping is not None:
             return mapping
+        repo = self._resolve_fornecedor_repo(
+            fornecedor_repo=fornecedor_repo,
+            **legacy_kwargs,
+        )
         fornecedor = call_repository_method(
-            self._fornecedor_repo,
+            repo,
             "get_fornecedor",
-            db=db,
+            db=getattr(repo, "_db", None),
             fornecedor_id=fornecedor_id,
         )
         if fornecedor and fornecedor.default_column_mapping:
@@ -126,8 +183,16 @@ class CatalogImportStartService:
         return mapping
 
     @staticmethod
-    def build_db_session_factory(*, db: Any):
-        return sessionmaker(bind=db.get_bind())
+    def build_db_session_factory(
+        *,
+        session: Any | None = None,
+        **legacy_kwargs: Any,
+    ):
+        if session is None:
+            session = legacy_kwargs.pop("db", None)
+        if session is None:
+            raise ValueError("session or db is required")
+        return sessionmaker(bind=session.get_bind())
 
     @staticmethod
     def build_finalize_command(
@@ -154,10 +219,15 @@ class CatalogImportStartService:
         self,
         *,
         background_tasks: Any,
-        db: Any,
         command: CatalogImportFinalizeCommand,
+        db_session_factory: Any | None = None,
+        **legacy_kwargs: Any,
     ) -> Any:
-        db_session_factory = self.build_db_session_factory(db=db)
+        if db_session_factory is None:
+            db = legacy_kwargs.pop("db", None)
+            if db is None:
+                raise ValueError("db_session_factory or db is required")
+            db_session_factory = self.build_db_session_factory(db=db)
         return await self._finalize_service.dispatch_or_run(
             background_tasks=background_tasks,
             db_session_factory=db_session_factory,
@@ -167,10 +237,15 @@ class CatalogImportStartService:
     async def run_finalize_direct(
         self,
         *,
-        db: Any,
         command: CatalogImportFinalizeCommand,
+        db_session_factory: Any | None = None,
+        **legacy_kwargs: Any,
     ) -> Any:
-        db_session_factory = self.build_db_session_factory(db=db)
+        if db_session_factory is None:
+            db = legacy_kwargs.pop("db", None)
+            if db is None:
+                raise ValueError("db_session_factory or db is required")
+            db_session_factory = self.build_db_session_factory(db=db)
         return await self._finalize_service.run_direct(
             db_session_factory=db_session_factory,
             command=command,

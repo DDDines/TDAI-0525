@@ -3,6 +3,10 @@ from __future__ import annotations
 from collections import Counter
 from typing import Any, Callable, Dict, List, Optional, Tuple
 
+from Backend.application.services.repository_runtime_support import (
+    call_repository_method,
+)
+
 
 class CatalogImportIssueTracker:
     """Centraliza coleta/classificação de erros, descartes e quarentena."""
@@ -119,15 +123,24 @@ class CatalogImportFileStateService:
     """Encapsula persistencia de status/paginas do CatalogImportFile."""
 
     @staticmethod
-    def mark_processing(*, db: Any, catalog_file: Any, fornecedor_id: int) -> None:
+    def repo_db(catalog_file_repo: Any) -> Any:
+        return getattr(catalog_file_repo, "_db", None)
+
+    @staticmethod
+    def mark_processing(*, catalog_file_repo: Any, catalog_file: Any, fornecedor_id: int) -> None:
         catalog_file.status = "PROCESSING"
         catalog_file.fornecedor_id = fornecedor_id
-        db.commit()
+        call_repository_method(
+            catalog_file_repo,
+            "update_catalog_file",
+            db=CatalogImportFileStateService.repo_db(catalog_file_repo),
+            catalog_file=catalog_file,
+        )
 
     @staticmethod
     def mark_file_missing(
         *,
-        db: Any,
+        catalog_file_repo: Any,
         catalog_file: Any,
         file_id: int,
         stored_filename: str,
@@ -144,36 +157,60 @@ class CatalogImportFileStateService:
                 }
             ],
         }
-        db.commit()
+        call_repository_method(
+            catalog_file_repo,
+            "update_catalog_file",
+            db=CatalogImportFileStateService.repo_db(catalog_file_repo),
+            catalog_file=catalog_file,
+        )
 
     @staticmethod
-    def initialize_pages(*, db: Any, catalog_file: Any, total_pages: int) -> None:
+    def initialize_pages(
+        *,
+        catalog_file_repo: Any,
+        catalog_file: Any,
+        total_pages: int,
+    ) -> None:
         catalog_file.total_pages = total_pages
         catalog_file.pages_processed = 0
-        db.commit()
+        call_repository_method(
+            catalog_file_repo,
+            "update_catalog_file",
+            db=CatalogImportFileStateService.repo_db(catalog_file_repo),
+            catalog_file=catalog_file,
+        )
 
     @staticmethod
-    def increment_page(*, db: Any, catalog_file: Any) -> None:
+    def increment_page(*, catalog_file_repo: Any, catalog_file: Any) -> None:
         catalog_file.pages_processed = (catalog_file.pages_processed or 0) + 1
-        db.commit()
+        call_repository_method(
+            catalog_file_repo,
+            "update_catalog_file",
+            db=CatalogImportFileStateService.repo_db(catalog_file_repo),
+            catalog_file=catalog_file,
+        )
 
     @staticmethod
     def mark_final(
         *,
-        db: Any,
+        catalog_file_repo: Any,
         catalog_file: Any,
         final_status: str,
         result_summary: Dict[str, Any],
     ) -> None:
         catalog_file.status = final_status
         catalog_file.result_summary = result_summary
-        db.add(catalog_file)
-        db.commit()
+        call_repository_method(
+            catalog_file_repo,
+            "update_catalog_file",
+            db=CatalogImportFileStateService.repo_db(catalog_file_repo),
+            catalog_file=catalog_file,
+        )
 
     @staticmethod
     def mark_failure_with_exception(
         *,
-        db: Any,
+        catalog_file_repo: Any,
         catalog_file: Any,
         file_id: int,
         error: Exception,
@@ -189,7 +226,12 @@ class CatalogImportFileStateService:
                 }
             ],
         }
-        db.commit()
+        call_repository_method(
+            catalog_file_repo,
+            "update_catalog_file",
+            db=CatalogImportFileStateService.repo_db(catalog_file_repo),
+            catalog_file=catalog_file,
+        )
 
 
 class CatalogImportAuditWriter:
@@ -198,7 +240,16 @@ class CatalogImportAuditWriter:
     def __init__(self, *, models: Any) -> None:
         self._models = models
 
-    def register_creation(self, *, db: Any, user_id: int, produtos_criados: List[Any]) -> None:
+    def register_creation(
+        self,
+        *,
+        user_id: int,
+        produtos_criados: List[Any],
+        **legacy_kwargs: Any,
+    ) -> None:
+        db = legacy_kwargs.pop("db", None)
+        if db is None:
+            raise ValueError("db is required for CatalogImportAuditWriter.register_creation")
         for db_produto in produtos_criados:
             db.add(
                 self._models.RegistroUsoIA(

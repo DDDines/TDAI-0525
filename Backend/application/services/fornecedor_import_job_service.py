@@ -3,8 +3,6 @@ from __future__ import annotations
 from typing import Any, Iterable
 
 from fastapi import HTTPException
-from sqlalchemy.orm import Session
-
 from Backend.infrastructure.repositories.fornecedor_import_job_repository import (
     FornecedorImportJobRepository,
 )
@@ -25,11 +23,11 @@ class FornecedorImportJobService:
         self._produto_repository_cls = produto_repository_cls
         self._produto_create_schema = produto_create_schema
 
-    def _import_job_repo(self, db: Session) -> FornecedorImportJobRepository:
-        return self._import_job_repository_cls(db)
+    def _import_job_repo(self, session: Any) -> FornecedorImportJobRepository:
+        return self._import_job_repository_cls(session)
 
-    def _produto_repo(self, db: Session) -> ProductRepository:
-        return self._produto_repository_cls(db)
+    def _produto_repo(self, session: Any) -> ProductRepository:
+        return self._produto_repository_cls(session)
 
     def get_job_for_user_or_404(self, *, import_job_repo: Any, job_id: int, user_id: int) -> Any:
         job = import_job_repo.get_import_job(job_id=job_id)
@@ -56,10 +54,10 @@ class FornecedorImportJobService:
         )
 
     def commit_job_task(self, *, db_session_factory: Any, job_id: int, user_id: int) -> None:
-        db = db_session_factory()
+        session = db_session_factory()
         try:
-            import_job_repo = self._import_job_repo(db)
-            produto_repo = self._produto_repo(db)
+            import_job_repo = self._import_job_repo(session)
+            produto_repo = self._produto_repo(session)
             job = import_job_repo.get_import_job(job_id=job_id)
             if not job:
                 return
@@ -71,7 +69,7 @@ class FornecedorImportJobService:
                 produto_repo.get_or_create_produto(produto=produto_schema, user_id=user_id)
             import_job_repo.update_job_status(job=job, status="COMPLETED")
         finally:
-            db.close()
+            session.close()
 
     @staticmethod
     def _iter_summary_rows(summary: Any) -> Iterable[dict[str, Any]]:

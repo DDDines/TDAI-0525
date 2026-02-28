@@ -236,7 +236,7 @@ class _ProdutosRouterRuntime:
     @staticmethod
     def _build_product_management_service(db: Session) -> ProductManagementService:
         repos = build_product_management_repositories(
-            db=db,
+            session=db,
         )
         return ProductManagementService(
             models=models,
@@ -247,7 +247,7 @@ class _ProdutosRouterRuntime:
     @staticmethod
     def _build_product_media_service(db: Session) -> ProductMediaService:
         repos = build_product_media_repositories(
-            db=db,
+            session=db,
         )
         return ProductMediaService(
             schemas=schemas,

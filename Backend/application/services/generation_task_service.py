@@ -40,16 +40,16 @@ class GenerationTaskService:
         self._schemas = schemas
         self._logger = logger
 
-    def _get_user_access(self, db: Session) -> Any:
+    def _get_user_access(self, session: Session) -> Any:
         if self._user_repository_cls is not None:
-            return self._user_repository_cls(db)
+            return self._user_repository_cls(session)
         if self._legacy_user_access is None:
             raise ValueError("Nenhum acesso a usuario configurado para GenerationTaskService")
         return self._legacy_user_access
 
-    def _get_product_access(self, db: Session) -> Any:
+    def _get_product_access(self, session: Session) -> Any:
         if self._product_repository_cls is not None:
-            return self._product_repository_cls(db)
+            return self._product_repository_cls(session)
         if self._legacy_product_access is None:
             raise ValueError("Nenhum acesso a produto configurado para GenerationTaskService")
         return self._legacy_product_access
@@ -90,14 +90,14 @@ class GenerationTaskService:
         **kwargs_para_funcao_servico: Any,
     ) -> None:
         """Executa geração IA e persiste status/log no produto."""
-        db: Optional[Session] = None
+        session: Optional[Session] = None
         db_produto: Optional[Any] = None
         status_field_to_update: Optional[str] = None
         campo_produto_para_atualizar_com_resultado: Optional[str] = None
         log_entry_prefix = f"IA {tipo_geracao_principal.capitalize()}"
 
         try:
-            db = db_session_factory()
+            session = db_session_factory()
 
             targets = self._resolve_generation_targets(tipo_geracao_principal)
             if targets is None:
@@ -108,13 +108,13 @@ class GenerationTaskService:
                 return
             status_field_to_update, campo_produto_para_atualizar_com_resultado = targets
 
-            user_access = self._get_user_access(db)
-            product_access = self._get_product_access(db)
+            user_access = self._get_user_access(session)
+            product_access = self._get_product_access(session)
 
             user = call_repository_method(
                 user_access,
                 "get_user",
-                db=db,
+                db=session,
                 user_id=user_id,
             )
             if not user:
@@ -128,7 +128,7 @@ class GenerationTaskService:
             db_produto = call_repository_method(
                 product_access,
                 "get_produto",
-                db=db,
+                db=session,
                 produto_id=produto_id,
             )
             if not db_produto:
@@ -158,7 +158,7 @@ class GenerationTaskService:
             call_repository_method(
                 product_access,
                 "update_produto",
-                db=db,
+                db=session,
                 db_produto=db_produto,
                 produto_update=self._schemas.ProdutoUpdate(**update_data_progresso),
             )
@@ -169,7 +169,7 @@ class GenerationTaskService:
                 produto_id,
             )
             resultado_ia = await funcao_geracao_ia_no_servico(
-                db=db,
+                db=session,
                 produto_id=produto_id,
                 user=user,
                 **kwargs_para_funcao_servico,
@@ -216,7 +216,7 @@ class GenerationTaskService:
             call_repository_method(
                 product_access,
                 "update_produto",
-                db=db,
+                db=session,
                 db_produto=db_produto,
                 produto_update=self._schemas.ProdutoUpdate(**update_data_final_dict),
             )
@@ -244,11 +244,11 @@ class GenerationTaskService:
                         ),
                     ),
                 }
-                product_access = self._get_product_access(db)
+                product_access = self._get_product_access(session)
                 call_repository_method(
                     product_access,
                     "update_produto",
-                    db=db,
+                    db=session,
                     db_produto=db_produto,
                     produto_update=self._schemas.ProdutoUpdate(**update_data_falha_http),
                 )
@@ -266,11 +266,11 @@ class GenerationTaskService:
                         f"{log_entry_prefix}: Erro crítico inesperado - {exc}",
                     ),
                 }
-                product_access = self._get_product_access(db)
+                product_access = self._get_product_access(session)
                 call_repository_method(
                     product_access,
                     "update_produto",
-                    db=db,
+                    db=session,
                     db_produto=db_produto,
                     produto_update=self._schemas.ProdutoUpdate(
                         **update_data_falha_critica
@@ -282,5 +282,5 @@ class GenerationTaskService:
                 log_entry_prefix,
                 produto_id,
             )
-            if db:
-                db.close()
+            if session:
+                session.close()

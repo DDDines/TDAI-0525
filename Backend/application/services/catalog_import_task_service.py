@@ -12,6 +12,7 @@ from Backend.application.services.catalog_import_components import (
     CatalogImportResultBuilder,
 )
 from Backend.application.services.repository_runtime_support import (
+    bind_repository,
     call_repository_method,
 )
 
@@ -214,10 +215,11 @@ class _CatalogImportTaskWorkflow:
         self.updated: List[Any] = []
         self.ext = ""
         self.quality_filter_enabled = False
+        self.catalog_file_repo_runtime: Any | None = None
 
     def _load_catalog_file(self) -> bool:
         self.catalog_file = call_repository_method(
-            self.catalog_file_repository,
+            self.catalog_file_repo_runtime,
             "get_catalog_file_for_user",
             db=self.db,
             file_id=self.file_id,
@@ -239,7 +241,7 @@ class _CatalogImportTaskWorkflow:
         )
 
         self.file_state_service.mark_processing(
-            db=self.db,
+            catalog_file_repo=self.catalog_file_repo_runtime,
             catalog_file=self.catalog_file,
             fornecedor_id=self.fornecedor_id,
         )
@@ -253,7 +255,7 @@ class _CatalogImportTaskWorkflow:
         )
         if not file_path.exists():
             self.file_state_service.mark_file_missing(
-                db=self.db,
+                catalog_file_repo=self.catalog_file_repo_runtime,
                 catalog_file=self.catalog_file,
                 file_id=self.file_id,
                 stored_filename=self.catalog_file.stored_filename,
@@ -382,7 +384,7 @@ class _CatalogImportTaskWorkflow:
             total = len(self.pages) if self.pages else len(pdf.pages)
 
         self.file_state_service.initialize_pages(
-            db=self.db,
+            catalog_file_repo=self.catalog_file_repo_runtime,
             catalog_file=self.catalog_file,
             total_pages=total,
         )
@@ -408,7 +410,10 @@ class _CatalogImportTaskWorkflow:
                 )
 
             created_page, updated_page = self._flush_produtos(produtos_create=produtos_create)
-            self.file_state_service.increment_page(db=self.db, catalog_file=self.catalog_file)
+            self.file_state_service.increment_page(
+                catalog_file_repo=self.catalog_file_repo_runtime,
+                catalog_file=self.catalog_file,
+            )
             self.catalog_logger.info(
                 "file_id=%s page=%s processed_rows=%s created=%s updated=%s errors_total=%s ignored_total=%s elapsed=%.2fs",
                 self.file_id,
@@ -423,7 +428,7 @@ class _CatalogImportTaskWorkflow:
 
     async def _process_tabular(self, *, ext: str, content: bytes) -> bool:
         self.file_state_service.initialize_pages(
-            db=self.db,
+            catalog_file_repo=self.catalog_file_repo_runtime,
             catalog_file=self.catalog_file,
             total_pages=1,
         )
@@ -442,7 +447,7 @@ class _CatalogImportTaskWorkflow:
             )
         else:
             self.file_state_service.mark_final(
-                db=self.db,
+                catalog_file_repo=self.catalog_file_repo_runtime,
                 catalog_file=self.catalog_file,
                 final_status="FAILED",
                 result_summary={
@@ -498,7 +503,7 @@ class _CatalogImportTaskWorkflow:
         report_path = result_payload["report_path"]
 
         self.file_state_service.mark_final(
-            db=self.db,
+            catalog_file_repo=self.catalog_file_repo_runtime,
             catalog_file=self.catalog_file,
             final_status=final_status,
             result_summary=result_summary,
@@ -538,14 +543,14 @@ class _CatalogImportTaskWorkflow:
         if not self.db:
             return
         catalog_file = call_repository_method(
-            self.catalog_file_repository,
+            self.catalog_file_repo_runtime,
             "get_catalog_file",
             db=self.db,
             file_id=self.file_id,
         )
         if catalog_file:
             CatalogImportFileStateService.mark_failure_with_exception(
-                db=self.db,
+                catalog_file_repo=self.catalog_file_repo_runtime,
                 catalog_file=catalog_file,
                 file_id=self.file_id,
                 error=error,
@@ -564,6 +569,10 @@ class _CatalogImportTaskWorkflow:
         region: Optional[List[float]] = None,
     ) -> None:
         self.db = db_session_factory()
+        self.catalog_file_repo_runtime = bind_repository(
+            self.catalog_file_repository,
+            db=self.db,
+        )
         self.file_id = file_id
         self.user_id = user_id
         self.product_type_id = product_type_id

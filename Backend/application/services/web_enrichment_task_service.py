@@ -168,27 +168,34 @@ class _WebEnrichmentTaskWorkflow:
             models=runtime_obj.models,
         )
 
-    def _load_locked_product(self, db: Session, produto_id: int):
+    def _load_locked_product(self, session: Session, produto_id: int):
         try:
             return call_repository_method(
                 self.product_repository,
                 "get_produto_for_update",
-                db=db,
+                db=session,
                 produto_id=produto_id,
             )
         except AttributeError:
             return call_repository_method(
                 self.product_repository,
                 "get_produto",
-                db=db,
+                db=session,
                 produto_id=produto_id,
             )
 
-    def _register_config_failure(self, *, db, user_id: int, produto_id: int, resposta: str) -> None:
+    def _register_config_failure(
+        self,
+        *,
+        session,
+        user_id: int,
+        produto_id: int,
+        resposta: str,
+    ) -> None:
         call_repository_method(
             self.usage_repository,
             "create_registro_uso_ia",
-            db=db,
+            db=session,
             registro_uso=self.schemas.RegistroUsoIACreate(
                 user_id=user_id,
                 produto_id=produto_id,
@@ -203,14 +210,21 @@ class _WebEnrichmentTaskWorkflow:
             arg_aliases={"registro_uso": ("payload",)},
         )
 
-    def _mark_in_progress(self, *, db, db_produto_obj, log_mensagens: List[str], produto_id: int) -> None:
+    def _mark_in_progress(
+        self,
+        *,
+        session,
+        db_produto_obj,
+        log_mensagens: List[str],
+        produto_id: int,
+    ) -> None:
         log_mensagens.append(
             f"Definindo status do produto ID {produto_id} para EM_PROGRESSO no banco."
         )
         db_produto_obj.status_enriquecimento_web = self.models.StatusEnriquecimentoEnum.EM_PROGRESSO
         db_produto_obj.log_enriquecimento_web = {"historico_mensagens": log_mensagens}
-        db.commit()
-        db.refresh(db_produto_obj)
+        session.commit()
+        session.refresh(db_produto_obj)
 
     async def _buscar_urls(self, *, query_candidates: List[str], busca_web_disponivel: bool, log_mensagens: List[str]) -> List[str]:
         if not busca_web_disponivel:
@@ -482,7 +496,7 @@ class _WebEnrichmentTaskWorkflow:
                     self.models.StatusEnriquecimentoEnum.FALHA_CONFIGURACAO_API_EXTERNA
                 )
                 self._register_config_failure(
-                    db=db,
+                    session=db,
                     user_id=user.id,
                     produto_id=produto_id,
                     resposta="Falha: Configuracoes de API externas ausentes.",
@@ -500,14 +514,14 @@ class _WebEnrichmentTaskWorkflow:
                     "Outras coletas de dados (Google, metadados) tentarao prosseguir."
                 )
                 self._register_config_failure(
-                    db=db,
+                    session=db,
                     user_id=user.id,
                     produto_id=produto_id,
                     resposta="Falha Parcial: Chave API OpenAI nao configurada para LLM.",
                 )
 
             self._mark_in_progress(
-                db=db,
+                session=db,
                 db_produto_obj=db_produto_obj,
                 log_mensagens=log_mensagens,
                 produto_id=produto_id,
