@@ -1,10 +1,8 @@
-# catalogai_project/Backend/services/web_data_extractor_service.py
+# Backend/infrastructure/runtime_modules/web_data_extractor_module.py
 import asyncio
 from dataclasses import dataclass
-import functools
 import sys
 import time
-import warnings
 from playwright.async_api import async_playwright, TimeoutError as PlaywrightTimeoutError
 from bs4 import BeautifulSoup
 import trafilatura # type: ignore
@@ -39,59 +37,6 @@ from Backend import models
 from Backend.application.services.ia_generation_facade import IAGenerationFacade
 
 ia_generation_service = IAGenerationFacade()
-_LEGACY_WARNED_APIS: set[str] = set()
-
-
-def _warn_legacy_public_api(api_name: str) -> None:
-    if api_name in _LEGACY_WARNED_APIS:
-        return
-    _LEGACY_WARNED_APIS.add(api_name)
-    warnings.warn(
-        (
-            f"Backend.infrastructure.runtime_modules.web_data_extractor_module.{api_name} is deprecated and "
-            "will be removed after 2026-04-30. Use Backend.application.services.web_data_extractor."
-        ),
-        DeprecationWarning,
-        stacklevel=3,
-    )
-
-
-def _decorate_legacy_public_api(func: Any):
-    if getattr(func, "__legacy_deprecation_wrapped__", False):
-        return func
-    if asyncio.iscoroutinefunction(func):
-        @functools.wraps(func)
-        async def _async_wrapper(*args: Any, **kwargs: Any):
-            _warn_legacy_public_api(func.__name__)
-            return await func(*args, **kwargs)
-
-        _async_wrapper.__legacy_deprecation_wrapped__ = True
-        return _async_wrapper
-
-    @functools.wraps(func)
-    def _sync_wrapper(*args: Any, **kwargs: Any):
-        _warn_legacy_public_api(func.__name__)
-        return func(*args, **kwargs)
-
-    _sync_wrapper.__legacy_deprecation_wrapped__ = True
-    return _sync_wrapper
-
-
-def _install_legacy_deprecation_wrappers() -> None:
-    for api_name in (
-        "busca_publica_disponivel",
-        "buscar_urls_publicas",
-        "buscar_urls_google",
-        "coletar_conteudo_pagina_playwright",
-        "extrair_texto_principal_com_trafilatura",
-        "extrair_metadados_estruturados",
-        "normalizar_dados_de_metadados",
-        "extrair_dados_produto_com_llm",
-        "extract_relevant_data_from_url",
-        "extract_text_from_image_region",
-    ):
-        globals()[api_name] = _decorate_legacy_public_api(globals()[api_name])
-
 _TRACKING_QUERY_HINTS = (
     "ad_domain=",
     "ad_provider=",

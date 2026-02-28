@@ -2,8 +2,8 @@
 
 ## Visao geral
 
-A base esta funcional e testada, mas ainda em transicao. O objetivo agora e concluir a migracao para OOP completo no backend com compatibilidade de API durante a janela de transicao.
-No estado atual, a selecao de pipeline em runtime esta em modo OOP-only: `APP_MODE` padrao e `oop`, e valores antigos (`legacy`/`shadow`) sao apenas normalizados para `oop` com warning de compatibilidade.
+A migracao OOP do backend foi concluida.
+O runtime opera em modo OOP-only (`APP_MODE=oop`) e a camada `Backend/services` foi removida do codigo produtivo.
 
 ## Checklist por dominio
 
@@ -14,7 +14,7 @@ No estado atual, a selecao de pipeline em runtime esta em modo OOP-only: `APP_MO
 - [x] Regra: `Backend/application/**` nao pode importar `Backend/routers/**`.
 - [x] Regra: `Backend/application/services/**` nao pode definir `__getattr__` em adapters/facades.
 - [x] Regra: `Backend/application/services/**` nao pode chamar metodo privado de objeto externo (`obj._algo()`).
-- [x] Regra: codigo backend fora da camada de compatibilidade (`Backend/services`, `Backend/tests`, `Backend/testing`) nao pode importar `Backend.services`.
+- [x] Regra: codigo backend nao pode importar `Backend.services`.
 
 ### Fase 1 - Onda File Processing
 
@@ -88,9 +88,9 @@ No estado atual, a selecao de pipeline em runtime esta em modo OOP-only: `APP_MO
 - [x] Zero import de `Backend/routers` em `Backend/application`.
 - [x] Sem bridges/proxies legados ativos em runtime de aplicacao.
 - [x] Zero import de `Backend/services` em `Backend/infrastructure/runtime`.
-- [x] Acoplamento de testes a internals de `Backend/services` reduzido para shim central em `Backend/testing/runtime_apis.py` (sem imports privados diretos espalhados).
+- [x] Zero import de `Backend/services` em todo backend (incluindo runtime e testes de backend).
 
-## Matriz de isolamento (transicao)
+## Matriz de isolamento
 
 | Fluxo | Modulo OOP principal | Dependencia direta de `Backend/services` na aplicacao |
 |---|---|---|
@@ -100,8 +100,8 @@ No estado atual, a selecao de pipeline em runtime esta em modo OOP-only: `APP_MO
 | Limites e creditos | `Backend/application/services/limit_service_facade.py` + `Backend/application/services/ports.py` | Nao |
 | Validator crew | `Backend/application/services/validator_crew_facade.py` + `Backend/application/services/ports.py` | Nao |
 
-## Pontos de transicao planejados
+## Arquitetura final
 
 - Adapters OOP padrao concentrados em `Backend/infrastructure/adapters/`.
 - Provedores de runtime concentrados em `Backend/infrastructure/runtime/` consumindo `Backend/infrastructure/runtime_modules/`.
-- `Backend/services/*` mantido apenas como camada de compatibilidade temporaria (wrappers de reexport), fora do caminho OOP padrao.
+- Implementacoes de dominio/runtime concentradas em `Backend/infrastructure/runtime_modules/`.

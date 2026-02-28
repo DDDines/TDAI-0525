@@ -1,4 +1,4 @@
-﻿# Backend/services/ia_generation_service.py
+﻿# Backend/infrastructure/runtime_modules/ia_generation_module.py
 
 import httpx # Para chamadas HTTP assÃƒÂ­ncronas
 import json
@@ -854,6 +854,7 @@ async def sugerir_valores_atributos_com_gemini(
         produto_id=produto_id,
         user=user,
     )
+
 
 
 

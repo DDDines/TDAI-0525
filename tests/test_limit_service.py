@@ -46,7 +46,7 @@ import pytest
 from fastapi import HTTPException, status
 
 ROOT = Path(__file__).resolve().parents[1]
-module_path = ROOT / "Backend" / "services" / "limit_service.py"
+module_path = ROOT / "Backend" / "infrastructure" / "runtime_modules" / "limit_module.py"
 
 # --- Prepare stub modules so limit_service can be imported without dependencies ---
 stub_sqlalchemy = types.ModuleType("sqlalchemy")
