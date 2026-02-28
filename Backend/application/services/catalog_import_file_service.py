@@ -5,7 +5,6 @@ from typing import Any
 from fastapi import HTTPException
 
 from Backend.application.services.repository_runtime_support import (
-    bind_repository,
     call_repository_method,
 )
 
@@ -20,10 +19,7 @@ class CatalogImportFileService:
         file_processing_service: Any,
         catalog_import_start_service: Any,
         catalog_file_repository: Any | None = None,
-        **legacy_kwargs: Any,
     ) -> None:
-        if catalog_file_repository is None:
-            catalog_file_repository = legacy_kwargs.pop("catalog_file_repository", None)
         if catalog_file_repository is None:
             from Backend.infrastructure.repositories.catalog_import_file_repository import (
                 CatalogImportFileRepository,
@@ -40,14 +36,14 @@ class CatalogImportFileService:
         self,
         *,
         catalog_file_repo: Any | None = None,
-        **legacy_kwargs: Any,
     ) -> Any:
         if catalog_file_repo is not None:
             return catalog_file_repo
-        db = legacy_kwargs.pop("db", None)
-        if db is not None:
-            return bind_repository(self._catalog_file_repository, db=db)
-        raise ValueError("catalog_file_repo or db is required")
+        if self._catalog_file_repository is None:
+            raise ValueError("catalog_file_repo is required")
+        if isinstance(self._catalog_file_repository, type):
+            raise ValueError("catalog_file_repo instance is required")
+        return self._catalog_file_repository
 
     def list_user_files(
         self,
@@ -57,16 +53,14 @@ class CatalogImportFileService:
         fornecedor_id: int | None,
         skip: int,
         limit: int,
-        **legacy_kwargs: Any,
     ) -> dict[str, Any]:
         repo = self._resolve_catalog_file_repo(
             catalog_file_repo=catalog_file_repo,
-            **legacy_kwargs,
         )
         items, total_items = call_repository_method(
             repo,
             "list_catalog_files_for_user",
-            db=getattr(repo, "_db", None),
+            session=getattr(repo, "_db", None),
             user_id=user_id,
             fornecedor_id=fornecedor_id,
             skip=skip,
@@ -85,16 +79,14 @@ class CatalogImportFileService:
         catalog_file_repo: Any | None = None,
         file_id: int,
         user_id: int,
-        **legacy_kwargs: Any,
     ) -> Any:
         repo = self._resolve_catalog_file_repo(
             catalog_file_repo=catalog_file_repo,
-            **legacy_kwargs,
         )
         record = call_repository_method(
             repo,
             "get_catalog_file_for_user",
-            db=getattr(repo, "_db", None),
+            session=getattr(repo, "_db", None),
             file_id=file_id,
             user_id=user_id,
         )
@@ -108,11 +100,9 @@ class CatalogImportFileService:
         catalog_file_repo: Any | None = None,
         file_id: int,
         user_id: int,
-        **legacy_kwargs: Any,
     ) -> Any:
         repo = self._resolve_catalog_file_repo(
             catalog_file_repo=catalog_file_repo,
-            **legacy_kwargs,
         )
         record = self.get_user_file_or_404(
             catalog_file_repo=repo,
@@ -123,7 +113,7 @@ class CatalogImportFileService:
         call_repository_method(
             repo,
             "delete_catalog_file",
-            db=getattr(repo, "_db", None),
+            session=getattr(repo, "_db", None),
             catalog_file=record,
         )
         return record
@@ -132,7 +122,6 @@ class CatalogImportFileService:
         self,
         *,
         background_tasks: Any,
-        db: Any,
         file_id: int,
         user_id: int,
         product_type_id: int | None,
@@ -140,11 +129,23 @@ class CatalogImportFileService:
         mapping: dict[str, str] | None,
         pages: list[int] | None,
         region: list[float] | None,
+        catalog_file_repo: Any | None = None,
+        fornecedor_repo: Any | None = None,
+        db_session_factory: Any | None = None,
     ) -> dict[str, Any]:
+        if catalog_file_repo is None:
+            catalog_file_repo = self._resolve_catalog_file_repo()
+        if fornecedor_repo is None:
+            fornecedor_repo = getattr(self._catalog_import_start_service, "_fornecedor_repo", None)
+        if fornecedor_repo is None:
+            raise ValueError("fornecedor_repo is required")
+        if db_session_factory is None:
+            raise ValueError("db_session_factory is required")
+
         catalog_file = self._catalog_import_start_service.get_catalog_file_or_404(
-            db=db,
             file_id=file_id,
             user_id=user_id,
+            catalog_file_repo=catalog_file_repo,
         )
         fornecedor_id_final = self._catalog_import_start_service.resolve_fornecedor_id(
             catalog_file=catalog_file,
@@ -152,15 +153,15 @@ class CatalogImportFileService:
             required_message="fornecedor_id e obrigatorio para reprocessar este arquivo.",
         )
         self._catalog_import_start_service.mark_processing(
-            db=db,
             catalog_file=catalog_file,
             fornecedor_id=fornecedor_id_final,
             reset_pages=True,
+            catalog_file_repo=catalog_file_repo,
         )
         resolved_mapping = self._catalog_import_start_service.resolve_mapping(
-            db=db,
             fornecedor_id=fornecedor_id_final,
             mapping=mapping,
+            fornecedor_repo=fornecedor_repo,
         )
         command = self._catalog_import_start_service.build_finalize_command(
             file_id=file_id,
@@ -173,7 +174,7 @@ class CatalogImportFileService:
         )
         await self._catalog_import_start_service.dispatch_finalize(
             background_tasks=background_tasks,
-            db=db,
             command=command,
+            db_session_factory=db_session_factory,
         )
         return {"status": "PROCESSING", "file_id": file_id}

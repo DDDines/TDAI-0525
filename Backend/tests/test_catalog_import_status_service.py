@@ -12,50 +12,41 @@ from Backend.application.services.catalog_import_status_service import (
 )
 
 
-class _QueryStub:
-    def __init__(self, record):
-        self._record = record
-
-    def filter_by(self, **kwargs):
-        _ = kwargs
-        return self
-
-    def first(self):
-        return self._record
-
-
-class _DbStub:
-    def __init__(self, record):
-        self._record = record
-
-    def query(self, model):
-        _ = model
-        return _QueryStub(self._record)
-
-
 class _ModelsStub:
     class CatalogImportFile:
         pass
 
 
-def _build_service():
-    return CatalogImportStatusService(models=_ModelsStub)
+class _CatalogFileRepoStub:
+    def __init__(self, record):
+        self._record = record
+
+    def get_catalog_file_for_user(self, *, file_id: int, user_id: int):
+        _ = (file_id, user_id)
+        return self._record
+
+
+def _build_service(record=None):
+    return CatalogImportStatusService(
+        models=_ModelsStub,
+        catalog_file_repository=_CatalogFileRepoStub(record),
+    )
 
 
 def test_get_record_or_404_returns_record():
     record = SimpleNamespace(id=10)
-    service = _build_service()
+    service = _build_service(record=record)
 
-    found = service.get_record_or_404(db=_DbStub(record), file_id=10, user_id=1)
+    found = service.get_record_or_404(file_id=10, user_id=1)
 
     assert found is record
 
 
 def test_get_record_or_404_raises_404_when_missing():
-    service = _build_service()
+    service = _build_service(record=None)
 
     with pytest.raises(HTTPException) as exc:
-        service.get_record_or_404(db=_DbStub(None), file_id=10, user_id=1)
+        service.get_record_or_404(file_id=10, user_id=1)
 
     assert exc.value.status_code == 404
 

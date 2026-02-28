@@ -6,7 +6,6 @@ from fastapi import HTTPException, status
 from fastapi.responses import JSONResponse
 
 from Backend.application.services.repository_runtime_support import (
-    bind_repository,
     call_repository_method,
 )
 
@@ -21,10 +20,7 @@ class CatalogImportStatusService:
         *,
         models: Any,
         catalog_file_repository: Any | None = None,
-        **legacy_kwargs: Any,
     ) -> None:
-        if catalog_file_repository is None:
-            catalog_file_repository = legacy_kwargs.pop("catalog_file_repository", None)
         if catalog_file_repository is None:
             from Backend.infrastructure.repositories.catalog_import_file_repository import (
                 CatalogImportFileRepository,
@@ -39,14 +35,14 @@ class CatalogImportStatusService:
         self,
         *,
         catalog_file_repo: Any | None = None,
-        **legacy_kwargs: Any,
     ) -> Any:
         if catalog_file_repo is not None:
             return catalog_file_repo
-        db = legacy_kwargs.pop("db", None)
-        if db is not None:
-            return bind_repository(self._catalog_file_repository, db=db)
-        raise ValueError("catalog_file_repo or db is required")
+        if self._catalog_file_repository is None:
+            raise ValueError("catalog_file_repo is required")
+        if isinstance(self._catalog_file_repository, type):
+            raise ValueError("catalog_file_repo instance is required")
+        return self._catalog_file_repository
 
     def get_record_or_404(
         self,
@@ -54,16 +50,14 @@ class CatalogImportStatusService:
         file_id: int,
         user_id: int,
         catalog_file_repo: Any | None = None,
-        **legacy_kwargs: Any,
     ) -> Any:
         repo = self._resolve_catalog_file_repo(
             catalog_file_repo=catalog_file_repo,
-            **legacy_kwargs,
         )
         record = call_repository_method(
             repo,
             "get_catalog_file_for_user",
-            db=getattr(repo, "_db", None),
+            session=getattr(repo, "_db", None),
             file_id=file_id,
             user_id=user_id,
         )

@@ -21,59 +21,23 @@ class _ModelsStub:
     CatalogImportFile = _CatalogImportFileModel
 
 
-class _QueryStub:
-    def __init__(self, *, items=None, first_record=None):
-        self._items = items or []
-        self._first_record = first_record
-        self.offset_value = None
-        self.limit_value = None
-
-    def filter(self, *args, **kwargs):
-        _ = (args, kwargs)
-        return self
-
-    def filter_by(self, **kwargs):
-        _ = kwargs
-        return self
-
-    def count(self):
-        return len(self._items)
-
-    def order_by(self, *args, **kwargs):
-        _ = (args, kwargs)
-        return self
-
-    def offset(self, value):
-        self.offset_value = value
-        return self
-
-    def limit(self, value):
-        self.limit_value = value
-        return self
-
-    def all(self):
-        return self._items
-
-    def first(self):
-        return self._first_record
-
-
-class _DbStub:
+class _CatalogFileRepoStub:
     def __init__(self, *, items=None, first_record=None):
         self._items = items or []
         self._first_record = first_record
         self.deleted = []
-        self.commits = 0
 
-    def query(self, model):
-        _ = model
-        return _QueryStub(items=self._items, first_record=self._first_record)
+    def list_catalog_files_for_user(self, *, user_id: int, fornecedor_id: int | None, skip: int, limit: int):
+        _ = (user_id, fornecedor_id, skip, limit)
+        return self._items, len(self._items)
 
-    def delete(self, item):
-        self.deleted.append(item)
+    def get_catalog_file_for_user(self, *, file_id: int, user_id: int):
+        _ = (file_id, user_id)
+        return self._first_record
 
-    def commit(self):
-        self.commits += 1
+    def delete_catalog_file(self, *, catalog_file):
+        self.deleted.append(catalog_file)
+        return None
 
 
 class _FileProcessingStub:
@@ -125,10 +89,10 @@ def _build_service():
 
 def test_list_user_files_builds_page_payload():
     service, _, _ = _build_service()
-    db = _DbStub(items=[SimpleNamespace(id=1), SimpleNamespace(id=2)])
+    repo = _CatalogFileRepoStub(items=[SimpleNamespace(id=1), SimpleNamespace(id=2)])
 
     payload = service.list_user_files(
-        db=db,
+        catalog_file_repo=repo,
         user_id=10,
         fornecedor_id=3,
         skip=0,
@@ -143,10 +107,10 @@ def test_list_user_files_builds_page_payload():
 
 def test_get_user_file_or_404_raises_when_missing():
     service, _, _ = _build_service()
-    db = _DbStub(first_record=None)
+    repo = _CatalogFileRepoStub(first_record=None)
 
     with pytest.raises(HTTPException) as exc:
-        service.get_user_file_or_404(db=db, file_id=7, user_id=10)
+        service.get_user_file_or_404(catalog_file_repo=repo, file_id=7, user_id=10)
 
     assert exc.value.status_code == 404
 
@@ -154,14 +118,13 @@ def test_get_user_file_or_404_raises_when_missing():
 def test_delete_user_file_deletes_binary_and_record():
     service, file_processing, _ = _build_service()
     record = SimpleNamespace(id=7, stored_filename="abc.pdf")
-    db = _DbStub(first_record=record)
+    repo = _CatalogFileRepoStub(first_record=record)
 
-    deleted = service.delete_user_file(db=db, file_id=7, user_id=10)
+    deleted = service.delete_user_file(catalog_file_repo=repo, file_id=7, user_id=10)
 
     assert deleted is record
     assert file_processing.deleted_files == ["abc.pdf"]
-    assert db.deleted == [record]
-    assert db.commits == 1
+    assert repo.deleted == [record]
 
 
 def test_reprocess_catalog_file_dispatches_finalize():
@@ -170,7 +133,6 @@ def test_reprocess_catalog_file_dispatches_finalize():
     payload = asyncio.run(
         service.reprocess_catalog_file(
             background_tasks=object(),
-            db=object(),
             file_id=99,
             user_id=10,
             product_type_id=4,
@@ -178,6 +140,9 @@ def test_reprocess_catalog_file_dispatches_finalize():
             mapping={"col_0": "nome_base"},
             pages=[1, 2],
             region=[1.0, 2.0, 3.0, 4.0],
+            catalog_file_repo=_CatalogFileRepoStub(first_record=SimpleNamespace(id=99)),
+            fornecedor_repo=object(),
+            db_session_factory=lambda: object(),
         )
     )
 

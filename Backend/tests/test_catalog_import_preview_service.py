@@ -20,37 +20,18 @@ class _ModelsStub:
     CatalogImportFile = _CatalogImportFileModel
 
 
-class _QueryStub:
+class _CatalogFileRepoStub:
     def __init__(self, record):
-        self._record = record
-
-    def filter_by(self, **kwargs):
-        _ = kwargs
-        return self
-
-    def first(self):
-        return self._record
-
-
-class _DbStub:
-    def __init__(self, record=None):
         self.record = record
-        self.added = []
-        self.committed = 0
-        self.refreshed = []
+        self.saved = []
 
-    def query(self, model):
-        _ = model
-        return _QueryStub(self.record)
+    def get_catalog_file_for_user(self, *, file_id: int, user_id: int):
+        _ = (file_id, user_id)
+        return self.record
 
-    def add(self, obj):
-        self.added.append(obj)
-
-    def commit(self):
-        self.committed += 1
-
-    def refresh(self, obj):
-        self.refreshed.append(obj)
+    def save_catalog_file(self, *, catalog_file):
+        self.saved.append(catalog_file)
+        return catalog_file
 
 
 class _UploadFileStub:
@@ -170,6 +151,7 @@ class _PdfPlumberStub:
 def _build_service(*, upload_dir: Path, record=None, pages=None):
     file_processing = _FileProcessingStub()
     logger = _LoggerStub()
+    catalog_file_repo = _CatalogFileRepoStub(record=record)
     service = CatalogImportPreviewService(
         models=_ModelsStub,
         settings=SimpleNamespace(UPLOAD_DIRECTORY=str(upload_dir)),
@@ -177,14 +159,14 @@ def _build_service(*, upload_dir: Path, record=None, pages=None):
         resolve_storage_path=lambda p: Path(p),
         logger=logger,
         pdfplumber_module=_PdfPlumberStub(pages or [_PageStub()]),
+        catalog_file_repository=catalog_file_repo,
     )
-    db = _DbStub(record=record)
-    return service, file_processing, logger, db
+    return service, file_processing, logger, catalog_file_repo
 
 
 def test_importar_catalogo_preview_pdf_success(tmp_path):
     record = SimpleNamespace(id=10, original_filename="catalogo.pdf", stored_filename="x.pdf")
-    service, file_processing, _, db = _build_service(upload_dir=tmp_path, record=record)
+    service, file_processing, _, catalog_file_repo = _build_service(upload_dir=tmp_path, record=record)
     file_processing.saved_record = record
     file_processing.preview_response = {
         "num_pages": 2,
@@ -202,7 +184,6 @@ def test_importar_catalogo_preview_pdf_success(tmp_path):
             start_page=1,
             page_count=5,
             dpi=72,
-            db=db,
             user_id=99,
         )
     )
@@ -210,7 +191,7 @@ def test_importar_catalogo_preview_pdf_success(tmp_path):
     assert result["file_id"] == 10
     assert result["error"] is None
     assert record.user_id == 99
-    assert db.committed == 1
+    assert len(catalog_file_repo.saved) == 1
 
 
 def test_selecionar_regiao_uses_dataframe_rows(tmp_path):
@@ -219,7 +200,7 @@ def test_selecionar_regiao_uses_dataframe_rows(tmp_path):
     (catalogs_dir / "arquivo.pdf").write_bytes(b"dummy")
 
     record = SimpleNamespace(id=1, stored_filename="arquivo.pdf")
-    service, file_processing, _, db = _build_service(upload_dir=tmp_path, record=record)
+    service, file_processing, _, _ = _build_service(upload_dir=tmp_path, record=record)
     file_processing.df_region = _DataFrameStub(
         rows=[
             {"col_1": "1816D", "col_2": "Paralama"},
@@ -232,7 +213,6 @@ def test_selecionar_regiao_uses_dataframe_rows(tmp_path):
         page=1,
         bbox=[0, 0, 900, 900],
         bbox_norm=None,
-        db=db,
         user_id=3,
     )
 
@@ -242,14 +222,13 @@ def test_selecionar_regiao_uses_dataframe_rows(tmp_path):
 
 
 def test_extrair_pagina_unica_raises_404_when_record_missing(tmp_path):
-    service, _, _, db = _build_service(upload_dir=tmp_path, record=None)
+    service, _, _, _ = _build_service(upload_dir=tmp_path, record=None)
 
     with pytest.raises(HTTPException) as exc:
         asyncio.run(
             service.extrair_pagina_unica(
                 file_id=1,
                 page_number=1,
-                db=db,
                 user_id=7,
             )
         )
@@ -263,13 +242,12 @@ def test_extrair_pagina_unica_success(tmp_path):
     (catalogs_dir / "arquivo.pdf").write_bytes(b"pdf")
 
     record = SimpleNamespace(id=1, stored_filename="arquivo.pdf")
-    service, _, _, db = _build_service(upload_dir=tmp_path, record=record)
+    service, _, _, _ = _build_service(upload_dir=tmp_path, record=record)
 
     result = asyncio.run(
         service.extrair_pagina_unica(
             file_id=1,
             page_number=3,
-            db=db,
             user_id=7,
         )
     )
