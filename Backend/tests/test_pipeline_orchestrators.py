@@ -30,10 +30,10 @@ def _restore_app_mode():
         settings.APP_MODE = original
 
 
-def test_catalog_import_orchestrator_uses_legacy_in_shadow_mode():
+def test_catalog_import_orchestrator_uses_oop_in_shadow_mode():
     settings.APP_MODE = "shadow"
     orchestrator = CatalogImportPipelineOrchestrator(
-        legacy_executor=_dummy_executor,
+        oop_executor=_dummy_executor,
     )
     command = CatalogImportFinalizeCommand(
         file_id=123,
@@ -48,7 +48,7 @@ def test_catalog_import_orchestrator_uses_legacy_in_shadow_mode():
         db_session_factory=SimpleNamespace(name="db_factory"),
         command=command,
     )
-    assert plan.executor_name == "legacy_catalog_import_task"
+    assert plan.executor_name == "oop_catalog_import_task"
     assert plan.task_kwargs["file_id"] == 123
     assert plan.task_kwargs["fornecedor_id"] == 8
 
@@ -56,7 +56,7 @@ def test_catalog_import_orchestrator_uses_legacy_in_shadow_mode():
 def test_catalog_import_orchestrator_uses_oop_in_oop_mode():
     settings.APP_MODE = "oop"
     orchestrator = CatalogImportPipelineOrchestrator(
-        legacy_executor=_dummy_executor,
+        oop_executor=_dummy_executor,
     )
     command = CatalogImportFinalizeCommand(
         file_id=1,
@@ -76,10 +76,10 @@ def test_catalog_import_orchestrator_uses_oop_in_oop_mode():
     assert plan.task_kwargs["pages"] == [1, 2, 3]
 
 
-def test_web_enrichment_orchestrator_uses_legacy_in_shadow_mode():
+def test_web_enrichment_orchestrator_uses_oop_in_shadow_mode():
     settings.APP_MODE = "shadow"
     orchestrator = WebEnrichmentPipelineOrchestrator(
-        legacy_executor=_dummy_executor,
+        oop_executor=_dummy_executor,
     )
     command = WebEnrichmentStartCommand(
         produto_id=10,
@@ -90,14 +90,14 @@ def test_web_enrichment_orchestrator_uses_legacy_in_shadow_mode():
         db_session_factory=SimpleNamespace(name="db_factory"),
         command=command,
     )
-    assert plan.executor_name == "legacy_web_enrichment_task"
+    assert plan.executor_name == "oop_web_enrichment_task"
     assert plan.task_kwargs["produto_id"] == 10
 
 
 def test_web_enrichment_orchestrator_uses_oop_in_oop_mode():
     settings.APP_MODE = "oop"
     orchestrator = WebEnrichmentPipelineOrchestrator(
-        legacy_executor=_dummy_executor,
+        oop_executor=_dummy_executor,
     )
     command = WebEnrichmentStartCommand(
         produto_id=10,
@@ -117,16 +117,11 @@ async def test_catalog_import_orchestrator_executes_only_oop_executor_in_oop_mod
     settings.APP_MODE = "oop"
     calls = []
 
-    async def _legacy_executor(**kwargs):
-        _ = kwargs
-        raise AssertionError("legacy executor should not run in APP_MODE=oop")
-
     async def _oop_executor(**kwargs):
         calls.append(kwargs)
         return kwargs
 
     orchestrator = CatalogImportPipelineOrchestrator(
-        legacy_executor=_legacy_executor,
         oop_executor=_oop_executor,
     )
     command = CatalogImportFinalizeCommand(
@@ -155,16 +150,11 @@ async def test_web_enrichment_orchestrator_executes_only_oop_executor_in_oop_mod
     settings.APP_MODE = "oop"
     calls = []
 
-    async def _legacy_executor(**kwargs):
-        _ = kwargs
-        raise AssertionError("legacy executor should not run in APP_MODE=oop")
-
     async def _oop_executor(**kwargs):
         calls.append(kwargs)
         return kwargs
 
     orchestrator = WebEnrichmentPipelineOrchestrator(
-        legacy_executor=_legacy_executor,
         oop_executor=_oop_executor,
     )
     command = WebEnrichmentStartCommand(

@@ -141,7 +141,6 @@ def test_dispatch_start_selects_and_dispatches():
         background_tasks=object(),
         db_session_factory=lambda: _DbSessionStub(),
         command=command,
-        legacy_executor=object(),
         oop_executor=object(),
     )
 

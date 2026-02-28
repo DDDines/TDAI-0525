@@ -18,7 +18,6 @@ class CatalogImportFinalizeService:
     def __init__(
         self,
         *,
-        legacy_executor: Any,
         oop_executor: Any,
         dispatcher_cls: Any = PipelineDispatcher,
         orchestrator: Any = None,
@@ -26,7 +25,6 @@ class CatalogImportFinalizeService:
         thread_name_prefix: str = "catalog-import",
     ) -> None:
         self._orchestrator = orchestrator or CatalogImportPipelineOrchestrator(
-            legacy_executor=legacy_executor,
             oop_executor=oop_executor,
         )
         self._dispatcher = dispatcher_cls

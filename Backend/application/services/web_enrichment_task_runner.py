@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Any, Optional
+from typing import Any, Dict, Optional
 
 from Backend.application.services.web_enrichment_task_service import (
     WebEnrichmentTaskService,
@@ -8,7 +8,7 @@ from Backend.application.services.web_enrichment_task_service import (
 
 
 class WebEnrichmentTaskRunner:
-    """Orquestra instancias legacy/oop do servico de task de enriquecimento."""
+    """Orquestra instancia OOP do servico de task de enriquecimento."""
 
     def __init__(
         self,
@@ -53,33 +53,27 @@ class WebEnrichmentTaskRunner:
             "metadata_has_minimum_signal": metadata_has_minimum_signal,
             "is_source_relevant_for_product": is_source_relevant_for_product,
         }
-        self._legacy_web_extractor = legacy_web_extractor or web_extractor
-        self._oop_web_extractor = oop_web_extractor or web_extractor
-        self._legacy_service: Optional[WebEnrichmentTaskService] = None
-        self._oop_service: Optional[WebEnrichmentTaskService] = None
+        _ = (legacy_web_extractor, oop_web_extractor)
+        self._web_extractor = web_extractor
+        self._services: Dict[str, WebEnrichmentTaskService] = {}
 
-    def _build(self, *, pipeline_variant: str) -> WebEnrichmentTaskService:
+    def _build(self, *, pipeline_variant: str = "oop") -> WebEnrichmentTaskService:
+        _ = pipeline_variant
         build_kwargs = dict(self._kwargs)
-        build_kwargs["web_extractor"] = (
-            self._legacy_web_extractor
-            if pipeline_variant == "legacy"
-            else self._oop_web_extractor
-        )
+        build_kwargs["web_extractor"] = self._web_extractor
         return WebEnrichmentTaskService(
-            pipeline_variant=pipeline_variant,
+            pipeline_variant="oop",
             **build_kwargs,
         )
 
-    def _get_service(self, variant: str) -> WebEnrichmentTaskService:
-        if variant == "legacy":
-            if self._legacy_service is None:
-                self._legacy_service = self._build(pipeline_variant="legacy")
-            return self._legacy_service
-        if self._oop_service is None:
-            self._oop_service = self._build(pipeline_variant="oop")
-        return self._oop_service
+    def _get_service(self, *, pipeline_variant: str = "oop") -> WebEnrichmentTaskService:
+        service = self._services.get(pipeline_variant)
+        if service is None:
+            service = self._build(pipeline_variant=pipeline_variant)
+            self._services[pipeline_variant] = service
+        return service
 
-    async def execute_legacy(
+    async def execute(
         self,
         *,
         db_session_factory: Any,
@@ -87,7 +81,7 @@ class WebEnrichmentTaskRunner:
         user_id: int,
         termos_busca_override: Optional[str] = None,
     ) -> None:
-        await self._get_service("legacy").execute(
+        await self._get_service(pipeline_variant="oop").execute(
             db_session_factory=db_session_factory,
             produto_id=produto_id,
             user_id=user_id,
@@ -95,4 +89,8 @@ class WebEnrichmentTaskRunner:
         )
 
     async def execute_oop(self, **task_kwargs: Any) -> None:
-        await self._get_service("oop").execute(**task_kwargs)
+        await self._get_service(pipeline_variant="oop").execute(**task_kwargs)
+
+    async def execute_legacy(self, **task_kwargs: Any) -> None:
+        await self._get_service(pipeline_variant="legacy").execute(**task_kwargs)
+

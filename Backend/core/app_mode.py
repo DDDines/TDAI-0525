@@ -50,14 +50,24 @@ class _AppModeWorkflow:
 
 
 class _AppModeRuntime:
-    """Runtime OO para resoluÃ§Ã£o de modo de execuÃ§Ã£o e comparaÃ§Ã£o shadow."""
+    """Runtime para resolucao de modo de execucao.
+
+    A plataforma opera em OOP-only. Valores legacy/shadow sao aceitos apenas
+    para compatibilidade de configuracao, mas nao alteram a selecao final.
+    """
 
     def get_app_mode(self) -> AppMode:
-        raw_mode = str(getattr(settings, "APP_MODE", AppMode.LEGACY.value) or "").strip().lower()
-        if raw_mode in {mode.value for mode in AppMode}:
-            return AppMode(raw_mode)
-        logger.warning("APP_MODE invalido '%s'. Usando modo legacy.", raw_mode)
-        return AppMode.LEGACY
+        raw_mode = str(getattr(settings, "APP_MODE", AppMode.OOP.value) or "").strip().lower()
+        if raw_mode == AppMode.OOP.value:
+            return AppMode.OOP
+        if raw_mode in {AppMode.LEGACY.value, AppMode.SHADOW.value}:
+            logger.warning(
+                "APP_MODE=%s nao e mais suportado. Forcando modo oop.",
+                raw_mode,
+            )
+            return AppMode.OOP
+        logger.warning("APP_MODE invalido '%s'. Forcando modo oop.", raw_mode)
+        return AppMode.OOP
 
     def normalize_for_compare(self, value: Any) -> Any:
         if value is None:

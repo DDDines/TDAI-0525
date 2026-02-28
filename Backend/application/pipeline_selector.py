@@ -1,9 +1,9 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Any, Awaitable, Callable, Dict
+from typing import Any, Awaitable, Callable, Dict, Optional
 
-from Backend.core.app_mode import AppMode, compare_shadow_payloads, get_app_mode
+from Backend.core.app_mode import AppMode, get_app_mode
 from Backend.core.logging_config import get_logger
 
 logger = get_logger(__name__)
@@ -27,30 +27,29 @@ class TaskExecutionPlan:
 
 
 class PipelineSelector:
-    """Selects legacy/oop plan according to APP_MODE.
+    """Selects OOP execution plan.
 
-    - legacy: execute legacy plan
-    - oop: execute oop plan
-    - shadow: execute legacy plan and log diff between plans
+    APP_MODE values different from "oop" are tolerated only for transition
+    compatibility, but selection remains OOP-only.
     """
 
     def __init__(self, context: str):
         self.context = context
 
-    def select(self, legacy_plan: TaskExecutionPlan, oop_plan: TaskExecutionPlan) -> TaskExecutionPlan:
+    def select(
+        self,
+        *,
+        oop_plan: TaskExecutionPlan,
+        legacy_plan: Optional[TaskExecutionPlan] = None,
+    ) -> TaskExecutionPlan:
+        _ = legacy_plan
         mode = get_app_mode()
-        if mode == AppMode.OOP:
-            logger.info("APP_MODE=oop (%s): selecionado plano OOP", self.context)
-            return oop_plan
-
-        if mode == AppMode.SHADOW:
-            compare_shadow_payloads(
+        if mode != AppMode.OOP:
+            logger.warning(
+                "APP_MODE=%s (%s) detectado; forcando plano OOP.",
+                mode.value,
                 self.context,
-                legacy_plan.to_compare_payload(),
-                oop_plan.to_compare_payload(),
             )
-            logger.info("APP_MODE=shadow (%s): executando plano LEGACY", self.context)
-            return legacy_plan
-
-        logger.info("APP_MODE=legacy (%s): executando plano LEGACY", self.context)
-        return legacy_plan
+        else:
+            logger.info("APP_MODE=oop (%s): selecionado plano OOP", self.context)
+        return oop_plan

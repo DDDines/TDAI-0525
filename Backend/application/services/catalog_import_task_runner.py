@@ -8,7 +8,7 @@ from Backend.application.services.catalog_import_task_service import (
 
 
 class CatalogImportTaskRunner:
-    """Orquestra instâncias legacy/oop do serviço de task de importação."""
+    """Orquestra instancia OOP do servico de task de importacao."""
 
     def __init__(
         self,
@@ -57,37 +57,27 @@ class CatalogImportTaskRunner:
             "write_catalog_import_report": write_catalog_import_report,
             "normalize_import_text": normalize_import_text,
         }
-        self._legacy_file_processing_service = (
-            legacy_file_processing_service or file_processing_service
-        )
-        self._oop_file_processing_service = (
-            oop_file_processing_service or file_processing_service
-        )
-        self._legacy_service: Optional[CatalogImportTaskService] = None
-        self._oop_service: Optional[CatalogImportTaskService] = None
+        _ = (legacy_file_processing_service, oop_file_processing_service)
+        self._file_processing_service = file_processing_service
+        self._services: Dict[str, CatalogImportTaskService] = {}
 
-    def _build(self, *, pipeline_variant: str) -> CatalogImportTaskService:
+    def _build(self, *, pipeline_variant: str = "oop") -> CatalogImportTaskService:
+        _ = pipeline_variant
         build_kwargs = dict(self._kwargs)
-        build_kwargs["file_processing_service"] = (
-            self._legacy_file_processing_service
-            if pipeline_variant == "legacy"
-            else self._oop_file_processing_service
-        )
+        build_kwargs["file_processing_service"] = self._file_processing_service
         return CatalogImportTaskService(
-            pipeline_variant=pipeline_variant,
+            pipeline_variant="oop",
             **build_kwargs,
         )
 
-    def _get_service(self, variant: str) -> CatalogImportTaskService:
-        if variant == "legacy":
-            if self._legacy_service is None:
-                self._legacy_service = self._build(pipeline_variant="legacy")
-            return self._legacy_service
-        if self._oop_service is None:
-            self._oop_service = self._build(pipeline_variant="oop")
-        return self._oop_service
+    def _get_service(self, *, pipeline_variant: str = "oop") -> CatalogImportTaskService:
+        service = self._services.get(pipeline_variant)
+        if service is None:
+            service = self._build(pipeline_variant=pipeline_variant)
+            self._services[pipeline_variant] = service
+        return service
 
-    async def execute_legacy(
+    async def execute(
         self,
         *,
         db_session_factory: Any,
@@ -99,7 +89,7 @@ class CatalogImportTaskRunner:
         pages: Optional[List[int]] = None,
         region: Optional[List[float]] = None,
     ) -> None:
-        await self._get_service("legacy").execute(
+        await self._get_service(pipeline_variant="oop").execute(
             db_session_factory=db_session_factory,
             file_id=file_id,
             user_id=user_id,
@@ -111,4 +101,8 @@ class CatalogImportTaskRunner:
         )
 
     async def execute_oop(self, **task_kwargs: Any) -> None:
-        await self._get_service("oop").execute(**task_kwargs)
+        await self._get_service(pipeline_variant="oop").execute(**task_kwargs)
+
+    async def execute_legacy(self, **task_kwargs: Any) -> None:
+        await self._get_service(pipeline_variant="legacy").execute(**task_kwargs)
+

@@ -56,7 +56,6 @@ def _build_command() -> CatalogImportFinalizeCommand:
 
 def _build_service(plan: TaskExecutionPlan) -> CatalogImportFinalizeService:
     return CatalogImportFinalizeService(
-        legacy_executor=object(),
         oop_executor=object(),
         dispatcher_cls=_DispatcherStub,
         orchestrator=_OrchestratorStub(plan),

@@ -53,9 +53,6 @@ from Backend.application.services import (
 from Backend.application.services.service_container import service_container
 from Backend.core.config import settings
 from Backend.core.logging_config import get_logger
-from Backend.infrastructure.legacy.file_processing_bridge import (
-    LegacyFileProcessingBridge,
-)
 from Backend.tasks import process_pdf_extraction_task
 
 from . import auth_utils
@@ -63,7 +60,6 @@ from . import auth_utils
 logger = get_logger(__name__)
 
 file_processing_service = service_container.file_processing
-legacy_file_processing_service = LegacyFileProcessingBridge()
 web_data_extractor_service = service_container.web_data_extractor
 catalog_log_dir = Path(__file__).resolve().parent.parent / "logs"
 catalog_log_dir.mkdir(parents=True, exist_ok=True)
@@ -84,8 +80,6 @@ catalog_import_task_runner = CatalogImportTaskRunner(
     schemas=schemas,
     crud_produtos=crud_produtos,
     file_processing_service=file_processing_service,
-    legacy_file_processing_service=legacy_file_processing_service,
-    oop_file_processing_service=file_processing_service,
     validator_crew=validator_crew,
     settings=settings,
     path_cls=Path,
@@ -102,8 +96,7 @@ catalog_import_task_runner = CatalogImportTaskRunner(
     normalize_import_text=catalog_sanitization_service.normalize_import_text,
 )
 catalog_import_finalize_service = CatalogImportFinalizeService(
-    legacy_executor=catalog_import_task_runner.execute_legacy,
-    oop_executor=catalog_import_task_runner.execute_oop,
+    oop_executor=catalog_import_task_runner.execute,
 )
 catalog_import_start_service = CatalogImportStartService(
     models=models,

@@ -63,11 +63,9 @@ class WebEnrichmentStartService:
         background_tasks: Any,
         db_session_factory: Any,
         command: Any,
-        legacy_executor: Any,
         oop_executor: Any,
     ) -> Any:
         orchestrator = self._orchestrator_cls(
-            legacy_executor=legacy_executor,
             oop_executor=oop_executor,
         )
         selected_plan = orchestrator.select_start_plan(

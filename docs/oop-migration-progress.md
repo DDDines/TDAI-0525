@@ -3,6 +3,7 @@
 ## Visao geral
 
 A base esta funcional e testada, mas ainda em transicao. O objetivo agora e concluir a migracao para OOP completo no backend com compatibilidade de API durante a janela de transicao.
+No estado atual, a selecao de pipeline em runtime esta em modo OOP-only: `APP_MODE=legacy|shadow` e normalizado para `oop` com warning de compatibilidade.
 
 ## Checklist por dominio
 
@@ -61,7 +62,7 @@ A base esta funcional e testada, mas ainda em transicao. O objetivo agora e conc
 ### Fase 4 - Orquestracao e desacoplamento de borda
 
 - [x] Import cruzado removido: `Backend/routers/fornecedores.py` nao depende mais de `Backend/routers/produtos.py`.
-- [x] Runners com implementacoes legacy/oop distintas por dependencia injetada.
+- [x] Runners unificados em implementacao OOP unica; aliases `execute_legacy`/`execute_oop` existem apenas para compatibilidade de assinatura.
 - [x] Garantia de teste: `APP_MODE=oop` executa apenas executor OOP selecionado pelo orquestrador.
 - [x] Fluxo real validado com `APP_MODE=oop` + `STRICT_OOP_NO_LEGACY=1` para endpoint de preview de catalogo sem bridge legado no caminho OOP.
 

@@ -11,7 +11,6 @@ from Backend.application.pipelines.web_enrichment import (
 from Backend.application.use_cases.web_enrichment_processing import (
     WebEnrichmentProcessingUseCase,
 )
-from Backend.legacy.pipelines.web_enrichment import LegacyWebEnrichmentTaskBuilder
 
 TaskExecutor = Callable[..., Awaitable[Any]]
 
@@ -22,13 +21,10 @@ class WebEnrichmentPipelineOrchestrator:
     def __init__(
         self,
         *,
-        legacy_executor: TaskExecutor,
-        oop_executor: TaskExecutor | None = None,
+        oop_executor: TaskExecutor,
         context: str = "web_enrichment.start",
     ) -> None:
-        effective_oop_executor = oop_executor or legacy_executor
-        self._legacy_builder = LegacyWebEnrichmentTaskBuilder(executor=legacy_executor)
-        oop_use_case = WebEnrichmentProcessingUseCase(processor=effective_oop_executor)
+        oop_use_case = WebEnrichmentProcessingUseCase(processor=oop_executor)
         self._oop_builder = WebEnrichmentTaskBuilder(
             executor=OOPWebEnrichmentExecutor(oop_use_case)
         )
@@ -40,12 +36,6 @@ class WebEnrichmentPipelineOrchestrator:
         db_session_factory: Any,
         command: WebEnrichmentStartCommand,
     ) -> TaskExecutionPlan:
-        legacy_plan = self._legacy_builder.build_start_plan(
-            db_session_factory=db_session_factory,
-            produto_id=command.produto_id,
-            user_id=command.user_id,
-            termos_busca_override=command.termos_busca_override,
-        )
         oop_plan = self._oop_builder.build_start_plan(
             db_session_factory=db_session_factory,
             produto_id=command.produto_id,
@@ -53,6 +43,5 @@ class WebEnrichmentPipelineOrchestrator:
             termos_busca_override=command.termos_busca_override,
         )
         return self._selector.select(
-            legacy_plan=legacy_plan,
             oop_plan=oop_plan,
         )
