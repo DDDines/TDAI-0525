@@ -20,6 +20,7 @@ INFRASTRUCTURE_RUNTIME_MODULES_ROOT = (
 )
 BACKEND_TESTS_ROOT = PROJECT_ROOT / "Backend" / "tests"
 PROJECT_TESTS_ROOT = PROJECT_ROOT / "tests"
+CRUD_MODULE_FILES = sorted(BACKEND_ROOT.glob("crud_*.py"))
 
 
 def _iter_python_files(root: Path) -> Iterable[Path]:
@@ -367,6 +368,27 @@ def test_runtime_modules_do_not_expose_public_function_wrappers():
 
     assert not offenders, (
         "Runtime modules must expose workflow/factory entrypoints only "
+        "(no public procedural wrappers):\n" + "\n".join(offenders)
+    )
+
+
+def test_crud_modules_do_not_expose_public_function_wrappers():
+    offenders: list[str] = []
+    for path in CRUD_MODULE_FILES:
+        rel = path.relative_to(PROJECT_ROOT)
+        tree = _parse_python_file(path)
+        for node in tree.body:
+            if not isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
+                continue
+            function_name = node.name
+            if function_name.startswith("_"):
+                continue
+            if function_name.startswith("get_") and function_name.endswith("_workflow"):
+                continue
+            offenders.append(f"{rel}:{node.lineno} -> {function_name}")
+
+    assert not offenders, (
+        "CRUD modules must expose workflow getter entrypoints only "
         "(no public procedural wrappers):\n" + "\n".join(offenders)
     )
 

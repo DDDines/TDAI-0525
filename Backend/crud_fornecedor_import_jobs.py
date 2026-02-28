@@ -91,34 +91,3 @@ FornecedorImportJobWorkflow = _FornecedorImportJobWorkflow
 def get_fornecedor_import_job_workflow() -> FornecedorImportJobWorkflow:
     return _fornecedor_import_job_workflow
 
-
-def create_import_job(
-    db: Session,
-    user_id: int,
-    result_summary: dict,
-) -> models.FornecedorImportJob:
-    return _fornecedor_import_job_workflow.create_import_job(
-        db=db,
-        user_id=user_id,
-        result_summary=result_summary,
-    )
-
-
-def get_import_job(db: Session, job_id: int) -> Optional[models.FornecedorImportJob]:
-    return _fornecedor_import_job_workflow.get_import_job(db=db, job_id=job_id)
-
-
-def update_job_status(
-    db: Session,
-    job: models.FornecedorImportJob,
-    status: str,
-) -> models.FornecedorImportJob:
-    return _fornecedor_import_job_workflow.update_job_status(
-        db=db,
-        job=job,
-        status=status,
-    )
-
-
-
-
