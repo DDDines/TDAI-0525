@@ -809,15 +809,34 @@ def get_produtos_router_workflow() -> ProdutosRouterWorkflow:
     return produtos_router_workflow
 
 
+class _ProdutosRequestServices:
+    def __init__(
+        self,
+        *,
+        product_management_service: ProductManagementService,
+        product_media_service: ProductMediaService,
+    ) -> None:
+        self.product_management_service = product_management_service
+        self.product_media_service = product_media_service
+
+
+def _build_produtos_request_services(
+    db: Session = Depends(database.get_db),
+) -> _ProdutosRequestServices:
+    return _ProdutosRequestServices(
+        product_management_service=_ProdutosRouterRuntime._build_product_management_service(db),
+        product_media_service=_ProdutosRouterRuntime._build_product_media_service(db),
+    )
+
+
 @router.post("/", response_model=schemas.ProdutoResponse, status_code=status.HTTP_201_CREATED)
 def create_produto(
     produto: schemas.ProdutoCreate,
-    db: Session = Depends(database.get_db),
     current_user: models.User = Depends(auth_utils.get_current_active_user),
+    request_services: _ProdutosRequestServices = Depends(_build_produtos_request_services),
 ):
-    return produtos_router_workflow.create_produto(
+    return request_services.product_management_service.create_produto(
         produto=produto,
-        db=db,
         current_user=current_user,
     )
 
@@ -880,11 +899,10 @@ async def reprocess_catalog_import_file(
 @router.get("/{produto_id}", response_model=schemas.ProdutoResponse)
 def read_produto(
     produto_id: int,
-    db: Session = Depends(database.get_db),
     current_user: models.User = Depends(auth_utils.get_current_active_user),
+    request_services: _ProdutosRequestServices = Depends(_build_produtos_request_services),
 ):
-    return produtos_router_workflow.read_produto(
-        db=db,
+    return request_services.product_management_service.read_produto(
         produto_id=produto_id,
         current_user=current_user,
     )
@@ -901,7 +919,6 @@ router.add_api_route(
 
 @router.get("/", response_model=schemas.ProdutoPage)
 def read_produtos(
-    db: Session = Depends(database.get_db),
     skip: int = Query(0, ge=0, description="Numero de itens para pular"),
     limit: int = Query(10, ge=1, le=200, description="Numero maximo de itens por pagina"),
     sort_by: Optional[str] = Query(None, description="Campo para ordenacao"),
@@ -923,9 +940,9 @@ def read_produtos(
     ),
     product_type_id: Optional[int] = Query(None, description="ID do tipo de produto"),
     current_user: models.User = Depends(auth_utils.get_current_active_user),
+    request_services: _ProdutosRequestServices = Depends(_build_produtos_request_services),
 ):
-    return produtos_router_workflow.list_produtos(
-        db=db,
+    return request_services.product_management_service.list_produtos(
         skip=skip,
         limit=limit,
         sort_by=sort_by,
@@ -945,11 +962,10 @@ def read_produtos(
 def update_produto(
     produto_id: int,
     produto: schemas.ProdutoUpdate,
-    db: Session = Depends(database.get_db),
     current_user: models.User = Depends(auth_utils.get_current_active_user),
+    request_services: _ProdutosRequestServices = Depends(_build_produtos_request_services),
 ):
-    return produtos_router_workflow.update_produto(
-        db=db,
+    return request_services.product_management_service.update_produto(
         produto_id=produto_id,
         produto_update=produto,
         current_user=current_user,
@@ -959,11 +975,10 @@ def update_produto(
 @router.delete("/{produto_id}", response_model=schemas.ProdutoResponse)
 def delete_produto(
     produto_id: int,
-    db: Session = Depends(database.get_db),
     current_user: models.User = Depends(auth_utils.get_current_active_user),
+    request_services: _ProdutosRequestServices = Depends(_build_produtos_request_services),
 ):
-    return produtos_router_workflow.delete_produto(
-        db=db,
+    return request_services.product_management_service.delete_produto(
         produto_id=produto_id,
         current_user=current_user,
     )
@@ -989,11 +1004,10 @@ router.add_api_route(
 @router.post("/batch-delete/", response_model=List[schemas.ProdutoResponse])
 def batch_delete_produtos(
     produto_ids: List[int] = Body(...),
-    db: Session = Depends(database.get_db),
     current_user: models.User = Depends(auth_utils.get_current_active_user),
+    request_services: _ProdutosRequestServices = Depends(_build_produtos_request_services),
 ):
-    return produtos_router_workflow.batch_delete_produtos(
-        db=db,
+    return request_services.product_management_service.batch_delete_produtos(
         produto_ids=produto_ids,
         current_user=current_user,
     )
@@ -1003,11 +1017,10 @@ def batch_delete_produtos(
 async def upload_produto_image(
     produto_id: int,
     file: UploadFile = File(...),
-    db: Session = Depends(database.get_db),
     current_user: models.User = Depends(auth_utils.get_current_active_user),
+    request_services: _ProdutosRequestServices = Depends(_build_produtos_request_services),
 ):
-    return await produtos_router_workflow.upload_produto_image(
-        db=db,
+    return await request_services.product_media_service.upload_produto_image(
         produto_id=produto_id,
         file=file,
         current_user=current_user,
