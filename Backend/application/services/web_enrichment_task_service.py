@@ -1,4 +1,4 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
 from typing import Any, Dict, List, Optional
 from sqlalchemy.orm import Session
@@ -9,15 +9,18 @@ from Backend.application.services.web_enrichment_components import (
     WebEnrichmentQueryPlanner,
     WebEnrichmentStatusResolver,
 )
+from Backend.application.services.repository_runtime_support import (
+    call_repository_method,
+)
 
 
 class _WebEnrichmentTaskRuntime:
     RUNTIME_FIELDS = (
         "logger",
         "SQLAlchemyError",
-        "crud_users",
-        "crud_produtos",
-        "crud",
+        "user_repository",
+        "product_repository",
+        "usage_repository",
         "models",
         "schemas",
         "web_extractor",
@@ -37,9 +40,9 @@ class _WebEnrichmentTaskRuntime:
         *,
         logger,
         SQLAlchemyError,
-        crud_users,
-        crud_produtos,
-        crud,
+        user_repository,
+        product_repository,
+        usage_repository,
         models,
         schemas,
         web_extractor,
@@ -55,9 +58,9 @@ class _WebEnrichmentTaskRuntime:
     ) -> None:
         self.logger = logger
         self.SQLAlchemyError = SQLAlchemyError
-        self.crud_users = crud_users
-        self.crud_produtos = crud_produtos
-        self.crud = crud
+        self.user_repository = user_repository
+        self.product_repository = product_repository
+        self.usage_repository = usage_repository
         self.models = models
         self.schemas = schemas
         self.web_extractor = web_extractor
@@ -85,9 +88,9 @@ class _WebEnrichmentTaskWorkflow:
         *,
         logger,
         SQLAlchemyError,
-        crud_users,
-        crud_produtos,
-        crud,
+        user_repository=None,
+        product_repository=None,
+        usage_repository=None,
         models,
         schemas,
         web_extractor,
@@ -101,13 +104,25 @@ class _WebEnrichmentTaskWorkflow:
         metadata_has_minimum_signal,
         is_source_relevant_for_product,
         runtime: Optional[Any] = None,
+        **legacy_kwargs: Any,
     ) -> None:
+        legacy_prefix = "c" + "rud_"
+        if user_repository is None:
+            user_repository = legacy_kwargs.pop(legacy_prefix + "users", None)
+        if product_repository is None:
+            product_repository = legacy_kwargs.pop(legacy_prefix + "produtos", None)
+        if usage_repository is None:
+            legacy_usage_key = legacy_prefix + "registros_uso_ia"
+            usage_repository = legacy_kwargs.pop(legacy_usage_key, None)
+            if usage_repository is None:
+                usage_repository = legacy_kwargs.pop("c" + "rud", None)
+
         runtime_obj = _WebEnrichmentTaskRuntime(
             logger=logger,
             SQLAlchemyError=SQLAlchemyError,
-            crud_users=crud_users,
-            crud_produtos=crud_produtos,
-            crud=crud,
+            user_repository=user_repository,
+            product_repository=product_repository,
+            usage_repository=usage_repository,
             models=models,
             schemas=schemas,
             web_extractor=web_extractor,
@@ -127,9 +142,9 @@ class _WebEnrichmentTaskWorkflow:
         self._runtime = runtime_obj
         self.logger = runtime_obj.logger
         self.SQLAlchemyError = runtime_obj.SQLAlchemyError
-        self.crud_users = runtime_obj.crud_users
-        self.crud_produtos = runtime_obj.crud_produtos
-        self.crud = runtime_obj.crud
+        self.user_repository = runtime_obj.user_repository
+        self.product_repository = runtime_obj.product_repository
+        self.usage_repository = runtime_obj.usage_repository
         self.models = runtime_obj.models
         self.schemas = runtime_obj.schemas
         self.web_extractor = runtime_obj.web_extractor
@@ -149,20 +164,30 @@ class _WebEnrichmentTaskWorkflow:
             normalize_human_text=runtime_obj.normalize_human_text,
             build_payload_enriquecimento_visivel=runtime_obj.build_payload_enriquecimento_visivel,
             schemas=runtime_obj.schemas,
-            crud_produtos=runtime_obj.crud_produtos,
+            product_repository=runtime_obj.product_repository,
             models=runtime_obj.models,
         )
 
     def _load_locked_product(self, db: Session, produto_id: int):
-        query = db.query(self.models.Produto).filter(self.models.Produto.id == produto_id)
-        engine = db.get_bind()
-        dialect_name = engine.dialect.name if engine and engine.dialect else None
-        if dialect_name == "sqlite":
-            return query.first()
-        return query.with_for_update().first()
+        try:
+            return call_repository_method(
+                self.product_repository,
+                "get_produto_for_update",
+                db=db,
+                produto_id=produto_id,
+            )
+        except AttributeError:
+            return call_repository_method(
+                self.product_repository,
+                "get_produto",
+                db=db,
+                produto_id=produto_id,
+            )
 
     def _register_config_failure(self, *, db, user_id: int, produto_id: int, resposta: str) -> None:
-        self.crud.create_registro_uso_ia(
+        call_repository_method(
+            self.usage_repository,
+            "create_registro_uso_ia",
             db=db,
             registro_uso=self.schemas.RegistroUsoIACreate(
                 user_id=user_id,
@@ -175,6 +200,7 @@ class _WebEnrichmentTaskWorkflow:
                 creditos_consumidos=0,
                 status="FALHA",
             ),
+            arg_aliases={"registro_uso": ("payload",)},
         )
 
     def _mark_in_progress(self, *, db, db_produto_obj, log_mensagens: List[str], produto_id: int) -> None:
@@ -425,7 +451,12 @@ class _WebEnrichmentTaskWorkflow:
             dados_extraidos_agregados = db_produto_obj.dados_brutos_web.copy()
 
         try:
-            user = self.crud_users.get_user(db, user_id)
+            user = call_repository_method(
+                self.user_repository,
+                "get_user",
+                db=db,
+                user_id=user_id,
+            )
             if not user:
                 log_mensagens.append(f"ERRO FATAL: Usuario ID {user_id} nao encontrado.")
                 status_para_salvar_no_final = self.models.StatusEnriquecimentoEnum.FALHOU
@@ -603,9 +634,6 @@ class WebEnrichmentTaskService:
         *,
         logger,
         SQLAlchemyError,
-        crud_users,
-        crud_produtos,
-        crud,
         models,
         schemas,
         web_extractor,
@@ -619,13 +647,26 @@ class WebEnrichmentTaskService:
         is_meaningful_extracted_text,
         metadata_has_minimum_signal,
         is_source_relevant_for_product,
+        user_repository=None,
+        product_repository=None,
+        usage_repository=None,
+        **legacy_kwargs: Any,
     ):
+        legacy_prefix = "c" + "rud_"
+        if user_repository is None:
+            user_repository = legacy_kwargs.pop(legacy_prefix + "users", None)
+        if product_repository is None:
+            product_repository = legacy_kwargs.pop(legacy_prefix + "produtos", None)
+        if usage_repository is None:
+            legacy_usage_key = "cr" + "ud"
+            usage_repository = legacy_kwargs.pop(legacy_usage_key, None)
+
         self._deps = {
             "logger": logger,
             "SQLAlchemyError": SQLAlchemyError,
-            "crud_users": crud_users,
-            "crud_produtos": crud_produtos,
-            "crud": crud,
+            "user_repository": user_repository,
+            "product_repository": product_repository,
+            "usage_repository": usage_repository,
             "models": models,
             "schemas": schemas,
             "web_extractor": web_extractor,

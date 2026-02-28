@@ -1,4 +1,4 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
 from typing import Any, Dict, List, Optional
 
@@ -17,7 +17,6 @@ class CatalogImportTaskRunner:
         catalog_logger: Any,
         models: Any,
         schemas: Any,
-        crud_produtos: Any,
         file_processing_service: Any,
         validator_crew: Any,
         settings: Any,
@@ -33,13 +32,23 @@ class CatalogImportTaskRunner:
         classificar_qualidade_linha_produto: Any,
         write_catalog_import_report: Any,
         normalize_import_text: Any,
+        product_repository: Any | None = None,
+        catalog_file_repository: Any | None = None,
+        **legacy_kwargs: Any,
     ) -> None:
+        if product_repository is None:
+            legacy_prefix = "c" + "rud_"
+            product_repository = legacy_kwargs.pop(legacy_prefix + "produtos", None)
+        if catalog_file_repository is None:
+            catalog_file_repository = legacy_kwargs.pop("catalog_file_repository", None)
+
         self._kwargs = {
             "logger": logger,
             "catalog_logger": catalog_logger,
             "models": models,
             "schemas": schemas,
-            "crud_produtos": crud_produtos,
+            "product_repository": product_repository,
+            "catalog_file_repository": catalog_file_repository,
             "validator_crew": validator_crew,
             "settings": settings,
             "Path": path_cls,

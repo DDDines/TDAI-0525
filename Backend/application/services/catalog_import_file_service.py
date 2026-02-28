@@ -4,6 +4,10 @@ from typing import Any
 
 from fastapi import HTTPException
 
+from Backend.application.services.repository_runtime_support import (
+    call_repository_method,
+)
+
 
 class CatalogImportFileService:
     """Gerencia listagem, exclusao e reprocessamento de arquivos de catalogo."""
@@ -14,10 +18,22 @@ class CatalogImportFileService:
         models: Any,
         file_processing_service: Any,
         catalog_import_start_service: Any,
+        catalog_file_repository: Any | None = None,
+        **legacy_kwargs: Any,
     ) -> None:
+        if catalog_file_repository is None:
+            catalog_file_repository = legacy_kwargs.pop("catalog_file_repository", None)
+        if catalog_file_repository is None:
+            from Backend.infrastructure.repositories.catalog_import_file_repository import (
+                CatalogImportFileRepository,
+            )
+
+            catalog_file_repository = CatalogImportFileRepository
+
         self._models = models
         self._file_processing_service = file_processing_service
         self._catalog_import_start_service = catalog_import_start_service
+        self._catalog_file_repository = catalog_file_repository
 
     def list_user_files(
         self,
@@ -28,19 +44,14 @@ class CatalogImportFileService:
         skip: int,
         limit: int,
     ) -> dict[str, Any]:
-        query = db.query(self._models.CatalogImportFile).filter(
-            self._models.CatalogImportFile.user_id == user_id
-        )
-        if fornecedor_id is not None:
-            query = query.filter(
-                self._models.CatalogImportFile.fornecedor_id == fornecedor_id
-            )
-        total_items = query.count()
-        items = (
-            query.order_by(self._models.CatalogImportFile.created_at.desc())
-            .offset(skip)
-            .limit(limit)
-            .all()
+        items, total_items = call_repository_method(
+            self._catalog_file_repository,
+            "list_catalog_files_for_user",
+            db=db,
+            user_id=user_id,
+            fornecedor_id=fornecedor_id,
+            skip=skip,
+            limit=limit,
         )
         return {
             "items": items,
@@ -56,10 +67,12 @@ class CatalogImportFileService:
         file_id: int,
         user_id: int,
     ) -> Any:
-        record = (
-            db.query(self._models.CatalogImportFile)
-            .filter_by(id=file_id, user_id=user_id)
-            .first()
+        record = call_repository_method(
+            self._catalog_file_repository,
+            "get_catalog_file_for_user",
+            db=db,
+            file_id=file_id,
+            user_id=user_id,
         )
         if not record:
             raise HTTPException(status_code=404, detail="Arquivo nao encontrado")
@@ -74,8 +87,12 @@ class CatalogImportFileService:
     ) -> Any:
         record = self.get_user_file_or_404(db=db, file_id=file_id, user_id=user_id)
         self._file_processing_service.delete_catalog_file(record.stored_filename)
-        db.delete(record)
-        db.commit()
+        call_repository_method(
+            self._catalog_file_repository,
+            "delete_catalog_file",
+            db=db,
+            catalog_file=record,
+        )
         return record
 
     async def reprocess_catalog_file(

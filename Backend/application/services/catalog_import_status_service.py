@@ -5,20 +5,42 @@ from typing import Any
 from fastapi import HTTPException, status
 from fastapi.responses import JSONResponse
 
+from Backend.application.services.repository_runtime_support import (
+    call_repository_method,
+)
+
 
 class CatalogImportStatusService:
     """Encapsula leitura de status/resultado da importacao de catalogo."""
 
     _TERMINAL_STATUSES = {"IMPORTED", "PARTIAL", "DONE", "FAILED"}
 
-    def __init__(self, *, models: Any) -> None:
+    def __init__(
+        self,
+        *,
+        models: Any,
+        catalog_file_repository: Any | None = None,
+        **legacy_kwargs: Any,
+    ) -> None:
+        if catalog_file_repository is None:
+            catalog_file_repository = legacy_kwargs.pop("catalog_file_repository", None)
+        if catalog_file_repository is None:
+            from Backend.infrastructure.repositories.catalog_import_file_repository import (
+                CatalogImportFileRepository,
+            )
+
+            catalog_file_repository = CatalogImportFileRepository
+
         self._models = models
+        self._catalog_file_repository = catalog_file_repository
 
     def get_record_or_404(self, *, db: Any, file_id: int, user_id: int) -> Any:
-        record = (
-            db.query(self._models.CatalogImportFile)
-            .filter_by(id=file_id, user_id=user_id)
-            .first()
+        record = call_repository_method(
+            self._catalog_file_repository,
+            "get_catalog_file_for_user",
+            db=db,
+            file_id=file_id,
+            user_id=user_id,
         )
         if not record:
             raise HTTPException(status_code=404, detail="Arquivo nao encontrado")

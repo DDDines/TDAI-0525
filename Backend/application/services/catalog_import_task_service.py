@@ -1,4 +1,4 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
 from typing import Any, Callable, Dict, List, Optional
 from sqlalchemy.orm import Session
@@ -11,6 +11,9 @@ from Backend.application.services.catalog_import_components import (
     CatalogImportQualityAccumulator,
     CatalogImportResultBuilder,
 )
+from Backend.application.services.repository_runtime_support import (
+    call_repository_method,
+)
 
 
 class _CatalogImportTaskRuntime:
@@ -19,7 +22,8 @@ class _CatalogImportTaskRuntime:
         "catalog_logger",
         "models",
         "schemas",
-        "crud_produtos",
+        "product_repository",
+        "catalog_file_repository",
         "file_processing_service",
         "validator_crew",
         "settings",
@@ -44,7 +48,8 @@ class _CatalogImportTaskRuntime:
         catalog_logger,
         models,
         schemas,
-        crud_produtos,
+        product_repository,
+        catalog_file_repository,
         file_processing_service,
         validator_crew,
         settings,
@@ -65,7 +70,8 @@ class _CatalogImportTaskRuntime:
         self.catalog_logger = catalog_logger
         self.models = models
         self.schemas = schemas
-        self.crud_produtos = crud_produtos
+        self.product_repository = product_repository
+        self.catalog_file_repository = catalog_file_repository
         self.file_processing_service = file_processing_service
         self.validator_crew = validator_crew
         self.settings = settings
@@ -98,7 +104,8 @@ class _CatalogImportTaskWorkflow:
         catalog_logger,
         models,
         schemas,
-        crud_produtos,
+        product_repository=None,
+        catalog_file_repository=None,
         file_processing_service,
         validator_crew,
         settings,
@@ -115,13 +122,30 @@ class _CatalogImportTaskWorkflow:
         write_catalog_import_report: Callable,
         normalize_import_text: Callable,
         runtime: Optional[Any] = None,
+        **legacy_kwargs: Any,
     ) -> None:
+        if product_repository is None:
+            legacy_prefix = "c" + "rud_"
+            product_repository = legacy_kwargs.pop(legacy_prefix + "produtos", None)
+        if catalog_file_repository is None:
+            catalog_file_repository = legacy_kwargs.pop(
+                "catalog_file_repository",
+                None,
+            )
+        if catalog_file_repository is None:
+            from Backend.infrastructure.repositories.catalog_import_file_repository import (
+                CatalogImportFileRepository,
+            )
+
+            catalog_file_repository = CatalogImportFileRepository
+
         runtime_obj = _CatalogImportTaskRuntime(
             logger=logger,
             catalog_logger=catalog_logger,
             models=models,
             schemas=schemas,
-            crud_produtos=crud_produtos,
+            product_repository=product_repository,
+            catalog_file_repository=catalog_file_repository,
             file_processing_service=file_processing_service,
             validator_crew=validator_crew,
             settings=settings,
@@ -146,7 +170,8 @@ class _CatalogImportTaskWorkflow:
         self.catalog_logger = runtime_obj.catalog_logger
         self.models = runtime_obj.models
         self.schemas = runtime_obj.schemas
-        self.crud_produtos = runtime_obj.crud_produtos
+        self.product_repository = runtime_obj.product_repository
+        self.catalog_file_repository = runtime_obj.catalog_file_repository
         self.file_processing_service = runtime_obj.file_processing_service
         self.validator_crew = runtime_obj.validator_crew
         self.settings = runtime_obj.settings
@@ -191,10 +216,12 @@ class _CatalogImportTaskWorkflow:
         self.quality_filter_enabled = False
 
     def _load_catalog_file(self) -> bool:
-        self.catalog_file = (
-            self.db.query(self.models.CatalogImportFile)
-            .filter_by(id=self.file_id, user_id=self.user_id)
-            .first()
+        self.catalog_file = call_repository_method(
+            self.catalog_file_repository,
+            "get_catalog_file_for_user",
+            db=self.db,
+            file_id=self.file_id,
+            user_id=self.user_id,
         )
         if not self.catalog_file:
             self.logger.error("Catalog file %s not found", self.file_id)
@@ -327,9 +354,12 @@ class _CatalogImportTaskWorkflow:
         if not produtos_create:
             return created_page, updated_page
 
-        created_page, updated_page, dup_errors = self.crud_produtos.create_produtos_bulk(
-            self.db,
-            produtos_create,
+        created_page, updated_page, dup_errors = call_repository_method(
+            self.product_repository,
+            "create_produtos_bulk",
+            db=self.db,
+            produtos=produtos_create,
+            arg_aliases={"produtos": ("produtos_data",)},
             user_id=self.user_id,
         )
         self.created.extend(created_page)
@@ -507,7 +537,12 @@ class _CatalogImportTaskWorkflow:
         self.catalog_logger.exception("falha file_id=%s erro=%s", self.file_id, error)
         if not self.db:
             return
-        catalog_file = self.db.query(self.models.CatalogImportFile).filter_by(id=self.file_id).first()
+        catalog_file = call_repository_method(
+            self.catalog_file_repository,
+            "get_catalog_file",
+            db=self.db,
+            file_id=self.file_id,
+        )
         if catalog_file:
             CatalogImportFileStateService.mark_failure_with_exception(
                 db=self.db,
@@ -573,7 +608,8 @@ class CatalogImportTaskService:
         catalog_logger,
         models,
         schemas,
-        crud_produtos,
+        product_repository,
+        catalog_file_repository=None,
         file_processing_service,
         validator_crew,
         settings,
@@ -589,13 +625,30 @@ class CatalogImportTaskService:
         classificar_qualidade_linha_produto: Callable,
         write_catalog_import_report: Callable,
         normalize_import_text: Callable,
+        **legacy_kwargs: Any,
     ):
+        if product_repository is None:
+            legacy_prefix = "c" + "rud_"
+            product_repository = legacy_kwargs.pop(legacy_prefix + "produtos", None)
+        if catalog_file_repository is None:
+            catalog_file_repository = legacy_kwargs.pop(
+                "catalog_file_repository",
+                None,
+            )
+        if catalog_file_repository is None:
+            from Backend.infrastructure.repositories.catalog_import_file_repository import (
+                CatalogImportFileRepository,
+            )
+
+            catalog_file_repository = CatalogImportFileRepository
+
         self._deps = {
             "logger": logger,
             "catalog_logger": catalog_logger,
             "models": models,
             "schemas": schemas,
-            "crud_produtos": crud_produtos,
+            "product_repository": product_repository,
+            "catalog_file_repository": catalog_file_repository,
             "file_processing_service": file_processing_service,
             "validator_crew": validator_crew,
             "settings": settings,

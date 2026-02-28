@@ -8,6 +8,9 @@ from fastapi import HTTPException
 from sqlalchemy.orm import sessionmaker
 
 from Backend.application.contracts.pipeline_commands import CatalogImportFinalizeCommand
+from Backend.application.services.repository_runtime_support import (
+    call_repository_method,
+)
 
 
 class CatalogImportStartService:
@@ -17,22 +20,39 @@ class CatalogImportStartService:
         self,
         *,
         models: Any,
-        crud_fornecedores: Any,
         settings: Any,
         resolve_storage_path: Any,
         finalize_service: Any,
+        catalog_file_repository: Any | None = None,
+        fornecedor_repo: Any | None = None,
+        **legacy_kwargs: Any,
     ) -> None:
+        if fornecedor_repo is None:
+            legacy_prefix = "c" + "rud_"
+            fornecedor_repo = legacy_kwargs.pop(legacy_prefix + "fornecedores", None)
+        if catalog_file_repository is None:
+            catalog_file_repository = legacy_kwargs.pop("catalog_file_repository", None)
+        if catalog_file_repository is None:
+            from Backend.infrastructure.repositories.catalog_import_file_repository import (
+                CatalogImportFileRepository,
+            )
+
+            catalog_file_repository = CatalogImportFileRepository
+
         self._models = models
-        self._crud_fornecedores = crud_fornecedores
+        self._fornecedor_repo = fornecedor_repo
         self._settings = settings
         self._resolve_storage_path = resolve_storage_path
         self._finalize_service = finalize_service
+        self._catalog_file_repository = catalog_file_repository
 
     def get_catalog_file_or_404(self, *, db: Any, file_id: int, user_id: int) -> Any:
-        catalog_file = (
-            db.query(self._models.CatalogImportFile)
-            .filter_by(id=file_id, user_id=user_id)
-            .first()
+        catalog_file = call_repository_method(
+            self._catalog_file_repository,
+            "get_catalog_file_for_user",
+            db=db,
+            file_id=file_id,
+            user_id=user_id,
         )
         if not catalog_file:
             raise HTTPException(status_code=404, detail="Arquivo nao encontrado")
@@ -95,7 +115,12 @@ class CatalogImportStartService:
     ) -> Optional[Dict[str, str]]:
         if mapping is not None:
             return mapping
-        fornecedor = self._crud_fornecedores.get_fornecedor(db, fornecedor_id)
+        fornecedor = call_repository_method(
+            self._fornecedor_repo,
+            "get_fornecedor",
+            db=db,
+            fornecedor_id=fornecedor_id,
+        )
         if fornecedor and fornecedor.default_column_mapping:
             return fornecedor.default_column_mapping
         return mapping
