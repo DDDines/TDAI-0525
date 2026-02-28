@@ -19,8 +19,7 @@ class _CrudProdutosStub:
         self.list_items = []
         self.total_items = 0
 
-    def create_produto(self, *, db, produto, user_id):
-        _ = db
+    def create_produto(self, *, produto, user_id):
         created = SimpleNamespace(
             id=produto.id,
             user_id=user_id,
@@ -31,27 +30,25 @@ class _CrudProdutosStub:
         self.created.append((produto, user_id))
         return created
 
-    def get_produto(self, db, produto_id):
-        _ = (db, produto_id)
+    def get_produto(self, *, produto_id):
+        _ = produto_id
         return self.produto
 
-    def get_produtos_by_user(self, db, **kwargs):
-        _ = (db, kwargs)
+    def get_produtos_by_user(self, **kwargs):
+        _ = kwargs
         return self.list_items
 
-    def count_produtos_by_user(self, db, **kwargs):
-        _ = (db, kwargs)
+    def count_produtos_by_user(self, **kwargs):
+        _ = kwargs
         return self.total_items
 
-    def update_produto(self, *, db, db_produto, produto_update):
-        _ = db
+    def update_produto(self, *, db_produto, produto_update):
         self.updated.append((db_produto, produto_update))
         if getattr(produto_update, "nome_base", None):
             db_produto.nome_base = produto_update.nome_base
         return db_produto
 
-    def delete_produto(self, *, db, db_produto):
-        _ = db
+    def delete_produto(self, *, db_produto):
         self.deleted.append(db_produto)
         return db_produto
 
@@ -60,8 +57,8 @@ class _CrudFornecedoresStub:
     def __init__(self, *, fornecedor=True):
         self.fornecedor = fornecedor
 
-    def get_fornecedor(self, db, fornecedor_id):
-        _ = (db, fornecedor_id)
+    def get_fornecedor(self, *, fornecedor_id):
+        _ = fornecedor_id
         return self.fornecedor
 
 
@@ -69,8 +66,8 @@ class _CrudProductTypesStub:
     def __init__(self, *, product_type=True):
         self.product_type = product_type
 
-    def get_product_type(self, db, product_type_id):
-        _ = (db, product_type_id)
+    def get_product_type(self, *, product_type_id):
+        _ = product_type_id
         return self.product_type
 
 
@@ -78,16 +75,16 @@ class _CrudHistoricoStub:
     def __init__(self):
         self.calls = []
 
-    def create_registro_historico(self, db, payload):
-        self.calls.append((db, payload.data))
+    def create_registro_historico(self, payload):
+        self.calls.append(payload.data)
 
 
 class _CrudUsoIAStub:
     def __init__(self):
         self.calls = []
 
-    def create_registro_uso_ia(self, db, payload):
-        self.calls.append((db, payload.data))
+    def create_registro_uso_ia(self, payload):
+        self.calls.append(payload.data)
 
 
 class _SchemaPayload:
@@ -127,11 +124,11 @@ def _build_service(
     service = ProductManagementService(
         models=_ModelsStub,
         schemas=_SchemasStub,
-        crud_produtos=crud_produtos,
-        crud_fornecedores=_CrudFornecedoresStub(fornecedor=fornecedor),
-        crud_product_types=_CrudProductTypesStub(product_type=product_type),
-        crud_historico=crud_historico,
-        crud_uso_ia=crud_uso_ia,
+        produto_repo=crud_produtos,
+        fornecedor_repo=_CrudFornecedoresStub(fornecedor=fornecedor),
+        product_type_repo=_CrudProductTypesStub(product_type=product_type),
+        historico_repo=crud_historico,
+        uso_ia_repo=crud_uso_ia,
     )
     return service, crud_produtos, crud_historico, crud_uso_ia
 
@@ -140,15 +137,14 @@ def test_create_produto_records_historico_and_ia_usage():
     service, crud_produtos, crud_historico, crud_uso_ia = _build_service()
 
     created = service.create_produto(
-        db=object(),
         produto=SimpleNamespace(id=10, fornecedor_id=1, product_type_id=2, nome_base="Peca"),
         current_user=SimpleNamespace(id=3, is_superuser=False),
     )
 
     assert created.id == 10
     assert len(crud_produtos.created) == 1
-    assert crud_uso_ia.calls[0][1]["tipo_acao"] == "CRIACAO_PRODUTO"
-    assert crud_historico.calls[0][1]["acao"] == "CRIACAO"
+    assert crud_uso_ia.calls[0]["tipo_acao"] == "CRIACAO_PRODUTO"
+    assert crud_historico.calls[0]["acao"] == "CRIACAO"
 
 
 def test_create_produto_raises_when_fornecedor_missing():
@@ -156,7 +152,6 @@ def test_create_produto_raises_when_fornecedor_missing():
 
     with pytest.raises(HTTPException) as exc:
         service.create_produto(
-            db=object(),
             produto=SimpleNamespace(id=10, fornecedor_id=1, product_type_id=None),
             current_user=SimpleNamespace(id=3, is_superuser=False),
         )
@@ -170,7 +165,6 @@ def test_read_produto_raises_403_for_non_owner():
 
     with pytest.raises(HTTPException) as exc:
         service.read_produto(
-            db=object(),
             produto_id=10,
             current_user=SimpleNamespace(id=3, is_superuser=False),
         )
@@ -184,7 +178,6 @@ def test_list_produtos_builds_page_payload():
     crud_produtos.total_items = 2
 
     payload = service.list_produtos(
-        db=object(),
         skip=0,
         limit=10,
         sort_by="id",
@@ -209,7 +202,6 @@ def test_update_produto_records_historico():
     service, crud_produtos, crud_historico, _ = _build_service(produto=produto)
 
     updated = service.update_produto(
-        db=object(),
         produto_id=10,
         produto_update=SimpleNamespace(
             fornecedor_id=1,
@@ -221,7 +213,7 @@ def test_update_produto_records_historico():
 
     assert updated.nome_base == "Peca Atualizada"
     assert len(crud_produtos.updated) == 1
-    assert crud_historico.calls[0][1]["acao"] == "ATUALIZACAO"
+    assert crud_historico.calls[0]["acao"] == "ATUALIZACAO"
 
 
 def test_delete_produto_records_historico():
@@ -229,14 +221,13 @@ def test_delete_produto_records_historico():
     service, crud_produtos, crud_historico, _ = _build_service(produto=produto)
 
     deleted = service.delete_produto(
-        db=object(),
         produto_id=10,
         current_user=SimpleNamespace(id=3, is_superuser=False),
     )
 
     assert deleted is produto
     assert len(crud_produtos.deleted) == 1
-    assert crud_historico.calls[0][1]["acao"] == "DELECAO"
+    assert crud_historico.calls[0]["acao"] == "DELECAO"
 
 
 def test_batch_delete_produtos_raises_when_all_missing():
@@ -244,7 +235,6 @@ def test_batch_delete_produtos_raises_when_all_missing():
 
     with pytest.raises(HTTPException) as exc:
         service.batch_delete_produtos(
-            db=object(),
             produto_ids=[1, 2],
             current_user=SimpleNamespace(id=3, is_superuser=False),
         )

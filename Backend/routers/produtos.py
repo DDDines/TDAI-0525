@@ -64,6 +64,10 @@ from Backend.application.services.product_management_service import (
 from Backend.application.services.product_media_service import (
     ProductMediaService,
 )
+from Backend.application.services.product_repositories import (
+    build_product_management_repositories,
+    build_product_media_repositories,
+)
 from Backend.application.services.validator_crew_facade import (
     ValidatorCrewFacade,
 )
@@ -206,30 +210,37 @@ catalog_import_ingest_service = CatalogImportIngestService(
     classificar_qualidade_linha_produto=catalog_quality_service.classify_product_row_quality,
     json_module=json,
 )
-product_management_service = ProductManagementService(
-    models=models,
-    schemas=schemas,
-    crud_produtos=data_access_service.produtos,
-    crud_fornecedores=data_access_service.fornecedores,
-    crud_product_types=data_access_service.product_types,
-    crud_historico=data_access_service.historico,
-    crud_uso_ia=data_access_service.uso_ia,
-)
-product_media_service = ProductMediaService(
-    crud_produtos=data_access_service.produtos,
-    schemas=schemas,
-)
-
-
 class _ProdutosRouterRuntime:
+    @staticmethod
+    def _build_product_management_service(db: Session) -> ProductManagementService:
+        repos = build_product_management_repositories(
+            data_access_service=data_access_service,
+            db=db,
+        )
+        return ProductManagementService(
+            models=models,
+            schemas=schemas,
+            **repos,
+        )
+
+    @staticmethod
+    def _build_product_media_service(db: Session) -> ProductMediaService:
+        repos = build_product_media_repositories(
+            data_access_service=data_access_service,
+            db=db,
+        )
+        return ProductMediaService(
+            schemas=schemas,
+            **repos,
+        )
+
     def create_produto(
         self,
         produto: schemas.ProdutoCreate,
         db: Session,
         current_user: models.User,
     ) -> models.Produto:
-        return product_management_service.create_produto(
-            db=db,
+        return self._build_product_management_service(db).create_produto(
             produto=produto,
             current_user=current_user,
         )
@@ -282,8 +293,7 @@ class _ProdutosRouterRuntime:
         )
 
     def read_produto(self, db: Session, produto_id: int, current_user: models.User):
-        return product_management_service.read_produto(
-            db=db,
+        return self._build_product_management_service(db).read_produto(
             produto_id=produto_id,
             current_user=current_user,
         )
@@ -304,8 +314,7 @@ class _ProdutosRouterRuntime:
         product_type_id: Optional[int],
         current_user: models.User,
     ):
-        return product_management_service.list_produtos(
-            db=db,
+        return self._build_product_management_service(db).list_produtos(
             skip=skip,
             limit=limit,
             sort_by=sort_by,
@@ -327,23 +336,20 @@ class _ProdutosRouterRuntime:
         produto_update: schemas.ProdutoUpdate,
         current_user: models.User,
     ):
-        return product_management_service.update_produto(
-            db=db,
+        return self._build_product_management_service(db).update_produto(
             produto_id=produto_id,
             produto_update=produto_update,
             current_user=current_user,
         )
 
     def delete_produto(self, db: Session, produto_id: int, current_user: models.User):
-        return product_management_service.delete_produto(
-            db=db,
+        return self._build_product_management_service(db).delete_produto(
             produto_id=produto_id,
             current_user=current_user,
         )
 
     def batch_delete_produtos(self, db: Session, produto_ids: List[int], current_user: models.User):
-        return product_management_service.batch_delete_produtos(
-            db=db,
+        return self._build_product_management_service(db).batch_delete_produtos(
             produto_ids=produto_ids,
             current_user=current_user,
         )
@@ -355,8 +361,7 @@ class _ProdutosRouterRuntime:
         file: UploadFile,
         current_user: models.User,
     ):
-        return await product_media_service.upload_produto_image(
-            db=db,
+        return await self._build_product_media_service(db).upload_produto_image(
             produto_id=produto_id,
             file=file,
             current_user=current_user,

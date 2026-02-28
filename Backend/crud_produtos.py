@@ -517,10 +517,9 @@ class _ProdutoCrudRuntime:
         return self.create_produto(db=db, produto=produto, user_id=user_id)
 
 
-_produto_crud_workflow = _ProdutoCrudWorkflow()
 ProdutoCrudWorkflow = _ProdutoCrudWorkflow
 
 
 def get_produto_crud_workflow() -> ProdutoCrudWorkflow:
-    return _produto_crud_workflow
+    return _ProdutoCrudWorkflow()
 

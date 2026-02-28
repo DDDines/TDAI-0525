@@ -1,4 +1,5 @@
 from Backend.application.services.catalog_import_quality_service import (
+    CatalogRow,
     CatalogImportQualityService,
 )
 
@@ -107,3 +108,18 @@ def test_evaluate_accepts_short_numeric_code_with_strong_part_context():
         }
     )
     assert reason is None
+
+
+def test_quality_service_accepts_catalog_row_domain_object():
+    service = CatalogImportQualityService()
+    row = CatalogRow(
+        nome_base="Paralama dianteiro",
+        sku_original="ABC12345",
+        descricao_original="Paralama superior para linha pesada",
+        categoria_original="Paralama",
+        dynamic_attributes={"material": "plastico injetado"},
+    )
+
+    result = service.classify_product_row_quality(row)
+
+    assert result["decision"] == "accept"

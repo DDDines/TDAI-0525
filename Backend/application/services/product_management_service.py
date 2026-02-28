@@ -13,42 +13,41 @@ class ProductManagementService:
         *,
         models: Any,
         schemas: Any,
-        crud_produtos: Any,
-        crud_fornecedores: Any,
-        crud_product_types: Any,
-        crud_historico: Any,
-        crud_uso_ia: Any,
+        produto_repo: Any,
+        fornecedor_repo: Any,
+        product_type_repo: Any,
+        historico_repo: Any,
+        uso_ia_repo: Any,
     ) -> None:
         self._models = models
         self._schemas = schemas
-        self._crud_produtos = crud_produtos
-        self._crud_fornecedores = crud_fornecedores
-        self._crud_product_types = crud_product_types
-        self._crud_historico = crud_historico
-        self._crud_uso_ia = crud_uso_ia
+        self._produto_repo = produto_repo
+        self._fornecedor_repo = fornecedor_repo
+        self._product_type_repo = product_type_repo
+        self._historico_repo = historico_repo
+        self._uso_ia_repo = uso_ia_repo
 
     @staticmethod
     def _ensure_owner_or_superuser(*, db_obj: Any, current_user: Any, forbidden_detail: str) -> None:
         if not current_user.is_superuser and db_obj.user_id != current_user.id:
             raise HTTPException(status_code=403, detail=forbidden_detail)
 
-    def _get_produto_or_404(self, *, db: Any, produto_id: int) -> Any:
-        db_produto = self._crud_produtos.get_produto(db, produto_id=produto_id)
+    def _get_produto_or_404(self, *, produto_id: int) -> Any:
+        db_produto = self._produto_repo.get_produto(produto_id=produto_id)
         if db_produto is None:
             raise HTTPException(status_code=404, detail="Produto nao encontrado")
         return db_produto
 
-    def _ensure_fornecedor_exists(self, *, db: Any, fornecedor_id: int) -> None:
-        fornecedor = self._crud_fornecedores.get_fornecedor(db, fornecedor_id=fornecedor_id)
+    def _ensure_fornecedor_exists(self, *, fornecedor_id: int) -> None:
+        fornecedor = self._fornecedor_repo.get_fornecedor(fornecedor_id=fornecedor_id)
         if not fornecedor:
             raise HTTPException(
                 status_code=404,
                 detail=f"Fornecedor com ID {fornecedor_id} nao encontrado.",
             )
 
-    def _ensure_product_type_exists(self, *, db: Any, product_type_id: int) -> None:
-        product_type = self._crud_product_types.get_product_type(
-            db,
+    def _ensure_product_type_exists(self, *, product_type_id: int) -> None:
+        product_type = self._product_type_repo.get_product_type(
             product_type_id=product_type_id,
         )
         if not product_type:
@@ -60,25 +59,21 @@ class ProductManagementService:
     def create_produto(
         self,
         *,
-        db: Any,
         produto: Any,
         current_user: Any,
     ) -> Any:
         if getattr(produto, "fornecedor_id", None):
-            self._ensure_fornecedor_exists(db=db, fornecedor_id=produto.fornecedor_id)
+            self._ensure_fornecedor_exists(fornecedor_id=produto.fornecedor_id)
         if getattr(produto, "product_type_id", None):
             self._ensure_product_type_exists(
-                db=db,
                 product_type_id=produto.product_type_id,
             )
 
-        db_produto = self._crud_produtos.create_produto(
-            db=db,
+        db_produto = self._produto_repo.create_produto(
             produto=produto,
             user_id=current_user.id,
         )
-        self._crud_uso_ia.create_registro_uso_ia(
-            db,
+        self._uso_ia_repo.create_registro_uso_ia(
             self._schemas.RegistroUsoIACreate(
                 user_id=current_user.id,
                 produto_id=db_produto.id,
@@ -86,8 +81,7 @@ class ProductManagementService:
                 creditos_consumidos=0,
             ),
         )
-        self._crud_historico.create_registro_historico(
-            db,
+        self._historico_repo.create_registro_historico(
             self._schemas.RegistroHistoricoCreate(
                 user_id=current_user.id,
                 entidade="Produto",
@@ -100,11 +94,10 @@ class ProductManagementService:
     def read_produto(
         self,
         *,
-        db: Any,
         produto_id: int,
         current_user: Any,
     ) -> Any:
-        db_produto = self._get_produto_or_404(db=db, produto_id=produto_id)
+        db_produto = self._get_produto_or_404(produto_id=produto_id)
         self._ensure_owner_or_superuser(
             db_obj=db_produto,
             current_user=current_user,
@@ -115,7 +108,6 @@ class ProductManagementService:
     def list_produtos(
         self,
         *,
-        db: Any,
         skip: int,
         limit: int,
         sort_by: str | None,
@@ -130,8 +122,7 @@ class ProductManagementService:
         current_user: Any,
     ) -> dict[str, Any]:
         user_id_filter = None if current_user.is_superuser else current_user.id
-        items = self._crud_produtos.get_produtos_by_user(
-            db,
+        items = self._produto_repo.get_produtos_by_user(
             user_id=user_id_filter,
             skip=skip,
             limit=limit,
@@ -146,8 +137,7 @@ class ProductManagementService:
             product_type_id=product_type_id,
             is_admin=current_user.is_superuser,
         )
-        total_items = self._crud_produtos.count_produtos_by_user(
-            db,
+        total_items = self._produto_repo.count_produtos_by_user(
             user_id=user_id_filter,
             search=search,
             fornecedor_id=fornecedor_id,
@@ -168,12 +158,11 @@ class ProductManagementService:
     def update_produto(
         self,
         *,
-        db: Any,
         produto_id: int,
         produto_update: Any,
         current_user: Any,
     ) -> Any:
-        db_produto = self._get_produto_or_404(db=db, produto_id=produto_id)
+        db_produto = self._get_produto_or_404(produto_id=produto_id)
         self._ensure_owner_or_superuser(
             db_obj=db_produto,
             current_user=current_user,
@@ -185,7 +174,6 @@ class ProductManagementService:
             and produto_update.fornecedor_id != db_produto.fornecedor_id
         ):
             self._ensure_fornecedor_exists(
-                db=db,
                 fornecedor_id=produto_update.fornecedor_id,
             )
         if (
@@ -193,17 +181,14 @@ class ProductManagementService:
             and produto_update.product_type_id != db_produto.product_type_id
         ):
             self._ensure_product_type_exists(
-                db=db,
                 product_type_id=produto_update.product_type_id,
             )
 
-        updated = self._crud_produtos.update_produto(
-            db=db,
+        updated = self._produto_repo.update_produto(
             db_produto=db_produto,
             produto_update=produto_update,
         )
-        self._crud_historico.create_registro_historico(
-            db,
+        self._historico_repo.create_registro_historico(
             self._schemas.RegistroHistoricoCreate(
                 user_id=current_user.id,
                 entidade="Produto",
@@ -216,19 +201,17 @@ class ProductManagementService:
     def delete_produto(
         self,
         *,
-        db: Any,
         produto_id: int,
         current_user: Any,
     ) -> Any:
-        db_produto = self._get_produto_or_404(db=db, produto_id=produto_id)
+        db_produto = self._get_produto_or_404(produto_id=produto_id)
         self._ensure_owner_or_superuser(
             db_obj=db_produto,
             current_user=current_user,
             forbidden_detail="Nao autorizado a deletar este produto",
         )
-        deleted = self._crud_produtos.delete_produto(db=db, db_produto=db_produto)
-        self._crud_historico.create_registro_historico(
-            db,
+        deleted = self._produto_repo.delete_produto(db_produto=db_produto)
+        self._historico_repo.create_registro_historico(
             self._schemas.RegistroHistoricoCreate(
                 user_id=current_user.id,
                 entidade="Produto",
@@ -241,7 +224,6 @@ class ProductManagementService:
     def batch_delete_produtos(
         self,
         *,
-        db: Any,
         produto_ids: list[int],
         current_user: Any,
     ) -> list[Any]:
@@ -250,7 +232,7 @@ class ProductManagementService:
         not_authorized_ids: list[int] = []
 
         for produto_id in produto_ids:
-            db_produto = self._crud_produtos.get_produto(db, produto_id=produto_id)
+            db_produto = self._produto_repo.get_produto(produto_id=produto_id)
             if db_produto is None:
                 not_found_ids.append(produto_id)
                 continue
@@ -258,9 +240,8 @@ class ProductManagementService:
                 not_authorized_ids.append(produto_id)
                 continue
 
-            self._crud_produtos.delete_produto(db=db, db_produto=db_produto)
-            self._crud_historico.create_registro_historico(
-                db,
+            self._produto_repo.delete_produto(db_produto=db_produto)
+            self._historico_repo.create_registro_historico(
                 self._schemas.RegistroHistoricoCreate(
                     user_id=current_user.id,
                     entidade="Produto",

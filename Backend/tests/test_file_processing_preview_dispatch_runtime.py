@@ -4,60 +4,44 @@ from Backend.testing.runtime_apis import file_processing
 
 
 @pytest.mark.asyncio
-async def test_preview_dispatch_runtime_despacha_csv_para_runtime_tabular():
+async def test_preview_dispatch_runtime_uses_injected_factory():
     called = {}
 
-    class FakeTabularRuntime:
-        async def preview_arquivo_excel(self, **kwargs):
-            return {"headers": ["excel"], "sample_rows": []}
+    class FakeExtractor:
+        async def extract(self, **kwargs):
+            called["extract"] = kwargs
+            return {"ok": True}
 
-        async def preview_arquivo_csv(self, **kwargs):
-            called.update(kwargs)
-            return {"headers": ["h1"], "sample_rows": []}
+    class FakeFactory:
+        def __init__(self):
+            self.received_ext = None
 
-    class FakePdfRuntime:
-        async def preview_arquivo_pdf(self, **kwargs):
-            return {"num_pages": 1, "preview_images": []}
+        def get_extractor(self, ext_norm):
+            self.received_ext = ext_norm
+            return FakeExtractor()
 
-    runtime = file_processing._PreviewDispatchRuntime(
-        tabular_preview_runtime=FakeTabularRuntime(),
-        pdf_preview_runtime=FakePdfRuntime(),
-    )
+    factory = FakeFactory()
+    runtime = file_processing._PreviewDispatchRuntime(extractor_factory=factory)
 
     result = await runtime.gerar_preview(
-        conteudo_arquivo=b"raw",
-        ext=".csv",
-        max_rows=9,
+        conteudo_arquivo=b"abc",
+        ext=".PDF",
+        max_rows=7,
     )
 
-    assert result["headers"] == ["h1"]
-    assert called["conteudo_arquivo"] == b"raw"
-    assert called["max_rows"] == 9
+    assert result == {"ok": True}
+    assert factory.received_ext == ".pdf"
+    assert called["extract"]["ext"] == ".pdf"
+    assert called["extract"]["max_rows"] == 7
 
 
 @pytest.mark.asyncio
-async def test_gerar_preview_impl_usa_runtime(monkeypatch):
-    called = {}
+async def test_preview_dispatch_runtime_raises_for_unsupported_extension():
+    runtime = file_processing._PreviewDispatchRuntime()
 
-    class FakeDispatchRuntime:
-        async def gerar_preview(self, **kwargs):
-            called.update(kwargs)
-            return {"num_pages": 3}
-
-    monkeypatch.setattr(
-        file_processing,
-        "_preview_dispatch_runtime",
-        FakeDispatchRuntime(),
-    )
-
-    result = await file_processing._gerar_preview_impl(
-        conteudo_arquivo=b"x",
-        ext=".pdf",
-        max_rows=1,
-    )
-
-    assert result["num_pages"] == 3
-    assert called["conteudo_arquivo"] == b"x"
-    assert called["ext"] == ".pdf"
-    assert called["max_rows"] == 1
-
+    with pytest.raises(ValueError):
+        await runtime.gerar_preview(
+            conteudo_arquivo=b"abc",
+            ext=".bin",
+            max_rows=5,
+        )

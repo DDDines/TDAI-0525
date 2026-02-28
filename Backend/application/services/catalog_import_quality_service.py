@@ -1,8 +1,35 @@
 from __future__ import annotations
 
+from dataclasses import dataclass, field
 import re
 import unicodedata
 from typing import Any, Dict, Optional
+
+
+@dataclass(slots=True)
+class CatalogRow:
+    nome_base: Optional[str] = None
+    sku_original: Optional[str] = None
+    ean_original: Optional[str] = None
+    descricao_original: Optional[str] = None
+    marca: Optional[str] = None
+    categoria_original: Optional[str] = None
+    dynamic_attributes: Dict[str, Any] = field(default_factory=dict)
+
+    @classmethod
+    def from_mapping(cls, data: Dict[str, Any]) -> "CatalogRow":
+        dynamic_attributes = data.get("dynamic_attributes")
+        if not isinstance(dynamic_attributes, dict):
+            dynamic_attributes = {}
+        return cls(
+            nome_base=data.get("nome_base"),
+            sku_original=data.get("sku_original"),
+            ean_original=data.get("ean_original"),
+            descricao_original=data.get("descricao_original"),
+            marca=data.get("marca"),
+            categoria_original=data.get("categoria_original"),
+            dynamic_attributes=dynamic_attributes,
+        )
 
 
 class CatalogImportQualityService:
@@ -198,17 +225,26 @@ class CatalogImportQualityService:
 
         return False
 
-    def evaluate_product_row_quality(self, data: Dict[str, Any]) -> Optional[str]:
-        if not isinstance(data, dict):
+    @staticmethod
+    def _coerce_row(data: CatalogRow | Dict[str, Any]) -> Optional[CatalogRow]:
+        if isinstance(data, CatalogRow):
+            return data
+        if isinstance(data, dict):
+            return CatalogRow.from_mapping(data)
+        return None
+
+    def evaluate_product_row_quality(self, data: CatalogRow | Dict[str, Any]) -> Optional[str]:
+        row = self._coerce_row(data)
+        if row is None:
             return "Linha descartada por baixa qualidade: formato invalido"
 
-        nome = str(data.get("nome_base") or "").strip()
-        sku = str(data.get("sku_original") or "").strip()
-        ean = str(data.get("ean_original") or "").strip()
-        descricao = str(data.get("descricao_original") or "").strip()
-        marca = str(data.get("marca") or "").strip()
-        categoria = str(data.get("categoria_original") or "").strip()
-        dynamic_attributes = data.get("dynamic_attributes") or {}
+        nome = str(row.nome_base or "").strip()
+        sku = str(row.sku_original or "").strip()
+        ean = str(row.ean_original or "").strip()
+        descricao = str(row.descricao_original or "").strip()
+        marca = str(row.marca or "").strip()
+        categoria = str(row.categoria_original or "").strip()
+        dynamic_attributes = row.dynamic_attributes or {}
         has_dynamic = isinstance(dynamic_attributes, dict) and any(
             self.text_has_context(v) for v in dynamic_attributes.values()
         )
@@ -353,15 +389,16 @@ class CatalogImportQualityService:
 
         return None
 
-    def score_product_row_quality(self, data: Dict[str, Any]) -> int:
-        if not isinstance(data, dict):
+    def score_product_row_quality(self, data: CatalogRow | Dict[str, Any]) -> int:
+        row = self._coerce_row(data)
+        if row is None:
             return 0
 
-        nome = str(data.get("nome_base") or "").strip()
-        sku = str(data.get("sku_original") or "").strip()
-        descricao = str(data.get("descricao_original") or "").strip()
-        categoria = str(data.get("categoria_original") or "").strip()
-        dynamic_attributes = data.get("dynamic_attributes") or {}
+        nome = str(row.nome_base or "").strip()
+        sku = str(row.sku_original or "").strip()
+        descricao = str(row.descricao_original or "").strip()
+        categoria = str(row.categoria_original or "").strip()
+        dynamic_attributes = row.dynamic_attributes or {}
 
         nome_compacto = re.sub(r"[^0-9A-Za-z]", "", nome).lower()
         sku_compacto = re.sub(r"[^0-9A-Za-z]", "", sku).lower()
@@ -409,7 +446,10 @@ class CatalogImportQualityService:
 
         return max(0, min(100, int(score)))
 
-    def classify_product_row_quality(self, data: Dict[str, Any]) -> Dict[str, Any]:
+    def classify_product_row_quality(
+        self,
+        data: CatalogRow | Dict[str, Any],
+    ) -> Dict[str, Any]:
         strict_reason = self.evaluate_product_row_quality(data)
         score = self.score_product_row_quality(data)
 
@@ -420,10 +460,11 @@ class CatalogImportQualityService:
                 "reason": strict_reason,
             }
 
-        nome = str(data.get("nome_base") or "").strip()
-        sku = str(data.get("sku_original") or "").strip()
-        descricao = str(data.get("descricao_original") or "").strip()
-        categoria = str(data.get("categoria_original") or "").strip()
+        row = self._coerce_row(data) or CatalogRow()
+        nome = str(row.nome_base or "").strip()
+        sku = str(row.sku_original or "").strip()
+        descricao = str(row.descricao_original or "").strip()
+        categoria = str(row.categoria_original or "").strip()
 
         nome_compacto = re.sub(r"[^0-9A-Za-z]", "", nome).lower()
         sku_compacto = re.sub(r"[^0-9A-Za-z]", "", sku).lower()
@@ -443,7 +484,7 @@ class CatalogImportQualityService:
         categoria_peca = self.text_looks_like_part_name(categoria)
         descricao_aplicacao = self.text_looks_like_vehicle_application(descricao)
         categoria_aplicacao = self.text_looks_like_vehicle_application(categoria)
-        dynamic_attributes = data.get("dynamic_attributes") or {}
+        dynamic_attributes = row.dynamic_attributes or {}
         dynamic_part_strength = (
             max(
                 (

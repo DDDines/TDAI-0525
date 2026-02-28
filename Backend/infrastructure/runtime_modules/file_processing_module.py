@@ -685,23 +685,25 @@ class _LineMappingWorkflow:
 class _LineMappingRuntime:
     """Runtime OO para reutilizar a rotina padrão de mapeamento de linha."""
 
+    def __init__(self, workflow: Optional["_LineMappingWorkflow"] = None) -> None:
+        self._workflow = workflow or _LineMappingWorkflow()
+
     def processar_linha_padronizada(
         self,
         linha_original: Dict[str, Any],
         mapeamento_colunas_usuario: Optional[Dict[str, str]] = None,
     ) -> Optional[Dict[str, Any]]:
-        return _line_mapping_workflow.processar_linha_padronizada(
+        return self._workflow.processar_linha_padronizada(
             linha_original=linha_original,
             mapeamento_colunas_usuario=mapeamento_colunas_usuario,
         )
 
 
-_line_mapping_workflow = _LineMappingWorkflow()
 LineMappingWorkflow = _LineMappingWorkflow
 
 
 def get_line_mapping_workflow() -> LineMappingWorkflow:
-    return _line_mapping_workflow
+    return _LineMappingWorkflow()
 
 
 def _processar_linha_padronizada(
@@ -709,7 +711,7 @@ def _processar_linha_padronizada(
     mapeamento_colunas_usuario: Optional[Dict[str, str]] = None,
 ) -> Optional[Dict[str, Any]]:
     """Padroniza uma linha para campos de Produto, suportando atributos dinamicos."""
-    return _line_mapping_workflow.processar_linha_padronizada(
+    return get_line_mapping_workflow().processar_linha_padronizada(
         linha_original=linha_original,
         mapeamento_colunas_usuario=mapeamento_colunas_usuario,
     )
@@ -1412,34 +1414,115 @@ class _PreviewDispatchRuntime:
         self,
         tabular_preview_runtime: Optional[_TabularPreviewEngineRuntime] = None,
         pdf_preview_runtime: Optional[_PdfPreviewRuntime] = None,
+        extractor_factory: Optional["_PreviewExtractorFactory"] = None,
     ) -> None:
         self._tabular_preview_runtime = tabular_preview_runtime or _tabular_preview_runtime
         self._pdf_preview_runtime = pdf_preview_runtime or _pdf_preview_runtime
+        self._extractor_factory = extractor_factory or _PreviewExtractorFactory(
+            excel_extractor=_ExcelPreviewExtractor(self._tabular_preview_runtime),
+            csv_extractor=_CsvPreviewExtractor(self._tabular_preview_runtime),
+            pdf_extractor=_PdfPreviewExtractor(self._pdf_preview_runtime),
+        )
 
     async def gerar_preview(
         self, conteudo_arquivo: bytes, ext: str, max_rows: int = 5
     ) -> Dict[str, Any]:
         ext_norm = ext.lower()
+        extractor = self._extractor_factory.get_extractor(ext_norm)
+        return await extractor.extract(
+            conteudo_arquivo=conteudo_arquivo,
+            ext=ext_norm,
+            max_rows=max_rows,
+        )
 
-        if ext_norm in [".xlsx", ".xls"]:
-            return await self._tabular_preview_runtime.preview_arquivo_excel(
-                conteudo_arquivo=conteudo_arquivo,
-                max_rows=max_rows,
-            )
-        if ext_norm == ".csv":
-            return await self._tabular_preview_runtime.preview_arquivo_csv(
-                conteudo_arquivo=conteudo_arquivo,
-                max_rows=max_rows,
-            )
-        if ext_norm == ".pdf":
-            return await self._pdf_preview_runtime.preview_arquivo_pdf(
-                conteudo_arquivo=conteudo_arquivo,
-                ext=ext_norm,
-                start_page=1,
-                page_count=1,
-            )
 
-        raise ValueError("Formato de arquivo nao suportado para preview")
+class _PreviewExtractor:
+    async def extract(
+        self,
+        *,
+        conteudo_arquivo: bytes,
+        ext: str,
+        max_rows: int,
+    ) -> Dict[str, Any]:
+        raise NotImplementedError
+
+
+class _ExcelPreviewExtractor(_PreviewExtractor):
+    def __init__(self, tabular_preview_runtime: _TabularPreviewEngineRuntime) -> None:
+        self._tabular_preview_runtime = tabular_preview_runtime
+
+    async def extract(
+        self,
+        *,
+        conteudo_arquivo: bytes,
+        ext: str,
+        max_rows: int,
+    ) -> Dict[str, Any]:
+        _ = ext
+        return await self._tabular_preview_runtime.preview_arquivo_excel(
+            conteudo_arquivo=conteudo_arquivo,
+            max_rows=max_rows,
+        )
+
+
+class _CsvPreviewExtractor(_PreviewExtractor):
+    def __init__(self, tabular_preview_runtime: _TabularPreviewEngineRuntime) -> None:
+        self._tabular_preview_runtime = tabular_preview_runtime
+
+    async def extract(
+        self,
+        *,
+        conteudo_arquivo: bytes,
+        ext: str,
+        max_rows: int,
+    ) -> Dict[str, Any]:
+        _ = ext
+        return await self._tabular_preview_runtime.preview_arquivo_csv(
+            conteudo_arquivo=conteudo_arquivo,
+            max_rows=max_rows,
+        )
+
+
+class _PdfPreviewExtractor(_PreviewExtractor):
+    def __init__(self, pdf_preview_runtime: _PdfPreviewRuntime) -> None:
+        self._pdf_preview_runtime = pdf_preview_runtime
+
+    async def extract(
+        self,
+        *,
+        conteudo_arquivo: bytes,
+        ext: str,
+        max_rows: int,
+    ) -> Dict[str, Any]:
+        _ = max_rows
+        return await self._pdf_preview_runtime.preview_arquivo_pdf(
+            conteudo_arquivo=conteudo_arquivo,
+            ext=ext,
+            start_page=1,
+            page_count=1,
+        )
+
+
+class _PreviewExtractorFactory:
+    def __init__(
+        self,
+        *,
+        excel_extractor: _PreviewExtractor,
+        csv_extractor: _PreviewExtractor,
+        pdf_extractor: _PreviewExtractor,
+    ) -> None:
+        self._extractors = {
+            ".xlsx": excel_extractor,
+            ".xls": excel_extractor,
+            ".csv": csv_extractor,
+            ".pdf": pdf_extractor,
+        }
+
+    def get_extractor(self, ext_norm: str) -> _PreviewExtractor:
+        extractor = self._extractors.get(ext_norm)
+        if extractor is None:
+            raise ValueError("Formato de arquivo nao suportado para preview")
+        return extractor
 
 
 _preview_dispatch_runtime = _PreviewDispatchRuntime()
@@ -1767,33 +1850,30 @@ def _get_file_path_by_id_impl(db: Session, file_id: str) -> str:
 
 
 
-def _extract_data_from_pdf_region_impl(
-    file_path: str, page_number: int, region: Optional[List[float]] = None
-) -> pd.DataFrame:
-    """Extract table-like data from a PDF region with OCR fallback."""
-
-    started_at = time.perf_counter()
-
-    def _make_unique(cols: List[Any]) -> List[str]:
+class _PdfRegionExtractionUtils:
+    @staticmethod
+    def make_unique(cols: List[Any]) -> List[str]:
         seen: Dict[str, int] = {}
         unique: List[str] = []
         for col in cols:
-            base = _limpar_valor_extraido(col) or 'col'
+            base = _limpar_valor_extraido(col) or "col"
             count = seen.get(base, 0)
             name = f"{base}_{count}" if count else base
             seen[base] = count + 1
             unique.append(name)
         return unique
 
-    def _clean_df(df: pd.DataFrame) -> pd.DataFrame:
+    @staticmethod
+    def clean_df(df: pd.DataFrame) -> pd.DataFrame:
         if df is None or df.empty:
             return pd.DataFrame()
-        df = df.dropna(axis=1, how='all')
-        df = df.dropna(axis=0, how='all')
-        df = df.fillna('')
+        df = df.dropna(axis=1, how="all")
+        df = df.dropna(axis=0, how="all")
+        df = df.fillna("")
         return df
 
-    def _median_int(values: List[int], default: int) -> int:
+    @staticmethod
+    def median_int(values: List[int], default: int) -> int:
         if not values:
             return default
         sorted_values = sorted(values)
@@ -1802,14 +1882,16 @@ def _extract_data_from_pdf_region_impl(
             return int(sorted_values[mid])
         return int((sorted_values[mid - 1] + sorted_values[mid]) / 2)
 
-    def _cluster_positions(x_values: List[int], tolerance: int) -> List[int]:
+    @staticmethod
+    def cluster_positions(x_values: List[int], tolerance: int) -> List[int]:
         clusters: List[int] = []
         for x in x_values:
             if not clusters or abs(x - clusters[-1]) > tolerance:
                 clusters.append(x)
         return clusters
 
-    def _normalize_ocr_snippet(text: Any) -> str:
+    @staticmethod
+    def normalize_ocr_snippet(text: Any) -> str:
         normalized = unicodedata.normalize("NFKD", str(text or ""))
         normalized = "".join(ch for ch in normalized if not unicodedata.combining(ch))
         normalized = normalized.upper()
@@ -1817,8 +1899,9 @@ def _extract_data_from_pdf_region_impl(
         normalized = re.sub(r"\s+", " ", normalized).strip()
         return normalized
 
-    def _header_field_for_text(text: str) -> Optional[str]:
-        t = _normalize_ocr_snippet(text)
+    @classmethod
+    def header_field_for_text(cls, text: str) -> Optional[str]:
+        t = cls.normalize_ocr_snippet(text)
         if not t:
             return None
         if "FAB" in t:
@@ -1833,8 +1916,10 @@ def _extract_data_from_pdf_region_impl(
             return "material"
         return None
 
-    def _detect_header_columns(
-        merged_lines: List[List[Dict[str, Any]]]
+    @classmethod
+    def detect_header_columns(
+        cls,
+        merged_lines: List[List[Dict[str, Any]]],
     ) -> Optional[Dict[str, Any]]:
         if not merged_lines:
             return None
@@ -1860,7 +1945,7 @@ def _extract_data_from_pdf_region_impl(
             line = merged_lines[line_idx]
             field_positions: Dict[str, int] = {}
             for seg in line:
-                field = _header_field_for_text(seg.get("text", ""))
+                field = cls.header_field_for_text(seg.get("text", ""))
                 if not field:
                     continue
                 x0 = int(seg.get("x0", 0) or 0)
@@ -1868,7 +1953,7 @@ def _extract_data_from_pdf_region_impl(
                     field_positions[field] = x0
 
             # Fallback when OCR merges whole header in a single segment.
-            line_norm = _normalize_ocr_snippet(" ".join(seg.get("text", "") for seg in line))
+            line_norm = cls.normalize_ocr_snippet(" ".join(seg.get("text", "") for seg in line))
             marker_fields = [field for marker, field in marker_pairs if marker in line_norm]
             if len(field_positions) < 3 and len(marker_fields) >= 3:
                 line_x0 = min(int(seg.get("x0", 0) or 0) for seg in line)
@@ -1901,15 +1986,17 @@ def _extract_data_from_pdf_region_impl(
 
         return best
 
-    def _is_header_like_row(text: str) -> bool:
-        norm = _normalize_ocr_snippet(text)
+    @classmethod
+    def is_header_like_row(cls, text: str) -> bool:
+        norm = cls.normalize_ocr_snippet(text)
         if not norm:
             return False
         markers = ("FAB", "ORIGINAL", "DESCR", "APLIC", "MATERIAL")
         hits = sum(1 for marker in markers if marker in norm)
         return hits >= 2
 
-    def _filter_ocr_rows(raw_rows: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    @classmethod
+    def filter_ocr_rows(cls, raw_rows: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
         filtered_rows: List[Dict[str, Any]] = []
         for row in raw_rows:
             cleaned_row = {k: (v or "").strip() for k, v in row.items()}
@@ -1917,7 +2004,7 @@ def _extract_data_from_pdf_region_impl(
             if not non_empty_values:
                 continue
             joined = " ".join(non_empty_values).strip()
-            if _is_header_like_row(joined):
+            if cls.is_header_like_row(joined):
                 continue
             if joined in {"-", "--", "!", "|", ":", ";", ".", ","}:
                 continue
@@ -1929,81 +2016,94 @@ def _extract_data_from_pdf_region_impl(
             filtered_rows.append(cleaned_row)
         return filtered_rows
 
-    def _tables_to_df(tables: List[List[List[Any]]]) -> pd.DataFrame:
+    @classmethod
+    def tables_to_df(cls, tables: List[List[List[Any]]]) -> pd.DataFrame:
         rows: List[Dict[str, Any]] = []
         headers: List[str] = []
         for table in tables:
             if not table or len(table) < 2:
                 continue
-            headers = _make_unique(table[0])
+            headers = cls.make_unique(table[0])
             for row in table[1:]:
-                row_fixed = list(row) + [''] * (len(headers) - len(row))
+                row_fixed = list(row) + [""] * (len(headers) - len(row))
                 row_fixed = row_fixed[: len(headers)]
                 rows.append({headers[i]: row_fixed[i] for i in range(len(headers))})
         if rows and headers:
-            return _clean_df(pd.DataFrame(rows, columns=headers))
+            return cls.clean_df(pd.DataFrame(rows, columns=headers))
         return pd.DataFrame()
 
-    def _group_words_by_line_ids(words: List[Dict[str, Any]]) -> List[List[Dict[str, Any]]]:
+    @staticmethod
+    def group_words_by_line_ids(words: List[Dict[str, Any]]) -> List[List[Dict[str, Any]]]:
         buckets: Dict[tuple[int, int, int], List[Dict[str, Any]]] = {}
         for word in words:
-            line_num = int(word.get('line', 0) or 0)
+            line_num = int(word.get("line", 0) or 0)
             if line_num <= 0:
                 continue
             key = (
-                int(word.get('block', 0) or 0),
-                int(word.get('par', 0) or 0),
+                int(word.get("block", 0) or 0),
+                int(word.get("par", 0) or 0),
                 line_num,
             )
             buckets.setdefault(key, []).append(word)
         lines = list(buckets.values())
-        lines.sort(key=lambda line_words: min(item['y'] for item in line_words))
+        lines.sort(key=lambda line_words: min(item["y"] for item in line_words))
         return lines
 
-    def _group_words_by_y(words: List[Dict[str, Any]]) -> List[List[Dict[str, Any]]]:
+    @classmethod
+    def group_words_by_y(cls, words: List[Dict[str, Any]]) -> List[List[Dict[str, Any]]]:
         if not words:
             return []
-        heights = [int(w.get('h', 0) or 0) for w in words if int(w.get('h', 0) or 0) > 0]
-        tol_y = max(10, int(_median_int(heights, 12) * 0.8))
-        words_sorted = sorted(words, key=lambda item: (item['y'], item['x']))
+        heights = [int(w.get("h", 0) or 0) for w in words if int(w.get("h", 0) or 0) > 0]
+        tol_y = max(10, int(cls.median_int(heights, 12) * 0.8))
+        words_sorted = sorted(words, key=lambda item: (item["y"], item["x"]))
         lines_grouped: List[List[Dict[str, Any]]] = []
         for word in words_sorted:
-            if lines_grouped and abs(word['y'] - lines_grouped[-1][0]['y']) <= tol_y:
+            if lines_grouped and abs(word["y"] - lines_grouped[-1][0]["y"]) <= tol_y:
                 lines_grouped[-1].append(word)
             else:
                 lines_grouped.append([word])
         return lines_grouped
 
-    def _merge_words_in_line(line_words: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    @classmethod
+    def merge_words_in_line(cls, line_words: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
         if not line_words:
             return []
-        sorted_words = sorted(line_words, key=lambda item: item['x'])
-        widths = [int(w.get('w', 0) or 0) for w in sorted_words if int(w.get('w', 0) or 0) > 0]
-        gap_threshold = max(14, int(_median_int(widths, 8) * 1.8))
+        sorted_words = sorted(line_words, key=lambda item: item["x"])
+        widths = [int(w.get("w", 0) or 0) for w in sorted_words if int(w.get("w", 0) or 0) > 0]
+        gap_threshold = max(14, int(cls.median_int(widths, 8) * 1.8))
         segments: List[Dict[str, Any]] = []
         for word in sorted_words:
-            x0 = int(word['x'])
-            x1 = int(word['x'] + word['w'])
-            text = str(word['text']).strip()
+            x0 = int(word["x"])
+            x1 = int(word["x"] + word["w"])
+            text = str(word["text"]).strip()
             if not text:
                 continue
             if not segments:
-                segments.append({'x0': x0, 'x1': x1, 'parts': [text]})
+                segments.append({"x0": x0, "x1": x1, "parts": [text]})
                 continue
-            gap = x0 - int(segments[-1]['x1'])
+            gap = x0 - int(segments[-1]["x1"])
             if gap <= gap_threshold:
-                segments[-1]['x1'] = max(int(segments[-1]['x1']), x1)
-                segments[-1]['parts'].append(text)
+                segments[-1]["x1"] = max(int(segments[-1]["x1"]), x1)
+                segments[-1]["parts"].append(text)
             else:
-                segments.append({'x0': x0, 'x1': x1, 'parts': [text]})
+                segments.append({"x0": x0, "x1": x1, "parts": [text]})
 
         merged: List[Dict[str, Any]] = []
         for seg in segments:
-            seg_text = ' '.join(seg['parts']).strip()
+            seg_text = " ".join(seg["parts"]).strip()
             if not seg_text:
                 continue
-            merged.append({'x0': int(seg['x0']), 'x1': int(seg['x1']), 'text': seg_text})
+            merged.append({"x0": int(seg["x0"]), "x1": int(seg["x1"]), "text": seg_text})
         return merged
+
+
+def _extract_data_from_pdf_region_impl(
+    file_path: str, page_number: int, region: Optional[List[float]] = None
+) -> pd.DataFrame:
+    """Extract table-like data from a PDF region with OCR fallback."""
+
+    started_at = time.perf_counter()
+    helper = _PdfRegionExtractionUtils
 
     try:
         with pdfplumber.open(file_path) as pdf:
@@ -2056,7 +2156,7 @@ def _extract_data_from_pdf_region_impl(
                 except Exception:
                     tables = []
 
-            df_tables = _tables_to_df(tables)
+            df_tables = helper.tables_to_df(tables)
             if not df_tables.empty:
                 logger.info(
                     'extract_data_from_pdf_region: table rows=%s cols=%s elapsed=%.2fs',
@@ -2071,14 +2171,14 @@ def _extract_data_from_pdf_region_impl(
             if text:
                 lines = [line for line in text.strip().split('\n') if line.strip()]
                 if len(lines) >= 2:
-                    headers = _make_unique(lines[0].split())
+                    headers = helper.make_unique(lines[0].split())
                     rows_text: List[Dict[str, Any]] = []
                     for line in lines[1:]:
                         parts = line.split()
                         parts_fixed = parts + [''] * (len(headers) - len(parts))
                         parts_fixed = parts_fixed[: len(headers)]
                         rows_text.append({headers[i]: parts_fixed[i] for i in range(len(headers))})
-                    df_text = _clean_df(pd.DataFrame(rows_text, columns=headers))
+                    df_text = helper.clean_df(pd.DataFrame(rows_text, columns=headers))
                     if not df_text.empty:
                         rows_count = len(df_text.index)
                         cols_count = len(df_text.columns)
@@ -2177,15 +2277,15 @@ def _extract_data_from_pdf_region_impl(
                 logger.info('OCR da regiao retornou vazio.')
                 return pd.DataFrame()
 
-            lines_grouped = _group_words_by_line_ids(words)
+            lines_grouped = helper.group_words_by_line_ids(words)
             if not lines_grouped:
-                lines_grouped = _group_words_by_y(words)
+                lines_grouped = helper.group_words_by_y(words)
             for line_words in lines_grouped:
                 line_words.sort(key=lambda item: item['x'])
 
             merged_lines: List[List[Dict[str, Any]]] = []
             for line_words in lines_grouped:
-                merged = _merge_words_in_line(line_words)
+                merged = helper.merge_words_in_line(line_words)
                 if merged:
                     merged_lines.append(merged)
             if not merged_lines:
@@ -2193,7 +2293,7 @@ def _extract_data_from_pdf_region_impl(
                 return pd.DataFrame()
 
             # 3.1) Header-guided OCR parsing (improves scanned catalogs with stable table header).
-            header_guess = _detect_header_columns(merged_lines)
+            header_guess = helper.detect_header_columns(merged_lines)
             if header_guess:
                 guessed_headers: List[str] = header_guess["headers"]
                 guessed_bounds: List[int] = header_guess["bounds"]
@@ -2216,9 +2316,11 @@ def _extract_data_from_pdf_region_impl(
                         row[key] = (f"{row[key]} {seg['text']}").strip() if row[key] else seg["text"]
                     raw_rows_guided.append(row)
 
-                filtered_guided = _filter_ocr_rows(raw_rows_guided)
+                filtered_guided = helper.filter_ocr_rows(raw_rows_guided)
                 if filtered_guided:
-                    df_ocr_guided = _clean_df(pd.DataFrame(filtered_guided, columns=guessed_headers))
+                    df_ocr_guided = helper.clean_df(
+                        pd.DataFrame(filtered_guided, columns=guessed_headers)
+                    )
                     if not df_ocr_guided.empty:
                         logger.info(
                             "extract_data_from_pdf_region: OCR header-guided rows=%s cols=%s elapsed=%.2fs",
@@ -2239,11 +2341,11 @@ def _extract_data_from_pdf_region_impl(
             max_x = max(int(word['x'] + word['w']) for word in words)
             region_px_width = max(1, max_x)
             tol_x = max(24, min(80, int(region_px_width / 35)))
-            col_bounds = _cluster_positions(x_positions, tol_x)
+            col_bounds = helper.cluster_positions(x_positions, tol_x)
             max_cols_target = max(8, int(os.getenv('OCR_MAX_COLUMNS', '16')))
             while len(col_bounds) > max_cols_target and tol_x < region_px_width:
                 tol_x = int(tol_x * 1.35)
-                col_bounds = _cluster_positions(x_positions, tol_x)
+                col_bounds = helper.cluster_positions(x_positions, tol_x)
 
             headers = [f'col_{i}' for i in range(len(col_bounds))] or ['col_0']
             ocr_rows: List[Dict[str, Any]] = []
@@ -2261,13 +2363,13 @@ def _extract_data_from_pdf_region_impl(
                     row[key] = (f"{row[key]} {seg['text']}").strip() if row[key] else seg['text']
                 ocr_rows.append(row)
 
-            filtered_rows = _filter_ocr_rows(ocr_rows)
+            filtered_rows = helper.filter_ocr_rows(ocr_rows)
 
             if not filtered_rows:
                 logger.info('OCR da regiao retornou somente ruido.')
                 return pd.DataFrame()
 
-            df_ocr = _clean_df(pd.DataFrame(filtered_rows, columns=headers))
+            df_ocr = helper.clean_df(pd.DataFrame(filtered_rows, columns=headers))
             logger.info(
                 'extract_data_from_pdf_region: OCR rows=%s cols=%s words=%s lines=%s col_bounds=%s elapsed=%.2fs',
                 len(df_ocr.index),
@@ -2351,7 +2453,7 @@ async def _extrair_pagina_pdf_impl(
         tmp_path = Path(tmp_file.name)
 
     try:
-        df = _pdf_processing_workflow.extract_data_from_pdf_region(
+        df = get_pdf_processing_workflow().extract_data_from_pdf_region(
             file_path=str(tmp_path),
             page_number=page_number,
             region=region,
@@ -2796,12 +2898,11 @@ class _CatalogStorageRuntime:
         return _get_file_path_by_id_impl(db=db, file_id=file_id)
 
 
-_catalog_storage_workflow = _CatalogStorageWorkflow()
 CatalogStorageWorkflow = _CatalogStorageWorkflow
 
 
 def get_catalog_storage_workflow() -> CatalogStorageWorkflow:
-    return _catalog_storage_workflow
+    return _CatalogStorageWorkflow()
 
 
 class _TabularIngestionWorkflow:
@@ -2865,12 +2966,11 @@ class _TabularIngestionRuntime:
         )
 
 
-_tabular_ingestion_workflow = _TabularIngestionWorkflow()
 TabularIngestionWorkflow = _TabularIngestionWorkflow
 
 
 def get_tabular_ingestion_workflow() -> TabularIngestionWorkflow:
-    return _tabular_ingestion_workflow
+    return _TabularIngestionWorkflow()
 
 
 class _TabularPreviewWorkflow:
@@ -2918,12 +3018,11 @@ class _TabularPreviewRuntime:
         )
 
 
-_tabular_preview_workflow = _TabularPreviewWorkflow()
 TabularPreviewWorkflow = _TabularPreviewWorkflow
 
 
 def get_tabular_preview_workflow() -> TabularPreviewWorkflow:
-    return _tabular_preview_workflow
+    return _TabularPreviewWorkflow()
 
 
 class _PdfAssetRuntime:
@@ -3039,12 +3138,11 @@ class _PdfAssetWorkflow:
         )
 
 
-_pdf_asset_workflow = _PdfAssetWorkflow()
 PdfAssetWorkflow = _PdfAssetWorkflow
 
 
 def get_pdf_asset_workflow() -> PdfAssetWorkflow:
-    return _pdf_asset_workflow
+    return _PdfAssetWorkflow()
 
 
 class _PdfProcessingRuntime:
@@ -3155,12 +3253,11 @@ class _PdfProcessingWorkflow:
         )
 
 
-_pdf_processing_workflow = _PdfProcessingWorkflow()
 PdfProcessingWorkflow = _PdfProcessingWorkflow
 
 
 def get_pdf_processing_workflow() -> PdfProcessingWorkflow:
-    return _pdf_processing_workflow
+    return _PdfProcessingWorkflow()
 
 
 class _PdfJobWorkflow:
@@ -3216,12 +3313,11 @@ class _PdfJobRuntime:
         )
 
 
-_pdf_job_workflow = _PdfJobWorkflow()
 PdfJobWorkflow = _PdfJobWorkflow
 
 
 def get_pdf_job_workflow() -> PdfJobWorkflow:
-    return _pdf_job_workflow
+    return _PdfJobWorkflow()
 
 
 

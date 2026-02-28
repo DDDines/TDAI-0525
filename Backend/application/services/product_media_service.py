@@ -11,10 +11,10 @@ class ProductMediaService:
     def __init__(
         self,
         *,
-        crud_produtos: Any,
+        produto_repo: Any,
         schemas: Any,
     ) -> None:
-        self._crud_produtos = crud_produtos
+        self._produto_repo = produto_repo
         self._schemas = schemas
 
     @staticmethod
@@ -22,8 +22,8 @@ class ProductMediaService:
         if not current_user.is_superuser and db_produto.user_id != current_user.id:
             raise HTTPException(status_code=403, detail="Nao autorizado a modificar este produto")
 
-    def _get_produto_for_update(self, *, db: Any, produto_id: int, current_user: Any) -> Any:
-        db_produto = self._crud_produtos.get_produto(db, produto_id=produto_id)
+    def _get_produto_for_update(self, *, produto_id: int, current_user: Any) -> Any:
+        db_produto = self._produto_repo.get_produto(produto_id=produto_id)
         if not db_produto:
             raise HTTPException(status_code=404, detail="Produto nao encontrado")
         self._ensure_owner_or_superuser(db_produto=db_produto, current_user=current_user)
@@ -32,18 +32,19 @@ class ProductMediaService:
     async def upload_produto_image(
         self,
         *,
-        db: Any,
         produto_id: int,
         file: Any,
         current_user: Any,
     ) -> Any:
         db_produto = self._get_produto_for_update(
-            db=db,
             produto_id=produto_id,
             current_user=current_user,
         )
         try:
-            file_path_in_db = await self._crud_produtos.save_produto_image(db, produto_id, file)
+            file_path_in_db = await self._produto_repo.save_produto_image(
+                produto_id=produto_id,
+                file=file,
+            )
         except ValueError as exc:
             raise HTTPException(status_code=400, detail=str(exc)) from exc
         except IOError as exc:
@@ -55,8 +56,7 @@ class ProductMediaService:
             ) from exc
 
         produto_update = self._schemas.ProdutoUpdate(imagem_principal_url=file_path_in_db)
-        return self._crud_produtos.update_produto(
-            db=db,
+        return self._produto_repo.update_produto(
             db_produto=db_produto,
             produto_update=produto_update,
         )

@@ -15,18 +15,17 @@ class _CrudProdutosStub:
         self.save_error = save_error
         self.update_calls = []
 
-    def get_produto(self, db, produto_id):
-        _ = (db, produto_id)
+    def get_produto(self, *, produto_id):
+        _ = produto_id
         return self.produto
 
-    async def save_produto_image(self, db, produto_id, file):
-        _ = (db, produto_id, file)
+    async def save_produto_image(self, *, produto_id, file):
+        _ = (produto_id, file)
         if self.save_error:
             raise self.save_error
         return "uploads/produto.jpg"
 
-    def update_produto(self, *, db, db_produto, produto_update):
-        _ = db
+    def update_produto(self, *, db_produto, produto_update):
         self.update_calls.append((db_produto, produto_update))
         db_produto.imagem_principal_url = produto_update.imagem_principal_url
         return db_produto
@@ -45,7 +44,7 @@ class _SchemasStub:
 def _build_service(*, produto=None, save_error=None):
     crud_produtos = _CrudProdutosStub(produto=produto, save_error=save_error)
     service = ProductMediaService(
-        crud_produtos=crud_produtos,
+        produto_repo=crud_produtos,
         schemas=_SchemasStub,
     )
     return service, crud_produtos
@@ -57,7 +56,6 @@ def test_upload_produto_image_raises_404_when_missing():
     with pytest.raises(HTTPException) as exc:
         asyncio.run(
             service.upload_produto_image(
-                db=object(),
                 produto_id=1,
                 file=object(),
                 current_user=SimpleNamespace(id=1, is_superuser=False),
@@ -73,7 +71,6 @@ def test_upload_produto_image_raises_403_when_not_owner():
     with pytest.raises(HTTPException) as exc:
         asyncio.run(
             service.upload_produto_image(
-                db=object(),
                 produto_id=1,
                 file=object(),
                 current_user=SimpleNamespace(id=1, is_superuser=False),
@@ -92,7 +89,6 @@ def test_upload_produto_image_raises_400_for_validation_error():
     with pytest.raises(HTTPException) as exc:
         asyncio.run(
             service.upload_produto_image(
-                db=object(),
                 produto_id=1,
                 file=object(),
                 current_user=SimpleNamespace(id=1, is_superuser=False),
@@ -108,7 +104,6 @@ def test_upload_produto_image_updates_product_url():
 
     updated = asyncio.run(
         service.upload_produto_image(
-            db=object(),
             produto_id=1,
             file=object(),
             current_user=SimpleNamespace(id=1, is_superuser=False),
