@@ -698,7 +698,7 @@ _web_content_fetch_engine_runtime = _WebContentFetchEngineRuntime(
 
 def busca_publica_disponivel() -> bool:
     """Indica se busca web sem API key pode ser usada como fallback."""
-    return _web_search_engine_runtime.busca_publica_disponivel()
+    return _web_search_workflow.busca_publica_disponivel()
 
 
 def _get_search_cache_lock() -> asyncio.Lock:
@@ -797,6 +797,9 @@ class _WebSearchWorkflow:
     def __init__(self, runtime: Optional["_WebSearchRuntime"] = None) -> None:
         self._runtime = runtime or _WebSearchRuntime()
 
+    def busca_publica_disponivel(self) -> bool:
+        return self._runtime.busca_publica_disponivel()
+
     async def buscar_urls_publicas(self, query: str, num_results: int = 3) -> List[str]:
         return await self._runtime.buscar_urls_publicas_async(
             query=query,
@@ -830,6 +833,9 @@ class _WebSearchRuntime:
         engine_runtime: Optional[_WebSearchEngineRuntime] = None,
     ) -> None:
         self._engine_runtime = engine_runtime or _web_search_engine_runtime
+
+    def busca_publica_disponivel(self) -> bool:
+        return self._engine_runtime.busca_publica_disponivel()
 
     async def buscar_urls_publicas_async(
         self,
@@ -875,6 +881,16 @@ _web_search_workflow = _WebSearchWorkflow(runtime=_web_search_runtime)
 _web_content_collection_workflow = _WebContentCollectionWorkflow(
     runtime=_web_content_collection_runtime
 )
+WebSearchWorkflow = _WebSearchWorkflow
+WebContentCollectionWorkflow = _WebContentCollectionWorkflow
+
+
+def get_web_search_workflow() -> WebSearchWorkflow:
+    return _web_search_workflow
+
+
+def get_web_content_collection_workflow() -> WebContentCollectionWorkflow:
+    return _web_content_collection_workflow
 
 
 async def buscar_urls_publicas(query: str, num_results: int = 3) -> List[str]:
@@ -1623,6 +1639,11 @@ _web_extraction_support_workflow = _WebExtractionSupportWorkflow(
     enrichment_runtime=_WebURLExtractionRuntime(),
     ocr_runtime=_WebOCRRuntime(),
 )
+WebExtractionSupportWorkflow = _WebExtractionSupportWorkflow
+
+
+def get_web_extraction_support_workflow() -> WebExtractionSupportWorkflow:
+    return _web_extraction_support_workflow
 
 
 @dataclass

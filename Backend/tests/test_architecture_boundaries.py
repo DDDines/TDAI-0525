@@ -167,6 +167,36 @@ def test_infrastructure_runtime_providers_do_not_import_runtime_modules_directly
     )
 
 
+def test_runtime_modules_imports_are_constrained_to_runtime_services_and_tests():
+    offenders: list[str] = []
+
+    allowed_prefixes = [
+        INFRASTRUCTURE_RUNTIME_SERVICES_ROOT.resolve(),
+        BACKEND_TESTS_ROOT.resolve(),
+        (BACKEND_ROOT / "testing").resolve(),
+    ]
+
+    for path in _iter_python_files(BACKEND_ROOT):
+        resolved = path.resolve()
+        rel = path.relative_to(PROJECT_ROOT)
+
+        if str(resolved).startswith(str(INFRASTRUCTURE_RUNTIME_MODULES_ROOT.resolve())):
+            continue
+        if any(str(resolved).startswith(str(prefix)) for prefix in allowed_prefixes):
+            continue
+
+        for target in _import_targets(path):
+            if target == "Backend.infrastructure.runtime_modules" or target.startswith(
+                "Backend.infrastructure.runtime_modules."
+            ):
+                offenders.append(f"{rel}: {target}")
+
+    assert not offenders, (
+        "Direct runtime_modules imports are only allowed in runtime_services and tests:\n"
+        + "\n".join(offenders)
+    )
+
+
 def test_infrastructure_runtime_providers_expose_get_runtime_service_only():
     offenders: list[str] = []
     missing: list[str] = []
@@ -209,6 +239,32 @@ def test_runtime_services_do_not_import_backend_services_modules():
     )
 
 
+def test_runtime_services_do_not_call_runtime_module_functions_directly():
+    offenders: list[str] = []
+    for path in _iter_python_files(INFRASTRUCTURE_RUNTIME_SERVICES_ROOT):
+        rel = path.relative_to(PROJECT_ROOT)
+        tree = _parse_python_file(path)
+
+        for node in ast.walk(tree):
+            if not isinstance(node, ast.Call):
+                continue
+            if not isinstance(node.func, ast.Attribute):
+                continue
+            owner = node.func.value
+            if not isinstance(owner, ast.Name):
+                continue
+            if not owner.id.endswith("_module"):
+                continue
+            if node.func.attr.startswith("get_"):
+                continue
+            offenders.append(f"{rel}:{node.lineno} -> {owner.id}.{node.func.attr}")
+
+    assert not offenders, (
+        "Runtime services must consume workflow/service objects, "
+        "not call runtime module function APIs directly:\n" + "\n".join(offenders)
+    )
+
+
 def test_backend_code_does_not_import_backend_services_modules():
     offenders: list[str] = []
 
@@ -220,6 +276,34 @@ def test_backend_code_does_not_import_backend_services_modules():
 
     assert not offenders, (
         "Unexpected imports to Backend.services in Backend package:\n"
+        + "\n".join(offenders)
+    )
+
+
+def test_runtime_modules_do_not_import_backend_crud_package_root():
+    offenders: list[str] = []
+    for path in _iter_python_files(INFRASTRUCTURE_RUNTIME_MODULES_ROOT):
+        rel = path.relative_to(PROJECT_ROOT)
+        tree = _parse_python_file(path)
+
+        for node in ast.walk(tree):
+            if isinstance(node, ast.Import):
+                for alias in node.names:
+                    if alias.name == "Backend.crud":
+                        offenders.append(f"{rel}: {alias.name}")
+            elif isinstance(node, ast.ImportFrom):
+                if node.level:
+                    continue
+                module = node.module or ""
+                if module == "Backend":
+                    for alias in node.names:
+                        if alias.name == "crud" or alias.name.startswith("crud_"):
+                            offenders.append(f"{rel}: from Backend import {alias.name}")
+                elif module == "Backend.crud":
+                    offenders.append(f"{rel}: {module}")
+
+    assert not offenders, (
+        "Runtime modules must depend on CRUD workflows, not Backend crud package root/module functions:\n"
         + "\n".join(offenders)
     )
 

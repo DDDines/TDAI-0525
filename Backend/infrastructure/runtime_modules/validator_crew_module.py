@@ -193,6 +193,11 @@ class _ValidationCrewWorkflow:
 
 
 _validation_crew_workflow = _ValidationCrewWorkflow(_validation_crew_runtime)
+ValidationCrewWorkflow = _ValidationCrewWorkflow
+
+
+def get_validation_crew_workflow() -> ValidationCrewWorkflow:
+    return _validation_crew_workflow
 
 
 def run_validation_crew(raw_data: Any, timeout_seconds: int = 8):

@@ -5,16 +5,27 @@ from typing import Any
 from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
 
-from Backend import crud, crud_users, models
+from Backend import models
+from Backend.crud_registros_uso_ia import get_registro_uso_ia_crud_workflow
+from Backend.crud_users import get_user_crud_workflow
 from Backend.core.logging_config import get_logger
 
 
 class _LimitRuntime:
     """Runtime OO para regras de limite e credito."""
 
-    def __init__(self, *, crud_module, crud_users_module, logger_factory) -> None:
-        self._crud = crud_module
-        self._crud_users = crud_users_module
+    def __init__(
+        self,
+        *,
+        uso_ia_workflow=None,
+        user_workflow=None,
+        logger_factory=get_logger,
+        crud_module=None,
+        crud_users_module=None,
+    ) -> None:
+        # Backward-compatible constructor names while migration tests settle.
+        self._uso_ia_workflow = uso_ia_workflow or crud_module
+        self._user_workflow = user_workflow or crud_users_module
         self._logger = logger_factory(__name__)
 
     def verificar_limite_uso(
@@ -60,7 +71,7 @@ class _LimitRuntime:
             )
             return -1
 
-        usos_no_mes = self._crud.count_usos_ia_by_user_and_type_no_mes_corrente(
+        usos_no_mes = self._uso_ia_workflow.count_usos_ia_by_user_and_type_no_mes_corrente(
             db,
             user_id=user.id,
             tipo_geracao_prefix=tipo_geracao_principal,
@@ -101,7 +112,7 @@ class _LimitRuntime:
     ) -> bool:
         """Verifica se o usuario possui credito mensal disponivel para IA."""
 
-        user = self._crud_users.get_user(db, user_id=user_id)
+        user = self._user_workflow.get_user(db, user_id=user_id)
         if not user:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
@@ -115,7 +126,10 @@ class _LimitRuntime:
         if limite_mensal is None or limite_mensal <= 0:
             return True
 
-        usos_no_mes = self._crud.get_geracoes_ia_count_no_mes_corrente(db, user_id=user_id)
+        usos_no_mes = self._uso_ia_workflow.get_geracoes_ia_count_no_mes_corrente(
+            db,
+            user_id=user_id,
+        )
         return usos_no_mes + creditos_necessarios <= limite_mensal
 
     async def verificar_e_consumir_creditos_geracao_ia(
@@ -177,11 +191,19 @@ class _LimitWorkflow:
 
 
 _limit_runtime = _LimitRuntime(
-    crud_module=crud,
-    crud_users_module=crud_users,
+    uso_ia_workflow=get_registro_uso_ia_crud_workflow(),
+    user_workflow=get_user_crud_workflow(),
     logger_factory=get_logger,
 )
+# Transitional compatibility attributes for legacy tests/patching.
+crud = _limit_runtime._uso_ia_workflow
+crud_users = _limit_runtime._user_workflow
 _limit_workflow = _LimitWorkflow(_limit_runtime)
+LimitWorkflow = _LimitWorkflow
+
+
+def get_limit_workflow() -> LimitWorkflow:
+    return _limit_workflow
 
 
 def verificar_limite_uso(

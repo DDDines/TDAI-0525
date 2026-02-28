@@ -49,7 +49,8 @@ from Backend.core.logging_config import get_logger
 
 from Backend.core.config import settings
 
-from Backend import models, crud_fornecedores, schemas
+from Backend import models, schemas
+from Backend.crud_fornecedores import get_fornecedor_crud_workflow
 
 from Backend.application.services.web_data_extractor_facade import (
     WebDataExtractorFacade,
@@ -59,6 +60,7 @@ from Backend.application.services.web_data_extractor_facade import (
 
 logger = get_logger(__name__)
 web_data_extractor_service = WebDataExtractorFacade()
+_fornecedor_crud_workflow = get_fornecedor_crud_workflow()
 try:
     from pdfminer.pdfdocument import PDFPasswordIncorrect
 except Exception:
@@ -1648,7 +1650,7 @@ def _pdf_pages_to_images_impl(db: Session, file: UploadFile, fornecedor_id: int,
 
     # A chamada Ã  funÃ§Ã£o que jÃ¡ corrigimos
 
-    import_file = crud_fornecedores.create_catalog_import_file(
+    import_file = _fornecedor_crud_workflow.create_catalog_import_file(
 
         db=db,
 
@@ -3110,6 +3112,11 @@ class _PdfAssetWorkflow:
 
 
 _pdf_asset_workflow = _PdfAssetWorkflow()
+PdfAssetWorkflow = _PdfAssetWorkflow
+
+
+def get_pdf_asset_workflow() -> PdfAssetWorkflow:
+    return _pdf_asset_workflow
 
 
 async def pdf_bytes_to_images(
@@ -3293,6 +3300,11 @@ class _PdfProcessingWorkflow:
 
 
 _pdf_processing_workflow = _PdfProcessingWorkflow()
+PdfProcessingWorkflow = _PdfProcessingWorkflow
+
+
+def get_pdf_processing_workflow() -> PdfProcessingWorkflow:
+    return _pdf_processing_workflow
 
 
 async def processar_arquivo_pdf(

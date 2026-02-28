@@ -2,23 +2,26 @@ from __future__ import annotations
 
 from typing import Any
 
-from Backend.infrastructure.runtime_modules import limit_module
+from Backend.infrastructure.runtime_modules.limit_module import get_limit_workflow
 
 
 class LimitRuntimeService:
     """Explicit runtime service surface for limits and credits flows."""
 
+    def __init__(self) -> None:
+        self._workflow = get_limit_workflow()
+
     def verificar_limite_uso(self, *args: Any, **kwargs: Any):
-        return limit_module.verificar_limite_uso(*args, **kwargs)
+        return self._workflow.verificar_limite_uso(*args, **kwargs)
 
     async def verificar_creditos_disponiveis_geracao_ia(self, *args: Any, **kwargs: Any):
-        return await limit_module.verificar_creditos_disponiveis_geracao_ia(
+        return await self._workflow.verificar_creditos_disponiveis_geracao_ia(
             *args,
             **kwargs,
         )
 
     async def verificar_e_consumir_creditos_geracao_ia(self, *args: Any, **kwargs: Any):
-        return await limit_module.verificar_e_consumir_creditos_geracao_ia(
+        return await self._workflow.verificar_e_consumir_creditos_geracao_ia(
             *args,
             **kwargs,
         )
