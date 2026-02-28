@@ -41,19 +41,18 @@ def _build_runner() -> CatalogImportTaskRunner:
 
 
 @pytest.mark.asyncio
-async def test_catalog_import_task_runner_dispatches_legacy_and_oop():
+async def test_catalog_import_task_runner_uses_single_oop_service():
     runner = _build_runner()
-    legacy_stub = _TaskServiceStub()
-    oop_stub = _TaskServiceStub()
+    service_stub = _TaskServiceStub()
     build_calls = []
 
-    def _fake_build(*, pipeline_variant: str):
-        build_calls.append(pipeline_variant)
-        return legacy_stub if pipeline_variant == "legacy" else oop_stub
+    def _fake_build():
+        build_calls.append("build")
+        return service_stub
 
     runner._build = _fake_build  # type: ignore[attr-defined]
 
-    await runner.execute_legacy(
+    await runner.execute(
         db_session_factory=lambda: None,
         file_id=1,
         user_id=2,
@@ -64,7 +63,7 @@ async def test_catalog_import_task_runner_dispatches_legacy_and_oop():
         region=[0.0, 0.0, 1.0, 1.0],
     )
     await runner.execute_oop(file_id=9)
-    await runner.execute_legacy(
+    await runner.execute(
         db_session_factory=lambda: None,
         file_id=10,
         user_id=20,
@@ -72,26 +71,29 @@ async def test_catalog_import_task_runner_dispatches_legacy_and_oop():
         fornecedor_id=40,
     )
 
-    assert build_calls == ["legacy", "oop"]
-    assert len(legacy_stub.calls) == 2
-    assert legacy_stub.calls[0]["file_id"] == 1
-    assert len(oop_stub.calls) == 1
-    assert oop_stub.calls[0]["file_id"] == 9
+    assert build_calls == ["build"]
+    assert len(service_stub.calls) == 3
+    assert service_stub.calls[0]["file_id"] == 1
+    assert service_stub.calls[1]["file_id"] == 9
+    assert service_stub.calls[2]["file_id"] == 10
 
 
 @pytest.mark.asyncio
-async def test_catalog_import_task_runner_execute_oop_does_not_build_legacy():
+async def test_catalog_import_task_runner_execute_oop_reuses_cached_service():
     runner = _build_runner()
-    oop_stub = _TaskServiceStub()
+    service_stub = _TaskServiceStub()
+    build_calls = []
 
-    def _fake_build(*, pipeline_variant: str):
-        if pipeline_variant == "legacy":
-            raise AssertionError("legacy build should not happen in execute_oop")
-        return oop_stub
+    def _fake_build():
+        build_calls.append("build")
+        return service_stub
 
     runner._build = _fake_build  # type: ignore[attr-defined]
 
     await runner.execute_oop(file_id=77, user_id=88)
+    await runner.execute_oop(file_id=78, user_id=89)
 
-    assert len(oop_stub.calls) == 1
-    assert oop_stub.calls[0]["file_id"] == 77
+    assert build_calls == ["build"]
+    assert len(service_stub.calls) == 2
+    assert service_stub.calls[0]["file_id"] == 77
+    assert service_stub.calls[1]["file_id"] == 78

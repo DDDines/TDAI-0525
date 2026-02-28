@@ -19,8 +19,6 @@ class CatalogImportTaskRunner:
         schemas: Any,
         crud_produtos: Any,
         file_processing_service: Any,
-        legacy_file_processing_service: Any | None = None,
-        oop_file_processing_service: Any | None = None,
         validator_crew: Any,
         settings: Any,
         path_cls: Any,
@@ -57,12 +55,10 @@ class CatalogImportTaskRunner:
             "write_catalog_import_report": write_catalog_import_report,
             "normalize_import_text": normalize_import_text,
         }
-        _ = (legacy_file_processing_service, oop_file_processing_service)
         self._file_processing_service = file_processing_service
-        self._services: Dict[str, CatalogImportTaskService] = {}
+        self._service: CatalogImportTaskService | None = None
 
-    def _build(self, *, pipeline_variant: str = "oop") -> CatalogImportTaskService:
-        _ = pipeline_variant
+    def _build(self) -> CatalogImportTaskService:
         build_kwargs = dict(self._kwargs)
         build_kwargs["file_processing_service"] = self._file_processing_service
         return CatalogImportTaskService(
@@ -70,12 +66,10 @@ class CatalogImportTaskRunner:
             **build_kwargs,
         )
 
-    def _get_service(self, *, pipeline_variant: str = "oop") -> CatalogImportTaskService:
-        service = self._services.get(pipeline_variant)
-        if service is None:
-            service = self._build(pipeline_variant=pipeline_variant)
-            self._services[pipeline_variant] = service
-        return service
+    def _get_service(self) -> CatalogImportTaskService:
+        if self._service is None:
+            self._service = self._build()
+        return self._service
 
     async def execute(
         self,
@@ -89,7 +83,7 @@ class CatalogImportTaskRunner:
         pages: Optional[List[int]] = None,
         region: Optional[List[float]] = None,
     ) -> None:
-        await self._get_service(pipeline_variant="oop").execute(
+        await self._get_service().execute(
             db_session_factory=db_session_factory,
             file_id=file_id,
             user_id=user_id,
@@ -101,8 +95,5 @@ class CatalogImportTaskRunner:
         )
 
     async def execute_oop(self, **task_kwargs: Any) -> None:
-        await self._get_service(pipeline_variant="oop").execute(**task_kwargs)
-
-    async def execute_legacy(self, **task_kwargs: Any) -> None:
-        await self._get_service(pipeline_variant="legacy").execute(**task_kwargs)
+        await self._get_service().execute(**task_kwargs)
 

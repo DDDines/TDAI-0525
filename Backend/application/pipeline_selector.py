@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Any, Awaitable, Callable, Dict, Optional
+from typing import Any, Awaitable, Callable, Dict
 
 from Backend.core.app_mode import AppMode, get_app_mode
 from Backend.core.logging_config import get_logger
@@ -40,9 +40,7 @@ class PipelineSelector:
         self,
         *,
         oop_plan: TaskExecutionPlan,
-        legacy_plan: Optional[TaskExecutionPlan] = None,
     ) -> TaskExecutionPlan:
-        _ = legacy_plan
         mode = get_app_mode()
         if mode != AppMode.OOP:
             logger.warning(

@@ -39,51 +39,53 @@ def _build_runner() -> WebEnrichmentTaskRunner:
 
 
 @pytest.mark.asyncio
-async def test_web_enrichment_task_runner_dispatches_legacy_and_oop():
+async def test_web_enrichment_task_runner_uses_single_oop_service():
     runner = _build_runner()
-    legacy_stub = _TaskServiceStub()
-    oop_stub = _TaskServiceStub()
+    service_stub = _TaskServiceStub()
     build_calls = []
 
-    def _fake_build(*, pipeline_variant: str):
-        build_calls.append(pipeline_variant)
-        return legacy_stub if pipeline_variant == "legacy" else oop_stub
+    def _fake_build():
+        build_calls.append("build")
+        return service_stub
 
     runner._build = _fake_build  # type: ignore[attr-defined]
 
-    await runner.execute_legacy(
+    await runner.execute(
         db_session_factory=lambda: None,
         produto_id=10,
         user_id=20,
         termos_busca_override="item x",
     )
     await runner.execute_oop(produto_id=30, user_id=40)
-    await runner.execute_legacy(
+    await runner.execute(
         db_session_factory=lambda: None,
         produto_id=11,
         user_id=21,
     )
 
-    assert build_calls == ["legacy", "oop"]
-    assert len(legacy_stub.calls) == 2
-    assert legacy_stub.calls[0]["produto_id"] == 10
-    assert len(oop_stub.calls) == 1
-    assert oop_stub.calls[0]["produto_id"] == 30
+    assert build_calls == ["build"]
+    assert len(service_stub.calls) == 3
+    assert service_stub.calls[0]["produto_id"] == 10
+    assert service_stub.calls[1]["produto_id"] == 30
+    assert service_stub.calls[2]["produto_id"] == 11
 
 
 @pytest.mark.asyncio
-async def test_web_enrichment_task_runner_execute_oop_does_not_build_legacy():
+async def test_web_enrichment_task_runner_execute_oop_reuses_cached_service():
     runner = _build_runner()
-    oop_stub = _TaskServiceStub()
+    service_stub = _TaskServiceStub()
+    build_calls = []
 
-    def _fake_build(*, pipeline_variant: str):
-        if pipeline_variant == "legacy":
-            raise AssertionError("legacy build should not happen in execute_oop")
-        return oop_stub
+    def _fake_build():
+        build_calls.append("build")
+        return service_stub
 
     runner._build = _fake_build  # type: ignore[attr-defined]
 
     await runner.execute_oop(produto_id=91, user_id=42)
+    await runner.execute_oop(produto_id=92, user_id=43)
 
-    assert len(oop_stub.calls) == 1
-    assert oop_stub.calls[0]["produto_id"] == 91
+    assert build_calls == ["build"]
+    assert len(service_stub.calls) == 2
+    assert service_stub.calls[0]["produto_id"] == 91
+    assert service_stub.calls[1]["produto_id"] == 92

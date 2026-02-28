@@ -2,7 +2,7 @@ from types import SimpleNamespace
 
 import pytest
 
-from Backend.application.pipeline_selector import PipelineSelector, TaskExecutionPlan
+from Backend.application.pipeline_selector import PipelineSelector
 from Backend.application.pipelines.catalog_import import (
     CatalogImportTaskBuilder,
     OOPCatalogImportExecutor,
@@ -50,12 +50,6 @@ def test_get_app_mode_falls_back_to_oop_on_invalid_value():
 
 def test_pipeline_selector_prefers_oop_in_shadow_mode():
     settings.APP_MODE = "shadow"
-    legacy_plan = TaskExecutionPlan(
-        name="legacy-web-plan",
-        executor_name="legacy_web_enrichment_task",
-        executor=_dummy_executor,
-        task_kwargs={"produto_id": 7, "user_id": 99},
-    )
     oop_plan = WebEnrichmentTaskBuilder(
         OOPWebEnrichmentExecutor(WebEnrichmentProcessingUseCase(_dummy_executor))
     ).build_start_plan(
@@ -65,7 +59,6 @@ def test_pipeline_selector_prefers_oop_in_shadow_mode():
         termos_busca_override="teste",
     )
     selected = PipelineSelector("web_enrichment.start").select(
-        legacy_plan=legacy_plan,
         oop_plan=oop_plan,
     )
     assert selected.executor_name == "oop_web_enrichment_task"
