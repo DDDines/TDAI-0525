@@ -13,7 +13,11 @@ import Backend.infrastructure.runtime_modules.validator_crew_module as validator
 import Backend.infrastructure.runtime_modules.web_data_extractor_module as web_extractor
 
 # Public symbol preferred by runtime-focused tests.
-processar_linha_padronizada = file_processing.processar_linha_padronizada
+def processar_linha_padronizada(linha_original, mapeamento_colunas_usuario=None):
+    return file_processing.get_line_mapping_workflow().processar_linha_padronizada(
+        linha_original=linha_original,
+        mapeamento_colunas_usuario=mapeamento_colunas_usuario,
+    )
 LineNormalizationRuntime = file_processing.LineNormalizationRuntime
 CatalogStorageWorkflow = file_processing.CatalogStorageWorkflow
 LineMappingWorkflow = file_processing.LineMappingWorkflow

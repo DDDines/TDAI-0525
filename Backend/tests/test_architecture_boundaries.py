@@ -342,6 +342,35 @@ def test_runtime_modules_do_not_import_backend_crud_package_root():
     )
 
 
+def test_runtime_modules_do_not_expose_public_function_wrappers():
+    offenders: list[str] = []
+    allowed_non_get_public_functions = {
+        "create_web_extraction_enrichment_workflow",
+        "apply_web_data_extractor_runtime_state",
+        "reset_web_data_extractor_runtime_state",
+    }
+
+    for path in _iter_python_files(INFRASTRUCTURE_RUNTIME_MODULES_ROOT):
+        rel = path.relative_to(PROJECT_ROOT)
+        tree = _parse_python_file(path)
+        for node in tree.body:
+            if not isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
+                continue
+            function_name = node.name
+            if function_name.startswith("_"):
+                continue
+            if function_name.startswith("get_"):
+                continue
+            if function_name in allowed_non_get_public_functions:
+                continue
+            offenders.append(f"{rel}:{node.lineno} -> {function_name}")
+
+    assert not offenders, (
+        "Runtime modules must expose workflow/factory entrypoints only "
+        "(no public procedural wrappers):\n" + "\n".join(offenders)
+    )
+
+
 def test_routers_do_not_import_backend_crud_modules_directly():
     offenders: list[str] = []
     for path in _iter_python_files(ROUTERS_ROOT):

@@ -715,17 +715,6 @@ def _processar_linha_padronizada(
     )
 
 
-def processar_linha_padronizada(
-    linha_original: Dict[str, Any],
-    mapeamento_colunas_usuario: Optional[Dict[str, str]] = None,
-) -> Optional[Dict[str, Any]]:
-    """API publica para padronizacao de linha durante a migracao OOP."""
-    return _processar_linha_padronizada(
-        linha_original=linha_original,
-        mapeamento_colunas_usuario=mapeamento_colunas_usuario,
-    )
-
-
 class _TabularIngestionEngineRuntime:
     """Runtime OO para ingestao de arquivos tabulares (Excel/CSV)."""
 
@@ -2815,23 +2804,6 @@ def get_catalog_storage_workflow() -> CatalogStorageWorkflow:
     return _catalog_storage_workflow
 
 
-async def save_uploaded_catalog(
-    file: UploadFile, fornecedor_id: Optional[int] = None
-) -> models.CatalogImportFile:
-    return await _catalog_storage_workflow.save_uploaded_catalog(
-        file=file,
-        fornecedor_id=fornecedor_id,
-    )
-
-
-def delete_catalog_file(stored_filename: str) -> None:
-    _catalog_storage_workflow.delete_catalog_file(stored_filename)
-
-
-def get_file_path_by_id(db: Session, file_id: str) -> str:
-    return _catalog_storage_workflow.get_file_path_by_id(db=db, file_id=file_id)
-
-
 class _TabularIngestionWorkflow:
     """Workflow OO para ingestÃ£o de arquivos tabulares (Excel/CSV)."""
 
@@ -2901,32 +2873,6 @@ def get_tabular_ingestion_workflow() -> TabularIngestionWorkflow:
     return _tabular_ingestion_workflow
 
 
-async def processar_arquivo_excel(
-    conteudo_arquivo: bytes,
-    mapeamento_colunas_usuario: Optional[Dict[str, str]] = None,
-    sheet_name: Optional[str] = None,
-    product_type_id: Optional[int] = None,
-) -> List[Dict[str, Any]]:
-    return await _tabular_ingestion_workflow.processar_arquivo_excel(
-        conteudo_arquivo=conteudo_arquivo,
-        mapeamento_colunas_usuario=mapeamento_colunas_usuario,
-        sheet_name=sheet_name,
-        product_type_id=product_type_id,
-    )
-
-
-async def processar_arquivo_csv(
-    conteudo_arquivo: bytes,
-    mapeamento_colunas_usuario: Optional[Dict[str, str]] = None,
-    product_type_id: Optional[int] = None,
-) -> List[Dict[str, Any]]:
-    return await _tabular_ingestion_workflow.processar_arquivo_csv(
-        conteudo_arquivo=conteudo_arquivo,
-        mapeamento_colunas_usuario=mapeamento_colunas_usuario,
-        product_type_id=product_type_id,
-    )
-
-
 class _TabularPreviewWorkflow:
     """Workflow OO para preview tabular (Excel/CSV)."""
 
@@ -2978,24 +2924,6 @@ TabularPreviewWorkflow = _TabularPreviewWorkflow
 
 def get_tabular_preview_workflow() -> TabularPreviewWorkflow:
     return _tabular_preview_workflow
-
-
-async def preview_arquivo_excel(
-    conteudo_arquivo: bytes, max_rows: int = 5
-) -> Dict[str, Any]:
-    return await _tabular_preview_workflow.preview_arquivo_excel(
-        conteudo_arquivo=conteudo_arquivo,
-        max_rows=max_rows,
-    )
-
-
-async def preview_arquivo_csv(
-    conteudo_arquivo: bytes, max_rows: int = 5
-) -> Dict[str, Any]:
-    return await _tabular_preview_workflow.preview_arquivo_csv(
-        conteudo_arquivo=conteudo_arquivo,
-        max_rows=max_rows,
-    )
 
 
 class _PdfAssetRuntime:
@@ -3119,78 +3047,6 @@ def get_pdf_asset_workflow() -> PdfAssetWorkflow:
     return _pdf_asset_workflow
 
 
-async def pdf_bytes_to_images(
-    conteudo_arquivo: bytes,
-    max_pages: int = 1,
-    start_page: int = 1,
-    dpi: int = 200,
-) -> List[str]:
-    return await _pdf_asset_workflow.pdf_bytes_to_images(
-        conteudo_arquivo=conteudo_arquivo,
-        max_pages=max_pages,
-        start_page=start_page,
-        dpi=dpi,
-    )
-
-
-def pdf_pages_to_images(
-    db: Session,
-    file: UploadFile,
-    fornecedor_id: int,
-    user_id: int,
-    offset: int,
-    limit: int,
-) -> Dict[str, Any]:
-    return _pdf_asset_workflow.pdf_pages_to_images(
-        db=db,
-        file=file,
-        fornecedor_id=fornecedor_id,
-        user_id=user_id,
-        offset=offset,
-        limit=limit,
-    )
-
-
-async def extrair_pagina_pdf(
-    conteudo_pdf: bytes, page_number: int, region: Optional[List[float]] = None
-) -> Dict[str, Any]:
-    return await _pdf_asset_workflow.extrair_pagina_pdf(
-        conteudo_pdf=conteudo_pdf,
-        page_number=page_number,
-        region=region,
-    )
-
-
-def generate_pdf_page_images(file_path: str, file_id: str) -> List[str]:
-    return _pdf_asset_workflow.generate_pdf_page_images(
-        file_path=file_path,
-        file_id=file_id,
-    )
-
-
-def extract_pdf_region_image(
-    file_path: str,
-    page_number: int,
-    region: Optional[List[float]] = None,
-    dpi: int = 300,
-) -> bytes:
-    return _pdf_asset_workflow.extract_pdf_region_image(
-        file_path=file_path,
-        page_number=page_number,
-        region=region,
-        dpi=dpi,
-    )
-
-
-def parse_annotation_to_dataframe(
-    annotation: object, vertical_tolerance: int = 5
-) -> pd.DataFrame:
-    return _pdf_asset_workflow.parse_annotation_to_dataframe(
-        annotation=annotation,
-        vertical_tolerance=vertical_tolerance,
-    )
-
-
 class _PdfProcessingRuntime:
     """Runtime OO para dependencias de processamento e preview de PDF."""
 
@@ -3307,60 +3163,6 @@ def get_pdf_processing_workflow() -> PdfProcessingWorkflow:
     return _pdf_processing_workflow
 
 
-async def processar_arquivo_pdf(
-    conteudo_arquivo: bytes,
-    mapeamento_colunas_usuario: Optional[Dict[str, str]] = None,
-    usar_llm: bool = True,
-    product_type_id: Optional[int] = None,
-    pages: Optional[List[int]] = None,
-    region: Optional[List[float]] = None,
-) -> List[Dict[str, Any]]:
-    return await _pdf_processing_workflow.processar_arquivo_pdf(
-        conteudo_arquivo=conteudo_arquivo,
-        mapeamento_colunas_usuario=mapeamento_colunas_usuario,
-        usar_llm=usar_llm,
-        product_type_id=product_type_id,
-        pages=pages,
-        region=region,
-    )
-
-
-async def preview_arquivo_pdf(
-    conteudo_arquivo: bytes,
-    ext: str,
-    start_page: int = 1,
-    page_count: int = 1,
-    dpi: int = 72,
-) -> Dict[str, Any]:
-    return await _pdf_processing_workflow.preview_arquivo_pdf(
-        conteudo_arquivo=conteudo_arquivo,
-        ext=ext,
-        start_page=start_page,
-        page_count=page_count,
-        dpi=dpi,
-    )
-
-
-async def gerar_preview(
-    conteudo_arquivo: bytes, ext: str, max_rows: int = 5
-) -> Dict[str, Any]:
-    return await _pdf_processing_workflow.gerar_preview(
-        conteudo_arquivo=conteudo_arquivo,
-        ext=ext,
-        max_rows=max_rows,
-    )
-
-
-def extract_data_from_pdf_region(
-    file_path: str, page_number: int, region: Optional[List[float]] = None
-) -> pd.DataFrame:
-    return _pdf_processing_workflow.extract_data_from_pdf_region(
-        file_path=file_path,
-        page_number=page_number,
-        region=region,
-    )
-
-
 class _PdfJobWorkflow:
     """Workflow OO para processamento assÃ­ncrono de jobs de PDF."""
 
@@ -3420,24 +3222,6 @@ PdfJobWorkflow = _PdfJobWorkflow
 
 def get_pdf_job_workflow() -> PdfJobWorkflow:
     return _pdf_job_workflow
-
-
-async def process_pdf_job(
-    job_id: int, pdf_path: str, start_page: int = 1, mapping: Optional[Dict[str, str]] = None
-) -> None:
-    await _pdf_job_workflow.process_pdf_job(
-        job_id=job_id,
-        pdf_path=pdf_path,
-        start_page=start_page,
-        mapping=mapping,
-    )
-
-
-def extract_data_from_single_page(file_path: str, page_number: int) -> Dict[str, Any]:
-    return _pdf_job_workflow.extract_data_from_single_page(
-        file_path=file_path,
-        page_number=page_number,
-    )
 
 
 
