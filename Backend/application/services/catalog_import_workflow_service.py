@@ -69,26 +69,48 @@ class CatalogImportWorkflowService:
         self,
         *,
         file_id: int,
-        db: Any,
         user_id: int,
+        catalog_file_repo: Any | None = None,
+        **legacy_kwargs: Any,
     ) -> Any:
+        if catalog_file_repo is None:
+            catalog_file_repo = legacy_kwargs.pop("catalog_file_repo", None)
+        if catalog_file_repo is None:
+            db = legacy_kwargs.pop("db", None)
+            if db is not None:
+                from Backend.infrastructure.repositories.catalog_import_file_repository import (
+                    CatalogImportFileRepository,
+                )
+
+                catalog_file_repo = CatalogImportFileRepository(db)
         return self._status_service.get_record_or_404(
-            db=db,
             file_id=file_id,
             user_id=user_id,
+            catalog_file_repo=catalog_file_repo,
         )
 
     def importar_catalogo_status_simple(
         self,
         *,
         file_id: int,
-        db: Any,
         user_id: int,
+        catalog_file_repo: Any | None = None,
+        **legacy_kwargs: Any,
     ) -> Dict[str, Any]:
+        if catalog_file_repo is None:
+            catalog_file_repo = legacy_kwargs.pop("catalog_file_repo", None)
+        if catalog_file_repo is None:
+            db = legacy_kwargs.pop("db", None)
+            if db is not None:
+                from Backend.infrastructure.repositories.catalog_import_file_repository import (
+                    CatalogImportFileRepository,
+                )
+
+                catalog_file_repo = CatalogImportFileRepository(db)
         record = self._status_service.get_record_or_404(
-            db=db,
             file_id=file_id,
             user_id=user_id,
+            catalog_file_repo=catalog_file_repo,
         )
         return self._status_service.build_simple_status(record=record)
 
@@ -96,13 +118,24 @@ class CatalogImportWorkflowService:
         self,
         *,
         file_id: int,
-        db: Any,
         user_id: int,
+        catalog_file_repo: Any | None = None,
+        **legacy_kwargs: Any,
     ) -> Any:
+        if catalog_file_repo is None:
+            catalog_file_repo = legacy_kwargs.pop("catalog_file_repo", None)
+        if catalog_file_repo is None:
+            db = legacy_kwargs.pop("db", None)
+            if db is not None:
+                from Backend.infrastructure.repositories.catalog_import_file_repository import (
+                    CatalogImportFileRepository,
+                )
+
+                catalog_file_repo = CatalogImportFileRepository(db)
         record = self._status_service.get_record_or_404(
-            db=db,
             file_id=file_id,
             user_id=user_id,
+            catalog_file_repo=catalog_file_repo,
         )
         return self._status_service.build_result_response(record=record)
 

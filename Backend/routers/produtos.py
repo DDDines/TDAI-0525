@@ -451,22 +451,22 @@ class _ProdutosRouterRuntime:
     def importar_catalogo_status(self, file_id: int, db: Session, user_id: int):
         return catalog_import_workflow_service.importar_catalogo_status(
             file_id=file_id,
-            db=db,
             user_id=user_id,
+            catalog_file_repo=CatalogImportFileRepository(db),
         )
 
     def importar_catalogo_status_simple(self, file_id: int, db: Session, user_id: int):
         return catalog_import_workflow_service.importar_catalogo_status_simple(
             file_id=file_id,
-            db=db,
             user_id=user_id,
+            catalog_file_repo=CatalogImportFileRepository(db),
         )
 
     def importar_catalogo_result(self, file_id: int, db: Session, user_id: int):
         return catalog_import_workflow_service.importar_catalogo_result(
             file_id=file_id,
-            db=db,
             user_id=user_id,
+            catalog_file_repo=CatalogImportFileRepository(db),
         )
 
     async def importar_catalogo_finalizar_todas_paginas(
