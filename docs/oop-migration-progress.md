@@ -70,7 +70,8 @@ No estado atual, a selecao de pipeline em runtime esta em modo OOP-only: `APP_MO
 
 - [x] Marcar oficialmente `*_legacy_service` como deprecated em toda a base (proxy unificado em `Backend/core/deprecation.py`).
 - [x] Remover pipelines legados de orquestracao (`Backend/legacy/pipelines/`) sem referencias restantes em runtime/testes.
-- [ ] Remover bridges/facades de transicao apos prazo de compatibilidade.
+- [x] Remover bridges de transicao em `Backend/infrastructure/legacy/`.
+- [ ] Remover facades/proxies de transicao apos prazo de compatibilidade.
 - [x] Atualizar documentacao final de arquitetura e matriz de conclusao.
 
 ## Criterios objetivos de fechamento
@@ -94,8 +95,7 @@ No estado atual, a selecao de pipeline em runtime esta em modo OOP-only: `APP_MO
 
 ## Pontos de transicao planejados
 
-- Bridges temporarias concentradas em `Backend/infrastructure/legacy/`.
 - Adapters OOP padrao concentrados em `Backend/infrastructure/adapters/`.
 - Proxies de deprecacao de `*_legacy_service` centralizados em `Backend/core/deprecation.py`.
 - Guard opcional de execucao estrita: `STRICT_OOP_NO_LEGACY=1` bloqueia acesso legado quando `APP_MODE=oop`.
-- Remocao fisica de bridges/facades/shims: apos 2026-04-30.
+- Remocao fisica restante de facades/proxies/shims: apos 2026-04-30.
