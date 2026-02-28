@@ -1,7 +1,10 @@
 import asyncio
 import pandas as pd
 import io
-from Backend.services import file_processing_service
+
+from Backend.application.services.service_container import service_container
+
+file_processing_service = service_container.file_processing
 
 def create_excel_bytes():
     output = io.BytesIO()

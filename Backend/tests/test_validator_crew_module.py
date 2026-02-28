@@ -92,15 +92,3 @@ def test_run_validation_crew_delegates_to_workflow(monkeypatch):
     assert captured == {"raw_data": payload, "timeout_seconds": 5}
 
 
-def test_legacy_service_delegates_to_public_function(monkeypatch):
-    monkeypatch.setattr(
-        validator_crew,
-        "run_validation_crew",
-        lambda payload, timeout_seconds=8: {"legacy": payload, "timeout": timeout_seconds},
-    )
-
-    payload = {"x": 1}
-    result = validator_crew.validator_crew_legacy_service.run_validation_crew(payload, timeout_seconds=3)
-
-    assert result == {"legacy": payload, "timeout": 3}
-

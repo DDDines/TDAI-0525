@@ -3,7 +3,10 @@ import base64
 import io
 import subprocess
 import sys
-from Backend.services import file_processing_service
+
+from Backend.application.services.service_container import service_container
+
+file_processing_service = service_container.file_processing
 
 # Ensure reportlab is available
 try:

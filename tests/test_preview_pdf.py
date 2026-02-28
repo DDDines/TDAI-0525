@@ -30,7 +30,9 @@ except ImportError:
     from reportlab.lib.pagesizes import letter
     from reportlab.lib.styles import getSampleStyleSheet
 
-from Backend.services.file_processing_service import preview_arquivo_pdf
+from Backend.application.services.service_container import service_container
+
+file_processing_service = service_container.file_processing
 
 
 def _create_pdf(pages: int = 1) -> bytes:
@@ -63,7 +65,7 @@ def _create_pdf_with_table():
 @pytest.mark.asyncio
 async def test_preview_pdf_extracts_all():
     pdf_bytes = _create_pdf_with_table()
-    res = await preview_arquivo_pdf(pdf_bytes, ".pdf")
+    res = await file_processing_service.preview_arquivo_pdf(pdf_bytes, ".pdf")
     assert res["num_pages"] == 3
     assert res["table_pages"] == []
     assert len(res["preview_images"]) == 1
@@ -75,7 +77,12 @@ async def test_preview_pdf_extracts_all():
 @pytest.mark.asyncio
 async def test_preview_pdf_offset_and_limit():
     pdf_bytes = _create_pdf(pages=5)
-    res = await preview_arquivo_pdf(pdf_bytes, ".pdf", start_page=2, page_count=2)
+    res = await file_processing_service.preview_arquivo_pdf(
+        pdf_bytes,
+        ".pdf",
+        start_page=2,
+        page_count=2,
+    )
     assert res["num_pages"] == 5
     assert len(res["preview_images"]) == 2
     assert {img["page"] for img in res["preview_images"]} == {2, 3}

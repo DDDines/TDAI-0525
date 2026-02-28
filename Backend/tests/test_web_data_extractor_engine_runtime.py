@@ -51,7 +51,7 @@ async def test_web_content_runtime_delega_para_engine_runtime():
     assert calls == ["https://example.com/p"]
 
 
-def test_wrappers_busca_delegam_para_runtime_global(monkeypatch):
+def test_search_runtime_helpers_delegam_para_runtime_global(monkeypatch):
     class FakeSearchEngine:
         def busca_publica_disponivel(self):
             return False
@@ -68,7 +68,7 @@ def test_wrappers_busca_delegam_para_runtime_global(monkeypatch):
         FakeSearchEngine(),
     )
 
-    assert web_extractor.busca_publica_disponivel() is False
+    assert web_extractor._web_search_engine_runtime.busca_publica_disponivel() is False
     assert web_extractor._url_deve_ser_ignorada_antes_da_coleta("x.tmp") is True
     assert (
         web_extractor._normalizar_url_busca("item", "https://base")

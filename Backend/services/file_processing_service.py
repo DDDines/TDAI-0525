@@ -3120,7 +3120,11 @@ async def _extrair_pagina_pdf_impl(
         tmp_path = Path(tmp_file.name)
 
     try:
-        df = extract_data_from_pdf_region(str(tmp_path), page_number, region)
+        df = _pdf_processing_workflow.extract_data_from_pdf_region(
+            file_path=str(tmp_path),
+            page_number=page_number,
+            region=region,
+        )
         if not df.empty:
             table = [list(df.columns)] + df.values.tolist()
         else:

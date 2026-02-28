@@ -14,7 +14,9 @@ except ImportError:  # pragma: no cover - install at runtime
 
 from reportlab.pdfgen import canvas
 
-from Backend.services import file_processing_service
+from Backend.application.services.service_container import service_container
+
+file_processing_service = service_container.file_processing
 
 
 def _create_pdf(pages_text):

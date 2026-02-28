@@ -12,7 +12,9 @@ except ImportError:  # pragma: no cover - install at runtime
 
 import pytest
 
-from Backend.services.file_processing_service import pdf_bytes_to_images
+from Backend.application.services.service_container import service_container
+
+file_processing_service = service_container.file_processing
 
 
 def _create_pdf(pages: int = 1) -> bytes:
@@ -30,7 +32,7 @@ def _create_pdf(pages: int = 1) -> bytes:
 @pytest.mark.asyncio
 async def test_pdf_pages_to_images_basic():
     pdf_bytes = _create_pdf()
-    images = await pdf_bytes_to_images(pdf_bytes)
+    images = await file_processing_service.pdf_bytes_to_images(pdf_bytes)
     assert len(images) >= 1
     decoded = base64.b64decode(images[0])
     assert decoded.startswith(b"\x89PNG")
@@ -39,13 +41,21 @@ async def test_pdf_pages_to_images_basic():
 @pytest.mark.asyncio
 async def test_pdf_pages_to_images_respects_max_pages():
     pdf_bytes = _create_pdf(pages=3)
-    images = await pdf_bytes_to_images(pdf_bytes, max_pages=2)
+    images = await file_processing_service.pdf_bytes_to_images(pdf_bytes, max_pages=2)
     assert len(images) == 2
 
 
 @pytest.mark.asyncio
 async def test_pdf_pages_to_images_start_page():
     pdf_bytes = _create_pdf(pages=5)
-    first_page_img = await pdf_bytes_to_images(pdf_bytes, max_pages=1, start_page=1)
-    third_page_img = await pdf_bytes_to_images(pdf_bytes, max_pages=1, start_page=3)
+    first_page_img = await file_processing_service.pdf_bytes_to_images(
+        pdf_bytes,
+        max_pages=1,
+        start_page=1,
+    )
+    third_page_img = await file_processing_service.pdf_bytes_to_images(
+        pdf_bytes,
+        max_pages=1,
+        start_page=3,
+    )
     assert first_page_img[0] != third_page_img[0]

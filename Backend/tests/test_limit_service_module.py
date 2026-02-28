@@ -98,22 +98,3 @@ async def test_runtime_verificar_creditos_disponiveis_respeita_limite():
     )
 
 
-@pytest.mark.asyncio
-async def test_legacy_service_delega_para_workflow(monkeypatch):
-    called = {}
-
-    async def _fake_verificar(*args, **kwargs):
-        called["args"] = args
-        called["kwargs"] = kwargs
-        return True
-
-    monkeypatch.setattr(limit_service, "verificar_creditos_disponiveis_geracao_ia", _fake_verificar)
-
-    result = await limit_service.limit_service_legacy_service.verificar_creditos_disponiveis_geracao_ia(
-        "db",
-        user_id=9,
-    )
-
-    assert result is True
-    assert called["kwargs"] == {"user_id": 9}
-
