@@ -14,6 +14,7 @@ No estado atual, a selecao de pipeline em runtime esta em modo OOP-only: `APP_MO
 - [x] Regra: `Backend/application/**` nao pode importar `Backend/routers/**`.
 - [x] Regra: `Backend/application/services/**` nao pode definir `__getattr__` em adapters/facades.
 - [x] Regra: `Backend/application/services/**` nao pode chamar metodo privado de objeto externo (`obj._algo()`).
+- [x] Regra: codigo backend fora da camada de compatibilidade (`Backend/services`, `Backend/tests`, `Backend/testing`) nao pode importar `Backend.services`.
 
 ### Fase 1 - Onda File Processing
 

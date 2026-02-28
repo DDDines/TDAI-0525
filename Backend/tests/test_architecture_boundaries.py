@@ -6,6 +6,7 @@ from typing import Iterable
 
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
+BACKEND_ROOT = PROJECT_ROOT / "Backend"
 APPLICATION_ROOT = PROJECT_ROOT / "Backend" / "application"
 APPLICATION_SERVICES_ROOT = APPLICATION_ROOT / "services"
 INFRASTRUCTURE_ADAPTERS_ROOT = PROJECT_ROOT / "Backend" / "infrastructure" / "adapters"
@@ -137,5 +138,28 @@ def test_infrastructure_runtime_providers_do_not_import_backend_services_modules
 
     assert not offenders, (
         "Unexpected direct imports to Backend.services in infrastructure runtime providers:\n"
+        + "\n".join(offenders)
+    )
+
+
+def test_backend_code_outside_compat_layer_does_not_import_backend_services_modules():
+    offenders: list[str] = []
+    compat_prefixes = (
+        "Backend/services/",
+        "Backend/tests/",
+        "Backend/testing/",
+    )
+
+    for path in _iter_python_files(BACKEND_ROOT):
+        rel = path.relative_to(PROJECT_ROOT)
+        rel_posix = rel.as_posix()
+        if rel_posix.startswith(compat_prefixes):
+            continue
+        for target in _import_targets(path):
+            if target == "Backend.services" or target.startswith("Backend.services."):
+                offenders.append(f"{rel}: {target}")
+
+    assert not offenders, (
+        "Unexpected imports to Backend.services outside compatibility layer:\n"
         + "\n".join(offenders)
     )
