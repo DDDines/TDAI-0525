@@ -33,43 +33,23 @@ class CatalogImportWorkflowService:
         catalog_file_repo: Any | None = None,
         fornecedor_repo: Any | None = None,
         db_session_factory: Any | None = None,
-        **legacy_kwargs: Any,
     ) -> Dict[str, Any]:
-        legacy_db = legacy_kwargs.pop("db", None)
-        if catalog_file_repo is None and legacy_db is not None:
-            from Backend.infrastructure.repositories.catalog_import_file_repository import (
-                CatalogImportFileRepository,
-            )
-
-            catalog_file_repo = CatalogImportFileRepository(legacy_db)
-        if fornecedor_repo is None and legacy_db is not None:
-            from Backend.infrastructure.repositories.fornecedor_repository import FornecedorRepository
-
-            fornecedor_repo = FornecedorRepository(legacy_db)
-        if db_session_factory is None and legacy_db is not None:
-            from sqlalchemy.orm import sessionmaker
-
-            db_session_factory = sessionmaker(bind=legacy_db.get_bind())
-
         catalog_file = self._start_service.get_catalog_file_or_404(
             file_id=file_id,
             user_id=user_id,
             catalog_file_repo=catalog_file_repo,
-            db=legacy_db,
         )
         self._start_service.mark_processing(
             catalog_file=catalog_file,
             fornecedor_id=fornecedor_id,
             reset_pages=False,
             catalog_file_repo=catalog_file_repo,
-            db=legacy_db,
         )
         self._start_service.ensure_catalog_binary_exists(catalog_file=catalog_file)
         resolved_mapping = self._start_service.resolve_mapping(
             fornecedor_id=fornecedor_id,
             mapping=mapping,
             fornecedor_repo=fornecedor_repo,
-            db=legacy_db,
         )
         command = self._start_service.build_finalize_command(
             file_id=file_id,
@@ -84,7 +64,6 @@ class CatalogImportWorkflowService:
             background_tasks=background_tasks,
             command=command,
             db_session_factory=db_session_factory,
-            db=legacy_db,
         )
         return {"status": "PROCESSING", "file_id": file_id}
 
@@ -94,18 +73,7 @@ class CatalogImportWorkflowService:
         file_id: int,
         user_id: int,
         catalog_file_repo: Any | None = None,
-        **legacy_kwargs: Any,
     ) -> Any:
-        if catalog_file_repo is None:
-            catalog_file_repo = legacy_kwargs.pop("catalog_file_repo", None)
-        if catalog_file_repo is None:
-            db = legacy_kwargs.pop("db", None)
-            if db is not None:
-                from Backend.infrastructure.repositories.catalog_import_file_repository import (
-                    CatalogImportFileRepository,
-                )
-
-                catalog_file_repo = CatalogImportFileRepository(db)
         return self._status_service.get_record_or_404(
             file_id=file_id,
             user_id=user_id,
@@ -118,18 +86,7 @@ class CatalogImportWorkflowService:
         file_id: int,
         user_id: int,
         catalog_file_repo: Any | None = None,
-        **legacy_kwargs: Any,
     ) -> Dict[str, Any]:
-        if catalog_file_repo is None:
-            catalog_file_repo = legacy_kwargs.pop("catalog_file_repo", None)
-        if catalog_file_repo is None:
-            db = legacy_kwargs.pop("db", None)
-            if db is not None:
-                from Backend.infrastructure.repositories.catalog_import_file_repository import (
-                    CatalogImportFileRepository,
-                )
-
-                catalog_file_repo = CatalogImportFileRepository(db)
         record = self._status_service.get_record_or_404(
             file_id=file_id,
             user_id=user_id,
@@ -143,18 +100,7 @@ class CatalogImportWorkflowService:
         file_id: int,
         user_id: int,
         catalog_file_repo: Any | None = None,
-        **legacy_kwargs: Any,
     ) -> Any:
-        if catalog_file_repo is None:
-            catalog_file_repo = legacy_kwargs.pop("catalog_file_repo", None)
-        if catalog_file_repo is None:
-            db = legacy_kwargs.pop("db", None)
-            if db is not None:
-                from Backend.infrastructure.repositories.catalog_import_file_repository import (
-                    CatalogImportFileRepository,
-                )
-
-                catalog_file_repo = CatalogImportFileRepository(db)
         record = self._status_service.get_record_or_404(
             file_id=file_id,
             user_id=user_id,
@@ -172,29 +118,11 @@ class CatalogImportWorkflowService:
         catalog_file_repo: Any | None = None,
         fornecedor_repo: Any | None = None,
         db_session_factory: Any | None = None,
-        **legacy_kwargs: Any,
     ) -> Any:
-        legacy_db = legacy_kwargs.pop("db", None)
-        if catalog_file_repo is None and legacy_db is not None:
-            from Backend.infrastructure.repositories.catalog_import_file_repository import (
-                CatalogImportFileRepository,
-            )
-
-            catalog_file_repo = CatalogImportFileRepository(legacy_db)
-        if fornecedor_repo is None and legacy_db is not None:
-            from Backend.infrastructure.repositories.fornecedor_repository import FornecedorRepository
-
-            fornecedor_repo = FornecedorRepository(legacy_db)
-        if db_session_factory is None and legacy_db is not None:
-            from sqlalchemy.orm import sessionmaker
-
-            db_session_factory = sessionmaker(bind=legacy_db.get_bind())
-
         record = self._start_service.get_catalog_file_or_404(
             file_id=file_id,
             user_id=user_id,
             catalog_file_repo=catalog_file_repo,
-            db=legacy_db,
         )
         fornecedor_id_final = self._start_service.resolve_fornecedor_id(
             catalog_file=record,
@@ -209,7 +137,6 @@ class CatalogImportWorkflowService:
             fornecedor_id=fornecedor_id_final,
             mapping=mapping,
             fornecedor_repo=fornecedor_repo,
-            db=legacy_db,
         )
         command = self._start_service.build_finalize_command(
             file_id=file_id,
@@ -223,7 +150,6 @@ class CatalogImportWorkflowService:
         await self._start_service.run_finalize_direct(
             command=command,
             db_session_factory=db_session_factory,
-            db=legacy_db,
         )
         if catalog_file_repo is not None:
             refreshed_record = self._status_service.get_record_or_404(
@@ -232,7 +158,4 @@ class CatalogImportWorkflowService:
                 catalog_file_repo=catalog_file_repo,
             )
             return refreshed_record.result_summary
-        if legacy_db is not None:
-            legacy_db.refresh(record)
-            return record.result_summary
         return record.result_summary

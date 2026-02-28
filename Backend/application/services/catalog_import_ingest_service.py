@@ -30,18 +30,7 @@ class CatalogImportIngestService:
         produto_repo: Any | None = None,
         uso_ia_repo: Any | None = None,
         historico_repo: Any | None = None,
-        **legacy_kwargs: Any,
     ) -> None:
-        legacy_prefix = "c" + "rud_"
-        if fornecedor_repo is None:
-            fornecedor_repo = legacy_kwargs.pop(legacy_prefix + "fornecedores", None)
-        if produto_repo is None:
-            produto_repo = legacy_kwargs.pop(legacy_prefix + "produtos", None)
-        if uso_ia_repo is None:
-            uso_ia_repo = legacy_kwargs.pop(legacy_prefix + "uso_ia", None)
-        if historico_repo is None:
-            historico_repo = legacy_kwargs.pop(legacy_prefix + "historico", None)
-
         self._schemas = schemas
         self._models = models
         self._fornecedor_repo = fornecedor_repo
@@ -57,8 +46,8 @@ class CatalogImportIngestService:
         self._json = json_module
 
     @staticmethod
-    def _repo_db(repo: Any, legacy_db: Any) -> Any:
-        return getattr(repo, "_db", legacy_db)
+    def _repo_session(repo: Any) -> Any:
+        return getattr(repo, "_db", None)
 
     @staticmethod
     def _resolve_repo(
@@ -66,15 +55,12 @@ class CatalogImportIngestService:
         repo_name: str,
         configured_repo: Any,
         override_repo: Any | None,
-        legacy_db: Any,
     ) -> Any:
         repo = override_repo if override_repo is not None else configured_repo
         if repo is None:
             raise ValueError(f"{repo_name}_repo is required")
         if inspect.isclass(repo):
-            if legacy_db is None:
-                raise ValueError(f"{repo_name}_repo or db is required")
-            return repo(legacy_db)
+            raise ValueError(f"{repo_name}_repo instance is required")
         return repo
 
     async def importar_catalogo_fornecedor(
@@ -88,33 +74,27 @@ class CatalogImportIngestService:
         produto_repo: Any | None = None,
         uso_ia_repo: Any | None = None,
         historico_repo: Any | None = None,
-        **legacy_kwargs: Any,
     ) -> Dict[str, Any]:
         """Importa arquivo de catalogo e cria/atualiza produtos do fornecedor."""
-        legacy_db = legacy_kwargs.pop("db", None)
         resolved_fornecedor_repo = self._resolve_repo(
             repo_name="fornecedor",
             configured_repo=self._fornecedor_repo,
             override_repo=fornecedor_repo,
-            legacy_db=legacy_db,
         )
         resolved_produto_repo = self._resolve_repo(
             repo_name="produto",
             configured_repo=self._produto_repo,
             override_repo=produto_repo,
-            legacy_db=legacy_db,
         )
         resolved_uso_ia_repo = self._resolve_repo(
             repo_name="uso_ia",
             configured_repo=self._uso_ia_repo,
             override_repo=uso_ia_repo,
-            legacy_db=legacy_db,
         )
         resolved_historico_repo = self._resolve_repo(
             repo_name="historico",
             configured_repo=self._historico_repo,
             override_repo=historico_repo,
-            legacy_db=legacy_db,
         )
 
         content = await file.read()
@@ -124,7 +104,6 @@ class CatalogImportIngestService:
             fornecedor_id=fornecedor_id,
             mapeamento_colunas_usuario=mapeamento_colunas_usuario,
             fornecedor_repo=resolved_fornecedor_repo,
-            legacy_db=legacy_db,
         )
 
         produtos_data = await self._process_file_by_extension(
@@ -219,7 +198,7 @@ class CatalogImportIngestService:
             created, updated, dup_errors = call_repository_method(
                 resolved_produto_repo,
                 "create_produtos_bulk",
-                db=self._repo_db(resolved_produto_repo, legacy_db),
+                session=self._repo_session(resolved_produto_repo),
                 produtos=produtos_create,
                 arg_aliases={"produtos": ("produtos_data",)},
                 user_id=current_user.id,
@@ -231,7 +210,7 @@ class CatalogImportIngestService:
                 call_repository_method(
                     resolved_uso_ia_repo,
                     "create_registro_uso_ia",
-                    db=self._repo_db(resolved_uso_ia_repo, legacy_db),
+                    session=self._repo_session(resolved_uso_ia_repo),
                     registro_uso=self._schemas.RegistroUsoIACreate(
                         user_id=current_user.id,
                         produto_id=db_produto.id,
@@ -243,7 +222,7 @@ class CatalogImportIngestService:
                 call_repository_method(
                     resolved_historico_repo,
                     "create_registro_historico",
-                    db=self._repo_db(resolved_historico_repo, legacy_db),
+                    session=self._repo_session(resolved_historico_repo),
                     registro_in=self._schemas.RegistroHistoricoCreate(
                         user_id=current_user.id,
                         entidade="Produto",
@@ -266,7 +245,6 @@ class CatalogImportIngestService:
         fornecedor_id: int,
         mapeamento_colunas_usuario: Optional[str],
         fornecedor_repo: Any,
-        legacy_db: Any,
     ) -> Optional[Dict[str, Any]]:
         mapping_dict = None
         if mapeamento_colunas_usuario:
@@ -281,7 +259,7 @@ class CatalogImportIngestService:
             fornecedor = call_repository_method(
                 fornecedor_repo,
                 "get_fornecedor",
-                db=self._repo_db(fornecedor_repo, legacy_db),
+                session=self._repo_session(fornecedor_repo),
                 fornecedor_id=fornecedor_id,
             )
             if fornecedor and fornecedor.default_column_mapping:

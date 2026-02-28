@@ -110,19 +110,19 @@ class _ModelsStub:
 
 
 def _build_service(*, fornecedor=None):
-    crud_fornecedores = _CrudFornecedoresStub(fornecedor=fornecedor)
-    crud_produtos = _CrudProdutosStub()
-    crud_uso_ia = _CrudUsoIAStub()
-    crud_historico = _CrudHistoricoStub()
+    fornecedor_repo = _CrudFornecedoresStub(fornecedor=fornecedor)
+    produto_repo = _CrudProdutosStub()
+    uso_ia_repo = _CrudUsoIAStub()
+    historico_repo = _CrudHistoricoStub()
     file_processing = _FileProcessingStub()
 
     service = CatalogImportIngestService(
         schemas=_SchemasStub,
         models=_ModelsStub,
-        crud_fornecedores=crud_fornecedores,
-        crud_produtos=crud_produtos,
-        crud_uso_ia=crud_uso_ia,
-        crud_historico=crud_historico,
+        fornecedor_repo=fornecedor_repo,
+        produto_repo=produto_repo,
+        uso_ia_repo=uso_ia_repo,
+        historico_repo=historico_repo,
         file_processing_service=file_processing,
         normalize_import_issue_item=lambda item: item,
         extract_import_error_reason=lambda item: item.get("motivo_descarte", ""),
@@ -135,7 +135,7 @@ def _build_service(*, fornecedor=None):
         },
         json_module=__import__("json"),
     )
-    return service, file_processing, crud_produtos, crud_uso_ia, crud_historico
+    return service, file_processing, produto_repo, uso_ia_repo, historico_repo
 
 
 def test_importar_catalogo_fornecedor_raises_when_mapping_json_invalid():
