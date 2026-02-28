@@ -197,6 +197,23 @@ def test_runtime_modules_imports_are_constrained_to_runtime_services_and_tests()
     )
 
 
+def test_backend_tests_do_not_import_runtime_modules_directly():
+    offenders: list[str] = []
+
+    for path in _iter_python_files(BACKEND_TESTS_ROOT):
+        rel = path.relative_to(PROJECT_ROOT)
+        for target in _import_targets(path):
+            if target == "Backend.infrastructure.runtime_modules" or target.startswith(
+                "Backend.infrastructure.runtime_modules."
+            ):
+                offenders.append(f"{rel}: {target}")
+
+    assert not offenders, (
+        "Backend/tests must consume runtime_services or Backend.testing.runtime_apis, "
+        "not import runtime_modules directly:\n" + "\n".join(offenders)
+    )
+
+
 def test_infrastructure_runtime_providers_expose_get_runtime_service_only():
     offenders: list[str] = []
     missing: list[str] = []

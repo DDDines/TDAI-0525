@@ -31,6 +31,12 @@ class WebDataExtractorRuntimeService:
     def busca_publica_disponivel(self) -> bool:
         return self._get_search().busca_publica_disponivel()
 
+    def url_deve_ser_ignorada_antes_da_coleta(self, *args: Any, **kwargs: Any):
+        return self._get_search().url_deve_ser_ignorada_antes_da_coleta(*args, **kwargs)
+
+    def normalizar_url_busca(self, *args: Any, **kwargs: Any):
+        return self._get_search().normalizar_url_busca(*args, **kwargs)
+
     async def buscar_urls_publicas(self, *args: Any, **kwargs: Any):
         return await self._get_search().buscar_urls_publicas(*args, **kwargs)
 
