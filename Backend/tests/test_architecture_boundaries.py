@@ -173,6 +173,7 @@ def test_runtime_modules_imports_are_constrained_to_runtime_services_and_tests()
 
     allowed_prefixes = [
         INFRASTRUCTURE_RUNTIME_SERVICES_ROOT.resolve(),
+        INFRASTRUCTURE_ADAPTERS_ROOT.resolve(),
         BACKEND_TESTS_ROOT.resolve(),
         (BACKEND_ROOT / "testing").resolve(),
     ]
@@ -292,6 +293,9 @@ def test_runtime_services_do_not_call_runtime_module_functions_directly():
                 continue
             if node.func.attr.startswith("get_"):
                 continue
+            # Allow explicit class construction from runtime modules.
+            if node.func.attr[:1].isupper():
+                continue
             offenders.append(f"{rel}:{node.lineno} -> {owner.id}.{node.func.attr}")
 
     assert not offenders, (
@@ -345,11 +349,7 @@ def test_runtime_modules_do_not_import_backend_crud_package_root():
 
 def test_runtime_modules_do_not_expose_public_function_wrappers():
     offenders: list[str] = []
-    allowed_non_get_public_functions = {
-        "create_web_extraction_enrichment_workflow",
-        "apply_web_data_extractor_runtime_state",
-        "reset_web_data_extractor_runtime_state",
-    }
+    allowed_public_functions: set[str] = set()
 
     for path in _iter_python_files(INFRASTRUCTURE_RUNTIME_MODULES_ROOT):
         rel = path.relative_to(PROJECT_ROOT)
@@ -360,15 +360,13 @@ def test_runtime_modules_do_not_expose_public_function_wrappers():
             function_name = node.name
             if function_name.startswith("_"):
                 continue
-            if function_name.startswith("get_"):
-                continue
-            if function_name in allowed_non_get_public_functions:
+            if function_name in allowed_public_functions:
                 continue
             offenders.append(f"{rel}:{node.lineno} -> {function_name}")
 
     assert not offenders, (
-        "Runtime modules must expose workflow/factory entrypoints only "
-        "(no public procedural wrappers):\n" + "\n".join(offenders)
+        "Runtime modules must not expose public function wrappers "
+        "(use classes/workflows only):\n" + "\n".join(offenders)
     )
 
 
@@ -418,6 +416,33 @@ def test_runtime_modules_do_not_instantiate_singletons_at_module_scope():
 
     assert not offenders, (
         "Runtime modules must not keep class singletons at module scope:\n"
+        + "\n".join(offenders)
+    )
+
+
+def test_runtime_services_do_not_instantiate_singletons_at_module_scope():
+    offenders: list[str] = []
+
+    for path in _iter_python_files(INFRASTRUCTURE_RUNTIME_SERVICES_ROOT):
+        rel = path.relative_to(PROJECT_ROOT)
+        tree = _parse_python_file(path)
+        for node in tree.body:
+            if not isinstance(node, ast.Assign):
+                continue
+            if not isinstance(node.value, ast.Call):
+                continue
+            if not isinstance(node.value.func, ast.Name):
+                continue
+
+            callee = node.value.func.id
+            if (
+                (callee.startswith("_") and len(callee) > 1 and callee[1].isupper())
+                or callee[:1].isupper()
+            ):
+                offenders.append(f"{rel}:{node.lineno} -> {callee}")
+
+    assert not offenders, (
+        "Runtime services must not keep class singletons at module scope:\n"
         + "\n".join(offenders)
     )
 
@@ -491,26 +516,131 @@ def test_routers_do_not_import_application_services_package_root():
     )
 
 
-def test_backend_crud_imports_are_constrained_to_runtime_and_data_access_layers():
+def test_routers_do_not_import_threading_module_directly():
+    offenders: list[str] = []
+    for path in _iter_python_files(ROUTERS_ROOT):
+        rel = path.relative_to(PROJECT_ROOT)
+        tree = _parse_python_file(path)
+
+        for node in ast.walk(tree):
+            if isinstance(node, ast.Import):
+                for alias in node.names:
+                    if alias.name == "threading":
+                        offenders.append(f"{rel}: import threading")
+            elif isinstance(node, ast.ImportFrom):
+                if node.level:
+                    continue
+                module = node.module or ""
+                if module == "threading":
+                    offenders.append(f"{rel}: from threading import ...")
+
+    assert not offenders, (
+        "Routers must delegate background execution to BackgroundTasks/application services, "
+        "not import threading directly:\n" + "\n".join(offenders)
+    )
+
+
+def test_routers_do_not_spawn_manual_threads():
+    offenders: list[str] = []
+    for path in _iter_python_files(ROUTERS_ROOT):
+        rel = path.relative_to(PROJECT_ROOT)
+        tree = _parse_python_file(path)
+
+        for node in ast.walk(tree):
+            if not isinstance(node, ast.Call):
+                continue
+
+            if isinstance(node.func, ast.Name) and node.func.id == "Thread":
+                offenders.append(f"{rel}:{node.lineno} -> Thread(...)")
+                continue
+
+            if (
+                isinstance(node.func, ast.Attribute)
+                and isinstance(node.func.value, ast.Name)
+                and node.func.value.id == "threading"
+                and node.func.attr == "Thread"
+            ):
+                offenders.append(f"{rel}:{node.lineno} -> threading.Thread(...)")
+
+    assert not offenders, (
+        "Routers must not spawn manual threads directly:\n" + "\n".join(offenders)
+    )
+
+
+def test_router_endpoints_do_not_receive_db_parameter():
     offenders: list[str] = []
 
-    allowed_files = {
-        (APPLICATION_SERVICES_ROOT / "data_access_service.py").resolve(),
-    }
-    allowed_prefixes = [
-        INFRASTRUCTURE_RUNTIME_MODULES_ROOT.resolve(),
-    ]
+    for path in _iter_python_files(ROUTERS_ROOT):
+        rel = path.relative_to(PROJECT_ROOT)
+        tree = _parse_python_file(path)
+
+        for node in tree.body:
+            if not isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
+                continue
+
+            is_router_endpoint = any(
+                isinstance(decorator, ast.Call)
+                and isinstance(decorator.func, ast.Attribute)
+                and isinstance(decorator.func.value, ast.Name)
+                and decorator.func.value.id == "router"
+                and decorator.func.attr in {"get", "post", "put", "delete", "patch"}
+                for decorator in node.decorator_list
+            )
+            if not is_router_endpoint:
+                continue
+
+            all_args = [*node.args.args, *node.args.kwonlyargs]
+            if any(arg.arg == "db" for arg in all_args):
+                offenders.append(f"{rel}:{node.lineno}")
+
+    assert not offenders, (
+        "Route endpoints must not receive DB sessions directly; use request-scoped "
+        "context/services built via container:\n" + "\n".join(offenders)
+    )
+
+
+def test_routers_do_not_define_module_level_runtime_singletons():
+    offenders: list[str] = []
+
+    for path in _iter_python_files(ROUTERS_ROOT):
+        rel = path.relative_to(PROJECT_ROOT)
+        tree = _parse_python_file(path)
+
+        for node in tree.body:
+            if not isinstance(node, ast.Assign):
+                continue
+            if not isinstance(node.value, ast.Call):
+                continue
+            if not isinstance(node.value.func, ast.Name):
+                continue
+            if not node.value.func.id.startswith("_"):
+                continue
+
+            target_names = [
+                target.id
+                for target in node.targets
+                if isinstance(target, ast.Name)
+            ]
+            if not target_names:
+                continue
+
+            offenders.append(
+                f"{rel}:{node.lineno} -> {', '.join(target_names)} = {node.value.func.id}(...)"
+            )
+
+    assert not offenders, (
+        "Routers must avoid module-level runtime/workflow singletons; "
+        "build workflow instances via provider functions:\n" + "\n".join(offenders)
+    )
+
+
+def test_backend_has_no_legacy_crud_imports():
+    offenders: list[str] = []
 
     for path in _iter_python_files(BACKEND_ROOT):
-        resolved = path.resolve()
         rel = path.relative_to(PROJECT_ROOT)
 
         if rel.parts[:2] in {("Backend", "tests"), ("Backend", "testing")}:
-            continue
-
-        if resolved in allowed_files:
-            continue
-        if any(str(resolved).startswith(str(prefix)) for prefix in allowed_prefixes):
             continue
 
         tree = _parse_python_file(path)
@@ -531,7 +661,7 @@ def test_backend_crud_imports_are_constrained_to_runtime_and_data_access_layers(
                     offenders.append(f"{rel}: {module}")
 
     assert not offenders, (
-        "Backend crud imports are only allowed in runtime_modules and data_access_service:\n"
+        "Backend must not import legacy crud modules:\n"
         + "\n".join(offenders)
     )
 
@@ -568,25 +698,10 @@ def test_tests_do_not_import_backend_crud_modules_directly():
     )
 
 
-def test_data_access_service_uses_workflow_instances_for_crud_calls():
-    data_access_path = APPLICATION_SERVICES_ROOT / "data_access_service.py"
-    tree = _parse_python_file(data_access_path)
-    offenders: list[str] = []
-
-    for node in ast.walk(tree):
-        if not isinstance(node, ast.Call):
-            continue
-        if not isinstance(node.func, ast.Attribute):
-            continue
-        owner = node.func.value
-        if not isinstance(owner, ast.Name):
-            continue
-        if owner.id.startswith("crud") and owner.id != "crud":
-            offenders.append(f"{data_access_path.relative_to(PROJECT_ROOT)}:{node.lineno}")
-
-    assert not offenders, (
-        "data_access_service must delegate through workflow instances, "
-        "not module-level crud function calls:\n" + "\n".join(offenders)
+def test_repository_access_adapters_module_removed():
+    adapters_path = APPLICATION_SERVICES_ROOT / "repository_access_adapters.py"
+    assert not adapters_path.exists(), (
+        "Legacy repository_access_adapters transitional module should be removed."
     )
 
 
@@ -601,6 +716,29 @@ def test_application_services_package_init_has_no_eager_reexports():
 
     assert not offenders, (
         "Backend.application.services.__init__ must not perform eager imports:\n"
+        + "\n".join(offenders)
+    )
+
+
+def test_application_services_do_not_issue_sqlalchemy_query_directly():
+    offenders: list[str] = []
+
+    for path in _iter_python_files(APPLICATION_SERVICES_ROOT):
+        rel = path.relative_to(PROJECT_ROOT)
+        tree = _parse_python_file(path)
+        for node in ast.walk(tree):
+            if not isinstance(node, ast.Call):
+                continue
+            func = node.func
+            if not isinstance(func, ast.Attribute):
+                continue
+            if func.attr != "query":
+                continue
+            offenders.append(f"{rel}:{node.lineno}")
+
+    assert not offenders, (
+        "Backend.application.services must not call Session.query directly; "
+        "use repositories from infrastructure layer:\n"
         + "\n".join(offenders)
     )
 
