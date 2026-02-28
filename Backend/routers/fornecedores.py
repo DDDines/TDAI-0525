@@ -18,10 +18,6 @@ from fastapi import (
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
-from Backend import crud_fornecedor_import_jobs
-from Backend import crud_fornecedores
-from Backend import crud_historico
-from Backend import crud_produtos
 from Backend import database
 from Backend import models
 from Backend import schemas
@@ -49,6 +45,7 @@ from Backend.application.services import (
     CatalogImportTaskRunner,
     ValidatorCrewFacade,
 )
+from Backend.application.services.data_access_service import data_access_service
 from Backend.application.services.service_container import service_container
 from Backend.core.config import settings
 from Backend.core.logging_config import get_logger
@@ -77,7 +74,7 @@ catalog_import_task_runner = CatalogImportTaskRunner(
     catalog_logger=logger,
     models=models,
     schemas=schemas,
-    crud_produtos=crud_produtos,
+    crud_produtos=data_access_service.produtos,
     file_processing_service=file_processing_service,
     validator_crew=validator_crew,
     settings=settings,
@@ -99,19 +96,19 @@ catalog_import_finalize_service = CatalogImportFinalizeService(
 )
 catalog_import_start_service = CatalogImportStartService(
     models=models,
-    crud_fornecedores=crud_fornecedores,
+    crud_fornecedores=data_access_service.fornecedores,
     settings=settings,
     resolve_storage_path=catalog_import_diagnostics_service.resolve_storage_path,
     finalize_service=catalog_import_finalize_service,
 )
 fornecedor_catalog_process_service = FornecedorCatalogProcessService(
     models=models,
-    crud_fornecedores=crud_fornecedores,
+    crud_fornecedores=data_access_service.fornecedores,
     catalog_import_start_service=catalog_import_start_service,
 )
 fornecedor_import_job_service = FornecedorImportJobService(
-    crud_fornecedor_import_jobs=crud_fornecedor_import_jobs,
-    crud_produtos=crud_produtos,
+    crud_fornecedor_import_jobs=data_access_service.fornecedor_import_jobs,
+    crud_produtos=data_access_service.produtos,
     produto_create_schema=schemas.ProdutoCreate,
 )
 fornecedor_import_tracking_service = FornecedorImportTrackingService(
@@ -121,8 +118,8 @@ fornecedor_import_tracking_service = FornecedorImportTrackingService(
 fornecedor_management_service = FornecedorManagementService(
     models=models,
     schemas=schemas,
-    crud_fornecedores=crud_fornecedores,
-    crud_historico=crud_historico,
+    crud_fornecedores=data_access_service.fornecedores,
+    crud_historico=data_access_service.historico,
     sqlalchemy_func=func,
 )
 fornecedor_preview_service = FornecedorPreviewService(

@@ -9,12 +9,9 @@ from fastapi.staticfiles import StaticFiles
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
-from Backend import crud_fornecedores
-from Backend import crud_product_types
-from Backend import crud_produtos
-from Backend import crud_users
 from Backend import models
 from Backend import schemas
+from Backend.application.services.data_access_service import data_access_service
 from Backend.auth import router as auth_router_direct
 from Backend.core.config import settings
 from Backend.core.logging_config import get_logger
@@ -105,9 +102,12 @@ async def _startup_event_create_defaults_core() -> None:
         user_role_obj = None
 
         for role_data in roles_a_criar:
-            role = crud_users.get_role_by_name(db, name=role_data["name"])
+            role = data_access_service.users.get_role_by_name(db, name=role_data["name"])
             if not role:
-                role = crud_users.create_role(db, role=schemas.RoleCreate(**role_data))
+                role = data_access_service.users.create_role(
+                    db,
+                    role=schemas.RoleCreate(**role_data),
+                )
                 logger.info("Role '%s' criada.", role.name)
             if role.name == "admin":
                 admin_role_obj = role
@@ -145,9 +145,9 @@ async def _startup_event_create_defaults_core() -> None:
         plano_gratuito_obj = None
 
         for plano_data in planos_a_criar:
-            plano = crud_users.get_plano_by_name(db, nome=plano_data.nome)
+            plano = data_access_service.users.get_plano_by_name(db, nome=plano_data.nome)
             if not plano:
-                plano = crud_users.create_plano(db, plano=plano_data)
+                plano = data_access_service.users.create_plano(db, plano=plano_data)
                 logger.info("Plano '%s' criado.", plano.nome)
             if plano.nome == "Pro":
                 admin_plano_obj = plano
@@ -165,7 +165,10 @@ async def _startup_event_create_defaults_core() -> None:
                 "ERRO CRITICO: Plano 'Gratuito' nao encontrado. Novos usuarios podem ficar sem plano padrao."
             )
 
-        admin_user = crud_users.get_user_by_email(db, email=settings.ADMIN_EMAIL)
+        admin_user = data_access_service.users.get_user_by_email(
+            db,
+            email=settings.ADMIN_EMAIL,
+        )
         if not admin_user:
             if not admin_role_obj:
                 logger.error(
@@ -183,7 +186,10 @@ async def _startup_event_create_defaults_core() -> None:
                     user_in_data["idioma_preferido"] = settings.ADMIN_IDIOMA_PREFERIDO
 
                 user_in_create = schemas.UserCreate(**user_in_data)
-                created_admin = crud_users.create_user(db=db, user=user_in_create)
+                created_admin = data_access_service.users.create_user(
+                    db=db,
+                    user=user_in_create,
+                )
                 if created_admin:
                     created_admin.is_superuser = True
                     if admin_role_obj:
@@ -216,7 +222,7 @@ async def _startup_event_create_defaults_core() -> None:
                 needs_update = True
                 logger.info("Atualizando admin '%s' para superuser.", settings.ADMIN_EMAIL)
 
-            admin_plano_obj = crud_users.get_plano_by_name(db, "Pro")
+            admin_plano_obj = data_access_service.users.get_plano_by_name(db, "Pro")
             if admin_plano_obj and admin_user.plano_id != admin_plano_obj.id:
                 admin_user.plano_id = admin_plano_obj.id
                 needs_update = True
@@ -294,14 +300,14 @@ async def _startup_event_create_defaults_core() -> None:
         ]
 
         for pt_data in product_types_data:
-            product_type_in_db = crud_product_types.get_product_type_by_key_name(
+            product_type_in_db = data_access_service.product_types.get_product_type_by_key_name(
                 db,
                 key_name=pt_data["key_name"],
                 user_id=None,
             )
             if not product_type_in_db:
                 product_type_create_schema = schemas.ProductTypeCreate(**pt_data)
-                crud_product_types.create_product_type(
+                data_access_service.product_types.create_product_type(
                     db=db,
                     product_type_create=product_type_create_schema,
                     user_id=None,
@@ -324,7 +330,7 @@ async def _startup_event_create_defaults_core() -> None:
                     nome="UouU",
                     site_url="www.uouu.com.br",
                 )
-                crud_fornecedores.create_fornecedor(
+                data_access_service.fornecedores.create_fornecedor(
                     db=db,
                     fornecedor=fornecedor_schema,
                     user_id=admin_user.id,
@@ -338,7 +344,11 @@ async def _startup_event_create_defaults_core() -> None:
                 nome_base="Produto de Exemplo",
                 descricao_original="Item criado automaticamente na inicializacao",
             )
-            crud_produtos.create_produto(db=db, produto=exemplo_produto, user_id=admin_user.id)
+            data_access_service.produtos.create_produto(
+                db=db,
+                produto=exemplo_produto,
+                user_id=admin_user.id,
+            )
             logger.info("Produto de exemplo criado para o administrador.")
 
     except Exception as startup_exc:
@@ -350,7 +360,7 @@ async def _startup_event_create_defaults_core() -> None:
 
 
 def _create_new_user_core(user_in: schemas.UserCreate, db: Session) -> models.User:
-    db_user_check = crud_users.get_user_by_email(db, email=user_in.email)
+    db_user_check = data_access_service.users.get_user_by_email(db, email=user_in.email)
     if db_user_check:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -358,7 +368,10 @@ def _create_new_user_core(user_in: schemas.UserCreate, db: Session) -> models.Us
         )
 
     plano_id_para_novo_usuario = user_in.plano_id
-    plano_gratuito_obj_check = crud_users.get_plano_by_name(db, nome="Gratuito")
+    plano_gratuito_obj_check = data_access_service.users.get_plano_by_name(
+        db,
+        nome="Gratuito",
+    )
 
     if plano_id_para_novo_usuario is None:
         if plano_gratuito_obj_check:
@@ -367,7 +380,7 @@ def _create_new_user_core(user_in: schemas.UserCreate, db: Session) -> models.Us
             logger.error("ERRO CRITICO: Plano padrao 'Gratuito' nao encontrado no banco.")
             plano_id_para_novo_usuario = None
 
-    role_user_check = crud_users.get_role_by_name(db, name="user")
+    role_user_check = data_access_service.users.get_role_by_name(db, name="user")
     if not role_user_check:
         logger.error("ERRO CRITICO: Role padrao 'user' nao encontrado.")
         raise HTTPException(
@@ -377,7 +390,7 @@ def _create_new_user_core(user_in: schemas.UserCreate, db: Session) -> models.Us
 
     user_in.role_id = role_user_check.id
     user_in.plano_id = plano_id_para_novo_usuario
-    return crud_users.create_user(db=db, user=user_in)
+    return data_access_service.users.create_user(db=db, user=user_in)
 
 
 class _MainBootstrapWorkflow:

@@ -9,10 +9,14 @@ PROJECT_ROOT = Path(__file__).resolve().parents[2]
 BACKEND_ROOT = PROJECT_ROOT / "Backend"
 APPLICATION_ROOT = PROJECT_ROOT / "Backend" / "application"
 APPLICATION_SERVICES_ROOT = APPLICATION_ROOT / "services"
+ROUTERS_ROOT = PROJECT_ROOT / "Backend" / "routers"
 INFRASTRUCTURE_ADAPTERS_ROOT = PROJECT_ROOT / "Backend" / "infrastructure" / "adapters"
 INFRASTRUCTURE_RUNTIME_ROOT = PROJECT_ROOT / "Backend" / "infrastructure" / "runtime"
 INFRASTRUCTURE_RUNTIME_SERVICES_ROOT = (
     PROJECT_ROOT / "Backend" / "infrastructure" / "runtime_services"
+)
+INFRASTRUCTURE_RUNTIME_MODULES_ROOT = (
+    PROJECT_ROOT / "Backend" / "infrastructure" / "runtime_modules"
 )
 
 
@@ -214,5 +218,79 @@ def test_backend_code_does_not_import_backend_services_modules():
 
     assert not offenders, (
         "Unexpected imports to Backend.services in Backend package:\n"
+        + "\n".join(offenders)
+    )
+
+
+def test_routers_do_not_import_backend_crud_modules_directly():
+    offenders: list[str] = []
+    for path in _iter_python_files(ROUTERS_ROOT):
+        rel = path.relative_to(PROJECT_ROOT)
+        tree = _parse_python_file(path)
+
+        for node in ast.walk(tree):
+            if isinstance(node, ast.Import):
+                for alias in node.names:
+                    if alias.name == "Backend.crud" or alias.name.startswith("Backend.crud_"):
+                        offenders.append(f"{rel}: {alias.name}")
+            elif isinstance(node, ast.ImportFrom):
+                module = node.module or ""
+                if node.level:
+                    continue
+
+                if module == "Backend":
+                    for alias in node.names:
+                        if alias.name == "crud" or alias.name.startswith("crud_"):
+                            offenders.append(f"{rel}: from Backend import {alias.name}")
+                elif module == "Backend.crud" or module.startswith("Backend.crud_"):
+                    offenders.append(f"{rel}: {module}")
+
+    assert not offenders, (
+        "Routers must consume application/infrastructure services, not Backend crud modules:\n"
+        + "\n".join(offenders)
+    )
+
+
+def test_backend_crud_imports_are_constrained_to_runtime_and_data_access_layers():
+    offenders: list[str] = []
+
+    allowed_files = {
+        (APPLICATION_SERVICES_ROOT / "data_access_service.py").resolve(),
+    }
+    allowed_prefixes = [
+        INFRASTRUCTURE_RUNTIME_MODULES_ROOT.resolve(),
+    ]
+
+    for path in _iter_python_files(BACKEND_ROOT):
+        resolved = path.resolve()
+        rel = path.relative_to(PROJECT_ROOT)
+
+        if rel.parts[:2] in {("Backend", "tests"), ("Backend", "testing")}:
+            continue
+
+        if resolved in allowed_files:
+            continue
+        if any(str(resolved).startswith(str(prefix)) for prefix in allowed_prefixes):
+            continue
+
+        tree = _parse_python_file(path)
+        for node in ast.walk(tree):
+            if isinstance(node, ast.Import):
+                for alias in node.names:
+                    if alias.name == "Backend.crud" or alias.name.startswith("Backend.crud_"):
+                        offenders.append(f"{rel}: {alias.name}")
+            elif isinstance(node, ast.ImportFrom):
+                if node.level:
+                    continue
+                module = node.module or ""
+                if module == "Backend":
+                    for alias in node.names:
+                        if alias.name == "crud" or alias.name.startswith("crud_"):
+                            offenders.append(f"{rel}: from Backend import {alias.name}")
+                elif module == "Backend.crud" or module.startswith("Backend.crud_"):
+                    offenders.append(f"{rel}: {module}")
+
+    assert not offenders, (
+        "Backend crud imports are only allowed in runtime_modules and data_access_service:\n"
         + "\n".join(offenders)
     )

@@ -6,9 +6,6 @@ import re
 from fastapi import APIRouter, Depends, status, BackgroundTasks, Query
 from sqlalchemy.exc import SQLAlchemyError
 
-from Backend import crud_users
-from Backend import crud_produtos
-from Backend import crud
 from Backend import models
 from Backend import schemas
 from Backend.application.contracts.pipeline_commands import WebEnrichmentStartCommand
@@ -20,6 +17,7 @@ from Backend.application.services import (
     WebEnrichmentStartService,
     WebEnrichmentTaskRunner,
 )
+from Backend.application.services.data_access_service import data_access_service
 from Backend.application.services.service_container import service_container
 from Backend.database import SessionLocal
 
@@ -46,7 +44,7 @@ web_payload_service = WebEnrichmentPayloadService(
 )
 web_extractor = service_container.web_data_extractor
 web_enrichment_start_service = WebEnrichmentStartService(
-    crud_produtos=crud_produtos,
+    crud_produtos=data_access_service.produtos,
     models=models,
 )
 
@@ -109,9 +107,9 @@ def _build_payload_enriquecimento_visivel(
 web_enrichment_task_runner = WebEnrichmentTaskRunner(
     logger=logger,
     SQLAlchemyError=SQLAlchemyError,
-    crud_users=crud_users,
-    crud_produtos=crud_produtos,
-    crud=crud,
+    crud_users=data_access_service.users,
+    crud_produtos=data_access_service.produtos,
+    crud=data_access_service.uso_ia,
     models=models,
     schemas=schemas,
     web_extractor=web_extractor,

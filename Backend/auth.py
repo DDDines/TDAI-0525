@@ -11,10 +11,9 @@ from jose import JWTError, jwt
 from sqlalchemy.orm import Session
 from starlette.config import Config as AuthlibConfig
 
-from Backend import crud
-from Backend import crud_users
 from Backend import models
 from Backend import schemas
+from Backend.application.services.data_access_service import data_access_service
 from Backend.core.config import settings
 from Backend.core.logging_config import get_logger
 from Backend.core.security import pwd_context
@@ -204,7 +203,7 @@ class _AuthRuntime:
         return self.hash_password_reset_token(token=token) == token_hash
 
     def authenticate_user(self, db: Session, email: str, password: str) -> Optional[models.User]:
-        user = crud_users.get_user_by_email(db, email=email)
+        user = data_access_service.users.get_user_by_email(db, email=email)
         if not user:
             return None
         if not user.is_active:
@@ -229,7 +228,7 @@ class _AuthRuntime:
         except JWTError:
             raise credentials_exception
 
-        user = crud_users.get_user(db, user_id=token_data.user_id)
+        user = data_access_service.users.get_user(db, user_id=token_data.user_id)
         if user is None or user.email != token_data.email:
             raise credentials_exception
         return user
@@ -288,7 +287,7 @@ class _AuthRuntime:
             if email is None or user_id is None:
                 raise credentials_exception
 
-            user = crud_users.get_user(db, user_id=user_id)
+            user = data_access_service.users.get_user(db, user_id=user_id)
             if not user or user.email != email or not user.is_active:
                 raise credentials_exception
 
@@ -322,14 +321,18 @@ class _AuthRuntime:
 
         new_email = update_data.get("email")
         if new_email and new_email != current_user.email:
-            existing = crud_users.get_user_by_email(db, email=new_email)
+            existing = data_access_service.users.get_user_by_email(db, email=new_email)
             if existing and existing.id != current_user.id:
                 raise HTTPException(
                     status_code=status.HTTP_400_BAD_REQUEST,
                     detail="Ja existe um usuario com este email.",
                 )
 
-        return crud_users.update_user(db=db, db_user=current_user, user_update=user_update)
+        return data_access_service.users.update_user(
+            db=db,
+            db_user=current_user,
+            user_update=user_update,
+        )
 
     async def change_password_me(
         self,
@@ -366,7 +369,7 @@ class _AuthRuntime:
         provider: str,
         provider_user_id: str,
     ) -> Optional[models.User]:
-        db_user = crud_users.get_user_by_email(db, email=email)
+        db_user = data_access_service.users.get_user_by_email(db, email=email)
         if db_user:
             if not db_user.is_active:
                 logger.warning("Usuario existente %s (via %s) esta inativo.", email, provider)
@@ -389,7 +392,7 @@ class _AuthRuntime:
                 db.refresh(db_user)
             return db_user
 
-        default_plano = crud_users.get_plano_by_name(db, "Gratuito")
+        default_plano = data_access_service.users.get_plano_by_name(db, "Gratuito")
 
         user_in_create = schemas.UserCreateOAuth(
             email=email,
@@ -398,7 +401,7 @@ class _AuthRuntime:
             provider_user_id=provider_user_id,
         )
 
-        created_user = crud_users.create_user_oauth(
+        created_user = data_access_service.users.create_user_oauth(
             db=db,
             user_oauth=user_in_create,
             plano_id_default=default_plano.id if default_plano else None,

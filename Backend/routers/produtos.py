@@ -22,11 +22,6 @@ from fastapi import (
 import pdfplumber
 from sqlalchemy.orm import Session
 
-from Backend import crud
-from Backend import crud_fornecedores
-from Backend import crud_historico
-from Backend import crud_product_types
-from Backend import crud_produtos
 from Backend import database
 from Backend import models
 from Backend import schemas
@@ -46,6 +41,7 @@ from Backend.application.services import (
     ProductMediaService,
     ValidatorCrewFacade,
 )
+from Backend.application.services.data_access_service import data_access_service
 from Backend.application.services.service_container import service_container
 from Backend.core.config import settings
 
@@ -107,7 +103,7 @@ catalog_import_task_runner = CatalogImportTaskRunner(
     catalog_logger=catalog_logger,
     models=models,
     schemas=schemas,
-    crud_produtos=crud_produtos,
+    crud_produtos=data_access_service.produtos,
     file_processing_service=file_processing_service,
     validator_crew=validator_crew,
     settings=settings,
@@ -130,7 +126,7 @@ catalog_import_finalize_service = CatalogImportFinalizeService(
 )
 catalog_import_start_service = CatalogImportStartService(
     models=models,
-    crud_fornecedores=crud_fornecedores,
+    crud_fornecedores=data_access_service.fornecedores,
     settings=settings,
     resolve_storage_path=catalog_import_diagnostics_service.resolve_storage_path,
     finalize_service=catalog_import_finalize_service,
@@ -156,10 +152,10 @@ catalog_import_preview_service = CatalogImportPreviewService(
 catalog_import_ingest_service = CatalogImportIngestService(
     schemas=schemas,
     models=models,
-    crud_fornecedores=crud_fornecedores,
-    crud_produtos=crud_produtos,
-    crud_uso_ia=crud,
-    crud_historico=crud_historico,
+    crud_fornecedores=data_access_service.fornecedores,
+    crud_produtos=data_access_service.produtos,
+    crud_uso_ia=data_access_service.uso_ia,
+    crud_historico=data_access_service.historico,
     file_processing_service=file_processing_service,
     normalize_import_issue_item=catalog_sanitization_service.normalize_import_issue_item,
     extract_import_error_reason=catalog_sanitization_service.extract_import_error_reason,
@@ -171,14 +167,14 @@ catalog_import_ingest_service = CatalogImportIngestService(
 product_management_service = ProductManagementService(
     models=models,
     schemas=schemas,
-    crud_produtos=crud_produtos,
-    crud_fornecedores=crud_fornecedores,
-    crud_product_types=crud_product_types,
-    crud_historico=crud_historico,
-    crud_uso_ia=crud,
+    crud_produtos=data_access_service.produtos,
+    crud_fornecedores=data_access_service.fornecedores,
+    crud_product_types=data_access_service.product_types,
+    crud_historico=data_access_service.historico,
+    crud_uso_ia=data_access_service.uso_ia,
 )
 product_media_service = ProductMediaService(
-    crud_produtos=crud_produtos,
+    crud_produtos=data_access_service.produtos,
     schemas=schemas,
 )
 

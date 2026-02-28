@@ -8,10 +8,9 @@ from sqlalchemy.orm import Session
 
 from . import auth_utils
 from .auth_utils import get_current_active_user
-from Backend import crud_users
-from Backend import crud_produtos
 from Backend import models
 from Backend import schemas
+from Backend.application.services.data_access_service import data_access_service
 from Backend.application.services.generation_scheduling_service import (
     GenerationSchedulingService,
 )
@@ -23,14 +22,14 @@ logger = logging.getLogger(__name__)
 ia_generation_service = service_container.ia_generation
 
 generation_task_service = GenerationTaskService(
-    crud_users=crud_users,
-    crud_produtos=crud_produtos,
+    crud_users=data_access_service.users,
+    crud_produtos=data_access_service.produtos,
     models=models,
     schemas=schemas,
     logger=logger,
 )
 generation_scheduling_service = GenerationSchedulingService(
-    crud_produtos=crud_produtos,
+    crud_produtos=data_access_service.produtos,
     schemas=schemas,
     models=models,
 )
