@@ -69,6 +69,7 @@ No estado atual, a selecao de pipeline em runtime esta em modo OOP-only: `APP_MO
 ### Fase 5 - Limpeza final
 
 - [x] Marcar oficialmente `*_legacy_service` como deprecated em toda a base (proxy unificado em `Backend/core/deprecation.py`).
+- [x] Remover pipelines legados de orquestracao (`Backend/legacy/pipelines/`) sem referencias restantes em runtime/testes.
 - [ ] Remover bridges/facades de transicao apos prazo de compatibilidade.
 - [x] Atualizar documentacao final de arquitetura e matriz de conclusao.
 
