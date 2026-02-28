@@ -30,8 +30,8 @@ def _restore_app_mode():
         settings.APP_MODE = original
 
 
-def test_catalog_import_orchestrator_uses_oop_in_shadow_mode():
-    settings.APP_MODE = "shadow"
+def test_catalog_import_orchestrator_uses_oop_plan():
+    settings.APP_MODE = "oop"
     orchestrator = CatalogImportPipelineOrchestrator(
         oop_executor=_dummy_executor,
     )
@@ -76,8 +76,8 @@ def test_catalog_import_orchestrator_uses_oop_in_oop_mode():
     assert plan.task_kwargs["pages"] == [1, 2, 3]
 
 
-def test_web_enrichment_orchestrator_uses_oop_in_shadow_mode():
-    settings.APP_MODE = "shadow"
+def test_web_enrichment_orchestrator_uses_oop_plan():
+    settings.APP_MODE = "oop"
     orchestrator = WebEnrichmentPipelineOrchestrator(
         oop_executor=_dummy_executor,
     )

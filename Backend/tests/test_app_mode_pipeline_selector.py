@@ -35,21 +35,17 @@ def _restore_app_mode():
 
 
 def test_get_app_mode_forces_oop_for_supported_values():
-    settings.APP_MODE = "legacy"
-    assert get_app_mode() == AppMode.OOP
     settings.APP_MODE = "oop"
     assert get_app_mode() == AppMode.OOP
-    settings.APP_MODE = "shadow"
+
+
+def test_get_app_mode_is_oop_for_any_config():
+    settings.APP_MODE = "any-value"
     assert get_app_mode() == AppMode.OOP
 
 
-def test_get_app_mode_falls_back_to_oop_on_invalid_value():
-    settings.APP_MODE = "invalid-mode"
-    assert get_app_mode() == AppMode.OOP
-
-
-def test_pipeline_selector_prefers_oop_in_shadow_mode():
-    settings.APP_MODE = "shadow"
+def test_pipeline_selector_selects_oop_plan():
+    settings.APP_MODE = "oop"
     oop_plan = WebEnrichmentTaskBuilder(
         OOPWebEnrichmentExecutor(WebEnrichmentProcessingUseCase(_dummy_executor))
     ).build_start_plan(

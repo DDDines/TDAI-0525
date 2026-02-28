@@ -6,8 +6,6 @@ The backend runs in OOP-only mode.
 
 - `oop`: executes the OOP pipeline.
 
-Any other configured value is accepted only for transition compatibility and normalized to `oop` with a warning.
-
 ## Environment
 
 Configure in `.env`:

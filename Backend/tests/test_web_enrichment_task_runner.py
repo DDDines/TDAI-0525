@@ -56,7 +56,11 @@ async def test_web_enrichment_task_runner_uses_single_oop_service():
         user_id=20,
         termos_busca_override="item x",
     )
-    await runner.execute_oop(produto_id=30, user_id=40)
+    await runner.execute(
+        db_session_factory=lambda: None,
+        produto_id=30,
+        user_id=40,
+    )
     await runner.execute(
         db_session_factory=lambda: None,
         produto_id=11,
@@ -71,7 +75,7 @@ async def test_web_enrichment_task_runner_uses_single_oop_service():
 
 
 @pytest.mark.asyncio
-async def test_web_enrichment_task_runner_execute_oop_reuses_cached_service():
+async def test_web_enrichment_task_runner_execute_reuses_cached_service():
     runner = _build_runner()
     service_stub = _TaskServiceStub()
     build_calls = []
@@ -82,8 +86,16 @@ async def test_web_enrichment_task_runner_execute_oop_reuses_cached_service():
 
     runner._build = _fake_build  # type: ignore[attr-defined]
 
-    await runner.execute_oop(produto_id=91, user_id=42)
-    await runner.execute_oop(produto_id=92, user_id=43)
+    await runner.execute(
+        db_session_factory=lambda: None,
+        produto_id=91,
+        user_id=42,
+    )
+    await runner.execute(
+        db_session_factory=lambda: None,
+        produto_id=92,
+        user_id=43,
+    )
 
     assert build_calls == ["build"]
     assert len(service_stub.calls) == 2

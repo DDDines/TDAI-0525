@@ -29,8 +29,7 @@ O runtime opera em modo OOP-only (`APP_MODE=oop`) e a camada `Backend/services` 
   - `orchestrator_service.py`
 - [x] `FileProcessingFacade` migrado para adapter explicito sem fallback dinamico.
 - [x] `CatalogExtractionService.processar_linha_padronizada` passou a usar metodo publico.
-- [x] API publica adicionada no legado: `processar_linha_padronizada(...)`.
-- [x] Delegacao de todas as funcoes publicas do modulo legado com warning de deprecacao centralizado.
+- [x] API publica consolidada em runtime OOP: `processar_linha_padronizada(...)`.
 
 ### Fase 2 - Onda Web Data Extractor
 
@@ -45,7 +44,7 @@ O runtime opera em modo OOP-only (`APP_MODE=oop`) e a camada `Backend/services` 
   - `orchestrator_service.py`
 - [x] `WebDataExtractorFacade` migrado para adapter explicito sem fallback dinamico.
 - [x] Chamada privada removida em componente (`_normalizar...` -> metodo publico).
-- [x] API publica adicionada no legado: `normalizar_dados_de_metadados(...)`.
+- [x] API publica consolidada em runtime OOP: `normalizar_dados_de_metadados(...)`.
 - [x] Encapsulamento de estado global (cache/semaphore/flag Playwright) em runtime injetavel dedicado, com teste de isolamento.
 
 ### Fase 3 - Onda IA / Limit / Validator
@@ -63,7 +62,7 @@ O runtime opera em modo OOP-only (`APP_MODE=oop`) e a camada `Backend/services` 
 ### Fase 4 - Orquestracao e desacoplamento de borda
 
 - [x] Import cruzado removido: `Backend/routers/fornecedores.py` nao depende mais de `Backend/routers/produtos.py`.
-- [x] Runners unificados em implementacao OOP unica; execucao via `execute` (com alias `execute_oop` apenas para compatibilidade temporaria).
+- [x] Runners unificados em implementacao OOP unica; execucao via `execute`.
 - [x] Garantia de teste: `APP_MODE=oop` executa apenas executor OOP selecionado pelo orquestrador.
 - [x] Fluxo real validado em `APP_MODE=oop` sem bridge legado no caminho OOP.
 

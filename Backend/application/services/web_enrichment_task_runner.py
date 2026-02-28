@@ -82,6 +82,3 @@ class WebEnrichmentTaskRunner:
             termos_busca_override=termos_busca_override,
         )
 
-    async def execute_oop(self, **task_kwargs: Any) -> None:
-        await self._get_service().execute(**task_kwargs)
-

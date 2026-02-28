@@ -9,15 +9,12 @@ from Backend.routers.web_enrichment import _WebEnrichmentRouterWorkflow
 
 
 @pytest.mark.asyncio
-async def test_workflow_delega_execucao_task_e_oop_para_runtime():
+async def test_workflow_delega_execucao_task_para_runtime():
     called = []
 
     class FakeRuntime:
         async def execute_task(self, **kwargs):
             called.append(("task", kwargs))
-
-        async def execute_oop_task(self, **kwargs):
-            called.append(("oop", kwargs))
 
         def validate_start_preconditions(self, **kwargs):
             called.append(("validate", kwargs))
@@ -33,16 +30,11 @@ async def test_workflow_delega_execucao_task_e_oop_para_runtime():
         user_id=20,
         termos_busca_override="termo",
     )
-    await workflow.oop_tarefa_enriquecer_produto_web(produto_id=10, user_id=20)
 
     assert called[0][0] == "task"
     assert called[0][1]["produto_id"] == 10
     assert called[0][1]["user_id"] == 20
     assert called[0][1]["termos_busca_override"] == "termo"
-
-    assert called[1][0] == "oop"
-    assert called[1][1]["produto_id"] == 10
-    assert called[1][1]["user_id"] == 20
 
 
 def test_workflow_iniciar_enriquecimento_usa_validacao_e_dispatch_do_runtime():
@@ -51,9 +43,6 @@ def test_workflow_iniciar_enriquecimento_usa_validacao_e_dispatch_do_runtime():
     class FakeRuntime:
         async def execute_task(self, **kwargs):
             called.append(("task", kwargs))
-
-        async def execute_oop_task(self, **kwargs):
-            called.append(("oop", kwargs))
 
         def validate_start_preconditions(self, **kwargs):
             called.append(("validate", kwargs))
@@ -88,4 +77,4 @@ def test_workflow_iniciar_enriquecimento_usa_validacao_e_dispatch_do_runtime():
     assert command.termos_busca_override == "teste"
     assert dispatch_call[1]["background_tasks"] is background_tasks
     assert callable(dispatch_call[1]["oop_executor"])
-    assert "legacy_executor" not in dispatch_call[1]
+    assert "fallback_executor" not in dispatch_call[1]

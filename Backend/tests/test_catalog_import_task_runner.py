@@ -62,7 +62,13 @@ async def test_catalog_import_task_runner_uses_single_oop_service():
         pages=[1],
         region=[0.0, 0.0, 1.0, 1.0],
     )
-    await runner.execute_oop(file_id=9)
+    await runner.execute(
+        db_session_factory=lambda: None,
+        file_id=9,
+        user_id=0,
+        product_type_id=None,
+        fornecedor_id=0,
+    )
     await runner.execute(
         db_session_factory=lambda: None,
         file_id=10,
@@ -79,7 +85,7 @@ async def test_catalog_import_task_runner_uses_single_oop_service():
 
 
 @pytest.mark.asyncio
-async def test_catalog_import_task_runner_execute_oop_reuses_cached_service():
+async def test_catalog_import_task_runner_execute_reuses_cached_service():
     runner = _build_runner()
     service_stub = _TaskServiceStub()
     build_calls = []
@@ -90,8 +96,20 @@ async def test_catalog_import_task_runner_execute_oop_reuses_cached_service():
 
     runner._build = _fake_build  # type: ignore[attr-defined]
 
-    await runner.execute_oop(file_id=77, user_id=88)
-    await runner.execute_oop(file_id=78, user_id=89)
+    await runner.execute(
+        db_session_factory=lambda: None,
+        file_id=77,
+        user_id=88,
+        product_type_id=None,
+        fornecedor_id=0,
+    )
+    await runner.execute(
+        db_session_factory=lambda: None,
+        file_id=78,
+        user_id=89,
+        product_type_id=None,
+        fornecedor_id=0,
+    )
 
     assert build_calls == ["build"]
     assert len(service_stub.calls) == 2

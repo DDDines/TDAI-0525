@@ -146,9 +146,6 @@ class _WebEnrichmentRouterRuntime:
             termos_busca_override=termos_busca_override,
         )
 
-    async def execute_oop_task(self, **task_kwargs) -> None:
-        await web_enrichment_task_runner.execute_oop(**task_kwargs)
-
     def validate_start_preconditions(
         self,
         *,
@@ -196,10 +193,6 @@ class _WebEnrichmentRouterWorkflow:
             termos_busca_override=termos_busca_override,
         )
 
-    async def oop_tarefa_enriquecer_produto_web(self, **task_kwargs):
-        """Executor OOP dedicado (modo oop), separado do legado para comparacao futura."""
-        await self._runtime.execute_oop_task(**task_kwargs)
-
     def iniciar_enriquecimento_produto_web(
         self,
         *,
@@ -224,7 +217,7 @@ class _WebEnrichmentRouterWorkflow:
             background_tasks=background_tasks,
             db_session_factory=SessionLocal,
             command=command,
-            oop_executor=self.oop_tarefa_enriquecer_produto_web,
+            oop_executor=self.tarefa_enriquecer_produto_web,
         )
         return {
             "msg": f"Processo de enriquecimento web para o produto ID {produto_id} iniciado em segundo plano."
@@ -249,10 +242,6 @@ async def _tarefa_enriquecer_produto_web(
         user_id=user_id,
         termos_busca_override=termos_busca_override,
     )
-
-
-async def _oop_tarefa_enriquecer_produto_web(**task_kwargs):
-    await web_enrichment_router_workflow.oop_tarefa_enriquecer_produto_web(**task_kwargs)
 
 
 @router.post("/produto/{produto_id}", status_code=status.HTTP_202_ACCEPTED, response_model=schemas.Msg)
