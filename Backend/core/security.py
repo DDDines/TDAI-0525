@@ -1,11 +1,10 @@
-﻿from datetime import datetime, timedelta, timezone
+from datetime import datetime, timedelta, timezone
 from typing import Optional
 
 from jose import JWTError, jwt
 from passlib.context import CryptContext
 from pydantic import BaseModel, ValidationError
 
-from Backend.core.deprecation import deprecated_legacy_service_proxy
 from Backend.core.config import settings
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
@@ -157,7 +156,3 @@ class SecurityLegacyService:
         return decode_token(*args, **kwargs)
 
 
-security_legacy_service = deprecated_legacy_service_proxy(
-    SecurityLegacyService(),
-    qualified_name="Backend.core.security.security_legacy_service",
-)

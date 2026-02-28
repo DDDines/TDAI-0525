@@ -1,9 +1,8 @@
-﻿from sqlalchemy import create_engine
+from sqlalchemy import create_engine
 from sqlalchemy.orm import declarative_base, sessionmaker
 from sqlalchemy.pool import StaticPool
 from typing import Optional
 
-from Backend.core.deprecation import deprecated_legacy_service_proxy
 from Backend.core.config import settings
 
 class _DatabaseWorkflow:
@@ -50,7 +49,3 @@ class DatabaseLegacyService:
         yield from get_db(*args, **kwargs)
 
 
-database_legacy_service = deprecated_legacy_service_proxy(
-    DatabaseLegacyService(),
-    qualified_name="Backend.database.database_legacy_service",
-)

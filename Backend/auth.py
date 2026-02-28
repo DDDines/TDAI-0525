@@ -1,4 +1,4 @@
-﻿# Backend/auth.py
+# Backend/auth.py
 from datetime import datetime, timedelta, timezone
 from typing import Any, Dict, Optional
 import hashlib
@@ -15,7 +15,6 @@ from Backend import crud
 from Backend import crud_users
 from Backend import models
 from Backend import schemas
-from Backend.core.deprecation import deprecated_legacy_service_proxy
 from Backend.core.config import settings
 from Backend.core.logging_config import get_logger
 from Backend.core.security import pwd_context
@@ -617,7 +616,3 @@ class AuthLegacyService:
         return await process_facebook_login(*args, **kwargs)
 
 
-auth_legacy_service = deprecated_legacy_service_proxy(
-    AuthLegacyService(),
-    qualified_name="Backend.auth.auth_legacy_service",
-)

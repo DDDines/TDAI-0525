@@ -1,4 +1,4 @@
-﻿# catalogai_project/Backend/routers/web_enrichment.py
+# catalogai_project/Backend/routers/web_enrichment.py
 from typing import List, Dict, Any, Optional, Tuple
 import json
 import re
@@ -11,7 +11,6 @@ from Backend import crud_produtos
 from Backend import crud
 from Backend import models
 from Backend import schemas
-from Backend.core.deprecation import deprecated_legacy_service_proxy
 from Backend.application.contracts.pipeline_commands import WebEnrichmentStartCommand
 from Backend.application.services import (
     WebEnrichmentContentQualityService,
@@ -295,7 +294,3 @@ class WebEnrichmentRouterLegacyService:
         return web_enrichment_router_workflow.iniciar_enriquecimento_produto_web(*args, **kwargs)
 
 
-web_enrichment_router_legacy_service = deprecated_legacy_service_proxy(
-    WebEnrichmentRouterLegacyService(),
-    qualified_name="Backend.routers.web_enrichment.web_enrichment_router_legacy_service",
-)

@@ -1,4 +1,4 @@
-﻿# Backend/routers/auth_utils.py
+# Backend/routers/auth_utils.py
 import logging
 
 from fastapi import Depends, HTTPException, Request, status
@@ -7,7 +7,6 @@ from sqlalchemy.orm import Session
 
 from Backend import crud_users
 from Backend import models
-from Backend.core.deprecation import deprecated_legacy_service_proxy
 from Backend.core import config
 from Backend.core import security
 from Backend.database import get_db
@@ -108,7 +107,3 @@ class AuthUtilsLegacyService:
         return await auth_utils_workflow.get_current_active_superuser(*args, **kwargs)
 
 
-auth_utils_legacy_service = deprecated_legacy_service_proxy(
-    AuthUtilsLegacyService(),
-    qualified_name="Backend.routers.auth_utils.auth_utils_legacy_service",
-)

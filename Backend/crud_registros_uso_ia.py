@@ -1,4 +1,3 @@
-﻿from Backend.core.deprecation import deprecated_legacy_service_proxy
 from datetime import datetime, timezone
 from typing import List, Optional
 
@@ -324,7 +323,3 @@ class RegistroUsoIALegacyService:
         return get_geracoes_ia_count_no_mes_corrente(*args, **kwargs)
 
 
-registro_uso_ia_legacy_service = deprecated_legacy_service_proxy(
-    RegistroUsoIALegacyService(),
-    qualified_name="Backend.crud_registros_uso_ia.registro_uso_ia_legacy_service",
-)

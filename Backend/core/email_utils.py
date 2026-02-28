@@ -1,4 +1,3 @@
-﻿from Backend.core.deprecation import deprecated_legacy_service_proxy
 # Backend/core/email_utils.py
 from datetime import datetime
 from pathlib import Path
@@ -222,7 +221,3 @@ class EmailLegacyService:
         return await email_workflow.send_password_reset_email(*args, **kwargs)
 
 
-email_legacy_service = deprecated_legacy_service_proxy(
-    EmailLegacyService(),
-    qualified_name="Backend.core.email_utils.email_legacy_service",
-)

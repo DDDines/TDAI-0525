@@ -1,4 +1,4 @@
-﻿import logging
+import logging
 from pathlib import Path
 from typing import Optional
 
@@ -6,7 +6,6 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
 from Backend import models
-from Backend.core.deprecation import deprecated_legacy_service_proxy
 from Backend.application.services.service_container import service_container
 from Backend.core.config import settings
 
@@ -104,7 +103,3 @@ class TaskLegacyService:
         return process_pdf_extraction_task(*args, **kwargs)
 
 
-task_legacy_service = deprecated_legacy_service_proxy(
-    TaskLegacyService(),
-    qualified_name="Backend.tasks.task_legacy_service",
-)

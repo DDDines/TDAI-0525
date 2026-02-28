@@ -1,10 +1,9 @@
-﻿from datetime import datetime, timedelta, timezone
+from datetime import datetime, timedelta, timezone
 
 from fastapi import APIRouter, Body, Depends, HTTPException, Request, status
 from sqlalchemy.orm import Session
 
 from Backend import crud_users, schemas
-from Backend.core.deprecation import deprecated_legacy_service_proxy
 from Backend.auth import create_password_reset_token, hash_password_reset_token
 from Backend.core import security
 from Backend.core.config import settings
@@ -188,7 +187,3 @@ class PasswordRecoveryRouterLegacyService:
         return _password_recovery_workflow.reset_password(*args, **kwargs)
 
 
-password_recovery_router_legacy_service = deprecated_legacy_service_proxy(
-    PasswordRecoveryRouterLegacyService(),
-    qualified_name="Backend.routers.password_recovery.password_recovery_router_legacy_service",
-)

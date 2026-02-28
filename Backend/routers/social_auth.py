@@ -1,7 +1,6 @@
-﻿from fastapi import APIRouter, Depends, HTTPException, Request, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 from sqlalchemy.orm import Session
 
-from Backend.core.deprecation import deprecated_legacy_service_proxy
 from Backend.auth import (
     oauth,
     OAuthError,
@@ -185,7 +184,3 @@ class SocialAuthRouterLegacyService:
         return await social_auth_router_workflow.facebook_callback(*args, **kwargs)
 
 
-social_auth_router_legacy_service = deprecated_legacy_service_proxy(
-    SocialAuthRouterLegacyService(),
-    qualified_name="Backend.routers.social_auth.social_auth_router_legacy_service",
-)

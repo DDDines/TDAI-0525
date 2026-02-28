@@ -1,10 +1,9 @@
-﻿import logging
+import logging
 from typing import Optional
 from sqlalchemy.orm import Session
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy import func
 
-from Backend.core.deprecation import deprecated_legacy_service_proxy
 from Backend.core.config import settings
 from Backend import schemas
 from Backend.models import Fornecedor, Produto, AttributeFieldTypeEnum
@@ -190,7 +189,3 @@ class InitialDataLegacyService:
         return create_initial_data(*args, **kwargs)
 
 
-initial_data_legacy_service = deprecated_legacy_service_proxy(
-    InitialDataLegacyService(),
-    qualified_name="Backend.initial_data.initial_data_legacy_service",
-)

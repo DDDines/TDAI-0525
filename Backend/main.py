@@ -1,4 +1,4 @@
-﻿# Backend/main.py
+# Backend/main.py
 from contextlib import asynccontextmanager
 from pathlib import Path
 from typing import List, Optional
@@ -15,7 +15,6 @@ from Backend import crud_produtos
 from Backend import crud_users
 from Backend import models
 from Backend import schemas
-from Backend.core.deprecation import deprecated_legacy_service_proxy
 from Backend.auth import router as auth_router_direct
 from Backend.core.config import settings
 from Backend.core.logging_config import get_logger
@@ -490,7 +489,3 @@ class MainLegacyService:
         return create_new_user(*args, **kwargs)
 
 
-main_legacy_service = deprecated_legacy_service_proxy(
-    MainLegacyService(),
-    qualified_name="Backend.main.main_legacy_service",
-)

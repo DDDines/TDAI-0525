@@ -1,4 +1,4 @@
-﻿# Backend/services/ia_generation_service.py
+# Backend/services/ia_generation_service.py
 
 import httpx # Para chamadas HTTP assÃ­ncronas
 import json
@@ -14,7 +14,6 @@ from Backend import crud_produtos
 from Backend import models  # models completo para acesso a TipoAcaoEnum
 from Backend import schemas
 from Backend.core.config import settings
-from Backend.core.deprecation import deprecated_legacy_service_proxy
 from . import limit_service # Para verificar e consumir limites/crÃ©ditos
 
 # ConfiguraÃ§Ã£o do logger
@@ -891,8 +890,4 @@ class IAGenerationLegacyService:
         return await sugerir_valores_atributos_com_gemini(*args, **kwargs)
 
 
-ia_generation_legacy_service = deprecated_legacy_service_proxy(
-    IAGenerationLegacyService(),
-    qualified_name="Backend.services.ia_generation_service.ia_generation_legacy_service",
-)
 

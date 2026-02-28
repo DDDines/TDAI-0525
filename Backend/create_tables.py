@@ -1,4 +1,3 @@
-﻿from Backend.core.deprecation import deprecated_legacy_service_proxy
 import os
 import sys
 from typing import Optional
@@ -60,10 +59,6 @@ class CreateTablesLegacyService:
         return create_all_tables(*args, **kwargs)
 
 
-create_tables_legacy_service = deprecated_legacy_service_proxy(
-    CreateTablesLegacyService(),
-    qualified_name="Backend.create_tables.create_tables_legacy_service",
-)
 if __name__ == "__main__":
     create_all_tables()
 

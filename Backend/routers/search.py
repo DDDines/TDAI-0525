@@ -1,11 +1,10 @@
-﻿from typing import List, Optional, Tuple
+from typing import List, Optional, Tuple
 
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from Backend import models, schemas
-from Backend.core.deprecation import deprecated_legacy_service_proxy
 from Backend.database import get_db
 from . import auth_utils
 
@@ -151,7 +150,3 @@ class SearchRouterLegacyService:
         return _search_workflow.search_all(*args, **kwargs)
 
 
-search_router_legacy_service = deprecated_legacy_service_proxy(
-    SearchRouterLegacyService(),
-    qualified_name="Backend.routers.search.search_router_legacy_service",
-)

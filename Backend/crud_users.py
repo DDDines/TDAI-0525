@@ -1,4 +1,4 @@
-﻿import logging
+import logging
 from datetime import datetime
 from typing import List, Optional, Union
 
@@ -7,7 +7,6 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from Backend import schemas
-from Backend.core.deprecation import deprecated_legacy_service_proxy
 from Backend.core import security
 from Backend.core.config import settings
 from Backend.models import Plano, Role, User
@@ -536,7 +535,3 @@ class UserCrudLegacyService:
         return delete_plano(*args, **kwargs)
 
 
-user_crud_legacy_service = deprecated_legacy_service_proxy(
-    UserCrudLegacyService(),
-    qualified_name="Backend.crud_users.user_crud_legacy_service",
-)

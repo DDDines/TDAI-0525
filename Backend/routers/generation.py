@@ -1,4 +1,4 @@
-﻿# Backend/routers/generation.py
+# Backend/routers/generation.py
 
 import logging
 from typing import Any, Dict, Optional
@@ -12,7 +12,6 @@ from Backend import crud_users
 from Backend import crud_produtos
 from Backend import models
 from Backend import schemas
-from Backend.core.deprecation import deprecated_legacy_service_proxy
 from Backend.application.services.generation_scheduling_service import (
     GenerationSchedulingService,
 )
@@ -375,7 +374,3 @@ class GenerationRouterLegacyService:
         return await generation_router_workflow.sugerir_atributos_para_produto_com_gemini(*args, **kwargs)
 
 
-generation_router_legacy_service = deprecated_legacy_service_proxy(
-    GenerationRouterLegacyService(),
-    qualified_name="Backend.routers.generation.generation_router_legacy_service",
-)

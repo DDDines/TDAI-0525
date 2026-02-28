@@ -57,7 +57,7 @@ No estado atual, a selecao de pipeline em runtime esta em modo OOP-only: `APP_MO
 - [x] `LimitServiceFacade` sem `__getattr__`.
 - [x] `ValidatorCrewFacade` sem import direto de `Backend.services`.
 - [x] Defaults OOP migrados para adapters explicitos em `Backend/infrastructure/adapters/` (sem bridge legado no caminho padrao OOP).
-- [x] Bridges de legado mantidos somente para compatibilidade em `Backend/infrastructure/legacy/`.
+- [x] Bridges legados removidos de `Backend/infrastructure/legacy/`.
 
 ### Fase 4 - Orquestracao e desacoplamento de borda
 
@@ -68,10 +68,10 @@ No estado atual, a selecao de pipeline em runtime esta em modo OOP-only: `APP_MO
 
 ### Fase 5 - Limpeza final
 
-- [x] Marcar oficialmente `*_legacy_service` como deprecated em toda a base (proxy unificado em `Backend/core/deprecation.py`).
+- [x] Remover proxies `*_legacy_service` de modulos backend e camada de roteadores.
 - [x] Remover pipelines legados de orquestracao (`Backend/legacy/pipelines/`) sem referencias restantes em runtime/testes.
 - [x] Remover bridges de transicao em `Backend/infrastructure/legacy/`.
-- [ ] Remover facades/proxies de transicao apos prazo de compatibilidade.
+- [x] Remover camada central de proxy legado (`Backend/core/deprecation.py`) e testes associados.
 - [x] Atualizar documentacao final de arquitetura e matriz de conclusao.
 
 ## Criterios objetivos de fechamento
@@ -80,7 +80,7 @@ No estado atual, a selecao de pipeline em runtime esta em modo OOP-only: `APP_MO
 - [x] Zero uso de `__getattr__` em adapters da camada de aplicacao.
 - [x] Zero chamada a metodo privado de objeto externo em `Backend/application/services`.
 - [x] Zero import de `Backend/routers` em `Backend/application`.
-- [x] Fluxos legacy isolados por bridge/proxy temporario documentado.
+- [x] Sem bridges/proxies legados ativos em runtime de aplicacao.
 - [x] Acoplamento de testes a internals de `Backend/services` reduzido para shim central em `Backend/testing/runtime_apis.py` (sem imports privados diretos espalhados).
 
 ## Matriz de isolamento (transicao)
@@ -96,6 +96,5 @@ No estado atual, a selecao de pipeline em runtime esta em modo OOP-only: `APP_MO
 ## Pontos de transicao planejados
 
 - Adapters OOP padrao concentrados em `Backend/infrastructure/adapters/`.
-- Proxies de deprecacao de `*_legacy_service` centralizados em `Backend/core/deprecation.py`.
 - Guard opcional de execucao estrita: `STRICT_OOP_NO_LEGACY=1` bloqueia acesso legado quando `APP_MODE=oop`.
-- Remocao fisica restante de facades/proxies/shims: apos 2026-04-30.
+- Remocao fisica restante de wrappers legados em `Backend/services/*`: em andamento por trilha de API.

@@ -1,4 +1,4 @@
-﻿# catalogai_project/Backend/services/web_data_extractor_service.py
+# catalogai_project/Backend/services/web_data_extractor_service.py
 import asyncio
 from dataclasses import dataclass
 import functools
@@ -18,7 +18,6 @@ from urllib.request import Request, urlopen
 from sqlalchemy.orm import Session # Importar Session para type hinting, se necessÃ¡rio
 from datetime import datetime, timezone
 from Backend.core.logging_config import get_logger
-from Backend.core.deprecation import deprecated_legacy_service_proxy
 
 logger = get_logger(__name__)
 PLAYWRIGHT_CHROMIUM_INDISPONIVEL = False
@@ -1899,12 +1898,6 @@ class WebDataExtractorLegacyService:
         return extract_text_from_image_region(*args, **kwargs)
 
 
-web_data_extractor_legacy_service = deprecated_legacy_service_proxy(
-    WebDataExtractorLegacyService(),
-    qualified_name=(
-        "Backend.services.web_data_extractor_service.web_data_extractor_legacy_service"
-    ),
-)
 
 
 

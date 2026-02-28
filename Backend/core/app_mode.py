@@ -1,6 +1,5 @@
-﻿from __future__ import annotations
+from __future__ import annotations
 
-from Backend.core.deprecation import deprecated_legacy_service_proxy
 
 import json
 from enum import Enum
@@ -164,7 +163,3 @@ class AppModeLegacyService:
         return compare_shadow_payloads(*args, **kwargs)
 
 
-app_mode_legacy_service = deprecated_legacy_service_proxy(
-    AppModeLegacyService(),
-    qualified_name="Backend.core.app_mode.app_mode_legacy_service",
-)

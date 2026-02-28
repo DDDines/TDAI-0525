@@ -1,4 +1,4 @@
-﻿import logging
+import logging
 from pathlib import Path
 from typing import List, Optional
 
@@ -7,7 +7,6 @@ from sqlalchemy import func, or_
 from sqlalchemy.orm import Session
 
 from Backend import schemas
-from Backend.core.deprecation import deprecated_legacy_service_proxy
 from Backend.models import CatalogImportFile, Fornecedor
 
 logger = logging.getLogger(__name__)
@@ -356,7 +355,3 @@ class FornecedorCrudLegacyService:
         return create_catalog_import_file(*args, **kwargs)
 
 
-fornecedor_crud_legacy_service = deprecated_legacy_service_proxy(
-    FornecedorCrudLegacyService(),
-    qualified_name="Backend.crud_fornecedores.fornecedor_crud_legacy_service",
-)

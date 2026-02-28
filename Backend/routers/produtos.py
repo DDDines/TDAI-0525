@@ -1,4 +1,4 @@
-﻿# Backend/routers/produtos.py
+# Backend/routers/produtos.py
 from collections import Counter
 from logging import FileHandler, Formatter
 from pathlib import Path
@@ -30,7 +30,6 @@ from Backend import crud_produtos
 from Backend import database
 from Backend import models
 from Backend import schemas
-from Backend.core.deprecation import deprecated_legacy_service_proxy
 from Backend.application.services import (
     CatalogImportDiagnosticsService,
     CatalogImportFileService,
@@ -1183,7 +1182,3 @@ class ProdutosRouterLegacyService:
         return await produtos_router_workflow.extrair_pagina_unica(*args, **kwargs)
 
 
-produtos_router_legacy_service = deprecated_legacy_service_proxy(
-    ProdutosRouterLegacyService(),
-    qualified_name="Backend.routers.produtos.produtos_router_legacy_service",
-)

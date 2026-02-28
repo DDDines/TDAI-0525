@@ -1,4 +1,4 @@
-﻿# catalogai_project/Backend/services/file_processing_service.py
+# catalogai_project/Backend/services/file_processing_service.py
 
 import pandas as pd
 
@@ -48,7 +48,6 @@ from pdfplumber.pdf import PDF as PdfPlumberPDF
 
 
 from Backend.core.logging_config import get_logger
-from Backend.core.deprecation import deprecated_legacy_service_proxy
 
 from Backend.core.config import settings
 
@@ -4226,9 +4225,3 @@ class FileProcessingLegacyService:
         return _processar_linha_padronizada(*args, **kwargs)
 
 
-file_processing_legacy_service = deprecated_legacy_service_proxy(
-    FileProcessingLegacyService(),
-    qualified_name=(
-        "Backend.services.file_processing_service.file_processing_legacy_service"
-    ),
-)
