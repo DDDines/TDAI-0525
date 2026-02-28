@@ -41,12 +41,16 @@ async def test_pdf_image_runtime_converte_para_base64(monkeypatch):
 async def test_pdf_bytes_to_images_impl_usa_runtime(monkeypatch):
     called = {}
 
-    class FakeRuntime:
-        async def pdf_bytes_to_images(self, **kwargs):
-            called.update(kwargs)
-            return ["abc"]
+    async def _fake_pdf_bytes_to_images(self, **kwargs):
+        _ = self
+        called.update(kwargs)
+        return ["abc"]
 
-    monkeypatch.setattr(file_processing, "_pdf_image_conversion_runtime", FakeRuntime())
+    monkeypatch.setattr(
+        file_processing._PdfImageConversionRuntime,
+        "pdf_bytes_to_images",
+        _fake_pdf_bytes_to_images,
+    )
 
     result = await file_processing._pdf_bytes_to_images_impl(
         conteudo_arquivo=b"pdf",

@@ -53,15 +53,14 @@ async def test_pdf_runtime_detecta_erro_de_senha(monkeypatch):
 async def test_processar_arquivo_pdf_impl_usa_runtime(monkeypatch):
     called = {}
 
-    class FakeRuntime:
-        async def processar_arquivo_pdf(self, **kwargs):
-            called.update(kwargs)
-            return [{"source": "runtime"}]
+    async def _fake_processar_arquivo_pdf(self, **kwargs):
+        called.update(kwargs)
+        return [{"source": "runtime"}]
 
     monkeypatch.setattr(
-        file_processing,
-        "_pdf_ingestion_runtime",
-        FakeRuntime(),
+        file_processing._PdfIngestionRuntime,
+        "processar_arquivo_pdf",
+        _fake_processar_arquivo_pdf,
     )
 
     result = await file_processing._processar_arquivo_pdf_impl(

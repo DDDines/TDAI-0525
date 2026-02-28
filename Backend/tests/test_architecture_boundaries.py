@@ -393,6 +393,61 @@ def test_crud_modules_do_not_expose_public_function_wrappers():
     )
 
 
+def test_runtime_modules_do_not_instantiate_singletons_at_module_scope():
+    offenders: list[str] = []
+    allowed_runtime_module_callees = {"ThreadPoolExecutor"}
+
+    for path in _iter_python_files(INFRASTRUCTURE_RUNTIME_MODULES_ROOT):
+        rel = path.relative_to(PROJECT_ROOT)
+        tree = _parse_python_file(path)
+        for node in tree.body:
+            if not isinstance(node, ast.Assign):
+                continue
+            if not isinstance(node.value, ast.Call):
+                continue
+            if not isinstance(node.value.func, ast.Name):
+                continue
+            callee = node.value.func.id
+            if callee in allowed_runtime_module_callees:
+                continue
+            if (
+                (callee.startswith("_") and len(callee) > 1 and callee[1].isupper())
+                or callee[:1].isupper()
+            ):
+                offenders.append(f"{rel}:{node.lineno} -> {callee}")
+
+    assert not offenders, (
+        "Runtime modules must not keep class singletons at module scope:\n"
+        + "\n".join(offenders)
+    )
+
+
+def test_crud_modules_do_not_instantiate_singletons_at_module_scope():
+    offenders: list[str] = []
+
+    for path in CRUD_MODULE_FILES:
+        rel = path.relative_to(PROJECT_ROOT)
+        tree = _parse_python_file(path)
+        for node in tree.body:
+            if not isinstance(node, ast.Assign):
+                continue
+            if not isinstance(node.value, ast.Call):
+                continue
+            if not isinstance(node.value.func, ast.Name):
+                continue
+            callee = node.value.func.id
+            if (
+                (callee.startswith("_") and len(callee) > 1 and callee[1].isupper())
+                or callee[:1].isupper()
+            ):
+                offenders.append(f"{rel}:{node.lineno} -> {callee}")
+
+    assert not offenders, (
+        "CRUD modules must not keep class singletons at module scope:\n"
+        + "\n".join(offenders)
+    )
+
+
 def test_routers_do_not_import_backend_crud_modules_directly():
     offenders: list[str] = []
     for path in _iter_python_files(ROUTERS_ROOT):

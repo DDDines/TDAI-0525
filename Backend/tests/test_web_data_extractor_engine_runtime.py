@@ -53,6 +53,28 @@ async def test_web_content_runtime_delega_para_engine_runtime():
 
 def test_search_runtime_helpers_delegam_para_runtime_global(monkeypatch):
     class FakeSearchEngine:
+        def get_search_cache_lock(self):
+            return object()
+
+        def get_search_semaphore(self):
+            return object()
+
+        async def search_cache_get(self, _query_key):
+            return None
+
+        async def search_cache_set(self, _query_key, _urls):
+            return None
+
+        def score_url_publica(self, _url: str):
+            return 1
+
+        def extract_redirect_destination(self, _query: str):
+            return None
+
+        def unwrap_redirect_url(self, url: str, max_hops: int = 3):
+            _ = max_hops
+            return url
+
         def busca_publica_disponivel(self):
             return False
 
@@ -62,18 +84,21 @@ def test_search_runtime_helpers_delegam_para_runtime_global(monkeypatch):
         def normalizar_url_busca(self, candidata: str, base_url: str):
             return f"{base_url}|{candidata}"
 
-    monkeypatch.setattr(
-        web_extractor,
-        "_web_search_engine_runtime",
-        FakeSearchEngine(),
-    )
+    original_state = web_extractor.get_web_data_extractor_runtime_state()
+    try:
+        patched_state = web_extractor._build_web_data_extractor_runtime_state(
+            search_engine_runtime=FakeSearchEngine(),
+        )
+        web_extractor.apply_web_data_extractor_runtime_state(patched_state)
 
-    assert web_extractor._web_search_engine_runtime.busca_publica_disponivel() is False
-    assert web_extractor._url_deve_ser_ignorada_antes_da_coleta("x.tmp") is True
-    assert (
-        web_extractor._normalizar_url_busca("item", "https://base")
-        == "https://base|item"
-    )
+        assert web_extractor.get_web_search_workflow().busca_publica_disponivel() is False
+        assert web_extractor._url_deve_ser_ignorada_antes_da_coleta("x.tmp") is True
+        assert (
+            web_extractor._normalizar_url_busca("item", "https://base")
+            == "https://base|item"
+        )
+    finally:
+        web_extractor.apply_web_data_extractor_runtime_state(original_state)
 
 
 @pytest.mark.asyncio

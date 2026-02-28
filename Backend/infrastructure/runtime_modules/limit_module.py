@@ -190,17 +190,16 @@ class _LimitWorkflow:
         )
 
 
-_limit_runtime = _LimitRuntime(
-    uso_ia_workflow=get_registro_uso_ia_crud_workflow(),
-    user_workflow=get_user_crud_workflow(),
-    logger_factory=get_logger,
-)
-_limit_workflow = _LimitWorkflow(_limit_runtime)
 LimitWorkflow = _LimitWorkflow
 
 
 def get_limit_workflow() -> LimitWorkflow:
-    return _limit_workflow
+    runtime = _LimitRuntime(
+        uso_ia_workflow=get_registro_uso_ia_crud_workflow(),
+        user_workflow=get_user_crud_workflow(),
+        logger_factory=get_logger,
+    )
+    return _LimitWorkflow(runtime)
 
 
 

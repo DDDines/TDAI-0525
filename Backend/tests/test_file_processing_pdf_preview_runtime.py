@@ -32,15 +32,15 @@ async def test_pdf_preview_runtime_retorna_erro_sem_poppler(monkeypatch):
 async def test_preview_pdf_impl_usa_runtime(monkeypatch):
     called = {}
 
-    class FakePdfPreviewRuntime:
-        async def preview_arquivo_pdf(self, **kwargs):
-            called.update(kwargs)
-            return {"num_pages": 1, "preview_images": ["x"]}
+    async def _fake_preview_arquivo_pdf(self, **kwargs):
+        _ = self
+        called.update(kwargs)
+        return {"num_pages": 1, "preview_images": ["x"]}
 
     monkeypatch.setattr(
-        file_processing,
-        "_pdf_preview_runtime",
-        FakePdfPreviewRuntime(),
+        file_processing._PdfPreviewRuntime,
+        "preview_arquivo_pdf",
+        _fake_preview_arquivo_pdf,
     )
 
     result = await file_processing._preview_arquivo_pdf_impl(

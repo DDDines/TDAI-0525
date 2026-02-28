@@ -84,10 +84,9 @@ class _FornecedorImportJobRuntime:
         return job
 
 
-_fornecedor_import_job_workflow = _FornecedorImportJobWorkflow()
 FornecedorImportJobWorkflow = _FornecedorImportJobWorkflow
 
 
 def get_fornecedor_import_job_workflow() -> FornecedorImportJobWorkflow:
-    return _fornecedor_import_job_workflow
+    return _FornecedorImportJobWorkflow()
 

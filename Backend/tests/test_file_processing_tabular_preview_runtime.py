@@ -24,18 +24,15 @@ async def test_tabular_preview_runtime_preview_excel(monkeypatch):
 async def test_preview_csv_impl_usa_runtime(monkeypatch):
     called = {}
 
-    class FakePreviewRuntime:
-        async def preview_arquivo_excel(self, **kwargs):
-            return {"headers": [], "sample_rows": []}
-
-        async def preview_arquivo_csv(self, **kwargs):
-            called.update(kwargs)
-            return {"headers": ["c1"], "sample_rows": [{"c1": "v"}]}
+    async def _fake_preview_arquivo_csv(self, **kwargs):
+        _ = self
+        called.update(kwargs)
+        return {"headers": ["c1"], "sample_rows": [{"c1": "v"}]}
 
     monkeypatch.setattr(
-        file_processing,
-        "_tabular_preview_runtime",
-        FakePreviewRuntime(),
+        file_processing._TabularPreviewEngineRuntime,
+        "preview_arquivo_csv",
+        _fake_preview_arquivo_csv,
     )
 
     result = await file_processing._preview_arquivo_csv_impl(b"csv-bytes", max_rows=3)

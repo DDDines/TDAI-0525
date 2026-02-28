@@ -16,8 +16,6 @@ from Backend.core.config import settings
 
 # ConfiguraÃƒÂ§ÃƒÂ£o do logger
 logger = logging.getLogger(__name__)
-_produto_crud_workflow = get_produto_crud_workflow()
-_uso_ia_crud_workflow = get_registro_uso_ia_crud_workflow()
 
 # --- Constantes para OpenAI (Exemplo, idealmente viriam de settings) ---
 OPENAI_API_URL_COMPLETIONS = "https://api.openai.com/v1/chat/completions"
@@ -329,8 +327,23 @@ class _AiProviderRuntime:
                 )
 
 
-_ai_provider_runtime = _AiProviderRuntime()
-_ai_provider_workflow = _AiProviderWorkflow(runtime=_ai_provider_runtime)
+def _get_produto_workflow():
+    return get_produto_crud_workflow()
+
+
+def _get_uso_ia_workflow():
+    return get_registro_uso_ia_crud_workflow()
+
+
+def _get_ai_provider_workflow() -> _AiProviderWorkflow:
+    return _AiProviderWorkflow(runtime=_AiProviderRuntime())
+
+
+AiProviderWorkflow = _AiProviderWorkflow
+
+
+def get_ai_provider_workflow() -> AiProviderWorkflow:
+    return _get_ai_provider_workflow()
 
 
 async def _gerar_titulos_com_openai_impl(db: Session, produto_id: int, user: models.User, num_titulos: int = 3) -> List[str]:
@@ -339,14 +352,16 @@ async def _gerar_titulos_com_openai_impl(db: Session, produto_id: int, user: mod
     logger.info(f"Iniciando geraÃƒÂ§ÃƒÂ£o de tÃƒÂ­tulos para produto ID {produto_id} pelo usuÃƒÂ¡rio ID {user.id}")
     # ... (restante da lÃƒÂ³gica existente) ...
     # Exemplo de adaptaÃƒÂ§ÃƒÂ£o mÃƒÂ­nima:
-    api_key = await _ai_provider_workflow.get_openai_api_key(db=db, user=user)
+    ai_provider_workflow = _get_ai_provider_workflow()
+    api_key = await ai_provider_workflow.get_openai_api_key(db=db, user=user)
     if not api_key:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Chave da API OpenAI nÃƒÂ£o disponÃƒÂ­vel.")
 
     # ... (construÃƒÂ§ÃƒÂ£o do prompt e chamada ÃƒÂ  API OpenAI) ...
     # ... (registro do uso com crud.create_registro_uso_ia) ...
     # Este cÃƒÂ³digo ÃƒÂ© apenas um placeholder, o seu cÃƒÂ³digo original para esta funÃƒÂ§ÃƒÂ£o deve ser mantido e adaptado.
-    db_produto = _produto_crud_workflow.get_produto(db, produto_id=produto_id)
+    produto_workflow = _get_produto_workflow()
+    db_produto = produto_workflow.get_produto(db, produto_id=produto_id)
     if not db_produto:
         raise HTTPException(status_code=404, detail="Produto nÃƒÂ£o encontrado")
 
@@ -355,14 +370,14 @@ async def _gerar_titulos_com_openai_impl(db: Session, produto_id: int, user: mod
         {"role": "user", "content": f"Produto: {db_produto.nome_base}. DescriÃƒÂ§ÃƒÂ£o: {db_produto.descricao_original or db_produto.descricao_chat_api or ''}. Marca: {db_produto.marca or ''}."}
     ]
     
-    titulos_str = await _ai_provider_workflow.call_openai_api(
+    titulos_str = await ai_provider_workflow.call_openai_api(
         prompt_messages=prompt_messages,
         api_key=api_key,
         max_tokens=150 * num_titulos,
     )
     titulos_list = [t.strip() for t in titulos_str.split('\n') if t.strip()]
 
-    _uso_ia_crud_workflow.create_registro_uso_ia(db, registro_uso=schemas.RegistroUsoIACreate(
+    _get_uso_ia_workflow().create_registro_uso_ia(db, registro_uso=schemas.RegistroUsoIACreate(
         user_id=user.id, produto_id=produto_id, tipo_acao=models.TipoAcaoEnum.CRIACAO_TITULO_PRODUTO,
         provedor_ia="openai", modelo_ia=OPENAI_DEFAULT_MODEL, creditos_consumidos=1 # Ajustar crÃƒÂ©ditos
     ))
@@ -375,11 +390,13 @@ async def _gerar_descricao_com_openai_impl(db: Session, produto_id: int, user: m
     logger.info(f"Iniciando geraÃƒÂ§ÃƒÂ£o de descriÃƒÂ§ÃƒÂ£o para produto ID {produto_id} pelo usuÃƒÂ¡rio ID {user.id}")
     # ... (restante da lÃƒÂ³gica existente) ...
     # Exemplo de adaptaÃƒÂ§ÃƒÂ£o mÃƒÂ­nima:
-    api_key = await _ai_provider_workflow.get_openai_api_key(db=db, user=user)
+    ai_provider_workflow = _get_ai_provider_workflow()
+    api_key = await ai_provider_workflow.get_openai_api_key(db=db, user=user)
     if not api_key:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Chave da API OpenAI nÃƒÂ£o disponÃƒÂ­vel.")
         
-    db_produto = _produto_crud_workflow.get_produto(db, produto_id=produto_id)
+    produto_workflow = _get_produto_workflow()
+    db_produto = produto_workflow.get_produto(db, produto_id=produto_id)
     if not db_produto:
         raise HTTPException(status_code=404, detail="Produto nÃƒÂ£o encontrado")
 
@@ -388,13 +405,13 @@ async def _gerar_descricao_com_openai_impl(db: Session, produto_id: int, user: m
         {"role": "user", "content": f"Produto: {db_produto.nome_base}. InformaÃƒÂ§ÃƒÂµes adicionais: {db_produto.descricao_original or ''}. Marca: {db_produto.marca or ''}. Modelo: {db_produto.modelo or ''}."}
     ]
     
-    descricao = await _ai_provider_workflow.call_openai_api(
+    descricao = await ai_provider_workflow.call_openai_api(
         prompt_messages=prompt_messages,
         api_key=api_key,
         max_tokens=tamanho_palavras + 100,
     )
 
-    _uso_ia_crud_workflow.create_registro_uso_ia(db, registro_uso=schemas.RegistroUsoIACreate(
+    _get_uso_ia_workflow().create_registro_uso_ia(db, registro_uso=schemas.RegistroUsoIACreate(
         user_id=user.id, produto_id=produto_id, tipo_acao=models.TipoAcaoEnum.CRIACAO_DESCRICAO_PRODUTO,
         provedor_ia="openai", modelo_ia=OPENAI_DEFAULT_MODEL, creditos_consumidos=1 # Ajustar crÃƒÂ©ditos
     ))
@@ -404,11 +421,13 @@ async def _gerar_descricao_com_openai_impl(db: Session, produto_id: int, user: m
 async def _gerar_titulos_com_gemini_impl(db: Session, produto_id: int, user: models.User, num_titulos: int = 3) -> List[str]:
     """Gera tÃƒÂ­tulos usando a API Gemini."""
     logger.info(f"Iniciando geraÃƒÂ§ÃƒÂ£o de tÃƒÂ­tulos Gemini para produto ID {produto_id} pelo usuÃƒÂ¡rio ID {user.id}")
-    api_key = await _ai_provider_workflow.get_gemini_api_key(db=db, user=user)
+    ai_provider_workflow = _get_ai_provider_workflow()
+    api_key = await ai_provider_workflow.get_gemini_api_key(db=db, user=user)
     if not api_key:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Chave da API Gemini nÃƒÂ£o disponÃƒÂ­vel.")
 
-    db_produto = _produto_crud_workflow.get_produto(db, produto_id=produto_id)
+    produto_workflow = _get_produto_workflow()
+    db_produto = produto_workflow.get_produto(db, produto_id=produto_id)
     if not db_produto:
         raise HTTPException(status_code=404, detail="Produto nÃƒÂ£o encontrado")
 
@@ -419,14 +438,14 @@ async def _gerar_titulos_com_gemini_impl(db: Session, produto_id: int, user: mod
         f"Marca: {db_produto.marca or ''}"
     )
 
-    resultado = await _ai_provider_workflow.call_gemini_api(
+    resultado = await ai_provider_workflow.call_gemini_api(
         prompt_text=prompt_text,
         api_key=api_key,
         max_tokens=150 * num_titulos,
     )
     titulos_list = [t.strip() for t in resultado.split('\n') if t.strip()]
 
-    _uso_ia_crud_workflow.create_registro_uso_ia(db, registro_uso=schemas.RegistroUsoIACreate(
+    _get_uso_ia_workflow().create_registro_uso_ia(db, registro_uso=schemas.RegistroUsoIACreate(
         user_id=user.id,
         produto_id=produto_id,
         tipo_acao=models.TipoAcaoEnum.CRIACAO_TITULO_PRODUTO,
@@ -440,11 +459,13 @@ async def _gerar_titulos_com_gemini_impl(db: Session, produto_id: int, user: mod
 async def _gerar_descricao_com_gemini_impl(db: Session, produto_id: int, user: models.User, tamanho_palavras: int = 150) -> str:
     """Gera descriÃƒÂ§ÃƒÂ£o usando a API Gemini."""
     logger.info(f"Iniciando geraÃƒÂ§ÃƒÂ£o de descriÃƒÂ§ÃƒÂ£o Gemini para produto ID {produto_id} pelo usuÃƒÂ¡rio ID {user.id}")
-    api_key = await _ai_provider_workflow.get_gemini_api_key(db=db, user=user)
+    ai_provider_workflow = _get_ai_provider_workflow()
+    api_key = await ai_provider_workflow.get_gemini_api_key(db=db, user=user)
     if not api_key:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Chave da API Gemini nÃƒÂ£o disponÃƒÂ­vel.")
 
-    db_produto = _produto_crud_workflow.get_produto(db, produto_id=produto_id)
+    produto_workflow = _get_produto_workflow()
+    db_produto = produto_workflow.get_produto(db, produto_id=produto_id)
     if not db_produto:
         raise HTTPException(status_code=404, detail="Produto nÃƒÂ£o encontrado")
 
@@ -456,13 +477,13 @@ async def _gerar_descricao_com_gemini_impl(db: Session, produto_id: int, user: m
         f"Modelo: {db_produto.modelo or ''}"
     )
 
-    descricao = await _ai_provider_workflow.call_gemini_api(
+    descricao = await ai_provider_workflow.call_gemini_api(
         prompt_text=prompt_text,
         api_key=api_key,
         max_tokens=tamanho_palavras + 100,
     )
 
-    _uso_ia_crud_workflow.create_registro_uso_ia(db, registro_uso=schemas.RegistroUsoIACreate(
+    _get_uso_ia_workflow().create_registro_uso_ia(db, registro_uso=schemas.RegistroUsoIACreate(
         user_id=user.id,
         produto_id=produto_id,
         tipo_acao=models.TipoAcaoEnum.CRIACAO_DESCRICAO_PRODUTO,
@@ -493,7 +514,8 @@ async def _sugerir_valores_atributos_com_gemini_impl(
     #     raise HTTPException(...)
 
     # 2. Buscar Produto e seus AttributeTemplates
-    db_produto = _produto_crud_workflow.get_produto(db, produto_id=produto_id)
+    produto_workflow = _get_produto_workflow()
+    db_produto = produto_workflow.get_produto(db, produto_id=produto_id)
     if not db_produto:
         logger.error(f"Produto ID {produto_id} nÃƒÂ£o encontrado para sugestÃƒÂ£o de atributos.")
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Produto nÃƒÂ£o encontrado")
@@ -507,7 +529,7 @@ async def _sugerir_valores_atributos_com_gemini_impl(
     
     if not chaves_para_sugerir:
         logger.info(f"Nenhum atributo definido no Tipo de Produto para produto ID {produto_id}. Retornando sugestÃƒÂµes vazias.")
-        _uso_ia_crud_workflow.create_registro_uso_ia(db, registro_uso=schemas.RegistroUsoIACreate(
+        _get_uso_ia_workflow().create_registro_uso_ia(db, registro_uso=schemas.RegistroUsoIACreate(
             user_id=user.id, produto_id=produto_id, tipo_acao=models.TipoAcaoEnum.SUGESTAO_ATRIBUTOS_GEMINI,
             provedor_ia="gemini", creditos_consumidos=0, status="INFO", # NÃƒÂ£o consumiu crÃƒÂ©ditos se nÃƒÂ£o houve chamada
             detalhes_erro="Nenhum atributo definido no Tipo de Produto para gerar sugestÃƒÂµes."
@@ -567,11 +589,12 @@ async def _sugerir_valores_atributos_com_gemini_impl(
     }
 
     # 6. Obter chave da API e Chamar Gemini
-    gemini_api_key = await _ai_provider_workflow.get_gemini_api_key(db=db, user=user)
+    ai_provider_workflow = _get_ai_provider_workflow()
+    gemini_api_key = await ai_provider_workflow.get_gemini_api_key(db=db, user=user)
     modelo_utilizado = "gemini-1.5-flash-latest" # Ou outro modelo configurado
     
     try:
-        sugestoes_dict = await _ai_provider_workflow.call_gemini_api_for_suggestions(
+        sugestoes_dict = await ai_provider_workflow.call_gemini_api_for_suggestions(
             prompt_text=prompt_final,
             api_key=gemini_api_key,
             response_schema=gemini_response_schema,
@@ -597,7 +620,7 @@ async def _sugerir_valores_atributos_com_gemini_impl(
                 sugestoes_finais.append(schemas.SugestaoAtributoItem(chave_atributo=chave, valor_sugerido=valor))
         
         # 7. Registrar Uso
-        _uso_ia_crud_workflow.create_registro_uso_ia(db, registro_uso=schemas.RegistroUsoIACreate(
+        _get_uso_ia_workflow().create_registro_uso_ia(db, registro_uso=schemas.RegistroUsoIACreate(
             user_id=user.id, produto_id=produto_id, tipo_acao=models.TipoAcaoEnum.SUGESTAO_ATRIBUTOS_GEMINI,
             provedor_ia="gemini", modelo_ia=modelo_utilizado, creditos_consumidos=creditos_necessarios, status="SUCESSO",
             prompt_utilizado=prompt_final # Para auditoria
@@ -611,7 +634,7 @@ async def _sugerir_valores_atributos_com_gemini_impl(
         )
 
     except HTTPException as e: # Repassa HTTPExceptions de call_gemini_api_for_suggestions ou de verificaÃƒÂ§ÃƒÂµes
-        _uso_ia_crud_workflow.create_registro_uso_ia(db, registro_uso=schemas.RegistroUsoIACreate(
+        _get_uso_ia_workflow().create_registro_uso_ia(db, registro_uso=schemas.RegistroUsoIACreate(
             user_id=user.id, produto_id=produto_id, tipo_acao=models.TipoAcaoEnum.SUGESTAO_ATRIBUTOS_GEMINI,
             provedor_ia="gemini", modelo_ia=modelo_utilizado, creditos_consumidos=creditos_necessarios,
             status="FALHA", detalhes_erro=str(e.detail)
@@ -619,7 +642,7 @@ async def _sugerir_valores_atributos_com_gemini_impl(
         raise e
     except Exception as e:
         logger.error(f"Erro geral no serviÃƒÂ§o de sugestÃƒÂ£o Gemini: {str(e)}", exc_info=True)
-        _uso_ia_crud_workflow.create_registro_uso_ia(db, registro_uso=schemas.RegistroUsoIACreate(
+        _get_uso_ia_workflow().create_registro_uso_ia(db, registro_uso=schemas.RegistroUsoIACreate(
             user_id=user.id, produto_id=produto_id, tipo_acao=models.TipoAcaoEnum.SUGESTAO_ATRIBUTOS_GEMINI,
             provedor_ia="gemini", modelo_ia=modelo_utilizado, creditos_consumidos=creditos_necessarios,
             status="FALHA", detalhes_erro=f"Erro inesperado no serviÃƒÂ§o de sugestÃƒÂ£o: {str(e)}"
@@ -758,12 +781,10 @@ class _IAGenerationRuntime:
         )
 
 
-_ia_generation_runtime = _IAGenerationRuntime()
-_ia_generation_workflow = _IAGenerationWorkflow(runtime=_ia_generation_runtime)
 IAGenerationWorkflow = _IAGenerationWorkflow
 
 
 def get_ia_generation_workflow() -> IAGenerationWorkflow:
-    return _ia_generation_workflow
+    return _IAGenerationWorkflow(runtime=_IAGenerationRuntime())
 
 

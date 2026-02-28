@@ -59,8 +59,14 @@ from Backend.application.services.web_data_extractor_facade import (
 
 
 logger = get_logger(__name__)
-web_data_extractor_service = WebDataExtractorFacade()
-_fornecedor_crud_workflow = get_fornecedor_crud_workflow()
+
+
+def _build_web_data_extractor_service() -> Any:
+    return WebDataExtractorFacade()
+
+
+def _get_fornecedor_crud_workflow():
+    return get_fornecedor_crud_workflow()
 try:
     from pdfminer.pdfdocument import PDFPasswordIncorrect
 except Exception:
@@ -402,26 +408,25 @@ class _LineNormalizationRuntime:
         return sku, nome
 
 
-_line_normalization_runtime = _LineNormalizationRuntime()
 LineNormalizationRuntime = _LineNormalizationRuntime
 
 
 def get_line_normalization_runtime() -> LineNormalizationRuntime:
-    return _line_normalization_runtime
+    return _LineNormalizationRuntime()
 
 
 def _limpar_valor_extraido(valor: Any) -> Optional[str]:
     """Helper para limpar strings ou converter outros tipos para string, retornando None se vazio."""
-    return _line_normalization_runtime.limpar_valor_extraido(valor)
+    return get_line_normalization_runtime().limpar_valor_extraido(valor)
 
 
 def _valor_tem_conteudo_util(valor: Any) -> bool:
     """Retorna True para valores Ãºteis (evita lixo de OCR como '!' ou '-')."""
-    return _line_normalization_runtime.valor_tem_conteudo_util(valor)
+    return get_line_normalization_runtime().valor_tem_conteudo_util(valor)
 
 
 def _norm_text(v: Any) -> str:
-    return _line_normalization_runtime.norm_text(v)
+    return get_line_normalization_runtime().norm_text(v)
 
 
 def _normalizar_mapeamento_usuario(
@@ -429,7 +434,7 @@ def _normalizar_mapeamento_usuario(
     linha_original: Dict[str, Any],
 ) -> Dict[str, str]:
     """Normaliza mapping do usuario e corrige formato invertido (campo->coluna)."""
-    return _line_normalization_runtime.normalizar_mapeamento_usuario(
+    return get_line_normalization_runtime().normalizar_mapeamento_usuario(
         mapeamento_colunas_usuario=mapeamento_colunas_usuario,
         linha_original=linha_original,
     )
@@ -441,7 +446,7 @@ def _coerce_region_bbox(
     page_height: float,
 ) -> tuple[Optional[tuple[float, float, float, float]], Optional[str]]:
     """Converte bbox para coordenada absoluta da pagina e faz clamp seguro."""
-    return _line_normalization_runtime.coerce_region_bbox(
+    return get_line_normalization_runtime().coerce_region_bbox(
         region=region,
         page_width=page_width,
         page_height=page_height,
@@ -450,12 +455,12 @@ def _coerce_region_bbox(
 
 def _token_looks_like_code(token: str) -> bool:
     """Heuristica para identificar token de codigo/SKU."""
-    return _line_normalization_runtime.token_looks_like_code(token)
+    return get_line_normalization_runtime().token_looks_like_code(token)
 
 
 def _split_sku_nome_auto(value: str) -> tuple[Optional[str], Optional[str]]:
     """Divide um texto combinado em SKU e Nome Base quando possivel."""
-    return _line_normalization_runtime.split_sku_nome_auto(value)
+    return get_line_normalization_runtime().split_sku_nome_auto(value)
 
 class _LineMappingWorkflow:
     """Workflow OO para padronizacao de linhas extraidas de catalogos."""
@@ -808,7 +813,6 @@ class _TabularIngestionEngineRuntime:
             return [{"erro_processamento_csv": f"Falha ao ler arquivo CSV: {str(e)}"}]
 
 
-_tabular_ingestion_runtime = _TabularIngestionEngineRuntime()
 
 
 async def _processar_arquivo_excel_impl(
@@ -817,7 +821,7 @@ async def _processar_arquivo_excel_impl(
     sheet_name: Optional[str] = None,
     product_type_id: Optional[int] = None,
 ) -> List[Dict[str, Any]]:
-    return await _tabular_ingestion_runtime.processar_arquivo_excel(
+    return await _TabularIngestionEngineRuntime().processar_arquivo_excel(
         conteudo_arquivo=conteudo_arquivo,
         mapeamento_colunas_usuario=mapeamento_colunas_usuario,
         sheet_name=sheet_name,
@@ -830,7 +834,7 @@ async def _processar_arquivo_csv_impl(
     mapeamento_colunas_usuario: Optional[Dict[str, str]] = None,
     product_type_id: Optional[int] = None,
 ) -> List[Dict[str, Any]]:
-    return await _tabular_ingestion_runtime.processar_arquivo_csv(
+    return await _TabularIngestionEngineRuntime().processar_arquivo_csv(
         conteudo_arquivo=conteudo_arquivo,
         mapeamento_colunas_usuario=mapeamento_colunas_usuario,
         product_type_id=product_type_id,
@@ -838,6 +842,11 @@ async def _processar_arquivo_csv_impl(
 
 class _PdfIngestionRuntime:
     """Runtime OO para ingestao de PDF."""
+
+    def __init__(self, web_data_extractor_service: Optional[Any] = None) -> None:
+        self._web_data_extractor_service = (
+            web_data_extractor_service or _build_web_data_extractor_service()
+        )
 
     def _append_produto(
         self,
@@ -1051,7 +1060,7 @@ class _PdfIngestionRuntime:
 
                             if usar_llm:
                                 try:
-                                    dados_produto = await web_data_extractor_service.extrair_dados_produto_com_llm(
+                                    dados_produto = await self._web_data_extractor_service.extrair_dados_produto_com_llm(
                                         page_text
                                     )
                                     if isinstance(dados_produto, dict):
@@ -1138,7 +1147,6 @@ class _PdfIngestionRuntime:
                     )
 
 
-_pdf_ingestion_runtime = _PdfIngestionRuntime()
 
 
 async def _processar_arquivo_pdf_impl(
@@ -1149,7 +1157,7 @@ async def _processar_arquivo_pdf_impl(
     pages: Optional[List[int]] = None,
     region: Optional[List[float]] = None,
 ) -> List[Dict[str, Any]]:
-    return await _pdf_ingestion_runtime.processar_arquivo_pdf(
+    return await _PdfIngestionRuntime().processar_arquivo_pdf(
         conteudo_arquivo=conteudo_arquivo,
         mapeamento_colunas_usuario=mapeamento_colunas_usuario,
         usar_llm=usar_llm,
@@ -1212,13 +1220,12 @@ class _TabularPreviewEngineRuntime:
             return {"error": f"Falha ao ler arquivo CSV: {str(e)}"}
 
 
-_tabular_preview_runtime = _TabularPreviewEngineRuntime()
 
 
 async def _preview_arquivo_excel_impl(
     conteudo_arquivo: bytes, max_rows: int = 5
 ) -> Dict[str, Any]:
-    return await _tabular_preview_runtime.preview_arquivo_excel(
+    return await _TabularPreviewEngineRuntime().preview_arquivo_excel(
         conteudo_arquivo=conteudo_arquivo,
         max_rows=max_rows,
     )
@@ -1227,7 +1234,7 @@ async def _preview_arquivo_excel_impl(
 async def _preview_arquivo_csv_impl(
     conteudo_arquivo: bytes, max_rows: int = 5
 ) -> Dict[str, Any]:
-    return await _tabular_preview_runtime.preview_arquivo_csv(
+    return await _TabularPreviewEngineRuntime().preview_arquivo_csv(
         conteudo_arquivo=conteudo_arquivo,
         max_rows=max_rows,
     )
@@ -1388,7 +1395,6 @@ class _PdfPreviewRuntime:
             return {"error": f"Falha ao ler arquivo PDF: {str(e)}"}
 
 
-_pdf_preview_runtime = _PdfPreviewRuntime()
 
 
 async def _preview_arquivo_pdf_impl(
@@ -1398,7 +1404,7 @@ async def _preview_arquivo_pdf_impl(
     page_count: int = 1,
     dpi: int = 72,
 ) -> Dict[str, Any]:
-    return await _pdf_preview_runtime.preview_arquivo_pdf(
+    return await _PdfPreviewRuntime().preview_arquivo_pdf(
         conteudo_arquivo=conteudo_arquivo,
         ext=ext,
         start_page=start_page,
@@ -1416,8 +1422,8 @@ class _PreviewDispatchRuntime:
         pdf_preview_runtime: Optional[_PdfPreviewRuntime] = None,
         extractor_factory: Optional["_PreviewExtractorFactory"] = None,
     ) -> None:
-        self._tabular_preview_runtime = tabular_preview_runtime or _tabular_preview_runtime
-        self._pdf_preview_runtime = pdf_preview_runtime or _pdf_preview_runtime
+        self._tabular_preview_runtime = tabular_preview_runtime or _TabularPreviewEngineRuntime()
+        self._pdf_preview_runtime = pdf_preview_runtime or _PdfPreviewRuntime()
         self._extractor_factory = extractor_factory or _PreviewExtractorFactory(
             excel_extractor=_ExcelPreviewExtractor(self._tabular_preview_runtime),
             csv_extractor=_CsvPreviewExtractor(self._tabular_preview_runtime),
@@ -1525,13 +1531,12 @@ class _PreviewExtractorFactory:
         return extractor
 
 
-_preview_dispatch_runtime = _PreviewDispatchRuntime()
 
 
 async def _gerar_preview_impl(
     conteudo_arquivo: bytes, ext: str, max_rows: int = 5
 ) -> Dict[str, Any]:
-    return await _preview_dispatch_runtime.gerar_preview(
+    return await _PreviewDispatchRuntime().gerar_preview(
         conteudo_arquivo=conteudo_arquivo,
         ext=ext,
         max_rows=max_rows,
@@ -1605,7 +1610,6 @@ class _PdfImageConversionRuntime:
         )
 
 
-_pdf_image_conversion_runtime = _PdfImageConversionRuntime()
 
 
 async def _pdf_bytes_to_images_impl(
@@ -1621,7 +1625,7 @@ async def _pdf_bytes_to_images_impl(
 ) -> List[str]:
 
     """Convert PDF bytes to base64 encoded PNG images."""
-    return await _pdf_image_conversion_runtime.pdf_bytes_to_images(
+    return await _PdfImageConversionRuntime().pdf_bytes_to_images(
         conteudo_arquivo=conteudo_arquivo,
         max_pages=max_pages,
         start_page=start_page,
@@ -1722,7 +1726,7 @@ def _pdf_pages_to_images_impl(db: Session, file: UploadFile, fornecedor_id: int,
 
     # A chamada Ã  funÃ§Ã£o que jÃ¡ corrigimos
 
-    import_file = _fornecedor_crud_workflow.create_catalog_import_file(
+    import_file = _get_fornecedor_crud_workflow().create_catalog_import_file(
 
         db=db,
 
@@ -2826,11 +2830,10 @@ class _PdfAssetUtilityRuntime:
             ) from e
 
 
-_pdf_asset_utility_runtime = _PdfAssetUtilityRuntime()
 
 
 def _generate_pdf_page_images_impl(file_path: str, file_id: str) -> List[str]:
-    return _pdf_asset_utility_runtime.generate_pdf_page_images(
+    return _PdfAssetUtilityRuntime().generate_pdf_page_images(
         file_path=file_path,
         file_id=file_id,
     )
@@ -2842,7 +2845,7 @@ def _extract_pdf_region_image_impl(
     region: Optional[List[float]] = None,
     dpi: int = 300,
 ) -> bytes:
-    return _pdf_asset_utility_runtime.extract_pdf_region_image(
+    return _PdfAssetUtilityRuntime().extract_pdf_region_image(
         file_path=file_path,
         page_number=page_number,
         region=region,
@@ -2854,7 +2857,7 @@ def _parse_annotation_to_dataframe_impl(
     annotation: object,
     vertical_tolerance: int = 5,
 ) -> pd.DataFrame:
-    return _pdf_asset_utility_runtime.parse_annotation_to_dataframe(
+    return _PdfAssetUtilityRuntime().parse_annotation_to_dataframe(
         annotation=annotation,
         vertical_tolerance=vertical_tolerance,
     )
@@ -3039,8 +3042,8 @@ class _PdfAssetRuntime:
         pdf_image_runtime: Optional[Any] = None,
         pdf_asset_runtime: Optional[Any] = None,
     ) -> None:
-        self.pdf_image_runtime = pdf_image_runtime or _pdf_image_conversion_runtime
-        self.pdf_asset_runtime = pdf_asset_runtime or _pdf_asset_utility_runtime
+        self.pdf_image_runtime = pdf_image_runtime or _PdfImageConversionRuntime()
+        self.pdf_asset_runtime = pdf_asset_runtime or _PdfAssetUtilityRuntime()
 
     def apply_overrides(self, runtime: Any) -> "_PdfAssetRuntime":
         for field_name in self.RUNTIME_FIELDS:
@@ -3163,9 +3166,9 @@ class _PdfProcessingRuntime:
         preview_dispatch_runtime: Optional[Any] = None,
         extract_data_from_pdf_region: Optional[Any] = None,
     ) -> None:
-        self.pdf_ingestion_runtime = pdf_ingestion_runtime or _pdf_ingestion_runtime
-        self.pdf_preview_runtime = pdf_preview_runtime or _pdf_preview_runtime
-        self.preview_dispatch_runtime = preview_dispatch_runtime or _preview_dispatch_runtime
+        self.pdf_ingestion_runtime = pdf_ingestion_runtime or _PdfIngestionRuntime()
+        self.pdf_preview_runtime = pdf_preview_runtime or _PdfPreviewRuntime()
+        self.preview_dispatch_runtime = preview_dispatch_runtime or _PreviewDispatchRuntime()
         self.extract_data_from_pdf_region = (
             extract_data_from_pdf_region or _extract_data_from_pdf_region_impl
         )
@@ -3318,6 +3321,8 @@ PdfJobWorkflow = _PdfJobWorkflow
 
 def get_pdf_job_workflow() -> PdfJobWorkflow:
     return _PdfJobWorkflow()
+
+
 
 
 

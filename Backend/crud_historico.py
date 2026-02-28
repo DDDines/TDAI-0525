@@ -102,10 +102,9 @@ class _HistoricoCrudRuntime:
         return query.scalar() or 0
 
 
-_historico_crud_workflow = _HistoricoCrudWorkflow()
 HistoricoCrudWorkflow = _HistoricoCrudWorkflow
 
 
 def get_historico_crud_workflow() -> HistoricoCrudWorkflow:
-    return _historico_crud_workflow
+    return _HistoricoCrudWorkflow()
 

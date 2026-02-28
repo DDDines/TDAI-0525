@@ -6,18 +6,16 @@ from Backend.testing.runtime_apis import file_processing
 def test_generate_pdf_page_images_impl_usa_runtime(monkeypatch):
     called = {}
 
-    class FakeRuntime:
-        def generate_pdf_page_images(self, **kwargs):
-            called.update(kwargs)
-            return ["/static/previews/x/page-1.png"]
+    def _fake_generate_pdf_page_images(self, **kwargs):
+        _ = self
+        called.update(kwargs)
+        return ["/static/previews/x/page-1.png"]
 
-        def extract_pdf_region_image(self, **kwargs):
-            return b""
-
-        def parse_annotation_to_dataframe(self, **kwargs):
-            return pd.DataFrame()
-
-    monkeypatch.setattr(file_processing, "_pdf_asset_utility_runtime", FakeRuntime())
+    monkeypatch.setattr(
+        file_processing._PdfAssetUtilityRuntime,
+        "generate_pdf_page_images",
+        _fake_generate_pdf_page_images,
+    )
 
     result = file_processing._generate_pdf_page_images_impl("C:/tmp/file.pdf", "x")
 
@@ -29,18 +27,16 @@ def test_generate_pdf_page_images_impl_usa_runtime(monkeypatch):
 def test_extract_pdf_region_image_impl_usa_runtime(monkeypatch):
     called = {}
 
-    class FakeRuntime:
-        def generate_pdf_page_images(self, **kwargs):
-            return []
+    def _fake_extract_pdf_region_image(self, **kwargs):
+        _ = self
+        called.update(kwargs)
+        return b"img"
 
-        def extract_pdf_region_image(self, **kwargs):
-            called.update(kwargs)
-            return b"img"
-
-        def parse_annotation_to_dataframe(self, **kwargs):
-            return pd.DataFrame()
-
-    monkeypatch.setattr(file_processing, "_pdf_asset_utility_runtime", FakeRuntime())
+    monkeypatch.setattr(
+        file_processing._PdfAssetUtilityRuntime,
+        "extract_pdf_region_image",
+        _fake_extract_pdf_region_image,
+    )
 
     result = file_processing._extract_pdf_region_image_impl(
         file_path="C:/tmp/file.pdf",
@@ -60,18 +56,16 @@ def test_parse_annotation_to_dataframe_impl_usa_runtime(monkeypatch):
     called = {}
     expected_df = pd.DataFrame([{"col_1": "value"}])
 
-    class FakeRuntime:
-        def generate_pdf_page_images(self, **kwargs):
-            return []
+    def _fake_parse_annotation_to_dataframe(self, **kwargs):
+        _ = self
+        called.update(kwargs)
+        return expected_df
 
-        def extract_pdf_region_image(self, **kwargs):
-            return b""
-
-        def parse_annotation_to_dataframe(self, **kwargs):
-            called.update(kwargs)
-            return expected_df
-
-    monkeypatch.setattr(file_processing, "_pdf_asset_utility_runtime", FakeRuntime())
+    monkeypatch.setattr(
+        file_processing._PdfAssetUtilityRuntime,
+        "parse_annotation_to_dataframe",
+        _fake_parse_annotation_to_dataframe,
+    )
     annotation = object()
 
     result = file_processing._parse_annotation_to_dataframe_impl(

@@ -171,17 +171,6 @@ class _ValidationCrewRuntime:
             return raw_data
 
 
-_validation_crew_runtime = _ValidationCrewRuntime(
-    llm_instance=llm,
-    runtime_available=CREW_RUNTIME_AVAILABLE,
-    agent_cls=Agent,
-    task_cls=Task,
-    crew_cls=Crew,
-    process_cls=Process,
-    executor=_validation_executor,
-)
-
-
 class _ValidationCrewWorkflow:
     """Workflow OO para validacao opcional via crewAI."""
 
@@ -192,12 +181,20 @@ class _ValidationCrewWorkflow:
         return self._runtime.run(raw_data=raw_data, timeout_seconds=timeout_seconds)
 
 
-_validation_crew_workflow = _ValidationCrewWorkflow(_validation_crew_runtime)
 ValidationCrewWorkflow = _ValidationCrewWorkflow
 
 
 def get_validation_crew_workflow() -> ValidationCrewWorkflow:
-    return _validation_crew_workflow
+    runtime = _ValidationCrewRuntime(
+        llm_instance=llm,
+        runtime_available=CREW_RUNTIME_AVAILABLE,
+        agent_cls=Agent,
+        task_cls=Task,
+        crew_cls=Crew,
+        process_cls=Process,
+        executor=_validation_executor,
+    )
+    return _ValidationCrewWorkflow(runtime)
 
 
 

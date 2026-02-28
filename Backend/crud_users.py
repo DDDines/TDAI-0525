@@ -356,10 +356,9 @@ class _UserCrudRuntime:
         return db_plano
 
 
-_user_crud_workflow = _UserCrudWorkflow()
 UserCrudWorkflow = _UserCrudWorkflow
 
 
 def get_user_crud_workflow() -> UserCrudWorkflow:
-    return _user_crud_workflow
+    return _UserCrudWorkflow()
 

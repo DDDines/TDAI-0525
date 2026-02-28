@@ -530,10 +530,9 @@ class _ProductTypeCrudRuntime:
         return attr_to_move
 
 
-_product_type_workflow = _ProductTypeCrudWorkflow()
 ProductTypeCrudWorkflow = _ProductTypeCrudWorkflow
 
 
 def get_product_type_crud_workflow() -> ProductTypeCrudWorkflow:
-    return _product_type_workflow
+    return _ProductTypeCrudWorkflow()
 
