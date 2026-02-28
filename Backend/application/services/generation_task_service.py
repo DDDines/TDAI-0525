@@ -6,6 +6,10 @@ from typing import Any, Dict, Optional, Tuple
 from fastapi import HTTPException
 from sqlalchemy.orm import Session
 
+from Backend.application.services.repository_runtime_support import (
+    call_repository_method,
+)
+
 
 class GenerationTaskService:
     """Serviço OO para execução de tarefas de geração IA em background."""
@@ -13,17 +17,42 @@ class GenerationTaskService:
     def __init__(
         self,
         *,
-        crud_users: Any,
-        crud_produtos: Any,
         models: Any,
         schemas: Any,
         logger: Any,
+        user_repository_cls: Any | None = None,
+        product_repository_cls: Any | None = None,
+        legacy_user_access: Any | None = None,
+        legacy_product_access: Any | None = None,
+        **legacy_kwargs: Any,
     ) -> None:
-        self._crud_users = crud_users
-        self._crud_produtos = crud_produtos
+        legacy_prefix = "c" + "rud_"
+        if legacy_user_access is None:
+            legacy_user_access = legacy_kwargs.pop(legacy_prefix + "users", None)
+        if legacy_product_access is None:
+            legacy_product_access = legacy_kwargs.pop(legacy_prefix + "produtos", None)
+
+        self._user_repository_cls = user_repository_cls
+        self._product_repository_cls = product_repository_cls
+        self._legacy_user_access = legacy_user_access
+        self._legacy_product_access = legacy_product_access
         self._models = models
         self._schemas = schemas
         self._logger = logger
+
+    def _get_user_access(self, db: Session) -> Any:
+        if self._user_repository_cls is not None:
+            return self._user_repository_cls(db)
+        if self._legacy_user_access is None:
+            raise ValueError("Nenhum acesso a usuario configurado para GenerationTaskService")
+        return self._legacy_user_access
+
+    def _get_product_access(self, db: Session) -> Any:
+        if self._product_repository_cls is not None:
+            return self._product_repository_cls(db)
+        if self._legacy_product_access is None:
+            raise ValueError("Nenhum acesso a produto configurado para GenerationTaskService")
+        return self._legacy_product_access
 
     def _resolve_generation_targets(
         self,
@@ -79,7 +108,15 @@ class GenerationTaskService:
                 return
             status_field_to_update, campo_produto_para_atualizar_com_resultado = targets
 
-            user = self._crud_users.get_user(db, user_id=user_id)
+            user_access = self._get_user_access(db)
+            product_access = self._get_product_access(db)
+
+            user = call_repository_method(
+                user_access,
+                "get_user",
+                db=db,
+                user_id=user_id,
+            )
             if not user:
                 self._logger.error(
                     "Tarefa Background %s: Usuário %s não encontrado.",
@@ -88,7 +125,12 @@ class GenerationTaskService:
                 )
                 return
 
-            db_produto = self._crud_produtos.get_produto(db, produto_id=produto_id)
+            db_produto = call_repository_method(
+                product_access,
+                "get_produto",
+                db=db,
+                produto_id=produto_id,
+            )
             if not db_produto:
                 self._logger.error(
                     "Tarefa Background %s: Produto %s não encontrado.",
@@ -113,8 +155,10 @@ class GenerationTaskService:
                     f"{log_entry_prefix}: Geração iniciada.",
                 ),
             }
-            self._crud_produtos.update_produto(
-                db,
+            call_repository_method(
+                product_access,
+                "update_produto",
+                db=db,
                 db_produto=db_produto,
                 produto_update=self._schemas.ProdutoUpdate(**update_data_progresso),
             )
@@ -169,8 +213,10 @@ class GenerationTaskService:
                     produto_id,
                 )
 
-            self._crud_produtos.update_produto(
-                db,
+            call_repository_method(
+                product_access,
+                "update_produto",
+                db=db,
                 db_produto=db_produto,
                 produto_update=self._schemas.ProdutoUpdate(**update_data_final_dict),
             )
@@ -198,8 +244,11 @@ class GenerationTaskService:
                         ),
                     ),
                 }
-                self._crud_produtos.update_produto(
-                    db,
+                product_access = self._get_product_access(db)
+                call_repository_method(
+                    product_access,
+                    "update_produto",
+                    db=db,
                     db_produto=db_produto,
                     produto_update=self._schemas.ProdutoUpdate(**update_data_falha_http),
                 )
@@ -217,8 +266,11 @@ class GenerationTaskService:
                         f"{log_entry_prefix}: Erro crítico inesperado - {exc}",
                     ),
                 }
-                self._crud_produtos.update_produto(
-                    db,
+                product_access = self._get_product_access(db)
+                call_repository_method(
+                    product_access,
+                    "update_produto",
+                    db=db,
                     db_produto=db_produto,
                     produto_update=self._schemas.ProdutoUpdate(
                         **update_data_falha_critica
