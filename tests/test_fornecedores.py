@@ -7,7 +7,10 @@ from sqlalchemy.pool import StaticPool
 
 from Backend.main import app
 from Backend.database import Base, get_db
-from Backend import crud, crud_fornecedores, schemas
+from Backend import schemas
+from Backend.crud_fornecedores import get_fornecedor_crud_workflow
+from Backend.crud_users import get_user_crud_workflow
+from Backend.initial_data import get_initial_data_workflow
 from Backend.core.config import settings
 
 # disable heavy startup events
@@ -32,13 +35,21 @@ def override_get_db():
 app.dependency_overrides[get_db] = override_get_db
 client = TestClient(app)
 
+initial_data_workflow = get_initial_data_workflow()
+user_crud_workflow = get_user_crud_workflow()
+fornecedor_crud_workflow = get_fornecedor_crud_workflow()
+
 # setup initial data
 with TestingSessionLocal() as db:
-    crud.create_initial_data(db)
-    admin = crud.get_user_by_email(db, settings.FIRST_SUPERUSER_EMAIL)
+    initial_data_workflow.create_initial_data(db)
+    admin = user_crud_workflow.get_user_by_email(db, settings.FIRST_SUPERUSER_EMAIL)
     # create extra suppliers for pagination
     for i in range(15):
-        crud_fornecedores.create_fornecedor(db, schemas.FornecedorCreate(nome=f"F{i}"), user_id=admin.id)
+        fornecedor_crud_workflow.create_fornecedor(
+            db,
+            schemas.FornecedorCreate(nome=f"F{i}"),
+            user_id=admin.id,
+        )
 
 
 def get_admin_headers():

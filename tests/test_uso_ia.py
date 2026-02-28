@@ -7,7 +7,10 @@ from sqlalchemy.pool import StaticPool
 
 from Backend.main import app
 from Backend.database import Base, get_db
-from Backend import crud, crud_users, crud_produtos, schemas, models
+from Backend import schemas, models
+from Backend.crud_produtos import get_produto_crud_workflow
+from Backend.crud_registros_uso_ia import get_registro_uso_ia_crud_workflow
+from Backend.initial_data import get_initial_data_workflow
 from Backend.main import create_new_user
 from Backend.core.config import settings
 
@@ -34,17 +37,25 @@ def override_get_db():
 app.dependency_overrides[get_db] = override_get_db
 client = TestClient(app)
 
+initial_data_workflow = get_initial_data_workflow()
+produto_crud_workflow = get_produto_crud_workflow()
+uso_ia_crud_workflow = get_registro_uso_ia_crud_workflow()
+
 # setup initial data
 with TestingSessionLocal() as db:
-    crud.create_initial_data(db)
+    initial_data_workflow.create_initial_data(db)
     user_in = schemas.UserCreate(
         email="user@example.com",
         password="secret",
         nome_completo="Normal User",
     )
     normal_user = create_new_user(user_in=user_in, db=db)
-    produto = crud_produtos.create_produto(db, schemas.ProdutoCreate(nome_base="TesteProd"), user_id=normal_user.id)
-    crud.create_registro_uso_ia(
+    produto = produto_crud_workflow.create_produto(
+        db,
+        schemas.ProdutoCreate(nome_base="TesteProd"),
+        user_id=normal_user.id,
+    )
+    uso_ia_crud_workflow.create_registro_uso_ia(
         db,
         schemas.RegistroUsoIACreate(
             user_id=normal_user.id,
@@ -54,7 +65,7 @@ with TestingSessionLocal() as db:
     )
     # create extra registros for pagination tests
     for i in range(15):
-        crud.create_registro_uso_ia(
+        uso_ia_crud_workflow.create_registro_uso_ia(
             db,
             schemas.RegistroUsoIACreate(
                 user_id=normal_user.id,

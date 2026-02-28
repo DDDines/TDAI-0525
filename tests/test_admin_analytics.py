@@ -7,11 +7,22 @@ from sqlalchemy.pool import StaticPool
 
 from Backend.main import app
 from Backend.database import Base, get_db
-from Backend import crud, crud_users, crud_produtos, crud_historico, schemas, models
+from Backend import schemas, models
+from Backend.crud_historico import get_historico_crud_workflow
+from Backend.crud_produtos import get_produto_crud_workflow
+from Backend.crud_registros_uso_ia import get_registro_uso_ia_crud_workflow
+from Backend.crud_users import get_user_crud_workflow
+from Backend.initial_data import get_initial_data_workflow
 from Backend.core.config import settings
 
 # disable heavy startup events
 app.router.on_startup.clear()
+
+initial_data_workflow = get_initial_data_workflow()
+user_crud_workflow = get_user_crud_workflow()
+produto_crud_workflow = get_produto_crud_workflow()
+historico_crud_workflow = get_historico_crud_workflow()
+uso_ia_crud_workflow = get_registro_uso_ia_crud_workflow()
 
 engine = create_engine(
     "sqlite:///:memory:",
@@ -34,12 +45,15 @@ client = TestClient(app)
 
 # setup initial data
 with TestingSessionLocal() as db:
-    crud.create_initial_data(db)
-    admin = crud_users.get_user_by_email(db, settings.FIRST_SUPERUSER_EMAIL)
-    crud_produtos.create_produto(db, schemas.ProdutoCreate(nome_base="Teste"), user_id=admin.id)
-    crud.create_registro_uso_ia(db, schemas.RegistroUsoIACreate(user_id=admin.id, tipo_acao=models.TipoAcaoEnum.CRIACAO_TITULO_PRODUTO))
+    initial_data_workflow.create_initial_data(db)
+    admin = user_crud_workflow.get_user_by_email(db, settings.FIRST_SUPERUSER_EMAIL)
+    produto_crud_workflow.create_produto(db, schemas.ProdutoCreate(nome_base="Teste"), user_id=admin.id)
+    uso_ia_crud_workflow.create_registro_uso_ia(
+        db,
+        schemas.RegistroUsoIACreate(user_id=admin.id, tipo_acao=models.TipoAcaoEnum.CRIACAO_TITULO_PRODUTO),
+    )
     for i in range(7):
-        crud_historico.create_registro_historico(
+        historico_crud_workflow.create_registro_historico(
             db,
             schemas.RegistroHistoricoCreate(
                 user_id=admin.id,

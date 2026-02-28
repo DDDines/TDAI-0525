@@ -13,7 +13,8 @@ from sqlalchemy.pool import StaticPool
 
 from Backend.main import app, create_new_user
 from Backend.database import Base, get_db
-from Backend import crud, schemas
+from Backend import schemas
+from Backend.initial_data import get_initial_data_workflow
 
 # Disable heavy startup events so tests run faster
 app.router.on_startup.clear()
@@ -39,9 +40,11 @@ def override_get_db():
 app.dependency_overrides[get_db] = override_get_db
 client = TestClient(app)
 
+initial_data_workflow = get_initial_data_workflow()
+
 # Prepare initial data
 with TestingSessionLocal() as db:
-    crud.create_initial_data(db)
+    initial_data_workflow.create_initial_data(db)
     user_in = schemas.UserCreate(
         email="user@example.com",
         password="secret",

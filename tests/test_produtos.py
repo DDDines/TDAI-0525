@@ -7,7 +7,10 @@ from sqlalchemy.pool import StaticPool
 
 from Backend.main import app
 from Backend.database import Base, get_db
-from Backend import crud, crud_produtos, schemas
+from Backend import schemas
+from Backend.crud_produtos import get_produto_crud_workflow
+from Backend.crud_users import get_user_crud_workflow
+from Backend.initial_data import get_initial_data_workflow
 from Backend.core.config import settings
 
 # disable heavy startup events
@@ -33,12 +36,20 @@ def override_get_db():
 app.dependency_overrides[get_db] = override_get_db
 client = TestClient(app)
 
+initial_data_workflow = get_initial_data_workflow()
+user_crud_workflow = get_user_crud_workflow()
+produto_crud_workflow = get_produto_crud_workflow()
+
 # setup initial data
 with TestingSessionLocal() as db:
-    crud.create_initial_data(db)
-    admin = crud.get_user_by_email(db, settings.FIRST_SUPERUSER_EMAIL)
+    initial_data_workflow.create_initial_data(db)
+    admin = user_crud_workflow.get_user_by_email(db, settings.FIRST_SUPERUSER_EMAIL)
     for i in range(15):
-        crud_produtos.create_produto(db, schemas.ProdutoCreate(nome_base=f"P{i}"), user_id=admin.id)
+        produto_crud_workflow.create_produto(
+            db,
+            schemas.ProdutoCreate(nome_base=f"P{i}"),
+            user_id=admin.id,
+        )
 
 
 def get_admin_headers():

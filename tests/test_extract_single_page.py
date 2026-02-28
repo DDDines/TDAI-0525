@@ -14,7 +14,9 @@ from sqlalchemy.pool import StaticPool
 
 from Backend.main import app
 from Backend.database import Base, get_db
-from Backend import crud, models
+from Backend import models
+from Backend.crud_users import get_user_crud_workflow
+from Backend.initial_data import get_initial_data_workflow
 from Backend.core.config import settings
 
 try:
@@ -51,8 +53,11 @@ def override_get_db():
 app.dependency_overrides[get_db] = override_get_db
 client = TestClient(app)
 
+initial_data_workflow = get_initial_data_workflow()
+user_crud_workflow = get_user_crud_workflow()
+
 with TestingSessionLocal() as db:
-    crud.create_initial_data(db)
+    initial_data_workflow.create_initial_data(db)
 
 
 def _create_pdf_with_table():
@@ -86,7 +91,7 @@ def test_extrair_pagina_unica_returns_data():
     stored = "single.pdf"
     (uploads / stored).write_bytes(pdf_bytes)
     with TestingSessionLocal() as db:
-        admin = crud.get_user_by_email(db, settings.FIRST_SUPERUSER_EMAIL)
+        admin = user_crud_workflow.get_user_by_email(db, settings.FIRST_SUPERUSER_EMAIL)
         record = models.CatalogImportFile(
             user_id=admin.id,
             original_filename="single.pdf",

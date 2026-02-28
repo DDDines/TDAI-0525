@@ -9,7 +9,8 @@ from sqlalchemy.pool import StaticPool
 
 from Backend.main import app
 from Backend.database import Base, get_db
-from Backend import crud, schemas, models
+from Backend import schemas, models
+from Backend.initial_data import get_initial_data_workflow
 from Backend.core.config import settings
 
 # disable heavy startup events
@@ -35,9 +36,11 @@ def override_get_db():
 app.dependency_overrides[get_db] = override_get_db
 client = TestClient(app)
 
+initial_data_workflow = get_initial_data_workflow()
+
 # setup initial data
 with TestingSessionLocal() as db:
-    crud.create_initial_data(db)
+    initial_data_workflow.create_initial_data(db)
 
 
 def get_admin_headers():

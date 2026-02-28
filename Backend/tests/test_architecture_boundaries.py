@@ -214,6 +214,23 @@ def test_backend_tests_do_not_import_runtime_modules_directly():
     )
 
 
+def test_project_tests_do_not_import_runtime_modules_directly():
+    offenders: list[str] = []
+
+    for path in _iter_python_files(PROJECT_TESTS_ROOT):
+        rel = path.relative_to(PROJECT_ROOT)
+        for target in _import_targets(path):
+            if target == "Backend.infrastructure.runtime_modules" or target.startswith(
+                "Backend.infrastructure.runtime_modules."
+            ):
+                offenders.append(f"{rel}: {target}")
+
+    assert not offenders, (
+        "tests/ must consume application/runtime_services surfaces, "
+        "not import runtime_modules directly:\n" + "\n".join(offenders)
+    )
+
+
 def test_infrastructure_runtime_providers_expose_get_runtime_service_only():
     offenders: list[str] = []
     missing: list[str] = []
@@ -409,6 +426,38 @@ def test_backend_crud_imports_are_constrained_to_runtime_and_data_access_layers(
 
     assert not offenders, (
         "Backend crud imports are only allowed in runtime_modules and data_access_service:\n"
+        + "\n".join(offenders)
+    )
+
+
+def test_tests_do_not_import_backend_crud_modules_directly():
+    offenders: list[str] = []
+
+    for root in (BACKEND_TESTS_ROOT, PROJECT_TESTS_ROOT):
+        if not root.exists():
+            continue
+
+        for path in _iter_python_files(root):
+            rel = path.relative_to(PROJECT_ROOT)
+            tree = _parse_python_file(path)
+            for node in ast.walk(tree):
+                if isinstance(node, ast.Import):
+                    for alias in node.names:
+                        if alias.name == "Backend.crud":
+                            offenders.append(f"{rel}: {alias.name}")
+                elif isinstance(node, ast.ImportFrom):
+                    if node.level:
+                        continue
+                    module = node.module or ""
+                    if module == "Backend":
+                        for alias in node.names:
+                            if alias.name == "crud" or alias.name.startswith("crud_"):
+                                offenders.append(f"{rel}: from Backend import {alias.name}")
+                    elif module == "Backend.crud":
+                        offenders.append(f"{rel}: {module}")
+
+    assert not offenders, (
+        "Tests must not import legacy Backend.crud package root or root aliases:\n"
         + "\n".join(offenders)
     )
 

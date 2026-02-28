@@ -45,10 +45,12 @@ def db_session():
     from sqlalchemy import create_engine
     from sqlalchemy.orm import sessionmaker
     from Backend.database import Base
-    import Backend.crud as crud
     import Backend.schemas as schemas
+    from Backend.crud_users import get_user_crud_workflow
 
     from sqlalchemy.pool import StaticPool
+
+    user_crud_workflow = get_user_crud_workflow()
 
     engine = create_engine(
         SQLALCHEMY_DATABASE_URL,
@@ -60,8 +62,8 @@ def db_session():
     db = TestingSessionLocal()
 
     # Create default role and plan needed for user creation
-    crud.create_role(db, schemas.RoleCreate(name="user", description="User role"))
-    crud.create_plano(
+    user_crud_workflow.create_role(db, schemas.RoleCreate(name="user", description="User role"))
+    user_crud_workflow.create_plano(
         db,
         schemas.PlanoCreate(
             nome="Gratuito",

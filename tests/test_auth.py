@@ -15,7 +15,10 @@ os.environ["DATABASE_URL"] = "sqlite:///:memory:"
 
 from Backend.database import Base, engine, SessionLocal, get_db
 from Backend.main import app
-from Backend import crud, schemas
+from Backend import schemas
+from Backend.crud_users import get_user_crud_workflow
+
+user_crud_workflow = get_user_crud_workflow()
 
 # Disable heavy startup events
 app.router.on_startup.clear()
@@ -49,10 +52,10 @@ def restore_database_url():
 def test_user_registration_and_login():
     # Ensure required Role and Plano exist
     with SessionLocal() as db:
-        if not crud.get_role_by_name(db, "user"):
-            crud.create_role(db, schemas.RoleCreate(name="user", description="User"))
-        if not crud.get_plano_by_name(db, "Gratuito"):
-            crud.create_plano(
+        if not user_crud_workflow.get_role_by_name(db, "user"):
+            user_crud_workflow.create_role(db, schemas.RoleCreate(name="user", description="User"))
+        if not user_crud_workflow.get_plano_by_name(db, "Gratuito"):
+            user_crud_workflow.create_plano(
                 db,
                 schemas.PlanoCreate(
                     nome="Gratuito",
