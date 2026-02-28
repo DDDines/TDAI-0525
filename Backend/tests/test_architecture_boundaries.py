@@ -9,6 +9,7 @@ PROJECT_ROOT = Path(__file__).resolve().parents[2]
 APPLICATION_ROOT = PROJECT_ROOT / "Backend" / "application"
 APPLICATION_SERVICES_ROOT = APPLICATION_ROOT / "services"
 INFRASTRUCTURE_ADAPTERS_ROOT = PROJECT_ROOT / "Backend" / "infrastructure" / "adapters"
+INFRASTRUCTURE_RUNTIME_ROOT = PROJECT_ROOT / "Backend" / "infrastructure" / "runtime"
 
 
 def _iter_python_files(root: Path) -> Iterable[Path]:
@@ -122,5 +123,19 @@ def test_infrastructure_adapters_do_not_import_backend_services_modules():
 
     assert not offenders, (
         "Unexpected direct imports to Backend.services in infrastructure adapters:\n"
+        + "\n".join(offenders)
+    )
+
+
+def test_infrastructure_runtime_providers_do_not_import_backend_services_modules():
+    offenders: list[str] = []
+    for path in _iter_python_files(INFRASTRUCTURE_RUNTIME_ROOT):
+        rel = path.relative_to(PROJECT_ROOT)
+        for target in _import_targets(path):
+            if target == "Backend.services" or target.startswith("Backend.services."):
+                offenders.append(f"{rel}: {target}")
+
+    assert not offenders, (
+        "Unexpected direct imports to Backend.services in infrastructure runtime providers:\n"
         + "\n".join(offenders)
     )

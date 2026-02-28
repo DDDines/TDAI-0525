@@ -1,4 +1,4 @@
-from Backend.services.web_data_extractor_service import (
+from Backend.infrastructure.runtime_modules.web_data_extractor_module import (
     _normalizar_url_busca,
     _url_deve_ser_ignorada_antes_da_coleta,
 )

@@ -4,6 +4,6 @@ from typing import Any
 
 
 def get_runtime_module() -> Any:
-    from Backend.services import validator_crew
+    from Backend.infrastructure.runtime_modules import validator_crew_module
 
-    return validator_crew
+    return validator_crew_module

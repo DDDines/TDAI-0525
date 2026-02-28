@@ -75,6 +75,8 @@ No estado atual, a selecao de pipeline em runtime esta em modo OOP-only: `APP_MO
 - [x] Remover componentes de aplicacao que apenas encapsulavam modulo legado (`file_processing_components` e `web_data_extractor_components`).
 - [x] Remover guard de runtime legado (`Backend/core/legacy_guard.py`) e testes associados.
 - [x] Remover comparador `shadow_result_comparator` e hooks de gravacao `shadow_compare` dos task services OOP.
+- [x] Migrar implementacoes de runtime de `Backend/services/*` para `Backend/infrastructure/runtime_modules/*`.
+- [x] Runtime providers (`Backend/infrastructure/runtime/*`) desacoplados de `Backend.services`.
 - [x] Atualizar documentacao final de arquitetura e matriz de conclusao.
 
 ## Criterios objetivos de fechamento
@@ -84,6 +86,7 @@ No estado atual, a selecao de pipeline em runtime esta em modo OOP-only: `APP_MO
 - [x] Zero chamada a metodo privado de objeto externo em `Backend/application/services`.
 - [x] Zero import de `Backend/routers` em `Backend/application`.
 - [x] Sem bridges/proxies legados ativos em runtime de aplicacao.
+- [x] Zero import de `Backend/services` em `Backend/infrastructure/runtime`.
 - [x] Acoplamento de testes a internals de `Backend/services` reduzido para shim central em `Backend/testing/runtime_apis.py` (sem imports privados diretos espalhados).
 
 ## Matriz de isolamento (transicao)
@@ -99,5 +102,5 @@ No estado atual, a selecao de pipeline em runtime esta em modo OOP-only: `APP_MO
 ## Pontos de transicao planejados
 
 - Adapters OOP padrao concentrados em `Backend/infrastructure/adapters/`.
-- Provedores de runtime concentrados em `Backend/infrastructure/runtime/` para desacoplar adapters do namespace `Backend.services`.
-- Remocao fisica restante de wrappers legados em `Backend/services/*`: em andamento por trilha de API.
+- Provedores de runtime concentrados em `Backend/infrastructure/runtime/` consumindo `Backend/infrastructure/runtime_modules/`.
+- `Backend/services/*` mantido apenas como camada de compatibilidade temporaria (wrappers de reexport), fora do caminho OOP padrao.

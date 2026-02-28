@@ -6,7 +6,7 @@ from sqlalchemy.pool import StaticPool
 
 from Backend.database import Base
 from Backend import models
-from Backend.services import limit_service
+from Backend.infrastructure.runtime_modules import limit_module as limit_service
 
 @pytest.mark.asyncio
 async def test_verificar_e_consumir_creditos_geracao_ia():

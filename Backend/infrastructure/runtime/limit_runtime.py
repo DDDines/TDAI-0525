@@ -4,6 +4,6 @@ from typing import Any
 
 
 def get_runtime_module() -> Any:
-    from Backend.services import limit_service
+    from Backend.infrastructure.runtime_modules import limit_module
 
-    return limit_service
+    return limit_module
