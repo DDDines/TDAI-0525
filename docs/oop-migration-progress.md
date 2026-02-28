@@ -74,6 +74,7 @@ No estado atual, a selecao de pipeline em runtime esta em modo OOP-only: `APP_MO
 - [x] Remover camada central de proxy legado (`Backend/core/deprecation.py`) e testes associados.
 - [x] Remover componentes de aplicacao que apenas encapsulavam modulo legado (`file_processing_components` e `web_data_extractor_components`).
 - [x] Remover guard de runtime legado (`Backend/core/legacy_guard.py`) e testes associados.
+- [x] Remover comparador `shadow_result_comparator` e hooks de gravacao `shadow_compare` dos task services OOP.
 - [x] Atualizar documentacao final de arquitetura e matriz de conclusao.
 
 ## Criterios objetivos de fechamento

@@ -58,9 +58,6 @@ from Backend.application.services.fornecedor_preview_service import (
 from Backend.application.services.file_processing_facade import FileProcessingFacade
 from Backend.application.services.ia_generation_facade import IAGenerationFacade
 from Backend.application.services.limit_service_facade import LimitServiceFacade
-from Backend.application.services.shadow_result_comparator import (
-    ShadowResultComparator,
-)
 from Backend.application.services.web_enrichment_components import (
     WebEnrichmentConfigInspector,
     WebEnrichmentConfigSnapshot,
@@ -140,7 +137,6 @@ __all__ = [
     "IAGenerationFacade",
     "LimitServiceFacade",
     "PipelineDispatcher",
-    "ShadowResultComparator",
     "ValidatorCrewFacade",
     "WebDataExtractorFacade",
     "WebEnrichmentConfigInspector",

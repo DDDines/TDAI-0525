@@ -9,10 +9,6 @@ from Backend.application.services.web_enrichment_components import (
     WebEnrichmentQueryPlanner,
     WebEnrichmentStatusResolver,
 )
-from Backend.application.services.shadow_result_comparator import ShadowResultComparator
-
-
-_shadow_result_comparator = ShadowResultComparator()
 
 
 class _WebEnrichmentTaskRuntime:
@@ -598,22 +594,6 @@ class _WebEnrichmentTaskWorkflow:
                 self.pipeline_variant,
                 produto_id,
                 final_status_value_print,
-            )
-            _shadow_result_comparator.record_result(
-                context="web_enrichment.start",
-                entity_id=produto_id,
-                variant=self.pipeline_variant,
-                payload={
-                    "status": final_status_value_print,
-                    "has_nome": bool(dados_extraidos_agregados.get("nome")),
-                    "has_descricao_curta": bool(
-                        dados_extraidos_agregados.get("descricao_curta")
-                    ),
-                    "has_texto_relevante": bool(
-                        dados_extraidos_agregados.get("texto_relevante_coletado")
-                    ),
-                    "log_lines": len(log_mensagens),
-                },
             )
             if db:
                 db.close()

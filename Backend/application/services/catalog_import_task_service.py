@@ -11,10 +11,6 @@ from Backend.application.services.catalog_import_components import (
     CatalogImportQualityAccumulator,
     CatalogImportResultBuilder,
 )
-from Backend.application.services.shadow_result_comparator import ShadowResultComparator
-
-
-_shadow_result_comparator = ShadowResultComparator()
 
 
 class _CatalogImportTaskRuntime:
@@ -512,21 +508,6 @@ class _CatalogImportTaskWorkflow:
             accepted_quality_avg,
             quarantine_quality_avg,
             str(report_path) if report_path else "-",
-        )
-        _shadow_result_comparator.record_result(
-            context="catalog_import.finalize",
-            entity_id=self.file_id,
-            variant=self.pipeline_variant,
-            payload={
-                "status": final_status,
-                "created": created_count,
-                "updated": updated_count,
-                "errors": errors_count,
-                "ignored_non_critical": ignored_count,
-                "quarantine_non_critical": quarantine_count,
-                "pages_processed": self.catalog_file.pages_processed or 0,
-                "pages_total": self.catalog_file.total_pages or 0,
-            },
         )
 
     def _handle_failure(self, error: Exception) -> None:

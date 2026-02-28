@@ -1858,8 +1858,6 @@ def extract_text_from_image_region(image_bytes: bytes):
     )
 
 
-_install_legacy_deprecation_wrappers()
-
 
 
 

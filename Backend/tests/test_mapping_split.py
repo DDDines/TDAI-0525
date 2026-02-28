@@ -1,4 +1,4 @@
-from Backend.testing.runtime_apis import _processar_linha_padronizada
+from Backend.testing.runtime_apis import processar_linha_padronizada
 from Backend.routers.produtos import (
     _avaliar_qualidade_linha_produto,
     _classificar_qualidade_linha_produto,
@@ -11,7 +11,7 @@ def test_split_sku_nome_auto_when_combined_column():
     row = {"col_0": "1816D 943 666 39 01 Paralama/Estribo", "col_1": "SMC"}
     mapping = {"col_0": "auto:sku_nome", "col_1": "attr:material"}
 
-    result = _processar_linha_padronizada(row, mapping)
+    result = processar_linha_padronizada(row, mapping)
 
     assert result is not None
     assert result.get("sku_original") == "1816D 943 666 39 01"
@@ -23,7 +23,7 @@ def test_split_sku_nome_auto_when_only_sku():
     row = {"col_0": "1816E 943 666 38 01", "col_1": "Paralama/Estribo"}
     mapping = {"col_0": "auto:sku_nome", "col_1": "descricao_original"}
 
-    result = _processar_linha_padronizada(row, mapping)
+    result = processar_linha_padronizada(row, mapping)
 
     assert result is not None
     assert result.get("sku_original") == "1816E 943 666 38 01"
@@ -42,7 +42,7 @@ def test_merge_multiple_columns_into_description():
         "col_2": "descricao_original",
     }
 
-    result = _processar_linha_padronizada(row, mapping)
+    result = processar_linha_padronizada(row, mapping)
 
     assert result is not None
     assert result.get("sku_original") == "1816D 943 666 39 01"
@@ -57,7 +57,7 @@ def test_split_sku_nome_auto_with_alphanumeric_original_code():
     }
     mapping = {"col_0": "auto:sku_nome", "col_1": "attr:material"}
 
-    result = _processar_linha_padronizada(row, mapping)
+    result = processar_linha_padronizada(row, mapping)
 
     assert result is not None
     assert result.get("sku_original") == "3035D BC4517C831BBXWA"
@@ -74,7 +74,7 @@ def test_default_header_aliases_feed_dynamic_attributes():
         "material": "SMC",
     }
 
-    result = _processar_linha_padronizada(row, None)
+    result = processar_linha_padronizada(row, None)
 
     assert result is not None
     assert result.get("sku_original") == "1816D"
@@ -87,7 +87,7 @@ def test_default_header_aliases_feed_dynamic_attributes():
 def test_split_sku_nome_auto_handles_directional_token():
     row = {"n_fab": "3035 E BC4517K903BBXWA Ponteira para-choque"}
 
-    result = _processar_linha_padronizada(row, None)
+    result = processar_linha_padronizada(row, None)
 
     assert result is not None
     assert result.get("sku_original") == "3035 E BC4517K903BBXWA"

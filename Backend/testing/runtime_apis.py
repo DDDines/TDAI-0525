@@ -12,8 +12,8 @@ import Backend.services.limit_service as limit_service
 import Backend.services.validator_crew as validator_crew
 import Backend.services.web_data_extractor_service as web_extractor
 
-# Direct internal symbols still used by a subset of runtime-focused tests.
-_processar_linha_padronizada = file_processing._processar_linha_padronizada
+# Public symbol preferred by runtime-focused tests.
+processar_linha_padronizada = file_processing.processar_linha_padronizada
 _CatalogStorageWorkflow = file_processing._CatalogStorageWorkflow
 _LineMappingWorkflow = file_processing._LineMappingWorkflow
 _PdfJobWorkflow = file_processing._PdfJobWorkflow
@@ -27,7 +27,7 @@ __all__ = [
     "ia_service",
     "limit_service",
     "validator_crew",
-    "_processar_linha_padronizada",
+    "processar_linha_padronizada",
     "_CatalogStorageWorkflow",
     "_LineMappingWorkflow",
     "_PdfJobWorkflow",

@@ -4167,8 +4167,4 @@ def extract_data_from_single_page(file_path: str, page_number: int) -> Dict[str,
     )
 
 
-_install_legacy_deprecation_wrappers()
-
-
-
 
