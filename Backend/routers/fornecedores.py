@@ -736,56 +736,5 @@ def get_import_job_status(
     )
 
 
-class FornecedoresRouterLegacyService:
-    def create_fornecedor(self, *args, **kwargs):
-        return fornecedores_router_workflow.create_fornecedor(*args, **kwargs)
-
-    def list_fornecedores_page(self, *args, **kwargs):
-        return fornecedores_router_workflow.list_fornecedores_page(*args, **kwargs)
-
-    def read_fornecedor(self, *args, **kwargs):
-        return fornecedores_router_workflow.read_fornecedor(*args, **kwargs)
-
-    def update_fornecedor(self, *args, **kwargs):
-        return fornecedores_router_workflow.update_fornecedor(*args, **kwargs)
-
-    def get_mapping(self, *args, **kwargs):
-        return fornecedores_router_workflow.get_mapping(*args, **kwargs)
-
-    def update_mapping(self, *args, **kwargs):
-        return fornecedores_router_workflow.update_mapping(*args, **kwargs)
-
-    async def preview_pages(self, *args, **kwargs):
-        return await fornecedores_router_workflow.preview_pages(*args, **kwargs)
-
-    async def preview_pdf(self, *args, **kwargs):
-        return await fornecedores_router_workflow.preview_pdf(*args, **kwargs)
-
-    def preview_catalog_from_region(self, *args, **kwargs):
-        return fornecedores_router_workflow.preview_catalog_from_region(*args, **kwargs)
-
-    def extract_data_from_pdf_bulk(self, *args, **kwargs):
-        return fornecedores_router_workflow.extract_data_from_pdf_bulk(*args, **kwargs)
-
-    def get_import_progress(self, *args, **kwargs):
-        return fornecedores_router_workflow.get_import_progress(*args, **kwargs)
-
-    async def process_full_catalog(self, *args, **kwargs):
-        return await fornecedores_router_workflow.process_full_catalog(*args, **kwargs)
-
-    def extract_page_data(self, *args, **kwargs):
-        return fornecedores_router_workflow.extract_page_data(*args, **kwargs)
-
-    def delete_fornecedor(self, *args, **kwargs):
-        return fornecedores_router_workflow.delete_fornecedor(*args, **kwargs)
-
-    def review_import_job(self, *args, **kwargs):
-        return fornecedores_router_workflow.review_import_job(*args, **kwargs)
-
-    def commit_import_job(self, *args, **kwargs):
-        return fornecedores_router_workflow.commit_import_job(*args, **kwargs)
-
-    def get_import_job_status(self, *args, **kwargs):
-        return fornecedores_router_workflow.get_import_job_status(*args, **kwargs)
 
 

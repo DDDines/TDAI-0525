@@ -2,11 +2,13 @@ from __future__ import annotations
 
 from typing import Any
 
+from Backend.infrastructure.runtime.validator_crew_runtime import (
+    get_runtime_module,
+)
+
 
 def _default_validator_module() -> Any:
-    from Backend.services import validator_crew
-
-    return validator_crew
+    return get_runtime_module()
 
 
 class ValidatorCrewServiceAdapter:

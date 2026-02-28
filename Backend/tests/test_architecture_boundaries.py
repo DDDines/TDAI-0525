@@ -8,6 +8,7 @@ from typing import Iterable
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 APPLICATION_ROOT = PROJECT_ROOT / "Backend" / "application"
 APPLICATION_SERVICES_ROOT = APPLICATION_ROOT / "services"
+INFRASTRUCTURE_ADAPTERS_ROOT = PROJECT_ROOT / "Backend" / "infrastructure" / "adapters"
 
 
 def _iter_python_files(root: Path) -> Iterable[Path]:
@@ -107,5 +108,19 @@ def test_application_services_do_not_call_private_methods_from_external_objects(
 
     assert not offenders, (
         "Unexpected private method calls on non-self objects:\n"
+        + "\n".join(offenders)
+    )
+
+
+def test_infrastructure_adapters_do_not_import_backend_services_modules():
+    offenders: list[str] = []
+    for path in _iter_python_files(INFRASTRUCTURE_ADAPTERS_ROOT):
+        rel = path.relative_to(PROJECT_ROOT)
+        for target in _import_targets(path):
+            if target == "Backend.services" or target.startswith("Backend.services."):
+                offenders.append(f"{rel}: {target}")
+
+    assert not offenders, (
+        "Unexpected direct imports to Backend.services in infrastructure adapters:\n"
         + "\n".join(offenders)
     )

@@ -177,13 +177,5 @@ def reset_password(
     return _password_recovery_workflow.reset_password(db=db, reset_data=reset_data)
 
 
-class PasswordRecoveryRouterLegacyService:
-    """Camada de compatibilidade para chamadas legadas do router."""
-
-    async def recover_password(self, *args, **kwargs):
-        return await _password_recovery_workflow.recover_password(*args, **kwargs)
-
-    def reset_password(self, *args, **kwargs):
-        return _password_recovery_workflow.reset_password(*args, **kwargs)
 
 

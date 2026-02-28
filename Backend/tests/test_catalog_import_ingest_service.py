@@ -6,8 +6,8 @@ from types import SimpleNamespace
 import pytest
 from fastapi import HTTPException
 
-from Backend.application.services.catalog_import_legacy_ingest_service import (
-    CatalogImportLegacyIngestService,
+from Backend.application.services.catalog_import_ingest_service import (
+    CatalogImportIngestService,
 )
 
 
@@ -116,7 +116,7 @@ def _build_service(*, fornecedor=None):
     crud_historico = _CrudHistoricoStub()
     file_processing = _FileProcessingStub()
 
-    service = CatalogImportLegacyIngestService(
+    service = CatalogImportIngestService(
         schemas=_SchemasStub,
         models=_ModelsStub,
         crud_fornecedores=crud_fornecedores,

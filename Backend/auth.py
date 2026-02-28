@@ -581,38 +581,5 @@ async def process_facebook_login(db: Session, facebook_userinfo: Dict[str, Any])
     )
 
 
-class AuthLegacyService:
-    def verify_password(self, *args, **kwargs):
-        return verify_password(*args, **kwargs)
-
-    def get_password_hash(self, *args, **kwargs):
-        return get_password_hash(*args, **kwargs)
-
-    def create_access_token(self, *args, **kwargs):
-        return create_access_token(*args, **kwargs)
-
-    def create_refresh_token(self, *args, **kwargs):
-        return create_refresh_token(*args, **kwargs)
-
-    def create_password_reset_token(self, *args, **kwargs):
-        return create_password_reset_token(*args, **kwargs)
-
-    def hash_password_reset_token(self, *args, **kwargs):
-        return hash_password_reset_token(*args, **kwargs)
-
-    def verify_password_reset_token(self, *args, **kwargs):
-        return verify_password_reset_token(*args, **kwargs)
-
-    def authenticate_user(self, *args, **kwargs):
-        return authenticate_user(*args, **kwargs)
-
-    async def get_current_user(self, *args, **kwargs):
-        return await auth_workflow.get_current_user(*args, **kwargs)
-
-    async def process_google_login(self, *args, **kwargs):
-        return await process_google_login(*args, **kwargs)
-
-    async def process_facebook_login(self, *args, **kwargs):
-        return await process_facebook_login(*args, **kwargs)
 
 

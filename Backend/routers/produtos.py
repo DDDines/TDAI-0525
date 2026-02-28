@@ -34,7 +34,7 @@ from Backend.application.services import (
     CatalogImportDiagnosticsService,
     CatalogImportFileService,
     CatalogImportFinalizeService,
-    CatalogImportLegacyIngestService,
+    CatalogImportIngestService,
     CatalogImportPreviewService,
     CatalogImportQualityService,
     CatalogImportSanitizationService,
@@ -153,7 +153,7 @@ catalog_import_preview_service = CatalogImportPreviewService(
     logger=logger,
     pdfplumber_module=pdfplumber,
 )
-catalog_import_legacy_ingest_service = CatalogImportLegacyIngestService(
+catalog_import_ingest_service = CatalogImportIngestService(
     schemas=schemas,
     models=models,
     crud_fornecedores=crud_fornecedores,
@@ -353,7 +353,7 @@ class _ProdutosRouterRuntime:
         db: Session,
         current_user: models.User,
     ):
-        return await catalog_import_legacy_ingest_service.importar_catalogo_fornecedor(
+        return await catalog_import_ingest_service.importar_catalogo_fornecedor(
             fornecedor_id=fornecedor_id,
             file=file,
             mapeamento_colunas_usuario=mapeamento_colunas_usuario,
@@ -1123,62 +1123,5 @@ async def extrair_pagina_unica(
     )
 
 
-class ProdutosRouterLegacyService:
-    def create_produto(self, *args, **kwargs):
-        return produtos_router_workflow.create_produto(*args, **kwargs)
-
-    def list_catalog_import_files(self, *args, **kwargs):
-        return produtos_router_workflow.list_catalog_import_files(*args, **kwargs)
-
-    def delete_catalog_import_file(self, *args, **kwargs):
-        return produtos_router_workflow.delete_catalog_import_file(*args, **kwargs)
-
-    async def reprocess_catalog_import_file(self, *args, **kwargs):
-        return await produtos_router_workflow.reprocess_catalog_import_file(*args, **kwargs)
-
-    def read_produto(self, *args, **kwargs):
-        return produtos_router_workflow.read_produto(*args, **kwargs)
-
-    def list_produtos(self, *args, **kwargs):
-        return produtos_router_workflow.list_produtos(*args, **kwargs)
-
-    def update_produto(self, *args, **kwargs):
-        return produtos_router_workflow.update_produto(*args, **kwargs)
-
-    def delete_produto(self, *args, **kwargs):
-        return produtos_router_workflow.delete_produto(*args, **kwargs)
-
-    def batch_delete_produtos(self, *args, **kwargs):
-        return produtos_router_workflow.batch_delete_produtos(*args, **kwargs)
-
-    async def upload_produto_image(self, *args, **kwargs):
-        return await produtos_router_workflow.upload_produto_image(*args, **kwargs)
-
-    async def importar_catalogo_preview(self, *args, **kwargs):
-        return await produtos_router_workflow.importar_catalogo_preview(*args, **kwargs)
-
-    async def importar_catalogo_fornecedor(self, *args, **kwargs):
-        return await produtos_router_workflow.importar_catalogo_fornecedor(*args, **kwargs)
-
-    async def importar_catalogo_finalizar(self, *args, **kwargs):
-        return await produtos_router_workflow.importar_catalogo_finalizar(*args, **kwargs)
-
-    def importar_catalogo_status(self, *args, **kwargs):
-        return produtos_router_workflow.importar_catalogo_status(*args, **kwargs)
-
-    def importar_catalogo_status_simple(self, *args, **kwargs):
-        return produtos_router_workflow.importar_catalogo_status_simple(*args, **kwargs)
-
-    def importar_catalogo_result(self, *args, **kwargs):
-        return produtos_router_workflow.importar_catalogo_result(*args, **kwargs)
-
-    async def importar_catalogo_finalizar_todas_paginas(self, *args, **kwargs):
-        return await produtos_router_workflow.importar_catalogo_finalizar_todas_paginas(*args, **kwargs)
-
-    async def selecionar_regiao(self, *args, **kwargs):
-        return await produtos_router_workflow.selecionar_regiao(*args, **kwargs)
-
-    async def extrair_pagina_unica(self, *args, **kwargs):
-        return await produtos_router_workflow.extrair_pagina_unica(*args, **kwargs)
 
 

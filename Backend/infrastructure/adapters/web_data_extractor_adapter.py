@@ -2,11 +2,13 @@ from __future__ import annotations
 
 from typing import Any
 
+from Backend.infrastructure.runtime.web_data_extractor_runtime import (
+    get_runtime_module,
+)
+
 
 def _default_web_data_extractor_module() -> Any:
-    from Backend.services import web_data_extractor_service
-
-    return web_data_extractor_service
+    return get_runtime_module()
 
 
 class WebDataExtractorServiceAdapter:

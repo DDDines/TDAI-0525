@@ -167,20 +167,5 @@ async def facebook_callback(request: Request, db: Session = Depends(get_db)):
     return await social_auth_router_workflow.facebook_callback(request=request, db=db)
 
 
-class SocialAuthRouterLegacyService:
-    def social_login_config(self):
-        return social_auth_router_workflow.social_login_config()
-
-    async def google_login(self, *args, **kwargs):
-        return await social_auth_router_workflow.google_login(*args, **kwargs)
-
-    async def google_callback(self, *args, **kwargs):
-        return await social_auth_router_workflow.google_callback(*args, **kwargs)
-
-    async def facebook_login(self, *args, **kwargs):
-        return await social_auth_router_workflow.facebook_login(*args, **kwargs)
-
-    async def facebook_callback(self, *args, **kwargs):
-        return await social_auth_router_workflow.facebook_callback(*args, **kwargs)
 
 

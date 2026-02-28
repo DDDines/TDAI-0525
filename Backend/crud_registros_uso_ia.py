@@ -303,23 +303,5 @@ def get_geracoes_ia_count_no_mes_corrente(db: Session, user_id: int) -> int:
     )
 
 
-class RegistroUsoIALegacyService:
-    def create_registro_uso_ia(self, *args, **kwargs):
-        return create_registro_uso_ia(*args, **kwargs)
-
-    def get_registros_uso_ia(self, *args, **kwargs):
-        return get_registros_uso_ia(*args, **kwargs)
-
-    def count_registros_uso_ia(self, *args, **kwargs):
-        return count_registros_uso_ia(*args, **kwargs)
-
-    def get_usos_ia_by_produto(self, *args, **kwargs):
-        return get_usos_ia_by_produto(*args, **kwargs)
-
-    def count_usos_ia_by_user_and_type_no_mes_corrente(self, *args, **kwargs):
-        return count_usos_ia_by_user_and_type_no_mes_corrente(*args, **kwargs)
-
-    def get_geracoes_ia_count_no_mes_corrente(self, *args, **kwargs):
-        return get_geracoes_ia_count_no_mes_corrente(*args, **kwargs)
 
 

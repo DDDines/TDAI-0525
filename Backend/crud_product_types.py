@@ -664,41 +664,5 @@ def reorder_attribute_template(
     )
 
 
-class ProductTypeCrudLegacyService:
-    def create_product_type(self, *args, **kwargs):
-        return create_product_type(*args, **kwargs)
-
-    def get_product_type(self, *args, **kwargs):
-        return get_product_type(*args, **kwargs)
-
-    def get_product_type_by_key_name(self, *args, **kwargs):
-        return get_product_type_by_key_name(*args, **kwargs)
-
-    def get_product_types_for_user(self, *args, **kwargs):
-        return get_product_types_for_user(*args, **kwargs)
-
-    def count_product_types_for_user(self, *args, **kwargs):
-        return count_product_types_for_user(*args, **kwargs)
-
-    def update_product_type(self, *args, **kwargs):
-        return update_product_type(*args, **kwargs)
-
-    def delete_product_type(self, *args, **kwargs):
-        return delete_product_type(*args, **kwargs)
-
-    def create_attribute_template(self, *args, **kwargs):
-        return create_attribute_template(*args, **kwargs)
-
-    def get_attribute_template(self, *args, **kwargs):
-        return get_attribute_template(*args, **kwargs)
-
-    def update_attribute_template(self, *args, **kwargs):
-        return update_attribute_template(*args, **kwargs)
-
-    def delete_attribute_template(self, *args, **kwargs):
-        return delete_attribute_template(*args, **kwargs)
-
-    def reorder_attribute_template(self, *args, **kwargs):
-        return reorder_attribute_template(*args, **kwargs)
 
 

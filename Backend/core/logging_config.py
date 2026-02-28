@@ -27,8 +27,5 @@ def get_logger(name: str) -> logging.Logger:
     return _logging_workflow.get_logger(name=name)
 
 
-class LoggingLegacyService:
-    def get_logger(self, *args, **kwargs):
-        return get_logger(*args, **kwargs)
 
 

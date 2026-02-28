@@ -640,32 +640,5 @@ def get_or_create_produto(
     )
 
 
-class ProdutoCrudLegacyService:
-    def create_produto(self, *args, **kwargs):
-        return create_produto(*args, **kwargs)
-
-    def create_produtos_bulk(self, *args, **kwargs):
-        return create_produtos_bulk(*args, **kwargs)
-
-    def get_produto(self, *args, **kwargs):
-        return get_produto(*args, **kwargs)
-
-    def get_produtos_by_user(self, *args, **kwargs):
-        return get_produtos_by_user(*args, **kwargs)
-
-    def count_produtos_by_user(self, *args, **kwargs):
-        return count_produtos_by_user(*args, **kwargs)
-
-    def update_produto(self, *args, **kwargs):
-        return update_produto(*args, **kwargs)
-
-    def delete_produto(self, *args, **kwargs):
-        return delete_produto(*args, **kwargs)
-
-    async def save_produto_image(self, *args, **kwargs):
-        return await save_produto_image(*args, **kwargs)
-
-    def get_or_create_produto(self, *args, **kwargs):
-        return get_or_create_produto(*args, **kwargs)
 
 

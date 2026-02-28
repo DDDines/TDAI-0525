@@ -213,11 +213,5 @@ async def send_password_reset_email(
     )
 
 
-class EmailLegacyService:
-    async def send_email(self, *args, **kwargs):
-        return await email_workflow.send_email(*args, **kwargs)
-
-    async def send_password_reset_email(self, *args, **kwargs):
-        return await email_workflow.send_password_reset_email(*args, **kwargs)
 
 

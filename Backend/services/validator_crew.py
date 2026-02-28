@@ -202,10 +202,5 @@ def run_validation_crew(raw_data: Any, timeout_seconds: int = 8):
     )
 
 
-class ValidatorCrewLegacyService:
-    """Camada de compatibilidade para chamadas legadas."""
-
-    def run_validation_crew(self, *args, **kwargs):
-        return run_validation_crew(*args, **kwargs)
 
 

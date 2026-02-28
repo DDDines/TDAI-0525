@@ -354,23 +354,5 @@ async def sugerir_atributos_para_produto_com_gemini(
     )
 
 
-class GenerationRouterLegacyService:
-    async def tarefa_processar_geracao_e_registrar_uso(self, *args, **kwargs):
-        return await generation_router_workflow.tarefa_processar_geracao_e_registrar_uso(*args, **kwargs)
-
-    def agendar_geracao_novos_titulos_openai(self, *args, **kwargs):
-        return generation_router_workflow.agendar_geracao_novos_titulos_openai(*args, **kwargs)
-
-    def agendar_geracao_nova_descricao_openai(self, *args, **kwargs):
-        return generation_router_workflow.agendar_geracao_nova_descricao_openai(*args, **kwargs)
-
-    def agendar_geracao_novos_titulos_gemini(self, *args, **kwargs):
-        return generation_router_workflow.agendar_geracao_novos_titulos_gemini(*args, **kwargs)
-
-    def agendar_geracao_nova_descricao_gemini(self, *args, **kwargs):
-        return generation_router_workflow.agendar_geracao_nova_descricao_gemini(*args, **kwargs)
-
-    async def sugerir_atributos_para_produto_com_gemini(self, *args, **kwargs):
-        return await generation_router_workflow.sugerir_atributos_para_produto_com_gemini(*args, **kwargs)
 
 

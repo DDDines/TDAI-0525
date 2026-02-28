@@ -359,29 +359,5 @@ async def get_recent_historico(
     return admin_analytics_router_workflow.get_recent_historico(db=db, limit=limit)
 
 
-class AdminAnalyticsRouterLegacyService:
-    async def get_current_active_admin_user(self, *args, **kwargs):
-        return await admin_analytics_router_workflow.get_current_active_admin_user(*args, **kwargs)
-
-    def get_total_counts(self, *args, **kwargs):
-        return admin_analytics_router_workflow.get_total_counts(*args, **kwargs)
-
-    def get_uso_ia_por_plano(self, *args, **kwargs):
-        return admin_analytics_router_workflow.get_uso_ia_por_plano(*args, **kwargs)
-
-    def get_uso_ia_por_tipo(self, *args, **kwargs):
-        return admin_analytics_router_workflow.get_uso_ia_por_tipo(*args, **kwargs)
-
-    def get_user_activity(self, *args, **kwargs):
-        return admin_analytics_router_workflow.get_user_activity(*args, **kwargs)
-
-    def get_product_status_counts(self, *args, **kwargs):
-        return admin_analytics_router_workflow.get_product_status_counts(*args, **kwargs)
-
-    def get_recent_activities(self, *args, **kwargs):
-        return admin_analytics_router_workflow.get_recent_activities(*args, **kwargs)
-
-    def get_recent_historico(self, *args, **kwargs):
-        return admin_analytics_router_workflow.get_recent_historico(*args, **kwargs)
 
 

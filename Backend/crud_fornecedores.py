@@ -332,26 +332,5 @@ def create_catalog_import_file(
     )
 
 
-class FornecedorCrudLegacyService:
-    def create_fornecedor(self, *args, **kwargs):
-        return create_fornecedor(*args, **kwargs)
-
-    def get_fornecedor(self, *args, **kwargs):
-        return get_fornecedor(*args, **kwargs)
-
-    def get_fornecedores_by_user(self, *args, **kwargs):
-        return get_fornecedores_by_user(*args, **kwargs)
-
-    def count_fornecedores_by_user(self, *args, **kwargs):
-        return count_fornecedores_by_user(*args, **kwargs)
-
-    def update_fornecedor(self, *args, **kwargs):
-        return update_fornecedor(*args, **kwargs)
-
-    def delete_fornecedor(self, *args, **kwargs):
-        return delete_fornecedor(*args, **kwargs)
-
-    def create_catalog_import_file(self, *args, **kwargs):
-        return create_catalog_import_file(*args, **kwargs)
 
 

@@ -575,32 +575,5 @@ def reorder_attribute_endpoint(
     )
 
 
-class ProductTypesRouterLegacyService:
-    def create_product_type(self, *args, **kwargs):
-        return product_types_router_workflow.create_product_type(*args, **kwargs)
-
-    def read_product_types(self, *args, **kwargs):
-        return product_types_router_workflow.read_product_types(*args, **kwargs)
-
-    async def read_product_type_details(self, *args, **kwargs):
-        return await product_types_router_workflow.read_product_type_details(*args, **kwargs)
-
-    def update_product_type(self, *args, **kwargs):
-        return product_types_router_workflow.update_product_type(*args, **kwargs)
-
-    def delete_product_type(self, *args, **kwargs):
-        return product_types_router_workflow.delete_product_type(*args, **kwargs)
-
-    def add_attribute_to_product_type(self, *args, **kwargs):
-        return product_types_router_workflow.add_attribute_to_product_type(*args, **kwargs)
-
-    def update_attribute_for_product_type(self, *args, **kwargs):
-        return product_types_router_workflow.update_attribute_for_product_type(*args, **kwargs)
-
-    def remove_attribute_from_product_type(self, *args, **kwargs):
-        return product_types_router_workflow.remove_attribute_from_product_type(*args, **kwargs)
-
-    def reorder_attribute(self, *args, **kwargs):
-        return product_types_router_workflow.reorder_attribute(*args, **kwargs)
 
 

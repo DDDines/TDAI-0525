@@ -147,14 +147,5 @@ def count_registros_historico(
     )
 
 
-class HistoricoCrudLegacyService:
-    def create_registro_historico(self, *args, **kwargs):
-        return create_registro_historico(*args, **kwargs)
-
-    def get_registros_historico(self, *args, **kwargs):
-        return get_registros_historico(*args, **kwargs)
-
-    def count_registros_historico(self, *args, **kwargs):
-        return count_registros_historico(*args, **kwargs)
 
 

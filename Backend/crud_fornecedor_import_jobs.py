@@ -115,14 +115,5 @@ def update_job_status(
     )
 
 
-class FornecedorImportJobLegacyService:
-    def create_import_job(self, *args, **kwargs):
-        return create_import_job(*args, **kwargs)
-
-    def get_import_job(self, *args, **kwargs):
-        return get_import_job(*args, **kwargs)
-
-    def update_job_status(self, *args, **kwargs):
-        return update_job_status(*args, **kwargs)
 
 

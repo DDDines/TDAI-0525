@@ -224,8 +224,5 @@ _config_workflow = _ConfigWorkflow(runtime=config_runtime)
 settings = _config_workflow.build_settings()
 
 
-class ConfigLegacyService:
-    def build_settings(self) -> Settings:
-        return _config_workflow.build_settings()
 
 

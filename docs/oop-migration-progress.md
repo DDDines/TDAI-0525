@@ -3,7 +3,7 @@
 ## Visao geral
 
 A base esta funcional e testada, mas ainda em transicao. O objetivo agora e concluir a migracao para OOP completo no backend com compatibilidade de API durante a janela de transicao.
-No estado atual, a selecao de pipeline em runtime esta em modo OOP-only: `APP_MODE=legacy|shadow` e normalizado para `oop` com warning de compatibilidade, e o default de configuracao ja e `APP_MODE=oop`.
+No estado atual, a selecao de pipeline em runtime esta em modo OOP-only: `APP_MODE` padrao e `oop`, e valores antigos (`legacy`/`shadow`) sao apenas normalizados para `oop` com warning de compatibilidade.
 
 ## Checklist por dominio
 
@@ -64,7 +64,7 @@ No estado atual, a selecao de pipeline em runtime esta em modo OOP-only: `APP_MO
 - [x] Import cruzado removido: `Backend/routers/fornecedores.py` nao depende mais de `Backend/routers/produtos.py`.
 - [x] Runners unificados em implementacao OOP unica; execucao via `execute` (com alias `execute_oop` apenas para compatibilidade temporaria).
 - [x] Garantia de teste: `APP_MODE=oop` executa apenas executor OOP selecionado pelo orquestrador.
-- [x] Fluxo real validado com `APP_MODE=oop` + `STRICT_OOP_NO_LEGACY=1` para endpoint de preview de catalogo sem bridge legado no caminho OOP.
+- [x] Fluxo real validado em `APP_MODE=oop` sem bridge legado no caminho OOP.
 
 ### Fase 5 - Limpeza final
 
@@ -73,6 +73,7 @@ No estado atual, a selecao de pipeline em runtime esta em modo OOP-only: `APP_MO
 - [x] Remover bridges de transicao em `Backend/infrastructure/legacy/`.
 - [x] Remover camada central de proxy legado (`Backend/core/deprecation.py`) e testes associados.
 - [x] Remover componentes de aplicacao que apenas encapsulavam modulo legado (`file_processing_components` e `web_data_extractor_components`).
+- [x] Remover guard de runtime legado (`Backend/core/legacy_guard.py`) e testes associados.
 - [x] Atualizar documentacao final de arquitetura e matriz de conclusao.
 
 ## Criterios objetivos de fechamento
@@ -97,5 +98,5 @@ No estado atual, a selecao de pipeline em runtime esta em modo OOP-only: `APP_MO
 ## Pontos de transicao planejados
 
 - Adapters OOP padrao concentrados em `Backend/infrastructure/adapters/`.
-- Guard opcional de execucao estrita: `STRICT_OOP_NO_LEGACY=1` bloqueia acesso legado quando `APP_MODE=oop`.
+- Provedores de runtime concentrados em `Backend/infrastructure/runtime/` para desacoplar adapters do namespace `Backend.services`.
 - Remocao fisica restante de wrappers legados em `Backend/services/*`: em andamento por trilha de API.

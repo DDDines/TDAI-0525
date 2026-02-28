@@ -283,14 +283,5 @@ router.add_api_route(
 )
 
 
-class WebEnrichmentRouterLegacyService:
-    async def tarefa_enriquecer_produto_web(self, *args, **kwargs):
-        return await web_enrichment_router_workflow.tarefa_enriquecer_produto_web(*args, **kwargs)
-
-    async def oop_tarefa_enriquecer_produto_web(self, *args, **kwargs):
-        return await web_enrichment_router_workflow.oop_tarefa_enriquecer_produto_web(*args, **kwargs)
-
-    def iniciar_enriquecimento_produto_web(self, *args, **kwargs):
-        return web_enrichment_router_workflow.iniciar_enriquecimento_produto_web(*args, **kwargs)
 
 

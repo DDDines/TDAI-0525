@@ -184,8 +184,5 @@ def create_initial_data(db: Session):
     return _initial_data_workflow.create_initial_data(db=db)
 
 
-class InitialDataLegacyService:
-    def create_initial_data(self, *args, **kwargs):
-        return create_initial_data(*args, **kwargs)
 
 

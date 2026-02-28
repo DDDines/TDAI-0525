@@ -856,38 +856,6 @@ async def sugerir_valores_atributos_com_gemini(
     )
 
 
-class IAGenerationLegacyService:
-    """OO compatibility layer for legacy IA generation module."""
-
-    async def get_openai_api_key(self, *args, **kwargs):
-        return await get_openai_api_key(*args, **kwargs)
-
-    async def get_gemini_api_key(self, *args, **kwargs):
-        return await get_gemini_api_key(*args, **kwargs)
-
-    async def call_openai_api(self, *args, **kwargs):
-        return await call_openai_api(*args, **kwargs)
-
-    async def call_gemini_api_for_suggestions(self, *args, **kwargs):
-        return await call_gemini_api_for_suggestions(*args, **kwargs)
-
-    async def call_gemini_api(self, *args, **kwargs):
-        return await call_gemini_api(*args, **kwargs)
-
-    async def gerar_titulos_com_openai(self, *args, **kwargs):
-        return await gerar_titulos_com_openai(*args, **kwargs)
-
-    async def gerar_descricao_com_openai(self, *args, **kwargs):
-        return await gerar_descricao_com_openai(*args, **kwargs)
-
-    async def gerar_titulos_com_gemini(self, *args, **kwargs):
-        return await gerar_titulos_com_gemini(*args, **kwargs)
-
-    async def gerar_descricao_com_gemini(self, *args, **kwargs):
-        return await gerar_descricao_com_gemini(*args, **kwargs)
-
-    async def sugerir_valores_atributos_com_gemini(self, *args, **kwargs):
-        return await sugerir_valores_atributos_com_gemini(*args, **kwargs)
 
 
 

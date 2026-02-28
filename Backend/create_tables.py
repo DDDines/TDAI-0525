@@ -54,9 +54,6 @@ def create_all_tables():
     _create_tables_workflow.create_all_tables()
 
 
-class CreateTablesLegacyService:
-    def create_all_tables(self, *args, **kwargs):
-        return create_all_tables(*args, **kwargs)
 
 
 if __name__ == "__main__":

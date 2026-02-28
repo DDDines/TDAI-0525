@@ -6,8 +6,8 @@ from typing import Any, Dict, List, Optional
 from fastapi import HTTPException
 
 
-class CatalogImportLegacyIngestService:
-    """Encapsula a importacao legada de catalogo (upload direto) em servico OO."""
+class CatalogImportIngestService:
+    """Encapsula a importacao direta de catalogo em servico OO."""
 
     def __init__(
         self,

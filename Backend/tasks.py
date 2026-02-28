@@ -98,8 +98,5 @@ def process_pdf_extraction_task(import_job_id: int, page_number: int, db_url: st
     )
 
 
-class TaskLegacyService:
-    def process_pdf_extraction_task(self, *args, **kwargs):
-        return process_pdf_extraction_task(*args, **kwargs)
 
 

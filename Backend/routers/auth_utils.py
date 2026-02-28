@@ -96,14 +96,5 @@ async def get_current_active_superuser(
     return await auth_utils_workflow.get_current_active_superuser(current_user=current_user)
 
 
-class AuthUtilsLegacyService:
-    async def get_current_user(self, *args, **kwargs):
-        return await auth_utils_workflow.get_current_user(*args, **kwargs)
-
-    async def get_current_active_user(self, *args, **kwargs):
-        return await auth_utils_workflow.get_current_active_user(*args, **kwargs)
-
-    async def get_current_active_superuser(self, *args, **kwargs):
-        return await auth_utils_workflow.get_current_active_superuser(*args, **kwargs)
 
 

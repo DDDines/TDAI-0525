@@ -143,10 +143,5 @@ def search_all(
     )
 
 
-class SearchRouterLegacyService:
-    """Camada de compatibilidade para chamadas legadas do router."""
-
-    def search_all(self, *args, **kwargs):
-        return _search_workflow.search_all(*args, **kwargs)
 
 

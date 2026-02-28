@@ -16,17 +16,9 @@ def test_app_mode_workflow_runtime_injection():
         def get_app_mode(self):
             return AppMode.OOP
 
-        def normalize_for_compare(self, value):
-            return {"normalized": value}
-
-        def compare_shadow_payloads(self, **kwargs):
-            return kwargs["context"] == "ok"
-
     workflow = _AppModeWorkflow(runtime=FakeRuntime())
 
     assert workflow.get_app_mode() == AppMode.OOP
-    assert workflow.normalize_for_compare(value=1) == {"normalized": 1}
-    assert workflow.compare_shadow_payloads("ok", {"a": 1}, {"a": 1}) is True
 
 
 def test_config_workflow_runtime_injection():

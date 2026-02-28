@@ -2,11 +2,13 @@ from __future__ import annotations
 
 from typing import Any
 
+from Backend.infrastructure.runtime.limit_runtime import (
+    get_runtime_module,
+)
+
 
 def _default_limit_module() -> Any:
-    from Backend.services import limit_service
-
-    return limit_service
+    return get_runtime_module()
 
 
 class LimitServiceAdapter:

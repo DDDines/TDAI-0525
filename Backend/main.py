@@ -481,11 +481,5 @@ async def health_check():
     return {"status": "ok"}
 
 
-class MainLegacyService:
-    async def startup_event_create_defaults(self) -> None:
-        await startup_event_create_defaults()
-
-    def create_new_user(self, *args, **kwargs):
-        return create_new_user(*args, **kwargs)
 
 

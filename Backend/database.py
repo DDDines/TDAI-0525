@@ -44,8 +44,5 @@ def get_db():
     yield from _database_workflow.get_db()
 
 
-class DatabaseLegacyService:
-    def get_db(self, *args, **kwargs):
-        yield from get_db(*args, **kwargs)
 
 

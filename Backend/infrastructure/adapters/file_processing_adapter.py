@@ -2,11 +2,13 @@ from __future__ import annotations
 
 from typing import Any
 
+from Backend.infrastructure.runtime.file_processing_runtime import (
+    get_runtime_module,
+)
+
 
 def _default_file_processing_module() -> Any:
-    from Backend.services import file_processing_service
-
-    return file_processing_service
+    return get_runtime_module()
 
 
 class FileProcessingServiceAdapter:

@@ -139,20 +139,5 @@ def decode_token(token: str, secret_key: str) -> Optional[TokenPayload]:
     return _security_workflow.decode_token(token=token, secret_key=secret_key)
 
 
-class SecurityLegacyService:
-    def verify_password(self, *args, **kwargs):
-        return verify_password(*args, **kwargs)
-
-    def get_password_hash(self, *args, **kwargs):
-        return get_password_hash(*args, **kwargs)
-
-    def create_access_token(self, *args, **kwargs):
-        return create_access_token(*args, **kwargs)
-
-    def create_refresh_token(self, *args, **kwargs):
-        return create_refresh_token(*args, **kwargs)
-
-    def decode_token(self, *args, **kwargs):
-        return decode_token(*args, **kwargs)
 
 
