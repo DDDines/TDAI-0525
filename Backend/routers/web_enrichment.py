@@ -1,4 +1,4 @@
-# catalogai_project/Backend/routers/web_enrichment.py
+﻿# catalogai_project/Backend/routers/web_enrichment.py
 from typing import List, Dict, Any, Optional, Tuple
 import json
 import re
@@ -27,9 +27,13 @@ from Backend.application.services.web_enrichment_start_service import (
 from Backend.application.services.web_enrichment_task_runner import (
     WebEnrichmentTaskRunner,
 )
-from Backend.application.services.data_access_service import data_access_service
 from Backend.application.services.service_container import service_container
 from Backend.database import SessionLocal
+from Backend.infrastructure.repositories.product_repository import ProductRepository
+from Backend.infrastructure.repositories.registro_uso_ia_repository import (
+    RegistroUsoIARepository,
+)
+from Backend.infrastructure.repositories.user_repository import UserRepository
 
 from .auth_utils import get_current_active_user
 from Backend.core.config import settings
@@ -52,9 +56,10 @@ web_content_quality_service = WebEnrichmentContentQualityService(
 web_payload_service = WebEnrichmentPayloadService(
     normalization_service=web_normalization_service
 )
+
 web_extractor = service_container.web_data_extractor
 web_enrichment_start_service = WebEnrichmentStartService(
-    crud_produtos=data_access_service.produtos,
+    product_repository=ProductRepository,
     models=models,
 )
 
@@ -150,9 +155,9 @@ def build_payload_enriquecimento_visivel(
 web_enrichment_task_runner = WebEnrichmentTaskRunner(
     logger=logger,
     SQLAlchemyError=SQLAlchemyError,
-    crud_users=data_access_service.users,
-    crud_produtos=data_access_service.produtos,
-    crud=data_access_service.uso_ia,
+    user_repository=UserRepository,
+    product_repository=ProductRepository,
+    usage_repository=RegistroUsoIARepository,
     models=models,
     schemas=schemas,
     web_extractor=web_extractor,
@@ -194,11 +199,15 @@ class _WebEnrichmentRouterRuntime:
         produto_id: int,
         current_user: models.User,
     ) -> None:
-        web_enrichment_start_service.validate_start_preconditions(
-            db_session_factory=db_session_factory,
-            produto_id=produto_id,
-            current_user=current_user,
-        )
+        db = db_session_factory()
+        try:
+            web_enrichment_start_service.validate_start_preconditions(
+                product_repo=ProductRepository(db),
+                produto_id=produto_id,
+                current_user=current_user,
+            )
+        finally:
+            db.close()
 
     def dispatch_start(
         self,
@@ -265,15 +274,11 @@ class _WebEnrichmentRouterWorkflow:
         }
 
 
-web_enrichment_router_runtime = _WebEnrichmentRouterRuntime()
-web_enrichment_router_workflow = _WebEnrichmentRouterWorkflow(
-    runtime=web_enrichment_router_runtime
-)
 WebEnrichmentRouterWorkflow = _WebEnrichmentRouterWorkflow
 
 
 def get_web_enrichment_router_workflow() -> WebEnrichmentRouterWorkflow:
-    return web_enrichment_router_workflow
+    return WebEnrichmentRouterWorkflow(runtime=_WebEnrichmentRouterRuntime())
 
 
 async def _tarefa_enriquecer_produto_web(
@@ -282,7 +287,8 @@ async def _tarefa_enriquecer_produto_web(
     user_id: int,
     termos_busca_override: Optional[str] = None,
 ):
-    await web_enrichment_router_workflow.tarefa_enriquecer_produto_web(
+    workflow = get_web_enrichment_router_workflow()
+    await workflow.tarefa_enriquecer_produto_web(
         db_session_factory=db_session_factory,
         produto_id=produto_id,
         user_id=user_id,
@@ -300,7 +306,8 @@ async def iniciar_enriquecimento_produto_web_endpoint(
         description="Opcional: termos de busca especificos para o Google Search.",
     ),
 ):
-    return web_enrichment_router_workflow.iniciar_enriquecimento_produto_web(
+    workflow = get_web_enrichment_router_workflow()
+    return workflow.iniciar_enriquecimento_produto_web(
         produto_id=produto_id,
         background_tasks=background_tasks,
         current_user=current_user,
@@ -316,6 +323,7 @@ router.add_api_route(
     response_model=schemas.Msg,
     include_in_schema=False,
 )
+
 
 
 

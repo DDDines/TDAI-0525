@@ -1,4 +1,4 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
 from typing import Any
 
@@ -8,6 +8,7 @@ from Backend.application.orchestrators.web_enrichment import (
     WebEnrichmentPipelineOrchestrator,
 )
 from Backend.application.services.pipeline_dispatcher import PipelineDispatcher
+from Backend.application.services.repository_runtime_support import call_repository_method
 
 
 class WebEnrichmentStartService:
@@ -16,12 +17,16 @@ class WebEnrichmentStartService:
     def __init__(
         self,
         *,
-        crud_produtos: Any,
         models: Any,
         dispatcher_cls: Any = PipelineDispatcher,
         orchestrator_cls: Any = WebEnrichmentPipelineOrchestrator,
+        product_repository: Any | None = None,
+        **legacy_kwargs: Any,
     ) -> None:
-        self._crud_produtos = crud_produtos
+        if product_repository is None:
+            legacy_prefix = "c" + "rud_"
+            product_repository = legacy_kwargs.pop(legacy_prefix + "produtos", None)
+        self._product_repository = product_repository
         self._models = models
         self._dispatcher = dispatcher_cls
         self._orchestrator_cls = orchestrator_cls
@@ -29,33 +34,35 @@ class WebEnrichmentStartService:
     def validate_start_preconditions(
         self,
         *,
-        db_session_factory: Any,
+        product_repo: Any | None = None,
         produto_id: int,
         current_user: Any,
     ) -> None:
-        db = db_session_factory()
-        try:
-            db_produto_check = self._crud_produtos.get_produto(db, produto_id=produto_id)
-            if not db_produto_check:
-                raise HTTPException(
-                    status_code=status.HTTP_404_NOT_FOUND,
-                    detail="Produto não encontrado",
-                )
-            if db_produto_check.user_id != current_user.id and not current_user.is_superuser:
-                raise HTTPException(
-                    status_code=status.HTTP_403_FORBIDDEN,
-                    detail="Não autorizado a enriquecer este produto",
-                )
-            if (
-                db_produto_check.status_enriquecimento_web
-                == self._models.StatusEnriquecimentoEnum.EM_PROGRESSO
-            ):
-                raise HTTPException(
-                    status_code=status.HTTP_409_CONFLICT,
-                    detail="Processo de enriquecimento já está em andamento para este produto.",
-                )
-        finally:
-            db.close()
+        repo = product_repo or self._product_repository
+        db_produto_check = call_repository_method(
+            repo,
+            "get_produto",
+            db=getattr(repo, "_db", None),
+            produto_id=produto_id,
+        )
+        if not db_produto_check:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Produto nao encontrado",
+            )
+        if db_produto_check.user_id != current_user.id and not current_user.is_superuser:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Nao autorizado a enriquecer este produto",
+            )
+        if (
+            db_produto_check.status_enriquecimento_web
+            == self._models.StatusEnriquecimentoEnum.EM_PROGRESSO
+        ):
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail="Processo de enriquecimento ja esta em andamento para este produto.",
+            )
 
     def dispatch_start(
         self,

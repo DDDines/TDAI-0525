@@ -36,15 +36,15 @@ class FornecedorImportTrackingService:
     def get_catalog_record_or_404(
         self,
         *,
-        db: Any,
+        catalog_file_repo: Any,
         file_id: int,
         user_id: int,
         not_found_detail: str,
     ) -> Any:
         record = call_repository_method(
-            self._catalog_file_repository,
+            catalog_file_repo,
             "get_catalog_file_for_user",
-            db=db,
+            db=getattr(catalog_file_repo, "_db", None),
             file_id=file_id,
             user_id=user_id,
         )

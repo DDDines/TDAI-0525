@@ -10,25 +10,13 @@ from Backend.application.services.fornecedor_import_tracking_service import (
 )
 
 
-class _QueryStub:
+class _CatalogFileRepoStub:
     def __init__(self, record):
         self._record = record
 
-    def filter_by(self, **kwargs):
-        _ = kwargs
-        return self
-
-    def first(self):
+    def get_catalog_file_for_user(self, *, file_id: int, user_id: int):
+        _ = (file_id, user_id)
         return self._record
-
-
-class _DbStub:
-    def __init__(self, record):
-        self._record = record
-
-    def query(self, model):
-        _ = model
-        return _QueryStub(self._record)
 
 
 class _BackgroundTasksStub:
@@ -56,7 +44,7 @@ def test_get_catalog_record_or_404_returns_record():
     record = SimpleNamespace(id=1)
 
     found = service.get_catalog_record_or_404(
-        db=_DbStub(record),
+        catalog_file_repo=_CatalogFileRepoStub(record),
         file_id=1,
         user_id=9,
         not_found_detail="arquivo nao encontrado",
@@ -70,7 +58,7 @@ def test_get_catalog_record_or_404_raises_when_missing():
 
     with pytest.raises(HTTPException) as exc:
         service.get_catalog_record_or_404(
-            db=_DbStub(None),
+            catalog_file_repo=_CatalogFileRepoStub(None),
             file_id=1,
             user_id=9,
             not_found_detail="arquivo nao encontrado",

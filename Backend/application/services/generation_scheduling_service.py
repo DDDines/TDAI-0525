@@ -5,7 +5,6 @@ from typing import Any
 from fastapi import HTTPException, status
 
 from Backend.application.services.repository_runtime_support import (
-    bind_repository,
     call_repository_method,
 )
 
@@ -31,37 +30,18 @@ class GenerationSchedulingService:
         self._schemas = schemas
         self._models = models
 
-    def _resolve_product_repo(
-        self,
-        *,
-        db: Any | None,
-        product_repo: Any | None,
-    ) -> Any:
-        if product_repo is not None:
-            if db is not None:
-                return bind_repository(product_repo, db=db)
-            return product_repo
-        if self._product_repository_cls is not None:
-            if db is None:
-                raise ValueError("db e obrigatorio para instanciar ProductRepository")
-            return self._product_repository_cls(db)
-        if self._legacy_product_access is None:
-            raise ValueError("Nenhum acesso a produto configurado para GenerationSchedulingService")
-        return self._legacy_product_access
-
     def validate_product_access(
         self,
         *,
-        db: Any | None = None,
-        product_repo: Any | None = None,
+        product_repo: Any,
         produto_id: int,
         current_user: Any,
     ) -> Any:
-        repo = self._resolve_product_repo(db=db, product_repo=product_repo)
+        repo = product_repo
         db_produto = call_repository_method(
             repo,
             "get_produto",
-            db=db,
+            db=getattr(repo, "_db", None),
             produto_id=produto_id,
         )
         if not db_produto:
@@ -79,8 +59,7 @@ class GenerationSchedulingService:
     def mark_pending_status(
         self,
         *,
-        db: Any | None = None,
-        product_repo: Any | None = None,
+        product_repo: Any,
         db_produto: Any,
         generation_type: str,
     ) -> None:
@@ -95,11 +74,11 @@ class GenerationSchedulingService:
         update_data = {
             status_field: self._models.StatusGeracaoIAEnum.PENDENTE,
         }
-        repo = self._resolve_product_repo(db=db, product_repo=product_repo)
+        repo = product_repo
         call_repository_method(
             repo,
             "update_produto",
-            db=db,
+            db=getattr(repo, "_db", None),
             db_produto=db_produto,
             produto_update=self._schemas.ProdutoUpdate(**update_data),
         )

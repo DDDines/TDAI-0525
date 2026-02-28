@@ -58,7 +58,11 @@ def test_validate_product_access_not_found():
     user = SimpleNamespace(id=1, is_superuser=False)
 
     with pytest.raises(HTTPException) as exc:
-        service.validate_product_access(db=object(), produto_id=10, current_user=user)
+        service.validate_product_access(
+            product_repo=_CrudProdutosStub(produto=None),
+            produto_id=10,
+            current_user=user,
+        )
 
     assert exc.value.status_code == 404
 
@@ -69,7 +73,11 @@ def test_validate_product_access_forbidden():
     user = SimpleNamespace(id=1, is_superuser=False)
 
     with pytest.raises(HTTPException) as exc:
-        service.validate_product_access(db=object(), produto_id=10, current_user=user)
+        service.validate_product_access(
+            product_repo=_CrudProdutosStub(produto=produto),
+            produto_id=10,
+            current_user=user,
+        )
 
     assert exc.value.status_code == 403
 
@@ -80,7 +88,7 @@ def test_validate_product_access_success():
     user = SimpleNamespace(id=1, is_superuser=False)
 
     result = service.validate_product_access(
-        db=object(),
+        product_repo=_CrudProdutosStub(produto=produto),
         produto_id=10,
         current_user=user,
     )
@@ -91,10 +99,9 @@ def test_validate_product_access_success():
 def test_mark_pending_status_updates_expected_field():
     produto = SimpleNamespace(user_id=1)
     service, crud_stub = _build_service(produto=produto)
-    db = object()
 
     service.mark_pending_status(
-        db=db,
+        product_repo=crud_stub,
         db_produto=produto,
         generation_type="titulo",
     )

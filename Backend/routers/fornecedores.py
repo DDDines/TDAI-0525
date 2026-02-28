@@ -465,6 +465,9 @@ class _FornecedoresRouterRuntime:
         return fornecedor_preview_service.extract_data_from_pdf_bulk(**kwargs)
 
     def get_catalog_record_or_404(self, **kwargs):
+        db = kwargs.pop("db", None)
+        if db is not None:
+            kwargs["catalog_file_repo"] = CatalogImportFileRepository(db)
         return fornecedor_import_tracking_service.get_catalog_record_or_404(**kwargs)
 
     def build_progress_payload(self, **kwargs):
