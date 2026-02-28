@@ -16,11 +16,10 @@ class FileProcessingFacade:
 
     def __init__(
         self,
-        legacy_module: Any = None,
         *,
         port: FileProcessingPort | None = None,
     ) -> None:
-        effective_port = port or legacy_module or FileProcessingServiceAdapter()
+        effective_port = port or FileProcessingServiceAdapter()
         self._orchestrator = FileProcessingOrchestratorService(effective_port)
         self.storage = self._orchestrator.storage
         self.preview = self._orchestrator.preview

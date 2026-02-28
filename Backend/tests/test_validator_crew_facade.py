@@ -3,7 +3,7 @@ from __future__ import annotations
 from Backend.application.services.validator_crew_facade import ValidatorCrewFacade
 
 
-class _LegacyRunnerStub:
+class _RunnerStub:
     def __init__(self, *, should_fail: bool = False) -> None:
         self.should_fail = should_fail
 
@@ -13,8 +13,8 @@ class _LegacyRunnerStub:
         return {"validated": raw_data}
 
 
-def test_validator_crew_facade_delegates_to_legacy_runner():
-    facade = ValidatorCrewFacade(legacy_runner=_LegacyRunnerStub())
+def test_validator_crew_facade_delegates_to_runner():
+    facade = ValidatorCrewFacade(runner=_RunnerStub())
     payload = {"a": 1}
 
     result = facade.run_validation_crew(payload)
@@ -23,10 +23,9 @@ def test_validator_crew_facade_delegates_to_legacy_runner():
 
 
 def test_validator_crew_facade_fallbacks_to_passthrough_on_runtime_error():
-    facade = ValidatorCrewFacade(legacy_runner=_LegacyRunnerStub(should_fail=True))
+    facade = ValidatorCrewFacade(runner=_RunnerStub(should_fail=True))
     payload = {"a": 1}
 
     result = facade.run_validation_crew(payload)
 
     assert result == payload
-

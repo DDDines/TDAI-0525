@@ -11,11 +11,10 @@ class LimitServiceFacade:
 
     def __init__(
         self,
-        legacy_module: Any = None,
         *,
         port: LimitPort | None = None,
     ) -> None:
-        self._port = port or legacy_module or LimitServiceAdapter()
+        self._port = port or LimitServiceAdapter()
 
     def verificar_limite_uso(self, *args: Any, **kwargs: Any):
         return self._port.verificar_limite_uso(*args, **kwargs)

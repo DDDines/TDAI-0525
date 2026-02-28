@@ -21,12 +21,10 @@ class ValidatorCrewFacade:
         *,
         logger: Any = None,
         runner: Optional[Any] = None,
-        legacy_runner: Optional[Any] = None,
     ) -> None:
         self._logger = logger
-        provided_runner = runner or legacy_runner
-        if provided_runner is not None:
-            self._runner = provided_runner
+        if runner is not None:
+            self._runner = runner
             return
 
         try:

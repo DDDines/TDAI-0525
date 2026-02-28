@@ -16,11 +16,10 @@ class WebDataExtractorFacade:
 
     def __init__(
         self,
-        legacy_module: Any = None,
         *,
         port: WebDataExtractorPort | None = None,
     ) -> None:
-        effective_port = port or legacy_module or WebDataExtractorServiceAdapter()
+        effective_port = port or WebDataExtractorServiceAdapter()
         self._orchestrator = WebDataExtractorOrchestratorService(effective_port)
         self.search = self._orchestrator.search
         self.content = self._orchestrator.content

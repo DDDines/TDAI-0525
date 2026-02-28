@@ -13,11 +13,10 @@ class IAGenerationFacade:
 
     def __init__(
         self,
-        legacy_module: Any = None,
         *,
         port: IAGenerationPort | None = None,
     ) -> None:
-        self._port = port or legacy_module or IAGenerationServiceAdapter()
+        self._port = port or IAGenerationServiceAdapter()
 
     async def gerar_titulos_com_openai(self, *args: Any, **kwargs: Any):
         return await self._port.gerar_titulos_com_openai(*args, **kwargs)

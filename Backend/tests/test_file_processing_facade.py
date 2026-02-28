@@ -21,7 +21,7 @@ class _LegacyStub:
 @pytest.mark.asyncio
 async def test_file_processing_facade_delegates_async_calls():
     legacy = _LegacyStub()
-    facade = FileProcessingFacade(legacy_module=legacy)
+    facade = FileProcessingFacade(port=legacy)
 
     result = await facade.save_uploaded_catalog("db", "file")
 
@@ -32,7 +32,7 @@ async def test_file_processing_facade_delegates_async_calls():
 
 def test_file_processing_facade_delegates_sync_calls():
     legacy = _LegacyStub()
-    facade = FileProcessingFacade(legacy_module=legacy)
+    facade = FileProcessingFacade(port=legacy)
 
     facade.delete_catalog_file("abc.pdf")
 
@@ -42,7 +42,7 @@ def test_file_processing_facade_delegates_sync_calls():
 
 def test_file_processing_facade_does_not_expose_dynamic_attribute_fallback():
     legacy = _LegacyStub()
-    facade = FileProcessingFacade(legacy_module=legacy)
+    facade = FileProcessingFacade(port=legacy)
 
     with pytest.raises(AttributeError):
         _ = facade.constant_value

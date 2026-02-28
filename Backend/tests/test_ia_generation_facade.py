@@ -21,7 +21,7 @@ class _LegacyIAStub:
 @pytest.mark.asyncio
 async def test_ia_generation_facade_delegates_title_generation():
     legacy = _LegacyIAStub()
-    facade = IAGenerationFacade(legacy_module=legacy)
+    facade = IAGenerationFacade(port=legacy)
 
     result = await facade.gerar_titulos_com_gemini(produto_id=1, user="u")
 
@@ -33,10 +33,9 @@ async def test_ia_generation_facade_delegates_title_generation():
 @pytest.mark.asyncio
 async def test_ia_generation_facade_delegates_attribute_suggestions():
     legacy = _LegacyIAStub()
-    facade = IAGenerationFacade(legacy_module=legacy)
+    facade = IAGenerationFacade(port=legacy)
 
     result = await facade.sugerir_valores_atributos_com_gemini(produto_id=2, user="x")
 
     assert result == {"atributos": []}
     assert legacy.calls[0][0] == "sugerir_valores_atributos_com_gemini"
-

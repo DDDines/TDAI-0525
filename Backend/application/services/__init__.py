@@ -56,11 +56,6 @@ from Backend.application.services.fornecedor_preview_service import (
     FornecedorPreviewService,
 )
 from Backend.application.services.file_processing_facade import FileProcessingFacade
-from Backend.application.services.file_processing_components import (
-    CatalogExtractionService,
-    CatalogPreviewService,
-    CatalogStorageService,
-)
 from Backend.application.services.ia_generation_facade import IAGenerationFacade
 from Backend.application.services.limit_service_facade import LimitServiceFacade
 from Backend.application.services.shadow_result_comparator import (
@@ -90,12 +85,6 @@ from Backend.application.services.web_data_extractor_facade import (
 )
 from Backend.application.services.validator_crew_facade import (
     ValidatorCrewFacade,
-)
-from Backend.application.services.web_data_extractor_components import (
-    WebContentService,
-    WebLLMService,
-    WebOCRService,
-    WebSearchService,
 )
 from Backend.application.services.generation_task_service import (
     GenerationTaskService,
@@ -143,9 +132,6 @@ __all__ = [
     "FornecedorManagementService",
     "FornecedorPreviewService",
     "CatalogImportTaskRunner",
-    "CatalogExtractionService",
-    "CatalogPreviewService",
-    "CatalogStorageService",
     "FileProcessingFacade",
     "GenerationTaskService",
     "GenerationSchedulingService",
@@ -156,10 +142,7 @@ __all__ = [
     "PipelineDispatcher",
     "ShadowResultComparator",
     "ValidatorCrewFacade",
-    "WebContentService",
     "WebDataExtractorFacade",
-    "WebLLMService",
-    "WebOCRService",
     "WebEnrichmentConfigInspector",
     "WebEnrichmentConfigSnapshot",
     "WebEnrichmentFinalizationService",
@@ -171,7 +154,6 @@ __all__ = [
     "WebEnrichmentPayloadService",
     "WebEnrichmentStartService",
     "WebEnrichmentTaskRunner",
-    "WebSearchService",
     "ServiceContainer",
     "service_container",
 ]

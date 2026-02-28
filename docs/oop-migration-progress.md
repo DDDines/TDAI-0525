@@ -3,7 +3,7 @@
 ## Visao geral
 
 A base esta funcional e testada, mas ainda em transicao. O objetivo agora e concluir a migracao para OOP completo no backend com compatibilidade de API durante a janela de transicao.
-No estado atual, a selecao de pipeline em runtime esta em modo OOP-only: `APP_MODE=legacy|shadow` e normalizado para `oop` com warning de compatibilidade.
+No estado atual, a selecao de pipeline em runtime esta em modo OOP-only: `APP_MODE=legacy|shadow` e normalizado para `oop` com warning de compatibilidade, e o default de configuracao ja e `APP_MODE=oop`.
 
 ## Checklist por dominio
 
@@ -72,6 +72,7 @@ No estado atual, a selecao de pipeline em runtime esta em modo OOP-only: `APP_MO
 - [x] Remover pipelines legados de orquestracao (`Backend/legacy/pipelines/`) sem referencias restantes em runtime/testes.
 - [x] Remover bridges de transicao em `Backend/infrastructure/legacy/`.
 - [x] Remover camada central de proxy legado (`Backend/core/deprecation.py`) e testes associados.
+- [x] Remover componentes de aplicacao que apenas encapsulavam modulo legado (`file_processing_components` e `web_data_extractor_components`).
 - [x] Atualizar documentacao final de arquitetura e matriz de conclusao.
 
 ## Criterios objetivos de fechamento

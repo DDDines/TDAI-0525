@@ -26,7 +26,7 @@ class _LegacyWebStub:
 
 def test_web_data_extractor_facade_delegates_sync_call():
     legacy = _LegacyWebStub()
-    facade = WebDataExtractorFacade(legacy_module=legacy)
+    facade = WebDataExtractorFacade(port=legacy)
 
     assert facade.busca_publica_disponivel() is True
     assert legacy.calls[0][0] == "busca_publica_disponivel"
@@ -35,7 +35,7 @@ def test_web_data_extractor_facade_delegates_sync_call():
 @pytest.mark.asyncio
 async def test_web_data_extractor_facade_delegates_async_call():
     legacy = _LegacyWebStub()
-    facade = WebDataExtractorFacade(legacy_module=legacy)
+    facade = WebDataExtractorFacade(port=legacy)
 
     result = await facade.buscar_urls_google(query="abc", num_results=3)
 
@@ -46,7 +46,7 @@ async def test_web_data_extractor_facade_delegates_async_call():
 
 def test_web_data_extractor_facade_normalizes_metadata_via_public_method():
     legacy = _LegacyWebStub()
-    facade = WebDataExtractorFacade(legacy_module=legacy)
+    facade = WebDataExtractorFacade(port=legacy)
 
     result = facade.normalizar_dados_de_metadados({"a": 1})
 

@@ -101,7 +101,7 @@ class Settings(BaseSettings):
         "t",
         "yes",
     )
-    APP_MODE: str = os.getenv("APP_MODE", "legacy")
+    APP_MODE: str = os.getenv("APP_MODE", "oop")
 
     ALLOW_USERS_TO_EDIT_GLOBAL_PRODUCT_TYPES: bool = Field(
         default=False,
