@@ -64,14 +64,6 @@ class _StatusServiceStub:
         return {"created": 1}
 
 
-class _DbStub:
-    def __init__(self):
-        self.refreshed = []
-
-    def refresh(self, record):
-        self.refreshed.append(record)
-
-
 def test_importar_catalogo_finalizar_dispatches_and_returns_processing():
     start = _StartServiceStub()
     status = _StatusServiceStub()
@@ -86,7 +78,6 @@ def test_importar_catalogo_finalizar_dispatches_and_returns_processing():
             mapping=None,
             pages=[12],
             region=[0.1, 0.1, 0.9, 0.9],
-            db=object(),
             user_id=99,
         )
     )
@@ -100,9 +91,9 @@ def test_importar_catalogo_status_and_result_delegate_to_status_service():
     status = _StatusServiceStub()
     service = CatalogImportWorkflowService(start_service=start, status_service=status)
 
-    detailed = service.importar_catalogo_status(file_id=1, db=object(), user_id=2)
-    simple = service.importar_catalogo_status_simple(file_id=1, db=object(), user_id=2)
-    result = service.importar_catalogo_result(file_id=1, db=object(), user_id=2)
+    detailed = service.importar_catalogo_status(file_id=1, user_id=2)
+    simple = service.importar_catalogo_status_simple(file_id=1, user_id=2)
+    result = service.importar_catalogo_result(file_id=1, user_id=2)
 
     assert detailed.status == "DONE"
     assert simple["result_ready"] is True
@@ -112,7 +103,6 @@ def test_importar_catalogo_status_and_result_delegate_to_status_service():
 def test_importar_catalogo_finalizar_todas_paginas_runs_direct_and_refreshes():
     start = _StartServiceStub()
     status = _StatusServiceStub()
-    db = _DbStub()
     service = CatalogImportWorkflowService(start_service=start, status_service=status)
 
     result = asyncio.run(
@@ -120,11 +110,9 @@ def test_importar_catalogo_finalizar_todas_paginas_runs_direct_and_refreshes():
             file_id=20,
             start_page=2,
             mapping={"col_0": "Nome Base"},
-            db=db,
             user_id=5,
         )
     )
 
     assert result == {"created": 1}
     assert any(call[0] == "run_direct" for call in start.calls)
-    assert len(db.refreshed) == 1

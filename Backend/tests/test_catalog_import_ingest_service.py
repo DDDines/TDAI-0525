@@ -147,7 +147,6 @@ def test_importar_catalogo_fornecedor_raises_when_mapping_json_invalid():
                 fornecedor_id=1,
                 file=_UploadFileStub(filename="catalogo.pdf"),
                 mapeamento_colunas_usuario="{nao-json}",
-                db=object(),
                 current_user=SimpleNamespace(id=10),
             )
         )
@@ -164,7 +163,6 @@ def test_importar_catalogo_fornecedor_raises_when_extension_not_supported():
                 fornecedor_id=1,
                 file=_UploadFileStub(filename="catalogo.txt"),
                 mapeamento_colunas_usuario=None,
-                db=object(),
                 current_user=SimpleNamespace(id=10),
             )
         )
@@ -193,7 +191,6 @@ def test_importar_catalogo_fornecedor_creates_products_and_logs():
             fornecedor_id=2,
             file=_UploadFileStub(filename="catalogo.pdf"),
             mapeamento_colunas_usuario=None,
-            db=object(),
             current_user=SimpleNamespace(id=99),
         )
     )

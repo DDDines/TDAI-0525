@@ -20,7 +20,7 @@ from fastapi import (
     status,
 )
 import pdfplumber
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, sessionmaker
 
 from Backend import models
 from Backend import schemas
@@ -302,7 +302,9 @@ class _ProdutosRouterRuntime:
     ):
         return await catalog_import_file_service.reprocess_catalog_file(
             background_tasks=background_tasks,
-            db=db,
+            catalog_file_repo=CatalogImportFileRepository(db),
+            fornecedor_repo=FornecedorRepository(db),
+            db_session_factory=sessionmaker(bind=db.get_bind()),
             file_id=file_id,
             user_id=user_id,
             product_type_id=product_type_id,
@@ -420,8 +422,11 @@ class _ProdutosRouterRuntime:
             fornecedor_id=fornecedor_id,
             file=file,
             mapeamento_colunas_usuario=mapeamento_colunas_usuario,
-            db=db,
             current_user=current_user,
+            fornecedor_repo=FornecedorRepository(db),
+            produto_repo=ProductRepository(db),
+            uso_ia_repo=RegistroUsoIARepository(db),
+            historico_repo=HistoricoRepository(db),
         )
 
     async def importar_catalogo_finalizar(
@@ -444,8 +449,10 @@ class _ProdutosRouterRuntime:
             mapping=mapping,
             pages=pages,
             region=region,
-            db=db,
             user_id=user_id,
+            catalog_file_repo=CatalogImportFileRepository(db),
+            fornecedor_repo=FornecedorRepository(db),
+            db_session_factory=sessionmaker(bind=db.get_bind()),
         )
 
     def importar_catalogo_status(self, file_id: int, db: Session, user_id: int):
@@ -481,8 +488,10 @@ class _ProdutosRouterRuntime:
             file_id=file_id,
             start_page=start_page,
             mapping=mapping,
-            db=db,
             user_id=user_id,
+            catalog_file_repo=CatalogImportFileRepository(db),
+            fornecedor_repo=FornecedorRepository(db),
+            db_session_factory=sessionmaker(bind=db.get_bind()),
         )
 
     async def selecionar_regiao(

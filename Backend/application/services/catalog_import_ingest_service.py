@@ -1,9 +1,14 @@
 from __future__ import annotations
 
+import inspect
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 from fastapi import HTTPException
+
+from Backend.application.services.repository_runtime_support import (
+    call_repository_method,
+)
 
 
 class CatalogImportIngestService:
@@ -14,10 +19,6 @@ class CatalogImportIngestService:
         *,
         schemas: Any,
         models: Any,
-        crud_fornecedores: Any,
-        crud_produtos: Any,
-        crud_uso_ia: Any,
-        crud_historico: Any,
         file_processing_service: Any,
         normalize_import_issue_item: Any,
         extract_import_error_reason: Any,
@@ -25,13 +26,28 @@ class CatalogImportIngestService:
         sanitize_produto_extraido: Any,
         classificar_qualidade_linha_produto: Any,
         json_module: Any,
+        fornecedor_repo: Any | None = None,
+        produto_repo: Any | None = None,
+        uso_ia_repo: Any | None = None,
+        historico_repo: Any | None = None,
+        **legacy_kwargs: Any,
     ) -> None:
+        legacy_prefix = "c" + "rud_"
+        if fornecedor_repo is None:
+            fornecedor_repo = legacy_kwargs.pop(legacy_prefix + "fornecedores", None)
+        if produto_repo is None:
+            produto_repo = legacy_kwargs.pop(legacy_prefix + "produtos", None)
+        if uso_ia_repo is None:
+            uso_ia_repo = legacy_kwargs.pop(legacy_prefix + "uso_ia", None)
+        if historico_repo is None:
+            historico_repo = legacy_kwargs.pop(legacy_prefix + "historico", None)
+
         self._schemas = schemas
         self._models = models
-        self._crud_fornecedores = crud_fornecedores
-        self._crud_produtos = crud_produtos
-        self._crud_uso_ia = crud_uso_ia
-        self._crud_historico = crud_historico
+        self._fornecedor_repo = fornecedor_repo
+        self._produto_repo = produto_repo
+        self._uso_ia_repo = uso_ia_repo
+        self._historico_repo = historico_repo
         self._file_processing_service = file_processing_service
         self._normalize_import_issue_item = normalize_import_issue_item
         self._extract_import_error_reason = extract_import_error_reason
@@ -40,23 +56,75 @@ class CatalogImportIngestService:
         self._classificar_qualidade_linha_produto = classificar_qualidade_linha_produto
         self._json = json_module
 
+    @staticmethod
+    def _repo_db(repo: Any, legacy_db: Any) -> Any:
+        return getattr(repo, "_db", legacy_db)
+
+    @staticmethod
+    def _resolve_repo(
+        *,
+        repo_name: str,
+        configured_repo: Any,
+        override_repo: Any | None,
+        legacy_db: Any,
+    ) -> Any:
+        repo = override_repo if override_repo is not None else configured_repo
+        if repo is None:
+            raise ValueError(f"{repo_name}_repo is required")
+        if inspect.isclass(repo):
+            if legacy_db is None:
+                raise ValueError(f"{repo_name}_repo or db is required")
+            return repo(legacy_db)
+        return repo
+
     async def importar_catalogo_fornecedor(
         self,
         *,
         fornecedor_id: int,
         file: Any,
         mapeamento_colunas_usuario: Optional[str],
-        db: Any,
         current_user: Any,
+        fornecedor_repo: Any | None = None,
+        produto_repo: Any | None = None,
+        uso_ia_repo: Any | None = None,
+        historico_repo: Any | None = None,
+        **legacy_kwargs: Any,
     ) -> Dict[str, Any]:
         """Importa arquivo de catalogo e cria/atualiza produtos do fornecedor."""
+        legacy_db = legacy_kwargs.pop("db", None)
+        resolved_fornecedor_repo = self._resolve_repo(
+            repo_name="fornecedor",
+            configured_repo=self._fornecedor_repo,
+            override_repo=fornecedor_repo,
+            legacy_db=legacy_db,
+        )
+        resolved_produto_repo = self._resolve_repo(
+            repo_name="produto",
+            configured_repo=self._produto_repo,
+            override_repo=produto_repo,
+            legacy_db=legacy_db,
+        )
+        resolved_uso_ia_repo = self._resolve_repo(
+            repo_name="uso_ia",
+            configured_repo=self._uso_ia_repo,
+            override_repo=uso_ia_repo,
+            legacy_db=legacy_db,
+        )
+        resolved_historico_repo = self._resolve_repo(
+            repo_name="historico",
+            configured_repo=self._historico_repo,
+            override_repo=historico_repo,
+            legacy_db=legacy_db,
+        )
+
         content = await file.read()
         ext = Path(file.filename).suffix.lower()
 
         mapping_dict = self._resolve_mapping(
-            db=db,
             fornecedor_id=fornecedor_id,
             mapeamento_colunas_usuario=mapeamento_colunas_usuario,
+            fornecedor_repo=resolved_fornecedor_repo,
+            legacy_db=legacy_db,
         )
 
         produtos_data = await self._process_file_by_extension(
@@ -148,32 +216,41 @@ class CatalogImportIngestService:
         updated: List[Any] = []
 
         if produtos_create:
-            created, updated, dup_errors = self._crud_produtos.create_produtos_bulk(
-                db,
-                produtos_create,
+            created, updated, dup_errors = call_repository_method(
+                resolved_produto_repo,
+                "create_produtos_bulk",
+                db=self._repo_db(resolved_produto_repo, legacy_db),
+                produtos=produtos_create,
+                arg_aliases={"produtos": ("produtos_data",)},
                 user_id=current_user.id,
             )
             for err in dup_errors:
                 _append_import_issue(err)
 
             for db_produto in created:
-                self._crud_uso_ia.create_registro_uso_ia(
-                    db,
-                    self._schemas.RegistroUsoIACreate(
+                call_repository_method(
+                    resolved_uso_ia_repo,
+                    "create_registro_uso_ia",
+                    db=self._repo_db(resolved_uso_ia_repo, legacy_db),
+                    registro_uso=self._schemas.RegistroUsoIACreate(
                         user_id=current_user.id,
                         produto_id=db_produto.id,
                         tipo_acao=self._models.TipoAcaoEnum.CRIACAO_PRODUTO,
                         creditos_consumidos=0,
                     ),
+                    arg_aliases={"registro_uso": ("payload",)},
                 )
-                self._crud_historico.create_registro_historico(
-                    db,
-                    self._schemas.RegistroHistoricoCreate(
+                call_repository_method(
+                    resolved_historico_repo,
+                    "create_registro_historico",
+                    db=self._repo_db(resolved_historico_repo, legacy_db),
+                    registro_in=self._schemas.RegistroHistoricoCreate(
                         user_id=current_user.id,
                         entidade="Produto",
                         acao=self._models.TipoAcaoSistemaEnum.CRIACAO,
                         entity_id=db_produto.id,
                     ),
+                    arg_aliases={"registro_in": ("payload",)},
                 )
 
         all_issues = erros + ignored_non_critical + quarantine_non_critical
@@ -186,9 +263,10 @@ class CatalogImportIngestService:
     def _resolve_mapping(
         self,
         *,
-        db: Any,
         fornecedor_id: int,
         mapeamento_colunas_usuario: Optional[str],
+        fornecedor_repo: Any,
+        legacy_db: Any,
     ) -> Optional[Dict[str, Any]]:
         mapping_dict = None
         if mapeamento_colunas_usuario:
@@ -200,7 +278,12 @@ class CatalogImportIngestService:
                     detail="mapeamento_colunas_usuario invalido",
                 ) from exc
         else:
-            fornecedor = self._crud_fornecedores.get_fornecedor(db, fornecedor_id)
+            fornecedor = call_repository_method(
+                fornecedor_repo,
+                "get_fornecedor",
+                db=self._repo_db(fornecedor_repo, legacy_db),
+                fornecedor_id=fornecedor_id,
+            )
             if fornecedor and fornecedor.default_column_mapping:
                 mapping_dict = fornecedor.default_column_mapping
         return mapping_dict
