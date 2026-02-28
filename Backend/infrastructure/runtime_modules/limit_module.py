@@ -195,51 +195,12 @@ _limit_runtime = _LimitRuntime(
     user_workflow=get_user_crud_workflow(),
     logger_factory=get_logger,
 )
-# Transitional compatibility attributes for legacy tests/patching.
-crud = _limit_runtime._uso_ia_workflow
-crud_users = _limit_runtime._user_workflow
 _limit_workflow = _LimitWorkflow(_limit_runtime)
 LimitWorkflow = _LimitWorkflow
 
 
 def get_limit_workflow() -> LimitWorkflow:
     return _limit_workflow
-
-
-def verificar_limite_uso(
-    db: Session,
-    user: models.User,
-    tipo_geracao_principal: str,
-) -> int:
-    return _limit_workflow.verificar_limite_uso(
-        db=db,
-        user=user,
-        tipo_geracao_principal=tipo_geracao_principal,
-    )
-
-
-async def verificar_creditos_disponiveis_geracao_ia(
-    db: Session,
-    user_id: int,
-    creditos_necessarios: int = 1,
-) -> bool:
-    return await _limit_workflow.verificar_creditos_disponiveis_geracao_ia(
-        db=db,
-        user_id=user_id,
-        creditos_necessarios=creditos_necessarios,
-    )
-
-
-async def verificar_e_consumir_creditos_geracao_ia(
-    db: Session,
-    user_id: int,
-    creditos_necessarios: int = 1,
-) -> bool:
-    return await _limit_workflow.verificar_e_consumir_creditos_geracao_ia(
-        db=db,
-        user_id=user_id,
-        creditos_necessarios=creditos_necessarios,
-    )
 
 
 

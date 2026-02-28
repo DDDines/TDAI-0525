@@ -200,12 +200,5 @@ def get_validation_crew_workflow() -> ValidationCrewWorkflow:
     return _validation_crew_workflow
 
 
-def run_validation_crew(raw_data: Any, timeout_seconds: int = 8):
-    return _validation_crew_workflow.run_validation_crew(
-        raw_data=raw_data,
-        timeout_seconds=timeout_seconds,
-    )
-
-
 
 

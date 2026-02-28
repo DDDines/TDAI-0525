@@ -86,7 +86,10 @@ def test_run_validation_crew_delegates_to_workflow(monkeypatch):
     monkeypatch.setattr(validator_crew, "_validation_crew_workflow", _WorkflowStub())
 
     payload = {"id": 10}
-    result = validator_crew.run_validation_crew(payload, timeout_seconds=5)
+    result = validator_crew.get_validation_crew_workflow().run_validation_crew(
+        payload,
+        timeout_seconds=5,
+    )
 
     assert result == {"ok": payload}
     assert captured == {"raw_data": payload, "timeout_seconds": 5}
