@@ -531,6 +531,11 @@ class _ProductTypeCrudRuntime:
 
 
 _product_type_workflow = _ProductTypeCrudWorkflow()
+ProductTypeCrudWorkflow = _ProductTypeCrudWorkflow
+
+
+def get_product_type_crud_workflow() -> ProductTypeCrudWorkflow:
+    return _product_type_workflow
 
 
 def create_product_type(

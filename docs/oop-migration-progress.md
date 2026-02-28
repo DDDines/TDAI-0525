@@ -15,6 +15,9 @@ O runtime opera em modo OOP-only (`APP_MODE=oop`) e a camada `Backend/services` 
 - [x] Regra: `Backend/application/services/**` nao pode definir `__getattr__` em adapters/facades.
 - [x] Regra: `Backend/application/services/**` nao pode chamar metodo privado de objeto externo (`obj._algo()`).
 - [x] Regra: codigo backend nao pode importar `Backend.services`.
+- [x] Regra: routers nao importam mais `Backend.application.services` (pacote raiz); apenas modulos explicitos.
+- [x] Regra: `data_access_service` nao pode chamar funcoes de modulo `crud_*` diretamente (delegacao obrigatoria por workflow OO).
+- [x] Regra: `Backend/application/services/__init__.py` sem imports eager/re-export (evita side effects e ciclos).
 
 ### Fase 1 - Onda File Processing
 
@@ -77,6 +80,8 @@ O runtime opera em modo OOP-only (`APP_MODE=oop`) e a camada `Backend/services` 
 - [x] Remover comparador `shadow_result_comparator` e hooks de gravacao `shadow_compare` dos task services OOP.
 - [x] Migrar implementacoes de runtime de `Backend/services/*` para `Backend/infrastructure/runtime_modules/*`.
 - [x] Runtime providers (`Backend/infrastructure/runtime/*`) desacoplados de `Backend.services`.
+- [x] `Backend/application/services/__init__.py` simplificado para pacote sem eager imports (imports explicitos por modulo).
+- [x] `DataAccessService` migrado para delegacao OO via workflows `crud_*` (sem uso de funcoes top-level de CRUD na camada).
 - [x] Atualizar documentacao final de arquitetura e matriz de conclusao.
 
 ## Criterios objetivos de fechamento

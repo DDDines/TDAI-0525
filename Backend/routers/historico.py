@@ -75,6 +75,11 @@ class _HistoricoWorkflow:
 
 _historico_runtime = _HistoricoRuntime()
 _historico_workflow = _HistoricoWorkflow(runtime=_historico_runtime)
+HistoricoWorkflow = _HistoricoWorkflow
+
+
+def get_historico_workflow() -> HistoricoWorkflow:
+    return _historico_workflow
 
 
 @router.get("/", response_model=schemas.HistoricoPage)

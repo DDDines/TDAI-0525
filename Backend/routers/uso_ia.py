@@ -168,6 +168,11 @@ class _UsoIARuntime:
 
 uso_ia_runtime = _UsoIARuntime()
 _uso_ia_workflow = _UsoIAWorkflow(runtime=uso_ia_runtime)
+UsoIAWorkflow = _UsoIAWorkflow
+
+
+def get_uso_ia_workflow() -> UsoIAWorkflow:
+    return _uso_ia_workflow
 
 
 @router.post("/", response_model=schemas.RegistroUsoIAResponse, status_code=status.HTTP_201_CREATED)

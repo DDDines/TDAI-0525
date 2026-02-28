@@ -88,6 +88,11 @@ class _TaskRuntime:
 
 
 _task_workflow = _TaskWorkflow()
+TaskWorkflow = _TaskWorkflow
+
+
+def get_task_workflow() -> TaskWorkflow:
+    return _task_workflow
 
 
 def process_pdf_extraction_task(import_job_id: int, page_number: int, db_url: str) -> None:

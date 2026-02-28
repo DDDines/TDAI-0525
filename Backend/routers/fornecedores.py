@@ -36,13 +36,25 @@ from Backend.application.services.fornecedor_management_service import (
 from Backend.application.services.fornecedor_preview_service import (
     FornecedorPreviewService,
 )
-from Backend.application.services import (
+from Backend.application.services.catalog_import_diagnostics_service import (
     CatalogImportDiagnosticsService,
+)
+from Backend.application.services.catalog_import_finalize_service import (
     CatalogImportFinalizeService,
+)
+from Backend.application.services.catalog_import_quality_service import (
     CatalogImportQualityService,
+)
+from Backend.application.services.catalog_import_sanitization_service import (
     CatalogImportSanitizationService,
+)
+from Backend.application.services.catalog_import_start_service import (
     CatalogImportStartService,
+)
+from Backend.application.services.catalog_import_task_runner import (
     CatalogImportTaskRunner,
+)
+from Backend.application.services.validator_crew_facade import (
     ValidatorCrewFacade,
 )
 from Backend.application.services.data_access_service import data_access_service
@@ -460,6 +472,11 @@ class _FornecedoresRouterRuntime:
 
 fornecedores_router_runtime = _FornecedoresRouterRuntime()
 fornecedores_router_workflow = _FornecedoresRouterWorkflow(runtime=fornecedores_router_runtime)
+FornecedoresRouterWorkflow = _FornecedoresRouterWorkflow
+
+
+def get_fornecedores_router_workflow() -> FornecedoresRouterWorkflow:
+    return fornecedores_router_workflow
 
 
 @router.post("/", response_model=schemas.FornecedorResponse, status_code=status.HTTP_201_CREATED)

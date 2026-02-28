@@ -599,6 +599,9 @@ class _WebEnrichmentTaskWorkflow:
                 db.close()
 
 
+WebEnrichmentTaskWorkflow = _WebEnrichmentTaskWorkflow
+
+
 async def run_web_enrichment_task(
     db_session_factory,
     produto_id: int,

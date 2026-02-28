@@ -14,12 +14,21 @@ import Backend.infrastructure.runtime_modules.web_data_extractor_module as web_e
 
 # Public symbol preferred by runtime-focused tests.
 processar_linha_padronizada = file_processing.processar_linha_padronizada
-_CatalogStorageWorkflow = file_processing._CatalogStorageWorkflow
-_LineMappingWorkflow = file_processing._LineMappingWorkflow
-_PdfJobWorkflow = file_processing._PdfJobWorkflow
-_TabularIngestionWorkflow = file_processing._TabularIngestionWorkflow
-_TabularPreviewWorkflow = file_processing._TabularPreviewWorkflow
-_WebExtractionEnrichmentWorkflow = web_extractor._WebExtractionEnrichmentWorkflow
+LineNormalizationRuntime = file_processing.LineNormalizationRuntime
+CatalogStorageWorkflow = file_processing.CatalogStorageWorkflow
+LineMappingWorkflow = file_processing.LineMappingWorkflow
+PdfJobWorkflow = file_processing.PdfJobWorkflow
+TabularIngestionWorkflow = file_processing.TabularIngestionWorkflow
+TabularPreviewWorkflow = file_processing.TabularPreviewWorkflow
+WebExtractionEnrichmentWorkflow = web_extractor.WebExtractionEnrichmentWorkflow
+
+# Transitional aliases for older tests.
+_CatalogStorageWorkflow = CatalogStorageWorkflow
+_LineMappingWorkflow = LineMappingWorkflow
+_PdfJobWorkflow = PdfJobWorkflow
+_TabularIngestionWorkflow = TabularIngestionWorkflow
+_TabularPreviewWorkflow = TabularPreviewWorkflow
+_WebExtractionEnrichmentWorkflow = WebExtractionEnrichmentWorkflow
 
 __all__ = [
     "file_processing",
@@ -28,6 +37,13 @@ __all__ = [
     "limit_service",
     "validator_crew",
     "processar_linha_padronizada",
+    "LineNormalizationRuntime",
+    "CatalogStorageWorkflow",
+    "LineMappingWorkflow",
+    "PdfJobWorkflow",
+    "TabularIngestionWorkflow",
+    "TabularPreviewWorkflow",
+    "WebExtractionEnrichmentWorkflow",
     "_CatalogStorageWorkflow",
     "_LineMappingWorkflow",
     "_PdfJobWorkflow",

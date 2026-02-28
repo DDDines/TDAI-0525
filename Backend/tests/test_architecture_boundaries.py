@@ -18,6 +18,8 @@ INFRASTRUCTURE_RUNTIME_SERVICES_ROOT = (
 INFRASTRUCTURE_RUNTIME_MODULES_ROOT = (
     PROJECT_ROOT / "Backend" / "infrastructure" / "runtime_modules"
 )
+BACKEND_TESTS_ROOT = PROJECT_ROOT / "Backend" / "tests"
+PROJECT_TESTS_ROOT = PROJECT_ROOT / "tests"
 
 
 def _iter_python_files(root: Path) -> Iterable[Path]:
@@ -251,6 +253,20 @@ def test_routers_do_not_import_backend_crud_modules_directly():
     )
 
 
+def test_routers_do_not_import_application_services_package_root():
+    offenders: list[str] = []
+    for path in _iter_python_files(ROUTERS_ROOT):
+        rel = path.relative_to(PROJECT_ROOT)
+        for target in _import_targets(path):
+            if target == "Backend.application.services":
+                offenders.append(f"{rel}: {target}")
+
+    assert not offenders, (
+        "Routers must import explicit service modules, not Backend.application.services package root:\n"
+        + "\n".join(offenders)
+    )
+
+
 def test_backend_crud_imports_are_constrained_to_runtime_and_data_access_layers():
     offenders: list[str] = []
 
@@ -292,5 +308,70 @@ def test_backend_crud_imports_are_constrained_to_runtime_and_data_access_layers(
 
     assert not offenders, (
         "Backend crud imports are only allowed in runtime_modules and data_access_service:\n"
+        + "\n".join(offenders)
+    )
+
+
+def test_data_access_service_uses_workflow_instances_for_crud_calls():
+    data_access_path = APPLICATION_SERVICES_ROOT / "data_access_service.py"
+    tree = _parse_python_file(data_access_path)
+    offenders: list[str] = []
+
+    for node in ast.walk(tree):
+        if not isinstance(node, ast.Call):
+            continue
+        if not isinstance(node.func, ast.Attribute):
+            continue
+        owner = node.func.value
+        if not isinstance(owner, ast.Name):
+            continue
+        if owner.id.startswith("crud") and owner.id != "crud":
+            offenders.append(f"{data_access_path.relative_to(PROJECT_ROOT)}:{node.lineno}")
+
+    assert not offenders, (
+        "data_access_service must delegate through workflow instances, "
+        "not module-level crud function calls:\n" + "\n".join(offenders)
+    )
+
+
+def test_application_services_package_init_has_no_eager_reexports():
+    init_path = APPLICATION_SERVICES_ROOT / "__init__.py"
+    tree = _parse_python_file(init_path)
+    offenders: list[str] = []
+
+    for node in ast.walk(tree):
+        if isinstance(node, (ast.Import, ast.ImportFrom)):
+            offenders.append(f"{init_path.relative_to(PROJECT_ROOT)}:{node.lineno}")
+
+    assert not offenders, (
+        "Backend.application.services.__init__ must not perform eager imports:\n"
+        + "\n".join(offenders)
+    )
+
+
+def test_tests_do_not_import_private_backend_symbols():
+    offenders: list[str] = []
+
+    for root in (BACKEND_TESTS_ROOT, PROJECT_TESTS_ROOT):
+        if not root.exists():
+            continue
+
+        for path in _iter_python_files(root):
+            rel = path.relative_to(PROJECT_ROOT)
+            tree = _parse_python_file(path)
+            for node in ast.walk(tree):
+                if not isinstance(node, ast.ImportFrom):
+                    continue
+                if node.level:
+                    continue
+                module = node.module or ""
+                if not module.startswith("Backend."):
+                    continue
+                for alias in node.names:
+                    if alias.name.startswith("_"):
+                        offenders.append(f"{rel}:{node.lineno} -> {module}.{alias.name}")
+
+    assert not offenders, (
+        "Tests must use public Backend symbols, not private names prefixed with '_':\n"
         + "\n".join(offenders)
     )

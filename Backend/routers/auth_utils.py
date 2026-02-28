@@ -70,6 +70,11 @@ class _AuthUtilsWorkflow:
 
 auth_utils_runtime = _AuthUtilsRuntime()
 auth_utils_workflow = _AuthUtilsWorkflow(runtime=auth_utils_runtime)
+AuthUtilsWorkflow = _AuthUtilsWorkflow
+
+
+def get_auth_utils_workflow() -> AuthUtilsWorkflow:
+    return auth_utils_workflow
 
 
 async def get_current_user(

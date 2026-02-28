@@ -161,6 +161,11 @@ class _PasswordRecoveryWorkflow:
 
 _password_recovery_runtime = _PasswordRecoveryRuntime()
 _password_recovery_workflow = _PasswordRecoveryWorkflow(runtime=_password_recovery_runtime)
+PasswordRecoveryWorkflow = _PasswordRecoveryWorkflow
+
+
+def get_password_recovery_workflow() -> PasswordRecoveryWorkflow:
+    return _password_recovery_workflow
 
 
 @router.post("/password-recovery/{email}", response_model=schemas.Msg)

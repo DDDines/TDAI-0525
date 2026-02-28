@@ -1364,6 +1364,23 @@ class _WebExtractionEnrichmentRuntime:
         return _normalizar_dados_de_metadados(metadata)
 
 
+WebExtractionEnrichmentWorkflow = _WebExtractionEnrichmentWorkflow
+
+
+def create_web_extraction_enrichment_workflow(
+    db: Session,
+    url: str,
+    produto: models.Produto,
+    runtime: Optional["_WebExtractionEnrichmentRuntime"] = None,
+) -> WebExtractionEnrichmentWorkflow:
+    return _WebExtractionEnrichmentWorkflow(
+        db=db,
+        url=url,
+        produto=produto,
+        runtime=runtime,
+    )
+
+
 class _WebURLExtractionEngineRuntime:
     """Engine runtime OO para enriquecimento de produto por URL."""
 
@@ -1767,6 +1784,14 @@ def normalizar_dados_de_metadados(metadata_bruta: Dict[str, Any]) -> Dict[str, A
     return _web_extraction_support_workflow.normalizar_dados_de_metadados(
         metadata_bruta
     )
+
+
+def normalizar_url_busca(candidata: str, base_url: str) -> Optional[str]:
+    return _normalizar_url_busca(candidata, base_url)
+
+
+def url_deve_ser_ignorada_antes_da_coleta(url: str) -> bool:
+    return _url_deve_ser_ignorada_antes_da_coleta(url)
 
 
 async def extrair_dados_produto_com_llm(

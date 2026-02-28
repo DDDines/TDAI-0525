@@ -437,6 +437,11 @@ class _ProductTypesRouterRuntime:
 
 product_types_router_runtime = _ProductTypesRouterRuntime()
 product_types_router_workflow = _ProductTypesRouterWorkflow(runtime=product_types_router_runtime)
+ProductTypesRouterWorkflow = _ProductTypesRouterWorkflow
+
+
+def get_product_types_router_workflow() -> ProductTypesRouterWorkflow:
+    return product_types_router_workflow
 
 
 @router.post("/", response_model=schemas.ProductTypeResponse, status_code=status.HTTP_201_CREATED)

@@ -231,6 +231,11 @@ class _GenerationRouterRuntime:
 
 generation_router_runtime = _GenerationRouterRuntime()
 generation_router_workflow = _GenerationRouterWorkflow(runtime=generation_router_runtime)
+GenerationRouterWorkflow = _GenerationRouterWorkflow
+
+
+def get_generation_router_workflow() -> GenerationRouterWorkflow:
+    return generation_router_workflow
 
 
 async def _tarefa_processar_geracao_e_registrar_uso(

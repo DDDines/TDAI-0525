@@ -176,6 +176,13 @@ class _EmailRuntime:
 
 email_runtime = _EmailRuntime()
 email_workflow = _EmailWorkflow(runtime=email_runtime)
+EmailWorkflow = _EmailWorkflow
+
+
+def get_email_workflow() -> EmailWorkflow:
+    return email_workflow
+
+
 conf = email_workflow.conf
 
 

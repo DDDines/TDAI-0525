@@ -220,6 +220,11 @@ class _RegistroUsoIACrudRuntime:
 
 
 _registro_uso_ia_workflow = _RegistroUsoIACrudWorkflow()
+RegistroUsoIACrudWorkflow = _RegistroUsoIACrudWorkflow
+
+
+def get_registro_uso_ia_crud_workflow() -> RegistroUsoIACrudWorkflow:
+    return _registro_uso_ia_workflow
 
 
 def create_registro_uso_ia(

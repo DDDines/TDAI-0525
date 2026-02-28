@@ -5,7 +5,7 @@ from types import SimpleNamespace
 import pytest
 from fastapi import BackgroundTasks
 
-from Backend.routers.web_enrichment import _WebEnrichmentRouterWorkflow
+from Backend.routers.web_enrichment import WebEnrichmentRouterWorkflow
 
 
 @pytest.mark.asyncio
@@ -22,7 +22,7 @@ async def test_workflow_delega_execucao_task_para_runtime():
         def dispatch_start(self, **kwargs):
             called.append(("dispatch", kwargs))
 
-    workflow = _WebEnrichmentRouterWorkflow(runtime=FakeRuntime())
+    workflow = WebEnrichmentRouterWorkflow(runtime=FakeRuntime())
 
     await workflow.tarefa_enriquecer_produto_web(
         db_session_factory="db_factory",
@@ -50,7 +50,7 @@ def test_workflow_iniciar_enriquecimento_usa_validacao_e_dispatch_do_runtime():
         def dispatch_start(self, **kwargs):
             called.append(("dispatch", kwargs))
 
-    workflow = _WebEnrichmentRouterWorkflow(runtime=FakeRuntime())
+    workflow = WebEnrichmentRouterWorkflow(runtime=FakeRuntime())
     user = SimpleNamespace(id=99)
     background_tasks = BackgroundTasks()
 

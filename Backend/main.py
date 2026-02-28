@@ -425,6 +425,11 @@ class _MainBootstrapRuntime:
 
 
 main_bootstrap_workflow = _MainBootstrapWorkflow()
+MainBootstrapWorkflow = _MainBootstrapWorkflow
+
+
+def get_main_bootstrap_workflow() -> MainBootstrapWorkflow:
+    return main_bootstrap_workflow
 
 
 @asynccontextmanager

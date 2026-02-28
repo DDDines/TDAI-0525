@@ -8,18 +8,18 @@ import pytest
 from fastapi import HTTPException
 
 from Backend import schemas
-from Backend.main import _MainBootstrapWorkflow
-from Backend.routers.admin_analytics import _AdminAnalyticsRouterWorkflow
-from Backend.routers.auth_utils import _AuthUtilsWorkflow
-from Backend.routers.fornecedores import _FornecedoresRouterWorkflow
-from Backend.routers.generation import _GenerationRouterWorkflow
-from Backend.routers.historico import _HistoricoWorkflow
-from Backend.routers.password_recovery import _PasswordRecoveryWorkflow
-from Backend.routers.product_types import _ProductTypesRouterWorkflow
-from Backend.routers.produtos import _ProdutosRouterWorkflow
-from Backend.routers.search import _SearchWorkflow
-from Backend.routers.social_auth import _SocialAuthRouterWorkflow
-from Backend.routers.uso_ia import _UsoIAWorkflow
+from Backend.main import MainBootstrapWorkflow
+from Backend.routers.admin_analytics import AdminAnalyticsRouterWorkflow
+from Backend.routers.auth_utils import AuthUtilsWorkflow
+from Backend.routers.fornecedores import FornecedoresRouterWorkflow
+from Backend.routers.generation import GenerationRouterWorkflow
+from Backend.routers.historico import HistoricoWorkflow
+from Backend.routers.password_recovery import PasswordRecoveryWorkflow
+from Backend.routers.product_types import ProductTypesRouterWorkflow
+from Backend.routers.produtos import ProdutosRouterWorkflow
+from Backend.routers.search import SearchWorkflow
+from Backend.routers.social_auth import SocialAuthRouterWorkflow
+from Backend.routers.uso_ia import UsoIAWorkflow
 
 
 @pytest.mark.asyncio
@@ -35,7 +35,7 @@ async def test_auth_workflow_get_current_user_usa_runtime_injetado():
             called.append(("get_user", db, user_id))
             return SimpleNamespace(id=user_id, is_active=True, is_superuser=False)
 
-    workflow = _AuthUtilsWorkflow(runtime=FakeRuntime())
+    workflow = AuthUtilsWorkflow(runtime=FakeRuntime())
     user = await workflow.get_current_user(request=object(), db="db", token="abc")
 
     assert user.id == 123
@@ -52,7 +52,7 @@ async def test_auth_workflow_get_current_user_lanca_401_quando_payload_invalido(
         def get_user(self, db, user_id):
             return None
 
-    workflow = _AuthUtilsWorkflow(runtime=FakeRuntime())
+    workflow = AuthUtilsWorkflow(runtime=FakeRuntime())
 
     with pytest.raises(HTTPException) as exc_info:
         await workflow.get_current_user(request=object(), db="db", token="abc")
@@ -76,7 +76,7 @@ def test_historico_workflow_lista_historico_com_runtime_injetado():
             called.append(("tipos",))
             return ["CRIACAO", "ATUALIZACAO"]
 
-    workflow = _HistoricoWorkflow(runtime=FakeRuntime())
+    workflow = HistoricoWorkflow(runtime=FakeRuntime())
     current_user = SimpleNamespace(id=77, is_superuser=False)
 
     page = workflow.list_historico(db="db", current_user=current_user, skip=10, limit=10)
@@ -99,7 +99,7 @@ def test_historico_workflow_get_tipos_acao_delega_runtime():
         def get_tipos_acao(self):
             return ["CRIACAO", "DELECAO"]
 
-    workflow = _HistoricoWorkflow(runtime=FakeRuntime())
+    workflow = HistoricoWorkflow(runtime=FakeRuntime())
     assert workflow.get_tipos_acao() == ["CRIACAO", "DELECAO"]
 
 
@@ -111,7 +111,7 @@ def test_search_workflow_delega_runtime_injetado():
             called.append(kwargs)
             return {"ok": True}
 
-    workflow = _SearchWorkflow(runtime=FakeRuntime())
+    workflow = SearchWorkflow(runtime=FakeRuntime())
     result = workflow.search_all(
         db="db",
         current_user=SimpleNamespace(id=1),
@@ -157,7 +157,7 @@ async def test_password_recovery_workflow_recover_delega_runtime():
         def get_password_hash(self, raw_password):
             return f"hashed:{raw_password}"
 
-    workflow = _PasswordRecoveryWorkflow(runtime=FakeRuntime())
+    workflow = PasswordRecoveryWorkflow(runtime=FakeRuntime())
     response = await workflow.recover_password(db="db", email="user@test.com", request=object())
 
     assert response.msg == "Email de recuperacao de senha enviado com sucesso."
@@ -209,7 +209,7 @@ def test_password_recovery_workflow_reset_password_delega_runtime_e_commit():
         async def send_password_reset_email(self, **kwargs):
             return None
 
-    workflow = _PasswordRecoveryWorkflow(runtime=FakeRuntime())
+    workflow = PasswordRecoveryWorkflow(runtime=FakeRuntime())
     db = FakeDb()
     reset_data = schemas.PasswordResetSchema(token="abc", new_password="NovaSenha123!")
 
@@ -224,7 +224,7 @@ def test_social_auth_workflow_social_login_config_delega_runtime():
         def has_client(self, provider):
             return provider == "google"
 
-    workflow = _SocialAuthRouterWorkflow(runtime=FakeRuntime())
+    workflow = SocialAuthRouterWorkflow(runtime=FakeRuntime())
     config = workflow.social_login_config()
 
     assert config.google_enabled is True
@@ -269,7 +269,7 @@ async def test_social_auth_workflow_google_callback_delega_runtime_e_retorna_tok
         async def process_facebook_login(self, db, userinfo):
             return None
 
-    workflow = _SocialAuthRouterWorkflow(runtime=FakeRuntime())
+    workflow = SocialAuthRouterWorkflow(runtime=FakeRuntime())
     token = await workflow.google_callback(request=object(), db="db")
 
     assert token.access_token == "access.jwt"
@@ -302,7 +302,7 @@ async def test_generation_workflow_tarefa_processar_delega_runtime():
             called.append(("sugerir_valores_atributos_com_gemini", kwargs))
             return {"ok": True}
 
-    workflow = _GenerationRouterWorkflow(runtime=FakeRuntime())
+    workflow = GenerationRouterWorkflow(runtime=FakeRuntime())
 
     await workflow.tarefa_processar_geracao_e_registrar_uso(
         db_session_factory="db_factory",
@@ -339,7 +339,7 @@ def test_generation_workflow_agendar_openai_titulos_delega_validacao_e_enqueue()
             called.append(("sugerir_valores_atributos_com_gemini", kwargs))
             return {"ok": True}
 
-    workflow = _GenerationRouterWorkflow(runtime=FakeRuntime())
+    workflow = GenerationRouterWorkflow(runtime=FakeRuntime())
     user = SimpleNamespace(id=4)
 
     response = workflow.agendar_geracao_novos_titulos_openai(
@@ -376,7 +376,7 @@ async def test_generation_workflow_sugerir_atributos_delega_runtime():
         async def sugerir_valores_atributos_com_gemini(self, **kwargs):
             return {"ok": True, "produto_id": kwargs["produto_id"]}
 
-    workflow = _GenerationRouterWorkflow(runtime=FakeRuntime())
+    workflow = GenerationRouterWorkflow(runtime=FakeRuntime())
     result = await workflow.sugerir_atributos_para_produto_com_gemini(
         produto_id=31,
         db="db",
@@ -401,7 +401,7 @@ def test_admin_analytics_workflow_uso_ia_por_plano_delega_runtime():
             called.append(("count_uso_ia_for_plano", kwargs))
             return 7 if kwargs["plano_id"] == 1 else 3
 
-    workflow = _AdminAnalyticsRouterWorkflow(runtime=FakeRuntime())
+    workflow = AdminAnalyticsRouterWorkflow(runtime=FakeRuntime())
     result = workflow.get_uso_ia_por_plano(db="db")
 
     assert len(result) == 2
@@ -417,7 +417,7 @@ async def test_fornecedores_workflow_preview_pages_delega_runtime():
         async def preview_pages(self, **kwargs):
             return {"ok": True, "file": kwargs["file"]}
 
-    workflow = _FornecedoresRouterWorkflow(runtime=FakeRuntime())
+    workflow = FornecedoresRouterWorkflow(runtime=FakeRuntime())
     response = await workflow.preview_pages(file="arquivo.pdf")
 
     assert response == {"ok": True, "file": "arquivo.pdf"}
@@ -431,7 +431,7 @@ def test_product_types_workflow_read_product_types_delega_runtime():
             called.append(kwargs)
             return [SimpleNamespace(id=1, key_name="auto")]
 
-    workflow = _ProductTypesRouterWorkflow(runtime=FakeRuntime())
+    workflow = ProductTypesRouterWorkflow(runtime=FakeRuntime())
     user = SimpleNamespace(id=9)
     result = workflow.read_product_types(db="db", current_user=user, skip=5, limit=20)
 
@@ -449,7 +449,7 @@ def test_uso_ia_workflow_create_delega_runtime_e_define_user_id():
             called.append(kwargs)
             return {"id": 123}
 
-    workflow = _UsoIAWorkflow(runtime=FakeRuntime())
+    workflow = UsoIAWorkflow(runtime=FakeRuntime())
     payload = schemas.RegistroUsoIACreate(
         user_id=0,
         produto_id=11,
@@ -487,7 +487,7 @@ def test_main_bootstrap_workflow_delega_metodos_sync_para_runtime():
         async def startup_event_create_defaults(self):
             called.append("startup_event_create_defaults")
 
-    workflow = _MainBootstrapWorkflow(runtime=FakeRuntime())
+    workflow = MainBootstrapWorkflow(runtime=FakeRuntime())
     user_payload = SimpleNamespace(email="user@test.com")
 
     assert workflow.build_allowed_origins() == ["http://fake.local"]
@@ -515,7 +515,7 @@ async def test_main_bootstrap_workflow_delega_metodo_async_para_runtime():
         async def startup_event_create_defaults(self):
             called.append("startup")
 
-    workflow = _MainBootstrapWorkflow(runtime=FakeRuntime())
+    workflow = MainBootstrapWorkflow(runtime=FakeRuntime())
     await workflow.startup_event_create_defaults()
     assert called == ["startup"]
 
@@ -532,7 +532,7 @@ def test_produtos_workflow_runtime_override_delega_metodos_injetados():
             called.append(("list_produtos", kwargs))
             return {"source": "runtime", "op": "list"}
 
-    workflow = _ProdutosRouterWorkflow(runtime=FakeRuntime())
+    workflow = ProdutosRouterWorkflow(runtime=FakeRuntime())
 
     created = workflow.create_produto(
         produto=SimpleNamespace(nome_base="x"),
@@ -569,7 +569,7 @@ def test_produtos_workflow_runtime_parcial_preserva_fallback_nativo():
             called.append(kwargs)
             return {"ok": True}
 
-    workflow = _ProdutosRouterWorkflow(runtime=FakeRuntime())
+    workflow = ProdutosRouterWorkflow(runtime=FakeRuntime())
     created = workflow.create_produto(
         produto=SimpleNamespace(nome_base="Teste"),
         db="db",
@@ -585,7 +585,7 @@ def test_produtos_workflow_runtime_parcial_preserva_fallback_nativo():
             fallback_called.append(kwargs)
             return {"fallback": True}
 
-    workflow._default_runtime = FakeDefaultRuntime()
+    workflow.set_default_runtime(FakeDefaultRuntime())
     response = workflow.list_catalog_import_files(
         db="db",
         user_id=7,

@@ -108,6 +108,11 @@ class _SecurityRuntime:
 
 security_runtime = _SecurityRuntime()
 _security_workflow = _SecurityWorkflow(runtime=security_runtime)
+SecurityWorkflow = _SecurityWorkflow
+
+
+def get_security_workflow() -> SecurityWorkflow:
+    return _security_workflow
 
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:

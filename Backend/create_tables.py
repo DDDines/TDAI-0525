@@ -48,6 +48,11 @@ class _CreateTablesRuntime:
 
 
 _create_tables_workflow = _CreateTablesWorkflow()
+CreateTablesWorkflow = _CreateTablesWorkflow
+
+
+def get_create_tables_workflow() -> CreateTablesWorkflow:
+    return _create_tables_workflow
 
 
 def create_all_tables():

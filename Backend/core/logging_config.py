@@ -21,6 +21,11 @@ class _LoggingRuntime:
 
 logging_runtime = _LoggingRuntime()
 _logging_workflow = _LoggingWorkflow(runtime=logging_runtime)
+LoggingWorkflow = _LoggingWorkflow
+
+
+def get_logging_workflow() -> LoggingWorkflow:
+    return _logging_workflow
 
 
 def get_logger(name: str) -> logging.Logger:

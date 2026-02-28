@@ -9,12 +9,22 @@ from sqlalchemy.exc import SQLAlchemyError
 from Backend import models
 from Backend import schemas
 from Backend.application.contracts.pipeline_commands import WebEnrichmentStartCommand
-from Backend.application.services import (
+from Backend.application.services.web_enrichment_content_quality_service import (
     WebEnrichmentContentQualityService,
+)
+from Backend.application.services.web_enrichment_normalization_service import (
     WebEnrichmentNormalizationService,
+)
+from Backend.application.services.web_enrichment_payload_service import (
     WebEnrichmentPayloadService,
+)
+from Backend.application.services.web_enrichment_relevance_service import (
     WebEnrichmentRelevanceService,
+)
+from Backend.application.services.web_enrichment_start_service import (
     WebEnrichmentStartService,
+)
+from Backend.application.services.web_enrichment_task_runner import (
     WebEnrichmentTaskRunner,
 )
 from Backend.application.services.data_access_service import data_access_service
@@ -99,6 +109,39 @@ def _build_payload_enriquecimento_visivel(
     dados_extraidos_agregados: Dict[str, Any],
 ) -> Tuple[Dict[str, Any], List[str], List[str]]:
     return web_payload_service.build_payload_enriquecimento_visivel(
+        db_produto_obj,
+        dados_extraidos_agregados,
+    )
+
+
+def is_source_relevant_for_product(
+    db_produto_obj: models.Produto,
+    *,
+    source_name: Any,
+    source_desc: Any,
+    source_url: str,
+) -> bool:
+    return _is_source_relevant_for_product(
+        db_produto_obj,
+        source_name=source_name,
+        source_desc=source_desc,
+        source_url=source_url,
+    )
+
+
+def is_meaningful_extracted_text(value: Any) -> bool:
+    return _is_meaningful_extracted_text(value)
+
+
+def metadata_has_minimum_signal(metadata: Dict[str, Any]) -> bool:
+    return _metadata_has_minimum_signal(metadata)
+
+
+def build_payload_enriquecimento_visivel(
+    db_produto_obj: models.Produto,
+    dados_extraidos_agregados: Dict[str, Any],
+) -> Tuple[Dict[str, Any], List[str], List[str]]:
+    return _build_payload_enriquecimento_visivel(
         db_produto_obj,
         dados_extraidos_agregados,
     )
@@ -226,6 +269,11 @@ web_enrichment_router_runtime = _WebEnrichmentRouterRuntime()
 web_enrichment_router_workflow = _WebEnrichmentRouterWorkflow(
     runtime=web_enrichment_router_runtime
 )
+WebEnrichmentRouterWorkflow = _WebEnrichmentRouterWorkflow
+
+
+def get_web_enrichment_router_workflow() -> WebEnrichmentRouterWorkflow:
+    return web_enrichment_router_workflow
 
 
 async def _tarefa_enriquecer_produto_web(

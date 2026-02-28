@@ -140,6 +140,11 @@ class _SocialAuthRouterWorkflow:
 
 social_auth_router_runtime = _SocialAuthRouterRuntime()
 social_auth_router_workflow = _SocialAuthRouterWorkflow(runtime=social_auth_router_runtime)
+SocialAuthRouterWorkflow = _SocialAuthRouterWorkflow
+
+
+def get_social_auth_router_workflow() -> SocialAuthRouterWorkflow:
+    return social_auth_router_workflow
 
 
 @router.get("/social/config", response_model=schemas.SocialLoginConfig)

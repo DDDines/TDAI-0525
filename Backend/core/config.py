@@ -221,6 +221,13 @@ class _ConfigRuntime:
 
 config_runtime = _ConfigRuntime()
 _config_workflow = _ConfigWorkflow(runtime=config_runtime)
+ConfigWorkflow = _ConfigWorkflow
+
+
+def get_config_workflow() -> ConfigWorkflow:
+    return _config_workflow
+
+
 settings = _config_workflow.build_settings()
 
 

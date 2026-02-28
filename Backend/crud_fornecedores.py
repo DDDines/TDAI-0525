@@ -247,6 +247,11 @@ class _FornecedorCrudRuntime:
 
 
 _fornecedor_crud_workflow = _FornecedorCrudWorkflow()
+FornecedorCrudWorkflow = _FornecedorCrudWorkflow
+
+
+def get_fornecedor_crud_workflow() -> FornecedorCrudWorkflow:
+    return _fornecedor_crud_workflow
 
 
 def create_fornecedor(

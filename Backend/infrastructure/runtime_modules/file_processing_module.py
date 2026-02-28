@@ -401,6 +401,11 @@ class _LineNormalizationRuntime:
 
 
 _line_normalization_runtime = _LineNormalizationRuntime()
+LineNormalizationRuntime = _LineNormalizationRuntime
+
+
+def get_line_normalization_runtime() -> LineNormalizationRuntime:
+    return _line_normalization_runtime
 
 
 def _limpar_valor_extraido(valor: Any) -> Optional[str]:
@@ -690,6 +695,11 @@ class _LineMappingRuntime:
 
 
 _line_mapping_workflow = _LineMappingWorkflow()
+LineMappingWorkflow = _LineMappingWorkflow
+
+
+def get_line_mapping_workflow() -> LineMappingWorkflow:
+    return _line_mapping_workflow
 
 
 def _processar_linha_padronizada(
@@ -2796,6 +2806,11 @@ class _CatalogStorageRuntime:
 
 
 _catalog_storage_workflow = _CatalogStorageWorkflow()
+CatalogStorageWorkflow = _CatalogStorageWorkflow
+
+
+def get_catalog_storage_workflow() -> CatalogStorageWorkflow:
+    return _catalog_storage_workflow
 
 
 async def save_uploaded_catalog(
@@ -2877,6 +2892,11 @@ class _TabularIngestionRuntime:
 
 
 _tabular_ingestion_workflow = _TabularIngestionWorkflow()
+TabularIngestionWorkflow = _TabularIngestionWorkflow
+
+
+def get_tabular_ingestion_workflow() -> TabularIngestionWorkflow:
+    return _tabular_ingestion_workflow
 
 
 async def processar_arquivo_excel(
@@ -2951,6 +2971,11 @@ class _TabularPreviewRuntime:
 
 
 _tabular_preview_workflow = _TabularPreviewWorkflow()
+TabularPreviewWorkflow = _TabularPreviewWorkflow
+
+
+def get_tabular_preview_workflow() -> TabularPreviewWorkflow:
+    return _tabular_preview_workflow
 
 
 async def preview_arquivo_excel(
@@ -3378,6 +3403,11 @@ class _PdfJobRuntime:
 
 
 _pdf_job_workflow = _PdfJobWorkflow()
+PdfJobWorkflow = _PdfJobWorkflow
+
+
+def get_pdf_job_workflow() -> PdfJobWorkflow:
+    return _pdf_job_workflow
 
 
 async def process_pdf_job(

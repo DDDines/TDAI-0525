@@ -2,7 +2,7 @@ from Backend.testing.runtime_apis import file_processing
 
 
 def test_line_runtime_normaliza_mapeamento_invertido():
-    runtime = file_processing._LineNormalizationRuntime()
+    runtime = file_processing.LineNormalizationRuntime()
 
     result = runtime.normalizar_mapeamento_usuario(
         {
@@ -21,7 +21,7 @@ def test_line_runtime_normaliza_mapeamento_invertido():
 
 
 def test_line_runtime_coerce_region_bbox_normalizado():
-    runtime = file_processing._LineNormalizationRuntime()
+    runtime = file_processing.LineNormalizationRuntime()
 
     bbox, mode = runtime.coerce_region_bbox([0.1, 0.2, 0.9, 0.8], 1000.0, 500.0)
 
@@ -30,7 +30,7 @@ def test_line_runtime_coerce_region_bbox_normalizado():
 
 
 def test_line_runtime_split_sku_nome_auto_coluna_combinada():
-    runtime = file_processing._LineNormalizationRuntime()
+    runtime = file_processing.LineNormalizationRuntime()
 
     sku, nome = runtime.split_sku_nome_auto("1816D 943 666 39 01 Paralama/Estribo")
 
@@ -39,7 +39,7 @@ def test_line_runtime_split_sku_nome_auto_coluna_combinada():
 
 
 def test_line_runtime_limpeza_e_conteudo_util():
-    runtime = file_processing._LineNormalizationRuntime()
+    runtime = file_processing.LineNormalizationRuntime()
 
     assert runtime.limpar_valor_extraido("  #N/A  ") is None
     assert runtime.limpar_valor_extraido("  Valor X  ") == "Valor X"
@@ -47,7 +47,7 @@ def test_line_runtime_limpeza_e_conteudo_util():
     assert runtime.valor_tem_conteudo_util("SMC")
 
 def test_line_mapping_workflow_processa_coluna_auto_sku_nome():
-    workflow = file_processing._LineMappingWorkflow()
+    workflow = file_processing.LineMappingWorkflow()
 
     result = workflow.processar_linha_padronizada(
         {"col_0": "1816D 943 666 39 01 Paralama/Estribo", "col_1": "SMC"},
@@ -61,7 +61,7 @@ def test_line_mapping_workflow_processa_coluna_auto_sku_nome():
 
 
 def test_line_mapping_workflow_descarta_linha_sem_nome_e_sku_com_mapping_explicito():
-    workflow = file_processing._LineMappingWorkflow()
+    workflow = file_processing.LineMappingWorkflow()
 
     result = workflow.processar_linha_padronizada(
         {"col_0": "", "col_1": None},

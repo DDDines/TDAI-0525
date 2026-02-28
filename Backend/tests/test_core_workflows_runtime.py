@@ -4,11 +4,11 @@ from types import SimpleNamespace
 
 import pytest
 
-from Backend.core.app_mode import AppMode, _AppModeWorkflow
-from Backend.core.config import _ConfigWorkflow
-from Backend.core.email_utils import _EmailWorkflow
-from Backend.core.logging_config import _LoggingWorkflow
-from Backend.core.security import TokenPayload, _SecurityWorkflow
+from Backend.core.app_mode import AppMode, AppModeWorkflow
+from Backend.core.config import ConfigWorkflow
+from Backend.core.email_utils import EmailWorkflow
+from Backend.core.logging_config import LoggingWorkflow
+from Backend.core.security import TokenPayload, SecurityWorkflow
 
 
 def test_app_mode_workflow_runtime_injection():
@@ -16,7 +16,7 @@ def test_app_mode_workflow_runtime_injection():
         def get_app_mode(self):
             return AppMode.OOP
 
-    workflow = _AppModeWorkflow(runtime=FakeRuntime())
+    workflow = AppModeWorkflow(runtime=FakeRuntime())
 
     assert workflow.get_app_mode() == AppMode.OOP
 
@@ -26,7 +26,7 @@ def test_config_workflow_runtime_injection():
         def build_settings(self):
             return SimpleNamespace(APP_MODE="test")
 
-    workflow = _ConfigWorkflow(runtime=FakeRuntime())
+    workflow = ConfigWorkflow(runtime=FakeRuntime())
     settings_obj = workflow.build_settings()
 
     assert settings_obj.APP_MODE == "test"
@@ -37,7 +37,7 @@ def test_logging_workflow_runtime_injection():
         def get_logger(self, **kwargs):
             return f"logger:{kwargs['name']}"
 
-    workflow = _LoggingWorkflow(runtime=FakeRuntime())
+    workflow = LoggingWorkflow(runtime=FakeRuntime())
     assert workflow.get_logger("core.test") == "logger:core.test"
 
 
@@ -58,7 +58,7 @@ def test_security_workflow_runtime_injection():
         def decode_token(self, **kwargs):
             return TokenPayload(sub="decoded", user_id=7)
 
-    workflow = _SecurityWorkflow(runtime=FakeRuntime())
+    workflow = SecurityWorkflow(runtime=FakeRuntime())
 
     assert workflow.verify_password("ok", "ignored") is True
     assert workflow.get_password_hash("senha") == "hash:senha"
@@ -85,7 +85,7 @@ async def test_email_workflow_runtime_injection_sem_config():
         def current_year(self):
             return 2030
 
-    workflow = _EmailWorkflow(runtime=FakeRuntime())
+    workflow = EmailWorkflow(runtime=FakeRuntime())
 
     await workflow.send_email(
         email_to="teste@example.com",

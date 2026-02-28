@@ -275,6 +275,11 @@ admin_analytics_router_runtime = _AdminAnalyticsRouterRuntime()
 admin_analytics_router_workflow = _AdminAnalyticsRouterWorkflow(
     runtime=admin_analytics_router_runtime
 )
+AdminAnalyticsRouterWorkflow = _AdminAnalyticsRouterWorkflow
+
+
+def get_admin_analytics_router_workflow() -> AdminAnalyticsRouterWorkflow:
+    return admin_analytics_router_workflow
 
 
 async def get_current_active_admin_user(

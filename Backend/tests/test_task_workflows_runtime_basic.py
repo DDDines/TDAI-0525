@@ -4,10 +4,10 @@ from pathlib import Path
 from types import SimpleNamespace
 
 from Backend.application.services.catalog_import_task_service import (
-    _CatalogImportTaskWorkflow,
+    CatalogImportTaskWorkflow,
 )
 from Backend.application.services.web_enrichment_task_service import (
-    _WebEnrichmentTaskWorkflow,
+    WebEnrichmentTaskWorkflow,
 )
 
 
@@ -15,7 +15,7 @@ def test_catalog_import_task_workflow_aplica_runtime_override():
     def normalize_issue(item):
         return item
 
-    workflow = _CatalogImportTaskWorkflow(
+    workflow = CatalogImportTaskWorkflow(
         logger="default_logger",
         catalog_logger="default_catalog_logger",
         models=SimpleNamespace(CatalogImportFile=object),
@@ -50,7 +50,7 @@ def test_catalog_import_task_workflow_aplica_runtime_override():
 
 
 def test_web_enrichment_task_workflow_aplica_runtime_override():
-    workflow = _WebEnrichmentTaskWorkflow(
+    workflow = WebEnrichmentTaskWorkflow(
         logger="default_logger",
         SQLAlchemyError=Exception,
         crud_users=SimpleNamespace(),

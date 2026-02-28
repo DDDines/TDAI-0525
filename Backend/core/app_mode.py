@@ -27,6 +27,11 @@ class _AppModeRuntime:
 
 app_mode_runtime = _AppModeRuntime()
 _app_mode_workflow = _AppModeWorkflow(runtime=app_mode_runtime)
+AppModeWorkflow = _AppModeWorkflow
+
+
+def get_app_mode_workflow() -> AppModeWorkflow:
+    return _app_mode_workflow
 
 
 def get_app_mode() -> AppMode:

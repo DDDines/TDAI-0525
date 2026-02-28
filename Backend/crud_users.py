@@ -357,6 +357,11 @@ class _UserCrudRuntime:
 
 
 _user_crud_workflow = _UserCrudWorkflow()
+UserCrudWorkflow = _UserCrudWorkflow
+
+
+def get_user_crud_workflow() -> UserCrudWorkflow:
+    return _user_crud_workflow
 
 
 def get_user(db: Session, user_id: int) -> Optional[User]:

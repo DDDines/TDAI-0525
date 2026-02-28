@@ -103,6 +103,11 @@ class _HistoricoCrudRuntime:
 
 
 _historico_crud_workflow = _HistoricoCrudWorkflow()
+HistoricoCrudWorkflow = _HistoricoCrudWorkflow
+
+
+def get_historico_crud_workflow() -> HistoricoCrudWorkflow:
+    return _historico_crud_workflow
 
 
 def create_registro_historico(

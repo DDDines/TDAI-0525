@@ -126,6 +126,11 @@ class _SearchWorkflow:
 
 _search_runtime = _SearchRuntime()
 _search_workflow = _SearchWorkflow(runtime=_search_runtime)
+SearchWorkflow = _SearchWorkflow
+
+
+def get_search_workflow() -> SearchWorkflow:
+    return _search_workflow
 
 
 @router.get("/", response_model=schemas.SearchResults)

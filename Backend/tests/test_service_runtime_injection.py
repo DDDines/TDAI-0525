@@ -5,25 +5,25 @@ from types import SimpleNamespace
 import pytest
 
 from Backend import models
-from Backend.create_tables import _CreateTablesWorkflow
-from Backend.crud_fornecedor_import_jobs import _FornecedorImportJobWorkflow
-from Backend.crud_fornecedores import _FornecedorCrudWorkflow
-from Backend.crud_historico import _HistoricoCrudWorkflow
-from Backend.crud_product_types import _ProductTypeCrudWorkflow
-from Backend.crud_produtos import _ProdutoCrudWorkflow
-from Backend.crud_registros_uso_ia import _RegistroUsoIACrudWorkflow
-from Backend.crud_users import _UserCrudWorkflow
-from Backend.database import _DatabaseWorkflow
-from Backend.initial_data import _InitialDataWorkflow
+from Backend.create_tables import CreateTablesWorkflow
+from Backend.crud_fornecedor_import_jobs import FornecedorImportJobWorkflow
+from Backend.crud_fornecedores import FornecedorCrudWorkflow
+from Backend.crud_historico import HistoricoCrudWorkflow
+from Backend.crud_product_types import ProductTypeCrudWorkflow
+from Backend.crud_produtos import ProdutoCrudWorkflow
+from Backend.crud_registros_uso_ia import RegistroUsoIACrudWorkflow
+from Backend.crud_users import UserCrudWorkflow
+from Backend.database import DatabaseWorkflow
+from Backend.initial_data import InitialDataWorkflow
 from Backend.testing.runtime_apis import (
-    _CatalogStorageWorkflow,
-    _LineMappingWorkflow,
-    _PdfJobWorkflow,
-    _TabularIngestionWorkflow,
-    _TabularPreviewWorkflow,
-    _WebExtractionEnrichmentWorkflow,
+    CatalogStorageWorkflow,
+    LineMappingWorkflow,
+    PdfJobWorkflow,
+    TabularIngestionWorkflow,
+    TabularPreviewWorkflow,
+    WebExtractionEnrichmentWorkflow,
 )
-from Backend.tasks import _TaskWorkflow
+from Backend.tasks import TaskWorkflow
 
 
 def test_create_tables_workflow_delega_runtime_injetado():
@@ -33,7 +33,7 @@ def test_create_tables_workflow_delega_runtime_injetado():
         def create_all_tables(self):
             called.append("ok")
 
-    workflow = _CreateTablesWorkflow(runtime=FakeRuntime())
+    workflow = CreateTablesWorkflow(runtime=FakeRuntime())
     workflow.create_all_tables()
 
     assert called == ["ok"]
@@ -51,7 +51,7 @@ def test_database_workflow_delega_runtime_injetado():
             called.append(("get_db",))
             yield "db-session"
 
-    workflow = _DatabaseWorkflow(runtime=FakeRuntime())
+    workflow = DatabaseWorkflow(runtime=FakeRuntime())
     args = workflow.build_engine_args("sqlite://")
     sessions = list(workflow.get_db())
 
@@ -67,7 +67,7 @@ def test_task_workflow_delega_runtime_injetado():
         def process_pdf_extraction_task(self, *, import_job_id, page_number, db_url):
             called.append((import_job_id, page_number, db_url))
 
-    workflow = _TaskWorkflow(runtime=FakeRuntime())
+    workflow = TaskWorkflow(runtime=FakeRuntime())
     workflow.process_pdf_extraction_task(import_job_id=10, page_number=2, db_url="db-url")
 
     assert called == [(10, 2, "db-url")]
@@ -81,7 +81,7 @@ def test_line_mapping_workflow_delega_runtime_injetado():
                 "mapping": mapeamento_colunas_usuario,
             }
 
-    workflow = _LineMappingWorkflow(runtime=FakeRuntime())
+    workflow = LineMappingWorkflow(runtime=FakeRuntime())
     result = workflow.processar_linha_padronizada(
         {"nome": "Produto X"},
         {"nome": "nome_base"},
@@ -103,9 +103,9 @@ def test_crud_workflows_delegam_runtime_injetado_bloco_1():
         def count_registros_historico(self, **kwargs):
             return 42
 
-    fornecedor_workflow = _FornecedorCrudWorkflow(runtime=FornecedorRuntime())
-    product_type_workflow = _ProductTypeCrudWorkflow(runtime=ProductTypeRuntime())
-    historico_workflow = _HistoricoCrudWorkflow(runtime=HistoricoRuntime())
+    fornecedor_workflow = FornecedorCrudWorkflow(runtime=FornecedorRuntime())
+    product_type_workflow = ProductTypeCrudWorkflow(runtime=ProductTypeRuntime())
+    historico_workflow = HistoricoCrudWorkflow(runtime=HistoricoRuntime())
 
     created = fornecedor_workflow.create_fornecedor(db="db", fornecedor="schema", user_id=7)
     reordered = product_type_workflow.reorder_attribute_template(
@@ -145,11 +145,11 @@ async def test_crud_workflows_delegam_runtime_injetado_bloco_2():
         def create_initial_data(self, **kwargs):
             return {"workflow": "initial_data", **kwargs}
 
-    produto_workflow = _ProdutoCrudWorkflow(runtime=ProdutoRuntime())
-    user_workflow = _UserCrudWorkflow(runtime=UserRuntime())
-    registro_workflow = _RegistroUsoIACrudWorkflow(runtime=RegistroUsoRuntime())
-    job_workflow = _FornecedorImportJobWorkflow(runtime=JobRuntime())
-    initial_data_workflow = _InitialDataWorkflow(runtime=InitialDataRuntime())
+    produto_workflow = ProdutoCrudWorkflow(runtime=ProdutoRuntime())
+    user_workflow = UserCrudWorkflow(runtime=UserRuntime())
+    registro_workflow = RegistroUsoIACrudWorkflow(runtime=RegistroUsoRuntime())
+    job_workflow = FornecedorImportJobWorkflow(runtime=JobRuntime())
+    initial_data_workflow = InitialDataWorkflow(runtime=InitialDataRuntime())
 
     produto = produto_workflow.create_produto(db="db", produto="schema", user_id=1)
     image_path = await produto_workflow.save_produto_image(db="db", produto_id=88, file="img")
@@ -182,7 +182,7 @@ async def test_catalog_storage_workflow_delega_runtime_injetado():
             called.append(("path", db, file_id))
             return f"/tmp/{file_id}"
 
-    workflow = _CatalogStorageWorkflow(runtime=FakeRuntime())
+    workflow = CatalogStorageWorkflow(runtime=FakeRuntime())
     saved = await workflow.save_uploaded_catalog(file="conteudo", fornecedor_id=5)
     workflow.delete_catalog_file("arquivo.pdf")
     path = workflow.get_file_path_by_id(db="db", file_id="11")
@@ -212,8 +212,8 @@ async def test_tabular_workflows_delegam_runtime_injetado():
         async def preview_arquivo_csv(self, **kwargs):
             return {"preview": "csv", **kwargs}
 
-    ingestion = _TabularIngestionWorkflow(runtime=FakeIngestionRuntime())
-    preview = _TabularPreviewWorkflow(runtime=FakePreviewRuntime())
+    ingestion = TabularIngestionWorkflow(runtime=FakeIngestionRuntime())
+    preview = TabularPreviewWorkflow(runtime=FakePreviewRuntime())
 
     excel_rows = await ingestion.processar_arquivo_excel(
         conteudo_arquivo=b"abc",
@@ -247,7 +247,7 @@ async def test_pdf_job_workflow_delega_runtime_injetado():
             called.append(("single", kwargs))
             return {"ok": True, "page": kwargs["page_number"]}
 
-    workflow = _PdfJobWorkflow(runtime=FakeRuntime())
+    workflow = PdfJobWorkflow(runtime=FakeRuntime())
     await workflow.process_pdf_job(job_id=9, pdf_path="c:/tmp/a.pdf", start_page=4, mapping={"a": "b"})
     data = workflow.extract_data_from_single_page(file_path="c:/tmp/a.pdf", page_number=8)
 
@@ -296,7 +296,7 @@ async def test_web_extraction_workflow_usa_runtime_injetado_para_timestamp_e_htm
         fornecedor=None,
     )
     db = FakeDb()
-    workflow = _WebExtractionEnrichmentWorkflow(
+    workflow = WebExtractionEnrichmentWorkflow(
         db=db,
         url="https://example.com/produto",
         produto=produto,

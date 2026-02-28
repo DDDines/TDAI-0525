@@ -6,7 +6,7 @@ import asyncio
 import pytest
 from fastapi import HTTPException
 
-from Backend.application.services import fornecedor_preview_service as preview_module
+import Backend.application.services.fornecedor_preview_service as preview_module
 from Backend.application.services.fornecedor_preview_service import (
     FornecedorPreviewService,
 )

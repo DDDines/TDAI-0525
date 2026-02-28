@@ -6,13 +6,14 @@ from sqlalchemy import func
 
 from Backend.core.config import settings
 from Backend import schemas
-from Backend.application.services.data_access_service import data_access_service
 from Backend.models import Fornecedor, Produto, AttributeFieldTypeEnum
 
 logger = logging.getLogger(__name__)
 
 
 def _create_initial_data_core(db: Session):
+    from Backend.application.services.data_access_service import data_access_service
+
     logger.info("Verificando/criando dados iniciais (roles, planos, admin)...")
 
     roles_padrao = [
@@ -193,6 +194,11 @@ class _InitialDataRuntime:
 
 
 _initial_data_workflow = _InitialDataWorkflow()
+InitialDataWorkflow = _InitialDataWorkflow
+
+
+def get_initial_data_workflow() -> InitialDataWorkflow:
+    return _initial_data_workflow
 
 
 def create_initial_data(db: Session):

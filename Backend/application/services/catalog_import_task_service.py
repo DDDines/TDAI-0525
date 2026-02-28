@@ -568,6 +568,9 @@ class _CatalogImportTaskWorkflow:
                 self.db.close()
 
 
+CatalogImportTaskWorkflow = _CatalogImportTaskWorkflow
+
+
 async def run_catalog_import_task(
     db_session_factory,
     file_id: int,

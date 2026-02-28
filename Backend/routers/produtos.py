@@ -25,20 +25,46 @@ from sqlalchemy.orm import Session
 from Backend import database
 from Backend import models
 from Backend import schemas
-from Backend.application.services import (
+from Backend.application.services.catalog_import_diagnostics_service import (
     CatalogImportDiagnosticsService,
+)
+from Backend.application.services.catalog_import_file_service import (
     CatalogImportFileService,
+)
+from Backend.application.services.catalog_import_finalize_service import (
     CatalogImportFinalizeService,
+)
+from Backend.application.services.catalog_import_ingest_service import (
     CatalogImportIngestService,
+)
+from Backend.application.services.catalog_import_preview_service import (
     CatalogImportPreviewService,
+)
+from Backend.application.services.catalog_import_quality_service import (
     CatalogImportQualityService,
+)
+from Backend.application.services.catalog_import_sanitization_service import (
     CatalogImportSanitizationService,
+)
+from Backend.application.services.catalog_import_start_service import (
     CatalogImportStartService,
+)
+from Backend.application.services.catalog_import_status_service import (
     CatalogImportStatusService,
+)
+from Backend.application.services.catalog_import_task_runner import (
     CatalogImportTaskRunner,
+)
+from Backend.application.services.catalog_import_workflow_service import (
     CatalogImportWorkflowService,
+)
+from Backend.application.services.product_management_service import (
     ProductManagementService,
+)
+from Backend.application.services.product_media_service import (
     ProductMediaService,
+)
+from Backend.application.services.validator_crew_facade import (
     ValidatorCrewFacade,
 )
 from Backend.application.services.data_access_service import data_access_service
@@ -96,6 +122,22 @@ validator_crew = ValidatorCrewFacade(logger=logger)
 def _sanitize_produto_extraido(prod: Dict[str, Any]) -> Dict[str, Any]:
     """Alias legado para testes existentes; implementacao real esta no servico."""
     return catalog_sanitization_service.sanitize_extracted_product(prod)
+
+
+def is_non_critical_import_reason(reason: str) -> bool:
+    return _is_non_critical_import_reason(reason)
+
+
+def avaliar_qualidade_linha_produto(data: Dict[str, Any]) -> Optional[str]:
+    return _avaliar_qualidade_linha_produto(data)
+
+
+def classificar_qualidade_linha_produto(data: Dict[str, Any]) -> Dict[str, Any]:
+    return _classificar_qualidade_linha_produto(data)
+
+
+def sanitize_produto_extraido(prod: Dict[str, Any]) -> Dict[str, Any]:
+    return _sanitize_produto_extraido(prod)
 
 
 catalog_import_task_runner = CatalogImportTaskRunner(
@@ -456,6 +498,9 @@ class _ProdutosRouterWorkflow:
         self._default_runtime = _ProdutosRouterRuntime()
         self._runtime = runtime or self._default_runtime
 
+    def set_default_runtime(self, runtime: object) -> None:
+        self._default_runtime = runtime
+
     def _runtime_method(self, method_name: str):
         runtime_method = getattr(self._runtime, method_name, None)
         if runtime_method is not None:
@@ -752,6 +797,11 @@ class _ProdutosRouterWorkflow:
 
 
 produtos_router_workflow = _ProdutosRouterWorkflow()
+ProdutosRouterWorkflow = _ProdutosRouterWorkflow
+
+
+def get_produtos_router_workflow() -> ProdutosRouterWorkflow:
+    return produtos_router_workflow
 
 
 @router.post("/", response_model=schemas.ProdutoResponse, status_code=status.HTTP_201_CREATED)

@@ -518,6 +518,11 @@ class _ProdutoCrudRuntime:
 
 
 _produto_crud_workflow = _ProdutoCrudWorkflow()
+ProdutoCrudWorkflow = _ProdutoCrudWorkflow
+
+
+def get_produto_crud_workflow() -> ProdutoCrudWorkflow:
+    return _produto_crud_workflow
 
 
 def create_produto(
