@@ -30,7 +30,6 @@ class _WebEnrichmentTaskRuntime:
         "is_meaningful_extracted_text",
         "metadata_has_minimum_signal",
         "is_source_relevant_for_product",
-        "pipeline_variant",
     )
 
     def __init__(
@@ -53,7 +52,6 @@ class _WebEnrichmentTaskRuntime:
         is_meaningful_extracted_text,
         metadata_has_minimum_signal,
         is_source_relevant_for_product,
-        pipeline_variant: str,
     ) -> None:
         self.logger = logger
         self.SQLAlchemyError = SQLAlchemyError
@@ -72,7 +70,6 @@ class _WebEnrichmentTaskRuntime:
         self.is_meaningful_extracted_text = is_meaningful_extracted_text
         self.metadata_has_minimum_signal = metadata_has_minimum_signal
         self.is_source_relevant_for_product = is_source_relevant_for_product
-        self.pipeline_variant = pipeline_variant
 
     def apply_overrides(self, runtime: Any) -> "_WebEnrichmentTaskRuntime":
         for field_name in self.RUNTIME_FIELDS:
@@ -103,7 +100,6 @@ class _WebEnrichmentTaskWorkflow:
         is_meaningful_extracted_text,
         metadata_has_minimum_signal,
         is_source_relevant_for_product,
-        pipeline_variant: str,
         runtime: Optional[Any] = None,
     ) -> None:
         runtime_obj = _WebEnrichmentTaskRuntime(
@@ -124,7 +120,6 @@ class _WebEnrichmentTaskWorkflow:
             is_meaningful_extracted_text=is_meaningful_extracted_text,
             metadata_has_minimum_signal=metadata_has_minimum_signal,
             is_source_relevant_for_product=is_source_relevant_for_product,
-            pipeline_variant=pipeline_variant,
         )
         if runtime is not None:
             runtime_obj.apply_overrides(runtime)
@@ -146,7 +141,6 @@ class _WebEnrichmentTaskWorkflow:
         self.is_meaningful_extracted_text = runtime_obj.is_meaningful_extracted_text
         self.metadata_has_minimum_signal = runtime_obj.metadata_has_minimum_signal
         self.is_source_relevant_for_product = runtime_obj.is_source_relevant_for_product
-        self.pipeline_variant = runtime_obj.pipeline_variant
 
         self.config_inspector = WebEnrichmentConfigInspector()
         self.query_planner = WebEnrichmentQueryPlanner()
@@ -393,7 +387,7 @@ class _WebEnrichmentTaskWorkflow:
     ) -> None:
         db: Optional[Session] = None
         log_mensagens: List[str] = [
-            f"INICIANDO tarefa de enriquecimento web (variant={self.pipeline_variant}) para produto ID: {produto_id}."
+            f"INICIANDO tarefa de enriquecimento web (variant=oop) para produto ID: {produto_id}."
         ]
 
         db_produto_obj = None
@@ -589,9 +583,8 @@ class _WebEnrichmentTaskWorkflow:
 
             final_status_value_print = status_para_salvar_no_final.value
             self.logger.info(
-                "Finalizando tarefa de enriquecimento (variant=%s) para produto ID: %s. "
+                "Finalizando tarefa de enriquecimento (variant=oop) para produto ID: %s. "
                 "Status determinado para gravacao: %s",
-                self.pipeline_variant,
                 produto_id,
                 final_status_value_print,
             )
@@ -600,60 +593,6 @@ class _WebEnrichmentTaskWorkflow:
 
 
 WebEnrichmentTaskWorkflow = _WebEnrichmentTaskWorkflow
-
-
-async def run_web_enrichment_task(
-    db_session_factory,
-    produto_id: int,
-    user_id: int,
-    termos_busca_override: Optional[str] = None,
-    *,
-    logger,
-    SQLAlchemyError,
-    crud_users,
-    crud_produtos,
-    crud,
-    models,
-    schemas,
-    web_extractor,
-    settings,
-    json,
-    re,
-    normalize_human_text,
-    build_payload_enriquecimento_visivel,
-    extrair_dominio_fornecedor,
-    priorizar_urls_para_enriquecimento,
-    is_meaningful_extracted_text,
-    metadata_has_minimum_signal,
-    is_source_relevant_for_product,
-    pipeline_variant: str = "unknown",
-):
-    workflow = _WebEnrichmentTaskWorkflow(
-        logger=logger,
-        SQLAlchemyError=SQLAlchemyError,
-        crud_users=crud_users,
-        crud_produtos=crud_produtos,
-        crud=crud,
-        models=models,
-        schemas=schemas,
-        web_extractor=web_extractor,
-        settings=settings,
-        json=json,
-        normalize_human_text=normalize_human_text,
-        build_payload_enriquecimento_visivel=build_payload_enriquecimento_visivel,
-        extrair_dominio_fornecedor=extrair_dominio_fornecedor,
-        priorizar_urls_para_enriquecimento=priorizar_urls_para_enriquecimento,
-        is_meaningful_extracted_text=is_meaningful_extracted_text,
-        metadata_has_minimum_signal=metadata_has_minimum_signal,
-        is_source_relevant_for_product=is_source_relevant_for_product,
-        pipeline_variant=pipeline_variant,
-    )
-    await workflow.run(
-        db_session_factory=db_session_factory,
-        produto_id=produto_id,
-        user_id=user_id,
-        termos_busca_override=termos_busca_override,
-    )
 
 
 class WebEnrichmentTaskService:
@@ -680,7 +619,6 @@ class WebEnrichmentTaskService:
         is_meaningful_extracted_text,
         metadata_has_minimum_signal,
         is_source_relevant_for_product,
-        pipeline_variant: str = "unknown",
     ):
         self._deps = {
             "logger": logger,
@@ -701,7 +639,6 @@ class WebEnrichmentTaskService:
             "is_meaningful_extracted_text": is_meaningful_extracted_text,
             "metadata_has_minimum_signal": metadata_has_minimum_signal,
             "is_source_relevant_for_product": is_source_relevant_for_product,
-            "pipeline_variant": pipeline_variant,
         }
 
     async def execute(
@@ -712,10 +649,10 @@ class WebEnrichmentTaskService:
         user_id: int,
         termos_busca_override: Optional[str] = None,
     ):
-        await run_web_enrichment_task(
+        workflow = _WebEnrichmentTaskWorkflow(**self._deps)
+        await workflow.run(
             db_session_factory=db_session_factory,
             produto_id=produto_id,
             user_id=user_id,
             termos_busca_override=termos_busca_override,
-            **self._deps,
         )

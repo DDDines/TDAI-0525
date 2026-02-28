@@ -61,10 +61,7 @@ class CatalogImportTaskRunner:
     def _build(self) -> CatalogImportTaskService:
         build_kwargs = dict(self._kwargs)
         build_kwargs["file_processing_service"] = self._file_processing_service
-        return CatalogImportTaskService(
-            pipeline_variant="oop",
-            **build_kwargs,
-        )
+        return CatalogImportTaskService(**build_kwargs)
 
     def _get_service(self) -> CatalogImportTaskService:
         if self._service is None:

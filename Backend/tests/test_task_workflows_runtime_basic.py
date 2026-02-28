@@ -36,16 +36,13 @@ def test_catalog_import_task_workflow_aplica_runtime_override():
         classificar_qualidade_linha_produto=lambda prod: {"decision": "accept", "score": 100},
         write_catalog_import_report=lambda **kwargs: None,
         normalize_import_text=lambda text: text,
-        pipeline_variant="baseline",
         runtime=SimpleNamespace(
             logger="runtime_logger",
-            pipeline_variant="runtime_variant",
             resolve_storage_path=lambda p: Path("runtime") / Path(p).name,
         ),
     )
 
     assert workflow.logger == "runtime_logger"
-    assert workflow.pipeline_variant == "runtime_variant"
     assert workflow.resolve_storage_path(Path("abc.txt")) == Path("runtime/abc.txt")
 
 
@@ -68,14 +65,11 @@ def test_web_enrichment_task_workflow_aplica_runtime_override():
         is_meaningful_extracted_text=lambda text: bool(text),
         metadata_has_minimum_signal=lambda data: bool(data),
         is_source_relevant_for_product=lambda *args, **kwargs: True,
-        pipeline_variant="baseline",
         runtime=SimpleNamespace(
             logger="runtime_logger",
-            pipeline_variant="runtime_variant",
             is_source_relevant_for_product=lambda *args, **kwargs: False,
         ),
     )
 
     assert workflow.logger == "runtime_logger"
-    assert workflow.pipeline_variant == "runtime_variant"
     assert workflow.is_source_relevant_for_product(None, source_name="", source_desc="", source_url="") is False

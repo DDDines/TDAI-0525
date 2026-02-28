@@ -57,10 +57,7 @@ class WebEnrichmentTaskRunner:
     def _build(self) -> WebEnrichmentTaskService:
         build_kwargs = dict(self._kwargs)
         build_kwargs["web_extractor"] = self._web_extractor
-        return WebEnrichmentTaskService(
-            pipeline_variant="oop",
-            **build_kwargs,
-        )
+        return WebEnrichmentTaskService(**build_kwargs)
 
     def _get_service(self) -> WebEnrichmentTaskService:
         if self._service is None:

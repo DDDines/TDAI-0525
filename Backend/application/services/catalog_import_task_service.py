@@ -35,7 +35,6 @@ class _CatalogImportTaskRuntime:
         "classificar_qualidade_linha_produto",
         "write_catalog_import_report",
         "normalize_import_text",
-        "pipeline_variant",
     )
 
     def __init__(
@@ -61,7 +60,6 @@ class _CatalogImportTaskRuntime:
         classificar_qualidade_linha_produto: Callable,
         write_catalog_import_report: Callable,
         normalize_import_text: Callable,
-        pipeline_variant: str,
     ) -> None:
         self.logger = logger
         self.catalog_logger = catalog_logger
@@ -83,7 +81,6 @@ class _CatalogImportTaskRuntime:
         self.classificar_qualidade_linha_produto = classificar_qualidade_linha_produto
         self.write_catalog_import_report = write_catalog_import_report
         self.normalize_import_text = normalize_import_text
-        self.pipeline_variant = pipeline_variant
 
     def apply_overrides(self, runtime: Any) -> "_CatalogImportTaskRuntime":
         for field_name in self.RUNTIME_FIELDS:
@@ -117,7 +114,6 @@ class _CatalogImportTaskWorkflow:
         classificar_qualidade_linha_produto: Callable,
         write_catalog_import_report: Callable,
         normalize_import_text: Callable,
-        pipeline_variant: str,
         runtime: Optional[Any] = None,
     ) -> None:
         runtime_obj = _CatalogImportTaskRuntime(
@@ -141,7 +137,6 @@ class _CatalogImportTaskWorkflow:
             classificar_qualidade_linha_produto=classificar_qualidade_linha_produto,
             write_catalog_import_report=write_catalog_import_report,
             normalize_import_text=normalize_import_text,
-            pipeline_variant=pipeline_variant,
         )
         if runtime is not None:
             runtime_obj.apply_overrides(runtime)
@@ -163,7 +158,6 @@ class _CatalogImportTaskWorkflow:
         self.normalizar_dados_validados = runtime_obj.normalizar_dados_validados
         self.sanitize_produto_extraido = runtime_obj.sanitize_produto_extraido
         self.classificar_qualidade_linha_produto = runtime_obj.classificar_qualidade_linha_produto
-        self.pipeline_variant = runtime_obj.pipeline_variant
 
         self.file_state_service = CatalogImportFileStateService()
         self.issue_tracker = CatalogImportIssueTracker(
@@ -207,8 +201,7 @@ class _CatalogImportTaskWorkflow:
             return False
 
         self.catalog_logger.info(
-            "inicio variant=%s file_id=%s user_id=%s fornecedor_id=%s product_type_id=%s pages=%s region=%s mapping_keys=%s",
-            self.pipeline_variant,
+            "inicio variant=oop file_id=%s user_id=%s fornecedor_id=%s product_type_id=%s pages=%s region=%s mapping_keys=%s",
             self.file_id,
             self.user_id,
             self.fornecedor_id,
@@ -491,8 +484,7 @@ class _CatalogImportTaskWorkflow:
             )
 
         self.catalog_logger.info(
-            "fim variant=%s file_id=%s status=%s created=%s updated=%s errors=%s ignored=%s quarantine=%s pages=%s/%s top_reasons=%s top_ignored=%s top_quarantine=%s quality_avg=%s quality_quarantine_avg=%s report=%s",
-            self.pipeline_variant,
+            "fim variant=oop file_id=%s status=%s created=%s updated=%s errors=%s ignored=%s quarantine=%s pages=%s/%s top_reasons=%s top_ignored=%s top_quarantine=%s quality_avg=%s quality_quarantine_avg=%s report=%s",
             self.file_id,
             final_status,
             created_count,
@@ -571,73 +563,6 @@ class _CatalogImportTaskWorkflow:
 CatalogImportTaskWorkflow = _CatalogImportTaskWorkflow
 
 
-async def run_catalog_import_task(
-    db_session_factory,
-    file_id: int,
-    user_id: int,
-    product_type_id: Optional[int],
-    fornecedor_id: int,
-    mapping: Optional[Dict[str, str]] = None,
-    pages: Optional[List[int]] = None,
-    region: Optional[List[float]] = None,
-    *,
-    logger,
-    catalog_logger,
-    models,
-    schemas,
-    crud_produtos,
-    file_processing_service,
-    validator_crew,
-    settings,
-    Path,
-    time,
-    Counter,
-    resolve_storage_path: Callable,
-    normalize_import_issue_item: Callable,
-    extract_import_error_reason: Callable,
-    is_non_critical_import_reason: Callable,
-    normalizar_dados_validados: Callable,
-    sanitize_produto_extraido: Callable,
-    classificar_qualidade_linha_produto: Callable,
-    write_catalog_import_report: Callable,
-    normalize_import_text: Callable,
-    pipeline_variant: str = "unknown",
-):
-    workflow = _CatalogImportTaskWorkflow(
-        logger=logger,
-        catalog_logger=catalog_logger,
-        models=models,
-        schemas=schemas,
-        crud_produtos=crud_produtos,
-        file_processing_service=file_processing_service,
-        validator_crew=validator_crew,
-        settings=settings,
-        Path=Path,
-        time=time,
-        Counter=Counter,
-        resolve_storage_path=resolve_storage_path,
-        normalize_import_issue_item=normalize_import_issue_item,
-        extract_import_error_reason=extract_import_error_reason,
-        is_non_critical_import_reason=is_non_critical_import_reason,
-        normalizar_dados_validados=normalizar_dados_validados,
-        sanitize_produto_extraido=sanitize_produto_extraido,
-        classificar_qualidade_linha_produto=classificar_qualidade_linha_produto,
-        write_catalog_import_report=write_catalog_import_report,
-        normalize_import_text=normalize_import_text,
-        pipeline_variant=pipeline_variant,
-    )
-    await workflow.run(
-        db_session_factory=db_session_factory,
-        file_id=file_id,
-        user_id=user_id,
-        product_type_id=product_type_id,
-        fornecedor_id=fornecedor_id,
-        mapping=mapping,
-        pages=pages,
-        region=region,
-    )
-
-
 class CatalogImportTaskService:
     """Service OO para executar processamento de importacao de catalogo."""
 
@@ -664,7 +589,6 @@ class CatalogImportTaskService:
         classificar_qualidade_linha_produto: Callable,
         write_catalog_import_report: Callable,
         normalize_import_text: Callable,
-        pipeline_variant: str = "unknown",
     ):
         self._deps = {
             "logger": logger,
@@ -687,7 +611,6 @@ class CatalogImportTaskService:
             "classificar_qualidade_linha_produto": classificar_qualidade_linha_produto,
             "write_catalog_import_report": write_catalog_import_report,
             "normalize_import_text": normalize_import_text,
-            "pipeline_variant": pipeline_variant,
         }
 
     async def execute(
@@ -702,7 +625,8 @@ class CatalogImportTaskService:
         pages: Optional[List[int]] = None,
         region: Optional[List[float]] = None,
     ):
-        await run_catalog_import_task(
+        workflow = _CatalogImportTaskWorkflow(**self._deps)
+        await workflow.run(
             db_session_factory=db_session_factory,
             file_id=file_id,
             user_id=user_id,
@@ -711,5 +635,4 @@ class CatalogImportTaskService:
             mapping=mapping,
             pages=pages,
             region=region,
-            **self._deps,
         )
