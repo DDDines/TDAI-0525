@@ -11,6 +11,9 @@ APPLICATION_ROOT = PROJECT_ROOT / "Backend" / "application"
 APPLICATION_SERVICES_ROOT = APPLICATION_ROOT / "services"
 INFRASTRUCTURE_ADAPTERS_ROOT = PROJECT_ROOT / "Backend" / "infrastructure" / "adapters"
 INFRASTRUCTURE_RUNTIME_ROOT = PROJECT_ROOT / "Backend" / "infrastructure" / "runtime"
+INFRASTRUCTURE_RUNTIME_SERVICES_ROOT = (
+    PROJECT_ROOT / "Backend" / "infrastructure" / "runtime_services"
+)
 
 
 def _iter_python_files(root: Path) -> Iterable[Path]:
@@ -138,6 +141,64 @@ def test_infrastructure_runtime_providers_do_not_import_backend_services_modules
 
     assert not offenders, (
         "Unexpected direct imports to Backend.services in infrastructure runtime providers:\n"
+        + "\n".join(offenders)
+    )
+
+
+def test_infrastructure_runtime_providers_do_not_import_runtime_modules_directly():
+    offenders: list[str] = []
+    for path in _iter_python_files(INFRASTRUCTURE_RUNTIME_ROOT):
+        rel = path.relative_to(PROJECT_ROOT)
+        for target in _import_targets(path):
+            if target == "Backend.infrastructure.runtime_modules" or target.startswith(
+                "Backend.infrastructure.runtime_modules."
+            ):
+                offenders.append(f"{rel}: {target}")
+
+    assert not offenders, (
+        "Runtime providers must depend on runtime_services, not runtime_modules:\n"
+        + "\n".join(offenders)
+    )
+
+
+def test_infrastructure_runtime_providers_expose_get_runtime_service_only():
+    offenders: list[str] = []
+    missing: list[str] = []
+
+    for path in _iter_python_files(INFRASTRUCTURE_RUNTIME_ROOT):
+        if path.name == "__init__.py":
+            continue
+
+        rel = path.relative_to(PROJECT_ROOT)
+        tree = _parse_python_file(path)
+        function_names = {
+            node.name for node in ast.walk(tree) if isinstance(node, ast.FunctionDef)
+        }
+
+        if "get_runtime_module" in function_names:
+            offenders.append(f"{rel}: get_runtime_module")
+        if "get_runtime_service" not in function_names:
+            missing.append(str(rel))
+
+    assert not offenders, (
+        "Legacy runtime provider entrypoints are not allowed:\n" + "\n".join(offenders)
+    )
+    assert not missing, (
+        "Runtime providers must expose get_runtime_service():\n"
+        + "\n".join(missing)
+    )
+
+
+def test_runtime_services_do_not_import_backend_services_modules():
+    offenders: list[str] = []
+    for path in _iter_python_files(INFRASTRUCTURE_RUNTIME_SERVICES_ROOT):
+        rel = path.relative_to(PROJECT_ROOT)
+        for target in _import_targets(path):
+            if target == "Backend.services" or target.startswith("Backend.services."):
+                offenders.append(f"{rel}: {target}")
+
+    assert not offenders, (
+        "Unexpected imports to Backend.services in infrastructure runtime services:\n"
         + "\n".join(offenders)
     )
 

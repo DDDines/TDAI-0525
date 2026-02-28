@@ -6,10 +6,9 @@ from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy import String, cast, func
 from sqlalchemy.orm import Session
 
-from Backend import crud_historico
-from Backend import crud_users
 from Backend import models
 from Backend import schemas
+from Backend.application.services.data_access_service import data_access_service
 from Backend.auth import get_current_active_user
 from Backend.core.logging_config import get_logger
 from Backend.database import get_db
@@ -196,7 +195,7 @@ class _AdminAnalyticsRouterRuntime:
         )
 
     def get_planos(self, *, db: Session, skip: int, limit: int):
-        return crud_users.get_planos(db, skip=skip, limit=limit)
+        return data_access_service.users.get_planos(db, skip=skip, limit=limit)
 
     def count_uso_ia_for_plano(self, *, db: Session, plano_id: int, start_of_month: datetime) -> int:
         return (
@@ -222,7 +221,7 @@ class _AdminAnalyticsRouterRuntime:
         )
 
     def get_users(self, *, db: Session, skip: int, limit: int):
-        return crud_users.get_users(db, skip=skip, limit=limit)
+        return data_access_service.users.get_users(db, skip=skip, limit=limit)
 
     def count_produtos_for_user(self, *, db: Session, user_id: int) -> int:
         return (
@@ -265,7 +264,11 @@ class _AdminAnalyticsRouterRuntime:
         return db.get(models.User, user_id)
 
     def get_registros_historico(self, *, db: Session, skip: int, limit: int):
-        return crud_historico.get_registros_historico(db, skip=skip, limit=limit)
+        return data_access_service.historico.get_registros_historico(
+            db,
+            skip=skip,
+            limit=limit,
+        )
 
 
 admin_analytics_router_runtime = _AdminAnalyticsRouterRuntime()

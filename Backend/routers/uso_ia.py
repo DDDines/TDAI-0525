@@ -4,7 +4,8 @@ from typing import List, Optional
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session
 
-from Backend import crud, crud_produtos, database, models, schemas
+from Backend import database, models, schemas
+from Backend.application.services.data_access_service import data_access_service
 from Backend.core.logging_config import get_logger
 from . import auth_utils
 
@@ -137,13 +138,16 @@ class _UsoIARuntime:
     """Runtime OO para integraÃ§Ãµes do router de uso de IA."""
 
     def create_registro_uso_ia(self, *, db: Session, registro_uso):
-        return crud.create_registro_uso_ia(db, registro_uso=registro_uso)
+        return data_access_service.uso_ia.create_registro_uso_ia(
+            db,
+            registro_uso=registro_uso,
+        )
 
     def get_registros_uso_ia(self, *, db: Session, **kwargs):
-        return crud.get_registros_uso_ia(db, **kwargs)
+        return data_access_service.uso_ia.get_registros_uso_ia(db, **kwargs)
 
     def count_registros_uso_ia(self, *, db: Session, **kwargs):
-        return crud.count_registros_uso_ia(db, **kwargs)
+        return data_access_service.uso_ia.count_registros_uso_ia(db, **kwargs)
 
     def get_registro_uso_ia_by_id(self, *, db: Session, registro_id: int):
         return (
@@ -153,10 +157,13 @@ class _UsoIARuntime:
         )
 
     def get_produto(self, *, db: Session, produto_id: int):
-        return crud_produtos.get_produto(db, produto_id=produto_id)
+        return data_access_service.produtos.get_produto(
+            db,
+            produto_id=produto_id,
+        )
 
     def get_usos_ia_by_produto(self, *, db: Session, **kwargs):
-        return crud.get_usos_ia_by_produto(db, **kwargs)
+        return data_access_service.uso_ia.get_usos_ia_by_produto(db, **kwargs)
 
 
 uso_ia_runtime = _UsoIARuntime()

@@ -1,9 +1,10 @@
 from __future__ import annotations
 
-from typing import Any
+from Backend.infrastructure.runtime_services.validator_crew_runtime_service import (
+    ValidatorCrewRuntimeService,
+    validator_crew_runtime_service,
+)
 
 
-def get_runtime_module() -> Any:
-    from Backend.infrastructure.runtime_modules import validator_crew_module
-
-    return validator_crew_module
+def get_runtime_service() -> ValidatorCrewRuntimeService:
+    return validator_crew_runtime_service

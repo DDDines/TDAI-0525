@@ -1,9 +1,10 @@
 from __future__ import annotations
 
-from typing import Any
+from Backend.infrastructure.runtime_services.file_processing_runtime_service import (
+    FileProcessingRuntimeService,
+    file_processing_runtime_service,
+)
 
 
-def get_runtime_module() -> Any:
-    from Backend.infrastructure.runtime_modules import file_processing_module
-
-    return file_processing_module
+def get_runtime_service() -> FileProcessingRuntimeService:
+    return file_processing_runtime_service

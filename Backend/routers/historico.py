@@ -3,8 +3,8 @@ from typing import List
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy.orm import Session
 
-from Backend import crud_historico
 from Backend import database, models, schemas
+from Backend.application.services.data_access_service import data_access_service
 from . import auth_utils
 
 router = APIRouter(
@@ -25,7 +25,7 @@ class _HistoricoRuntime:
         skip: int,
         limit: int,
     ):
-        return crud_historico.get_registros_historico(
+        return data_access_service.historico.get_registros_historico(
             db,
             user_id=user_id,
             skip=skip,
@@ -33,7 +33,10 @@ class _HistoricoRuntime:
         )
 
     def count_registros_historico(self, db: Session, *, user_id: int | None) -> int:
-        return crud_historico.count_registros_historico(db, user_id=user_id)
+        return data_access_service.historico.count_registros_historico(
+            db,
+            user_id=user_id,
+        )
 
     def get_tipos_acao(self) -> List[str]:
         return [enum_member.value for enum_member in models.TipoAcaoEnum]

@@ -1,9 +1,10 @@
 from __future__ import annotations
 
-from typing import Any
+from Backend.infrastructure.runtime_services.web_data_extractor_runtime_service import (
+    WebDataExtractorRuntimeService,
+    web_data_extractor_runtime_service,
+)
 
 
-def get_runtime_module() -> Any:
-    from Backend.infrastructure.runtime_modules import web_data_extractor_module
-
-    return web_data_extractor_module
+def get_runtime_service() -> WebDataExtractorRuntimeService:
+    return web_data_extractor_runtime_service

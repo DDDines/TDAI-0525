@@ -3,7 +3,8 @@ from datetime import datetime, timedelta, timezone
 from fastapi import APIRouter, Body, Depends, HTTPException, Request, status
 from sqlalchemy.orm import Session
 
-from Backend import crud_users, schemas
+from Backend import schemas
+from Backend.application.services.data_access_service import data_access_service
 from Backend.auth import create_password_reset_token, hash_password_reset_token
 from Backend.core import security
 from Backend.core.config import settings
@@ -19,7 +20,7 @@ class _PasswordRecoveryRuntime:
     """Runtime OO para operaÃ§Ãµes de recuperaÃ§Ã£o de senha."""
 
     def get_user_by_email(self, db: Session, email: str):
-        return crud_users.get_user_by_email(db, email=email)
+        return data_access_service.users.get_user_by_email(db, email=email)
 
     def create_password_reset_token(self) -> str:
         return create_password_reset_token()
@@ -35,7 +36,7 @@ class _PasswordRecoveryRuntime:
         token_hash: str,
         expires_at: datetime,
     ) -> None:
-        crud_users.set_user_password_reset_token(
+        data_access_service.users.set_user_password_reset_token(
             db,
             user,
             token_hash=token_hash,
@@ -56,10 +57,13 @@ class _PasswordRecoveryRuntime:
         )
 
     def get_user_by_reset_token(self, db: Session, token_hash: str):
-        return crud_users.get_user_by_reset_token(db, token_hash=token_hash)
+        return data_access_service.users.get_user_by_reset_token(
+            db,
+            token_hash=token_hash,
+        )
 
     def get_user(self, db: Session, user_id: int):
-        return crud_users.get_user(db, user_id=user_id)
+        return data_access_service.users.get_user(db, user_id=user_id)
 
     def get_password_hash(self, raw_password: str) -> str:
         return security.get_password_hash(raw_password)

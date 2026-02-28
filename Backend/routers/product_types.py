@@ -5,11 +5,10 @@ from fastapi import APIRouter, Body, Depends, HTTPException, Path as FastAPIPath
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
-from Backend import crud_historico
-from Backend import crud_product_types
 from Backend import database
 from Backend import models
 from Backend import schemas
+from Backend.application.services.data_access_service import data_access_service
 from Backend.core.logging_config import get_logger
 
 from . import auth_utils
@@ -343,24 +342,24 @@ class _ProductTypesRouterRuntime:
     """Runtime OO com operações de CRUD/histórico do router de tipos."""
 
     def get_product_type_by_key_name(self, *, db: Session, key_name: str, user_id: Optional[int]):
-        return crud_product_types.get_product_type_by_key_name(
+        return data_access_service.product_types.get_product_type_by_key_name(
             db,
             key_name=key_name,
             user_id=user_id,
         )
 
     def create_product_type(self, *, db: Session, product_type_create, user_id: Optional[int]):
-        return crud_product_types.create_product_type(
+        return data_access_service.product_types.create_product_type(
             db=db,
             product_type_create=product_type_create,
             user_id=user_id,
         )
 
     def create_registro_historico(self, *, db: Session, payload):
-        return crud_historico.create_registro_historico(db, payload)
+        return data_access_service.historico.create_registro_historico(db, payload)
 
     def get_product_types_for_user(self, *, db: Session, skip: int, limit: int, user_id: int):
-        return crud_product_types.get_product_types_for_user(
+        return data_access_service.product_types.get_product_types_for_user(
             db,
             skip=skip,
             limit=limit,
@@ -368,17 +367,23 @@ class _ProductTypesRouterRuntime:
         )
 
     def get_product_type(self, *, db: Session, product_type_id: int):
-        return crud_product_types.get_product_type(db, product_type_id=product_type_id)
+        return data_access_service.product_types.get_product_type(
+            db,
+            product_type_id=product_type_id,
+        )
 
     def update_product_type(self, *, db: Session, db_product_type, product_type_update):
-        return crud_product_types.update_product_type(
+        return data_access_service.product_types.update_product_type(
             db=db,
             db_product_type=db_product_type,
             product_type_update=product_type_update,
         )
 
     def delete_product_type(self, *, db: Session, db_product_type):
-        return crud_product_types.delete_product_type(db=db, db_product_type=db_product_type)
+        return data_access_service.product_types.delete_product_type(
+            db=db,
+            db_product_type=db_product_type,
+        )
 
     def find_attribute_template_by_key(
         self,
@@ -397,30 +402,33 @@ class _ProductTypesRouterRuntime:
         return query.first()
 
     def create_attribute_template(self, *, db: Session, attr_template_create, product_type_id: int):
-        return crud_product_types.create_attribute_template(
+        return data_access_service.product_types.create_attribute_template(
             db=db,
             attr_template_create=attr_template_create,
             product_type_id=product_type_id,
         )
 
     def get_attribute_template(self, *, db: Session, attribute_id: int):
-        return crud_product_types.get_attribute_template(db, attribute_id)
+        return data_access_service.product_types.get_attribute_template(
+            db,
+            attribute_id=attribute_id,
+        )
 
     def update_attribute_template(self, *, db: Session, db_attr_template, attr_template_update):
-        return crud_product_types.update_attribute_template(
+        return data_access_service.product_types.update_attribute_template(
             db=db,
             db_attr_template=db_attr_template,
             attr_template_update=attr_template_update,
         )
 
     def delete_attribute_template(self, *, db: Session, db_attr_template):
-        return crud_product_types.delete_attribute_template(
+        return data_access_service.product_types.delete_attribute_template(
             db=db,
             db_attr_template=db_attr_template,
         )
 
     def reorder_attribute_template(self, *, db: Session, attribute_id: int, direction: str):
-        return crud_product_types.reorder_attribute_template(
+        return data_access_service.product_types.reorder_attribute_template(
             db,
             attribute_id=attribute_id,
             direction=direction,

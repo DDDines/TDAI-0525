@@ -89,6 +89,10 @@ from Backend.application.services.generation_task_service import (
 from Backend.application.services.generation_scheduling_service import (
     GenerationSchedulingService,
 )
+from Backend.application.services.data_access_service import (
+    DataAccessService,
+    data_access_service,
+)
 from Backend.application.services.product_management_service import (
     ProductManagementService,
 )
@@ -132,6 +136,8 @@ __all__ = [
     "FileProcessingFacade",
     "GenerationTaskService",
     "GenerationSchedulingService",
+    "DataAccessService",
+    "data_access_service",
     "ProductManagementService",
     "ProductMediaService",
     "IAGenerationFacade",

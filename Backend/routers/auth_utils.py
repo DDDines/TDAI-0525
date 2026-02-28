@@ -5,8 +5,8 @@ from fastapi import Depends, HTTPException, Request, status
 from fastapi.security import OAuth2PasswordBearer
 from sqlalchemy.orm import Session
 
-from Backend import crud_users
 from Backend import models
+from Backend.application.services.data_access_service import data_access_service
 from Backend.core import config
 from Backend.core import security
 from Backend.database import get_db
@@ -23,7 +23,7 @@ class _AuthUtilsRuntime:
         return security.decode_token(token, secret_key)
 
     def get_user(self, db: Session, user_id: int):
-        return crud_users.get_user(db, user_id=user_id)
+        return data_access_service.users.get_user(db, user_id=user_id)
 
 
 class _AuthUtilsWorkflow:

@@ -1,9 +1,10 @@
 from __future__ import annotations
 
-from typing import Any
+from Backend.infrastructure.runtime_services.limit_runtime_service import (
+    LimitRuntimeService,
+    limit_runtime_service,
+)
 
 
-def get_runtime_module() -> Any:
-    from Backend.infrastructure.runtime_modules import limit_module
-
-    return limit_module
+def get_runtime_service() -> LimitRuntimeService:
+    return limit_runtime_service
