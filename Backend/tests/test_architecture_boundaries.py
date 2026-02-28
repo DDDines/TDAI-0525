@@ -631,3 +631,44 @@ def test_tests_do_not_import_private_backend_symbols():
         "Tests must use public Backend symbols, not private names prefixed with '_':\n"
         + "\n".join(offenders)
     )
+
+
+def test_produtos_core_endpoints_do_not_receive_db_session_directly():
+    produtos_router_path = ROUTERS_ROOT / "produtos.py"
+    tree = _parse_python_file(produtos_router_path)
+    offenders: list[str] = []
+    endpoint_names = {
+        "create_produto",
+        "read_produto",
+        "read_produtos",
+        "update_produto",
+        "delete_produto",
+        "batch_delete_produtos",
+        "upload_produto_image",
+    }
+
+    for node in tree.body:
+        if not isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
+            continue
+        if node.name not in endpoint_names:
+            continue
+
+        is_router_endpoint = any(
+            isinstance(decorator, ast.Call)
+            and isinstance(decorator.func, ast.Attribute)
+            and isinstance(decorator.func.value, ast.Name)
+            and decorator.func.value.id == "router"
+            and decorator.func.attr in {"get", "post", "put", "delete", "patch"}
+            for decorator in node.decorator_list
+        )
+        if not is_router_endpoint:
+            continue
+
+        all_args = [*node.args.args, *node.args.kwonlyargs]
+        if any(arg.arg == "db" for arg in all_args):
+            offenders.append(f"{produtos_router_path.relative_to(PROJECT_ROOT)}:{node.lineno}")
+
+    assert not offenders, (
+        "Core produtos endpoints must use request-scoped service dependencies, "
+        "not receive db sessions directly:\n" + "\n".join(offenders)
+    )
