@@ -54,8 +54,8 @@ from Backend.application.services.catalog_import_start_service import (
 from Backend.application.services.catalog_import_task_runner import (
     CatalogImportTaskRunner,
 )
-from Backend.application.services.validator_crew_facade import (
-    ValidatorCrewFacade,
+from Backend.application.services.validator_crew_service import (
+    ValidatorCrewService,
 )
 from Backend.application.services.data_access_service import data_access_service
 from Backend.application.services.service_container import service_container
@@ -80,7 +80,7 @@ catalog_import_diagnostics_service = CatalogImportDiagnosticsService(
     logger=logger,
     sanitization_service=catalog_sanitization_service,
 )
-validator_crew = ValidatorCrewFacade(logger=logger)
+validator_crew = ValidatorCrewService(logger=logger)
 catalog_import_task_runner = CatalogImportTaskRunner(
     logger=logger,
     catalog_logger=logger,

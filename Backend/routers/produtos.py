@@ -68,8 +68,8 @@ from Backend.application.services.product_repositories import (
     build_product_management_repositories,
     build_product_media_repositories,
 )
-from Backend.application.services.validator_crew_facade import (
-    ValidatorCrewFacade,
+from Backend.application.services.validator_crew_service import (
+    ValidatorCrewService,
 )
 from Backend.application.services.data_access_service import data_access_service
 from Backend.application.services.service_container import service_container
@@ -120,7 +120,7 @@ catalog_import_diagnostics_service = CatalogImportDiagnosticsService(
     sanitization_service=catalog_sanitization_service,
 )
 
-validator_crew = ValidatorCrewFacade(logger=logger)
+validator_crew = ValidatorCrewService(logger=logger)
 
 
 def _sanitize_produto_extraido(prod: Dict[str, Any]) -> Dict[str, Any]:

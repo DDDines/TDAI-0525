@@ -3,8 +3,8 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 
 from Backend.application.services.file_processing import FileProcessingOrchestratorService
-from Backend.application.services.ia_generation_facade import IAGenerationFacade
-from Backend.application.services.limit_service_facade import LimitServiceFacade
+from Backend.application.services.ia_generation_service import IAGenerationService
+from Backend.application.services.limit_service import LimitService
 from Backend.application.services.web_data_extractor import (
     WebDataExtractorOrchestratorService,
 )
@@ -34,8 +34,8 @@ class ServiceContainer:
     web_data_extractor: WebDataExtractorOrchestratorService = field(
         default_factory=_build_web_data_extractor_service
     )
-    ia_generation: IAGenerationFacade = field(default_factory=IAGenerationFacade)
-    limit: LimitServiceFacade = field(default_factory=LimitServiceFacade)
+    ia_generation: IAGenerationService = field(default_factory=IAGenerationService)
+    limit: LimitService = field(default_factory=LimitService)
 
 
 service_container = ServiceContainer()
