@@ -5,6 +5,7 @@ from typing import Any
 from fastapi import HTTPException
 
 from Backend.application.services.repository_runtime_support import (
+    bind_repository,
     call_repository_method,
 )
 
@@ -35,19 +36,37 @@ class CatalogImportFileService:
         self._catalog_import_start_service = catalog_import_start_service
         self._catalog_file_repository = catalog_file_repository
 
+    def _resolve_catalog_file_repo(
+        self,
+        *,
+        catalog_file_repo: Any | None = None,
+        **legacy_kwargs: Any,
+    ) -> Any:
+        if catalog_file_repo is not None:
+            return catalog_file_repo
+        db = legacy_kwargs.pop("db", None)
+        if db is not None:
+            return bind_repository(self._catalog_file_repository, db=db)
+        raise ValueError("catalog_file_repo or db is required")
+
     def list_user_files(
         self,
         *,
-        db: Any,
+        catalog_file_repo: Any | None = None,
         user_id: int,
         fornecedor_id: int | None,
         skip: int,
         limit: int,
+        **legacy_kwargs: Any,
     ) -> dict[str, Any]:
+        repo = self._resolve_catalog_file_repo(
+            catalog_file_repo=catalog_file_repo,
+            **legacy_kwargs,
+        )
         items, total_items = call_repository_method(
-            self._catalog_file_repository,
+            repo,
             "list_catalog_files_for_user",
-            db=db,
+            db=getattr(repo, "_db", None),
             user_id=user_id,
             fornecedor_id=fornecedor_id,
             skip=skip,
@@ -63,14 +82,19 @@ class CatalogImportFileService:
     def get_user_file_or_404(
         self,
         *,
-        db: Any,
+        catalog_file_repo: Any | None = None,
         file_id: int,
         user_id: int,
+        **legacy_kwargs: Any,
     ) -> Any:
+        repo = self._resolve_catalog_file_repo(
+            catalog_file_repo=catalog_file_repo,
+            **legacy_kwargs,
+        )
         record = call_repository_method(
-            self._catalog_file_repository,
+            repo,
             "get_catalog_file_for_user",
-            db=db,
+            db=getattr(repo, "_db", None),
             file_id=file_id,
             user_id=user_id,
         )
@@ -81,16 +105,25 @@ class CatalogImportFileService:
     def delete_user_file(
         self,
         *,
-        db: Any,
+        catalog_file_repo: Any | None = None,
         file_id: int,
         user_id: int,
+        **legacy_kwargs: Any,
     ) -> Any:
-        record = self.get_user_file_or_404(db=db, file_id=file_id, user_id=user_id)
+        repo = self._resolve_catalog_file_repo(
+            catalog_file_repo=catalog_file_repo,
+            **legacy_kwargs,
+        )
+        record = self.get_user_file_or_404(
+            catalog_file_repo=repo,
+            file_id=file_id,
+            user_id=user_id,
+        )
         self._file_processing_service.delete_catalog_file(record.stored_filename)
         call_repository_method(
-            self._catalog_file_repository,
+            repo,
             "delete_catalog_file",
-            db=db,
+            db=getattr(repo, "_db", None),
             catalog_file=record,
         )
         return record

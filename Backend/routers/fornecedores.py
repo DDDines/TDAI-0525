@@ -15,7 +15,7 @@ from fastapi import (
     UploadFile,
     status,
 )
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, sessionmaker
 
 from Backend import database
 from Backend import models
@@ -484,12 +484,18 @@ class _FornecedoresRouterRuntime:
         return fornecedor_management_service.delete_fornecedor(**kwargs)
 
     def get_job_for_user_or_404(self, **kwargs):
+        db = kwargs.pop("db", None)
+        if db is not None:
+            kwargs["import_job_repo"] = FornecedorImportJobRepository(db)
         return fornecedor_import_job_service.get_job_for_user_or_404(**kwargs)
 
     def build_review_payload(self, **kwargs):
         return fornecedor_import_job_service.build_review_payload(**kwargs)
 
     def schedule_commit(self, **kwargs):
+        db = kwargs.pop("db", None)
+        if db is not None:
+            kwargs["db_session_factory"] = sessionmaker(bind=db.get_bind())
         return fornecedor_import_job_service.schedule_commit(**kwargs)
 
     def build_import_job_status_payload(self, **kwargs):

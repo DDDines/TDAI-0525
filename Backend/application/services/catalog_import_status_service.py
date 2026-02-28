@@ -6,6 +6,7 @@ from fastapi import HTTPException, status
 from fastapi.responses import JSONResponse
 
 from Backend.application.services.repository_runtime_support import (
+    bind_repository,
     call_repository_method,
 )
 
@@ -34,11 +35,35 @@ class CatalogImportStatusService:
         self._models = models
         self._catalog_file_repository = catalog_file_repository
 
-    def get_record_or_404(self, *, db: Any, file_id: int, user_id: int) -> Any:
+    def _resolve_catalog_file_repo(
+        self,
+        *,
+        catalog_file_repo: Any | None = None,
+        **legacy_kwargs: Any,
+    ) -> Any:
+        if catalog_file_repo is not None:
+            return catalog_file_repo
+        db = legacy_kwargs.pop("db", None)
+        if db is not None:
+            return bind_repository(self._catalog_file_repository, db=db)
+        raise ValueError("catalog_file_repo or db is required")
+
+    def get_record_or_404(
+        self,
+        *,
+        file_id: int,
+        user_id: int,
+        catalog_file_repo: Any | None = None,
+        **legacy_kwargs: Any,
+    ) -> Any:
+        repo = self._resolve_catalog_file_repo(
+            catalog_file_repo=catalog_file_repo,
+            **legacy_kwargs,
+        )
         record = call_repository_method(
-            self._catalog_file_repository,
+            repo,
             "get_catalog_file_for_user",
-            db=db,
+            db=getattr(repo, "_db", None),
             file_id=file_id,
             user_id=user_id,
         )

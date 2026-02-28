@@ -11,18 +11,16 @@ from Backend.application.services.fornecedor_import_job_service import (
 
 
 class _CrudFornecedorImportJobsStub:
-    def __init__(self, job=None):
-        self.job = job
+    def __init__(self):
+        self.job = None
         self.updated_status = None
 
-    def get_import_job(self, db, job_id):
-        _ = db
+    def get_import_job(self, job_id):
         if self.job and self.job.id == job_id:
             return self.job
         return None
 
-    def update_job_status(self, db, job, status):
-        _ = db
+    def update_job_status(self, job, status):
         job.status = status
         self.updated_status = status
         return job
@@ -32,9 +30,13 @@ class _CrudProdutosStub:
     def __init__(self):
         self.calls = []
 
-    def get_or_create_produto(self, db, produto_schema, user_id):
-        self.calls.append((db, produto_schema.payload, user_id))
+    def get_or_create_produto(self, *, produto, user_id):
+        self.calls.append((self._db, produto.payload, user_id))
         return SimpleNamespace(id=len(self.calls))
+
+    def bind(self, db):
+        self._db = db
+        return self
 
 
 class _ProdutoCreateSchemaStub:
@@ -64,11 +66,31 @@ class _BackgroundTasksStub:
 
 
 def _build_service(*, job):
-    crud_jobs = _CrudFornecedorImportJobsStub(job=job)
+    crud_jobs = _CrudFornecedorImportJobsStub()
+    crud_jobs.job = job
     crud_produtos = _CrudProdutosStub()
+
+    class _ImportJobRepoClass:
+        def __init__(self, db):
+            _ = db
+            self._stub = crud_jobs
+
+        def get_import_job(self, job_id):
+            return self._stub.get_import_job(job_id)
+
+        def update_job_status(self, job, status):
+            return self._stub.update_job_status(job, status)
+
+    class _ProdutoRepoClass:
+        def __init__(self, db):
+            self._stub = crud_produtos.bind(db)
+
+        def get_or_create_produto(self, *, produto, user_id):
+            return self._stub.get_or_create_produto(produto=produto, user_id=user_id)
+
     service = FornecedorImportJobService(
-        crud_fornecedor_import_jobs=crud_jobs,
-        crud_produtos=crud_produtos,
+        import_job_repository_cls=_ImportJobRepoClass,
+        produto_repository_cls=_ProdutoRepoClass,
         produto_create_schema=_ProdutoCreateSchemaStub,
     )
     return service, crud_jobs, crud_produtos
@@ -78,7 +100,8 @@ def test_get_job_for_user_or_404_returns_job():
     job = SimpleNamespace(id=5, user_id=10, result_summary=[])
     service, _, _ = _build_service(job=job)
 
-    found = service.get_job_for_user_or_404(db=object(), job_id=5, user_id=10)
+    repo = SimpleNamespace(get_import_job=lambda job_id: job if job_id == 5 else None)
+    found = service.get_job_for_user_or_404(import_job_repo=repo, job_id=5, user_id=10)
 
     assert found is job
 
@@ -86,9 +109,10 @@ def test_get_job_for_user_or_404_returns_job():
 def test_get_job_for_user_or_404_raises_for_invalid_user():
     job = SimpleNamespace(id=5, user_id=10, result_summary=[])
     service, _, _ = _build_service(job=job)
+    repo = SimpleNamespace(get_import_job=lambda job_id: job if job_id == 5 else None)
 
     with pytest.raises(HTTPException) as exc:
-        service.get_job_for_user_or_404(db=object(), job_id=5, user_id=99)
+        service.get_job_for_user_or_404(import_job_repo=repo, job_id=5, user_id=99)
 
     assert exc.value.status_code == 404
 
@@ -97,11 +121,10 @@ def test_schedule_commit_adds_background_task():
     job = SimpleNamespace(id=5, user_id=10, result_summary=[])
     service, _, _ = _build_service(job=job)
     background = _BackgroundTasksStub()
-    db = _DbSessionStub()
 
     service.schedule_commit(
         background_tasks=background,
-        db=db,
+        db_session_factory=lambda: _DbSessionStub(),
         job_id=5,
         user_id=10,
     )

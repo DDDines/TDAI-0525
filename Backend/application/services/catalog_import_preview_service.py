@@ -9,6 +9,7 @@ from typing import Any, Dict, List, Optional
 from fastapi import HTTPException
 
 from Backend.application.services.repository_runtime_support import (
+    bind_repository,
     call_repository_method,
 )
 
@@ -45,6 +46,19 @@ class CatalogImportPreviewService:
         self._pdfplumber = pdfplumber_module
         self._catalog_file_repository = catalog_file_repository
 
+    def _resolve_catalog_file_repo(
+        self,
+        *,
+        catalog_file_repo: Any | None = None,
+        **legacy_kwargs: Any,
+    ) -> Any:
+        if catalog_file_repo is not None:
+            return catalog_file_repo
+        db = legacy_kwargs.pop("db", None)
+        if db is not None:
+            return bind_repository(self._catalog_file_repository, db=db)
+        raise ValueError("catalog_file_repo or db is required")
+
     async def importar_catalogo_preview(
         self,
         *,
@@ -53,22 +67,27 @@ class CatalogImportPreviewService:
         start_page: int,
         page_count: int,
         dpi: int,
-        db: Any,
+        catalog_file_repo: Any | None = None,
         user_id: int,
+        **legacy_kwargs: Any,
     ) -> Dict[str, Any]:
         """Gera preview de catalogo enviado e persiste o arquivo para uso posterior."""
         content = await file.read()
         started_at = time.perf_counter()
         await file.seek(0)
+        repo = self._resolve_catalog_file_repo(
+            catalog_file_repo=catalog_file_repo,
+            **legacy_kwargs,
+        )
 
         catalog_record = await self._file_processing_service.save_uploaded_catalog(
             file, fornecedor_id
         )
         catalog_record.user_id = user_id
         call_repository_method(
-            self._catalog_file_repository,
+            repo,
             "save_catalog_file",
-            db=db,
+            db=getattr(repo, "_db", None),
             catalog_file=catalog_record,
         )
 
@@ -128,11 +147,20 @@ class CatalogImportPreviewService:
         page: int,
         bbox: List[float],
         bbox_norm: Optional[List[float]],
-        db: Any,
+        catalog_file_repo: Any | None = None,
         user_id: int,
+        **legacy_kwargs: Any,
     ) -> Dict[str, Any]:
         """Extrai linhas tabulares de uma regiao selecionada de um PDF para mapeamento."""
-        record = self._get_record_or_404(db=db, file_id=file_id, user_id=user_id)
+        repo = self._resolve_catalog_file_repo(
+            catalog_file_repo=catalog_file_repo,
+            **legacy_kwargs,
+        )
+        record = self._get_record_or_404(
+            catalog_file_repo=repo,
+            file_id=file_id,
+            user_id=user_id,
+        )
         file_path = self._build_catalog_path(record)
         if not file_path.exists():
             raise HTTPException(status_code=404, detail="Arquivo nao encontrado")
@@ -262,11 +290,20 @@ class CatalogImportPreviewService:
         *,
         file_id: int,
         page_number: int,
-        db: Any,
+        catalog_file_repo: Any | None = None,
         user_id: int,
+        **legacy_kwargs: Any,
     ) -> Dict[str, Any]:
         """Retorna imagem/texto/tabela de uma pagina de PDF."""
-        record = self._get_record_or_404(db=db, file_id=file_id, user_id=user_id)
+        repo = self._resolve_catalog_file_repo(
+            catalog_file_repo=catalog_file_repo,
+            **legacy_kwargs,
+        )
+        record = self._get_record_or_404(
+            catalog_file_repo=repo,
+            file_id=file_id,
+            user_id=user_id,
+        )
         file_path = self._build_catalog_path(record)
 
         if not file_path.exists():
@@ -283,11 +320,17 @@ class CatalogImportPreviewService:
         except Exception as exc:
             raise HTTPException(status_code=500, detail=str(exc)) from exc
 
-    def _get_record_or_404(self, *, db: Any, file_id: int, user_id: int) -> Any:
+    def _get_record_or_404(
+        self,
+        *,
+        catalog_file_repo: Any,
+        file_id: int,
+        user_id: int,
+    ) -> Any:
         record = call_repository_method(
-            self._catalog_file_repository,
+            catalog_file_repo,
             "get_catalog_file_for_user",
-            db=db,
+            db=getattr(catalog_file_repo, "_db", None),
             file_id=file_id,
             user_id=user_id,
         )

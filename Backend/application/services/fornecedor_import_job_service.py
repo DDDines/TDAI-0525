@@ -3,25 +3,36 @@ from __future__ import annotations
 from typing import Any, Iterable
 
 from fastapi import HTTPException
-from sqlalchemy.orm import sessionmaker
+from sqlalchemy.orm import Session
+
+from Backend.infrastructure.repositories.fornecedor_import_job_repository import (
+    FornecedorImportJobRepository,
+)
+from Backend.infrastructure.repositories.product_repository import ProductRepository
 
 
 class FornecedorImportJobService:
-    """Coordena leitura e commit de jobs legados de importacao de fornecedor."""
+    """Coordena leitura e commit de jobs de importacao via repositories OO."""
 
     def __init__(
         self,
         *,
-        crud_fornecedor_import_jobs: Any,
-        crud_produtos: Any,
+        import_job_repository_cls: type[FornecedorImportJobRepository] = FornecedorImportJobRepository,
+        produto_repository_cls: type[ProductRepository] = ProductRepository,
         produto_create_schema: Any,
     ) -> None:
-        self._crud_fornecedor_import_jobs = crud_fornecedor_import_jobs
-        self._crud_produtos = crud_produtos
+        self._import_job_repository_cls = import_job_repository_cls
+        self._produto_repository_cls = produto_repository_cls
         self._produto_create_schema = produto_create_schema
 
-    def get_job_for_user_or_404(self, *, db: Any, job_id: int, user_id: int) -> Any:
-        job = self._crud_fornecedor_import_jobs.get_import_job(db, job_id)
+    def _import_job_repo(self, db: Session) -> FornecedorImportJobRepository:
+        return self._import_job_repository_cls(db)
+
+    def _produto_repo(self, db: Session) -> ProductRepository:
+        return self._produto_repository_cls(db)
+
+    def get_job_for_user_or_404(self, *, import_job_repo: Any, job_id: int, user_id: int) -> Any:
+        job = import_job_repo.get_import_job(job_id=job_id)
         if not job or job.user_id != user_id:
             raise HTTPException(status_code=404, detail="Job nao encontrado")
         return job
@@ -33,11 +44,10 @@ class FornecedorImportJobService:
         self,
         *,
         background_tasks: Any,
-        db: Any,
+        db_session_factory: Any,
         job_id: int,
         user_id: int,
     ) -> None:
-        db_session_factory = sessionmaker(bind=db.get_bind())
         background_tasks.add_task(
             self.commit_job_task,
             db_session_factory=db_session_factory,
@@ -48,7 +58,9 @@ class FornecedorImportJobService:
     def commit_job_task(self, *, db_session_factory: Any, job_id: int, user_id: int) -> None:
         db = db_session_factory()
         try:
-            job = self._crud_fornecedor_import_jobs.get_import_job(db, job_id)
+            import_job_repo = self._import_job_repo(db)
+            produto_repo = self._produto_repo(db)
+            job = import_job_repo.get_import_job(job_id=job_id)
             if not job:
                 return
             for prod_data in self._iter_summary_rows(job.result_summary):
@@ -56,8 +68,8 @@ class FornecedorImportJobService:
                     produto_schema = self._produto_create_schema(**prod_data)
                 except Exception:
                     continue
-                self._crud_produtos.get_or_create_produto(db, produto_schema, user_id)
-            self._crud_fornecedor_import_jobs.update_job_status(db, job, "COMPLETED")
+                produto_repo.get_or_create_produto(produto=produto_schema, user_id=user_id)
+            import_job_repo.update_job_status(job=job, status="COMPLETED")
         finally:
             db.close()
 

@@ -11,14 +11,6 @@ from Backend.application.services.web_enrichment_start_service import (
 )
 
 
-class _DbSessionStub:
-    def __init__(self):
-        self.closed = False
-
-    def close(self):
-        self.closed = True
-
-
 class _CrudProdutosStub:
     def __init__(self, produto=None):
         self.produto = produto
@@ -76,17 +68,15 @@ def _build_service(produto=None):
 def test_validate_start_preconditions_not_found():
     service = _build_service(produto=None)
     user = SimpleNamespace(id=1, is_superuser=False)
-    db_session = _DbSessionStub()
 
     with pytest.raises(HTTPException) as exc:
         service.validate_start_preconditions(
-            db_session_factory=lambda: db_session,
+            product_repo=_CrudProdutosStub(produto=None),
             produto_id=10,
             current_user=user,
         )
 
     assert exc.value.status_code == 404
-    assert db_session.closed is True
 
 
 def test_validate_start_preconditions_forbidden():
@@ -96,7 +86,7 @@ def test_validate_start_preconditions_forbidden():
 
     with pytest.raises(HTTPException) as exc:
         service.validate_start_preconditions(
-            db_session_factory=lambda: _DbSessionStub(),
+            product_repo=_CrudProdutosStub(produto=produto),
             produto_id=10,
             current_user=user,
         )
@@ -111,7 +101,7 @@ def test_validate_start_preconditions_conflict():
 
     with pytest.raises(HTTPException) as exc:
         service.validate_start_preconditions(
-            db_session_factory=lambda: _DbSessionStub(),
+            product_repo=_CrudProdutosStub(produto=produto),
             produto_id=10,
             current_user=user,
         )
@@ -125,7 +115,7 @@ def test_validate_start_preconditions_success():
     user = SimpleNamespace(id=1, is_superuser=False)
 
     service.validate_start_preconditions(
-        db_session_factory=lambda: _DbSessionStub(),
+        product_repo=_CrudProdutosStub(produto=produto),
         produto_id=10,
         current_user=user,
     )
@@ -139,7 +129,7 @@ def test_dispatch_start_selects_and_dispatches():
 
     plan = service.dispatch_start(
         background_tasks=object(),
-        db_session_factory=lambda: _DbSessionStub(),
+        db_session_factory=lambda: object(),
         command=command,
         oop_executor=object(),
     )

@@ -274,7 +274,7 @@ class _ProdutosRouterRuntime:
         limit: int,
     ) -> schemas.CatalogImportFilePage:
         return catalog_import_file_service.list_user_files(
-            db=db,
+            catalog_file_repo=CatalogImportFileRepository(db),
             user_id=user_id,
             fornecedor_id=fornecedor_id,
             skip=skip,
@@ -283,7 +283,7 @@ class _ProdutosRouterRuntime:
 
     def delete_catalog_import_file(self, db: Session, file_id: int, user_id: int):
         return catalog_import_file_service.delete_user_file(
-            db=db,
+            catalog_file_repo=CatalogImportFileRepository(db),
             file_id=file_id,
             user_id=user_id,
         )
@@ -403,7 +403,7 @@ class _ProdutosRouterRuntime:
             start_page=start_page,
             page_count=page_count,
             dpi=dpi,
-            db=db,
+            catalog_file_repo=CatalogImportFileRepository(db),
             user_id=user_id,
         )
         return schemas.ImportPreviewResponse(**response_payload)
@@ -499,7 +499,7 @@ class _ProdutosRouterRuntime:
             page=page,
             bbox=bbox,
             bbox_norm=bbox_norm,
-            db=db,
+            catalog_file_repo=CatalogImportFileRepository(db),
             user_id=user_id,
         )
 
@@ -513,7 +513,7 @@ class _ProdutosRouterRuntime:
         return await catalog_import_preview_service.extrair_pagina_unica(
             file_id=file_id,
             page_number=page_number,
-            db=db,
+            catalog_file_repo=CatalogImportFileRepository(db),
             user_id=user_id,
         )
 
