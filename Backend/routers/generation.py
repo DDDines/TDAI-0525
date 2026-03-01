@@ -181,7 +181,7 @@ class GenerationRequestService:
     ) -> schemas.SugestoesAtributosResponse:
         try:
             return await self._ia_generation_service.sugerir_valores_atributos_com_gemini(
-                db=self._db,
+                session=self._db,
                 produto_id=produto_id,
                 user=current_user,
             )
