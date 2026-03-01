@@ -87,31 +87,46 @@ get_auth_utils_workflow = lambda: AuthUtilsWorkflow(runtime=_AuthUtilsRuntime())
 _build_auth_request_session = build_request_scoped_dependency(lambda session: session)
 
 
-async def get_current_user(
-    request: Request,
-    session: Session = Depends(_build_auth_request_session),
-    token: str = Depends(oauth2_scheme),
-) -> models.User:
-    """Resolve usuario autenticado atual via workflow OO."""
-    workflow = get_auth_utils_workflow()
-    return await workflow.get_current_user(
-        request=request,
-        db=session,
-        token=token,
-    )
+class _AuthUtilsCurrentUserDependency:
+    @staticmethod
+    async def get_current_user(
+        request: Request,
+        session: Session = Depends(_build_auth_request_session),
+        token: str = Depends(oauth2_scheme),
+    ) -> models.User:
+        """Resolve usuario autenticado atual via workflow OO."""
+        workflow = get_auth_utils_workflow()
+        return await workflow.get_current_user(
+            request=request,
+            db=session,
+            token=token,
+        )
 
 
-async def get_current_active_user(
-    current_user: models.User = Depends(get_current_user),
-) -> models.User:
-    """Valida usuario ativo via workflow OO."""
-    workflow = get_auth_utils_workflow()
-    return await workflow.get_current_active_user(current_user=current_user)
+get_current_user = _AuthUtilsCurrentUserDependency.get_current_user
 
 
-async def get_current_active_superuser(
-    current_user: models.User = Depends(get_current_active_user),
-) -> models.User:
-    """Valida privilegio de superusuario via workflow OO."""
-    workflow = get_auth_utils_workflow()
-    return await workflow.get_current_active_superuser(current_user=current_user)
+class _AuthUtilsActiveUserDependency:
+    @staticmethod
+    async def get_current_active_user(
+        current_user: models.User = Depends(get_current_user),
+    ) -> models.User:
+        """Valida usuario ativo via workflow OO."""
+        workflow = get_auth_utils_workflow()
+        return await workflow.get_current_active_user(current_user=current_user)
+
+
+get_current_active_user = _AuthUtilsActiveUserDependency.get_current_active_user
+
+
+class _AuthUtilsSuperUserDependency:
+    @staticmethod
+    async def get_current_active_superuser(
+        current_user: models.User = Depends(get_current_active_user),
+    ) -> models.User:
+        """Valida privilegio de superusuario via workflow OO."""
+        workflow = get_auth_utils_workflow()
+        return await workflow.get_current_active_superuser(current_user=current_user)
+
+
+get_current_active_superuser = _AuthUtilsSuperUserDependency.get_current_active_superuser

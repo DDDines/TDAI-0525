@@ -149,9 +149,9 @@ class _SocialAuthRouterWorkflow:
 SocialAuthRouterWorkflow = _SocialAuthRouterWorkflow
 
 
-def get_social_auth_router_workflow() -> SocialAuthRouterWorkflow:
-    """Factory de workflow OO para o modulo atual (get_social_auth_router_workflow)."""
-    return SocialAuthRouterWorkflow(runtime=_SocialAuthRouterRuntime())
+get_social_auth_router_workflow = (
+    lambda: SocialAuthRouterWorkflow(runtime=_SocialAuthRouterRuntime())
+)
 
 
 class _SocialAuthRequestScope:

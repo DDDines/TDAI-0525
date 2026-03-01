@@ -286,11 +286,14 @@ class _InitialDataWorkflow:
 InitialDataWorkflow = _InitialDataWorkflow
 
 
-def get_initial_data_workflow() -> InitialDataWorkflow:
-    """Factory de workflow OO para inicializacao de dados."""
-    return InitialDataWorkflow()
+get_initial_data_workflow = lambda: InitialDataWorkflow()
 
 
-def create_initial_data(db: Session):
-    """Entrada publica de compatibilidade para rotinas de seed."""
-    return get_initial_data_workflow().create_initial_data(db=db)
+class _InitialDataEntryPoints:
+    @staticmethod
+    def create_initial_data(db: Session):
+        """Entrada publica de compatibilidade para rotinas de seed."""
+        return get_initial_data_workflow().create_initial_data(db=db)
+
+
+create_initial_data = _InitialDataEntryPoints.create_initial_data

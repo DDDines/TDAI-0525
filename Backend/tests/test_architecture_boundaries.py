@@ -46,6 +46,30 @@ def _import_targets(path: Path) -> list[str]:
     return targets
 
 
+def _is_http_endpoint_function(node: ast.FunctionDef | ast.AsyncFunctionDef) -> bool:
+    for decorator in node.decorator_list:
+        if not isinstance(decorator, ast.Call):
+            continue
+        if not isinstance(decorator.func, ast.Attribute):
+            continue
+        if decorator.func.attr not in {
+            "get",
+            "post",
+            "put",
+            "patch",
+            "delete",
+            "options",
+            "head",
+            "trace",
+            "websocket",
+        }:
+            continue
+        owner = decorator.func.value
+        if isinstance(owner, ast.Name) and owner.id in {"router", "app"}:
+            return True
+    return False
+
+
 def test_application_does_not_import_backend_services_modules():
     offenders: list[str] = []
     for path in _iter_python_files(APPLICATION_ROOT):
@@ -258,6 +282,47 @@ def test_infrastructure_runtime_providers_expose_get_runtime_service_only():
     assert not missing, (
         "Runtime providers must expose get_runtime_service():\n"
         + "\n".join(missing)
+    )
+
+
+def test_backend_top_level_non_endpoint_functions_are_allowlisted():
+    offenders: list[str] = []
+
+    for path in _iter_python_files(BACKEND_ROOT):
+        if path.is_relative_to(BACKEND_TESTS_ROOT):
+            continue
+
+        rel = path.relative_to(PROJECT_ROOT).as_posix()
+        tree = _parse_python_file(path)
+
+        for node in tree.body:
+            if not isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
+                continue
+            if _is_http_endpoint_function(node):
+                continue
+
+            fn = node.name
+            is_allowed = False
+
+            if rel == "Backend/alembic/env.py" and fn in {
+                "run_migrations_offline",
+                "run_migrations_online",
+            }:
+                is_allowed = True
+            elif rel.startswith("Backend/alembic/versions/") and fn in {
+                "upgrade",
+                "downgrade",
+            }:
+                is_allowed = True
+            elif rel.startswith("Backend/infrastructure/runtime/") and fn == "get_runtime_service":
+                is_allowed = True
+
+            if not is_allowed:
+                offenders.append(f"{rel}:{node.lineno} -> {fn}")
+
+    assert not offenders, (
+        "Top-level non-endpoint functions must be exception-allowlisted only:\n"
+        + "\n".join(offenders)
     )
 
 

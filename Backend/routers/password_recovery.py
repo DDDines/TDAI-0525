@@ -170,9 +170,9 @@ class _PasswordRecoveryWorkflow:
 PasswordRecoveryWorkflow = _PasswordRecoveryWorkflow
 
 
-def get_password_recovery_workflow() -> PasswordRecoveryWorkflow:
-    """Factory de workflow OO para o modulo atual (get_password_recovery_workflow)."""
-    return PasswordRecoveryWorkflow(runtime=_PasswordRecoveryRuntime())
+get_password_recovery_workflow = (
+    lambda: PasswordRecoveryWorkflow(runtime=_PasswordRecoveryRuntime())
+)
 
 
 class _PasswordRecoveryRequestScope:

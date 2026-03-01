@@ -479,10 +479,19 @@ MainBootstrapWorkflow = _MainBootstrapWorkflow
 get_main_bootstrap_workflow = lambda: MainBootstrapWorkflow()
 
 
-@asynccontextmanager
-async def lifespan(_app: FastAPI):
-    await get_main_bootstrap_workflow().startup_event_create_defaults()
-    yield
+class _MainLifecycleEntries:
+    @staticmethod
+    async def lifespan(_app: FastAPI):
+        await get_main_bootstrap_workflow().startup_event_create_defaults()
+        yield
+
+    @staticmethod
+    async def startup_event_create_defaults() -> None:
+        """Entrada de compatibilidade para testes/workflows de bootstrap."""
+        await get_main_bootstrap_workflow().startup_event_create_defaults()
+
+
+lifespan = asynccontextmanager(_MainLifecycleEntries.lifespan)
 
 
 app = FastAPI(
@@ -508,9 +517,7 @@ static_files_path = get_main_bootstrap_workflow().ensure_static_files_path()
 app.mount("/static", StaticFiles(directory=static_files_path), name="static")
 
 
-async def startup_event_create_defaults() -> None:
-    """Entrada de compatibilidade para testes/workflows de bootstrap."""
-    await get_main_bootstrap_workflow().startup_event_create_defaults()
+startup_event_create_defaults = _MainLifecycleEntries.startup_event_create_defaults
 
 
 @app.post(

@@ -12,12 +12,19 @@ import Backend.infrastructure.runtime_modules.limit_module as limit_service
 import Backend.infrastructure.runtime_modules.validator_crew_module as validator_crew
 import Backend.infrastructure.runtime_modules.web_data_extractor_module as web_extractor
 
+class RuntimeApis:
+    """Surface OO para utilitarios de runtime consumidos nos testes."""
+
+    @staticmethod
+    def processar_linha_padronizada(linha_original, mapeamento_colunas_usuario=None):
+        return file_processing.LineMappingWorkflow().processar_linha_padronizada(
+            linha_original=linha_original,
+            mapeamento_colunas_usuario=mapeamento_colunas_usuario,
+        )
+
+
 # Public symbol preferred by runtime-focused tests.
-def processar_linha_padronizada(linha_original, mapeamento_colunas_usuario=None):
-    return file_processing.LineMappingWorkflow().processar_linha_padronizada(
-        linha_original=linha_original,
-        mapeamento_colunas_usuario=mapeamento_colunas_usuario,
-    )
+processar_linha_padronizada = RuntimeApis.processar_linha_padronizada
 LineNormalizationRuntime = file_processing.LineNormalizationRuntime
 CatalogStorageWorkflow = file_processing.CatalogStorageWorkflow
 LineMappingWorkflow = file_processing.LineMappingWorkflow
