@@ -5,7 +5,7 @@ from types import SimpleNamespace
 import pytest
 from fastapi import BackgroundTasks
 
-from Backend.routers.web_enrichment import WebEnrichmentRouterWorkflow
+from Backend.routers.web_enrichment import WebEnrichmentRequestService
 
 
 class _TopLevelFunctionSurface:
@@ -14,19 +14,14 @@ class _TopLevelFunctionSurface:
     async def test_workflow_delega_execucao_task_para_runtime():
         called = []
     
-        class FakeRuntime:
-            async def execute_task(self, **kwargs):
+        class FakeTaskRunner:
+            async def execute(self, **kwargs):
                 called.append(("task", kwargs))
-    
-            def validate_start_preconditions(self, **kwargs):
-                called.append(("validate", kwargs))
-    
-            def dispatch_start(self, **kwargs):
-                called.append(("dispatch", kwargs))
-    
-        workflow = WebEnrichmentRouterWorkflow(runtime=FakeRuntime())
-    
-        await workflow.tarefa_enriquecer_produto_web(
+
+        service = WebEnrichmentRequestService()
+        service._task_runner = FakeTaskRunner()
+
+        await service.tarefa_enriquecer_produto_web(
             db_session_factory="db_factory",
             produto_id=10,
             user_id=20,
@@ -41,21 +36,18 @@ class _TopLevelFunctionSurface:
     def test_workflow_iniciar_enriquecimento_usa_validacao_e_dispatch_do_runtime():
         called = []
     
-        class FakeRuntime:
-            async def execute_task(self, **kwargs):
-                called.append(("task", kwargs))
-    
+        class FakeStartService:
             def validate_start_preconditions(self, **kwargs):
                 called.append(("validate", kwargs))
-    
             def dispatch_start(self, **kwargs):
                 called.append(("dispatch", kwargs))
-    
-        workflow = WebEnrichmentRouterWorkflow(runtime=FakeRuntime())
+
+        service = WebEnrichmentRequestService()
+        service._start_service = FakeStartService()
         user = SimpleNamespace(id=99)
         background_tasks = BackgroundTasks()
     
-        response = workflow.iniciar_enriquecimento_produto_web(
+        response = service.iniciar_enriquecimento_produto_web(
             produto_id=77,
             background_tasks=background_tasks,
             current_user=user,

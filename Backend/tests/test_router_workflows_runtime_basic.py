@@ -9,17 +9,17 @@ from fastapi import HTTPException
 
 from Backend import schemas
 from Backend.main import MainBootstrapWorkflow
-from Backend.routers.admin_analytics import AdminAnalyticsRouterWorkflow
-from Backend.routers.auth_utils import AuthUtilsWorkflow
+from Backend.routers.admin_analytics import AdminAnalyticsRequestService
+from Backend.routers.auth_utils import AuthRequestService
 from Backend.routers.fornecedores import FornecedoresRouterWorkflow
-from Backend.routers.generation import GenerationRouterWorkflow
-from Backend.routers.historico import HistoricoWorkflow
-from Backend.routers.password_recovery import PasswordRecoveryWorkflow
-from Backend.routers.product_types import ProductTypesRouterWorkflow
+from Backend.routers.generation import GenerationRequestService
+from Backend.routers.historico import HistoricoRequestService
+from Backend.routers.password_recovery import PasswordRecoveryRequestService
+from Backend.routers.product_types import ProductTypesRequestService
 from Backend.routers.produtos import ProdutosRouterWorkflow
-from Backend.routers.search import SearchWorkflow
-from Backend.routers.social_auth import SocialAuthRouterWorkflow
-from Backend.routers.uso_ia import UsoIAWorkflow
+from Backend.routers.search import SearchRequestService
+from Backend.routers.social_auth import SocialAuthRequestService
+from Backend.routers.uso_ia import UsoIARequestService
 
 
 class _TopLevelFunctionSurface:
@@ -28,17 +28,24 @@ class _TopLevelFunctionSurface:
     async def test_auth_workflow_get_current_user_usa_runtime_injetado():
         called = []
     
-        class FakeRuntime:
+        class FakeSecurityWorkflow:
             def decode_token(self, token, secret_key):
                 called.append(("decode", token, secret_key))
                 return SimpleNamespace(user_id=123)
-    
-            def get_user(self, db, user_id):
-                called.append(("get_user", db, user_id))
+
+        class FakeUserRepository:
+            def __init__(self, db):
+                self._db = db
+
+            def get_user(self, user_id):
+                called.append(("get_user", self._db, user_id))
                 return SimpleNamespace(id=user_id, is_active=True, is_superuser=False)
-    
-        workflow = AuthUtilsWorkflow(runtime=FakeRuntime())
-        user = await workflow.get_current_user(request=object(), db="db", token="abc")
+
+        service = AuthRequestService(
+            security_workflow=FakeSecurityWorkflow(),
+            user_repository_cls=FakeUserRepository,
+        )
+        user = await service.get_current_user(request=object(), session="db", token="abc")
     
         assert user.id == 123
         assert called[0][0] == "decode"
@@ -46,116 +53,146 @@ class _TopLevelFunctionSurface:
 
     @pytest.mark.asyncio
     async def test_auth_workflow_get_current_user_lanca_401_quando_payload_invalido():
-        class FakeRuntime:
+        class FakeSecurityWorkflow:
             def decode_token(self, token, secret_key):
                 return None
-    
-            def get_user(self, db, user_id):
+
+        class FakeUserRepository:
+            def __init__(self, db):
+                self._db = db
+
+            def get_user(self, user_id):
                 return None
-    
-        workflow = AuthUtilsWorkflow(runtime=FakeRuntime())
+
+        service = AuthRequestService(
+            security_workflow=FakeSecurityWorkflow(),
+            user_repository_cls=FakeUserRepository,
+        )
     
         with pytest.raises(HTTPException) as exc_info:
-            await workflow.get_current_user(request=object(), db="db", token="abc")
+            await service.get_current_user(request=object(), session="db", token="abc")
     
         assert exc_info.value.status_code == 401
 
     def test_historico_workflow_lista_historico_com_runtime_injetado():
         called = []
     
-        class FakeRuntime:
-            def get_registros_historico(self, db, *, user_id, skip, limit):
-                called.append(("items", db, user_id, skip, limit))
+        class FakeRepository:
+            def get_registros_historico(self, *, user_id, skip, limit):
+                called.append(("items", user_id, skip, limit))
                 return []
     
-            def count_registros_historico(self, db, *, user_id):
-                called.append(("count", db, user_id))
+            def count_registros_historico(self, *, user_id):
+                called.append(("count", user_id))
                 return 25
-    
-            def get_tipos_acao(self):
-                called.append(("tipos",))
-                return ["CRIACAO", "ATUALIZACAO"]
-    
-        workflow = HistoricoWorkflow(runtime=FakeRuntime())
+
+        request_service = HistoricoRequestService(session="db")
+        request_service._historico_repo = FakeRepository()
         current_user = SimpleNamespace(id=77, is_superuser=False)
     
-        page = workflow.list_historico(db="db", current_user=current_user, skip=10, limit=10)
+        page = request_service.list_historico(current_user=current_user, skip=10, limit=10)
     
         assert page.total_items == 25
         assert page.page == 2
         assert page.limit == 10
-        assert called[0] == ("items", "db", 77, 10, 10)
-        assert called[1] == ("count", "db", 77)
+        assert called[0] == ("items", 77, 10, 10)
+        assert called[1] == ("count", 77)
 
     def test_historico_workflow_get_tipos_acao_delega_runtime():
-        class FakeRuntime:
-            def get_registros_historico(self, db, *, user_id, skip, limit):
-                return []
-    
-            def count_registros_historico(self, db, *, user_id):
-                return 0
-    
-            def get_tipos_acao(self):
-                return ["CRIACAO", "DELECAO"]
-    
-        workflow = HistoricoWorkflow(runtime=FakeRuntime())
-        assert workflow.get_tipos_acao() == ["CRIACAO", "DELECAO"]
+        response = HistoricoRequestService.get_tipos_acao()
+        assert isinstance(response, list)
+        assert response
 
     def test_search_workflow_delega_runtime_injetado():
-        called = []
-    
-        class FakeRuntime:
-            def search_all(self, **kwargs):
-                called.append(kwargs)
-                return {"ok": True}
-    
-        workflow = SearchWorkflow(runtime=FakeRuntime())
-        result = workflow.search_all(
-            db="db",
-            current_user=SimpleNamespace(id=1),
+        now = datetime.now(timezone.utc)
+
+        class FakeQuery:
+            def __init__(self, rows):
+                self._rows = rows
+
+            def filter(self, *_args, **_kwargs):
+                return self
+
+            def order_by(self, *_args, **_kwargs):
+                return self
+
+            def limit(self, *_args, **_kwargs):
+                return self
+
+            def all(self):
+                return self._rows
+
+        class FakeSession:
+            def __init__(self):
+                self._query_count = 0
+
+            def query(self, *_args):
+                self._query_count += 1
+                if self._query_count == 1:
+                    return FakeQuery(
+                        [SimpleNamespace(id=1, nome_base="Produto X", created_at=now)]
+                    )
+                if self._query_count == 2:
+                    return FakeQuery(
+                        [SimpleNamespace(id=2, nome="Fornecedor Y", created_at=now)]
+                    )
+                return FakeQuery(
+                    [SimpleNamespace(id=3, friendly_name="Tipo Z", created_at=now)]
+                )
+
+        request_service = SearchRequestService(session=FakeSession())
+        result = request_service.search_all(
+            current_user=SimpleNamespace(id=1, is_superuser=False),
             q="abc",
             limit=5,
         )
     
-        assert result == {"ok": True}
-        assert called[0]["db"] == "db"
-        assert called[0]["q"] == "abc"
-        assert called[0]["limit"] == 5
+        assert len(result.results) == 3
+        assert {item.type for item in result.results} == {
+            "produto",
+            "fornecedor",
+            "tipo_produto",
+        }
 
     @pytest.mark.asyncio
     async def test_password_recovery_workflow_recover_delega_runtime():
         called = []
     
-        class FakeRuntime:
-            def get_user_by_email(self, db, email):
-                called.append(("get_user_by_email", db, email))
+        class FakeUserRepository:
+            def get_user_by_email(self, email):
+                called.append(("get_user_by_email", "db", email))
                 return SimpleNamespace(email=email, nome_completo="User Test")
-    
+
+            def set_user_password_reset_token(self, user, *, token_hash, expires_at):
+                called.append(("set_token", "db", user.email, token_hash, expires_at))
+
+            def get_user_by_reset_token(self, token_hash):
+                return None
+
+            def get_user(self, user_id):
+                return None
+
+        class FakeAuthWorkflow:
             def create_password_reset_token(self):
                 called.append(("create_token",))
                 return "token123"
-    
+
             def hash_password_reset_token(self, token):
                 called.append(("hash_token", token))
                 return "hash123"
-    
-            def set_user_password_reset_token(self, db, user, *, token_hash, expires_at):
-                called.append(("set_token", db, user.email, token_hash, expires_at))
-    
-            async def send_password_reset_email(self, **kwargs):
-                called.append(("send_email", kwargs))
-    
-            def get_user_by_reset_token(self, db, token_hash):
-                return None
-    
-            def get_user(self, db, user_id):
-                return None
-    
+
             def get_password_hash(self, raw_password):
                 return f"hashed:{raw_password}"
-    
-        workflow = PasswordRecoveryWorkflow(runtime=FakeRuntime())
-        response = await workflow.recover_password(db="db", email="user@test.com", request=object())
+
+        class FakeEmailWorkflow:
+            async def send_password_reset_email(self, **kwargs):
+                called.append(("send_email", kwargs))
+
+        service = PasswordRecoveryRequestService(session="db")
+        service._user_repository = FakeUserRepository()
+        service._auth_workflow = FakeAuthWorkflow()
+        service._email_workflow = FakeEmailWorkflow()
+        response = await service.recover_password(email="user@test.com", request=object())
     
         assert response.msg == "Email de recuperacao de senha enviado com sucesso."
         assert called[0] == ("get_user_by_email", "db", "user@test.com")
@@ -172,55 +209,44 @@ class _TopLevelFunctionSurface:
             def commit(self):
                 self.committed = True
     
-        class FakeRuntime:
+        class FakeAuthWorkflow:
             def hash_password_reset_token(self, token):
                 return "hash-token"
-    
-            def get_user_by_reset_token(self, db, token_hash):
+
+            def get_password_hash(self, raw_password):
+                return f"hashed:{raw_password}"
+
+        class FakeUserRepository:
+            def get_user_by_reset_token(self, token_hash):
                 return SimpleNamespace(
                     id=42,
                     reset_password_token_expires_at=datetime.now(timezone.utc) + timedelta(hours=1),
                 )
-    
-            def get_user(self, db, user_id):
+
+            def get_user(self, user_id):
                 return SimpleNamespace(
                     id=user_id,
                     hashed_password=None,
                     reset_password_token="hash-token",
                     reset_password_token_expires_at=datetime.now(timezone.utc) + timedelta(hours=1),
                 )
-    
-            def get_password_hash(self, raw_password):
-                return f"hashed:{raw_password}"
-    
-            def get_user_by_email(self, db, email):
-                return None
-    
-            def create_password_reset_token(self):
-                return "token"
-    
-            def set_user_password_reset_token(self, db, user, *, token_hash, expires_at):
-                return None
-    
-            async def send_password_reset_email(self, **kwargs):
-                return None
-    
-        workflow = PasswordRecoveryWorkflow(runtime=FakeRuntime())
+
+        service = PasswordRecoveryRequestService(session=FakeDb())
+        service._auth_workflow = FakeAuthWorkflow()
+        service._user_repository = FakeUserRepository()
         db = FakeDb()
+        service._session = db
         reset_data = schemas.PasswordResetSchema(token="abc", new_password="NovaSenha123!")
     
-        response = workflow.reset_password(db=db, reset_data=reset_data)
+        response = service.reset_password(reset_data=reset_data)
     
         assert response.msg == "Senha atualizada com sucesso."
         assert db.committed is True
 
     def test_social_auth_workflow_social_login_config_delega_runtime():
-        class FakeRuntime:
-            def has_client(self, provider):
-                return provider == "google"
-    
-        workflow = SocialAuthRouterWorkflow(runtime=FakeRuntime())
-        config = workflow.social_login_config()
+        request_service = SocialAuthRequestService(session="db")
+        request_service._has_client = lambda provider: provider == "google"
+        config = request_service.social_login_config()
     
         assert config.google_enabled is True
         assert config.facebook_enabled is False
@@ -229,43 +255,40 @@ class _TopLevelFunctionSurface:
     async def test_social_auth_workflow_google_callback_delega_runtime_e_retorna_tokens():
         called = []
     
-        class FakeRuntime:
-            def has_client(self, provider):
-                return True
-    
-            async def authorize_access_token(self, provider, request):
-                called.append(("authorize_access_token", provider))
-                return {"access": "token"}
-    
-            async def parse_google_id_token(self, request, token):
-                called.append(("parse_google_id_token", token))
-                return {"sub": "google-user"}
-    
-            async def get_userinfo(self, provider, token):
-                called.append(("get_userinfo", provider))
-                return {"sub": "fallback"}
-    
-            async def process_google_login(self, db, userinfo):
-                called.append(("process_google_login", db, userinfo))
+        class FakeAuthWorkflow:
+            async def process_google_login(self, db, google_userinfo):
+                called.append(("process_google_login", db, google_userinfo))
                 return SimpleNamespace(id=9, email="google@test.com")
-    
+
             def create_access_token(self, payload):
                 called.append(("create_access_token", payload))
                 return "access.jwt"
-    
+
             def create_refresh_token(self, payload):
                 called.append(("create_refresh_token", payload))
                 return "refresh.jwt"
-    
-            async def authorize_redirect(self, provider, request, redirect_uri):
-                return "redirect"
-    
-            async def process_facebook_login(self, db, userinfo):
-                return None
-    
-        workflow = SocialAuthRouterWorkflow(runtime=FakeRuntime())
-        token = await workflow.google_callback(request=object(), db="db")
-    
+
+        async def fake_authorize_access_token(provider, request):
+            called.append(("authorize_access_token", provider))
+            return {"access": "token"}
+
+        async def fake_parse_google_id_token(request, token):
+            called.append(("parse_google_id_token", token))
+            return {"sub": "google-user"}
+
+        async def fake_get_userinfo(provider, token):
+            called.append(("get_userinfo", provider))
+            return {"sub": "fallback"}
+
+        request_service = SocialAuthRequestService(session="db")
+        request_service._auth_workflow = FakeAuthWorkflow()
+        request_service._has_client = lambda provider: True
+        request_service._authorize_access_token = fake_authorize_access_token
+        request_service._parse_google_id_token = fake_parse_google_id_token
+        request_service._get_userinfo = fake_get_userinfo
+
+        token = await request_service.google_callback(request=object())
+
         assert token.access_token == "access.jwt"
         assert token.token_type == "bearer"
         assert called[0] == ("authorize_access_token", "google")
@@ -276,28 +299,15 @@ class _TopLevelFunctionSurface:
     @pytest.mark.asyncio
     async def test_generation_workflow_tarefa_processar_delega_runtime():
         called = []
-    
-        class FakeRuntime:
+
+        class FakeTaskService:
             async def run_generation_task(self, **kwargs):
                 called.append(("run_generation_task", kwargs))
-    
-            def validate_product_access(self, **kwargs):
-                called.append(("validate_product_access", kwargs))
-                return SimpleNamespace(id=kwargs["produto_id"])
-    
-            def mark_pending_status(self, **kwargs):
-                called.append(("mark_pending_status", kwargs))
-    
-            def enqueue_generation_task(self, **kwargs):
-                called.append(("enqueue_generation_task", kwargs))
-    
-            async def sugerir_valores_atributos_com_gemini(self, **kwargs):
-                called.append(("sugerir_valores_atributos_com_gemini", kwargs))
-                return {"ok": True}
-    
-        workflow = GenerationRouterWorkflow(runtime=FakeRuntime())
-    
-        await workflow.tarefa_processar_geracao_e_registrar_uso(
+
+        request_service = GenerationRequestService(session="db")
+        request_service._generation_task_service = FakeTaskService()
+
+        await request_service.tarefa_processar_geracao_e_registrar_uso(
             db_session_factory="db_factory",
             user_id=7,
             produto_id=9,
@@ -313,32 +323,24 @@ class _TopLevelFunctionSurface:
     def test_generation_workflow_agendar_openai_titulos_delega_validacao_e_enqueue():
         called = []
     
-        class FakeRuntime:
-            async def run_generation_task(self, **kwargs):
-                called.append(("run_generation_task", kwargs))
-    
-            def validate_product_access(self, **kwargs):
-                called.append(("validate_product_access", kwargs))
-                return SimpleNamespace(id=kwargs["produto_id"])
-    
-            def mark_pending_status(self, **kwargs):
-                called.append(("mark_pending_status", kwargs))
-    
+        class FakeSchedulingService:
             def enqueue_generation_task(self, **kwargs):
                 called.append(("enqueue_generation_task", kwargs))
-    
-            async def sugerir_valores_atributos_com_gemini(self, **kwargs):
-                called.append(("sugerir_valores_atributos_com_gemini", kwargs))
-                return {"ok": True}
-    
-        workflow = GenerationRouterWorkflow(runtime=FakeRuntime())
+
+        request_service = GenerationRequestService(session="db")
+        request_service._generation_scheduling_service = FakeSchedulingService()
+        request_service._validate_product_access = lambda **kwargs: called.append(
+            ("validate_product_access", kwargs)
+        ) or SimpleNamespace(id=kwargs["produto_id"])
+        request_service._ia_generation_service = SimpleNamespace(
+            gerar_titulos_com_openai="fn_openai"
+        )
         user = SimpleNamespace(id=4)
     
-        response = workflow.agendar_geracao_novos_titulos_openai(
+        response = request_service.agendar_geracao_novos_titulos_openai(
             produto_id=22,
             background_tasks=SimpleNamespace(),
             num_titulos=5,
-            db="db",
             current_user=user,
         )
     
@@ -351,54 +353,54 @@ class _TopLevelFunctionSurface:
 
     @pytest.mark.asyncio
     async def test_generation_workflow_sugerir_atributos_delega_runtime():
-        class FakeRuntime:
-            async def run_generation_task(self, **kwargs):
-                return None
-    
-            def validate_product_access(self, **kwargs):
-                return SimpleNamespace(id=kwargs["produto_id"])
-    
-            def mark_pending_status(self, **kwargs):
-                return None
-    
-            def enqueue_generation_task(self, **kwargs):
-                return None
-    
+        class FakeIAService:
             async def sugerir_valores_atributos_com_gemini(self, **kwargs):
                 return {"ok": True, "produto_id": kwargs["produto_id"]}
-    
-        workflow = GenerationRouterWorkflow(runtime=FakeRuntime())
-        result = await workflow.sugerir_atributos_para_produto_com_gemini(
+
+        request_service = GenerationRequestService(session="db")
+        request_service._ia_generation_service = FakeIAService()
+        result = await request_service.sugerir_atributos_para_produto_com_gemini(
             produto_id=31,
-            db="db",
             current_user=SimpleNamespace(id=5),
         )
     
         assert result == {"ok": True, "produto_id": 31}
 
     def test_admin_analytics_workflow_uso_ia_por_plano_delega_runtime():
-        called = []
-    
-        class FakeRuntime:
-            def now_utc(self):
-                return datetime(2026, 2, 10, tzinfo=timezone.utc)
-    
+        class FakeSession:
+            def __init__(self):
+                self._next_counts = [7, 3]
+                self._idx = 0
+
+            def query(self, *_args):
+                parent = self
+
+                class _CountQuery:
+                    def join(self, *_a, **_k):
+                        return self
+
+                    def filter(self, *_a, **_k):
+                        return self
+
+                    def scalar(self):
+                        value = parent._next_counts[parent._idx]
+                        parent._idx += 1
+                        return value
+
+                return _CountQuery()
+
+        class FakeUserRepository:
             def get_planos(self, **kwargs):
-                called.append(("get_planos", kwargs))
                 return [SimpleNamespace(id=1, nome="Pro"), SimpleNamespace(id=2, nome="Free")]
-    
-            def count_uso_ia_for_plano(self, **kwargs):
-                called.append(("count_uso_ia_for_plano", kwargs))
-                return 7 if kwargs["plano_id"] == 1 else 3
-    
-        workflow = AdminAnalyticsRouterWorkflow(runtime=FakeRuntime())
-        result = workflow.get_uso_ia_por_plano(db="db")
+
+        request_service = AdminAnalyticsRequestService(session=FakeSession())
+        request_service._user_repository = FakeUserRepository()
+        request_service._now_utc = lambda: datetime(2026, 2, 10, tzinfo=timezone.utc)
+        result = request_service.get_uso_ia_por_plano()
     
         assert len(result) == 2
         assert result[0].total_geracoes_ia_no_mes == 7
         assert result[1].total_geracoes_ia_no_mes == 3
-        assert called[0][0] == "get_planos"
-        assert called[1][0] == "count_uso_ia_for_plano"
 
     @pytest.mark.asyncio
     async def test_fornecedores_workflow_preview_pages_delega_runtime():
@@ -414,14 +416,15 @@ class _TopLevelFunctionSurface:
     def test_product_types_workflow_read_product_types_delega_runtime():
         called = []
     
-        class FakeRuntime:
+        class FakeRepository:
             def get_product_types_for_user(self, **kwargs):
                 called.append(kwargs)
                 return [SimpleNamespace(id=1, key_name="auto")]
-    
-        workflow = ProductTypesRouterWorkflow(runtime=FakeRuntime())
+
+        request_service = ProductTypesRequestService(session="db")
+        request_service._product_type_repo = FakeRepository()
         user = SimpleNamespace(id=9)
-        result = workflow.read_product_types(db="db", current_user=user, skip=5, limit=20)
+        result = request_service.read_product_types(current_user=user, skip=5, limit=20)
     
         assert len(result) == 1
         assert called[0]["user_id"] == 9
@@ -431,12 +434,13 @@ class _TopLevelFunctionSurface:
     def test_uso_ia_workflow_create_delega_runtime_e_define_user_id():
         called = []
     
-        class FakeRuntime:
+        class FakeRepository:
             def create_registro_uso_ia(self, **kwargs):
                 called.append(kwargs)
                 return {"id": 123}
-    
-        workflow = UsoIAWorkflow(runtime=FakeRuntime())
+
+        request_service = UsoIARequestService(session="db")
+        request_service._registro_repo = FakeRepository()
         payload = schemas.RegistroUsoIACreate(
             user_id=0,
             produto_id=11,
@@ -444,8 +448,7 @@ class _TopLevelFunctionSurface:
             modelo_ia="gemini-1.5-flash",
             creditos_consumidos=1,
         )
-        response = workflow.create_uso_ia(
-            db="db",
+        response = request_service.create_uso_ia(
             current_user=SimpleNamespace(id=77),
             uso_ia_data=payload,
         )
@@ -600,10 +603,6 @@ test_main_bootstrap_workflow_delega_metodos_sync_para_runtime = _TopLevelFunctio
 test_main_bootstrap_workflow_delega_metodo_async_para_runtime = _TopLevelFunctionSurface.test_main_bootstrap_workflow_delega_metodo_async_para_runtime
 test_produtos_workflow_runtime_override_delega_metodos_injetados = _TopLevelFunctionSurface.test_produtos_workflow_runtime_override_delega_metodos_injetados
 test_produtos_workflow_runtime_parcial_preserva_fallback_nativo = _TopLevelFunctionSurface.test_produtos_workflow_runtime_parcial_preserva_fallback_nativo
-
-
-
-
 
 
 
