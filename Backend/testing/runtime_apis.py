@@ -23,8 +23,6 @@ class RuntimeApis:
         )
 
 
-# Public symbol preferred by runtime-focused tests.
-processar_linha_padronizada = RuntimeApis.processar_linha_padronizada
 LineNormalizationRuntime = file_processing.LineNormalizationRuntime
 CatalogStorageWorkflow = file_processing.CatalogStorageWorkflow
 LineMappingWorkflow = file_processing.LineMappingWorkflow
@@ -47,7 +45,7 @@ __all__ = [
     "ia_service",
     "limit_service",
     "validator_crew",
-    "processar_linha_padronizada",
+    "RuntimeApis",
     "LineNormalizationRuntime",
     "CatalogStorageWorkflow",
     "LineMappingWorkflow",

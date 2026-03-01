@@ -124,6 +124,4 @@ import fornecedorService from '../../services/fornecedorService';class _TopLevel
       </p>
     </div>);
 
-  }}const POLL_INTERVAL_MS = 3000;const MAX_RESULT_WAIT_MS = 60000;const MAX_RESULT_ATTEMPTS = 20;const ImportProgress = _TopLevelFunctionSurface.ImportProgress;
-
-export default ImportProgress;
+  }}const POLL_INTERVAL_MS = 3000;const MAX_RESULT_WAIT_MS = 60000;const MAX_RESULT_ATTEMPTS = 20;export default _TopLevelFunctionSurface.ImportProgress;

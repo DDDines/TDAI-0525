@@ -8,8 +8,8 @@ from sqlalchemy.pool import StaticPool
 from Backend.main import app
 from Backend.database import Base, get_db
 from Backend import schemas, models
-from Backend.initial_data import get_initial_data_workflow
-from Backend.main import create_new_user
+from Backend.initial_data import InitialDataWorkflow
+from Backend.main import MainBootstrapWorkflow
 from Backend.core.config import settings
 from Backend.infrastructure.repositories.product_repository import ProductRepository
 from Backend.infrastructure.repositories.registro_uso_ia_repository import (
@@ -118,7 +118,7 @@ test_first_page_number_for_uso_ia = _TopLevelFunctionSurface.test_first_page_num
 app.dependency_overrides[get_db] = override_get_db
 client = TestClient(app)
 
-initial_data_workflow = get_initial_data_workflow()
+initial_data_workflow = InitialDataWorkflow()
 
 # setup initial data
 with TestingSessionLocal() as db:
@@ -128,7 +128,7 @@ with TestingSessionLocal() as db:
         password="secret",
         nome_completo="Normal User",
     )
-    normal_user = create_new_user(user_in=user_in, db=db)
+    normal_user = MainBootstrapWorkflow().create_new_user(user_in=user_in, db=db)
     produto = ProductRepository(db).create_produto(
         produto=schemas.ProdutoCreate(nome_base="TesteProd"),
         user_id=normal_user.id,

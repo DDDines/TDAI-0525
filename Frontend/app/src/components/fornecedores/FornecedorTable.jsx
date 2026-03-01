@@ -58,6 +58,4 @@ import LoadingPopup from '../common/LoadingPopup.jsx';class _TopLevelFunctionSur
       </tbody>
     </table>);
 
-  }}const FornecedorTable = _TopLevelFunctionSurface.FornecedorTable;
-
-export default FornecedorTable;
+  }}export default _TopLevelFunctionSurface.FornecedorTable;

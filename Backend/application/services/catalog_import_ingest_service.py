@@ -6,9 +6,7 @@ from typing import Any, Dict, List, Optional
 
 from fastapi import HTTPException
 
-from Backend.application.services.repository_runtime_support import (
-    call_repository_method,
-)
+from Backend.application.services.repository_runtime_support import RepositoryRuntimeSupport
 
 
 class CatalogImportIngestService:
@@ -215,7 +213,7 @@ class CatalogImportIngestService:
         updated: List[Any] = []
 
         if produtos_create:
-            created, updated, dup_errors = call_repository_method(
+            created, updated, dup_errors = RepositoryRuntimeSupport.call_repository_method(
                 resolved_produto_repo,
                 "create_produtos_bulk",
                 session=self._repo_session(resolved_produto_repo),
@@ -231,7 +229,7 @@ class CatalogImportIngestService:
                 )
 
             for db_produto in created:
-                call_repository_method(
+                RepositoryRuntimeSupport.call_repository_method(
                     resolved_uso_ia_repo,
                     "create_registro_uso_ia",
                     session=self._repo_session(resolved_uso_ia_repo),
@@ -243,7 +241,7 @@ class CatalogImportIngestService:
                     ),
                     arg_aliases={"registro_uso": ("payload",)},
                 )
-                call_repository_method(
+                RepositoryRuntimeSupport.call_repository_method(
                     resolved_historico_repo,
                     "create_registro_historico",
                     session=self._repo_session(resolved_historico_repo),
@@ -280,7 +278,7 @@ class CatalogImportIngestService:
                     detail="mapeamento_colunas_usuario invalido",
                 ) from exc
         else:
-            fornecedor = call_repository_method(
+            fornecedor = RepositoryRuntimeSupport.call_repository_method(
                 fornecedor_repo,
                 "get_fornecedor",
                 session=self._repo_session(fornecedor_repo),

@@ -15,7 +15,7 @@ from sqlalchemy.pool import StaticPool
 from Backend.main import app
 from Backend.database import Base, get_db
 from Backend import schemas, models
-from Backend.initial_data import get_initial_data_workflow
+from Backend.initial_data import InitialDataWorkflow
 from Backend.core.config import settings
 from Backend.infrastructure.repositories.user_repository import UserRepository
 
@@ -105,7 +105,7 @@ test_selecionar_regiao_file_not_found = _TopLevelFunctionSurface.test_selecionar
 app.dependency_overrides[get_db] = override_get_db
 client = TestClient(app)
 
-initial_data_workflow = get_initial_data_workflow()
+initial_data_workflow = InitialDataWorkflow()
 
 with TestingSessionLocal() as db:
     initial_data_workflow.create_initial_data(db)

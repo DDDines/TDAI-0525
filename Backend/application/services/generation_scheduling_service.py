@@ -4,9 +4,7 @@ from typing import Any
 
 from fastapi import HTTPException, status
 
-from Backend.application.services.repository_runtime_support import (
-    call_repository_method,
-)
+from Backend.application.services.repository_runtime_support import RepositoryRuntimeSupport
 
 
 class GenerationSchedulingService:
@@ -31,7 +29,7 @@ class GenerationSchedulingService:
         current_user: Any,
     ) -> Any:
         repo = product_repo
-        db_produto = call_repository_method(
+        db_produto = RepositoryRuntimeSupport.call_repository_method(
             repo,
             "get_produto",
             session=getattr(repo, "_db", None),
@@ -68,7 +66,7 @@ class GenerationSchedulingService:
             status_field: self._models.StatusGeracaoIAEnum.PENDENTE,
         }
         repo = product_repo
-        call_repository_method(
+        RepositoryRuntimeSupport.call_repository_method(
             repo,
             "update_produto",
             session=getattr(repo, "_db", None),

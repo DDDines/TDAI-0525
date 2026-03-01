@@ -53,7 +53,7 @@ class _TopLevelFunctionSurface:
             _fake_pdf_bytes_to_images,
         )
     
-        result = await file_processing._pdf_bytes_to_images_impl(
+        result = await file_processing._FileProcessingImplementation._pdf_bytes_to_images_impl(
             conteudo_arquivo=b"pdf",
             max_pages=3,
             start_page=2,

@@ -62,6 +62,4 @@ import './CatalogFileList.css';class _TopLevelFunctionSurface {static CatalogFil
       </tbody>
     </table>);
 
-  }}const CatalogFileList = _TopLevelFunctionSurface.CatalogFileList;
-
-export default CatalogFileList;
+  }}export default _TopLevelFunctionSurface.CatalogFileList;

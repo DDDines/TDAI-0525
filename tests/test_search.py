@@ -8,7 +8,7 @@ from sqlalchemy.pool import StaticPool
 from Backend.main import app
 from Backend.database import Base, get_db
 from Backend import schemas, models
-from Backend.initial_data import get_initial_data_workflow
+from Backend.initial_data import InitialDataWorkflow
 from Backend.core.config import settings
 from Backend.infrastructure.repositories.fornecedor_repository import FornecedorRepository
 from Backend.infrastructure.repositories.product_repository import ProductRepository
@@ -64,7 +64,7 @@ test_search_endpoint_returns_recent_results_without_query = _TopLevelFunctionSur
 app.dependency_overrides[get_db] = override_get_db
 client = TestClient(app)
 
-initial_data_workflow = get_initial_data_workflow()
+initial_data_workflow = InitialDataWorkflow()
 
 # Prepare sample data
 with TestingSessionLocal() as db:

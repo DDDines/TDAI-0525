@@ -63,7 +63,7 @@ class _TopLevelFunctionSurface:
             _fake_processar_arquivo_pdf,
         )
     
-        result = await file_processing._processar_arquivo_pdf_impl(
+        result = await file_processing._FileProcessingImplementation._processar_arquivo_pdf_impl(
             conteudo_arquivo=b"abc",
             mapeamento_colunas_usuario={"col_1": "sku_original"},
             usar_llm=True,

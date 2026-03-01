@@ -4,9 +4,7 @@ from typing import Any, Dict, Optional
 
 from fastapi import HTTPException
 
-from Backend.application.services.repository_runtime_support import (
-    call_repository_method,
-)
+from Backend.application.services.repository_runtime_support import RepositoryRuntimeSupport
 
 
 class FornecedorCatalogProcessService:
@@ -113,7 +111,7 @@ class FornecedorCatalogProcessService:
         fornecedor_id: int,
         current_user: Any,
     ) -> Any:
-        fornecedor = call_repository_method(
+        fornecedor = RepositoryRuntimeSupport.call_repository_method(
             fornecedor_repo,
             "get_fornecedor",
             session=getattr(fornecedor_repo, "_db", None),
@@ -140,7 +138,7 @@ class FornecedorCatalogProcessService:
             stored_filename=source.stored_filename,
             status="PROCESSING",
         )
-        call_repository_method(
+        RepositoryRuntimeSupport.call_repository_method(
             catalog_file_repo,
             "save_catalog_file",
             session=getattr(catalog_file_repo, "_db", None),

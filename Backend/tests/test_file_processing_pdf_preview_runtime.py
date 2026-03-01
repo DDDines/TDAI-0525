@@ -44,7 +44,7 @@ class _TopLevelFunctionSurface:
             _fake_preview_arquivo_pdf,
         )
     
-        result = await file_processing._preview_arquivo_pdf_impl(
+        result = await file_processing._FileProcessingImplementation._preview_arquivo_pdf_impl(
             conteudo_arquivo=b"pdf",
             ext=".pdf",
             start_page=1,

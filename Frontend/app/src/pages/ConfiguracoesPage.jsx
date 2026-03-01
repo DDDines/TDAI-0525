@@ -176,6 +176,4 @@ import './ConfiguracoesPage.css';class _TopLevelFunctionSurface {static Configur
 
     </div>);
 
-  }}const ConfiguracoesPage = _TopLevelFunctionSurface.ConfiguracoesPage;
-
-export default ConfiguracoesPage;
+  }}export default _TopLevelFunctionSurface.ConfiguracoesPage;

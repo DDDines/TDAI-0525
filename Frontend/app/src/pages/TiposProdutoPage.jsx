@@ -254,6 +254,4 @@ import LoadingOverlay from '../components/common/LoadingOverlay.jsx';class _TopL
         }
     </div>);
 
-  }}const TiposProdutoPage = _TopLevelFunctionSurface.TiposProdutoPage;
-
-export default TiposProdutoPage;
+  }}export default _TopLevelFunctionSurface.TiposProdutoPage;

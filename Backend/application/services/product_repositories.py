@@ -35,6 +35,3 @@ class ProductRepositories:
             "produto_repo": ProductRepository(session),
         }
 
-
-build_product_management_repositories = ProductRepositories.build_product_management_repositories
-build_product_media_repositories = ProductRepositories.build_product_media_repositories

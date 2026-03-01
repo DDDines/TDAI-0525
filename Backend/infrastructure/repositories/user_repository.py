@@ -21,7 +21,7 @@ class UserRepository:
 
     def __init__(self, db: Session) -> None:
         self._db = db
-        self._security_workflow = security.get_security_workflow()
+        self._security_workflow = security.SecurityWorkflow()
 
     @staticmethod
     def _apply_default_plan_limits(db_user: User) -> None:

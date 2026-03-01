@@ -4,9 +4,7 @@ import re
 from dataclasses import dataclass
 from typing import Any, Dict, List, Optional
 
-from Backend.application.services.repository_runtime_support import (
-    call_repository_method,
-)
+from Backend.application.services.repository_runtime_support import RepositoryRuntimeSupport
 
 
 @dataclass(frozen=True)
@@ -326,7 +324,7 @@ class WebEnrichmentFinalizationService:
                 "resumo_aplicacao": resumo_aplicacao,
             },
         )
-        call_repository_method(
+        RepositoryRuntimeSupport.call_repository_method(
             self._product_repository,
             "update_produto",
             session=db,

@@ -13,7 +13,7 @@ from sqlalchemy.pool import StaticPool
 from Backend.main import app
 from Backend.database import Base, get_db
 from Backend import models
-from Backend.initial_data import get_initial_data_workflow
+from Backend.initial_data import InitialDataWorkflow
 from Backend.core.config import settings
 
 app.router.on_startup.clear()
@@ -147,7 +147,7 @@ test_review_and_commit_flow = _TopLevelFunctionSurface.test_review_and_commit_fl
 app.dependency_overrides[get_db] = override_get_db
 client = TestClient(app)
 
-initial_data_workflow = get_initial_data_workflow()
+initial_data_workflow = InitialDataWorkflow()
 
 with TestingSessionLocal() as db:
     initial_data_workflow.create_initial_data(db)

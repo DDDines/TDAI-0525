@@ -65,6 +65,4 @@ import './PaginationControls.css';class _TopLevelFunctionSurface {static Paginat
         }
     </div>);
 
-  }}const PaginationControls = _TopLevelFunctionSurface.PaginationControls;
-
-export default PaginationControls;
+  }}export default _TopLevelFunctionSurface.PaginationControls;

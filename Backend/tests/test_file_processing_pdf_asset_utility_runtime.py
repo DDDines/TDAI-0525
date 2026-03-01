@@ -19,7 +19,10 @@ class _TopLevelFunctionSurface:
             _fake_generate_pdf_page_images,
         )
     
-        result = file_processing._generate_pdf_page_images_impl("C:/tmp/file.pdf", "x")
+        result = file_processing._FileProcessingImplementation._generate_pdf_page_images_impl(
+            "C:/tmp/file.pdf",
+            "x",
+        )
     
         assert result == ["/static/previews/x/page-1.png"]
         assert called["file_path"] == "C:/tmp/file.pdf"
@@ -39,7 +42,7 @@ class _TopLevelFunctionSurface:
             _fake_extract_pdf_region_image,
         )
     
-        result = file_processing._extract_pdf_region_image_impl(
+        result = file_processing._FileProcessingImplementation._extract_pdf_region_image_impl(
             file_path="C:/tmp/file.pdf",
             page_number=3,
             region=[1.0, 2.0, 3.0, 4.0],
@@ -68,7 +71,7 @@ class _TopLevelFunctionSurface:
         )
         annotation = object()
     
-        result = file_processing._parse_annotation_to_dataframe_impl(
+        result = file_processing._FileProcessingImplementation._parse_annotation_to_dataframe_impl(
             annotation=annotation,
             vertical_tolerance=9,
         )

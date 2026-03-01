@@ -23,6 +23,4 @@ import LogoImg from '../../assets/Logo.png';class _TopLevelFunctionSurface {stat
       </div>
     </div>);
 
-  }}const LoadingPopup = _TopLevelFunctionSurface.LoadingPopup;
-
-export default LoadingPopup;
+  }}export default _TopLevelFunctionSurface.LoadingPopup;

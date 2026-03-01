@@ -5,9 +5,7 @@ from typing import Any
 from fastapi import HTTPException, status
 from fastapi.responses import JSONResponse
 
-from Backend.application.services.repository_runtime_support import (
-    call_repository_method,
-)
+from Backend.application.services.repository_runtime_support import RepositoryRuntimeSupport
 
 
 class CatalogImportStatusService:
@@ -54,7 +52,7 @@ class CatalogImportStatusService:
         repo = self._resolve_catalog_file_repo(
             catalog_file_repo=catalog_file_repo,
         )
-        record = call_repository_method(
+        record = RepositoryRuntimeSupport.call_repository_method(
             repo,
             "get_catalog_file_for_user",
             session=getattr(repo, "_db", None),

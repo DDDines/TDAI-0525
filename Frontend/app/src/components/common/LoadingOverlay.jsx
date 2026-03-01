@@ -14,6 +14,4 @@ import LogoImg from '../../assets/Logo.png';class _TopLevelFunctionSurface {stat
       </div>
     </div>);
 
-  }}const LoadingOverlay = _TopLevelFunctionSurface.LoadingOverlay;
-
-export default LoadingOverlay;
+  }}export default _TopLevelFunctionSurface.LoadingOverlay;

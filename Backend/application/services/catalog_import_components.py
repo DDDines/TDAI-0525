@@ -3,9 +3,7 @@ from __future__ import annotations
 from collections import Counter
 from typing import Any, Callable, Dict, List, Optional, Tuple
 
-from Backend.application.services.repository_runtime_support import (
-    call_repository_method,
-)
+from Backend.application.services.repository_runtime_support import RepositoryRuntimeSupport
 
 
 class CatalogImportIssueTracker:
@@ -130,7 +128,7 @@ class CatalogImportFileStateService:
     def mark_processing(*, catalog_file_repo: Any, catalog_file: Any, fornecedor_id: int) -> None:
         catalog_file.status = "PROCESSING"
         catalog_file.fornecedor_id = fornecedor_id
-        call_repository_method(
+        RepositoryRuntimeSupport.call_repository_method(
             catalog_file_repo,
             "update_catalog_file",
             session=CatalogImportFileStateService.repo_db(catalog_file_repo),
@@ -157,7 +155,7 @@ class CatalogImportFileStateService:
                 }
             ],
         }
-        call_repository_method(
+        RepositoryRuntimeSupport.call_repository_method(
             catalog_file_repo,
             "update_catalog_file",
             session=CatalogImportFileStateService.repo_db(catalog_file_repo),
@@ -173,7 +171,7 @@ class CatalogImportFileStateService:
     ) -> None:
         catalog_file.total_pages = total_pages
         catalog_file.pages_processed = 0
-        call_repository_method(
+        RepositoryRuntimeSupport.call_repository_method(
             catalog_file_repo,
             "update_catalog_file",
             session=CatalogImportFileStateService.repo_db(catalog_file_repo),
@@ -183,7 +181,7 @@ class CatalogImportFileStateService:
     @staticmethod
     def increment_page(*, catalog_file_repo: Any, catalog_file: Any) -> None:
         catalog_file.pages_processed = (catalog_file.pages_processed or 0) + 1
-        call_repository_method(
+        RepositoryRuntimeSupport.call_repository_method(
             catalog_file_repo,
             "update_catalog_file",
             session=CatalogImportFileStateService.repo_db(catalog_file_repo),
@@ -200,7 +198,7 @@ class CatalogImportFileStateService:
     ) -> None:
         catalog_file.status = final_status
         catalog_file.result_summary = result_summary
-        call_repository_method(
+        RepositoryRuntimeSupport.call_repository_method(
             catalog_file_repo,
             "update_catalog_file",
             session=CatalogImportFileStateService.repo_db(catalog_file_repo),
@@ -226,7 +224,7 @@ class CatalogImportFileStateService:
                 }
             ],
         }
-        call_repository_method(
+        RepositoryRuntimeSupport.call_repository_method(
             catalog_file_repo,
             "update_catalog_file",
             session=CatalogImportFileStateService.repo_db(catalog_file_repo),

@@ -1,4 +1,4 @@
-from Backend.testing.runtime_apis import processar_linha_padronizada
+from Backend.testing.runtime_apis import RuntimeApis
 from Backend.application.services.catalog_import_quality_service import (
     CatalogImportQualityService,
 )
@@ -19,7 +19,7 @@ class _TopLevelFunctionSurface:
         row = {"col_0": "1816D 943 666 39 01 Paralama/Estribo", "col_1": "SMC"}
         mapping = {"col_0": "auto:sku_nome", "col_1": "attr:material"}
     
-        result = processar_linha_padronizada(row, mapping)
+        result = RuntimeApis.processar_linha_padronizada(row, mapping)
     
         assert result is not None
         assert result.get("sku_original") == "1816D 943 666 39 01"
@@ -30,7 +30,7 @@ class _TopLevelFunctionSurface:
         row = {"col_0": "1816E 943 666 38 01", "col_1": "Paralama/Estribo"}
         mapping = {"col_0": "auto:sku_nome", "col_1": "descricao_original"}
     
-        result = processar_linha_padronizada(row, mapping)
+        result = RuntimeApis.processar_linha_padronizada(row, mapping)
     
         assert result is not None
         assert result.get("sku_original") == "1816E 943 666 38 01"
@@ -48,7 +48,7 @@ class _TopLevelFunctionSurface:
             "col_2": "descricao_original",
         }
     
-        result = processar_linha_padronizada(row, mapping)
+        result = RuntimeApis.processar_linha_padronizada(row, mapping)
     
         assert result is not None
         assert result.get("sku_original") == "1816D 943 666 39 01"
@@ -62,7 +62,7 @@ class _TopLevelFunctionSurface:
         }
         mapping = {"col_0": "auto:sku_nome", "col_1": "attr:material"}
     
-        result = processar_linha_padronizada(row, mapping)
+        result = RuntimeApis.processar_linha_padronizada(row, mapping)
     
         assert result is not None
         assert result.get("sku_original") == "3035D BC4517C831BBXWA"
@@ -78,7 +78,7 @@ class _TopLevelFunctionSurface:
             "material": "SMC",
         }
     
-        result = processar_linha_padronizada(row, None)
+        result = RuntimeApis.processar_linha_padronizada(row, None)
     
         assert result is not None
         assert result.get("sku_original") == "1816D"
@@ -90,7 +90,7 @@ class _TopLevelFunctionSurface:
     def test_split_sku_nome_auto_handles_directional_token():
         row = {"n_fab": "3035 E BC4517K903BBXWA Ponteira para-choque"}
     
-        result = processar_linha_padronizada(row, None)
+        result = RuntimeApis.processar_linha_padronizada(row, None)
     
         assert result is not None
         assert result.get("sku_original") == "3035 E BC4517K903BBXWA"

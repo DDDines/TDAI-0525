@@ -4,9 +4,7 @@ from typing import Any
 
 from fastapi import HTTPException
 
-from Backend.application.services.repository_runtime_support import (
-    call_repository_method,
-)
+from Backend.application.services.repository_runtime_support import RepositoryRuntimeSupport
 
 
 class FornecedorImportTrackingService:
@@ -38,7 +36,7 @@ class FornecedorImportTrackingService:
         user_id: int,
         not_found_detail: str,
     ) -> Any:
-        record = call_repository_method(
+        record = RepositoryRuntimeSupport.call_repository_method(
             catalog_file_repo,
             "get_catalog_file_for_user",
             session=getattr(catalog_file_repo, "_db", None),

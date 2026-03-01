@@ -112,6 +112,4 @@ import { showErrorToast, showSuccessToast } from '../../utils/notifications';cla
       </div>
     </Modal>);
 
-  }}const formatCellValue = _TopLevelFunctionSurface.formatCellValue;const ImportReview = _TopLevelFunctionSurface.ImportReview;
-
-export default ImportReview;
+  }}const formatCellValue = _TopLevelFunctionSurface.formatCellValue;export default _TopLevelFunctionSurface.ImportReview;

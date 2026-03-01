@@ -1,4 +1,4 @@
-﻿from __future__ import annotations
+from __future__ import annotations
 
 from typing import Any, Dict, List, Optional
 from sqlalchemy.orm import Session
@@ -9,9 +9,7 @@ from Backend.application.services.web_enrichment_components import (
     WebEnrichmentQueryPlanner,
     WebEnrichmentStatusResolver,
 )
-from Backend.application.services.repository_runtime_support import (
-    call_repository_method,
-)
+from Backend.application.services.repository_runtime_support import RepositoryRuntimeSupport
 
 
 class _WebEnrichmentTaskRuntime:
@@ -158,14 +156,14 @@ class _WebEnrichmentTaskWorkflow:
 
     def _load_locked_product(self, session: Session, produto_id: int):
         try:
-            return call_repository_method(
+            return RepositoryRuntimeSupport.call_repository_method(
                 self.product_repository,
                 "get_produto_for_update",
                 session=session,
                 produto_id=produto_id,
             )
         except AttributeError:
-            return call_repository_method(
+            return RepositoryRuntimeSupport.call_repository_method(
                 self.product_repository,
                 "get_produto",
                 session=session,
@@ -180,7 +178,7 @@ class _WebEnrichmentTaskWorkflow:
         produto_id: int,
         resposta: str,
     ) -> None:
-        call_repository_method(
+        RepositoryRuntimeSupport.call_repository_method(
             self.usage_repository,
             "create_registro_uso_ia",
             session=session,
@@ -453,7 +451,7 @@ class _WebEnrichmentTaskWorkflow:
             dados_extraidos_agregados = db_produto_obj.dados_brutos_web.copy()
 
         try:
-            user = call_repository_method(
+            user = RepositoryRuntimeSupport.call_repository_method(
                 self.user_repository,
                 "get_user",
                 session=db,

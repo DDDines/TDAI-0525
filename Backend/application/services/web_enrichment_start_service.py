@@ -1,4 +1,4 @@
-﻿from __future__ import annotations
+from __future__ import annotations
 
 from typing import Any
 
@@ -8,7 +8,7 @@ from Backend.application.orchestrators.web_enrichment import (
     WebEnrichmentPipelineOrchestrator,
 )
 from Backend.application.services.pipeline_dispatcher import PipelineDispatcher
-from Backend.application.services.repository_runtime_support import call_repository_method
+from Backend.application.services.repository_runtime_support import RepositoryRuntimeSupport
 
 
 class WebEnrichmentStartService:
@@ -35,7 +35,7 @@ class WebEnrichmentStartService:
         current_user: Any,
     ) -> None:
         repo = product_repo or self._product_repository
-        db_produto_check = call_repository_method(
+        db_produto_check = RepositoryRuntimeSupport.call_repository_method(
             repo,
             "get_produto",
             session=getattr(repo, "_db", None),

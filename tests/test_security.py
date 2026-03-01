@@ -8,13 +8,13 @@ class _TopLevelFunctionSurface:
 
     def test_password_hash_and_verify():
         password = "s3cr3t"
-        workflow = security.get_security_workflow()
+        workflow = security.SecurityWorkflow()
         hashed = workflow.get_password_hash(password)
         assert workflow.verify_password(password, hashed)
 
     def test_access_token_flow():
         data = {"sub": "test@example.com", "user_id": 1}
-        workflow = security.get_security_workflow()
+        workflow = security.SecurityWorkflow()
         token = workflow.create_access_token(data, expires_delta=timedelta(minutes=1))
         payload = workflow.decode_token(token, settings.SECRET_KEY)
         assert payload is not None

@@ -99,6 +99,4 @@ import { useAuth } from '../../contexts/AuthContext';class _TopLevelFunctionSurf
       </div>
     </div>);
 
-  }}const ChangePasswordModal = _TopLevelFunctionSurface.ChangePasswordModal;
-
-export default ChangePasswordModal;
+  }}export default _TopLevelFunctionSurface.ChangePasswordModal;

@@ -49,6 +49,4 @@ import './ImportProgress.css';class _TopLevelFunctionSurface {static ImportProgr
       </div>
     </div>);
 
-  }}const ImportProgress = _TopLevelFunctionSurface.ImportProgress;
-
-export default ImportProgress;
+  }}export default _TopLevelFunctionSurface.ImportProgress;

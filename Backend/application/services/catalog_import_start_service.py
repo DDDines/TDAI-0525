@@ -8,9 +8,7 @@ from fastapi import HTTPException
 from sqlalchemy.orm import sessionmaker
 
 from Backend.application.contracts.pipeline_commands import CatalogImportFinalizeCommand
-from Backend.application.services.repository_runtime_support import (
-    call_repository_method,
-)
+from Backend.application.services.repository_runtime_support import RepositoryRuntimeSupport
 
 
 class CatalogImportStartService:
@@ -76,7 +74,7 @@ class CatalogImportStartService:
         repo = self._resolve_catalog_file_repo(
             catalog_file_repo=catalog_file_repo,
         )
-        catalog_file = call_repository_method(
+        catalog_file = RepositoryRuntimeSupport.call_repository_method(
             repo,
             "get_catalog_file_for_user",
             session=getattr(repo, "_db", None),
@@ -115,7 +113,7 @@ class CatalogImportStartService:
         if reset_pages:
             catalog_file.pages_processed = 0
             catalog_file.total_pages = 0
-        call_repository_method(
+        RepositoryRuntimeSupport.call_repository_method(
             repo,
             "update_catalog_file",
             session=getattr(repo, "_db", None),
@@ -155,7 +153,7 @@ class CatalogImportStartService:
         repo = self._resolve_fornecedor_repo(
             fornecedor_repo=fornecedor_repo,
         )
-        fornecedor = call_repository_method(
+        fornecedor = RepositoryRuntimeSupport.call_repository_method(
             repo,
             "get_fornecedor",
             session=getattr(repo, "_db", None),

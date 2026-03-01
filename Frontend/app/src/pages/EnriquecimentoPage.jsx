@@ -263,6 +263,4 @@ import logger from '../utils/logger';class _TopLevelFunctionSurface {static noti
       </div>
     </div>);
 
-  }}const notifyWithConsoleLog = _TopLevelFunctionSurface.notifyWithConsoleLog;const EnriquecimentoPage = _TopLevelFunctionSurface.EnriquecimentoPage;
-
-export default EnriquecimentoPage;
+  }}const notifyWithConsoleLog = _TopLevelFunctionSurface.notifyWithConsoleLog;export default _TopLevelFunctionSurface.EnriquecimentoPage;

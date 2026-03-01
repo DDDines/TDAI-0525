@@ -24,6 +24,4 @@ import logo from '../assets/Logo.png';class _TopLevelFunctionSurface {static The
       <span className="visually-hidden">{`Tema atual: ${mode === 'dark' ? 'escuro' : 'claro'}`}</span>
     </button>);
 
-  }}const ThemeToggle = _TopLevelFunctionSurface.ThemeToggle;
-
-export default ThemeToggle;
+  }}export default _TopLevelFunctionSurface.ThemeToggle;

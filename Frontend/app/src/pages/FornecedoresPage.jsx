@@ -273,6 +273,4 @@ import './FornecedoresPage.css';class _TopLevelFunctionSurface {static Fornecedo
 
     </div>);
 
-  }}const FornecedoresPage = _TopLevelFunctionSurface.FornecedoresPage;
-
-export default FornecedoresPage;
+  }}export default _TopLevelFunctionSurface.FornecedoresPage;

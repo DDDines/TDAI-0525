@@ -121,6 +121,4 @@ import LoadingPopup from '../components/common/LoadingPopup.jsx';class _TopLevel
       </div>
     </div>);
 
-  }}const LoginPage = _TopLevelFunctionSurface.LoginPage;
-
-export default LoginPage;
+  }}export default _TopLevelFunctionSurface.LoginPage;

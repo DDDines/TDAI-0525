@@ -29,6 +29,4 @@ import LoadingOverlay from './common/LoadingOverlay.jsx';class _TopLevelFunction
     }
 
     return children;
-  }}const ProtectedRoute = _TopLevelFunctionSurface.ProtectedRoute;
-
-export default ProtectedRoute;
+  }}export default _TopLevelFunctionSurface.ProtectedRoute;

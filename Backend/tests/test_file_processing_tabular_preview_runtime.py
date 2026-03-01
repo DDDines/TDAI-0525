@@ -36,7 +36,10 @@ class _TopLevelFunctionSurface:
             _fake_preview_arquivo_csv,
         )
     
-        result = await file_processing._preview_arquivo_csv_impl(b"csv-bytes", max_rows=3)
+        result = await file_processing._FileProcessingImplementation._preview_arquivo_csv_impl(
+            b"csv-bytes",
+            max_rows=3,
+        )
     
         assert result["headers"] == ["c1"]
         assert called["conteudo_arquivo"] == b"csv-bytes"

@@ -10,7 +10,7 @@ from sqlalchemy.pool import StaticPool
 from Backend.main import app
 from Backend.database import Base, get_db
 from Backend import schemas, models
-from Backend.initial_data import get_initial_data_workflow
+from Backend.initial_data import InitialDataWorkflow
 from Backend.core.config import settings
 
 # disable heavy startup events
@@ -100,7 +100,7 @@ test_importacao_ignora_duplicados_por_sku_ean = _TopLevelFunctionSurface.test_im
 app.dependency_overrides[get_db] = override_get_db
 client = TestClient(app)
 
-initial_data_workflow = get_initial_data_workflow()
+initial_data_workflow = InitialDataWorkflow()
 
 # setup initial data
 with TestingSessionLocal() as db:

@@ -3,7 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any, Awaitable, Callable, Dict
 
-from Backend.core.app_mode import get_app_mode
+from Backend.core.app_mode import AppModeWorkflow
 from Backend.core.logging_config import get_logger
 
 logger = get_logger(__name__)
@@ -37,6 +37,6 @@ class PipelineSelector:
         *,
         oop_plan: TaskExecutionPlan,
     ) -> TaskExecutionPlan:
-        _ = get_app_mode()
+        _ = AppModeWorkflow().get_app_mode()
         logger.info("APP_MODE=oop (%s): selecionado plano OOP", self.context)
         return oop_plan

@@ -8,7 +8,7 @@ from sqlalchemy.pool import StaticPool
 from Backend.main import app
 from Backend.database import Base, get_db
 from Backend import schemas, models
-from Backend.initial_data import get_initial_data_workflow
+from Backend.initial_data import InitialDataWorkflow
 from Backend.core.config import settings
 from Backend.infrastructure.repositories.historico_repository import HistoricoRepository
 from Backend.infrastructure.repositories.product_repository import ProductRepository
@@ -20,7 +20,7 @@ from Backend.infrastructure.repositories.user_repository import UserRepository
 # disable heavy startup events
 app.router.on_startup.clear()
 
-initial_data_workflow = get_initial_data_workflow()
+initial_data_workflow = InitialDataWorkflow()
 
 engine = create_engine(
     "sqlite:///:memory:",

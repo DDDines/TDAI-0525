@@ -65,6 +65,4 @@ import Modal from '../common/Modal';class _TopLevelFunctionSurface {static EditP
       </form>
     </Modal>);
 
-  }}const EditProductTypeModal = _TopLevelFunctionSurface.EditProductTypeModal;
-
-export default EditProductTypeModal;
+  }}export default _TopLevelFunctionSurface.EditProductTypeModal;

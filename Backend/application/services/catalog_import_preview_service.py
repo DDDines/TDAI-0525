@@ -8,9 +8,7 @@ from typing import Any, Dict, List, Optional
 
 from fastapi import HTTPException
 
-from Backend.application.services.repository_runtime_support import (
-    call_repository_method,
-)
+from Backend.application.services.repository_runtime_support import RepositoryRuntimeSupport
 
 
 class CatalogImportPreviewService:
@@ -78,7 +76,7 @@ class CatalogImportPreviewService:
             file, fornecedor_id
         )
         catalog_record.user_id = user_id
-        call_repository_method(
+        RepositoryRuntimeSupport.call_repository_method(
             repo,
             "save_catalog_file",
             session=getattr(repo, "_db", None),
@@ -317,7 +315,7 @@ class CatalogImportPreviewService:
         file_id: int,
         user_id: int,
     ) -> Any:
-        record = call_repository_method(
+        record = RepositoryRuntimeSupport.call_repository_method(
             catalog_file_repo,
             "get_catalog_file_for_user",
             session=getattr(catalog_file_repo, "_db", None),

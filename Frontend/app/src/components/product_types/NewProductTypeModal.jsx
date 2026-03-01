@@ -73,6 +73,4 @@ import { showErrorToast } from '../../utils/notifications';class _TopLevelFuncti
       </div>
     </Modal>);
 
-  }}const NewProductTypeModal = _TopLevelFunctionSurface.NewProductTypeModal;
-
-export default NewProductTypeModal;
+  }}export default _TopLevelFunctionSurface.NewProductTypeModal;

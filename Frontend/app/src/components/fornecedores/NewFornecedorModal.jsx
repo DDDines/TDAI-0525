@@ -98,6 +98,4 @@ import '../common/Modal.css';class _TopLevelFunctionSurface {static NewFornecedo
       </div>
     </div>);
 
-  }}const NewFornecedorModal = _TopLevelFunctionSurface.NewFornecedorModal;
-
-export default NewFornecedorModal;
+  }}export default _TopLevelFunctionSurface.NewFornecedorModal;

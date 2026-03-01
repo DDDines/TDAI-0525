@@ -42,6 +42,4 @@ import Topbar from './Topbar';class _TopLevelFunctionSurface {static MainLayout(
       </div>
     </div>);
 
-  }}const MainLayout = _TopLevelFunctionSurface.MainLayout;
-
-export default MainLayout;
+  }}export default _TopLevelFunctionSurface.MainLayout;

@@ -215,6 +215,4 @@ import './ColumnMappingModal.css';class _TopLevelFunctionSurface {static normali
       </div>
     </Modal>);
 
-  }}const UNIQUE_BASE_FIELDS = new Set(['nome_base', 'sku_original', 'ean_original', 'preco_original', 'marca', 'categoria_original', 'auto:sku_nome']);const normalizeMapping = _TopLevelFunctionSurface.normalizeMapping;const areMappingsEqual = _TopLevelFunctionSurface.areMappingsEqual;const ColumnMappingModal = _TopLevelFunctionSurface.ColumnMappingModal;
-
-export default ColumnMappingModal;
+  }}const UNIQUE_BASE_FIELDS = new Set(['nome_base', 'sku_original', 'ean_original', 'preco_original', 'marca', 'categoria_original', 'auto:sku_nome']);const normalizeMapping = _TopLevelFunctionSurface.normalizeMapping;const areMappingsEqual = _TopLevelFunctionSurface.areMappingsEqual;export default _TopLevelFunctionSurface.ColumnMappingModal;

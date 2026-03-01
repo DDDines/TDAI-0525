@@ -5,10 +5,10 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
 
-from Backend.main import app, create_new_user
+from Backend.main import MainBootstrapWorkflow, app
 from Backend.database import Base, get_db
 from Backend import schemas, models
-from Backend.initial_data import get_initial_data_workflow
+from Backend.initial_data import InitialDataWorkflow
 from Backend.core.config import settings
 from Backend.infrastructure.repositories.historico_repository import HistoricoRepository
 
@@ -99,12 +99,12 @@ test_get_tipos_acao_endpoint = _TopLevelFunctionSurface.test_get_tipos_acao_endp
 app.dependency_overrides[get_db] = override_get_db
 client = TestClient(app)
 
-initial_data_workflow = get_initial_data_workflow()
+initial_data_workflow = InitialDataWorkflow()
 
 with TestingSessionLocal() as db:
     initial_data_workflow.create_initial_data(db)
     user_in = schemas.UserCreate(email="user2@example.com", password="secret", nome_completo="Normal User")
-    normal_user = create_new_user(user_in=user_in, db=db)
+    normal_user = MainBootstrapWorkflow().create_new_user(user_in=user_in, db=db)
 
 
 

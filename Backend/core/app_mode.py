@@ -1,19 +1,23 @@
 from __future__ import annotations
-
 from enum import Enum
 from typing import Optional
 
-class AppMode(str, Enum):
-    OOP = "oop"
+class _ModuleAliasProviders:
 
+    @staticmethod
+    def get_app_mode_workflow():
+        return AppModeWorkflow()
+
+class AppMode(str, Enum):
+    OOP = 'oop'
 
 class _AppModeWorkflow:
-    def __init__(self, runtime: Optional["_AppModeRuntime"] = None) -> None:
+
+    def __init__(self, runtime: Optional['_AppModeRuntime']=None) -> None:
         self._runtime = runtime or _AppModeRuntime()
 
     def get_app_mode(self) -> AppMode:
         return self._runtime.get_app_mode()
-
 
 class _AppModeRuntime:
     """Runtime para resolucao de modo de execucao.
@@ -23,9 +27,4 @@ class _AppModeRuntime:
 
     def get_app_mode(self) -> AppMode:
         return AppMode.OOP
-
 AppModeWorkflow = _AppModeWorkflow
-
-
-get_app_mode_workflow = lambda: AppModeWorkflow()
-get_app_mode = lambda: get_app_mode_workflow().get_app_mode()

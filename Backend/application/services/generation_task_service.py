@@ -6,9 +6,7 @@ from typing import Any, Dict, Optional, Tuple
 from fastapi import HTTPException
 from sqlalchemy.orm import Session
 
-from Backend.application.services.repository_runtime_support import (
-    call_repository_method,
-)
+from Backend.application.services.repository_runtime_support import RepositoryRuntimeSupport
 
 
 class GenerationTaskService:
@@ -96,7 +94,7 @@ class GenerationTaskService:
             user_access = self._get_user_access(session)
             product_access = self._get_product_access(session)
 
-            user = call_repository_method(
+            user = RepositoryRuntimeSupport.call_repository_method(
                 user_access,
                 "get_user",
                 session=session,
@@ -110,7 +108,7 @@ class GenerationTaskService:
                 )
                 return
 
-            db_produto = call_repository_method(
+            db_produto = RepositoryRuntimeSupport.call_repository_method(
                 product_access,
                 "get_produto",
                 session=session,
@@ -140,7 +138,7 @@ class GenerationTaskService:
                     f"{log_entry_prefix}: Geração iniciada.",
                 ),
             }
-            call_repository_method(
+            RepositoryRuntimeSupport.call_repository_method(
                 product_access,
                 "update_produto",
                 session=session,
@@ -198,7 +196,7 @@ class GenerationTaskService:
                     produto_id,
                 )
 
-            call_repository_method(
+            RepositoryRuntimeSupport.call_repository_method(
                 product_access,
                 "update_produto",
                 session=session,
@@ -230,7 +228,7 @@ class GenerationTaskService:
                     ),
                 }
                 product_access = self._get_product_access(session)
-                call_repository_method(
+                RepositoryRuntimeSupport.call_repository_method(
                     product_access,
                     "update_produto",
                     session=session,
@@ -252,7 +250,7 @@ class GenerationTaskService:
                     ),
                 }
                 product_access = self._get_product_access(session)
-                call_repository_method(
+                RepositoryRuntimeSupport.call_repository_method(
                     product_access,
                     "update_produto",
                     session=session,

@@ -194,6 +194,4 @@ import fornecedorService from '../../services/fornecedorService';class _TopLevel
       </div>
     </div>);
 
-  }}const EditFornecedorModal = _TopLevelFunctionSurface.EditFornecedorModal;
-
-export default EditFornecedorModal;
+  }}export default _TopLevelFunctionSurface.EditFornecedorModal;

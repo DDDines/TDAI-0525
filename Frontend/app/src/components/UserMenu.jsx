@@ -76,6 +76,4 @@ import { LuSettings, LuLogOut } from 'react-icons/lu';class _TopLevelFunctionSur
         }
     </div>);
 
-  }}const getInitials = _TopLevelFunctionSurface.getInitials;const UserMenu = _TopLevelFunctionSurface.UserMenu;
-
-export default UserMenu;
+  }}const getInitials = _TopLevelFunctionSurface.getInitials;export default _TopLevelFunctionSurface.UserMenu;

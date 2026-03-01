@@ -111,6 +111,4 @@ import logger from './utils/logger';class _TopLevelFunctionSurface {static AppCo
       </ThemeProvider>
     </Router>);
 
-  }}const AppContent = _TopLevelFunctionSurface.AppContent;const ProvidersWrapper = _TopLevelFunctionSurface.ProvidersWrapper;const App = _TopLevelFunctionSurface.App;
-
-export default App;
+  }}const AppContent = _TopLevelFunctionSurface.AppContent;const ProvidersWrapper = _TopLevelFunctionSurface.ProvidersWrapper;export default _TopLevelFunctionSurface.App;

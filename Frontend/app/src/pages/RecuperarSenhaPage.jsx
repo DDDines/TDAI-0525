@@ -48,6 +48,4 @@ import './LoginPage.css';class _TopLevelFunctionSurface {static RecuperarSenhaPa
       </div>
     </div>);
 
-  }}const RecuperarSenhaPage = _TopLevelFunctionSurface.RecuperarSenhaPage;
-
-export default RecuperarSenhaPage;
+  }}export default _TopLevelFunctionSurface.RecuperarSenhaPage;

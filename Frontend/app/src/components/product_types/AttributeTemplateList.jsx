@@ -59,6 +59,4 @@ import '../../pages/TiposProdutoPage.css';class _TopLevelFunctionSurface {static
         )}
     </div>);
 
-  }}const AttributeTemplateList = _TopLevelFunctionSurface.AttributeTemplateList;
-
-export default AttributeTemplateList;
+  }}export default _TopLevelFunctionSurface.AttributeTemplateList;

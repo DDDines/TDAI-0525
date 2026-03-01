@@ -1,4 +1,4 @@
-from Backend.main import create_new_user
+from Backend.main import MainBootstrapWorkflow
 import Backend.schemas as schemas
 
 
@@ -10,7 +10,7 @@ class _TopLevelFunctionSurface:
             password="secret",
             nome_completo="Test User",
         )
-        new_user = create_new_user(user_in=user_in, db=db_session)
+        new_user = MainBootstrapWorkflow().create_new_user(user_in=user_in, db=db_session)
         assert new_user.email == user_in.email
         assert new_user.id is not None
 

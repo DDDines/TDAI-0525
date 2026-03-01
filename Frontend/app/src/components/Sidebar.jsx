@@ -63,6 +63,4 @@ import {
       </div>
     </aside>);
 
-  }}const Sidebar = _TopLevelFunctionSurface.Sidebar;
-
-export default Sidebar;
+  }}export default _TopLevelFunctionSurface.Sidebar;

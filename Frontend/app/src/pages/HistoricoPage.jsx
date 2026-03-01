@@ -248,6 +248,4 @@ import './HistoricoPage.css';class _TopLevelFunctionSurface {static formatTipoAc
       </div>
     </div>);
 
-  }}const TIPO_ACAO_LABELS = { criacao_produto: 'Criação de produto', atualizacao_produto: 'Atualização de produto', enriquecimento_web: 'Enriquecimento Web', geracao_titulo_ia: 'Geração de título IA', geracao_descricao_ia: 'Geração de descrição IA' };const formatTipoAcao = _TopLevelFunctionSurface.formatTipoAcao;const HistoricoPage = _TopLevelFunctionSurface.HistoricoPage;
-
-export default HistoricoPage;
+  }}const TIPO_ACAO_LABELS = { criacao_produto: 'Criação de produto', atualizacao_produto: 'Atualização de produto', enriquecimento_web: 'Enriquecimento Web', geracao_titulo_ia: 'Geração de título IA', geracao_descricao_ia: 'Geração de descrição IA' };const formatTipoAcao = _TopLevelFunctionSurface.formatTipoAcao;export default _TopLevelFunctionSurface.HistoricoPage;

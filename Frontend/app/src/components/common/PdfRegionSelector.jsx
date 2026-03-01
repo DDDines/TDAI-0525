@@ -171,6 +171,4 @@ import './PdfRegionSelector.css';class _TopLevelFunctionSurface {static PdfRegio
       </label>
     </div>);
 
-  }}pdfjs.GlobalWorkerOptions.workerSrc = pdfWorkerSrc;const PdfRegionSelector = _TopLevelFunctionSurface.PdfRegionSelector;
-
-export default PdfRegionSelector;
+  }}pdfjs.GlobalWorkerOptions.workerSrc = pdfWorkerSrc;export default _TopLevelFunctionSurface.PdfRegionSelector;

@@ -131,6 +131,4 @@ import LoadingPopup from '../components/common/LoadingPopup.jsx';class _TopLevel
       </div>
     </div>);
 
-  }}const PlanoPage = _TopLevelFunctionSurface.PlanoPage;
-
-export default PlanoPage;
+  }}export default _TopLevelFunctionSurface.PlanoPage;

@@ -247,6 +247,4 @@ import { LuBox, LuUsers, LuZap, LuLayers, LuSearch, LuBell } from 'react-icons/l
         }
     </div>);
 
-  }}const mockDashboardData = { alerts: [{ id: 1, messageHtml: 'Aviso: <b>2 produto(s)</b> sem descrição' }, { id: 2, messageHtml: 'Aviso: <b>2 produto(s)</b> pendente(s) de enriquecimento' }] };const DashboardPage = _TopLevelFunctionSurface.DashboardPage;
-
-export default DashboardPage;
+  }}const mockDashboardData = { alerts: [{ id: 1, messageHtml: 'Aviso: <b>2 produto(s)</b> sem descrição' }, { id: 2, messageHtml: 'Aviso: <b>2 produto(s)</b> pendente(s) de enriquecimento' }] };export default _TopLevelFunctionSurface.DashboardPage;

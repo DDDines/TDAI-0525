@@ -24,6 +24,4 @@ import ThemeToggle from './ThemeToggle.jsx';class _TopLevelFunctionSurface {stat
       </div>
     </header>);
 
-  }}const Topbar = _TopLevelFunctionSurface.Topbar;
-
-export default Topbar;
+  }}export default _TopLevelFunctionSurface.Topbar;

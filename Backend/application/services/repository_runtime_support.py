@@ -1,4 +1,4 @@
-﻿from __future__ import annotations
+from __future__ import annotations
 
 import inspect
 from typing import Any, Mapping, Sequence
@@ -56,7 +56,3 @@ class RepositoryRuntimeSupport:
                         break
 
         return method(**call_kwargs)
-
-
-bind_repository = RepositoryRuntimeSupport.bind_repository
-call_repository_method = RepositoryRuntimeSupport.call_repository_method

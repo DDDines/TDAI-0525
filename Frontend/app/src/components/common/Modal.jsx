@@ -26,6 +26,4 @@ class _TopLevelFunctionSurface {static Modal(
             </div>
         </div>);
 
-  }}const Modal = _TopLevelFunctionSurface.Modal;
-
-export default Modal;
+  }}export default _TopLevelFunctionSurface.Modal;

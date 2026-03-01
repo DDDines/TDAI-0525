@@ -70,6 +70,4 @@ import './LoginPage.css';class _TopLevelFunctionSurface {static ResetSenhaPage()
       </div>
     </div>);
 
-  }}const ResetSenhaPage = _TopLevelFunctionSurface.ResetSenhaPage;
-
-export default ResetSenhaPage;
+  }}export default _TopLevelFunctionSurface.ResetSenhaPage;

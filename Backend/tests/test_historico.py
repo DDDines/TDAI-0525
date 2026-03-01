@@ -11,10 +11,10 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
 
-from Backend.main import app, create_new_user
+from Backend.main import MainBootstrapWorkflow, app
 from Backend.database import Base, get_db
 from Backend import schemas
-from Backend.initial_data import get_initial_data_workflow
+from Backend.initial_data import InitialDataWorkflow
 
 # Disable heavy startup events so tests run faster
 app.router.on_startup.clear()
@@ -146,7 +146,7 @@ test_fornecedor_mapping_endpoints = _TopLevelFunctionSurface.test_fornecedor_map
 app.dependency_overrides[get_db] = override_get_db
 client = TestClient(app)
 
-initial_data_workflow = get_initial_data_workflow()
+initial_data_workflow = InitialDataWorkflow()
 
 # Prepare initial data
 with TestingSessionLocal() as db:
@@ -156,7 +156,7 @@ with TestingSessionLocal() as db:
         password="secret",
         nome_completo="Normal User",
     )
-    create_new_user(user_in=user_in, db=db)
+    MainBootstrapWorkflow().create_new_user(user_in=user_in, db=db)
 
 
 

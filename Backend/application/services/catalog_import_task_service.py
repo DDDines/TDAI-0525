@@ -1,4 +1,4 @@
-﻿from __future__ import annotations
+from __future__ import annotations
 
 from typing import Any, Callable, Dict, List, Optional
 from sqlalchemy.orm import Session
@@ -11,10 +11,7 @@ from Backend.application.services.catalog_import_components import (
     CatalogImportQualityAccumulator,
     CatalogImportResultBuilder,
 )
-from Backend.application.services.repository_runtime_support import (
-    bind_repository,
-    call_repository_method,
-)
+from Backend.application.services.repository_runtime_support import RepositoryRuntimeSupport
 
 
 class _CatalogImportTaskRuntime:
@@ -209,7 +206,7 @@ class _CatalogImportTaskWorkflow:
         self.catalog_file_repo_runtime: Any | None = None
 
     def _load_catalog_file(self) -> bool:
-        self.catalog_file = call_repository_method(
+        self.catalog_file = RepositoryRuntimeSupport.call_repository_method(
             self.catalog_file_repo_runtime,
             "get_catalog_file_for_user",
             session=self.db,
@@ -347,7 +344,7 @@ class _CatalogImportTaskWorkflow:
         if not produtos_create:
             return created_page, updated_page
 
-        created_page, updated_page, dup_errors = call_repository_method(
+        created_page, updated_page, dup_errors = RepositoryRuntimeSupport.call_repository_method(
             self.product_repository,
             "create_produtos_bulk",
             session=self.db,
@@ -533,7 +530,7 @@ class _CatalogImportTaskWorkflow:
         self.catalog_logger.exception("falha file_id=%s erro=%s", self.file_id, error)
         if not self.db:
             return
-        catalog_file = call_repository_method(
+        catalog_file = RepositoryRuntimeSupport.call_repository_method(
             self.catalog_file_repo_runtime,
             "get_catalog_file",
             session=self.db,
@@ -560,7 +557,7 @@ class _CatalogImportTaskWorkflow:
         region: Optional[List[float]] = None,
     ) -> None:
         self.db = db_session_factory()
-        self.catalog_file_repo_runtime = bind_repository(
+        self.catalog_file_repo_runtime = RepositoryRuntimeSupport.bind_repository(
             self.catalog_file_repository,
             session=self.db,
         )

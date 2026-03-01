@@ -388,6 +388,4 @@ import LoadingPopup from '../components/common/LoadingPopup.jsx';class _TopLevel
         }
     </div>);
 
-  }}const ProdutosPage = _TopLevelFunctionSurface.ProdutosPage;
-
-export default ProdutosPage;
+  }}export default _TopLevelFunctionSurface.ProdutosPage;
