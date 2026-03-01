@@ -281,6 +281,9 @@ class _TopLevelFunctionSurface:
 
     def test_backend_top_level_non_endpoint_functions_are_allowlisted():
         offenders: list[str] = []
+        allowed_functions = {
+            ("Backend/database.py", "get_db"),
+        }
     
         for path in _iter_python_files(BACKEND_ROOT):
             if path.is_relative_to(BACKEND_TESTS_ROOT):
@@ -294,7 +297,9 @@ class _TopLevelFunctionSurface:
                     continue
                 if _is_http_endpoint_function(node):
                     continue
-    
+                if (rel, node.name) in allowed_functions:
+                    continue
+
                 offenders.append(f"{rel}:{node.lineno} -> {node.name}")
     
         assert not offenders, (

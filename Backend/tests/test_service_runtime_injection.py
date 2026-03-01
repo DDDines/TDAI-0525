@@ -5,11 +5,11 @@ from types import SimpleNamespace
 import pytest
 
 from Backend import models
+from Backend import database as database_module
 from Backend.create_tables import CreateTablesWorkflow
 from Backend.infrastructure.repositories.fornecedor_import_job_repository import (
     FornecedorImportJobRepository,
 )
-from Backend.database import DatabaseWorkflow
 from Backend.initial_data import InitialDataWorkflow
 from Backend.testing.runtime_apis import (
     CatalogStorageWorkflow,
@@ -36,25 +36,22 @@ class _TopLevelFunctionSurface:
     
         assert called == ["ok"]
 
-    def test_database_workflow_delega_runtime_injetado():
+    def test_database_get_db_yields_session_and_closes(monkeypatch):
         called = []
-    
-        class FakeRuntime:
-            def build_engine_args(self, database_url: str):
-                called.append(("build", database_url))
-                return {"db": database_url}
-    
-            def get_db(self):
-                called.append(("get_db",))
-                yield "db-session"
-    
-        workflow = DatabaseWorkflow(runtime=FakeRuntime())
-        args = workflow.build_engine_args("sqlite://")
-        sessions = list(workflow.get_db())
-    
-        assert args == {"db": "sqlite://"}
-        assert sessions == ["db-session"]
-        assert called == [("build", "sqlite://"), ("get_db",)]
+
+        class FakeSession:
+            def close(self):
+                called.append("close")
+
+        def fake_session_local():
+            called.append("create")
+            return FakeSession()
+
+        monkeypatch.setattr(database_module, "SessionLocal", fake_session_local)
+        sessions = list(database_module.get_db())
+
+        assert len(sessions) == 1
+        assert called == ["create", "close"]
 
     def test_task_workflow_delega_runtime_injetado():
         called = []
@@ -259,7 +256,7 @@ class _TopLevelFunctionSurface:
         assert db.commits == 1
 
 test_create_tables_workflow_delega_runtime_injetado = _TopLevelFunctionSurface.test_create_tables_workflow_delega_runtime_injetado
-test_database_workflow_delega_runtime_injetado = _TopLevelFunctionSurface.test_database_workflow_delega_runtime_injetado
+test_database_get_db_yields_session_and_closes = _TopLevelFunctionSurface.test_database_get_db_yields_session_and_closes
 test_task_workflow_delega_runtime_injetado = _TopLevelFunctionSurface.test_task_workflow_delega_runtime_injetado
 test_line_mapping_workflow_delega_runtime_injetado = _TopLevelFunctionSurface.test_line_mapping_workflow_delega_runtime_injetado
 test_user_and_job_workflows_delegam_runtime_injetado = _TopLevelFunctionSurface.test_user_and_job_workflows_delegam_runtime_injetado
