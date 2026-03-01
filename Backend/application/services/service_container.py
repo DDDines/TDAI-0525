@@ -45,6 +45,10 @@ class ServiceContainerDependencySupport:
     @staticmethod
     def build_web_data_extractor_service() -> WebDataExtractorOrchestratorService:
         return WebDataExtractorOrchestratorService(WebDataExtractorServiceAdapter())
+
+    @staticmethod
+    def get_background_db_session_factory() -> Callable[[], Session]:
+        return database.SessionLocal
 @dataclass
 class ServiceContainer:
     """Registry simples de servicos OO compartilhados pela aplicacao."""

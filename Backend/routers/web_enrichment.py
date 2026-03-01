@@ -8,9 +8,11 @@ from typing import Any, Dict, List, Optional, Tuple
 
 from fastapi import APIRouter, BackgroundTasks, Depends, Query, status
 from sqlalchemy.exc import SQLAlchemyError
+from sqlalchemy.orm import Session
 
 from Backend import models, schemas
 from Backend.application.contracts.pipeline_commands import WebEnrichmentStartCommand
+from Backend.application.services.service_container import ServiceContainerDependencySupport
 from Backend.application.services.web_data_extractor import WebDataExtractorOrchestratorService
 from Backend.application.services.web_enrichment_content_quality_service import (
     WebEnrichmentContentQualityService,
@@ -26,7 +28,6 @@ from Backend.application.services.web_enrichment_start_service import WebEnrichm
 from Backend.application.services.web_enrichment_task_runner import WebEnrichmentTaskRunner
 from Backend.core.config import settings
 from Backend.core.logging_config import get_logger
-from Backend.database import SessionLocal
 from Backend.infrastructure.adapters.web_data_extractor_adapter import (
     WebDataExtractorServiceAdapter,
 )
@@ -51,7 +52,14 @@ logger = get_logger(__name__)
 class WebEnrichmentRequestService:
     """Servico request-scoped para iniciar tarefas de enriquecimento web."""
 
-    def __init__(self) -> None:
+    def __init__(
+        self,
+        session: Session = Depends(ServiceContainerDependencySupport.get_request_db_session),
+    ) -> None:
+        self._session = session
+        self._db_session_factory = (
+            ServiceContainerDependencySupport.get_background_db_session_factory()
+        )
         normalization_service = WebEnrichmentNormalizationService()
         relevance_service = WebEnrichmentRelevanceService()
         content_quality_service = WebEnrichmentContentQualityService(
@@ -109,15 +117,11 @@ class WebEnrichmentRequestService:
         current_user: models.User,
         termos_busca_override: Optional[str] = None,
     ) -> Dict[str, str]:
-        db = SessionLocal()
-        try:
-            self._start_service.validate_start_preconditions(
-                product_repo=ProductRepository(db),
-                produto_id=produto_id,
-                current_user=current_user,
-            )
-        finally:
-            db.close()
+        self._start_service.validate_start_preconditions(
+            product_repo=ProductRepository(self._session),
+            produto_id=produto_id,
+            current_user=current_user,
+        )
 
         command = WebEnrichmentStartCommand(
             produto_id=produto_id,
@@ -126,7 +130,7 @@ class WebEnrichmentRequestService:
         )
         self._start_service.dispatch_start(
             background_tasks=background_tasks,
-            db_session_factory=SessionLocal,
+            db_session_factory=self._db_session_factory,
             command=command,
             oop_executor=self.tarefa_enriquecer_produto_web,
         )
