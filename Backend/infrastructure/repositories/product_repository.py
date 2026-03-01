@@ -1,3 +1,4 @@
+"""Repositorio de infraestrutura orientado a objetos para 'product_repository'."""
 from __future__ import annotations
 
 import json

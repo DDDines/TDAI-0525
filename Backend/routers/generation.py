@@ -1,3 +1,4 @@
+"""Camada de transporte HTTP para o dominio 'generation'."""
 # Backend/routers/generation.py
 
 import logging
@@ -32,6 +33,7 @@ router = APIRouter(
 
 
 class _GenerationRouterWorkflow:
+    """Workflow/escopo request-scoped para o fluxo de 'generation'."""
     def __init__(self, runtime: Optional["_GenerationRouterRuntime"] = None) -> None:
         self._runtime = runtime or _GenerationRouterRuntime()
 
@@ -268,10 +270,12 @@ GenerationRouterWorkflow = _GenerationRouterWorkflow
 
 
 def get_generation_router_workflow() -> GenerationRouterWorkflow:
+    """Factory de workflow OO para o modulo atual (get_generation_router_workflow)."""
     return GenerationRouterWorkflow(runtime=_GenerationRouterRuntime())
 
 
 class _GenerationRequestScope:
+    """Workflow/escopo request-scoped para o fluxo de 'generation'."""
     def __init__(self, db: Session, workflow: GenerationRouterWorkflow | None = None) -> None:
         self._db = db
         self._workflow = workflow or get_generation_router_workflow()
@@ -358,25 +362,6 @@ _build_generation_request_workflow = build_request_scoped_dependency(
 )
 
 
-async def _tarefa_processar_geracao_e_registrar_uso(
-    db_session_factory,
-    user_id: int,
-    produto_id: int,
-    tipo_geracao_principal: str,
-    funcao_geracao_ia_no_servico,
-    **kwargs_para_funcao_servico,
-):
-    workflow = get_generation_router_workflow()
-    await workflow.tarefa_processar_geracao_e_registrar_uso(
-        db_session_factory=db_session_factory,
-        user_id=user_id,
-        produto_id=produto_id,
-        tipo_geracao_principal=tipo_geracao_principal,
-        funcao_geracao_ia_no_servico=funcao_geracao_ia_no_servico,
-        **kwargs_para_funcao_servico,
-    )
-
-
 @router.post(
     "/titulos/openai/{produto_id}",
     response_model=schemas.Msg,
@@ -390,6 +375,7 @@ async def agendar_geracao_novos_titulos_openai(
     request_workflow: _GenerationRequestScope = Depends(_build_generation_request_workflow),
     current_user: models.User = Depends(auth_utils.get_current_active_user),
 ):
+    """Endpoint HTTP que delega a execucao para workflow/servico OO (agendar_geracao_novos_titulos_openai)."""
     return request_workflow.agendar_geracao_novos_titulos_openai(
         produto_id=produto_id,
         background_tasks=background_tasks,
@@ -411,6 +397,7 @@ async def agendar_geracao_nova_descricao_openai(
     request_workflow: _GenerationRequestScope = Depends(_build_generation_request_workflow),
     current_user: models.User = Depends(auth_utils.get_current_active_user),
 ):
+    """Endpoint HTTP que delega a execucao para workflow/servico OO (agendar_geracao_nova_descricao_openai)."""
     return request_workflow.agendar_geracao_nova_descricao_openai(
         produto_id=produto_id,
         background_tasks=background_tasks,
@@ -431,6 +418,7 @@ async def agendar_geracao_novos_titulos_gemini(
     request_workflow: _GenerationRequestScope = Depends(_build_generation_request_workflow),
     current_user: models.User = Depends(auth_utils.get_current_active_user),
 ):
+    """Endpoint HTTP que delega a execucao para workflow/servico OO (agendar_geracao_novos_titulos_gemini)."""
     return request_workflow.agendar_geracao_novos_titulos_gemini(
         produto_id=produto_id,
         background_tasks=background_tasks,
@@ -451,6 +439,7 @@ async def agendar_geracao_nova_descricao_gemini(
     request_workflow: _GenerationRequestScope = Depends(_build_generation_request_workflow),
     current_user: models.User = Depends(auth_utils.get_current_active_user),
 ):
+    """Endpoint HTTP que delega a execucao para workflow/servico OO (agendar_geracao_nova_descricao_gemini)."""
     return request_workflow.agendar_geracao_nova_descricao_gemini(
         produto_id=produto_id,
         background_tasks=background_tasks,
@@ -468,6 +457,7 @@ async def sugerir_atributos_para_produto_com_gemini(
     request_workflow: _GenerationRequestScope = Depends(_build_generation_request_workflow),
     current_user: models.User = Depends(auth_utils.get_current_active_user),
 ):
+    """Endpoint HTTP que delega a execucao para workflow/servico OO (sugerir_atributos_para_produto_com_gemini)."""
     return await request_workflow.sugerir_atributos_para_produto_com_gemini(
         produto_id=produto_id,
         current_user=current_user,

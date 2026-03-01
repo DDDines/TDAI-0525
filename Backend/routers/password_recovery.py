@@ -1,3 +1,6 @@
+﻿"""Camada de transporte HTTP para o dominio 'password_recovery'."""
+from __future__ import annotations
+
 from datetime import datetime, timedelta, timezone
 
 from fastapi import APIRouter, Body, Depends, HTTPException, Request, status
@@ -7,27 +10,31 @@ from Backend import schemas
 from Backend.application.services.service_container import (
     build_request_scoped_dependency,
 )
-from Backend.auth import create_password_reset_token, hash_password_reset_token
-from Backend.core import security
+from Backend.auth import get_auth_workflow
 from Backend.core.config import settings
-from Backend.core.email_utils import send_password_reset_email
+from Backend.core.email_utils import EmailWorkflow
 from Backend.core.logging_config import get_logger
 from Backend.infrastructure.repositories.user_repository import UserRepository
+
 router = APIRouter(prefix="/auth", tags=["password-recovery"])
 logger = get_logger(__name__)
 
 
 class _PasswordRecoveryRuntime:
-    """Runtime OO para operaÃ§Ãµes de recuperaÃ§Ã£o de senha."""
+    """Runtime OO para operacoes de recuperacao de senha."""
+
+    def __init__(self) -> None:
+        self._auth_workflow = get_auth_workflow()
+        self._email_workflow = EmailWorkflow()
 
     def get_user_by_email(self, db: Session, email: str):
         return UserRepository(db).get_user_by_email(email=email)
 
     def create_password_reset_token(self) -> str:
-        return create_password_reset_token()
+        return self._auth_workflow.create_password_reset_token()
 
     def hash_password_reset_token(self, token: str) -> str:
-        return hash_password_reset_token(token)
+        return self._auth_workflow.hash_password_reset_token(token)
 
     def set_user_password_reset_token(
         self,
@@ -50,7 +57,7 @@ class _PasswordRecoveryRuntime:
         username: str,
         reset_link: str,
     ) -> None:
-        await send_password_reset_email(
+        await self._email_workflow.send_password_reset_email(
             email_to=email_to,
             username=username,
             reset_link=reset_link,
@@ -65,10 +72,12 @@ class _PasswordRecoveryRuntime:
         return UserRepository(db).get_user(user_id=user_id)
 
     def get_password_hash(self, raw_password: str) -> str:
-        return security.get_password_hash(raw_password)
+        return self._auth_workflow.get_password_hash(raw_password)
 
 
 class _PasswordRecoveryWorkflow:
+    """Workflow/escopo request-scoped para o fluxo de 'password_recovery'."""
+
     def __init__(self, runtime: _PasswordRecoveryRuntime | None = None) -> None:
         self._runtime = runtime or _PasswordRecoveryRuntime()
 
@@ -162,10 +171,13 @@ PasswordRecoveryWorkflow = _PasswordRecoveryWorkflow
 
 
 def get_password_recovery_workflow() -> PasswordRecoveryWorkflow:
+    """Factory de workflow OO para o modulo atual (get_password_recovery_workflow)."""
     return PasswordRecoveryWorkflow(runtime=_PasswordRecoveryRuntime())
 
 
 class _PasswordRecoveryRequestScope:
+    """Workflow/escopo request-scoped para o fluxo de 'password_recovery'."""
+
     def __init__(self, db: Session, workflow: PasswordRecoveryWorkflow | None = None) -> None:
         self._db = db
         self._workflow = workflow or get_password_recovery_workflow()
@@ -206,6 +218,7 @@ async def recover_password(
         _build_password_recovery_request_workflow
     ),
 ):
+    """Endpoint HTTP que delega a execucao para workflow/servico OO (recover_password)."""
     return await request_workflow.recover_password(
         email=email,
         request=request,
@@ -220,12 +233,7 @@ def reset_password(
         _build_password_recovery_request_workflow
     ),
 ):
+    """Endpoint HTTP que delega a execucao para workflow/servico OO (reset_password)."""
     return request_workflow.reset_password(
         reset_data=reset_data,
     )
-
-
-
-
-
-

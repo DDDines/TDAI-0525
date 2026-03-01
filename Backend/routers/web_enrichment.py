@@ -1,14 +1,17 @@
-﻿# catalogai_project/Backend/routers/web_enrichment.py
-from typing import List, Dict, Any, Optional, Tuple
+﻿"""Camada de transporte HTTP para o dominio 'web_enrichment'."""
+from __future__ import annotations
+
 import json
 import re
+from typing import Any, Dict, List, Optional, Tuple
 
-from fastapi import APIRouter, Depends, status, BackgroundTasks, Query
+from fastapi import APIRouter, BackgroundTasks, Depends, Query, status
 from sqlalchemy.exc import SQLAlchemyError
 
 from Backend import models
 from Backend import schemas
 from Backend.application.contracts.pipeline_commands import WebEnrichmentStartCommand
+from Backend.application.services.web_data_extractor import WebDataExtractorOrchestratorService
 from Backend.application.services.web_enrichment_content_quality_service import (
     WebEnrichmentContentQualityService,
 )
@@ -27,9 +30,8 @@ from Backend.application.services.web_enrichment_start_service import (
 from Backend.application.services.web_enrichment_task_runner import (
     WebEnrichmentTaskRunner,
 )
-from Backend.application.services.web_data_extractor import (
-    WebDataExtractorOrchestratorService,
-)
+from Backend.core.config import settings
+from Backend.core.logging_config import get_logger
 from Backend.database import SessionLocal
 from Backend.infrastructure.adapters.web_data_extractor_adapter import (
     WebDataExtractorServiceAdapter,
@@ -41,125 +43,88 @@ from Backend.infrastructure.repositories.registro_uso_ia_repository import (
 from Backend.infrastructure.repositories.user_repository import UserRepository
 
 from .auth_utils import get_current_active_user
-from Backend.core.config import settings
-from Backend.core.logging_config import get_logger
 
 router = APIRouter(
     prefix="/enriquecimento-web",
     tags=["Enriquecimento de Produto via Web"],
     dependencies=[Depends(get_current_active_user)],
-    # Evita 307 por barra final/ausente que pode perder Authorization em alguns clientes.
     redirect_slashes=False,
 )
 
 logger = get_logger(__name__)
 
-def _build_relevance_service() -> WebEnrichmentRelevanceService:
-    return WebEnrichmentRelevanceService()
 
+class _WebEnrichmentMappingRuntime:
+    """Runtime OO para regras de mapeamento/qualidade do enriquecimento web."""
 
-def _build_normalization_service() -> WebEnrichmentNormalizationService:
-    return WebEnrichmentNormalizationService()
+    def __init__(
+        self,
+        *,
+        relevance_service: Optional[WebEnrichmentRelevanceService] = None,
+        normalization_service: Optional[WebEnrichmentNormalizationService] = None,
+        content_quality_service: Optional[WebEnrichmentContentQualityService] = None,
+        payload_service: Optional[WebEnrichmentPayloadService] = None,
+    ) -> None:
+        self._normalization_service = normalization_service or WebEnrichmentNormalizationService()
+        self._relevance_service = relevance_service or WebEnrichmentRelevanceService()
+        self._content_quality_service = content_quality_service or WebEnrichmentContentQualityService(
+            normalization_service=self._normalization_service
+        )
+        self._payload_service = payload_service or WebEnrichmentPayloadService(
+            normalization_service=self._normalization_service
+        )
 
+    def normalize_human_text(self, value: Any) -> str:
+        return self._normalization_service.normalize_human_text(value)
 
-def _build_content_quality_service() -> WebEnrichmentContentQualityService:
-    return WebEnrichmentContentQualityService(
-        normalization_service=_build_normalization_service()
-    )
+    def is_source_relevant_for_product(
+        self,
+        db_produto_obj: models.Produto,
+        *,
+        source_name: Any,
+        source_desc: Any,
+        source_url: str,
+    ) -> bool:
+        return self._relevance_service.is_source_relevant_for_product(
+            db_produto_obj,
+            source_name=source_name,
+            source_desc=source_desc,
+            source_url=source_url,
+        )
 
+    def extract_supplier_domain(self, site_url: Any) -> str:
+        return self._relevance_service.extract_supplier_domain(site_url)
 
-def _build_payload_service() -> WebEnrichmentPayloadService:
-    return WebEnrichmentPayloadService(
-        normalization_service=_build_normalization_service()
-    )
+    def prioritize_urls_for_enrichment(
+        self,
+        db_produto_obj: models.Produto,
+        urls_candidatas: List[str],
+        *,
+        fornecedor_domain: str = "",
+        max_urls: int = 4,
+    ) -> Tuple[List[str], List[Tuple[str, int]]]:
+        return self._relevance_service.prioritize_urls_for_enrichment(
+            db_produto_obj,
+            urls_candidatas,
+            fornecedor_domain=fornecedor_domain,
+            max_urls=max_urls,
+        )
 
+    def is_meaningful_extracted_text(self, value: Any) -> bool:
+        return self._content_quality_service.is_meaningful_extracted_text(value)
 
-def _normalize_human_text(value: Any) -> str:
-    return _build_normalization_service().normalize_human_text(value)
+    def metadata_has_minimum_signal(self, metadata: Dict[str, Any]) -> bool:
+        return self._content_quality_service.metadata_has_minimum_signal(metadata)
 
-
-def _is_source_relevant_for_product(
-    db_produto_obj: models.Produto,
-    *,
-    source_name: Any,
-    source_desc: Any,
-    source_url: str,
-) -> bool:
-    return _build_relevance_service().is_source_relevant_for_product(
-        db_produto_obj,
-        source_name=source_name,
-        source_desc=source_desc,
-        source_url=source_url,
-    )
-
-
-def _extrair_dominio_fornecedor(site_url: Any) -> str:
-    return _build_relevance_service().extract_supplier_domain(site_url)
-
-
-def _priorizar_urls_para_enriquecimento(
-    db_produto_obj: models.Produto,
-    urls_candidatas: List[str],
-    fornecedor_domain: str = "",
-    max_urls: int = 4,
-) -> Tuple[List[str], List[Tuple[str, int]]]:
-    return _build_relevance_service().prioritize_urls_for_enrichment(
-        db_produto_obj,
-        urls_candidatas,
-        fornecedor_domain=fornecedor_domain,
-        max_urls=max_urls,
-    )
-
-
-def _is_meaningful_extracted_text(value: Any) -> bool:
-    return _build_content_quality_service().is_meaningful_extracted_text(value)
-
-
-def _metadata_has_minimum_signal(metadata: Dict[str, Any]) -> bool:
-    return _build_content_quality_service().metadata_has_minimum_signal(metadata)
-
-
-def _build_payload_enriquecimento_visivel(
-    db_produto_obj: models.Produto,
-    dados_extraidos_agregados: Dict[str, Any],
-) -> Tuple[Dict[str, Any], List[str], List[str]]:
-    return _build_payload_service().build_payload_enriquecimento_visivel(
-        db_produto_obj,
-        dados_extraidos_agregados,
-    )
-
-
-def is_source_relevant_for_product(
-    db_produto_obj: models.Produto,
-    *,
-    source_name: Any,
-    source_desc: Any,
-    source_url: str,
-) -> bool:
-    return _is_source_relevant_for_product(
-        db_produto_obj,
-        source_name=source_name,
-        source_desc=source_desc,
-        source_url=source_url,
-    )
-
-
-def is_meaningful_extracted_text(value: Any) -> bool:
-    return _is_meaningful_extracted_text(value)
-
-
-def metadata_has_minimum_signal(metadata: Dict[str, Any]) -> bool:
-    return _metadata_has_minimum_signal(metadata)
-
-
-def build_payload_enriquecimento_visivel(
-    db_produto_obj: models.Produto,
-    dados_extraidos_agregados: Dict[str, Any],
-) -> Tuple[Dict[str, Any], List[str], List[str]]:
-    return _build_payload_enriquecimento_visivel(
-        db_produto_obj,
-        dados_extraidos_agregados,
-    )
+    def build_payload_enriquecimento_visivel(
+        self,
+        db_produto_obj: models.Produto,
+        dados_extraidos_agregados: Dict[str, Any],
+    ) -> Tuple[Dict[str, Any], List[str], List[str]]:
+        return self._payload_service.build_payload_enriquecimento_visivel(
+            db_produto_obj,
+            dados_extraidos_agregados,
+        )
 
 
 class _WebEnrichmentRouterRuntime:
@@ -168,10 +133,13 @@ class _WebEnrichmentRouterRuntime:
     def __init__(
         self,
         *,
-        task_runner: WebEnrichmentTaskRunner | None = None,
-        start_service: WebEnrichmentStartService | None = None,
-        web_extractor: WebDataExtractorOrchestratorService | None = None,
+        task_runner: Optional[WebEnrichmentTaskRunner] = None,
+        start_service: Optional[WebEnrichmentStartService] = None,
+        web_extractor: Optional[WebDataExtractorOrchestratorService] = None,
+        mapping_runtime: Optional[_WebEnrichmentMappingRuntime] = None,
     ) -> None:
+        self._mapping_runtime = mapping_runtime or _WebEnrichmentMappingRuntime()
+
         extractor_service = web_extractor or WebDataExtractorOrchestratorService(
             WebDataExtractorServiceAdapter()
         )
@@ -188,18 +156,22 @@ class _WebEnrichmentRouterRuntime:
             settings=settings,
             json_module=json,
             re_module=re,
-            normalize_human_text=_normalize_human_text,
-            build_payload_enriquecimento_visivel=_build_payload_enriquecimento_visivel,
-            extrair_dominio_fornecedor=_extrair_dominio_fornecedor,
-            priorizar_urls_para_enriquecimento=_priorizar_urls_para_enriquecimento,
-            is_meaningful_extracted_text=_is_meaningful_extracted_text,
-            metadata_has_minimum_signal=_metadata_has_minimum_signal,
-            is_source_relevant_for_product=_is_source_relevant_for_product,
+            normalize_human_text=self._mapping_runtime.normalize_human_text,
+            build_payload_enriquecimento_visivel=self._mapping_runtime.build_payload_enriquecimento_visivel,
+            extrair_dominio_fornecedor=self._mapping_runtime.extract_supplier_domain,
+            priorizar_urls_para_enriquecimento=self._mapping_runtime.prioritize_urls_for_enrichment,
+            is_meaningful_extracted_text=self._mapping_runtime.is_meaningful_extracted_text,
+            metadata_has_minimum_signal=self._mapping_runtime.metadata_has_minimum_signal,
+            is_source_relevant_for_product=self._mapping_runtime.is_source_relevant_for_product,
         )
         self._start_service = start_service or WebEnrichmentStartService(
             product_repository=ProductRepository,
             models=models,
         )
+
+    @property
+    def mapping(self) -> _WebEnrichmentMappingRuntime:
+        return self._mapping_runtime
 
     async def execute_task(
         self,
@@ -250,8 +222,14 @@ class _WebEnrichmentRouterRuntime:
 
 
 class _WebEnrichmentRouterWorkflow:
-    def __init__(self, runtime: Optional["_WebEnrichmentRouterRuntime"] = None) -> None:
+    """Workflow/escopo request-scoped para o fluxo de 'web_enrichment'."""
+
+    def __init__(self, runtime: Optional[_WebEnrichmentRouterRuntime] = None) -> None:
         self._runtime = runtime or _WebEnrichmentRouterRuntime()
+
+    @property
+    def mapping(self) -> _WebEnrichmentMappingRuntime:
+        return self._runtime.mapping
 
     async def tarefa_enriquecer_produto_web(
         self,
@@ -293,6 +271,7 @@ class _WebEnrichmentRouterWorkflow:
             command=command,
             oop_executor=self.tarefa_enriquecer_produto_web,
         )
+
         return {
             "msg": f"Processo de enriquecimento web para o produto ID {produto_id} iniciado em segundo plano."
         }
@@ -302,21 +281,44 @@ WebEnrichmentRouterWorkflow = _WebEnrichmentRouterWorkflow
 
 
 def get_web_enrichment_router_workflow() -> WebEnrichmentRouterWorkflow:
+    """Factory de workflow OO para o router de enriquecimento."""
     return WebEnrichmentRouterWorkflow(runtime=_WebEnrichmentRouterRuntime())
 
 
-async def _tarefa_enriquecer_produto_web(
-    db_session_factory,
-    produto_id: int,
-    user_id: int,
-    termos_busca_override: Optional[str] = None,
-):
-    workflow = get_web_enrichment_router_workflow()
-    await workflow.tarefa_enriquecer_produto_web(
-        db_session_factory=db_session_factory,
-        produto_id=produto_id,
-        user_id=user_id,
-        termos_busca_override=termos_busca_override,
+def is_source_relevant_for_product(
+    db_produto_obj: models.Produto,
+    *,
+    source_name: Any,
+    source_desc: Any,
+    source_url: str,
+) -> bool:
+    """Compatibilidade publica usada por testes de mapeamento."""
+    return get_web_enrichment_router_workflow().mapping.is_source_relevant_for_product(
+        db_produto_obj,
+        source_name=source_name,
+        source_desc=source_desc,
+        source_url=source_url,
+    )
+
+
+def is_meaningful_extracted_text(value: Any) -> bool:
+    """Compatibilidade publica usada por testes de mapeamento."""
+    return get_web_enrichment_router_workflow().mapping.is_meaningful_extracted_text(value)
+
+
+def metadata_has_minimum_signal(metadata: Dict[str, Any]) -> bool:
+    """Compatibilidade publica usada por testes de mapeamento."""
+    return get_web_enrichment_router_workflow().mapping.metadata_has_minimum_signal(metadata)
+
+
+def build_payload_enriquecimento_visivel(
+    db_produto_obj: models.Produto,
+    dados_extraidos_agregados: Dict[str, Any],
+) -> Tuple[Dict[str, Any], List[str], List[str]]:
+    """Compatibilidade publica usada por testes de mapeamento."""
+    return get_web_enrichment_router_workflow().mapping.build_payload_enriquecimento_visivel(
+        db_produto_obj,
+        dados_extraidos_agregados,
     )
 
 
@@ -347,8 +349,3 @@ router.add_api_route(
     response_model=schemas.Msg,
     include_in_schema=False,
 )
-
-
-
-
-

@@ -1,3 +1,4 @@
+"""Camada de transporte HTTP para o dominio 'product_types'."""
 # Backend/routers/product_types.py
 from typing import List, Optional
 
@@ -26,10 +27,12 @@ logger = get_logger(__name__)
 
 
 class ReorderRequest(BaseModel):
+    """Componente OO principal 'ReorderRequest' do modulo 'product_types'."""
     direction: str
 
 
 class _ProductTypesRouterWorkflow:
+    """Workflow/escopo request-scoped para o fluxo de 'product_types'."""
     def __init__(self, runtime: Optional["_ProductTypesRouterRuntime"] = None) -> None:
         self._runtime = runtime or _ProductTypesRouterRuntime()
 
@@ -431,10 +434,12 @@ ProductTypesRouterWorkflow = _ProductTypesRouterWorkflow
 
 
 def get_product_types_router_workflow() -> ProductTypesRouterWorkflow:
+    """Factory de workflow OO para o modulo atual (get_product_types_router_workflow)."""
     return ProductTypesRouterWorkflow(runtime=_ProductTypesRouterRuntime())
 
 
 class _ProductTypesRequestScope:
+    """Workflow/escopo request-scoped para o fluxo de 'product_types'."""
     def __init__(self, db: Session, workflow: ProductTypesRouterWorkflow | None = None) -> None:
         self._db = db
         self._workflow = workflow or get_product_types_router_workflow()
@@ -569,6 +574,7 @@ def create_product_type_endpoint(
     current_user: models.User = Depends(auth_utils.get_current_active_user),
     request_workflow: _ProductTypesRequestScope = Depends(_build_product_types_request_workflow),
 ):
+    """Endpoint HTTP que delega a execucao para workflow/servico OO (create_product_type_endpoint)."""
     return request_workflow.create_product_type(
         product_type_in=product_type_in,
         current_user=current_user,
@@ -582,6 +588,7 @@ def read_product_types_endpoint(
     current_user: models.User = Depends(auth_utils.get_current_active_user),
     request_workflow: _ProductTypesRequestScope = Depends(_build_product_types_request_workflow),
 ):
+    """Endpoint HTTP que delega a execucao para workflow/servico OO (read_product_types_endpoint)."""
     return request_workflow.read_product_types(
         current_user=current_user,
         skip=skip,
@@ -602,6 +609,7 @@ async def read_product_type_details_route(
     current_user: models.User = Depends(auth_utils.get_current_active_user),
     request_workflow: _ProductTypesRequestScope = Depends(_build_product_types_request_workflow),
 ):
+    """Endpoint HTTP que delega a execucao para workflow/servico OO (read_product_type_details_route)."""
     return await request_workflow.read_product_type_details(
         identifier=type_id_or_key_path,
         current_user=current_user,
@@ -615,6 +623,7 @@ def update_product_type_endpoint(
     current_user: models.User = Depends(auth_utils.get_current_active_user),
     request_workflow: _ProductTypesRequestScope = Depends(_build_product_types_request_workflow),
 ):
+    """Endpoint HTTP que delega a execucao para workflow/servico OO (update_product_type_endpoint)."""
     return request_workflow.update_product_type(
         type_id=type_id,
         product_type_in=product_type_in,
@@ -628,6 +637,7 @@ def delete_product_type_endpoint(
     current_user: models.User = Depends(auth_utils.get_current_active_user),
     request_workflow: _ProductTypesRequestScope = Depends(_build_product_types_request_workflow),
 ):
+    """Endpoint HTTP que delega a execucao para workflow/servico OO (delete_product_type_endpoint)."""
     return request_workflow.delete_product_type(
         type_id=type_id,
         current_user=current_user,
@@ -645,6 +655,7 @@ def add_attribute_to_product_type_endpoint(
     current_user: models.User = Depends(auth_utils.get_current_active_user),
     request_workflow: _ProductTypesRequestScope = Depends(_build_product_types_request_workflow),
 ):
+    """Endpoint HTTP que delega a execucao para workflow/servico OO (add_attribute_to_product_type_endpoint)."""
     _ = current_user
     return request_workflow.add_attribute_to_product_type(
         type_id=type_id,
@@ -660,6 +671,7 @@ def update_attribute_for_product_type_endpoint(
     current_user: models.User = Depends(auth_utils.get_current_active_user),
     request_workflow: _ProductTypesRequestScope = Depends(_build_product_types_request_workflow),
 ):
+    """Endpoint HTTP que delega a execucao para workflow/servico OO (update_attribute_for_product_type_endpoint)."""
     _ = current_user
     return request_workflow.update_attribute_for_product_type(
         type_id=type_id,
@@ -675,6 +687,7 @@ def remove_attribute_from_product_type_endpoint(
     current_user: models.User = Depends(auth_utils.get_current_active_user),
     request_workflow: _ProductTypesRequestScope = Depends(_build_product_types_request_workflow),
 ):
+    """Endpoint HTTP que delega a execucao para workflow/servico OO (remove_attribute_from_product_type_endpoint)."""
     _ = current_user
     return request_workflow.remove_attribute_from_product_type(
         type_id=type_id,
@@ -690,6 +703,7 @@ def reorder_attribute_endpoint(
     current_user: models.User = Depends(auth_utils.get_current_active_user),
     request_workflow: _ProductTypesRequestScope = Depends(_build_product_types_request_workflow),
 ):
+    """Endpoint HTTP que delega a execucao para workflow/servico OO (reorder_attribute_endpoint)."""
     return request_workflow.reorder_attribute(
         type_id=type_id,
         attribute_id=attribute_id,

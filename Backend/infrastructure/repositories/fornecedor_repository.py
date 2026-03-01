@@ -1,3 +1,4 @@
+"""Repositorio de infraestrutura orientado a objetos para 'fornecedor_repository'."""
 from __future__ import annotations
 
 from pathlib import Path

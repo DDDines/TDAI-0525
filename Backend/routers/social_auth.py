@@ -1,27 +1,26 @@
+﻿"""Camada de transporte HTTP para o dominio 'social_auth'."""
+from __future__ import annotations
+
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 from sqlalchemy.orm import Session
 
-from Backend.auth import (
-    oauth,
-    OAuthError,
-    process_google_login,
-    process_facebook_login,
-    create_access_token,
-    create_refresh_token,
-)
+from Backend import schemas
 from Backend.application.services.service_container import (
     build_request_scoped_dependency,
 )
+from Backend.auth import OAuthError, get_auth_workflow, oauth
 from Backend.core.config import settings
 from Backend.core.logging_config import get_logger
-from Backend import schemas
 
 router = APIRouter()
 logger = get_logger(__name__)
 
 
 class _SocialAuthRouterRuntime:
-    """Runtime OO para integrações de autenticação social."""
+    """Runtime OO para integracoes de autenticacao social."""
+
+    def __init__(self) -> None:
+        self._auth_workflow = get_auth_workflow()
 
     def has_client(self, provider: str) -> bool:
         return provider in oauth._clients
@@ -40,19 +39,27 @@ class _SocialAuthRouterRuntime:
         return resp.json()
 
     async def process_google_login(self, db: Session, userinfo):
-        return await process_google_login(db, userinfo)
+        return await self._auth_workflow.process_google_login(
+            db=db,
+            google_userinfo=userinfo,
+        )
 
     async def process_facebook_login(self, db: Session, userinfo):
-        return await process_facebook_login(db, userinfo)
+        return await self._auth_workflow.process_facebook_login(
+            db=db,
+            facebook_userinfo=userinfo,
+        )
 
     def create_access_token(self, payload):
-        return create_access_token(payload)
+        return self._auth_workflow.create_access_token(payload)
 
     def create_refresh_token(self, payload):
-        return create_refresh_token(payload)
+        return self._auth_workflow.create_refresh_token(payload)
 
 
 class _SocialAuthRouterWorkflow:
+    """Workflow/escopo request-scoped para o fluxo de 'social_auth'."""
+
     def __init__(self, runtime: _SocialAuthRouterRuntime | None = None) -> None:
         self._runtime = runtime or _SocialAuthRouterRuntime()
 
@@ -127,7 +134,6 @@ class _SocialAuthRouterWorkflow:
             )
 
         userinfo = await self._runtime.get_userinfo("facebook", token)
-
         user = await self._runtime.process_facebook_login(db, userinfo)
         if not user:
             raise HTTPException(
@@ -144,10 +150,13 @@ SocialAuthRouterWorkflow = _SocialAuthRouterWorkflow
 
 
 def get_social_auth_router_workflow() -> SocialAuthRouterWorkflow:
+    """Factory de workflow OO para o modulo atual (get_social_auth_router_workflow)."""
     return SocialAuthRouterWorkflow(runtime=_SocialAuthRouterRuntime())
 
 
 class _SocialAuthRequestScope:
+    """Workflow/escopo request-scoped para o fluxo de 'social_auth'."""
+
     def __init__(self, db: Session, workflow: SocialAuthRouterWorkflow | None = None) -> None:
         self._db = db
         self._workflow = workflow or get_social_auth_router_workflow()
@@ -172,12 +181,14 @@ _build_social_auth_request_workflow = build_request_scoped_dependency(
 
 @router.get("/social/config", response_model=schemas.SocialLoginConfig)
 async def social_login_config():
+    """Endpoint HTTP que delega a execucao para workflow/servico OO (social_login_config)."""
     workflow = get_social_auth_router_workflow()
     return workflow.social_login_config()
 
 
 @router.get("/google/login")
 async def google_login(request: Request):
+    """Endpoint HTTP que delega a execucao para workflow/servico OO (google_login)."""
     workflow = get_social_auth_router_workflow()
     return await workflow.google_login(request)
 
@@ -187,11 +198,13 @@ async def google_callback(
     request: Request,
     request_workflow: _SocialAuthRequestScope = Depends(_build_social_auth_request_workflow),
 ):
+    """Endpoint HTTP que delega a execucao para workflow/servico OO (google_callback)."""
     return await request_workflow.google_callback(request=request)
 
 
 @router.get("/facebook/login")
 async def facebook_login(request: Request):
+    """Endpoint HTTP que delega a execucao para workflow/servico OO (facebook_login)."""
     workflow = get_social_auth_router_workflow()
     return await workflow.facebook_login(request)
 
@@ -201,9 +214,5 @@ async def facebook_callback(
     request: Request,
     request_workflow: _SocialAuthRequestScope = Depends(_build_social_auth_request_workflow),
 ):
+    """Endpoint HTTP que delega a execucao para workflow/servico OO (facebook_callback)."""
     return await request_workflow.facebook_callback(request=request)
-
-
-
-
-

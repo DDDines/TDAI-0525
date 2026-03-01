@@ -1,4 +1,7 @@
+﻿"""Camada de transporte HTTP para o dominio 'auth_utils'."""
 # Backend/routers/auth_utils.py
+from __future__ import annotations
+
 import logging
 
 from fastapi import Depends, HTTPException, Request, status
@@ -19,16 +22,21 @@ oauth2_scheme = OAuth2PasswordBearer(tokenUrl=f"{config.settings.API_V1_STR}/aut
 
 
 class _AuthUtilsRuntime:
-    """Runtime OO para operações de autenticação do router."""
+    """Runtime OO para operacoes de autenticacao do router."""
+
+    def __init__(self) -> None:
+        self._security_workflow = security.get_security_workflow()
 
     def decode_token(self, token: str, secret_key: str):
-        return security.decode_token(token, secret_key)
+        return self._security_workflow.decode_token(token, secret_key)
 
     def get_user(self, db: Session, user_id: int):
         return UserRepository(db).get_user(user_id=user_id)
 
 
 class _AuthUtilsWorkflow:
+    """Workflow/escopo request-scoped para o fluxo de 'auth_utils'."""
+
     def __init__(self, runtime: _AuthUtilsRuntime | None = None) -> None:
         self._runtime = runtime or _AuthUtilsRuntime()
 
@@ -74,6 +82,7 @@ AuthUtilsWorkflow = _AuthUtilsWorkflow
 
 
 def get_auth_utils_workflow() -> AuthUtilsWorkflow:
+    """Factory de workflow OO para o modulo atual (get_auth_utils_workflow)."""
     return AuthUtilsWorkflow(runtime=_AuthUtilsRuntime())
 
 
@@ -85,6 +94,7 @@ async def get_current_user(
     session: Session = Depends(_build_auth_request_session),
     token: str = Depends(oauth2_scheme),
 ) -> models.User:
+    """Funcao publica de compatibilidade/orquestracao do fluxo OO (get_current_user)."""
     workflow = get_auth_utils_workflow()
     return await workflow.get_current_user(
         request=request,
@@ -96,6 +106,7 @@ async def get_current_user(
 async def get_current_active_user(
     current_user: models.User = Depends(get_current_user),
 ) -> models.User:
+    """Funcao publica de compatibilidade/orquestracao do fluxo OO (get_current_active_user)."""
     workflow = get_auth_utils_workflow()
     return await workflow.get_current_active_user(current_user=current_user)
 
@@ -103,9 +114,6 @@ async def get_current_active_user(
 async def get_current_active_superuser(
     current_user: models.User = Depends(get_current_active_user),
 ) -> models.User:
+    """Funcao publica de compatibilidade/orquestracao do fluxo OO (get_current_active_superuser)."""
     workflow = get_auth_utils_workflow()
     return await workflow.get_current_active_superuser(current_user=current_user)
-
-
-
-

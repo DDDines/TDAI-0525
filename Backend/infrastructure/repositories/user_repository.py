@@ -21,6 +21,7 @@ class UserRepository:
 
     def __init__(self, db: Session) -> None:
         self._db = db
+        self._security_workflow = security.get_security_workflow()
 
     @staticmethod
     def _apply_default_plan_limits(db_user: User) -> None:
@@ -59,7 +60,7 @@ class UserRepository:
         return self._db.query(User).offset(skip).limit(limit).all()
 
     def create_user(self, *, user: schemas.UserCreate) -> User:
-        hashed_password = security.get_password_hash(user.password)
+        hashed_password = self._security_workflow.get_password_hash(user.password)
         db_user = User(
             email=user.email,
             hashed_password=hashed_password,
@@ -112,7 +113,7 @@ class UserRepository:
         update_data = user_update.model_dump(exclude_unset=True)
 
         if update_data.get("password"):
-            db_user.hashed_password = security.get_password_hash(update_data["password"])
+            db_user.hashed_password = self._security_workflow.get_password_hash(update_data["password"])
             del update_data["password"]
 
         if "plano_id" in update_data:

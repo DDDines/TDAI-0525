@@ -1,3 +1,4 @@
+"""Fluxo de autenticacao e autorizacao HTTP com contratos OO."""
 # Backend/auth.py
 from datetime import datetime, timedelta, timezone
 from typing import Any, Dict, Optional
@@ -72,6 +73,7 @@ else:
 
 
 class _AuthWorkflow:
+    """Workflow/escopo request-scoped para o fluxo de 'auth'."""
     def __init__(self, runtime: Optional["_AuthRuntime"] = None) -> None:
         self._runtime = runtime or _AuthRuntime()
 
@@ -165,6 +167,8 @@ class _AuthWorkflow:
 
 
 class _AuthRuntime:
+    """Runtime OO responsavel por integracoes e operacoes de 'auth'."""
+
     @staticmethod
     def _users(db: Session) -> UserRepository:
         return UserRepository(db)
@@ -477,63 +481,21 @@ AuthWorkflow = _AuthWorkflow
 
 
 def get_auth_workflow() -> AuthWorkflow:
+    """Factory de workflow OO para autenticacao/autorizacao."""
     return AuthWorkflow()
-
-
-def verify_password(plain_password: str, hashed_password: str) -> bool:
-    return get_auth_workflow().verify_password(
-        plain_password=plain_password,
-        hashed_password=hashed_password,
-    )
-
-
-def get_password_hash(password: str) -> str:
-    return get_auth_workflow().get_password_hash(password=password)
-
-
-def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -> str:
-    return get_auth_workflow().create_access_token(
-        data=data,
-        expires_delta=expires_delta,
-    )
-
-
-def create_refresh_token(data: dict, expires_delta: Optional[timedelta] = None) -> str:
-    return get_auth_workflow().create_refresh_token(
-        data=data,
-        expires_delta=expires_delta,
-    )
-
-
-def create_password_reset_token() -> str:
-    return get_auth_workflow().create_password_reset_token()
-
-
-def hash_password_reset_token(token: str) -> str:
-    return get_auth_workflow().hash_password_reset_token(token=token)
-
-
-def verify_password_reset_token(token: str, token_hash: str) -> bool:
-    return get_auth_workflow().verify_password_reset_token(
-        token=token,
-        token_hash=token_hash,
-    )
-
-
-def authenticate_user(db: Session, email: str, password: str) -> Optional[models.User]:
-    return get_auth_workflow().authenticate_user(db=db, email=email, password=password)
-
 
 async def get_current_user(
     token: str = Depends(oauth2_scheme),
     db: Session = Depends(get_db),
 ) -> models.User:
+    """Dependencia FastAPI para resolver usuario autenticado."""
     return await get_auth_workflow().get_current_user(token=token, db=db)
 
 
 async def get_current_active_user(
     current_user: models.User = Depends(get_current_user),
 ) -> models.User:
+    """Dependencia FastAPI que valida usuario ativo."""
     return get_auth_workflow().get_current_active_user(current_user=current_user)
 
 
@@ -542,6 +504,7 @@ async def login_for_access_token(
     form_data: OAuth2PasswordRequestForm = Depends(),
     db: Session = Depends(get_db),
 ):
+    """Endpoint de login por credenciais locais."""
     return await get_auth_workflow().login_for_access_token(form_data=form_data, db=db)
 
 
@@ -550,6 +513,7 @@ async def refresh_access_token(
     refresh_token_data: schemas.RefreshTokenRequest,
     db: Session = Depends(get_db),
 ):
+    """Endpoint de refresh token."""
     return await get_auth_workflow().refresh_access_token(
         refresh_token_data=refresh_token_data,
         db=db,
@@ -558,6 +522,7 @@ async def refresh_access_token(
 
 @router.get("/users/me", response_model=schemas.UserResponse)
 async def read_users_me(current_user: models.User = Depends(get_current_active_user)):
+    """Retorna perfil do usuario autenticado."""
     return current_user
 
 
@@ -567,6 +532,7 @@ async def update_users_me(
     current_user: models.User = Depends(get_current_active_user),
     db: Session = Depends(get_db),
 ):
+    """Atualiza dados de perfil do usuario autenticado."""
     return await get_auth_workflow().update_users_me(
         user_update=user_update,
         current_user=current_user,
@@ -580,24 +546,11 @@ async def change_password_me(
     current_user: models.User = Depends(get_current_active_user),
     db: Session = Depends(get_db),
 ):
+    """Atualiza senha do usuario autenticado."""
     return await get_auth_workflow().change_password_me(
         payload=payload,
         current_user=current_user,
         db=db,
-    )
-
-
-async def process_google_login(db: Session, google_userinfo: Dict[str, Any]) -> Optional[models.User]:
-    return await get_auth_workflow().process_google_login(
-        db=db,
-        google_userinfo=google_userinfo,
-    )
-
-
-async def process_facebook_login(db: Session, facebook_userinfo: Dict[str, Any]) -> Optional[models.User]:
-    return await get_auth_workflow().process_facebook_login(
-        db=db,
-        facebook_userinfo=facebook_userinfo,
     )
 
 

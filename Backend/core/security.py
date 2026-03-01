@@ -109,36 +109,8 @@ SecurityWorkflow = _SecurityWorkflow
 
 
 def get_security_workflow() -> SecurityWorkflow:
+    """Factory OO para operacoes de seguranca em escopo de chamada."""
     return SecurityWorkflow()
-
-
-def verify_password(plain_password: str, hashed_password: str) -> bool:
-    return get_security_workflow().verify_password(
-        plain_password=plain_password,
-        hashed_password=hashed_password,
-    )
-
-
-def get_password_hash(password: str) -> str:
-    return get_security_workflow().get_password_hash(password=password)
-
-
-def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -> str:
-    return get_security_workflow().create_access_token(
-        data=data,
-        expires_delta=expires_delta,
-    )
-
-
-def create_refresh_token(data: dict, expires_delta: Optional[timedelta] = None) -> str:
-    return get_security_workflow().create_refresh_token(
-        data=data,
-        expires_delta=expires_delta,
-    )
-
-
-def decode_token(token: str, secret_key: str) -> Optional[TokenPayload]:
-    return get_security_workflow().decode_token(token=token, secret_key=secret_key)
 
 
 

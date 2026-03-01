@@ -1,3 +1,4 @@
+"""Camada de transporte HTTP para o dominio 'search'."""
 from typing import List, Optional, Tuple
 
 from fastapi import APIRouter, Depends, Query
@@ -108,6 +109,7 @@ class _SearchRuntime:
 
 
 class _SearchWorkflow:
+    """Workflow/escopo request-scoped para o fluxo de 'search'."""
     def __init__(self, runtime: _SearchRuntime | None = None) -> None:
         self._runtime = runtime or _SearchRuntime()
 
@@ -130,10 +132,12 @@ SearchWorkflow = _SearchWorkflow
 
 
 def get_search_workflow() -> SearchWorkflow:
+    """Factory de workflow OO para o modulo atual (get_search_workflow)."""
     return SearchWorkflow(runtime=_SearchRuntime())
 
 
 class _SearchRequestScope:
+    """Workflow/escopo request-scoped para o fluxo de 'search'."""
     def __init__(self, db: Session, workflow: SearchWorkflow | None = None) -> None:
         self._db = db
         self._workflow = workflow or get_search_workflow()
@@ -165,6 +169,7 @@ def search_all(
     request_workflow: _SearchRequestScope = Depends(_build_search_request_workflow),
     current_user: models.User = Depends(auth_utils.get_current_active_user),
 ):
+    """Endpoint HTTP que delega a execucao para workflow/servico OO (search_all)."""
     return request_workflow.search_all(
         current_user=current_user,
         q=q,

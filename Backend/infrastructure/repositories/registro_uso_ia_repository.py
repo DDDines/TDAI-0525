@@ -1,3 +1,4 @@
+"""Repositorio de infraestrutura orientado a objetos para 'registro_uso_ia_repository'."""
 from __future__ import annotations
 
 from datetime import datetime, timezone

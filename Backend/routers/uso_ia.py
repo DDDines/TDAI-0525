@@ -1,3 +1,4 @@
+"""Camada de transporte HTTP para o dominio 'uso_ia'."""
 from datetime import datetime
 from typing import List, Optional
 
@@ -25,6 +26,7 @@ logger = get_logger(__name__)
 
 
 class _UsoIAWorkflow:
+    """Workflow/escopo request-scoped para o fluxo de 'uso_ia'."""
     def __init__(self, runtime: Optional["_UsoIARuntime"] = None) -> None:
         self._runtime = runtime or _UsoIARuntime()
 
@@ -172,10 +174,12 @@ UsoIAWorkflow = _UsoIAWorkflow
 
 
 def get_uso_ia_workflow() -> UsoIAWorkflow:
+    """Factory de workflow OO para o modulo atual (get_uso_ia_workflow)."""
     return UsoIAWorkflow(runtime=_UsoIARuntime())
 
 
 class _UsoIARequestScope:
+    """Workflow/escopo request-scoped para o fluxo de 'uso_ia'."""
     def __init__(self, db: Session, workflow: UsoIAWorkflow | None = None) -> None:
         self._db = db
         self._workflow = workflow or get_uso_ia_workflow()
@@ -252,6 +256,7 @@ def create_uso_ia_endpoint(
     current_user: models.User = Depends(auth_utils.get_current_active_user),
     request_workflow: _UsoIARequestScope = Depends(_build_uso_ia_request_workflow),
 ):
+    """Endpoint HTTP que delega a execucao para workflow/servico OO (create_uso_ia_endpoint)."""
     return request_workflow.create_uso_ia(
         current_user=current_user,
         uso_ia_data=uso_ia_data,
@@ -268,6 +273,7 @@ def read_usos_ia_usuario_logado(
     data_inicio: Optional[datetime] = Query(None, description="Data de inicio (ISO)"),
     data_fim: Optional[datetime] = Query(None, description="Data de fim (ISO)"),
 ):
+    """Endpoint HTTP que delega a execucao para workflow/servico OO (read_usos_ia_usuario_logado)."""
     return request_workflow.list_usos_ia_usuario(
         current_user=current_user,
         skip=skip,
@@ -286,6 +292,7 @@ def read_usos_ia_por_produto(
     skip: int = Query(0, ge=0),
     limit: int = Query(100, ge=1, le=200),
 ):
+    """Endpoint HTTP que delega a execucao para workflow/servico OO (read_usos_ia_por_produto)."""
     return request_workflow.read_usos_ia_por_produto(
         current_user=current_user,
         produto_id=produto_id,
@@ -300,6 +307,7 @@ def read_uso_ia_especifico(
     current_user: models.User = Depends(auth_utils.get_current_active_user),
     request_workflow: _UsoIARequestScope = Depends(_build_uso_ia_request_workflow),
 ):
+    """Endpoint HTTP que delega a execucao para workflow/servico OO (read_uso_ia_especifico)."""
     return request_workflow.read_uso_ia_especifico(
         current_user=current_user,
         registro_id=registro_id,

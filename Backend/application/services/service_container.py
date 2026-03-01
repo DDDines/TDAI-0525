@@ -1,3 +1,4 @@
+"""Servicos de aplicacao e composicao de dependencias para 'service_container'."""
 from __future__ import annotations
 
 from dataclasses import dataclass, field
@@ -37,6 +38,7 @@ from Backend.infrastructure.repositories.historico_repository import HistoricoRe
 def _get_request_db_session(
     session: Session = Depends(database.get_db),
 ) -> Session:
+    """Funcao auxiliar interna usada pelo fluxo OO deste modulo (_get_request_db_session)."""
     return session
 
 
@@ -55,10 +57,12 @@ def build_request_scoped_dependency(
 
 
 def _build_file_processing_service() -> FileProcessingOrchestratorService:
+    """Constroi dependencia/componente request-scoped para o fluxo atual (_build_file_processing_service)."""
     return FileProcessingOrchestratorService(FileProcessingServiceAdapter())
 
 
 def _build_web_data_extractor_service() -> WebDataExtractorOrchestratorService:
+    """Constroi dependencia/componente request-scoped para o fluxo atual (_build_web_data_extractor_service)."""
     return WebDataExtractorOrchestratorService(WebDataExtractorServiceAdapter())
 
 

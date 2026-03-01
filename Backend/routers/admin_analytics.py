@@ -1,3 +1,4 @@
+"""Camada de transporte HTTP para o dominio 'admin_analytics'."""
 # Backend/routers/admin_analytics.py
 from datetime import datetime, timezone
 from typing import List, Optional
@@ -11,16 +12,17 @@ from Backend import schemas
 from Backend.application.services.service_container import (
     build_request_scoped_dependency,
 )
-from Backend.auth import get_current_active_user
 from Backend.core.logging_config import get_logger
 from Backend.infrastructure.repositories.historico_repository import HistoricoRepository
 from Backend.infrastructure.repositories.user_repository import UserRepository
+from .auth_utils import get_current_active_user
 
 router = APIRouter()
 logger = get_logger(__name__)
 
 
 class _AdminAnalyticsRouterWorkflow:
+    """Workflow/escopo request-scoped para o fluxo de 'admin_analytics'."""
     def __init__(self, runtime: Optional["_AdminAnalyticsRouterRuntime"] = None) -> None:
         self._runtime = runtime or _AdminAnalyticsRouterRuntime()
 
@@ -277,12 +279,14 @@ AdminAnalyticsRouterWorkflow = _AdminAnalyticsRouterWorkflow
 
 
 def get_admin_analytics_router_workflow() -> AdminAnalyticsRouterWorkflow:
+    """Factory de workflow OO para o modulo atual (get_admin_analytics_router_workflow)."""
     return AdminAnalyticsRouterWorkflow(runtime=_AdminAnalyticsRouterRuntime())
 
 
 async def get_current_active_admin_user(
     current_user: models.User = Depends(get_current_active_user),
 ):
+    """Funcao publica de compatibilidade/orquestracao do fluxo OO (get_current_active_admin_user)."""
     workflow = get_admin_analytics_router_workflow()
     return await workflow.get_current_active_admin_user(
         current_user=current_user
@@ -290,6 +294,7 @@ async def get_current_active_admin_user(
 
 
 class _AdminAnalyticsRequestScope:
+    """Workflow/escopo request-scoped para o fluxo de 'admin_analytics'."""
     def __init__(self, db: Session, workflow: AdminAnalyticsRouterWorkflow | None = None) -> None:
         self._db = db
         self._workflow = workflow or get_admin_analytics_router_workflow()
@@ -341,6 +346,7 @@ async def get_total_counts_endpoint(
         _build_admin_analytics_request_workflow
     ),
 ):
+    """Endpoint HTTP que delega a execucao para workflow/servico OO (get_total_counts_endpoint)."""
     return request_workflow.get_total_counts()
 
 
@@ -354,6 +360,7 @@ async def get_uso_ia_por_plano_endpoint(
         _build_admin_analytics_request_workflow
     ),
 ):
+    """Endpoint HTTP que delega a execucao para workflow/servico OO (get_uso_ia_por_plano_endpoint)."""
     return request_workflow.get_uso_ia_por_plano()
 
 
@@ -367,6 +374,7 @@ async def get_uso_ia_por_tipo_endpoint(
         _build_admin_analytics_request_workflow
     ),
 ):
+    """Endpoint HTTP que delega a execucao para workflow/servico OO (get_uso_ia_por_tipo_endpoint)."""
     return request_workflow.get_uso_ia_por_tipo()
 
 
@@ -382,6 +390,7 @@ async def get_user_activity_endpoint(
     skip: int = Query(0, ge=0),
     limit: int = Query(100, ge=1, le=200),
 ):
+    """Endpoint HTTP que delega a execucao para workflow/servico OO (get_user_activity_endpoint)."""
     return request_workflow.get_user_activity(
         skip=skip,
         limit=limit,
@@ -398,6 +407,7 @@ async def get_product_status_counts(
         _build_admin_analytics_request_workflow
     ),
 ):
+    """Endpoint HTTP que delega a execucao para workflow/servico OO (get_product_status_counts)."""
     return request_workflow.get_product_status_counts()
 
 
@@ -412,6 +422,7 @@ async def get_recent_activities(
     ),
     limit: int = Query(10, ge=1, le=50),
 ):
+    """Endpoint HTTP que delega a execucao para workflow/servico OO (get_recent_activities)."""
     return request_workflow.get_recent_activities(
         limit=limit,
     )
@@ -428,6 +439,7 @@ async def get_recent_historico(
     ),
     limit: int = Query(10, ge=1, le=50),
 ):
+    """Endpoint HTTP que delega a execucao para workflow/servico OO (get_recent_historico)."""
     return request_workflow.get_recent_historico(
         limit=limit,
     )

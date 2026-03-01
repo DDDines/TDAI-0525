@@ -1,3 +1,4 @@
+"""Camada de transporte HTTP para o dominio 'historico'."""
 from typing import List
 
 from fastapi import APIRouter, Depends, Query
@@ -48,6 +49,7 @@ class _HistoricoRuntime:
 
 
 class _HistoricoWorkflow:
+    """Workflow/escopo request-scoped para o fluxo de 'historico'."""
     def __init__(self, runtime: _HistoricoRuntime) -> None:
         self._runtime = runtime
 
@@ -107,6 +109,7 @@ def list_historico(
     current_user: models.User = Depends(auth_utils.get_current_active_user),
     workflow: _HistoricoWorkflow = Depends(_build_historico_workflow),
 ):
+    """Endpoint HTTP que delega a execucao para workflow/servico OO (list_historico)."""
     return workflow.list_historico(
         current_user=current_user,
         skip=skip,
@@ -118,4 +121,5 @@ def list_historico(
 def get_tipos_acao(
     workflow: _HistoricoWorkflow = Depends(_build_historico_workflow),
 ):
+    """Endpoint HTTP que delega a execucao para workflow/servico OO (get_tipos_acao)."""
     return workflow.get_tipos_acao()

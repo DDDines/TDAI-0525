@@ -180,42 +180,5 @@ def get_email_workflow() -> EmailWorkflow:
     return EmailWorkflow()
 
 
-conf = get_email_workflow().conf
-
-
-async def send_email(
-    email_to: EmailStr,
-    subject: str,
-    html_content: str,
-    template_body: Optional[Dict[str, Any]] = None,
-    template_name: Optional[str] = None,
-    *,
-    raise_if_unconfigured: Optional[bool] = None,
-):
-    await get_email_workflow().send_email(
-        email_to=email_to,
-        subject=subject,
-        html_content=html_content,
-        template_body=template_body,
-        template_name=template_name,
-        raise_if_unconfigured=raise_if_unconfigured,
-    )
-
-
-async def send_password_reset_email(
-    email_to: EmailStr,
-    username: str,
-    reset_link: str,
-    *,
-    raise_if_unconfigured: Optional[bool] = None,
-):
-    await get_email_workflow().send_password_reset_email(
-        email_to=email_to,
-        username=username,
-        reset_link=reset_link,
-        raise_if_unconfigured=raise_if_unconfigured,
-    )
-
-
 
 

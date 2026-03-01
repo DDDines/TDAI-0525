@@ -1,3 +1,4 @@
+"""Camada de transporte HTTP para o dominio 'fornecedores'."""
 # Backend/routers/fornecedores.py
 from collections import Counter
 from pathlib import Path
@@ -84,6 +85,7 @@ catalog_file_repository = CatalogImportFileRepository
 
 
 class _FornecedoresServiceBundle:
+    """Componente OO principal '_FornecedoresServiceBundle' do modulo 'fornecedores'."""
     def __init__(self) -> None:
         self._service_container = ServiceContainer()
         self.file_processing_service = self._service_container.file_processing
@@ -155,6 +157,7 @@ class _FornecedoresServiceBundle:
 
 
 def _build_fornecedores_service_bundle() -> _FornecedoresServiceBundle:
+    """Constroi dependencia/componente request-scoped para o fluxo atual (_build_fornecedores_service_bundle)."""
     return _FornecedoresServiceBundle()
 
 router = APIRouter(
@@ -165,6 +168,7 @@ router = APIRouter(
 
 
 class _FornecedoresRouterWorkflow:
+    """Workflow/escopo request-scoped para o fluxo de 'fornecedores'."""
     def __init__(self, runtime: Optional["_FornecedoresRouterRuntime"] = None) -> None:
         self._runtime = runtime or _FornecedoresRouterRuntime()
 
@@ -553,10 +557,12 @@ FornecedoresRouterWorkflow = _FornecedoresRouterWorkflow
 
 
 def get_fornecedores_router_workflow() -> FornecedoresRouterWorkflow:
+    """Factory de workflow OO para o modulo atual (get_fornecedores_router_workflow)."""
     return FornecedoresRouterWorkflow(runtime=_FornecedoresRouterRuntime())
 
 
 class _FornecedoresRequestScope:
+    """Workflow/escopo request-scoped para o fluxo de 'fornecedores'."""
     def __init__(
         self,
         *,
@@ -810,10 +816,12 @@ def create_user_fornecedor(
     current_user: models.User = Depends(auth_utils.get_current_active_user),
     request_workflow: _FornecedoresRequestScope = Depends(_build_fornecedores_request_workflow),
 ):
+    """Endpoint HTTP que delega a execucao para workflow/servico OO (create_user_fornecedor)."""
     try:
         return request_workflow.create_fornecedor(
             fornecedor=fornecedor,
-            current_user=current_user,
+            current_user=current_user,
+
         )
     except HTTPException as exc:
         logger.warning("HTTPException ao criar fornecedor: %s", exc.detail)
@@ -834,11 +842,13 @@ def read_user_fornecedores(
     current_user: models.User = Depends(auth_utils.get_current_active_user),
     request_workflow: _FornecedoresRequestScope = Depends(_build_fornecedores_request_workflow),
 ):
+    """Endpoint HTTP que delega a execucao para workflow/servico OO (read_user_fornecedores)."""
     return request_workflow.list_fornecedores_page(
         current_user=current_user,
         skip=skip,
         limit=limit,
-        termo_busca=termo_busca,
+        termo_busca=termo_busca,
+
     )
 
 
@@ -848,9 +858,11 @@ def read_fornecedor(
     current_user: models.User = Depends(auth_utils.get_current_active_user),
     request_workflow: _FornecedoresRequestScope = Depends(_build_fornecedores_request_workflow),
 ):
+    """Endpoint HTTP que delega a execucao para workflow/servico OO (read_fornecedor)."""
     return request_workflow.read_fornecedor(
         fornecedor_id=fornecedor_id,
-        current_user=current_user,
+        current_user=current_user,
+
     )
 
 
@@ -861,11 +873,13 @@ def update_fornecedor_endpoint(
     current_user: models.User = Depends(auth_utils.get_current_active_user),
     request_workflow: _FornecedoresRequestScope = Depends(_build_fornecedores_request_workflow),
 ):
+    """Endpoint HTTP que delega a execucao para workflow/servico OO (update_fornecedor_endpoint)."""
     try:
         return request_workflow.update_fornecedor(
             fornecedor_id=fornecedor_id,
             fornecedor_update=fornecedor_update,
-            current_user=current_user,
+            current_user=current_user,
+
         )
     except HTTPException:
         raise
@@ -882,9 +896,11 @@ def get_mapping(
     current_user: models.User = Depends(auth_utils.get_current_active_user),
     request_workflow: _FornecedoresRequestScope = Depends(_build_fornecedores_request_workflow),
 ):
+    """Endpoint HTTP que delega a execucao para workflow/servico OO (get_mapping)."""
     return request_workflow.get_mapping(
         fornecedor_id=fornecedor_id,
-        current_user=current_user,
+        current_user=current_user,
+
     )
 
 
@@ -895,10 +911,12 @@ def update_mapping(
     current_user: models.User = Depends(auth_utils.get_current_active_user),
     request_workflow: _FornecedoresRequestScope = Depends(_build_fornecedores_request_workflow),
 ):
+    """Endpoint HTTP que delega a execucao para workflow/servico OO (update_mapping)."""
     return request_workflow.update_mapping(
         fornecedor_id=fornecedor_id,
         mapping=mapping,
-        current_user=current_user,
+        current_user=current_user,
+
     )
 
 
@@ -907,6 +925,7 @@ async def preview_pages(
     file: UploadFile = File(...),
     request_workflow: _FornecedoresRequestScope = Depends(_build_fornecedores_request_workflow),
 ):
+    """Endpoint HTTP que delega a execucao para workflow/servico OO (preview_pages)."""
     return await request_workflow.preview_pages(file=file)
 
 
@@ -919,12 +938,15 @@ async def preview_pdf(
     offset: int = Query(0, description="Pagina inicial para pre-visualizacao (base 0)."),
     limit: int = Query(20, description="Numero maximo de paginas para pre-visualizacao."),
 ):
+    """Endpoint HTTP que delega a execucao para workflow/servico OO (preview_pdf)."""
     return await request_workflow.preview_pdf(
         fornecedor_id=fornecedor_id,
-        file=file,
+        file=file,
+
         current_user=current_user,
         offset=offset,
-        limit=limit,
+        limit=limit,
+
     )
 
 
@@ -933,8 +955,10 @@ def preview_catalog_from_region(
     preview_request: schemas.CatalogRegionPreviewRequest,
     request_workflow: _FornecedoresRequestScope = Depends(_build_fornecedores_request_workflow),
 ):
+    """Endpoint HTTP que delega a execucao para workflow/servico OO (preview_catalog_from_region)."""
     return request_workflow.preview_catalog_from_region(
-        preview_request=preview_request,
+        preview_request=preview_request,
+
     )
 
 
@@ -945,10 +969,12 @@ def extract_data_from_pdf_bulk(
     current_user: models.User = Depends(auth_utils.get_current_active_user),
     request_workflow: _FornecedoresRequestScope = Depends(_build_fornecedores_request_workflow),
 ):
+    """Endpoint HTTP que delega a execucao para workflow/servico OO (extract_data_from_pdf_bulk)."""
     _ = current_user
     return request_workflow.extract_data_from_pdf_bulk(
         background_tasks=background_tasks,
-        request=request,
+        request=request,
+
     )
 
 
@@ -958,8 +984,10 @@ def get_import_progress(
     current_user: models.User = Depends(auth_utils.get_current_active_user),
     request_workflow: _FornecedoresRequestScope = Depends(_build_fornecedores_request_workflow),
 ):
+    """Endpoint HTTP que delega a execucao para workflow/servico OO (get_import_progress)."""
     return request_workflow.get_import_progress(
-        job_id=job_id,
+        job_id=job_id,
+
         current_user=current_user,
     )
 
@@ -976,6 +1004,7 @@ async def process_full_catalog(
     current_user: models.User = Depends(auth_utils.get_current_active_user),
     request_workflow: _FornecedoresRequestScope = Depends(_build_fornecedores_request_workflow),
 ):
+    """Endpoint HTTP que delega a execucao para workflow/servico OO (process_full_catalog)."""
     return await request_workflow.process_full_catalog(
         background_tasks=background_tasks,
         file_id=file_id,
@@ -983,7 +1012,8 @@ async def process_full_catalog(
         tipo_produto_id=tipo_produto_id,
         start_page=start_page,
         region=region,
-        mapping=mapping,
+        mapping=mapping,
+
         current_user=current_user,
     )
 
@@ -996,10 +1026,12 @@ def extract_page_data(
     current_user: models.User = Depends(auth_utils.get_current_active_user),
     request_workflow: _FornecedoresRequestScope = Depends(_build_fornecedores_request_workflow),
 ):
+    """Endpoint HTTP que delega a execucao para workflow/servico OO (extract_page_data)."""
     return request_workflow.extract_page_data(
         background_tasks=background_tasks,
         file_id=file_id,
-        page_number=page_number,
+        page_number=page_number,
+
         current_user=current_user,
     )
 
@@ -1010,10 +1042,12 @@ def delete_fornecedor_endpoint(
     current_user: models.User = Depends(auth_utils.get_current_active_user),
     request_workflow: _FornecedoresRequestScope = Depends(_build_fornecedores_request_workflow),
 ):
+    """Endpoint HTTP que delega a execucao para workflow/servico OO (delete_fornecedor_endpoint)."""
     try:
         return request_workflow.delete_fornecedor(
             fornecedor_id=fornecedor_id,
-            current_user=current_user,
+            current_user=current_user,
+
         )
     except HTTPException:
         raise
@@ -1030,8 +1064,10 @@ def review_import_job(
     current_user: models.User = Depends(auth_utils.get_current_active_user),
     request_workflow: _FornecedoresRequestScope = Depends(_build_fornecedores_request_workflow),
 ):
+    """Endpoint HTTP que delega a execucao para workflow/servico OO (review_import_job)."""
     return request_workflow.review_import_job(
-        job_id=job_id,
+        job_id=job_id,
+
         current_user=current_user,
     )
 
@@ -1043,9 +1079,11 @@ def commit_import_job(
     current_user: models.User = Depends(auth_utils.get_current_active_user),
     request_workflow: _FornecedoresRequestScope = Depends(_build_fornecedores_request_workflow),
 ):
+    """Endpoint HTTP que delega a execucao para workflow/servico OO (commit_import_job)."""
     return request_workflow.commit_import_job(
         background_tasks=background_tasks,
-        job_id=job_id,
+        job_id=job_id,
+
         current_user=current_user,
     )
 
@@ -1056,8 +1094,10 @@ def get_import_job_status(
     current_user: models.User = Depends(auth_utils.get_current_active_user),
     request_workflow: _FornecedoresRequestScope = Depends(_build_fornecedores_request_workflow),
 ):
+    """Endpoint HTTP que delega a execucao para workflow/servico OO (get_import_job_status)."""
     return request_workflow.get_import_job_status(
-        job_id=job_id,
+        job_id=job_id,
+
         current_user=current_user,
     )
 
