@@ -31,14 +31,6 @@ TabularIngestionWorkflow = file_processing.TabularIngestionWorkflow
 TabularPreviewWorkflow = file_processing.TabularPreviewWorkflow
 WebExtractionEnrichmentWorkflow = web_extractor.WebExtractionEnrichmentWorkflow
 
-# Transitional aliases for older tests.
-_CatalogStorageWorkflow = CatalogStorageWorkflow
-_LineMappingWorkflow = LineMappingWorkflow
-_PdfJobWorkflow = PdfJobWorkflow
-_TabularIngestionWorkflow = TabularIngestionWorkflow
-_TabularPreviewWorkflow = TabularPreviewWorkflow
-_WebExtractionEnrichmentWorkflow = WebExtractionEnrichmentWorkflow
-
 __all__ = [
     "file_processing",
     "web_extractor",
@@ -53,10 +45,4 @@ __all__ = [
     "TabularIngestionWorkflow",
     "TabularPreviewWorkflow",
     "WebExtractionEnrichmentWorkflow",
-    "_CatalogStorageWorkflow",
-    "_LineMappingWorkflow",
-    "_PdfJobWorkflow",
-    "_TabularIngestionWorkflow",
-    "_TabularPreviewWorkflow",
-    "_WebExtractionEnrichmentWorkflow",
 ]
