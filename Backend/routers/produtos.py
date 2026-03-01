@@ -72,8 +72,8 @@ from Backend.application.services.validator_crew_service import (
 )
 from Backend.application.services.service_container import (
     DependencyContainer,
-    SessionDep,
     ServiceContainer,
+    build_request_scoped_dependency,
 )
 from Backend.core.config import settings
 from Backend.infrastructure.repositories.catalog_import_file_repository import (
@@ -857,13 +857,14 @@ class _ProdutosRequestServices:
         self.product_media_service = product_media_service
 
 
-def _build_produtos_request_services(
-    db: SessionDep,
-) -> _ProdutosRequestServices:
-    return _ProdutosRequestServices(
-        product_management_service=DependencyContainer.get_product_management_service(db=db),
-        product_media_service=DependencyContainer.get_product_media_service(db=db),
+_build_produtos_request_services = build_request_scoped_dependency(
+    lambda session: _ProdutosRequestServices(
+        product_management_service=DependencyContainer.get_product_management_service(
+            db=session
+        ),
+        product_media_service=DependencyContainer.get_product_media_service(db=session),
     )
+)
 
 
 class _ProdutosCatalogRequestScope:
@@ -1059,13 +1060,12 @@ class _ProdutosRequestContext:
         self.catalog_workflow = catalog_workflow
 
 
-def _build_produtos_request_context(
-    db: SessionDep,
-) -> _ProdutosRequestContext:
-    return _ProdutosRequestContext(
-        request_services=_build_produtos_request_services(db=db),
-        catalog_workflow=_ProdutosCatalogRequestScope(db=db),
+_build_produtos_request_context = build_request_scoped_dependency(
+    lambda session: _ProdutosRequestContext(
+        request_services=_build_produtos_request_services(session),
+        catalog_workflow=_ProdutosCatalogRequestScope(db=session),
     )
+)
 
 
 @router.post("/", response_model=schemas.ProdutoResponse, status_code=status.HTTP_201_CREATED)

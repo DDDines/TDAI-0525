@@ -6,7 +6,7 @@ from sqlalchemy.orm import Session
 
 from Backend import models, schemas
 from Backend.application.services.service_container import (
-    SessionDep,
+    build_request_scoped_dependency,
 )
 from Backend.core.logging_config import get_logger
 from Backend.infrastructure.repositories.product_repository import ProductRepository
@@ -241,10 +241,9 @@ class _UsoIARequestScope:
         )
 
 
-def _build_uso_ia_request_workflow(
-    db: SessionDep,
-) -> _UsoIARequestScope:
-    return _UsoIARequestScope(db=db)
+_build_uso_ia_request_workflow = build_request_scoped_dependency(
+    lambda session: _UsoIARequestScope(db=session),
+)
 
 
 @router.post("/", response_model=schemas.RegistroUsoIAResponse, status_code=status.HTTP_201_CREATED)

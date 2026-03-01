@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Annotated
+from typing import Annotated, Any, Callable
 
 from fastapi import Depends
 from sqlalchemy.orm import Session
@@ -41,6 +41,17 @@ def _get_request_db_session(
 
 
 SessionDep = Annotated[Session, Depends(_get_request_db_session)]
+
+
+def build_request_scoped_dependency(
+    factory: Callable[[Session], Any],
+) -> Callable[[Session], Any]:
+    """Build a request dependency that receives the SQLAlchemy session once."""
+
+    def _dependency(session: Session = Depends(_get_request_db_session)) -> Any:
+        return factory(session)
+
+    return _dependency
 
 
 def _build_file_processing_service() -> FileProcessingOrchestratorService:

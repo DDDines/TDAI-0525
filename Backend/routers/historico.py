@@ -5,8 +5,7 @@ from sqlalchemy.orm import Session
 
 from Backend import models, schemas
 from Backend.application.services.service_container import (
-    DependencyContainer,
-    SessionDep,
+    build_request_scoped_dependency,
 )
 from Backend.infrastructure.repositories.historico_repository import HistoricoRepository
 
@@ -94,12 +93,11 @@ class _HistoricoWorkflow:
 HistoricoWorkflow = _HistoricoWorkflow
 
 
-def _build_historico_workflow(
-    db: SessionDep,
-) -> _HistoricoWorkflow:
-    return _HistoricoWorkflow(
-        runtime=_HistoricoRuntime(historico_repo=HistoricoRepository(db)),
+_build_historico_workflow = build_request_scoped_dependency(
+    lambda session: _HistoricoWorkflow(
+        runtime=_HistoricoRuntime(historico_repo=HistoricoRepository(session)),
     )
+)
 
 
 @router.get("/", response_model=schemas.HistoricoPage)

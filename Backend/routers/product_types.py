@@ -8,7 +8,7 @@ from sqlalchemy.orm import Session
 from Backend import models
 from Backend import schemas
 from Backend.application.services.service_container import (
-    SessionDep,
+    build_request_scoped_dependency,
 )
 from Backend.core.logging_config import get_logger
 from Backend.infrastructure.repositories.historico_repository import HistoricoRepository
@@ -558,10 +558,9 @@ class _ProductTypesRequestScope:
         )
 
 
-def _build_product_types_request_workflow(
-    db: SessionDep,
-) -> _ProductTypesRequestScope:
-    return _ProductTypesRequestScope(db=db)
+_build_product_types_request_workflow = build_request_scoped_dependency(
+    lambda session: _ProductTypesRequestScope(db=session),
+)
 
 
 @router.post("/", response_model=schemas.ProductTypeResponse, status_code=status.HTTP_201_CREATED)

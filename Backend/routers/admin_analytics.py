@@ -9,7 +9,7 @@ from sqlalchemy.orm import Session
 from Backend import models
 from Backend import schemas
 from Backend.application.services.service_container import (
-    SessionDep,
+    build_request_scoped_dependency,
 )
 from Backend.auth import get_current_active_user
 from Backend.core.logging_config import get_logger
@@ -326,10 +326,9 @@ class _AdminAnalyticsRequestScope:
         )
 
 
-def _build_admin_analytics_request_workflow(
-    db: SessionDep,
-) -> _AdminAnalyticsRequestScope:
-    return _AdminAnalyticsRequestScope(db=db)
+_build_admin_analytics_request_workflow = build_request_scoped_dependency(
+    lambda session: _AdminAnalyticsRequestScope(db=session),
+)
 
 
 @router.get(

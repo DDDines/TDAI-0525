@@ -7,7 +7,7 @@ from sqlalchemy.orm import Session
 
 from Backend import models
 from Backend.application.services.service_container import (
-    SessionDep,
+    build_request_scoped_dependency,
 )
 from Backend.core import config
 from Backend.core import security
@@ -77,15 +77,18 @@ def get_auth_utils_workflow() -> AuthUtilsWorkflow:
     return AuthUtilsWorkflow(runtime=_AuthUtilsRuntime())
 
 
+_build_auth_request_session = build_request_scoped_dependency(lambda session: session)
+
+
 async def get_current_user(
     request: Request,
-    db: SessionDep,
+    session: Session = Depends(_build_auth_request_session),
     token: str = Depends(oauth2_scheme),
 ) -> models.User:
     workflow = get_auth_utils_workflow()
     return await workflow.get_current_user(
         request=request,
-        db=db,
+        db=session,
         token=token,
     )
 

@@ -58,8 +58,8 @@ from Backend.application.services.validator_crew_service import (
 )
 from Backend.application.services.service_container import (
     DependencyContainer,
-    SessionDep,
     ServiceContainer,
+    build_request_scoped_dependency,
 )
 from Backend.core.config import settings
 from Backend.core.logging_config import get_logger
@@ -794,15 +794,14 @@ class _FornecedoresRequestScope:
         )
 
 
-def _build_fornecedores_request_workflow(
-    db: SessionDep,
-) -> _FornecedoresRequestScope:
-    return _FornecedoresRequestScope(
-        db=db,
+_build_fornecedores_request_workflow = build_request_scoped_dependency(
+    lambda session: _FornecedoresRequestScope(
+        db=session,
         fornecedor_management_service=DependencyContainer.get_fornecedor_management_service(
-            db=db,
+            db=session,
         ),
     )
+)
 
 
 @router.post("/", response_model=schemas.FornecedorResponse, status_code=status.HTTP_201_CREATED)

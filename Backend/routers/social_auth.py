@@ -10,7 +10,7 @@ from Backend.auth import (
     create_refresh_token,
 )
 from Backend.application.services.service_container import (
-    SessionDep,
+    build_request_scoped_dependency,
 )
 from Backend.core.config import settings
 from Backend.core.logging_config import get_logger
@@ -165,10 +165,9 @@ class _SocialAuthRequestScope:
         )
 
 
-def _build_social_auth_request_workflow(
-    db: SessionDep,
-) -> _SocialAuthRequestScope:
-    return _SocialAuthRequestScope(db=db)
+_build_social_auth_request_workflow = build_request_scoped_dependency(
+    lambda session: _SocialAuthRequestScope(db=session),
+)
 
 
 @router.get("/social/config", response_model=schemas.SocialLoginConfig)

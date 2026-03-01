@@ -5,7 +5,7 @@ from sqlalchemy.orm import Session
 
 from Backend import schemas
 from Backend.application.services.service_container import (
-    SessionDep,
+    build_request_scoped_dependency,
 )
 from Backend.auth import create_password_reset_token, hash_password_reset_token
 from Backend.core import security
@@ -193,10 +193,9 @@ class _PasswordRecoveryRequestScope:
         )
 
 
-def _build_password_recovery_request_workflow(
-    db: SessionDep,
-) -> _PasswordRecoveryRequestScope:
-    return _PasswordRecoveryRequestScope(db=db)
+_build_password_recovery_request_workflow = build_request_scoped_dependency(
+    lambda session: _PasswordRecoveryRequestScope(db=session),
+)
 
 
 @router.post("/password-recovery/{email}", response_model=schemas.Msg)

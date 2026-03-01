@@ -670,6 +670,45 @@ def test_router_endpoints_do_not_receive_db_parameter():
     )
 
 
+def test_routers_do_not_use_sessiondep_alias():
+    offenders: list[str] = []
+
+    for path in _iter_python_files(ROUTERS_ROOT):
+        rel = path.relative_to(PROJECT_ROOT)
+        tree = _parse_python_file(path)
+        for node in ast.walk(tree):
+            if not isinstance(node, ast.ImportFrom):
+                continue
+            if node.level:
+                continue
+            if node.module != "Backend.application.services.service_container":
+                continue
+            if any(alias.name == "SessionDep" for alias in node.names):
+                offenders.append(f"{rel}:{node.lineno}")
+
+    assert not offenders, (
+        "Routers must not use SessionDep directly; "
+        "use request-scoped dependency builders from service_container:\n"
+        + "\n".join(offenders)
+    )
+
+
+def test_routers_do_not_access_request_context_db_directly():
+    offenders: list[str] = []
+
+    for path in _iter_python_files(ROUTERS_ROOT):
+        rel = path.relative_to(PROJECT_ROOT)
+        source = path.read_text(encoding="utf-8-sig")
+        if "request_context.db" in source:
+            offenders.append(str(rel))
+
+    assert not offenders, (
+        "Routers must not pass raw db from request_context; "
+        "use request-scoped workflow/service methods instead:\n"
+        + "\n".join(offenders)
+    )
+
+
 def test_routers_do_not_define_module_level_runtime_singletons():
     offenders: list[str] = []
     allowed_callees = {

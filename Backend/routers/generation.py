@@ -16,7 +16,7 @@ from Backend.application.services.generation_scheduling_service import (
 from Backend.application.services.generation_task_service import GenerationTaskService
 from Backend.application.services.ia_generation_service import IAGenerationService
 from Backend.application.services.service_container import (
-    SessionDep,
+    build_request_scoped_dependency,
 )
 from Backend.database import SessionLocal
 from Backend.infrastructure.repositories.product_repository import ProductRepository
@@ -353,10 +353,9 @@ class _GenerationRequestScope:
         )
 
 
-def _build_generation_request_workflow(
-    db: SessionDep,
-) -> _GenerationRequestScope:
-    return _GenerationRequestScope(db=db)
+_build_generation_request_workflow = build_request_scoped_dependency(
+    lambda session: _GenerationRequestScope(db=session),
+)
 
 
 async def _tarefa_processar_geracao_e_registrar_uso(

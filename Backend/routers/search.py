@@ -6,7 +6,7 @@ from sqlalchemy.orm import Session
 
 from Backend import models, schemas
 from Backend.application.services.service_container import (
-    SessionDep,
+    build_request_scoped_dependency,
 )
 from . import auth_utils
 
@@ -153,10 +153,9 @@ class _SearchRequestScope:
         )
 
 
-def _build_search_request_workflow(
-    db: SessionDep,
-) -> _SearchRequestScope:
-    return _SearchRequestScope(db=db)
+_build_search_request_workflow = build_request_scoped_dependency(
+    lambda session: _SearchRequestScope(db=session),
+)
 
 
 @router.get("/", response_model=schemas.SearchResults)
