@@ -1,5 +1,6 @@
-﻿from __future__ import annotations
+from __future__ import annotations
 
+from collections.abc import Callable
 from typing import Any, Optional
 
 from fastapi import HTTPException, status
@@ -19,56 +20,19 @@ class LimitRuntime:
     def __init__(
         self,
         *,
-        uso_ia_workflow=None,
-        user_workflow=None,
+        usage_repository_factory: Callable[[Session], Any] = RegistroUsoIARepository,
+        user_repository_factory: Callable[[Session], Any] = UserRepository,
         logger_factory=get_logger,
-        crud_module=None,
-        crud_users_module=None,
     ) -> None:
-        # Backward-compatible constructor names while migration tests settle.
-        self._uso_ia_workflow = uso_ia_workflow or crud_module
-        self._user_workflow = user_workflow or crud_users_module
+        self._usage_repository_factory = usage_repository_factory
+        self._user_repository_factory = user_repository_factory
         self._logger = logger_factory(__name__)
 
-    @staticmethod
-    def _resolve_uso_ia_accessor(uso_ia_workflow, db: Session):
-        if uso_ia_workflow is None:
-            return RegistroUsoIARepository(db)
-        if callable(uso_ia_workflow):
-            return uso_ia_workflow(db)
-        return uso_ia_workflow
+    def _usage_repository(self, db: Session):
+        return self._usage_repository_factory(db)
 
-    @staticmethod
-    def _call_count_by_prefix(uso_ia_accessor, db: Session, *, user_id: int, tipo_geracao_prefix: str):
-        method = uso_ia_accessor.count_usos_ia_by_user_and_type_no_mes_corrente
-        try:
-            return method(user_id=user_id, tipo_geracao_prefix=tipo_geracao_prefix)
-        except TypeError:
-            return method(db, user_id=user_id, tipo_geracao_prefix=tipo_geracao_prefix)
-
-    @staticmethod
-    def _call_count_monthly(uso_ia_accessor, db: Session, *, user_id: int):
-        method = uso_ia_accessor.get_geracoes_ia_count_no_mes_corrente
-        try:
-            return method(user_id=user_id)
-        except TypeError:
-            return method(db, user_id=user_id)
-
-    @staticmethod
-    def _resolve_user_accessor(user_workflow, db: Session):
-        if user_workflow is None:
-            return UserRepository(db)
-        if callable(user_workflow):
-            return user_workflow(db)
-        return user_workflow
-
-    @staticmethod
-    def _call_get_user(user_accessor, db: Session, *, user_id: int):
-        method = user_accessor.get_user
-        try:
-            return method(user_id=user_id)
-        except TypeError:
-            return method(db, user_id=user_id)
+    def _user_repository(self, db: Session):
+        return self._user_repository_factory(db)
 
     def verificar_limite_uso(
         self,
@@ -113,10 +77,8 @@ class LimitRuntime:
             )
             return -1
 
-        uso_ia_accessor = self._resolve_uso_ia_accessor(self._uso_ia_workflow, db)
-        usos_no_mes = self._call_count_by_prefix(
-            uso_ia_accessor,
-            db,
+        uso_ia_repo = self._usage_repository(db)
+        usos_no_mes = uso_ia_repo.count_usos_ia_by_user_and_type_no_mes_corrente(
             user_id=user.id,
             tipo_geracao_prefix=tipo_geracao_principal,
         )
@@ -125,13 +87,13 @@ class LimitRuntime:
         if remaining <= 0:
             if tipo_geracao_principal == "descricao":
                 mensagem_limite = (
-                    f"Limite mensal de {limite_mensal} descriÃ§Ãµes atingido. "
-                    f"VocÃª utilizou {usos_no_mes} e nÃ£o possui descriÃ§Ãµes restantes."
+                    f"Limite mensal de {limite_mensal} descricoes atingido. "
+                    f"Voce utilizou {usos_no_mes} e nao possui descricoes restantes."
                 )
             else:
                 mensagem_limite = (
-                    f"Limite mensal de {limite_mensal} tÃ­tulos atingido. "
-                    f"VocÃª utilizou {usos_no_mes} e nÃ£o possui tÃ­tulos restantes."
+                    f"Limite mensal de {limite_mensal} titulos atingido. "
+                    f"Voce utilizou {usos_no_mes} e nao possui titulos restantes."
                 )
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
@@ -156,8 +118,7 @@ class LimitRuntime:
     ) -> bool:
         """Verifica se o usuario possui credito mensal disponivel para IA."""
 
-        user_accessor = self._resolve_user_accessor(self._user_workflow, db)
-        user = self._call_get_user(user_accessor, db, user_id=user_id)
+        user = self._user_repository(db).get_user(user_id=user_id)
         if not user:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
@@ -171,12 +132,8 @@ class LimitRuntime:
         if limite_mensal is None or limite_mensal <= 0:
             return True
 
-        uso_ia_accessor = self._resolve_uso_ia_accessor(self._uso_ia_workflow, db)
-        usos_no_mes = self._call_count_monthly(
-            uso_ia_accessor,
-            db,
-            user_id=user_id,
-        )
+        uso_ia_repo = self._usage_repository(db)
+        usos_no_mes = uso_ia_repo.get_geracoes_ia_count_no_mes_corrente(user_id=user_id)
         return usos_no_mes + creditos_necessarios <= limite_mensal
 
     async def verificar_e_consumir_creditos_geracao_ia(
@@ -199,8 +156,8 @@ class LimitWorkflow:
 
     def __init__(self, runtime: Optional[LimitRuntime] = None) -> None:
         self._runtime = runtime or LimitRuntime(
-            uso_ia_workflow=lambda db: RegistroUsoIARepository(db),
-            user_workflow=lambda db: UserRepository(db),
+            usage_repository_factory=RegistroUsoIARepository,
+            user_repository_factory=UserRepository,
             logger_factory=get_logger,
         )
 
@@ -239,6 +196,3 @@ class LimitWorkflow:
             user_id=user_id,
             creditos_necessarios=creditos_necessarios,
         )
-
-
-

@@ -35,8 +35,11 @@ class _TopLevelFunctionSurface:
 
     def _build_runtime(*, usos_no_mes: int = 0, geracoes_no_mes: int = 0, user=None):
         return limit_service.LimitRuntime(
-            crud_module=_CrudStub(usos_no_mes=usos_no_mes, geracoes_no_mes=geracoes_no_mes),
-            crud_users_module=_CrudUsersStub(user),
+            usage_repository_factory=lambda _db: _CrudStub(
+                usos_no_mes=usos_no_mes,
+                geracoes_no_mes=geracoes_no_mes,
+            ),
+            user_repository_factory=lambda _db: _CrudUsersStub(user),
             logger_factory=_logger_factory,
         )
 
