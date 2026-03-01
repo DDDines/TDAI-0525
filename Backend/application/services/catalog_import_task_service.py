@@ -230,7 +230,6 @@ class CatalogImportTaskWorkflow:
         )
 
         self.file_state_service.mark_processing(
-            catalog_file_repo=self.catalog_file_repo_runtime,
             catalog_file=self.catalog_file,
             fornecedor_id=self.fornecedor_id,
         )
@@ -244,7 +243,6 @@ class CatalogImportTaskWorkflow:
         )
         if not file_path.exists():
             self.file_state_service.mark_file_missing(
-                catalog_file_repo=self.catalog_file_repo_runtime,
                 catalog_file=self.catalog_file,
                 file_id=self.file_id,
                 stored_filename=self.catalog_file.stored_filename,
@@ -369,7 +367,6 @@ class CatalogImportTaskWorkflow:
             total = len(self.pages) if self.pages else len(pdf.pages)
 
         self.file_state_service.initialize_pages(
-            catalog_file_repo=self.catalog_file_repo_runtime,
             catalog_file=self.catalog_file,
             total_pages=total,
         )
@@ -396,7 +393,6 @@ class CatalogImportTaskWorkflow:
 
             created_page, updated_page = self._flush_produtos(produtos_create=produtos_create)
             self.file_state_service.increment_page(
-                catalog_file_repo=self.catalog_file_repo_runtime,
                 catalog_file=self.catalog_file,
             )
             self.catalog_logger.info(
@@ -413,7 +409,6 @@ class CatalogImportTaskWorkflow:
 
     async def _process_tabular(self, *, ext: str, content: bytes) -> bool:
         self.file_state_service.initialize_pages(
-            catalog_file_repo=self.catalog_file_repo_runtime,
             catalog_file=self.catalog_file,
             total_pages=1,
         )
@@ -432,7 +427,6 @@ class CatalogImportTaskWorkflow:
             )
         else:
             self.file_state_service.mark_final(
-                catalog_file_repo=self.catalog_file_repo_runtime,
                 catalog_file=self.catalog_file,
                 final_status="FAILED",
                 result_summary={
@@ -488,7 +482,6 @@ class CatalogImportTaskWorkflow:
         report_path = result_payload["report_path"]
 
         self.file_state_service.mark_final(
-            catalog_file_repo=self.catalog_file_repo_runtime,
             catalog_file=self.catalog_file,
             final_status=final_status,
             result_summary=result_summary,
@@ -529,8 +522,7 @@ class CatalogImportTaskWorkflow:
             return
         catalog_file = self.catalog_file_repo_runtime.get_catalog_file(file_id=self.file_id)
         if catalog_file:
-            CatalogImportFileStateService.mark_failure_with_exception(
-                catalog_file_repo=self.catalog_file_repo_runtime,
+            self.file_state_service.mark_failure_with_exception(
                 catalog_file=catalog_file,
                 file_id=self.file_id,
                 error=error,
@@ -554,6 +546,9 @@ class CatalogImportTaskWorkflow:
             self.catalog_file_repo_runtime = self.catalog_file_repository(self.db)
         else:
             self.catalog_file_repo_runtime = self.catalog_file_repository
+        self.file_state_service.bind_catalog_file_store(
+            catalog_file_store=self.catalog_file_repo_runtime
+        )
         if isinstance(self.product_repository, type):
             self.product_repo_runtime = self.product_repository(self.db)
         else:

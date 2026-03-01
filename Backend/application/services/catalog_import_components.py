@@ -118,16 +118,25 @@ class CatalogImportOutcomeResolver:
 class CatalogImportFileStateService:
     """Encapsula persistencia de status/paginas do CatalogImportFile."""
 
-    @staticmethod
-    def mark_processing(*, catalog_file_repo: Any, catalog_file: Any, fornecedor_id: int) -> None:
+    def __init__(self, *, catalog_file_repository: Any | None = None) -> None:
+        self._catalog_file_repository = catalog_file_repository
+
+    def bind_catalog_file_store(self, *, catalog_file_store: Any) -> None:
+        self._catalog_file_repository = catalog_file_store
+
+    def _repo(self) -> Any:
+        if self._catalog_file_repository is None:
+            raise ValueError("catalog_file_repository is required")
+        return self._catalog_file_repository
+
+    def mark_processing(self, *, catalog_file: Any, fornecedor_id: int) -> None:
         catalog_file.status = "PROCESSING"
         catalog_file.fornecedor_id = fornecedor_id
-        catalog_file_repo.update_catalog_file(catalog_file=catalog_file)
+        self._repo().update_catalog_file(catalog_file=catalog_file)
 
-    @staticmethod
     def mark_file_missing(
+        self,
         *,
-        catalog_file_repo: Any,
         catalog_file: Any,
         file_id: int,
         stored_filename: str,
@@ -144,40 +153,36 @@ class CatalogImportFileStateService:
                 }
             ],
         }
-        catalog_file_repo.update_catalog_file(catalog_file=catalog_file)
+        self._repo().update_catalog_file(catalog_file=catalog_file)
 
-    @staticmethod
     def initialize_pages(
+        self,
         *,
-        catalog_file_repo: Any,
         catalog_file: Any,
         total_pages: int,
     ) -> None:
         catalog_file.total_pages = total_pages
         catalog_file.pages_processed = 0
-        catalog_file_repo.update_catalog_file(catalog_file=catalog_file)
+        self._repo().update_catalog_file(catalog_file=catalog_file)
 
-    @staticmethod
-    def increment_page(*, catalog_file_repo: Any, catalog_file: Any) -> None:
+    def increment_page(self, *, catalog_file: Any) -> None:
         catalog_file.pages_processed = (catalog_file.pages_processed or 0) + 1
-        catalog_file_repo.update_catalog_file(catalog_file=catalog_file)
+        self._repo().update_catalog_file(catalog_file=catalog_file)
 
-    @staticmethod
     def mark_final(
+        self,
         *,
-        catalog_file_repo: Any,
         catalog_file: Any,
         final_status: str,
         result_summary: Dict[str, Any],
     ) -> None:
         catalog_file.status = final_status
         catalog_file.result_summary = result_summary
-        catalog_file_repo.update_catalog_file(catalog_file=catalog_file)
+        self._repo().update_catalog_file(catalog_file=catalog_file)
 
-    @staticmethod
     def mark_failure_with_exception(
+        self,
         *,
-        catalog_file_repo: Any,
         catalog_file: Any,
         file_id: int,
         error: Exception,
@@ -193,7 +198,7 @@ class CatalogImportFileStateService:
                 }
             ],
         }
-        catalog_file_repo.update_catalog_file(catalog_file=catalog_file)
+        self._repo().update_catalog_file(catalog_file=catalog_file)
 
 
 class CatalogImportAuditWriter:

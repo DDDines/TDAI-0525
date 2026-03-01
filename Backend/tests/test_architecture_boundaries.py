@@ -1124,9 +1124,7 @@ class _TopLevelFunctionSurface:
                         continue
 
                     positional_args = node.args.args
-                    positional_defaults = node.args.defaults
-                    positional_default_start = len(positional_args) - len(positional_defaults)
-                    for index, arg in enumerate(positional_args):
+                    for arg in positional_args:
                         if arg.arg in {"self", "cls"}:
                             continue
                         if not (
@@ -1136,12 +1134,11 @@ class _TopLevelFunctionSurface:
                             or arg.arg.endswith("_repository_cls")
                         ):
                             continue
-                        if index >= positional_default_start:
-                            offenders.append(
-                                f"{rel}:{node.lineno} -> {class_node.name}.{node.name}({arg.arg}=...)"
-                            )
+                        offenders.append(
+                            f"{rel}:{node.lineno} -> {class_node.name}.{node.name}({arg.arg})"
+                        )
 
-                    for kw_arg, kw_default in zip(node.args.kwonlyargs, node.args.kw_defaults):
+                    for kw_arg in node.args.kwonlyargs:
                         if kw_arg.arg in {"self", "cls"}:
                             continue
                         if not (
@@ -1151,14 +1148,13 @@ class _TopLevelFunctionSurface:
                             or kw_arg.arg.endswith("_repository_cls")
                         ):
                             continue
-                        if kw_default is not None:
-                            offenders.append(
-                                f"{rel}:{node.lineno} -> {class_node.name}.{node.name}({kw_arg.arg}=...)"
-                            )
+                        offenders.append(
+                            f"{rel}:{node.lineno} -> {class_node.name}.{node.name}({kw_arg.arg})"
+                        )
 
         assert not offenders, (
-            "Public service methods must not accept optional repository overrides. "
-            "Repositories must be injected via constructor only:\n"
+            "Public service methods must not receive repository dependencies as parameters. "
+            "Repositories must be constructor-injected only:\n"
             + "\n".join(offenders)
         )
 

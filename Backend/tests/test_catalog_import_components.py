@@ -71,23 +71,20 @@ class _TopLevelFunctionSurface:
     def test_file_state_service_persists_processing_and_final():
         repo = _FakeCatalogFileRepo()
         file_obj = _FakeCatalogFile()
+        state_service = CatalogImportFileStateService(catalog_file_repository=repo)
     
-        CatalogImportFileStateService.mark_processing(
-            catalog_file_repo=repo,
+        state_service.mark_processing(
             catalog_file=file_obj,
             fornecedor_id=9,
         )
-        CatalogImportFileStateService.initialize_pages(
-            catalog_file_repo=repo,
+        state_service.initialize_pages(
             catalog_file=file_obj,
             total_pages=10,
         )
-        CatalogImportFileStateService.increment_page(
-            catalog_file_repo=repo,
+        state_service.increment_page(
             catalog_file=file_obj,
         )
-        CatalogImportFileStateService.mark_final(
-            catalog_file_repo=repo,
+        state_service.mark_final(
             catalog_file=file_obj,
             final_status="IMPORTED",
             result_summary={"stats": {"ok": True}},
