@@ -43,7 +43,7 @@ class _TopLevelFunctionSurface:
 
         service = AuthRequestService(
             security_workflow=FakeSecurityWorkflow(),
-            user_repository_cls=FakeUserRepository,
+            user_repository_factory=lambda db: FakeUserRepository(db),
         )
         user = await service.get_current_user(request=object(), session="db", token="abc")
     
@@ -66,7 +66,7 @@ class _TopLevelFunctionSurface:
 
         service = AuthRequestService(
             security_workflow=FakeSecurityWorkflow(),
-            user_repository_cls=FakeUserRepository,
+            user_repository_factory=lambda db: FakeUserRepository(db),
         )
     
         with pytest.raises(HTTPException) as exc_info:

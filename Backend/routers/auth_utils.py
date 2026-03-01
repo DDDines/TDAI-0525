@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+from collections.abc import Callable
 
 from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
@@ -24,11 +25,11 @@ class AuthRequestService:
     def __init__(
         self,
         *,
-        security_workflow: security.SecurityWorkflow | None = None,
-        user_repository_cls: type[UserRepository] = UserRepository,
+        security_workflow: security.SecurityWorkflow,
+        user_repository_factory: Callable[[Session], UserRepository],
     ) -> None:
-        self._security_workflow = security_workflow or security.SecurityWorkflow()
-        self._user_repository_cls = user_repository_cls
+        self._security_workflow = security_workflow
+        self._user_repository_factory = user_repository_factory
 
     async def get_current_user(
         self,
@@ -48,7 +49,7 @@ class AuthRequestService:
             logger.warning("Token invalido ou user_id ausente no payload. Token: %s...", token[:20])
             raise credentials_exception
 
-        user = self._user_repository_cls(session).get_user(user_id=token_payload.user_id)
+        user = self._user_repository_factory(session).get_user(user_id=token_payload.user_id)
         if user is None:
             logger.warning("Usuario nao encontrado no DB para user_id: %s", token_payload.user_id)
             raise credentials_exception
@@ -73,11 +74,18 @@ class AuthRequestService:
 class _AuthUtilsCurrentUserDependency:
 
     @staticmethod
+    def build_auth_request_service() -> AuthRequestService:
+        return AuthRequestService(
+            security_workflow=security.SecurityWorkflow(),
+            user_repository_factory=lambda session: UserRepository(session),
+        )
+
+    @staticmethod
     async def get_current_user(
         session: Session = Depends(ServiceContainerDependencySupport.get_request_db_session),
         token: str = Depends(oauth2_scheme),
     ) -> models.User:
-        service = AuthRequestService()
+        service = _AuthUtilsCurrentUserDependency.build_auth_request_service()
         return await service.get_current_user(request=None, session=session, token=token)
 
 
