@@ -113,3 +113,12 @@ O runtime opera em modo OOP-only (`APP_MODE=oop`) e a camada `Backend/services` 
 - Adapters OOP padrao concentrados em `Backend/infrastructure/adapters/`.
 - Provedores de runtime concentrados em `Backend/infrastructure/runtime/` consumindo `Backend/infrastructure/runtime_modules/`.
 - Implementacoes de dominio/runtime concentradas em `Backend/infrastructure/runtime_modules/`.
+
+## Hardening final (2026-03-01)
+
+- [x] `Backend/infrastructure/runtime_modules` sem `crud_module`/`crud_users_module`.
+- [x] `Backend/infrastructure/runtime_modules/limit_module.py` sem fallback `except TypeError`.
+- [x] `IAGenerationService` e `LimitService` com porta obrigatoria no construtor (sem fallback interno de adapter).
+- [x] `Backend/routers/auth_utils.py` com dependencias explicitas (`security_workflow` e `user_repository_factory`).
+- [x] `Backend/tasks.py` sem `create_engine`, `sessionmaker` e `db.query`.
+- [x] `Backend/infrastructure/runtime_modules/file_processing_module.py` sem query direta de `CatalogImportFile`.
