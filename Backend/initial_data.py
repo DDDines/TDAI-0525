@@ -14,7 +14,7 @@ from Backend.infrastructure.repositories.user_repository import UserRepository
 from Backend.models import AttributeFieldTypeEnum, Fornecedor, Produto, Role, User
 logger = logging.getLogger(__name__)
 
-class _InitialDataRuntime:
+class InitialDataRuntime:
     """Runtime OO responsavel por inicializar dados base do sistema."""
 
     def create_initial_data(self, db: Session):
@@ -113,15 +113,14 @@ class _InitialDataRuntime:
         product_repo.create_produto(produto=schemas.ProdutoCreate(nome_base='Produto de Exemplo', descricao_original='Item criado automaticamente na inicializacao'), user_id=admin_user.id)
         logger.info('Produto de exemplo criado para o administrador.')
 
-class _InitialDataWorkflow:
+class InitialDataWorkflow:
     """Workflow/escopo request-scoped para criacao de dados iniciais."""
 
-    def __init__(self, runtime: Optional[_InitialDataRuntime]=None) -> None:
-        self._runtime = runtime or _InitialDataRuntime()
+    def __init__(self, runtime: Optional[InitialDataRuntime]=None) -> None:
+        self._runtime = runtime or InitialDataRuntime()
 
     def create_initial_data(self, db: Session):
         return self._runtime.create_initial_data(db=db)
-InitialDataWorkflow = _InitialDataWorkflow
 
 class _InitialDataEntryPoints:
 

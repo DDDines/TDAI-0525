@@ -29,15 +29,10 @@ from Backend.routers.social_auth import router as social_auth_router
 from Backend.routers.uso_ia import router as uso_ia_router
 from Backend.routers.web_enrichment import router as web_enrichment_router
 
-class _ModuleAliasProviders:
-
-    @staticmethod
-    def get_main_bootstrap_workflow():
-        return MainBootstrapWorkflow()
 logger = get_logger(__name__)
 logger.info("Inicializando aplicacao. Certifique-se de rodar 'alembic upgrade head' antes de usar.")
 
-class _MainBootstrapRuntime:
+class MainBootstrapRuntime:
     """Runtime OO responsavel por bootstrap da aplicacao e defaults de dominio."""
 
     def build_allowed_origins(self) -> List[str]:
@@ -246,11 +241,11 @@ class _MainBootstrapRuntime:
         user_in.role_id = role_user_check.id
         user_in.plano_id = plano_id_para_novo_usuario
 
-class _MainBootstrapWorkflow:
+class MainBootstrapWorkflow:
     """Workflow/escopo request-scoped para o fluxo de bootstrap da API."""
 
-    def __init__(self, runtime: Optional[_MainBootstrapRuntime]=None) -> None:
-        self._runtime = runtime or _MainBootstrapRuntime()
+    def __init__(self, runtime: Optional[MainBootstrapRuntime]=None) -> None:
+        self._runtime = runtime or MainBootstrapRuntime()
 
     def build_allowed_origins(self) -> List[str]:
         return self._runtime.build_allowed_origins()
@@ -263,32 +258,31 @@ class _MainBootstrapWorkflow:
 
     def create_new_user(self, user_in: schemas.UserCreate, db: Session) -> models.User:
         return self._runtime.create_new_user(user_in=user_in, db=db)
-MainBootstrapWorkflow = _MainBootstrapWorkflow
 
 class _MainLifecycleEntries:
 
     @staticmethod
     async def lifespan(_app: FastAPI):
-        await _ModuleAliasProviders.get_main_bootstrap_workflow().startup_event_create_defaults()
+        await MainBootstrapWorkflow().startup_event_create_defaults()
         yield
 
     @staticmethod
     async def startup_event_create_defaults() -> None:
         """Entrada de compatibilidade para testes/workflows de bootstrap."""
-        await _ModuleAliasProviders.get_main_bootstrap_workflow().startup_event_create_defaults()
+        await MainBootstrapWorkflow().startup_event_create_defaults()
 lifespan = asynccontextmanager(_MainLifecycleEntries.lifespan)
 app = FastAPI(title=settings.PROJECT_NAME, version=settings.PROJECT_VERSION, description='API para o sistema CatalogAI - Ferramenta de Descricao Assistida por IA.', lifespan=lifespan)
-final_unique_allowed_origins = _ModuleAliasProviders.get_main_bootstrap_workflow().build_allowed_origins()
+final_unique_allowed_origins = MainBootstrapWorkflow().build_allowed_origins()
 logger.info('Final unique allowed_origins para CORSMiddleware: %s', final_unique_allowed_origins)
 app.add_middleware(CORSMiddleware, allow_origins=final_unique_allowed_origins, allow_credentials=True, allow_methods=['*'], allow_headers=['*'])
-static_files_path = _ModuleAliasProviders.get_main_bootstrap_workflow().ensure_static_files_path()
+static_files_path = MainBootstrapWorkflow().ensure_static_files_path()
 app.mount('/static', StaticFiles(directory=static_files_path), name='static')
 
 class _EndpointHandlers:
 
     @app.post('/api/v1/users/', response_model=schemas.UserResponse, status_code=status.HTTP_201_CREATED, tags=['Usuarios'])
     def create_new_user(user_in: schemas.UserCreate, db: Session=Depends(get_db)):
-        return _ModuleAliasProviders.get_main_bootstrap_workflow().create_new_user(user_in=user_in, db=db)
+        return MainBootstrapWorkflow().create_new_user(user_in=user_in, db=db)
 
     @app.get('/', tags=['Raiz'])
     async def root():

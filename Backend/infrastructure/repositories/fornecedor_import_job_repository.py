@@ -7,7 +7,7 @@ from sqlalchemy.orm import Session
 from Backend import models
 
 
-class _FornecedorImportJobRuntime:
+class FornecedorImportJobRuntime:
     def create_import_job(
         self,
         *,
@@ -61,7 +61,7 @@ class FornecedorImportJobRepository:
         runtime: Optional[Any] = None,
     ) -> None:
         self._db = db
-        self._runtime = runtime or _FornecedorImportJobRuntime()
+        self._runtime = runtime or FornecedorImportJobRuntime()
 
     def _resolve_db(self, db: Optional[Session]) -> Session:
         active_db = db or self._db
@@ -111,4 +111,3 @@ class FornecedorImportJobRepository:
             job=job,
             status=status,
         )
-

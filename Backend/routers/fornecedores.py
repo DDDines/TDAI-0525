@@ -294,15 +294,15 @@ class _FornecedoresRequestScope:
 
     def get_import_job_status(self, *, job_id: int, current_user: models.User) -> dict:
         return self._request_service.get_import_job_status(job_id=job_id, db=self._db, current_user=current_user)
-_build_fornecedores_request_workflow = ServiceContainerDependencySupport.build_request_scoped_dependency(lambda session: _FornecedoresRequestScope(db=session, fornecedor_management_service=DependencyContainer.get_fornecedor_management_service(db=session)))
+_build_fornecedores_request_scope = ServiceContainerDependencySupport.build_request_scoped_dependency(lambda session: _FornecedoresRequestScope(db=session, fornecedor_management_service=DependencyContainer.get_fornecedor_management_service(db=session)))
 
 class _EndpointHandlers:
 
     @router.post('/', response_model=schemas.FornecedorResponse, status_code=status.HTTP_201_CREATED)
-    def create_user_fornecedor(fornecedor: schemas.FornecedorCreate, current_user: models.User=Depends(auth_utils._AuthUtilsActiveUserDependency.get_current_active_user), request_workflow: _FornecedoresRequestScope=Depends(_build_fornecedores_request_workflow)):
+    def create_user_fornecedor(fornecedor: schemas.FornecedorCreate, current_user: models.User=Depends(auth_utils._AuthUtilsActiveUserDependency.get_current_active_user), request_scope: _FornecedoresRequestScope=Depends(_build_fornecedores_request_scope)):
         """Endpoint HTTP que delega a execucao para workflow/servico OO (create_user_fornecedor)."""
         try:
-            return request_workflow.create_fornecedor(fornecedor=fornecedor, current_user=current_user)
+            return request_scope.create_fornecedor(fornecedor=fornecedor, current_user=current_user)
         except HTTPException as exc:
             logger.warning('HTTPException ao criar fornecedor: %s', exc.detail)
             raise
@@ -311,93 +311,94 @@ class _EndpointHandlers:
             raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail='Erro interno ao criar fornecedor. Tente novamente mais tarde.')
 
     @router.get('/', response_model=schemas.FornecedorPage)
-    def read_user_fornecedores(skip: int=Query(0, ge=0, description='Numero de itens para pular'), limit: int=Query(10, ge=1, le=100, description='Numero maximo de itens por pagina'), termo_busca: Optional[str]=Query(None, description='Termo para buscar no nome do fornecedor'), current_user: models.User=Depends(auth_utils._AuthUtilsActiveUserDependency.get_current_active_user), request_workflow: _FornecedoresRequestScope=Depends(_build_fornecedores_request_workflow)):
+    def read_user_fornecedores(skip: int=Query(0, ge=0, description='Numero de itens para pular'), limit: int=Query(10, ge=1, le=100, description='Numero maximo de itens por pagina'), termo_busca: Optional[str]=Query(None, description='Termo para buscar no nome do fornecedor'), current_user: models.User=Depends(auth_utils._AuthUtilsActiveUserDependency.get_current_active_user), request_scope: _FornecedoresRequestScope=Depends(_build_fornecedores_request_scope)):
         """Endpoint HTTP que delega a execucao para workflow/servico OO (read_user_fornecedores)."""
-        return request_workflow.list_fornecedores_page(current_user=current_user, skip=skip, limit=limit, termo_busca=termo_busca)
+        return request_scope.list_fornecedores_page(current_user=current_user, skip=skip, limit=limit, termo_busca=termo_busca)
 
     @router.get('/{fornecedor_id}', response_model=schemas.FornecedorResponse)
-    def read_fornecedor(fornecedor_id: int, current_user: models.User=Depends(auth_utils._AuthUtilsActiveUserDependency.get_current_active_user), request_workflow: _FornecedoresRequestScope=Depends(_build_fornecedores_request_workflow)):
+    def read_fornecedor(fornecedor_id: int, current_user: models.User=Depends(auth_utils._AuthUtilsActiveUserDependency.get_current_active_user), request_scope: _FornecedoresRequestScope=Depends(_build_fornecedores_request_scope)):
         """Endpoint HTTP que delega a execucao para workflow/servico OO (read_fornecedor)."""
-        return request_workflow.read_fornecedor(fornecedor_id=fornecedor_id, current_user=current_user)
+        return request_scope.read_fornecedor(fornecedor_id=fornecedor_id, current_user=current_user)
 
     @router.put('/{fornecedor_id}', response_model=schemas.FornecedorResponse)
-    def update_fornecedor_endpoint(fornecedor_id: int, fornecedor_update: schemas.FornecedorUpdate, current_user: models.User=Depends(auth_utils._AuthUtilsActiveUserDependency.get_current_active_user), request_workflow: _FornecedoresRequestScope=Depends(_build_fornecedores_request_workflow)):
+    def update_fornecedor_endpoint(fornecedor_id: int, fornecedor_update: schemas.FornecedorUpdate, current_user: models.User=Depends(auth_utils._AuthUtilsActiveUserDependency.get_current_active_user), request_scope: _FornecedoresRequestScope=Depends(_build_fornecedores_request_scope)):
         """Endpoint HTTP que delega a execucao para workflow/servico OO (update_fornecedor_endpoint)."""
         try:
-            return request_workflow.update_fornecedor(fornecedor_id=fornecedor_id, fornecedor_update=fornecedor_update, current_user=current_user)
+            return request_scope.update_fornecedor(fornecedor_id=fornecedor_id, fornecedor_update=fornecedor_update, current_user=current_user)
         except HTTPException:
             raise
         except Exception:
             raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail='Erro interno ao atualizar fornecedor.')
 
     @router.get('/{fornecedor_id}/mapping', response_model=Optional[dict])
-    def get_mapping(fornecedor_id: int, current_user: models.User=Depends(auth_utils._AuthUtilsActiveUserDependency.get_current_active_user), request_workflow: _FornecedoresRequestScope=Depends(_build_fornecedores_request_workflow)):
+    def get_mapping(fornecedor_id: int, current_user: models.User=Depends(auth_utils._AuthUtilsActiveUserDependency.get_current_active_user), request_scope: _FornecedoresRequestScope=Depends(_build_fornecedores_request_scope)):
         """Endpoint HTTP que delega a execucao para workflow/servico OO (get_mapping)."""
-        return request_workflow.get_mapping(fornecedor_id=fornecedor_id, current_user=current_user)
+        return request_scope.get_mapping(fornecedor_id=fornecedor_id, current_user=current_user)
 
     @router.put('/{fornecedor_id}/mapping', response_model=schemas.FornecedorResponse)
-    def update_mapping(fornecedor_id: int, mapping: Optional[dict]=None, current_user: models.User=Depends(auth_utils._AuthUtilsActiveUserDependency.get_current_active_user), request_workflow: _FornecedoresRequestScope=Depends(_build_fornecedores_request_workflow)):
+    def update_mapping(fornecedor_id: int, mapping: Optional[dict]=None, current_user: models.User=Depends(auth_utils._AuthUtilsActiveUserDependency.get_current_active_user), request_scope: _FornecedoresRequestScope=Depends(_build_fornecedores_request_scope)):
         """Endpoint HTTP que delega a execucao para workflow/servico OO (update_mapping)."""
-        return request_workflow.update_mapping(fornecedor_id=fornecedor_id, mapping=mapping, current_user=current_user)
+        return request_scope.update_mapping(fornecedor_id=fornecedor_id, mapping=mapping, current_user=current_user)
 
     @router.post('/import/preview-pages')
-    async def preview_pages(file: UploadFile=File(...), request_workflow: _FornecedoresRequestScope=Depends(_build_fornecedores_request_workflow)):
+    async def preview_pages(file: UploadFile=File(...), request_scope: _FornecedoresRequestScope=Depends(_build_fornecedores_request_scope)):
         """Endpoint HTTP que delega a execucao para workflow/servico OO (preview_pages)."""
-        return await request_workflow.preview_pages(file=file)
+        return await request_scope.preview_pages(file=file)
 
     @router.post('/{fornecedor_id}/preview-pdf', response_model=schemas.PdfPreviewResponse)
-    async def preview_pdf(fornecedor_id: int, file: UploadFile=File(...), current_user: models.User=Depends(auth_utils._AuthUtilsActiveUserDependency.get_current_active_user), request_workflow: _FornecedoresRequestScope=Depends(_build_fornecedores_request_workflow), offset: int=Query(0, description='Pagina inicial para pre-visualizacao (base 0).'), limit: int=Query(20, description='Numero maximo de paginas para pre-visualizacao.')):
+    async def preview_pdf(fornecedor_id: int, file: UploadFile=File(...), current_user: models.User=Depends(auth_utils._AuthUtilsActiveUserDependency.get_current_active_user), request_scope: _FornecedoresRequestScope=Depends(_build_fornecedores_request_scope), offset: int=Query(0, description='Pagina inicial para pre-visualizacao (base 0).'), limit: int=Query(20, description='Numero maximo de paginas para pre-visualizacao.')):
         """Endpoint HTTP que delega a execucao para workflow/servico OO (preview_pdf)."""
-        return await request_workflow.preview_pdf(fornecedor_id=fornecedor_id, file=file, current_user=current_user, offset=offset, limit=limit)
+        return await request_scope.preview_pdf(fornecedor_id=fornecedor_id, file=file, current_user=current_user, offset=offset, limit=limit)
 
     @router.post('/preview-catalog-region', response_model=schemas.CatalogPreview)
-    def preview_catalog_from_region(preview_request: schemas.CatalogRegionPreviewRequest, request_workflow: _FornecedoresRequestScope=Depends(_build_fornecedores_request_workflow)):
+    def preview_catalog_from_region(preview_request: schemas.CatalogRegionPreviewRequest, request_scope: _FornecedoresRequestScope=Depends(_build_fornecedores_request_scope)):
         """Endpoint HTTP que delega a execucao para workflow/servico OO (preview_catalog_from_region)."""
-        return request_workflow.preview_catalog_from_region(preview_request=preview_request)
+        return request_scope.preview_catalog_from_region(preview_request=preview_request)
 
     @router.post('/extract_data_from_pdf_bulk', status_code=status.HTTP_202_ACCEPTED)
-    def extract_data_from_pdf_bulk(background_tasks: BackgroundTasks, request: schemas.PdfRegionBulkRequest, current_user: models.User=Depends(auth_utils._AuthUtilsActiveUserDependency.get_current_active_user), request_workflow: _FornecedoresRequestScope=Depends(_build_fornecedores_request_workflow)):
+    def extract_data_from_pdf_bulk(background_tasks: BackgroundTasks, request: schemas.PdfRegionBulkRequest, current_user: models.User=Depends(auth_utils._AuthUtilsActiveUserDependency.get_current_active_user), request_scope: _FornecedoresRequestScope=Depends(_build_fornecedores_request_scope)):
         """Endpoint HTTP que delega a execucao para workflow/servico OO (extract_data_from_pdf_bulk)."""
         _ = current_user
-        return request_workflow.extract_data_from_pdf_bulk(background_tasks=background_tasks, request=request)
+        return request_scope.extract_data_from_pdf_bulk(background_tasks=background_tasks, request=request)
 
     @router.get('/import/progress/{job_id}')
-    def get_import_progress(job_id: int, current_user: models.User=Depends(auth_utils._AuthUtilsActiveUserDependency.get_current_active_user), request_workflow: _FornecedoresRequestScope=Depends(_build_fornecedores_request_workflow)):
+    def get_import_progress(job_id: int, current_user: models.User=Depends(auth_utils._AuthUtilsActiveUserDependency.get_current_active_user), request_scope: _FornecedoresRequestScope=Depends(_build_fornecedores_request_scope)):
         """Endpoint HTTP que delega a execucao para workflow/servico OO (get_import_progress)."""
-        return request_workflow.get_import_progress(job_id=job_id, current_user=current_user)
+        return request_scope.get_import_progress(job_id=job_id, current_user=current_user)
 
     @router.post('/import/process-full-catalog', status_code=status.HTTP_202_ACCEPTED)
-    async def process_full_catalog(background_tasks: BackgroundTasks, file_id: int=Body(..., embed=True), fornecedor_id: int=Body(..., embed=True), tipo_produto_id: int=Body(..., embed=True), start_page: int=Body(1, embed=True), region: Optional[List[float]]=Body(None, embed=True), mapping: Optional[dict]=Body(None), current_user: models.User=Depends(auth_utils._AuthUtilsActiveUserDependency.get_current_active_user), request_workflow: _FornecedoresRequestScope=Depends(_build_fornecedores_request_workflow)):
+    async def process_full_catalog(background_tasks: BackgroundTasks, file_id: int=Body(..., embed=True), fornecedor_id: int=Body(..., embed=True), tipo_produto_id: int=Body(..., embed=True), start_page: int=Body(1, embed=True), region: Optional[List[float]]=Body(None, embed=True), mapping: Optional[dict]=Body(None), current_user: models.User=Depends(auth_utils._AuthUtilsActiveUserDependency.get_current_active_user), request_scope: _FornecedoresRequestScope=Depends(_build_fornecedores_request_scope)):
         """Endpoint HTTP que delega a execucao para workflow/servico OO (process_full_catalog)."""
-        return await request_workflow.process_full_catalog(background_tasks=background_tasks, file_id=file_id, fornecedor_id=fornecedor_id, tipo_produto_id=tipo_produto_id, start_page=start_page, region=region, mapping=mapping, current_user=current_user)
+        return await request_scope.process_full_catalog(background_tasks=background_tasks, file_id=file_id, fornecedor_id=fornecedor_id, tipo_produto_id=tipo_produto_id, start_page=start_page, region=region, mapping=mapping, current_user=current_user)
 
     @router.get('/import/extract-page-data', status_code=status.HTTP_202_ACCEPTED)
-    def extract_page_data(background_tasks: BackgroundTasks, file_id: int=Query(..., description='ID do arquivo importado'), page_number: int=Query(..., ge=1, description='Numero da pagina a extrair'), current_user: models.User=Depends(auth_utils._AuthUtilsActiveUserDependency.get_current_active_user), request_workflow: _FornecedoresRequestScope=Depends(_build_fornecedores_request_workflow)):
+    def extract_page_data(background_tasks: BackgroundTasks, file_id: int=Query(..., description='ID do arquivo importado'), page_number: int=Query(..., ge=1, description='Numero da pagina a extrair'), current_user: models.User=Depends(auth_utils._AuthUtilsActiveUserDependency.get_current_active_user), request_scope: _FornecedoresRequestScope=Depends(_build_fornecedores_request_scope)):
         """Endpoint HTTP que delega a execucao para workflow/servico OO (extract_page_data)."""
-        return request_workflow.extract_page_data(background_tasks=background_tasks, file_id=file_id, page_number=page_number, current_user=current_user)
+        return request_scope.extract_page_data(background_tasks=background_tasks, file_id=file_id, page_number=page_number, current_user=current_user)
 
     @router.delete('/{fornecedor_id}', response_model=schemas.FornecedorResponse)
-    def delete_fornecedor_endpoint(fornecedor_id: int, current_user: models.User=Depends(auth_utils._AuthUtilsActiveUserDependency.get_current_active_user), request_workflow: _FornecedoresRequestScope=Depends(_build_fornecedores_request_workflow)):
+    def delete_fornecedor_endpoint(fornecedor_id: int, current_user: models.User=Depends(auth_utils._AuthUtilsActiveUserDependency.get_current_active_user), request_scope: _FornecedoresRequestScope=Depends(_build_fornecedores_request_scope)):
         """Endpoint HTTP que delega a execucao para workflow/servico OO (delete_fornecedor_endpoint)."""
         try:
-            return request_workflow.delete_fornecedor(fornecedor_id=fornecedor_id, current_user=current_user)
+            return request_scope.delete_fornecedor(fornecedor_id=fornecedor_id, current_user=current_user)
         except HTTPException:
             raise
         except Exception:
             raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail='Erro interno ao deletar fornecedor.')
 
     @router.get('/import/review/{job_id}', response_model=dict)
-    def review_import_job(job_id: int, current_user: models.User=Depends(auth_utils._AuthUtilsActiveUserDependency.get_current_active_user), request_workflow: _FornecedoresRequestScope=Depends(_build_fornecedores_request_workflow)):
+    def review_import_job(job_id: int, current_user: models.User=Depends(auth_utils._AuthUtilsActiveUserDependency.get_current_active_user), request_scope: _FornecedoresRequestScope=Depends(_build_fornecedores_request_scope)):
         """Endpoint HTTP que delega a execucao para workflow/servico OO (review_import_job)."""
-        return request_workflow.review_import_job(job_id=job_id, current_user=current_user)
+        return request_scope.review_import_job(job_id=job_id, current_user=current_user)
 
     @router.post('/import/commit/{job_id}', status_code=status.HTTP_202_ACCEPTED)
-    def commit_import_job(background_tasks: BackgroundTasks, job_id: int, current_user: models.User=Depends(auth_utils._AuthUtilsActiveUserDependency.get_current_active_user), request_workflow: _FornecedoresRequestScope=Depends(_build_fornecedores_request_workflow)):
+    def commit_import_job(background_tasks: BackgroundTasks, job_id: int, current_user: models.User=Depends(auth_utils._AuthUtilsActiveUserDependency.get_current_active_user), request_scope: _FornecedoresRequestScope=Depends(_build_fornecedores_request_scope)):
         """Endpoint HTTP que delega a execucao para workflow/servico OO (commit_import_job)."""
-        return request_workflow.commit_import_job(background_tasks=background_tasks, job_id=job_id, current_user=current_user)
+        return request_scope.commit_import_job(background_tasks=background_tasks, job_id=job_id, current_user=current_user)
 
     @router.get('/import_job/{job_id}/status')
-    def get_import_job_status(job_id: int, current_user: models.User=Depends(auth_utils._AuthUtilsActiveUserDependency.get_current_active_user), request_workflow: _FornecedoresRequestScope=Depends(_build_fornecedores_request_workflow)):
+    def get_import_job_status(job_id: int, current_user: models.User=Depends(auth_utils._AuthUtilsActiveUserDependency.get_current_active_user), request_scope: _FornecedoresRequestScope=Depends(_build_fornecedores_request_scope)):
         """Endpoint HTTP que delega a execucao para workflow/servico OO (get_import_job_status)."""
-        return request_workflow.get_import_job_status(job_id=job_id, current_user=current_user)
+        return request_scope.get_import_job_status(job_id=job_id, current_user=current_user)
+
 

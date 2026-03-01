@@ -329,7 +329,8 @@ class _AiProviderRuntime:
                 )
 
 
-AiProviderWorkflow = _AiProviderWorkflow
+class AiProviderWorkflow(_AiProviderWorkflow):
+    pass
 
 
 # --- NOVA FUNÃƒâ€¡ÃƒÆ’O PARA SUGESTÃƒâ€¢ES GEMINI ---
@@ -763,7 +764,8 @@ class _IAGenerationRuntime:
 
 
 
-IAGenerationWorkflow = _IAGenerationWorkflow
+class IAGenerationWorkflow(_IAGenerationWorkflow):
+    pass
 
 
 

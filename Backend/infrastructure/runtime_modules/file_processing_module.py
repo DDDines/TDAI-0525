@@ -738,7 +738,8 @@ class _LineNormalizationRuntime:
         if sku and (not nome):
             return (sku, None)
         return (sku, nome)
-LineNormalizationRuntime = _LineNormalizationRuntime
+class LineNormalizationRuntime(_LineNormalizationRuntime):
+    pass
 
 class _LineMappingWorkflow:
     """Workflow OO para padronizacao de linhas extraidas de catalogos."""
@@ -851,7 +852,8 @@ class _LineMappingRuntime:
 
     def processar_linha_padronizada(self, linha_original: Dict[str, Any], mapeamento_colunas_usuario: Optional[Dict[str, str]]=None) -> Optional[Dict[str, Any]]:
         return self._workflow.processar_linha_padronizada(linha_original=linha_original, mapeamento_colunas_usuario=mapeamento_colunas_usuario)
-LineMappingWorkflow = _LineMappingWorkflow
+class LineMappingWorkflow(_LineMappingWorkflow):
+    pass
 
 class _TabularIngestionEngineRuntime:
     """Runtime OO para ingestao de arquivos tabulares (Excel/CSV)."""
@@ -1597,7 +1599,8 @@ class _CatalogStorageRuntime:
 
     def get_file_path_by_id(self, db: Session, file_id: str) -> str:
         return _FileProcessingImplementation._get_file_path_by_id_impl(db=db, file_id=file_id)
-CatalogStorageWorkflow = _CatalogStorageWorkflow
+class CatalogStorageWorkflow(_CatalogStorageWorkflow):
+    pass
 
 class _TabularIngestionWorkflow:
     """Workflow OO para ingestÃƒÂ£o de arquivos tabulares (Excel/CSV)."""
@@ -1618,7 +1621,8 @@ class _TabularIngestionRuntime:
 
     async def processar_arquivo_csv(self, conteudo_arquivo: bytes, mapeamento_colunas_usuario: Optional[Dict[str, str]]=None, product_type_id: Optional[int]=None) -> List[Dict[str, Any]]:
         return await _FileProcessingImplementation._processar_arquivo_csv_impl(conteudo_arquivo=conteudo_arquivo, mapeamento_colunas_usuario=mapeamento_colunas_usuario, product_type_id=product_type_id)
-TabularIngestionWorkflow = _TabularIngestionWorkflow
+class TabularIngestionWorkflow(_TabularIngestionWorkflow):
+    pass
 
 class _TabularPreviewWorkflow:
     """Workflow OO para preview tabular (Excel/CSV)."""
@@ -1639,7 +1643,8 @@ class _TabularPreviewRuntime:
 
     async def preview_arquivo_csv(self, conteudo_arquivo: bytes, max_rows: int=5) -> Dict[str, Any]:
         return await _FileProcessingImplementation._preview_arquivo_csv_impl(conteudo_arquivo=conteudo_arquivo, max_rows=max_rows)
-TabularPreviewWorkflow = _TabularPreviewWorkflow
+class TabularPreviewWorkflow(_TabularPreviewWorkflow):
+    pass
 
 class _PdfAssetRuntime:
     """Runtime OO para dependencias de utilitarios de imagem/regiao de PDF."""
@@ -1682,7 +1687,8 @@ class _PdfAssetWorkflow:
 
     def parse_annotation_to_dataframe(self, annotation: object, vertical_tolerance: int=5) -> pd.DataFrame:
         return self._pdf_asset_runtime.parse_annotation_to_dataframe(annotation=annotation, vertical_tolerance=vertical_tolerance)
-PdfAssetWorkflow = _PdfAssetWorkflow
+class PdfAssetWorkflow(_PdfAssetWorkflow):
+    pass
 
 class _PdfProcessingRuntime:
     """Runtime OO para dependencias de processamento e preview de PDF."""
@@ -1723,7 +1729,8 @@ class _PdfProcessingWorkflow:
 
     def extract_data_from_pdf_region(self, file_path: str, page_number: int, region: Optional[List[float]]=None) -> pd.DataFrame:
         return self._extract_data_from_pdf_region(file_path=file_path, page_number=page_number, region=region)
-PdfProcessingWorkflow = _PdfProcessingWorkflow
+class PdfProcessingWorkflow(_PdfProcessingWorkflow):
+    pass
 
 class _PdfJobWorkflow:
     """Workflow OO para processamento assÃƒÂ\xadncrono de jobs de PDF."""
@@ -1744,7 +1751,8 @@ class _PdfJobRuntime:
 
     def extract_data_from_single_page(self, file_path: str, page_number: int) -> Dict[str, Any]:
         return _FileProcessingImplementation._extract_data_from_single_page_impl(file_path=file_path, page_number=page_number)
-PdfJobWorkflow = _PdfJobWorkflow
+class PdfJobWorkflow(_PdfJobWorkflow):
+    pass
 
 class FileProcessingRuntime:
     """Composicao OO para fluxos de processamento de arquivo sem estado global."""

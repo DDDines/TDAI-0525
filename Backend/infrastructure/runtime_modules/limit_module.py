@@ -241,7 +241,8 @@ class _LimitWorkflow:
         )
 
 
-LimitWorkflow = _LimitWorkflow
+class LimitWorkflow(_LimitWorkflow):
+    pass
 
 
 

@@ -3,15 +3,6 @@ from pathlib import Path
 from typing import List, Optional
 from dotenv import load_dotenv
 
-class _ModuleAliasProviders:
-
-    @staticmethod
-    def env_var_name_with_prefix(field_name):
-        return field_name
-
-    @staticmethod
-    def get_config_workflow():
-        return ConfigWorkflow()
 try:
     from pydantic_settings import BaseSettings, SettingsConfigDict
 except ModuleNotFoundError:
@@ -72,19 +63,19 @@ class Settings(BaseSettings):
     GOOGLE_CSE_ID: Optional[str] = os.getenv('GOOGLE_CSE_ID')
     AUTO_CREATE_TABLES: bool = os.getenv('AUTO_CREATE_TABLES', 'False').lower() in ('true', '1', 't', 'yes')
     APP_MODE: str = os.getenv('APP_MODE', 'oop')
-    ALLOW_USERS_TO_EDIT_GLOBAL_PRODUCT_TYPES: bool = Field(default=False, validation_alias=_ModuleAliasProviders.env_var_name_with_prefix('ALLOW_USERS_TO_EDIT_GLOBAL_PRODUCT_TYPES'))
-    ALLOW_USERS_TO_DELETE_GLOBAL_PRODUCT_TYPES: bool = Field(default=False, validation_alias=_ModuleAliasProviders.env_var_name_with_prefix('ALLOW_USERS_TO_DELETE_GLOBAL_PRODUCT_TYPES'))
+    ALLOW_USERS_TO_EDIT_GLOBAL_PRODUCT_TYPES: bool = Field(default=False, validation_alias='ALLOW_USERS_TO_EDIT_GLOBAL_PRODUCT_TYPES')
+    ALLOW_USERS_TO_DELETE_GLOBAL_PRODUCT_TYPES: bool = Field(default=False, validation_alias='ALLOW_USERS_TO_DELETE_GLOBAL_PRODUCT_TYPES')
     model_config = SettingsConfigDict(case_sensitive=True, env_file='.env', env_file_encoding='utf-8', extra='ignore')
 
-class _ConfigWorkflow:
+class ConfigWorkflow:
 
-    def __init__(self, runtime: Optional['_ConfigRuntime']=None) -> None:
-        self._runtime = runtime or _ConfigRuntime()
+    def __init__(self, runtime: Optional['ConfigRuntime']=None) -> None:
+        self._runtime = runtime or ConfigRuntime()
 
     def build_settings(self) -> Settings:
         return self._runtime.build_settings()
 
-class _ConfigRuntime:
+class ConfigRuntime:
     """Runtime OO para resolução e construção de settings."""
 
     def resolve_dotenv_path(self) -> Path:
@@ -145,5 +136,6 @@ class _ConfigRuntime:
         logger.info('Usando CORS origins de settings: %s', [str(origin) for origin in settings_obj.BACKEND_CORS_ORIGINS])
         logger.info('APP_MODE ativo: %s', settings_obj.APP_MODE)
         return settings_obj
-ConfigWorkflow = _ConfigWorkflow
-settings = _ModuleAliasProviders.get_config_workflow().build_settings()
+
+
+settings = ConfigWorkflow().build_settings()

@@ -789,8 +789,12 @@ class _WebContentCollectionRuntime:
         )
 
 
-WebSearchWorkflow = _WebSearchWorkflow
-WebContentCollectionWorkflow = _WebContentCollectionWorkflow
+class WebSearchWorkflow(_WebSearchWorkflow):
+    pass
+
+
+class WebContentCollectionWorkflow(_WebContentCollectionWorkflow):
+    pass
 
 
 # --- Text Extraction Service ---
@@ -1466,7 +1470,8 @@ class _WebOCRRuntime:
         )
 
 
-WebExtractionSupportWorkflow = _WebExtractionSupportWorkflow
+class WebExtractionSupportWorkflow(_WebExtractionSupportWorkflow):
+    pass
 
 
 class WebDataExtractorRuntime:

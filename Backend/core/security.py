@@ -5,11 +5,6 @@ from passlib.context import CryptContext
 from pydantic import BaseModel, ValidationError
 from Backend.core.config import settings
 
-class _ModuleAliasProviders:
-
-    @staticmethod
-    def get_security_workflow():
-        return SecurityWorkflow()
 pwd_context = CryptContext(schemes=['bcrypt'], deprecated='auto')
 ALGORITHM = settings.ALGORITHM
 ACCESS_TOKEN_EXPIRE_MINUTES = settings.ACCESS_TOKEN_EXPIRE_MINUTES
@@ -19,10 +14,10 @@ class TokenPayload(BaseModel):
     sub: Optional[str] = None
     user_id: Optional[int] = None
 
-class _SecurityWorkflow:
+class SecurityWorkflow:
 
-    def __init__(self, runtime: Optional['_SecurityRuntime']=None) -> None:
-        self._runtime = runtime or _SecurityRuntime()
+    def __init__(self, runtime: Optional['SecurityRuntime']=None) -> None:
+        self._runtime = runtime or SecurityRuntime()
 
     def verify_password(self, plain_password: str, hashed_password: str) -> bool:
         return self._runtime.verify_password(plain_password=plain_password, hashed_password=hashed_password)
@@ -39,7 +34,7 @@ class _SecurityWorkflow:
     def decode_token(self, token: str, secret_key: str) -> Optional[TokenPayload]:
         return self._runtime.decode_token(token=token, secret_key=secret_key)
 
-class _SecurityRuntime:
+class SecurityRuntime:
     """Runtime OO para operaÃ§Ãµes de hash e token JWT."""
 
     def verify_password(self, *, plain_password: str, hashed_password: str) -> bool:
@@ -68,4 +63,3 @@ class _SecurityRuntime:
             return TokenPayload(sub=payload_dict.get('sub'), user_id=user_id)
         except (JWTError, ValidationError, ValueError):
             return None
-SecurityWorkflow = _SecurityWorkflow

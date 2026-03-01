@@ -192,7 +192,8 @@ class _ValidationCrewWorkflow:
         return self._runtime.run(raw_data=raw_data, timeout_seconds=timeout_seconds)
 
 
-ValidationCrewWorkflow = _ValidationCrewWorkflow
+class ValidationCrewWorkflow(_ValidationCrewWorkflow):
+    pass
 
 
 

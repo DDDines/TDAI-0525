@@ -12,7 +12,7 @@ from Backend.application.services.web_enrichment_components import (
 from Backend.application.services.repository_runtime_support import RepositoryRuntimeSupport
 
 
-class _WebEnrichmentTaskRuntime:
+class WebEnrichmentTaskRuntime:
     RUNTIME_FIELDS = (
         "logger",
         "SQLAlchemyError",
@@ -72,13 +72,13 @@ class _WebEnrichmentTaskRuntime:
         self.metadata_has_minimum_signal = metadata_has_minimum_signal
         self.is_source_relevant_for_product = is_source_relevant_for_product
 
-    def apply_overrides(self, runtime: Any) -> "_WebEnrichmentTaskRuntime":
+    def apply_overrides(self, runtime: Any) -> "WebEnrichmentTaskRuntime":
         for field_name in self.RUNTIME_FIELDS:
             setattr(self, field_name, getattr(runtime, field_name, getattr(self, field_name)))
         return self
 
 
-class _WebEnrichmentTaskWorkflow:
+class WebEnrichmentTaskWorkflow:
     """Orquestra o fluxo completo de enriquecimento web com etapas coesas."""
 
     def __init__(
@@ -103,7 +103,7 @@ class _WebEnrichmentTaskWorkflow:
         is_source_relevant_for_product,
         runtime: Optional[Any] = None,
     ) -> None:
-        runtime_obj = _WebEnrichmentTaskRuntime(
+        runtime_obj = WebEnrichmentTaskRuntime(
             logger=logger,
             SQLAlchemyError=SQLAlchemyError,
             user_repository=user_repository,
@@ -621,11 +621,6 @@ class _WebEnrichmentTaskWorkflow:
             )
             if db:
                 db.close()
-
-
-WebEnrichmentTaskWorkflow = _WebEnrichmentTaskWorkflow
-
-
 class WebEnrichmentTaskService:
     """Service OO para executar enriquecimento web."""
 
@@ -680,7 +675,7 @@ class WebEnrichmentTaskService:
         user_id: int,
         termos_busca_override: Optional[str] = None,
     ):
-        workflow = _WebEnrichmentTaskWorkflow(**self._deps)
+        workflow = WebEnrichmentTaskWorkflow(**self._deps)
         await workflow.run(
             db_session_factory=db_session_factory,
             produto_id=produto_id,

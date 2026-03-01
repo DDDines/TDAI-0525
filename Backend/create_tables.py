@@ -2,16 +2,6 @@ import os
 import sys
 from typing import Optional
 from sqlalchemy import create_engine
-
-class _ModuleAliasProviders:
-
-    @staticmethod
-    def get_create_tables_workflow():
-        return CreateTablesWorkflow()
-
-    @staticmethod
-    def create_all_tables():
-        return _ModuleAliasProviders.get_create_tables_workflow().create_all_tables()
 print('Iniciando script de criacao de tabelas (versao sincrona)...')
 project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
 if project_root not in sys.path:
@@ -26,15 +16,15 @@ except Exception as exc:
     print(f'ERRO ao importar modulos: {exc}')
     sys.exit(1)
 
-class _CreateTablesWorkflow:
+class CreateTablesWorkflow:
 
-    def __init__(self, runtime: Optional['_CreateTablesRuntime']=None) -> None:
-        self._runtime = runtime or _CreateTablesRuntime()
+    def __init__(self, runtime: Optional['CreateTablesRuntime']=None) -> None:
+        self._runtime = runtime or CreateTablesRuntime()
 
     def create_all_tables(self):
         self._runtime.create_all_tables()
 
-class _CreateTablesRuntime:
+class CreateTablesRuntime:
 
     def create_all_tables(self):
         print('Criando engine sincrono para criacao das tabelas...')
@@ -48,6 +38,5 @@ class _CreateTablesRuntime:
         except Exception as exc:
             print(f'\nERRO ao criar as tabelas: {exc}')
             print('Verifique as credenciais do banco no .env e se o banco de dados configurado existe.')
-CreateTablesWorkflow = _CreateTablesWorkflow
 if __name__ == '__main__':
-    _ModuleAliasProviders.create_all_tables()
+    CreateTablesWorkflow().create_all_tables()

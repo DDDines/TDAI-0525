@@ -14,7 +14,7 @@ from Backend.application.services.catalog_import_components import (
 from Backend.application.services.repository_runtime_support import RepositoryRuntimeSupport
 
 
-class _CatalogImportTaskRuntime:
+class CatalogImportTaskRuntime:
     RUNTIME_FIELDS = (
         "logger",
         "catalog_logger",
@@ -86,13 +86,13 @@ class _CatalogImportTaskRuntime:
         self.write_catalog_import_report = write_catalog_import_report
         self.normalize_import_text = normalize_import_text
 
-    def apply_overrides(self, runtime: Any) -> "_CatalogImportTaskRuntime":
+    def apply_overrides(self, runtime: Any) -> "CatalogImportTaskRuntime":
         for field_name in self.RUNTIME_FIELDS:
             setattr(self, field_name, getattr(runtime, field_name, getattr(self, field_name)))
         return self
 
 
-class _CatalogImportTaskWorkflow:
+class CatalogImportTaskWorkflow:
     """Orquestra importacao de catalogo com pipeline em etapas OO."""
 
     def __init__(
@@ -128,7 +128,7 @@ class _CatalogImportTaskWorkflow:
 
             catalog_file_repository = CatalogImportFileRepository
 
-        runtime_obj = _CatalogImportTaskRuntime(
+        runtime_obj = CatalogImportTaskRuntime(
             logger=logger,
             catalog_logger=catalog_logger,
             models=models,
@@ -590,11 +590,6 @@ class _CatalogImportTaskWorkflow:
         finally:
             if self.db:
                 self.db.close()
-
-
-CatalogImportTaskWorkflow = _CatalogImportTaskWorkflow
-
-
 class CatalogImportTaskService:
     """Service OO para executar processamento de importacao de catalogo."""
 
@@ -666,7 +661,7 @@ class CatalogImportTaskService:
         pages: Optional[List[int]] = None,
         region: Optional[List[float]] = None,
     ):
-        workflow = _CatalogImportTaskWorkflow(**self._deps)
+        workflow = CatalogImportTaskWorkflow(**self._deps)
         await workflow.run(
             db_session_factory=db_session_factory,
             file_id=file_id,

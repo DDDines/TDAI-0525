@@ -7,22 +7,17 @@ from Backend import models
 from Backend.application.services.service_container import ServiceContainer
 from Backend.core.config import settings
 
-class _ModuleAliasProviders:
-
-    @staticmethod
-    def get_task_workflow():
-        return TaskWorkflow()
 logger = logging.getLogger(__name__)
 
-class _TaskWorkflow:
+class TaskWorkflow:
 
-    def __init__(self, runtime: Optional['_TaskRuntime']=None) -> None:
-        self._runtime = runtime or _TaskRuntime()
+    def __init__(self, runtime: Optional['TaskRuntime']=None) -> None:
+        self._runtime = runtime or TaskRuntime()
 
     def process_pdf_extraction_task(self, import_job_id: int, page_number: int, db_url: str) -> None:
         self._runtime.process_pdf_extraction_task(import_job_id=import_job_id, page_number=page_number, db_url=db_url)
 
-class _TaskRuntime:
+class TaskRuntime:
 
     def __init__(self, file_processing_service=None) -> None:
         self._file_processing_service = file_processing_service or ServiceContainer().file_processing
@@ -60,4 +55,3 @@ class _TaskRuntime:
                 db.commit()
         finally:
             db.close()
-TaskWorkflow = _TaskWorkflow

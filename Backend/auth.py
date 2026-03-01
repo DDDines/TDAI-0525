@@ -41,11 +41,11 @@ if settings.FACEBOOK_CLIENT_ID and settings.FACEBOOK_CLIENT_SECRET:
 else:
     logger.warning('Credenciais do Facebook OAuth (CLIENT_ID ou CLIENT_SECRET) nao configuradas no .env. Login com Facebook desabilitado.')
 
-class _AuthWorkflow:
+class AuthWorkflow:
     """Workflow/escopo request-scoped para o fluxo de 'auth'."""
 
-    def __init__(self, runtime: Optional['_AuthRuntime']=None) -> None:
-        self._runtime = runtime or _AuthRuntime()
+    def __init__(self, runtime: Optional['AuthRuntime']=None) -> None:
+        self._runtime = runtime or AuthRuntime()
 
     def verify_password(self, plain_password: str, hashed_password: str) -> bool:
         return self._runtime.verify_password(plain_password=plain_password, hashed_password=hashed_password)
@@ -95,7 +95,7 @@ class _AuthWorkflow:
     async def process_facebook_login(self, db: Session, facebook_userinfo: Dict[str, Any]) -> Optional[models.User]:
         return await self._runtime.process_facebook_login(db=db, facebook_userinfo=facebook_userinfo)
 
-class _AuthRuntime:
+class AuthRuntime:
     """Runtime OO responsavel por integracoes e operacoes de 'auth'."""
 
     @staticmethod
@@ -268,8 +268,6 @@ class _AuthRuntime:
             logger.error('ID de usuario do Facebook nao encontrado.')
             return None
         return await self._get_or_create_social_user(db=db, email=email, nome=nome_completo, provider='Facebook', provider_user_id=facebook_user_id)
-AuthWorkflow = _AuthWorkflow
-
 class _AuthDependencies:
 
     @staticmethod

@@ -6,18 +6,13 @@ from pydantic import EmailStr
 from .config import settings
 from .logging_config import get_logger
 
-class _ModuleAliasProviders:
-
-    @staticmethod
-    def get_email_workflow():
-        return EmailWorkflow()
 TEMPLATE_FOLDER = Path(__file__).parent.parent / 'templates'
 logger = get_logger(__name__)
 
-class _EmailWorkflow:
+class EmailWorkflow:
 
-    def __init__(self, runtime: Optional['_EmailRuntime']=None):
-        self._runtime = runtime or _EmailRuntime()
+    def __init__(self, runtime: Optional['EmailRuntime']=None):
+        self._runtime = runtime or EmailRuntime()
         self._conf = self._runtime.build_connection_config()
 
     @property
@@ -74,7 +69,7 @@ class _EmailWorkflow:
             logger.error('Falha ao enviar email de reset de senha para %s. Erro: %s', email_to, exc)
             raise RuntimeError(f'Falha ao enviar email de reset de senha: {exc}')
 
-class _EmailRuntime:
+class EmailRuntime:
     """Runtime OO para configuração e envio de email."""
 
     def build_connection_config(self) -> Optional[ConnectionConfig]:
@@ -94,4 +89,3 @@ class _EmailRuntime:
 
     def current_year(self) -> int:
         return datetime.now().year
-EmailWorkflow = _EmailWorkflow
