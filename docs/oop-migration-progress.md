@@ -12,7 +12,7 @@ O runtime opera em modo OOP-only (`APP_MODE=oop`) e a camada `Backend/services` 
 - [x] Teste de arquitetura criado: `Backend/tests/test_architecture_boundaries.py`.
 - [x] Regra: `Backend/application/**` nao pode importar `Backend/services/**`.
 - [x] Regra: `Backend/application/**` nao pode importar `Backend/routers/**`.
-- [x] Regra: `Backend/application/services/**` nao pode definir `__getattr__` em adapters/facades.
+- [x] Regra: `Backend/application/services/**` nao pode definir `__getattr__` em adapters.
 - [x] Regra: `Backend/application/services/**` nao pode chamar metodo privado de objeto externo (`obj._algo()`).
 - [x] Regra: codigo backend nao pode importar `Backend.services`.
 - [x] Regra: routers nao importam mais `Backend.application.services` (pacote raiz); apenas modulos explicitos.
@@ -30,7 +30,7 @@ O runtime opera em modo OOP-only (`APP_MODE=oop`) e a camada `Backend/services` 
   - `preview_service.py`
   - `pdf_assets_service.py`
   - `orchestrator_service.py`
-- [x] `FileProcessingFacade` migrado para adapter explicito sem fallback dinamico.
+- [x] Facade de transicao removida; fluxo usa `FileProcessingOrchestratorService` + adapter OO explicito.
 - [x] `CatalogExtractionService.processar_linha_padronizada` passou a usar metodo publico.
 - [x] API publica consolidada em runtime OOP: `processar_linha_padronizada(...)`.
 
@@ -45,7 +45,7 @@ O runtime opera em modo OOP-only (`APP_MODE=oop`) e a camada `Backend/services` 
   - `llm_service.py`
   - `ocr_service.py`
   - `orchestrator_service.py`
-- [x] `WebDataExtractorFacade` migrado para adapter explicito sem fallback dinamico.
+- [x] Facade de transicao removida; fluxo usa `WebDataExtractorOrchestratorService` + adapter OO explicito.
 - [x] Chamada privada removida em componente (`_normalizar...` -> metodo publico).
 - [x] API publica consolidada em runtime OOP: `normalizar_dados_de_metadados(...)`.
 - [x] Encapsulamento de estado global (cache/semaphore/flag Playwright) em runtime injetavel dedicado, com teste de isolamento.
@@ -56,9 +56,7 @@ O runtime opera em modo OOP-only (`APP_MODE=oop`) e a camada `Backend/services` 
   - `IAGenerationPort`
   - `LimitPort`
   - `ValidationPort`
-- [x] `IAGenerationFacade` sem `__getattr__`.
-- [x] `LimitServiceFacade` sem `__getattr__`.
-- [x] `ValidatorCrewFacade` sem import direto de `Backend.services`.
+- [x] Camadas de transicao removidas; consumo direto de `IAGenerationService`, `LimitService` e `ValidatorCrewAdapter`.
 - [x] Defaults OOP migrados para adapters explicitos em `Backend/infrastructure/adapters/` (sem bridge legado no caminho padrao OOP).
 - [x] Bridges legados removidos de `Backend/infrastructure/legacy/`.
 
@@ -82,6 +80,10 @@ O runtime opera em modo OOP-only (`APP_MODE=oop`) e a camada `Backend/services` 
 - [x] Runtime providers (`Backend/infrastructure/runtime/*`) desacoplados de `Backend.services`.
 - [x] `Backend/application/services/__init__.py` simplificado para pacote sem eager imports (imports explicitos por modulo).
 - [x] `DataAccessService` migrado para delegacao OO via workflows `crud_*` (sem uso de funcoes top-level de CRUD na camada).
+- [x] Bridge dinamica de repositorio removida (`repository_runtime_support.py` e `call_repository_method(...)`).
+- [x] Assinaturas de pipeline/orquestracao ajustadas sem parametro procedural por chamada (`db_session_factory`).
+- [x] Repositorio `FornecedorImportJobRepository` unificado no padrao OO (`Session` no construtor).
+- [x] Estado mutavel global removido de runtime de file processing (`global` -> estado de instancia).
 - [x] Atualizar documentacao final de arquitetura e matriz de conclusao.
 
 ## Criterios objetivos de fechamento
@@ -91,6 +93,8 @@ O runtime opera em modo OOP-only (`APP_MODE=oop`) e a camada `Backend/services` 
 - [x] Zero chamada a metodo privado de objeto externo em `Backend/application/services`.
 - [x] Zero import de `Backend/routers` em `Backend/application`.
 - [x] Sem bridges/proxies legados ativos em runtime de aplicacao.
+- [x] Zero `repository_runtime_support.py` e zero `call_repository_method(...)` no codigo produtivo.
+- [x] Zero parametro `db_session_factory` em metodos publicos de servico (somente injecao no construtor).
 - [x] Zero import de `Backend/services` em `Backend/infrastructure/runtime`.
 - [x] Zero import de `Backend/services` em todo backend (incluindo runtime e testes de backend).
 
@@ -100,9 +104,9 @@ O runtime opera em modo OOP-only (`APP_MODE=oop`) e a camada `Backend/services` 
 |---|---|---|
 | Importacao de catalogo (arquivo) | `Backend/application/services/file_processing/` | Nao |
 | Enriquecimento web | `Backend/application/services/web_data_extractor/` | Nao |
-| IA generation | `Backend/application/services/ia_generation_facade.py` + `Backend/application/services/ports.py` | Nao |
-| Limites e creditos | `Backend/application/services/limit_service_facade.py` + `Backend/application/services/ports.py` | Nao |
-| Validator crew | `Backend/application/services/validator_crew_facade.py` + `Backend/application/services/ports.py` | Nao |
+| IA generation | `Backend/application/services/ia_generation_service.py` + `Backend/application/services/ports.py` | Nao |
+| Limites e creditos | `Backend/application/services/limit_service.py` + `Backend/application/services/ports.py` | Nao |
+| Validator crew | `Backend/infrastructure/adapters/validator_crew_adapter.py` + `Backend/application/services/ports.py` | Nao |
 
 ## Arquitetura final
 
