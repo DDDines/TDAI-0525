@@ -267,13 +267,21 @@ def test_infrastructure_runtime_providers_expose_get_runtime_service_only():
 
         rel = path.relative_to(PROJECT_ROOT)
         tree = _parse_python_file(path)
-        function_names = {
-            node.name for node in ast.walk(tree) if isinstance(node, ast.FunctionDef)
-        }
+        exported_names: set[str] = set()
 
-        if "get_runtime_module" in function_names:
+        for node in ast.walk(tree):
+            if isinstance(node, ast.FunctionDef):
+                exported_names.add(node.name)
+            elif isinstance(node, ast.Assign):
+                for target in node.targets:
+                    if isinstance(target, ast.Name):
+                        exported_names.add(target.id)
+            elif isinstance(node, ast.AnnAssign) and isinstance(node.target, ast.Name):
+                exported_names.add(node.target.id)
+
+        if "get_runtime_module" in exported_names:
             offenders.append(f"{rel}: get_runtime_module")
-        if "get_runtime_service" not in function_names:
+        if "get_runtime_service" not in exported_names:
             missing.append(str(rel))
 
     assert not offenders, (
@@ -301,27 +309,10 @@ def test_backend_top_level_non_endpoint_functions_are_allowlisted():
             if _is_http_endpoint_function(node):
                 continue
 
-            fn = node.name
-            is_allowed = False
-
-            if rel == "Backend/alembic/env.py" and fn in {
-                "run_migrations_offline",
-                "run_migrations_online",
-            }:
-                is_allowed = True
-            elif rel.startswith("Backend/alembic/versions/") and fn in {
-                "upgrade",
-                "downgrade",
-            }:
-                is_allowed = True
-            elif rel.startswith("Backend/infrastructure/runtime/") and fn == "get_runtime_service":
-                is_allowed = True
-
-            if not is_allowed:
-                offenders.append(f"{rel}:{node.lineno} -> {fn}")
+            offenders.append(f"{rel}:{node.lineno} -> {node.name}")
 
     assert not offenders, (
-        "Top-level non-endpoint functions must be exception-allowlisted only:\n"
+        "Top-level non-endpoint functions are forbidden (use class methods + exported aliases):\n"
         + "\n".join(offenders)
     )
 

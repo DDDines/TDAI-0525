@@ -5,5 +5,10 @@ from Backend.infrastructure.runtime_services.file_processing_runtime_service imp
 )
 
 
-def get_runtime_service() -> FileProcessingRuntimeService:
-    return FileProcessingRuntimeService()
+class _FileProcessingRuntimeProvider:
+    @staticmethod
+    def get_runtime_service() -> FileProcessingRuntimeService:
+        return FileProcessingRuntimeService()
+
+
+get_runtime_service = _FileProcessingRuntimeProvider.get_runtime_service
