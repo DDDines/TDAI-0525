@@ -11,12 +11,12 @@ from Backend import schemas
 from Backend.main import MainBootstrapWorkflow
 from Backend.routers.admin_analytics import AdminAnalyticsRequestService
 from Backend.routers.auth_utils import AuthRequestService
-from Backend.routers.fornecedores import FornecedoresRouterWorkflow
+from Backend.routers.fornecedores import FornecedoresRequestService
 from Backend.routers.generation import GenerationRequestService
 from Backend.routers.historico import HistoricoRequestService
 from Backend.routers.password_recovery import PasswordRecoveryRequestService
 from Backend.routers.product_types import ProductTypesRequestService
-from Backend.routers.produtos import ProdutosRouterWorkflow
+from Backend.routers.produtos import ProdutosCatalogCoordinator
 from Backend.routers.search import SearchRequestService
 from Backend.routers.social_auth import SocialAuthRequestService
 from Backend.routers.uso_ia import UsoIARequestService
@@ -408,8 +408,8 @@ class _TopLevelFunctionSurface:
             async def preview_pages(self, **kwargs):
                 return {"ok": True, "file": kwargs["file"]}
     
-        workflow = FornecedoresRouterWorkflow(runtime=FakeRuntime())
-        response = await workflow.preview_pages(file="arquivo.pdf")
+        request_service = FornecedoresRequestService(runtime=FakeRuntime())
+        response = await request_service.preview_pages(file="arquivo.pdf")
     
         assert response == {"ok": True, "file": "arquivo.pdf"}
 
@@ -519,7 +519,7 @@ class _TopLevelFunctionSurface:
                 called.append(("list_produtos", kwargs))
                 return {"source": "runtime", "op": "list"}
     
-        workflow = ProdutosRouterWorkflow(runtime=FakeRuntime())
+        workflow = ProdutosCatalogCoordinator(runtime=FakeRuntime())
     
         created = workflow.create_produto(
             produto=SimpleNamespace(nome_base="x"),
@@ -555,7 +555,7 @@ class _TopLevelFunctionSurface:
                 called.append(kwargs)
                 return {"ok": True}
     
-        workflow = ProdutosRouterWorkflow(runtime=FakeRuntime())
+        workflow = ProdutosCatalogCoordinator(runtime=FakeRuntime())
         created = workflow.create_produto(
             produto=SimpleNamespace(nome_base="Teste"),
             db="db",
@@ -603,7 +603,6 @@ test_main_bootstrap_workflow_delega_metodos_sync_para_runtime = _TopLevelFunctio
 test_main_bootstrap_workflow_delega_metodo_async_para_runtime = _TopLevelFunctionSurface.test_main_bootstrap_workflow_delega_metodo_async_para_runtime
 test_produtos_workflow_runtime_override_delega_metodos_injetados = _TopLevelFunctionSurface.test_produtos_workflow_runtime_override_delega_metodos_injetados
 test_produtos_workflow_runtime_parcial_preserva_fallback_nativo = _TopLevelFunctionSurface.test_produtos_workflow_runtime_parcial_preserva_fallback_nativo
-
 
 
 

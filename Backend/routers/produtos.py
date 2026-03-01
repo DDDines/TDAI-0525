@@ -70,7 +70,7 @@ class _ProdutosServiceBundle:
         self.catalog_import_preview_service = CatalogImportPreviewService(models=models, settings=settings, file_processing_service=self.file_processing_service, resolve_storage_path=self.catalog_import_diagnostics_service.resolve_storage_path, logger=logger, pdfplumber_module=pdfplumber, catalog_file_repository=catalog_file_repository)
         self.catalog_import_ingest_service = CatalogImportIngestService(schemas=schemas, models=models, fornecedor_repo=fornecedor_repository, produto_repo=produto_repository, uso_ia_repo=uso_ia_repository, historico_repo=historico_repository, file_processing_service=self.file_processing_service, normalize_import_issue_item=self.catalog_sanitization_service.normalize_import_issue_item, extract_import_error_reason=self.catalog_sanitization_service.extract_import_error_reason, is_non_critical_import_reason=self.catalog_sanitization_service.is_non_critical_import_reason, sanitize_produto_extraido=self.catalog_sanitization_service.sanitize_extracted_product, classificar_qualidade_linha_produto=self.catalog_quality_service.classify_product_row_quality, json_module=json)
 
-class _ProdutosRouterRuntime:
+class _ProdutosCatalogService:
     """Runtime OO responsavel por integracoes e operacoes de 'produtos'."""
 
     def __init__(self, *, services: Optional[_ProdutosServiceBundle]=None) -> None:
@@ -144,11 +144,11 @@ class _ProdutosRouterRuntime:
     async def extrair_pagina_unica(self, file_id: int, page_number: int, db: Session, user_id: int):
         return await self._services.catalog_import_preview_service.extrair_pagina_unica(file_id=file_id, page_number=page_number, catalog_file_repo=CatalogImportFileRepository(db), user_id=user_id)
 
-class _ProdutosRouterWorkflow:
+class ProdutosCatalogCoordinator:
     """Workflow/escopo request-scoped para o fluxo de 'produtos'."""
 
     def __init__(self, runtime: Optional[object]=None) -> None:
-        self._default_runtime = _ProdutosRouterRuntime()
+        self._default_runtime = _ProdutosCatalogService()
         self._runtime = runtime or self._default_runtime
 
     def set_default_runtime(self, runtime: object) -> None:
@@ -227,8 +227,6 @@ class _ProdutosRouterWorkflow:
 
     async def extrair_pagina_unica(self, file_id: int, page_number: int, db: Session, user_id: int):
         return await self._invoke_async('extrair_pagina_unica', file_id=file_id, page_number=page_number, db=db, user_id=user_id)
-ProdutosRouterWorkflow = _ProdutosRouterWorkflow
-
 class _ProdutosRequestServices:
     """Componente OO principal '_ProdutosRequestServices' do modulo 'produtos'."""
 
@@ -240,9 +238,9 @@ _build_produtos_request_services = ServiceContainerDependencySupport.build_reque
 class _ProdutosCatalogRequestScope:
     """Workflow/escopo request-scoped para o fluxo de 'produtos'."""
 
-    def __init__(self, *, db: Session, workflow: ProdutosRouterWorkflow | None=None) -> None:
+    def __init__(self, *, db: Session, workflow: ProdutosCatalogCoordinator | None=None) -> None:
         self._db = db
-        self._workflow = workflow or ProdutosRouterWorkflow()
+        self._workflow = workflow or ProdutosCatalogCoordinator()
 
     def list_catalog_import_files(self, *, user_id: int, fornecedor_id: Optional[int], skip: int, limit: int) -> schemas.CatalogImportFilePage:
         return self._workflow.list_catalog_import_files(db=self._db, user_id=user_id, fornecedor_id=fornecedor_id, skip=skip, limit=limit)
@@ -387,3 +385,4 @@ class _EndpointHandlers:
 router.add_api_route('/{produto_id}/', _EndpointHandlers.read_produto, methods=['GET'], response_model=schemas.ProdutoResponse, include_in_schema=False)
 router.add_api_route('/{produto_id}/', _EndpointHandlers.update_produto, methods=['PUT'], response_model=schemas.ProdutoResponse, include_in_schema=False)
 router.add_api_route('/{produto_id}/', _EndpointHandlers.delete_produto, methods=['DELETE'], response_model=schemas.ProdutoResponse, include_in_schema=False)
+

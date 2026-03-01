@@ -30,15 +30,15 @@ from Backend.infrastructure.repositories.product_repository import ProductReposi
 from Backend.tasks import TaskWorkflow
 from . import auth_utils
 
-class _ModuleAliasProviders:
+class _FornecedoresDependencies:
 
     @staticmethod
     def _build_fornecedores_service_bundle():
         return _FornecedoresServiceBundle()
 
     @staticmethod
-    def get_fornecedores_router_workflow():
-        return FornecedoresRouterWorkflow(runtime=_FornecedoresRouterRuntime())
+    def get_fornecedores_request_service():
+        return FornecedoresRequestService(runtime=_FornecedoresServiceGateway())
 logger = get_logger(__name__)
 catalog_log_dir = Path(__file__).resolve().parent.parent / 'logs'
 catalog_log_dir.mkdir(parents=True, exist_ok=True)
@@ -70,11 +70,11 @@ class _FornecedoresServiceBundle:
         self.fornecedor_preview_service = FornecedorPreviewService(file_processing_service=self.file_processing_service, web_data_extractor_service=self.web_data_extractor_service)
 router = APIRouter(prefix='/fornecedores', tags=['fornecedores'], dependencies=[Depends(auth_utils._AuthUtilsActiveUserDependency.get_current_active_user)])
 
-class _FornecedoresRouterWorkflow:
+class FornecedoresRequestService:
     """Workflow/escopo request-scoped para o fluxo de 'fornecedores'."""
 
-    def __init__(self, runtime: Optional['_FornecedoresRouterRuntime']=None) -> None:
-        self._runtime = runtime or _FornecedoresRouterRuntime()
+    def __init__(self, runtime: Optional['_FornecedoresServiceGateway']=None) -> None:
+        self._runtime = runtime or _FornecedoresServiceGateway()
 
     def create_fornecedor(self, fornecedor: schemas.FornecedorCreate, current_user: models.User, fornecedor_management_service: FornecedorManagementService) -> models.Fornecedor:
         logger.info('Requisicao para criar fornecedor recebida.')
@@ -136,11 +136,11 @@ class _FornecedoresRouterWorkflow:
         record = self._runtime.get_catalog_record_or_404(db=db, file_id=job_id, user_id=current_user.id, not_found_detail='Job nao encontrado')
         return self._runtime.build_import_job_status_payload(record=record)
 
-class _FornecedoresRouterRuntime:
+class _FornecedoresServiceGateway:
     """Runtime OO para integrações do router de fornecedores."""
 
     def __init__(self, *, services: Optional[_FornecedoresServiceBundle]=None) -> None:
-        self._services = services or _ModuleAliasProviders._build_fornecedores_service_bundle()
+        self._services = services or _FornecedoresDependencies._build_fornecedores_service_bundle()
 
     @staticmethod
     def _resolve_management_service(kwargs: dict) -> FornecedorManagementService:
@@ -235,7 +235,6 @@ class _FornecedoresRouterRuntime:
 
     def build_import_job_status_payload(self, **kwargs):
         return self._services.fornecedor_import_tracking_service.build_import_job_status_payload(**kwargs)
-FornecedoresRouterWorkflow = _FornecedoresRouterWorkflow
 
 class _FornecedoresRequestScope:
     """Workflow/escopo request-scoped para o fluxo de 'fornecedores'."""
@@ -243,58 +242,58 @@ class _FornecedoresRequestScope:
     def __init__(self, *, db: Session, fornecedor_management_service: FornecedorManagementService) -> None:
         self._db = db
         self._fornecedor_management_service = fornecedor_management_service
-        self._workflow = _ModuleAliasProviders.get_fornecedores_router_workflow()
+        self._request_service = _FornecedoresDependencies.get_fornecedores_request_service()
 
     def create_fornecedor(self, *, fornecedor: schemas.FornecedorCreate, current_user: models.User) -> models.Fornecedor:
-        return self._workflow.create_fornecedor(fornecedor=fornecedor, current_user=current_user, fornecedor_management_service=self._fornecedor_management_service)
+        return self._request_service.create_fornecedor(fornecedor=fornecedor, current_user=current_user, fornecedor_management_service=self._fornecedor_management_service)
 
     def list_fornecedores_page(self, *, current_user: models.User, skip: int, limit: int, termo_busca: Optional[str]) -> schemas.FornecedorPage:
-        return self._workflow.list_fornecedores_page(current_user=current_user, skip=skip, limit=limit, termo_busca=termo_busca, fornecedor_management_service=self._fornecedor_management_service)
+        return self._request_service.list_fornecedores_page(current_user=current_user, skip=skip, limit=limit, termo_busca=termo_busca, fornecedor_management_service=self._fornecedor_management_service)
 
     def read_fornecedor(self, *, fornecedor_id: int, current_user: models.User) -> models.Fornecedor:
-        return self._workflow.read_fornecedor(fornecedor_id=fornecedor_id, current_user=current_user, fornecedor_management_service=self._fornecedor_management_service)
+        return self._request_service.read_fornecedor(fornecedor_id=fornecedor_id, current_user=current_user, fornecedor_management_service=self._fornecedor_management_service)
 
     def update_fornecedor(self, *, fornecedor_id: int, fornecedor_update: schemas.FornecedorUpdate, current_user: models.User) -> models.Fornecedor:
-        return self._workflow.update_fornecedor(fornecedor_id=fornecedor_id, fornecedor_update=fornecedor_update, current_user=current_user, fornecedor_management_service=self._fornecedor_management_service)
+        return self._request_service.update_fornecedor(fornecedor_id=fornecedor_id, fornecedor_update=fornecedor_update, current_user=current_user, fornecedor_management_service=self._fornecedor_management_service)
 
     def get_mapping(self, *, fornecedor_id: int, current_user: models.User) -> Optional[dict]:
-        return self._workflow.get_mapping(fornecedor_id=fornecedor_id, current_user=current_user, fornecedor_management_service=self._fornecedor_management_service)
+        return self._request_service.get_mapping(fornecedor_id=fornecedor_id, current_user=current_user, fornecedor_management_service=self._fornecedor_management_service)
 
     def update_mapping(self, *, fornecedor_id: int, mapping: Optional[dict], current_user: models.User) -> models.Fornecedor:
-        return self._workflow.update_mapping(fornecedor_id=fornecedor_id, mapping=mapping, current_user=current_user, fornecedor_management_service=self._fornecedor_management_service)
+        return self._request_service.update_mapping(fornecedor_id=fornecedor_id, mapping=mapping, current_user=current_user, fornecedor_management_service=self._fornecedor_management_service)
 
     async def preview_pages(self, *, file: UploadFile):
-        return await self._workflow.preview_pages(file=file)
+        return await self._request_service.preview_pages(file=file)
 
     async def preview_pdf(self, *, fornecedor_id: int, file: UploadFile, current_user: models.User, offset: int, limit: int) -> schemas.PdfPreviewResponse:
-        return await self._workflow.preview_pdf(fornecedor_id=fornecedor_id, file=file, db=self._db, current_user=current_user, offset=offset, limit=limit, fornecedor_management_service=self._fornecedor_management_service)
+        return await self._request_service.preview_pdf(fornecedor_id=fornecedor_id, file=file, db=self._db, current_user=current_user, offset=offset, limit=limit, fornecedor_management_service=self._fornecedor_management_service)
 
     def preview_catalog_from_region(self, *, preview_request: schemas.CatalogRegionPreviewRequest) -> schemas.CatalogPreview:
-        return self._workflow.preview_catalog_from_region(preview_request=preview_request, db=self._db)
+        return self._request_service.preview_catalog_from_region(preview_request=preview_request, db=self._db)
 
     def extract_data_from_pdf_bulk(self, *, background_tasks: BackgroundTasks, request: schemas.PdfRegionBulkRequest):
-        return self._workflow.extract_data_from_pdf_bulk(background_tasks=background_tasks, request=request, db=self._db)
+        return self._request_service.extract_data_from_pdf_bulk(background_tasks=background_tasks, request=request, db=self._db)
 
     def get_import_progress(self, *, job_id: int, current_user: models.User) -> dict:
-        return self._workflow.get_import_progress(job_id=job_id, db=self._db, current_user=current_user)
+        return self._request_service.get_import_progress(job_id=job_id, db=self._db, current_user=current_user)
 
     async def process_full_catalog(self, *, background_tasks: BackgroundTasks, file_id: int, fornecedor_id: int, tipo_produto_id: int, start_page: int, region: Optional[List[float]], mapping: Optional[dict], current_user: models.User):
-        return await self._workflow.process_full_catalog(background_tasks=background_tasks, file_id=file_id, fornecedor_id=fornecedor_id, tipo_produto_id=tipo_produto_id, start_page=start_page, region=region, mapping=mapping, db=self._db, current_user=current_user)
+        return await self._request_service.process_full_catalog(background_tasks=background_tasks, file_id=file_id, fornecedor_id=fornecedor_id, tipo_produto_id=tipo_produto_id, start_page=start_page, region=region, mapping=mapping, db=self._db, current_user=current_user)
 
     def extract_page_data(self, *, background_tasks: BackgroundTasks, file_id: int, page_number: int, current_user: models.User) -> dict:
-        return self._workflow.extract_page_data(background_tasks=background_tasks, file_id=file_id, page_number=page_number, db=self._db, current_user=current_user)
+        return self._request_service.extract_page_data(background_tasks=background_tasks, file_id=file_id, page_number=page_number, db=self._db, current_user=current_user)
 
     def delete_fornecedor(self, *, fornecedor_id: int, current_user: models.User) -> models.Fornecedor:
-        return self._workflow.delete_fornecedor(fornecedor_id=fornecedor_id, current_user=current_user, fornecedor_management_service=self._fornecedor_management_service)
+        return self._request_service.delete_fornecedor(fornecedor_id=fornecedor_id, current_user=current_user, fornecedor_management_service=self._fornecedor_management_service)
 
     def review_import_job(self, *, job_id: int, current_user: models.User) -> dict:
-        return self._workflow.review_import_job(job_id=job_id, db=self._db, current_user=current_user)
+        return self._request_service.review_import_job(job_id=job_id, db=self._db, current_user=current_user)
 
     def commit_import_job(self, *, background_tasks: BackgroundTasks, job_id: int, current_user: models.User) -> dict:
-        return self._workflow.commit_import_job(background_tasks=background_tasks, job_id=job_id, db=self._db, current_user=current_user)
+        return self._request_service.commit_import_job(background_tasks=background_tasks, job_id=job_id, db=self._db, current_user=current_user)
 
     def get_import_job_status(self, *, job_id: int, current_user: models.User) -> dict:
-        return self._workflow.get_import_job_status(job_id=job_id, db=self._db, current_user=current_user)
+        return self._request_service.get_import_job_status(job_id=job_id, db=self._db, current_user=current_user)
 _build_fornecedores_request_workflow = ServiceContainerDependencySupport.build_request_scoped_dependency(lambda session: _FornecedoresRequestScope(db=session, fornecedor_management_service=DependencyContainer.get_fornecedor_management_service(db=session)))
 
 class _EndpointHandlers:
@@ -401,3 +400,4 @@ class _EndpointHandlers:
     def get_import_job_status(job_id: int, current_user: models.User=Depends(auth_utils._AuthUtilsActiveUserDependency.get_current_active_user), request_workflow: _FornecedoresRequestScope=Depends(_build_fornecedores_request_workflow)):
         """Endpoint HTTP que delega a execucao para workflow/servico OO (get_import_job_status)."""
         return request_workflow.get_import_job_status(job_id=job_id, current_user=current_user)
+
