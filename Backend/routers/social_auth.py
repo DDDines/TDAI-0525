@@ -1,4 +1,4 @@
-﻿"""Camada de transporte HTTP para o dominio 'social_auth'."""
+"""Camada de transporte HTTP para o dominio 'social_auth'."""
 from __future__ import annotations
 
 from fastapi import APIRouter, Depends, HTTPException, Request, status
@@ -179,40 +179,52 @@ _build_social_auth_request_workflow = build_request_scoped_dependency(
 )
 
 
-@router.get("/social/config", response_model=schemas.SocialLoginConfig)
-async def social_login_config():
-    """Endpoint HTTP que delega a execucao para workflow/servico OO (social_login_config)."""
-    workflow = get_social_auth_router_workflow()
-    return workflow.social_login_config()
+class _EndpointHandlers:
+
+    @router.get("/social/config", response_model=schemas.SocialLoginConfig)
+    async def social_login_config():
+        """Endpoint HTTP que delega a execucao para workflow/servico OO (social_login_config)."""
+        workflow = get_social_auth_router_workflow()
+        return workflow.social_login_config()
+
+    @router.get("/google/login")
+    async def google_login(request: Request):
+        """Endpoint HTTP que delega a execucao para workflow/servico OO (google_login)."""
+        workflow = get_social_auth_router_workflow()
+        return await workflow.google_login(request)
+
+    @router.get("/google/callback", response_model=schemas.Token)
+    async def google_callback(
+        request: Request,
+        request_workflow: _SocialAuthRequestScope = Depends(_build_social_auth_request_workflow),
+    ):
+        """Endpoint HTTP que delega a execucao para workflow/servico OO (google_callback)."""
+        return await request_workflow.google_callback(request=request)
+
+    @router.get("/facebook/login")
+    async def facebook_login(request: Request):
+        """Endpoint HTTP que delega a execucao para workflow/servico OO (facebook_login)."""
+        workflow = get_social_auth_router_workflow()
+        return await workflow.facebook_login(request)
+
+    @router.get("/facebook/callback", response_model=schemas.Token)
+    async def facebook_callback(
+        request: Request,
+        request_workflow: _SocialAuthRequestScope = Depends(_build_social_auth_request_workflow),
+    ):
+        """Endpoint HTTP que delega a execucao para workflow/servico OO (facebook_callback)."""
+        return await request_workflow.facebook_callback(request=request)
+
+social_login_config = _EndpointHandlers.social_login_config
+google_login = _EndpointHandlers.google_login
+google_callback = _EndpointHandlers.google_callback
+facebook_login = _EndpointHandlers.facebook_login
+facebook_callback = _EndpointHandlers.facebook_callback
 
 
-@router.get("/google/login")
-async def google_login(request: Request):
-    """Endpoint HTTP que delega a execucao para workflow/servico OO (google_login)."""
-    workflow = get_social_auth_router_workflow()
-    return await workflow.google_login(request)
 
 
-@router.get("/google/callback", response_model=schemas.Token)
-async def google_callback(
-    request: Request,
-    request_workflow: _SocialAuthRequestScope = Depends(_build_social_auth_request_workflow),
-):
-    """Endpoint HTTP que delega a execucao para workflow/servico OO (google_callback)."""
-    return await request_workflow.google_callback(request=request)
 
 
-@router.get("/facebook/login")
-async def facebook_login(request: Request):
-    """Endpoint HTTP que delega a execucao para workflow/servico OO (facebook_login)."""
-    workflow = get_social_auth_router_workflow()
-    return await workflow.facebook_login(request)
 
 
-@router.get("/facebook/callback", response_model=schemas.Token)
-async def facebook_callback(
-    request: Request,
-    request_workflow: _SocialAuthRequestScope = Depends(_build_social_auth_request_workflow),
-):
-    """Endpoint HTTP que delega a execucao para workflow/servico OO (facebook_callback)."""
-    return await request_workflow.facebook_callback(request=request)

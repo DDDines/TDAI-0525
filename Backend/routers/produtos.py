@@ -1033,88 +1033,367 @@ _build_produtos_request_context = build_request_scoped_dependency(
 )
 
 
-@router.post("/", response_model=schemas.ProdutoResponse, status_code=status.HTTP_201_CREATED)
-def create_produto(
-    produto: schemas.ProdutoCreate,
-    current_user: models.User = Depends(auth_utils.get_current_active_user),
-    request_services: _ProdutosRequestServices = Depends(_build_produtos_request_services),
-):
-    """Endpoint HTTP que delega a execucao para workflow/servico OO (create_produto)."""
-    return request_services.product_management_service.create_produto(
-        produto=produto,
-        current_user=current_user,
+class _EndpointHandlers:
+
+    @router.post("/", response_model=schemas.ProdutoResponse, status_code=status.HTTP_201_CREATED)
+    def create_produto(
+        produto: schemas.ProdutoCreate,
+        current_user: models.User = Depends(auth_utils.get_current_active_user),
+        request_services: _ProdutosRequestServices = Depends(_build_produtos_request_services),
+    ):
+        """Endpoint HTTP que delega a execucao para workflow/servico OO (create_produto)."""
+        return request_services.product_management_service.create_produto(
+            produto=produto,
+            current_user=current_user,
+        )
+
+    @router.get("/catalog-import-files/", response_model=schemas.CatalogImportFilePage)
+    def list_catalog_import_files(
+        fornecedor_id: Optional[int] = Query(None, description="ID do fornecedor"),
+        skip: int = Query(0, ge=0, description="Numero de itens para pular"),
+        limit: int = Query(10, ge=1, le=100, description="Numero maximo de itens por pagina"),
+        current_user: models.User = Depends(auth_utils.get_current_active_user),
+        request_context: _ProdutosRequestContext = Depends(_build_produtos_request_context),
+    ):
+        """Endpoint HTTP que delega a execucao para workflow/servico OO (list_catalog_import_files)."""
+        return request_context.catalog_workflow.list_catalog_import_files(
+    
+            user_id=current_user.id,
+            fornecedor_id=fornecedor_id,
+            skip=skip,
+            limit=limit,
+        )
+
+    @router.delete("/catalog-import-files/{file_id}/", response_model=schemas.CatalogImportFileResponse)
+    def delete_catalog_import_file(
+        file_id: int,
+        current_user: models.User = Depends(auth_utils.get_current_active_user),
+        request_context: _ProdutosRequestContext = Depends(_build_produtos_request_context),
+    ):
+        """Endpoint HTTP que delega a execucao para workflow/servico OO (delete_catalog_import_file)."""
+        return request_context.catalog_workflow.delete_catalog_import_file(
+    
+            file_id=file_id,
+            user_id=current_user.id,
+        )
+
+    @router.post("/catalog-import-files/{file_id}/reprocess/", status_code=status.HTTP_202_ACCEPTED)
+    async def reprocess_catalog_import_file(
+        background_tasks: BackgroundTasks,
+        file_id: int,
+        product_type_id: Optional[int] = Body(None, embed=True),
+        fornecedor_id: Optional[int] = Body(None, embed=True),
+        mapping: Optional[Dict[str, str]] = Body(None),
+        pages: Optional[List[int]] = Body(None),
+        region: Optional[List[float]] = Body(None),
+        current_user: models.User = Depends(auth_utils.get_current_active_user),
+        request_context: _ProdutosRequestContext = Depends(_build_produtos_request_context),
+    ):
+        """Endpoint HTTP que delega a execucao para workflow/servico OO (reprocess_catalog_import_file)."""
+        return await request_context.catalog_workflow.reprocess_catalog_import_file(
+            background_tasks=background_tasks,
+    
+            file_id=file_id,
+            user_id=current_user.id,
+            product_type_id=product_type_id,
+            fornecedor_id=fornecedor_id,
+            mapping=mapping,
+            pages=pages,
+            region=region,
+        )
+
+    @router.get("/{produto_id}", response_model=schemas.ProdutoResponse)
+    def read_produto(
+        produto_id: int,
+        current_user: models.User = Depends(auth_utils.get_current_active_user),
+        request_services: _ProdutosRequestServices = Depends(_build_produtos_request_services),
+    ):
+        """Endpoint HTTP que delega a execucao para workflow/servico OO (read_produto)."""
+        return request_services.product_management_service.read_produto(
+            produto_id=produto_id,
+            current_user=current_user,
+        )
+
+    @router.get("/", response_model=schemas.ProdutoPage)
+    def read_produtos(
+        skip: int = Query(0, ge=0, description="Numero de itens para pular"),
+        limit: int = Query(10, ge=1, le=200, description="Numero maximo de itens por pagina"),
+        sort_by: Optional[str] = Query(None, description="Campo para ordenacao"),
+        sort_order: Optional[str] = Query("asc", description="Ordem da ordenacao (asc/desc)"),
+        search: Optional[str] = Query(None, description="Termo de busca para nome, descricao, SKU, EAN"),
+        fornecedor_id: Optional[int] = Query(None, description="ID do fornecedor para filtrar produtos"),
+        categoria: Optional[str] = Query(None, description="Categoria para filtrar produtos"),
+        status_enriquecimento_web: Optional[models.StatusEnriquecimentoEnum] = Query(
+            None,
+            description="Filtrar por status de enriquecimento web",
+        ),
+        status_titulo_ia: Optional[models.StatusGeracaoIAEnum] = Query(
+            None,
+            description="Filtrar por status de geracao de titulo por IA",
+        ),
+        status_descricao_ia: Optional[models.StatusGeracaoIAEnum] = Query(
+            None,
+            description="Filtrar por status de geracao de descricao por IA",
+        ),
+        product_type_id: Optional[int] = Query(None, description="ID do tipo de produto"),
+        current_user: models.User = Depends(auth_utils.get_current_active_user),
+        request_services: _ProdutosRequestServices = Depends(_build_produtos_request_services),
+    ):
+        """Endpoint HTTP que delega a execucao para workflow/servico OO (read_produtos)."""
+        return request_services.product_management_service.list_produtos(
+            skip=skip,
+            limit=limit,
+            sort_by=sort_by,
+            sort_order=sort_order,
+            search=search,
+            fornecedor_id=fornecedor_id,
+            categoria=categoria,
+            status_enriquecimento_web=status_enriquecimento_web,
+            status_titulo_ia=status_titulo_ia,
+            status_descricao_ia=status_descricao_ia,
+            product_type_id=product_type_id,
+            current_user=current_user,
+        )
+
+    @router.put("/{produto_id}", response_model=schemas.ProdutoResponse)
+    def update_produto(
+        produto_id: int,
+        produto: schemas.ProdutoUpdate,
+        current_user: models.User = Depends(auth_utils.get_current_active_user),
+        request_services: _ProdutosRequestServices = Depends(_build_produtos_request_services),
+    ):
+        """Endpoint HTTP que delega a execucao para workflow/servico OO (update_produto)."""
+        return request_services.product_management_service.update_produto(
+            produto_id=produto_id,
+            produto_update=produto,
+            current_user=current_user,
+        )
+
+    @router.delete("/{produto_id}", response_model=schemas.ProdutoResponse)
+    def delete_produto(
+        produto_id: int,
+        current_user: models.User = Depends(auth_utils.get_current_active_user),
+        request_services: _ProdutosRequestServices = Depends(_build_produtos_request_services),
+    ):
+        """Endpoint HTTP que delega a execucao para workflow/servico OO (delete_produto)."""
+        return request_services.product_management_service.delete_produto(
+            produto_id=produto_id,
+            current_user=current_user,
+        )
+
+    @router.post("/batch-delete/", response_model=List[schemas.ProdutoResponse])
+    def batch_delete_produtos(
+        produto_ids: List[int] = Body(...),
+        current_user: models.User = Depends(auth_utils.get_current_active_user),
+        request_services: _ProdutosRequestServices = Depends(_build_produtos_request_services),
+    ):
+        """Endpoint HTTP que delega a execucao para workflow/servico OO (batch_delete_produtos)."""
+        return request_services.product_management_service.batch_delete_produtos(
+            produto_ids=produto_ids,
+            current_user=current_user,
+        )
+
+    @router.post("/upload-image/{produto_id}", response_model=schemas.ProdutoResponse)
+    async def upload_produto_image(
+        produto_id: int,
+        file: UploadFile = File(...),
+        current_user: models.User = Depends(auth_utils.get_current_active_user),
+        request_services: _ProdutosRequestServices = Depends(_build_produtos_request_services),
+    ):
+        """Endpoint HTTP que delega a execucao para workflow/servico OO (upload_produto_image)."""
+        return await request_services.product_media_service.upload_produto_image(
+            produto_id=produto_id,
+            file=file,
+            current_user=current_user,
+        )
+
+    @router.post("/importar-catalogo-preview/", response_model=schemas.ImportPreviewResponse)
+    async def importar_catalogo_preview(
+        file: UploadFile = File(...),
+        fornecedor_id: Optional[int] = Form(None),
+        start_page: int = Form(1),
+        page_count: int = Form(0),
+        dpi: int = Form(72),
+        current_user: models.User = Depends(auth_utils.get_current_active_user),
+        request_context: _ProdutosRequestContext = Depends(_build_produtos_request_context),
+    ):
+        """Endpoint HTTP que delega a execucao para workflow/servico OO (importar_catalogo_preview)."""
+        return await request_context.catalog_workflow.importar_catalogo_preview(
+            file=file,
+            fornecedor_id=fornecedor_id,
+            start_page=start_page,
+            page_count=page_count,
+            dpi=dpi,
+    
+            user_id=current_user.id,
+        )
+
+    @router.post("/importar-catalogo/{fornecedor_id}/", response_model=schemas.ImportCatalogoResponse)
+    async def importar_catalogo_fornecedor(
+        fornecedor_id: int,
+        file: UploadFile = File(...),
+        mapeamento_colunas_usuario: Optional[str] = Form(None),
+        current_user: models.User = Depends(auth_utils.get_current_active_user),
+        request_context: _ProdutosRequestContext = Depends(_build_produtos_request_context),
+    ):
+        """Endpoint HTTP que delega a execucao para workflow/servico OO (importar_catalogo_fornecedor)."""
+        return await request_context.catalog_workflow.importar_catalogo_fornecedor(
+            fornecedor_id=fornecedor_id,
+            file=file,
+            mapeamento_colunas_usuario=mapeamento_colunas_usuario,
+    
+            current_user=current_user,
+        )
+
+    @router.post("/importar-catalogo-finalizar/{file_id}/", status_code=status.HTTP_202_ACCEPTED)
+    async def importar_catalogo_finalizar(
+        background_tasks: BackgroundTasks,
+        file_id: int,
+        product_type_id: int = Body(..., embed=True),
+        fornecedor_id: int = Body(..., embed=True),
+        mapping: Optional[Dict[str, str]] = Body(None),
+        pages: Optional[List[int]] = Body(None),
+        region: Optional[List[float]] = Body(None),
+        current_user: models.User = Depends(auth_utils.get_current_active_user),
+        request_context: _ProdutosRequestContext = Depends(_build_produtos_request_context),
+    ):
+        """Endpoint HTTP que delega a execucao para workflow/servico OO (importar_catalogo_finalizar)."""
+        return await request_context.catalog_workflow.importar_catalogo_finalizar(
+            background_tasks=background_tasks,
+            file_id=file_id,
+            product_type_id=product_type_id,
+            fornecedor_id=fornecedor_id,
+            mapping=mapping,
+            pages=pages,
+            region=region,
+    
+            user_id=current_user.id,
+        )
+
+    @router.get("/importar-catalogo-status/{file_id}/", response_model=schemas.CatalogImportFileResponse)
+    def importar_catalogo_status(
+        file_id: int,
+        current_user: models.User = Depends(auth_utils.get_current_active_user),
+        request_context: _ProdutosRequestContext = Depends(_build_produtos_request_context),
+    ):
+        """Endpoint HTTP que delega a execucao para workflow/servico OO (importar_catalogo_status)."""
+        return request_context.catalog_workflow.importar_catalogo_status(
+            file_id=file_id,
+    
+            user_id=current_user.id,
+        )
+
+    @router.get(
+        "/importar-catalogo-status/{file_id}",
+        response_model=schemas.CatalogImportStatus,
+        include_in_schema=False,
     )
+    def importar_catalogo_status_simple(
+        file_id: int,
+        current_user: models.User = Depends(auth_utils.get_current_active_user),
+        request_context: _ProdutosRequestContext = Depends(_build_produtos_request_context),
+    ):
+        """Endpoint HTTP que delega a execucao para workflow/servico OO (importar_catalogo_status_simple)."""
+        return request_context.catalog_workflow.importar_catalogo_status_simple(
+            file_id=file_id,
+    
+            user_id=current_user.id,
+        )
 
-
-@router.get("/catalog-import-files/", response_model=schemas.CatalogImportFilePage)
-def list_catalog_import_files(
-    fornecedor_id: Optional[int] = Query(None, description="ID do fornecedor"),
-    skip: int = Query(0, ge=0, description="Numero de itens para pular"),
-    limit: int = Query(10, ge=1, le=100, description="Numero maximo de itens por pagina"),
-    current_user: models.User = Depends(auth_utils.get_current_active_user),
-    request_context: _ProdutosRequestContext = Depends(_build_produtos_request_context),
-):
-    """Endpoint HTTP que delega a execucao para workflow/servico OO (list_catalog_import_files)."""
-    return request_context.catalog_workflow.list_catalog_import_files(
-
-        user_id=current_user.id,
-        fornecedor_id=fornecedor_id,
-        skip=skip,
-        limit=limit,
+    @router.get(
+        "/importar-catalogo-result/{file_id}/",
+        response_model=Union[schemas.CatalogImportResult, schemas.CatalogImportResultPending],
     )
+    def importar_catalogo_result(
+        file_id: int,
+        current_user: models.User = Depends(auth_utils.get_current_active_user),
+        request_context: _ProdutosRequestContext = Depends(_build_produtos_request_context),
+    ):
+        """Endpoint HTTP que delega a execucao para workflow/servico OO (importar_catalogo_result)."""
+        return request_context.catalog_workflow.importar_catalogo_result(
+            file_id=file_id,
+    
+            user_id=current_user.id,
+        )
+
+    @router.post("/importar-catalogo-finalizar/", response_model=schemas.CatalogImportResult)
+    async def importar_catalogo_finalizar_todas_paginas(
+        file_id: int = Body(..., embed=True),
+        start_page: int = Body(1, embed=True),
+        mapping: Optional[Dict[str, str]] = Body(None),
+        current_user: models.User = Depends(auth_utils.get_current_active_user),
+        request_context: _ProdutosRequestContext = Depends(_build_produtos_request_context),
+    ):
+        """Endpoint HTTP que delega a execucao para workflow/servico OO (importar_catalogo_finalizar_todas_paginas)."""
+        return await request_context.catalog_workflow.importar_catalogo_finalizar_todas_paginas(
+            file_id=file_id,
+            start_page=start_page,
+            mapping=mapping,
+    
+            user_id=current_user.id,
+        )
+
+    @router.post("/selecionar-regiao/", response_model=schemas.RegionExtractionResponse)
+    async def selecionar_regiao(
+        file_id: int = Body(..., embed=True),
+        page: int = Body(..., embed=True),
+        bbox: List[float] = Body(..., embed=True),
+        bbox_norm: Optional[List[float]] = Body(None, embed=True),
+        current_user: models.User = Depends(auth_utils.get_current_active_user),
+        request_context: _ProdutosRequestContext = Depends(_build_produtos_request_context),
+    ):
+        """Endpoint HTTP que delega a execucao para workflow/servico OO (selecionar_regiao)."""
+        return await request_context.catalog_workflow.selecionar_regiao(
+            file_id=file_id,
+            page=page,
+            bbox=bbox,
+            bbox_norm=bbox_norm,
+    
+            user_id=current_user.id,
+        )
+
+    @router.post("/extrair-pagina-unica/", response_model=schemas.SinglePageExtractionResponse)
+    async def extrair_pagina_unica(
+        file_id: int = Body(..., embed=True),
+        page_number: int = Body(..., embed=True),
+        current_user: models.User = Depends(auth_utils.get_current_active_user),
+        request_context: _ProdutosRequestContext = Depends(_build_produtos_request_context),
+    ):
+        """Endpoint HTTP que delega a execucao para workflow/servico OO (extrair_pagina_unica)."""
+        return await request_context.catalog_workflow.extrair_pagina_unica(
+            file_id=file_id,
+            page_number=page_number,
+    
+            user_id=current_user.id,
+        )
+
+create_produto = _EndpointHandlers.create_produto
+list_catalog_import_files = _EndpointHandlers.list_catalog_import_files
+delete_catalog_import_file = _EndpointHandlers.delete_catalog_import_file
+reprocess_catalog_import_file = _EndpointHandlers.reprocess_catalog_import_file
+read_produto = _EndpointHandlers.read_produto
+read_produtos = _EndpointHandlers.read_produtos
+update_produto = _EndpointHandlers.update_produto
+delete_produto = _EndpointHandlers.delete_produto
+batch_delete_produtos = _EndpointHandlers.batch_delete_produtos
+upload_produto_image = _EndpointHandlers.upload_produto_image
+importar_catalogo_preview = _EndpointHandlers.importar_catalogo_preview
+importar_catalogo_fornecedor = _EndpointHandlers.importar_catalogo_fornecedor
+importar_catalogo_finalizar = _EndpointHandlers.importar_catalogo_finalizar
+importar_catalogo_status = _EndpointHandlers.importar_catalogo_status
+importar_catalogo_status_simple = _EndpointHandlers.importar_catalogo_status_simple
+importar_catalogo_result = _EndpointHandlers.importar_catalogo_result
+importar_catalogo_finalizar_todas_paginas = _EndpointHandlers.importar_catalogo_finalizar_todas_paginas
+selecionar_regiao = _EndpointHandlers.selecionar_regiao
+extrair_pagina_unica = _EndpointHandlers.extrair_pagina_unica
 
 
-@router.delete("/catalog-import-files/{file_id}/", response_model=schemas.CatalogImportFileResponse)
-def delete_catalog_import_file(
-    file_id: int,
-    current_user: models.User = Depends(auth_utils.get_current_active_user),
-    request_context: _ProdutosRequestContext = Depends(_build_produtos_request_context),
-):
-    """Endpoint HTTP que delega a execucao para workflow/servico OO (delete_catalog_import_file)."""
-    return request_context.catalog_workflow.delete_catalog_import_file(
-
-        file_id=file_id,
-        user_id=current_user.id,
-    )
 
 
-@router.post("/catalog-import-files/{file_id}/reprocess/", status_code=status.HTTP_202_ACCEPTED)
-async def reprocess_catalog_import_file(
-    background_tasks: BackgroundTasks,
-    file_id: int,
-    product_type_id: Optional[int] = Body(None, embed=True),
-    fornecedor_id: Optional[int] = Body(None, embed=True),
-    mapping: Optional[Dict[str, str]] = Body(None),
-    pages: Optional[List[int]] = Body(None),
-    region: Optional[List[float]] = Body(None),
-    current_user: models.User = Depends(auth_utils.get_current_active_user),
-    request_context: _ProdutosRequestContext = Depends(_build_produtos_request_context),
-):
-    """Endpoint HTTP que delega a execucao para workflow/servico OO (reprocess_catalog_import_file)."""
-    return await request_context.catalog_workflow.reprocess_catalog_import_file(
-        background_tasks=background_tasks,
-
-        file_id=file_id,
-        user_id=current_user.id,
-        product_type_id=product_type_id,
-        fornecedor_id=fornecedor_id,
-        mapping=mapping,
-        pages=pages,
-        region=region,
-    )
 
 
-@router.get("/{produto_id}", response_model=schemas.ProdutoResponse)
-def read_produto(
-    produto_id: int,
-    current_user: models.User = Depends(auth_utils.get_current_active_user),
-    request_services: _ProdutosRequestServices = Depends(_build_produtos_request_services),
-):
-    """Endpoint HTTP que delega a execucao para workflow/servico OO (read_produto)."""
-    return request_services.product_management_service.read_produto(
-        produto_id=produto_id,
-        current_user=current_user,
-    )
+
+
 
 
 router.add_api_route(
@@ -1126,74 +1405,10 @@ router.add_api_route(
 )
 
 
-@router.get("/", response_model=schemas.ProdutoPage)
-def read_produtos(
-    skip: int = Query(0, ge=0, description="Numero de itens para pular"),
-    limit: int = Query(10, ge=1, le=200, description="Numero maximo de itens por pagina"),
-    sort_by: Optional[str] = Query(None, description="Campo para ordenacao"),
-    sort_order: Optional[str] = Query("asc", description="Ordem da ordenacao (asc/desc)"),
-    search: Optional[str] = Query(None, description="Termo de busca para nome, descricao, SKU, EAN"),
-    fornecedor_id: Optional[int] = Query(None, description="ID do fornecedor para filtrar produtos"),
-    categoria: Optional[str] = Query(None, description="Categoria para filtrar produtos"),
-    status_enriquecimento_web: Optional[models.StatusEnriquecimentoEnum] = Query(
-        None,
-        description="Filtrar por status de enriquecimento web",
-    ),
-    status_titulo_ia: Optional[models.StatusGeracaoIAEnum] = Query(
-        None,
-        description="Filtrar por status de geracao de titulo por IA",
-    ),
-    status_descricao_ia: Optional[models.StatusGeracaoIAEnum] = Query(
-        None,
-        description="Filtrar por status de geracao de descricao por IA",
-    ),
-    product_type_id: Optional[int] = Query(None, description="ID do tipo de produto"),
-    current_user: models.User = Depends(auth_utils.get_current_active_user),
-    request_services: _ProdutosRequestServices = Depends(_build_produtos_request_services),
-):
-    """Endpoint HTTP que delega a execucao para workflow/servico OO (read_produtos)."""
-    return request_services.product_management_service.list_produtos(
-        skip=skip,
-        limit=limit,
-        sort_by=sort_by,
-        sort_order=sort_order,
-        search=search,
-        fornecedor_id=fornecedor_id,
-        categoria=categoria,
-        status_enriquecimento_web=status_enriquecimento_web,
-        status_titulo_ia=status_titulo_ia,
-        status_descricao_ia=status_descricao_ia,
-        product_type_id=product_type_id,
-        current_user=current_user,
-    )
 
 
-@router.put("/{produto_id}", response_model=schemas.ProdutoResponse)
-def update_produto(
-    produto_id: int,
-    produto: schemas.ProdutoUpdate,
-    current_user: models.User = Depends(auth_utils.get_current_active_user),
-    request_services: _ProdutosRequestServices = Depends(_build_produtos_request_services),
-):
-    """Endpoint HTTP que delega a execucao para workflow/servico OO (update_produto)."""
-    return request_services.product_management_service.update_produto(
-        produto_id=produto_id,
-        produto_update=produto,
-        current_user=current_user,
-    )
 
 
-@router.delete("/{produto_id}", response_model=schemas.ProdutoResponse)
-def delete_produto(
-    produto_id: int,
-    current_user: models.User = Depends(auth_utils.get_current_active_user),
-    request_services: _ProdutosRequestServices = Depends(_build_produtos_request_services),
-):
-    """Endpoint HTTP que delega a execucao para workflow/servico OO (delete_produto)."""
-    return request_services.product_management_service.delete_produto(
-        produto_id=produto_id,
-        current_user=current_user,
-    )
 
 
 router.add_api_route(
@@ -1213,201 +1428,26 @@ router.add_api_route(
 )
 
 
-@router.post("/batch-delete/", response_model=List[schemas.ProdutoResponse])
-def batch_delete_produtos(
-    produto_ids: List[int] = Body(...),
-    current_user: models.User = Depends(auth_utils.get_current_active_user),
-    request_services: _ProdutosRequestServices = Depends(_build_produtos_request_services),
-):
-    """Endpoint HTTP que delega a execucao para workflow/servico OO (batch_delete_produtos)."""
-    return request_services.product_management_service.batch_delete_produtos(
-        produto_ids=produto_ids,
-        current_user=current_user,
-    )
 
 
-@router.post("/upload-image/{produto_id}", response_model=schemas.ProdutoResponse)
-async def upload_produto_image(
-    produto_id: int,
-    file: UploadFile = File(...),
-    current_user: models.User = Depends(auth_utils.get_current_active_user),
-    request_services: _ProdutosRequestServices = Depends(_build_produtos_request_services),
-):
-    """Endpoint HTTP que delega a execucao para workflow/servico OO (upload_produto_image)."""
-    return await request_services.product_media_service.upload_produto_image(
-        produto_id=produto_id,
-        file=file,
-        current_user=current_user,
-    )
 
 
-@router.post("/importar-catalogo-preview/", response_model=schemas.ImportPreviewResponse)
-async def importar_catalogo_preview(
-    file: UploadFile = File(...),
-    fornecedor_id: Optional[int] = Form(None),
-    start_page: int = Form(1),
-    page_count: int = Form(0),
-    dpi: int = Form(72),
-    current_user: models.User = Depends(auth_utils.get_current_active_user),
-    request_context: _ProdutosRequestContext = Depends(_build_produtos_request_context),
-):
-    """Endpoint HTTP que delega a execucao para workflow/servico OO (importar_catalogo_preview)."""
-    return await request_context.catalog_workflow.importar_catalogo_preview(
-        file=file,
-        fornecedor_id=fornecedor_id,
-        start_page=start_page,
-        page_count=page_count,
-        dpi=dpi,
-
-        user_id=current_user.id,
-    )
 
 
-@router.post("/importar-catalogo/{fornecedor_id}/", response_model=schemas.ImportCatalogoResponse)
-async def importar_catalogo_fornecedor(
-    fornecedor_id: int,
-    file: UploadFile = File(...),
-    mapeamento_colunas_usuario: Optional[str] = Form(None),
-    current_user: models.User = Depends(auth_utils.get_current_active_user),
-    request_context: _ProdutosRequestContext = Depends(_build_produtos_request_context),
-):
-    """Endpoint HTTP que delega a execucao para workflow/servico OO (importar_catalogo_fornecedor)."""
-    return await request_context.catalog_workflow.importar_catalogo_fornecedor(
-        fornecedor_id=fornecedor_id,
-        file=file,
-        mapeamento_colunas_usuario=mapeamento_colunas_usuario,
-
-        current_user=current_user,
-    )
 
 
-@router.post("/importar-catalogo-finalizar/{file_id}/", status_code=status.HTTP_202_ACCEPTED)
-async def importar_catalogo_finalizar(
-    background_tasks: BackgroundTasks,
-    file_id: int,
-    product_type_id: int = Body(..., embed=True),
-    fornecedor_id: int = Body(..., embed=True),
-    mapping: Optional[Dict[str, str]] = Body(None),
-    pages: Optional[List[int]] = Body(None),
-    region: Optional[List[float]] = Body(None),
-    current_user: models.User = Depends(auth_utils.get_current_active_user),
-    request_context: _ProdutosRequestContext = Depends(_build_produtos_request_context),
-):
-    """Endpoint HTTP que delega a execucao para workflow/servico OO (importar_catalogo_finalizar)."""
-    return await request_context.catalog_workflow.importar_catalogo_finalizar(
-        background_tasks=background_tasks,
-        file_id=file_id,
-        product_type_id=product_type_id,
-        fornecedor_id=fornecedor_id,
-        mapping=mapping,
-        pages=pages,
-        region=region,
-
-        user_id=current_user.id,
-    )
 
 
-@router.get("/importar-catalogo-status/{file_id}/", response_model=schemas.CatalogImportFileResponse)
-def importar_catalogo_status(
-    file_id: int,
-    current_user: models.User = Depends(auth_utils.get_current_active_user),
-    request_context: _ProdutosRequestContext = Depends(_build_produtos_request_context),
-):
-    """Endpoint HTTP que delega a execucao para workflow/servico OO (importar_catalogo_status)."""
-    return request_context.catalog_workflow.importar_catalogo_status(
-        file_id=file_id,
-
-        user_id=current_user.id,
-    )
 
 
-@router.get(
-    "/importar-catalogo-status/{file_id}",
-    response_model=schemas.CatalogImportStatus,
-    include_in_schema=False,
-)
-def importar_catalogo_status_simple(
-    file_id: int,
-    current_user: models.User = Depends(auth_utils.get_current_active_user),
-    request_context: _ProdutosRequestContext = Depends(_build_produtos_request_context),
-):
-    """Endpoint HTTP que delega a execucao para workflow/servico OO (importar_catalogo_status_simple)."""
-    return request_context.catalog_workflow.importar_catalogo_status_simple(
-        file_id=file_id,
-
-        user_id=current_user.id,
-    )
 
 
-@router.get(
-    "/importar-catalogo-result/{file_id}/",
-    response_model=Union[schemas.CatalogImportResult, schemas.CatalogImportResultPending],
-)
-def importar_catalogo_result(
-    file_id: int,
-    current_user: models.User = Depends(auth_utils.get_current_active_user),
-    request_context: _ProdutosRequestContext = Depends(_build_produtos_request_context),
-):
-    """Endpoint HTTP que delega a execucao para workflow/servico OO (importar_catalogo_result)."""
-    return request_context.catalog_workflow.importar_catalogo_result(
-        file_id=file_id,
-
-        user_id=current_user.id,
-    )
 
 
-@router.post("/importar-catalogo-finalizar/", response_model=schemas.CatalogImportResult)
-async def importar_catalogo_finalizar_todas_paginas(
-    file_id: int = Body(..., embed=True),
-    start_page: int = Body(1, embed=True),
-    mapping: Optional[Dict[str, str]] = Body(None),
-    current_user: models.User = Depends(auth_utils.get_current_active_user),
-    request_context: _ProdutosRequestContext = Depends(_build_produtos_request_context),
-):
-    """Endpoint HTTP que delega a execucao para workflow/servico OO (importar_catalogo_finalizar_todas_paginas)."""
-    return await request_context.catalog_workflow.importar_catalogo_finalizar_todas_paginas(
-        file_id=file_id,
-        start_page=start_page,
-        mapping=mapping,
-
-        user_id=current_user.id,
-    )
 
 
-@router.post("/selecionar-regiao/", response_model=schemas.RegionExtractionResponse)
-async def selecionar_regiao(
-    file_id: int = Body(..., embed=True),
-    page: int = Body(..., embed=True),
-    bbox: List[float] = Body(..., embed=True),
-    bbox_norm: Optional[List[float]] = Body(None, embed=True),
-    current_user: models.User = Depends(auth_utils.get_current_active_user),
-    request_context: _ProdutosRequestContext = Depends(_build_produtos_request_context),
-):
-    """Endpoint HTTP que delega a execucao para workflow/servico OO (selecionar_regiao)."""
-    return await request_context.catalog_workflow.selecionar_regiao(
-        file_id=file_id,
-        page=page,
-        bbox=bbox,
-        bbox_norm=bbox_norm,
-
-        user_id=current_user.id,
-    )
 
 
-@router.post("/extrair-pagina-unica/", response_model=schemas.SinglePageExtractionResponse)
-async def extrair_pagina_unica(
-    file_id: int = Body(..., embed=True),
-    page_number: int = Body(..., embed=True),
-    current_user: models.User = Depends(auth_utils.get_current_active_user),
-    request_context: _ProdutosRequestContext = Depends(_build_produtos_request_context),
-):
-    """Endpoint HTTP que delega a execucao para workflow/servico OO (extrair_pagina_unica)."""
-    return await request_context.catalog_workflow.extrair_pagina_unica(
-        file_id=file_id,
-        page_number=page_number,
-
-        user_id=current_user.id,
-    )
 
 
 

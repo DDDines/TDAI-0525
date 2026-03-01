@@ -160,19 +160,23 @@ _build_search_request_workflow = build_request_scoped_dependency(
 )
 
 
-@router.get("/", response_model=schemas.SearchResults)
-def search_all(
-    q: Optional[str] = Query(None, min_length=1),
-    limit: int = Query(10, ge=1, le=50),
-    request_workflow: _SearchRequestScope = Depends(_build_search_request_workflow),
-    current_user: models.User = Depends(auth_utils.get_current_active_user),
-):
-    """Endpoint HTTP que delega a execucao para workflow/servico OO (search_all)."""
-    return request_workflow.search_all(
-        current_user=current_user,
-        q=q,
-        limit=limit,
-    )
+class _EndpointHandlers:
+
+    @router.get("/", response_model=schemas.SearchResults)
+    def search_all(
+        q: Optional[str] = Query(None, min_length=1),
+        limit: int = Query(10, ge=1, le=50),
+        request_workflow: _SearchRequestScope = Depends(_build_search_request_workflow),
+        current_user: models.User = Depends(auth_utils.get_current_active_user),
+    ):
+        """Endpoint HTTP que delega a execucao para workflow/servico OO (search_all)."""
+        return request_workflow.search_all(
+            current_user=current_user,
+            q=q,
+            limit=limit,
+        )
+
+search_all = _EndpointHandlers.search_all
 
 
 

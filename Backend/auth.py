@@ -507,59 +507,71 @@ class _AuthActiveUserDependency:
 get_current_active_user = _AuthActiveUserDependency.get_current_active_user
 
 
-@router.post("/token", response_model=schemas.Token)
-async def login_for_access_token(
-    form_data: OAuth2PasswordRequestForm = Depends(),
-    db: Session = Depends(get_db),
-):
-    """Endpoint de login por credenciais locais."""
-    return await get_auth_workflow().login_for_access_token(form_data=form_data, db=db)
+class _EndpointHandlers:
+
+    @router.post("/token", response_model=schemas.Token)
+    async def login_for_access_token(
+        form_data: OAuth2PasswordRequestForm = Depends(),
+        db: Session = Depends(get_db),
+    ):
+        """Endpoint de login por credenciais locais."""
+        return await get_auth_workflow().login_for_access_token(form_data=form_data, db=db)
+
+    @router.post("/token/refresh/", response_model=schemas.Token)
+    async def refresh_access_token(
+        refresh_token_data: schemas.RefreshTokenRequest,
+        db: Session = Depends(get_db),
+    ):
+        """Endpoint de refresh token."""
+        return await get_auth_workflow().refresh_access_token(
+            refresh_token_data=refresh_token_data,
+            db=db,
+        )
+
+    @router.get("/users/me", response_model=schemas.UserResponse)
+    async def read_users_me(current_user: models.User = Depends(get_current_active_user)):
+        """Retorna perfil do usuario autenticado."""
+        return current_user
+
+    @router.put("/users/me", response_model=schemas.UserResponse)
+    async def update_users_me(
+        user_update: schemas.UserUpdate,
+        current_user: models.User = Depends(get_current_active_user),
+        db: Session = Depends(get_db),
+    ):
+        """Atualiza dados de perfil do usuario autenticado."""
+        return await get_auth_workflow().update_users_me(
+            user_update=user_update,
+            current_user=current_user,
+            db=db,
+        )
+
+    @router.put("/users/me/change-password")
+    async def change_password_me(
+        payload: schemas.UserChangePassword,
+        current_user: models.User = Depends(get_current_active_user),
+        db: Session = Depends(get_db),
+    ):
+        """Atualiza senha do usuario autenticado."""
+        return await get_auth_workflow().change_password_me(
+            payload=payload,
+            current_user=current_user,
+            db=db,
+        )
+
+login_for_access_token = _EndpointHandlers.login_for_access_token
+refresh_access_token = _EndpointHandlers.refresh_access_token
+read_users_me = _EndpointHandlers.read_users_me
+update_users_me = _EndpointHandlers.update_users_me
+change_password_me = _EndpointHandlers.change_password_me
 
 
-@router.post("/token/refresh/", response_model=schemas.Token)
-async def refresh_access_token(
-    refresh_token_data: schemas.RefreshTokenRequest,
-    db: Session = Depends(get_db),
-):
-    """Endpoint de refresh token."""
-    return await get_auth_workflow().refresh_access_token(
-        refresh_token_data=refresh_token_data,
-        db=db,
-    )
 
 
-@router.get("/users/me", response_model=schemas.UserResponse)
-async def read_users_me(current_user: models.User = Depends(get_current_active_user)):
-    """Retorna perfil do usuario autenticado."""
-    return current_user
 
 
-@router.put("/users/me", response_model=schemas.UserResponse)
-async def update_users_me(
-    user_update: schemas.UserUpdate,
-    current_user: models.User = Depends(get_current_active_user),
-    db: Session = Depends(get_db),
-):
-    """Atualiza dados de perfil do usuario autenticado."""
-    return await get_auth_workflow().update_users_me(
-        user_update=user_update,
-        current_user=current_user,
-        db=db,
-    )
 
 
-@router.put("/users/me/change-password")
-async def change_password_me(
-    payload: schemas.UserChangePassword,
-    current_user: models.User = Depends(get_current_active_user),
-    db: Session = Depends(get_db),
-):
-    """Atualiza senha do usuario autenticado."""
-    return await get_auth_workflow().change_password_me(
-        payload=payload,
-        current_user=current_user,
-        db=db,
-    )
 
 
 

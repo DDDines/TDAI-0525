@@ -1,4 +1,4 @@
-﻿"""Camada de transporte HTTP para o dominio 'password_recovery'."""
+"""Camada de transporte HTTP para o dominio 'password_recovery'."""
 from __future__ import annotations
 
 from datetime import datetime, timedelta, timezone
@@ -210,30 +210,36 @@ _build_password_recovery_request_workflow = build_request_scoped_dependency(
 )
 
 
-@router.post("/password-recovery/{email}", response_model=schemas.Msg)
-async def recover_password(
-    email: str,
-    request: Request,
-    request_workflow: _PasswordRecoveryRequestScope = Depends(
-        _build_password_recovery_request_workflow
-    ),
-):
-    """Endpoint HTTP que delega a execucao para workflow/servico OO (recover_password)."""
-    return await request_workflow.recover_password(
-        email=email,
-        request=request,
-    )
+class _EndpointHandlers:
+
+    @router.post("/password-recovery/{email}", response_model=schemas.Msg)
+    async def recover_password(
+        email: str,
+        request: Request,
+        request_workflow: _PasswordRecoveryRequestScope = Depends(
+            _build_password_recovery_request_workflow
+        ),
+    ):
+        """Endpoint HTTP que delega a execucao para workflow/servico OO (recover_password)."""
+        return await request_workflow.recover_password(
+            email=email,
+            request=request,
+        )
+
+    @router.post("/reset-password/", response_model=schemas.Msg)
+    def reset_password(
+        *,
+        reset_data: schemas.PasswordResetSchema = Body(...),
+        request_workflow: _PasswordRecoveryRequestScope = Depends(
+            _build_password_recovery_request_workflow
+        ),
+    ):
+        """Endpoint HTTP que delega a execucao para workflow/servico OO (reset_password)."""
+        return request_workflow.reset_password(
+            reset_data=reset_data,
+        )
+
+recover_password = _EndpointHandlers.recover_password
+reset_password = _EndpointHandlers.reset_password
 
 
-@router.post("/reset-password/", response_model=schemas.Msg)
-def reset_password(
-    *,
-    reset_data: schemas.PasswordResetSchema = Body(...),
-    request_workflow: _PasswordRecoveryRequestScope = Depends(
-        _build_password_recovery_request_workflow
-    ),
-):
-    """Endpoint HTTP que delega a execucao para workflow/servico OO (reset_password)."""
-    return request_workflow.reset_password(
-        reset_data=reset_data,
-    )

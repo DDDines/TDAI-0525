@@ -1,4 +1,4 @@
-﻿"""Bootstrap principal da API e composicao da aplicacao em modo OOP."""
+"""Bootstrap principal da API e composicao da aplicacao em modo OOP."""
 # Backend/main.py
 from contextlib import asynccontextmanager
 from pathlib import Path
@@ -520,14 +520,28 @@ app.mount("/static", StaticFiles(directory=static_files_path), name="static")
 startup_event_create_defaults = _MainLifecycleEntries.startup_event_create_defaults
 
 
-@app.post(
-    "/api/v1/users/",
-    response_model=schemas.UserResponse,
-    status_code=status.HTTP_201_CREATED,
-    tags=["Usuarios"],
-)
-def create_new_user(user_in: schemas.UserCreate, db: Session = Depends(get_db)):
-    return get_main_bootstrap_workflow().create_new_user(user_in=user_in, db=db)
+class _EndpointHandlers:
+
+    @app.post(
+        "/api/v1/users/",
+        response_model=schemas.UserResponse,
+        status_code=status.HTTP_201_CREATED,
+        tags=["Usuarios"],
+    )
+    def create_new_user(user_in: schemas.UserCreate, db: Session = Depends(get_db)):
+        return get_main_bootstrap_workflow().create_new_user(user_in=user_in, db=db)
+
+    @app.get("/", tags=["Raiz"])
+    async def root():
+        return {"message": f"Bem-vindo a API do {settings.PROJECT_NAME}!"}
+
+    @app.get("/health", status_code=status.HTTP_200_OK, tags=["Health Check"])
+    async def health_check():
+        return {"status": "ok"}
+
+create_new_user = _EndpointHandlers.create_new_user
+root = _EndpointHandlers.root
+health_check = _EndpointHandlers.health_check
 
 
 app.include_router(auth_router_direct, prefix=settings.API_V1_STR + "/auth", tags=["Autenticacao e Usuarios"])
@@ -544,11 +558,5 @@ app.include_router(password_recovery_router, prefix=settings.API_V1_STR, tags=["
 app.include_router(admin_analytics_router, prefix=settings.API_V1_STR + "/admin/analytics", tags=["Analytics (Admin)"])
 
 
-@app.get("/", tags=["Raiz"])
-async def root():
-    return {"message": f"Bem-vindo a API do {settings.PROJECT_NAME}!"}
 
 
-@app.get("/health", status_code=status.HTTP_200_OK, tags=["Health Check"])
-async def health_check():
-    return {"status": "ok"}

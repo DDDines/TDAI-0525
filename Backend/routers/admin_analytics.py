@@ -339,113 +339,129 @@ _build_admin_analytics_request_workflow = build_request_scoped_dependency(
 )
 
 
-@router.get(
-    "/counts",
-    response_model=schemas.TotalCounts,
-    dependencies=[Depends(get_current_active_admin_user)],
-)
-async def get_total_counts_endpoint(
-    request_workflow: _AdminAnalyticsRequestScope = Depends(
-        _build_admin_analytics_request_workflow
-    ),
-):
-    """Endpoint HTTP que delega a execucao para workflow/servico OO (get_total_counts_endpoint)."""
-    return request_workflow.get_total_counts()
+class _EndpointHandlers:
 
-
-@router.get(
-    "/uso-ia/por-plano",
-    response_model=List[schemas.UsoIAPorPlano],
-    dependencies=[Depends(get_current_active_admin_user)],
-)
-async def get_uso_ia_por_plano_endpoint(
-    request_workflow: _AdminAnalyticsRequestScope = Depends(
-        _build_admin_analytics_request_workflow
-    ),
-):
-    """Endpoint HTTP que delega a execucao para workflow/servico OO (get_uso_ia_por_plano_endpoint)."""
-    return request_workflow.get_uso_ia_por_plano()
-
-
-@router.get(
-    "/uso-ia/por-tipo",
-    response_model=List[schemas.UsoIAPorTipo],
-    dependencies=[Depends(get_current_active_admin_user)],
-)
-async def get_uso_ia_por_tipo_endpoint(
-    request_workflow: _AdminAnalyticsRequestScope = Depends(
-        _build_admin_analytics_request_workflow
-    ),
-):
-    """Endpoint HTTP que delega a execucao para workflow/servico OO (get_uso_ia_por_tipo_endpoint)."""
-    return request_workflow.get_uso_ia_por_tipo()
-
-
-@router.get(
-    "/user-activity/",
-    response_model=List[schemas.UserActivity],
-    dependencies=[Depends(get_current_active_admin_user)],
-)
-async def get_user_activity_endpoint(
-    request_workflow: _AdminAnalyticsRequestScope = Depends(
-        _build_admin_analytics_request_workflow
-    ),
-    skip: int = Query(0, ge=0),
-    limit: int = Query(100, ge=1, le=200),
-):
-    """Endpoint HTTP que delega a execucao para workflow/servico OO (get_user_activity_endpoint)."""
-    return request_workflow.get_user_activity(
-        skip=skip,
-        limit=limit,
+    @router.get(
+        "/counts",
+        response_model=schemas.TotalCounts,
+        dependencies=[Depends(get_current_active_admin_user)],
     )
+    async def get_total_counts_endpoint(
+        request_workflow: _AdminAnalyticsRequestScope = Depends(
+            _build_admin_analytics_request_workflow
+        ),
+    ):
+        """Endpoint HTTP que delega a execucao para workflow/servico OO (get_total_counts_endpoint)."""
+        return request_workflow.get_total_counts()
 
-
-@router.get(
-    "/product-status-counts",
-    response_model=List[schemas.ProductStatusCount],
-    dependencies=[Depends(get_current_active_admin_user)],
-)
-async def get_product_status_counts(
-    request_workflow: _AdminAnalyticsRequestScope = Depends(
-        _build_admin_analytics_request_workflow
-    ),
-):
-    """Endpoint HTTP que delega a execucao para workflow/servico OO (get_product_status_counts)."""
-    return request_workflow.get_product_status_counts()
-
-
-@router.get(
-    "/recent-activities",
-    response_model=List[schemas.RecentActivity],
-    dependencies=[Depends(get_current_active_admin_user)],
-)
-async def get_recent_activities(
-    request_workflow: _AdminAnalyticsRequestScope = Depends(
-        _build_admin_analytics_request_workflow
-    ),
-    limit: int = Query(10, ge=1, le=50),
-):
-    """Endpoint HTTP que delega a execucao para workflow/servico OO (get_recent_activities)."""
-    return request_workflow.get_recent_activities(
-        limit=limit,
+    @router.get(
+        "/uso-ia/por-plano",
+        response_model=List[schemas.UsoIAPorPlano],
+        dependencies=[Depends(get_current_active_admin_user)],
     )
+    async def get_uso_ia_por_plano_endpoint(
+        request_workflow: _AdminAnalyticsRequestScope = Depends(
+            _build_admin_analytics_request_workflow
+        ),
+    ):
+        """Endpoint HTTP que delega a execucao para workflow/servico OO (get_uso_ia_por_plano_endpoint)."""
+        return request_workflow.get_uso_ia_por_plano()
 
-
-@router.get(
-    "/recent-historico",
-    response_model=List[schemas.RegistroHistoricoResponse],
-    dependencies=[Depends(get_current_active_admin_user)],
-)
-async def get_recent_historico(
-    request_workflow: _AdminAnalyticsRequestScope = Depends(
-        _build_admin_analytics_request_workflow
-    ),
-    limit: int = Query(10, ge=1, le=50),
-):
-    """Endpoint HTTP que delega a execucao para workflow/servico OO (get_recent_historico)."""
-    return request_workflow.get_recent_historico(
-        limit=limit,
+    @router.get(
+        "/uso-ia/por-tipo",
+        response_model=List[schemas.UsoIAPorTipo],
+        dependencies=[Depends(get_current_active_admin_user)],
     )
+    async def get_uso_ia_por_tipo_endpoint(
+        request_workflow: _AdminAnalyticsRequestScope = Depends(
+            _build_admin_analytics_request_workflow
+        ),
+    ):
+        """Endpoint HTTP que delega a execucao para workflow/servico OO (get_uso_ia_por_tipo_endpoint)."""
+        return request_workflow.get_uso_ia_por_tipo()
+
+    @router.get(
+        "/user-activity/",
+        response_model=List[schemas.UserActivity],
+        dependencies=[Depends(get_current_active_admin_user)],
+    )
+    async def get_user_activity_endpoint(
+        request_workflow: _AdminAnalyticsRequestScope = Depends(
+            _build_admin_analytics_request_workflow
+        ),
+        skip: int = Query(0, ge=0),
+        limit: int = Query(100, ge=1, le=200),
+    ):
+        """Endpoint HTTP que delega a execucao para workflow/servico OO (get_user_activity_endpoint)."""
+        return request_workflow.get_user_activity(
+            skip=skip,
+            limit=limit,
+        )
+
+    @router.get(
+        "/product-status-counts",
+        response_model=List[schemas.ProductStatusCount],
+        dependencies=[Depends(get_current_active_admin_user)],
+    )
+    async def get_product_status_counts(
+        request_workflow: _AdminAnalyticsRequestScope = Depends(
+            _build_admin_analytics_request_workflow
+        ),
+    ):
+        """Endpoint HTTP que delega a execucao para workflow/servico OO (get_product_status_counts)."""
+        return request_workflow.get_product_status_counts()
+
+    @router.get(
+        "/recent-activities",
+        response_model=List[schemas.RecentActivity],
+        dependencies=[Depends(get_current_active_admin_user)],
+    )
+    async def get_recent_activities(
+        request_workflow: _AdminAnalyticsRequestScope = Depends(
+            _build_admin_analytics_request_workflow
+        ),
+        limit: int = Query(10, ge=1, le=50),
+    ):
+        """Endpoint HTTP que delega a execucao para workflow/servico OO (get_recent_activities)."""
+        return request_workflow.get_recent_activities(
+            limit=limit,
+        )
+
+    @router.get(
+        "/recent-historico",
+        response_model=List[schemas.RegistroHistoricoResponse],
+        dependencies=[Depends(get_current_active_admin_user)],
+    )
+    async def get_recent_historico(
+        request_workflow: _AdminAnalyticsRequestScope = Depends(
+            _build_admin_analytics_request_workflow
+        ),
+        limit: int = Query(10, ge=1, le=50),
+    ):
+        """Endpoint HTTP que delega a execucao para workflow/servico OO (get_recent_historico)."""
+        return request_workflow.get_recent_historico(
+            limit=limit,
+        )
+
+get_total_counts_endpoint = _EndpointHandlers.get_total_counts_endpoint
+get_uso_ia_por_plano_endpoint = _EndpointHandlers.get_uso_ia_por_plano_endpoint
+get_uso_ia_por_tipo_endpoint = _EndpointHandlers.get_uso_ia_por_tipo_endpoint
+get_user_activity_endpoint = _EndpointHandlers.get_user_activity_endpoint
+get_product_status_counts = _EndpointHandlers.get_product_status_counts
+get_recent_activities = _EndpointHandlers.get_recent_activities
+get_recent_historico = _EndpointHandlers.get_recent_historico
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 

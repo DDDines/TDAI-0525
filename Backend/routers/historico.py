@@ -102,24 +102,30 @@ _build_historico_workflow = build_request_scoped_dependency(
 )
 
 
-@router.get("/", response_model=schemas.HistoricoPage)
-def list_historico(
-    skip: int = Query(0, ge=0),
-    limit: int = Query(10, ge=1, le=100),
-    current_user: models.User = Depends(auth_utils.get_current_active_user),
-    workflow: _HistoricoWorkflow = Depends(_build_historico_workflow),
-):
-    """Endpoint HTTP que delega a execucao para workflow/servico OO (list_historico)."""
-    return workflow.list_historico(
-        current_user=current_user,
-        skip=skip,
-        limit=limit,
-    )
+class _EndpointHandlers:
+
+    @router.get("/", response_model=schemas.HistoricoPage)
+    def list_historico(
+        skip: int = Query(0, ge=0),
+        limit: int = Query(10, ge=1, le=100),
+        current_user: models.User = Depends(auth_utils.get_current_active_user),
+        workflow: _HistoricoWorkflow = Depends(_build_historico_workflow),
+    ):
+        """Endpoint HTTP que delega a execucao para workflow/servico OO (list_historico)."""
+        return workflow.list_historico(
+            current_user=current_user,
+            skip=skip,
+            limit=limit,
+        )
+
+    @router.get("/tipos", response_model=List[str])
+    def get_tipos_acao(
+        workflow: _HistoricoWorkflow = Depends(_build_historico_workflow),
+    ):
+        """Endpoint HTTP que delega a execucao para workflow/servico OO (get_tipos_acao)."""
+        return workflow.get_tipos_acao()
+
+list_historico = _EndpointHandlers.list_historico
+get_tipos_acao = _EndpointHandlers.get_tipos_acao
 
 
-@router.get("/tipos", response_model=List[str])
-def get_tipos_acao(
-    workflow: _HistoricoWorkflow = Depends(_build_historico_workflow),
-):
-    """Endpoint HTTP que delega a execucao para workflow/servico OO (get_tipos_acao)."""
-    return workflow.get_tipos_acao()

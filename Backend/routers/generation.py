@@ -362,106 +362,118 @@ _build_generation_request_workflow = build_request_scoped_dependency(
 )
 
 
-@router.post(
-    "/titulos/openai/{produto_id}",
-    response_model=schemas.Msg,
-    status_code=status.HTTP_202_ACCEPTED,
-    deprecated=True,
-)
-async def agendar_geracao_novos_titulos_openai(
-    produto_id: int,
-    background_tasks: BackgroundTasks,
-    num_titulos: int = Query(3, ge=1, le=10),
-    request_workflow: _GenerationRequestScope = Depends(_build_generation_request_workflow),
-    current_user: models.User = Depends(auth_utils.get_current_active_user),
-):
-    """Endpoint HTTP que delega a execucao para workflow/servico OO (agendar_geracao_novos_titulos_openai)."""
-    return request_workflow.agendar_geracao_novos_titulos_openai(
-        produto_id=produto_id,
-        background_tasks=background_tasks,
-        num_titulos=num_titulos,
-        current_user=current_user,
+class _EndpointHandlers:
+
+    @router.post(
+        "/titulos/openai/{produto_id}",
+        response_model=schemas.Msg,
+        status_code=status.HTTP_202_ACCEPTED,
+        deprecated=True,
     )
+    async def agendar_geracao_novos_titulos_openai(
+        produto_id: int,
+        background_tasks: BackgroundTasks,
+        num_titulos: int = Query(3, ge=1, le=10),
+        request_workflow: _GenerationRequestScope = Depends(_build_generation_request_workflow),
+        current_user: models.User = Depends(auth_utils.get_current_active_user),
+    ):
+        """Endpoint HTTP que delega a execucao para workflow/servico OO (agendar_geracao_novos_titulos_openai)."""
+        return request_workflow.agendar_geracao_novos_titulos_openai(
+            produto_id=produto_id,
+            background_tasks=background_tasks,
+            num_titulos=num_titulos,
+            current_user=current_user,
+        )
 
-
-@router.post(
-    "/descricao/openai/{produto_id}",
-    response_model=schemas.Msg,
-    status_code=status.HTTP_202_ACCEPTED,
-    deprecated=True,
-)
-async def agendar_geracao_nova_descricao_openai(
-    produto_id: int,
-    background_tasks: BackgroundTasks,
-    tamanho_palavras: int = Query(150, ge=50, le=500),
-    request_workflow: _GenerationRequestScope = Depends(_build_generation_request_workflow),
-    current_user: models.User = Depends(auth_utils.get_current_active_user),
-):
-    """Endpoint HTTP que delega a execucao para workflow/servico OO (agendar_geracao_nova_descricao_openai)."""
-    return request_workflow.agendar_geracao_nova_descricao_openai(
-        produto_id=produto_id,
-        background_tasks=background_tasks,
-        tamanho_palavras=tamanho_palavras,
-        current_user=current_user,
+    @router.post(
+        "/descricao/openai/{produto_id}",
+        response_model=schemas.Msg,
+        status_code=status.HTTP_202_ACCEPTED,
+        deprecated=True,
     )
+    async def agendar_geracao_nova_descricao_openai(
+        produto_id: int,
+        background_tasks: BackgroundTasks,
+        tamanho_palavras: int = Query(150, ge=50, le=500),
+        request_workflow: _GenerationRequestScope = Depends(_build_generation_request_workflow),
+        current_user: models.User = Depends(auth_utils.get_current_active_user),
+    ):
+        """Endpoint HTTP que delega a execucao para workflow/servico OO (agendar_geracao_nova_descricao_openai)."""
+        return request_workflow.agendar_geracao_nova_descricao_openai(
+            produto_id=produto_id,
+            background_tasks=background_tasks,
+            tamanho_palavras=tamanho_palavras,
+            current_user=current_user,
+        )
 
-
-@router.post(
-    "/titulos/gemini/{produto_id}",
-    response_model=schemas.Msg,
-    status_code=status.HTTP_202_ACCEPTED,
-)
-async def agendar_geracao_novos_titulos_gemini(
-    produto_id: int,
-    background_tasks: BackgroundTasks,
-    num_titulos: int = Query(3, ge=1, le=10),
-    request_workflow: _GenerationRequestScope = Depends(_build_generation_request_workflow),
-    current_user: models.User = Depends(auth_utils.get_current_active_user),
-):
-    """Endpoint HTTP que delega a execucao para workflow/servico OO (agendar_geracao_novos_titulos_gemini)."""
-    return request_workflow.agendar_geracao_novos_titulos_gemini(
-        produto_id=produto_id,
-        background_tasks=background_tasks,
-        num_titulos=num_titulos,
-        current_user=current_user,
+    @router.post(
+        "/titulos/gemini/{produto_id}",
+        response_model=schemas.Msg,
+        status_code=status.HTTP_202_ACCEPTED,
     )
+    async def agendar_geracao_novos_titulos_gemini(
+        produto_id: int,
+        background_tasks: BackgroundTasks,
+        num_titulos: int = Query(3, ge=1, le=10),
+        request_workflow: _GenerationRequestScope = Depends(_build_generation_request_workflow),
+        current_user: models.User = Depends(auth_utils.get_current_active_user),
+    ):
+        """Endpoint HTTP que delega a execucao para workflow/servico OO (agendar_geracao_novos_titulos_gemini)."""
+        return request_workflow.agendar_geracao_novos_titulos_gemini(
+            produto_id=produto_id,
+            background_tasks=background_tasks,
+            num_titulos=num_titulos,
+            current_user=current_user,
+        )
 
-
-@router.post(
-    "/descricao/gemini/{produto_id}",
-    response_model=schemas.Msg,
-    status_code=status.HTTP_202_ACCEPTED,
-)
-async def agendar_geracao_nova_descricao_gemini(
-    produto_id: int,
-    background_tasks: BackgroundTasks,
-    tamanho_palavras: int = Query(150, ge=50, le=500),
-    request_workflow: _GenerationRequestScope = Depends(_build_generation_request_workflow),
-    current_user: models.User = Depends(auth_utils.get_current_active_user),
-):
-    """Endpoint HTTP que delega a execucao para workflow/servico OO (agendar_geracao_nova_descricao_gemini)."""
-    return request_workflow.agendar_geracao_nova_descricao_gemini(
-        produto_id=produto_id,
-        background_tasks=background_tasks,
-        tamanho_palavras=tamanho_palavras,
-        current_user=current_user,
+    @router.post(
+        "/descricao/gemini/{produto_id}",
+        response_model=schemas.Msg,
+        status_code=status.HTTP_202_ACCEPTED,
     )
+    async def agendar_geracao_nova_descricao_gemini(
+        produto_id: int,
+        background_tasks: BackgroundTasks,
+        tamanho_palavras: int = Query(150, ge=50, le=500),
+        request_workflow: _GenerationRequestScope = Depends(_build_generation_request_workflow),
+        current_user: models.User = Depends(auth_utils.get_current_active_user),
+    ):
+        """Endpoint HTTP que delega a execucao para workflow/servico OO (agendar_geracao_nova_descricao_gemini)."""
+        return request_workflow.agendar_geracao_nova_descricao_gemini(
+            produto_id=produto_id,
+            background_tasks=background_tasks,
+            tamanho_palavras=tamanho_palavras,
+            current_user=current_user,
+        )
 
-
-@router.post(
-    "/sugerir-atributos-gemini/{produto_id}",
-    response_model=schemas.SugestoesAtributosResponse,
-)
-async def sugerir_atributos_para_produto_com_gemini(
-    produto_id: int,
-    request_workflow: _GenerationRequestScope = Depends(_build_generation_request_workflow),
-    current_user: models.User = Depends(auth_utils.get_current_active_user),
-):
-    """Endpoint HTTP que delega a execucao para workflow/servico OO (sugerir_atributos_para_produto_com_gemini)."""
-    return await request_workflow.sugerir_atributos_para_produto_com_gemini(
-        produto_id=produto_id,
-        current_user=current_user,
+    @router.post(
+        "/sugerir-atributos-gemini/{produto_id}",
+        response_model=schemas.SugestoesAtributosResponse,
     )
+    async def sugerir_atributos_para_produto_com_gemini(
+        produto_id: int,
+        request_workflow: _GenerationRequestScope = Depends(_build_generation_request_workflow),
+        current_user: models.User = Depends(auth_utils.get_current_active_user),
+    ):
+        """Endpoint HTTP que delega a execucao para workflow/servico OO (sugerir_atributos_para_produto_com_gemini)."""
+        return await request_workflow.sugerir_atributos_para_produto_com_gemini(
+            produto_id=produto_id,
+            current_user=current_user,
+        )
+
+agendar_geracao_novos_titulos_openai = _EndpointHandlers.agendar_geracao_novos_titulos_openai
+agendar_geracao_nova_descricao_openai = _EndpointHandlers.agendar_geracao_nova_descricao_openai
+agendar_geracao_novos_titulos_gemini = _EndpointHandlers.agendar_geracao_novos_titulos_gemini
+agendar_geracao_nova_descricao_gemini = _EndpointHandlers.agendar_geracao_nova_descricao_gemini
+sugerir_atributos_para_produto_com_gemini = _EndpointHandlers.sugerir_atributos_para_produto_com_gemini
+
+
+
+
+
+
+
+
 
 
 

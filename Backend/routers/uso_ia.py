@@ -248,68 +248,78 @@ _build_uso_ia_request_workflow = build_request_scoped_dependency(
 )
 
 
-@router.post("/", response_model=schemas.RegistroUsoIAResponse, status_code=status.HTTP_201_CREATED)
-def create_uso_ia_endpoint(
-    uso_ia_data: schemas.RegistroUsoIACreate,
-    current_user: models.User = Depends(auth_utils.get_current_active_user),
-    request_workflow: _UsoIARequestScope = Depends(_build_uso_ia_request_workflow),
-):
-    """Endpoint HTTP que delega a execucao para workflow/servico OO (create_uso_ia_endpoint)."""
-    return request_workflow.create_uso_ia(
-        current_user=current_user,
-        uso_ia_data=uso_ia_data,
-    )
+class _EndpointHandlers:
+
+    @router.post("/", response_model=schemas.RegistroUsoIAResponse, status_code=status.HTTP_201_CREATED)
+    def create_uso_ia_endpoint(
+        uso_ia_data: schemas.RegistroUsoIACreate,
+        current_user: models.User = Depends(auth_utils.get_current_active_user),
+        request_workflow: _UsoIARequestScope = Depends(_build_uso_ia_request_workflow),
+    ):
+        """Endpoint HTTP que delega a execucao para workflow/servico OO (create_uso_ia_endpoint)."""
+        return request_workflow.create_uso_ia(
+            current_user=current_user,
+            uso_ia_data=uso_ia_data,
+        )
+
+    @router.get("/", response_model=schemas.UsoIAPage)
+    def read_usos_ia_usuario_logado(
+        current_user: models.User = Depends(auth_utils.get_current_active_user),
+        request_workflow: _UsoIARequestScope = Depends(_build_uso_ia_request_workflow),
+        skip: int = Query(0, ge=0, description="Numero de itens para pular"),
+        limit: int = Query(100, ge=1, le=200, description="Numero maximo por pagina"),
+        tipo_geracao: Optional[str] = Query(None, description="Filtrar por tipo de geracao"),
+        data_inicio: Optional[datetime] = Query(None, description="Data de inicio (ISO)"),
+        data_fim: Optional[datetime] = Query(None, description="Data de fim (ISO)"),
+    ):
+        """Endpoint HTTP que delega a execucao para workflow/servico OO (read_usos_ia_usuario_logado)."""
+        return request_workflow.list_usos_ia_usuario(
+            current_user=current_user,
+            skip=skip,
+            limit=limit,
+            tipo_geracao=tipo_geracao,
+            data_inicio=data_inicio,
+            data_fim=data_fim,
+        )
+
+    @router.get("/por-produto/{produto_id}", response_model=List[schemas.RegistroUsoIAResponse])
+    def read_usos_ia_por_produto(
+        produto_id: int,
+        current_user: models.User = Depends(auth_utils.get_current_active_user),
+        request_workflow: _UsoIARequestScope = Depends(_build_uso_ia_request_workflow),
+        skip: int = Query(0, ge=0),
+        limit: int = Query(100, ge=1, le=200),
+    ):
+        """Endpoint HTTP que delega a execucao para workflow/servico OO (read_usos_ia_por_produto)."""
+        return request_workflow.read_usos_ia_por_produto(
+            current_user=current_user,
+            produto_id=produto_id,
+            skip=skip,
+            limit=limit,
+        )
+
+    @router.get("/{registro_id}", response_model=schemas.RegistroUsoIAResponse)
+    def read_uso_ia_especifico(
+        registro_id: int,
+        current_user: models.User = Depends(auth_utils.get_current_active_user),
+        request_workflow: _UsoIARequestScope = Depends(_build_uso_ia_request_workflow),
+    ):
+        """Endpoint HTTP que delega a execucao para workflow/servico OO (read_uso_ia_especifico)."""
+        return request_workflow.read_uso_ia_especifico(
+            current_user=current_user,
+            registro_id=registro_id,
+        )
+
+create_uso_ia_endpoint = _EndpointHandlers.create_uso_ia_endpoint
+read_usos_ia_usuario_logado = _EndpointHandlers.read_usos_ia_usuario_logado
+read_usos_ia_por_produto = _EndpointHandlers.read_usos_ia_por_produto
+read_uso_ia_especifico = _EndpointHandlers.read_uso_ia_especifico
 
 
-@router.get("/", response_model=schemas.UsoIAPage)
-def read_usos_ia_usuario_logado(
-    current_user: models.User = Depends(auth_utils.get_current_active_user),
-    request_workflow: _UsoIARequestScope = Depends(_build_uso_ia_request_workflow),
-    skip: int = Query(0, ge=0, description="Numero de itens para pular"),
-    limit: int = Query(100, ge=1, le=200, description="Numero maximo por pagina"),
-    tipo_geracao: Optional[str] = Query(None, description="Filtrar por tipo de geracao"),
-    data_inicio: Optional[datetime] = Query(None, description="Data de inicio (ISO)"),
-    data_fim: Optional[datetime] = Query(None, description="Data de fim (ISO)"),
-):
-    """Endpoint HTTP que delega a execucao para workflow/servico OO (read_usos_ia_usuario_logado)."""
-    return request_workflow.list_usos_ia_usuario(
-        current_user=current_user,
-        skip=skip,
-        limit=limit,
-        tipo_geracao=tipo_geracao,
-        data_inicio=data_inicio,
-        data_fim=data_fim,
-    )
 
 
-@router.get("/por-produto/{produto_id}", response_model=List[schemas.RegistroUsoIAResponse])
-def read_usos_ia_por_produto(
-    produto_id: int,
-    current_user: models.User = Depends(auth_utils.get_current_active_user),
-    request_workflow: _UsoIARequestScope = Depends(_build_uso_ia_request_workflow),
-    skip: int = Query(0, ge=0),
-    limit: int = Query(100, ge=1, le=200),
-):
-    """Endpoint HTTP que delega a execucao para workflow/servico OO (read_usos_ia_por_produto)."""
-    return request_workflow.read_usos_ia_por_produto(
-        current_user=current_user,
-        produto_id=produto_id,
-        skip=skip,
-        limit=limit,
-    )
 
 
-@router.get("/{registro_id}", response_model=schemas.RegistroUsoIAResponse)
-def read_uso_ia_especifico(
-    registro_id: int,
-    current_user: models.User = Depends(auth_utils.get_current_active_user),
-    request_workflow: _UsoIARequestScope = Depends(_build_uso_ia_request_workflow),
-):
-    """Endpoint HTTP que delega a execucao para workflow/servico OO (read_uso_ia_especifico)."""
-    return request_workflow.read_uso_ia_especifico(
-        current_user=current_user,
-        registro_id=registro_id,
-    )
 
 
 

@@ -568,148 +568,168 @@ _build_product_types_request_workflow = build_request_scoped_dependency(
 )
 
 
-@router.post("/", response_model=schemas.ProductTypeResponse, status_code=status.HTTP_201_CREATED)
-def create_product_type_endpoint(
-    product_type_in: schemas.ProductTypeCreate,
-    current_user: models.User = Depends(auth_utils.get_current_active_user),
-    request_workflow: _ProductTypesRequestScope = Depends(_build_product_types_request_workflow),
-):
-    """Endpoint HTTP que delega a execucao para workflow/servico OO (create_product_type_endpoint)."""
-    return request_workflow.create_product_type(
-        product_type_in=product_type_in,
-        current_user=current_user,
+class _EndpointHandlers:
+
+    @router.post("/", response_model=schemas.ProductTypeResponse, status_code=status.HTTP_201_CREATED)
+    def create_product_type_endpoint(
+        product_type_in: schemas.ProductTypeCreate,
+        current_user: models.User = Depends(auth_utils.get_current_active_user),
+        request_workflow: _ProductTypesRequestScope = Depends(_build_product_types_request_workflow),
+    ):
+        """Endpoint HTTP que delega a execucao para workflow/servico OO (create_product_type_endpoint)."""
+        return request_workflow.create_product_type(
+            product_type_in=product_type_in,
+            current_user=current_user,
+        )
+
+    @router.get("/", response_model=List[schemas.ProductTypeResponse])
+    def read_product_types_endpoint(
+        skip: int = 0,
+        limit: int = 100,
+        current_user: models.User = Depends(auth_utils.get_current_active_user),
+        request_workflow: _ProductTypesRequestScope = Depends(_build_product_types_request_workflow),
+    ):
+        """Endpoint HTTP que delega a execucao para workflow/servico OO (read_product_types_endpoint)."""
+        return request_workflow.read_product_types(
+            current_user=current_user,
+            skip=skip,
+            limit=limit,
+        )
+
+    @router.get(
+        "/{type_id_or_key_path:path}",
+        response_model=schemas.ProductTypeResponse,
+        name="read_product_type_details",
     )
+    async def read_product_type_details_route(
+        type_id_or_key_path: str = FastAPIPath(
+            ...,
+            description="ID (numerico) ou key_name (string) do tipo de produto",
+        ),
+        current_user: models.User = Depends(auth_utils.get_current_active_user),
+        request_workflow: _ProductTypesRequestScope = Depends(_build_product_types_request_workflow),
+    ):
+        """Endpoint HTTP que delega a execucao para workflow/servico OO (read_product_type_details_route)."""
+        return await request_workflow.read_product_type_details(
+            identifier=type_id_or_key_path,
+            current_user=current_user,
+        )
 
+    @router.put("/{type_id}", response_model=schemas.ProductTypeResponse)
+    def update_product_type_endpoint(
+        type_id: int,
+        product_type_in: schemas.ProductTypeUpdate,
+        current_user: models.User = Depends(auth_utils.get_current_active_user),
+        request_workflow: _ProductTypesRequestScope = Depends(_build_product_types_request_workflow),
+    ):
+        """Endpoint HTTP que delega a execucao para workflow/servico OO (update_product_type_endpoint)."""
+        return request_workflow.update_product_type(
+            type_id=type_id,
+            product_type_in=product_type_in,
+            current_user=current_user,
+        )
 
-@router.get("/", response_model=List[schemas.ProductTypeResponse])
-def read_product_types_endpoint(
-    skip: int = 0,
-    limit: int = 100,
-    current_user: models.User = Depends(auth_utils.get_current_active_user),
-    request_workflow: _ProductTypesRequestScope = Depends(_build_product_types_request_workflow),
-):
-    """Endpoint HTTP que delega a execucao para workflow/servico OO (read_product_types_endpoint)."""
-    return request_workflow.read_product_types(
-        current_user=current_user,
-        skip=skip,
-        limit=limit,
+    @router.delete("/{type_id}", response_model=schemas.ProductTypeResponse)
+    def delete_product_type_endpoint(
+        type_id: int,
+        current_user: models.User = Depends(auth_utils.get_current_active_user),
+        request_workflow: _ProductTypesRequestScope = Depends(_build_product_types_request_workflow),
+    ):
+        """Endpoint HTTP que delega a execucao para workflow/servico OO (delete_product_type_endpoint)."""
+        return request_workflow.delete_product_type(
+            type_id=type_id,
+            current_user=current_user,
+        )
+
+    @router.post(
+        "/{type_id}/attributes/",
+        response_model=schemas.AttributeTemplateResponse,
+        status_code=status.HTTP_201_CREATED,
     )
+    def add_attribute_to_product_type_endpoint(
+        type_id: int,
+        attribute_in: schemas.AttributeTemplateCreate,
+        current_user: models.User = Depends(auth_utils.get_current_active_user),
+        request_workflow: _ProductTypesRequestScope = Depends(_build_product_types_request_workflow),
+    ):
+        """Endpoint HTTP que delega a execucao para workflow/servico OO (add_attribute_to_product_type_endpoint)."""
+        _ = current_user
+        return request_workflow.add_attribute_to_product_type(
+            type_id=type_id,
+            attribute_in=attribute_in,
+        )
+
+    @router.put("/{type_id}/attributes/{attribute_id}", response_model=schemas.AttributeTemplateResponse)
+    def update_attribute_for_product_type_endpoint(
+        type_id: int,
+        attribute_id: int,
+        attribute_in: schemas.AttributeTemplateUpdate,
+        current_user: models.User = Depends(auth_utils.get_current_active_user),
+        request_workflow: _ProductTypesRequestScope = Depends(_build_product_types_request_workflow),
+    ):
+        """Endpoint HTTP que delega a execucao para workflow/servico OO (update_attribute_for_product_type_endpoint)."""
+        _ = current_user
+        return request_workflow.update_attribute_for_product_type(
+            type_id=type_id,
+            attribute_id=attribute_id,
+            attribute_in=attribute_in,
+        )
+
+    @router.delete("/{type_id}/attributes/{attribute_id}", response_model=schemas.AttributeTemplateResponse)
+    def remove_attribute_from_product_type_endpoint(
+        type_id: int,
+        attribute_id: int,
+        current_user: models.User = Depends(auth_utils.get_current_active_user),
+        request_workflow: _ProductTypesRequestScope = Depends(_build_product_types_request_workflow),
+    ):
+        """Endpoint HTTP que delega a execucao para workflow/servico OO (remove_attribute_from_product_type_endpoint)."""
+        _ = current_user
+        return request_workflow.remove_attribute_from_product_type(
+            type_id=type_id,
+            attribute_id=attribute_id,
+        )
+
+    @router.post("/{type_id}/attributes/{attribute_id}/reorder", response_model=schemas.AttributeTemplateResponse)
+    def reorder_attribute_endpoint(
+        type_id: int,
+        attribute_id: int,
+        reorder_request: ReorderRequest,
+        current_user: models.User = Depends(auth_utils.get_current_active_user),
+        request_workflow: _ProductTypesRequestScope = Depends(_build_product_types_request_workflow),
+    ):
+        """Endpoint HTTP que delega a execucao para workflow/servico OO (reorder_attribute_endpoint)."""
+        return request_workflow.reorder_attribute(
+            type_id=type_id,
+            attribute_id=attribute_id,
+            reorder_request=reorder_request,
+            current_user=current_user,
+        )
+
+create_product_type_endpoint = _EndpointHandlers.create_product_type_endpoint
+read_product_types_endpoint = _EndpointHandlers.read_product_types_endpoint
+read_product_type_details_route = _EndpointHandlers.read_product_type_details_route
+update_product_type_endpoint = _EndpointHandlers.update_product_type_endpoint
+delete_product_type_endpoint = _EndpointHandlers.delete_product_type_endpoint
+add_attribute_to_product_type_endpoint = _EndpointHandlers.add_attribute_to_product_type_endpoint
+update_attribute_for_product_type_endpoint = _EndpointHandlers.update_attribute_for_product_type_endpoint
+remove_attribute_from_product_type_endpoint = _EndpointHandlers.remove_attribute_from_product_type_endpoint
+reorder_attribute_endpoint = _EndpointHandlers.reorder_attribute_endpoint
 
 
-@router.get(
-    "/{type_id_or_key_path:path}",
-    response_model=schemas.ProductTypeResponse,
-    name="read_product_type_details",
-)
-async def read_product_type_details_route(
-    type_id_or_key_path: str = FastAPIPath(
-        ...,
-        description="ID (numerico) ou key_name (string) do tipo de produto",
-    ),
-    current_user: models.User = Depends(auth_utils.get_current_active_user),
-    request_workflow: _ProductTypesRequestScope = Depends(_build_product_types_request_workflow),
-):
-    """Endpoint HTTP que delega a execucao para workflow/servico OO (read_product_type_details_route)."""
-    return await request_workflow.read_product_type_details(
-        identifier=type_id_or_key_path,
-        current_user=current_user,
-    )
 
 
-@router.put("/{type_id}", response_model=schemas.ProductTypeResponse)
-def update_product_type_endpoint(
-    type_id: int,
-    product_type_in: schemas.ProductTypeUpdate,
-    current_user: models.User = Depends(auth_utils.get_current_active_user),
-    request_workflow: _ProductTypesRequestScope = Depends(_build_product_types_request_workflow),
-):
-    """Endpoint HTTP que delega a execucao para workflow/servico OO (update_product_type_endpoint)."""
-    return request_workflow.update_product_type(
-        type_id=type_id,
-        product_type_in=product_type_in,
-        current_user=current_user,
-    )
 
 
-@router.delete("/{type_id}", response_model=schemas.ProductTypeResponse)
-def delete_product_type_endpoint(
-    type_id: int,
-    current_user: models.User = Depends(auth_utils.get_current_active_user),
-    request_workflow: _ProductTypesRequestScope = Depends(_build_product_types_request_workflow),
-):
-    """Endpoint HTTP que delega a execucao para workflow/servico OO (delete_product_type_endpoint)."""
-    return request_workflow.delete_product_type(
-        type_id=type_id,
-        current_user=current_user,
-    )
 
 
-@router.post(
-    "/{type_id}/attributes/",
-    response_model=schemas.AttributeTemplateResponse,
-    status_code=status.HTTP_201_CREATED,
-)
-def add_attribute_to_product_type_endpoint(
-    type_id: int,
-    attribute_in: schemas.AttributeTemplateCreate,
-    current_user: models.User = Depends(auth_utils.get_current_active_user),
-    request_workflow: _ProductTypesRequestScope = Depends(_build_product_types_request_workflow),
-):
-    """Endpoint HTTP que delega a execucao para workflow/servico OO (add_attribute_to_product_type_endpoint)."""
-    _ = current_user
-    return request_workflow.add_attribute_to_product_type(
-        type_id=type_id,
-        attribute_in=attribute_in,
-    )
 
 
-@router.put("/{type_id}/attributes/{attribute_id}", response_model=schemas.AttributeTemplateResponse)
-def update_attribute_for_product_type_endpoint(
-    type_id: int,
-    attribute_id: int,
-    attribute_in: schemas.AttributeTemplateUpdate,
-    current_user: models.User = Depends(auth_utils.get_current_active_user),
-    request_workflow: _ProductTypesRequestScope = Depends(_build_product_types_request_workflow),
-):
-    """Endpoint HTTP que delega a execucao para workflow/servico OO (update_attribute_for_product_type_endpoint)."""
-    _ = current_user
-    return request_workflow.update_attribute_for_product_type(
-        type_id=type_id,
-        attribute_id=attribute_id,
-        attribute_in=attribute_in,
-    )
 
 
-@router.delete("/{type_id}/attributes/{attribute_id}", response_model=schemas.AttributeTemplateResponse)
-def remove_attribute_from_product_type_endpoint(
-    type_id: int,
-    attribute_id: int,
-    current_user: models.User = Depends(auth_utils.get_current_active_user),
-    request_workflow: _ProductTypesRequestScope = Depends(_build_product_types_request_workflow),
-):
-    """Endpoint HTTP que delega a execucao para workflow/servico OO (remove_attribute_from_product_type_endpoint)."""
-    _ = current_user
-    return request_workflow.remove_attribute_from_product_type(
-        type_id=type_id,
-        attribute_id=attribute_id,
-    )
 
 
-@router.post("/{type_id}/attributes/{attribute_id}/reorder", response_model=schemas.AttributeTemplateResponse)
-def reorder_attribute_endpoint(
-    type_id: int,
-    attribute_id: int,
-    reorder_request: ReorderRequest,
-    current_user: models.User = Depends(auth_utils.get_current_active_user),
-    request_workflow: _ProductTypesRequestScope = Depends(_build_product_types_request_workflow),
-):
-    """Endpoint HTTP que delega a execucao para workflow/servico OO (reorder_attribute_endpoint)."""
-    return request_workflow.reorder_attribute(
-        type_id=type_id,
-        attribute_id=attribute_id,
-        reorder_request=reorder_request,
-        current_user=current_user,
-    )
+
+
 
 
 

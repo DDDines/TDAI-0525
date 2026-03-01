@@ -1,4 +1,4 @@
-﻿"""Camada de transporte HTTP para o dominio 'web_enrichment'."""
+"""Camada de transporte HTTP para o dominio 'web_enrichment'."""
 from __future__ import annotations
 
 import json
@@ -280,23 +280,27 @@ class _WebEnrichmentRouterWorkflow:
 WebEnrichmentRouterWorkflow = _WebEnrichmentRouterWorkflow
 
 
-@router.post("/produto/{produto_id}", status_code=status.HTTP_202_ACCEPTED, response_model=schemas.Msg)
-async def iniciar_enriquecimento_produto_web_endpoint(
-    produto_id: int,
-    background_tasks: BackgroundTasks,
-    current_user: models.User = Depends(get_current_active_user),
-    termos_busca_override: Optional[str] = Query(
-        None,
-        description="Opcional: termos de busca especificos para o Google Search.",
-    ),
-):
-    workflow = WebEnrichmentRouterWorkflow(runtime=_WebEnrichmentRouterRuntime())
-    return workflow.iniciar_enriquecimento_produto_web(
-        produto_id=produto_id,
-        background_tasks=background_tasks,
-        current_user=current_user,
-        termos_busca_override=termos_busca_override,
-    )
+class _EndpointHandlers:
+
+    @router.post("/produto/{produto_id}", status_code=status.HTTP_202_ACCEPTED, response_model=schemas.Msg)
+    async def iniciar_enriquecimento_produto_web_endpoint(
+        produto_id: int,
+        background_tasks: BackgroundTasks,
+        current_user: models.User = Depends(get_current_active_user),
+        termos_busca_override: Optional[str] = Query(
+            None,
+            description="Opcional: termos de busca especificos para o Google Search.",
+        ),
+    ):
+        workflow = WebEnrichmentRouterWorkflow(runtime=_WebEnrichmentRouterRuntime())
+        return workflow.iniciar_enriquecimento_produto_web(
+            produto_id=produto_id,
+            background_tasks=background_tasks,
+            current_user=current_user,
+            termos_busca_override=termos_busca_override,
+        )
+
+iniciar_enriquecimento_produto_web_endpoint = _EndpointHandlers.iniciar_enriquecimento_produto_web_endpoint
 
 
 router.add_api_route(
