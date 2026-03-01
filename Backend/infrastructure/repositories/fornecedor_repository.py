@@ -11,32 +11,32 @@ from Backend import schemas
 from Backend.models import CatalogImportFile, Fornecedor
 
 
-def _normalize_supplier_url_fields(data: dict) -> None:
-    if data.get("site_url") is not None:
-        data["site_url"] = str(data["site_url"])
-    if data.get("link_busca_padrao") is not None:
-        data["link_busca_padrao"] = str(data["link_busca_padrao"])
-
-
-def _apply_fornecedor_search_filter(query, search: Optional[str]):
-    if not search:
-        return query
-
-    search_term = f"%{search.lower()}%"
-    return query.filter(
-        or_(
-            func.lower(Fornecedor.nome).ilike(search_term),
-            func.lower(Fornecedor.email_contato).ilike(search_term),
-            func.lower(Fornecedor.contato_principal).ilike(search_term),
-        )
-    )
-
-
 class FornecedorRepository:
     """Repository OO de Fornecedor com Session vinculada por request."""
 
     def __init__(self, db: Session) -> None:
         self._db = db
+
+    @staticmethod
+    def _normalize_supplier_url_fields(data: dict) -> None:
+        if data.get("site_url") is not None:
+            data["site_url"] = str(data["site_url"])
+        if data.get("link_busca_padrao") is not None:
+            data["link_busca_padrao"] = str(data["link_busca_padrao"])
+
+    @staticmethod
+    def _apply_fornecedor_search_filter(query, search: Optional[str]):
+        if not search:
+            return query
+
+        search_term = f"%{search.lower()}%"
+        return query.filter(
+            or_(
+                func.lower(Fornecedor.nome).ilike(search_term),
+                func.lower(Fornecedor.email_contato).ilike(search_term),
+                func.lower(Fornecedor.contato_principal).ilike(search_term),
+            )
+        )
 
     def _validate_fornecedor_uniqueness(self, *, user_id: int, fornecedor_data: dict) -> None:
         existing_fornecedor = (
@@ -76,7 +76,7 @@ class FornecedorRepository:
     def create_fornecedor(self, *, fornecedor: schemas.FornecedorCreate, user_id: int) -> Fornecedor:
         fornecedor_data = fornecedor.model_dump()
         self._validate_fornecedor_uniqueness(user_id=user_id, fornecedor_data=fornecedor_data)
-        _normalize_supplier_url_fields(fornecedor_data)
+        self._normalize_supplier_url_fields(fornecedor_data)
 
         db_fornecedor = Fornecedor(**fornecedor_data, user_id=user_id)
         self._db.add(db_fornecedor)
@@ -99,7 +99,7 @@ class FornecedorRepository:
         query = self._db.query(Fornecedor)
         if not is_admin and user_id:
             query = query.filter(Fornecedor.user_id == user_id)
-        query = _apply_fornecedor_search_filter(query, search)
+        query = self._apply_fornecedor_search_filter(query, search)
         return query.order_by(Fornecedor.nome).offset(skip).limit(limit).all()
 
     def count_fornecedores_by_user(
@@ -112,7 +112,7 @@ class FornecedorRepository:
         query = self._db.query(func.count(Fornecedor.id))
         if not is_admin and user_id:
             query = query.filter(Fornecedor.user_id == user_id)
-        query = _apply_fornecedor_search_filter(query, search)
+        query = self._apply_fornecedor_search_filter(query, search)
         return query.scalar() or 0
 
     def update_fornecedor(
@@ -122,7 +122,7 @@ class FornecedorRepository:
         fornecedor_update: schemas.FornecedorUpdate,
     ) -> Fornecedor:
         update_data = fornecedor_update.model_dump(exclude_unset=True)
-        _normalize_supplier_url_fields(update_data)
+        self._normalize_supplier_url_fields(update_data)
 
         for key, value in update_data.items():
             setattr(db_fornecedor, key, value)

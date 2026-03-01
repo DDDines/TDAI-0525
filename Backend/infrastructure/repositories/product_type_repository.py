@@ -13,25 +13,24 @@ from Backend.models import AttributeTemplate, ProductType, Produto
 
 logger = logging.getLogger(__name__)
 
-
-def _apply_product_type_search(query, search: Optional[str]):
-    if not search:
-        return query
-    search_term = f"%{search.lower()}%"
-    return query.filter(
-        or_(
-            func.lower(ProductType.key_name).ilike(search_term),
-            func.lower(ProductType.friendly_name).ilike(search_term),
-            func.lower(ProductType.description).ilike(search_term),
-        )
-    )
-
-
 class ProductTypeRepository:
     """Repository OO de tipos de produto com Session vinculada por request."""
 
     def __init__(self, db: Session) -> None:
         self._db = db
+
+    @staticmethod
+    def _apply_product_type_search(query, search: Optional[str]):
+        if not search:
+            return query
+        search_term = f"%{search.lower()}%"
+        return query.filter(
+            or_(
+                func.lower(ProductType.key_name).ilike(search_term),
+                func.lower(ProductType.friendly_name).ilike(search_term),
+                func.lower(ProductType.description).ilike(search_term),
+            )
+        )
 
     def create_product_type(
         self,
@@ -126,7 +125,7 @@ class ProductTypeRepository:
         else:
             query = query.filter(ProductType.user_id.is_(None))
 
-        query = _apply_product_type_search(query, search)
+        query = self._apply_product_type_search(query, search)
         return (
             query.order_by(ProductType.user_id.nullslast(), ProductType.friendly_name)
             .offset(skip)
@@ -141,7 +140,7 @@ class ProductTypeRepository:
         else:
             query = query.filter(ProductType.user_id.is_(None))
 
-        query = _apply_product_type_search(query, search)
+        query = self._apply_product_type_search(query, search)
         count = query.scalar()
         return count if count is not None else 0
 

@@ -9,20 +9,20 @@ from sqlalchemy.orm import Session
 from Backend import models, schemas
 
 
-def _normalize_tipo_acao(tipo_acao: Optional[models.TipoAcaoEnum]):
-    if isinstance(tipo_acao, str):
-        try:
-            return models.TipoAcaoEnum(tipo_acao)
-        except ValueError as exc:
-            raise ValueError(f"tipo_acao invalido: {tipo_acao}") from exc
-    return tipo_acao
-
-
 class RegistroUsoIARepository:
     """Repository OO de registros de uso IA com Session vinculada por request."""
 
     def __init__(self, db: Session) -> None:
         self._db = db
+
+    @staticmethod
+    def _normalize_tipo_acao(tipo_acao: Optional[models.TipoAcaoEnum]):
+        if isinstance(tipo_acao, str):
+            try:
+                return models.TipoAcaoEnum(tipo_acao)
+            except ValueError as exc:
+                raise ValueError(f"tipo_acao invalido: {tipo_acao}") from exc
+        return tipo_acao
 
     def create_registro_uso_ia(
         self,
@@ -44,7 +44,7 @@ class RegistroUsoIARepository:
         data_inicio: Optional[datetime] = None,
         data_fim: Optional[datetime] = None,
     ) -> List[models.RegistroUsoIA]:
-        normalized_tipo_acao = _normalize_tipo_acao(tipo_acao)
+        normalized_tipo_acao = self._normalize_tipo_acao(tipo_acao)
         query = self._db.query(models.RegistroUsoIA).filter(models.RegistroUsoIA.user_id == user_id)
         if normalized_tipo_acao:
             query = query.filter(models.RegistroUsoIA.tipo_acao == normalized_tipo_acao)
@@ -67,7 +67,7 @@ class RegistroUsoIARepository:
         data_inicio: Optional[datetime] = None,
         data_fim: Optional[datetime] = None,
     ) -> int:
-        normalized_tipo_acao = _normalize_tipo_acao(tipo_acao)
+        normalized_tipo_acao = self._normalize_tipo_acao(tipo_acao)
         query = self._db.query(func.count(models.RegistroUsoIA.id)).filter(
             models.RegistroUsoIA.user_id == user_id
         )

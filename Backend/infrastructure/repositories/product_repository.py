@@ -21,88 +21,86 @@ from Backend.models import (
 
 logger = logging.getLogger(__name__)
 
-_JSON_FIELDS = (
-    "dynamic_attributes",
-    "dados_brutos_web",
-    "log_enriquecimento_web",
-)
-
-
-def _normalize_identifier_fields(produto_data: Dict[str, Any]) -> None:
-    for field_name in ("sku", "ean"):
-        if field_name in produto_data and produto_data[field_name] == "":
-            produto_data[field_name] = None
-
-
-def _parse_json_fields(produto_data: Dict[str, Any], fields: List[str]) -> None:
-    for field_name in fields:
-        if field_name in produto_data and isinstance(produto_data[field_name], str):
-            try:
-                produto_data[field_name] = json.loads(produto_data[field_name])
-            except json.JSONDecodeError as exc:
-                raise ValueError(f"{field_name} nao e um JSON string valido.") from exc
-
-
-def _apply_search_filter(query, search: Optional[str]):
-    if not search:
-        return query
-
-    search_term = f"%{search.lower()}%"
-    return query.filter(
-        or_(
-            func.lower(Produto.nome_base).ilike(search_term),
-            func.lower(Produto.nome_chat_api).ilike(search_term),
-            func.lower(Produto.descricao_original).ilike(search_term),
-            func.lower(Produto.descricao_chat_api).ilike(search_term),
-            func.lower(Produto.sku).ilike(search_term),
-            func.lower(Produto.ean).ilike(search_term),
-            func.lower(Produto.marca).ilike(search_term),
-            func.lower(Produto.modelo).ilike(search_term),
-        )
-    )
-
-
-def _apply_optional_filters(
-    query,
-    fornecedor_id: Optional[int],
-    product_type_id: Optional[int],
-    categoria: Optional[str],
-    status_enriquecimento_web: Optional[StatusEnriquecimentoEnum],
-    status_titulo_ia: Optional[StatusGeracaoIAEnum],
-    status_descricao_ia: Optional[StatusGeracaoIAEnum],
-):
-    if fornecedor_id is not None:
-        query = query.filter(Produto.fornecedor_id == fornecedor_id)
-    if product_type_id is not None:
-        query = query.filter(Produto.product_type_id == product_type_id)
-    if categoria:
-        query = query.filter(
-            func.lower(Produto.categoria_original).ilike(f"%{categoria.lower()}%")
-        )
-    if status_enriquecimento_web:
-        query = query.filter(Produto.status_enriquecimento_web == status_enriquecimento_web)
-    if status_titulo_ia:
-        query = query.filter(Produto.status_titulo_ia == status_titulo_ia)
-    if status_descricao_ia:
-        query = query.filter(Produto.status_descricao_ia == status_descricao_ia)
-    return query
-
-
-def _apply_ordering(query, sort_by: Optional[str], sort_order: Optional[str]):
-    if sort_by:
-        column_to_sort = getattr(Produto, sort_by, None)
-        if column_to_sort is not None:
-            if (sort_order or "asc").lower() == "desc":
-                return query.order_by(desc(column_to_sort))
-            return query.order_by(asc(column_to_sort))
-    return query.order_by(Produto.id)
-
-
 class ProductRepository:
     """Repository OO de Produto com Session vinculada por request."""
+    _JSON_FIELDS: Tuple[str, ...] = (
+        "dynamic_attributes",
+        "dados_brutos_web",
+        "log_enriquecimento_web",
+    )
 
     def __init__(self, db: Session) -> None:
         self._db = db
+
+    @staticmethod
+    def _normalize_identifier_fields(produto_data: Dict[str, Any]) -> None:
+        for field_name in ("sku", "ean"):
+            if field_name in produto_data and produto_data[field_name] == "":
+                produto_data[field_name] = None
+
+    @staticmethod
+    def _parse_json_fields(produto_data: Dict[str, Any], fields: List[str]) -> None:
+        for field_name in fields:
+            if field_name in produto_data and isinstance(produto_data[field_name], str):
+                try:
+                    produto_data[field_name] = json.loads(produto_data[field_name])
+                except json.JSONDecodeError as exc:
+                    raise ValueError(f"{field_name} nao e um JSON string valido.") from exc
+
+    @staticmethod
+    def _apply_search_filter(query, search: Optional[str]):
+        if not search:
+            return query
+
+        search_term = f"%{search.lower()}%"
+        return query.filter(
+            or_(
+                func.lower(Produto.nome_base).ilike(search_term),
+                func.lower(Produto.nome_chat_api).ilike(search_term),
+                func.lower(Produto.descricao_original).ilike(search_term),
+                func.lower(Produto.descricao_chat_api).ilike(search_term),
+                func.lower(Produto.sku).ilike(search_term),
+                func.lower(Produto.ean).ilike(search_term),
+                func.lower(Produto.marca).ilike(search_term),
+                func.lower(Produto.modelo).ilike(search_term),
+            )
+        )
+
+    @staticmethod
+    def _apply_optional_filters(
+        query,
+        fornecedor_id: Optional[int],
+        product_type_id: Optional[int],
+        categoria: Optional[str],
+        status_enriquecimento_web: Optional[StatusEnriquecimentoEnum],
+        status_titulo_ia: Optional[StatusGeracaoIAEnum],
+        status_descricao_ia: Optional[StatusGeracaoIAEnum],
+    ):
+        if fornecedor_id is not None:
+            query = query.filter(Produto.fornecedor_id == fornecedor_id)
+        if product_type_id is not None:
+            query = query.filter(Produto.product_type_id == product_type_id)
+        if categoria:
+            query = query.filter(
+                func.lower(Produto.categoria_original).ilike(f"%{categoria.lower()}%")
+            )
+        if status_enriquecimento_web:
+            query = query.filter(Produto.status_enriquecimento_web == status_enriquecimento_web)
+        if status_titulo_ia:
+            query = query.filter(Produto.status_titulo_ia == status_titulo_ia)
+        if status_descricao_ia:
+            query = query.filter(Produto.status_descricao_ia == status_descricao_ia)
+        return query
+
+    @staticmethod
+    def _apply_ordering(query, sort_by: Optional[str], sort_order: Optional[str]):
+        if sort_by:
+            column_to_sort = getattr(Produto, sort_by, None)
+            if column_to_sort is not None:
+                if (sort_order or "asc").lower() == "desc":
+                    return query.order_by(desc(column_to_sort))
+                return query.order_by(asc(column_to_sort))
+        return query.order_by(Produto.id)
 
     def _validate_unique_identifiers(self, *, user_id: int, produto_data: Dict[str, Any]) -> None:
         sku = produto_data.get("sku")
@@ -134,9 +132,9 @@ class ProductRepository:
 
     def create_produto(self, *, produto: schemas.ProdutoCreate, user_id: int) -> Produto:
         produto_data = produto.model_dump(exclude_unset=True)
-        _normalize_identifier_fields(produto_data)
+        self._normalize_identifier_fields(produto_data)
         self._validate_unique_identifiers(user_id=user_id, produto_data=produto_data)
-        _parse_json_fields(produto_data, list(_JSON_FIELDS))
+        self._parse_json_fields(produto_data, list(self._JSON_FIELDS))
 
         db_produto = Produto(**produto_data, user_id=user_id)
         self._db.add(db_produto)
@@ -177,8 +175,8 @@ class ProductRepository:
 
         for produto_schema in produtos:
             data = produto_schema.model_dump(exclude_unset=True)
-            _normalize_identifier_fields(data)
-            _parse_json_fields(data, list(_JSON_FIELDS))
+            self._normalize_identifier_fields(data)
+            self._parse_json_fields(data, list(self._JSON_FIELDS))
 
             sku = data.get("sku")
             ean = data.get("ean")
@@ -265,8 +263,8 @@ class ProductRepository:
                 return []
             query = query.filter(Produto.user_id == user_id)
 
-        query = _apply_search_filter(query, search)
-        query = _apply_optional_filters(
+        query = self._apply_search_filter(query, search)
+        query = self._apply_optional_filters(
             query=query,
             fornecedor_id=fornecedor_id,
             product_type_id=product_type_id,
@@ -275,7 +273,7 @@ class ProductRepository:
             status_titulo_ia=status_titulo_ia,
             status_descricao_ia=status_descricao_ia,
         )
-        query = _apply_ordering(query, sort_by, sort_order)
+        query = self._apply_ordering(query, sort_by, sort_order)
         return query.offset(skip).limit(limit).all()
 
     def count_produtos_by_user(
@@ -298,8 +296,8 @@ class ProductRepository:
                 return 0
             query = query.filter(Produto.user_id == user_id)
 
-        query = _apply_search_filter(query, search)
-        query = _apply_optional_filters(
+        query = self._apply_search_filter(query, search)
+        query = self._apply_optional_filters(
             query=query,
             fornecedor_id=fornecedor_id,
             product_type_id=product_type_id,
@@ -319,7 +317,10 @@ class ProductRepository:
         produto_update: schemas.ProdutoUpdate,
     ) -> Produto:
         update_data = produto_update.model_dump(exclude_unset=True)
-        _parse_json_fields(update_data, list(_JSON_FIELDS) + ["imagens_secundarias_urls"])
+        self._parse_json_fields(
+            update_data,
+            list(self._JSON_FIELDS) + ["imagens_secundarias_urls"],
+        )
 
         for key, value in update_data.items():
             setattr(db_produto, key, value)
