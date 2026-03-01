@@ -888,6 +888,102 @@ class _TopLevelFunctionSurface:
             + "\n".join(offenders)
         )
 
+    def test_application_services_have_no_transition_facade_modules():
+        offenders = sorted(
+            str(path.relative_to(PROJECT_ROOT))
+            for path in APPLICATION_SERVICES_ROOT.rglob("*_facade.py")
+            if path.is_file()
+        )
+        assert not offenders, (
+            "Transition facade modules must be removed from application/services:\n"
+            + "\n".join(offenders)
+        )
+
+    def test_repository_runtime_support_bridge_is_removed():
+        runtime_support_path = APPLICATION_SERVICES_ROOT / "repository_runtime_support.py"
+        assert not runtime_support_path.exists(), (
+            "repository_runtime_support.py must be removed."
+        )
+
+        offenders: list[str] = []
+        for path in _iter_python_files(BACKEND_ROOT):
+            rel = path.relative_to(PROJECT_ROOT)
+            if rel.parts[:2] in {("Backend", "tests"), ("Backend", "testing")}:
+                continue
+            source = path.read_text(encoding="utf-8-sig")
+            if "call_repository_method(" in source:
+                offenders.append(str(rel))
+
+        assert not offenders, (
+            "Dynamic repository bridge call_repository_method(...) must not exist:\n"
+            + "\n".join(offenders)
+        )
+
+    def test_application_service_public_methods_do_not_receive_db_session_factory():
+        offenders: list[str] = []
+
+        for path in _iter_python_files(APPLICATION_SERVICES_ROOT):
+            rel = path.relative_to(PROJECT_ROOT)
+            tree = _parse_python_file(path)
+            for node in ast.walk(tree):
+                if not isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
+                    continue
+                if node.name == "__init__":
+                    continue
+                all_args = [*node.args.args, *node.args.kwonlyargs]
+                if any(arg.arg == "db_session_factory" for arg in all_args):
+                    offenders.append(f"{rel}:{node.lineno} -> {node.name}")
+
+        assert not offenders, (
+            "Public service methods must not accept db_session_factory per call:\n"
+            + "\n".join(offenders)
+        )
+
+    def test_runtime_modules_do_not_use_global_statement():
+        offenders: list[str] = []
+        for path in _iter_python_files(INFRASTRUCTURE_RUNTIME_MODULES_ROOT):
+            rel = path.relative_to(PROJECT_ROOT)
+            tree = _parse_python_file(path)
+            for node in ast.walk(tree):
+                if isinstance(node, ast.Global):
+                    offenders.append(f"{rel}:{node.lineno}")
+
+        assert not offenders, (
+            "Runtime modules must not use Python 'global' statement:\n"
+            + "\n".join(offenders)
+        )
+
+    def test_file_and_web_runtime_surfaces_do_not_use_varargs():
+        offenders: list[str] = []
+        target_files = [
+            APPLICATION_SERVICES_ROOT / "file_processing" / "contracts.py",
+            APPLICATION_SERVICES_ROOT / "file_processing" / "orchestrator_service.py",
+            APPLICATION_SERVICES_ROOT / "web_data_extractor" / "contracts.py",
+            APPLICATION_SERVICES_ROOT / "web_data_extractor" / "orchestrator_service.py",
+            PROJECT_ROOT / "Backend" / "infrastructure" / "adapters" / "file_processing_adapter.py",
+            PROJECT_ROOT / "Backend" / "infrastructure" / "adapters" / "web_data_extractor_adapter.py",
+            PROJECT_ROOT / "Backend" / "infrastructure" / "runtime_modules" / "file_processing_module.py",
+            PROJECT_ROOT / "Backend" / "infrastructure" / "runtime_modules" / "web_data_extractor_module.py",
+        ]
+
+        for path in target_files:
+            if not path.exists():
+                continue
+            rel = path.relative_to(PROJECT_ROOT)
+            tree = _parse_python_file(path)
+            for node in ast.walk(tree):
+                if not isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
+                    continue
+                if node.args.vararg is not None:
+                    offenders.append(f"{rel}:{node.lineno} -> *{node.args.vararg.arg}")
+                if node.args.kwarg is not None:
+                    offenders.append(f"{rel}:{node.lineno} -> **{node.args.kwarg.arg}")
+
+        assert not offenders, (
+            "Targeted file/web service surfaces must not use *args/**kwargs:\n"
+            + "\n".join(offenders)
+        )
+
     def test_tests_do_not_import_private_backend_symbols():
         offenders: list[str] = []
     
@@ -996,6 +1092,11 @@ test_tests_do_not_import_backend_crud_modules_directly = _TopLevelFunctionSurfac
 test_repository_access_adapters_module_removed = _TopLevelFunctionSurface.test_repository_access_adapters_module_removed
 test_application_services_package_init_has_no_eager_reexports = _TopLevelFunctionSurface.test_application_services_package_init_has_no_eager_reexports
 test_application_services_do_not_issue_sqlalchemy_query_directly = _TopLevelFunctionSurface.test_application_services_do_not_issue_sqlalchemy_query_directly
+test_application_services_have_no_transition_facade_modules = _TopLevelFunctionSurface.test_application_services_have_no_transition_facade_modules
+test_repository_runtime_support_bridge_is_removed = _TopLevelFunctionSurface.test_repository_runtime_support_bridge_is_removed
+test_application_service_public_methods_do_not_receive_db_session_factory = _TopLevelFunctionSurface.test_application_service_public_methods_do_not_receive_db_session_factory
+test_runtime_modules_do_not_use_global_statement = _TopLevelFunctionSurface.test_runtime_modules_do_not_use_global_statement
+test_file_and_web_runtime_surfaces_do_not_use_varargs = _TopLevelFunctionSurface.test_file_and_web_runtime_surfaces_do_not_use_varargs
 test_tests_do_not_import_private_backend_symbols = _TopLevelFunctionSurface.test_tests_do_not_import_private_backend_symbols
 test_produtos_core_endpoints_do_not_receive_db_session_directly = _TopLevelFunctionSurface.test_produtos_core_endpoints_do_not_receive_db_session_directly
 

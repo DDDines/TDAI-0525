@@ -1,7 +1,5 @@
 from __future__ import annotations
 
-from types import SimpleNamespace
-
 import pytest
 
 from Backend.application.contracts.pipeline_commands import (
@@ -45,7 +43,6 @@ class _TopLevelFunctionSurface:
             region=[0.1, 0.2, 0.3, 0.4],
         )
         plan = orchestrator.select_finalize_plan(
-            db_session_factory=SimpleNamespace(name="db_factory"),
             command=command,
         )
         assert plan.executor_name == "oop_catalog_import_task"
@@ -67,7 +64,6 @@ class _TopLevelFunctionSurface:
             region=[1.0, 2.0, 3.0, 4.0],
         )
         plan = orchestrator.select_finalize_plan(
-            db_session_factory=SimpleNamespace(name="db_factory"),
             command=command,
         )
         assert plan.executor_name == "oop_catalog_import_task"
@@ -85,7 +81,6 @@ class _TopLevelFunctionSurface:
             termos_busca_override="teste xyz",
         )
         plan = orchestrator.select_start_plan(
-            db_session_factory=SimpleNamespace(name="db_factory"),
             command=command,
         )
         assert plan.executor_name == "oop_web_enrichment_task"
@@ -102,7 +97,6 @@ class _TopLevelFunctionSurface:
             termos_busca_override=None,
         )
         plan = orchestrator.select_start_plan(
-            db_session_factory=SimpleNamespace(name="db_factory"),
             command=command,
         )
         assert plan.executor_name == "oop_web_enrichment_task"
@@ -130,7 +124,6 @@ class _TopLevelFunctionSurface:
             region=[0.0, 0.0, 1.0, 1.0],
         )
         plan = orchestrator.select_finalize_plan(
-            db_session_factory=SimpleNamespace(name="db_factory"),
             command=command,
         )
     
@@ -158,7 +151,6 @@ class _TopLevelFunctionSurface:
             termos_busca_override="abc",
         )
         plan = orchestrator.select_start_plan(
-            db_session_factory=SimpleNamespace(name="db_factory"),
             command=command,
         )
     

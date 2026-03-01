@@ -1,7 +1,7 @@
 """Camada de transporte HTTP para o dominio 'fornecedores'."""
 from collections import Counter
 from pathlib import Path
-from typing import List, Optional
+from typing import Any, List, Optional
 import time
 from fastapi import APIRouter, BackgroundTasks, Body, Depends, File, HTTPException, Query, UploadFile, status
 from sqlalchemy.orm import Session, sessionmaker
@@ -48,19 +48,20 @@ catalog_file_repository = CatalogImportFileRepository
 class _FornecedoresServiceBundle:
     """Componente OO principal '_FornecedoresServiceBundle' do modulo 'fornecedores'."""
 
-    def __init__(self) -> None:
+    def __init__(self, *, db_session_factory: Any | None = None) -> None:
         self._service_container = ServiceContainer()
+        self._db_session_factory = db_session_factory or ServiceContainerDependencySupport.get_background_db_session_factory()
         self.file_processing_service = self._service_container.file_processing
         self.web_data_extractor_service = self._service_container.web_data_extractor
         self.catalog_quality_service = CatalogImportQualityService()
         self.catalog_sanitization_service = CatalogImportSanitizationService(quality_service=self.catalog_quality_service)
         self.catalog_import_diagnostics_service = CatalogImportDiagnosticsService(catalog_log_dir=catalog_log_dir, logger=logger, sanitization_service=self.catalog_sanitization_service)
         self.validator_crew = ValidatorCrewService(logger=logger)
-        self.catalog_import_task_runner = CatalogImportTaskRunner(logger=logger, catalog_logger=logger, models=models, schemas=schemas, product_repository=produto_repository, catalog_file_repository=catalog_file_repository, file_processing_service=self.file_processing_service, validator_crew=self.validator_crew, settings=settings, path_cls=Path, time_module=time, counter_cls=Counter, resolve_storage_path=self.catalog_import_diagnostics_service.resolve_storage_path, normalize_import_issue_item=self.catalog_sanitization_service.normalize_import_issue_item, extract_import_error_reason=self.catalog_sanitization_service.extract_import_error_reason, is_non_critical_import_reason=self.catalog_sanitization_service.is_non_critical_import_reason, normalizar_dados_validados=self.catalog_sanitization_service.normalize_validated_data, sanitize_produto_extraido=self.catalog_sanitization_service.sanitize_extracted_product, classificar_qualidade_linha_produto=self.catalog_quality_service.classify_product_row_quality, write_catalog_import_report=self.catalog_import_diagnostics_service.write_catalog_import_report, normalize_import_text=self.catalog_sanitization_service.normalize_import_text)
-        self.catalog_import_finalize_service = CatalogImportFinalizeService(oop_executor=self.catalog_import_task_runner.execute)
+        self.catalog_import_task_runner = CatalogImportTaskRunner(db_session_factory=self._db_session_factory, logger=logger, catalog_logger=logger, models=models, schemas=schemas, product_repository=produto_repository, catalog_file_repository=catalog_file_repository, file_processing_service=self.file_processing_service, validator_crew=self.validator_crew, settings=settings, path_cls=Path, time_module=time, counter_cls=Counter, resolve_storage_path=self.catalog_import_diagnostics_service.resolve_storage_path, normalize_import_issue_item=self.catalog_sanitization_service.normalize_import_issue_item, extract_import_error_reason=self.catalog_sanitization_service.extract_import_error_reason, is_non_critical_import_reason=self.catalog_sanitization_service.is_non_critical_import_reason, normalizar_dados_validados=self.catalog_sanitization_service.normalize_validated_data, sanitize_produto_extraido=self.catalog_sanitization_service.sanitize_extracted_product, classificar_qualidade_linha_produto=self.catalog_quality_service.classify_product_row_quality, write_catalog_import_report=self.catalog_import_diagnostics_service.write_catalog_import_report, normalize_import_text=self.catalog_sanitization_service.normalize_import_text)
+        self.catalog_import_finalize_service = CatalogImportFinalizeService(oop_executor=self.catalog_import_task_runner.execute, db_session_factory=self._db_session_factory)
         self.catalog_import_start_service = CatalogImportStartService(models=models, fornecedor_repo=fornecedor_repository, catalog_file_repository=catalog_file_repository, settings=settings, resolve_storage_path=self.catalog_import_diagnostics_service.resolve_storage_path, finalize_service=self.catalog_import_finalize_service)
         self.fornecedor_catalog_process_service = FornecedorCatalogProcessService(models=models, fornecedor_repo=fornecedor_repository, catalog_import_start_service=self.catalog_import_start_service)
-        self.fornecedor_import_job_service = FornecedorImportJobService(import_job_repository_cls=FornecedorImportJobRepository, produto_repository_cls=ProductRepository, produto_create_schema=schemas.ProdutoCreate)
+        self.fornecedor_import_job_service = FornecedorImportJobService(db_session_factory=self._db_session_factory, import_job_repository_cls=FornecedorImportJobRepository, produto_repository_cls=ProductRepository, produto_create_schema=schemas.ProdutoCreate)
         self.fornecedor_import_tracking_service = FornecedorImportTrackingService(
             models=models,
             process_pdf_extraction_task=TaskWorkflow().process_pdf_extraction_task,
@@ -140,11 +141,11 @@ class _FornecedoresServiceGateway:
 
     def __init__(self, *, session: Session, services: Optional[_FornecedoresServiceBundle]=None) -> None:
         self._session = session
-        self._services = services or _FornecedoresDependencies._build_fornecedores_service_bundle()
+        runtime_session_factory = sessionmaker(bind=session.get_bind())
+        self._services = services or _FornecedoresServiceBundle(db_session_factory=runtime_session_factory)
         self._catalog_file_repo = CatalogImportFileRepository(session)
         self._fornecedor_repo = FornecedorRepository(session)
         self._import_job_repo = FornecedorImportJobRepository(session)
-        self._db_session_factory = sessionmaker(bind=session.get_bind())
 
     @staticmethod
     def _resolve_management_service(kwargs: dict) -> FornecedorManagementService:
@@ -202,7 +203,6 @@ class _FornecedoresServiceGateway:
     async def start_full_processing(self, **kwargs):
         kwargs['fornecedor_repo'] = self._fornecedor_repo
         kwargs['catalog_file_repo'] = self._catalog_file_repo
-        kwargs['db_session_factory'] = self._db_session_factory
         return await self._services.fornecedor_catalog_process_service.start_full_processing(**kwargs)
 
     def schedule_page_extraction(self, **kwargs):
@@ -220,7 +220,6 @@ class _FornecedoresServiceGateway:
         return self._services.fornecedor_import_job_service.build_review_payload(**kwargs)
 
     def schedule_commit(self, **kwargs):
-        kwargs['db_session_factory'] = self._db_session_factory
         return self._services.fornecedor_import_job_service.schedule_commit(**kwargs)
 
     def build_import_job_status_payload(self, **kwargs):

@@ -15,8 +15,8 @@ class _CrudProdutosStub:
     def __init__(self, produto=None):
         self.produto = produto
 
-    def get_produto(self, db, *, produto_id: int):
-        _ = (db, produto_id)
+    def get_produto(self, *, produto_id: int):
+        _ = produto_id
         return self.produto
 
 
@@ -42,8 +42,8 @@ class _OrchestratorStub:
         _ = (args, kwargs)
         self.calls = []
 
-    def select_start_plan(self, *, db_session_factory, command):
-        self.calls.append((db_session_factory, command))
+    def select_start_plan(self, *, command):
+        self.calls.append(command)
 
         async def _executor(**kwargs):
             return kwargs
@@ -126,7 +126,6 @@ class _TopLevelFunctionSurface:
     
         plan = service.dispatch_start(
             background_tasks=object(),
-            db_session_factory=lambda: object(),
             command=command,
             oop_executor=object(),
         )

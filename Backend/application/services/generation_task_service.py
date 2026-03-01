@@ -6,11 +6,9 @@ from typing import Any, Dict, Optional, Tuple
 from fastapi import HTTPException
 from sqlalchemy.orm import Session
 
-from Backend.application.services.repository_runtime_support import RepositoryRuntimeSupport
-
 
 class GenerationTaskService:
-    """Serviço OO para execução de tarefas de geração IA em background."""
+    """Servico OO para execucao de tarefas de geracao IA em background."""
 
     def __init__(
         self,
@@ -18,9 +16,11 @@ class GenerationTaskService:
         models: Any,
         schemas: Any,
         logger: Any,
+        db_session_factory: Any,
         user_repository_cls: Any | None = None,
         product_repository_cls: Any | None = None,
     ) -> None:
+        self._db_session_factory = db_session_factory
         self._user_repository_cls = user_repository_cls
         self._product_repository_cls = product_repository_cls
         self._models = models
@@ -65,14 +65,13 @@ class GenerationTaskService:
     async def run_generation_task(
         self,
         *,
-        db_session_factory: Any,
         user_id: int,
         produto_id: int,
         tipo_geracao_principal: str,
         funcao_geracao_ia_no_servico: Any,
         **kwargs_para_funcao_servico: Any,
     ) -> None:
-        """Executa geração IA e persiste status/log no produto."""
+        """Executa geracao IA e persiste status/log no produto."""
         session: Optional[Session] = None
         db_produto: Optional[Any] = None
         status_field_to_update: Optional[str] = None
@@ -80,12 +79,14 @@ class GenerationTaskService:
         log_entry_prefix = f"IA {tipo_geracao_principal.capitalize()}"
 
         try:
-            session = db_session_factory()
+            if self._db_session_factory is None:
+                raise ValueError("db_session_factory is required for GenerationTaskService")
+            session = self._db_session_factory()
 
             targets = self._resolve_generation_targets(tipo_geracao_principal)
             if targets is None:
                 self._logger.error(
-                    "Tarefa Background: Tipo de geração principal '%s' desconhecido.",
+                    "Tarefa Background: Tipo de geracao principal '%s' desconhecido.",
                     tipo_geracao_principal,
                 )
                 return
@@ -94,29 +95,19 @@ class GenerationTaskService:
             user_access = self._get_user_access(session)
             product_access = self._get_product_access(session)
 
-            user = RepositoryRuntimeSupport.call_repository_method(
-                user_access,
-                "get_user",
-                session=session,
-                user_id=user_id,
-            )
+            user = user_access.get_user(user_id=user_id)
             if not user:
                 self._logger.error(
-                    "Tarefa Background %s: Usuário %s não encontrado.",
+                    "Tarefa Background %s: Usuario %s nao encontrado.",
                     log_entry_prefix,
                     user_id,
                 )
                 return
 
-            db_produto = RepositoryRuntimeSupport.call_repository_method(
-                product_access,
-                "get_produto",
-                session=session,
-                produto_id=produto_id,
-            )
+            db_produto = product_access.get_produto(produto_id=produto_id)
             if not db_produto:
                 self._logger.error(
-                    "Tarefa Background %s: Produto %s não encontrado.",
+                    "Tarefa Background %s: Produto %s nao encontrado.",
                     log_entry_prefix,
                     produto_id,
                 )
@@ -124,7 +115,7 @@ class GenerationTaskService:
 
             if db_produto.user_id != user.id and not user.is_superuser:
                 self._logger.warning(
-                    "Tarefa Background %s: Usuário %s não autorizado para produto %s.",
+                    "Tarefa Background %s: Usuario %s nao autorizado para produto %s.",
                     log_entry_prefix,
                     user_id,
                     produto_id,
@@ -135,19 +126,16 @@ class GenerationTaskService:
                 status_field_to_update: self._models.StatusGeracaoIAEnum.EM_PROGRESSO,
                 "log_processamento": self._append_process_log(
                     db_produto.log_processamento,
-                    f"{log_entry_prefix}: Geração iniciada.",
+                    f"{log_entry_prefix}: Geracao iniciada.",
                 ),
             }
-            RepositoryRuntimeSupport.call_repository_method(
-                product_access,
-                "update_produto",
-                session=session,
+            product_access.update_produto(
                 db_produto=db_produto,
                 produto_update=self._schemas.ProdutoUpdate(**update_data_progresso),
             )
 
             self._logger.info(
-                "Tarefa Background %s: Chamando serviço IA para produto %s.",
+                "Tarefa Background %s: Chamando servico IA para produto %s.",
                 log_entry_prefix,
                 produto_id,
             )
@@ -169,37 +157,28 @@ class GenerationTaskService:
             is_valid_list = isinstance(resultado_ia, list) and bool(resultado_ia)
 
             if resultado_ia and (is_valid_str or is_valid_list):
-                update_data_final_dict[
-                    campo_produto_para_atualizar_com_resultado
-                ] = resultado_ia
-                update_data_final_dict[
-                    status_field_to_update
-                ] = self._models.StatusGeracaoIAEnum.CONCLUIDO
+                update_data_final_dict[campo_produto_para_atualizar_com_resultado] = resultado_ia
+                update_data_final_dict[status_field_to_update] = self._models.StatusGeracaoIAEnum.CONCLUIDO
                 update_data_final_dict["log_processamento"] = self._append_process_log(
                     db_produto.log_processamento,
-                    f"{log_entry_prefix}: Geração concluída com sucesso.",
+                    f"{log_entry_prefix}: Geracao concluida com sucesso.",
                 )
             else:
-                update_data_final_dict[
-                    status_field_to_update
-                ] = self._models.StatusGeracaoIAEnum.FALHA
+                update_data_final_dict[status_field_to_update] = self._models.StatusGeracaoIAEnum.FALHA
                 update_data_final_dict["log_processamento"] = self._append_process_log(
                     db_produto.log_processamento,
                     (
-                        f"{log_entry_prefix}: Falha na geração "
-                        "(resultado vazio ou IA não pôde gerar)."
+                        f"{log_entry_prefix}: Falha na geracao "
+                        "(resultado vazio ou IA nao pode gerar)."
                     ),
                 )
                 self._logger.warning(
-                    "Tarefa Background %s: IA não retornou resultado válido para produto %s.",
+                    "Tarefa Background %s: IA nao retornou resultado valido para produto %s.",
                     log_entry_prefix,
                     produto_id,
                 )
 
-            RepositoryRuntimeSupport.call_repository_method(
-                product_access,
-                "update_produto",
-                session=session,
+            product_access.update_produto(
                 db_produto=db_produto,
                 produto_update=self._schemas.ProdutoUpdate(**update_data_final_dict),
             )
@@ -228,10 +207,7 @@ class GenerationTaskService:
                     ),
                 }
                 product_access = self._get_product_access(session)
-                RepositoryRuntimeSupport.call_repository_method(
-                    product_access,
-                    "update_produto",
-                    session=session,
+                product_access.update_produto(
                     db_produto=db_produto,
                     produto_update=self._schemas.ProdutoUpdate(**update_data_falha_http),
                 )
@@ -246,18 +222,13 @@ class GenerationTaskService:
                     status_field_to_update: self._models.StatusGeracaoIAEnum.FALHA,
                     "log_processamento": self._append_process_log(
                         db_produto.log_processamento,
-                        f"{log_entry_prefix}: Erro crítico inesperado - {exc}",
+                        f"{log_entry_prefix}: Erro critico inesperado - {exc}",
                     ),
                 }
                 product_access = self._get_product_access(session)
-                RepositoryRuntimeSupport.call_repository_method(
-                    product_access,
-                    "update_produto",
-                    session=session,
+                product_access.update_produto(
                     db_produto=db_produto,
-                    produto_update=self._schemas.ProdutoUpdate(
-                        **update_data_falha_critica
-                    ),
+                    produto_update=self._schemas.ProdutoUpdate(**update_data_falha_critica),
                 )
         finally:
             self._logger.info(

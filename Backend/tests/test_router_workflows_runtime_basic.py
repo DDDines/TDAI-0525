@@ -308,7 +308,6 @@ class _TopLevelFunctionSurface:
         request_service._generation_task_service = FakeTaskService()
 
         await request_service.tarefa_processar_geracao_e_registrar_uso(
-            db_session_factory="db_factory",
             user_id=7,
             produto_id=9,
             tipo_geracao_principal="titulo",

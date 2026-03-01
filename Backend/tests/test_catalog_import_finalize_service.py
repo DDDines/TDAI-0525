@@ -14,8 +14,8 @@ class _OrchestratorStub:
         self.plan = plan
         self.calls = []
 
-    def select_finalize_plan(self, *, db_session_factory, command):
-        self.calls.append((db_session_factory, command))
+    def select_finalize_plan(self, *, command):
+        self.calls.append(command)
         return self.plan
 
 
@@ -58,6 +58,7 @@ class _TopLevelFunctionSurface:
     def _build_service(plan: TaskExecutionPlan) -> CatalogImportFinalizeService:
         return CatalogImportFinalizeService(
             oop_executor=object(),
+            db_session_factory=lambda: object(),
             dispatcher_cls=_DispatcherStub,
             orchestrator=_OrchestratorStub(plan),
         )
@@ -81,7 +82,6 @@ class _TopLevelFunctionSurface:
     
         await service.dispatch_or_run(
             background_tasks=object(),
-            db_session_factory=lambda: None,
             command=_build_command(),
         )
     
@@ -106,7 +106,6 @@ class _TopLevelFunctionSurface:
     
         await service.dispatch_or_run(
             background_tasks=object(),
-            db_session_factory=lambda: None,
             command=_build_command(),
         )
     
@@ -130,7 +129,6 @@ class _TopLevelFunctionSurface:
         service = _build_service(plan)
     
         await service.run_direct(
-            db_session_factory=lambda: None,
             command=_build_command(),
         )
     

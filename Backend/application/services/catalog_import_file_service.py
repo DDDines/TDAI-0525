@@ -4,8 +4,6 @@ from typing import Any
 
 from fastapi import HTTPException
 
-from Backend.application.services.repository_runtime_support import RepositoryRuntimeSupport
-
 
 class CatalogImportFileService:
     """Gerencia listagem, exclusao e reprocessamento de arquivos de catalogo."""
@@ -55,10 +53,7 @@ class CatalogImportFileService:
         repo = self._resolve_catalog_file_repo(
             catalog_file_repo=catalog_file_repo,
         )
-        items, total_items = RepositoryRuntimeSupport.call_repository_method(
-            repo,
-            "list_catalog_files_for_user",
-            session=getattr(repo, "_db", None),
+        items, total_items = repo.list_catalog_files_for_user(
             user_id=user_id,
             fornecedor_id=fornecedor_id,
             skip=skip,
@@ -81,10 +76,7 @@ class CatalogImportFileService:
         repo = self._resolve_catalog_file_repo(
             catalog_file_repo=catalog_file_repo,
         )
-        record = RepositoryRuntimeSupport.call_repository_method(
-            repo,
-            "get_catalog_file_for_user",
-            session=getattr(repo, "_db", None),
+        record = repo.get_catalog_file_for_user(
             file_id=file_id,
             user_id=user_id,
         )
@@ -108,12 +100,7 @@ class CatalogImportFileService:
             user_id=user_id,
         )
         self._file_processing_service.delete_catalog_file(record.stored_filename)
-        RepositoryRuntimeSupport.call_repository_method(
-            repo,
-            "delete_catalog_file",
-            session=getattr(repo, "_db", None),
-            catalog_file=record,
-        )
+        repo.delete_catalog_file(catalog_file=record)
         return record
 
     async def reprocess_catalog_file(
@@ -129,7 +116,6 @@ class CatalogImportFileService:
         region: list[float] | None,
         catalog_file_repo: Any | None = None,
         fornecedor_repo: Any | None = None,
-        db_session_factory: Any | None = None,
     ) -> dict[str, Any]:
         if catalog_file_repo is None:
             catalog_file_repo = self._resolve_catalog_file_repo()
@@ -137,8 +123,6 @@ class CatalogImportFileService:
             fornecedor_repo = getattr(self._catalog_import_start_service, "_fornecedor_repo", None)
         if fornecedor_repo is None:
             raise ValueError("fornecedor_repo is required")
-        if db_session_factory is None:
-            raise ValueError("db_session_factory is required")
 
         catalog_file = self._catalog_import_start_service.get_catalog_file_or_404(
             file_id=file_id,
@@ -173,6 +157,5 @@ class CatalogImportFileService:
         await self._catalog_import_start_service.dispatch_finalize(
             background_tasks=background_tasks,
             command=command,
-            db_session_factory=db_session_factory,
         )
         return {"status": "PROCESSING", "file_id": file_id}

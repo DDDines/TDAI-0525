@@ -19,11 +19,13 @@ class CatalogImportFinalizeService:
         self,
         *,
         oop_executor: Any,
+        db_session_factory: Any,
         dispatcher_cls: Any = PipelineDispatcher,
         orchestrator: Any = None,
         sync_env_var: str = "CATALOG_IMPORT_TEST_SYNC",
         thread_name_prefix: str = "catalog-import",
     ) -> None:
+        self._db_session_factory = db_session_factory
         self._orchestrator = orchestrator or CatalogImportPipelineOrchestrator(
             oop_executor=oop_executor,
         )
@@ -34,11 +36,11 @@ class CatalogImportFinalizeService:
     def select_plan(
         self,
         *,
-        db_session_factory: Any,
         command: CatalogImportFinalizeCommand,
     ) -> TaskExecutionPlan:
+        if self._db_session_factory is None:
+            raise ValueError("db_session_factory is required for CatalogImportFinalizeService")
         return self._orchestrator.select_finalize_plan(
-            db_session_factory=db_session_factory,
             command=command,
         )
 
@@ -46,11 +48,9 @@ class CatalogImportFinalizeService:
         self,
         *,
         background_tasks: BackgroundTasks,
-        db_session_factory: Any,
         command: CatalogImportFinalizeCommand,
     ) -> TaskExecutionPlan:
         plan = self.select_plan(
-            db_session_factory=db_session_factory,
             command=command,
         )
         if self._dispatcher.should_run_inline_for_tests(self._sync_env_var):
@@ -63,11 +63,9 @@ class CatalogImportFinalizeService:
     async def run_direct(
         self,
         *,
-        db_session_factory: Any,
         command: CatalogImportFinalizeCommand,
     ) -> TaskExecutionPlan:
         plan = self.select_plan(
-            db_session_factory=db_session_factory,
             command=command,
         )
         await plan.executor(**plan.task_kwargs)

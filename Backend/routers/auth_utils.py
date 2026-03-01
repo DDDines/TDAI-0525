@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import logging
 
-from fastapi import Depends, HTTPException, Request, status
+from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
 from sqlalchemy.orm import Session
 
@@ -30,16 +30,10 @@ class AuthRequestService:
         self._security_workflow = security_workflow or security.SecurityWorkflow()
         self._user_repository_cls = user_repository_cls
 
-    def _decode_token(self, token: str):
-        return self._security_workflow.decode_token(token, config.settings.SECRET_KEY)
-
-    def _get_user(self, session: Session, user_id: int):
-        return self._user_repository_cls(session).get_user(user_id=user_id)
-
     async def get_current_user(
         self,
         *,
-        request: Request,
+        request: object | None = None,
         session: Session,
         token: str,
     ) -> models.User:
@@ -49,11 +43,12 @@ class AuthRequestService:
             detail="Could not validate credentials",
             headers={"WWW-Authenticate": "Bearer"},
         )
-        token_payload = self._decode_token(token)
+        token_payload = self._security_workflow.decode_token(token, config.settings.SECRET_KEY)
         if token_payload is None or token_payload.user_id is None:
             logger.warning("Token invalido ou user_id ausente no payload. Token: %s...", token[:20])
             raise credentials_exception
-        user = self._get_user(session, user_id=token_payload.user_id)
+
+        user = self._user_repository_cls(session).get_user(user_id=token_payload.user_id)
         if user is None:
             logger.warning("Usuario nao encontrado no DB para user_id: %s", token_payload.user_id)
             raise credentials_exception
@@ -79,12 +74,11 @@ class _AuthUtilsCurrentUserDependency:
 
     @staticmethod
     async def get_current_user(
-        request: Request,
         session: Session = Depends(ServiceContainerDependencySupport.get_request_db_session),
         token: str = Depends(oauth2_scheme),
     ) -> models.User:
         service = AuthRequestService()
-        return await service.get_current_user(request=request, session=session, token=token)
+        return await service.get_current_user(request=None, session=session, token=token)
 
 
 class _AuthUtilsActiveUserDependency:

@@ -15,12 +15,12 @@ class _CrudProdutosStub:
         self.produto = produto
         self.updated = []
 
-    def get_produto(self, db, *, produto_id: int):
-        _ = (db, produto_id)
+    def get_produto(self, *, produto_id: int):
+        _ = produto_id
         return self.produto
 
-    def update_produto(self, db, *, db_produto, produto_update):
-        self.updated.append((db, db_produto, produto_update))
+    def update_produto(self, *, db_produto, produto_update):
+        self.updated.append((db_produto, produto_update))
         return db_produto
 
 
@@ -104,7 +104,7 @@ class _TopLevelFunctionSurface:
         )
     
         assert len(crud_stub.updated) == 1
-        _, _, produto_update = crud_stub.updated[0]
+        _, produto_update = crud_stub.updated[0]
         assert produto_update.payload == {"status_titulo_ia": "PENDENTE"}
 
     def test_enqueue_generation_task_forwards_expected_kwargs():
@@ -117,7 +117,6 @@ class _TopLevelFunctionSurface:
         service.enqueue_generation_task(
             background_tasks=background_tasks,
             task_executor=_executor,
-            db_session_factory=lambda: None,
             user_id=7,
             produto_id=8,
             generation_type="descricao",

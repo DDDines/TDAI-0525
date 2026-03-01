@@ -24,8 +24,8 @@ class _CrudFornecedoresStub:
     def __init__(self, fornecedor=None):
         self._fornecedor = fornecedor
 
-    def get_fornecedor(self, db, fornecedor_id):
-        _ = (db, fornecedor_id)
+    def get_fornecedor(self, *, fornecedor_id):
+        _ = fornecedor_id
         return self._fornecedor
 
 
@@ -33,8 +33,7 @@ class _CrudProdutosStub:
     def __init__(self):
         self.bulk_calls = []
 
-    def create_produtos_bulk(self, db, produtos, user_id):
-        _ = db
+    def create_produtos_bulk(self, *, produtos, user_id):
         self.bulk_calls.append((produtos, user_id))
         created = [SimpleNamespace(id=77)]
         return created, [], []
@@ -44,18 +43,16 @@ class _CrudUsoIAStub:
     def __init__(self):
         self.calls = []
 
-    def create_registro_uso_ia(self, db, payload):
-        _ = db
-        self.calls.append(payload.data)
+    def create_registro_uso_ia(self, *, registro_uso):
+        self.calls.append(registro_uso.data)
 
 
 class _CrudHistoricoStub:
     def __init__(self):
         self.calls = []
 
-    def create_registro_historico(self, db, payload):
-        _ = db
-        self.calls.append(payload.data)
+    def create_registro_historico(self, *, registro_in):
+        self.calls.append(registro_in.data)
 
 
 class _FileProcessingStub:

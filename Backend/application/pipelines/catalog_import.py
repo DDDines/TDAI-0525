@@ -29,7 +29,6 @@ class OOPCatalogImportExecutor:
             region=task_kwargs.get("region"),
         )
         return await self._use_case.execute_command(
-            db_session_factory=task_kwargs.get("db_session_factory"),
             command=command,
         )
 
@@ -41,7 +40,6 @@ class CatalogImportTaskBuilder:
     def build_finalize_plan(
         self,
         *,
-        db_session_factory: Any,
         file_id: int,
         user_id: int,
         product_type_id: Optional[int],
@@ -51,7 +49,6 @@ class CatalogImportTaskBuilder:
         region: Optional[List[float]],
     ) -> TaskExecutionPlan:
         task_kwargs = {
-            "db_session_factory": db_session_factory,
             "file_id": file_id,
             "user_id": user_id,
             "product_type_id": product_type_id,

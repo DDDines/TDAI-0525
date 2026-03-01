@@ -13,6 +13,7 @@ class WebEnrichmentTaskRunner:
     def __init__(
         self,
         *,
+        db_session_factory: Any,
         logger: Any,
         SQLAlchemyError: Any,
         models: Any,
@@ -33,6 +34,7 @@ class WebEnrichmentTaskRunner:
         usage_repository: Any | None = None,
     ) -> None:
         self._kwargs = {
+            "db_session_factory": db_session_factory,
             "logger": logger,
             "SQLAlchemyError": SQLAlchemyError,
             "user_repository": user_repository,
@@ -67,13 +69,11 @@ class WebEnrichmentTaskRunner:
     async def execute(
         self,
         *,
-        db_session_factory: Any,
         produto_id: int,
         user_id: int,
         termos_busca_override: Optional[str] = None,
     ) -> None:
         await self._get_service().execute(
-            db_session_factory=db_session_factory,
             produto_id=produto_id,
             user_id=user_id,
             termos_busca_override=termos_busca_override,

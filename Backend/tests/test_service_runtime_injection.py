@@ -82,15 +82,11 @@ class _TopLevelFunctionSurface:
         assert result == {"nome_base": "Produto X", "mapping": {"nome": "nome_base"}}
 
     @pytest.mark.asyncio
-    async def test_user_and_job_workflows_delegam_runtime_injetado():
+    async def test_user_and_job_components_operam_com_dependencias_injetadas():
         class UserRuntime:
             def get_user(self, **kwargs):
                 return {"workflow": "user", **kwargs}
-    
-        class JobRuntime:
-            def update_job_status(self, **kwargs):
-                return {"workflow": "job", **kwargs}
-    
+
         class InitialDataRuntime:
             def create_initial_data(self, **kwargs):
                 return {"workflow": "initial_data", **kwargs}
@@ -98,20 +94,35 @@ class _TopLevelFunctionSurface:
         class UserWorkflow:
             def __init__(self, runtime):
                 self._runtime = runtime
-    
+
             def get_user(self, db, user_id):
                 return self._runtime.get_user(db=db, user_id=user_id)
-    
+
+        class _FakeDb:
+            def __init__(self):
+                self.added = []
+                self.commits = 0
+                self.refreshed = []
+
+            def add(self, obj):
+                self.added.append(obj)
+
+            def commit(self):
+                self.commits += 1
+
+            def refresh(self, obj):
+                self.refreshed.append(obj)
+
         user_workflow = UserWorkflow(runtime=UserRuntime())
-        job_workflow = FornecedorImportJobRepository(runtime=JobRuntime())
+        job_workflow = FornecedorImportJobRepository(_FakeDb())
         initial_data_workflow = InitialDataWorkflow(runtime=InitialDataRuntime())
-    
+
         user = user_workflow.get_user(db="db", user_id=3)
-        job = job_workflow.update_job_status(db="db", job="job", status="DONE")
+        job = job_workflow.update_job_status(job=SimpleNamespace(status="PENDING"), status="DONE")
         initial = initial_data_workflow.create_initial_data(session="db")
-    
+
         assert user["workflow"] == "user"
-        assert job["workflow"] == "job"
+        assert job.status == "DONE"
         assert initial["workflow"] == "initial_data"
 
     @pytest.mark.asyncio
@@ -259,7 +270,7 @@ test_create_tables_workflow_delega_runtime_injetado = _TopLevelFunctionSurface.t
 test_database_get_db_yields_session_and_closes = _TopLevelFunctionSurface.test_database_get_db_yields_session_and_closes
 test_task_workflow_delega_runtime_injetado = _TopLevelFunctionSurface.test_task_workflow_delega_runtime_injetado
 test_line_mapping_workflow_delega_runtime_injetado = _TopLevelFunctionSurface.test_line_mapping_workflow_delega_runtime_injetado
-test_user_and_job_workflows_delegam_runtime_injetado = _TopLevelFunctionSurface.test_user_and_job_workflows_delegam_runtime_injetado
+test_user_and_job_components_operam_com_dependencias_injetadas = _TopLevelFunctionSurface.test_user_and_job_components_operam_com_dependencias_injetadas
 test_catalog_storage_workflow_delega_runtime_injetado = _TopLevelFunctionSurface.test_catalog_storage_workflow_delega_runtime_injetado
 test_tabular_workflows_delegam_runtime_injetado = _TopLevelFunctionSurface.test_tabular_workflows_delegam_runtime_injetado
 test_pdf_job_workflow_delega_runtime_injetado = _TopLevelFunctionSurface.test_pdf_job_workflow_delega_runtime_injetado

@@ -1,6 +1,8 @@
 ﻿from __future__ import annotations
 
-from typing import Any
+from typing import Any, Dict, List, Optional
+
+import pandas as pd
 
 from Backend.application.services.file_processing.contracts import FileProcessingPort
 
@@ -11,11 +13,29 @@ class FileProcessingPdfAssetsService:
     def __init__(self, port: FileProcessingPort) -> None:
         self._port = port
 
-    def generate_pdf_page_images(self, *args: Any, **kwargs: Any):
-        return self._port.generate_pdf_page_images(*args, **kwargs)
+    def generate_pdf_page_images(self, file_path: str, file_id: str) -> List[str]:
+        return self._port.generate_pdf_page_images(file_path=file_path, file_id=file_id)
 
-    def extract_pdf_region_image(self, *args: Any, **kwargs: Any):
-        return self._port.extract_pdf_region_image(*args, **kwargs)
+    def extract_pdf_region_image(
+        self,
+        file_path: str,
+        page_number: int,
+        region: Optional[List[float]] = None,
+        dpi: int = 300,
+    ) -> bytes:
+        return self._port.extract_pdf_region_image(
+            file_path=file_path,
+            page_number=page_number,
+            region=region,
+            dpi=dpi,
+        )
 
-    def parse_annotation_to_dataframe(self, *args: Any, **kwargs: Any):
-        return self._port.parse_annotation_to_dataframe(*args, **kwargs)
+    def parse_annotation_to_dataframe(
+        self,
+        annotation: object,
+        vertical_tolerance: int = 5,
+    ) -> pd.DataFrame:
+        return self._port.parse_annotation_to_dataframe(
+            annotation=annotation,
+            vertical_tolerance=vertical_tolerance,
+        )

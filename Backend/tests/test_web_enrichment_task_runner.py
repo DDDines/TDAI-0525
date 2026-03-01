@@ -19,6 +19,7 @@ class _TopLevelFunctionSurface:
 
     def _build_runner() -> WebEnrichmentTaskRunner:
         return WebEnrichmentTaskRunner(
+            db_session_factory=lambda: None,
             logger=object(),
             SQLAlchemyError=Exception,
             user_repository=object(),
@@ -52,18 +53,15 @@ class _TopLevelFunctionSurface:
         runner._build = _fake_build  # type: ignore[attr-defined]
     
         await runner.execute(
-            db_session_factory=lambda: None,
             produto_id=10,
             user_id=20,
             termos_busca_override="item x",
         )
         await runner.execute(
-            db_session_factory=lambda: None,
             produto_id=30,
             user_id=40,
         )
         await runner.execute(
-            db_session_factory=lambda: None,
             produto_id=11,
             user_id=21,
         )
@@ -87,12 +85,10 @@ class _TopLevelFunctionSurface:
         runner._build = _fake_build  # type: ignore[attr-defined]
     
         await runner.execute(
-            db_session_factory=lambda: None,
             produto_id=91,
             user_id=42,
         )
         await runner.execute(
-            db_session_factory=lambda: None,
             produto_id=92,
             user_id=43,
         )

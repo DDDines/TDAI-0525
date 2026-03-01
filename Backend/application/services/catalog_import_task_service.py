@@ -11,7 +11,6 @@ from Backend.application.services.catalog_import_components import (
     CatalogImportQualityAccumulator,
     CatalogImportResultBuilder,
 )
-from Backend.application.services.repository_runtime_support import RepositoryRuntimeSupport
 
 
 class CatalogImportTaskRuntime:
@@ -42,6 +41,7 @@ class CatalogImportTaskRuntime:
     def __init__(
         self,
         *,
+        db_session_factory,
         logger,
         catalog_logger,
         models,
@@ -98,6 +98,7 @@ class CatalogImportTaskWorkflow:
     def __init__(
         self,
         *,
+        db_session_factory,
         logger,
         catalog_logger,
         models,
@@ -129,6 +130,7 @@ class CatalogImportTaskWorkflow:
             catalog_file_repository = CatalogImportFileRepository
 
         runtime_obj = CatalogImportTaskRuntime(
+            db_session_factory=db_session_factory,
             logger=logger,
             catalog_logger=catalog_logger,
             models=models,
@@ -155,6 +157,7 @@ class CatalogImportTaskWorkflow:
             runtime_obj.apply_overrides(runtime)
 
         self._runtime = runtime_obj
+        self._db_session_factory = db_session_factory
         self.logger = runtime_obj.logger
         self.catalog_logger = runtime_obj.catalog_logger
         self.models = runtime_obj.models
@@ -204,12 +207,10 @@ class CatalogImportTaskWorkflow:
         self.ext = ""
         self.quality_filter_enabled = False
         self.catalog_file_repo_runtime: Any | None = None
+        self.product_repo_runtime: Any | None = None
 
     def _load_catalog_file(self) -> bool:
-        self.catalog_file = RepositoryRuntimeSupport.call_repository_method(
-            self.catalog_file_repo_runtime,
-            "get_catalog_file_for_user",
-            session=self.db,
+        self.catalog_file = self.catalog_file_repo_runtime.get_catalog_file_for_user(
             file_id=self.file_id,
             user_id=self.user_id,
         )
@@ -344,12 +345,8 @@ class CatalogImportTaskWorkflow:
         if not produtos_create:
             return created_page, updated_page
 
-        created_page, updated_page, dup_errors = RepositoryRuntimeSupport.call_repository_method(
-            self.product_repository,
-            "create_produtos_bulk",
-            session=self.db,
+        created_page, updated_page, dup_errors = self.product_repo_runtime.create_produtos_bulk(
             produtos=produtos_create,
-            arg_aliases={"produtos": ("produtos_data",)},
             user_id=self.user_id,
         )
         self.created.extend(created_page)
@@ -530,12 +527,7 @@ class CatalogImportTaskWorkflow:
         self.catalog_logger.exception("falha file_id=%s erro=%s", self.file_id, error)
         if not self.db:
             return
-        catalog_file = RepositoryRuntimeSupport.call_repository_method(
-            self.catalog_file_repo_runtime,
-            "get_catalog_file",
-            session=self.db,
-            file_id=self.file_id,
-        )
+        catalog_file = self.catalog_file_repo_runtime.get_catalog_file(file_id=self.file_id)
         if catalog_file:
             CatalogImportFileStateService.mark_failure_with_exception(
                 catalog_file_repo=self.catalog_file_repo_runtime,
@@ -547,7 +539,6 @@ class CatalogImportTaskWorkflow:
     async def run(
         self,
         *,
-        db_session_factory,
         file_id: int,
         user_id: int,
         product_type_id: Optional[int],
@@ -556,11 +547,17 @@ class CatalogImportTaskWorkflow:
         pages: Optional[List[int]] = None,
         region: Optional[List[float]] = None,
     ) -> None:
-        self.db = db_session_factory()
-        self.catalog_file_repo_runtime = RepositoryRuntimeSupport.bind_repository(
-            self.catalog_file_repository,
-            session=self.db,
-        )
+        if self._db_session_factory is None:
+            raise ValueError("db_session_factory is required for CatalogImportTaskWorkflow")
+        self.db = self._db_session_factory()
+        if isinstance(self.catalog_file_repository, type):
+            self.catalog_file_repo_runtime = self.catalog_file_repository(self.db)
+        else:
+            self.catalog_file_repo_runtime = self.catalog_file_repository
+        if isinstance(self.product_repository, type):
+            self.product_repo_runtime = self.product_repository(self.db)
+        else:
+            self.product_repo_runtime = self.product_repository
         self.file_id = file_id
         self.user_id = user_id
         self.product_type_id = product_type_id
@@ -596,6 +593,7 @@ class CatalogImportTaskService:
     def __init__(
         self,
         *,
+        db_session_factory,
         logger,
         catalog_logger,
         models,
@@ -626,6 +624,7 @@ class CatalogImportTaskService:
             catalog_file_repository = CatalogImportFileRepository
 
         self._deps = {
+            "db_session_factory": db_session_factory,
             "logger": logger,
             "catalog_logger": catalog_logger,
             "models": models,
@@ -652,7 +651,6 @@ class CatalogImportTaskService:
     async def execute(
         self,
         *,
-        db_session_factory,
         file_id: int,
         user_id: int,
         product_type_id: Optional[int],
@@ -663,7 +661,6 @@ class CatalogImportTaskService:
     ):
         workflow = CatalogImportTaskWorkflow(**self._deps)
         await workflow.run(
-            db_session_factory=db_session_factory,
             file_id=file_id,
             user_id=user_id,
             product_type_id=product_type_id,

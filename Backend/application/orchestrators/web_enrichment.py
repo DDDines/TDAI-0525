@@ -33,11 +33,9 @@ class WebEnrichmentPipelineOrchestrator:
     def select_start_plan(
         self,
         *,
-        db_session_factory: Any,
         command: WebEnrichmentStartCommand,
     ) -> TaskExecutionPlan:
         oop_plan = self._oop_builder.build_start_plan(
-            db_session_factory=db_session_factory,
             produto_id=command.produto_id,
             user_id=command.user_id,
             termos_busca_override=command.termos_busca_override,

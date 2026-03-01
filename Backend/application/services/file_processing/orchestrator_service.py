@@ -1,6 +1,10 @@
 ﻿from __future__ import annotations
 
-from typing import Any, Dict, Optional
+from typing import Any, Dict, List, Optional
+
+import pandas as pd
+from fastapi import UploadFile
+from sqlalchemy.orm import Session
 
 from Backend.application.services.file_processing.contracts import FileProcessingPort
 from Backend.application.services.file_processing.pdf_assets_service import (
@@ -31,56 +35,196 @@ class FileProcessingOrchestratorService:
         self.preview = FileProcessingPreviewService(port)
         self.pdf_assets = FileProcessingPdfAssetsService(port)
 
-    async def save_uploaded_catalog(self, *args: Any, **kwargs: Any):
-        return await self.storage.save_uploaded_catalog(*args, **kwargs)
+    async def save_uploaded_catalog(
+        self,
+        file: UploadFile,
+        fornecedor_id: Optional[int] = None,
+    ):
+        return await self.storage.save_uploaded_catalog(
+            file=file,
+            fornecedor_id=fornecedor_id,
+        )
 
-    def delete_catalog_file(self, *args: Any, **kwargs: Any):
-        return self.storage.delete_catalog_file(*args, **kwargs)
+    def delete_catalog_file(self, stored_filename: str) -> None:
+        return self.storage.delete_catalog_file(stored_filename=stored_filename)
 
-    def get_file_path_by_id(self, *args: Any, **kwargs: Any):
-        return self.storage.get_file_path_by_id(*args, **kwargs)
+    def get_file_path_by_id(self, db: Session, file_id: str | int) -> str:
+        return self.storage.get_file_path_by_id(db=db, file_id=file_id)
 
-    async def processar_arquivo_excel(self, *args: Any, **kwargs: Any):
-        return await self.tabular.processar_arquivo_excel(*args, **kwargs)
+    async def processar_arquivo_excel(
+        self,
+        conteudo_arquivo: bytes,
+        mapeamento_colunas_usuario: Optional[Dict[str, str]] = None,
+        sheet_name: Optional[str] = None,
+        product_type_id: Optional[int] = None,
+    ) -> List[Dict[str, Any]]:
+        return await self.tabular.processar_arquivo_excel(
+            conteudo_arquivo=conteudo_arquivo,
+            mapeamento_colunas_usuario=mapeamento_colunas_usuario,
+            sheet_name=sheet_name,
+            product_type_id=product_type_id,
+        )
 
-    async def processar_arquivo_csv(self, *args: Any, **kwargs: Any):
-        return await self.tabular.processar_arquivo_csv(*args, **kwargs)
+    async def processar_arquivo_csv(
+        self,
+        conteudo_arquivo: bytes,
+        mapeamento_colunas_usuario: Optional[Dict[str, str]] = None,
+        product_type_id: Optional[int] = None,
+    ) -> List[Dict[str, Any]]:
+        return await self.tabular.processar_arquivo_csv(
+            conteudo_arquivo=conteudo_arquivo,
+            mapeamento_colunas_usuario=mapeamento_colunas_usuario,
+            product_type_id=product_type_id,
+        )
 
-    async def processar_arquivo_pdf(self, *args: Any, **kwargs: Any):
-        return await self.pdf.processar_arquivo_pdf(*args, **kwargs)
+    async def processar_arquivo_pdf(
+        self,
+        conteudo_arquivo: bytes,
+        mapeamento_colunas_usuario: Optional[Dict[str, str]] = None,
+        usar_llm: bool = True,
+        product_type_id: Optional[int] = None,
+        pages: Optional[List[int]] = None,
+        region: Optional[List[float]] = None,
+    ) -> List[Dict[str, Any]]:
+        return await self.pdf.processar_arquivo_pdf(
+            conteudo_arquivo=conteudo_arquivo,
+            mapeamento_colunas_usuario=mapeamento_colunas_usuario,
+            usar_llm=usar_llm,
+            product_type_id=product_type_id,
+            pages=pages,
+            region=region,
+        )
 
-    async def preview_arquivo_excel(self, *args: Any, **kwargs: Any):
-        return await self.tabular.preview_arquivo_excel(*args, **kwargs)
+    async def preview_arquivo_excel(
+        self,
+        conteudo_arquivo: bytes,
+        max_rows: int = 5,
+    ) -> Dict[str, Any]:
+        return await self.tabular.preview_arquivo_excel(
+            conteudo_arquivo=conteudo_arquivo,
+            max_rows=max_rows,
+        )
 
-    async def preview_arquivo_csv(self, *args: Any, **kwargs: Any):
-        return await self.tabular.preview_arquivo_csv(*args, **kwargs)
+    async def preview_arquivo_csv(
+        self,
+        conteudo_arquivo: bytes,
+        max_rows: int = 5,
+    ) -> Dict[str, Any]:
+        return await self.tabular.preview_arquivo_csv(
+            conteudo_arquivo=conteudo_arquivo,
+            max_rows=max_rows,
+        )
 
-    async def preview_arquivo_pdf(self, *args: Any, **kwargs: Any):
-        return await self.preview.preview_arquivo_pdf(*args, **kwargs)
+    async def preview_arquivo_pdf(
+        self,
+        conteudo_arquivo: bytes,
+        ext: str,
+        start_page: int = 1,
+        page_count: int = 1,
+        dpi: int = 72,
+    ) -> Dict[str, Any]:
+        return await self.preview.preview_arquivo_pdf(
+            conteudo_arquivo=conteudo_arquivo,
+            ext=ext,
+            start_page=start_page,
+            page_count=page_count,
+            dpi=dpi,
+        )
 
-    async def gerar_preview(self, *args: Any, **kwargs: Any):
-        return await self.preview.gerar_preview(*args, **kwargs)
+    async def gerar_preview(
+        self,
+        conteudo_arquivo: bytes,
+        ext: str,
+        max_rows: int = 5,
+    ) -> Dict[str, Any]:
+        return await self.preview.gerar_preview(
+            conteudo_arquivo=conteudo_arquivo,
+            ext=ext,
+            max_rows=max_rows,
+        )
 
-    async def pdf_bytes_to_images(self, *args: Any, **kwargs: Any):
-        return await self.preview.pdf_bytes_to_images(*args, **kwargs)
+    async def pdf_bytes_to_images(
+        self,
+        conteudo_arquivo: bytes,
+        max_pages: int = 1,
+        start_page: int = 1,
+        dpi: int = 200,
+    ) -> List[str]:
+        return await self.preview.pdf_bytes_to_images(
+            conteudo_arquivo=conteudo_arquivo,
+            max_pages=max_pages,
+            start_page=start_page,
+            dpi=dpi,
+        )
 
-    def pdf_pages_to_images(self, *args: Any, **kwargs: Any):
-        return self.preview.pdf_pages_to_images(*args, **kwargs)
+    def pdf_pages_to_images(
+        self,
+        db: Session,
+        file: UploadFile,
+        fornecedor_id: int,
+        user_id: int,
+        offset: int,
+        limit: int,
+    ) -> Dict[str, Any]:
+        return self.preview.pdf_pages_to_images(
+            db=db,
+            file=file,
+            fornecedor_id=fornecedor_id,
+            user_id=user_id,
+            offset=offset,
+            limit=limit,
+        )
 
-    async def extrair_pagina_pdf(self, *args: Any, **kwargs: Any):
-        return await self.pdf.extrair_pagina_pdf(*args, **kwargs)
+    async def extrair_pagina_pdf(
+        self,
+        conteudo_pdf: bytes,
+        page_number: int,
+        region: Optional[List[float]] = None,
+    ) -> Dict[str, Any]:
+        return await self.pdf.extrair_pagina_pdf(
+            conteudo_pdf=conteudo_pdf,
+            page_number=page_number,
+            region=region,
+        )
 
-    def generate_pdf_page_images(self, *args: Any, **kwargs: Any):
-        return self.pdf_assets.generate_pdf_page_images(*args, **kwargs)
+    def generate_pdf_page_images(self, file_path: str, file_id: str) -> List[str]:
+        return self.pdf_assets.generate_pdf_page_images(file_path=file_path, file_id=file_id)
 
-    def extract_pdf_region_image(self, *args: Any, **kwargs: Any):
-        return self.pdf_assets.extract_pdf_region_image(*args, **kwargs)
+    def extract_pdf_region_image(
+        self,
+        file_path: str,
+        page_number: int,
+        region: Optional[List[float]] = None,
+        dpi: int = 300,
+    ) -> bytes:
+        return self.pdf_assets.extract_pdf_region_image(
+            file_path=file_path,
+            page_number=page_number,
+            region=region,
+            dpi=dpi,
+        )
 
-    def parse_annotation_to_dataframe(self, *args: Any, **kwargs: Any):
-        return self.pdf_assets.parse_annotation_to_dataframe(*args, **kwargs)
+    def parse_annotation_to_dataframe(
+        self,
+        annotation: object,
+        vertical_tolerance: int = 5,
+    ) -> pd.DataFrame:
+        return self.pdf_assets.parse_annotation_to_dataframe(
+            annotation=annotation,
+            vertical_tolerance=vertical_tolerance,
+        )
 
-    def extract_data_from_pdf_region(self, *args: Any, **kwargs: Any):
-        return self.pdf.extract_data_from_pdf_region(*args, **kwargs)
+    def extract_data_from_pdf_region(
+        self,
+        file_path: str,
+        page_number: int,
+        region: Optional[List[float]] = None,
+    ) -> pd.DataFrame:
+        return self.pdf.extract_data_from_pdf_region(
+            file_path=file_path,
+            page_number=page_number,
+            region=region,
+        )
 
     async def process_pdf_job(
         self,
@@ -101,7 +245,10 @@ class FileProcessingOrchestratorService:
 
     def processar_linha_padronizada(
         self,
-        row: Dict[str, Any],
+        linha_original: Dict[str, Any],
         mapeamento_colunas_usuario: Optional[Dict[str, str]],
-    ) -> Dict[str, Any]:
-        return self.tabular.processar_linha_padronizada(row, mapeamento_colunas_usuario)
+    ) -> Optional[Dict[str, Any]]:
+        return self.tabular.processar_linha_padronizada(
+            linha_original,
+            mapeamento_colunas_usuario,
+        )

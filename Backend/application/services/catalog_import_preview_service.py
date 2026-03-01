@@ -8,8 +8,6 @@ from typing import Any, Dict, List, Optional
 
 from fastapi import HTTPException
 
-from Backend.application.services.repository_runtime_support import RepositoryRuntimeSupport
-
 
 class CatalogImportPreviewService:
     """Encapsula preview e extracao auxiliar do fluxo de importacao de catalogos."""
@@ -76,12 +74,7 @@ class CatalogImportPreviewService:
             file, fornecedor_id
         )
         catalog_record.user_id = user_id
-        RepositoryRuntimeSupport.call_repository_method(
-            repo,
-            "save_catalog_file",
-            session=getattr(repo, "_db", None),
-            catalog_file=catalog_record,
-        )
+        repo.save_catalog_file(catalog_file=catalog_record)
 
         ext = Path(catalog_record.original_filename).suffix.lower()
         try:
@@ -315,10 +308,7 @@ class CatalogImportPreviewService:
         file_id: int,
         user_id: int,
     ) -> Any:
-        record = RepositoryRuntimeSupport.call_repository_method(
-            catalog_file_repo,
-            "get_catalog_file_for_user",
-            session=getattr(catalog_file_repo, "_db", None),
+        record = catalog_file_repo.get_catalog_file_for_user(
             file_id=file_id,
             user_id=user_id,
         )

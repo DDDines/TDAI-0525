@@ -16,12 +16,12 @@ class _FinalizeServiceStub:
         self.calls = []
         self.direct_calls = []
 
-    async def dispatch_or_run(self, *, background_tasks, db_session_factory, command):
-        self.calls.append((background_tasks, db_session_factory, command))
+    async def dispatch_or_run(self, *, background_tasks, command):
+        self.calls.append((background_tasks, command))
         return {"ok": True}
 
-    async def run_direct(self, *, db_session_factory, command):
-        self.direct_calls.append((db_session_factory, command))
+    async def run_direct(self, *, command):
+        self.direct_calls.append(command)
         return {"ok": True}
 
 
@@ -197,13 +197,11 @@ class _TopLevelFunctionSurface:
     
         await service.dispatch_finalize(
             background_tasks=object(),
-            db_session_factory=lambda: object(),
             command=command,
         )
     
         assert len(finalize_service.calls) == 1
-        _, factory, called_command = finalize_service.calls[0]
-        assert callable(factory)
+        _, called_command = finalize_service.calls[0]
         assert called_command.file_id == 3
 
     @pytest.mark.asyncio
@@ -221,13 +219,11 @@ class _TopLevelFunctionSurface:
         )
     
         await service.run_finalize_direct(
-            db_session_factory=lambda: object(),
             command=command,
         )
-    
+
         assert len(finalize_service.direct_calls) == 1
-        factory, called_command = finalize_service.direct_calls[0]
-        assert callable(factory)
+        called_command = finalize_service.direct_calls[0]
         assert called_command.file_id == 12
 
 _build_service = _TopLevelFunctionSurface._build_service

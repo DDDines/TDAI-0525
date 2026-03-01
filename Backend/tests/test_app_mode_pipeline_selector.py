@@ -1,5 +1,3 @@
-from types import SimpleNamespace
-
 import pytest
 
 from Backend.application.pipeline_selector import PipelineSelector
@@ -47,7 +45,6 @@ class _TopLevelFunctionSurface:
         oop_plan = WebEnrichmentTaskBuilder(
             OOPWebEnrichmentExecutor(WebEnrichmentProcessingUseCase(_dummy_executor))
         ).build_start_plan(
-            db_session_factory=SimpleNamespace(name="db_factory"),
             produto_id=7,
             user_id=99,
             termos_busca_override="teste",
@@ -63,7 +60,6 @@ class _TopLevelFunctionSurface:
         oop_plan = WebEnrichmentTaskBuilder(
             OOPWebEnrichmentExecutor(WebEnrichmentProcessingUseCase(_dummy_executor))
         ).build_start_plan(
-            db_session_factory=SimpleNamespace(name="db_factory"),
             produto_id=7,
             user_id=99,
             termos_busca_override="teste",
@@ -77,7 +73,6 @@ class _TopLevelFunctionSurface:
         plan = CatalogImportTaskBuilder(
             OOPCatalogImportExecutor(CatalogImportProcessingUseCase(_dummy_executor))
         ).build_finalize_plan(
-            db_session_factory=SimpleNamespace(name="db_factory"),
             file_id=123,
             user_id=456,
             product_type_id=4,

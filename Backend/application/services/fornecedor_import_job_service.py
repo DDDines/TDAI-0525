@@ -15,10 +15,12 @@ class FornecedorImportJobService:
     def __init__(
         self,
         *,
+        db_session_factory: Any,
         import_job_repository_cls: type[FornecedorImportJobRepository] = FornecedorImportJobRepository,
         produto_repository_cls: type[ProductRepository] = ProductRepository,
         produto_create_schema: Any,
     ) -> None:
+        self._db_session_factory = db_session_factory
         self._import_job_repository_cls = import_job_repository_cls
         self._produto_repository_cls = produto_repository_cls
         self._produto_create_schema = produto_create_schema
@@ -42,19 +44,19 @@ class FornecedorImportJobService:
         self,
         *,
         background_tasks: Any,
-        db_session_factory: Any,
         job_id: int,
         user_id: int,
     ) -> None:
         background_tasks.add_task(
             self.commit_job_task,
-            db_session_factory=db_session_factory,
             job_id=job_id,
             user_id=user_id,
         )
 
-    def commit_job_task(self, *, db_session_factory: Any, job_id: int, user_id: int) -> None:
-        session = db_session_factory()
+    def commit_job_task(self, *, job_id: int, user_id: int) -> None:
+        if self._db_session_factory is None:
+            raise ValueError("db_session_factory is required for FornecedorImportJobService")
+        session = self._db_session_factory()
         try:
             import_job_repo = self._import_job_repo(session)
             produto_repo = self._produto_repo(session)

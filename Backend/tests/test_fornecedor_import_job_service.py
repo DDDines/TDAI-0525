@@ -67,7 +67,7 @@ class _BackgroundTasksStub:
 
 class _TopLevelFunctionSurface:
 
-    def _build_service(*, job):
+    def _build_service(*, job, db_session_factory=None):
         crud_jobs = _CrudFornecedorImportJobsStub()
         crud_jobs.job = job
         crud_produtos = _CrudProdutosStub()
@@ -91,6 +91,7 @@ class _TopLevelFunctionSurface:
                 return self._stub.get_or_create_produto(produto=produto, user_id=user_id)
     
         service = FornecedorImportJobService(
+            db_session_factory=db_session_factory or (lambda: _DbSessionStub()),
             import_job_repository_cls=_ImportJobRepoClass,
             produto_repository_cls=_ProdutoRepoClass,
             produto_create_schema=_ProdutoCreateSchemaStub,
@@ -123,7 +124,6 @@ class _TopLevelFunctionSurface:
     
         service.schedule_commit(
             background_tasks=background,
-            db_session_factory=lambda: _DbSessionStub(),
             job_id=5,
             user_id=10,
         )
@@ -145,18 +145,17 @@ class _TopLevelFunctionSurface:
                 "invalido",
             ],
         )
-        service, crud_jobs, crud_produtos = _build_service(job=job)
-    
         db_instance = _DbSessionStub()
-    
+
         def _factory():
             return db_instance
-    
-        service.commit_job_task(
+
+        service, crud_jobs, crud_produtos = _build_service(
+            job=job,
             db_session_factory=_factory,
-            job_id=5,
-            user_id=10,
         )
+    
+        service.commit_job_task(job_id=5, user_id=10)
     
         assert len(crud_produtos.calls) == 2
         assert crud_jobs.updated_status == "COMPLETED"
@@ -174,15 +173,14 @@ class _TopLevelFunctionSurface:
                 ]
             },
         )
-        service, crud_jobs, crud_produtos = _build_service(job=job)
-    
         db_instance = _DbSessionStub()
-    
-        service.commit_job_task(
+
+        service, crud_jobs, crud_produtos = _build_service(
+            job=job,
             db_session_factory=lambda: db_instance,
-            job_id=6,
-            user_id=10,
         )
+
+        service.commit_job_task(job_id=6, user_id=10)
     
         assert len(crud_produtos.calls) == 2
         assert crud_jobs.updated_status == "COMPLETED"

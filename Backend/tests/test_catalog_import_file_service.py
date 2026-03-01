@@ -140,7 +140,6 @@ class _TopLevelFunctionSurface:
                 region=[1.0, 2.0, 3.0, 4.0],
                 catalog_file_repo=_CatalogFileRepoStub(first_record=SimpleNamespace(id=99)),
                 fornecedor_repo=object(),
-                db_session_factory=lambda: object(),
             )
         )
     

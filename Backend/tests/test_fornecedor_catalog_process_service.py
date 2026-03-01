@@ -25,8 +25,8 @@ class _CrudFornecedoresStub:
     def __init__(self, fornecedor):
         self._fornecedor = fornecedor
 
-    def get_fornecedor(self, db, fornecedor_id):
-        _ = (db, fornecedor_id)
+    def get_fornecedor(self, *, fornecedor_id):
+        _ = fornecedor_id
         return self._fornecedor
 
 
@@ -92,7 +92,6 @@ class _TopLevelFunctionSurface:
     
         result = await service.start_full_processing(
             background_tasks=object(),
-            db_session_factory=lambda: object(),
             current_user=user,
             file_id=99,
             fornecedor_id=3,
@@ -122,7 +121,6 @@ class _TopLevelFunctionSurface:
         with pytest.raises(HTTPException) as exc:
             await service.start_full_processing(
                 background_tasks=object(),
-                db_session_factory=lambda: object(),
                 current_user=SimpleNamespace(id=1, is_superuser=False),
                 file_id=1,
                 fornecedor_id=99,
@@ -143,7 +141,6 @@ class _TopLevelFunctionSurface:
         with pytest.raises(HTTPException) as exc:
             await service.start_full_processing(
                 background_tasks=object(),
-                db_session_factory=lambda: object(),
                 current_user=SimpleNamespace(id=1, is_superuser=False),
                 file_id=1,
                 fornecedor_id=3,

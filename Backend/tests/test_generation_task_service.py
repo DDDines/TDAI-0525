@@ -28,7 +28,7 @@ class _CrudUsersStub:
     def __init__(self, user: _UserStub | None) -> None:
         self._user = user
 
-    def get_user(self, db, user_id: int):
+    def get_user(self, *, user_id: int):
         return self._user
 
 
@@ -37,10 +37,10 @@ class _CrudProdutosStub:
         self._produto = produto
         self.updates = []
 
-    def get_produto(self, db, produto_id: int):
+    def get_produto(self, *, produto_id: int):
         return self._produto
 
-    def update_produto(self, db, *, db_produto, produto_update):
+    def update_produto(self, *, db_produto, produto_update):
         payload = vars(produto_update)
         self.updates.append(payload)
         for key, value in payload.items():
@@ -83,24 +83,24 @@ class _TopLevelFunctionSurface:
             def __init__(self, _session):
                 self._stub = crud_users
     
-            def get_user(self, db, user_id: int):
-                return self._stub.get_user(db, user_id)
+            def get_user(self, *, user_id: int):
+                return self._stub.get_user(user_id=user_id)
     
         class _ProductRepository:
             def __init__(self, _session):
                 self._stub = crud_produtos
     
-            def get_produto(self, db, produto_id: int):
-                return self._stub.get_produto(db, produto_id)
+            def get_produto(self, *, produto_id: int):
+                return self._stub.get_produto(produto_id=produto_id)
     
-            def update_produto(self, db, *, db_produto, produto_update):
+            def update_produto(self, *, db_produto, produto_update):
                 return self._stub.update_produto(
-                    db,
                     db_produto=db_produto,
                     produto_update=produto_update,
                 )
     
         service = GenerationTaskService(
+            db_session_factory=_db_session_factory,
             user_repository_cls=_UserRepository,
             product_repository_cls=_ProductRepository,
             models=_build_models_stub(),
@@ -118,7 +118,6 @@ class _TopLevelFunctionSurface:
             return ["Titulo 1", "Titulo 2"]
     
         await service.run_generation_task(
-            db_session_factory=_db_session_factory,
             user_id=1,
             produto_id=10,
             tipo_geracao_principal="titulo",
@@ -138,7 +137,6 @@ class _TopLevelFunctionSurface:
             return ""
     
         await service.run_generation_task(
-            db_session_factory=_db_session_factory,
             user_id=1,
             produto_id=10,
             tipo_geracao_principal="descricao",

@@ -3,13 +3,11 @@
 from typing import List
 
 from fastapi import APIRouter, Depends, Query
-from sqlalchemy.orm import Session
 
 from Backend import models, schemas
 from Backend.application.services.service_container import ServiceContainerDependencySupport
 from Backend.infrastructure.repositories.historico_repository import HistoricoRepository
-
-from . import auth_utils
+from Backend.routers import auth_utils
 
 
 router = APIRouter(
@@ -24,7 +22,7 @@ class HistoricoRequestService:
 
     def __init__(
         self,
-        session: Session = Depends(ServiceContainerDependencySupport.get_request_db_session),
+        session=Depends(ServiceContainerDependencySupport.get_request_db_session),
     ) -> None:
         self._historico_repo = HistoricoRepository(session)
 

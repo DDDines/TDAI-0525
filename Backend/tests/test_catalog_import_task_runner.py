@@ -19,6 +19,7 @@ class _TopLevelFunctionSurface:
 
     def _build_runner() -> CatalogImportTaskRunner:
         return CatalogImportTaskRunner(
+            db_session_factory=lambda: None,
             logger=object(),
             catalog_logger=object(),
             models=object(),
@@ -55,7 +56,6 @@ class _TopLevelFunctionSurface:
         runner._build = _fake_build  # type: ignore[attr-defined]
     
         await runner.execute(
-            db_session_factory=lambda: None,
             file_id=1,
             user_id=2,
             product_type_id=3,
@@ -65,14 +65,12 @@ class _TopLevelFunctionSurface:
             region=[0.0, 0.0, 1.0, 1.0],
         )
         await runner.execute(
-            db_session_factory=lambda: None,
             file_id=9,
             user_id=0,
             product_type_id=None,
             fornecedor_id=0,
         )
         await runner.execute(
-            db_session_factory=lambda: None,
             file_id=10,
             user_id=20,
             product_type_id=None,
@@ -98,14 +96,12 @@ class _TopLevelFunctionSurface:
         runner._build = _fake_build  # type: ignore[attr-defined]
     
         await runner.execute(
-            db_session_factory=lambda: None,
             file_id=77,
             user_id=88,
             product_type_id=None,
             fornecedor_id=0,
         )
         await runner.execute(
-            db_session_factory=lambda: None,
             file_id=78,
             user_id=89,
             product_type_id=None,

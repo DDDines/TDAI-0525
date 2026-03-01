@@ -22,7 +22,6 @@ class _TopLevelFunctionSurface:
         service._task_runner = FakeTaskRunner()
 
         await service.tarefa_enriquecer_produto_web(
-            db_session_factory="db_factory",
             produto_id=10,
             user_id=20,
             termos_busca_override="termo",

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import inspect
 from typing import Any, Dict, List, Optional
 from sqlalchemy.orm import Session
 
@@ -9,7 +10,6 @@ from Backend.application.services.web_enrichment_components import (
     WebEnrichmentQueryPlanner,
     WebEnrichmentStatusResolver,
 )
-from Backend.application.services.repository_runtime_support import RepositoryRuntimeSupport
 
 
 class WebEnrichmentTaskRuntime:
@@ -86,6 +86,7 @@ class WebEnrichmentTaskWorkflow:
         *,
         logger,
         SQLAlchemyError,
+        db_session_factory,
         user_repository=None,
         product_repository=None,
         usage_repository=None,
@@ -126,6 +127,7 @@ class WebEnrichmentTaskWorkflow:
             runtime_obj.apply_overrides(runtime)
 
         self._runtime = runtime_obj
+        self._db_session_factory = db_session_factory
         self.logger = runtime_obj.logger
         self.SQLAlchemyError = runtime_obj.SQLAlchemyError
         self.user_repository = runtime_obj.user_repository
@@ -154,21 +156,18 @@ class WebEnrichmentTaskWorkflow:
             models=runtime_obj.models,
         )
 
+    @staticmethod
+    def _resolve_repo(repo_or_cls: Any, session: Session) -> Any:
+        if inspect.isclass(repo_or_cls):
+            return repo_or_cls(session)
+        return repo_or_cls
+
     def _load_locked_product(self, session: Session, produto_id: int):
+        product_repo = self._resolve_repo(self.product_repository, session)
         try:
-            return RepositoryRuntimeSupport.call_repository_method(
-                self.product_repository,
-                "get_produto_for_update",
-                session=session,
-                produto_id=produto_id,
-            )
+            return product_repo.get_produto_for_update(produto_id=produto_id)
         except AttributeError:
-            return RepositoryRuntimeSupport.call_repository_method(
-                self.product_repository,
-                "get_produto",
-                session=session,
-                produto_id=produto_id,
-            )
+            return product_repo.get_produto(produto_id=produto_id)
 
     def _register_config_failure(
         self,
@@ -178,10 +177,8 @@ class WebEnrichmentTaskWorkflow:
         produto_id: int,
         resposta: str,
     ) -> None:
-        RepositoryRuntimeSupport.call_repository_method(
-            self.usage_repository,
-            "create_registro_uso_ia",
-            session=session,
+        usage_repo = self._resolve_repo(self.usage_repository, session)
+        usage_repo.create_registro_uso_ia(
             registro_uso=self.schemas.RegistroUsoIACreate(
                 user_id=user_id,
                 produto_id=produto_id,
@@ -193,7 +190,6 @@ class WebEnrichmentTaskWorkflow:
                 creditos_consumidos=0,
                 status="FALHA",
             ),
-            arg_aliases={"registro_uso": ("payload",)},
         )
 
     def _mark_in_progress(
@@ -406,7 +402,6 @@ class WebEnrichmentTaskWorkflow:
     async def run(
         self,
         *,
-        db_session_factory,
         produto_id: int,
         user_id: int,
         termos_busca_override: Optional[str] = None,
@@ -422,7 +417,9 @@ class WebEnrichmentTaskWorkflow:
         dados_extraidos_agregados: Dict[str, Any] = {}
 
         try:
-            db = db_session_factory()
+            if self._db_session_factory is None:
+                raise ValueError("db_session_factory is required for WebEnrichmentTaskWorkflow")
+            db = self._db_session_factory()
             db_produto_obj = self._load_locked_product(db, produto_id)
             if not db_produto_obj:
                 log_mensagens.append(
@@ -451,12 +448,8 @@ class WebEnrichmentTaskWorkflow:
             dados_extraidos_agregados = db_produto_obj.dados_brutos_web.copy()
 
         try:
-            user = RepositoryRuntimeSupport.call_repository_method(
-                self.user_repository,
-                "get_user",
-                session=db,
-                user_id=user_id,
-            )
+            user_repo = self._resolve_repo(self.user_repository, db)
+            user = user_repo.get_user(user_id=user_id)
             if not user:
                 log_mensagens.append(f"ERRO FATAL: Usuario ID {user_id} nao encontrado.")
                 status_para_salvar_no_final = self.models.StatusEnriquecimentoEnum.FALHOU
@@ -629,6 +622,7 @@ class WebEnrichmentTaskService:
         *,
         logger,
         SQLAlchemyError,
+        db_session_factory,
         models,
         schemas,
         web_extractor,
@@ -649,6 +643,7 @@ class WebEnrichmentTaskService:
         self._deps = {
             "logger": logger,
             "SQLAlchemyError": SQLAlchemyError,
+            "db_session_factory": db_session_factory,
             "user_repository": user_repository,
             "product_repository": product_repository,
             "usage_repository": usage_repository,
@@ -670,14 +665,12 @@ class WebEnrichmentTaskService:
     async def execute(
         self,
         *,
-        db_session_factory,
         produto_id: int,
         user_id: int,
         termos_busca_override: Optional[str] = None,
     ):
         workflow = WebEnrichmentTaskWorkflow(**self._deps)
         await workflow.run(
-            db_session_factory=db_session_factory,
             produto_id=produto_id,
             user_id=user_id,
             termos_busca_override=termos_busca_override,

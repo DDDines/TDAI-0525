@@ -13,6 +13,7 @@ class CatalogImportTaskRunner:
     def __init__(
         self,
         *,
+        db_session_factory: Any,
         logger: Any,
         catalog_logger: Any,
         models: Any,
@@ -36,6 +37,7 @@ class CatalogImportTaskRunner:
         catalog_file_repository: Any | None = None,
     ) -> None:
         self._kwargs = {
+            "db_session_factory": db_session_factory,
             "logger": logger,
             "catalog_logger": catalog_logger,
             "models": models,
@@ -73,7 +75,6 @@ class CatalogImportTaskRunner:
     async def execute(
         self,
         *,
-        db_session_factory: Any,
         file_id: int,
         user_id: int,
         product_type_id: Optional[int],
@@ -83,7 +84,6 @@ class CatalogImportTaskRunner:
         region: Optional[List[float]] = None,
     ) -> None:
         await self._get_service().execute(
-            db_session_factory=db_session_factory,
             file_id=file_id,
             user_id=user_id,
             product_type_id=product_type_id,

@@ -25,7 +25,6 @@ class OOPWebEnrichmentExecutor:
             termos_busca_override=task_kwargs.get("termos_busca_override"),
         )
         return await self._use_case.execute_command(
-            db_session_factory=task_kwargs.get("db_session_factory"),
             command=command,
         )
 
@@ -37,13 +36,11 @@ class WebEnrichmentTaskBuilder:
     def build_start_plan(
         self,
         *,
-        db_session_factory: Any,
         produto_id: int,
         user_id: int,
         termos_busca_override: Optional[str],
     ) -> TaskExecutionPlan:
         task_kwargs = {
-            "db_session_factory": db_session_factory,
             "produto_id": produto_id,
             "user_id": user_id,
             "termos_busca_override": termos_busca_override,

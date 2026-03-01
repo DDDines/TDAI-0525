@@ -1,10 +1,9 @@
 from __future__ import annotations
 
+import inspect
 import re
 from dataclasses import dataclass
 from typing import Any, Dict, List, Optional
-
-from Backend.application.services.repository_runtime_support import RepositoryRuntimeSupport
 
 
 @dataclass(frozen=True)
@@ -324,10 +323,8 @@ class WebEnrichmentFinalizationService:
                 "resumo_aplicacao": resumo_aplicacao,
             },
         )
-        RepositoryRuntimeSupport.call_repository_method(
-            self._product_repository,
-            "update_produto",
-            session=db,
+        product_repo = self._product_repository(db) if inspect.isclass(self._product_repository) else self._product_repository
+        product_repo.update_produto(
             db_produto=db_produto_obj,
             produto_update=payload_final_update,
         )
@@ -335,4 +332,3 @@ class WebEnrichmentFinalizationService:
             f"Produto ID {db_produto_obj.id} FINALMENTE atualizado com status: {status_valor_str}."
         )
         return status_para_salvar_no_final
-

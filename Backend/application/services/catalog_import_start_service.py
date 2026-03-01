@@ -5,10 +5,8 @@ from pathlib import Path
 from typing import Any, Dict, Optional
 
 from fastapi import HTTPException
-from sqlalchemy.orm import sessionmaker
 
 from Backend.application.contracts.pipeline_commands import CatalogImportFinalizeCommand
-from Backend.application.services.repository_runtime_support import RepositoryRuntimeSupport
 
 
 class CatalogImportStartService:
@@ -74,10 +72,7 @@ class CatalogImportStartService:
         repo = self._resolve_catalog_file_repo(
             catalog_file_repo=catalog_file_repo,
         )
-        catalog_file = RepositoryRuntimeSupport.call_repository_method(
-            repo,
-            "get_catalog_file_for_user",
-            session=getattr(repo, "_db", None),
+        catalog_file = repo.get_catalog_file_for_user(
             file_id=file_id,
             user_id=user_id,
         )
@@ -113,12 +108,7 @@ class CatalogImportStartService:
         if reset_pages:
             catalog_file.pages_processed = 0
             catalog_file.total_pages = 0
-        RepositoryRuntimeSupport.call_repository_method(
-            repo,
-            "update_catalog_file",
-            session=getattr(repo, "_db", None),
-            catalog_file=catalog_file,
-        )
+        repo.update_catalog_file(catalog_file=catalog_file)
 
     def ensure_catalog_binary_exists(self, *, catalog_file: Any) -> None:
         file_path = self._catalog_path(catalog_file)
@@ -153,22 +143,10 @@ class CatalogImportStartService:
         repo = self._resolve_fornecedor_repo(
             fornecedor_repo=fornecedor_repo,
         )
-        fornecedor = RepositoryRuntimeSupport.call_repository_method(
-            repo,
-            "get_fornecedor",
-            session=getattr(repo, "_db", None),
-            fornecedor_id=fornecedor_id,
-        )
+        fornecedor = repo.get_fornecedor(fornecedor_id=fornecedor_id)
         if fornecedor and fornecedor.default_column_mapping:
             return fornecedor.default_column_mapping
         return mapping
-
-    @staticmethod
-    def build_db_session_factory(
-        *,
-        session: Any,
-    ):
-        return sessionmaker(bind=session.get_bind())
 
     @staticmethod
     def build_finalize_command(
@@ -196,13 +174,9 @@ class CatalogImportStartService:
         *,
         background_tasks: Any,
         command: CatalogImportFinalizeCommand,
-        db_session_factory: Any | None = None,
     ) -> Any:
-        if db_session_factory is None:
-            raise ValueError("db_session_factory is required")
         return await self._finalize_service.dispatch_or_run(
             background_tasks=background_tasks,
-            db_session_factory=db_session_factory,
             command=command,
         )
 
@@ -210,12 +184,8 @@ class CatalogImportStartService:
         self,
         *,
         command: CatalogImportFinalizeCommand,
-        db_session_factory: Any | None = None,
     ) -> Any:
-        if db_session_factory is None:
-            raise ValueError("db_session_factory is required")
         return await self._finalize_service.run_direct(
-            db_session_factory=db_session_factory,
             command=command,
         )
 

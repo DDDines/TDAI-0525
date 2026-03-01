@@ -21,7 +21,6 @@ class _TopLevelFunctionSurface:
     async def test_catalog_import_use_case_normalizes_payload():
         use_case = CatalogImportProcessingUseCase(processor=_dummy_processor)
         result = await use_case.execute(
-            db_session_factory="factory",
             file_id="10",
             user_id=20,
             product_type_id="3",
@@ -67,7 +66,6 @@ class _TopLevelFunctionSurface:
             region=[1.0, 2.0, 3.0, 4.0],
         )
         result = await use_case.execute_command(
-            db_session_factory="factory",
             command=command,
         )
     
@@ -78,7 +76,6 @@ class _TopLevelFunctionSurface:
     async def test_web_enrichment_use_case_normalizes_search_terms():
         use_case = WebEnrichmentProcessingUseCase(processor=_dummy_processor)
         result = await use_case.execute(
-            db_session_factory="factory",
             produto_id="5",
             user_id=9,
             termos_busca_override="   termo de busca   ",
@@ -107,7 +104,6 @@ class _TopLevelFunctionSurface:
             termos_busca_override="  abc  ",
         )
         result = await use_case.execute_command(
-            db_session_factory="factory",
             command=command,
         )
     

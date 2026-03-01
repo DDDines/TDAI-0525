@@ -8,7 +8,6 @@ from Backend.application.orchestrators.web_enrichment import (
     WebEnrichmentPipelineOrchestrator,
 )
 from Backend.application.services.pipeline_dispatcher import PipelineDispatcher
-from Backend.application.services.repository_runtime_support import RepositoryRuntimeSupport
 
 
 class WebEnrichmentStartService:
@@ -35,12 +34,7 @@ class WebEnrichmentStartService:
         current_user: Any,
     ) -> None:
         repo = product_repo or self._product_repository
-        db_produto_check = RepositoryRuntimeSupport.call_repository_method(
-            repo,
-            "get_produto",
-            session=getattr(repo, "_db", None),
-            produto_id=produto_id,
-        )
+        db_produto_check = repo.get_produto(produto_id=produto_id)
         if not db_produto_check:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
@@ -64,7 +58,6 @@ class WebEnrichmentStartService:
         self,
         *,
         background_tasks: Any,
-        db_session_factory: Any,
         command: Any,
         oop_executor: Any,
     ) -> Any:
@@ -72,7 +65,6 @@ class WebEnrichmentStartService:
             oop_executor=oop_executor,
         )
         selected_plan = orchestrator.select_start_plan(
-            db_session_factory=db_session_factory,
             command=command,
         )
         self._dispatcher.dispatch_background(background_tasks, selected_plan)

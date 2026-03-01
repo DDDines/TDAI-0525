@@ -3,8 +3,6 @@ from __future__ import annotations
 from collections import Counter
 from typing import Any, Callable, Dict, List, Optional, Tuple
 
-from Backend.application.services.repository_runtime_support import RepositoryRuntimeSupport
-
 
 class CatalogImportIssueTracker:
     """Centraliza coleta/classificação de erros, descartes e quarentena."""
@@ -121,19 +119,10 @@ class CatalogImportFileStateService:
     """Encapsula persistencia de status/paginas do CatalogImportFile."""
 
     @staticmethod
-    def repo_db(catalog_file_repo: Any) -> Any:
-        return getattr(catalog_file_repo, "_db", None)
-
-    @staticmethod
     def mark_processing(*, catalog_file_repo: Any, catalog_file: Any, fornecedor_id: int) -> None:
         catalog_file.status = "PROCESSING"
         catalog_file.fornecedor_id = fornecedor_id
-        RepositoryRuntimeSupport.call_repository_method(
-            catalog_file_repo,
-            "update_catalog_file",
-            session=CatalogImportFileStateService.repo_db(catalog_file_repo),
-            catalog_file=catalog_file,
-        )
+        catalog_file_repo.update_catalog_file(catalog_file=catalog_file)
 
     @staticmethod
     def mark_file_missing(
@@ -155,12 +144,7 @@ class CatalogImportFileStateService:
                 }
             ],
         }
-        RepositoryRuntimeSupport.call_repository_method(
-            catalog_file_repo,
-            "update_catalog_file",
-            session=CatalogImportFileStateService.repo_db(catalog_file_repo),
-            catalog_file=catalog_file,
-        )
+        catalog_file_repo.update_catalog_file(catalog_file=catalog_file)
 
     @staticmethod
     def initialize_pages(
@@ -171,22 +155,12 @@ class CatalogImportFileStateService:
     ) -> None:
         catalog_file.total_pages = total_pages
         catalog_file.pages_processed = 0
-        RepositoryRuntimeSupport.call_repository_method(
-            catalog_file_repo,
-            "update_catalog_file",
-            session=CatalogImportFileStateService.repo_db(catalog_file_repo),
-            catalog_file=catalog_file,
-        )
+        catalog_file_repo.update_catalog_file(catalog_file=catalog_file)
 
     @staticmethod
     def increment_page(*, catalog_file_repo: Any, catalog_file: Any) -> None:
         catalog_file.pages_processed = (catalog_file.pages_processed or 0) + 1
-        RepositoryRuntimeSupport.call_repository_method(
-            catalog_file_repo,
-            "update_catalog_file",
-            session=CatalogImportFileStateService.repo_db(catalog_file_repo),
-            catalog_file=catalog_file,
-        )
+        catalog_file_repo.update_catalog_file(catalog_file=catalog_file)
 
     @staticmethod
     def mark_final(
@@ -198,12 +172,7 @@ class CatalogImportFileStateService:
     ) -> None:
         catalog_file.status = final_status
         catalog_file.result_summary = result_summary
-        RepositoryRuntimeSupport.call_repository_method(
-            catalog_file_repo,
-            "update_catalog_file",
-            session=CatalogImportFileStateService.repo_db(catalog_file_repo),
-            catalog_file=catalog_file,
-        )
+        catalog_file_repo.update_catalog_file(catalog_file=catalog_file)
 
     @staticmethod
     def mark_failure_with_exception(
@@ -224,12 +193,7 @@ class CatalogImportFileStateService:
                 }
             ],
         }
-        RepositoryRuntimeSupport.call_repository_method(
-            catalog_file_repo,
-            "update_catalog_file",
-            session=CatalogImportFileStateService.repo_db(catalog_file_repo),
-            catalog_file=catalog_file,
-        )
+        catalog_file_repo.update_catalog_file(catalog_file=catalog_file)
 
 
 class CatalogImportAuditWriter:

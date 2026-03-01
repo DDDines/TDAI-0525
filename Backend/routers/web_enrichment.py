@@ -57,9 +57,7 @@ class WebEnrichmentRequestService:
         session: Session = Depends(ServiceContainerDependencySupport.get_request_db_session),
     ) -> None:
         self._session = session
-        self._db_session_factory = (
-            ServiceContainerDependencySupport.get_background_db_session_factory()
-        )
+        db_session_factory = ServiceContainerDependencySupport.get_background_db_session_factory()
         normalization_service = WebEnrichmentNormalizationService()
         relevance_service = WebEnrichmentRelevanceService()
         content_quality_service = WebEnrichmentContentQualityService(
@@ -71,6 +69,7 @@ class WebEnrichmentRequestService:
 
         extractor_service = WebDataExtractorOrchestratorService(WebDataExtractorServiceAdapter())
         self._task_runner = WebEnrichmentTaskRunner(
+            db_session_factory=db_session_factory,
             logger=logger,
             SQLAlchemyError=SQLAlchemyError,
             user_repository=UserRepository,
@@ -97,13 +96,11 @@ class WebEnrichmentRequestService:
 
     async def tarefa_enriquecer_produto_web(
         self,
-        db_session_factory,
         produto_id: int,
         user_id: int,
         termos_busca_override: Optional[str] = None,
     ):
         await self._task_runner.execute(
-            db_session_factory=db_session_factory,
             produto_id=produto_id,
             user_id=user_id,
             termos_busca_override=termos_busca_override,
@@ -130,7 +127,6 @@ class WebEnrichmentRequestService:
         )
         self._start_service.dispatch_start(
             background_tasks=background_tasks,
-            db_session_factory=self._db_session_factory,
             command=command,
             oop_executor=self.tarefa_enriquecer_produto_web,
         )

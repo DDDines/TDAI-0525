@@ -37,8 +37,8 @@ class _FakeCrudProdutos:
     def __init__(self):
         self.calls = []
 
-    def update_produto(self, db, db_produto, produto_update):
-        self.calls.append((db, db_produto, produto_update))
+    def update_produto(self, *, db_produto, produto_update):
+        self.calls.append((db_produto, produto_update))
 
 
 class _TopLevelFunctionSurface:
@@ -140,7 +140,7 @@ class _TopLevelFunctionSurface:
     
         assert final_status == _FakeStatus.FALHOU
         assert len(crud_produtos.calls) == 1
-        _, _, produto_update = crud_produtos.calls[0]
+        _, produto_update = crud_produtos.calls[0]
         assert produto_update.payload["descricao_original"] == "Nova"
         assert produto_update.payload["status_enriquecimento_web"] == _FakeStatus.FALHOU.value
         assert "resumo_aplicacao" in produto_update.payload["log_enriquecimento_web"]

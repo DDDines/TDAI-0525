@@ -4,8 +4,6 @@ from typing import Any
 
 from fastapi import HTTPException, status
 
-from Backend.application.services.repository_runtime_support import RepositoryRuntimeSupport
-
 
 class GenerationSchedulingService:
     """Encapsula validacao de acesso e agendamento das tasks de geracao IA."""
@@ -28,13 +26,7 @@ class GenerationSchedulingService:
         produto_id: int,
         current_user: Any,
     ) -> Any:
-        repo = product_repo
-        db_produto = RepositoryRuntimeSupport.call_repository_method(
-            repo,
-            "get_produto",
-            session=getattr(repo, "_db", None),
-            produto_id=produto_id,
-        )
+        db_produto = product_repo.get_produto(produto_id=produto_id)
         if not db_produto:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
@@ -65,11 +57,7 @@ class GenerationSchedulingService:
         update_data = {
             status_field: self._models.StatusGeracaoIAEnum.PENDENTE,
         }
-        repo = product_repo
-        RepositoryRuntimeSupport.call_repository_method(
-            repo,
-            "update_produto",
-            session=getattr(repo, "_db", None),
+        product_repo.update_produto(
             db_produto=db_produto,
             produto_update=self._schemas.ProdutoUpdate(**update_data),
         )
@@ -79,7 +67,6 @@ class GenerationSchedulingService:
         *,
         background_tasks: Any,
         task_executor: Any,
-        db_session_factory: Any,
         user_id: int,
         produto_id: int,
         generation_type: str,
@@ -88,7 +75,6 @@ class GenerationSchedulingService:
     ) -> None:
         background_tasks.add_task(
             task_executor,
-            db_session_factory=db_session_factory,
             user_id=user_id,
             produto_id=produto_id,
             tipo_geracao_principal=generation_type,

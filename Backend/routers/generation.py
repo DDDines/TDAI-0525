@@ -31,9 +31,9 @@ class GenerationRequestService:
         session: Session = Depends(ServiceContainerDependencySupport.get_request_db_session),
     ) -> None:
         self._session = session
-        self._db_session_factory = ServiceContainerDependencySupport.get_background_db_session_factory()
         self._ia_generation_service = IAGenerationService()
         self._generation_task_service = GenerationTaskService(
+            db_session_factory=ServiceContainerDependencySupport.get_background_db_session_factory(),
             user_repository_cls=UserRepository,
             product_repository_cls=ProductRepository,
             models=models,
@@ -65,7 +65,6 @@ class GenerationRequestService:
 
     async def tarefa_processar_geracao_e_registrar_uso(
         self,
-        db_session_factory,
         user_id: int,
         produto_id: int,
         tipo_geracao_principal: str,
@@ -73,7 +72,6 @@ class GenerationRequestService:
         **kwargs_para_funcao_servico,
     ) -> None:
         await self._generation_task_service.run_generation_task(
-            db_session_factory=db_session_factory,
             user_id=user_id,
             produto_id=produto_id,
             tipo_geracao_principal=tipo_geracao_principal,
@@ -93,7 +91,6 @@ class GenerationRequestService:
         self._generation_scheduling_service.enqueue_generation_task(
             background_tasks=background_tasks,
             task_executor=self.tarefa_processar_geracao_e_registrar_uso,
-            db_session_factory=self._db_session_factory,
             user_id=current_user.id,
             produto_id=produto_id,
             generation_type="titulo",
@@ -114,7 +111,6 @@ class GenerationRequestService:
         self._generation_scheduling_service.enqueue_generation_task(
             background_tasks=background_tasks,
             task_executor=self.tarefa_processar_geracao_e_registrar_uso,
-            db_session_factory=self._db_session_factory,
             user_id=current_user.id,
             produto_id=produto_id,
             generation_type="descricao",
@@ -139,7 +135,6 @@ class GenerationRequestService:
         self._generation_scheduling_service.enqueue_generation_task(
             background_tasks=background_tasks,
             task_executor=self.tarefa_processar_geracao_e_registrar_uso,
-            db_session_factory=self._db_session_factory,
             user_id=current_user.id,
             produto_id=produto_id,
             generation_type="titulo",
@@ -164,7 +159,6 @@ class GenerationRequestService:
         self._generation_scheduling_service.enqueue_generation_task(
             background_tasks=background_tasks,
             task_executor=self.tarefa_processar_geracao_e_registrar_uso,
-            db_session_factory=self._db_session_factory,
             user_id=current_user.id,
             produto_id=produto_id,
             generation_type="descricao",

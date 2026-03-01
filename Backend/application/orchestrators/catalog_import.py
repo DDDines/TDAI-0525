@@ -33,11 +33,9 @@ class CatalogImportPipelineOrchestrator:
     def select_finalize_plan(
         self,
         *,
-        db_session_factory: Any,
         command: CatalogImportFinalizeCommand,
     ) -> TaskExecutionPlan:
         oop_plan = self._oop_builder.build_finalize_plan(
-            db_session_factory=db_session_factory,
             file_id=command.file_id,
             user_id=command.user_id,
             product_type_id=command.product_type_id,

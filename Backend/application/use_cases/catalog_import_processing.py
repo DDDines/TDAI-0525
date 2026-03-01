@@ -20,7 +20,6 @@ class CatalogImportProcessingUseCase:
     async def execute_command(
         self,
         *,
-        db_session_factory: Any,
         command: CatalogImportFinalizeCommand,
     ) -> Any:
         file_id = self._require_positive_int(command.file_id, "file_id")
@@ -38,7 +37,6 @@ class CatalogImportProcessingUseCase:
         region = self._normalize_region(command.region)
 
         return await self._processor(
-            db_session_factory=db_session_factory,
             file_id=file_id,
             user_id=user_id,
             product_type_id=product_type_id,
@@ -59,7 +57,6 @@ class CatalogImportProcessingUseCase:
             region=task_kwargs.get("region"),
         )
         return await self.execute_command(
-            db_session_factory=task_kwargs.get("db_session_factory"),
             command=command,
         )
 

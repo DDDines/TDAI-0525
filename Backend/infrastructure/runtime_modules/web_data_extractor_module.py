@@ -1535,44 +1535,88 @@ class WebDataExtractorRuntime:
     def busca_publica_disponivel(self) -> bool:
         return self._search_workflow.busca_publica_disponivel()
 
-    async def buscar_urls_publicas(self, *args: Any, **kwargs: Any):
-        return await self._search_workflow.buscar_urls_publicas(*args, **kwargs)
+    async def buscar_urls_publicas(
+        self,
+        query: str,
+        num_results: int = 3,
+    ) -> List[str]:
+        return await self._search_workflow.buscar_urls_publicas(
+            query=query,
+            num_results=num_results,
+        )
 
-    async def buscar_urls_google(self, *args: Any, **kwargs: Any):
-        return await self._search_workflow.buscar_urls_google(*args, **kwargs)
+    async def buscar_urls_google(
+        self,
+        query: str,
+        num_results: int = 3,
+    ) -> List[str]:
+        return await self._search_workflow.buscar_urls_google(
+            query=query,
+            num_results=num_results,
+        )
 
-    async def coletar_conteudo_pagina_playwright(self, *args: Any, **kwargs: Any):
+    async def coletar_conteudo_pagina_playwright(self, url: str) -> Optional[str]:
         return await self._content_collection_workflow.coletar_conteudo_pagina_playwright(
-            *args, **kwargs
+            url
         )
 
-    def extrair_texto_principal_com_trafilatura(self, *args: Any, **kwargs: Any):
+    def extrair_texto_principal_com_trafilatura(
+        self,
+        html_content: str,
+    ) -> Optional[str]:
         return self._extraction_support_workflow.extrair_texto_principal_com_trafilatura(
-            *args, **kwargs
+            html_content
         )
 
-    def extrair_metadados_estruturados(self, *args: Any, **kwargs: Any):
+    def extrair_metadados_estruturados(
+        self,
+        html_content: str,
+        url: str,
+    ) -> Dict[str, Any]:
         return self._extraction_support_workflow.extrair_metadados_estruturados(
-            *args, **kwargs
+            html_content,
+            url,
         )
 
-    def normalizar_dados_de_metadados(self, *args: Any, **kwargs: Any):
+    def normalizar_dados_de_metadados(
+        self,
+        metadata_bruta: Dict[str, Any],
+    ) -> Dict[str, Any]:
         return self._extraction_support_workflow.normalizar_dados_de_metadados(
-            *args, **kwargs
+            metadata_bruta
         )
 
-    async def extrair_dados_produto_com_llm(self, *args: Any, **kwargs: Any):
+    async def extrair_dados_produto_com_llm(
+        self,
+        texto_pagina: Optional[str],
+        metadados_normalizados: Optional[Dict[str, Any]] = None,
+        campos_desejados: Optional[List[str]] = None,
+        produto_nome_base: str = "Produto",
+        user: Optional[models.User] = None,
+    ) -> Optional[Dict[str, Any]]:
         return await self._extraction_support_workflow.extrair_dados_produto_com_llm(
-            *args, **kwargs
+            texto_pagina=texto_pagina,
+            metadados_normalizados=metadados_normalizados,
+            campos_desejados=campos_desejados,
+            produto_nome_base=produto_nome_base,
+            user=user,
         )
 
-    async def extract_relevant_data_from_url(self, *args: Any, **kwargs: Any):
+    async def extract_relevant_data_from_url(
+        self,
+        *,
+        session: Session,
+        url: str,
+        produto: models.Produto,
+    ) -> models.Produto:
         return await self._extraction_support_workflow.extract_relevant_data_from_url(
-            *args, **kwargs
+            db=session,
+            url=url,
+            produto=produto,
         )
 
-    def extract_text_from_image_region(self, *args: Any, **kwargs: Any):
+    def extract_text_from_image_region(self, image_bytes: bytes):
         return self._extraction_support_workflow.extract_text_from_image_region(
-            *args, **kwargs
+            image_bytes
         )
 

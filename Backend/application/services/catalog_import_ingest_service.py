@@ -6,8 +6,6 @@ from typing import Any, Dict, List, Optional
 
 from fastapi import HTTPException
 
-from Backend.application.services.repository_runtime_support import RepositoryRuntimeSupport
-
 
 class CatalogImportIngestService:
     """Encapsula a importacao direta de catalogo em servico OO."""
@@ -42,10 +40,6 @@ class CatalogImportIngestService:
         self._sanitize_produto_extraido = sanitize_produto_extraido
         self._classificar_qualidade_linha_produto = classificar_qualidade_linha_produto
         self._json = json_module
-
-    @staticmethod
-    def _repo_session(repo: Any) -> Any:
-        return getattr(repo, "_db", None)
 
     @staticmethod
     def _resolve_repo(
@@ -213,12 +207,8 @@ class CatalogImportIngestService:
         updated: List[Any] = []
 
         if produtos_create:
-            created, updated, dup_errors = RepositoryRuntimeSupport.call_repository_method(
-                resolved_produto_repo,
-                "create_produtos_bulk",
-                session=self._repo_session(resolved_produto_repo),
+            created, updated, dup_errors = resolved_produto_repo.create_produtos_bulk(
                 produtos=produtos_create,
-                arg_aliases={"produtos": ("produtos_data",)},
                 user_id=current_user.id,
             )
             for err in dup_errors:
@@ -229,29 +219,21 @@ class CatalogImportIngestService:
                 )
 
             for db_produto in created:
-                RepositoryRuntimeSupport.call_repository_method(
-                    resolved_uso_ia_repo,
-                    "create_registro_uso_ia",
-                    session=self._repo_session(resolved_uso_ia_repo),
+                resolved_uso_ia_repo.create_registro_uso_ia(
                     registro_uso=self._schemas.RegistroUsoIACreate(
                         user_id=current_user.id,
                         produto_id=db_produto.id,
                         tipo_acao=self._models.TipoAcaoEnum.CRIACAO_PRODUTO,
                         creditos_consumidos=0,
                     ),
-                    arg_aliases={"registro_uso": ("payload",)},
                 )
-                RepositoryRuntimeSupport.call_repository_method(
-                    resolved_historico_repo,
-                    "create_registro_historico",
-                    session=self._repo_session(resolved_historico_repo),
+                resolved_historico_repo.create_registro_historico(
                     registro_in=self._schemas.RegistroHistoricoCreate(
                         user_id=current_user.id,
                         entidade="Produto",
                         acao=self._models.TipoAcaoSistemaEnum.CRIACAO,
                         entity_id=db_produto.id,
                     ),
-                    arg_aliases={"registro_in": ("payload",)},
                 )
 
         all_issues = erros + ignored_non_critical + quarantine_non_critical
@@ -278,10 +260,7 @@ class CatalogImportIngestService:
                     detail="mapeamento_colunas_usuario invalido",
                 ) from exc
         else:
-            fornecedor = RepositoryRuntimeSupport.call_repository_method(
-                fornecedor_repo,
-                "get_fornecedor",
-                session=self._repo_session(fornecedor_repo),
+            fornecedor = fornecedor_repo.get_fornecedor(
                 fornecedor_id=fornecedor_id,
             )
             if fornecedor and fornecedor.default_column_mapping:

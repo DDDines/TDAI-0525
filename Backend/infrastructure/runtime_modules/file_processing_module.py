@@ -248,10 +248,11 @@ class _FileProcessingImplementation:
         return os.path.join(base_dir, import_file.stored_filename)
 
     @staticmethod
-    def _extract_data_from_pdf_region_impl(file_path: str, page_number: int, region: Optional[List[float]]=None) -> pd.DataFrame:
+    def _extract_data_from_pdf_region_impl(file_path: str, page_number: int, region: Optional[List[float]]=None, ocr_runtime_state: Optional[Any]=None) -> pd.DataFrame:
         """Extract table-like data from a PDF region with OCR fallback."""
         started_at = time.perf_counter()
         helper = _PdfRegionExtractionUtils
+        ocr_state = ocr_runtime_state or OcrRuntimeState()
         try:
             with pdfplumber.open(file_path) as pdf:
                 if not 1 <= page_number <= len(pdf.pages):
@@ -299,7 +300,7 @@ class _FileProcessingImplementation:
                                 logger.info('extract_data_from_pdf_region: text rows=%s cols=%s elapsed=%.2fs', rows_count, cols_count, time.perf_counter() - started_at)
                                 return df_text
                             logger.info('extract_data_from_pdf_region: text descartado por estrutura suspeita rows=%s cols=%s', rows_count, cols_count)
-                if not OCR_AVAILABLE or not OCR_EXEC_AVAILABLE:
+                if not ocr_state.available or not ocr_state.exec_available:
                     logger.debug('extract_data_from_pdf_region: OCR indisponivel para fallback.')
                     return pd.DataFrame()
                 try:
@@ -308,7 +309,11 @@ class _FileProcessingImplementation:
                     page_img = page_to_process.to_image(resolution=dpi)
                     buf = io.BytesIO()
                     page_img.original.save(buf, format='PNG')
-                    img = Image.open(io.BytesIO(buf.getvalue()))
+                    image_cls = ocr_state.image_cls
+                    if image_cls is None:
+                        logger.debug('extract_data_from_pdf_region: OCR image class indisponivel.')
+                        return pd.DataFrame()
+                    img = image_cls.open(io.BytesIO(buf.getvalue()))
                     from PIL import ImageEnhance, ImageOps
                     img = img.convert('L')
                     img = ImageOps.autocontrast(img)
@@ -319,13 +324,16 @@ class _FileProcessingImplementation:
                     return pd.DataFrame()
                 try:
                     ocr_start = time.perf_counter()
-                    ocr_data = pytesseract.image_to_data(img, output_type=pytesseract.Output.DICT, config='--psm 6 --oem 3')
+                    pytesseract_module = ocr_state.pytesseract
+                    if pytesseract_module is None:
+                        logger.debug('extract_data_from_pdf_region: pytesseract indisponivel.')
+                        return pd.DataFrame()
+                    ocr_data = pytesseract_module.image_to_data(img, output_type=pytesseract_module.Output.DICT, config='--psm 6 --oem 3')
                     logger.info('extract_data_from_pdf_region: OCR image_to_data concluido em %.2fs', time.perf_counter() - ocr_start)
                 except Exception as e_ocr:
-                    global OCR_EXEC_FAILED_ONCE
-                    if not OCR_EXEC_FAILED_ONCE:
+                    if not ocr_state.exec_failed_once:
                         logger.error('Falha no OCR da regiao: %s', e_ocr)
-                        OCR_EXEC_FAILED_ONCE = True
+                        ocr_state.exec_failed_once = True
                     else:
                         logger.debug('Falha no OCR da regiao (suprimida apos primeira ocorrencia): %s', e_ocr)
                     return pd.DataFrame()
@@ -591,27 +599,42 @@ class _FileProcessingImplementation:
     @staticmethod
     def _parse_annotation_to_dataframe_impl(annotation: object, vertical_tolerance: int=5) -> pd.DataFrame:
         return PdfAssetUtilityRuntime().parse_annotation_to_dataframe(annotation=annotation, vertical_tolerance=vertical_tolerance)
-MAX_PREVIEW_WORKERS = int(os.getenv('PDF_PREVIEW_WORKERS', '0'))
-OCR_AVAILABLE = False
-OCR_EXEC_AVAILABLE = False
-OCR_EXEC_FAILED_ONCE = False
-try:
-    import pytesseract
-    from PIL import Image
-    if shutil.which('tesseract') is None:
-        candidate_paths = ['C:\\Program Files\\Tesseract-OCR\\tesseract.exe', 'C:\\Program Files (x86)\\Tesseract-OCR\\tesseract.exe']
-        for cpath in candidate_paths:
-            if os.path.exists(cpath):
-                pytesseract.pytesseract.tesseract_cmd = cpath
-                logger.info('Tesseract definido para caminho detectado: %s', cpath)
-                break
-    pytesseract.get_tesseract_version()
-    OCR_AVAILABLE = True
-    OCR_EXEC_AVAILABLE = True
-except Exception as e:
-    OCR_AVAILABLE = False
-    OCR_EXEC_AVAILABLE = False
-    logger.warning('OCR indisponivel (pytesseract/tesseract): %s. Ajuste PATH/TESSDATA_PREFIX.', e)
+class OcrRuntimeState:
+    """Estado de OCR encapsulado por instancia, sem variaveis globais mutaveis."""
+
+    def __init__(self) -> None:
+        self.available = False
+        self.exec_available = False
+        self.exec_failed_once = False
+        self.pytesseract = None
+        self.image_cls = None
+        self._initialize()
+
+    def _initialize(self) -> None:
+        try:
+            import pytesseract as pytesseract_module
+            from PIL import Image as pil_image_cls
+
+            if shutil.which('tesseract') is None:
+                candidate_paths = [
+                    'C:\\Program Files\\Tesseract-OCR\\tesseract.exe',
+                    'C:\\Program Files (x86)\\Tesseract-OCR\\tesseract.exe',
+                ]
+                for cpath in candidate_paths:
+                    if os.path.exists(cpath):
+                        pytesseract_module.pytesseract.tesseract_cmd = cpath
+                        logger.info('Tesseract definido para caminho detectado: %s', cpath)
+                        break
+
+            pytesseract_module.get_tesseract_version()
+            self.pytesseract = pytesseract_module
+            self.image_cls = pil_image_cls
+            self.available = True
+            self.exec_available = True
+        except Exception as e:
+            self.available = False
+            self.exec_available = False
+            logger.warning('OCR indisponivel (pytesseract/tesseract): %s. Ajuste PATH/TESSDATA_PREFIX.', e)
 
 class LineNormalizationRuntime:
     """Runtime OO para normalizacao de valores, mapeamento e split SKU/Nome."""
@@ -1102,14 +1125,18 @@ class TabularPreviewEngineRuntime:
 class PdfPreviewRuntime:
     """Runtime OO para preview de PDF."""
 
-    def __init__(self, preview_executor: Optional[ThreadPoolExecutor]=None) -> None:
+    def __init__(self, preview_executor: Optional[ThreadPoolExecutor]=None, max_preview_workers: Optional[int]=None) -> None:
+        self._max_preview_workers = (
+            int(os.getenv('PDF_PREVIEW_WORKERS', '0'))
+            if max_preview_workers is None
+            else int(max_preview_workers)
+        )
         self._preview_executor = preview_executor or self._build_preview_executor()
 
-    @staticmethod
-    def _build_preview_executor() -> Optional[ThreadPoolExecutor]:
-        if MAX_PREVIEW_WORKERS <= 0:
+    def _build_preview_executor(self) -> Optional[ThreadPoolExecutor]:
+        if self._max_preview_workers <= 0:
             return None
-        return ThreadPoolExecutor(max_workers=MAX_PREVIEW_WORKERS)
+        return ThreadPoolExecutor(max_workers=self._max_preview_workers)
 
     def _resolve_poppler_path(self) -> Optional[str]:
         return os.getenv('POPPLER_PATH') or settings.POPPLER_PATH
@@ -1674,13 +1701,21 @@ class PdfAssetWorkflow:
         return self._pdf_asset_runtime.parse_annotation_to_dataframe(annotation=annotation, vertical_tolerance=vertical_tolerance)
 class PdfProcessingRuntime:
     """Runtime OO para dependencias de processamento e preview de PDF."""
-    RUNTIME_FIELDS = ('pdf_ingestion_runtime', 'pdf_preview_runtime', 'preview_dispatch_runtime', 'extract_data_from_pdf_region')
+    RUNTIME_FIELDS = ('pdf_ingestion_runtime', 'pdf_preview_runtime', 'preview_dispatch_runtime', 'extract_data_from_pdf_region', 'ocr_runtime_state')
 
-    def __init__(self, *, pdf_ingestion_runtime: Optional[Any]=None, pdf_preview_runtime: Optional[Any]=None, preview_dispatch_runtime: Optional[Any]=None, extract_data_from_pdf_region: Optional[Any]=None) -> None:
+    def __init__(self, *, pdf_ingestion_runtime: Optional[Any]=None, pdf_preview_runtime: Optional[Any]=None, preview_dispatch_runtime: Optional[Any]=None, extract_data_from_pdf_region: Optional[Any]=None, ocr_runtime_state: Optional[OcrRuntimeState]=None) -> None:
         self.pdf_ingestion_runtime = pdf_ingestion_runtime or PdfIngestionRuntime()
         self.pdf_preview_runtime = pdf_preview_runtime or PdfPreviewRuntime()
         self.preview_dispatch_runtime = preview_dispatch_runtime or PreviewDispatchRuntime()
-        self.extract_data_from_pdf_region = extract_data_from_pdf_region or _FileProcessingImplementation._extract_data_from_pdf_region_impl
+        self.ocr_runtime_state = ocr_runtime_state or OcrRuntimeState()
+        self.extract_data_from_pdf_region = extract_data_from_pdf_region or (
+            lambda file_path, page_number, region=None: _FileProcessingImplementation._extract_data_from_pdf_region_impl(
+                file_path=file_path,
+                page_number=page_number,
+                region=region,
+                ocr_runtime_state=self.ocr_runtime_state,
+            )
+        )
 
     def apply_overrides(self, runtime: Any) -> 'PdfProcessingRuntime':
         for field_name in self.RUNTIME_FIELDS:
@@ -1742,63 +1777,228 @@ class FileProcessingRuntime:
         self._pdf_processing = pdf_processing_workflow or PdfProcessingWorkflow()
         self._pdf_job = pdf_job_workflow or PdfJobWorkflow()
 
-    async def save_uploaded_catalog(self, *args: Any, **kwargs: Any):
-        return await self._catalog_storage.save_uploaded_catalog(*args, **kwargs)
+    async def save_uploaded_catalog(
+        self,
+        file: UploadFile,
+        fornecedor_id: Optional[int] = None,
+    ) -> models.CatalogImportFile:
+        return await self._catalog_storage.save_uploaded_catalog(
+            file=file,
+            fornecedor_id=fornecedor_id,
+        )
 
-    def delete_catalog_file(self, *args: Any, **kwargs: Any):
-        return self._catalog_storage.delete_catalog_file(*args, **kwargs)
+    def delete_catalog_file(self, stored_filename: str) -> None:
+        return self._catalog_storage.delete_catalog_file(stored_filename=stored_filename)
 
-    def get_file_path_by_id(self, *args: Any, **kwargs: Any):
-        return self._catalog_storage.get_file_path_by_id(*args, **kwargs)
+    def get_file_path_by_id(self, db: Session, file_id: str | int) -> str:
+        return self._catalog_storage.get_file_path_by_id(db=db, file_id=file_id)
 
-    async def processar_arquivo_excel(self, *args: Any, **kwargs: Any):
-        return await self._tabular_ingestion.processar_arquivo_excel(*args, **kwargs)
+    async def processar_arquivo_excel(
+        self,
+        conteudo_arquivo: bytes,
+        mapeamento_colunas_usuario: Optional[Dict[str, str]] = None,
+        sheet_name: Optional[str] = None,
+        product_type_id: Optional[int] = None,
+    ) -> List[Dict[str, Any]]:
+        return await self._tabular_ingestion.processar_arquivo_excel(
+            conteudo_arquivo=conteudo_arquivo,
+            mapeamento_colunas_usuario=mapeamento_colunas_usuario,
+            sheet_name=sheet_name,
+            product_type_id=product_type_id,
+        )
 
-    async def processar_arquivo_csv(self, *args: Any, **kwargs: Any):
-        return await self._tabular_ingestion.processar_arquivo_csv(*args, **kwargs)
+    async def processar_arquivo_csv(
+        self,
+        conteudo_arquivo: bytes,
+        mapeamento_colunas_usuario: Optional[Dict[str, str]] = None,
+        product_type_id: Optional[int] = None,
+    ) -> List[Dict[str, Any]]:
+        return await self._tabular_ingestion.processar_arquivo_csv(
+            conteudo_arquivo=conteudo_arquivo,
+            mapeamento_colunas_usuario=mapeamento_colunas_usuario,
+            product_type_id=product_type_id,
+        )
 
-    async def processar_arquivo_pdf(self, *args: Any, **kwargs: Any):
-        return await self._pdf_processing.processar_arquivo_pdf(*args, **kwargs)
+    async def processar_arquivo_pdf(
+        self,
+        conteudo_arquivo: bytes,
+        mapeamento_colunas_usuario: Optional[Dict[str, str]] = None,
+        usar_llm: bool = True,
+        product_type_id: Optional[int] = None,
+        pages: Optional[List[int]] = None,
+        region: Optional[List[float]] = None,
+    ) -> List[Dict[str, Any]]:
+        return await self._pdf_processing.processar_arquivo_pdf(
+            conteudo_arquivo=conteudo_arquivo,
+            mapeamento_colunas_usuario=mapeamento_colunas_usuario,
+            usar_llm=usar_llm,
+            product_type_id=product_type_id,
+            pages=pages,
+            region=region,
+        )
 
-    async def preview_arquivo_excel(self, *args: Any, **kwargs: Any):
-        return await self._tabular_preview.preview_arquivo_excel(*args, **kwargs)
+    async def preview_arquivo_excel(
+        self,
+        conteudo_arquivo: bytes,
+        max_rows: int = 5,
+    ) -> Dict[str, Any]:
+        return await self._tabular_preview.preview_arquivo_excel(
+            conteudo_arquivo=conteudo_arquivo,
+            max_rows=max_rows,
+        )
 
-    async def preview_arquivo_csv(self, *args: Any, **kwargs: Any):
-        return await self._tabular_preview.preview_arquivo_csv(*args, **kwargs)
+    async def preview_arquivo_csv(
+        self,
+        conteudo_arquivo: bytes,
+        max_rows: int = 5,
+    ) -> Dict[str, Any]:
+        return await self._tabular_preview.preview_arquivo_csv(
+            conteudo_arquivo=conteudo_arquivo,
+            max_rows=max_rows,
+        )
 
-    async def preview_arquivo_pdf(self, *args: Any, **kwargs: Any):
-        return await self._pdf_processing.preview_arquivo_pdf(*args, **kwargs)
+    async def preview_arquivo_pdf(
+        self,
+        conteudo_arquivo: bytes,
+        ext: str,
+        start_page: int = 1,
+        page_count: int = 1,
+        dpi: int = 72,
+    ) -> Dict[str, Any]:
+        return await self._pdf_processing.preview_arquivo_pdf(
+            conteudo_arquivo=conteudo_arquivo,
+            ext=ext,
+            start_page=start_page,
+            page_count=page_count,
+            dpi=dpi,
+        )
 
-    async def gerar_preview(self, *args: Any, **kwargs: Any):
-        return await self._pdf_processing.gerar_preview(*args, **kwargs)
+    async def gerar_preview(
+        self,
+        conteudo_arquivo: bytes,
+        ext: str,
+        max_rows: int = 5,
+    ) -> Dict[str, Any]:
+        return await self._pdf_processing.gerar_preview(
+            conteudo_arquivo=conteudo_arquivo,
+            ext=ext,
+            max_rows=max_rows,
+        )
 
-    async def pdf_bytes_to_images(self, *args: Any, **kwargs: Any):
-        return await self._pdf_asset.pdf_bytes_to_images(*args, **kwargs)
+    async def pdf_bytes_to_images(
+        self,
+        conteudo_arquivo: bytes,
+        max_pages: int = 1,
+        start_page: int = 1,
+        dpi: int = 200,
+    ) -> List[str]:
+        return await self._pdf_asset.pdf_bytes_to_images(
+            conteudo_arquivo=conteudo_arquivo,
+            max_pages=max_pages,
+            start_page=start_page,
+            dpi=dpi,
+        )
 
-    def pdf_pages_to_images(self, *args: Any, **kwargs: Any):
-        return self._pdf_asset.pdf_pages_to_images(*args, **kwargs)
+    def pdf_pages_to_images(
+        self,
+        db: Session,
+        file: UploadFile,
+        fornecedor_id: int,
+        user_id: int,
+        offset: int,
+        limit: int,
+    ) -> Dict[str, Any]:
+        return self._pdf_asset.pdf_pages_to_images(
+            db=db,
+            file=file,
+            fornecedor_id=fornecedor_id,
+            user_id=user_id,
+            offset=offset,
+            limit=limit,
+        )
 
-    async def extrair_pagina_pdf(self, *args: Any, **kwargs: Any):
-        return await self._pdf_asset.extrair_pagina_pdf(*args, **kwargs)
+    async def extrair_pagina_pdf(
+        self,
+        conteudo_pdf: bytes,
+        page_number: int,
+        region: Optional[List[float]] = None,
+    ) -> Dict[str, Any]:
+        return await self._pdf_asset.extrair_pagina_pdf(
+            conteudo_pdf=conteudo_pdf,
+            page_number=page_number,
+            region=region,
+        )
 
-    def generate_pdf_page_images(self, *args: Any, **kwargs: Any):
-        return self._pdf_asset.generate_pdf_page_images(*args, **kwargs)
+    def generate_pdf_page_images(self, file_path: str, file_id: str) -> List[str]:
+        return self._pdf_asset.generate_pdf_page_images(file_path=file_path, file_id=file_id)
 
-    def extract_pdf_region_image(self, *args: Any, **kwargs: Any):
-        return self._pdf_asset.extract_pdf_region_image(*args, **kwargs)
+    def extract_pdf_region_image(
+        self,
+        file_path: str,
+        page_number: int,
+        region: Optional[List[float]] = None,
+        dpi: int = 300,
+    ) -> bytes:
+        return self._pdf_asset.extract_pdf_region_image(
+            file_path=file_path,
+            page_number=page_number,
+            region=region,
+            dpi=dpi,
+        )
 
-    def parse_annotation_to_dataframe(self, *args: Any, **kwargs: Any):
-        return self._pdf_asset.parse_annotation_to_dataframe(*args, **kwargs)
+    def parse_annotation_to_dataframe(
+        self,
+        annotation: object,
+        vertical_tolerance: int = 5,
+    ) -> pd.DataFrame:
+        return self._pdf_asset.parse_annotation_to_dataframe(
+            annotation=annotation,
+            vertical_tolerance=vertical_tolerance,
+        )
 
-    def extract_data_from_pdf_region(self, *args: Any, **kwargs: Any):
-        return self._pdf_processing.extract_data_from_pdf_region(*args, **kwargs)
+    def extract_data_from_pdf_region(
+        self,
+        file_path: str,
+        page_number: int,
+        region: Optional[List[float]] = None,
+    ) -> pd.DataFrame:
+        return self._pdf_processing.extract_data_from_pdf_region(
+            file_path=file_path,
+            page_number=page_number,
+            region=region,
+        )
 
-    async def process_pdf_job(self, *args: Any, **kwargs: Any):
-        return await self._pdf_job.process_pdf_job(*args, **kwargs)
+    async def process_pdf_job(
+        self,
+        job_id: int,
+        pdf_path: str,
+        start_page: int = 1,
+        mapping: Optional[Dict[str, str]] = None,
+    ) -> None:
+        return await self._pdf_job.process_pdf_job(
+            job_id=job_id,
+            pdf_path=pdf_path,
+            start_page=start_page,
+            mapping=mapping,
+        )
 
-    def extract_data_from_single_page(self, *args: Any, **kwargs: Any):
-        return self._pdf_job.extract_data_from_single_page(*args, **kwargs)
+    def extract_data_from_single_page(
+        self,
+        file_path: str,
+        page_number: int,
+    ) -> Dict[str, Any]:
+        return self._pdf_job.extract_data_from_single_page(
+            file_path=file_path,
+            page_number=page_number,
+        )
 
-    def processar_linha_padronizada(self, *args: Any, **kwargs: Any):
-        return self._line_mapping.processar_linha_padronizada(*args, **kwargs)
+    def processar_linha_padronizada(
+        self,
+        linha_original: Dict[str, Any],
+        mapeamento_colunas_usuario: Optional[Dict[str, str]] = None,
+    ) -> Optional[Dict[str, Any]]:
+        return self._line_mapping.processar_linha_padronizada(
+            linha_original=linha_original,
+            mapeamento_colunas_usuario=mapeamento_colunas_usuario,
+        )
 

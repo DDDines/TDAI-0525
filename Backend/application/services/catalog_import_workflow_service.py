@@ -32,7 +32,6 @@ class CatalogImportWorkflowService:
         user_id: int,
         catalog_file_repo: Any | None = None,
         fornecedor_repo: Any | None = None,
-        db_session_factory: Any | None = None,
     ) -> Dict[str, Any]:
         catalog_file = self._start_service.get_catalog_file_or_404(
             file_id=file_id,
@@ -63,7 +62,6 @@ class CatalogImportWorkflowService:
         await self._start_service.dispatch_finalize(
             background_tasks=background_tasks,
             command=command,
-            db_session_factory=db_session_factory,
         )
         return {"status": "PROCESSING", "file_id": file_id}
 
@@ -117,7 +115,6 @@ class CatalogImportWorkflowService:
         user_id: int,
         catalog_file_repo: Any | None = None,
         fornecedor_repo: Any | None = None,
-        db_session_factory: Any | None = None,
     ) -> Any:
         record = self._start_service.get_catalog_file_or_404(
             file_id=file_id,
@@ -149,7 +146,6 @@ class CatalogImportWorkflowService:
         )
         await self._start_service.run_finalize_direct(
             command=command,
-            db_session_factory=db_session_factory,
         )
         if catalog_file_repo is not None:
             refreshed_record = self._status_service.get_record_or_404(
