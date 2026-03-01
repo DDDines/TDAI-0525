@@ -35,15 +35,11 @@ class CatalogImportFileService:
     ) -> Any:
         if self._catalog_file_repository is None:
             raise ValueError("catalog_file_repo is required")
-        if isinstance(self._catalog_file_repository, type):
-            raise ValueError("catalog_file_repo instance is required")
         return self._catalog_file_repository
 
     def _resolve_fornecedor_repo(self) -> Any:
         if self._fornecedor_repository is None:
             raise ValueError("fornecedor_repo is required")
-        if isinstance(self._fornecedor_repository, type):
-            raise ValueError("fornecedor_repo instance is required")
         return self._fornecedor_repository
 
     def list_user_files(

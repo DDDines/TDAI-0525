@@ -49,8 +49,6 @@ class CatalogImportIngestService:
         repo = configured_repo
         if repo is None:
             raise ValueError(f"{repo_name}_repo is required")
-        if isinstance(repo, type):
-            raise ValueError(f"{repo_name}_repo instance is required")
         return repo
 
     def _append_import_issue(

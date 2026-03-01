@@ -41,8 +41,6 @@ class CatalogImportStartService:
     ) -> Any:
         if self._catalog_file_repository is None:
             raise ValueError("catalog_file_repo is required")
-        if isinstance(self._catalog_file_repository, type):
-            raise ValueError("catalog_file_repo instance is required")
         return self._catalog_file_repository
 
     def _resolve_fornecedor_repo(
@@ -50,8 +48,6 @@ class CatalogImportStartService:
     ) -> Any:
         if self._fornecedor_repo is None:
             raise ValueError("fornecedor_repo is required")
-        if isinstance(self._fornecedor_repo, type):
-            raise ValueError("fornecedor_repo instance is required")
         return self._fornecedor_repo
 
     def get_catalog_file_or_404(

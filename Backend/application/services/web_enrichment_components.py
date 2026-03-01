@@ -322,11 +322,7 @@ class WebEnrichmentFinalizationService:
                 "resumo_aplicacao": resumo_aplicacao,
             },
         )
-        product_repo = (
-            self._product_repository(db)
-            if isinstance(self._product_repository, type)
-            else self._product_repository
-        )
+        product_repo = self._resolve_product_repository(db=db)
         product_repo.update_produto(
             db_produto=db_produto_obj,
             produto_update=payload_final_update,
@@ -335,3 +331,13 @@ class WebEnrichmentFinalizationService:
             f"Produto ID {db_produto_obj.id} FINALMENTE atualizado com status: {status_valor_str}."
         )
         return status_para_salvar_no_final
+
+    def _resolve_product_repository(self, *, db: Any) -> Any:
+        if self._product_repository is None:
+            raise ValueError("product_repository is required")
+        if callable(self._product_repository):
+            try:
+                return self._product_repository(db)
+            except TypeError:
+                pass
+        return self._product_repository

@@ -1109,6 +1109,31 @@ class _TopLevelFunctionSurface:
             + "\n".join(offenders)
         )
 
+    def test_application_services_do_not_use_isinstance_type_resolution():
+        offenders: list[str] = []
+        for path in _iter_python_files(APPLICATION_SERVICES_ROOT):
+            rel = path.relative_to(PROJECT_ROOT)
+            tree = _parse_python_file(path)
+            for node in ast.walk(tree):
+                if not isinstance(node, ast.Call):
+                    continue
+                if not isinstance(node.func, ast.Name) or node.func.id != "isinstance":
+                    continue
+                if len(node.args) < 2:
+                    continue
+                type_arg = node.args[1]
+                if isinstance(type_arg, ast.Name) and type_arg.id == "type":
+                    offenders.append(f"{rel}:{node.lineno}")
+                    continue
+                if isinstance(type_arg, ast.Tuple):
+                    if any(isinstance(elt, ast.Name) and elt.id == "type" for elt in type_arg.elts):
+                        offenders.append(f"{rel}:{node.lineno}")
+
+        assert not offenders, (
+            "Application services must not resolve dependencies via isinstance(..., type):\n"
+            + "\n".join(offenders)
+        )
+
     def test_application_service_public_methods_do_not_take_optional_repo_overrides():
         offenders: list[str] = []
 
@@ -1275,6 +1300,7 @@ test_router_gateways_do_not_use_kwargs_bridge_methods = _TopLevelFunctionSurface
 test_produtos_coordinator_does_not_use_reflective_dispatch = _TopLevelFunctionSurface.test_produtos_coordinator_does_not_use_reflective_dispatch
 test_generation_flow_surfaces_do_not_use_var_kwargs = _TopLevelFunctionSurface.test_generation_flow_surfaces_do_not_use_var_kwargs
 test_application_services_do_not_use_inspect_isclass_resolution = _TopLevelFunctionSurface.test_application_services_do_not_use_inspect_isclass_resolution
+test_application_services_do_not_use_isinstance_type_resolution = _TopLevelFunctionSurface.test_application_services_do_not_use_isinstance_type_resolution
 test_application_service_public_methods_do_not_take_optional_repo_overrides = _TopLevelFunctionSurface.test_application_service_public_methods_do_not_take_optional_repo_overrides
 test_tests_do_not_import_private_backend_symbols = _TopLevelFunctionSurface.test_tests_do_not_import_private_backend_symbols
 test_produtos_core_endpoints_do_not_receive_db_session_directly = _TopLevelFunctionSurface.test_produtos_core_endpoints_do_not_receive_db_session_directly

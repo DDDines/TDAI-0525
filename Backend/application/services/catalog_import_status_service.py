@@ -32,8 +32,6 @@ class CatalogImportStatusService:
     ) -> Any:
         if self._catalog_file_repository is None:
             raise ValueError("catalog_file_repo is required")
-        if isinstance(self._catalog_file_repository, type):
-            raise ValueError("catalog_file_repo instance is required")
         return self._catalog_file_repository
 
     def get_record_or_404(

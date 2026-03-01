@@ -157,8 +157,11 @@ class WebEnrichmentTaskWorkflow:
 
     @staticmethod
     def _resolve_repo(repo_or_cls: Any, session: Session) -> Any:
-        if isinstance(repo_or_cls, type):
-            return repo_or_cls(session)
+        if callable(repo_or_cls):
+            try:
+                return repo_or_cls(session)
+            except TypeError:
+                pass
         return repo_or_cls
 
     def _load_locked_product(self, session: Session, produto_id: int):

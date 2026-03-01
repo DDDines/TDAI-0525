@@ -209,6 +209,17 @@ class CatalogImportTaskWorkflow:
         self.catalog_file_repo_runtime: Any | None = None
         self.product_repo_runtime: Any | None = None
 
+    @staticmethod
+    def _resolve_repository_runtime(repository_provider: Any, session: Session) -> Any:
+        if repository_provider is None:
+            raise ValueError("repository provider is required")
+        if callable(repository_provider):
+            try:
+                return repository_provider(session)
+            except TypeError:
+                pass
+        return repository_provider
+
     def _load_catalog_file(self) -> bool:
         self.catalog_file = self.catalog_file_repo_runtime.get_catalog_file_for_user(
             file_id=self.file_id,
@@ -542,17 +553,17 @@ class CatalogImportTaskWorkflow:
         if self._db_session_factory is None:
             raise ValueError("db_session_factory is required for CatalogImportTaskWorkflow")
         self.db = self._db_session_factory()
-        if isinstance(self.catalog_file_repository, type):
-            self.catalog_file_repo_runtime = self.catalog_file_repository(self.db)
-        else:
-            self.catalog_file_repo_runtime = self.catalog_file_repository
+        self.catalog_file_repo_runtime = self._resolve_repository_runtime(
+            self.catalog_file_repository,
+            self.db,
+        )
         self.file_state_service.bind_catalog_file_store(
             catalog_file_store=self.catalog_file_repo_runtime
         )
-        if isinstance(self.product_repository, type):
-            self.product_repo_runtime = self.product_repository(self.db)
-        else:
-            self.product_repo_runtime = self.product_repository
+        self.product_repo_runtime = self._resolve_repository_runtime(
+            self.product_repository,
+            self.db,
+        )
         self.file_id = file_id
         self.user_id = user_id
         self.product_type_id = product_type_id
