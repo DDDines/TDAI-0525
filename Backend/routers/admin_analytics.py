@@ -9,7 +9,6 @@ from sqlalchemy.orm import Session
 from Backend import models
 from Backend import schemas
 from Backend.application.services.service_container import (
-    DependencyContainer,
     SessionDep,
 )
 from Backend.auth import get_current_active_user
@@ -290,15 +289,47 @@ async def get_current_active_admin_user(
     )
 
 
-class _AdminAnalyticsRequestContext:
-    def __init__(self, db: Session) -> None:
-        self.db=db
+class _AdminAnalyticsRequestScope:
+    def __init__(self, db: Session, workflow: AdminAnalyticsRouterWorkflow | None = None) -> None:
+        self._db = db
+        self._workflow = workflow or get_admin_analytics_router_workflow()
+
+    def get_total_counts(self) -> schemas.TotalCounts:
+        return self._workflow.get_total_counts(db=self._db)
+
+    def get_uso_ia_por_plano(self) -> List[schemas.UsoIAPorPlano]:
+        return self._workflow.get_uso_ia_por_plano(db=self._db)
+
+    def get_uso_ia_por_tipo(self) -> List[schemas.UsoIAPorTipo]:
+        return self._workflow.get_uso_ia_por_tipo(db=self._db)
+
+    def get_user_activity(self, *, skip: int, limit: int) -> List[schemas.UserActivity]:
+        return self._workflow.get_user_activity(
+            db=self._db,
+            skip=skip,
+            limit=limit,
+        )
+
+    def get_product_status_counts(self) -> List[schemas.ProductStatusCount]:
+        return self._workflow.get_product_status_counts(db=self._db)
+
+    def get_recent_activities(self, *, limit: int) -> List[schemas.RecentActivity]:
+        return self._workflow.get_recent_activities(
+            db=self._db,
+            limit=limit,
+        )
+
+    def get_recent_historico(self, *, limit: int) -> List[schemas.RegistroHistoricoResponse]:
+        return self._workflow.get_recent_historico(
+            db=self._db,
+            limit=limit,
+        )
 
 
-def _build_admin_analytics_request_context(
+def _build_admin_analytics_request_workflow(
     db: SessionDep,
-) -> _AdminAnalyticsRequestContext:
-    return _AdminAnalyticsRequestContext(db=db)
+) -> _AdminAnalyticsRequestScope:
+    return _AdminAnalyticsRequestScope(db=db)
 
 
 @router.get(
@@ -307,12 +338,11 @@ def _build_admin_analytics_request_context(
     dependencies=[Depends(get_current_active_admin_user)],
 )
 async def get_total_counts_endpoint(
-    request_context: _AdminAnalyticsRequestContext = Depends(
-        _build_admin_analytics_request_context
+    request_workflow: _AdminAnalyticsRequestScope = Depends(
+        _build_admin_analytics_request_workflow
     ),
 ):
-    workflow = get_admin_analytics_router_workflow()
-    return workflow.get_total_counts(db=request_context.db)
+    return request_workflow.get_total_counts()
 
 
 @router.get(
@@ -321,12 +351,11 @@ async def get_total_counts_endpoint(
     dependencies=[Depends(get_current_active_admin_user)],
 )
 async def get_uso_ia_por_plano_endpoint(
-    request_context: _AdminAnalyticsRequestContext = Depends(
-        _build_admin_analytics_request_context
+    request_workflow: _AdminAnalyticsRequestScope = Depends(
+        _build_admin_analytics_request_workflow
     ),
 ):
-    workflow = get_admin_analytics_router_workflow()
-    return workflow.get_uso_ia_por_plano(db=request_context.db)
+    return request_workflow.get_uso_ia_por_plano()
 
 
 @router.get(
@@ -335,12 +364,11 @@ async def get_uso_ia_por_plano_endpoint(
     dependencies=[Depends(get_current_active_admin_user)],
 )
 async def get_uso_ia_por_tipo_endpoint(
-    request_context: _AdminAnalyticsRequestContext = Depends(
-        _build_admin_analytics_request_context
+    request_workflow: _AdminAnalyticsRequestScope = Depends(
+        _build_admin_analytics_request_workflow
     ),
 ):
-    workflow = get_admin_analytics_router_workflow()
-    return workflow.get_uso_ia_por_tipo(db=request_context.db)
+    return request_workflow.get_uso_ia_por_tipo()
 
 
 @router.get(
@@ -349,15 +377,13 @@ async def get_uso_ia_por_tipo_endpoint(
     dependencies=[Depends(get_current_active_admin_user)],
 )
 async def get_user_activity_endpoint(
-    request_context: _AdminAnalyticsRequestContext = Depends(
-        _build_admin_analytics_request_context
+    request_workflow: _AdminAnalyticsRequestScope = Depends(
+        _build_admin_analytics_request_workflow
     ),
     skip: int = Query(0, ge=0),
     limit: int = Query(100, ge=1, le=200),
 ):
-    workflow = get_admin_analytics_router_workflow()
-    return workflow.get_user_activity(
-        db=request_context.db,
+    return request_workflow.get_user_activity(
         skip=skip,
         limit=limit,
     )
@@ -369,12 +395,11 @@ async def get_user_activity_endpoint(
     dependencies=[Depends(get_current_active_admin_user)],
 )
 async def get_product_status_counts(
-    request_context: _AdminAnalyticsRequestContext = Depends(
-        _build_admin_analytics_request_context
+    request_workflow: _AdminAnalyticsRequestScope = Depends(
+        _build_admin_analytics_request_workflow
     ),
 ):
-    workflow = get_admin_analytics_router_workflow()
-    return workflow.get_product_status_counts(db=request_context.db)
+    return request_workflow.get_product_status_counts()
 
 
 @router.get(
@@ -383,14 +408,12 @@ async def get_product_status_counts(
     dependencies=[Depends(get_current_active_admin_user)],
 )
 async def get_recent_activities(
-    request_context: _AdminAnalyticsRequestContext = Depends(
-        _build_admin_analytics_request_context
+    request_workflow: _AdminAnalyticsRequestScope = Depends(
+        _build_admin_analytics_request_workflow
     ),
     limit: int = Query(10, ge=1, le=50),
 ):
-    workflow = get_admin_analytics_router_workflow()
-    return workflow.get_recent_activities(
-        db=request_context.db,
+    return request_workflow.get_recent_activities(
         limit=limit,
     )
 
@@ -401,16 +424,15 @@ async def get_recent_activities(
     dependencies=[Depends(get_current_active_admin_user)],
 )
 async def get_recent_historico(
-    request_context: _AdminAnalyticsRequestContext = Depends(
-        _build_admin_analytics_request_context
+    request_workflow: _AdminAnalyticsRequestScope = Depends(
+        _build_admin_analytics_request_workflow
     ),
     limit: int = Query(10, ge=1, le=50),
 ):
-    workflow = get_admin_analytics_router_workflow()
-    return workflow.get_recent_historico(
-        db=request_context.db,
+    return request_workflow.get_recent_historico(
         limit=limit,
     )
+
 
 
 

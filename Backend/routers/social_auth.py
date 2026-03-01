@@ -10,7 +10,6 @@ from Backend.auth import (
     create_refresh_token,
 )
 from Backend.application.services.service_container import (
-    DependencyContainer,
     SessionDep,
 )
 from Backend.core.config import settings
@@ -148,15 +147,28 @@ def get_social_auth_router_workflow() -> SocialAuthRouterWorkflow:
     return SocialAuthRouterWorkflow(runtime=_SocialAuthRouterRuntime())
 
 
-class _SocialAuthRequestContext:
-    def __init__(self, db: Session) -> None:
-        self.db=db
+class _SocialAuthRequestScope:
+    def __init__(self, db: Session, workflow: SocialAuthRouterWorkflow | None = None) -> None:
+        self._db = db
+        self._workflow = workflow or get_social_auth_router_workflow()
+
+    async def google_callback(self, request: Request) -> schemas.Token:
+        return await self._workflow.google_callback(
+            request=request,
+            db=self._db,
+        )
+
+    async def facebook_callback(self, request: Request) -> schemas.Token:
+        return await self._workflow.facebook_callback(
+            request=request,
+            db=self._db,
+        )
 
 
-def _build_social_auth_request_context(
+def _build_social_auth_request_workflow(
     db: SessionDep,
-) -> _SocialAuthRequestContext:
-    return _SocialAuthRequestContext(db=db)
+) -> _SocialAuthRequestScope:
+    return _SocialAuthRequestScope(db=db)
 
 
 @router.get("/social/config", response_model=schemas.SocialLoginConfig)
@@ -174,13 +186,9 @@ async def google_login(request: Request):
 @router.get("/google/callback", response_model=schemas.Token)
 async def google_callback(
     request: Request,
-    request_context: _SocialAuthRequestContext = Depends(_build_social_auth_request_context),
+    request_workflow: _SocialAuthRequestScope = Depends(_build_social_auth_request_workflow),
 ):
-    workflow = get_social_auth_router_workflow()
-    return await workflow.google_callback(
-        request=request,
-        db=request_context.db,
-    )
+    return await request_workflow.google_callback(request=request)
 
 
 @router.get("/facebook/login")
@@ -192,13 +200,10 @@ async def facebook_login(request: Request):
 @router.get("/facebook/callback", response_model=schemas.Token)
 async def facebook_callback(
     request: Request,
-    request_context: _SocialAuthRequestContext = Depends(_build_social_auth_request_context),
+    request_workflow: _SocialAuthRequestScope = Depends(_build_social_auth_request_workflow),
 ):
-    workflow = get_social_auth_router_workflow()
-    return await workflow.facebook_callback(
-        request=request,
-        db=request_context.db,
-    )
+    return await request_workflow.facebook_callback(request=request)
+
 
 
 

@@ -5,7 +5,6 @@ from sqlalchemy.orm import Session
 
 from Backend import schemas
 from Backend.application.services.service_container import (
-    DependencyContainer,
     SessionDep,
 )
 from Backend.auth import create_password_reset_token, hash_password_reset_token
@@ -166,28 +165,49 @@ def get_password_recovery_workflow() -> PasswordRecoveryWorkflow:
     return PasswordRecoveryWorkflow(runtime=_PasswordRecoveryRuntime())
 
 
-class _PasswordRecoveryRequestContext:
-    def __init__(self, db: Session) -> None:
-        self.db=db
+class _PasswordRecoveryRequestScope:
+    def __init__(self, db: Session, workflow: PasswordRecoveryWorkflow | None = None) -> None:
+        self._db = db
+        self._workflow = workflow or get_password_recovery_workflow()
+
+    async def recover_password(
+        self,
+        *,
+        email: str,
+        request: Request,
+    ) -> schemas.Msg:
+        return await self._workflow.recover_password(
+            db=self._db,
+            email=email,
+            request=request,
+        )
+
+    def reset_password(
+        self,
+        *,
+        reset_data: schemas.PasswordResetSchema,
+    ) -> schemas.Msg:
+        return self._workflow.reset_password(
+            db=self._db,
+            reset_data=reset_data,
+        )
 
 
-def _build_password_recovery_request_context(
+def _build_password_recovery_request_workflow(
     db: SessionDep,
-) -> _PasswordRecoveryRequestContext:
-    return _PasswordRecoveryRequestContext(db=db)
+) -> _PasswordRecoveryRequestScope:
+    return _PasswordRecoveryRequestScope(db=db)
 
 
 @router.post("/password-recovery/{email}", response_model=schemas.Msg)
 async def recover_password(
     email: str,
     request: Request,
-    request_context: _PasswordRecoveryRequestContext = Depends(
-        _build_password_recovery_request_context
+    request_workflow: _PasswordRecoveryRequestScope = Depends(
+        _build_password_recovery_request_workflow
     ),
 ):
-    workflow = get_password_recovery_workflow()
-    return await workflow.recover_password(
-        db=request_context.db,
+    return await request_workflow.recover_password(
         email=email,
         request=request,
     )
@@ -197,15 +217,14 @@ async def recover_password(
 def reset_password(
     *,
     reset_data: schemas.PasswordResetSchema = Body(...),
-    request_context: _PasswordRecoveryRequestContext = Depends(
-        _build_password_recovery_request_context
+    request_workflow: _PasswordRecoveryRequestScope = Depends(
+        _build_password_recovery_request_workflow
     ),
 ):
-    workflow = get_password_recovery_workflow()
-    return workflow.reset_password(
-        db=request_context.db,
+    return request_workflow.reset_password(
         reset_data=reset_data,
     )
+
 
 
 

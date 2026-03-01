@@ -866,18 +866,205 @@ def _build_produtos_request_services(
     )
 
 
+class _ProdutosCatalogRequestScope:
+    def __init__(self, *, db: Session, workflow: ProdutosRouterWorkflow | None = None) -> None:
+        self._db = db
+        self._workflow = workflow or get_produtos_router_workflow()
+
+    def list_catalog_import_files(
+        self,
+        *,
+        user_id: int,
+        fornecedor_id: Optional[int],
+        skip: int,
+        limit: int,
+    ) -> schemas.CatalogImportFilePage:
+        return self._workflow.list_catalog_import_files(
+            db=self._db,
+            user_id=user_id,
+            fornecedor_id=fornecedor_id,
+            skip=skip,
+            limit=limit,
+        )
+
+    def delete_catalog_import_file(self, *, file_id: int, user_id: int):
+        return self._workflow.delete_catalog_import_file(
+            db=self._db,
+            file_id=file_id,
+            user_id=user_id,
+        )
+
+    async def reprocess_catalog_import_file(
+        self,
+        *,
+        background_tasks: BackgroundTasks,
+        file_id: int,
+        user_id: int,
+        product_type_id: Optional[int],
+        fornecedor_id: Optional[int],
+        mapping: Optional[Dict[str, str]],
+        pages: Optional[List[int]],
+        region: Optional[List[float]],
+    ):
+        return await self._workflow.reprocess_catalog_import_file(
+            background_tasks=background_tasks,
+            db=self._db,
+            file_id=file_id,
+            user_id=user_id,
+            product_type_id=product_type_id,
+            fornecedor_id=fornecedor_id,
+            mapping=mapping,
+            pages=pages,
+            region=region,
+        )
+
+    async def importar_catalogo_preview(
+        self,
+        *,
+        file: UploadFile,
+        fornecedor_id: Optional[int],
+        start_page: int,
+        page_count: int,
+        dpi: int,
+        user_id: int,
+    ) -> schemas.ImportPreviewResponse:
+        return await self._workflow.importar_catalogo_preview(
+            file=file,
+            fornecedor_id=fornecedor_id,
+            start_page=start_page,
+            page_count=page_count,
+            dpi=dpi,
+            db=self._db,
+            user_id=user_id,
+        )
+
+    async def importar_catalogo_fornecedor(
+        self,
+        *,
+        fornecedor_id: int,
+        file: UploadFile,
+        mapeamento_colunas_usuario: Optional[str],
+        current_user: models.User,
+    ):
+        return await self._workflow.importar_catalogo_fornecedor(
+            fornecedor_id=fornecedor_id,
+            file=file,
+            mapeamento_colunas_usuario=mapeamento_colunas_usuario,
+            db=self._db,
+            current_user=current_user,
+        )
+
+    async def importar_catalogo_finalizar(
+        self,
+        *,
+        background_tasks: BackgroundTasks,
+        file_id: int,
+        product_type_id: int,
+        fornecedor_id: int,
+        mapping: Optional[Dict[str, str]],
+        pages: Optional[List[int]],
+        region: Optional[List[float]],
+        user_id: int,
+    ):
+        return await self._workflow.importar_catalogo_finalizar(
+            background_tasks=background_tasks,
+            file_id=file_id,
+            product_type_id=product_type_id,
+            fornecedor_id=fornecedor_id,
+            mapping=mapping,
+            pages=pages,
+            region=region,
+            db=self._db,
+            user_id=user_id,
+        )
+
+    def importar_catalogo_status(self, *, file_id: int, user_id: int):
+        return self._workflow.importar_catalogo_status(
+            file_id=file_id,
+            db=self._db,
+            user_id=user_id,
+        )
+
+    def importar_catalogo_status_simple(self, *, file_id: int, user_id: int):
+        return self._workflow.importar_catalogo_status_simple(
+            file_id=file_id,
+            db=self._db,
+            user_id=user_id,
+        )
+
+    def importar_catalogo_result(self, *, file_id: int, user_id: int):
+        return self._workflow.importar_catalogo_result(
+            file_id=file_id,
+            db=self._db,
+            user_id=user_id,
+        )
+
+    async def importar_catalogo_finalizar_todas_paginas(
+        self,
+        *,
+        file_id: int,
+        start_page: int,
+        mapping: Optional[Dict[str, str]],
+        user_id: int,
+    ):
+        return await self._workflow.importar_catalogo_finalizar_todas_paginas(
+            file_id=file_id,
+            start_page=start_page,
+            mapping=mapping,
+            db=self._db,
+            user_id=user_id,
+        )
+
+    async def selecionar_regiao(
+        self,
+        *,
+        file_id: int,
+        page: int,
+        bbox: List[float],
+        bbox_norm: Optional[List[float]],
+        user_id: int,
+    ):
+        return await self._workflow.selecionar_regiao(
+            file_id=file_id,
+            page=page,
+            bbox=bbox,
+            bbox_norm=bbox_norm,
+            db=self._db,
+            user_id=user_id,
+        )
+
+    async def extrair_pagina_unica(
+        self,
+        *,
+        file_id: int,
+        page_number: int,
+        user_id: int,
+    ):
+        return await self._workflow.extrair_pagina_unica(
+            file_id=file_id,
+            page_number=page_number,
+            db=self._db,
+            user_id=user_id,
+        )
+
+
 class _ProdutosRequestContext:
-    def __init__(self, *, db: Session, request_services: _ProdutosRequestServices) -> None:
-        self.db=db
+    def __init__(
+        self,
+        *,
+        request_services: _ProdutosRequestServices,
+        catalog_workflow: _ProdutosCatalogRequestScope,
+    ) -> None:
         self.request_services = request_services
+        self.catalog_workflow = catalog_workflow
 
 
 def _build_produtos_request_context(
     db: SessionDep,
 ) -> _ProdutosRequestContext:
     return _ProdutosRequestContext(
-        db=db,
         request_services=_build_produtos_request_services(db=db),
+        catalog_workflow=_ProdutosCatalogRequestScope(db=db),
     )
 
 
@@ -901,8 +1088,7 @@ def list_catalog_import_files(
     current_user: models.User = Depends(auth_utils.get_current_active_user),
     request_context: _ProdutosRequestContext = Depends(_build_produtos_request_context),
 ):
-    return get_produtos_router_workflow().list_catalog_import_files(
-        db=request_context.db,
+    return request_context.catalog_workflow.list_catalog_import_files(
         user_id=current_user.id,
         fornecedor_id=fornecedor_id,
         skip=skip,
@@ -916,8 +1102,7 @@ def delete_catalog_import_file(
     current_user: models.User = Depends(auth_utils.get_current_active_user),
     request_context: _ProdutosRequestContext = Depends(_build_produtos_request_context),
 ):
-    return get_produtos_router_workflow().delete_catalog_import_file(
-        db=request_context.db,
+    return request_context.catalog_workflow.delete_catalog_import_file(
         file_id=file_id,
         user_id=current_user.id,
     )
@@ -935,9 +1120,8 @@ async def reprocess_catalog_import_file(
     current_user: models.User = Depends(auth_utils.get_current_active_user),
     request_context: _ProdutosRequestContext = Depends(_build_produtos_request_context),
 ):
-    return await get_produtos_router_workflow().reprocess_catalog_import_file(
-        background_tasks=background_tasks,
-        db=request_context.db,
+    return await request_context.catalog_workflow.reprocess_catalog_import_file(
+        background_tasks=background_tasks,
         file_id=file_id,
         user_id=current_user.id,
         product_type_id=product_type_id,
@@ -1089,13 +1273,12 @@ async def importar_catalogo_preview(
     current_user: models.User = Depends(auth_utils.get_current_active_user),
     request_context: _ProdutosRequestContext = Depends(_build_produtos_request_context),
 ):
-    return await get_produtos_router_workflow().importar_catalogo_preview(
+    return await request_context.catalog_workflow.importar_catalogo_preview(
         file=file,
         fornecedor_id=fornecedor_id,
         start_page=start_page,
         page_count=page_count,
-        dpi=dpi,
-        db=request_context.db,
+        dpi=dpi,
         user_id=current_user.id,
     )
 
@@ -1108,11 +1291,10 @@ async def importar_catalogo_fornecedor(
     current_user: models.User = Depends(auth_utils.get_current_active_user),
     request_context: _ProdutosRequestContext = Depends(_build_produtos_request_context),
 ):
-    return await get_produtos_router_workflow().importar_catalogo_fornecedor(
+    return await request_context.catalog_workflow.importar_catalogo_fornecedor(
         fornecedor_id=fornecedor_id,
         file=file,
-        mapeamento_colunas_usuario=mapeamento_colunas_usuario,
-        db=request_context.db,
+        mapeamento_colunas_usuario=mapeamento_colunas_usuario,
         current_user=current_user,
     )
 
@@ -1129,15 +1311,14 @@ async def importar_catalogo_finalizar(
     current_user: models.User = Depends(auth_utils.get_current_active_user),
     request_context: _ProdutosRequestContext = Depends(_build_produtos_request_context),
 ):
-    return await get_produtos_router_workflow().importar_catalogo_finalizar(
+    return await request_context.catalog_workflow.importar_catalogo_finalizar(
         background_tasks=background_tasks,
         file_id=file_id,
         product_type_id=product_type_id,
         fornecedor_id=fornecedor_id,
         mapping=mapping,
         pages=pages,
-        region=region,
-        db=request_context.db,
+        region=region,
         user_id=current_user.id,
     )
 
@@ -1148,9 +1329,8 @@ def importar_catalogo_status(
     current_user: models.User = Depends(auth_utils.get_current_active_user),
     request_context: _ProdutosRequestContext = Depends(_build_produtos_request_context),
 ):
-    return get_produtos_router_workflow().importar_catalogo_status(
-        file_id=file_id,
-        db=request_context.db,
+    return request_context.catalog_workflow.importar_catalogo_status(
+        file_id=file_id,
         user_id=current_user.id,
     )
 
@@ -1165,9 +1345,8 @@ def importar_catalogo_status_simple(
     current_user: models.User = Depends(auth_utils.get_current_active_user),
     request_context: _ProdutosRequestContext = Depends(_build_produtos_request_context),
 ):
-    return get_produtos_router_workflow().importar_catalogo_status_simple(
-        file_id=file_id,
-        db=request_context.db,
+    return request_context.catalog_workflow.importar_catalogo_status_simple(
+        file_id=file_id,
         user_id=current_user.id,
     )
 
@@ -1181,9 +1360,8 @@ def importar_catalogo_result(
     current_user: models.User = Depends(auth_utils.get_current_active_user),
     request_context: _ProdutosRequestContext = Depends(_build_produtos_request_context),
 ):
-    return get_produtos_router_workflow().importar_catalogo_result(
-        file_id=file_id,
-        db=request_context.db,
+    return request_context.catalog_workflow.importar_catalogo_result(
+        file_id=file_id,
         user_id=current_user.id,
     )
 
@@ -1196,11 +1374,10 @@ async def importar_catalogo_finalizar_todas_paginas(
     current_user: models.User = Depends(auth_utils.get_current_active_user),
     request_context: _ProdutosRequestContext = Depends(_build_produtos_request_context),
 ):
-    return await get_produtos_router_workflow().importar_catalogo_finalizar_todas_paginas(
+    return await request_context.catalog_workflow.importar_catalogo_finalizar_todas_paginas(
         file_id=file_id,
         start_page=start_page,
-        mapping=mapping,
-        db=request_context.db,
+        mapping=mapping,
         user_id=current_user.id,
     )
 
@@ -1214,12 +1391,11 @@ async def selecionar_regiao(
     current_user: models.User = Depends(auth_utils.get_current_active_user),
     request_context: _ProdutosRequestContext = Depends(_build_produtos_request_context),
 ):
-    return await get_produtos_router_workflow().selecionar_regiao(
+    return await request_context.catalog_workflow.selecionar_regiao(
         file_id=file_id,
         page=page,
         bbox=bbox,
-        bbox_norm=bbox_norm,
-        db=request_context.db,
+        bbox_norm=bbox_norm,
         user_id=current_user.id,
     )
 
@@ -1231,12 +1407,13 @@ async def extrair_pagina_unica(
     current_user: models.User = Depends(auth_utils.get_current_active_user),
     request_context: _ProdutosRequestContext = Depends(_build_produtos_request_context),
 ):
-    return await get_produtos_router_workflow().extrair_pagina_unica(
+    return await request_context.catalog_workflow.extrair_pagina_unica(
         file_id=file_id,
-        page_number=page_number,
-        db=request_context.db,
+        page_number=page_number,
         user_id=current_user.id,
     )
+
+
 
 
 

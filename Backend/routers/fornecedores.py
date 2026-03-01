@@ -556,21 +556,248 @@ def get_fornecedores_router_workflow() -> FornecedoresRouterWorkflow:
     return FornecedoresRouterWorkflow(runtime=_FornecedoresRouterRuntime())
 
 
-class _FornecedoresRequestContext:
+class _FornecedoresRequestScope:
     def __init__(
         self,
         *,
         db: Session,
         fornecedor_management_service: FornecedorManagementService,
     ) -> None:
-        self.db=db
-        self.fornecedor_management_service = fornecedor_management_service
+        self._db = db
+        self._fornecedor_management_service = fornecedor_management_service
+        self._workflow = get_fornecedores_router_workflow()
+
+    def create_fornecedor(
+        self,
+        *,
+        fornecedor: schemas.FornecedorCreate,
+        current_user: models.User,
+    ) -> models.Fornecedor:
+        return self._workflow.create_fornecedor(
+            fornecedor=fornecedor,
+            current_user=current_user,
+            fornecedor_management_service=self._fornecedor_management_service,
+        )
+
+    def list_fornecedores_page(
+        self,
+        *,
+        current_user: models.User,
+        skip: int,
+        limit: int,
+        termo_busca: Optional[str],
+    ) -> schemas.FornecedorPage:
+        return self._workflow.list_fornecedores_page(
+            current_user=current_user,
+            skip=skip,
+            limit=limit,
+            termo_busca=termo_busca,
+            fornecedor_management_service=self._fornecedor_management_service,
+        )
+
+    def read_fornecedor(
+        self,
+        *,
+        fornecedor_id: int,
+        current_user: models.User,
+    ) -> models.Fornecedor:
+        return self._workflow.read_fornecedor(
+            fornecedor_id=fornecedor_id,
+            current_user=current_user,
+            fornecedor_management_service=self._fornecedor_management_service,
+        )
+
+    def update_fornecedor(
+        self,
+        *,
+        fornecedor_id: int,
+        fornecedor_update: schemas.FornecedorUpdate,
+        current_user: models.User,
+    ) -> models.Fornecedor:
+        return self._workflow.update_fornecedor(
+            fornecedor_id=fornecedor_id,
+            fornecedor_update=fornecedor_update,
+            current_user=current_user,
+            fornecedor_management_service=self._fornecedor_management_service,
+        )
+
+    def get_mapping(
+        self,
+        *,
+        fornecedor_id: int,
+        current_user: models.User,
+    ) -> Optional[dict]:
+        return self._workflow.get_mapping(
+            fornecedor_id=fornecedor_id,
+            current_user=current_user,
+            fornecedor_management_service=self._fornecedor_management_service,
+        )
+
+    def update_mapping(
+        self,
+        *,
+        fornecedor_id: int,
+        mapping: Optional[dict],
+        current_user: models.User,
+    ) -> models.Fornecedor:
+        return self._workflow.update_mapping(
+            fornecedor_id=fornecedor_id,
+            mapping=mapping,
+            current_user=current_user,
+            fornecedor_management_service=self._fornecedor_management_service,
+        )
+
+    async def preview_pages(self, *, file: UploadFile):
+        return await self._workflow.preview_pages(file=file)
+
+    async def preview_pdf(
+        self,
+        *,
+        fornecedor_id: int,
+        file: UploadFile,
+        current_user: models.User,
+        offset: int,
+        limit: int,
+    ) -> schemas.PdfPreviewResponse:
+        return await self._workflow.preview_pdf(
+            fornecedor_id=fornecedor_id,
+            file=file,
+            db=self._db,
+            current_user=current_user,
+            offset=offset,
+            limit=limit,
+            fornecedor_management_service=self._fornecedor_management_service,
+        )
+
+    def preview_catalog_from_region(
+        self,
+        *,
+        preview_request: schemas.CatalogRegionPreviewRequest,
+    ) -> schemas.CatalogPreview:
+        return self._workflow.preview_catalog_from_region(
+            preview_request=preview_request,
+            db=self._db,
+        )
+
+    def extract_data_from_pdf_bulk(
+        self,
+        *,
+        background_tasks: BackgroundTasks,
+        request: schemas.PdfRegionBulkRequest,
+    ):
+        return self._workflow.extract_data_from_pdf_bulk(
+            background_tasks=background_tasks,
+            request=request,
+            db=self._db,
+        )
+
+    def get_import_progress(
+        self,
+        *,
+        job_id: int,
+        current_user: models.User,
+    ) -> dict:
+        return self._workflow.get_import_progress(
+            job_id=job_id,
+            db=self._db,
+            current_user=current_user,
+        )
+
+    async def process_full_catalog(
+        self,
+        *,
+        background_tasks: BackgroundTasks,
+        file_id: int,
+        fornecedor_id: int,
+        tipo_produto_id: int,
+        start_page: int,
+        region: Optional[List[float]],
+        mapping: Optional[dict],
+        current_user: models.User,
+    ):
+        return await self._workflow.process_full_catalog(
+            background_tasks=background_tasks,
+            file_id=file_id,
+            fornecedor_id=fornecedor_id,
+            tipo_produto_id=tipo_produto_id,
+            start_page=start_page,
+            region=region,
+            mapping=mapping,
+            db=self._db,
+            current_user=current_user,
+        )
+
+    def extract_page_data(
+        self,
+        *,
+        background_tasks: BackgroundTasks,
+        file_id: int,
+        page_number: int,
+        current_user: models.User,
+    ) -> dict:
+        return self._workflow.extract_page_data(
+            background_tasks=background_tasks,
+            file_id=file_id,
+            page_number=page_number,
+            db=self._db,
+            current_user=current_user,
+        )
+
+    def delete_fornecedor(
+        self,
+        *,
+        fornecedor_id: int,
+        current_user: models.User,
+    ) -> models.Fornecedor:
+        return self._workflow.delete_fornecedor(
+            fornecedor_id=fornecedor_id,
+            current_user=current_user,
+            fornecedor_management_service=self._fornecedor_management_service,
+        )
+
+    def review_import_job(
+        self,
+        *,
+        job_id: int,
+        current_user: models.User,
+    ) -> dict:
+        return self._workflow.review_import_job(
+            job_id=job_id,
+            db=self._db,
+            current_user=current_user,
+        )
+
+    def commit_import_job(
+        self,
+        *,
+        background_tasks: BackgroundTasks,
+        job_id: int,
+        current_user: models.User,
+    ) -> dict:
+        return self._workflow.commit_import_job(
+            background_tasks=background_tasks,
+            job_id=job_id,
+            db=self._db,
+            current_user=current_user,
+        )
+
+    def get_import_job_status(
+        self,
+        *,
+        job_id: int,
+        current_user: models.User,
+    ) -> dict:
+        return self._workflow.get_import_job_status(
+            job_id=job_id,
+            db=self._db,
+            current_user=current_user,
+        )
 
 
-def _build_fornecedores_request_context(
+def _build_fornecedores_request_workflow(
     db: SessionDep,
-) -> _FornecedoresRequestContext:
-    return _FornecedoresRequestContext(
+) -> _FornecedoresRequestScope:
+    return _FornecedoresRequestScope(
         db=db,
         fornecedor_management_service=DependencyContainer.get_fornecedor_management_service(
             db=db,
@@ -582,13 +809,12 @@ def _build_fornecedores_request_context(
 def create_user_fornecedor(
     fornecedor: schemas.FornecedorCreate,
     current_user: models.User = Depends(auth_utils.get_current_active_user),
-    request_context: _FornecedoresRequestContext = Depends(_build_fornecedores_request_context),
+    request_workflow: _FornecedoresRequestScope = Depends(_build_fornecedores_request_workflow),
 ):
     try:
-        return get_fornecedores_router_workflow().create_fornecedor(
+        return request_workflow.create_fornecedor(
             fornecedor=fornecedor,
-            current_user=current_user,
-            fornecedor_management_service=request_context.fornecedor_management_service,
+            current_user=current_user,
         )
     except HTTPException as exc:
         logger.warning("HTTPException ao criar fornecedor: %s", exc.detail)
@@ -607,14 +833,13 @@ def read_user_fornecedores(
     limit: int = Query(10, ge=1, le=100, description="Numero maximo de itens por pagina"),
     termo_busca: Optional[str] = Query(None, description="Termo para buscar no nome do fornecedor"),
     current_user: models.User = Depends(auth_utils.get_current_active_user),
-    request_context: _FornecedoresRequestContext = Depends(_build_fornecedores_request_context),
+    request_workflow: _FornecedoresRequestScope = Depends(_build_fornecedores_request_workflow),
 ):
-    return get_fornecedores_router_workflow().list_fornecedores_page(
+    return request_workflow.list_fornecedores_page(
         current_user=current_user,
         skip=skip,
         limit=limit,
-        termo_busca=termo_busca,
-        fornecedor_management_service=request_context.fornecedor_management_service,
+        termo_busca=termo_busca,
     )
 
 
@@ -622,12 +847,11 @@ def read_user_fornecedores(
 def read_fornecedor(
     fornecedor_id: int,
     current_user: models.User = Depends(auth_utils.get_current_active_user),
-    request_context: _FornecedoresRequestContext = Depends(_build_fornecedores_request_context),
+    request_workflow: _FornecedoresRequestScope = Depends(_build_fornecedores_request_workflow),
 ):
-    return get_fornecedores_router_workflow().read_fornecedor(
+    return request_workflow.read_fornecedor(
         fornecedor_id=fornecedor_id,
-        current_user=current_user,
-        fornecedor_management_service=request_context.fornecedor_management_service,
+        current_user=current_user,
     )
 
 
@@ -636,14 +860,13 @@ def update_fornecedor_endpoint(
     fornecedor_id: int,
     fornecedor_update: schemas.FornecedorUpdate,
     current_user: models.User = Depends(auth_utils.get_current_active_user),
-    request_context: _FornecedoresRequestContext = Depends(_build_fornecedores_request_context),
+    request_workflow: _FornecedoresRequestScope = Depends(_build_fornecedores_request_workflow),
 ):
     try:
-        return get_fornecedores_router_workflow().update_fornecedor(
+        return request_workflow.update_fornecedor(
             fornecedor_id=fornecedor_id,
             fornecedor_update=fornecedor_update,
-            current_user=current_user,
-            fornecedor_management_service=request_context.fornecedor_management_service,
+            current_user=current_user,
         )
     except HTTPException:
         raise
@@ -658,12 +881,11 @@ def update_fornecedor_endpoint(
 def get_mapping(
     fornecedor_id: int,
     current_user: models.User = Depends(auth_utils.get_current_active_user),
-    request_context: _FornecedoresRequestContext = Depends(_build_fornecedores_request_context),
+    request_workflow: _FornecedoresRequestScope = Depends(_build_fornecedores_request_workflow),
 ):
-    return get_fornecedores_router_workflow().get_mapping(
+    return request_workflow.get_mapping(
         fornecedor_id=fornecedor_id,
-        current_user=current_user,
-        fornecedor_management_service=request_context.fornecedor_management_service,
+        current_user=current_user,
     )
 
 
@@ -672,19 +894,21 @@ def update_mapping(
     fornecedor_id: int,
     mapping: Optional[dict] = None,
     current_user: models.User = Depends(auth_utils.get_current_active_user),
-    request_context: _FornecedoresRequestContext = Depends(_build_fornecedores_request_context),
+    request_workflow: _FornecedoresRequestScope = Depends(_build_fornecedores_request_workflow),
 ):
-    return get_fornecedores_router_workflow().update_mapping(
+    return request_workflow.update_mapping(
         fornecedor_id=fornecedor_id,
         mapping=mapping,
-        current_user=current_user,
-        fornecedor_management_service=request_context.fornecedor_management_service,
+        current_user=current_user,
     )
 
 
 @router.post("/import/preview-pages")
-async def preview_pages(file: UploadFile = File(...)):
-    return await get_fornecedores_router_workflow().preview_pages(file=file)
+async def preview_pages(
+    file: UploadFile = File(...),
+    request_workflow: _FornecedoresRequestScope = Depends(_build_fornecedores_request_workflow),
+):
+    return await request_workflow.preview_pages(file=file)
 
 
 @router.post("/{fornecedor_id}/preview-pdf", response_model=schemas.PdfPreviewResponse)
@@ -692,29 +916,26 @@ async def preview_pdf(
     fornecedor_id: int,
     file: UploadFile = File(...),
     current_user: models.User = Depends(auth_utils.get_current_active_user),
-    request_context: _FornecedoresRequestContext = Depends(_build_fornecedores_request_context),
+    request_workflow: _FornecedoresRequestScope = Depends(_build_fornecedores_request_workflow),
     offset: int = Query(0, description="Pagina inicial para pre-visualizacao (base 0)."),
     limit: int = Query(20, description="Numero maximo de paginas para pre-visualizacao."),
 ):
-    return await get_fornecedores_router_workflow().preview_pdf(
+    return await request_workflow.preview_pdf(
         fornecedor_id=fornecedor_id,
-        file=file,
-        db=request_context.db,
+        file=file,
         current_user=current_user,
         offset=offset,
-        limit=limit,
-        fornecedor_management_service=request_context.fornecedor_management_service,
+        limit=limit,
     )
 
 
 @router.post("/preview-catalog-region", response_model=schemas.CatalogPreview)
 def preview_catalog_from_region(
     preview_request: schemas.CatalogRegionPreviewRequest,
-    request_context: _FornecedoresRequestContext = Depends(_build_fornecedores_request_context),
+    request_workflow: _FornecedoresRequestScope = Depends(_build_fornecedores_request_workflow),
 ):
-    return get_fornecedores_router_workflow().preview_catalog_from_region(
-        preview_request=preview_request,
-        db=request_context.db,
+    return request_workflow.preview_catalog_from_region(
+        preview_request=preview_request,
     )
 
 
@@ -723,13 +944,12 @@ def extract_data_from_pdf_bulk(
     background_tasks: BackgroundTasks,
     request: schemas.PdfRegionBulkRequest,
     current_user: models.User = Depends(auth_utils.get_current_active_user),
-    request_context: _FornecedoresRequestContext = Depends(_build_fornecedores_request_context),
+    request_workflow: _FornecedoresRequestScope = Depends(_build_fornecedores_request_workflow),
 ):
     _ = current_user
-    return get_fornecedores_router_workflow().extract_data_from_pdf_bulk(
+    return request_workflow.extract_data_from_pdf_bulk(
         background_tasks=background_tasks,
-        request=request,
-        db=request_context.db,
+        request=request,
     )
 
 
@@ -737,11 +957,10 @@ def extract_data_from_pdf_bulk(
 def get_import_progress(
     job_id: int,
     current_user: models.User = Depends(auth_utils.get_current_active_user),
-    request_context: _FornecedoresRequestContext = Depends(_build_fornecedores_request_context),
+    request_workflow: _FornecedoresRequestScope = Depends(_build_fornecedores_request_workflow),
 ):
-    return get_fornecedores_router_workflow().get_import_progress(
-        job_id=job_id,
-        db=request_context.db,
+    return request_workflow.get_import_progress(
+        job_id=job_id,
         current_user=current_user,
     )
 
@@ -756,17 +975,16 @@ async def process_full_catalog(
     region: Optional[List[float]] = Body(None, embed=True),
     mapping: Optional[dict] = Body(None),
     current_user: models.User = Depends(auth_utils.get_current_active_user),
-    request_context: _FornecedoresRequestContext = Depends(_build_fornecedores_request_context),
+    request_workflow: _FornecedoresRequestScope = Depends(_build_fornecedores_request_workflow),
 ):
-    return await get_fornecedores_router_workflow().process_full_catalog(
+    return await request_workflow.process_full_catalog(
         background_tasks=background_tasks,
         file_id=file_id,
         fornecedor_id=fornecedor_id,
         tipo_produto_id=tipo_produto_id,
         start_page=start_page,
         region=region,
-        mapping=mapping,
-        db=request_context.db,
+        mapping=mapping,
         current_user=current_user,
     )
 
@@ -777,13 +995,12 @@ def extract_page_data(
     file_id: int = Query(..., description="ID do arquivo importado"),
     page_number: int = Query(..., ge=1, description="Numero da pagina a extrair"),
     current_user: models.User = Depends(auth_utils.get_current_active_user),
-    request_context: _FornecedoresRequestContext = Depends(_build_fornecedores_request_context),
+    request_workflow: _FornecedoresRequestScope = Depends(_build_fornecedores_request_workflow),
 ):
-    return get_fornecedores_router_workflow().extract_page_data(
+    return request_workflow.extract_page_data(
         background_tasks=background_tasks,
         file_id=file_id,
-        page_number=page_number,
-        db=request_context.db,
+        page_number=page_number,
         current_user=current_user,
     )
 
@@ -792,13 +1009,12 @@ def extract_page_data(
 def delete_fornecedor_endpoint(
     fornecedor_id: int,
     current_user: models.User = Depends(auth_utils.get_current_active_user),
-    request_context: _FornecedoresRequestContext = Depends(_build_fornecedores_request_context),
+    request_workflow: _FornecedoresRequestScope = Depends(_build_fornecedores_request_workflow),
 ):
     try:
-        return get_fornecedores_router_workflow().delete_fornecedor(
+        return request_workflow.delete_fornecedor(
             fornecedor_id=fornecedor_id,
-            current_user=current_user,
-            fornecedor_management_service=request_context.fornecedor_management_service,
+            current_user=current_user,
         )
     except HTTPException:
         raise
@@ -813,11 +1029,10 @@ def delete_fornecedor_endpoint(
 def review_import_job(
     job_id: int,
     current_user: models.User = Depends(auth_utils.get_current_active_user),
-    request_context: _FornecedoresRequestContext = Depends(_build_fornecedores_request_context),
+    request_workflow: _FornecedoresRequestScope = Depends(_build_fornecedores_request_workflow),
 ):
-    return get_fornecedores_router_workflow().review_import_job(
-        job_id=job_id,
-        db=request_context.db,
+    return request_workflow.review_import_job(
+        job_id=job_id,
         current_user=current_user,
     )
 
@@ -827,12 +1042,11 @@ def commit_import_job(
     background_tasks: BackgroundTasks,
     job_id: int,
     current_user: models.User = Depends(auth_utils.get_current_active_user),
-    request_context: _FornecedoresRequestContext = Depends(_build_fornecedores_request_context),
+    request_workflow: _FornecedoresRequestScope = Depends(_build_fornecedores_request_workflow),
 ):
-    return get_fornecedores_router_workflow().commit_import_job(
+    return request_workflow.commit_import_job(
         background_tasks=background_tasks,
-        job_id=job_id,
-        db=request_context.db,
+        job_id=job_id,
         current_user=current_user,
     )
 
@@ -841,13 +1055,14 @@ def commit_import_job(
 def get_import_job_status(
     job_id: int,
     current_user: models.User = Depends(auth_utils.get_current_active_user),
-    request_context: _FornecedoresRequestContext = Depends(_build_fornecedores_request_context),
+    request_workflow: _FornecedoresRequestScope = Depends(_build_fornecedores_request_workflow),
 ):
-    return get_fornecedores_router_workflow().get_import_job_status(
-        job_id=job_id,
-        db=request_context.db,
+    return request_workflow.get_import_job_status(
+        job_id=job_id,
         current_user=current_user,
     )
+
+
 
 
 

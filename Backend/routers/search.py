@@ -6,7 +6,6 @@ from sqlalchemy.orm import Session
 
 from Backend import models, schemas
 from Backend.application.services.service_container import (
-    DependencyContainer,
     SessionDep,
 )
 from . import auth_utils
@@ -134,31 +133,45 @@ def get_search_workflow() -> SearchWorkflow:
     return SearchWorkflow(runtime=_SearchRuntime())
 
 
-class _SearchRequestContext:
-    def __init__(self, db: Session) -> None:
-        self.db=db
+class _SearchRequestScope:
+    def __init__(self, db: Session, workflow: SearchWorkflow | None = None) -> None:
+        self._db = db
+        self._workflow = workflow or get_search_workflow()
+
+    def search_all(
+        self,
+        *,
+        current_user: models.User,
+        q: Optional[str],
+        limit: int,
+    ) -> schemas.SearchResults:
+        return self._workflow.search_all(
+            db=self._db,
+            current_user=current_user,
+            q=q,
+            limit=limit,
+        )
 
 
-def _build_search_request_context(
+def _build_search_request_workflow(
     db: SessionDep,
-) -> _SearchRequestContext:
-    return _SearchRequestContext(db=db)
+) -> _SearchRequestScope:
+    return _SearchRequestScope(db=db)
 
 
 @router.get("/", response_model=schemas.SearchResults)
 def search_all(
     q: Optional[str] = Query(None, min_length=1),
     limit: int = Query(10, ge=1, le=50),
-    request_context: _SearchRequestContext = Depends(_build_search_request_context),
+    request_workflow: _SearchRequestScope = Depends(_build_search_request_workflow),
     current_user: models.User = Depends(auth_utils.get_current_active_user),
 ):
-    workflow = get_search_workflow()
-    return workflow.search_all(
-        db=request_context.db,
+    return request_workflow.search_all(
         current_user=current_user,
         q=q,
         limit=limit,
     )
+
 
 
 

@@ -8,7 +8,6 @@ from sqlalchemy.orm import Session
 from Backend import models
 from Backend import schemas
 from Backend.application.services.service_container import (
-    DependencyContainer,
     SessionDep,
 )
 from Backend.core.logging_config import get_logger
@@ -435,27 +434,144 @@ def get_product_types_router_workflow() -> ProductTypesRouterWorkflow:
     return ProductTypesRouterWorkflow(runtime=_ProductTypesRouterRuntime())
 
 
-class _ProductTypesRequestContext:
-    def __init__(self, db: Session) -> None:
-        self.db=db
+class _ProductTypesRequestScope:
+    def __init__(self, db: Session, workflow: ProductTypesRouterWorkflow | None = None) -> None:
+        self._db = db
+        self._workflow = workflow or get_product_types_router_workflow()
+
+    def create_product_type(
+        self,
+        *,
+        product_type_in: schemas.ProductTypeCreate,
+        current_user: models.User,
+    ) -> models.ProductType:
+        return self._workflow.create_product_type(
+            product_type_in=product_type_in,
+            db=self._db,
+            current_user=current_user,
+        )
+
+    def read_product_types(
+        self,
+        *,
+        current_user: models.User,
+        skip: int,
+        limit: int,
+    ) -> List[models.ProductType]:
+        return self._workflow.read_product_types(
+            db=self._db,
+            current_user=current_user,
+            skip=skip,
+            limit=limit,
+        )
+
+    async def read_product_type_details(
+        self,
+        *,
+        identifier: str,
+        current_user: models.User,
+    ) -> models.ProductType:
+        return await self._workflow.read_product_type_details(
+            identifier=identifier,
+            db=self._db,
+            current_user=current_user,
+        )
+
+    def update_product_type(
+        self,
+        *,
+        type_id: int,
+        product_type_in: schemas.ProductTypeUpdate,
+        current_user: models.User,
+    ) -> models.ProductType:
+        return self._workflow.update_product_type(
+            type_id=type_id,
+            product_type_in=product_type_in,
+            db=self._db,
+            current_user=current_user,
+        )
+
+    def delete_product_type(
+        self,
+        *,
+        type_id: int,
+        current_user: models.User,
+    ) -> models.ProductType:
+        return self._workflow.delete_product_type(
+            type_id=type_id,
+            db=self._db,
+            current_user=current_user,
+        )
+
+    def add_attribute_to_product_type(
+        self,
+        *,
+        type_id: int,
+        attribute_in: schemas.AttributeTemplateCreate,
+    ) -> models.AttributeTemplate:
+        return self._workflow.add_attribute_to_product_type(
+            type_id=type_id,
+            attribute_in=attribute_in,
+            db=self._db,
+        )
+
+    def update_attribute_for_product_type(
+        self,
+        *,
+        type_id: int,
+        attribute_id: int,
+        attribute_in: schemas.AttributeTemplateUpdate,
+    ) -> models.AttributeTemplate:
+        return self._workflow.update_attribute_for_product_type(
+            type_id=type_id,
+            attribute_id=attribute_id,
+            attribute_in=attribute_in,
+            db=self._db,
+        )
+
+    def remove_attribute_from_product_type(
+        self,
+        *,
+        type_id: int,
+        attribute_id: int,
+    ) -> models.AttributeTemplate:
+        return self._workflow.remove_attribute_from_product_type(
+            type_id=type_id,
+            attribute_id=attribute_id,
+            db=self._db,
+        )
+
+    def reorder_attribute(
+        self,
+        *,
+        type_id: int,
+        attribute_id: int,
+        reorder_request: ReorderRequest,
+        current_user: models.User,
+    ) -> models.AttributeTemplate:
+        return self._workflow.reorder_attribute(
+            type_id=type_id,
+            attribute_id=attribute_id,
+            reorder_request=reorder_request,
+            db=self._db,
+            current_user=current_user,
+        )
 
 
-def _build_product_types_request_context(
+def _build_product_types_request_workflow(
     db: SessionDep,
-) -> _ProductTypesRequestContext:
-    return _ProductTypesRequestContext(db=db)
+) -> _ProductTypesRequestScope:
+    return _ProductTypesRequestScope(db=db)
 
 
 @router.post("/", response_model=schemas.ProductTypeResponse, status_code=status.HTTP_201_CREATED)
 def create_product_type_endpoint(
     product_type_in: schemas.ProductTypeCreate,
     current_user: models.User = Depends(auth_utils.get_current_active_user),
-    request_context: _ProductTypesRequestContext = Depends(_build_product_types_request_context),
+    request_workflow: _ProductTypesRequestScope = Depends(_build_product_types_request_workflow),
 ):
-    workflow = get_product_types_router_workflow()
-    return workflow.create_product_type(
+    return request_workflow.create_product_type(
         product_type_in=product_type_in,
-        db=request_context.db,
         current_user=current_user,
     )
 
@@ -465,11 +581,9 @@ def read_product_types_endpoint(
     skip: int = 0,
     limit: int = 100,
     current_user: models.User = Depends(auth_utils.get_current_active_user),
-    request_context: _ProductTypesRequestContext = Depends(_build_product_types_request_context),
+    request_workflow: _ProductTypesRequestScope = Depends(_build_product_types_request_workflow),
 ):
-    workflow = get_product_types_router_workflow()
-    return workflow.read_product_types(
-        db=request_context.db,
+    return request_workflow.read_product_types(
         current_user=current_user,
         skip=skip,
         limit=limit,
@@ -487,12 +601,10 @@ async def read_product_type_details_route(
         description="ID (numerico) ou key_name (string) do tipo de produto",
     ),
     current_user: models.User = Depends(auth_utils.get_current_active_user),
-    request_context: _ProductTypesRequestContext = Depends(_build_product_types_request_context),
+    request_workflow: _ProductTypesRequestScope = Depends(_build_product_types_request_workflow),
 ):
-    workflow = get_product_types_router_workflow()
-    return await workflow.read_product_type_details(
+    return await request_workflow.read_product_type_details(
         identifier=type_id_or_key_path,
-        db=request_context.db,
         current_user=current_user,
     )
 
@@ -502,13 +614,11 @@ def update_product_type_endpoint(
     type_id: int,
     product_type_in: schemas.ProductTypeUpdate,
     current_user: models.User = Depends(auth_utils.get_current_active_user),
-    request_context: _ProductTypesRequestContext = Depends(_build_product_types_request_context),
+    request_workflow: _ProductTypesRequestScope = Depends(_build_product_types_request_workflow),
 ):
-    workflow = get_product_types_router_workflow()
-    return workflow.update_product_type(
+    return request_workflow.update_product_type(
         type_id=type_id,
         product_type_in=product_type_in,
-        db=request_context.db,
         current_user=current_user,
     )
 
@@ -517,12 +627,10 @@ def update_product_type_endpoint(
 def delete_product_type_endpoint(
     type_id: int,
     current_user: models.User = Depends(auth_utils.get_current_active_user),
-    request_context: _ProductTypesRequestContext = Depends(_build_product_types_request_context),
+    request_workflow: _ProductTypesRequestScope = Depends(_build_product_types_request_workflow),
 ):
-    workflow = get_product_types_router_workflow()
-    return workflow.delete_product_type(
+    return request_workflow.delete_product_type(
         type_id=type_id,
-        db=request_context.db,
         current_user=current_user,
     )
 
@@ -536,14 +644,12 @@ def add_attribute_to_product_type_endpoint(
     type_id: int,
     attribute_in: schemas.AttributeTemplateCreate,
     current_user: models.User = Depends(auth_utils.get_current_active_user),
-    request_context: _ProductTypesRequestContext = Depends(_build_product_types_request_context),
+    request_workflow: _ProductTypesRequestScope = Depends(_build_product_types_request_workflow),
 ):
     _ = current_user
-    workflow = get_product_types_router_workflow()
-    return workflow.add_attribute_to_product_type(
+    return request_workflow.add_attribute_to_product_type(
         type_id=type_id,
         attribute_in=attribute_in,
-        db=request_context.db,
     )
 
 
@@ -553,15 +659,13 @@ def update_attribute_for_product_type_endpoint(
     attribute_id: int,
     attribute_in: schemas.AttributeTemplateUpdate,
     current_user: models.User = Depends(auth_utils.get_current_active_user),
-    request_context: _ProductTypesRequestContext = Depends(_build_product_types_request_context),
+    request_workflow: _ProductTypesRequestScope = Depends(_build_product_types_request_workflow),
 ):
     _ = current_user
-    workflow = get_product_types_router_workflow()
-    return workflow.update_attribute_for_product_type(
+    return request_workflow.update_attribute_for_product_type(
         type_id=type_id,
         attribute_id=attribute_id,
         attribute_in=attribute_in,
-        db=request_context.db,
     )
 
 
@@ -570,14 +674,12 @@ def remove_attribute_from_product_type_endpoint(
     type_id: int,
     attribute_id: int,
     current_user: models.User = Depends(auth_utils.get_current_active_user),
-    request_context: _ProductTypesRequestContext = Depends(_build_product_types_request_context),
+    request_workflow: _ProductTypesRequestScope = Depends(_build_product_types_request_workflow),
 ):
     _ = current_user
-    workflow = get_product_types_router_workflow()
-    return workflow.remove_attribute_from_product_type(
+    return request_workflow.remove_attribute_from_product_type(
         type_id=type_id,
         attribute_id=attribute_id,
-        db=request_context.db,
     )
 
 
@@ -587,16 +689,15 @@ def reorder_attribute_endpoint(
     attribute_id: int,
     reorder_request: ReorderRequest,
     current_user: models.User = Depends(auth_utils.get_current_active_user),
-    request_context: _ProductTypesRequestContext = Depends(_build_product_types_request_context),
+    request_workflow: _ProductTypesRequestScope = Depends(_build_product_types_request_workflow),
 ):
-    workflow = get_product_types_router_workflow()
-    return workflow.reorder_attribute(
+    return request_workflow.reorder_attribute(
         type_id=type_id,
         attribute_id=attribute_id,
         reorder_request=reorder_request,
-        db=request_context.db,
         current_user=current_user,
     )
+
 
 
 

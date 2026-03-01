@@ -16,7 +16,6 @@ from Backend.application.services.generation_scheduling_service import (
 from Backend.application.services.generation_task_service import GenerationTaskService
 from Backend.application.services.ia_generation_service import IAGenerationService
 from Backend.application.services.service_container import (
-    DependencyContainer,
     SessionDep,
 )
 from Backend.database import SessionLocal
@@ -272,15 +271,92 @@ def get_generation_router_workflow() -> GenerationRouterWorkflow:
     return GenerationRouterWorkflow(runtime=_GenerationRouterRuntime())
 
 
-class _GenerationRequestContext:
-    def __init__(self, db: Session) -> None:
-        self.db=db
+class _GenerationRequestScope:
+    def __init__(self, db: Session, workflow: GenerationRouterWorkflow | None = None) -> None:
+        self._db = db
+        self._workflow = workflow or get_generation_router_workflow()
+
+    def agendar_geracao_novos_titulos_openai(
+        self,
+        *,
+        produto_id: int,
+        background_tasks: BackgroundTasks,
+        num_titulos: int,
+        current_user: models.User,
+    ) -> Dict[str, str]:
+        return self._workflow.agendar_geracao_novos_titulos_openai(
+            produto_id=produto_id,
+            background_tasks=background_tasks,
+            num_titulos=num_titulos,
+            db=self._db,
+            current_user=current_user,
+        )
+
+    def agendar_geracao_nova_descricao_openai(
+        self,
+        *,
+        produto_id: int,
+        background_tasks: BackgroundTasks,
+        tamanho_palavras: int,
+        current_user: models.User,
+    ) -> Dict[str, str]:
+        return self._workflow.agendar_geracao_nova_descricao_openai(
+            produto_id=produto_id,
+            background_tasks=background_tasks,
+            tamanho_palavras=tamanho_palavras,
+            db=self._db,
+            current_user=current_user,
+        )
+
+    def agendar_geracao_novos_titulos_gemini(
+        self,
+        *,
+        produto_id: int,
+        background_tasks: BackgroundTasks,
+        num_titulos: int,
+        current_user: models.User,
+    ) -> Dict[str, str]:
+        return self._workflow.agendar_geracao_novos_titulos_gemini(
+            produto_id=produto_id,
+            background_tasks=background_tasks,
+            num_titulos=num_titulos,
+            db=self._db,
+            current_user=current_user,
+        )
+
+    def agendar_geracao_nova_descricao_gemini(
+        self,
+        *,
+        produto_id: int,
+        background_tasks: BackgroundTasks,
+        tamanho_palavras: int,
+        current_user: models.User,
+    ) -> Dict[str, str]:
+        return self._workflow.agendar_geracao_nova_descricao_gemini(
+            produto_id=produto_id,
+            background_tasks=background_tasks,
+            tamanho_palavras=tamanho_palavras,
+            db=self._db,
+            current_user=current_user,
+        )
+
+    async def sugerir_atributos_para_produto_com_gemini(
+        self,
+        *,
+        produto_id: int,
+        current_user: models.User,
+    ) -> schemas.SugestoesAtributosResponse:
+        return await self._workflow.sugerir_atributos_para_produto_com_gemini(
+            produto_id=produto_id,
+            db=self._db,
+            current_user=current_user,
+        )
 
 
-def _build_generation_request_context(
+def _build_generation_request_workflow(
     db: SessionDep,
-) -> _GenerationRequestContext:
-    return _GenerationRequestContext(db=db)
+) -> _GenerationRequestScope:
+    return _GenerationRequestScope(db=db)
 
 
 async def _tarefa_processar_geracao_e_registrar_uso(
@@ -312,15 +388,13 @@ async def agendar_geracao_novos_titulos_openai(
     produto_id: int,
     background_tasks: BackgroundTasks,
     num_titulos: int = Query(3, ge=1, le=10),
-    request_context: _GenerationRequestContext = Depends(_build_generation_request_context),
+    request_workflow: _GenerationRequestScope = Depends(_build_generation_request_workflow),
     current_user: models.User = Depends(auth_utils.get_current_active_user),
 ):
-    workflow = get_generation_router_workflow()
-    return workflow.agendar_geracao_novos_titulos_openai(
+    return request_workflow.agendar_geracao_novos_titulos_openai(
         produto_id=produto_id,
         background_tasks=background_tasks,
         num_titulos=num_titulos,
-        db=request_context.db,
         current_user=current_user,
     )
 
@@ -335,15 +409,13 @@ async def agendar_geracao_nova_descricao_openai(
     produto_id: int,
     background_tasks: BackgroundTasks,
     tamanho_palavras: int = Query(150, ge=50, le=500),
-    request_context: _GenerationRequestContext = Depends(_build_generation_request_context),
+    request_workflow: _GenerationRequestScope = Depends(_build_generation_request_workflow),
     current_user: models.User = Depends(auth_utils.get_current_active_user),
 ):
-    workflow = get_generation_router_workflow()
-    return workflow.agendar_geracao_nova_descricao_openai(
+    return request_workflow.agendar_geracao_nova_descricao_openai(
         produto_id=produto_id,
         background_tasks=background_tasks,
         tamanho_palavras=tamanho_palavras,
-        db=request_context.db,
         current_user=current_user,
     )
 
@@ -357,15 +429,13 @@ async def agendar_geracao_novos_titulos_gemini(
     produto_id: int,
     background_tasks: BackgroundTasks,
     num_titulos: int = Query(3, ge=1, le=10),
-    request_context: _GenerationRequestContext = Depends(_build_generation_request_context),
+    request_workflow: _GenerationRequestScope = Depends(_build_generation_request_workflow),
     current_user: models.User = Depends(auth_utils.get_current_active_user),
 ):
-    workflow = get_generation_router_workflow()
-    return workflow.agendar_geracao_novos_titulos_gemini(
+    return request_workflow.agendar_geracao_novos_titulos_gemini(
         produto_id=produto_id,
         background_tasks=background_tasks,
         num_titulos=num_titulos,
-        db=request_context.db,
         current_user=current_user,
     )
 
@@ -379,15 +449,13 @@ async def agendar_geracao_nova_descricao_gemini(
     produto_id: int,
     background_tasks: BackgroundTasks,
     tamanho_palavras: int = Query(150, ge=50, le=500),
-    request_context: _GenerationRequestContext = Depends(_build_generation_request_context),
+    request_workflow: _GenerationRequestScope = Depends(_build_generation_request_workflow),
     current_user: models.User = Depends(auth_utils.get_current_active_user),
 ):
-    workflow = get_generation_router_workflow()
-    return workflow.agendar_geracao_nova_descricao_gemini(
+    return request_workflow.agendar_geracao_nova_descricao_gemini(
         produto_id=produto_id,
         background_tasks=background_tasks,
         tamanho_palavras=tamanho_palavras,
-        db=request_context.db,
         current_user=current_user,
     )
 
@@ -398,15 +466,14 @@ async def agendar_geracao_nova_descricao_gemini(
 )
 async def sugerir_atributos_para_produto_com_gemini(
     produto_id: int,
-    request_context: _GenerationRequestContext = Depends(_build_generation_request_context),
+    request_workflow: _GenerationRequestScope = Depends(_build_generation_request_workflow),
     current_user: models.User = Depends(auth_utils.get_current_active_user),
 ):
-    workflow = get_generation_router_workflow()
-    return await workflow.sugerir_atributos_para_produto_com_gemini(
+    return await request_workflow.sugerir_atributos_para_produto_com_gemini(
         produto_id=produto_id,
-        db=request_context.db,
         current_user=current_user,
     )
+
 
 
 
