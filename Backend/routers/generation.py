@@ -30,7 +30,7 @@ class GenerationRequestService:
         self,
         session: Session = Depends(ServiceContainerDependencySupport.get_request_db_session),
     ) -> None:
-        self._db = session
+        self._session = session
         self._db_session_factory = ServiceContainerDependencySupport.get_background_db_session_factory()
         self._ia_generation_service = IAGenerationService()
         self._generation_task_service = GenerationTaskService(
@@ -47,7 +47,7 @@ class GenerationRequestService:
         )
 
     def _product_repo(self) -> ProductRepository:
-        return ProductRepository(self._db)
+        return ProductRepository(self._session)
 
     def _validate_product_access(self, *, produto_id: int, current_user: models.User):
         return self._generation_scheduling_service.validate_product_access(
@@ -181,7 +181,7 @@ class GenerationRequestService:
     ) -> schemas.SugestoesAtributosResponse:
         try:
             return await self._ia_generation_service.sugerir_valores_atributos_com_gemini(
-                session=self._db,
+                session=self._session,
                 produto_id=produto_id,
                 user=current_user,
             )
