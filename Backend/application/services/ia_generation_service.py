@@ -4,9 +4,6 @@ from sqlalchemy.orm import Session
 
 from Backend import models, schemas
 from Backend.application.services.ports import IAGenerationPort
-from Backend.infrastructure.adapters.ia_generation_adapter import (
-    IAGenerationServiceAdapter,
-)
 
 
 class IAGenerationService:
@@ -15,9 +12,9 @@ class IAGenerationService:
     def __init__(
         self,
         *,
-        port: IAGenerationPort | None = None,
+        port: IAGenerationPort,
     ) -> None:
-        self._port = port or IAGenerationServiceAdapter()
+        self._port = port
 
     async def gerar_titulos_com_openai(
         self,

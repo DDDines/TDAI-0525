@@ -14,6 +14,8 @@ from Backend.application.services.product_media_service import ProductMediaServi
 from Backend.application.services.product_repositories import ProductRepositories
 from Backend.application.services.web_data_extractor import WebDataExtractorOrchestratorService
 from Backend.infrastructure.adapters.file_processing_adapter import FileProcessingServiceAdapter
+from Backend.infrastructure.adapters.ia_generation_adapter import IAGenerationServiceAdapter
+from Backend.infrastructure.adapters.limit_adapter import LimitServiceAdapter
 from Backend.infrastructure.adapters.web_data_extractor_adapter import WebDataExtractorServiceAdapter
 from Backend.infrastructure.repositories.fornecedor_repository import FornecedorRepository
 from Backend.infrastructure.repositories.historico_repository import HistoricoRepository
@@ -47,6 +49,14 @@ class ServiceContainerDependencySupport:
         return WebDataExtractorOrchestratorService(WebDataExtractorServiceAdapter())
 
     @staticmethod
+    def build_ia_generation_service() -> IAGenerationService:
+        return IAGenerationService(port=IAGenerationServiceAdapter())
+
+    @staticmethod
+    def build_limit_service() -> LimitService:
+        return LimitService(port=LimitServiceAdapter())
+
+    @staticmethod
     def get_background_db_session_factory() -> Callable[[], Session]:
         return database.SessionLocal
 @dataclass
@@ -54,8 +64,8 @@ class ServiceContainer:
     """Registry simples de servicos OO compartilhados pela aplicacao."""
     file_processing: FileProcessingOrchestratorService = field(default_factory=ServiceContainerDependencySupport.build_file_processing_service)
     web_data_extractor: WebDataExtractorOrchestratorService = field(default_factory=ServiceContainerDependencySupport.build_web_data_extractor_service)
-    ia_generation: IAGenerationService = field(default_factory=IAGenerationService)
-    limit: LimitService = field(default_factory=LimitService)
+    ia_generation: IAGenerationService = field(default_factory=ServiceContainerDependencySupport.build_ia_generation_service)
+    limit: LimitService = field(default_factory=ServiceContainerDependencySupport.build_limit_service)
 
 class DependencyContainer:
     """Container de DI para dependencias request-scoped dos routers."""

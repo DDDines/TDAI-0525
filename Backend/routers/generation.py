@@ -31,7 +31,7 @@ class GenerationRequestService:
         session: Session = Depends(ServiceContainerDependencySupport.get_request_db_session),
     ) -> None:
         self._session = session
-        self._ia_generation_service = IAGenerationService()
+        self._ia_generation_service = ServiceContainerDependencySupport.build_ia_generation_service()
         self._generation_task_service = GenerationTaskService(
             db_session_factory=ServiceContainerDependencySupport.get_background_db_session_factory(),
             user_repository_factory=UserRepository,

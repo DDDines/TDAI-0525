@@ -4,7 +4,6 @@ from sqlalchemy.orm import Session
 
 from Backend import models
 from Backend.application.services.ports import LimitPort
-from Backend.infrastructure.adapters.limit_adapter import LimitServiceAdapter
 
 
 class LimitService:
@@ -13,9 +12,9 @@ class LimitService:
     def __init__(
         self,
         *,
-        port: LimitPort | None = None,
+        port: LimitPort,
     ) -> None:
-        self._port = port or LimitServiceAdapter()
+        self._port = port
 
     def verificar_limite_uso(
         self,
