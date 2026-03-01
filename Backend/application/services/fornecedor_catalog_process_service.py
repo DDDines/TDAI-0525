@@ -13,22 +13,9 @@ class FornecedorCatalogProcessService:
         *,
         models: Any,
         catalog_import_start_service: Any,
-        fornecedor_repo: Any | None = None,
-        catalog_file_repository: Any | None = None,
+        fornecedor_repo: Any,
+        catalog_file_repository: Any,
     ) -> None:
-        if catalog_file_repository is None:
-            catalog_file_repository = getattr(
-                catalog_import_start_service,
-                "_catalog_file_repository",
-                None,
-            )
-        if catalog_file_repository is None:
-            from Backend.infrastructure.repositories.catalog_import_file_repository import (
-                CatalogImportFileRepository,
-            )
-
-            catalog_file_repository = CatalogImportFileRepository
-
         self._models = models
         self._fornecedor_repo = fornecedor_repo
         self._catalog_file_repository = catalog_file_repository
@@ -46,15 +33,8 @@ class FornecedorCatalogProcessService:
         region: Optional[list[float]],
         mapping: Optional[Dict[str, str]],
     ) -> Dict[str, Any]:
-        fornecedor_repo = self._fornecedor_repo
-        catalog_file_repo = self._catalog_file_repository
-        if fornecedor_repo is None:
-            raise ValueError("fornecedor_repo is required")
-        if catalog_file_repo is None:
-            raise ValueError("catalog_file_repo is required")
-
         fornecedor = self._validate_fornecedor_access(
-            fornecedor_repo=fornecedor_repo,
+            fornecedor_repo=self._fornecedor_repo,
             fornecedor_id=fornecedor_id,
             current_user=current_user,
         )
@@ -74,7 +54,7 @@ class FornecedorCatalogProcessService:
             source=source,
             user_id=current_user.id,
             fornecedor_id=fornecedor.id,
-            catalog_file_repo=catalog_file_repo,
+            catalog_file_repo=self._catalog_file_repository,
         )
         command = self._catalog_import_start_service.build_finalize_command(
             file_id=job.id,

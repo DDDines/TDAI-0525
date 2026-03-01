@@ -13,15 +13,8 @@ class FornecedorImportTrackingService:
         *,
         models: Any,
         process_pdf_extraction_task: Any,
-        catalog_file_repository: Any | None = None,
+        catalog_file_repository: Any,
     ) -> None:
-        if catalog_file_repository is None:
-            from Backend.infrastructure.repositories.catalog_import_file_repository import (
-                CatalogImportFileRepository,
-            )
-
-            catalog_file_repository = CatalogImportFileRepository
-
         self._models = models
         self._process_pdf_extraction_task = process_pdf_extraction_task
         self._catalog_file_repository = catalog_file_repository
@@ -33,8 +26,6 @@ class FornecedorImportTrackingService:
         user_id: int,
         not_found_detail: str,
     ) -> Any:
-        if self._catalog_file_repository is None:
-            raise ValueError("catalog_file_repo is required")
         record = self._catalog_file_repository.get_catalog_file_for_user(
             file_id=file_id,
             user_id=user_id,

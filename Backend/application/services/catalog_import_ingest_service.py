@@ -21,10 +21,10 @@ class CatalogImportIngestService:
         sanitize_produto_extraido: Any,
         classificar_qualidade_linha_produto: Any,
         json_module: Any,
-        fornecedor_repo: Any | None = None,
-        produto_repo: Any | None = None,
-        uso_ia_repo: Any | None = None,
-        historico_repo: Any | None = None,
+        fornecedor_repo: Any,
+        produto_repo: Any,
+        uso_ia_repo: Any,
+        historico_repo: Any,
     ) -> None:
         self._schemas = schemas
         self._models = models
@@ -39,17 +39,6 @@ class CatalogImportIngestService:
         self._sanitize_produto_extraido = sanitize_produto_extraido
         self._classificar_qualidade_linha_produto = classificar_qualidade_linha_produto
         self._json = json_module
-
-    @staticmethod
-    def _resolve_repo(
-        *,
-        repo_name: str,
-        configured_repo: Any,
-    ) -> Any:
-        repo = configured_repo
-        if repo is None:
-            raise ValueError(f"{repo_name}_repo is required")
-        return repo
 
     def _append_import_issue(
         self,
@@ -83,22 +72,10 @@ class CatalogImportIngestService:
         current_user: Any,
     ) -> Dict[str, Any]:
         """Importa arquivo de catalogo e cria/atualiza produtos do fornecedor."""
-        resolved_fornecedor_repo = self._resolve_repo(
-            repo_name="fornecedor",
-            configured_repo=self._fornecedor_repo,
-        )
-        resolved_produto_repo = self._resolve_repo(
-            repo_name="produto",
-            configured_repo=self._produto_repo,
-        )
-        resolved_uso_ia_repo = self._resolve_repo(
-            repo_name="uso_ia",
-            configured_repo=self._uso_ia_repo,
-        )
-        resolved_historico_repo = self._resolve_repo(
-            repo_name="historico",
-            configured_repo=self._historico_repo,
-        )
+        resolved_fornecedor_repo = self._fornecedor_repo
+        resolved_produto_repo = self._produto_repo
+        resolved_uso_ia_repo = self._uso_ia_repo
+        resolved_historico_repo = self._historico_repo
 
         content = await file.read()
         ext = Path(file.filename).suffix.lower()

@@ -21,15 +21,8 @@ class CatalogImportPreviewService:
         resolve_storage_path: Any,
         logger: Any,
         pdfplumber_module: Any,
-        catalog_file_repository: Any | None = None,
+        catalog_file_repository: Any,
     ) -> None:
-        if catalog_file_repository is None:
-            from Backend.infrastructure.repositories.catalog_import_file_repository import (
-                CatalogImportFileRepository,
-            )
-
-            catalog_file_repository = CatalogImportFileRepository
-
         self._models = models
         self._settings = settings
         self._file_processing_service = file_processing_service
@@ -41,8 +34,6 @@ class CatalogImportPreviewService:
     def _resolve_catalog_file_repo(
         self,
     ) -> Any:
-        if self._catalog_file_repository is None:
-            raise ValueError("catalog_file_repo is required")
         return self._catalog_file_repository
 
     async def importar_catalogo_preview(

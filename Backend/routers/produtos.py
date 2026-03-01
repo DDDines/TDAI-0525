@@ -67,7 +67,7 @@ class _ProdutosServiceBundle:
         self.catalog_import_start_service = CatalogImportStartService(models=models, fornecedor_repo=fornecedor_repository, catalog_file_repository=catalog_file_repository, settings=settings, resolve_storage_path=self.catalog_import_diagnostics_service.resolve_storage_path, finalize_service=self.catalog_import_finalize_service)
         self.catalog_import_status_service = CatalogImportStatusService(models=models, catalog_file_repository=catalog_file_repository)
         self.catalog_import_workflow_service = CatalogImportWorkflowService(start_service=self.catalog_import_start_service, status_service=self.catalog_import_status_service)
-        self.catalog_import_file_service = CatalogImportFileService(models=models, file_processing_service=self.file_processing_service, catalog_import_start_service=self.catalog_import_start_service, catalog_file_repository=catalog_file_repository)
+        self.catalog_import_file_service = CatalogImportFileService(models=models, file_processing_service=self.file_processing_service, catalog_import_start_service=self.catalog_import_start_service, catalog_file_repository=catalog_file_repository, fornecedor_repository=fornecedor_repository)
         self.catalog_import_preview_service = CatalogImportPreviewService(models=models, settings=settings, file_processing_service=self.file_processing_service, resolve_storage_path=self.catalog_import_diagnostics_service.resolve_storage_path, logger=logger, pdfplumber_module=pdfplumber, catalog_file_repository=catalog_file_repository)
         self.catalog_import_ingest_service = CatalogImportIngestService(schemas=schemas, models=models, fornecedor_repo=fornecedor_repository, produto_repo=produto_repository, uso_ia_repo=uso_ia_repository, historico_repo=historico_repository, file_processing_service=self.file_processing_service, normalize_import_issue_item=self.catalog_sanitization_service.normalize_import_issue_item, extract_import_error_reason=self.catalog_sanitization_service.extract_import_error_reason, is_non_critical_import_reason=self.catalog_sanitization_service.is_non_critical_import_reason, sanitize_produto_extraido=self.catalog_sanitization_service.sanitize_extracted_product, classificar_qualidade_linha_produto=self.catalog_quality_service.classify_product_row_quality, json_module=json)
 
@@ -83,19 +83,53 @@ class _ProdutosCatalogService:
         self._produto_repository = ProductRepository(self._session)
         self._uso_ia_repository = RegistroUsoIARepository(self._session)
         self._historico_repository = HistoricoRepository(self._session)
-        self._wire_services_with_request_repositories()
-
-    def _wire_services_with_request_repositories(self) -> None:
-        self._services.catalog_import_start_service._catalog_file_repository = self._catalog_file_repository
-        self._services.catalog_import_start_service._fornecedor_repo = self._fornecedor_repository
-        self._services.catalog_import_status_service._catalog_file_repository = self._catalog_file_repository
-        self._services.catalog_import_file_service._catalog_file_repository = self._catalog_file_repository
-        self._services.catalog_import_file_service._fornecedor_repository = self._fornecedor_repository
-        self._services.catalog_import_preview_service._catalog_file_repository = self._catalog_file_repository
-        self._services.catalog_import_ingest_service._fornecedor_repo = self._fornecedor_repository
-        self._services.catalog_import_ingest_service._produto_repo = self._produto_repository
-        self._services.catalog_import_ingest_service._uso_ia_repo = self._uso_ia_repository
-        self._services.catalog_import_ingest_service._historico_repo = self._historico_repository
+        self._catalog_import_start_service = CatalogImportStartService(
+            models=models,
+            fornecedor_repo=self._fornecedor_repository,
+            catalog_file_repository=self._catalog_file_repository,
+            settings=settings,
+            resolve_storage_path=self._services.catalog_import_diagnostics_service.resolve_storage_path,
+            finalize_service=self._services.catalog_import_finalize_service,
+        )
+        self._catalog_import_status_service = CatalogImportStatusService(
+            models=models,
+            catalog_file_repository=self._catalog_file_repository,
+        )
+        self._catalog_import_workflow_service = CatalogImportWorkflowService(
+            start_service=self._catalog_import_start_service,
+            status_service=self._catalog_import_status_service,
+        )
+        self._catalog_import_file_service = CatalogImportFileService(
+            models=models,
+            file_processing_service=self._services.file_processing_service,
+            catalog_import_start_service=self._catalog_import_start_service,
+            catalog_file_repository=self._catalog_file_repository,
+            fornecedor_repository=self._fornecedor_repository,
+        )
+        self._catalog_import_preview_service = CatalogImportPreviewService(
+            models=models,
+            settings=settings,
+            file_processing_service=self._services.file_processing_service,
+            resolve_storage_path=self._services.catalog_import_diagnostics_service.resolve_storage_path,
+            logger=logger,
+            pdfplumber_module=pdfplumber,
+            catalog_file_repository=self._catalog_file_repository,
+        )
+        self._catalog_import_ingest_service = CatalogImportIngestService(
+            schemas=schemas,
+            models=models,
+            fornecedor_repo=self._fornecedor_repository,
+            produto_repo=self._produto_repository,
+            uso_ia_repo=self._uso_ia_repository,
+            historico_repo=self._historico_repository,
+            file_processing_service=self._services.file_processing_service,
+            normalize_import_issue_item=self._services.catalog_sanitization_service.normalize_import_issue_item,
+            extract_import_error_reason=self._services.catalog_sanitization_service.extract_import_error_reason,
+            is_non_critical_import_reason=self._services.catalog_sanitization_service.is_non_critical_import_reason,
+            sanitize_produto_extraido=self._services.catalog_sanitization_service.sanitize_extracted_product,
+            classificar_qualidade_linha_produto=self._services.catalog_quality_service.classify_product_row_quality,
+            json_module=json,
+        )
 
     def _build_product_management_service(self) -> ProductManagementService:
         repos = ProductRepositories.build_product_management_repositories(session=self._session)
@@ -109,13 +143,13 @@ class _ProdutosCatalogService:
         return self._build_product_management_service().create_produto(produto=produto, current_user=current_user)
 
     def list_catalog_import_files(self, user_id: int, fornecedor_id: Optional[int], skip: int, limit: int) -> schemas.CatalogImportFilePage:
-        return self._services.catalog_import_file_service.list_user_files(user_id=user_id, fornecedor_id=fornecedor_id, skip=skip, limit=limit)
+        return self._catalog_import_file_service.list_user_files(user_id=user_id, fornecedor_id=fornecedor_id, skip=skip, limit=limit)
 
     def delete_catalog_import_file(self, file_id: int, user_id: int):
-        return self._services.catalog_import_file_service.delete_user_file(file_id=file_id, user_id=user_id)
+        return self._catalog_import_file_service.delete_user_file(file_id=file_id, user_id=user_id)
 
     async def reprocess_catalog_import_file(self, background_tasks: BackgroundTasks, file_id: int, user_id: int, product_type_id: Optional[int], fornecedor_id: Optional[int], mapping: Optional[Dict[str, str]], pages: Optional[List[int]], region: Optional[List[float]]):
-        return await self._services.catalog_import_file_service.reprocess_catalog_file(background_tasks=background_tasks, file_id=file_id, user_id=user_id, product_type_id=product_type_id, fornecedor_id=fornecedor_id, mapping=mapping, pages=pages, region=region)
+        return await self._catalog_import_file_service.reprocess_catalog_file(background_tasks=background_tasks, file_id=file_id, user_id=user_id, product_type_id=product_type_id, fornecedor_id=fornecedor_id, mapping=mapping, pages=pages, region=region)
 
     def read_produto(self, produto_id: int, current_user: models.User):
         return self._build_product_management_service().read_produto(produto_id=produto_id, current_user=current_user)
@@ -136,32 +170,32 @@ class _ProdutosCatalogService:
         return await self._build_product_media_service().upload_produto_image(produto_id=produto_id, file=file, current_user=current_user)
 
     async def importar_catalogo_preview(self, file: UploadFile, fornecedor_id: Optional[int], start_page: int, page_count: int, dpi: int, user_id: int) -> schemas.ImportPreviewResponse:
-        response_payload = await self._services.catalog_import_preview_service.importar_catalogo_preview(file=file, fornecedor_id=fornecedor_id, start_page=start_page, page_count=page_count, dpi=dpi, user_id=user_id)
+        response_payload = await self._catalog_import_preview_service.importar_catalogo_preview(file=file, fornecedor_id=fornecedor_id, start_page=start_page, page_count=page_count, dpi=dpi, user_id=user_id)
         return schemas.ImportPreviewResponse(**response_payload)
 
     async def importar_catalogo_fornecedor(self, fornecedor_id: int, file: UploadFile, mapeamento_colunas_usuario: Optional[str], current_user: models.User):
-        return await self._services.catalog_import_ingest_service.importar_catalogo_fornecedor(fornecedor_id=fornecedor_id, file=file, mapeamento_colunas_usuario=mapeamento_colunas_usuario, current_user=current_user)
+        return await self._catalog_import_ingest_service.importar_catalogo_fornecedor(fornecedor_id=fornecedor_id, file=file, mapeamento_colunas_usuario=mapeamento_colunas_usuario, current_user=current_user)
 
     async def importar_catalogo_finalizar(self, background_tasks: BackgroundTasks, file_id: int, product_type_id: int, fornecedor_id: int, mapping: Optional[Dict[str, str]], pages: Optional[List[int]], region: Optional[List[float]], user_id: int):
-        return await self._services.catalog_import_workflow_service.importar_catalogo_finalizar(background_tasks=background_tasks, file_id=file_id, product_type_id=product_type_id, fornecedor_id=fornecedor_id, mapping=mapping, pages=pages, region=region, user_id=user_id)
+        return await self._catalog_import_workflow_service.importar_catalogo_finalizar(background_tasks=background_tasks, file_id=file_id, product_type_id=product_type_id, fornecedor_id=fornecedor_id, mapping=mapping, pages=pages, region=region, user_id=user_id)
 
     def importar_catalogo_status(self, file_id: int, user_id: int):
-        return self._services.catalog_import_workflow_service.importar_catalogo_status(file_id=file_id, user_id=user_id)
+        return self._catalog_import_workflow_service.importar_catalogo_status(file_id=file_id, user_id=user_id)
 
     def importar_catalogo_status_simple(self, file_id: int, user_id: int):
-        return self._services.catalog_import_workflow_service.importar_catalogo_status_simple(file_id=file_id, user_id=user_id)
+        return self._catalog_import_workflow_service.importar_catalogo_status_simple(file_id=file_id, user_id=user_id)
 
     def importar_catalogo_result(self, file_id: int, user_id: int):
-        return self._services.catalog_import_workflow_service.importar_catalogo_result(file_id=file_id, user_id=user_id)
+        return self._catalog_import_workflow_service.importar_catalogo_result(file_id=file_id, user_id=user_id)
 
     async def importar_catalogo_finalizar_todas_paginas(self, file_id: int, start_page: int, mapping: Optional[Dict[str, str]], user_id: int):
-        return await self._services.catalog_import_workflow_service.importar_catalogo_finalizar_todas_paginas(file_id=file_id, start_page=start_page, mapping=mapping, user_id=user_id)
+        return await self._catalog_import_workflow_service.importar_catalogo_finalizar_todas_paginas(file_id=file_id, start_page=start_page, mapping=mapping, user_id=user_id)
 
     async def selecionar_regiao(self, file_id: int, page: int, bbox: List[float], bbox_norm: Optional[List[float]], user_id: int):
-        return self._services.catalog_import_preview_service.selecionar_regiao(file_id=file_id, page=page, bbox=bbox, bbox_norm=bbox_norm, user_id=user_id)
+        return self._catalog_import_preview_service.selecionar_regiao(file_id=file_id, page=page, bbox=bbox, bbox_norm=bbox_norm, user_id=user_id)
 
     async def extrair_pagina_unica(self, file_id: int, page_number: int, user_id: int):
-        return await self._services.catalog_import_preview_service.extrair_pagina_unica(file_id=file_id, page_number=page_number, user_id=user_id)
+        return await self._catalog_import_preview_service.extrair_pagina_unica(file_id=file_id, page_number=page_number, user_id=user_id)
 
 class ProdutosCatalogCoordinator:
     """Workflow/escopo request-scoped para o fluxo de 'produtos'."""

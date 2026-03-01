@@ -219,7 +219,7 @@ class WebEnrichmentFinalizationService:
         build_payload_enriquecimento_visivel: Any,
         schemas: Any,
         models: Any,
-        product_repository: Any | None = None,
+        product_repository: Any,
     ) -> None:
         self._normalize_human_text = normalize_human_text
         self._build_payload_enriquecimento_visivel = build_payload_enriquecimento_visivel
@@ -336,8 +336,5 @@ class WebEnrichmentFinalizationService:
         if self._product_repository is None:
             raise ValueError("product_repository is required")
         if callable(self._product_repository):
-            try:
-                return self._product_repository(db)
-            except TypeError:
-                pass
+            return self._product_repository(db)
         return self._product_repository

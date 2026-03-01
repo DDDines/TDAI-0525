@@ -3,10 +3,6 @@ from __future__ import annotations
 from typing import Any, Iterable
 
 from fastapi import HTTPException
-from Backend.infrastructure.repositories.fornecedor_import_job_repository import (
-    FornecedorImportJobRepository,
-)
-from Backend.infrastructure.repositories.product_repository import ProductRepository
 
 
 class FornecedorImportJobService:
@@ -16,8 +12,8 @@ class FornecedorImportJobService:
         self,
         *,
         db_session_factory: Any,
-        import_job_repository_cls: type[FornecedorImportJobRepository] = FornecedorImportJobRepository,
-        produto_repository_cls: type[ProductRepository] = ProductRepository,
+        import_job_repository_cls: Any,
+        produto_repository_cls: Any,
         produto_create_schema: Any,
     ) -> None:
         self._db_session_factory = db_session_factory
@@ -25,10 +21,10 @@ class FornecedorImportJobService:
         self._produto_repository_cls = produto_repository_cls
         self._produto_create_schema = produto_create_schema
 
-    def _import_job_repo(self, session: Any) -> FornecedorImportJobRepository:
+    def _import_job_repo(self, session: Any) -> Any:
         return self._import_job_repository_cls(session)
 
-    def _produto_repo(self, session: Any) -> ProductRepository:
+    def _produto_repo(self, session: Any) -> Any:
         return self._produto_repository_cls(session)
 
     def get_job_for_user_or_404(self, *, job_id: int, user_id: int) -> Any:

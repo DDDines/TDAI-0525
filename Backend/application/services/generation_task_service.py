@@ -17,8 +17,8 @@ class GenerationTaskService:
         schemas: Any,
         logger: Any,
         db_session_factory: Any,
-        user_repository_cls: Any | None = None,
-        product_repository_cls: Any | None = None,
+        user_repository_cls: Any,
+        product_repository_cls: Any,
     ) -> None:
         self._db_session_factory = db_session_factory
         self._user_repository_cls = user_repository_cls
@@ -28,13 +28,9 @@ class GenerationTaskService:
         self._logger = logger
 
     def _get_user_access(self, session: Session) -> Any:
-        if self._user_repository_cls is None:
-            raise ValueError("user_repository_cls is required for GenerationTaskService")
         return self._user_repository_cls(session)
 
     def _get_product_access(self, session: Session) -> Any:
-        if self._product_repository_cls is None:
-            raise ValueError("product_repository_cls is required for GenerationTaskService")
         return self._product_repository_cls(session)
 
     def _resolve_generation_targets(

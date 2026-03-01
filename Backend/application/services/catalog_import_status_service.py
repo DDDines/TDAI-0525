@@ -15,23 +15,14 @@ class CatalogImportStatusService:
         self,
         *,
         models: Any,
-        catalog_file_repository: Any | None = None,
+        catalog_file_repository: Any,
     ) -> None:
-        if catalog_file_repository is None:
-            from Backend.infrastructure.repositories.catalog_import_file_repository import (
-                CatalogImportFileRepository,
-            )
-
-            catalog_file_repository = CatalogImportFileRepository
-
         self._models = models
         self._catalog_file_repository = catalog_file_repository
 
     def _resolve_catalog_file_repo(
         self,
     ) -> Any:
-        if self._catalog_file_repository is None:
-            raise ValueError("catalog_file_repo is required")
         return self._catalog_file_repository
 
     def get_record_or_404(

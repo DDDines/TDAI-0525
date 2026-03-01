@@ -1183,6 +1183,143 @@ class _TopLevelFunctionSurface:
             + "\n".join(offenders)
         )
 
+    def test_application_service_constructor_repository_dependencies_are_required():
+        offenders: list[str] = []
+
+        for path in _iter_python_files(APPLICATION_SERVICES_ROOT):
+            rel = path.relative_to(PROJECT_ROOT)
+            tree = _parse_python_file(path)
+
+            for class_node in [n for n in tree.body if isinstance(n, ast.ClassDef)]:
+                init_node = next(
+                    (
+                        node
+                        for node in class_node.body
+                        if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef))
+                        and node.name == "__init__"
+                    ),
+                    None,
+                )
+                if init_node is None:
+                    continue
+
+                positional_args = init_node.args.args
+                positional_defaults = [None] * (
+                    len(positional_args) - len(init_node.args.defaults)
+                ) + list(init_node.args.defaults)
+                for arg, default in zip(positional_args, positional_defaults):
+                    if arg.arg in {"self", "cls"}:
+                        continue
+                    if not (
+                        arg.arg.endswith("_repo")
+                        or arg.arg.endswith("_repository")
+                        or arg.arg.endswith("_repo_cls")
+                        or arg.arg.endswith("_repository_cls")
+                    ):
+                        continue
+                    if default is not None:
+                        offenders.append(
+                            f"{rel}:{init_node.lineno} -> {class_node.name}.__init__({arg.arg})"
+                        )
+
+                for kw_arg, default in zip(init_node.args.kwonlyargs, init_node.args.kw_defaults):
+                    if kw_arg.arg in {"self", "cls"}:
+                        continue
+                    if not (
+                        kw_arg.arg.endswith("_repo")
+                        or kw_arg.arg.endswith("_repository")
+                        or kw_arg.arg.endswith("_repo_cls")
+                        or kw_arg.arg.endswith("_repository_cls")
+                    ):
+                        continue
+                    if default is not None:
+                        offenders.append(
+                            f"{rel}:{init_node.lineno} -> {class_node.name}.__init__({kw_arg.arg})"
+                        )
+
+        assert not offenders, (
+            "Application service constructors must require explicit repository dependencies "
+            "(no default/optional repo args):\n"
+            + "\n".join(offenders)
+        )
+
+    def test_application_services_do_not_use_local_repository_imports():
+        offenders: list[str] = []
+
+        for path in _iter_python_files(APPLICATION_SERVICES_ROOT):
+            rel = path.relative_to(PROJECT_ROOT)
+            tree = _parse_python_file(path)
+            parent_by_node: dict[ast.AST, ast.AST] = {}
+            for parent in ast.walk(tree):
+                for child in ast.iter_child_nodes(parent):
+                    parent_by_node[child] = parent
+
+            for node in ast.walk(tree):
+                if not isinstance(node, ast.ImportFrom):
+                    continue
+                if node.level:
+                    continue
+                module = node.module or ""
+                if not module.startswith("Backend.infrastructure.repositories"):
+                    continue
+
+                current = parent_by_node.get(node)
+                in_function_scope = False
+                while current is not None:
+                    if isinstance(current, (ast.FunctionDef, ast.AsyncFunctionDef)):
+                        in_function_scope = True
+                        break
+                    current = parent_by_node.get(current)
+
+                if in_function_scope:
+                    offenders.append(f"{rel}:{node.lineno} -> from {module} import ...")
+
+        assert not offenders, (
+            "Application services must not perform local/fallback imports for repositories; "
+            "dependencies must be constructor-injected:\n"
+            + "\n".join(offenders)
+        )
+
+    def test_routers_do_not_mutate_private_attributes_of_external_objects():
+        offenders: list[str] = []
+
+        for path in _iter_python_files(ROUTERS_ROOT):
+            rel = path.relative_to(PROJECT_ROOT)
+            tree = _parse_python_file(path)
+            for node in ast.walk(tree):
+                if not isinstance(node, ast.Assign):
+                    continue
+                for target in node.targets:
+                    if not isinstance(target, ast.Attribute):
+                        continue
+                    if not target.attr.startswith("_") or target.attr.startswith("__"):
+                        continue
+                    owner = target.value
+                    if isinstance(owner, ast.Name) and owner.id == "self":
+                        continue
+                    offenders.append(f"{rel}:{node.lineno}")
+
+        assert not offenders, (
+            "Routers must not mutate private fields of external objects "
+            "(compose dependencies via constructors):\n"
+            + "\n".join(offenders)
+        )
+
+    def test_application_services_do_not_use_typeerror_fallback_dependency_resolution():
+        offenders: list[str] = []
+
+        for path in _iter_python_files(APPLICATION_SERVICES_ROOT):
+            rel = path.relative_to(PROJECT_ROOT)
+            source = path.read_text(encoding="utf-8-sig")
+            if "except TypeError" in source:
+                offenders.append(str(rel))
+
+        assert not offenders, (
+            "Application services must not rely on TypeError-based fallback dependency "
+            "resolution (explicit providers only):\n"
+            + "\n".join(offenders)
+        )
+
     def test_tests_do_not_import_private_backend_symbols():
         offenders: list[str] = []
     
@@ -1302,6 +1439,10 @@ test_generation_flow_surfaces_do_not_use_var_kwargs = _TopLevelFunctionSurface.t
 test_application_services_do_not_use_inspect_isclass_resolution = _TopLevelFunctionSurface.test_application_services_do_not_use_inspect_isclass_resolution
 test_application_services_do_not_use_isinstance_type_resolution = _TopLevelFunctionSurface.test_application_services_do_not_use_isinstance_type_resolution
 test_application_service_public_methods_do_not_take_optional_repo_overrides = _TopLevelFunctionSurface.test_application_service_public_methods_do_not_take_optional_repo_overrides
+test_application_service_constructor_repository_dependencies_are_required = _TopLevelFunctionSurface.test_application_service_constructor_repository_dependencies_are_required
+test_application_services_do_not_use_local_repository_imports = _TopLevelFunctionSurface.test_application_services_do_not_use_local_repository_imports
+test_routers_do_not_mutate_private_attributes_of_external_objects = _TopLevelFunctionSurface.test_routers_do_not_mutate_private_attributes_of_external_objects
+test_application_services_do_not_use_typeerror_fallback_dependency_resolution = _TopLevelFunctionSurface.test_application_services_do_not_use_typeerror_fallback_dependency_resolution
 test_tests_do_not_import_private_backend_symbols = _TopLevelFunctionSurface.test_tests_do_not_import_private_backend_symbols
 test_produtos_core_endpoints_do_not_receive_db_session_directly = _TopLevelFunctionSurface.test_produtos_core_endpoints_do_not_receive_db_session_directly
 

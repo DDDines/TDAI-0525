@@ -60,7 +60,7 @@ class _FornecedoresServiceBundle:
         self.catalog_import_task_runner = CatalogImportTaskRunner(db_session_factory=self._db_session_factory, logger=logger, catalog_logger=logger, models=models, schemas=schemas, product_repository=produto_repository, catalog_file_repository=catalog_file_repository, file_processing_service=self.file_processing_service, validator_crew=self.validator_crew, settings=settings, path_cls=Path, time_module=time, counter_cls=Counter, resolve_storage_path=self.catalog_import_diagnostics_service.resolve_storage_path, normalize_import_issue_item=self.catalog_sanitization_service.normalize_import_issue_item, extract_import_error_reason=self.catalog_sanitization_service.extract_import_error_reason, is_non_critical_import_reason=self.catalog_sanitization_service.is_non_critical_import_reason, normalizar_dados_validados=self.catalog_sanitization_service.normalize_validated_data, sanitize_produto_extraido=self.catalog_sanitization_service.sanitize_extracted_product, classificar_qualidade_linha_produto=self.catalog_quality_service.classify_product_row_quality, write_catalog_import_report=self.catalog_import_diagnostics_service.write_catalog_import_report, normalize_import_text=self.catalog_sanitization_service.normalize_import_text)
         self.catalog_import_finalize_service = CatalogImportFinalizeService(oop_executor=self.catalog_import_task_runner.execute, db_session_factory=self._db_session_factory)
         self.catalog_import_start_service = CatalogImportStartService(models=models, fornecedor_repo=fornecedor_repository, catalog_file_repository=catalog_file_repository, settings=settings, resolve_storage_path=self.catalog_import_diagnostics_service.resolve_storage_path, finalize_service=self.catalog_import_finalize_service)
-        self.fornecedor_catalog_process_service = FornecedorCatalogProcessService(models=models, fornecedor_repo=fornecedor_repository, catalog_import_start_service=self.catalog_import_start_service)
+        self.fornecedor_catalog_process_service = FornecedorCatalogProcessService(models=models, fornecedor_repo=fornecedor_repository, catalog_file_repository=catalog_file_repository, catalog_import_start_service=self.catalog_import_start_service)
         self.fornecedor_import_job_service = FornecedorImportJobService(db_session_factory=self._db_session_factory, import_job_repository_cls=FornecedorImportJobRepository, produto_repository_cls=ProductRepository, produto_create_schema=schemas.ProdutoCreate)
         self.fornecedor_import_tracking_service = FornecedorImportTrackingService(
             models=models,
@@ -145,13 +145,31 @@ class _FornecedoresServiceGateway:
         self._services = services or _FornecedoresServiceBundle(db_session_factory=runtime_session_factory)
         self._catalog_file_repo = CatalogImportFileRepository(session)
         self._fornecedor_repo = FornecedorRepository(session)
-        self._import_job_repo = FornecedorImportJobRepository(session)
-        self._services.catalog_import_start_service._catalog_file_repository = self._catalog_file_repo
-        self._services.catalog_import_start_service._fornecedor_repo = self._fornecedor_repo
-        self._services.fornecedor_catalog_process_service._fornecedor_repo = self._fornecedor_repo
-        self._services.fornecedor_catalog_process_service._catalog_file_repository = self._catalog_file_repo
-        self._services.fornecedor_import_tracking_service._catalog_file_repository = self._catalog_file_repo
-        self._services.fornecedor_preview_service._catalog_file_repository = self._catalog_file_repo
+        self._catalog_import_start_service = CatalogImportStartService(
+            models=models,
+            fornecedor_repo=self._fornecedor_repo,
+            catalog_file_repository=self._catalog_file_repo,
+            settings=settings,
+            resolve_storage_path=self._services.catalog_import_diagnostics_service.resolve_storage_path,
+            finalize_service=self._services.catalog_import_finalize_service,
+        )
+        self._fornecedor_catalog_process_service = FornecedorCatalogProcessService(
+            models=models,
+            fornecedor_repo=self._fornecedor_repo,
+            catalog_file_repository=self._catalog_file_repo,
+            catalog_import_start_service=self._catalog_import_start_service,
+        )
+        self._fornecedor_import_tracking_service = FornecedorImportTrackingService(
+            models=models,
+            process_pdf_extraction_task=TaskWorkflow().process_pdf_extraction_task,
+            catalog_file_repository=self._catalog_file_repo,
+        )
+        self._fornecedor_preview_service = FornecedorPreviewService(
+            file_processing_service=self._services.file_processing_service,
+            web_data_extractor_service=self._services.web_data_extractor_service,
+            catalog_file_repository=self._catalog_file_repo,
+        )
+        self._fornecedor_import_job_service = self._services.fornecedor_import_job_service
 
     def create_fornecedor(
         self,
@@ -242,7 +260,7 @@ class _FornecedoresServiceGateway:
         *,
         file: UploadFile,
     ):
-        return await self._services.fornecedor_preview_service.preview_pages(file=file)
+        return await self._fornecedor_preview_service.preview_pages(file=file)
 
     def preview_pdf(
         self,
@@ -253,7 +271,7 @@ class _FornecedoresServiceGateway:
         offset: int,
         limit: int,
     ):
-        return self._services.fornecedor_preview_service.preview_pdf(
+        return self._fornecedor_preview_service.preview_pdf(
             file=file,
             fornecedor_id=fornecedor_id,
             user_id=user_id,
@@ -268,7 +286,7 @@ class _FornecedoresServiceGateway:
         page_number: int,
         region: list[float],
     ):
-        return self._services.fornecedor_preview_service.preview_catalog_from_region(
+        return self._fornecedor_preview_service.preview_catalog_from_region(
             file_id=file_id,
             page_number=page_number,
             region=region,
@@ -283,7 +301,7 @@ class _FornecedoresServiceGateway:
         pages: Optional[List[int]],
         all_pages: bool,
     ):
-        return self._services.fornecedor_preview_service.extract_data_from_pdf_bulk(
+        return self._fornecedor_preview_service.extract_data_from_pdf_bulk(
             background_tasks=background_tasks,
             file_id=file_id,
             region=region,
@@ -298,7 +316,7 @@ class _FornecedoresServiceGateway:
         user_id: int,
         not_found_detail: str,
     ):
-        return self._services.fornecedor_import_tracking_service.get_catalog_record_or_404(
+        return self._fornecedor_import_tracking_service.get_catalog_record_or_404(
             file_id=file_id,
             user_id=user_id,
             not_found_detail=not_found_detail,
@@ -309,7 +327,7 @@ class _FornecedoresServiceGateway:
         *,
         record: Any,
     ):
-        return self._services.fornecedor_import_tracking_service.build_progress_payload(
+        return self._fornecedor_import_tracking_service.build_progress_payload(
             record=record
         )
 
@@ -325,7 +343,7 @@ class _FornecedoresServiceGateway:
         region: Optional[List[float]],
         mapping: Optional[dict],
     ):
-        return await self._services.fornecedor_catalog_process_service.start_full_processing(
+        return await self._fornecedor_catalog_process_service.start_full_processing(
             background_tasks=background_tasks,
             current_user=current_user,
             file_id=file_id,
@@ -344,7 +362,7 @@ class _FornecedoresServiceGateway:
         page_number: int,
         db_url: str,
     ):
-        return self._services.fornecedor_import_tracking_service.schedule_page_extraction(
+        return self._fornecedor_import_tracking_service.schedule_page_extraction(
             background_tasks=background_tasks,
             import_job_id=import_job_id,
             page_number=page_number,
@@ -369,7 +387,7 @@ class _FornecedoresServiceGateway:
         job_id: int,
         user_id: int,
     ):
-        return self._services.fornecedor_import_job_service.get_job_for_user_or_404(
+        return self._fornecedor_import_job_service.get_job_for_user_or_404(
             job_id=job_id,
             user_id=user_id,
         )
@@ -379,7 +397,7 @@ class _FornecedoresServiceGateway:
         *,
         job: Any,
     ):
-        return self._services.fornecedor_import_job_service.build_review_payload(job=job)
+        return self._fornecedor_import_job_service.build_review_payload(job=job)
 
     def schedule_commit(
         self,
@@ -388,7 +406,7 @@ class _FornecedoresServiceGateway:
         job_id: int,
         user_id: int,
     ):
-        return self._services.fornecedor_import_job_service.schedule_commit(
+        return self._fornecedor_import_job_service.schedule_commit(
             background_tasks=background_tasks,
             job_id=job_id,
             user_id=user_id,
@@ -399,7 +417,7 @@ class _FornecedoresServiceGateway:
         *,
         record: Any,
     ):
-        return self._services.fornecedor_import_tracking_service.build_import_job_status_payload(
+        return self._fornecedor_import_tracking_service.build_import_job_status_payload(
             record=record
         )
 

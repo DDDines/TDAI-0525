@@ -86,9 +86,9 @@ class WebEnrichmentTaskWorkflow:
         logger,
         SQLAlchemyError,
         db_session_factory,
-        user_repository=None,
-        product_repository=None,
-        usage_repository=None,
+        user_repository,
+        product_repository,
+        usage_repository,
         models,
         schemas,
         web_extractor,
@@ -157,11 +157,10 @@ class WebEnrichmentTaskWorkflow:
 
     @staticmethod
     def _resolve_repo(repo_or_cls: Any, session: Session) -> Any:
+        if repo_or_cls is None:
+            raise ValueError("repository provider is required")
         if callable(repo_or_cls):
-            try:
-                return repo_or_cls(session)
-            except TypeError:
-                pass
+            return repo_or_cls(session)
         return repo_or_cls
 
     def _load_locked_product(self, session: Session, produto_id: int):
@@ -638,9 +637,9 @@ class WebEnrichmentTaskService:
         is_meaningful_extracted_text,
         metadata_has_minimum_signal,
         is_source_relevant_for_product,
-        user_repository=None,
-        product_repository=None,
-        usage_repository=None,
+        user_repository,
+        product_repository,
+        usage_repository,
     ):
         self._deps = {
             "logger": logger,

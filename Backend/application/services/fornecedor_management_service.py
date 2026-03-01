@@ -13,8 +13,8 @@ class FornecedorManagementService:
         *,
         models: Any,
         schemas: Any,
-        fornecedor_repo: Any = None,
-        historico_repo: Any = None,
+        fornecedor_repo: Any,
+        historico_repo: Any,
     ) -> None:
         self._models = models
         self._schemas = schemas

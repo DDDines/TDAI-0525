@@ -29,9 +29,9 @@ class WebEnrichmentTaskRunner:
         is_meaningful_extracted_text: Any,
         metadata_has_minimum_signal: Any,
         is_source_relevant_for_product: Any,
-        user_repository: Any | None = None,
-        product_repository: Any | None = None,
-        usage_repository: Any | None = None,
+        user_repository: Any,
+        product_repository: Any,
+        usage_repository: Any,
     ) -> None:
         self._kwargs = {
             "db_session_factory": db_session_factory,

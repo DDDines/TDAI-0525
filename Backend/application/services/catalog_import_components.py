@@ -118,15 +118,10 @@ class CatalogImportOutcomeResolver:
 class CatalogImportFileStateService:
     """Encapsula persistencia de status/paginas do CatalogImportFile."""
 
-    def __init__(self, *, catalog_file_repository: Any | None = None) -> None:
+    def __init__(self, *, catalog_file_repository: Any) -> None:
         self._catalog_file_repository = catalog_file_repository
 
-    def bind_catalog_file_store(self, *, catalog_file_store: Any) -> None:
-        self._catalog_file_repository = catalog_file_store
-
     def _repo(self) -> Any:
-        if self._catalog_file_repository is None:
-            raise ValueError("catalog_file_repository is required")
         return self._catalog_file_repository
 
     def mark_processing(self, *, catalog_file: Any, fornecedor_id: int) -> None:

@@ -19,7 +19,7 @@ class WebEnrichmentStartService:
         models: Any,
         dispatcher_cls: Any = PipelineDispatcher,
         orchestrator_cls: Any = WebEnrichmentPipelineOrchestrator,
-        product_repository: Any | None = None,
+        product_repository: Any,
     ) -> None:
         self._product_repository = product_repository
         self._models = models
@@ -32,8 +32,6 @@ class WebEnrichmentStartService:
         produto_id: int,
         current_user: Any,
     ) -> None:
-        if self._product_repository is None:
-            raise ValueError("product_repository is required")
         db_produto_check = self._product_repository.get_produto(produto_id=produto_id)
         if not db_produto_check:
             raise HTTPException(

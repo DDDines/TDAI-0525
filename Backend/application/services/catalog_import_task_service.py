@@ -103,8 +103,8 @@ class CatalogImportTaskWorkflow:
         catalog_logger,
         models,
         schemas,
-        product_repository=None,
-        catalog_file_repository=None,
+        product_repository,
+        catalog_file_repository,
         file_processing_service,
         validator_crew,
         settings,
@@ -122,13 +122,6 @@ class CatalogImportTaskWorkflow:
         normalize_import_text: Callable,
         runtime: Optional[Any] = None,
     ) -> None:
-        if catalog_file_repository is None:
-            from Backend.infrastructure.repositories.catalog_import_file_repository import (
-                CatalogImportFileRepository,
-            )
-
-            catalog_file_repository = CatalogImportFileRepository
-
         runtime_obj = CatalogImportTaskRuntime(
             db_session_factory=db_session_factory,
             logger=logger,
@@ -176,7 +169,7 @@ class CatalogImportTaskWorkflow:
         self.sanitize_produto_extraido = runtime_obj.sanitize_produto_extraido
         self.classificar_qualidade_linha_produto = runtime_obj.classificar_qualidade_linha_produto
 
-        self.file_state_service = CatalogImportFileStateService()
+        self.file_state_service: CatalogImportFileStateService | None = None
         self.issue_tracker = CatalogImportIssueTracker(
             normalize_import_issue_item=runtime_obj.normalize_import_issue_item,
             extract_import_error_reason=runtime_obj.extract_import_error_reason,
@@ -214,10 +207,7 @@ class CatalogImportTaskWorkflow:
         if repository_provider is None:
             raise ValueError("repository provider is required")
         if callable(repository_provider):
-            try:
-                return repository_provider(session)
-            except TypeError:
-                pass
+            return repository_provider(session)
         return repository_provider
 
     def _load_catalog_file(self) -> bool:
@@ -557,8 +547,8 @@ class CatalogImportTaskWorkflow:
             self.catalog_file_repository,
             self.db,
         )
-        self.file_state_service.bind_catalog_file_store(
-            catalog_file_store=self.catalog_file_repo_runtime
+        self.file_state_service = CatalogImportFileStateService(
+            catalog_file_repository=self.catalog_file_repo_runtime
         )
         self.product_repo_runtime = self._resolve_repository_runtime(
             self.product_repository,
@@ -593,6 +583,8 @@ class CatalogImportTaskWorkflow:
         finally:
             if self.db:
                 self.db.close()
+
+
 class CatalogImportTaskService:
     """Service OO para executar processamento de importacao de catalogo."""
 
@@ -605,7 +597,7 @@ class CatalogImportTaskService:
         models,
         schemas,
         product_repository,
-        catalog_file_repository=None,
+        catalog_file_repository,
         file_processing_service,
         validator_crew,
         settings,
@@ -622,13 +614,6 @@ class CatalogImportTaskService:
         write_catalog_import_report: Callable,
         normalize_import_text: Callable,
     ):
-        if catalog_file_repository is None:
-            from Backend.infrastructure.repositories.catalog_import_file_repository import (
-                CatalogImportFileRepository,
-            )
-
-            catalog_file_repository = CatalogImportFileRepository
-
         self._deps = {
             "db_session_factory": db_session_factory,
             "logger": logger,

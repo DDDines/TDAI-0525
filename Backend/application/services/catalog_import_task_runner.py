@@ -33,8 +33,8 @@ class CatalogImportTaskRunner:
         classificar_qualidade_linha_produto: Any,
         write_catalog_import_report: Any,
         normalize_import_text: Any,
-        product_repository: Any | None = None,
-        catalog_file_repository: Any | None = None,
+        product_repository: Any,
+        catalog_file_repository: Any,
     ) -> None:
         self._kwargs = {
             "db_session_factory": db_session_factory,

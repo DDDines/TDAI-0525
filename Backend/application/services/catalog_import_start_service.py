@@ -19,16 +19,9 @@ class CatalogImportStartService:
         settings: Any,
         resolve_storage_path: Any,
         finalize_service: Any,
-        catalog_file_repository: Any | None = None,
-        fornecedor_repo: Any | None = None,
+        catalog_file_repository: Any,
+        fornecedor_repo: Any,
     ) -> None:
-        if catalog_file_repository is None:
-            from Backend.infrastructure.repositories.catalog_import_file_repository import (
-                CatalogImportFileRepository,
-            )
-
-            catalog_file_repository = CatalogImportFileRepository
-
         self._models = models
         self._fornecedor_repo = fornecedor_repo
         self._settings = settings
@@ -39,15 +32,11 @@ class CatalogImportStartService:
     def _resolve_catalog_file_repo(
         self,
     ) -> Any:
-        if self._catalog_file_repository is None:
-            raise ValueError("catalog_file_repo is required")
         return self._catalog_file_repository
 
     def _resolve_fornecedor_repo(
         self,
     ) -> Any:
-        if self._fornecedor_repo is None:
-            raise ValueError("fornecedor_repo is required")
         return self._fornecedor_repo
 
     def get_catalog_file_or_404(
