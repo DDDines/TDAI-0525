@@ -25,7 +25,11 @@ from pdfplumber.pdf import PDF as PdfPlumberPDF
 from Backend.core.logging_config import get_logger
 from Backend.core.config import settings
 from Backend import models, schemas
+from Backend.database import SessionLocal
 from Backend.infrastructure.adapters.web_data_extractor_adapter import WebDataExtractorServiceAdapter
+from Backend.infrastructure.repositories.catalog_import_file_repository import (
+    CatalogImportFileRepository,
+)
 from Backend.infrastructure.repositories.fornecedor_repository import FornecedorRepository
 logger = get_logger(__name__)
 try:
@@ -241,7 +245,11 @@ class _FileProcessingImplementation:
     @staticmethod
     def _get_file_path_by_id_impl(db: Session, file_id: str) -> str:
         """Retrieve the stored file path for a catalog import by ID."""
-        import_file = db.query(models.CatalogImportFile).filter(models.CatalogImportFile.id == file_id).first()
+        try:
+            resolved_file_id = int(file_id)
+        except (TypeError, ValueError):
+            return None
+        import_file = CatalogImportFileRepository(db).get_catalog_file(file_id=resolved_file_id)
         if not import_file:
             return None
         base_dir = os.path.join('Backend', 'static', 'uploads', 'catalogs')
@@ -459,10 +467,12 @@ class _FileProcessingImplementation:
     async def _process_pdf_job_impl(job_id: int, pdf_path: str, start_page: int=1, mapping: Optional[Dict[str, str]]=None) -> None:
         """Process remaining pages of a PDF catalog import job."""
         db: Optional[Session] = None
+        catalog_file_repository: Optional[CatalogImportFileRepository] = None
         catalog_file: Optional[models.CatalogImportFile] = None
         try:
             db = SessionLocal()
-            catalog_file = db.query(models.CatalogImportFile).filter_by(id=job_id).first()
+            catalog_file_repository = CatalogImportFileRepository(db)
+            catalog_file = catalog_file_repository.get_catalog_file(file_id=job_id)
             if not catalog_file:
                 logger.error('CatalogImportFile %s not found', job_id)
                 return
@@ -472,7 +482,7 @@ class _FileProcessingImplementation:
             catalog_file.status = 'PROCESSING'
             catalog_file.total_pages = total_pages
             catalog_file.pages_processed = 0
-            db.commit()
+            catalog_file_repository.update_catalog_file(catalog_file=catalog_file)
             products: List[Dict[str, Any]] = []
             for page in range(start_page, total_pages + 1):
                 try:
@@ -489,16 +499,16 @@ class _FileProcessingImplementation:
                 logger.info('process_pdf_job: page=%s products_accumulated=%s', page, len(products))
                 catalog_file.pages_processed += 1
                 if catalog_file.pages_processed % 5 == 0:
-                    db.commit()
+                    catalog_file_repository.update_catalog_file(catalog_file=catalog_file)
             catalog_file.result_summary = {'products': products}
             catalog_file.status = 'PENDING_REVIEW'
-            db.commit()
+            catalog_file_repository.update_catalog_file(catalog_file=catalog_file)
             logger.info('process_pdf_job: done job_id=%s status=%s products=%s pages=%s', job_id, catalog_file.status, len(products), catalog_file.pages_processed)
         except Exception:
             logger.exception('Erro ao processar job de PDF')
-            if db and catalog_file:
+            if db and catalog_file and catalog_file_repository:
                 catalog_file.status = 'FAILED'
-                db.commit()
+                catalog_file_repository.update_catalog_file(catalog_file=catalog_file)
         finally:
             if db:
                 db.close()
