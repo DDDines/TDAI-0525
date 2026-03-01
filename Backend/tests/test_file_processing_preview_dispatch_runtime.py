@@ -1,4 +1,4 @@
-import pytest
+﻿import pytest
 
 from Backend.testing.runtime_apis import file_processing
 
@@ -23,7 +23,7 @@ class _TopLevelFunctionSurface:
                 return FakeExtractor()
     
         factory = FakeFactory()
-        runtime = file_processing._PreviewDispatchRuntime(extractor_factory=factory)
+        runtime = file_processing.PreviewDispatchRuntime(extractor_factory=factory)
     
         result = await runtime.gerar_preview(
             conteudo_arquivo=b"abc",
@@ -38,7 +38,7 @@ class _TopLevelFunctionSurface:
 
     @pytest.mark.asyncio
     async def test_preview_dispatch_runtime_raises_for_unsupported_extension():
-        runtime = file_processing._PreviewDispatchRuntime()
+        runtime = file_processing.PreviewDispatchRuntime()
     
         with pytest.raises(ValueError):
             await runtime.gerar_preview(
@@ -49,5 +49,6 @@ class _TopLevelFunctionSurface:
 
 test_preview_dispatch_runtime_uses_injected_factory = _TopLevelFunctionSurface.test_preview_dispatch_runtime_uses_injected_factory
 test_preview_dispatch_runtime_raises_for_unsupported_extension = _TopLevelFunctionSurface.test_preview_dispatch_runtime_raises_for_unsupported_extension
+
 
 

@@ -1,4 +1,4 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
 from concurrent.futures import TimeoutError
 
@@ -42,7 +42,7 @@ class _ExecutorTimeoutStub:
 class _TopLevelFunctionSurface:
 
     def test_runtime_returns_raw_data_when_unavailable():
-        runtime = validator_crew._ValidationCrewRuntime(
+        runtime = validator_crew.ValidationCrewRuntime(
             llm_instance=None,
             runtime_available=True,
             agent_cls=_AgentStub,
@@ -58,7 +58,7 @@ class _TopLevelFunctionSurface:
         assert result == payload
 
     def test_runtime_returns_raw_data_on_timeout():
-        runtime = validator_crew._ValidationCrewRuntime(
+        runtime = validator_crew.ValidationCrewRuntime(
             llm_instance=object(),
             runtime_available=True,
             agent_cls=_AgentStub,
@@ -93,6 +93,7 @@ class _TopLevelFunctionSurface:
 test_runtime_returns_raw_data_when_unavailable = _TopLevelFunctionSurface.test_runtime_returns_raw_data_when_unavailable
 test_runtime_returns_raw_data_on_timeout = _TopLevelFunctionSurface.test_runtime_returns_raw_data_on_timeout
 test_run_validation_crew_delegates_to_runtime = _TopLevelFunctionSurface.test_run_validation_crew_delegates_to_runtime
+
 
 
 

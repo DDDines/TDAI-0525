@@ -1,4 +1,4 @@
-import pytest
+﻿import pytest
 import pandas as pd
 
 from Backend.testing.runtime_apis import file_processing
@@ -8,7 +8,7 @@ class _TopLevelFunctionSurface:
 
     @pytest.mark.asyncio
     async def test_tabular_preview_runtime_preview_excel(monkeypatch):
-        runtime = file_processing._TabularPreviewRuntime()
+        runtime = file_processing.TabularPreviewRuntime()
     
         monkeypatch.setattr(
             file_processing.pd,
@@ -31,7 +31,7 @@ class _TopLevelFunctionSurface:
             return {"headers": ["c1"], "sample_rows": [{"c1": "v"}]}
     
         monkeypatch.setattr(
-            file_processing._TabularPreviewEngineRuntime,
+            file_processing.TabularPreviewEngineRuntime,
             "preview_arquivo_csv",
             _fake_preview_arquivo_csv,
         )
@@ -47,6 +47,7 @@ class _TopLevelFunctionSurface:
 
 test_tabular_preview_runtime_preview_excel = _TopLevelFunctionSurface.test_tabular_preview_runtime_preview_excel
 test_preview_csv_impl_usa_runtime = _TopLevelFunctionSurface.test_preview_csv_impl_usa_runtime
+
 
 
 

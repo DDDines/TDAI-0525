@@ -1,4 +1,4 @@
-# Backend/infrastructure/runtime_modules/web_data_extractor_module.py
+﻿# Backend/infrastructure/runtime_modules/web_data_extractor_module.py
 import asyncio
 import sys
 import time
@@ -12,7 +12,7 @@ from typing import List, Dict, Optional, Any, Tuple, Callable
 from fastapi import HTTPException
 from urllib.parse import parse_qs, quote_plus, unquote, urljoin, urlparse
 from urllib.request import Request, urlopen
-from sqlalchemy.orm import Session # Importar Session para type hinting, se necessÃƒÂ¡rio
+from sqlalchemy.orm import Session # Importar Session para type hinting, se necessÃƒÆ’Ã‚Â¡rio
 from datetime import datetime, timezone
 from Backend.core.logging_config import get_logger
 
@@ -25,11 +25,11 @@ try:
 except ImportError:
     GOOGLE_API_CLIENT_INSTALLED = False
     logger.warning(
-        "Biblioteca google-api-python-client nÃƒÂ£o instalada ou com problemas. Busca no Google pode nÃƒÂ£o funcionar."
+        "Biblioteca google-api-python-client nÃƒÆ’Ã‚Â£o instalada ou com problemas. Busca no Google pode nÃƒÆ’Ã‚Â£o funcionar."
     )
 
-# Ajustando as importaÃƒÂ§ÃƒÂµes para serem absolutas a partir da raiz do projeto (Backend)
-# Assumindo que 'Backend' estÃƒÂ¡ no sys.path ou ÃƒÂ© o diretÃƒÂ³rio de trabalho.
+# Ajustando as importaÃƒÆ’Ã‚Â§ÃƒÆ’Ã‚Âµes para serem absolutas a partir da raiz do projeto (Backend)
+# Assumindo que 'Backend' estÃƒÆ’Ã‚Â¡ no sys.path ou ÃƒÆ’Ã‚Â© o diretÃƒÆ’Ã‚Â³rio de trabalho.
 from Backend.core.config import settings
 from Backend import models
 from Backend.infrastructure.runtime_modules.ia_generation_module import (
@@ -84,7 +84,7 @@ _PREFERRED_PRODUCT_HOST_HINTS = (
 )
 
 # --- Google Search Service ---
-class _WebSearchEngineRuntime:
+class WebSearchEngineRuntime:
     """Runtime OO para buscas web (cache + scoring + fallback publico/CSE)."""
 
     def __init__(self) -> None:
@@ -493,10 +493,10 @@ class _WebSearchEngineRuntime:
             return urls_unicas
 
 
-class _WebContentFetchEngineRuntime:
+class WebContentFetchEngineRuntime:
     """Runtime OO para coleta de conte?do HTML (Playwright + fallback HTTP)."""
 
-    def __init__(self, search_runtime: _WebSearchEngineRuntime) -> None:
+    def __init__(self, search_runtime: WebSearchEngineRuntime) -> None:
         self._search_runtime = search_runtime
         self._playwright_chromium_indisponivel = False
 
@@ -687,11 +687,11 @@ class _WebContentFetchEngineRuntime:
             return await self.coletar_conteudo_pagina_http(url)
 
 
-class _WebSearchWorkflow:
+class WebSearchWorkflow:
     """Workflow OO para estrategias de busca web."""
 
-    def __init__(self, runtime: Optional["_WebSearchRuntime"] = None) -> None:
-        self._runtime = runtime or _WebSearchRuntime()
+    def __init__(self, runtime: Optional["WebSearchRuntime"] = None) -> None:
+        self._runtime = runtime or WebSearchRuntime()
 
     def busca_publica_disponivel(self) -> bool:
         return self._runtime.busca_publica_disponivel()
@@ -718,26 +718,26 @@ class _WebSearchWorkflow:
         )
 
 
-class _WebContentCollectionWorkflow:
+class WebContentCollectionWorkflow:
     """Workflow OO para coleta de conteudo de pagina."""
 
     def __init__(
-        self, runtime: Optional["_WebContentCollectionRuntime"] = None
+        self, runtime: Optional["WebContentCollectionRuntime"] = None
     ) -> None:
-        self._runtime = runtime or _WebContentCollectionRuntime()
+        self._runtime = runtime or WebContentCollectionRuntime()
 
     async def coletar_conteudo_pagina_playwright(self, url: str) -> Optional[str]:
         return await self._runtime.coletar_conteudo_pagina_playwright(url)
 
 
-class _WebSearchRuntime:
-    """Runtime OO para buscas web (Google CSE + fallback pÃƒÂºblico)."""
+class WebSearchRuntime:
+    """Runtime OO para buscas web (Google CSE + fallback pÃƒÆ’Ã‚Âºblico)."""
 
     def __init__(
         self,
-        engine_runtime: Optional[_WebSearchEngineRuntime] = None,
+        engine_runtime: Optional[WebSearchEngineRuntime] = None,
     ) -> None:
-        self._engine_runtime = engine_runtime or _WebSearchEngineRuntime()
+        self._engine_runtime = engine_runtime or WebSearchEngineRuntime()
 
     def busca_publica_disponivel(self) -> bool:
         return self._engine_runtime.busca_publica_disponivel()
@@ -772,15 +772,15 @@ class _WebSearchRuntime:
         )
 
 
-class _WebContentCollectionRuntime:
-    """Runtime OO para coleta de conteÃƒÂºdo de pÃƒÂ¡gina."""
+class WebContentCollectionRuntime:
+    """Runtime OO para coleta de conteÃƒÆ’Ã‚Âºdo de pÃƒÆ’Ã‚Â¡gina."""
 
     def __init__(
         self,
-        engine_runtime: Optional[_WebContentFetchEngineRuntime] = None,
+        engine_runtime: Optional[WebContentFetchEngineRuntime] = None,
     ) -> None:
-        self._engine_runtime = engine_runtime or _WebContentFetchEngineRuntime(
-            search_runtime=_WebSearchEngineRuntime()
+        self._engine_runtime = engine_runtime or WebContentFetchEngineRuntime(
+            search_runtime=WebSearchEngineRuntime()
         )
 
     async def coletar_conteudo_pagina_playwright(self, url: str) -> Optional[str]:
@@ -789,16 +789,8 @@ class _WebContentCollectionRuntime:
         )
 
 
-class WebSearchWorkflow(_WebSearchWorkflow):
-    pass
-
-
-class WebContentCollectionWorkflow(_WebContentCollectionWorkflow):
-    pass
-
-
 # --- Text Extraction Service ---
-class _MetadataExtractionRuntime:
+class MetadataExtractionRuntime:
     """Runtime OO para extracao de texto e metadados estruturados."""
 
     def extrair_texto_principal_com_trafilatura(self, html_content: str) -> Optional[str]:
@@ -949,8 +941,8 @@ class _MetadataExtractionRuntime:
 
 
 # --- LLM-based Data Extraction from Text ---
-class _WebLLMExtractionEngineRuntime:
-    """Engine runtime OO para extraÃƒÆ’Ã‚Â§ÃƒÆ’Ã‚Â£o de dados de produto com LLM."""
+class WebLLMExtractionEngineRuntime:
+    """Engine runtime OO para extraÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â§ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o de dados de produto com LLM."""
     def __init__(
         self,
         ai_provider_workflow_factory: Optional[Callable[[], AiProviderWorkflow]] = None,
@@ -968,12 +960,12 @@ class _WebLLMExtractionEngineRuntime:
         user: Optional[models.User] = None,
     ) -> Optional[Dict[str, Any]]:
         if not texto_pagina and not metadados_normalizados:
-            logger.info("Nenhum texto de pÃƒÂ¡gina nem metadados fornecidos para extraÃƒÂ§ÃƒÂ£o LLM.")
-            return {"erro_llm": "Nenhum conteÃƒÂºdo para processar"}
+            logger.info("Nenhum texto de pÃƒÆ’Ã‚Â¡gina nem metadados fornecidos para extraÃƒÆ’Ã‚Â§ÃƒÆ’Ã‚Â£o LLM.")
+            return {"erro_llm": "Nenhum conteÃƒÆ’Ã‚Âºdo para processar"}
 
         prompt_contexto_inicial = [
-            f"VocÃƒÂª ÃƒÂ© um assistente especialista em extrair informaÃƒÂ§ÃƒÂµes detalhadas de produtos de e-commerce para o produto '{produto_nome_base}'.",
-            "Seu objetivo ÃƒÂ© preencher um JSON com os campos solicitados da forma mais precisa possÃƒÂ­vel, com base no contexto fornecido.",
+            f"VocÃƒÆ’Ã‚Âª ÃƒÆ’Ã‚Â© um assistente especialista em extrair informaÃƒÆ’Ã‚Â§ÃƒÆ’Ã‚Âµes detalhadas de produtos de e-commerce para o produto '{produto_nome_base}'.",
+            "Seu objetivo ÃƒÆ’Ã‚Â© preencher um JSON com os campos solicitados da forma mais precisa possÃƒÆ’Ã‚Â­vel, com base no contexto fornecido.",
         ]
         contexto_para_llm = ""
         if (
@@ -985,11 +977,11 @@ class _WebLLMExtractionEngineRuntime:
             for k, v_item in metadados_normalizados.items():
                 contexto_para_llm += f"- {k.replace('_', ' ')}: {str(v_item)[:200]}\n"
         if texto_pagina:
-            contexto_para_llm += f'\nTexto Principal da PÃƒÂ¡gina (use para encontrar informaÃƒÂ§ÃƒÂµes e complementar/corrigir metadados):\n"""\n{texto_pagina[:10000]}\n"""'
+            contexto_para_llm += f'\nTexto Principal da PÃƒÆ’Ã‚Â¡gina (use para encontrar informaÃƒÆ’Ã‚Â§ÃƒÆ’Ã‚Âµes e complementar/corrigir metadados):\n"""\n{texto_pagina[:10000]}\n"""'
 
         if not contexto_para_llm.strip():
             logger.info(
-                "Contexto insuficiente para LLM (metadados e texto da pÃƒÂ¡gina vazios ou muito curtos)."
+                "Contexto insuficiente para LLM (metadados e texto da pÃƒÆ’Ã‚Â¡gina vazios ou muito curtos)."
             )
             return {"erro_llm": "Contexto insuficiente para processar"}
 
@@ -1007,12 +999,12 @@ class _WebLLMExtractionEngineRuntime:
 
         prompt = (
             "\n".join(prompt_contexto_inicial)
-            + "\n\nA partir do contexto e do texto da pÃƒÂ¡gina fornecidos, extraia RIGOROSAMENTE os seguintes campos e retorne APENAS um objeto JSON vÃƒÂ¡lido com esta estrutura:\n"
+            + "\n\nA partir do contexto e do texto da pÃƒÆ’Ã‚Â¡gina fornecidos, extraia RIGOROSAMENTE os seguintes campos e retorne APENAS um objeto JSON vÃƒÆ’Ã‚Â¡lido com esta estrutura:\n"
             + f"{{\n{campos_formatados_prompt}\n}}\n"
-            + "Se uma informaÃƒÂ§ÃƒÂ£o para um campo especÃƒÂ­fico nÃƒÂ£o for encontrada de forma clara e inequÃƒÂ­voca, retorne null para esse campo. NÃƒÂ£o invente informaÃƒÂ§ÃƒÂµes.\n"
+            + "Se uma informaÃƒÆ’Ã‚Â§ÃƒÆ’Ã‚Â£o para um campo especÃƒÆ’Ã‚Â­fico nÃƒÆ’Ã‚Â£o for encontrada de forma clara e inequÃƒÆ’Ã‚Â­voca, retorne null para esse campo. NÃƒÆ’Ã‚Â£o invente informaÃƒÆ’Ã‚Â§ÃƒÆ’Ã‚Âµes.\n"
             + "Para campos do tipo lista (ex: 'lista_caracteristicas_beneficios_bullets', 'palavras_chave_seo_relevantes_lista'), retorne uma lista de strings.\n"
-            + "Para campos do tipo dicionÃƒÂ¡rio (ex: 'especificacoes_tecnicas_dict'), retorne um dicionÃƒÂ¡rio chave-valor.\n"
-            + f"\nContexto e Texto para AnÃƒÂ¡lise:\n{contexto_para_llm}"
+            + "Para campos do tipo dicionÃƒÆ’Ã‚Â¡rio (ex: 'especificacoes_tecnicas_dict'), retorne um dicionÃƒÆ’Ã‚Â¡rio chave-valor.\n"
+            + f"\nContexto e Texto para AnÃƒÆ’Ã‚Â¡lise:\n{contexto_para_llm}"
         )
 
         if user is not None:
@@ -1021,16 +1013,16 @@ class _WebLLMExtractionEngineRuntime:
             api_key_para_usar = settings.OPENAI_API_KEY
         if not api_key_para_usar:
             logger.warning(
-                "Nenhuma chave API OpenAI disponÃƒÂ­vel para extraÃƒÂ§ÃƒÂ£o de dados com LLM."
+                "Nenhuma chave API OpenAI disponÃƒÆ’Ã‚Â­vel para extraÃƒÆ’Ã‚Â§ÃƒÆ’Ã‚Â£o de dados com LLM."
             )
-            return {"erro_llm": "Chave API OpenAI nÃƒÂ£o configurada"}
+            return {"erro_llm": "Chave API OpenAI nÃƒÆ’Ã‚Â£o configurada"}
 
         json_str_resposta = ""
         try:
             prompt_messages = [
                 {
                     "role": "system",
-                    "content": "Sua tarefa ÃƒÂ© extrair informaÃƒÂ§ÃƒÂµes de um texto e retornÃƒÂ¡-las em formato JSON conforme o schema solicitado. Seja preciso e nÃƒÂ£o adicione campos extras.",
+                    "content": "Sua tarefa ÃƒÆ’Ã‚Â© extrair informaÃƒÆ’Ã‚Â§ÃƒÆ’Ã‚Âµes de um texto e retornÃƒÆ’Ã‚Â¡-las em formato JSON conforme o schema solicitado. Seja preciso e nÃƒÆ’Ã‚Â£o adicione campos extras.",
                 },
                 {"role": "user", "content": prompt},
             ]
@@ -1069,17 +1061,17 @@ class _WebLLMExtractionEngineRuntime:
             )
             return {"extracao_bruta_llm_com_erro_json": json_str_resposta, **(metadados_normalizados or {})}
         except ValueError as ve:
-            logger.error("Erro na chamada da LLM para extraÃƒÂ§ÃƒÂ£o: %s", ve)
+            logger.error("Erro na chamada da LLM para extraÃƒÆ’Ã‚Â§ÃƒÆ’Ã‚Â£o: %s", ve)
             return {"erro_llm": str(ve), **(metadados_normalizados or {})}
         except Exception as e:
             import traceback
 
-            logger.error("Erro inesperado na extraÃƒÂ§ÃƒÂ£o com LLM: %s", traceback.format_exc())
+            logger.error("Erro inesperado na extraÃƒÆ’Ã‚Â§ÃƒÆ’Ã‚Â£o com LLM: %s", traceback.format_exc())
             return {"erro_llm_inesperado": str(e), **(metadados_normalizados or {})}
 
 
-# FunÃƒÂ§ÃƒÂ£o principal do serviÃƒÂ§o de extraÃƒÂ§ÃƒÂ£o, combinando as etapas
-class _WebExtractionEnrichmentWorkflow:
+# FunÃƒÆ’Ã‚Â§ÃƒÆ’Ã‚Â£o principal do serviÃƒÆ’Ã‚Â§o de extraÃƒÆ’Ã‚Â§ÃƒÆ’Ã‚Â£o, combinando as etapas
+class WebExtractionEnrichmentWorkflow:
     """Workflow OO para extracao/enriquecimento de uma URL de produto."""
 
     def __init__(
@@ -1088,13 +1080,13 @@ class _WebExtractionEnrichmentWorkflow:
         db: Session,
         url: str,
         produto: models.Produto,
-        runtime: Optional["_WebExtractionEnrichmentRuntime"] = None,
+        runtime: Optional["WebExtractionEnrichmentRuntime"] = None,
     ) -> None:
         self.db = db
         self.url = url
         self.produto = produto
         self.log_enriquecimento: List[Dict[str, Any]] = []
-        self._runtime = runtime or _WebExtractionEnrichmentRuntime()
+        self._runtime = runtime or WebExtractionEnrichmentRuntime()
 
     def _add_log(
         self,
@@ -1216,18 +1208,18 @@ class _WebExtractionEnrichmentWorkflow:
         return self.produto
 
 
-class _WebExtractionEnrichmentRuntime:
+class WebExtractionEnrichmentRuntime:
     def __init__(
         self,
         *,
-        content_collection_workflow: Optional[_WebContentCollectionWorkflow] = None,
-        extraction_support_workflow: Optional["_WebExtractionSupportWorkflow"] = None,
+        content_collection_workflow: Optional[WebContentCollectionWorkflow] = None,
+        extraction_support_workflow: Optional["WebExtractionSupportWorkflow"] = None,
     ) -> None:
         self._content_collection_workflow = (
-            content_collection_workflow or _WebContentCollectionWorkflow()
+            content_collection_workflow or WebContentCollectionWorkflow()
         )
         self._extraction_support_workflow = (
-            extraction_support_workflow or _WebExtractionSupportWorkflow()
+            extraction_support_workflow or WebExtractionSupportWorkflow()
         )
 
     def now_iso(self) -> str:
@@ -1253,10 +1245,10 @@ class _WebExtractionEnrichmentRuntime:
         return self._extraction_support_workflow.normalizar_dados_de_metadados(metadata)
 
 
-WebExtractionEnrichmentWorkflow = _WebExtractionEnrichmentWorkflow
+WebExtractionEnrichmentWorkflow = WebExtractionEnrichmentWorkflow
 
 
-class _WebURLExtractionEngineRuntime:
+class WebURLExtractionEngineRuntime:
     """Engine runtime OO para enriquecimento de produto por URL."""
 
     async def extract_relevant_data_from_url(
@@ -1265,12 +1257,12 @@ class _WebURLExtractionEngineRuntime:
         url: str,
         produto: models.Produto,
     ) -> models.Produto:
-        workflow = _WebExtractionEnrichmentWorkflow(db=db, url=url, produto=produto)
+        workflow = WebExtractionEnrichmentWorkflow(db=db, url=url, produto=produto)
         return await workflow.run()
 
 
-class _WebOCREngineRuntime:
-    """Engine runtime OO para OCR de regiÃƒÂ£o de imagem."""
+class WebOCREngineRuntime:
+    """Engine runtime OO para OCR de regiÃƒÆ’Ã‚Â£o de imagem."""
 
     def extract_text_from_image_region(self, image_bytes: bytes):
         try:
@@ -1279,7 +1271,7 @@ class _WebOCREngineRuntime:
             logger.exception("Google Cloud Vision not available")
             raise HTTPException(
                 status_code=500,
-                detail="Ocorreu um erro durante a extraÃƒÂ§ÃƒÂ£o de dados.",
+                detail="Ocorreu um erro durante a extraÃƒÆ’Ã‚Â§ÃƒÆ’Ã‚Â£o de dados.",
             ) from e
 
         try:
@@ -1295,12 +1287,12 @@ class _WebOCREngineRuntime:
             logger.exception("Falha ao extrair texto da imagem")
             raise HTTPException(
                 status_code=500,
-                detail="Ocorreu um erro durante a extraÃƒÂ§ÃƒÂ£o de dados.",
+                detail="Ocorreu um erro durante a extraÃƒÆ’Ã‚Â§ÃƒÆ’Ã‚Â£o de dados.",
             ) from e
 
 
-class _WebExtractionSupportRuntime:
-    """Runtime OO para utilitarios de extraÃƒÂ§ÃƒÂ£o web e OCR."""
+class WebExtractionSupportRuntime:
+    """Runtime OO para utilitarios de extraÃƒÆ’Ã‚Â§ÃƒÆ’Ã‚Â£o web e OCR."""
 
     RUNTIME_FIELDS = (
         "metadata_runtime",
@@ -1322,24 +1314,24 @@ class _WebExtractionSupportRuntime:
         self.enrichment_runtime = enrichment_runtime
         self.ocr_runtime = ocr_runtime
 
-    def apply_overrides(self, runtime: Any) -> "_WebExtractionSupportRuntime":
+    def apply_overrides(self, runtime: Any) -> "WebExtractionSupportRuntime":
         for field_name in self.RUNTIME_FIELDS:
             setattr(self, field_name, getattr(runtime, field_name, getattr(self, field_name)))
         return self
 
 
-class _WebExtractionSupportWorkflow:
-    """Workflow OO para utilitarios de extraÃƒÂ§ÃƒÂ£o web e OCR."""
+class WebExtractionSupportWorkflow:
+    """Workflow OO para utilitarios de extraÃƒÆ’Ã‚Â§ÃƒÆ’Ã‚Â£o web e OCR."""
 
     def __init__(
         self,
-        metadata_runtime: Optional[_MetadataExtractionRuntime] = None,
-        llm_runtime: Optional["_WebLLMExtractionRuntime"] = None,
-        enrichment_runtime: Optional["_WebURLExtractionRuntime"] = None,
-        ocr_runtime: Optional["_WebOCRRuntime"] = None,
+        metadata_runtime: Optional[MetadataExtractionRuntime] = None,
+        llm_runtime: Optional["WebLLMExtractionRuntime"] = None,
+        enrichment_runtime: Optional["WebURLExtractionRuntime"] = None,
+        ocr_runtime: Optional["WebOCRRuntime"] = None,
         runtime: Optional[Any] = None,
     ) -> None:
-        runtime_obj = _WebExtractionSupportRuntime(
+        runtime_obj = WebExtractionSupportRuntime(
             metadata_runtime=metadata_runtime,
             llm_runtime=llm_runtime,
             enrichment_runtime=enrichment_runtime,
@@ -1349,10 +1341,10 @@ class _WebExtractionSupportWorkflow:
             runtime_obj.apply_overrides(runtime)
 
         self._runtime = runtime_obj
-        self._metadata_runtime = runtime_obj.metadata_runtime or _MetadataExtractionRuntime()
-        self._llm_runtime = runtime_obj.llm_runtime or _WebLLMExtractionRuntime()
-        self._enrichment_runtime = runtime_obj.enrichment_runtime or _WebURLExtractionRuntime()
-        self._ocr_runtime = runtime_obj.ocr_runtime or _WebOCRRuntime()
+        self._metadata_runtime = runtime_obj.metadata_runtime or MetadataExtractionRuntime()
+        self._llm_runtime = runtime_obj.llm_runtime or WebLLMExtractionRuntime()
+        self._enrichment_runtime = runtime_obj.enrichment_runtime or WebURLExtractionRuntime()
+        self._ocr_runtime = runtime_obj.ocr_runtime or WebOCRRuntime()
 
     def extrair_texto_principal_com_trafilatura(
         self, html_content: str
@@ -1407,14 +1399,14 @@ class _WebExtractionSupportWorkflow:
         )
 
 
-class _WebLLMExtractionRuntime:
-    """Runtime OO para extraÃƒÂ§ÃƒÂ£o de dados de produto via LLM."""
+class WebLLMExtractionRuntime:
+    """Runtime OO para extraÃƒÆ’Ã‚Â§ÃƒÆ’Ã‚Â£o de dados de produto via LLM."""
 
     def __init__(
         self,
-        engine_runtime: Optional[_WebLLMExtractionEngineRuntime] = None,
+        engine_runtime: Optional[WebLLMExtractionEngineRuntime] = None,
     ) -> None:
-        self._engine_runtime = engine_runtime or _WebLLMExtractionEngineRuntime()
+        self._engine_runtime = engine_runtime or WebLLMExtractionEngineRuntime()
 
     async def extrair_dados_produto_com_llm(
         self,
@@ -1433,14 +1425,14 @@ class _WebLLMExtractionRuntime:
         )
 
 
-class _WebURLExtractionRuntime:
+class WebURLExtractionRuntime:
     """Runtime OO para enriquecimento de produto por URL."""
 
     def __init__(
         self,
-        engine_runtime: Optional[_WebURLExtractionEngineRuntime] = None,
+        engine_runtime: Optional[WebURLExtractionEngineRuntime] = None,
     ) -> None:
-        self._engine_runtime = engine_runtime or _WebURLExtractionEngineRuntime()
+        self._engine_runtime = engine_runtime or WebURLExtractionEngineRuntime()
 
     async def extract_relevant_data_from_url(
         self,
@@ -1455,23 +1447,19 @@ class _WebURLExtractionRuntime:
         )
 
 
-class _WebOCRRuntime:
-    """Runtime OO para OCR de regiÃƒÂ£o de imagem."""
+class WebOCRRuntime:
+    """Runtime OO para OCR de regiÃƒÆ’Ã‚Â£o de imagem."""
 
     def __init__(
         self,
-        engine_runtime: Optional[_WebOCREngineRuntime] = None,
+        engine_runtime: Optional[WebOCREngineRuntime] = None,
     ) -> None:
-        self._engine_runtime = engine_runtime or _WebOCREngineRuntime()
+        self._engine_runtime = engine_runtime or WebOCREngineRuntime()
 
     def extract_text_from_image_region(self, image_bytes: bytes):
         return self._engine_runtime.extract_text_from_image_region(
             image_bytes=image_bytes
         )
-
-
-class WebExtractionSupportWorkflow(_WebExtractionSupportWorkflow):
-    pass
 
 
 class WebDataExtractorRuntime:
@@ -1480,68 +1468,68 @@ class WebDataExtractorRuntime:
     def __init__(
         self,
         *,
-        search_engine_runtime: Optional[_WebSearchEngineRuntime] = None,
-        content_fetch_engine_runtime: Optional[_WebContentFetchEngineRuntime] = None,
-        metadata_extraction_runtime: Optional[_MetadataExtractionRuntime] = None,
-        llm_extraction_engine_runtime: Optional[_WebLLMExtractionEngineRuntime] = None,
-        url_extraction_engine_runtime: Optional[_WebURLExtractionEngineRuntime] = None,
-        ocr_engine_runtime: Optional[_WebOCREngineRuntime] = None,
-        search_workflow: Optional[_WebSearchWorkflow] = None,
-        content_collection_workflow: Optional[_WebContentCollectionWorkflow] = None,
-        extraction_support_workflow: Optional[_WebExtractionSupportWorkflow] = None,
+        search_engine_runtime: Optional[WebSearchEngineRuntime] = None,
+        content_fetch_engine_runtime: Optional[WebContentFetchEngineRuntime] = None,
+        metadata_extraction_runtime: Optional[MetadataExtractionRuntime] = None,
+        llm_extraction_engine_runtime: Optional[WebLLMExtractionEngineRuntime] = None,
+        url_extraction_engine_runtime: Optional[WebURLExtractionEngineRuntime] = None,
+        ocr_engine_runtime: Optional[WebOCREngineRuntime] = None,
+        search_workflow: Optional[WebSearchWorkflow] = None,
+        content_collection_workflow: Optional[WebContentCollectionWorkflow] = None,
+        extraction_support_workflow: Optional[WebExtractionSupportWorkflow] = None,
         playwright_chromium_indisponivel: bool = False,
     ) -> None:
-        self._search_engine_runtime = search_engine_runtime or _WebSearchEngineRuntime()
+        self._search_engine_runtime = search_engine_runtime or WebSearchEngineRuntime()
         self._content_fetch_engine_runtime = (
             content_fetch_engine_runtime
-            or _WebContentFetchEngineRuntime(search_runtime=self._search_engine_runtime)
+            or WebContentFetchEngineRuntime(search_runtime=self._search_engine_runtime)
         )
         self._metadata_extraction_runtime = (
-            metadata_extraction_runtime or _MetadataExtractionRuntime()
+            metadata_extraction_runtime or MetadataExtractionRuntime()
         )
         self._llm_extraction_engine_runtime = (
-            llm_extraction_engine_runtime or _WebLLMExtractionEngineRuntime()
+            llm_extraction_engine_runtime or WebLLMExtractionEngineRuntime()
         )
         self._url_extraction_engine_runtime = (
-            url_extraction_engine_runtime or _WebURLExtractionEngineRuntime()
+            url_extraction_engine_runtime or WebURLExtractionEngineRuntime()
         )
-        self._ocr_engine_runtime = ocr_engine_runtime or _WebOCREngineRuntime()
+        self._ocr_engine_runtime = ocr_engine_runtime or WebOCREngineRuntime()
 
-        self._search_workflow = search_workflow or _WebSearchWorkflow(
-            runtime=_WebSearchRuntime(engine_runtime=self._search_engine_runtime)
+        self._search_workflow = search_workflow or WebSearchWorkflow(
+            runtime=WebSearchRuntime(engine_runtime=self._search_engine_runtime)
         )
         self._content_collection_workflow = (
             content_collection_workflow
-            or _WebContentCollectionWorkflow(
-                runtime=_WebContentCollectionRuntime(
+            or WebContentCollectionWorkflow(
+                runtime=WebContentCollectionRuntime(
                     engine_runtime=self._content_fetch_engine_runtime
                 )
             )
         )
-        self._extraction_support_workflow = extraction_support_workflow or _WebExtractionSupportWorkflow(
+        self._extraction_support_workflow = extraction_support_workflow or WebExtractionSupportWorkflow(
             metadata_runtime=self._metadata_extraction_runtime,
-            llm_runtime=_WebLLMExtractionRuntime(
+            llm_runtime=WebLLMExtractionRuntime(
                 engine_runtime=self._llm_extraction_engine_runtime
             ),
-            enrichment_runtime=_WebURLExtractionRuntime(
+            enrichment_runtime=WebURLExtractionRuntime(
                 engine_runtime=self._url_extraction_engine_runtime
             ),
-            ocr_runtime=_WebOCRRuntime(engine_runtime=self._ocr_engine_runtime),
+            ocr_runtime=WebOCRRuntime(engine_runtime=self._ocr_engine_runtime),
         )
         self._content_fetch_engine_runtime.set_playwright_chromium_indisponivel(
             playwright_chromium_indisponivel
         )
 
     @property
-    def search_workflow(self) -> _WebSearchWorkflow:
+    def search_workflow(self) -> WebSearchWorkflow:
         return self._search_workflow
 
     @property
-    def content_collection_workflow(self) -> _WebContentCollectionWorkflow:
+    def content_collection_workflow(self) -> WebContentCollectionWorkflow:
         return self._content_collection_workflow
 
     @property
-    def extraction_support_workflow(self) -> _WebExtractionSupportWorkflow:
+    def extraction_support_workflow(self) -> WebExtractionSupportWorkflow:
         return self._extraction_support_workflow
 
     def busca_publica_disponivel(self) -> bool:
@@ -1587,3 +1575,4 @@ class WebDataExtractorRuntime:
         return self._extraction_support_workflow.extract_text_from_image_region(
             *args, **kwargs
         )
+

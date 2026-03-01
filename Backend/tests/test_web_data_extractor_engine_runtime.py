@@ -1,4 +1,4 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
 import pytest
 
@@ -20,7 +20,7 @@ class _TopLevelFunctionSurface:
                 calls.append(("google", query, num_results))
                 return ["https://example.com/google"]
     
-        runtime = web_extractor._WebSearchRuntime(engine_runtime=FakeEngine())
+        runtime = web_extractor.WebSearchRuntime(engine_runtime=FakeEngine())
     
         public_urls = await runtime.buscar_urls_publicas_async(
             query="peca",
@@ -44,7 +44,7 @@ class _TopLevelFunctionSurface:
                 calls.append(url)
                 return "<html>ok</html>"
     
-        runtime = web_extractor._WebContentCollectionRuntime(engine_runtime=FakeEngine())
+        runtime = web_extractor.WebContentCollectionRuntime(engine_runtime=FakeEngine())
     
         html = await runtime.coletar_conteudo_pagina_playwright("https://example.com/p")
     
@@ -84,8 +84,8 @@ class _TopLevelFunctionSurface:
             def normalizar_url_busca(self, candidata: str, base_url: str):
                 return f"{base_url}|{candidata}"
     
-        runtime = web_extractor._WebSearchRuntime(engine_runtime=FakeSearchEngine())
-        workflow = web_extractor._WebSearchWorkflow(runtime=runtime)
+        runtime = web_extractor.WebSearchRuntime(engine_runtime=FakeSearchEngine())
+        workflow = web_extractor.WebSearchWorkflow(runtime=runtime)
     
         assert workflow.busca_publica_disponivel() is False
         assert workflow.url_deve_ser_ignorada_antes_da_coleta("x.tmp") is True
@@ -100,7 +100,7 @@ class _TopLevelFunctionSurface:
                 called.update(kwargs)
                 return {"nome_base": "Produto X"}
     
-        runtime = web_extractor._WebLLMExtractionRuntime(engine_runtime=FakeEngine())
+        runtime = web_extractor.WebLLMExtractionRuntime(engine_runtime=FakeEngine())
         result = await runtime.extrair_dados_produto_com_llm(
             texto_pagina="texto",
             produto_nome_base="Produto X",
@@ -118,7 +118,7 @@ class _TopLevelFunctionSurface:
                 called.update(kwargs)
                 return kwargs["produto"]
     
-        runtime = web_extractor._WebURLExtractionRuntime(engine_runtime=FakeEngine())
+        runtime = web_extractor.WebURLExtractionRuntime(engine_runtime=FakeEngine())
         produto = object()
         returned = await runtime.extract_relevant_data_from_url(
             db="db",
@@ -137,7 +137,7 @@ class _TopLevelFunctionSurface:
                 called["image_bytes"] = image_bytes
                 return {"text": "ok"}
     
-        runtime = web_extractor._WebOCRRuntime(engine_runtime=FakeEngine())
+        runtime = web_extractor.WebOCRRuntime(engine_runtime=FakeEngine())
         result = runtime.extract_text_from_image_region(b"img")
     
         assert result == {"text": "ok"}
@@ -149,6 +149,7 @@ test_search_runtime_helpers_delegam_para_engine_runtime = _TopLevelFunctionSurfa
 test_web_llm_runtime_delega_para_engine_runtime = _TopLevelFunctionSurface.test_web_llm_runtime_delega_para_engine_runtime
 test_web_url_runtime_delega_para_engine_runtime = _TopLevelFunctionSurface.test_web_url_runtime_delega_para_engine_runtime
 test_web_ocr_runtime_delega_para_engine_runtime = _TopLevelFunctionSurface.test_web_ocr_runtime_delega_para_engine_runtime
+
 
 
 

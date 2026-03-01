@@ -1,4 +1,4 @@
-import pytest
+﻿import pytest
 
 from Backend.testing.runtime_apis import file_processing
 
@@ -7,7 +7,7 @@ class _TopLevelFunctionSurface:
 
     @pytest.mark.asyncio
     async def test_pdf_preview_runtime_retorna_erro_sem_poppler(monkeypatch):
-        runtime = file_processing._PdfPreviewRuntime()
+        runtime = file_processing.PdfPreviewRuntime()
         original_getenv = file_processing.os.getenv
     
         monkeypatch.setattr(
@@ -39,7 +39,7 @@ class _TopLevelFunctionSurface:
             return {"num_pages": 1, "preview_images": ["x"]}
     
         monkeypatch.setattr(
-            file_processing._PdfPreviewRuntime,
+            file_processing.PdfPreviewRuntime,
             "preview_arquivo_pdf",
             _fake_preview_arquivo_pdf,
         )
@@ -62,6 +62,7 @@ class _TopLevelFunctionSurface:
 
 test_pdf_preview_runtime_retorna_erro_sem_poppler = _TopLevelFunctionSurface.test_pdf_preview_runtime_retorna_erro_sem_poppler
 test_preview_pdf_impl_usa_runtime = _TopLevelFunctionSurface.test_preview_pdf_impl_usa_runtime
+
 
 
 

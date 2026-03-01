@@ -1,4 +1,4 @@
-import pandas as pd
+﻿import pandas as pd
 
 from Backend.testing.runtime_apis import file_processing
 
@@ -14,7 +14,7 @@ class _TopLevelFunctionSurface:
             return ["/static/previews/x/page-1.png"]
     
         monkeypatch.setattr(
-            file_processing._PdfAssetUtilityRuntime,
+            file_processing.PdfAssetUtilityRuntime,
             "generate_pdf_page_images",
             _fake_generate_pdf_page_images,
         )
@@ -37,7 +37,7 @@ class _TopLevelFunctionSurface:
             return b"img"
     
         monkeypatch.setattr(
-            file_processing._PdfAssetUtilityRuntime,
+            file_processing.PdfAssetUtilityRuntime,
             "extract_pdf_region_image",
             _fake_extract_pdf_region_image,
         )
@@ -65,7 +65,7 @@ class _TopLevelFunctionSurface:
             return expected_df
     
         monkeypatch.setattr(
-            file_processing._PdfAssetUtilityRuntime,
+            file_processing.PdfAssetUtilityRuntime,
             "parse_annotation_to_dataframe",
             _fake_parse_annotation_to_dataframe,
         )
@@ -83,6 +83,7 @@ class _TopLevelFunctionSurface:
 test_generate_pdf_page_images_impl_usa_runtime = _TopLevelFunctionSurface.test_generate_pdf_page_images_impl_usa_runtime
 test_extract_pdf_region_image_impl_usa_runtime = _TopLevelFunctionSurface.test_extract_pdf_region_image_impl_usa_runtime
 test_parse_annotation_to_dataframe_impl_usa_runtime = _TopLevelFunctionSurface.test_parse_annotation_to_dataframe_impl_usa_runtime
+
 
 
 

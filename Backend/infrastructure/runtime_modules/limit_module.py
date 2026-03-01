@@ -1,4 +1,4 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
 from typing import Any, Optional
 
@@ -13,7 +13,7 @@ from Backend.infrastructure.repositories.registro_uso_ia_repository import (
 from Backend.infrastructure.repositories.user_repository import UserRepository
 
 
-class _LimitRuntime:
+class LimitRuntime:
     """Runtime OO para regras de limite e credito."""
 
     def __init__(
@@ -125,13 +125,13 @@ class _LimitRuntime:
         if remaining <= 0:
             if tipo_geracao_principal == "descricao":
                 mensagem_limite = (
-                    f"Limite mensal de {limite_mensal} descrições atingido. "
-                    f"Você utilizou {usos_no_mes} e não possui descrições restantes."
+                    f"Limite mensal de {limite_mensal} descriÃ§Ãµes atingido. "
+                    f"VocÃª utilizou {usos_no_mes} e nÃ£o possui descriÃ§Ãµes restantes."
                 )
             else:
                 mensagem_limite = (
-                    f"Limite mensal de {limite_mensal} títulos atingido. "
-                    f"Você utilizou {usos_no_mes} e não possui títulos restantes."
+                    f"Limite mensal de {limite_mensal} tÃ­tulos atingido. "
+                    f"VocÃª utilizou {usos_no_mes} e nÃ£o possui tÃ­tulos restantes."
                 )
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
@@ -194,11 +194,11 @@ class _LimitRuntime:
         )
 
 
-class _LimitWorkflow:
+class LimitWorkflow:
     """Workflow OO para regras de limite e credito."""
 
-    def __init__(self, runtime: Optional[_LimitRuntime] = None) -> None:
-        self._runtime = runtime or _LimitRuntime(
+    def __init__(self, runtime: Optional[LimitRuntime] = None) -> None:
+        self._runtime = runtime or LimitRuntime(
             uso_ia_workflow=lambda db: RegistroUsoIARepository(db),
             user_workflow=lambda db: UserRepository(db),
             logger_factory=get_logger,
@@ -239,11 +239,6 @@ class _LimitWorkflow:
             user_id=user_id,
             creditos_necessarios=creditos_necessarios,
         )
-
-
-class LimitWorkflow(_LimitWorkflow):
-    pass
-
 
 
 

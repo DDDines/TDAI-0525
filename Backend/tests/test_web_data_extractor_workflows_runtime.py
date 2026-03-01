@@ -1,4 +1,4 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
 from types import SimpleNamespace
 
@@ -22,7 +22,7 @@ class _TopLevelFunctionSurface:
                 called.append(("google", query, num_results))
                 return ["https://example.com/google"]
     
-        workflow = web_extractor._WebSearchWorkflow(runtime=FakeSearchRuntime())
+        workflow = web_extractor.WebSearchWorkflow(runtime=FakeSearchRuntime())
     
         public_urls = await workflow.buscar_urls_publicas("peca automotiva", 2)
         google_urls = await workflow.buscar_urls_google("peca automotiva", 1)
@@ -43,7 +43,7 @@ class _TopLevelFunctionSurface:
                 called["url"] = url
                 return "<html><body>ok</body></html>"
     
-        workflow = web_extractor._WebContentCollectionWorkflow(
+        workflow = web_extractor.WebContentCollectionWorkflow(
             runtime=FakeContentRuntime()
         )
         html = await workflow.coletar_conteudo_pagina_playwright("https://example.com/p")
@@ -83,7 +83,7 @@ class _TopLevelFunctionSurface:
                 calls["ocr"] = image_bytes
                 return {"text": "anotacao"}
     
-        workflow = web_extractor._WebExtractionSupportWorkflow(
+        workflow = web_extractor.WebExtractionSupportWorkflow(
             metadata_runtime=FakeMetadataRuntime(),
             llm_runtime=FakeLLMRuntime(),
             enrichment_runtime=FakeURLRuntime(),
@@ -128,6 +128,7 @@ class _TopLevelFunctionSurface:
 test_web_search_workflow_usa_runtime_injetado = _TopLevelFunctionSurface.test_web_search_workflow_usa_runtime_injetado
 test_web_content_workflow_usa_runtime_injetado = _TopLevelFunctionSurface.test_web_content_workflow_usa_runtime_injetado
 test_web_extraction_support_workflow_usa_runtimes_injetados = _TopLevelFunctionSurface.test_web_extraction_support_workflow_usa_runtimes_injetados
+
 
 
 

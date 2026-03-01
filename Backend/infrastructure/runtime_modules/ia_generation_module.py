@@ -1,6 +1,6 @@
-# Backend/infrastructure/runtime_modules/ia_generation_module.py
+﻿# Backend/infrastructure/runtime_modules/ia_generation_module.py
 
-import httpx # Para chamadas HTTP assÃƒÂ­ncronas
+import httpx # Para chamadas HTTP assÃƒÆ’Ã‚Â­ncronas
 import json
 from typing import List, Dict, Any, Optional
 from sqlalchemy.orm import Session
@@ -16,25 +16,25 @@ from Backend.infrastructure.repositories.registro_uso_ia_repository import (
     RegistroUsoIARepository,
 )
 
-# ConfiguraÃƒÂ§ÃƒÂ£o do logger
+# ConfiguraÃƒÆ’Ã‚Â§ÃƒÆ’Ã‚Â£o do logger
 logger = logging.getLogger(__name__)
 
 # --- Constantes para OpenAI (Exemplo, idealmente viriam de settings) ---
 OPENAI_API_URL_COMPLETIONS = "https://api.openai.com/v1/chat/completions"
-OPENAI_DEFAULT_MODEL = "gpt-3.5-turbo" # Ou o modelo que vocÃƒÂª preferir/tiver acesso
+OPENAI_DEFAULT_MODEL = "gpt-3.5-turbo" # Ou o modelo que vocÃƒÆ’Ã‚Âª preferir/tiver acesso
 
 # --- Constantes para Gemini (Exemplo, idealmente viriam de settings) ---
-# AtenÃƒÂ§ÃƒÂ£o: Verifique a URL correta e o modelo exato para a sua necessidade.
-# Modelos "flash" sÃƒÂ£o mais rÃƒÂ¡pidos e baratos, "pro" sÃƒÂ£o mais capazes.
-# gemini-1.5-flash-latest ou gemini-1.5-pro-latest ou um especÃƒÂ­fico como gemini-1.0-pro
+# AtenÃƒÆ’Ã‚Â§ÃƒÆ’Ã‚Â£o: Verifique a URL correta e o modelo exato para a sua necessidade.
+# Modelos "flash" sÃƒÆ’Ã‚Â£o mais rÃƒÆ’Ã‚Â¡pidos e baratos, "pro" sÃƒÆ’Ã‚Â£o mais capazes.
+# gemini-1.5-flash-latest ou gemini-1.5-pro-latest ou um especÃƒÆ’Ã‚Â­fico como gemini-1.0-pro
 GEMINI_API_URL_GENERATE_CONTENT = "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent"
 
 
-class _AiProviderWorkflow:
-    """Workflow OO para operaÃƒÂ§ÃƒÂµes de provedor IA (chaves e chamadas HTTP)."""
+class AiProviderWorkflow:
+    """Workflow OO para operaÃƒÆ’Ã‚Â§ÃƒÆ’Ã‚Âµes de provedor IA (chaves e chamadas HTTP)."""
 
-    def __init__(self, runtime: Optional["_AiProviderRuntime"] = None) -> None:
-        self._runtime = runtime or _AiProviderRuntime()
+    def __init__(self, runtime: Optional["AiProviderRuntime"] = None) -> None:
+        self._runtime = runtime or AiProviderRuntime()
 
     async def get_openai_api_key(self, db: Session, user: models.User) -> Optional[str]:
         return await self._runtime.get_openai_api_key(db=db, user=user)
@@ -89,14 +89,14 @@ class _AiProviderWorkflow:
         )
 
 
-class _AiProviderRuntime:
+class AiProviderRuntime:
     """Runtime OO para integracoes com provedores IA."""
 
     async def get_openai_api_key(
         self, db: Session, user: models.User
     ) -> Optional[str]:
         if user.chave_openai_pessoal:
-            logger.info(f"Usando chave OpenAI pessoal para usuÃƒÆ’Ã‚Â¡rio ID: {user.id}")
+            logger.info(f"Usando chave OpenAI pessoal para usuÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¡rio ID: {user.id}")
             return user.chave_openai_pessoal
         if settings.OPENAI_API_KEY:
             logger.info("Usando chave OpenAI global do sistema.")
@@ -108,7 +108,7 @@ class _AiProviderRuntime:
         self, db: Session, user: models.User
     ) -> Optional[str]:
         if user.chave_google_gemini_pessoal:
-            logger.info(f"Usando chave Gemini pessoal para usuÃƒÆ’Ã‚Â¡rio ID: {user.id}")
+            logger.info(f"Usando chave Gemini pessoal para usuÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¡rio ID: {user.id}")
             return user.chave_google_gemini_pessoal
 
         if settings.GOOGLE_GEMINI_API_KEY:
@@ -129,7 +129,7 @@ class _AiProviderRuntime:
         if not api_key:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Chave da API OpenAI nÃƒÆ’Ã‚Â£o configurada.",
+                detail="Chave da API OpenAI nÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o configurada.",
             )
 
         headers = {
@@ -145,7 +145,7 @@ class _AiProviderRuntime:
         async with httpx.AsyncClient(timeout=60.0) as client:
             try:
                 logger.info(
-                    f"Chamando OpenAI API. Modelo: {model}, Tokens MÃƒÆ’Ã‚Â¡x: {max_tokens}, Temp: {temperature}"
+                    f"Chamando OpenAI API. Modelo: {model}, Tokens MÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¡x: {max_tokens}, Temp: {temperature}"
                 )
                 response = await client.post(
                     OPENAI_API_URL_COMPLETIONS,
@@ -160,7 +160,7 @@ class _AiProviderRuntime:
                     return content.strip()
 
                 logger.error(
-                    "Resposta da API OpenAI nÃƒÆ’Ã‚Â£o contÃƒÆ’Ã‚Â©m 'choices' ou 'choices' estÃƒÆ’Ã‚Â¡ vazio: %s",
+                    "Resposta da API OpenAI nÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o contÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©m 'choices' ou 'choices' estÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¡ vazio: %s",
                     api_response_data,
                 )
                 raise HTTPException(
@@ -193,7 +193,7 @@ class _AiProviderRuntime:
         if not api_key:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Chave da API Gemini nÃƒÆ’Ã‚Â£o configurada.",
+                detail="Chave da API Gemini nÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o configurada.",
             )
 
         gemini_api_endpoint = (
@@ -236,10 +236,10 @@ class _AiProviderRuntime:
                         )
                         raise HTTPException(
                             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                            detail="Resposta da API Gemini nÃƒÆ’Ã‚Â£o ÃƒÆ’Ã‚Â© um JSON vÃƒÆ’Ã‚Â¡lido.",
+                            detail="Resposta da API Gemini nÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â© um JSON vÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¡lido.",
                         )
 
-                error_detail = "Resposta da API Gemini nÃƒÆ’Ã‚Â£o contÃƒÆ’Ã‚Â©m o conteÃƒÆ’Ã‚Âºdo esperado."
+                error_detail = "Resposta da API Gemini nÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o contÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©m o conteÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Âºdo esperado."
                 if api_response_data.get("promptFeedback"):
                     error_detail += f" Feedback do prompt: {api_response_data['promptFeedback']}"
                 logger.error(
@@ -284,7 +284,7 @@ class _AiProviderRuntime:
         if not api_key:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Chave da API Gemini nÃƒÆ’Ã‚Â£o configurada.",
+                detail="Chave da API Gemini nÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o configurada.",
             )
 
         endpoint = f"https://generativelanguage.googleapis.com/v1beta/models/{model_name}:generateContent"
@@ -329,16 +329,12 @@ class _AiProviderRuntime:
                 )
 
 
-class AiProviderWorkflow(_AiProviderWorkflow):
-    pass
+# --- NOVA FUNÃƒÆ’Ã¢â‚¬Â¡ÃƒÆ’Ã†â€™O PARA SUGESTÃƒÆ’Ã¢â‚¬Â¢ES GEMINI ---
+class IAGenerationWorkflow:
+    """Workflow OO para operaÃƒÆ’Ã‚Â§ÃƒÆ’Ã‚Âµes de geraÃƒÆ’Ã‚Â§ÃƒÆ’Ã‚Â£o de conteÃƒÆ’Ã‚Âºdo IA."""
 
-
-# --- NOVA FUNÃƒâ€¡ÃƒÆ’O PARA SUGESTÃƒâ€¢ES GEMINI ---
-class _IAGenerationWorkflow:
-    """Workflow OO para operaÃƒÂ§ÃƒÂµes de geraÃƒÂ§ÃƒÂ£o de conteÃƒÂºdo IA."""
-
-    def __init__(self, runtime: Optional["_IAGenerationRuntime"] = None) -> None:
-        self._runtime = runtime or _IAGenerationRuntime()
+    def __init__(self, runtime: Optional["IAGenerationRuntime"] = None) -> None:
+        self._runtime = runtime or IAGenerationRuntime()
 
     async def gerar_titulos_com_openai(
         self, db: Session, produto_id: int, user: models.User, num_titulos: int = 3
@@ -401,7 +397,7 @@ class _IAGenerationWorkflow:
         )
 
 
-class _IAGenerationRuntime:
+class IAGenerationRuntime:
     """Runtime OO para operacoes de geracao de conteudo IA."""
 
     async def gerar_titulos_com_openai(
@@ -465,30 +461,30 @@ class _IAGenerationRuntime:
         )
 
     @staticmethod
-    def _get_ai_provider_workflow() -> _AiProviderWorkflow:
-        return _AiProviderWorkflow(runtime=_AiProviderRuntime())
+    def _get_ai_provider_workflow() -> AiProviderWorkflow:
+        return AiProviderWorkflow(runtime=AiProviderRuntime())
 
     async def _gerar_titulos_com_openai_impl(self, db: Session, produto_id: int, user: models.User, num_titulos: int = 3) -> List[str]:
-        # ... (cÃƒÂ³digo existente para gerar tÃƒÂ­tulos com OpenAI - manter como estÃƒÂ¡)
+        # ... (cÃƒÆ’Ã‚Â³digo existente para gerar tÃƒÆ’Ã‚Â­tulos com OpenAI - manter como estÃƒÆ’Ã‚Â¡)
         # Apenas garanta que ele use get_openai_api_key e registre o uso corretamente
-        logger.info(f"Iniciando geraÃƒÂ§ÃƒÂ£o de tÃƒÂ­tulos para produto ID {produto_id} pelo usuÃƒÂ¡rio ID {user.id}")
-        # ... (restante da lÃƒÂ³gica existente) ...
-        # Exemplo de adaptaÃƒÂ§ÃƒÂ£o mÃƒÂ­nima:
+        logger.info(f"Iniciando geraÃƒÆ’Ã‚Â§ÃƒÆ’Ã‚Â£o de tÃƒÆ’Ã‚Â­tulos para produto ID {produto_id} pelo usuÃƒÆ’Ã‚Â¡rio ID {user.id}")
+        # ... (restante da lÃƒÆ’Ã‚Â³gica existente) ...
+        # Exemplo de adaptaÃƒÆ’Ã‚Â§ÃƒÆ’Ã‚Â£o mÃƒÆ’Ã‚Â­nima:
         ai_provider_workflow = self._get_ai_provider_workflow()
         api_key = await ai_provider_workflow.get_openai_api_key(db=db, user=user)
         if not api_key:
-            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Chave da API OpenAI nÃƒÂ£o disponÃƒÂ­vel.")
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Chave da API OpenAI nÃƒÆ’Ã‚Â£o disponÃƒÆ’Ã‚Â­vel.")
     
-        # ... (construÃƒÂ§ÃƒÂ£o do prompt e chamada ÃƒÂ  API OpenAI) ...
+        # ... (construÃƒÆ’Ã‚Â§ÃƒÆ’Ã‚Â£o do prompt e chamada ÃƒÆ’Ã‚Â  API OpenAI) ...
         # ... (registro do uso com crud.create_registro_uso_ia) ...
-        # Este cÃƒÂ³digo ÃƒÂ© apenas um placeholder, o seu cÃƒÂ³digo original para esta funÃƒÂ§ÃƒÂ£o deve ser mantido e adaptado.
+        # Este cÃƒÆ’Ã‚Â³digo ÃƒÆ’Ã‚Â© apenas um placeholder, o seu cÃƒÆ’Ã‚Â³digo original para esta funÃƒÆ’Ã‚Â§ÃƒÆ’Ã‚Â£o deve ser mantido e adaptado.
         db_produto = ProductRepository(db).get_produto(produto_id=produto_id)
         if not db_produto:
-            raise HTTPException(status_code=404, detail="Produto nÃƒÂ£o encontrado")
+            raise HTTPException(status_code=404, detail="Produto nÃƒÆ’Ã‚Â£o encontrado")
     
         prompt_messages = [
-            {"role": "system", "content": f"VocÃƒÂª ÃƒÂ© um especialista em copywriting para e-commerce. Gere {num_titulos} opÃƒÂ§ÃƒÂµes de tÃƒÂ­tulos curtos, atraentes e otimizados para SEO para o produto a seguir."},
-            {"role": "user", "content": f"Produto: {db_produto.nome_base}. DescriÃƒÂ§ÃƒÂ£o: {db_produto.descricao_original or db_produto.descricao_chat_api or ''}. Marca: {db_produto.marca or ''}."}
+            {"role": "system", "content": f"VocÃƒÆ’Ã‚Âª ÃƒÆ’Ã‚Â© um especialista em copywriting para e-commerce. Gere {num_titulos} opÃƒÆ’Ã‚Â§ÃƒÆ’Ã‚Âµes de tÃƒÆ’Ã‚Â­tulos curtos, atraentes e otimizados para SEO para o produto a seguir."},
+            {"role": "user", "content": f"Produto: {db_produto.nome_base}. DescriÃƒÆ’Ã‚Â§ÃƒÆ’Ã‚Â£o: {db_produto.descricao_original or db_produto.descricao_chat_api or ''}. Marca: {db_produto.marca or ''}."}
         ]
         
         titulos_str = await ai_provider_workflow.call_openai_api(
@@ -500,28 +496,28 @@ class _IAGenerationRuntime:
     
         RegistroUsoIARepository(db).create_registro_uso_ia(registro_uso=schemas.RegistroUsoIACreate(
             user_id=user.id, produto_id=produto_id, tipo_acao=models.TipoAcaoEnum.CRIACAO_TITULO_PRODUTO,
-            provedor_ia="openai", modelo_ia=OPENAI_DEFAULT_MODEL, creditos_consumidos=1 # Ajustar crÃƒÂ©ditos
+            provedor_ia="openai", modelo_ia=OPENAI_DEFAULT_MODEL, creditos_consumidos=1 # Ajustar crÃƒÆ’Ã‚Â©ditos
         ))
         return titulos_list[:num_titulos]
 
     async def _gerar_descricao_com_openai_impl(self, db: Session, produto_id: int, user: models.User, tamanho_palavras: int = 150) -> str:
-        # ... (cÃƒÂ³digo existente para gerar descriÃƒÂ§ÃƒÂ£o com OpenAI - manter como estÃƒÂ¡)
+        # ... (cÃƒÆ’Ã‚Â³digo existente para gerar descriÃƒÆ’Ã‚Â§ÃƒÆ’Ã‚Â£o com OpenAI - manter como estÃƒÆ’Ã‚Â¡)
         # Apenas garanta que ele use get_openai_api_key e registre o uso corretamente
-        logger.info(f"Iniciando geraÃƒÂ§ÃƒÂ£o de descriÃƒÂ§ÃƒÂ£o para produto ID {produto_id} pelo usuÃƒÂ¡rio ID {user.id}")
-        # ... (restante da lÃƒÂ³gica existente) ...
-        # Exemplo de adaptaÃƒÂ§ÃƒÂ£o mÃƒÂ­nima:
+        logger.info(f"Iniciando geraÃƒÆ’Ã‚Â§ÃƒÆ’Ã‚Â£o de descriÃƒÆ’Ã‚Â§ÃƒÆ’Ã‚Â£o para produto ID {produto_id} pelo usuÃƒÆ’Ã‚Â¡rio ID {user.id}")
+        # ... (restante da lÃƒÆ’Ã‚Â³gica existente) ...
+        # Exemplo de adaptaÃƒÆ’Ã‚Â§ÃƒÆ’Ã‚Â£o mÃƒÆ’Ã‚Â­nima:
         ai_provider_workflow = self._get_ai_provider_workflow()
         api_key = await ai_provider_workflow.get_openai_api_key(db=db, user=user)
         if not api_key:
-            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Chave da API OpenAI nÃƒÂ£o disponÃƒÂ­vel.")
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Chave da API OpenAI nÃƒÆ’Ã‚Â£o disponÃƒÆ’Ã‚Â­vel.")
             
         db_produto = ProductRepository(db).get_produto(produto_id=produto_id)
         if not db_produto:
-            raise HTTPException(status_code=404, detail="Produto nÃƒÂ£o encontrado")
+            raise HTTPException(status_code=404, detail="Produto nÃƒÆ’Ã‚Â£o encontrado")
     
         prompt_messages = [
-            {"role": "system", "content": f"VocÃƒÂª ÃƒÂ© um copywriter especialista em e-commerce. Crie uma descriÃƒÂ§ÃƒÂ£o de produto persuasiva e detalhada, com aproximadamente {tamanho_palavras} palavras, para o item a seguir. Destaque benefÃƒÂ­cios e caracterÃƒÂ­sticas chave."},
-            {"role": "user", "content": f"Produto: {db_produto.nome_base}. InformaÃƒÂ§ÃƒÂµes adicionais: {db_produto.descricao_original or ''}. Marca: {db_produto.marca or ''}. Modelo: {db_produto.modelo or ''}."}
+            {"role": "system", "content": f"VocÃƒÆ’Ã‚Âª ÃƒÆ’Ã‚Â© um copywriter especialista em e-commerce. Crie uma descriÃƒÆ’Ã‚Â§ÃƒÆ’Ã‚Â£o de produto persuasiva e detalhada, com aproximadamente {tamanho_palavras} palavras, para o item a seguir. Destaque benefÃƒÆ’Ã‚Â­cios e caracterÃƒÆ’Ã‚Â­sticas chave."},
+            {"role": "user", "content": f"Produto: {db_produto.nome_base}. InformaÃƒÆ’Ã‚Â§ÃƒÆ’Ã‚Âµes adicionais: {db_produto.descricao_original or ''}. Marca: {db_produto.marca or ''}. Modelo: {db_produto.modelo or ''}."}
         ]
         
         descricao = await ai_provider_workflow.call_openai_api(
@@ -532,26 +528,26 @@ class _IAGenerationRuntime:
     
         RegistroUsoIARepository(db).create_registro_uso_ia(registro_uso=schemas.RegistroUsoIACreate(
             user_id=user.id, produto_id=produto_id, tipo_acao=models.TipoAcaoEnum.CRIACAO_DESCRICAO_PRODUTO,
-            provedor_ia="openai", modelo_ia=OPENAI_DEFAULT_MODEL, creditos_consumidos=1 # Ajustar crÃƒÂ©ditos
+            provedor_ia="openai", modelo_ia=OPENAI_DEFAULT_MODEL, creditos_consumidos=1 # Ajustar crÃƒÆ’Ã‚Â©ditos
         ))
         return descricao
 
     async def _gerar_titulos_com_gemini_impl(self, db: Session, produto_id: int, user: models.User, num_titulos: int = 3) -> List[str]:
-        """Gera tÃƒÂ­tulos usando a API Gemini."""
-        logger.info(f"Iniciando geraÃƒÂ§ÃƒÂ£o de tÃƒÂ­tulos Gemini para produto ID {produto_id} pelo usuÃƒÂ¡rio ID {user.id}")
+        """Gera tÃƒÆ’Ã‚Â­tulos usando a API Gemini."""
+        logger.info(f"Iniciando geraÃƒÆ’Ã‚Â§ÃƒÆ’Ã‚Â£o de tÃƒÆ’Ã‚Â­tulos Gemini para produto ID {produto_id} pelo usuÃƒÆ’Ã‚Â¡rio ID {user.id}")
         ai_provider_workflow = self._get_ai_provider_workflow()
         api_key = await ai_provider_workflow.get_gemini_api_key(db=db, user=user)
         if not api_key:
-            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Chave da API Gemini nÃƒÂ£o disponÃƒÂ­vel.")
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Chave da API Gemini nÃƒÆ’Ã‚Â£o disponÃƒÆ’Ã‚Â­vel.")
     
         db_produto = ProductRepository(db).get_produto(produto_id=produto_id)
         if not db_produto:
-            raise HTTPException(status_code=404, detail="Produto nÃƒÂ£o encontrado")
+            raise HTTPException(status_code=404, detail="Produto nÃƒÆ’Ã‚Â£o encontrado")
     
         prompt_text = (
-            f"Crie {num_titulos} sugestÃƒÂµes de tÃƒÂ­tulos curtos e atrativos para o seguinte produto:\n"
+            f"Crie {num_titulos} sugestÃƒÆ’Ã‚Âµes de tÃƒÆ’Ã‚Â­tulos curtos e atrativos para o seguinte produto:\n"
             f"Nome: {db_produto.nome_base}\n"
-            f"DescriÃƒÂ§ÃƒÂ£o: {db_produto.descricao_original or db_produto.descricao_chat_api or ''}\n"
+            f"DescriÃƒÆ’Ã‚Â§ÃƒÆ’Ã‚Â£o: {db_produto.descricao_original or db_produto.descricao_chat_api or ''}\n"
             f"Marca: {db_produto.marca or ''}"
         )
     
@@ -573,21 +569,21 @@ class _IAGenerationRuntime:
         return titulos_list[:num_titulos]
 
     async def _gerar_descricao_com_gemini_impl(self, db: Session, produto_id: int, user: models.User, tamanho_palavras: int = 150) -> str:
-        """Gera descriÃƒÂ§ÃƒÂ£o usando a API Gemini."""
-        logger.info(f"Iniciando geraÃƒÂ§ÃƒÂ£o de descriÃƒÂ§ÃƒÂ£o Gemini para produto ID {produto_id} pelo usuÃƒÂ¡rio ID {user.id}")
+        """Gera descriÃƒÆ’Ã‚Â§ÃƒÆ’Ã‚Â£o usando a API Gemini."""
+        logger.info(f"Iniciando geraÃƒÆ’Ã‚Â§ÃƒÆ’Ã‚Â£o de descriÃƒÆ’Ã‚Â§ÃƒÆ’Ã‚Â£o Gemini para produto ID {produto_id} pelo usuÃƒÆ’Ã‚Â¡rio ID {user.id}")
         ai_provider_workflow = self._get_ai_provider_workflow()
         api_key = await ai_provider_workflow.get_gemini_api_key(db=db, user=user)
         if not api_key:
-            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Chave da API Gemini nÃƒÂ£o disponÃƒÂ­vel.")
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Chave da API Gemini nÃƒÆ’Ã‚Â£o disponÃƒÆ’Ã‚Â­vel.")
     
         db_produto = ProductRepository(db).get_produto(produto_id=produto_id)
         if not db_produto:
-            raise HTTPException(status_code=404, detail="Produto nÃƒÂ£o encontrado")
+            raise HTTPException(status_code=404, detail="Produto nÃƒÆ’Ã‚Â£o encontrado")
     
         prompt_text = (
-            f"Escreva uma descriÃƒÂ§ÃƒÂ£o de aproximadamente {tamanho_palavras} palavras para o seguinte produto:\n"
+            f"Escreva uma descriÃƒÆ’Ã‚Â§ÃƒÆ’Ã‚Â£o de aproximadamente {tamanho_palavras} palavras para o seguinte produto:\n"
             f"Nome: {db_produto.nome_base}\n"
-            f"InformaÃƒÂ§ÃƒÂµes adicionais: {db_produto.descricao_original or ''}\n"
+            f"InformaÃƒÆ’Ã‚Â§ÃƒÆ’Ã‚Âµes adicionais: {db_produto.descricao_original or ''}\n"
             f"Marca: {db_produto.marca or ''}\n"
             f"Modelo: {db_produto.modelo or ''}"
         )
@@ -614,44 +610,44 @@ class _IAGenerationRuntime:
         user: models.User
     ) -> schemas.SugestoesAtributosResponse:
         """
-        Gera sugestÃƒÂµes de valores para os atributos de um produto usando a API Gemini,
+        Gera sugestÃƒÆ’Ã‚Âµes de valores para os atributos de um produto usando a API Gemini,
         baseado nos AttributeTemplates do ProductType do produto.
         """
-        logger.info(f"Iniciando sugestÃƒÂ£o de atributos com Gemini para produto ID {produto_id} por usuÃƒÂ¡rio ID {user.id}")
+        logger.info(f"Iniciando sugestÃƒÆ’Ã‚Â£o de atributos com Gemini para produto ID {produto_id} por usuÃƒÆ’Ã‚Â¡rio ID {user.id}")
         
-        # 1. Verificar crÃƒÂ©ditos do usuÃƒÂ¡rio
-        creditos_necessarios = settings.CREDITOS_CUSTO_SUGESTAO_ATRIBUTOS_GEMINI if hasattr(settings, 'CREDITOS_CUSTO_SUGESTAO_ATRIBUTOS_GEMINI') else 1 # Custo padrÃƒÂ£o de 1 crÃƒÂ©dito
-        # A verificaÃƒÂ§ÃƒÂ£o de crÃƒÂ©dito foi movida para o router para uma resposta mais imediata ao usuÃƒÂ¡rio.
-        # No entanto, pode ser mantida aqui como uma segunda camada de seguranÃƒÂ§a.
+        # 1. Verificar crÃƒÆ’Ã‚Â©ditos do usuÃƒÆ’Ã‚Â¡rio
+        creditos_necessarios = settings.CREDITOS_CUSTO_SUGESTAO_ATRIBUTOS_GEMINI if hasattr(settings, 'CREDITOS_CUSTO_SUGESTAO_ATRIBUTOS_GEMINI') else 1 # Custo padrÃƒÆ’Ã‚Â£o de 1 crÃƒÆ’Ã‚Â©dito
+        # A verificaÃƒÆ’Ã‚Â§ÃƒÆ’Ã‚Â£o de crÃƒÆ’Ã‚Â©dito foi movida para o router para uma resposta mais imediata ao usuÃƒÆ’Ã‚Â¡rio.
+        # No entanto, pode ser mantida aqui como uma segunda camada de seguranÃƒÆ’Ã‚Â§a.
         # if not await limit_service.verificar_e_consumir_creditos_geracao_ia(db, user.id, creditos_necessarios):
-        #     logger.warning(f"UsuÃƒÂ¡rio ID {user.id} com crÃƒÂ©ditos insuficientes para sugestÃƒÂ£o de atributos (necessÃƒÂ¡rio: {creditos_necessarios}).")
+        #     logger.warning(f"UsuÃƒÆ’Ã‚Â¡rio ID {user.id} com crÃƒÆ’Ã‚Â©ditos insuficientes para sugestÃƒÆ’Ã‚Â£o de atributos (necessÃƒÆ’Ã‚Â¡rio: {creditos_necessarios}).")
         #     raise HTTPException(...)
     
         # 2. Buscar Produto e seus AttributeTemplates
         db_produto = ProductRepository(db).get_produto(produto_id=produto_id)
         if not db_produto:
-            logger.error(f"Produto ID {produto_id} nÃƒÂ£o encontrado para sugestÃƒÂ£o de atributos.")
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Produto nÃƒÂ£o encontrado")
+            logger.error(f"Produto ID {produto_id} nÃƒÆ’Ã‚Â£o encontrado para sugestÃƒÆ’Ã‚Â£o de atributos.")
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Produto nÃƒÆ’Ã‚Â£o encontrado")
         if db_produto.user_id != user.id and not user.is_superuser:
-            logger.warning(f"UsuÃƒÂ¡rio ID {user.id} nÃƒÂ£o autorizado a acessar produto ID {produto_id} para sugestÃƒÂ£o.")
-            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="NÃƒÂ£o autorizado a acessar este produto")
+            logger.warning(f"UsuÃƒÆ’Ã‚Â¡rio ID {user.id} nÃƒÆ’Ã‚Â£o autorizado a acessar produto ID {produto_id} para sugestÃƒÆ’Ã‚Â£o.")
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="NÃƒÆ’Ã‚Â£o autorizado a acessar este produto")
     
         chaves_para_sugerir = []
         if db_produto.product_type and db_produto.product_type.attribute_templates:
             chaves_para_sugerir = [attr.attribute_key for attr in db_produto.product_type.attribute_templates if attr.attribute_key]
         
         if not chaves_para_sugerir:
-            logger.info(f"Nenhum atributo definido no Tipo de Produto para produto ID {produto_id}. Retornando sugestÃƒÂµes vazias.")
+            logger.info(f"Nenhum atributo definido no Tipo de Produto para produto ID {produto_id}. Retornando sugestÃƒÆ’Ã‚Âµes vazias.")
             RegistroUsoIARepository(db).create_registro_uso_ia(registro_uso=schemas.RegistroUsoIACreate(
                 user_id=user.id, produto_id=produto_id, tipo_acao=models.TipoAcaoEnum.SUGESTAO_ATRIBUTOS_GEMINI,
-                provedor_ia="gemini", creditos_consumidos=0, status="INFO", # NÃƒÂ£o consumiu crÃƒÂ©ditos se nÃƒÂ£o houve chamada
-                detalhes_erro="Nenhum atributo definido no Tipo de Produto para gerar sugestÃƒÂµes."
+                provedor_ia="gemini", creditos_consumidos=0, status="INFO", # NÃƒÆ’Ã‚Â£o consumiu crÃƒÆ’Ã‚Â©ditos se nÃƒÆ’Ã‚Â£o houve chamada
+                detalhes_erro="Nenhum atributo definido no Tipo de Produto para gerar sugestÃƒÆ’Ã‚Âµes."
             ))
-            return schemas.SugestoesAtributosResponse(sugestoes_atributos=[], produto_id=produto_id, modelo_ia_utilizado="gemini (nÃƒÂ£o chamado)")
+            return schemas.SugestoesAtributosResponse(sugestoes_atributos=[], produto_id=produto_id, modelo_ia_utilizado="gemini (nÃƒÆ’Ã‚Â£o chamado)")
     
         # 3. Coletar Contexto do Produto
         contexto = f"Nome do Produto: {db_produto.nome_base or db_produto.nome_chat_api or 'N/A'}\n"
-        contexto += f"DescriÃƒÂ§ÃƒÂ£o: {db_produto.descricao_chat_api or db_produto.descricao_original or 'N/A'}\n"
+        contexto += f"DescriÃƒÆ’Ã‚Â§ÃƒÆ’Ã‚Â£o: {db_produto.descricao_chat_api or db_produto.descricao_original or 'N/A'}\n"
         if db_produto.marca: contexto += f"Marca: {db_produto.marca}\n"
         if db_produto.modelo: contexto += f"Modelo: {db_produto.modelo}\n"
         if db_produto.sku: contexto += f"SKU: {db_produto.sku}\n"
@@ -666,20 +662,20 @@ class _IAGenerationRuntime:
         if db_produto.dados_brutos_web and isinstance(db_produto.dados_brutos_web, dict):
             web_text = db_produto.dados_brutos_web.get("extracted_text_content", "") # Assumindo essa chave
             if web_text:
-                contexto += f"\nInformaÃƒÂ§ÃƒÂµes adicionais da web (primeiros 1000 caracteres):\n{str(web_text)[:1000]}...\n"
+                contexto += f"\nInformaÃƒÆ’Ã‚Â§ÃƒÆ’Ã‚Âµes adicionais da web (primeiros 1000 caracteres):\n{str(web_text)[:1000]}...\n"
     
         # 4. Construir Prompt para Gemini
         lista_chaves_str = "\n".join([f"- '{chave}'" for chave in chaves_para_sugerir])
         prompt_final = (
-            f"Analise as seguintes informaÃƒÂ§ÃƒÂµes sobre um produto:\n---\n{contexto}\n---\n\n"
-            f"Com base nesta anÃƒÂ¡lise, sugira valores apropriados para os seguintes atributos definidos (use as chaves exatamente como listadas):\n{lista_chaves_str}\n\n"
-            "Seu objetivo ÃƒÂ© preencher esses atributos com informaÃƒÂ§ÃƒÂµes relevantes e concisas inferidas do contexto fornecido.\n"
-            "Sua resposta DEVE ser um objeto JSON contendo uma ÃƒÂºnica chave 'sugestoes_atributos'.\n"
+            f"Analise as seguintes informaÃƒÆ’Ã‚Â§ÃƒÆ’Ã‚Âµes sobre um produto:\n---\n{contexto}\n---\n\n"
+            f"Com base nesta anÃƒÆ’Ã‚Â¡lise, sugira valores apropriados para os seguintes atributos definidos (use as chaves exatamente como listadas):\n{lista_chaves_str}\n\n"
+            "Seu objetivo ÃƒÆ’Ã‚Â© preencher esses atributos com informaÃƒÆ’Ã‚Â§ÃƒÆ’Ã‚Âµes relevantes e concisas inferidas do contexto fornecido.\n"
+            "Sua resposta DEVE ser um objeto JSON contendo uma ÃƒÆ’Ã‚Âºnica chave 'sugestoes_atributos'.\n"
             "O valor de 'sugestoes_atributos' deve ser uma lista de objetos.\n"
             "Cada objeto na lista deve ter duas chaves: 'chave_atributo' (que deve ser uma das chaves da lista que forneci: "
-            f"{lista_chaves_str}) e 'valor_sugerido' (a sua sugestÃƒÂ£o de valor para esse atributo).\n"
-            "Se vocÃƒÂª nÃƒÂ£o puder sugerir um valor para um atributo especÃƒÂ­fico com base nas informaÃƒÂ§ÃƒÂµes, pode omiti-lo da lista ou fornecer um valor como 'NÃƒÂ£o encontrado'.\n"
-            "NÃƒÂ£o inclua atributos na sua resposta que nÃƒÂ£o foram listados explicitamente."
+            f"{lista_chaves_str}) e 'valor_sugerido' (a sua sugestÃƒÆ’Ã‚Â£o de valor para esse atributo).\n"
+            "Se vocÃƒÆ’Ã‚Âª nÃƒÆ’Ã‚Â£o puder sugerir um valor para um atributo especÃƒÆ’Ã‚Â­fico com base nas informaÃƒÆ’Ã‚Â§ÃƒÆ’Ã‚Âµes, pode omiti-lo da lista ou fornecer um valor como 'NÃƒÆ’Ã‚Â£o encontrado'.\n"
+            "NÃƒÆ’Ã‚Â£o inclua atributos na sua resposta que nÃƒÆ’Ã‚Â£o foram listados explicitamente."
         )
     
         # 5. Definir o responseSchema esperado da Gemini
@@ -714,22 +710,22 @@ class _IAGenerationRuntime:
                 model_name=modelo_utilizado
             )
             
-            # Validar se a resposta da Gemini estÃƒÂ¡ no formato esperado (mesmo que ela tenha usado o schema)
+            # Validar se a resposta da Gemini estÃƒÆ’Ã‚Â¡ no formato esperado (mesmo que ela tenha usado o schema)
             if not isinstance(sugestoes_dict, dict) or "sugestoes_atributos" not in sugestoes_dict:
-                raise HTTPException(status_code=500, detail="Resposta da API Gemini em formato invÃƒÂ¡lido (esperava 'sugestoes_atributos').")
+                raise HTTPException(status_code=500, detail="Resposta da API Gemini em formato invÃƒÆ’Ã‚Â¡lido (esperava 'sugestoes_atributos').")
             if not isinstance(sugestoes_dict["sugestoes_atributos"], list):
-                 raise HTTPException(status_code=500, detail="Campo 'sugestoes_atributos' da API Gemini nÃƒÂ£o ÃƒÂ© uma lista.")
+                 raise HTTPException(status_code=500, detail="Campo 'sugestoes_atributos' da API Gemini nÃƒÆ’Ã‚Â£o ÃƒÆ’Ã‚Â© uma lista.")
     
-            # Filtrar sugestÃƒÂµes para incluir apenas chaves solicitadas e com valor nÃƒÂ£o vazio (opcional)
+            # Filtrar sugestÃƒÆ’Ã‚Âµes para incluir apenas chaves solicitadas e com valor nÃƒÆ’Ã‚Â£o vazio (opcional)
             sugestoes_finais = []
             for item_sugerido_dict in sugestoes_dict["sugestoes_atributos"]:
                 if not isinstance(item_sugerido_dict, dict) or "chave_atributo" not in item_sugerido_dict or "valor_sugerido" not in item_sugerido_dict:
-                    logger.warning(f"Aviso: Item de sugestÃƒÂ£o malformado da Gemini: {item_sugerido_dict}")
+                    logger.warning(f"Aviso: Item de sugestÃƒÆ’Ã‚Â£o malformado da Gemini: {item_sugerido_dict}")
                     continue
     
                 chave = item_sugerido_dict["chave_atributo"]
                 valor = item_sugerido_dict["valor_sugerido"]
-                if chave in chaves_para_sugerir and valor: # Garante que a chave ÃƒÂ© uma das solicitadas
+                if chave in chaves_para_sugerir and valor: # Garante que a chave ÃƒÆ’Ã‚Â© uma das solicitadas
                     sugestoes_finais.append(schemas.SugestaoAtributoItem(chave_atributo=chave, valor_sugerido=valor))
             
             # 7. Registrar Uso
@@ -746,7 +742,7 @@ class _IAGenerationRuntime:
                 modelo_ia_utilizado=modelo_utilizado
             )
     
-        except HTTPException as e: # Repassa HTTPExceptions de call_gemini_api_for_suggestions ou de verificaÃƒÂ§ÃƒÂµes
+        except HTTPException as e: # Repassa HTTPExceptions de call_gemini_api_for_suggestions ou de verificaÃƒÆ’Ã‚Â§ÃƒÆ’Ã‚Âµes
             RegistroUsoIARepository(db).create_registro_uso_ia(registro_uso=schemas.RegistroUsoIACreate(
                 user_id=user.id, produto_id=produto_id, tipo_acao=models.TipoAcaoEnum.SUGESTAO_ATRIBUTOS_GEMINI,
                 provedor_ia="gemini", modelo_ia=modelo_utilizado, creditos_consumidos=creditos_necessarios,
@@ -754,18 +750,14 @@ class _IAGenerationRuntime:
             ))
             raise e
         except Exception as e:
-            logger.error(f"Erro geral no serviÃƒÂ§o de sugestÃƒÂ£o Gemini: {str(e)}", exc_info=True)
+            logger.error(f"Erro geral no serviÃƒÆ’Ã‚Â§o de sugestÃƒÆ’Ã‚Â£o Gemini: {str(e)}", exc_info=True)
             RegistroUsoIARepository(db).create_registro_uso_ia(registro_uso=schemas.RegistroUsoIACreate(
                 user_id=user.id, produto_id=produto_id, tipo_acao=models.TipoAcaoEnum.SUGESTAO_ATRIBUTOS_GEMINI,
                 provedor_ia="gemini", modelo_ia=modelo_utilizado, creditos_consumidos=creditos_necessarios,
-                status="FALHA", detalhes_erro=f"Erro inesperado no serviÃƒÂ§o de sugestÃƒÂ£o: {str(e)}"
+                status="FALHA", detalhes_erro=f"Erro inesperado no serviÃƒÆ’Ã‚Â§o de sugestÃƒÆ’Ã‚Â£o: {str(e)}"
             ))
-            raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Erro inesperado ao gerar sugestÃƒÂµes: {str(e)}")
+            raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Erro inesperado ao gerar sugestÃƒÆ’Ã‚Âµes: {str(e)}")
 
-
-
-class IAGenerationWorkflow(_IAGenerationWorkflow):
-    pass
 
 
 

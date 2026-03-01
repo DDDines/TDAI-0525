@@ -1,4 +1,4 @@
-import os
+﻿import os
 from concurrent.futures import ThreadPoolExecutor, TimeoutError
 from typing import Any
 
@@ -105,7 +105,7 @@ class _ValidationCrewPromptBuilder:
         """
 
 
-class _ValidationCrewRuntime:
+class ValidationCrewRuntime:
     """Runtime OO para validacao opcional via crewAI."""
 
     def __init__(
@@ -174,11 +174,11 @@ class _ValidationCrewRuntime:
             return raw_data
 
 
-class _ValidationCrewWorkflow:
+class ValidationCrewWorkflow:
     """Workflow OO para validacao opcional via crewAI."""
 
-    def __init__(self, runtime: _ValidationCrewRuntime | None = None) -> None:
-        self._runtime = runtime or _ValidationCrewRuntime(
+    def __init__(self, runtime: ValidationCrewRuntime | None = None) -> None:
+        self._runtime = runtime or ValidationCrewRuntime(
             llm_instance=_ValidationCrewFactory.build_llm(),
             runtime_available=CREW_RUNTIME_AVAILABLE,
             agent_cls=Agent,
@@ -190,11 +190,6 @@ class _ValidationCrewWorkflow:
 
     def run_validation_crew(self, raw_data: Any, timeout_seconds: int = 8):
         return self._runtime.run(raw_data=raw_data, timeout_seconds=timeout_seconds)
-
-
-class ValidationCrewWorkflow(_ValidationCrewWorkflow):
-    pass
-
 
 
 

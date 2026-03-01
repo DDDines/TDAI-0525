@@ -1,4 +1,4 @@
-import io
+﻿import io
 
 import pandas as pd
 import pytest
@@ -10,7 +10,7 @@ class _TopLevelFunctionSurface:
 
     @pytest.mark.asyncio
     async def test_tabular_runtime_processa_csv_com_delimitador_semicolon():
-        runtime = file_processing._TabularIngestionRuntime()
+        runtime = file_processing.TabularIngestionRuntime()
         csv_bytes = (
             "col_0;col_1\n"
             "1816D 943 666 39 01 Paralama/Estribo;SMC\n"
@@ -30,7 +30,7 @@ class _TopLevelFunctionSurface:
 
     @pytest.mark.asyncio
     async def test_tabular_runtime_processa_excel_com_sheet_especifica():
-        runtime = file_processing._TabularIngestionRuntime()
+        runtime = file_processing.TabularIngestionRuntime()
     
         buffer = io.BytesIO()
         with pd.ExcelWriter(buffer, engine="openpyxl") as writer:
@@ -57,6 +57,7 @@ class _TopLevelFunctionSurface:
 
 test_tabular_runtime_processa_csv_com_delimitador_semicolon = _TopLevelFunctionSurface.test_tabular_runtime_processa_csv_com_delimitador_semicolon
 test_tabular_runtime_processa_excel_com_sheet_especifica = _TopLevelFunctionSurface.test_tabular_runtime_processa_excel_com_sheet_especifica
+
 
 
 

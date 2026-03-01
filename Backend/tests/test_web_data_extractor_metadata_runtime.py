@@ -1,4 +1,4 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
 from Backend.testing.runtime_apis import web_extractor
 
@@ -6,14 +6,14 @@ from Backend.testing.runtime_apis import web_extractor
 class _TopLevelFunctionSurface:
 
     def test_metadata_runtime_limpa_strings_e_listas():
-        runtime = web_extractor._MetadataExtractionRuntime()
+        runtime = web_extractor.MetadataExtractionRuntime()
     
         cleaned = runtime.limpar_valor_metadado(["  a  ", None, "  b   c  "])
     
         assert cleaned == ["a", "b c"]
 
     def test_metadata_runtime_normaliza_json_ld_preferencial():
-        runtime = web_extractor._MetadataExtractionRuntime()
+        runtime = web_extractor.MetadataExtractionRuntime()
         metadata = {
             "json-ld_product_candidate": {
                 "name": "Produto X",
@@ -41,7 +41,7 @@ class _TopLevelFunctionSurface:
         assert result["disponibilidade"] == "InStock"
 
     def test_metadata_runtime_fallback_para_opengraph():
-        runtime = web_extractor._MetadataExtractionRuntime()
+        runtime = web_extractor.MetadataExtractionRuntime()
         metadata = {
             "opengraph": {
                 "og:title": "Titulo OG",
@@ -63,6 +63,7 @@ class _TopLevelFunctionSurface:
 test_metadata_runtime_limpa_strings_e_listas = _TopLevelFunctionSurface.test_metadata_runtime_limpa_strings_e_listas
 test_metadata_runtime_normaliza_json_ld_preferencial = _TopLevelFunctionSurface.test_metadata_runtime_normaliza_json_ld_preferencial
 test_metadata_runtime_fallback_para_opengraph = _TopLevelFunctionSurface.test_metadata_runtime_fallback_para_opengraph
+
 
 
 

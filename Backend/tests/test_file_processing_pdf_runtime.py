@@ -1,4 +1,4 @@
-import pytest
+﻿import pytest
 
 from Backend.testing.runtime_apis import file_processing
 
@@ -7,7 +7,7 @@ class _TopLevelFunctionSurface:
 
     @pytest.mark.asyncio
     async def test_pdf_runtime_retorna_erro_quando_falha_abrir_pdf(monkeypatch):
-        runtime = file_processing._PdfIngestionRuntime()
+        runtime = file_processing.PdfIngestionRuntime()
     
         monkeypatch.setattr(
             file_processing.pdfplumber,
@@ -27,7 +27,7 @@ class _TopLevelFunctionSurface:
 
     @pytest.mark.asyncio
     async def test_pdf_runtime_detecta_erro_de_senha(monkeypatch):
-        runtime = file_processing._PdfIngestionRuntime()
+        runtime = file_processing.PdfIngestionRuntime()
     
         class FakePasswordError(Exception):
             pass
@@ -58,7 +58,7 @@ class _TopLevelFunctionSurface:
             return [{"source": "runtime"}]
     
         monkeypatch.setattr(
-            file_processing._PdfIngestionRuntime,
+            file_processing.PdfIngestionRuntime,
             "processar_arquivo_pdf",
             _fake_processar_arquivo_pdf,
         )
@@ -83,6 +83,7 @@ class _TopLevelFunctionSurface:
 test_pdf_runtime_retorna_erro_quando_falha_abrir_pdf = _TopLevelFunctionSurface.test_pdf_runtime_retorna_erro_quando_falha_abrir_pdf
 test_pdf_runtime_detecta_erro_de_senha = _TopLevelFunctionSurface.test_pdf_runtime_detecta_erro_de_senha
 test_processar_arquivo_pdf_impl_usa_runtime = _TopLevelFunctionSurface.test_processar_arquivo_pdf_impl_usa_runtime
+
 
 
 

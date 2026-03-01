@@ -1,4 +1,4 @@
-import base64
+﻿import base64
 
 import pytest
 
@@ -17,7 +17,7 @@ class _TopLevelFunctionSurface:
 
     @pytest.mark.asyncio
     async def test_pdf_image_runtime_converte_para_base64(monkeypatch):
-        runtime = file_processing._PdfImageConversionRuntime()
+        runtime = file_processing.PdfImageConversionRuntime()
     
         monkeypatch.setattr(file_processing.shutil, "which", lambda *_args, **_kwargs: "pdftoppm")
         monkeypatch.setattr(
@@ -48,7 +48,7 @@ class _TopLevelFunctionSurface:
             return ["abc"]
     
         monkeypatch.setattr(
-            file_processing._PdfImageConversionRuntime,
+            file_processing.PdfImageConversionRuntime,
             "pdf_bytes_to_images",
             _fake_pdf_bytes_to_images,
         )
@@ -68,6 +68,7 @@ class _TopLevelFunctionSurface:
 
 test_pdf_image_runtime_converte_para_base64 = _TopLevelFunctionSurface.test_pdf_image_runtime_converte_para_base64
 test_pdf_bytes_to_images_impl_usa_runtime = _TopLevelFunctionSurface.test_pdf_bytes_to_images_impl_usa_runtime
+
 
 
 

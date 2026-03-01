@@ -1,4 +1,4 @@
-import pandas as pd
+﻿import pandas as pd
 import pytest
 
 from Backend.testing.runtime_apis import file_processing
@@ -25,7 +25,7 @@ class _TopLevelFunctionSurface:
             def parse_annotation_to_dataframe(self, **kwargs):
                 return pd.DataFrame()
     
-        workflow = file_processing._PdfAssetWorkflow(
+        workflow = file_processing.PdfAssetWorkflow(
             pdf_image_runtime=FakeImageRuntime(),
             pdf_asset_runtime=FakeAssetRuntime(),
         )
@@ -65,7 +65,7 @@ class _TopLevelFunctionSurface:
                 called["parse"].update(kwargs)
                 return expected_df
     
-        workflow = file_processing._PdfAssetWorkflow(
+        workflow = file_processing.PdfAssetWorkflow(
             pdf_image_runtime=FakeImageRuntime(),
             pdf_asset_runtime=FakeAssetRuntime(),
         )
@@ -93,6 +93,7 @@ class _TopLevelFunctionSurface:
 
 test_pdf_asset_workflow_usa_runtime_de_conversao = _TopLevelFunctionSurface.test_pdf_asset_workflow_usa_runtime_de_conversao
 test_pdf_asset_workflow_usa_runtime_de_assets = _TopLevelFunctionSurface.test_pdf_asset_workflow_usa_runtime_de_assets
+
 
 
 

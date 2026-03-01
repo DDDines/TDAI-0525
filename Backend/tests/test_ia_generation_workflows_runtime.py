@@ -1,4 +1,4 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
 import pytest
 
@@ -32,7 +32,7 @@ class _TopLevelFunctionSurface:
                 called.append(("gemini_call", kwargs))
                 return "ok-gemini"
     
-        workflow = ia_service._AiProviderWorkflow(runtime=FakeProviderRuntime())
+        workflow = ia_service.AiProviderWorkflow(runtime=FakeProviderRuntime())
     
         assert await workflow.get_openai_api_key("db", "u") == "sk-openai"
         assert await workflow.get_gemini_api_key("db", "u") == "sk-gemini"
@@ -92,7 +92,7 @@ class _TopLevelFunctionSurface:
                 called.append(("sug_gemini", kwargs))
                 return {"ok": True}
     
-        workflow = ia_service._IAGenerationWorkflow(runtime=FakeIARuntime())
+        workflow = ia_service.IAGenerationWorkflow(runtime=FakeIARuntime())
     
         assert await workflow.gerar_titulos_com_openai("db", 1, "u", 2) == ["t1", "t2"]
         assert await workflow.gerar_descricao_com_openai("db", 1, "u", 50) == "descricao"
@@ -113,6 +113,7 @@ class _TopLevelFunctionSurface:
 
 test_ai_provider_workflow_usa_runtime_injetado = _TopLevelFunctionSurface.test_ai_provider_workflow_usa_runtime_injetado
 test_ia_generation_workflow_usa_runtime_injetado = _TopLevelFunctionSurface.test_ia_generation_workflow_usa_runtime_injetado
+
 
 
 

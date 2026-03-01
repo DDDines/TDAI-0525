@@ -1,4 +1,4 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
 from types import SimpleNamespace
 
@@ -34,7 +34,7 @@ class _TopLevelFunctionSurface:
         return SimpleNamespace(info=lambda *_a, **_k: None, warning=lambda *_a, **_k: None)
 
     def _build_runtime(*, usos_no_mes: int = 0, geracoes_no_mes: int = 0, user=None):
-        return limit_service._LimitRuntime(
+        return limit_service.LimitRuntime(
             crud_module=_CrudStub(usos_no_mes=usos_no_mes, geracoes_no_mes=geracoes_no_mes),
             crud_users_module=_CrudUsersStub(user),
             logger_factory=_logger_factory,
@@ -100,6 +100,7 @@ test_runtime_verificar_limite_uso_ilimitado_retorna_menos_um = _TopLevelFunction
 test_runtime_verificar_limite_uso_tipo_invalido_dispara_400 = _TopLevelFunctionSurface.test_runtime_verificar_limite_uso_tipo_invalido_dispara_400
 test_runtime_verificar_creditos_disponiveis_user_inexistente_dispara_404 = _TopLevelFunctionSurface.test_runtime_verificar_creditos_disponiveis_user_inexistente_dispara_404
 test_runtime_verificar_creditos_disponiveis_respeita_limite = _TopLevelFunctionSurface.test_runtime_verificar_creditos_disponiveis_respeita_limite
+
 
 
 

@@ -1,4 +1,4 @@
-import pytest
+﻿import pytest
 
 from Backend.testing.runtime_apis import file_processing
 
@@ -22,7 +22,7 @@ class _TopLevelFunctionSurface:
             async def gerar_preview(self, **kwargs):
                 return {"headers": []}
     
-        workflow = file_processing._PdfProcessingWorkflow(
+        workflow = file_processing.PdfProcessingWorkflow(
             pdf_ingestion_runtime=FakeIngestionRuntime(),
             pdf_preview_runtime=FakePreviewRuntime(),
             preview_dispatch_runtime=FakeDispatchRuntime(),
@@ -62,7 +62,7 @@ class _TopLevelFunctionSurface:
             async def gerar_preview(self, **kwargs):
                 return {}
     
-        workflow = file_processing._PdfProcessingWorkflow(
+        workflow = file_processing.PdfProcessingWorkflow(
             pdf_ingestion_runtime=FakeIngestionRuntime(),
             pdf_preview_runtime=FakePreviewRuntime(),
             preview_dispatch_runtime=FakeDispatchRuntime(),
@@ -100,7 +100,7 @@ class _TopLevelFunctionSurface:
                 called.update(kwargs)
                 return {"headers": ["h1"], "sample_rows": []}
     
-        workflow = file_processing._PdfProcessingWorkflow(
+        workflow = file_processing.PdfProcessingWorkflow(
             pdf_ingestion_runtime=FakeIngestionRuntime(),
             pdf_preview_runtime=FakePreviewRuntime(),
             preview_dispatch_runtime=FakeDispatchRuntime(),
@@ -120,6 +120,7 @@ class _TopLevelFunctionSurface:
 test_pdf_processing_workflow_usa_runtime_de_ingestao = _TopLevelFunctionSurface.test_pdf_processing_workflow_usa_runtime_de_ingestao
 test_pdf_processing_workflow_usa_runtime_de_preview = _TopLevelFunctionSurface.test_pdf_processing_workflow_usa_runtime_de_preview
 test_pdf_processing_workflow_usa_runtime_de_dispatch = _TopLevelFunctionSurface.test_pdf_processing_workflow_usa_runtime_de_dispatch
+
 
 
 
