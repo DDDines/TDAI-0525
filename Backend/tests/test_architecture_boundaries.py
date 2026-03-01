@@ -1354,6 +1354,74 @@ class _TopLevelFunctionSurface:
             + "\n".join(offenders)
         )
 
+    def test_runtime_modules_do_not_use_legacy_crud_alias_parameters():
+        offenders: list[str] = []
+
+        for path in _iter_python_files(INFRASTRUCTURE_RUNTIME_MODULES_ROOT):
+            rel = path.relative_to(PROJECT_ROOT)
+            source = path.read_text(encoding="utf-8-sig")
+            if "crud_module" in source or "crud_users_module" in source:
+                offenders.append(str(rel))
+
+        assert not offenders, (
+            "Runtime modules must not use legacy crud alias parameters "
+            "(crud_module/crud_users_module):\n"
+            + "\n".join(offenders)
+        )
+
+    def test_limit_runtime_module_has_no_typeerror_signature_fallbacks():
+        limit_module_path = INFRASTRUCTURE_RUNTIME_MODULES_ROOT / "limit_module.py"
+        source = limit_module_path.read_text(encoding="utf-8-sig")
+        assert "except TypeError" not in source, (
+            "Limit runtime module must not use TypeError fallback for dependency "
+            "signature compatibility."
+        )
+
+    def test_ia_and_limit_services_require_explicit_port_dependency():
+        offenders: list[str] = []
+        targets = [
+            APPLICATION_SERVICES_ROOT / "ia_generation_service.py",
+            APPLICATION_SERVICES_ROOT / "limit_service.py",
+        ]
+
+        for path in targets:
+            rel = path.relative_to(PROJECT_ROOT)
+            source = path.read_text(encoding="utf-8-sig")
+            if "| None = None" in source and "port:" in source:
+                offenders.append(f"{rel}: optional port dependency")
+            if "or IAGenerationServiceAdapter(" in source:
+                offenders.append(f"{rel}: fallback adapter instantiation")
+            if "or LimitServiceAdapter(" in source:
+                offenders.append(f"{rel}: fallback adapter instantiation")
+
+        assert not offenders, (
+            "IA/Limit services must receive explicit injected ports "
+            "(no optional/default adapter fallback):\n"
+            + "\n".join(offenders)
+        )
+
+    def test_tasks_module_has_no_procedural_sqlalchemy_runtime_construction():
+        tasks_path = BACKEND_ROOT / "tasks.py"
+        source = tasks_path.read_text(encoding="utf-8-sig")
+        offenders: list[str] = []
+        for pattern in ("create_engine(", "sessionmaker(", "db.query("):
+            if pattern in source:
+                offenders.append(pattern)
+
+        assert not offenders, (
+            "Backend/tasks.py must delegate persistence via OO services/repositories "
+            "(no procedural SQLAlchemy runtime setup):\n"
+            + "\n".join(offenders)
+        )
+
+    def test_file_processing_runtime_has_no_direct_catalog_import_file_query():
+        runtime_path = INFRASTRUCTURE_RUNTIME_MODULES_ROOT / "file_processing_module.py"
+        source = runtime_path.read_text(encoding="utf-8-sig")
+        assert "db.query(models.CatalogImportFile)" not in source, (
+            "File processing runtime module must not query CatalogImportFile directly; "
+            "use injected repository/service."
+        )
+
     def test_tests_do_not_import_private_backend_symbols():
         offenders: list[str] = []
     
@@ -1478,6 +1546,11 @@ test_application_service_constructors_do_not_use_repo_cls_parameters = _TopLevel
 test_application_services_do_not_use_local_repository_imports = _TopLevelFunctionSurface.test_application_services_do_not_use_local_repository_imports
 test_routers_do_not_mutate_private_attributes_of_external_objects = _TopLevelFunctionSurface.test_routers_do_not_mutate_private_attributes_of_external_objects
 test_application_services_do_not_use_typeerror_fallback_dependency_resolution = _TopLevelFunctionSurface.test_application_services_do_not_use_typeerror_fallback_dependency_resolution
+test_runtime_modules_do_not_use_legacy_crud_alias_parameters = _TopLevelFunctionSurface.test_runtime_modules_do_not_use_legacy_crud_alias_parameters
+test_limit_runtime_module_has_no_typeerror_signature_fallbacks = _TopLevelFunctionSurface.test_limit_runtime_module_has_no_typeerror_signature_fallbacks
+test_ia_and_limit_services_require_explicit_port_dependency = _TopLevelFunctionSurface.test_ia_and_limit_services_require_explicit_port_dependency
+test_tasks_module_has_no_procedural_sqlalchemy_runtime_construction = _TopLevelFunctionSurface.test_tasks_module_has_no_procedural_sqlalchemy_runtime_construction
+test_file_processing_runtime_has_no_direct_catalog_import_file_query = _TopLevelFunctionSurface.test_file_processing_runtime_has_no_direct_catalog_import_file_query
 test_tests_do_not_import_private_backend_symbols = _TopLevelFunctionSurface.test_tests_do_not_import_private_backend_symbols
 test_produtos_core_endpoints_do_not_receive_db_session_directly = _TopLevelFunctionSurface.test_produtos_core_endpoints_do_not_receive_db_session_directly
 
