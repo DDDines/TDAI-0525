@@ -1,7 +1,8 @@
 from __future__ import annotations
 
-from typing import Any
+from sqlalchemy.orm import Session
 
+from Backend import models, schemas
 from Backend.application.services.ports import IAGenerationPort
 from Backend.infrastructure.adapters.ia_generation_adapter import (
     IAGenerationServiceAdapter,
@@ -18,34 +19,75 @@ class IAGenerationService:
     ) -> None:
         self._port = port or IAGenerationServiceAdapter()
 
-    @staticmethod
-    def _normalize_runtime_kwargs(kwargs: dict[str, Any]) -> dict[str, Any]:
-        normalized = dict(kwargs)
-        if "session" in normalized and "db" not in normalized:
-            normalized["db"] = normalized.pop("session")
-        return normalized
-
-    async def gerar_titulos_com_openai(self, *args: Any, **kwargs: Any):
+    async def gerar_titulos_com_openai(
+        self,
+        *,
+        session: Session,
+        produto_id: int,
+        user: models.User,
+        num_titulos: int = 3,
+    ) -> list[str]:
         return await self._port.gerar_titulos_com_openai(
-            *args, **self._normalize_runtime_kwargs(kwargs)
+            session=session,
+            produto_id=produto_id,
+            user=user,
+            num_titulos=num_titulos,
         )
 
-    async def gerar_descricao_com_openai(self, *args: Any, **kwargs: Any):
+    async def gerar_descricao_com_openai(
+        self,
+        *,
+        session: Session,
+        produto_id: int,
+        user: models.User,
+        tamanho_palavras: int = 150,
+    ) -> str:
         return await self._port.gerar_descricao_com_openai(
-            *args, **self._normalize_runtime_kwargs(kwargs)
+            session=session,
+            produto_id=produto_id,
+            user=user,
+            tamanho_palavras=tamanho_palavras,
         )
 
-    async def gerar_titulos_com_gemini(self, *args: Any, **kwargs: Any):
+    async def gerar_titulos_com_gemini(
+        self,
+        *,
+        session: Session,
+        produto_id: int,
+        user: models.User,
+        num_titulos: int = 3,
+    ) -> list[str]:
         return await self._port.gerar_titulos_com_gemini(
-            *args, **self._normalize_runtime_kwargs(kwargs)
+            session=session,
+            produto_id=produto_id,
+            user=user,
+            num_titulos=num_titulos,
         )
 
-    async def gerar_descricao_com_gemini(self, *args: Any, **kwargs: Any):
+    async def gerar_descricao_com_gemini(
+        self,
+        *,
+        session: Session,
+        produto_id: int,
+        user: models.User,
+        tamanho_palavras: int = 150,
+    ) -> str:
         return await self._port.gerar_descricao_com_gemini(
-            *args, **self._normalize_runtime_kwargs(kwargs)
+            session=session,
+            produto_id=produto_id,
+            user=user,
+            tamanho_palavras=tamanho_palavras,
         )
 
-    async def sugerir_valores_atributos_com_gemini(self, *args: Any, **kwargs: Any):
+    async def sugerir_valores_atributos_com_gemini(
+        self,
+        *,
+        session: Session,
+        produto_id: int,
+        user: models.User,
+    ) -> schemas.SugestoesAtributosResponse:
         return await self._port.sugerir_valores_atributos_com_gemini(
-            *args, **self._normalize_runtime_kwargs(kwargs)
+            session=session,
+            produto_id=produto_id,
+            user=user,
         )

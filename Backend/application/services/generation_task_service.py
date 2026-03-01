@@ -152,7 +152,7 @@ class GenerationTaskService:
                 produto_id,
             )
             resultado_ia = await funcao_geracao_ia_no_servico(
-                db=session,
+                session=session,
                 produto_id=produto_id,
                 user=user,
                 **kwargs_para_funcao_servico,
