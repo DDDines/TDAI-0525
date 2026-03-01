@@ -34,8 +34,8 @@ class GenerationRequestService:
         self._ia_generation_service = IAGenerationService()
         self._generation_task_service = GenerationTaskService(
             db_session_factory=ServiceContainerDependencySupport.get_background_db_session_factory(),
-            user_repository_cls=UserRepository,
-            product_repository_cls=ProductRepository,
+            user_repository_factory=UserRepository,
+            product_repository_factory=ProductRepository,
             models=models,
             schemas=schemas,
             logger=logger,

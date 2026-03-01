@@ -101,8 +101,8 @@ class _TopLevelFunctionSurface:
     
         service = GenerationTaskService(
             db_session_factory=_db_session_factory,
-            user_repository_cls=_UserRepository,
-            product_repository_cls=_ProductRepository,
+            user_repository_factory=_UserRepository,
+            product_repository_factory=_ProductRepository,
             models=_build_models_stub(),
             schemas=_build_schemas_stub(),
             logger=_LoggerStub(),

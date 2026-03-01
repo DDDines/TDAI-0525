@@ -1243,6 +1243,40 @@ class _TopLevelFunctionSurface:
             + "\n".join(offenders)
         )
 
+    def test_application_service_constructors_do_not_use_repo_cls_parameters():
+        offenders: list[str] = []
+
+        for path in _iter_python_files(APPLICATION_SERVICES_ROOT):
+            rel = path.relative_to(PROJECT_ROOT)
+            tree = _parse_python_file(path)
+
+            for class_node in [n for n in tree.body if isinstance(n, ast.ClassDef)]:
+                init_node = next(
+                    (
+                        node
+                        for node in class_node.body
+                        if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef))
+                        and node.name == "__init__"
+                    ),
+                    None,
+                )
+                if init_node is None:
+                    continue
+
+                for arg in [*init_node.args.args, *init_node.args.kwonlyargs]:
+                    if arg.arg in {"self", "cls"}:
+                        continue
+                    if arg.arg.endswith("_repo_cls") or arg.arg.endswith("_repository_cls"):
+                        offenders.append(
+                            f"{rel}:{init_node.lineno} -> {class_node.name}.__init__({arg.arg})"
+                        )
+
+        assert not offenders, (
+            "Application service constructors must accept explicit repository providers, "
+            "not *_repo_cls/*_repository_cls parameters:\n"
+            + "\n".join(offenders)
+        )
+
     def test_application_services_do_not_use_local_repository_imports():
         offenders: list[str] = []
 
@@ -1440,6 +1474,7 @@ test_application_services_do_not_use_inspect_isclass_resolution = _TopLevelFunct
 test_application_services_do_not_use_isinstance_type_resolution = _TopLevelFunctionSurface.test_application_services_do_not_use_isinstance_type_resolution
 test_application_service_public_methods_do_not_take_optional_repo_overrides = _TopLevelFunctionSurface.test_application_service_public_methods_do_not_take_optional_repo_overrides
 test_application_service_constructor_repository_dependencies_are_required = _TopLevelFunctionSurface.test_application_service_constructor_repository_dependencies_are_required
+test_application_service_constructors_do_not_use_repo_cls_parameters = _TopLevelFunctionSurface.test_application_service_constructors_do_not_use_repo_cls_parameters
 test_application_services_do_not_use_local_repository_imports = _TopLevelFunctionSurface.test_application_services_do_not_use_local_repository_imports
 test_routers_do_not_mutate_private_attributes_of_external_objects = _TopLevelFunctionSurface.test_routers_do_not_mutate_private_attributes_of_external_objects
 test_application_services_do_not_use_typeerror_fallback_dependency_resolution = _TopLevelFunctionSurface.test_application_services_do_not_use_typeerror_fallback_dependency_resolution

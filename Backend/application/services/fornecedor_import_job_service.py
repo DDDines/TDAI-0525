@@ -12,20 +12,20 @@ class FornecedorImportJobService:
         self,
         *,
         db_session_factory: Any,
-        import_job_repository_cls: Any,
-        produto_repository_cls: Any,
+        import_job_repository_factory: Any,
+        produto_repository_factory: Any,
         produto_create_schema: Any,
     ) -> None:
         self._db_session_factory = db_session_factory
-        self._import_job_repository_cls = import_job_repository_cls
-        self._produto_repository_cls = produto_repository_cls
+        self._import_job_repository_factory = import_job_repository_factory
+        self._produto_repository_factory = produto_repository_factory
         self._produto_create_schema = produto_create_schema
 
     def _import_job_repo(self, session: Any) -> Any:
-        return self._import_job_repository_cls(session)
+        return self._import_job_repository_factory(session)
 
     def _produto_repo(self, session: Any) -> Any:
-        return self._produto_repository_cls(session)
+        return self._produto_repository_factory(session)
 
     def get_job_for_user_or_404(self, *, job_id: int, user_id: int) -> Any:
         if self._db_session_factory is None:

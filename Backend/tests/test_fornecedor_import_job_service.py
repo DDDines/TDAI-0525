@@ -92,8 +92,8 @@ class _TopLevelFunctionSurface:
     
         service = FornecedorImportJobService(
             db_session_factory=db_session_factory or (lambda: _DbSessionStub()),
-            import_job_repository_cls=_ImportJobRepoClass,
-            produto_repository_cls=_ProdutoRepoClass,
+            import_job_repository_factory=_ImportJobRepoClass,
+            produto_repository_factory=_ProdutoRepoClass,
             produto_create_schema=_ProdutoCreateSchemaStub,
         )
         return service, crud_jobs, crud_produtos

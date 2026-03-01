@@ -17,21 +17,21 @@ class GenerationTaskService:
         schemas: Any,
         logger: Any,
         db_session_factory: Any,
-        user_repository_cls: Any,
-        product_repository_cls: Any,
+        user_repository_factory: Any,
+        product_repository_factory: Any,
     ) -> None:
         self._db_session_factory = db_session_factory
-        self._user_repository_cls = user_repository_cls
-        self._product_repository_cls = product_repository_cls
+        self._user_repository_factory = user_repository_factory
+        self._product_repository_factory = product_repository_factory
         self._models = models
         self._schemas = schemas
         self._logger = logger
 
     def _get_user_access(self, session: Session) -> Any:
-        return self._user_repository_cls(session)
+        return self._user_repository_factory(session)
 
     def _get_product_access(self, session: Session) -> Any:
-        return self._product_repository_cls(session)
+        return self._product_repository_factory(session)
 
     def _resolve_generation_targets(
         self,

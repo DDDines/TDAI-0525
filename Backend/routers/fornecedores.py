@@ -61,7 +61,7 @@ class _FornecedoresServiceBundle:
         self.catalog_import_finalize_service = CatalogImportFinalizeService(oop_executor=self.catalog_import_task_runner.execute, db_session_factory=self._db_session_factory)
         self.catalog_import_start_service = CatalogImportStartService(models=models, fornecedor_repo=fornecedor_repository, catalog_file_repository=catalog_file_repository, settings=settings, resolve_storage_path=self.catalog_import_diagnostics_service.resolve_storage_path, finalize_service=self.catalog_import_finalize_service)
         self.fornecedor_catalog_process_service = FornecedorCatalogProcessService(models=models, fornecedor_repo=fornecedor_repository, catalog_file_repository=catalog_file_repository, catalog_import_start_service=self.catalog_import_start_service)
-        self.fornecedor_import_job_service = FornecedorImportJobService(db_session_factory=self._db_session_factory, import_job_repository_cls=FornecedorImportJobRepository, produto_repository_cls=ProductRepository, produto_create_schema=schemas.ProdutoCreate)
+        self.fornecedor_import_job_service = FornecedorImportJobService(db_session_factory=self._db_session_factory, import_job_repository_factory=FornecedorImportJobRepository, produto_repository_factory=ProductRepository, produto_create_schema=schemas.ProdutoCreate)
         self.fornecedor_import_tracking_service = FornecedorImportTrackingService(
             models=models,
             process_pdf_extraction_task=TaskWorkflow().process_pdf_extraction_task,
