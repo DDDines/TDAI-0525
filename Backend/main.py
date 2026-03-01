@@ -476,9 +476,7 @@ class _MainBootstrapWorkflow:
 MainBootstrapWorkflow = _MainBootstrapWorkflow
 
 
-def get_main_bootstrap_workflow() -> MainBootstrapWorkflow:
-    """Factory de workflow OO para bootstrap principal da API."""
-    return MainBootstrapWorkflow()
+get_main_bootstrap_workflow = lambda: MainBootstrapWorkflow()
 
 
 @asynccontextmanager

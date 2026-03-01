@@ -1,9 +1,15 @@
 from Backend.testing.runtime_apis import processar_linha_padronizada
-from Backend.routers.produtos import (
-    avaliar_qualidade_linha_produto,
-    classificar_qualidade_linha_produto,
-    is_non_critical_import_reason,
-    sanitize_produto_extraido,
+from Backend.application.services.catalog_import_quality_service import (
+    CatalogImportQualityService,
+)
+from Backend.application.services.catalog_import_sanitization_service import (
+    CatalogImportSanitizationService,
+)
+
+
+_quality_service = CatalogImportQualityService()
+_sanitization_service = CatalogImportSanitizationService(
+    quality_service=_quality_service
 )
 
 
@@ -95,7 +101,7 @@ def test_split_sku_nome_auto_handles_directional_token():
 
 
 def test_quality_filter_rejects_noise_row():
-    reason = avaliar_qualidade_linha_produto(
+    reason = _quality_service.evaluate_product_row_quality(
         {
             "nome_base": "i",
             "sku_original": None,
@@ -107,7 +113,7 @@ def test_quality_filter_rejects_noise_row():
 
 
 def test_quality_filter_accepts_real_catalog_row():
-    reason = avaliar_qualidade_linha_produto(
+    reason = _quality_service.evaluate_product_row_quality(
         {
             "nome_base": "Paralama/Estribo",
             "sku_original": "1816D 943 666 39 01",
@@ -118,7 +124,7 @@ def test_quality_filter_accepts_real_catalog_row():
 
 
 def test_quality_filter_rejects_annotation_header_even_with_context():
-    reason = avaliar_qualidade_linha_produto(
+    reason = _quality_service.evaluate_product_row_quality(
         {
             "nome_base": "Anotacoes:",
             "sku_original": None,
@@ -131,7 +137,7 @@ def test_quality_filter_rejects_annotation_header_even_with_context():
 
 
 def test_quality_filter_rejects_annotation_header_variant():
-    reason = avaliar_qualidade_linha_produto(
+    reason = _quality_service.evaluate_product_row_quality(
         {
             "nome_base": "Anotages:",
             "sku_original": None,
@@ -143,7 +149,7 @@ def test_quality_filter_rejects_annotation_header_variant():
 
 
 def test_quality_filter_rejects_numeric_name_with_sku_without_description():
-    reason = avaliar_qualidade_linha_produto(
+    reason = _quality_service.evaluate_product_row_quality(
         {
             "nome_base": "8212",
             "sku_original": "8212",
@@ -160,7 +166,7 @@ def test_quality_filter_rejects_numeric_name_with_sku_without_description():
 
 
 def test_quality_filter_rejects_sku_duplicated_in_name_without_description():
-    reason = avaliar_qualidade_linha_produto(
+    reason = _quality_service.evaluate_product_row_quality(
         {
             "nome_base": "1663 E",
             "sku_original": "1663 E",
@@ -176,7 +182,7 @@ def test_quality_filter_rejects_sku_duplicated_in_name_without_description():
 
 
 def test_quality_classifier_quarantines_code_like_name_with_application_context_only():
-    result = classificar_qualidade_linha_produto(
+    result = _quality_service.classify_product_row_quality(
         {
             "nome_base": "1663 E",
             "sku_original": "1663 E",
@@ -192,7 +198,7 @@ def test_quality_classifier_quarantines_code_like_name_with_application_context_
 
 
 def test_quality_filter_accepts_numeric_name_when_description_is_good():
-    reason = avaliar_qualidade_linha_produto(
+    reason = _quality_service.evaluate_product_row_quality(
         {
             "nome_base": "8212",
             "sku_original": "8212",
@@ -204,11 +210,11 @@ def test_quality_filter_accepts_numeric_name_when_description_is_good():
 
 
 def test_non_critical_reason_classifier():
-    assert is_non_critical_import_reason("Faltam nome_base e sku_original")
-    assert is_non_critical_import_reason(
+    assert _sanitization_service.is_non_critical_import_reason("Faltam nome_base e sku_original")
+    assert _sanitization_service.is_non_critical_import_reason(
         "Nenhum dado de produto pode ser extraido do PDF (pode estar protegido, vazio ou somente imagem sem OCR)."
     )
-    assert not is_non_critical_import_reason("Erro ao converter linha: valor invalido")
+    assert not _sanitization_service.is_non_critical_import_reason("Erro ao converter linha: valor invalido")
 
 
 def test_sanitize_discards_textual_ean():
@@ -218,7 +224,7 @@ def test_sanitize_discards_textual_ean():
         "dados_brutos_adicionais": {},
     }
 
-    sanitized = sanitize_produto_extraido(payload)
+    sanitized = _sanitization_service.sanitize_extracted_product(payload)
 
     assert sanitized.get("ean_original") is None
     extras = sanitized.get("dados_brutos_adicionais") or {}
@@ -234,7 +240,7 @@ def test_sanitize_truncates_fields_with_limits():
         "categoria_original": "C" * 200,
     }
 
-    sanitized = sanitize_produto_extraido(payload)
+    sanitized = _sanitization_service.sanitize_extracted_product(payload)
 
     assert len(sanitized.get("sku_original")) == 100
     assert len(sanitized.get("marca")) == 100
@@ -243,7 +249,7 @@ def test_sanitize_truncates_fields_with_limits():
 
 
 def test_quality_classifier_quarantines_numeric_name_with_application_only():
-    result = classificar_qualidade_linha_produto(
+    result = _quality_service.classify_product_row_quality(
         {
             "nome_base": "8212",
             "sku_original": "8212",
@@ -265,7 +271,7 @@ def test_sanitize_promotes_part_name_from_raw_fields():
         "dados_brutos_adicionais": {"col_2": "Paralama Duplo"},
     }
 
-    sanitized = sanitize_produto_extraido(payload)
+    sanitized = _sanitization_service.sanitize_extracted_product(payload)
 
     assert sanitized.get("descricao_original") == "Paralama Duplo"
     assert sanitized.get("nome_base") == "Paralama Duplo"
@@ -280,7 +286,7 @@ def test_sanitize_promotes_category_part_name_when_name_is_code():
         "categoria_original": "Estribo Superior",
     }
 
-    sanitized = sanitize_produto_extraido(payload)
+    sanitized = _sanitization_service.sanitize_extracted_product(payload)
 
     assert sanitized.get("descricao_original") == "Estribo Superior"
     assert sanitized.get("nome_base") == "Estribo Superior"
@@ -292,7 +298,7 @@ def test_sanitize_drops_placeholder_sku_values():
         "sku_original": "None",
     }
 
-    sanitized = sanitize_produto_extraido(payload)
+    sanitized = _sanitization_service.sanitize_extracted_product(payload)
 
     assert sanitized.get("sku_original") is None
     extras = sanitized.get("dados_brutos_adicionais") or {}
@@ -308,7 +314,7 @@ def test_sanitize_merges_raw_payloads_and_promotes_part_description():
         "dados_brutos_web": {"col_2": "Paralama Dianteiro"},
     }
 
-    sanitized = sanitize_produto_extraido(payload)
+    sanitized = _sanitization_service.sanitize_extracted_product(payload)
 
     assert sanitized.get("descricao_original") == "Paralama Dianteiro"
     assert sanitized.get("nome_base") == "Paralama Dianteiro"
@@ -318,7 +324,7 @@ def test_sanitize_merges_raw_payloads_and_promotes_part_description():
 
 
 def test_quality_filter_rejects_sku_duplicated_name_with_application_only_context():
-    reason = avaliar_qualidade_linha_produto(
+    reason = _quality_service.evaluate_product_row_quality(
         {
             "nome_base": "1663 E",
             "sku_original": "1663 E",
@@ -334,7 +340,7 @@ def test_quality_filter_rejects_sku_duplicated_name_with_application_only_contex
 
 
 def test_quality_filter_rejects_ocr_noise_name_with_application_only():
-    reason = avaliar_qualidade_linha_produto(
+    reason = _quality_service.evaluate_product_row_quality(
         {
             "nome_base": "as 927",
             "sku_original": "8199",
@@ -347,7 +353,7 @@ def test_quality_filter_rejects_ocr_noise_name_with_application_only():
 
 
 def test_quality_filter_rejects_short_name_with_sku_without_part_context():
-    reason = avaliar_qualidade_linha_produto(
+    reason = _quality_service.evaluate_product_row_quality(
         {
             "nome_base": "8212",
             "sku_original": "8212",
@@ -364,7 +370,7 @@ def test_quality_filter_rejects_short_name_with_sku_without_part_context():
 
 
 def test_quality_filter_rejects_short_numeric_code_with_weak_part_context():
-    reason = avaliar_qualidade_linha_produto(
+    reason = _quality_service.evaluate_product_row_quality(
         {
             "nome_base": "8199",
             "sku_original": "8199",
@@ -378,7 +384,7 @@ def test_quality_filter_rejects_short_numeric_code_with_weak_part_context():
 
 
 def test_quality_filter_rejects_sku_with_only_vehicle_application_context():
-    reason = avaliar_qualidade_linha_produto(
+    reason = _quality_service.evaluate_product_row_quality(
         {
             "nome_base": "1663 E",
             "sku_original": "1663 E",
@@ -406,7 +412,7 @@ def test_sanitize_promotes_part_name_from_raw_when_description_is_application():
         },
     }
 
-    sanitized = sanitize_produto_extraido(payload)
+    sanitized = _sanitization_service.sanitize_extracted_product(payload)
 
     assert sanitized.get("descricao_original") == "Paralama Duplo"
     assert sanitized.get("nome_base") == "Paralama Duplo"

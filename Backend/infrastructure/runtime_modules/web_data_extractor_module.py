@@ -385,6 +385,20 @@ class _WebSearchEngineRuntime:
     ) -> List[str]:
         return await asyncio.to_thread(self.buscar_urls_publicas_sync, query, num_results)
 
+    def _executar_busca_google_cse(self, query_limpa: str, limite: int) -> List[str]:
+        service = build(
+            "customsearch",
+            "v1",
+            developerKey=settings.GOOGLE_CSE_API_KEY,
+            cache_discovery=False,
+        )
+        res = (
+            service.cse()
+            .list(q=query_limpa, cx=settings.GOOGLE_CSE_ID, num=limite)
+            .execute()
+        )
+        return [item["link"] for item in res.get("items", []) if "link" in item]
+
     async def buscar_urls_google_async(
         self,
         query: str,
@@ -415,23 +429,10 @@ class _WebSearchEngineRuntime:
         async with self.get_search_semaphore():
             if google_disponivel:
                 try:
-
-                    def _executar_busca_google_interna_valida():
-                        service = build(
-                            "customsearch",
-                            "v1",
-                            developerKey=settings.GOOGLE_CSE_API_KEY,
-                            cache_discovery=False,
-                        )
-                        res = (
-                            service.cse()
-                            .list(q=query_limpa, cx=settings.GOOGLE_CSE_ID, num=limite)
-                            .execute()
-                        )
-                        return [item["link"] for item in res.get("items", []) if "link" in item]
-
                     urls_encontradas = await asyncio.to_thread(
-                        _executar_busca_google_interna_valida
+                        self._executar_busca_google_cse,
+                        query_limpa,
+                        limite,
                     )
                     if urls_encontradas:
                         urls_encontradas = [
@@ -820,6 +821,16 @@ class _MetadataExtractionRuntime:
             return [item for item in lista_limpa if item is not None] or None
         return valor
 
+    def _get_first_string(self, value: Any) -> Optional[str]:
+        if isinstance(value, list):
+            for item_val in value:
+                cleaned = self.limpar_valor_metadado(item_val)
+                if cleaned and isinstance(cleaned, str):
+                    return cleaned
+            return None
+        cleaned_val = self.limpar_valor_metadado(value)
+        return cleaned_val if isinstance(cleaned_val, str) else None
+
     def extrair_metadados_estruturados(self, html_content: str, url: str) -> Dict[str, Any]:
         if not html_content:
             return {}
@@ -868,33 +879,23 @@ class _MetadataExtractionRuntime:
             else (opengraph_props_list if isinstance(opengraph_props_list, dict) else {})
         )
 
-        def get_first_string(value: Any) -> Optional[str]:
-            if isinstance(value, list):
-                for item_val in value:
-                    cleaned = self.limpar_valor_metadado(item_val)
-                    if cleaned and isinstance(cleaned, str):
-                        return cleaned
-                return None
-            cleaned_val = self.limpar_valor_metadado(value)
-            return cleaned_val if isinstance(cleaned_val, str) else None
-
         if produto_json_ld and isinstance(produto_json_ld, dict):
-            dados_norm["nome"] = get_first_string(produto_json_ld.get("name"))
-            dados_norm["descricao_curta"] = get_first_string(produto_json_ld.get("description"))
+            dados_norm["nome"] = self._get_first_string(produto_json_ld.get("name"))
+            dados_norm["descricao_curta"] = self._get_first_string(produto_json_ld.get("description"))
             img = produto_json_ld.get("image")
             if isinstance(img, dict):
                 img = img.get("url") or img.get("@id")
             elif isinstance(img, list):
-                img = get_first_string([i.get("url") if isinstance(i, dict) else i for i in img])
-            dados_norm["imagem_url"] = get_first_string(img)
+                img = self._get_first_string([i.get("url") if isinstance(i, dict) else i for i in img])
+            dados_norm["imagem_url"] = self._get_first_string(img)
 
             marca_info = produto_json_ld.get("brand")
             if isinstance(marca_info, dict):
-                dados_norm["marca"] = get_first_string(marca_info.get("name"))
+                dados_norm["marca"] = self._get_first_string(marca_info.get("name"))
             else:
-                dados_norm["marca"] = get_first_string(marca_info)
+                dados_norm["marca"] = self._get_first_string(marca_info)
 
-            dados_norm["sku"] = get_first_string(
+            dados_norm["sku"] = self._get_first_string(
                 produto_json_ld.get("sku") or produto_json_ld.get("mpn")
             )
 
@@ -902,11 +903,11 @@ class _MetadataExtractionRuntime:
             if isinstance(offers, list):
                 offers = offers[0] if offers else {}
             if isinstance(offers, dict):
-                dados_norm["preco"] = get_first_string(
+                dados_norm["preco"] = self._get_first_string(
                     offers.get("price") or offers.get("lowPrice") or offers.get("highPrice")
                 )
-                dados_norm["moeda_preco"] = get_first_string(offers.get("priceCurrency"))
-                disponibilidade = get_first_string(offers.get("availability"))
+                dados_norm["moeda_preco"] = self._get_first_string(offers.get("priceCurrency"))
+                disponibilidade = self._get_first_string(offers.get("availability"))
                 if disponibilidade and "schema.org" in disponibilidade:
                     dados_norm["disponibilidade"] = disponibilidade.split("/")[-1]
                 else:
@@ -914,31 +915,31 @@ class _MetadataExtractionRuntime:
 
         if produto_microdata and isinstance(produto_microdata, dict):
             if not dados_norm.get("nome"):
-                dados_norm["nome"] = get_first_string(produto_microdata.get("name"))
+                dados_norm["nome"] = self._get_first_string(produto_microdata.get("name"))
             if not dados_norm.get("descricao_curta"):
-                dados_norm["descricao_curta"] = get_first_string(produto_microdata.get("description"))
+                dados_norm["descricao_curta"] = self._get_first_string(produto_microdata.get("description"))
             if not dados_norm.get("imagem_url"):
-                dados_norm["imagem_url"] = get_first_string(produto_microdata.get("image"))
+                dados_norm["imagem_url"] = self._get_first_string(produto_microdata.get("image"))
             if not dados_norm.get("marca"):
-                dados_norm["marca"] = get_first_string(produto_microdata.get("brand"))
+                dados_norm["marca"] = self._get_first_string(produto_microdata.get("brand"))
             if not dados_norm.get("sku"):
-                dados_norm["sku"] = get_first_string(
+                dados_norm["sku"] = self._get_first_string(
                     produto_microdata.get("sku") or produto_microdata.get("mpn")
                 )
 
         if opengraph and isinstance(opengraph, dict):
             if not dados_norm.get("nome"):
-                dados_norm["nome"] = get_first_string(opengraph.get("og:title"))
+                dados_norm["nome"] = self._get_first_string(opengraph.get("og:title"))
             if not dados_norm.get("descricao_curta"):
-                dados_norm["descricao_curta"] = get_first_string(opengraph.get("og:description"))
+                dados_norm["descricao_curta"] = self._get_first_string(opengraph.get("og:description"))
             if not dados_norm.get("imagem_url"):
-                dados_norm["imagem_url"] = get_first_string(opengraph.get("og:image"))
+                dados_norm["imagem_url"] = self._get_first_string(opengraph.get("og:image"))
             if not dados_norm.get("marca") and opengraph.get("og:type") == "product":
-                dados_norm["marca"] = get_first_string(
+                dados_norm["marca"] = self._get_first_string(
                     opengraph.get("product:brand") or opengraph.get("og:site_name")
                 )
             elif not dados_norm.get("marca"):
-                dados_norm["marca"] = get_first_string(opengraph.get("og:site_name"))
+                dados_norm["marca"] = self._get_first_string(opengraph.get("og:site_name"))
 
         return {k: v for k, v in dados_norm.items() if v is not None and v != ""}
 

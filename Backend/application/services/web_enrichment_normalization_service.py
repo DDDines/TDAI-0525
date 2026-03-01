@@ -35,28 +35,29 @@ class WebEnrichmentNormalizationService:
             for ch in ("\u00c3", "\u00c2", "\u00e2", "\u0192", "\ufffd")
         )
 
+    def _has_markers(self, candidate: str) -> bool:
+        return self._encoding_marker_count(candidate) > 0 or "??" in candidate
+
+    @staticmethod
+    def _decode_maybe(candidate: str, source_encoding: str) -> str:
+        try:
+            return candidate.encode(source_encoding).decode("utf-8")
+        except Exception:
+            return candidate
+
     def normalize_human_text(self, value: Any) -> str:
         text = str(value or "")
         if not text:
             return ""
 
-        def _has_markers(candidate: str) -> bool:
-            return self._encoding_marker_count(candidate) > 0 or "??" in candidate
-
-        def _decode_maybe(candidate: str, source_encoding: str) -> str:
-            try:
-                return candidate.encode(source_encoding).decode("utf-8")
-            except Exception:
-                return candidate
-
         for _ in range(6):
-            if not _has_markers(text):
+            if not self._has_markers(text):
                 break
             best = text
             best_markers = self._encoding_marker_count(best)
             best_alnum = sum(ch.isalnum() for ch in best)
             for source_encoding in ("cp1252", "latin-1"):
-                decoded = _decode_maybe(text, source_encoding)
+                decoded = self._decode_maybe(text, source_encoding)
                 if not decoded or decoded == text:
                     continue
                 decoded_markers = self._encoding_marker_count(decoded)

@@ -81,9 +81,7 @@ class _AuthUtilsWorkflow:
 AuthUtilsWorkflow = _AuthUtilsWorkflow
 
 
-def get_auth_utils_workflow() -> AuthUtilsWorkflow:
-    """Factory de workflow OO para o modulo atual (get_auth_utils_workflow)."""
-    return AuthUtilsWorkflow(runtime=_AuthUtilsRuntime())
+get_auth_utils_workflow = lambda: AuthUtilsWorkflow(runtime=_AuthUtilsRuntime())
 
 
 _build_auth_request_session = build_request_scoped_dependency(lambda session: session)
@@ -94,7 +92,7 @@ async def get_current_user(
     session: Session = Depends(_build_auth_request_session),
     token: str = Depends(oauth2_scheme),
 ) -> models.User:
-    """Funcao publica de compatibilidade/orquestracao do fluxo OO (get_current_user)."""
+    """Resolve usuario autenticado atual via workflow OO."""
     workflow = get_auth_utils_workflow()
     return await workflow.get_current_user(
         request=request,
@@ -106,7 +104,7 @@ async def get_current_user(
 async def get_current_active_user(
     current_user: models.User = Depends(get_current_user),
 ) -> models.User:
-    """Funcao publica de compatibilidade/orquestracao do fluxo OO (get_current_active_user)."""
+    """Valida usuario ativo via workflow OO."""
     workflow = get_auth_utils_workflow()
     return await workflow.get_current_active_user(current_user=current_user)
 
@@ -114,6 +112,6 @@ async def get_current_active_user(
 async def get_current_active_superuser(
     current_user: models.User = Depends(get_current_active_user),
 ) -> models.User:
-    """Funcao publica de compatibilidade/orquestracao do fluxo OO (get_current_active_superuser)."""
+    """Valida privilegio de superusuario via workflow OO."""
     workflow = get_auth_utils_workflow()
     return await workflow.get_current_active_superuser(current_user=current_user)

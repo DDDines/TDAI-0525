@@ -63,6 +63,29 @@ class CatalogImportIngestService:
             raise ValueError(f"{repo_name}_repo instance is required")
         return repo
 
+    def _append_import_issue(
+        self,
+        *,
+        item: Dict[str, Any],
+        erros: List[Dict[str, Any]],
+        ignored_non_critical: List[Dict[str, Any]],
+    ) -> None:
+        normalized_item = self._normalize_import_issue_item(item)
+        reason = self._extract_import_error_reason(normalized_item)
+        if self._is_non_critical_import_reason(reason):
+            ignored_non_critical.append(normalized_item)
+            return
+        erros.append(normalized_item)
+
+    def _append_quarantine_issue(
+        self,
+        *,
+        item: Dict[str, Any],
+        quarantine_non_critical: List[Dict[str, Any]],
+    ) -> None:
+        normalized_item = self._normalize_import_issue_item(item)
+        quarantine_non_critical.append(normalized_item)
+
     async def importar_catalogo_fornecedor(
         self,
         *,
@@ -118,24 +141,16 @@ class CatalogImportIngestService:
         ignored_non_critical: List[Dict[str, Any]] = []
         quarantine_non_critical: List[Dict[str, Any]] = []
 
-        def _append_import_issue(item: Dict[str, Any]) -> None:
-            normalized_item = self._normalize_import_issue_item(item)
-            reason = self._extract_import_error_reason(normalized_item)
-            if self._is_non_critical_import_reason(reason):
-                ignored_non_critical.append(normalized_item)
-                return
-            erros.append(normalized_item)
-
-        def _append_quarantine_issue(item: Dict[str, Any]) -> None:
-            normalized_item = self._normalize_import_issue_item(item)
-            quarantine_non_critical.append(normalized_item)
-
         for prod in produtos_data:
             if isinstance(prod, dict) and (
                 prod.get("motivo_descarte")
                 or any(key.startswith("erro_processamento") for key in prod.keys())
             ):
-                _append_import_issue(prod)
+                self._append_import_issue(
+                    item=prod,
+                    erros=erros,
+                    ignored_non_critical=ignored_non_critical,
+                )
                 continue
 
             cleaned_prod = self._sanitize_produto_extraido(prod)
@@ -145,24 +160,27 @@ class CatalogImportIngestService:
                 else {"decision": "accept", "score": 100, "reason": None}
             )
             if quality_eval.get("decision") == "discard":
-                _append_import_issue(
-                    {
+                self._append_import_issue(
+                    item={
                         "motivo_descarte": quality_eval.get("reason"),
                         "linha_original": prod,
                         "linha_sanitizada": cleaned_prod,
                         "qualidade_score": quality_eval.get("score"),
-                    }
+                    },
+                    erros=erros,
+                    ignored_non_critical=ignored_non_critical,
                 )
                 continue
             if quality_eval.get("decision") == "quarantine":
-                _append_quarantine_issue(
-                    {
+                self._append_quarantine_issue(
+                    item={
                         "motivo_descarte": quality_eval.get("reason"),
                         "linha_original": prod,
                         "linha_sanitizada": cleaned_prod,
                         "qualidade_score": quality_eval.get("score"),
                         "classificacao": "quarentena",
-                    }
+                    },
+                    quarantine_non_critical=quarantine_non_critical,
                 )
                 continue
 
@@ -183,12 +201,14 @@ class CatalogImportIngestService:
                 )
                 produtos_create.append(produto_schema)
             except Exception as exc:
-                _append_import_issue(
-                    {
+                self._append_import_issue(
+                    item={
                         "motivo_descarte": f"Erro ao converter linha: {exc}",
                         "linha_original": prod,
                         "linha_sanitizada": cleaned_prod,
-                    }
+                    },
+                    erros=erros,
+                    ignored_non_critical=ignored_non_critical,
                 )
 
         created: List[Any] = []
@@ -204,7 +224,11 @@ class CatalogImportIngestService:
                 user_id=current_user.id,
             )
             for err in dup_errors:
-                _append_import_issue(err)
+                self._append_import_issue(
+                    item=err,
+                    erros=erros,
+                    ignored_non_critical=ignored_non_critical,
+                )
 
             for db_produto in created:
                 call_repository_method(

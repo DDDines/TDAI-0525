@@ -15,38 +15,40 @@ class CatalogImportSanitizationService:
     def __init__(self, quality_service: CatalogImportQualityService) -> None:
         self._quality = quality_service
 
+    @staticmethod
+    def _marker_count(candidate: str) -> int:
+        return sum(
+            candidate.count(ch)
+            for ch in ("\u00c3", "\u00c2", "\u00e2", "\u0192", "\ufffd")
+        )
+
+    def _looks_mojibake(self, candidate: str) -> bool:
+        return self._marker_count(candidate) > 0 or "??" in candidate
+
+    @staticmethod
+    def _decode_maybe(candidate: str, source_encoding: str) -> str:
+        try:
+            return candidate.encode(source_encoding).decode("utf-8")
+        except Exception:
+            return candidate
+
     def normalize_import_text(self, value: str) -> str:
         """Corrige artefatos comuns de encoding em mensagens de importacao."""
         text = str(value or "")
 
-        def _marker_count(candidate: str) -> int:
-            return sum(
-                candidate.count(ch)
-                for ch in ("\u00c3", "\u00c2", "\u00e2", "\u0192", "\ufffd")
-            )
-
-        def _looks_mojibake(candidate: str) -> bool:
-            return _marker_count(candidate) > 0 or "??" in candidate
-
-        def _decode_maybe(candidate: str, source_encoding: str) -> str:
-            try:
-                return candidate.encode(source_encoding).decode("utf-8")
-            except Exception:
-                return candidate
-
         # Tenta corrigir mojibake comum (UTF-8 lido como latin-1/cp1252).
         for _ in range(6):
-            if not _looks_mojibake(text):
+            if not self._looks_mojibake(text):
                 break
 
             best = text
-            best_markers = _marker_count(best)
+            best_markers = self._marker_count(best)
             best_alnum = sum(ch.isalnum() for ch in best)
             for source_encoding in ("cp1252", "latin-1"):
-                decoded = _decode_maybe(text, source_encoding)
+                decoded = self._decode_maybe(text, source_encoding)
                 if not decoded or decoded == text:
                     continue
-                decoded_markers = _marker_count(decoded)
+                decoded_markers = self._marker_count(decoded)
                 decoded_alnum = sum(ch.isalnum() for ch in decoded)
                 alnum_guard = decoded_alnum >= int(best_alnum * 0.8)
                 if decoded_markers < best_markers and alnum_guard:

@@ -1,4 +1,4 @@
-"""Servicos de aplicacao e composicao de dependencias para 'service_container'."""
+﻿"""Servicos de aplicacao e composicao de dependencias para 'service_container'."""
 from __future__ import annotations
 
 from dataclasses import dataclass, field
@@ -35,35 +35,46 @@ from Backend.infrastructure.repositories.fornecedor_repository import Fornecedor
 from Backend.infrastructure.repositories.historico_repository import HistoricoRepository
 
 
-def _get_request_db_session(
-    session: Session = Depends(database.get_db),
-) -> Session:
-    """Funcao auxiliar interna usada pelo fluxo OO deste modulo (_get_request_db_session)."""
-    return session
+class _RequestScopedDependency:
+    """Dependencia request-scoped OO parametrizada por factory de sessao."""
+
+    def __init__(self, factory: Callable[[Session], Any]) -> None:
+        self._factory = factory
+
+    def __call__(
+        self,
+        session: Session = Depends(database.get_db),
+    ) -> Any:
+        return self._factory(session)
 
 
+class ServiceContainerDependencySupport:
+    """Helpers OO de DI para composicao request-scoped de servicos."""
+
+    @staticmethod
+    def get_request_db_session(session: Session = Depends(database.get_db)) -> Session:
+        return session
+
+    @staticmethod
+    def build_request_scoped_dependency(
+        factory: Callable[[Session], Any],
+    ) -> Callable[[Session], Any]:
+        return _RequestScopedDependency(factory)
+
+    @staticmethod
+    def build_file_processing_service() -> FileProcessingOrchestratorService:
+        return FileProcessingOrchestratorService(FileProcessingServiceAdapter())
+
+    @staticmethod
+    def build_web_data_extractor_service() -> WebDataExtractorOrchestratorService:
+        return WebDataExtractorOrchestratorService(WebDataExtractorServiceAdapter())
+
+
+_get_request_db_session = ServiceContainerDependencySupport.get_request_db_session
+build_request_scoped_dependency = ServiceContainerDependencySupport.build_request_scoped_dependency
+_build_file_processing_service = ServiceContainerDependencySupport.build_file_processing_service
+_build_web_data_extractor_service = ServiceContainerDependencySupport.build_web_data_extractor_service
 SessionDep = Annotated[Session, Depends(_get_request_db_session)]
-
-
-def build_request_scoped_dependency(
-    factory: Callable[[Session], Any],
-) -> Callable[[Session], Any]:
-    """Build a request dependency that receives the SQLAlchemy session once."""
-
-    def _dependency(session: Session = Depends(_get_request_db_session)) -> Any:
-        return factory(session)
-
-    return _dependency
-
-
-def _build_file_processing_service() -> FileProcessingOrchestratorService:
-    """Constroi dependencia/componente request-scoped para o fluxo atual (_build_file_processing_service)."""
-    return FileProcessingOrchestratorService(FileProcessingServiceAdapter())
-
-
-def _build_web_data_extractor_service() -> WebDataExtractorOrchestratorService:
-    """Constroi dependencia/componente request-scoped para o fluxo atual (_build_web_data_extractor_service)."""
-    return WebDataExtractorOrchestratorService(WebDataExtractorServiceAdapter())
 
 
 @dataclass
@@ -78,6 +89,7 @@ class ServiceContainer:
     )
     ia_generation: IAGenerationService = field(default_factory=IAGenerationService)
     limit: LimitService = field(default_factory=LimitService)
+
 
 class DependencyContainer:
     """Container de DI para dependencias request-scoped dos routers."""

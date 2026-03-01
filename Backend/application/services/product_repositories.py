@@ -1,4 +1,4 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
 from typing import Any
 
@@ -16,17 +16,25 @@ ProdutoRepository = ProductRepository
 UsoIARepository = RegistroUsoIARepository
 
 
-def build_product_management_repositories(*, session: Any) -> dict[str, Any]:
-    return {
-        "produto_repo": ProductRepository(session),
-        "fornecedor_repo": FornecedorRepository(session),
-        "product_type_repo": ProductTypeRepository(session),
-        "historico_repo": HistoricoRepository(session),
-        "uso_ia_repo": RegistroUsoIARepository(session),
-    }
+class ProductRepositories:
+    """Factories OO para composicao de repositorios da camada de aplicacao."""
+
+    @staticmethod
+    def build_product_management_repositories(*, session: Any) -> dict[str, Any]:
+        return {
+            "produto_repo": ProductRepository(session),
+            "fornecedor_repo": FornecedorRepository(session),
+            "product_type_repo": ProductTypeRepository(session),
+            "historico_repo": HistoricoRepository(session),
+            "uso_ia_repo": RegistroUsoIARepository(session),
+        }
+
+    @staticmethod
+    def build_product_media_repositories(*, session: Any) -> dict[str, Any]:
+        return {
+            "produto_repo": ProductRepository(session),
+        }
 
 
-def build_product_media_repositories(*, session: Any) -> dict[str, Any]:
-    return {
-        "produto_repo": ProductRepository(session),
-    }
+build_product_management_repositories = ProductRepositories.build_product_management_repositories
+build_product_media_repositories = ProductRepositories.build_product_media_repositories

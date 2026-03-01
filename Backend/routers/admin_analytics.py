@@ -278,19 +278,22 @@ class _AdminAnalyticsRouterRuntime:
 AdminAnalyticsRouterWorkflow = _AdminAnalyticsRouterWorkflow
 
 
-def get_admin_analytics_router_workflow() -> AdminAnalyticsRouterWorkflow:
-    """Factory de workflow OO para o modulo atual (get_admin_analytics_router_workflow)."""
-    return AdminAnalyticsRouterWorkflow(runtime=_AdminAnalyticsRouterRuntime())
+get_admin_analytics_router_workflow = (
+    lambda: AdminAnalyticsRouterWorkflow(runtime=_AdminAnalyticsRouterRuntime())
+)
 
 
-async def get_current_active_admin_user(
-    current_user: models.User = Depends(get_current_active_user),
-):
-    """Funcao publica de compatibilidade/orquestracao do fluxo OO (get_current_active_admin_user)."""
-    workflow = get_admin_analytics_router_workflow()
-    return await workflow.get_current_active_admin_user(
-        current_user=current_user
-    )
+class _AdminAnalyticsDependencies:
+    @staticmethod
+    async def get_current_active_admin_user(
+        current_user: models.User = Depends(get_current_active_user),
+    ):
+        """Dependencia HTTP para garantir que o usuario autenticado e administrador."""
+        workflow = get_admin_analytics_router_workflow()
+        return await workflow.get_current_active_admin_user(current_user=current_user)
+
+
+get_current_active_admin_user = _AdminAnalyticsDependencies.get_current_active_admin_user
 
 
 class _AdminAnalyticsRequestScope:

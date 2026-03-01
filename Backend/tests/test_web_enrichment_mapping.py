@@ -1,10 +1,26 @@
 from types import SimpleNamespace
 
-from Backend.routers.web_enrichment import (
-    build_payload_enriquecimento_visivel,
-    is_meaningful_extracted_text,
-    is_source_relevant_for_product,
-    metadata_has_minimum_signal,
+from Backend.application.services.web_enrichment_content_quality_service import (
+    WebEnrichmentContentQualityService,
+)
+from Backend.application.services.web_enrichment_normalization_service import (
+    WebEnrichmentNormalizationService,
+)
+from Backend.application.services.web_enrichment_payload_service import (
+    WebEnrichmentPayloadService,
+)
+from Backend.application.services.web_enrichment_relevance_service import (
+    WebEnrichmentRelevanceService,
+)
+
+
+_normalization_service = WebEnrichmentNormalizationService()
+_relevance_service = WebEnrichmentRelevanceService()
+_content_quality_service = WebEnrichmentContentQualityService(
+    normalization_service=_normalization_service
+)
+_payload_service = WebEnrichmentPayloadService(
+    normalization_service=_normalization_service
 )
 
 
@@ -44,7 +60,7 @@ def test_build_payload_populates_visible_fields_and_dynamic_attributes():
         "moeda_preco": "BRL",
     }
 
-    update_fields, notes, ignored = build_payload_enriquecimento_visivel(produto, dados)
+    update_fields, notes, ignored = _payload_service.build_payload_enriquecimento_visivel(produto, dados)
 
     assert update_fields["nome_chat_api"] == "Suporte Fixacao Apara Barro Randon 695mm"
     assert update_fields["descricao_original"].startswith("Codigo: SP1081")
@@ -88,7 +104,7 @@ def test_build_payload_does_not_override_existing_values():
         "preco": "199,90",
     }
 
-    update_fields, notes, ignored = build_payload_enriquecimento_visivel(produto, dados)
+    update_fields, notes, ignored = _payload_service.build_payload_enriquecimento_visivel(produto, dados)
 
     assert "nome_chat_api" not in update_fields
     assert "descricao_original" not in update_fields
@@ -119,7 +135,7 @@ def test_build_payload_replaces_suspicious_code_on_dynamic_id():
         "descricao_curta": "Codigo: SP1081 Marca: XPTO",
     }
 
-    update_fields, _, _ = build_payload_enriquecimento_visivel(produto, dados)
+    update_fields, _, _ = _payload_service.build_payload_enriquecimento_visivel(produto, dados)
 
     assert "dynamic_attributes" in update_fields
     assert update_fields["dynamic_attributes"]["id"] == "SP1081"
@@ -142,7 +158,7 @@ def test_build_payload_respects_template_key_with_suffix_using_label_alias():
         "sku": "ABC123",
     }
 
-    update_fields, _, _ = build_payload_enriquecimento_visivel(produto, dados)
+    update_fields, _, _ = _payload_service.build_payload_enriquecimento_visivel(produto, dados)
 
     dyn = update_fields["dynamic_attributes"]
     assert dyn["titulo_auto"] == "Paralama Dianteiro"
@@ -166,7 +182,7 @@ def test_build_payload_migrates_existing_alias_value_to_template_key():
         ),
     )
 
-    update_fields, _, _ = build_payload_enriquecimento_visivel(produto, {})
+    update_fields, _, _ = _payload_service.build_payload_enriquecimento_visivel(produto, {})
     dyn = update_fields["dynamic_attributes"]
 
     assert dyn["titulo_auto"] == "Titulo legado"
@@ -186,7 +202,7 @@ def test_build_payload_replaces_weak_existing_description_and_name():
         "sku": "SP1081",
     }
 
-    update_fields, notes, ignored = build_payload_enriquecimento_visivel(produto, dados)
+    update_fields, notes, ignored = _payload_service.build_payload_enriquecimento_visivel(produto, dados)
 
     assert update_fields["nome_chat_api"] == "Suporte Fixacao do Para-choque"
     assert update_fields["descricao_original"].startswith("Suporte de fixacao")
@@ -205,7 +221,7 @@ def test_source_relevance_rejects_unrelated_candidate():
         ean=None,
         dados_brutos_web={},
     )
-    is_relevant = is_source_relevant_for_product(
+    is_relevant = _relevance_service.is_source_relevant_for_product(
         produto,
         source_name="Estribo Menor Cromado Scani 112 113",
         source_desc="Peca de acabamento para estribo scania",
@@ -222,7 +238,7 @@ def test_source_relevance_accepts_matching_candidate_with_code():
         ean=None,
         dados_brutos_web={},
     )
-    is_relevant = is_source_relevant_for_product(
+    is_relevant = _relevance_service.is_source_relevant_for_product(
         produto,
         source_name="Coluna Interna FD Cargo Até 2010 LE - TJG809201A",
         source_desc="Coluna interna lado esquerdo",
@@ -236,7 +252,7 @@ def test_meaningful_text_rejects_error_page_content():
         "Reference #18.45c51102.1771763903.d28fd55 "
         "https://errors.edgesuite.net/18.45c51102.1771763903.d28fd55"
     )
-    assert is_meaningful_extracted_text(text) is False
+    assert _content_quality_service.is_meaningful_extracted_text(text) is False
 
 
 def test_meaningful_text_accepts_real_product_text():
@@ -244,7 +260,7 @@ def test_meaningful_text_accepts_real_product_text():
         "Parede Traseira Fechada para Caminhao Ford Cargo. "
         "Codigo original 2C456840300BB, material metalico, aplicacao linha pesada."
     )
-    assert is_meaningful_extracted_text(text) is True
+    assert _content_quality_service.is_meaningful_extracted_text(text) is True
 
 
 def test_metadata_signal_rejects_low_quality_content():
@@ -253,7 +269,7 @@ def test_metadata_signal_rejects_low_quality_content():
         "descricao_curta": "errors.edgesuite.net",
         "sku": "",
     }
-    assert metadata_has_minimum_signal(metadata) is False
+    assert _content_quality_service.metadata_has_minimum_signal(metadata) is False
 
 
 def test_metadata_signal_accepts_compact_product_metadata():
@@ -262,4 +278,4 @@ def test_metadata_signal_accepts_compact_product_metadata():
         "descricao_curta": "Coluna interna caminhão ford cargo lado esquerdo",
         "sku": "TJG809201A",
     }
-    assert metadata_has_minimum_signal(metadata) is True
+    assert _content_quality_service.metadata_has_minimum_signal(metadata) is True

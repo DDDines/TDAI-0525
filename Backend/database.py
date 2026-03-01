@@ -35,8 +35,7 @@ class _DatabaseRuntime:
 DatabaseWorkflow = _DatabaseWorkflow
 
 
-def get_database_workflow() -> DatabaseWorkflow:
-    return DatabaseWorkflow()
+get_database_workflow = lambda: DatabaseWorkflow()
 
 
 engine_args = get_database_workflow().build_engine_args(settings.DATABASE_URL)
@@ -45,8 +44,13 @@ SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base = declarative_base()
 
 
-def get_db():
-    yield from get_database_workflow().get_db()
+class _DatabaseDependencies:
+    @staticmethod
+    def get_db():
+        yield from get_database_workflow().get_db()
+
+
+get_db = _DatabaseDependencies.get_db
 
 
 

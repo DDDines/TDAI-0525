@@ -108,9 +108,7 @@ class _SecurityRuntime:
 SecurityWorkflow = _SecurityWorkflow
 
 
-def get_security_workflow() -> SecurityWorkflow:
-    """Factory OO para operacoes de seguranca em escopo de chamada."""
-    return SecurityWorkflow()
+get_security_workflow = lambda: SecurityWorkflow()
 
 
 

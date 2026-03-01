@@ -269,9 +269,9 @@ class _GenerationRouterRuntime:
 GenerationRouterWorkflow = _GenerationRouterWorkflow
 
 
-def get_generation_router_workflow() -> GenerationRouterWorkflow:
-    """Factory de workflow OO para o modulo atual (get_generation_router_workflow)."""
-    return GenerationRouterWorkflow(runtime=_GenerationRouterRuntime())
+get_generation_router_workflow = (
+    lambda: GenerationRouterWorkflow(runtime=_GenerationRouterRuntime())
+)
 
 
 class _GenerationRequestScope:

@@ -202,36 +202,10 @@ class _ProdutosServiceBundle:
             json_module=json,
         )
 
-
-def _build_produtos_service_bundle() -> _ProdutosServiceBundle:
-    """Constroi dependencia/componente request-scoped para o fluxo atual (_build_produtos_service_bundle)."""
-    return _ProdutosServiceBundle()
-
-
-def is_non_critical_import_reason(reason: str) -> bool:
-    """Funcao publica de compatibilidade/orquestracao do fluxo OO (is_non_critical_import_reason)."""
-    return _build_produtos_service_bundle().catalog_sanitization_service.is_non_critical_import_reason(reason)
-
-
-def avaliar_qualidade_linha_produto(data: Dict[str, Any]) -> Optional[str]:
-    """Funcao publica de compatibilidade/orquestracao do fluxo OO (avaliar_qualidade_linha_produto)."""
-    return _build_produtos_service_bundle().catalog_quality_service.evaluate_product_row_quality(data)
-
-
-def classificar_qualidade_linha_produto(data: Dict[str, Any]) -> Dict[str, Any]:
-    """Funcao publica de compatibilidade/orquestracao do fluxo OO (classificar_qualidade_linha_produto)."""
-    return _build_produtos_service_bundle().catalog_quality_service.classify_product_row_quality(data)
-
-
-def sanitize_produto_extraido(prod: Dict[str, Any]) -> Dict[str, Any]:
-    """Funcao publica de compatibilidade/orquestracao do fluxo OO (sanitize_produto_extraido)."""
-    return _build_produtos_service_bundle().catalog_sanitization_service.sanitize_extracted_product(prod)
-
-
 class _ProdutosRouterRuntime:
     """Runtime OO responsavel por integracoes e operacoes de 'produtos'."""
     def __init__(self, *, services: Optional[_ProdutosServiceBundle] = None) -> None:
-        self._services = services or _build_produtos_service_bundle()
+        self._services = services or _ProdutosServiceBundle()
 
     @staticmethod
     def _build_product_management_service(db: Session) -> ProductManagementService:
@@ -834,11 +808,6 @@ class _ProdutosRouterWorkflow:
 ProdutosRouterWorkflow = _ProdutosRouterWorkflow
 
 
-def get_produtos_router_workflow() -> ProdutosRouterWorkflow:
-    """Factory de workflow OO para o modulo atual (get_produtos_router_workflow)."""
-    return ProdutosRouterWorkflow()
-
-
 class _ProdutosRequestServices:
     """Componente OO principal '_ProdutosRequestServices' do modulo 'produtos'."""
     def __init__(
@@ -865,7 +834,7 @@ class _ProdutosCatalogRequestScope:
     """Workflow/escopo request-scoped para o fluxo de 'produtos'."""
     def __init__(self, *, db: Session, workflow: ProdutosRouterWorkflow | None = None) -> None:
         self._db = db
-        self._workflow = workflow or get_produtos_router_workflow()
+        self._workflow = workflow or ProdutosRouterWorkflow()
 
     def list_catalog_import_files(
         self,

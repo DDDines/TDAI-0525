@@ -156,9 +156,7 @@ class _FornecedoresServiceBundle:
         )
 
 
-def _build_fornecedores_service_bundle() -> _FornecedoresServiceBundle:
-    """Constroi dependencia/componente request-scoped para o fluxo atual (_build_fornecedores_service_bundle)."""
-    return _FornecedoresServiceBundle()
+_build_fornecedores_service_bundle = lambda: _FornecedoresServiceBundle()
 
 router = APIRouter(
     prefix="/fornecedores",
@@ -556,9 +554,9 @@ class _FornecedoresRouterRuntime:
 FornecedoresRouterWorkflow = _FornecedoresRouterWorkflow
 
 
-def get_fornecedores_router_workflow() -> FornecedoresRouterWorkflow:
-    """Factory de workflow OO para o modulo atual (get_fornecedores_router_workflow)."""
-    return FornecedoresRouterWorkflow(runtime=_FornecedoresRouterRuntime())
+get_fornecedores_router_workflow = (
+    lambda: FornecedoresRouterWorkflow(runtime=_FornecedoresRouterRuntime())
+)
 
 
 class _FornecedoresRequestScope:

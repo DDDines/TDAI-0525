@@ -480,23 +480,31 @@ class _AuthRuntime:
 AuthWorkflow = _AuthWorkflow
 
 
-def get_auth_workflow() -> AuthWorkflow:
-    """Factory de workflow OO para autenticacao/autorizacao."""
-    return AuthWorkflow()
+get_auth_workflow = lambda: AuthWorkflow()
 
-async def get_current_user(
-    token: str = Depends(oauth2_scheme),
-    db: Session = Depends(get_db),
-) -> models.User:
-    """Dependencia FastAPI para resolver usuario autenticado."""
-    return await get_auth_workflow().get_current_user(token=token, db=db)
+class _AuthDependencies:
+    @staticmethod
+    async def get_current_user(
+        token: str = Depends(oauth2_scheme),
+        db: Session = Depends(get_db),
+    ) -> models.User:
+        """Dependencia FastAPI para resolver usuario autenticado."""
+        return await get_auth_workflow().get_current_user(token=token, db=db)
 
 
-async def get_current_active_user(
-    current_user: models.User = Depends(get_current_user),
-) -> models.User:
-    """Dependencia FastAPI que valida usuario ativo."""
-    return get_auth_workflow().get_current_active_user(current_user=current_user)
+get_current_user = _AuthDependencies.get_current_user
+
+
+class _AuthActiveUserDependency:
+    @staticmethod
+    async def get_current_active_user(
+        current_user: models.User = Depends(get_current_user),
+    ) -> models.User:
+        """Dependencia FastAPI que valida usuario ativo."""
+        return get_auth_workflow().get_current_active_user(current_user=current_user)
+
+
+get_current_active_user = _AuthActiveUserDependency.get_current_active_user
 
 
 @router.post("/token", response_model=schemas.Token)

@@ -94,16 +94,14 @@ class _TaskRuntime:
 TaskWorkflow = _TaskWorkflow
 
 
-def get_task_workflow() -> TaskWorkflow:
-    return TaskWorkflow()
-
-
-def process_pdf_extraction_task(import_job_id: int, page_number: int, db_url: str) -> None:
-    get_task_workflow().process_pdf_extraction_task(
+get_task_workflow = lambda: TaskWorkflow()
+process_pdf_extraction_task = (
+    lambda import_job_id, page_number, db_url: get_task_workflow().process_pdf_extraction_task(
         import_job_id=import_job_id,
         page_number=page_number,
         db_url=db_url,
     )
+)
 
 
 

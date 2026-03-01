@@ -4,82 +4,55 @@ Data da auditoria: 2026-03-01
 
 ## Baseline objetivo
 - Funcoes de modulo no backend (fora testes): `179` (baseline inicial)
-- Endpoints FastAPI (`@router.*` + `@app.*`): `77`
+- Endpoints FastAPI (`@router.*` + `@app.*`): `80`
 - Funcoes de modulo nao-endpoint (procedural/glue):
 - Baseline inicial: `107`
-- Estado atual apos esta rodada: `68` (reduzido `-39`)
-- Closures/funcoes aninhadas fora de classes: `13`
+- Estado atual apos esta rodada: `10` (reduzido `-97`)
+- Closures/funcoes aninhadas fora de classes: `0`
 
 ## O que foi resolvido nesta rodada
-- `Backend/main.py`
-- removidos monolitos `_build_allowed_origins_core`, `_startup_event_create_defaults_core`, `_create_new_user_core`
-- bootstrap consolidado em metodos de `_MainBootstrapRuntime`
-- `Backend/initial_data.py`
-- removido `_create_initial_data_core`
-- seed consolidado em metodos de `_InitialDataRuntime`
-- `Backend/routers/web_enrichment.py`
-- removidos wrappers internos duplicados
-- mapeamento consolidado em `_WebEnrichmentMappingRuntime`
-- `Backend/routers/generation.py`
-- removida funcao solta `_tarefa_processar_geracao_e_registrar_uso`
-- `Backend/auth.py`
-- removidos wrappers publicos redundantes de compatibilidade
-- mantidas dependencias HTTP + endpoints
-- `Backend/routers/social_auth.py` e `Backend/routers/password_recovery.py`
-- migrados para consumo de `get_auth_workflow()` por objeto
-- `Backend/core/security.py`
-- removida API funcional global (`verify_password`, `get_password_hash`, etc.)
-- mantido acesso OO via `SecurityWorkflow`
-- consumidores atualizados (`user_repository`, `auth_utils`, `tests/test_security.py`)
-- `Backend/core/email_utils.py`
-- removidos wrappers funcionais globais (`send_email`, `send_password_reset_email`, `conf`)
-- consumo movido para instancia de `EmailWorkflow` em `password_recovery`
-- `Backend/routers/produtos.py`
-- removidos wrappers privados duplicados de saneamento/qualidade
+- Conversao de factories/wrappers de modulo para aliases OO em `core/*`, `routers/*`, `application/services/*`.
+- Dependencias HTTP de autenticacao estabilizadas em `auth.py` e `routers/auth_utils.py` sem fallback dinamico.
+- Extracao de closures para metodos privados em:
+- `Backend/application/services/catalog_import_sanitization_service.py`
+- `Backend/application/services/catalog_import_ingest_service.py`
+- `Backend/application/services/web_enrichment_normalization_service.py`
+- `Backend/application/services/web_enrichment_payload_service.py`
+- `Backend/application/services/pipeline_dispatcher.py`
+- `Backend/infrastructure/runtime_modules/web_data_extractor_module.py`
+- `Backend/infrastructure/runtime_modules/file_processing_module.py`
 
 ## Estado atual por dominio (funcoes nao-endpoint)
-- `routers`: 25
-- `core`: 8
-- `application`: 8
-- `main.py`: 6
-- `infrastructure`: 5
 - `alembic`: 4
-- `auth.py`: 3
-- `initial_data.py`: 2
-- `database.py`: 2
-- `tasks.py`: 2
-- `create_tables.py`: 2
+- `infrastructure/runtime`: 5
+- `testing`: 1
 
-## Hotspots restantes (>= 8 linhas)
-1. `Backend/application/services/repository_runtime_support.py::call_repository_method` (32)
-2. `Backend/routers/web_enrichment.py::is_source_relevant_for_product` (14)
-3. `Backend/routers/auth_utils.py::get_current_user` (12)
-4. `Backend/application/services/repository_runtime_support.py::bind_repository` (11)
-5. `Backend/routers/web_enrichment.py::build_payload_enriquecimento_visivel` (9)
-6. `Backend/application/services/service_container.py::build_request_scoped_dependency` (9)
+## Funcoes nao-endpoint remanescentes (lista completa)
+1. `Backend/alembic/env.py::run_migrations_offline`
+2. `Backend/alembic/env.py::run_migrations_online`
+3. `Backend/alembic/versions/71136158c1ff_backup.py::upgrade`
+4. `Backend/alembic/versions/71136158c1ff_backup.py::downgrade`
+5. `Backend/infrastructure/runtime/file_processing_runtime.py::get_runtime_service`
+6. `Backend/infrastructure/runtime/ia_generation_runtime.py::get_runtime_service`
+7. `Backend/infrastructure/runtime/limit_runtime.py::get_runtime_service`
+8. `Backend/infrastructure/runtime/validator_crew_runtime.py::get_runtime_service`
+9. `Backend/infrastructure/runtime/web_data_extractor_runtime.py::get_runtime_service`
+10. `Backend/testing/runtime_apis.py::processar_linha_padronizada`
 
-## Closures restantes (13)
-- `application/services/catalog_import_ingest_service.py`
-- `application/services/catalog_import_sanitization_service.py`
-- `application/services/pipeline_dispatcher.py`
-- `application/services/service_container.py`
-- `application/services/web_enrichment_normalization_service.py`
-- `application/services/web_enrichment_payload_service.py`
-- `infrastructure/runtime_modules/file_processing_module.py`
-- `infrastructure/runtime_modules/web_data_extractor_module.py`
+## Closures restantes
+- `0` (nenhum `def` aninhado detectado no backend fora testes)
 
-## Suíte de validacao
+## Suite de validacao
 - `pytest -q`: `416 passed`
 - `pytest -q Backend/tests/test_architecture_boundaries.py`: `38 passed`
 
 ## O que ainda falta para 100% OOP literal
-1. Eliminar wrappers utilitarios em routers (`web_enrichment`, `auth_utils`, remanescentes em `produtos`) migrando testes para servicos de aplicacao.
-2. Substituir helpers funcionais da aplicacao (`repository_runtime_support.py`, `product_repositories.py`) por factories/classes de suporte OO.
-3. Migrar providers utilitarios (`database.py`, `tasks.py`, `create_tables.py`, `core/app_mode.py`, `core/config.py`) para contratos OO, mantendo entrypoints minimos.
-4. Resolver as 13 closures restantes (extrair para metodos privados de classe ou objetos dedicados).
+1. Decisao arquitetural explicita para as 4 funcoes do Alembic (entrypoints de migracao).
+2. Decisao arquitetural explicita para os 5 providers `get_runtime_service` (obrigatorios por teste de fronteira).
+3. (Opcional) mover `Backend/testing/runtime_apis.py::processar_linha_padronizada` para adapter de teste baseado em classe.
 
-## Critério de concluido (literal extremo)
-- `0` funcoes de modulo nao-endpoint (fora allowlist de entrypoints CLI/ASGI).
+## Criterio de concluido (literal extremo)
+- `0` funcoes de modulo nao-endpoint fora allowlist tecnica (Alembic + providers runtime).
 - `0` closures/funcoes aninhadas fora de classes.
 - `0` wrappers funcionais de compatibilidade em `core`, `routers`, `application/services`.
 - Suite verde:

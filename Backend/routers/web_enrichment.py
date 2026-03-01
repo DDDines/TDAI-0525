@@ -280,48 +280,6 @@ class _WebEnrichmentRouterWorkflow:
 WebEnrichmentRouterWorkflow = _WebEnrichmentRouterWorkflow
 
 
-def get_web_enrichment_router_workflow() -> WebEnrichmentRouterWorkflow:
-    """Factory de workflow OO para o router de enriquecimento."""
-    return WebEnrichmentRouterWorkflow(runtime=_WebEnrichmentRouterRuntime())
-
-
-def is_source_relevant_for_product(
-    db_produto_obj: models.Produto,
-    *,
-    source_name: Any,
-    source_desc: Any,
-    source_url: str,
-) -> bool:
-    """Compatibilidade publica usada por testes de mapeamento."""
-    return get_web_enrichment_router_workflow().mapping.is_source_relevant_for_product(
-        db_produto_obj,
-        source_name=source_name,
-        source_desc=source_desc,
-        source_url=source_url,
-    )
-
-
-def is_meaningful_extracted_text(value: Any) -> bool:
-    """Compatibilidade publica usada por testes de mapeamento."""
-    return get_web_enrichment_router_workflow().mapping.is_meaningful_extracted_text(value)
-
-
-def metadata_has_minimum_signal(metadata: Dict[str, Any]) -> bool:
-    """Compatibilidade publica usada por testes de mapeamento."""
-    return get_web_enrichment_router_workflow().mapping.metadata_has_minimum_signal(metadata)
-
-
-def build_payload_enriquecimento_visivel(
-    db_produto_obj: models.Produto,
-    dados_extraidos_agregados: Dict[str, Any],
-) -> Tuple[Dict[str, Any], List[str], List[str]]:
-    """Compatibilidade publica usada por testes de mapeamento."""
-    return get_web_enrichment_router_workflow().mapping.build_payload_enriquecimento_visivel(
-        db_produto_obj,
-        dados_extraidos_agregados,
-    )
-
-
 @router.post("/produto/{produto_id}", status_code=status.HTTP_202_ACCEPTED, response_model=schemas.Msg)
 async def iniciar_enriquecimento_produto_web_endpoint(
     produto_id: int,
@@ -332,7 +290,7 @@ async def iniciar_enriquecimento_produto_web_endpoint(
         description="Opcional: termos de busca especificos para o Google Search.",
     ),
 ):
-    workflow = get_web_enrichment_router_workflow()
+    workflow = WebEnrichmentRouterWorkflow(runtime=_WebEnrichmentRouterRuntime())
     return workflow.iniciar_enriquecimento_produto_web(
         produto_id=produto_id,
         background_tasks=background_tasks,

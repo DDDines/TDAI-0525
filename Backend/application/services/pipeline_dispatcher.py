@@ -29,26 +29,28 @@ class PipelineDispatcher:
         background_tasks.add_task(plan.executor, **plan.task_kwargs)
 
     @staticmethod
+    def _run_in_thread(plan: TaskExecutionPlan, file_id: str) -> None:
+        try:
+            asyncio.run(plan.executor(**plan.task_kwargs))
+        except Exception as exc:  # pragma: no cover - erro inesperado de thread
+            logger.exception(
+                "falha ao executar thread da pipeline '%s' (file_id=%s): %s",
+                plan.name,
+                file_id,
+                exc,
+            )
+
+    @staticmethod
     def dispatch_threaded(
         plan: TaskExecutionPlan,
         *,
         thread_name_prefix: str,
     ) -> None:
-        file_id = plan.task_kwargs.get("file_id", "unknown")
-
-        def _run_in_thread() -> None:
-            try:
-                asyncio.run(plan.executor(**plan.task_kwargs))
-            except Exception as exc:  # pragma: no cover - erro inesperado de thread
-                logger.exception(
-                    "falha ao executar thread da pipeline '%s' (file_id=%s): %s",
-                    plan.name,
-                    file_id,
-                    exc,
-                )
+        file_id = str(plan.task_kwargs.get("file_id", "unknown"))
 
         thread = threading.Thread(
-            target=_run_in_thread,
+            target=PipelineDispatcher._run_in_thread,
+            args=(plan, file_id),
             name=f"{thread_name_prefix}-{file_id}",
             daemon=True,
         )

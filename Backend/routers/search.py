@@ -131,9 +131,7 @@ class _SearchWorkflow:
 SearchWorkflow = _SearchWorkflow
 
 
-def get_search_workflow() -> SearchWorkflow:
-    """Factory de workflow OO para o modulo atual (get_search_workflow)."""
-    return SearchWorkflow(runtime=_SearchRuntime())
+get_search_workflow = lambda: SearchWorkflow(runtime=_SearchRuntime())
 
 
 class _SearchRequestScope:

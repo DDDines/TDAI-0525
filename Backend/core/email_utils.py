@@ -176,8 +176,7 @@ class _EmailRuntime:
 EmailWorkflow = _EmailWorkflow
 
 
-def get_email_workflow() -> EmailWorkflow:
-    return EmailWorkflow()
+get_email_workflow = lambda: EmailWorkflow()
 
 
 

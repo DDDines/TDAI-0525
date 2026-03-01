@@ -49,12 +49,8 @@ class _CreateTablesRuntime:
 CreateTablesWorkflow = _CreateTablesWorkflow
 
 
-def get_create_tables_workflow() -> CreateTablesWorkflow:
-    return CreateTablesWorkflow()
-
-
-def create_all_tables():
-    get_create_tables_workflow().create_all_tables()
+get_create_tables_workflow = lambda: CreateTablesWorkflow()
+create_all_tables = lambda: get_create_tables_workflow().create_all_tables()
 
 
 

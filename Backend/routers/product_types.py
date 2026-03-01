@@ -433,9 +433,9 @@ class _ProductTypesRouterRuntime:
 ProductTypesRouterWorkflow = _ProductTypesRouterWorkflow
 
 
-def get_product_types_router_workflow() -> ProductTypesRouterWorkflow:
-    """Factory de workflow OO para o modulo atual (get_product_types_router_workflow)."""
-    return ProductTypesRouterWorkflow(runtime=_ProductTypesRouterRuntime())
+get_product_types_router_workflow = (
+    lambda: ProductTypesRouterWorkflow(runtime=_ProductTypesRouterRuntime())
+)
 
 
 class _ProductTypesRequestScope:

@@ -27,9 +27,5 @@ class _AppModeRuntime:
 AppModeWorkflow = _AppModeWorkflow
 
 
-def get_app_mode_workflow() -> AppModeWorkflow:
-    return AppModeWorkflow()
-
-
-def get_app_mode() -> AppMode:
-    return get_app_mode_workflow().get_app_mode()
+get_app_mode_workflow = lambda: AppModeWorkflow()
+get_app_mode = lambda: get_app_mode_workflow().get_app_mode()

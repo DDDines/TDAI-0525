@@ -26,6 +26,7 @@ from concurrent.futures import ThreadPoolExecutor
 from pdf2image import convert_from_bytes, convert_from_path
 
 import time
+from functools import partial
 
 from typing import List, Dict, Any, Union, Optional
 
@@ -2157,68 +2158,80 @@ class _PdfPreviewRuntime:
         dpi: int,
         kwargs: Dict[str, Any],
     ):
-        def _process_page(page_number: int) -> Dict[str, Any]:
-            with pdf_open(io.BytesIO(conteudo_arquivo)) as reader:
-                page = reader.pages[page_number - 1]
-                tables = page.extract_tables()
-                result: Dict[str, Any] = {
-                    "page": page_number,
-                    "has_table": bool(tables),
-                }
+        return partial(
+            self._process_page,
+            conteudo_arquivo=conteudo_arquivo,
+            dpi=dpi,
+            kwargs=kwargs,
+        )
 
-                text = page.extract_text() or ""
-                image = convert_from_bytes(
-                    conteudo_arquivo,
-                    first_page=page_number,
-                    last_page=page_number,
-                    fmt="png",
-                    dpi=dpi,
-                    **kwargs,
-                )[0]
+    def _process_page(
+        self,
+        page_number: int,
+        *,
+        conteudo_arquivo: bytes,
+        dpi: int,
+        kwargs: Dict[str, Any],
+    ) -> Dict[str, Any]:
+        with pdf_open(io.BytesIO(conteudo_arquivo)) as reader:
+            page = reader.pages[page_number - 1]
+            tables = page.extract_tables()
+            result: Dict[str, Any] = {
+                "page": page_number,
+                "has_table": bool(tables),
+            }
 
-                png_buf = io.BytesIO()
-                image.save(png_buf, format="PNG")
-                png_b64 = base64.b64encode(png_buf.getvalue())
+            text = page.extract_text() or ""
+            image = convert_from_bytes(
+                conteudo_arquivo,
+                first_page=page_number,
+                last_page=page_number,
+                fmt="png",
+                dpi=dpi,
+                **kwargs,
+            )[0]
 
+            png_buf = io.BytesIO()
+            image.save(png_buf, format="PNG")
+            png_b64 = base64.b64encode(png_buf.getvalue())
+
+            jpeg_buf = io.BytesIO()
+            image.convert("RGB").save(
+                jpeg_buf,
+                format="JPEG",
+                optimize=True,
+                quality=70,
+            )
+            jpeg_b64 = base64.b64encode(jpeg_buf.getvalue())
+
+            if len(jpeg_b64) >= len(png_b64):
                 jpeg_buf = io.BytesIO()
                 image.convert("RGB").save(
                     jpeg_buf,
                     format="JPEG",
                     optimize=True,
-                    quality=70,
+                    quality=50,
                 )
                 jpeg_b64 = base64.b64encode(jpeg_buf.getvalue())
 
-                if len(jpeg_b64) >= len(png_b64):
-                    jpeg_buf = io.BytesIO()
-                    image.convert("RGB").save(
-                        jpeg_buf,
-                        format="JPEG",
-                        optimize=True,
-                        quality=50,
-                    )
-                    jpeg_b64 = base64.b64encode(jpeg_buf.getvalue())
+            if len(jpeg_b64) < len(png_b64):
+                b64 = jpeg_b64.decode()
+                mime = "jpeg"
+            else:
+                b64 = png_b64.decode()
+                mime = "png"
 
-                if len(jpeg_b64) < len(png_b64):
-                    b64 = jpeg_b64.decode()
-                    mime = "jpeg"
-                else:
-                    b64 = png_b64.decode()
-                    mime = "png"
-
-                snippet = "\n".join(text.splitlines()[:3])
-                result.update(
-                    {
-                        "snippet": snippet,
-                        "preview_image": {
-                            "page": page_number,
-                            "image": f"data:image/{mime};base64,{b64}",
-                        },
-                    }
-                )
-            return result
-
-        return _process_page
+            snippet = "\n".join(text.splitlines()[:3])
+            result.update(
+                {
+                    "snippet": snippet,
+                    "preview_image": {
+                        "page": page_number,
+                        "image": f"data:image/{mime};base64,{b64}",
+                    },
+                }
+            )
+        return result
 
     async def preview_arquivo_pdf(
         self,

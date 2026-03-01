@@ -134,6 +134,109 @@ class WebEnrichmentPayloadService:
             return True
         return False
 
+    def _apply_if_empty_or_weak(
+        self,
+        *,
+        field_name: str,
+        current_value: Any,
+        new_value: Any,
+        update_fields: Dict[str, Any],
+        notes: List[str],
+        ignored_notes: List[str],
+        allow_replace_weak: bool = False,
+    ) -> None:
+        if self._normalization.is_empty(new_value):
+            return
+        if self._normalization.is_empty(current_value):
+            update_fields[field_name] = new_value
+            notes.append(field_name)
+            return
+        if (
+            allow_replace_weak
+            and self._is_weak_existing_field(field_name, current_value)
+            and not self._is_weak_existing_field(field_name, new_value)
+        ):
+            update_fields[field_name] = new_value
+            notes.append(f"{field_name}:substituido_valor_fraco")
+            return
+        ignored_notes.append(f"{field_name}:mantido_valor_existente")
+
+    def _set_dynamic_if_empty(
+        self,
+        *,
+        candidates: List[str],
+        value: Any,
+        dynamic_current: Dict[str, Any],
+        normalized_key_to_real: Dict[str, str],
+        dynamic_ignored: List[str],
+        allow_replace_suspicious: bool = False,
+        allow_replace_weak: bool = False,
+    ) -> Optional[str]:
+        text_value = self._normalization.as_text(value)
+        value_from_existing = False
+        if not text_value:
+            for candidate in candidates:
+                candidate_norm = self._normalization.fold_text(candidate)
+                for current_key, current_val in dynamic_current.items():
+                    current_norm = self._normalization.fold_text(current_key)
+                    if candidate_norm == current_norm or candidate_norm in current_norm:
+                        maybe_value = self._normalization.as_text(current_val)
+                        if maybe_value:
+                            text_value = maybe_value
+                            value_from_existing = True
+                            break
+                if text_value:
+                    break
+        if not text_value:
+            return None
+
+        target_key = None
+        for candidate in candidates:
+            candidate_norm = self._normalization.fold_text(candidate)
+            if candidate_norm in normalized_key_to_real:
+                target_key = normalized_key_to_real[candidate_norm]
+                break
+            for known_norm, known_key in normalized_key_to_real.items():
+                if not known_norm or not candidate_norm:
+                    continue
+                if candidate_norm == known_norm:
+                    target_key = known_key
+                    break
+                if candidate_norm == "descricao" and "desc" in known_norm:
+                    target_key = known_key
+                    break
+                if len(candidate_norm) >= 4 and len(known_norm) >= 4 and (
+                    candidate_norm in known_norm or known_norm in candidate_norm
+                ):
+                    target_key = known_key
+                    break
+            if target_key:
+                break
+
+        if not target_key:
+            target_key = candidates[0]
+
+        current_value = dynamic_current.get(target_key)
+        current_text = self._normalization.as_text(current_value)
+        if self._normalization.is_empty(current_value):
+            dynamic_current[target_key] = text_value
+            return target_key
+        if value_from_existing and current_text == text_value:
+            return None
+        if allow_replace_suspicious and self._normalization.is_suspicious_code(current_value):
+            dynamic_current[target_key] = text_value
+            return target_key
+        if (
+            allow_replace_weak
+            and self._is_weak_dynamic_value(target_key, current_value)
+            and not self._is_weak_dynamic_value(target_key, text_value)
+        ):
+            dynamic_current[target_key] = text_value
+            return target_key
+
+        dynamic_ignored.append(str(target_key))
+        return None
+
     def build_payload_enriquecimento_visivel(
         self,
         db_produto_obj: Any,
@@ -205,58 +308,58 @@ class WebEnrichmentPayloadService:
             max_len=400,
         )
 
-        def _apply_if_empty_or_weak(
-            field_name: str,
-            current_value: Any,
-            new_value: Any,
-            *,
-            allow_replace_weak: bool = False,
-        ) -> None:
-            if self._normalization.is_empty(new_value):
-                return
-            if self._normalization.is_empty(current_value):
-                update_fields[field_name] = new_value
-                notes.append(field_name)
-            elif (
-                allow_replace_weak
-                and self._is_weak_existing_field(field_name, current_value)
-                and not self._is_weak_existing_field(field_name, new_value)
-            ):
-                update_fields[field_name] = new_value
-                notes.append(f"{field_name}:substituido_valor_fraco")
-            else:
-                ignored_notes.append(f"{field_name}:mantido_valor_existente")
-
-        _apply_if_empty_or_weak(
-            "nome_chat_api",
-            db_produto_obj.nome_chat_api,
-            nome_web,
+        self._apply_if_empty_or_weak(
+            field_name="nome_chat_api",
+            current_value=db_produto_obj.nome_chat_api,
+            new_value=nome_web,
+            update_fields=update_fields,
+            notes=notes,
+            ignored_notes=ignored_notes,
             allow_replace_weak=True,
         )
-        _apply_if_empty_or_weak(
-            "descricao_original",
-            db_produto_obj.descricao_original,
-            descricao_web,
+        self._apply_if_empty_or_weak(
+            field_name="descricao_original",
+            current_value=db_produto_obj.descricao_original,
+            new_value=descricao_web,
+            update_fields=update_fields,
+            notes=notes,
+            ignored_notes=ignored_notes,
             allow_replace_weak=True,
         )
-        _apply_if_empty_or_weak(
-            "descricao_chat_api",
-            db_produto_obj.descricao_chat_api,
-            descricao_web,
+        self._apply_if_empty_or_weak(
+            field_name="descricao_chat_api",
+            current_value=db_produto_obj.descricao_chat_api,
+            new_value=descricao_web,
+            update_fields=update_fields,
+            notes=notes,
+            ignored_notes=ignored_notes,
             allow_replace_weak=True,
         )
-        _apply_if_empty_or_weak(
-            "imagem_principal_url",
-            db_produto_obj.imagem_principal_url,
-            imagem_url_web,
+        self._apply_if_empty_or_weak(
+            field_name="imagem_principal_url",
+            current_value=db_produto_obj.imagem_principal_url,
+            new_value=imagem_url_web,
+            update_fields=update_fields,
+            notes=notes,
+            ignored_notes=ignored_notes,
         )
-        _apply_if_empty_or_weak(
-            "marca",
-            db_produto_obj.marca,
-            marca_web,
+        self._apply_if_empty_or_weak(
+            field_name="marca",
+            current_value=db_produto_obj.marca,
+            new_value=marca_web,
+            update_fields=update_fields,
+            notes=notes,
+            ignored_notes=ignored_notes,
             allow_replace_weak=True,
         )
-        _apply_if_empty_or_weak("sku", db_produto_obj.sku, sku_web)
+        self._apply_if_empty_or_weak(
+            field_name="sku",
+            current_value=db_produto_obj.sku,
+            new_value=sku_web,
+            update_fields=update_fields,
+            notes=notes,
+            ignored_notes=ignored_notes,
+        )
 
         if preco_web is not None:
             if db_produto_obj.preco_venda is None:
@@ -287,78 +390,6 @@ class WebEnrichmentPayloadService:
 
         dynamic_ignored: List[str] = []
 
-        def _set_dynamic_if_empty(
-            candidates: List[str],
-            value: Any,
-            *,
-            allow_replace_suspicious: bool = False,
-            allow_replace_weak: bool = False,
-        ) -> Optional[str]:
-            text_value = self._normalization.as_text(value)
-            value_from_existing = False
-            if not text_value:
-                for candidate in candidates:
-                    candidate_norm = self._normalization.fold_text(candidate)
-                    for current_key, current_val in dynamic_current.items():
-                        current_norm = self._normalization.fold_text(current_key)
-                        if candidate_norm == current_norm or candidate_norm in current_norm:
-                            maybe_value = self._normalization.as_text(current_val)
-                            if maybe_value:
-                                text_value = maybe_value
-                                value_from_existing = True
-                                break
-                    if text_value:
-                        break
-            if not text_value:
-                return None
-
-            target_key = None
-            for candidate in candidates:
-                candidate_norm = self._normalization.fold_text(candidate)
-                if candidate_norm in normalized_key_to_real:
-                    target_key = normalized_key_to_real[candidate_norm]
-                    break
-                for known_norm, known_key in normalized_key_to_real.items():
-                    if not known_norm or not candidate_norm:
-                        continue
-                    if candidate_norm == known_norm:
-                        target_key = known_key
-                        break
-                    if candidate_norm == "descricao" and "desc" in known_norm:
-                        target_key = known_key
-                        break
-                    if len(candidate_norm) >= 4 and len(known_norm) >= 4 and (
-                        candidate_norm in known_norm or known_norm in candidate_norm
-                    ):
-                        target_key = known_key
-                        break
-                if target_key:
-                    break
-
-            if not target_key:
-                target_key = candidates[0]
-
-            current_value = dynamic_current.get(target_key)
-            current_text = self._normalization.as_text(current_value)
-            if self._normalization.is_empty(current_value):
-                dynamic_current[target_key] = text_value
-                return target_key
-            if value_from_existing and current_text == text_value:
-                return None
-            if allow_replace_suspicious and self._normalization.is_suspicious_code(current_value):
-                dynamic_current[target_key] = text_value
-                return target_key
-            if (
-                allow_replace_weak
-                and self._is_weak_dynamic_value(target_key, current_value)
-                and not self._is_weak_dynamic_value(target_key, text_value)
-            ):
-                dynamic_current[target_key] = text_value
-                return target_key
-
-            dynamic_ignored.append(str(target_key))
-            return None
-
         dynamic_filled: List[str] = []
         for aliases, value in [
             (["titulo", "title", "nome"], nome_web),
@@ -381,9 +412,12 @@ class WebEnrichmentPayloadService:
             (["moeda_preco", "moeda"], moeda_preco_web),
             (["marca"], marca_web),
         ]:
-            target = _set_dynamic_if_empty(
-                aliases,
-                value,
+            target = self._set_dynamic_if_empty(
+                candidates=aliases,
+                value=value,
+                dynamic_current=dynamic_current,
+                normalized_key_to_real=normalized_key_to_real,
+                dynamic_ignored=dynamic_ignored,
                 allow_replace_suspicious=(aliases[0] in {"id", "codigo_original"}),
                 allow_replace_weak=(
                     aliases[0] in {"titulo", "descricao", "material", "aplicacao", "marca"}
@@ -397,7 +431,13 @@ class WebEnrichmentPayloadService:
             for key, value in specs.items():
                 if self._normalization.is_empty(key):
                     continue
-                target = _set_dynamic_if_empty([str(key)], value)
+                target = self._set_dynamic_if_empty(
+                    candidates=[str(key)],
+                    value=value,
+                    dynamic_current=dynamic_current,
+                    normalized_key_to_real=normalized_key_to_real,
+                    dynamic_ignored=dynamic_ignored,
+                )
                 if target:
                     dynamic_filled.append(target)
 

@@ -173,9 +173,7 @@ class _UsoIARuntime:
 UsoIAWorkflow = _UsoIAWorkflow
 
 
-def get_uso_ia_workflow() -> UsoIAWorkflow:
-    """Factory de workflow OO para o modulo atual (get_uso_ia_workflow)."""
-    return UsoIAWorkflow(runtime=_UsoIARuntime())
+get_uso_ia_workflow = lambda: UsoIAWorkflow(runtime=_UsoIARuntime())
 
 
 class _UsoIARequestScope:

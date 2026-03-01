@@ -19,8 +19,7 @@ logger = get_logger(__name__)
 http_url_adapter = TypeAdapter(AnyHttpUrl)
 
 
-def env_var_name_with_prefix(field_name: str) -> str:
-    return field_name
+env_var_name_with_prefix = lambda field_name: field_name
 
 
 class Settings(BaseSettings):
@@ -221,8 +220,7 @@ class _ConfigRuntime:
 ConfigWorkflow = _ConfigWorkflow
 
 
-def get_config_workflow() -> ConfigWorkflow:
-    return ConfigWorkflow()
+get_config_workflow = lambda: ConfigWorkflow()
 
 
 settings = get_config_workflow().build_settings()
