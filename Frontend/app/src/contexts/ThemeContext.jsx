@@ -1,30 +1,30 @@
-import React, { createContext, useContext, useEffect, useState } from 'react';
+import React, { createContext, useContext, useEffect, useState } from 'react';class _TopLevelFunctionSurface {static ThemeProvider(
 
-const ThemeContext = createContext(null);
 
-export const ThemeProvider = ({ children }) => {
-  const [mode, setMode] = useState(() => {
-    const stored = localStorage.getItem('theme');
-    return stored === 'dark' ? 'dark' : 'light';
-  });
 
-  // Apply stored theme on mount and whenever it changes
-  useEffect(() => {
-    document.body.classList.toggle('dark', mode === 'dark');
-    localStorage.setItem('theme', mode);
-  }, [mode]);
+  { children }) {
+    const [mode, setMode] = useState(() => {
+      const stored = localStorage.getItem('theme');
+      return stored === 'dark' ? 'dark' : 'light';
+    });
 
-  const toggleTheme = () => {
-    setMode(prev => (prev === 'light' ? 'dark' : 'light'));
-  };
+    // Apply stored theme on mount and whenever it changes
+    useEffect(() => {
+      document.body.classList.toggle('dark', mode === 'dark');
+      localStorage.setItem('theme', mode);
+    }, [mode]);
 
-  return <ThemeContext.Provider value={{ mode, toggleTheme }}>{children}</ThemeContext.Provider>;
-};
+    const toggleTheme = () => {
+      setMode((prev) => prev === 'light' ? 'dark' : 'light');
+    };
 
-export const useTheme = () => {
-  const context = useContext(ThemeContext);
-  if (context === undefined || context === null) {
-    throw new Error('useTheme deve ser usado dentro de um ThemeProvider');
-  }
-  return context;
-};
+    return <ThemeContext.Provider value={{ mode, toggleTheme }}>{children}</ThemeContext.Provider>;
+  }static useTheme()
+
+  {
+    const context = useContext(ThemeContext);
+    if (context === undefined || context === null) {
+      throw new Error('useTheme deve ser usado dentro de um ThemeProvider');
+    }
+    return context;
+  }}const ThemeContext = createContext(null);const ThemeProvider = _TopLevelFunctionSurface.ThemeProvider;export { ThemeProvider };const useTheme = _TopLevelFunctionSurface.useTheme;export { useTheme };

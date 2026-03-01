@@ -1,26 +1,26 @@
 import { render, screen } from '@testing-library/react';
 import '@testing-library/jest-dom';
-import { TextEncoder, TextDecoder } from 'util';
-globalThis.TextEncoder = TextEncoder;
-globalThis.TextDecoder = TextDecoder;
-import userEvent from '@testing-library/user-event';
-import Topbar from '../../Topbar.jsx';
-import { ThemeProvider } from '../../../contexts/ThemeContext.jsx';
+import { TextEncoder, TextDecoder } from 'util';class _TopLevelFunctionSurface {static renderWithTheme() {return (
 
-jest.mock('../../../contexts/AuthContext.jsx', () => ({
-  useAuth: () => ({ logout: jest.fn() })
-}));
 
-jest.mock('react-router-dom', () => ({
-  useNavigate: () => jest.fn()
-}));
 
-const renderWithTheme = () =>
-  render(
-    <ThemeProvider>
+
+
+
+
+
+
+
+
+
+
+
+
+      render(
+        <ThemeProvider>
       <Topbar toggleSidebar={() => {}} />
     </ThemeProvider>
-  );
+      ));}}globalThis.TextEncoder = TextEncoder;globalThis.TextDecoder = TextDecoder;import userEvent from '@testing-library/user-event';import Topbar from '../../Topbar.jsx';import { ThemeProvider } from '../../../contexts/ThemeContext.jsx';jest.mock('../../../contexts/AuthContext.jsx', () => ({ useAuth: () => ({ logout: jest.fn() }) }));jest.mock('react-router-dom', () => ({ useNavigate: () => jest.fn() }));const renderWithTheme = _TopLevelFunctionSurface.renderWithTheme;
 
 test('applies theme from localStorage on mount', () => {
   localStorage.setItem('theme', 'dark');

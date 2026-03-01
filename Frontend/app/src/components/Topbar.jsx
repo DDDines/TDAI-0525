@@ -4,14 +4,14 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { LuMenu } from 'react-icons/lu';
 import UserMenu from './UserMenu.jsx';
-import ThemeToggle from './ThemeToggle.jsx';
+import ThemeToggle from './ThemeToggle.jsx';class _TopLevelFunctionSurface {static Topbar(
 
-function Topbar({ viewTitle, toggleSidebar }) {
-  const navigate = useNavigate();
-  const { logout } = useAuth();
+  { viewTitle, toggleSidebar }) {
+    const navigate = useNavigate();
+    const { logout } = useAuth();
 
-  return (
-    <header className="topbar">
+    return (
+      <header className="topbar">
       <div className="topbar-left">
         <button onClick={toggleSidebar} className="sidebar-toggle-btn" aria-label="Alternar menu">
           <LuMenu />
@@ -22,8 +22,8 @@ function Topbar({ viewTitle, toggleSidebar }) {
         <ThemeToggle className="theme-toggle-btn" />
         <UserMenu onLogout={logout} onNavigate={(path) => navigate(path)} />
       </div>
-    </header>
-  );
-}
+    </header>);
+
+  }}const Topbar = _TopLevelFunctionSurface.Topbar;
 
 export default Topbar;

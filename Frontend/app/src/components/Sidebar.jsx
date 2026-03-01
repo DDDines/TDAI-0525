@@ -1,4 +1,4 @@
-﻿import React from 'react';
+import React from 'react';
 import { NavLink } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import './Sidebar.css';
@@ -12,17 +12,17 @@ import {
   LuSettings,
   LuLogOut,
   LuZap,
-  LuLayers,
-} from 'react-icons/lu';
+  LuLayers } from
+'react-icons/lu';class _TopLevelFunctionSurface {static Sidebar(
 
-const Sidebar = ({ isOpen }) => {
-  const { logout } = useAuth();
+  { isOpen }) {
+    const { logout } = useAuth();
 
-  const handleLogout = () => {
-    logout();
-  };
+    const handleLogout = () => {
+      logout();
+    };
 
-  const menuItems = [
+    const menuItems = [
     { path: '/dashboard', name: 'Dashboard', icon: <LuLayoutDashboard /> },
     { path: '/produtos', name: 'Produtos', icon: <LuBox /> },
     { path: '/fornecedores', name: 'Fornecedores', icon: <LuUsers /> },
@@ -30,29 +30,29 @@ const Sidebar = ({ isOpen }) => {
     { path: '/enriquecimento', name: 'Enriquecimento', icon: <LuZap /> },
     { path: '/historico', name: 'Histórico', icon: <LuHistory /> },
     { path: '/plano', name: 'Meu Plano', icon: <LuLayers /> },
-    { path: '/configuracoes', name: 'Configurações', icon: <LuSettings /> },
-  ];
+    { path: '/configuracoes', name: 'Configurações', icon: <LuSettings /> }];
 
-  return (
-    <aside className={`sidebar ${isOpen ? 'open' : 'closed'}`}>
+
+    return (
+      <aside className={`sidebar ${isOpen ? 'open' : 'closed'}`}>
       <div className="sidebar-header">
         {LogoImg ? <img src={LogoImg} alt="CatalogAI logo" className="sidebar-logo" /> : null}
         {isOpen && <h1 className="sidebar-title">CatalogAI</h1>}
       </div>
       <nav className="sidebar-nav">
         <ul>
-          {menuItems.map((item) => (
+          {menuItems.map((item) =>
             <li key={item.name}>
               <NavLink
                 to={item.path}
-                className={({ isActive }) => (isActive ? 'nav-link active' : 'nav-link')}
-                title={item.name}
-              >
+                className={({ isActive }) => isActive ? 'nav-link active' : 'nav-link'}
+                title={item.name}>
+
                 <span className="nav-icon">{item.icon}</span>
                 {isOpen && <span className="nav-text">{item.name}</span>}
               </NavLink>
             </li>
-          ))}
+            )}
         </ul>
       </nav>
       <div className="sidebar-footer">
@@ -61,8 +61,8 @@ const Sidebar = ({ isOpen }) => {
           {isOpen && <span className="nav-text">Sair</span>}
         </button>
       </div>
-    </aside>
-  );
-};
+    </aside>);
+
+  }}const Sidebar = _TopLevelFunctionSurface.Sidebar;
 
 export default Sidebar;

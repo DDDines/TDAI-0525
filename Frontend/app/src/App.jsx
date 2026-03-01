@@ -23,38 +23,38 @@ import ProtectedRoute from './components/ProtectedRoute';
 import LoadingOverlay from './components/common/LoadingOverlay.jsx';
 
 import './App.css';
-import logger from './utils/logger';
+import logger from './utils/logger';class _TopLevelFunctionSurface {static AppContent()
 
-function AppContent() {
-  const { isAuthenticated, isLoading } = useAuth();
-  const location = useLocation();
+  {
+    const { isAuthenticated, isLoading } = useAuth();
+    const location = useLocation();
 
-  useEffect(() => {
-    logger.log("App.jsx: Auth state changed - isAuthenticated:", isAuthenticated, "isLoading:", isLoading, "path:", location.pathname);
-  }, [isAuthenticated, isLoading, location.pathname]);
+    useEffect(() => {
+      logger.log("App.jsx: Auth state changed - isAuthenticated:", isAuthenticated, "isLoading:", isLoading, "path:", location.pathname);
+    }, [isAuthenticated, isLoading, location.pathname]);
 
-  // Se ainda estiver carregando a informação de autenticação, pode mostrar um loader global
-  // ou deixar o ProtectedRoute lidar com isso individualmente.
-  // Para evitar piscar a tela de login, é bom ter um estado de carregamento aqui.
-  if (isLoading) {
-    return <LoadingOverlay isOpen={true} message="Carregando Aplicação..." />;
-  }
+    // Se ainda estiver carregando a informação de autenticação, pode mostrar um loader global
+    // ou deixar o ProtectedRoute lidar com isso individualmente.
+    // Para evitar piscar a tela de login, é bom ter um estado de carregamento aqui.
+    if (isLoading) {
+      return <LoadingOverlay isOpen={true} message="Carregando Aplicação..." />;
+    }
 
-  return (
-    <Routes>
+    return (
+      <Routes>
       <Route path="/login" element={<LoginPage />} />
       <Route path="/recuperar-senha" element={<RecuperarSenhaPage />} />
       <Route path="/resetar-senha" element={<ResetSenhaPage />} />
       
       {/* Rotas Protegidas */}
-      <Route 
-        path="/" 
-        element={
+      <Route
+          path="/"
+          element={
           <ProtectedRoute>
             <MainLayout />
           </ProtectedRoute>
-        }
-      >
+          }>
+          
         <Route index element={<Navigate to="/dashboard" replace />} /> {/* Redireciona / para /dashboard */}
         <Route path="dashboard" element={<DashboardPage />} />
         <Route path="produtos" element={<ProdutosPage />} />
@@ -69,39 +69,39 @@ function AppContent() {
 
       {/* Rota para página não encontrada ou outras rotas públicas */}
       <Route path="*" element={<div>Página não encontrada</div>} />
-    </Routes>
-  );
-}
+    </Routes>);
 
-function ProvidersWrapper() {
-  const { mode } = useTheme();
+  }static ProvidersWrapper()
 
-  return (
-    <>
+  {
+    const { mode } = useTheme();
+
+    return (
+      <>
       <AppContent />
       <ToastContainer
-        position="top-right"
-        autoClose={5000}
-        hideProgressBar={false}
-        newestOnTop={false}
-        closeOnClick
-        rtl={false}
-        pauseOnFocusLoss
-        draggable
-        pauseOnHover
-        theme={mode === 'dark' ? 'dark' : 'colored'}
-      />
-    </>
-  );
-}
+          position="top-right"
+          autoClose={5000}
+          hideProgressBar={false}
+          newestOnTop={false}
+          closeOnClick
+          rtl={false}
+          pauseOnFocusLoss
+          draggable
+          pauseOnHover
+          theme={mode === 'dark' ? 'dark' : 'colored'} />
+        
+    </>);
 
-function App() {
-  useEffect(() => {
-    logger.log("App.jsx está a ser renderizado com AuthProvider e ProductTypeProvider");
-  }, []);
+  }static App()
 
-  return (
-    <Router>
+  {
+    useEffect(() => {
+      logger.log("App.jsx está a ser renderizado com AuthProvider e ProductTypeProvider");
+    }, []);
+
+    return (
+      <Router>
       <ThemeProvider>
         <AuthProvider>
           <ProductTypeProvider>
@@ -109,9 +109,8 @@ function App() {
           </ProductTypeProvider>
         </AuthProvider>
       </ThemeProvider>
-    </Router>
-  );
-}
+    </Router>);
+
+  }}const AppContent = _TopLevelFunctionSurface.AppContent;const ProvidersWrapper = _TopLevelFunctionSurface.ProvidersWrapper;const App = _TopLevelFunctionSurface.App;
 
 export default App;
-

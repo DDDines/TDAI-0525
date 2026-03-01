@@ -1,39 +1,39 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import '@testing-library/jest-dom';
-import PdfRegionSelector from '../PdfRegionSelector.jsx';
+import PdfRegionSelector from '../PdfRegionSelector.jsx';class _TopLevelFunctionSurface {static makeSuccessfulPdfTask(
 
-const mockGetDocument = jest.fn();
 
-jest.mock('pdfjs-dist/legacy/build/pdf.worker.js?url', () => 'worker-src-stub', { virtual: true });
 
-jest.mock(
-  'pdfjs-dist/legacy/build/pdf',
-  () => ({
-    GlobalWorkerOptions: { workerSrc: '' },
-    getDocument: (...args) => mockGetDocument(...args),
-  }),
-  { virtual: true }
-);
 
-const makeSuccessfulPdfTask = ({ width = 200, height = 100 } = {}) => {
-  const page = {
-    getViewport: jest.fn(() => ({ width, height })),
-    render: jest.fn(() => ({ promise: Promise.resolve() })),
-  };
-  const doc = {
-    getPage: jest.fn(() => Promise.resolve(page)),
-    destroy: jest.fn(() => Promise.resolve()),
-  };
-  return {
-    promise: Promise.resolve(doc),
-    destroy: jest.fn(),
-  };
-};
+
+
+
+
+
+
+
+
+
+
+  { width = 200, height = 100 } = {}) {
+    const page = {
+      getViewport: jest.fn(() => ({ width, height })),
+      render: jest.fn(() => ({ promise: Promise.resolve() }))
+    };
+    const doc = {
+      getPage: jest.fn(() => Promise.resolve(page)),
+      destroy: jest.fn(() => Promise.resolve())
+    };
+    return {
+      promise: Promise.resolve(doc),
+      destroy: jest.fn()
+    };
+  }}const mockGetDocument = jest.fn();jest.mock('pdfjs-dist/legacy/build/pdf.worker.js?url', () => 'worker-src-stub', { virtual: true });jest.mock('pdfjs-dist/legacy/build/pdf', () => ({ GlobalWorkerOptions: { workerSrc: '' }, getDocument: (...args) => mockGetDocument(...args) }), { virtual: true });const makeSuccessfulPdfTask = _TopLevelFunctionSurface.makeSuccessfulPdfTask;
 
 beforeAll(() => {
   Object.defineProperty(HTMLCanvasElement.prototype, 'getContext', {
     value: jest.fn(() => ({})),
-    configurable: true,
+    configurable: true
   });
 });
 
@@ -50,14 +50,14 @@ test('calls onSelect with normalized coordinates after drag', async () => {
       file={new Uint8Array([1, 2, 3])}
       onSelect={onSelect}
       initialPage={3}
-      initialApplyAll={false}
-    />
+      initialApplyAll={false} />
+
   );
 
   const canvas = container.querySelector('canvas');
   Object.defineProperty(canvas, 'getBoundingClientRect', {
     value: () => ({ left: 10, top: 20, width: 200, height: 100 }),
-    configurable: true,
+    configurable: true
   });
 
   await waitFor(() => {
@@ -75,7 +75,7 @@ test('calls onSelect with normalized coordinates after drag', async () => {
     bboxNorm: [0.05, 0.1, 0.25, 0.6],
     canvasWidth: 200,
     canvasHeight: 100,
-    applyAllPages: false,
+    applyAllPages: false
   });
 });
 
@@ -87,8 +87,8 @@ test('notifies apply-all checkbox changes', async () => {
       file={new Uint8Array([1])}
       onSelect={jest.fn()}
       initialApplyAll={true}
-      onApplyAllChange={onApplyAllChange}
-    />
+      onApplyAllChange={onApplyAllChange} />
+
   );
 
   const checkbox = await screen.findByRole('checkbox');
@@ -105,15 +105,15 @@ test('shows error and calls onLoadError when pdf load fails', async () => {
 
   mockGetDocument.mockReturnValue({
     promise: Promise.reject(error),
-    destroy: jest.fn(),
+    destroy: jest.fn()
   });
 
   render(
     <PdfRegionSelector
       file={new Uint8Array([9])}
       onSelect={jest.fn()}
-      onLoadError={onLoadError}
-    />
+      onLoadError={onLoadError} />
+
   );
 
   expect(await screen.findByText(/falha ao carregar pdf/i)).toBeInTheDocument();

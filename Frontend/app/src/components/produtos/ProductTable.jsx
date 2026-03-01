@@ -1,66 +1,66 @@
-﻿// Frontend/app/src/components/produtos/ProductTable.jsx
+// Frontend/app/src/components/produtos/ProductTable.jsx
 import React from 'react';
 import './ProductTable.css';
 import LoadingPopup from '../common/LoadingPopup.jsx';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import logger from '../../utils/logger';
-import { LuPencil } from 'react-icons/lu';
+import { LuPencil } from 'react-icons/lu';class _TopLevelFunctionSurface {static StatusIcon(
 
-const STATUS_CONFIG = {
-  NAO_INICIADO: { class: 'grey', text: '-', title: 'Não iniciado' },
-  PENDENTE: { class: 'orange', text: 'P', title: 'Pendente' },
-  EM_PROGRESSO: { class: 'blue', text: '...', title: 'Em progresso' },
-  CONCLUIDO: { class: 'green', text: 'OK', title: 'Concluído' },
-  CONCLUIDO_SUCESSO: { class: 'green', text: 'OK', title: 'Concluído' },
-  CONCLUIDO_COM_DADOS_PARCIAIS: { class: 'blue', text: 'PAR', title: 'Concluído com dados parciais' },
-  FALHA: { class: 'red', text: 'X', title: 'Falha' },
-  FALHOU: { class: 'red', text: 'X', title: 'Falhou' },
-  FALHA_API_EXTERNA: { class: 'red', text: 'X', title: 'Falha de API externa' },
-  FALHA_CONFIGURACAO_API_EXTERNA: { class: 'red', text: 'X', title: 'Falha de configuração da API' },
-  NENHUMA_FONTE_ENCONTRADA: { class: 'grey', text: '-', title: 'Nenhuma fonte encontrada' },
-  NAO_APLICAVEL: { class: 'grey', text: '-', title: 'Não aplicável' },
-};
 
-const StatusIcon = ({ status }) => {
-  const cfg = STATUS_CONFIG[status] || { class: 'grey', text: '?', title: 'Desconhecido' };
-  const { class: colorClass, text, title } = cfg;
-  return (
-    <span className={`status-icon ${colorClass}`} title={title}>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  { status }) {
+    const cfg = STATUS_CONFIG[status] || { class: 'grey', text: '?', title: 'Desconhecido' };
+    const { class: colorClass, text, title } = cfg;
+    return (
+      <span className={`status-icon ${colorClass}`} title={title}>
       {text}
-    </span>
-  );
-};
+    </span>);
 
-function ProductTable({
-  produtos,
-  onEdit,
-  onSort,
-  sortConfig,
-  onSelectProduto,
-  selectedProdutos,
-  onSelectAllProdutos,
-  loading,
-  isLoading,
-}) {
-  const tableLoading = Boolean(loading || isLoading);
+  }static ProductTable(
 
-  logger.log('ProductTable: produtos:', produtos);
-  logger.log('ProductTable: loading:', tableLoading);
-  logger.log('ProductTable: selectedProdutos:', selectedProdutos);
+  {
+    produtos,
+    onEdit,
+    onSort,
+    sortConfig,
+    onSelectProduto,
+    selectedProdutos,
+    onSelectAllProdutos,
+    loading,
+    isLoading
+  }) {
+    const tableLoading = Boolean(loading || isLoading);
 
-  const getSortDirectionIcon = (key) => {
-    if (sortConfig?.key === key) {
-      return sortConfig.direction === 'ascending' ? ' ▲' : ' ▼';
-    }
-    return '';
-  };
+    logger.log('ProductTable: produtos:', produtos);
+    logger.log('ProductTable: loading:', tableLoading);
+    logger.log('ProductTable: selectedProdutos:', selectedProdutos);
 
-  const safeProdutos = Array.isArray(produtos) ? produtos : [];
-  const selectedSet = selectedProdutos instanceof Set ? selectedProdutos : new Set();
-  const isAllSelected = safeProdutos.length > 0 && selectedSet.size === safeProdutos.length;
+    const getSortDirectionIcon = (key) => {
+      if (sortConfig?.key === key) {
+        return sortConfig.direction === 'ascending' ? ' ▲' : ' ▼';
+      }
+      return '';
+    };
 
-  const renderTableHeader = () => (
+    const safeProdutos = Array.isArray(produtos) ? produtos : [];
+    const selectedSet = selectedProdutos instanceof Set ? selectedProdutos : new Set();
+    const isAllSelected = safeProdutos.length > 0 && selectedSet.size === safeProdutos.length;
+
+    const renderTableHeader = () =>
     <thead>
       <tr>
         <th>
@@ -68,8 +68,8 @@ function ProductTable({
             type="checkbox"
             checked={isAllSelected}
             onChange={(e) => onSelectAllProdutos(e.target.checked)}
-            disabled={safeProdutos.length === 0 || tableLoading}
-          />
+            disabled={safeProdutos.length === 0 || tableLoading} />
+
         </th>
         <th onClick={() => onSort('id')}>ID{getSortDirectionIcon('id')}</th>
         <th onClick={() => onSort('nome_base')}>Nome Base{getSortDirectionIcon('nome_base')}</th>
@@ -81,44 +81,44 @@ function ProductTable({
         <th onClick={() => onSort('data_atualizacao')}>Atualizado Em{getSortDirectionIcon('data_atualizacao')}</th>
         <th>Ações</th>
       </tr>
-    </thead>
-  );
+    </thead>;
 
-  const renderTableBody = () => {
-    if (tableLoading && safeProdutos.length === 0) {
-      return (
-        <tbody>
+
+    const renderTableBody = () => {
+      if (tableLoading && safeProdutos.length === 0) {
+        return (
+          <tbody>
           <tr>
             <td colSpan="10" className="table-cell-message">
               <LoadingPopup isOpen={true} message="Carregando produtos..." />
             </td>
           </tr>
-        </tbody>
-      );
-    }
+        </tbody>);
 
-    if (safeProdutos.length === 0) {
-      return (
-        <tbody>
+      }
+
+      if (safeProdutos.length === 0) {
+        return (
+          <tbody>
           <tr>
             <td colSpan="10" className="table-cell-message">
               Nenhum produto encontrado.
             </td>
           </tr>
-        </tbody>
-      );
-    }
+        </tbody>);
 
-    return (
-      <tbody>
-        {safeProdutos.map((produto) => (
+      }
+
+      return (
+        <tbody>
+        {safeProdutos.map((produto) =>
           <tr key={produto.id} className={selectedSet.has(produto.id) ? 'selected-row' : ''}>
             <td>
               <input
                 type="checkbox"
                 checked={selectedSet.has(produto.id)}
-                onChange={() => onSelectProduto(produto.id)}
-              />
+                onChange={() => onSelectProduto(produto.id)} />
+
             </td>
             <td>{produto.id}</td>
             <td>{produto.nome_base || '--'}</td>
@@ -134,19 +134,19 @@ function ProductTable({
               </button>
             </td>
           </tr>
-        ))}
-      </tbody>
-    );
-  };
+          )}
+      </tbody>);
 
-  return (
-    <div className="table-responsive">
+    };
+
+    return (
+      <div className="table-responsive">
       <table className="product-table">
         {renderTableHeader()}
         {renderTableBody()}
       </table>
-    </div>
-  );
-}
+    </div>);
+
+  }}const STATUS_CONFIG = { NAO_INICIADO: { class: 'grey', text: '-', title: 'Não iniciado' }, PENDENTE: { class: 'orange', text: 'P', title: 'Pendente' }, EM_PROGRESSO: { class: 'blue', text: '...', title: 'Em progresso' }, CONCLUIDO: { class: 'green', text: 'OK', title: 'Concluído' }, CONCLUIDO_SUCESSO: { class: 'green', text: 'OK', title: 'Concluído' }, CONCLUIDO_COM_DADOS_PARCIAIS: { class: 'blue', text: 'PAR', title: 'Concluído com dados parciais' }, FALHA: { class: 'red', text: 'X', title: 'Falha' }, FALHOU: { class: 'red', text: 'X', title: 'Falhou' }, FALHA_API_EXTERNA: { class: 'red', text: 'X', title: 'Falha de API externa' }, FALHA_CONFIGURACAO_API_EXTERNA: { class: 'red', text: 'X', title: 'Falha de configuração da API' }, NENHUMA_FONTE_ENCONTRADA: { class: 'grey', text: '-', title: 'Nenhuma fonte encontrada' }, NAO_APLICAVEL: { class: 'grey', text: '-', title: 'Não aplicável' } };const StatusIcon = _TopLevelFunctionSurface.StatusIcon;const ProductTable = _TopLevelFunctionSurface.ProductTable;
 
 export default ProductTable;

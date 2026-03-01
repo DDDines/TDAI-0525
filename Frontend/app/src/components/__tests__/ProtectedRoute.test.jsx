@@ -1,29 +1,29 @@
 import { render, screen } from '@testing-library/react';
 import '@testing-library/jest-dom';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
-import ProtectedRoute from '../ProtectedRoute.jsx';
+import ProtectedRoute from '../ProtectedRoute.jsx';class _TopLevelFunctionSurface {static renderWithRoutes(
 
-const mockUseAuth = jest.fn();
 
-jest.mock('../../contexts/AuthContext', () => ({
-  useAuth: () => mockUseAuth(),
-}));
 
-jest.mock('../../utils/logger', () => ({
-  __esModule: true,
-  default: { log: jest.fn() },
-}));
 
-const renderWithRoutes = (routeElement) =>
-  render(
-    <MemoryRouter initialEntries={['/private']}>
+
+
+
+
+
+
+
+
+  routeElement) {return (
+      render(
+        <MemoryRouter initialEntries={['/private']}>
       <Routes>
         <Route path="/login" element={<div>Login Page</div>} />
         <Route path="/dashboard" element={<div>Dashboard Page</div>} />
         <Route path="/private" element={routeElement} />
       </Routes>
     </MemoryRouter>
-  );
+      ));}}const mockUseAuth = jest.fn();jest.mock('../../contexts/AuthContext', () => ({ useAuth: () => mockUseAuth() }));jest.mock('../../utils/logger', () => ({ __esModule: true, default: { log: jest.fn() } }));const renderWithRoutes = _TopLevelFunctionSurface.renderWithRoutes;
 
 describe('ProtectedRoute', () => {
   beforeEach(() => {
@@ -34,7 +34,7 @@ describe('ProtectedRoute', () => {
     mockUseAuth.mockReturnValue({
       isAuthenticated: false,
       user: null,
-      isLoading: true,
+      isLoading: true
     });
 
     renderWithRoutes(
@@ -50,7 +50,7 @@ describe('ProtectedRoute', () => {
     mockUseAuth.mockReturnValue({
       isAuthenticated: false,
       user: null,
-      isLoading: false,
+      isLoading: false
     });
 
     renderWithRoutes(
@@ -67,7 +67,7 @@ describe('ProtectedRoute', () => {
     mockUseAuth.mockReturnValue({
       isAuthenticated: true,
       user: { role: { name: 'admin' } },
-      isLoading: false,
+      isLoading: false
     });
 
     renderWithRoutes(
@@ -83,7 +83,7 @@ describe('ProtectedRoute', () => {
     mockUseAuth.mockReturnValue({
       isAuthenticated: true,
       user: { role: { name: 'viewer' } },
-      isLoading: false,
+      isLoading: false
     });
 
     renderWithRoutes(

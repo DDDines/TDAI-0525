@@ -7,136 +7,136 @@ import { showErrorToast } from '../utils/notifications';
 import searchService from '../services/searchService';
 import DOMPurify from 'dompurify';
 import LoadingOverlay from '../components/common/LoadingOverlay.jsx';
-import { LuBox, LuUsers, LuZap, LuLayers, LuSearch, LuBell } from 'react-icons/lu';
+import { LuBox, LuUsers, LuZap, LuLayers, LuSearch, LuBell } from 'react-icons/lu';class _TopLevelFunctionSurface {static DashboardPage()
 
-const mockDashboardData = {
-  alerts: [
-    { id: 1, messageHtml: 'Aviso: <b>2 produto(s)</b> sem descrição' },
-    { id: 2, messageHtml: 'Aviso: <b>2 produto(s)</b> pendente(s) de enriquecimento' },
-  ],
-};
 
-function DashboardPage() {
-  const navigate = useNavigate();
-  const [currentUser, setCurrentUser] = useState(null);
-  const [adminStats, setAdminStats] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [statusCounts, setStatusCounts] = useState([]);
-  const [recentActivities, setRecentActivities] = useState([]);
-  const [searchTerm, setSearchTerm] = useState('');
-  const [searchResults, setSearchResults] = useState([]);
 
-  useEffect(() => {
-    const fetchData = async () => {
-      setLoading(true);
-      try {
-        const user = await authService.getCurrentUser();
-        setCurrentUser(user);
 
-        if (user && user.is_superuser) {
-          const counts = await adminService.getTotalCounts();
-          setAdminStats(counts);
 
-          try {
-            const statusData = await adminService.getProductStatusCounts();
-            setStatusCounts(statusData);
-            const activities = await adminService.getRecentHistorico(5);
-            setRecentActivities(activities);
-          } catch (innerErr) {
-            console.error('Erro ao buscar dados adicionais do dashboard:', innerErr);
+
+
+
+  {
+    const navigate = useNavigate();
+    const [currentUser, setCurrentUser] = useState(null);
+    const [adminStats, setAdminStats] = useState(null);
+    const [loading, setLoading] = useState(true);
+    const [statusCounts, setStatusCounts] = useState([]);
+    const [recentActivities, setRecentActivities] = useState([]);
+    const [searchTerm, setSearchTerm] = useState('');
+    const [searchResults, setSearchResults] = useState([]);
+
+    useEffect(() => {
+      const fetchData = async () => {
+        setLoading(true);
+        try {
+          const user = await authService.getCurrentUser();
+          setCurrentUser(user);
+
+          if (user && user.is_superuser) {
+            const counts = await adminService.getTotalCounts();
+            setAdminStats(counts);
+
+            try {
+              const statusData = await adminService.getProductStatusCounts();
+              setStatusCounts(statusData);
+              const activities = await adminService.getRecentHistorico(5);
+              setRecentActivities(activities);
+            } catch (innerErr) {
+              console.error('Erro ao buscar dados adicionais do dashboard:', innerErr);
+            }
           }
+        } catch (err) {
+          const errorMsg = err.message || err.detail || 'Falha ao carregar dados do dashboard.';
+          showErrorToast(errorMsg);
+          console.error('Erro ao carregar dados do dashboard:', err);
+        } finally {
+          setLoading(false);
         }
-      } catch (err) {
-        const errorMsg = err.message || err.detail || 'Falha ao carregar dados do dashboard.';
-        showErrorToast(errorMsg);
-        console.error('Erro ao carregar dados do dashboard:', err);
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchData();
-  }, []);
+      };
+      fetchData();
+    }, []);
 
-  useEffect(() => {
-    const doSearch = async () => {
-      setSearchResults([]);
-      try {
-        const trimmed = searchTerm.trim();
-        const data = await searchService.searchAll(trimmed);
-        setSearchResults(Array.isArray(data.results) ? data.results : []);
-      } catch (err) {
-        console.error('Erro ao buscar:', err);
-      }
-    };
-    doSearch();
-  }, [searchTerm]);
+    useEffect(() => {
+      const doSearch = async () => {
+        setSearchResults([]);
+        try {
+          const trimmed = searchTerm.trim();
+          const data = await searchService.searchAll(trimmed);
+          setSearchResults(Array.isArray(data.results) ? data.results : []);
+        } catch (err) {
+          console.error('Erro ao buscar:', err);
+        }
+      };
+      doSearch();
+    }, [searchTerm]);
 
-  const formattedStats = adminStats
-    ? [
-        {
-          value: adminStats.total_produtos?.toString() || '0',
-          label: 'Total Produtos',
-          comparison: `Usuários: ${adminStats.total_usuarios || 0}`,
-          barWidth: '75%',
-          barColor: 'var(--success)',
-          barGradient: 'linear-gradient(90deg,var(--success),#e8faed 85%)',
-          icon: <LuBox />,
-        },
-        {
-          value: adminStats.total_fornecedores?.toString() || '0',
-          label: 'Total Fornecedores',
-          comparison: `Gerações IA (mês): ${adminStats.total_geracoes_ia_mes || 0}`,
-          barWidth: '60%',
-          barColor: 'var(--warning)',
-          barGradient: 'linear-gradient(90deg,var(--warning),#fff4d5 85%)',
-          icon: <LuUsers />,
-        },
-        {
-          value: adminStats.total_geracoes_ia_mes?.toString() || '0',
-          label: 'Total Gerações IA (mês)',
-          comparison: `Enriquecimentos (mês): ${adminStats.total_enriquecimentos_mes || 0}`,
-          barWidth: '80%',
-          barColor: 'var(--info)',
-          barGradient: 'linear-gradient(90deg,var(--info),#eef6fa 85%)',
-          icon: <LuZap />,
-        },
-        {
-          value: adminStats.total_usuarios?.toString() || '0',
-          label: 'Total Usuários',
-          comparison: '',
-          barWidth: '50%',
-          barColor: 'var(--primary)',
-          barGradient: 'linear-gradient(90deg,var(--primary),#e8ebff 85%)',
-          icon: <LuLayers />,
-        },
-      ]
-    : [];
+    const formattedStats = adminStats ?
+    [
+    {
+      value: adminStats.total_produtos?.toString() || '0',
+      label: 'Total Produtos',
+      comparison: `Usuários: ${adminStats.total_usuarios || 0}`,
+      barWidth: '75%',
+      barColor: 'var(--success)',
+      barGradient: 'linear-gradient(90deg,var(--success),#e8faed 85%)',
+      icon: <LuBox />
+    },
+    {
+      value: adminStats.total_fornecedores?.toString() || '0',
+      label: 'Total Fornecedores',
+      comparison: `Gerações IA (mês): ${adminStats.total_geracoes_ia_mes || 0}`,
+      barWidth: '60%',
+      barColor: 'var(--warning)',
+      barGradient: 'linear-gradient(90deg,var(--warning),#fff4d5 85%)',
+      icon: <LuUsers />
+    },
+    {
+      value: adminStats.total_geracoes_ia_mes?.toString() || '0',
+      label: 'Total Gerações IA (mês)',
+      comparison: `Enriquecimentos (mês): ${adminStats.total_enriquecimentos_mes || 0}`,
+      barWidth: '80%',
+      barColor: 'var(--info)',
+      barGradient: 'linear-gradient(90deg,var(--info),#eef6fa 85%)',
+      icon: <LuZap />
+    },
+    {
+      value: adminStats.total_usuarios?.toString() || '0',
+      label: 'Total Usuários',
+      comparison: '',
+      barWidth: '50%',
+      barColor: 'var(--primary)',
+      barGradient: 'linear-gradient(90deg,var(--primary),#e8ebff 85%)',
+      icon: <LuLayers />
+    }] :
 
-  const maxStatus = Math.max(...statusCounts.map((s) => s.total), 1);
-  const statusChart = statusCounts.map((sc) => ({
-    label: sc.status,
-    value: sc.total,
-    barWidth: `${Math.round((sc.total / maxStatus) * 100)}%`,
-    barColor: 'var(--info)',
-  }));
+    [];
 
-  const activityFeed = recentActivities.map((act) => ({
-    id: act.id,
-    icon: <LuBell />,
-    message: `${act.entidade} - ${act.acao} - ${act.user_id}`,
-    date: new Date(act.created_at).toLocaleDateString(),
-  }));
+    const maxStatus = Math.max(...statusCounts.map((s) => s.total), 1);
+    const statusChart = statusCounts.map((sc) => ({
+      label: sc.status,
+      value: sc.total,
+      barWidth: `${Math.round(sc.total / maxStatus * 100)}%`,
+      barColor: 'var(--info)'
+    }));
 
-  if (loading) {
-    return <LoadingOverlay isOpen={true} message="Carregando dashboard..." />;
-  }
+    const activityFeed = recentActivities.map((act) => ({
+      id: act.id,
+      icon: <LuBell />,
+      message: `${act.entidade} - ${act.acao} - ${act.user_id}`,
+      date: new Date(act.created_at).toLocaleDateString()
+    }));
 
-  return (
-    <div id="dashboard-pro-main">
-      {currentUser && currentUser.is_superuser && adminStats && (
+    if (loading) {
+      return <LoadingOverlay isOpen={true} message="Carregando dashboard..." />;
+    }
+
+    return (
+      <div id="dashboard-pro-main">
+      {currentUser && currentUser.is_superuser && adminStats &&
         <div className="pro-stats-row">
-          {formattedStats.map((stat, index) => (
-            <div className="pro-card-metric" key={index} style={{ '--bar-color': stat.barColor }}>
+          {formattedStats.map((stat, index) =>
+          <div className="pro-card-metric" key={index} style={{ '--bar-color': stat.barColor }}>
               <div className="pro-metric-bar-bg">
                 <div className="pro-metric-bar" style={{ width: stat.barWidth, background: stat.barGradient }} />
               </div>
@@ -145,52 +145,52 @@ function DashboardPage() {
               <span className="pro-metric-label">{stat.label}</span>
               <span className="pro-metric-comp">{stat.comparison}</span>
             </div>
-          ))}
+          )}
         </div>
-      )}
+        }
 
-      {(!currentUser || !currentUser.is_superuser) && !loading && (
+      {(!currentUser || !currentUser.is_superuser) && !loading &&
         <div className="dashboard-welcome">
           <h2>Bem-vindo ao CatalogAI!</h2>
           <p>Seu dashboard personalizado será implementado aqui em breve.</p>
         </div>
-      )}
+        }
 
-      {currentUser && currentUser.is_superuser && (
+      {currentUser && currentUser.is_superuser &&
         <div className="dashboard-flex-row">
           <div className="dashboard-col dashboard-col-esq">
             <div className="pro-bar-chart">
               <div className="pro-bar-title">Produtos por Status</div>
-              {statusChart.map((item, index) => (
-                <div className="pro-bar-row" key={index}>
+              {statusChart.map((item, index) =>
+              <div className="pro-bar-row" key={index}>
                   <span className="pro-bar-label">{item.label}</span>
                   <div className="pro-bar-bg">
                     <div className="pro-bar" style={{ width: item.barWidth, background: item.barColor }} />
                   </div>
                   <span className="pro-bar-value">{item.value}</span>
                 </div>
-              ))}
+              )}
             </div>
 
             <div className="pro-alert-card">
               <div className="pro-alert-title">Pendências (Mock)</div>
               <div className="pro-alert-list">
-                {mockDashboardData.alerts.map((alert) => (
-                  <div key={alert.id} dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(alert.messageHtml) }} />
-                ))}
+                {mockDashboardData.alerts.map((alert) =>
+                <div key={alert.id} dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(alert.messageHtml) }} />
+                )}
               </div>
             </div>
 
             <div className="pro-feed-card">
               <div className="pro-feed-title">Últimas Atividades</div>
               <ul className="pro-feed-list">
-                {activityFeed.map((item) => (
-                  <li className="pro-feed-item" key={item.id}>
+                {activityFeed.map((item) =>
+                <li className="pro-feed-item" key={item.id}>
                     <span className="pro-feed-ico">{item.icon}</span>
                     <span className="pro-feed-msg">{item.message}</span>
                     <span className="pro-feed-date">{item.date}</span>
                   </li>
-                ))}
+                )}
               </ul>
             </div>
           </div>
@@ -202,8 +202,8 @@ function DashboardPage() {
                 type="text"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                placeholder="Pesquisar..."
-              />
+                placeholder="Pesquisar..." />
+
             </div>
 
             <div className="search-results-table table-scroll-box">
@@ -217,9 +217,9 @@ function DashboardPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {searchResults.length > 0 ? (
-                    searchResults.map((item) => (
-                      <tr key={`${item.type}-${item.id}`}>
+                  {searchResults.length > 0 ?
+                  searchResults.map((item) =>
+                  <tr key={`${item.type}-${item.id}`}>
                         <td>{item.type}</td>
                         <td className="bold-cell">{item.name}</td>
                         <td>-</td>
@@ -229,24 +229,24 @@ function DashboardPage() {
                           </button>
                         </td>
                       </tr>
-                    ))
-                  ) : (
-                    searchTerm.trim() !== '' && (
-                      <tr>
+                  ) :
+
+                  searchTerm.trim() !== '' &&
+                  <tr>
                         <td colSpan="4" className="no-results">
                           Nenhum resultado encontrado.
                         </td>
                       </tr>
-                    )
-                  )}
+
+                  }
                 </tbody>
               </table>
             </div>
           </div>
         </div>
-      )}
-    </div>
-  );
-}
+        }
+    </div>);
+
+  }}const mockDashboardData = { alerts: [{ id: 1, messageHtml: 'Aviso: <b>2 produto(s)</b> sem descrição' }, { id: 2, messageHtml: 'Aviso: <b>2 produto(s)</b> pendente(s) de enriquecimento' }] };const DashboardPage = _TopLevelFunctionSurface.DashboardPage;
 
 export default DashboardPage;

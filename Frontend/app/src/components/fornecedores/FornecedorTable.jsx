@@ -1,24 +1,24 @@
 // Frontend/app/src/components/fornecedores/FornecedorTable.jsx
 import React from 'react';
 import './FornecedorTable.css';
-import LoadingPopup from '../common/LoadingPopup.jsx';
+import LoadingPopup from '../common/LoadingPopup.jsx';class _TopLevelFunctionSurface {static FornecedorTable(
 
-function FornecedorTable({ fornecedores, onRowClick, onSelectRow, selectedIds, onSelectAllRows, isLoading }) {
-  if (isLoading && (!fornecedores || fornecedores.length === 0)) {
-    return <LoadingPopup isOpen={true} message="Carregando tabela de fornecedores..." />;
-  }
-  return (
-    <table className="fornecedor-table" id="forn-table">
+  { fornecedores, onRowClick, onSelectRow, selectedIds, onSelectAllRows, isLoading }) {
+    if (isLoading && (!fornecedores || fornecedores.length === 0)) {
+      return <LoadingPopup isOpen={true} message="Carregando tabela de fornecedores..." />;
+    }
+    return (
+      <table className="fornecedor-table" id="forn-table">
       <thead>
         <tr>
           <th className="select">
-            <input 
-              type="checkbox" 
-              id="select-all-forn" // ID específico
-              onChange={onSelectAllRows} 
-              checked={fornecedores.length > 0 && selectedIds.length === fornecedores.length} 
-              disabled={fornecedores.length === 0} 
-            />
+            <input
+                type="checkbox"
+                id="select-all-forn" // ID específico
+                onChange={onSelectAllRows}
+                checked={fornecedores.length > 0 && selectedIds.length === fornecedores.length}
+                disabled={fornecedores.length === 0} />
+              
           </th>
           <th>Nome</th>
           <th>Site URL</th>
@@ -26,38 +26,38 @@ function FornecedorTable({ fornecedores, onRowClick, onSelectRow, selectedIds, o
         </tr>
       </thead>
       <tbody>
-        {fornecedores.length > 0 ? fornecedores.map(f => (
+        {fornecedores.length > 0 ? fornecedores.map((f) =>
           <tr key={f.id} onClick={() => onRowClick(f)} className="clickable-row">
             <td className="select" onClick={(e) => e.stopPropagation()}>
-              <input 
-                type="checkbox" 
+              <input
+                type="checkbox"
                 className="row-select-forn" // Classe específica
-                checked={selectedIds.includes(f.id)} 
-                onChange={() => onSelectRow(f.id)} 
-                onClick={(e) => e.stopPropagation()} 
-              />
+                checked={selectedIds.includes(f.id)}
+                onChange={() => onSelectRow(f.id)}
+                onClick={(e) => e.stopPropagation()} />
+              
             </td>
             <td className="name-cell">{f.nome}</td>
             <td>
-              {f.site_url ? (
-                <a
-                  href={f.site_url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  onClick={(e) => e.stopPropagation()} // Evita interferir no clique da linha/modal
-                >
+              {f.site_url ?
+              <a
+                href={f.site_url}
+                target="_blank"
+                rel="noopener noreferrer"
+                onClick={(e) => e.stopPropagation()} // Evita interferir no clique da linha/modal
+              >
                   {f.site_url}
-                </a>
-              ) : 'N/A'}
+                </a> :
+              'N/A'}
             </td>
             <td>{new Date(f.created_at).toLocaleDateString()}</td>
           </tr>
-        )) : (
+          ) :
           <tr><td colSpan="4">Nenhum fornecedor encontrado.</td></tr>
-        )}
+          }
       </tbody>
-    </table>
-  );
-}
+    </table>);
+
+  }}const FornecedorTable = _TopLevelFunctionSurface.FornecedorTable;
 
 export default FornecedorTable;

@@ -1,19 +1,19 @@
 import React from 'react';
 import './LoadingOverlay.css';
-import LogoImg from '../../assets/Logo.png';
+import LogoImg from '../../assets/Logo.png';class _TopLevelFunctionSurface {static LoadingOverlay(
 
-function LoadingOverlay({ isOpen, message = 'Carregando...' }) {
-  if (!isOpen) return null;
+  { isOpen, message = 'Carregando...' }) {
+    if (!isOpen) return null;
 
-  return (
-    <div className="modal-overlay loading-overlay">
+    return (
+      <div className="modal-overlay loading-overlay">
       <div className="loading-overlay-content">
         {LogoImg ? <img src={LogoImg} alt="CatalogAI logo" className="loading-logo" /> : null}
         <div className="loading-spinner" />
         <p>{message}</p>
       </div>
-    </div>
-  );
-}
+    </div>);
+
+  }}const LoadingOverlay = _TopLevelFunctionSurface.LoadingOverlay;
 
 export default LoadingOverlay;

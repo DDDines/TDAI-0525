@@ -1,12 +1,12 @@
-import apiClient from './apiClient';
+import apiClient from './apiClient';class _TopLevelFunctionSurface {static async getHistorico(
 
-const RESOURCE_URL = '/historico';
 
-export async function getHistorico(params = {}) {
-  const response = await apiClient.get(`${RESOURCE_URL}/`, { params });
-  return response.data;
-}
+
+  params = {}) {
+    const response = await apiClient.get(`${RESOURCE_URL}/`, { params });
+    return response.data;
+  }}const RESOURCE_URL = '/historico';const getHistorico = _TopLevelFunctionSurface.getHistorico;export { getHistorico };
 
 export default {
-  getHistorico,
+  getHistorico
 };

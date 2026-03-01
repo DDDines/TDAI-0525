@@ -1,28 +1,28 @@
 import React from 'react';
 import './LoadingPopup.css';
-import LogoImg from '../../assets/Logo.png';
+import LogoImg from '../../assets/Logo.png';class _TopLevelFunctionSurface {static LoadingPopup(
 
-function LoadingPopup({ isOpen, message = 'Carregando...', details = [] }) {
-  if (!isOpen) return null;
+  { isOpen, message = 'Carregando...', details = [] }) {
+    if (!isOpen) return null;
 
-  const detailsList = Array.isArray(details) ? details.filter(Boolean) : [];
+    const detailsList = Array.isArray(details) ? details.filter(Boolean) : [];
 
-  return (
-    <div className="modal-overlay">
+    return (
+      <div className="modal-overlay">
       <div className="modal-content loading-popup-content">
         {LogoImg ? <img src={LogoImg} alt="CatalogAI" className="loading-popup-logo" /> : null}
         <div className="loading-spinner" />
         <p className="loading-popup-message">{message}</p>
-        {detailsList.length > 0 && (
+        {detailsList.length > 0 &&
           <ul className="loading-popup-details">
-            {detailsList.map((line, index) => (
-              <li key={`${line}-${index}`}>{line}</li>
-            ))}
+            {detailsList.map((line, index) =>
+            <li key={`${line}-${index}`}>{line}</li>
+            )}
           </ul>
-        )}
+          }
       </div>
-    </div>
-  );
-}
+    </div>);
+
+  }}const LoadingPopup = _TopLevelFunctionSurface.LoadingPopup;
 
 export default LoadingPopup;

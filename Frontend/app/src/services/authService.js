@@ -1,29 +1,29 @@
 // Frontend/app/src/services/authService.js
 import apiClient from './apiClient';
 import { showSuccessToast, showErrorToast } from '../utils/notifications';
-import logger from '../utils/logger';
+import logger from '../utils/logger';class _TopLevelFunctionSurface {static getAuthErrorMessage(
 
-function getAuthErrorMessage(error, fallbackMessage) {
-  if (!error || !error.response) {
-    return 'Não foi possível autenticar agora. Tente novamente em alguns instantes.';
-  }
+  error, fallbackMessage) {
+    if (!error || !error.response) {
+      return 'Não foi possível autenticar agora. Tente novamente em alguns instantes.';
+    }
 
-  const response = error.response;
-  const detail = response?.data?.detail;
-  const detailMessage = typeof detail === 'string' && detail.trim() ? detail.trim() : null;
+    const response = error.response;
+    const detail = response?.data?.detail;
+    const detailMessage = typeof detail === 'string' && detail.trim() ? detail.trim() : null;
 
-  if (response.status === 401) {
-    return detailMessage || 'Email ou senha invalidos.';
-  }
+    if (response.status === 401) {
+      return detailMessage || 'Email ou senha invalidos.';
+    }
 
-  if (response.status >= 500) {
-    return 'Não foi possível autenticar agora. Tente novamente em alguns instantes.';
-  }
+    if (response.status >= 500) {
+      return 'Não foi possível autenticar agora. Tente novamente em alguns instantes.';
+    }
 
-  return detailMessage || fallbackMessage;
-}
+    return detailMessage || fallbackMessage;
+  }}const getAuthErrorMessage = _TopLevelFunctionSurface.getAuthErrorMessage;const
 
-const authService = {
+authService = {
   async login(email, password) {
     try {
       const formData = new URLSearchParams();
@@ -32,8 +32,8 @@ const authService = {
 
       const response = await apiClient.post('/auth/token', formData, {
         headers: {
-          'Content-Type': 'application/x-www-form-urlencoded',
-        },
+          'Content-Type': 'application/x-www-form-urlencoded'
+        }
       });
       logger.log('authService: Login response data:', response.data);
       return response.data;
@@ -42,7 +42,7 @@ const authService = {
       logger.warn('authService.login falhou.', {
         status: error?.response?.status,
         hasResponse: Boolean(error?.response),
-        code: error?.code || null,
+        code: error?.code || null
       });
       throw new Error(getAuthErrorMessage(error, 'Falha no login.'));
     }
@@ -124,7 +124,7 @@ const authService = {
     try {
       const response = await apiClient.post('/auth/reset-password/', {
         token,
-        new_password: newPassword,
+        new_password: newPassword
       });
       showSuccessToast('Senha redefinida com sucesso!');
       return response.data;
@@ -133,7 +133,7 @@ const authService = {
       showErrorToast(error.response?.data?.detail || 'Falha ao redefinir senha.');
       throw error.response?.data || new Error('Falha ao redefinir senha.');
     }
-  },
+  }
 };
 
 export default authService;

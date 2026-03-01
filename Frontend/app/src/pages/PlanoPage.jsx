@@ -3,82 +3,82 @@ import React, { useState, useEffect } from 'react';
 import authService from '../services/authService';
 import { showErrorToast, showInfoToast } from '../utils/notifications';
 import './PlanoPage.css';
-import LoadingPopup from '../components/common/LoadingPopup.jsx';
+import LoadingPopup from '../components/common/LoadingPopup.jsx';class _TopLevelFunctionSurface {static PlanoPage()
 
-function PlanoPage() {
-  const [currentUser, setCurrentUser] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
+  {
+    const [currentUser, setCurrentUser] = useState(null);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState(null);
 
-  useEffect(() => {
-    const fetchUserData = async () => {
-      setLoading(true);
-      setError(null);
-      try {
-        const user = await authService.getCurrentUser();
-        setCurrentUser(user);
-      } catch (err) {
-        const errorMsg = err && err.message ? err.message : 'Falha ao carregar dados do usuário e plano.';
-        setError(errorMsg);
-        showErrorToast(errorMsg);
-      } finally {
-        setLoading(false);
-      }
-    };
+    useEffect(() => {
+      const fetchUserData = async () => {
+        setLoading(true);
+        setError(null);
+        try {
+          const user = await authService.getCurrentUser();
+          setCurrentUser(user);
+        } catch (err) {
+          const errorMsg = err && err.message ? err.message : 'Falha ao carregar dados do usuário e plano.';
+          setError(errorMsg);
+          showErrorToast(errorMsg);
+        } finally {
+          setLoading(false);
+        }
+      };
 
-    fetchUserData();
-  }, []);
+      fetchUserData();
+    }, []);
 
-  if (loading) {
-    return <LoadingPopup isOpen={true} message="Carregando informações do plano..." />;
-  }
+    if (loading) {
+      return <LoadingPopup isOpen={true} message="Carregando informações do plano..." />;
+    }
 
-  if (error) {
-    return (
-      <div className="plano-page-shell">
+    if (error) {
+      return (
+        <div className="plano-page-shell">
         <div className="plano-card-box">
           <p className="plano-error">Erro ao carregar dados: {error}</p>
         </div>
-      </div>
-    );
-  }
+      </div>);
 
-  if (!currentUser || !currentUser.plano) {
-    return (
-      <div className="plano-page-shell">
+    }
+
+    if (!currentUser || !currentUser.plano) {
+      return (
+        <div className="plano-page-shell">
         <div className="plano-card-box">
           <h1 className="plano-page-title">Meu Plano</h1>
           <p>Não foi possível carregar as informações do seu plano ou você não possui um plano ativo.</p>
           <p>Entre em contato com o suporte para mais informações.</p>
         </div>
-      </div>
-    );
-  }
+      </div>);
 
-  const { plano } = currentUser;
-
-  const formatLimit = (limit) => {
-    if (limit === null || limit === undefined || limit >= 999999) {
-      return 'Ilimitado';
     }
-    return new Intl.NumberFormat('pt-BR').format(limit);
-  };
 
-  const handleUpgradeClick = () => {
-    showInfoToast('Recurso de upgrade ainda não disponível.');
-  };
+    const { plano } = currentUser;
 
-  const handleCancelSubscriptionClick = () => {
-    showInfoToast('Funcionalidade de cancelamento ainda não disponível.');
-  };
+    const formatLimit = (limit) => {
+      if (limit === null || limit === undefined || limit >= 999999) {
+        return 'Ilimitado';
+      }
+      return new Intl.NumberFormat('pt-BR').format(limit);
+    };
 
-  const handleBillingHistoryClick = (e) => {
-    e.preventDefault();
-    showInfoToast('Histórico de cobrança ainda não disponível.');
-  };
+    const handleUpgradeClick = () => {
+      showInfoToast('Recurso de upgrade ainda não disponível.');
+    };
 
-  return (
-    <div className="plano-page-shell">
+    const handleCancelSubscriptionClick = () => {
+      showInfoToast('Funcionalidade de cancelamento ainda não disponível.');
+    };
+
+    const handleBillingHistoryClick = (e) => {
+      e.preventDefault();
+      showInfoToast('Histórico de cobrança ainda não disponível.');
+    };
+
+    return (
+      <div className="plano-page-shell">
       <div className="plano-card-box">
         <h1 className="plano-page-title">Meu Plano</h1>
 
@@ -129,8 +129,8 @@ function PlanoPage() {
           </section>
         </div>
       </div>
-    </div>
-  );
-}
+    </div>);
+
+  }}const PlanoPage = _TopLevelFunctionSurface.PlanoPage;
 
 export default PlanoPage;

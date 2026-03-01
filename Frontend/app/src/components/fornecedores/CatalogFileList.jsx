@@ -1,16 +1,16 @@
 import React from 'react';
 import { format } from 'date-fns';
 import getBackendBaseUrl from '../../utils/backend.js';
-import './CatalogFileList.css';
+import './CatalogFileList.css';class _TopLevelFunctionSurface {static CatalogFileList(
 
-function CatalogFileList({ files = [], onReprocess, onDelete }) {
-  const backendBaseUrl = getBackendBaseUrl();
-  if (!files || files.length === 0) {
-    return <p>Nenhum arquivo encontrado.</p>;
-  }
+  { files = [], onReprocess, onDelete }) {
+    const backendBaseUrl = getBackendBaseUrl();
+    if (!files || files.length === 0) {
+      return <p>Nenhum arquivo encontrado.</p>;
+    }
 
-  return (
-    <table className="catalog-file-table">
+    return (
+      <table className="catalog-file-table">
       <thead>
         <tr>
           <th>Arquivo</th>
@@ -21,7 +21,7 @@ function CatalogFileList({ files = [], onReprocess, onDelete }) {
         </tr>
       </thead>
       <tbody>
-        {files.map((file) => (
+        {files.map((file) =>
           <tr key={file.id}>
             <td>{file.original_filename}</td>
             <td>{file.status}</td>
@@ -30,38 +30,38 @@ function CatalogFileList({ files = [], onReprocess, onDelete }) {
               <a
                 href={`${backendBaseUrl}/static/uploads/catalogs/${file.stored_filename}`}
                 target="_blank"
-                rel="noopener noreferrer"
-              >
+                rel="noopener noreferrer">
+
                 {file.stored_filename}
               </a>
             </td>
-            {(onReprocess || onDelete) && (
-              <td className="catalog-file-actions-cell">
-                {onReprocess && (
-                  <button
-                    type="button"
-                    className="catalog-file-action"
-                    onClick={() => onReprocess(file.id)}
-                  >
+            {(onReprocess || onDelete) &&
+            <td className="catalog-file-actions-cell">
+                {onReprocess &&
+              <button
+                type="button"
+                className="catalog-file-action"
+                onClick={() => onReprocess(file.id)}>
+
                     Reprocessar
                   </button>
-                )}
-                {onDelete && (
-                  <button
-                    type="button"
-                    className="catalog-file-action catalog-file-action-danger"
-                    onClick={() => onDelete(file.id)}
-                  >
+              }
+                {onDelete &&
+              <button
+                type="button"
+                className="catalog-file-action catalog-file-action-danger"
+                onClick={() => onDelete(file.id)}>
+
                     Excluir
                   </button>
-                )}
+              }
               </td>
-            )}
+            }
           </tr>
-        ))}
+          )}
       </tbody>
-    </table>
-  );
-}
+    </table>);
+
+  }}const CatalogFileList = _TopLevelFunctionSurface.CatalogFileList;
 
 export default CatalogFileList;
