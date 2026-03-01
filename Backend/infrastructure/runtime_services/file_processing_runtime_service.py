@@ -19,37 +19,37 @@ class FileProcessingRuntimeService:
 
     def _get_catalog_storage(self):
         if self._catalog_storage is None:
-            self._catalog_storage = file_processing_module.get_catalog_storage_workflow()
+            self._catalog_storage = file_processing_module.CatalogStorageWorkflow()
         return self._catalog_storage
 
     def _get_line_mapping(self):
         if self._line_mapping is None:
-            self._line_mapping = file_processing_module.get_line_mapping_workflow()
+            self._line_mapping = file_processing_module.LineMappingWorkflow()
         return self._line_mapping
 
     def _get_tabular_ingestion(self):
         if self._tabular_ingestion is None:
-            self._tabular_ingestion = file_processing_module.get_tabular_ingestion_workflow()
+            self._tabular_ingestion = file_processing_module.TabularIngestionWorkflow()
         return self._tabular_ingestion
 
     def _get_tabular_preview(self):
         if self._tabular_preview is None:
-            self._tabular_preview = file_processing_module.get_tabular_preview_workflow()
+            self._tabular_preview = file_processing_module.TabularPreviewWorkflow()
         return self._tabular_preview
 
     def _get_pdf_asset(self):
         if self._pdf_asset is None:
-            self._pdf_asset = file_processing_module.get_pdf_asset_workflow()
+            self._pdf_asset = file_processing_module.PdfAssetWorkflow()
         return self._pdf_asset
 
     def _get_pdf_processing(self):
         if self._pdf_processing is None:
-            self._pdf_processing = file_processing_module.get_pdf_processing_workflow()
+            self._pdf_processing = file_processing_module.PdfProcessingWorkflow()
         return self._pdf_processing
 
     def _get_pdf_job(self):
         if self._pdf_job is None:
-            self._pdf_job = file_processing_module.get_pdf_job_workflow()
+            self._pdf_job = file_processing_module.PdfJobWorkflow()
         return self._pdf_job
 
     async def save_uploaded_catalog(self, *args: Any, **kwargs: Any):
@@ -111,6 +111,3 @@ class FileProcessingRuntimeService:
 
     def processar_linha_padronizada(self, *args: Any, **kwargs: Any):
         return self._get_line_mapping().processar_linha_padronizada(*args, **kwargs)
-
-
-file_processing_runtime_service = FileProcessingRuntimeService()

@@ -85,6 +85,11 @@ class _BackgroundTasksStub:
         self.calls.append((fn, kwargs))
 
 
+class _CatalogFileRepoStub:
+    def __init__(self):
+        self._db = object()
+
+
 class _PdfStub:
     def __init__(self, pages_count):
         self.pages = [object() for _ in range(pages_count)]
@@ -103,11 +108,11 @@ def _build_service():
         file_processing_service=file_processing,
         web_data_extractor_service=_WebExtractorStub(),
     )
-    return service, file_processing
+    return service, file_processing, _CatalogFileRepoStub()
 
 
 def test_preview_pages_rejects_non_pdf():
-    service, _ = _build_service()
+    service, _, _ = _build_service()
 
     with pytest.raises(HTTPException) as exc:
         asyncio.run(service.preview_pages(file=_UploadFileStub("catalog.csv")))
@@ -116,7 +121,7 @@ def test_preview_pages_rejects_non_pdf():
 
 
 def test_preview_pages_generates_images():
-    service, file_processing = _build_service()
+    service, file_processing, _ = _build_service()
 
     payload = asyncio.run(
         service.preview_pages(file=_UploadFileStub("catalog.pdf", b"payload"))
@@ -128,23 +133,23 @@ def test_preview_pages_generates_images():
 
 
 def test_preview_pdf_rejects_invalid_extension():
-    service, _ = _build_service()
+    service, _, catalog_file_repo = _build_service()
 
     with pytest.raises(HTTPException) as exc:
         service.preview_pdf(
-            db=object(),
             file=SimpleNamespace(filename="catalog.txt"),
             fornecedor_id=1,
             user_id=2,
             offset=0,
             limit=10,
+            catalog_file_repo=catalog_file_repo,
         )
 
     assert exc.value.status_code == 400
 
 
 def test_preview_catalog_from_region_returns_columns_and_rows():
-    service, file_processing = _build_service()
+    service, file_processing, catalog_file_repo = _build_service()
     file_processing._df = _DataFrameStub(
         empty=False,
         columns=["col_0", "col_1"],
@@ -152,10 +157,10 @@ def test_preview_catalog_from_region_returns_columns_and_rows():
     )
 
     payload = service.preview_catalog_from_region(
-        db=object(),
         file_id=1,
         page_number=2,
         region=[1.0, 2.0, 3.0, 4.0],
+        catalog_file_repo=catalog_file_repo,
     )
 
     assert payload["columns"] == ["col_0", "col_1"]
@@ -163,33 +168,33 @@ def test_preview_catalog_from_region_returns_columns_and_rows():
 
 
 def test_preview_catalog_from_region_raises_when_dataframe_empty():
-    service, file_processing = _build_service()
+    service, file_processing, catalog_file_repo = _build_service()
     file_processing._df = _DataFrameStub(empty=True)
 
     with pytest.raises(HTTPException) as exc:
         service.preview_catalog_from_region(
-            db=object(),
             file_id=1,
             page_number=2,
             region=[1.0, 2.0, 3.0, 4.0],
+            catalog_file_repo=catalog_file_repo,
         )
 
     assert exc.value.status_code == 400
 
 
 def test_extract_data_from_pdf_bulk_schedules_all_pages(monkeypatch):
-    service, file_processing = _build_service()
+    service, file_processing, catalog_file_repo = _build_service()
     tasks = _BackgroundTasksStub()
 
     monkeypatch.setattr(preview_module.pdfplumber, "open", lambda _path: _PdfStub(3))
 
     payload = service.extract_data_from_pdf_bulk(
         background_tasks=tasks,
-        db=object(),
         file_id=1,
         region=[1.0, 2.0, 3.0, 4.0],
         pages=None,
         all_pages=True,
+        catalog_file_repo=catalog_file_repo,
     )
 
     assert payload["total_pages"] == 3

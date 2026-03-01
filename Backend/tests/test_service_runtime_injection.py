@@ -6,13 +6,9 @@ import pytest
 
 from Backend import models
 from Backend.create_tables import CreateTablesWorkflow
-from Backend.crud_fornecedor_import_jobs import FornecedorImportJobWorkflow
-from Backend.crud_fornecedores import FornecedorCrudWorkflow
-from Backend.crud_historico import HistoricoCrudWorkflow
-from Backend.crud_product_types import ProductTypeCrudWorkflow
-from Backend.crud_produtos import ProdutoCrudWorkflow
-from Backend.crud_registros_uso_ia import RegistroUsoIACrudWorkflow
-from Backend.crud_users import UserCrudWorkflow
+from Backend.infrastructure.repositories.fornecedor_import_job_repository import (
+    FornecedorImportJobRepository,
+)
 from Backend.database import DatabaseWorkflow
 from Backend.initial_data import InitialDataWorkflow
 from Backend.testing.runtime_apis import (
@@ -90,52 +86,11 @@ def test_line_mapping_workflow_delega_runtime_injetado():
     assert result == {"nome_base": "Produto X", "mapping": {"nome": "nome_base"}}
 
 
-def test_crud_workflows_delegam_runtime_injetado_bloco_1():
-    class FornecedorRuntime:
-        def create_fornecedor(self, **kwargs):
-            return {"workflow": "fornecedor", **kwargs}
-
-    class ProductTypeRuntime:
-        def reorder_attribute_template(self, **kwargs):
-            return {"workflow": "product_type", **kwargs}
-
-    class HistoricoRuntime:
-        def count_registros_historico(self, **kwargs):
-            return 42
-
-    fornecedor_workflow = FornecedorCrudWorkflow(runtime=FornecedorRuntime())
-    product_type_workflow = ProductTypeCrudWorkflow(runtime=ProductTypeRuntime())
-    historico_workflow = HistoricoCrudWorkflow(runtime=HistoricoRuntime())
-
-    created = fornecedor_workflow.create_fornecedor(db="db", fornecedor="schema", user_id=7)
-    reordered = product_type_workflow.reorder_attribute_template(
-        db="db",
-        attribute_id=10,
-        direction="up",
-    )
-    count = historico_workflow.count_registros_historico(db="db")
-
-    assert created["workflow"] == "fornecedor"
-    assert reordered["workflow"] == "product_type"
-    assert count == 42
-
-
 @pytest.mark.asyncio
-async def test_crud_workflows_delegam_runtime_injetado_bloco_2():
-    class ProdutoRuntime:
-        def create_produto(self, **kwargs):
-            return {"workflow": "produto", **kwargs}
-
-        async def save_produto_image(self, **kwargs):
-            return f"/tmp/{kwargs['produto_id']}.png"
-
+async def test_user_and_job_workflows_delegam_runtime_injetado():
     class UserRuntime:
         def get_user(self, **kwargs):
             return {"workflow": "user", **kwargs}
-
-    class RegistroUsoRuntime:
-        def get_geracoes_ia_count_no_mes_corrente(self, **kwargs):
-            return 9
 
     class JobRuntime:
         def update_job_status(self, **kwargs):
@@ -145,23 +100,22 @@ async def test_crud_workflows_delegam_runtime_injetado_bloco_2():
         def create_initial_data(self, **kwargs):
             return {"workflow": "initial_data", **kwargs}
 
-    produto_workflow = ProdutoCrudWorkflow(runtime=ProdutoRuntime())
-    user_workflow = UserCrudWorkflow(runtime=UserRuntime())
-    registro_workflow = RegistroUsoIACrudWorkflow(runtime=RegistroUsoRuntime())
-    job_workflow = FornecedorImportJobWorkflow(runtime=JobRuntime())
+    class UserWorkflow:
+        def __init__(self, runtime):
+            self._runtime = runtime
+
+        def get_user(self, db, user_id):
+            return self._runtime.get_user(db=db, user_id=user_id)
+
+    user_workflow = UserWorkflow(runtime=UserRuntime())
+    job_workflow = FornecedorImportJobRepository(runtime=JobRuntime())
     initial_data_workflow = InitialDataWorkflow(runtime=InitialDataRuntime())
 
-    produto = produto_workflow.create_produto(db="db", produto="schema", user_id=1)
-    image_path = await produto_workflow.save_produto_image(db="db", produto_id=88, file="img")
     user = user_workflow.get_user(db="db", user_id=3)
-    total = registro_workflow.get_geracoes_ia_count_no_mes_corrente(db="db", user_id=3)
     job = job_workflow.update_job_status(db="db", job="job", status="DONE")
     initial = initial_data_workflow.create_initial_data(db="db")
 
-    assert produto["workflow"] == "produto"
-    assert image_path == "/tmp/88.png"
     assert user["workflow"] == "user"
-    assert total == 9
     assert job["workflow"] == "job"
     assert initial["workflow"] == "initial_data"
 

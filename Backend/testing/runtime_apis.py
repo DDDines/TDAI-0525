@@ -14,7 +14,7 @@ import Backend.infrastructure.runtime_modules.web_data_extractor_module as web_e
 
 # Public symbol preferred by runtime-focused tests.
 def processar_linha_padronizada(linha_original, mapeamento_colunas_usuario=None):
-    return file_processing.get_line_mapping_workflow().processar_linha_padronizada(
+    return file_processing.LineMappingWorkflow().processar_linha_padronizada(
         linha_original=linha_original,
         mapeamento_colunas_usuario=mapeamento_colunas_usuario,
     )

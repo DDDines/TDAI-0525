@@ -12,9 +12,9 @@ except ImportError:  # pragma: no cover - install at runtime
 
 import pytest
 
-from Backend.application.services.service_container import service_container
+from Backend.application.services.service_container import ServiceContainer
 
-file_processing_service = service_container.file_processing
+file_processing_service = ServiceContainer().file_processing
 
 
 def _create_pdf(pages: int = 1) -> bytes:
@@ -59,3 +59,4 @@ async def test_pdf_pages_to_images_start_page():
         start_page=3,
     )
     assert first_page_img[0] != third_page_img[0]
+

@@ -5,7 +5,10 @@ from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from Backend import models, schemas
-from Backend.database import get_db
+from Backend.application.services.service_container import (
+    DependencyContainer,
+    SessionDep,
+)
 from . import auth_utils
 
 router = APIRouter(
@@ -124,24 +127,34 @@ class _SearchWorkflow:
         )
 
 
-_search_runtime = _SearchRuntime()
-_search_workflow = _SearchWorkflow(runtime=_search_runtime)
 SearchWorkflow = _SearchWorkflow
 
 
 def get_search_workflow() -> SearchWorkflow:
-    return _search_workflow
+    return SearchWorkflow(runtime=_SearchRuntime())
+
+
+class _SearchRequestContext:
+    def __init__(self, db: Session) -> None:
+        self.db=db
+
+
+def _build_search_request_context(
+    db: SessionDep,
+) -> _SearchRequestContext:
+    return _SearchRequestContext(db=db)
 
 
 @router.get("/", response_model=schemas.SearchResults)
 def search_all(
     q: Optional[str] = Query(None, min_length=1),
     limit: int = Query(10, ge=1, le=50),
-    db: Session = Depends(get_db),
+    request_context: _SearchRequestContext = Depends(_build_search_request_context),
     current_user: models.User = Depends(auth_utils.get_current_active_user),
 ):
-    return _search_workflow.search_all(
-        db=db,
+    workflow = get_search_workflow()
+    return workflow.search_all(
+        db=request_context.db,
         current_user=current_user,
         q=q,
         limit=limit,

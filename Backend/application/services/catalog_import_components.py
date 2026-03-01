@@ -133,7 +133,7 @@ class CatalogImportFileStateService:
         call_repository_method(
             catalog_file_repo,
             "update_catalog_file",
-            db=CatalogImportFileStateService.repo_db(catalog_file_repo),
+            session=CatalogImportFileStateService.repo_db(catalog_file_repo),
             catalog_file=catalog_file,
         )
 
@@ -160,7 +160,7 @@ class CatalogImportFileStateService:
         call_repository_method(
             catalog_file_repo,
             "update_catalog_file",
-            db=CatalogImportFileStateService.repo_db(catalog_file_repo),
+            session=CatalogImportFileStateService.repo_db(catalog_file_repo),
             catalog_file=catalog_file,
         )
 
@@ -176,7 +176,7 @@ class CatalogImportFileStateService:
         call_repository_method(
             catalog_file_repo,
             "update_catalog_file",
-            db=CatalogImportFileStateService.repo_db(catalog_file_repo),
+            session=CatalogImportFileStateService.repo_db(catalog_file_repo),
             catalog_file=catalog_file,
         )
 
@@ -186,7 +186,7 @@ class CatalogImportFileStateService:
         call_repository_method(
             catalog_file_repo,
             "update_catalog_file",
-            db=CatalogImportFileStateService.repo_db(catalog_file_repo),
+            session=CatalogImportFileStateService.repo_db(catalog_file_repo),
             catalog_file=catalog_file,
         )
 
@@ -203,7 +203,7 @@ class CatalogImportFileStateService:
         call_repository_method(
             catalog_file_repo,
             "update_catalog_file",
-            db=CatalogImportFileStateService.repo_db(catalog_file_repo),
+            session=CatalogImportFileStateService.repo_db(catalog_file_repo),
             catalog_file=catalog_file,
         )
 
@@ -229,7 +229,7 @@ class CatalogImportFileStateService:
         call_repository_method(
             catalog_file_repo,
             "update_catalog_file",
-            db=CatalogImportFileStateService.repo_db(catalog_file_repo),
+            session=CatalogImportFileStateService.repo_db(catalog_file_repo),
             catalog_file=catalog_file,
         )
 
@@ -245,13 +245,10 @@ class CatalogImportAuditWriter:
         *,
         user_id: int,
         produtos_criados: List[Any],
-        **legacy_kwargs: Any,
+        session: Any,
     ) -> None:
-        db = legacy_kwargs.pop("db", None)
-        if db is None:
-            raise ValueError("db is required for CatalogImportAuditWriter.register_creation")
         for db_produto in produtos_criados:
-            db.add(
+            session.add(
                 self._models.RegistroUsoIA(
                     user_id=user_id,
                     produto_id=db_produto.id,
@@ -259,7 +256,7 @@ class CatalogImportAuditWriter:
                     creditos_consumidos=0,
                 )
             )
-            db.add(
+            session.add(
                 self._models.RegistroHistorico(
                     user_id=user_id,
                     entidade="Produto",

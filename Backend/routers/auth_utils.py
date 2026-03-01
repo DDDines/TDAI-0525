@@ -6,10 +6,13 @@ from fastapi.security import OAuth2PasswordBearer
 from sqlalchemy.orm import Session
 
 from Backend import models
-from Backend.application.services.data_access_service import data_access_service
+from Backend.application.services.service_container import (
+    DependencyContainer,
+    SessionDep,
+)
 from Backend.core import config
 from Backend.core import security
-from Backend.database import get_db
+from Backend.infrastructure.repositories.user_repository import UserRepository
 
 logger = logging.getLogger(__name__)
 
@@ -23,7 +26,7 @@ class _AuthUtilsRuntime:
         return security.decode_token(token, secret_key)
 
     def get_user(self, db: Session, user_id: int):
-        return data_access_service.users.get_user(db, user_id=user_id)
+        return UserRepository(db).get_user(user_id=user_id)
 
 
 class _AuthUtilsWorkflow:
@@ -68,23 +71,33 @@ class _AuthUtilsWorkflow:
         return current_user
 
 
-auth_utils_runtime = _AuthUtilsRuntime()
-auth_utils_workflow = _AuthUtilsWorkflow(runtime=auth_utils_runtime)
 AuthUtilsWorkflow = _AuthUtilsWorkflow
 
 
 def get_auth_utils_workflow() -> AuthUtilsWorkflow:
-    return auth_utils_workflow
+    return AuthUtilsWorkflow(runtime=_AuthUtilsRuntime())
+
+
+class _AuthRequestContext:
+    def __init__(self, db: Session) -> None:
+        self.db=db
+
+
+def _build_auth_request_context(
+    db: SessionDep,
+) -> _AuthRequestContext:
+    return _AuthRequestContext(db=db)
 
 
 async def get_current_user(
     request: Request,
-    db: Session = Depends(get_db),
     token: str = Depends(oauth2_scheme),
+    request_context: _AuthRequestContext = Depends(_build_auth_request_context),
 ) -> models.User:
-    return await auth_utils_workflow.get_current_user(
+    workflow = get_auth_utils_workflow()
+    return await workflow.get_current_user(
         request=request,
-        db=db,
+        db=request_context.db,
         token=token,
     )
 
@@ -92,13 +105,15 @@ async def get_current_user(
 async def get_current_active_user(
     current_user: models.User = Depends(get_current_user),
 ) -> models.User:
-    return await auth_utils_workflow.get_current_active_user(current_user=current_user)
+    workflow = get_auth_utils_workflow()
+    return await workflow.get_current_active_user(current_user=current_user)
 
 
 async def get_current_active_superuser(
     current_user: models.User = Depends(get_current_active_user),
 ) -> models.User:
-    return await auth_utils_workflow.get_current_active_superuser(current_user=current_user)
+    workflow = get_auth_utils_workflow()
+    return await workflow.get_current_active_superuser(current_user=current_user)
 
 
 

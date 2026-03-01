@@ -8,12 +8,13 @@ from sqlalchemy.pool import StaticPool
 from Backend import models
 from Backend.database import Base
 from Backend.infrastructure.runtime_services.limit_runtime_service import (
-    limit_runtime_service,
+    LimitRuntimeService,
 )
 
 
 @pytest.mark.asyncio
 async def test_verificar_e_consumir_creditos_geracao_ia():
+    limit_runtime_service = LimitRuntimeService()
     engine = create_engine(
         "sqlite:///:memory:",
         connect_args={"check_same_thread": False},
@@ -52,6 +53,7 @@ async def test_verificar_e_consumir_creditos_geracao_ia():
 
 
 def test_verificar_limite_uso_retorna_saldo():
+    limit_runtime_service = LimitRuntimeService()
     engine = create_engine(
         "sqlite:///:memory:",
         connect_args={"check_same_thread": False},

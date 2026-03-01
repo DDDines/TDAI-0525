@@ -1,4 +1,5 @@
 import os
+
 import pytest
 
 # Garantir DB de testes antes de carregar app/database.
@@ -6,6 +7,7 @@ os.environ.setdefault("DATABASE_URL", "sqlite:///:memory:")
 
 from Backend.main import app
 from Backend.database import get_db
+from Backend.infrastructure.repositories.user_repository import UserRepository
 
 os.environ.setdefault("FIRST_SUPERUSER_EMAIL", "admin@example.com")
 os.environ.setdefault("FIRST_SUPERUSER_PASSWORD", "password")
@@ -40,17 +42,15 @@ def _bind_get_db_override_per_module(request):
         else:
             app.dependency_overrides.pop(get_db, None)
 
+
 @pytest.fixture()
 def db_session():
     from sqlalchemy import create_engine
     from sqlalchemy.orm import sessionmaker
-    from Backend.database import Base
-    import Backend.schemas as schemas
-    from Backend.crud_users import get_user_crud_workflow
-
     from sqlalchemy.pool import StaticPool
 
-    user_crud_workflow = get_user_crud_workflow()
+    from Backend.database import Base
+    import Backend.schemas as schemas
 
     engine = create_engine(
         SQLALCHEMY_DATABASE_URL,
@@ -61,13 +61,13 @@ def db_session():
     Base.metadata.create_all(bind=engine)
     db = TestingSessionLocal()
 
-    # Create default role and plan needed for user creation
-    user_crud_workflow.create_role(db, schemas.RoleCreate(name="user", description="User role"))
-    user_crud_workflow.create_plano(
-        db,
-        schemas.PlanoCreate(
+    # Create default role and plan needed for user creation.
+    user_repo = UserRepository(db)
+    user_repo.create_role(role=schemas.RoleCreate(name="user", description="User role"))
+    user_repo.create_plano(
+        plano=schemas.PlanoCreate(
             nome="Gratuito",
-            descricao="Plano básico gratuito",
+            descricao="Plano basico gratuito",
             preco_mensal=0.0,
             limite_produtos=50,
             limite_enriquecimento_web=10,

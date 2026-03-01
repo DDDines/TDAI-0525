@@ -173,17 +173,14 @@ class _EmailRuntime:
     def current_year(self) -> int:
         return datetime.now().year
 
-
-email_runtime = _EmailRuntime()
-email_workflow = _EmailWorkflow(runtime=email_runtime)
 EmailWorkflow = _EmailWorkflow
 
 
 def get_email_workflow() -> EmailWorkflow:
-    return email_workflow
+    return EmailWorkflow()
 
 
-conf = email_workflow.conf
+conf = get_email_workflow().conf
 
 
 async def send_email(
@@ -195,7 +192,7 @@ async def send_email(
     *,
     raise_if_unconfigured: Optional[bool] = None,
 ):
-    await email_workflow.send_email(
+    await get_email_workflow().send_email(
         email_to=email_to,
         subject=subject,
         html_content=html_content,
@@ -212,7 +209,7 @@ async def send_password_reset_email(
     *,
     raise_if_unconfigured: Optional[bool] = None,
 ):
-    await email_workflow.send_password_reset_email(
+    await get_email_workflow().send_password_reset_email(
         email_to=email_to,
         username=username,
         reset_link=reset_link,

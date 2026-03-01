@@ -50,80 +50,1185 @@ from Backend.core.logging_config import get_logger
 from Backend.core.config import settings
 
 from Backend import models, schemas
-from Backend.crud_fornecedores import get_fornecedor_crud_workflow
-
-from Backend.application.services.web_data_extractor_facade import (
-    WebDataExtractorFacade,
+from Backend.infrastructure.adapters.web_data_extractor_adapter import (
+    WebDataExtractorServiceAdapter,
 )
+from Backend.infrastructure.repositories.fornecedor_repository import FornecedorRepository
 
 
 
 logger = get_logger(__name__)
-
-
-def _build_web_data_extractor_service() -> Any:
-    return WebDataExtractorFacade()
-
-
-def _get_fornecedor_crud_workflow():
-    return get_fornecedor_crud_workflow()
 try:
     from pdfminer.pdfdocument import PDFPasswordIncorrect
 except Exception:
     PDFPasswordIncorrect = None
 
 
-def _is_pdf_password_error(error: Exception) -> bool:
-    """Detecta falha de senha em PDF sem depender de excecao especifica do pdfplumber."""
-    if error is None:
+class _FileProcessingImplementation:
+    """Static implementation holder for file processing routines."""
+
+    @staticmethod
+    def _is_pdf_password_error(error: Exception) -> bool:
+        """Detecta falha de senha em PDF sem depender de excecao especifica do pdfplumber."""
+        if error is None:
+            return False
+    
+        error_type_name = error.__class__.__name__.lower()
+        message = str(error).lower()
+    
+        if "password" in error_type_name:
+            return True
+        if "password" in message or "senha" in message:
+            return True
+        if "decrypt" in message and "pdf" in message:
+            return True
+    
+        if PDFPasswordIncorrect is not None and isinstance(error, PDFPasswordIncorrect):
+            return True
+    
         return False
 
-    error_type_name = error.__class__.__name__.lower()
-    message = str(error).lower()
+    @staticmethod
+    def _resolve_storage_path(path_value: Union[str, Path]) -> Path:
+        """Resolve caminhos relativos de storage sem duplicar prefixo Backend."""
+        p = Path(path_value)
+        if p.is_absolute():
+            return p
+    
+        module_path = Path(__file__).resolve()
+        backend_root = next(
+            (parent for parent in module_path.parents if parent.name.lower() == "backend"),
+            module_path.parents[2],
+        )
+        project_root = backend_root.parent
+        if p.parts and p.parts[0].lower() == "backend":
+            return project_root / p
+        return backend_root / p
 
-    if "password" in error_type_name:
-        return True
-    if "password" in message or "senha" in message:
-        return True
-    if "decrypt" in message and "pdf" in message:
-        return True
+    @staticmethod
+    async def _save_uploaded_catalog_impl(
+    
+        file: UploadFile, fornecedor_id: Optional[int] = None
+    
+    ) -> models.CatalogImportFile:
+    
+        """Salva o arquivo de catÃƒÂ¡logo no disco e retorna um objeto CatalogImportFile.
+    
+    
+    
+        Parameters
+    
+        ----------
+    
+        file: UploadFile
+    
+            Arquivo recebido na requisiÃƒÂ§ÃƒÂ£o.
+    
+        fornecedor_id: Optional[int]
+    
+            Identificador do fornecedor para o qual o catÃƒÂ¡logo serÃƒÂ¡ importado.
+    
+        """
+    
+        directory = _resolve_storage_path(Path(settings.UPLOAD_DIRECTORY) / "catalogs")
+    
+        directory.mkdir(parents=True, exist_ok=True)
+    
+    
+    
+        ext = Path(file.filename).suffix
+    
+        unique_name = f"{uuid4().hex}{ext}"
+    
+        stored_path = directory / unique_name
+    
+    
+    
+        content = await file.read()
+    
+        with open(stored_path, "wb") as f_out:
+    
+            f_out.write(content)
+    
+        await file.close()
+    
+    
+    
+        return models.CatalogImportFile(
+    
+            original_filename=file.filename,
+    
+            stored_filename=unique_name,
+    
+            status="UPLOADED",
+    
+            fornecedor_id=fornecedor_id,
+    
+        )
 
-    if PDFPasswordIncorrect is not None and isinstance(error, PDFPasswordIncorrect):
-        return True
+    @staticmethod
+    def _delete_catalog_file_impl(stored_filename: str) -> None:
+    
+        """Remove a stored catalog file from disk if it exists."""
+    
+        directory = _resolve_storage_path(Path(settings.UPLOAD_DIRECTORY) / "catalogs")
+    
+        path = directory / stored_filename
+    
+        try:
+    
+            if path.exists():
+    
+                path.unlink()
+    
+        except Exception:
+    
+            logger.exception("Erro ao remover arquivo %s", stored_filename)
 
-    return False
+    @staticmethod
+    def _limpar_valor_extraido(valor: Any) -> Optional[str]:
+        """Helper para limpar strings ou converter outros tipos para string, retornando None se vazio."""
+        return _LineNormalizationRuntime().limpar_valor_extraido(valor)
 
-def _resolve_storage_path(path_value: Union[str, Path]) -> Path:
-    """Resolve caminhos relativos de storage sem duplicar prefixo Backend."""
-    p = Path(path_value)
-    if p.is_absolute():
-        return p
+    @staticmethod
+    def _valor_tem_conteudo_util(valor: Any) -> bool:
+        """Retorna True para valores ÃƒÂºteis (evita lixo de OCR como '!' ou '-')."""
+        return _LineNormalizationRuntime().valor_tem_conteudo_util(valor)
 
-    module_path = Path(__file__).resolve()
-    backend_root = next(
-        (parent for parent in module_path.parents if parent.name.lower() == "backend"),
-        module_path.parents[2],
-    )
-    project_root = backend_root.parent
-    if p.parts and p.parts[0].lower() == "backend":
-        return project_root / p
-    return backend_root / p
+    @staticmethod
+    def _norm_text(v: Any) -> str:
+        return _LineNormalizationRuntime().norm_text(v)
+
+    @staticmethod
+    def _normalizar_mapeamento_usuario(
+        mapeamento_colunas_usuario: Optional[Dict[str, str]],
+        linha_original: Dict[str, Any],
+    ) -> Dict[str, str]:
+        """Normaliza mapping do usuario e corrige formato invertido (campo->coluna)."""
+        return _LineNormalizationRuntime().normalizar_mapeamento_usuario(
+            mapeamento_colunas_usuario=mapeamento_colunas_usuario,
+            linha_original=linha_original,
+        )
+
+    @staticmethod
+    def _coerce_region_bbox(
+        region: Optional[List[float]],
+        page_width: float,
+        page_height: float,
+    ) -> tuple[Optional[tuple[float, float, float, float]], Optional[str]]:
+        """Converte bbox para coordenada absoluta da pagina e faz clamp seguro."""
+        return _LineNormalizationRuntime().coerce_region_bbox(
+            region=region,
+            page_width=page_width,
+            page_height=page_height,
+        )
+
+    @staticmethod
+    def _token_looks_like_code(token: str) -> bool:
+        """Heuristica para identificar token de codigo/SKU."""
+        return _LineNormalizationRuntime().token_looks_like_code(token)
+
+    @staticmethod
+    def _split_sku_nome_auto(value: str) -> tuple[Optional[str], Optional[str]]:
+        """Divide um texto combinado em SKU e Nome Base quando possivel."""
+        return _LineNormalizationRuntime().split_sku_nome_auto(value)
+
+    @staticmethod
+    def _processar_linha_padronizada(
+        linha_original: Dict[str, Any],
+        mapeamento_colunas_usuario: Optional[Dict[str, str]] = None,
+    ) -> Optional[Dict[str, Any]]:
+        """Padroniza uma linha para campos de Produto, suportando atributos dinamicos."""
+        return _LineMappingWorkflow().processar_linha_padronizada(
+            linha_original=linha_original,
+            mapeamento_colunas_usuario=mapeamento_colunas_usuario,
+        )
+
+    @staticmethod
+    async def _processar_arquivo_excel_impl(
+        conteudo_arquivo: bytes,
+        mapeamento_colunas_usuario: Optional[Dict[str, str]] = None,
+        sheet_name: Optional[str] = None,
+        product_type_id: Optional[int] = None,
+    ) -> List[Dict[str, Any]]:
+        return await _TabularIngestionEngineRuntime().processar_arquivo_excel(
+            conteudo_arquivo=conteudo_arquivo,
+            mapeamento_colunas_usuario=mapeamento_colunas_usuario,
+            sheet_name=sheet_name,
+            product_type_id=product_type_id,
+        )
+
+    @staticmethod
+    async def _processar_arquivo_csv_impl(
+        conteudo_arquivo: bytes,
+        mapeamento_colunas_usuario: Optional[Dict[str, str]] = None,
+        product_type_id: Optional[int] = None,
+    ) -> List[Dict[str, Any]]:
+        return await _TabularIngestionEngineRuntime().processar_arquivo_csv(
+            conteudo_arquivo=conteudo_arquivo,
+            mapeamento_colunas_usuario=mapeamento_colunas_usuario,
+            product_type_id=product_type_id,
+        )
+
+    @staticmethod
+    async def _processar_arquivo_pdf_impl(
+        conteudo_arquivo: bytes,
+        mapeamento_colunas_usuario: Optional[Dict[str, str]] = None,
+        usar_llm: bool = True,
+        product_type_id: Optional[int] = None,
+        pages: Optional[List[int]] = None,
+        region: Optional[List[float]] = None,
+    ) -> List[Dict[str, Any]]:
+        return await _PdfIngestionRuntime().processar_arquivo_pdf(
+            conteudo_arquivo=conteudo_arquivo,
+            mapeamento_colunas_usuario=mapeamento_colunas_usuario,
+            usar_llm=usar_llm,
+            product_type_id=product_type_id,
+            pages=pages,
+            region=region,
+        )
+
+    @staticmethod
+    async def _preview_arquivo_excel_impl(
+        conteudo_arquivo: bytes, max_rows: int = 5
+    ) -> Dict[str, Any]:
+        return await _TabularPreviewEngineRuntime().preview_arquivo_excel(
+            conteudo_arquivo=conteudo_arquivo,
+            max_rows=max_rows,
+        )
+
+    @staticmethod
+    async def _preview_arquivo_csv_impl(
+        conteudo_arquivo: bytes, max_rows: int = 5
+    ) -> Dict[str, Any]:
+        return await _TabularPreviewEngineRuntime().preview_arquivo_csv(
+            conteudo_arquivo=conteudo_arquivo,
+            max_rows=max_rows,
+        )
+
+    @staticmethod
+    async def _preview_arquivo_pdf_impl(
+        conteudo_arquivo: bytes,
+        ext: str,
+        start_page: int = 1,
+        page_count: int = 1,
+        dpi: int = 72,
+    ) -> Dict[str, Any]:
+        return await _PdfPreviewRuntime().preview_arquivo_pdf(
+            conteudo_arquivo=conteudo_arquivo,
+            ext=ext,
+            start_page=start_page,
+            page_count=page_count,
+            dpi=dpi,
+        )
+
+    @staticmethod
+    async def _gerar_preview_impl(
+        conteudo_arquivo: bytes, ext: str, max_rows: int = 5
+    ) -> Dict[str, Any]:
+        return await _PreviewDispatchRuntime().gerar_preview(
+            conteudo_arquivo=conteudo_arquivo,
+            ext=ext,
+            max_rows=max_rows,
+        )
+
+    @staticmethod
+    async def _pdf_bytes_to_images_impl(
+    
+        conteudo_arquivo: bytes,
+    
+        max_pages: int = 1,
+    
+        start_page: int = 1,
+    
+        dpi: int = 200,
+    
+    ) -> List[str]:
+    
+        """Convert PDF bytes to base64 encoded PNG images."""
+        return await _PdfImageConversionRuntime().pdf_bytes_to_images(
+            conteudo_arquivo=conteudo_arquivo,
+            max_pages=max_pages,
+            start_page=start_page,
+            dpi=dpi,
+        )
+
+    @staticmethod
+    def _pdf_pages_to_images_impl(db: Session, file: UploadFile, fornecedor_id: int, user_id: int, offset: int, limit: int) -> Dict[str, Any]:
+    
+        """
+    
+        Salva um ficheiro PDF, cria um registo na base de dados, e converte um lote de pÃƒÂ¡ginas em imagens.
+    
+        """
+    
+        upload_dir = _resolve_storage_path(Path(settings.UPLOAD_DIRECTORY))
+        catalogs_dir = upload_dir / "catalogs"
+        previews_dir = _resolve_storage_path(Path(settings.PREVIEW_DIRECTORY))
+    
+        
+    
+        catalogs_dir.mkdir(parents=True, exist_ok=True)
+    
+        previews_dir.mkdir(parents=True, exist_ok=True)
+    
+    
+    
+        poppler_dir = os.getenv("POPPLER_PATH") or settings.POPPLER_PATH
+    
+        pdftoppm_path = (
+    
+            shutil.which("pdftoppm", path=poppler_dir)
+    
+            if poppler_dir
+    
+            else shutil.which("pdftoppm")
+    
+        )
+    
+        if pdftoppm_path is None:
+    
+            msg = (
+    
+                "Poppler (pdftoppm) executable not found. Install poppler-utils on Linux "
+    
+                "or set POPPLER_PATH to its directory."
+    
+            )
+    
+            logger.error(msg)
+    
+            raise HTTPException(status_code=500, detail=msg)
+    
+        
+    
+        random_filename = f"{uuid.uuid4().hex}.pdf"
+    
+        file_location = catalogs_dir / random_filename
+    
+    
+    
+        # LÃƒÅ  O FICHEIRO PARA A MEMÃƒâ€œRIA UMA ÃƒÅ¡NICA VEZ
+    
+        try:
+    
+            content = file.file.read()
+    
+        except Exception as e:
+    
+            logger.error(f"Erro ao ler o conteÃƒÂºdo do ficheiro stream: {e}")
+    
+            raise HTTPException(status_code=500, detail="Erro interno ao ler o ficheiro.")
+    
+        finally:
+    
+            file.file.close()
+    
+    
+    
+        # Guarda o conteÃƒÂºdo lido no disco
+    
+        try:
+    
+            with open(file_location, "wb") as file_object:
+    
+                file_object.write(content)
+    
+        except Exception as e:
+    
+            logger.error(f"Erro ao salvar o arquivo carregado: {e}")
+    
+            raise HTTPException(status_code=500, detail="Erro interno ao salvar o arquivo.")
+    
+    
+    
+        # A chamada ÃƒÂ  funÃƒÂ§ÃƒÂ£o que jÃƒÂ¡ corrigimos
+    
+        import_file = FornecedorRepository(db).create_catalog_import_file(
+            fornecedor_id=fornecedor_id,
+            user_id=user_id,
+            file_name=file.filename,
+            original_file_path=str(file_location),
+        )
+    
+    
+    
+        try:
+    
+            # USA O CONTEÃƒÅ¡DO EM MEMÃƒâ€œRIA PARA OBTER O TOTAL DE PGINAS
+    
+            with pdfplumber.open(io.BytesIO(content)) as pdf:
+    
+                total_pages = len(pdf.pages)
+    
+        except Exception as e:
+    
+            logger.error(f"Erro ao ler PDF com pdfplumber: {e}")
+    
+            raise HTTPException(status_code=500, detail="NÃƒÂ£o foi possÃƒÂ­vel ler o ficheiro PDF.")
+    
+    
+    
+        first_page_to_convert = offset + 1
+    
+        last_page_to_convert = min(offset + limit, total_pages)
+    
+        
+    
+        image_urls = []
+    
+    
+    
+        if first_page_to_convert <= last_page_to_convert:
+    
+            try:
+    
+                poppler_path = settings.POPPLER_PATH if settings.POPPLER_PATH else None
+    
+                
+    
+                # USA O CONTEÃƒÅ¡DO EM MEMÃƒâ€œRIA PARA CONVERTER AS IMAGENS
+    
+                images = convert_from_bytes(
+    
+                    content, # <-- MUDANÃƒâ€¡A IMPORTANTE: usa o conteÃƒÂºdo em memÃƒÂ³ria
+    
+                    dpi=200,
+    
+                    poppler_path=poppler_path,
+    
+                    first_page=first_page_to_convert,
+    
+                    last_page=last_page_to_convert
+    
+                )
+    
+    
+    
+                for i, image in enumerate(images):
+    
+                    page_number = offset + i + 1
+    
+                    image_filename = f"preview_{import_file.id}_{page_number}.png"
+    
+                    image_path = previews_dir / image_filename
+    
+                    image.save(image_path, "PNG")
+    
+                    
+    
+                    image_url = f"/static/previews/{image_filename}"
+    
+                    image_urls.append(image_url)
+    
+    
+    
+            except Exception as e:
+    
+                logger.error(f"Falha ao converter PDF para imagens: {e}", exc_info=True)
+    
+                raise HTTPException(status_code=500, detail=f"Erro ao processar o PDF. Verifique se o Poppler estÃƒÂ¡ instalado corretamente.")
+    
+    
+    
+        return {"image_urls": image_urls, "total_pages": total_pages, "import_file_id": import_file.id}
+
+    @staticmethod
+    def _get_file_path_by_id_impl(db: Session, file_id: str) -> str:
+    
+        """Retrieve the stored file path for a catalog import by ID."""
+    
+        import_file = (
+    
+            db.query(models.CatalogImportFile)
+    
+            .filter(models.CatalogImportFile.id == file_id)
+    
+            .first()
+    
+        )
+    
+        if not import_file:
+    
+            return None
+    
+    
+    
+        base_dir = os.path.join("Backend", "static", "uploads", "catalogs")
+    
+        return os.path.join(base_dir, import_file.stored_filename)
+
+    @staticmethod
+    def _extract_data_from_pdf_region_impl(
+        file_path: str, page_number: int, region: Optional[List[float]] = None
+    ) -> pd.DataFrame:
+        """Extract table-like data from a PDF region with OCR fallback."""
+    
+        started_at = time.perf_counter()
+        helper = _PdfRegionExtractionUtils
+    
+        try:
+            with pdfplumber.open(file_path) as pdf:
+                if not (1 <= page_number <= len(pdf.pages)):
+                    raise ValueError(
+                        f'Numero de pagina invalido: {page_number}. PDF tem {len(pdf.pages)} paginas.'
+                    )
+    
+                page = pdf.pages[page_number - 1]
+                page_to_process = page
+                if region and len(region) == 4:
+                    bbox = tuple(map(float, region))
+                    page_to_process = page.crop(bbox)
+    
+                logger.info(
+                    'extract_data_from_pdf_region: page=%s region=%s page_size=(%.1f,%.1f)',
+                    page_number,
+                    region,
+                    float(page_to_process.width),
+                    float(page_to_process.height),
+                )
+    
+                # 1) Try structured table extraction first.
+                table_settings_candidates = [
+                    {
+                        'vertical_strategy': 'lines',
+                        'horizontal_strategy': 'lines',
+                        'snap_tolerance': 8,
+                        'join_tolerance': 8,
+                        'intersection_tolerance': 8,
+                    },
+                    {
+                        'vertical_strategy': 'lines',
+                        'horizontal_strategy': 'text',
+                        'snap_tolerance': 5,
+                    },
+                ]
+                tables: List[List[List[Any]]] = []
+                for ts in table_settings_candidates:
+                    try:
+                        tables = page_to_process.extract_tables(table_settings=ts) or []
+                        if tables:
+                            break
+                    except Exception:
+                        continue
+    
+                if not tables:
+                    try:
+                        tables = page_to_process.extract_tables() or []
+                    except Exception:
+                        tables = []
+    
+                df_tables = helper.tables_to_df(tables)
+                if not df_tables.empty:
+                    logger.info(
+                        'extract_data_from_pdf_region: table rows=%s cols=%s elapsed=%.2fs',
+                        len(df_tables.index),
+                        len(df_tables.columns),
+                        time.perf_counter() - started_at,
+                    )
+                    return df_tables
+    
+                # 2) Try plain text as fallback, but reject suspiciously fragmented output.
+                text = page_to_process.extract_text()
+                if text:
+                    lines = [line for line in text.strip().split('\n') if line.strip()]
+                    if len(lines) >= 2:
+                        headers = helper.make_unique(lines[0].split())
+                        rows_text: List[Dict[str, Any]] = []
+                        for line in lines[1:]:
+                            parts = line.split()
+                            parts_fixed = parts + [''] * (len(headers) - len(parts))
+                            parts_fixed = parts_fixed[: len(headers)]
+                            rows_text.append({headers[i]: parts_fixed[i] for i in range(len(headers))})
+                        df_text = helper.clean_df(pd.DataFrame(rows_text, columns=headers))
+                        if not df_text.empty:
+                            rows_count = len(df_text.index)
+                            cols_count = len(df_text.columns)
+                            if rows_count <= 1200 and cols_count <= 25:
+                                logger.info(
+                                    'extract_data_from_pdf_region: text rows=%s cols=%s elapsed=%.2fs',
+                                    rows_count,
+                                    cols_count,
+                                    time.perf_counter() - started_at,
+                                )
+                                return df_text
+                            logger.info(
+                                'extract_data_from_pdf_region: text descartado por estrutura suspeita rows=%s cols=%s',
+                                rows_count,
+                                cols_count,
+                            )
+    
+                # 3) OCR fallback for scanned/image pages.
+                if not OCR_AVAILABLE or not OCR_EXEC_AVAILABLE:
+                    logger.debug('extract_data_from_pdf_region: OCR indisponivel para fallback.')
+                    return pd.DataFrame()
+    
+                try:
+                    ocr_render_start = time.perf_counter()
+                    dpi = int(os.getenv('OCR_REGION_DPI', '220'))
+                    page_img = page_to_process.to_image(resolution=dpi)
+                    buf = io.BytesIO()
+                    page_img.original.save(buf, format='PNG')
+                    img = Image.open(io.BytesIO(buf.getvalue()))
+    
+                    # Light preprocessing keeps performance and helps OCR on colored backgrounds.
+                    from PIL import ImageEnhance, ImageOps
+    
+                    img = img.convert('L')
+                    img = ImageOps.autocontrast(img)
+                    img = ImageEnhance.Contrast(img).enhance(1.6)
+                    logger.info(
+                        'extract_data_from_pdf_region: OCR render ok dpi=%s elapsed=%.2fs',
+                        dpi,
+                        time.perf_counter() - ocr_render_start,
+                    )
+                except Exception as e_img:
+                    logger.error('Falha ao renderizar regiao para OCR: %s', e_img)
+                    return pd.DataFrame()
+    
+                try:
+                    ocr_start = time.perf_counter()
+                    ocr_data = pytesseract.image_to_data(
+                        img,
+                        output_type=pytesseract.Output.DICT,
+                        config='--psm 6 --oem 3',
+                    )
+                    logger.info(
+                        'extract_data_from_pdf_region: OCR image_to_data concluido em %.2fs',
+                        time.perf_counter() - ocr_start,
+                    )
+                except Exception as e_ocr:
+                    global OCR_EXEC_FAILED_ONCE
+                    if not OCR_EXEC_FAILED_ONCE:
+                        logger.error('Falha no OCR da regiao: %s', e_ocr)
+                        OCR_EXEC_FAILED_ONCE = True
+                    else:
+                        logger.debug(
+                            'Falha no OCR da regiao (suprimida apos primeira ocorrencia): %s',
+                            e_ocr,
+                        )
+                    return pd.DataFrame()
+    
+                n = len(ocr_data.get('text', []))
+                words: List[Dict[str, Any]] = []
+                for i in range(n):
+                    txt = (ocr_data.get('text', [''])[i] or '').strip()
+                    if not txt:
+                        continue
+                    conf_raw = ocr_data.get('conf', [''])[i]
+                    try:
+                        conf = float(conf_raw)
+                    except Exception:
+                        conf = -1.0
+                    if 0 <= conf < 25:
+                        continue
+                    words.append(
+                        {
+                            'text': txt,
+                            'x': int(ocr_data.get('left', [0])[i] or 0),
+                            'y': int(ocr_data.get('top', [0])[i] or 0),
+                            'w': int(ocr_data.get('width', [0])[i] or 0),
+                            'h': int(ocr_data.get('height', [0])[i] or 0),
+                            'block': int(ocr_data.get('block_num', [0])[i] or 0),
+                            'par': int(ocr_data.get('par_num', [0])[i] or 0),
+                            'line': int(ocr_data.get('line_num', [0])[i] or 0),
+                        }
+                    )
+    
+                if not words:
+                    logger.info('OCR da regiao retornou vazio.')
+                    return pd.DataFrame()
+    
+                lines_grouped = helper.group_words_by_line_ids(words)
+                if not lines_grouped:
+                    lines_grouped = helper.group_words_by_y(words)
+                for line_words in lines_grouped:
+                    line_words.sort(key=lambda item: item['x'])
+    
+                merged_lines: List[List[Dict[str, Any]]] = []
+                for line_words in lines_grouped:
+                    merged = helper.merge_words_in_line(line_words)
+                    if merged:
+                        merged_lines.append(merged)
+                if not merged_lines:
+                    logger.info('OCR da regiao nao produziu segmentos validos.')
+                    return pd.DataFrame()
+    
+                # 3.1) Header-guided OCR parsing (improves scanned catalogs with stable table header).
+                header_guess = helper.detect_header_columns(merged_lines)
+                if header_guess:
+                    guessed_headers: List[str] = header_guess["headers"]
+                    guessed_bounds: List[int] = header_guess["bounds"]
+                    row_start_idx = int(header_guess["line_idx"]) + 1
+                    logger.info(
+                        "extract_data_from_pdf_region: OCR header detectado headers=%s line_idx=%s",
+                        guessed_headers,
+                        header_guess["line_idx"],
+                    )
+    
+                    raw_rows_guided: List[Dict[str, Any]] = []
+                    for line in merged_lines[row_start_idx:]:
+                        row = {header: "" for header in guessed_headers}
+                        for seg in line:
+                            idx_col = min(
+                                range(len(guessed_bounds)),
+                                key=lambda idx: abs(int(seg["x0"]) - guessed_bounds[idx]),
+                            )
+                            key = guessed_headers[idx_col]
+                            row[key] = (f"{row[key]} {seg['text']}").strip() if row[key] else seg["text"]
+                        raw_rows_guided.append(row)
+    
+                    filtered_guided = helper.filter_ocr_rows(raw_rows_guided)
+                    if filtered_guided:
+                        df_ocr_guided = helper.clean_df(
+                            pd.DataFrame(filtered_guided, columns=guessed_headers)
+                        )
+                        if not df_ocr_guided.empty:
+                            logger.info(
+                                "extract_data_from_pdf_region: OCR header-guided rows=%s cols=%s elapsed=%.2fs",
+                                len(df_ocr_guided.index),
+                                len(df_ocr_guided.columns),
+                                time.perf_counter() - started_at,
+                            )
+                            return df_ocr_guided
+                    logger.info(
+                        "extract_data_from_pdf_region: OCR header-guided sem linhas validas; fallback para cluster"
+                    )
+    
+                x_positions = sorted(int(seg['x0']) for line in merged_lines for seg in line)
+                if not x_positions:
+                    logger.info('OCR da regiao nao produziu colunas validas.')
+                    return pd.DataFrame()
+    
+                max_x = max(int(word['x'] + word['w']) for word in words)
+                region_px_width = max(1, max_x)
+                tol_x = max(24, min(80, int(region_px_width / 35)))
+                col_bounds = helper.cluster_positions(x_positions, tol_x)
+                max_cols_target = max(8, int(os.getenv('OCR_MAX_COLUMNS', '16')))
+                while len(col_bounds) > max_cols_target and tol_x < region_px_width:
+                    tol_x = int(tol_x * 1.35)
+                    col_bounds = helper.cluster_positions(x_positions, tol_x)
+    
+                headers = [f'col_{i}' for i in range(len(col_bounds))] or ['col_0']
+                ocr_rows: List[Dict[str, Any]] = []
+                for line in merged_lines:
+                    row = {header: '' for header in headers}
+                    for seg in line:
+                        if col_bounds:
+                            idx_col = min(
+                                range(len(col_bounds)),
+                                key=lambda idx: abs(int(seg['x0']) - col_bounds[idx]),
+                            )
+                        else:
+                            idx_col = 0
+                        key = headers[idx_col]
+                        row[key] = (f"{row[key]} {seg['text']}").strip() if row[key] else seg['text']
+                    ocr_rows.append(row)
+    
+                filtered_rows = helper.filter_ocr_rows(ocr_rows)
+    
+                if not filtered_rows:
+                    logger.info('OCR da regiao retornou somente ruido.')
+                    return pd.DataFrame()
+    
+                df_ocr = helper.clean_df(pd.DataFrame(filtered_rows, columns=headers))
+                logger.info(
+                    'extract_data_from_pdf_region: OCR rows=%s cols=%s words=%s lines=%s col_bounds=%s elapsed=%.2fs',
+                    len(df_ocr.index),
+                    len(df_ocr.columns),
+                    len(words),
+                    len(merged_lines),
+                    len(col_bounds),
+                    time.perf_counter() - started_at,
+                )
+                return df_ocr
+    
+        except Exception as e:
+            logger.error('Erro ao processar o PDF na extracao da regiao: %s', e)
+            return pd.DataFrame()
+
+    @staticmethod
+    async def _extrair_pagina_pdf_impl(
+    
+        conteudo_pdf: bytes, page_number: int, region: Optional[List[float]] = None
+    
+    ) -> Dict[str, Any]:
+    
+        """Return an image, text and optional table extracted from a PDF page."""
+    
+    
+    
+        with pdfplumber.open(io.BytesIO(conteudo_pdf)) as pdf:
+    
+            if not (1 <= page_number <= len(pdf.pages)):
+    
+                raise ValueError(
+    
+                    f"NÃƒÂºmero de pÃƒÂ¡gina invÃƒÂ¡lido: {page_number}. PDF tem {len(pdf.pages)} pÃƒÂ¡ginas."
+    
+                )
+    
+    
+    
+            page = pdf.pages[page_number - 1]
+    
+            page_to_process = page
+    
+            if region and len(region) == 4:
+    
+                bbox = tuple(map(float, region))
+    
+                page_to_process = page.crop(bbox)
+    
+    
+    
+            image = convert_from_bytes(
+    
+                conteudo_pdf,
+    
+                first_page=page_number,
+    
+                last_page=page_number,
+    
+                dpi=200,
+    
+                fmt="png",
+    
+            )[0]
+    
+    
+    
+            buf = io.BytesIO()
+    
+            image.save(buf, format="PNG")
+    
+            image_b64 = base64.b64encode(buf.getvalue()).decode()
+    
+    
+    
+            text = page_to_process.extract_text() or ""
+    
+    
+    
+        # Use a real temporary file (portable across Linux/Windows).
+        with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as tmp_file:
+            tmp_file.write(conteudo_pdf)
+            tmp_path = Path(tmp_file.name)
+    
+        try:
+            df = _PdfProcessingWorkflow().extract_data_from_pdf_region(
+                file_path=str(tmp_path),
+                page_number=page_number,
+                region=region,
+            )
+            if not df.empty:
+                table = [list(df.columns)] + df.values.tolist()
+            else:
+                table = None
+        finally:
+            try:
+                tmp_path.unlink()
+            except Exception:
+                pass
+    
+    
+    
+        return {"image": f"data:image/png;base64,{image_b64}", "text": text, "table": table}
+
+    @staticmethod
+    async def _process_pdf_job_impl(
+        job_id: int, pdf_path: str, start_page: int = 1, mapping: Optional[Dict[str, str]] = None
+    ) -> None:
+        """Process remaining pages of a PDF catalog import job."""
+    
+        db: Optional[Session] = None
+        catalog_file: Optional[models.CatalogImportFile] = None
+        try:
+            db = SessionLocal()
+            catalog_file = db.query(models.CatalogImportFile).filter_by(id=job_id).first()
+            if not catalog_file:
+                logger.error("CatalogImportFile %s not found", job_id)
+                return
+    
+            logger.info("process_pdf_job: start job_id=%s path=%s start_page=%s mapping_keys=%s", job_id, pdf_path, start_page, list(mapping.keys()) if mapping else [])
+    
+            with pdfplumber.open(pdf_path) as pdf:
+                total_pages = len(pdf.pages)
+    
+            catalog_file.status = "PROCESSING"
+            catalog_file.total_pages = total_pages
+            catalog_file.pages_processed = 0
+            db.commit()
+    
+            products: List[Dict[str, Any]] = []
+    
+            for page in range(start_page, total_pages + 1):
+                try:
+                    raw_page = _extract_data_from_single_page_impl(pdf_path, page)
+                    page_rows = raw_page.get("rows", []) if isinstance(raw_page, dict) else []
+                    logger.info(
+                        "process_pdf_job: page=%s raw_rows_count=%s headers=%s",
+                        page,
+                        len(page_rows),
+                        raw_page.get("headers") if isinstance(raw_page, dict) else None,
+                    )
+                except Exception as e:  # pragma: no cover - robustness
+                    logger.error("Erro ao extrair dados da pagina %s: %s", page, e)
+                    continue
+    
+                for row in page_rows:
+                    produto = _processar_linha_padronizada(row, mapping)
+                    if produto:
+                        products.append(produto)
+    
+                logger.info("process_pdf_job: page=%s products_accumulated=%s", page, len(products))
+    
+                catalog_file.pages_processed += 1
+                if catalog_file.pages_processed % 5 == 0:
+                    db.commit()
+    
+            catalog_file.result_summary = {"products": products}
+            catalog_file.status = "PENDING_REVIEW"
+            db.commit()
+            logger.info("process_pdf_job: done job_id=%s status=%s products=%s pages=%s", job_id, catalog_file.status, len(products), catalog_file.pages_processed)
+        except Exception:
+            logger.exception("Erro ao processar job de PDF")
+            if db and catalog_file:
+                catalog_file.status = "FAILED"
+                db.commit()
+        finally:
+            if db:
+                db.close()
+
+    @staticmethod
+    def _extract_data_from_single_page_impl(file_path: str, page_number: int) -> Dict[str, Any]:
+    
+        """Extract structured data from a single PDF page.
+    
+    
+    
+        The function first tries to parse tables and plain text using
+    
+        :mod:`pdfplumber`. If no data is extracted, the page is rendered
+    
+        with :mod:`PyMuPDF` and OCR is executed via ``pytesseract``.
+    
+    
+    
+        Parameters
+    
+        ----------
+    
+        file_path: str
+    
+            Absolute path to the PDF file on disk.
+    
+        page_number: int
+    
+            1-indexed page number to extract.
+    
+    
+    
+        Returns
+    
+        -------
+    
+        Dict[str, Any]
+    
+            A dictionary with ``headers`` and ``rows`` keys.
+    
+        """
+    
+    
+    
+        headers: List[str] = []
+    
+        rows: List[List[str]] = []
+    
+    
+    
+        try:
+    
+            with pdfplumber.open(file_path) as pdf:
+    
+                if not (1 <= page_number <= len(pdf.pages)):
+    
+                    raise ValueError(
+    
+                        f"NÃƒÂºmero de pÃƒÂ¡gina invÃƒÂ¡lido: {page_number}. PDF tem {len(pdf.pages)} pÃƒÂ¡ginas."
+    
+                    )
+    
+    
+    
+                page = pdf.pages[page_number - 1]
+    
+                tables = page.extract_tables(
+    
+                    table_settings={"vertical_strategy": "lines", "horizontal_strategy": "lines"}
+    
+                )
+    
+    
+    
+                if tables:
+    
+                    for table in tables:
+    
+                        if table and len(table) >= 2:
+    
+                            headers = [str(h or "").strip() for h in table[0]]
+    
+                            rows = [[str(c or "").strip() for c in r] for r in table[1:]]
+    
+                            if any(any(cell for cell in r) for r in rows):
+    
+                                return {"headers": headers, "rows": rows}
+    
+    
+    
+                text = page.extract_text() or ""
+    
+                lines = [l.strip() for l in text.splitlines() if l.strip()]
+    
+                if len(lines) >= 2:
+    
+                    headers = lines[0].split()
+    
+                    rows = [ln.split() for ln in lines[1:]]
+    
+                    if rows:
+    
+                        return {"headers": headers, "rows": rows}
+    
+        except Exception as e:  # pragma: no cover - runtime logging
+    
+            logger.error("Erro ao extrair com pdfplumber: %s", e)
+    
+    
+    
+        try:  # OCR fallback
+    
+            import fitz  # type: ignore
+    
+            import pytesseract  # type: ignore
+    
+            from PIL import Image  # type: ignore
+    
+    
+    
+            doc = fitz.open(file_path)
+    
+            if not (1 <= page_number <= doc.page_count):
+    
+                raise ValueError(
+    
+                    f"NÃƒÂºmero de pÃƒÂ¡gina invÃƒÂ¡lido: {page_number}. PDF tem {doc.page_count} pÃƒÂ¡ginas."
+    
+                )
+    
+    
+    
+            page = doc.load_page(page_number - 1)
+    
+            pix = page.get_pixmap(dpi=300)
+    
+            img = Image.open(io.BytesIO(pix.tobytes()))
+    
+    
+    
+            text = pytesseract.image_to_string(img)
+    
+            lines = [l.strip() for l in text.splitlines() if l.strip()]
+    
+            if lines:
+    
+                headers = lines[0].split()
+    
+                rows = [ln.split() for ln in lines[1:]]
+    
+        except Exception as e:  # pragma: no cover - optional dependency might be missing
+    
+            logger.error("Erro ao executar OCR da pÃƒÂ¡gina do PDF: %s", e)
+    
+        finally:
+    
+            try:
+    
+                doc.close()  # type: ignore
+    
+            except Exception:
+    
+                pass
+    
+    
+    
+        return {"headers": headers, "rows": rows}
+
+    @staticmethod
+    def _generate_pdf_page_images_impl(file_path: str, file_id: str) -> List[str]:
+        return _PdfAssetUtilityRuntime().generate_pdf_page_images(
+            file_path=file_path,
+            file_id=file_id,
+        )
+
+    @staticmethod
+    def _extract_pdf_region_image_impl(
+        file_path: str,
+        page_number: int,
+        region: Optional[List[float]] = None,
+        dpi: int = 300,
+    ) -> bytes:
+        return _PdfAssetUtilityRuntime().extract_pdf_region_image(
+            file_path=file_path,
+            page_number=page_number,
+            region=region,
+            dpi=dpi,
+        )
+
+    @staticmethod
+    def _parse_annotation_to_dataframe_impl(
+        annotation: object,
+        vertical_tolerance: int = 5,
+    ) -> pd.DataFrame:
+        return _PdfAssetUtilityRuntime().parse_annotation_to_dataframe(
+            annotation=annotation,
+            vertical_tolerance=vertical_tolerance,
+        )
 
 
+_is_pdf_password_error = _FileProcessingImplementation._is_pdf_password_error
+_resolve_storage_path = _FileProcessingImplementation._resolve_storage_path
+_save_uploaded_catalog_impl = _FileProcessingImplementation._save_uploaded_catalog_impl
+_delete_catalog_file_impl = _FileProcessingImplementation._delete_catalog_file_impl
+_limpar_valor_extraido = _FileProcessingImplementation._limpar_valor_extraido
+_valor_tem_conteudo_util = _FileProcessingImplementation._valor_tem_conteudo_util
+_norm_text = _FileProcessingImplementation._norm_text
+_normalizar_mapeamento_usuario = _FileProcessingImplementation._normalizar_mapeamento_usuario
+_coerce_region_bbox = _FileProcessingImplementation._coerce_region_bbox
+_token_looks_like_code = _FileProcessingImplementation._token_looks_like_code
+_split_sku_nome_auto = _FileProcessingImplementation._split_sku_nome_auto
+_processar_linha_padronizada = _FileProcessingImplementation._processar_linha_padronizada
+_processar_arquivo_excel_impl = _FileProcessingImplementation._processar_arquivo_excel_impl
+_processar_arquivo_csv_impl = _FileProcessingImplementation._processar_arquivo_csv_impl
+_processar_arquivo_pdf_impl = _FileProcessingImplementation._processar_arquivo_pdf_impl
+_preview_arquivo_excel_impl = _FileProcessingImplementation._preview_arquivo_excel_impl
+_preview_arquivo_csv_impl = _FileProcessingImplementation._preview_arquivo_csv_impl
+_preview_arquivo_pdf_impl = _FileProcessingImplementation._preview_arquivo_pdf_impl
+_gerar_preview_impl = _FileProcessingImplementation._gerar_preview_impl
+_pdf_bytes_to_images_impl = _FileProcessingImplementation._pdf_bytes_to_images_impl
+_pdf_pages_to_images_impl = _FileProcessingImplementation._pdf_pages_to_images_impl
+_get_file_path_by_id_impl = _FileProcessingImplementation._get_file_path_by_id_impl
+_extract_data_from_pdf_region_impl = _FileProcessingImplementation._extract_data_from_pdf_region_impl
+_extrair_pagina_pdf_impl = _FileProcessingImplementation._extrair_pagina_pdf_impl
+_process_pdf_job_impl = _FileProcessingImplementation._process_pdf_job_impl
+_extract_data_from_single_page_impl = _FileProcessingImplementation._extract_data_from_single_page_impl
+_generate_pdf_page_images_impl = _FileProcessingImplementation._generate_pdf_page_images_impl
+_extract_pdf_region_image_impl = _FileProcessingImplementation._extract_pdf_region_image_impl
+_parse_annotation_to_dataframe_impl = _FileProcessingImplementation._parse_annotation_to_dataframe_impl
 
 # Maximum number of worker threads used when processing PDF pages
-
 MAX_PREVIEW_WORKERS = int(os.getenv("PDF_PREVIEW_WORKERS", "0"))
-
-_preview_executor = (
-
-    ThreadPoolExecutor(max_workers=MAX_PREVIEW_WORKERS)
-
-    if MAX_PREVIEW_WORKERS > 0
-
-    else None
-
-)
 
 
 
@@ -158,92 +1263,6 @@ except Exception as e:
         'OCR indisponivel (pytesseract/tesseract): %s. Ajuste PATH/TESSDATA_PREFIX.',
         e,
     )
-
-async def _save_uploaded_catalog_impl(
-
-    file: UploadFile, fornecedor_id: Optional[int] = None
-
-) -> models.CatalogImportFile:
-
-    """Salva o arquivo de catÃ¡logo no disco e retorna um objeto CatalogImportFile.
-
-
-
-    Parameters
-
-    ----------
-
-    file: UploadFile
-
-        Arquivo recebido na requisiÃ§Ã£o.
-
-    fornecedor_id: Optional[int]
-
-        Identificador do fornecedor para o qual o catÃ¡logo serÃ¡ importado.
-
-    """
-
-    directory = _resolve_storage_path(Path(settings.UPLOAD_DIRECTORY) / "catalogs")
-
-    directory.mkdir(parents=True, exist_ok=True)
-
-
-
-    ext = Path(file.filename).suffix
-
-    unique_name = f"{uuid4().hex}{ext}"
-
-    stored_path = directory / unique_name
-
-
-
-    content = await file.read()
-
-    with open(stored_path, "wb") as f_out:
-
-        f_out.write(content)
-
-    await file.close()
-
-
-
-    return models.CatalogImportFile(
-
-        original_filename=file.filename,
-
-        stored_filename=unique_name,
-
-        status="UPLOADED",
-
-        fornecedor_id=fornecedor_id,
-
-    )
-
-
-
-
-
-def _delete_catalog_file_impl(stored_filename: str) -> None:
-
-    """Remove a stored catalog file from disk if it exists."""
-
-    directory = _resolve_storage_path(Path(settings.UPLOAD_DIRECTORY) / "catalogs")
-
-    path = directory / stored_filename
-
-    try:
-
-        if path.exists():
-
-            path.unlink()
-
-    except Exception:
-
-        logger.exception("Erro ao remover arquivo %s", stored_filename)
-
-
-
-
 
 class _LineNormalizationRuntime:
     """Runtime OO para normalizacao de valores, mapeamento e split SKU/Nome."""
@@ -375,7 +1394,7 @@ class _LineNormalizationRuntime:
         sku_tokens: List[str] = []
         nome_tokens: List[str] = []
         for tok in tokens:
-            if tok in {"_", "-", "--", "|", "Ã‚Â¦"}:
+            if tok in {"_", "-", "--", "|", "Ãƒâ€šÃ‚Â¦"}:
                 continue
             has_lower = any(ch.isalpha() and ch.islower() for ch in tok)
 
@@ -410,57 +1429,6 @@ class _LineNormalizationRuntime:
 
 LineNormalizationRuntime = _LineNormalizationRuntime
 
-
-def get_line_normalization_runtime() -> LineNormalizationRuntime:
-    return _LineNormalizationRuntime()
-
-
-def _limpar_valor_extraido(valor: Any) -> Optional[str]:
-    """Helper para limpar strings ou converter outros tipos para string, retornando None se vazio."""
-    return get_line_normalization_runtime().limpar_valor_extraido(valor)
-
-
-def _valor_tem_conteudo_util(valor: Any) -> bool:
-    """Retorna True para valores Ãºteis (evita lixo de OCR como '!' ou '-')."""
-    return get_line_normalization_runtime().valor_tem_conteudo_util(valor)
-
-
-def _norm_text(v: Any) -> str:
-    return get_line_normalization_runtime().norm_text(v)
-
-
-def _normalizar_mapeamento_usuario(
-    mapeamento_colunas_usuario: Optional[Dict[str, str]],
-    linha_original: Dict[str, Any],
-) -> Dict[str, str]:
-    """Normaliza mapping do usuario e corrige formato invertido (campo->coluna)."""
-    return get_line_normalization_runtime().normalizar_mapeamento_usuario(
-        mapeamento_colunas_usuario=mapeamento_colunas_usuario,
-        linha_original=linha_original,
-    )
-
-
-def _coerce_region_bbox(
-    region: Optional[List[float]],
-    page_width: float,
-    page_height: float,
-) -> tuple[Optional[tuple[float, float, float, float]], Optional[str]]:
-    """Converte bbox para coordenada absoluta da pagina e faz clamp seguro."""
-    return get_line_normalization_runtime().coerce_region_bbox(
-        region=region,
-        page_width=page_width,
-        page_height=page_height,
-    )
-
-
-def _token_looks_like_code(token: str) -> bool:
-    """Heuristica para identificar token de codigo/SKU."""
-    return get_line_normalization_runtime().token_looks_like_code(token)
-
-
-def _split_sku_nome_auto(value: str) -> tuple[Optional[str], Optional[str]]:
-    """Divide um texto combinado em SKU e Nome Base quando possivel."""
-    return get_line_normalization_runtime().split_sku_nome_auto(value)
 
 class _LineMappingWorkflow:
     """Workflow OO para padronizacao de linhas extraidas de catalogos."""
@@ -536,7 +1504,7 @@ class _LineMappingWorkflow:
     _FALLBACK_SKU_COLUMNS = {"n fab", "no fab", "nfab", "fab"}
 
     def __init__(self, runtime: Optional["_LineMappingRuntime"] = None) -> None:
-        # Runtime opcional para facilitar injeção em testes/migração OO.
+        # Runtime opcional para facilitar injeÃ§Ã£o em testes/migraÃ§Ã£o OO.
         self._runtime = runtime
 
     def processar_linha_padronizada(
@@ -676,7 +1644,7 @@ class _LineMappingWorkflow:
             produto_dados_padronizados.get("nome_base")
         ):
             if not produto_dados_padronizados.get("sku_original"):
-                return {"motivo_descarte": "nome_base sem conteÃºdo Ãºtil", "linha_original": linha_original}
+                return {"motivo_descarte": "nome_base sem conteÃƒÂºdo ÃƒÂºtil", "linha_original": linha_original}
 
         if dados_brutos_nao_mapeados:
             produto_dados_padronizados["dados_brutos_adicionais"] = dados_brutos_nao_mapeados
@@ -688,7 +1656,7 @@ class _LineMappingWorkflow:
 
 
 class _LineMappingRuntime:
-    """Runtime OO para reutilizar a rotina padrão de mapeamento de linha."""
+    """Runtime OO para reutilizar a rotina padrÃ£o de mapeamento de linha."""
 
     def __init__(self, workflow: Optional["_LineMappingWorkflow"] = None) -> None:
         self._workflow = workflow or _LineMappingWorkflow()
@@ -705,21 +1673,6 @@ class _LineMappingRuntime:
 
 
 LineMappingWorkflow = _LineMappingWorkflow
-
-
-def get_line_mapping_workflow() -> LineMappingWorkflow:
-    return _LineMappingWorkflow()
-
-
-def _processar_linha_padronizada(
-    linha_original: Dict[str, Any],
-    mapeamento_colunas_usuario: Optional[Dict[str, str]] = None,
-) -> Optional[Dict[str, Any]]:
-    """Padroniza uma linha para campos de Produto, suportando atributos dinamicos."""
-    return get_line_mapping_workflow().processar_linha_padronizada(
-        linha_original=linha_original,
-        mapeamento_colunas_usuario=mapeamento_colunas_usuario,
-    )
 
 
 class _TabularIngestionEngineRuntime:
@@ -815,37 +1768,12 @@ class _TabularIngestionEngineRuntime:
 
 
 
-async def _processar_arquivo_excel_impl(
-    conteudo_arquivo: bytes,
-    mapeamento_colunas_usuario: Optional[Dict[str, str]] = None,
-    sheet_name: Optional[str] = None,
-    product_type_id: Optional[int] = None,
-) -> List[Dict[str, Any]]:
-    return await _TabularIngestionEngineRuntime().processar_arquivo_excel(
-        conteudo_arquivo=conteudo_arquivo,
-        mapeamento_colunas_usuario=mapeamento_colunas_usuario,
-        sheet_name=sheet_name,
-        product_type_id=product_type_id,
-    )
-
-
-async def _processar_arquivo_csv_impl(
-    conteudo_arquivo: bytes,
-    mapeamento_colunas_usuario: Optional[Dict[str, str]] = None,
-    product_type_id: Optional[int] = None,
-) -> List[Dict[str, Any]]:
-    return await _TabularIngestionEngineRuntime().processar_arquivo_csv(
-        conteudo_arquivo=conteudo_arquivo,
-        mapeamento_colunas_usuario=mapeamento_colunas_usuario,
-        product_type_id=product_type_id,
-    )
-
 class _PdfIngestionRuntime:
     """Runtime OO para ingestao de PDF."""
 
     def __init__(self, web_data_extractor_service: Optional[Any] = None) -> None:
         self._web_data_extractor_service = (
-            web_data_extractor_service or _build_web_data_extractor_service()
+            web_data_extractor_service or WebDataExtractorServiceAdapter()
         )
 
     def _append_produto(
@@ -1149,24 +2077,6 @@ class _PdfIngestionRuntime:
 
 
 
-async def _processar_arquivo_pdf_impl(
-    conteudo_arquivo: bytes,
-    mapeamento_colunas_usuario: Optional[Dict[str, str]] = None,
-    usar_llm: bool = True,
-    product_type_id: Optional[int] = None,
-    pages: Optional[List[int]] = None,
-    region: Optional[List[float]] = None,
-) -> List[Dict[str, Any]]:
-    return await _PdfIngestionRuntime().processar_arquivo_pdf(
-        conteudo_arquivo=conteudo_arquivo,
-        mapeamento_colunas_usuario=mapeamento_colunas_usuario,
-        usar_llm=usar_llm,
-        product_type_id=product_type_id,
-        pages=pages,
-        region=region,
-    )
-
-
 class _TabularPreviewEngineRuntime:
     """Runtime OO para preview de planilhas/tabulares."""
 
@@ -1222,29 +2132,17 @@ class _TabularPreviewEngineRuntime:
 
 
 
-async def _preview_arquivo_excel_impl(
-    conteudo_arquivo: bytes, max_rows: int = 5
-) -> Dict[str, Any]:
-    return await _TabularPreviewEngineRuntime().preview_arquivo_excel(
-        conteudo_arquivo=conteudo_arquivo,
-        max_rows=max_rows,
-    )
-
-
-async def _preview_arquivo_csv_impl(
-    conteudo_arquivo: bytes, max_rows: int = 5
-) -> Dict[str, Any]:
-    return await _TabularPreviewEngineRuntime().preview_arquivo_csv(
-        conteudo_arquivo=conteudo_arquivo,
-        max_rows=max_rows,
-    )
-
-
 class _PdfPreviewRuntime:
     """Runtime OO para preview de PDF."""
 
     def __init__(self, preview_executor: Optional[ThreadPoolExecutor] = None) -> None:
-        self._preview_executor = preview_executor or _preview_executor
+        self._preview_executor = preview_executor or self._build_preview_executor()
+
+    @staticmethod
+    def _build_preview_executor() -> Optional[ThreadPoolExecutor]:
+        if MAX_PREVIEW_WORKERS <= 0:
+            return None
+        return ThreadPoolExecutor(max_workers=MAX_PREVIEW_WORKERS)
 
     def _resolve_poppler_path(self) -> Optional[str]:
         return os.getenv("POPPLER_PATH") or settings.POPPLER_PATH
@@ -1397,22 +2295,6 @@ class _PdfPreviewRuntime:
 
 
 
-async def _preview_arquivo_pdf_impl(
-    conteudo_arquivo: bytes,
-    ext: str,
-    start_page: int = 1,
-    page_count: int = 1,
-    dpi: int = 72,
-) -> Dict[str, Any]:
-    return await _PdfPreviewRuntime().preview_arquivo_pdf(
-        conteudo_arquivo=conteudo_arquivo,
-        ext=ext,
-        start_page=start_page,
-        page_count=page_count,
-        dpi=dpi,
-    )
-
-
 class _PreviewDispatchRuntime:
     """Runtime OO para despacho de preview por extensao."""
 
@@ -1533,16 +2415,6 @@ class _PreviewExtractorFactory:
 
 
 
-async def _gerar_preview_impl(
-    conteudo_arquivo: bytes, ext: str, max_rows: int = 5
-) -> Dict[str, Any]:
-    return await _PreviewDispatchRuntime().gerar_preview(
-        conteudo_arquivo=conteudo_arquivo,
-        ext=ext,
-        max_rows=max_rows,
-    )
-
-
 class _PdfImageConversionRuntime:
     """Runtime OO para conversao de bytes PDF em imagens base64."""
 
@@ -1608,248 +2480,6 @@ class _PdfImageConversionRuntime:
                 dpi=dpi,
             ),
         )
-
-
-
-
-async def _pdf_bytes_to_images_impl(
-
-    conteudo_arquivo: bytes,
-
-    max_pages: int = 1,
-
-    start_page: int = 1,
-
-    dpi: int = 200,
-
-) -> List[str]:
-
-    """Convert PDF bytes to base64 encoded PNG images."""
-    return await _PdfImageConversionRuntime().pdf_bytes_to_images(
-        conteudo_arquivo=conteudo_arquivo,
-        max_pages=max_pages,
-        start_page=start_page,
-        dpi=dpi,
-    )
-
-
-
-
-
-def _pdf_pages_to_images_impl(db: Session, file: UploadFile, fornecedor_id: int, user_id: int, offset: int, limit: int) -> Dict[str, Any]:
-
-    """
-
-    Salva um ficheiro PDF, cria um registo na base de dados, e converte um lote de pÃ¡ginas em imagens.
-
-    """
-
-    upload_dir = _resolve_storage_path(Path(settings.UPLOAD_DIRECTORY))
-    catalogs_dir = upload_dir / "catalogs"
-    previews_dir = _resolve_storage_path(Path(settings.PREVIEW_DIRECTORY))
-
-    
-
-    catalogs_dir.mkdir(parents=True, exist_ok=True)
-
-    previews_dir.mkdir(parents=True, exist_ok=True)
-
-
-
-    poppler_dir = os.getenv("POPPLER_PATH") or settings.POPPLER_PATH
-
-    pdftoppm_path = (
-
-        shutil.which("pdftoppm", path=poppler_dir)
-
-        if poppler_dir
-
-        else shutil.which("pdftoppm")
-
-    )
-
-    if pdftoppm_path is None:
-
-        msg = (
-
-            "Poppler (pdftoppm) executable not found. Install poppler-utils on Linux "
-
-            "or set POPPLER_PATH to its directory."
-
-        )
-
-        logger.error(msg)
-
-        raise HTTPException(status_code=500, detail=msg)
-
-    
-
-    random_filename = f"{uuid.uuid4().hex}.pdf"
-
-    file_location = catalogs_dir / random_filename
-
-
-
-    # LÃŠ O FICHEIRO PARA A MEMÃ“RIA UMA ÃšNICA VEZ
-
-    try:
-
-        content = file.file.read()
-
-    except Exception as e:
-
-        logger.error(f"Erro ao ler o conteÃºdo do ficheiro stream: {e}")
-
-        raise HTTPException(status_code=500, detail="Erro interno ao ler o ficheiro.")
-
-    finally:
-
-        file.file.close()
-
-
-
-    # Guarda o conteÃºdo lido no disco
-
-    try:
-
-        with open(file_location, "wb") as file_object:
-
-            file_object.write(content)
-
-    except Exception as e:
-
-        logger.error(f"Erro ao salvar o arquivo carregado: {e}")
-
-        raise HTTPException(status_code=500, detail="Erro interno ao salvar o arquivo.")
-
-
-
-    # A chamada Ã  funÃ§Ã£o que jÃ¡ corrigimos
-
-    import_file = _get_fornecedor_crud_workflow().create_catalog_import_file(
-
-        db=db,
-
-        fornecedor_id=fornecedor_id,
-
-        user_id=user_id,
-
-        file_name=file.filename,
-
-        original_file_path=str(file_location)
-
-    )
-
-
-
-    try:
-
-        # USA O CONTEÃšDO EM MEMÃ“RIA PARA OBTER O TOTAL DE PGINAS
-
-        with pdfplumber.open(io.BytesIO(content)) as pdf:
-
-            total_pages = len(pdf.pages)
-
-    except Exception as e:
-
-        logger.error(f"Erro ao ler PDF com pdfplumber: {e}")
-
-        raise HTTPException(status_code=500, detail="NÃ£o foi possÃ­vel ler o ficheiro PDF.")
-
-
-
-    first_page_to_convert = offset + 1
-
-    last_page_to_convert = min(offset + limit, total_pages)
-
-    
-
-    image_urls = []
-
-
-
-    if first_page_to_convert <= last_page_to_convert:
-
-        try:
-
-            poppler_path = settings.POPPLER_PATH if settings.POPPLER_PATH else None
-
-            
-
-            # USA O CONTEÃšDO EM MEMÃ“RIA PARA CONVERTER AS IMAGENS
-
-            images = convert_from_bytes(
-
-                content, # <-- MUDANÃ‡A IMPORTANTE: usa o conteÃºdo em memÃ³ria
-
-                dpi=200,
-
-                poppler_path=poppler_path,
-
-                first_page=first_page_to_convert,
-
-                last_page=last_page_to_convert
-
-            )
-
-
-
-            for i, image in enumerate(images):
-
-                page_number = offset + i + 1
-
-                image_filename = f"preview_{import_file.id}_{page_number}.png"
-
-                image_path = previews_dir / image_filename
-
-                image.save(image_path, "PNG")
-
-                
-
-                image_url = f"/static/previews/{image_filename}"
-
-                image_urls.append(image_url)
-
-
-
-        except Exception as e:
-
-            logger.error(f"Falha ao converter PDF para imagens: {e}", exc_info=True)
-
-            raise HTTPException(status_code=500, detail=f"Erro ao processar o PDF. Verifique se o Poppler estÃ¡ instalado corretamente.")
-
-
-
-    return {"image_urls": image_urls, "total_pages": total_pages, "import_file_id": import_file.id}
-
-
-
-
-
-def _get_file_path_by_id_impl(db: Session, file_id: str) -> str:
-
-    """Retrieve the stored file path for a catalog import by ID."""
-
-    import_file = (
-
-        db.query(models.CatalogImportFile)
-
-        .filter(models.CatalogImportFile.id == file_id)
-
-        .first()
-
-    )
-
-    if not import_file:
-
-        return None
-
-
-
-    base_dir = os.path.join("Backend", "static", "uploads", "catalogs")
-
-    return os.path.join(base_dir, import_file.stored_filename)
-
 
 
 
@@ -2101,622 +2731,6 @@ class _PdfRegionExtractionUtils:
         return merged
 
 
-def _extract_data_from_pdf_region_impl(
-    file_path: str, page_number: int, region: Optional[List[float]] = None
-) -> pd.DataFrame:
-    """Extract table-like data from a PDF region with OCR fallback."""
-
-    started_at = time.perf_counter()
-    helper = _PdfRegionExtractionUtils
-
-    try:
-        with pdfplumber.open(file_path) as pdf:
-            if not (1 <= page_number <= len(pdf.pages)):
-                raise ValueError(
-                    f'Numero de pagina invalido: {page_number}. PDF tem {len(pdf.pages)} paginas.'
-                )
-
-            page = pdf.pages[page_number - 1]
-            page_to_process = page
-            if region and len(region) == 4:
-                bbox = tuple(map(float, region))
-                page_to_process = page.crop(bbox)
-
-            logger.info(
-                'extract_data_from_pdf_region: page=%s region=%s page_size=(%.1f,%.1f)',
-                page_number,
-                region,
-                float(page_to_process.width),
-                float(page_to_process.height),
-            )
-
-            # 1) Try structured table extraction first.
-            table_settings_candidates = [
-                {
-                    'vertical_strategy': 'lines',
-                    'horizontal_strategy': 'lines',
-                    'snap_tolerance': 8,
-                    'join_tolerance': 8,
-                    'intersection_tolerance': 8,
-                },
-                {
-                    'vertical_strategy': 'lines',
-                    'horizontal_strategy': 'text',
-                    'snap_tolerance': 5,
-                },
-            ]
-            tables: List[List[List[Any]]] = []
-            for ts in table_settings_candidates:
-                try:
-                    tables = page_to_process.extract_tables(table_settings=ts) or []
-                    if tables:
-                        break
-                except Exception:
-                    continue
-
-            if not tables:
-                try:
-                    tables = page_to_process.extract_tables() or []
-                except Exception:
-                    tables = []
-
-            df_tables = helper.tables_to_df(tables)
-            if not df_tables.empty:
-                logger.info(
-                    'extract_data_from_pdf_region: table rows=%s cols=%s elapsed=%.2fs',
-                    len(df_tables.index),
-                    len(df_tables.columns),
-                    time.perf_counter() - started_at,
-                )
-                return df_tables
-
-            # 2) Try plain text as fallback, but reject suspiciously fragmented output.
-            text = page_to_process.extract_text()
-            if text:
-                lines = [line for line in text.strip().split('\n') if line.strip()]
-                if len(lines) >= 2:
-                    headers = helper.make_unique(lines[0].split())
-                    rows_text: List[Dict[str, Any]] = []
-                    for line in lines[1:]:
-                        parts = line.split()
-                        parts_fixed = parts + [''] * (len(headers) - len(parts))
-                        parts_fixed = parts_fixed[: len(headers)]
-                        rows_text.append({headers[i]: parts_fixed[i] for i in range(len(headers))})
-                    df_text = helper.clean_df(pd.DataFrame(rows_text, columns=headers))
-                    if not df_text.empty:
-                        rows_count = len(df_text.index)
-                        cols_count = len(df_text.columns)
-                        if rows_count <= 1200 and cols_count <= 25:
-                            logger.info(
-                                'extract_data_from_pdf_region: text rows=%s cols=%s elapsed=%.2fs',
-                                rows_count,
-                                cols_count,
-                                time.perf_counter() - started_at,
-                            )
-                            return df_text
-                        logger.info(
-                            'extract_data_from_pdf_region: text descartado por estrutura suspeita rows=%s cols=%s',
-                            rows_count,
-                            cols_count,
-                        )
-
-            # 3) OCR fallback for scanned/image pages.
-            if not OCR_AVAILABLE or not OCR_EXEC_AVAILABLE:
-                logger.debug('extract_data_from_pdf_region: OCR indisponivel para fallback.')
-                return pd.DataFrame()
-
-            try:
-                ocr_render_start = time.perf_counter()
-                dpi = int(os.getenv('OCR_REGION_DPI', '220'))
-                page_img = page_to_process.to_image(resolution=dpi)
-                buf = io.BytesIO()
-                page_img.original.save(buf, format='PNG')
-                img = Image.open(io.BytesIO(buf.getvalue()))
-
-                # Light preprocessing keeps performance and helps OCR on colored backgrounds.
-                from PIL import ImageEnhance, ImageOps
-
-                img = img.convert('L')
-                img = ImageOps.autocontrast(img)
-                img = ImageEnhance.Contrast(img).enhance(1.6)
-                logger.info(
-                    'extract_data_from_pdf_region: OCR render ok dpi=%s elapsed=%.2fs',
-                    dpi,
-                    time.perf_counter() - ocr_render_start,
-                )
-            except Exception as e_img:
-                logger.error('Falha ao renderizar regiao para OCR: %s', e_img)
-                return pd.DataFrame()
-
-            try:
-                ocr_start = time.perf_counter()
-                ocr_data = pytesseract.image_to_data(
-                    img,
-                    output_type=pytesseract.Output.DICT,
-                    config='--psm 6 --oem 3',
-                )
-                logger.info(
-                    'extract_data_from_pdf_region: OCR image_to_data concluido em %.2fs',
-                    time.perf_counter() - ocr_start,
-                )
-            except Exception as e_ocr:
-                global OCR_EXEC_FAILED_ONCE
-                if not OCR_EXEC_FAILED_ONCE:
-                    logger.error('Falha no OCR da regiao: %s', e_ocr)
-                    OCR_EXEC_FAILED_ONCE = True
-                else:
-                    logger.debug(
-                        'Falha no OCR da regiao (suprimida apos primeira ocorrencia): %s',
-                        e_ocr,
-                    )
-                return pd.DataFrame()
-
-            n = len(ocr_data.get('text', []))
-            words: List[Dict[str, Any]] = []
-            for i in range(n):
-                txt = (ocr_data.get('text', [''])[i] or '').strip()
-                if not txt:
-                    continue
-                conf_raw = ocr_data.get('conf', [''])[i]
-                try:
-                    conf = float(conf_raw)
-                except Exception:
-                    conf = -1.0
-                if 0 <= conf < 25:
-                    continue
-                words.append(
-                    {
-                        'text': txt,
-                        'x': int(ocr_data.get('left', [0])[i] or 0),
-                        'y': int(ocr_data.get('top', [0])[i] or 0),
-                        'w': int(ocr_data.get('width', [0])[i] or 0),
-                        'h': int(ocr_data.get('height', [0])[i] or 0),
-                        'block': int(ocr_data.get('block_num', [0])[i] or 0),
-                        'par': int(ocr_data.get('par_num', [0])[i] or 0),
-                        'line': int(ocr_data.get('line_num', [0])[i] or 0),
-                    }
-                )
-
-            if not words:
-                logger.info('OCR da regiao retornou vazio.')
-                return pd.DataFrame()
-
-            lines_grouped = helper.group_words_by_line_ids(words)
-            if not lines_grouped:
-                lines_grouped = helper.group_words_by_y(words)
-            for line_words in lines_grouped:
-                line_words.sort(key=lambda item: item['x'])
-
-            merged_lines: List[List[Dict[str, Any]]] = []
-            for line_words in lines_grouped:
-                merged = helper.merge_words_in_line(line_words)
-                if merged:
-                    merged_lines.append(merged)
-            if not merged_lines:
-                logger.info('OCR da regiao nao produziu segmentos validos.')
-                return pd.DataFrame()
-
-            # 3.1) Header-guided OCR parsing (improves scanned catalogs with stable table header).
-            header_guess = helper.detect_header_columns(merged_lines)
-            if header_guess:
-                guessed_headers: List[str] = header_guess["headers"]
-                guessed_bounds: List[int] = header_guess["bounds"]
-                row_start_idx = int(header_guess["line_idx"]) + 1
-                logger.info(
-                    "extract_data_from_pdf_region: OCR header detectado headers=%s line_idx=%s",
-                    guessed_headers,
-                    header_guess["line_idx"],
-                )
-
-                raw_rows_guided: List[Dict[str, Any]] = []
-                for line in merged_lines[row_start_idx:]:
-                    row = {header: "" for header in guessed_headers}
-                    for seg in line:
-                        idx_col = min(
-                            range(len(guessed_bounds)),
-                            key=lambda idx: abs(int(seg["x0"]) - guessed_bounds[idx]),
-                        )
-                        key = guessed_headers[idx_col]
-                        row[key] = (f"{row[key]} {seg['text']}").strip() if row[key] else seg["text"]
-                    raw_rows_guided.append(row)
-
-                filtered_guided = helper.filter_ocr_rows(raw_rows_guided)
-                if filtered_guided:
-                    df_ocr_guided = helper.clean_df(
-                        pd.DataFrame(filtered_guided, columns=guessed_headers)
-                    )
-                    if not df_ocr_guided.empty:
-                        logger.info(
-                            "extract_data_from_pdf_region: OCR header-guided rows=%s cols=%s elapsed=%.2fs",
-                            len(df_ocr_guided.index),
-                            len(df_ocr_guided.columns),
-                            time.perf_counter() - started_at,
-                        )
-                        return df_ocr_guided
-                logger.info(
-                    "extract_data_from_pdf_region: OCR header-guided sem linhas validas; fallback para cluster"
-                )
-
-            x_positions = sorted(int(seg['x0']) for line in merged_lines for seg in line)
-            if not x_positions:
-                logger.info('OCR da regiao nao produziu colunas validas.')
-                return pd.DataFrame()
-
-            max_x = max(int(word['x'] + word['w']) for word in words)
-            region_px_width = max(1, max_x)
-            tol_x = max(24, min(80, int(region_px_width / 35)))
-            col_bounds = helper.cluster_positions(x_positions, tol_x)
-            max_cols_target = max(8, int(os.getenv('OCR_MAX_COLUMNS', '16')))
-            while len(col_bounds) > max_cols_target and tol_x < region_px_width:
-                tol_x = int(tol_x * 1.35)
-                col_bounds = helper.cluster_positions(x_positions, tol_x)
-
-            headers = [f'col_{i}' for i in range(len(col_bounds))] or ['col_0']
-            ocr_rows: List[Dict[str, Any]] = []
-            for line in merged_lines:
-                row = {header: '' for header in headers}
-                for seg in line:
-                    if col_bounds:
-                        idx_col = min(
-                            range(len(col_bounds)),
-                            key=lambda idx: abs(int(seg['x0']) - col_bounds[idx]),
-                        )
-                    else:
-                        idx_col = 0
-                    key = headers[idx_col]
-                    row[key] = (f"{row[key]} {seg['text']}").strip() if row[key] else seg['text']
-                ocr_rows.append(row)
-
-            filtered_rows = helper.filter_ocr_rows(ocr_rows)
-
-            if not filtered_rows:
-                logger.info('OCR da regiao retornou somente ruido.')
-                return pd.DataFrame()
-
-            df_ocr = helper.clean_df(pd.DataFrame(filtered_rows, columns=headers))
-            logger.info(
-                'extract_data_from_pdf_region: OCR rows=%s cols=%s words=%s lines=%s col_bounds=%s elapsed=%.2fs',
-                len(df_ocr.index),
-                len(df_ocr.columns),
-                len(words),
-                len(merged_lines),
-                len(col_bounds),
-                time.perf_counter() - started_at,
-            )
-            return df_ocr
-
-    except Exception as e:
-        logger.error('Erro ao processar o PDF na extracao da regiao: %s', e)
-        return pd.DataFrame()
-
-async def _extrair_pagina_pdf_impl(
-
-    conteudo_pdf: bytes, page_number: int, region: Optional[List[float]] = None
-
-) -> Dict[str, Any]:
-
-    """Return an image, text and optional table extracted from a PDF page."""
-
-
-
-    with pdfplumber.open(io.BytesIO(conteudo_pdf)) as pdf:
-
-        if not (1 <= page_number <= len(pdf.pages)):
-
-            raise ValueError(
-
-                f"NÃºmero de pÃ¡gina invÃ¡lido: {page_number}. PDF tem {len(pdf.pages)} pÃ¡ginas."
-
-            )
-
-
-
-        page = pdf.pages[page_number - 1]
-
-        page_to_process = page
-
-        if region and len(region) == 4:
-
-            bbox = tuple(map(float, region))
-
-            page_to_process = page.crop(bbox)
-
-
-
-        image = convert_from_bytes(
-
-            conteudo_pdf,
-
-            first_page=page_number,
-
-            last_page=page_number,
-
-            dpi=200,
-
-            fmt="png",
-
-        )[0]
-
-
-
-        buf = io.BytesIO()
-
-        image.save(buf, format="PNG")
-
-        image_b64 = base64.b64encode(buf.getvalue()).decode()
-
-
-
-        text = page_to_process.extract_text() or ""
-
-
-
-    # Use a real temporary file (portable across Linux/Windows).
-    with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as tmp_file:
-        tmp_file.write(conteudo_pdf)
-        tmp_path = Path(tmp_file.name)
-
-    try:
-        df = get_pdf_processing_workflow().extract_data_from_pdf_region(
-            file_path=str(tmp_path),
-            page_number=page_number,
-            region=region,
-        )
-        if not df.empty:
-            table = [list(df.columns)] + df.values.tolist()
-        else:
-            table = None
-    finally:
-        try:
-            tmp_path.unlink()
-        except Exception:
-            pass
-
-
-
-    return {"image": f"data:image/png;base64,{image_b64}", "text": text, "table": table}
-
-
-
-
-
-
-
-
-
-async def _process_pdf_job_impl(
-    job_id: int, pdf_path: str, start_page: int = 1, mapping: Optional[Dict[str, str]] = None
-) -> None:
-    """Process remaining pages of a PDF catalog import job."""
-
-    db: Optional[Session] = None
-    catalog_file: Optional[models.CatalogImportFile] = None
-    try:
-        db = SessionLocal()
-        catalog_file = db.query(models.CatalogImportFile).filter_by(id=job_id).first()
-        if not catalog_file:
-            logger.error("CatalogImportFile %s not found", job_id)
-            return
-
-        logger.info("process_pdf_job: start job_id=%s path=%s start_page=%s mapping_keys=%s", job_id, pdf_path, start_page, list(mapping.keys()) if mapping else [])
-
-        with pdfplumber.open(pdf_path) as pdf:
-            total_pages = len(pdf.pages)
-
-        catalog_file.status = "PROCESSING"
-        catalog_file.total_pages = total_pages
-        catalog_file.pages_processed = 0
-        db.commit()
-
-        products: List[Dict[str, Any]] = []
-
-        for page in range(start_page, total_pages + 1):
-            try:
-                raw_page = extract_data_from_single_page(pdf_path, page)
-                page_rows = raw_page.get("rows", []) if isinstance(raw_page, dict) else []
-                logger.info(
-                    "process_pdf_job: page=%s raw_rows_count=%s headers=%s",
-                    page,
-                    len(page_rows),
-                    raw_page.get("headers") if isinstance(raw_page, dict) else None,
-                )
-            except Exception as e:  # pragma: no cover - robustness
-                logger.error("Erro ao extrair dados da pagina %s: %s", page, e)
-                continue
-
-            for row in page_rows:
-                produto = _processar_linha_padronizada(row, mapping)
-                if produto:
-                    products.append(produto)
-
-            logger.info("process_pdf_job: page=%s products_accumulated=%s", page, len(products))
-
-            catalog_file.pages_processed += 1
-            if catalog_file.pages_processed % 5 == 0:
-                db.commit()
-
-        catalog_file.result_summary = {"products": products}
-        catalog_file.status = "PENDING_REVIEW"
-        db.commit()
-        logger.info("process_pdf_job: done job_id=%s status=%s products=%s pages=%s", job_id, catalog_file.status, len(products), catalog_file.pages_processed)
-    except Exception:
-        logger.exception("Erro ao processar job de PDF")
-        if db and catalog_file:
-            catalog_file.status = "FAILED"
-            db.commit()
-    finally:
-        if db:
-            db.close()
-
-
-def _extract_data_from_single_page_impl(file_path: str, page_number: int) -> Dict[str, Any]:
-
-    """Extract structured data from a single PDF page.
-
-
-
-    The function first tries to parse tables and plain text using
-
-    :mod:`pdfplumber`. If no data is extracted, the page is rendered
-
-    with :mod:`PyMuPDF` and OCR is executed via ``pytesseract``.
-
-
-
-    Parameters
-
-    ----------
-
-    file_path: str
-
-        Absolute path to the PDF file on disk.
-
-    page_number: int
-
-        1-indexed page number to extract.
-
-
-
-    Returns
-
-    -------
-
-    Dict[str, Any]
-
-        A dictionary with ``headers`` and ``rows`` keys.
-
-    """
-
-
-
-    headers: List[str] = []
-
-    rows: List[List[str]] = []
-
-
-
-    try:
-
-        with pdfplumber.open(file_path) as pdf:
-
-            if not (1 <= page_number <= len(pdf.pages)):
-
-                raise ValueError(
-
-                    f"NÃºmero de pÃ¡gina invÃ¡lido: {page_number}. PDF tem {len(pdf.pages)} pÃ¡ginas."
-
-                )
-
-
-
-            page = pdf.pages[page_number - 1]
-
-            tables = page.extract_tables(
-
-                table_settings={"vertical_strategy": "lines", "horizontal_strategy": "lines"}
-
-            )
-
-
-
-            if tables:
-
-                for table in tables:
-
-                    if table and len(table) >= 2:
-
-                        headers = [str(h or "").strip() for h in table[0]]
-
-                        rows = [[str(c or "").strip() for c in r] for r in table[1:]]
-
-                        if any(any(cell for cell in r) for r in rows):
-
-                            return {"headers": headers, "rows": rows}
-
-
-
-            text = page.extract_text() or ""
-
-            lines = [l.strip() for l in text.splitlines() if l.strip()]
-
-            if len(lines) >= 2:
-
-                headers = lines[0].split()
-
-                rows = [ln.split() for ln in lines[1:]]
-
-                if rows:
-
-                    return {"headers": headers, "rows": rows}
-
-    except Exception as e:  # pragma: no cover - runtime logging
-
-        logger.error("Erro ao extrair com pdfplumber: %s", e)
-
-
-
-    try:  # OCR fallback
-
-        import fitz  # type: ignore
-
-        import pytesseract  # type: ignore
-
-        from PIL import Image  # type: ignore
-
-
-
-        doc = fitz.open(file_path)
-
-        if not (1 <= page_number <= doc.page_count):
-
-            raise ValueError(
-
-                f"NÃºmero de pÃ¡gina invÃ¡lido: {page_number}. PDF tem {doc.page_count} pÃ¡ginas."
-
-            )
-
-
-
-        page = doc.load_page(page_number - 1)
-
-        pix = page.get_pixmap(dpi=300)
-
-        img = Image.open(io.BytesIO(pix.tobytes()))
-
-
-
-        text = pytesseract.image_to_string(img)
-
-        lines = [l.strip() for l in text.splitlines() if l.strip()]
-
-        if lines:
-
-            headers = lines[0].split()
-
-            rows = [ln.split() for ln in lines[1:]]
-
-    except Exception as e:  # pragma: no cover - optional dependency might be missing
-
-        logger.error("Erro ao executar OCR da pÃ¡gina do PDF: %s", e)
-
-    finally:
-
-        try:
-
-            doc.close()  # type: ignore
-
-        except Exception:
-
-            pass
-
-
-
-    return {"headers": headers, "rows": rows}
-
-
-
-
-
 class _PdfAssetUtilityRuntime:
     """Runtime OO para utilitarios de assets PDF."""
 
@@ -2832,38 +2846,6 @@ class _PdfAssetUtilityRuntime:
 
 
 
-def _generate_pdf_page_images_impl(file_path: str, file_id: str) -> List[str]:
-    return _PdfAssetUtilityRuntime().generate_pdf_page_images(
-        file_path=file_path,
-        file_id=file_id,
-    )
-
-
-def _extract_pdf_region_image_impl(
-    file_path: str,
-    page_number: int,
-    region: Optional[List[float]] = None,
-    dpi: int = 300,
-) -> bytes:
-    return _PdfAssetUtilityRuntime().extract_pdf_region_image(
-        file_path=file_path,
-        page_number=page_number,
-        region=region,
-        dpi=dpi,
-    )
-
-
-def _parse_annotation_to_dataframe_impl(
-    annotation: object,
-    vertical_tolerance: int = 5,
-) -> pd.DataFrame:
-    return _PdfAssetUtilityRuntime().parse_annotation_to_dataframe(
-        annotation=annotation,
-        vertical_tolerance=vertical_tolerance,
-    )
-
-
-
 class _CatalogStorageWorkflow:
     """Workflow OO para operacoes de storage de catalogo."""
 
@@ -2904,12 +2886,8 @@ class _CatalogStorageRuntime:
 CatalogStorageWorkflow = _CatalogStorageWorkflow
 
 
-def get_catalog_storage_workflow() -> CatalogStorageWorkflow:
-    return _CatalogStorageWorkflow()
-
-
 class _TabularIngestionWorkflow:
-    """Workflow OO para ingestÃ£o de arquivos tabulares (Excel/CSV)."""
+    """Workflow OO para ingestÃƒÂ£o de arquivos tabulares (Excel/CSV)."""
 
     def __init__(self, runtime: Optional["_TabularIngestionRuntime"] = None) -> None:
         self._runtime = runtime or _TabularIngestionRuntime()
@@ -2972,10 +2950,6 @@ class _TabularIngestionRuntime:
 TabularIngestionWorkflow = _TabularIngestionWorkflow
 
 
-def get_tabular_ingestion_workflow() -> TabularIngestionWorkflow:
-    return _TabularIngestionWorkflow()
-
-
 class _TabularPreviewWorkflow:
     """Workflow OO para preview tabular (Excel/CSV)."""
 
@@ -3022,10 +2996,6 @@ class _TabularPreviewRuntime:
 
 
 TabularPreviewWorkflow = _TabularPreviewWorkflow
-
-
-def get_tabular_preview_workflow() -> TabularPreviewWorkflow:
-    return _TabularPreviewWorkflow()
 
 
 class _PdfAssetRuntime:
@@ -3144,10 +3114,6 @@ class _PdfAssetWorkflow:
 PdfAssetWorkflow = _PdfAssetWorkflow
 
 
-def get_pdf_asset_workflow() -> PdfAssetWorkflow:
-    return _PdfAssetWorkflow()
-
-
 class _PdfProcessingRuntime:
     """Runtime OO para dependencias de processamento e preview de PDF."""
 
@@ -3259,12 +3225,8 @@ class _PdfProcessingWorkflow:
 PdfProcessingWorkflow = _PdfProcessingWorkflow
 
 
-def get_pdf_processing_workflow() -> PdfProcessingWorkflow:
-    return _PdfProcessingWorkflow()
-
-
 class _PdfJobWorkflow:
-    """Workflow OO para processamento assÃ­ncrono de jobs de PDF."""
+    """Workflow OO para processamento assÃƒÂ­ncrono de jobs de PDF."""
 
     def __init__(self, runtime: Optional["_PdfJobRuntime"] = None) -> None:
         self._runtime = runtime or _PdfJobRuntime()
@@ -3319,8 +3281,87 @@ class _PdfJobRuntime:
 PdfJobWorkflow = _PdfJobWorkflow
 
 
-def get_pdf_job_workflow() -> PdfJobWorkflow:
-    return _PdfJobWorkflow()
+class FileProcessingRuntime:
+    """Composicao OO para fluxos de processamento de arquivo sem estado global."""
+
+    def __init__(
+        self,
+        *,
+        catalog_storage_workflow: Optional[CatalogStorageWorkflow] = None,
+        line_mapping_workflow: Optional[LineMappingWorkflow] = None,
+        tabular_ingestion_workflow: Optional[TabularIngestionWorkflow] = None,
+        tabular_preview_workflow: Optional[TabularPreviewWorkflow] = None,
+        pdf_asset_workflow: Optional[PdfAssetWorkflow] = None,
+        pdf_processing_workflow: Optional[PdfProcessingWorkflow] = None,
+        pdf_job_workflow: Optional[PdfJobWorkflow] = None,
+    ) -> None:
+        self._catalog_storage = catalog_storage_workflow or CatalogStorageWorkflow()
+        self._line_mapping = line_mapping_workflow or LineMappingWorkflow()
+        self._tabular_ingestion = tabular_ingestion_workflow or TabularIngestionWorkflow()
+        self._tabular_preview = tabular_preview_workflow or TabularPreviewWorkflow()
+        self._pdf_asset = pdf_asset_workflow or PdfAssetWorkflow()
+        self._pdf_processing = pdf_processing_workflow or PdfProcessingWorkflow()
+        self._pdf_job = pdf_job_workflow or PdfJobWorkflow()
+
+    async def save_uploaded_catalog(self, *args: Any, **kwargs: Any):
+        return await self._catalog_storage.save_uploaded_catalog(*args, **kwargs)
+
+    def delete_catalog_file(self, *args: Any, **kwargs: Any):
+        return self._catalog_storage.delete_catalog_file(*args, **kwargs)
+
+    def get_file_path_by_id(self, *args: Any, **kwargs: Any):
+        return self._catalog_storage.get_file_path_by_id(*args, **kwargs)
+
+    async def processar_arquivo_excel(self, *args: Any, **kwargs: Any):
+        return await self._tabular_ingestion.processar_arquivo_excel(*args, **kwargs)
+
+    async def processar_arquivo_csv(self, *args: Any, **kwargs: Any):
+        return await self._tabular_ingestion.processar_arquivo_csv(*args, **kwargs)
+
+    async def processar_arquivo_pdf(self, *args: Any, **kwargs: Any):
+        return await self._pdf_processing.processar_arquivo_pdf(*args, **kwargs)
+
+    async def preview_arquivo_excel(self, *args: Any, **kwargs: Any):
+        return await self._tabular_preview.preview_arquivo_excel(*args, **kwargs)
+
+    async def preview_arquivo_csv(self, *args: Any, **kwargs: Any):
+        return await self._tabular_preview.preview_arquivo_csv(*args, **kwargs)
+
+    async def preview_arquivo_pdf(self, *args: Any, **kwargs: Any):
+        return await self._pdf_processing.preview_arquivo_pdf(*args, **kwargs)
+
+    async def gerar_preview(self, *args: Any, **kwargs: Any):
+        return await self._pdf_processing.gerar_preview(*args, **kwargs)
+
+    async def pdf_bytes_to_images(self, *args: Any, **kwargs: Any):
+        return await self._pdf_asset.pdf_bytes_to_images(*args, **kwargs)
+
+    def pdf_pages_to_images(self, *args: Any, **kwargs: Any):
+        return self._pdf_asset.pdf_pages_to_images(*args, **kwargs)
+
+    async def extrair_pagina_pdf(self, *args: Any, **kwargs: Any):
+        return await self._pdf_asset.extrair_pagina_pdf(*args, **kwargs)
+
+    def generate_pdf_page_images(self, *args: Any, **kwargs: Any):
+        return self._pdf_asset.generate_pdf_page_images(*args, **kwargs)
+
+    def extract_pdf_region_image(self, *args: Any, **kwargs: Any):
+        return self._pdf_asset.extract_pdf_region_image(*args, **kwargs)
+
+    def parse_annotation_to_dataframe(self, *args: Any, **kwargs: Any):
+        return self._pdf_asset.parse_annotation_to_dataframe(*args, **kwargs)
+
+    def extract_data_from_pdf_region(self, *args: Any, **kwargs: Any):
+        return self._pdf_processing.extract_data_from_pdf_region(*args, **kwargs)
+
+    async def process_pdf_job(self, *args: Any, **kwargs: Any):
+        return await self._pdf_job.process_pdf_job(*args, **kwargs)
+
+    def extract_data_from_single_page(self, *args: Any, **kwargs: Any):
+        return self._pdf_job.extract_data_from_single_page(*args, **kwargs)
+
+    def processar_linha_padronizada(self, *args: Any, **kwargs: Any):
+        return self._line_mapping.processar_linha_padronizada(*args, **kwargs)
 
 
 

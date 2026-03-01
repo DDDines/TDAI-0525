@@ -11,11 +11,14 @@ from sqlalchemy.orm import Session
 
 from Backend import models
 from Backend import schemas
-from Backend.application.services.data_access_service import data_access_service
 from Backend.auth import router as auth_router_direct
 from Backend.core.config import settings
 from Backend.core.logging_config import get_logger
 from Backend.database import SessionLocal, engine, get_db
+from Backend.infrastructure.repositories.fornecedor_repository import FornecedorRepository
+from Backend.infrastructure.repositories.product_repository import ProductRepository
+from Backend.infrastructure.repositories.product_type_repository import ProductTypeRepository
+from Backend.infrastructure.repositories.user_repository import UserRepository
 
 from Backend.routers.admin_analytics import router as admin_analytics_router
 from Backend.routers.fornecedores import router as fornecedores_router
@@ -84,6 +87,10 @@ def _ensure_static_files_path_core() -> Path:
 async def _startup_event_create_defaults_core() -> None:
     logger.info("Executando evento de startup para criar defaults (roles, planos, admin user, product types)...")
     db: Session = SessionLocal()
+    user_repo = UserRepository(db)
+    product_type_repo = ProductTypeRepository(db)
+    fornecedor_repo = FornecedorRepository(db)
+    product_repo = ProductRepository(db)
 
     if settings.AUTO_CREATE_TABLES:
         try:
@@ -102,10 +109,9 @@ async def _startup_event_create_defaults_core() -> None:
         user_role_obj = None
 
         for role_data in roles_a_criar:
-            role = data_access_service.users.get_role_by_name(db, name=role_data["name"])
+            role = user_repo.get_role_by_name(name=role_data["name"])
             if not role:
-                role = data_access_service.users.create_role(
-                    db,
+                role = user_repo.create_role(
                     role=schemas.RoleCreate(**role_data),
                 )
                 logger.info("Role '%s' criada.", role.name)
@@ -145,9 +151,9 @@ async def _startup_event_create_defaults_core() -> None:
         plano_gratuito_obj = None
 
         for plano_data in planos_a_criar:
-            plano = data_access_service.users.get_plano_by_name(db, nome=plano_data.nome)
+            plano = user_repo.get_plano_by_name(nome=plano_data.nome)
             if not plano:
-                plano = data_access_service.users.create_plano(db, plano=plano_data)
+                plano = user_repo.create_plano(plano=plano_data)
                 logger.info("Plano '%s' criado.", plano.nome)
             if plano.nome == "Pro":
                 admin_plano_obj = plano
@@ -165,10 +171,7 @@ async def _startup_event_create_defaults_core() -> None:
                 "ERRO CRITICO: Plano 'Gratuito' nao encontrado. Novos usuarios podem ficar sem plano padrao."
             )
 
-        admin_user = data_access_service.users.get_user_by_email(
-            db,
-            email=settings.ADMIN_EMAIL,
-        )
+        admin_user = user_repo.get_user_by_email(email=settings.ADMIN_EMAIL)
         if not admin_user:
             if not admin_role_obj:
                 logger.error(
@@ -186,10 +189,7 @@ async def _startup_event_create_defaults_core() -> None:
                     user_in_data["idioma_preferido"] = settings.ADMIN_IDIOMA_PREFERIDO
 
                 user_in_create = schemas.UserCreate(**user_in_data)
-                created_admin = data_access_service.users.create_user(
-                    db=db,
-                    user=user_in_create,
-                )
+                created_admin = user_repo.create_user(user=user_in_create)
                 if created_admin:
                     created_admin.is_superuser = True
                     if admin_role_obj:
@@ -222,7 +222,7 @@ async def _startup_event_create_defaults_core() -> None:
                 needs_update = True
                 logger.info("Atualizando admin '%s' para superuser.", settings.ADMIN_EMAIL)
 
-            admin_plano_obj = data_access_service.users.get_plano_by_name(db, "Pro")
+            admin_plano_obj = user_repo.get_plano_by_name(nome="Pro")
             if admin_plano_obj and admin_user.plano_id != admin_plano_obj.id:
                 admin_user.plano_id = admin_plano_obj.id
                 needs_update = True
@@ -300,15 +300,13 @@ async def _startup_event_create_defaults_core() -> None:
         ]
 
         for pt_data in product_types_data:
-            product_type_in_db = data_access_service.product_types.get_product_type_by_key_name(
-                db,
+            product_type_in_db = product_type_repo.get_product_type_by_key_name(
                 key_name=pt_data["key_name"],
                 user_id=None,
             )
             if not product_type_in_db:
                 product_type_create_schema = schemas.ProductTypeCreate(**pt_data)
-                data_access_service.product_types.create_product_type(
-                    db=db,
+                product_type_repo.create_product_type(
                     product_type_create=product_type_create_schema,
                     user_id=None,
                 )
@@ -330,8 +328,7 @@ async def _startup_event_create_defaults_core() -> None:
                     nome="UouU",
                     site_url="www.uouu.com.br",
                 )
-                data_access_service.fornecedores.create_fornecedor(
-                    db=db,
+                fornecedor_repo.create_fornecedor(
                     fornecedor=fornecedor_schema,
                     user_id=admin_user.id,
                 )
@@ -344,8 +341,7 @@ async def _startup_event_create_defaults_core() -> None:
                 nome_base="Produto de Exemplo",
                 descricao_original="Item criado automaticamente na inicializacao",
             )
-            data_access_service.produtos.create_produto(
-                db=db,
+            product_repo.create_produto(
                 produto=exemplo_produto,
                 user_id=admin_user.id,
             )
@@ -360,7 +356,8 @@ async def _startup_event_create_defaults_core() -> None:
 
 
 def _create_new_user_core(user_in: schemas.UserCreate, db: Session) -> models.User:
-    db_user_check = data_access_service.users.get_user_by_email(db, email=user_in.email)
+    user_repo = UserRepository(db)
+    db_user_check = user_repo.get_user_by_email(email=user_in.email)
     if db_user_check:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -368,10 +365,7 @@ def _create_new_user_core(user_in: schemas.UserCreate, db: Session) -> models.Us
         )
 
     plano_id_para_novo_usuario = user_in.plano_id
-    plano_gratuito_obj_check = data_access_service.users.get_plano_by_name(
-        db,
-        nome="Gratuito",
-    )
+    plano_gratuito_obj_check = user_repo.get_plano_by_name(nome="Gratuito")
 
     if plano_id_para_novo_usuario is None:
         if plano_gratuito_obj_check:
@@ -380,7 +374,7 @@ def _create_new_user_core(user_in: schemas.UserCreate, db: Session) -> models.Us
             logger.error("ERRO CRITICO: Plano padrao 'Gratuito' nao encontrado no banco.")
             plano_id_para_novo_usuario = None
 
-    role_user_check = data_access_service.users.get_role_by_name(db, name="user")
+    role_user_check = user_repo.get_role_by_name(name="user")
     if not role_user_check:
         logger.error("ERRO CRITICO: Role padrao 'user' nao encontrado.")
         raise HTTPException(
@@ -390,7 +384,7 @@ def _create_new_user_core(user_in: schemas.UserCreate, db: Session) -> models.Us
 
     user_in.role_id = role_user_check.id
     user_in.plano_id = plano_id_para_novo_usuario
-    return data_access_service.users.create_user(db=db, user=user_in)
+    return user_repo.create_user(user=user_in)
 
 
 class _MainBootstrapWorkflow:
@@ -423,18 +417,16 @@ class _MainBootstrapRuntime:
     def create_new_user(self, user_in: schemas.UserCreate, db: Session) -> models.User:
         return _create_new_user_core(user_in=user_in, db=db)
 
-
-main_bootstrap_workflow = _MainBootstrapWorkflow()
 MainBootstrapWorkflow = _MainBootstrapWorkflow
 
 
 def get_main_bootstrap_workflow() -> MainBootstrapWorkflow:
-    return main_bootstrap_workflow
+    return MainBootstrapWorkflow()
 
 
 @asynccontextmanager
 async def lifespan(_app: FastAPI):
-    await main_bootstrap_workflow.startup_event_create_defaults()
+    await get_main_bootstrap_workflow().startup_event_create_defaults()
     yield
 
 
@@ -446,7 +438,7 @@ app = FastAPI(
 )
 
 
-final_unique_allowed_origins = main_bootstrap_workflow.build_allowed_origins()
+final_unique_allowed_origins = get_main_bootstrap_workflow().build_allowed_origins()
 logger.info("Final unique allowed_origins para CORSMiddleware: %s", final_unique_allowed_origins)
 app.add_middleware(
     CORSMiddleware,
@@ -457,12 +449,12 @@ app.add_middleware(
 )
 
 
-static_files_path = main_bootstrap_workflow.ensure_static_files_path()
+static_files_path = get_main_bootstrap_workflow().ensure_static_files_path()
 app.mount("/static", StaticFiles(directory=static_files_path), name="static")
 
 
 async def startup_event_create_defaults() -> None:
-    await main_bootstrap_workflow.startup_event_create_defaults()
+    await get_main_bootstrap_workflow().startup_event_create_defaults()
 
 
 @app.post(
@@ -472,7 +464,7 @@ async def startup_event_create_defaults() -> None:
     tags=["Usuarios"],
 )
 def create_new_user(user_in: schemas.UserCreate, db: Session = Depends(get_db)):
-    return main_bootstrap_workflow.create_new_user(user_in=user_in, db=db)
+    return get_main_bootstrap_workflow().create_new_user(user_in=user_in, db=db)
 
 
 app.include_router(auth_router_direct, prefix=settings.API_V1_STR + "/auth", tags=["Autenticacao e Usuarios"])

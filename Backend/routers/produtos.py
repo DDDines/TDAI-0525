@@ -1,4 +1,4 @@
-﻿# Backend/routers/produtos.py
+# Backend/routers/produtos.py
 from collections import Counter
 from logging import FileHandler, Formatter
 from pathlib import Path
@@ -72,7 +72,8 @@ from Backend.application.services.validator_crew_service import (
 )
 from Backend.application.services.service_container import (
     DependencyContainer,
-    service_container,
+    SessionDep,
+    ServiceContainer,
 )
 from Backend.core.config import settings
 from Backend.infrastructure.repositories.catalog_import_file_repository import (
@@ -105,42 +106,120 @@ if not catalog_logger.handlers:
     catalog_logger.addHandler(file_handler)
     catalog_logger.setLevel(logging.INFO)
 
-catalog_quality_service = CatalogImportQualityService()
-catalog_sanitization_service = CatalogImportSanitizationService(
-    quality_service=catalog_quality_service
-)
 produto_repository = ProductRepository
 fornecedor_repository = FornecedorRepository
 uso_ia_repository = RegistroUsoIARepository
 historico_repository = HistoricoRepository
 catalog_file_repository = CatalogImportFileRepository
-file_processing_service = service_container.file_processing
+
+class _ProdutosServiceBundle:
+    def __init__(self) -> None:
+        self._service_container = ServiceContainer()
+        self.file_processing_service = self._service_container.file_processing
+        self.catalog_quality_service = CatalogImportQualityService()
+        self.catalog_sanitization_service = CatalogImportSanitizationService(
+            quality_service=self.catalog_quality_service
+        )
+        self.catalog_import_diagnostics_service = CatalogImportDiagnosticsService(
+            catalog_log_dir=catalog_log_dir,
+            logger=catalog_logger,
+            sanitization_service=self.catalog_sanitization_service,
+        )
+        self.validator_crew = ValidatorCrewService(logger=logger)
+
+        self.catalog_import_task_runner = CatalogImportTaskRunner(
+            logger=logger,
+            catalog_logger=catalog_logger,
+            models=models,
+            schemas=schemas,
+            product_repository=produto_repository,
+            catalog_file_repository=catalog_file_repository,
+            file_processing_service=self.file_processing_service,
+            validator_crew=self.validator_crew,
+            settings=settings,
+            path_cls=Path,
+            time_module=time,
+            counter_cls=Counter,
+            resolve_storage_path=self.catalog_import_diagnostics_service.resolve_storage_path,
+            normalize_import_issue_item=self.catalog_sanitization_service.normalize_import_issue_item,
+            extract_import_error_reason=self.catalog_sanitization_service.extract_import_error_reason,
+            is_non_critical_import_reason=self.catalog_sanitization_service.is_non_critical_import_reason,
+            normalizar_dados_validados=self.catalog_sanitization_service.normalize_validated_data,
+            sanitize_produto_extraido=self.catalog_sanitization_service.sanitize_extracted_product,
+            classificar_qualidade_linha_produto=self.catalog_quality_service.classify_product_row_quality,
+            write_catalog_import_report=self.catalog_import_diagnostics_service.write_catalog_import_report,
+            normalize_import_text=self.catalog_sanitization_service.normalize_import_text,
+        )
+        self.catalog_import_finalize_service = CatalogImportFinalizeService(
+            oop_executor=self.catalog_import_task_runner.execute,
+        )
+        self.catalog_import_start_service = CatalogImportStartService(
+            models=models,
+            fornecedor_repo=fornecedor_repository,
+            catalog_file_repository=catalog_file_repository,
+            settings=settings,
+            resolve_storage_path=self.catalog_import_diagnostics_service.resolve_storage_path,
+            finalize_service=self.catalog_import_finalize_service,
+        )
+        self.catalog_import_status_service = CatalogImportStatusService(
+            models=models,
+            catalog_file_repository=catalog_file_repository,
+        )
+        self.catalog_import_workflow_service = CatalogImportWorkflowService(
+            start_service=self.catalog_import_start_service,
+            status_service=self.catalog_import_status_service,
+        )
+        self.catalog_import_file_service = CatalogImportFileService(
+            models=models,
+            file_processing_service=self.file_processing_service,
+            catalog_import_start_service=self.catalog_import_start_service,
+            catalog_file_repository=catalog_file_repository,
+        )
+        self.catalog_import_preview_service = CatalogImportPreviewService(
+            models=models,
+            settings=settings,
+            file_processing_service=self.file_processing_service,
+            resolve_storage_path=self.catalog_import_diagnostics_service.resolve_storage_path,
+            logger=logger,
+            pdfplumber_module=pdfplumber,
+            catalog_file_repository=catalog_file_repository,
+        )
+        self.catalog_import_ingest_service = CatalogImportIngestService(
+            schemas=schemas,
+            models=models,
+            fornecedor_repo=fornecedor_repository,
+            produto_repo=produto_repository,
+            uso_ia_repo=uso_ia_repository,
+            historico_repo=historico_repository,
+            file_processing_service=self.file_processing_service,
+            normalize_import_issue_item=self.catalog_sanitization_service.normalize_import_issue_item,
+            extract_import_error_reason=self.catalog_sanitization_service.extract_import_error_reason,
+            is_non_critical_import_reason=self.catalog_sanitization_service.is_non_critical_import_reason,
+            sanitize_produto_extraido=self.catalog_sanitization_service.sanitize_extracted_product,
+            classificar_qualidade_linha_produto=self.catalog_quality_service.classify_product_row_quality,
+            json_module=json,
+        )
+
+
+def _build_produtos_service_bundle() -> _ProdutosServiceBundle:
+    return _ProdutosServiceBundle()
 
 
 def _is_non_critical_import_reason(reason: str) -> bool:
-    return catalog_sanitization_service.is_non_critical_import_reason(reason)
+    return _build_produtos_service_bundle().catalog_sanitization_service.is_non_critical_import_reason(reason)
 
 
 def _avaliar_qualidade_linha_produto(data: Dict[str, Any]) -> Optional[str]:
-    return catalog_quality_service.evaluate_product_row_quality(data)
+    return _build_produtos_service_bundle().catalog_quality_service.evaluate_product_row_quality(data)
 
 
 def _classificar_qualidade_linha_produto(data: Dict[str, Any]) -> Dict[str, Any]:
-    return catalog_quality_service.classify_product_row_quality(data)
-
-
-catalog_import_diagnostics_service = CatalogImportDiagnosticsService(
-    catalog_log_dir=catalog_log_dir,
-    logger=catalog_logger,
-    sanitization_service=catalog_sanitization_service,
-)
-
-validator_crew = ValidatorCrewService(logger=logger)
+    return _build_produtos_service_bundle().catalog_quality_service.classify_product_row_quality(data)
 
 
 def _sanitize_produto_extraido(prod: Dict[str, Any]) -> Dict[str, Any]:
     """Alias legado para testes existentes; implementacao real esta no servico."""
-    return catalog_sanitization_service.sanitize_extracted_product(prod)
+    return _build_produtos_service_bundle().catalog_sanitization_service.sanitize_extracted_product(prod)
 
 
 def is_non_critical_import_reason(reason: str) -> bool:
@@ -159,80 +238,10 @@ def sanitize_produto_extraido(prod: Dict[str, Any]) -> Dict[str, Any]:
     return _sanitize_produto_extraido(prod)
 
 
-catalog_import_task_runner = CatalogImportTaskRunner(
-    logger=logger,
-    catalog_logger=catalog_logger,
-    models=models,
-    schemas=schemas,
-    product_repository=produto_repository,
-    catalog_file_repository=catalog_file_repository,
-    file_processing_service=file_processing_service,
-    validator_crew=validator_crew,
-    settings=settings,
-    path_cls=Path,
-    time_module=time,
-    counter_cls=Counter,
-    resolve_storage_path=catalog_import_diagnostics_service.resolve_storage_path,
-    normalize_import_issue_item=catalog_sanitization_service.normalize_import_issue_item,
-    extract_import_error_reason=catalog_sanitization_service.extract_import_error_reason,
-    is_non_critical_import_reason=catalog_sanitization_service.is_non_critical_import_reason,
-    normalizar_dados_validados=catalog_sanitization_service.normalize_validated_data,
-    sanitize_produto_extraido=catalog_sanitization_service.sanitize_extracted_product,
-    classificar_qualidade_linha_produto=catalog_quality_service.classify_product_row_quality,
-    write_catalog_import_report=catalog_import_diagnostics_service.write_catalog_import_report,
-    normalize_import_text=catalog_sanitization_service.normalize_import_text,
-)
-
-catalog_import_finalize_service = CatalogImportFinalizeService(
-    oop_executor=catalog_import_task_runner.execute,
-)
-catalog_import_start_service = CatalogImportStartService(
-    models=models,
-    fornecedor_repo=fornecedor_repository,
-    catalog_file_repository=catalog_file_repository,
-    settings=settings,
-    resolve_storage_path=catalog_import_diagnostics_service.resolve_storage_path,
-    finalize_service=catalog_import_finalize_service,
-)
-catalog_import_status_service = CatalogImportStatusService(
-    models=models,
-    catalog_file_repository=catalog_file_repository,
-)
-catalog_import_workflow_service = CatalogImportWorkflowService(
-    start_service=catalog_import_start_service,
-    status_service=catalog_import_status_service,
-)
-catalog_import_file_service = CatalogImportFileService(
-    models=models,
-    file_processing_service=file_processing_service,
-    catalog_import_start_service=catalog_import_start_service,
-    catalog_file_repository=catalog_file_repository,
-)
-catalog_import_preview_service = CatalogImportPreviewService(
-    models=models,
-    settings=settings,
-    file_processing_service=file_processing_service,
-    resolve_storage_path=catalog_import_diagnostics_service.resolve_storage_path,
-    logger=logger,
-    pdfplumber_module=pdfplumber,
-    catalog_file_repository=catalog_file_repository,
-)
-catalog_import_ingest_service = CatalogImportIngestService(
-    schemas=schemas,
-    models=models,
-    fornecedor_repo=fornecedor_repository,
-    produto_repo=produto_repository,
-    uso_ia_repo=uso_ia_repository,
-    historico_repo=historico_repository,
-    file_processing_service=file_processing_service,
-    normalize_import_issue_item=catalog_sanitization_service.normalize_import_issue_item,
-    extract_import_error_reason=catalog_sanitization_service.extract_import_error_reason,
-    is_non_critical_import_reason=catalog_sanitization_service.is_non_critical_import_reason,
-    sanitize_produto_extraido=catalog_sanitization_service.sanitize_extracted_product,
-    classificar_qualidade_linha_produto=catalog_quality_service.classify_product_row_quality,
-    json_module=json,
-)
 class _ProdutosRouterRuntime:
+    def __init__(self, *, services: Optional[_ProdutosServiceBundle] = None) -> None:
+        self._services = services or _build_produtos_service_bundle()
+
     @staticmethod
     def _build_product_management_service(db: Session) -> ProductManagementService:
         repos = build_product_management_repositories(
@@ -273,7 +282,7 @@ class _ProdutosRouterRuntime:
         skip: int,
         limit: int,
     ) -> schemas.CatalogImportFilePage:
-        return catalog_import_file_service.list_user_files(
+        return self._services.catalog_import_file_service.list_user_files(
             catalog_file_repo=CatalogImportFileRepository(db),
             user_id=user_id,
             fornecedor_id=fornecedor_id,
@@ -282,7 +291,7 @@ class _ProdutosRouterRuntime:
         )
 
     def delete_catalog_import_file(self, db: Session, file_id: int, user_id: int):
-        return catalog_import_file_service.delete_user_file(
+        return self._services.catalog_import_file_service.delete_user_file(
             catalog_file_repo=CatalogImportFileRepository(db),
             file_id=file_id,
             user_id=user_id,
@@ -300,7 +309,7 @@ class _ProdutosRouterRuntime:
         pages: Optional[List[int]],
         region: Optional[List[float]],
     ):
-        return await catalog_import_file_service.reprocess_catalog_file(
+        return await self._services.catalog_import_file_service.reprocess_catalog_file(
             background_tasks=background_tasks,
             catalog_file_repo=CatalogImportFileRepository(db),
             fornecedor_repo=FornecedorRepository(db),
@@ -399,7 +408,7 @@ class _ProdutosRouterRuntime:
         db: Session,
         user_id: int,
     ) -> schemas.ImportPreviewResponse:
-        response_payload = await catalog_import_preview_service.importar_catalogo_preview(
+        response_payload = await self._services.catalog_import_preview_service.importar_catalogo_preview(
             file=file,
             fornecedor_id=fornecedor_id,
             start_page=start_page,
@@ -418,7 +427,7 @@ class _ProdutosRouterRuntime:
         db: Session,
         current_user: models.User,
     ):
-        return await catalog_import_ingest_service.importar_catalogo_fornecedor(
+        return await self._services.catalog_import_ingest_service.importar_catalogo_fornecedor(
             fornecedor_id=fornecedor_id,
             file=file,
             mapeamento_colunas_usuario=mapeamento_colunas_usuario,
@@ -441,7 +450,7 @@ class _ProdutosRouterRuntime:
         db: Session,
         user_id: int,
     ):
-        return await catalog_import_workflow_service.importar_catalogo_finalizar(
+        return await self._services.catalog_import_workflow_service.importar_catalogo_finalizar(
             background_tasks=background_tasks,
             file_id=file_id,
             product_type_id=product_type_id,
@@ -456,21 +465,21 @@ class _ProdutosRouterRuntime:
         )
 
     def importar_catalogo_status(self, file_id: int, db: Session, user_id: int):
-        return catalog_import_workflow_service.importar_catalogo_status(
+        return self._services.catalog_import_workflow_service.importar_catalogo_status(
             file_id=file_id,
             user_id=user_id,
             catalog_file_repo=CatalogImportFileRepository(db),
         )
 
     def importar_catalogo_status_simple(self, file_id: int, db: Session, user_id: int):
-        return catalog_import_workflow_service.importar_catalogo_status_simple(
+        return self._services.catalog_import_workflow_service.importar_catalogo_status_simple(
             file_id=file_id,
             user_id=user_id,
             catalog_file_repo=CatalogImportFileRepository(db),
         )
 
     def importar_catalogo_result(self, file_id: int, db: Session, user_id: int):
-        return catalog_import_workflow_service.importar_catalogo_result(
+        return self._services.catalog_import_workflow_service.importar_catalogo_result(
             file_id=file_id,
             user_id=user_id,
             catalog_file_repo=CatalogImportFileRepository(db),
@@ -484,7 +493,7 @@ class _ProdutosRouterRuntime:
         db: Session,
         user_id: int,
     ):
-        return await catalog_import_workflow_service.importar_catalogo_finalizar_todas_paginas(
+        return await self._services.catalog_import_workflow_service.importar_catalogo_finalizar_todas_paginas(
             file_id=file_id,
             start_page=start_page,
             mapping=mapping,
@@ -503,7 +512,7 @@ class _ProdutosRouterRuntime:
         db: Session,
         user_id: int,
     ):
-        return catalog_import_preview_service.selecionar_regiao(
+        return self._services.catalog_import_preview_service.selecionar_regiao(
             file_id=file_id,
             page=page,
             bbox=bbox,
@@ -519,7 +528,7 @@ class _ProdutosRouterRuntime:
         db: Session,
         user_id: int,
     ):
-        return await catalog_import_preview_service.extrair_pagina_unica(
+        return await self._services.catalog_import_preview_service.extrair_pagina_unica(
             file_id=file_id,
             page_number=page_number,
             catalog_file_repo=CatalogImportFileRepository(db),
@@ -849,7 +858,7 @@ class _ProdutosRequestServices:
 
 
 def _build_produtos_request_services(
-    db: Session = Depends(DependencyContainer.get_db_session),
+    db: SessionDep,
 ) -> _ProdutosRequestServices:
     return _ProdutosRequestServices(
         product_management_service=DependencyContainer.get_product_management_service(db=db),
@@ -859,12 +868,12 @@ def _build_produtos_request_services(
 
 class _ProdutosRequestContext:
     def __init__(self, *, db: Session, request_services: _ProdutosRequestServices) -> None:
-        self.db = db
+        self.db=db
         self.request_services = request_services
 
 
 def _build_produtos_request_context(
-    db: Session = Depends(DependencyContainer.get_db_session),
+    db: SessionDep,
 ) -> _ProdutosRequestContext:
     return _ProdutosRequestContext(
         db=db,

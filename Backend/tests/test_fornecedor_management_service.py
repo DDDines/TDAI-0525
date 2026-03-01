@@ -10,41 +10,7 @@ from Backend.application.services.fornecedor_management_service import (
 )
 
 
-class _QueryStub:
-    def __init__(self, first_result):
-        self._first_result = first_result
-
-    def filter(self, *args, **kwargs):
-        _ = (args, kwargs)
-        return self
-
-    def first(self):
-        return self._first_result
-
-
-class _DbStub:
-    def __init__(self, *, duplicate_result=None):
-        self._duplicate_result = duplicate_result
-        self.added = []
-        self.committed = 0
-        self.refreshed = 0
-
-    def query(self, model):
-        _ = model
-        return _QueryStub(self._duplicate_result)
-
-    def add(self, item):
-        self.added.append(item)
-
-    def commit(self):
-        self.committed += 1
-
-    def refresh(self, item):
-        _ = item
-        self.refreshed += 1
-
-
-class _CrudFornecedoresStub:
+class _FornecedorRepoStub:
     def __init__(self, fornecedor=None):
         self._fornecedor = fornecedor
         self.created_calls = []
@@ -52,44 +18,52 @@ class _CrudFornecedoresStub:
         self.deleted_calls = []
         self.list_items = []
         self.list_total = 0
+        self.has_duplicate_name = False
+        self.mapping_updates = []
 
-    def get_fornecedor(self, db, fornecedor_id):
-        _ = (db, fornecedor_id)
+    def get_fornecedor(self, *, fornecedor_id):
+        _ = fornecedor_id
         return self._fornecedor
 
-    def create_fornecedor(self, *, db, fornecedor, user_id):
-        _ = (db, user_id)
+    def create_fornecedor(self, *, fornecedor, user_id):
         created = SimpleNamespace(id=fornecedor.id, nome=fornecedor.nome, user_id=user_id)
         self.created_calls.append((fornecedor, user_id))
         return created
 
-    def get_fornecedores_by_user(self, db, user_id, skip, limit, search):
-        _ = (db, user_id, skip, limit, search)
+    def get_fornecedores_by_user(self, *, user_id, is_admin, skip, limit, search):
+        _ = (user_id, is_admin, skip, limit, search)
         return self.list_items
 
-    def count_fornecedores_by_user(self, *, db, user_id, search):
-        _ = (db, user_id, search)
+    def count_fornecedores_by_user(self, *, user_id, is_admin, search):
+        _ = (user_id, is_admin, search)
         return self.list_total
 
-    def update_fornecedor(self, *, db, db_fornecedor, fornecedor_update):
-        _ = db
+    def exists_fornecedor_with_name_for_user(self, *, user_id, nome, exclude_id):
+        _ = (user_id, nome, exclude_id)
+        return self.has_duplicate_name
+
+    def update_fornecedor(self, *, db_fornecedor, fornecedor_update):
         self.updated_calls.append((db_fornecedor, fornecedor_update))
         if fornecedor_update.nome:
             db_fornecedor.nome = fornecedor_update.nome
         return db_fornecedor
 
-    def delete_fornecedor(self, *, db, db_fornecedor):
-        _ = db
+    def set_default_column_mapping(self, *, db_fornecedor, mapping):
+        db_fornecedor.default_column_mapping = mapping
+        self.mapping_updates.append((db_fornecedor, mapping))
+        return db_fornecedor
+
+    def delete_fornecedor(self, *, db_fornecedor):
         self.deleted_calls.append(db_fornecedor)
         return db_fornecedor
 
 
-class _CrudHistoricoStub:
+class _HistoricoRepoStub:
     def __init__(self):
         self.calls = []
 
-    def create_registro_historico(self, db, payload):
-        self.calls.append((db, payload))
+    def create_registro_historico(self, payload):
+        self.calls.append(payload)
 
 
 class _RegistroHistoricoCreateStub:
@@ -103,14 +77,7 @@ class _TipoAcaoSistemaEnumStub:
     DELECAO = "DELECAO"
 
 
-class _FornecedorModelStub:
-    user_id = object()
-    nome = object()
-    id = object()
-
-
 class _ModelsStub:
-    Fornecedor = _FornecedorModelStub
     TipoAcaoSistemaEnum = _TipoAcaoSistemaEnumStub
 
 
@@ -118,23 +85,16 @@ class _SchemasStub:
     RegistroHistoricoCreate = _RegistroHistoricoCreateStub
 
 
-class _FuncStub:
-    @staticmethod
-    def lower(value):
-        return value
-
-
 def _build_service(*, fornecedor):
-    crud_fornecedores = _CrudFornecedoresStub(fornecedor=fornecedor)
-    crud_historico = _CrudHistoricoStub()
+    fornecedor_repo = _FornecedorRepoStub(fornecedor=fornecedor)
+    historico_repo = _HistoricoRepoStub()
     service = FornecedorManagementService(
         models=_ModelsStub,
         schemas=_SchemasStub,
-        crud_fornecedores=crud_fornecedores,
-        crud_historico=crud_historico,
-        sqlalchemy_func=_FuncStub,
+        fornecedor_repo=fornecedor_repo,
+        historico_repo=historico_repo,
     )
-    return service, crud_fornecedores, crud_historico
+    return service, fornecedor_repo, historico_repo
 
 
 def test_resolve_fornecedor_for_user_success():
@@ -142,7 +102,6 @@ def test_resolve_fornecedor_for_user_success():
     service, _, _ = _build_service(fornecedor=fornecedor)
 
     result = service.resolve_fornecedor_for_user(
-        db=_DbStub(),
         fornecedor_id=5,
         current_user=SimpleNamespace(id=10, is_superuser=False),
         not_found_detail="nao encontrado",
@@ -162,28 +121,25 @@ def test_ensure_current_user_identified_raises_400():
 
 
 def test_create_fornecedor_records_historico():
-    service, crud_fornecedores, crud_historico = _build_service(fornecedor=None)
-    db = _DbStub()
+    service, fornecedor_repo, historico_repo = _build_service(fornecedor=None)
 
     created = service.create_fornecedor(
-        db=db,
         fornecedor=SimpleNamespace(id=9, nome="Novo Fornecedor"),
         current_user=SimpleNamespace(id=10, is_superuser=False),
     )
 
     assert created.nome == "Novo Fornecedor"
-    assert len(crud_fornecedores.created_calls) == 1
-    payload = crud_historico.calls[0][1].data
+    assert len(fornecedor_repo.created_calls) == 1
+    payload = historico_repo.calls[0].data
     assert payload["acao"] == "CRIACAO"
 
 
 def test_list_fornecedores_page_for_regular_user():
-    service, crud_fornecedores, _ = _build_service(fornecedor=None)
-    crud_fornecedores.list_items = [SimpleNamespace(id=1), SimpleNamespace(id=2)]
-    crud_fornecedores.list_total = 2
+    service, fornecedor_repo, _ = _build_service(fornecedor=None)
+    fornecedor_repo.list_items = [SimpleNamespace(id=1), SimpleNamespace(id=2)]
+    fornecedor_repo.list_total = 2
 
     payload = service.list_fornecedores_page(
-        db=_DbStub(),
         current_user=SimpleNamespace(id=10, is_superuser=False),
         skip=0,
         limit=10,
@@ -201,7 +157,6 @@ def test_resolve_fornecedor_for_user_raises_404():
 
     with pytest.raises(HTTPException) as exc:
         service.resolve_fornecedor_for_user(
-            db=_DbStub(),
             fornecedor_id=5,
             current_user=SimpleNamespace(id=10, is_superuser=False),
             not_found_detail="nao encontrado",
@@ -218,7 +173,6 @@ def test_resolve_fornecedor_for_user_raises_403():
 
     with pytest.raises(HTTPException) as exc:
         service.resolve_fornecedor_for_user(
-            db=_DbStub(),
             fornecedor_id=5,
             current_user=SimpleNamespace(id=10, is_superuser=False),
             not_found_detail="nao encontrado",
@@ -230,31 +184,28 @@ def test_resolve_fornecedor_for_user_raises_403():
 
 def test_update_fornecedor_records_historico():
     fornecedor = SimpleNamespace(id=5, user_id=10, nome="Fornecedor A")
-    service, crud_fornecedores, crud_historico = _build_service(fornecedor=fornecedor)
-    db = _DbStub(duplicate_result=None)
+    service, fornecedor_repo, historico_repo = _build_service(fornecedor=fornecedor)
 
     updated = service.update_fornecedor(
-        db=db,
         fornecedor_id=5,
         fornecedor_update=SimpleNamespace(nome="Fornecedor B"),
         current_user=SimpleNamespace(id=10, is_superuser=False),
     )
 
     assert updated.nome == "Fornecedor B"
-    assert len(crud_fornecedores.updated_calls) == 1
-    assert len(crud_historico.calls) == 1
-    payload = crud_historico.calls[0][1].data
+    assert len(fornecedor_repo.updated_calls) == 1
+    assert len(historico_repo.calls) == 1
+    payload = historico_repo.calls[0].data
     assert payload["acao"] == "ATUALIZACAO"
 
 
 def test_update_fornecedor_raises_for_duplicate_name():
     fornecedor = SimpleNamespace(id=5, user_id=10, nome="Fornecedor A")
-    service, _, _ = _build_service(fornecedor=fornecedor)
-    db = _DbStub(duplicate_result=object())
+    service, fornecedor_repo, _ = _build_service(fornecedor=fornecedor)
+    fornecedor_repo.has_duplicate_name = True
 
     with pytest.raises(HTTPException) as exc:
         service.update_fornecedor(
-            db=db,
             fornecedor_id=5,
             fornecedor_update=SimpleNamespace(nome="Fornecedor B"),
             current_user=SimpleNamespace(id=10, is_superuser=False),
@@ -263,34 +214,30 @@ def test_update_fornecedor_raises_for_duplicate_name():
     assert exc.value.status_code == 400
 
 
-def test_update_mapping_persists_and_refreshes():
+def test_update_mapping_persists_and_returns_fornecedor():
     fornecedor = SimpleNamespace(id=5, user_id=10, nome="Fornecedor A", default_column_mapping=None)
-    service, _, _ = _build_service(fornecedor=fornecedor)
-    db = _DbStub()
+    service, fornecedor_repo, _ = _build_service(fornecedor=fornecedor)
 
     updated = service.update_mapping(
-        db=db,
         fornecedor_id=5,
         current_user=SimpleNamespace(id=10, is_superuser=False),
         mapping={"col_0": "nome_base"},
     )
 
     assert updated.default_column_mapping == {"col_0": "nome_base"}
-    assert db.committed == 1
-    assert db.refreshed == 1
+    assert len(fornecedor_repo.mapping_updates) == 1
 
 
 def test_delete_fornecedor_records_historico():
     fornecedor = SimpleNamespace(id=5, user_id=10, nome="Fornecedor A")
-    service, crud_fornecedores, crud_historico = _build_service(fornecedor=fornecedor)
+    service, fornecedor_repo, historico_repo = _build_service(fornecedor=fornecedor)
 
     deleted = service.delete_fornecedor(
-        db=_DbStub(),
         fornecedor_id=5,
         current_user=SimpleNamespace(id=10, is_superuser=False),
     )
 
     assert deleted is fornecedor
-    assert len(crud_fornecedores.deleted_calls) == 1
-    payload = crud_historico.calls[0][1].data
+    assert len(fornecedor_repo.deleted_calls) == 1
+    payload = historico_repo.calls[0].data
     assert payload["acao"] == "DELECAO"

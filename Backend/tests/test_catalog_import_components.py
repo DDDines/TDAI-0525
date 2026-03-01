@@ -160,7 +160,7 @@ def test_audit_writer_adds_usage_and_history_rows():
     writer = CatalogImportAuditWriter(models=models)
     produtos = [SimpleNamespace(id=1), SimpleNamespace(id=2)]
 
-    writer.register_creation(db=db, user_id=42, produtos_criados=produtos)
+    writer.register_creation(session=db, user_id=42, produtos_criados=produtos)
 
     assert len(db.added) == 4
     assert db.added[0].payload["produto_id"] == 1

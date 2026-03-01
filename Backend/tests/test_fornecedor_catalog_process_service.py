@@ -36,66 +36,62 @@ class _CatalogImportStartServiceStub:
         self.dispatched = []
         self.commands = []
 
-    def get_catalog_file_or_404(self, *, db, file_id, user_id):
-        _ = (db, file_id, user_id)
+    def get_catalog_file_or_404(self, **kwargs):
+        _ = kwargs
         return self._source
 
     def resolve_pdf_pages(self, *, catalog_file, start_page):
         _ = catalog_file
         return [start_page, start_page + 1]
 
-    def resolve_mapping(self, *, db, fornecedor_id, mapping):
-        _ = (db, fornecedor_id)
-        return mapping or {"col_0": "nome_base"}
+    def resolve_mapping(self, **kwargs):
+        _ = kwargs
+        return kwargs.get("mapping") or {"col_0": "nome_base"}
 
     def build_finalize_command(self, **kwargs):
         self.commands.append(kwargs)
         return SimpleNamespace(**kwargs)
 
-    async def dispatch_finalize(self, *, background_tasks, db, command):
-        self.dispatched.append((background_tasks, db, command))
+    async def dispatch_finalize(self, **kwargs):
+        self.dispatched.append(kwargs)
         return {"ok": True}
 
 
 class _DbStub:
     def __init__(self):
-        self.added = []
-        self.committed = 0
-        self.refreshed = 0
+        self.saved = []
         self._next_id = 900
 
-    def add(self, item):
-        self.added.append(item)
-
-    def commit(self):
-        self.committed += 1
-
-    def refresh(self, item):
-        self.refreshed += 1
-        if getattr(item, "id", None) is None:
-            item.id = self._next_id
+    def save_catalog_file(self, *, catalog_file):
+        self.saved.append(catalog_file)
+        if getattr(catalog_file, "id", None) is None:
+            catalog_file.id = self._next_id
             self._next_id += 1
+        return catalog_file
 
 
 def _build_service(*, fornecedor, source):
-    return FornecedorCatalogProcessService(
+    fornecedor_repo = _CrudFornecedoresStub(fornecedor=fornecedor)
+    catalog_file_repo = _DbStub()
+    service = FornecedorCatalogProcessService(
         models=_ModelsStub,
-        crud_fornecedores=_CrudFornecedoresStub(fornecedor=fornecedor),
+        fornecedor_repo=fornecedor_repo,
+        catalog_file_repository=catalog_file_repo,
         catalog_import_start_service=_CatalogImportStartServiceStub(source=source),
     )
+    return service, catalog_file_repo
 
 
 @pytest.mark.asyncio
 async def test_start_full_processing_dispatches_job():
     fornecedor = SimpleNamespace(id=3, user_id=10)
     source = SimpleNamespace(original_filename="orig.pdf", stored_filename="stored.pdf")
-    db = _DbStub()
-    service = _build_service(fornecedor=fornecedor, source=source)
+    service, catalog_file_repo = _build_service(fornecedor=fornecedor, source=source)
     user = SimpleNamespace(id=10, is_superuser=False)
 
     result = await service.start_full_processing(
         background_tasks=object(),
-        db=db,
+        db_session_factory=lambda: object(),
         current_user=user,
         file_id=99,
         fornecedor_id=3,
@@ -107,8 +103,7 @@ async def test_start_full_processing_dispatches_job():
 
     assert result["status"] == "PROCESSING"
     assert result["job_id"] == 900
-    assert db.committed == 1
-    assert len(db.added) == 1
+    assert len(catalog_file_repo.saved) == 1
 
     start_stub = service._catalog_import_start_service
     assert len(start_stub.dispatched) == 1
@@ -122,12 +117,12 @@ async def test_start_full_processing_dispatches_job():
 @pytest.mark.asyncio
 async def test_start_full_processing_raises_when_fornecedor_not_found():
     source = SimpleNamespace(original_filename="orig.pdf", stored_filename="stored.pdf")
-    service = _build_service(fornecedor=None, source=source)
+    service, _ = _build_service(fornecedor=None, source=source)
 
     with pytest.raises(HTTPException) as exc:
         await service.start_full_processing(
             background_tasks=object(),
-            db=_DbStub(),
+            db_session_factory=lambda: object(),
             current_user=SimpleNamespace(id=1, is_superuser=False),
             file_id=1,
             fornecedor_id=99,
@@ -144,12 +139,12 @@ async def test_start_full_processing_raises_when_fornecedor_not_found():
 async def test_start_full_processing_raises_when_user_not_allowed():
     fornecedor = SimpleNamespace(id=3, user_id=99)
     source = SimpleNamespace(original_filename="orig.pdf", stored_filename="stored.pdf")
-    service = _build_service(fornecedor=fornecedor, source=source)
+    service, _ = _build_service(fornecedor=fornecedor, source=source)
 
     with pytest.raises(HTTPException) as exc:
         await service.start_full_processing(
             background_tasks=object(),
-            db=_DbStub(),
+            db_session_factory=lambda: object(),
             current_user=SimpleNamespace(id=1, is_superuser=False),
             file_id=1,
             fornecedor_id=3,

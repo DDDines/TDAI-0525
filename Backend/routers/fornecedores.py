@@ -1,4 +1,4 @@
-﻿# Backend/routers/fornecedores.py
+# Backend/routers/fornecedores.py
 from collections import Counter
 from pathlib import Path
 from typing import List, Optional
@@ -58,7 +58,8 @@ from Backend.application.services.validator_crew_service import (
 )
 from Backend.application.services.service_container import (
     DependencyContainer,
-    service_container,
+    SessionDep,
+    ServiceContainer,
 )
 from Backend.core.config import settings
 from Backend.core.logging_config import get_logger
@@ -75,77 +76,86 @@ from Backend.tasks import process_pdf_extraction_task
 from . import auth_utils
 
 logger = get_logger(__name__)
-
-file_processing_service = service_container.file_processing
-web_data_extractor_service = service_container.web_data_extractor
 catalog_log_dir = Path(__file__).resolve().parent.parent / "logs"
 catalog_log_dir.mkdir(parents=True, exist_ok=True)
-catalog_quality_service = CatalogImportQualityService()
-catalog_sanitization_service = CatalogImportSanitizationService(
-    quality_service=catalog_quality_service
-)
-catalog_import_diagnostics_service = CatalogImportDiagnosticsService(
-    catalog_log_dir=catalog_log_dir,
-    logger=logger,
-    sanitization_service=catalog_sanitization_service,
-)
-validator_crew = ValidatorCrewService(logger=logger)
 produto_repository = ProductRepository
 fornecedor_repository = FornecedorRepository
 catalog_file_repository = CatalogImportFileRepository
-catalog_import_task_runner = CatalogImportTaskRunner(
-    logger=logger,
-    catalog_logger=logger,
-    models=models,
-    schemas=schemas,
-    product_repository=produto_repository,
-    catalog_file_repository=catalog_file_repository,
-    file_processing_service=file_processing_service,
-    validator_crew=validator_crew,
-    settings=settings,
-    path_cls=Path,
-    time_module=time,
-    counter_cls=Counter,
-    resolve_storage_path=catalog_import_diagnostics_service.resolve_storage_path,
-    normalize_import_issue_item=catalog_sanitization_service.normalize_import_issue_item,
-    extract_import_error_reason=catalog_sanitization_service.extract_import_error_reason,
-    is_non_critical_import_reason=catalog_sanitization_service.is_non_critical_import_reason,
-    normalizar_dados_validados=catalog_sanitization_service.normalize_validated_data,
-    sanitize_produto_extraido=catalog_sanitization_service.sanitize_extracted_product,
-    classificar_qualidade_linha_produto=catalog_quality_service.classify_product_row_quality,
-    write_catalog_import_report=catalog_import_diagnostics_service.write_catalog_import_report,
-    normalize_import_text=catalog_sanitization_service.normalize_import_text,
-)
-catalog_import_finalize_service = CatalogImportFinalizeService(
-    oop_executor=catalog_import_task_runner.execute,
-)
-catalog_import_start_service = CatalogImportStartService(
-    models=models,
-    fornecedor_repo=fornecedor_repository,
-    catalog_file_repository=catalog_file_repository,
-    settings=settings,
-    resolve_storage_path=catalog_import_diagnostics_service.resolve_storage_path,
-    finalize_service=catalog_import_finalize_service,
-)
-fornecedor_catalog_process_service = FornecedorCatalogProcessService(
-    models=models,
-    fornecedor_repo=fornecedor_repository,
-    catalog_import_start_service=catalog_import_start_service,
-)
-fornecedor_import_job_service = FornecedorImportJobService(
-    import_job_repository_cls=FornecedorImportJobRepository,
-    produto_repository_cls=ProductRepository,
-    produto_create_schema=schemas.ProdutoCreate,
-)
-fornecedor_import_tracking_service = FornecedorImportTrackingService(
-    models=models,
-    process_pdf_extraction_task=process_pdf_extraction_task,
-    catalog_file_repository=catalog_file_repository,
-)
-fornecedor_preview_service = FornecedorPreviewService(
-    file_processing_service=file_processing_service,
-    web_data_extractor_service=web_data_extractor_service,
-)
+
+
+class _FornecedoresServiceBundle:
+    def __init__(self) -> None:
+        self._service_container = ServiceContainer()
+        self.file_processing_service = self._service_container.file_processing
+        self.web_data_extractor_service = self._service_container.web_data_extractor
+
+        self.catalog_quality_service = CatalogImportQualityService()
+        self.catalog_sanitization_service = CatalogImportSanitizationService(
+            quality_service=self.catalog_quality_service
+        )
+        self.catalog_import_diagnostics_service = CatalogImportDiagnosticsService(
+            catalog_log_dir=catalog_log_dir,
+            logger=logger,
+            sanitization_service=self.catalog_sanitization_service,
+        )
+        self.validator_crew = ValidatorCrewService(logger=logger)
+        self.catalog_import_task_runner = CatalogImportTaskRunner(
+            logger=logger,
+            catalog_logger=logger,
+            models=models,
+            schemas=schemas,
+            product_repository=produto_repository,
+            catalog_file_repository=catalog_file_repository,
+            file_processing_service=self.file_processing_service,
+            validator_crew=self.validator_crew,
+            settings=settings,
+            path_cls=Path,
+            time_module=time,
+            counter_cls=Counter,
+            resolve_storage_path=self.catalog_import_diagnostics_service.resolve_storage_path,
+            normalize_import_issue_item=self.catalog_sanitization_service.normalize_import_issue_item,
+            extract_import_error_reason=self.catalog_sanitization_service.extract_import_error_reason,
+            is_non_critical_import_reason=self.catalog_sanitization_service.is_non_critical_import_reason,
+            normalizar_dados_validados=self.catalog_sanitization_service.normalize_validated_data,
+            sanitize_produto_extraido=self.catalog_sanitization_service.sanitize_extracted_product,
+            classificar_qualidade_linha_produto=self.catalog_quality_service.classify_product_row_quality,
+            write_catalog_import_report=self.catalog_import_diagnostics_service.write_catalog_import_report,
+            normalize_import_text=self.catalog_sanitization_service.normalize_import_text,
+        )
+        self.catalog_import_finalize_service = CatalogImportFinalizeService(
+            oop_executor=self.catalog_import_task_runner.execute,
+        )
+        self.catalog_import_start_service = CatalogImportStartService(
+            models=models,
+            fornecedor_repo=fornecedor_repository,
+            catalog_file_repository=catalog_file_repository,
+            settings=settings,
+            resolve_storage_path=self.catalog_import_diagnostics_service.resolve_storage_path,
+            finalize_service=self.catalog_import_finalize_service,
+        )
+        self.fornecedor_catalog_process_service = FornecedorCatalogProcessService(
+            models=models,
+            fornecedor_repo=fornecedor_repository,
+            catalog_import_start_service=self.catalog_import_start_service,
+        )
+        self.fornecedor_import_job_service = FornecedorImportJobService(
+            import_job_repository_cls=FornecedorImportJobRepository,
+            produto_repository_cls=ProductRepository,
+            produto_create_schema=schemas.ProdutoCreate,
+        )
+        self.fornecedor_import_tracking_service = FornecedorImportTrackingService(
+            models=models,
+            process_pdf_extraction_task=process_pdf_extraction_task,
+            catalog_file_repository=catalog_file_repository,
+        )
+        self.fornecedor_preview_service = FornecedorPreviewService(
+            file_processing_service=self.file_processing_service,
+            web_data_extractor_service=self.web_data_extractor_service,
+        )
+
+
+def _build_fornecedores_service_bundle() -> _FornecedoresServiceBundle:
+    return _FornecedoresServiceBundle()
 
 router = APIRouter(
     prefix="/fornecedores",
@@ -421,6 +431,13 @@ class _FornecedoresRouterWorkflow:
 class _FornecedoresRouterRuntime:
     """Runtime OO para integrações do router de fornecedores."""
 
+    def __init__(
+        self,
+        *,
+        services: Optional[_FornecedoresServiceBundle] = None,
+    ) -> None:
+        self._services = services or _build_fornecedores_service_bundle()
+
     @staticmethod
     def _resolve_management_service(kwargs: dict) -> FornecedorManagementService:
         fornecedor_management_service = kwargs.pop("fornecedor_management_service", None)
@@ -453,31 +470,57 @@ class _FornecedoresRouterRuntime:
         return fornecedor_management_service.update_mapping(**kwargs)
 
     async def preview_pages(self, **kwargs):
-        return await fornecedor_preview_service.preview_pages(**kwargs)
+        return await self._services.fornecedor_preview_service.preview_pages(**kwargs)
 
     def preview_pdf(self, **kwargs):
-        return fornecedor_preview_service.preview_pdf(**kwargs)
+        db = kwargs.pop("db", None)
+        if db is not None:
+            kwargs["catalog_file_repo"] = CatalogImportFileRepository(db)
+        return self._services.fornecedor_preview_service.preview_pdf(**kwargs)
 
     def preview_catalog_from_region(self, **kwargs):
-        return fornecedor_preview_service.preview_catalog_from_region(**kwargs)
+        db = kwargs.pop("db", None)
+        if db is not None:
+            kwargs["catalog_file_repo"] = CatalogImportFileRepository(db)
+        return self._services.fornecedor_preview_service.preview_catalog_from_region(
+            **kwargs
+        )
 
     def extract_data_from_pdf_bulk(self, **kwargs):
-        return fornecedor_preview_service.extract_data_from_pdf_bulk(**kwargs)
+        db = kwargs.pop("db", None)
+        if db is not None:
+            kwargs["catalog_file_repo"] = CatalogImportFileRepository(db)
+        return self._services.fornecedor_preview_service.extract_data_from_pdf_bulk(
+            **kwargs
+        )
 
     def get_catalog_record_or_404(self, **kwargs):
         db = kwargs.pop("db", None)
         if db is not None:
             kwargs["catalog_file_repo"] = CatalogImportFileRepository(db)
-        return fornecedor_import_tracking_service.get_catalog_record_or_404(**kwargs)
+        return self._services.fornecedor_import_tracking_service.get_catalog_record_or_404(
+            **kwargs
+        )
 
     def build_progress_payload(self, **kwargs):
-        return fornecedor_import_tracking_service.build_progress_payload(**kwargs)
+        return self._services.fornecedor_import_tracking_service.build_progress_payload(
+            **kwargs
+        )
 
     async def start_full_processing(self, **kwargs):
-        return await fornecedor_catalog_process_service.start_full_processing(**kwargs)
+        db = kwargs.pop("db", None)
+        if db is not None:
+            kwargs["fornecedor_repo"] = FornecedorRepository(db)
+            kwargs["catalog_file_repo"] = CatalogImportFileRepository(db)
+            kwargs["db_session_factory"] = sessionmaker(bind=db.get_bind())
+        return await self._services.fornecedor_catalog_process_service.start_full_processing(
+            **kwargs
+        )
 
     def schedule_page_extraction(self, **kwargs):
-        return fornecedor_import_tracking_service.schedule_page_extraction(**kwargs)
+        return self._services.fornecedor_import_tracking_service.schedule_page_extraction(
+            **kwargs
+        )
 
     def delete_fornecedor(self, **kwargs):
         fornecedor_management_service = self._resolve_management_service(kwargs)
@@ -487,19 +530,23 @@ class _FornecedoresRouterRuntime:
         db = kwargs.pop("db", None)
         if db is not None:
             kwargs["import_job_repo"] = FornecedorImportJobRepository(db)
-        return fornecedor_import_job_service.get_job_for_user_or_404(**kwargs)
+        return self._services.fornecedor_import_job_service.get_job_for_user_or_404(
+            **kwargs
+        )
 
     def build_review_payload(self, **kwargs):
-        return fornecedor_import_job_service.build_review_payload(**kwargs)
+        return self._services.fornecedor_import_job_service.build_review_payload(**kwargs)
 
     def schedule_commit(self, **kwargs):
         db = kwargs.pop("db", None)
         if db is not None:
             kwargs["db_session_factory"] = sessionmaker(bind=db.get_bind())
-        return fornecedor_import_job_service.schedule_commit(**kwargs)
+        return self._services.fornecedor_import_job_service.schedule_commit(**kwargs)
 
     def build_import_job_status_payload(self, **kwargs):
-        return fornecedor_import_tracking_service.build_import_job_status_payload(**kwargs)
+        return self._services.fornecedor_import_tracking_service.build_import_job_status_payload(
+            **kwargs
+        )
 
 
 FornecedoresRouterWorkflow = _FornecedoresRouterWorkflow
@@ -516,12 +563,12 @@ class _FornecedoresRequestContext:
         db: Session,
         fornecedor_management_service: FornecedorManagementService,
     ) -> None:
-        self.db = db
+        self.db=db
         self.fornecedor_management_service = fornecedor_management_service
 
 
 def _build_fornecedores_request_context(
-    db: Session = Depends(DependencyContainer.get_db_session),
+    db: SessionDep,
 ) -> _FornecedoresRequestContext:
     return _FornecedoresRequestContext(
         db=db,

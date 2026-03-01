@@ -8,10 +8,14 @@ from sqlalchemy.orm import Session
 
 from Backend import models
 from Backend import schemas
-from Backend.application.services.data_access_service import data_access_service
+from Backend.application.services.service_container import (
+    DependencyContainer,
+    SessionDep,
+)
 from Backend.auth import get_current_active_user
 from Backend.core.logging_config import get_logger
-from Backend.database import get_db
+from Backend.infrastructure.repositories.historico_repository import HistoricoRepository
+from Backend.infrastructure.repositories.user_repository import UserRepository
 
 router = APIRouter()
 logger = get_logger(__name__)
@@ -195,7 +199,7 @@ class _AdminAnalyticsRouterRuntime:
         )
 
     def get_planos(self, *, db: Session, skip: int, limit: int):
-        return data_access_service.users.get_planos(db, skip=skip, limit=limit)
+        return UserRepository(db).get_planos(skip=skip, limit=limit)
 
     def count_uso_ia_for_plano(self, *, db: Session, plano_id: int, start_of_month: datetime) -> int:
         return (
@@ -221,7 +225,7 @@ class _AdminAnalyticsRouterRuntime:
         )
 
     def get_users(self, *, db: Session, skip: int, limit: int):
-        return data_access_service.users.get_users(db, skip=skip, limit=limit)
+        return UserRepository(db).get_users(skip=skip, limit=limit)
 
     def count_produtos_for_user(self, *, db: Session, user_id: int) -> int:
         return (
@@ -264,30 +268,37 @@ class _AdminAnalyticsRouterRuntime:
         return db.get(models.User, user_id)
 
     def get_registros_historico(self, *, db: Session, skip: int, limit: int):
-        return data_access_service.historico.get_registros_historico(
-            db,
+        return HistoricoRepository(db).get_registros_historico(
             skip=skip,
             limit=limit,
         )
 
 
-admin_analytics_router_runtime = _AdminAnalyticsRouterRuntime()
-admin_analytics_router_workflow = _AdminAnalyticsRouterWorkflow(
-    runtime=admin_analytics_router_runtime
-)
 AdminAnalyticsRouterWorkflow = _AdminAnalyticsRouterWorkflow
 
 
 def get_admin_analytics_router_workflow() -> AdminAnalyticsRouterWorkflow:
-    return admin_analytics_router_workflow
+    return AdminAnalyticsRouterWorkflow(runtime=_AdminAnalyticsRouterRuntime())
 
 
 async def get_current_active_admin_user(
     current_user: models.User = Depends(get_current_active_user),
 ):
-    return await admin_analytics_router_workflow.get_current_active_admin_user(
+    workflow = get_admin_analytics_router_workflow()
+    return await workflow.get_current_active_admin_user(
         current_user=current_user
     )
+
+
+class _AdminAnalyticsRequestContext:
+    def __init__(self, db: Session) -> None:
+        self.db=db
+
+
+def _build_admin_analytics_request_context(
+    db: SessionDep,
+) -> _AdminAnalyticsRequestContext:
+    return _AdminAnalyticsRequestContext(db=db)
 
 
 @router.get(
@@ -295,8 +306,13 @@ async def get_current_active_admin_user(
     response_model=schemas.TotalCounts,
     dependencies=[Depends(get_current_active_admin_user)],
 )
-async def get_total_counts_endpoint(db: Session = Depends(get_db)):
-    return admin_analytics_router_workflow.get_total_counts(db=db)
+async def get_total_counts_endpoint(
+    request_context: _AdminAnalyticsRequestContext = Depends(
+        _build_admin_analytics_request_context
+    ),
+):
+    workflow = get_admin_analytics_router_workflow()
+    return workflow.get_total_counts(db=request_context.db)
 
 
 @router.get(
@@ -304,8 +320,13 @@ async def get_total_counts_endpoint(db: Session = Depends(get_db)):
     response_model=List[schemas.UsoIAPorPlano],
     dependencies=[Depends(get_current_active_admin_user)],
 )
-async def get_uso_ia_por_plano_endpoint(db: Session = Depends(get_db)):
-    return admin_analytics_router_workflow.get_uso_ia_por_plano(db=db)
+async def get_uso_ia_por_plano_endpoint(
+    request_context: _AdminAnalyticsRequestContext = Depends(
+        _build_admin_analytics_request_context
+    ),
+):
+    workflow = get_admin_analytics_router_workflow()
+    return workflow.get_uso_ia_por_plano(db=request_context.db)
 
 
 @router.get(
@@ -313,8 +334,13 @@ async def get_uso_ia_por_plano_endpoint(db: Session = Depends(get_db)):
     response_model=List[schemas.UsoIAPorTipo],
     dependencies=[Depends(get_current_active_admin_user)],
 )
-async def get_uso_ia_por_tipo_endpoint(db: Session = Depends(get_db)):
-    return admin_analytics_router_workflow.get_uso_ia_por_tipo(db=db)
+async def get_uso_ia_por_tipo_endpoint(
+    request_context: _AdminAnalyticsRequestContext = Depends(
+        _build_admin_analytics_request_context
+    ),
+):
+    workflow = get_admin_analytics_router_workflow()
+    return workflow.get_uso_ia_por_tipo(db=request_context.db)
 
 
 @router.get(
@@ -323,12 +349,15 @@ async def get_uso_ia_por_tipo_endpoint(db: Session = Depends(get_db)):
     dependencies=[Depends(get_current_active_admin_user)],
 )
 async def get_user_activity_endpoint(
-    db: Session = Depends(get_db),
+    request_context: _AdminAnalyticsRequestContext = Depends(
+        _build_admin_analytics_request_context
+    ),
     skip: int = Query(0, ge=0),
     limit: int = Query(100, ge=1, le=200),
 ):
-    return admin_analytics_router_workflow.get_user_activity(
-        db=db,
+    workflow = get_admin_analytics_router_workflow()
+    return workflow.get_user_activity(
+        db=request_context.db,
         skip=skip,
         limit=limit,
     )
@@ -339,8 +368,13 @@ async def get_user_activity_endpoint(
     response_model=List[schemas.ProductStatusCount],
     dependencies=[Depends(get_current_active_admin_user)],
 )
-async def get_product_status_counts(db: Session = Depends(get_db)):
-    return admin_analytics_router_workflow.get_product_status_counts(db=db)
+async def get_product_status_counts(
+    request_context: _AdminAnalyticsRequestContext = Depends(
+        _build_admin_analytics_request_context
+    ),
+):
+    workflow = get_admin_analytics_router_workflow()
+    return workflow.get_product_status_counts(db=request_context.db)
 
 
 @router.get(
@@ -349,10 +383,16 @@ async def get_product_status_counts(db: Session = Depends(get_db)):
     dependencies=[Depends(get_current_active_admin_user)],
 )
 async def get_recent_activities(
-    db: Session = Depends(get_db),
+    request_context: _AdminAnalyticsRequestContext = Depends(
+        _build_admin_analytics_request_context
+    ),
     limit: int = Query(10, ge=1, le=50),
 ):
-    return admin_analytics_router_workflow.get_recent_activities(db=db, limit=limit)
+    workflow = get_admin_analytics_router_workflow()
+    return workflow.get_recent_activities(
+        db=request_context.db,
+        limit=limit,
+    )
 
 
 @router.get(
@@ -361,10 +401,16 @@ async def get_recent_activities(
     dependencies=[Depends(get_current_active_admin_user)],
 )
 async def get_recent_historico(
-    db: Session = Depends(get_db),
+    request_context: _AdminAnalyticsRequestContext = Depends(
+        _build_admin_analytics_request_context
+    ),
     limit: int = Query(10, ge=1, le=50),
 ):
-    return admin_analytics_router_workflow.get_recent_historico(db=db, limit=limit)
+    workflow = get_admin_analytics_router_workflow()
+    return workflow.get_recent_historico(
+        db=request_context.db,
+        limit=limit,
+    )
 
 
 

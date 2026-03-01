@@ -1,9 +1,9 @@
 import pytest
 from pathlib import Path
 
-from Backend.application.services.service_container import service_container
+from Backend.application.services.service_container import ServiceContainer
 
-file_processing_service = service_container.file_processing
+file_processing_service = ServiceContainer().file_processing
 
 
 def test_ocr_extraction_on_scanned_pdf():
@@ -26,3 +26,4 @@ def test_region_extraction_does_not_explode_structure():
     assert not df.empty
     assert len(df.columns) <= 30
     assert len(df.index) <= 2000
+

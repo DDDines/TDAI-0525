@@ -18,18 +18,15 @@ class _LoggingRuntime:
     def get_logger(self, *, name: str) -> logging.Logger:
         return logging.getLogger(name)
 
-
-logging_runtime = _LoggingRuntime()
-_logging_workflow = _LoggingWorkflow(runtime=logging_runtime)
 LoggingWorkflow = _LoggingWorkflow
 
 
 def get_logging_workflow() -> LoggingWorkflow:
-    return _logging_workflow
+    return LoggingWorkflow()
 
 
 def get_logger(name: str) -> logging.Logger:
-    return _logging_workflow.get_logger(name=name)
+    return get_logging_workflow().get_logger(name=name)
 
 
 

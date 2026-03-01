@@ -104,19 +104,7 @@ class _WebEnrichmentTaskWorkflow:
         metadata_has_minimum_signal,
         is_source_relevant_for_product,
         runtime: Optional[Any] = None,
-        **legacy_kwargs: Any,
     ) -> None:
-        legacy_prefix = "c" + "rud_"
-        if user_repository is None:
-            user_repository = legacy_kwargs.pop(legacy_prefix + "users", None)
-        if product_repository is None:
-            product_repository = legacy_kwargs.pop(legacy_prefix + "produtos", None)
-        if usage_repository is None:
-            legacy_usage_key = legacy_prefix + "registros_uso_ia"
-            usage_repository = legacy_kwargs.pop(legacy_usage_key, None)
-            if usage_repository is None:
-                usage_repository = legacy_kwargs.pop("c" + "rud", None)
-
         runtime_obj = _WebEnrichmentTaskRuntime(
             logger=logger,
             SQLAlchemyError=SQLAlchemyError,
@@ -173,14 +161,14 @@ class _WebEnrichmentTaskWorkflow:
             return call_repository_method(
                 self.product_repository,
                 "get_produto_for_update",
-                db=session,
+                session=session,
                 produto_id=produto_id,
             )
         except AttributeError:
             return call_repository_method(
                 self.product_repository,
                 "get_produto",
-                db=session,
+                session=session,
                 produto_id=produto_id,
             )
 
@@ -195,7 +183,7 @@ class _WebEnrichmentTaskWorkflow:
         call_repository_method(
             self.usage_repository,
             "create_registro_uso_ia",
-            db=session,
+            session=session,
             registro_uso=self.schemas.RegistroUsoIACreate(
                 user_id=user_id,
                 produto_id=produto_id,
@@ -468,7 +456,7 @@ class _WebEnrichmentTaskWorkflow:
             user = call_repository_method(
                 self.user_repository,
                 "get_user",
-                db=db,
+                session=db,
                 user_id=user_id,
             )
             if not user:
@@ -664,17 +652,7 @@ class WebEnrichmentTaskService:
         user_repository=None,
         product_repository=None,
         usage_repository=None,
-        **legacy_kwargs: Any,
     ):
-        legacy_prefix = "c" + "rud_"
-        if user_repository is None:
-            user_repository = legacy_kwargs.pop(legacy_prefix + "users", None)
-        if product_repository is None:
-            product_repository = legacy_kwargs.pop(legacy_prefix + "produtos", None)
-        if usage_repository is None:
-            legacy_usage_key = "cr" + "ud"
-            usage_repository = legacy_kwargs.pop(legacy_usage_key, None)
-
         self._deps = {
             "logger": logger,
             "SQLAlchemyError": SQLAlchemyError,

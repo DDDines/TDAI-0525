@@ -2,14 +2,14 @@ from __future__ import annotations
 
 from typing import Any
 
-from Backend.infrastructure.runtime_modules.limit_module import get_limit_workflow
+from Backend.infrastructure.runtime_modules.limit_module import LimitWorkflow
 
 
 class LimitRuntimeService:
     """Explicit runtime service surface for limits and credits flows."""
 
     def __init__(self) -> None:
-        self._workflow = get_limit_workflow()
+        self._workflow = LimitWorkflow()
 
     def verificar_limite_uso(self, *args: Any, **kwargs: Any):
         return self._workflow.verificar_limite_uso(*args, **kwargs)
@@ -25,7 +25,3 @@ class LimitRuntimeService:
             *args,
             **kwargs,
         )
-
-
-limit_runtime_service = LimitRuntimeService()
-

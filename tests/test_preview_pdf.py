@@ -30,9 +30,9 @@ except ImportError:
     from reportlab.lib.pagesizes import letter
     from reportlab.lib.styles import getSampleStyleSheet
 
-from Backend.application.services.service_container import service_container
+from Backend.application.services.service_container import ServiceContainer
 
-file_processing_service = service_container.file_processing
+file_processing_service = ServiceContainer().file_processing
 
 
 def _create_pdf(pages: int = 1) -> bytes:
@@ -86,3 +86,4 @@ async def test_preview_pdf_offset_and_limit():
     assert res["num_pages"] == 5
     assert len(res["preview_images"]) == 2
     assert {img["page"] for img in res["preview_images"]} == {2, 3}
+

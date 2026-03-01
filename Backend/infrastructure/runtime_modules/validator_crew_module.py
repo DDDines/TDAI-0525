@@ -25,20 +25,23 @@ else:
     ChatOpenAI = None  # type: ignore
     CREW_RUNTIME_AVAILABLE = False
 
-_openai_key = os.getenv("OPENAI_API_KEY")
-llm = (
-    ChatOpenAI(
-        model="gpt-4-turbo",
-        verbose=True,
-        temperature=0.1,
-    )
-    if _openai_key and CREW_RUNTIME_AVAILABLE
-    else None
-)
+class _ValidationCrewFactory:
+    @staticmethod
+    def build_llm():
+        openai_key = os.getenv("OPENAI_API_KEY")
+        if not (openai_key and CREW_RUNTIME_AVAILABLE):
+            return None
+        return ChatOpenAI(
+            model="gpt-4-turbo",
+            verbose=True,
+            temperature=0.1,
+        )
 
-_validation_executor = ThreadPoolExecutor(
-    max_workers=max(1, int(os.getenv("VALIDATION_CREW_WORKERS", "2")))
-)
+    @staticmethod
+    def build_executor() -> ThreadPoolExecutor:
+        return ThreadPoolExecutor(
+            max_workers=max(1, int(os.getenv("VALIDATION_CREW_WORKERS", "2")))
+        )
 
 
 class _ValidationCrewPromptBuilder:
@@ -174,27 +177,22 @@ class _ValidationCrewRuntime:
 class _ValidationCrewWorkflow:
     """Workflow OO para validacao opcional via crewAI."""
 
-    def __init__(self, runtime: _ValidationCrewRuntime) -> None:
-        self._runtime = runtime
+    def __init__(self, runtime: _ValidationCrewRuntime | None = None) -> None:
+        self._runtime = runtime or _ValidationCrewRuntime(
+            llm_instance=_ValidationCrewFactory.build_llm(),
+            runtime_available=CREW_RUNTIME_AVAILABLE,
+            agent_cls=Agent,
+            task_cls=Task,
+            crew_cls=Crew,
+            process_cls=Process,
+            executor=_ValidationCrewFactory.build_executor(),
+        )
 
     def run_validation_crew(self, raw_data: Any, timeout_seconds: int = 8):
         return self._runtime.run(raw_data=raw_data, timeout_seconds=timeout_seconds)
 
 
 ValidationCrewWorkflow = _ValidationCrewWorkflow
-
-
-def get_validation_crew_workflow() -> ValidationCrewWorkflow:
-    runtime = _ValidationCrewRuntime(
-        llm_instance=llm,
-        runtime_available=CREW_RUNTIME_AVAILABLE,
-        agent_cls=Agent,
-        task_cls=Task,
-        crew_cls=Crew,
-        process_cls=Process,
-        executor=_validation_executor,
-    )
-    return _ValidationCrewWorkflow(runtime)
 
 
 

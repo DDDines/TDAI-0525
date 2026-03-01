@@ -2,9 +2,8 @@ from __future__ import annotations
 
 from Backend.infrastructure.runtime_services.limit_runtime_service import (
     LimitRuntimeService,
-    limit_runtime_service,
 )
 
 
 def get_runtime_service() -> LimitRuntimeService:
-    return limit_runtime_service
+    return LimitRuntimeService()

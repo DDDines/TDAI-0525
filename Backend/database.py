@@ -32,23 +32,21 @@ class _DatabaseRuntime:
         finally:
             db.close()
 
-
-_database_workflow = _DatabaseWorkflow()
 DatabaseWorkflow = _DatabaseWorkflow
 
 
 def get_database_workflow() -> DatabaseWorkflow:
-    return _database_workflow
+    return DatabaseWorkflow()
 
 
-engine_args = _database_workflow.build_engine_args(settings.DATABASE_URL)
+engine_args = get_database_workflow().build_engine_args(settings.DATABASE_URL)
 engine = create_engine(settings.DATABASE_URL, **engine_args)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base = declarative_base()
 
 
 def get_db():
-    yield from _database_workflow.get_db()
+    yield from get_database_workflow().get_db()
 
 
 

@@ -2,9 +2,9 @@ import asyncio
 import pandas as pd
 import io
 
-from Backend.application.services.service_container import service_container
+from Backend.application.services.service_container import ServiceContainer
 
-file_processing_service = service_container.file_processing
+file_processing_service = ServiceContainer().file_processing
 
 def create_excel_bytes():
     output = io.BytesIO()
@@ -26,3 +26,4 @@ def test_processar_apenas_uma_aba():
     content = create_excel_bytes()
     res = asyncio.run(call_process(content, sheet="Segunda"))
     assert len(res) == 1
+

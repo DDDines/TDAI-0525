@@ -4,9 +4,16 @@ from typing import List, Optional
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session
 
-from Backend import database, models, schemas
-from Backend.application.services.data_access_service import data_access_service
+from Backend import models, schemas
+from Backend.application.services.service_container import (
+    DependencyContainer,
+    SessionDep,
+)
 from Backend.core.logging_config import get_logger
+from Backend.infrastructure.repositories.product_repository import ProductRepository
+from Backend.infrastructure.repositories.registro_uso_ia_repository import (
+    RegistroUsoIARepository,
+)
 from . import auth_utils
 
 router = APIRouter(
@@ -138,16 +145,15 @@ class _UsoIARuntime:
     """Runtime OO para integraÃ§Ãµes do router de uso de IA."""
 
     def create_registro_uso_ia(self, *, db: Session, registro_uso):
-        return data_access_service.uso_ia.create_registro_uso_ia(
-            db,
+        return RegistroUsoIARepository(db).create_registro_uso_ia(
             registro_uso=registro_uso,
         )
 
     def get_registros_uso_ia(self, *, db: Session, **kwargs):
-        return data_access_service.uso_ia.get_registros_uso_ia(db, **kwargs)
+        return RegistroUsoIARepository(db).get_registros_uso_ia(**kwargs)
 
     def count_registros_uso_ia(self, *, db: Session, **kwargs):
-        return data_access_service.uso_ia.count_registros_uso_ia(db, **kwargs)
+        return RegistroUsoIARepository(db).count_registros_uso_ia(**kwargs)
 
     def get_registro_uso_ia_by_id(self, *, db: Session, registro_id: int):
         return (
@@ -157,32 +163,39 @@ class _UsoIARuntime:
         )
 
     def get_produto(self, *, db: Session, produto_id: int):
-        return data_access_service.produtos.get_produto(
-            db,
-            produto_id=produto_id,
-        )
+        return ProductRepository(db).get_produto(produto_id=produto_id)
 
     def get_usos_ia_by_produto(self, *, db: Session, **kwargs):
-        return data_access_service.uso_ia.get_usos_ia_by_produto(db, **kwargs)
+        return RegistroUsoIARepository(db).get_usos_ia_by_produto(**kwargs)
 
 
-uso_ia_runtime = _UsoIARuntime()
-_uso_ia_workflow = _UsoIAWorkflow(runtime=uso_ia_runtime)
 UsoIAWorkflow = _UsoIAWorkflow
 
 
 def get_uso_ia_workflow() -> UsoIAWorkflow:
-    return _uso_ia_workflow
+    return UsoIAWorkflow(runtime=_UsoIARuntime())
+
+
+class _UsoIARequestContext:
+    def __init__(self, db: Session) -> None:
+        self.db=db
+
+
+def _build_uso_ia_request_context(
+    db: SessionDep,
+) -> _UsoIARequestContext:
+    return _UsoIARequestContext(db=db)
 
 
 @router.post("/", response_model=schemas.RegistroUsoIAResponse, status_code=status.HTTP_201_CREATED)
 def create_uso_ia_endpoint(
     uso_ia_data: schemas.RegistroUsoIACreate,
-    db: Session = Depends(database.get_db),
     current_user: models.User = Depends(auth_utils.get_current_active_user),
+    request_context: _UsoIARequestContext = Depends(_build_uso_ia_request_context),
 ):
-    return _uso_ia_workflow.create_uso_ia(
-        db=db,
+    workflow = get_uso_ia_workflow()
+    return workflow.create_uso_ia(
+        db=request_context.db,
         current_user=current_user,
         uso_ia_data=uso_ia_data,
     )
@@ -190,16 +203,17 @@ def create_uso_ia_endpoint(
 
 @router.get("/", response_model=schemas.UsoIAPage)
 def read_usos_ia_usuario_logado(
-    db: Session = Depends(database.get_db),
     current_user: models.User = Depends(auth_utils.get_current_active_user),
+    request_context: _UsoIARequestContext = Depends(_build_uso_ia_request_context),
     skip: int = Query(0, ge=0, description="Numero de itens para pular"),
     limit: int = Query(100, ge=1, le=200, description="Numero maximo por pagina"),
     tipo_geracao: Optional[str] = Query(None, description="Filtrar por tipo de geracao"),
     data_inicio: Optional[datetime] = Query(None, description="Data de inicio (ISO)"),
     data_fim: Optional[datetime] = Query(None, description="Data de fim (ISO)"),
 ):
-    return _uso_ia_workflow.list_usos_ia_usuario(
-        db=db,
+    workflow = get_uso_ia_workflow()
+    return workflow.list_usos_ia_usuario(
+        db=request_context.db,
         current_user=current_user,
         skip=skip,
         limit=limit,
@@ -212,13 +226,14 @@ def read_usos_ia_usuario_logado(
 @router.get("/por-produto/{produto_id}", response_model=List[schemas.RegistroUsoIAResponse])
 def read_usos_ia_por_produto(
     produto_id: int,
-    db: Session = Depends(database.get_db),
     current_user: models.User = Depends(auth_utils.get_current_active_user),
+    request_context: _UsoIARequestContext = Depends(_build_uso_ia_request_context),
     skip: int = Query(0, ge=0),
     limit: int = Query(100, ge=1, le=200),
 ):
-    return _uso_ia_workflow.read_usos_ia_por_produto(
-        db=db,
+    workflow = get_uso_ia_workflow()
+    return workflow.read_usos_ia_por_produto(
+        db=request_context.db,
         current_user=current_user,
         produto_id=produto_id,
         skip=skip,
@@ -229,11 +244,12 @@ def read_usos_ia_por_produto(
 @router.get("/{registro_id}", response_model=schemas.RegistroUsoIAResponse)
 def read_uso_ia_especifico(
     registro_id: int,
-    db: Session = Depends(database.get_db),
     current_user: models.User = Depends(auth_utils.get_current_active_user),
+    request_context: _UsoIARequestContext = Depends(_build_uso_ia_request_context),
 ):
-    return _uso_ia_workflow.read_uso_ia_especifico(
-        db=db,
+    workflow = get_uso_ia_workflow()
+    return workflow.read_uso_ia_especifico(
+        db=request_context.db,
         current_user=current_user,
         registro_id=registro_id,
     )

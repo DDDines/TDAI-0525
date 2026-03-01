@@ -1,6 +1,5 @@
 # Backend/infrastructure/runtime_modules/web_data_extractor_module.py
 import asyncio
-from dataclasses import dataclass
 import sys
 import time
 from playwright.async_api import async_playwright, TimeoutError as PlaywrightTimeoutError
@@ -18,7 +17,6 @@ from datetime import datetime, timezone
 from Backend.core.logging_config import get_logger
 
 logger = get_logger(__name__)
-PLAYWRIGHT_CHROMIUM_INDISPONIVEL = False
 
 
 try:
@@ -36,7 +34,6 @@ from Backend.core.config import settings
 from Backend import models
 from Backend.infrastructure.runtime_modules.ia_generation_module import (
     AiProviderWorkflow,
-    get_ai_provider_workflow,
 )
 _TRACKING_QUERY_HINTS = (
     "ad_domain=",
@@ -506,9 +503,7 @@ class _WebContentFetchEngineRuntime:
         return self._playwright_chromium_indisponivel
 
     def set_playwright_chromium_indisponivel(self, value: bool) -> None:
-        global PLAYWRIGHT_CHROMIUM_INDISPONIVEL
         self._playwright_chromium_indisponivel = bool(value)
-        PLAYWRIGHT_CHROMIUM_INDISPONIVEL = self._playwright_chromium_indisponivel
 
     def coletar_conteudo_pagina_http_sync(
         self,
@@ -691,114 +686,6 @@ class _WebContentFetchEngineRuntime:
             return await self.coletar_conteudo_pagina_http(url)
 
 
-def _get_search_cache_lock() -> asyncio.Lock:
-    return get_web_data_extractor_runtime_state().search_engine_runtime.get_search_cache_lock()
-
-
-def _get_search_semaphore() -> asyncio.Semaphore:
-    return get_web_data_extractor_runtime_state().search_engine_runtime.get_search_semaphore()
-
-
-async def _search_cache_get(query_key: str) -> Optional[List[str]]:
-    return await get_web_data_extractor_runtime_state().search_engine_runtime.search_cache_get(
-        query_key
-    )
-
-
-async def _search_cache_set(query_key: str, urls: List[str]) -> None:
-    await get_web_data_extractor_runtime_state().search_engine_runtime.search_cache_set(
-        query_key, urls
-    )
-
-
-def _score_url_publica(url: str) -> int:
-    return get_web_data_extractor_runtime_state().search_engine_runtime.score_url_publica(url)
-
-
-def _extract_redirect_destination(query: str) -> Optional[str]:
-    return get_web_data_extractor_runtime_state().search_engine_runtime.extract_redirect_destination(
-        query
-    )
-
-
-def _unwrap_redirect_url(url: str, max_hops: int = 3) -> str:
-    return get_web_data_extractor_runtime_state().search_engine_runtime.unwrap_redirect_url(
-        url,
-        max_hops=max_hops,
-    )
-
-
-def _url_deve_ser_ignorada_antes_da_coleta(url: str) -> bool:
-    return (
-        get_web_data_extractor_runtime_state()
-        .search_engine_runtime.url_deve_ser_ignorada_antes_da_coleta(url)
-    )
-
-
-def _normalizar_url_busca(candidata: str, base_url: str) -> Optional[str]:
-    return get_web_data_extractor_runtime_state().search_engine_runtime.normalizar_url_busca(
-        candidata,
-        base_url,
-    )
-
-
-def _buscar_urls_publicas_sync(query: str, num_results: int = 3) -> List[str]:
-    return get_web_data_extractor_runtime_state().search_engine_runtime.buscar_urls_publicas_sync(
-        query=query,
-        num_results=num_results,
-    )
-
-
-async def _buscar_urls_publicas_async(query: str, num_results: int = 3) -> List[str]:
-    return await get_web_data_extractor_runtime_state().search_engine_runtime.buscar_urls_publicas_async(
-        query=query,
-        num_results=num_results,
-    )
-
-
-async def _buscar_urls_google_async(query: str, num_results: int = 3) -> List[str]:
-    return await get_web_data_extractor_runtime_state().search_engine_runtime.buscar_urls_google_async(
-        query=query,
-        num_results=num_results,
-    )
-
-
-# --- Playwright Content Fetching Service ---
-def _coletar_conteudo_pagina_http_sync(url: str, timeout: int = 20) -> Optional[str]:
-    return get_web_data_extractor_runtime_state().content_fetch_engine_runtime.coletar_conteudo_pagina_http_sync(
-        url=url,
-        timeout=timeout,
-    )
-
-
-async def _coletar_conteudo_pagina_http(url: str, timeout: int = 20) -> Optional[str]:
-    return await get_web_data_extractor_runtime_state().content_fetch_engine_runtime.coletar_conteudo_pagina_http(
-        url=url,
-        timeout=timeout,
-    )
-
-
-async def _coletar_conteudo_pagina_playwright_core(url: str) -> Optional[str]:
-    return await (
-        get_web_data_extractor_runtime_state()
-        .content_fetch_engine_runtime.coletar_conteudo_pagina_playwright_core(url=url)
-    )
-
-
-def _coletar_conteudo_playwright_em_thread_sync(url: str) -> Optional[str]:
-    return (
-        get_web_data_extractor_runtime_state()
-        .content_fetch_engine_runtime.coletar_conteudo_playwright_em_thread_sync(url=url)
-    )
-
-
-async def _coletar_conteudo_pagina_playwright(url: str) -> Optional[str]:
-    return await (
-        get_web_data_extractor_runtime_state()
-        .content_fetch_engine_runtime.coletar_conteudo_pagina_playwright(url)
-    )
-
-
 class _WebSearchWorkflow:
     """Workflow OO para estrategias de busca web."""
 
@@ -849,10 +736,7 @@ class _WebSearchRuntime:
         self,
         engine_runtime: Optional[_WebSearchEngineRuntime] = None,
     ) -> None:
-        self._engine_runtime = (
-            engine_runtime
-            or get_web_data_extractor_runtime_state().search_engine_runtime
-        )
+        self._engine_runtime = engine_runtime or _WebSearchEngineRuntime()
 
     def busca_publica_disponivel(self) -> bool:
         return self._engine_runtime.busca_publica_disponivel()
@@ -894,9 +778,8 @@ class _WebContentCollectionRuntime:
         self,
         engine_runtime: Optional[_WebContentFetchEngineRuntime] = None,
     ) -> None:
-        self._engine_runtime = (
-            engine_runtime
-            or get_web_data_extractor_runtime_state().content_fetch_engine_runtime
+        self._engine_runtime = engine_runtime or _WebContentFetchEngineRuntime(
+            search_runtime=_WebSearchEngineRuntime()
         )
 
     async def coletar_conteudo_pagina_playwright(self, url: str) -> Optional[str]:
@@ -907,14 +790,6 @@ class _WebContentCollectionRuntime:
 
 WebSearchWorkflow = _WebSearchWorkflow
 WebContentCollectionWorkflow = _WebContentCollectionWorkflow
-
-
-def get_web_search_workflow() -> WebSearchWorkflow:
-    return get_web_data_extractor_runtime_state().search_workflow
-
-
-def get_web_content_collection_workflow() -> WebContentCollectionWorkflow:
-    return get_web_data_extractor_runtime_state().content_collection_workflow
 
 
 # --- Text Extraction Service ---
@@ -1068,32 +943,6 @@ class _MetadataExtractionRuntime:
         return {k: v for k, v in dados_norm.items() if v is not None and v != ""}
 
 
-def _extrair_texto_principal_com_trafilatura(html_content: str) -> Optional[str]:
-    return (
-        get_web_data_extractor_runtime_state()
-        .metadata_extraction_runtime.extrair_texto_principal_com_trafilatura(html_content)
-    )
-
-
-def _limpar_valor_metadado(valor: Any) -> Optional[Any]:
-    return get_web_data_extractor_runtime_state().metadata_extraction_runtime.limpar_valor_metadado(
-        valor
-    )
-
-
-def _extrair_metadados_estruturados(html_content: str, url: str) -> Dict[str, Any]:
-    return get_web_data_extractor_runtime_state().metadata_extraction_runtime.extrair_metadados_estruturados(
-        html_content=html_content,
-        url=url,
-    )
-
-
-def _normalizar_dados_de_metadados(metadata_bruta: Dict[str, Any]) -> Dict[str, Any]:
-    return (
-        get_web_data_extractor_runtime_state()
-        .metadata_extraction_runtime.normalizar_dados_de_metadados(metadata_bruta)
-    )
-
 # --- LLM-based Data Extraction from Text ---
 class _WebLLMExtractionEngineRuntime:
     """Engine runtime OO para extraÃƒÆ’Ã‚Â§ÃƒÆ’Ã‚Â£o de dados de produto com LLM."""
@@ -1102,7 +951,7 @@ class _WebLLMExtractionEngineRuntime:
         ai_provider_workflow_factory: Optional[Callable[[], AiProviderWorkflow]] = None,
     ) -> None:
         self._ai_provider_workflow_factory = (
-            ai_provider_workflow_factory or get_ai_provider_workflow
+            ai_provider_workflow_factory or (lambda: AiProviderWorkflow())
         )
 
     async def extrair_dados_produto_com_llm(
@@ -1223,21 +1072,6 @@ class _WebLLMExtractionEngineRuntime:
             logger.error("Erro inesperado na extraÃƒÂ§ÃƒÂ£o com LLM: %s", traceback.format_exc())
             return {"erro_llm_inesperado": str(e), **(metadados_normalizados or {})}
 
-
-async def _extrair_dados_produto_com_llm(
-    texto_pagina: Optional[str],
-    metadados_normalizados: Optional[Dict[str, Any]] = None,
-    campos_desejados: Optional[List[str]] = None,
-    produto_nome_base: str = "Produto",
-    user: Optional[models.User] = None,
-) -> Optional[Dict[str, Any]]:
-    return await get_web_data_extractor_runtime_state().llm_extraction_engine_runtime.extrair_dados_produto_com_llm(
-        texto_pagina=texto_pagina,
-        metadados_normalizados=metadados_normalizados,
-        campos_desejados=campos_desejados,
-        produto_nome_base=produto_nome_base,
-        user=user,
-    )
 
 # FunÃƒÂ§ÃƒÂ£o principal do serviÃƒÂ§o de extraÃƒÂ§ÃƒÂ£o, combinando as etapas
 class _WebExtractionEnrichmentWorkflow:
@@ -1378,46 +1212,43 @@ class _WebExtractionEnrichmentWorkflow:
 
 
 class _WebExtractionEnrichmentRuntime:
+    def __init__(
+        self,
+        *,
+        content_collection_workflow: Optional[_WebContentCollectionWorkflow] = None,
+        extraction_support_workflow: Optional["_WebExtractionSupportWorkflow"] = None,
+    ) -> None:
+        self._content_collection_workflow = (
+            content_collection_workflow or _WebContentCollectionWorkflow()
+        )
+        self._extraction_support_workflow = (
+            extraction_support_workflow or _WebExtractionSupportWorkflow()
+        )
+
     def now_iso(self) -> str:
         return datetime.now(timezone.utc).isoformat()
 
     async def collect_html(self, *, url: str) -> Optional[str]:
-        return await get_web_content_collection_workflow().coletar_conteudo_pagina_playwright(
-            url
-        )
+        return await self._content_collection_workflow.coletar_conteudo_pagina_playwright(url)
 
     def extract_main_text(self, *, html_content: str) -> Optional[str]:
-        return get_web_extraction_support_workflow().extrair_texto_principal_com_trafilatura(
+        return self._extraction_support_workflow.extrair_texto_principal_com_trafilatura(
             html_content
         )
 
     def extract_structured_metadata(
         self, *, html_content: str, url: str
     ) -> Dict[str, Any]:
-        return get_web_extraction_support_workflow().extrair_metadados_estruturados(
+        return self._extraction_support_workflow.extrair_metadados_estruturados(
             html_content,
             url,
         )
 
     def normalize_metadata(self, *, metadata: Dict[str, Any]) -> Dict[str, Any]:
-        return get_web_extraction_support_workflow().normalizar_dados_de_metadados(metadata)
+        return self._extraction_support_workflow.normalizar_dados_de_metadados(metadata)
 
 
 WebExtractionEnrichmentWorkflow = _WebExtractionEnrichmentWorkflow
-
-
-def create_web_extraction_enrichment_workflow(
-    db: Session,
-    url: str,
-    produto: models.Produto,
-    runtime: Optional["_WebExtractionEnrichmentRuntime"] = None,
-) -> WebExtractionEnrichmentWorkflow:
-    return _WebExtractionEnrichmentWorkflow(
-        db=db,
-        url=url,
-        produto=produto,
-        runtime=runtime,
-    )
 
 
 class _WebURLExtractionEngineRuntime:
@@ -1463,24 +1294,6 @@ class _WebOCREngineRuntime:
             ) from e
 
 
-async def _extract_relevant_data_from_url(
-    db: Session,
-    url: str,
-    produto: models.Produto,
-) -> models.Produto:
-    return await get_web_data_extractor_runtime_state().url_extraction_engine_runtime.extract_relevant_data_from_url(
-        db=db,
-        url=url,
-        produto=produto,
-    )
-
-
-def _extract_text_from_image_region(image_bytes: bytes):
-    return get_web_data_extractor_runtime_state().ocr_engine_runtime.extract_text_from_image_region(
-        image_bytes=image_bytes
-    )
-
-
 class _WebExtractionSupportRuntime:
     """Runtime OO para utilitarios de extraÃƒÂ§ÃƒÂ£o web e OCR."""
 
@@ -1510,10 +1323,6 @@ class _WebExtractionSupportRuntime:
         return self
 
 
-def _current_web_runtime_state_or_none() -> Optional["_WebDataExtractorRuntimeState"]:
-    return globals().get("_web_data_extractor_runtime_state")
-
-
 class _WebExtractionSupportWorkflow:
     """Workflow OO para utilitarios de extraÃƒÂ§ÃƒÂ£o web e OCR."""
 
@@ -1534,12 +1343,8 @@ class _WebExtractionSupportWorkflow:
         if runtime is not None:
             runtime_obj.apply_overrides(runtime)
 
-        state = _current_web_runtime_state_or_none()
-        metadata_default = (
-            state.metadata_extraction_runtime if state else _MetadataExtractionRuntime()
-        )
         self._runtime = runtime_obj
-        self._metadata_runtime = runtime_obj.metadata_runtime or metadata_default
+        self._metadata_runtime = runtime_obj.metadata_runtime or _MetadataExtractionRuntime()
         self._llm_runtime = runtime_obj.llm_runtime or _WebLLMExtractionRuntime()
         self._enrichment_runtime = runtime_obj.enrichment_runtime or _WebURLExtractionRuntime()
         self._ocr_runtime = runtime_obj.ocr_runtime or _WebOCRRuntime()
@@ -1604,12 +1409,7 @@ class _WebLLMExtractionRuntime:
         self,
         engine_runtime: Optional[_WebLLMExtractionEngineRuntime] = None,
     ) -> None:
-        state = _current_web_runtime_state_or_none()
-        default_engine = state.llm_extraction_engine_runtime if state else _WebLLMExtractionEngineRuntime()
-        self._engine_runtime = (
-            engine_runtime
-            or default_engine
-        )
+        self._engine_runtime = engine_runtime or _WebLLMExtractionEngineRuntime()
 
     async def extrair_dados_produto_com_llm(
         self,
@@ -1635,12 +1435,7 @@ class _WebURLExtractionRuntime:
         self,
         engine_runtime: Optional[_WebURLExtractionEngineRuntime] = None,
     ) -> None:
-        state = _current_web_runtime_state_or_none()
-        default_engine = state.url_extraction_engine_runtime if state else _WebURLExtractionEngineRuntime()
-        self._engine_runtime = (
-            engine_runtime
-            or default_engine
-        )
+        self._engine_runtime = engine_runtime or _WebURLExtractionEngineRuntime()
 
     async def extract_relevant_data_from_url(
         self,
@@ -1662,11 +1457,7 @@ class _WebOCRRuntime:
         self,
         engine_runtime: Optional[_WebOCREngineRuntime] = None,
     ) -> None:
-        state = _current_web_runtime_state_or_none()
-        default_engine = state.ocr_engine_runtime if state else _WebOCREngineRuntime()
-        self._engine_runtime = (
-            engine_runtime or default_engine
-        )
+        self._engine_runtime = engine_runtime or _WebOCREngineRuntime()
 
     def extract_text_from_image_region(self, image_bytes: bytes):
         return self._engine_runtime.extract_text_from_image_region(
@@ -1677,121 +1468,116 @@ class _WebOCRRuntime:
 WebExtractionSupportWorkflow = _WebExtractionSupportWorkflow
 
 
-def get_web_extraction_support_workflow() -> WebExtractionSupportWorkflow:
-    return get_web_data_extractor_runtime_state().extraction_support_workflow
+class WebDataExtractorRuntime:
+    """Composicao OO sem estado global para fluxos de extracao web."""
 
+    def __init__(
+        self,
+        *,
+        search_engine_runtime: Optional[_WebSearchEngineRuntime] = None,
+        content_fetch_engine_runtime: Optional[_WebContentFetchEngineRuntime] = None,
+        metadata_extraction_runtime: Optional[_MetadataExtractionRuntime] = None,
+        llm_extraction_engine_runtime: Optional[_WebLLMExtractionEngineRuntime] = None,
+        url_extraction_engine_runtime: Optional[_WebURLExtractionEngineRuntime] = None,
+        ocr_engine_runtime: Optional[_WebOCREngineRuntime] = None,
+        search_workflow: Optional[_WebSearchWorkflow] = None,
+        content_collection_workflow: Optional[_WebContentCollectionWorkflow] = None,
+        extraction_support_workflow: Optional[_WebExtractionSupportWorkflow] = None,
+        playwright_chromium_indisponivel: bool = False,
+    ) -> None:
+        self._search_engine_runtime = search_engine_runtime or _WebSearchEngineRuntime()
+        self._content_fetch_engine_runtime = (
+            content_fetch_engine_runtime
+            or _WebContentFetchEngineRuntime(search_runtime=self._search_engine_runtime)
+        )
+        self._metadata_extraction_runtime = (
+            metadata_extraction_runtime or _MetadataExtractionRuntime()
+        )
+        self._llm_extraction_engine_runtime = (
+            llm_extraction_engine_runtime or _WebLLMExtractionEngineRuntime()
+        )
+        self._url_extraction_engine_runtime = (
+            url_extraction_engine_runtime or _WebURLExtractionEngineRuntime()
+        )
+        self._ocr_engine_runtime = ocr_engine_runtime or _WebOCREngineRuntime()
 
-@dataclass
-class _WebDataExtractorRuntimeState:
-    search_engine_runtime: _WebSearchEngineRuntime
-    content_fetch_engine_runtime: _WebContentFetchEngineRuntime
-    search_runtime: _WebSearchRuntime
-    content_collection_runtime: _WebContentCollectionRuntime
-    search_workflow: _WebSearchWorkflow
-    content_collection_workflow: _WebContentCollectionWorkflow
-    metadata_extraction_runtime: _MetadataExtractionRuntime
-    llm_extraction_engine_runtime: _WebLLMExtractionEngineRuntime
-    url_extraction_engine_runtime: _WebURLExtractionEngineRuntime
-    ocr_engine_runtime: _WebOCREngineRuntime
-    extraction_support_workflow: _WebExtractionSupportWorkflow
+        self._search_workflow = search_workflow or _WebSearchWorkflow(
+            runtime=_WebSearchRuntime(engine_runtime=self._search_engine_runtime)
+        )
+        self._content_collection_workflow = (
+            content_collection_workflow
+            or _WebContentCollectionWorkflow(
+                runtime=_WebContentCollectionRuntime(
+                    engine_runtime=self._content_fetch_engine_runtime
+                )
+            )
+        )
+        self._extraction_support_workflow = extraction_support_workflow or _WebExtractionSupportWorkflow(
+            metadata_runtime=self._metadata_extraction_runtime,
+            llm_runtime=_WebLLMExtractionRuntime(
+                engine_runtime=self._llm_extraction_engine_runtime
+            ),
+            enrichment_runtime=_WebURLExtractionRuntime(
+                engine_runtime=self._url_extraction_engine_runtime
+            ),
+            ocr_runtime=_WebOCRRuntime(engine_runtime=self._ocr_engine_runtime),
+        )
+        self._content_fetch_engine_runtime.set_playwright_chromium_indisponivel(
+            playwright_chromium_indisponivel
+        )
 
     @property
-    def playwright_chromium_indisponivel(self) -> bool:
-        return self.content_fetch_engine_runtime.is_playwright_chromium_indisponivel()
+    def search_workflow(self) -> _WebSearchWorkflow:
+        return self._search_workflow
 
+    @property
+    def content_collection_workflow(self) -> _WebContentCollectionWorkflow:
+        return self._content_collection_workflow
 
-def _build_web_data_extractor_runtime_state(
-    *,
-    search_engine_runtime: Optional[_WebSearchEngineRuntime] = None,
-    content_fetch_engine_runtime: Optional[_WebContentFetchEngineRuntime] = None,
-    search_runtime: Optional[_WebSearchRuntime] = None,
-    content_collection_runtime: Optional[_WebContentCollectionRuntime] = None,
-    search_workflow: Optional[_WebSearchWorkflow] = None,
-    content_collection_workflow: Optional[_WebContentCollectionWorkflow] = None,
-    metadata_extraction_runtime: Optional[_MetadataExtractionRuntime] = None,
-    llm_extraction_engine_runtime: Optional[_WebLLMExtractionEngineRuntime] = None,
-    url_extraction_engine_runtime: Optional[_WebURLExtractionEngineRuntime] = None,
-    ocr_engine_runtime: Optional[_WebOCREngineRuntime] = None,
-    extraction_support_workflow: Optional[_WebExtractionSupportWorkflow] = None,
-    playwright_chromium_indisponivel: bool = False,
-) -> _WebDataExtractorRuntimeState:
-    search_engine_obj = search_engine_runtime or _WebSearchEngineRuntime()
-    content_engine_obj = content_fetch_engine_runtime or _WebContentFetchEngineRuntime(
-        search_runtime=search_engine_obj
-    )
-    metadata_runtime_obj = metadata_extraction_runtime or _MetadataExtractionRuntime()
-    llm_engine_obj = llm_extraction_engine_runtime or _WebLLMExtractionEngineRuntime()
-    url_engine_obj = url_extraction_engine_runtime or _WebURLExtractionEngineRuntime()
-    ocr_engine_obj = ocr_engine_runtime or _WebOCREngineRuntime()
+    @property
+    def extraction_support_workflow(self) -> _WebExtractionSupportWorkflow:
+        return self._extraction_support_workflow
 
-    search_runtime_obj = search_runtime or _WebSearchRuntime(
-        engine_runtime=search_engine_obj
-    )
-    content_runtime_obj = content_collection_runtime or _WebContentCollectionRuntime(
-        engine_runtime=content_engine_obj
-    )
-    search_workflow_obj = search_workflow or _WebSearchWorkflow(runtime=search_runtime_obj)
-    content_workflow_obj = content_collection_workflow or _WebContentCollectionWorkflow(
-        runtime=content_runtime_obj
-    )
+    def busca_publica_disponivel(self) -> bool:
+        return self._search_workflow.busca_publica_disponivel()
 
-    llm_runtime_obj = _WebLLMExtractionRuntime(engine_runtime=llm_engine_obj)
-    url_runtime_obj = _WebURLExtractionRuntime(engine_runtime=url_engine_obj)
-    ocr_runtime_obj = _WebOCRRuntime(engine_runtime=ocr_engine_obj)
-    support_workflow_obj = extraction_support_workflow or _WebExtractionSupportWorkflow(
-        metadata_runtime=metadata_runtime_obj,
-        llm_runtime=llm_runtime_obj,
-        enrichment_runtime=url_runtime_obj,
-        ocr_runtime=ocr_runtime_obj,
-    )
-    content_engine_obj.set_playwright_chromium_indisponivel(
-        playwright_chromium_indisponivel
-    )
+    async def buscar_urls_publicas(self, *args: Any, **kwargs: Any):
+        return await self._search_workflow.buscar_urls_publicas(*args, **kwargs)
 
-    return _WebDataExtractorRuntimeState(
-        search_engine_runtime=search_engine_obj,
-        content_fetch_engine_runtime=content_engine_obj,
-        search_runtime=search_runtime_obj,
-        content_collection_runtime=content_runtime_obj,
-        search_workflow=search_workflow_obj,
-        content_collection_workflow=content_workflow_obj,
-        metadata_extraction_runtime=metadata_runtime_obj,
-        llm_extraction_engine_runtime=llm_engine_obj,
-        url_extraction_engine_runtime=url_engine_obj,
-        ocr_engine_runtime=ocr_engine_obj,
-        extraction_support_workflow=support_workflow_obj,
-    )
+    async def buscar_urls_google(self, *args: Any, **kwargs: Any):
+        return await self._search_workflow.buscar_urls_google(*args, **kwargs)
 
+    async def coletar_conteudo_pagina_playwright(self, *args: Any, **kwargs: Any):
+        return await self._content_collection_workflow.coletar_conteudo_pagina_playwright(
+            *args, **kwargs
+        )
 
-def apply_web_data_extractor_runtime_state(
-    runtime_state: _WebDataExtractorRuntimeState,
-) -> None:
-    global PLAYWRIGHT_CHROMIUM_INDISPONIVEL
-    global _web_data_extractor_runtime_state
+    def extrair_texto_principal_com_trafilatura(self, *args: Any, **kwargs: Any):
+        return self._extraction_support_workflow.extrair_texto_principal_com_trafilatura(
+            *args, **kwargs
+        )
 
-    _web_data_extractor_runtime_state = runtime_state
-    PLAYWRIGHT_CHROMIUM_INDISPONIVEL = runtime_state.playwright_chromium_indisponivel
+    def extrair_metadados_estruturados(self, *args: Any, **kwargs: Any):
+        return self._extraction_support_workflow.extrair_metadados_estruturados(
+            *args, **kwargs
+        )
 
+    def normalizar_dados_de_metadados(self, *args: Any, **kwargs: Any):
+        return self._extraction_support_workflow.normalizar_dados_de_metadados(
+            *args, **kwargs
+        )
 
-def get_web_data_extractor_runtime_state() -> _WebDataExtractorRuntimeState:
-    return _web_data_extractor_runtime_state
+    async def extrair_dados_produto_com_llm(self, *args: Any, **kwargs: Any):
+        return await self._extraction_support_workflow.extrair_dados_produto_com_llm(
+            *args, **kwargs
+        )
 
+    async def extract_relevant_data_from_url(self, *args: Any, **kwargs: Any):
+        return await self._extraction_support_workflow.extract_relevant_data_from_url(
+            *args, **kwargs
+        )
 
-def reset_web_data_extractor_runtime_state() -> _WebDataExtractorRuntimeState:
-    runtime_state = _build_web_data_extractor_runtime_state()
-    apply_web_data_extractor_runtime_state(runtime_state)
-    return runtime_state
-
-
-_web_data_extractor_runtime_state = _build_web_data_extractor_runtime_state()
-PLAYWRIGHT_CHROMIUM_INDISPONIVEL = (
-    _web_data_extractor_runtime_state.playwright_chromium_indisponivel
-)
-
-
-
-
-
-
-
-
+    def extract_text_from_image_region(self, *args: Any, **kwargs: Any):
+        return self._extraction_support_workflow.extract_text_from_image_region(
+            *args, **kwargs
+        )

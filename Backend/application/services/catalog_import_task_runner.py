@@ -34,14 +34,7 @@ class CatalogImportTaskRunner:
         normalize_import_text: Any,
         product_repository: Any | None = None,
         catalog_file_repository: Any | None = None,
-        **legacy_kwargs: Any,
     ) -> None:
-        if product_repository is None:
-            legacy_prefix = "c" + "rud_"
-            product_repository = legacy_kwargs.pop(legacy_prefix + "produtos", None)
-        if catalog_file_repository is None:
-            catalog_file_repository = legacy_kwargs.pop("catalog_file_repository", None)
-
         self._kwargs = {
             "logger": logger,
             "catalog_logger": catalog_logger,

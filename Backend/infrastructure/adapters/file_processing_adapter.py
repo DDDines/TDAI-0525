@@ -2,20 +2,16 @@ from __future__ import annotations
 
 from typing import Any
 
-from Backend.infrastructure.runtime.file_processing_runtime import (
-    get_runtime_service,
+from Backend.infrastructure.runtime_modules.file_processing_module import (
+    FileProcessingRuntime,
 )
-
-
-def _default_file_processing_runtime_service() -> Any:
-    return get_runtime_service()
 
 
 class FileProcessingServiceAdapter:
     """OOP port adapter backed by the current file-processing implementation."""
 
-    def __init__(self, service: Any | None = None) -> None:
-        self._service = service or _default_file_processing_runtime_service()
+    def __init__(self, runtime: FileProcessingRuntime | None = None) -> None:
+        self._service = runtime or FileProcessingRuntime()
 
     async def save_uploaded_catalog(self, *args: Any, **kwargs: Any):
         return await self._service.save_uploaded_catalog(*args, **kwargs)

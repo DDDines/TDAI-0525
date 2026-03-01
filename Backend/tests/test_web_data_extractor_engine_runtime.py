@@ -51,7 +51,7 @@ async def test_web_content_runtime_delega_para_engine_runtime():
     assert calls == ["https://example.com/p"]
 
 
-def test_search_runtime_helpers_delegam_para_runtime_global(monkeypatch):
+def test_search_runtime_helpers_delegam_para_engine_runtime():
     class FakeSearchEngine:
         def get_search_cache_lock(self):
             return object()
@@ -84,21 +84,12 @@ def test_search_runtime_helpers_delegam_para_runtime_global(monkeypatch):
         def normalizar_url_busca(self, candidata: str, base_url: str):
             return f"{base_url}|{candidata}"
 
-    original_state = web_extractor.get_web_data_extractor_runtime_state()
-    try:
-        patched_state = web_extractor._build_web_data_extractor_runtime_state(
-            search_engine_runtime=FakeSearchEngine(),
-        )
-        web_extractor.apply_web_data_extractor_runtime_state(patched_state)
+    runtime = web_extractor._WebSearchRuntime(engine_runtime=FakeSearchEngine())
+    workflow = web_extractor._WebSearchWorkflow(runtime=runtime)
 
-        assert web_extractor.get_web_search_workflow().busca_publica_disponivel() is False
-        assert web_extractor._url_deve_ser_ignorada_antes_da_coleta("x.tmp") is True
-        assert (
-            web_extractor._normalizar_url_busca("item", "https://base")
-            == "https://base|item"
-        )
-    finally:
-        web_extractor.apply_web_data_extractor_runtime_state(original_state)
+    assert workflow.busca_publica_disponivel() is False
+    assert workflow.url_deve_ser_ignorada_antes_da_coleta("x.tmp") is True
+    assert workflow.normalizar_url_busca("item", "https://base") == "https://base|item"
 
 
 @pytest.mark.asyncio

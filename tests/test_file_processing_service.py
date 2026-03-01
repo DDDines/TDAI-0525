@@ -4,9 +4,9 @@ import io
 import subprocess
 import sys
 
-from Backend.application.services.service_container import service_container
+from Backend.application.services.service_container import ServiceContainer
 
-file_processing_service = service_container.file_processing
+file_processing_service = ServiceContainer().file_processing
 
 # Ensure reportlab is available
 try:
@@ -66,3 +66,4 @@ async def test_preview_arquivo_pdf_returns_page_info():
     assert res.get("table_pages") == []
     assert len(res["preview_images"]) == 1
     assert 1 in res["sample_rows"]
+

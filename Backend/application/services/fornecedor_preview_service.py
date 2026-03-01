@@ -21,6 +21,12 @@ class FornecedorPreviewService:
         self._file_processing_service = file_processing_service
         self._web_data_extractor_service = web_data_extractor_service
 
+    @staticmethod
+    def _resolve_session(*, catalog_file_repo: Any | None = None) -> Any:
+        if catalog_file_repo is None:
+            raise ValueError("catalog_file_repo is required")
+        return getattr(catalog_file_repo, "_db", None)
+
     async def preview_pages(self, *, file: Any) -> dict[str, Any]:
         if not file.filename.lower().endswith(".pdf"):
             raise HTTPException(status_code=400, detail="Apenas arquivos PDF sao permitidos.")
@@ -42,13 +48,14 @@ class FornecedorPreviewService:
     def preview_pdf(
         self,
         *,
-        db: Any,
         file: Any,
         fornecedor_id: int,
         user_id: int,
         offset: int,
         limit: int,
+        catalog_file_repo: Any,
     ) -> Any:
+        session = self._resolve_session(catalog_file_repo=catalog_file_repo)
         if not file.filename.lower().endswith(".pdf"):
             raise HTTPException(
                 status_code=400,
@@ -56,7 +63,7 @@ class FornecedorPreviewService:
             )
 
         return self._file_processing_service.pdf_pages_to_images(
-            db=db,
+            db=session,
             file=file,
             fornecedor_id=fornecedor_id,
             user_id=user_id,
@@ -67,12 +74,16 @@ class FornecedorPreviewService:
     def preview_catalog_from_region(
         self,
         *,
-        db: Any,
         file_id: int,
         page_number: int,
         region: list[float],
+        catalog_file_repo: Any,
     ) -> dict[str, Any]:
-        file_path = self._file_processing_service.get_file_path_by_id(db, file_id=file_id)
+        session = self._resolve_session(catalog_file_repo=catalog_file_repo)
+        file_path = self._file_processing_service.get_file_path_by_id(
+            session,
+            file_id=file_id,
+        )
         if not file_path:
             raise HTTPException(status_code=404, detail="Arquivo de catalogo nao encontrado")
 
@@ -104,13 +115,17 @@ class FornecedorPreviewService:
         self,
         *,
         background_tasks: Any,
-        db: Any,
         file_id: int,
         region: list[float],
         pages: list[int] | None,
         all_pages: bool,
+        catalog_file_repo: Any,
     ) -> dict[str, Any]:
-        file_path = self._file_processing_service.get_file_path_by_id(db, file_id=file_id)
+        session = self._resolve_session(catalog_file_repo=catalog_file_repo)
+        file_path = self._file_processing_service.get_file_path_by_id(
+            session,
+            file_id=file_id,
+        )
         if not file_path:
             raise HTTPException(status_code=404, detail="Arquivo de catalogo nao encontrado")
 

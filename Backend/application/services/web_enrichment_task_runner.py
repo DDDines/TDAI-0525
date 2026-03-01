@@ -1,4 +1,4 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
 from typing import Any, Optional
 
@@ -15,9 +15,6 @@ class WebEnrichmentTaskRunner:
         *,
         logger: Any,
         SQLAlchemyError: Any,
-        crud_users: Any,
-        crud_produtos: Any,
-        crud: Any,
         models: Any,
         schemas: Any,
         web_extractor: Any,
@@ -31,13 +28,16 @@ class WebEnrichmentTaskRunner:
         is_meaningful_extracted_text: Any,
         metadata_has_minimum_signal: Any,
         is_source_relevant_for_product: Any,
+        user_repository: Any | None = None,
+        product_repository: Any | None = None,
+        usage_repository: Any | None = None,
     ) -> None:
         self._kwargs = {
             "logger": logger,
             "SQLAlchemyError": SQLAlchemyError,
-            "crud_users": crud_users,
-            "crud_produtos": crud_produtos,
-            "crud": crud,
+            "user_repository": user_repository,
+            "product_repository": product_repository,
+            "usage_repository": usage_repository,
             "models": models,
             "schemas": schemas,
             "settings": settings,

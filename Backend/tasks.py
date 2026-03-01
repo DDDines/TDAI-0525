@@ -6,11 +6,10 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
 from Backend import models
-from Backend.application.services.service_container import service_container
+from Backend.application.services.service_container import ServiceContainer
 from Backend.core.config import settings
 
 logger = logging.getLogger(__name__)
-file_processing_service = service_container.file_processing
 
 
 class _TaskWorkflow:
@@ -31,6 +30,11 @@ class _TaskWorkflow:
 
 
 class _TaskRuntime:
+    def __init__(self, file_processing_service=None) -> None:
+        self._file_processing_service = (
+            file_processing_service or ServiceContainer().file_processing
+        )
+
     def _resolve_catalog_file_path(self, stored_filename: str) -> Path:
         file_path = Path(settings.UPLOAD_DIRECTORY) / "catalogs" / stored_filename
         if file_path.is_absolute():
@@ -70,7 +74,7 @@ class _TaskRuntime:
             if not file_path.exists():
                 raise FileNotFoundError(str(file_path))
 
-            result = file_processing_service.extract_data_from_single_page(
+            result = self._file_processing_service.extract_data_from_single_page(
                 str(file_path),
                 page_number,
             )
@@ -87,16 +91,15 @@ class _TaskRuntime:
             db.close()
 
 
-_task_workflow = _TaskWorkflow()
 TaskWorkflow = _TaskWorkflow
 
 
 def get_task_workflow() -> TaskWorkflow:
-    return _task_workflow
+    return TaskWorkflow()
 
 
 def process_pdf_extraction_task(import_job_id: int, page_number: int, db_url: str) -> None:
-    _task_workflow.process_pdf_extraction_task(
+    get_task_workflow().process_pdf_extraction_task(
         import_job_id=import_job_id,
         page_number=page_number,
         db_url=db_url,

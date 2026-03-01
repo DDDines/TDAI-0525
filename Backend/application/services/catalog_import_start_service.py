@@ -168,13 +168,8 @@ class CatalogImportStartService:
     @staticmethod
     def build_db_session_factory(
         *,
-        session: Any | None = None,
-        **legacy_kwargs: Any,
+        session: Any,
     ):
-        if session is None:
-            session = legacy_kwargs.pop("db", None)
-        if session is None:
-            raise ValueError("session or db is required")
         return sessionmaker(bind=session.get_bind())
 
     @staticmethod

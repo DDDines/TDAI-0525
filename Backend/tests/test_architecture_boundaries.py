@@ -370,6 +370,22 @@ def test_runtime_modules_do_not_expose_public_function_wrappers():
     )
 
 
+def test_runtime_modules_do_not_define_top_level_functions():
+    offenders: list[str] = []
+
+    for path in _iter_python_files(INFRASTRUCTURE_RUNTIME_MODULES_ROOT):
+        rel = path.relative_to(PROJECT_ROOT)
+        tree = _parse_python_file(path)
+        for node in tree.body:
+            if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
+                offenders.append(f"{rel}:{node.lineno} -> {node.name}")
+
+    assert not offenders, (
+        "Runtime modules must contain only class-based surfaces (no top-level functions):\n"
+        + "\n".join(offenders)
+    )
+
+
 def test_crud_modules_do_not_expose_public_function_wrappers():
     offenders: list[str] = []
     for path in CRUD_MODULE_FILES:
@@ -444,6 +460,61 @@ def test_runtime_services_do_not_instantiate_singletons_at_module_scope():
     assert not offenders, (
         "Runtime services must not keep class singletons at module scope:\n"
         + "\n".join(offenders)
+    )
+
+
+def test_backend_code_does_not_define_module_level_class_singletons():
+    offenders: list[str] = []
+    allowed_callees = {
+        "APIRouter",
+        "OAuth2PasswordBearer",
+        "OAuth",
+        "FastAPI",
+        "FileHandler",
+        "Formatter",
+        "CryptContext",
+        "TypeAdapter",
+    }
+
+    for path in _iter_python_files(BACKEND_ROOT):
+        rel = path.relative_to(PROJECT_ROOT)
+
+        if rel.parts[:2] in {("Backend", "tests"), ("Backend", "testing")}:
+            continue
+
+        tree = _parse_python_file(path)
+        for node in tree.body:
+            if not isinstance(node, ast.Assign):
+                continue
+            if not isinstance(node.value, ast.Call):
+                continue
+            if not isinstance(node.value.func, ast.Name):
+                continue
+
+            callee = node.value.func.id
+            if callee in allowed_callees:
+                continue
+            if not (
+                callee[:1].isupper()
+                or (callee.startswith("_") and len(callee) > 1 and callee[1].isupper())
+            ):
+                continue
+
+            target_names = [
+                target.id
+                for target in node.targets
+                if isinstance(target, ast.Name)
+            ]
+            if not target_names:
+                continue
+
+            offenders.append(
+                f"{rel}:{node.lineno} -> {', '.join(target_names)} = {callee}(...)"
+            )
+
+    assert not offenders, (
+        "Backend must avoid module-level class singletons; "
+        "instantiate via providers/constructors:\n" + "\n".join(offenders)
     )
 
 
@@ -601,6 +672,13 @@ def test_router_endpoints_do_not_receive_db_parameter():
 
 def test_routers_do_not_define_module_level_runtime_singletons():
     offenders: list[str] = []
+    allowed_callees = {
+        "APIRouter",
+        "OAuth2PasswordBearer",
+        "OAuth",
+        "FileHandler",
+        "Formatter",
+    }
 
     for path in _iter_python_files(ROUTERS_ROOT):
         rel = path.relative_to(PROJECT_ROOT)
@@ -613,7 +691,13 @@ def test_routers_do_not_define_module_level_runtime_singletons():
                 continue
             if not isinstance(node.value.func, ast.Name):
                 continue
-            if not node.value.func.id.startswith("_"):
+            callee = node.value.func.id
+            if callee in allowed_callees:
+                continue
+            if not (
+                callee[:1].isupper()
+                or (callee.startswith("_") and len(callee) > 1 and callee[1].isupper())
+            ):
                 continue
 
             target_names = [
@@ -625,7 +709,7 @@ def test_routers_do_not_define_module_level_runtime_singletons():
                 continue
 
             offenders.append(
-                f"{rel}:{node.lineno} -> {', '.join(target_names)} = {node.value.func.id}(...)"
+                f"{rel}:{node.lineno} -> {', '.join(target_names)} = {callee}(...)"
             )
 
     assert not offenders, (

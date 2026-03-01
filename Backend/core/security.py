@@ -105,43 +105,40 @@ class _SecurityRuntime:
         except (JWTError, ValidationError, ValueError):
             return None
 
-
-security_runtime = _SecurityRuntime()
-_security_workflow = _SecurityWorkflow(runtime=security_runtime)
 SecurityWorkflow = _SecurityWorkflow
 
 
 def get_security_workflow() -> SecurityWorkflow:
-    return _security_workflow
+    return SecurityWorkflow()
 
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
-    return _security_workflow.verify_password(
+    return get_security_workflow().verify_password(
         plain_password=plain_password,
         hashed_password=hashed_password,
     )
 
 
 def get_password_hash(password: str) -> str:
-    return _security_workflow.get_password_hash(password=password)
+    return get_security_workflow().get_password_hash(password=password)
 
 
 def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -> str:
-    return _security_workflow.create_access_token(
+    return get_security_workflow().create_access_token(
         data=data,
         expires_delta=expires_delta,
     )
 
 
 def create_refresh_token(data: dict, expires_delta: Optional[timedelta] = None) -> str:
-    return _security_workflow.create_refresh_token(
+    return get_security_workflow().create_refresh_token(
         data=data,
         expires_delta=expires_delta,
     )
 
 
 def decode_token(token: str, secret_key: str) -> Optional[TokenPayload]:
-    return _security_workflow.decode_token(token=token, secret_key=secret_key)
+    return get_security_workflow().decode_token(token=token, secret_key=secret_key)
 
 
 

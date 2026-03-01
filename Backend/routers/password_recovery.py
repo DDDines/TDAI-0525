@@ -4,14 +4,16 @@ from fastapi import APIRouter, Body, Depends, HTTPException, Request, status
 from sqlalchemy.orm import Session
 
 from Backend import schemas
-from Backend.application.services.data_access_service import data_access_service
+from Backend.application.services.service_container import (
+    DependencyContainer,
+    SessionDep,
+)
 from Backend.auth import create_password_reset_token, hash_password_reset_token
 from Backend.core import security
 from Backend.core.config import settings
 from Backend.core.email_utils import send_password_reset_email
 from Backend.core.logging_config import get_logger
-from Backend.database import get_db
-
+from Backend.infrastructure.repositories.user_repository import UserRepository
 router = APIRouter(prefix="/auth", tags=["password-recovery"])
 logger = get_logger(__name__)
 
@@ -20,7 +22,7 @@ class _PasswordRecoveryRuntime:
     """Runtime OO para operaÃ§Ãµes de recuperaÃ§Ã£o de senha."""
 
     def get_user_by_email(self, db: Session, email: str):
-        return data_access_service.users.get_user_by_email(db, email=email)
+        return UserRepository(db).get_user_by_email(email=email)
 
     def create_password_reset_token(self) -> str:
         return create_password_reset_token()
@@ -36,9 +38,8 @@ class _PasswordRecoveryRuntime:
         token_hash: str,
         expires_at: datetime,
     ) -> None:
-        data_access_service.users.set_user_password_reset_token(
-            db,
-            user,
+        UserRepository(db).set_user_password_reset_token(
+            user=user,
             token_hash=token_hash,
             expires_at=expires_at,
         )
@@ -57,13 +58,12 @@ class _PasswordRecoveryRuntime:
         )
 
     def get_user_by_reset_token(self, db: Session, token_hash: str):
-        return data_access_service.users.get_user_by_reset_token(
-            db,
+        return UserRepository(db).get_user_by_reset_token(
             token_hash=token_hash,
         )
 
     def get_user(self, db: Session, user_id: int):
-        return data_access_service.users.get_user(db, user_id=user_id)
+        return UserRepository(db).get_user(user_id=user_id)
 
     def get_password_hash(self, raw_password: str) -> str:
         return security.get_password_hash(raw_password)
@@ -159,19 +159,35 @@ class _PasswordRecoveryWorkflow:
         return schemas.Msg(msg="Senha atualizada com sucesso.")
 
 
-_password_recovery_runtime = _PasswordRecoveryRuntime()
-_password_recovery_workflow = _PasswordRecoveryWorkflow(runtime=_password_recovery_runtime)
 PasswordRecoveryWorkflow = _PasswordRecoveryWorkflow
 
 
 def get_password_recovery_workflow() -> PasswordRecoveryWorkflow:
-    return _password_recovery_workflow
+    return PasswordRecoveryWorkflow(runtime=_PasswordRecoveryRuntime())
+
+
+class _PasswordRecoveryRequestContext:
+    def __init__(self, db: Session) -> None:
+        self.db=db
+
+
+def _build_password_recovery_request_context(
+    db: SessionDep,
+) -> _PasswordRecoveryRequestContext:
+    return _PasswordRecoveryRequestContext(db=db)
 
 
 @router.post("/password-recovery/{email}", response_model=schemas.Msg)
-async def recover_password(email: str, request: Request, db: Session = Depends(get_db)):
-    return await _password_recovery_workflow.recover_password(
-        db=db,
+async def recover_password(
+    email: str,
+    request: Request,
+    request_context: _PasswordRecoveryRequestContext = Depends(
+        _build_password_recovery_request_context
+    ),
+):
+    workflow = get_password_recovery_workflow()
+    return await workflow.recover_password(
+        db=request_context.db,
         email=email,
         request=request,
     )
@@ -180,10 +196,17 @@ async def recover_password(email: str, request: Request, db: Session = Depends(g
 @router.post("/reset-password/", response_model=schemas.Msg)
 def reset_password(
     *,
-    db: Session = Depends(get_db),
     reset_data: schemas.PasswordResetSchema = Body(...),
+    request_context: _PasswordRecoveryRequestContext = Depends(
+        _build_password_recovery_request_context
+    ),
 ):
-    return _password_recovery_workflow.reset_password(db=db, reset_data=reset_data)
+    workflow = get_password_recovery_workflow()
+    return workflow.reset_password(
+        db=request_context.db,
+        reset_data=reset_data,
+    )
+
 
 
 

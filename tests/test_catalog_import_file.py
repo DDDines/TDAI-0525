@@ -13,11 +13,11 @@ from sqlalchemy.pool import StaticPool
 from Backend.main import app
 from Backend.database import Base, get_db
 from Backend import schemas, models
-from Backend.crud_fornecedores import get_fornecedor_crud_workflow
-from Backend.crud_produtos import get_produto_crud_workflow
-from Backend.crud_users import get_user_crud_workflow
 from Backend.initial_data import get_initial_data_workflow
 from Backend.core.config import settings
+from Backend.infrastructure.repositories.fornecedor_repository import FornecedorRepository
+from Backend.infrastructure.repositories.product_repository import ProductRepository
+from Backend.infrastructure.repositories.user_repository import UserRepository
 
 # ensure reportlab for PDF generation
 try:
@@ -49,9 +49,6 @@ app.dependency_overrides[get_db] = override_get_db
 client = TestClient(app)
 
 initial_data_workflow = get_initial_data_workflow()
-user_crud_workflow = get_user_crud_workflow()
-produto_crud_workflow = get_produto_crud_workflow()
-fornecedor_crud_workflow = get_fornecedor_crud_workflow()
 
 with TestingSessionLocal() as db:
     initial_data_workflow.create_initial_data(db)
@@ -207,9 +204,10 @@ def test_import_updates_existing_product():
     csv_content = "nome,sku\nNovo,999\n"
     files = {"file": ("cat.csv", io.BytesIO(csv_content.encode()), "text/csv")}
     with TestingSessionLocal() as db:
-        admin = user_crud_workflow.get_user_by_email(db, settings.FIRST_SUPERUSER_EMAIL)
-        existing = produto_crud_workflow.create_produto(
-            db, schemas.ProdutoCreate(nome_base="Antigo", sku="999"), user_id=admin.id
+        admin = UserRepository(db).get_user_by_email(email=settings.FIRST_SUPERUSER_EMAIL)
+        existing = ProductRepository(db).create_produto(
+            produto=schemas.ProdutoCreate(nome_base="Antigo", sku="999"),
+            user_id=admin.id,
         )
         fornec_id = db.query(models.Fornecedor.id).first()[0]
         pt_id = db.query(models.ProductType.id).first()[0]
@@ -245,7 +243,7 @@ def test_import_updates_existing_product():
 def test_list_catalog_files_pagination():
     headers = get_admin_headers()
     with TestingSessionLocal() as db:
-        admin = user_crud_workflow.get_user_by_email(db, settings.FIRST_SUPERUSER_EMAIL)
+        admin = UserRepository(db).get_user_by_email(email=settings.FIRST_SUPERUSER_EMAIL)
         fornec_id = db.query(models.Fornecedor.id).first()[0]
         for i in range(15):
             db.add(
@@ -272,11 +270,10 @@ def test_list_catalog_files_pagination():
 def test_list_catalog_files_filter_by_fornecedor():
     headers = get_admin_headers()
     with TestingSessionLocal() as db:
-        admin = user_crud_workflow.get_user_by_email(db, settings.FIRST_SUPERUSER_EMAIL)
+        admin = UserRepository(db).get_user_by_email(email=settings.FIRST_SUPERUSER_EMAIL)
         fornec_base = db.query(models.Fornecedor).first()
-        new_forn = fornecedor_crud_workflow.create_fornecedor(
-            db,
-            schemas.FornecedorCreate(nome="F2"),
+        new_forn = FornecedorRepository(db).create_fornecedor(
+            fornecedor=schemas.FornecedorCreate(nome="F2"),
             user_id=admin.id,
         )
         new_forn_id = new_forn.id
@@ -488,7 +485,7 @@ def test_reprocess_catalog_import_file_creates_again():
 def test_result_endpoint_returns_partial_summary():
     headers = get_admin_headers()
     with TestingSessionLocal() as db:
-        admin = user_crud_workflow.get_user_by_email(db, settings.FIRST_SUPERUSER_EMAIL)
+        admin = UserRepository(db).get_user_by_email(email=settings.FIRST_SUPERUSER_EMAIL)
         fornec_id = db.query(models.Fornecedor.id).first()[0]
         record = models.CatalogImportFile(
             user_id=admin.id,

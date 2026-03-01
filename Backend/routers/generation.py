@@ -1,4 +1,4 @@
-﻿# Backend/routers/generation.py
+# Backend/routers/generation.py
 
 import logging
 from typing import Any, Dict, Optional
@@ -14,29 +14,16 @@ from Backend.application.services.generation_scheduling_service import (
     GenerationSchedulingService,
 )
 from Backend.application.services.generation_task_service import GenerationTaskService
+from Backend.application.services.ia_generation_service import IAGenerationService
 from Backend.application.services.service_container import (
     DependencyContainer,
-    service_container,
+    SessionDep,
 )
 from Backend.database import SessionLocal
 from Backend.infrastructure.repositories.product_repository import ProductRepository
 from Backend.infrastructure.repositories.user_repository import UserRepository
 
 logger = logging.getLogger(__name__)
-ia_generation_service = service_container.ia_generation
-
-generation_task_service = GenerationTaskService(
-    user_repository_cls=UserRepository,
-    product_repository_cls=ProductRepository,
-    models=models,
-    schemas=schemas,
-    logger=logger,
-)
-generation_scheduling_service = GenerationSchedulingService(
-    product_repository_cls=ProductRepository,
-    schemas=schemas,
-    models=models,
-)
 
 router = APIRouter(
     prefix="/geracao",
@@ -48,6 +35,12 @@ router = APIRouter(
 class _GenerationRouterWorkflow:
     def __init__(self, runtime: Optional["_GenerationRouterRuntime"] = None) -> None:
         self._runtime = runtime or _GenerationRouterRuntime()
+
+    def _resolve_ia_generation_service(self) -> IAGenerationService:
+        resolver = getattr(self._runtime, "get_ia_generation_service", None)
+        if callable(resolver):
+            return resolver()
+        return IAGenerationService()
 
     async def tarefa_processar_geracao_e_registrar_uso(
         self,
@@ -76,6 +69,7 @@ class _GenerationRouterWorkflow:
         db: Session,
         current_user: models.User,
     ) -> Dict[str, str]:
+        ia_generation_service = self._resolve_ia_generation_service()
         self._runtime.validate_product_access(
             db=db,
             produto_id=produto_id,
@@ -102,6 +96,7 @@ class _GenerationRouterWorkflow:
         db: Session,
         current_user: models.User,
     ) -> Dict[str, str]:
+        ia_generation_service = self._resolve_ia_generation_service()
         self._runtime.validate_product_access(
             db=db,
             produto_id=produto_id,
@@ -130,6 +125,7 @@ class _GenerationRouterWorkflow:
         db: Session,
         current_user: models.User,
     ) -> Dict[str, str]:
+        ia_generation_service = self._resolve_ia_generation_service()
         db_produto_check = self._runtime.validate_product_access(
             db=db,
             produto_id=produto_id,
@@ -163,6 +159,7 @@ class _GenerationRouterWorkflow:
         db: Session,
         current_user: models.User,
     ) -> Dict[str, str]:
+        ia_generation_service = self._resolve_ia_generation_service()
         db_produto_check = self._runtime.validate_product_access(
             db=db,
             produto_id=produto_id,
@@ -217,24 +214,55 @@ class _GenerationRouterWorkflow:
 class _GenerationRouterRuntime:
     """Runtime OO para operaÃ§Ãµes do router de geraÃ§Ã£o IA."""
 
+    def __init__(
+        self,
+        *,
+        ia_generation_service: IAGenerationService | None = None,
+        generation_task_service: GenerationTaskService | None = None,
+        generation_scheduling_service: GenerationSchedulingService | None = None,
+        product_repository_cls: type[ProductRepository] = ProductRepository,
+    ) -> None:
+        self._ia_generation_service = ia_generation_service or IAGenerationService()
+        self._generation_task_service = generation_task_service or GenerationTaskService(
+            user_repository_cls=UserRepository,
+            product_repository_cls=product_repository_cls,
+            models=models,
+            schemas=schemas,
+            logger=logger,
+        )
+        self._generation_scheduling_service = (
+            generation_scheduling_service
+            or GenerationSchedulingService(
+                product_repository_cls=product_repository_cls,
+                schemas=schemas,
+                models=models,
+            )
+        )
+        self._product_repository_cls = product_repository_cls
+
+    def get_ia_generation_service(self) -> IAGenerationService:
+        return self._ia_generation_service
+
     async def run_generation_task(self, **kwargs):
-        await generation_task_service.run_generation_task(**kwargs)
+        await self._generation_task_service.run_generation_task(**kwargs)
 
     def validate_product_access(self, **kwargs):
         db = kwargs.pop("db")
-        kwargs["product_repo"] = ProductRepository(db)
-        return generation_scheduling_service.validate_product_access(**kwargs)
+        kwargs["product_repo"] = self._product_repository_cls(db)
+        return self._generation_scheduling_service.validate_product_access(**kwargs)
 
     def mark_pending_status(self, **kwargs):
         db = kwargs.pop("db")
-        kwargs["product_repo"] = ProductRepository(db)
-        return generation_scheduling_service.mark_pending_status(**kwargs)
+        kwargs["product_repo"] = self._product_repository_cls(db)
+        return self._generation_scheduling_service.mark_pending_status(**kwargs)
 
     def enqueue_generation_task(self, **kwargs):
-        return generation_scheduling_service.enqueue_generation_task(**kwargs)
+        return self._generation_scheduling_service.enqueue_generation_task(**kwargs)
 
     async def sugerir_valores_atributos_com_gemini(self, **kwargs):
-        return await ia_generation_service.sugerir_valores_atributos_com_gemini(**kwargs)
+        return await self._ia_generation_service.sugerir_valores_atributos_com_gemini(
+            **kwargs
+        )
 
 
 GenerationRouterWorkflow = _GenerationRouterWorkflow
@@ -246,11 +274,11 @@ def get_generation_router_workflow() -> GenerationRouterWorkflow:
 
 class _GenerationRequestContext:
     def __init__(self, db: Session) -> None:
-        self.db = db
+        self.db=db
 
 
 def _build_generation_request_context(
-    db: Session = Depends(DependencyContainer.get_db_session),
+    db: SessionDep,
 ) -> _GenerationRequestContext:
     return _GenerationRequestContext(db=db)
 

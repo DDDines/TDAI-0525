@@ -218,17 +218,14 @@ class _ConfigRuntime:
         logger.info("APP_MODE ativo: %s", settings_obj.APP_MODE)
         return settings_obj
 
-
-config_runtime = _ConfigRuntime()
-_config_workflow = _ConfigWorkflow(runtime=config_runtime)
 ConfigWorkflow = _ConfigWorkflow
 
 
 def get_config_workflow() -> ConfigWorkflow:
-    return _config_workflow
+    return ConfigWorkflow()
 
 
-settings = _config_workflow.build_settings()
+settings = get_config_workflow().build_settings()
 
 
 

@@ -22,37 +22,22 @@ class GenerationTaskService:
         logger: Any,
         user_repository_cls: Any | None = None,
         product_repository_cls: Any | None = None,
-        legacy_user_access: Any | None = None,
-        legacy_product_access: Any | None = None,
-        **legacy_kwargs: Any,
     ) -> None:
-        legacy_prefix = "c" + "rud_"
-        if legacy_user_access is None:
-            legacy_user_access = legacy_kwargs.pop(legacy_prefix + "users", None)
-        if legacy_product_access is None:
-            legacy_product_access = legacy_kwargs.pop(legacy_prefix + "produtos", None)
-
         self._user_repository_cls = user_repository_cls
         self._product_repository_cls = product_repository_cls
-        self._legacy_user_access = legacy_user_access
-        self._legacy_product_access = legacy_product_access
         self._models = models
         self._schemas = schemas
         self._logger = logger
 
     def _get_user_access(self, session: Session) -> Any:
-        if self._user_repository_cls is not None:
-            return self._user_repository_cls(session)
-        if self._legacy_user_access is None:
-            raise ValueError("Nenhum acesso a usuario configurado para GenerationTaskService")
-        return self._legacy_user_access
+        if self._user_repository_cls is None:
+            raise ValueError("user_repository_cls is required for GenerationTaskService")
+        return self._user_repository_cls(session)
 
     def _get_product_access(self, session: Session) -> Any:
-        if self._product_repository_cls is not None:
-            return self._product_repository_cls(session)
-        if self._legacy_product_access is None:
-            raise ValueError("Nenhum acesso a produto configurado para GenerationTaskService")
-        return self._legacy_product_access
+        if self._product_repository_cls is None:
+            raise ValueError("product_repository_cls is required for GenerationTaskService")
+        return self._product_repository_cls(session)
 
     def _resolve_generation_targets(
         self,
@@ -114,7 +99,7 @@ class GenerationTaskService:
             user = call_repository_method(
                 user_access,
                 "get_user",
-                db=session,
+                session=session,
                 user_id=user_id,
             )
             if not user:
@@ -128,7 +113,7 @@ class GenerationTaskService:
             db_produto = call_repository_method(
                 product_access,
                 "get_produto",
-                db=session,
+                session=session,
                 produto_id=produto_id,
             )
             if not db_produto:
@@ -158,7 +143,7 @@ class GenerationTaskService:
             call_repository_method(
                 product_access,
                 "update_produto",
-                db=session,
+                session=session,
                 db_produto=db_produto,
                 produto_update=self._schemas.ProdutoUpdate(**update_data_progresso),
             )
@@ -216,7 +201,7 @@ class GenerationTaskService:
             call_repository_method(
                 product_access,
                 "update_produto",
-                db=session,
+                session=session,
                 db_produto=db_produto,
                 produto_update=self._schemas.ProdutoUpdate(**update_data_final_dict),
             )
@@ -248,7 +233,7 @@ class GenerationTaskService:
                 call_repository_method(
                     product_access,
                     "update_produto",
-                    db=session,
+                    session=session,
                     db_produto=db_produto,
                     produto_update=self._schemas.ProdutoUpdate(**update_data_falha_http),
                 )
@@ -270,7 +255,7 @@ class GenerationTaskService:
                 call_repository_method(
                     product_access,
                     "update_produto",
-                    db=session,
+                    session=session,
                     db_produto=db_produto,
                     produto_update=self._schemas.ProdutoUpdate(
                         **update_data_falha_critica

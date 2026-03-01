@@ -93,17 +93,45 @@ class _LoggerStub:
         self.logs.append(("exception", args, kwargs))
 
 
-@pytest.mark.asyncio
-async def test_generation_task_service_marks_success_for_titulo():
-    produto = _ProdutoStub()
+def _build_service(*, produto: _ProdutoStub, user: _UserStub | None = None):
+    crud_users = _CrudUsersStub(user or _UserStub())
     crud_produtos = _CrudProdutosStub(produto)
+
+    class _UserRepository:
+        def __init__(self, _session):
+            self._stub = crud_users
+
+        def get_user(self, db, user_id: int):
+            return self._stub.get_user(db, user_id)
+
+    class _ProductRepository:
+        def __init__(self, _session):
+            self._stub = crud_produtos
+
+        def get_produto(self, db, produto_id: int):
+            return self._stub.get_produto(db, produto_id)
+
+        def update_produto(self, db, *, db_produto, produto_update):
+            return self._stub.update_produto(
+                db,
+                db_produto=db_produto,
+                produto_update=produto_update,
+            )
+
     service = GenerationTaskService(
-        crud_users=_CrudUsersStub(_UserStub()),
-        crud_produtos=crud_produtos,
+        user_repository_cls=_UserRepository,
+        product_repository_cls=_ProductRepository,
         models=_build_models_stub(),
         schemas=_build_schemas_stub(),
         logger=_LoggerStub(),
     )
+    return service, crud_produtos
+
+
+@pytest.mark.asyncio
+async def test_generation_task_service_marks_success_for_titulo():
+    produto = _ProdutoStub()
+    service, crud_produtos = _build_service(produto=produto)
 
     async def _fake_generation(**kwargs):
         return ["Titulo 1", "Titulo 2"]
@@ -124,14 +152,7 @@ async def test_generation_task_service_marks_success_for_titulo():
 @pytest.mark.asyncio
 async def test_generation_task_service_marks_failure_for_empty_result():
     produto = _ProdutoStub()
-    crud_produtos = _CrudProdutosStub(produto)
-    service = GenerationTaskService(
-        crud_users=_CrudUsersStub(_UserStub()),
-        crud_produtos=crud_produtos,
-        models=_build_models_stub(),
-        schemas=_build_schemas_stub(),
-        logger=_LoggerStub(),
-    )
+    service, crud_produtos = _build_service(produto=produto)
 
     async def _fake_generation(**kwargs):
         return ""
@@ -145,4 +166,3 @@ async def test_generation_task_service_marks_failure_for_empty_result():
     )
 
     assert produto.status_descricao_ia == "FALHA"
-

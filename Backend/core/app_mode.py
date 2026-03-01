@@ -24,15 +24,12 @@ class _AppModeRuntime:
     def get_app_mode(self) -> AppMode:
         return AppMode.OOP
 
-
-app_mode_runtime = _AppModeRuntime()
-_app_mode_workflow = _AppModeWorkflow(runtime=app_mode_runtime)
 AppModeWorkflow = _AppModeWorkflow
 
 
 def get_app_mode_workflow() -> AppModeWorkflow:
-    return _app_mode_workflow
+    return AppModeWorkflow()
 
 
 def get_app_mode() -> AppMode:
-    return _app_mode_workflow.get_app_mode()
+    return get_app_mode_workflow().get_app_mode()

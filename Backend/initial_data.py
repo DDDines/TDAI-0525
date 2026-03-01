@@ -7,24 +7,29 @@ from sqlalchemy import func
 from Backend.core.config import settings
 from Backend import schemas
 from Backend.models import Fornecedor, Produto, AttributeFieldTypeEnum
+from Backend.infrastructure.repositories.fornecedor_repository import FornecedorRepository
+from Backend.infrastructure.repositories.product_repository import ProductRepository
+from Backend.infrastructure.repositories.product_type_repository import ProductTypeRepository
+from Backend.infrastructure.repositories.user_repository import UserRepository
 
 logger = logging.getLogger(__name__)
 
 
 def _create_initial_data_core(db: Session):
-    from Backend.application.services.data_access_service import data_access_service
-
     logger.info("Verificando/criando dados iniciais (roles, planos, admin)...")
+    user_repo = UserRepository(db)
+    product_type_repo = ProductTypeRepository(db)
+    fornecedor_repo = FornecedorRepository(db)
+    product_repo = ProductRepository(db)
 
     roles_padrao = [
         {"name": "admin", "description": "Administrador do sistema"},
         {"name": "user", "description": "UsuÃƒÂ¡rio padrÃƒÂ£o da plataforma"},
     ]
     for role_data in roles_padrao:
-        role = data_access_service.users.get_role_by_name(db, name=role_data["name"])
+        role = user_repo.get_role_by_name(name=role_data["name"])
         if not role:
-            data_access_service.users.create_role(
-                db,
+            user_repo.create_role(
                 role=schemas.RoleCreate(**role_data),
             )
             logger.info(f"Role '{role_data['name']}' criada.")
@@ -45,20 +50,19 @@ def _create_initial_data_core(db: Session):
         },
     ]
     for plano_data in planos_padrao:
-        plano = data_access_service.users.get_plano_by_name(db, plano_data["nome"])
+        plano = user_repo.get_plano_by_name(nome=plano_data["nome"])
         if not plano:
-            data_access_service.users.create_plano(
-                db,
+            user_repo.create_plano(
                 plano=schemas.PlanoCreate(**plano_data),
             )
             logger.info(f"Plano '{plano_data['nome']}' criado.")
 
     admin_email = settings.FIRST_SUPERUSER_EMAIL
     admin_password = settings.FIRST_SUPERUSER_PASSWORD
-    admin_user = data_access_service.users.get_user_by_email(db, email=admin_email)
+    admin_user = user_repo.get_user_by_email(email=admin_email)
     if not admin_user:
-        admin_role = data_access_service.users.get_role_by_name(db, name="admin")
-        admin_plano = data_access_service.users.get_plano_by_name(db, "Pro")
+        admin_role = user_repo.get_role_by_name(name="admin")
+        admin_plano = user_repo.get_plano_by_name(nome="Pro")
 
         user_in = schemas.UserCreate(
             email=admin_email,
@@ -66,7 +70,7 @@ def _create_initial_data_core(db: Session):
             nome_completo="Admin CatalogAI",
             plano_id=admin_plano.id if admin_plano else None
         )
-        db_admin_user = data_access_service.users.create_user(db=db, user=user_in)
+        db_admin_user = user_repo.create_user(user=user_in)
         db_admin_user.is_superuser = True
         if admin_role:
             db_admin_user.role_id = admin_role.id
@@ -128,11 +132,13 @@ def _create_initial_data_core(db: Session):
 
     for pt_data in tipos_produto_globais:
         pt_create_schema = schemas.ProductTypeCreate(**pt_data)
-        existing_pt = data_access_service.product_types.get_product_type_by_key_name(db, key_name=pt_create_schema.key_name, user_id=None)
+        existing_pt = product_type_repo.get_product_type_by_key_name(
+            key_name=pt_create_schema.key_name,
+            user_id=None,
+        )
         if not existing_pt:
             try:
-                data_access_service.product_types.create_product_type(
-                    db=db,
+                product_type_repo.create_product_type(
                     product_type_create=pt_create_schema,
                     user_id=None,
                 )
@@ -154,8 +160,7 @@ def _create_initial_data_core(db: Session):
                 nome="UouU",
                 site_url="www.uouu.com.br",
             )
-            data_access_service.fornecedores.create_fornecedor(
-                db=db,
+            fornecedor_repo.create_fornecedor(
                 fornecedor=fornecedor_schema,
                 user_id=admin_user.id,
             )
@@ -164,14 +169,13 @@ def _create_initial_data_core(db: Session):
             logger.info("Fornecedor de exemplo 'UouU' jÃƒÂ¡ existe para o administrador.")
 
     if db.query(Produto).count() == 0:
-        admin_user = data_access_service.users.get_user_by_email(db, email=admin_email)
+        admin_user = user_repo.get_user_by_email(email=admin_email)
         if admin_user:
             exemplo = schemas.ProdutoCreate(
                 nome_base="Produto de Exemplo",
                 descricao_original="Item criado automaticamente na inicializaÃƒÂ§ÃƒÂ£o"
             )
-            data_access_service.produtos.create_produto(
-                db=db,
+            product_repo.create_produto(
                 produto=exemplo,
                 user_id=admin_user.id,
             )
@@ -192,17 +196,15 @@ class _InitialDataRuntime:
     def create_initial_data(self, db: Session):
         return _create_initial_data_core(db=db)
 
-
-_initial_data_workflow = _InitialDataWorkflow()
 InitialDataWorkflow = _InitialDataWorkflow
 
 
 def get_initial_data_workflow() -> InitialDataWorkflow:
-    return _initial_data_workflow
+    return InitialDataWorkflow()
 
 
 def create_initial_data(db: Session):
-    return _initial_data_workflow.create_initial_data(db=db)
+    return get_initial_data_workflow().create_initial_data(db=db)
 
 
 

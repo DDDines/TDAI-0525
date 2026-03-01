@@ -13,15 +13,13 @@ class FornecedorManagementService:
         *,
         models: Any,
         schemas: Any,
-        crud_fornecedores: Any,
-        crud_historico: Any,
-        sqlalchemy_func: Any,
+        fornecedor_repo: Any = None,
+        historico_repo: Any = None,
     ) -> None:
         self._models = models
         self._schemas = schemas
-        self._crud_fornecedores = crud_fornecedores
-        self._crud_historico = crud_historico
-        self._func = sqlalchemy_func
+        self._fornecedor_repo = fornecedor_repo
+        self._historico_repo = historico_repo
 
     @staticmethod
     def ensure_current_user_identified(*, current_user: Any) -> None:
@@ -37,11 +35,10 @@ class FornecedorManagementService:
     def get_fornecedor_or_404(
         self,
         *,
-        db: Any,
         fornecedor_id: int,
         detail: str = "Fornecedor nao encontrado",
     ) -> Any:
-        fornecedor = self._crud_fornecedores.get_fornecedor(db, fornecedor_id=fornecedor_id)
+        fornecedor = self._fornecedor_repo.get_fornecedor(fornecedor_id=fornecedor_id)
         if not fornecedor:
             raise HTTPException(status_code=404, detail=detail)
         return fornecedor
@@ -54,14 +51,12 @@ class FornecedorManagementService:
     def resolve_fornecedor_for_user(
         self,
         *,
-        db: Any,
         fornecedor_id: int,
         current_user: Any,
         not_found_detail: str,
         forbidden_detail: str,
     ) -> Any:
         fornecedor = self.get_fornecedor_or_404(
-            db=db,
             fornecedor_id=fornecedor_id,
             detail=not_found_detail,
         )
@@ -75,21 +70,16 @@ class FornecedorManagementService:
     def ensure_unique_name_on_update(
         self,
         *,
-        db: Any,
         fornecedor_id: int,
         owner_user_id: int,
         new_name: str,
     ) -> None:
-        existing_fornecedor = (
-            db.query(self._models.Fornecedor)
-            .filter(
-                self._models.Fornecedor.user_id == owner_user_id,
-                self._func.lower(self._models.Fornecedor.nome) == self._func.lower(new_name),
-                self._models.Fornecedor.id != fornecedor_id,
-            )
-            .first()
+        already_exists = self._fornecedor_repo.exists_fornecedor_with_name_for_user(
+            user_id=owner_user_id,
+            nome=new_name,
+            exclude_id=fornecedor_id,
         )
-        if existing_fornecedor:
+        if already_exists:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail=f"Ja existe um fornecedor com o nome '{new_name}'.",
@@ -98,18 +88,15 @@ class FornecedorManagementService:
     def create_fornecedor(
         self,
         *,
-        db: Any,
         fornecedor: Any,
         current_user: Any,
     ) -> Any:
         self.ensure_current_user_identified(current_user=current_user)
-        created = self._crud_fornecedores.create_fornecedor(
-            db=db,
+        created = self._fornecedor_repo.create_fornecedor(
             fornecedor=fornecedor,
             user_id=current_user.id,
         )
-        self._crud_historico.create_registro_historico(
-            db,
+        self._historico_repo.create_registro_historico(
             self._schemas.RegistroHistoricoCreate(
                 user_id=current_user.id,
                 entidade="Fornecedor",
@@ -122,38 +109,23 @@ class FornecedorManagementService:
     def list_fornecedores_page(
         self,
         *,
-        db: Any,
         current_user: Any,
         skip: int,
         limit: int,
         termo_busca: str | None,
     ) -> dict[str, Any]:
-        if current_user.is_superuser:
-            fornecedores_query = db.query(self._models.Fornecedor)
-            if termo_busca:
-                fornecedores_query = fornecedores_query.filter(
-                    self._models.Fornecedor.nome.ilike(f"%{termo_busca}%")
-                )
-            total_items = fornecedores_query.count()
-            items = (
-                fornecedores_query.order_by(self._models.Fornecedor.nome)
-                .offset(skip)
-                .limit(limit)
-                .all()
-            )
-        else:
-            items = self._crud_fornecedores.get_fornecedores_by_user(
-                db,
-                user_id=current_user.id,
-                skip=skip,
-                limit=limit,
-                search=termo_busca,
-            )
-            total_items = self._crud_fornecedores.count_fornecedores_by_user(
-                db=db,
-                user_id=current_user.id,
-                search=termo_busca,
-            )
+        items = self._fornecedor_repo.get_fornecedores_by_user(
+            user_id=current_user.id,
+            is_admin=current_user.is_superuser,
+            skip=skip,
+            limit=limit,
+            search=termo_busca,
+        )
+        total_items = self._fornecedor_repo.count_fornecedores_by_user(
+            user_id=current_user.id,
+            is_admin=current_user.is_superuser,
+            search=termo_busca,
+        )
 
         return {
             "items": items,
@@ -165,13 +137,11 @@ class FornecedorManagementService:
     def update_fornecedor(
         self,
         *,
-        db: Any,
         fornecedor_id: int,
         fornecedor_update: Any,
         current_user: Any,
     ) -> Any:
         fornecedor = self.resolve_fornecedor_for_user(
-            db=db,
             fornecedor_id=fornecedor_id,
             current_user=current_user,
             not_found_detail="Fornecedor nao encontrado.",
@@ -179,19 +149,16 @@ class FornecedorManagementService:
         )
         if fornecedor_update.nome and fornecedor_update.nome != fornecedor.nome:
             self.ensure_unique_name_on_update(
-                db=db,
                 fornecedor_id=fornecedor_id,
                 owner_user_id=fornecedor.user_id,
                 new_name=fornecedor_update.nome,
             )
 
-        updated = self._crud_fornecedores.update_fornecedor(
-            db=db,
+        updated = self._fornecedor_repo.update_fornecedor(
             db_fornecedor=fornecedor,
             fornecedor_update=fornecedor_update,
         )
-        self._crud_historico.create_registro_historico(
-            db,
+        self._historico_repo.create_registro_historico(
             self._schemas.RegistroHistoricoCreate(
                 user_id=current_user.id,
                 entidade="Fornecedor",
@@ -204,12 +171,10 @@ class FornecedorManagementService:
     def get_mapping(
         self,
         *,
-        db: Any,
         fornecedor_id: int,
         current_user: Any,
     ) -> Any:
         fornecedor = self.resolve_fornecedor_for_user(
-            db=db,
             fornecedor_id=fornecedor_id,
             current_user=current_user,
             not_found_detail="Fornecedor nao encontrado",
@@ -220,44 +185,37 @@ class FornecedorManagementService:
     def update_mapping(
         self,
         *,
-        db: Any,
         fornecedor_id: int,
         current_user: Any,
         mapping: Any,
     ) -> Any:
         fornecedor = self.resolve_fornecedor_for_user(
-            db=db,
             fornecedor_id=fornecedor_id,
             current_user=current_user,
             not_found_detail="Fornecedor nao encontrado",
             forbidden_detail="Nao autorizado",
         )
-        fornecedor.default_column_mapping = mapping
-        db.add(fornecedor)
-        db.commit()
-        db.refresh(fornecedor)
-        return fornecedor
+        return self._fornecedor_repo.set_default_column_mapping(
+            db_fornecedor=fornecedor,
+            mapping=mapping,
+        )
 
     def delete_fornecedor(
         self,
         *,
-        db: Any,
         fornecedor_id: int,
         current_user: Any,
     ) -> Any:
         fornecedor = self.resolve_fornecedor_for_user(
-            db=db,
             fornecedor_id=fornecedor_id,
             current_user=current_user,
             not_found_detail="Fornecedor nao encontrado.",
             forbidden_detail="Nao autorizado a deletar este fornecedor.",
         )
-        deleted = self._crud_fornecedores.delete_fornecedor(
-            db=db,
+        deleted = self._fornecedor_repo.delete_fornecedor(
             db_fornecedor=fornecedor,
         )
-        self._crud_historico.create_registro_historico(
-            db,
+        self._historico_repo.create_registro_historico(
             self._schemas.RegistroHistoricoCreate(
                 user_id=current_user.id,
                 entidade="Fornecedor",

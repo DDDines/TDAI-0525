@@ -3,8 +3,13 @@ from typing import List
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy.orm import Session
 
-from Backend import database, models, schemas
-from Backend.application.services.data_access_service import data_access_service
+from Backend import models, schemas
+from Backend.application.services.service_container import (
+    DependencyContainer,
+    SessionDep,
+)
+from Backend.infrastructure.repositories.historico_repository import HistoricoRepository
+
 from . import auth_utils
 
 router = APIRouter(
@@ -15,52 +20,65 @@ router = APIRouter(
 
 
 class _HistoricoRuntime:
-    """Runtime OO para operaÃ§Ãµes de histÃ³rico."""
+    """Runtime OO para operacoes de historico com session request-scoped."""
+
+    def __init__(self, historico_repo: HistoricoRepository) -> None:
+        self._historico_repo = historico_repo
 
     def get_registros_historico(
         self,
-        db: Session,
         *,
         user_id: int | None,
         skip: int,
         limit: int,
     ):
-        return data_access_service.historico.get_registros_historico(
-            db,
+        return self._historico_repo.get_registros_historico(
             user_id=user_id,
             skip=skip,
             limit=limit,
         )
 
-    def count_registros_historico(self, db: Session, *, user_id: int | None) -> int:
-        return data_access_service.historico.count_registros_historico(
-            db,
+    def count_registros_historico(self, *, user_id: int | None) -> int:
+        return self._historico_repo.count_registros_historico(
             user_id=user_id,
         )
 
-    def get_tipos_acao(self) -> List[str]:
+    @staticmethod
+    def get_tipos_acao() -> List[str]:
         return [enum_member.value for enum_member in models.TipoAcaoEnum]
 
 
 class _HistoricoWorkflow:
-    def __init__(self, runtime: _HistoricoRuntime | None = None) -> None:
-        self._runtime = runtime or _HistoricoRuntime()
+    def __init__(self, runtime: _HistoricoRuntime) -> None:
+        self._runtime = runtime
 
     def list_historico(
         self,
-        db: Session,
+        *,
+        db=None,
         current_user: models.User,
         skip: int,
         limit: int,
     ) -> schemas.HistoricoPage:
         user_id_filter = None if current_user.is_superuser else current_user.id
-        items = self._runtime.get_registros_historico(
-            db,
-            user_id=user_id_filter,
-            skip=skip,
-            limit=limit,
-        )
-        total = self._runtime.count_registros_historico(db, user_id=user_id_filter)
+        try:
+            items = self._runtime.get_registros_historico(
+                user_id=user_id_filter,
+                skip=skip,
+                limit=limit,
+            )
+        except TypeError:
+            items = self._runtime.get_registros_historico(
+                db,
+                user_id=user_id_filter,
+                skip=skip,
+                limit=limit,
+            )
+
+        try:
+            total = self._runtime.count_registros_historico(user_id=user_id_filter)
+        except TypeError:
+            total = self._runtime.count_registros_historico(db, user_id=user_id_filter)
         page = skip // limit + 1
         return schemas.HistoricoPage(
             items=items,
@@ -73,24 +91,25 @@ class _HistoricoWorkflow:
         return self._runtime.get_tipos_acao()
 
 
-_historico_runtime = _HistoricoRuntime()
-_historico_workflow = _HistoricoWorkflow(runtime=_historico_runtime)
 HistoricoWorkflow = _HistoricoWorkflow
 
 
-def get_historico_workflow() -> HistoricoWorkflow:
-    return _historico_workflow
+def _build_historico_workflow(
+    db: SessionDep,
+) -> _HistoricoWorkflow:
+    return _HistoricoWorkflow(
+        runtime=_HistoricoRuntime(historico_repo=HistoricoRepository(db)),
+    )
 
 
 @router.get("/", response_model=schemas.HistoricoPage)
 def list_historico(
-    db: Session = Depends(database.get_db),
     skip: int = Query(0, ge=0),
     limit: int = Query(10, ge=1, le=100),
     current_user: models.User = Depends(auth_utils.get_current_active_user),
+    workflow: _HistoricoWorkflow = Depends(_build_historico_workflow),
 ):
-    return _historico_workflow.list_historico(
-        db=db,
+    return workflow.list_historico(
         current_user=current_user,
         skip=skip,
         limit=limit,
@@ -98,10 +117,7 @@ def list_historico(
 
 
 @router.get("/tipos", response_model=List[str])
-def get_tipos_acao(db: Session = Depends(database.get_db)):
-    _ = db
-    return _historico_workflow.get_tipos_acao()
-
-
-
-
+def get_tipos_acao(
+    workflow: _HistoricoWorkflow = Depends(_build_historico_workflow),
+):
+    return workflow.get_tipos_acao()

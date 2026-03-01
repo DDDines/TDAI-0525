@@ -18,15 +18,8 @@ class GenerationSchedulingService:
         schemas: Any,
         models: Any,
         product_repository_cls: Any | None = None,
-        legacy_product_access: Any | None = None,
-        **legacy_kwargs: Any,
     ) -> None:
-        if legacy_product_access is None:
-            legacy_prefix = "c" + "rud_"
-            legacy_product_access = legacy_kwargs.pop(legacy_prefix + "produtos", None)
-
         self._product_repository_cls = product_repository_cls
-        self._legacy_product_access = legacy_product_access
         self._schemas = schemas
         self._models = models
 
@@ -41,7 +34,7 @@ class GenerationSchedulingService:
         db_produto = call_repository_method(
             repo,
             "get_produto",
-            db=getattr(repo, "_db", None),
+            session=getattr(repo, "_db", None),
             produto_id=produto_id,
         )
         if not db_produto:
@@ -78,7 +71,7 @@ class GenerationSchedulingService:
         call_repository_method(
             repo,
             "update_produto",
-            db=getattr(repo, "_db", None),
+            session=getattr(repo, "_db", None),
             db_produto=db_produto,
             produto_update=self._schemas.ProdutoUpdate(**update_data),
         )

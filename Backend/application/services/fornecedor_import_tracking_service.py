@@ -18,10 +18,7 @@ class FornecedorImportTrackingService:
         models: Any,
         process_pdf_extraction_task: Any,
         catalog_file_repository: Any | None = None,
-        **legacy_kwargs: Any,
     ) -> None:
-        if catalog_file_repository is None:
-            catalog_file_repository = legacy_kwargs.pop("catalog_file_repository", None)
         if catalog_file_repository is None:
             from Backend.infrastructure.repositories.catalog_import_file_repository import (
                 CatalogImportFileRepository,
@@ -44,7 +41,7 @@ class FornecedorImportTrackingService:
         record = call_repository_method(
             catalog_file_repo,
             "get_catalog_file_for_user",
-            db=getattr(catalog_file_repo, "_db", None),
+            session=getattr(catalog_file_repo, "_db", None),
             file_id=file_id,
             user_id=user_id,
         )

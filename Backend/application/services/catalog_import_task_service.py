@@ -123,16 +123,7 @@ class _CatalogImportTaskWorkflow:
         write_catalog_import_report: Callable,
         normalize_import_text: Callable,
         runtime: Optional[Any] = None,
-        **legacy_kwargs: Any,
     ) -> None:
-        if product_repository is None:
-            legacy_prefix = "c" + "rud_"
-            product_repository = legacy_kwargs.pop(legacy_prefix + "produtos", None)
-        if catalog_file_repository is None:
-            catalog_file_repository = legacy_kwargs.pop(
-                "catalog_file_repository",
-                None,
-            )
         if catalog_file_repository is None:
             from Backend.infrastructure.repositories.catalog_import_file_repository import (
                 CatalogImportFileRepository,
@@ -221,7 +212,7 @@ class _CatalogImportTaskWorkflow:
         self.catalog_file = call_repository_method(
             self.catalog_file_repo_runtime,
             "get_catalog_file_for_user",
-            db=self.db,
+            session=self.db,
             file_id=self.file_id,
             user_id=self.user_id,
         )
@@ -359,7 +350,7 @@ class _CatalogImportTaskWorkflow:
         created_page, updated_page, dup_errors = call_repository_method(
             self.product_repository,
             "create_produtos_bulk",
-            db=self.db,
+            session=self.db,
             produtos=produtos_create,
             arg_aliases={"produtos": ("produtos_data",)},
             user_id=self.user_id,
@@ -370,7 +361,7 @@ class _CatalogImportTaskWorkflow:
             self.issue_tracker.add_issue(err)
 
         self.audit_writer.register_creation(
-            db=self.db,
+            session=self.db,
             user_id=self.user_id,
             produtos_criados=created_page,
         )
@@ -545,7 +536,7 @@ class _CatalogImportTaskWorkflow:
         catalog_file = call_repository_method(
             self.catalog_file_repo_runtime,
             "get_catalog_file",
-            db=self.db,
+            session=self.db,
             file_id=self.file_id,
         )
         if catalog_file:
@@ -571,7 +562,7 @@ class _CatalogImportTaskWorkflow:
         self.db = db_session_factory()
         self.catalog_file_repo_runtime = bind_repository(
             self.catalog_file_repository,
-            db=self.db,
+            session=self.db,
         )
         self.file_id = file_id
         self.user_id = user_id
@@ -634,16 +625,7 @@ class CatalogImportTaskService:
         classificar_qualidade_linha_produto: Callable,
         write_catalog_import_report: Callable,
         normalize_import_text: Callable,
-        **legacy_kwargs: Any,
     ):
-        if product_repository is None:
-            legacy_prefix = "c" + "rud_"
-            product_repository = legacy_kwargs.pop(legacy_prefix + "produtos", None)
-        if catalog_file_repository is None:
-            catalog_file_repository = legacy_kwargs.pop(
-                "catalog_file_repository",
-                None,
-            )
         if catalog_file_repository is None:
             from Backend.infrastructure.repositories.catalog_import_file_repository import (
                 CatalogImportFileRepository,

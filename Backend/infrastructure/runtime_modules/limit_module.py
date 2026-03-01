@@ -1,14 +1,16 @@
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, Optional
 
 from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
 
 from Backend import models
-from Backend.crud_registros_uso_ia import get_registro_uso_ia_crud_workflow
-from Backend.crud_users import get_user_crud_workflow
 from Backend.core.logging_config import get_logger
+from Backend.infrastructure.repositories.registro_uso_ia_repository import (
+    RegistroUsoIARepository,
+)
+from Backend.infrastructure.repositories.user_repository import UserRepository
 
 
 class _LimitRuntime:
@@ -27,6 +29,46 @@ class _LimitRuntime:
         self._uso_ia_workflow = uso_ia_workflow or crud_module
         self._user_workflow = user_workflow or crud_users_module
         self._logger = logger_factory(__name__)
+
+    @staticmethod
+    def _resolve_uso_ia_accessor(uso_ia_workflow, db: Session):
+        if uso_ia_workflow is None:
+            return RegistroUsoIARepository(db)
+        if callable(uso_ia_workflow):
+            return uso_ia_workflow(db)
+        return uso_ia_workflow
+
+    @staticmethod
+    def _call_count_by_prefix(uso_ia_accessor, db: Session, *, user_id: int, tipo_geracao_prefix: str):
+        method = uso_ia_accessor.count_usos_ia_by_user_and_type_no_mes_corrente
+        try:
+            return method(user_id=user_id, tipo_geracao_prefix=tipo_geracao_prefix)
+        except TypeError:
+            return method(db, user_id=user_id, tipo_geracao_prefix=tipo_geracao_prefix)
+
+    @staticmethod
+    def _call_count_monthly(uso_ia_accessor, db: Session, *, user_id: int):
+        method = uso_ia_accessor.get_geracoes_ia_count_no_mes_corrente
+        try:
+            return method(user_id=user_id)
+        except TypeError:
+            return method(db, user_id=user_id)
+
+    @staticmethod
+    def _resolve_user_accessor(user_workflow, db: Session):
+        if user_workflow is None:
+            return UserRepository(db)
+        if callable(user_workflow):
+            return user_workflow(db)
+        return user_workflow
+
+    @staticmethod
+    def _call_get_user(user_accessor, db: Session, *, user_id: int):
+        method = user_accessor.get_user
+        try:
+            return method(user_id=user_id)
+        except TypeError:
+            return method(db, user_id=user_id)
 
     def verificar_limite_uso(
         self,
@@ -71,7 +113,9 @@ class _LimitRuntime:
             )
             return -1
 
-        usos_no_mes = self._uso_ia_workflow.count_usos_ia_by_user_and_type_no_mes_corrente(
+        uso_ia_accessor = self._resolve_uso_ia_accessor(self._uso_ia_workflow, db)
+        usos_no_mes = self._call_count_by_prefix(
+            uso_ia_accessor,
             db,
             user_id=user.id,
             tipo_geracao_prefix=tipo_geracao_principal,
@@ -112,7 +156,8 @@ class _LimitRuntime:
     ) -> bool:
         """Verifica se o usuario possui credito mensal disponivel para IA."""
 
-        user = self._user_workflow.get_user(db, user_id=user_id)
+        user_accessor = self._resolve_user_accessor(self._user_workflow, db)
+        user = self._call_get_user(user_accessor, db, user_id=user_id)
         if not user:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
@@ -126,7 +171,9 @@ class _LimitRuntime:
         if limite_mensal is None or limite_mensal <= 0:
             return True
 
-        usos_no_mes = self._uso_ia_workflow.get_geracoes_ia_count_no_mes_corrente(
+        uso_ia_accessor = self._resolve_uso_ia_accessor(self._uso_ia_workflow, db)
+        usos_no_mes = self._call_count_monthly(
+            uso_ia_accessor,
             db,
             user_id=user_id,
         )
@@ -150,8 +197,12 @@ class _LimitRuntime:
 class _LimitWorkflow:
     """Workflow OO para regras de limite e credito."""
 
-    def __init__(self, runtime: _LimitRuntime) -> None:
-        self._runtime = runtime
+    def __init__(self, runtime: Optional[_LimitRuntime] = None) -> None:
+        self._runtime = runtime or _LimitRuntime(
+            uso_ia_workflow=lambda db: RegistroUsoIARepository(db),
+            user_workflow=lambda db: UserRepository(db),
+            logger_factory=get_logger,
+        )
 
     def verificar_limite_uso(
         self,
@@ -191,15 +242,6 @@ class _LimitWorkflow:
 
 
 LimitWorkflow = _LimitWorkflow
-
-
-def get_limit_workflow() -> LimitWorkflow:
-    runtime = _LimitRuntime(
-        uso_ia_workflow=get_registro_uso_ia_crud_workflow(),
-        user_workflow=get_user_crud_workflow(),
-        logger_factory=get_logger,
-    )
-    return _LimitWorkflow(runtime)
 
 
 

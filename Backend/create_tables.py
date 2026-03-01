@@ -46,17 +46,15 @@ class _CreateTablesRuntime:
                 "de dados configurado existe."
             )
 
-
-_create_tables_workflow = _CreateTablesWorkflow()
 CreateTablesWorkflow = _CreateTablesWorkflow
 
 
 def get_create_tables_workflow() -> CreateTablesWorkflow:
-    return _create_tables_workflow
+    return CreateTablesWorkflow()
 
 
 def create_all_tables():
-    _create_tables_workflow.create_all_tables()
+    get_create_tables_workflow().create_all_tables()
 
 
 

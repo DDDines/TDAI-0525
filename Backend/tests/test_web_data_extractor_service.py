@@ -2,7 +2,7 @@ from Backend.testing.runtime_apis import web_extractor
 
 
 def _search_workflow():
-    return web_extractor.get_web_search_workflow()
+    return web_extractor.WebDataExtractorRuntime().search_workflow
 
 
 def test_url_deve_ser_ignorada_para_links_de_tracking():

@@ -8,9 +8,9 @@ from sqlalchemy.pool import StaticPool
 from Backend.main import app, create_new_user
 from Backend.database import Base, get_db
 from Backend import schemas, models
-from Backend.crud_historico import get_historico_crud_workflow
 from Backend.initial_data import get_initial_data_workflow
 from Backend.core.config import settings
+from Backend.infrastructure.repositories.historico_repository import HistoricoRepository
 
 app.router.on_startup.clear()
 
@@ -34,7 +34,6 @@ app.dependency_overrides[get_db] = override_get_db
 client = TestClient(app)
 
 initial_data_workflow = get_initial_data_workflow()
-historico_crud_workflow = get_historico_crud_workflow()
 
 with TestingSessionLocal() as db:
     initial_data_workflow.create_initial_data(db)
@@ -75,9 +74,8 @@ def test_list_historico_endpoint():
     headers = get_user_headers()
     # cria um registro para garantir algum resultado
     with TestingSessionLocal() as db:
-        historico_crud_workflow.create_registro_historico(
-            db,
-            schemas.RegistroHistoricoCreate(
+        HistoricoRepository(db).create_registro_historico(
+            registro_in=schemas.RegistroHistoricoCreate(
                 user_id=normal_user.id,
                 entidade="Teste",
                 acao=models.TipoAcaoSistemaEnum.CRIACAO,

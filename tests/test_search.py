@@ -8,11 +8,11 @@ from sqlalchemy.pool import StaticPool
 from Backend.main import app
 from Backend.database import Base, get_db
 from Backend import schemas, models
-from Backend.crud_fornecedores import get_fornecedor_crud_workflow
-from Backend.crud_produtos import get_produto_crud_workflow
-from Backend.crud_users import get_user_crud_workflow
 from Backend.initial_data import get_initial_data_workflow
 from Backend.core.config import settings
+from Backend.infrastructure.repositories.fornecedor_repository import FornecedorRepository
+from Backend.infrastructure.repositories.product_repository import ProductRepository
+from Backend.infrastructure.repositories.user_repository import UserRepository
 
 app.router.on_startup.clear()
 
@@ -36,22 +36,17 @@ app.dependency_overrides[get_db] = override_get_db
 client = TestClient(app)
 
 initial_data_workflow = get_initial_data_workflow()
-user_crud_workflow = get_user_crud_workflow()
-produto_crud_workflow = get_produto_crud_workflow()
-fornecedor_crud_workflow = get_fornecedor_crud_workflow()
 
 # Prepare sample data
 with TestingSessionLocal() as db:
     initial_data_workflow.create_initial_data(db)
-    admin = user_crud_workflow.get_user_by_email(db, settings.FIRST_SUPERUSER_EMAIL)
-    produto_crud_workflow.create_produto(
-        db,
-        schemas.ProdutoCreate(nome_base="BuscaTest"),
+    admin = UserRepository(db).get_user_by_email(email=settings.FIRST_SUPERUSER_EMAIL)
+    ProductRepository(db).create_produto(
+        produto=schemas.ProdutoCreate(nome_base="BuscaTest"),
         user_id=admin.id,
     )
-    fornecedor_crud_workflow.create_fornecedor(
-        db,
-        schemas.FornecedorCreate(nome="FornecedorTeste"),
+    FornecedorRepository(db).create_fornecedor(
+        fornecedor=schemas.FornecedorCreate(nome="FornecedorTeste"),
         user_id=admin.id,
     )
 

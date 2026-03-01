@@ -19,9 +19,9 @@ def _build_runner() -> WebEnrichmentTaskRunner:
     return WebEnrichmentTaskRunner(
         logger=object(),
         SQLAlchemyError=Exception,
-        crud_users=object(),
-        crud_produtos=object(),
-        crud=object(),
+        user_repository=object(),
+        product_repository=object(),
+        usage_repository=object(),
         models=object(),
         schemas=object(),
         web_extractor=object(),

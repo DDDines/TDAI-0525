@@ -73,27 +73,19 @@ def test_runtime_returns_raw_data_on_timeout():
     assert result == payload
 
 
-def test_run_validation_crew_delegates_to_workflow(monkeypatch):
+def test_run_validation_crew_delegates_to_runtime():
     captured = {}
 
-    class _WorkflowStub:
+    class _RuntimeStub:
         @staticmethod
-        def run_validation_crew(raw_data, timeout_seconds=8):
+        def run(raw_data, timeout_seconds=8):
             captured["raw_data"] = raw_data
             captured["timeout_seconds"] = timeout_seconds
             return {"ok": raw_data}
 
-    monkeypatch.setattr(
-        validator_crew,
-        "get_validation_crew_workflow",
-        lambda: _WorkflowStub(),
-    )
-
+    workflow = validator_crew.ValidationCrewWorkflow(runtime=_RuntimeStub())
     payload = {"id": 10}
-    result = validator_crew.get_validation_crew_workflow().run_validation_crew(
-        payload,
-        timeout_seconds=5,
-    )
+    result = workflow.run_validation_crew(payload, timeout_seconds=5)
 
     assert result == {"ok": payload}
     assert captured == {"raw_data": payload, "timeout_seconds": 5}

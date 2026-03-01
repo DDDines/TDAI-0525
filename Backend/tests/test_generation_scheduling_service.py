@@ -46,7 +46,6 @@ class _BackgroundTasksStub:
 def _build_service(produto=None):
     crud_stub = _CrudProdutosStub(produto=produto)
     service = GenerationSchedulingService(
-        crud_produtos=crud_stub,
         schemas=_SchemasStub,
         models=_ModelsStub,
     )

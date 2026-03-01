@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+from typing import Annotated
 
 from fastapi import Depends
 from sqlalchemy.orm import Session
@@ -33,6 +34,15 @@ from Backend.infrastructure.repositories.fornecedor_repository import Fornecedor
 from Backend.infrastructure.repositories.historico_repository import HistoricoRepository
 
 
+def _get_request_db_session(
+    session: Session = Depends(database.get_db),
+) -> Session:
+    return session
+
+
+SessionDep = Annotated[Session, Depends(_get_request_db_session)]
+
+
 def _build_file_processing_service() -> FileProcessingOrchestratorService:
     return FileProcessingOrchestratorService(FileProcessingServiceAdapter())
 
@@ -54,15 +64,11 @@ class ServiceContainer:
     ia_generation: IAGenerationService = field(default_factory=IAGenerationService)
     limit: LimitService = field(default_factory=LimitService)
 
-
-service_container = ServiceContainer()
-
-
 class DependencyContainer:
     """Container de DI para dependencias request-scoped dos routers."""
 
     @staticmethod
-    def get_db_session(session: Session = Depends(database.get_db)) -> Session:
+    def get_db_session(session: Session = Depends(_get_request_db_session)) -> Session:
         return session
 
     @staticmethod
