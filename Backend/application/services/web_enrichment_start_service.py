@@ -21,11 +21,7 @@ class WebEnrichmentStartService:
         dispatcher_cls: Any = PipelineDispatcher,
         orchestrator_cls: Any = WebEnrichmentPipelineOrchestrator,
         product_repository: Any | None = None,
-        **legacy_kwargs: Any,
     ) -> None:
-        if product_repository is None:
-            legacy_prefix = "c" + "rud_"
-            product_repository = legacy_kwargs.pop(legacy_prefix + "produtos", None)
         self._product_repository = product_repository
         self._models = models
         self._dispatcher = dispatcher_cls
@@ -42,7 +38,7 @@ class WebEnrichmentStartService:
         db_produto_check = call_repository_method(
             repo,
             "get_produto",
-            db=getattr(repo, "_db", None),
+            session=getattr(repo, "_db", None),
             produto_id=produto_id,
         )
         if not db_produto_check:

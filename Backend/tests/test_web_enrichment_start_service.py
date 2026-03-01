@@ -58,7 +58,7 @@ class _OrchestratorStub:
 
 def _build_service(produto=None):
     return WebEnrichmentStartService(
-        crud_produtos=_CrudProdutosStub(produto=produto),
+        product_repository=_CrudProdutosStub(produto=produto),
         models=_ModelsStub,
         dispatcher_cls=_DispatcherStub,
         orchestrator_cls=_OrchestratorStub,

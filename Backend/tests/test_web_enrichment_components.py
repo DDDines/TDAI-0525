@@ -124,7 +124,7 @@ def test_finalization_service_updates_payload_and_normalizes_logs():
             ["marca"],
         ),
         schemas=_FakeSchemas,
-        crud_produtos=crud_produtos,
+        product_repository=crud_produtos,
         models=_FakeModels,
     )
     db_obj = object()

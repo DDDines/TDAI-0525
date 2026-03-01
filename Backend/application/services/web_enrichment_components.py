@@ -4,6 +4,10 @@ import re
 from dataclasses import dataclass
 from typing import Any, Dict, List, Optional
 
+from Backend.application.services.repository_runtime_support import (
+    call_repository_method,
+)
+
 
 @dataclass(frozen=True)
 class WebEnrichmentConfigSnapshot:
@@ -218,13 +222,13 @@ class WebEnrichmentFinalizationService:
         normalize_human_text: Any,
         build_payload_enriquecimento_visivel: Any,
         schemas: Any,
-        crud_produtos: Any,
         models: Any,
+        product_repository: Any | None = None,
     ) -> None:
         self._normalize_human_text = normalize_human_text
         self._build_payload_enriquecimento_visivel = build_payload_enriquecimento_visivel
         self._schemas = schemas
-        self._crud_produtos = crud_produtos
+        self._product_repository = product_repository
         self._models = models
 
     def apply(
@@ -322,8 +326,10 @@ class WebEnrichmentFinalizationService:
                 "resumo_aplicacao": resumo_aplicacao,
             },
         )
-        self._crud_produtos.update_produto(
-            db,
+        call_repository_method(
+            self._product_repository,
+            "update_produto",
+            session=db,
             db_produto=db_produto_obj,
             produto_update=payload_final_update,
         )
