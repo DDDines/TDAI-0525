@@ -1,7 +1,7 @@
 """Servicos de aplicacao e composicao de dependencias para 'service_container'."""
 from __future__ import annotations
 from dataclasses import dataclass, field
-from typing import Annotated, Any, Callable
+from typing import Any, Callable
 from fastapi import Depends
 from sqlalchemy.orm import Session
 from Backend import database, models, schemas
@@ -45,8 +45,6 @@ class ServiceContainerDependencySupport:
     @staticmethod
     def build_web_data_extractor_service() -> WebDataExtractorOrchestratorService:
         return WebDataExtractorOrchestratorService(WebDataExtractorServiceAdapter())
-SessionDep = Annotated[Session, Depends(ServiceContainerDependencySupport.get_request_db_session)]
-
 @dataclass
 class ServiceContainer:
     """Registry simples de servicos OO compartilhados pela aplicacao."""
@@ -59,19 +57,19 @@ class DependencyContainer:
     """Container de DI para dependencias request-scoped dos routers."""
 
     @staticmethod
-    def get_db_session(session: Session=Depends(ServiceContainerDependencySupport.get_request_db_session)) -> Session:
+    def get_db_session(session: Session) -> Session:
         return session
 
     @staticmethod
-    def get_product_management_service(db: Session=Depends(get_db_session)) -> ProductManagementService:
-        repos = ProductRepositories.build_product_management_repositories(session=db)
+    def get_product_management_service(session: Session) -> ProductManagementService:
+        repos = ProductRepositories.build_product_management_repositories(session=session)
         return ProductManagementService(models=models, schemas=schemas, **repos)
 
     @staticmethod
-    def get_product_media_service(db: Session=Depends(get_db_session)) -> ProductMediaService:
-        repos = ProductRepositories.build_product_media_repositories(session=db)
+    def get_product_media_service(session: Session) -> ProductMediaService:
+        repos = ProductRepositories.build_product_media_repositories(session=session)
         return ProductMediaService(schemas=schemas, **repos)
 
     @staticmethod
-    def get_fornecedor_management_service(db: Session=Depends(get_db_session)) -> FornecedorManagementService:
-        return FornecedorManagementService(models=models, schemas=schemas, fornecedor_repo=FornecedorRepository(db), historico_repo=HistoricoRepository(db))
+    def get_fornecedor_management_service(session: Session) -> FornecedorManagementService:
+        return FornecedorManagementService(models=models, schemas=schemas, fornecedor_repo=FornecedorRepository(session), historico_repo=HistoricoRepository(session))

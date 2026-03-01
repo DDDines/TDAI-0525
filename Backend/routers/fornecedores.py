@@ -5,7 +5,6 @@ from typing import List, Optional
 import time
 from fastapi import APIRouter, BackgroundTasks, Body, Depends, File, HTTPException, Query, UploadFile, status
 from sqlalchemy.orm import Session, sessionmaker
-from Backend import database
 from Backend import models
 from Backend import schemas
 from Backend.application.services.fornecedor_catalog_process_service import FornecedorCatalogProcessService
@@ -37,8 +36,8 @@ class _FornecedoresDependencies:
         return _FornecedoresServiceBundle()
 
     @staticmethod
-    def get_fornecedores_request_service():
-        return FornecedoresRequestService(runtime=_FornecedoresServiceGateway())
+    def get_fornecedores_request_service(session: Session):
+        return FornecedoresRequestService(runtime=_FornecedoresServiceGateway(session=session))
 logger = get_logger(__name__)
 catalog_log_dir = Path(__file__).resolve().parent.parent / 'logs'
 catalog_log_dir.mkdir(parents=True, exist_ok=True)
@@ -73,8 +72,8 @@ router = APIRouter(prefix='/fornecedores', tags=['fornecedores'], dependencies=[
 class FornecedoresRequestService:
     """Workflow/escopo request-scoped para o fluxo de 'fornecedores'."""
 
-    def __init__(self, runtime: Optional['_FornecedoresServiceGateway']=None) -> None:
-        self._runtime = runtime or _FornecedoresServiceGateway()
+    def __init__(self, runtime: '_FornecedoresServiceGateway') -> None:
+        self._runtime = runtime
 
     def create_fornecedor(self, fornecedor: schemas.FornecedorCreate, current_user: models.User, fornecedor_management_service: FornecedorManagementService) -> models.Fornecedor:
         logger.info('Requisicao para criar fornecedor recebida.')
@@ -98,49 +97,54 @@ class FornecedoresRequestService:
     async def preview_pages(self, file: UploadFile):
         return await self._runtime.preview_pages(file=file)
 
-    async def preview_pdf(self, fornecedor_id: int, file: UploadFile, db: Session, current_user: models.User, offset: int, limit: int, fornecedor_management_service: FornecedorManagementService) -> schemas.PdfPreviewResponse:
+    async def preview_pdf(self, fornecedor_id: int, file: UploadFile, current_user: models.User, offset: int, limit: int, fornecedor_management_service: FornecedorManagementService) -> schemas.PdfPreviewResponse:
         _ = self._runtime.resolve_fornecedor_for_user(fornecedor_id=fornecedor_id, current_user=current_user, not_found_detail='Fornecedor nao encontrado', forbidden_detail='Nao autorizado a acessar este fornecedor.', fornecedor_management_service=fornecedor_management_service)
-        return self._runtime.preview_pdf(db=db, file=file, fornecedor_id=fornecedor_id, user_id=current_user.id, offset=offset, limit=limit)
+        return self._runtime.preview_pdf(file=file, fornecedor_id=fornecedor_id, user_id=current_user.id, offset=offset, limit=limit)
 
-    def preview_catalog_from_region(self, preview_request: schemas.CatalogRegionPreviewRequest, db: Session) -> schemas.CatalogPreview:
-        return self._runtime.preview_catalog_from_region(db=db, file_id=preview_request.file_id, page_number=preview_request.page_number, region=preview_request.region)
+    def preview_catalog_from_region(self, preview_request: schemas.CatalogRegionPreviewRequest) -> schemas.CatalogPreview:
+        return self._runtime.preview_catalog_from_region(file_id=preview_request.file_id, page_number=preview_request.page_number, region=preview_request.region)
 
-    def extract_data_from_pdf_bulk(self, background_tasks: BackgroundTasks, request: schemas.PdfRegionBulkRequest, db: Session):
-        return self._runtime.extract_data_from_pdf_bulk(background_tasks=background_tasks, db=db, file_id=request.file_id, region=request.region, pages=request.pages, all_pages=request.all_pages)
+    def extract_data_from_pdf_bulk(self, background_tasks: BackgroundTasks, request: schemas.PdfRegionBulkRequest):
+        return self._runtime.extract_data_from_pdf_bulk(background_tasks=background_tasks, file_id=request.file_id, region=request.region, pages=request.pages, all_pages=request.all_pages)
 
-    def get_import_progress(self, job_id: int, db: Session, current_user: models.User) -> dict:
-        record = self._runtime.get_catalog_record_or_404(db=db, file_id=job_id, user_id=current_user.id, not_found_detail='Importacao nao encontrada')
+    def get_import_progress(self, job_id: int, current_user: models.User) -> dict:
+        record = self._runtime.get_catalog_record_or_404(file_id=job_id, user_id=current_user.id, not_found_detail='Importacao nao encontrada')
         return self._runtime.build_progress_payload(record=record)
 
-    async def process_full_catalog(self, background_tasks: BackgroundTasks, file_id: int, fornecedor_id: int, tipo_produto_id: int, start_page: int, region: Optional[List[float]], mapping: Optional[dict], db: Session, current_user: models.User):
-        return await self._runtime.start_full_processing(background_tasks=background_tasks, db=db, current_user=current_user, file_id=file_id, fornecedor_id=fornecedor_id, tipo_produto_id=tipo_produto_id, start_page=start_page, region=region, mapping=mapping)
+    async def process_full_catalog(self, background_tasks: BackgroundTasks, file_id: int, fornecedor_id: int, tipo_produto_id: int, start_page: int, region: Optional[List[float]], mapping: Optional[dict], current_user: models.User):
+        return await self._runtime.start_full_processing(background_tasks=background_tasks, current_user=current_user, file_id=file_id, fornecedor_id=fornecedor_id, tipo_produto_id=tipo_produto_id, start_page=start_page, region=region, mapping=mapping)
 
-    def extract_page_data(self, background_tasks: BackgroundTasks, file_id: int, page_number: int, db: Session, current_user: models.User) -> dict:
-        record = self._runtime.get_catalog_record_or_404(db=db, file_id=file_id, user_id=current_user.id, not_found_detail='Arquivo nao encontrado')
-        self._runtime.schedule_page_extraction(background_tasks=background_tasks, import_job_id=record.id, page_number=page_number, db_url=str(database.engine.url))
+    def extract_page_data(self, background_tasks: BackgroundTasks, file_id: int, page_number: int, current_user: models.User) -> dict:
+        record = self._runtime.get_catalog_record_or_404(file_id=file_id, user_id=current_user.id, not_found_detail='Arquivo nao encontrado')
+        self._runtime.schedule_page_extraction(background_tasks=background_tasks, import_job_id=record.id, page_number=page_number, db_url=self._runtime.get_database_url())
         return {'job_id': record.id, 'status': 'PROCESSING'}
 
     def delete_fornecedor(self, fornecedor_id: int, current_user: models.User, fornecedor_management_service: FornecedorManagementService) -> models.Fornecedor:
         return self._runtime.delete_fornecedor(fornecedor_id=fornecedor_id, current_user=current_user, fornecedor_management_service=fornecedor_management_service)
 
-    def review_import_job(self, job_id: int, db: Session, current_user: models.User) -> dict:
-        job = self._runtime.get_job_for_user_or_404(db=db, job_id=job_id, user_id=current_user.id)
+    def review_import_job(self, job_id: int, current_user: models.User) -> dict:
+        job = self._runtime.get_job_for_user_or_404(job_id=job_id, user_id=current_user.id)
         return self._runtime.build_review_payload(job=job)
 
-    def commit_import_job(self, background_tasks: BackgroundTasks, job_id: int, db: Session, current_user: models.User) -> dict:
-        _ = self._runtime.get_job_for_user_or_404(db=db, job_id=job_id, user_id=current_user.id)
-        self._runtime.schedule_commit(background_tasks=background_tasks, db=db, job_id=job_id, user_id=current_user.id)
+    def commit_import_job(self, background_tasks: BackgroundTasks, job_id: int, current_user: models.User) -> dict:
+        _ = self._runtime.get_job_for_user_or_404(job_id=job_id, user_id=current_user.id)
+        self._runtime.schedule_commit(background_tasks=background_tasks, job_id=job_id, user_id=current_user.id)
         return {'status': 'PROCESSING', 'job_id': job_id}
 
-    def get_import_job_status(self, job_id: int, db: Session, current_user: models.User) -> dict:
-        record = self._runtime.get_catalog_record_or_404(db=db, file_id=job_id, user_id=current_user.id, not_found_detail='Job nao encontrado')
+    def get_import_job_status(self, job_id: int, current_user: models.User) -> dict:
+        record = self._runtime.get_catalog_record_or_404(file_id=job_id, user_id=current_user.id, not_found_detail='Job nao encontrado')
         return self._runtime.build_import_job_status_payload(record=record)
 
 class _FornecedoresServiceGateway:
     """Runtime OO para integrações do router de fornecedores."""
 
-    def __init__(self, *, services: Optional[_FornecedoresServiceBundle]=None) -> None:
+    def __init__(self, *, session: Session, services: Optional[_FornecedoresServiceBundle]=None) -> None:
+        self._session = session
         self._services = services or _FornecedoresDependencies._build_fornecedores_service_bundle()
+        self._catalog_file_repo = CatalogImportFileRepository(session)
+        self._fornecedor_repo = FornecedorRepository(session)
+        self._import_job_repo = FornecedorImportJobRepository(session)
+        self._db_session_factory = sessionmaker(bind=session.get_bind())
 
     @staticmethod
     def _resolve_management_service(kwargs: dict) -> FornecedorManagementService:
@@ -177,38 +181,28 @@ class _FornecedoresServiceGateway:
         return await self._services.fornecedor_preview_service.preview_pages(**kwargs)
 
     def preview_pdf(self, **kwargs):
-        db = kwargs.pop('db', None)
-        if db is not None:
-            kwargs['catalog_file_repo'] = CatalogImportFileRepository(db)
+        kwargs['catalog_file_repo'] = self._catalog_file_repo
         return self._services.fornecedor_preview_service.preview_pdf(**kwargs)
 
     def preview_catalog_from_region(self, **kwargs):
-        db = kwargs.pop('db', None)
-        if db is not None:
-            kwargs['catalog_file_repo'] = CatalogImportFileRepository(db)
+        kwargs['catalog_file_repo'] = self._catalog_file_repo
         return self._services.fornecedor_preview_service.preview_catalog_from_region(**kwargs)
 
     def extract_data_from_pdf_bulk(self, **kwargs):
-        db = kwargs.pop('db', None)
-        if db is not None:
-            kwargs['catalog_file_repo'] = CatalogImportFileRepository(db)
+        kwargs['catalog_file_repo'] = self._catalog_file_repo
         return self._services.fornecedor_preview_service.extract_data_from_pdf_bulk(**kwargs)
 
     def get_catalog_record_or_404(self, **kwargs):
-        db = kwargs.pop('db', None)
-        if db is not None:
-            kwargs['catalog_file_repo'] = CatalogImportFileRepository(db)
+        kwargs['catalog_file_repo'] = self._catalog_file_repo
         return self._services.fornecedor_import_tracking_service.get_catalog_record_or_404(**kwargs)
 
     def build_progress_payload(self, **kwargs):
         return self._services.fornecedor_import_tracking_service.build_progress_payload(**kwargs)
 
     async def start_full_processing(self, **kwargs):
-        db = kwargs.pop('db', None)
-        if db is not None:
-            kwargs['fornecedor_repo'] = FornecedorRepository(db)
-            kwargs['catalog_file_repo'] = CatalogImportFileRepository(db)
-            kwargs['db_session_factory'] = sessionmaker(bind=db.get_bind())
+        kwargs['fornecedor_repo'] = self._fornecedor_repo
+        kwargs['catalog_file_repo'] = self._catalog_file_repo
+        kwargs['db_session_factory'] = self._db_session_factory
         return await self._services.fornecedor_catalog_process_service.start_full_processing(**kwargs)
 
     def schedule_page_extraction(self, **kwargs):
@@ -219,30 +213,29 @@ class _FornecedoresServiceGateway:
         return fornecedor_management_service.delete_fornecedor(**kwargs)
 
     def get_job_for_user_or_404(self, **kwargs):
-        db = kwargs.pop('db', None)
-        if db is not None:
-            kwargs['import_job_repo'] = FornecedorImportJobRepository(db)
+        kwargs['import_job_repo'] = self._import_job_repo
         return self._services.fornecedor_import_job_service.get_job_for_user_or_404(**kwargs)
 
     def build_review_payload(self, **kwargs):
         return self._services.fornecedor_import_job_service.build_review_payload(**kwargs)
 
     def schedule_commit(self, **kwargs):
-        db = kwargs.pop('db', None)
-        if db is not None:
-            kwargs['db_session_factory'] = sessionmaker(bind=db.get_bind())
+        kwargs['db_session_factory'] = self._db_session_factory
         return self._services.fornecedor_import_job_service.schedule_commit(**kwargs)
 
     def build_import_job_status_payload(self, **kwargs):
         return self._services.fornecedor_import_tracking_service.build_import_job_status_payload(**kwargs)
 
+    def get_database_url(self) -> str:
+        bind = self._session.get_bind()
+        return str(bind.url)
+
 class _FornecedoresRequestScope:
     """Workflow/escopo request-scoped para o fluxo de 'fornecedores'."""
 
-    def __init__(self, *, db: Session, fornecedor_management_service: FornecedorManagementService) -> None:
-        self._db = db
+    def __init__(self, *, session: Session, fornecedor_management_service: FornecedorManagementService) -> None:
         self._fornecedor_management_service = fornecedor_management_service
-        self._request_service = _FornecedoresDependencies.get_fornecedores_request_service()
+        self._request_service = _FornecedoresDependencies.get_fornecedores_request_service(session)
 
     def create_fornecedor(self, *, fornecedor: schemas.FornecedorCreate, current_user: models.User) -> models.Fornecedor:
         return self._request_service.create_fornecedor(fornecedor=fornecedor, current_user=current_user, fornecedor_management_service=self._fornecedor_management_service)
@@ -266,35 +259,35 @@ class _FornecedoresRequestScope:
         return await self._request_service.preview_pages(file=file)
 
     async def preview_pdf(self, *, fornecedor_id: int, file: UploadFile, current_user: models.User, offset: int, limit: int) -> schemas.PdfPreviewResponse:
-        return await self._request_service.preview_pdf(fornecedor_id=fornecedor_id, file=file, db=self._db, current_user=current_user, offset=offset, limit=limit, fornecedor_management_service=self._fornecedor_management_service)
+        return await self._request_service.preview_pdf(fornecedor_id=fornecedor_id, file=file, current_user=current_user, offset=offset, limit=limit, fornecedor_management_service=self._fornecedor_management_service)
 
     def preview_catalog_from_region(self, *, preview_request: schemas.CatalogRegionPreviewRequest) -> schemas.CatalogPreview:
-        return self._request_service.preview_catalog_from_region(preview_request=preview_request, db=self._db)
+        return self._request_service.preview_catalog_from_region(preview_request=preview_request)
 
     def extract_data_from_pdf_bulk(self, *, background_tasks: BackgroundTasks, request: schemas.PdfRegionBulkRequest):
-        return self._request_service.extract_data_from_pdf_bulk(background_tasks=background_tasks, request=request, db=self._db)
+        return self._request_service.extract_data_from_pdf_bulk(background_tasks=background_tasks, request=request)
 
     def get_import_progress(self, *, job_id: int, current_user: models.User) -> dict:
-        return self._request_service.get_import_progress(job_id=job_id, db=self._db, current_user=current_user)
+        return self._request_service.get_import_progress(job_id=job_id, current_user=current_user)
 
     async def process_full_catalog(self, *, background_tasks: BackgroundTasks, file_id: int, fornecedor_id: int, tipo_produto_id: int, start_page: int, region: Optional[List[float]], mapping: Optional[dict], current_user: models.User):
-        return await self._request_service.process_full_catalog(background_tasks=background_tasks, file_id=file_id, fornecedor_id=fornecedor_id, tipo_produto_id=tipo_produto_id, start_page=start_page, region=region, mapping=mapping, db=self._db, current_user=current_user)
+        return await self._request_service.process_full_catalog(background_tasks=background_tasks, file_id=file_id, fornecedor_id=fornecedor_id, tipo_produto_id=tipo_produto_id, start_page=start_page, region=region, mapping=mapping, current_user=current_user)
 
     def extract_page_data(self, *, background_tasks: BackgroundTasks, file_id: int, page_number: int, current_user: models.User) -> dict:
-        return self._request_service.extract_page_data(background_tasks=background_tasks, file_id=file_id, page_number=page_number, db=self._db, current_user=current_user)
+        return self._request_service.extract_page_data(background_tasks=background_tasks, file_id=file_id, page_number=page_number, current_user=current_user)
 
     def delete_fornecedor(self, *, fornecedor_id: int, current_user: models.User) -> models.Fornecedor:
         return self._request_service.delete_fornecedor(fornecedor_id=fornecedor_id, current_user=current_user, fornecedor_management_service=self._fornecedor_management_service)
 
     def review_import_job(self, *, job_id: int, current_user: models.User) -> dict:
-        return self._request_service.review_import_job(job_id=job_id, db=self._db, current_user=current_user)
+        return self._request_service.review_import_job(job_id=job_id, current_user=current_user)
 
     def commit_import_job(self, *, background_tasks: BackgroundTasks, job_id: int, current_user: models.User) -> dict:
-        return self._request_service.commit_import_job(background_tasks=background_tasks, job_id=job_id, db=self._db, current_user=current_user)
+        return self._request_service.commit_import_job(background_tasks=background_tasks, job_id=job_id, current_user=current_user)
 
     def get_import_job_status(self, *, job_id: int, current_user: models.User) -> dict:
-        return self._request_service.get_import_job_status(job_id=job_id, db=self._db, current_user=current_user)
-_build_fornecedores_request_scope = ServiceContainerDependencySupport.build_request_scoped_dependency(lambda session: _FornecedoresRequestScope(db=session, fornecedor_management_service=DependencyContainer.get_fornecedor_management_service(db=session)))
+        return self._request_service.get_import_job_status(job_id=job_id, current_user=current_user)
+_build_fornecedores_request_scope = ServiceContainerDependencySupport.build_request_scoped_dependency(lambda session: _FornecedoresRequestScope(session=session, fornecedor_management_service=DependencyContainer.get_fornecedor_management_service(session)))
 
 class _EndpointHandlers:
 

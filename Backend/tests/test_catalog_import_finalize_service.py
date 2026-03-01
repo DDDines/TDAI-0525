@@ -22,12 +22,12 @@ class _OrchestratorStub:
 class _DispatcherStub:
     should_inline = False
     inline_calls = []
-    threaded_calls = []
+    background_calls = []
 
     @classmethod
     def reset(cls):
         cls.inline_calls = []
-        cls.threaded_calls = []
+        cls.background_calls = []
 
     @classmethod
     def should_run_inline_for_tests(cls, sync_env_var: str):
@@ -38,8 +38,8 @@ class _DispatcherStub:
         cls.inline_calls.append(plan)
 
     @classmethod
-    def dispatch_threaded(cls, plan, *, thread_name_prefix: str):
-        cls.threaded_calls.append((plan, thread_name_prefix))
+    def dispatch_background(cls, background_tasks, plan):
+        cls.background_calls.append((background_tasks, plan))
 
 
 class _TopLevelFunctionSurface:
@@ -86,11 +86,11 @@ class _TopLevelFunctionSurface:
         )
     
         assert len(_DispatcherStub.inline_calls) == 1
-        assert len(_DispatcherStub.threaded_calls) == 0
+        assert len(_DispatcherStub.background_calls) == 0
         assert executed == []
 
     @pytest.mark.asyncio
-    async def test_dispatch_or_run_uses_threaded_when_not_inline():
+    async def test_dispatch_or_run_uses_background_when_not_inline():
         async def _executor(**kwargs):
             return None
     
@@ -111,8 +111,8 @@ class _TopLevelFunctionSurface:
         )
     
         assert len(_DispatcherStub.inline_calls) == 0
-        assert len(_DispatcherStub.threaded_calls) == 1
-        assert _DispatcherStub.threaded_calls[0][1] == "catalog-import"
+        assert len(_DispatcherStub.background_calls) == 1
+        assert _DispatcherStub.background_calls[0][1] is plan
 
     @pytest.mark.asyncio
     async def test_run_direct_executes_selected_plan():
@@ -140,7 +140,7 @@ class _TopLevelFunctionSurface:
 _build_command = _TopLevelFunctionSurface._build_command
 _build_service = _TopLevelFunctionSurface._build_service
 test_dispatch_or_run_uses_inline_when_configured = _TopLevelFunctionSurface.test_dispatch_or_run_uses_inline_when_configured
-test_dispatch_or_run_uses_threaded_when_not_inline = _TopLevelFunctionSurface.test_dispatch_or_run_uses_threaded_when_not_inline
+test_dispatch_or_run_uses_background_when_not_inline = _TopLevelFunctionSurface.test_dispatch_or_run_uses_background_when_not_inline
 test_run_direct_executes_selected_plan = _TopLevelFunctionSurface.test_run_direct_executes_selected_plan
 
 

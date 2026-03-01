@@ -523,11 +523,9 @@ class _TopLevelFunctionSurface:
     
         created = workflow.create_produto(
             produto=SimpleNamespace(nome_base="x"),
-            db="db",
             current_user=SimpleNamespace(id=1),
         )
         listed = workflow.list_produtos(
-            db="db",
             skip=0,
             limit=10,
             sort_by=None,
@@ -558,11 +556,10 @@ class _TopLevelFunctionSurface:
         workflow = ProdutosCatalogCoordinator(runtime=FakeRuntime())
         created = workflow.create_produto(
             produto=SimpleNamespace(nome_base="Teste"),
-            db="db",
             current_user=SimpleNamespace(id=1),
         )
         assert created == {"ok": True}
-        assert called[0]["db"] == "db"
+        assert called[0]["produto"].nome_base == "Teste"
     
         fallback_called = []
     
@@ -573,7 +570,6 @@ class _TopLevelFunctionSurface:
     
         workflow.set_default_runtime(FakeDefaultRuntime())
         response = workflow.list_catalog_import_files(
-            db="db",
             user_id=7,
             fornecedor_id=3,
             skip=0,
@@ -603,7 +599,6 @@ test_main_bootstrap_workflow_delega_metodos_sync_para_runtime = _TopLevelFunctio
 test_main_bootstrap_workflow_delega_metodo_async_para_runtime = _TopLevelFunctionSurface.test_main_bootstrap_workflow_delega_metodo_async_para_runtime
 test_produtos_workflow_runtime_override_delega_metodos_injetados = _TopLevelFunctionSurface.test_produtos_workflow_runtime_override_delega_metodos_injetados
 test_produtos_workflow_runtime_parcial_preserva_fallback_nativo = _TopLevelFunctionSurface.test_produtos_workflow_runtime_parcial_preserva_fallback_nativo
-
 
 
 

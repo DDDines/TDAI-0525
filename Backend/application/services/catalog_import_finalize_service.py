@@ -56,11 +56,8 @@ class CatalogImportFinalizeService:
         if self._dispatcher.should_run_inline_for_tests(self._sync_env_var):
             await self._dispatcher.run_inline(plan)
         else:
-            _ = background_tasks  # compatibilidade explicita de assinatura
-            self._dispatcher.dispatch_threaded(
-                plan,
-                thread_name_prefix=self._thread_name_prefix,
-            )
+            _ = self._thread_name_prefix  # compatibilidade explicita de configuracao
+            self._dispatcher.dispatch_background(background_tasks, plan)
         return plan
 
     async def run_direct(

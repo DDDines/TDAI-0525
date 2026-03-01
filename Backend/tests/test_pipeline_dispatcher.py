@@ -1,7 +1,5 @@
 from __future__ import annotations
 
-import threading
-
 import pytest
 from fastapi import BackgroundTasks
 
@@ -45,28 +43,11 @@ class _TopLevelFunctionSurface:
         PipelineDispatcher.dispatch_background(bg, plan)
         assert len(bg.tasks) == 1
 
-    def test_dispatch_threaded_executes_plan():
-        executed = threading.Event()
-    
-        async def _executor_with_event(**kwargs):
-            executed.set()
-            return kwargs
-    
-        plan = TaskExecutionPlan(
-            name="test.thread",
-            executor_name="dummy",
-            executor=_executor_with_event,
-            task_kwargs={"file_id": 123},
-        )
-        PipelineDispatcher.dispatch_threaded(plan, thread_name_prefix="test-pipeline")
-        assert executed.wait(timeout=1.5)
-
 _dummy_executor = _TopLevelFunctionSurface._dummy_executor
 test_should_run_inline_for_tests_with_sync_flag = _TopLevelFunctionSurface.test_should_run_inline_for_tests_with_sync_flag
 test_should_not_run_inline_when_no_flags = _TopLevelFunctionSurface.test_should_not_run_inline_when_no_flags
 test_run_inline_executes_plan = _TopLevelFunctionSurface.test_run_inline_executes_plan
 test_dispatch_background_schedules_task = _TopLevelFunctionSurface.test_dispatch_background_schedules_task
-test_dispatch_threaded_executes_plan = _TopLevelFunctionSurface.test_dispatch_threaded_executes_plan
 
 
 
