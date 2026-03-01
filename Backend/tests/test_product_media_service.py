@@ -41,74 +41,86 @@ class _SchemasStub:
     ProdutoUpdate = _ProdutoUpdateSchema
 
 
-def _build_service(*, produto=None, save_error=None):
-    crud_produtos = _CrudProdutosStub(produto=produto, save_error=save_error)
-    service = ProductMediaService(
-        produto_repo=crud_produtos,
-        schemas=_SchemasStub,
-    )
-    return service, crud_produtos
+class _TopLevelFunctionSurface:
 
+    def _build_service(*, produto=None, save_error=None):
+        crud_produtos = _CrudProdutosStub(produto=produto, save_error=save_error)
+        service = ProductMediaService(
+            produto_repo=crud_produtos,
+            schemas=_SchemasStub,
+        )
+        return service, crud_produtos
 
-def test_upload_produto_image_raises_404_when_missing():
-    service, _ = _build_service(produto=None)
+    def test_upload_produto_image_raises_404_when_missing():
+        service, _ = _build_service(produto=None)
+    
+        with pytest.raises(HTTPException) as exc:
+            asyncio.run(
+                service.upload_produto_image(
+                    produto_id=1,
+                    file=object(),
+                    current_user=SimpleNamespace(id=1, is_superuser=False),
+                )
+            )
+    
+        assert exc.value.status_code == 404
 
-    with pytest.raises(HTTPException) as exc:
-        asyncio.run(
+    def test_upload_produto_image_raises_403_when_not_owner():
+        service, _ = _build_service(produto=SimpleNamespace(id=1, user_id=99))
+    
+        with pytest.raises(HTTPException) as exc:
+            asyncio.run(
+                service.upload_produto_image(
+                    produto_id=1,
+                    file=object(),
+                    current_user=SimpleNamespace(id=1, is_superuser=False),
+                )
+            )
+    
+        assert exc.value.status_code == 403
+
+    def test_upload_produto_image_raises_400_for_validation_error():
+        service, _ = _build_service(
+            produto=SimpleNamespace(id=1, user_id=1),
+            save_error=ValueError("arquivo invalido"),
+        )
+    
+        with pytest.raises(HTTPException) as exc:
+            asyncio.run(
+                service.upload_produto_image(
+                    produto_id=1,
+                    file=object(),
+                    current_user=SimpleNamespace(id=1, is_superuser=False),
+                )
+            )
+    
+        assert exc.value.status_code == 400
+
+    def test_upload_produto_image_updates_product_url():
+        produto = SimpleNamespace(id=1, user_id=1, imagem_principal_url=None)
+        service, crud_produtos = _build_service(produto=produto)
+    
+        updated = asyncio.run(
             service.upload_produto_image(
                 produto_id=1,
                 file=object(),
                 current_user=SimpleNamespace(id=1, is_superuser=False),
             )
         )
+    
+        assert updated.imagem_principal_url == "uploads/produto.jpg"
+        assert len(crud_produtos.update_calls) == 1
 
-    assert exc.value.status_code == 404
-
-
-def test_upload_produto_image_raises_403_when_not_owner():
-    service, _ = _build_service(produto=SimpleNamespace(id=1, user_id=99))
-
-    with pytest.raises(HTTPException) as exc:
-        asyncio.run(
-            service.upload_produto_image(
-                produto_id=1,
-                file=object(),
-                current_user=SimpleNamespace(id=1, is_superuser=False),
-            )
-        )
-
-    assert exc.value.status_code == 403
+_build_service = _TopLevelFunctionSurface._build_service
+test_upload_produto_image_raises_404_when_missing = _TopLevelFunctionSurface.test_upload_produto_image_raises_404_when_missing
+test_upload_produto_image_raises_403_when_not_owner = _TopLevelFunctionSurface.test_upload_produto_image_raises_403_when_not_owner
+test_upload_produto_image_raises_400_for_validation_error = _TopLevelFunctionSurface.test_upload_produto_image_raises_400_for_validation_error
+test_upload_produto_image_updates_product_url = _TopLevelFunctionSurface.test_upload_produto_image_updates_product_url
 
 
-def test_upload_produto_image_raises_400_for_validation_error():
-    service, _ = _build_service(
-        produto=SimpleNamespace(id=1, user_id=1),
-        save_error=ValueError("arquivo invalido"),
-    )
-
-    with pytest.raises(HTTPException) as exc:
-        asyncio.run(
-            service.upload_produto_image(
-                produto_id=1,
-                file=object(),
-                current_user=SimpleNamespace(id=1, is_superuser=False),
-            )
-        )
-
-    assert exc.value.status_code == 400
 
 
-def test_upload_produto_image_updates_product_url():
-    produto = SimpleNamespace(id=1, user_id=1, imagem_principal_url=None)
-    service, crud_produtos = _build_service(produto=produto)
 
-    updated = asyncio.run(
-        service.upload_produto_image(
-            produto_id=1,
-            file=object(),
-            current_user=SimpleNamespace(id=1, is_superuser=False),
-        )
-    )
 
-    assert updated.imagem_principal_url == "uploads/produto.jpg"
-    assert len(crud_produtos.update_calls) == 1
+
+

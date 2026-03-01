@@ -76,76 +76,88 @@ class _CatalogImportStartServiceStub:
         self.calls.append(("dispatch_finalize", kwargs))
 
 
-def _build_service():
-    file_processing = _FileProcessingStub()
-    start_service = _CatalogImportStartServiceStub()
-    service = CatalogImportFileService(
-        models=_ModelsStub,
-        file_processing_service=file_processing,
-        catalog_import_start_service=start_service,
-    )
-    return service, file_processing, start_service
+class _TopLevelFunctionSurface:
 
-
-def test_list_user_files_builds_page_payload():
-    service, _, _ = _build_service()
-    repo = _CatalogFileRepoStub(items=[SimpleNamespace(id=1), SimpleNamespace(id=2)])
-
-    payload = service.list_user_files(
-        catalog_file_repo=repo,
-        user_id=10,
-        fornecedor_id=3,
-        skip=0,
-        limit=10,
-    )
-
-    assert payload["total_items"] == 2
-    assert len(payload["items"]) == 2
-    assert payload["page"] == 1
-    assert payload["limit"] == 10
-
-
-def test_get_user_file_or_404_raises_when_missing():
-    service, _, _ = _build_service()
-    repo = _CatalogFileRepoStub(first_record=None)
-
-    with pytest.raises(HTTPException) as exc:
-        service.get_user_file_or_404(catalog_file_repo=repo, file_id=7, user_id=10)
-
-    assert exc.value.status_code == 404
-
-
-def test_delete_user_file_deletes_binary_and_record():
-    service, file_processing, _ = _build_service()
-    record = SimpleNamespace(id=7, stored_filename="abc.pdf")
-    repo = _CatalogFileRepoStub(first_record=record)
-
-    deleted = service.delete_user_file(catalog_file_repo=repo, file_id=7, user_id=10)
-
-    assert deleted is record
-    assert file_processing.deleted_files == ["abc.pdf"]
-    assert repo.deleted == [record]
-
-
-def test_reprocess_catalog_file_dispatches_finalize():
-    service, _, start_service = _build_service()
-
-    payload = asyncio.run(
-        service.reprocess_catalog_file(
-            background_tasks=object(),
-            file_id=99,
-            user_id=10,
-            product_type_id=4,
-            fornecedor_id=3,
-            mapping={"col_0": "nome_base"},
-            pages=[1, 2],
-            region=[1.0, 2.0, 3.0, 4.0],
-            catalog_file_repo=_CatalogFileRepoStub(first_record=SimpleNamespace(id=99)),
-            fornecedor_repo=object(),
-            db_session_factory=lambda: object(),
+    def _build_service():
+        file_processing = _FileProcessingStub()
+        start_service = _CatalogImportStartServiceStub()
+        service = CatalogImportFileService(
+            models=_ModelsStub,
+            file_processing_service=file_processing,
+            catalog_import_start_service=start_service,
         )
-    )
+        return service, file_processing, start_service
 
-    assert payload == {"status": "PROCESSING", "file_id": 99}
-    called_methods = [name for name, _kwargs in start_service.calls]
-    assert "dispatch_finalize" in called_methods
+    def test_list_user_files_builds_page_payload():
+        service, _, _ = _build_service()
+        repo = _CatalogFileRepoStub(items=[SimpleNamespace(id=1), SimpleNamespace(id=2)])
+    
+        payload = service.list_user_files(
+            catalog_file_repo=repo,
+            user_id=10,
+            fornecedor_id=3,
+            skip=0,
+            limit=10,
+        )
+    
+        assert payload["total_items"] == 2
+        assert len(payload["items"]) == 2
+        assert payload["page"] == 1
+        assert payload["limit"] == 10
+
+    def test_get_user_file_or_404_raises_when_missing():
+        service, _, _ = _build_service()
+        repo = _CatalogFileRepoStub(first_record=None)
+    
+        with pytest.raises(HTTPException) as exc:
+            service.get_user_file_or_404(catalog_file_repo=repo, file_id=7, user_id=10)
+    
+        assert exc.value.status_code == 404
+
+    def test_delete_user_file_deletes_binary_and_record():
+        service, file_processing, _ = _build_service()
+        record = SimpleNamespace(id=7, stored_filename="abc.pdf")
+        repo = _CatalogFileRepoStub(first_record=record)
+    
+        deleted = service.delete_user_file(catalog_file_repo=repo, file_id=7, user_id=10)
+    
+        assert deleted is record
+        assert file_processing.deleted_files == ["abc.pdf"]
+        assert repo.deleted == [record]
+
+    def test_reprocess_catalog_file_dispatches_finalize():
+        service, _, start_service = _build_service()
+    
+        payload = asyncio.run(
+            service.reprocess_catalog_file(
+                background_tasks=object(),
+                file_id=99,
+                user_id=10,
+                product_type_id=4,
+                fornecedor_id=3,
+                mapping={"col_0": "nome_base"},
+                pages=[1, 2],
+                region=[1.0, 2.0, 3.0, 4.0],
+                catalog_file_repo=_CatalogFileRepoStub(first_record=SimpleNamespace(id=99)),
+                fornecedor_repo=object(),
+                db_session_factory=lambda: object(),
+            )
+        )
+    
+        assert payload == {"status": "PROCESSING", "file_id": 99}
+        called_methods = [name for name, _kwargs in start_service.calls]
+        assert "dispatch_finalize" in called_methods
+
+_build_service = _TopLevelFunctionSurface._build_service
+test_list_user_files_builds_page_payload = _TopLevelFunctionSurface.test_list_user_files_builds_page_payload
+test_get_user_file_or_404_raises_when_missing = _TopLevelFunctionSurface.test_get_user_file_or_404_raises_when_missing
+test_delete_user_file_deletes_binary_and_record = _TopLevelFunctionSurface.test_delete_user_file_deletes_binary_and_record
+test_reprocess_catalog_file_dispatches_finalize = _TopLevelFunctionSurface.test_reprocess_catalog_file_dispatches_finalize
+
+
+
+
+
+
+
+

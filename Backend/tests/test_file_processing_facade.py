@@ -18,31 +18,39 @@ class _LegacyStub:
         return None
 
 
-@pytest.mark.asyncio
-async def test_file_processing_facade_delegates_async_calls():
-    legacy = _LegacyStub()
-    facade = FileProcessingFacade(port=legacy)
+class _TopLevelFunctionSurface:
 
-    result = await facade.save_uploaded_catalog("db", "file")
+    @pytest.mark.asyncio
+    async def test_file_processing_facade_delegates_async_calls():
+        legacy = _LegacyStub()
+        facade = FileProcessingFacade(port=legacy)
+    
+        result = await facade.save_uploaded_catalog("db", "file")
+    
+        assert result == {"ok": True}
+        assert legacy.calls[0][0] == "save_uploaded_catalog"
+        assert legacy.calls[0][1] == ("db", "file")
 
-    assert result == {"ok": True}
-    assert legacy.calls[0][0] == "save_uploaded_catalog"
-    assert legacy.calls[0][1] == ("db", "file")
+    def test_file_processing_facade_delegates_sync_calls():
+        legacy = _LegacyStub()
+        facade = FileProcessingFacade(port=legacy)
+    
+        facade.delete_catalog_file("abc.pdf")
+    
+        assert legacy.calls[0][0] == "delete_catalog_file"
+        assert legacy.calls[0][1] == ("abc.pdf",)
+
+    def test_file_processing_facade_does_not_expose_dynamic_attribute_fallback():
+        legacy = _LegacyStub()
+        facade = FileProcessingFacade(port=legacy)
+    
+        with pytest.raises(AttributeError):
+            _ = facade.constant_value
+
+test_file_processing_facade_delegates_async_calls = _TopLevelFunctionSurface.test_file_processing_facade_delegates_async_calls
+test_file_processing_facade_delegates_sync_calls = _TopLevelFunctionSurface.test_file_processing_facade_delegates_sync_calls
+test_file_processing_facade_does_not_expose_dynamic_attribute_fallback = _TopLevelFunctionSurface.test_file_processing_facade_does_not_expose_dynamic_attribute_fallback
 
 
-def test_file_processing_facade_delegates_sync_calls():
-    legacy = _LegacyStub()
-    facade = FileProcessingFacade(port=legacy)
-
-    facade.delete_catalog_file("abc.pdf")
-
-    assert legacy.calls[0][0] == "delete_catalog_file"
-    assert legacy.calls[0][1] == ("abc.pdf",)
 
 
-def test_file_processing_facade_does_not_expose_dynamic_attribute_fallback():
-    legacy = _LegacyStub()
-    facade = FileProcessingFacade(port=legacy)
-
-    with pytest.raises(AttributeError):
-        _ = facade.constant_value

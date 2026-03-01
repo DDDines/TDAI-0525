@@ -13,19 +13,25 @@ class _RunnerStub:
         return {"validated": raw_data}
 
 
-def test_validator_crew_service_delegates_to_runner():
-    service = ValidatorCrewService(runner=_RunnerStub())
-    payload = {"a": 1}
+class _TopLevelFunctionSurface:
 
-    result = service.run_validation_crew(payload)
+    def test_validator_crew_service_delegates_to_runner():
+        service = ValidatorCrewService(runner=_RunnerStub())
+        payload = {"a": 1}
+    
+        result = service.run_validation_crew(payload)
+    
+        assert result == {"validated": payload}
 
-    assert result == {"validated": payload}
+    def test_validator_crew_service_fallbacks_to_passthrough_on_runtime_error():
+        service = ValidatorCrewService(runner=_RunnerStub(should_fail=True))
+        payload = {"a": 1}
+    
+        result = service.run_validation_crew(payload)
+    
+        assert result == payload
+
+test_validator_crew_service_delegates_to_runner = _TopLevelFunctionSurface.test_validator_crew_service_delegates_to_runner
+test_validator_crew_service_fallbacks_to_passthrough_on_runtime_error = _TopLevelFunctionSurface.test_validator_crew_service_fallbacks_to_passthrough_on_runtime_error
 
 
-def test_validator_crew_service_fallbacks_to_passthrough_on_runtime_error():
-    service = ValidatorCrewService(runner=_RunnerStub(should_fail=True))
-    payload = {"a": 1}
-
-    result = service.run_validation_crew(payload)
-
-    assert result == payload

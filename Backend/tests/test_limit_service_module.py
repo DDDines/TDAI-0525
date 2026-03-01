@@ -28,73 +28,89 @@ class _CrudUsersStub:
         return self._user
 
 
-def _logger_factory(_name):
-    return SimpleNamespace(info=lambda *_a, **_k: None, warning=lambda *_a, **_k: None)
+class _TopLevelFunctionSurface:
 
+    def _logger_factory(_name):
+        return SimpleNamespace(info=lambda *_a, **_k: None, warning=lambda *_a, **_k: None)
 
-def _build_runtime(*, usos_no_mes: int = 0, geracoes_no_mes: int = 0, user=None):
-    return limit_service._LimitRuntime(
-        crud_module=_CrudStub(usos_no_mes=usos_no_mes, geracoes_no_mes=geracoes_no_mes),
-        crud_users_module=_CrudUsersStub(user),
-        logger_factory=_logger_factory,
-    )
-
-
-def test_runtime_verificar_limite_uso_retorna_saldo():
-    plano = SimpleNamespace(limite_geracao_ia=10)
-    user = SimpleNamespace(id=1, plano=plano, limite_geracao_ia=None)
-    runtime = _build_runtime(usos_no_mes=3, user=user)
-
-    remaining = runtime.verificar_limite_uso("db", user, "descricao")
-
-    assert remaining == 7
-
-
-def test_runtime_verificar_limite_uso_ilimitado_retorna_menos_um():
-    plano = SimpleNamespace(limite_geracao_ia=0)
-    user = SimpleNamespace(id=1, plano=plano, limite_geracao_ia=None)
-    runtime = _build_runtime(user=user)
-
-    remaining = runtime.verificar_limite_uso("db", user, "titulo")
-
-    assert remaining == -1
-
-
-def test_runtime_verificar_limite_uso_tipo_invalido_dispara_400():
-    plano = SimpleNamespace(limite_geracao_ia=10)
-    user = SimpleNamespace(id=1, plano=plano, limite_geracao_ia=None)
-    runtime = _build_runtime(user=user)
-
-    with pytest.raises(HTTPException) as exc:
-        runtime.verificar_limite_uso("db", user, "invalido")
-
-    assert exc.value.status_code == status.HTTP_400_BAD_REQUEST
-
-
-@pytest.mark.asyncio
-async def test_runtime_verificar_creditos_disponiveis_user_inexistente_dispara_404():
-    runtime = _build_runtime(user=None)
-
-    with pytest.raises(HTTPException) as exc:
-        await runtime.verificar_creditos_disponiveis_geracao_ia("db", user_id=123)
-
-    assert exc.value.status_code == status.HTTP_404_NOT_FOUND
-
-
-@pytest.mark.asyncio
-async def test_runtime_verificar_creditos_disponiveis_respeita_limite():
-    plano = SimpleNamespace(limite_geracao_ia=5)
-    user = SimpleNamespace(id=1, plano=plano, limite_geracao_ia=5)
-    runtime = _build_runtime(geracoes_no_mes=4, user=user)
-
-    assert await runtime.verificar_creditos_disponiveis_geracao_ia("db", user_id=1) is True
-    assert (
-        await runtime.verificar_creditos_disponiveis_geracao_ia(
-            "db",
-            user_id=1,
-            creditos_necessarios=2,
+    def _build_runtime(*, usos_no_mes: int = 0, geracoes_no_mes: int = 0, user=None):
+        return limit_service._LimitRuntime(
+            crud_module=_CrudStub(usos_no_mes=usos_no_mes, geracoes_no_mes=geracoes_no_mes),
+            crud_users_module=_CrudUsersStub(user),
+            logger_factory=_logger_factory,
         )
-        is False
-    )
+
+    def test_runtime_verificar_limite_uso_retorna_saldo():
+        plano = SimpleNamespace(limite_geracao_ia=10)
+        user = SimpleNamespace(id=1, plano=plano, limite_geracao_ia=None)
+        runtime = _build_runtime(usos_no_mes=3, user=user)
+    
+        remaining = runtime.verificar_limite_uso("db", user, "descricao")
+    
+        assert remaining == 7
+
+    def test_runtime_verificar_limite_uso_ilimitado_retorna_menos_um():
+        plano = SimpleNamespace(limite_geracao_ia=0)
+        user = SimpleNamespace(id=1, plano=plano, limite_geracao_ia=None)
+        runtime = _build_runtime(user=user)
+    
+        remaining = runtime.verificar_limite_uso("db", user, "titulo")
+    
+        assert remaining == -1
+
+    def test_runtime_verificar_limite_uso_tipo_invalido_dispara_400():
+        plano = SimpleNamespace(limite_geracao_ia=10)
+        user = SimpleNamespace(id=1, plano=plano, limite_geracao_ia=None)
+        runtime = _build_runtime(user=user)
+    
+        with pytest.raises(HTTPException) as exc:
+            runtime.verificar_limite_uso("db", user, "invalido")
+    
+        assert exc.value.status_code == status.HTTP_400_BAD_REQUEST
+
+    @pytest.mark.asyncio
+    async def test_runtime_verificar_creditos_disponiveis_user_inexistente_dispara_404():
+        runtime = _build_runtime(user=None)
+    
+        with pytest.raises(HTTPException) as exc:
+            await runtime.verificar_creditos_disponiveis_geracao_ia("db", user_id=123)
+    
+        assert exc.value.status_code == status.HTTP_404_NOT_FOUND
+
+    @pytest.mark.asyncio
+    async def test_runtime_verificar_creditos_disponiveis_respeita_limite():
+        plano = SimpleNamespace(limite_geracao_ia=5)
+        user = SimpleNamespace(id=1, plano=plano, limite_geracao_ia=5)
+        runtime = _build_runtime(geracoes_no_mes=4, user=user)
+    
+        assert await runtime.verificar_creditos_disponiveis_geracao_ia("db", user_id=1) is True
+        assert (
+            await runtime.verificar_creditos_disponiveis_geracao_ia(
+                "db",
+                user_id=1,
+                creditos_necessarios=2,
+            )
+            is False
+        )
+
+_logger_factory = _TopLevelFunctionSurface._logger_factory
+_build_runtime = _TopLevelFunctionSurface._build_runtime
+test_runtime_verificar_limite_uso_retorna_saldo = _TopLevelFunctionSurface.test_runtime_verificar_limite_uso_retorna_saldo
+test_runtime_verificar_limite_uso_ilimitado_retorna_menos_um = _TopLevelFunctionSurface.test_runtime_verificar_limite_uso_ilimitado_retorna_menos_um
+test_runtime_verificar_limite_uso_tipo_invalido_dispara_400 = _TopLevelFunctionSurface.test_runtime_verificar_limite_uso_tipo_invalido_dispara_400
+test_runtime_verificar_creditos_disponiveis_user_inexistente_dispara_404 = _TopLevelFunctionSurface.test_runtime_verificar_creditos_disponiveis_user_inexistente_dispara_404
+test_runtime_verificar_creditos_disponiveis_respeita_limite = _TopLevelFunctionSurface.test_runtime_verificar_creditos_disponiveis_respeita_limite
+
+
+
+
+
+
+
+
+
+
+
+
 
 

@@ -43,94 +43,108 @@ class _BackgroundTasksStub:
         self.calls.append((task_executor, kwargs))
 
 
-def _build_service(produto=None):
-    crud_stub = _CrudProdutosStub(produto=produto)
-    service = GenerationSchedulingService(
-        schemas=_SchemasStub,
-        models=_ModelsStub,
-    )
-    return service, crud_stub
+class _TopLevelFunctionSurface:
 
-
-def test_validate_product_access_not_found():
-    service, _ = _build_service(produto=None)
-    user = SimpleNamespace(id=1, is_superuser=False)
-
-    with pytest.raises(HTTPException) as exc:
-        service.validate_product_access(
-            product_repo=_CrudProdutosStub(produto=None),
-            produto_id=10,
-            current_user=user,
+    def _build_service(produto=None):
+        crud_stub = _CrudProdutosStub(produto=produto)
+        service = GenerationSchedulingService(
+            schemas=_SchemasStub,
+            models=_ModelsStub,
         )
+        return service, crud_stub
 
-    assert exc.value.status_code == 404
+    def test_validate_product_access_not_found():
+        service, _ = _build_service(produto=None)
+        user = SimpleNamespace(id=1, is_superuser=False)
+    
+        with pytest.raises(HTTPException) as exc:
+            service.validate_product_access(
+                product_repo=_CrudProdutosStub(produto=None),
+                produto_id=10,
+                current_user=user,
+            )
+    
+        assert exc.value.status_code == 404
 
+    def test_validate_product_access_forbidden():
+        produto = SimpleNamespace(user_id=2)
+        service, _ = _build_service(produto=produto)
+        user = SimpleNamespace(id=1, is_superuser=False)
+    
+        with pytest.raises(HTTPException) as exc:
+            service.validate_product_access(
+                product_repo=_CrudProdutosStub(produto=produto),
+                produto_id=10,
+                current_user=user,
+            )
+    
+        assert exc.value.status_code == 403
 
-def test_validate_product_access_forbidden():
-    produto = SimpleNamespace(user_id=2)
-    service, _ = _build_service(produto=produto)
-    user = SimpleNamespace(id=1, is_superuser=False)
-
-    with pytest.raises(HTTPException) as exc:
-        service.validate_product_access(
+    def test_validate_product_access_success():
+        produto = SimpleNamespace(user_id=1)
+        service, _ = _build_service(produto=produto)
+        user = SimpleNamespace(id=1, is_superuser=False)
+    
+        result = service.validate_product_access(
             product_repo=_CrudProdutosStub(produto=produto),
             produto_id=10,
             current_user=user,
         )
+    
+        assert result is produto
 
-    assert exc.value.status_code == 403
+    def test_mark_pending_status_updates_expected_field():
+        produto = SimpleNamespace(user_id=1)
+        service, crud_stub = _build_service(produto=produto)
+    
+        service.mark_pending_status(
+            product_repo=crud_stub,
+            db_produto=produto,
+            generation_type="titulo",
+        )
+    
+        assert len(crud_stub.updated) == 1
+        _, _, produto_update = crud_stub.updated[0]
+        assert produto_update.payload == {"status_titulo_ia": "PENDENTE"}
+
+    def test_enqueue_generation_task_forwards_expected_kwargs():
+        service, _ = _build_service(produto=SimpleNamespace(user_id=1))
+        background_tasks = _BackgroundTasksStub()
+    
+        def _executor(**kwargs):
+            return kwargs
+    
+        service.enqueue_generation_task(
+            background_tasks=background_tasks,
+            task_executor=_executor,
+            db_session_factory=lambda: None,
+            user_id=7,
+            produto_id=8,
+            generation_type="descricao",
+            generation_func=object(),
+            tamanho_palavras=150,
+        )
+    
+        assert len(background_tasks.calls) == 1
+        _, kwargs = background_tasks.calls[0]
+        assert kwargs["user_id"] == 7
+        assert kwargs["produto_id"] == 8
+        assert kwargs["tipo_geracao_principal"] == "descricao"
+        assert kwargs["tamanho_palavras"] == 150
+
+_build_service = _TopLevelFunctionSurface._build_service
+test_validate_product_access_not_found = _TopLevelFunctionSurface.test_validate_product_access_not_found
+test_validate_product_access_forbidden = _TopLevelFunctionSurface.test_validate_product_access_forbidden
+test_validate_product_access_success = _TopLevelFunctionSurface.test_validate_product_access_success
+test_mark_pending_status_updates_expected_field = _TopLevelFunctionSurface.test_mark_pending_status_updates_expected_field
+test_enqueue_generation_task_forwards_expected_kwargs = _TopLevelFunctionSurface.test_enqueue_generation_task_forwards_expected_kwargs
 
 
-def test_validate_product_access_success():
-    produto = SimpleNamespace(user_id=1)
-    service, _ = _build_service(produto=produto)
-    user = SimpleNamespace(id=1, is_superuser=False)
-
-    result = service.validate_product_access(
-        product_repo=_CrudProdutosStub(produto=produto),
-        produto_id=10,
-        current_user=user,
-    )
-
-    assert result is produto
 
 
-def test_mark_pending_status_updates_expected_field():
-    produto = SimpleNamespace(user_id=1)
-    service, crud_stub = _build_service(produto=produto)
-
-    service.mark_pending_status(
-        product_repo=crud_stub,
-        db_produto=produto,
-        generation_type="titulo",
-    )
-
-    assert len(crud_stub.updated) == 1
-    _, _, produto_update = crud_stub.updated[0]
-    assert produto_update.payload == {"status_titulo_ia": "PENDENTE"}
 
 
-def test_enqueue_generation_task_forwards_expected_kwargs():
-    service, _ = _build_service(produto=SimpleNamespace(user_id=1))
-    background_tasks = _BackgroundTasksStub()
 
-    def _executor(**kwargs):
-        return kwargs
 
-    service.enqueue_generation_task(
-        background_tasks=background_tasks,
-        task_executor=_executor,
-        db_session_factory=lambda: None,
-        user_id=7,
-        produto_id=8,
-        generation_type="descricao",
-        generation_func=object(),
-        tamanho_palavras=150,
-    )
 
-    assert len(background_tasks.calls) == 1
-    _, kwargs = background_tasks.calls[0]
-    assert kwargs["user_id"] == 7
-    assert kwargs["produto_id"] == 8
-    assert kwargs["tipo_geracao_principal"] == "descricao"
-    assert kwargs["tamanho_palavras"] == 150
+

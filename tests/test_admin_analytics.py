@@ -31,12 +31,47 @@ TestingSessionLocal = sessionmaker(bind=engine)
 Base.metadata.create_all(bind=engine)
 
 # override dependency
-def override_get_db():
-    db = TestingSessionLocal()
-    try:
-        yield db
-    finally:
-        db.close()
+
+class _TopLevelFunctionSurface:
+
+    def override_get_db():
+        db = TestingSessionLocal()
+        try:
+            yield db
+        finally:
+            db.close()
+
+    def get_auth_headers():
+        resp = client.post("/api/v1/auth/token", data={"username": settings.FIRST_SUPERUSER_EMAIL, "password": settings.FIRST_SUPERUSER_PASSWORD})
+        assert resp.status_code == 200
+        token = resp.json()["access_token"]
+        return {"Authorization": f"Bearer {token}"}
+
+    def test_product_status_counts_endpoint():
+        headers = get_auth_headers()
+        resp = client.get("/api/v1/admin/analytics/product-status-counts", headers=headers)
+        assert resp.status_code == 200
+        assert isinstance(resp.json(), list)
+
+    def test_recent_activities_endpoint():
+        headers = get_auth_headers()
+        resp = client.get("/api/v1/admin/analytics/recent-activities", headers=headers)
+        assert resp.status_code == 200
+        assert isinstance(resp.json(), list)
+
+    def test_recent_historico_endpoint_limit():
+        headers = get_auth_headers()
+        resp = client.get("/api/v1/admin/analytics/recent-historico?limit=5", headers=headers)
+        assert resp.status_code == 200
+        data = resp.json()
+        assert isinstance(data, list)
+        assert len(data) == 5
+
+override_get_db = _TopLevelFunctionSurface.override_get_db
+get_auth_headers = _TopLevelFunctionSurface.get_auth_headers
+test_product_status_counts_endpoint = _TopLevelFunctionSurface.test_product_status_counts_endpoint
+test_recent_activities_endpoint = _TopLevelFunctionSurface.test_recent_activities_endpoint
+test_recent_historico_endpoint_limit = _TopLevelFunctionSurface.test_recent_historico_endpoint_limit
 
 app.dependency_overrides[get_db] = override_get_db
 client = TestClient(app)
@@ -65,31 +100,9 @@ with TestingSessionLocal() as db:
             ),
         )
 
-def get_auth_headers():
-    resp = client.post("/api/v1/auth/token", data={"username": settings.FIRST_SUPERUSER_EMAIL, "password": settings.FIRST_SUPERUSER_PASSWORD})
-    assert resp.status_code == 200
-    token = resp.json()["access_token"]
-    return {"Authorization": f"Bearer {token}"}
 
 
-def test_product_status_counts_endpoint():
-    headers = get_auth_headers()
-    resp = client.get("/api/v1/admin/analytics/product-status-counts", headers=headers)
-    assert resp.status_code == 200
-    assert isinstance(resp.json(), list)
 
 
-def test_recent_activities_endpoint():
-    headers = get_auth_headers()
-    resp = client.get("/api/v1/admin/analytics/recent-activities", headers=headers)
-    assert resp.status_code == 200
-    assert isinstance(resp.json(), list)
 
 
-def test_recent_historico_endpoint_limit():
-    headers = get_auth_headers()
-    resp = client.get("/api/v1/admin/analytics/recent-historico?limit=5", headers=headers)
-    assert resp.status_code == 200
-    data = resp.json()
-    assert isinstance(data, list)
-    assert len(data) == 5

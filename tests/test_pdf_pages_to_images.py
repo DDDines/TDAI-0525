@@ -17,46 +17,56 @@ from Backend.application.services.service_container import ServiceContainer
 file_processing_service = ServiceContainer().file_processing
 
 
-def _create_pdf(pages: int = 1) -> bytes:
-    buf = io.BytesIO()
-    c = canvas.Canvas(buf)
-    for i in range(pages):
-        c.drawString(100, 750, f"Page {i + 1}")
-        if i < pages - 1:
-            c.showPage()
-    c.save()
-    buf.seek(0)
-    return buf.getvalue()
+class _TopLevelFunctionSurface:
+
+    def _create_pdf(pages: int = 1) -> bytes:
+        buf = io.BytesIO()
+        c = canvas.Canvas(buf)
+        for i in range(pages):
+            c.drawString(100, 750, f"Page {i + 1}")
+            if i < pages - 1:
+                c.showPage()
+        c.save()
+        buf.seek(0)
+        return buf.getvalue()
+
+    @pytest.mark.asyncio
+    async def test_pdf_pages_to_images_basic():
+        pdf_bytes = _create_pdf()
+        images = await file_processing_service.pdf_bytes_to_images(pdf_bytes)
+        assert len(images) >= 1
+        decoded = base64.b64decode(images[0])
+        assert decoded.startswith(b"\x89PNG")
+
+    @pytest.mark.asyncio
+    async def test_pdf_pages_to_images_respects_max_pages():
+        pdf_bytes = _create_pdf(pages=3)
+        images = await file_processing_service.pdf_bytes_to_images(pdf_bytes, max_pages=2)
+        assert len(images) == 2
+
+    @pytest.mark.asyncio
+    async def test_pdf_pages_to_images_start_page():
+        pdf_bytes = _create_pdf(pages=5)
+        first_page_img = await file_processing_service.pdf_bytes_to_images(
+            pdf_bytes,
+            max_pages=1,
+            start_page=1,
+        )
+        third_page_img = await file_processing_service.pdf_bytes_to_images(
+            pdf_bytes,
+            max_pages=1,
+            start_page=3,
+        )
+        assert first_page_img[0] != third_page_img[0]
+
+_create_pdf = _TopLevelFunctionSurface._create_pdf
+test_pdf_pages_to_images_basic = _TopLevelFunctionSurface.test_pdf_pages_to_images_basic
+test_pdf_pages_to_images_respects_max_pages = _TopLevelFunctionSurface.test_pdf_pages_to_images_respects_max_pages
+test_pdf_pages_to_images_start_page = _TopLevelFunctionSurface.test_pdf_pages_to_images_start_page
 
 
-@pytest.mark.asyncio
-async def test_pdf_pages_to_images_basic():
-    pdf_bytes = _create_pdf()
-    images = await file_processing_service.pdf_bytes_to_images(pdf_bytes)
-    assert len(images) >= 1
-    decoded = base64.b64decode(images[0])
-    assert decoded.startswith(b"\x89PNG")
 
 
-@pytest.mark.asyncio
-async def test_pdf_pages_to_images_respects_max_pages():
-    pdf_bytes = _create_pdf(pages=3)
-    images = await file_processing_service.pdf_bytes_to_images(pdf_bytes, max_pages=2)
-    assert len(images) == 2
 
 
-@pytest.mark.asyncio
-async def test_pdf_pages_to_images_start_page():
-    pdf_bytes = _create_pdf(pages=5)
-    first_page_img = await file_processing_service.pdf_bytes_to_images(
-        pdf_bytes,
-        max_pages=1,
-        start_page=1,
-    )
-    third_page_img = await file_processing_service.pdf_bytes_to_images(
-        pdf_bytes,
-        max_pages=1,
-        start_page=3,
-    )
-    assert first_page_img[0] != third_page_img[0]
 

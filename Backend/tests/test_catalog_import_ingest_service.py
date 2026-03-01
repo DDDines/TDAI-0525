@@ -109,94 +109,104 @@ class _ModelsStub:
     TipoAcaoSistemaEnum = _TipoAcaoSistemaEnumStub
 
 
-def _build_service(*, fornecedor=None):
-    fornecedor_repo = _CrudFornecedoresStub(fornecedor=fornecedor)
-    produto_repo = _CrudProdutosStub()
-    uso_ia_repo = _CrudUsoIAStub()
-    historico_repo = _CrudHistoricoStub()
-    file_processing = _FileProcessingStub()
+class _TopLevelFunctionSurface:
 
-    service = CatalogImportIngestService(
-        schemas=_SchemasStub,
-        models=_ModelsStub,
-        fornecedor_repo=fornecedor_repo,
-        produto_repo=produto_repo,
-        uso_ia_repo=uso_ia_repo,
-        historico_repo=historico_repo,
-        file_processing_service=file_processing,
-        normalize_import_issue_item=lambda item: item,
-        extract_import_error_reason=lambda item: item.get("motivo_descarte", ""),
-        is_non_critical_import_reason=lambda reason: reason == "nao_critico",
-        sanitize_produto_extraido=lambda prod: prod,
-        classificar_qualidade_linha_produto=lambda cleaned: {
-            "decision": "accept",
-            "score": 100,
-            "reason": None,
-        },
-        json_module=__import__("json"),
-    )
-    return service, file_processing, produto_repo, uso_ia_repo, historico_repo
+    def _build_service(*, fornecedor=None):
+        fornecedor_repo = _CrudFornecedoresStub(fornecedor=fornecedor)
+        produto_repo = _CrudProdutosStub()
+        uso_ia_repo = _CrudUsoIAStub()
+        historico_repo = _CrudHistoricoStub()
+        file_processing = _FileProcessingStub()
+    
+        service = CatalogImportIngestService(
+            schemas=_SchemasStub,
+            models=_ModelsStub,
+            fornecedor_repo=fornecedor_repo,
+            produto_repo=produto_repo,
+            uso_ia_repo=uso_ia_repo,
+            historico_repo=historico_repo,
+            file_processing_service=file_processing,
+            normalize_import_issue_item=lambda item: item,
+            extract_import_error_reason=lambda item: item.get("motivo_descarte", ""),
+            is_non_critical_import_reason=lambda reason: reason == "nao_critico",
+            sanitize_produto_extraido=lambda prod: prod,
+            classificar_qualidade_linha_produto=lambda cleaned: {
+                "decision": "accept",
+                "score": 100,
+                "reason": None,
+            },
+            json_module=__import__("json"),
+        )
+        return service, file_processing, produto_repo, uso_ia_repo, historico_repo
 
+    def test_importar_catalogo_fornecedor_raises_when_mapping_json_invalid():
+        service, *_ = _build_service()
+    
+        with pytest.raises(HTTPException) as exc:
+            asyncio.run(
+                service.importar_catalogo_fornecedor(
+                    fornecedor_id=1,
+                    file=_UploadFileStub(filename="catalogo.pdf"),
+                    mapeamento_colunas_usuario="{nao-json}",
+                    current_user=SimpleNamespace(id=10),
+                )
+            )
+    
+        assert exc.value.status_code == 400
 
-def test_importar_catalogo_fornecedor_raises_when_mapping_json_invalid():
-    service, *_ = _build_service()
+    def test_importar_catalogo_fornecedor_raises_when_extension_not_supported():
+        service, *_ = _build_service()
+    
+        with pytest.raises(HTTPException) as exc:
+            asyncio.run(
+                service.importar_catalogo_fornecedor(
+                    fornecedor_id=1,
+                    file=_UploadFileStub(filename="catalogo.txt"),
+                    mapeamento_colunas_usuario=None,
+                    current_user=SimpleNamespace(id=10),
+                )
+            )
+    
+        assert exc.value.status_code == 400
 
-    with pytest.raises(HTTPException) as exc:
-        asyncio.run(
+    def test_importar_catalogo_fornecedor_creates_products_and_logs():
+        service, file_processing, crud_produtos, crud_uso_ia, crud_historico = _build_service(
+            fornecedor=SimpleNamespace(default_column_mapping={"col_1": "Nome Base"})
+        )
+        file_processing.responses[".pdf"] = [
+            {
+                "nome_base": "Peca A",
+                "sku_original": "SKU-1",
+                "ean_original": "123",
+                "descricao_original": "Descricao",
+                "marca": "Marca",
+                "categoria_original": "Cat",
+            },
+            {"motivo_descarte": "erro_teste"},
+        ]
+    
+        result = asyncio.run(
             service.importar_catalogo_fornecedor(
-                fornecedor_id=1,
+                fornecedor_id=2,
                 file=_UploadFileStub(filename="catalogo.pdf"),
-                mapeamento_colunas_usuario="{nao-json}",
-                current_user=SimpleNamespace(id=10),
-            )
-        )
-
-    assert exc.value.status_code == 400
-
-
-def test_importar_catalogo_fornecedor_raises_when_extension_not_supported():
-    service, *_ = _build_service()
-
-    with pytest.raises(HTTPException) as exc:
-        asyncio.run(
-            service.importar_catalogo_fornecedor(
-                fornecedor_id=1,
-                file=_UploadFileStub(filename="catalogo.txt"),
                 mapeamento_colunas_usuario=None,
-                current_user=SimpleNamespace(id=10),
+                current_user=SimpleNamespace(id=99),
             )
         )
+    
+        assert len(result["produtos_criados"]) == 1
+        assert len(result["erros"]) == 1
+        assert len(crud_produtos.bulk_calls) == 1
+        assert len(crud_uso_ia.calls) == 1
+        assert len(crud_historico.calls) == 1
 
-    assert exc.value.status_code == 400
+_build_service = _TopLevelFunctionSurface._build_service
+test_importar_catalogo_fornecedor_raises_when_mapping_json_invalid = _TopLevelFunctionSurface.test_importar_catalogo_fornecedor_raises_when_mapping_json_invalid
+test_importar_catalogo_fornecedor_raises_when_extension_not_supported = _TopLevelFunctionSurface.test_importar_catalogo_fornecedor_raises_when_extension_not_supported
+test_importar_catalogo_fornecedor_creates_products_and_logs = _TopLevelFunctionSurface.test_importar_catalogo_fornecedor_creates_products_and_logs
 
 
-def test_importar_catalogo_fornecedor_creates_products_and_logs():
-    service, file_processing, crud_produtos, crud_uso_ia, crud_historico = _build_service(
-        fornecedor=SimpleNamespace(default_column_mapping={"col_1": "Nome Base"})
-    )
-    file_processing.responses[".pdf"] = [
-        {
-            "nome_base": "Peca A",
-            "sku_original": "SKU-1",
-            "ean_original": "123",
-            "descricao_original": "Descricao",
-            "marca": "Marca",
-            "categoria_original": "Cat",
-        },
-        {"motivo_descarte": "erro_teste"},
-    ]
 
-    result = asyncio.run(
-        service.importar_catalogo_fornecedor(
-            fornecedor_id=2,
-            file=_UploadFileStub(filename="catalogo.pdf"),
-            mapeamento_colunas_usuario=None,
-            current_user=SimpleNamespace(id=99),
-        )
-    )
 
-    assert len(result["produtos_criados"]) == 1
-    assert len(result["erros"]) == 1
-    assert len(crud_produtos.bulk_calls) == 1
-    assert len(crud_uso_ia.calls) == 1
-    assert len(crud_historico.calls) == 1
+
+

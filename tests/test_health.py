@@ -10,9 +10,19 @@ from Backend.main import health_check, app
 app.router.on_startup.clear()
 
 
-def test_health_check_direct():
-    result = asyncio.run(health_check())
-    assert result == {"status": "ok"}
+class _TopLevelFunctionSurface:
+
+    def test_health_check_direct():
+        result = asyncio.run(health_check())
+        assert result == {"status": "ok"}
+
+    def test_health_check_endpoint():
+        response = client.get("/health")
+        assert response.status_code == 200
+        assert response.json() == {"status": "ok"}
+
+test_health_check_direct = _TopLevelFunctionSurface.test_health_check_direct
+test_health_check_endpoint = _TopLevelFunctionSurface.test_health_check_endpoint
 
 
 pytest.importorskip("sqlalchemy")
@@ -20,8 +30,4 @@ pytest.importorskip("sqlalchemy")
 client = TestClient(app)
 
 
-def test_health_check_endpoint():
-    response = client.get("/health")
-    assert response.status_code == 200
-    assert response.json() == {"status": "ok"}
 

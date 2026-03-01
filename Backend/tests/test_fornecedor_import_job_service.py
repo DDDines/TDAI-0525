@@ -65,127 +65,141 @@ class _BackgroundTasksStub:
         self.added.append((fn, kwargs))
 
 
-def _build_service(*, job):
-    crud_jobs = _CrudFornecedorImportJobsStub()
-    crud_jobs.job = job
-    crud_produtos = _CrudProdutosStub()
+class _TopLevelFunctionSurface:
 
-    class _ImportJobRepoClass:
-        def __init__(self, db):
-            _ = db
-            self._stub = crud_jobs
+    def _build_service(*, job):
+        crud_jobs = _CrudFornecedorImportJobsStub()
+        crud_jobs.job = job
+        crud_produtos = _CrudProdutosStub()
+    
+        class _ImportJobRepoClass:
+            def __init__(self, db):
+                _ = db
+                self._stub = crud_jobs
+    
+            def get_import_job(self, job_id):
+                return self._stub.get_import_job(job_id)
+    
+            def update_job_status(self, job, status):
+                return self._stub.update_job_status(job, status)
+    
+        class _ProdutoRepoClass:
+            def __init__(self, db):
+                self._stub = crud_produtos.bind(db)
+    
+            def get_or_create_produto(self, *, produto, user_id):
+                return self._stub.get_or_create_produto(produto=produto, user_id=user_id)
+    
+        service = FornecedorImportJobService(
+            import_job_repository_cls=_ImportJobRepoClass,
+            produto_repository_cls=_ProdutoRepoClass,
+            produto_create_schema=_ProdutoCreateSchemaStub,
+        )
+        return service, crud_jobs, crud_produtos
 
-        def get_import_job(self, job_id):
-            return self._stub.get_import_job(job_id)
+    def test_get_job_for_user_or_404_returns_job():
+        job = SimpleNamespace(id=5, user_id=10, result_summary=[])
+        service, _, _ = _build_service(job=job)
+    
+        repo = SimpleNamespace(get_import_job=lambda job_id: job if job_id == 5 else None)
+        found = service.get_job_for_user_or_404(import_job_repo=repo, job_id=5, user_id=10)
+    
+        assert found is job
 
-        def update_job_status(self, job, status):
-            return self._stub.update_job_status(job, status)
+    def test_get_job_for_user_or_404_raises_for_invalid_user():
+        job = SimpleNamespace(id=5, user_id=10, result_summary=[])
+        service, _, _ = _build_service(job=job)
+        repo = SimpleNamespace(get_import_job=lambda job_id: job if job_id == 5 else None)
+    
+        with pytest.raises(HTTPException) as exc:
+            service.get_job_for_user_or_404(import_job_repo=repo, job_id=5, user_id=99)
+    
+        assert exc.value.status_code == 404
 
-    class _ProdutoRepoClass:
-        def __init__(self, db):
-            self._stub = crud_produtos.bind(db)
+    def test_schedule_commit_adds_background_task():
+        job = SimpleNamespace(id=5, user_id=10, result_summary=[])
+        service, _, _ = _build_service(job=job)
+        background = _BackgroundTasksStub()
+    
+        service.schedule_commit(
+            background_tasks=background,
+            db_session_factory=lambda: _DbSessionStub(),
+            job_id=5,
+            user_id=10,
+        )
+    
+        assert len(background.added) == 1
+        task_fn, kwargs = background.added[0]
+        assert task_fn == service.commit_job_task
+        assert kwargs["job_id"] == 5
 
-        def get_or_create_produto(self, *, produto, user_id):
-            return self._stub.get_or_create_produto(produto=produto, user_id=user_id)
+    def test_commit_job_task_processes_valid_rows_and_marks_completed():
+        job = SimpleNamespace(
+            id=5,
+            user_id=10,
+            status="REVIEW",
+            result_summary=[
+                {"nome_base": "Produto A", "sku_original": "SKU-A"},
+                {"nome_base": "Produto B"},
+                {"sku_original": "sem_nome"},
+                "invalido",
+            ],
+        )
+        service, crud_jobs, crud_produtos = _build_service(job=job)
+    
+        db_instance = _DbSessionStub()
+    
+        def _factory():
+            return db_instance
+    
+        service.commit_job_task(
+            db_session_factory=_factory,
+            job_id=5,
+            user_id=10,
+        )
+    
+        assert len(crud_produtos.calls) == 2
+        assert crud_jobs.updated_status == "COMPLETED"
+        assert db_instance.closed is True
 
-    service = FornecedorImportJobService(
-        import_job_repository_cls=_ImportJobRepoClass,
-        produto_repository_cls=_ProdutoRepoClass,
-        produto_create_schema=_ProdutoCreateSchemaStub,
-    )
-    return service, crud_jobs, crud_produtos
+    def test_commit_job_task_accepts_summary_dict_with_produtos():
+        job = SimpleNamespace(
+            id=6,
+            user_id=10,
+            status="REVIEW",
+            result_summary={
+                "produtos": [
+                    {"nome_base": "Produto C"},
+                    {"nome_base": "Produto D"},
+                ]
+            },
+        )
+        service, crud_jobs, crud_produtos = _build_service(job=job)
+    
+        db_instance = _DbSessionStub()
+    
+        service.commit_job_task(
+            db_session_factory=lambda: db_instance,
+            job_id=6,
+            user_id=10,
+        )
+    
+        assert len(crud_produtos.calls) == 2
+        assert crud_jobs.updated_status == "COMPLETED"
 
-
-def test_get_job_for_user_or_404_returns_job():
-    job = SimpleNamespace(id=5, user_id=10, result_summary=[])
-    service, _, _ = _build_service(job=job)
-
-    repo = SimpleNamespace(get_import_job=lambda job_id: job if job_id == 5 else None)
-    found = service.get_job_for_user_or_404(import_job_repo=repo, job_id=5, user_id=10)
-
-    assert found is job
-
-
-def test_get_job_for_user_or_404_raises_for_invalid_user():
-    job = SimpleNamespace(id=5, user_id=10, result_summary=[])
-    service, _, _ = _build_service(job=job)
-    repo = SimpleNamespace(get_import_job=lambda job_id: job if job_id == 5 else None)
-
-    with pytest.raises(HTTPException) as exc:
-        service.get_job_for_user_or_404(import_job_repo=repo, job_id=5, user_id=99)
-
-    assert exc.value.status_code == 404
-
-
-def test_schedule_commit_adds_background_task():
-    job = SimpleNamespace(id=5, user_id=10, result_summary=[])
-    service, _, _ = _build_service(job=job)
-    background = _BackgroundTasksStub()
-
-    service.schedule_commit(
-        background_tasks=background,
-        db_session_factory=lambda: _DbSessionStub(),
-        job_id=5,
-        user_id=10,
-    )
-
-    assert len(background.added) == 1
-    task_fn, kwargs = background.added[0]
-    assert task_fn == service.commit_job_task
-    assert kwargs["job_id"] == 5
-
-
-def test_commit_job_task_processes_valid_rows_and_marks_completed():
-    job = SimpleNamespace(
-        id=5,
-        user_id=10,
-        status="REVIEW",
-        result_summary=[
-            {"nome_base": "Produto A", "sku_original": "SKU-A"},
-            {"nome_base": "Produto B"},
-            {"sku_original": "sem_nome"},
-            "invalido",
-        ],
-    )
-    service, crud_jobs, crud_produtos = _build_service(job=job)
-
-    db_instance = _DbSessionStub()
-
-    def _factory():
-        return db_instance
-
-    service.commit_job_task(
-        db_session_factory=_factory,
-        job_id=5,
-        user_id=10,
-    )
-
-    assert len(crud_produtos.calls) == 2
-    assert crud_jobs.updated_status == "COMPLETED"
-    assert db_instance.closed is True
+_build_service = _TopLevelFunctionSurface._build_service
+test_get_job_for_user_or_404_returns_job = _TopLevelFunctionSurface.test_get_job_for_user_or_404_returns_job
+test_get_job_for_user_or_404_raises_for_invalid_user = _TopLevelFunctionSurface.test_get_job_for_user_or_404_raises_for_invalid_user
+test_schedule_commit_adds_background_task = _TopLevelFunctionSurface.test_schedule_commit_adds_background_task
+test_commit_job_task_processes_valid_rows_and_marks_completed = _TopLevelFunctionSurface.test_commit_job_task_processes_valid_rows_and_marks_completed
+test_commit_job_task_accepts_summary_dict_with_produtos = _TopLevelFunctionSurface.test_commit_job_task_accepts_summary_dict_with_produtos
 
 
-def test_commit_job_task_accepts_summary_dict_with_produtos():
-    job = SimpleNamespace(
-        id=6,
-        user_id=10,
-        status="REVIEW",
-        result_summary={
-            "produtos": [
-                {"nome_base": "Produto C"},
-                {"nome_base": "Produto D"},
-            ]
-        },
-    )
-    service, crud_jobs, crud_produtos = _build_service(job=job)
 
-    db_instance = _DbSessionStub()
 
-    service.commit_job_task(
-        db_session_factory=lambda: db_instance,
-        job_id=6,
-        user_id=10,
-    )
 
-    assert len(crud_produtos.calls) == 2
-    assert crud_jobs.updated_status == "COMPLETED"
+
+
+
+
+

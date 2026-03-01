@@ -9,8 +9,12 @@ from Backend.infrastructure.adapters.web_data_extractor_adapter import (
 )
 
 
-def test_service_container_uses_oop_adapters_by_default():
-    container = ServiceContainer()
+class _TopLevelFunctionSurface:
 
-    assert isinstance(container.file_processing._port, FileProcessingServiceAdapter)
-    assert isinstance(container.web_data_extractor.search._port, WebDataExtractorServiceAdapter)
+    def test_service_container_uses_oop_adapters_by_default():
+        container = ServiceContainer()
+    
+        assert isinstance(container.file_processing._port, FileProcessingServiceAdapter)
+        assert isinstance(container.web_data_extractor.search._port, WebDataExtractorServiceAdapter)
+
+test_service_container_uses_oop_adapters_by_default = _TopLevelFunctionSurface.test_service_container_uses_oop_adapters_by_default

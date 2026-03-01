@@ -13,19 +13,25 @@ class _RunnerStub:
         return {"validated": raw_data}
 
 
-def test_validator_crew_facade_delegates_to_runner():
-    facade = ValidatorCrewFacade(runner=_RunnerStub())
-    payload = {"a": 1}
+class _TopLevelFunctionSurface:
 
-    result = facade.run_validation_crew(payload)
+    def test_validator_crew_facade_delegates_to_runner():
+        facade = ValidatorCrewFacade(runner=_RunnerStub())
+        payload = {"a": 1}
+    
+        result = facade.run_validation_crew(payload)
+    
+        assert result == {"validated": payload}
 
-    assert result == {"validated": payload}
+    def test_validator_crew_facade_fallbacks_to_passthrough_on_runtime_error():
+        facade = ValidatorCrewFacade(runner=_RunnerStub(should_fail=True))
+        payload = {"a": 1}
+    
+        result = facade.run_validation_crew(payload)
+    
+        assert result == payload
+
+test_validator_crew_facade_delegates_to_runner = _TopLevelFunctionSurface.test_validator_crew_facade_delegates_to_runner
+test_validator_crew_facade_fallbacks_to_passthrough_on_runtime_error = _TopLevelFunctionSurface.test_validator_crew_facade_fallbacks_to_passthrough_on_runtime_error
 
 
-def test_validator_crew_facade_fallbacks_to_passthrough_on_runtime_error():
-    facade = ValidatorCrewFacade(runner=_RunnerStub(should_fail=True))
-    payload = {"a": 1}
-
-    result = facade.run_validation_crew(payload)
-
-    assert result == payload

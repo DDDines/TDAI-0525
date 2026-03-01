@@ -148,109 +148,121 @@ class _PdfPlumberStub:
         return _PdfCtx(_PdfStub(self._pages))
 
 
-def _build_service(*, upload_dir: Path, record=None, pages=None):
-    file_processing = _FileProcessingStub()
-    logger = _LoggerStub()
-    catalog_file_repo = _CatalogFileRepoStub(record=record)
-    service = CatalogImportPreviewService(
-        models=_ModelsStub,
-        settings=SimpleNamespace(UPLOAD_DIRECTORY=str(upload_dir)),
-        file_processing_service=file_processing,
-        resolve_storage_path=lambda p: Path(p),
-        logger=logger,
-        pdfplumber_module=_PdfPlumberStub(pages or [_PageStub()]),
-        catalog_file_repository=catalog_file_repo,
-    )
-    return service, file_processing, logger, catalog_file_repo
+class _TopLevelFunctionSurface:
 
-
-def test_importar_catalogo_preview_pdf_success(tmp_path):
-    record = SimpleNamespace(id=10, original_filename="catalogo.pdf", stored_filename="x.pdf")
-    service, file_processing, _, catalog_file_repo = _build_service(upload_dir=tmp_path, record=record)
-    file_processing.saved_record = record
-    file_processing.preview_response = {
-        "num_pages": 2,
-        "table_pages": [1],
-        "sample_rows": [],
-        "preview_images": [],
-        "headers": ["col_1"],
-    }
-    upload = _UploadFileStub(filename="catalogo.pdf", content=b"pdf")
-
-    result = asyncio.run(
-        service.importar_catalogo_preview(
-            file=upload,
-            fornecedor_id=3,
-            start_page=1,
-            page_count=5,
-            dpi=72,
-            user_id=99,
+    def _build_service(*, upload_dir: Path, record=None, pages=None):
+        file_processing = _FileProcessingStub()
+        logger = _LoggerStub()
+        catalog_file_repo = _CatalogFileRepoStub(record=record)
+        service = CatalogImportPreviewService(
+            models=_ModelsStub,
+            settings=SimpleNamespace(UPLOAD_DIRECTORY=str(upload_dir)),
+            file_processing_service=file_processing,
+            resolve_storage_path=lambda p: Path(p),
+            logger=logger,
+            pdfplumber_module=_PdfPlumberStub(pages or [_PageStub()]),
+            catalog_file_repository=catalog_file_repo,
         )
-    )
+        return service, file_processing, logger, catalog_file_repo
 
-    assert result["file_id"] == 10
-    assert result["error"] is None
-    assert record.user_id == 99
-    assert len(catalog_file_repo.saved) == 1
+    def test_importar_catalogo_preview_pdf_success(tmp_path):
+        record = SimpleNamespace(id=10, original_filename="catalogo.pdf", stored_filename="x.pdf")
+        service, file_processing, _, catalog_file_repo = _build_service(upload_dir=tmp_path, record=record)
+        file_processing.saved_record = record
+        file_processing.preview_response = {
+            "num_pages": 2,
+            "table_pages": [1],
+            "sample_rows": [],
+            "preview_images": [],
+            "headers": ["col_1"],
+        }
+        upload = _UploadFileStub(filename="catalogo.pdf", content=b"pdf")
+    
+        result = asyncio.run(
+            service.importar_catalogo_preview(
+                file=upload,
+                fornecedor_id=3,
+                start_page=1,
+                page_count=5,
+                dpi=72,
+                user_id=99,
+            )
+        )
+    
+        assert result["file_id"] == 10
+        assert result["error"] is None
+        assert record.user_id == 99
+        assert len(catalog_file_repo.saved) == 1
 
+    def test_selecionar_regiao_uses_dataframe_rows(tmp_path):
+        catalogs_dir = tmp_path / "catalogs"
+        catalogs_dir.mkdir(parents=True, exist_ok=True)
+        (catalogs_dir / "arquivo.pdf").write_bytes(b"dummy")
+    
+        record = SimpleNamespace(id=1, stored_filename="arquivo.pdf")
+        service, file_processing, _, _ = _build_service(upload_dir=tmp_path, record=record)
+        file_processing.df_region = _DataFrameStub(
+            rows=[
+                {"col_1": "1816D", "col_2": "Paralama"},
+                {"col_1": "", "col_2": ""},
+            ]
+        )
+    
+        result = service.selecionar_regiao(
+            file_id=1,
+            page=1,
+            bbox=[0, 0, 900, 900],
+            bbox_norm=None,
+            user_id=3,
+        )
+    
+        assert result["preview_headers"] == ["col_1", "col_2"]
+        assert len(result["preview_rows"]) == 2
+        assert len(result["produtos"]) == 1
 
-def test_selecionar_regiao_uses_dataframe_rows(tmp_path):
-    catalogs_dir = tmp_path / "catalogs"
-    catalogs_dir.mkdir(parents=True, exist_ok=True)
-    (catalogs_dir / "arquivo.pdf").write_bytes(b"dummy")
+    def test_extrair_pagina_unica_raises_404_when_record_missing(tmp_path):
+        service, _, _, _ = _build_service(upload_dir=tmp_path, record=None)
+    
+        with pytest.raises(HTTPException) as exc:
+            asyncio.run(
+                service.extrair_pagina_unica(
+                    file_id=1,
+                    page_number=1,
+                    user_id=7,
+                )
+            )
+    
+        assert exc.value.status_code == 404
 
-    record = SimpleNamespace(id=1, stored_filename="arquivo.pdf")
-    service, file_processing, _, _ = _build_service(upload_dir=tmp_path, record=record)
-    file_processing.df_region = _DataFrameStub(
-        rows=[
-            {"col_1": "1816D", "col_2": "Paralama"},
-            {"col_1": "", "col_2": ""},
-        ]
-    )
-
-    result = service.selecionar_regiao(
-        file_id=1,
-        page=1,
-        bbox=[0, 0, 900, 900],
-        bbox_norm=None,
-        user_id=3,
-    )
-
-    assert result["preview_headers"] == ["col_1", "col_2"]
-    assert len(result["preview_rows"]) == 2
-    assert len(result["produtos"]) == 1
-
-
-def test_extrair_pagina_unica_raises_404_when_record_missing(tmp_path):
-    service, _, _, _ = _build_service(upload_dir=tmp_path, record=None)
-
-    with pytest.raises(HTTPException) as exc:
-        asyncio.run(
+    def test_extrair_pagina_unica_success(tmp_path):
+        catalogs_dir = tmp_path / "catalogs"
+        catalogs_dir.mkdir(parents=True, exist_ok=True)
+        (catalogs_dir / "arquivo.pdf").write_bytes(b"pdf")
+    
+        record = SimpleNamespace(id=1, stored_filename="arquivo.pdf")
+        service, _, _, _ = _build_service(upload_dir=tmp_path, record=record)
+    
+        result = asyncio.run(
             service.extrair_pagina_unica(
                 file_id=1,
-                page_number=1,
+                page_number=3,
                 user_id=7,
             )
         )
+    
+        assert result["image"] == "img"
+        assert result["text"] == "txt"
 
-    assert exc.value.status_code == 404
+_build_service = _TopLevelFunctionSurface._build_service
+test_importar_catalogo_preview_pdf_success = _TopLevelFunctionSurface.test_importar_catalogo_preview_pdf_success
+test_selecionar_regiao_uses_dataframe_rows = _TopLevelFunctionSurface.test_selecionar_regiao_uses_dataframe_rows
+test_extrair_pagina_unica_raises_404_when_record_missing = _TopLevelFunctionSurface.test_extrair_pagina_unica_raises_404_when_record_missing
+test_extrair_pagina_unica_success = _TopLevelFunctionSurface.test_extrair_pagina_unica_success
 
 
-def test_extrair_pagina_unica_success(tmp_path):
-    catalogs_dir = tmp_path / "catalogs"
-    catalogs_dir.mkdir(parents=True, exist_ok=True)
-    (catalogs_dir / "arquivo.pdf").write_bytes(b"pdf")
 
-    record = SimpleNamespace(id=1, stored_filename="arquivo.pdf")
-    service, _, _, _ = _build_service(upload_dir=tmp_path, record=record)
 
-    result = asyncio.run(
-        service.extrair_pagina_unica(
-            file_id=1,
-            page_number=3,
-            user_id=7,
-        )
-    )
 
-    assert result["image"] == "img"
-    assert result["text"] == "txt"
+
+
+

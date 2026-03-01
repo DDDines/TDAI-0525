@@ -56,83 +56,97 @@ class _OrchestratorStub:
         )
 
 
-def _build_service(produto=None):
-    return WebEnrichmentStartService(
-        product_repository=_CrudProdutosStub(produto=produto),
-        models=_ModelsStub,
-        dispatcher_cls=_DispatcherStub,
-        orchestrator_cls=_OrchestratorStub,
-    )
+class _TopLevelFunctionSurface:
 
-
-def test_validate_start_preconditions_not_found():
-    service = _build_service(produto=None)
-    user = SimpleNamespace(id=1, is_superuser=False)
-
-    with pytest.raises(HTTPException) as exc:
-        service.validate_start_preconditions(
-            product_repo=_CrudProdutosStub(produto=None),
-            produto_id=10,
-            current_user=user,
+    def _build_service(produto=None):
+        return WebEnrichmentStartService(
+            product_repository=_CrudProdutosStub(produto=produto),
+            models=_ModelsStub,
+            dispatcher_cls=_DispatcherStub,
+            orchestrator_cls=_OrchestratorStub,
         )
 
-    assert exc.value.status_code == 404
+    def test_validate_start_preconditions_not_found():
+        service = _build_service(produto=None)
+        user = SimpleNamespace(id=1, is_superuser=False)
+    
+        with pytest.raises(HTTPException) as exc:
+            service.validate_start_preconditions(
+                product_repo=_CrudProdutosStub(produto=None),
+                produto_id=10,
+                current_user=user,
+            )
+    
+        assert exc.value.status_code == 404
 
+    def test_validate_start_preconditions_forbidden():
+        produto = SimpleNamespace(user_id=2, status_enriquecimento_web="PENDENTE")
+        service = _build_service(produto=produto)
+        user = SimpleNamespace(id=1, is_superuser=False)
+    
+        with pytest.raises(HTTPException) as exc:
+            service.validate_start_preconditions(
+                product_repo=_CrudProdutosStub(produto=produto),
+                produto_id=10,
+                current_user=user,
+            )
+    
+        assert exc.value.status_code == 403
 
-def test_validate_start_preconditions_forbidden():
-    produto = SimpleNamespace(user_id=2, status_enriquecimento_web="PENDENTE")
-    service = _build_service(produto=produto)
-    user = SimpleNamespace(id=1, is_superuser=False)
+    def test_validate_start_preconditions_conflict():
+        produto = SimpleNamespace(user_id=1, status_enriquecimento_web="EM_PROGRESSO")
+        service = _build_service(produto=produto)
+        user = SimpleNamespace(id=1, is_superuser=False)
+    
+        with pytest.raises(HTTPException) as exc:
+            service.validate_start_preconditions(
+                product_repo=_CrudProdutosStub(produto=produto),
+                produto_id=10,
+                current_user=user,
+            )
+    
+        assert exc.value.status_code == 409
 
-    with pytest.raises(HTTPException) as exc:
+    def test_validate_start_preconditions_success():
+        produto = SimpleNamespace(user_id=1, status_enriquecimento_web="PENDENTE")
+        service = _build_service(produto=produto)
+        user = SimpleNamespace(id=1, is_superuser=False)
+    
         service.validate_start_preconditions(
             product_repo=_CrudProdutosStub(produto=produto),
             produto_id=10,
             current_user=user,
         )
 
-    assert exc.value.status_code == 403
-
-
-def test_validate_start_preconditions_conflict():
-    produto = SimpleNamespace(user_id=1, status_enriquecimento_web="EM_PROGRESSO")
-    service = _build_service(produto=produto)
-    user = SimpleNamespace(id=1, is_superuser=False)
-
-    with pytest.raises(HTTPException) as exc:
-        service.validate_start_preconditions(
-            product_repo=_CrudProdutosStub(produto=produto),
-            produto_id=10,
-            current_user=user,
+    def test_dispatch_start_selects_and_dispatches():
+        _DispatcherStub.reset()
+        produto = SimpleNamespace(user_id=1, status_enriquecimento_web="PENDENTE")
+        service = _build_service(produto=produto)
+        command = SimpleNamespace(produto_id=7, user_id=1, termos_busca_override=None)
+    
+        plan = service.dispatch_start(
+            background_tasks=object(),
+            db_session_factory=lambda: object(),
+            command=command,
+            oop_executor=object(),
         )
+    
+        assert plan.task_kwargs["produto_id"] == 7
+        assert len(_DispatcherStub.dispatched) == 1
 
-    assert exc.value.status_code == 409
-
-
-def test_validate_start_preconditions_success():
-    produto = SimpleNamespace(user_id=1, status_enriquecimento_web="PENDENTE")
-    service = _build_service(produto=produto)
-    user = SimpleNamespace(id=1, is_superuser=False)
-
-    service.validate_start_preconditions(
-        product_repo=_CrudProdutosStub(produto=produto),
-        produto_id=10,
-        current_user=user,
-    )
+_build_service = _TopLevelFunctionSurface._build_service
+test_validate_start_preconditions_not_found = _TopLevelFunctionSurface.test_validate_start_preconditions_not_found
+test_validate_start_preconditions_forbidden = _TopLevelFunctionSurface.test_validate_start_preconditions_forbidden
+test_validate_start_preconditions_conflict = _TopLevelFunctionSurface.test_validate_start_preconditions_conflict
+test_validate_start_preconditions_success = _TopLevelFunctionSurface.test_validate_start_preconditions_success
+test_dispatch_start_selects_and_dispatches = _TopLevelFunctionSurface.test_dispatch_start_selects_and_dispatches
 
 
-def test_dispatch_start_selects_and_dispatches():
-    _DispatcherStub.reset()
-    produto = SimpleNamespace(user_id=1, status_enriquecimento_web="PENDENTE")
-    service = _build_service(produto=produto)
-    command = SimpleNamespace(produto_id=7, user_id=1, termos_busca_override=None)
 
-    plan = service.dispatch_start(
-        background_tasks=object(),
-        db_session_factory=lambda: object(),
-        command=command,
-        oop_executor=object(),
-    )
 
-    assert plan.task_kwargs["produto_id"] == 7
-    assert len(_DispatcherStub.dispatched) == 1
+
+
+
+
+
+

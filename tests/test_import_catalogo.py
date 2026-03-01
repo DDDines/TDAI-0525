@@ -25,12 +25,76 @@ TestingSessionLocal = sessionmaker(bind=engine)
 Base.metadata.create_all(bind=engine)
 
 
-def override_get_db():
-    db = TestingSessionLocal()
-    try:
-        yield db
-    finally:
-        db.close()
+class _TopLevelFunctionSurface:
+
+    def override_get_db():
+        db = TestingSessionLocal()
+        try:
+            yield db
+        finally:
+            db.close()
+
+    def get_admin_headers():
+        resp = client.post(
+            "/api/v1/auth/token",
+            data={"username": settings.FIRST_SUPERUSER_EMAIL, "password": settings.FIRST_SUPERUSER_PASSWORD},
+        )
+        assert resp.status_code == 200
+        token = resp.json()["access_token"]
+        return {"Authorization": f"Bearer {token}"}
+
+    def test_importacao_relatorio_de_erros():
+        headers = get_admin_headers()
+        csv_content = "nome,sku\nProduto Valido,123\nDuplicado,123\n"
+        file_bytes = csv_content.encode()
+        files = {"file": ("catalogo.csv", io.BytesIO(file_bytes), "text/csv")}
+        resp = client.post("/api/v1/produtos/importar-catalogo/1/", files=files, headers=headers)
+        assert resp.status_code == 200
+        data = resp.json()
+        assert "produtos_criados" in data
+        assert "erros" in data
+        assert len(data["produtos_criados"]) == 1
+        assert len(data["erros"]) == 1
+        assert "motivo_descarte" in data["erros"][0]
+
+    def test_historico_criado_para_produtos_importados():
+        headers = get_admin_headers()
+        csv_content = "nome,sku\nProd1,111\nProd2,222\n"
+        file_bytes = csv_content.encode()
+        files = {"file": ("catalogo.csv", io.BytesIO(file_bytes), "text/csv")}
+        resp = client.post("/api/v1/produtos/importar-catalogo/1/", files=files, headers=headers)
+        assert resp.status_code == 200
+        data = resp.json()
+        created_ids = [prod["id"] for prod in data["produtos_criados"]]
+        assert len(created_ids) == 2
+    
+        with TestingSessionLocal() as db:
+            logs = db.query(models.RegistroHistorico).filter(
+                models.RegistroHistorico.entity_id.in_(created_ids),
+                models.RegistroHistorico.entidade == "Produto",
+                models.RegistroHistorico.acao == models.TipoAcaoSistemaEnum.CRIACAO,
+            ).all()
+            assert len(logs) == len(created_ids)
+
+    def test_importacao_ignora_duplicados_por_sku_ean():
+        headers = get_admin_headers()
+        csv_content = "nome,sku,ean\nProdA,777,999\nProdB,777,888\nProdC,666,999\n"
+        file_bytes = csv_content.encode()
+        files = {"file": ("catalogo.csv", io.BytesIO(file_bytes), "text/csv")}
+        resp = client.post("/api/v1/produtos/importar-catalogo/1/", files=files, headers=headers)
+        assert resp.status_code == 200
+        data = resp.json()
+        assert len(data["produtos_criados"]) == 1
+        assert len(data["erros"]) == 2
+        for err in data["erros"]:
+            assert "duplicado" in err["motivo_descarte"].lower()
+            assert err.get("duplicado") is True
+
+override_get_db = _TopLevelFunctionSurface.override_get_db
+get_admin_headers = _TopLevelFunctionSurface.get_admin_headers
+test_importacao_relatorio_de_erros = _TopLevelFunctionSurface.test_importacao_relatorio_de_erros
+test_historico_criado_para_produtos_importados = _TopLevelFunctionSurface.test_historico_criado_para_produtos_importados
+test_importacao_ignora_duplicados_por_sku_ean = _TopLevelFunctionSurface.test_importacao_ignora_duplicados_por_sku_ean
 
 
 app.dependency_overrides[get_db] = override_get_db
@@ -43,62 +107,10 @@ with TestingSessionLocal() as db:
     initial_data_workflow.create_initial_data(db)
 
 
-def get_admin_headers():
-    resp = client.post(
-        "/api/v1/auth/token",
-        data={"username": settings.FIRST_SUPERUSER_EMAIL, "password": settings.FIRST_SUPERUSER_PASSWORD},
-    )
-    assert resp.status_code == 200
-    token = resp.json()["access_token"]
-    return {"Authorization": f"Bearer {token}"}
 
 
-def test_importacao_relatorio_de_erros():
-    headers = get_admin_headers()
-    csv_content = "nome,sku\nProduto Valido,123\nDuplicado,123\n"
-    file_bytes = csv_content.encode()
-    files = {"file": ("catalogo.csv", io.BytesIO(file_bytes), "text/csv")}
-    resp = client.post("/api/v1/produtos/importar-catalogo/1/", files=files, headers=headers)
-    assert resp.status_code == 200
-    data = resp.json()
-    assert "produtos_criados" in data
-    assert "erros" in data
-    assert len(data["produtos_criados"]) == 1
-    assert len(data["erros"]) == 1
-    assert "motivo_descarte" in data["erros"][0]
 
 
-def test_historico_criado_para_produtos_importados():
-    headers = get_admin_headers()
-    csv_content = "nome,sku\nProd1,111\nProd2,222\n"
-    file_bytes = csv_content.encode()
-    files = {"file": ("catalogo.csv", io.BytesIO(file_bytes), "text/csv")}
-    resp = client.post("/api/v1/produtos/importar-catalogo/1/", files=files, headers=headers)
-    assert resp.status_code == 200
-    data = resp.json()
-    created_ids = [prod["id"] for prod in data["produtos_criados"]]
-    assert len(created_ids) == 2
-
-    with TestingSessionLocal() as db:
-        logs = db.query(models.RegistroHistorico).filter(
-            models.RegistroHistorico.entity_id.in_(created_ids),
-            models.RegistroHistorico.entidade == "Produto",
-            models.RegistroHistorico.acao == models.TipoAcaoSistemaEnum.CRIACAO,
-        ).all()
-        assert len(logs) == len(created_ids)
 
 
-def test_importacao_ignora_duplicados_por_sku_ean():
-    headers = get_admin_headers()
-    csv_content = "nome,sku,ean\nProdA,777,999\nProdB,777,888\nProdC,666,999\n"
-    file_bytes = csv_content.encode()
-    files = {"file": ("catalogo.csv", io.BytesIO(file_bytes), "text/csv")}
-    resp = client.post("/api/v1/produtos/importar-catalogo/1/", files=files, headers=headers)
-    assert resp.status_code == 200
-    data = resp.json()
-    assert len(data["produtos_criados"]) == 1
-    assert len(data["erros"]) == 2
-    for err in data["erros"]:
-        assert "duplicado" in err["motivo_descarte"].lower()
-        assert err.get("duplicado") is True
 

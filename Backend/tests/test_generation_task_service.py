@@ -53,27 +53,110 @@ class _FakeSession:
         return None
 
 
-def _db_session_factory():
-    return _FakeSession()
+class _TopLevelFunctionSurface:
 
+    def _db_session_factory():
+        return _FakeSession()
 
-def _build_models_stub():
-    return types.SimpleNamespace(
-        StatusGeracaoIAEnum=types.SimpleNamespace(
-            EM_PROGRESSO="EM_PROGRESSO",
-            CONCLUIDO="CONCLUIDO",
-            FALHA="FALHA",
+    def _build_models_stub():
+        return types.SimpleNamespace(
+            StatusGeracaoIAEnum=types.SimpleNamespace(
+                EM_PROGRESSO="EM_PROGRESSO",
+                CONCLUIDO="CONCLUIDO",
+                FALHA="FALHA",
+            )
         )
-    )
+
+    def _build_schemas_stub():
+        class _ProdutoUpdate:
+            def __init__(self, **kwargs):
+                for key, value in kwargs.items():
+                    setattr(self, key, value)
+    
+        return types.SimpleNamespace(ProdutoUpdate=_ProdutoUpdate)
+
+    def _build_service(*, produto: _ProdutoStub, user: _UserStub | None = None):
+        crud_users = _CrudUsersStub(user or _UserStub())
+        crud_produtos = _CrudProdutosStub(produto)
+    
+        class _UserRepository:
+            def __init__(self, _session):
+                self._stub = crud_users
+    
+            def get_user(self, db, user_id: int):
+                return self._stub.get_user(db, user_id)
+    
+        class _ProductRepository:
+            def __init__(self, _session):
+                self._stub = crud_produtos
+    
+            def get_produto(self, db, produto_id: int):
+                return self._stub.get_produto(db, produto_id)
+    
+            def update_produto(self, db, *, db_produto, produto_update):
+                return self._stub.update_produto(
+                    db,
+                    db_produto=db_produto,
+                    produto_update=produto_update,
+                )
+    
+        service = GenerationTaskService(
+            user_repository_cls=_UserRepository,
+            product_repository_cls=_ProductRepository,
+            models=_build_models_stub(),
+            schemas=_build_schemas_stub(),
+            logger=_LoggerStub(),
+        )
+        return service, crud_produtos
+
+    @pytest.mark.asyncio
+    async def test_generation_task_service_marks_success_for_titulo():
+        produto = _ProdutoStub()
+        service, crud_produtos = _build_service(produto=produto)
+    
+        async def _fake_generation(**kwargs):
+            return ["Titulo 1", "Titulo 2"]
+    
+        await service.run_generation_task(
+            db_session_factory=_db_session_factory,
+            user_id=1,
+            produto_id=10,
+            tipo_geracao_principal="titulo",
+            funcao_geracao_ia_no_servico=_fake_generation,
+        )
+    
+        assert produto.status_titulo_ia == "CONCLUIDO"
+        assert produto.titulos_sugeridos == ["Titulo 1", "Titulo 2"]
+        assert len(crud_produtos.updates) >= 2
+
+    @pytest.mark.asyncio
+    async def test_generation_task_service_marks_failure_for_empty_result():
+        produto = _ProdutoStub()
+        service, crud_produtos = _build_service(produto=produto)
+    
+        async def _fake_generation(**kwargs):
+            return ""
+    
+        await service.run_generation_task(
+            db_session_factory=_db_session_factory,
+            user_id=1,
+            produto_id=10,
+            tipo_geracao_principal="descricao",
+            funcao_geracao_ia_no_servico=_fake_generation,
+        )
+    
+        assert produto.status_descricao_ia == "FALHA"
+
+_db_session_factory = _TopLevelFunctionSurface._db_session_factory
+_build_models_stub = _TopLevelFunctionSurface._build_models_stub
+_build_schemas_stub = _TopLevelFunctionSurface._build_schemas_stub
+_build_service = _TopLevelFunctionSurface._build_service
+test_generation_task_service_marks_success_for_titulo = _TopLevelFunctionSurface.test_generation_task_service_marks_success_for_titulo
+test_generation_task_service_marks_failure_for_empty_result = _TopLevelFunctionSurface.test_generation_task_service_marks_failure_for_empty_result
 
 
-def _build_schemas_stub():
-    class _ProdutoUpdate:
-        def __init__(self, **kwargs):
-            for key, value in kwargs.items():
-                setattr(self, key, value)
 
-    return types.SimpleNamespace(ProdutoUpdate=_ProdutoUpdate)
+
 
 
 class _LoggerStub:
@@ -93,76 +176,7 @@ class _LoggerStub:
         self.logs.append(("exception", args, kwargs))
 
 
-def _build_service(*, produto: _ProdutoStub, user: _UserStub | None = None):
-    crud_users = _CrudUsersStub(user or _UserStub())
-    crud_produtos = _CrudProdutosStub(produto)
-
-    class _UserRepository:
-        def __init__(self, _session):
-            self._stub = crud_users
-
-        def get_user(self, db, user_id: int):
-            return self._stub.get_user(db, user_id)
-
-    class _ProductRepository:
-        def __init__(self, _session):
-            self._stub = crud_produtos
-
-        def get_produto(self, db, produto_id: int):
-            return self._stub.get_produto(db, produto_id)
-
-        def update_produto(self, db, *, db_produto, produto_update):
-            return self._stub.update_produto(
-                db,
-                db_produto=db_produto,
-                produto_update=produto_update,
-            )
-
-    service = GenerationTaskService(
-        user_repository_cls=_UserRepository,
-        product_repository_cls=_ProductRepository,
-        models=_build_models_stub(),
-        schemas=_build_schemas_stub(),
-        logger=_LoggerStub(),
-    )
-    return service, crud_produtos
 
 
-@pytest.mark.asyncio
-async def test_generation_task_service_marks_success_for_titulo():
-    produto = _ProdutoStub()
-    service, crud_produtos = _build_service(produto=produto)
-
-    async def _fake_generation(**kwargs):
-        return ["Titulo 1", "Titulo 2"]
-
-    await service.run_generation_task(
-        db_session_factory=_db_session_factory,
-        user_id=1,
-        produto_id=10,
-        tipo_geracao_principal="titulo",
-        funcao_geracao_ia_no_servico=_fake_generation,
-    )
-
-    assert produto.status_titulo_ia == "CONCLUIDO"
-    assert produto.titulos_sugeridos == ["Titulo 1", "Titulo 2"]
-    assert len(crud_produtos.updates) >= 2
 
 
-@pytest.mark.asyncio
-async def test_generation_task_service_marks_failure_for_empty_result():
-    produto = _ProdutoStub()
-    service, crud_produtos = _build_service(produto=produto)
-
-    async def _fake_generation(**kwargs):
-        return ""
-
-    await service.run_generation_task(
-        db_session_factory=_db_session_factory,
-        user_id=1,
-        produto_id=10,
-        tipo_geracao_principal="descricao",
-        funcao_geracao_ia_no_servico=_fake_generation,
-    )
-
-    assert produto.status_descricao_ia == "FALHA"
