@@ -256,8 +256,8 @@ class _TopLevelFunctionSurface:
         called = []
     
         class FakeAuthWorkflow:
-            async def process_google_login(self, db, google_userinfo):
-                called.append(("process_google_login", db, google_userinfo))
+            async def process_google_login(self, google_userinfo):
+                called.append(("process_google_login", google_userinfo))
                 return SimpleNamespace(id=9, email="google@test.com")
 
             def create_access_token(self, payload):
@@ -469,8 +469,8 @@ class _TopLevelFunctionSurface:
                 called.append("ensure_static_files_path")
                 return Path("C:/tmp/static")
     
-            def create_new_user(self, user_in, db):
-                called.append(("create_new_user", user_in, db))
+            def create_new_user(self, user_in, session):
+                called.append(("create_new_user", user_in, session))
                 return {"ok": True}
     
             async def startup_event_create_defaults(self):
@@ -481,7 +481,7 @@ class _TopLevelFunctionSurface:
     
         assert workflow.build_allowed_origins() == ["http://fake.local"]
         assert workflow.ensure_static_files_path() == Path("C:/tmp/static")
-        assert workflow.create_new_user(user_in=user_payload, db="db") == {"ok": True}
+        assert workflow.create_new_user(user_in=user_payload, session="db") == {"ok": True}
         assert called[0] == "build_allowed_origins"
         assert called[1] == "ensure_static_files_path"
         assert called[2] == ("create_new_user", user_payload, "db")
@@ -497,7 +497,7 @@ class _TopLevelFunctionSurface:
             def ensure_static_files_path(self):
                 return Path("C:/tmp/static")
     
-            def create_new_user(self, user_in, db):
+            def create_new_user(self, user_in, session):
                 return None
     
             async def startup_event_create_defaults(self):

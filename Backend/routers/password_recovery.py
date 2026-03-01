@@ -28,7 +28,7 @@ class PasswordRecoveryRequestService:
         session: Session = Depends(ServiceContainerDependencySupport.get_request_db_session),
     ) -> None:
         self._session = session
-        self._auth_workflow = AuthWorkflow()
+        self._auth_workflow = AuthWorkflow(session=session)
         self._email_workflow = EmailWorkflow()
         self._user_repository = UserRepository(session)
 

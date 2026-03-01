@@ -108,7 +108,7 @@ class _TopLevelFunctionSurface:
     
         user = user_workflow.get_user(db="db", user_id=3)
         job = job_workflow.update_job_status(db="db", job="job", status="DONE")
-        initial = initial_data_workflow.create_initial_data(db="db")
+        initial = initial_data_workflow.create_initial_data(session="db")
     
         assert user["workflow"] == "user"
         assert job["workflow"] == "job"
@@ -264,6 +264,7 @@ test_catalog_storage_workflow_delega_runtime_injetado = _TopLevelFunctionSurface
 test_tabular_workflows_delegam_runtime_injetado = _TopLevelFunctionSurface.test_tabular_workflows_delegam_runtime_injetado
 test_pdf_job_workflow_delega_runtime_injetado = _TopLevelFunctionSurface.test_pdf_job_workflow_delega_runtime_injetado
 test_web_extraction_workflow_usa_runtime_injetado_para_timestamp_e_html = _TopLevelFunctionSurface.test_web_extraction_workflow_usa_runtime_injetado_para_timestamp_e_html
+
 
 
 

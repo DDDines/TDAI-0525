@@ -17,18 +17,18 @@ logger = logging.getLogger(__name__)
 class InitialDataRuntime:
     """Runtime OO responsavel por inicializar dados base do sistema."""
 
-    def create_initial_data(self, db: Session):
+    def create_initial_data(self, session: Session):
         logger.info('Verificando/criando dados iniciais (roles, planos, admin)...')
-        user_repo = UserRepository(db)
-        product_type_repo = ProductTypeRepository(db)
-        fornecedor_repo = FornecedorRepository(db)
-        product_repo = ProductRepository(db)
+        user_repo = UserRepository(session)
+        product_type_repo = ProductTypeRepository(session)
+        fornecedor_repo = FornecedorRepository(session)
+        product_repo = ProductRepository(session)
         self._ensure_default_roles(user_repo=user_repo)
         self._ensure_default_plans(user_repo=user_repo)
-        admin_user = self._ensure_admin_user(db=db, user_repo=user_repo)
+        admin_user = self._ensure_admin_user(session=session, user_repo=user_repo)
         self._ensure_global_product_types(product_type_repo=product_type_repo)
-        self._ensure_default_supplier(db=db, admin_user=admin_user, fornecedor_repo=fornecedor_repo)
-        self._ensure_default_product(db=db, user_repo=user_repo, product_repo=product_repo)
+        self._ensure_default_supplier(session=session, admin_user=admin_user, fornecedor_repo=fornecedor_repo)
+        self._ensure_default_product(session=session, user_repo=user_repo, product_repo=product_repo)
         logger.info('Criacao/verificacao de dados iniciais concluida.')
 
     @staticmethod
@@ -57,7 +57,7 @@ class InitialDataRuntime:
             user_repo.create_plano(plano=schemas.PlanoCreate(**plano_data))
             logger.info("Plano '%s' criado.", plano_data['nome'])
 
-    def _ensure_admin_user(self, *, db: Session, user_repo: UserRepository) -> Optional[User]:
+    def _ensure_admin_user(self, *, session: Session, user_repo: UserRepository) -> Optional[User]:
         admin_email = settings.FIRST_SUPERUSER_EMAIL
         admin_password = settings.FIRST_SUPERUSER_PASSWORD
         admin_user = user_repo.get_user_by_email(email=admin_email)
@@ -70,8 +70,8 @@ class InitialDataRuntime:
         db_admin_user.is_superuser = True
         if admin_role:
             db_admin_user.role_id = admin_role.id
-        db.commit()
-        db.refresh(db_admin_user)
+        session.commit()
+        session.refresh(db_admin_user)
         logger.info("Usuario administrador '%s' criado com sucesso.", admin_email)
         return db_admin_user
 
@@ -93,10 +93,10 @@ class InitialDataRuntime:
                 logger.error("Erro inesperado ao criar tipo de produto global '%s': %s", pt_create_schema.key_name, exc, exc_info=True)
 
     @staticmethod
-    def _ensure_default_supplier(*, db: Session, admin_user: Optional[User], fornecedor_repo: FornecedorRepository) -> None:
+    def _ensure_default_supplier(*, session: Session, admin_user: Optional[User], fornecedor_repo: FornecedorRepository) -> None:
         if not admin_user:
             return
-        fornecedor_existente = db.query(Fornecedor).filter(func.lower(Fornecedor.nome) == 'uouu', Fornecedor.user_id == admin_user.id).first()
+        fornecedor_existente = session.query(Fornecedor).filter(func.lower(Fornecedor.nome) == 'uouu', Fornecedor.user_id == admin_user.id).first()
         if fornecedor_existente:
             logger.info("Fornecedor de exemplo 'UouU' ja existe para o administrador.")
             return
@@ -104,8 +104,8 @@ class InitialDataRuntime:
         logger.info("Fornecedor de exemplo 'UouU' criado para o administrador.")
 
     @staticmethod
-    def _ensure_default_product(*, db: Session, user_repo: UserRepository, product_repo: ProductRepository) -> None:
-        if db.query(Produto).count() != 0:
+    def _ensure_default_product(*, session: Session, user_repo: UserRepository, product_repo: ProductRepository) -> None:
+        if session.query(Produto).count() != 0:
             return
         admin_user = user_repo.get_user_by_email(email=settings.FIRST_SUPERUSER_EMAIL)
         if not admin_user:
@@ -119,12 +119,13 @@ class InitialDataWorkflow:
     def __init__(self, runtime: Optional[InitialDataRuntime]=None) -> None:
         self._runtime = runtime or InitialDataRuntime()
 
-    def create_initial_data(self, db: Session):
-        return self._runtime.create_initial_data(db=db)
+    def create_initial_data(self, session: Session):
+        return self._runtime.create_initial_data(session=session)
 
 class _InitialDataEntryPoints:
 
     @staticmethod
-    def create_initial_data(db: Session):
+    def create_initial_data(session: Session):
         """Entrada publica de compatibilidade para rotinas de seed."""
-        return InitialDataWorkflow().create_initial_data(db=db)
+        return InitialDataWorkflow().create_initial_data(session=session)
+

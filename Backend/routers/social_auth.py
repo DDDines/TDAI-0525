@@ -24,7 +24,7 @@ class SocialAuthRequestService:
         session: Session = Depends(ServiceContainerDependencySupport.get_request_db_session),
     ) -> None:
         self._session = session
-        self._auth_workflow = AuthWorkflow()
+        self._auth_workflow = AuthWorkflow(session=session)
 
     @staticmethod
     def _has_client(provider: str) -> bool:
@@ -80,10 +80,7 @@ class SocialAuthRequestService:
         except Exception:
             userinfo = await self._get_userinfo("google", token)
 
-        user = await self._auth_workflow.process_google_login(
-            db=self._session,
-            google_userinfo=userinfo,
-        )
+        user = await self._auth_workflow.process_google_login(google_userinfo=userinfo)
         if not user:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
@@ -121,10 +118,7 @@ class SocialAuthRequestService:
             ) from exc
 
         userinfo = await self._get_userinfo("facebook", token)
-        user = await self._auth_workflow.process_facebook_login(
-            db=self._session,
-            facebook_userinfo=userinfo,
-        )
+        user = await self._auth_workflow.process_facebook_login(facebook_userinfo=userinfo)
         if not user:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,

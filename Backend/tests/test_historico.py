@@ -156,7 +156,8 @@ with TestingSessionLocal() as db:
         password="secret",
         nome_completo="Normal User",
     )
-    MainBootstrapWorkflow().create_new_user(user_in=user_in, db=db)
+    MainBootstrapWorkflow().create_new_user(user_in=user_in, session=db)
+
 
 
 

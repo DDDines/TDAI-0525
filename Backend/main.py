@@ -9,10 +9,11 @@ from sqlalchemy import func
 from sqlalchemy.orm import Session
 from Backend import models
 from Backend import schemas
+from Backend.application.services.service_container import ServiceContainerDependencySupport
 from Backend.auth import router as auth_router_direct
 from Backend.core.config import settings
 from Backend.core.logging_config import get_logger
-from Backend.database import SessionLocal, engine, get_db
+from Backend.database import SessionLocal, engine
 from Backend.infrastructure.repositories.fornecedor_repository import FornecedorRepository
 from Backend.infrastructure.repositories.product_repository import ProductRepository
 from Backend.infrastructure.repositories.product_type_repository import ProductTypeRepository
@@ -71,28 +72,28 @@ class MainBootstrapRuntime:
 
     async def startup_event_create_defaults(self) -> None:
         logger.info('Executando startup para criar defaults (roles, planos, admin, product types)...')
-        db: Session = SessionLocal()
+        session: Session = SessionLocal()
         try:
             if settings.AUTO_CREATE_TABLES:
                 self._ensure_tables()
-            user_repo = UserRepository(db)
-            product_type_repo = ProductTypeRepository(db)
-            fornecedor_repo = FornecedorRepository(db)
-            product_repo = ProductRepository(db)
+            user_repo = UserRepository(session)
+            product_type_repo = ProductTypeRepository(session)
+            fornecedor_repo = FornecedorRepository(session)
+            product_repo = ProductRepository(session)
             admin_role_obj, _ = self._ensure_roles(user_repo=user_repo)
             admin_plano_obj, plano_gratuito_obj = self._ensure_planos(user_repo=user_repo)
-            admin_user = self._ensure_admin_user(db=db, user_repo=user_repo, admin_role_obj=admin_role_obj, admin_plano_obj=admin_plano_obj, plano_gratuito_obj=plano_gratuito_obj)
+            admin_user = self._ensure_admin_user(session=session, user_repo=user_repo, admin_role_obj=admin_role_obj, admin_plano_obj=admin_plano_obj, plano_gratuito_obj=plano_gratuito_obj)
             self._ensure_global_product_types(product_type_repo=product_type_repo)
-            self._ensure_default_supplier(db=db, admin_user=admin_user, fornecedor_repo=fornecedor_repo)
-            self._ensure_default_product(db=db, admin_user=admin_user, product_repo=product_repo)
+            self._ensure_default_supplier(session=session, admin_user=admin_user, fornecedor_repo=fornecedor_repo)
+            self._ensure_default_product(session=session, admin_user=admin_user, product_repo=product_repo)
         except Exception as startup_exc:
             logger.error('ERRO CRITICO durante startup defaults: %s', startup_exc, exc_info=True)
         finally:
-            db.close()
+            session.close()
         logger.info('Evento de startup para defaults concluido.')
 
-    def create_new_user(self, *, user_in: schemas.UserCreate, db: Session) -> models.User:
-        user_repo = UserRepository(db)
+    def create_new_user(self, *, user_in: schemas.UserCreate, session: Session) -> models.User:
+        user_repo = UserRepository(session)
         if user_repo.get_user_by_email(email=user_in.email):
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail='Um usuario com este email ja existe no sistema.')
         self._assign_default_role_and_plan(user_repo=user_repo, user_in=user_in)
@@ -149,7 +150,7 @@ class MainBootstrapRuntime:
             logger.error("ERRO CRITICO: Plano 'Gratuito' nao encontrado.")
         return (admin_plano_obj, plano_gratuito_obj)
 
-    def _ensure_admin_user(self, *, db: Session, user_repo: UserRepository, admin_role_obj: Optional[models.Role], admin_plano_obj: Optional[models.Plano], plano_gratuito_obj: Optional[models.Plano]) -> Optional[models.User]:
+    def _ensure_admin_user(self, *, session: Session, user_repo: UserRepository, admin_role_obj: Optional[models.Role], admin_plano_obj: Optional[models.Plano], plano_gratuito_obj: Optional[models.Plano]) -> Optional[models.User]:
         admin_user = user_repo.get_user_by_email(email=settings.ADMIN_EMAIL)
         if not admin_user:
             if not admin_role_obj:
@@ -168,9 +169,9 @@ class MainBootstrapRuntime:
                 created_admin.limite_geracao_ia = admin_plano_obj.limite_geracao_ia
             elif plano_gratuito_obj and (not created_admin.plano_id):
                 created_admin.plano_id = plano_gratuito_obj.id
-            db.add(created_admin)
-            db.commit()
-            db.refresh(created_admin)
+            session.add(created_admin)
+            session.commit()
+            session.refresh(created_admin)
             logger.info("Usuario administrador '%s' criado com sucesso.", settings.ADMIN_EMAIL)
             return created_admin
         logger.info("Usuario administrador '%s' ja existe.", settings.ADMIN_EMAIL)
@@ -189,8 +190,8 @@ class MainBootstrapRuntime:
             needs_update = True
             logger.info("Atualizando plano do admin '%s'.", settings.ADMIN_EMAIL)
         if needs_update:
-            db.commit()
-            db.refresh(admin_user)
+            session.commit()
+            session.refresh(admin_user)
         return admin_user
 
     @staticmethod
@@ -205,10 +206,10 @@ class MainBootstrapRuntime:
             logger.info("Tipo de Produto Global '%s' criado.", created.friendly_name)
 
     @staticmethod
-    def _ensure_default_supplier(*, db: Session, admin_user: Optional[models.User], fornecedor_repo: FornecedorRepository) -> None:
+    def _ensure_default_supplier(*, session: Session, admin_user: Optional[models.User], fornecedor_repo: FornecedorRepository) -> None:
         if not admin_user:
             return
-        fornecedor_existente = db.query(models.Fornecedor).filter(func.lower(models.Fornecedor.nome) == 'uouu', models.Fornecedor.user_id == admin_user.id).first()
+        fornecedor_existente = session.query(models.Fornecedor).filter(func.lower(models.Fornecedor.nome) == 'uouu', models.Fornecedor.user_id == admin_user.id).first()
         if fornecedor_existente:
             logger.info("Fornecedor de exemplo 'UouU' ja existe para o administrador.")
             return
@@ -216,10 +217,10 @@ class MainBootstrapRuntime:
         logger.info("Fornecedor de exemplo 'UouU' criado para o administrador.")
 
     @staticmethod
-    def _ensure_default_product(*, db: Session, admin_user: Optional[models.User], product_repo: ProductRepository) -> None:
+    def _ensure_default_product(*, session: Session, admin_user: Optional[models.User], product_repo: ProductRepository) -> None:
         if not admin_user:
             return
-        if db.query(models.Produto).count() != 0:
+        if session.query(models.Produto).count() != 0:
             return
         product_repo.create_produto(produto=schemas.ProdutoCreate(nome_base='Produto de Exemplo', descricao_original='Item criado automaticamente na inicializacao'), user_id=admin_user.id)
         logger.info('Produto de exemplo criado para o administrador.')
@@ -256,8 +257,8 @@ class MainBootstrapWorkflow:
     async def startup_event_create_defaults(self) -> None:
         await self._runtime.startup_event_create_defaults()
 
-    def create_new_user(self, user_in: schemas.UserCreate, db: Session) -> models.User:
-        return self._runtime.create_new_user(user_in=user_in, db=db)
+    def create_new_user(self, user_in: schemas.UserCreate, session: Session) -> models.User:
+        return self._runtime.create_new_user(user_in=user_in, session=session)
 
 class _MainLifecycleEntries:
 
@@ -281,8 +282,11 @@ app.mount('/static', StaticFiles(directory=static_files_path), name='static')
 class _EndpointHandlers:
 
     @app.post('/api/v1/users/', response_model=schemas.UserResponse, status_code=status.HTTP_201_CREATED, tags=['Usuarios'])
-    def create_new_user(user_in: schemas.UserCreate, db: Session=Depends(get_db)):
-        return MainBootstrapWorkflow().create_new_user(user_in=user_in, db=db)
+    def create_new_user(
+        user_in: schemas.UserCreate,
+        session: Session = Depends(ServiceContainerDependencySupport.get_request_db_session),
+    ):
+        return MainBootstrapWorkflow().create_new_user(user_in=user_in, session=session)
 
     @app.get('/', tags=['Raiz'])
     async def root():
@@ -303,3 +307,4 @@ app.include_router(uso_ia_router, prefix=settings.API_V1_STR, tags=['Registro de
 app.include_router(historico_router, prefix=settings.API_V1_STR, tags=['Historico'])
 app.include_router(password_recovery_router, prefix=settings.API_V1_STR, tags=['Recuperacao de Senha'])
 app.include_router(admin_analytics_router, prefix=settings.API_V1_STR + '/admin/analytics', tags=['Analytics (Admin)'])
+

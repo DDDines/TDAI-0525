@@ -104,7 +104,8 @@ initial_data_workflow = InitialDataWorkflow()
 with TestingSessionLocal() as db:
     initial_data_workflow.create_initial_data(db)
     user_in = schemas.UserCreate(email="user2@example.com", password="secret", nome_completo="Normal User")
-    normal_user = MainBootstrapWorkflow().create_new_user(user_in=user_in, db=db)
+    normal_user = MainBootstrapWorkflow().create_new_user(user_in=user_in, session=db)
+
 
 
 
