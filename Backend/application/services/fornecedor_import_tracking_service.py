@@ -29,12 +29,13 @@ class FornecedorImportTrackingService:
     def get_catalog_record_or_404(
         self,
         *,
-        catalog_file_repo: Any,
         file_id: int,
         user_id: int,
         not_found_detail: str,
     ) -> Any:
-        record = catalog_file_repo.get_catalog_file_for_user(
+        if self._catalog_file_repository is None:
+            raise ValueError("catalog_file_repo is required")
+        record = self._catalog_file_repository.get_catalog_file_for_user(
             file_id=file_id,
             user_id=user_id,
         )

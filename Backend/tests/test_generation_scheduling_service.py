@@ -50,6 +50,7 @@ class _TopLevelFunctionSurface:
         service = GenerationSchedulingService(
             schemas=_SchemasStub,
             models=_ModelsStub,
+            product_repository=crud_stub,
         )
         return service, crud_stub
 
@@ -59,7 +60,6 @@ class _TopLevelFunctionSurface:
     
         with pytest.raises(HTTPException) as exc:
             service.validate_product_access(
-                product_repo=_CrudProdutosStub(produto=None),
                 produto_id=10,
                 current_user=user,
             )
@@ -73,7 +73,6 @@ class _TopLevelFunctionSurface:
     
         with pytest.raises(HTTPException) as exc:
             service.validate_product_access(
-                product_repo=_CrudProdutosStub(produto=produto),
                 produto_id=10,
                 current_user=user,
             )
@@ -86,7 +85,6 @@ class _TopLevelFunctionSurface:
         user = SimpleNamespace(id=1, is_superuser=False)
     
         result = service.validate_product_access(
-            product_repo=_CrudProdutosStub(produto=produto),
             produto_id=10,
             current_user=user,
         )
@@ -98,7 +96,6 @@ class _TopLevelFunctionSurface:
         service, crud_stub = _build_service(produto=produto)
     
         service.mark_pending_status(
-            product_repo=crud_stub,
             db_produto=produto,
             generation_type="titulo",
         )

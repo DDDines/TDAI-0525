@@ -69,7 +69,8 @@ class GenerationTaskService:
         produto_id: int,
         tipo_geracao_principal: str,
         funcao_geracao_ia_no_servico: Any,
-        **kwargs_para_funcao_servico: Any,
+        num_titulos: int | None = None,
+        tamanho_palavras: int | None = None,
     ) -> None:
         """Executa geracao IA e persiste status/log no produto."""
         session: Optional[Session] = None
@@ -139,12 +140,17 @@ class GenerationTaskService:
                 log_entry_prefix,
                 produto_id,
             )
-            resultado_ia = await funcao_geracao_ia_no_servico(
-                session=session,
-                produto_id=produto_id,
-                user=user,
-                **kwargs_para_funcao_servico,
-            )
+            llm_call_payload: Dict[str, Any] = {
+                "session": session,
+                "produto_id": produto_id,
+                "user": user,
+            }
+            if num_titulos is not None:
+                llm_call_payload["num_titulos"] = num_titulos
+            if tamanho_palavras is not None:
+                llm_call_payload["tamanho_palavras"] = tamanho_palavras
+
+            resultado_ia = await funcao_geracao_ia_no_servico(**llm_call_payload)
             self._logger.info(
                 "Tarefa Background %s: Resultado IA para produto %s (truncado): %s...",
                 log_entry_prefix,

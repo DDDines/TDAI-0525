@@ -984,6 +984,184 @@ class _TopLevelFunctionSurface:
             + "\n".join(offenders)
         )
 
+    def test_router_gateways_do_not_use_kwargs_bridge_methods():
+        offenders: list[str] = []
+        targets = [
+            (ROUTERS_ROOT / "fornecedores.py", "_FornecedoresServiceGateway"),
+            (ROUTERS_ROOT / "produtos.py", "ProdutosCatalogCoordinator"),
+            (ROUTERS_ROOT / "generation.py", "GenerationRequestService"),
+        ]
+
+        for path, class_name in targets:
+            if not path.exists():
+                continue
+            rel = path.relative_to(PROJECT_ROOT)
+            tree = _parse_python_file(path)
+            class_node = next(
+                (
+                    node
+                    for node in tree.body
+                    if isinstance(node, ast.ClassDef) and node.name == class_name
+                ),
+                None,
+            )
+            if class_node is None:
+                offenders.append(f"{rel}: missing class {class_name}")
+                continue
+
+            for node in class_node.body:
+                if not isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
+                    continue
+                if node.name == "__init__":
+                    continue
+                if node.args.kwarg is not None:
+                    offenders.append(
+                        f"{rel}:{node.lineno} -> {class_name}.{node.name}(**{node.args.kwarg.arg})"
+                    )
+
+        assert not offenders, (
+            "Router gateway/coordinator methods must expose explicit signatures "
+            "(no **kwargs bridges):\n" + "\n".join(offenders)
+        )
+
+    def test_produtos_coordinator_does_not_use_reflective_dispatch():
+        path = ROUTERS_ROOT / "produtos.py"
+        rel = path.relative_to(PROJECT_ROOT)
+        tree = _parse_python_file(path)
+        class_node = next(
+            (
+                node
+                for node in tree.body
+                if isinstance(node, ast.ClassDef) and node.name == "ProdutosCatalogCoordinator"
+            ),
+            None,
+        )
+        assert class_node is not None, f"{rel}: missing class ProdutosCatalogCoordinator"
+
+        offenders: list[str] = []
+        forbidden_method_names = {"_runtime_method", "_invoke_async", "set_default_runtime"}
+        for node in class_node.body:
+            if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)) and node.name in forbidden_method_names:
+                offenders.append(f"{rel}:{node.lineno} -> method {node.name}")
+
+        for node in ast.walk(class_node):
+            if not isinstance(node, ast.Call):
+                continue
+            if not isinstance(node.func, ast.Name) or node.func.id != "getattr":
+                continue
+            if len(node.args) < 2:
+                continue
+            if isinstance(node.args[1], ast.Name) and node.args[1].id == "method_name":
+                offenders.append(f"{rel}:{node.lineno} -> getattr(..., method_name)")
+
+        assert not offenders, (
+            "ProdutosCatalogCoordinator must not use reflective string dispatch:\n"
+            + "\n".join(offenders)
+        )
+
+    def test_generation_flow_surfaces_do_not_use_var_kwargs():
+        offenders: list[str] = []
+        targets = [
+            (ROUTERS_ROOT / "generation.py", "GenerationRequestService"),
+            (APPLICATION_SERVICES_ROOT / "generation_task_service.py", "GenerationTaskService"),
+        ]
+
+        for path, class_name in targets:
+            if not path.exists():
+                continue
+            rel = path.relative_to(PROJECT_ROOT)
+            tree = _parse_python_file(path)
+            class_node = next(
+                (
+                    node
+                    for node in tree.body
+                    if isinstance(node, ast.ClassDef) and node.name == class_name
+                ),
+                None,
+            )
+            if class_node is None:
+                offenders.append(f"{rel}: missing class {class_name}")
+                continue
+            for node in class_node.body:
+                if not isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
+                    continue
+                if node.name == "__init__":
+                    continue
+                if node.args.kwarg is not None:
+                    offenders.append(
+                        f"{rel}:{node.lineno} -> {class_name}.{node.name}(**{node.args.kwarg.arg})"
+                    )
+
+        assert not offenders, (
+            "Generation router/service surfaces must use explicit typed parameters (no **kwargs):\n"
+            + "\n".join(offenders)
+        )
+
+    def test_application_services_do_not_use_inspect_isclass_resolution():
+        offenders: list[str] = []
+        for path in _iter_python_files(APPLICATION_SERVICES_ROOT):
+            source = path.read_text(encoding="utf-8-sig")
+            if "inspect.isclass(" in source:
+                offenders.append(str(path.relative_to(PROJECT_ROOT)))
+
+        assert not offenders, (
+            "Application services must not resolve dependencies via inspect.isclass(...):\n"
+            + "\n".join(offenders)
+        )
+
+    def test_application_service_public_methods_do_not_take_optional_repo_overrides():
+        offenders: list[str] = []
+
+        for path in _iter_python_files(APPLICATION_SERVICES_ROOT):
+            rel = path.relative_to(PROJECT_ROOT)
+            tree = _parse_python_file(path)
+
+            for class_node in [n for n in tree.body if isinstance(n, ast.ClassDef)]:
+                for node in class_node.body:
+                    if not isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
+                        continue
+                    if node.name == "__init__" or node.name.startswith("_"):
+                        continue
+
+                    positional_args = node.args.args
+                    positional_defaults = node.args.defaults
+                    positional_default_start = len(positional_args) - len(positional_defaults)
+                    for index, arg in enumerate(positional_args):
+                        if arg.arg in {"self", "cls"}:
+                            continue
+                        if not (
+                            arg.arg.endswith("_repo")
+                            or arg.arg.endswith("_repository")
+                            or arg.arg.endswith("_repo_cls")
+                            or arg.arg.endswith("_repository_cls")
+                        ):
+                            continue
+                        if index >= positional_default_start:
+                            offenders.append(
+                                f"{rel}:{node.lineno} -> {class_node.name}.{node.name}({arg.arg}=...)"
+                            )
+
+                    for kw_arg, kw_default in zip(node.args.kwonlyargs, node.args.kw_defaults):
+                        if kw_arg.arg in {"self", "cls"}:
+                            continue
+                        if not (
+                            kw_arg.arg.endswith("_repo")
+                            or kw_arg.arg.endswith("_repository")
+                            or kw_arg.arg.endswith("_repo_cls")
+                            or kw_arg.arg.endswith("_repository_cls")
+                        ):
+                            continue
+                        if kw_default is not None:
+                            offenders.append(
+                                f"{rel}:{node.lineno} -> {class_node.name}.{node.name}({kw_arg.arg}=...)"
+                            )
+
+        assert not offenders, (
+            "Public service methods must not accept optional repository overrides. "
+            "Repositories must be injected via constructor only:\n"
+            + "\n".join(offenders)
+        )
+
     def test_tests_do_not_import_private_backend_symbols():
         offenders: list[str] = []
     
@@ -1097,6 +1275,11 @@ test_repository_runtime_support_bridge_is_removed = _TopLevelFunctionSurface.tes
 test_application_service_public_methods_do_not_receive_db_session_factory = _TopLevelFunctionSurface.test_application_service_public_methods_do_not_receive_db_session_factory
 test_runtime_modules_do_not_use_global_statement = _TopLevelFunctionSurface.test_runtime_modules_do_not_use_global_statement
 test_file_and_web_runtime_surfaces_do_not_use_varargs = _TopLevelFunctionSurface.test_file_and_web_runtime_surfaces_do_not_use_varargs
+test_router_gateways_do_not_use_kwargs_bridge_methods = _TopLevelFunctionSurface.test_router_gateways_do_not_use_kwargs_bridge_methods
+test_produtos_coordinator_does_not_use_reflective_dispatch = _TopLevelFunctionSurface.test_produtos_coordinator_does_not_use_reflective_dispatch
+test_generation_flow_surfaces_do_not_use_var_kwargs = _TopLevelFunctionSurface.test_generation_flow_surfaces_do_not_use_var_kwargs
+test_application_services_do_not_use_inspect_isclass_resolution = _TopLevelFunctionSurface.test_application_services_do_not_use_inspect_isclass_resolution
+test_application_service_public_methods_do_not_take_optional_repo_overrides = _TopLevelFunctionSurface.test_application_service_public_methods_do_not_take_optional_repo_overrides
 test_tests_do_not_import_private_backend_symbols = _TopLevelFunctionSurface.test_tests_do_not_import_private_backend_symbols
 test_produtos_core_endpoints_do_not_receive_db_session_directly = _TopLevelFunctionSurface.test_produtos_core_endpoints_do_not_receive_db_session_directly
 

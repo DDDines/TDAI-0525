@@ -106,11 +106,13 @@ class _TopLevelFunctionSurface:
 
     def _build_service():
         file_processing = _FileProcessingStub()
+        catalog_repo = _CatalogFileRepoStub()
         service = FornecedorPreviewService(
             file_processing_service=file_processing,
             web_data_extractor_service=_WebExtractorStub(),
+            catalog_file_repository=catalog_repo,
         )
-        return service, file_processing, _CatalogFileRepoStub()
+        return service, file_processing, catalog_repo
 
     def test_preview_pages_rejects_non_pdf():
         service, _, _ = _build_service()
@@ -141,7 +143,6 @@ class _TopLevelFunctionSurface:
                 user_id=2,
                 offset=0,
                 limit=10,
-                catalog_file_repo=catalog_file_repo,
             )
     
         assert exc.value.status_code == 400
@@ -158,7 +159,6 @@ class _TopLevelFunctionSurface:
             file_id=1,
             page_number=2,
             region=[1.0, 2.0, 3.0, 4.0],
-            catalog_file_repo=catalog_file_repo,
         )
     
         assert payload["columns"] == ["col_0", "col_1"]
@@ -173,7 +173,6 @@ class _TopLevelFunctionSurface:
                 file_id=1,
                 page_number=2,
                 region=[1.0, 2.0, 3.0, 4.0],
-                catalog_file_repo=catalog_file_repo,
             )
     
         assert exc.value.status_code == 400
@@ -190,7 +189,6 @@ class _TopLevelFunctionSurface:
             region=[1.0, 2.0, 3.0, 4.0],
             pages=None,
             all_pages=True,
-            catalog_file_repo=catalog_file_repo,
         )
     
         assert payload["total_pages"] == 3

@@ -15,6 +15,7 @@ class CatalogImportFileService:
         file_processing_service: Any,
         catalog_import_start_service: Any,
         catalog_file_repository: Any | None = None,
+        fornecedor_repository: Any | None = None,
     ) -> None:
         if catalog_file_repository is None:
             from Backend.infrastructure.repositories.catalog_import_file_repository import (
@@ -27,32 +28,33 @@ class CatalogImportFileService:
         self._file_processing_service = file_processing_service
         self._catalog_import_start_service = catalog_import_start_service
         self._catalog_file_repository = catalog_file_repository
+        self._fornecedor_repository = fornecedor_repository
 
     def _resolve_catalog_file_repo(
         self,
-        *,
-        catalog_file_repo: Any | None = None,
     ) -> Any:
-        if catalog_file_repo is not None:
-            return catalog_file_repo
         if self._catalog_file_repository is None:
             raise ValueError("catalog_file_repo is required")
         if isinstance(self._catalog_file_repository, type):
             raise ValueError("catalog_file_repo instance is required")
         return self._catalog_file_repository
 
+    def _resolve_fornecedor_repo(self) -> Any:
+        if self._fornecedor_repository is None:
+            raise ValueError("fornecedor_repo is required")
+        if isinstance(self._fornecedor_repository, type):
+            raise ValueError("fornecedor_repo instance is required")
+        return self._fornecedor_repository
+
     def list_user_files(
         self,
         *,
-        catalog_file_repo: Any | None = None,
         user_id: int,
         fornecedor_id: int | None,
         skip: int,
         limit: int,
     ) -> dict[str, Any]:
-        repo = self._resolve_catalog_file_repo(
-            catalog_file_repo=catalog_file_repo,
-        )
+        repo = self._resolve_catalog_file_repo()
         items, total_items = repo.list_catalog_files_for_user(
             user_id=user_id,
             fornecedor_id=fornecedor_id,
@@ -69,13 +71,10 @@ class CatalogImportFileService:
     def get_user_file_or_404(
         self,
         *,
-        catalog_file_repo: Any | None = None,
         file_id: int,
         user_id: int,
     ) -> Any:
-        repo = self._resolve_catalog_file_repo(
-            catalog_file_repo=catalog_file_repo,
-        )
+        repo = self._resolve_catalog_file_repo()
         record = repo.get_catalog_file_for_user(
             file_id=file_id,
             user_id=user_id,
@@ -87,15 +86,11 @@ class CatalogImportFileService:
     def delete_user_file(
         self,
         *,
-        catalog_file_repo: Any | None = None,
         file_id: int,
         user_id: int,
     ) -> Any:
-        repo = self._resolve_catalog_file_repo(
-            catalog_file_repo=catalog_file_repo,
-        )
+        repo = self._resolve_catalog_file_repo()
         record = self.get_user_file_or_404(
-            catalog_file_repo=repo,
             file_id=file_id,
             user_id=user_id,
         )
@@ -114,20 +109,12 @@ class CatalogImportFileService:
         mapping: dict[str, str] | None,
         pages: list[int] | None,
         region: list[float] | None,
-        catalog_file_repo: Any | None = None,
-        fornecedor_repo: Any | None = None,
     ) -> dict[str, Any]:
-        if catalog_file_repo is None:
-            catalog_file_repo = self._resolve_catalog_file_repo()
-        if fornecedor_repo is None:
-            fornecedor_repo = getattr(self._catalog_import_start_service, "_fornecedor_repo", None)
-        if fornecedor_repo is None:
-            raise ValueError("fornecedor_repo is required")
-
+        catalog_file_repo = self._resolve_catalog_file_repo()
+        fornecedor_repo = self._resolve_fornecedor_repo()
         catalog_file = self._catalog_import_start_service.get_catalog_file_or_404(
             file_id=file_id,
             user_id=user_id,
-            catalog_file_repo=catalog_file_repo,
         )
         fornecedor_id_final = self._catalog_import_start_service.resolve_fornecedor_id(
             catalog_file=catalog_file,
@@ -138,12 +125,10 @@ class CatalogImportFileService:
             catalog_file=catalog_file,
             fornecedor_id=fornecedor_id_final,
             reset_pages=True,
-            catalog_file_repo=catalog_file_repo,
         )
         resolved_mapping = self._catalog_import_start_service.resolve_mapping(
             fornecedor_id=fornecedor_id_final,
             mapping=mapping,
-            fornecedor_repo=fornecedor_repo,
         )
         command = self._catalog_import_start_service.build_finalize_command(
             file_id=file_id,

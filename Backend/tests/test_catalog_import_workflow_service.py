@@ -92,9 +92,18 @@ class _TopLevelFunctionSurface:
         status = _StatusServiceStub()
         service = CatalogImportWorkflowService(start_service=start, status_service=status)
     
-        detailed = service.importar_catalogo_status(file_id=1, user_id=2)
-        simple = service.importar_catalogo_status_simple(file_id=1, user_id=2)
-        result = service.importar_catalogo_result(file_id=1, user_id=2)
+        detailed = service.importar_catalogo_status(
+            file_id=1,
+            user_id=2,
+        )
+        simple = service.importar_catalogo_status_simple(
+            file_id=1,
+            user_id=2,
+        )
+        result = service.importar_catalogo_result(
+            file_id=1,
+            user_id=2,
+        )
     
         assert detailed.status == "DONE"
         assert simple["result_ready"] is True
@@ -114,7 +123,7 @@ class _TopLevelFunctionSurface:
             )
         )
     
-        assert result == {"created": 1}
+        assert result == {"ok": True}
         assert any(call[0] == "run_direct" for call in start.calls)
 
 test_importar_catalogo_finalizar_dispatches_and_returns_processing = _TopLevelFunctionSurface.test_importar_catalogo_finalizar_dispatches_and_returns_processing

@@ -551,6 +551,10 @@ class _TopLevelFunctionSurface:
             def create_produto(self, **kwargs):
                 called.append(kwargs)
                 return {"ok": True}
+
+            def list_catalog_import_files(self, **kwargs):
+                called.append(kwargs)
+                return {"list_ok": True}
     
         workflow = ProdutosCatalogCoordinator(runtime=FakeRuntime())
         created = workflow.create_produto(
@@ -559,15 +563,7 @@ class _TopLevelFunctionSurface:
         )
         assert created == {"ok": True}
         assert called[0]["produto"].nome_base == "Teste"
-    
-        fallback_called = []
-    
-        class FakeDefaultRuntime:
-            def list_catalog_import_files(self, **kwargs):
-                fallback_called.append(kwargs)
-                return {"fallback": True}
-    
-        workflow.set_default_runtime(FakeDefaultRuntime())
+
         response = workflow.list_catalog_import_files(
             user_id=7,
             fornecedor_id=3,
@@ -575,8 +571,8 @@ class _TopLevelFunctionSurface:
             limit=10,
         )
     
-        assert response == {"fallback": True}
-        assert fallback_called[0]["user_id"] == 7
+        assert response == {"list_ok": True}
+        assert called[1]["user_id"] == 7
 
 test_auth_workflow_get_current_user_usa_runtime_injetado = _TopLevelFunctionSurface.test_auth_workflow_get_current_user_usa_runtime_injetado
 test_auth_workflow_get_current_user_lanca_401_quando_payload_invalido = _TopLevelFunctionSurface.test_auth_workflow_get_current_user_lanca_401_quando_payload_invalido

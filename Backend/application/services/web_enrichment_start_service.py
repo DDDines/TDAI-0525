@@ -29,12 +29,12 @@ class WebEnrichmentStartService:
     def validate_start_preconditions(
         self,
         *,
-        product_repo: Any | None = None,
         produto_id: int,
         current_user: Any,
     ) -> None:
-        repo = product_repo or self._product_repository
-        db_produto_check = repo.get_produto(produto_id=produto_id)
+        if self._product_repository is None:
+            raise ValueError("product_repository is required")
+        db_produto_check = self._product_repository.get_produto(produto_id=produto_id)
         if not db_produto_check:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,

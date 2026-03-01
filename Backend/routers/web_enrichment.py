@@ -90,7 +90,7 @@ class WebEnrichmentRequestService:
             is_source_relevant_for_product=relevance_service.is_source_relevant_for_product,
         )
         self._start_service = WebEnrichmentStartService(
-            product_repository=ProductRepository,
+            product_repository=ProductRepository(self._session),
             models=models,
         )
 
@@ -115,7 +115,6 @@ class WebEnrichmentRequestService:
         termos_busca_override: Optional[str] = None,
     ) -> Dict[str, str]:
         self._start_service.validate_start_preconditions(
-            product_repo=ProductRepository(self._session),
             produto_id=produto_id,
             current_user=current_user,
         )

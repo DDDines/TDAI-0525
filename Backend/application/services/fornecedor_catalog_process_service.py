@@ -45,13 +45,9 @@ class FornecedorCatalogProcessService:
         start_page: int,
         region: Optional[list[float]],
         mapping: Optional[Dict[str, str]],
-        fornecedor_repo: Any | None = None,
-        catalog_file_repo: Any | None = None,
     ) -> Dict[str, Any]:
-        if fornecedor_repo is None:
-            fornecedor_repo = self._fornecedor_repo
-        if catalog_file_repo is None:
-            catalog_file_repo = self._catalog_file_repository
+        fornecedor_repo = self._fornecedor_repo
+        catalog_file_repo = self._catalog_file_repository
         if fornecedor_repo is None:
             raise ValueError("fornecedor_repo is required")
         if catalog_file_repo is None:
@@ -65,7 +61,6 @@ class FornecedorCatalogProcessService:
         source = self._catalog_import_start_service.get_catalog_file_or_404(
             file_id=file_id,
             user_id=current_user.id,
-            catalog_file_repo=catalog_file_repo,
         )
         pages = self._catalog_import_start_service.resolve_pdf_pages(
             catalog_file=source,
@@ -74,7 +69,6 @@ class FornecedorCatalogProcessService:
         resolved_mapping = self._catalog_import_start_service.resolve_mapping(
             fornecedor_id=fornecedor.id,
             mapping=mapping,
-            fornecedor_repo=fornecedor_repo,
         )
         job = self._create_processing_job_from_source(
             source=source,

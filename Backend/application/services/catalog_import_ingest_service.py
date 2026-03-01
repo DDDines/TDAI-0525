@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import inspect
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
@@ -46,12 +45,11 @@ class CatalogImportIngestService:
         *,
         repo_name: str,
         configured_repo: Any,
-        override_repo: Any | None,
     ) -> Any:
-        repo = override_repo if override_repo is not None else configured_repo
+        repo = configured_repo
         if repo is None:
             raise ValueError(f"{repo_name}_repo is required")
-        if inspect.isclass(repo):
+        if isinstance(repo, type):
             raise ValueError(f"{repo_name}_repo instance is required")
         return repo
 
@@ -85,31 +83,23 @@ class CatalogImportIngestService:
         file: Any,
         mapeamento_colunas_usuario: Optional[str],
         current_user: Any,
-        fornecedor_repo: Any | None = None,
-        produto_repo: Any | None = None,
-        uso_ia_repo: Any | None = None,
-        historico_repo: Any | None = None,
     ) -> Dict[str, Any]:
         """Importa arquivo de catalogo e cria/atualiza produtos do fornecedor."""
         resolved_fornecedor_repo = self._resolve_repo(
             repo_name="fornecedor",
             configured_repo=self._fornecedor_repo,
-            override_repo=fornecedor_repo,
         )
         resolved_produto_repo = self._resolve_repo(
             repo_name="produto",
             configured_repo=self._produto_repo,
-            override_repo=produto_repo,
         )
         resolved_uso_ia_repo = self._resolve_repo(
             repo_name="uso_ia",
             configured_repo=self._uso_ia_repo,
-            override_repo=uso_ia_repo,
         )
         resolved_historico_repo = self._resolve_repo(
             repo_name="historico",
             configured_repo=self._historico_repo,
-            override_repo=historico_repo,
         )
 
         content = await file.read()

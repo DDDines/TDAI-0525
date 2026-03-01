@@ -81,13 +81,16 @@ class _TopLevelFunctionSurface:
             catalog_file_repository=catalog_file_repo,
             catalog_import_start_service=_CatalogImportStartServiceStub(source=source),
         )
-        return service, catalog_file_repo
+        return service, fornecedor_repo, catalog_file_repo
 
     @pytest.mark.asyncio
     async def test_start_full_processing_dispatches_job():
         fornecedor = SimpleNamespace(id=3, user_id=10)
         source = SimpleNamespace(original_filename="orig.pdf", stored_filename="stored.pdf")
-        service, catalog_file_repo = _build_service(fornecedor=fornecedor, source=source)
+        service, fornecedor_repo, catalog_file_repo = _build_service(
+            fornecedor=fornecedor,
+            source=source,
+        )
         user = SimpleNamespace(id=10, is_superuser=False)
     
         result = await service.start_full_processing(
@@ -116,7 +119,10 @@ class _TopLevelFunctionSurface:
     @pytest.mark.asyncio
     async def test_start_full_processing_raises_when_fornecedor_not_found():
         source = SimpleNamespace(original_filename="orig.pdf", stored_filename="stored.pdf")
-        service, _ = _build_service(fornecedor=None, source=source)
+        service, fornecedor_repo, catalog_file_repo = _build_service(
+            fornecedor=None,
+            source=source,
+        )
     
         with pytest.raises(HTTPException) as exc:
             await service.start_full_processing(
@@ -136,7 +142,10 @@ class _TopLevelFunctionSurface:
     async def test_start_full_processing_raises_when_user_not_allowed():
         fornecedor = SimpleNamespace(id=3, user_id=99)
         source = SimpleNamespace(original_filename="orig.pdf", stored_filename="stored.pdf")
-        service, _ = _build_service(fornecedor=fornecedor, source=source)
+        service, fornecedor_repo, catalog_file_repo = _build_service(
+            fornecedor=fornecedor,
+            source=source,
+        )
     
         with pytest.raises(HTTPException) as exc:
             await service.start_full_processing(

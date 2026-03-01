@@ -13,36 +13,34 @@ class GenerationSchedulingService:
         *,
         schemas: Any,
         models: Any,
-        product_repository_cls: Any | None = None,
+        product_repository: Any,
     ) -> None:
-        self._product_repository_cls = product_repository_cls
+        self._product_repository = product_repository
         self._schemas = schemas
         self._models = models
 
     def validate_product_access(
         self,
         *,
-        product_repo: Any,
         produto_id: int,
         current_user: Any,
     ) -> Any:
-        db_produto = product_repo.get_produto(produto_id=produto_id)
+        db_produto = self._product_repository.get_produto(produto_id=produto_id)
         if not db_produto:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
-                detail="Produto não encontrado",
+                detail="Produto nao encontrado",
             )
         if db_produto.user_id != current_user.id and not current_user.is_superuser:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
-                detail="Não autorizado",
+                detail="Nao autorizado",
             )
         return db_produto
 
     def mark_pending_status(
         self,
         *,
-        product_repo: Any,
         db_produto: Any,
         generation_type: str,
     ) -> None:
@@ -57,7 +55,7 @@ class GenerationSchedulingService:
         update_data = {
             status_field: self._models.StatusGeracaoIAEnum.PENDENTE,
         }
-        product_repo.update_produto(
+        self._product_repository.update_produto(
             db_produto=db_produto,
             produto_update=self._schemas.ProdutoUpdate(**update_data),
         )
@@ -71,7 +69,8 @@ class GenerationSchedulingService:
         produto_id: int,
         generation_type: str,
         generation_func: Any,
-        **generation_kwargs: Any,
+        num_titulos: int | None = None,
+        tamanho_palavras: int | None = None,
     ) -> None:
         background_tasks.add_task(
             task_executor,
@@ -79,5 +78,6 @@ class GenerationSchedulingService:
             produto_id=produto_id,
             tipo_geracao_principal=generation_type,
             funcao_geracao_ia_no_servico=generation_func,
-            **generation_kwargs,
+            num_titulos=num_titulos,
+            tamanho_palavras=tamanho_palavras,
         )

@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import inspect
 from typing import Any, Dict, List, Optional
 from sqlalchemy.orm import Session
 
@@ -158,7 +157,7 @@ class WebEnrichmentTaskWorkflow:
 
     @staticmethod
     def _resolve_repo(repo_or_cls: Any, session: Session) -> Any:
-        if inspect.isclass(repo_or_cls):
+        if isinstance(repo_or_cls, type):
             return repo_or_cls(session)
         return repo_or_cls
 

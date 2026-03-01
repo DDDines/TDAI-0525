@@ -134,10 +134,17 @@ class _TopLevelFunctionSurface:
             },
             json_module=__import__("json"),
         )
-        return service, file_processing, produto_repo, uso_ia_repo, historico_repo
+        return (
+            service,
+            file_processing,
+            fornecedor_repo,
+            produto_repo,
+            uso_ia_repo,
+            historico_repo,
+        )
 
     def test_importar_catalogo_fornecedor_raises_when_mapping_json_invalid():
-        service, *_ = _build_service()
+        service, _, _, _, _, _ = _build_service()
     
         with pytest.raises(HTTPException) as exc:
             asyncio.run(
@@ -152,7 +159,7 @@ class _TopLevelFunctionSurface:
         assert exc.value.status_code == 400
 
     def test_importar_catalogo_fornecedor_raises_when_extension_not_supported():
-        service, *_ = _build_service()
+        service, _, _, _, _, _ = _build_service()
     
         with pytest.raises(HTTPException) as exc:
             asyncio.run(
@@ -167,7 +174,7 @@ class _TopLevelFunctionSurface:
         assert exc.value.status_code == 400
 
     def test_importar_catalogo_fornecedor_creates_products_and_logs():
-        service, file_processing, crud_produtos, crud_uso_ia, crud_historico = _build_service(
+        service, file_processing, fornecedor_repo, crud_produtos, crud_uso_ia, crud_historico = _build_service(
             fornecedor=SimpleNamespace(default_column_mapping={"col_1": "Nome Base"})
         )
         file_processing.responses[".pdf"] = [

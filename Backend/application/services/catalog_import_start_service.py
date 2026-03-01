@@ -38,11 +38,7 @@ class CatalogImportStartService:
 
     def _resolve_catalog_file_repo(
         self,
-        *,
-        catalog_file_repo: Any | None = None,
     ) -> Any:
-        if catalog_file_repo is not None:
-            return catalog_file_repo
         if self._catalog_file_repository is None:
             raise ValueError("catalog_file_repo is required")
         if isinstance(self._catalog_file_repository, type):
@@ -51,11 +47,7 @@ class CatalogImportStartService:
 
     def _resolve_fornecedor_repo(
         self,
-        *,
-        fornecedor_repo: Any | None = None,
     ) -> Any:
-        if fornecedor_repo is not None:
-            return fornecedor_repo
         if self._fornecedor_repo is None:
             raise ValueError("fornecedor_repo is required")
         if isinstance(self._fornecedor_repo, type):
@@ -67,11 +59,8 @@ class CatalogImportStartService:
         *,
         file_id: int,
         user_id: int,
-        catalog_file_repo: Any | None = None,
     ) -> Any:
-        repo = self._resolve_catalog_file_repo(
-            catalog_file_repo=catalog_file_repo,
-        )
+        repo = self._resolve_catalog_file_repo()
         catalog_file = repo.get_catalog_file_for_user(
             file_id=file_id,
             user_id=user_id,
@@ -98,11 +87,8 @@ class CatalogImportStartService:
         catalog_file: Any,
         fornecedor_id: int,
         reset_pages: bool = False,
-        catalog_file_repo: Any | None = None,
     ) -> None:
-        repo = self._resolve_catalog_file_repo(
-            catalog_file_repo=catalog_file_repo,
-        )
+        repo = self._resolve_catalog_file_repo()
         catalog_file.status = "PROCESSING"
         catalog_file.fornecedor_id = fornecedor_id
         if reset_pages:
@@ -136,13 +122,10 @@ class CatalogImportStartService:
         *,
         fornecedor_id: int,
         mapping: Optional[Dict[str, str]],
-        fornecedor_repo: Any | None = None,
     ) -> Optional[Dict[str, str]]:
         if mapping is not None:
             return mapping
-        repo = self._resolve_fornecedor_repo(
-            fornecedor_repo=fornecedor_repo,
-        )
+        repo = self._resolve_fornecedor_repo()
         fornecedor = repo.get_fornecedor(fornecedor_id=fornecedor_id)
         if fornecedor and fornecedor.default_column_mapping:
             return fornecedor.default_column_mapping

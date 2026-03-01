@@ -29,11 +29,7 @@ class CatalogImportStatusService:
 
     def _resolve_catalog_file_repo(
         self,
-        *,
-        catalog_file_repo: Any | None = None,
     ) -> Any:
-        if catalog_file_repo is not None:
-            return catalog_file_repo
         if self._catalog_file_repository is None:
             raise ValueError("catalog_file_repo is required")
         if isinstance(self._catalog_file_repository, type):
@@ -45,11 +41,8 @@ class CatalogImportStatusService:
         *,
         file_id: int,
         user_id: int,
-        catalog_file_repo: Any | None = None,
     ) -> Any:
-        repo = self._resolve_catalog_file_repo(
-            catalog_file_repo=catalog_file_repo,
-        )
+        repo = self._resolve_catalog_file_repo()
         record = repo.get_catalog_file_for_user(
             file_id=file_id,
             user_id=user_id,

@@ -31,11 +31,18 @@ class FornecedorImportJobService:
     def _produto_repo(self, session: Any) -> ProductRepository:
         return self._produto_repository_cls(session)
 
-    def get_job_for_user_or_404(self, *, import_job_repo: Any, job_id: int, user_id: int) -> Any:
-        job = import_job_repo.get_import_job(job_id=job_id)
-        if not job or job.user_id != user_id:
-            raise HTTPException(status_code=404, detail="Job nao encontrado")
-        return job
+    def get_job_for_user_or_404(self, *, job_id: int, user_id: int) -> Any:
+        if self._db_session_factory is None:
+            raise ValueError("db_session_factory is required for FornecedorImportJobService")
+        session = self._db_session_factory()
+        try:
+            import_job_repo = self._import_job_repo(session)
+            job = import_job_repo.get_import_job(job_id=job_id)
+            if not job or job.user_id != user_id:
+                raise HTTPException(status_code=404, detail="Job nao encontrado")
+            return job
+        finally:
+            session.close()
 
     def build_review_payload(self, *, job: Any) -> Any:
         return job.result_summary or {}

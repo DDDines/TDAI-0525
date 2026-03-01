@@ -34,18 +34,18 @@ class _ModelsStub:
 
 class _TopLevelFunctionSurface:
 
-    def _build_service():
+    def _build_service(*, record=None):
         return FornecedorImportTrackingService(
             models=_ModelsStub,
             process_pdf_extraction_task=lambda **kwargs: kwargs,
+            catalog_file_repository=_CatalogFileRepoStub(record),
         )
 
     def test_get_catalog_record_or_404_returns_record():
-        service = _build_service()
         record = SimpleNamespace(id=1)
+        service = _build_service(record=record)
     
         found = service.get_catalog_record_or_404(
-            catalog_file_repo=_CatalogFileRepoStub(record),
             file_id=1,
             user_id=9,
             not_found_detail="arquivo nao encontrado",
@@ -54,11 +54,10 @@ class _TopLevelFunctionSurface:
         assert found is record
 
     def test_get_catalog_record_or_404_raises_when_missing():
-        service = _build_service()
+        service = _build_service(record=None)
     
         with pytest.raises(HTTPException) as exc:
             service.get_catalog_record_or_404(
-                catalog_file_repo=_CatalogFileRepoStub(None),
                 file_id=1,
                 user_id=9,
                 not_found_detail="arquivo nao encontrado",

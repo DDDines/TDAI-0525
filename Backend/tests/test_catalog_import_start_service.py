@@ -71,7 +71,10 @@ class _TopLevelFunctionSurface:
         record = SimpleNamespace(id=1)
         service, _ = _build_service(upload_dir=".", record=record)
     
-        found = service.get_catalog_file_or_404(file_id=1, user_id=9)
+        found = service.get_catalog_file_or_404(
+            file_id=1,
+            user_id=9,
+        )
     
         assert found is record
 
@@ -79,7 +82,10 @@ class _TopLevelFunctionSurface:
         service, _ = _build_service(upload_dir=".", record=None)
     
         with pytest.raises(HTTPException) as exc:
-            service.get_catalog_file_or_404(file_id=1, user_id=9)
+            service.get_catalog_file_or_404(
+                file_id=1,
+                user_id=9,
+            )
     
         assert exc.value.status_code == 404
 
@@ -177,9 +183,14 @@ class _TopLevelFunctionSurface:
             upload_dir=".",
             fornecedor=SimpleNamespace(default_column_mapping=default_mapping),
         )
-    
-        assert service.resolve_mapping(fornecedor_id=1, mapping={"col_1": "sku"}) == {"col_1": "sku"}
-        assert service.resolve_mapping(fornecedor_id=1, mapping=None) == default_mapping
+        assert service.resolve_mapping(
+            fornecedor_id=1,
+            mapping={"col_1": "sku"},
+        ) == {"col_1": "sku"}
+        assert service.resolve_mapping(
+            fornecedor_id=1,
+            mapping=None,
+        ) == default_mapping
 
     @pytest.mark.asyncio
     async def test_dispatch_finalize_calls_finalize_service():

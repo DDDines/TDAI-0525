@@ -41,24 +41,19 @@ class GenerationRequestService:
             logger=logger,
         )
         self._generation_scheduling_service = GenerationSchedulingService(
-            product_repository_cls=ProductRepository,
+            product_repository=ProductRepository(self._session),
             schemas=schemas,
             models=models,
         )
 
-    def _product_repo(self) -> ProductRepository:
-        return ProductRepository(self._session)
-
     def _validate_product_access(self, *, produto_id: int, current_user: models.User):
         return self._generation_scheduling_service.validate_product_access(
-            product_repo=self._product_repo(),
             produto_id=produto_id,
             current_user=current_user,
         )
 
     def _mark_pending_status(self, *, db_produto, generation_type: str) -> None:
         self._generation_scheduling_service.mark_pending_status(
-            product_repo=self._product_repo(),
             db_produto=db_produto,
             generation_type=generation_type,
         )
@@ -69,14 +64,16 @@ class GenerationRequestService:
         produto_id: int,
         tipo_geracao_principal: str,
         funcao_geracao_ia_no_servico,
-        **kwargs_para_funcao_servico,
+        num_titulos: int | None = None,
+        tamanho_palavras: int | None = None,
     ) -> None:
         await self._generation_task_service.run_generation_task(
             user_id=user_id,
             produto_id=produto_id,
             tipo_geracao_principal=tipo_geracao_principal,
             funcao_geracao_ia_no_servico=funcao_geracao_ia_no_servico,
-            **kwargs_para_funcao_servico,
+            num_titulos=num_titulos,
+            tamanho_palavras=tamanho_palavras,
         )
 
     def agendar_geracao_novos_titulos_openai(

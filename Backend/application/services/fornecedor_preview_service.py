@@ -17,15 +17,14 @@ class FornecedorPreviewService:
         *,
         file_processing_service: Any,
         web_data_extractor_service: Any,
+        catalog_file_repository: Any,
     ) -> None:
         self._file_processing_service = file_processing_service
         self._web_data_extractor_service = web_data_extractor_service
+        self._catalog_file_repository = catalog_file_repository
 
-    @staticmethod
-    def _resolve_session(*, catalog_file_repo: Any | None = None) -> Any:
-        if catalog_file_repo is None:
-            raise ValueError("catalog_file_repo is required")
-        return getattr(catalog_file_repo, "_db", None)
+    def _resolve_session(self) -> Any:
+        return getattr(self._catalog_file_repository, "_db", None)
 
     async def preview_pages(self, *, file: Any) -> dict[str, Any]:
         if not file.filename.lower().endswith(".pdf"):
@@ -53,9 +52,8 @@ class FornecedorPreviewService:
         user_id: int,
         offset: int,
         limit: int,
-        catalog_file_repo: Any,
     ) -> Any:
-        session = self._resolve_session(catalog_file_repo=catalog_file_repo)
+        session = self._resolve_session()
         if not file.filename.lower().endswith(".pdf"):
             raise HTTPException(
                 status_code=400,
@@ -77,9 +75,8 @@ class FornecedorPreviewService:
         file_id: int,
         page_number: int,
         region: list[float],
-        catalog_file_repo: Any,
     ) -> dict[str, Any]:
-        session = self._resolve_session(catalog_file_repo=catalog_file_repo)
+        session = self._resolve_session()
         file_path = self._file_processing_service.get_file_path_by_id(
             session,
             file_id=file_id,
@@ -119,9 +116,8 @@ class FornecedorPreviewService:
         region: list[float],
         pages: list[int] | None,
         all_pages: bool,
-        catalog_file_repo: Any,
     ) -> dict[str, Any]:
-        session = self._resolve_session(catalog_file_repo=catalog_file_repo)
+        session = self._resolve_session()
         file_path = self._file_processing_service.get_file_path_by_id(
             session,
             file_id=file_id,

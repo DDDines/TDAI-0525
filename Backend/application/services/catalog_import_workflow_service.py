@@ -30,25 +30,20 @@ class CatalogImportWorkflowService:
         pages: Optional[List[int]],
         region: Optional[List[float]],
         user_id: int,
-        catalog_file_repo: Any | None = None,
-        fornecedor_repo: Any | None = None,
     ) -> Dict[str, Any]:
         catalog_file = self._start_service.get_catalog_file_or_404(
             file_id=file_id,
             user_id=user_id,
-            catalog_file_repo=catalog_file_repo,
         )
         self._start_service.mark_processing(
             catalog_file=catalog_file,
             fornecedor_id=fornecedor_id,
             reset_pages=False,
-            catalog_file_repo=catalog_file_repo,
         )
         self._start_service.ensure_catalog_binary_exists(catalog_file=catalog_file)
         resolved_mapping = self._start_service.resolve_mapping(
             fornecedor_id=fornecedor_id,
             mapping=mapping,
-            fornecedor_repo=fornecedor_repo,
         )
         command = self._start_service.build_finalize_command(
             file_id=file_id,
@@ -70,12 +65,10 @@ class CatalogImportWorkflowService:
         *,
         file_id: int,
         user_id: int,
-        catalog_file_repo: Any | None = None,
     ) -> Any:
         return self._status_service.get_record_or_404(
             file_id=file_id,
             user_id=user_id,
-            catalog_file_repo=catalog_file_repo,
         )
 
     def importar_catalogo_status_simple(
@@ -83,12 +76,10 @@ class CatalogImportWorkflowService:
         *,
         file_id: int,
         user_id: int,
-        catalog_file_repo: Any | None = None,
     ) -> Dict[str, Any]:
         record = self._status_service.get_record_or_404(
             file_id=file_id,
             user_id=user_id,
-            catalog_file_repo=catalog_file_repo,
         )
         return self._status_service.build_simple_status(record=record)
 
@@ -97,12 +88,10 @@ class CatalogImportWorkflowService:
         *,
         file_id: int,
         user_id: int,
-        catalog_file_repo: Any | None = None,
     ) -> Any:
         record = self._status_service.get_record_or_404(
             file_id=file_id,
             user_id=user_id,
-            catalog_file_repo=catalog_file_repo,
         )
         return self._status_service.build_result_response(record=record)
 
@@ -113,13 +102,10 @@ class CatalogImportWorkflowService:
         start_page: int,
         mapping: Optional[Dict[str, str]],
         user_id: int,
-        catalog_file_repo: Any | None = None,
-        fornecedor_repo: Any | None = None,
     ) -> Any:
         record = self._start_service.get_catalog_file_or_404(
             file_id=file_id,
             user_id=user_id,
-            catalog_file_repo=catalog_file_repo,
         )
         fornecedor_id_final = self._start_service.resolve_fornecedor_id(
             catalog_file=record,
@@ -133,7 +119,6 @@ class CatalogImportWorkflowService:
         resolved_mapping = self._start_service.resolve_mapping(
             fornecedor_id=fornecedor_id_final,
             mapping=mapping,
-            fornecedor_repo=fornecedor_repo,
         )
         command = self._start_service.build_finalize_command(
             file_id=file_id,
@@ -147,11 +132,8 @@ class CatalogImportWorkflowService:
         await self._start_service.run_finalize_direct(
             command=command,
         )
-        if catalog_file_repo is not None:
-            refreshed_record = self._status_service.get_record_or_404(
-                file_id=file_id,
-                user_id=user_id,
-                catalog_file_repo=catalog_file_repo,
-            )
-            return refreshed_record.result_summary
-        return record.result_summary
+        refreshed_record = self._status_service.get_record_or_404(
+            file_id=file_id,
+            user_id=user_id,
+        )
+        return refreshed_record.result_summary

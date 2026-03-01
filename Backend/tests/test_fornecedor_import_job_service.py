@@ -102,18 +102,16 @@ class _TopLevelFunctionSurface:
         job = SimpleNamespace(id=5, user_id=10, result_summary=[])
         service, _, _ = _build_service(job=job)
     
-        repo = SimpleNamespace(get_import_job=lambda job_id: job if job_id == 5 else None)
-        found = service.get_job_for_user_or_404(import_job_repo=repo, job_id=5, user_id=10)
+        found = service.get_job_for_user_or_404(job_id=5, user_id=10)
     
         assert found is job
 
     def test_get_job_for_user_or_404_raises_for_invalid_user():
         job = SimpleNamespace(id=5, user_id=10, result_summary=[])
         service, _, _ = _build_service(job=job)
-        repo = SimpleNamespace(get_import_job=lambda job_id: job if job_id == 5 else None)
     
         with pytest.raises(HTTPException) as exc:
-            service.get_job_for_user_or_404(import_job_repo=repo, job_id=5, user_id=99)
+            service.get_job_for_user_or_404(job_id=5, user_id=99)
     
         assert exc.value.status_code == 404
 

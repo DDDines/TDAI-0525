@@ -72,7 +72,6 @@ class _TopLevelFunctionSurface:
     
         with pytest.raises(HTTPException) as exc:
             service.validate_start_preconditions(
-                product_repo=_CrudProdutosStub(produto=None),
                 produto_id=10,
                 current_user=user,
             )
@@ -86,7 +85,6 @@ class _TopLevelFunctionSurface:
     
         with pytest.raises(HTTPException) as exc:
             service.validate_start_preconditions(
-                product_repo=_CrudProdutosStub(produto=produto),
                 produto_id=10,
                 current_user=user,
             )
@@ -100,7 +98,6 @@ class _TopLevelFunctionSurface:
     
         with pytest.raises(HTTPException) as exc:
             service.validate_start_preconditions(
-                product_repo=_CrudProdutosStub(produto=produto),
                 produto_id=10,
                 current_user=user,
             )
@@ -113,7 +110,6 @@ class _TopLevelFunctionSurface:
         user = SimpleNamespace(id=1, is_superuser=False)
     
         service.validate_start_preconditions(
-            product_repo=_CrudProdutosStub(produto=produto),
             produto_id=10,
             current_user=user,
         )

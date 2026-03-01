@@ -29,21 +29,23 @@ class _CatalogFileRepoStub:
 class _TopLevelFunctionSurface:
 
     def _build_service(record=None):
-        return CatalogImportStatusService(
+        repo = _CatalogFileRepoStub(record)
+        service = CatalogImportStatusService(
             models=_ModelsStub,
-            catalog_file_repository=_CatalogFileRepoStub(record),
+            catalog_file_repository=repo,
         )
+        return service, repo
 
     def test_get_record_or_404_returns_record():
         record = SimpleNamespace(id=10)
-        service = _build_service(record=record)
+        service, _ = _build_service(record=record)
     
         found = service.get_record_or_404(file_id=10, user_id=1)
     
         assert found is record
 
     def test_get_record_or_404_raises_404_when_missing():
-        service = _build_service(record=None)
+        service, _ = _build_service(record=None)
     
         with pytest.raises(HTTPException) as exc:
             service.get_record_or_404(file_id=10, user_id=1)
@@ -62,7 +64,7 @@ class _TopLevelFunctionSurface:
         ],
     )
     def test_build_simple_status_maps_status(raw_status, expected_status):
-        service = _build_service()
+        service, _ = _build_service()
         record = SimpleNamespace(
             status=raw_status,
             total_pages=9,
@@ -78,7 +80,7 @@ class _TopLevelFunctionSurface:
         assert payload["result_ready"] is False
 
     def test_build_simple_status_sets_result_ready_for_terminal_with_summary():
-        service = _build_service()
+        service, _ = _build_service()
         record = SimpleNamespace(
             status="FAILED",
             total_pages=5,
@@ -91,7 +93,7 @@ class _TopLevelFunctionSurface:
         assert payload["result_ready"] is True
 
     def test_build_result_response_returns_pending_jsonresponse():
-        service = _build_service()
+        service, _ = _build_service()
         record = SimpleNamespace(status="PROCESSING", result_summary=None)
     
         response = service.build_result_response(record=record)
@@ -103,7 +105,7 @@ class _TopLevelFunctionSurface:
         assert data["status"] == "PROCESSING"
 
     def test_build_result_response_returns_result_summary_when_ready():
-        service = _build_service()
+        service, _ = _build_service()
         summary = {"created": [], "updated": [], "errors": []}
         record = SimpleNamespace(status="DONE", result_summary=summary)
     

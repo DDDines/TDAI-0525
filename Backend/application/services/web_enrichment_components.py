@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import inspect
 import re
 from dataclasses import dataclass
 from typing import Any, Dict, List, Optional
@@ -323,7 +322,11 @@ class WebEnrichmentFinalizationService:
                 "resumo_aplicacao": resumo_aplicacao,
             },
         )
-        product_repo = self._product_repository(db) if inspect.isclass(self._product_repository) else self._product_repository
+        product_repo = (
+            self._product_repository(db)
+            if isinstance(self._product_repository, type)
+            else self._product_repository
+        )
         product_repo.update_produto(
             db_produto=db_produto_obj,
             produto_update=payload_final_update,

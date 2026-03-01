@@ -40,11 +40,7 @@ class CatalogImportPreviewService:
 
     def _resolve_catalog_file_repo(
         self,
-        *,
-        catalog_file_repo: Any | None = None,
     ) -> Any:
-        if catalog_file_repo is not None:
-            return catalog_file_repo
         if self._catalog_file_repository is None:
             raise ValueError("catalog_file_repo is required")
         if isinstance(self._catalog_file_repository, type):
@@ -59,16 +55,13 @@ class CatalogImportPreviewService:
         start_page: int,
         page_count: int,
         dpi: int,
-        catalog_file_repo: Any | None = None,
         user_id: int,
     ) -> Dict[str, Any]:
         """Gera preview de catalogo enviado e persiste o arquivo para uso posterior."""
         content = await file.read()
         started_at = time.perf_counter()
         await file.seek(0)
-        repo = self._resolve_catalog_file_repo(
-            catalog_file_repo=catalog_file_repo,
-        )
+        repo = self._resolve_catalog_file_repo()
 
         catalog_record = await self._file_processing_service.save_uploaded_catalog(
             file, fornecedor_id
@@ -132,13 +125,10 @@ class CatalogImportPreviewService:
         page: int,
         bbox: List[float],
         bbox_norm: Optional[List[float]],
-        catalog_file_repo: Any | None = None,
         user_id: int,
     ) -> Dict[str, Any]:
         """Extrai linhas tabulares de uma regiao selecionada de um PDF para mapeamento."""
-        repo = self._resolve_catalog_file_repo(
-            catalog_file_repo=catalog_file_repo,
-        )
+        repo = self._resolve_catalog_file_repo()
         record = self._get_record_or_404(
             catalog_file_repo=repo,
             file_id=file_id,
@@ -273,13 +263,10 @@ class CatalogImportPreviewService:
         *,
         file_id: int,
         page_number: int,
-        catalog_file_repo: Any | None = None,
         user_id: int,
     ) -> Dict[str, Any]:
         """Retorna imagem/texto/tabela de uma pagina de PDF."""
-        repo = self._resolve_catalog_file_repo(
-            catalog_file_repo=catalog_file_repo,
-        )
+        repo = self._resolve_catalog_file_repo()
         record = self._get_record_or_404(
             catalog_file_repo=repo,
             file_id=file_id,
