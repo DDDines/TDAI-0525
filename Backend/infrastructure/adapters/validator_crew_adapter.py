@@ -1,6 +1,5 @@
 """Validator crew adapter.
 
-Defines the module responsibilities and how it fits in the backend architecture.
 """
 
 from __future__ import annotations
@@ -16,7 +15,7 @@ class ValidatorCrewServiceAdapter:
     """OOP port adapter backed by the current validator implementation."""
 
     def __init__(self, runtime: ValidationCrewWorkflow | None = None) -> None:
-        """Initialize required dependencies and runtime configuration."""
+        """Initialize dependencies for ValidatorCrewServiceAdapter."""
         self._runtime = runtime or ValidationCrewWorkflow()
 
     def run_validation_crew(self, raw_data: Any):

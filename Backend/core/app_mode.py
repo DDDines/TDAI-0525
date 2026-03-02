@@ -1,6 +1,5 @@
 """App mode.
 
-Defines the module responsibilities and how it fits in the backend architecture.
 """
 
 from __future__ import annotations
@@ -15,7 +14,7 @@ class AppModeWorkflow:
 
     """Encapsulates App mode workflow."""
     def __init__(self, runtime: Optional['AppModeRuntime']=None) -> None:
-        """Initialize required dependencies and runtime configuration."""
+        """Initialize dependencies for AppModeWorkflow."""
         self._runtime = runtime or AppModeRuntime()
 
     def get_app_mode(self) -> AppMode:

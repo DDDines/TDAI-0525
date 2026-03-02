@@ -1,6 +1,5 @@
 """Generation scheduling service.
 
-Defines the module responsibilities and how it fits in the backend architecture.
 """
 
 from __future__ import annotations
@@ -20,7 +19,7 @@ class GenerationSchedulingService:
         models: Any,
         product_repository: Any,
     ) -> None:
-        """Initialize required dependencies and runtime configuration."""
+        """Initialize dependencies for GenerationSchedulingService."""
         self._product_repository = product_repository
         self._schemas = schemas
         self._models = models
@@ -80,7 +79,7 @@ class GenerationSchedulingService:
         num_titulos: int | None = None,
         tamanho_palavras: int | None = None,
     ) -> None:
-        """Process Enqueue generation task."""
+        """Enqueue generation task."""
         background_tasks.add_task(
             task_executor,
             user_id=user_id,

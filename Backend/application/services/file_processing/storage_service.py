@@ -1,6 +1,5 @@
 """Storage service.
 
-Defines the module responsibilities and how it fits in the backend architecture.
 """
 
 from __future__ import annotations
@@ -17,7 +16,7 @@ class FileProcessingStorageService:
     """Operacoes de storage de catalogos."""
 
     def __init__(self, port: FileProcessingPort) -> None:
-        """Initialize required dependencies and runtime configuration."""
+        """Initialize dependencies for FileProcessingStorageService."""
         self._port = port
 
     async def save_uploaded_catalog(
@@ -25,7 +24,7 @@ class FileProcessingStorageService:
         file: UploadFile,
         fornecedor_id: Optional[int] = None,
     ):
-        """Process Save uploaded catalog."""
+        """Save uploaded catalog."""
         return await self._port.save_uploaded_catalog(
             file=file,
             fornecedor_id=fornecedor_id,

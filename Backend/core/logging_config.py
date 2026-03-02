@@ -1,6 +1,5 @@
 """Logging config.
 
-Defines the module responsibilities and how it fits in the backend architecture.
 """
 
 import logging
@@ -13,7 +12,7 @@ class LoggingWorkflow:
 
     """Encapsulates Logging workflow."""
     def __init__(self, runtime: Optional['LoggingRuntime']=None) -> None:
-        """Initialize required dependencies and runtime configuration."""
+        """Initialize dependencies for LoggingWorkflow."""
         self._runtime = runtime or LoggingRuntime()
 
     def get_logger(self, name: str) -> logging.Logger:

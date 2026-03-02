@@ -1,6 +1,5 @@
 """Pipeline dispatcher.
 
-Defines the module responsibilities and how it fits in the backend architecture.
 """
 
 from __future__ import annotations
@@ -17,7 +16,7 @@ class PipelineDispatcher:
 
     @staticmethod
     def should_run_inline_for_tests(sync_env_var: str) -> bool:
-        """Process Should run inline for tests."""
+        """Should run inline for tests."""
         return bool(os.getenv("PYTEST_CURRENT_TEST")) or os.getenv(sync_env_var) == "1"
 
     @staticmethod

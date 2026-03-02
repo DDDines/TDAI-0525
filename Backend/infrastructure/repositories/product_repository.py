@@ -31,19 +31,19 @@ class ProductRepository:
     )
 
     def __init__(self, db: Session) -> None:
-        """Initialize required dependencies and runtime configuration."""
+        """Initialize dependencies for ProductRepository."""
         self._db = db
 
     @staticmethod
     def _normalize_identifier_fields(produto_data: Dict[str, Any]) -> None:
-        """Process Normalize identifier fields."""
+        """Normalize identifier fields."""
         for field_name in ("sku", "ean"):
             if field_name in produto_data and produto_data[field_name] == "":
                 produto_data[field_name] = None
 
     @staticmethod
     def _parse_json_fields(produto_data: Dict[str, Any], fields: List[str]) -> None:
-        """Process Parse json fields."""
+        """Parse json fields."""
         for field_name in fields:
             if field_name in produto_data and isinstance(produto_data[field_name], str):
                 try:
@@ -53,7 +53,7 @@ class ProductRepository:
 
     @staticmethod
     def _apply_search_filter(query, search: Optional[str]):
-        """Process Apply search filter."""
+        """Apply search filter."""
         if not search:
             return query
 
@@ -81,7 +81,7 @@ class ProductRepository:
         status_titulo_ia: Optional[StatusGeracaoIAEnum],
         status_descricao_ia: Optional[StatusGeracaoIAEnum],
     ):
-        """Process Apply optional filters."""
+        """Apply optional filters."""
         if fornecedor_id is not None:
             query = query.filter(Produto.fornecedor_id == fornecedor_id)
         if product_type_id is not None:
@@ -100,7 +100,7 @@ class ProductRepository:
 
     @staticmethod
     def _apply_ordering(query, sort_by: Optional[str], sort_order: Optional[str]):
-        """Process Apply ordering."""
+        """Apply ordering."""
         if sort_by:
             column_to_sort = getattr(Produto, sort_by, None)
             if column_to_sort is not None:
@@ -110,7 +110,7 @@ class ProductRepository:
         return query.order_by(Produto.id)
 
     def _validate_unique_identifiers(self, *, user_id: int, produto_data: Dict[str, Any]) -> None:
-        """Process Validate unique identifiers."""
+        """Validate unique identifiers."""
         sku = produto_data.get("sku")
         ean = produto_data.get("ean")
 
@@ -373,7 +373,7 @@ class ProductRepository:
         return db_produto
 
     async def save_produto_image(self, *, produto_id: int, file: UploadFile) -> str:
-        """Process Save produto image."""
+        """Save produto image."""
         _ = produto_id
 
         if not file.filename:

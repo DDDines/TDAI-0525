@@ -1,6 +1,5 @@
 """Web enrichment.
 
-Defines the module responsibilities and how it fits in the backend architecture.
 """
 
 from __future__ import annotations
@@ -21,7 +20,7 @@ class OOPWebEnrichmentExecutor:
     """
 
     def __init__(self, use_case: WebEnrichmentProcessingUseCase):
-        """Initialize required dependencies and runtime configuration."""
+        """Initialize dependencies for OOPWebEnrichmentExecutor."""
         self._use_case = use_case
 
     async def __call__(
@@ -31,7 +30,7 @@ class OOPWebEnrichmentExecutor:
         user_id: int,
         termos_busca_override: Optional[str] = None,
     ) -> Any:
-        """Process Call."""
+        """Call."""
         command = WebEnrichmentStartCommand(
             produto_id=produto_id,
             user_id=user_id,
@@ -45,7 +44,7 @@ class OOPWebEnrichmentExecutor:
 class WebEnrichmentTaskBuilder:
     """Encapsulates Web enrichment task builder."""
     def __init__(self, executor: OOPWebEnrichmentExecutor):
-        """Initialize required dependencies and runtime configuration."""
+        """Initialize dependencies for WebEnrichmentTaskBuilder."""
         self._executor = executor
 
     def build_start_plan(

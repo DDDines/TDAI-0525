@@ -1,6 +1,5 @@
 """Security.
 
-Defines the module responsibilities and how it fits in the backend architecture.
 """
 
 from datetime import datetime, timedelta, timezone
@@ -24,11 +23,11 @@ class SecurityWorkflow:
 
     """Encapsulates Security workflow."""
     def __init__(self, runtime: Optional['SecurityRuntime']=None) -> None:
-        """Initialize required dependencies and runtime configuration."""
+        """Initialize dependencies for SecurityWorkflow."""
         self._runtime = runtime or SecurityRuntime()
 
     def verify_password(self, plain_password: str, hashed_password: str) -> bool:
-        """Process Verify password."""
+        """Verify password."""
         return self._runtime.verify_password(plain_password=plain_password, hashed_password=hashed_password)
 
     def get_password_hash(self, password: str) -> str:
@@ -44,14 +43,14 @@ class SecurityWorkflow:
         return self._runtime.create_refresh_token(data=data, expires_delta=expires_delta)
 
     def decode_token(self, token: str, secret_key: str) -> Optional[TokenPayload]:
-        """Process Decode token."""
+        """Decode token."""
         return self._runtime.decode_token(token=token, secret_key=secret_key)
 
 class SecurityRuntime:
     """Runtime OO para operaÃ§Ãµes de hash e token JWT."""
 
     def verify_password(self, *, plain_password: str, hashed_password: str) -> bool:
-        """Process Verify password."""
+        """Verify password."""
         return pwd_context.verify(plain_password, hashed_password)
 
     def get_password_hash(self, *, password: str) -> str:
@@ -73,7 +72,7 @@ class SecurityRuntime:
         return jwt.encode(to_encode, settings.REFRESH_SECRET_KEY, algorithm=ALGORITHM)
 
     def decode_token(self, *, token: str, secret_key: str) -> Optional[TokenPayload]:
-        """Process Decode token."""
+        """Decode token."""
         try:
             payload_dict = jwt.decode(token, secret_key, algorithms=[ALGORITHM])
             raw_user_id = payload_dict.get('user_id')

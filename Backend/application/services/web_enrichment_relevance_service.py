@@ -1,6 +1,5 @@
 """Web enrichment relevance service.
 
-Defines the module responsibilities and how it fits in the backend architecture.
 """
 
 from __future__ import annotations
@@ -66,14 +65,14 @@ class WebEnrichmentRelevanceService:
 
     @staticmethod
     def _fold_text(value: Any) -> str:
-        """Process Fold text."""
+        """Fold text."""
         text = unicodedata.normalize("NFKD", str(value or ""))
         text = text.encode("ascii", "ignore").decode("ascii")
         text = re.sub(r"[^a-zA-Z0-9]+", " ", text).lower()
         return re.sub(r"\s+", " ", text).strip()
 
     def tokens_for_relevance(self, value: Any) -> List[str]:
-        """Process Tokens for relevance."""
+        """Tokens for relevance."""
         base = self._fold_text(value)
         if not base:
             return []
@@ -108,7 +107,7 @@ class WebEnrichmentRelevanceService:
         source_desc: Any,
         source_url: str,
     ) -> bool:
-        """Process Is source relevant for product."""
+        """Is source relevant for product."""
         ref_parts = [
             getattr(db_produto_obj, "nome_base", None),
             getattr(db_produto_obj, "marca", None),
@@ -158,7 +157,7 @@ class WebEnrichmentRelevanceService:
         candidate_url: str,
         fornecedor_domain: str = "",
     ) -> int:
-        """Process Score url for product."""
+        """Score url for product."""
         parsed = urlparse(str(candidate_url or "").strip())
         host = (parsed.netloc or "").lower()
         path = (parsed.path or "").lower()
@@ -204,7 +203,7 @@ class WebEnrichmentRelevanceService:
         fornecedor_domain: str = "",
         max_urls: int = 4,
     ) -> Tuple[List[str], List[Tuple[str, int]]]:
-        """Process Prioritize urls for enrichment."""
+        """Prioritize urls for enrichment."""
         deduped = [u for u in dict.fromkeys(urls_candidatas or []) if u]
         scored: List[Tuple[str, int]] = []
         for url in deduped:

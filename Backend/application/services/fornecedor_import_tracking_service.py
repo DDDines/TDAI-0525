@@ -1,6 +1,5 @@
 """Fornecedor import tracking service.
 
-Defines the module responsibilities and how it fits in the backend architecture.
 """
 
 from __future__ import annotations
@@ -20,7 +19,7 @@ class FornecedorImportTrackingService:
         process_pdf_extraction_task: Any,
         catalog_file_repository: Any,
     ) -> None:
-        """Initialize required dependencies and runtime configuration."""
+        """Initialize dependencies for FornecedorImportTrackingService."""
         self._models = models
         self._process_pdf_extraction_task = process_pdf_extraction_task
         self._catalog_file_repository = catalog_file_repository
@@ -59,7 +58,7 @@ class FornecedorImportTrackingService:
         page_number: int,
         db_url: str,
     ) -> None:
-        """Process Schedule page extraction."""
+        """Schedule page extraction."""
         background_tasks.add_task(
             self._process_pdf_extraction_task,
             import_job_id=import_job_id,

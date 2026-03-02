@@ -1,6 +1,5 @@
 """Database.
 
-Defines the module responsibilities and how it fits in the backend architecture.
 """
 
 from sqlalchemy import create_engine

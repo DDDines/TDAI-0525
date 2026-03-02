@@ -1,6 +1,5 @@
 """Init.
 
-Defines the module responsibilities and how it fits in the backend architecture.
 """
 
 from Backend.infrastructure.repositories.fornecedor_import_job_repository import (

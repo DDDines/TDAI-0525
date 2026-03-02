@@ -1,6 +1,5 @@
 """Llm service.
 
-Defines the module responsibilities and how it fits in the backend architecture.
 """
 
 from __future__ import annotations
@@ -18,7 +17,7 @@ from Backend.application.services.web_data_extractor.contracts import (
 class WebDataExtractorLLMService:
     """Encapsulates Web data extractor l l m service."""
     def __init__(self, port: WebDataExtractorPort) -> None:
-        """Initialize required dependencies and runtime configuration."""
+        """Initialize dependencies for WebDataExtractorLLMService."""
         self._port = port
 
     async def extrair_dados_produto_com_llm(
@@ -29,7 +28,7 @@ class WebDataExtractorLLMService:
         produto_nome_base: str = "Produto",
         user: Optional[models.User] = None,
     ) -> Optional[Dict[str, Any]]:
-        """Process Extrair dados produto com llm."""
+        """Extrair dados produto com llm."""
         return await self._port.extrair_dados_produto_com_llm(
             texto_pagina=texto_pagina,
             metadados_normalizados=metadados_normalizados,

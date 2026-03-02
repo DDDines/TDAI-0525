@@ -71,7 +71,7 @@ class CatalogImportTaskRuntime:
         write_catalog_import_report: Callable,
         normalize_import_text: Callable,
     ) -> None:
-        """Initialize dependencies used by this component."""
+        """Initialize dependencies for CatalogImportTaskRuntime."""
         self.logger = logger
         self.catalog_logger = catalog_logger
         self.models = models
@@ -131,7 +131,7 @@ class CatalogImportTaskWorkflow:
         normalize_import_text: Callable,
         runtime: Optional[Any] = None,
     ) -> None:
-        """Initialize dependencies used by this component."""
+        """Initialize dependencies for CatalogImportTaskWorkflow."""
         runtime_obj = CatalogImportTaskRuntime(
             session_provider=session_provider,
             logger=logger,
@@ -634,7 +634,7 @@ class CatalogImportTaskService:
         write_catalog_import_report: Callable,
         normalize_import_text: Callable,
     ):
-        """Initialize dependencies used by this component."""
+        """Initialize dependencies for CatalogImportTaskService."""
         self._deps = {
             "session_provider": session_provider,
             "logger": logger,

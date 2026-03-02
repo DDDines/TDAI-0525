@@ -1,7 +1,6 @@
 # Backend/infrastructure/runtime_modules/ia_generation_module.py
 """Ia generation module.
 
-Defines the module responsibilities and how it fits in the backend architecture.
 """
 
 
@@ -39,7 +38,7 @@ class AiProviderWorkflow:
     """Workflow OO para operaÃƒÆ’Ã‚Â§ÃƒÆ’Ã‚Âµes de provedor IA (chaves e chamadas HTTP)."""
 
     def __init__(self, runtime: Optional["AiProviderRuntime"] = None) -> None:
-        """Initialize required dependencies and runtime configuration."""
+        """Initialize dependencies for AiProviderWorkflow."""
         self._runtime = runtime or AiProviderRuntime()
 
     async def get_openai_api_key(self, db: Session, user: models.User) -> Optional[str]:
@@ -58,7 +57,7 @@ class AiProviderWorkflow:
         temperature: float = 0.7,
         max_tokens: int = 500,
     ) -> str:
-        """Process Call openai api."""
+        """Call openai api."""
         return await self._runtime.call_openai_api(
             prompt_messages=prompt_messages,
             api_key=api_key,
@@ -74,7 +73,7 @@ class AiProviderWorkflow:
         response_schema: Dict[str, Any],
         model_name: str = "gemini-1.5-flash-latest",
     ) -> Dict[str, Any]:
-        """Process Call gemini api for suggestions."""
+        """Call gemini api for suggestions."""
         return await self._runtime.call_gemini_api_for_suggestions(
             prompt_text=prompt_text,
             api_key=api_key,
@@ -90,7 +89,7 @@ class AiProviderWorkflow:
         temperature: float = 0.6,
         max_tokens: int = 1024,
     ) -> str:
-        """Process Call gemini api."""
+        """Call gemini api."""
         return await self._runtime.call_gemini_api(
             prompt_text=prompt_text,
             api_key=api_key,
@@ -139,7 +138,7 @@ class AiProviderRuntime:
         temperature: float = 0.7,
         max_tokens: int = 500,
     ) -> str:
-        """Process Call openai api."""
+        """Call openai api."""
         if not api_key:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
@@ -204,7 +203,7 @@ class AiProviderRuntime:
         response_schema: Dict[str, Any],
         model_name: str = "gemini-1.5-flash-latest",
     ) -> Dict[str, Any]:
-        """Process Call gemini api for suggestions."""
+        """Call gemini api for suggestions."""
         if not api_key:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
@@ -296,7 +295,7 @@ class AiProviderRuntime:
         temperature: float = 0.6,
         max_tokens: int = 1024,
     ) -> str:
-        """Process Call gemini api."""
+        """Call gemini api."""
         if not api_key:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
@@ -350,13 +349,13 @@ class IAGenerationWorkflow:
     """Workflow OO para operaÃƒÆ’Ã‚Â§ÃƒÆ’Ã‚Âµes de geraÃƒÆ’Ã‚Â§ÃƒÆ’Ã‚Â£o de conteÃƒÆ’Ã‚Âºdo IA."""
 
     def __init__(self, runtime: Optional["IAGenerationRuntime"] = None) -> None:
-        """Initialize required dependencies and runtime configuration."""
+        """Initialize dependencies for IAGenerationWorkflow."""
         self._runtime = runtime or IAGenerationRuntime()
 
     async def gerar_titulos_com_openai(
         self, db: Session, produto_id: int, user: models.User, num_titulos: int = 3
     ) -> List[str]:
-        """Process Gerar titulos com openai."""
+        """Gerar titulos com openai."""
         return await self._runtime.gerar_titulos_com_openai(
             db=db,
             produto_id=produto_id,
@@ -371,7 +370,7 @@ class IAGenerationWorkflow:
         user: models.User,
         tamanho_palavras: int = 150,
     ) -> str:
-        """Process Gerar descricao com openai."""
+        """Gerar descricao com openai."""
         return await self._runtime.gerar_descricao_com_openai(
             db=db,
             produto_id=produto_id,
@@ -382,7 +381,7 @@ class IAGenerationWorkflow:
     async def gerar_titulos_com_gemini(
         self, db: Session, produto_id: int, user: models.User, num_titulos: int = 3
     ) -> List[str]:
-        """Process Gerar titulos com gemini."""
+        """Gerar titulos com gemini."""
         return await self._runtime.gerar_titulos_com_gemini(
             db=db,
             produto_id=produto_id,
@@ -397,7 +396,7 @@ class IAGenerationWorkflow:
         user: models.User,
         tamanho_palavras: int = 150,
     ) -> str:
-        """Process Gerar descricao com gemini."""
+        """Gerar descricao com gemini."""
         return await self._runtime.gerar_descricao_com_gemini(
             db=db,
             produto_id=produto_id,
@@ -411,7 +410,7 @@ class IAGenerationWorkflow:
         produto_id: int,
         user: models.User,
     ) -> schemas.SugestoesAtributosResponse:
-        """Process Sugerir valores atributos com gemini."""
+        """Sugerir valores atributos com gemini."""
         return await self._runtime.sugerir_valores_atributos_com_gemini(
             db=db,
             produto_id=produto_id,
@@ -425,7 +424,7 @@ class IAGenerationRuntime:
     async def gerar_titulos_com_openai(
         self, db: Session, produto_id: int, user: models.User, num_titulos: int = 3
     ) -> List[str]:
-        """Process Gerar titulos com openai."""
+        """Gerar titulos com openai."""
         return await self._gerar_titulos_com_openai_impl(
             db=db,
             produto_id=produto_id,
@@ -440,7 +439,7 @@ class IAGenerationRuntime:
         user: models.User,
         tamanho_palavras: int = 150,
     ) -> str:
-        """Process Gerar descricao com openai."""
+        """Gerar descricao com openai."""
         return await self._gerar_descricao_com_openai_impl(
             db=db,
             produto_id=produto_id,
@@ -451,7 +450,7 @@ class IAGenerationRuntime:
     async def gerar_titulos_com_gemini(
         self, db: Session, produto_id: int, user: models.User, num_titulos: int = 3
     ) -> List[str]:
-        """Process Gerar titulos com gemini."""
+        """Gerar titulos com gemini."""
         return await self._gerar_titulos_com_gemini_impl(
             db=db,
             produto_id=produto_id,
@@ -466,7 +465,7 @@ class IAGenerationRuntime:
         user: models.User,
         tamanho_palavras: int = 150,
     ) -> str:
-        """Process Gerar descricao com gemini."""
+        """Gerar descricao com gemini."""
         return await self._gerar_descricao_com_gemini_impl(
             db=db,
             produto_id=produto_id,
@@ -480,7 +479,7 @@ class IAGenerationRuntime:
         produto_id: int,
         user: models.User,
     ) -> schemas.SugestoesAtributosResponse:
-        """Process Sugerir valores atributos com gemini."""
+        """Sugerir valores atributos com gemini."""
         return await self._sugerir_valores_atributos_com_gemini_impl(
             db=db,
             produto_id=produto_id,
@@ -489,13 +488,13 @@ class IAGenerationRuntime:
 
     @staticmethod
     def _get_ai_provider_workflow() -> AiProviderWorkflow:
-        """Process Get ai provider workflow."""
+        """Get ai provider workflow."""
         return AiProviderWorkflow(runtime=AiProviderRuntime())
 
     async def _gerar_titulos_com_openai_impl(self, db: Session, produto_id: int, user: models.User, num_titulos: int = 3) -> List[str]:
         # ... (cÃƒÆ’Ã‚Â³digo existente para gerar tÃƒÆ’Ã‚Â­tulos com OpenAI - manter como estÃƒÆ’Ã‚Â¡)
         # Apenas garanta que ele use get_openai_api_key e registre o uso corretamente
-        """Process Gerar titulos com openai impl."""
+        """Gerar titulos com openai impl."""
         logger.info(f"Iniciando geraÃƒÆ’Ã‚Â§ÃƒÆ’Ã‚Â£o de tÃƒÆ’Ã‚Â­tulos para produto ID {produto_id} pelo usuÃƒÆ’Ã‚Â¡rio ID {user.id}")
         # ... (restante da lÃƒÆ’Ã‚Â³gica existente) ...
         # Exemplo de adaptaÃƒÆ’Ã‚Â§ÃƒÆ’Ã‚Â£o mÃƒÆ’Ã‚Â­nima:
@@ -532,7 +531,7 @@ class IAGenerationRuntime:
     async def _gerar_descricao_com_openai_impl(self, db: Session, produto_id: int, user: models.User, tamanho_palavras: int = 150) -> str:
         # ... (cÃƒÆ’Ã‚Â³digo existente para gerar descriÃƒÆ’Ã‚Â§ÃƒÆ’Ã‚Â£o com OpenAI - manter como estÃƒÆ’Ã‚Â¡)
         # Apenas garanta que ele use get_openai_api_key e registre o uso corretamente
-        """Process Gerar descricao com openai impl."""
+        """Gerar descricao com openai impl."""
         logger.info(f"Iniciando geraÃƒÆ’Ã‚Â§ÃƒÆ’Ã‚Â£o de descriÃƒÆ’Ã‚Â§ÃƒÆ’Ã‚Â£o para produto ID {produto_id} pelo usuÃƒÆ’Ã‚Â¡rio ID {user.id}")
         # ... (restante da lÃƒÆ’Ã‚Â³gica existente) ...
         # Exemplo de adaptaÃƒÆ’Ã‚Â§ÃƒÆ’Ã‚Â£o mÃƒÆ’Ã‚Â­nima:

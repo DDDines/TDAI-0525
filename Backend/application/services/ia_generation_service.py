@@ -1,6 +1,5 @@
 """Ia generation service.
 
-Defines the module responsibilities and how it fits in the backend architecture.
 """
 
 from __future__ import annotations
@@ -19,7 +18,7 @@ class IAGenerationService:
         *,
         port: IAGenerationPort,
     ) -> None:
-        """Initialize required dependencies and runtime configuration."""
+        """Initialize dependencies for IAGenerationService."""
         self._port = port
 
     async def gerar_titulos_com_openai(
@@ -30,7 +29,7 @@ class IAGenerationService:
         user: models.User,
         num_titulos: int = 3,
     ) -> list[str]:
-        """Process Gerar titulos com openai."""
+        """Gerar titulos com openai."""
         return await self._port.gerar_titulos_com_openai(
             session=session,
             produto_id=produto_id,
@@ -46,7 +45,7 @@ class IAGenerationService:
         user: models.User,
         tamanho_palavras: int = 150,
     ) -> str:
-        """Process Gerar descricao com openai."""
+        """Gerar descricao com openai."""
         return await self._port.gerar_descricao_com_openai(
             session=session,
             produto_id=produto_id,
@@ -62,7 +61,7 @@ class IAGenerationService:
         user: models.User,
         num_titulos: int = 3,
     ) -> list[str]:
-        """Process Gerar titulos com gemini."""
+        """Gerar titulos com gemini."""
         return await self._port.gerar_titulos_com_gemini(
             session=session,
             produto_id=produto_id,
@@ -78,7 +77,7 @@ class IAGenerationService:
         user: models.User,
         tamanho_palavras: int = 150,
     ) -> str:
-        """Process Gerar descricao com gemini."""
+        """Gerar descricao com gemini."""
         return await self._port.gerar_descricao_com_gemini(
             session=session,
             produto_id=produto_id,
@@ -93,7 +92,7 @@ class IAGenerationService:
         produto_id: int,
         user: models.User,
     ) -> schemas.SugestoesAtributosResponse:
-        """Process Sugerir valores atributos com gemini."""
+        """Sugerir valores atributos com gemini."""
         return await self._port.sugerir_valores_atributos_com_gemini(
             session=session,
             produto_id=produto_id,

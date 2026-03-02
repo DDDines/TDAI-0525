@@ -1,6 +1,5 @@
 """Limit service.
 
-Defines the module responsibilities and how it fits in the backend architecture.
 """
 
 from __future__ import annotations
@@ -19,7 +18,7 @@ class LimitService:
         *,
         port: LimitPort,
     ) -> None:
-        """Initialize required dependencies and runtime configuration."""
+        """Initialize dependencies for LimitService."""
         self._port = port
 
     def verificar_limite_uso(
@@ -28,7 +27,7 @@ class LimitService:
         user: models.User,
         tipo_geracao_principal: str,
     ) -> int:
-        """Process Verificar limite uso."""
+        """Verificar limite uso."""
         return self._port.verificar_limite_uso(
             session=session,
             user=user,
@@ -41,7 +40,7 @@ class LimitService:
         user_id: int,
         creditos_necessarios: int = 1,
     ) -> bool:
-        """Process Verificar creditos disponiveis geracao ia."""
+        """Verificar creditos disponiveis geracao ia."""
         return await self._port.verificar_creditos_disponiveis_geracao_ia(
             session=session,
             user_id=user_id,
@@ -54,7 +53,7 @@ class LimitService:
         user_id: int,
         creditos_necessarios: int = 1,
     ) -> bool:
-        """Process Verificar e consumir creditos geracao ia."""
+        """Verificar e consumir creditos geracao ia."""
         return await self._port.verificar_e_consumir_creditos_geracao_ia(
             session=session,
             user_id=user_id,

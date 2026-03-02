@@ -1,6 +1,5 @@
 """Validator crew module.
 
-Defines the module responsibilities and how it fits in the backend architecture.
 """
 
 import os
@@ -129,7 +128,7 @@ class ValidationCrewRuntime:
         executor: ThreadPoolExecutor,
         prompt_builder: type[_ValidationCrewPromptBuilder] = _ValidationCrewPromptBuilder,
     ) -> None:
-        """Initialize required dependencies and runtime configuration."""
+        """Initialize dependencies for ValidationCrewRuntime."""
         self._llm = llm_instance
         self._runtime_available = runtime_available
         self._agent_cls = agent_cls
@@ -140,11 +139,11 @@ class ValidationCrewRuntime:
         self._prompt_builder = prompt_builder
 
     def _is_available(self) -> bool:
-        """Process Is available."""
+        """Is available."""
         return bool(self._runtime_available and self._llm is not None)
 
     def _build_crew(self, raw_data: Any):
-        """Process Build crew."""
+        """Build crew."""
         if not self._is_available():
             return None
 
@@ -169,14 +168,14 @@ class ValidationCrewRuntime:
         )
 
     def _run_sync(self, raw_data: Any):
-        """Process Run sync."""
+        """Run sync."""
         crew = self._build_crew(raw_data)
         if crew is None:
             return raw_data
         return crew.kickoff()
 
     def run(self, raw_data: Any, timeout_seconds: int = 8):
-        """Process Run."""
+        """Run."""
         if not self._is_available():
             return raw_data
         try:
@@ -192,7 +191,7 @@ class ValidationCrewWorkflow:
     """Workflow OO para validacao opcional via crewAI."""
 
     def __init__(self, runtime: ValidationCrewRuntime | None = None) -> None:
-        """Initialize required dependencies and runtime configuration."""
+        """Initialize dependencies for ValidationCrewWorkflow."""
         self._runtime = runtime or ValidationCrewRuntime(
             llm_instance=_ValidationCrewFactory.build_llm(),
             runtime_available=CREW_RUNTIME_AVAILABLE,

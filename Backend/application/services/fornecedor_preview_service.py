@@ -1,6 +1,5 @@
 """Fornecedor preview service.
 
-Defines the module responsibilities and how it fits in the backend architecture.
 """
 
 from __future__ import annotations
@@ -24,17 +23,17 @@ class FornecedorPreviewService:
         web_data_extractor_service: Any,
         catalog_file_repository: Any,
     ) -> None:
-        """Initialize required dependencies and runtime configuration."""
+        """Initialize dependencies for FornecedorPreviewService."""
         self._file_processing_service = file_processing_service
         self._web_data_extractor_service = web_data_extractor_service
         self._catalog_file_repository = catalog_file_repository
 
     def _resolve_session(self) -> Any:
-        """Process Resolve session."""
+        """Resolve session."""
         return getattr(self._catalog_file_repository, "_db", None)
 
     async def preview_pages(self, *, file: Any) -> dict[str, Any]:
-        """Process Preview pages."""
+        """Preview pages."""
         if not file.filename.lower().endswith(".pdf"):
             raise HTTPException(status_code=400, detail="Apenas arquivos PDF sao permitidos.")
 
@@ -61,7 +60,7 @@ class FornecedorPreviewService:
         offset: int,
         limit: int,
     ) -> Any:
-        """Process Preview pdf."""
+        """Preview pdf."""
         session = self._resolve_session()
         if not file.filename.lower().endswith(".pdf"):
             raise HTTPException(
@@ -85,7 +84,7 @@ class FornecedorPreviewService:
         page_number: int,
         region: list[float],
     ) -> dict[str, Any]:
-        """Process Preview catalog from region."""
+        """Preview catalog from region."""
         session = self._resolve_session()
         file_path = self._file_processing_service.get_file_path_by_id(
             session,

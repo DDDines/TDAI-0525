@@ -1,6 +1,5 @@
 """Ocr service.
 
-Defines the module responsibilities and how it fits in the backend architecture.
 """
 
 from __future__ import annotations
@@ -13,7 +12,7 @@ from Backend.application.services.web_data_extractor.contracts import (
 class WebDataExtractorOCRService:
     """Encapsulates Web data extractor o c r service."""
     def __init__(self, port: WebDataExtractorPort) -> None:
-        """Initialize required dependencies and runtime configuration."""
+        """Initialize dependencies for WebDataExtractorOCRService."""
         self._port = port
 
     def extract_text_from_image_region(self, image_bytes: bytes):

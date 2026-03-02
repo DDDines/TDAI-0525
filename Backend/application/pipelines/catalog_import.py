@@ -1,6 +1,5 @@
 """Catalog import.
 
-Defines the module responsibilities and how it fits in the backend architecture.
 """
 
 from __future__ import annotations
@@ -21,7 +20,7 @@ class OOPCatalogImportExecutor:
     """
 
     def __init__(self, use_case: CatalogImportProcessingUseCase):
-        """Initialize required dependencies and runtime configuration."""
+        """Initialize dependencies for OOPCatalogImportExecutor."""
         self._use_case = use_case
 
     async def __call__(
@@ -35,7 +34,7 @@ class OOPCatalogImportExecutor:
         pages: Optional[List[int]] = None,
         region: Optional[List[float]] = None,
     ) -> Any:
-        """Process Call."""
+        """Call."""
         command = CatalogImportFinalizeCommand(
             file_id=file_id,
             user_id=user_id,
@@ -53,7 +52,7 @@ class OOPCatalogImportExecutor:
 class CatalogImportTaskBuilder:
     """Encapsulates Catalog import task builder."""
     def __init__(self, executor: OOPCatalogImportExecutor):
-        """Initialize required dependencies and runtime configuration."""
+        """Initialize dependencies for CatalogImportTaskBuilder."""
         self._executor = executor
 
     def build_finalize_plan(

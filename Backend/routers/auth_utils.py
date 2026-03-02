@@ -28,7 +28,7 @@ class AuthRequestService:
         security_workflow: security.SecurityWorkflow,
         user_repository_factory: Callable[[Session], UserRepository],
     ) -> None:
-        """Initialize required dependencies and runtime configuration."""
+        """Initialize dependencies for AuthRequestService."""
         self._security_workflow = security_workflow
         self._user_repository_factory = user_repository_factory
 

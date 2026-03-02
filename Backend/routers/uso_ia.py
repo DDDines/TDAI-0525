@@ -32,7 +32,7 @@ class UsoIARequestService:
         self,
         session: Session = Depends(ServiceContainerDependencySupport.get_request_db_session),
     ) -> None:
-        """Initialize required dependencies and runtime configuration."""
+        """Initialize dependencies for UsoIARequestService."""
         self._session = session
         self._registro_repo = RegistroUsoIARepository(session)
         self._product_repo = ProductRepository(session)
@@ -103,7 +103,7 @@ class UsoIARequestService:
         current_user: models.User,
         registro_id: int,
     ) -> schemas.RegistroUsoIAResponse:
-        """Process Read uso ia especifico."""
+        """Read uso ia especifico."""
         db_registro = self._registro_repo.get_registro_uso_ia(registro_id=registro_id)
         if db_registro is None:
             raise HTTPException(
@@ -125,7 +125,7 @@ class UsoIARequestService:
         skip: int,
         limit: int,
     ) -> List[schemas.RegistroUsoIAResponse]:
-        """Process Read usos ia por produto."""
+        """Read usos ia por produto."""
         produto = self._product_repo.get_produto(produto_id=produto_id)
         if not produto:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Produto nao encontrado")
@@ -167,7 +167,7 @@ def read_usos_ia_usuario_logado(
     data_inicio: Optional[datetime] = Query(None, description="Data de inicio (ISO)"),
     data_fim: Optional[datetime] = Query(None, description="Data de fim (ISO)"),
 ):
-    """Process Read usos ia usuario logado."""
+    """Read usos ia usuario logado."""
     return request_service.list_usos_ia_usuario(
         current_user=current_user,
         skip=skip,
@@ -188,7 +188,7 @@ def read_usos_ia_por_produto(
     skip: int = Query(0, ge=0),
     limit: int = Query(100, ge=1, le=200),
 ):
-    """Process Read usos ia por produto."""
+    """Read usos ia por produto."""
     return request_service.read_usos_ia_por_produto(
         current_user=current_user,
         produto_id=produto_id,
@@ -205,7 +205,7 @@ def read_uso_ia_especifico(
     ),
     request_service: UsoIARequestService = Depends(),
 ):
-    """Process Read uso ia especifico."""
+    """Read uso ia especifico."""
     return request_service.read_uso_ia_especifico(
         current_user=current_user,
         registro_id=registro_id,

@@ -24,11 +24,11 @@ class _RequestScopedDependency:
     """Dependencia request-scoped OO parametrizada por factory de sessao."""
 
     def __init__(self, factory: Callable[[Session], Any]) -> None:
-        """Initialize required dependencies and runtime configuration."""
+        """Initialize dependencies for  RequestScopedDependency."""
         self._factory = factory
 
     def __call__(self, session: Session=Depends(database.get_db)) -> Any:
-        """Process Call."""
+        """Call."""
         return self._factory(session)
 
 class ServiceContainerDependencySupport:

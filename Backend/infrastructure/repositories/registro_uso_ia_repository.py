@@ -14,12 +14,12 @@ class RegistroUsoIARepository:
     """Repository OO de registros de uso IA com Session vinculada por request."""
 
     def __init__(self, db: Session) -> None:
-        """Initialize required dependencies and runtime configuration."""
+        """Initialize dependencies for RegistroUsoIARepository."""
         self._db = db
 
     @staticmethod
     def _normalize_tipo_acao(tipo_acao: Optional[models.TipoAcaoEnum]):
-        """Process Normalize tipo acao."""
+        """Normalize tipo acao."""
         if isinstance(tipo_acao, str):
             try:
                 return models.TipoAcaoEnum(tipo_acao)

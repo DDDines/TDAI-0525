@@ -1,6 +1,5 @@
 """Tabular ingestion service.
 
-Defines the module responsibilities and how it fits in the backend architecture.
 """
 
 from __future__ import annotations
@@ -14,7 +13,7 @@ class FileProcessingTabularIngestionService:
     """Ingestao de arquivos tabulares (Excel/CSV)."""
 
     def __init__(self, port: FileProcessingPort) -> None:
-        """Initialize required dependencies and runtime configuration."""
+        """Initialize dependencies for FileProcessingTabularIngestionService."""
         self._port = port
 
     async def processar_arquivo_excel(
@@ -24,7 +23,7 @@ class FileProcessingTabularIngestionService:
         sheet_name: Optional[str] = None,
         product_type_id: Optional[int] = None,
     ) -> List[Dict[str, Any]]:
-        """Process Processar arquivo excel."""
+        """Processar arquivo excel."""
         return await self._port.processar_arquivo_excel(
             conteudo_arquivo=conteudo_arquivo,
             mapeamento_colunas_usuario=mapeamento_colunas_usuario,
@@ -38,7 +37,7 @@ class FileProcessingTabularIngestionService:
         mapeamento_colunas_usuario: Optional[Dict[str, str]] = None,
         product_type_id: Optional[int] = None,
     ) -> List[Dict[str, Any]]:
-        """Process Processar arquivo csv."""
+        """Processar arquivo csv."""
         return await self._port.processar_arquivo_csv(
             conteudo_arquivo=conteudo_arquivo,
             mapeamento_colunas_usuario=mapeamento_colunas_usuario,
@@ -50,7 +49,7 @@ class FileProcessingTabularIngestionService:
         conteudo_arquivo: bytes,
         max_rows: int = 5,
     ) -> Dict[str, Any]:
-        """Process Preview arquivo excel."""
+        """Preview arquivo excel."""
         return await self._port.preview_arquivo_excel(
             conteudo_arquivo=conteudo_arquivo,
             max_rows=max_rows,
@@ -61,7 +60,7 @@ class FileProcessingTabularIngestionService:
         conteudo_arquivo: bytes,
         max_rows: int = 5,
     ) -> Dict[str, Any]:
-        """Process Preview arquivo csv."""
+        """Preview arquivo csv."""
         return await self._port.preview_arquivo_csv(
             conteudo_arquivo=conteudo_arquivo,
             max_rows=max_rows,
@@ -72,7 +71,7 @@ class FileProcessingTabularIngestionService:
         linha_original: Dict[str, Any],
         mapeamento_colunas_usuario: Optional[Dict[str, str]] = None,
     ) -> Optional[Dict[str, Any]]:
-        """Process Processar linha padronizada."""
+        """Processar linha padronizada."""
         return self._port.processar_linha_padronizada(
             linha_original=linha_original,
             mapeamento_colunas_usuario=mapeamento_colunas_usuario,

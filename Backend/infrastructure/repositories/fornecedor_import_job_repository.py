@@ -1,6 +1,5 @@
 """Fornecedor import job repository.
 
-Defines the module responsibilities and how it fits in the backend architecture.
 """
 
 from __future__ import annotations
@@ -16,7 +15,7 @@ class FornecedorImportJobRepository:
     """Repository OO para jobs de importacao de fornecedor."""
 
     def __init__(self, db: Session) -> None:
-        """Initialize required dependencies and runtime configuration."""
+        """Initialize dependencies for FornecedorImportJobRepository."""
         self._db = db
 
     def create_import_job(

@@ -1,6 +1,5 @@
 """Limit adapter.
 
-Defines the module responsibilities and how it fits in the backend architecture.
 """
 
 from __future__ import annotations
@@ -17,7 +16,7 @@ class LimitServiceAdapter:
     """OOP port adapter backed by the current limits implementation."""
 
     def __init__(self, runtime: LimitWorkflow | None = None) -> None:
-        """Initialize required dependencies and runtime configuration."""
+        """Initialize dependencies for LimitServiceAdapter."""
         self._runtime = runtime or LimitWorkflow()
 
     def verificar_limite_uso(
@@ -26,7 +25,7 @@ class LimitServiceAdapter:
         user: models.User,
         tipo_geracao_principal: str,
     ) -> int:
-        """Process Verificar limite uso."""
+        """Verificar limite uso."""
         return self._runtime.verificar_limite_uso(
             db=session,
             user=user,
@@ -39,7 +38,7 @@ class LimitServiceAdapter:
         user_id: int,
         creditos_necessarios: int = 1,
     ) -> bool:
-        """Process Verificar creditos disponiveis geracao ia."""
+        """Verificar creditos disponiveis geracao ia."""
         return await self._runtime.verificar_creditos_disponiveis_geracao_ia(
             db=session,
             user_id=user_id,
@@ -52,7 +51,7 @@ class LimitServiceAdapter:
         user_id: int,
         creditos_necessarios: int = 1,
     ) -> bool:
-        """Process Verificar e consumir creditos geracao ia."""
+        """Verificar e consumir creditos geracao ia."""
         return await self._runtime.verificar_e_consumir_creditos_geracao_ia(
             db=session,
             user_id=user_id,

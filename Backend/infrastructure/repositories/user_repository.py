@@ -1,6 +1,5 @@
 """User repository.
 
-Defines the module responsibilities and how it fits in the backend architecture.
 """
 
 from __future__ import annotations
@@ -26,19 +25,19 @@ class UserRepository:
     """Repository OO de usuarios, roles e planos com Session por request."""
 
     def __init__(self, db: Session) -> None:
-        """Initialize required dependencies and runtime configuration."""
+        """Initialize dependencies for UserRepository."""
         self._db = db
         self._security_workflow = security.SecurityWorkflow()
 
     @staticmethod
     def _apply_default_plan_limits(db_user: User) -> None:
-        """Process Apply default plan limits."""
+        """Apply default plan limits."""
         db_user.limite_produtos = settings.DEFAULT_LIMIT_PRODUTOS_SEM_PLANO
         db_user.limite_enriquecimento_web = settings.DEFAULT_LIMIT_ENRIQUECIMENTO_SEM_PLANO
         db_user.limite_geracao_ia = settings.DEFAULT_LIMIT_GERACAO_IA_SEM_PLANO
 
     def _apply_plano_limits(self, *, db_user: User, plano_id: Optional[int]) -> None:
-        """Process Apply plano limits."""
+        """Apply plano limits."""
         if plano_id is None:
             db_user.plano_id = None
             self._apply_default_plan_limits(db_user)
@@ -221,7 +220,7 @@ class UserRepository:
         token_hash: str,
         expires_at: datetime,
     ) -> None:
-        """Process Set user password reset token."""
+        """Set user password reset token."""
         user.reset_password_token = token_hash
         user.reset_password_token_expires_at = expires_at
         self._db.commit()

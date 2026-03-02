@@ -1,6 +1,5 @@
 """Init.
 
-Defines the module responsibilities and how it fits in the backend architecture.
 """
 
 from Backend.application.use_cases.catalog_import_processing import (

@@ -1,6 +1,5 @@
 """Web enrichment start service.
 
-Defines the module responsibilities and how it fits in the backend architecture.
 """
 
 from __future__ import annotations
@@ -26,7 +25,7 @@ class WebEnrichmentStartService:
         orchestrator_cls: Any = WebEnrichmentPipelineOrchestrator,
         product_repository: Any,
     ) -> None:
-        """Initialize required dependencies and runtime configuration."""
+        """Initialize dependencies for WebEnrichmentStartService."""
         self._product_repository = product_repository
         self._models = models
         self._dispatcher = dispatcher_cls

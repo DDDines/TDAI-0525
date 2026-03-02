@@ -22,7 +22,7 @@ class CatalogImportFileService:
         catalog_file_repository: Any,
         fornecedor_repository: Any,
     ) -> None:
-        """Initialize dependencies used by this component."""
+        """Initialize dependencies for CatalogImportFileService."""
         self._models = models
         self._file_processing_service = file_processing_service
         self._catalog_import_start_service = catalog_import_start_service

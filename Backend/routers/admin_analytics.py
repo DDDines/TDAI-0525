@@ -29,14 +29,14 @@ class AdminAnalyticsRequestService:
         self,
         session: Session = Depends(ServiceContainerDependencySupport.get_request_db_session),
     ) -> None:
-        """Initialize required dependencies and runtime configuration."""
+        """Initialize dependencies for AdminAnalyticsRequestService."""
         self._user_repository = UserRepository(session)
         self._historico_repository = HistoricoRepository(session)
         self._analytics_repository = AdminAnalyticsRepository(session)
 
     @staticmethod
     def _now_utc() -> datetime:
-        """Process Now utc."""
+        """Now utc."""
         return datetime.now(timezone.utc)
 
     def get_total_counts(self) -> schemas.TotalCounts:

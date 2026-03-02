@@ -1,6 +1,5 @@
 """Tasks.
 
-Defines the module responsibilities and how it fits in the backend architecture.
 """
 
 from __future__ import annotations
@@ -20,7 +19,7 @@ class TaskWorkflow:
 
     """Encapsulates Task workflow."""
     def __init__(self, runtime: Optional["TaskRuntime"] = None) -> None:
-        """Initialize required dependencies and runtime configuration."""
+        """Initialize dependencies for TaskWorkflow."""
         self._runtime = runtime or TaskRuntime()
 
     def process_pdf_extraction_task(
@@ -29,7 +28,7 @@ class TaskWorkflow:
         page_number: int,
         db_url: str,
     ) -> None:
-        """Process pdf extraction task."""
+        """Pdf extraction task."""
         self._runtime.process_pdf_extraction_task(
             import_job_id=import_job_id,
             page_number=page_number,
@@ -44,7 +43,7 @@ class TaskRuntime:
         self,
         task_service: Optional[PdfExtractionTaskService] = None,
     ) -> None:
-        """Initialize required dependencies and runtime configuration."""
+        """Initialize dependencies for TaskRuntime."""
         if task_service is not None:
             self._task_service = task_service
             return
@@ -61,7 +60,7 @@ class TaskRuntime:
         page_number: int,
         db_url: str,
     ) -> None:
-        """Process pdf extraction task."""
+        """Pdf extraction task."""
         self._task_service.process_pdf_extraction_task(
             import_job_id=import_job_id,
             page_number=page_number,

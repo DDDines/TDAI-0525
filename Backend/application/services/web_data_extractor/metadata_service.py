@@ -1,6 +1,5 @@
 """Metadata service.
 
-Defines the module responsibilities and how it fits in the backend architecture.
 """
 
 from __future__ import annotations
@@ -15,7 +14,7 @@ from Backend.application.services.web_data_extractor.contracts import (
 class WebDataExtractorMetadataService:
     """Encapsulates Web data extractor metadata service."""
     def __init__(self, port: WebDataExtractorPort) -> None:
-        """Initialize required dependencies and runtime configuration."""
+        """Initialize dependencies for WebDataExtractorMetadataService."""
         self._port = port
 
     def extrair_metadados_estruturados(
@@ -23,7 +22,7 @@ class WebDataExtractorMetadataService:
         html_content: str,
         url: str,
     ) -> Dict[str, Any]:
-        """Process Extrair metadados estruturados."""
+        """Extrair metadados estruturados."""
         return self._port.extrair_metadados_estruturados(
             html_content=html_content,
             url=url,
@@ -33,7 +32,7 @@ class WebDataExtractorMetadataService:
         self,
         metadata_bruta: Dict[str, Any],
     ) -> Dict[str, Any]:
-        """Process Normalizar dados de metadados."""
+        """Normalizar dados de metadados."""
         return self._port.normalizar_dados_de_metadados(
             metadata_bruta=metadata_bruta
         )

@@ -1,6 +1,5 @@
 """Orchestrator service.
 
-Defines the module responsibilities and how it fits in the backend architecture.
 """
 
 from __future__ import annotations
@@ -33,7 +32,7 @@ class FileProcessingOrchestratorService:
     """Servico OO unificado para processamento de arquivos de catalogo."""
 
     def __init__(self, port: FileProcessingPort) -> None:
-        """Initialize required dependencies and runtime configuration."""
+        """Initialize dependencies for FileProcessingOrchestratorService."""
         self._port = port
         self.storage = FileProcessingStorageService(port)
         self.tabular = FileProcessingTabularIngestionService(port)
@@ -46,7 +45,7 @@ class FileProcessingOrchestratorService:
         file: UploadFile,
         fornecedor_id: Optional[int] = None,
     ):
-        """Process Save uploaded catalog."""
+        """Save uploaded catalog."""
         return await self.storage.save_uploaded_catalog(
             file=file,
             fornecedor_id=fornecedor_id,
@@ -67,7 +66,7 @@ class FileProcessingOrchestratorService:
         sheet_name: Optional[str] = None,
         product_type_id: Optional[int] = None,
     ) -> List[Dict[str, Any]]:
-        """Process Processar arquivo excel."""
+        """Processar arquivo excel."""
         return await self.tabular.processar_arquivo_excel(
             conteudo_arquivo=conteudo_arquivo,
             mapeamento_colunas_usuario=mapeamento_colunas_usuario,
@@ -81,7 +80,7 @@ class FileProcessingOrchestratorService:
         mapeamento_colunas_usuario: Optional[Dict[str, str]] = None,
         product_type_id: Optional[int] = None,
     ) -> List[Dict[str, Any]]:
-        """Process Processar arquivo csv."""
+        """Processar arquivo csv."""
         return await self.tabular.processar_arquivo_csv(
             conteudo_arquivo=conteudo_arquivo,
             mapeamento_colunas_usuario=mapeamento_colunas_usuario,
@@ -97,7 +96,7 @@ class FileProcessingOrchestratorService:
         pages: Optional[List[int]] = None,
         region: Optional[List[float]] = None,
     ) -> List[Dict[str, Any]]:
-        """Process Processar arquivo pdf."""
+        """Processar arquivo pdf."""
         return await self.pdf.processar_arquivo_pdf(
             conteudo_arquivo=conteudo_arquivo,
             mapeamento_colunas_usuario=mapeamento_colunas_usuario,
@@ -112,7 +111,7 @@ class FileProcessingOrchestratorService:
         conteudo_arquivo: bytes,
         max_rows: int = 5,
     ) -> Dict[str, Any]:
-        """Process Preview arquivo excel."""
+        """Preview arquivo excel."""
         return await self.tabular.preview_arquivo_excel(
             conteudo_arquivo=conteudo_arquivo,
             max_rows=max_rows,
@@ -123,7 +122,7 @@ class FileProcessingOrchestratorService:
         conteudo_arquivo: bytes,
         max_rows: int = 5,
     ) -> Dict[str, Any]:
-        """Process Preview arquivo csv."""
+        """Preview arquivo csv."""
         return await self.tabular.preview_arquivo_csv(
             conteudo_arquivo=conteudo_arquivo,
             max_rows=max_rows,
@@ -137,7 +136,7 @@ class FileProcessingOrchestratorService:
         page_count: int = 1,
         dpi: int = 72,
     ) -> Dict[str, Any]:
-        """Process Preview arquivo pdf."""
+        """Preview arquivo pdf."""
         return await self.preview.preview_arquivo_pdf(
             conteudo_arquivo=conteudo_arquivo,
             ext=ext,
@@ -152,7 +151,7 @@ class FileProcessingOrchestratorService:
         ext: str,
         max_rows: int = 5,
     ) -> Dict[str, Any]:
-        """Process Gerar preview."""
+        """Gerar preview."""
         return await self.preview.gerar_preview(
             conteudo_arquivo=conteudo_arquivo,
             ext=ext,
@@ -166,7 +165,7 @@ class FileProcessingOrchestratorService:
         start_page: int = 1,
         dpi: int = 200,
     ) -> List[str]:
-        """Process Pdf bytes to images."""
+        """Pdf bytes to images."""
         return await self.preview.pdf_bytes_to_images(
             conteudo_arquivo=conteudo_arquivo,
             max_pages=max_pages,
@@ -183,7 +182,7 @@ class FileProcessingOrchestratorService:
         offset: int,
         limit: int,
     ) -> Dict[str, Any]:
-        """Process Pdf pages to images."""
+        """Pdf pages to images."""
         return self.preview.pdf_pages_to_images(
             db=db,
             file=file,
@@ -199,7 +198,7 @@ class FileProcessingOrchestratorService:
         page_number: int,
         region: Optional[List[float]] = None,
     ) -> Dict[str, Any]:
-        """Process Extrair pagina pdf."""
+        """Extrair pagina pdf."""
         return await self.pdf.extrair_pagina_pdf(
             conteudo_pdf=conteudo_pdf,
             page_number=page_number,
@@ -207,7 +206,7 @@ class FileProcessingOrchestratorService:
         )
 
     def generate_pdf_page_images(self, file_path: str, file_id: str) -> List[str]:
-        """Process Generate pdf page images."""
+        """Generate pdf page images."""
         return self.pdf_assets.generate_pdf_page_images(file_path=file_path, file_id=file_id)
 
     def extract_pdf_region_image(
@@ -256,7 +255,7 @@ class FileProcessingOrchestratorService:
         start_page: int = 1,
         mapping: Optional[Dict[str, str]] = None,
     ) -> None:
-        """Process pdf job."""
+        """Pdf job."""
         await self.pdf.process_pdf_job(
             job_id=job_id,
             pdf_path=pdf_path,
@@ -273,7 +272,7 @@ class FileProcessingOrchestratorService:
         linha_original: Dict[str, Any],
         mapeamento_colunas_usuario: Optional[Dict[str, str]],
     ) -> Optional[Dict[str, Any]]:
-        """Process Processar linha padronizada."""
+        """Processar linha padronizada."""
         return self.tabular.processar_linha_padronizada(
             linha_original,
             mapeamento_colunas_usuario,

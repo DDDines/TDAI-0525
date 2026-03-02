@@ -18,12 +18,12 @@ class ProductTypeRepository:
     """Repository OO de tipos de produto com Session vinculada por request."""
 
     def __init__(self, db: Session) -> None:
-        """Initialize required dependencies and runtime configuration."""
+        """Initialize dependencies for ProductTypeRepository."""
         self._db = db
 
     @staticmethod
     def _apply_product_type_search(query, search: Optional[str]):
-        """Process Apply product type search."""
+        """Apply product type search."""
         if not search:
             return query
         search_term = f"%{search.lower()}%"
@@ -326,7 +326,7 @@ class ProductTypeRepository:
         return db_attr_template
 
     def reorder_attribute_template(self, *, attribute_id: int, direction: str) -> Optional[AttributeTemplate]:
-        """Process Reorder attribute template."""
+        """Reorder attribute template."""
         attr_to_move = self.get_attribute_template(attribute_template_id=attribute_id)
         if not attr_to_move:
             return None

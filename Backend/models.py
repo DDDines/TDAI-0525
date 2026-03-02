@@ -1,7 +1,6 @@
 # Backend/models.py
 """Models.
 
-Defines the module responsibilities and how it fits in the backend architecture.
 """
 
 

@@ -1,6 +1,5 @@
 """File processing adapter.
 
-Defines the module responsibilities and how it fits in the backend architecture.
 """
 
 from __future__ import annotations
@@ -20,7 +19,7 @@ class FileProcessingServiceAdapter:
     """OOP port adapter backed by the current file-processing implementation."""
 
     def __init__(self, runtime: FileProcessingRuntime | None = None) -> None:
-        """Initialize required dependencies and runtime configuration."""
+        """Initialize dependencies for FileProcessingServiceAdapter."""
         self._service = runtime or FileProcessingRuntime()
 
     async def save_uploaded_catalog(
@@ -28,7 +27,7 @@ class FileProcessingServiceAdapter:
         file: UploadFile,
         fornecedor_id: Optional[int] = None,
     ) -> Any:
-        """Process Save uploaded catalog."""
+        """Save uploaded catalog."""
         return await self._service.save_uploaded_catalog(file=file, fornecedor_id=fornecedor_id)
 
     def delete_catalog_file(self, stored_filename: str) -> None:
@@ -46,7 +45,7 @@ class FileProcessingServiceAdapter:
         sheet_name: Optional[str] = None,
         product_type_id: Optional[int] = None,
     ) -> List[Dict[str, Any]]:
-        """Process Processar arquivo excel."""
+        """Processar arquivo excel."""
         return await self._service.processar_arquivo_excel(
             conteudo_arquivo=conteudo_arquivo,
             mapeamento_colunas_usuario=mapeamento_colunas_usuario,
@@ -60,7 +59,7 @@ class FileProcessingServiceAdapter:
         mapeamento_colunas_usuario: Optional[Dict[str, str]] = None,
         product_type_id: Optional[int] = None,
     ) -> List[Dict[str, Any]]:
-        """Process Processar arquivo csv."""
+        """Processar arquivo csv."""
         return await self._service.processar_arquivo_csv(
             conteudo_arquivo=conteudo_arquivo,
             mapeamento_colunas_usuario=mapeamento_colunas_usuario,
@@ -76,7 +75,7 @@ class FileProcessingServiceAdapter:
         pages: Optional[List[int]] = None,
         region: Optional[List[float]] = None,
     ) -> List[Dict[str, Any]]:
-        """Process Processar arquivo pdf."""
+        """Processar arquivo pdf."""
         return await self._service.processar_arquivo_pdf(
             conteudo_arquivo=conteudo_arquivo,
             mapeamento_colunas_usuario=mapeamento_colunas_usuario,
@@ -91,7 +90,7 @@ class FileProcessingServiceAdapter:
         conteudo_arquivo: bytes,
         max_rows: int = 5,
     ) -> Dict[str, Any]:
-        """Process Preview arquivo excel."""
+        """Preview arquivo excel."""
         return await self._service.preview_arquivo_excel(
             conteudo_arquivo=conteudo_arquivo,
             max_rows=max_rows,
@@ -102,7 +101,7 @@ class FileProcessingServiceAdapter:
         conteudo_arquivo: bytes,
         max_rows: int = 5,
     ) -> Dict[str, Any]:
-        """Process Preview arquivo csv."""
+        """Preview arquivo csv."""
         return await self._service.preview_arquivo_csv(
             conteudo_arquivo=conteudo_arquivo,
             max_rows=max_rows,
@@ -116,7 +115,7 @@ class FileProcessingServiceAdapter:
         page_count: int = 1,
         dpi: int = 72,
     ) -> Dict[str, Any]:
-        """Process Preview arquivo pdf."""
+        """Preview arquivo pdf."""
         return await self._service.preview_arquivo_pdf(
             conteudo_arquivo=conteudo_arquivo,
             ext=ext,
@@ -131,7 +130,7 @@ class FileProcessingServiceAdapter:
         ext: str,
         max_rows: int = 5,
     ) -> Dict[str, Any]:
-        """Process Gerar preview."""
+        """Gerar preview."""
         return await self._service.gerar_preview(
             conteudo_arquivo=conteudo_arquivo,
             ext=ext,
@@ -145,7 +144,7 @@ class FileProcessingServiceAdapter:
         start_page: int = 1,
         dpi: int = 200,
     ) -> List[str]:
-        """Process Pdf bytes to images."""
+        """Pdf bytes to images."""
         return await self._service.pdf_bytes_to_images(
             conteudo_arquivo=conteudo_arquivo,
             max_pages=max_pages,
@@ -162,7 +161,7 @@ class FileProcessingServiceAdapter:
         offset: int,
         limit: int,
     ) -> Dict[str, Any]:
-        """Process Pdf pages to images."""
+        """Pdf pages to images."""
         return self._service.pdf_pages_to_images(
             db=db,
             file=file,
@@ -178,7 +177,7 @@ class FileProcessingServiceAdapter:
         page_number: int,
         region: Optional[List[float]] = None,
     ) -> Dict[str, Any]:
-        """Process Extrair pagina pdf."""
+        """Extrair pagina pdf."""
         return await self._service.extrair_pagina_pdf(
             conteudo_pdf=conteudo_pdf,
             page_number=page_number,
@@ -186,7 +185,7 @@ class FileProcessingServiceAdapter:
         )
 
     def generate_pdf_page_images(self, file_path: str, file_id: str) -> List[str]:
-        """Process Generate pdf page images."""
+        """Generate pdf page images."""
         return self._service.generate_pdf_page_images(file_path=file_path, file_id=file_id)
 
     def extract_pdf_region_image(
@@ -235,7 +234,7 @@ class FileProcessingServiceAdapter:
         start_page: int = 1,
         mapping: Optional[Dict[str, str]] = None,
     ) -> None:
-        """Process pdf job."""
+        """Pdf job."""
         return await self._service.process_pdf_job(
             job_id=job_id,
             pdf_path=pdf_path,
@@ -259,7 +258,7 @@ class FileProcessingServiceAdapter:
         linha_original: Dict[str, Any],
         mapeamento_colunas_usuario: Optional[Dict[str, str]] = None,
     ) -> Optional[Dict[str, Any]]:
-        """Process Processar linha padronizada."""
+        """Processar linha padronizada."""
         return self._service.processar_linha_padronizada(
             linha_original=linha_original,
             mapeamento_colunas_usuario=mapeamento_colunas_usuario,

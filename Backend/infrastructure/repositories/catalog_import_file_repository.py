@@ -1,6 +1,5 @@
 """Catalog import file repository.
 
-Defines the module responsibilities and how it fits in the backend architecture.
 """
 
 from __future__ import annotations
@@ -16,7 +15,7 @@ class CatalogImportFileRepository:
     """Repository OO de arquivos de importacao de catalogo por request."""
 
     def __init__(self, db: Session) -> None:
-        """Initialize required dependencies and runtime configuration."""
+        """Initialize dependencies for CatalogImportFileRepository."""
         self._db = db
 
     def list_catalog_files_for_user(
@@ -61,7 +60,7 @@ class CatalogImportFileRepository:
         return self._db.query(CatalogImportFile).filter_by(id=file_id).first()
 
     def save_catalog_file(self, *, catalog_file: CatalogImportFile) -> CatalogImportFile:
-        """Process Save catalog file."""
+        """Save catalog file."""
         self._db.add(catalog_file)
         self._db.commit()
         self._db.refresh(catalog_file)

@@ -30,7 +30,7 @@ class GenerationRequestService:
         self,
         session: Session = Depends(ServiceContainerDependencySupport.get_request_db_session),
     ) -> None:
-        """Initialize dependencies used by this component."""
+        """Initialize dependencies for GenerationRequestService."""
         self._session = session
         self._ia_generation_service = ServiceContainerDependencySupport.build_ia_generation_service()
         self._generation_task_service = GenerationTaskService(

@@ -1,6 +1,5 @@
 """Fornecedor catalog process service.
 
-Defines the module responsibilities and how it fits in the backend architecture.
 """
 
 from __future__ import annotations
@@ -21,7 +20,7 @@ class FornecedorCatalogProcessService:
         fornecedor_repo: Any,
         catalog_file_repository: Any,
     ) -> None:
-        """Initialize required dependencies and runtime configuration."""
+        """Initialize dependencies for FornecedorCatalogProcessService."""
         self._models = models
         self._fornecedor_repo = fornecedor_repo
         self._catalog_file_repository = catalog_file_repository
@@ -39,7 +38,7 @@ class FornecedorCatalogProcessService:
         region: Optional[list[float]],
         mapping: Optional[Dict[str, str]],
     ) -> Dict[str, Any]:
-        """Process Start full processing."""
+        """Start full processing."""
         fornecedor = self._validate_fornecedor_access(
             fornecedor_repo=self._fornecedor_repo,
             fornecedor_id=fornecedor_id,
@@ -85,7 +84,7 @@ class FornecedorCatalogProcessService:
         fornecedor_id: int,
         current_user: Any,
     ) -> Any:
-        """Process Validate fornecedor access."""
+        """Validate fornecedor access."""
         fornecedor = fornecedor_repo.get_fornecedor(fornecedor_id=fornecedor_id)
         if not fornecedor:
             raise HTTPException(status_code=404, detail="Fornecedor nao encontrado")
@@ -101,7 +100,7 @@ class FornecedorCatalogProcessService:
         fornecedor_id: int,
         catalog_file_repo: Any,
     ) -> Any:
-        """Process Create processing job from source."""
+        """Create processing job from source."""
         job = self._models.CatalogImportFile(
             user_id=user_id,
             fornecedor_id=fornecedor_id,

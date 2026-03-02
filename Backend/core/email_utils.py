@@ -1,6 +1,5 @@
 """Email utils.
 
-Defines the module responsibilities and how it fits in the backend architecture.
 """
 
 from datetime import datetime
@@ -18,21 +17,21 @@ class EmailWorkflow:
 
     """Encapsulates Email workflow."""
     def __init__(self, runtime: Optional['EmailRuntime']=None):
-        """Initialize required dependencies and runtime configuration."""
+        """Initialize dependencies for EmailWorkflow."""
         self._runtime = runtime or EmailRuntime()
         self._conf = self._runtime.build_connection_config()
 
     @property
     def conf(self):
-        """Process Conf."""
+        """Conf."""
         return self._conf
 
     def _build_connection_config(self) -> Optional[ConnectionConfig]:
-        """Process Build connection config."""
+        """Build connection config."""
         return self._runtime.build_connection_config()
 
     async def send_email(self, *, email_to: EmailStr, subject: str, html_content: str, template_body: Optional[Dict[str, Any]]=None, template_name: Optional[str]=None, raise_if_unconfigured: Optional[bool]=None) -> None:
-        """Process Send email."""
+        """Send email."""
         if raise_if_unconfigured is None:
             raise_if_unconfigured = self._runtime.get_raise_on_missing_email_config()
         if not self._conf:
@@ -67,7 +66,7 @@ class EmailWorkflow:
                 raise RuntimeError(f'Falha ao enviar email: {exc}')
 
     async def send_password_reset_email(self, *, email_to: EmailStr, username: str, reset_link: str, raise_if_unconfigured: Optional[bool]=None) -> None:
-        """Process Send password reset email."""
+        """Send password reset email."""
         if raise_if_unconfigured is None:
             raise_if_unconfigured = self._runtime.get_raise_on_missing_email_config()
         if not self._conf:
@@ -122,5 +121,5 @@ class EmailRuntime:
         )
 
     def current_year(self) -> int:
-        """Process Current year."""
+        """Current year."""
         return datetime.now().year

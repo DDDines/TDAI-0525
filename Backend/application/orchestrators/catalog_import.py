@@ -1,6 +1,5 @@
 """Catalog import.
 
-Defines the module responsibilities and how it fits in the backend architecture.
 """
 
 from __future__ import annotations
@@ -29,7 +28,7 @@ class CatalogImportPipelineOrchestrator:
         oop_executor: TaskExecutor,
         context: str = "catalog_import.finalize",
     ) -> None:
-        """Initialize required dependencies and runtime configuration."""
+        """Initialize dependencies for CatalogImportPipelineOrchestrator."""
         oop_use_case = CatalogImportProcessingUseCase(processor=oop_executor)
         self._oop_builder = CatalogImportTaskBuilder(
             executor=OOPCatalogImportExecutor(oop_use_case)

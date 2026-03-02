@@ -24,7 +24,7 @@ class HistoricoRequestService:
         self,
         session=Depends(ServiceContainerDependencySupport.get_request_db_session),
     ) -> None:
-        """Initialize required dependencies and runtime configuration."""
+        """Initialize dependencies for HistoricoRequestService."""
         self._historico_repo = HistoricoRepository(session)
 
     def list_historico(

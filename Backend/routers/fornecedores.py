@@ -52,7 +52,7 @@ class _FornecedoresServiceBundle:
     """Componente OO principal '_FornecedoresServiceBundle' do modulo 'fornecedores'."""
 
     def __init__(self, *, session_provider: Any | None = None) -> None:
-        """Initialize dependencies used by this component."""
+        """Initialize dependencies for  FornecedoresServiceBundle."""
         self._service_container = ServiceContainer()
         self._session_provider = (
             session_provider
@@ -88,7 +88,7 @@ class FornecedoresRequestService:
     """Workflow/escopo request-scoped para o fluxo de 'fornecedores'."""
 
     def __init__(self, runtime: '_FornecedoresServiceGateway') -> None:
-        """Initialize dependencies used by this component."""
+        """Initialize dependencies for FornecedoresRequestService."""
         self._runtime = runtime
 
     def create_fornecedor(self, fornecedor: schemas.FornecedorCreate, current_user: models.User, fornecedor_management_service: FornecedorManagementService) -> models.Fornecedor:
@@ -172,7 +172,7 @@ class _FornecedoresServiceGateway:
     """Runtime OO para integrações do router de fornecedores."""
 
     def __init__(self, *, session: Session, services: Optional[_FornecedoresServiceBundle]=None) -> None:
-        """Initialize dependencies used by this component."""
+        """Initialize dependencies for  FornecedoresServiceGateway."""
         self._session = session
         runtime_session_provider = (
             ServiceContainerDependencySupport.build_background_session_provider_from_session(
@@ -488,7 +488,7 @@ class _FornecedoresRequestScope:
     """Workflow/escopo request-scoped para o fluxo de 'fornecedores'."""
 
     def __init__(self, *, session: Session, fornecedor_management_service: FornecedorManagementService) -> None:
-        """Initialize dependencies used by this component."""
+        """Initialize dependencies for  FornecedoresRequestScope."""
         self._fornecedor_management_service = fornecedor_management_service
         self._request_service = _FornecedoresDependencies.get_fornecedores_request_service(session)
 

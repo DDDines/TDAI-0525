@@ -1,6 +1,5 @@
 """Config.
 
-Defines the module responsibilities and how it fits in the backend architecture.
 """
 
 import os
@@ -77,7 +76,7 @@ class ConfigWorkflow:
 
     """Encapsulates Config workflow."""
     def __init__(self, runtime: Optional['ConfigRuntime']=None) -> None:
-        """Initialize required dependencies and runtime configuration."""
+        """Initialize dependencies for ConfigWorkflow."""
         self._runtime = runtime or ConfigRuntime()
 
     def build_settings(self) -> Settings:
@@ -92,7 +91,7 @@ class ConfigRuntime:
         return Path(__file__).resolve().parent.parent.parent / '.env'
 
     def load_dotenv(self, dotenv_path: Path) -> None:
-        """Process Load dotenv."""
+        """Load dotenv."""
         if dotenv_path.exists():
             load_dotenv(dotenv_path=dotenv_path)
             return
@@ -121,7 +120,7 @@ class ConfigRuntime:
         return valid_origins
 
     def configure_database_url(self, settings_obj: Settings) -> None:
-        """Process Configure database url."""
+        """Configure database url."""
         if settings_obj.DATABASE_URL is not None:
             logger.info('DATABASE_URL carregada do .env: %s', settings_obj.DATABASE_URL)
             return
@@ -131,7 +130,7 @@ class ConfigRuntime:
         logger.info('DATABASE_URL nao encontrada no .env. Usando SQLite em: %s', settings_obj.DATABASE_URL)
 
     def configure_cors_origins(self, settings_obj: Settings) -> None:
-        """Process Configure cors origins."""
+        """Configure cors origins."""
         if settings_obj.cors_origins_str:
             try:
                 settings_obj.BACKEND_CORS_ORIGINS = self.parse_cors_origins(settings_obj.cors_origins_str)

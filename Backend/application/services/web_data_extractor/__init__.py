@@ -1,6 +1,5 @@
 """Init.
 
-Defines the module responsibilities and how it fits in the backend architecture.
 """
 
 from Backend.application.services.web_data_extractor.content_service import (

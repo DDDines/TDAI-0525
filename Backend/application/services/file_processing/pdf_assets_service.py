@@ -1,6 +1,5 @@
 """Pdf assets service.
 
-Defines the module responsibilities and how it fits in the backend architecture.
 """
 
 from __future__ import annotations
@@ -16,11 +15,11 @@ class FileProcessingPdfAssetsService:
     """Operacoes de assets de PDF e anotacoes."""
 
     def __init__(self, port: FileProcessingPort) -> None:
-        """Initialize required dependencies and runtime configuration."""
+        """Initialize dependencies for FileProcessingPdfAssetsService."""
         self._port = port
 
     def generate_pdf_page_images(self, file_path: str, file_id: str) -> List[str]:
-        """Process Generate pdf page images."""
+        """Generate pdf page images."""
         return self._port.generate_pdf_page_images(file_path=file_path, file_id=file_id)
 
     def extract_pdf_region_image(

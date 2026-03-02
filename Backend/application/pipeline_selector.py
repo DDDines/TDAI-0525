@@ -1,6 +1,5 @@
 """Pipeline selector.
 
-Defines the module responsibilities and how it fits in the backend architecture.
 """
 
 from __future__ import annotations
@@ -25,7 +24,7 @@ class TaskExecutionPlan:
     task_kwargs: Dict[str, Any]
 
     def to_compare_payload(self) -> Dict[str, Any]:
-        """Process To compare payload."""
+        """To compare payload."""
         return {
             "name": self.name,
             "executor_name": self.executor_name,
@@ -37,7 +36,7 @@ class PipelineSelector:
     """Selects OOP execution plan."""
 
     def __init__(self, context: str):
-        """Initialize required dependencies and runtime configuration."""
+        """Initialize dependencies for PipelineSelector."""
         self.context = context
 
     def select(
@@ -45,7 +44,7 @@ class PipelineSelector:
         *,
         oop_plan: TaskExecutionPlan,
     ) -> TaskExecutionPlan:
-        """Process Select."""
+        """Select."""
         _ = AppModeWorkflow().get_app_mode()
         logger.info("APP_MODE=oop (%s): selecionado plano OOP", self.context)
         return oop_plan

@@ -1,6 +1,5 @@
 """Historico repository.
 
-Defines the module responsibilities and how it fits in the backend architecture.
 """
 
 from __future__ import annotations
@@ -17,7 +16,7 @@ class HistoricoRepository:
     """Repository OO de Historico com Session vinculada por request."""
 
     def __init__(self, db: Session) -> None:
-        """Initialize required dependencies and runtime configuration."""
+        """Initialize dependencies for HistoricoRepository."""
         self._db = db
 
     def create_registro_historico(

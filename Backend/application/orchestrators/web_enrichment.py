@@ -1,6 +1,5 @@
 """Web enrichment.
 
-Defines the module responsibilities and how it fits in the backend architecture.
 """
 
 from __future__ import annotations
@@ -29,7 +28,7 @@ class WebEnrichmentPipelineOrchestrator:
         oop_executor: TaskExecutor,
         context: str = "web_enrichment.start",
     ) -> None:
-        """Initialize required dependencies and runtime configuration."""
+        """Initialize dependencies for WebEnrichmentPipelineOrchestrator."""
         oop_use_case = WebEnrichmentProcessingUseCase(processor=oop_executor)
         self._oop_builder = WebEnrichmentTaskBuilder(
             executor=OOPWebEnrichmentExecutor(oop_use_case)

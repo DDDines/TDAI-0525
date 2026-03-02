@@ -23,45 +23,45 @@ class SocialAuthRequestService:
         self,
         session: Session = Depends(ServiceContainerDependencySupport.get_request_db_session),
     ) -> None:
-        """Initialize required dependencies and runtime configuration."""
+        """Initialize dependencies for SocialAuthRequestService."""
         self._session = session
         self._auth_workflow = AuthWorkflow(session=session)
 
     @staticmethod
     def _has_client(provider: str) -> bool:
-        """Process Has client."""
+        """Has client."""
         return provider in oauth._clients
 
     @staticmethod
     async def _authorize_redirect(provider: str, request: Request, redirect_uri: str):
-        """Process Authorize redirect."""
+        """Authorize redirect."""
         return await getattr(oauth, provider).authorize_redirect(request, redirect_uri)
 
     @staticmethod
     async def _authorize_access_token(provider: str, request: Request):
-        """Process Authorize access token."""
+        """Authorize access token."""
         return await getattr(oauth, provider).authorize_access_token(request)
 
     @staticmethod
     async def _parse_google_id_token(request: Request, token):
-        """Process Parse google id token."""
+        """Parse google id token."""
         return await oauth.google.parse_id_token(request, token)
 
     @staticmethod
     async def _get_userinfo(provider: str, token):
-        """Process Get userinfo."""
+        """Get userinfo."""
         resp = await getattr(oauth, provider).get("userinfo", token=token)
         return resp.json()
 
     def social_login_config(self) -> schemas.SocialLoginConfig:
-        """Process Social login config."""
+        """Social login config."""
         return schemas.SocialLoginConfig(
             google_enabled=self._has_client("google"),
             facebook_enabled=self._has_client("facebook"),
         )
 
     async def google_login(self, request: Request):
-        """Process Google login."""
+        """Google login."""
         if not self._has_client("google"):
             raise HTTPException(
                 status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
@@ -70,7 +70,7 @@ class SocialAuthRequestService:
         return await self._authorize_redirect("google", request, settings.GOOGLE_REDIRECT_URI)
 
     async def google_callback(self, request: Request) -> schemas.Token:
-        """Process Google callback."""
+        """Google callback."""
         if not self._has_client("google"):
             raise HTTPException(
                 status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
@@ -101,7 +101,7 @@ class SocialAuthRequestService:
         return schemas.Token(access_token=access, refresh_token=refresh, token_type="bearer")
 
     async def facebook_login(self, request: Request):
-        """Process Facebook login."""
+        """Facebook login."""
         if not self._has_client("facebook"):
             raise HTTPException(
                 status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
@@ -114,7 +114,7 @@ class SocialAuthRequestService:
         )
 
     async def facebook_callback(self, request: Request) -> schemas.Token:
-        """Process Facebook callback."""
+        """Facebook callback."""
         if not self._has_client("facebook"):
             raise HTTPException(
                 status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
@@ -143,25 +143,25 @@ class SocialAuthRequestService:
 
 @router.get("/social/config", response_model=schemas.SocialLoginConfig)
 async def social_login_config(request_service: SocialAuthRequestService = Depends()):
-    """Process Social login config."""
+    """Social login config."""
     return request_service.social_login_config()
 
 
 @router.get("/google/login")
 async def google_login(request: Request, request_service: SocialAuthRequestService = Depends()):
-    """Process Google login."""
+    """Google login."""
     return await request_service.google_login(request)
 
 
 @router.get("/google/callback", response_model=schemas.Token)
 async def google_callback(request: Request, request_service: SocialAuthRequestService = Depends()):
-    """Process Google callback."""
+    """Google callback."""
     return await request_service.google_callback(request)
 
 
 @router.get("/facebook/login")
 async def facebook_login(request: Request, request_service: SocialAuthRequestService = Depends()):
-    """Process Facebook login."""
+    """Facebook login."""
     return await request_service.facebook_login(request)
 
 
@@ -170,5 +170,5 @@ async def facebook_callback(
     request: Request,
     request_service: SocialAuthRequestService = Depends(),
 ):
-    """Process Facebook callback."""
+    """Facebook callback."""
     return await request_service.facebook_callback(request)

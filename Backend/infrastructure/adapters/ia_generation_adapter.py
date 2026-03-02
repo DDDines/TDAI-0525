@@ -1,6 +1,5 @@
 """Ia generation adapter.
 
-Defines the module responsibilities and how it fits in the backend architecture.
 """
 
 from __future__ import annotations
@@ -17,7 +16,7 @@ class IAGenerationServiceAdapter:
     """OOP port adapter backed by the current IA generation implementation."""
 
     def __init__(self, runtime: IAGenerationWorkflow | None = None) -> None:
-        """Initialize required dependencies and runtime configuration."""
+        """Initialize dependencies for IAGenerationServiceAdapter."""
         self._runtime = runtime or IAGenerationWorkflow()
 
     async def gerar_titulos_com_openai(
@@ -28,7 +27,7 @@ class IAGenerationServiceAdapter:
         user: models.User,
         num_titulos: int = 3,
     ) -> list[str]:
-        """Process Gerar titulos com openai."""
+        """Gerar titulos com openai."""
         return await self._runtime.gerar_titulos_com_openai(
             db=session,
             produto_id=produto_id,
@@ -44,7 +43,7 @@ class IAGenerationServiceAdapter:
         user: models.User,
         tamanho_palavras: int = 150,
     ) -> str:
-        """Process Gerar descricao com openai."""
+        """Gerar descricao com openai."""
         return await self._runtime.gerar_descricao_com_openai(
             db=session,
             produto_id=produto_id,
@@ -60,7 +59,7 @@ class IAGenerationServiceAdapter:
         user: models.User,
         num_titulos: int = 3,
     ) -> list[str]:
-        """Process Gerar titulos com gemini."""
+        """Gerar titulos com gemini."""
         return await self._runtime.gerar_titulos_com_gemini(
             db=session,
             produto_id=produto_id,
@@ -76,7 +75,7 @@ class IAGenerationServiceAdapter:
         user: models.User,
         tamanho_palavras: int = 150,
     ) -> str:
-        """Process Gerar descricao com gemini."""
+        """Gerar descricao com gemini."""
         return await self._runtime.gerar_descricao_com_gemini(
             db=session,
             produto_id=produto_id,
@@ -91,7 +90,7 @@ class IAGenerationServiceAdapter:
         produto_id: int,
         user: models.User,
     ) -> schemas.SugestoesAtributosResponse:
-        """Process Sugerir valores atributos com gemini."""
+        """Sugerir valores atributos com gemini."""
         return await self._runtime.sugerir_valores_atributos_com_gemini(
             db=session,
             produto_id=produto_id,

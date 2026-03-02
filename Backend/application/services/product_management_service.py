@@ -1,6 +1,5 @@
 """Product management service.
 
-Defines the module responsibilities and how it fits in the backend architecture.
 """
 
 from __future__ import annotations
@@ -24,7 +23,7 @@ class ProductManagementService:
         historico_repo: Any,
         uso_ia_repo: Any,
     ) -> None:
-        """Initialize required dependencies and runtime configuration."""
+        """Initialize dependencies for ProductManagementService."""
         self._models = models
         self._schemas = schemas
         self._produto_repo = produto_repo
@@ -35,19 +34,19 @@ class ProductManagementService:
 
     @staticmethod
     def _ensure_owner_or_superuser(*, db_obj: Any, current_user: Any, forbidden_detail: str) -> None:
-        """Process Ensure owner or superuser."""
+        """Ensure owner or superuser."""
         if not current_user.is_superuser and db_obj.user_id != current_user.id:
             raise HTTPException(status_code=403, detail=forbidden_detail)
 
     def _get_produto_or_404(self, *, produto_id: int) -> Any:
-        """Process Get produto or 404."""
+        """Get produto or 404."""
         db_produto = self._produto_repo.get_produto(produto_id=produto_id)
         if db_produto is None:
             raise HTTPException(status_code=404, detail="Produto nao encontrado")
         return db_produto
 
     def _ensure_fornecedor_exists(self, *, fornecedor_id: int) -> None:
-        """Process Ensure fornecedor exists."""
+        """Ensure fornecedor exists."""
         fornecedor = self._fornecedor_repo.get_fornecedor(fornecedor_id=fornecedor_id)
         if not fornecedor:
             raise HTTPException(
@@ -56,7 +55,7 @@ class ProductManagementService:
             )
 
     def _ensure_product_type_exists(self, *, product_type_id: int) -> None:
-        """Process Ensure product type exists."""
+        """Ensure product type exists."""
         product_type = self._product_type_repo.get_product_type(
             product_type_id=product_type_id,
         )
@@ -108,7 +107,7 @@ class ProductManagementService:
         produto_id: int,
         current_user: Any,
     ) -> Any:
-        """Process Read produto."""
+        """Read produto."""
         db_produto = self._get_produto_or_404(produto_id=produto_id)
         self._ensure_owner_or_superuser(
             db_obj=db_produto,
@@ -242,7 +241,7 @@ class ProductManagementService:
         produto_ids: list[int],
         current_user: Any,
     ) -> list[Any]:
-        """Process Batch delete produtos."""
+        """Batch delete produtos."""
         deleted_produtos: list[Any] = []
         not_found_ids: list[int] = []
         not_authorized_ids: list[int] = []

@@ -1,6 +1,5 @@
 """Web enrichment processing.
 
-Defines the module responsibilities and how it fits in the backend architecture.
 """
 
 from __future__ import annotations
@@ -20,7 +19,7 @@ class WebEnrichmentProcessingUseCase:
     """
 
     def __init__(self, processor: TaskExecutor):
-        """Initialize required dependencies and runtime configuration."""
+        """Initialize dependencies for WebEnrichmentProcessingUseCase."""
         self._processor = processor
 
     async def execute_command(
@@ -28,7 +27,7 @@ class WebEnrichmentProcessingUseCase:
         *,
         command: WebEnrichmentStartCommand,
     ) -> Any:
-        """Process Execute command."""
+        """Execute command."""
         produto_id = self._require_positive_int(command.produto_id, "produto_id")
         user_id = self._require_positive_int(command.user_id, "user_id")
         termos_busca_override = self._normalize_search_terms(command.termos_busca_override)
@@ -46,7 +45,7 @@ class WebEnrichmentProcessingUseCase:
         user_id: Any,
         termos_busca_override: Any = None,
     ) -> Any:
-        """Process Execute."""
+        """Execute."""
         command = WebEnrichmentStartCommand(
             produto_id=produto_id,
             user_id=user_id,
@@ -58,7 +57,7 @@ class WebEnrichmentProcessingUseCase:
 
     @staticmethod
     def _require_positive_int(raw_value: Any, field_name: str) -> int:
-        """Process Require positive int."""
+        """Require positive int."""
         try:
             value = int(raw_value)
         except (TypeError, ValueError):
@@ -69,7 +68,7 @@ class WebEnrichmentProcessingUseCase:
 
     @staticmethod
     def _normalize_search_terms(raw_terms: Any) -> Optional[str]:
-        """Process Normalize search terms."""
+        """Normalize search terms."""
         if raw_terms is None:
             return None
         text = str(raw_terms).strip()

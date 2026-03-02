@@ -1,6 +1,5 @@
 """Pdf ingestion service.
 
-Defines the module responsibilities and how it fits in the backend architecture.
 """
 
 from __future__ import annotations
@@ -16,7 +15,7 @@ class FileProcessingPdfIngestionService:
     """Ingestao e extracao de PDF."""
 
     def __init__(self, port: FileProcessingPort) -> None:
-        """Initialize required dependencies and runtime configuration."""
+        """Initialize dependencies for FileProcessingPdfIngestionService."""
         self._port = port
 
     async def processar_arquivo_pdf(
@@ -28,7 +27,7 @@ class FileProcessingPdfIngestionService:
         pages: Optional[List[int]] = None,
         region: Optional[List[float]] = None,
     ) -> List[Dict[str, Any]]:
-        """Process Processar arquivo pdf."""
+        """Processar arquivo pdf."""
         return await self._port.processar_arquivo_pdf(
             conteudo_arquivo=conteudo_arquivo,
             mapeamento_colunas_usuario=mapeamento_colunas_usuario,
@@ -44,7 +43,7 @@ class FileProcessingPdfIngestionService:
         page_number: int,
         region: Optional[List[float]] = None,
     ) -> Dict[str, Any]:
-        """Process Extrair pagina pdf."""
+        """Extrair pagina pdf."""
         return await self._port.extrair_pagina_pdf(
             conteudo_pdf=conteudo_pdf,
             page_number=page_number,
@@ -71,7 +70,7 @@ class FileProcessingPdfIngestionService:
         start_page: int = 1,
         mapping: Optional[Dict[str, str]] = None,
     ) -> None:
-        """Process pdf job."""
+        """Pdf job."""
         return await self._port.process_pdf_job(
             job_id=job_id,
             pdf_path=pdf_path,

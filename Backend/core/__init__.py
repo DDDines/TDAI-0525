@@ -3,6 +3,5 @@
 # Ele marca o diretório 'core' como um subpacote de 'app'.
 """Init.
 
-Defines the module responsibilities and how it fits in the backend architecture.
 """
 

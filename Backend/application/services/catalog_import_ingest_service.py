@@ -31,7 +31,7 @@ class CatalogImportIngestService:
         uso_ia_repo: Any,
         historico_repo: Any,
     ) -> None:
-        """Initialize dependencies used by this component."""
+        """Initialize dependencies for CatalogImportIngestService."""
         self._schemas = schemas
         self._models = models
         self._fornecedor_repo = fornecedor_repo

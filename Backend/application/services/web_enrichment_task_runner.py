@@ -1,6 +1,5 @@
 """Web enrichment task runner.
 
-Defines the module responsibilities and how it fits in the backend architecture.
 """
 
 from __future__ import annotations
@@ -38,7 +37,7 @@ class WebEnrichmentTaskRunner:
         product_repository_factory: Any,
         usage_repository_factory: Any,
     ) -> None:
-        """Initialize required dependencies and runtime configuration."""
+        """Initialize dependencies for WebEnrichmentTaskRunner."""
         self._kwargs = {
             "session_provider": session_provider,
             "logger": logger,
@@ -63,13 +62,13 @@ class WebEnrichmentTaskRunner:
         self._service: WebEnrichmentTaskService | None = None
 
     def _build(self) -> WebEnrichmentTaskService:
-        """Process Build."""
+        """Build."""
         build_kwargs = dict(self._kwargs)
         build_kwargs["web_extractor"] = self._web_extractor
         return WebEnrichmentTaskService(**build_kwargs)
 
     def _get_service(self) -> WebEnrichmentTaskService:
-        """Process Get service."""
+        """Get service."""
         if self._service is None:
             self._service = self._build()
         return self._service
@@ -81,7 +80,7 @@ class WebEnrichmentTaskRunner:
         user_id: int,
         termos_busca_override: Optional[str] = None,
     ) -> None:
-        """Process Execute."""
+        """Execute."""
         await self._get_service().execute(
             produto_id=produto_id,
             user_id=user_id,

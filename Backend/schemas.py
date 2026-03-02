@@ -1,7 +1,6 @@
 # Caminho: Backend/schemas.py
 """Schemas.
 
-Defines the module responsibilities and how it fits in the backend architecture.
 """
 
 

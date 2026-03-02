@@ -16,12 +16,12 @@ class FornecedorRepository:
     """Repository OO de Fornecedor com Session vinculada por request."""
 
     def __init__(self, db: Session) -> None:
-        """Initialize required dependencies and runtime configuration."""
+        """Initialize dependencies for FornecedorRepository."""
         self._db = db
 
     @staticmethod
     def _normalize_supplier_url_fields(data: dict) -> None:
-        """Process Normalize supplier url fields."""
+        """Normalize supplier url fields."""
         if data.get("site_url") is not None:
             data["site_url"] = str(data["site_url"])
         if data.get("link_busca_padrao") is not None:
@@ -29,7 +29,7 @@ class FornecedorRepository:
 
     @staticmethod
     def _apply_fornecedor_search_filter(query, search: Optional[str]):
-        """Process Apply fornecedor search filter."""
+        """Apply fornecedor search filter."""
         if not search:
             return query
 
@@ -43,7 +43,7 @@ class FornecedorRepository:
         )
 
     def _validate_fornecedor_uniqueness(self, *, user_id: int, fornecedor_data: dict) -> None:
-        """Process Validate fornecedor uniqueness."""
+        """Validate fornecedor uniqueness."""
         existing_fornecedor = (
             self._db.query(Fornecedor)
             .filter(
@@ -166,7 +166,7 @@ class FornecedorRepository:
         nome: str,
         exclude_id: Optional[int] = None,
     ) -> bool:
-        """Process Exists fornecedor with name for user."""
+        """Exists fornecedor with name for user."""
         query = self._db.query(Fornecedor).filter(
             Fornecedor.user_id == user_id,
             func.lower(Fornecedor.nome) == func.lower(nome),
@@ -181,7 +181,7 @@ class FornecedorRepository:
         db_fornecedor: Fornecedor,
         mapping: Optional[dict],
     ) -> Fornecedor:
-        """Process Set default column mapping."""
+        """Set default column mapping."""
         db_fornecedor.default_column_mapping = mapping
         self._db.add(db_fornecedor)
         self._db.commit()

@@ -1,6 +1,5 @@
 """Contracts.
 
-Defines the module responsibilities and how it fits in the backend architecture.
 """
 
 from __future__ import annotations
@@ -170,7 +169,7 @@ class FileProcessingPort(Protocol):
         start_page: int = 1,
         mapping: Optional[Dict[str, str]] = None,
     ) -> None:
-        """Process a long-running PDF extraction job."""
+        """A long-running pdf extraction job."""
         ...
 
     def extract_data_from_single_page(

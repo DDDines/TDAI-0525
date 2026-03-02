@@ -1,6 +1,5 @@
 """Generation task service.
 
-Defines the module responsibilities and how it fits in the backend architecture.
 """
 
 from __future__ import annotations
@@ -25,7 +24,7 @@ class GenerationTaskService:
         user_repository_factory: Any,
         product_repository_factory: Any,
     ) -> None:
-        """Initialize required dependencies and runtime configuration."""
+        """Initialize dependencies for GenerationTaskService."""
         self._session_provider = session_provider
         self._user_repository_factory = user_repository_factory
         self._product_repository_factory = product_repository_factory
@@ -34,18 +33,18 @@ class GenerationTaskService:
         self._logger = logger
 
     def _get_user_access(self, session: Session) -> Any:
-        """Process Get user access."""
+        """Get user access."""
         return self._user_repository_factory(session)
 
     def _get_product_access(self, session: Session) -> Any:
-        """Process Get product access."""
+        """Get product access."""
         return self._product_repository_factory(session)
 
     def _resolve_generation_targets(
         self,
         tipo_geracao_principal: str,
     ) -> Optional[Tuple[str, str]]:
-        """Process Resolve generation targets."""
+        """Resolve generation targets."""
         if tipo_geracao_principal == "titulo":
             return "status_titulo_ia", "titulos_sugeridos"
         if tipo_geracao_principal == "descricao":
@@ -57,7 +56,7 @@ class GenerationTaskService:
         current_log: Any,
         action: str,
     ) -> list:
-        """Process Append process log."""
+        """Append process log."""
         log_obj = list(current_log or [])
         log_obj.append(
             {

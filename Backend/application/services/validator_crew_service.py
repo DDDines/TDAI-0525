@@ -1,6 +1,5 @@
 """Validator crew service.
 
-Defines the module responsibilities and how it fits in the backend architecture.
 """
 
 from __future__ import annotations
@@ -29,7 +28,7 @@ class ValidatorCrewService:
         logger: Any = None,
         runner: Optional[Any] = None,
     ) -> None:
-        """Initialize required dependencies and runtime configuration."""
+        """Initialize dependencies for ValidatorCrewService."""
         self._logger = logger
         if runner is not None:
             self._runner = runner

@@ -1,6 +1,5 @@
 """Fornecedor management service.
 
-Defines the module responsibilities and how it fits in the backend architecture.
 """
 
 from __future__ import annotations
@@ -21,7 +20,7 @@ class FornecedorManagementService:
         fornecedor_repo: Any,
         historico_repo: Any,
     ) -> None:
-        """Initialize required dependencies and runtime configuration."""
+        """Initialize dependencies for FornecedorManagementService."""
         self._models = models
         self._schemas = schemas
         self._fornecedor_repo = fornecedor_repo

@@ -1,6 +1,5 @@
 """Orchestrator service.
 
-Defines the module responsibilities and how it fits in the backend architecture.
 """
 
 from __future__ import annotations
@@ -35,7 +34,7 @@ class WebDataExtractorOrchestratorService:
     """Servico OO unificado para extracao de dados da web."""
 
     def __init__(self, port: WebDataExtractorPort) -> None:
-        """Initialize required dependencies and runtime configuration."""
+        """Initialize dependencies for WebDataExtractorOrchestratorService."""
         self.search = WebDataExtractorSearchService(port)
         self.content = WebDataExtractorContentService(port)
         self.metadata = WebDataExtractorMetadataService(port)
@@ -43,7 +42,7 @@ class WebDataExtractorOrchestratorService:
         self.ocr = WebDataExtractorOCRService(port)
 
     def busca_publica_disponivel(self) -> bool:
-        """Process Busca publica disponivel."""
+        """Busca publica disponivel."""
         return self.search.busca_publica_disponivel()
 
     async def buscar_urls_publicas(
@@ -51,7 +50,7 @@ class WebDataExtractorOrchestratorService:
         query: str,
         num_results: int = 3,
     ) -> List[str]:
-        """Process Buscar urls publicas."""
+        """Buscar urls publicas."""
         return await self.search.buscar_urls_publicas(
             query=query,
             num_results=num_results,
@@ -62,21 +61,21 @@ class WebDataExtractorOrchestratorService:
         query: str,
         num_results: int = 3,
     ) -> List[str]:
-        """Process Buscar urls google."""
+        """Buscar urls google."""
         return await self.search.buscar_urls_google(
             query=query,
             num_results=num_results,
         )
 
     async def coletar_conteudo_pagina_playwright(self, url: str) -> Optional[str]:
-        """Process Coletar conteudo pagina playwright."""
+        """Coletar conteudo pagina playwright."""
         return await self.content.coletar_conteudo_pagina_playwright(url=url)
 
     def extrair_texto_principal_com_trafilatura(
         self,
         html_content: str,
     ) -> Optional[str]:
-        """Process Extrair texto principal com trafilatura."""
+        """Extrair texto principal com trafilatura."""
         return self.content.extrair_texto_principal_com_trafilatura(
             html_content=html_content
         )
@@ -86,7 +85,7 @@ class WebDataExtractorOrchestratorService:
         html_content: str,
         url: str,
     ) -> Dict[str, Any]:
-        """Process Extrair metadados estruturados."""
+        """Extrair metadados estruturados."""
         return self.metadata.extrair_metadados_estruturados(
             html_content=html_content,
             url=url,
@@ -96,7 +95,7 @@ class WebDataExtractorOrchestratorService:
         self,
         metadata_bruta: Dict[str, Any],
     ) -> Dict[str, Any]:
-        """Process Normalizar dados de metadados."""
+        """Normalizar dados de metadados."""
         return self.metadata.normalizar_dados_de_metadados(
             metadata_bruta=metadata_bruta
         )
@@ -109,7 +108,7 @@ class WebDataExtractorOrchestratorService:
         produto_nome_base: str = "Produto",
         user: Optional[models.User] = None,
     ) -> Optional[Dict[str, Any]]:
-        """Process Extrair dados produto com llm."""
+        """Extrair dados produto com llm."""
         return await self.llm.extrair_dados_produto_com_llm(
             texto_pagina=texto_pagina,
             metadados_normalizados=metadados_normalizados,

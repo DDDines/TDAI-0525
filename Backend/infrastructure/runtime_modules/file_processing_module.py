@@ -1,6 +1,5 @@
 """File processing module.
 
-Defines the module responsibilities and how it fits in the backend architecture.
 """
 
 import pandas as pd
@@ -128,7 +127,7 @@ class _FileProcessingImplementation:
 
     @staticmethod
     def _norm_text(v: Any) -> str:
-        """Process Norm text."""
+        """Norm text."""
         return LineNormalizationRuntime().norm_text(v)
 
     @staticmethod
@@ -158,37 +157,37 @@ class _FileProcessingImplementation:
 
     @staticmethod
     async def _processar_arquivo_excel_impl(conteudo_arquivo: bytes, mapeamento_colunas_usuario: Optional[Dict[str, str]]=None, sheet_name: Optional[str]=None, product_type_id: Optional[int]=None) -> List[Dict[str, Any]]:
-        """Process Processar arquivo excel impl."""
+        """Processar arquivo excel impl."""
         return await TabularIngestionEngineRuntime().processar_arquivo_excel(conteudo_arquivo=conteudo_arquivo, mapeamento_colunas_usuario=mapeamento_colunas_usuario, sheet_name=sheet_name, product_type_id=product_type_id)
 
     @staticmethod
     async def _processar_arquivo_csv_impl(conteudo_arquivo: bytes, mapeamento_colunas_usuario: Optional[Dict[str, str]]=None, product_type_id: Optional[int]=None) -> List[Dict[str, Any]]:
-        """Process Processar arquivo csv impl."""
+        """Processar arquivo csv impl."""
         return await TabularIngestionEngineRuntime().processar_arquivo_csv(conteudo_arquivo=conteudo_arquivo, mapeamento_colunas_usuario=mapeamento_colunas_usuario, product_type_id=product_type_id)
 
     @staticmethod
     async def _processar_arquivo_pdf_impl(conteudo_arquivo: bytes, mapeamento_colunas_usuario: Optional[Dict[str, str]]=None, usar_llm: bool=True, product_type_id: Optional[int]=None, pages: Optional[List[int]]=None, region: Optional[List[float]]=None) -> List[Dict[str, Any]]:
-        """Process Processar arquivo pdf impl."""
+        """Processar arquivo pdf impl."""
         return await PdfIngestionRuntime().processar_arquivo_pdf(conteudo_arquivo=conteudo_arquivo, mapeamento_colunas_usuario=mapeamento_colunas_usuario, usar_llm=usar_llm, product_type_id=product_type_id, pages=pages, region=region)
 
     @staticmethod
     async def _preview_arquivo_excel_impl(conteudo_arquivo: bytes, max_rows: int=5) -> Dict[str, Any]:
-        """Process Preview arquivo excel impl."""
+        """Preview arquivo excel impl."""
         return await TabularPreviewEngineRuntime().preview_arquivo_excel(conteudo_arquivo=conteudo_arquivo, max_rows=max_rows)
 
     @staticmethod
     async def _preview_arquivo_csv_impl(conteudo_arquivo: bytes, max_rows: int=5) -> Dict[str, Any]:
-        """Process Preview arquivo csv impl."""
+        """Preview arquivo csv impl."""
         return await TabularPreviewEngineRuntime().preview_arquivo_csv(conteudo_arquivo=conteudo_arquivo, max_rows=max_rows)
 
     @staticmethod
     async def _preview_arquivo_pdf_impl(conteudo_arquivo: bytes, ext: str, start_page: int=1, page_count: int=1, dpi: int=72) -> Dict[str, Any]:
-        """Process Preview arquivo pdf impl."""
+        """Preview arquivo pdf impl."""
         return await PdfPreviewRuntime().preview_arquivo_pdf(conteudo_arquivo=conteudo_arquivo, ext=ext, start_page=start_page, page_count=page_count, dpi=dpi)
 
     @staticmethod
     async def _gerar_preview_impl(conteudo_arquivo: bytes, ext: str, max_rows: int=5) -> Dict[str, Any]:
-        """Process Gerar preview impl."""
+        """Gerar preview impl."""
         return await PreviewDispatchRuntime().gerar_preview(conteudo_arquivo=conteudo_arquivo, ext=ext, max_rows=max_rows)
 
     @staticmethod
@@ -478,7 +477,7 @@ class _FileProcessingImplementation:
 
     @staticmethod
     async def _process_pdf_job_impl(job_id: int, pdf_path: str, start_page: int=1, mapping: Optional[Dict[str, str]]=None) -> None:
-        """Process remaining pages of a PDF catalog import job."""
+        """Remaining pages of a pdf catalog import job."""
         db: Optional[Session] = None
         catalog_file_repository: Optional[CatalogImportFileRepository] = None
         catalog_file: Optional[models.CatalogImportFile] = None
@@ -613,23 +612,23 @@ class _FileProcessingImplementation:
 
     @staticmethod
     def _generate_pdf_page_images_impl(file_path: str, file_id: str) -> List[str]:
-        """Process Generate pdf page images impl."""
+        """Generate pdf page images impl."""
         return PdfAssetUtilityRuntime().generate_pdf_page_images(file_path=file_path, file_id=file_id)
 
     @staticmethod
     def _extract_pdf_region_image_impl(file_path: str, page_number: int, region: Optional[List[float]]=None, dpi: int=300) -> bytes:
-        """Process Extract pdf region image impl."""
+        """Extract pdf region image impl."""
         return PdfAssetUtilityRuntime().extract_pdf_region_image(file_path=file_path, page_number=page_number, region=region, dpi=dpi)
 
     @staticmethod
     def _parse_annotation_to_dataframe_impl(annotation: object, vertical_tolerance: int=5) -> pd.DataFrame:
-        """Process Parse annotation to dataframe impl."""
+        """Parse annotation to dataframe impl."""
         return PdfAssetUtilityRuntime().parse_annotation_to_dataframe(annotation=annotation, vertical_tolerance=vertical_tolerance)
 class OcrRuntimeState:
     """Estado de OCR encapsulado por instancia, sem variaveis globais mutaveis."""
 
     def __init__(self) -> None:
-        """Initialize required dependencies and runtime configuration."""
+        """Initialize dependencies for OcrRuntimeState."""
         self.available = False
         self.exec_available = False
         self.exec_failed_once = False
@@ -638,7 +637,7 @@ class OcrRuntimeState:
         self._initialize()
 
     def _initialize(self) -> None:
-        """Process Initialize."""
+        """Initialize."""
         try:
             import pytesseract as pytesseract_module
             from PIL import Image as pil_image_cls
@@ -668,7 +667,7 @@ class LineNormalizationRuntime:
     """Runtime OO para normalizacao de valores, mapeamento e split SKU/Nome."""
 
     def limpar_valor_extraido(self, valor: Any) -> Optional[str]:
-        """Process Limpar valor extraido."""
+        """Limpar valor extraido."""
         if valor is None:
             return None
         try:
@@ -680,7 +679,7 @@ class LineNormalizationRuntime:
             return None
 
     def valor_tem_conteudo_util(self, valor: Any) -> bool:
-        """Process Valor tem conteudo util."""
+        """Valor tem conteudo util."""
         if valor is None:
             return False
         cleaned = str(valor).strip()
@@ -691,11 +690,11 @@ class LineNormalizationRuntime:
         return True
 
     def norm_text(self, value: Any) -> str:
-        """Process Norm text."""
+        """Norm text."""
         return str(value).lower().strip()
 
     def normalizar_mapeamento_usuario(self, mapeamento_colunas_usuario: Optional[Dict[str, str]], linha_original: Dict[str, Any]) -> Dict[str, str]:
-        """Process Normalizar mapeamento usuario."""
+        """Normalizar mapeamento usuario."""
         if not mapeamento_colunas_usuario:
             return {}
         linha_keys = {self.norm_text(key) for key in linha_original.keys()}
@@ -723,7 +722,7 @@ class LineNormalizationRuntime:
         return normalized
 
     def coerce_region_bbox(self, region: Optional[List[float]], page_width: float, page_height: float) -> tuple[Optional[tuple[float, float, float, float]], Optional[str]]:
-        """Process Coerce region bbox."""
+        """Coerce region bbox."""
         if not region or len(region) != 4:
             return (None, None)
         try:
@@ -747,7 +746,7 @@ class LineNormalizationRuntime:
         return ((x0, y0, x1, y1), 'normalized' if normalized_mode else 'absolute')
 
     def token_looks_like_code(self, token: str) -> bool:
-        """Process Token looks like code."""
+        """Token looks like code."""
         value = token.strip().upper()
         if not value or len(value) > 32:
             return False
@@ -764,7 +763,7 @@ class LineNormalizationRuntime:
         return False
 
     def split_sku_nome_auto(self, value: str) -> tuple[Optional[str], Optional[str]]:
-        """Process Split sku nome auto."""
+        """Split sku nome auto."""
         tokens = [tok for tok in str(value).split() if tok]
         if not tokens:
             return (None, None)
@@ -804,7 +803,7 @@ class LineMappingWorkflow:
     _FALLBACK_SKU_COLUMNS = {'n fab', 'no fab', 'nfab', 'fab'}
 
     def __init__(self, runtime: Optional['LineMappingRuntime']=None) -> None:
-        """Initialize required dependencies and runtime configuration."""
+        """Initialize dependencies for LineMappingWorkflow."""
         self._runtime = runtime
 
     def processar_linha_padronizada(self, linha_original: Dict[str, Any], mapeamento_colunas_usuario: Optional[Dict[str, str]]=None) -> Optional[Dict[str, Any]]:
@@ -904,17 +903,17 @@ class LineMappingRuntime:
     """Runtime OO para reutilizar a rotina padrÃƒÂ£o de mapeamento de linha."""
 
     def __init__(self, workflow: Optional['LineMappingWorkflow']=None) -> None:
-        """Initialize required dependencies and runtime configuration."""
+        """Initialize dependencies for LineMappingRuntime."""
         self._workflow = workflow or LineMappingWorkflow()
 
     def processar_linha_padronizada(self, linha_original: Dict[str, Any], mapeamento_colunas_usuario: Optional[Dict[str, str]]=None) -> Optional[Dict[str, Any]]:
-        """Process Processar linha padronizada."""
+        """Processar linha padronizada."""
         return self._workflow.processar_linha_padronizada(linha_original=linha_original, mapeamento_colunas_usuario=mapeamento_colunas_usuario)
 class TabularIngestionEngineRuntime:
     """Runtime OO para ingestao de arquivos tabulares (Excel/CSV)."""
 
     async def processar_arquivo_excel(self, conteudo_arquivo: bytes, mapeamento_colunas_usuario: Optional[Dict[str, str]]=None, sheet_name: Optional[str]=None, product_type_id: Optional[int]=None) -> List[Dict[str, Any]]:
-        """Process Processar arquivo excel."""
+        """Processar arquivo excel."""
         produtos_extraidos: List[Dict[str, Any]] = []
         try:
             xls = pd.ExcelFile(io.BytesIO(conteudo_arquivo))
@@ -935,7 +934,7 @@ class TabularIngestionEngineRuntime:
             return [{'erro_processamento_excel': f'Falha ao ler arquivo Excel: {str(e)}'}]
 
     async def processar_arquivo_csv(self, conteudo_arquivo: bytes, mapeamento_colunas_usuario: Optional[Dict[str, str]]=None, product_type_id: Optional[int]=None) -> List[Dict[str, Any]]:
-        """Process Processar arquivo csv."""
+        """Processar arquivo csv."""
         produtos_extraidos: List[Dict[str, Any]] = []
         try:
             try:
@@ -976,11 +975,11 @@ class PdfIngestionRuntime:
     """Runtime OO para ingestao de PDF."""
 
     def __init__(self, web_data_extractor_service: Optional[Any]=None) -> None:
-        """Initialize required dependencies and runtime configuration."""
+        """Initialize dependencies for PdfIngestionRuntime."""
         self._web_data_extractor_service = web_data_extractor_service or WebDataExtractorServiceAdapter()
 
     def _append_produto(self, produtos_extraidos: List[Dict[str, Any]], produto_padronizado: Optional[Dict[str, Any]], product_type_id: Optional[int]) -> None:
-        """Process Append produto."""
+        """Append produto."""
         if not produto_padronizado:
             return
         if product_type_id is not None:
@@ -988,7 +987,7 @@ class PdfIngestionRuntime:
         produtos_extraidos.append(produto_padronizado)
 
     async def processar_arquivo_pdf(self, conteudo_arquivo: bytes, mapeamento_colunas_usuario: Optional[Dict[str, str]]=None, usar_llm: bool=True, product_type_id: Optional[int]=None, pages: Optional[List[int]]=None, region: Optional[List[float]]=None) -> List[Dict[str, Any]]:
-        """Process Processar arquivo pdf."""
+        """Processar arquivo pdf."""
         produtos_extraidos: List[Dict[str, Any]] = []
         log_pdf: List[str] = []
         temp_pdf_path: Optional[Path] = None
@@ -1121,14 +1120,14 @@ class TabularPreviewEngineRuntime:
     """Runtime OO para preview de planilhas/tabulares."""
 
     def _decode_csv_bytes(self, conteudo_arquivo: bytes) -> str:
-        """Process Decode csv bytes."""
+        """Decode csv bytes."""
         try:
             return conteudo_arquivo.decode('utf-8-sig')
         except UnicodeDecodeError:
             return conteudo_arquivo.decode('latin-1')
 
     def _detect_csv_delimiter(self, conteudo_str: str) -> str:
-        """Process Detect csv delimiter."""
+        """Detect csv delimiter."""
         sample = conteudo_str[:1024]
         try:
             dialect = csv.Sniffer().sniff(sample, delimiters=[',', ';', '\t', '|'])
@@ -1142,7 +1141,7 @@ class TabularPreviewEngineRuntime:
             return ','
 
     async def preview_arquivo_excel(self, conteudo_arquivo: bytes, max_rows: int=5) -> Dict[str, Any]:
-        """Process Preview arquivo excel."""
+        """Preview arquivo excel."""
         try:
             df = pd.read_excel(io.BytesIO(conteudo_arquivo), sheet_name=0)
             headers = [str(col) for col in df.columns]
@@ -1153,7 +1152,7 @@ class TabularPreviewEngineRuntime:
             return {'error': f'Falha ao ler arquivo Excel: {str(e)}'}
 
     async def preview_arquivo_csv(self, conteudo_arquivo: bytes, max_rows: int=5) -> Dict[str, Any]:
-        """Process Preview arquivo csv."""
+        """Preview arquivo csv."""
         try:
             conteudo_str = self._decode_csv_bytes(conteudo_arquivo)
             delimitador = self._detect_csv_delimiter(conteudo_str)
@@ -1173,7 +1172,7 @@ class PdfPreviewRuntime:
     """Runtime OO para preview de PDF."""
 
     def __init__(self, preview_executor: Optional[ThreadPoolExecutor]=None, max_preview_workers: Optional[int]=None) -> None:
-        """Initialize required dependencies and runtime configuration."""
+        """Initialize dependencies for PdfPreviewRuntime."""
         self._max_preview_workers = (
             int(os.getenv('PDF_PREVIEW_WORKERS', '0'))
             if max_preview_workers is None
@@ -1182,13 +1181,13 @@ class PdfPreviewRuntime:
         self._preview_executor = preview_executor or self._build_preview_executor()
 
     def _build_preview_executor(self) -> Optional[ThreadPoolExecutor]:
-        """Process Build preview executor."""
+        """Build preview executor."""
         if self._max_preview_workers <= 0:
             return None
         return ThreadPoolExecutor(max_workers=self._max_preview_workers)
 
     def _resolve_poppler_path(self) -> Optional[str]:
-        """Process Resolve poppler path."""
+        """Resolve poppler path."""
         return os.getenv('POPPLER_PATH') or settings.POPPLER_PATH
 
     def _build_page_processor(
@@ -1197,7 +1196,7 @@ class PdfPreviewRuntime:
         dpi: int,
         poppler_path: Optional[str],
     ):
-        """Process Build page processor."""
+        """Build page processor."""
         return partial(
             self._process_page,
             conteudo_arquivo=conteudo_arquivo,
@@ -1213,7 +1212,7 @@ class PdfPreviewRuntime:
         dpi: int,
         poppler_path: Optional[str],
     ) -> Dict[str, Any]:
-        """Process Process page."""
+        """Build preview metadata for a single PDF page."""
         with pdf_open(io.BytesIO(conteudo_arquivo)) as reader:
             page = reader.pages[page_number - 1]
             tables = page.extract_tables()
@@ -1248,7 +1247,7 @@ class PdfPreviewRuntime:
         return result
 
     async def preview_arquivo_pdf(self, conteudo_arquivo: bytes, ext: str, start_page: int=1, page_count: int=1, dpi: int=72) -> Dict[str, Any]:
-        """Process Preview arquivo pdf."""
+        """Preview arquivo pdf."""
         start = time.perf_counter()
         poppler_dir = self._resolve_poppler_path()
         pdftoppm_path = shutil.which('pdftoppm', path=poppler_dir) if poppler_dir else shutil.which('pdftoppm')
@@ -1291,13 +1290,13 @@ class PreviewDispatchRuntime:
     """Runtime OO para despacho de preview por extensao."""
 
     def __init__(self, tabular_preview_runtime: Optional[TabularPreviewEngineRuntime]=None, pdf_preview_runtime: Optional[PdfPreviewRuntime]=None, extractor_factory: Optional['_PreviewExtractorFactory']=None) -> None:
-        """Initialize required dependencies and runtime configuration."""
+        """Initialize dependencies for PreviewDispatchRuntime."""
         self._tabular_preview_runtime = tabular_preview_runtime or TabularPreviewEngineRuntime()
         self._pdf_preview_runtime = pdf_preview_runtime or PdfPreviewRuntime()
         self._extractor_factory = extractor_factory or _PreviewExtractorFactory(excel_extractor=_ExcelPreviewExtractor(self._tabular_preview_runtime), csv_extractor=_CsvPreviewExtractor(self._tabular_preview_runtime), pdf_extractor=_PdfPreviewExtractor(self._pdf_preview_runtime))
 
     async def gerar_preview(self, conteudo_arquivo: bytes, ext: str, max_rows: int=5) -> Dict[str, Any]:
-        """Process Gerar preview."""
+        """Gerar preview."""
         ext_norm = ext.lower()
         extractor = self._extractor_factory.get_extractor(ext_norm)
         return await extractor.extract(conteudo_arquivo=conteudo_arquivo, ext=ext_norm, max_rows=max_rows)
@@ -1306,18 +1305,18 @@ class _PreviewExtractor:
 
     """Encapsulates Preview extractor."""
     async def extract(self, *, conteudo_arquivo: bytes, ext: str, max_rows: int) -> Dict[str, Any]:
-        """Process Extract."""
+        """Extract."""
         raise NotImplementedError
 
 class _ExcelPreviewExtractor(_PreviewExtractor):
 
     """Encapsulates Excel preview extractor."""
     def __init__(self, tabular_preview_runtime: TabularPreviewEngineRuntime) -> None:
-        """Initialize required dependencies and runtime configuration."""
+        """Initialize dependencies for  ExcelPreviewExtractor."""
         self._tabular_preview_runtime = tabular_preview_runtime
 
     async def extract(self, *, conteudo_arquivo: bytes, ext: str, max_rows: int) -> Dict[str, Any]:
-        """Process Extract."""
+        """Extract."""
         _ = ext
         return await self._tabular_preview_runtime.preview_arquivo_excel(conteudo_arquivo=conteudo_arquivo, max_rows=max_rows)
 
@@ -1325,11 +1324,11 @@ class _CsvPreviewExtractor(_PreviewExtractor):
 
     """Encapsulates Csv preview extractor."""
     def __init__(self, tabular_preview_runtime: TabularPreviewEngineRuntime) -> None:
-        """Initialize required dependencies and runtime configuration."""
+        """Initialize dependencies for  CsvPreviewExtractor."""
         self._tabular_preview_runtime = tabular_preview_runtime
 
     async def extract(self, *, conteudo_arquivo: bytes, ext: str, max_rows: int) -> Dict[str, Any]:
-        """Process Extract."""
+        """Extract."""
         _ = ext
         return await self._tabular_preview_runtime.preview_arquivo_csv(conteudo_arquivo=conteudo_arquivo, max_rows=max_rows)
 
@@ -1337,11 +1336,11 @@ class _PdfPreviewExtractor(_PreviewExtractor):
 
     """Encapsulates Pdf preview extractor."""
     def __init__(self, pdf_preview_runtime: PdfPreviewRuntime) -> None:
-        """Initialize required dependencies and runtime configuration."""
+        """Initialize dependencies for  PdfPreviewExtractor."""
         self._pdf_preview_runtime = pdf_preview_runtime
 
     async def extract(self, *, conteudo_arquivo: bytes, ext: str, max_rows: int) -> Dict[str, Any]:
-        """Process Extract."""
+        """Extract."""
         _ = max_rows
         return await self._pdf_preview_runtime.preview_arquivo_pdf(conteudo_arquivo=conteudo_arquivo, ext=ext, start_page=1, page_count=1)
 
@@ -1349,7 +1348,7 @@ class _PreviewExtractorFactory:
 
     """Encapsulates Preview extractor factory."""
     def __init__(self, *, excel_extractor: _PreviewExtractor, csv_extractor: _PreviewExtractor, pdf_extractor: _PreviewExtractor) -> None:
-        """Initialize required dependencies and runtime configuration."""
+        """Initialize dependencies for  PreviewExtractorFactory."""
         self._extractors = {'.xlsx': excel_extractor, '.xls': excel_extractor, '.csv': csv_extractor, '.pdf': pdf_extractor}
 
     def get_extractor(self, ext_norm: str) -> _PreviewExtractor:
@@ -1363,11 +1362,11 @@ class PdfImageConversionRuntime:
     """Runtime OO para conversao de bytes PDF em imagens base64."""
 
     def _resolve_poppler_path(self) -> Optional[str]:
-        """Process Resolve poppler path."""
+        """Resolve poppler path."""
         return os.getenv('POPPLER_PATH') or settings.POPPLER_PATH
 
     def _ensure_poppler_available(self, poppler_dir: Optional[str]) -> Optional[str]:
-        """Process Ensure poppler available."""
+        """Ensure poppler available."""
         pdftoppm_path = shutil.which('pdftoppm', path=poppler_dir) if poppler_dir else shutil.which('pdftoppm')
         if pdftoppm_path is None:
             msg = 'Poppler (pdftoppm) executable not found. Install poppler-utilson Linux or set POPPLER_PATH to its directory.'
@@ -1376,7 +1375,7 @@ class PdfImageConversionRuntime:
         return poppler_dir
 
     def _convert_sync(self, conteudo_arquivo: bytes, max_pages: int, start_page: int, dpi: int) -> List[str]:
-        """Process Convert sync."""
+        """Convert sync."""
         poppler_dir = self._resolve_poppler_path()
         poppler_path = self._ensure_poppler_available(poppler_dir)
         last_page = None if max_pages == 0 else start_page + max_pages - 1
@@ -1396,7 +1395,7 @@ class PdfImageConversionRuntime:
         return result
 
     async def pdf_bytes_to_images(self, conteudo_arquivo: bytes, max_pages: int=1, start_page: int=1, dpi: int=200) -> List[str]:
-        """Process Pdf bytes to images."""
+        """Pdf bytes to images."""
         loop = asyncio.get_running_loop()
         return await loop.run_in_executor(None, lambda: self._convert_sync(conteudo_arquivo=conteudo_arquivo, max_pages=max_pages, start_page=start_page, dpi=dpi))
 
@@ -1405,7 +1404,7 @@ class _PdfRegionExtractionUtils:
     """Encapsulates Pdf region extraction utils."""
     @staticmethod
     def make_unique(cols: List[Any]) -> List[str]:
-        """Process Make unique."""
+        """Make unique."""
         seen: Dict[str, int] = {}
         unique: List[str] = []
         for col in cols:
@@ -1418,7 +1417,7 @@ class _PdfRegionExtractionUtils:
 
     @staticmethod
     def clean_df(df: pd.DataFrame) -> pd.DataFrame:
-        """Process Clean df."""
+        """Clean df."""
         if df is None or df.empty:
             return pd.DataFrame()
         df = df.dropna(axis=1, how='all')
@@ -1428,7 +1427,7 @@ class _PdfRegionExtractionUtils:
 
     @staticmethod
     def median_int(values: List[int], default: int) -> int:
-        """Process Median int."""
+        """Median int."""
         if not values:
             return default
         sorted_values = sorted(values)
@@ -1439,7 +1438,7 @@ class _PdfRegionExtractionUtils:
 
     @staticmethod
     def cluster_positions(x_values: List[int], tolerance: int) -> List[int]:
-        """Process Cluster positions."""
+        """Cluster positions."""
         clusters: List[int] = []
         for x in x_values:
             if not clusters or abs(x - clusters[-1]) > tolerance:
@@ -1458,7 +1457,7 @@ class _PdfRegionExtractionUtils:
 
     @classmethod
     def header_field_for_text(cls, text: str) -> Optional[str]:
-        """Process Header field for text."""
+        """Header field for text."""
         t = cls.normalize_ocr_snippet(text)
         if not t:
             return None
@@ -1476,7 +1475,7 @@ class _PdfRegionExtractionUtils:
 
     @classmethod
     def detect_header_columns(cls, merged_lines: List[List[Dict[str, Any]]]) -> Optional[Dict[str, Any]]:
-        """Process Detect header columns."""
+        """Detect header columns."""
         if not merged_lines:
             return None
         ratio_by_field = {'n_fab': 0.04, 'n_original': 0.2, 'descricao': 0.38, 'aplicacao': 0.67, 'material': 0.88}
@@ -1520,7 +1519,7 @@ class _PdfRegionExtractionUtils:
 
     @classmethod
     def is_header_like_row(cls, text: str) -> bool:
-        """Process Is header like row."""
+        """Is header like row."""
         norm = cls.normalize_ocr_snippet(text)
         if not norm:
             return False
@@ -1530,7 +1529,7 @@ class _PdfRegionExtractionUtils:
 
     @classmethod
     def filter_ocr_rows(cls, raw_rows: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
-        """Process Filter ocr rows."""
+        """Filter ocr rows."""
         filtered_rows: List[Dict[str, Any]] = []
         for row in raw_rows:
             cleaned_row = {k: (v or '').strip() for k, v in row.items()}
@@ -1552,7 +1551,7 @@ class _PdfRegionExtractionUtils:
 
     @classmethod
     def tables_to_df(cls, tables: List[List[List[Any]]]) -> pd.DataFrame:
-        """Process Tables to df."""
+        """Tables to df."""
         rows: List[Dict[str, Any]] = []
         headers: List[str] = []
         for table in tables:
@@ -1569,7 +1568,7 @@ class _PdfRegionExtractionUtils:
 
     @staticmethod
     def group_words_by_line_ids(words: List[Dict[str, Any]]) -> List[List[Dict[str, Any]]]:
-        """Process Group words by line ids."""
+        """Group words by line ids."""
         buckets: Dict[tuple[int, int, int], List[Dict[str, Any]]] = {}
         for word in words:
             line_num = int(word.get('line', 0) or 0)
@@ -1583,7 +1582,7 @@ class _PdfRegionExtractionUtils:
 
     @classmethod
     def group_words_by_y(cls, words: List[Dict[str, Any]]) -> List[List[Dict[str, Any]]]:
-        """Process Group words by y."""
+        """Group words by y."""
         if not words:
             return []
         heights = [int(w.get('h', 0) or 0) for w in words if int(w.get('h', 0) or 0) > 0]
@@ -1599,7 +1598,7 @@ class _PdfRegionExtractionUtils:
 
     @classmethod
     def merge_words_in_line(cls, line_words: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
-        """Process Merge words in line."""
+        """Merge words in line."""
         if not line_words:
             return []
         sorted_words = sorted(line_words, key=lambda item: item['x'])
@@ -1633,7 +1632,7 @@ class PdfAssetUtilityRuntime:
     """Runtime OO para utilitarios de assets PDF."""
 
     def generate_pdf_page_images(self, file_path: str, file_id: str) -> List[str]:
-        """Process Generate pdf page images."""
+        """Generate pdf page images."""
         try:
             import fitz
         except Exception as e:
@@ -1720,11 +1719,11 @@ class CatalogStorageWorkflow:
     """Workflow OO para operacoes de storage de catalogo."""
 
     def __init__(self, runtime: Optional['CatalogStorageRuntime']=None) -> None:
-        """Initialize required dependencies and runtime configuration."""
+        """Initialize dependencies for CatalogStorageWorkflow."""
         self._runtime = runtime or CatalogStorageRuntime()
 
     async def save_uploaded_catalog(self, file: UploadFile, fornecedor_id: Optional[int]=None) -> models.CatalogImportFile:
-        """Process Save uploaded catalog."""
+        """Save uploaded catalog."""
         return await self._runtime.save_uploaded_catalog(file=file, fornecedor_id=fornecedor_id)
 
     def delete_catalog_file(self, stored_filename: str) -> None:
@@ -1739,7 +1738,7 @@ class CatalogStorageRuntime:
 
     """Encapsulates Catalog storage runtime."""
     async def save_uploaded_catalog(self, file: UploadFile, fornecedor_id: Optional[int]=None) -> models.CatalogImportFile:
-        """Process Save uploaded catalog."""
+        """Save uploaded catalog."""
         return await _FileProcessingImplementation._save_uploaded_catalog_impl(file=file, fornecedor_id=fornecedor_id)
 
     def delete_catalog_file(self, stored_filename: str) -> None:
@@ -1753,63 +1752,63 @@ class TabularIngestionWorkflow:
     """Workflow OO para ingestÃƒÆ’Ã‚Â£o de arquivos tabulares (Excel/CSV)."""
 
     def __init__(self, runtime: Optional['TabularIngestionRuntime']=None) -> None:
-        """Initialize required dependencies and runtime configuration."""
+        """Initialize dependencies for TabularIngestionWorkflow."""
         self._runtime = runtime or TabularIngestionRuntime()
 
     async def processar_arquivo_excel(self, conteudo_arquivo: bytes, mapeamento_colunas_usuario: Optional[Dict[str, str]]=None, sheet_name: Optional[str]=None, product_type_id: Optional[int]=None) -> List[Dict[str, Any]]:
-        """Process Processar arquivo excel."""
+        """Processar arquivo excel."""
         return await self._runtime.processar_arquivo_excel(conteudo_arquivo=conteudo_arquivo, mapeamento_colunas_usuario=mapeamento_colunas_usuario, sheet_name=sheet_name, product_type_id=product_type_id)
 
     async def processar_arquivo_csv(self, conteudo_arquivo: bytes, mapeamento_colunas_usuario: Optional[Dict[str, str]]=None, product_type_id: Optional[int]=None) -> List[Dict[str, Any]]:
-        """Process Processar arquivo csv."""
+        """Processar arquivo csv."""
         return await self._runtime.processar_arquivo_csv(conteudo_arquivo=conteudo_arquivo, mapeamento_colunas_usuario=mapeamento_colunas_usuario, product_type_id=product_type_id)
 
 class TabularIngestionRuntime:
 
     """Encapsulates Tabular ingestion runtime."""
     async def processar_arquivo_excel(self, conteudo_arquivo: bytes, mapeamento_colunas_usuario: Optional[Dict[str, str]]=None, sheet_name: Optional[str]=None, product_type_id: Optional[int]=None) -> List[Dict[str, Any]]:
-        """Process Processar arquivo excel."""
+        """Processar arquivo excel."""
         return await _FileProcessingImplementation._processar_arquivo_excel_impl(conteudo_arquivo=conteudo_arquivo, mapeamento_colunas_usuario=mapeamento_colunas_usuario, sheet_name=sheet_name, product_type_id=product_type_id)
 
     async def processar_arquivo_csv(self, conteudo_arquivo: bytes, mapeamento_colunas_usuario: Optional[Dict[str, str]]=None, product_type_id: Optional[int]=None) -> List[Dict[str, Any]]:
-        """Process Processar arquivo csv."""
+        """Processar arquivo csv."""
         return await _FileProcessingImplementation._processar_arquivo_csv_impl(conteudo_arquivo=conteudo_arquivo, mapeamento_colunas_usuario=mapeamento_colunas_usuario, product_type_id=product_type_id)
 class TabularPreviewWorkflow:
     """Workflow OO para preview tabular (Excel/CSV)."""
 
     def __init__(self, runtime: Optional['TabularPreviewRuntime']=None) -> None:
-        """Initialize required dependencies and runtime configuration."""
+        """Initialize dependencies for TabularPreviewWorkflow."""
         self._runtime = runtime or TabularPreviewRuntime()
 
     async def preview_arquivo_excel(self, conteudo_arquivo: bytes, max_rows: int=5) -> Dict[str, Any]:
-        """Process Preview arquivo excel."""
+        """Preview arquivo excel."""
         return await self._runtime.preview_arquivo_excel(conteudo_arquivo=conteudo_arquivo, max_rows=max_rows)
 
     async def preview_arquivo_csv(self, conteudo_arquivo: bytes, max_rows: int=5) -> Dict[str, Any]:
-        """Process Preview arquivo csv."""
+        """Preview arquivo csv."""
         return await self._runtime.preview_arquivo_csv(conteudo_arquivo=conteudo_arquivo, max_rows=max_rows)
 
 class TabularPreviewRuntime:
 
     """Encapsulates Tabular preview runtime."""
     async def preview_arquivo_excel(self, conteudo_arquivo: bytes, max_rows: int=5) -> Dict[str, Any]:
-        """Process Preview arquivo excel."""
+        """Preview arquivo excel."""
         return await _FileProcessingImplementation._preview_arquivo_excel_impl(conteudo_arquivo=conteudo_arquivo, max_rows=max_rows)
 
     async def preview_arquivo_csv(self, conteudo_arquivo: bytes, max_rows: int=5) -> Dict[str, Any]:
-        """Process Preview arquivo csv."""
+        """Preview arquivo csv."""
         return await _FileProcessingImplementation._preview_arquivo_csv_impl(conteudo_arquivo=conteudo_arquivo, max_rows=max_rows)
 class PdfAssetRuntime:
     """Runtime OO para dependencias de utilitarios de imagem/regiao de PDF."""
     RUNTIME_FIELDS = ('pdf_image_runtime', 'pdf_asset_runtime')
 
     def __init__(self, *, pdf_image_runtime: Optional[Any]=None, pdf_asset_runtime: Optional[Any]=None) -> None:
-        """Initialize required dependencies and runtime configuration."""
+        """Initialize dependencies for PdfAssetRuntime."""
         self.pdf_image_runtime = pdf_image_runtime or PdfImageConversionRuntime()
         self.pdf_asset_runtime = pdf_asset_runtime or PdfAssetUtilityRuntime()
 
     def apply_overrides(self, runtime: Any) -> 'PdfAssetRuntime':
-        """Process Apply overrides."""
+        """Apply overrides."""
         for field_name in self.RUNTIME_FIELDS:
             setattr(self, field_name, getattr(runtime, field_name, getattr(self, field_name)))
         return self
@@ -1818,7 +1817,7 @@ class PdfAssetWorkflow:
     """Workflow OO para utilitarios de imagem/regiao de PDF."""
 
     def __init__(self, runtime: Optional[Any]=None, pdf_image_runtime: Optional[PdfImageConversionRuntime]=None, pdf_asset_runtime: Optional[PdfAssetRuntime]=None) -> None:
-        """Initialize required dependencies and runtime configuration."""
+        """Initialize dependencies for PdfAssetWorkflow."""
         runtime_obj = PdfAssetRuntime(pdf_image_runtime=pdf_image_runtime, pdf_asset_runtime=pdf_asset_runtime)
         if runtime is not None:
             runtime_obj.apply_overrides(runtime)
@@ -1827,19 +1826,19 @@ class PdfAssetWorkflow:
         self._pdf_asset_runtime = runtime_obj.pdf_asset_runtime
 
     async def pdf_bytes_to_images(self, conteudo_arquivo: bytes, max_pages: int=1, start_page: int=1, dpi: int=200) -> List[str]:
-        """Process Pdf bytes to images."""
+        """Pdf bytes to images."""
         return await self._pdf_image_runtime.pdf_bytes_to_images(conteudo_arquivo=conteudo_arquivo, max_pages=max_pages, start_page=start_page, dpi=dpi)
 
     def pdf_pages_to_images(self, db: Session, file: UploadFile, fornecedor_id: int, user_id: int, offset: int, limit: int) -> Dict[str, Any]:
-        """Process Pdf pages to images."""
+        """Pdf pages to images."""
         return _FileProcessingImplementation._pdf_pages_to_images_impl(db=db, file=file, fornecedor_id=fornecedor_id, user_id=user_id, offset=offset, limit=limit)
 
     async def extrair_pagina_pdf(self, conteudo_pdf: bytes, page_number: int, region: Optional[List[float]]=None) -> Dict[str, Any]:
-        """Process Extrair pagina pdf."""
+        """Extrair pagina pdf."""
         return await _FileProcessingImplementation._extrair_pagina_pdf_impl(conteudo_pdf=conteudo_pdf, page_number=page_number, region=region)
 
     def generate_pdf_page_images(self, file_path: str, file_id: str) -> List[str]:
-        """Process Generate pdf page images."""
+        """Generate pdf page images."""
         return self._pdf_asset_runtime.generate_pdf_page_images(file_path=file_path, file_id=file_id)
 
     def extract_pdf_region_image(self, file_path: str, page_number: int, region: Optional[List[float]]=None, dpi: int=300) -> bytes:
@@ -1854,7 +1853,7 @@ class PdfProcessingRuntime:
     RUNTIME_FIELDS = ('pdf_ingestion_runtime', 'pdf_preview_runtime', 'preview_dispatch_runtime', 'extract_data_from_pdf_region', 'ocr_runtime_state')
 
     def __init__(self, *, pdf_ingestion_runtime: Optional[Any]=None, pdf_preview_runtime: Optional[Any]=None, preview_dispatch_runtime: Optional[Any]=None, extract_data_from_pdf_region: Optional[Any]=None, ocr_runtime_state: Optional[OcrRuntimeState]=None) -> None:
-        """Initialize required dependencies and runtime configuration."""
+        """Initialize dependencies for PdfProcessingRuntime."""
         self.pdf_ingestion_runtime = pdf_ingestion_runtime or PdfIngestionRuntime()
         self.pdf_preview_runtime = pdf_preview_runtime or PdfPreviewRuntime()
         self.preview_dispatch_runtime = preview_dispatch_runtime or PreviewDispatchRuntime()
@@ -1869,7 +1868,7 @@ class PdfProcessingRuntime:
         )
 
     def apply_overrides(self, runtime: Any) -> 'PdfProcessingRuntime':
-        """Process Apply overrides."""
+        """Apply overrides."""
         for field_name in self.RUNTIME_FIELDS:
             setattr(self, field_name, getattr(runtime, field_name, getattr(self, field_name)))
         return self
@@ -1878,7 +1877,7 @@ class PdfProcessingWorkflow:
     """Workflow OO para processamento e preview de PDF."""
 
     def __init__(self, runtime: Optional[Any]=None, pdf_ingestion_runtime: Optional[Any]=None, pdf_preview_runtime: Optional[Any]=None, preview_dispatch_runtime: Optional[Any]=None) -> None:
-        """Initialize required dependencies and runtime configuration."""
+        """Initialize dependencies for PdfProcessingWorkflow."""
         runtime_obj = PdfProcessingRuntime(pdf_ingestion_runtime=pdf_ingestion_runtime, pdf_preview_runtime=pdf_preview_runtime, preview_dispatch_runtime=preview_dispatch_runtime)
         if runtime is not None:
             runtime_obj.apply_overrides(runtime)
@@ -1889,15 +1888,15 @@ class PdfProcessingWorkflow:
         self._preview_dispatch_runtime = runtime_obj.preview_dispatch_runtime
 
     async def processar_arquivo_pdf(self, conteudo_arquivo: bytes, mapeamento_colunas_usuario: Optional[Dict[str, str]]=None, usar_llm: bool=True, product_type_id: Optional[int]=None, pages: Optional[List[int]]=None, region: Optional[List[float]]=None) -> List[Dict[str, Any]]:
-        """Process Processar arquivo pdf."""
+        """Processar arquivo pdf."""
         return await self._pdf_ingestion_runtime.processar_arquivo_pdf(conteudo_arquivo=conteudo_arquivo, mapeamento_colunas_usuario=mapeamento_colunas_usuario, usar_llm=usar_llm, product_type_id=product_type_id, pages=pages, region=region)
 
     async def preview_arquivo_pdf(self, conteudo_arquivo: bytes, ext: str, start_page: int=1, page_count: int=1, dpi: int=72) -> Dict[str, Any]:
-        """Process Preview arquivo pdf."""
+        """Preview arquivo pdf."""
         return await self._pdf_preview_runtime.preview_arquivo_pdf(conteudo_arquivo=conteudo_arquivo, ext=ext, start_page=start_page, page_count=page_count, dpi=dpi)
 
     async def gerar_preview(self, conteudo_arquivo: bytes, ext: str, max_rows: int=5) -> Dict[str, Any]:
-        """Process Gerar preview."""
+        """Gerar preview."""
         return await self._preview_dispatch_runtime.gerar_preview(conteudo_arquivo=conteudo_arquivo, ext=ext, max_rows=max_rows)
 
     def extract_data_from_pdf_region(self, file_path: str, page_number: int, region: Optional[List[float]]=None) -> pd.DataFrame:
@@ -1907,11 +1906,11 @@ class PdfJobWorkflow:
     """Workflow OO para processamento assÃƒÆ’Ã‚\xadncrono de jobs de PDF."""
 
     def __init__(self, runtime: Optional['PdfJobRuntime']=None) -> None:
-        """Initialize required dependencies and runtime configuration."""
+        """Initialize dependencies for PdfJobWorkflow."""
         self._runtime = runtime or PdfJobRuntime()
 
     async def process_pdf_job(self, job_id: int, pdf_path: str, start_page: int=1, mapping: Optional[Dict[str, str]]=None) -> None:
-        """Process pdf job."""
+        """Pdf job."""
         await self._runtime.process_pdf_job(job_id=job_id, pdf_path=pdf_path, start_page=start_page, mapping=mapping)
 
     def extract_data_from_single_page(self, file_path: str, page_number: int) -> Dict[str, Any]:
@@ -1922,7 +1921,7 @@ class PdfJobRuntime:
 
     """Encapsulates Pdf job runtime."""
     async def process_pdf_job(self, job_id: int, pdf_path: str, start_page: int=1, mapping: Optional[Dict[str, str]]=None) -> None:
-        """Process pdf job."""
+        """Pdf job."""
         await _FileProcessingImplementation._process_pdf_job_impl(job_id=job_id, pdf_path=pdf_path, start_page=start_page, mapping=mapping)
 
     def extract_data_from_single_page(self, file_path: str, page_number: int) -> Dict[str, Any]:
@@ -1932,7 +1931,7 @@ class FileProcessingRuntime:
     """Composicao OO para fluxos de processamento de arquivo sem estado global."""
 
     def __init__(self, *, catalog_storage_workflow: Optional[CatalogStorageWorkflow]=None, line_mapping_workflow: Optional[LineMappingWorkflow]=None, tabular_ingestion_workflow: Optional[TabularIngestionWorkflow]=None, tabular_preview_workflow: Optional[TabularPreviewWorkflow]=None, pdf_asset_workflow: Optional[PdfAssetWorkflow]=None, pdf_processing_workflow: Optional[PdfProcessingWorkflow]=None, pdf_job_workflow: Optional[PdfJobWorkflow]=None) -> None:
-        """Initialize required dependencies and runtime configuration."""
+        """Initialize dependencies for FileProcessingRuntime."""
         self._catalog_storage = catalog_storage_workflow or CatalogStorageWorkflow()
         self._line_mapping = line_mapping_workflow or LineMappingWorkflow()
         self._tabular_ingestion = tabular_ingestion_workflow or TabularIngestionWorkflow()
@@ -1946,7 +1945,7 @@ class FileProcessingRuntime:
         file: UploadFile,
         fornecedor_id: Optional[int] = None,
     ) -> models.CatalogImportFile:
-        """Process Save uploaded catalog."""
+        """Save uploaded catalog."""
         return await self._catalog_storage.save_uploaded_catalog(
             file=file,
             fornecedor_id=fornecedor_id,
@@ -1967,7 +1966,7 @@ class FileProcessingRuntime:
         sheet_name: Optional[str] = None,
         product_type_id: Optional[int] = None,
     ) -> List[Dict[str, Any]]:
-        """Process Processar arquivo excel."""
+        """Processar arquivo excel."""
         return await self._tabular_ingestion.processar_arquivo_excel(
             conteudo_arquivo=conteudo_arquivo,
             mapeamento_colunas_usuario=mapeamento_colunas_usuario,
@@ -1981,7 +1980,7 @@ class FileProcessingRuntime:
         mapeamento_colunas_usuario: Optional[Dict[str, str]] = None,
         product_type_id: Optional[int] = None,
     ) -> List[Dict[str, Any]]:
-        """Process Processar arquivo csv."""
+        """Processar arquivo csv."""
         return await self._tabular_ingestion.processar_arquivo_csv(
             conteudo_arquivo=conteudo_arquivo,
             mapeamento_colunas_usuario=mapeamento_colunas_usuario,
@@ -1997,7 +1996,7 @@ class FileProcessingRuntime:
         pages: Optional[List[int]] = None,
         region: Optional[List[float]] = None,
     ) -> List[Dict[str, Any]]:
-        """Process Processar arquivo pdf."""
+        """Processar arquivo pdf."""
         return await self._pdf_processing.processar_arquivo_pdf(
             conteudo_arquivo=conteudo_arquivo,
             mapeamento_colunas_usuario=mapeamento_colunas_usuario,
@@ -2012,7 +2011,7 @@ class FileProcessingRuntime:
         conteudo_arquivo: bytes,
         max_rows: int = 5,
     ) -> Dict[str, Any]:
-        """Process Preview arquivo excel."""
+        """Preview arquivo excel."""
         return await self._tabular_preview.preview_arquivo_excel(
             conteudo_arquivo=conteudo_arquivo,
             max_rows=max_rows,
@@ -2023,7 +2022,7 @@ class FileProcessingRuntime:
         conteudo_arquivo: bytes,
         max_rows: int = 5,
     ) -> Dict[str, Any]:
-        """Process Preview arquivo csv."""
+        """Preview arquivo csv."""
         return await self._tabular_preview.preview_arquivo_csv(
             conteudo_arquivo=conteudo_arquivo,
             max_rows=max_rows,
@@ -2037,7 +2036,7 @@ class FileProcessingRuntime:
         page_count: int = 1,
         dpi: int = 72,
     ) -> Dict[str, Any]:
-        """Process Preview arquivo pdf."""
+        """Preview arquivo pdf."""
         return await self._pdf_processing.preview_arquivo_pdf(
             conteudo_arquivo=conteudo_arquivo,
             ext=ext,
@@ -2052,7 +2051,7 @@ class FileProcessingRuntime:
         ext: str,
         max_rows: int = 5,
     ) -> Dict[str, Any]:
-        """Process Gerar preview."""
+        """Gerar preview."""
         return await self._pdf_processing.gerar_preview(
             conteudo_arquivo=conteudo_arquivo,
             ext=ext,
@@ -2066,7 +2065,7 @@ class FileProcessingRuntime:
         start_page: int = 1,
         dpi: int = 200,
     ) -> List[str]:
-        """Process Pdf bytes to images."""
+        """Pdf bytes to images."""
         return await self._pdf_asset.pdf_bytes_to_images(
             conteudo_arquivo=conteudo_arquivo,
             max_pages=max_pages,
@@ -2083,7 +2082,7 @@ class FileProcessingRuntime:
         offset: int,
         limit: int,
     ) -> Dict[str, Any]:
-        """Process Pdf pages to images."""
+        """Pdf pages to images."""
         return self._pdf_asset.pdf_pages_to_images(
             db=db,
             file=file,
@@ -2099,7 +2098,7 @@ class FileProcessingRuntime:
         page_number: int,
         region: Optional[List[float]] = None,
     ) -> Dict[str, Any]:
-        """Process Extrair pagina pdf."""
+        """Extrair pagina pdf."""
         return await self._pdf_asset.extrair_pagina_pdf(
             conteudo_pdf=conteudo_pdf,
             page_number=page_number,
@@ -2107,7 +2106,7 @@ class FileProcessingRuntime:
         )
 
     def generate_pdf_page_images(self, file_path: str, file_id: str) -> List[str]:
-        """Process Generate pdf page images."""
+        """Generate pdf page images."""
         return self._pdf_asset.generate_pdf_page_images(file_path=file_path, file_id=file_id)
 
     def extract_pdf_region_image(
@@ -2156,7 +2155,7 @@ class FileProcessingRuntime:
         start_page: int = 1,
         mapping: Optional[Dict[str, str]] = None,
     ) -> None:
-        """Process pdf job."""
+        """Pdf job."""
         return await self._pdf_job.process_pdf_job(
             job_id=job_id,
             pdf_path=pdf_path,
@@ -2180,7 +2179,7 @@ class FileProcessingRuntime:
         linha_original: Dict[str, Any],
         mapeamento_colunas_usuario: Optional[Dict[str, str]] = None,
     ) -> Optional[Dict[str, Any]]:
-        """Process Processar linha padronizada."""
+        """Processar linha padronizada."""
         return self._line_mapping.processar_linha_padronizada(
             linha_original=linha_original,
             mapeamento_colunas_usuario=mapeamento_colunas_usuario,

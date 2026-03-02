@@ -73,7 +73,7 @@ class MainBootstrapRuntime:
         return static_files_path
 
     async def startup_event_create_defaults(self) -> None:
-        """Process Startup event create defaults."""
+        """Startup event create defaults."""
         logger.info('Executando startup para criar defaults (roles, planos, admin, product types)...')
         session: Session = SessionLocal()
         try:
@@ -105,7 +105,7 @@ class MainBootstrapRuntime:
 
     @staticmethod
     def _ensure_tables() -> None:
-        """Process Ensure tables."""
+        """Ensure tables."""
         try:
             logger.info('AUTO_CREATE_TABLES habilitado - criando/verificando tabelas...')
             models.Base.metadata.create_all(bind=engine)
@@ -115,7 +115,7 @@ class MainBootstrapRuntime:
 
     @staticmethod
     def _ensure_roles(*, user_repo: UserRepository) -> Tuple[Optional[models.Role], Optional[models.Role]]:
-        """Process Ensure roles."""
+        """Ensure roles."""
         roles_a_criar = [{'name': 'admin', 'description': 'Administrador do sistema com acesso total.'}, {'name': 'user', 'description': 'Usuario padrao com acesso as funcionalidades do seu plano.'}]
         admin_role_obj: Optional[models.Role] = None
         user_role_obj: Optional[models.Role] = None
@@ -136,7 +136,7 @@ class MainBootstrapRuntime:
 
     @staticmethod
     def _ensure_planos(*, user_repo: UserRepository) -> Tuple[Optional[models.Plano], Optional[models.Plano]]:
-        """Process Ensure planos."""
+        """Ensure planos."""
         plano_gratuito_data = schemas.PlanoCreate(nome='Gratuito', descricao='Plano basico gratuito com limitacoes.', preco_mensal=0.0, limite_produtos=settings.DEFAULT_LIMIT_PRODUTOS_SEM_PLANO, limite_enriquecimento_web=settings.DEFAULT_LIMIT_ENRIQUECIMENTO_SEM_PLANO, limite_geracao_ia=settings.DEFAULT_LIMIT_GERACAO_IA_SEM_PLANO, permite_api_externa=False, suporte_prioritario=False)
         plano_pro_data = schemas.PlanoCreate(nome='Pro', descricao='Plano profissional com mais limites e funcionalidades.', preco_mensal=49.9, limite_produtos=1000, limite_enriquecimento_web=500, limite_geracao_ia=2000, permite_api_externa=True, suporte_prioritario=True)
         admin_plano_obj: Optional[models.Plano] = None
@@ -158,7 +158,7 @@ class MainBootstrapRuntime:
         return (admin_plano_obj, plano_gratuito_obj)
 
     def _ensure_admin_user(self, *, session: Session, user_repo: UserRepository, admin_role_obj: Optional[models.Role], admin_plano_obj: Optional[models.Plano], plano_gratuito_obj: Optional[models.Plano]) -> Optional[models.User]:
-        """Process Ensure admin user."""
+        """Ensure admin user."""
         admin_user = user_repo.get_user_by_email(email=settings.ADMIN_EMAIL)
         if not admin_user:
             if not admin_role_obj:
@@ -204,7 +204,7 @@ class MainBootstrapRuntime:
 
     @staticmethod
     def _ensure_global_product_types(*, product_type_repo: ProductTypeRepository) -> None:
-        """Process Ensure global product types."""
+        """Ensure global product types."""
         product_types_data = [{'key_name': 'eletronicos', 'friendly_name': 'Eletronicos', 'description': 'Tipo padrao para produtos eletronicos.', 'attribute_templates': [{'attribute_key': 'marca', 'label': 'Marca', 'field_type': models.AttributeFieldTypeEnum.TEXT, 'is_required': True, 'display_order': 0, 'description': 'Marca do produto eletronico'}, {'attribute_key': 'voltagem', 'label': 'Voltagem', 'field_type': models.AttributeFieldTypeEnum.SELECT, 'options': '["110v", "220v", "Bivolt"]', 'is_required': True, 'display_order': 1, 'description': 'Selecione a voltagem'}, {'attribute_key': 'cor_principal', 'label': 'Cor Principal', 'field_type': models.AttributeFieldTypeEnum.TEXT, 'is_required': False, 'display_order': 2, 'description': 'Cor predominante do produto'}]}, {'key_name': 'vestuario', 'friendly_name': 'Vestuario', 'description': 'Tipo padrao para pecas de vestuario.', 'attribute_templates': [{'attribute_key': 'tamanho', 'label': 'Tamanho', 'field_type': models.AttributeFieldTypeEnum.SELECT, 'options': '["P", "M", "G", "GG", "XG"]', 'is_required': True, 'display_order': 1, 'description': 'Selecione o tamanho da peca'}, {'attribute_key': 'cor', 'label': 'Cor', 'field_type': models.AttributeFieldTypeEnum.TEXT, 'is_required': True, 'display_order': 2, 'description': 'Cor da peca de vestuario'}, {'attribute_key': 'material', 'label': 'Material Principal', 'field_type': models.AttributeFieldTypeEnum.TEXT, 'is_required': False, 'display_order': 3, 'description': 'Material principal da confeccao'}]}]
         for pt_data in product_types_data:
             product_type_in_db = product_type_repo.get_product_type_by_key_name(key_name=pt_data['key_name'], user_id=None)
@@ -216,7 +216,7 @@ class MainBootstrapRuntime:
 
     @staticmethod
     def _ensure_default_supplier(*, session: Session, admin_user: Optional[models.User], fornecedor_repo: FornecedorRepository) -> None:
-        """Process Ensure default supplier."""
+        """Ensure default supplier."""
         if not admin_user:
             return
         fornecedor_existente = session.query(models.Fornecedor).filter(func.lower(models.Fornecedor.nome) == 'uouu', models.Fornecedor.user_id == admin_user.id).first()
@@ -228,7 +228,7 @@ class MainBootstrapRuntime:
 
     @staticmethod
     def _ensure_default_product(*, session: Session, admin_user: Optional[models.User], product_repo: ProductRepository) -> None:
-        """Process Ensure default product."""
+        """Ensure default product."""
         if not admin_user:
             return
         if session.query(models.Produto).count() != 0:
@@ -238,7 +238,7 @@ class MainBootstrapRuntime:
 
     @staticmethod
     def _assign_default_role_and_plan(*, user_repo: UserRepository, user_in: schemas.UserCreate) -> None:
-        """Process Assign default role and plan."""
+        """Assign default role and plan."""
         plano_id_para_novo_usuario = user_in.plano_id
         plano_gratuito_obj_check = user_repo.get_plano_by_name(nome='Gratuito')
         if plano_id_para_novo_usuario is None:
@@ -258,7 +258,7 @@ class MainBootstrapWorkflow:
     """Workflow/escopo request-scoped para o fluxo de bootstrap da API."""
 
     def __init__(self, runtime: Optional[MainBootstrapRuntime]=None) -> None:
-        """Initialize required dependencies and runtime configuration."""
+        """Initialize dependencies for MainBootstrapWorkflow."""
         self._runtime = runtime or MainBootstrapRuntime()
 
     def build_allowed_origins(self) -> List[str]:
@@ -270,7 +270,7 @@ class MainBootstrapWorkflow:
         return self._runtime.ensure_static_files_path()
 
     async def startup_event_create_defaults(self) -> None:
-        """Process Startup event create defaults."""
+        """Startup event create defaults."""
         await self._runtime.startup_event_create_defaults()
 
     def create_new_user(self, user_in: schemas.UserCreate, session: Session) -> models.User:
@@ -282,7 +282,7 @@ class _MainLifecycleEntries:
     """Encapsulates Main lifecycle entries."""
     @staticmethod
     async def lifespan(_app: FastAPI):
-        """Process Lifespan."""
+        """Lifespan."""
         await MainBootstrapWorkflow().startup_event_create_defaults()
         yield
 
@@ -311,12 +311,12 @@ class _EndpointHandlers:
 
     @app.get('/', tags=['Raiz'])
     async def root():
-        """Process Root."""
+        """Root."""
         return {'message': f'Bem-vindo a API do {settings.PROJECT_NAME}!'}
 
     @app.get('/health', status_code=status.HTTP_200_OK, tags=['Health Check'])
     async def health_check():
-        """Process Health check."""
+        """Health check."""
         return {'status': 'ok'}
 app.include_router(auth_router_direct, prefix=settings.API_V1_STR + '/auth', tags=['Autenticacao e Usuarios'])
 app.include_router(social_auth_router, prefix=settings.API_V1_STR + '/auth', tags=['Autenticacao Social'])

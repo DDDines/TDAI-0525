@@ -3,7 +3,6 @@
 # Ele apenas marca o diretório 'app' como um pacote Python.
 """Init.
 
-Defines the module responsibilities and how it fits in the backend architecture.
 """
 
 

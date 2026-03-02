@@ -36,7 +36,7 @@ class ProductTypesRequestService:
         self,
         session: Session = Depends(ServiceContainerDependencySupport.get_request_db_session),
     ) -> None:
-        """Initialize required dependencies and runtime configuration."""
+        """Initialize dependencies for ProductTypesRequestService."""
         self._session = session
         self._product_type_repo = ProductTypeRepository(session)
         self._historico_repo = HistoricoRepository(session)
@@ -98,7 +98,7 @@ class ProductTypesRequestService:
         skip: int = 0,
         limit: int = 100,
     ) -> List[models.ProductType]:
-        """Process Read product types."""
+        """Read product types."""
         logger.info(
             "ROUTER (read_product_types): iniciando busca para usuario ID %s",
             current_user.id,
@@ -120,7 +120,7 @@ class ProductTypesRequestService:
         identifier: str,
         current_user: models.User,
     ) -> models.ProductType:
-        """Process Read product type details."""
+        """Read product type details."""
         logger.info(
             "ROUTER (read_product_type_details): iniciando busca por '%s'",
             identifier,
@@ -216,7 +216,7 @@ class ProductTypesRequestService:
         type_id: int,
         attribute_in: schemas.AttributeTemplateCreate,
     ) -> models.AttributeTemplate:
-        """Process Add attribute to product type."""
+        """Add attribute to product type."""
         existing_attr_template = self._product_type_repo.get_attribute_template_by_key(
             product_type_id=type_id,
             attribute_key=attribute_in.attribute_key,
@@ -286,7 +286,7 @@ class ProductTypesRequestService:
         type_id: int,
         attribute_id: int,
     ) -> models.AttributeTemplate:
-        """Process Remove attribute from product type."""
+        """Remove attribute from product type."""
         db_attribute_to_check = self._product_type_repo.get_attribute_template(
             attribute_template_id=attribute_id
         )
@@ -316,7 +316,7 @@ class ProductTypesRequestService:
         reorder_request: ReorderRequest,
         current_user: models.User,
     ) -> models.AttributeTemplate:
-        """Process Reorder attribute."""
+        """Reorder attribute."""
         product_type = self._product_type_repo.get_product_type(product_type_id=type_id)
         if not product_type:
             raise HTTPException(
@@ -362,7 +362,7 @@ def read_product_types_endpoint(
     ),
     request_service: ProductTypesRequestService = Depends(),
 ):
-    """Process Read product types endpoint."""
+    """Read product types endpoint."""
     return request_service.read_product_types(current_user=current_user, skip=skip, limit=limit)
 
 
@@ -381,7 +381,7 @@ async def read_product_type_details_route(
     ),
     request_service: ProductTypesRequestService = Depends(),
 ):
-    """Process Read product type details route."""
+    """Read product type details route."""
     return await request_service.read_product_type_details(
         identifier=type_id_or_key_path,
         current_user=current_user,
@@ -430,7 +430,7 @@ def add_attribute_to_product_type_endpoint(
     ),
     request_service: ProductTypesRequestService = Depends(),
 ):
-    """Process Add attribute to product type endpoint."""
+    """Add attribute to product type endpoint."""
     _ = current_user
     return request_service.add_attribute_to_product_type(type_id=type_id, attribute_in=attribute_in)
 
@@ -463,7 +463,7 @@ def remove_attribute_from_product_type_endpoint(
     ),
     request_service: ProductTypesRequestService = Depends(),
 ):
-    """Process Remove attribute from product type endpoint."""
+    """Remove attribute from product type endpoint."""
     _ = current_user
     return request_service.remove_attribute_from_product_type(type_id=type_id, attribute_id=attribute_id)
 
@@ -481,7 +481,7 @@ def reorder_attribute_endpoint(
     ),
     request_service: ProductTypesRequestService = Depends(),
 ):
-    """Process Reorder attribute endpoint."""
+    """Reorder attribute endpoint."""
     return request_service.reorder_attribute(
         type_id=type_id,
         attribute_id=attribute_id,

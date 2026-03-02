@@ -55,7 +55,7 @@ class _ProdutosServiceBundle:
     """Componente OO principal '_ProdutosServiceBundle' do modulo 'produtos'."""
 
     def __init__(self, *, session_provider: Any | None = None) -> None:
-        """Initialize dependencies used by this component."""
+        """Initialize dependencies for  ProdutosServiceBundle."""
         self._service_container = ServiceContainer()
         self._session_provider = (
             session_provider
@@ -81,7 +81,7 @@ class _ProdutosCatalogService:
     """Runtime OO responsavel por integracoes e operacoes de 'produtos'."""
 
     def __init__(self, *, session: Session, services: Optional[_ProdutosServiceBundle]=None) -> None:
-        """Initialize dependencies used by this component."""
+        """Initialize dependencies for  ProdutosCatalogService."""
         self._session = session
         runtime_session_provider = (
             ServiceContainerDependencySupport.build_background_session_provider_from_session(
@@ -235,7 +235,7 @@ class ProdutosCatalogCoordinator:
     """Workflow/escopo request-scoped para o fluxo de 'produtos'."""
 
     def __init__(self, runtime: Optional[object]=None) -> None:
-        """Initialize dependencies used by this component."""
+        """Initialize dependencies for ProdutosCatalogCoordinator."""
         if runtime is None:
             raise RuntimeError("ProdutosCatalogCoordinator requires an explicit runtime instance.")
         self._runtime = runtime
@@ -405,7 +405,7 @@ class _ProdutosRequestServices:
     """Componente OO principal '_ProdutosRequestServices' do modulo 'produtos'."""
 
     def __init__(self, *, product_management_service: ProductManagementService, product_media_service: ProductMediaService) -> None:
-        """Initialize dependencies used by this component."""
+        """Initialize dependencies for  ProdutosRequestServices."""
         self.product_management_service = product_management_service
         self.product_media_service = product_media_service
 _build_produtos_request_services = ServiceContainerDependencySupport.build_request_scoped_dependency(lambda session: _ProdutosRequestServices(product_management_service=DependencyContainer.get_product_management_service(session), product_media_service=DependencyContainer.get_product_media_service(session)))
@@ -414,7 +414,7 @@ class _ProdutosCatalogRequestScope:
     """Workflow/escopo request-scoped para o fluxo de 'produtos'."""
 
     def __init__(self, *, session: Session, workflow: ProdutosCatalogCoordinator | None=None) -> None:
-        """Initialize dependencies used by this component."""
+        """Initialize dependencies for  ProdutosCatalogRequestScope."""
         self._workflow = workflow or ProdutosCatalogCoordinator(runtime=_ProdutosCatalogService(session=session))
 
     def list_catalog_import_files(self, *, user_id: int, fornecedor_id: Optional[int], skip: int, limit: int) -> schemas.CatalogImportFilePage:
@@ -469,7 +469,7 @@ class _ProdutosRequestContext:
     """Componente OO principal '_ProdutosRequestContext' do modulo 'produtos'."""
 
     def __init__(self, *, request_services: _ProdutosRequestServices, catalog_workflow: _ProdutosCatalogRequestScope) -> None:
-        """Initialize dependencies used by this component."""
+        """Initialize dependencies for  ProdutosRequestContext."""
         self.request_services = request_services
         self.catalog_workflow = catalog_workflow
 _build_produtos_request_context = ServiceContainerDependencySupport.build_request_scoped_dependency(lambda session: _ProdutosRequestContext(request_services=_build_produtos_request_services(session), catalog_workflow=_ProdutosCatalogRequestScope(session=session)))

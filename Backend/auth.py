@@ -79,7 +79,7 @@ class AuthRuntime:
         session: Optional[Session] = None,
         user_repository: Optional[UserRepository] = None,
     ) -> None:
-        """Initialize dependencies used by this component."""
+        """Initialize dependencies for AuthRuntime."""
         self._session = session
         self._user_repository = user_repository or (
             UserRepository(session) if session is not None else None
@@ -382,7 +382,7 @@ class AuthWorkflow:
         session: Optional[Session] = None,
         runtime: Optional[AuthRuntime] = None,
     ) -> None:
-        """Initialize dependencies used by this component."""
+        """Initialize dependencies for AuthWorkflow."""
         self._runtime = runtime or AuthRuntime(session=session)
 
     def verify_password(self, plain_password: str, hashed_password: str) -> bool:
@@ -463,7 +463,7 @@ class _AuthRequestScope:
     """Escopo request-scoped para operacoes de autenticacao HTTP."""
 
     def __init__(self, *, session: Session) -> None:
-        """Initialize dependencies used by this component."""
+        """Initialize dependencies for  AuthRequestScope."""
         self._workflow = AuthWorkflow(session=session)
 
     async def get_current_user(self, *, token: str) -> models.User:

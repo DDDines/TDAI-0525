@@ -1,6 +1,5 @@
 """Create tables.
 
-Defines the module responsibilities and how it fits in the backend architecture.
 """
 
 import os
@@ -25,7 +24,7 @@ class CreateTablesWorkflow:
 
     """Encapsulates Create tables workflow."""
     def __init__(self, runtime: Optional['CreateTablesRuntime']=None) -> None:
-        """Initialize required dependencies and runtime configuration."""
+        """Initialize dependencies for CreateTablesWorkflow."""
         self._runtime = runtime or CreateTablesRuntime()
 
     def create_all_tables(self):
