@@ -51,7 +51,7 @@ class TaskRuntime:
 
         service_container = ServiceContainer()
         self._task_service = PdfExtractionTaskService(
-            db_session_factory=ServiceContainerDependencySupport.get_background_db_session_factory(),
+            session_provider=ServiceContainerDependencySupport.get_background_session_provider(),
             file_processing_service=service_container.file_processing,
         )
 

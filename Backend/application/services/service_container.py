@@ -1,7 +1,7 @@
 """Servicos de aplicacao e composicao de dependencias para 'service_container'."""
 from __future__ import annotations
 from dataclasses import dataclass, field
-from typing import Any, Callable
+from typing import Any, Callable, Protocol
 from fastapi import Depends
 from sqlalchemy.orm import Session, sessionmaker
 from Backend import database, models, schemas
@@ -78,6 +78,41 @@ class ServiceContainerDependencySupport:
         if bind is None:
             raise ValueError("Session bind is required to build background session factory.")
         return sessionmaker(autocommit=False, autoflush=False, bind=bind)
+
+    @staticmethod
+    def get_background_session_provider() -> "SessionProvider":
+        """Return OO session provider for background workloads."""
+        return SessionProvider(database.SessionLocal)
+
+    @staticmethod
+    def build_background_session_provider_from_session(
+        session: Session,
+    ) -> "SessionProvider":
+        """Build OO session provider bound to current request engine."""
+        return SessionProvider(
+            ServiceContainerDependencySupport.build_background_db_session_factory_from_session(
+                session
+            )
+        )
+
+
+class SessionProviderPort(Protocol):
+    """OO contract to open SQLAlchemy sessions for background services."""
+
+    def open_session(self) -> Session:
+        """Open and return a session instance."""
+
+
+class SessionProvider:
+    """Concrete session provider backed by a session factory callable."""
+
+    def __init__(self, session_factory: Callable[[], Session]) -> None:
+        """Store the session factory used to open request/background sessions."""
+        self._session_factory = session_factory
+
+    def open_session(self) -> Session:
+        """Open a session using the configured factory."""
+        return self._session_factory()
 @dataclass
 class ServiceContainer:
     """Registry simples de servicos OO compartilhados pela aplicacao."""

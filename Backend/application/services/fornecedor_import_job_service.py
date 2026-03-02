@@ -16,13 +16,13 @@ class FornecedorImportJobService:
     def __init__(
         self,
         *,
-        db_session_factory: Any,
+        session_provider: Any,
         import_job_repository_factory: Any,
         produto_repository_factory: Any,
         produto_create_schema: Any,
     ) -> None:
         """Initialize collaborators and configuration required by this component."""
-        self._db_session_factory = db_session_factory
+        self._session_provider = session_provider
         self._import_job_repository_factory = import_job_repository_factory
         self._produto_repository_factory = produto_repository_factory
         self._produto_create_schema = produto_create_schema
@@ -37,9 +37,9 @@ class FornecedorImportJobService:
 
     def get_job_for_user_or_404(self, *, job_id: int, user_id: int) -> Any:
         """Return job for user or 404 for this workflow."""
-        if self._db_session_factory is None:
-            raise ValueError("db_session_factory is required for FornecedorImportJobService")
-        session = self._db_session_factory()
+        if self._session_provider is None:
+            raise ValueError("session_provider is required for FornecedorImportJobService")
+        session = self._session_provider.open_session()
         try:
             import_job_repo = self._import_job_repo(session)
             job = import_job_repo.get_import_job(job_id=job_id)
@@ -69,9 +69,9 @@ class FornecedorImportJobService:
 
     def commit_job_task(self, *, job_id: int, user_id: int) -> None:
         """Run commit job task in this workflow."""
-        if self._db_session_factory is None:
-            raise ValueError("db_session_factory is required for FornecedorImportJobService")
-        session = self._db_session_factory()
+        if self._session_provider is None:
+            raise ValueError("session_provider is required for FornecedorImportJobService")
+        session = self._session_provider.open_session()
         try:
             import_job_repo = self._import_job_repo(session)
             produto_repo = self._produto_repo(session)

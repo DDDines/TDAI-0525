@@ -15,6 +15,7 @@ from Backend.core.config import settings
 from Backend.infrastructure.repositories.catalog_import_file_repository import (
     CatalogImportFileRepository,
 )
+from Backend.application.services.service_container import SessionProviderPort
 
 logger = logging.getLogger(__name__)
 
@@ -25,12 +26,12 @@ class PdfExtractionTaskService:
     def __init__(
         self,
         *,
-        db_session_factory: Callable[[], Session],
+        session_provider: SessionProviderPort,
         catalog_import_file_repository_factory: Callable[[Session], CatalogImportFileRepository] = CatalogImportFileRepository,
         file_processing_service: Any,
     ) -> None:
         """Initialize collaborators and configuration required by this component."""
-        self._db_session_factory = db_session_factory
+        self._session_provider = session_provider
         self._catalog_import_file_repository_factory = catalog_import_file_repository_factory
         self._file_processing_service = file_processing_service
 
@@ -56,7 +57,7 @@ class PdfExtractionTaskService:
     ) -> None:
         """Process pdf extraction task for this workflow."""
         _ = db_url
-        session = self._db_session_factory()
+        session = self._session_provider.open_session()
         catalog_file_repo = self._catalog_import_file_repository_factory(session)
         job = None
         try:

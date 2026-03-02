@@ -24,14 +24,12 @@ class CatalogImportFinalizeService:
         self,
         *,
         oop_executor: Any,
-        db_session_factory: Any,
         dispatcher_cls: Any = PipelineDispatcher,
         orchestrator: Any = None,
         sync_env_var: str = "CATALOG_IMPORT_TEST_SYNC",
         thread_name_prefix: str = "catalog-import",
     ) -> None:
         """Initialize collaborators and configuration required by this component."""
-        self._db_session_factory = db_session_factory
         self._orchestrator = orchestrator or CatalogImportPipelineOrchestrator(
             oop_executor=oop_executor,
         )
@@ -45,8 +43,6 @@ class CatalogImportFinalizeService:
         command: CatalogImportFinalizeCommand,
     ) -> TaskExecutionPlan:
         """Select plan for this workflow."""
-        if self._db_session_factory is None:
-            raise ValueError("db_session_factory is required for CatalogImportFinalizeService")
         return self._orchestrator.select_finalize_plan(
             command=command,
         )

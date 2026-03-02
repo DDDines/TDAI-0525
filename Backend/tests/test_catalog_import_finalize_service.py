@@ -74,7 +74,6 @@ class _TopLevelFunctionSurface:
         """Run build service in this workflow."""
         return CatalogImportFinalizeService(
             oop_executor=object(),
-            db_session_factory=lambda: object(),
             dispatcher_cls=_DispatcherStub,
             orchestrator=_OrchestratorStub(plan),
         )

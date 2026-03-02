@@ -87,10 +87,22 @@ class _BackgroundTasksStub:
         self.added.append((fn, kwargs))
 
 
+class _SessionProviderStub:
+    """Simple OO provider that opens sessions from a factory."""
+
+    def __init__(self, factory):
+        """Store session factory callable used by tests."""
+        self._factory = factory
+
+    def open_session(self):
+        """Open and return a session instance."""
+        return self._factory()
+
+
 class _TopLevelFunctionSurface:
 
     """Represent top level function surface and centralize responsibilities for this module."""
-    def _build_service(*, job, db_session_factory=None):
+    def _build_service(*, job, session_provider=None):
         """Run build service in this workflow."""
         crud_jobs = _CrudFornecedorImportJobsStub()
         crud_jobs.job = job
@@ -122,7 +134,7 @@ class _TopLevelFunctionSurface:
                 return self._stub.get_or_create_produto(produto=produto, user_id=user_id)
     
         service = FornecedorImportJobService(
-            db_session_factory=db_session_factory or (lambda: _DbSessionStub()),
+            session_provider=session_provider or _SessionProviderStub(lambda: _DbSessionStub()),
             import_job_repository_factory=_ImportJobRepoClass,
             produto_repository_factory=_ProdutoRepoClass,
             produto_create_schema=_ProdutoCreateSchemaStub,
@@ -186,7 +198,7 @@ class _TopLevelFunctionSurface:
 
         service, crud_jobs, crud_produtos = _build_service(
             job=job,
-            db_session_factory=_factory,
+            session_provider=_SessionProviderStub(_factory),
         )
     
         service.commit_job_task(job_id=5, user_id=10)
@@ -212,7 +224,7 @@ class _TopLevelFunctionSurface:
 
         service, crud_jobs, crud_produtos = _build_service(
             job=job,
-            db_session_factory=lambda: db_instance,
+            session_provider=_SessionProviderStub(lambda: db_instance),
         )
 
         service.commit_job_task(job_id=6, user_id=10)

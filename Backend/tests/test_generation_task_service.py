@@ -71,6 +71,18 @@ class _FakeSession:
         return None
 
 
+class _SessionProviderStub:
+    """Simple OO provider to open sessions from a factory."""
+
+    def __init__(self, factory):
+        """Store session factory callable used in tests."""
+        self._factory = factory
+
+    def open_session(self):
+        """Open and return a session instance."""
+        return self._factory()
+
+
 class _TopLevelFunctionSurface:
 
     """Represent top level function surface and centralize responsibilities for this module."""
@@ -132,7 +144,7 @@ class _TopLevelFunctionSurface:
                 )
     
         service = GenerationTaskService(
-            db_session_factory=_db_session_factory,
+            session_provider=_SessionProviderStub(_db_session_factory),
             user_repository_factory=_UserRepository,
             product_repository_factory=_ProductRepository,
             models=_build_models_stub(),

@@ -21,12 +21,12 @@ class GenerationTaskService:
         models: Any,
         schemas: Any,
         logger: Any,
-        db_session_factory: Any,
+        session_provider: Any,
         user_repository_factory: Any,
         product_repository_factory: Any,
     ) -> None:
         """Initialize collaborators and configuration required by this component."""
-        self._db_session_factory = db_session_factory
+        self._session_provider = session_provider
         self._user_repository_factory = user_repository_factory
         self._product_repository_factory = product_repository_factory
         self._models = models
@@ -86,9 +86,9 @@ class GenerationTaskService:
         log_entry_prefix = f"IA {tipo_geracao_principal.capitalize()}"
 
         try:
-            if self._db_session_factory is None:
-                raise ValueError("db_session_factory is required for GenerationTaskService")
-            session = self._db_session_factory()
+            if self._session_provider is None:
+                raise ValueError("session_provider is required for GenerationTaskService")
+            session = self._session_provider.open_session()
 
             targets = self._resolve_generation_targets(tipo_geracao_principal)
             if targets is None:
