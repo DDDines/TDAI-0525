@@ -2,9 +2,12 @@
 
 from __future__ import annotations
 
+import logging
 from typing import Any
 
 from fastapi import HTTPException
+
+logger = logging.getLogger(__name__)
 
 
 class ProductMediaService:
@@ -52,13 +55,21 @@ class ProductMediaService:
                 file=file,
             )
         except ValueError as exc:
-            raise HTTPException(status_code=400, detail=str(exc)) from exc
+            raise HTTPException(
+                status_code=400,
+                detail="Arquivo de imagem invalido para upload.",
+            ) from exc
         except IOError as exc:
-            raise HTTPException(status_code=500, detail=str(exc)) from exc
-        except Exception as exc:
+            logger.error("Falha de E/S ao salvar imagem de produto %s: %s", produto_id, exc)
             raise HTTPException(
                 status_code=500,
-                detail=f"Nao foi possivel salvar a imagem: {str(exc)}",
+                detail="Falha de armazenamento ao salvar imagem do produto.",
+            ) from exc
+        except Exception as exc:
+            logger.exception("Erro inesperado ao salvar imagem de produto %s", produto_id)
+            raise HTTPException(
+                status_code=500,
+                detail="Nao foi possivel salvar a imagem do produto.",
             ) from exc
 
         produto_update = self._schemas.ProdutoUpdate(imagem_principal_url=file_path_in_db)

@@ -246,7 +246,11 @@ class CatalogImportPreviewService:
         except HTTPException:
             raise
         except Exception as exc:
-            raise HTTPException(status_code=500, detail=str(exc)) from exc
+            self._logger.exception("Falha ao processar selecao de regiao no preview de catalogo")
+            raise HTTPException(
+                status_code=500,
+                detail="Erro interno ao processar a selecao da regiao.",
+            ) from exc
 
         return {
             "produtos": produtos,
@@ -281,9 +285,16 @@ class CatalogImportPreviewService:
                 page_number,
             )
         except ValueError as exc:
-            raise HTTPException(status_code=400, detail=str(exc)) from exc
+            raise HTTPException(
+                status_code=400,
+                detail="Parametros invalidos para extracao da pagina PDF.",
+            ) from exc
         except Exception as exc:
-            raise HTTPException(status_code=500, detail=str(exc)) from exc
+            self._logger.exception("Falha ao extrair pagina unica de PDF")
+            raise HTTPException(
+                status_code=500,
+                detail="Erro interno ao extrair dados da pagina PDF.",
+            ) from exc
 
     def _get_record_or_404(
         self,

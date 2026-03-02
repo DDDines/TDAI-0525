@@ -54,14 +54,12 @@ class FornecedorImportTrackingService:
         background_tasks: Any,
         import_job_id: int,
         page_number: int,
-        db_url: str,
     ) -> None:
         """Execute schedule page extraction as part of this module workflow."""
         background_tasks.add_task(
             self._process_pdf_extraction_task,
             import_job_id=import_job_id,
             page_number=page_number,
-            db_url=db_url,
         )
 
     @staticmethod

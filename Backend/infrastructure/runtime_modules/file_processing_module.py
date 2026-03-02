@@ -16,7 +16,7 @@ from concurrent.futures import ThreadPoolExecutor
 from pdf2image import convert_from_bytes, convert_from_path
 import time
 from functools import partial
-from typing import List, Dict, Any, Union, Optional
+from typing import List, Dict, Any, Union, Optional, Callable
 import shutil
 from pathlib import Path
 from uuid import uuid4
@@ -26,8 +26,7 @@ import pdfplumber
 from pdfplumber.pdf import PDF as PdfPlumberPDF
 from Backend.core.logging_config import get_logger
 from Backend.core.config import settings
-from Backend import models, schemas
-from Backend.database import SessionLocal
+from Backend import database, models, schemas
 from Backend.infrastructure.adapters.web_data_extractor_adapter import WebDataExtractorServiceAdapter
 from Backend.infrastructure.repositories.catalog_import_file_repository import (
     CatalogImportFileRepository,
@@ -474,14 +473,18 @@ class _FileProcessingImplementation:
         return {'image': f'data:image/png;base64,{image_b64}', 'text': text, 'table': table}
 
     @staticmethod
-    async def _process_pdf_job_impl(job_id: int, pdf_path: str, start_page: int=1, mapping: Optional[Dict[str, str]]=None) -> None:
+    async def _process_pdf_job_impl(
+        job_id: int,
+        pdf_path: str,
+        start_page: int = 1,
+        mapping: Optional[Dict[str, str]] = None,
+        catalog_file_repository: Optional[CatalogImportFileRepository] = None,
+    ) -> None:
         """Remaining pages of a pdf catalog import job."""
-        db: Optional[Session] = None
-        catalog_file_repository: Optional[CatalogImportFileRepository] = None
+        if catalog_file_repository is None:
+            raise ValueError("catalog_file_repository is required")
         catalog_file: Optional[models.CatalogImportFile] = None
         try:
-            db = SessionLocal()
-            catalog_file_repository = CatalogImportFileRepository(db)
             catalog_file = catalog_file_repository.get_catalog_file(file_id=job_id)
             if not catalog_file:
                 logger.error('CatalogImportFile %s not found', job_id)
@@ -516,12 +519,9 @@ class _FileProcessingImplementation:
             logger.info('process_pdf_job: done job_id=%s status=%s products=%s pages=%s', job_id, catalog_file.status, len(products), catalog_file.pages_processed)
         except Exception:
             logger.exception('Erro ao processar job de PDF')
-            if db and catalog_file and catalog_file_repository:
+            if catalog_file and catalog_file_repository:
                 catalog_file.status = 'FAILED'
                 catalog_file_repository.update_catalog_file(catalog_file=catalog_file)
-        finally:
-            if db:
-                db.close()
 
     @staticmethod
     def _extract_data_from_single_page_impl(file_path: str, page_number: int) -> Dict[str, Any]:
@@ -1918,9 +1918,32 @@ class PdfJobWorkflow:
 class PdfJobRuntime:
 
     """Represent Pdf Job Runtime and centralize its responsibilities inside this module."""
+    def __init__(
+        self,
+        session_provider: Optional[Any] = None,
+        catalog_import_file_repository_factory: Callable[[Session], CatalogImportFileRepository] = CatalogImportFileRepository,
+    ) -> None:
+        """Initialize injected dependencies and runtime configuration for Pdf Job Runtime."""
+        if session_provider is None:
+            self._session_factory = database.SessionLocal
+        else:
+            self._session_factory = session_provider.open_session
+        self._catalog_import_file_repository_factory = catalog_import_file_repository_factory
+
     async def process_pdf_job(self, job_id: int, pdf_path: str, start_page: int=1, mapping: Optional[Dict[str, str]]=None) -> None:
         """Execute pdf job and return the normalized execution result."""
-        await _FileProcessingImplementation._process_pdf_job_impl(job_id=job_id, pdf_path=pdf_path, start_page=start_page, mapping=mapping)
+        session = self._session_factory()
+        try:
+            catalog_file_repository = self._catalog_import_file_repository_factory(session)
+            await _FileProcessingImplementation._process_pdf_job_impl(
+                job_id=job_id,
+                pdf_path=pdf_path,
+                start_page=start_page,
+                mapping=mapping,
+                catalog_file_repository=catalog_file_repository,
+            )
+        finally:
+            session.close()
 
     def extract_data_from_single_page(self, file_path: str, page_number: int) -> Dict[str, Any]:
         """Extract data from single page."""

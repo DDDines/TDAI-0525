@@ -72,14 +72,14 @@ class _TopLevelFunctionSurface:
     
         class FakeRuntime:
             """Represent fake runtime and centralize responsibilities for this module."""
-            def process_pdf_extraction_task(self, *, import_job_id, page_number, db_url):
+            def process_pdf_extraction_task(self, *, import_job_id, page_number):
                 """Process pdf extraction task for this workflow."""
-                called.append((import_job_id, page_number, db_url))
+                called.append((import_job_id, page_number))
     
         workflow = TaskWorkflow(runtime=FakeRuntime())
-        workflow.process_pdf_extraction_task(import_job_id=10, page_number=2, db_url="db-url")
+        workflow.process_pdf_extraction_task(import_job_id=10, page_number=2)
     
-        assert called == [(10, 2, "db-url")]
+        assert called == [(10, 2)]
 
     def test_line_mapping_workflow_delega_runtime_injetado():
         """Run test line mapping workflow delega runtime injetado in this workflow."""

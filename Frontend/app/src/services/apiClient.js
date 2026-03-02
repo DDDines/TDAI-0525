@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Module api client.
  *
  * Defines responsibilities and integration points for services.
@@ -37,14 +37,12 @@ const apiClient = axios.create({
 apiClient.interceptors.request.use(
   config => {
     const token = localStorage.getItem('accessToken');
-    const tokenSnippet = token ? `${token.substring(0, 15)}...${token.substring(token.length - 15)}` : "N/A";
+    logger.log(`apiClient: Interceptando requisição para ${config.url}.`);
 
-    logger.log(`apiClient: Interceptando requisição para ${config.url}. Token no localStorage (snippet): ${tokenSnippet}`);
 
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
-      // LOG DETALHADO DO HEADER (PARA DEBUG - REMOVER DEPOIS)
-      logger.log(`apiClient: Header Authorization DEFINIDO para ${config.url}: "${config.headers.Authorization.substring(0,30)}..."`);
+      logger.log(`apiClient: Header Authorization definido para ${config.url}.`);
     } else {
       logger.log(`apiClient: Nenhum token encontrado no localStorage para ${config.url}.`);
       // Garantir que o header de autorização seja removido se não houver token

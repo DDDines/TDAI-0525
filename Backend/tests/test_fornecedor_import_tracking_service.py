@@ -105,13 +105,13 @@ class _TopLevelFunctionSurface:
             background_tasks=background,
             import_job_id=100,
             page_number=5,
-            db_url="postgresql://localhost/db",
         )
     
         assert len(background.calls) == 1
         _, kwargs = background.calls[0]
         assert kwargs["import_job_id"] == 100
         assert kwargs["page_number"] == 5
+        assert "db_url" not in kwargs
 
     def test_build_import_job_status_payload_includes_result_for_completed():
         """Run test build import job status payload includes result for completed in this workflow."""

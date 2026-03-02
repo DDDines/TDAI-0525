@@ -50,10 +50,8 @@ class PdfExtractionTaskService:
         *,
         import_job_id: int,
         page_number: int,
-        db_url: str,
     ) -> None:
         """Execute pdf extraction task and return the normalized execution result."""
-        _ = db_url
         session = self._session_provider.open_session()
         catalog_file_repo = self._catalog_import_file_repository_factory(session)
         job = None

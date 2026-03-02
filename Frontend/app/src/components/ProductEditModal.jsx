@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Module product edit modal.
  *
  * Defines responsibilities and integration points for components.
@@ -165,6 +165,17 @@ function ProductEditModal(
     const [newAttrKey, setNewAttrKey] = useState('');
     const [isNewTypeModalOpen, setIsNewTypeModalOpen] = useState(false);
     const enrichmentPollRunRef = React.useRef(0);
+    const titleRefreshTimeoutRef = React.useRef(null);
+    const descriptionRefreshTimeoutRef = React.useRef(null);
+    const isMountedRef = React.useRef(false);
+    const isOpenRef = React.useRef(isOpen);
+
+    useEffect(() => {
+      isMountedRef.current = true;
+      return () => {
+        isMountedRef.current = false;
+      };
+    }, []);
 
 
     useEffect(() => {
@@ -213,12 +224,29 @@ function ProductEditModal(
     }, [isOpen, product, formData.fornecedor_id, formData.product_type_id]);
 
     useEffect(() => {
+      isOpenRef.current = isOpen;
       if (!isOpen) {
         enrichmentPollRunRef.current += 1;
         setIsEnrichingWeb(false);
+        if (titleRefreshTimeoutRef.current) {
+          clearTimeout(titleRefreshTimeoutRef.current);
+          titleRefreshTimeoutRef.current = null;
+        }
+        if (descriptionRefreshTimeoutRef.current) {
+          clearTimeout(descriptionRefreshTimeoutRef.current);
+          descriptionRefreshTimeoutRef.current = null;
+        }
       }
       return () => {
         enrichmentPollRunRef.current += 1;
+        if (titleRefreshTimeoutRef.current) {
+          clearTimeout(titleRefreshTimeoutRef.current);
+          titleRefreshTimeoutRef.current = null;
+        }
+        if (descriptionRefreshTimeoutRef.current) {
+          clearTimeout(descriptionRefreshTimeoutRef.current);
+          descriptionRefreshTimeoutRef.current = null;
+        }
       };
     }, [isOpen]);
 
@@ -620,10 +648,28 @@ function ProductEditModal(
       try {
         await productService.gerarTitulosProduto(product.id);
         showInfoToast("Geração de títulos iniciada. Verifique em breve.");
-        setTimeout(async () => {
-          const updatedProduct = await productService.getProdutoById(product.id);
-          setFormData((prev) => ({ ...prev, nome_chat_api: updatedProduct.nome_chat_api, titulos_sugeridos: updatedProduct.titulos_sugeridos }));
-          if (onProductUpdated) onProductUpdated(updatedProduct);
+        if (titleRefreshTimeoutRef.current) {
+          clearTimeout(titleRefreshTimeoutRef.current);
+        }
+        titleRefreshTimeoutRef.current = setTimeout(() => {
+          void (async () => {
+            try {
+              const updatedProduct = await productService.getProdutoById(product.id);
+              if (!isMountedRef.current || !isOpenRef.current) {
+                return;
+              }
+              setFormData((prev) => ({ ...prev, nome_chat_api: updatedProduct.nome_chat_api, titulos_sugeridos: updatedProduct.titulos_sugeridos }));
+              if (onProductUpdated) onProductUpdated(updatedProduct);
+            } catch (refreshErr) {
+              if (!isMountedRef.current || !isOpenRef.current) {
+                return;
+              }
+              console.error("Erro ao atualizar títulos gerados:", refreshErr);
+              showErrorToast("Nao foi possivel atualizar os titulos gerados.");
+            } finally {
+              titleRefreshTimeoutRef.current = null;
+            }
+          })();
         }, 7000);
       } catch (err) {
         console.error("Erro ao gerar títulos:", err);
@@ -642,13 +688,31 @@ function ProductEditModal(
       try {
         await productService.gerarDescricaoProduto(product.id);
         showInfoToast("Geração de descrição iniciada. Verifique em breve.");
-        setTimeout(async () => {
-          const updatedProduct = await productService.getProdutoById(product.id);
-          setFormData((prev) => ({
-            ...prev,
-            descricao_chat_api: updatedProduct.descricao_chat_api
-          }));
-          if (onProductUpdated) onProductUpdated(updatedProduct);
+        if (descriptionRefreshTimeoutRef.current) {
+          clearTimeout(descriptionRefreshTimeoutRef.current);
+        }
+        descriptionRefreshTimeoutRef.current = setTimeout(() => {
+          void (async () => {
+            try {
+              const updatedProduct = await productService.getProdutoById(product.id);
+              if (!isMountedRef.current || !isOpenRef.current) {
+                return;
+              }
+              setFormData((prev) => ({
+                ...prev,
+                descricao_chat_api: updatedProduct.descricao_chat_api
+              }));
+              if (onProductUpdated) onProductUpdated(updatedProduct);
+            } catch (refreshErr) {
+              if (!isMountedRef.current || !isOpenRef.current) {
+                return;
+              }
+              console.error("Erro ao atualizar descrição gerada:", refreshErr);
+              showErrorToast("Nao foi possivel atualizar a descricao gerada.");
+            } finally {
+              descriptionRefreshTimeoutRef.current = null;
+            }
+          })();
         }, 7000);
       } catch (err) {
         console.error("Erro ao gerar descrição:", err);

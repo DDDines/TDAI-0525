@@ -24,13 +24,11 @@ class TaskWorkflow:
         self,
         import_job_id: int,
         page_number: int,
-        db_url: str,
     ) -> None:
         """Execute pdf extraction task and return the normalized execution result."""
         self._runtime.process_pdf_extraction_task(
             import_job_id=import_job_id,
             page_number=page_number,
-            db_url=db_url,
         )
 
 
@@ -56,11 +54,9 @@ class TaskRuntime:
         self,
         import_job_id: int,
         page_number: int,
-        db_url: str,
     ) -> None:
         """Execute pdf extraction task and return the normalized execution result."""
         self._task_service.process_pdf_extraction_task(
             import_job_id=import_job_id,
             page_number=page_number,
-            db_url=db_url,
         )

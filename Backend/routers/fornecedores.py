@@ -145,7 +145,11 @@ class FornecedoresRequestService:
     def extract_page_data(self, background_tasks: BackgroundTasks, file_id: int, page_number: int, current_user: models.User) -> dict:
         """Execute extract page data as part of this module workflow."""
         record = self._runtime.get_catalog_record_or_404(file_id=file_id, user_id=current_user.id, not_found_detail='Arquivo nao encontrado')
-        self._runtime.schedule_page_extraction(background_tasks=background_tasks, import_job_id=record.id, page_number=page_number, db_url=self._runtime.get_database_url())
+        self._runtime.schedule_page_extraction(
+            background_tasks=background_tasks,
+            import_job_id=record.id,
+            page_number=page_number,
+        )
         return {'job_id': record.id, 'status': 'PROCESSING'}
 
     def delete_fornecedor(self, fornecedor_id: int, current_user: models.User, fornecedor_management_service: FornecedorManagementService) -> models.Fornecedor:
@@ -412,14 +416,12 @@ class _FornecedoresServiceGateway:
         background_tasks: BackgroundTasks,
         import_job_id: int,
         page_number: int,
-        db_url: str,
     ):
         """Handle Schedule page extraction in this request workflow."""
         return self._fornecedor_import_tracking_service.schedule_page_extraction(
             background_tasks=background_tasks,
             import_job_id=import_job_id,
             page_number=page_number,
-            db_url=db_url,
         )
 
     def delete_fornecedor(
@@ -478,11 +480,6 @@ class _FornecedoresServiceGateway:
         return self._fornecedor_import_tracking_service.build_import_job_status_payload(
             record=record
         )
-
-    def get_database_url(self) -> str:
-        """Retrieve database url using the current service dependencies."""
-        bind = self._session.get_bind()
-        return str(bind.url)
 
 class _FornecedoresRequestScope:
     """Workflow/escopo request-scoped para o fluxo de 'fornecedores'."""

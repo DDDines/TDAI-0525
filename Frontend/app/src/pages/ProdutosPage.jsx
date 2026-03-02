@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Module produtos page.
  *
  * Defines responsibilities and integration points for pages.
@@ -40,6 +40,7 @@ function ProdutosPage()
     const [filtroStatusDescricaoIA, setFiltroStatusDescricaoIA] = useState('');
     const [filtroFornecedor, _setFiltroFornecedor] = useState('');
     const [filtroTipoProduto, setFiltroTipoProduto] = useState('');
+    const pendingRefreshTimeoutsRef = React.useRef([]);
 
     const { productTypes, isLoading: loadingProductTypes, error: productTypesError } = useProductTypes();
 
@@ -91,6 +92,26 @@ function ProdutosPage()
 
     useEffect(() => {
       fetchProdutos();
+    }, [fetchProdutos]);
+
+    const clearPendingRefreshTimeouts = useCallback(() => {
+      pendingRefreshTimeoutsRef.current.forEach((timeoutId) => clearTimeout(timeoutId));
+      pendingRefreshTimeoutsRef.current = [];
+    }, []);
+
+    useEffect(() => () => {
+      clearPendingRefreshTimeouts();
+    }, [clearPendingRefreshTimeouts]);
+
+    const scheduleProdutosRefresh = useCallback((message) => {
+      const timeoutId = setTimeout(() => {
+        showInfoToast(message);
+        fetchProdutos();
+        pendingRefreshTimeoutsRef.current = pendingRefreshTimeoutsRef.current.filter(
+          (id) => id !== timeoutId
+        );
+      }, 15000);
+      pendingRefreshTimeoutsRef.current.push(timeoutId);
     }, [fetchProdutos]);
 
     const handleProductUpdated = (updatedProduct) => {
@@ -198,10 +219,9 @@ function ProdutosPage()
         }
       }
 
-      setTimeout(() => {
-        showInfoToast('Atualizando lista para verificar resultados do enriquecimento...');
-        fetchProdutos();
-      }, 15000);
+      scheduleProdutosRefresh(
+        'Atualizando lista para verificar resultados do enriquecimento...'
+      );
     };
 
     const handleGenerateContentForSelected = async (contentType) => {
@@ -232,10 +252,9 @@ function ProdutosPage()
         }
       }
 
-      setTimeout(() => {
-        showInfoToast(`Atualizando lista para verificar resultados da geração de ${contentTypePlural}...`);
-        fetchProdutos();
-      }, 15000);
+      scheduleProdutosRefresh(
+        `Atualizando lista para verificar resultados da geração de ${contentTypePlural}...`
+      );
     };
 
     const totalPages = Math.ceil(totalProdutos / limitPerPage);

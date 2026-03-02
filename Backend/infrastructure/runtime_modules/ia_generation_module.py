@@ -1,4 +1,4 @@
-# Backend/infrastructure/runtime_modules/ia_generation_module.py
+﻿# Backend/infrastructure/runtime_modules/ia_generation_module.py
 """Document ia generation module module responsibilities and runtime integration points."""
 
 
@@ -191,7 +191,7 @@ class AiProviderRuntime:
                 logger.error(f"Erro inesperado ao chamar API OpenAI: {str(e)}", exc_info=True)
                 raise HTTPException(
                     status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                    detail=f"Erro inesperado ao comunicar com OpenAI: {str(e)}",
+                    detail="Erro inesperado ao comunicar com OpenAI.",
                 )
 
     async def call_gemini_api_for_suggestions(
@@ -282,7 +282,7 @@ class AiProviderRuntime:
                 logger.error(f"Erro inesperado ao chamar API Gemini: {str(e)}", exc_info=True)
                 raise HTTPException(
                     status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                    detail=f"Erro inesperado ao comunicar com Gemini: {str(e)}",
+                    detail="Erro inesperado ao comunicar com Gemini.",
                 )
 
     async def call_gemini_api(
@@ -338,7 +338,7 @@ class AiProviderRuntime:
                 logger.error(f"Erro inesperado ao chamar API Gemini: {str(e)}", exc_info=True)
                 raise HTTPException(
                     status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                    detail=f"Erro inesperado ao comunicar com Gemini: {str(e)}",
+                    detail="Erro inesperado ao comunicar com Gemini.",
                 )
 
 
@@ -783,7 +783,10 @@ class IAGenerationRuntime:
                 provedor_ia="gemini", modelo_ia=modelo_utilizado, creditos_consumidos=creditos_necessarios,
                 status="FALHA", detalhes_erro=f"Erro inesperado no serviÃƒÆ’Ã‚Â§o de sugestÃƒÆ’Ã‚Â£o: {str(e)}"
             ))
-            raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Erro inesperado ao gerar sugestÃƒÆ’Ã‚Âµes: {str(e)}")
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Erro inesperado ao gerar sugestoes de atributos.",
+            )
 
 
 
