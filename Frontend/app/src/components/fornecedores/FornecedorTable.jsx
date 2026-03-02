@@ -1,3 +1,9 @@
+/**
+ * Module fornecedor table.
+ *
+ * Implements frontend behavior for components fornecedores.
+ */
+
 // Frontend/app/src/components/fornecedores/FornecedorTable.jsx
 import React from 'react';
 import './FornecedorTable.css';

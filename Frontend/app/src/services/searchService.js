@@ -1,3 +1,9 @@
+/**
+ * Module search service.
+ *
+ * Implements frontend behavior for services.
+ */
+
 import apiClient from './apiClient';
 
 const searchService = {

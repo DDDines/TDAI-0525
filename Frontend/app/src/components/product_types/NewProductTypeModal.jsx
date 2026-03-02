@@ -1,3 +1,9 @@
+/**
+ * Module new product type modal.
+ *
+ * Implements frontend behavior for components product types.
+ */
+
 import React, { useState, useEffect } from 'react';
 import Modal from '../common/Modal';
 import { useProductTypes } from '../../contexts/ProductTypeContext';

@@ -1,3 +1,9 @@
+/**
+ * Module attribute template list.
+ *
+ * Implements frontend behavior for components product types.
+ */
+
 // Frontend/app/src/components/product_types/AttributeTemplateList.jsx
 
 import React from 'react';

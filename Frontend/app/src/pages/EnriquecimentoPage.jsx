@@ -1,3 +1,9 @@
+/**
+ * Module enriquecimento page.
+ *
+ * Implements frontend behavior for pages.
+ */
+
 // Frontend/app/src/pages/EnriquecimentoPage.jsx
 import React, { useState, useEffect, useCallback } from 'react';
 import './EnriquecimentoPage.css';

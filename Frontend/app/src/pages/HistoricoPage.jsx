@@ -1,3 +1,9 @@
+/**
+ * Module historico page.
+ *
+ * Implements frontend behavior for pages.
+ */
+
 // Frontend/app/src/pages/HistoricoPage.jsx
 import React, { useState, useEffect, useCallback } from 'react';
 import usoIAService from '../services/usoIAService';

@@ -1,3 +1,9 @@
+/**
+ * Module new fornecedor modal.
+ *
+ * Implements frontend behavior for components fornecedores.
+ */
+
 // Frontend/app/src/components/fornecedores/NewFornecedorModal.jsx
 import React, { useState, useEffect } from 'react';
 import { showWarningToast } from '../../utils/notifications';

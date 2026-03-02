@@ -1,3 +1,9 @@
+/**
+ * Module auth service.
+ *
+ * Implements frontend behavior for services.
+ */
+
 // Frontend/app/src/services/authService.js
 import apiClient from './apiClient';
 import { showSuccessToast, showErrorToast } from '../utils/notifications';

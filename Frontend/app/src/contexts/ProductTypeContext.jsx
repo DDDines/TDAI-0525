@@ -1,3 +1,9 @@
+/**
+ * Module product type context.
+ *
+ * Implements frontend behavior for contexts.
+ */
+
 // Frontend/app/src/contexts/ProductTypeContext.jsx
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import productTypeService from '../services/productTypeService';

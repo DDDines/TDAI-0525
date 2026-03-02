@@ -1,3 +1,9 @@
+/**
+ * Module logger.
+ *
+ * Implements frontend behavior for utils.
+ */
+
 // Determine dev mode. Support environments without import.meta (e.g. Jest)
 let isDev = false;
 try {

@@ -65,3 +65,9 @@ def some_method(arg1: int, arg2: str) -> bool:
 
 - Apply to all Python files under `Backend/`.
 - Exceptions allowed only for generated/migration files (`alembic/`, migrations) and must be explicit.
+
+## Frontend scope
+
+- Apply module comments to all files under `Frontend/app/src` (`.js`, `.jsx`, `.ts`, `.tsx`).
+- Each module comment must describe the feature/domain responsibility of the file.
+- Frontend comments must also avoid generic boilerplate and placeholder markers.

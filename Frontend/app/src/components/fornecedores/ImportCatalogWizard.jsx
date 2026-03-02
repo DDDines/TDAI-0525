@@ -1,3 +1,9 @@
+/**
+ * Module import catalog wizard.
+ *
+ * Implements frontend behavior for components fornecedores.
+ */
+
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import * as fornecedorService from '../../services/fornecedorService';
 import productTypeService from '../../services/productTypeService';

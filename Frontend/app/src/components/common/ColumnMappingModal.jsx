@@ -1,3 +1,9 @@
+/**
+ * Module column mapping modal.
+ *
+ * Implements frontend behavior for components common.
+ */
+
 import React, { useEffect, useRef, useState } from 'react';
 import Modal from './Modal.jsx';
 import './ColumnMappingModal.css';class _TopLevelFunctionSurface {static normalizeMapping(

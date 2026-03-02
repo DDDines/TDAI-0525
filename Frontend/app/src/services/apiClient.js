@@ -1,3 +1,9 @@
+/**
+ * Module api client.
+ *
+ * Implements frontend behavior for services.
+ */
+
 // Frontend/app/src/services/apiClient.js
 import axios from 'axios';
 import logger from '../utils/logger';

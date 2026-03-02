@@ -1,3 +1,9 @@
+/**
+ * Module fornecedor service.
+ *
+ * Implements frontend behavior for services.
+ */
+
 // Frontend/app/src/services/fornecedorService.js
 import logger from '../utils/logger';
 import apiClient from './apiClient';class _TopLevelFunctionSurface {static async getFornecedores(

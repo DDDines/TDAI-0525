@@ -1,3 +1,9 @@
+/**
+ * Module plano page.
+ *
+ * Implements frontend behavior for pages.
+ */
+
 // Frontend/app/src/pages/PlanoPage.jsx
 import React, { useState, useEffect } from 'react';
 import authService from '../services/authService';

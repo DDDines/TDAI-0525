@@ -1,3 +1,9 @@
+/**
+ * Module uso i a service.
+ *
+ * Implements frontend behavior for services.
+ */
+
 // Frontend/app/src/services/usoIAService.js
 import apiClient from './apiClient';
 

@@ -1,3 +1,9 @@
+/**
+ * Module change password modal.
+ *
+ * Implements frontend behavior for components user.
+ */
+
 // Frontend/app/src/components/user/ChangePasswordModal.jsx
 import React, { useState } from 'react';
 import authService from '../../services/authService'; // Ajuste o caminho se o seu authService estiver noutro local

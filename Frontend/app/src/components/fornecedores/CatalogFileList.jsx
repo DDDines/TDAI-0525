@@ -1,3 +1,9 @@
+/**
+ * Module catalog file list.
+ *
+ * Implements frontend behavior for components fornecedores.
+ */
+
 import React from 'react';
 import { format } from 'date-fns';
 import getBackendBaseUrl from '../../utils/backend.js';

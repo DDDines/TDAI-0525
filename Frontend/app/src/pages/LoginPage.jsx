@@ -1,3 +1,9 @@
+/**
+ * Module login page.
+ *
+ * Implements frontend behavior for pages.
+ */
+
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation, Link } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';

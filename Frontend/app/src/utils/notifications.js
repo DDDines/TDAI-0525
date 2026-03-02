@@ -1,3 +1,9 @@
+/**
+ * Module notifications.
+ *
+ * Implements frontend behavior for utils.
+ */
+
 // Frontend/app/src/utils/notifications.js
 import { toast } from 'react-toastify';class _TopLevelFunctionSurface {static getOptions() {return (
 

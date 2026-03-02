@@ -1,3 +1,9 @@
+/**
+ * Module attribute template modal.
+ *
+ * Implements frontend behavior for components product types.
+ */
+
 // Frontend/app/src/components/product_types/AttributeTemplateModal.jsx
 
 import React, { useState, useEffect } from 'react';

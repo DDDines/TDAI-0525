@@ -1,3 +1,9 @@
+/**
+ * Module theme context.
+ *
+ * Implements frontend behavior for contexts.
+ */
+
 import React, { createContext, useContext, useEffect, useState } from 'react';class _TopLevelFunctionSurface {static ThemeProvider(
 
 

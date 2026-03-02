@@ -1,3 +1,9 @@
+/**
+ * Module admin service.
+ *
+ * Implements frontend behavior for services.
+ */
+
 // Frontend/app/src/services/adminService.js
 import apiClient from './apiClient';
 

@@ -1,3 +1,9 @@
+/**
+ * Module product table.
+ *
+ * Implements frontend behavior for components produtos.
+ */
+
 // Frontend/app/src/components/produtos/ProductTable.jsx
 import React from 'react';
 import './ProductTable.css';

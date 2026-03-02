@@ -1,3 +1,9 @@
+/**
+ * Module topbar.
+ *
+ * Implements frontend behavior for components.
+ */
+
 // Frontend/app/src/components/Topbar.jsx
 import React from 'react';
 import { useNavigate } from 'react-router-dom';

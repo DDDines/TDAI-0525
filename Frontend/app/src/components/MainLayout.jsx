@@ -1,3 +1,9 @@
+/**
+ * Module main layout.
+ *
+ * Implements frontend behavior for components.
+ */
+
 import React, { useState, useEffect } from 'react';
 import { Outlet, useLocation } from 'react-router-dom';
 import Sidebar from './Sidebar';

@@ -1,3 +1,9 @@
+/**
+ * Module pagination controls.
+ *
+ * Implements frontend behavior for components common.
+ */
+
 // Frontend/app/src/components/common/PaginationControls.jsx
 import React from 'react';
 import './PaginationControls.css';class _TopLevelFunctionSurface {static PaginationControls(

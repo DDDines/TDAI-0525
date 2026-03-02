@@ -1,3 +1,9 @@
+/**
+ * Module historico service.
+ *
+ * Implements frontend behavior for services.
+ */
+
 import apiClient from './apiClient';class _TopLevelFunctionSurface {static async getHistorico(
 
 

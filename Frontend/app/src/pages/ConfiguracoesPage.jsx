@@ -1,3 +1,9 @@
+/**
+ * Module configuracoes page.
+ *
+ * Implements frontend behavior for pages.
+ */
+
 // Frontend/app/src/pages/ConfiguracoesPage.jsx
 import React, { useState, useEffect } from 'react';
 import authService from '../services/authService';

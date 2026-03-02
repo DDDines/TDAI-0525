@@ -1,3 +1,9 @@
+/**
+ * Module tipos produto page.
+ *
+ * Implements frontend behavior for pages.
+ */
+
 // Frontend/app/src/pages/TiposProdutoPage.jsx
 import React, { useState, useEffect } from 'react';
 import { useProductTypes } from '../contexts/ProductTypeContext';

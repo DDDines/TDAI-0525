@@ -1,3 +1,9 @@
+/**
+ * Module pdf region selector.
+ *
+ * Implements frontend behavior for components common.
+ */
+
 import React, { useEffect, useRef, useState } from 'react';
 import * as pdfjs from 'pdfjs-dist/legacy/build/pdf';
 import pdfWorkerSrc from 'pdfjs-dist/legacy/build/pdf.worker.js?url';

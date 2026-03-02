@@ -1,3 +1,9 @@
+/**
+ * Module loading overlay.
+ *
+ * Implements frontend behavior for components common.
+ */
+
 import React from 'react';
 import './LoadingOverlay.css';
 import LogoImg from '../../assets/Logo.png';class _TopLevelFunctionSurface {static LoadingOverlay(

@@ -1,3 +1,9 @@
+/**
+ * Module config service.
+ *
+ * Implements frontend behavior for services.
+ */
+
 import apiClient from './apiClient';
 import logger from '../utils/logger';
 

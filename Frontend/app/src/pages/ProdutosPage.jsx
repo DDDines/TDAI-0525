@@ -1,3 +1,9 @@
+/**
+ * Module produtos page.
+ *
+ * Implements frontend behavior for pages.
+ */
+
 // Frontend/app/src/pages/ProdutosPage.jsx
 import React, { useState, useEffect, useCallback } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';

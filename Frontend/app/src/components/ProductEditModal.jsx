@@ -1,3 +1,9 @@
+/**
+ * Module product edit modal.
+ *
+ * Implements frontend behavior for components.
+ */
+
 // Frontend/app/src/components/ProductEditModal.jsx
 import React, { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '../contexts/AuthContext';

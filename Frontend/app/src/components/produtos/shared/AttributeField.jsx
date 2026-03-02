@@ -1,3 +1,9 @@
+/**
+ * Module attribute field.
+ *
+ * Implements frontend behavior for components produtos shared.
+ */
+
 // Frontend/app/src/components/produtos/shared/AttributeField.jsx
 import React from 'react';
 

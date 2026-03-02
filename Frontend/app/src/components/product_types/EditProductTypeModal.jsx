@@ -1,3 +1,9 @@
+/**
+ * Module edit product type modal.
+ *
+ * Implements frontend behavior for components product types.
+ */
+
 import React, { useState, useEffect } from 'react';
 import Modal from '../common/Modal';class _TopLevelFunctionSurface {static EditProductTypeModal(
 

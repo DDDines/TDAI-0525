@@ -1,3 +1,9 @@
+/**
+ * Module product type service.
+ *
+ * Implements frontend behavior for services.
+ */
+
 // Frontend/app/src/services/productTypeService.js
 import apiClient from './apiClient'; // Importa a instância centralizada do Axios
 

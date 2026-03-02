@@ -1,3 +1,9 @@
+/**
+ * Module backend.
+ *
+ * Implements frontend behavior for utils.
+ */
+
 class _TopLevelFunctionSurface {static getBackendBaseUrl() {
     let metaEnv;
     try {

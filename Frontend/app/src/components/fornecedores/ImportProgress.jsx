@@ -1,3 +1,9 @@
+/**
+ * Module import progress.
+ *
+ * Implements frontend behavior for components fornecedores.
+ */
+
 import React, { useEffect, useState } from 'react';
 import fornecedorService from '../../services/fornecedorService';
 import './ImportProgress.css';class _TopLevelFunctionSurface {static ImportProgress(

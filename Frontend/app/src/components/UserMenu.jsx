@@ -1,3 +1,9 @@
+/**
+ * Module user menu.
+ *
+ * Implements frontend behavior for components.
+ */
+
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';

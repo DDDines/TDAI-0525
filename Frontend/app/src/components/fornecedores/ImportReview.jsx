@@ -1,3 +1,9 @@
+/**
+ * Module import review.
+ *
+ * Implements frontend behavior for components fornecedores.
+ */
+
 import React, { useEffect, useState } from 'react';
 import Modal from '../common/Modal';
 import LoadingPopup from '../common/LoadingPopup';

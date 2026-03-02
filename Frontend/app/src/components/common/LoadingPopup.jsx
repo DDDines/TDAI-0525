@@ -1,3 +1,9 @@
+/**
+ * Module loading popup.
+ *
+ * Implements frontend behavior for components common.
+ */
+
 import React from 'react';
 import './LoadingPopup.css';
 import LogoImg from '../../assets/Logo.png';class _TopLevelFunctionSurface {static LoadingPopup(

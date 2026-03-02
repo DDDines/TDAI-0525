@@ -1,3 +1,9 @@
+/**
+ * Module auth context.
+ *
+ * Implements frontend behavior for contexts.
+ */
+
 // Frontend/app/src/contexts/AuthContext.jsx
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';

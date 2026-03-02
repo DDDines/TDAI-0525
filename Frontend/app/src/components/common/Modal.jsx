@@ -1,3 +1,9 @@
+/**
+ * Module modal.
+ *
+ * Implements frontend behavior for components common.
+ */
+
 // Frontend/app/src/components/common/Modal.jsx
 import React from 'react';
 import './Modal.css'; // Opcional: para estilização do modal

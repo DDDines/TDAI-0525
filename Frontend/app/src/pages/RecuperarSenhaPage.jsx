@@ -1,3 +1,9 @@
+/**
+ * Module recuperar senha page.
+ *
+ * Implements frontend behavior for pages.
+ */
+
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import authService from '../services/authService';

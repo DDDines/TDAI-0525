@@ -1,3 +1,9 @@
+/**
+ * Module fornecedores page.
+ *
+ * Implements frontend behavior for pages.
+ */
+
 // Frontend/app/src/pages/FornecedoresPage.jsx
 import React, { useState, useEffect, useCallback } from 'react';
 import fornecedorService from '../services/fornecedorService';

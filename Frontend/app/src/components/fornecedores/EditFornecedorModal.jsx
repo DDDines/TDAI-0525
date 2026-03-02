@@ -1,3 +1,9 @@
+/**
+ * Module edit fornecedor modal.
+ *
+ * Implements frontend behavior for components fornecedores.
+ */
+
 import React, { useState, useEffect, useCallback } from 'react';
 import { showErrorToast, showWarningToast } from '../../utils/notifications';
 import ImportCatalogWizard from './ImportCatalogWizard.jsx';

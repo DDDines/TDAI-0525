@@ -1,3 +1,9 @@
+/**
+ * Module product service.
+ *
+ * Implements frontend behavior for services.
+ */
+
 // Frontend/app/src/services/productService.js
 import logger from '../utils/logger';
 import apiClient from './apiClient';class _TopLevelFunctionSurface {static async getProdutos(
