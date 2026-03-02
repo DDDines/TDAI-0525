@@ -40,16 +40,23 @@ class EmailWorkflow:
             if raise_if_unconfigured:
                 raise RuntimeError('Configuracao de email ausente')
             return
-        message_data = {'subject': subject, 'recipients': [email_to]}
         fm = self._runtime.create_fastmail(self._conf)
         try:
             if template_name:
-                message = self._runtime.create_message_schema(**message_data)
+                message = self._runtime.create_message_schema(
+                    subject=subject,
+                    recipients=[email_to],
+                )
                 await fm.send_message(message, template_name=template_name, template_body=template_body or {})
                 logger.info("Email com template '%s' enviado para %s.", template_name, email_to)
                 return
             if html_content:
-                message = self._runtime.create_message_schema(**message_data, body=html_content, subtype=MessageType.html)
+                message = self._runtime.create_message_schema(
+                    subject=subject,
+                    recipients=[email_to],
+                    body=html_content,
+                    subtype=MessageType.html,
+                )
                 await fm.send_message(message)
                 logger.info('Email HTML enviado para %s.', email_to)
                 return
@@ -98,9 +105,21 @@ class EmailRuntime:
         """Create fastmail for this workflow."""
         return FastMail(conf)
 
-    def create_message_schema(self, **kwargs) -> MessageSchema:
+    def create_message_schema(
+        self,
+        *,
+        subject: str,
+        recipients: list[EmailStr],
+        body: str | None = None,
+        subtype: MessageType = MessageType.plain,
+    ) -> MessageSchema:
         """Create message schema for this workflow."""
-        return MessageSchema(**kwargs)
+        return MessageSchema(
+            subject=subject,
+            recipients=recipients,
+            body=body,
+            subtype=subtype,
+        )
 
     def current_year(self) -> int:
         """Run current year in this workflow."""

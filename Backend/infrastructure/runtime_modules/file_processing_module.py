@@ -1191,23 +1191,42 @@ class PdfPreviewRuntime:
         """Run resolve poppler path in this workflow."""
         return os.getenv('POPPLER_PATH') or settings.POPPLER_PATH
 
-    def _resolve_poppler_kwargs(self) -> Dict[str, Any]:
-        """Run resolve poppler kwargs in this workflow."""
-        poppler_dir = self._resolve_poppler_path()
-        return {'poppler_path': poppler_dir} if poppler_dir else {}
-
-    def _build_page_processor(self, conteudo_arquivo: bytes, dpi: int, kwargs: Dict[str, Any]):
+    def _build_page_processor(
+        self,
+        conteudo_arquivo: bytes,
+        dpi: int,
+        poppler_path: Optional[str],
+    ):
         """Run build page processor in this workflow."""
-        return partial(self._process_page, conteudo_arquivo=conteudo_arquivo, dpi=dpi, kwargs=kwargs)
+        return partial(
+            self._process_page,
+            conteudo_arquivo=conteudo_arquivo,
+            dpi=dpi,
+            poppler_path=poppler_path,
+        )
 
-    def _process_page(self, page_number: int, *, conteudo_arquivo: bytes, dpi: int, kwargs: Dict[str, Any]) -> Dict[str, Any]:
+    def _process_page(
+        self,
+        page_number: int,
+        *,
+        conteudo_arquivo: bytes,
+        dpi: int,
+        poppler_path: Optional[str],
+    ) -> Dict[str, Any]:
         """Run process page in this workflow."""
         with pdf_open(io.BytesIO(conteudo_arquivo)) as reader:
             page = reader.pages[page_number - 1]
             tables = page.extract_tables()
             result: Dict[str, Any] = {'page': page_number, 'has_table': bool(tables)}
             text = page.extract_text() or ''
-            image = convert_from_bytes(conteudo_arquivo, first_page=page_number, last_page=page_number, fmt='png', dpi=dpi, **kwargs)[0]
+            image = convert_from_bytes(
+                conteudo_arquivo,
+                first_page=page_number,
+                last_page=page_number,
+                fmt='png',
+                dpi=dpi,
+                poppler_path=poppler_path,
+            )[0]
             png_buf = io.BytesIO()
             image.save(png_buf, format='PNG')
             png_b64 = base64.b64encode(png_buf.getvalue())
@@ -1245,9 +1264,13 @@ class PdfPreviewRuntime:
                 page_count = num_pages
             end_page = min(start_page + page_count - 1, num_pages)
             pages_processed = end_page - start_page + 1
-            kwargs = self._resolve_poppler_kwargs()
+            poppler_path = self._resolve_poppler_path()
             preview: Dict[str, Any] = {'num_pages': num_pages, 'table_pages': [], 'sample_rows': {}, 'preview_images': []}
-            process_page = self._build_page_processor(conteudo_arquivo=conteudo_arquivo, dpi=dpi, kwargs=kwargs)
+            process_page = self._build_page_processor(
+                conteudo_arquivo=conteudo_arquivo,
+                dpi=dpi,
+                poppler_path=poppler_path,
+            )
             tasks = [loop.run_in_executor(self._preview_executor, process_page, p) for p in range(start_page, end_page + 1)]
             results = await asyncio.gather(*tasks)
             for result in sorted(results, key=lambda item: item['page']):
@@ -1343,21 +1366,28 @@ class PdfImageConversionRuntime:
         """Run resolve poppler path in this workflow."""
         return os.getenv('POPPLER_PATH') or settings.POPPLER_PATH
 
-    def _ensure_poppler_available(self, poppler_dir: Optional[str]) -> Dict[str, Any]:
+    def _ensure_poppler_available(self, poppler_dir: Optional[str]) -> Optional[str]:
         """Run ensure poppler available in this workflow."""
         pdftoppm_path = shutil.which('pdftoppm', path=poppler_dir) if poppler_dir else shutil.which('pdftoppm')
         if pdftoppm_path is None:
             msg = 'Poppler (pdftoppm) executable not found. Install poppler-utilson Linux or set POPPLER_PATH to its directory.'
             logger.error(msg)
             raise RuntimeError(msg)
-        return {'poppler_path': poppler_dir} if poppler_dir else {}
+        return poppler_dir
 
     def _convert_sync(self, conteudo_arquivo: bytes, max_pages: int, start_page: int, dpi: int) -> List[str]:
         """Run convert sync in this workflow."""
         poppler_dir = self._resolve_poppler_path()
-        kwargs = self._ensure_poppler_available(poppler_dir)
+        poppler_path = self._ensure_poppler_available(poppler_dir)
         last_page = None if max_pages == 0 else start_page + max_pages - 1
-        images = convert_from_bytes(conteudo_arquivo, first_page=start_page, last_page=last_page, dpi=dpi, fmt='png', **kwargs)
+        images = convert_from_bytes(
+            conteudo_arquivo,
+            first_page=start_page,
+            last_page=last_page,
+            dpi=dpi,
+            fmt='png',
+            poppler_path=poppler_path,
+        )
         result: List[str] = []
         for img in images:
             buf = io.BytesIO()
