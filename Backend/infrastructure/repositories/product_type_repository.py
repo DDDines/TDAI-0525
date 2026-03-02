@@ -152,6 +152,25 @@ class ProductTypeRepository:
         count = query.scalar()
         return count if count is not None else 0
 
+    def search_product_types_for_index(
+        self,
+        *,
+        query_text: Optional[str],
+        limit: int,
+        user_id: Optional[int],
+        is_admin: bool,
+    ):
+        """Return lightweight product-type rows for search endpoint rendering."""
+        query = self._db.query(ProductType.id, ProductType.friendly_name, ProductType.created_at)
+        if query_text:
+            term = f"%{query_text.lower()}%"
+            query = query.filter(func.lower(ProductType.friendly_name).ilike(term))
+        if not is_admin:
+            query = query.filter(
+                (ProductType.user_id == user_id) | ProductType.user_id.is_(None)
+            )
+        return query.order_by(ProductType.created_at.desc()).limit(limit).all()
+
     def update_product_type(
         self,
         *,
@@ -240,6 +259,22 @@ class ProductTypeRepository:
         self._db.commit()
         self._db.refresh(db_attr_template)
         return db_attr_template
+
+    def get_attribute_template_by_key(
+        self,
+        *,
+        product_type_id: int,
+        attribute_key: str,
+        exclude_attribute_id: Optional[int] = None,
+    ) -> Optional[AttributeTemplate]:
+        """Return attribute template by key in one product type scope."""
+        query = self._db.query(AttributeTemplate).filter(
+            AttributeTemplate.product_type_id == product_type_id,
+            AttributeTemplate.attribute_key == attribute_key,
+        )
+        if exclude_attribute_id is not None:
+            query = query.filter(AttributeTemplate.id != exclude_attribute_id)
+        return query.first()
 
     def get_attribute_template(self, *, attribute_template_id: int) -> Optional[AttributeTemplate]:
         """Return attribute template for this workflow."""

@@ -324,6 +324,25 @@ class ProductRepository:
         count = query.scalar()
         return count if count is not None else 0
 
+    def search_produtos_for_index(
+        self,
+        *,
+        query_text: Optional[str],
+        limit: int,
+        user_id: Optional[int],
+        is_admin: bool,
+    ) -> List[Tuple[int, str, Any]]:
+        """Return lightweight product rows for search endpoint rendering."""
+        query = self._db.query(Produto.id, Produto.nome_base, Produto.created_at)
+        if query_text:
+            term = f"%{query_text.lower()}%"
+            query = query.filter(func.lower(Produto.nome_base).ilike(term))
+        if not is_admin:
+            if user_id is None:
+                return []
+            query = query.filter(Produto.user_id == user_id)
+        return query.order_by(Produto.created_at.desc()).limit(limit).all()
+
     def update_produto(
         self,
         *,

@@ -9,7 +9,7 @@ import logging
 import time
 from fastapi import APIRouter, BackgroundTasks, Body, Depends, File, Form, Query, UploadFile, status
 import pdfplumber
-from sqlalchemy.orm import Session, sessionmaker
+from sqlalchemy.orm import Session
 from Backend import models
 from Backend import schemas
 from Backend.application.services.catalog_import_diagnostics_service import CatalogImportDiagnosticsService
@@ -78,7 +78,7 @@ class _ProdutosCatalogService:
     def __init__(self, *, session: Session, services: Optional[_ProdutosServiceBundle]=None) -> None:
         """Initialize collaborators and configuration required by this component."""
         self._session = session
-        runtime_session_factory = sessionmaker(bind=session.get_bind())
+        runtime_session_factory = ServiceContainerDependencySupport.build_background_db_session_factory_from_session(session)
         self._services = services or _ProdutosServiceBundle(db_session_factory=runtime_session_factory)
         self._catalog_file_repository = CatalogImportFileRepository(self._session)
         self._fornecedor_repository = FornecedorRepository(self._session)

@@ -38,6 +38,14 @@ class RegistroUsoIARepository:
         self._db.refresh(db_obj)
         return db_obj
 
+    def get_registro_uso_ia(self, *, registro_id: int) -> Optional[models.RegistroUsoIA]:
+        """Return one IA usage record by identifier."""
+        return (
+            self._db.query(models.RegistroUsoIA)
+            .filter(models.RegistroUsoIA.id == registro_id)
+            .first()
+        )
+
     def get_registros_uso_ia(
         self,
         *,

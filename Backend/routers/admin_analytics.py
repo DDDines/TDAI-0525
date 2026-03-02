@@ -4,12 +4,14 @@ from datetime import datetime, timezone
 from typing import List
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
-from sqlalchemy import String, cast, func
 from sqlalchemy.orm import Session
 
 from Backend import models, schemas
 from Backend.application.services.service_container import ServiceContainerDependencySupport
 from Backend.core.logging_config import get_logger
+from Backend.infrastructure.repositories.admin_analytics_repository import (
+    AdminAnalyticsRepository,
+)
 from Backend.infrastructure.repositories.historico_repository import HistoricoRepository
 from Backend.infrastructure.repositories.user_repository import UserRepository
 
@@ -28,9 +30,9 @@ class AdminAnalyticsRequestService:
         session: Session = Depends(ServiceContainerDependencySupport.get_request_db_session),
     ) -> None:
         """Initialize collaborators and configuration required by this component."""
-        self._session = session
         self._user_repository = UserRepository(session)
         self._historico_repository = HistoricoRepository(session)
+        self._analytics_repository = AdminAnalyticsRepository(session)
 
     @staticmethod
     def _now_utc() -> datetime:
@@ -40,10 +42,6 @@ class AdminAnalyticsRequestService:
     def get_total_counts(self) -> schemas.TotalCounts:
         """Return total counts for this workflow."""
         try:
-            total_usuarios = self._session.query(func.count(models.User.id)).scalar() or 0
-            total_produtos = self._session.query(func.count(models.Produto.id)).scalar() or 0
-            total_fornecedores = self._session.query(func.count(models.Fornecedor.id)).scalar() or 0
-
             start_of_month = self._now_utc().replace(
                 day=1,
                 hour=0,
@@ -51,27 +49,16 @@ class AdminAnalyticsRequestService:
                 second=0,
                 microsecond=0,
             )
-            total_geracoes_ia_mes = (
-                self._session.query(func.count(models.RegistroUsoIA.id))
-                .filter(models.RegistroUsoIA.created_at >= start_of_month)
-                .scalar()
-                or 0
-            )
-            total_enriquecimentos_mes = (
-                self._session.query(func.count(models.RegistroUsoIA.id))
-                .filter(
-                    models.RegistroUsoIA.created_at >= start_of_month,
-                    cast(models.RegistroUsoIA.tipo_acao, String).ilike("%enriquecimento_web%"),
-                )
-                .scalar()
-                or 0
-            )
             return schemas.TotalCounts(
-                total_usuarios=total_usuarios,
-                total_produtos=total_produtos,
-                total_fornecedores=total_fornecedores,
-                total_geracoes_ia_mes=total_geracoes_ia_mes,
-                total_enriquecimentos_mes=total_enriquecimentos_mes,
+                total_usuarios=self._analytics_repository.count_total_users(),
+                total_produtos=self._analytics_repository.count_total_products(),
+                total_fornecedores=self._analytics_repository.count_total_suppliers(),
+                total_geracoes_ia_mes=self._analytics_repository.count_ia_usage_since(
+                    start_at=start_of_month
+                ),
+                total_enriquecimentos_mes=self._analytics_repository.count_web_enrichment_usage_since(
+                    start_at=start_of_month
+                ),
             )
         except Exception as exc:
             logger.error("Erro ao buscar contagens de admin: %s", exc)
@@ -92,15 +79,9 @@ class AdminAnalyticsRequestService:
             microsecond=0,
         )
         for plano in planos:
-            count = (
-                self._session.query(func.count(models.RegistroUsoIA.id))
-                .join(models.User, models.RegistroUsoIA.user_id == models.User.id)
-                .filter(
-                    models.User.plano_id == plano.id,
-                    models.RegistroUsoIA.created_at >= start_of_month,
-                )
-                .scalar()
-                or 0
+            count = self._analytics_repository.count_plan_usage_since(
+                plano_id=plano.id,
+                start_at=start_of_month,
             )
             resultado.append(
                 schemas.UsoIAPorPlano(
@@ -120,14 +101,8 @@ class AdminAnalyticsRequestService:
             second=0,
             microsecond=0,
         )
-        query_result = (
-            self._session.query(
-                models.RegistroUsoIA.tipo_acao,
-                func.count(models.RegistroUsoIA.id).label("total_no_mes"),
-            )
-            .filter(models.RegistroUsoIA.created_at >= start_of_month)
-            .group_by(models.RegistroUsoIA.tipo_acao)
-            .all()
+        query_result = self._analytics_repository.list_usage_by_action_since(
+            start_at=start_of_month
         )
         return [
             schemas.UsoIAPorTipo(
@@ -149,20 +124,12 @@ class AdminAnalyticsRequestService:
             microsecond=0,
         )
         for user_model in users:
-            total_produtos_user = (
-                self._session.query(func.count(models.Produto.id))
-                .filter(models.Produto.user_id == user_model.id)
-                .scalar()
-                or 0
+            total_produtos_user = self._analytics_repository.count_products_by_user(
+                user_id=user_model.id
             )
-            total_ia_mes_user = (
-                self._session.query(func.count(models.RegistroUsoIA.id))
-                .filter(
-                    models.RegistroUsoIA.user_id == user_model.id,
-                    models.RegistroUsoIA.created_at >= start_of_month,
-                )
-                .scalar()
-                or 0
+            total_ia_mes_user = self._analytics_repository.count_ia_usage_by_user_since(
+                user_id=user_model.id,
+                start_at=start_of_month,
             )
             activities.append(
                 schemas.UserActivity(
@@ -178,27 +145,15 @@ class AdminAnalyticsRequestService:
 
     def get_product_status_counts(self) -> List[schemas.ProductStatusCount]:
         """Return product status counts for this workflow."""
-        results = (
-            self._session.query(
-                models.Produto.status_enriquecimento_web,
-                func.count(models.Produto.id).label("total"),
-            )
-            .group_by(models.Produto.status_enriquecimento_web)
-            .all()
-        )
+        results = self._analytics_repository.list_product_status_counts()
         return [schemas.ProductStatusCount(status=row[0], total=row.total) for row in results]
 
     def get_recent_activities(self, *, limit: int) -> List[schemas.RecentActivity]:
         """Return recent activities for this workflow."""
-        registros = (
-            self._session.query(models.RegistroUsoIA)
-            .order_by(models.RegistroUsoIA.created_at.desc())
-            .limit(limit)
-            .all()
-        )
+        registros = self._analytics_repository.list_recent_usage_records(limit=limit)
         activities: List[schemas.RecentActivity] = []
         for reg in registros:
-            user = self._session.get(models.User, reg.user_id)
+            user = self._analytics_repository.get_user_by_id(user_id=reg.user_id)
             activities.append(
                 schemas.RecentActivity(
                     id=reg.id,

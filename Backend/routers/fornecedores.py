@@ -4,7 +4,7 @@ from pathlib import Path
 from typing import Any, List, Optional
 import time
 from fastapi import APIRouter, BackgroundTasks, Body, Depends, File, HTTPException, Query, UploadFile, status
-from sqlalchemy.orm import Session, sessionmaker
+from sqlalchemy.orm import Session
 from Backend import models
 from Backend import schemas
 from Backend.application.services.fornecedor_catalog_process_service import FornecedorCatalogProcessService
@@ -164,7 +164,7 @@ class _FornecedoresServiceGateway:
     def __init__(self, *, session: Session, services: Optional[_FornecedoresServiceBundle]=None) -> None:
         """Initialize collaborators and configuration required by this component."""
         self._session = session
-        runtime_session_factory = sessionmaker(bind=session.get_bind())
+        runtime_session_factory = ServiceContainerDependencySupport.build_background_db_session_factory_from_session(session)
         self._services = services or _FornecedoresServiceBundle(db_session_factory=runtime_session_factory)
         self._catalog_file_repo = CatalogImportFileRepository(session)
         self._fornecedor_repo = FornecedorRepository(session)

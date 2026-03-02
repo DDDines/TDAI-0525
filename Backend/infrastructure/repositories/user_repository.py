@@ -11,6 +11,7 @@ from typing import List, Optional, Union
 
 from fastapi import HTTPException
 from sqlalchemy.exc import IntegrityError
+from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from Backend import schemas
@@ -69,6 +70,14 @@ class UserRepository:
     def get_users(self, *, skip: int = 0, limit: int = 100) -> List[User]:
         """Return users for this workflow."""
         return self._db.query(User).offset(skip).limit(limit).all()
+
+    def search_users_by_email(self, *, query_text: Optional[str], limit: int) -> List[User]:
+        """Return users filtered by email for admin search endpoint."""
+        query = self._db.query(User)
+        if query_text:
+            term = f"%{query_text.lower()}%"
+            query = query.filter(func.lower(User.email).ilike(term))
+        return query.order_by(User.created_at.desc()).limit(limit).all()
 
     def create_user(self, *, user: schemas.UserCreate) -> User:
         """Create user for this workflow."""

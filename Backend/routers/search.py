@@ -3,11 +3,14 @@
 from typing import List, Optional, Tuple
 
 from fastapi import APIRouter, Depends, Query
-from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from Backend import models, schemas
 from Backend.application.services.service_container import ServiceContainerDependencySupport
+from Backend.infrastructure.repositories.fornecedor_repository import FornecedorRepository
+from Backend.infrastructure.repositories.product_repository import ProductRepository
+from Backend.infrastructure.repositories.product_type_repository import ProductTypeRepository
+from Backend.infrastructure.repositories.user_repository import UserRepository
 
 from . import auth_utils
 
@@ -27,7 +30,10 @@ class SearchRequestService:
         session: Session = Depends(ServiceContainerDependencySupport.get_request_db_session),
     ) -> None:
         """Initialize collaborators and configuration required by this component."""
-        self._session = session
+        self._product_repo = ProductRepository(session)
+        self._fornecedor_repo = FornecedorRepository(session)
+        self._product_type_repo = ProductTypeRepository(session)
+        self._user_repo = UserRepository(session)
 
     def search_all(
         self,
@@ -38,18 +44,15 @@ class SearchRequestService:
     ) -> schemas.SearchResults:
         """Run search all in this workflow."""
         results_items: List[Tuple] = []
-        term = f"%{q.lower()}%" if q else None
+        term = q.strip().lower() if q else None
 
-        prod_query = self._session.query(
-            models.Produto.id,
-            models.Produto.nome_base,
-            models.Produto.created_at,
+        produtos = self._product_repo.search_produtos_for_index(
+            query_text=term,
+            limit=limit,
+            user_id=current_user.id,
+            is_admin=current_user.is_superuser,
         )
-        if term:
-            prod_query = prod_query.filter(func.lower(models.Produto.nome_base).ilike(term))
-        if not current_user.is_superuser:
-            prod_query = prod_query.filter(models.Produto.user_id == current_user.id)
-        for prod in prod_query.order_by(models.Produto.created_at.desc()).limit(limit).all():
+        for prod in produtos:
             results_items.append(
                 (
                     prod.created_at,
@@ -57,16 +60,13 @@ class SearchRequestService:
                 )
             )
 
-        forn_query = self._session.query(
-            models.Fornecedor.id,
-            models.Fornecedor.nome,
-            models.Fornecedor.created_at,
+        fornecedores = self._fornecedor_repo.search_fornecedores_for_index(
+            query_text=term,
+            limit=limit,
+            user_id=current_user.id,
+            is_admin=current_user.is_superuser,
         )
-        if term:
-            forn_query = forn_query.filter(func.lower(models.Fornecedor.nome).ilike(term))
-        if not current_user.is_superuser:
-            forn_query = forn_query.filter(models.Fornecedor.user_id == current_user.id)
-        for forn in forn_query.order_by(models.Fornecedor.created_at.desc()).limit(limit).all():
+        for forn in fornecedores:
             results_items.append(
                 (
                     forn.created_at,
@@ -74,19 +74,13 @@ class SearchRequestService:
                 )
             )
 
-        pt_query = self._session.query(
-            models.ProductType.id,
-            models.ProductType.friendly_name,
-            models.ProductType.created_at,
+        product_types = self._product_type_repo.search_product_types_for_index(
+            query_text=term,
+            limit=limit,
+            user_id=current_user.id,
+            is_admin=current_user.is_superuser,
         )
-        if term:
-            pt_query = pt_query.filter(func.lower(models.ProductType.friendly_name).ilike(term))
-        if not current_user.is_superuser:
-            pt_query = pt_query.filter(
-                (models.ProductType.user_id == current_user.id)
-                | models.ProductType.user_id.is_(None)
-            )
-        for product_type in pt_query.order_by(models.ProductType.created_at.desc()).limit(limit).all():
+        for product_type in product_types:
             results_items.append(
                 (
                     product_type.created_at,
@@ -99,14 +93,8 @@ class SearchRequestService:
             )
 
         if current_user.is_superuser:
-            user_query = self._session.query(
-                models.User.id,
-                models.User.email,
-                models.User.created_at,
-            )
-            if term:
-                user_query = user_query.filter(func.lower(models.User.email).ilike(term))
-            for user in user_query.order_by(models.User.created_at.desc()).limit(limit).all():
+            users = self._user_repo.search_users_by_email(query_text=term, limit=limit)
+            for user in users:
                 results_items.append(
                     (
                         user.created_at,

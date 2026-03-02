@@ -3,7 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Any, Callable
 from fastapi import Depends
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, sessionmaker
 from Backend import database, models, schemas
 from Backend.application.services.fornecedor_management_service import FornecedorManagementService
 from Backend.application.services.file_processing import FileProcessingOrchestratorService
@@ -68,6 +68,16 @@ class ServiceContainerDependencySupport:
     def get_background_db_session_factory() -> Callable[[], Session]:
         """Return background db session factory for this workflow."""
         return database.SessionLocal
+
+    @staticmethod
+    def build_background_db_session_factory_from_session(
+        session: Session,
+    ) -> Callable[[], Session]:
+        """Build a background session factory bound to the current request engine."""
+        bind = session.get_bind()
+        if bind is None:
+            raise ValueError("Session bind is required to build background session factory.")
+        return sessionmaker(autocommit=False, autoflush=False, bind=bind)
 @dataclass
 class ServiceContainer:
     """Registry simples de servicos OO compartilhados pela aplicacao."""

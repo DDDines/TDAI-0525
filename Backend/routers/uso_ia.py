@@ -104,11 +104,7 @@ class UsoIARequestService:
         registro_id: int,
     ) -> schemas.RegistroUsoIAResponse:
         """Run read uso ia especifico in this workflow."""
-        db_registro = (
-            self._session.query(models.RegistroUsoIA)
-            .filter(models.RegistroUsoIA.id == registro_id)
-            .first()
-        )
+        db_registro = self._registro_repo.get_registro_uso_ia(registro_id=registro_id)
         if db_registro is None:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,

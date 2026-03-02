@@ -124,6 +124,25 @@ class FornecedorRepository:
         query = self._apply_fornecedor_search_filter(query, search)
         return query.scalar() or 0
 
+    def search_fornecedores_for_index(
+        self,
+        *,
+        query_text: Optional[str],
+        limit: int,
+        user_id: Optional[int],
+        is_admin: bool,
+    ):
+        """Return lightweight supplier rows for search endpoint rendering."""
+        query = self._db.query(Fornecedor.id, Fornecedor.nome, Fornecedor.created_at)
+        if query_text:
+            term = f"%{query_text.lower()}%"
+            query = query.filter(func.lower(Fornecedor.nome).ilike(term))
+        if not is_admin:
+            if user_id is None:
+                return []
+            query = query.filter(Fornecedor.user_id == user_id)
+        return query.order_by(Fornecedor.created_at.desc()).limit(limit).all()
+
     def update_fornecedor(
         self,
         *,

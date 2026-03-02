@@ -217,13 +217,9 @@ class ProductTypesRequestService:
         attribute_in: schemas.AttributeTemplateCreate,
     ) -> models.AttributeTemplate:
         """Run add attribute to product type in this workflow."""
-        existing_attr_template = (
-            self._session.query(models.AttributeTemplate)
-            .filter(
-                models.AttributeTemplate.product_type_id == type_id,
-                models.AttributeTemplate.attribute_key == attribute_in.attribute_key,
-            )
-            .first()
+        existing_attr_template = self._product_type_repo.get_attribute_template_by_key(
+            product_type_id=type_id,
+            attribute_key=attribute_in.attribute_key,
         )
         if existing_attr_template:
             raise HTTPException(
@@ -259,14 +255,10 @@ class ProductTypesRequestService:
             )
 
         if attribute_in.attribute_key and attribute_in.attribute_key != db_attribute_to_check.attribute_key:
-            existing_attr_with_new_key = (
-                self._session.query(models.AttributeTemplate)
-                .filter(
-                    models.AttributeTemplate.product_type_id == type_id,
-                    models.AttributeTemplate.attribute_key == attribute_in.attribute_key,
-                    models.AttributeTemplate.id != attribute_id,
-                )
-                .first()
+            existing_attr_with_new_key = self._product_type_repo.get_attribute_template_by_key(
+                product_type_id=type_id,
+                attribute_key=attribute_in.attribute_key,
+                exclude_attribute_id=attribute_id,
             )
             if existing_attr_with_new_key:
                 raise HTTPException(
