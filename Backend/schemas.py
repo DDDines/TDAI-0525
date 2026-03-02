@@ -778,6 +778,8 @@ class SocialLoginConfig(BaseModel):
 
     google_enabled: bool
     facebook_enabled: bool
+    product_experience_default: Literal["basic", "complete"] = "basic"
+    allow_admin_experience_preview: bool = True
 
 
 class RegionExtractionRequest(BaseModel):

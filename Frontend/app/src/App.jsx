@@ -7,6 +7,7 @@
 import React, { useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
+import { AppExperienceProvider } from './contexts/AppExperienceContext';
 import { ProductTypeProvider } from './contexts/ProductTypeContext'; // Certifique-se que o caminho está correto
 import { ThemeProvider, useTheme } from './contexts/ThemeContext';
 import { ToastContainer } from 'react-toastify';
@@ -116,9 +117,11 @@ function App()
       <Router>
       <ThemeProvider>
         <AuthProvider>
-          <ProductTypeProvider>
-            <ProvidersWrapper />
-          </ProductTypeProvider>
+          <AppExperienceProvider>
+            <ProductTypeProvider>
+              <ProvidersWrapper />
+            </ProductTypeProvider>
+          </AppExperienceProvider>
         </AuthProvider>
       </ThemeProvider>
     </Router>);

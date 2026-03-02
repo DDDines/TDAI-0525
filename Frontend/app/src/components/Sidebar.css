@@ -45,6 +45,27 @@
   margin-bottom: 0;
 }
 
+.sidebar-mode-chip {
+  display: inline-flex;
+  margin-top: 0.75rem;
+  padding: 0.3rem 0.65rem;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+}
+
+.sidebar-mode-chip.basic {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+.sidebar-mode-chip.complete {
+  background: #dcfce7;
+  color: #166534;
+}
+
 .sidebar-nav ul {
   list-style: none;
   padding: 0;

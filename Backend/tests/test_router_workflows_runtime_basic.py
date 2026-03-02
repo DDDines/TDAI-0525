@@ -306,6 +306,7 @@ class _TopLevelFunctionSurface:
     
         assert config.google_enabled is True
         assert config.facebook_enabled is False
+        assert config.product_experience_default in {"basic", "complete"}
 
     @pytest.mark.asyncio
     async def test_social_auth_workflow_google_callback_delega_runtime_e_retorna_tokens():

@@ -66,6 +66,8 @@ class Settings(BaseSettings):
     GOOGLE_CSE_ID: Optional[str] = os.getenv('GOOGLE_CSE_ID')
     AUTO_CREATE_TABLES: bool = os.getenv('AUTO_CREATE_TABLES', 'False').lower() in ('true', '1', 't', 'yes')
     APP_MODE: str = os.getenv('APP_MODE', 'oop')
+    PRODUCT_EXPERIENCE_DEFAULT: str = os.getenv('PRODUCT_EXPERIENCE_DEFAULT', 'basic')
+    ALLOW_ADMIN_EXPERIENCE_PREVIEW: bool = os.getenv('ALLOW_ADMIN_EXPERIENCE_PREVIEW', 'True').lower() in ('true', '1', 't', 'yes')
     ALLOW_USERS_TO_EDIT_GLOBAL_PRODUCT_TYPES: bool = Field(default=False, validation_alias='ALLOW_USERS_TO_EDIT_GLOBAL_PRODUCT_TYPES')
     ALLOW_USERS_TO_DELETE_GLOBAL_PRODUCT_TYPES: bool = Field(default=False, validation_alias='ALLOW_USERS_TO_DELETE_GLOBAL_PRODUCT_TYPES')
     model_config = SettingsConfigDict(case_sensitive=True, env_file='.env', env_file_encoding='utf-8', extra='ignore')

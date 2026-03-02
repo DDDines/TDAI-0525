@@ -76,6 +76,71 @@
   line-height: 1.45;
 }
 
+.settings-field-label {
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: #334155;
+}
+
+.settings-experience-status {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 0.8rem;
+}
+
+.settings-mode-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  padding: 0.25rem 0.7rem;
+}
+
+.settings-mode-badge.basic {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+.settings-mode-badge.complete {
+  background: #dcfce7;
+  color: #166534;
+}
+
+.settings-experience-controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.6rem;
+  margin-top: 0.8rem;
+}
+
+.settings-mode-btn,
+.settings-mode-reset-btn {
+  border-radius: 8px;
+  border: 1px solid #cbd5e1;
+  background: #ffffff;
+  color: #1e293b;
+  min-height: 40px;
+  font-size: 0.95rem;
+  font-weight: 600;
+  padding: 0.5rem 0.95rem;
+}
+
+.settings-mode-btn.active {
+  border-color: #111827;
+  background: #111827;
+  color: #ffffff;
+}
+
+.settings-mode-reset-btn {
+  border-style: dashed;
+}
+
 .settings-primary-btn {
   margin-top: 0.2rem;
   width: 100%;
@@ -112,6 +177,32 @@ body.dark .settings-input:disabled {
 
 body.dark .settings-help-text {
   color: #94a3b8;
+}
+
+body.dark .settings-field-label {
+  color: #cbd5e1;
+}
+
+body.dark .settings-mode-btn,
+body.dark .settings-mode-reset-btn {
+  background: #0f172a;
+  border-color: #334155;
+  color: #e2e8f0;
+}
+
+body.dark .settings-mode-btn.active {
+  background: #e2e8f0;
+  color: #0f172a;
+}
+
+body.dark .settings-mode-badge.basic {
+  background: #78350f;
+  color: #fde68a;
+}
+
+body.dark .settings-mode-badge.complete {
+  background: #14532d;
+  color: #86efac;
 }
 
 body.dark .settings-primary-btn {

@@ -33,6 +33,12 @@ class SocialAuthRequestService:
         return provider in oauth._clients
 
     @staticmethod
+    def _resolve_product_experience_default() -> str:
+        """Normaliza o modo de experiencia publico para valores suportados."""
+        configured = str(getattr(settings, "PRODUCT_EXPERIENCE_DEFAULT", "basic") or "basic").strip().lower()
+        return configured if configured in {"basic", "complete"} else "basic"
+
+    @staticmethod
     async def _authorize_redirect(provider: str, request: Request, redirect_uri: str):
         """Execute authorize redirect as part of this module workflow."""
         return await getattr(oauth, provider).authorize_redirect(request, redirect_uri)
@@ -58,6 +64,10 @@ class SocialAuthRequestService:
         return schemas.SocialLoginConfig(
             google_enabled=self._has_client("google"),
             facebook_enabled=self._has_client("facebook"),
+            product_experience_default=self._resolve_product_experience_default(),
+            allow_admin_experience_preview=bool(
+                getattr(settings, "ALLOW_ADMIN_EXPERIENCE_PREVIEW", True)
+            ),
         )
 
     async def google_login(self, request: Request):

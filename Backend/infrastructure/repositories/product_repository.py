@@ -248,6 +248,32 @@ class ProductRepository:
             return query.first()
         return query.with_for_update().first()
 
+    def set_web_enrichment_status(
+        self,
+        *,
+        produto_id: int,
+        status: StatusEnriquecimentoEnum,
+        log_message: Optional[str] = None,
+    ) -> Optional[Produto]:
+        """Persist web enrichment status updates for a product."""
+        produto = self.get_produto_for_update(produto_id=produto_id)
+        if produto is None:
+            return None
+
+        produto.status_enriquecimento_web = status
+        if log_message:
+            historico: List[str] = []
+            if isinstance(produto.log_enriquecimento_web, dict):
+                previous = produto.log_enriquecimento_web.get("historico_mensagens", [])
+                if isinstance(previous, list):
+                    historico = [str(item) for item in previous]
+            historico.append(log_message)
+            produto.log_enriquecimento_web = {"historico_mensagens": historico}
+
+        self._db.commit()
+        self._db.refresh(produto)
+        return produto
+
     def get_produtos_by_user(
         self,
         *,

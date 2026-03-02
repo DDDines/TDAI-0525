@@ -7,6 +7,7 @@
 // Frontend/app/src/components/ProductEditModal.jsx
 import React, { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '../contexts/AuthContext';
+import { useAppExperience } from '../contexts/AppExperienceContext';
 import Modal from './common/Modal';
 import LoadingOverlay from './common/LoadingOverlay.jsx';
 import { showSuccessToast, showErrorToast, showInfoToast, showWarningToast } from '../utils/notifications';
@@ -141,10 +142,12 @@ function normalizeDynamicAttrsToTemplateKeys(
 
 function ProductEditModal(
 
-  { isOpen, onClose, product, onProductUpdated }) {
+  { isOpen, onClose, product, onProductUpdated, showAiFeatures: showAiFeaturesProp }) {
     const isNewProduct = !product?.id;
 
     const { isAuthenticated: _isAuthenticated } = useAuth();
+    const { effectiveMode } = useAppExperience();
+    const showAiFeatures = typeof showAiFeaturesProp === 'boolean' ? showAiFeaturesProp : effectiveMode === 'complete';
 
     const [formData, setFormData] = useState(initialFormData);
     const [activeTab, setActiveTab] = useState('info');
@@ -249,6 +252,12 @@ function ProductEditModal(
         }
       };
     }, [isOpen]);
+
+    useEffect(() => {
+      if (!showAiFeatures && (activeTab === 'conteudo-ia' || activeTab === 'sugestoes-ia')) {
+        setActiveTab('info');
+      }
+    }, [activeTab, showAiFeatures]);
 
     const extractIaSuggestions = useCallback((dadosBrutos) => {
       const extracted = {};
@@ -792,8 +801,12 @@ function ProductEditModal(
                     <button type="button" className={activeTab === 'info' ? 'active' : ''} onClick={() => setActiveTab('info')}>Info Principais</button>
                     <button type="button" className={activeTab === 'atributos' ? 'active' : ''} onClick={() => setActiveTab('atributos')} disabled={!formData.fornecedor_id || !formData.product_type_id}>Atributos</button>
                     <button type="button" className={activeTab === 'midia' ? 'active' : ''} onClick={() => setActiveTab('midia')} disabled={!formData.fornecedor_id || !formData.product_type_id}>Mídia</button>
-                    <button type="button" className={activeTab === 'conteudo-ia' ? 'active' : ''} onClick={() => setActiveTab('conteudo-ia')} disabled={!formData.fornecedor_id || !formData.product_type_id}>Conteúdo IA</button>
-                    <button type="button" className={activeTab === 'sugestoes-ia' ? 'active' : ''} onClick={() => setActiveTab('sugestoes-ia')} disabled={!formData.fornecedor_id || !formData.product_type_id}>Sugestões IA</button>
+                    {showAiFeatures &&
+                    <>
+                        <button type="button" className={activeTab === 'conteudo-ia' ? 'active' : ''} onClick={() => setActiveTab('conteudo-ia')} disabled={!formData.fornecedor_id || !formData.product_type_id}>Conteúdo IA</button>
+                        <button type="button" className={activeTab === 'sugestoes-ia' ? 'active' : ''} onClick={() => setActiveTab('sugestoes-ia')} disabled={!formData.fornecedor_id || !formData.product_type_id}>Sugestões IA</button>
+                      </>
+                    }
                     <button type="button" className={activeTab === 'log' ? 'active' : ''} onClick={() => setActiveTab('log')} disabled={!formData.fornecedor_id || !formData.product_type_id}>Log</button>
                 </div>
 
@@ -876,7 +889,7 @@ function ProductEditModal(
                              </div>
                          </div>
               }
-                    {activeTab === 'conteudo-ia' &&
+                    {showAiFeatures && activeTab === 'conteudo-ia' &&
               <div className="form-section">
                             <h3>Conteúdo Gerado por IA</h3>
                             <button type="button" onClick={handleGenerateTitles} disabled={isGeneratingIA || isNewProduct}> {isGeneratingIA ? 'Gerando Títulos...' : 'Gerar Títulos (OpenAI)'} </button>
@@ -886,7 +899,7 @@ function ProductEditModal(
                             {formData.descricao_chat_api && <div style={{ marginTop: '10px' }}> <h4>Descrição Principal Gerada:</h4> <textarea value={formData.descricao_chat_api} readOnly rows="10" style={{ width: '100%', backgroundColor: '#f9f9f9' }} /> </div>}
                         </div>
               }
-                    {activeTab === 'sugestoes-ia' &&
+                    {showAiFeatures && activeTab === 'sugestoes-ia' &&
               <div className="form-section">
                             <h3>Sugestões de Atributos por IA</h3>
                             <div className="suggestion-action-box">

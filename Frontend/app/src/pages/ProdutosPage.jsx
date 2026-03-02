@@ -10,6 +10,7 @@ import { useSearchParams, useNavigate } from 'react-router-dom';
 import ProductTable from '../components/produtos/ProductTable';
 import Modal from '../components/common/Modal';
 import ProductEditModal from '../components/ProductEditModal';
+import { useAppExperience } from '../contexts/AppExperienceContext';
 import PaginationControls from '../components/common/PaginationControls';
 import productService from '../services/productService';
 import { showErrorToast, showSuccessToast, showInfoToast, showWarningToast } from '../utils/notifications';
@@ -17,9 +18,25 @@ import './ProdutosPage.css';
 import { useProductTypes } from '../contexts/ProductTypeContext';
 import LoadingPopup from '../components/common/LoadingPopup.jsx';
 
+const WEB_ENRICHMENT_TERMINAL_STATUSES = new Set([
+  'CONCLUIDO',
+  'CONCLUIDO_SUCESSO',
+  'CONCLUIDO_COM_DADOS_PARCIAIS',
+  'FALHA',
+  'FALHOU',
+  'FALHA_API_EXTERNA',
+  'FALHA_CONFIGURACAO_API_EXTERNA',
+  'NENHUMA_FONTE_ENCONTRADA',
+  'NAO_APLICAVEL',
+]);
+const WEB_ENRICHMENT_POLL_INTERVAL_MS = 3000;
+const WEB_ENRICHMENT_MAX_POLLS = 20;
+
 function ProdutosPage()
 
   {
+    const { effectiveMode } = useAppExperience();
+    const showAiFeatures = effectiveMode === 'complete';
     const [searchParams] = useSearchParams();
     const navigate = useNavigate();
     const [produtos, setProdutos] = useState([]);
@@ -41,6 +58,7 @@ function ProdutosPage()
     const [filtroFornecedor, _setFiltroFornecedor] = useState('');
     const [filtroTipoProduto, setFiltroTipoProduto] = useState('');
     const pendingRefreshTimeoutsRef = React.useRef([]);
+    const webStatusPollRunRef = React.useRef(0);
 
     const { productTypes, isLoading: loadingProductTypes, error: productTypesError } = useProductTypes();
 
@@ -61,8 +79,8 @@ function ProdutosPage()
           sort_order: sortConfig.direction === 'ascending' ? 'asc' : 'desc',
           search: searchTerm,
           status_enriquecimento_web: filtroStatusEnriquecimento || undefined,
-          status_titulo_ia: filtroStatusTituloIA || undefined,
-          status_descricao_ia: filtroStatusDescricaoIA || undefined,
+          status_titulo_ia: showAiFeatures ? filtroStatusTituloIA || undefined : undefined,
+          status_descricao_ia: showAiFeatures ? filtroStatusDescricaoIA || undefined : undefined,
           fornecedor_id: filtroFornecedor || undefined,
           product_type_id: filtroTipoProduto || undefined
         };
@@ -87,7 +105,8 @@ function ProdutosPage()
     filtroStatusTituloIA,
     filtroStatusDescricaoIA,
     filtroFornecedor,
-    filtroTipoProduto]
+    filtroTipoProduto,
+    showAiFeatures]
     );
 
     useEffect(() => {
@@ -101,6 +120,7 @@ function ProdutosPage()
 
     useEffect(() => () => {
       clearPendingRefreshTimeouts();
+      webStatusPollRunRef.current += 1;
     }, [clearPendingRefreshTimeouts]);
 
     const scheduleProdutosRefresh = useCallback((message) => {
@@ -195,8 +215,78 @@ function ProdutosPage()
     };
 
     const updateLocalProductStatus = (ids, statusField, newStatus) => {
-      setProdutos((prev) => prev.map((p) => ids.has(p.id) ? { ...p, [statusField]: newStatus } : p));
+      const idSet = new Set(Array.from(ids).map((id) => String(id)));
+      setProdutos((prev) =>
+        prev.map((p) => (idSet.has(String(p.id)) ? { ...p, [statusField]: newStatus } : p))
+      );
     };
+
+    const mergeProdutosById = useCallback((fetchedProdutos) => {
+      const fetchedMap = new Map(
+        fetchedProdutos
+          .filter((item) => item?.id !== undefined && item?.id !== null)
+          .map((item) => [String(item.id), item])
+      );
+      if (fetchedMap.size === 0) {
+        return;
+      }
+      setProdutos((prev) =>
+        prev.map((produtoAtual) => {
+          const fresh = fetchedMap.get(String(produtoAtual.id));
+          return fresh ? { ...produtoAtual, ...fresh } : produtoAtual;
+        })
+      );
+    }, []);
+
+    const pollWebEnrichmentStatuses = useCallback(async (produtoIds) => {
+      const pollRunId = webStatusPollRunRef.current + 1;
+      webStatusPollRunRef.current = pollRunId;
+      const ids = Array.from(produtoIds).map((id) => String(id));
+      if (ids.length === 0) {
+        return;
+      }
+
+      for (let attempt = 0; attempt < WEB_ENRICHMENT_MAX_POLLS; attempt += 1) {
+        if (webStatusPollRunRef.current !== pollRunId) {
+          return;
+        }
+        const fetched = await Promise.all(
+          ids.map(async (produtoId) => {
+            try {
+              return await productService.getProdutoById(produtoId);
+            } catch {
+              return null;
+            }
+          })
+        );
+        const validFetched = fetched.filter(Boolean);
+        mergeProdutosById(validFetched);
+
+        if (validFetched.length > 0) {
+          const allTerminal = validFetched.every((produto) =>
+            WEB_ENRICHMENT_TERMINAL_STATUSES.has(
+              String(produto.status_enriquecimento_web || '').toUpperCase()
+            )
+          );
+          if (allTerminal) {
+            fetchProdutos();
+            return;
+          }
+        }
+
+        await new Promise((resolve) => {
+          const timeoutId = setTimeout(() => {
+            pendingRefreshTimeoutsRef.current = pendingRefreshTimeoutsRef.current.filter(
+              (id) => id !== timeoutId
+            );
+            resolve();
+          }, WEB_ENRICHMENT_POLL_INTERVAL_MS);
+          pendingRefreshTimeoutsRef.current.push(timeoutId);
+        });
+      }
+
+      fetchProdutos();
+    }, [fetchProdutos, mergeProdutosById]);
 
     const handleEnrichSelectedWeb = async () => {
       if (selectedProdutos.size === 0) {
@@ -204,24 +294,29 @@ function ProdutosPage()
         return;
       }
 
-      showInfoToast(`Enriquecimento web iniciado para ${selectedProdutos.size} produto(s).`);
-      updateLocalProductStatus(selectedProdutos, 'status_enriquecimento_web', 'EM_PROGRESSO');
-
       const idsToProcess = Array.from(selectedProdutos);
       setSelectedProdutos(new Set());
+      updateLocalProductStatus(new Set(idsToProcess), 'status_enriquecimento_web', 'PENDENTE');
+      showInfoToast(`Enriquecimento web iniciado para ${idsToProcess.length} produto(s).`);
 
-      for (const produtoId of idsToProcess) {
-        try {
-          await productService.iniciarEnriquecimentoWebProduto(produtoId);
-        } catch (err) {
-          showErrorToast(`Erro ao iniciar enriquecimento para produto ID ${produtoId}: ${err.response?.data?.detail || err.message}`);
-          updateLocalProductStatus(new Set([produtoId]), 'status_enriquecimento_web', 'FALHA');
-        }
-      }
-
-      scheduleProdutosRefresh(
-        'Atualizando lista para verificar resultados do enriquecimento...'
+      const failedIds = new Set();
+      await Promise.all(
+        idsToProcess.map(async (produtoId) => {
+          try {
+            await productService.iniciarEnriquecimentoWebProduto(produtoId);
+          } catch (err) {
+            failedIds.add(String(produtoId));
+            showErrorToast(`Erro ao iniciar enriquecimento para produto ID ${produtoId}: ${err.response?.data?.detail || err.message}`);
+            updateLocalProductStatus(new Set([produtoId]), 'status_enriquecimento_web', 'FALHA');
+          }
+        })
       );
+
+      const startedIds = idsToProcess.filter((produtoId) => !failedIds.has(String(produtoId)));
+      if (startedIds.length > 0) {
+        updateLocalProductStatus(new Set(startedIds), 'status_enriquecimento_web', 'EM_PROGRESSO');
+        void pollWebEnrichmentStatuses(startedIds);
+      }
     };
 
     const handleGenerateContentForSelected = async (contentType) => {
@@ -306,7 +401,9 @@ function ProdutosPage()
             <option value="FALHA">Falha</option>
           </select>
 
-          <select
+          {showAiFeatures &&
+          <>
+              <select
               value={filtroStatusTituloIA}
               onChange={(e) => {
                 setFiltroStatusTituloIA(e.target.value);
@@ -314,15 +411,15 @@ function ProdutosPage()
               }}
               className="filtro-select">
 
-            <option value="">Status Título IA</option>
-            <option value="NAO_INICIADO">Não iniciado</option>
-            <option value="PENDENTE">Pendente</option>
-            <option value="EM_PROGRESSO">Em progresso</option>
-            <option value="CONCLUIDO">Concluído</option>
-            <option value="FALHA">Falha</option>
-          </select>
+              <option value="">Status Título IA</option>
+              <option value="NAO_INICIADO">Não iniciado</option>
+              <option value="PENDENTE">Pendente</option>
+              <option value="EM_PROGRESSO">Em progresso</option>
+              <option value="CONCLUIDO">Concluído</option>
+              <option value="FALHA">Falha</option>
+            </select>
 
-          <select
+              <select
               value={filtroStatusDescricaoIA}
               onChange={(e) => {
                 setFiltroStatusDescricaoIA(e.target.value);
@@ -330,13 +427,15 @@ function ProdutosPage()
               }}
               className="filtro-select">
 
-            <option value="">Status Descrição IA</option>
-            <option value="NAO_INICIADO">Não iniciado</option>
-            <option value="PENDENTE">Pendente</option>
-            <option value="EM_PROGRESSO">Em progresso</option>
-            <option value="CONCLUIDO">Concluído</option>
-            <option value="FALHA">Falha</option>
-          </select>
+              <option value="">Status Descrição IA</option>
+              <option value="NAO_INICIADO">Não iniciado</option>
+              <option value="PENDENTE">Pendente</option>
+              <option value="EM_PROGRESSO">Em progresso</option>
+              <option value="CONCLUIDO">Concluído</option>
+              <option value="FALHA">Falha</option>
+            </select>
+            </>
+          }
 
           <select
               value={filtroTipoProduto}
@@ -369,8 +468,12 @@ function ProdutosPage()
           <span>{selectedProdutos.size} produto(s) selecionado(s)</span>
           <button onClick={handleDeleteSelected} className="btn-danger btn-sm">Deletar</button>
           <button onClick={handleEnrichSelectedWeb} className="btn-secondary btn-sm">Enriquecer Web</button>
-          <button onClick={() => handleGenerateContentForSelected('titulo')} className="btn-secondary btn-sm">Gerar Títulos IA</button>
-          <button onClick={() => handleGenerateContentForSelected('descricao')} className="btn-secondary btn-sm">Gerar Descrições IA</button>
+          {showAiFeatures &&
+          <>
+              <button onClick={() => handleGenerateContentForSelected('titulo')} className="btn-secondary btn-sm">Gerar Títulos IA</button>
+              <button onClick={() => handleGenerateContentForSelected('descricao')} className="btn-secondary btn-sm">Gerar Descrições IA</button>
+            </>
+          }
         </div>
         }
 
@@ -385,6 +488,7 @@ function ProdutosPage()
           onSelectProduto={handleSelectProduto}
           selectedProdutos={selectedProdutos}
           onSelectAllProdutos={handleSelectAllProdutos}
+          showAiColumns={showAiFeatures}
           loading={loading && produtos && produtos.length > 0} />
 
         }
@@ -409,6 +513,7 @@ function ProdutosPage()
             isOpen={isModalOpen}
             onClose={handleCloseModal}
             product={produtoParaEditar}
+            showAiFeatures={showAiFeatures}
             onProductUpdated={handleProductUpdated} />
 
         </Modal>

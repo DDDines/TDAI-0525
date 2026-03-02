@@ -21,10 +21,16 @@ class _CrudProdutosStub:
     def __init__(self, produto=None):
         """Initialize collaborators and configuration required by this component."""
         self.produto = produto
+        self.status_updates = []
 
     def get_produto(self, *, produto_id: int):
         """Return produto for this workflow."""
         _ = produto_id
+        return self.produto
+
+    def set_web_enrichment_status(self, *, produto_id: int, status: str, log_message: str | None = None):
+        """Persist status updates captured for assertions in tests."""
+        self.status_updates.append((produto_id, status, log_message))
         return self.produto
 
 
@@ -33,6 +39,7 @@ class _ModelsStub:
     class StatusEnriquecimentoEnum:
         """Represent status enriquecimento enum and centralize responsibilities for this module."""
         EM_PROGRESSO = "EM_PROGRESSO"
+        PENDENTE = "PENDENTE"
 
 
 class _DispatcherStub:
@@ -78,16 +85,17 @@ class _TopLevelFunctionSurface:
     """Represent top level function surface and centralize responsibilities for this module."""
     def _build_service(produto=None):
         """Run build service in this workflow."""
+        repo = _CrudProdutosStub(produto=produto)
         return WebEnrichmentStartService(
-            product_repository=_CrudProdutosStub(produto=produto),
+            product_repository=repo,
             models=_ModelsStub,
             dispatcher_cls=_DispatcherStub,
             orchestrator_cls=_OrchestratorStub,
-        )
+        ), repo
 
     def test_validate_start_preconditions_not_found():
         """Run test validate start preconditions not found in this workflow."""
-        service = _build_service(produto=None)
+        service, _ = _build_service(produto=None)
         user = SimpleNamespace(id=1, is_superuser=False)
     
         with pytest.raises(HTTPException) as exc:
@@ -101,7 +109,7 @@ class _TopLevelFunctionSurface:
     def test_validate_start_preconditions_forbidden():
         """Run test validate start preconditions forbidden in this workflow."""
         produto = SimpleNamespace(user_id=2, status_enriquecimento_web="PENDENTE")
-        service = _build_service(produto=produto)
+        service, _ = _build_service(produto=produto)
         user = SimpleNamespace(id=1, is_superuser=False)
     
         with pytest.raises(HTTPException) as exc:
@@ -115,7 +123,7 @@ class _TopLevelFunctionSurface:
     def test_validate_start_preconditions_conflict():
         """Run test validate start preconditions conflict in this workflow."""
         produto = SimpleNamespace(user_id=1, status_enriquecimento_web="EM_PROGRESSO")
-        service = _build_service(produto=produto)
+        service, _ = _build_service(produto=produto)
         user = SimpleNamespace(id=1, is_superuser=False)
     
         with pytest.raises(HTTPException) as exc:
@@ -129,7 +137,7 @@ class _TopLevelFunctionSurface:
     def test_validate_start_preconditions_success():
         """Run test validate start preconditions success in this workflow."""
         produto = SimpleNamespace(user_id=1, status_enriquecimento_web="PENDENTE")
-        service = _build_service(produto=produto)
+        service, _ = _build_service(produto=produto)
         user = SimpleNamespace(id=1, is_superuser=False)
     
         service.validate_start_preconditions(
@@ -141,7 +149,7 @@ class _TopLevelFunctionSurface:
         """Run test dispatch start selects and dispatches in this workflow."""
         _DispatcherStub.reset()
         produto = SimpleNamespace(user_id=1, status_enriquecimento_web="PENDENTE")
-        service = _build_service(produto=produto)
+        service, repo = _build_service(produto=produto)
         command = SimpleNamespace(produto_id=7, user_id=1, termos_busca_override=None)
     
         plan = service.dispatch_start(
@@ -152,6 +160,9 @@ class _TopLevelFunctionSurface:
     
         assert plan.task_kwargs["produto_id"] == 7
         assert len(_DispatcherStub.dispatched) == 1
+        assert repo.status_updates == [
+            (7, _ModelsStub.StatusEnriquecimentoEnum.PENDENTE, "Enriquecimento web enfileirado para execucao.")
+        ]
 
 _build_service = _TopLevelFunctionSurface._build_service
 test_validate_start_preconditions_not_found = _TopLevelFunctionSurface.test_validate_start_preconditions_not_found

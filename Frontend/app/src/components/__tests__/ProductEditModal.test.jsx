@@ -1,57 +1,67 @@
 import { render, screen } from '@testing-library/react';
 import '@testing-library/jest-dom';
 import userEvent from '@testing-library/user-event';
-import ProductEditModal from '../ProductEditModal.jsx';class _TopLevelFunctionSurface {static renderModal() {return (
+import ProductEditModal from '../ProductEditModal.jsx';
 
+const mockProductTypes = [
+  {
+    id: 1,
+    friendly_name: 'Automotivo',
+    attribute_templates: [
+      { attribute_key: 'titulo_auto', label: 'Titulo', field_type: 'text', is_required: false },
+      { attribute_key: 'id_auto', label: 'ID', field_type: 'text', is_required: false },
+      { attribute_key: 'Desc_Auto', label: 'Descricao', field_type: 'textarea', is_required: false },
+    ],
+  },
+];
 
+jest.mock('../../services/productService', () => ({
+  __esModule: true,
+  default: {
+    getProdutoById: jest.fn(() =>
+      Promise.resolve({
+        id: 1,
+        nome_base: 'Produto',
+        fornecedor_id: 1,
+        product_type_id: 1,
+        product_type: { id: 1 },
+        dynamic_attributes: {
+          titulo: 'Titulo extraido',
+          id: 'SP1081',
+          descricao: 'Descricao extraida',
+        },
+      })
+    ),
+    getAtributoSuggestions: jest.fn(() => Promise.resolve({})),
+  },
+}));
 
+jest.mock('../../services/fornecedorService', () => ({
+  __esModule: true,
+  default: {
+    getFornecedores: jest.fn(() => Promise.resolve({ items: [] })),
+    getFornecedorById: jest.fn(() => Promise.resolve({ id: 1, nome: 'F' })),
+  },
+}));
 
+jest.mock('../../contexts/ProductTypeContext', () => ({
+  useProductTypes: () => ({ productTypes: mockProductTypes, addProductType: jest.fn() }),
+}));
 
+jest.mock('../../contexts/AuthContext', () => ({
+  useAuth: () => ({ isAuthenticated: true }),
+}));
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-      render(<ProductEditModal isOpen={true} onClose={() => {}} product={{ id: 1 }} />));}}const mockProductTypes = [{ id: 1, friendly_name: 'Automotivo', attribute_templates: [{ attribute_key: 'titulo_auto', label: 'Titulo', field_type: 'text', is_required: false }, { attribute_key: 'id_auto', label: 'ID', field_type: 'text', is_required: false }, { attribute_key: 'Desc_Auto', label: 'Descricao', field_type: 'textarea', is_required: false }] }];jest.mock('../../services/productService', () => ({ __esModule: true, default: { getProdutoById: jest.fn(() => Promise.resolve({ id: 1, nome_base: 'Produto', fornecedor_id: 1, product_type_id: 1, product_type: { id: 1 }, dynamic_attributes: { titulo: 'Titulo extraido', id: 'SP1081', descricao: 'Descricao extraida' } })), getAtributoSuggestions: jest.fn(() => Promise.resolve({})) } }));jest.mock('../../services/fornecedorService', () => ({ __esModule: true, default: { getFornecedores: jest.fn(() => Promise.resolve({ items: [] })), getFornecedorById: jest.fn(() => Promise.resolve({ id: 1, nome: 'F' })) } }));jest.mock('../../contexts/ProductTypeContext', () => ({ useProductTypes: () => ({ productTypes: mockProductTypes, addProductType: jest.fn() }) }));jest.mock('../../contexts/AuthContext', () => ({ useAuth: () => ({ isAuthenticated: true }) }));const renderModal = _TopLevelFunctionSurface.renderModal;
+function renderModal() {
+  return render(
+    <ProductEditModal
+      isOpen={true}
+      onClose={() => {}}
+      product={{ id: 1 }}
+      showAiFeatures={true}
+    />
+  );
+}
 
 test('fetchGeminiSuggestions does not crash when API returns empty object', async () => {
   renderModal();

@@ -7,6 +7,7 @@
 import React from 'react';
 import { NavLink } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
+import { useAppExperience } from '../contexts/AppExperienceContext';
 import './Sidebar.css';
 import LogoImg from '../assets/Logo.png';
 import {
@@ -25,6 +26,8 @@ function Sidebar(
 
   { isOpen }) {
     const { logout } = useAuth();
+    const { effectiveMode } = useAppExperience();
+    const isCompleteMode = effectiveMode === 'complete';
 
     const handleLogout = () => {
       logout();
@@ -46,6 +49,11 @@ function Sidebar(
       <div className="sidebar-header">
         {LogoImg ? <img src={LogoImg} alt="CatalogAI logo" className="sidebar-logo" /> : null}
         {isOpen && <h1 className="sidebar-title">CatalogAI</h1>}
+        {isOpen &&
+        <span className={`sidebar-mode-chip ${isCompleteMode ? 'complete' : 'basic'}`}>
+            {isCompleteMode ? 'Modo Completo' : 'Modo Básico'}
+          </span>
+        }
       </div>
       <nav className="sidebar-nav">
         <ul>
