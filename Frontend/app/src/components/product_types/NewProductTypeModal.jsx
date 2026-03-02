@@ -1,13 +1,15 @@
 /**
  * Module new product type modal.
  *
- * Implements frontend behavior for components product types.
+ * Defines responsibilities and integration points for components product types.
  */
 
 import React, { useState, useEffect } from 'react';
 import Modal from '../common/Modal';
 import { useProductTypes } from '../../contexts/ProductTypeContext';
-import { showErrorToast } from '../../utils/notifications';class _TopLevelFunctionSurface {static NewProductTypeModal(
+import { showErrorToast } from '../../utils/notifications';
+
+function NewProductTypeModal(
 
   { isOpen, onClose, onCreated }) {
     const { addProductType } = useProductTypes();
@@ -79,4 +81,5 @@ import { showErrorToast } from '../../utils/notifications';class _TopLevelFuncti
       </div>
     </Modal>);
 
-  }}export default _TopLevelFunctionSurface.NewProductTypeModal;
+  }
+export default NewProductTypeModal;

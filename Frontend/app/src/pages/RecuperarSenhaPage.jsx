@@ -1,14 +1,16 @@
 /**
  * Module recuperar senha page.
  *
- * Implements frontend behavior for pages.
+ * Defines responsibilities and integration points for pages.
  */
 
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import authService from '../services/authService';
 import { showSuccessToast, showErrorToast } from '../utils/notifications';
-import './LoginPage.css';class _TopLevelFunctionSurface {static RecuperarSenhaPage()
+import './LoginPage.css';
+
+function RecuperarSenhaPage()
 
   {
     const [email, setEmail] = useState('');
@@ -54,4 +56,5 @@ import './LoginPage.css';class _TopLevelFunctionSurface {static RecuperarSenhaPa
       </div>
     </div>);
 
-  }}export default _TopLevelFunctionSurface.RecuperarSenhaPage;
+  }
+export default RecuperarSenhaPage;

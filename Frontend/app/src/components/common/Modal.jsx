@@ -1,13 +1,15 @@
 /**
  * Module modal.
  *
- * Implements frontend behavior for components common.
+ * Defines responsibilities and integration points for components common.
  */
 
 // Frontend/app/src/components/common/Modal.jsx
 import React from 'react';
 import './Modal.css'; // Opcional: para estilização do modal
-class _TopLevelFunctionSurface {static Modal(
+
+
+function Modal(
   { isOpen, onClose, title, children }) {
     if (!isOpen) {
       return null;
@@ -32,4 +34,5 @@ class _TopLevelFunctionSurface {static Modal(
             </div>
         </div>);
 
-  }}export default _TopLevelFunctionSurface.Modal;
+  }
+export default Modal;

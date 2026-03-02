@@ -1,7 +1,7 @@
 /**
  * Module search service.
  *
- * Implements frontend behavior for services.
+ * Defines responsibilities and integration points for services.
  */
 
 import apiClient from './apiClient';

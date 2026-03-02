@@ -1,13 +1,15 @@
 /**
  * Module user menu.
  *
- * Implements frontend behavior for components.
+ * Defines responsibilities and integration points for components.
  */
 
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
-import { LuSettings, LuLogOut } from 'react-icons/lu';class _TopLevelFunctionSurface {static getInitials(
+import { LuSettings, LuLogOut } from 'react-icons/lu';
+
+function getInitials(
 
   name) {
     if (!name || typeof name !== 'string') return '--';
@@ -17,7 +19,9 @@ import { LuSettings, LuLogOut } from 'react-icons/lu';class _TopLevelFunctionSur
       initials += names[names.length - 1].substring(0, 1).toUpperCase();
     }
     return initials;
-  }static UserMenu(
+  }
+
+function UserMenu(
 
   { onLogout, onNavigate, showDropdown = true }) {
     const navigate = useNavigate();
@@ -82,4 +86,5 @@ import { LuSettings, LuLogOut } from 'react-icons/lu';class _TopLevelFunctionSur
         }
     </div>);
 
-  }}const getInitials = _TopLevelFunctionSurface.getInitials;export default _TopLevelFunctionSurface.UserMenu;
+  }
+export default UserMenu;

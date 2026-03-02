@@ -1,7 +1,7 @@
 /**
  * Module uso i a service.
  *
- * Implements frontend behavior for services.
+ * Defines responsibilities and integration points for services.
  */
 
 // Frontend/app/src/services/usoIAService.js

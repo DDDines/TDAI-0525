@@ -1,12 +1,14 @@
 /**
  * Module import progress.
  *
- * Implements frontend behavior for components fornecedores.
+ * Defines responsibilities and integration points for components fornecedores.
  */
 
 import React, { useEffect, useState } from 'react';
 import fornecedorService from '../../services/fornecedorService';
-import './ImportProgress.css';class _TopLevelFunctionSurface {static ImportProgress(
+import './ImportProgress.css';
+
+function ImportProgress(
 
   { jobId, onPendingReview }) {
     const [progress, setProgress] = useState(0);
@@ -55,4 +57,5 @@ import './ImportProgress.css';class _TopLevelFunctionSurface {static ImportProgr
       </div>
     </div>);
 
-  }}export default _TopLevelFunctionSurface.ImportProgress;
+  }
+export default ImportProgress;

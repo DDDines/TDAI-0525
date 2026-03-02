@@ -1,7 +1,7 @@
 /**
  * Module api client.
  *
- * Implements frontend behavior for services.
+ * Defines responsibilities and integration points for services.
  */
 
 // Frontend/app/src/services/apiClient.js

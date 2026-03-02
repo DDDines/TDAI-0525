@@ -1,27 +1,22 @@
 /**
  * Module column mapping modal.
  *
- * Implements frontend behavior for components common.
+ * Defines responsibilities and integration points for components common.
  */
 
 import React, { useEffect, useRef, useState } from 'react';
 import Modal from './Modal.jsx';
-import './ColumnMappingModal.css';class _TopLevelFunctionSurface {static normalizeMapping(
+import './ColumnMappingModal.css';
 
-
-
-
-
-
-
-
-
+function normalizeMapping(
 
 
   value) {
     if (!value || typeof value !== 'object') return {};
     return { ...value };
-  }static areMappingsEqual(
+  }
+
+function areMappingsEqual(
 
   left, right) {
     const a = left || {};
@@ -34,7 +29,9 @@ import './ColumnMappingModal.css';class _TopLevelFunctionSurface {static normali
       if ((a[key] || '') !== (b[key] || '')) return false;
     }
     return true;
-  }static ColumnMappingModal(
+  }
+
+function ColumnMappingModal(
 
   {
     isOpen,
@@ -221,4 +218,5 @@ import './ColumnMappingModal.css';class _TopLevelFunctionSurface {static normali
       </div>
     </Modal>);
 
-  }}const UNIQUE_BASE_FIELDS = new Set(['nome_base', 'sku_original', 'ean_original', 'preco_original', 'marca', 'categoria_original', 'auto:sku_nome']);const normalizeMapping = _TopLevelFunctionSurface.normalizeMapping;const areMappingsEqual = _TopLevelFunctionSurface.areMappingsEqual;export default _TopLevelFunctionSurface.ColumnMappingModal;
+  }
+const UNIQUE_BASE_FIELDS = new Set(['nome_base', 'sku_original', 'ean_original', 'preco_original', 'marca', 'categoria_original', 'auto:sku_nome']);export default ColumnMappingModal;

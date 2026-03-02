@@ -1,7 +1,7 @@
 /**
  * Module logger.
  *
- * Implements frontend behavior for utils.
+ * Defines responsibilities and integration points for utils.
  */
 
 // Determine dev mode. Support environments without import.meta (e.g. Jest)

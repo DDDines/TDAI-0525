@@ -1,12 +1,14 @@
 /**
  * Module loading overlay.
  *
- * Implements frontend behavior for components common.
+ * Defines responsibilities and integration points for components common.
  */
 
 import React from 'react';
 import './LoadingOverlay.css';
-import LogoImg from '../../assets/Logo.png';class _TopLevelFunctionSurface {static LoadingOverlay(
+import LogoImg from '../../assets/Logo.png';
+
+function LoadingOverlay(
 
   { isOpen, message = 'Carregando...' }) {
     if (!isOpen) return null;
@@ -20,4 +22,5 @@ import LogoImg from '../../assets/Logo.png';class _TopLevelFunctionSurface {stat
       </div>
     </div>);
 
-  }}export default _TopLevelFunctionSurface.LoadingOverlay;
+  }
+export default LoadingOverlay;

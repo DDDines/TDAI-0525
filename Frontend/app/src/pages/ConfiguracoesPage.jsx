@@ -1,7 +1,7 @@
 /**
  * Module configuracoes page.
  *
- * Implements frontend behavior for pages.
+ * Defines responsibilities and integration points for pages.
  */
 
 // Frontend/app/src/pages/ConfiguracoesPage.jsx
@@ -11,7 +11,9 @@ import { showSuccessToast, showErrorToast } from '../utils/notifications';
 import ChangePasswordModal from '../components/user/ChangePasswordModal';
 import { useAuth } from '../contexts/AuthContext';
 import LoadingPopup from '../components/common/LoadingPopup.jsx';
-import './ConfiguracoesPage.css';class _TopLevelFunctionSurface {static ConfiguracoesPage()
+import './ConfiguracoesPage.css';
+
+function ConfiguracoesPage()
 
   {
     const { user } = useAuth();
@@ -182,4 +184,5 @@ import './ConfiguracoesPage.css';class _TopLevelFunctionSurface {static Configur
 
     </div>);
 
-  }}export default _TopLevelFunctionSurface.ConfiguracoesPage;
+  }
+export default ConfiguracoesPage;

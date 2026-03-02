@@ -1,12 +1,14 @@
 /**
  * Module fornecedor service.
  *
- * Implements frontend behavior for services.
+ * Defines responsibilities and integration points for services.
  */
 
 // Frontend/app/src/services/fornecedorService.js
 import logger from '../utils/logger';
-import apiClient from './apiClient';class _TopLevelFunctionSurface {static async getFornecedores(
+import apiClient from './apiClient';
+
+async function getFornecedores(
 
   params = {}) {// params pode incluir skip, limit, termo_busca
     try {
@@ -24,7 +26,9 @@ import apiClient from './apiClient';class _TopLevelFunctionSurface {static async
         throw new Error(error.message || 'Erro ao configurar requisição para buscar fornecedores.');
       }
     }
-  }static async getFornecedorById(
+  }
+
+async function getFornecedorById(
 
   fornecedorId) {
     try {
@@ -40,7 +44,9 @@ import apiClient from './apiClient';class _TopLevelFunctionSurface {static async
         throw new Error(error.message || `Erro ao configurar requisição para buscar fornecedor ${fornecedorId}.`);
       }
     }
-  }static async createFornecedor(
+  }
+
+async function createFornecedor(
 
   fornecedorData) {
     try {
@@ -57,7 +63,9 @@ import apiClient from './apiClient';class _TopLevelFunctionSurface {static async
         throw new Error(error.message || 'Erro ao tentar criar fornecedor. Verifique o console do serviço.');
       }
     }
-  }static async updateFornecedor(
+  }
+
+async function updateFornecedor(
 
   fornecedorId, fornecedorUpdateData) {
     try {
@@ -73,7 +81,9 @@ import apiClient from './apiClient';class _TopLevelFunctionSurface {static async
         throw new Error(error.message || `Erro ao configurar requisição para atualizar fornecedor ${fornecedorId}.`);
       }
     }
-  }static async setFornecedorMapping(
+  }
+
+async function setFornecedorMapping(
 
 
   fornecedorId, mapping = {}) {
@@ -87,7 +97,9 @@ import apiClient from './apiClient';class _TopLevelFunctionSurface {static async
       }
       throw new Error(error.message || 'Falha ao salvar mapeamento do fornecedor');
     }
-  }static async deleteFornecedor(
+  }
+
+async function deleteFornecedor(
 
   fornecedorId) {
     try {
@@ -103,7 +115,9 @@ import apiClient from './apiClient';class _TopLevelFunctionSurface {static async
         throw new Error(error.message || `Erro ao configurar requisição para deletar fornecedor ${fornecedorId}.`);
       }
     }
-  }static async previewCatalogo(
+  }
+
+async function previewCatalogo(
 
 
   file,
@@ -139,7 +153,9 @@ import apiClient from './apiClient';class _TopLevelFunctionSurface {static async
       }
       throw new Error(error.message || 'Falha ao solicitar preview do catálogo');
     }
-  }static async importCatalogo(
+  }
+
+async function importCatalogo(
 
 
   fornecedorId, file, mapping = null) {
@@ -161,7 +177,9 @@ import apiClient from './apiClient';class _TopLevelFunctionSurface {static async
         throw new Error(error.message || 'Erro ao configurar requisição de importação de catálogo.');
       }
     }
-  }static async getCatalogImportFiles(
+  }
+
+async function getCatalogImportFiles(
 
 
   params = {}) {
@@ -178,7 +196,9 @@ import apiClient from './apiClient';class _TopLevelFunctionSurface {static async
         throw new Error(error.message || 'Erro ao configurar requisição para buscar arquivos de importação.');
       }
     }
-  }static async deleteCatalogFile(
+  }
+
+async function deleteCatalogFile(
 
   fileId) {
     try {
@@ -196,7 +216,9 @@ import apiClient from './apiClient';class _TopLevelFunctionSurface {static async
       }
       throw new Error(error.message || 'Falha ao excluir arquivo');
     }
-  }static async reprocessCatalogFile(
+  }
+
+async function reprocessCatalogFile(
 
   fileId, payload = {}) {
     try {
@@ -215,7 +237,9 @@ import apiClient from './apiClient';class _TopLevelFunctionSurface {static async
       }
       throw new Error(error.message || 'Falha ao reprocessar arquivo');
     }
-  }static async getImportacaoStatus(
+  }
+
+async function getImportacaoStatus(
 
   fileId) {
     try {
@@ -230,7 +254,9 @@ import apiClient from './apiClient';class _TopLevelFunctionSurface {static async
       }
       throw new Error(error.message || 'Falha ao consultar status da importação');
     }
-  }static async getImportacaoResult(
+  }
+
+async function getImportacaoResult(
 
   fileId) {
     try {
@@ -258,9 +284,9 @@ import apiClient from './apiClient';class _TopLevelFunctionSurface {static async
       }
       throw new Error(error.message || 'Falha ao obter resultado da importação');
     }
-  }static async uploadForPagePreview(
+  }
 
-
+async function uploadForPagePreview(
 
 
   file, fornecedorId) {
@@ -283,8 +309,9 @@ import apiClient from './apiClient';class _TopLevelFunctionSurface {static async
       }
       throw new Error(error.message || 'Falha ao enviar arquivo para preview');
     }
-  }static async getPdfPreview(
+  }
 
+async function getPdfPreview(
 
 
   file, fornecedorId, offset = 0, limit = 5) {
@@ -308,7 +335,9 @@ import apiClient from './apiClient';class _TopLevelFunctionSurface {static async
       }
       throw new Error(error.message || 'Falha ao obter pré-visualização do PDF');
     }
-  }static async fetchPageDataForMapping(
+  }
+
+async function fetchPageDataForMapping(
 
 
   fileId, pageNumber) {
@@ -327,7 +356,9 @@ import apiClient from './apiClient';class _TopLevelFunctionSurface {static async
       }
       throw new Error(error.message || 'Falha ao extrair dados da página');
     }
-  }static async startFullProcess(
+  }
+
+async function startFullProcess(
 
 
   payload) {
@@ -344,7 +375,9 @@ import apiClient from './apiClient';class _TopLevelFunctionSurface {static async
       }
       throw new Error(error.message || 'Falha ao iniciar processamento do catálogo');
     }
-  }static async getImportProgress(
+  }
+
+async function getImportProgress(
 
 
   jobId) {
@@ -361,7 +394,9 @@ import apiClient from './apiClient';class _TopLevelFunctionSurface {static async
       }
       throw new Error(error.message || 'Falha ao consultar progresso da importação');
     }
-  }static async selecionarRegiao(
+  }
+
+async function selecionarRegiao(
 
 
   { fileId, pageNumber, bbox }) {
@@ -383,7 +418,9 @@ import apiClient from './apiClient';class _TopLevelFunctionSurface {static async
       }
       throw new Error(error.message || 'Falha ao pré-visualizar região do catálogo');
     }
-  }static async extractRegionBulk(
+  }
+
+async function extractRegionBulk(
 
 
   { fileId, bbox, pages = null, allPages = false }) {
@@ -406,7 +443,9 @@ import apiClient from './apiClient';class _TopLevelFunctionSurface {static async
       }
       throw new Error(error.message || 'Falha ao iniciar extração em lote');
     }
-  }static async selecionarRegiaoProduto(
+  }
+
+async function selecionarRegiaoProduto(
 
 
   { fileId, pageNumber, bbox, bboxNorm, canvasWidth, canvasHeight }) {
@@ -431,7 +470,9 @@ import apiClient from './apiClient';class _TopLevelFunctionSurface {static async
       }
       throw new Error(error.message || 'Falha ao selecionar região do PDF');
     }
-  }static async getReviewData(
+  }
+
+async function getReviewData(
 
 
   jobId, params = {}) {
@@ -448,7 +489,9 @@ import apiClient from './apiClient';class _TopLevelFunctionSurface {static async
       }
       throw new Error(error.message || 'Falha ao buscar dados de revisão');
     }
-  }static async commitImport(
+  }
+
+async function commitImport(
 
 
   jobId) {
@@ -465,7 +508,9 @@ import apiClient from './apiClient';class _TopLevelFunctionSurface {static async
       }
       throw new Error(error.message || 'Falha ao confirmar importação');
     }
-  }static async finalizarImportacaoCatalogo(
+  }
+
+async function finalizarImportacaoCatalogo(
 
   { fileId, productTypeId, fornecedorId, mapping, pages, region }) {
     try {
@@ -488,7 +533,8 @@ import apiClient from './apiClient';class _TopLevelFunctionSurface {static async
       }
       throw new Error(error.message || 'Falha ao finalizar importação do catálogo');
     }
-  }}const getFornecedores = _TopLevelFunctionSurface.getFornecedores;export { getFornecedores };const getFornecedorById = _TopLevelFunctionSurface.getFornecedorById;export { getFornecedorById };const createFornecedor = _TopLevelFunctionSurface.createFornecedor;export { createFornecedor };const updateFornecedor = _TopLevelFunctionSurface.updateFornecedor;export { updateFornecedor };const setFornecedorMapping = _TopLevelFunctionSurface.setFornecedorMapping;export { setFornecedorMapping };const deleteFornecedor = _TopLevelFunctionSurface.deleteFornecedor;export { deleteFornecedor };const previewCatalogo = _TopLevelFunctionSurface.previewCatalogo;export { previewCatalogo };const importCatalogo = _TopLevelFunctionSurface.importCatalogo;export { importCatalogo };const getCatalogImportFiles = _TopLevelFunctionSurface.getCatalogImportFiles;export { getCatalogImportFiles };const deleteCatalogFile = _TopLevelFunctionSurface.deleteCatalogFile;export { deleteCatalogFile };const reprocessCatalogFile = _TopLevelFunctionSurface.reprocessCatalogFile;export { reprocessCatalogFile };const getImportacaoStatus = _TopLevelFunctionSurface.getImportacaoStatus;export { getImportacaoStatus };const getImportacaoResult = _TopLevelFunctionSurface.getImportacaoResult;export { getImportacaoResult };const uploadForPagePreview = _TopLevelFunctionSurface.uploadForPagePreview;export { uploadForPagePreview };const getPdfPreview = _TopLevelFunctionSurface.getPdfPreview;export { getPdfPreview };const fetchPageDataForMapping = _TopLevelFunctionSurface.fetchPageDataForMapping;export { fetchPageDataForMapping };const startFullProcess = _TopLevelFunctionSurface.startFullProcess;export { startFullProcess };const getImportProgress = _TopLevelFunctionSurface.getImportProgress;export { getImportProgress };const selecionarRegiao = _TopLevelFunctionSurface.selecionarRegiao;export { selecionarRegiao };const extractRegionBulk = _TopLevelFunctionSurface.extractRegionBulk;export { extractRegionBulk };const selecionarRegiaoProduto = _TopLevelFunctionSurface.selecionarRegiaoProduto;export { selecionarRegiaoProduto };const getReviewData = _TopLevelFunctionSurface.getReviewData;export { getReviewData };const commitImport = _TopLevelFunctionSurface.commitImport;export { commitImport };const finalizarImportacaoCatalogo = _TopLevelFunctionSurface.finalizarImportacaoCatalogo;export { finalizarImportacaoCatalogo };
+  }
+export { getFornecedores };export { getFornecedorById };export { createFornecedor };export { updateFornecedor };export { setFornecedorMapping };export { deleteFornecedor };export { previewCatalogo };export { importCatalogo };export { getCatalogImportFiles };export { deleteCatalogFile };export { reprocessCatalogFile };export { getImportacaoStatus };export { getImportacaoResult };export { uploadForPagePreview };export { getPdfPreview };export { fetchPageDataForMapping };export { startFullProcess };export { getImportProgress };export { selecionarRegiao };export { extractRegionBulk };export { selecionarRegiaoProduto };export { getReviewData };export { commitImport };export { finalizarImportacaoCatalogo };
 
 export default {
   getFornecedores,

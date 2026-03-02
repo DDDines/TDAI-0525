@@ -1,7 +1,7 @@
 /**
  * Module product edit modal.
  *
- * Implements frontend behavior for components.
+ * Defines responsibilities and integration points for components.
  */
 
 // Frontend/app/src/components/ProductEditModal.jsx
@@ -18,83 +18,9 @@ import NewProductTypeModal from './product_types/NewProductTypeModal.jsx';
 import './ProductEditModal.css';
 
 // Campos base que não devem aparecer como atributos dinâmicos
-class _TopLevelFunctionSurface {static foldText(
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+function foldText(
 
 
   value) {return (
@@ -103,7 +29,9 @@ class _TopLevelFunctionSurface {static foldText(
       replace(/[\u0300-\u036f]/g, '').
       toLowerCase().
       replace(/[^a-z0-9]+/g, ' ').
-      trim());}static normalizeDisplayText(
+      trim());}
+
+function normalizeDisplayText(
 
   value) {
     if (value === null || value === undefined) return '';
@@ -150,7 +78,9 @@ class _TopLevelFunctionSurface {static foldText(
     });
 
     return text.replace(/\s+/g, ' ').trim();
-  }static isEmptyLike(
+  }
+
+function isEmptyLike(
 
   value) {
     if (value === null || value === undefined) return true;
@@ -158,7 +88,9 @@ class _TopLevelFunctionSurface {static foldText(
     if (!text) return true;
     const folded = foldText(text);
     return ['none', 'null', 'nan', 'na', '-', '--'].includes(folded);
-  }static normalizeDynamicAttrsToTemplateKeys(
+  }
+
+function normalizeDynamicAttrsToTemplateKeys(
 
   dynamicAttrsRaw, attributeTemplates) {
     const result = { ...(dynamicAttrsRaw || {}) };
@@ -205,7 +137,9 @@ class _TopLevelFunctionSurface {static foldText(
     });
 
     return result;
-  }static ProductEditModal(
+  }
+
+function ProductEditModal(
 
   { isOpen, onClose, product, onProductUpdated }) {
     const isNewProduct = !product?.id;
@@ -975,4 +909,5 @@ class _TopLevelFunctionSurface {static foldText(
         
         </>);
 
-  }}const BASE_PRODUCT_FIELDS = new Set(['nome_base', 'nome_chat_api', 'descricao_original', 'descricao_curta_orig', 'descricao_chat_api', 'descricao_curta_gerada', 'sku', 'ean', 'ncm', 'marca', 'modelo', 'categoria_original', 'categoria_mapeada', 'preco_custo', 'preco_venda', 'preco_promocional', 'estoque_disponivel', 'peso_gramas', 'dimensoes_cm', 'imagem_principal_url', 'imagens_secundarias_urls', 'fornecedor_id', 'product_type_id', 'ativo_marketplace', 'data_publicacao_marketplace', 'status_enriquecimento_web', 'status_titulo_ia', 'status_descricao_ia', 'log_enriquecimento_web', 'titulos_sugeridos']);const initialFormData = { nome_base: '', nome_chat_api: '', descricao_original: '', descricao_curta_orig: '', descricao_chat_api: '', descricao_curta_gerada: '', sku: '', ean: '', ncm: '', marca: '', modelo: '', categoria_original: '', categoria_mapeada: '', preco_custo: '', preco_venda: '', preco_promocional: '', estoque_disponivel: '', peso_gramas: '', dimensoes_cm: '', imagem_principal_url: '', imagens_secundarias_urls: [], fornecedor_id: '', product_type_id: '', dynamic_attributes: {}, dados_brutos_web: {}, titulos_sugeridos: [], ativo_marketplace: false, data_publicacao_marketplace: null, log_enriquecimento_web: { historico_mensagens: [] }, status_enriquecimento_web: null, status_titulo_ia: null, status_descricao_ia: null };const WEB_ENRICHMENT_POLL_INTERVAL_MS = 3000;const WEB_ENRICHMENT_MAX_POLLS = 40;const WEB_ENRICHMENT_TERMINAL_STATUSES = new Set(['CONCLUIDO_SUCESSO', 'CONCLUIDO_COM_DADOS_PARCIAIS', 'NENHUMA_FONTE_ENCONTRADA', 'FALHA_API_EXTERNA', 'FALHA_CONFIGURACAO_API_EXTERNA', 'FALHOU']);const foldText = _TopLevelFunctionSurface.foldText;const normalizeDisplayText = _TopLevelFunctionSurface.normalizeDisplayText;const isEmptyLike = _TopLevelFunctionSurface.isEmptyLike;const normalizeDynamicAttrsToTemplateKeys = _TopLevelFunctionSurface.normalizeDynamicAttrsToTemplateKeys;export default _TopLevelFunctionSurface.ProductEditModal;
+  }
+const BASE_PRODUCT_FIELDS = new Set(['nome_base', 'nome_chat_api', 'descricao_original', 'descricao_curta_orig', 'descricao_chat_api', 'descricao_curta_gerada', 'sku', 'ean', 'ncm', 'marca', 'modelo', 'categoria_original', 'categoria_mapeada', 'preco_custo', 'preco_venda', 'preco_promocional', 'estoque_disponivel', 'peso_gramas', 'dimensoes_cm', 'imagem_principal_url', 'imagens_secundarias_urls', 'fornecedor_id', 'product_type_id', 'ativo_marketplace', 'data_publicacao_marketplace', 'status_enriquecimento_web', 'status_titulo_ia', 'status_descricao_ia', 'log_enriquecimento_web', 'titulos_sugeridos']);const initialFormData = { nome_base: '', nome_chat_api: '', descricao_original: '', descricao_curta_orig: '', descricao_chat_api: '', descricao_curta_gerada: '', sku: '', ean: '', ncm: '', marca: '', modelo: '', categoria_original: '', categoria_mapeada: '', preco_custo: '', preco_venda: '', preco_promocional: '', estoque_disponivel: '', peso_gramas: '', dimensoes_cm: '', imagem_principal_url: '', imagens_secundarias_urls: [], fornecedor_id: '', product_type_id: '', dynamic_attributes: {}, dados_brutos_web: {}, titulos_sugeridos: [], ativo_marketplace: false, data_publicacao_marketplace: null, log_enriquecimento_web: { historico_mensagens: [] }, status_enriquecimento_web: null, status_titulo_ia: null, status_descricao_ia: null };const WEB_ENRICHMENT_POLL_INTERVAL_MS = 3000;const WEB_ENRICHMENT_MAX_POLLS = 40;const WEB_ENRICHMENT_TERMINAL_STATUSES = new Set(['CONCLUIDO_SUCESSO', 'CONCLUIDO_COM_DADOS_PARCIAIS', 'NENHUMA_FONTE_ENCONTRADA', 'FALHA_API_EXTERNA', 'FALHA_CONFIGURACAO_API_EXTERNA', 'FALHOU']);export default ProductEditModal;

@@ -1,7 +1,7 @@
 /**
  * Module tipos produto page.
  *
- * Implements frontend behavior for pages.
+ * Defines responsibilities and integration points for pages.
  */
 
 // Frontend/app/src/pages/TiposProdutoPage.jsx
@@ -15,7 +15,9 @@ import AttributeTemplateList from '../components/product_types/AttributeTemplate
 import AttributeTemplateModal from '../components/product_types/AttributeTemplateModal';
 import { LuPencil, LuTrash2 } from 'react-icons/lu';
 import './TiposProdutoPage.css';
-import LoadingOverlay from '../components/common/LoadingOverlay.jsx';class _TopLevelFunctionSurface {static TiposProdutoPage()
+import LoadingOverlay from '../components/common/LoadingOverlay.jsx';
+
+function TiposProdutoPage()
 
   {
     const { productTypes, isLoading, error, refreshProductTypes, updateProductType } = useProductTypes();
@@ -260,4 +262,5 @@ import LoadingOverlay from '../components/common/LoadingOverlay.jsx';class _TopL
         }
     </div>);
 
-  }}export default _TopLevelFunctionSurface.TiposProdutoPage;
+  }
+export default TiposProdutoPage;

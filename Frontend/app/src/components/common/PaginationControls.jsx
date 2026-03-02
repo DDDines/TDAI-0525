@@ -1,12 +1,14 @@
 /**
  * Module pagination controls.
  *
- * Implements frontend behavior for components common.
+ * Defines responsibilities and integration points for components common.
  */
 
 // Frontend/app/src/components/common/PaginationControls.jsx
 import React from 'react';
-import './PaginationControls.css';class _TopLevelFunctionSurface {static PaginationControls(
+import './PaginationControls.css';
+
+function PaginationControls(
 
   {
     currentPage,
@@ -71,4 +73,5 @@ import './PaginationControls.css';class _TopLevelFunctionSurface {static Paginat
         }
     </div>);
 
-  }}export default _TopLevelFunctionSurface.PaginationControls;
+  }
+export default PaginationControls;

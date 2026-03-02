@@ -1,7 +1,7 @@
 /**
  * Module product table.
  *
- * Implements frontend behavior for components produtos.
+ * Defines responsibilities and integration points for components produtos.
  */
 
 // Frontend/app/src/components/produtos/ProductTable.jsx
@@ -11,21 +11,9 @@ import LoadingPopup from '../common/LoadingPopup.jsx';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import logger from '../../utils/logger';
-import { LuPencil } from 'react-icons/lu';class _TopLevelFunctionSurface {static StatusIcon(
+import { LuPencil } from 'react-icons/lu';
 
-
-
-
-
-
-
-
-
-
-
-
-
-
+function StatusIcon(
 
 
   { status }) {
@@ -36,7 +24,9 @@ import { LuPencil } from 'react-icons/lu';class _TopLevelFunctionSurface {static
       {text}
     </span>);
 
-  }static ProductTable(
+  }
+
+function ProductTable(
 
   {
     produtos,
@@ -153,4 +143,5 @@ import { LuPencil } from 'react-icons/lu';class _TopLevelFunctionSurface {static
       </table>
     </div>);
 
-  }}const STATUS_CONFIG = { NAO_INICIADO: { class: 'grey', text: '-', title: 'Não iniciado' }, PENDENTE: { class: 'orange', text: 'P', title: 'Pendente' }, EM_PROGRESSO: { class: 'blue', text: '...', title: 'Em progresso' }, CONCLUIDO: { class: 'green', text: 'OK', title: 'Concluído' }, CONCLUIDO_SUCESSO: { class: 'green', text: 'OK', title: 'Concluído' }, CONCLUIDO_COM_DADOS_PARCIAIS: { class: 'blue', text: 'PAR', title: 'Concluído com dados parciais' }, FALHA: { class: 'red', text: 'X', title: 'Falha' }, FALHOU: { class: 'red', text: 'X', title: 'Falhou' }, FALHA_API_EXTERNA: { class: 'red', text: 'X', title: 'Falha de API externa' }, FALHA_CONFIGURACAO_API_EXTERNA: { class: 'red', text: 'X', title: 'Falha de configuração da API' }, NENHUMA_FONTE_ENCONTRADA: { class: 'grey', text: '-', title: 'Nenhuma fonte encontrada' }, NAO_APLICAVEL: { class: 'grey', text: '-', title: 'Não aplicável' } };const StatusIcon = _TopLevelFunctionSurface.StatusIcon;export default _TopLevelFunctionSurface.ProductTable;
+  }
+const STATUS_CONFIG = { NAO_INICIADO: { class: 'grey', text: '-', title: 'Não iniciado' }, PENDENTE: { class: 'orange', text: 'P', title: 'Pendente' }, EM_PROGRESSO: { class: 'blue', text: '...', title: 'Em progresso' }, CONCLUIDO: { class: 'green', text: 'OK', title: 'Concluído' }, CONCLUIDO_SUCESSO: { class: 'green', text: 'OK', title: 'Concluído' }, CONCLUIDO_COM_DADOS_PARCIAIS: { class: 'blue', text: 'PAR', title: 'Concluído com dados parciais' }, FALHA: { class: 'red', text: 'X', title: 'Falha' }, FALHOU: { class: 'red', text: 'X', title: 'Falhou' }, FALHA_API_EXTERNA: { class: 'red', text: 'X', title: 'Falha de API externa' }, FALHA_CONFIGURACAO_API_EXTERNA: { class: 'red', text: 'X', title: 'Falha de configuração da API' }, NENHUMA_FONTE_ENCONTRADA: { class: 'grey', text: '-', title: 'Nenhuma fonte encontrada' }, NAO_APLICAVEL: { class: 'grey', text: '-', title: 'Não aplicável' } };export default ProductTable;

@@ -1,7 +1,7 @@
 /**
  * Module enriquecimento page.
  *
- * Implements frontend behavior for pages.
+ * Defines responsibilities and integration points for pages.
  */
 
 // Frontend/app/src/pages/EnriquecimentoPage.jsx
@@ -12,13 +12,17 @@ import usoIAService from '../services/usoIAService';
 import ProductTable from '../components/produtos/ProductTable';
 import PaginationControls from '../components/common/PaginationControls';
 import { showSuccessToast, showErrorToast, showInfoToast, showWarningToast } from '../utils/notifications';
-import logger from '../utils/logger';class _TopLevelFunctionSurface {static notifyWithConsoleLog(
+import logger from '../utils/logger';
+
+function notifyWithConsoleLog(
 
   title, message) {
     console.log(`${title}:\n${message}`);
     const truncated = message.length > 200 ? `${message.slice(0, 200)}...` : message;
     showInfoToast(`${title}: ${truncated}`);
-  }static EnriquecimentoPage()
+  }
+
+function EnriquecimentoPage()
 
   {
     const [produtos, setProdutos] = useState([]);
@@ -269,4 +273,5 @@ import logger from '../utils/logger';class _TopLevelFunctionSurface {static noti
       </div>
     </div>);
 
-  }}const notifyWithConsoleLog = _TopLevelFunctionSurface.notifyWithConsoleLog;export default _TopLevelFunctionSurface.EnriquecimentoPage;
+  }
+export default EnriquecimentoPage;

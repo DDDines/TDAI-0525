@@ -1,7 +1,7 @@
 /**
  * Module produtos page.
  *
- * Implements frontend behavior for pages.
+ * Defines responsibilities and integration points for pages.
  */
 
 // Frontend/app/src/pages/ProdutosPage.jsx
@@ -15,7 +15,9 @@ import productService from '../services/productService';
 import { showErrorToast, showSuccessToast, showInfoToast, showWarningToast } from '../utils/notifications';
 import './ProdutosPage.css';
 import { useProductTypes } from '../contexts/ProductTypeContext';
-import LoadingPopup from '../components/common/LoadingPopup.jsx';class _TopLevelFunctionSurface {static ProdutosPage()
+import LoadingPopup from '../components/common/LoadingPopup.jsx';
+
+function ProdutosPage()
 
   {
     const [searchParams] = useSearchParams();
@@ -394,4 +396,5 @@ import LoadingPopup from '../components/common/LoadingPopup.jsx';class _TopLevel
         }
     </div>);
 
-  }}export default _TopLevelFunctionSurface.ProdutosPage;
+  }
+export default ProdutosPage;

@@ -1,7 +1,7 @@
 /**
  * Module product type context.
  *
- * Implements frontend behavior for contexts.
+ * Defines responsibilities and integration points for contexts.
  */
 
 // Frontend/app/src/contexts/ProductTypeContext.jsx
@@ -9,8 +9,9 @@ import React, { createContext, useContext, useState, useEffect, useCallback } fr
 import productTypeService from '../services/productTypeService';
 import { showErrorToast, showSuccessToast } from '../utils/notifications';
 import { useAuth } from './AuthContext'; // Importar useAuth para acessar o estado de autenticação
-import logger from '../utils/logger';class _TopLevelFunctionSurface {static ProductTypeProvider(
+import logger from '../utils/logger';
 
+function ProductTypeProvider(
 
 
   { children }) {
@@ -160,7 +161,9 @@ import logger from '../utils/logger';class _TopLevelFunctionSurface {static Prod
       {children}
     </ProductTypeContext.Provider>);
 
-  }static useProductTypes()
+  }
+
+function useProductTypes()
 
   {
     const context = useContext(ProductTypeContext);
@@ -168,4 +171,5 @@ import logger from '../utils/logger';class _TopLevelFunctionSurface {static Prod
       throw new Error('useProductTypes deve ser usado dentro de um ProductTypeProvider');
     }
     return context;
-  }}const ProductTypeContext = createContext(null);const ProductTypeProvider = _TopLevelFunctionSurface.ProductTypeProvider;export { ProductTypeProvider };const useProductTypes = _TopLevelFunctionSurface.useProductTypes;export { useProductTypes };
+  }
+const ProductTypeContext = createContext(null);export { ProductTypeProvider };export { useProductTypes };

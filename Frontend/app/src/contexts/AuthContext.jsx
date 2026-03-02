@@ -1,7 +1,7 @@
 /**
  * Module auth context.
  *
- * Implements frontend behavior for contexts.
+ * Defines responsibilities and integration points for contexts.
  */
 
 // Frontend/app/src/contexts/AuthContext.jsx
@@ -9,8 +9,9 @@ import React, { createContext, useContext, useState, useEffect, useCallback } fr
 import { useNavigate, useLocation } from 'react-router-dom';
 import authService from '../services/authService';
 import apiClient from '../services/apiClient'; // Para configurar o header padrão globalmente
-import logger from '../utils/logger';class _TopLevelFunctionSurface {static AuthProvider(
+import logger from '../utils/logger';
 
+function AuthProvider(
 
 
   { children }) {
@@ -140,7 +141,9 @@ import logger from '../utils/logger';class _TopLevelFunctionSurface {static Auth
       {children}
     </AuthContext.Provider>);
 
-  }static useAuth()
+  }
+
+function useAuth()
 
   {
     const context = useContext(AuthContext);
@@ -148,4 +151,5 @@ import logger from '../utils/logger';class _TopLevelFunctionSurface {static Auth
       throw new Error('useAuth deve ser usado dentro de um AuthProvider');
     }
     return context;
-  }}const AuthContext = createContext(null);const AuthProvider = _TopLevelFunctionSurface.AuthProvider;export { AuthProvider };const useAuth = _TopLevelFunctionSurface.useAuth;export { useAuth };
+  }
+const AuthContext = createContext(null);export { AuthProvider };export { useAuth };

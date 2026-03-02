@@ -1,7 +1,7 @@
 /**
  * Module sidebar.
  *
- * Implements frontend behavior for components.
+ * Defines responsibilities and integration points for components.
  */
 
 import React from 'react';
@@ -19,7 +19,9 @@ import {
   LuLogOut,
   LuZap,
   LuLayers } from
-'react-icons/lu';class _TopLevelFunctionSurface {static Sidebar(
+'react-icons/lu';
+
+function Sidebar(
 
   { isOpen }) {
     const { logout } = useAuth();
@@ -69,4 +71,5 @@ import {
       </div>
     </aside>);
 
-  }}export default _TopLevelFunctionSurface.Sidebar;
+  }
+export default Sidebar;

@@ -1,12 +1,14 @@
 /**
  * Module product service.
  *
- * Implements frontend behavior for services.
+ * Defines responsibilities and integration points for services.
  */
 
 // Frontend/app/src/services/productService.js
 import logger from '../utils/logger';
-import apiClient from './apiClient';class _TopLevelFunctionSurface {static async getProdutos(
+import apiClient from './apiClient';
+
+async function getProdutos(
 
   params = {}) {
     try {
@@ -17,7 +19,9 @@ import apiClient from './apiClient';class _TopLevelFunctionSurface {static async
       console.error('Erro ao buscar produtos:', error.response?.data || error.message);
       throw error.response?.data || new Error('Falha ao buscar produtos');
     }
-  }static async getProdutoById(
+  }
+
+async function getProdutoById(
 
   produtoId) {
     try {
@@ -28,7 +32,9 @@ import apiClient from './apiClient';class _TopLevelFunctionSurface {static async
       console.error(`Erro ao buscar produto ${produtoId}:`, error.response?.data || error.message);
       throw error.response?.data || new Error(`Falha ao buscar produto ${produtoId}`);
     }
-  }static async createProduto(
+  }
+
+async function createProduto(
 
   produtoData) {
     try {
@@ -38,7 +44,9 @@ import apiClient from './apiClient';class _TopLevelFunctionSurface {static async
       console.error('Erro ao criar produto:', error.response?.data || error.message);
       throw error.response?.data || new Error('Falha ao criar produto');
     }
-  }static async updateProduto(
+  }
+
+async function updateProduto(
 
   produtoId, produtoUpdateData) {
     try {
@@ -48,7 +56,9 @@ import apiClient from './apiClient';class _TopLevelFunctionSurface {static async
       console.error(`Erro ao atualizar produto ${produtoId}:`, error.response?.data || error.message);
       throw error.response?.data || new Error(`Falha ao atualizar produto ${produtoId}`);
     }
-  }static async deleteProduto(
+  }
+
+async function deleteProduto(
 
   produtoId) {
     try {
@@ -58,7 +68,9 @@ import apiClient from './apiClient';class _TopLevelFunctionSurface {static async
       console.error(`Erro ao apagar produto ${produtoId}:`, error.response?.data || error.message);
       throw error.response?.data || new Error(`Falha ao apagar produto ${produtoId}`);
     }
-  }static async gerarTitulosProduto(
+  }
+
+async function gerarTitulosProduto(
 
   produtoId) {
     try {
@@ -68,7 +80,9 @@ import apiClient from './apiClient';class _TopLevelFunctionSurface {static async
       console.error(`Erro ao gerar titulos para produto ${produtoId}:`, error.response?.data || error.message);
       throw error.response?.data || new Error('Falha ao gerar titulos');
     }
-  }static async gerarDescricaoProduto(
+  }
+
+async function gerarDescricaoProduto(
 
   produtoId) {
     try {
@@ -78,7 +92,9 @@ import apiClient from './apiClient';class _TopLevelFunctionSurface {static async
       console.error(`Erro ao gerar descricao para produto ${produtoId}:`, error.response?.data || error.message);
       throw error.response?.data || new Error('Falha ao gerar descricao');
     }
-  }static async gerarTitulosGemini(
+  }
+
+async function gerarTitulosGemini(
 
   produtoId) {
     try {
@@ -88,7 +104,9 @@ import apiClient from './apiClient';class _TopLevelFunctionSurface {static async
       console.error(`Erro ao gerar titulos com Gemini para produto ${produtoId}:`, error.response?.data || error.message);
       throw error.response?.data || new Error('Falha ao gerar titulos com Gemini');
     }
-  }static async gerarDescricaoGemini(
+  }
+
+async function gerarDescricaoGemini(
 
   produtoId) {
     try {
@@ -98,7 +116,9 @@ import apiClient from './apiClient';class _TopLevelFunctionSurface {static async
       console.error(`Erro ao gerar descricao com Gemini para produto ${produtoId}:`, error.response?.data || error.message);
       throw error.response?.data || new Error('Falha ao gerar descricao com Gemini');
     }
-  }static async iniciarEnriquecimentoWebProduto(
+  }
+
+async function iniciarEnriquecimentoWebProduto(
 
   produtoId, termosBuscaOverride = null) {
     try {
@@ -127,7 +147,9 @@ import apiClient from './apiClient';class _TopLevelFunctionSurface {static async
 
       throw new Error(detail || 'Falha ao iniciar processo de enriquecimento web');
     }
-  }static async batchDeleteProdutos(
+  }
+
+async function batchDeleteProdutos(
 
   produtoIds) {
     try {
@@ -137,7 +159,9 @@ import apiClient from './apiClient';class _TopLevelFunctionSurface {static async
       console.error('Erro ao apagar produtos em lote:', error.response?.data || error.message);
       throw error.response?.data || new Error('Falha ao apagar produtos em lote');
     }
-  }static async getAtributoSuggestions(
+  }
+
+async function getAtributoSuggestions(
 
   produtoId) {
     try {
@@ -147,7 +171,8 @@ import apiClient from './apiClient';class _TopLevelFunctionSurface {static async
       console.error(`Erro ao buscar sugestoes de atributos para produto ${produtoId}:`, error.response?.data || error.message);
       throw error.response?.data || new Error('Falha ao buscar sugestoes de atributos da IA.');
     }
-  }}const getProdutos = _TopLevelFunctionSurface.getProdutos;export { getProdutos };const getProdutoById = _TopLevelFunctionSurface.getProdutoById;export { getProdutoById };const createProduto = _TopLevelFunctionSurface.createProduto;export { createProduto };const updateProduto = _TopLevelFunctionSurface.updateProduto;export { updateProduto };const deleteProduto = _TopLevelFunctionSurface.deleteProduto;export { deleteProduto };const gerarTitulosProduto = _TopLevelFunctionSurface.gerarTitulosProduto;export { gerarTitulosProduto };const gerarDescricaoProduto = _TopLevelFunctionSurface.gerarDescricaoProduto;export { gerarDescricaoProduto };const gerarTitulosGemini = _TopLevelFunctionSurface.gerarTitulosGemini;export { gerarTitulosGemini };const gerarDescricaoGemini = _TopLevelFunctionSurface.gerarDescricaoGemini;export { gerarDescricaoGemini };const iniciarEnriquecimentoWebProduto = _TopLevelFunctionSurface.iniciarEnriquecimentoWebProduto;export { iniciarEnriquecimentoWebProduto };const batchDeleteProdutos = _TopLevelFunctionSurface.batchDeleteProdutos;export { batchDeleteProdutos };const getAtributoSuggestions = _TopLevelFunctionSurface.getAtributoSuggestions;export { getAtributoSuggestions };export const
+  }
+export { getProdutos };export { getProdutoById };export { createProduto };export { updateProduto };export { deleteProduto };export { gerarTitulosProduto };export { gerarDescricaoProduto };export { gerarTitulosGemini };export { gerarDescricaoGemini };export { iniciarEnriquecimentoWebProduto };export { batchDeleteProdutos };export { getAtributoSuggestions };export const
 
 sugerirAtributosGemini = getAtributoSuggestions;
 

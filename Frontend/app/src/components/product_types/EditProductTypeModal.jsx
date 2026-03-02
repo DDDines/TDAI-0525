@@ -1,11 +1,13 @@
 /**
  * Module edit product type modal.
  *
- * Implements frontend behavior for components product types.
+ * Defines responsibilities and integration points for components product types.
  */
 
 import React, { useState, useEffect } from 'react';
-import Modal from '../common/Modal';class _TopLevelFunctionSurface {static EditProductTypeModal(
+import Modal from '../common/Modal';
+
+function EditProductTypeModal(
 
   { isOpen, onClose, type, onSave, isSubmitting }) {
     const [friendlyName, setFriendlyName] = useState('');
@@ -71,4 +73,5 @@ import Modal from '../common/Modal';class _TopLevelFunctionSurface {static EditP
       </form>
     </Modal>);
 
-  }}export default _TopLevelFunctionSurface.EditProductTypeModal;
+  }
+export default EditProductTypeModal;

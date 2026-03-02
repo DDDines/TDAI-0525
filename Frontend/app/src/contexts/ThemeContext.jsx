@@ -1,11 +1,12 @@
 /**
  * Module theme context.
  *
- * Implements frontend behavior for contexts.
+ * Defines responsibilities and integration points for contexts.
  */
 
-import React, { createContext, useContext, useEffect, useState } from 'react';class _TopLevelFunctionSurface {static ThemeProvider(
+import React, { createContext, useContext, useEffect, useState } from 'react';
 
+function ThemeProvider(
 
 
   { children }) {
@@ -25,7 +26,9 @@ import React, { createContext, useContext, useEffect, useState } from 'react';cl
     };
 
     return <ThemeContext.Provider value={{ mode, toggleTheme }}>{children}</ThemeContext.Provider>;
-  }static useTheme()
+  }
+
+function useTheme()
 
   {
     const context = useContext(ThemeContext);
@@ -33,4 +36,5 @@ import React, { createContext, useContext, useEffect, useState } from 'react';cl
       throw new Error('useTheme deve ser usado dentro de um ThemeProvider');
     }
     return context;
-  }}const ThemeContext = createContext(null);const ThemeProvider = _TopLevelFunctionSurface.ThemeProvider;export { ThemeProvider };const useTheme = _TopLevelFunctionSurface.useTheme;export { useTheme };
+  }
+const ThemeContext = createContext(null);export { ThemeProvider };export { useTheme };

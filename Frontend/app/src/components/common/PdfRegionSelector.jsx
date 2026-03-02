@@ -1,14 +1,15 @@
 /**
  * Module pdf region selector.
  *
- * Implements frontend behavior for components common.
+ * Defines responsibilities and integration points for components common.
  */
 
 import React, { useEffect, useRef, useState } from 'react';
 import * as pdfjs from 'pdfjs-dist/legacy/build/pdf';
 import pdfWorkerSrc from 'pdfjs-dist/legacy/build/pdf.worker.js?url';
-import './PdfRegionSelector.css';class _TopLevelFunctionSurface {static PdfRegionSelector(
+import './PdfRegionSelector.css';
 
+function PdfRegionSelector(
 
 
   {
@@ -177,4 +178,8 @@ import './PdfRegionSelector.css';class _TopLevelFunctionSurface {static PdfRegio
       </label>
     </div>);
 
-  }}pdfjs.GlobalWorkerOptions.workerSrc = pdfWorkerSrc;export default _TopLevelFunctionSurface.PdfRegionSelector;
+  }
+
+pdfjs.GlobalWorkerOptions.workerSrc = pdfWorkerSrc;
+
+export default PdfRegionSelector;

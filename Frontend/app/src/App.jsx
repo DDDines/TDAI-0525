@@ -1,7 +1,7 @@
 /**
  * Module app.
  *
- * Implements frontend behavior for frontend.
+ * Defines responsibilities and integration points for frontend.
  */
 
 import React, { useEffect } from 'react';
@@ -29,7 +29,9 @@ import ProtectedRoute from './components/ProtectedRoute';
 import LoadingOverlay from './components/common/LoadingOverlay.jsx';
 
 import './App.css';
-import logger from './utils/logger';class _TopLevelFunctionSurface {static AppContent()
+import logger from './utils/logger';
+
+function AppContent()
 
   {
     const { isAuthenticated, isLoading } = useAuth();
@@ -77,7 +79,9 @@ import logger from './utils/logger';class _TopLevelFunctionSurface {static AppCo
       <Route path="*" element={<div>Página não encontrada</div>} />
     </Routes>);
 
-  }static ProvidersWrapper()
+  }
+
+function ProvidersWrapper()
 
   {
     const { mode } = useTheme();
@@ -99,7 +103,9 @@ import logger from './utils/logger';class _TopLevelFunctionSurface {static AppCo
         
     </>);
 
-  }static App()
+  }
+
+function App()
 
   {
     useEffect(() => {
@@ -117,4 +123,5 @@ import logger from './utils/logger';class _TopLevelFunctionSurface {static AppCo
       </ThemeProvider>
     </Router>);
 
-  }}const AppContent = _TopLevelFunctionSurface.AppContent;const ProvidersWrapper = _TopLevelFunctionSurface.ProvidersWrapper;export default _TopLevelFunctionSurface.App;
+  }
+export default App;

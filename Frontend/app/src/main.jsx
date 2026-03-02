@@ -1,7 +1,7 @@
 /**
  * Module main.
  *
- * Implements frontend behavior for frontend.
+ * Defines responsibilities and integration points for frontend.
  */
 
 // Frontend/app/src/main.jsx

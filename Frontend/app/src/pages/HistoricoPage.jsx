@@ -1,7 +1,7 @@
 /**
  * Module historico page.
  *
- * Implements frontend behavior for pages.
+ * Defines responsibilities and integration points for pages.
  */
 
 // Frontend/app/src/pages/HistoricoPage.jsx
@@ -15,14 +15,9 @@ import { format, parseISO } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import logger from '../utils/logger';
 import LoadingPopup from '../components/common/LoadingPopup.jsx';
-import './HistoricoPage.css';class _TopLevelFunctionSurface {static formatTipoAcao(
+import './HistoricoPage.css';
 
-
-
-
-
-
-
+function formatTipoAcao(
 
 
   tipoAcao = '') {
@@ -36,7 +31,9 @@ import './HistoricoPage.css';class _TopLevelFunctionSurface {static formatTipoAc
     filter(Boolean).
     map((word) => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()).
     join(' ');
-  }static HistoricoPage()
+  }
+
+function HistoricoPage()
 
   {
     const { user, isLoading: isAuthLoading } = useAuth();
@@ -254,4 +251,5 @@ import './HistoricoPage.css';class _TopLevelFunctionSurface {static formatTipoAc
       </div>
     </div>);
 
-  }}const TIPO_ACAO_LABELS = { criacao_produto: 'Criação de produto', atualizacao_produto: 'Atualização de produto', enriquecimento_web: 'Enriquecimento Web', geracao_titulo_ia: 'Geração de título IA', geracao_descricao_ia: 'Geração de descrição IA' };const formatTipoAcao = _TopLevelFunctionSurface.formatTipoAcao;export default _TopLevelFunctionSurface.HistoricoPage;
+  }
+const TIPO_ACAO_LABELS = { criacao_produto: 'Criação de produto', atualizacao_produto: 'Atualização de produto', enriquecimento_web: 'Enriquecimento Web', geracao_titulo_ia: 'Geração de título IA', geracao_descricao_ia: 'Geração de descrição IA' };export default HistoricoPage;

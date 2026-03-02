@@ -1,13 +1,15 @@
 /**
  * Module fornecedor table.
  *
- * Implements frontend behavior for components fornecedores.
+ * Defines responsibilities and integration points for components fornecedores.
  */
 
 // Frontend/app/src/components/fornecedores/FornecedorTable.jsx
 import React from 'react';
 import './FornecedorTable.css';
-import LoadingPopup from '../common/LoadingPopup.jsx';class _TopLevelFunctionSurface {static FornecedorTable(
+import LoadingPopup from '../common/LoadingPopup.jsx';
+
+function FornecedorTable(
 
   { fornecedores, onRowClick, onSelectRow, selectedIds, onSelectAllRows, isLoading }) {
     if (isLoading && (!fornecedores || fornecedores.length === 0)) {
@@ -64,4 +66,5 @@ import LoadingPopup from '../common/LoadingPopup.jsx';class _TopLevelFunctionSur
       </tbody>
     </table>);
 
-  }}export default _TopLevelFunctionSurface.FornecedorTable;
+  }
+export default FornecedorTable;
