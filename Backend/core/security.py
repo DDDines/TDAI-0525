@@ -45,7 +45,7 @@ class SecurityWorkflow:
         return self._runtime.decode_token(token=token, secret_key=secret_key)
 
 class SecurityRuntime:
-    """Runtime OO para operaÃ§Ãµes de hash e token JWT."""
+    """Runtime OO para operações de hash e token JWT."""
 
     def verify_password(self, *, plain_password: str, hashed_password: str) -> bool:
         """Verify password and return the validation outcome."""
