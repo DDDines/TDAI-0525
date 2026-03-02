@@ -1,7 +1,6 @@
 """Module test router workflows runtime basic.
 
-This module contains backend application/runtime logic and is fully
-documented for maintainability and onboarding.
+Contains backend logic related to test router workflows runtime basic and documents its role in the OOP architecture.
 """
 
 from __future__ import annotations
@@ -30,48 +29,27 @@ from Backend.routers.uso_ia import UsoIARequestService
 
 class _TopLevelFunctionSurface:
 
-    """Class _TopLevelFunctionSurface.
-
-    Encapsulates one responsibility in the backend architecture.
-    """
+    """Represent top level function surface and centralize responsibilities for this module."""
     @pytest.mark.asyncio
     async def test_auth_workflow_get_current_user_usa_runtime_injetado():
-        """Execute test_auth_workflow_get_current_user_usa_runtime_injetado.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Run test auth workflow get current user usa runtime injetado in this workflow."""
         called = []
     
         class FakeSecurityWorkflow:
-            """Class FakeSecurityWorkflow.
-
-            Encapsulates one responsibility in the backend architecture.
-            """
+            """Represent fake security workflow and centralize responsibilities for this module."""
             def decode_token(self, token, secret_key):
-                """Execute decode_token.
-
-                This callable is documented to make behavior explicit for readers.
-                """
+                """Run decode token in this workflow."""
                 called.append(("decode", token, secret_key))
                 return SimpleNamespace(user_id=123)
 
         class FakeUserRepository:
-            """Class FakeUserRepository.
-
-            Encapsulates one responsibility in the backend architecture.
-            """
+            """Represent fake user repository and centralize responsibilities for this module."""
             def __init__(self, db):
-                """Execute __init__.
-
-                This callable is documented to make behavior explicit for readers.
-                """
+                """Initialize collaborators and configuration required by this component."""
                 self._db = db
 
             def get_user(self, user_id):
-                """Execute get_user.
-
-                This callable is documented to make behavior explicit for readers.
-                """
+                """Return user for this workflow."""
                 called.append(("get_user", self._db, user_id))
                 return SimpleNamespace(id=user_id, is_active=True, is_superuser=False)
 
@@ -87,39 +65,21 @@ class _TopLevelFunctionSurface:
 
     @pytest.mark.asyncio
     async def test_auth_workflow_get_current_user_lanca_401_quando_payload_invalido():
-        """Execute test_auth_workflow_get_current_user_lanca_401_quando_payload_invalido.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Run test auth workflow get current user lanca 401 quando payload invalido in this workflow."""
         class FakeSecurityWorkflow:
-            """Class FakeSecurityWorkflow.
-
-            Encapsulates one responsibility in the backend architecture.
-            """
+            """Represent fake security workflow and centralize responsibilities for this module."""
             def decode_token(self, token, secret_key):
-                """Execute decode_token.
-
-                This callable is documented to make behavior explicit for readers.
-                """
+                """Run decode token in this workflow."""
                 return None
 
         class FakeUserRepository:
-            """Class FakeUserRepository.
-
-            Encapsulates one responsibility in the backend architecture.
-            """
+            """Represent fake user repository and centralize responsibilities for this module."""
             def __init__(self, db):
-                """Execute __init__.
-
-                This callable is documented to make behavior explicit for readers.
-                """
+                """Initialize collaborators and configuration required by this component."""
                 self._db = db
 
             def get_user(self, user_id):
-                """Execute get_user.
-
-                This callable is documented to make behavior explicit for readers.
-                """
+                """Return user for this workflow."""
                 return None
 
         service = AuthRequestService(
@@ -133,30 +93,18 @@ class _TopLevelFunctionSurface:
         assert exc_info.value.status_code == 401
 
     def test_historico_workflow_lista_historico_com_runtime_injetado():
-        """Execute test_historico_workflow_lista_historico_com_runtime_injetado.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Run test historico workflow lista historico com runtime injetado in this workflow."""
         called = []
     
         class FakeRepository:
-            """Class FakeRepository.
-
-            Encapsulates one responsibility in the backend architecture.
-            """
+            """Represent fake repository and centralize responsibilities for this module."""
             def get_registros_historico(self, *, user_id, skip, limit):
-                """Execute get_registros_historico.
-
-                This callable is documented to make behavior explicit for readers.
-                """
+                """Return registros historico for this workflow."""
                 called.append(("items", user_id, skip, limit))
                 return []
     
             def count_registros_historico(self, *, user_id):
-                """Execute count_registros_historico.
-
-                This callable is documented to make behavior explicit for readers.
-                """
+                """Count registros historico for this workflow."""
                 called.append(("count", user_id))
                 return 25
 
@@ -173,78 +121,45 @@ class _TopLevelFunctionSurface:
         assert called[1] == ("count", 77)
 
     def test_historico_workflow_get_tipos_acao_delega_runtime():
-        """Execute test_historico_workflow_get_tipos_acao_delega_runtime.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Run test historico workflow get tipos acao delega runtime in this workflow."""
         response = HistoricoRequestService.get_tipos_acao()
         assert isinstance(response, list)
         assert response
 
     def test_search_workflow_delega_runtime_injetado():
-        """Execute test_search_workflow_delega_runtime_injetado.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Run test search workflow delega runtime injetado in this workflow."""
         now = datetime.now(timezone.utc)
 
         class FakeQuery:
-            """Class FakeQuery.
-
-            Encapsulates one responsibility in the backend architecture.
-            """
+            """Represent fake query and centralize responsibilities for this module."""
             def __init__(self, rows):
-                """Execute __init__.
-
-                This callable is documented to make behavior explicit for readers.
-                """
+                """Initialize collaborators and configuration required by this component."""
                 self._rows = rows
 
             def filter(self, *_args, **_kwargs):
-                """Execute filter.
-
-                This callable is documented to make behavior explicit for readers.
-                """
+                """Run filter in this workflow."""
                 return self
 
             def order_by(self, *_args, **_kwargs):
-                """Execute order_by.
-
-                This callable is documented to make behavior explicit for readers.
-                """
+                """Run order by in this workflow."""
                 return self
 
             def limit(self, *_args, **_kwargs):
-                """Execute limit.
-
-                This callable is documented to make behavior explicit for readers.
-                """
+                """Run limit in this workflow."""
                 return self
 
             def all(self):
-                """Execute all.
-
-                This callable is documented to make behavior explicit for readers.
-                """
+                """Run all in this workflow."""
                 return self._rows
 
         class FakeSession:
-            """Class FakeSession.
-
-            Encapsulates one responsibility in the backend architecture.
-            """
+            """Represent fake session and centralize responsibilities for this module."""
             def __init__(self):
-                """Execute __init__.
-
-                This callable is documented to make behavior explicit for readers.
-                """
+                """Initialize collaborators and configuration required by this component."""
                 self._query_count = 0
 
             def query(self, *_args):
-                """Execute query.
-
-                This callable is documented to make behavior explicit for readers.
-                """
+                """Run query in this workflow."""
                 self._query_count += 1
                 if self._query_count == 1:
                     return FakeQuery(
@@ -274,84 +189,48 @@ class _TopLevelFunctionSurface:
 
     @pytest.mark.asyncio
     async def test_password_recovery_workflow_recover_delega_runtime():
-        """Execute test_password_recovery_workflow_recover_delega_runtime.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Run test password recovery workflow recover delega runtime in this workflow."""
         called = []
     
         class FakeUserRepository:
-            """Class FakeUserRepository.
-
-            Encapsulates one responsibility in the backend architecture.
-            """
+            """Represent fake user repository and centralize responsibilities for this module."""
             def get_user_by_email(self, email):
-                """Execute get_user_by_email.
-
-                This callable is documented to make behavior explicit for readers.
-                """
+                """Return user by email for this workflow."""
                 called.append(("get_user_by_email", "db", email))
                 return SimpleNamespace(email=email, nome_completo="User Test")
 
             def set_user_password_reset_token(self, user, *, token_hash, expires_at):
-                """Execute set_user_password_reset_token.
-
-                This callable is documented to make behavior explicit for readers.
-                """
+                """Run set user password reset token in this workflow."""
                 called.append(("set_token", "db", user.email, token_hash, expires_at))
 
             def get_user_by_reset_token(self, token_hash):
-                """Execute get_user_by_reset_token.
-
-                This callable is documented to make behavior explicit for readers.
-                """
+                """Return user by reset token for this workflow."""
                 return None
 
             def get_user(self, user_id):
-                """Execute get_user.
-
-                This callable is documented to make behavior explicit for readers.
-                """
+                """Return user for this workflow."""
                 return None
 
         class FakeAuthWorkflow:
-            """Class FakeAuthWorkflow.
-
-            Encapsulates one responsibility in the backend architecture.
-            """
+            """Represent fake auth workflow and centralize responsibilities for this module."""
             def create_password_reset_token(self):
-                """Execute create_password_reset_token.
-
-                This callable is documented to make behavior explicit for readers.
-                """
+                """Create password reset token for this workflow."""
                 called.append(("create_token",))
                 return "token123"
 
             def hash_password_reset_token(self, token):
-                """Execute hash_password_reset_token.
-
-                This callable is documented to make behavior explicit for readers.
-                """
+                """Run hash password reset token in this workflow."""
                 called.append(("hash_token", token))
                 return "hash123"
 
             def get_password_hash(self, raw_password):
-                """Execute get_password_hash.
-
-                This callable is documented to make behavior explicit for readers.
-                """
+                """Return password hash for this workflow."""
                 return f"hashed:{raw_password}"
 
         class FakeEmailWorkflow:
-            """Class FakeEmailWorkflow.
-
-            Encapsulates one responsibility in the backend architecture.
-            """
+            """Represent fake email workflow and centralize responsibilities for this module."""
             async def send_password_reset_email(self, **kwargs):
-                """Execute send_password_reset_email.
-
-                This callable is documented to make behavior explicit for readers.
-                """
+                """Run send password reset email in this workflow."""
                 called.append(("send_email", kwargs))
 
         service = PasswordRecoveryRequestService(session="db")
@@ -368,68 +247,38 @@ class _TopLevelFunctionSurface:
         assert called[4][0] == "send_email"
 
     def test_password_recovery_workflow_reset_password_delega_runtime_e_commit():
-        """Execute test_password_recovery_workflow_reset_password_delega_runtime_e_commit.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Run test password recovery workflow reset password delega runtime e commit in this workflow."""
         class FakeDb:
-            """Class FakeDb.
-
-            Encapsulates one responsibility in the backend architecture.
-            """
+            """Represent fake db and centralize responsibilities for this module."""
             def __init__(self):
-                """Execute __init__.
-
-                This callable is documented to make behavior explicit for readers.
-                """
+                """Initialize collaborators and configuration required by this component."""
                 self.committed = False
     
             def commit(self):
-                """Execute commit.
-
-                This callable is documented to make behavior explicit for readers.
-                """
+                """Run commit in this workflow."""
                 self.committed = True
     
         class FakeAuthWorkflow:
-            """Class FakeAuthWorkflow.
-
-            Encapsulates one responsibility in the backend architecture.
-            """
+            """Represent fake auth workflow and centralize responsibilities for this module."""
             def hash_password_reset_token(self, token):
-                """Execute hash_password_reset_token.
-
-                This callable is documented to make behavior explicit for readers.
-                """
+                """Run hash password reset token in this workflow."""
                 return "hash-token"
 
             def get_password_hash(self, raw_password):
-                """Execute get_password_hash.
-
-                This callable is documented to make behavior explicit for readers.
-                """
+                """Return password hash for this workflow."""
                 return f"hashed:{raw_password}"
 
         class FakeUserRepository:
-            """Class FakeUserRepository.
-
-            Encapsulates one responsibility in the backend architecture.
-            """
+            """Represent fake user repository and centralize responsibilities for this module."""
             def get_user_by_reset_token(self, token_hash):
-                """Execute get_user_by_reset_token.
-
-                This callable is documented to make behavior explicit for readers.
-                """
+                """Return user by reset token for this workflow."""
                 return SimpleNamespace(
                     id=42,
                     reset_password_token_expires_at=datetime.now(timezone.utc) + timedelta(hours=1),
                 )
 
             def get_user(self, user_id):
-                """Execute get_user.
-
-                This callable is documented to make behavior explicit for readers.
-                """
+                """Return user for this workflow."""
                 return SimpleNamespace(
                     id=user_id,
                     hashed_password=None,
@@ -450,10 +299,7 @@ class _TopLevelFunctionSurface:
         assert db.committed is True
 
     def test_social_auth_workflow_social_login_config_delega_runtime():
-        """Execute test_social_auth_workflow_social_login_config_delega_runtime.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Run test social auth workflow social login config delega runtime in this workflow."""
         request_service = SocialAuthRequestService(session="db")
         request_service._has_client = lambda provider: provider == "google"
         config = request_service.social_login_config()
@@ -463,62 +309,38 @@ class _TopLevelFunctionSurface:
 
     @pytest.mark.asyncio
     async def test_social_auth_workflow_google_callback_delega_runtime_e_retorna_tokens():
-        """Execute test_social_auth_workflow_google_callback_delega_runtime_e_retorna_tokens.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Run test social auth workflow google callback delega runtime e retorna tokens in this workflow."""
         called = []
     
         class FakeAuthWorkflow:
-            """Class FakeAuthWorkflow.
-
-            Encapsulates one responsibility in the backend architecture.
-            """
+            """Represent fake auth workflow and centralize responsibilities for this module."""
             async def process_google_login(self, google_userinfo):
-                """Execute process_google_login.
-
-                This callable is documented to make behavior explicit for readers.
-                """
+                """Process google login for this workflow."""
                 called.append(("process_google_login", google_userinfo))
                 return SimpleNamespace(id=9, email="google@test.com")
 
             def create_access_token(self, payload):
-                """Execute create_access_token.
-
-                This callable is documented to make behavior explicit for readers.
-                """
+                """Create access token for this workflow."""
                 called.append(("create_access_token", payload))
                 return "access.jwt"
 
             def create_refresh_token(self, payload):
-                """Execute create_refresh_token.
-
-                This callable is documented to make behavior explicit for readers.
-                """
+                """Create refresh token for this workflow."""
                 called.append(("create_refresh_token", payload))
                 return "refresh.jwt"
 
         async def fake_authorize_access_token(provider, request):
-            """Execute fake_authorize_access_token.
-
-            This callable is documented to make behavior explicit for readers.
-            """
+            """Run fake authorize access token in this workflow."""
             called.append(("authorize_access_token", provider))
             return {"access": "token"}
 
         async def fake_parse_google_id_token(request, token):
-            """Execute fake_parse_google_id_token.
-
-            This callable is documented to make behavior explicit for readers.
-            """
+            """Run fake parse google id token in this workflow."""
             called.append(("parse_google_id_token", token))
             return {"sub": "google-user"}
 
         async def fake_get_userinfo(provider, token):
-            """Execute fake_get_userinfo.
-
-            This callable is documented to make behavior explicit for readers.
-            """
+            """Run fake get userinfo in this workflow."""
             called.append(("get_userinfo", provider))
             return {"sub": "fallback"}
 
@@ -540,22 +362,13 @@ class _TopLevelFunctionSurface:
 
     @pytest.mark.asyncio
     async def test_generation_workflow_tarefa_processar_delega_runtime():
-        """Execute test_generation_workflow_tarefa_processar_delega_runtime.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Run test generation workflow tarefa processar delega runtime in this workflow."""
         called = []
 
         class FakeTaskService:
-            """Class FakeTaskService.
-
-            Encapsulates one responsibility in the backend architecture.
-            """
+            """Represent fake task service and centralize responsibilities for this module."""
             async def run_generation_task(self, **kwargs):
-                """Execute run_generation_task.
-
-                This callable is documented to make behavior explicit for readers.
-                """
+                """Run generation task for this workflow."""
                 called.append(("run_generation_task", kwargs))
 
         request_service = GenerationRequestService(session="db")
@@ -574,22 +387,13 @@ class _TopLevelFunctionSurface:
         assert called[0][1]["num_titulos"] == 3
 
     def test_generation_workflow_agendar_openai_titulos_delega_validacao_e_enqueue():
-        """Execute test_generation_workflow_agendar_openai_titulos_delega_validacao_e_enqueue.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Run test generation workflow agendar openai titulos delega validacao e enqueue in this workflow."""
         called = []
     
         class FakeSchedulingService:
-            """Class FakeSchedulingService.
-
-            Encapsulates one responsibility in the backend architecture.
-            """
+            """Represent fake scheduling service and centralize responsibilities for this module."""
             def enqueue_generation_task(self, **kwargs):
-                """Execute enqueue_generation_task.
-
-                This callable is documented to make behavior explicit for readers.
-                """
+                """Run enqueue generation task in this workflow."""
                 called.append(("enqueue_generation_task", kwargs))
 
         request_service = GenerationRequestService(session="db")
@@ -618,20 +422,11 @@ class _TopLevelFunctionSurface:
 
     @pytest.mark.asyncio
     async def test_generation_workflow_sugerir_atributos_delega_runtime():
-        """Execute test_generation_workflow_sugerir_atributos_delega_runtime.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Run test generation workflow sugerir atributos delega runtime in this workflow."""
         class FakeIAService:
-            """Class FakeIAService.
-
-            Encapsulates one responsibility in the backend architecture.
-            """
+            """Represent fake i a service and centralize responsibilities for this module."""
             async def sugerir_valores_atributos_com_gemini(self, **kwargs):
-                """Execute sugerir_valores_atributos_com_gemini.
-
-                This callable is documented to make behavior explicit for readers.
-                """
+                """Run sugerir valores atributos com gemini in this workflow."""
                 return {"ok": True, "produto_id": kwargs["produto_id"]}
 
         request_service = GenerationRequestService(session="db")
@@ -644,54 +439,30 @@ class _TopLevelFunctionSurface:
         assert result == {"ok": True, "produto_id": 31}
 
     def test_admin_analytics_workflow_uso_ia_por_plano_delega_runtime():
-        """Execute test_admin_analytics_workflow_uso_ia_por_plano_delega_runtime.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Run test admin analytics workflow uso ia por plano delega runtime in this workflow."""
         class FakeSession:
-            """Class FakeSession.
-
-            Encapsulates one responsibility in the backend architecture.
-            """
+            """Represent fake session and centralize responsibilities for this module."""
             def __init__(self):
-                """Execute __init__.
-
-                This callable is documented to make behavior explicit for readers.
-                """
+                """Initialize collaborators and configuration required by this component."""
                 self._next_counts = [7, 3]
                 self._idx = 0
 
             def query(self, *_args):
-                """Execute query.
-
-                This callable is documented to make behavior explicit for readers.
-                """
+                """Run query in this workflow."""
                 parent = self
 
                 class _CountQuery:
-                    """Class _CountQuery.
-
-                    Encapsulates one responsibility in the backend architecture.
-                    """
+                    """Represent count query and centralize responsibilities for this module."""
                     def join(self, *_a, **_k):
-                        """Execute join.
-
-                        This callable is documented to make behavior explicit for readers.
-                        """
+                        """Run join in this workflow."""
                         return self
 
                     def filter(self, *_a, **_k):
-                        """Execute filter.
-
-                        This callable is documented to make behavior explicit for readers.
-                        """
+                        """Run filter in this workflow."""
                         return self
 
                     def scalar(self):
-                        """Execute scalar.
-
-                        This callable is documented to make behavior explicit for readers.
-                        """
+                        """Run scalar in this workflow."""
                         value = parent._next_counts[parent._idx]
                         parent._idx += 1
                         return value
@@ -699,15 +470,9 @@ class _TopLevelFunctionSurface:
                 return _CountQuery()
 
         class FakeUserRepository:
-            """Class FakeUserRepository.
-
-            Encapsulates one responsibility in the backend architecture.
-            """
+            """Represent fake user repository and centralize responsibilities for this module."""
             def get_planos(self, **kwargs):
-                """Execute get_planos.
-
-                This callable is documented to make behavior explicit for readers.
-                """
+                """Return planos for this workflow."""
                 return [SimpleNamespace(id=1, nome="Pro"), SimpleNamespace(id=2, nome="Free")]
 
         request_service = AdminAnalyticsRequestService(session=FakeSession())
@@ -721,20 +486,11 @@ class _TopLevelFunctionSurface:
 
     @pytest.mark.asyncio
     async def test_fornecedores_workflow_preview_pages_delega_runtime():
-        """Execute test_fornecedores_workflow_preview_pages_delega_runtime.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Run test fornecedores workflow preview pages delega runtime in this workflow."""
         class FakeRuntime:
-            """Class FakeRuntime.
-
-            Encapsulates one responsibility in the backend architecture.
-            """
+            """Represent fake runtime and centralize responsibilities for this module."""
             async def preview_pages(self, **kwargs):
-                """Execute preview_pages.
-
-                This callable is documented to make behavior explicit for readers.
-                """
+                """Run preview pages in this workflow."""
                 return {"ok": True, "file": kwargs["file"]}
     
         request_service = FornecedoresRequestService(runtime=FakeRuntime())
@@ -743,22 +499,13 @@ class _TopLevelFunctionSurface:
         assert response == {"ok": True, "file": "arquivo.pdf"}
 
     def test_product_types_workflow_read_product_types_delega_runtime():
-        """Execute test_product_types_workflow_read_product_types_delega_runtime.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Run test product types workflow read product types delega runtime in this workflow."""
         called = []
     
         class FakeRepository:
-            """Class FakeRepository.
-
-            Encapsulates one responsibility in the backend architecture.
-            """
+            """Represent fake repository and centralize responsibilities for this module."""
             def get_product_types_for_user(self, **kwargs):
-                """Execute get_product_types_for_user.
-
-                This callable is documented to make behavior explicit for readers.
-                """
+                """Return product types for user for this workflow."""
                 called.append(kwargs)
                 return [SimpleNamespace(id=1, key_name="auto")]
 
@@ -773,22 +520,13 @@ class _TopLevelFunctionSurface:
         assert called[0]["limit"] == 20
 
     def test_uso_ia_workflow_create_delega_runtime_e_define_user_id():
-        """Execute test_uso_ia_workflow_create_delega_runtime_e_define_user_id.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Run test uso ia workflow create delega runtime e define user id in this workflow."""
         called = []
     
         class FakeRepository:
-            """Class FakeRepository.
-
-            Encapsulates one responsibility in the backend architecture.
-            """
+            """Represent fake repository and centralize responsibilities for this module."""
             def create_registro_uso_ia(self, **kwargs):
-                """Execute create_registro_uso_ia.
-
-                This callable is documented to make behavior explicit for readers.
-                """
+                """Create registro uso ia for this workflow."""
                 called.append(kwargs)
                 return {"id": 123}
 
@@ -811,46 +549,28 @@ class _TopLevelFunctionSurface:
         assert called[0]["registro_uso"].user_id == 77
 
     def test_main_bootstrap_workflow_delega_metodos_sync_para_runtime():
-        """Execute test_main_bootstrap_workflow_delega_metodos_sync_para_runtime.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Run test main bootstrap workflow delega metodos sync para runtime in this workflow."""
         called = []
     
         class FakeRuntime:
-            """Class FakeRuntime.
-
-            Encapsulates one responsibility in the backend architecture.
-            """
+            """Represent fake runtime and centralize responsibilities for this module."""
             def build_allowed_origins(self):
-                """Execute build_allowed_origins.
-
-                This callable is documented to make behavior explicit for readers.
-                """
+                """Build allowed origins for this workflow."""
                 called.append("build_allowed_origins")
                 return ["http://fake.local"]
     
             def ensure_static_files_path(self):
-                """Execute ensure_static_files_path.
-
-                This callable is documented to make behavior explicit for readers.
-                """
+                """Ensure static files path for this workflow."""
                 called.append("ensure_static_files_path")
                 return Path("C:/tmp/static")
     
             def create_new_user(self, user_in, session):
-                """Execute create_new_user.
-
-                This callable is documented to make behavior explicit for readers.
-                """
+                """Create new user for this workflow."""
                 called.append(("create_new_user", user_in, session))
                 return {"ok": True}
     
             async def startup_event_create_defaults(self):
-                """Execute startup_event_create_defaults.
-
-                This callable is documented to make behavior explicit for readers.
-                """
+                """Run startup event create defaults in this workflow."""
                 called.append("startup_event_create_defaults")
     
         workflow = MainBootstrapWorkflow(runtime=FakeRuntime())
@@ -865,43 +585,25 @@ class _TopLevelFunctionSurface:
 
     @pytest.mark.asyncio
     async def test_main_bootstrap_workflow_delega_metodo_async_para_runtime():
-        """Execute test_main_bootstrap_workflow_delega_metodo_async_para_runtime.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Run test main bootstrap workflow delega metodo async para runtime in this workflow."""
         called = []
     
         class FakeRuntime:
-            """Class FakeRuntime.
-
-            Encapsulates one responsibility in the backend architecture.
-            """
+            """Represent fake runtime and centralize responsibilities for this module."""
             def build_allowed_origins(self):
-                """Execute build_allowed_origins.
-
-                This callable is documented to make behavior explicit for readers.
-                """
+                """Build allowed origins for this workflow."""
                 return []
     
             def ensure_static_files_path(self):
-                """Execute ensure_static_files_path.
-
-                This callable is documented to make behavior explicit for readers.
-                """
+                """Ensure static files path for this workflow."""
                 return Path("C:/tmp/static")
     
             def create_new_user(self, user_in, session):
-                """Execute create_new_user.
-
-                This callable is documented to make behavior explicit for readers.
-                """
+                """Create new user for this workflow."""
                 return None
     
             async def startup_event_create_defaults(self):
-                """Execute startup_event_create_defaults.
-
-                This callable is documented to make behavior explicit for readers.
-                """
+                """Run startup event create defaults in this workflow."""
                 called.append("startup")
     
         workflow = MainBootstrapWorkflow(runtime=FakeRuntime())
@@ -909,30 +611,18 @@ class _TopLevelFunctionSurface:
         assert called == ["startup"]
 
     def test_produtos_workflow_runtime_override_delega_metodos_injetados():
-        """Execute test_produtos_workflow_runtime_override_delega_metodos_injetados.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Run test produtos workflow runtime override delega metodos injetados in this workflow."""
         called = []
     
         class FakeRuntime:
-            """Class FakeRuntime.
-
-            Encapsulates one responsibility in the backend architecture.
-            """
+            """Represent fake runtime and centralize responsibilities for this module."""
             def create_produto(self, **kwargs):
-                """Execute create_produto.
-
-                This callable is documented to make behavior explicit for readers.
-                """
+                """Create produto for this workflow."""
                 called.append(("create_produto", kwargs))
                 return {"source": "runtime", "op": "create"}
     
             def list_produtos(self, **kwargs):
-                """Execute list_produtos.
-
-                This callable is documented to make behavior explicit for readers.
-                """
+                """List produtos for this workflow."""
                 called.append(("list_produtos", kwargs))
                 return {"source": "runtime", "op": "list"}
     
@@ -963,30 +653,18 @@ class _TopLevelFunctionSurface:
         assert called[1][0] == "list_produtos"
 
     def test_produtos_workflow_runtime_parcial_preserva_fallback_nativo():
-        """Execute test_produtos_workflow_runtime_parcial_preserva_fallback_nativo.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Run test produtos workflow runtime parcial preserva fallback nativo in this workflow."""
         called = []
     
         class FakeRuntime:
-            """Class FakeRuntime.
-
-            Encapsulates one responsibility in the backend architecture.
-            """
+            """Represent fake runtime and centralize responsibilities for this module."""
             def create_produto(self, **kwargs):
-                """Execute create_produto.
-
-                This callable is documented to make behavior explicit for readers.
-                """
+                """Create produto for this workflow."""
                 called.append(kwargs)
                 return {"ok": True}
 
             def list_catalog_import_files(self, **kwargs):
-                """Execute list_catalog_import_files.
-
-                This callable is documented to make behavior explicit for readers.
-                """
+                """List catalog import files for this workflow."""
                 called.append(kwargs)
                 return {"list_ok": True}
     

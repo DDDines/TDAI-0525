@@ -1,7 +1,6 @@
 """Module test fornecedor import tracking service.
 
-This module contains backend application/runtime logic and is fully
-documented for maintainability and onboarding.
+Contains backend logic related to test fornecedor import tracking service and documents its role in the OOP architecture.
 """
 
 from __future__ import annotations
@@ -17,70 +16,40 @@ from Backend.application.services.fornecedor_import_tracking_service import (
 
 
 class _CatalogFileRepoStub:
-    """Class _CatalogFileRepoStub.
-
-    Encapsulates one responsibility in the backend architecture.
-    """
+    """Represent catalog file repo stub and centralize responsibilities for this module."""
     def __init__(self, record):
-        """Execute __init__.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Initialize collaborators and configuration required by this component."""
         self._record = record
 
     def get_catalog_file_for_user(self, *, file_id: int, user_id: int):
-        """Execute get_catalog_file_for_user.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Return catalog file for user for this workflow."""
         _ = (file_id, user_id)
         return self._record
 
 
 class _BackgroundTasksStub:
-    """Class _BackgroundTasksStub.
-
-    Encapsulates one responsibility in the backend architecture.
-    """
+    """Represent background tasks stub and centralize responsibilities for this module."""
     def __init__(self):
-        """Execute __init__.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Initialize collaborators and configuration required by this component."""
         self.calls = []
 
     def add_task(self, task, **kwargs):
-        """Execute add_task.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Run add task in this workflow."""
         self.calls.append((task, kwargs))
 
 
 class _ModelsStub:
-    """Class _ModelsStub.
-
-    Encapsulates one responsibility in the backend architecture.
-    """
+    """Represent models stub and centralize responsibilities for this module."""
     class CatalogImportFile:
-        """Class CatalogImportFile.
-
-        Encapsulates one responsibility in the backend architecture.
-        """
+        """Represent catalog import file and centralize responsibilities for this module."""
         pass
 
 
 class _TopLevelFunctionSurface:
 
-    """Class _TopLevelFunctionSurface.
-
-    Encapsulates one responsibility in the backend architecture.
-    """
+    """Represent top level function surface and centralize responsibilities for this module."""
     def _build_service(*, record=None):
-        """Execute _build_service.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Run build service in this workflow."""
         return FornecedorImportTrackingService(
             models=_ModelsStub,
             process_pdf_extraction_task=lambda **kwargs: kwargs,
@@ -88,10 +57,7 @@ class _TopLevelFunctionSurface:
         )
 
     def test_get_catalog_record_or_404_returns_record():
-        """Execute test_get_catalog_record_or_404_returns_record.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Run test get catalog record or 404 returns record in this workflow."""
         record = SimpleNamespace(id=1)
         service = _build_service(record=record)
     
@@ -104,10 +70,7 @@ class _TopLevelFunctionSurface:
         assert found is record
 
     def test_get_catalog_record_or_404_raises_when_missing():
-        """Execute test_get_catalog_record_or_404_raises_when_missing.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Run test get catalog record or 404 raises when missing in this workflow."""
         service = _build_service(record=None)
     
         with pytest.raises(HTTPException) as exc:
@@ -121,10 +84,7 @@ class _TopLevelFunctionSurface:
         assert exc.value.detail == "arquivo nao encontrado"
 
     def test_build_progress_payload_normalizes_total_pages():
-        """Execute test_build_progress_payload_normalizes_total_pages.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Run test build progress payload normalizes total pages in this workflow."""
         payload = FornecedorImportTrackingService.build_progress_payload(
             record=SimpleNamespace(status="PROCESSING", pages_processed=4, total_pages=None)
         )
@@ -137,10 +97,7 @@ class _TopLevelFunctionSurface:
         }
 
     def test_schedule_page_extraction_adds_task():
-        """Execute test_schedule_page_extraction_adds_task.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Run test schedule page extraction adds task in this workflow."""
         service = _build_service()
         background = _BackgroundTasksStub()
     
@@ -157,10 +114,7 @@ class _TopLevelFunctionSurface:
         assert kwargs["page_number"] == 5
 
     def test_build_import_job_status_payload_includes_result_for_completed():
-        """Execute test_build_import_job_status_payload_includes_result_for_completed.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Run test build import job status payload includes result for completed in this workflow."""
         record = SimpleNamespace(status="COMPLETED", resultado_json={"ok": True})
     
         payload = FornecedorImportTrackingService.build_import_job_status_payload(

@@ -1,7 +1,6 @@
 """Module test generation task service.
 
-This module contains backend application/runtime logic and is fully
-documented for maintainability and onboarding.
+Contains backend logic related to test generation task service and documents its role in the OOP architecture.
 """
 
 from __future__ import annotations
@@ -14,29 +13,17 @@ from Backend.application.services.generation_task_service import GenerationTaskS
 
 
 class _UserStub:
-    """Class _UserStub.
-
-    Encapsulates one responsibility in the backend architecture.
-    """
+    """Represent user stub and centralize responsibilities for this module."""
     def __init__(self, user_id: int = 1, is_superuser: bool = False) -> None:
-        """Execute __init__.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Initialize collaborators and configuration required by this component."""
         self.id = user_id
         self.is_superuser = is_superuser
 
 
 class _ProdutoStub:
-    """Class _ProdutoStub.
-
-    Encapsulates one responsibility in the backend architecture.
-    """
+    """Represent produto stub and centralize responsibilities for this module."""
     def __init__(self, *, produto_id: int = 10, user_id: int = 1) -> None:
-        """Execute __init__.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Initialize collaborators and configuration required by this component."""
         self.id = produto_id
         self.user_id = user_id
         self.log_processamento = []
@@ -47,50 +34,29 @@ class _ProdutoStub:
 
 
 class _CrudUsersStub:
-    """Class _CrudUsersStub.
-
-    Encapsulates one responsibility in the backend architecture.
-    """
+    """Represent crud users stub and centralize responsibilities for this module."""
     def __init__(self, user: _UserStub | None) -> None:
-        """Execute __init__.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Initialize collaborators and configuration required by this component."""
         self._user = user
 
     def get_user(self, *, user_id: int):
-        """Execute get_user.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Return user for this workflow."""
         return self._user
 
 
 class _CrudProdutosStub:
-    """Class _CrudProdutosStub.
-
-    Encapsulates one responsibility in the backend architecture.
-    """
+    """Represent crud produtos stub and centralize responsibilities for this module."""
     def __init__(self, produto: _ProdutoStub | None) -> None:
-        """Execute __init__.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Initialize collaborators and configuration required by this component."""
         self._produto = produto
         self.updates = []
 
     def get_produto(self, *, produto_id: int):
-        """Execute get_produto.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Return produto for this workflow."""
         return self._produto
 
     def update_produto(self, *, db_produto, produto_update):
-        """Execute update_produto.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Update produto for this workflow."""
         payload = vars(produto_update)
         self.updates.append(payload)
         for key, value in payload.items():
@@ -99,36 +65,21 @@ class _CrudProdutosStub:
 
 
 class _FakeSession:
-    """Class _FakeSession.
-
-    Encapsulates one responsibility in the backend architecture.
-    """
+    """Represent fake session and centralize responsibilities for this module."""
     def close(self):
-        """Execute close.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Run close in this workflow."""
         return None
 
 
 class _TopLevelFunctionSurface:
 
-    """Class _TopLevelFunctionSurface.
-
-    Encapsulates one responsibility in the backend architecture.
-    """
+    """Represent top level function surface and centralize responsibilities for this module."""
     def _db_session_factory():
-        """Execute _db_session_factory.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Run db session factory in this workflow."""
         return _FakeSession()
 
     def _build_models_stub():
-        """Execute _build_models_stub.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Run build models stub in this workflow."""
         return types.SimpleNamespace(
             StatusGeracaoIAEnum=types.SimpleNamespace(
                 EM_PROGRESSO="EM_PROGRESSO",
@@ -138,76 +89,43 @@ class _TopLevelFunctionSurface:
         )
 
     def _build_schemas_stub():
-        """Execute _build_schemas_stub.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Run build schemas stub in this workflow."""
         class _ProdutoUpdate:
-            """Class _ProdutoUpdate.
-
-            Encapsulates one responsibility in the backend architecture.
-            """
+            """Represent produto update and centralize responsibilities for this module."""
             def __init__(self, **kwargs):
-                """Execute __init__.
-
-                This callable is documented to make behavior explicit for readers.
-                """
+                """Initialize collaborators and configuration required by this component."""
                 for key, value in kwargs.items():
                     setattr(self, key, value)
     
         return types.SimpleNamespace(ProdutoUpdate=_ProdutoUpdate)
 
     def _build_service(*, produto: _ProdutoStub, user: _UserStub | None = None):
-        """Execute _build_service.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Run build service in this workflow."""
         crud_users = _CrudUsersStub(user or _UserStub())
         crud_produtos = _CrudProdutosStub(produto)
     
         class _UserRepository:
-            """Class _UserRepository.
-
-            Encapsulates one responsibility in the backend architecture.
-            """
+            """Represent user repository and centralize responsibilities for this module."""
             def __init__(self, _session):
-                """Execute __init__.
-
-                This callable is documented to make behavior explicit for readers.
-                """
+                """Initialize collaborators and configuration required by this component."""
                 self._stub = crud_users
     
             def get_user(self, *, user_id: int):
-                """Execute get_user.
-
-                This callable is documented to make behavior explicit for readers.
-                """
+                """Return user for this workflow."""
                 return self._stub.get_user(user_id=user_id)
     
         class _ProductRepository:
-            """Class _ProductRepository.
-
-            Encapsulates one responsibility in the backend architecture.
-            """
+            """Represent product repository and centralize responsibilities for this module."""
             def __init__(self, _session):
-                """Execute __init__.
-
-                This callable is documented to make behavior explicit for readers.
-                """
+                """Initialize collaborators and configuration required by this component."""
                 self._stub = crud_produtos
     
             def get_produto(self, *, produto_id: int):
-                """Execute get_produto.
-
-                This callable is documented to make behavior explicit for readers.
-                """
+                """Return produto for this workflow."""
                 return self._stub.get_produto(produto_id=produto_id)
     
             def update_produto(self, *, db_produto, produto_update):
-                """Execute update_produto.
-
-                This callable is documented to make behavior explicit for readers.
-                """
+                """Update produto for this workflow."""
                 return self._stub.update_produto(
                     db_produto=db_produto,
                     produto_update=produto_update,
@@ -225,18 +143,12 @@ class _TopLevelFunctionSurface:
 
     @pytest.mark.asyncio
     async def test_generation_task_service_marks_success_for_titulo():
-        """Execute test_generation_task_service_marks_success_for_titulo.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Run test generation task service marks success for titulo in this workflow."""
         produto = _ProdutoStub()
         service, crud_produtos = _build_service(produto=produto)
     
         async def _fake_generation(**kwargs):
-            """Execute _fake_generation.
-
-            This callable is documented to make behavior explicit for readers.
-            """
+            """Run fake generation in this workflow."""
             return ["Titulo 1", "Titulo 2"]
     
         await service.run_generation_task(
@@ -252,18 +164,12 @@ class _TopLevelFunctionSurface:
 
     @pytest.mark.asyncio
     async def test_generation_task_service_marks_failure_for_empty_result():
-        """Execute test_generation_task_service_marks_failure_for_empty_result.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Run test generation task service marks failure for empty result in this workflow."""
         produto = _ProdutoStub()
         service, crud_produtos = _build_service(produto=produto)
     
         async def _fake_generation(**kwargs):
-            """Execute _fake_generation.
-
-            This callable is documented to make behavior explicit for readers.
-            """
+            """Run fake generation in this workflow."""
             return ""
     
         await service.run_generation_task(
@@ -288,43 +194,25 @@ test_generation_task_service_marks_failure_for_empty_result = _TopLevelFunctionS
 
 
 class _LoggerStub:
-    """Class _LoggerStub.
-
-    Encapsulates one responsibility in the backend architecture.
-    """
+    """Represent logger stub and centralize responsibilities for this module."""
     def __init__(self):
-        """Execute __init__.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Initialize collaborators and configuration required by this component."""
         self.logs = []
 
     def info(self, *args, **kwargs):
-        """Execute info.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Run info in this workflow."""
         self.logs.append(("info", args, kwargs))
 
     def warning(self, *args, **kwargs):
-        """Execute warning.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Run warning in this workflow."""
         self.logs.append(("warning", args, kwargs))
 
     def error(self, *args, **kwargs):
-        """Execute error.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Run error in this workflow."""
         self.logs.append(("error", args, kwargs))
 
     def exception(self, *args, **kwargs):
-        """Execute exception.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Run exception in this workflow."""
         self.logs.append(("exception", args, kwargs))
 
 

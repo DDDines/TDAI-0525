@@ -1,7 +1,6 @@
 """Module file processing runtime.
 
-This module contains backend application/runtime logic and is fully
-documented for maintainability and onboarding.
+Contains backend logic related to file processing runtime and documents its role in the OOP architecture.
 """
 
 from __future__ import annotations
@@ -9,14 +8,8 @@ from Backend.infrastructure.runtime_services.file_processing_runtime_service imp
 
 class FileProcessingRuntimeProvider:
 
-    """Class FileProcessingRuntimeProvider.
-
-    Encapsulates one responsibility in the backend architecture.
-    """
+    """Represent file processing runtime provider and centralize responsibilities for this module."""
     @staticmethod
     def get_runtime_service() -> FileProcessingRuntimeService:
-        """Execute get_runtime_service.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Return runtime service for this workflow."""
         return FileProcessingRuntimeService()

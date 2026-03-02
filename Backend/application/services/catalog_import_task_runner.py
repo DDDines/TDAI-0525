@@ -1,7 +1,6 @@
 """Module catalog import task runner.
 
-This module contains backend application/runtime logic and is fully
-documented for maintainability and onboarding.
+Contains backend logic related to catalog import task runner and documents its role in the OOP architecture.
 """
 
 from __future__ import annotations
@@ -42,10 +41,7 @@ class CatalogImportTaskRunner:
         product_repository: Any,
         catalog_file_repository: Any,
     ) -> None:
-        """Execute __init__.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Initialize collaborators and configuration required by this component."""
         self._kwargs = {
             "db_session_factory": db_session_factory,
             "logger": logger,
@@ -73,19 +69,13 @@ class CatalogImportTaskRunner:
         self._service: CatalogImportTaskService | None = None
 
     def _build(self) -> CatalogImportTaskService:
-        """Execute _build.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Run build in this workflow."""
         build_kwargs = dict(self._kwargs)
         build_kwargs["file_processing_service"] = self._file_processing_service
         return CatalogImportTaskService(**build_kwargs)
 
     def _get_service(self) -> CatalogImportTaskService:
-        """Execute _get_service.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Run get service in this workflow."""
         if self._service is None:
             self._service = self._build()
         return self._service
@@ -101,10 +91,7 @@ class CatalogImportTaskRunner:
         pages: Optional[List[int]] = None,
         region: Optional[List[float]] = None,
     ) -> None:
-        """Execute execute.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Run execute in this workflow."""
         await self._get_service().execute(
             file_id=file_id,
             user_id=user_id,

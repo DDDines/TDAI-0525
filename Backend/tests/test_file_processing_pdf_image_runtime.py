@@ -1,7 +1,6 @@
 """Module test file processing pdf image runtime.
 
-This module contains backend application/runtime logic and is fully
-documented for maintainability and onboarding.
+Contains backend logic related to test file processing pdf image runtime and documents its role in the OOP architecture.
 """
 
 import base64
@@ -12,37 +11,22 @@ from Backend.testing.runtime_apis import file_processing
 
 
 class _FakeImage:
-    """Class _FakeImage.
-
-    Encapsulates one responsibility in the backend architecture.
-    """
+    """Represent fake image and centralize responsibilities for this module."""
     def __init__(self, payload: bytes) -> None:
-        """Execute __init__.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Initialize collaborators and configuration required by this component."""
         self.payload = payload
 
     def save(self, buffer, format=None):  # noqa: A002 - assinatura compativel com PIL
-        """Execute save.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Run save in this workflow."""
         buffer.write(self.payload)
 
 
 class _TopLevelFunctionSurface:
 
-    """Class _TopLevelFunctionSurface.
-
-    Encapsulates one responsibility in the backend architecture.
-    """
+    """Represent top level function surface and centralize responsibilities for this module."""
     @pytest.mark.asyncio
     async def test_pdf_image_runtime_converte_para_base64(monkeypatch):
-        """Execute test_pdf_image_runtime_converte_para_base64.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Run test pdf image runtime converte para base64 in this workflow."""
         runtime = file_processing.PdfImageConversionRuntime()
     
         monkeypatch.setattr(file_processing.shutil, "which", lambda *_args, **_kwargs: "pdftoppm")
@@ -66,17 +50,11 @@ class _TopLevelFunctionSurface:
 
     @pytest.mark.asyncio
     async def test_pdf_bytes_to_images_impl_usa_runtime(monkeypatch):
-        """Execute test_pdf_bytes_to_images_impl_usa_runtime.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Run test pdf bytes to images impl usa runtime in this workflow."""
         called = {}
     
         async def _fake_pdf_bytes_to_images(self, **kwargs):
-            """Execute _fake_pdf_bytes_to_images.
-
-            This callable is documented to make behavior explicit for readers.
-            """
+            """Run fake pdf bytes to images in this workflow."""
             _ = self
             called.update(kwargs)
             return ["abc"]

@@ -1,7 +1,6 @@
 """Module test web data extractor engine runtime.
 
-This module contains backend application/runtime logic and is fully
-documented for maintainability and onboarding.
+Contains backend logic related to test web data extractor engine runtime and documents its role in the OOP architecture.
 """
 
 from __future__ import annotations
@@ -13,36 +12,21 @@ from Backend.testing.runtime_apis import web_extractor
 
 class _TopLevelFunctionSurface:
 
-    """Class _TopLevelFunctionSurface.
-
-    Encapsulates one responsibility in the backend architecture.
-    """
+    """Represent top level function surface and centralize responsibilities for this module."""
     @pytest.mark.asyncio
     async def test_web_search_runtime_delega_para_engine_runtime():
-        """Execute test_web_search_runtime_delega_para_engine_runtime.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Run test web search runtime delega para engine runtime in this workflow."""
         calls = []
     
         class FakeEngine:
-            """Class FakeEngine.
-
-            Encapsulates one responsibility in the backend architecture.
-            """
+            """Represent fake engine and centralize responsibilities for this module."""
             async def buscar_urls_publicas_async(self, *, query: str, num_results: int):
-                """Execute buscar_urls_publicas_async.
-
-                This callable is documented to make behavior explicit for readers.
-                """
+                """Run buscar urls publicas async in this workflow."""
                 calls.append(("public", query, num_results))
                 return ["https://example.com/public"]
     
             async def buscar_urls_google_async(self, *, query: str, num_results: int):
-                """Execute buscar_urls_google_async.
-
-                This callable is documented to make behavior explicit for readers.
-                """
+                """Run buscar urls google async in this workflow."""
                 calls.append(("google", query, num_results))
                 return ["https://example.com/google"]
     
@@ -63,22 +47,13 @@ class _TopLevelFunctionSurface:
 
     @pytest.mark.asyncio
     async def test_web_content_runtime_delega_para_engine_runtime():
-        """Execute test_web_content_runtime_delega_para_engine_runtime.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Run test web content runtime delega para engine runtime in this workflow."""
         calls = []
     
         class FakeEngine:
-            """Class FakeEngine.
-
-            Encapsulates one responsibility in the backend architecture.
-            """
+            """Represent fake engine and centralize responsibilities for this module."""
             async def coletar_conteudo_pagina_playwright(self, url: str):
-                """Execute coletar_conteudo_pagina_playwright.
-
-                This callable is documented to make behavior explicit for readers.
-                """
+                """Run coletar conteudo pagina playwright in this workflow."""
                 calls.append(url)
                 return "<html>ok</html>"
     
@@ -90,84 +65,48 @@ class _TopLevelFunctionSurface:
         assert calls == ["https://example.com/p"]
 
     def test_search_runtime_helpers_delegam_para_engine_runtime():
-        """Execute test_search_runtime_helpers_delegam_para_engine_runtime.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Run test search runtime helpers delegam para engine runtime in this workflow."""
         class FakeSearchEngine:
-            """Class FakeSearchEngine.
-
-            Encapsulates one responsibility in the backend architecture.
-            """
+            """Represent fake search engine and centralize responsibilities for this module."""
             def get_search_cache_lock(self):
-                """Execute get_search_cache_lock.
-
-                This callable is documented to make behavior explicit for readers.
-                """
+                """Return search cache lock for this workflow."""
                 return object()
     
             def get_search_semaphore(self):
-                """Execute get_search_semaphore.
-
-                This callable is documented to make behavior explicit for readers.
-                """
+                """Return search semaphore for this workflow."""
                 return object()
     
             async def search_cache_get(self, _query_key):
-                """Execute search_cache_get.
-
-                This callable is documented to make behavior explicit for readers.
-                """
+                """Run search cache get in this workflow."""
                 return None
     
             async def search_cache_set(self, _query_key, _urls):
-                """Execute search_cache_set.
-
-                This callable is documented to make behavior explicit for readers.
-                """
+                """Run search cache set in this workflow."""
                 return None
     
             def score_url_publica(self, _url: str):
-                """Execute score_url_publica.
-
-                This callable is documented to make behavior explicit for readers.
-                """
+                """Run score url publica in this workflow."""
                 return 1
     
             def extract_redirect_destination(self, _query: str):
-                """Execute extract_redirect_destination.
-
-                This callable is documented to make behavior explicit for readers.
-                """
+                """Extract redirect destination for this workflow."""
                 return None
     
             def unwrap_redirect_url(self, url: str, max_hops: int = 3):
-                """Execute unwrap_redirect_url.
-
-                This callable is documented to make behavior explicit for readers.
-                """
+                """Run unwrap redirect url in this workflow."""
                 _ = max_hops
                 return url
     
             def busca_publica_disponivel(self):
-                """Execute busca_publica_disponivel.
-
-                This callable is documented to make behavior explicit for readers.
-                """
+                """Run busca publica disponivel in this workflow."""
                 return False
     
             def url_deve_ser_ignorada_antes_da_coleta(self, url: str):
-                """Execute url_deve_ser_ignorada_antes_da_coleta.
-
-                This callable is documented to make behavior explicit for readers.
-                """
+                """Run url deve ser ignorada antes da coleta in this workflow."""
                 return url.endswith(".tmp")
     
             def normalizar_url_busca(self, candidata: str, base_url: str):
-                """Execute normalizar_url_busca.
-
-                This callable is documented to make behavior explicit for readers.
-                """
+                """Run normalizar url busca in this workflow."""
                 return f"{base_url}|{candidata}"
     
         runtime = web_extractor.WebSearchRuntime(engine_runtime=FakeSearchEngine())
@@ -179,22 +118,13 @@ class _TopLevelFunctionSurface:
 
     @pytest.mark.asyncio
     async def test_web_llm_runtime_delega_para_engine_runtime():
-        """Execute test_web_llm_runtime_delega_para_engine_runtime.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Run test web llm runtime delega para engine runtime in this workflow."""
         called = {}
     
         class FakeEngine:
-            """Class FakeEngine.
-
-            Encapsulates one responsibility in the backend architecture.
-            """
+            """Represent fake engine and centralize responsibilities for this module."""
             async def extrair_dados_produto_com_llm(self, **kwargs):
-                """Execute extrair_dados_produto_com_llm.
-
-                This callable is documented to make behavior explicit for readers.
-                """
+                """Run extrair dados produto com llm in this workflow."""
                 called.update(kwargs)
                 return {"nome_base": "Produto X"}
     
@@ -209,22 +139,13 @@ class _TopLevelFunctionSurface:
 
     @pytest.mark.asyncio
     async def test_web_url_runtime_delega_para_engine_runtime():
-        """Execute test_web_url_runtime_delega_para_engine_runtime.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Run test web url runtime delega para engine runtime in this workflow."""
         called = {}
     
         class FakeEngine:
-            """Class FakeEngine.
-
-            Encapsulates one responsibility in the backend architecture.
-            """
+            """Represent fake engine and centralize responsibilities for this module."""
             async def extract_relevant_data_from_url(self, **kwargs):
-                """Execute extract_relevant_data_from_url.
-
-                This callable is documented to make behavior explicit for readers.
-                """
+                """Extract relevant data from url for this workflow."""
                 called.update(kwargs)
                 return kwargs["produto"]
     
@@ -240,22 +161,13 @@ class _TopLevelFunctionSurface:
         assert called["url"] == "https://example.com/p"
 
     def test_web_ocr_runtime_delega_para_engine_runtime():
-        """Execute test_web_ocr_runtime_delega_para_engine_runtime.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Run test web ocr runtime delega para engine runtime in this workflow."""
         called = {}
     
         class FakeEngine:
-            """Class FakeEngine.
-
-            Encapsulates one responsibility in the backend architecture.
-            """
+            """Represent fake engine and centralize responsibilities for this module."""
             def extract_text_from_image_region(self, image_bytes: bytes):
-                """Execute extract_text_from_image_region.
-
-                This callable is documented to make behavior explicit for readers.
-                """
+                """Extract text from image region for this workflow."""
                 called["image_bytes"] = image_bytes
                 return {"text": "ok"}
     

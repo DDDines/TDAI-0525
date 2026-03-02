@@ -1,7 +1,6 @@
 """Module ia generation adapter.
 
-This module contains backend application/runtime logic and is fully
-documented for maintainability and onboarding.
+Contains backend logic related to ia generation adapter and documents its role in the OOP architecture.
 """
 
 from __future__ import annotations
@@ -18,10 +17,7 @@ class IAGenerationServiceAdapter:
     """OOP port adapter backed by the current IA generation implementation."""
 
     def __init__(self, runtime: IAGenerationWorkflow | None = None) -> None:
-        """Execute __init__.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Initialize collaborators and configuration required by this component."""
         self._runtime = runtime or IAGenerationWorkflow()
 
     async def gerar_titulos_com_openai(
@@ -32,10 +28,7 @@ class IAGenerationServiceAdapter:
         user: models.User,
         num_titulos: int = 3,
     ) -> list[str]:
-        """Execute gerar_titulos_com_openai.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Run gerar titulos com openai in this workflow."""
         return await self._runtime.gerar_titulos_com_openai(
             db=session,
             produto_id=produto_id,
@@ -51,10 +44,7 @@ class IAGenerationServiceAdapter:
         user: models.User,
         tamanho_palavras: int = 150,
     ) -> str:
-        """Execute gerar_descricao_com_openai.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Run gerar descricao com openai in this workflow."""
         return await self._runtime.gerar_descricao_com_openai(
             db=session,
             produto_id=produto_id,
@@ -70,10 +60,7 @@ class IAGenerationServiceAdapter:
         user: models.User,
         num_titulos: int = 3,
     ) -> list[str]:
-        """Execute gerar_titulos_com_gemini.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Run gerar titulos com gemini in this workflow."""
         return await self._runtime.gerar_titulos_com_gemini(
             db=session,
             produto_id=produto_id,
@@ -89,10 +76,7 @@ class IAGenerationServiceAdapter:
         user: models.User,
         tamanho_palavras: int = 150,
     ) -> str:
-        """Execute gerar_descricao_com_gemini.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Run gerar descricao com gemini in this workflow."""
         return await self._runtime.gerar_descricao_com_gemini(
             db=session,
             produto_id=produto_id,
@@ -107,10 +91,7 @@ class IAGenerationServiceAdapter:
         produto_id: int,
         user: models.User,
     ) -> schemas.SugestoesAtributosResponse:
-        """Execute sugerir_valores_atributos_com_gemini.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Run sugerir valores atributos com gemini in this workflow."""
         return await self._runtime.sugerir_valores_atributos_com_gemini(
             db=session,
             produto_id=produto_id,

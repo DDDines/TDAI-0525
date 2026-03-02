@@ -1,7 +1,6 @@
 """Module fornecedor preview service.
 
-This module contains backend application/runtime logic and is fully
-documented for maintainability and onboarding.
+Contains backend logic related to fornecedor preview service and documents its role in the OOP architecture.
 """
 
 from __future__ import annotations
@@ -25,26 +24,17 @@ class FornecedorPreviewService:
         web_data_extractor_service: Any,
         catalog_file_repository: Any,
     ) -> None:
-        """Execute __init__.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Initialize collaborators and configuration required by this component."""
         self._file_processing_service = file_processing_service
         self._web_data_extractor_service = web_data_extractor_service
         self._catalog_file_repository = catalog_file_repository
 
     def _resolve_session(self) -> Any:
-        """Execute _resolve_session.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Run resolve session in this workflow."""
         return getattr(self._catalog_file_repository, "_db", None)
 
     async def preview_pages(self, *, file: Any) -> dict[str, Any]:
-        """Execute preview_pages.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Run preview pages in this workflow."""
         if not file.filename.lower().endswith(".pdf"):
             raise HTTPException(status_code=400, detail="Apenas arquivos PDF sao permitidos.")
 
@@ -71,10 +61,7 @@ class FornecedorPreviewService:
         offset: int,
         limit: int,
     ) -> Any:
-        """Execute preview_pdf.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Run preview pdf in this workflow."""
         session = self._resolve_session()
         if not file.filename.lower().endswith(".pdf"):
             raise HTTPException(
@@ -98,10 +85,7 @@ class FornecedorPreviewService:
         page_number: int,
         region: list[float],
     ) -> dict[str, Any]:
-        """Execute preview_catalog_from_region.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Run preview catalog from region in this workflow."""
         session = self._resolve_session()
         file_path = self._file_processing_service.get_file_path_by_id(
             session,
@@ -143,10 +127,7 @@ class FornecedorPreviewService:
         pages: list[int] | None,
         all_pages: bool,
     ) -> dict[str, Any]:
-        """Execute extract_data_from_pdf_bulk.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Extract data from pdf bulk for this workflow."""
         session = self._resolve_session()
         file_path = self._file_processing_service.get_file_path_by_id(
             session,

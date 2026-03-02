@@ -1,7 +1,6 @@
 """Module pdf extraction task service.
 
-This module contains backend application/runtime logic and is fully
-documented for maintainability and onboarding.
+Contains backend logic related to pdf extraction task service and documents its role in the OOP architecture.
 """
 
 from __future__ import annotations
@@ -30,19 +29,13 @@ class PdfExtractionTaskService:
         catalog_import_file_repository_factory: Callable[[Session], CatalogImportFileRepository] = CatalogImportFileRepository,
         file_processing_service: Any,
     ) -> None:
-        """Execute __init__.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Initialize collaborators and configuration required by this component."""
         self._db_session_factory = db_session_factory
         self._catalog_import_file_repository_factory = catalog_import_file_repository_factory
         self._file_processing_service = file_processing_service
 
     def _resolve_catalog_file_path(self, stored_filename: str) -> Path:
-        """Execute _resolve_catalog_file_path.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Run resolve catalog file path in this workflow."""
         file_path = Path(settings.UPLOAD_DIRECTORY) / "catalogs" / stored_filename
         if file_path.is_absolute():
             return file_path
@@ -61,10 +54,7 @@ class PdfExtractionTaskService:
         page_number: int,
         db_url: str,
     ) -> None:
-        """Execute process_pdf_extraction_task.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Process pdf extraction task for this workflow."""
         _ = db_url
         session = self._db_session_factory()
         catalog_file_repo = self._catalog_import_file_repository_factory(session)

@@ -1,7 +1,6 @@
 """Module create tables.
 
-This module contains backend application/runtime logic and is fully
-documented for maintainability and onboarding.
+Contains backend logic related to create tables and documents its role in the OOP architecture.
 """
 
 import os
@@ -24,35 +23,20 @@ except Exception as exc:
 
 class CreateTablesWorkflow:
 
-    """Class CreateTablesWorkflow.
-
-    Encapsulates one responsibility in the backend architecture.
-    """
+    """Represent create tables workflow and centralize responsibilities for this module."""
     def __init__(self, runtime: Optional['CreateTablesRuntime']=None) -> None:
-        """Execute __init__.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Initialize collaborators and configuration required by this component."""
         self._runtime = runtime or CreateTablesRuntime()
 
     def create_all_tables(self):
-        """Execute create_all_tables.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Create all tables for this workflow."""
         self._runtime.create_all_tables()
 
 class CreateTablesRuntime:
 
-    """Class CreateTablesRuntime.
-
-    Encapsulates one responsibility in the backend architecture.
-    """
+    """Represent create tables runtime and centralize responsibilities for this module."""
     def create_all_tables(self):
-        """Execute create_all_tables.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Create all tables for this workflow."""
         print('Criando engine sincrono para criacao das tabelas...')
         try:
             db_url = str(settings.DATABASE_URL).replace('+asyncpg', '')

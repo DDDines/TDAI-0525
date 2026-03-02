@@ -1,7 +1,6 @@
 """Module catalog import start service.
 
-This module contains backend application/runtime logic and is fully
-documented for maintainability and onboarding.
+Contains backend logic related to catalog import start service and documents its role in the OOP architecture.
 """
 
 from __future__ import annotations
@@ -28,10 +27,7 @@ class CatalogImportStartService:
         catalog_file_repository: Any,
         fornecedor_repo: Any,
     ) -> None:
-        """Execute __init__.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Initialize collaborators and configuration required by this component."""
         self._models = models
         self._fornecedor_repo = fornecedor_repo
         self._settings = settings
@@ -42,19 +38,13 @@ class CatalogImportStartService:
     def _resolve_catalog_file_repo(
         self,
     ) -> Any:
-        """Execute _resolve_catalog_file_repo.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Run resolve catalog file repo in this workflow."""
         return self._catalog_file_repository
 
     def _resolve_fornecedor_repo(
         self,
     ) -> Any:
-        """Execute _resolve_fornecedor_repo.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Run resolve fornecedor repo in this workflow."""
         return self._fornecedor_repo
 
     def get_catalog_file_or_404(
@@ -63,10 +53,7 @@ class CatalogImportStartService:
         file_id: int,
         user_id: int,
     ) -> Any:
-        """Execute get_catalog_file_or_404.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Return catalog file or 404 for this workflow."""
         repo = self._resolve_catalog_file_repo()
         catalog_file = repo.get_catalog_file_for_user(
             file_id=file_id,
@@ -83,10 +70,7 @@ class CatalogImportStartService:
         fornecedor_id: Optional[int],
         required_message: str,
     ) -> int:
-        """Execute resolve_fornecedor_id.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Resolve fornecedor id for this workflow."""
         fornecedor_id_final = fornecedor_id or catalog_file.fornecedor_id
         if not fornecedor_id_final:
             raise HTTPException(status_code=400, detail=required_message)
@@ -99,10 +83,7 @@ class CatalogImportStartService:
         fornecedor_id: int,
         reset_pages: bool = False,
     ) -> None:
-        """Execute mark_processing.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Mark processing for this workflow."""
         repo = self._resolve_catalog_file_repo()
         catalog_file.status = "PROCESSING"
         catalog_file.fornecedor_id = fornecedor_id
@@ -112,10 +93,7 @@ class CatalogImportStartService:
         repo.update_catalog_file(catalog_file=catalog_file)
 
     def ensure_catalog_binary_exists(self, *, catalog_file: Any) -> None:
-        """Execute ensure_catalog_binary_exists.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Ensure catalog binary exists for this workflow."""
         file_path = self._catalog_path(catalog_file)
         if not file_path.exists():
             raise HTTPException(status_code=404, detail="Arquivo nao encontrado")
@@ -126,10 +104,7 @@ class CatalogImportStartService:
         catalog_file: Any,
         start_page: int,
     ) -> list[int]:
-        """Execute resolve_pdf_pages.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Resolve pdf pages for this workflow."""
         file_path = self._catalog_path(catalog_file)
         if not file_path.exists():
             raise HTTPException(status_code=404, detail="Arquivo nao encontrado")
@@ -146,10 +121,7 @@ class CatalogImportStartService:
         fornecedor_id: int,
         mapping: Optional[Dict[str, str]],
     ) -> Optional[Dict[str, str]]:
-        """Execute resolve_mapping.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Resolve mapping for this workflow."""
         if mapping is not None:
             return mapping
         repo = self._resolve_fornecedor_repo()
@@ -169,10 +141,7 @@ class CatalogImportStartService:
         pages: Optional[list[int]],
         region: Optional[list[float]],
     ) -> CatalogImportFinalizeCommand:
-        """Execute build_finalize_command.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Build finalize command for this workflow."""
         return CatalogImportFinalizeCommand(
             file_id=file_id,
             user_id=user_id,
@@ -189,10 +158,7 @@ class CatalogImportStartService:
         background_tasks: Any,
         command: CatalogImportFinalizeCommand,
     ) -> Any:
-        """Execute dispatch_finalize.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Dispatch finalize for this workflow."""
         return await self._finalize_service.dispatch_or_run(
             background_tasks=background_tasks,
             command=command,
@@ -203,29 +169,20 @@ class CatalogImportStartService:
         *,
         command: CatalogImportFinalizeCommand,
     ) -> Any:
-        """Execute run_finalize_direct.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Run finalize direct for this workflow."""
         return await self._finalize_service.run_direct(
             command=command,
         )
 
     def _catalog_path(self, catalog_file: Any) -> Path:
-        """Execute _catalog_path.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Run catalog path in this workflow."""
         return self._resolve_storage_path(
             Path(self._settings.UPLOAD_DIRECTORY) / "catalogs" / catalog_file.stored_filename
         )
 
     @staticmethod
     def _count_pdf_pages(content: bytes) -> int:
-        """Execute _count_pdf_pages.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Run count pdf pages in this workflow."""
         import pdfplumber
 
         with pdfplumber.open(io.BytesIO(content)) as pdf:

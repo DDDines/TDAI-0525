@@ -1,7 +1,6 @@
 """Module pipeline commands.
 
-This module contains backend application/runtime logic and is fully
-documented for maintainability and onboarding.
+Contains backend logic related to pipeline commands and documents its role in the OOP architecture.
 """
 
 from __future__ import annotations
@@ -12,10 +11,7 @@ from typing import Dict, List, Optional
 
 @dataclass(frozen=True)
 class CatalogImportFinalizeCommand:
-    """Class CatalogImportFinalizeCommand.
-
-    Encapsulates one responsibility in the backend architecture.
-    """
+    """Represent catalog import finalize command and centralize responsibilities for this module."""
     file_id: int
     user_id: int
     product_type_id: Optional[int]
@@ -27,10 +23,7 @@ class CatalogImportFinalizeCommand:
 
 @dataclass(frozen=True)
 class WebEnrichmentStartCommand:
-    """Class WebEnrichmentStartCommand.
-
-    Encapsulates one responsibility in the backend architecture.
-    """
+    """Represent web enrichment start command and centralize responsibilities for this module."""
     produto_id: int
     user_id: int
     termos_busca_override: Optional[str]

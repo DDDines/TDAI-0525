@@ -1,7 +1,6 @@
 """Module ports.
 
-This module contains backend application/runtime logic and is fully
-documented for maintainability and onboarding.
+Contains backend logic related to ports and documents its role in the OOP architecture.
 """
 
 from __future__ import annotations
@@ -16,10 +15,7 @@ from Backend.application.services.web_data_extractor.contracts import WebDataExt
 
 
 class IAGenerationPort(Protocol):
-    """Class IAGenerationPort.
-
-    Encapsulates one responsibility in the backend architecture.
-    """
+    """Represent i a generation port and centralize responsibilities for this module."""
     async def gerar_titulos_com_openai(
         self,
         *,
@@ -66,10 +62,7 @@ class IAGenerationPort(Protocol):
 
 
 class LimitPort(Protocol):
-    """Class LimitPort.
-
-    Encapsulates one responsibility in the backend architecture.
-    """
+    """Represent limit port and centralize responsibilities for this module."""
     def verificar_limite_uso(
         self,
         session: Session,
@@ -93,10 +86,7 @@ class LimitPort(Protocol):
 
 
 class ValidationPort(Protocol):
-    """Class ValidationPort.
-
-    Encapsulates one responsibility in the backend architecture.
-    """
+    """Represent validation port and centralize responsibilities for this module."""
     def run_validation_crew(self, raw_data: Any): ...
 
 

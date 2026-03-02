@@ -1,7 +1,6 @@
 """Module catalog import.
 
-This module contains backend application/runtime logic and is fully
-documented for maintainability and onboarding.
+Contains backend logic related to catalog import and documents its role in the OOP architecture.
 """
 
 from __future__ import annotations
@@ -22,17 +21,11 @@ class OOPCatalogImportExecutor:
     """
 
     def __init__(self, use_case: CatalogImportProcessingUseCase):
-        """Execute __init__.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Initialize collaborators and configuration required by this component."""
         self._use_case = use_case
 
     async def __call__(self, **task_kwargs: Any) -> Any:
-        """Execute __call__.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Run call in this workflow."""
         command = CatalogImportFinalizeCommand(
             file_id=task_kwargs.get("file_id"),
             user_id=task_kwargs.get("user_id"),
@@ -48,15 +41,9 @@ class OOPCatalogImportExecutor:
 
 
 class CatalogImportTaskBuilder:
-    """Class CatalogImportTaskBuilder.
-
-    Encapsulates one responsibility in the backend architecture.
-    """
+    """Represent catalog import task builder and centralize responsibilities for this module."""
     def __init__(self, executor: OOPCatalogImportExecutor):
-        """Execute __init__.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Initialize collaborators and configuration required by this component."""
         self._executor = executor
 
     def build_finalize_plan(
@@ -70,10 +57,7 @@ class CatalogImportTaskBuilder:
         pages: Optional[List[int]],
         region: Optional[List[float]],
     ) -> TaskExecutionPlan:
-        """Execute build_finalize_plan.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Build finalize plan for this workflow."""
         task_kwargs = {
             "file_id": file_id,
             "user_id": user_id,

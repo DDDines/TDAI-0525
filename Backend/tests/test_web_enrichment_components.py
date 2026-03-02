@@ -1,7 +1,6 @@
 """Module test web enrichment components.
 
-This module contains backend application/runtime logic and is fully
-documented for maintainability and onboarding.
+Contains backend logic related to test web enrichment components and documents its role in the OOP architecture.
 """
 
 from __future__ import annotations
@@ -18,10 +17,7 @@ from Backend.application.services.web_enrichment_components import (
 
 
 class _FakeStatus(Enum):
-    """Class _FakeStatus.
-
-    Encapsulates one responsibility in the backend architecture.
-    """
+    """Represent fake status and centralize responsibilities for this module."""
     EM_PROGRESSO = "EM_PROGRESSO"
     FALHOU = "FALHOU"
     CONCLUIDO_SUCESSO = "CONCLUIDO_SUCESSO"
@@ -31,65 +27,38 @@ class _FakeStatus(Enum):
 
 
 class _FakeModels:
-    """Class _FakeModels.
-
-    Encapsulates one responsibility in the backend architecture.
-    """
+    """Represent fake models and centralize responsibilities for this module."""
     StatusEnriquecimentoEnum = _FakeStatus
 
 
 class _FakeProdutoUpdate:
-    """Class _FakeProdutoUpdate.
-
-    Encapsulates one responsibility in the backend architecture.
-    """
+    """Represent fake produto update and centralize responsibilities for this module."""
     def __init__(self, **kwargs):
-        """Execute __init__.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Initialize collaborators and configuration required by this component."""
         self.payload = kwargs
 
 
 class _FakeSchemas:
-    """Class _FakeSchemas.
-
-    Encapsulates one responsibility in the backend architecture.
-    """
+    """Represent fake schemas and centralize responsibilities for this module."""
     ProdutoUpdate = _FakeProdutoUpdate
 
 
 class _FakeCrudProdutos:
-    """Class _FakeCrudProdutos.
-
-    Encapsulates one responsibility in the backend architecture.
-    """
+    """Represent fake crud produtos and centralize responsibilities for this module."""
     def __init__(self):
-        """Execute __init__.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Initialize collaborators and configuration required by this component."""
         self.calls = []
 
     def update_produto(self, *, db_produto, produto_update):
-        """Execute update_produto.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Update produto for this workflow."""
         self.calls.append((db_produto, produto_update))
 
 
 class _TopLevelFunctionSurface:
 
-    """Class _TopLevelFunctionSurface.
-
-    Encapsulates one responsibility in the backend architecture.
-    """
+    """Represent top level function surface and centralize responsibilities for this module."""
     def test_config_inspector_reads_sources():
-        """Execute test_config_inspector_reads_sources.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Run test config inspector reads sources in this workflow."""
         inspector = WebEnrichmentConfigInspector()
         user = SimpleNamespace(chave_openai_pessoal=None)
         settings = SimpleNamespace(OPENAI_API_KEY=None, GOOGLE_CSE_API_KEY="k", GOOGLE_CSE_ID="cx")
@@ -102,10 +71,7 @@ class _TopLevelFunctionSurface:
         assert snapshot.busca_web_disponivel is True
 
     def test_query_planner_override_has_priority():
-        """Execute test_query_planner_override_has_priority.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Run test query planner override has priority in this workflow."""
         planner = WebEnrichmentQueryPlanner()
         produto = SimpleNamespace(
             nome_base="Suporte do Aparabarro",
@@ -121,10 +87,7 @@ class _TopLevelFunctionSurface:
         assert candidates == ["termo customizado"]
 
     def test_query_planner_generates_base_terms():
-        """Execute test_query_planner_generates_base_terms.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Run test query planner generates base terms in this workflow."""
         planner = WebEnrichmentQueryPlanner()
         produto = SimpleNamespace(
             nome_base="Suporte do Aparabarro",
@@ -142,10 +105,7 @@ class _TopLevelFunctionSurface:
         assert "SP1081" in candidates
 
     def test_status_resolver_handles_partial_without_openai():
-        """Execute test_status_resolver_handles_partial_without_openai.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Run test status resolver handles partial without openai in this workflow."""
         resolver = WebEnrichmentStatusResolver()
         status = resolver.resolve(
             models=_FakeModels,
@@ -158,10 +118,7 @@ class _TopLevelFunctionSurface:
         assert status == _FakeStatus.CONCLUIDO_COM_DADOS_PARCIAIS
 
     def test_status_resolver_handles_no_sources():
-        """Execute test_status_resolver_handles_no_sources.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Run test status resolver handles no sources in this workflow."""
         resolver = WebEnrichmentStatusResolver()
         status = resolver.resolve(
             models=_FakeModels,
@@ -174,10 +131,7 @@ class _TopLevelFunctionSurface:
         assert status == _FakeStatus.FALHA_CONFIGURACAO_API_EXTERNA
 
     def test_finalization_service_updates_payload_and_normalizes_logs():
-        """Execute test_finalization_service_updates_payload_and_normalizes_logs.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Run test finalization service updates payload and normalizes logs in this workflow."""
         crud_produtos = _FakeCrudProdutos()
         finalizer = WebEnrichmentFinalizationService(
             normalize_human_text=lambda txt: txt.strip(),

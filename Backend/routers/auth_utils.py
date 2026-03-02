@@ -28,10 +28,7 @@ class AuthRequestService:
         security_workflow: security.SecurityWorkflow,
         user_repository_factory: Callable[[Session], UserRepository],
     ) -> None:
-        """Execute __init__.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Initialize collaborators and configuration required by this component."""
         self._security_workflow = security_workflow
         self._user_repository_factory = user_repository_factory
 
@@ -42,10 +39,7 @@ class AuthRequestService:
         session: Session,
         token: str,
     ) -> models.User:
-        """Execute get_current_user.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Return current user for this workflow."""
         _ = request
         credentials_exception = HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -65,20 +59,14 @@ class AuthRequestService:
 
     @staticmethod
     async def get_current_active_user(*, current_user: models.User) -> models.User:
-        """Execute get_current_active_user.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Return current active user for this workflow."""
         if not current_user.is_active:
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Inactive user")
         return current_user
 
     @staticmethod
     async def get_current_active_superuser(*, current_user: models.User) -> models.User:
-        """Execute get_current_active_superuser.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Return current active superuser for this workflow."""
         if not current_user.is_superuser:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
@@ -89,16 +77,10 @@ class AuthRequestService:
 
 class _AuthUtilsCurrentUserDependency:
 
-    """Class _AuthUtilsCurrentUserDependency.
-
-    Encapsulates one responsibility in the backend architecture.
-    """
+    """Represent auth utils current user dependency and centralize responsibilities for this module."""
     @staticmethod
     def build_auth_request_service() -> AuthRequestService:
-        """Execute build_auth_request_service.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Build auth request service for this workflow."""
         return AuthRequestService(
             security_workflow=security.SecurityWorkflow(),
             user_repository_factory=lambda session: UserRepository(session),
@@ -109,43 +91,28 @@ class _AuthUtilsCurrentUserDependency:
         session: Session = Depends(ServiceContainerDependencySupport.get_request_db_session),
         token: str = Depends(oauth2_scheme),
     ) -> models.User:
-        """Execute get_current_user.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Return current user for this workflow."""
         service = _AuthUtilsCurrentUserDependency.build_auth_request_service()
         return await service.get_current_user(request=None, session=session, token=token)
 
 
 class _AuthUtilsActiveUserDependency:
 
-    """Class _AuthUtilsActiveUserDependency.
-
-    Encapsulates one responsibility in the backend architecture.
-    """
+    """Represent auth utils active user dependency and centralize responsibilities for this module."""
     @staticmethod
     async def get_current_active_user(
         current_user: models.User = Depends(_AuthUtilsCurrentUserDependency.get_current_user),
     ) -> models.User:
-        """Execute get_current_active_user.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Return current active user for this workflow."""
         return await AuthRequestService.get_current_active_user(current_user=current_user)
 
 
 class _AuthUtilsSuperUserDependency:
 
-    """Class _AuthUtilsSuperUserDependency.
-
-    Encapsulates one responsibility in the backend architecture.
-    """
+    """Represent auth utils super user dependency and centralize responsibilities for this module."""
     @staticmethod
     async def get_current_active_superuser(
         current_user: models.User = Depends(_AuthUtilsActiveUserDependency.get_current_active_user),
     ) -> models.User:
-        """Execute get_current_active_superuser.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Return current active superuser for this workflow."""
         return await AuthRequestService.get_current_active_superuser(current_user=current_user)

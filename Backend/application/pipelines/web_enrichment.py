@@ -1,7 +1,6 @@
 """Module web enrichment.
 
-This module contains backend application/runtime logic and is fully
-documented for maintainability and onboarding.
+Contains backend logic related to web enrichment and documents its role in the OOP architecture.
 """
 
 from __future__ import annotations
@@ -22,17 +21,11 @@ class OOPWebEnrichmentExecutor:
     """
 
     def __init__(self, use_case: WebEnrichmentProcessingUseCase):
-        """Execute __init__.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Initialize collaborators and configuration required by this component."""
         self._use_case = use_case
 
     async def __call__(self, **task_kwargs: Any) -> Any:
-        """Execute __call__.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Run call in this workflow."""
         command = WebEnrichmentStartCommand(
             produto_id=task_kwargs.get("produto_id"),
             user_id=task_kwargs.get("user_id"),
@@ -44,15 +37,9 @@ class OOPWebEnrichmentExecutor:
 
 
 class WebEnrichmentTaskBuilder:
-    """Class WebEnrichmentTaskBuilder.
-
-    Encapsulates one responsibility in the backend architecture.
-    """
+    """Represent web enrichment task builder and centralize responsibilities for this module."""
     def __init__(self, executor: OOPWebEnrichmentExecutor):
-        """Execute __init__.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Initialize collaborators and configuration required by this component."""
         self._executor = executor
 
     def build_start_plan(
@@ -62,10 +49,7 @@ class WebEnrichmentTaskBuilder:
         user_id: int,
         termos_busca_override: Optional[str],
     ) -> TaskExecutionPlan:
-        """Execute build_start_plan.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Build start plan for this workflow."""
         task_kwargs = {
             "produto_id": produto_id,
             "user_id": user_id,

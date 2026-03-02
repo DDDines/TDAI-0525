@@ -1,7 +1,6 @@
 """Module web enrichment task service.
 
-This module contains backend application/runtime logic and is fully
-documented for maintainability and onboarding.
+Contains backend logic related to web enrichment task service and documents its role in the OOP architecture.
 """
 
 from __future__ import annotations
@@ -18,10 +17,7 @@ from Backend.application.services.web_enrichment_components import (
 
 
 class WebEnrichmentTaskRuntime:
-    """Class WebEnrichmentTaskRuntime.
-
-    Encapsulates one responsibility in the backend architecture.
-    """
+    """Represent web enrichment task runtime and centralize responsibilities for this module."""
     RUNTIME_FIELDS = (
         "logger",
         "SQLAlchemyError",
@@ -63,10 +59,7 @@ class WebEnrichmentTaskRuntime:
         metadata_has_minimum_signal,
         is_source_relevant_for_product,
     ) -> None:
-        """Execute __init__.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Initialize collaborators and configuration required by this component."""
         self.logger = logger
         self.SQLAlchemyError = SQLAlchemyError
         self.user_repository = user_repository
@@ -86,10 +79,7 @@ class WebEnrichmentTaskRuntime:
         self.is_source_relevant_for_product = is_source_relevant_for_product
 
     def apply_overrides(self, runtime: Any) -> "WebEnrichmentTaskRuntime":
-        """Execute apply_overrides.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Run apply overrides in this workflow."""
         for field_name in self.RUNTIME_FIELDS:
             setattr(self, field_name, getattr(runtime, field_name, getattr(self, field_name)))
         return self
@@ -121,10 +111,7 @@ class WebEnrichmentTaskWorkflow:
         is_source_relevant_for_product,
         runtime: Optional[Any] = None,
     ) -> None:
-        """Execute __init__.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Initialize collaborators and configuration required by this component."""
         runtime_obj = WebEnrichmentTaskRuntime(
             logger=logger,
             SQLAlchemyError=SQLAlchemyError,
@@ -179,10 +166,7 @@ class WebEnrichmentTaskWorkflow:
 
     @staticmethod
     def _resolve_repo(repo_or_cls: Any, session: Session) -> Any:
-        """Execute _resolve_repo.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Run resolve repo in this workflow."""
         if repo_or_cls is None:
             raise ValueError("repository provider is required")
         if callable(repo_or_cls):
@@ -190,10 +174,7 @@ class WebEnrichmentTaskWorkflow:
         return repo_or_cls
 
     def _load_locked_product(self, session: Session, produto_id: int):
-        """Execute _load_locked_product.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Run load locked product in this workflow."""
         product_repo = self._resolve_repo(self.product_repository, session)
         try:
             return product_repo.get_produto_for_update(produto_id=produto_id)
@@ -208,10 +189,7 @@ class WebEnrichmentTaskWorkflow:
         produto_id: int,
         resposta: str,
     ) -> None:
-        """Execute _register_config_failure.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Run register config failure in this workflow."""
         usage_repo = self._resolve_repo(self.usage_repository, session)
         usage_repo.create_registro_uso_ia(
             registro_uso=self.schemas.RegistroUsoIACreate(
@@ -235,10 +213,7 @@ class WebEnrichmentTaskWorkflow:
         log_mensagens: List[str],
         produto_id: int,
     ) -> None:
-        """Execute _mark_in_progress.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Run mark in progress in this workflow."""
         log_mensagens.append(
             f"Definindo status do produto ID {produto_id} para EM_PROGRESSO no banco."
         )
@@ -248,10 +223,7 @@ class WebEnrichmentTaskWorkflow:
         session.refresh(db_produto_obj)
 
     async def _buscar_urls(self, *, query_candidates: List[str], busca_web_disponivel: bool, log_mensagens: List[str]) -> List[str]:
-        """Execute _buscar_urls.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Run buscar urls in this workflow."""
         if not busca_web_disponivel:
             log_mensagens.append("Busca web pulada: nenhum provedor de busca disponivel.")
             return []
@@ -282,10 +254,7 @@ class WebEnrichmentTaskWorkflow:
         log_mensagens: List[str],
         busca_web_disponivel: bool,
     ) -> bool:
-        """Execute _coletar_de_urls.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Run coletar de urls in this workflow."""
         dados_coletados_de_fontes_web = False
 
         if not urls_a_processar and not busca_web_disponivel:
@@ -386,10 +355,7 @@ class WebEnrichmentTaskWorkflow:
         log_mensagens: List[str],
         status_para_salvar_no_final,
     ) -> tuple[bool, Any]:
-        """Execute _executar_llm.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Run executar llm in this workflow."""
         if not openai_api_configurada:
             log_mensagens.append("LLM nao foi chamado pois a API OpenAI nao esta configurada.")
             return dados_coletados_de_fontes_web, status_para_salvar_no_final
@@ -457,10 +423,7 @@ class WebEnrichmentTaskWorkflow:
         user_id: int,
         termos_busca_override: Optional[str] = None,
     ) -> None:
-        """Execute run.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Run run in this workflow."""
         db: Optional[Session] = None
         log_mensagens: List[str] = [
             f"INICIANDO tarefa de enriquecimento web (variant=oop) para produto ID: {produto_id}."
@@ -695,10 +658,7 @@ class WebEnrichmentTaskService:
         product_repository,
         usage_repository,
     ):
-        """Execute __init__.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Initialize collaborators and configuration required by this component."""
         self._deps = {
             "logger": logger,
             "SQLAlchemyError": SQLAlchemyError,
@@ -728,10 +688,7 @@ class WebEnrichmentTaskService:
         user_id: int,
         termos_busca_override: Optional[str] = None,
     ):
-        """Execute execute.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Run execute in this workflow."""
         workflow = WebEnrichmentTaskWorkflow(**self._deps)
         await workflow.run(
             produto_id=produto_id,

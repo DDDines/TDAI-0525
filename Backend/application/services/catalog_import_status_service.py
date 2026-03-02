@@ -1,7 +1,6 @@
 """Module catalog import status service.
 
-This module contains backend application/runtime logic and is fully
-documented for maintainability and onboarding.
+Contains backend logic related to catalog import status service and documents its role in the OOP architecture.
 """
 
 from __future__ import annotations
@@ -23,20 +22,14 @@ class CatalogImportStatusService:
         models: Any,
         catalog_file_repository: Any,
     ) -> None:
-        """Execute __init__.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Initialize collaborators and configuration required by this component."""
         self._models = models
         self._catalog_file_repository = catalog_file_repository
 
     def _resolve_catalog_file_repo(
         self,
     ) -> Any:
-        """Execute _resolve_catalog_file_repo.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Run resolve catalog file repo in this workflow."""
         return self._catalog_file_repository
 
     def get_record_or_404(
@@ -45,10 +38,7 @@ class CatalogImportStatusService:
         file_id: int,
         user_id: int,
     ) -> Any:
-        """Execute get_record_or_404.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Return record or 404 for this workflow."""
         repo = self._resolve_catalog_file_repo()
         record = repo.get_catalog_file_for_user(
             file_id=file_id,
@@ -59,10 +49,7 @@ class CatalogImportStatusService:
         return record
 
     def build_simple_status(self, *, record: Any) -> dict[str, Any]:
-        """Execute build_simple_status.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Build simple status for this workflow."""
         record_status = record.status or "PROCESSING"
         if record_status in {"IMPORTED", "DONE"}:
             status_value = "DONE"
@@ -83,10 +70,7 @@ class CatalogImportStatusService:
         }
 
     def build_result_response(self, *, record: Any) -> Any:
-        """Execute build_result_response.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Build result response for this workflow."""
         record_status = record.status or "PROCESSING"
         terminal_status = record_status in self._TERMINAL_STATUSES
         if not terminal_status or not record.result_summary:

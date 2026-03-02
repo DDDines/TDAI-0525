@@ -1,7 +1,6 @@
 """Module storage service.
 
-This module contains backend application/runtime logic and is fully
-documented for maintainability and onboarding.
+Contains backend logic related to storage service and documents its role in the OOP architecture.
 """
 
 from __future__ import annotations
@@ -18,10 +17,7 @@ class FileProcessingStorageService:
     """Operacoes de storage de catalogos."""
 
     def __init__(self, port: FileProcessingPort) -> None:
-        """Execute __init__.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Initialize collaborators and configuration required by this component."""
         self._port = port
 
     async def save_uploaded_catalog(
@@ -29,25 +25,16 @@ class FileProcessingStorageService:
         file: UploadFile,
         fornecedor_id: Optional[int] = None,
     ):
-        """Execute save_uploaded_catalog.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Run save uploaded catalog in this workflow."""
         return await self._port.save_uploaded_catalog(
             file=file,
             fornecedor_id=fornecedor_id,
         )
 
     def delete_catalog_file(self, stored_filename: str) -> None:
-        """Execute delete_catalog_file.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Delete catalog file for this workflow."""
         return self._port.delete_catalog_file(stored_filename=stored_filename)
 
     def get_file_path_by_id(self, db: Session, file_id: str | int) -> str:
-        """Execute get_file_path_by_id.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Return file path by id for this workflow."""
         return self._port.get_file_path_by_id(db=db, file_id=file_id)

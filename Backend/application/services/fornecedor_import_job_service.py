@@ -1,7 +1,6 @@
 """Module fornecedor import job service.
 
-This module contains backend application/runtime logic and is fully
-documented for maintainability and onboarding.
+Contains backend logic related to fornecedor import job service and documents its role in the OOP architecture.
 """
 
 from __future__ import annotations
@@ -22,34 +21,22 @@ class FornecedorImportJobService:
         produto_repository_factory: Any,
         produto_create_schema: Any,
     ) -> None:
-        """Execute __init__.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Initialize collaborators and configuration required by this component."""
         self._db_session_factory = db_session_factory
         self._import_job_repository_factory = import_job_repository_factory
         self._produto_repository_factory = produto_repository_factory
         self._produto_create_schema = produto_create_schema
 
     def _import_job_repo(self, session: Any) -> Any:
-        """Execute _import_job_repo.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Run import job repo in this workflow."""
         return self._import_job_repository_factory(session)
 
     def _produto_repo(self, session: Any) -> Any:
-        """Execute _produto_repo.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Run produto repo in this workflow."""
         return self._produto_repository_factory(session)
 
     def get_job_for_user_or_404(self, *, job_id: int, user_id: int) -> Any:
-        """Execute get_job_for_user_or_404.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Return job for user or 404 for this workflow."""
         if self._db_session_factory is None:
             raise ValueError("db_session_factory is required for FornecedorImportJobService")
         session = self._db_session_factory()
@@ -63,10 +50,7 @@ class FornecedorImportJobService:
             session.close()
 
     def build_review_payload(self, *, job: Any) -> Any:
-        """Execute build_review_payload.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Build review payload for this workflow."""
         return job.result_summary or {}
 
     def schedule_commit(
@@ -76,10 +60,7 @@ class FornecedorImportJobService:
         job_id: int,
         user_id: int,
     ) -> None:
-        """Execute schedule_commit.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Run schedule commit in this workflow."""
         background_tasks.add_task(
             self.commit_job_task,
             job_id=job_id,
@@ -87,10 +68,7 @@ class FornecedorImportJobService:
         )
 
     def commit_job_task(self, *, job_id: int, user_id: int) -> None:
-        """Execute commit_job_task.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Run commit job task in this workflow."""
         if self._db_session_factory is None:
             raise ValueError("db_session_factory is required for FornecedorImportJobService")
         session = self._db_session_factory()
@@ -112,10 +90,7 @@ class FornecedorImportJobService:
 
     @staticmethod
     def _iter_summary_rows(summary: Any) -> Iterable[dict[str, Any]]:
-        """Execute _iter_summary_rows.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Run iter summary rows in this workflow."""
         if isinstance(summary, list):
             for item in summary:
                 if isinstance(item, dict):

@@ -1,7 +1,6 @@
 """Module web enrichment payload service.
 
-This module contains backend application/runtime logic and is fully
-documented for maintainability and onboarding.
+Contains backend logic related to web enrichment payload service and documents its role in the OOP architecture.
 """
 
 from __future__ import annotations
@@ -62,24 +61,15 @@ class WebEnrichmentPayloadService:
     )
 
     def __init__(self, *, normalization_service: Any) -> None:
-        """Execute __init__.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Initialize collaborators and configuration required by this component."""
         self._normalization = normalization_service
 
     def _contains_part_hint(self, text_folded: str) -> bool:
-        """Execute _contains_part_hint.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Run contains part hint in this workflow."""
         return any(hint in text_folded for hint in self._PART_NAME_HINTS)
 
     def _looks_like_application_only(self, value: Any) -> bool:
-        """Execute _looks_like_application_only.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Run looks like application only in this workflow."""
         text = self._normalization.as_text(value, max_len=500)
         if not text:
             return False
@@ -93,10 +83,7 @@ class WebEnrichmentPayloadService:
         return has_application_hint and (has_year or has_range) and few_words and not self._contains_part_hint(folded)
 
     def _is_weak_existing_field(self, field_name: str, value: Any) -> bool:
-        """Execute _is_weak_existing_field.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Run is weak existing field in this workflow."""
         text = self._normalization.as_text(value, max_len=2500)
         if not text:
             return True
@@ -134,10 +121,7 @@ class WebEnrichmentPayloadService:
         return False
 
     def _is_weak_dynamic_value(self, attr_key: str, value: Any) -> bool:
-        """Execute _is_weak_dynamic_value.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Run is weak dynamic value in this workflow."""
         text = self._normalization.as_text(value, max_len=1500)
         if not text:
             return True
@@ -171,10 +155,7 @@ class WebEnrichmentPayloadService:
         ignored_notes: List[str],
         allow_replace_weak: bool = False,
     ) -> None:
-        """Execute _apply_if_empty_or_weak.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Run apply if empty or weak in this workflow."""
         if self._normalization.is_empty(new_value):
             return
         if self._normalization.is_empty(current_value):
@@ -202,10 +183,7 @@ class WebEnrichmentPayloadService:
         allow_replace_suspicious: bool = False,
         allow_replace_weak: bool = False,
     ) -> Optional[str]:
-        """Execute _set_dynamic_if_empty.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Run set dynamic if empty in this workflow."""
         text_value = self._normalization.as_text(value)
         value_from_existing = False
         if not text_value:

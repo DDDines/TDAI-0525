@@ -1,7 +1,6 @@
 """Module test ia generation service.
 
-This module contains backend application/runtime logic and is fully
-documented for maintainability and onboarding.
+Contains backend logic related to test ia generation service and documents its role in the OOP architecture.
 """
 
 from __future__ import annotations
@@ -12,22 +11,13 @@ from Backend.application.services.ia_generation_service import IAGenerationServi
 
 
 class _PortStub:
-    """Class _PortStub.
-
-    Encapsulates one responsibility in the backend architecture.
-    """
+    """Represent port stub and centralize responsibilities for this module."""
     def __init__(self) -> None:
-        """Execute __init__.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Initialize collaborators and configuration required by this component."""
         self.calls = []
 
     async def gerar_titulos_com_gemini(self, *, session, produto_id, user, num_titulos=3):
-        """Execute gerar_titulos_com_gemini.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Run gerar titulos com gemini in this workflow."""
         self.calls.append(
             (
                 "gerar_titulos_com_gemini",
@@ -42,10 +32,7 @@ class _PortStub:
         return ["t1", "t2"]
 
     async def sugerir_valores_atributos_com_gemini(self, *, session, produto_id, user):
-        """Execute sugerir_valores_atributos_com_gemini.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Run sugerir valores atributos com gemini in this workflow."""
         self.calls.append(
             (
                 "sugerir_valores_atributos_com_gemini",
@@ -57,16 +44,10 @@ class _PortStub:
 
 class _TopLevelFunctionSurface:
 
-    """Class _TopLevelFunctionSurface.
-
-    Encapsulates one responsibility in the backend architecture.
-    """
+    """Represent top level function surface and centralize responsibilities for this module."""
     @pytest.mark.asyncio
     async def test_ia_generation_service_delegates_title_generation():
-        """Execute test_ia_generation_service_delegates_title_generation.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Run test ia generation service delegates title generation in this workflow."""
         port = _PortStub()
         service = IAGenerationService(port=port)
     
@@ -84,10 +65,7 @@ class _TopLevelFunctionSurface:
 
     @pytest.mark.asyncio
     async def test_ia_generation_service_delegates_attribute_suggestions():
-        """Execute test_ia_generation_service_delegates_attribute_suggestions.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Run test ia generation service delegates attribute suggestions in this workflow."""
         port = _PortStub()
         service = IAGenerationService(port=port)
     

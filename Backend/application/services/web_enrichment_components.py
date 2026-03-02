@@ -1,7 +1,6 @@
 """Module web enrichment components.
 
-This module contains backend application/runtime logic and is fully
-documented for maintainability and onboarding.
+Contains backend logic related to web enrichment components and documents its role in the OOP architecture.
 """
 
 from __future__ import annotations
@@ -13,10 +12,7 @@ from typing import Any, Dict, List, Optional
 
 @dataclass(frozen=True)
 class WebEnrichmentConfigSnapshot:
-    """Class WebEnrichmentConfigSnapshot.
-
-    Encapsulates one responsibility in the backend architecture.
-    """
+    """Represent web enrichment config snapshot and centralize responsibilities for this module."""
     openai_user_configurada: bool
     openai_system_configurada: bool
     openai_api_configurada: bool
@@ -25,10 +21,7 @@ class WebEnrichmentConfigSnapshot:
     busca_web_disponivel: bool
 
     def as_log_line(self) -> str:
-        """Execute as_log_line.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Run as log line in this workflow."""
         return (
             "Config API: "
             f"openai_user={'sim' if self.openai_user_configurada else 'nao'}, "
@@ -42,10 +35,7 @@ class WebEnrichmentConfigInspector:
     """Inspeciona disponibilidade de provedores externos para enriquecimento."""
 
     def inspect(self, *, user: Any, settings: Any, web_extractor: Any) -> WebEnrichmentConfigSnapshot:
-        """Execute inspect.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Run inspect in this workflow."""
         openai_user_configurada = bool(getattr(user, "chave_openai_pessoal", None))
         openai_system_configurada = bool(getattr(settings, "OPENAI_API_KEY", None))
         openai_api_configurada = bool(openai_user_configurada or openai_system_configurada)
@@ -72,18 +62,12 @@ class WebEnrichmentQueryPlanner:
 
     @staticmethod
     def _dedupe(values: List[str]) -> List[str]:
-        """Execute _dedupe.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Run dedupe in this workflow."""
         return [v for v in dict.fromkeys(v for v in values if v)]
 
     @staticmethod
     def _extract_code_tokens(value: Any) -> List[str]:
-        """Execute _extract_code_tokens.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Run extract code tokens in this workflow."""
         text = str(value or "").upper()
         if not text:
             return []
@@ -100,10 +84,7 @@ class WebEnrichmentQueryPlanner:
 
     @staticmethod
     def _dynamic_text_hints(dynamic_attributes: Any) -> Dict[str, str]:
-        """Execute _dynamic_text_hints.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Run dynamic text hints in this workflow."""
         hints = {"aplicacao": "", "material": "", "marca": ""}
         if not isinstance(dynamic_attributes, dict):
             return hints
@@ -129,10 +110,7 @@ class WebEnrichmentQueryPlanner:
         db_produto_obj: Any,
         termos_busca_override: Optional[str],
     ) -> List[str]:
-        """Execute build_candidates.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Build candidates for this workflow."""
         if termos_busca_override:
             return self._dedupe([termos_busca_override.strip()])
 
@@ -221,10 +199,7 @@ class WebEnrichmentStatusResolver:
         busca_web_disponivel: bool,
         urls_a_processar: List[str],
     ) -> Any:
-        """Execute resolve.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Run resolve in this workflow."""
         if status_para_salvar_no_final not in {
             models.StatusEnriquecimentoEnum.EM_PROGRESSO,
             models.StatusEnriquecimentoEnum.FALHOU,
@@ -259,10 +234,7 @@ class WebEnrichmentFinalizationService:
         models: Any,
         product_repository: Any,
     ) -> None:
-        """Execute __init__.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Initialize collaborators and configuration required by this component."""
         self._normalize_human_text = normalize_human_text
         self._build_payload_enriquecimento_visivel = build_payload_enriquecimento_visivel
         self._schemas = schemas
@@ -278,10 +250,7 @@ class WebEnrichmentFinalizationService:
         dados_extraidos_agregados: Dict[str, Any],
         log_mensagens: List[str],
     ) -> Any:
-        """Execute apply.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Run apply in this workflow."""
         if (
             db_produto_obj.status_enriquecimento_web
             == self._models.StatusEnriquecimentoEnum.EM_PROGRESSO
@@ -379,10 +348,7 @@ class WebEnrichmentFinalizationService:
         return status_para_salvar_no_final
 
     def _resolve_product_repository(self, *, db: Any) -> Any:
-        """Execute _resolve_product_repository.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Run resolve product repository in this workflow."""
         if self._product_repository is None:
             raise ValueError("product_repository is required")
         if callable(self._product_repository):

@@ -1,7 +1,6 @@
 """Module logging config.
 
-This module contains backend application/runtime logic and is fully
-documented for maintainability and onboarding.
+Contains backend logic related to logging config and documents its role in the OOP architecture.
 """
 
 import logging
@@ -12,46 +11,28 @@ logging.basicConfig(level=logging.INFO, format=LOG_FORMAT)
 
 class LoggingWorkflow:
 
-    """Class LoggingWorkflow.
-
-    Encapsulates one responsibility in the backend architecture.
-    """
+    """Represent logging workflow and centralize responsibilities for this module."""
     def __init__(self, runtime: Optional['LoggingRuntime']=None) -> None:
-        """Execute __init__.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Initialize collaborators and configuration required by this component."""
         self._runtime = runtime or LoggingRuntime()
 
     def get_logger(self, name: str) -> logging.Logger:
-        """Execute get_logger.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Return logger for this workflow."""
         return self._runtime.get_logger(name=name)
 
 class LoggingRuntime:
     """Runtime OO para abstrair criacao de logger."""
 
     def get_logger(self, *, name: str) -> logging.Logger:
-        """Execute get_logger.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Return logger for this workflow."""
         return logging.getLogger(name)
 
 class LoggingEntryPoints:
 
-    """Class LoggingEntryPoints.
-
-    Encapsulates one responsibility in the backend architecture.
-    """
+    """Represent logging entry points and centralize responsibilities for this module."""
     @staticmethod
     def get_logger(name: str) -> logging.Logger:
-        """Execute get_logger.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Return logger for this workflow."""
         return LoggingWorkflow().get_logger(name=name)
 
 get_logger = LoggingEntryPoints.get_logger

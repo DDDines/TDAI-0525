@@ -1,7 +1,6 @@
 """Module web data extractor runtime.
 
-This module contains backend application/runtime logic and is fully
-documented for maintainability and onboarding.
+Contains backend logic related to web data extractor runtime and documents its role in the OOP architecture.
 """
 
 from __future__ import annotations
@@ -9,14 +8,8 @@ from Backend.infrastructure.runtime_services.web_data_extractor_runtime_service 
 
 class WebDataExtractorRuntimeProvider:
 
-    """Class WebDataExtractorRuntimeProvider.
-
-    Encapsulates one responsibility in the backend architecture.
-    """
+    """Represent web data extractor runtime provider and centralize responsibilities for this module."""
     @staticmethod
     def get_runtime_service() -> WebDataExtractorRuntimeService:
-        """Execute get_runtime_service.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Return runtime service for this workflow."""
         return WebDataExtractorRuntimeService()

@@ -1,7 +1,6 @@
 """Module contracts.
 
-This module contains backend application/runtime logic and is fully
-documented for maintainability and onboarding.
+Contains backend logic related to contracts and documents its role in the OOP architecture.
 """
 
 from __future__ import annotations
@@ -14,10 +13,7 @@ from sqlalchemy.orm import Session
 
 
 class FileProcessingPort(Protocol):
-    """Class FileProcessingPort.
-
-    Encapsulates one responsibility in the backend architecture.
-    """
+    """Represent file processing port and centralize responsibilities for this module."""
     async def save_uploaded_catalog(
         self,
         file: UploadFile,

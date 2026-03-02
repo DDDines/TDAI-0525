@@ -24,17 +24,11 @@ class _RequestScopedDependency:
     """Dependencia request-scoped OO parametrizada por factory de sessao."""
 
     def __init__(self, factory: Callable[[Session], Any]) -> None:
-        """Execute __init__.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Initialize collaborators and configuration required by this component."""
         self._factory = factory
 
     def __call__(self, session: Session=Depends(database.get_db)) -> Any:
-        """Execute __call__.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Run call in this workflow."""
         return self._factory(session)
 
 class ServiceContainerDependencySupport:
@@ -42,58 +36,37 @@ class ServiceContainerDependencySupport:
 
     @staticmethod
     def get_request_db_session(session: Session=Depends(database.get_db)) -> Session:
-        """Execute get_request_db_session.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Return request db session for this workflow."""
         return session
 
     @staticmethod
     def build_request_scoped_dependency(factory: Callable[[Session], Any]) -> Callable[[Session], Any]:
-        """Execute build_request_scoped_dependency.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Build request scoped dependency for this workflow."""
         return _RequestScopedDependency(factory)
 
     @staticmethod
     def build_file_processing_service() -> FileProcessingOrchestratorService:
-        """Execute build_file_processing_service.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Build file processing service for this workflow."""
         return FileProcessingOrchestratorService(FileProcessingServiceAdapter())
 
     @staticmethod
     def build_web_data_extractor_service() -> WebDataExtractorOrchestratorService:
-        """Execute build_web_data_extractor_service.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Build web data extractor service for this workflow."""
         return WebDataExtractorOrchestratorService(WebDataExtractorServiceAdapter())
 
     @staticmethod
     def build_ia_generation_service() -> IAGenerationService:
-        """Execute build_ia_generation_service.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Build ia generation service for this workflow."""
         return IAGenerationService(port=IAGenerationServiceAdapter())
 
     @staticmethod
     def build_limit_service() -> LimitService:
-        """Execute build_limit_service.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Build limit service for this workflow."""
         return LimitService(port=LimitServiceAdapter())
 
     @staticmethod
     def get_background_db_session_factory() -> Callable[[], Session]:
-        """Execute get_background_db_session_factory.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Return background db session factory for this workflow."""
         return database.SessionLocal
 @dataclass
 class ServiceContainer:
@@ -108,34 +81,22 @@ class DependencyContainer:
 
     @staticmethod
     def get_db_session(session: Session) -> Session:
-        """Execute get_db_session.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Return db session for this workflow."""
         return session
 
     @staticmethod
     def get_product_management_service(session: Session) -> ProductManagementService:
-        """Execute get_product_management_service.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Return product management service for this workflow."""
         repos = ProductRepositories.build_product_management_repositories(session=session)
         return ProductManagementService(models=models, schemas=schemas, **repos)
 
     @staticmethod
     def get_product_media_service(session: Session) -> ProductMediaService:
-        """Execute get_product_media_service.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Return product media service for this workflow."""
         repos = ProductRepositories.build_product_media_repositories(session=session)
         return ProductMediaService(schemas=schemas, **repos)
 
     @staticmethod
     def get_fornecedor_management_service(session: Session) -> FornecedorManagementService:
-        """Execute get_fornecedor_management_service.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Return fornecedor management service for this workflow."""
         return FornecedorManagementService(models=models, schemas=schemas, fornecedor_repo=FornecedorRepository(session), historico_repo=HistoricoRepository(session))

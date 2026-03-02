@@ -1,7 +1,6 @@
 """Module app mode.
 
-This module contains backend application/runtime logic and is fully
-documented for maintainability and onboarding.
+Contains backend logic related to app mode and documents its role in the OOP architecture.
 """
 
 from __future__ import annotations
@@ -9,30 +8,18 @@ from enum import Enum
 from typing import Optional
 
 class AppMode(str, Enum):
-    """Class AppMode.
-
-    Encapsulates one responsibility in the backend architecture.
-    """
+    """Represent app mode and centralize responsibilities for this module."""
     OOP = 'oop'
 
 class AppModeWorkflow:
 
-    """Class AppModeWorkflow.
-
-    Encapsulates one responsibility in the backend architecture.
-    """
+    """Represent app mode workflow and centralize responsibilities for this module."""
     def __init__(self, runtime: Optional['AppModeRuntime']=None) -> None:
-        """Execute __init__.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Initialize collaborators and configuration required by this component."""
         self._runtime = runtime or AppModeRuntime()
 
     def get_app_mode(self) -> AppMode:
-        """Execute get_app_mode.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Return app mode for this workflow."""
         return self._runtime.get_app_mode()
 
 class AppModeRuntime:
@@ -42,8 +29,5 @@ class AppModeRuntime:
     """
 
     def get_app_mode(self) -> AppMode:
-        """Execute get_app_mode.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Return app mode for this workflow."""
         return AppMode.OOP

@@ -1,8 +1,7 @@
 # Backend/infrastructure/runtime_modules/ia_generation_module.py
 """Module ia generation module.
 
-This module contains backend application/runtime logic and is fully
-documented for maintainability and onboarding.
+Contains backend logic related to ia generation module and documents its role in the OOP architecture.
 """
 
 
@@ -40,24 +39,15 @@ class AiProviderWorkflow:
     """Workflow OO para operaÃƒÆ’Ã‚Â§ÃƒÆ’Ã‚Âµes de provedor IA (chaves e chamadas HTTP)."""
 
     def __init__(self, runtime: Optional["AiProviderRuntime"] = None) -> None:
-        """Execute __init__.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Initialize collaborators and configuration required by this component."""
         self._runtime = runtime or AiProviderRuntime()
 
     async def get_openai_api_key(self, db: Session, user: models.User) -> Optional[str]:
-        """Execute get_openai_api_key.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Return openai api key for this workflow."""
         return await self._runtime.get_openai_api_key(db=db, user=user)
 
     async def get_gemini_api_key(self, db: Session, user: models.User) -> Optional[str]:
-        """Execute get_gemini_api_key.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Return gemini api key for this workflow."""
         return await self._runtime.get_gemini_api_key(db=db, user=user)
 
     async def call_openai_api(
@@ -68,10 +58,7 @@ class AiProviderWorkflow:
         temperature: float = 0.7,
         max_tokens: int = 500,
     ) -> str:
-        """Execute call_openai_api.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Run call openai api in this workflow."""
         return await self._runtime.call_openai_api(
             prompt_messages=prompt_messages,
             api_key=api_key,
@@ -87,10 +74,7 @@ class AiProviderWorkflow:
         response_schema: Dict[str, Any],
         model_name: str = "gemini-1.5-flash-latest",
     ) -> Dict[str, Any]:
-        """Execute call_gemini_api_for_suggestions.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Run call gemini api for suggestions in this workflow."""
         return await self._runtime.call_gemini_api_for_suggestions(
             prompt_text=prompt_text,
             api_key=api_key,
@@ -106,10 +90,7 @@ class AiProviderWorkflow:
         temperature: float = 0.6,
         max_tokens: int = 1024,
     ) -> str:
-        """Execute call_gemini_api.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Run call gemini api in this workflow."""
         return await self._runtime.call_gemini_api(
             prompt_text=prompt_text,
             api_key=api_key,
@@ -125,10 +106,7 @@ class AiProviderRuntime:
     async def get_openai_api_key(
         self, db: Session, user: models.User
     ) -> Optional[str]:
-        """Execute get_openai_api_key.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Return openai api key for this workflow."""
         if user.chave_openai_pessoal:
             logger.info(f"Usando chave OpenAI pessoal para usuÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¡rio ID: {user.id}")
             return user.chave_openai_pessoal
@@ -141,10 +119,7 @@ class AiProviderRuntime:
     async def get_gemini_api_key(
         self, db: Session, user: models.User
     ) -> Optional[str]:
-        """Execute get_gemini_api_key.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Return gemini api key for this workflow."""
         if user.chave_google_gemini_pessoal:
             logger.info(f"Usando chave Gemini pessoal para usuÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¡rio ID: {user.id}")
             return user.chave_google_gemini_pessoal
@@ -164,10 +139,7 @@ class AiProviderRuntime:
         temperature: float = 0.7,
         max_tokens: int = 500,
     ) -> str:
-        """Execute call_openai_api.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Run call openai api in this workflow."""
         if not api_key:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
@@ -232,10 +204,7 @@ class AiProviderRuntime:
         response_schema: Dict[str, Any],
         model_name: str = "gemini-1.5-flash-latest",
     ) -> Dict[str, Any]:
-        """Execute call_gemini_api_for_suggestions.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Run call gemini api for suggestions in this workflow."""
         if not api_key:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
@@ -327,10 +296,7 @@ class AiProviderRuntime:
         temperature: float = 0.6,
         max_tokens: int = 1024,
     ) -> str:
-        """Execute call_gemini_api.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Run call gemini api in this workflow."""
         if not api_key:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
@@ -384,19 +350,13 @@ class IAGenerationWorkflow:
     """Workflow OO para operaÃƒÆ’Ã‚Â§ÃƒÆ’Ã‚Âµes de geraÃƒÆ’Ã‚Â§ÃƒÆ’Ã‚Â£o de conteÃƒÆ’Ã‚Âºdo IA."""
 
     def __init__(self, runtime: Optional["IAGenerationRuntime"] = None) -> None:
-        """Execute __init__.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Initialize collaborators and configuration required by this component."""
         self._runtime = runtime or IAGenerationRuntime()
 
     async def gerar_titulos_com_openai(
         self, db: Session, produto_id: int, user: models.User, num_titulos: int = 3
     ) -> List[str]:
-        """Execute gerar_titulos_com_openai.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Run gerar titulos com openai in this workflow."""
         return await self._runtime.gerar_titulos_com_openai(
             db=db,
             produto_id=produto_id,
@@ -411,10 +371,7 @@ class IAGenerationWorkflow:
         user: models.User,
         tamanho_palavras: int = 150,
     ) -> str:
-        """Execute gerar_descricao_com_openai.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Run gerar descricao com openai in this workflow."""
         return await self._runtime.gerar_descricao_com_openai(
             db=db,
             produto_id=produto_id,
@@ -425,10 +382,7 @@ class IAGenerationWorkflow:
     async def gerar_titulos_com_gemini(
         self, db: Session, produto_id: int, user: models.User, num_titulos: int = 3
     ) -> List[str]:
-        """Execute gerar_titulos_com_gemini.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Run gerar titulos com gemini in this workflow."""
         return await self._runtime.gerar_titulos_com_gemini(
             db=db,
             produto_id=produto_id,
@@ -443,10 +397,7 @@ class IAGenerationWorkflow:
         user: models.User,
         tamanho_palavras: int = 150,
     ) -> str:
-        """Execute gerar_descricao_com_gemini.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Run gerar descricao com gemini in this workflow."""
         return await self._runtime.gerar_descricao_com_gemini(
             db=db,
             produto_id=produto_id,
@@ -460,10 +411,7 @@ class IAGenerationWorkflow:
         produto_id: int,
         user: models.User,
     ) -> schemas.SugestoesAtributosResponse:
-        """Execute sugerir_valores_atributos_com_gemini.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Run sugerir valores atributos com gemini in this workflow."""
         return await self._runtime.sugerir_valores_atributos_com_gemini(
             db=db,
             produto_id=produto_id,
@@ -477,10 +425,7 @@ class IAGenerationRuntime:
     async def gerar_titulos_com_openai(
         self, db: Session, produto_id: int, user: models.User, num_titulos: int = 3
     ) -> List[str]:
-        """Execute gerar_titulos_com_openai.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Run gerar titulos com openai in this workflow."""
         return await self._gerar_titulos_com_openai_impl(
             db=db,
             produto_id=produto_id,
@@ -495,10 +440,7 @@ class IAGenerationRuntime:
         user: models.User,
         tamanho_palavras: int = 150,
     ) -> str:
-        """Execute gerar_descricao_com_openai.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Run gerar descricao com openai in this workflow."""
         return await self._gerar_descricao_com_openai_impl(
             db=db,
             produto_id=produto_id,
@@ -509,10 +451,7 @@ class IAGenerationRuntime:
     async def gerar_titulos_com_gemini(
         self, db: Session, produto_id: int, user: models.User, num_titulos: int = 3
     ) -> List[str]:
-        """Execute gerar_titulos_com_gemini.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Run gerar titulos com gemini in this workflow."""
         return await self._gerar_titulos_com_gemini_impl(
             db=db,
             produto_id=produto_id,
@@ -527,10 +466,7 @@ class IAGenerationRuntime:
         user: models.User,
         tamanho_palavras: int = 150,
     ) -> str:
-        """Execute gerar_descricao_com_gemini.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Run gerar descricao com gemini in this workflow."""
         return await self._gerar_descricao_com_gemini_impl(
             db=db,
             produto_id=produto_id,
@@ -544,10 +480,7 @@ class IAGenerationRuntime:
         produto_id: int,
         user: models.User,
     ) -> schemas.SugestoesAtributosResponse:
-        """Execute sugerir_valores_atributos_com_gemini.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Run sugerir valores atributos com gemini in this workflow."""
         return await self._sugerir_valores_atributos_com_gemini_impl(
             db=db,
             produto_id=produto_id,
@@ -556,19 +489,13 @@ class IAGenerationRuntime:
 
     @staticmethod
     def _get_ai_provider_workflow() -> AiProviderWorkflow:
-        """Execute _get_ai_provider_workflow.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Run get ai provider workflow in this workflow."""
         return AiProviderWorkflow(runtime=AiProviderRuntime())
 
     async def _gerar_titulos_com_openai_impl(self, db: Session, produto_id: int, user: models.User, num_titulos: int = 3) -> List[str]:
         # ... (cÃƒÆ’Ã‚Â³digo existente para gerar tÃƒÆ’Ã‚Â­tulos com OpenAI - manter como estÃƒÆ’Ã‚Â¡)
         # Apenas garanta que ele use get_openai_api_key e registre o uso corretamente
-        """Execute _gerar_titulos_com_openai_impl.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Run gerar titulos com openai impl in this workflow."""
         logger.info(f"Iniciando geraÃƒÆ’Ã‚Â§ÃƒÆ’Ã‚Â£o de tÃƒÆ’Ã‚Â­tulos para produto ID {produto_id} pelo usuÃƒÆ’Ã‚Â¡rio ID {user.id}")
         # ... (restante da lÃƒÆ’Ã‚Â³gica existente) ...
         # Exemplo de adaptaÃƒÆ’Ã‚Â§ÃƒÆ’Ã‚Â£o mÃƒÆ’Ã‚Â­nima:
@@ -605,10 +532,7 @@ class IAGenerationRuntime:
     async def _gerar_descricao_com_openai_impl(self, db: Session, produto_id: int, user: models.User, tamanho_palavras: int = 150) -> str:
         # ... (cÃƒÆ’Ã‚Â³digo existente para gerar descriÃƒÆ’Ã‚Â§ÃƒÆ’Ã‚Â£o com OpenAI - manter como estÃƒÆ’Ã‚Â¡)
         # Apenas garanta que ele use get_openai_api_key e registre o uso corretamente
-        """Execute _gerar_descricao_com_openai_impl.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Run gerar descricao com openai impl in this workflow."""
         logger.info(f"Iniciando geraÃƒÆ’Ã‚Â§ÃƒÆ’Ã‚Â£o de descriÃƒÆ’Ã‚Â§ÃƒÆ’Ã‚Â£o para produto ID {produto_id} pelo usuÃƒÆ’Ã‚Â¡rio ID {user.id}")
         # ... (restante da lÃƒÆ’Ã‚Â³gica existente) ...
         # Exemplo de adaptaÃƒÆ’Ã‚Â§ÃƒÆ’Ã‚Â£o mÃƒÆ’Ã‚Â­nima:

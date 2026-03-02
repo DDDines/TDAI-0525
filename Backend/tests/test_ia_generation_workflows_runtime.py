@@ -1,7 +1,6 @@
 """Module test ia generation workflows runtime.
 
-This module contains backend application/runtime logic and is fully
-documented for maintainability and onboarding.
+Contains backend logic related to test ia generation workflows runtime and documents its role in the OOP architecture.
 """
 
 from __future__ import annotations
@@ -13,60 +12,36 @@ from Backend.testing.runtime_apis import ia_service
 
 class _TopLevelFunctionSurface:
 
-    """Class _TopLevelFunctionSurface.
-
-    Encapsulates one responsibility in the backend architecture.
-    """
+    """Represent top level function surface and centralize responsibilities for this module."""
     @pytest.mark.asyncio
     async def test_ai_provider_workflow_usa_runtime_injetado():
-        """Execute test_ai_provider_workflow_usa_runtime_injetado.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Run test ai provider workflow usa runtime injetado in this workflow."""
         called = []
     
         class FakeProviderRuntime:
-            """Class FakeProviderRuntime.
-
-            Encapsulates one responsibility in the backend architecture.
-            """
+            """Represent fake provider runtime and centralize responsibilities for this module."""
             async def get_openai_api_key(self, db, user):
-                """Execute get_openai_api_key.
-
-                This callable is documented to make behavior explicit for readers.
-                """
+                """Return openai api key for this workflow."""
                 called.append(("openai_key", db, user))
                 return "sk-openai"
     
             async def get_gemini_api_key(self, db, user):
-                """Execute get_gemini_api_key.
-
-                This callable is documented to make behavior explicit for readers.
-                """
+                """Return gemini api key for this workflow."""
                 called.append(("gemini_key", db, user))
                 return "sk-gemini"
     
             async def call_openai_api(self, **kwargs):
-                """Execute call_openai_api.
-
-                This callable is documented to make behavior explicit for readers.
-                """
+                """Run call openai api in this workflow."""
                 called.append(("openai_call", kwargs))
                 return "ok-openai"
     
             async def call_gemini_api_for_suggestions(self, **kwargs):
-                """Execute call_gemini_api_for_suggestions.
-
-                This callable is documented to make behavior explicit for readers.
-                """
+                """Run call gemini api for suggestions in this workflow."""
                 called.append(("gemini_suggestions", kwargs))
                 return {"sugestoes_atributos": []}
     
             async def call_gemini_api(self, **kwargs):
-                """Execute call_gemini_api.
-
-                This callable is documented to make behavior explicit for readers.
-                """
+                """Run call gemini api in this workflow."""
                 called.append(("gemini_call", kwargs))
                 return "ok-gemini"
     
@@ -107,54 +82,33 @@ class _TopLevelFunctionSurface:
 
     @pytest.mark.asyncio
     async def test_ia_generation_workflow_usa_runtime_injetado():
-        """Execute test_ia_generation_workflow_usa_runtime_injetado.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Run test ia generation workflow usa runtime injetado in this workflow."""
         called = []
     
         class FakeIARuntime:
-            """Class FakeIARuntime.
-
-            Encapsulates one responsibility in the backend architecture.
-            """
+            """Represent fake i a runtime and centralize responsibilities for this module."""
             async def gerar_titulos_com_openai(self, **kwargs):
-                """Execute gerar_titulos_com_openai.
-
-                This callable is documented to make behavior explicit for readers.
-                """
+                """Run gerar titulos com openai in this workflow."""
                 called.append(("tit_openai", kwargs))
                 return ["t1", "t2"]
     
             async def gerar_descricao_com_openai(self, **kwargs):
-                """Execute gerar_descricao_com_openai.
-
-                This callable is documented to make behavior explicit for readers.
-                """
+                """Run gerar descricao com openai in this workflow."""
                 called.append(("desc_openai", kwargs))
                 return "descricao"
     
             async def gerar_titulos_com_gemini(self, **kwargs):
-                """Execute gerar_titulos_com_gemini.
-
-                This callable is documented to make behavior explicit for readers.
-                """
+                """Run gerar titulos com gemini in this workflow."""
                 called.append(("tit_gemini", kwargs))
                 return ["g1"]
     
             async def gerar_descricao_com_gemini(self, **kwargs):
-                """Execute gerar_descricao_com_gemini.
-
-                This callable is documented to make behavior explicit for readers.
-                """
+                """Run gerar descricao com gemini in this workflow."""
                 called.append(("desc_gemini", kwargs))
                 return "desc-g"
     
             async def sugerir_valores_atributos_com_gemini(self, **kwargs):
-                """Execute sugerir_valores_atributos_com_gemini.
-
-                This callable is documented to make behavior explicit for readers.
-                """
+                """Run sugerir valores atributos com gemini in this workflow."""
                 called.append(("sug_gemini", kwargs))
                 return {"ok": True}
     

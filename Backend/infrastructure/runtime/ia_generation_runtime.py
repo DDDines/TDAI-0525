@@ -1,7 +1,6 @@
 """Module ia generation runtime.
 
-This module contains backend application/runtime logic and is fully
-documented for maintainability and onboarding.
+Contains backend logic related to ia generation runtime and documents its role in the OOP architecture.
 """
 
 from __future__ import annotations
@@ -9,14 +8,8 @@ from Backend.infrastructure.runtime_services.ia_generation_runtime_service impor
 
 class IAGenerationRuntimeProvider:
 
-    """Class IAGenerationRuntimeProvider.
-
-    Encapsulates one responsibility in the backend architecture.
-    """
+    """Represent i a generation runtime provider and centralize responsibilities for this module."""
     @staticmethod
     def get_runtime_service() -> IAGenerationRuntimeService:
-        """Execute get_runtime_service.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Return runtime service for this workflow."""
         return IAGenerationRuntimeService()

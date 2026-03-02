@@ -1,7 +1,6 @@
 """Module catalog import workflow service.
 
-This module contains backend application/runtime logic and is fully
-documented for maintainability and onboarding.
+Contains backend logic related to catalog import workflow service and documents its role in the OOP architecture.
 """
 
 from __future__ import annotations
@@ -19,10 +18,7 @@ class CatalogImportWorkflowService:
         status_service: Any,
         runtime: Optional[Any] = None,
     ) -> None:
-        """Execute __init__.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Initialize collaborators and configuration required by this component."""
         if runtime is not None:
             start_service = getattr(runtime, "start_service", start_service)
             status_service = getattr(runtime, "status_service", status_service)
@@ -41,10 +37,7 @@ class CatalogImportWorkflowService:
         region: Optional[List[float]],
         user_id: int,
     ) -> Dict[str, Any]:
-        """Execute importar_catalogo_finalizar.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Run importar catalogo finalizar in this workflow."""
         catalog_file = self._start_service.get_catalog_file_or_404(
             file_id=file_id,
             user_id=user_id,
@@ -80,10 +73,7 @@ class CatalogImportWorkflowService:
         file_id: int,
         user_id: int,
     ) -> Any:
-        """Execute importar_catalogo_status.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Run importar catalogo status in this workflow."""
         return self._status_service.get_record_or_404(
             file_id=file_id,
             user_id=user_id,
@@ -95,10 +85,7 @@ class CatalogImportWorkflowService:
         file_id: int,
         user_id: int,
     ) -> Dict[str, Any]:
-        """Execute importar_catalogo_status_simple.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Run importar catalogo status simple in this workflow."""
         record = self._status_service.get_record_or_404(
             file_id=file_id,
             user_id=user_id,
@@ -111,10 +98,7 @@ class CatalogImportWorkflowService:
         file_id: int,
         user_id: int,
     ) -> Any:
-        """Execute importar_catalogo_result.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Run importar catalogo result in this workflow."""
         record = self._status_service.get_record_or_404(
             file_id=file_id,
             user_id=user_id,
@@ -129,10 +113,7 @@ class CatalogImportWorkflowService:
         mapping: Optional[Dict[str, str]],
         user_id: int,
     ) -> Any:
-        """Execute importar_catalogo_finalizar_todas_paginas.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Run importar catalogo finalizar todas paginas in this workflow."""
         record = self._start_service.get_catalog_file_or_404(
             file_id=file_id,
             user_id=user_id,

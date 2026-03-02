@@ -1,7 +1,6 @@
 """Module test file processing pdf asset workflow.
 
-This module contains backend application/runtime logic and is fully
-documented for maintainability and onboarding.
+Contains backend logic related to test file processing pdf asset workflow and documents its role in the OOP architecture.
 """
 
 import pandas as pd
@@ -12,55 +11,31 @@ from Backend.testing.runtime_apis import file_processing
 
 class _TopLevelFunctionSurface:
 
-    """Class _TopLevelFunctionSurface.
-
-    Encapsulates one responsibility in the backend architecture.
-    """
+    """Represent top level function surface and centralize responsibilities for this module."""
     @pytest.mark.asyncio
     async def test_pdf_asset_workflow_usa_runtime_de_conversao():
-        """Execute test_pdf_asset_workflow_usa_runtime_de_conversao.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Run test pdf asset workflow usa runtime de conversao in this workflow."""
         called = {}
     
         class FakeImageRuntime:
-            """Class FakeImageRuntime.
-
-            Encapsulates one responsibility in the backend architecture.
-            """
+            """Represent fake image runtime and centralize responsibilities for this module."""
             async def pdf_bytes_to_images(self, **kwargs):
-                """Execute pdf_bytes_to_images.
-
-                This callable is documented to make behavior explicit for readers.
-                """
+                """Run pdf bytes to images in this workflow."""
                 called.update(kwargs)
                 return ["img64"]
     
         class FakeAssetRuntime:
-            """Class FakeAssetRuntime.
-
-            Encapsulates one responsibility in the backend architecture.
-            """
+            """Represent fake asset runtime and centralize responsibilities for this module."""
             def generate_pdf_page_images(self, **kwargs):
-                """Execute generate_pdf_page_images.
-
-                This callable is documented to make behavior explicit for readers.
-                """
+                """Run generate pdf page images in this workflow."""
                 return []
     
             def extract_pdf_region_image(self, **kwargs):
-                """Execute extract_pdf_region_image.
-
-                This callable is documented to make behavior explicit for readers.
-                """
+                """Extract pdf region image for this workflow."""
                 return b""
     
             def parse_annotation_to_dataframe(self, **kwargs):
-                """Execute parse_annotation_to_dataframe.
-
-                This callable is documented to make behavior explicit for readers.
-                """
+                """Parse annotation to dataframe for this workflow."""
                 return pd.DataFrame()
     
         workflow = file_processing.PdfAssetWorkflow(
@@ -82,52 +57,31 @@ class _TopLevelFunctionSurface:
         assert called["dpi"] == 150
 
     def test_pdf_asset_workflow_usa_runtime_de_assets():
-        """Execute test_pdf_asset_workflow_usa_runtime_de_assets.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Run test pdf asset workflow usa runtime de assets in this workflow."""
         called = {"generate": {}, "extract": {}, "parse": {}}
         expected_df = pd.DataFrame([{"col_1": "ok"}])
     
         class FakeImageRuntime:
-            """Class FakeImageRuntime.
-
-            Encapsulates one responsibility in the backend architecture.
-            """
+            """Represent fake image runtime and centralize responsibilities for this module."""
             async def pdf_bytes_to_images(self, **kwargs):
-                """Execute pdf_bytes_to_images.
-
-                This callable is documented to make behavior explicit for readers.
-                """
+                """Run pdf bytes to images in this workflow."""
                 _ = kwargs
                 return []
     
         class FakeAssetRuntime:
-            """Class FakeAssetRuntime.
-
-            Encapsulates one responsibility in the backend architecture.
-            """
+            """Represent fake asset runtime and centralize responsibilities for this module."""
             def generate_pdf_page_images(self, **kwargs):
-                """Execute generate_pdf_page_images.
-
-                This callable is documented to make behavior explicit for readers.
-                """
+                """Run generate pdf page images in this workflow."""
                 called["generate"].update(kwargs)
                 return ["/static/previews/x/page-1.png"]
     
             def extract_pdf_region_image(self, **kwargs):
-                """Execute extract_pdf_region_image.
-
-                This callable is documented to make behavior explicit for readers.
-                """
+                """Extract pdf region image for this workflow."""
                 called["extract"].update(kwargs)
                 return b"img"
     
             def parse_annotation_to_dataframe(self, **kwargs):
-                """Execute parse_annotation_to_dataframe.
-
-                This callable is documented to make behavior explicit for readers.
-                """
+                """Parse annotation to dataframe for this workflow."""
                 called["parse"].update(kwargs)
                 return expected_df
     

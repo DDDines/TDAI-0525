@@ -1,7 +1,6 @@
 """Module ocr service.
 
-This module contains backend application/runtime logic and is fully
-documented for maintainability and onboarding.
+Contains backend logic related to ocr service and documents its role in the OOP architecture.
 """
 
 from __future__ import annotations
@@ -12,20 +11,11 @@ from Backend.application.services.web_data_extractor.contracts import (
 
 
 class WebDataExtractorOCRService:
-    """Class WebDataExtractorOCRService.
-
-    Encapsulates one responsibility in the backend architecture.
-    """
+    """Represent web data extractor o c r service and centralize responsibilities for this module."""
     def __init__(self, port: WebDataExtractorPort) -> None:
-        """Execute __init__.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Initialize collaborators and configuration required by this component."""
         self._port = port
 
     def extract_text_from_image_region(self, image_bytes: bytes):
-        """Execute extract_text_from_image_region.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Extract text from image region for this workflow."""
         return self._port.extract_text_from_image_region(image_bytes)

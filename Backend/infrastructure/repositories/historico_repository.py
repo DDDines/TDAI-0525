@@ -1,7 +1,6 @@
 """Module historico repository.
 
-This module contains backend application/runtime logic and is fully
-documented for maintainability and onboarding.
+Contains backend logic related to historico repository and documents its role in the OOP architecture.
 """
 
 from __future__ import annotations
@@ -18,20 +17,14 @@ class HistoricoRepository:
     """Repository OO de Historico com Session vinculada por request."""
 
     def __init__(self, db: Session) -> None:
-        """Execute __init__.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Initialize collaborators and configuration required by this component."""
         self._db = db
 
     def create_registro_historico(
         self,
         registro_in: schemas.RegistroHistoricoCreate,
     ) -> models.RegistroHistorico:
-        """Execute create_registro_historico.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Create registro historico for this workflow."""
         db_obj = models.RegistroHistorico(**registro_in.model_dump(exclude_unset=True))
         self._db.add(db_obj)
         self._db.commit()
@@ -47,10 +40,7 @@ class HistoricoRepository:
         entidade: Optional[str] = None,
         acao: Optional[models.TipoAcaoSistemaEnum] = None,
     ) -> List[models.RegistroHistorico]:
-        """Execute get_registros_historico.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Return registros historico for this workflow."""
         query = self._db.query(models.RegistroHistorico)
         if user_id is not None:
             query = query.filter(models.RegistroHistorico.user_id == user_id)
@@ -72,10 +62,7 @@ class HistoricoRepository:
         entidade: Optional[str] = None,
         acao: Optional[models.TipoAcaoSistemaEnum] = None,
     ) -> int:
-        """Execute count_registros_historico.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Count registros historico for this workflow."""
         query = self._db.query(func.count(models.RegistroHistorico.id))
         if user_id is not None:
             query = query.filter(models.RegistroHistorico.user_id == user_id)

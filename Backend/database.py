@@ -1,7 +1,6 @@
 """Module database.
 
-This module contains backend application/runtime logic and is fully
-documented for maintainability and onboarding.
+Contains backend logic related to database and documents its role in the OOP architecture.
 """
 
 from sqlalchemy import create_engine
@@ -23,10 +22,7 @@ Base = declarative_base()
 
 
 def get_db():
-    """Execute get_db.
-
-    This callable is documented to make behavior explicit for readers.
-    """
+    """Return db for this workflow."""
     session = SessionLocal()
     try:
         yield session

@@ -1,7 +1,6 @@
 """Module user repository.
 
-This module contains backend application/runtime logic and is fully
-documented for maintainability and onboarding.
+Contains backend logic related to user repository and documents its role in the OOP architecture.
 """
 
 from __future__ import annotations
@@ -26,28 +25,19 @@ class UserRepository:
     """Repository OO de usuarios, roles e planos com Session por request."""
 
     def __init__(self, db: Session) -> None:
-        """Execute __init__.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Initialize collaborators and configuration required by this component."""
         self._db = db
         self._security_workflow = security.SecurityWorkflow()
 
     @staticmethod
     def _apply_default_plan_limits(db_user: User) -> None:
-        """Execute _apply_default_plan_limits.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Run apply default plan limits in this workflow."""
         db_user.limite_produtos = settings.DEFAULT_LIMIT_PRODUTOS_SEM_PLANO
         db_user.limite_enriquecimento_web = settings.DEFAULT_LIMIT_ENRIQUECIMENTO_SEM_PLANO
         db_user.limite_geracao_ia = settings.DEFAULT_LIMIT_GERACAO_IA_SEM_PLANO
 
     def _apply_plano_limits(self, *, db_user: User, plano_id: Optional[int]) -> None:
-        """Execute _apply_plano_limits.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Run apply plano limits in this workflow."""
         if plano_id is None:
             db_user.plano_id = None
             self._apply_default_plan_limits(db_user)
@@ -69,31 +59,19 @@ class UserRepository:
         db_user.limite_geracao_ia = plano.limite_geracao_ia
 
     def get_user(self, *, user_id: int) -> Optional[User]:
-        """Execute get_user.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Return user for this workflow."""
         return self._db.query(User).filter(User.id == user_id).first()
 
     def get_user_by_email(self, *, email: str) -> Optional[User]:
-        """Execute get_user_by_email.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Return user by email for this workflow."""
         return self._db.query(User).filter(User.email == email).first()
 
     def get_users(self, *, skip: int = 0, limit: int = 100) -> List[User]:
-        """Execute get_users.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Return users for this workflow."""
         return self._db.query(User).offset(skip).limit(limit).all()
 
     def create_user(self, *, user: schemas.UserCreate) -> User:
-        """Execute create_user.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Create user for this workflow."""
         hashed_password = self._security_workflow.get_password_hash(user.password)
         db_user = User(
             email=user.email,
@@ -144,10 +122,7 @@ class UserRepository:
             schemas.UserUpdateOAuth,
         ],
     ) -> User:
-        """Execute update_user.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Update user for this workflow."""
         update_data = user_update.model_dump(exclude_unset=True)
 
         if update_data.get("password"):
@@ -167,10 +142,7 @@ class UserRepository:
         return db_user
 
     def delete_user(self, *, db_user: User) -> User:
-        """Execute delete_user.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Delete user for this workflow."""
         self._db.delete(db_user)
         self._db.commit()
         return db_user
@@ -181,10 +153,7 @@ class UserRepository:
         user_oauth: schemas.UserCreateOAuth,
         plano_id_default: Optional[int] = None,
     ) -> User:
-        """Execute create_user_oauth.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Create user oauth for this workflow."""
         db_user = User(
             email=user_oauth.email,
             nome_completo=user_oauth.nome_completo,
@@ -229,10 +198,7 @@ class UserRepository:
         provider: str,
         provider_user_id: str,
     ) -> Optional[User]:
-        """Execute get_user_by_provider.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Return user by provider for this workflow."""
         return (
             self._db.query(User)
             .filter(User.provider == provider, User.provider_user_id == provider_user_id)
@@ -246,48 +212,30 @@ class UserRepository:
         token_hash: str,
         expires_at: datetime,
     ) -> None:
-        """Execute set_user_password_reset_token.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Run set user password reset token in this workflow."""
         user.reset_password_token = token_hash
         user.reset_password_token_expires_at = expires_at
         self._db.commit()
         self._db.refresh(user)
 
     def get_user_by_reset_token(self, *, token_hash: str) -> Optional[User]:
-        """Execute get_user_by_reset_token.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Return user by reset token for this workflow."""
         return self._db.query(User).filter(User.reset_password_token == token_hash).first()
 
     def get_role(self, *, role_id: int) -> Optional[Role]:
-        """Execute get_role.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Return role for this workflow."""
         return self._db.query(Role).filter(Role.id == role_id).first()
 
     def get_role_by_name(self, *, name: str) -> Optional[Role]:
-        """Execute get_role_by_name.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Return role by name for this workflow."""
         return self._db.query(Role).filter(Role.name == name).first()
 
     def get_roles(self, *, skip: int = 0, limit: int = 10) -> List[Role]:
-        """Execute get_roles.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Return roles for this workflow."""
         return self._db.query(Role).offset(skip).limit(limit).all()
 
     def create_role(self, *, role: schemas.RoleCreate) -> Role:
-        """Execute create_role.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Create role for this workflow."""
         db_role = Role(name=role.name, description=role.description)
         self._db.add(db_role)
         self._db.commit()
@@ -295,31 +243,19 @@ class UserRepository:
         return db_role
 
     def get_plano(self, *, plano_id: int) -> Optional[Plano]:
-        """Execute get_plano.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Return plano for this workflow."""
         return self._db.query(Plano).filter(Plano.id == plano_id).first()
 
     def get_plano_by_name(self, *, nome: str) -> Optional[Plano]:
-        """Execute get_plano_by_name.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Return plano by name for this workflow."""
         return self._db.query(Plano).filter(Plano.nome == nome).first()
 
     def get_planos(self, *, skip: int = 0, limit: int = 10) -> List[Plano]:
-        """Execute get_planos.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Return planos for this workflow."""
         return self._db.query(Plano).offset(skip).limit(limit).all()
 
     def create_plano(self, *, plano: schemas.PlanoCreate) -> Plano:
-        """Execute create_plano.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Create plano for this workflow."""
         db_plano = Plano(**plano.model_dump())
         self._db.add(db_plano)
         self._db.commit()
@@ -332,10 +268,7 @@ class UserRepository:
         db_plano: Plano,
         plano_update: schemas.PlanoUpdate,
     ) -> Plano:
-        """Execute update_plano.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Update plano for this workflow."""
         update_data = plano_update.model_dump(exclude_unset=True)
         for key, value in update_data.items():
             setattr(db_plano, key, value)
@@ -344,10 +277,7 @@ class UserRepository:
         return db_plano
 
     def delete_plano(self, *, db_plano: Plano) -> Plano:
-        """Execute delete_plano.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Delete plano for this workflow."""
         self._db.delete(db_plano)
         self._db.commit()
         return db_plano

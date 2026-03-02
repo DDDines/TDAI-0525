@@ -1,7 +1,6 @@
 """Module search service.
 
-This module contains backend application/runtime logic and is fully
-documented for maintainability and onboarding.
+Contains backend logic related to search service and documents its role in the OOP architecture.
 """
 
 from __future__ import annotations
@@ -14,22 +13,13 @@ from Backend.application.services.web_data_extractor.contracts import (
 
 
 class WebDataExtractorSearchService:
-    """Class WebDataExtractorSearchService.
-
-    Encapsulates one responsibility in the backend architecture.
-    """
+    """Represent web data extractor search service and centralize responsibilities for this module."""
     def __init__(self, port: WebDataExtractorPort) -> None:
-        """Execute __init__.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Initialize collaborators and configuration required by this component."""
         self._port = port
 
     def busca_publica_disponivel(self) -> bool:
-        """Execute busca_publica_disponivel.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Run busca publica disponivel in this workflow."""
         return self._port.busca_publica_disponivel()
 
     async def buscar_urls_publicas(
@@ -37,10 +27,7 @@ class WebDataExtractorSearchService:
         query: str,
         num_results: int = 3,
     ) -> List[str]:
-        """Execute buscar_urls_publicas.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Run buscar urls publicas in this workflow."""
         return await self._port.buscar_urls_publicas(
             query=query,
             num_results=num_results,
@@ -51,10 +38,7 @@ class WebDataExtractorSearchService:
         query: str,
         num_results: int = 3,
     ) -> List[str]:
-        """Execute buscar_urls_google.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Run buscar urls google in this workflow."""
         return await self._port.buscar_urls_google(
             query=query,
             num_results=num_results,

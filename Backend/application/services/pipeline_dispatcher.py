@@ -1,7 +1,6 @@
 """Module pipeline dispatcher.
 
-This module contains backend application/runtime logic and is fully
-documented for maintainability and onboarding.
+Contains backend logic related to pipeline dispatcher and documents its role in the OOP architecture.
 """
 
 from __future__ import annotations
@@ -18,24 +17,15 @@ class PipelineDispatcher:
 
     @staticmethod
     def should_run_inline_for_tests(sync_env_var: str) -> bool:
-        """Execute should_run_inline_for_tests.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Run should run inline for tests in this workflow."""
         return bool(os.getenv("PYTEST_CURRENT_TEST")) or os.getenv(sync_env_var) == "1"
 
     @staticmethod
     async def run_inline(plan: TaskExecutionPlan) -> None:
-        """Execute run_inline.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Run inline for this workflow."""
         await plan.executor(**plan.task_kwargs)
 
     @staticmethod
     def dispatch_background(background_tasks: BackgroundTasks, plan: TaskExecutionPlan) -> None:
-        """Execute dispatch_background.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Dispatch background for this workflow."""
         background_tasks.add_task(plan.executor, **plan.task_kwargs)

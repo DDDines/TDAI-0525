@@ -1,7 +1,6 @@
 """Module test catalog import task runner.
 
-This module contains backend application/runtime logic and is fully
-documented for maintainability and onboarding.
+Contains backend logic related to test catalog import task runner and documents its role in the OOP architecture.
 """
 
 from __future__ import annotations
@@ -14,36 +13,21 @@ from Backend.application.services.catalog_import_task_runner import (
 
 
 class _TaskServiceStub:
-    """Class _TaskServiceStub.
-
-    Encapsulates one responsibility in the backend architecture.
-    """
+    """Represent task service stub and centralize responsibilities for this module."""
     def __init__(self) -> None:
-        """Execute __init__.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Initialize collaborators and configuration required by this component."""
         self.calls = []
 
     async def execute(self, **kwargs):
-        """Execute execute.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Run execute in this workflow."""
         self.calls.append(kwargs)
 
 
 class _TopLevelFunctionSurface:
 
-    """Class _TopLevelFunctionSurface.
-
-    Encapsulates one responsibility in the backend architecture.
-    """
+    """Represent top level function surface and centralize responsibilities for this module."""
     def _build_runner() -> CatalogImportTaskRunner:
-        """Execute _build_runner.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Run build runner in this workflow."""
         return CatalogImportTaskRunner(
             db_session_factory=lambda: None,
             logger=object(),
@@ -71,19 +55,13 @@ class _TopLevelFunctionSurface:
 
     @pytest.mark.asyncio
     async def test_catalog_import_task_runner_uses_single_oop_service():
-        """Execute test_catalog_import_task_runner_uses_single_oop_service.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Run test catalog import task runner uses single oop service in this workflow."""
         runner = _build_runner()
         service_stub = _TaskServiceStub()
         build_calls = []
     
         def _fake_build():
-            """Execute _fake_build.
-
-            This callable is documented to make behavior explicit for readers.
-            """
+            """Run fake build in this workflow."""
             build_calls.append("build")
             return service_stub
     
@@ -119,19 +97,13 @@ class _TopLevelFunctionSurface:
 
     @pytest.mark.asyncio
     async def test_catalog_import_task_runner_execute_reuses_cached_service():
-        """Execute test_catalog_import_task_runner_execute_reuses_cached_service.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Run test catalog import task runner execute reuses cached service in this workflow."""
         runner = _build_runner()
         service_stub = _TaskServiceStub()
         build_calls = []
     
         def _fake_build():
-            """Execute _fake_build.
-
-            This callable is documented to make behavior explicit for readers.
-            """
+            """Run fake build in this workflow."""
             build_calls.append("build")
             return service_stub
     

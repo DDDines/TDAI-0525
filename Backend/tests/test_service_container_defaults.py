@@ -1,7 +1,6 @@
 """Module test service container defaults.
 
-This module contains backend application/runtime logic and is fully
-documented for maintainability and onboarding.
+Contains backend logic related to test service container defaults and documents its role in the OOP architecture.
 """
 
 from __future__ import annotations
@@ -17,15 +16,9 @@ from Backend.infrastructure.adapters.web_data_extractor_adapter import (
 
 class _TopLevelFunctionSurface:
 
-    """Class _TopLevelFunctionSurface.
-
-    Encapsulates one responsibility in the backend architecture.
-    """
+    """Represent top level function surface and centralize responsibilities for this module."""
     def test_service_container_uses_oop_adapters_by_default():
-        """Execute test_service_container_uses_oop_adapters_by_default.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Run test service container uses oop adapters by default in this workflow."""
         container = ServiceContainer()
     
         assert isinstance(container.file_processing._port, FileProcessingServiceAdapter)

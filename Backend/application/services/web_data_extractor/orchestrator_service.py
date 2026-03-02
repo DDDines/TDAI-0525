@@ -1,7 +1,6 @@
 """Module orchestrator service.
 
-This module contains backend application/runtime logic and is fully
-documented for maintainability and onboarding.
+Contains backend logic related to orchestrator service and documents its role in the OOP architecture.
 """
 
 from __future__ import annotations
@@ -36,10 +35,7 @@ class WebDataExtractorOrchestratorService:
     """Servico OO unificado para extracao de dados da web."""
 
     def __init__(self, port: WebDataExtractorPort) -> None:
-        """Execute __init__.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Initialize collaborators and configuration required by this component."""
         self.search = WebDataExtractorSearchService(port)
         self.content = WebDataExtractorContentService(port)
         self.metadata = WebDataExtractorMetadataService(port)
@@ -47,10 +43,7 @@ class WebDataExtractorOrchestratorService:
         self.ocr = WebDataExtractorOCRService(port)
 
     def busca_publica_disponivel(self) -> bool:
-        """Execute busca_publica_disponivel.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Run busca publica disponivel in this workflow."""
         return self.search.busca_publica_disponivel()
 
     async def buscar_urls_publicas(
@@ -58,10 +51,7 @@ class WebDataExtractorOrchestratorService:
         query: str,
         num_results: int = 3,
     ) -> List[str]:
-        """Execute buscar_urls_publicas.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Run buscar urls publicas in this workflow."""
         return await self.search.buscar_urls_publicas(
             query=query,
             num_results=num_results,
@@ -72,30 +62,21 @@ class WebDataExtractorOrchestratorService:
         query: str,
         num_results: int = 3,
     ) -> List[str]:
-        """Execute buscar_urls_google.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Run buscar urls google in this workflow."""
         return await self.search.buscar_urls_google(
             query=query,
             num_results=num_results,
         )
 
     async def coletar_conteudo_pagina_playwright(self, url: str) -> Optional[str]:
-        """Execute coletar_conteudo_pagina_playwright.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Run coletar conteudo pagina playwright in this workflow."""
         return await self.content.coletar_conteudo_pagina_playwright(url=url)
 
     def extrair_texto_principal_com_trafilatura(
         self,
         html_content: str,
     ) -> Optional[str]:
-        """Execute extrair_texto_principal_com_trafilatura.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Run extrair texto principal com trafilatura in this workflow."""
         return self.content.extrair_texto_principal_com_trafilatura(
             html_content=html_content
         )
@@ -105,10 +86,7 @@ class WebDataExtractorOrchestratorService:
         html_content: str,
         url: str,
     ) -> Dict[str, Any]:
-        """Execute extrair_metadados_estruturados.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Run extrair metadados estruturados in this workflow."""
         return self.metadata.extrair_metadados_estruturados(
             html_content=html_content,
             url=url,
@@ -118,10 +96,7 @@ class WebDataExtractorOrchestratorService:
         self,
         metadata_bruta: Dict[str, Any],
     ) -> Dict[str, Any]:
-        """Execute normalizar_dados_de_metadados.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Run normalizar dados de metadados in this workflow."""
         return self.metadata.normalizar_dados_de_metadados(
             metadata_bruta=metadata_bruta
         )
@@ -134,10 +109,7 @@ class WebDataExtractorOrchestratorService:
         produto_nome_base: str = "Produto",
         user: Optional[models.User] = None,
     ) -> Optional[Dict[str, Any]]:
-        """Execute extrair_dados_produto_com_llm.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Run extrair dados produto com llm in this workflow."""
         return await self.llm.extrair_dados_produto_com_llm(
             texto_pagina=texto_pagina,
             metadados_normalizados=metadados_normalizados,
@@ -153,10 +125,7 @@ class WebDataExtractorOrchestratorService:
         url: str,
         produto: models.Produto,
     ) -> models.Produto:
-        """Execute extract_relevant_data_from_url.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Extract relevant data from url for this workflow."""
         return await self.llm.extract_relevant_data_from_url(
             session=session,
             url=url,
@@ -164,8 +133,5 @@ class WebDataExtractorOrchestratorService:
         )
 
     def extract_text_from_image_region(self, image_bytes: bytes):
-        """Execute extract_text_from_image_region.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Extract text from image region for this workflow."""
         return self.ocr.extract_text_from_image_region(image_bytes)

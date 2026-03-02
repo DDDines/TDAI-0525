@@ -1,7 +1,6 @@
 """Module generation scheduling service.
 
-This module contains backend application/runtime logic and is fully
-documented for maintainability and onboarding.
+Contains backend logic related to generation scheduling service and documents its role in the OOP architecture.
 """
 
 from __future__ import annotations
@@ -21,10 +20,7 @@ class GenerationSchedulingService:
         models: Any,
         product_repository: Any,
     ) -> None:
-        """Execute __init__.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Initialize collaborators and configuration required by this component."""
         self._product_repository = product_repository
         self._schemas = schemas
         self._models = models
@@ -35,10 +31,7 @@ class GenerationSchedulingService:
         produto_id: int,
         current_user: Any,
     ) -> Any:
-        """Execute validate_product_access.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Validate product access for this workflow."""
         db_produto = self._product_repository.get_produto(produto_id=produto_id)
         if not db_produto:
             raise HTTPException(
@@ -58,10 +51,7 @@ class GenerationSchedulingService:
         db_produto: Any,
         generation_type: str,
     ) -> None:
-        """Execute mark_pending_status.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Mark pending status for this workflow."""
         status_field_map = {
             "titulo": "status_titulo_ia",
             "descricao": "status_descricao_ia",
@@ -90,10 +80,7 @@ class GenerationSchedulingService:
         num_titulos: int | None = None,
         tamanho_palavras: int | None = None,
     ) -> None:
-        """Execute enqueue_generation_task.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Run enqueue generation task in this workflow."""
         background_tasks.add_task(
             task_executor,
             user_id=user_id,

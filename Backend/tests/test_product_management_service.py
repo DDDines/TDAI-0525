@@ -1,7 +1,6 @@
 """Module test product management service.
 
-This module contains backend application/runtime logic and is fully
-documented for maintainability and onboarding.
+Contains backend logic related to test product management service and documents its role in the OOP architecture.
 """
 
 from __future__ import annotations
@@ -17,15 +16,9 @@ from Backend.application.services.product_management_service import (
 
 
 class _CrudProdutosStub:
-    """Class _CrudProdutosStub.
-
-    Encapsulates one responsibility in the backend architecture.
-    """
+    """Represent crud produtos stub and centralize responsibilities for this module."""
     def __init__(self, *, produto=None):
-        """Execute __init__.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Initialize collaborators and configuration required by this component."""
         self.produto = produto
         self.created = []
         self.updated = []
@@ -34,10 +27,7 @@ class _CrudProdutosStub:
         self.total_items = 0
 
     def create_produto(self, *, produto, user_id):
-        """Execute create_produto.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Create produto for this workflow."""
         created = SimpleNamespace(
             id=produto.id,
             user_id=user_id,
@@ -49,195 +39,120 @@ class _CrudProdutosStub:
         return created
 
     def get_produto(self, *, produto_id):
-        """Execute get_produto.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Return produto for this workflow."""
         _ = produto_id
         return self.produto
 
     def get_produtos_by_user(self, **kwargs):
-        """Execute get_produtos_by_user.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Return produtos by user for this workflow."""
         _ = kwargs
         return self.list_items
 
     def count_produtos_by_user(self, **kwargs):
-        """Execute count_produtos_by_user.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Count produtos by user for this workflow."""
         _ = kwargs
         return self.total_items
 
     def update_produto(self, *, db_produto, produto_update):
-        """Execute update_produto.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Update produto for this workflow."""
         self.updated.append((db_produto, produto_update))
         if getattr(produto_update, "nome_base", None):
             db_produto.nome_base = produto_update.nome_base
         return db_produto
 
     def delete_produto(self, *, db_produto):
-        """Execute delete_produto.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Delete produto for this workflow."""
         self.deleted.append(db_produto)
         return db_produto
 
 
 class _CrudFornecedoresStub:
-    """Class _CrudFornecedoresStub.
-
-    Encapsulates one responsibility in the backend architecture.
-    """
+    """Represent crud fornecedores stub and centralize responsibilities for this module."""
     def __init__(self, *, fornecedor=True):
-        """Execute __init__.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Initialize collaborators and configuration required by this component."""
         self.fornecedor = fornecedor
 
     def get_fornecedor(self, *, fornecedor_id):
-        """Execute get_fornecedor.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Return fornecedor for this workflow."""
         _ = fornecedor_id
         return self.fornecedor
 
 
 class _CrudProductTypesStub:
-    """Class _CrudProductTypesStub.
-
-    Encapsulates one responsibility in the backend architecture.
-    """
+    """Represent crud product types stub and centralize responsibilities for this module."""
     def __init__(self, *, product_type=True):
-        """Execute __init__.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Initialize collaborators and configuration required by this component."""
         self.product_type = product_type
 
     def get_product_type(self, *, product_type_id):
-        """Execute get_product_type.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Return product type for this workflow."""
         _ = product_type_id
         return self.product_type
 
 
 class _CrudHistoricoStub:
-    """Class _CrudHistoricoStub.
-
-    Encapsulates one responsibility in the backend architecture.
-    """
+    """Represent crud historico stub and centralize responsibilities for this module."""
     def __init__(self):
-        """Execute __init__.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Initialize collaborators and configuration required by this component."""
         self.calls = []
 
     def create_registro_historico(self, payload):
-        """Execute create_registro_historico.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Create registro historico for this workflow."""
         self.calls.append(payload.data)
 
 
 class _CrudUsoIAStub:
-    """Class _CrudUsoIAStub.
-
-    Encapsulates one responsibility in the backend architecture.
-    """
+    """Represent crud uso i a stub and centralize responsibilities for this module."""
     def __init__(self):
-        """Execute __init__.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Initialize collaborators and configuration required by this component."""
         self.calls = []
 
     def create_registro_uso_ia(self, payload):
-        """Execute create_registro_uso_ia.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Create registro uso ia for this workflow."""
         self.calls.append(payload.data)
 
 
 class _SchemaPayload:
-    """Class _SchemaPayload.
-
-    Encapsulates one responsibility in the backend architecture.
-    """
+    """Represent schema payload and centralize responsibilities for this module."""
     def __init__(self, **kwargs):
-        """Execute __init__.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Initialize collaborators and configuration required by this component."""
         self.data = kwargs
 
 
 class _SchemasStub:
-    """Class _SchemasStub.
-
-    Encapsulates one responsibility in the backend architecture.
-    """
+    """Represent schemas stub and centralize responsibilities for this module."""
     RegistroUsoIACreate = _SchemaPayload
     RegistroHistoricoCreate = _SchemaPayload
 
 
 class _TipoAcaoEnumStub:
-    """Class _TipoAcaoEnumStub.
-
-    Encapsulates one responsibility in the backend architecture.
-    """
+    """Represent tipo acao enum stub and centralize responsibilities for this module."""
     CRIACAO_PRODUTO = "CRIACAO_PRODUTO"
 
 
 class _TipoAcaoSistemaEnumStub:
-    """Class _TipoAcaoSistemaEnumStub.
-
-    Encapsulates one responsibility in the backend architecture.
-    """
+    """Represent tipo acao sistema enum stub and centralize responsibilities for this module."""
     CRIACAO = "CRIACAO"
     ATUALIZACAO = "ATUALIZACAO"
     DELECAO = "DELECAO"
 
 
 class _ModelsStub:
-    """Class _ModelsStub.
-
-    Encapsulates one responsibility in the backend architecture.
-    """
+    """Represent models stub and centralize responsibilities for this module."""
     TipoAcaoEnum = _TipoAcaoEnumStub
     TipoAcaoSistemaEnum = _TipoAcaoSistemaEnumStub
 
 
 class _TopLevelFunctionSurface:
 
-    """Class _TopLevelFunctionSurface.
-
-    Encapsulates one responsibility in the backend architecture.
-    """
+    """Represent top level function surface and centralize responsibilities for this module."""
     def _build_service(
         *,
         produto=None,
         fornecedor=True,
         product_type=True,
     ):
-        """Execute _build_service.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Run build service in this workflow."""
         crud_produtos = _CrudProdutosStub(produto=produto)
         crud_historico = _CrudHistoricoStub()
         crud_uso_ia = _CrudUsoIAStub()
@@ -253,10 +168,7 @@ class _TopLevelFunctionSurface:
         return service, crud_produtos, crud_historico, crud_uso_ia
 
     def test_create_produto_records_historico_and_ia_usage():
-        """Execute test_create_produto_records_historico_and_ia_usage.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Run test create produto records historico and ia usage in this workflow."""
         service, crud_produtos, crud_historico, crud_uso_ia = _build_service()
     
         created = service.create_produto(
@@ -270,10 +182,7 @@ class _TopLevelFunctionSurface:
         assert crud_historico.calls[0]["acao"] == "CRIACAO"
 
     def test_create_produto_raises_when_fornecedor_missing():
-        """Execute test_create_produto_raises_when_fornecedor_missing.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Run test create produto raises when fornecedor missing in this workflow."""
         service, _, _, _ = _build_service(fornecedor=False)
     
         with pytest.raises(HTTPException) as exc:
@@ -285,10 +194,7 @@ class _TopLevelFunctionSurface:
         assert exc.value.status_code == 404
 
     def test_read_produto_raises_403_for_non_owner():
-        """Execute test_read_produto_raises_403_for_non_owner.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Run test read produto raises 403 for non owner in this workflow."""
         produto = SimpleNamespace(id=10, user_id=9)
         service, _, _, _ = _build_service(produto=produto)
     
@@ -301,10 +207,7 @@ class _TopLevelFunctionSurface:
         assert exc.value.status_code == 403
 
     def test_list_produtos_builds_page_payload():
-        """Execute test_list_produtos_builds_page_payload.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Run test list produtos builds page payload in this workflow."""
         service, crud_produtos, _, _ = _build_service()
         crud_produtos.list_items = [SimpleNamespace(id=1), SimpleNamespace(id=2)]
         crud_produtos.total_items = 2
@@ -329,10 +232,7 @@ class _TopLevelFunctionSurface:
         assert payload["page"] == 1
 
     def test_update_produto_records_historico():
-        """Execute test_update_produto_records_historico.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Run test update produto records historico in this workflow."""
         produto = SimpleNamespace(id=10, user_id=3, fornecedor_id=1, product_type_id=2, nome_base="Peca")
         service, crud_produtos, crud_historico, _ = _build_service(produto=produto)
     
@@ -351,10 +251,7 @@ class _TopLevelFunctionSurface:
         assert crud_historico.calls[0]["acao"] == "ATUALIZACAO"
 
     def test_delete_produto_records_historico():
-        """Execute test_delete_produto_records_historico.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Run test delete produto records historico in this workflow."""
         produto = SimpleNamespace(id=10, user_id=3)
         service, crud_produtos, crud_historico, _ = _build_service(produto=produto)
     
@@ -368,10 +265,7 @@ class _TopLevelFunctionSurface:
         assert crud_historico.calls[0]["acao"] == "DELECAO"
 
     def test_batch_delete_produtos_raises_when_all_missing():
-        """Execute test_batch_delete_produtos_raises_when_all_missing.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Run test batch delete produtos raises when all missing in this workflow."""
         service, _, _, _ = _build_service(produto=None)
     
         with pytest.raises(HTTPException) as exc:

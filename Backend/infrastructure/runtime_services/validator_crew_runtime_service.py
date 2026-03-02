@@ -1,7 +1,6 @@
 """Module validator crew runtime service.
 
-This module contains backend application/runtime logic and is fully
-documented for maintainability and onboarding.
+Contains backend logic related to validator crew runtime service and documents its role in the OOP architecture.
 """
 
 from __future__ import annotations
@@ -17,15 +16,9 @@ class ValidatorCrewRuntimeService:
     """Explicit runtime service surface for validation crew flow."""
 
     def __init__(self) -> None:
-        """Execute __init__.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Initialize collaborators and configuration required by this component."""
         self._workflow = ValidationCrewWorkflow()
 
     def run_validation_crew(self, raw_data: Any):
-        """Execute run_validation_crew.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Run validation crew for this workflow."""
         return self._workflow.run_validation_crew(raw_data)

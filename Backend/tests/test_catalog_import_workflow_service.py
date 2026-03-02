@@ -1,7 +1,6 @@
 """Module test catalog import workflow service.
 
-This module contains backend application/runtime logic and is fully
-documented for maintainability and onboarding.
+Contains backend logic related to test catalog import workflow service and documents its role in the OOP architecture.
 """
 
 from __future__ import annotations
@@ -15,136 +14,82 @@ from Backend.application.services.catalog_import_workflow_service import (
 
 
 class _StartServiceStub:
-    """Class _StartServiceStub.
-
-    Encapsulates one responsibility in the backend architecture.
-    """
+    """Represent start service stub and centralize responsibilities for this module."""
     def __init__(self):
-        """Execute __init__.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Initialize collaborators and configuration required by this component."""
         self.calls = []
         self.record = SimpleNamespace(fornecedor_id=3, result_summary={"created": 1})
 
     def get_catalog_file_or_404(self, **kwargs):
-        """Execute get_catalog_file_or_404.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Return catalog file or 404 for this workflow."""
         self.calls.append(("get", kwargs))
         return self.record
 
     def mark_processing(self, **kwargs):
-        """Execute mark_processing.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Mark processing for this workflow."""
         self.calls.append(("mark", kwargs))
 
     def ensure_catalog_binary_exists(self, **kwargs):
-        """Execute ensure_catalog_binary_exists.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Ensure catalog binary exists for this workflow."""
         self.calls.append(("ensure", kwargs))
 
     def resolve_mapping(self, **kwargs):
-        """Execute resolve_mapping.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Resolve mapping for this workflow."""
         self.calls.append(("resolve_mapping", kwargs))
         return kwargs.get("mapping") or {"col_1": "Nome Base"}
 
     def build_finalize_command(self, **kwargs):
-        """Execute build_finalize_command.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Build finalize command for this workflow."""
         self.calls.append(("build", kwargs))
         return {"command": kwargs}
 
     async def dispatch_finalize(self, **kwargs):
-        """Execute dispatch_finalize.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Dispatch finalize for this workflow."""
         self.calls.append(("dispatch", kwargs))
 
     def resolve_fornecedor_id(self, **kwargs):
-        """Execute resolve_fornecedor_id.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Resolve fornecedor id for this workflow."""
         self.calls.append(("resolve_fornecedor", kwargs))
         return kwargs["fornecedor_id"]
 
     def resolve_pdf_pages(self, **kwargs):
-        """Execute resolve_pdf_pages.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Resolve pdf pages for this workflow."""
         self.calls.append(("resolve_pages", kwargs))
         return [1, 2, 3]
 
     async def run_finalize_direct(self, **kwargs):
-        """Execute run_finalize_direct.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Run finalize direct for this workflow."""
         self.calls.append(("run_direct", kwargs))
 
 
 class _StatusServiceStub:
-    """Class _StatusServiceStub.
-
-    Encapsulates one responsibility in the backend architecture.
-    """
+    """Represent status service stub and centralize responsibilities for this module."""
     def __init__(self):
-        """Execute __init__.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Initialize collaborators and configuration required by this component."""
         self.calls = []
         self.record = SimpleNamespace(status="DONE", result_summary={"ok": True})
 
     def get_record_or_404(self, **kwargs):
-        """Execute get_record_or_404.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Return record or 404 for this workflow."""
         self.calls.append(("get", kwargs))
         return self.record
 
     def build_simple_status(self, **kwargs):
-        """Execute build_simple_status.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Build simple status for this workflow."""
         self.calls.append(("simple", kwargs))
         return {"status": "DONE", "result_ready": True}
 
     def build_result_response(self, **kwargs):
-        """Execute build_result_response.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Build result response for this workflow."""
         self.calls.append(("result", kwargs))
         return {"created": 1}
 
 
 class _TopLevelFunctionSurface:
 
-    """Class _TopLevelFunctionSurface.
-
-    Encapsulates one responsibility in the backend architecture.
-    """
+    """Represent top level function surface and centralize responsibilities for this module."""
     def test_importar_catalogo_finalizar_dispatches_and_returns_processing():
-        """Execute test_importar_catalogo_finalizar_dispatches_and_returns_processing.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Run test importar catalogo finalizar dispatches and returns processing in this workflow."""
         start = _StartServiceStub()
         status = _StatusServiceStub()
         service = CatalogImportWorkflowService(start_service=start, status_service=status)
@@ -166,10 +111,7 @@ class _TopLevelFunctionSurface:
         assert any(call[0] == "dispatch" for call in start.calls)
 
     def test_importar_catalogo_status_and_result_delegate_to_status_service():
-        """Execute test_importar_catalogo_status_and_result_delegate_to_status_service.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Run test importar catalogo status and result delegate to status service in this workflow."""
         start = _StartServiceStub()
         status = _StatusServiceStub()
         service = CatalogImportWorkflowService(start_service=start, status_service=status)
@@ -192,10 +134,7 @@ class _TopLevelFunctionSurface:
         assert result["created"] == 1
 
     def test_importar_catalogo_finalizar_todas_paginas_runs_direct_and_refreshes():
-        """Execute test_importar_catalogo_finalizar_todas_paginas_runs_direct_and_refreshes.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Run test importar catalogo finalizar todas paginas runs direct and refreshes in this workflow."""
         start = _StartServiceStub()
         status = _StatusServiceStub()
         service = CatalogImportWorkflowService(start_service=start, status_service=status)

@@ -1,7 +1,6 @@
 """Module fornecedor management service.
 
-This module contains backend application/runtime logic and is fully
-documented for maintainability and onboarding.
+Contains backend logic related to fornecedor management service and documents its role in the OOP architecture.
 """
 
 from __future__ import annotations
@@ -22,10 +21,7 @@ class FornecedorManagementService:
         fornecedor_repo: Any,
         historico_repo: Any,
     ) -> None:
-        """Execute __init__.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Initialize collaborators and configuration required by this component."""
         self._models = models
         self._schemas = schemas
         self._fornecedor_repo = fornecedor_repo
@@ -33,10 +29,7 @@ class FornecedorManagementService:
 
     @staticmethod
     def ensure_current_user_identified(*, current_user: Any) -> None:
-        """Execute ensure_current_user_identified.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Ensure current user identified for this workflow."""
         if current_user is None or getattr(current_user, "id", None) is None:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
@@ -52,10 +45,7 @@ class FornecedorManagementService:
         fornecedor_id: int,
         detail: str = "Fornecedor nao encontrado",
     ) -> Any:
-        """Execute get_fornecedor_or_404.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Return fornecedor or 404 for this workflow."""
         fornecedor = self._fornecedor_repo.get_fornecedor(fornecedor_id=fornecedor_id)
         if not fornecedor:
             raise HTTPException(status_code=404, detail=detail)
@@ -63,10 +53,7 @@ class FornecedorManagementService:
 
     @staticmethod
     def ensure_user_access(*, fornecedor: Any, current_user: Any, forbidden_detail: str) -> None:
-        """Execute ensure_user_access.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Ensure user access for this workflow."""
         if not current_user.is_superuser and fornecedor.user_id != current_user.id:
             raise HTTPException(status_code=403, detail=forbidden_detail)
 
@@ -78,10 +65,7 @@ class FornecedorManagementService:
         not_found_detail: str,
         forbidden_detail: str,
     ) -> Any:
-        """Execute resolve_fornecedor_for_user.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Resolve fornecedor for user for this workflow."""
         fornecedor = self.get_fornecedor_or_404(
             fornecedor_id=fornecedor_id,
             detail=not_found_detail,
@@ -100,10 +84,7 @@ class FornecedorManagementService:
         owner_user_id: int,
         new_name: str,
     ) -> None:
-        """Execute ensure_unique_name_on_update.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Ensure unique name on update for this workflow."""
         already_exists = self._fornecedor_repo.exists_fornecedor_with_name_for_user(
             user_id=owner_user_id,
             nome=new_name,
@@ -121,10 +102,7 @@ class FornecedorManagementService:
         fornecedor: Any,
         current_user: Any,
     ) -> Any:
-        """Execute create_fornecedor.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Create fornecedor for this workflow."""
         self.ensure_current_user_identified(current_user=current_user)
         created = self._fornecedor_repo.create_fornecedor(
             fornecedor=fornecedor,
@@ -148,10 +126,7 @@ class FornecedorManagementService:
         limit: int,
         termo_busca: str | None,
     ) -> dict[str, Any]:
-        """Execute list_fornecedores_page.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """List fornecedores page for this workflow."""
         items = self._fornecedor_repo.get_fornecedores_by_user(
             user_id=current_user.id,
             is_admin=current_user.is_superuser,
@@ -179,10 +154,7 @@ class FornecedorManagementService:
         fornecedor_update: Any,
         current_user: Any,
     ) -> Any:
-        """Execute update_fornecedor.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Update fornecedor for this workflow."""
         fornecedor = self.resolve_fornecedor_for_user(
             fornecedor_id=fornecedor_id,
             current_user=current_user,
@@ -216,10 +188,7 @@ class FornecedorManagementService:
         fornecedor_id: int,
         current_user: Any,
     ) -> Any:
-        """Execute get_mapping.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Return mapping for this workflow."""
         fornecedor = self.resolve_fornecedor_for_user(
             fornecedor_id=fornecedor_id,
             current_user=current_user,
@@ -235,10 +204,7 @@ class FornecedorManagementService:
         current_user: Any,
         mapping: Any,
     ) -> Any:
-        """Execute update_mapping.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Update mapping for this workflow."""
         fornecedor = self.resolve_fornecedor_for_user(
             fornecedor_id=fornecedor_id,
             current_user=current_user,
@@ -256,10 +222,7 @@ class FornecedorManagementService:
         fornecedor_id: int,
         current_user: Any,
     ) -> Any:
-        """Execute delete_fornecedor.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Delete fornecedor for this workflow."""
         fornecedor = self.resolve_fornecedor_for_user(
             fornecedor_id=fornecedor_id,
             current_user=current_user,

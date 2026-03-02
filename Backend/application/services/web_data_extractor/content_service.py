@@ -1,7 +1,6 @@
 """Module content service.
 
-This module contains backend application/runtime logic and is fully
-documented for maintainability and onboarding.
+Contains backend logic related to content service and documents its role in the OOP architecture.
 """
 
 from __future__ import annotations
@@ -14,32 +13,20 @@ from Backend.application.services.web_data_extractor.contracts import (
 
 
 class WebDataExtractorContentService:
-    """Class WebDataExtractorContentService.
-
-    Encapsulates one responsibility in the backend architecture.
-    """
+    """Represent web data extractor content service and centralize responsibilities for this module."""
     def __init__(self, port: WebDataExtractorPort) -> None:
-        """Execute __init__.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Initialize collaborators and configuration required by this component."""
         self._port = port
 
     async def coletar_conteudo_pagina_playwright(self, url: str) -> Optional[str]:
-        """Execute coletar_conteudo_pagina_playwright.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Run coletar conteudo pagina playwright in this workflow."""
         return await self._port.coletar_conteudo_pagina_playwright(url=url)
 
     def extrair_texto_principal_com_trafilatura(
         self,
         html_content: str,
     ) -> Optional[str]:
-        """Execute extrair_texto_principal_com_trafilatura.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Run extrair texto principal com trafilatura in this workflow."""
         return self._port.extrair_texto_principal_com_trafilatura(
             html_content=html_content
         )

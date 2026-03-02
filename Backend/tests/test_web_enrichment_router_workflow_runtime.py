@@ -1,7 +1,6 @@
 """Module test web enrichment router workflow runtime.
 
-This module contains backend application/runtime logic and is fully
-documented for maintainability and onboarding.
+Contains backend logic related to test web enrichment router workflow runtime and documents its role in the OOP architecture.
 """
 
 from __future__ import annotations
@@ -16,28 +15,16 @@ from Backend.routers.web_enrichment import WebEnrichmentRequestService
 
 class _TopLevelFunctionSurface:
 
-    """Class _TopLevelFunctionSurface.
-
-    Encapsulates one responsibility in the backend architecture.
-    """
+    """Represent top level function surface and centralize responsibilities for this module."""
     @pytest.mark.asyncio
     async def test_workflow_delega_execucao_task_para_runtime():
-        """Execute test_workflow_delega_execucao_task_para_runtime.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Run test workflow delega execucao task para runtime in this workflow."""
         called = []
     
         class FakeTaskRunner:
-            """Class FakeTaskRunner.
-
-            Encapsulates one responsibility in the backend architecture.
-            """
+            """Represent fake task runner and centralize responsibilities for this module."""
             async def execute(self, **kwargs):
-                """Execute execute.
-
-                This callable is documented to make behavior explicit for readers.
-                """
+                """Run execute in this workflow."""
                 called.append(("task", kwargs))
 
         service = WebEnrichmentRequestService()
@@ -55,28 +42,16 @@ class _TopLevelFunctionSurface:
         assert called[0][1]["termos_busca_override"] == "termo"
 
     def test_workflow_iniciar_enriquecimento_usa_validacao_e_dispatch_do_runtime():
-        """Execute test_workflow_iniciar_enriquecimento_usa_validacao_e_dispatch_do_runtime.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Run test workflow iniciar enriquecimento usa validacao e dispatch do runtime in this workflow."""
         called = []
     
         class FakeStartService:
-            """Class FakeStartService.
-
-            Encapsulates one responsibility in the backend architecture.
-            """
+            """Represent fake start service and centralize responsibilities for this module."""
             def validate_start_preconditions(self, **kwargs):
-                """Execute validate_start_preconditions.
-
-                This callable is documented to make behavior explicit for readers.
-                """
+                """Validate start preconditions for this workflow."""
                 called.append(("validate", kwargs))
             def dispatch_start(self, **kwargs):
-                """Execute dispatch_start.
-
-                This callable is documented to make behavior explicit for readers.
-                """
+                """Dispatch start for this workflow."""
                 called.append(("dispatch", kwargs))
 
         service = WebEnrichmentRequestService()

@@ -1,7 +1,6 @@
 """Module web enrichment processing.
 
-This module contains backend application/runtime logic and is fully
-documented for maintainability and onboarding.
+Contains backend logic related to web enrichment processing and documents its role in the OOP architecture.
 """
 
 from __future__ import annotations
@@ -21,10 +20,7 @@ class WebEnrichmentProcessingUseCase:
     """
 
     def __init__(self, processor: TaskExecutor):
-        """Execute __init__.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Initialize collaborators and configuration required by this component."""
         self._processor = processor
 
     async def execute_command(
@@ -32,10 +28,7 @@ class WebEnrichmentProcessingUseCase:
         *,
         command: WebEnrichmentStartCommand,
     ) -> Any:
-        """Execute execute_command.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Run execute command in this workflow."""
         produto_id = self._require_positive_int(command.produto_id, "produto_id")
         user_id = self._require_positive_int(command.user_id, "user_id")
         termos_busca_override = self._normalize_search_terms(command.termos_busca_override)
@@ -47,10 +40,7 @@ class WebEnrichmentProcessingUseCase:
         )
 
     async def execute(self, **task_kwargs: Any) -> Any:
-        """Execute execute.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Run execute in this workflow."""
         command = WebEnrichmentStartCommand(
             produto_id=task_kwargs.get("produto_id"),
             user_id=task_kwargs.get("user_id"),
@@ -62,10 +52,7 @@ class WebEnrichmentProcessingUseCase:
 
     @staticmethod
     def _require_positive_int(raw_value: Any, field_name: str) -> int:
-        """Execute _require_positive_int.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Run require positive int in this workflow."""
         try:
             value = int(raw_value)
         except (TypeError, ValueError):
@@ -76,10 +63,7 @@ class WebEnrichmentProcessingUseCase:
 
     @staticmethod
     def _normalize_search_terms(raw_terms: Any) -> Optional[str]:
-        """Execute _normalize_search_terms.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Run normalize search terms in this workflow."""
         if raw_terms is None:
             return None
         text = str(raw_terms).strip()

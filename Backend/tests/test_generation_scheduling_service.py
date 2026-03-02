@@ -1,7 +1,6 @@
 """Module test generation scheduling service.
 
-This module contains backend application/runtime logic and is fully
-documented for maintainability and onboarding.
+Contains backend logic related to test generation scheduling service and documents its role in the OOP architecture.
 """
 
 from __future__ import annotations
@@ -17,97 +16,55 @@ from Backend.application.services.generation_scheduling_service import (
 
 
 class _CrudProdutosStub:
-    """Class _CrudProdutosStub.
-
-    Encapsulates one responsibility in the backend architecture.
-    """
+    """Represent crud produtos stub and centralize responsibilities for this module."""
     def __init__(self, produto=None):
-        """Execute __init__.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Initialize collaborators and configuration required by this component."""
         self.produto = produto
         self.updated = []
 
     def get_produto(self, *, produto_id: int):
-        """Execute get_produto.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Return produto for this workflow."""
         _ = produto_id
         return self.produto
 
     def update_produto(self, *, db_produto, produto_update):
-        """Execute update_produto.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Update produto for this workflow."""
         self.updated.append((db_produto, produto_update))
         return db_produto
 
 
 class _SchemasStub:
-    """Class _SchemasStub.
-
-    Encapsulates one responsibility in the backend architecture.
-    """
+    """Represent schemas stub and centralize responsibilities for this module."""
     class ProdutoUpdate:
-        """Class ProdutoUpdate.
-
-        Encapsulates one responsibility in the backend architecture.
-        """
+        """Represent produto update and centralize responsibilities for this module."""
         def __init__(self, **kwargs):
-            """Execute __init__.
-
-            This callable is documented to make behavior explicit for readers.
-            """
+            """Initialize collaborators and configuration required by this component."""
             self.payload = kwargs
 
 
 class _ModelsStub:
-    """Class _ModelsStub.
-
-    Encapsulates one responsibility in the backend architecture.
-    """
+    """Represent models stub and centralize responsibilities for this module."""
     class StatusGeracaoIAEnum:
-        """Class StatusGeracaoIAEnum.
-
-        Encapsulates one responsibility in the backend architecture.
-        """
+        """Represent status geracao i a enum and centralize responsibilities for this module."""
         PENDENTE = "PENDENTE"
 
 
 class _BackgroundTasksStub:
-    """Class _BackgroundTasksStub.
-
-    Encapsulates one responsibility in the backend architecture.
-    """
+    """Represent background tasks stub and centralize responsibilities for this module."""
     def __init__(self):
-        """Execute __init__.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Initialize collaborators and configuration required by this component."""
         self.calls = []
 
     def add_task(self, task_executor, **kwargs):
-        """Execute add_task.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Run add task in this workflow."""
         self.calls.append((task_executor, kwargs))
 
 
 class _TopLevelFunctionSurface:
 
-    """Class _TopLevelFunctionSurface.
-
-    Encapsulates one responsibility in the backend architecture.
-    """
+    """Represent top level function surface and centralize responsibilities for this module."""
     def _build_service(produto=None):
-        """Execute _build_service.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Run build service in this workflow."""
         crud_stub = _CrudProdutosStub(produto=produto)
         service = GenerationSchedulingService(
             schemas=_SchemasStub,
@@ -117,10 +74,7 @@ class _TopLevelFunctionSurface:
         return service, crud_stub
 
     def test_validate_product_access_not_found():
-        """Execute test_validate_product_access_not_found.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Run test validate product access not found in this workflow."""
         service, _ = _build_service(produto=None)
         user = SimpleNamespace(id=1, is_superuser=False)
     
@@ -133,10 +87,7 @@ class _TopLevelFunctionSurface:
         assert exc.value.status_code == 404
 
     def test_validate_product_access_forbidden():
-        """Execute test_validate_product_access_forbidden.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Run test validate product access forbidden in this workflow."""
         produto = SimpleNamespace(user_id=2)
         service, _ = _build_service(produto=produto)
         user = SimpleNamespace(id=1, is_superuser=False)
@@ -150,10 +101,7 @@ class _TopLevelFunctionSurface:
         assert exc.value.status_code == 403
 
     def test_validate_product_access_success():
-        """Execute test_validate_product_access_success.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Run test validate product access success in this workflow."""
         produto = SimpleNamespace(user_id=1)
         service, _ = _build_service(produto=produto)
         user = SimpleNamespace(id=1, is_superuser=False)
@@ -166,10 +114,7 @@ class _TopLevelFunctionSurface:
         assert result is produto
 
     def test_mark_pending_status_updates_expected_field():
-        """Execute test_mark_pending_status_updates_expected_field.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Run test mark pending status updates expected field in this workflow."""
         produto = SimpleNamespace(user_id=1)
         service, crud_stub = _build_service(produto=produto)
     
@@ -183,18 +128,12 @@ class _TopLevelFunctionSurface:
         assert produto_update.payload == {"status_titulo_ia": "PENDENTE"}
 
     def test_enqueue_generation_task_forwards_expected_kwargs():
-        """Execute test_enqueue_generation_task_forwards_expected_kwargs.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Run test enqueue generation task forwards expected kwargs in this workflow."""
         service, _ = _build_service(produto=SimpleNamespace(user_id=1))
         background_tasks = _BackgroundTasksStub()
     
         def _executor(**kwargs):
-            """Execute _executor.
-
-            This callable is documented to make behavior explicit for readers.
-            """
+            """Run executor in this workflow."""
             return kwargs
     
         service.enqueue_generation_task(

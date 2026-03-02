@@ -79,52 +79,34 @@ class AuthRuntime:
         session: Optional[Session] = None,
         user_repository: Optional[UserRepository] = None,
     ) -> None:
-        """Execute __init__.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Initialize collaborators and configuration required by this component."""
         self._session = session
         self._user_repository = user_repository or (
             UserRepository(session) if session is not None else None
         )
 
     def _require_user_repository(self) -> UserRepository:
-        """Execute _require_user_repository.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Run require user repository in this workflow."""
         if self._user_repository is None:
             raise RuntimeError("AuthRuntime requires a session-bound UserRepository.")
         return self._user_repository
 
     def _require_session(self) -> Session:
-        """Execute _require_session.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Run require session in this workflow."""
         if self._session is None:
             raise RuntimeError("AuthRuntime requires a session for write operations.")
         return self._session
 
     def verify_password(self, plain_password: str, hashed_password: str) -> bool:
-        """Execute verify_password.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Run verify password in this workflow."""
         return pwd_context.verify(plain_password, hashed_password)
 
     def get_password_hash(self, password: str) -> str:
-        """Execute get_password_hash.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Return password hash for this workflow."""
         return pwd_context.hash(password)
 
     def create_access_token(self, data: dict, expires_delta: Optional[timedelta] = None) -> str:
-        """Execute create_access_token.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Create access token for this workflow."""
         to_encode = data.copy()
         expire = (
             datetime.now(timezone.utc) + expires_delta
@@ -136,10 +118,7 @@ class AuthRuntime:
         return jwt.encode(to_encode, settings.SECRET_KEY, algorithm=settings.ALGORITHM)
 
     def create_refresh_token(self, data: dict, expires_delta: Optional[timedelta] = None) -> str:
-        """Execute create_refresh_token.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Create refresh token for this workflow."""
         to_encode = data.copy()
         expire = (
             datetime.now(timezone.utc) + expires_delta
@@ -151,31 +130,19 @@ class AuthRuntime:
         return jwt.encode(to_encode, settings.REFRESH_SECRET_KEY, algorithm=settings.ALGORITHM)
 
     def create_password_reset_token(self) -> str:
-        """Execute create_password_reset_token.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Create password reset token for this workflow."""
         return secrets.token_urlsafe(32)
 
     def hash_password_reset_token(self, token: str) -> str:
-        """Execute hash_password_reset_token.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Run hash password reset token in this workflow."""
         return hashlib.sha256(token.encode()).hexdigest()
 
     def verify_password_reset_token(self, token: str, token_hash: str) -> bool:
-        """Execute verify_password_reset_token.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Run verify password reset token in this workflow."""
         return self.hash_password_reset_token(token=token) == token_hash
 
     def authenticate_user(self, email: str, password: str) -> Optional[models.User]:
-        """Execute authenticate_user.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Run authenticate user in this workflow."""
         user = self._require_user_repository().get_user_by_email(email=email)
         if not user:
             return None
@@ -186,10 +153,7 @@ class AuthRuntime:
         return user
 
     async def get_current_user(self, token: str) -> models.User:
-        """Execute get_current_user.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Return current user for this workflow."""
         credentials_exception = HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Nao foi possivel validar as credenciais",
@@ -212,19 +176,13 @@ class AuthRuntime:
 
     @staticmethod
     def get_current_active_user(current_user: models.User) -> models.User:
-        """Execute get_current_active_user.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Return current active user for this workflow."""
         if not current_user.is_active:
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Usuario inativo")
         return current_user
 
     async def login_for_access_token(self, form_data: OAuth2PasswordRequestForm) -> Dict[str, str]:
-        """Execute login_for_access_token.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Run login for access token in this workflow."""
         user = self.authenticate_user(email=form_data.username, password=form_data.password)
         if not user:
             raise HTTPException(
@@ -243,10 +201,7 @@ class AuthRuntime:
         return {"access_token": access_token, "refresh_token": refresh_token, "token_type": "bearer"}
 
     async def refresh_access_token(self, refresh_token_data: schemas.RefreshTokenRequest) -> Dict[str, str]:
-        """Execute refresh_access_token.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Run refresh access token in this workflow."""
         token = refresh_token_data.refresh_token
         credentials_exception = HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -276,10 +231,7 @@ class AuthRuntime:
         user_update: schemas.UserUpdate,
         current_user: models.User,
     ) -> models.User:
-        """Execute update_users_me.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Update users me for this workflow."""
         update_data = user_update.model_dump(exclude_unset=True)
         if "password" in update_data:
             raise HTTPException(
@@ -304,10 +256,7 @@ class AuthRuntime:
         payload: schemas.UserChangePassword,
         current_user: models.User,
     ) -> Dict[str, str]:
-        """Execute change_password_me.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Run change password me in this workflow."""
         if not current_user.hashed_password or not self.verify_password(
             payload.current_password,
             current_user.hashed_password,
@@ -332,10 +281,7 @@ class AuthRuntime:
         provider: str,
         provider_user_id: str,
     ) -> Optional[models.User]:
-        """Execute _get_or_create_social_user.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Run get or create social user in this workflow."""
         user_repo = self._require_user_repository()
         session = self._require_session()
         db_user = user_repo.get_user_by_email(email=email)
@@ -374,10 +320,7 @@ class AuthRuntime:
         return created_user
 
     async def process_google_login(self, google_userinfo: Dict[str, Any]) -> Optional[models.User]:
-        """Execute process_google_login.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Process google login for this workflow."""
         email = google_userinfo.get("email")
         if not email:
             logger.error("Email do Google nao encontrado nas informacoes do usuario.")
@@ -405,10 +348,7 @@ class AuthRuntime:
         )
 
     async def process_facebook_login(self, facebook_userinfo: Dict[str, Any]) -> Optional[models.User]:
-        """Execute process_facebook_login.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Process facebook login for this workflow."""
         email = facebook_userinfo.get("email")
         if not email:
             logger.error(
@@ -442,95 +382,56 @@ class AuthWorkflow:
         session: Optional[Session] = None,
         runtime: Optional[AuthRuntime] = None,
     ) -> None:
-        """Execute __init__.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Initialize collaborators and configuration required by this component."""
         self._runtime = runtime or AuthRuntime(session=session)
 
     def verify_password(self, plain_password: str, hashed_password: str) -> bool:
-        """Execute verify_password.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Run verify password in this workflow."""
         return self._runtime.verify_password(plain_password=plain_password, hashed_password=hashed_password)
 
     def get_password_hash(self, password: str) -> str:
-        """Execute get_password_hash.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Return password hash for this workflow."""
         return self._runtime.get_password_hash(password=password)
 
     def create_access_token(self, data: dict, expires_delta: Optional[timedelta] = None) -> str:
-        """Execute create_access_token.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Create access token for this workflow."""
         return self._runtime.create_access_token(data=data, expires_delta=expires_delta)
 
     def create_refresh_token(self, data: dict, expires_delta: Optional[timedelta] = None) -> str:
-        """Execute create_refresh_token.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Create refresh token for this workflow."""
         return self._runtime.create_refresh_token(data=data, expires_delta=expires_delta)
 
     def create_password_reset_token(self) -> str:
-        """Execute create_password_reset_token.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Create password reset token for this workflow."""
         return self._runtime.create_password_reset_token()
 
     def hash_password_reset_token(self, token: str) -> str:
-        """Execute hash_password_reset_token.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Run hash password reset token in this workflow."""
         return self._runtime.hash_password_reset_token(token=token)
 
     def verify_password_reset_token(self, token: str, token_hash: str) -> bool:
-        """Execute verify_password_reset_token.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Run verify password reset token in this workflow."""
         return self._runtime.verify_password_reset_token(token=token, token_hash=token_hash)
 
     def authenticate_user(self, email: str, password: str) -> Optional[models.User]:
-        """Execute authenticate_user.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Run authenticate user in this workflow."""
         return self._runtime.authenticate_user(email=email, password=password)
 
     async def get_current_user(self, token: str) -> models.User:
-        """Execute get_current_user.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Return current user for this workflow."""
         return await self._runtime.get_current_user(token=token)
 
     @staticmethod
     def get_current_active_user(current_user: models.User) -> models.User:
-        """Execute get_current_active_user.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Return current active user for this workflow."""
         return AuthRuntime.get_current_active_user(current_user=current_user)
 
     async def login_for_access_token(self, form_data: OAuth2PasswordRequestForm) -> Dict[str, str]:
-        """Execute login_for_access_token.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Run login for access token in this workflow."""
         return await self._runtime.login_for_access_token(form_data=form_data)
 
     async def refresh_access_token(self, refresh_token_data: schemas.RefreshTokenRequest) -> Dict[str, str]:
-        """Execute refresh_access_token.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Run refresh access token in this workflow."""
         return await self._runtime.refresh_access_token(refresh_token_data=refresh_token_data)
 
     async def update_users_me(
@@ -538,10 +439,7 @@ class AuthWorkflow:
         user_update: schemas.UserUpdate,
         current_user: models.User,
     ) -> models.User:
-        """Execute update_users_me.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Update users me for this workflow."""
         return await self._runtime.update_users_me(user_update=user_update, current_user=current_user)
 
     async def change_password_me(
@@ -549,24 +447,15 @@ class AuthWorkflow:
         payload: schemas.UserChangePassword,
         current_user: models.User,
     ) -> Dict[str, str]:
-        """Execute change_password_me.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Run change password me in this workflow."""
         return await self._runtime.change_password_me(payload=payload, current_user=current_user)
 
     async def process_google_login(self, google_userinfo: Dict[str, Any]) -> Optional[models.User]:
-        """Execute process_google_login.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Process google login for this workflow."""
         return await self._runtime.process_google_login(google_userinfo=google_userinfo)
 
     async def process_facebook_login(self, facebook_userinfo: Dict[str, Any]) -> Optional[models.User]:
-        """Execute process_facebook_login.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Process facebook login for this workflow."""
         return await self._runtime.process_facebook_login(facebook_userinfo=facebook_userinfo)
 
 
@@ -574,31 +463,19 @@ class _AuthRequestScope:
     """Escopo request-scoped para operacoes de autenticacao HTTP."""
 
     def __init__(self, *, session: Session) -> None:
-        """Execute __init__.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Initialize collaborators and configuration required by this component."""
         self._workflow = AuthWorkflow(session=session)
 
     async def get_current_user(self, *, token: str) -> models.User:
-        """Execute get_current_user.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Return current user for this workflow."""
         return await self._workflow.get_current_user(token=token)
 
     async def login_for_access_token(self, *, form_data: OAuth2PasswordRequestForm):
-        """Execute login_for_access_token.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Run login for access token in this workflow."""
         return await self._workflow.login_for_access_token(form_data=form_data)
 
     async def refresh_access_token(self, *, refresh_token_data: schemas.RefreshTokenRequest):
-        """Execute refresh_access_token.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Run refresh access token in this workflow."""
         return await self._workflow.refresh_access_token(refresh_token_data=refresh_token_data)
 
     async def update_users_me(
@@ -607,10 +484,7 @@ class _AuthRequestScope:
         user_update: schemas.UserUpdate,
         current_user: models.User,
     ) -> models.User:
-        """Execute update_users_me.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Update users me for this workflow."""
         return await self._workflow.update_users_me(user_update=user_update, current_user=current_user)
 
     async def change_password_me(
@@ -619,10 +493,7 @@ class _AuthRequestScope:
         payload: schemas.UserChangePassword,
         current_user: models.User,
     ) -> Dict[str, str]:
-        """Execute change_password_me.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Run change password me in this workflow."""
         return await self._workflow.change_password_me(payload=payload, current_user=current_user)
 
 
@@ -633,10 +504,7 @@ _build_auth_request_scope = ServiceContainerDependencySupport.build_request_scop
 
 class _AuthDependencies:
 
-    """Class _AuthDependencies.
-
-    Encapsulates one responsibility in the backend architecture.
-    """
+    """Represent auth dependencies and centralize responsibilities for this module."""
     @staticmethod
     async def get_current_user(
         token: str = Depends(oauth2_scheme),
@@ -648,10 +516,7 @@ class _AuthDependencies:
 
 class _AuthActiveUserDependency:
 
-    """Class _AuthActiveUserDependency.
-
-    Encapsulates one responsibility in the backend architecture.
-    """
+    """Represent auth active user dependency and centralize responsibilities for this module."""
     @staticmethod
     async def get_current_active_user(
         current_user: models.User = Depends(_AuthDependencies.get_current_user),
@@ -662,10 +527,7 @@ class _AuthActiveUserDependency:
 
 class _EndpointHandlers:
 
-    """Class _EndpointHandlers.
-
-    Encapsulates one responsibility in the backend architecture.
-    """
+    """Represent endpoint handlers and centralize responsibilities for this module."""
     @router.post("/token", response_model=schemas.Token)
     async def login_for_access_token(
         form_data: OAuth2PasswordRequestForm = Depends(),

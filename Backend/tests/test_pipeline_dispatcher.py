@@ -1,7 +1,6 @@
 """Module test pipeline dispatcher.
 
-This module contains backend application/runtime logic and is fully
-documented for maintainability and onboarding.
+Contains backend logic related to test pipeline dispatcher and documents its role in the OOP architecture.
 """
 
 from __future__ import annotations
@@ -15,41 +14,26 @@ from Backend.application.services.pipeline_dispatcher import PipelineDispatcher
 
 class _TopLevelFunctionSurface:
 
-    """Class _TopLevelFunctionSurface.
-
-    Encapsulates one responsibility in the backend architecture.
-    """
+    """Represent top level function surface and centralize responsibilities for this module."""
     async def _dummy_executor(**kwargs):
-        """Execute _dummy_executor.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Run dummy executor in this workflow."""
         return kwargs
 
     def test_should_run_inline_for_tests_with_sync_flag(monkeypatch):
-        """Execute test_should_run_inline_for_tests_with_sync_flag.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Run test should run inline for tests with sync flag in this workflow."""
         monkeypatch.delenv("PYTEST_CURRENT_TEST", raising=False)
         monkeypatch.setenv("CATALOG_IMPORT_TEST_SYNC", "1")
         assert PipelineDispatcher.should_run_inline_for_tests("CATALOG_IMPORT_TEST_SYNC")
 
     def test_should_not_run_inline_when_no_flags(monkeypatch):
-        """Execute test_should_not_run_inline_when_no_flags.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Run test should not run inline when no flags in this workflow."""
         monkeypatch.delenv("PYTEST_CURRENT_TEST", raising=False)
         monkeypatch.delenv("CATALOG_IMPORT_TEST_SYNC", raising=False)
         assert not PipelineDispatcher.should_run_inline_for_tests("CATALOG_IMPORT_TEST_SYNC")
 
     @pytest.mark.asyncio
     async def test_run_inline_executes_plan():
-        """Execute test_run_inline_executes_plan.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Run test run inline executes plan in this workflow."""
         plan = TaskExecutionPlan(
             name="test.run_inline",
             executor_name="dummy",
@@ -59,10 +43,7 @@ class _TopLevelFunctionSurface:
         await PipelineDispatcher.run_inline(plan)
 
     def test_dispatch_background_schedules_task():
-        """Execute test_dispatch_background_schedules_task.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Run test dispatch background schedules task in this workflow."""
         plan = TaskExecutionPlan(
             name="test.background",
             executor_name="dummy",

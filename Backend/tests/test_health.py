@@ -1,7 +1,6 @@
 """Module test health.
 
-This module contains backend application/runtime logic and is fully
-documented for maintainability and onboarding.
+Contains backend logic related to test health and documents its role in the OOP architecture.
 """
 
 import pytest
@@ -14,15 +13,9 @@ client = TestClient(app)
 
 class _TopLevelFunctionSurface:
 
-    """Class _TopLevelFunctionSurface.
-
-    Encapsulates one responsibility in the backend architecture.
-    """
+    """Represent top level function surface and centralize responsibilities for this module."""
     def test_health_endpoint():
-        """Execute test_health_endpoint.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Run test health endpoint in this workflow."""
         response = client.get('/health')
         assert response.status_code == 200
         assert response.json() == {'status': 'ok'}

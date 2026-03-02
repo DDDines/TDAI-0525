@@ -1,7 +1,6 @@
 """Module test catalog import file service.
 
-This module contains backend application/runtime logic and is fully
-documented for maintainability and onboarding.
+Contains backend logic related to test catalog import file service and documents its role in the OOP architecture.
 """
 
 from __future__ import annotations
@@ -18,153 +17,93 @@ from Backend.application.services.catalog_import_file_service import (
 
 
 class _CatalogImportFileModel:
-    """Class _CatalogImportFileModel.
-
-    Encapsulates one responsibility in the backend architecture.
-    """
+    """Represent catalog import file model and centralize responsibilities for this module."""
     user_id = object()
     fornecedor_id = object()
     created_at = SimpleNamespace(desc=lambda: object())
 
 
 class _ModelsStub:
-    """Class _ModelsStub.
-
-    Encapsulates one responsibility in the backend architecture.
-    """
+    """Represent models stub and centralize responsibilities for this module."""
     CatalogImportFile = _CatalogImportFileModel
 
 
 class _CatalogFileRepoStub:
-    """Class _CatalogFileRepoStub.
-
-    Encapsulates one responsibility in the backend architecture.
-    """
+    """Represent catalog file repo stub and centralize responsibilities for this module."""
     def __init__(self, *, items=None, first_record=None):
-        """Execute __init__.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Initialize collaborators and configuration required by this component."""
         self._items = items or []
         self._first_record = first_record
         self.deleted = []
 
     def list_catalog_files_for_user(self, *, user_id: int, fornecedor_id: int | None, skip: int, limit: int):
-        """Execute list_catalog_files_for_user.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """List catalog files for user for this workflow."""
         _ = (user_id, fornecedor_id, skip, limit)
         return self._items, len(self._items)
 
     def get_catalog_file_for_user(self, *, file_id: int, user_id: int):
-        """Execute get_catalog_file_for_user.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Return catalog file for user for this workflow."""
         _ = (file_id, user_id)
         return self._first_record
 
     def delete_catalog_file(self, *, catalog_file):
-        """Execute delete_catalog_file.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Delete catalog file for this workflow."""
         self.deleted.append(catalog_file)
         return None
 
 
 class _FileProcessingStub:
-    """Class _FileProcessingStub.
-
-    Encapsulates one responsibility in the backend architecture.
-    """
+    """Represent file processing stub and centralize responsibilities for this module."""
     def __init__(self):
-        """Execute __init__.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Initialize collaborators and configuration required by this component."""
         self.deleted_files = []
 
     def delete_catalog_file(self, stored_filename):
-        """Execute delete_catalog_file.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Delete catalog file for this workflow."""
         self.deleted_files.append(stored_filename)
 
 
 class _CatalogImportStartServiceStub:
-    """Class _CatalogImportStartServiceStub.
-
-    Encapsulates one responsibility in the backend architecture.
-    """
+    """Represent catalog import start service stub and centralize responsibilities for this module."""
     def __init__(self):
-        """Execute __init__.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Initialize collaborators and configuration required by this component."""
         self.calls = []
         self.catalog_file = SimpleNamespace(id=77, fornecedor_id=3)
 
     def get_catalog_file_or_404(self, **kwargs):
-        """Execute get_catalog_file_or_404.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Return catalog file or 404 for this workflow."""
         self.calls.append(("get_catalog_file_or_404", kwargs))
         return self.catalog_file
 
     def resolve_fornecedor_id(self, **kwargs):
-        """Execute resolve_fornecedor_id.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Resolve fornecedor id for this workflow."""
         self.calls.append(("resolve_fornecedor_id", kwargs))
         return kwargs.get("fornecedor_id") or self.catalog_file.fornecedor_id
 
     def mark_processing(self, **kwargs):
-        """Execute mark_processing.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Mark processing for this workflow."""
         self.calls.append(("mark_processing", kwargs))
 
     def resolve_mapping(self, **kwargs):
-        """Execute resolve_mapping.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Resolve mapping for this workflow."""
         self.calls.append(("resolve_mapping", kwargs))
         return kwargs.get("mapping") or {"col_0": "nome_base"}
 
     def build_finalize_command(self, **kwargs):
-        """Execute build_finalize_command.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Build finalize command for this workflow."""
         self.calls.append(("build_finalize_command", kwargs))
         return SimpleNamespace(**kwargs)
 
     async def dispatch_finalize(self, **kwargs):
-        """Execute dispatch_finalize.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Dispatch finalize for this workflow."""
         self.calls.append(("dispatch_finalize", kwargs))
 
 
 class _TopLevelFunctionSurface:
 
-    """Class _TopLevelFunctionSurface.
-
-    Encapsulates one responsibility in the backend architecture.
-    """
+    """Represent top level function surface and centralize responsibilities for this module."""
     def _build_service(*, catalog_file_repo=None, fornecedor_repo=None):
-        """Execute _build_service.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Run build service in this workflow."""
         file_processing = _FileProcessingStub()
         start_service = _CatalogImportStartServiceStub()
         catalog_file_repo = catalog_file_repo or _CatalogFileRepoStub()
@@ -179,10 +118,7 @@ class _TopLevelFunctionSurface:
         return service, file_processing, start_service, catalog_file_repo, fornecedor_repo
 
     def test_list_user_files_builds_page_payload():
-        """Execute test_list_user_files_builds_page_payload.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Run test list user files builds page payload in this workflow."""
         repo = _CatalogFileRepoStub(items=[SimpleNamespace(id=1), SimpleNamespace(id=2)])
         service, _, _, _, _ = _build_service(catalog_file_repo=repo)
     
@@ -199,10 +135,7 @@ class _TopLevelFunctionSurface:
         assert payload["limit"] == 10
 
     def test_get_user_file_or_404_raises_when_missing():
-        """Execute test_get_user_file_or_404_raises_when_missing.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Run test get user file or 404 raises when missing in this workflow."""
         repo = _CatalogFileRepoStub(first_record=None)
         service, _, _, _, _ = _build_service(catalog_file_repo=repo)
     
@@ -212,10 +145,7 @@ class _TopLevelFunctionSurface:
         assert exc.value.status_code == 404
 
     def test_delete_user_file_deletes_binary_and_record():
-        """Execute test_delete_user_file_deletes_binary_and_record.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Run test delete user file deletes binary and record in this workflow."""
         record = SimpleNamespace(id=7, stored_filename="abc.pdf")
         repo = _CatalogFileRepoStub(first_record=record)
         service, file_processing, _, _, _ = _build_service(catalog_file_repo=repo)
@@ -227,10 +157,7 @@ class _TopLevelFunctionSurface:
         assert repo.deleted == [record]
 
     def test_reprocess_catalog_file_dispatches_finalize():
-        """Execute test_reprocess_catalog_file_dispatches_finalize.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Run test reprocess catalog file dispatches finalize in this workflow."""
         catalog_repo = _CatalogFileRepoStub(first_record=SimpleNamespace(id=99))
         service, _, start_service, _, _ = _build_service(
             catalog_file_repo=catalog_repo,

@@ -26,10 +26,7 @@ class SearchRequestService:
         self,
         session: Session = Depends(ServiceContainerDependencySupport.get_request_db_session),
     ) -> None:
-        """Execute __init__.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Initialize collaborators and configuration required by this component."""
         self._session = session
 
     def search_all(
@@ -39,10 +36,7 @@ class SearchRequestService:
         q: Optional[str],
         limit: int,
     ) -> schemas.SearchResults:
-        """Execute search_all.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Run search all in this workflow."""
         results_items: List[Tuple] = []
         term = f"%{q.lower()}%" if q else None
 
@@ -134,8 +128,5 @@ def search_all(
         auth_utils._AuthUtilsActiveUserDependency.get_current_active_user
     ),
 ):
-    """Execute search_all.
-
-    This callable is documented to make behavior explicit for readers.
-    """
+    """Run search all in this workflow."""
     return request_service.search_all(current_user=current_user, q=q, limit=limit)

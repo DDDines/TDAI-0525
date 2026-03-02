@@ -1,7 +1,6 @@
 """Module test web data extractor metadata runtime.
 
-This module contains backend application/runtime logic and is fully
-documented for maintainability and onboarding.
+Contains backend logic related to test web data extractor metadata runtime and documents its role in the OOP architecture.
 """
 
 from __future__ import annotations
@@ -11,15 +10,9 @@ from Backend.testing.runtime_apis import web_extractor
 
 class _TopLevelFunctionSurface:
 
-    """Class _TopLevelFunctionSurface.
-
-    Encapsulates one responsibility in the backend architecture.
-    """
+    """Represent top level function surface and centralize responsibilities for this module."""
     def test_metadata_runtime_limpa_strings_e_listas():
-        """Execute test_metadata_runtime_limpa_strings_e_listas.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Run test metadata runtime limpa strings e listas in this workflow."""
         runtime = web_extractor.MetadataExtractionRuntime()
     
         cleaned = runtime.limpar_valor_metadado(["  a  ", None, "  b   c  "])
@@ -27,10 +20,7 @@ class _TopLevelFunctionSurface:
         assert cleaned == ["a", "b c"]
 
     def test_metadata_runtime_normaliza_json_ld_preferencial():
-        """Execute test_metadata_runtime_normaliza_json_ld_preferencial.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Run test metadata runtime normaliza json ld preferencial in this workflow."""
         runtime = web_extractor.MetadataExtractionRuntime()
         metadata = {
             "json-ld_product_candidate": {
@@ -59,10 +49,7 @@ class _TopLevelFunctionSurface:
         assert result["disponibilidade"] == "InStock"
 
     def test_metadata_runtime_fallback_para_opengraph():
-        """Execute test_metadata_runtime_fallback_para_opengraph.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Run test metadata runtime fallback para opengraph in this workflow."""
         runtime = web_extractor.MetadataExtractionRuntime()
         metadata = {
             "opengraph": {

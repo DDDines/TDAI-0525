@@ -1,7 +1,6 @@
 """Module catalog import processing.
 
-This module contains backend application/runtime logic and is fully
-documented for maintainability and onboarding.
+Contains backend logic related to catalog import processing and documents its role in the OOP architecture.
 """
 
 from __future__ import annotations
@@ -21,10 +20,7 @@ class CatalogImportProcessingUseCase:
     """
 
     def __init__(self, processor: TaskExecutor):
-        """Execute __init__.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Initialize collaborators and configuration required by this component."""
         self._processor = processor
 
     async def execute_command(
@@ -32,10 +28,7 @@ class CatalogImportProcessingUseCase:
         *,
         command: CatalogImportFinalizeCommand,
     ) -> Any:
-        """Execute execute_command.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Run execute command in this workflow."""
         file_id = self._require_positive_int(command.file_id, "file_id")
         user_id = self._require_positive_int(command.user_id, "user_id")
         fornecedor_id = self._require_positive_int(command.fornecedor_id, "fornecedor_id")
@@ -61,10 +54,7 @@ class CatalogImportProcessingUseCase:
         )
 
     async def execute(self, **task_kwargs: Any) -> Any:
-        """Execute execute.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Run execute in this workflow."""
         command = CatalogImportFinalizeCommand(
             file_id=task_kwargs.get("file_id"),
             user_id=task_kwargs.get("user_id"),
@@ -80,10 +70,7 @@ class CatalogImportProcessingUseCase:
 
     @staticmethod
     def _require_positive_int(raw_value: Any, field_name: str) -> int:
-        """Execute _require_positive_int.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Run require positive int in this workflow."""
         try:
             value = int(raw_value)
         except (TypeError, ValueError):
@@ -94,10 +81,7 @@ class CatalogImportProcessingUseCase:
 
     @classmethod
     def _normalize_mapping(cls, raw_mapping: Any) -> Optional[Dict[str, str]]:
-        """Execute _normalize_mapping.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Run normalize mapping in this workflow."""
         if raw_mapping is None:
             return None
         if not isinstance(raw_mapping, dict):
@@ -115,10 +99,7 @@ class CatalogImportProcessingUseCase:
 
     @classmethod
     def _normalize_pages(cls, raw_pages: Any) -> Optional[List[int]]:
-        """Execute _normalize_pages.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Run normalize pages in this workflow."""
         if raw_pages is None:
             return None
         if not isinstance(raw_pages, list):
@@ -136,10 +117,7 @@ class CatalogImportProcessingUseCase:
 
     @staticmethod
     def _normalize_region(raw_region: Any) -> Optional[List[float]]:
-        """Execute _normalize_region.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Run normalize region in this workflow."""
         if raw_region is None:
             return None
         if not isinstance(raw_region, list):

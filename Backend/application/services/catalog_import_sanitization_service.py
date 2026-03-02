@@ -1,7 +1,6 @@
 """Module catalog import sanitization service.
 
-This module contains backend application/runtime logic and is fully
-documented for maintainability and onboarding.
+Contains backend logic related to catalog import sanitization service and documents its role in the OOP architecture.
 """
 
 from __future__ import annotations
@@ -19,36 +18,24 @@ class CatalogImportSanitizationService:
     """Centraliza normalizacao/sanitizacao textual da importacao de catalogo."""
 
     def __init__(self, quality_service: CatalogImportQualityService) -> None:
-        """Execute __init__.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Initialize collaborators and configuration required by this component."""
         self._quality = quality_service
 
     @staticmethod
     def _marker_count(candidate: str) -> int:
-        """Execute _marker_count.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Run marker count in this workflow."""
         return sum(
             candidate.count(ch)
             for ch in ("\u00c3", "\u00c2", "\u00e2", "\u0192", "\ufffd")
         )
 
     def _looks_mojibake(self, candidate: str) -> bool:
-        """Execute _looks_mojibake.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Run looks mojibake in this workflow."""
         return self._marker_count(candidate) > 0 or "??" in candidate
 
     @staticmethod
     def _decode_maybe(candidate: str, source_encoding: str) -> str:
-        """Execute _decode_maybe.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Run decode maybe in this workflow."""
         try:
             return candidate.encode(source_encoding).decode("utf-8")
         except Exception:
@@ -192,10 +179,7 @@ class CatalogImportSanitizationService:
 
     @staticmethod
     def is_non_critical_import_reason(reason: str) -> bool:
-        """Execute is_non_critical_import_reason.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Run is non critical import reason in this workflow."""
         reason_norm = str(reason or "").strip().lower()
         if not reason_norm:
             return False

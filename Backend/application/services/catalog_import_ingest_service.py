@@ -1,7 +1,6 @@
 """Module catalog import ingest service.
 
-This module contains backend application/runtime logic and is fully
-documented for maintainability and onboarding.
+Contains backend logic related to catalog import ingest service and documents its role in the OOP architecture.
 """
 
 from __future__ import annotations
@@ -32,10 +31,7 @@ class CatalogImportIngestService:
         uso_ia_repo: Any,
         historico_repo: Any,
     ) -> None:
-        """Execute __init__.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Initialize collaborators and configuration required by this component."""
         self._schemas = schemas
         self._models = models
         self._fornecedor_repo = fornecedor_repo
@@ -57,10 +53,7 @@ class CatalogImportIngestService:
         erros: List[Dict[str, Any]],
         ignored_non_critical: List[Dict[str, Any]],
     ) -> None:
-        """Execute _append_import_issue.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Run append import issue in this workflow."""
         normalized_item = self._normalize_import_issue_item(item)
         reason = self._extract_import_error_reason(normalized_item)
         if self._is_non_critical_import_reason(reason):
@@ -74,10 +67,7 @@ class CatalogImportIngestService:
         item: Dict[str, Any],
         quarantine_non_critical: List[Dict[str, Any]],
     ) -> None:
-        """Execute _append_quarantine_issue.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Run append quarantine issue in this workflow."""
         normalized_item = self._normalize_import_issue_item(item)
         quarantine_non_critical.append(normalized_item)
 
@@ -233,10 +223,7 @@ class CatalogImportIngestService:
         mapeamento_colunas_usuario: Optional[str],
         fornecedor_repo: Any,
     ) -> Optional[Dict[str, Any]]:
-        """Execute _resolve_mapping.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Run resolve mapping in this workflow."""
         mapping_dict = None
         if mapeamento_colunas_usuario:
             try:
@@ -261,10 +248,7 @@ class CatalogImportIngestService:
         ext: str,
         mapping_dict: Optional[Dict[str, Any]],
     ) -> List[Dict[str, Any]]:
-        """Execute _process_file_by_extension.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Run process file by extension in this workflow."""
         if ext in [".xlsx", ".xls"]:
             return await self._file_processing_service.processar_arquivo_excel(
                 content,

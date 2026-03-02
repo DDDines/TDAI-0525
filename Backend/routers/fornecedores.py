@@ -31,24 +31,15 @@ from . import auth_utils
 
 class _FornecedoresDependencies:
 
-    """Class _FornecedoresDependencies.
-
-    Encapsulates one responsibility in the backend architecture.
-    """
+    """Represent fornecedores dependencies and centralize responsibilities for this module."""
     @staticmethod
     def _build_fornecedores_service_bundle():
-        """Execute _build_fornecedores_service_bundle.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Run build fornecedores service bundle in this workflow."""
         return _FornecedoresServiceBundle()
 
     @staticmethod
     def get_fornecedores_request_service(session: Session):
-        """Execute get_fornecedores_request_service.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Return fornecedores request service for this workflow."""
         return FornecedoresRequestService(runtime=_FornecedoresServiceGateway(session=session))
 logger = get_logger(__name__)
 catalog_log_dir = Path(__file__).resolve().parent.parent / 'logs'
@@ -61,10 +52,7 @@ class _FornecedoresServiceBundle:
     """Componente OO principal '_FornecedoresServiceBundle' do modulo 'fornecedores'."""
 
     def __init__(self, *, db_session_factory: Any | None = None) -> None:
-        """Execute __init__.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Initialize collaborators and configuration required by this component."""
         self._service_container = ServiceContainer()
         self._db_session_factory = db_session_factory or ServiceContainerDependencySupport.get_background_db_session_factory()
         self.file_processing_service = self._service_container.file_processing
@@ -90,137 +78,83 @@ class FornecedoresRequestService:
     """Workflow/escopo request-scoped para o fluxo de 'fornecedores'."""
 
     def __init__(self, runtime: '_FornecedoresServiceGateway') -> None:
-        """Execute __init__.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Initialize collaborators and configuration required by this component."""
         self._runtime = runtime
 
     def create_fornecedor(self, fornecedor: schemas.FornecedorCreate, current_user: models.User, fornecedor_management_service: FornecedorManagementService) -> models.Fornecedor:
-        """Execute create_fornecedor.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Create fornecedor for this workflow."""
         logger.info('Requisicao para criar fornecedor recebida.')
         return self._runtime.create_fornecedor(fornecedor=fornecedor, current_user=current_user, fornecedor_management_service=fornecedor_management_service)
 
     def list_fornecedores_page(self, current_user: models.User, skip: int, limit: int, termo_busca: Optional[str], fornecedor_management_service: FornecedorManagementService) -> schemas.FornecedorPage:
-        """Execute list_fornecedores_page.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """List fornecedores page for this workflow."""
         return self._runtime.list_fornecedores_page(current_user=current_user, skip=skip, limit=limit, termo_busca=termo_busca, fornecedor_management_service=fornecedor_management_service)
 
     def read_fornecedor(self, fornecedor_id: int, current_user: models.User, fornecedor_management_service: FornecedorManagementService) -> models.Fornecedor:
-        """Execute read_fornecedor.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Run read fornecedor in this workflow."""
         return self._runtime.resolve_fornecedor_for_user(fornecedor_id=fornecedor_id, current_user=current_user, not_found_detail='Fornecedor nao encontrado ou nao pertence ao usuario', forbidden_detail='Nao autorizado a acessar este fornecedor.', fornecedor_management_service=fornecedor_management_service)
 
     def update_fornecedor(self, fornecedor_id: int, fornecedor_update: schemas.FornecedorUpdate, current_user: models.User, fornecedor_management_service: FornecedorManagementService) -> models.Fornecedor:
-        """Execute update_fornecedor.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Update fornecedor for this workflow."""
         return self._runtime.update_fornecedor(fornecedor_id=fornecedor_id, fornecedor_update=fornecedor_update, current_user=current_user, fornecedor_management_service=fornecedor_management_service)
 
     def get_mapping(self, fornecedor_id: int, current_user: models.User, fornecedor_management_service: FornecedorManagementService) -> Optional[dict]:
-        """Execute get_mapping.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Return mapping for this workflow."""
         return self._runtime.get_mapping(fornecedor_id=fornecedor_id, current_user=current_user, fornecedor_management_service=fornecedor_management_service)
 
     def update_mapping(self, fornecedor_id: int, mapping: Optional[dict], current_user: models.User, fornecedor_management_service: FornecedorManagementService) -> models.Fornecedor:
-        """Execute update_mapping.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Update mapping for this workflow."""
         return self._runtime.update_mapping(fornecedor_id=fornecedor_id, current_user=current_user, mapping=mapping, fornecedor_management_service=fornecedor_management_service)
 
     async def preview_pages(self, file: UploadFile):
-        """Execute preview_pages.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Run preview pages in this workflow."""
         return await self._runtime.preview_pages(file=file)
 
     async def preview_pdf(self, fornecedor_id: int, file: UploadFile, current_user: models.User, offset: int, limit: int, fornecedor_management_service: FornecedorManagementService) -> schemas.PdfPreviewResponse:
-        """Execute preview_pdf.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Run preview pdf in this workflow."""
         _ = self._runtime.resolve_fornecedor_for_user(fornecedor_id=fornecedor_id, current_user=current_user, not_found_detail='Fornecedor nao encontrado', forbidden_detail='Nao autorizado a acessar este fornecedor.', fornecedor_management_service=fornecedor_management_service)
         return self._runtime.preview_pdf(file=file, fornecedor_id=fornecedor_id, user_id=current_user.id, offset=offset, limit=limit)
 
     def preview_catalog_from_region(self, preview_request: schemas.CatalogRegionPreviewRequest) -> schemas.CatalogPreview:
-        """Execute preview_catalog_from_region.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Run preview catalog from region in this workflow."""
         return self._runtime.preview_catalog_from_region(file_id=preview_request.file_id, page_number=preview_request.page_number, region=preview_request.region)
 
     def extract_data_from_pdf_bulk(self, background_tasks: BackgroundTasks, request: schemas.PdfRegionBulkRequest):
-        """Execute extract_data_from_pdf_bulk.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Extract data from pdf bulk for this workflow."""
         return self._runtime.extract_data_from_pdf_bulk(background_tasks=background_tasks, file_id=request.file_id, region=request.region, pages=request.pages, all_pages=request.all_pages)
 
     def get_import_progress(self, job_id: int, current_user: models.User) -> dict:
-        """Execute get_import_progress.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Return import progress for this workflow."""
         record = self._runtime.get_catalog_record_or_404(file_id=job_id, user_id=current_user.id, not_found_detail='Importacao nao encontrada')
         return self._runtime.build_progress_payload(record=record)
 
     async def process_full_catalog(self, background_tasks: BackgroundTasks, file_id: int, fornecedor_id: int, tipo_produto_id: int, start_page: int, region: Optional[List[float]], mapping: Optional[dict], current_user: models.User):
-        """Execute process_full_catalog.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Process full catalog for this workflow."""
         return await self._runtime.start_full_processing(background_tasks=background_tasks, current_user=current_user, file_id=file_id, fornecedor_id=fornecedor_id, tipo_produto_id=tipo_produto_id, start_page=start_page, region=region, mapping=mapping)
 
     def extract_page_data(self, background_tasks: BackgroundTasks, file_id: int, page_number: int, current_user: models.User) -> dict:
-        """Execute extract_page_data.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Extract page data for this workflow."""
         record = self._runtime.get_catalog_record_or_404(file_id=file_id, user_id=current_user.id, not_found_detail='Arquivo nao encontrado')
         self._runtime.schedule_page_extraction(background_tasks=background_tasks, import_job_id=record.id, page_number=page_number, db_url=self._runtime.get_database_url())
         return {'job_id': record.id, 'status': 'PROCESSING'}
 
     def delete_fornecedor(self, fornecedor_id: int, current_user: models.User, fornecedor_management_service: FornecedorManagementService) -> models.Fornecedor:
-        """Execute delete_fornecedor.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Delete fornecedor for this workflow."""
         return self._runtime.delete_fornecedor(fornecedor_id=fornecedor_id, current_user=current_user, fornecedor_management_service=fornecedor_management_service)
 
     def review_import_job(self, job_id: int, current_user: models.User) -> dict:
-        """Execute review_import_job.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Run review import job in this workflow."""
         job = self._runtime.get_job_for_user_or_404(job_id=job_id, user_id=current_user.id)
         return self._runtime.build_review_payload(job=job)
 
     def commit_import_job(self, background_tasks: BackgroundTasks, job_id: int, current_user: models.User) -> dict:
-        """Execute commit_import_job.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Run commit import job in this workflow."""
         _ = self._runtime.get_job_for_user_or_404(job_id=job_id, user_id=current_user.id)
         self._runtime.schedule_commit(background_tasks=background_tasks, job_id=job_id, user_id=current_user.id)
         return {'status': 'PROCESSING', 'job_id': job_id}
 
     def get_import_job_status(self, job_id: int, current_user: models.User) -> dict:
-        """Execute get_import_job_status.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Return import job status for this workflow."""
         record = self._runtime.get_catalog_record_or_404(file_id=job_id, user_id=current_user.id, not_found_detail='Job nao encontrado')
         return self._runtime.build_import_job_status_payload(record=record)
 
@@ -228,10 +162,7 @@ class _FornecedoresServiceGateway:
     """Runtime OO para integrações do router de fornecedores."""
 
     def __init__(self, *, session: Session, services: Optional[_FornecedoresServiceBundle]=None) -> None:
-        """Execute __init__.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Initialize collaborators and configuration required by this component."""
         self._session = session
         runtime_session_factory = sessionmaker(bind=session.get_bind())
         self._services = services or _FornecedoresServiceBundle(db_session_factory=runtime_session_factory)
@@ -270,10 +201,7 @@ class _FornecedoresServiceGateway:
         current_user: models.User,
         fornecedor_management_service: FornecedorManagementService,
     ):
-        """Execute create_fornecedor.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Create fornecedor for this workflow."""
         return fornecedor_management_service.create_fornecedor(
             fornecedor=fornecedor,
             current_user=current_user,
@@ -288,10 +216,7 @@ class _FornecedoresServiceGateway:
         termo_busca: Optional[str],
         fornecedor_management_service: FornecedorManagementService,
     ):
-        """Execute list_fornecedores_page.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """List fornecedores page for this workflow."""
         return fornecedor_management_service.list_fornecedores_page(
             current_user=current_user,
             skip=skip,
@@ -308,10 +233,7 @@ class _FornecedoresServiceGateway:
         forbidden_detail: str,
         fornecedor_management_service: FornecedorManagementService,
     ):
-        """Execute resolve_fornecedor_for_user.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Resolve fornecedor for user for this workflow."""
         return fornecedor_management_service.resolve_fornecedor_for_user(
             fornecedor_id=fornecedor_id,
             current_user=current_user,
@@ -327,10 +249,7 @@ class _FornecedoresServiceGateway:
         current_user: models.User,
         fornecedor_management_service: FornecedorManagementService,
     ):
-        """Execute update_fornecedor.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Update fornecedor for this workflow."""
         return fornecedor_management_service.update_fornecedor(
             fornecedor_id=fornecedor_id,
             fornecedor_update=fornecedor_update,
@@ -344,10 +263,7 @@ class _FornecedoresServiceGateway:
         current_user: models.User,
         fornecedor_management_service: FornecedorManagementService,
     ):
-        """Execute get_mapping.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Return mapping for this workflow."""
         return fornecedor_management_service.get_mapping(
             fornecedor_id=fornecedor_id,
             current_user=current_user,
@@ -361,10 +277,7 @@ class _FornecedoresServiceGateway:
         mapping: Optional[dict],
         fornecedor_management_service: FornecedorManagementService,
     ):
-        """Execute update_mapping.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Update mapping for this workflow."""
         return fornecedor_management_service.update_mapping(
             fornecedor_id=fornecedor_id,
             current_user=current_user,
@@ -376,10 +289,7 @@ class _FornecedoresServiceGateway:
         *,
         file: UploadFile,
     ):
-        """Execute preview_pages.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Run preview pages in this workflow."""
         return await self._fornecedor_preview_service.preview_pages(file=file)
 
     def preview_pdf(
@@ -391,10 +301,7 @@ class _FornecedoresServiceGateway:
         offset: int,
         limit: int,
     ):
-        """Execute preview_pdf.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Run preview pdf in this workflow."""
         return self._fornecedor_preview_service.preview_pdf(
             file=file,
             fornecedor_id=fornecedor_id,
@@ -410,10 +317,7 @@ class _FornecedoresServiceGateway:
         page_number: int,
         region: list[float],
     ):
-        """Execute preview_catalog_from_region.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Run preview catalog from region in this workflow."""
         return self._fornecedor_preview_service.preview_catalog_from_region(
             file_id=file_id,
             page_number=page_number,
@@ -429,10 +333,7 @@ class _FornecedoresServiceGateway:
         pages: Optional[List[int]],
         all_pages: bool,
     ):
-        """Execute extract_data_from_pdf_bulk.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Extract data from pdf bulk for this workflow."""
         return self._fornecedor_preview_service.extract_data_from_pdf_bulk(
             background_tasks=background_tasks,
             file_id=file_id,
@@ -448,10 +349,7 @@ class _FornecedoresServiceGateway:
         user_id: int,
         not_found_detail: str,
     ):
-        """Execute get_catalog_record_or_404.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Return catalog record or 404 for this workflow."""
         return self._fornecedor_import_tracking_service.get_catalog_record_or_404(
             file_id=file_id,
             user_id=user_id,
@@ -463,10 +361,7 @@ class _FornecedoresServiceGateway:
         *,
         record: Any,
     ):
-        """Execute build_progress_payload.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Build progress payload for this workflow."""
         return self._fornecedor_import_tracking_service.build_progress_payload(
             record=record
         )
@@ -483,10 +378,7 @@ class _FornecedoresServiceGateway:
         region: Optional[List[float]],
         mapping: Optional[dict],
     ):
-        """Execute start_full_processing.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Run start full processing in this workflow."""
         return await self._fornecedor_catalog_process_service.start_full_processing(
             background_tasks=background_tasks,
             current_user=current_user,
@@ -506,10 +398,7 @@ class _FornecedoresServiceGateway:
         page_number: int,
         db_url: str,
     ):
-        """Execute schedule_page_extraction.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Run schedule page extraction in this workflow."""
         return self._fornecedor_import_tracking_service.schedule_page_extraction(
             background_tasks=background_tasks,
             import_job_id=import_job_id,
@@ -524,10 +413,7 @@ class _FornecedoresServiceGateway:
         current_user: models.User,
         fornecedor_management_service: FornecedorManagementService,
     ):
-        """Execute delete_fornecedor.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Delete fornecedor for this workflow."""
         return fornecedor_management_service.delete_fornecedor(
             fornecedor_id=fornecedor_id,
             current_user=current_user,
@@ -539,10 +425,7 @@ class _FornecedoresServiceGateway:
         job_id: int,
         user_id: int,
     ):
-        """Execute get_job_for_user_or_404.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Return job for user or 404 for this workflow."""
         return self._fornecedor_import_job_service.get_job_for_user_or_404(
             job_id=job_id,
             user_id=user_id,
@@ -553,10 +436,7 @@ class _FornecedoresServiceGateway:
         *,
         job: Any,
     ):
-        """Execute build_review_payload.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Build review payload for this workflow."""
         return self._fornecedor_import_job_service.build_review_payload(job=job)
 
     def schedule_commit(
@@ -566,10 +446,7 @@ class _FornecedoresServiceGateway:
         job_id: int,
         user_id: int,
     ):
-        """Execute schedule_commit.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Run schedule commit in this workflow."""
         return self._fornecedor_import_job_service.schedule_commit(
             background_tasks=background_tasks,
             job_id=job_id,
@@ -581,19 +458,13 @@ class _FornecedoresServiceGateway:
         *,
         record: Any,
     ):
-        """Execute build_import_job_status_payload.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Build import job status payload for this workflow."""
         return self._fornecedor_import_tracking_service.build_import_job_status_payload(
             record=record
         )
 
     def get_database_url(self) -> str:
-        """Execute get_database_url.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Return database url for this workflow."""
         bind = self._session.get_bind()
         return str(bind.url)
 
@@ -601,139 +472,82 @@ class _FornecedoresRequestScope:
     """Workflow/escopo request-scoped para o fluxo de 'fornecedores'."""
 
     def __init__(self, *, session: Session, fornecedor_management_service: FornecedorManagementService) -> None:
-        """Execute __init__.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Initialize collaborators and configuration required by this component."""
         self._fornecedor_management_service = fornecedor_management_service
         self._request_service = _FornecedoresDependencies.get_fornecedores_request_service(session)
 
     def create_fornecedor(self, *, fornecedor: schemas.FornecedorCreate, current_user: models.User) -> models.Fornecedor:
-        """Execute create_fornecedor.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Create fornecedor for this workflow."""
         return self._request_service.create_fornecedor(fornecedor=fornecedor, current_user=current_user, fornecedor_management_service=self._fornecedor_management_service)
 
     def list_fornecedores_page(self, *, current_user: models.User, skip: int, limit: int, termo_busca: Optional[str]) -> schemas.FornecedorPage:
-        """Execute list_fornecedores_page.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """List fornecedores page for this workflow."""
         return self._request_service.list_fornecedores_page(current_user=current_user, skip=skip, limit=limit, termo_busca=termo_busca, fornecedor_management_service=self._fornecedor_management_service)
 
     def read_fornecedor(self, *, fornecedor_id: int, current_user: models.User) -> models.Fornecedor:
-        """Execute read_fornecedor.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Run read fornecedor in this workflow."""
         return self._request_service.read_fornecedor(fornecedor_id=fornecedor_id, current_user=current_user, fornecedor_management_service=self._fornecedor_management_service)
 
     def update_fornecedor(self, *, fornecedor_id: int, fornecedor_update: schemas.FornecedorUpdate, current_user: models.User) -> models.Fornecedor:
-        """Execute update_fornecedor.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Update fornecedor for this workflow."""
         return self._request_service.update_fornecedor(fornecedor_id=fornecedor_id, fornecedor_update=fornecedor_update, current_user=current_user, fornecedor_management_service=self._fornecedor_management_service)
 
     def get_mapping(self, *, fornecedor_id: int, current_user: models.User) -> Optional[dict]:
-        """Execute get_mapping.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Return mapping for this workflow."""
         return self._request_service.get_mapping(fornecedor_id=fornecedor_id, current_user=current_user, fornecedor_management_service=self._fornecedor_management_service)
 
     def update_mapping(self, *, fornecedor_id: int, mapping: Optional[dict], current_user: models.User) -> models.Fornecedor:
-        """Execute update_mapping.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Update mapping for this workflow."""
         return self._request_service.update_mapping(fornecedor_id=fornecedor_id, mapping=mapping, current_user=current_user, fornecedor_management_service=self._fornecedor_management_service)
 
     async def preview_pages(self, *, file: UploadFile):
-        """Execute preview_pages.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Run preview pages in this workflow."""
         return await self._request_service.preview_pages(file=file)
 
     async def preview_pdf(self, *, fornecedor_id: int, file: UploadFile, current_user: models.User, offset: int, limit: int) -> schemas.PdfPreviewResponse:
-        """Execute preview_pdf.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Run preview pdf in this workflow."""
         return await self._request_service.preview_pdf(fornecedor_id=fornecedor_id, file=file, current_user=current_user, offset=offset, limit=limit, fornecedor_management_service=self._fornecedor_management_service)
 
     def preview_catalog_from_region(self, *, preview_request: schemas.CatalogRegionPreviewRequest) -> schemas.CatalogPreview:
-        """Execute preview_catalog_from_region.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Run preview catalog from region in this workflow."""
         return self._request_service.preview_catalog_from_region(preview_request=preview_request)
 
     def extract_data_from_pdf_bulk(self, *, background_tasks: BackgroundTasks, request: schemas.PdfRegionBulkRequest):
-        """Execute extract_data_from_pdf_bulk.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Extract data from pdf bulk for this workflow."""
         return self._request_service.extract_data_from_pdf_bulk(background_tasks=background_tasks, request=request)
 
     def get_import_progress(self, *, job_id: int, current_user: models.User) -> dict:
-        """Execute get_import_progress.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Return import progress for this workflow."""
         return self._request_service.get_import_progress(job_id=job_id, current_user=current_user)
 
     async def process_full_catalog(self, *, background_tasks: BackgroundTasks, file_id: int, fornecedor_id: int, tipo_produto_id: int, start_page: int, region: Optional[List[float]], mapping: Optional[dict], current_user: models.User):
-        """Execute process_full_catalog.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Process full catalog for this workflow."""
         return await self._request_service.process_full_catalog(background_tasks=background_tasks, file_id=file_id, fornecedor_id=fornecedor_id, tipo_produto_id=tipo_produto_id, start_page=start_page, region=region, mapping=mapping, current_user=current_user)
 
     def extract_page_data(self, *, background_tasks: BackgroundTasks, file_id: int, page_number: int, current_user: models.User) -> dict:
-        """Execute extract_page_data.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Extract page data for this workflow."""
         return self._request_service.extract_page_data(background_tasks=background_tasks, file_id=file_id, page_number=page_number, current_user=current_user)
 
     def delete_fornecedor(self, *, fornecedor_id: int, current_user: models.User) -> models.Fornecedor:
-        """Execute delete_fornecedor.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Delete fornecedor for this workflow."""
         return self._request_service.delete_fornecedor(fornecedor_id=fornecedor_id, current_user=current_user, fornecedor_management_service=self._fornecedor_management_service)
 
     def review_import_job(self, *, job_id: int, current_user: models.User) -> dict:
-        """Execute review_import_job.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Run review import job in this workflow."""
         return self._request_service.review_import_job(job_id=job_id, current_user=current_user)
 
     def commit_import_job(self, *, background_tasks: BackgroundTasks, job_id: int, current_user: models.User) -> dict:
-        """Execute commit_import_job.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Run commit import job in this workflow."""
         return self._request_service.commit_import_job(background_tasks=background_tasks, job_id=job_id, current_user=current_user)
 
     def get_import_job_status(self, *, job_id: int, current_user: models.User) -> dict:
-        """Execute get_import_job_status.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Return import job status for this workflow."""
         return self._request_service.get_import_job_status(job_id=job_id, current_user=current_user)
 _build_fornecedores_request_scope = ServiceContainerDependencySupport.build_request_scoped_dependency(lambda session: _FornecedoresRequestScope(session=session, fornecedor_management_service=DependencyContainer.get_fornecedor_management_service(session)))
 
 class _EndpointHandlers:
 
-    """Class _EndpointHandlers.
-
-    Encapsulates one responsibility in the backend architecture.
-    """
+    """Represent endpoint handlers and centralize responsibilities for this module."""
     @router.post('/', response_model=schemas.FornecedorResponse, status_code=status.HTTP_201_CREATED)
     def create_user_fornecedor(fornecedor: schemas.FornecedorCreate, current_user: models.User=Depends(auth_utils._AuthUtilsActiveUserDependency.get_current_active_user), request_scope: _FornecedoresRequestScope=Depends(_build_fornecedores_request_scope)):
         """Endpoint HTTP que delega a execucao para workflow/servico OO (create_user_fornecedor)."""

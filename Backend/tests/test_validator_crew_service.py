@@ -1,7 +1,6 @@
 """Module test validator crew service.
 
-This module contains backend application/runtime logic and is fully
-documented for maintainability and onboarding.
+Contains backend logic related to test validator crew service and documents its role in the OOP architecture.
 """
 
 from __future__ import annotations
@@ -10,22 +9,13 @@ from Backend.application.services.validator_crew_service import ValidatorCrewSer
 
 
 class _RunnerStub:
-    """Class _RunnerStub.
-
-    Encapsulates one responsibility in the backend architecture.
-    """
+    """Represent runner stub and centralize responsibilities for this module."""
     def __init__(self, *, should_fail: bool = False) -> None:
-        """Execute __init__.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Initialize collaborators and configuration required by this component."""
         self.should_fail = should_fail
 
     def run_validation_crew(self, raw_data):
-        """Execute run_validation_crew.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Run validation crew for this workflow."""
         if self.should_fail:
             raise RuntimeError("boom")
         return {"validated": raw_data}
@@ -33,15 +23,9 @@ class _RunnerStub:
 
 class _TopLevelFunctionSurface:
 
-    """Class _TopLevelFunctionSurface.
-
-    Encapsulates one responsibility in the backend architecture.
-    """
+    """Represent top level function surface and centralize responsibilities for this module."""
     def test_validator_crew_service_delegates_to_runner():
-        """Execute test_validator_crew_service_delegates_to_runner.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Run test validator crew service delegates to runner in this workflow."""
         service = ValidatorCrewService(runner=_RunnerStub())
         payload = {"a": 1}
     
@@ -50,10 +34,7 @@ class _TopLevelFunctionSurface:
         assert result == {"validated": payload}
 
     def test_validator_crew_service_fallbacks_to_passthrough_on_runtime_error():
-        """Execute test_validator_crew_service_fallbacks_to_passthrough_on_runtime_error.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Run test validator crew service fallbacks to passthrough on runtime error in this workflow."""
         service = ValidatorCrewService(runner=_RunnerStub(should_fail=True))
         payload = {"a": 1}
     

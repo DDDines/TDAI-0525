@@ -1,7 +1,6 @@
 """Module test limit service module.
 
-This module contains backend application/runtime logic and is fully
-documented for maintainability and onboarding.
+Contains backend logic related to test limit service module and documents its role in the OOP architecture.
 """
 
 from __future__ import annotations
@@ -15,71 +14,41 @@ from Backend.testing.runtime_apis import limit_service
 
 
 class _CrudStub:
-    """Class _CrudStub.
-
-    Encapsulates one responsibility in the backend architecture.
-    """
+    """Represent crud stub and centralize responsibilities for this module."""
     def __init__(self, *, usos_no_mes: int = 0, geracoes_no_mes: int = 0) -> None:
-        """Execute __init__.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Initialize collaborators and configuration required by this component."""
         self._usos_no_mes = usos_no_mes
         self._geracoes_no_mes = geracoes_no_mes
 
     def count_usos_ia_by_user_and_type_no_mes_corrente(self, *_args, **_kwargs):
-        """Execute count_usos_ia_by_user_and_type_no_mes_corrente.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Count usos ia by user and type no mes corrente for this workflow."""
         return self._usos_no_mes
 
     def get_geracoes_ia_count_no_mes_corrente(self, *_args, **_kwargs):
-        """Execute get_geracoes_ia_count_no_mes_corrente.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Return geracoes ia count no mes corrente for this workflow."""
         return self._geracoes_no_mes
 
 
 class _CrudUsersStub:
-    """Class _CrudUsersStub.
-
-    Encapsulates one responsibility in the backend architecture.
-    """
+    """Represent crud users stub and centralize responsibilities for this module."""
     def __init__(self, user) -> None:
-        """Execute __init__.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Initialize collaborators and configuration required by this component."""
         self._user = user
 
     def get_user(self, *_args, **_kwargs):
-        """Execute get_user.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Return user for this workflow."""
         return self._user
 
 
 class _TopLevelFunctionSurface:
 
-    """Class _TopLevelFunctionSurface.
-
-    Encapsulates one responsibility in the backend architecture.
-    """
+    """Represent top level function surface and centralize responsibilities for this module."""
     def _logger_factory(_name):
-        """Execute _logger_factory.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Run logger factory in this workflow."""
         return SimpleNamespace(info=lambda *_a, **_k: None, warning=lambda *_a, **_k: None)
 
     def _build_runtime(*, usos_no_mes: int = 0, geracoes_no_mes: int = 0, user=None):
-        """Execute _build_runtime.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Run build runtime in this workflow."""
         return limit_service.LimitRuntime(
             usage_repository_factory=lambda _db: _CrudStub(
                 usos_no_mes=usos_no_mes,
@@ -90,10 +59,7 @@ class _TopLevelFunctionSurface:
         )
 
     def test_runtime_verificar_limite_uso_retorna_saldo():
-        """Execute test_runtime_verificar_limite_uso_retorna_saldo.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Run test runtime verificar limite uso retorna saldo in this workflow."""
         plano = SimpleNamespace(limite_geracao_ia=10)
         user = SimpleNamespace(id=1, plano=plano, limite_geracao_ia=None)
         runtime = _build_runtime(usos_no_mes=3, user=user)
@@ -103,10 +69,7 @@ class _TopLevelFunctionSurface:
         assert remaining == 7
 
     def test_runtime_verificar_limite_uso_ilimitado_retorna_menos_um():
-        """Execute test_runtime_verificar_limite_uso_ilimitado_retorna_menos_um.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Run test runtime verificar limite uso ilimitado retorna menos um in this workflow."""
         plano = SimpleNamespace(limite_geracao_ia=0)
         user = SimpleNamespace(id=1, plano=plano, limite_geracao_ia=None)
         runtime = _build_runtime(user=user)
@@ -116,10 +79,7 @@ class _TopLevelFunctionSurface:
         assert remaining == -1
 
     def test_runtime_verificar_limite_uso_tipo_invalido_dispara_400():
-        """Execute test_runtime_verificar_limite_uso_tipo_invalido_dispara_400.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Run test runtime verificar limite uso tipo invalido dispara 400 in this workflow."""
         plano = SimpleNamespace(limite_geracao_ia=10)
         user = SimpleNamespace(id=1, plano=plano, limite_geracao_ia=None)
         runtime = _build_runtime(user=user)
@@ -131,10 +91,7 @@ class _TopLevelFunctionSurface:
 
     @pytest.mark.asyncio
     async def test_runtime_verificar_creditos_disponiveis_user_inexistente_dispara_404():
-        """Execute test_runtime_verificar_creditos_disponiveis_user_inexistente_dispara_404.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Run test runtime verificar creditos disponiveis user inexistente dispara 404 in this workflow."""
         runtime = _build_runtime(user=None)
     
         with pytest.raises(HTTPException) as exc:
@@ -144,10 +101,7 @@ class _TopLevelFunctionSurface:
 
     @pytest.mark.asyncio
     async def test_runtime_verificar_creditos_disponiveis_respeita_limite():
-        """Execute test_runtime_verificar_creditos_disponiveis_respeita_limite.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Run test runtime verificar creditos disponiveis respeita limite in this workflow."""
         plano = SimpleNamespace(limite_geracao_ia=5)
         user = SimpleNamespace(id=1, plano=plano, limite_geracao_ia=5)
         runtime = _build_runtime(geracoes_no_mes=4, user=user)

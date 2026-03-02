@@ -1,7 +1,6 @@
 """Module test pipeline orchestrators.
 
-This module contains backend application/runtime logic and is fully
-documented for maintainability and onboarding.
+Contains backend logic related to test pipeline orchestrators and documents its role in the OOP architecture.
 """
 
 from __future__ import annotations
@@ -23,23 +22,14 @@ from Backend.core.config import settings
 
 class _TopLevelFunctionSurface:
 
-    """Class _TopLevelFunctionSurface.
-
-    Encapsulates one responsibility in the backend architecture.
-    """
+    """Represent top level function surface and centralize responsibilities for this module."""
     async def _dummy_executor(**kwargs):
-        """Execute _dummy_executor.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Run dummy executor in this workflow."""
         return kwargs
 
     @pytest.fixture(autouse=True)
     def _restore_app_mode():
-        """Execute _restore_app_mode.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Run restore app mode in this workflow."""
         original = settings.APP_MODE
         try:
             yield
@@ -47,10 +37,7 @@ class _TopLevelFunctionSurface:
             settings.APP_MODE = original
 
     def test_catalog_import_orchestrator_uses_oop_plan():
-        """Execute test_catalog_import_orchestrator_uses_oop_plan.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Run test catalog import orchestrator uses oop plan in this workflow."""
         settings.APP_MODE = "oop"
         orchestrator = CatalogImportPipelineOrchestrator(
             oop_executor=_dummy_executor,
@@ -72,10 +59,7 @@ class _TopLevelFunctionSurface:
         assert plan.task_kwargs["fornecedor_id"] == 8
 
     def test_catalog_import_orchestrator_uses_oop_in_oop_mode():
-        """Execute test_catalog_import_orchestrator_uses_oop_in_oop_mode.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Run test catalog import orchestrator uses oop in oop mode in this workflow."""
         settings.APP_MODE = "oop"
         orchestrator = CatalogImportPipelineOrchestrator(
             oop_executor=_dummy_executor,
@@ -97,10 +81,7 @@ class _TopLevelFunctionSurface:
         assert plan.task_kwargs["pages"] == [1, 2, 3]
 
     def test_web_enrichment_orchestrator_uses_oop_plan():
-        """Execute test_web_enrichment_orchestrator_uses_oop_plan.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Run test web enrichment orchestrator uses oop plan in this workflow."""
         settings.APP_MODE = "oop"
         orchestrator = WebEnrichmentPipelineOrchestrator(
             oop_executor=_dummy_executor,
@@ -117,10 +98,7 @@ class _TopLevelFunctionSurface:
         assert plan.task_kwargs["produto_id"] == 10
 
     def test_web_enrichment_orchestrator_uses_oop_in_oop_mode():
-        """Execute test_web_enrichment_orchestrator_uses_oop_in_oop_mode.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Run test web enrichment orchestrator uses oop in oop mode in this workflow."""
         settings.APP_MODE = "oop"
         orchestrator = WebEnrichmentPipelineOrchestrator(
             oop_executor=_dummy_executor,
@@ -138,18 +116,12 @@ class _TopLevelFunctionSurface:
 
     @pytest.mark.asyncio
     async def test_catalog_import_orchestrator_executes_only_oop_executor_in_oop_mode():
-        """Execute test_catalog_import_orchestrator_executes_only_oop_executor_in_oop_mode.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Run test catalog import orchestrator executes only oop executor in oop mode in this workflow."""
         settings.APP_MODE = "oop"
         calls = []
     
         async def _oop_executor(**kwargs):
-            """Execute _oop_executor.
-
-            This callable is documented to make behavior explicit for readers.
-            """
+            """Run oop executor in this workflow."""
             calls.append(kwargs)
             return kwargs
     
@@ -177,18 +149,12 @@ class _TopLevelFunctionSurface:
 
     @pytest.mark.asyncio
     async def test_web_enrichment_orchestrator_executes_only_oop_executor_in_oop_mode():
-        """Execute test_web_enrichment_orchestrator_executes_only_oop_executor_in_oop_mode.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Run test web enrichment orchestrator executes only oop executor in oop mode in this workflow."""
         settings.APP_MODE = "oop"
         calls = []
     
         async def _oop_executor(**kwargs):
-            """Execute _oop_executor.
-
-            This callable is documented to make behavior explicit for readers.
-            """
+            """Run oop executor in this workflow."""
             calls.append(kwargs)
             return kwargs
     

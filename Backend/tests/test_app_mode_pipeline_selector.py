@@ -1,7 +1,6 @@
 """Module test app mode pipeline selector.
 
-This module contains backend application/runtime logic and is fully
-documented for maintainability and onboarding.
+Contains backend logic related to test app mode pipeline selector and documents its role in the OOP architecture.
 """
 
 import pytest
@@ -27,23 +26,14 @@ from Backend.core.config import settings
 
 class _TopLevelFunctionSurface:
 
-    """Class _TopLevelFunctionSurface.
-
-    Encapsulates one responsibility in the backend architecture.
-    """
+    """Represent top level function surface and centralize responsibilities for this module."""
     async def _dummy_executor(**kwargs):
-        """Execute _dummy_executor.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Run dummy executor in this workflow."""
         return kwargs
 
     @pytest.fixture(autouse=True)
     def _restore_app_mode():
-        """Execute _restore_app_mode.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Run restore app mode in this workflow."""
         original = settings.APP_MODE
         try:
             yield
@@ -51,26 +41,17 @@ class _TopLevelFunctionSurface:
             settings.APP_MODE = original
 
     def test_get_app_mode_forces_oop_for_supported_values():
-        """Execute test_get_app_mode_forces_oop_for_supported_values.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Run test get app mode forces oop for supported values in this workflow."""
         settings.APP_MODE = "oop"
         assert AppModeWorkflow().get_app_mode() == AppMode.OOP
 
     def test_get_app_mode_is_oop_for_any_config():
-        """Execute test_get_app_mode_is_oop_for_any_config.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Run test get app mode is oop for any config in this workflow."""
         settings.APP_MODE = "any-value"
         assert AppModeWorkflow().get_app_mode() == AppMode.OOP
 
     def test_pipeline_selector_selects_oop_plan():
-        """Execute test_pipeline_selector_selects_oop_plan.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Run test pipeline selector selects oop plan in this workflow."""
         settings.APP_MODE = "oop"
         oop_plan = WebEnrichmentTaskBuilder(
             OOPWebEnrichmentExecutor(WebEnrichmentProcessingUseCase(_dummy_executor))
@@ -86,10 +67,7 @@ class _TopLevelFunctionSurface:
         assert selected.task_kwargs["produto_id"] == 7
 
     def test_pipeline_selector_uses_oop_in_oop_mode():
-        """Execute test_pipeline_selector_uses_oop_in_oop_mode.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Run test pipeline selector uses oop in oop mode in this workflow."""
         settings.APP_MODE = "oop"
         oop_plan = WebEnrichmentTaskBuilder(
             OOPWebEnrichmentExecutor(WebEnrichmentProcessingUseCase(_dummy_executor))
@@ -104,10 +82,7 @@ class _TopLevelFunctionSurface:
         assert selected.executor_name == "oop_web_enrichment_task"
 
     def test_catalog_import_builder_generates_expected_kwargs():
-        """Execute test_catalog_import_builder_generates_expected_kwargs.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Run test catalog import builder generates expected kwargs in this workflow."""
         plan = CatalogImportTaskBuilder(
             OOPCatalogImportExecutor(CatalogImportProcessingUseCase(_dummy_executor))
         ).build_finalize_plan(

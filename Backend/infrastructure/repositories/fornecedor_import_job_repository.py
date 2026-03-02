@@ -1,7 +1,6 @@
 """Module fornecedor import job repository.
 
-This module contains backend application/runtime logic and is fully
-documented for maintainability and onboarding.
+Contains backend logic related to fornecedor import job repository and documents its role in the OOP architecture.
 """
 
 from __future__ import annotations
@@ -17,10 +16,7 @@ class FornecedorImportJobRepository:
     """Repository OO para jobs de importacao de fornecedor."""
 
     def __init__(self, db: Session) -> None:
-        """Execute __init__.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Initialize collaborators and configuration required by this component."""
         self._db = db
 
     def create_import_job(
@@ -29,10 +25,7 @@ class FornecedorImportJobRepository:
         user_id: int,
         result_summary: Optional[dict] = None,
     ) -> models.FornecedorImportJob:
-        """Execute create_import_job.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Create import job for this workflow."""
         job = models.FornecedorImportJob(
             user_id=user_id,
             result_summary=result_summary or {},
@@ -47,10 +40,7 @@ class FornecedorImportJobRepository:
         *,
         job_id: int,
     ) -> Optional[models.FornecedorImportJob]:
-        """Execute get_import_job.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Return import job for this workflow."""
         return (
             self._db.query(models.FornecedorImportJob)
             .filter(models.FornecedorImportJob.id == job_id)
@@ -63,10 +53,7 @@ class FornecedorImportJobRepository:
         job: models.FornecedorImportJob,
         status: str,
     ) -> models.FornecedorImportJob:
-        """Execute update_job_status.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Update job status for this workflow."""
         job.status = status
         self._db.add(job)
         self._db.commit()

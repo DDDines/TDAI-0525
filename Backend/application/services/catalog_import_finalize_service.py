@@ -1,7 +1,6 @@
 """Module catalog import finalize service.
 
-This module contains backend application/runtime logic and is fully
-documented for maintainability and onboarding.
+Contains backend logic related to catalog import finalize service and documents its role in the OOP architecture.
 """
 
 from __future__ import annotations
@@ -31,10 +30,7 @@ class CatalogImportFinalizeService:
         sync_env_var: str = "CATALOG_IMPORT_TEST_SYNC",
         thread_name_prefix: str = "catalog-import",
     ) -> None:
-        """Execute __init__.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Initialize collaborators and configuration required by this component."""
         self._db_session_factory = db_session_factory
         self._orchestrator = orchestrator or CatalogImportPipelineOrchestrator(
             oop_executor=oop_executor,
@@ -48,10 +44,7 @@ class CatalogImportFinalizeService:
         *,
         command: CatalogImportFinalizeCommand,
     ) -> TaskExecutionPlan:
-        """Execute select_plan.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Select plan for this workflow."""
         if self._db_session_factory is None:
             raise ValueError("db_session_factory is required for CatalogImportFinalizeService")
         return self._orchestrator.select_finalize_plan(
@@ -64,10 +57,7 @@ class CatalogImportFinalizeService:
         background_tasks: BackgroundTasks,
         command: CatalogImportFinalizeCommand,
     ) -> TaskExecutionPlan:
-        """Execute dispatch_or_run.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Dispatch or run for this workflow."""
         plan = self.select_plan(
             command=command,
         )
@@ -83,10 +73,7 @@ class CatalogImportFinalizeService:
         *,
         command: CatalogImportFinalizeCommand,
     ) -> TaskExecutionPlan:
-        """Execute run_direct.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Run direct for this workflow."""
         plan = self.select_plan(
             command=command,
         )

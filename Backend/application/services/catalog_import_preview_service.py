@@ -1,7 +1,6 @@
 """Module catalog import preview service.
 
-This module contains backend application/runtime logic and is fully
-documented for maintainability and onboarding.
+Contains backend logic related to catalog import preview service and documents its role in the OOP architecture.
 """
 
 from __future__ import annotations
@@ -29,10 +28,7 @@ class CatalogImportPreviewService:
         pdfplumber_module: Any,
         catalog_file_repository: Any,
     ) -> None:
-        """Execute __init__.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Initialize collaborators and configuration required by this component."""
         self._models = models
         self._settings = settings
         self._file_processing_service = file_processing_service
@@ -44,10 +40,7 @@ class CatalogImportPreviewService:
     def _resolve_catalog_file_repo(
         self,
     ) -> Any:
-        """Execute _resolve_catalog_file_repo.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Run resolve catalog file repo in this workflow."""
         return self._catalog_file_repository
 
     async def importar_catalogo_preview(
@@ -298,10 +291,7 @@ class CatalogImportPreviewService:
         file_id: int,
         user_id: int,
     ) -> Any:
-        """Execute _get_record_or_404.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Run get record or 404 in this workflow."""
         record = catalog_file_repo.get_catalog_file_for_user(
             file_id=file_id,
             user_id=user_id,
@@ -311,20 +301,14 @@ class CatalogImportPreviewService:
         return record
 
     def _build_catalog_path(self, record: Any) -> Path:
-        """Execute _build_catalog_path.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Run build catalog path in this workflow."""
         return self._resolve_storage_path(
             Path(self._settings.UPLOAD_DIRECTORY) / "catalogs" / record.stored_filename
         )
 
     @staticmethod
     def _normalize_preview_row(row: Dict[str, Any]) -> Dict[str, Any]:
-        """Execute _normalize_preview_row.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Run normalize preview row in this workflow."""
         normalized: Dict[str, Any] = {}
         for key, value in row.items():
             if value is None:
@@ -343,10 +327,7 @@ class CatalogImportPreviewService:
         page: int,
         selected_bbox: List[float],
     ) -> List[Dict[str, str]]:
-        """Execute _extract_text_rows.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Run extract text rows in this workflow."""
         with self._pdfplumber.open(file_path) as pdf:
             target_page = pdf.pages[page - 1]
             cropped = target_page.crop(tuple(selected_bbox))
@@ -355,10 +336,7 @@ class CatalogImportPreviewService:
 
     @staticmethod
     def _parse_key_value_rows(raw_text: str) -> List[Dict[str, str]]:
-        """Execute _parse_key_value_rows.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Run parse key value rows in this workflow."""
         rows: List[Dict[str, str]] = []
         current: Dict[str, str] = {}
         aliases = {

@@ -1,7 +1,6 @@
 """Module fornecedor catalog process service.
 
-This module contains backend application/runtime logic and is fully
-documented for maintainability and onboarding.
+Contains backend logic related to fornecedor catalog process service and documents its role in the OOP architecture.
 """
 
 from __future__ import annotations
@@ -22,10 +21,7 @@ class FornecedorCatalogProcessService:
         fornecedor_repo: Any,
         catalog_file_repository: Any,
     ) -> None:
-        """Execute __init__.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Initialize collaborators and configuration required by this component."""
         self._models = models
         self._fornecedor_repo = fornecedor_repo
         self._catalog_file_repository = catalog_file_repository
@@ -43,10 +39,7 @@ class FornecedorCatalogProcessService:
         region: Optional[list[float]],
         mapping: Optional[Dict[str, str]],
     ) -> Dict[str, Any]:
-        """Execute start_full_processing.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Run start full processing in this workflow."""
         fornecedor = self._validate_fornecedor_access(
             fornecedor_repo=self._fornecedor_repo,
             fornecedor_id=fornecedor_id,
@@ -92,10 +85,7 @@ class FornecedorCatalogProcessService:
         fornecedor_id: int,
         current_user: Any,
     ) -> Any:
-        """Execute _validate_fornecedor_access.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Run validate fornecedor access in this workflow."""
         fornecedor = fornecedor_repo.get_fornecedor(fornecedor_id=fornecedor_id)
         if not fornecedor:
             raise HTTPException(status_code=404, detail="Fornecedor nao encontrado")
@@ -111,10 +101,7 @@ class FornecedorCatalogProcessService:
         fornecedor_id: int,
         catalog_file_repo: Any,
     ) -> Any:
-        """Execute _create_processing_job_from_source.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Run create processing job from source in this workflow."""
         job = self._models.CatalogImportFile(
             user_id=user_id,
             fornecedor_id=fornecedor_id,

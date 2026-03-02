@@ -1,7 +1,6 @@
 """Module test file processing preview dispatch runtime.
 
-This module contains backend application/runtime logic and is fully
-documented for maintainability and onboarding.
+Contains backend logic related to test file processing preview dispatch runtime and documents its role in the OOP architecture.
 """
 
 import pytest
@@ -11,48 +10,27 @@ from Backend.testing.runtime_apis import file_processing
 
 class _TopLevelFunctionSurface:
 
-    """Class _TopLevelFunctionSurface.
-
-    Encapsulates one responsibility in the backend architecture.
-    """
+    """Represent top level function surface and centralize responsibilities for this module."""
     @pytest.mark.asyncio
     async def test_preview_dispatch_runtime_uses_injected_factory():
-        """Execute test_preview_dispatch_runtime_uses_injected_factory.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Run test preview dispatch runtime uses injected factory in this workflow."""
         called = {}
     
         class FakeExtractor:
-            """Class FakeExtractor.
-
-            Encapsulates one responsibility in the backend architecture.
-            """
+            """Represent fake extractor and centralize responsibilities for this module."""
             async def extract(self, **kwargs):
-                """Execute extract.
-
-                This callable is documented to make behavior explicit for readers.
-                """
+                """Run extract in this workflow."""
                 called["extract"] = kwargs
                 return {"ok": True}
     
         class FakeFactory:
-            """Class FakeFactory.
-
-            Encapsulates one responsibility in the backend architecture.
-            """
+            """Represent fake factory and centralize responsibilities for this module."""
             def __init__(self):
-                """Execute __init__.
-
-                This callable is documented to make behavior explicit for readers.
-                """
+                """Initialize collaborators and configuration required by this component."""
                 self.received_ext = None
     
             def get_extractor(self, ext_norm):
-                """Execute get_extractor.
-
-                This callable is documented to make behavior explicit for readers.
-                """
+                """Return extractor for this workflow."""
                 self.received_ext = ext_norm
                 return FakeExtractor()
     
@@ -72,10 +50,7 @@ class _TopLevelFunctionSurface:
 
     @pytest.mark.asyncio
     async def test_preview_dispatch_runtime_raises_for_unsupported_extension():
-        """Execute test_preview_dispatch_runtime_raises_for_unsupported_extension.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Run test preview dispatch runtime raises for unsupported extension in this workflow."""
         runtime = file_processing.PreviewDispatchRuntime()
     
         with pytest.raises(ValueError):

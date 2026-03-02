@@ -16,18 +16,12 @@ class FornecedorRepository:
     """Repository OO de Fornecedor com Session vinculada por request."""
 
     def __init__(self, db: Session) -> None:
-        """Execute __init__.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Initialize collaborators and configuration required by this component."""
         self._db = db
 
     @staticmethod
     def _normalize_supplier_url_fields(data: dict) -> None:
-        """Execute _normalize_supplier_url_fields.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Run normalize supplier url fields in this workflow."""
         if data.get("site_url") is not None:
             data["site_url"] = str(data["site_url"])
         if data.get("link_busca_padrao") is not None:
@@ -35,10 +29,7 @@ class FornecedorRepository:
 
     @staticmethod
     def _apply_fornecedor_search_filter(query, search: Optional[str]):
-        """Execute _apply_fornecedor_search_filter.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Run apply fornecedor search filter in this workflow."""
         if not search:
             return query
 
@@ -52,10 +43,7 @@ class FornecedorRepository:
         )
 
     def _validate_fornecedor_uniqueness(self, *, user_id: int, fornecedor_data: dict) -> None:
-        """Execute _validate_fornecedor_uniqueness.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Run validate fornecedor uniqueness in this workflow."""
         existing_fornecedor = (
             self._db.query(Fornecedor)
             .filter(
@@ -91,10 +79,7 @@ class FornecedorRepository:
                 )
 
     def create_fornecedor(self, *, fornecedor: schemas.FornecedorCreate, user_id: int) -> Fornecedor:
-        """Execute create_fornecedor.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Create fornecedor for this workflow."""
         fornecedor_data = fornecedor.model_dump()
         self._validate_fornecedor_uniqueness(user_id=user_id, fornecedor_data=fornecedor_data)
         self._normalize_supplier_url_fields(fornecedor_data)
@@ -106,10 +91,7 @@ class FornecedorRepository:
         return db_fornecedor
 
     def get_fornecedor(self, *, fornecedor_id: int) -> Optional[Fornecedor]:
-        """Execute get_fornecedor.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Return fornecedor for this workflow."""
         return self._db.query(Fornecedor).filter(Fornecedor.id == fornecedor_id).first()
 
     def get_fornecedores_by_user(
@@ -121,10 +103,7 @@ class FornecedorRepository:
         limit: int = 10,
         search: Optional[str] = None,
     ) -> List[Fornecedor]:
-        """Execute get_fornecedores_by_user.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Return fornecedores by user for this workflow."""
         query = self._db.query(Fornecedor)
         if not is_admin and user_id:
             query = query.filter(Fornecedor.user_id == user_id)
@@ -138,10 +117,7 @@ class FornecedorRepository:
         is_admin: bool = False,
         search: Optional[str] = None,
     ) -> int:
-        """Execute count_fornecedores_by_user.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Count fornecedores by user for this workflow."""
         query = self._db.query(func.count(Fornecedor.id))
         if not is_admin and user_id:
             query = query.filter(Fornecedor.user_id == user_id)
@@ -154,10 +130,7 @@ class FornecedorRepository:
         db_fornecedor: Fornecedor,
         fornecedor_update: schemas.FornecedorUpdate,
     ) -> Fornecedor:
-        """Execute update_fornecedor.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Update fornecedor for this workflow."""
         update_data = fornecedor_update.model_dump(exclude_unset=True)
         self._normalize_supplier_url_fields(update_data)
 
@@ -174,10 +147,7 @@ class FornecedorRepository:
         nome: str,
         exclude_id: Optional[int] = None,
     ) -> bool:
-        """Execute exists_fornecedor_with_name_for_user.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Run exists fornecedor with name for user in this workflow."""
         query = self._db.query(Fornecedor).filter(
             Fornecedor.user_id == user_id,
             func.lower(Fornecedor.nome) == func.lower(nome),
@@ -192,10 +162,7 @@ class FornecedorRepository:
         db_fornecedor: Fornecedor,
         mapping: Optional[dict],
     ) -> Fornecedor:
-        """Execute set_default_column_mapping.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Run set default column mapping in this workflow."""
         db_fornecedor.default_column_mapping = mapping
         self._db.add(db_fornecedor)
         self._db.commit()
@@ -203,10 +170,7 @@ class FornecedorRepository:
         return db_fornecedor
 
     def delete_fornecedor(self, *, db_fornecedor: Fornecedor) -> Fornecedor:
-        """Execute delete_fornecedor.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Delete fornecedor for this workflow."""
         self._db.delete(db_fornecedor)
         self._db.commit()
         return db_fornecedor
@@ -219,10 +183,7 @@ class FornecedorRepository:
         file_name: str,
         original_file_path: str,
     ) -> CatalogImportFile:
-        """Execute create_catalog_import_file.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Create catalog import file for this workflow."""
         stored_filename = Path(original_file_path).name
         db_import_file = CatalogImportFile(
             original_filename=file_name,

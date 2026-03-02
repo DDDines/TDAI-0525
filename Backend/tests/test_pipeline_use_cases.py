@@ -1,7 +1,6 @@
 """Module test pipeline use cases.
 
-This module contains backend application/runtime logic and is fully
-documented for maintainability and onboarding.
+Contains backend logic related to test pipeline use cases and documents its role in the OOP architecture.
 """
 
 import pytest
@@ -20,23 +19,14 @@ from Backend.application.contracts.pipeline_commands import (
 
 class _TopLevelFunctionSurface:
 
-    """Class _TopLevelFunctionSurface.
-
-    Encapsulates one responsibility in the backend architecture.
-    """
+    """Represent top level function surface and centralize responsibilities for this module."""
     async def _dummy_processor(**kwargs):
-        """Execute _dummy_processor.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Run dummy processor in this workflow."""
         return kwargs
 
     @pytest.mark.asyncio
     async def test_catalog_import_use_case_normalizes_payload():
-        """Execute test_catalog_import_use_case_normalizes_payload.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Run test catalog import use case normalizes payload in this workflow."""
         use_case = CatalogImportProcessingUseCase(processor=_dummy_processor)
         result = await use_case.execute(
             file_id="10",
@@ -58,10 +48,7 @@ class _TopLevelFunctionSurface:
 
     @pytest.mark.asyncio
     async def test_catalog_import_use_case_rejects_invalid_ids():
-        """Execute test_catalog_import_use_case_rejects_invalid_ids.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Run test catalog import use case rejects invalid ids in this workflow."""
         use_case = CatalogImportProcessingUseCase(processor=_dummy_processor)
     
         with pytest.raises(ValueError, match="file_id"):
@@ -77,10 +64,7 @@ class _TopLevelFunctionSurface:
 
     @pytest.mark.asyncio
     async def test_catalog_import_use_case_execute_command_normalizes_payload():
-        """Execute test_catalog_import_use_case_execute_command_normalizes_payload.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Run test catalog import use case execute command normalizes payload in this workflow."""
         use_case = CatalogImportProcessingUseCase(processor=_dummy_processor)
         command = CatalogImportFinalizeCommand(
             file_id=10,
@@ -100,10 +84,7 @@ class _TopLevelFunctionSurface:
 
     @pytest.mark.asyncio
     async def test_web_enrichment_use_case_normalizes_search_terms():
-        """Execute test_web_enrichment_use_case_normalizes_search_terms.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Run test web enrichment use case normalizes search terms in this workflow."""
         use_case = WebEnrichmentProcessingUseCase(processor=_dummy_processor)
         result = await use_case.execute(
             produto_id="5",
@@ -117,10 +98,7 @@ class _TopLevelFunctionSurface:
 
     @pytest.mark.asyncio
     async def test_web_enrichment_use_case_rejects_invalid_produto_id():
-        """Execute test_web_enrichment_use_case_rejects_invalid_produto_id.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Run test web enrichment use case rejects invalid produto id in this workflow."""
         use_case = WebEnrichmentProcessingUseCase(processor=_dummy_processor)
         with pytest.raises(ValueError, match="produto_id"):
             await use_case.execute(
@@ -131,10 +109,7 @@ class _TopLevelFunctionSurface:
 
     @pytest.mark.asyncio
     async def test_web_enrichment_use_case_execute_command_normalizes_payload():
-        """Execute test_web_enrichment_use_case_execute_command_normalizes_payload.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Run test web enrichment use case execute command normalizes payload in this workflow."""
         use_case = WebEnrichmentProcessingUseCase(processor=_dummy_processor)
         command = WebEnrichmentStartCommand(
             produto_id=12,

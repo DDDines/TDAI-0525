@@ -30,6 +30,18 @@ Make the codebase readable for any engineer without relying on tribal knowledge.
 - Keep comments synchronized with code behavior.
 - Prefer concise language over long prose.
 - Avoid placeholders like `TODO`, `FIXME`, `later`.
+- Avoid boilerplate descriptions that add no meaning.
+
+## Forbidden boilerplate
+
+Do not use generic patterns such as:
+
+- `Execute <name>.`
+- `This callable is documented to make behavior explicit for readers.`
+- `Encapsulates one responsibility in the backend architecture.`
+- `This module contains backend application/runtime logic and is fully documented...`
+
+Each docstring must describe real behavior, boundary, or decision relevant to that symbol.
 
 ## Docstring shape (recommended)
 

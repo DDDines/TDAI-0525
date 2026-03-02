@@ -1,7 +1,6 @@
 """Module test file processing pdf preview runtime.
 
-This module contains backend application/runtime logic and is fully
-documented for maintainability and onboarding.
+Contains backend logic related to test file processing pdf preview runtime and documents its role in the OOP architecture.
 """
 
 import pytest
@@ -11,16 +10,10 @@ from Backend.testing.runtime_apis import file_processing
 
 class _TopLevelFunctionSurface:
 
-    """Class _TopLevelFunctionSurface.
-
-    Encapsulates one responsibility in the backend architecture.
-    """
+    """Represent top level function surface and centralize responsibilities for this module."""
     @pytest.mark.asyncio
     async def test_pdf_preview_runtime_retorna_erro_sem_poppler(monkeypatch):
-        """Execute test_pdf_preview_runtime_retorna_erro_sem_poppler.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Run test pdf preview runtime retorna erro sem poppler in this workflow."""
         runtime = file_processing.PdfPreviewRuntime()
         original_getenv = file_processing.os.getenv
     
@@ -45,17 +38,11 @@ class _TopLevelFunctionSurface:
 
     @pytest.mark.asyncio
     async def test_preview_pdf_impl_usa_runtime(monkeypatch):
-        """Execute test_preview_pdf_impl_usa_runtime.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Run test preview pdf impl usa runtime in this workflow."""
         called = {}
     
         async def _fake_preview_arquivo_pdf(self, **kwargs):
-            """Execute _fake_preview_arquivo_pdf.
-
-            This callable is documented to make behavior explicit for readers.
-            """
+            """Run fake preview arquivo pdf in this workflow."""
             _ = self
             called.update(kwargs)
             return {"num_pages": 1, "preview_images": ["x"]}

@@ -1,7 +1,6 @@
 """Module validator crew adapter.
 
-This module contains backend application/runtime logic and is fully
-documented for maintainability and onboarding.
+Contains backend logic related to validator crew adapter and documents its role in the OOP architecture.
 """
 
 from __future__ import annotations
@@ -17,15 +16,9 @@ class ValidatorCrewServiceAdapter:
     """OOP port adapter backed by the current validator implementation."""
 
     def __init__(self, runtime: ValidationCrewWorkflow | None = None) -> None:
-        """Execute __init__.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Initialize collaborators and configuration required by this component."""
         self._runtime = runtime or ValidationCrewWorkflow()
 
     def run_validation_crew(self, raw_data: Any):
-        """Execute run_validation_crew.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Run validation crew for this workflow."""
         return self._runtime.run_validation_crew(raw_data)

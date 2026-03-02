@@ -1,7 +1,6 @@
 """Module test service runtime injection.
 
-This module contains backend application/runtime logic and is fully
-documented for maintainability and onboarding.
+Contains backend logic related to test service runtime injection and documents its role in the OOP architecture.
 """
 
 from __future__ import annotations
@@ -30,27 +29,15 @@ from Backend.tasks import TaskWorkflow
 
 class _TopLevelFunctionSurface:
 
-    """Class _TopLevelFunctionSurface.
-
-    Encapsulates one responsibility in the backend architecture.
-    """
+    """Represent top level function surface and centralize responsibilities for this module."""
     def test_create_tables_workflow_delega_runtime_injetado():
-        """Execute test_create_tables_workflow_delega_runtime_injetado.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Run test create tables workflow delega runtime injetado in this workflow."""
         called = []
     
         class FakeRuntime:
-            """Class FakeRuntime.
-
-            Encapsulates one responsibility in the backend architecture.
-            """
+            """Represent fake runtime and centralize responsibilities for this module."""
             def create_all_tables(self):
-                """Execute create_all_tables.
-
-                This callable is documented to make behavior explicit for readers.
-                """
+                """Create all tables for this workflow."""
                 called.append("ok")
     
         workflow = CreateTablesWorkflow(runtime=FakeRuntime())
@@ -59,29 +46,17 @@ class _TopLevelFunctionSurface:
         assert called == ["ok"]
 
     def test_database_get_db_yields_session_and_closes(monkeypatch):
-        """Execute test_database_get_db_yields_session_and_closes.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Run test database get db yields session and closes in this workflow."""
         called = []
 
         class FakeSession:
-            """Class FakeSession.
-
-            Encapsulates one responsibility in the backend architecture.
-            """
+            """Represent fake session and centralize responsibilities for this module."""
             def close(self):
-                """Execute close.
-
-                This callable is documented to make behavior explicit for readers.
-                """
+                """Run close in this workflow."""
                 called.append("close")
 
         def fake_session_local():
-            """Execute fake_session_local.
-
-            This callable is documented to make behavior explicit for readers.
-            """
+            """Run fake session local in this workflow."""
             called.append("create")
             return FakeSession()
 
@@ -92,22 +67,13 @@ class _TopLevelFunctionSurface:
         assert called == ["create", "close"]
 
     def test_task_workflow_delega_runtime_injetado():
-        """Execute test_task_workflow_delega_runtime_injetado.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Run test task workflow delega runtime injetado in this workflow."""
         called = []
     
         class FakeRuntime:
-            """Class FakeRuntime.
-
-            Encapsulates one responsibility in the backend architecture.
-            """
+            """Represent fake runtime and centralize responsibilities for this module."""
             def process_pdf_extraction_task(self, *, import_job_id, page_number, db_url):
-                """Execute process_pdf_extraction_task.
-
-                This callable is documented to make behavior explicit for readers.
-                """
+                """Process pdf extraction task for this workflow."""
                 called.append((import_job_id, page_number, db_url))
     
         workflow = TaskWorkflow(runtime=FakeRuntime())
@@ -116,20 +82,11 @@ class _TopLevelFunctionSurface:
         assert called == [(10, 2, "db-url")]
 
     def test_line_mapping_workflow_delega_runtime_injetado():
-        """Execute test_line_mapping_workflow_delega_runtime_injetado.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Run test line mapping workflow delega runtime injetado in this workflow."""
         class FakeRuntime:
-            """Class FakeRuntime.
-
-            Encapsulates one responsibility in the backend architecture.
-            """
+            """Represent fake runtime and centralize responsibilities for this module."""
             def processar_linha_padronizada(self, *, linha_original, mapeamento_colunas_usuario=None):
-                """Execute processar_linha_padronizada.
-
-                This callable is documented to make behavior explicit for readers.
-                """
+                """Run processar linha padronizada in this workflow."""
                 return {
                     "nome_base": linha_original.get("nome"),
                     "mapping": mapeamento_colunas_usuario,
@@ -145,86 +102,47 @@ class _TopLevelFunctionSurface:
 
     @pytest.mark.asyncio
     async def test_user_and_job_components_operam_com_dependencias_injetadas():
-        """Execute test_user_and_job_components_operam_com_dependencias_injetadas.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Run test user and job components operam com dependencias injetadas in this workflow."""
         class UserRuntime:
-            """Class UserRuntime.
-
-            Encapsulates one responsibility in the backend architecture.
-            """
+            """Represent user runtime and centralize responsibilities for this module."""
             def get_user(self, **kwargs):
-                """Execute get_user.
-
-                This callable is documented to make behavior explicit for readers.
-                """
+                """Return user for this workflow."""
                 return {"workflow": "user", **kwargs}
 
         class InitialDataRuntime:
-            """Class InitialDataRuntime.
-
-            Encapsulates one responsibility in the backend architecture.
-            """
+            """Represent initial data runtime and centralize responsibilities for this module."""
             def create_initial_data(self, **kwargs):
-                """Execute create_initial_data.
-
-                This callable is documented to make behavior explicit for readers.
-                """
+                """Create initial data for this workflow."""
                 return {"workflow": "initial_data", **kwargs}
     
         class UserWorkflow:
-            """Class UserWorkflow.
-
-            Encapsulates one responsibility in the backend architecture.
-            """
+            """Represent user workflow and centralize responsibilities for this module."""
             def __init__(self, runtime):
-                """Execute __init__.
-
-                This callable is documented to make behavior explicit for readers.
-                """
+                """Initialize collaborators and configuration required by this component."""
                 self._runtime = runtime
 
             def get_user(self, db, user_id):
-                """Execute get_user.
-
-                This callable is documented to make behavior explicit for readers.
-                """
+                """Return user for this workflow."""
                 return self._runtime.get_user(db=db, user_id=user_id)
 
         class _FakeDb:
-            """Class _FakeDb.
-
-            Encapsulates one responsibility in the backend architecture.
-            """
+            """Represent fake db and centralize responsibilities for this module."""
             def __init__(self):
-                """Execute __init__.
-
-                This callable is documented to make behavior explicit for readers.
-                """
+                """Initialize collaborators and configuration required by this component."""
                 self.added = []
                 self.commits = 0
                 self.refreshed = []
 
             def add(self, obj):
-                """Execute add.
-
-                This callable is documented to make behavior explicit for readers.
-                """
+                """Run add in this workflow."""
                 self.added.append(obj)
 
             def commit(self):
-                """Execute commit.
-
-                This callable is documented to make behavior explicit for readers.
-                """
+                """Run commit in this workflow."""
                 self.commits += 1
 
             def refresh(self, obj):
-                """Execute refresh.
-
-                This callable is documented to make behavior explicit for readers.
-                """
+                """Run refresh in this workflow."""
                 self.refreshed.append(obj)
 
         user_workflow = UserWorkflow(runtime=UserRuntime())
@@ -241,37 +159,22 @@ class _TopLevelFunctionSurface:
 
     @pytest.mark.asyncio
     async def test_catalog_storage_workflow_delega_runtime_injetado():
-        """Execute test_catalog_storage_workflow_delega_runtime_injetado.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Run test catalog storage workflow delega runtime injetado in this workflow."""
         called = []
     
         class FakeRuntime:
-            """Class FakeRuntime.
-
-            Encapsulates one responsibility in the backend architecture.
-            """
+            """Represent fake runtime and centralize responsibilities for this module."""
             async def save_uploaded_catalog(self, *, file, fornecedor_id=None):
-                """Execute save_uploaded_catalog.
-
-                This callable is documented to make behavior explicit for readers.
-                """
+                """Run save uploaded catalog in this workflow."""
                 called.append(("save", file, fornecedor_id))
                 return {"stored_filename": "arquivo.pdf"}
     
             def delete_catalog_file(self, *, stored_filename):
-                """Execute delete_catalog_file.
-
-                This callable is documented to make behavior explicit for readers.
-                """
+                """Delete catalog file for this workflow."""
                 called.append(("delete", stored_filename))
     
             def get_file_path_by_id(self, *, db, file_id):
-                """Execute get_file_path_by_id.
-
-                This callable is documented to make behavior explicit for readers.
-                """
+                """Return file path by id for this workflow."""
                 called.append(("path", db, file_id))
                 return f"/tmp/{file_id}"
     
@@ -290,46 +193,25 @@ class _TopLevelFunctionSurface:
 
     @pytest.mark.asyncio
     async def test_tabular_workflows_delegam_runtime_injetado():
-        """Execute test_tabular_workflows_delegam_runtime_injetado.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Run test tabular workflows delegam runtime injetado in this workflow."""
         class FakeIngestionRuntime:
-            """Class FakeIngestionRuntime.
-
-            Encapsulates one responsibility in the backend architecture.
-            """
+            """Represent fake ingestion runtime and centralize responsibilities for this module."""
             async def processar_arquivo_excel(self, **kwargs):
-                """Execute processar_arquivo_excel.
-
-                This callable is documented to make behavior explicit for readers.
-                """
+                """Run processar arquivo excel in this workflow."""
                 return [{"from": "excel", **kwargs}]
     
             async def processar_arquivo_csv(self, **kwargs):
-                """Execute processar_arquivo_csv.
-
-                This callable is documented to make behavior explicit for readers.
-                """
+                """Run processar arquivo csv in this workflow."""
                 return [{"from": "csv", **kwargs}]
     
         class FakePreviewRuntime:
-            """Class FakePreviewRuntime.
-
-            Encapsulates one responsibility in the backend architecture.
-            """
+            """Represent fake preview runtime and centralize responsibilities for this module."""
             async def preview_arquivo_excel(self, **kwargs):
-                """Execute preview_arquivo_excel.
-
-                This callable is documented to make behavior explicit for readers.
-                """
+                """Run preview arquivo excel in this workflow."""
                 return {"preview": "excel", **kwargs}
     
             async def preview_arquivo_csv(self, **kwargs):
-                """Execute preview_arquivo_csv.
-
-                This callable is documented to make behavior explicit for readers.
-                """
+                """Run preview arquivo csv in this workflow."""
                 return {"preview": "csv", **kwargs}
     
         ingestion = TabularIngestionWorkflow(runtime=FakeIngestionRuntime())
@@ -356,29 +238,17 @@ class _TopLevelFunctionSurface:
 
     @pytest.mark.asyncio
     async def test_pdf_job_workflow_delega_runtime_injetado():
-        """Execute test_pdf_job_workflow_delega_runtime_injetado.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Run test pdf job workflow delega runtime injetado in this workflow."""
         called = []
     
         class FakeRuntime:
-            """Class FakeRuntime.
-
-            Encapsulates one responsibility in the backend architecture.
-            """
+            """Represent fake runtime and centralize responsibilities for this module."""
             async def process_pdf_job(self, **kwargs):
-                """Execute process_pdf_job.
-
-                This callable is documented to make behavior explicit for readers.
-                """
+                """Process pdf job for this workflow."""
                 called.append(("process", kwargs))
     
             def extract_data_from_single_page(self, **kwargs):
-                """Execute extract_data_from_single_page.
-
-                This callable is documented to make behavior explicit for readers.
-                """
+                """Extract data from single page for this workflow."""
                 called.append(("single", kwargs))
                 return {"ok": True, "page": kwargs["page_number"]}
     
@@ -392,82 +262,46 @@ class _TopLevelFunctionSurface:
 
     @pytest.mark.asyncio
     async def test_web_extraction_workflow_usa_runtime_injetado_para_timestamp_e_html():
-        """Execute test_web_extraction_workflow_usa_runtime_injetado_para_timestamp_e_html.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Run test web extraction workflow usa runtime injetado para timestamp e html in this workflow."""
         class FakeRuntime:
-            """Class FakeRuntime.
-
-            Encapsulates one responsibility in the backend architecture.
-            """
+            """Represent fake runtime and centralize responsibilities for this module."""
             def now_iso(self) -> str:
-                """Execute now_iso.
-
-                This callable is documented to make behavior explicit for readers.
-                """
+                """Run now iso in this workflow."""
                 return "2026-02-01T12:00:00+00:00"
     
             async def collect_html(self, *, url: str):
-                """Execute collect_html.
-
-                This callable is documented to make behavior explicit for readers.
-                """
+                """Run collect html in this workflow."""
                 assert url == "https://example.com/produto"
                 return "<html>ok</html>"
     
             def extract_main_text(self, *, html_content: str):
-                """Execute extract_main_text.
-
-                This callable is documented to make behavior explicit for readers.
-                """
+                """Extract main text for this workflow."""
                 return "texto"
     
             def extract_structured_metadata(self, *, html_content: str, url: str):
-                """Execute extract_structured_metadata.
-
-                This callable is documented to make behavior explicit for readers.
-                """
+                """Extract structured metadata for this workflow."""
                 return {}
     
             def normalize_metadata(self, *, metadata):
-                """Execute normalize_metadata.
-
-                This callable is documented to make behavior explicit for readers.
-                """
+                """Normalize metadata for this workflow."""
                 return {}
     
         class FakeDb:
-            """Class FakeDb.
-
-            Encapsulates one responsibility in the backend architecture.
-            """
+            """Represent fake db and centralize responsibilities for this module."""
             def __init__(self):
-                """Execute __init__.
-
-                This callable is documented to make behavior explicit for readers.
-                """
+                """Initialize collaborators and configuration required by this component."""
                 self.commits = 0
     
             def add(self, _obj):
-                """Execute add.
-
-                This callable is documented to make behavior explicit for readers.
-                """
+                """Run add in this workflow."""
                 return None
     
             def commit(self):
-                """Execute commit.
-
-                This callable is documented to make behavior explicit for readers.
-                """
+                """Run commit in this workflow."""
                 self.commits += 1
     
             def refresh(self, _obj, attribute_names=None):
-                """Execute refresh.
-
-                This callable is documented to make behavior explicit for readers.
-                """
+                """Run refresh in this workflow."""
                 return None
     
         produto = SimpleNamespace(

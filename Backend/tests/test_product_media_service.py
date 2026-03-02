@@ -1,7 +1,6 @@
 """Module test product media service.
 
-This module contains backend application/runtime logic and is fully
-documented for maintainability and onboarding.
+Contains backend logic related to test product media service and documents its role in the OOP architecture.
 """
 
 from __future__ import annotations
@@ -16,80 +15,50 @@ from Backend.application.services.product_media_service import ProductMediaServi
 
 
 class _CrudProdutosStub:
-    """Class _CrudProdutosStub.
-
-    Encapsulates one responsibility in the backend architecture.
-    """
+    """Represent crud produtos stub and centralize responsibilities for this module."""
     def __init__(self, *, produto=None, save_error=None):
-        """Execute __init__.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Initialize collaborators and configuration required by this component."""
         self.produto = produto
         self.save_error = save_error
         self.update_calls = []
 
     def get_produto(self, *, produto_id):
-        """Execute get_produto.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Return produto for this workflow."""
         _ = produto_id
         return self.produto
 
     async def save_produto_image(self, *, produto_id, file):
-        """Execute save_produto_image.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Run save produto image in this workflow."""
         _ = (produto_id, file)
         if self.save_error:
             raise self.save_error
         return "uploads/produto.jpg"
 
     def update_produto(self, *, db_produto, produto_update):
-        """Execute update_produto.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Update produto for this workflow."""
         self.update_calls.append((db_produto, produto_update))
         db_produto.imagem_principal_url = produto_update.imagem_principal_url
         return db_produto
 
 
 class _ProdutoUpdateSchema:
-    """Class _ProdutoUpdateSchema.
-
-    Encapsulates one responsibility in the backend architecture.
-    """
+    """Represent produto update schema and centralize responsibilities for this module."""
     def __init__(self, **kwargs):
-        """Execute __init__.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Initialize collaborators and configuration required by this component."""
         for key, value in kwargs.items():
             setattr(self, key, value)
 
 
 class _SchemasStub:
-    """Class _SchemasStub.
-
-    Encapsulates one responsibility in the backend architecture.
-    """
+    """Represent schemas stub and centralize responsibilities for this module."""
     ProdutoUpdate = _ProdutoUpdateSchema
 
 
 class _TopLevelFunctionSurface:
 
-    """Class _TopLevelFunctionSurface.
-
-    Encapsulates one responsibility in the backend architecture.
-    """
+    """Represent top level function surface and centralize responsibilities for this module."""
     def _build_service(*, produto=None, save_error=None):
-        """Execute _build_service.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Run build service in this workflow."""
         crud_produtos = _CrudProdutosStub(produto=produto, save_error=save_error)
         service = ProductMediaService(
             produto_repo=crud_produtos,
@@ -98,10 +67,7 @@ class _TopLevelFunctionSurface:
         return service, crud_produtos
 
     def test_upload_produto_image_raises_404_when_missing():
-        """Execute test_upload_produto_image_raises_404_when_missing.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Run test upload produto image raises 404 when missing in this workflow."""
         service, _ = _build_service(produto=None)
     
         with pytest.raises(HTTPException) as exc:
@@ -116,10 +82,7 @@ class _TopLevelFunctionSurface:
         assert exc.value.status_code == 404
 
     def test_upload_produto_image_raises_403_when_not_owner():
-        """Execute test_upload_produto_image_raises_403_when_not_owner.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Run test upload produto image raises 403 when not owner in this workflow."""
         service, _ = _build_service(produto=SimpleNamespace(id=1, user_id=99))
     
         with pytest.raises(HTTPException) as exc:
@@ -134,10 +97,7 @@ class _TopLevelFunctionSurface:
         assert exc.value.status_code == 403
 
     def test_upload_produto_image_raises_400_for_validation_error():
-        """Execute test_upload_produto_image_raises_400_for_validation_error.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Run test upload produto image raises 400 for validation error in this workflow."""
         service, _ = _build_service(
             produto=SimpleNamespace(id=1, user_id=1),
             save_error=ValueError("arquivo invalido"),
@@ -155,10 +115,7 @@ class _TopLevelFunctionSurface:
         assert exc.value.status_code == 400
 
     def test_upload_produto_image_updates_product_url():
-        """Execute test_upload_produto_image_updates_product_url.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Run test upload produto image updates product url in this workflow."""
         produto = SimpleNamespace(id=1, user_id=1, imagem_principal_url=None)
         service, crud_produtos = _build_service(produto=produto)
     

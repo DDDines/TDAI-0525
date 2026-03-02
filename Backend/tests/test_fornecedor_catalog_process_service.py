@@ -1,7 +1,6 @@
 """Module test fornecedor catalog process service.
 
-This module contains backend application/runtime logic and is fully
-documented for maintainability and onboarding.
+Contains backend logic related to test fornecedor catalog process service and documents its role in the OOP architecture.
 """
 
 from __future__ import annotations
@@ -17,122 +16,74 @@ from Backend.application.services.fornecedor_catalog_process_service import (
 
 
 class _CatalogImportFileModel:
-    """Class _CatalogImportFileModel.
-
-    Encapsulates one responsibility in the backend architecture.
-    """
+    """Represent catalog import file model and centralize responsibilities for this module."""
     def __init__(self, **kwargs):
-        """Execute __init__.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Initialize collaborators and configuration required by this component."""
         for key, value in kwargs.items():
             setattr(self, key, value)
         self.id = None
 
 
 class _ModelsStub:
-    """Class _ModelsStub.
-
-    Encapsulates one responsibility in the backend architecture.
-    """
+    """Represent models stub and centralize responsibilities for this module."""
     CatalogImportFile = _CatalogImportFileModel
 
 
 class _CrudFornecedoresStub:
-    """Class _CrudFornecedoresStub.
-
-    Encapsulates one responsibility in the backend architecture.
-    """
+    """Represent crud fornecedores stub and centralize responsibilities for this module."""
     def __init__(self, fornecedor):
-        """Execute __init__.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Initialize collaborators and configuration required by this component."""
         self._fornecedor = fornecedor
 
     def get_fornecedor(self, *, fornecedor_id):
-        """Execute get_fornecedor.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Return fornecedor for this workflow."""
         _ = fornecedor_id
         return self._fornecedor
 
 
 class _CatalogImportStartServiceStub:
-    """Class _CatalogImportStartServiceStub.
-
-    Encapsulates one responsibility in the backend architecture.
-    """
+    """Represent catalog import start service stub and centralize responsibilities for this module."""
     def __init__(self, source):
-        """Execute __init__.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Initialize collaborators and configuration required by this component."""
         self._source = source
         self.dispatched = []
         self.commands = []
 
     def get_catalog_file_or_404(self, **kwargs):
-        """Execute get_catalog_file_or_404.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Return catalog file or 404 for this workflow."""
         _ = kwargs
         return self._source
 
     def resolve_pdf_pages(self, *, catalog_file, start_page):
-        """Execute resolve_pdf_pages.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Resolve pdf pages for this workflow."""
         _ = catalog_file
         return [start_page, start_page + 1]
 
     def resolve_mapping(self, **kwargs):
-        """Execute resolve_mapping.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Resolve mapping for this workflow."""
         _ = kwargs
         return kwargs.get("mapping") or {"col_0": "nome_base"}
 
     def build_finalize_command(self, **kwargs):
-        """Execute build_finalize_command.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Build finalize command for this workflow."""
         self.commands.append(kwargs)
         return SimpleNamespace(**kwargs)
 
     async def dispatch_finalize(self, **kwargs):
-        """Execute dispatch_finalize.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Dispatch finalize for this workflow."""
         self.dispatched.append(kwargs)
         return {"ok": True}
 
 
 class _DbStub:
-    """Class _DbStub.
-
-    Encapsulates one responsibility in the backend architecture.
-    """
+    """Represent db stub and centralize responsibilities for this module."""
     def __init__(self):
-        """Execute __init__.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Initialize collaborators and configuration required by this component."""
         self.saved = []
         self._next_id = 900
 
     def save_catalog_file(self, *, catalog_file):
-        """Execute save_catalog_file.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Run save catalog file in this workflow."""
         self.saved.append(catalog_file)
         if getattr(catalog_file, "id", None) is None:
             catalog_file.id = self._next_id
@@ -142,15 +93,9 @@ class _DbStub:
 
 class _TopLevelFunctionSurface:
 
-    """Class _TopLevelFunctionSurface.
-
-    Encapsulates one responsibility in the backend architecture.
-    """
+    """Represent top level function surface and centralize responsibilities for this module."""
     def _build_service(*, fornecedor, source):
-        """Execute _build_service.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Run build service in this workflow."""
         fornecedor_repo = _CrudFornecedoresStub(fornecedor=fornecedor)
         catalog_file_repo = _DbStub()
         service = FornecedorCatalogProcessService(
@@ -163,10 +108,7 @@ class _TopLevelFunctionSurface:
 
     @pytest.mark.asyncio
     async def test_start_full_processing_dispatches_job():
-        """Execute test_start_full_processing_dispatches_job.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Run test start full processing dispatches job in this workflow."""
         fornecedor = SimpleNamespace(id=3, user_id=10)
         source = SimpleNamespace(original_filename="orig.pdf", stored_filename="stored.pdf")
         service, fornecedor_repo, catalog_file_repo = _build_service(
@@ -200,10 +142,7 @@ class _TopLevelFunctionSurface:
 
     @pytest.mark.asyncio
     async def test_start_full_processing_raises_when_fornecedor_not_found():
-        """Execute test_start_full_processing_raises_when_fornecedor_not_found.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Run test start full processing raises when fornecedor not found in this workflow."""
         source = SimpleNamespace(original_filename="orig.pdf", stored_filename="stored.pdf")
         service, fornecedor_repo, catalog_file_repo = _build_service(
             fornecedor=None,
@@ -226,10 +165,7 @@ class _TopLevelFunctionSurface:
 
     @pytest.mark.asyncio
     async def test_start_full_processing_raises_when_user_not_allowed():
-        """Execute test_start_full_processing_raises_when_user_not_allowed.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Run test start full processing raises when user not allowed in this workflow."""
         fornecedor = SimpleNamespace(id=3, user_id=99)
         source = SimpleNamespace(original_filename="orig.pdf", stored_filename="stored.pdf")
         service, fornecedor_repo, catalog_file_repo = _build_service(

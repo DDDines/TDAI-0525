@@ -1,7 +1,6 @@
 """Module test fornecedor preview service.
 
-This module contains backend application/runtime logic and is fully
-documented for maintainability and onboarding.
+Contains backend logic related to test fornecedor preview service and documents its role in the OOP architecture.
 """
 
 from __future__ import annotations
@@ -19,15 +18,9 @@ from Backend.application.services.fornecedor_preview_service import (
 
 
 class _FileProcessingStub:
-    """Class _FileProcessingStub.
-
-    Encapsulates one responsibility in the backend architecture.
-    """
+    """Represent file processing stub and centralize responsibilities for this module."""
     def __init__(self):
-        """Execute __init__.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Initialize collaborators and configuration required by this component."""
         self.generate_calls = []
         self.preview_calls = []
         self.extract_calls = []
@@ -35,198 +28,117 @@ class _FileProcessingStub:
         self._df = None
 
     def generate_pdf_page_images(self, path, file_id):
-        """Execute generate_pdf_page_images.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Run generate pdf page images in this workflow."""
         self.generate_calls.append((path, file_id))
         return ["img://1", "img://2"]
 
     def pdf_pages_to_images(self, **kwargs):
-        """Execute pdf_pages_to_images.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Run pdf pages to images in this workflow."""
         self.preview_calls.append(kwargs)
         return {"pages": [{"page_number": 1}]}
 
     def get_file_path_by_id(self, db, file_id):
-        """Execute get_file_path_by_id.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Return file path by id for this workflow."""
         _ = (db, file_id)
         return self._file_path
 
     def extract_pdf_region_image(self, **kwargs):
-        """Execute extract_pdf_region_image.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Extract pdf region image for this workflow."""
         self.extract_calls.append(kwargs)
         return b"fake-bytes"
 
     def parse_annotation_to_dataframe(self, annotation):
-        """Execute parse_annotation_to_dataframe.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Parse annotation to dataframe for this workflow."""
         _ = annotation
         return self._df
 
     def extract_data_from_pdf_region(self, **kwargs):
-        """Execute extract_data_from_pdf_region.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Extract data from pdf region for this workflow."""
         _ = kwargs
 
 
 class _WebExtractorStub:
-    """Class _WebExtractorStub.
-
-    Encapsulates one responsibility in the backend architecture.
-    """
+    """Represent web extractor stub and centralize responsibilities for this module."""
     def extract_text_from_image_region(self, image_bytes):
-        """Execute extract_text_from_image_region.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Extract text from image region for this workflow."""
         _ = image_bytes
         return "annotated"
 
 
 class _UploadFileStub:
-    """Class _UploadFileStub.
-
-    Encapsulates one responsibility in the backend architecture.
-    """
+    """Represent upload file stub and centralize responsibilities for this module."""
     def __init__(self, filename: str, payload: bytes = b"pdf"):
-        """Execute __init__.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Initialize collaborators and configuration required by this component."""
         self.filename = filename
         self._payload = payload
 
     async def read(self):
-        """Execute read.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Run read in this workflow."""
         return self._payload
 
 
 class _DataFrameStub:
-    """Class _DataFrameStub.
-
-    Encapsulates one responsibility in the backend architecture.
-    """
+    """Represent data frame stub and centralize responsibilities for this module."""
     def __init__(self, *, empty: bool, columns=None, rows=None):
-        """Execute __init__.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Initialize collaborators and configuration required by this component."""
         self.empty = empty
         self._columns = columns or []
         self._rows = rows or []
 
     @property
     def columns(self):
-        """Execute columns.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Run columns in this workflow."""
         return SimpleNamespace(astype=lambda _type: SimpleNamespace(tolist=lambda: self._columns))
 
     def head(self, _limit):
-        """Execute head.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Run head in this workflow."""
         return self
 
     def to_dict(self, orient):
-        """Execute to_dict.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Run to dict in this workflow."""
         _ = orient
         return self._rows
 
 
 class _BackgroundTasksStub:
-    """Class _BackgroundTasksStub.
-
-    Encapsulates one responsibility in the backend architecture.
-    """
+    """Represent background tasks stub and centralize responsibilities for this module."""
     def __init__(self):
-        """Execute __init__.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Initialize collaborators and configuration required by this component."""
         self.calls = []
 
     def add_task(self, fn, **kwargs):
-        """Execute add_task.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Run add task in this workflow."""
         self.calls.append((fn, kwargs))
 
 
 class _CatalogFileRepoStub:
-    """Class _CatalogFileRepoStub.
-
-    Encapsulates one responsibility in the backend architecture.
-    """
+    """Represent catalog file repo stub and centralize responsibilities for this module."""
     def __init__(self):
-        """Execute __init__.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Initialize collaborators and configuration required by this component."""
         self._db = object()
 
 
 class _PdfStub:
-    """Class _PdfStub.
-
-    Encapsulates one responsibility in the backend architecture.
-    """
+    """Represent pdf stub and centralize responsibilities for this module."""
     def __init__(self, pages_count):
-        """Execute __init__.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Initialize collaborators and configuration required by this component."""
         self.pages = [object() for _ in range(pages_count)]
 
     def __enter__(self):
-        """Execute __enter__.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Run enter in this workflow."""
         return self
 
     def __exit__(self, exc_type, exc, tb):
-        """Execute __exit__.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Run exit in this workflow."""
         _ = (exc_type, exc, tb)
         return False
 
 
 class _TopLevelFunctionSurface:
 
-    """Class _TopLevelFunctionSurface.
-
-    Encapsulates one responsibility in the backend architecture.
-    """
+    """Represent top level function surface and centralize responsibilities for this module."""
     def _build_service():
-        """Execute _build_service.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Run build service in this workflow."""
         file_processing = _FileProcessingStub()
         catalog_repo = _CatalogFileRepoStub()
         service = FornecedorPreviewService(
@@ -237,10 +149,7 @@ class _TopLevelFunctionSurface:
         return service, file_processing, catalog_repo
 
     def test_preview_pages_rejects_non_pdf():
-        """Execute test_preview_pages_rejects_non_pdf.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Run test preview pages rejects non pdf in this workflow."""
         service, _, _ = _build_service()
     
         with pytest.raises(HTTPException) as exc:
@@ -249,10 +158,7 @@ class _TopLevelFunctionSurface:
         assert exc.value.status_code == 400
 
     def test_preview_pages_generates_images():
-        """Execute test_preview_pages_generates_images.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Run test preview pages generates images in this workflow."""
         service, file_processing, _ = _build_service()
     
         payload = asyncio.run(
@@ -264,10 +170,7 @@ class _TopLevelFunctionSurface:
         assert len(file_processing.generate_calls) == 1
 
     def test_preview_pdf_rejects_invalid_extension():
-        """Execute test_preview_pdf_rejects_invalid_extension.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Run test preview pdf rejects invalid extension in this workflow."""
         service, _, catalog_file_repo = _build_service()
     
         with pytest.raises(HTTPException) as exc:
@@ -282,10 +185,7 @@ class _TopLevelFunctionSurface:
         assert exc.value.status_code == 400
 
     def test_preview_catalog_from_region_returns_columns_and_rows():
-        """Execute test_preview_catalog_from_region_returns_columns_and_rows.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Run test preview catalog from region returns columns and rows in this workflow."""
         service, file_processing, catalog_file_repo = _build_service()
         file_processing._df = _DataFrameStub(
             empty=False,
@@ -303,10 +203,7 @@ class _TopLevelFunctionSurface:
         assert payload["data"] == [{"col_0": "A", "col_1": "B"}]
 
     def test_preview_catalog_from_region_raises_when_dataframe_empty():
-        """Execute test_preview_catalog_from_region_raises_when_dataframe_empty.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Run test preview catalog from region raises when dataframe empty in this workflow."""
         service, file_processing, catalog_file_repo = _build_service()
         file_processing._df = _DataFrameStub(empty=True)
     
@@ -320,10 +217,7 @@ class _TopLevelFunctionSurface:
         assert exc.value.status_code == 400
 
     def test_extract_data_from_pdf_bulk_schedules_all_pages(monkeypatch):
-        """Execute test_extract_data_from_pdf_bulk_schedules_all_pages.
-
-        This callable is documented to make behavior explicit for readers.
-        """
+        """Run test extract data from pdf bulk schedules all pages in this workflow."""
         service, file_processing, catalog_file_repo = _build_service()
         tasks = _BackgroundTasksStub()
     
