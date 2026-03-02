@@ -1,12 +1,19 @@
-﻿import pytest
+"""Module test file processing pdf preview runtime.
+
+Contains backend logic related to test file processing pdf preview runtime and documents its role in the OOP architecture.
+"""
+
+import pytest
 
 from Backend.testing.runtime_apis import file_processing
 
 
 class _TopLevelFunctionSurface:
 
+    """Represent top level function surface and centralize responsibilities for this module."""
     @pytest.mark.asyncio
     async def test_pdf_preview_runtime_retorna_erro_sem_poppler(monkeypatch):
+        """Run test pdf preview runtime retorna erro sem poppler in this workflow."""
         runtime = file_processing.PdfPreviewRuntime()
         original_getenv = file_processing.os.getenv
     
@@ -31,9 +38,11 @@ class _TopLevelFunctionSurface:
 
     @pytest.mark.asyncio
     async def test_preview_pdf_impl_usa_runtime(monkeypatch):
+        """Run test preview pdf impl usa runtime in this workflow."""
         called = {}
     
         async def _fake_preview_arquivo_pdf(self, **kwargs):
+            """Run fake preview arquivo pdf in this workflow."""
             _ = self
             called.update(kwargs)
             return {"num_pages": 1, "preview_images": ["x"]}

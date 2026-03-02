@@ -1,3 +1,5 @@
+"""Document fornecedor import tracking service module responsibilities and runtime integration points."""
+
 from __future__ import annotations
 
 from typing import Any
@@ -15,6 +17,7 @@ class FornecedorImportTrackingService:
         process_pdf_extraction_task: Any,
         catalog_file_repository: Any,
     ) -> None:
+        """Initialize injected dependencies and runtime configuration for Fornecedor Import Tracking Service."""
         self._models = models
         self._process_pdf_extraction_task = process_pdf_extraction_task
         self._catalog_file_repository = catalog_file_repository
@@ -26,6 +29,7 @@ class FornecedorImportTrackingService:
         user_id: int,
         not_found_detail: str,
     ) -> Any:
+        """Retrieve catalog record or 404 using the current service dependencies."""
         record = self._catalog_file_repository.get_catalog_file_for_user(
             file_id=file_id,
             user_id=user_id,
@@ -36,6 +40,7 @@ class FornecedorImportTrackingService:
 
     @staticmethod
     def build_progress_payload(*, record: Any) -> dict[str, Any]:
+        """Build progress payload from current inputs and configuration."""
         return {
             "status": record.status,
             "progress": record.pages_processed,
@@ -49,17 +54,17 @@ class FornecedorImportTrackingService:
         background_tasks: Any,
         import_job_id: int,
         page_number: int,
-        db_url: str,
     ) -> None:
+        """Execute schedule page extraction as part of this module workflow."""
         background_tasks.add_task(
             self._process_pdf_extraction_task,
             import_job_id=import_job_id,
             page_number=page_number,
-            db_url=db_url,
         )
 
     @staticmethod
     def build_import_job_status_payload(*, record: Any) -> dict[str, Any]:
+        """Build import job status payload from current inputs and configuration."""
         response = {"status": record.status}
         if record.status == "COMPLETED":
             response["resultado_json"] = record.resultado_json

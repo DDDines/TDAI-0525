@@ -1,6 +1,13 @@
+﻿/**
+ * Module product edit modal.
+ *
+ * Defines responsibilities and integration points for components.
+ */
+
 // Frontend/app/src/components/ProductEditModal.jsx
 import React, { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '../contexts/AuthContext';
+import { useAppExperience } from '../contexts/AppExperienceContext';
 import Modal from './common/Modal';
 import LoadingOverlay from './common/LoadingOverlay.jsx';
 import { showSuccessToast, showErrorToast, showInfoToast, showWarningToast } from '../utils/notifications';
@@ -12,83 +19,9 @@ import NewProductTypeModal from './product_types/NewProductTypeModal.jsx';
 import './ProductEditModal.css';
 
 // Campos base que não devem aparecer como atributos dinâmicos
-class _TopLevelFunctionSurface {static foldText(
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+function foldText(
 
 
   value) {return (
@@ -97,7 +30,9 @@ class _TopLevelFunctionSurface {static foldText(
       replace(/[\u0300-\u036f]/g, '').
       toLowerCase().
       replace(/[^a-z0-9]+/g, ' ').
-      trim());}static normalizeDisplayText(
+      trim());}
+
+function normalizeDisplayText(
 
   value) {
     if (value === null || value === undefined) return '';
@@ -144,7 +79,9 @@ class _TopLevelFunctionSurface {static foldText(
     });
 
     return text.replace(/\s+/g, ' ').trim();
-  }static isEmptyLike(
+  }
+
+function isEmptyLike(
 
   value) {
     if (value === null || value === undefined) return true;
@@ -152,7 +89,9 @@ class _TopLevelFunctionSurface {static foldText(
     if (!text) return true;
     const folded = foldText(text);
     return ['none', 'null', 'nan', 'na', '-', '--'].includes(folded);
-  }static normalizeDynamicAttrsToTemplateKeys(
+  }
+
+function normalizeDynamicAttrsToTemplateKeys(
 
   dynamicAttrsRaw, attributeTemplates) {
     const result = { ...(dynamicAttrsRaw || {}) };
@@ -199,12 +138,16 @@ class _TopLevelFunctionSurface {static foldText(
     });
 
     return result;
-  }static ProductEditModal(
+  }
 
-  { isOpen, onClose, product, onProductUpdated }) {
+function ProductEditModal(
+
+  { isOpen, onClose, product, onProductUpdated, showAiFeatures: showAiFeaturesProp }) {
     const isNewProduct = !product?.id;
 
     const { isAuthenticated: _isAuthenticated } = useAuth();
+    const { effectiveMode } = useAppExperience();
+    const showAiFeatures = typeof showAiFeaturesProp === 'boolean' ? showAiFeaturesProp : effectiveMode === 'complete';
 
     const [formData, setFormData] = useState(initialFormData);
     const [activeTab, setActiveTab] = useState('info');
@@ -225,6 +168,17 @@ class _TopLevelFunctionSurface {static foldText(
     const [newAttrKey, setNewAttrKey] = useState('');
     const [isNewTypeModalOpen, setIsNewTypeModalOpen] = useState(false);
     const enrichmentPollRunRef = React.useRef(0);
+    const titleRefreshTimeoutRef = React.useRef(null);
+    const descriptionRefreshTimeoutRef = React.useRef(null);
+    const isMountedRef = React.useRef(false);
+    const isOpenRef = React.useRef(isOpen);
+
+    useEffect(() => {
+      isMountedRef.current = true;
+      return () => {
+        isMountedRef.current = false;
+      };
+    }, []);
 
 
     useEffect(() => {
@@ -273,14 +227,37 @@ class _TopLevelFunctionSurface {static foldText(
     }, [isOpen, product, formData.fornecedor_id, formData.product_type_id]);
 
     useEffect(() => {
+      isOpenRef.current = isOpen;
       if (!isOpen) {
         enrichmentPollRunRef.current += 1;
         setIsEnrichingWeb(false);
+        if (titleRefreshTimeoutRef.current) {
+          clearTimeout(titleRefreshTimeoutRef.current);
+          titleRefreshTimeoutRef.current = null;
+        }
+        if (descriptionRefreshTimeoutRef.current) {
+          clearTimeout(descriptionRefreshTimeoutRef.current);
+          descriptionRefreshTimeoutRef.current = null;
+        }
       }
       return () => {
         enrichmentPollRunRef.current += 1;
+        if (titleRefreshTimeoutRef.current) {
+          clearTimeout(titleRefreshTimeoutRef.current);
+          titleRefreshTimeoutRef.current = null;
+        }
+        if (descriptionRefreshTimeoutRef.current) {
+          clearTimeout(descriptionRefreshTimeoutRef.current);
+          descriptionRefreshTimeoutRef.current = null;
+        }
       };
     }, [isOpen]);
+
+    useEffect(() => {
+      if (!showAiFeatures && (activeTab === 'conteudo-ia' || activeTab === 'sugestoes-ia')) {
+        setActiveTab('info');
+      }
+    }, [activeTab, showAiFeatures]);
 
     const extractIaSuggestions = useCallback((dadosBrutos) => {
       const extracted = {};
@@ -680,10 +657,28 @@ class _TopLevelFunctionSurface {static foldText(
       try {
         await productService.gerarTitulosProduto(product.id);
         showInfoToast("Geração de títulos iniciada. Verifique em breve.");
-        setTimeout(async () => {
-          const updatedProduct = await productService.getProdutoById(product.id);
-          setFormData((prev) => ({ ...prev, nome_chat_api: updatedProduct.nome_chat_api, titulos_sugeridos: updatedProduct.titulos_sugeridos }));
-          if (onProductUpdated) onProductUpdated(updatedProduct);
+        if (titleRefreshTimeoutRef.current) {
+          clearTimeout(titleRefreshTimeoutRef.current);
+        }
+        titleRefreshTimeoutRef.current = setTimeout(() => {
+          void (async () => {
+            try {
+              const updatedProduct = await productService.getProdutoById(product.id);
+              if (!isMountedRef.current || !isOpenRef.current) {
+                return;
+              }
+              setFormData((prev) => ({ ...prev, nome_chat_api: updatedProduct.nome_chat_api, titulos_sugeridos: updatedProduct.titulos_sugeridos }));
+              if (onProductUpdated) onProductUpdated(updatedProduct);
+            } catch (refreshErr) {
+              if (!isMountedRef.current || !isOpenRef.current) {
+                return;
+              }
+              console.error("Erro ao atualizar títulos gerados:", refreshErr);
+              showErrorToast("Nao foi possivel atualizar os titulos gerados.");
+            } finally {
+              titleRefreshTimeoutRef.current = null;
+            }
+          })();
         }, 7000);
       } catch (err) {
         console.error("Erro ao gerar títulos:", err);
@@ -702,13 +697,31 @@ class _TopLevelFunctionSurface {static foldText(
       try {
         await productService.gerarDescricaoProduto(product.id);
         showInfoToast("Geração de descrição iniciada. Verifique em breve.");
-        setTimeout(async () => {
-          const updatedProduct = await productService.getProdutoById(product.id);
-          setFormData((prev) => ({
-            ...prev,
-            descricao_chat_api: updatedProduct.descricao_chat_api
-          }));
-          if (onProductUpdated) onProductUpdated(updatedProduct);
+        if (descriptionRefreshTimeoutRef.current) {
+          clearTimeout(descriptionRefreshTimeoutRef.current);
+        }
+        descriptionRefreshTimeoutRef.current = setTimeout(() => {
+          void (async () => {
+            try {
+              const updatedProduct = await productService.getProdutoById(product.id);
+              if (!isMountedRef.current || !isOpenRef.current) {
+                return;
+              }
+              setFormData((prev) => ({
+                ...prev,
+                descricao_chat_api: updatedProduct.descricao_chat_api
+              }));
+              if (onProductUpdated) onProductUpdated(updatedProduct);
+            } catch (refreshErr) {
+              if (!isMountedRef.current || !isOpenRef.current) {
+                return;
+              }
+              console.error("Erro ao atualizar descrição gerada:", refreshErr);
+              showErrorToast("Nao foi possivel atualizar a descricao gerada.");
+            } finally {
+              descriptionRefreshTimeoutRef.current = null;
+            }
+          })();
         }, 7000);
       } catch (err) {
         console.error("Erro ao gerar descrição:", err);
@@ -788,8 +801,12 @@ class _TopLevelFunctionSurface {static foldText(
                     <button type="button" className={activeTab === 'info' ? 'active' : ''} onClick={() => setActiveTab('info')}>Info Principais</button>
                     <button type="button" className={activeTab === 'atributos' ? 'active' : ''} onClick={() => setActiveTab('atributos')} disabled={!formData.fornecedor_id || !formData.product_type_id}>Atributos</button>
                     <button type="button" className={activeTab === 'midia' ? 'active' : ''} onClick={() => setActiveTab('midia')} disabled={!formData.fornecedor_id || !formData.product_type_id}>Mídia</button>
-                    <button type="button" className={activeTab === 'conteudo-ia' ? 'active' : ''} onClick={() => setActiveTab('conteudo-ia')} disabled={!formData.fornecedor_id || !formData.product_type_id}>Conteúdo IA</button>
-                    <button type="button" className={activeTab === 'sugestoes-ia' ? 'active' : ''} onClick={() => setActiveTab('sugestoes-ia')} disabled={!formData.fornecedor_id || !formData.product_type_id}>Sugestões IA</button>
+                    {showAiFeatures &&
+                    <>
+                        <button type="button" className={activeTab === 'conteudo-ia' ? 'active' : ''} onClick={() => setActiveTab('conteudo-ia')} disabled={!formData.fornecedor_id || !formData.product_type_id}>Conteúdo IA</button>
+                        <button type="button" className={activeTab === 'sugestoes-ia' ? 'active' : ''} onClick={() => setActiveTab('sugestoes-ia')} disabled={!formData.fornecedor_id || !formData.product_type_id}>Sugestões IA</button>
+                      </>
+                    }
                     <button type="button" className={activeTab === 'log' ? 'active' : ''} onClick={() => setActiveTab('log')} disabled={!formData.fornecedor_id || !formData.product_type_id}>Log</button>
                 </div>
 
@@ -872,7 +889,7 @@ class _TopLevelFunctionSurface {static foldText(
                              </div>
                          </div>
               }
-                    {activeTab === 'conteudo-ia' &&
+                    {showAiFeatures && activeTab === 'conteudo-ia' &&
               <div className="form-section">
                             <h3>Conteúdo Gerado por IA</h3>
                             <button type="button" onClick={handleGenerateTitles} disabled={isGeneratingIA || isNewProduct}> {isGeneratingIA ? 'Gerando Títulos...' : 'Gerar Títulos (OpenAI)'} </button>
@@ -882,7 +899,7 @@ class _TopLevelFunctionSurface {static foldText(
                             {formData.descricao_chat_api && <div style={{ marginTop: '10px' }}> <h4>Descrição Principal Gerada:</h4> <textarea value={formData.descricao_chat_api} readOnly rows="10" style={{ width: '100%', backgroundColor: '#f9f9f9' }} /> </div>}
                         </div>
               }
-                    {activeTab === 'sugestoes-ia' &&
+                    {showAiFeatures && activeTab === 'sugestoes-ia' &&
               <div className="form-section">
                             <h3>Sugestões de Atributos por IA</h3>
                             <div className="suggestion-action-box">
@@ -969,4 +986,5 @@ class _TopLevelFunctionSurface {static foldText(
         
         </>);
 
-  }}const BASE_PRODUCT_FIELDS = new Set(['nome_base', 'nome_chat_api', 'descricao_original', 'descricao_curta_orig', 'descricao_chat_api', 'descricao_curta_gerada', 'sku', 'ean', 'ncm', 'marca', 'modelo', 'categoria_original', 'categoria_mapeada', 'preco_custo', 'preco_venda', 'preco_promocional', 'estoque_disponivel', 'peso_gramas', 'dimensoes_cm', 'imagem_principal_url', 'imagens_secundarias_urls', 'fornecedor_id', 'product_type_id', 'ativo_marketplace', 'data_publicacao_marketplace', 'status_enriquecimento_web', 'status_titulo_ia', 'status_descricao_ia', 'log_enriquecimento_web', 'titulos_sugeridos']);const initialFormData = { nome_base: '', nome_chat_api: '', descricao_original: '', descricao_curta_orig: '', descricao_chat_api: '', descricao_curta_gerada: '', sku: '', ean: '', ncm: '', marca: '', modelo: '', categoria_original: '', categoria_mapeada: '', preco_custo: '', preco_venda: '', preco_promocional: '', estoque_disponivel: '', peso_gramas: '', dimensoes_cm: '', imagem_principal_url: '', imagens_secundarias_urls: [], fornecedor_id: '', product_type_id: '', dynamic_attributes: {}, dados_brutos_web: {}, titulos_sugeridos: [], ativo_marketplace: false, data_publicacao_marketplace: null, log_enriquecimento_web: { historico_mensagens: [] }, status_enriquecimento_web: null, status_titulo_ia: null, status_descricao_ia: null };const WEB_ENRICHMENT_POLL_INTERVAL_MS = 3000;const WEB_ENRICHMENT_MAX_POLLS = 40;const WEB_ENRICHMENT_TERMINAL_STATUSES = new Set(['CONCLUIDO_SUCESSO', 'CONCLUIDO_COM_DADOS_PARCIAIS', 'NENHUMA_FONTE_ENCONTRADA', 'FALHA_API_EXTERNA', 'FALHA_CONFIGURACAO_API_EXTERNA', 'FALHOU']);const foldText = _TopLevelFunctionSurface.foldText;const normalizeDisplayText = _TopLevelFunctionSurface.normalizeDisplayText;const isEmptyLike = _TopLevelFunctionSurface.isEmptyLike;const normalizeDynamicAttrsToTemplateKeys = _TopLevelFunctionSurface.normalizeDynamicAttrsToTemplateKeys;export default _TopLevelFunctionSurface.ProductEditModal;
+  }
+const BASE_PRODUCT_FIELDS = new Set(['nome_base', 'nome_chat_api', 'descricao_original', 'descricao_curta_orig', 'descricao_chat_api', 'descricao_curta_gerada', 'sku', 'ean', 'ncm', 'marca', 'modelo', 'categoria_original', 'categoria_mapeada', 'preco_custo', 'preco_venda', 'preco_promocional', 'estoque_disponivel', 'peso_gramas', 'dimensoes_cm', 'imagem_principal_url', 'imagens_secundarias_urls', 'fornecedor_id', 'product_type_id', 'ativo_marketplace', 'data_publicacao_marketplace', 'status_enriquecimento_web', 'status_titulo_ia', 'status_descricao_ia', 'log_enriquecimento_web', 'titulos_sugeridos']);const initialFormData = { nome_base: '', nome_chat_api: '', descricao_original: '', descricao_curta_orig: '', descricao_chat_api: '', descricao_curta_gerada: '', sku: '', ean: '', ncm: '', marca: '', modelo: '', categoria_original: '', categoria_mapeada: '', preco_custo: '', preco_venda: '', preco_promocional: '', estoque_disponivel: '', peso_gramas: '', dimensoes_cm: '', imagem_principal_url: '', imagens_secundarias_urls: [], fornecedor_id: '', product_type_id: '', dynamic_attributes: {}, dados_brutos_web: {}, titulos_sugeridos: [], ativo_marketplace: false, data_publicacao_marketplace: null, log_enriquecimento_web: { historico_mensagens: [] }, status_enriquecimento_web: null, status_titulo_ia: null, status_descricao_ia: null };const WEB_ENRICHMENT_POLL_INTERVAL_MS = 3000;const WEB_ENRICHMENT_MAX_POLLS = 40;const WEB_ENRICHMENT_TERMINAL_STATUSES = new Set(['CONCLUIDO_SUCESSO', 'CONCLUIDO_COM_DADOS_PARCIAIS', 'NENHUMA_FONTE_ENCONTRADA', 'FALHA_API_EXTERNA', 'FALHA_CONFIGURACAO_API_EXTERNA', 'FALHOU']);export default ProductEditModal;

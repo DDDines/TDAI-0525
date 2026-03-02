@@ -1,6 +1,13 @@
+/**
+ * Module app.
+ *
+ * Defines responsibilities and integration points for frontend.
+ */
+
 import React, { useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
+import { AppExperienceProvider } from './contexts/AppExperienceContext';
 import { ProductTypeProvider } from './contexts/ProductTypeContext'; // Certifique-se que o caminho está correto
 import { ThemeProvider, useTheme } from './contexts/ThemeContext';
 import { ToastContainer } from 'react-toastify';
@@ -23,7 +30,9 @@ import ProtectedRoute from './components/ProtectedRoute';
 import LoadingOverlay from './components/common/LoadingOverlay.jsx';
 
 import './App.css';
-import logger from './utils/logger';class _TopLevelFunctionSurface {static AppContent()
+import logger from './utils/logger';
+
+function AppContent()
 
   {
     const { isAuthenticated, isLoading } = useAuth();
@@ -71,7 +80,9 @@ import logger from './utils/logger';class _TopLevelFunctionSurface {static AppCo
       <Route path="*" element={<div>Página não encontrada</div>} />
     </Routes>);
 
-  }static ProvidersWrapper()
+  }
+
+function ProvidersWrapper()
 
   {
     const { mode } = useTheme();
@@ -93,7 +104,9 @@ import logger from './utils/logger';class _TopLevelFunctionSurface {static AppCo
         
     </>);
 
-  }static App()
+  }
+
+function App()
 
   {
     useEffect(() => {
@@ -104,11 +117,14 @@ import logger from './utils/logger';class _TopLevelFunctionSurface {static AppCo
       <Router>
       <ThemeProvider>
         <AuthProvider>
-          <ProductTypeProvider>
-            <ProvidersWrapper />
-          </ProductTypeProvider>
+          <AppExperienceProvider>
+            <ProductTypeProvider>
+              <ProvidersWrapper />
+            </ProductTypeProvider>
+          </AppExperienceProvider>
         </AuthProvider>
       </ThemeProvider>
     </Router>);
 
-  }}const AppContent = _TopLevelFunctionSurface.AppContent;const ProvidersWrapper = _TopLevelFunctionSurface.ProvidersWrapper;export default _TopLevelFunctionSurface.App;
+  }
+export default App;

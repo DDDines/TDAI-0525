@@ -1,3 +1,5 @@
+"""Document catalog import file repository module responsibilities and runtime integration points."""
+
 from __future__ import annotations
 
 from typing import List, Optional, Tuple
@@ -11,6 +13,7 @@ class CatalogImportFileRepository:
     """Repository OO de arquivos de importacao de catalogo por request."""
 
     def __init__(self, db: Session) -> None:
+        """Initialize injected dependencies and runtime configuration for Catalog Import File Repository."""
         self._db = db
 
     def list_catalog_files_for_user(
@@ -21,6 +24,7 @@ class CatalogImportFileRepository:
         skip: int,
         limit: int,
     ) -> Tuple[List[CatalogImportFile], int]:
+        """List catalog files for user."""
         query = self._db.query(CatalogImportFile).filter(
             CatalogImportFile.user_id == user_id
         )
@@ -42,6 +46,7 @@ class CatalogImportFileRepository:
         file_id: int,
         user_id: int,
     ) -> Optional[CatalogImportFile]:
+        """Retrieve catalog file for user using the current service dependencies."""
         return (
             self._db.query(CatalogImportFile)
             .filter_by(id=file_id, user_id=user_id)
@@ -49,20 +54,24 @@ class CatalogImportFileRepository:
         )
 
     def get_catalog_file(self, *, file_id: int) -> Optional[CatalogImportFile]:
+        """Retrieve catalog file using the current service dependencies."""
         return self._db.query(CatalogImportFile).filter_by(id=file_id).first()
 
     def save_catalog_file(self, *, catalog_file: CatalogImportFile) -> CatalogImportFile:
+        """Execute save catalog file as part of this module workflow."""
         self._db.add(catalog_file)
         self._db.commit()
         self._db.refresh(catalog_file)
         return catalog_file
 
     def update_catalog_file(self, *, catalog_file: CatalogImportFile) -> CatalogImportFile:
+        """Update catalog file and persist the resulting state changes."""
         self._db.add(catalog_file)
         self._db.commit()
         self._db.refresh(catalog_file)
         return catalog_file
 
     def delete_catalog_file(self, *, catalog_file: CatalogImportFile) -> None:
+        """Execute delete catalog file as part of this module workflow."""
         self._db.delete(catalog_file)
         self._db.commit()

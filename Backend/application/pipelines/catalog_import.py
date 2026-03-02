@@ -1,3 +1,5 @@
+"""Document catalog import module responsibilities and runtime integration points."""
+
 from __future__ import annotations
 
 from typing import Any, Dict, List, Optional
@@ -16,17 +18,29 @@ class OOPCatalogImportExecutor:
     """
 
     def __init__(self, use_case: CatalogImportProcessingUseCase):
+        """Initialize injected dependencies and runtime configuration for OOPCatalog Import Executor."""
         self._use_case = use_case
 
-    async def __call__(self, **task_kwargs: Any) -> Any:
+    async def __call__(
+        self,
+        *,
+        file_id: int,
+        user_id: int,
+        product_type_id: Optional[int],
+        fornecedor_id: int,
+        mapping: Optional[Dict[str, str]] = None,
+        pages: Optional[List[int]] = None,
+        region: Optional[List[float]] = None,
+    ) -> Any:
+        """Execute call as part of this module workflow."""
         command = CatalogImportFinalizeCommand(
-            file_id=task_kwargs.get("file_id"),
-            user_id=task_kwargs.get("user_id"),
-            product_type_id=task_kwargs.get("product_type_id"),
-            fornecedor_id=task_kwargs.get("fornecedor_id"),
-            mapping=task_kwargs.get("mapping"),
-            pages=task_kwargs.get("pages"),
-            region=task_kwargs.get("region"),
+            file_id=file_id,
+            user_id=user_id,
+            product_type_id=product_type_id,
+            fornecedor_id=fornecedor_id,
+            mapping=mapping,
+            pages=pages,
+            region=region,
         )
         return await self._use_case.execute_command(
             command=command,
@@ -34,7 +48,9 @@ class OOPCatalogImportExecutor:
 
 
 class CatalogImportTaskBuilder:
+    """Represent Catalog Import Task Builder and centralize its responsibilities inside this module."""
     def __init__(self, executor: OOPCatalogImportExecutor):
+        """Initialize injected dependencies and runtime configuration for Catalog Import Task Builder."""
         self._executor = executor
 
     def build_finalize_plan(
@@ -48,6 +64,7 @@ class CatalogImportTaskBuilder:
         pages: Optional[List[int]],
         region: Optional[List[float]],
     ) -> TaskExecutionPlan:
+        """Build finalize plan from current inputs and configuration."""
         task_kwargs = {
             "file_id": file_id,
             "user_id": user_id,

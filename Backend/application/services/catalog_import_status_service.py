@@ -1,3 +1,8 @@
+"""Catalog import status service.
+
+Contains cohesive services used by the catalog import pipeline.
+"""
+
 from __future__ import annotations
 
 from typing import Any
@@ -17,12 +22,14 @@ class CatalogImportStatusService:
         models: Any,
         catalog_file_repository: Any,
     ) -> None:
+        """Initialize injected dependencies and runtime configuration for Catalog Import Status Service."""
         self._models = models
         self._catalog_file_repository = catalog_file_repository
 
     def _resolve_catalog_file_repo(
         self,
     ) -> Any:
+        """Handle resolve catalog file repo within the catalog import workflow."""
         return self._catalog_file_repository
 
     def get_record_or_404(
@@ -31,6 +38,7 @@ class CatalogImportStatusService:
         file_id: int,
         user_id: int,
     ) -> Any:
+        """Retrieve record or 404 using the current service dependencies."""
         repo = self._resolve_catalog_file_repo()
         record = repo.get_catalog_file_for_user(
             file_id=file_id,
@@ -41,6 +49,7 @@ class CatalogImportStatusService:
         return record
 
     def build_simple_status(self, *, record: Any) -> dict[str, Any]:
+        """Build simple status from current inputs and configuration."""
         record_status = record.status or "PROCESSING"
         if record_status in {"IMPORTED", "DONE"}:
             status_value = "DONE"
@@ -61,6 +70,7 @@ class CatalogImportStatusService:
         }
 
     def build_result_response(self, *, record: Any) -> Any:
+        """Build result response from current inputs and configuration."""
         record_status = record.status or "PROCESSING"
         terminal_status = record_status in self._TERMINAL_STATUSES
         if not terminal_status or not record.result_summary:

@@ -1,3 +1,9 @@
+"""Catalog import finalization dispatcher.
+
+Encapsulates plan selection and execution strategy (inline in tests or
+background in runtime) for catalog import finalization commands.
+"""
+
 from __future__ import annotations
 
 from typing import Any
@@ -19,13 +25,12 @@ class CatalogImportFinalizeService:
         self,
         *,
         oop_executor: Any,
-        db_session_factory: Any,
         dispatcher_cls: Any = PipelineDispatcher,
         orchestrator: Any = None,
         sync_env_var: str = "CATALOG_IMPORT_TEST_SYNC",
         thread_name_prefix: str = "catalog-import",
     ) -> None:
-        self._db_session_factory = db_session_factory
+        """Initialize injected dependencies and runtime configuration for Catalog Import Finalize Service."""
         self._orchestrator = orchestrator or CatalogImportPipelineOrchestrator(
             oop_executor=oop_executor,
         )
@@ -38,8 +43,7 @@ class CatalogImportFinalizeService:
         *,
         command: CatalogImportFinalizeCommand,
     ) -> TaskExecutionPlan:
-        if self._db_session_factory is None:
-            raise ValueError("db_session_factory is required for CatalogImportFinalizeService")
+        """Create the task execution plan for a finalize command."""
         return self._orchestrator.select_finalize_plan(
             command=command,
         )
@@ -50,6 +54,7 @@ class CatalogImportFinalizeService:
         background_tasks: BackgroundTasks,
         command: CatalogImportFinalizeCommand,
     ) -> TaskExecutionPlan:
+        """Execute inline in test mode or dispatch to FastAPI background tasks."""
         plan = self.select_plan(
             command=command,
         )
@@ -65,6 +70,7 @@ class CatalogImportFinalizeService:
         *,
         command: CatalogImportFinalizeCommand,
     ) -> TaskExecutionPlan:
+        """Run the selected finalize plan synchronously in the current request."""
         plan = self.select_plan(
             command=command,
         )

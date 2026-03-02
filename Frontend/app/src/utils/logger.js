@@ -1,3 +1,9 @@
+/**
+ * Module logger.
+ *
+ * Defines responsibilities and integration points for utils.
+ */
+
 // Determine dev mode. Support environments without import.meta (e.g. Jest)
 let isDev = false;
 try {

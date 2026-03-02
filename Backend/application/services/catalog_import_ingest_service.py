@@ -1,3 +1,8 @@
+"""Catalog import ingest service.
+
+Contains cohesive services used by the catalog import pipeline.
+"""
+
 from __future__ import annotations
 
 from pathlib import Path
@@ -26,6 +31,7 @@ class CatalogImportIngestService:
         uso_ia_repo: Any,
         historico_repo: Any,
     ) -> None:
+        """Initialize injected dependencies and runtime configuration for Catalog Import Ingest Service."""
         self._schemas = schemas
         self._models = models
         self._fornecedor_repo = fornecedor_repo
@@ -47,6 +53,7 @@ class CatalogImportIngestService:
         erros: List[Dict[str, Any]],
         ignored_non_critical: List[Dict[str, Any]],
     ) -> None:
+        """Handle append import issue within the catalog import workflow."""
         normalized_item = self._normalize_import_issue_item(item)
         reason = self._extract_import_error_reason(normalized_item)
         if self._is_non_critical_import_reason(reason):
@@ -60,6 +67,7 @@ class CatalogImportIngestService:
         item: Dict[str, Any],
         quarantine_non_critical: List[Dict[str, Any]],
     ) -> None:
+        """Handle append quarantine issue within the catalog import workflow."""
         normalized_item = self._normalize_import_issue_item(item)
         quarantine_non_critical.append(normalized_item)
 
@@ -215,6 +223,7 @@ class CatalogImportIngestService:
         mapeamento_colunas_usuario: Optional[str],
         fornecedor_repo: Any,
     ) -> Optional[Dict[str, Any]]:
+        """Handle resolve mapping within the catalog import workflow."""
         mapping_dict = None
         if mapeamento_colunas_usuario:
             try:
@@ -239,6 +248,7 @@ class CatalogImportIngestService:
         ext: str,
         mapping_dict: Optional[Dict[str, Any]],
     ) -> List[Dict[str, Any]]:
+        """Handle process file by extension within the catalog import workflow."""
         if ext in [".xlsx", ".xls"]:
             return await self._file_processing_service.processar_arquivo_excel(
                 content,

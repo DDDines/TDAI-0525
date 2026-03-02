@@ -1,3 +1,8 @@
+"""Module test task workflows runtime basic.
+
+Contains backend logic related to test task workflows runtime basic and documents its role in the OOP architecture.
+"""
+
 from __future__ import annotations
 
 from pathlib import Path
@@ -13,18 +18,21 @@ from Backend.application.services.web_enrichment_task_service import (
 
 class _TopLevelFunctionSurface:
 
+    """Represent top level function surface and centralize responsibilities for this module."""
     def test_catalog_import_task_workflow_aplica_runtime_override():
+        """Run test catalog import task workflow aplica runtime override in this workflow."""
         def normalize_issue(item):
+            """Normalize issue for this workflow."""
             return item
     
         workflow = CatalogImportTaskWorkflow(
-            db_session_factory=lambda: object(),
+            session_provider=SimpleNamespace(open_session=lambda: object()),
             logger="default_logger",
             catalog_logger="default_catalog_logger",
             models=SimpleNamespace(CatalogImportFile=object),
             schemas=SimpleNamespace(),
-            product_repository=SimpleNamespace(),
-            catalog_file_repository=SimpleNamespace(),
+            product_repository_factory=lambda _session: SimpleNamespace(),
+            catalog_file_repository_factory=lambda _session: SimpleNamespace(),
             file_processing_service=SimpleNamespace(),
             validator_crew=SimpleNamespace(),
             settings=SimpleNamespace(UPLOAD_DIRECTORY="uploads"),
@@ -50,13 +58,14 @@ class _TopLevelFunctionSurface:
         assert workflow.resolve_storage_path(Path("abc.txt")) == Path("runtime/abc.txt")
 
     def test_web_enrichment_task_workflow_aplica_runtime_override():
+        """Run test web enrichment task workflow aplica runtime override in this workflow."""
         workflow = WebEnrichmentTaskWorkflow(
-            db_session_factory=lambda: object(),
+            session_provider=SimpleNamespace(open_session=lambda: object()),
             logger="default_logger",
             SQLAlchemyError=Exception,
-            user_repository=SimpleNamespace(),
-            product_repository=SimpleNamespace(),
-            usage_repository=SimpleNamespace(),
+            user_repository_factory=lambda _session: SimpleNamespace(),
+            product_repository_factory=lambda _session: SimpleNamespace(),
+            usage_repository_factory=lambda _session: SimpleNamespace(),
             models=SimpleNamespace(),
             schemas=SimpleNamespace(),
             web_extractor=SimpleNamespace(),

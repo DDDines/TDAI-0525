@@ -1,8 +1,16 @@
+/**
+ * Module change password modal.
+ *
+ * Defines responsibilities and integration points for components user.
+ */
+
 // Frontend/app/src/components/user/ChangePasswordModal.jsx
 import React, { useState } from 'react';
 import authService from '../../services/authService'; // Ajuste o caminho se o seu authService estiver noutro local
 import { showSuccessToast, showErrorToast } from '../../utils/notifications'; // Ajuste o caminho se necessário
-import { useAuth } from '../../contexts/AuthContext';class _TopLevelFunctionSurface {static ChangePasswordModal(
+import { useAuth } from '../../contexts/AuthContext';
+
+function ChangePasswordModal(
 
   { isOpen, onClose, userId: propUserId }) {
     const { user } = useAuth();
@@ -99,4 +107,5 @@ import { useAuth } from '../../contexts/AuthContext';class _TopLevelFunctionSurf
       </div>
     </div>);
 
-  }}export default _TopLevelFunctionSurface.ChangePasswordModal;
+  }
+export default ChangePasswordModal;

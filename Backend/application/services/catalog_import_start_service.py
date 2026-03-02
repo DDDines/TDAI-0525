@@ -1,3 +1,8 @@
+"""Catalog import start service.
+
+Contains cohesive services used by the catalog import pipeline.
+"""
+
 from __future__ import annotations
 
 import io
@@ -22,6 +27,7 @@ class CatalogImportStartService:
         catalog_file_repository: Any,
         fornecedor_repo: Any,
     ) -> None:
+        """Initialize injected dependencies and runtime configuration for Catalog Import Start Service."""
         self._models = models
         self._fornecedor_repo = fornecedor_repo
         self._settings = settings
@@ -32,11 +38,13 @@ class CatalogImportStartService:
     def _resolve_catalog_file_repo(
         self,
     ) -> Any:
+        """Handle resolve catalog file repo within the catalog import workflow."""
         return self._catalog_file_repository
 
     def _resolve_fornecedor_repo(
         self,
     ) -> Any:
+        """Handle resolve fornecedor repo within the catalog import workflow."""
         return self._fornecedor_repo
 
     def get_catalog_file_or_404(
@@ -45,6 +53,7 @@ class CatalogImportStartService:
         file_id: int,
         user_id: int,
     ) -> Any:
+        """Retrieve catalog file or 404 using the current service dependencies."""
         repo = self._resolve_catalog_file_repo()
         catalog_file = repo.get_catalog_file_for_user(
             file_id=file_id,
@@ -61,6 +70,7 @@ class CatalogImportStartService:
         fornecedor_id: Optional[int],
         required_message: str,
     ) -> int:
+        """Resolve fornecedor id from injected repositories or runtime context."""
         fornecedor_id_final = fornecedor_id or catalog_file.fornecedor_id
         if not fornecedor_id_final:
             raise HTTPException(status_code=400, detail=required_message)
@@ -73,6 +83,7 @@ class CatalogImportStartService:
         fornecedor_id: int,
         reset_pages: bool = False,
     ) -> None:
+        """Execute mark processing as part of this module workflow."""
         repo = self._resolve_catalog_file_repo()
         catalog_file.status = "PROCESSING"
         catalog_file.fornecedor_id = fornecedor_id
@@ -82,6 +93,7 @@ class CatalogImportStartService:
         repo.update_catalog_file(catalog_file=catalog_file)
 
     def ensure_catalog_binary_exists(self, *, catalog_file: Any) -> None:
+        """Ensure catalog binary exists exists or is valid before continuing the flow."""
         file_path = self._catalog_path(catalog_file)
         if not file_path.exists():
             raise HTTPException(status_code=404, detail="Arquivo nao encontrado")
@@ -92,6 +104,7 @@ class CatalogImportStartService:
         catalog_file: Any,
         start_page: int,
     ) -> list[int]:
+        """Resolve pdf pages from injected repositories or runtime context."""
         file_path = self._catalog_path(catalog_file)
         if not file_path.exists():
             raise HTTPException(status_code=404, detail="Arquivo nao encontrado")
@@ -108,6 +121,7 @@ class CatalogImportStartService:
         fornecedor_id: int,
         mapping: Optional[Dict[str, str]],
     ) -> Optional[Dict[str, str]]:
+        """Resolve mapping from injected repositories or runtime context."""
         if mapping is not None:
             return mapping
         repo = self._resolve_fornecedor_repo()
@@ -127,6 +141,7 @@ class CatalogImportStartService:
         pages: Optional[list[int]],
         region: Optional[list[float]],
     ) -> CatalogImportFinalizeCommand:
+        """Build finalize command from current inputs and configuration."""
         return CatalogImportFinalizeCommand(
             file_id=file_id,
             user_id=user_id,
@@ -143,6 +158,7 @@ class CatalogImportStartService:
         background_tasks: Any,
         command: CatalogImportFinalizeCommand,
     ) -> Any:
+        """Execute dispatch finalize as part of this module workflow."""
         return await self._finalize_service.dispatch_or_run(
             background_tasks=background_tasks,
             command=command,
@@ -153,17 +169,20 @@ class CatalogImportStartService:
         *,
         command: CatalogImportFinalizeCommand,
     ) -> Any:
+        """Execute run finalize direct as part of this module workflow."""
         return await self._finalize_service.run_direct(
             command=command,
         )
 
     def _catalog_path(self, catalog_file: Any) -> Path:
+        """Handle catalog path within the catalog import workflow."""
         return self._resolve_storage_path(
             Path(self._settings.UPLOAD_DIRECTORY) / "catalogs" / catalog_file.stored_filename
         )
 
     @staticmethod
     def _count_pdf_pages(content: bytes) -> int:
+        """Handle count pdf pages within the catalog import workflow."""
         import pdfplumber
 
         with pdfplumber.open(io.BytesIO(content)) as pdf:

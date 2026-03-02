@@ -1,3 +1,9 @@
+/**
+ * Module import catalog wizard.
+ *
+ * Defines responsibilities and integration points for components fornecedores.
+ */
+
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import * as fornecedorService from '../../services/fornecedorService';
 import productTypeService from '../../services/productTypeService';
@@ -6,39 +12,18 @@ import ColumnMappingModal from '../common/ColumnMappingModal.jsx';
 import PdfRegionSelector from '../common/PdfRegionSelector.jsx';
 import Modal from '../common/Modal.jsx';
 import LogoImg from '../../assets/Logo.png';
-import './ImportCatalogWizard.css';class _TopLevelFunctionSurface {static formatCellValue(
+import './ImportCatalogWizard.css';
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+function formatCellValue(
 
 
   value) {
     if (value === null || value === undefined) return '';
     if (typeof value === 'object') return JSON.stringify(value);
     return String(value);
-  }static getPreviewImageSrc(
+  }
+
+function getPreviewImageSrc(
 
   img) {
     if (typeof img === 'string') {
@@ -47,7 +32,9 @@ import './ImportCatalogWizard.css';class _TopLevelFunctionSurface {static format
     }
     if (img && typeof img === 'object' && img.image) return img.image;
     return null;
-  }static toErrorDetail(
+  }
+
+function toErrorDetail(
 
   err, fallback) {
     if (!err) return fallback;
@@ -55,9 +42,13 @@ import './ImportCatalogWizard.css';class _TopLevelFunctionSurface {static format
     if (typeof err?.message === 'string') return err.message;
     if (err?.detail && typeof err.detail === 'object') return JSON.stringify(err.detail);
     return fallback;
-  }static timestamp() {return (
+  }
 
-      new Date().toLocaleTimeString('pt-BR'));}static normalizeDisplayText(
+function timestamp() {return (
+
+      new Date().toLocaleTimeString('pt-BR'));}
+
+function normalizeDisplayText(
 
   value) {
     if (value === null || value === undefined) return '';
@@ -128,7 +119,9 @@ import './ImportCatalogWizard.css';class _TopLevelFunctionSurface {static format
     });
 
     return text.replace(/\s+/g, ' ').trim();
-  }static normalizePayloadStrings(
+  }
+
+function normalizePayloadStrings(
 
   payload) {
     if (Array.isArray(payload)) return payload.map((item) => normalizePayloadStrings(item));
@@ -139,7 +132,9 @@ import './ImportCatalogWizard.css';class _TopLevelFunctionSurface {static format
     }
     if (typeof payload === 'string') return normalizeDisplayText(payload);
     return payload;
-  }static ImportCatalogWizard(
+  }
+
+function ImportCatalogWizard(
 
   { fornecedor, productTypeId: initialProductTypeId, onClose, isOpen }) {
     const defaultFornecedorMappingJson = useMemo(
@@ -1171,4 +1166,5 @@ import './ImportCatalogWizard.css';class _TopLevelFunctionSurface {static format
       </button>
     </div>);
 
-  }}const BASE_FIELD_OPTIONS = [{ value: 'nome_base', label: 'Nome Base' }, { value: 'sku_original', label: 'SKU' }, { value: 'auto:sku_nome', label: 'SKU + Nome (Auto)' }, { value: 'ean_original', label: 'Código de Barras (EAN-13)' }, { value: 'preco_original', label: 'Preço' }, { value: 'descricao_original', label: 'Descrição' }, { value: 'marca', label: 'Marca' }, { value: 'categoria_original', label: 'Categoria' }, { value: 'attr:codigo_original', label: 'Atributo: Código Original' }, { value: 'attr:aplicacao', label: 'Atributo: Aplicação' }, { value: 'attr:material', label: 'Atributo: Material' }];const FALLBACK_HEADERS = ['col_0', 'col_1', 'col_2', 'col_3', 'col_4'];const STEP_FLOW = ['upload', 'preview', 'processing'];const POLL_INTERVAL_MS = 2000;const MAX_RESULT_WAIT_MS = 60000;const MAX_RESULT_ATTEMPTS = 30;const MAX_ABSOLUTE_POLL_MS = 5 * 60 * 1000;const STEP_LABELS = { upload: 'Upload', preview: 'Preview e Mapeamento', processing: 'Processamento' };const formatCellValue = _TopLevelFunctionSurface.formatCellValue;const getPreviewImageSrc = _TopLevelFunctionSurface.getPreviewImageSrc;const toErrorDetail = _TopLevelFunctionSurface.toErrorDetail;const timestamp = _TopLevelFunctionSurface.timestamp;const normalizeDisplayText = _TopLevelFunctionSurface.normalizeDisplayText;const normalizePayloadStrings = _TopLevelFunctionSurface.normalizePayloadStrings;export default _TopLevelFunctionSurface.ImportCatalogWizard;
+  }
+const BASE_FIELD_OPTIONS = [{ value: 'nome_base', label: 'Nome Base' }, { value: 'sku_original', label: 'SKU' }, { value: 'auto:sku_nome', label: 'SKU + Nome (Auto)' }, { value: 'ean_original', label: 'Código de Barras (EAN-13)' }, { value: 'preco_original', label: 'Preço' }, { value: 'descricao_original', label: 'Descrição' }, { value: 'marca', label: 'Marca' }, { value: 'categoria_original', label: 'Categoria' }, { value: 'attr:codigo_original', label: 'Atributo: Código Original' }, { value: 'attr:aplicacao', label: 'Atributo: Aplicação' }, { value: 'attr:material', label: 'Atributo: Material' }];const FALLBACK_HEADERS = ['col_0', 'col_1', 'col_2', 'col_3', 'col_4'];const STEP_FLOW = ['upload', 'preview', 'processing'];const POLL_INTERVAL_MS = 2000;const MAX_RESULT_WAIT_MS = 60000;const MAX_RESULT_ATTEMPTS = 30;const MAX_ABSOLUTE_POLL_MS = 5 * 60 * 1000;const STEP_LABELS = { upload: 'Upload', preview: 'Preview e Mapeamento', processing: 'Processamento' };export default ImportCatalogWizard;

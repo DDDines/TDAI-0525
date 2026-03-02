@@ -1,3 +1,8 @@
+"""Module test catalog import ingest service.
+
+Contains backend logic related to test catalog import ingest service and documents its role in the OOP architecture.
+"""
+
 from __future__ import annotations
 
 import asyncio
@@ -12,51 +17,68 @@ from Backend.application.services.catalog_import_ingest_service import (
 
 
 class _UploadFileStub:
+    """Represent upload file stub and centralize responsibilities for this module."""
     def __init__(self, *, filename: str, content: bytes = b"data"):
+        """Initialize collaborators and configuration required by this component."""
         self.filename = filename
         self._content = content
 
     async def read(self):
+        """Run read in this workflow."""
         return self._content
 
 
 class _CrudFornecedoresStub:
+    """Represent crud fornecedores stub and centralize responsibilities for this module."""
     def __init__(self, fornecedor=None):
+        """Initialize collaborators and configuration required by this component."""
         self._fornecedor = fornecedor
 
     def get_fornecedor(self, *, fornecedor_id):
+        """Return fornecedor for this workflow."""
         _ = fornecedor_id
         return self._fornecedor
 
 
 class _CrudProdutosStub:
+    """Represent crud produtos stub and centralize responsibilities for this module."""
     def __init__(self):
+        """Initialize collaborators and configuration required by this component."""
         self.bulk_calls = []
 
     def create_produtos_bulk(self, *, produtos, user_id):
+        """Create produtos bulk for this workflow."""
         self.bulk_calls.append((produtos, user_id))
         created = [SimpleNamespace(id=77)]
         return created, [], []
 
 
 class _CrudUsoIAStub:
+    """Represent crud uso i a stub and centralize responsibilities for this module."""
     def __init__(self):
+        """Initialize collaborators and configuration required by this component."""
         self.calls = []
 
     def create_registro_uso_ia(self, *, registro_uso):
+        """Create registro uso ia for this workflow."""
         self.calls.append(registro_uso.data)
 
 
 class _CrudHistoricoStub:
+    """Represent crud historico stub and centralize responsibilities for this module."""
     def __init__(self):
+        """Initialize collaborators and configuration required by this component."""
         self.calls = []
 
     def create_registro_historico(self, *, registro_in):
+        """Create registro historico for this workflow."""
         self.calls.append(registro_in.data)
 
 
 class _FileProcessingStub:
+    """Represent file processing stub and centralize responsibilities for this module."""
     def __init__(self):
+        """Initialize collaborators and configuration required by this component."""
         self.responses = {
             ".xlsx": [],
             ".csv": [],
@@ -64,51 +86,64 @@ class _FileProcessingStub:
         }
 
     async def processar_arquivo_excel(self, content, mapping_dict):
+        """Run processar arquivo excel in this workflow."""
         _ = (content, mapping_dict)
         return self.responses[".xlsx"]
 
     async def processar_arquivo_csv(self, content, mapping_dict):
+        """Run processar arquivo csv in this workflow."""
         _ = (content, mapping_dict)
         return self.responses[".csv"]
 
     async def processar_arquivo_pdf(self, content, mapping_dict):
+        """Run processar arquivo pdf in this workflow."""
         _ = (content, mapping_dict)
         return self.responses[".pdf"]
 
 
 class _Payload:
+    """Represent payload and centralize responsibilities for this module."""
     def __init__(self, **kwargs):
+        """Initialize collaborators and configuration required by this component."""
         self.data = kwargs
 
 
 class _ProdutoCreate:
+    """Represent produto create and centralize responsibilities for this module."""
     def __init__(self, **kwargs):
+        """Initialize collaborators and configuration required by this component."""
         for key, value in kwargs.items():
             setattr(self, key, value)
 
 
 class _SchemasStub:
+    """Represent schemas stub and centralize responsibilities for this module."""
     ProdutoCreate = _ProdutoCreate
     RegistroUsoIACreate = _Payload
     RegistroHistoricoCreate = _Payload
 
 
 class _TipoAcaoEnumStub:
+    """Represent tipo acao enum stub and centralize responsibilities for this module."""
     CRIACAO_PRODUTO = "CRIACAO_PRODUTO"
 
 
 class _TipoAcaoSistemaEnumStub:
+    """Represent tipo acao sistema enum stub and centralize responsibilities for this module."""
     CRIACAO = "CRIACAO"
 
 
 class _ModelsStub:
+    """Represent models stub and centralize responsibilities for this module."""
     TipoAcaoEnum = _TipoAcaoEnumStub
     TipoAcaoSistemaEnum = _TipoAcaoSistemaEnumStub
 
 
 class _TopLevelFunctionSurface:
 
+    """Represent top level function surface and centralize responsibilities for this module."""
     def _build_service(*, fornecedor=None):
+        """Run build service in this workflow."""
         fornecedor_repo = _CrudFornecedoresStub(fornecedor=fornecedor)
         produto_repo = _CrudProdutosStub()
         uso_ia_repo = _CrudUsoIAStub()
@@ -144,6 +179,7 @@ class _TopLevelFunctionSurface:
         )
 
     def test_importar_catalogo_fornecedor_raises_when_mapping_json_invalid():
+        """Run test importar catalogo fornecedor raises when mapping json invalid in this workflow."""
         service, _, _, _, _, _ = _build_service()
     
         with pytest.raises(HTTPException) as exc:
@@ -159,6 +195,7 @@ class _TopLevelFunctionSurface:
         assert exc.value.status_code == 400
 
     def test_importar_catalogo_fornecedor_raises_when_extension_not_supported():
+        """Run test importar catalogo fornecedor raises when extension not supported in this workflow."""
         service, _, _, _, _, _ = _build_service()
     
         with pytest.raises(HTTPException) as exc:
@@ -174,6 +211,7 @@ class _TopLevelFunctionSurface:
         assert exc.value.status_code == 400
 
     def test_importar_catalogo_fornecedor_creates_products_and_logs():
+        """Run test importar catalogo fornecedor creates products and logs in this workflow."""
         service, file_processing, fornecedor_repo, crud_produtos, crud_uso_ia, crud_historico = _build_service(
             fornecedor=SimpleNamespace(default_column_mapping={"col_1": "Nome Base"})
         )

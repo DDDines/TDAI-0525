@@ -1,8 +1,16 @@
+/**
+ * Module attribute template list.
+ *
+ * Defines responsibilities and integration points for components product types.
+ */
+
 // Frontend/app/src/components/product_types/AttributeTemplateList.jsx
 
 import React from 'react';
 // Importa o CSS da página pai para reutilizar os estilos
-import '../../pages/TiposProdutoPage.css';class _TopLevelFunctionSurface {static AttributeTemplateList(
+import '../../pages/TiposProdutoPage.css';
+
+function AttributeTemplateList(
 
   { attributes, onEdit, onDelete, onReorder }) {
     if (!attributes || attributes.length === 0) {
@@ -59,4 +67,5 @@ import '../../pages/TiposProdutoPage.css';class _TopLevelFunctionSurface {static
         )}
     </div>);
 
-  }}export default _TopLevelFunctionSurface.AttributeTemplateList;
+  }
+export default AttributeTemplateList;

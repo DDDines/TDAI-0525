@@ -1,8 +1,16 @@
+/**
+ * Module edit fornecedor modal.
+ *
+ * Defines responsibilities and integration points for components fornecedores.
+ */
+
 import React, { useState, useEffect, useCallback } from 'react';
 import { showErrorToast, showWarningToast } from '../../utils/notifications';
 import ImportCatalogWizard from './ImportCatalogWizard.jsx';
 import CatalogFileList from './CatalogFileList.jsx';
-import fornecedorService from '../../services/fornecedorService';class _TopLevelFunctionSurface {static EditFornecedorModal(
+import fornecedorService from '../../services/fornecedorService';
+
+function EditFornecedorModal(
 
   { isOpen, onClose, fornecedorData, onSave, isLoading }) {
     const [formData, setFormData] = useState({ nome: '', site_url: '' });
@@ -194,4 +202,5 @@ import fornecedorService from '../../services/fornecedorService';class _TopLevel
       </div>
     </div>);
 
-  }}export default _TopLevelFunctionSurface.EditFornecedorModal;
+  }
+export default EditFornecedorModal;

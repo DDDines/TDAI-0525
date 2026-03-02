@@ -1,4 +1,9 @@
-﻿from __future__ import annotations
+"""Catalog import task runner.
+
+Contains cohesive services used by the catalog import pipeline.
+"""
+
+from __future__ import annotations
 
 from typing import Any, Dict, List, Optional
 
@@ -13,7 +18,7 @@ class CatalogImportTaskRunner:
     def __init__(
         self,
         *,
-        db_session_factory: Any,
+        session_provider: Any,
         logger: Any,
         catalog_logger: Any,
         models: Any,
@@ -33,17 +38,18 @@ class CatalogImportTaskRunner:
         classificar_qualidade_linha_produto: Any,
         write_catalog_import_report: Any,
         normalize_import_text: Any,
-        product_repository: Any,
-        catalog_file_repository: Any,
+        product_repository_factory: Any,
+        catalog_file_repository_factory: Any,
     ) -> None:
+        """Initialize injected dependencies and runtime configuration for Catalog Import Task Runner."""
         self._kwargs = {
-            "db_session_factory": db_session_factory,
+            "session_provider": session_provider,
             "logger": logger,
             "catalog_logger": catalog_logger,
             "models": models,
             "schemas": schemas,
-            "product_repository": product_repository,
-            "catalog_file_repository": catalog_file_repository,
+            "product_repository_factory": product_repository_factory,
+            "catalog_file_repository_factory": catalog_file_repository_factory,
             "validator_crew": validator_crew,
             "settings": settings,
             "Path": path_cls,
@@ -63,11 +69,13 @@ class CatalogImportTaskRunner:
         self._service: CatalogImportTaskService | None = None
 
     def _build(self) -> CatalogImportTaskService:
+        """Handle build within the catalog import workflow."""
         build_kwargs = dict(self._kwargs)
         build_kwargs["file_processing_service"] = self._file_processing_service
         return CatalogImportTaskService(**build_kwargs)
 
     def _get_service(self) -> CatalogImportTaskService:
+        """Handle get service within the catalog import workflow."""
         if self._service is None:
             self._service = self._build()
         return self._service
@@ -83,6 +91,7 @@ class CatalogImportTaskRunner:
         pages: Optional[List[int]] = None,
         region: Optional[List[float]] = None,
     ) -> None:
+        """Handle execute within the catalog import workflow."""
         await self._get_service().execute(
             file_id=file_id,
             user_id=user_id,

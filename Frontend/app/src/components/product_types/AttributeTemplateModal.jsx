@@ -1,3 +1,9 @@
+/**
+ * Module attribute template modal.
+ *
+ * Defines responsibilities and integration points for components product types.
+ */
+
 // Frontend/app/src/components/product_types/AttributeTemplateModal.jsx
 
 import React, { useState, useEffect } from 'react';
@@ -5,31 +11,9 @@ import { showErrorToast } from '../../utils/notifications';
 import '../common/Modal.css';
 
 // Estilos para o Modal. Podem ser movidos para um arquivo CSS.
-class _TopLevelFunctionSurface {static AttributeTemplateModal(
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+function AttributeTemplateModal(
 
 
   { isOpen, onClose, attribute, onSave, isSubmitting }) {
@@ -161,4 +145,5 @@ class _TopLevelFunctionSurface {static AttributeTemplateModal(
       </div>
     </div>);
 
-  }}const styles = { modalOverlay: { position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', backgroundColor: 'rgba(0,0,0,0.6)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 1100 }, modalContent: { background: 'white', padding: '2rem', borderRadius: 'var(--radius)', width: '90%', maxWidth: '600px', boxShadow: 'var(--shadow-md)' }, modalHeader: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem', paddingBottom: '1rem', borderBottom: '1px solid var(--border-color)' }, modalTitle: { margin: 0, fontSize: '1.4rem' }, closeButton: { background: 'none', border: 'none', fontSize: '1.5rem', cursor: 'pointer', color: '#888', lineHeight: 1 }, formGroup: { marginBottom: '1rem' }, label: { display: 'block', marginBottom: '0.5rem', fontWeight: '500' }, input: { width: '100%', padding: '0.7rem', border: '1px solid #ccc', borderRadius: 'var(--radius)', fontSize: '1rem', boxSizing: 'border-box' }, textarea: { width: '100%', padding: '0.7rem', border: '1px solid #ccc', borderRadius: 'var(--radius)', fontSize: '1rem', boxSizing: 'border-box', minHeight: '80px' }, actions: { marginTop: '1.5rem', display: 'flex', justifyContent: 'flex-end', gap: '0.75rem' }, checkboxLabel: { display: 'flex', alignItems: 'center', gap: '0.5rem', fontWeight: 'normal' }, checkboxInput: { width: 'auto' } };const DEFAULT_FORM_DATA = { label: '', attribute_key: '', field_type: 'TEXT', description: '', options: '', is_required: false, default_value: '', tooltip_text: '', display_order: 0 };export default _TopLevelFunctionSurface.AttributeTemplateModal;
+  }
+const styles = { modalOverlay: { position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', backgroundColor: 'rgba(0,0,0,0.6)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 1100 }, modalContent: { background: 'white', padding: '2rem', borderRadius: 'var(--radius)', width: '90%', maxWidth: '600px', boxShadow: 'var(--shadow-md)' }, modalHeader: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem', paddingBottom: '1rem', borderBottom: '1px solid var(--border-color)' }, modalTitle: { margin: 0, fontSize: '1.4rem' }, closeButton: { background: 'none', border: 'none', fontSize: '1.5rem', cursor: 'pointer', color: '#888', lineHeight: 1 }, formGroup: { marginBottom: '1rem' }, label: { display: 'block', marginBottom: '0.5rem', fontWeight: '500' }, input: { width: '100%', padding: '0.7rem', border: '1px solid #ccc', borderRadius: 'var(--radius)', fontSize: '1rem', boxSizing: 'border-box' }, textarea: { width: '100%', padding: '0.7rem', border: '1px solid #ccc', borderRadius: 'var(--radius)', fontSize: '1rem', boxSizing: 'border-box', minHeight: '80px' }, actions: { marginTop: '1.5rem', display: 'flex', justifyContent: 'flex-end', gap: '0.75rem' }, checkboxLabel: { display: 'flex', alignItems: 'center', gap: '0.5rem', fontWeight: 'normal' }, checkboxInput: { width: 'auto' } };const DEFAULT_FORM_DATA = { label: '', attribute_key: '', field_type: 'TEXT', description: '', options: '', is_required: false, default_value: '', tooltip_text: '', display_order: 0 };export default AttributeTemplateModal;

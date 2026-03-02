@@ -1,3 +1,5 @@
+"""Document web enrichment payload service module responsibilities and runtime integration points."""
+
 from __future__ import annotations
 
 from typing import Any, Dict, List, Optional, Tuple
@@ -56,12 +58,15 @@ class WebEnrichmentPayloadService:
     )
 
     def __init__(self, *, normalization_service: Any) -> None:
+        """Initialize injected dependencies and runtime configuration for Web Enrichment Payload Service."""
         self._normalization = normalization_service
 
     def _contains_part_hint(self, text_folded: str) -> bool:
+        """Execute contains part hint as part of this module workflow."""
         return any(hint in text_folded for hint in self._PART_NAME_HINTS)
 
     def _looks_like_application_only(self, value: Any) -> bool:
+        """Execute looks like application only as part of this module workflow."""
         text = self._normalization.as_text(value, max_len=500)
         if not text:
             return False
@@ -75,6 +80,7 @@ class WebEnrichmentPayloadService:
         return has_application_hint and (has_year or has_range) and few_words and not self._contains_part_hint(folded)
 
     def _is_weak_existing_field(self, field_name: str, value: Any) -> bool:
+        """Execute is weak existing field as part of this module workflow."""
         text = self._normalization.as_text(value, max_len=2500)
         if not text:
             return True
@@ -112,6 +118,7 @@ class WebEnrichmentPayloadService:
         return False
 
     def _is_weak_dynamic_value(self, attr_key: str, value: Any) -> bool:
+        """Execute is weak dynamic value as part of this module workflow."""
         text = self._normalization.as_text(value, max_len=1500)
         if not text:
             return True
@@ -145,6 +152,7 @@ class WebEnrichmentPayloadService:
         ignored_notes: List[str],
         allow_replace_weak: bool = False,
     ) -> None:
+        """Apply if empty or weak."""
         if self._normalization.is_empty(new_value):
             return
         if self._normalization.is_empty(current_value):
@@ -172,6 +180,7 @@ class WebEnrichmentPayloadService:
         allow_replace_suspicious: bool = False,
         allow_replace_weak: bool = False,
     ) -> Optional[str]:
+        """Execute set dynamic if empty as part of this module workflow."""
         text_value = self._normalization.as_text(value)
         value_from_existing = False
         if not text_value:
@@ -248,18 +257,18 @@ class WebEnrichmentPayloadService:
         ignored_notes: List[str] = []
 
         nome_web = self._normalization.as_text(
-            self._normalization.first_non_empty(
+            self._normalization.first_non_empty([
                 dados_extraidos_agregados.get("nome_sugerido_seo"),
                 dados_extraidos_agregados.get("nome"),
-            ),
+            ]),
             max_len=255,
         )
         descricao_web = self._normalization.as_text(
-            self._normalization.first_non_empty(
+            self._normalization.first_non_empty([
                 dados_extraidos_agregados.get("descricao_detalhada_seo"),
                 dados_extraidos_agregados.get("descricao_curta"),
                 dados_extraidos_agregados.get("texto_relevante_coletado"),
-            ),
+            ]),
             max_len=10000,
         )
         imagem_url_web = self._normalization.as_text(
@@ -287,11 +296,11 @@ class WebEnrichmentPayloadService:
                 dados_extraidos_agregados[key] = value
 
         codigo_original_web = self._normalization.sanitize_code_value(
-            self._normalization.first_non_empty(
+            self._normalization.first_non_empty([
                 dados_extraidos_agregados.get("codigo_original"),
                 dados_extraidos_agregados.get("sku_original"),
                 sku_web,
-            )
+            ])
         )
         if (
             codigo_original_web

@@ -1,3 +1,8 @@
+"""Module test generation scheduling service.
+
+Contains backend logic related to test generation scheduling service and documents its role in the OOP architecture.
+"""
+
 from __future__ import annotations
 
 from types import SimpleNamespace
@@ -11,41 +16,55 @@ from Backend.application.services.generation_scheduling_service import (
 
 
 class _CrudProdutosStub:
+    """Represent crud produtos stub and centralize responsibilities for this module."""
     def __init__(self, produto=None):
+        """Initialize collaborators and configuration required by this component."""
         self.produto = produto
         self.updated = []
 
     def get_produto(self, *, produto_id: int):
+        """Return produto for this workflow."""
         _ = produto_id
         return self.produto
 
     def update_produto(self, *, db_produto, produto_update):
+        """Update produto for this workflow."""
         self.updated.append((db_produto, produto_update))
         return db_produto
 
 
 class _SchemasStub:
+    """Represent schemas stub and centralize responsibilities for this module."""
     class ProdutoUpdate:
+        """Represent produto update and centralize responsibilities for this module."""
         def __init__(self, **kwargs):
+            """Initialize collaborators and configuration required by this component."""
             self.payload = kwargs
 
 
 class _ModelsStub:
+    """Represent models stub and centralize responsibilities for this module."""
     class StatusGeracaoIAEnum:
+        """Represent status geracao i a enum and centralize responsibilities for this module."""
         PENDENTE = "PENDENTE"
 
 
 class _BackgroundTasksStub:
+    """Represent background tasks stub and centralize responsibilities for this module."""
     def __init__(self):
+        """Initialize collaborators and configuration required by this component."""
         self.calls = []
 
     def add_task(self, task_executor, **kwargs):
+        """Run add task in this workflow."""
         self.calls.append((task_executor, kwargs))
 
 
 class _TopLevelFunctionSurface:
 
+    """Represent top level function surface and centralize responsibilities for this module."""
     def _build_service(produto=None):
+        """Run build service in this workflow."""
         crud_stub = _CrudProdutosStub(produto=produto)
         service = GenerationSchedulingService(
             schemas=_SchemasStub,
@@ -55,6 +74,7 @@ class _TopLevelFunctionSurface:
         return service, crud_stub
 
     def test_validate_product_access_not_found():
+        """Run test validate product access not found in this workflow."""
         service, _ = _build_service(produto=None)
         user = SimpleNamespace(id=1, is_superuser=False)
     
@@ -67,6 +87,7 @@ class _TopLevelFunctionSurface:
         assert exc.value.status_code == 404
 
     def test_validate_product_access_forbidden():
+        """Run test validate product access forbidden in this workflow."""
         produto = SimpleNamespace(user_id=2)
         service, _ = _build_service(produto=produto)
         user = SimpleNamespace(id=1, is_superuser=False)
@@ -80,6 +101,7 @@ class _TopLevelFunctionSurface:
         assert exc.value.status_code == 403
 
     def test_validate_product_access_success():
+        """Run test validate product access success in this workflow."""
         produto = SimpleNamespace(user_id=1)
         service, _ = _build_service(produto=produto)
         user = SimpleNamespace(id=1, is_superuser=False)
@@ -92,6 +114,7 @@ class _TopLevelFunctionSurface:
         assert result is produto
 
     def test_mark_pending_status_updates_expected_field():
+        """Run test mark pending status updates expected field in this workflow."""
         produto = SimpleNamespace(user_id=1)
         service, crud_stub = _build_service(produto=produto)
     
@@ -105,10 +128,12 @@ class _TopLevelFunctionSurface:
         assert produto_update.payload == {"status_titulo_ia": "PENDENTE"}
 
     def test_enqueue_generation_task_forwards_expected_kwargs():
+        """Run test enqueue generation task forwards expected kwargs in this workflow."""
         service, _ = _build_service(produto=SimpleNamespace(user_id=1))
         background_tasks = _BackgroundTasksStub()
     
         def _executor(**kwargs):
+            """Run executor in this workflow."""
             return kwargs
     
         service.enqueue_generation_task(

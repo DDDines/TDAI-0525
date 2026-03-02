@@ -1,3 +1,8 @@
+"""Module test web enrichment task runner.
+
+Contains backend logic related to test web enrichment task runner and documents its role in the OOP architecture.
+"""
+
 from __future__ import annotations
 
 import pytest
@@ -8,23 +13,28 @@ from Backend.application.services.web_enrichment_task_runner import (
 
 
 class _TaskServiceStub:
+    """Represent task service stub and centralize responsibilities for this module."""
     def __init__(self) -> None:
+        """Initialize collaborators and configuration required by this component."""
         self.calls = []
 
     async def execute(self, **kwargs):
+        """Run execute in this workflow."""
         self.calls.append(kwargs)
 
 
 class _TopLevelFunctionSurface:
 
+    """Represent top level function surface and centralize responsibilities for this module."""
     def _build_runner() -> WebEnrichmentTaskRunner:
+        """Run build runner in this workflow."""
         return WebEnrichmentTaskRunner(
-            db_session_factory=lambda: None,
+            session_provider=type("SessionProviderStub", (), {"open_session": staticmethod(lambda: None)})(),
             logger=object(),
             SQLAlchemyError=Exception,
-            user_repository=object(),
-            product_repository=object(),
-            usage_repository=object(),
+            user_repository_factory=object(),
+            product_repository_factory=object(),
+            usage_repository_factory=object(),
             models=object(),
             schemas=object(),
             web_extractor=object(),
@@ -42,11 +52,13 @@ class _TopLevelFunctionSurface:
 
     @pytest.mark.asyncio
     async def test_web_enrichment_task_runner_uses_single_oop_service():
+        """Run test web enrichment task runner uses single oop service in this workflow."""
         runner = _build_runner()
         service_stub = _TaskServiceStub()
         build_calls = []
     
         def _fake_build():
+            """Run fake build in this workflow."""
             build_calls.append("build")
             return service_stub
     
@@ -74,11 +86,13 @@ class _TopLevelFunctionSurface:
 
     @pytest.mark.asyncio
     async def test_web_enrichment_task_runner_execute_reuses_cached_service():
+        """Run test web enrichment task runner execute reuses cached service in this workflow."""
         runner = _build_runner()
         service_stub = _TaskServiceStub()
         build_calls = []
     
         def _fake_build():
+            """Run fake build in this workflow."""
             build_calls.append("build")
             return service_stub
     

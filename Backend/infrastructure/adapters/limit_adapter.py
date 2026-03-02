@@ -1,3 +1,5 @@
+"""Document limit adapter module responsibilities and runtime integration points."""
+
 from __future__ import annotations
 
 from sqlalchemy.orm import Session
@@ -12,6 +14,7 @@ class LimitServiceAdapter:
     """OOP port adapter backed by the current limits implementation."""
 
     def __init__(self, runtime: LimitWorkflow | None = None) -> None:
+        """Initialize injected dependencies and runtime configuration for Limit Service Adapter."""
         self._runtime = runtime or LimitWorkflow()
 
     def verificar_limite_uso(
@@ -20,6 +23,7 @@ class LimitServiceAdapter:
         user: models.User,
         tipo_geracao_principal: str,
     ) -> int:
+        """Execute verificar limite uso as part of this module workflow."""
         return self._runtime.verificar_limite_uso(
             db=session,
             user=user,
@@ -32,6 +36,7 @@ class LimitServiceAdapter:
         user_id: int,
         creditos_necessarios: int = 1,
     ) -> bool:
+        """Verificar creditos disponiveis geracao ia."""
         return await self._runtime.verificar_creditos_disponiveis_geracao_ia(
             db=session,
             user_id=user_id,
@@ -44,6 +49,7 @@ class LimitServiceAdapter:
         user_id: int,
         creditos_necessarios: int = 1,
     ) -> bool:
+        """Verificar e consumir creditos geracao ia."""
         return await self._runtime.verificar_e_consumir_creditos_geracao_ia(
             db=session,
             user_id=user_id,

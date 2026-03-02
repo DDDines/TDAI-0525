@@ -1,15 +1,25 @@
+/**
+ * Module import review.
+ *
+ * Defines responsibilities and integration points for components fornecedores.
+ */
+
 import React, { useEffect, useState } from 'react';
 import Modal from '../common/Modal';
 import LoadingPopup from '../common/LoadingPopup';
 import PaginationControls from '../common/PaginationControls';
 import fornecedorService from '../../services/fornecedorService';
-import { showErrorToast, showSuccessToast } from '../../utils/notifications';class _TopLevelFunctionSurface {static formatCellValue(
+import { showErrorToast, showSuccessToast } from '../../utils/notifications';
+
+function formatCellValue(
 
   value) {
     if (value === null || value === undefined) return '';
     if (typeof value === 'object') return JSON.stringify(value);
     return String(value);
-  }static ImportReview(
+  }
+
+function ImportReview(
 
   { jobId, isOpen, onClose }) {
     const [items, setItems] = useState([]);
@@ -112,4 +122,5 @@ import { showErrorToast, showSuccessToast } from '../../utils/notifications';cla
       </div>
     </Modal>);
 
-  }}const formatCellValue = _TopLevelFunctionSurface.formatCellValue;export default _TopLevelFunctionSurface.ImportReview;
+  }
+export default ImportReview;

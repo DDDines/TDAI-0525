@@ -1,3 +1,8 @@
+"""Catalog import workflow service.
+
+Contains cohesive services used by the catalog import pipeline.
+"""
+
 from __future__ import annotations
 
 from typing import Any, Dict, List, Optional
@@ -13,6 +18,7 @@ class CatalogImportWorkflowService:
         status_service: Any,
         runtime: Optional[Any] = None,
     ) -> None:
+        """Initialize injected dependencies and runtime configuration for Catalog Import Workflow Service."""
         if runtime is not None:
             start_service = getattr(runtime, "start_service", start_service)
             status_service = getattr(runtime, "status_service", status_service)
@@ -31,6 +37,7 @@ class CatalogImportWorkflowService:
         region: Optional[List[float]],
         user_id: int,
     ) -> Dict[str, Any]:
+        """Handle importar catalogo finalizar within the catalog import workflow."""
         catalog_file = self._start_service.get_catalog_file_or_404(
             file_id=file_id,
             user_id=user_id,
@@ -66,6 +73,7 @@ class CatalogImportWorkflowService:
         file_id: int,
         user_id: int,
     ) -> Any:
+        """Handle importar catalogo status within the catalog import workflow."""
         return self._status_service.get_record_or_404(
             file_id=file_id,
             user_id=user_id,
@@ -77,6 +85,7 @@ class CatalogImportWorkflowService:
         file_id: int,
         user_id: int,
     ) -> Dict[str, Any]:
+        """Handle importar catalogo status simple within the catalog import workflow."""
         record = self._status_service.get_record_or_404(
             file_id=file_id,
             user_id=user_id,
@@ -89,6 +98,7 @@ class CatalogImportWorkflowService:
         file_id: int,
         user_id: int,
     ) -> Any:
+        """Handle importar catalogo result within the catalog import workflow."""
         record = self._status_service.get_record_or_404(
             file_id=file_id,
             user_id=user_id,
@@ -103,6 +113,7 @@ class CatalogImportWorkflowService:
         mapping: Optional[Dict[str, str]],
         user_id: int,
     ) -> Any:
+        """Handle importar catalogo finalizar todas paginas within the catalog import workflow."""
         record = self._start_service.get_catalog_file_or_404(
             file_id=file_id,
             user_id=user_id,

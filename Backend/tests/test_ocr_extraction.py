@@ -1,3 +1,8 @@
+"""Module test ocr extraction.
+
+Contains backend logic related to test ocr extraction and documents its role in the OOP architecture.
+"""
+
 import pytest
 from pathlib import Path
 
@@ -8,7 +13,9 @@ file_processing_service = ServiceContainer().file_processing
 
 class _TopLevelFunctionSurface:
 
+    """Represent top level function surface and centralize responsibilities for this module."""
     def test_ocr_extraction_on_scanned_pdf():
+        """Run test ocr extraction on scanned pdf in this workflow."""
         pdf_path = Path(__file__).resolve().parent / "test_assets" / "scanned.pdf"
         if not pdf_path.exists():
             pytest.skip("Sample scanned PDF not available")
@@ -19,6 +26,7 @@ class _TopLevelFunctionSurface:
         assert len(result["rows"][0]) == len(result["headers"])
 
     def test_region_extraction_does_not_explode_structure():
+        """Run test region extraction does not explode structure in this workflow."""
         pdf_path = Path(__file__).resolve().parent / "test_assets" / "scanned.pdf"
         if not pdf_path.exists():
             pytest.skip("Sample scanned PDF not available")

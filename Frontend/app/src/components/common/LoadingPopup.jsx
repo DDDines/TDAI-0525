@@ -1,6 +1,14 @@
+/**
+ * Module loading popup.
+ *
+ * Defines responsibilities and integration points for components common.
+ */
+
 import React from 'react';
 import './LoadingPopup.css';
-import LogoImg from '../../assets/Logo.png';class _TopLevelFunctionSurface {static LoadingPopup(
+import LogoImg from '../../assets/Logo.png';
+
+function LoadingPopup(
 
   { isOpen, message = 'Carregando...', details = [] }) {
     if (!isOpen) return null;
@@ -23,4 +31,5 @@ import LogoImg from '../../assets/Logo.png';class _TopLevelFunctionSurface {stat
       </div>
     </div>);
 
-  }}export default _TopLevelFunctionSurface.LoadingPopup;
+  }
+export default LoadingPopup;

@@ -1,3 +1,8 @@
+"""Module test workflow runtime pairing contract.
+
+Contains backend logic related to test workflow runtime pairing contract and documents its role in the OOP architecture.
+"""
+
 from __future__ import annotations
 
 import ast
@@ -6,7 +11,9 @@ from pathlib import Path
 
 class _TopLevelFunctionSurface:
 
+    """Represent top level function surface and centralize responsibilities for this module."""
     def _collect_class_names(backend_root: Path):
+        """Run collect class names in this workflow."""
         workflow_names: set[str] = set()
         runtime_names: set[str] = set()
     
@@ -28,6 +35,7 @@ class _TopLevelFunctionSurface:
         return workflow_names, runtime_names
 
     def test_every_workflow_has_matching_runtime_class():
+        """Run test every workflow has matching runtime class in this workflow."""
         backend_root = Path(__file__).resolve().parents[1]
         workflow_names, runtime_names = _collect_class_names(backend_root)
     

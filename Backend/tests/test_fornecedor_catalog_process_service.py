@@ -1,3 +1,8 @@
+"""Module test fornecedor catalog process service.
+
+Contains backend logic related to test fornecedor catalog process service and documents its role in the OOP architecture.
+"""
+
 from __future__ import annotations
 
 from types import SimpleNamespace
@@ -11,58 +16,74 @@ from Backend.application.services.fornecedor_catalog_process_service import (
 
 
 class _CatalogImportFileModel:
+    """Represent catalog import file model and centralize responsibilities for this module."""
     def __init__(self, **kwargs):
+        """Initialize collaborators and configuration required by this component."""
         for key, value in kwargs.items():
             setattr(self, key, value)
         self.id = None
 
 
 class _ModelsStub:
+    """Represent models stub and centralize responsibilities for this module."""
     CatalogImportFile = _CatalogImportFileModel
 
 
 class _CrudFornecedoresStub:
+    """Represent crud fornecedores stub and centralize responsibilities for this module."""
     def __init__(self, fornecedor):
+        """Initialize collaborators and configuration required by this component."""
         self._fornecedor = fornecedor
 
     def get_fornecedor(self, *, fornecedor_id):
+        """Return fornecedor for this workflow."""
         _ = fornecedor_id
         return self._fornecedor
 
 
 class _CatalogImportStartServiceStub:
+    """Represent catalog import start service stub and centralize responsibilities for this module."""
     def __init__(self, source):
+        """Initialize collaborators and configuration required by this component."""
         self._source = source
         self.dispatched = []
         self.commands = []
 
     def get_catalog_file_or_404(self, **kwargs):
+        """Return catalog file or 404 for this workflow."""
         _ = kwargs
         return self._source
 
     def resolve_pdf_pages(self, *, catalog_file, start_page):
+        """Resolve pdf pages for this workflow."""
         _ = catalog_file
         return [start_page, start_page + 1]
 
     def resolve_mapping(self, **kwargs):
+        """Resolve mapping for this workflow."""
         _ = kwargs
         return kwargs.get("mapping") or {"col_0": "nome_base"}
 
     def build_finalize_command(self, **kwargs):
+        """Build finalize command for this workflow."""
         self.commands.append(kwargs)
         return SimpleNamespace(**kwargs)
 
     async def dispatch_finalize(self, **kwargs):
+        """Dispatch finalize for this workflow."""
         self.dispatched.append(kwargs)
         return {"ok": True}
 
 
 class _DbStub:
+    """Represent db stub and centralize responsibilities for this module."""
     def __init__(self):
+        """Initialize collaborators and configuration required by this component."""
         self.saved = []
         self._next_id = 900
 
     def save_catalog_file(self, *, catalog_file):
+        """Run save catalog file in this workflow."""
         self.saved.append(catalog_file)
         if getattr(catalog_file, "id", None) is None:
             catalog_file.id = self._next_id
@@ -72,7 +93,9 @@ class _DbStub:
 
 class _TopLevelFunctionSurface:
 
+    """Represent top level function surface and centralize responsibilities for this module."""
     def _build_service(*, fornecedor, source):
+        """Run build service in this workflow."""
         fornecedor_repo = _CrudFornecedoresStub(fornecedor=fornecedor)
         catalog_file_repo = _DbStub()
         service = FornecedorCatalogProcessService(
@@ -85,6 +108,7 @@ class _TopLevelFunctionSurface:
 
     @pytest.mark.asyncio
     async def test_start_full_processing_dispatches_job():
+        """Run test start full processing dispatches job in this workflow."""
         fornecedor = SimpleNamespace(id=3, user_id=10)
         source = SimpleNamespace(original_filename="orig.pdf", stored_filename="stored.pdf")
         service, fornecedor_repo, catalog_file_repo = _build_service(
@@ -118,6 +142,7 @@ class _TopLevelFunctionSurface:
 
     @pytest.mark.asyncio
     async def test_start_full_processing_raises_when_fornecedor_not_found():
+        """Run test start full processing raises when fornecedor not found in this workflow."""
         source = SimpleNamespace(original_filename="orig.pdf", stored_filename="stored.pdf")
         service, fornecedor_repo, catalog_file_repo = _build_service(
             fornecedor=None,
@@ -140,6 +165,7 @@ class _TopLevelFunctionSurface:
 
     @pytest.mark.asyncio
     async def test_start_full_processing_raises_when_user_not_allowed():
+        """Run test start full processing raises when user not allowed in this workflow."""
         fornecedor = SimpleNamespace(id=3, user_id=99)
         source = SimpleNamespace(original_filename="orig.pdf", stored_filename="stored.pdf")
         service, fornecedor_repo, catalog_file_repo = _build_service(

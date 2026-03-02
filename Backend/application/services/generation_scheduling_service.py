@@ -1,3 +1,5 @@
+"""Document generation scheduling service module responsibilities and runtime integration points."""
+
 from __future__ import annotations
 
 from typing import Any
@@ -15,6 +17,7 @@ class GenerationSchedulingService:
         models: Any,
         product_repository: Any,
     ) -> None:
+        """Initialize injected dependencies and runtime configuration for Generation Scheduling Service."""
         self._product_repository = product_repository
         self._schemas = schemas
         self._models = models
@@ -25,6 +28,7 @@ class GenerationSchedulingService:
         produto_id: int,
         current_user: Any,
     ) -> Any:
+        """Execute validate product access as part of this module workflow."""
         db_produto = self._product_repository.get_produto(produto_id=produto_id)
         if not db_produto:
             raise HTTPException(
@@ -44,6 +48,7 @@ class GenerationSchedulingService:
         db_produto: Any,
         generation_type: str,
     ) -> None:
+        """Execute mark pending status as part of this module workflow."""
         status_field_map = {
             "titulo": "status_titulo_ia",
             "descricao": "status_descricao_ia",
@@ -72,6 +77,7 @@ class GenerationSchedulingService:
         num_titulos: int | None = None,
         tamanho_palavras: int | None = None,
     ) -> None:
+        """Execute enqueue generation task as part of this module workflow."""
         background_tasks.add_task(
             task_executor,
             user_id=user_id,

@@ -32,6 +32,7 @@ class UsoIARequestService:
         self,
         session: Session = Depends(ServiceContainerDependencySupport.get_request_db_session),
     ) -> None:
+        """Initialize injected dependencies and runtime configuration for Uso IARequest Service."""
         self._session = session
         self._registro_repo = RegistroUsoIARepository(session)
         self._product_repo = ProductRepository(session)
@@ -42,6 +43,7 @@ class UsoIARequestService:
         current_user: models.User,
         uso_ia_data: schemas.RegistroUsoIACreate,
     ) -> schemas.RegistroUsoIAResponse:
+        """Create uso ia and return the resulting payload or entity."""
         try:
             uso_ia_data.user_id = current_user.id
             return self._registro_repo.create_registro_uso_ia(registro_uso=uso_ia_data)
@@ -64,6 +66,7 @@ class UsoIARequestService:
         data_inicio: Optional[datetime],
         data_fim: Optional[datetime],
     ) -> schemas.UsoIAPage:
+        """Execute list usos ia usuario as part of this module workflow."""
         try:
             tipo_enum = models.TipoAcaoEnum(tipo_geracao) if tipo_geracao else None
         except ValueError as exc:
@@ -100,11 +103,8 @@ class UsoIARequestService:
         current_user: models.User,
         registro_id: int,
     ) -> schemas.RegistroUsoIAResponse:
-        db_registro = (
-            self._session.query(models.RegistroUsoIA)
-            .filter(models.RegistroUsoIA.id == registro_id)
-            .first()
-        )
+        """Execute read uso ia especifico as part of this module workflow."""
+        db_registro = self._registro_repo.get_registro_uso_ia(registro_id=registro_id)
         if db_registro is None:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
@@ -125,6 +125,7 @@ class UsoIARequestService:
         skip: int,
         limit: int,
     ) -> List[schemas.RegistroUsoIAResponse]:
+        """Execute read usos ia por produto as part of this module workflow."""
         produto = self._product_repo.get_produto(produto_id=produto_id)
         if not produto:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Produto nao encontrado")
@@ -150,6 +151,7 @@ def create_uso_ia_endpoint(
     ),
     request_service: UsoIARequestService = Depends(),
 ):
+    """Create uso ia endpoint and return the resulting payload or entity."""
     return request_service.create_uso_ia(current_user=current_user, uso_ia_data=uso_ia_data)
 
 
@@ -165,6 +167,7 @@ def read_usos_ia_usuario_logado(
     data_inicio: Optional[datetime] = Query(None, description="Data de inicio (ISO)"),
     data_fim: Optional[datetime] = Query(None, description="Data de fim (ISO)"),
 ):
+    """Execute read usos ia usuario logado as part of this module workflow."""
     return request_service.list_usos_ia_usuario(
         current_user=current_user,
         skip=skip,
@@ -185,6 +188,7 @@ def read_usos_ia_por_produto(
     skip: int = Query(0, ge=0),
     limit: int = Query(100, ge=1, le=200),
 ):
+    """Execute read usos ia por produto as part of this module workflow."""
     return request_service.read_usos_ia_por_produto(
         current_user=current_user,
         produto_id=produto_id,
@@ -201,6 +205,7 @@ def read_uso_ia_especifico(
     ),
     request_service: UsoIARequestService = Depends(),
 ):
+    """Execute read uso ia especifico as part of this module workflow."""
     return request_service.read_uso_ia_especifico(
         current_user=current_user,
         registro_id=registro_id,

@@ -1,3 +1,5 @@
+"""Document file processing adapter module responsibilities and runtime integration points."""
+
 from __future__ import annotations
 
 from typing import Any, Dict, List, Optional
@@ -15,6 +17,7 @@ class FileProcessingServiceAdapter:
     """OOP port adapter backed by the current file-processing implementation."""
 
     def __init__(self, runtime: FileProcessingRuntime | None = None) -> None:
+        """Initialize injected dependencies and runtime configuration for File Processing Service Adapter."""
         self._service = runtime or FileProcessingRuntime()
 
     async def save_uploaded_catalog(
@@ -22,12 +25,15 @@ class FileProcessingServiceAdapter:
         file: UploadFile,
         fornecedor_id: Optional[int] = None,
     ) -> Any:
+        """Execute save uploaded catalog as part of this module workflow."""
         return await self._service.save_uploaded_catalog(file=file, fornecedor_id=fornecedor_id)
 
     def delete_catalog_file(self, stored_filename: str) -> None:
+        """Execute delete catalog file as part of this module workflow."""
         return self._service.delete_catalog_file(stored_filename=stored_filename)
 
     def get_file_path_by_id(self, db: Session, file_id: str | int) -> str:
+        """Retrieve file path by id using the current service dependencies."""
         return self._service.get_file_path_by_id(db=db, file_id=file_id)
 
     async def processar_arquivo_excel(
@@ -37,6 +43,7 @@ class FileProcessingServiceAdapter:
         sheet_name: Optional[str] = None,
         product_type_id: Optional[int] = None,
     ) -> List[Dict[str, Any]]:
+        """Execute processar arquivo excel as part of this module workflow."""
         return await self._service.processar_arquivo_excel(
             conteudo_arquivo=conteudo_arquivo,
             mapeamento_colunas_usuario=mapeamento_colunas_usuario,
@@ -50,6 +57,7 @@ class FileProcessingServiceAdapter:
         mapeamento_colunas_usuario: Optional[Dict[str, str]] = None,
         product_type_id: Optional[int] = None,
     ) -> List[Dict[str, Any]]:
+        """Execute processar arquivo csv as part of this module workflow."""
         return await self._service.processar_arquivo_csv(
             conteudo_arquivo=conteudo_arquivo,
             mapeamento_colunas_usuario=mapeamento_colunas_usuario,
@@ -65,6 +73,7 @@ class FileProcessingServiceAdapter:
         pages: Optional[List[int]] = None,
         region: Optional[List[float]] = None,
     ) -> List[Dict[str, Any]]:
+        """Execute processar arquivo pdf as part of this module workflow."""
         return await self._service.processar_arquivo_pdf(
             conteudo_arquivo=conteudo_arquivo,
             mapeamento_colunas_usuario=mapeamento_colunas_usuario,
@@ -79,6 +88,7 @@ class FileProcessingServiceAdapter:
         conteudo_arquivo: bytes,
         max_rows: int = 5,
     ) -> Dict[str, Any]:
+        """Execute preview arquivo excel as part of this module workflow."""
         return await self._service.preview_arquivo_excel(
             conteudo_arquivo=conteudo_arquivo,
             max_rows=max_rows,
@@ -89,6 +99,7 @@ class FileProcessingServiceAdapter:
         conteudo_arquivo: bytes,
         max_rows: int = 5,
     ) -> Dict[str, Any]:
+        """Execute preview arquivo csv as part of this module workflow."""
         return await self._service.preview_arquivo_csv(
             conteudo_arquivo=conteudo_arquivo,
             max_rows=max_rows,
@@ -102,6 +113,7 @@ class FileProcessingServiceAdapter:
         page_count: int = 1,
         dpi: int = 72,
     ) -> Dict[str, Any]:
+        """Execute preview arquivo pdf as part of this module workflow."""
         return await self._service.preview_arquivo_pdf(
             conteudo_arquivo=conteudo_arquivo,
             ext=ext,
@@ -116,6 +128,7 @@ class FileProcessingServiceAdapter:
         ext: str,
         max_rows: int = 5,
     ) -> Dict[str, Any]:
+        """Execute gerar preview as part of this module workflow."""
         return await self._service.gerar_preview(
             conteudo_arquivo=conteudo_arquivo,
             ext=ext,
@@ -129,6 +142,7 @@ class FileProcessingServiceAdapter:
         start_page: int = 1,
         dpi: int = 200,
     ) -> List[str]:
+        """Execute pdf bytes to images as part of this module workflow."""
         return await self._service.pdf_bytes_to_images(
             conteudo_arquivo=conteudo_arquivo,
             max_pages=max_pages,
@@ -145,6 +159,7 @@ class FileProcessingServiceAdapter:
         offset: int,
         limit: int,
     ) -> Dict[str, Any]:
+        """Execute pdf pages to images as part of this module workflow."""
         return self._service.pdf_pages_to_images(
             db=db,
             file=file,
@@ -160,6 +175,7 @@ class FileProcessingServiceAdapter:
         page_number: int,
         region: Optional[List[float]] = None,
     ) -> Dict[str, Any]:
+        """Execute extrair pagina pdf as part of this module workflow."""
         return await self._service.extrair_pagina_pdf(
             conteudo_pdf=conteudo_pdf,
             page_number=page_number,
@@ -167,6 +183,7 @@ class FileProcessingServiceAdapter:
         )
 
     def generate_pdf_page_images(self, file_path: str, file_id: str) -> List[str]:
+        """Execute generate pdf page images as part of this module workflow."""
         return self._service.generate_pdf_page_images(file_path=file_path, file_id=file_id)
 
     def extract_pdf_region_image(
@@ -176,6 +193,7 @@ class FileProcessingServiceAdapter:
         region: Optional[List[float]] = None,
         dpi: int = 300,
     ) -> bytes:
+        """Execute extract pdf region image as part of this module workflow."""
         return self._service.extract_pdf_region_image(
             file_path=file_path,
             page_number=page_number,
@@ -188,6 +206,7 @@ class FileProcessingServiceAdapter:
         annotation: object,
         vertical_tolerance: int = 5,
     ) -> pd.DataFrame:
+        """Parse annotation to dataframe into structured data used by downstream logic."""
         return self._service.parse_annotation_to_dataframe(
             annotation=annotation,
             vertical_tolerance=vertical_tolerance,
@@ -199,6 +218,7 @@ class FileProcessingServiceAdapter:
         page_number: int,
         region: Optional[List[float]] = None,
     ) -> pd.DataFrame:
+        """Extract data from pdf region."""
         return self._service.extract_data_from_pdf_region(
             file_path=file_path,
             page_number=page_number,
@@ -212,6 +232,7 @@ class FileProcessingServiceAdapter:
         start_page: int = 1,
         mapping: Optional[Dict[str, str]] = None,
     ) -> None:
+        """Execute pdf job and return the normalized execution result."""
         return await self._service.process_pdf_job(
             job_id=job_id,
             pdf_path=pdf_path,
@@ -224,6 +245,7 @@ class FileProcessingServiceAdapter:
         file_path: str,
         page_number: int,
     ) -> Dict[str, Any]:
+        """Extract data from single page."""
         return self._service.extract_data_from_single_page(
             file_path=file_path,
             page_number=page_number,
@@ -234,6 +256,7 @@ class FileProcessingServiceAdapter:
         linha_original: Dict[str, Any],
         mapeamento_colunas_usuario: Optional[Dict[str, str]] = None,
     ) -> Optional[Dict[str, Any]]:
+        """Execute processar linha padronizada as part of this module workflow."""
         return self._service.processar_linha_padronizada(
             linha_original=linha_original,
             mapeamento_colunas_usuario=mapeamento_colunas_usuario,

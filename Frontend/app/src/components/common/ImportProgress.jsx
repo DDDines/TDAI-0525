@@ -1,8 +1,13 @@
+/**
+ * Module import progress.
+ *
+ * Defines responsibilities and integration points for components common.
+ */
+
 import React, { useEffect, useRef, useState } from 'react';
-import fornecedorService from '../../services/fornecedorService';class _TopLevelFunctionSurface {static ImportProgress(
+import fornecedorService from '../../services/fornecedorService';
 
-
-
+function ImportProgress(
 
 
   { fileId, onDone }) {
@@ -124,4 +129,5 @@ import fornecedorService from '../../services/fornecedorService';class _TopLevel
       </p>
     </div>);
 
-  }}const POLL_INTERVAL_MS = 3000;const MAX_RESULT_WAIT_MS = 60000;const MAX_RESULT_ATTEMPTS = 20;export default _TopLevelFunctionSurface.ImportProgress;
+  }
+const POLL_INTERVAL_MS = 3000;const MAX_RESULT_WAIT_MS = 60000;const MAX_RESULT_ATTEMPTS = 20;export default ImportProgress;

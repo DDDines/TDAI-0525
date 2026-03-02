@@ -1,3 +1,9 @@
+"""Catalog import preview orchestration.
+
+Provides the read-only import preview flow: upload persistence, page preview,
+region extraction and single-page probing for PDF diagnostics.
+"""
+
 from __future__ import annotations
 
 import io
@@ -23,6 +29,7 @@ class CatalogImportPreviewService:
         pdfplumber_module: Any,
         catalog_file_repository: Any,
     ) -> None:
+        """Inject collaborators required by preview endpoints."""
         self._models = models
         self._settings = settings
         self._file_processing_service = file_processing_service
@@ -34,6 +41,7 @@ class CatalogImportPreviewService:
     def _resolve_catalog_file_repo(
         self,
     ) -> Any:
+        """Resolve catalog file repo from injected repositories or runtime context."""
         return self._catalog_file_repository
 
     async def importar_catalogo_preview(
@@ -184,7 +192,7 @@ class CatalogImportPreviewService:
                         row,
                         None,
                     )
-                    if produto:
+                    if produto and not produto.get("motivo_descarte"):
                         produtos.append(produto)
 
                 log.append(
@@ -209,7 +217,7 @@ class CatalogImportPreviewService:
                             row,
                             None,
                         )
-                        if produto:
+                        if produto and not produto.get("motivo_descarte"):
                             produtos.append(produto)
                     log.append(
                         f"Pagina {page}: extraidas {len(text_rows)} linhas por fallback de texto (chave:valor)."
@@ -238,7 +246,11 @@ class CatalogImportPreviewService:
         except HTTPException:
             raise
         except Exception as exc:
-            raise HTTPException(status_code=500, detail=str(exc)) from exc
+            self._logger.exception("Falha ao processar selecao de regiao no preview de catalogo")
+            raise HTTPException(
+                status_code=500,
+                detail="Erro interno ao processar a selecao da regiao.",
+            ) from exc
 
         return {
             "produtos": produtos,
@@ -273,9 +285,16 @@ class CatalogImportPreviewService:
                 page_number,
             )
         except ValueError as exc:
-            raise HTTPException(status_code=400, detail=str(exc)) from exc
+            raise HTTPException(
+                status_code=400,
+                detail="Parametros invalidos para extracao da pagina PDF.",
+            ) from exc
         except Exception as exc:
-            raise HTTPException(status_code=500, detail=str(exc)) from exc
+            self._logger.exception("Falha ao extrair pagina unica de PDF")
+            raise HTTPException(
+                status_code=500,
+                detail="Erro interno ao extrair dados da pagina PDF.",
+            ) from exc
 
     def _get_record_or_404(
         self,
@@ -284,6 +303,7 @@ class CatalogImportPreviewService:
         file_id: int,
         user_id: int,
     ) -> Any:
+        """Load a catalog file owned by the user or raise 404."""
         record = catalog_file_repo.get_catalog_file_for_user(
             file_id=file_id,
             user_id=user_id,
@@ -293,12 +313,14 @@ class CatalogImportPreviewService:
         return record
 
     def _build_catalog_path(self, record: Any) -> Path:
+        """Resolve the absolute storage path for a persisted catalog file."""
         return self._resolve_storage_path(
             Path(self._settings.UPLOAD_DIRECTORY) / "catalogs" / record.stored_filename
         )
 
     @staticmethod
     def _normalize_preview_row(row: Dict[str, Any]) -> Dict[str, Any]:
+        """Normalize dataframe rows so JSON responses do not expose NaN values."""
         normalized: Dict[str, Any] = {}
         for key, value in row.items():
             if value is None:
@@ -317,6 +339,7 @@ class CatalogImportPreviewService:
         page: int,
         selected_bbox: List[float],
     ) -> List[Dict[str, str]]:
+        """Extract key/value style rows from a cropped PDF region text layer."""
         with self._pdfplumber.open(file_path) as pdf:
             target_page = pdf.pages[page - 1]
             cropped = target_page.crop(tuple(selected_bbox))
@@ -325,6 +348,7 @@ class CatalogImportPreviewService:
 
     @staticmethod
     def _parse_key_value_rows(raw_text: str) -> List[Dict[str, str]]:
+        """Parse lines formatted as `key: value` into structured row dictionaries."""
         rows: List[Dict[str, str]] = []
         current: Dict[str, str] = {}
         aliases = {

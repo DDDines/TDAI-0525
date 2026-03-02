@@ -1,3 +1,8 @@
+"""Module test web enrichment mapping.
+
+Contains backend logic related to test web enrichment mapping and documents its role in the OOP architecture.
+"""
+
 from types import SimpleNamespace
 
 from Backend.application.services.web_enrichment_content_quality_service import (
@@ -26,7 +31,9 @@ _payload_service = WebEnrichmentPayloadService(
 
 class _TopLevelFunctionSurface:
 
+    """Represent top level function surface and centralize responsibilities for this module."""
     def _make_product(**overrides):
+        """Run make product in this workflow."""
         base = {
             "nome_chat_api": None,
             "descricao_original": None,
@@ -49,6 +56,7 @@ class _TopLevelFunctionSurface:
         return SimpleNamespace(**base)
 
     def test_build_payload_populates_visible_fields_and_dynamic_attributes():
+        """Run test build payload populates visible fields and dynamic attributes in this workflow."""
         produto = _make_product()
         dados = {
             "nome": "Suporte Fixacao Apara Barro Randon 695mm",
@@ -81,6 +89,7 @@ class _TopLevelFunctionSurface:
         assert ignored == []
 
     def test_build_payload_does_not_override_existing_values():
+        """Run test build payload does not override existing values in this workflow."""
         produto = _make_product(
             nome_chat_api="Nome Ja Definido",
             descricao_original="Descricao existente detalhada da peca automotiva",
@@ -125,6 +134,7 @@ class _TopLevelFunctionSurface:
         assert any(item.startswith("nome_chat_api:") for item in ignored)
 
     def test_build_payload_replaces_suspicious_code_on_dynamic_id():
+        """Run test build payload replaces suspicious code on dynamic id in this workflow."""
         produto = _make_product(
             dynamic_attributes={
                 "id": "SP1081MARCA",
@@ -140,6 +150,7 @@ class _TopLevelFunctionSurface:
         assert update_fields["dynamic_attributes"]["id"] == "SP1081"
 
     def test_build_payload_respects_template_key_with_suffix_using_label_alias():
+        """Run test build payload respects template key with suffix using label alias in this workflow."""
         produto = _make_product(
             dynamic_attributes={},
             product_type=SimpleNamespace(
@@ -164,6 +175,7 @@ class _TopLevelFunctionSurface:
         assert dyn["desc_auto"].startswith("Codigo: ABC123")
 
     def test_build_payload_migrates_existing_alias_value_to_template_key():
+        """Run test build payload migrates existing alias value to template key in this workflow."""
         produto = _make_product(
             dynamic_attributes={
                 "titulo": "Titulo legado",
@@ -187,6 +199,7 @@ class _TopLevelFunctionSurface:
         assert dyn["desc_auto"] == "Descricao legado"
 
     def test_build_payload_replaces_weak_existing_description_and_name():
+        """Run test build payload replaces weak existing description and name in this workflow."""
         produto = _make_product(
             nome_chat_api="as 927",
             descricao_original="Actros 2651 - 2016",
@@ -209,6 +222,7 @@ class _TopLevelFunctionSurface:
         assert not any(item.startswith("descricao_original:") for item in ignored)
 
     def test_source_relevance_rejects_unrelated_candidate():
+        """Run test source relevance rejects unrelated candidate in this workflow."""
         produto = SimpleNamespace(
             nome_base="Parede Traseira Fechada",
             marca=None,
@@ -225,6 +239,7 @@ class _TopLevelFunctionSurface:
         assert is_relevant is False
 
     def test_source_relevance_accepts_matching_candidate_with_code():
+        """Run test source relevance accepts matching candidate with code in this workflow."""
         produto = SimpleNamespace(
             nome_base="Coluna interna",
             marca=None,
@@ -241,6 +256,7 @@ class _TopLevelFunctionSurface:
         assert is_relevant is True
 
     def test_meaningful_text_rejects_error_page_content():
+        """Run test meaningful text rejects error page content in this workflow."""
         text = (
             "Reference #18.45c51102.1771763903.d28fd55 "
             "https://errors.edgesuite.net/18.45c51102.1771763903.d28fd55"
@@ -248,6 +264,7 @@ class _TopLevelFunctionSurface:
         assert _content_quality_service.is_meaningful_extracted_text(text) is False
 
     def test_meaningful_text_accepts_real_product_text():
+        """Run test meaningful text accepts real product text in this workflow."""
         text = (
             "Parede Traseira Fechada para Caminhao Ford Cargo. "
             "Codigo original 2C456840300BB, material metalico, aplicacao linha pesada."
@@ -255,6 +272,7 @@ class _TopLevelFunctionSurface:
         assert _content_quality_service.is_meaningful_extracted_text(text) is True
 
     def test_metadata_signal_rejects_low_quality_content():
+        """Run test metadata signal rejects low quality content in this workflow."""
         metadata = {
             "nome": "Reference #18.45c51102",
             "descricao_curta": "errors.edgesuite.net",
@@ -263,6 +281,7 @@ class _TopLevelFunctionSurface:
         assert _content_quality_service.metadata_has_minimum_signal(metadata) is False
 
     def test_metadata_signal_accepts_compact_product_metadata():
+        """Run test metadata signal accepts compact product metadata in this workflow."""
         metadata = {
             "nome": "Coluna Interna FD Cargo Ate 2010 LE - TJG809201A",
             "descricao_curta": "Coluna interna caminhão ford cargo lado esquerdo",

@@ -1,3 +1,9 @@
+"""Catalog import diagnostics persistence.
+
+Provides storage/path helpers and report generation for import diagnostics so
+operators can inspect failures after asynchronous execution.
+"""
+
 from __future__ import annotations
 
 from collections import Counter
@@ -16,6 +22,7 @@ class CatalogImportDiagnosticsService:
         logger: Any,
         sanitization_service: Any,
     ) -> None:
+        """Inject diagnostics dependencies and guarantee log directory existence."""
         self._catalog_log_dir = Path(catalog_log_dir)
         self._logger = logger
         self._sanitization_service = sanitization_service

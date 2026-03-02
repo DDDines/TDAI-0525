@@ -1,8 +1,14 @@
+"""Catalog import task service.
+
+Contains cohesive services used by the catalog import pipeline.
+"""
+
 from __future__ import annotations
 
 from typing import Any, Callable, Dict, List, Optional
 from sqlalchemy.orm import Session
 
+from Backend.application.services.service_container import SessionProviderPort
 from Backend.application.services.catalog_import_components import (
     CatalogImportAuditWriter,
     CatalogImportFileStateService,
@@ -14,13 +20,14 @@ from Backend.application.services.catalog_import_components import (
 
 
 class CatalogImportTaskRuntime:
+    """Represent Catalog Import Task Runtime and centralize its responsibilities inside this module."""
     RUNTIME_FIELDS = (
         "logger",
         "catalog_logger",
         "models",
         "schemas",
-        "product_repository",
-        "catalog_file_repository",
+        "product_repository_factory",
+        "catalog_file_repository_factory",
         "file_processing_service",
         "validator_crew",
         "settings",
@@ -41,13 +48,13 @@ class CatalogImportTaskRuntime:
     def __init__(
         self,
         *,
-        db_session_factory,
+        session_provider: SessionProviderPort,
         logger,
         catalog_logger,
         models,
         schemas,
-        product_repository,
-        catalog_file_repository,
+        product_repository_factory,
+        catalog_file_repository_factory,
         file_processing_service,
         validator_crew,
         settings,
@@ -64,12 +71,13 @@ class CatalogImportTaskRuntime:
         write_catalog_import_report: Callable,
         normalize_import_text: Callable,
     ) -> None:
+        """Initialize injected dependencies and runtime configuration for Catalog Import Task Runtime."""
         self.logger = logger
         self.catalog_logger = catalog_logger
         self.models = models
         self.schemas = schemas
-        self.product_repository = product_repository
-        self.catalog_file_repository = catalog_file_repository
+        self.product_repository_factory = product_repository_factory
+        self.catalog_file_repository_factory = catalog_file_repository_factory
         self.file_processing_service = file_processing_service
         self.validator_crew = validator_crew
         self.settings = settings
@@ -87,6 +95,7 @@ class CatalogImportTaskRuntime:
         self.normalize_import_text = normalize_import_text
 
     def apply_overrides(self, runtime: Any) -> "CatalogImportTaskRuntime":
+        """Handle apply overrides within the catalog import workflow."""
         for field_name in self.RUNTIME_FIELDS:
             setattr(self, field_name, getattr(runtime, field_name, getattr(self, field_name)))
         return self
@@ -98,13 +107,13 @@ class CatalogImportTaskWorkflow:
     def __init__(
         self,
         *,
-        db_session_factory,
+        session_provider: SessionProviderPort,
         logger,
         catalog_logger,
         models,
         schemas,
-        product_repository,
-        catalog_file_repository,
+        product_repository_factory,
+        catalog_file_repository_factory,
         file_processing_service,
         validator_crew,
         settings,
@@ -122,14 +131,15 @@ class CatalogImportTaskWorkflow:
         normalize_import_text: Callable,
         runtime: Optional[Any] = None,
     ) -> None:
+        """Initialize injected dependencies and runtime configuration for Catalog Import Task Workflow."""
         runtime_obj = CatalogImportTaskRuntime(
-            db_session_factory=db_session_factory,
+            session_provider=session_provider,
             logger=logger,
             catalog_logger=catalog_logger,
             models=models,
             schemas=schemas,
-            product_repository=product_repository,
-            catalog_file_repository=catalog_file_repository,
+            product_repository_factory=product_repository_factory,
+            catalog_file_repository_factory=catalog_file_repository_factory,
             file_processing_service=file_processing_service,
             validator_crew=validator_crew,
             settings=settings,
@@ -150,13 +160,15 @@ class CatalogImportTaskWorkflow:
             runtime_obj.apply_overrides(runtime)
 
         self._runtime = runtime_obj
-        self._db_session_factory = db_session_factory
+        self._session_provider = session_provider
         self.logger = runtime_obj.logger
         self.catalog_logger = runtime_obj.catalog_logger
         self.models = runtime_obj.models
         self.schemas = runtime_obj.schemas
-        self.product_repository = runtime_obj.product_repository
-        self.catalog_file_repository = runtime_obj.catalog_file_repository
+        self.product_repository_factory = runtime_obj.product_repository_factory
+        self.catalog_file_repository_factory = (
+            runtime_obj.catalog_file_repository_factory
+        )
         self.file_processing_service = runtime_obj.file_processing_service
         self.validator_crew = runtime_obj.validator_crew
         self.settings = runtime_obj.settings
@@ -202,15 +214,16 @@ class CatalogImportTaskWorkflow:
         self.catalog_file_repo_runtime: Any | None = None
         self.product_repo_runtime: Any | None = None
 
-    @staticmethod
-    def _resolve_repository_runtime(repository_provider: Any, session: Session) -> Any:
-        if repository_provider is None:
-            raise ValueError("repository provider is required")
-        if callable(repository_provider):
-            return repository_provider(session)
-        return repository_provider
+    def _build_catalog_file_repository(self, *, session: Session) -> Any:
+        """Instantiate catalog file repository using the injected factory."""
+        return self.catalog_file_repository_factory(session)
+
+    def _build_product_repository(self, *, session: Session) -> Any:
+        """Instantiate product repository using the injected factory."""
+        return self.product_repository_factory(session)
 
     def _load_catalog_file(self) -> bool:
+        """Handle load catalog file within the catalog import workflow."""
         self.catalog_file = self.catalog_file_repo_runtime.get_catalog_file_for_user(
             file_id=self.file_id,
             user_id=self.user_id,
@@ -237,6 +250,7 @@ class CatalogImportTaskWorkflow:
         return True
 
     def _resolve_file(self):
+        """Handle resolve file within the catalog import workflow."""
         file_path = self.resolve_storage_path(
             self.Path(self.settings.UPLOAD_DIRECTORY)
             / "catalogs"
@@ -257,6 +271,7 @@ class CatalogImportTaskWorkflow:
         return file_path, content, ext
 
     def _build_produto_schema(self, cleaned_prod: Dict[str, Any]):
+        """Handle build produto schema within the catalog import workflow."""
         return self.schemas.ProdutoCreate(
             nome_base=cleaned_prod.get("nome_base")
             or cleaned_prod.get("sku_original")
@@ -280,6 +295,7 @@ class CatalogImportTaskWorkflow:
         conversion_error_prefix: str,
         produtos_create: List[Any],
     ) -> None:
+        """Handle process quality and schema within the catalog import workflow."""
         if isinstance(prod, dict) and (
             prod.get("motivo_descarte")
             or any(key.startswith("erro_processamento") for key in prod.keys())
@@ -339,6 +355,7 @@ class CatalogImportTaskWorkflow:
             )
 
     def _flush_produtos(self, *, produtos_create: List[Any]) -> tuple[List[Any], List[Any]]:
+        """Handle flush produtos within the catalog import workflow."""
         created_page: List[Any] = []
         updated_page: List[Any] = []
         if not produtos_create:
@@ -361,6 +378,7 @@ class CatalogImportTaskWorkflow:
         return created_page, updated_page
 
     async def _process_pdf(self, *, content: bytes) -> None:
+        """Handle process pdf within the catalog import workflow."""
         import io
         import pdfplumber
 
@@ -409,6 +427,7 @@ class CatalogImportTaskWorkflow:
             )
 
     async def _process_tabular(self, *, ext: str, content: bytes) -> bool:
+        """Handle process tabular within the catalog import workflow."""
         self.file_state_service.initialize_pages(
             catalog_file=self.catalog_file,
             total_pages=1,
@@ -457,6 +476,7 @@ class CatalogImportTaskWorkflow:
         return True
 
     def _finalize_success(self) -> None:
+        """Handle finalize success within the catalog import workflow."""
         result_payload = self.result_builder.build(
             file_id=self.file_id,
             created=self.created,
@@ -517,6 +537,7 @@ class CatalogImportTaskWorkflow:
         )
 
     def _handle_failure(self, error: Exception) -> None:
+        """Handle handle failure within the catalog import workflow."""
         self.logger.exception("Erro ao processar importacao de catalogo")
         self.catalog_logger.exception("falha file_id=%s erro=%s", self.file_id, error)
         if not self.db:
@@ -540,19 +561,18 @@ class CatalogImportTaskWorkflow:
         pages: Optional[List[int]] = None,
         region: Optional[List[float]] = None,
     ) -> None:
-        if self._db_session_factory is None:
-            raise ValueError("db_session_factory is required for CatalogImportTaskWorkflow")
-        self.db = self._db_session_factory()
-        self.catalog_file_repo_runtime = self._resolve_repository_runtime(
-            self.catalog_file_repository,
-            self.db,
+        """Handle run within the catalog import workflow."""
+        if self._session_provider is None:
+            raise ValueError("session_provider is required for CatalogImportTaskWorkflow")
+        self.db = self._session_provider.open_session()
+        self.catalog_file_repo_runtime = self._build_catalog_file_repository(
+            session=self.db,
         )
         self.file_state_service = CatalogImportFileStateService(
             catalog_file_repository=self.catalog_file_repo_runtime
         )
-        self.product_repo_runtime = self._resolve_repository_runtime(
-            self.product_repository,
-            self.db,
+        self.product_repo_runtime = self._build_product_repository(
+            session=self.db,
         )
         self.file_id = file_id
         self.user_id = user_id
@@ -591,13 +611,13 @@ class CatalogImportTaskService:
     def __init__(
         self,
         *,
-        db_session_factory,
+        session_provider: SessionProviderPort,
         logger,
         catalog_logger,
         models,
         schemas,
-        product_repository,
-        catalog_file_repository,
+        product_repository_factory,
+        catalog_file_repository_factory,
         file_processing_service,
         validator_crew,
         settings,
@@ -614,14 +634,15 @@ class CatalogImportTaskService:
         write_catalog_import_report: Callable,
         normalize_import_text: Callable,
     ):
+        """Initialize injected dependencies and runtime configuration for Catalog Import Task Service."""
         self._deps = {
-            "db_session_factory": db_session_factory,
+            "session_provider": session_provider,
             "logger": logger,
             "catalog_logger": catalog_logger,
             "models": models,
             "schemas": schemas,
-            "product_repository": product_repository,
-            "catalog_file_repository": catalog_file_repository,
+            "product_repository_factory": product_repository_factory,
+            "catalog_file_repository_factory": catalog_file_repository_factory,
             "file_processing_service": file_processing_service,
             "validator_crew": validator_crew,
             "settings": settings,
@@ -650,6 +671,7 @@ class CatalogImportTaskService:
         pages: Optional[List[int]] = None,
         region: Optional[List[float]] = None,
     ):
+        """Handle execute within the catalog import workflow."""
         workflow = CatalogImportTaskWorkflow(**self._deps)
         await workflow.run(
             file_id=file_id,

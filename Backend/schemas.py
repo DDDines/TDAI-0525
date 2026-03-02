@@ -1,4 +1,6 @@
 # Caminho: Backend/schemas.py
+"""Document schemas module responsibilities and runtime integration points."""
+
 
 from typing import List, Optional, Dict, Any, Union, Literal
 from pydantic import (
@@ -29,20 +31,24 @@ from Backend.models import (
 
 # Schemas de Autenticação e Usuário
 class Token(BaseModel):
+    """Represent Token and centralize its responsibilities inside this module."""
     access_token: str
     token_type: str
 
 
 class TokenData(BaseModel):
+    """Represent Token Data and centralize its responsibilities inside this module."""
     email: Optional[str] = None
     user_id: Optional[int] = None  # Adicionado para identificar o usuário pelo ID
 
 
 class RefreshTokenRequest(BaseModel):
+    """Represent Refresh Token Request and centralize its responsibilities inside this module."""
     refresh_token: str
 
 
 class UserBase(BaseModel):
+    """Represent User Base and centralize its responsibilities inside this module."""
     email: EmailStr
     nome_completo: Optional[str] = None
     is_active: Optional[bool] = True
@@ -55,16 +61,19 @@ class UserBase(BaseModel):
 
 
 class UserCreate(UserBase):
+    """Represent User Create and centralize its responsibilities inside this module."""
     password: str
 
 
 class UserCreateOAuth(UserBase):  # Para criação via OAuth
+    """Represent User Create OAuth and centralize its responsibilities inside this module."""
     provider: Optional[str] = None
     provider_user_id: Optional[str] = None
     # Não requer password na criação OAuth
 
 
 class UserUpdate(BaseModel):  # O que o próprio usuário pode atualizar
+    """Represent User Update and centralize its responsibilities inside this module."""
     email: Optional[EmailStr] = None
     nome_completo: Optional[str] = None
     password: Optional[str] = None  # Para alteração de senha
@@ -76,6 +85,7 @@ class UserUpdate(BaseModel):  # O que o próprio usuário pode atualizar
 class UserUpdateByAdmin(
     UserUpdate
 ):  # O que um admin pode atualizar em qualquer usuário
+    """Represent User Update By Admin and centralize its responsibilities inside this module."""
     is_active: Optional[bool] = None
     is_superuser: Optional[bool] = None
     plano_id: Optional[int] = None
@@ -89,16 +99,19 @@ class UserUpdateByAdmin(
 class UserUpdateOAuth(
     BaseModel
 ):  # Dados que podem ser atualizados via OAuth (ex: nome, se mudar no provedor)
+    """Represent User Update OAuth and centralize its responsibilities inside this module."""
     nome_completo: Optional[str] = None
     # Outros campos que o OAuth possa fornecer e queiramos atualizar
 
 
 class UserChangePassword(BaseModel):
+    """Represent User Change Password and centralize its responsibilities inside this module."""
     current_password: str = Field(..., min_length=1)
     new_password: str = Field(..., min_length=8)
 
 
 class UserResponse(UserBase):  # O que é retornado pela API
+    """Represent User Response and centralize its responsibilities inside this module."""
     id: int
     created_at: datetime
     updated_at: datetime
@@ -113,31 +126,37 @@ class UserResponse(UserBase):  # O que é retornado pela API
     model_config = ConfigDict(from_attributes=True)
 
 class PasswordResetRequest(BaseModel):
+    """Represent Password Reset Request and centralize its responsibilities inside this module."""
     email: EmailStr
 
 
 class PasswordResetConfirm(BaseModel):
+    """Represent Password Reset Confirm and centralize its responsibilities inside this module."""
     token: str
     new_password: str
 
 
 # Schemas para Role
 class RoleBase(BaseModel):
+    """Represent Role Base and centralize its responsibilities inside this module."""
     name: str = Field(..., min_length=3, max_length=50)
     description: Optional[str] = None
 
 
 class RoleCreate(RoleBase):
+    """Represent Role Create and centralize its responsibilities inside this module."""
     pass
 
 
 class RoleUpdate(RoleBase):
+    """Represent Role Update and centralize its responsibilities inside this module."""
     name: Optional[str] = Field(
         None, min_length=3, max_length=50
     )  # Tornar opcional na atualização
 
 
 class RoleResponse(RoleBase):
+    """Represent Role Response and centralize its responsibilities inside this module."""
     id: int
     created_at: datetime
     updated_at: datetime
@@ -147,6 +166,7 @@ class RoleResponse(RoleBase):
 
 # Schemas para Plano
 class PlanoBase(BaseModel):
+    """Represent Plano Base and centralize its responsibilities inside this module."""
     nome: str = Field(..., min_length=3, max_length=100)
     descricao: Optional[str] = None
     preco_mensal: float = Field(..., ge=0)
@@ -158,10 +178,12 @@ class PlanoBase(BaseModel):
 
 
 class PlanoCreate(PlanoBase):
+    """Represent Plano Create and centralize its responsibilities inside this module."""
     pass
 
 
 class PlanoUpdate(PlanoBase):
+    """Represent Plano Update and centralize its responsibilities inside this module."""
     nome: Optional[str] = Field(None, min_length=3, max_length=100)
     preco_mensal: Optional[float] = Field(None, ge=0)
     limite_produtos: Optional[int] = Field(None, ge=0)
@@ -171,6 +193,7 @@ class PlanoUpdate(PlanoBase):
 
 
 class PlanoResponse(PlanoBase):
+    """Represent Plano Response and centralize its responsibilities inside this module."""
     id: int
     created_at: datetime
     updated_at: datetime
@@ -180,6 +203,7 @@ class PlanoResponse(PlanoBase):
 
 # Schemas para Fornecedor
 class FornecedorBase(BaseModel):
+    """Represent Fornecedor Base and centralize its responsibilities inside this module."""
     nome: str = Field(..., max_length=200)
     email_contato: Optional[EmailStr] = None
     telefone_contato: Optional[str] = Field(None, max_length=20)
@@ -193,16 +217,19 @@ class FornecedorBase(BaseModel):
 
 
 class FornecedorCreate(FornecedorBase):
+    """Represent Fornecedor Create and centralize its responsibilities inside this module."""
     pass
 
 
 class FornecedorUpdate(FornecedorBase):
     # Tornar campos opcionais para atualização parcial
+    """Represent Fornecedor Update and centralize its responsibilities inside this module."""
     nome: Optional[str] = Field(None, max_length=200)
     # Adicionar Optional para todos os outros campos se desejar atualização parcial
 
 
 class FornecedorResponse(FornecedorBase):
+    """Represent Fornecedor Response and centralize its responsibilities inside this module."""
     id: int
     user_id: int
     created_at: datetime
@@ -212,6 +239,7 @@ class FornecedorResponse(FornecedorBase):
     model_config = ConfigDict(from_attributes=True)
 
 class FornecedorPage(BaseModel):
+    """Represent Fornecedor Page and centralize its responsibilities inside this module."""
     items: List[FornecedorResponse]
     total_items: int
     page: int
@@ -220,6 +248,7 @@ class FornecedorPage(BaseModel):
 
 # Schemas para AttributeTemplate
 class AttributeTemplateBase(BaseModel):
+    """Represent Attribute Template Base and centralize its responsibilities inside this module."""
     attribute_key: str = Field(
         ...,
         description="Chave única do atributo no template (ex: 'cor', 'tamanho_tela').",
@@ -252,6 +281,7 @@ class AttributeTemplateBase(BaseModel):
     @field_validator("options", mode="before")
     @classmethod
     def parse_json_options(cls, value: Any) -> Any:
+        """Parse json options into structured data used by downstream logic."""
         if isinstance(value, str):
             try:
                 parsed_value = json.loads(value)
@@ -266,11 +296,13 @@ class AttributeTemplateBase(BaseModel):
 
 
 class AttributeTemplateCreate(AttributeTemplateBase):
+    """Represent Attribute Template Create and centralize its responsibilities inside this module."""
     pass  # product_type_id será atribuído no CRUD
 
 
 class AttributeTemplateUpdate(AttributeTemplateBase):
     # Todos os campos são opcionais na atualização
+    """Represent Attribute Template Update and centralize its responsibilities inside this module."""
     attribute_key: Optional[str] = None
     label: Optional[str] = None
     field_type: Optional[AttributeFieldTypeEnum] = None
@@ -278,6 +310,7 @@ class AttributeTemplateUpdate(AttributeTemplateBase):
 
 
 class AttributeTemplateResponse(AttributeTemplateBase):
+    """Represent Attribute Template Response and centralize its responsibilities inside this module."""
     id: int
     product_type_id: int
     options: Optional[List[str]] = None  # Garante que a resposta seja uma lista
@@ -286,6 +319,7 @@ class AttributeTemplateResponse(AttributeTemplateBase):
 
 # Schemas para ProductType
 class ProductTypeBase(BaseModel):
+    """Represent Product Type Base and centralize its responsibilities inside this module."""
     key_name: str = Field(
         ...,
         description="Chave única para identificar o tipo de produto (ex: 'smartphones', 'camisetas_manga_longa').",
@@ -300,10 +334,12 @@ class ProductTypeBase(BaseModel):
 
 
 class ProductTypeCreate(ProductTypeBase):
+    """Represent Product Type Create and centralize its responsibilities inside this module."""
     attribute_templates: List[AttributeTemplateCreate] = []
 
 
 class ProductTypeUpdate(ProductTypeBase):
+    """Represent Product Type Update and centralize its responsibilities inside this module."""
     key_name: Optional[str] = None
     friendly_name: Optional[str] = None
     # attribute_templates: Opcionalmente, permitir atualizar/adicionar/remover atributos aqui,
@@ -311,6 +347,7 @@ class ProductTypeUpdate(ProductTypeBase):
 
 
 class ProductTypeResponse(ProductTypeBase):
+    """Represent Product Type Response and centralize its responsibilities inside this module."""
     id: int
     user_id: Optional[int] = (
         None  # Tipos podem ser globais (user_id=None) ou específicos do usuário
@@ -323,6 +360,7 @@ class ProductTypeResponse(ProductTypeBase):
 
 # Schemas para Produto
 class ProdutoBase(BaseModel):
+    """Represent Produto Base and centralize its responsibilities inside this module."""
     nome_base: str = Field(
         ..., max_length=255, description="Nome principal ou base do produto."
     )
@@ -402,14 +440,17 @@ class ProdutoBase(BaseModel):
 
 
 class ProdutoCreate(ProdutoBase):
+    """Represent Produto Create and centralize its responsibilities inside this module."""
     pass
 
 
 class ProdutoUpdate(ProdutoBase):
+    """Represent Produto Update and centralize its responsibilities inside this module."""
     nome_base: Optional[str] = Field(None, max_length=255)
 
 
 class ProdutoResponse(ProdutoBase):
+    """Represent Produto Response and centralize its responsibilities inside this module."""
     id: int
     user_id: int
     created_at: datetime
@@ -421,10 +462,12 @@ class ProdutoResponse(ProdutoBase):
     model_config = ConfigDict(from_attributes=True)
 
 class ProdutoBatchDeleteRequest(BaseModel):
+    """Represent Produto Batch Delete Request and centralize its responsibilities inside this module."""
     produto_ids: List[int]
 
 
 class ImportPreviewResponse(BaseModel):
+    """Represent Import Preview Response and centralize its responsibilities inside this module."""
     file_id: int
     num_pages: int = 0
     table_pages: List[int] = Field(default_factory=list)
@@ -435,6 +478,7 @@ class ImportPreviewResponse(BaseModel):
 
 
 class ImportCatalogoResponse(BaseModel):
+    """Represent Import Catalogo Response and centralize its responsibilities inside this module."""
     produtos_criados: List[ProdutoResponse]
     erros: List[Dict[str, Any]]
 
@@ -447,6 +491,7 @@ class UpdatedProductInfo(BaseModel):
 
 
 class CatalogImportResult(BaseModel):
+    """Represent Catalog Import Result and centralize its responsibilities inside this module."""
     created: List[ProdutoResponse]
     updated: List[ProdutoResponse]
     errors: List[Dict[str, Any]]
@@ -455,12 +500,14 @@ class CatalogImportResult(BaseModel):
 
 
 class CatalogImportResultPending(BaseModel):
+    """Represent Catalog Import Result Pending and centralize its responsibilities inside this module."""
     ready: bool = False
     status: str
     detail: str
 
 
 class RegionExtractionResponse(BaseModel):
+    """Represent Region Extraction Response and centralize its responsibilities inside this module."""
     produtos: List[Dict[str, Any]]
     log: Optional[List[str]] = None
     preview_headers: Optional[List[str]] = None
@@ -468,12 +515,14 @@ class RegionExtractionResponse(BaseModel):
 
 
 class SinglePageExtractionResponse(BaseModel):
+    """Represent Single Page Extraction Response and centralize its responsibilities inside this module."""
     image: str
     text: str
     table: Optional[List[List[Any]]] = None
 
 
 class ProdutoPage(BaseModel):
+    """Represent Produto Page and centralize its responsibilities inside this module."""
     items: List[ProdutoResponse]
     total_items: int
     page: int
@@ -482,6 +531,7 @@ class ProdutoPage(BaseModel):
 
 # Schemas para RegistroUsoIA
 class RegistroUsoIABase(BaseModel):
+    """Represent Registro Uso IABase and centralize its responsibilities inside this module."""
     user_id: int
     produto_id: Optional[int] = None
     tipo_acao: TipoAcaoEnum
@@ -498,16 +548,19 @@ class RegistroUsoIABase(BaseModel):
 
 
 class RegistroUsoIACreate(RegistroUsoIABase):
+    """Represent Registro Uso IACreate and centralize its responsibilities inside this module."""
     pass
 
 
 class RegistroUsoIAResponse(RegistroUsoIABase):
+    """Represent Registro Uso IAResponse and centralize its responsibilities inside this module."""
     id: int
     created_at: datetime
 
     model_config = ConfigDict(from_attributes=True)
 
 class UsoIAPage(BaseModel):
+    """Represent Uso IAPage and centralize its responsibilities inside this module."""
     items: List[RegistroUsoIAResponse]
     total_items: int
     page: int
@@ -516,6 +569,7 @@ class UsoIAPage(BaseModel):
 
 # Schemas para RegistroHistorico
 class RegistroHistoricoBase(BaseModel):
+    """Represent Registro Historico Base and centralize its responsibilities inside this module."""
     user_id: Optional[int] = None
     entidade: str
     acao: TipoAcaoSistemaEnum
@@ -524,16 +578,19 @@ class RegistroHistoricoBase(BaseModel):
 
 
 class RegistroHistoricoCreate(RegistroHistoricoBase):
+    """Represent Registro Historico Create and centralize its responsibilities inside this module."""
     pass
 
 
 class RegistroHistoricoResponse(RegistroHistoricoBase):
+    """Represent Registro Historico Response and centralize its responsibilities inside this module."""
     id: int
     created_at: datetime
 
     model_config = ConfigDict(from_attributes=True)
 
 class HistoricoPage(BaseModel):
+    """Represent Historico Page and centralize its responsibilities inside this module."""
     items: List[RegistroHistoricoResponse]
     total_items: int
     page: int
@@ -541,6 +598,7 @@ class HistoricoPage(BaseModel):
 
 
 class CatalogImportFileBase(BaseModel):
+    """Represent Catalog Import File Base and centralize its responsibilities inside this module."""
     original_filename: str
     stored_filename: str
     status: str
@@ -550,11 +608,13 @@ class CatalogImportFileBase(BaseModel):
 
 
 class CatalogImportFileCreate(CatalogImportFileBase):
+    """Represent Catalog Import File Create and centralize its responsibilities inside this module."""
     user_id: int
     fornecedor_id: Optional[int] = None
 
 
 class CatalogImportFileResponse(CatalogImportFileBase):
+    """Represent Catalog Import File Response and centralize its responsibilities inside this module."""
     id: int
     user_id: int
     fornecedor_id: Optional[int] = None
@@ -572,6 +632,7 @@ class CatalogImportStatus(BaseModel):
 
 
 class CatalogImportFilePage(BaseModel):
+    """Represent Catalog Import File Page and centralize its responsibilities inside this module."""
     items: List[CatalogImportFileResponse]
     total_items: int
     page: int
@@ -579,11 +640,13 @@ class CatalogImportFilePage(BaseModel):
 
 
 class FornecedorImportJobBase(BaseModel):
+    """Represent Fornecedor Import Job Base and centralize its responsibilities inside this module."""
     status: str
     result_summary: Optional[Dict[str, Any]] = None
 
 
 class FornecedorImportJobResponse(FornecedorImportJobBase):
+    """Represent Fornecedor Import Job Response and centralize its responsibilities inside this module."""
     id: int
     user_id: int
     created_at: datetime
@@ -601,12 +664,14 @@ class PdfPreviewResponse(BaseModel):
 
 # --- Password Recovery Schemas ---
 class PasswordResetSchema(BaseModel):
+    """Represent Password Reset Schema and centralize its responsibilities inside this module."""
     new_password: str = Field(..., min_length=8)
     token: str
 
 
 # --- Admin Analytics Schemas ---
 class TotalCounts(BaseModel):
+    """Represent Total Counts and centralize its responsibilities inside this module."""
     total_usuarios: int
     total_produtos: int
     total_fornecedores: int
@@ -615,17 +680,20 @@ class TotalCounts(BaseModel):
 
 
 class UsoIAPorPlano(BaseModel):
+    """Represent Uso IAPor Plano and centralize its responsibilities inside this module."""
     plano_id: Optional[int] = None
     nome_plano: str
     total_geracoes_ia_no_mes: int
 
 
 class UsoIAPorTipo(BaseModel):
+    """Represent Uso IAPor Tipo and centralize its responsibilities inside this module."""
     tipo_acao: str
     total_no_mes: int
 
 
 class UserActivity(BaseModel):
+    """Represent User Activity and centralize its responsibilities inside this module."""
     user_id: int
     email: EmailStr
     nome_completo: Optional[str] = None
@@ -636,11 +704,13 @@ class UserActivity(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
 class ProductStatusCount(BaseModel):
+    """Represent Product Status Count and centralize its responsibilities inside this module."""
     status: StatusEnriquecimentoEnum
     total: int
 
 
 class RecentActivity(BaseModel):
+    """Represent Recent Activity and centralize its responsibilities inside this module."""
     id: int
     user_id: int
     user_email: Optional[EmailStr] = None
@@ -651,6 +721,7 @@ class RecentActivity(BaseModel):
 
 # ----- NOVOS SCHEMAS PARA SUGESTAO DE ATRIBUTOS GEMINI -----
 class SugestaoAtributoItem(BaseModel):
+    """Represent Sugestao Atributo Item and centralize its responsibilities inside this module."""
     chave_atributo: str = Field(
         ...,
         description="A chave do atributo para o qual o valor é sugerido (ex: 'cor', 'material').",
@@ -661,6 +732,7 @@ class SugestaoAtributoItem(BaseModel):
 
 
 class SugestoesAtributosResponse(BaseModel):
+    """Represent Sugestoes Atributos Response and centralize its responsibilities inside this module."""
     sugestoes_atributos: List[SugestaoAtributoItem] = Field(
         ..., description="Lista de sugestões de atributos e seus valores."
     )
@@ -674,21 +746,25 @@ class SugestoesAtributosResponse(BaseModel):
 
 # --- Schemas para busca unificada ---
 class SearchItem(BaseModel):
+    """Represent Search Item and centralize its responsibilities inside this module."""
     id: int
     type: str
     name: str
 
 
 class SearchResults(BaseModel):
+    """Represent Search Results and centralize its responsibilities inside this module."""
     results: List[SearchItem]
 
 
 # --- Utility Schemas ---
 class Msg(BaseModel):
+    """Represent Msg and centralize its responsibilities inside this module."""
     msg: str
 
 
 class FileProcessResponse(BaseModel):
+    """Represent File Process Response and centralize its responsibilities inside this module."""
     filename: str
     original_filename: Optional[str] = None
     url: str
@@ -702,21 +778,26 @@ class SocialLoginConfig(BaseModel):
 
     google_enabled: bool
     facebook_enabled: bool
+    product_experience_default: Literal["basic", "complete"] = "basic"
+    allow_admin_experience_preview: bool = True
 
 
 class RegionExtractionRequest(BaseModel):
+    """Represent Region Extraction Request and centralize its responsibilities inside this module."""
     import_file_id: int
     page_number: int
     region: List[float]
 
 
 class CatalogRegionPreviewRequest(BaseModel):
+    """Represent Catalog Region Preview Request and centralize its responsibilities inside this module."""
     file_id: str
     page_number: int
     region: Optional[List[float]] = None
 
 
 class PdfRegionBulkRequest(BaseModel):
+    """Represent Pdf Region Bulk Request and centralize its responsibilities inside this module."""
     file_id: int
     region: List[float]
     pages: Optional[List[int]] = None
@@ -724,6 +805,7 @@ class PdfRegionBulkRequest(BaseModel):
 
 
 class CatalogPreview(BaseModel):
+    """Represent Catalog Preview and centralize its responsibilities inside this module."""
     columns: List[str]
     data: List[Dict[str, Any]]
 

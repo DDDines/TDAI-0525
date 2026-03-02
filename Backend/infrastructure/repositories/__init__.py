@@ -1,3 +1,5 @@
+"""Initialize repositories package exports and integration boundaries."""
+
 from Backend.infrastructure.repositories.fornecedor_import_job_repository import (
     FornecedorImportJobRepository,
 )

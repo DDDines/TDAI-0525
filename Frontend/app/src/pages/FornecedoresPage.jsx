@@ -1,3 +1,9 @@
+/**
+ * Module fornecedores page.
+ *
+ * Defines responsibilities and integration points for pages.
+ */
+
 // Frontend/app/src/pages/FornecedoresPage.jsx
 import React, { useState, useEffect, useCallback } from 'react';
 import fornecedorService from '../services/fornecedorService';
@@ -6,7 +12,9 @@ import NewFornecedorModal from '../components/fornecedores/NewFornecedorModal';
 import EditFornecedorModal from '../components/fornecedores/EditFornecedorModal';
 import PaginationControls from '../components/common/PaginationControls';
 import { showSuccessToast, showErrorToast, showWarningToast } from '../utils/notifications';
-import './FornecedoresPage.css';class _TopLevelFunctionSurface {static FornecedoresPage()
+import './FornecedoresPage.css';
+
+function FornecedoresPage()
 
   {
     const [fornecedores, setFornecedores] = useState([]);
@@ -273,4 +281,5 @@ import './FornecedoresPage.css';class _TopLevelFunctionSurface {static Fornecedo
 
     </div>);
 
-  }}export default _TopLevelFunctionSurface.FornecedoresPage;
+  }
+export default FornecedoresPage;

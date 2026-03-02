@@ -1,3 +1,8 @@
+"""Module test limit service.
+
+Contains backend logic related to test limit service and documents its role in the OOP architecture.
+"""
+
 from __future__ import annotations
 
 import pytest
@@ -6,10 +11,13 @@ from Backend.application.services.limit_service import LimitService
 
 
 class _PortStub:
+    """Represent port stub and centralize responsibilities for this module."""
     def __init__(self) -> None:
+        """Initialize collaborators and configuration required by this component."""
         self.calls = []
 
     def verificar_limite_uso(self, session, user, tipo_geracao_principal):
+        """Run verificar limite uso in this workflow."""
         self.calls.append(
             (
                 "verificar_limite_uso",
@@ -28,6 +36,7 @@ class _PortStub:
         user_id,
         creditos_necessarios=1,
     ):
+        """Run verificar creditos disponiveis geracao ia in this workflow."""
         self.calls.append(
             (
                 "verificar_creditos_disponiveis_geracao_ia",
@@ -43,7 +52,9 @@ class _PortStub:
 
 class _TopLevelFunctionSurface:
 
+    """Represent top level function surface and centralize responsibilities for this module."""
     def test_limit_service_delegates_sync_limit_check():
+        """Run test limit service delegates sync limit check in this workflow."""
         port = _PortStub()
         service = LimitService(port=port)
     
@@ -55,6 +66,7 @@ class _TopLevelFunctionSurface:
 
     @pytest.mark.asyncio
     async def test_limit_service_delegates_async_credit_check():
+        """Run test limit service delegates async credit check in this workflow."""
         port = _PortStub()
         service = LimitService(port=port)
     

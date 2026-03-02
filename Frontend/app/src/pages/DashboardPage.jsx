@@ -1,3 +1,9 @@
+/**
+ * Module dashboard page.
+ *
+ * Defines responsibilities and integration points for pages.
+ */
+
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import './DashboardPage.css';
@@ -7,13 +13,9 @@ import { showErrorToast } from '../utils/notifications';
 import searchService from '../services/searchService';
 import DOMPurify from 'dompurify';
 import LoadingOverlay from '../components/common/LoadingOverlay.jsx';
-import { LuBox, LuUsers, LuZap, LuLayers, LuSearch, LuBell } from 'react-icons/lu';class _TopLevelFunctionSurface {static DashboardPage()
+import { LuBox, LuUsers, LuZap, LuLayers, LuSearch, LuBell } from 'react-icons/lu';
 
-
-
-
-
-
+function DashboardPage()
 
 
   {
@@ -247,4 +249,5 @@ import { LuBox, LuUsers, LuZap, LuLayers, LuSearch, LuBell } from 'react-icons/l
         }
     </div>);
 
-  }}const mockDashboardData = { alerts: [{ id: 1, messageHtml: 'Aviso: <b>2 produto(s)</b> sem descrição' }, { id: 2, messageHtml: 'Aviso: <b>2 produto(s)</b> pendente(s) de enriquecimento' }] };export default _TopLevelFunctionSurface.DashboardPage;
+  }
+const mockDashboardData = { alerts: [{ id: 1, messageHtml: 'Aviso: <b>2 produto(s)</b> sem descrição' }, { id: 2, messageHtml: 'Aviso: <b>2 produto(s)</b> pendente(s) de enriquecimento' }] };export default DashboardPage;

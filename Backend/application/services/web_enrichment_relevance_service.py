@@ -1,4 +1,6 @@
-﻿from __future__ import annotations
+"""Document web enrichment relevance service module responsibilities and runtime integration points."""
+
+from __future__ import annotations
 
 import re
 import unicodedata
@@ -7,6 +9,7 @@ from urllib.parse import urlparse
 
 
 class WebEnrichmentRelevanceService:
+    """Represent Web Enrichment Relevance Service and centralize its responsibilities inside this module."""
     _RELEVANCE_STOPWORDS = {
         "de",
         "da",
@@ -60,19 +63,22 @@ class WebEnrichmentRelevanceService:
 
     @staticmethod
     def _fold_text(value: Any) -> str:
+        """Execute fold text as part of this module workflow."""
         text = unicodedata.normalize("NFKD", str(value or ""))
         text = text.encode("ascii", "ignore").decode("ascii")
         text = re.sub(r"[^a-zA-Z0-9]+", " ", text).lower()
         return re.sub(r"\s+", " ", text).strip()
 
     def tokens_for_relevance(self, value: Any) -> List[str]:
+        """Execute tokens for relevance as part of this module workflow."""
         base = self._fold_text(value)
         if not base:
             return []
         return [t for t in base.split(" ") if len(t) >= 3 and t not in self._RELEVANCE_STOPWORDS]
 
     @staticmethod
-    def extract_code_tokens(*values: Any) -> List[str]:
+    def extract_code_tokens(values: List[Any]) -> List[str]:
+        """Execute extract code tokens as part of this module workflow."""
         combined = " ".join(str(v or "") for v in values)
         upper = (
             unicodedata.normalize("NFKD", combined)
@@ -99,6 +105,7 @@ class WebEnrichmentRelevanceService:
         source_desc: Any,
         source_url: str,
     ) -> bool:
+        """Is source relevant for product."""
         ref_parts = [
             getattr(db_produto_obj, "nome_base", None),
             getattr(db_produto_obj, "marca", None),
@@ -118,7 +125,7 @@ class WebEnrichmentRelevanceService:
         src_tokens = set(self.tokens_for_relevance(source_text))
         overlap = [t for t in ref_tokens if t in src_tokens]
 
-        code_tokens = self.extract_code_tokens(*ref_parts)
+        code_tokens = self.extract_code_tokens(ref_parts)
         src_compact = re.sub(r"[^A-Z0-9]", "", str(source_text).upper())
         code_hit = any(re.sub(r"[^A-Z0-9]", "", token) in src_compact for token in code_tokens)
 
@@ -132,6 +139,7 @@ class WebEnrichmentRelevanceService:
 
     @staticmethod
     def extract_supplier_domain(site_url: Any) -> str:
+        """Execute extract supplier domain as part of this module workflow."""
         try:
             parsed = urlparse(str(site_url or "").strip())
             if parsed.netloc:
@@ -147,6 +155,7 @@ class WebEnrichmentRelevanceService:
         candidate_url: str,
         fornecedor_domain: str = "",
     ) -> int:
+        """Execute score url for product as part of this module workflow."""
         parsed = urlparse(str(candidate_url or "").strip())
         host = (parsed.netloc or "").lower()
         path = (parsed.path or "").lower()
@@ -192,6 +201,7 @@ class WebEnrichmentRelevanceService:
         fornecedor_domain: str = "",
         max_urls: int = 4,
     ) -> Tuple[List[str], List[Tuple[str, int]]]:
+        """Execute prioritize urls for enrichment as part of this module workflow."""
         deduped = [u for u in dict.fromkeys(urls_candidatas or []) if u]
         scored: List[Tuple[str, int]] = []
         for url in deduped:

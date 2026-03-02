@@ -1,3 +1,8 @@
+"""Module test service runtime injection.
+
+Contains backend logic related to test service runtime injection and documents its role in the OOP architecture.
+"""
+
 from __future__ import annotations
 
 from types import SimpleNamespace
@@ -24,11 +29,15 @@ from Backend.tasks import TaskWorkflow
 
 class _TopLevelFunctionSurface:
 
+    """Represent top level function surface and centralize responsibilities for this module."""
     def test_create_tables_workflow_delega_runtime_injetado():
+        """Run test create tables workflow delega runtime injetado in this workflow."""
         called = []
     
         class FakeRuntime:
+            """Represent fake runtime and centralize responsibilities for this module."""
             def create_all_tables(self):
+                """Create all tables for this workflow."""
                 called.append("ok")
     
         workflow = CreateTablesWorkflow(runtime=FakeRuntime())
@@ -37,13 +46,17 @@ class _TopLevelFunctionSurface:
         assert called == ["ok"]
 
     def test_database_get_db_yields_session_and_closes(monkeypatch):
+        """Run test database get db yields session and closes in this workflow."""
         called = []
 
         class FakeSession:
+            """Represent fake session and centralize responsibilities for this module."""
             def close(self):
+                """Run close in this workflow."""
                 called.append("close")
 
         def fake_session_local():
+            """Run fake session local in this workflow."""
             called.append("create")
             return FakeSession()
 
@@ -54,20 +67,26 @@ class _TopLevelFunctionSurface:
         assert called == ["create", "close"]
 
     def test_task_workflow_delega_runtime_injetado():
+        """Run test task workflow delega runtime injetado in this workflow."""
         called = []
     
         class FakeRuntime:
-            def process_pdf_extraction_task(self, *, import_job_id, page_number, db_url):
-                called.append((import_job_id, page_number, db_url))
+            """Represent fake runtime and centralize responsibilities for this module."""
+            def process_pdf_extraction_task(self, *, import_job_id, page_number):
+                """Process pdf extraction task for this workflow."""
+                called.append((import_job_id, page_number))
     
         workflow = TaskWorkflow(runtime=FakeRuntime())
-        workflow.process_pdf_extraction_task(import_job_id=10, page_number=2, db_url="db-url")
+        workflow.process_pdf_extraction_task(import_job_id=10, page_number=2)
     
-        assert called == [(10, 2, "db-url")]
+        assert called == [(10, 2)]
 
     def test_line_mapping_workflow_delega_runtime_injetado():
+        """Run test line mapping workflow delega runtime injetado in this workflow."""
         class FakeRuntime:
+            """Represent fake runtime and centralize responsibilities for this module."""
             def processar_linha_padronizada(self, *, linha_original, mapeamento_colunas_usuario=None):
+                """Run processar linha padronizada in this workflow."""
                 return {
                     "nome_base": linha_original.get("nome"),
                     "mapping": mapeamento_colunas_usuario,
@@ -83,34 +102,47 @@ class _TopLevelFunctionSurface:
 
     @pytest.mark.asyncio
     async def test_user_and_job_components_operam_com_dependencias_injetadas():
+        """Run test user and job components operam com dependencias injetadas in this workflow."""
         class UserRuntime:
+            """Represent user runtime and centralize responsibilities for this module."""
             def get_user(self, **kwargs):
+                """Return user for this workflow."""
                 return {"workflow": "user", **kwargs}
 
         class InitialDataRuntime:
+            """Represent initial data runtime and centralize responsibilities for this module."""
             def create_initial_data(self, **kwargs):
+                """Create initial data for this workflow."""
                 return {"workflow": "initial_data", **kwargs}
     
         class UserWorkflow:
+            """Represent user workflow and centralize responsibilities for this module."""
             def __init__(self, runtime):
+                """Initialize collaborators and configuration required by this component."""
                 self._runtime = runtime
 
             def get_user(self, db, user_id):
+                """Return user for this workflow."""
                 return self._runtime.get_user(db=db, user_id=user_id)
 
         class _FakeDb:
+            """Represent fake db and centralize responsibilities for this module."""
             def __init__(self):
+                """Initialize collaborators and configuration required by this component."""
                 self.added = []
                 self.commits = 0
                 self.refreshed = []
 
             def add(self, obj):
+                """Run add in this workflow."""
                 self.added.append(obj)
 
             def commit(self):
+                """Run commit in this workflow."""
                 self.commits += 1
 
             def refresh(self, obj):
+                """Run refresh in this workflow."""
                 self.refreshed.append(obj)
 
         user_workflow = UserWorkflow(runtime=UserRuntime())
@@ -127,17 +159,22 @@ class _TopLevelFunctionSurface:
 
     @pytest.mark.asyncio
     async def test_catalog_storage_workflow_delega_runtime_injetado():
+        """Run test catalog storage workflow delega runtime injetado in this workflow."""
         called = []
     
         class FakeRuntime:
+            """Represent fake runtime and centralize responsibilities for this module."""
             async def save_uploaded_catalog(self, *, file, fornecedor_id=None):
+                """Run save uploaded catalog in this workflow."""
                 called.append(("save", file, fornecedor_id))
                 return {"stored_filename": "arquivo.pdf"}
     
             def delete_catalog_file(self, *, stored_filename):
+                """Delete catalog file for this workflow."""
                 called.append(("delete", stored_filename))
     
             def get_file_path_by_id(self, *, db, file_id):
+                """Return file path by id for this workflow."""
                 called.append(("path", db, file_id))
                 return f"/tmp/{file_id}"
     
@@ -156,18 +193,25 @@ class _TopLevelFunctionSurface:
 
     @pytest.mark.asyncio
     async def test_tabular_workflows_delegam_runtime_injetado():
+        """Run test tabular workflows delegam runtime injetado in this workflow."""
         class FakeIngestionRuntime:
+            """Represent fake ingestion runtime and centralize responsibilities for this module."""
             async def processar_arquivo_excel(self, **kwargs):
+                """Run processar arquivo excel in this workflow."""
                 return [{"from": "excel", **kwargs}]
     
             async def processar_arquivo_csv(self, **kwargs):
+                """Run processar arquivo csv in this workflow."""
                 return [{"from": "csv", **kwargs}]
     
         class FakePreviewRuntime:
+            """Represent fake preview runtime and centralize responsibilities for this module."""
             async def preview_arquivo_excel(self, **kwargs):
+                """Run preview arquivo excel in this workflow."""
                 return {"preview": "excel", **kwargs}
     
             async def preview_arquivo_csv(self, **kwargs):
+                """Run preview arquivo csv in this workflow."""
                 return {"preview": "csv", **kwargs}
     
         ingestion = TabularIngestionWorkflow(runtime=FakeIngestionRuntime())
@@ -194,13 +238,17 @@ class _TopLevelFunctionSurface:
 
     @pytest.mark.asyncio
     async def test_pdf_job_workflow_delega_runtime_injetado():
+        """Run test pdf job workflow delega runtime injetado in this workflow."""
         called = []
     
         class FakeRuntime:
+            """Represent fake runtime and centralize responsibilities for this module."""
             async def process_pdf_job(self, **kwargs):
+                """Process pdf job for this workflow."""
                 called.append(("process", kwargs))
     
             def extract_data_from_single_page(self, **kwargs):
+                """Extract data from single page for this workflow."""
                 called.append(("single", kwargs))
                 return {"ok": True, "page": kwargs["page_number"]}
     
@@ -214,34 +262,46 @@ class _TopLevelFunctionSurface:
 
     @pytest.mark.asyncio
     async def test_web_extraction_workflow_usa_runtime_injetado_para_timestamp_e_html():
+        """Run test web extraction workflow usa runtime injetado para timestamp e html in this workflow."""
         class FakeRuntime:
+            """Represent fake runtime and centralize responsibilities for this module."""
             def now_iso(self) -> str:
+                """Run now iso in this workflow."""
                 return "2026-02-01T12:00:00+00:00"
     
             async def collect_html(self, *, url: str):
+                """Run collect html in this workflow."""
                 assert url == "https://example.com/produto"
                 return "<html>ok</html>"
     
             def extract_main_text(self, *, html_content: str):
+                """Extract main text for this workflow."""
                 return "texto"
     
             def extract_structured_metadata(self, *, html_content: str, url: str):
+                """Extract structured metadata for this workflow."""
                 return {}
     
             def normalize_metadata(self, *, metadata):
+                """Normalize metadata for this workflow."""
                 return {}
     
         class FakeDb:
+            """Represent fake db and centralize responsibilities for this module."""
             def __init__(self):
+                """Initialize collaborators and configuration required by this component."""
                 self.commits = 0
     
             def add(self, _obj):
+                """Run add in this workflow."""
                 return None
     
             def commit(self):
+                """Run commit in this workflow."""
                 self.commits += 1
     
             def refresh(self, _obj, attribute_names=None):
+                """Run refresh in this workflow."""
                 return None
     
         produto = SimpleNamespace(

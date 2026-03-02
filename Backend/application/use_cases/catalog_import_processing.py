@@ -1,3 +1,5 @@
+"""Document catalog import processing module responsibilities and runtime integration points."""
+
 from __future__ import annotations
 
 from typing import Any, Awaitable, Callable, Dict, List, Optional
@@ -15,6 +17,7 @@ class CatalogImportProcessingUseCase:
     """
 
     def __init__(self, processor: TaskExecutor):
+        """Initialize injected dependencies and runtime configuration for Catalog Import Processing Use Case."""
         self._processor = processor
 
     async def execute_command(
@@ -22,6 +25,7 @@ class CatalogImportProcessingUseCase:
         *,
         command: CatalogImportFinalizeCommand,
     ) -> Any:
+        """Execute execute command as part of this module workflow."""
         file_id = self._require_positive_int(command.file_id, "file_id")
         user_id = self._require_positive_int(command.user_id, "user_id")
         fornecedor_id = self._require_positive_int(command.fornecedor_id, "fornecedor_id")
@@ -46,15 +50,26 @@ class CatalogImportProcessingUseCase:
             region=region,
         )
 
-    async def execute(self, **task_kwargs: Any) -> Any:
+    async def execute(
+        self,
+        *,
+        file_id: Any,
+        user_id: Any,
+        product_type_id: Any,
+        fornecedor_id: Any,
+        mapping: Any = None,
+        pages: Any = None,
+        region: Any = None,
+    ) -> Any:
+        """Execute execute as part of this module workflow."""
         command = CatalogImportFinalizeCommand(
-            file_id=task_kwargs.get("file_id"),
-            user_id=task_kwargs.get("user_id"),
-            product_type_id=task_kwargs.get("product_type_id"),
-            fornecedor_id=task_kwargs.get("fornecedor_id"),
-            mapping=task_kwargs.get("mapping"),
-            pages=task_kwargs.get("pages"),
-            region=task_kwargs.get("region"),
+            file_id=file_id,
+            user_id=user_id,
+            product_type_id=product_type_id,
+            fornecedor_id=fornecedor_id,
+            mapping=mapping,
+            pages=pages,
+            region=region,
         )
         return await self.execute_command(
             command=command,
@@ -62,6 +77,7 @@ class CatalogImportProcessingUseCase:
 
     @staticmethod
     def _require_positive_int(raw_value: Any, field_name: str) -> int:
+        """Execute require positive int as part of this module workflow."""
         try:
             value = int(raw_value)
         except (TypeError, ValueError):
@@ -72,6 +88,7 @@ class CatalogImportProcessingUseCase:
 
     @classmethod
     def _normalize_mapping(cls, raw_mapping: Any) -> Optional[Dict[str, str]]:
+        """Normalize mapping to keep behavior consistent across callers."""
         if raw_mapping is None:
             return None
         if not isinstance(raw_mapping, dict):
@@ -89,6 +106,7 @@ class CatalogImportProcessingUseCase:
 
     @classmethod
     def _normalize_pages(cls, raw_pages: Any) -> Optional[List[int]]:
+        """Normalize pages to keep behavior consistent across callers."""
         if raw_pages is None:
             return None
         if not isinstance(raw_pages, list):
@@ -106,6 +124,7 @@ class CatalogImportProcessingUseCase:
 
     @staticmethod
     def _normalize_region(raw_region: Any) -> Optional[List[float]]:
+        """Normalize region to keep behavior consistent across callers."""
         if raw_region is None:
             return None
         if not isinstance(raw_region, list):

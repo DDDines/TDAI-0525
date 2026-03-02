@@ -1,4 +1,6 @@
-﻿from __future__ import annotations
+"""Document ocr service module responsibilities and runtime integration points."""
+
+from __future__ import annotations
 
 from Backend.application.services.web_data_extractor.contracts import (
     WebDataExtractorPort,
@@ -6,8 +8,11 @@ from Backend.application.services.web_data_extractor.contracts import (
 
 
 class WebDataExtractorOCRService:
+    """Encapsulates Web data extractor o c r service."""
     def __init__(self, port: WebDataExtractorPort) -> None:
+        """Initialize injected dependencies and runtime configuration for Web Data Extractor OCRService."""
         self._port = port
 
     def extract_text_from_image_region(self, image_bytes: bytes):
+        """Extract text from image region."""
         return self._port.extract_text_from_image_region(image_bytes)

@@ -1,10 +1,17 @@
+"""Module test workflow runtime contract.
+
+Contains backend logic related to test workflow runtime contract and documents its role in the OOP architecture.
+"""
+
 import ast
 from pathlib import Path
 
 
 class _TopLevelFunctionSurface:
 
+    """Represent top level function surface and centralize responsibilities for this module."""
     def _iter_backend_modules():
+        """Run iter backend modules in this workflow."""
         backend_root = Path(__file__).resolve().parents[1]
         for file_path in backend_root.rglob("*.py"):
             if file_path.name.startswith("test_"):
@@ -12,6 +19,7 @@ class _TopLevelFunctionSurface:
             yield file_path
 
     def test_all_workflow_classes_support_runtime_in_init():
+        """Run test all workflow classes support runtime in init in this workflow."""
         missing_runtime = []
     
         for file_path in _iter_backend_modules():
@@ -43,6 +51,7 @@ class _TopLevelFunctionSurface:
         assert not missing_runtime, f"Workflow sem suporte a runtime: {missing_runtime}"
 
     def test_internal_workflow_runtime_class_names_are_unique():
+        """Run test internal workflow runtime class names are unique in this workflow."""
         class_locations: dict[str, list[str]] = {}
         valid_suffixes = ("Workflow", "Runtime", "EngineRuntime")
     

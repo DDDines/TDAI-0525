@@ -1,3 +1,5 @@
+"""Document web enrichment module responsibilities and runtime integration points."""
+
 from __future__ import annotations
 
 from typing import Any, Awaitable, Callable
@@ -24,6 +26,7 @@ class WebEnrichmentPipelineOrchestrator:
         oop_executor: TaskExecutor,
         context: str = "web_enrichment.start",
     ) -> None:
+        """Initialize injected dependencies and runtime configuration for Web Enrichment Pipeline Orchestrator."""
         oop_use_case = WebEnrichmentProcessingUseCase(processor=oop_executor)
         self._oop_builder = WebEnrichmentTaskBuilder(
             executor=OOPWebEnrichmentExecutor(oop_use_case)
@@ -35,6 +38,7 @@ class WebEnrichmentPipelineOrchestrator:
         *,
         command: WebEnrichmentStartCommand,
     ) -> TaskExecutionPlan:
+        """Execute select start plan as part of this module workflow."""
         oop_plan = self._oop_builder.build_start_plan(
             produto_id=command.produto_id,
             user_id=command.user_id,

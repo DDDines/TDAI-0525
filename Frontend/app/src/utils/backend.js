@@ -1,4 +1,11 @@
-class _TopLevelFunctionSurface {static getBackendBaseUrl() {
+/**
+ * Module backend.
+ *
+ * Defines responsibilities and integration points for utils.
+ */
+
+
+function getBackendBaseUrl() {
     let metaEnv;
     try {
       metaEnv = new Function(
@@ -18,6 +25,7 @@ class _TopLevelFunctionSurface {static getBackendBaseUrl() {
     nodeEnv && nodeEnv.VITE_API_BASE_URL ||
     '/api/v1';
     return apiUrl.replace(/\/api\/v1\/?$/, '');
-  }}const getBackendBaseUrl = _TopLevelFunctionSurface.getBackendBaseUrl;export { getBackendBaseUrl };
+  }
+export { getBackendBaseUrl };
 
 export default getBackendBaseUrl;

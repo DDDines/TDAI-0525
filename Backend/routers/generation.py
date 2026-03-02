@@ -30,10 +30,11 @@ class GenerationRequestService:
         self,
         session: Session = Depends(ServiceContainerDependencySupport.get_request_db_session),
     ) -> None:
+        """Initialize injected dependencies and runtime configuration for Generation Request Service."""
         self._session = session
-        self._ia_generation_service = IAGenerationService()
+        self._ia_generation_service = ServiceContainerDependencySupport.build_ia_generation_service()
         self._generation_task_service = GenerationTaskService(
-            db_session_factory=ServiceContainerDependencySupport.get_background_db_session_factory(),
+            session_provider=ServiceContainerDependencySupport.get_background_session_provider(),
             user_repository_factory=UserRepository,
             product_repository_factory=ProductRepository,
             models=models,
@@ -47,12 +48,14 @@ class GenerationRequestService:
         )
 
     def _validate_product_access(self, *, produto_id: int, current_user: models.User):
+        """Handle Validate product access in this request workflow."""
         return self._generation_scheduling_service.validate_product_access(
             produto_id=produto_id,
             current_user=current_user,
         )
 
     def _mark_pending_status(self, *, db_produto, generation_type: str) -> None:
+        """Handle Mark pending status in this request workflow."""
         self._generation_scheduling_service.mark_pending_status(
             db_produto=db_produto,
             generation_type=generation_type,
@@ -67,6 +70,7 @@ class GenerationRequestService:
         num_titulos: int | None = None,
         tamanho_palavras: int | None = None,
     ) -> None:
+        """Handle Tarefa processar geracao e registrar uso in this request workflow."""
         await self._generation_task_service.run_generation_task(
             user_id=user_id,
             produto_id=produto_id,
@@ -84,6 +88,7 @@ class GenerationRequestService:
         num_titulos: int,
         current_user: models.User,
     ):
+        """Handle Agendar geracao novos titulos openai in this request workflow."""
         self._validate_product_access(produto_id=produto_id, current_user=current_user)
         self._generation_scheduling_service.enqueue_generation_task(
             background_tasks=background_tasks,
@@ -104,6 +109,7 @@ class GenerationRequestService:
         tamanho_palavras: int,
         current_user: models.User,
     ):
+        """Handle Agendar geracao nova descricao openai in this request workflow."""
         self._validate_product_access(produto_id=produto_id, current_user=current_user)
         self._generation_scheduling_service.enqueue_generation_task(
             background_tasks=background_tasks,
@@ -124,6 +130,7 @@ class GenerationRequestService:
         num_titulos: int,
         current_user: models.User,
     ):
+        """Handle Agendar geracao novos titulos gemini in this request workflow."""
         db_produto = self._validate_product_access(
             produto_id=produto_id,
             current_user=current_user,
@@ -148,6 +155,7 @@ class GenerationRequestService:
         tamanho_palavras: int,
         current_user: models.User,
     ):
+        """Handle Agendar geracao nova descricao gemini in this request workflow."""
         db_produto = self._validate_product_access(
             produto_id=produto_id,
             current_user=current_user,
@@ -170,6 +178,7 @@ class GenerationRequestService:
         produto_id: int,
         current_user: models.User,
     ) -> schemas.SugestoesAtributosResponse:
+        """Handle Sugerir atributos para produto com gemini in this request workflow."""
         try:
             return await self._ia_generation_service.sugerir_valores_atributos_com_gemini(
                 session=self._session,
@@ -186,7 +195,7 @@ class GenerationRequestService:
             )
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail=f"Ocorreu um erro inesperado: {str(exc)}",
+                detail="Ocorreu um erro interno ao processar a solicitacao.",
             ) from exc
 
 
@@ -205,6 +214,7 @@ async def agendar_geracao_novos_titulos_openai(
         auth_utils._AuthUtilsActiveUserDependency.get_current_active_user
     ),
 ):
+    """Handle Agendar geracao novos titulos openai in this request workflow."""
     return request_service.agendar_geracao_novos_titulos_openai(
         produto_id=produto_id,
         background_tasks=background_tasks,
@@ -228,6 +238,7 @@ async def agendar_geracao_nova_descricao_openai(
         auth_utils._AuthUtilsActiveUserDependency.get_current_active_user
     ),
 ):
+    """Handle Agendar geracao nova descricao openai in this request workflow."""
     return request_service.agendar_geracao_nova_descricao_openai(
         produto_id=produto_id,
         background_tasks=background_tasks,
@@ -250,6 +261,7 @@ async def agendar_geracao_novos_titulos_gemini(
         auth_utils._AuthUtilsActiveUserDependency.get_current_active_user
     ),
 ):
+    """Handle Agendar geracao novos titulos gemini in this request workflow."""
     return request_service.agendar_geracao_novos_titulos_gemini(
         produto_id=produto_id,
         background_tasks=background_tasks,
@@ -272,6 +284,7 @@ async def agendar_geracao_nova_descricao_gemini(
         auth_utils._AuthUtilsActiveUserDependency.get_current_active_user
     ),
 ):
+    """Handle Agendar geracao nova descricao gemini in this request workflow."""
     return request_service.agendar_geracao_nova_descricao_gemini(
         produto_id=produto_id,
         background_tasks=background_tasks,
@@ -291,6 +304,7 @@ async def sugerir_atributos_para_produto_com_gemini(
         auth_utils._AuthUtilsActiveUserDependency.get_current_active_user
     ),
 ):
+    """Handle Sugerir atributos para produto com gemini in this request workflow."""
     return await request_service.sugerir_atributos_para_produto_com_gemini(
         produto_id=produto_id,
         current_user=current_user,

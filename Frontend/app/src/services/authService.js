@@ -1,7 +1,15 @@
+/**
+ * Module auth service.
+ *
+ * Defines responsibilities and integration points for services.
+ */
+
 // Frontend/app/src/services/authService.js
 import apiClient from './apiClient';
 import { showSuccessToast, showErrorToast } from '../utils/notifications';
-import logger from '../utils/logger';class _TopLevelFunctionSurface {static getAuthErrorMessage(
+import logger from '../utils/logger';
+
+function getAuthErrorMessage(
 
   error, fallbackMessage) {
     if (!error || !error.response) {
@@ -21,7 +29,8 @@ import logger from '../utils/logger';class _TopLevelFunctionSurface {static getA
     }
 
     return detailMessage || fallbackMessage;
-  }}const getAuthErrorMessage = _TopLevelFunctionSurface.getAuthErrorMessage;const
+  }
+const
 
 authService = {
   async login(email, password) {

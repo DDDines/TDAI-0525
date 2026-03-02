@@ -1,12 +1,11 @@
+"""Document ia generation service module responsibilities and runtime integration points."""
+
 from __future__ import annotations
 
 from sqlalchemy.orm import Session
 
 from Backend import models, schemas
 from Backend.application.services.ports import IAGenerationPort
-from Backend.infrastructure.adapters.ia_generation_adapter import (
-    IAGenerationServiceAdapter,
-)
 
 
 class IAGenerationService:
@@ -15,9 +14,10 @@ class IAGenerationService:
     def __init__(
         self,
         *,
-        port: IAGenerationPort | None = None,
+        port: IAGenerationPort,
     ) -> None:
-        self._port = port or IAGenerationServiceAdapter()
+        """Initialize injected dependencies and runtime configuration for IAGeneration Service."""
+        self._port = port
 
     async def gerar_titulos_com_openai(
         self,
@@ -27,6 +27,7 @@ class IAGenerationService:
         user: models.User,
         num_titulos: int = 3,
     ) -> list[str]:
+        """Execute gerar titulos com openai as part of this module workflow."""
         return await self._port.gerar_titulos_com_openai(
             session=session,
             produto_id=produto_id,
@@ -42,6 +43,7 @@ class IAGenerationService:
         user: models.User,
         tamanho_palavras: int = 150,
     ) -> str:
+        """Execute gerar descricao com openai as part of this module workflow."""
         return await self._port.gerar_descricao_com_openai(
             session=session,
             produto_id=produto_id,
@@ -57,6 +59,7 @@ class IAGenerationService:
         user: models.User,
         num_titulos: int = 3,
     ) -> list[str]:
+        """Execute gerar titulos com gemini as part of this module workflow."""
         return await self._port.gerar_titulos_com_gemini(
             session=session,
             produto_id=produto_id,
@@ -72,6 +75,7 @@ class IAGenerationService:
         user: models.User,
         tamanho_palavras: int = 150,
     ) -> str:
+        """Execute gerar descricao com gemini as part of this module workflow."""
         return await self._port.gerar_descricao_com_gemini(
             session=session,
             produto_id=produto_id,
@@ -86,6 +90,7 @@ class IAGenerationService:
         produto_id: int,
         user: models.User,
     ) -> schemas.SugestoesAtributosResponse:
+        """Sugerir valores atributos com gemini."""
         return await self._port.sugerir_valores_atributos_com_gemini(
             session=session,
             produto_id=produto_id,

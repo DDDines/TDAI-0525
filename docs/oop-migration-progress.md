@@ -77,7 +77,7 @@ O runtime opera em modo OOP-only (`APP_MODE=oop`) e a camada `Backend/services` 
 - [x] Remover guard de runtime legado (`Backend/core/legacy_guard.py`) e testes associados.
 - [x] Remover comparador `shadow_result_comparator` e hooks de gravacao `shadow_compare` dos task services OOP.
 - [x] Migrar implementacoes de runtime de `Backend/services/*` para `Backend/infrastructure/runtime_modules/*`.
-- [x] Runtime providers (`Backend/infrastructure/runtime/*`) desacoplados de `Backend.services`.
+- [x] Pacotes legados `Backend/infrastructure/runtime/*` e `Backend/infrastructure/runtime_services/*` removidos do codigo produtivo.
 - [x] `Backend/application/services/__init__.py` simplificado para pacote sem eager imports (imports explicitos por modulo).
 - [x] `DataAccessService` migrado para delegacao OO via workflows `crud_*` (sem uso de funcoes top-level de CRUD na camada).
 - [x] Bridge dinamica de repositorio removida (`repository_runtime_support.py` e `call_repository_method(...)`).
@@ -95,7 +95,7 @@ O runtime opera em modo OOP-only (`APP_MODE=oop`) e a camada `Backend/services` 
 - [x] Sem bridges/proxies legados ativos em runtime de aplicacao.
 - [x] Zero `repository_runtime_support.py` e zero `call_repository_method(...)` no codigo produtivo.
 - [x] Zero parametro `db_session_factory` em metodos publicos de servico (somente injecao no construtor).
-- [x] Zero import de `Backend/services` em `Backend/infrastructure/runtime`.
+- [x] Zero import de `Backend/services` em todo backend produtivo (`application`, `routers`, `infrastructure`).
 - [x] Zero import de `Backend/services` em todo backend (incluindo runtime e testes de backend).
 
 ## Matriz de isolamento
@@ -111,5 +111,22 @@ O runtime opera em modo OOP-only (`APP_MODE=oop`) e a camada `Backend/services` 
 ## Arquitetura final
 
 - Adapters OOP padrao concentrados em `Backend/infrastructure/adapters/`.
-- Provedores de runtime concentrados em `Backend/infrastructure/runtime/` consumindo `Backend/infrastructure/runtime_modules/`.
 - Implementacoes de dominio/runtime concentradas em `Backend/infrastructure/runtime_modules/`.
+- Pacotes legados de transicao removidos:
+  - `Backend/infrastructure/runtime/`
+  - `Backend/infrastructure/runtime_services/`
+- Fluxo final de composicao: `routers` -> `application/services` -> `infrastructure/adapters` -> `runtime_modules` + `repositories`.
+
+## Limpeza de artefatos
+
+- [x] Logs temporarios e dumps de execucao removidos do versionamento (`Backend/logs/import_jobs`, `tmp/`, `Frontend/app/tmp/`, `Frontend/app/test-results/`).
+- [x] `.gitignore` atualizado para bloquear reentrada de artefatos gerados localmente.
+
+## Hardening final (2026-03-02)
+
+- [x] `Backend/infrastructure/runtime_modules` sem `crud_module`/`crud_users_module`.
+- [x] `Backend/infrastructure/runtime_modules/limit_module.py` sem fallback `except TypeError`.
+- [x] `IAGenerationService` e `LimitService` com porta obrigatoria no construtor (sem fallback interno de adapter).
+- [x] `Backend/routers/auth_utils.py` com dependencias explicitas (`security_workflow` e `user_repository_factory`).
+- [x] `Backend/tasks.py` sem `create_engine`, `sessionmaker` e `db.query`.
+- [x] `Backend/infrastructure/runtime_modules/file_processing_module.py` sem query direta de `CatalogImportFile`.

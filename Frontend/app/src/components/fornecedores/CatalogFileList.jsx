@@ -1,7 +1,15 @@
+/**
+ * Module catalog file list.
+ *
+ * Defines responsibilities and integration points for components fornecedores.
+ */
+
 import React from 'react';
 import { format } from 'date-fns';
 import getBackendBaseUrl from '../../utils/backend.js';
-import './CatalogFileList.css';class _TopLevelFunctionSurface {static CatalogFileList(
+import './CatalogFileList.css';
+
+function CatalogFileList(
 
   { files = [], onReprocess, onDelete }) {
     const backendBaseUrl = getBackendBaseUrl();
@@ -62,4 +70,5 @@ import './CatalogFileList.css';class _TopLevelFunctionSurface {static CatalogFil
       </tbody>
     </table>);
 
-  }}export default _TopLevelFunctionSurface.CatalogFileList;
+  }
+export default CatalogFileList;

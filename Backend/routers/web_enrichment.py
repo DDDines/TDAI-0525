@@ -56,8 +56,16 @@ class WebEnrichmentRequestService:
         self,
         session: Session = Depends(ServiceContainerDependencySupport.get_request_db_session),
     ) -> None:
+        """Initialize injected dependencies and runtime configuration for Web Enrichment Request Service."""
         self._session = session
-        db_session_factory = ServiceContainerDependencySupport.get_background_db_session_factory()
+        if hasattr(session, "get_bind"):
+            session_provider = (
+                ServiceContainerDependencySupport.build_background_session_provider_from_session(
+                    session
+                )
+            )
+        else:
+            session_provider = ServiceContainerDependencySupport.get_background_session_provider()
         normalization_service = WebEnrichmentNormalizationService()
         relevance_service = WebEnrichmentRelevanceService()
         content_quality_service = WebEnrichmentContentQualityService(
@@ -69,12 +77,12 @@ class WebEnrichmentRequestService:
 
         extractor_service = WebDataExtractorOrchestratorService(WebDataExtractorServiceAdapter())
         self._task_runner = WebEnrichmentTaskRunner(
-            db_session_factory=db_session_factory,
+            session_provider=session_provider,
             logger=logger,
             SQLAlchemyError=SQLAlchemyError,
-            user_repository=UserRepository,
-            product_repository=ProductRepository,
-            usage_repository=RegistroUsoIARepository,
+            user_repository_factory=UserRepository,
+            product_repository_factory=ProductRepository,
+            usage_repository_factory=RegistroUsoIARepository,
             models=models,
             schemas=schemas,
             web_extractor=extractor_service,
@@ -100,6 +108,7 @@ class WebEnrichmentRequestService:
         user_id: int,
         termos_busca_override: Optional[str] = None,
     ):
+        """Execute tarefa enriquecer produto web as part of this module workflow."""
         await self._task_runner.execute(
             produto_id=produto_id,
             user_id=user_id,
@@ -114,6 +123,7 @@ class WebEnrichmentRequestService:
         current_user: models.User,
         termos_busca_override: Optional[str] = None,
     ) -> Dict[str, str]:
+        """Execute iniciar enriquecimento produto web as part of this module workflow."""
         self._start_service.validate_start_preconditions(
             produto_id=produto_id,
             current_user=current_user,
@@ -150,6 +160,7 @@ async def iniciar_enriquecimento_produto_web_endpoint(
     ),
     request_service: WebEnrichmentRequestService = Depends(),
 ):
+    """Iniciar enriquecimento produto web endpoint."""
     return request_service.iniciar_enriquecimento_produto_web(
         produto_id=produto_id,
         background_tasks=background_tasks,

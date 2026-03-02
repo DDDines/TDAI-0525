@@ -1,3 +1,8 @@
+"""Module test catalog import sanitization service.
+
+Contains backend logic related to test catalog import sanitization service and documents its role in the OOP architecture.
+"""
+
 from Backend.application.services.catalog_import_quality_service import (
     CatalogImportQualityService,
 )
@@ -8,12 +13,15 @@ from Backend.application.services.catalog_import_sanitization_service import (
 
 class _TopLevelFunctionSurface:
 
+    """Represent top level function surface and centralize responsibilities for this module."""
     def test_normalize_validated_data_parses_json_string():
+        """Run test normalize validated data parses json string in this workflow."""
         service = CatalogImportSanitizationService(CatalogImportQualityService())
         parsed = service.normalize_validated_data('{"nome_base":"ABC"}', {"nome_base": "fallback"})
         assert parsed["nome_base"] == "ABC"
 
     def test_sanitize_extracted_product_discards_invalid_ean_text():
+        """Run test sanitize extracted product discards invalid ean text in this workflow."""
         service = CatalogImportSanitizationService(CatalogImportQualityService())
         sanitized = service.sanitize_extracted_product(
             {
@@ -25,6 +33,7 @@ class _TopLevelFunctionSurface:
         assert sanitized["ean_original"] is None
 
     def test_normalize_import_text_decodes_mojibake_reason():
+        """Run test normalize import text decodes mojibake reason in this workflow."""
         service = CatalogImportSanitizationService(CatalogImportQualityService())
         raw = "Nenhum dado de produto pÃƒÂ´de ser extraÃƒÂ­do do PDF."
         normalized = service.normalize_import_text(raw)

@@ -1,4 +1,6 @@
-﻿from __future__ import annotations
+"""Document preview service module responsibilities and runtime integration points."""
+
+from __future__ import annotations
 
 from typing import Any, Dict, List
 
@@ -9,6 +11,7 @@ class FileProcessingPreviewService:
     """Preview de conteudo tabular e PDF."""
 
     def __init__(self, port: FileProcessingPort) -> None:
+        """Initialize injected dependencies and runtime configuration for File Processing Preview Service."""
         self._port = port
 
     async def preview_arquivo_pdf(
@@ -19,6 +22,7 @@ class FileProcessingPreviewService:
         page_count: int = 1,
         dpi: int = 72,
     ) -> Dict[str, Any]:
+        """Execute preview arquivo pdf as part of this module workflow."""
         return await self._port.preview_arquivo_pdf(
             conteudo_arquivo=conteudo_arquivo,
             ext=ext,
@@ -33,6 +37,7 @@ class FileProcessingPreviewService:
         ext: str,
         max_rows: int = 5,
     ) -> Dict[str, Any]:
+        """Execute gerar preview as part of this module workflow."""
         return await self._port.gerar_preview(
             conteudo_arquivo=conteudo_arquivo,
             ext=ext,
@@ -46,6 +51,7 @@ class FileProcessingPreviewService:
         start_page: int = 1,
         dpi: int = 200,
     ) -> List[str]:
+        """Execute pdf bytes to images as part of this module workflow."""
         return await self._port.pdf_bytes_to_images(
             conteudo_arquivo=conteudo_arquivo,
             max_pages=max_pages,
@@ -62,6 +68,7 @@ class FileProcessingPreviewService:
         offset: int,
         limit: int,
     ) -> Dict[str, Any]:
+        """Execute pdf pages to images as part of this module workflow."""
         return self._port.pdf_pages_to_images(
             db=db,
             file=file,

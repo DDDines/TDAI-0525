@@ -1,9 +1,17 @@
+/**
+ * Module plano page.
+ *
+ * Defines responsibilities and integration points for pages.
+ */
+
 // Frontend/app/src/pages/PlanoPage.jsx
 import React, { useState, useEffect } from 'react';
 import authService from '../services/authService';
 import { showErrorToast, showInfoToast } from '../utils/notifications';
 import './PlanoPage.css';
-import LoadingPopup from '../components/common/LoadingPopup.jsx';class _TopLevelFunctionSurface {static PlanoPage()
+import LoadingPopup from '../components/common/LoadingPopup.jsx';
+
+function PlanoPage()
 
   {
     const [currentUser, setCurrentUser] = useState(null);
@@ -131,4 +139,5 @@ import LoadingPopup from '../components/common/LoadingPopup.jsx';class _TopLevel
       </div>
     </div>);
 
-  }}export default _TopLevelFunctionSurface.PlanoPage;
+  }
+export default PlanoPage;

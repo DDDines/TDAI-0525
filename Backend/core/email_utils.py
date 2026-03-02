@@ -1,3 +1,5 @@
+"""Document email utils module responsibilities and runtime integration points."""
+
 from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, Optional
@@ -11,18 +13,23 @@ logger = get_logger(__name__)
 
 class EmailWorkflow:
 
+    """Represent Email Workflow and centralize its responsibilities inside this module."""
     def __init__(self, runtime: Optional['EmailRuntime']=None):
+        """Initialize injected dependencies and runtime configuration for Email Workflow."""
         self._runtime = runtime or EmailRuntime()
         self._conf = self._runtime.build_connection_config()
 
     @property
     def conf(self):
+        """Execute conf as part of this module workflow."""
         return self._conf
 
     def _build_connection_config(self) -> Optional[ConnectionConfig]:
+        """Build connection config from current inputs and configuration."""
         return self._runtime.build_connection_config()
 
     async def send_email(self, *, email_to: EmailStr, subject: str, html_content: str, template_body: Optional[Dict[str, Any]]=None, template_name: Optional[str]=None, raise_if_unconfigured: Optional[bool]=None) -> None:
+        """Execute send email as part of this module workflow."""
         if raise_if_unconfigured is None:
             raise_if_unconfigured = self._runtime.get_raise_on_missing_email_config()
         if not self._conf:
@@ -30,16 +37,23 @@ class EmailWorkflow:
             if raise_if_unconfigured:
                 raise RuntimeError('Configuracao de email ausente')
             return
-        message_data = {'subject': subject, 'recipients': [email_to]}
         fm = self._runtime.create_fastmail(self._conf)
         try:
             if template_name:
-                message = self._runtime.create_message_schema(**message_data)
+                message = self._runtime.create_message_schema(
+                    subject=subject,
+                    recipients=[email_to],
+                )
                 await fm.send_message(message, template_name=template_name, template_body=template_body or {})
                 logger.info("Email com template '%s' enviado para %s.", template_name, email_to)
                 return
             if html_content:
-                message = self._runtime.create_message_schema(**message_data, body=html_content, subtype=MessageType.html)
+                message = self._runtime.create_message_schema(
+                    subject=subject,
+                    recipients=[email_to],
+                    body=html_content,
+                    subtype=MessageType.html,
+                )
                 await fm.send_message(message)
                 logger.info('Email HTML enviado para %s.', email_to)
                 return
@@ -50,6 +64,7 @@ class EmailWorkflow:
                 raise RuntimeError(f'Falha ao enviar email: {exc}')
 
     async def send_password_reset_email(self, *, email_to: EmailStr, username: str, reset_link: str, raise_if_unconfigured: Optional[bool]=None) -> None:
+        """Execute send password reset email as part of this module workflow."""
         if raise_if_unconfigured is None:
             raise_if_unconfigured = self._runtime.get_raise_on_missing_email_config()
         if not self._conf:
@@ -73,19 +88,36 @@ class EmailRuntime:
     """Runtime OO para configuração e envio de email."""
 
     def build_connection_config(self) -> Optional[ConnectionConfig]:
+        """Build connection config from current inputs and configuration."""
         if settings.MAIL_USERNAME and settings.MAIL_PASSWORD and settings.MAIL_FROM and settings.MAIL_SERVER:
             return ConnectionConfig(MAIL_USERNAME=settings.MAIL_USERNAME, MAIL_PASSWORD=settings.MAIL_PASSWORD, MAIL_FROM=settings.MAIL_FROM, MAIL_PORT=settings.MAIL_PORT, MAIL_SERVER=settings.MAIL_SERVER, MAIL_FROM_NAME=settings.MAIL_FROM_NAME, MAIL_STARTTLS=settings.MAIL_STARTTLS, MAIL_SSL_TLS=settings.MAIL_SSL_TLS, USE_CREDENTIALS=settings.USE_CREDENTIALS, VALIDATE_CERTS=settings.VALIDATE_CERTS, TEMPLATE_FOLDER=TEMPLATE_FOLDER)
         logger.warning('Configuracoes de Email (MAIL_USERNAME, MAIL_PASSWORD, MAIL_FROM, MAIL_SERVER) incompletas no .env. Funcionalidade de envio de email desabilitada.')
         return None
 
     def get_raise_on_missing_email_config(self) -> bool:
+        """Retrieve raise on missing email config using the current service dependencies."""
         return settings.RAISE_ON_MISSING_EMAIL_CONFIG
 
     def create_fastmail(self, conf: ConnectionConfig) -> FastMail:
+        """Create fastmail and return the resulting payload or entity."""
         return FastMail(conf)
 
-    def create_message_schema(self, **kwargs) -> MessageSchema:
-        return MessageSchema(**kwargs)
+    def create_message_schema(
+        self,
+        *,
+        subject: str,
+        recipients: list[EmailStr],
+        body: str | None = None,
+        subtype: MessageType = MessageType.plain,
+    ) -> MessageSchema:
+        """Create message schema and return the resulting payload or entity."""
+        return MessageSchema(
+            subject=subject,
+            recipients=recipients,
+            body=body,
+            subtype=subtype,
+        )
 
     def current_year(self) -> int:
+        """Execute current year as part of this module workflow."""
         return datetime.now().year

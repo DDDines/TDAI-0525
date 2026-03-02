@@ -1,8 +1,11 @@
+"""Document web enrichment task service module responsibilities and runtime integration points."""
+
 from __future__ import annotations
 
 from typing import Any, Dict, List, Optional
 from sqlalchemy.orm import Session
 
+from Backend.application.services.service_container import SessionProviderPort
 from Backend.application.services.web_enrichment_components import (
     WebEnrichmentConfigInspector,
     WebEnrichmentFinalizationService,
@@ -12,12 +15,13 @@ from Backend.application.services.web_enrichment_components import (
 
 
 class WebEnrichmentTaskRuntime:
+    """Represent Web Enrichment Task Runtime and centralize its responsibilities inside this module."""
     RUNTIME_FIELDS = (
         "logger",
         "SQLAlchemyError",
-        "user_repository",
-        "product_repository",
-        "usage_repository",
+        "user_repository_factory",
+        "product_repository_factory",
+        "usage_repository_factory",
         "models",
         "schemas",
         "web_extractor",
@@ -37,9 +41,9 @@ class WebEnrichmentTaskRuntime:
         *,
         logger,
         SQLAlchemyError,
-        user_repository,
-        product_repository,
-        usage_repository,
+        user_repository_factory,
+        product_repository_factory,
+        usage_repository_factory,
         models,
         schemas,
         web_extractor,
@@ -53,11 +57,12 @@ class WebEnrichmentTaskRuntime:
         metadata_has_minimum_signal,
         is_source_relevant_for_product,
     ) -> None:
+        """Initialize injected dependencies and runtime configuration for Web Enrichment Task Runtime."""
         self.logger = logger
         self.SQLAlchemyError = SQLAlchemyError
-        self.user_repository = user_repository
-        self.product_repository = product_repository
-        self.usage_repository = usage_repository
+        self.user_repository_factory = user_repository_factory
+        self.product_repository_factory = product_repository_factory
+        self.usage_repository_factory = usage_repository_factory
         self.models = models
         self.schemas = schemas
         self.web_extractor = web_extractor
@@ -72,6 +77,7 @@ class WebEnrichmentTaskRuntime:
         self.is_source_relevant_for_product = is_source_relevant_for_product
 
     def apply_overrides(self, runtime: Any) -> "WebEnrichmentTaskRuntime":
+        """Execute apply overrides as part of this module workflow."""
         for field_name in self.RUNTIME_FIELDS:
             setattr(self, field_name, getattr(runtime, field_name, getattr(self, field_name)))
         return self
@@ -85,10 +91,10 @@ class WebEnrichmentTaskWorkflow:
         *,
         logger,
         SQLAlchemyError,
-        db_session_factory,
-        user_repository,
-        product_repository,
-        usage_repository,
+        session_provider: SessionProviderPort,
+        user_repository_factory,
+        product_repository_factory,
+        usage_repository_factory,
         models,
         schemas,
         web_extractor,
@@ -103,12 +109,13 @@ class WebEnrichmentTaskWorkflow:
         is_source_relevant_for_product,
         runtime: Optional[Any] = None,
     ) -> None:
+        """Initialize injected dependencies and runtime configuration for Web Enrichment Task Workflow."""
         runtime_obj = WebEnrichmentTaskRuntime(
             logger=logger,
             SQLAlchemyError=SQLAlchemyError,
-            user_repository=user_repository,
-            product_repository=product_repository,
-            usage_repository=usage_repository,
+            user_repository_factory=user_repository_factory,
+            product_repository_factory=product_repository_factory,
+            usage_repository_factory=usage_repository_factory,
             models=models,
             schemas=schemas,
             web_extractor=web_extractor,
@@ -126,12 +133,12 @@ class WebEnrichmentTaskWorkflow:
             runtime_obj.apply_overrides(runtime)
 
         self._runtime = runtime_obj
-        self._db_session_factory = db_session_factory
+        self._session_provider = session_provider
         self.logger = runtime_obj.logger
         self.SQLAlchemyError = runtime_obj.SQLAlchemyError
-        self.user_repository = runtime_obj.user_repository
-        self.product_repository = runtime_obj.product_repository
-        self.usage_repository = runtime_obj.usage_repository
+        self.user_repository_factory = runtime_obj.user_repository_factory
+        self.product_repository_factory = runtime_obj.product_repository_factory
+        self.usage_repository_factory = runtime_obj.usage_repository_factory
         self.models = runtime_obj.models
         self.schemas = runtime_obj.schemas
         self.web_extractor = runtime_obj.web_extractor
@@ -151,20 +158,25 @@ class WebEnrichmentTaskWorkflow:
             normalize_human_text=runtime_obj.normalize_human_text,
             build_payload_enriquecimento_visivel=runtime_obj.build_payload_enriquecimento_visivel,
             schemas=runtime_obj.schemas,
-            product_repository=runtime_obj.product_repository,
+            product_repository_factory=runtime_obj.product_repository_factory,
             models=runtime_obj.models,
         )
 
-    @staticmethod
-    def _resolve_repo(repo_or_cls: Any, session: Session) -> Any:
-        if repo_or_cls is None:
-            raise ValueError("repository provider is required")
-        if callable(repo_or_cls):
-            return repo_or_cls(session)
-        return repo_or_cls
+    def _build_user_repository(self, *, session: Session) -> Any:
+        """Instantiate user repository using the injected factory."""
+        return self.user_repository_factory(session)
+
+    def _build_product_repository(self, *, session: Session) -> Any:
+        """Instantiate product repository using the injected factory."""
+        return self.product_repository_factory(session)
+
+    def _build_usage_repository(self, *, session: Session) -> Any:
+        """Instantiate usage repository using the injected factory."""
+        return self.usage_repository_factory(session)
 
     def _load_locked_product(self, session: Session, produto_id: int):
-        product_repo = self._resolve_repo(self.product_repository, session)
+        """Execute load locked product as part of this module workflow."""
+        product_repo = self._build_product_repository(session=session)
         try:
             return product_repo.get_produto_for_update(produto_id=produto_id)
         except AttributeError:
@@ -178,7 +190,8 @@ class WebEnrichmentTaskWorkflow:
         produto_id: int,
         resposta: str,
     ) -> None:
-        usage_repo = self._resolve_repo(self.usage_repository, session)
+        """Execute register config failure as part of this module workflow."""
+        usage_repo = self._build_usage_repository(session=session)
         usage_repo.create_registro_uso_ia(
             registro_uso=self.schemas.RegistroUsoIACreate(
                 user_id=user_id,
@@ -201,6 +214,7 @@ class WebEnrichmentTaskWorkflow:
         log_mensagens: List[str],
         produto_id: int,
     ) -> None:
+        """Execute mark in progress as part of this module workflow."""
         log_mensagens.append(
             f"Definindo status do produto ID {produto_id} para EM_PROGRESSO no banco."
         )
@@ -210,6 +224,7 @@ class WebEnrichmentTaskWorkflow:
         session.refresh(db_produto_obj)
 
     async def _buscar_urls(self, *, query_candidates: List[str], busca_web_disponivel: bool, log_mensagens: List[str]) -> List[str]:
+        """Execute buscar urls as part of this module workflow."""
         if not busca_web_disponivel:
             log_mensagens.append("Busca web pulada: nenhum provedor de busca disponivel.")
             return []
@@ -240,6 +255,7 @@ class WebEnrichmentTaskWorkflow:
         log_mensagens: List[str],
         busca_web_disponivel: bool,
     ) -> bool:
+        """Execute coletar de urls as part of this module workflow."""
         dados_coletados_de_fontes_web = False
 
         if not urls_a_processar and not busca_web_disponivel:
@@ -340,6 +356,7 @@ class WebEnrichmentTaskWorkflow:
         log_mensagens: List[str],
         status_para_salvar_no_final,
     ) -> tuple[bool, Any]:
+        """Execute executar llm as part of this module workflow."""
         if not openai_api_configurada:
             log_mensagens.append("LLM nao foi chamado pois a API OpenAI nao esta configurada.")
             return dados_coletados_de_fontes_web, status_para_salvar_no_final
@@ -407,6 +424,7 @@ class WebEnrichmentTaskWorkflow:
         user_id: int,
         termos_busca_override: Optional[str] = None,
     ) -> None:
+        """Execute run as part of this module workflow."""
         db: Optional[Session] = None
         log_mensagens: List[str] = [
             f"INICIANDO tarefa de enriquecimento web (variant=oop) para produto ID: {produto_id}."
@@ -418,9 +436,9 @@ class WebEnrichmentTaskWorkflow:
         dados_extraidos_agregados: Dict[str, Any] = {}
 
         try:
-            if self._db_session_factory is None:
-                raise ValueError("db_session_factory is required for WebEnrichmentTaskWorkflow")
-            db = self._db_session_factory()
+            if self._session_provider is None:
+                raise ValueError("session_provider is required for WebEnrichmentTaskWorkflow")
+            db = self._session_provider.open_session()
             db_produto_obj = self._load_locked_product(db, produto_id)
             if not db_produto_obj:
                 log_mensagens.append(
@@ -449,7 +467,7 @@ class WebEnrichmentTaskWorkflow:
             dados_extraidos_agregados = db_produto_obj.dados_brutos_web.copy()
 
         try:
-            user_repo = self._resolve_repo(self.user_repository, db)
+            user_repo = self._build_user_repository(session=db)
             user = user_repo.get_user(user_id=user_id)
             if not user:
                 log_mensagens.append(f"ERRO FATAL: Usuario ID {user_id} nao encontrado.")
@@ -623,7 +641,7 @@ class WebEnrichmentTaskService:
         *,
         logger,
         SQLAlchemyError,
-        db_session_factory,
+        session_provider: SessionProviderPort,
         models,
         schemas,
         web_extractor,
@@ -637,17 +655,18 @@ class WebEnrichmentTaskService:
         is_meaningful_extracted_text,
         metadata_has_minimum_signal,
         is_source_relevant_for_product,
-        user_repository,
-        product_repository,
-        usage_repository,
+        user_repository_factory,
+        product_repository_factory,
+        usage_repository_factory,
     ):
+        """Initialize injected dependencies and runtime configuration for Web Enrichment Task Service."""
         self._deps = {
             "logger": logger,
             "SQLAlchemyError": SQLAlchemyError,
-            "db_session_factory": db_session_factory,
-            "user_repository": user_repository,
-            "product_repository": product_repository,
-            "usage_repository": usage_repository,
+            "session_provider": session_provider,
+            "user_repository_factory": user_repository_factory,
+            "product_repository_factory": product_repository_factory,
+            "usage_repository_factory": usage_repository_factory,
             "models": models,
             "schemas": schemas,
             "web_extractor": web_extractor,
@@ -670,6 +689,7 @@ class WebEnrichmentTaskService:
         user_id: int,
         termos_busca_override: Optional[str] = None,
     ):
+        """Execute execute as part of this module workflow."""
         workflow = WebEnrichmentTaskWorkflow(**self._deps)
         await workflow.run(
             produto_id=produto_id,

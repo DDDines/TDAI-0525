@@ -1,3 +1,8 @@
+"""Catalog import file service.
+
+Contains cohesive services used by the catalog import pipeline.
+"""
+
 from __future__ import annotations
 
 from typing import Any
@@ -17,6 +22,7 @@ class CatalogImportFileService:
         catalog_file_repository: Any,
         fornecedor_repository: Any,
     ) -> None:
+        """Initialize injected dependencies and runtime configuration for Catalog Import File Service."""
         self._models = models
         self._file_processing_service = file_processing_service
         self._catalog_import_start_service = catalog_import_start_service
@@ -26,9 +32,11 @@ class CatalogImportFileService:
     def _resolve_catalog_file_repo(
         self,
     ) -> Any:
+        """Handle resolve catalog file repo within the catalog import workflow."""
         return self._catalog_file_repository
 
     def _resolve_fornecedor_repo(self) -> Any:
+        """Handle resolve fornecedor repo within the catalog import workflow."""
         return self._fornecedor_repository
 
     def list_user_files(
@@ -39,6 +47,7 @@ class CatalogImportFileService:
         skip: int,
         limit: int,
     ) -> dict[str, Any]:
+        """Execute list user files as part of this module workflow."""
         repo = self._resolve_catalog_file_repo()
         items, total_items = repo.list_catalog_files_for_user(
             user_id=user_id,
@@ -59,6 +68,7 @@ class CatalogImportFileService:
         file_id: int,
         user_id: int,
     ) -> Any:
+        """Retrieve user file or 404 using the current service dependencies."""
         repo = self._resolve_catalog_file_repo()
         record = repo.get_catalog_file_for_user(
             file_id=file_id,
@@ -74,6 +84,7 @@ class CatalogImportFileService:
         file_id: int,
         user_id: int,
     ) -> Any:
+        """Execute delete user file as part of this module workflow."""
         repo = self._resolve_catalog_file_repo()
         record = self.get_user_file_or_404(
             file_id=file_id,
@@ -95,6 +106,7 @@ class CatalogImportFileService:
         pages: list[int] | None,
         region: list[float] | None,
     ) -> dict[str, Any]:
+        """Handle reprocess catalog file within the catalog import workflow."""
         catalog_file_repo = self._resolve_catalog_file_repo()
         fornecedor_repo = self._resolve_fornecedor_repo()
         catalog_file = self._catalog_import_start_service.get_catalog_file_or_404(

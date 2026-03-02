@@ -1,3 +1,5 @@
+"""Document ia generation adapter module responsibilities and runtime integration points."""
+
 from __future__ import annotations
 
 from sqlalchemy.orm import Session
@@ -12,6 +14,7 @@ class IAGenerationServiceAdapter:
     """OOP port adapter backed by the current IA generation implementation."""
 
     def __init__(self, runtime: IAGenerationWorkflow | None = None) -> None:
+        """Initialize injected dependencies and runtime configuration for IAGeneration Service Adapter."""
         self._runtime = runtime or IAGenerationWorkflow()
 
     async def gerar_titulos_com_openai(
@@ -22,6 +25,7 @@ class IAGenerationServiceAdapter:
         user: models.User,
         num_titulos: int = 3,
     ) -> list[str]:
+        """Execute gerar titulos com openai as part of this module workflow."""
         return await self._runtime.gerar_titulos_com_openai(
             db=session,
             produto_id=produto_id,
@@ -37,6 +41,7 @@ class IAGenerationServiceAdapter:
         user: models.User,
         tamanho_palavras: int = 150,
     ) -> str:
+        """Execute gerar descricao com openai as part of this module workflow."""
         return await self._runtime.gerar_descricao_com_openai(
             db=session,
             produto_id=produto_id,
@@ -52,6 +57,7 @@ class IAGenerationServiceAdapter:
         user: models.User,
         num_titulos: int = 3,
     ) -> list[str]:
+        """Execute gerar titulos com gemini as part of this module workflow."""
         return await self._runtime.gerar_titulos_com_gemini(
             db=session,
             produto_id=produto_id,
@@ -67,6 +73,7 @@ class IAGenerationServiceAdapter:
         user: models.User,
         tamanho_palavras: int = 150,
     ) -> str:
+        """Execute gerar descricao com gemini as part of this module workflow."""
         return await self._runtime.gerar_descricao_com_gemini(
             db=session,
             produto_id=produto_id,
@@ -81,6 +88,7 @@ class IAGenerationServiceAdapter:
         produto_id: int,
         user: models.User,
     ) -> schemas.SugestoesAtributosResponse:
+        """Sugerir valores atributos com gemini."""
         return await self._runtime.sugerir_valores_atributos_com_gemini(
             db=session,
             produto_id=produto_id,

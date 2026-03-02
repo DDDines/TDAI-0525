@@ -1,3 +1,8 @@
+"""Module test web enrichment relevance service.
+
+Contains backend logic related to test web enrichment relevance service and documents its role in the OOP architecture.
+"""
+
 from types import SimpleNamespace
 
 from Backend.application.services.web_enrichment_relevance_service import (
@@ -7,7 +12,9 @@ from Backend.application.services.web_enrichment_relevance_service import (
 
 class _TopLevelFunctionSurface:
 
+    """Represent top level function surface and centralize responsibilities for this module."""
     def test_tokens_for_relevance_normalizes_and_removes_stopwords():
+        """Run test tokens for relevance normalizes and removes stopwords in this workflow."""
         service = WebEnrichmentRelevanceService()
     
         tokens = service.tokens_for_relevance("Suporte de Fixacao do Apara Barro em metal")
@@ -22,16 +29,20 @@ class _TopLevelFunctionSurface:
         assert "em" not in tokens
 
     def test_extract_code_tokens_returns_structured_codes():
+        """Run test extract code tokens returns structured codes in this workflow."""
         tokens = WebEnrichmentRelevanceService.extract_code_tokens(
-            "SKU TJG809201A",
-            "codigo 2C456840300BB",
-            "texto generico",
+            [
+                "SKU TJG809201A",
+                "codigo 2C456840300BB",
+                "texto generico",
+            ]
         )
     
         assert "TJG809201A" in tokens
         assert "2C456840300BB" in tokens
 
     def test_is_source_relevant_for_product_rejects_unrelated_source():
+        """Run test is source relevant for product rejects unrelated source in this workflow."""
         service = WebEnrichmentRelevanceService()
         produto = SimpleNamespace(
             nome_base="Parede Traseira Fechada",
@@ -51,6 +62,7 @@ class _TopLevelFunctionSurface:
         assert is_relevant is False
 
     def test_score_url_for_product_prefers_supplier_and_marketplace_domains():
+        """Run test score url for product prefers supplier and marketplace domains in this workflow."""
         service = WebEnrichmentRelevanceService()
         produto = SimpleNamespace(
             nome_base="Suporte Fixacao Apara Barro",
@@ -73,6 +85,7 @@ class _TopLevelFunctionSurface:
         assert strong_score > weak_score
 
     def test_prioritize_urls_for_enrichment_orders_best_first_and_filters_low_quality():
+        """Run test prioritize urls for enrichment orders best first and filters low quality in this workflow."""
         service = WebEnrichmentRelevanceService()
         produto = SimpleNamespace(
             nome_base="Suporte Fixacao Apara Barro",

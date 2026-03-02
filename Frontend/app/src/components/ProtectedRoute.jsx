@@ -1,8 +1,16 @@
+/**
+ * Module protected route.
+ *
+ * Defines responsibilities and integration points for components.
+ */
+
 import React from 'react';
 import { Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import logger from '../utils/logger';
-import LoadingOverlay from './common/LoadingOverlay.jsx';class _TopLevelFunctionSurface {static ProtectedRoute(
+import LoadingOverlay from './common/LoadingOverlay.jsx';
+
+function ProtectedRoute(
 
   { children, allowedRoles }) {
     const { isAuthenticated, user, isLoading } = useAuth();
@@ -29,4 +37,5 @@ import LoadingOverlay from './common/LoadingOverlay.jsx';class _TopLevelFunction
     }
 
     return children;
-  }}export default _TopLevelFunctionSurface.ProtectedRoute;
+  }
+export default ProtectedRoute;

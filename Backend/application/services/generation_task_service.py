@@ -1,3 +1,5 @@
+"""Document generation task service module responsibilities and runtime integration points."""
+
 from __future__ import annotations
 
 from datetime import datetime, timezone
@@ -16,11 +18,12 @@ class GenerationTaskService:
         models: Any,
         schemas: Any,
         logger: Any,
-        db_session_factory: Any,
+        session_provider: Any,
         user_repository_factory: Any,
         product_repository_factory: Any,
     ) -> None:
-        self._db_session_factory = db_session_factory
+        """Initialize injected dependencies and runtime configuration for Generation Task Service."""
+        self._session_provider = session_provider
         self._user_repository_factory = user_repository_factory
         self._product_repository_factory = product_repository_factory
         self._models = models
@@ -28,15 +31,18 @@ class GenerationTaskService:
         self._logger = logger
 
     def _get_user_access(self, session: Session) -> Any:
+        """Retrieve user access using the current service dependencies."""
         return self._user_repository_factory(session)
 
     def _get_product_access(self, session: Session) -> Any:
+        """Retrieve product access using the current service dependencies."""
         return self._product_repository_factory(session)
 
     def _resolve_generation_targets(
         self,
         tipo_geracao_principal: str,
     ) -> Optional[Tuple[str, str]]:
+        """Resolve generation targets from injected repositories or runtime context."""
         if tipo_geracao_principal == "titulo":
             return "status_titulo_ia", "titulos_sugeridos"
         if tipo_geracao_principal == "descricao":
@@ -48,6 +54,7 @@ class GenerationTaskService:
         current_log: Any,
         action: str,
     ) -> list:
+        """Execute append process log as part of this module workflow."""
         log_obj = list(current_log or [])
         log_obj.append(
             {
@@ -76,9 +83,9 @@ class GenerationTaskService:
         log_entry_prefix = f"IA {tipo_geracao_principal.capitalize()}"
 
         try:
-            if self._db_session_factory is None:
-                raise ValueError("db_session_factory is required for GenerationTaskService")
-            session = self._db_session_factory()
+            if self._session_provider is None:
+                raise ValueError("session_provider is required for GenerationTaskService")
+            session = self._session_provider.open_session()
 
             targets = self._resolve_generation_targets(tipo_geracao_principal)
             if targets is None:

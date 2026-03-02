@@ -1,3 +1,9 @@
+/**
+ * Module login page.
+ *
+ * Defines responsibilities and integration points for pages.
+ */
+
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation, Link } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
@@ -6,7 +12,9 @@ import './LoginPage.css';
 import { FaGoogle, FaFacebookF } from 'react-icons/fa';
 import logger from '../utils/logger';
 import configService from '../services/configService';
-import LoadingPopup from '../components/common/LoadingPopup.jsx';class _TopLevelFunctionSurface {static LoginPage()
+import LoadingPopup from '../components/common/LoadingPopup.jsx';
+
+function LoginPage()
 
   {
     const [email, setEmail] = useState('');
@@ -121,4 +129,5 @@ import LoadingPopup from '../components/common/LoadingPopup.jsx';class _TopLevel
       </div>
     </div>);
 
-  }}export default _TopLevelFunctionSurface.LoginPage;
+  }
+export default LoginPage;

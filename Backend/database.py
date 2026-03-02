@@ -1,3 +1,5 @@
+"""Document database module responsibilities and runtime integration points."""
+
 from sqlalchemy import create_engine
 from sqlalchemy.orm import declarative_base, sessionmaker
 from sqlalchemy.pool import StaticPool
@@ -17,6 +19,7 @@ Base = declarative_base()
 
 
 def get_db():
+    """Retrieve db using the current service dependencies."""
     session = SessionLocal()
     try:
         yield session

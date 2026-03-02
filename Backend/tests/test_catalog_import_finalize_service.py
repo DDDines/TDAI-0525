@@ -1,3 +1,8 @@
+"""Module test catalog import finalize service.
+
+Contains backend logic related to test catalog import finalize service and documents its role in the OOP architecture.
+"""
+
 from __future__ import annotations
 
 import pytest
@@ -10,41 +15,51 @@ from Backend.application.services.catalog_import_finalize_service import (
 
 
 class _OrchestratorStub:
+    """Represent orchestrator stub and centralize responsibilities for this module."""
     def __init__(self, plan: TaskExecutionPlan) -> None:
+        """Initialize collaborators and configuration required by this component."""
         self.plan = plan
         self.calls = []
 
     def select_finalize_plan(self, *, command):
+        """Select finalize plan for this workflow."""
         self.calls.append(command)
         return self.plan
 
 
 class _DispatcherStub:
+    """Represent dispatcher stub and centralize responsibilities for this module."""
     should_inline = False
     inline_calls = []
     background_calls = []
 
     @classmethod
     def reset(cls):
+        """Run reset in this workflow."""
         cls.inline_calls = []
         cls.background_calls = []
 
     @classmethod
     def should_run_inline_for_tests(cls, sync_env_var: str):
+        """Run should run inline for tests in this workflow."""
         return cls.should_inline
 
     @classmethod
     async def run_inline(cls, plan):
+        """Run inline for this workflow."""
         cls.inline_calls.append(plan)
 
     @classmethod
     def dispatch_background(cls, background_tasks, plan):
+        """Dispatch background for this workflow."""
         cls.background_calls.append((background_tasks, plan))
 
 
 class _TopLevelFunctionSurface:
 
+    """Represent top level function surface and centralize responsibilities for this module."""
     def _build_command() -> CatalogImportFinalizeCommand:
+        """Run build command in this workflow."""
         return CatalogImportFinalizeCommand(
             file_id=1,
             user_id=2,
@@ -56,18 +71,20 @@ class _TopLevelFunctionSurface:
         )
 
     def _build_service(plan: TaskExecutionPlan) -> CatalogImportFinalizeService:
+        """Run build service in this workflow."""
         return CatalogImportFinalizeService(
             oop_executor=object(),
-            db_session_factory=lambda: object(),
             dispatcher_cls=_DispatcherStub,
             orchestrator=_OrchestratorStub(plan),
         )
 
     @pytest.mark.asyncio
     async def test_dispatch_or_run_uses_inline_when_configured():
+        """Run test dispatch or run uses inline when configured in this workflow."""
         executed = []
     
         async def _executor(**kwargs):
+            """Run executor in this workflow."""
             executed.append(kwargs)
     
         plan = TaskExecutionPlan(
@@ -91,7 +108,9 @@ class _TopLevelFunctionSurface:
 
     @pytest.mark.asyncio
     async def test_dispatch_or_run_uses_background_when_not_inline():
+        """Run test dispatch or run uses background when not inline in this workflow."""
         async def _executor(**kwargs):
+            """Run executor in this workflow."""
             return None
     
         plan = TaskExecutionPlan(
@@ -115,9 +134,11 @@ class _TopLevelFunctionSurface:
 
     @pytest.mark.asyncio
     async def test_run_direct_executes_selected_plan():
+        """Run test run direct executes selected plan in this workflow."""
         executed = []
     
         async def _executor(**kwargs):
+            """Run executor in this workflow."""
             executed.append(kwargs)
     
         plan = TaskExecutionPlan(

@@ -1,3 +1,5 @@
+"""Document web enrichment components module responsibilities and runtime integration points."""
+
 from __future__ import annotations
 
 import re
@@ -7,6 +9,7 @@ from typing import Any, Dict, List, Optional
 
 @dataclass(frozen=True)
 class WebEnrichmentConfigSnapshot:
+    """Represent Web Enrichment Config Snapshot and centralize its responsibilities inside this module."""
     openai_user_configurada: bool
     openai_system_configurada: bool
     openai_api_configurada: bool
@@ -15,6 +18,7 @@ class WebEnrichmentConfigSnapshot:
     busca_web_disponivel: bool
 
     def as_log_line(self) -> str:
+        """Execute as log line as part of this module workflow."""
         return (
             "Config API: "
             f"openai_user={'sim' if self.openai_user_configurada else 'nao'}, "
@@ -28,6 +32,7 @@ class WebEnrichmentConfigInspector:
     """Inspeciona disponibilidade de provedores externos para enriquecimento."""
 
     def inspect(self, *, user: Any, settings: Any, web_extractor: Any) -> WebEnrichmentConfigSnapshot:
+        """Execute inspect as part of this module workflow."""
         openai_user_configurada = bool(getattr(user, "chave_openai_pessoal", None))
         openai_system_configurada = bool(getattr(settings, "OPENAI_API_KEY", None))
         openai_api_configurada = bool(openai_user_configurada or openai_system_configurada)
@@ -54,10 +59,12 @@ class WebEnrichmentQueryPlanner:
 
     @staticmethod
     def _dedupe(values: List[str]) -> List[str]:
+        """Execute dedupe as part of this module workflow."""
         return [v for v in dict.fromkeys(v for v in values if v)]
 
     @staticmethod
     def _extract_code_tokens(value: Any) -> List[str]:
+        """Execute extract code tokens as part of this module workflow."""
         text = str(value or "").upper()
         if not text:
             return []
@@ -74,6 +81,7 @@ class WebEnrichmentQueryPlanner:
 
     @staticmethod
     def _dynamic_text_hints(dynamic_attributes: Any) -> Dict[str, str]:
+        """Execute dynamic text hints as part of this module workflow."""
         hints = {"aplicacao": "", "material": "", "marca": ""}
         if not isinstance(dynamic_attributes, dict):
             return hints
@@ -99,6 +107,7 @@ class WebEnrichmentQueryPlanner:
         db_produto_obj: Any,
         termos_busca_override: Optional[str],
     ) -> List[str]:
+        """Build candidates from current inputs and configuration."""
         if termos_busca_override:
             return self._dedupe([termos_busca_override.strip()])
 
@@ -187,6 +196,7 @@ class WebEnrichmentStatusResolver:
         busca_web_disponivel: bool,
         urls_a_processar: List[str],
     ) -> Any:
+        """Execute resolve as part of this module workflow."""
         if status_para_salvar_no_final not in {
             models.StatusEnriquecimentoEnum.EM_PROGRESSO,
             models.StatusEnriquecimentoEnum.FALHOU,
@@ -219,12 +229,13 @@ class WebEnrichmentFinalizationService:
         build_payload_enriquecimento_visivel: Any,
         schemas: Any,
         models: Any,
-        product_repository: Any,
+        product_repository_factory: Any,
     ) -> None:
+        """Initialize injected dependencies and runtime configuration for Web Enrichment Finalization Service."""
         self._normalize_human_text = normalize_human_text
         self._build_payload_enriquecimento_visivel = build_payload_enriquecimento_visivel
         self._schemas = schemas
-        self._product_repository = product_repository
+        self._product_repository_factory = product_repository_factory
         self._models = models
 
     def apply(
@@ -236,6 +247,7 @@ class WebEnrichmentFinalizationService:
         dados_extraidos_agregados: Dict[str, Any],
         log_mensagens: List[str],
     ) -> Any:
+        """Execute apply as part of this module workflow."""
         if (
             db_produto_obj.status_enriquecimento_web
             == self._models.StatusEnriquecimentoEnum.EM_PROGRESSO
@@ -322,7 +334,7 @@ class WebEnrichmentFinalizationService:
                 "resumo_aplicacao": resumo_aplicacao,
             },
         )
-        product_repo = self._resolve_product_repository(db=db)
+        product_repo = self._product_repository_factory(db)
         product_repo.update_produto(
             db_produto=db_produto_obj,
             produto_update=payload_final_update,
@@ -331,10 +343,3 @@ class WebEnrichmentFinalizationService:
             f"Produto ID {db_produto_obj.id} FINALMENTE atualizado com status: {status_valor_str}."
         )
         return status_para_salvar_no_final
-
-    def _resolve_product_repository(self, *, db: Any) -> Any:
-        if self._product_repository is None:
-            raise ValueError("product_repository is required")
-        if callable(self._product_repository):
-            return self._product_repository(db)
-        return self._product_repository

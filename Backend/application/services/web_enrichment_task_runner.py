@@ -1,4 +1,6 @@
-﻿from __future__ import annotations
+"""Document web enrichment task runner module responsibilities and runtime integration points."""
+
+from __future__ import annotations
 
 from typing import Any, Optional
 
@@ -13,7 +15,7 @@ class WebEnrichmentTaskRunner:
     def __init__(
         self,
         *,
-        db_session_factory: Any,
+        session_provider: Any,
         logger: Any,
         SQLAlchemyError: Any,
         models: Any,
@@ -29,17 +31,18 @@ class WebEnrichmentTaskRunner:
         is_meaningful_extracted_text: Any,
         metadata_has_minimum_signal: Any,
         is_source_relevant_for_product: Any,
-        user_repository: Any,
-        product_repository: Any,
-        usage_repository: Any,
+        user_repository_factory: Any,
+        product_repository_factory: Any,
+        usage_repository_factory: Any,
     ) -> None:
+        """Initialize injected dependencies and runtime configuration for Web Enrichment Task Runner."""
         self._kwargs = {
-            "db_session_factory": db_session_factory,
+            "session_provider": session_provider,
             "logger": logger,
             "SQLAlchemyError": SQLAlchemyError,
-            "user_repository": user_repository,
-            "product_repository": product_repository,
-            "usage_repository": usage_repository,
+            "user_repository_factory": user_repository_factory,
+            "product_repository_factory": product_repository_factory,
+            "usage_repository_factory": usage_repository_factory,
             "models": models,
             "schemas": schemas,
             "settings": settings,
@@ -57,11 +60,13 @@ class WebEnrichmentTaskRunner:
         self._service: WebEnrichmentTaskService | None = None
 
     def _build(self) -> WebEnrichmentTaskService:
+        """Execute build as part of this module workflow."""
         build_kwargs = dict(self._kwargs)
         build_kwargs["web_extractor"] = self._web_extractor
         return WebEnrichmentTaskService(**build_kwargs)
 
     def _get_service(self) -> WebEnrichmentTaskService:
+        """Retrieve service using the current service dependencies."""
         if self._service is None:
             self._service = self._build()
         return self._service
@@ -73,6 +78,7 @@ class WebEnrichmentTaskRunner:
         user_id: int,
         termos_busca_override: Optional[str] = None,
     ) -> None:
+        """Execute execute as part of this module workflow."""
         await self._get_service().execute(
             produto_id=produto_id,
             user_id=user_id,

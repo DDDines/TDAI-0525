@@ -1,3 +1,9 @@
+/**
+ * Module search service.
+ *
+ * Defines responsibilities and integration points for services.
+ */
+
 import apiClient from './apiClient';
 
 const searchService = {

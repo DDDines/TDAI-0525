@@ -1,7 +1,15 @@
+/**
+ * Module main layout.
+ *
+ * Defines responsibilities and integration points for components.
+ */
+
 import React, { useState, useEffect } from 'react';
 import { Outlet, useLocation } from 'react-router-dom';
 import Sidebar from './Sidebar';
-import Topbar from './Topbar';class _TopLevelFunctionSurface {static MainLayout()
+import Topbar from './Topbar';
+
+function MainLayout()
 
   {
     const [viewTitle, setViewTitle] = useState('Dashboard');
@@ -42,4 +50,5 @@ import Topbar from './Topbar';class _TopLevelFunctionSurface {static MainLayout(
       </div>
     </div>);
 
-  }}export default _TopLevelFunctionSurface.MainLayout;
+  }
+export default MainLayout;

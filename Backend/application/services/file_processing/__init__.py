@@ -1,4 +1,6 @@
-﻿from Backend.application.services.file_processing.contracts import FileProcessingPort
+"""Initialize file processing package exports and integration boundaries."""
+
+from Backend.application.services.file_processing.contracts import FileProcessingPort
 from Backend.application.services.file_processing.orchestrator_service import (
     FileProcessingOrchestratorService,
 )

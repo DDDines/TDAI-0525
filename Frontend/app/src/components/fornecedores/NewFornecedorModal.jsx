@@ -1,7 +1,15 @@
+/**
+ * Module new fornecedor modal.
+ *
+ * Defines responsibilities and integration points for components fornecedores.
+ */
+
 // Frontend/app/src/components/fornecedores/NewFornecedorModal.jsx
 import React, { useState, useEffect } from 'react';
 import { showWarningToast } from '../../utils/notifications';
-import '../common/Modal.css';class _TopLevelFunctionSurface {static NewFornecedorModal(
+import '../common/Modal.css';
+
+function NewFornecedorModal(
 
   { isOpen, onClose, onSave, isLoading }) {
     const [nome, setNome] = useState('');
@@ -98,4 +106,5 @@ import '../common/Modal.css';class _TopLevelFunctionSurface {static NewFornecedo
       </div>
     </div>);
 
-  }}export default _TopLevelFunctionSurface.NewFornecedorModal;
+  }
+export default NewFornecedorModal;

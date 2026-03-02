@@ -1,3 +1,9 @@
+/**
+ * Module main.
+ *
+ * Defines responsibilities and integration points for frontend.
+ */
+
 // Frontend/app/src/main.jsx
 import React from 'react';
 import ReactDOM from 'react-dom/client';

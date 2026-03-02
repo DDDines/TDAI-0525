@@ -1,3 +1,5 @@
+"""Document pipeline selector module responsibilities and runtime integration points."""
+
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -13,12 +15,14 @@ TaskExecutor = Callable[..., Awaitable[Any]]
 
 @dataclass(frozen=True)
 class TaskExecutionPlan:
+    """Represent Task Execution Plan and centralize its responsibilities inside this module."""
     name: str
     executor_name: str
     executor: TaskExecutor
     task_kwargs: Dict[str, Any]
 
     def to_compare_payload(self) -> Dict[str, Any]:
+        """Execute to compare payload as part of this module workflow."""
         return {
             "name": self.name,
             "executor_name": self.executor_name,
@@ -27,9 +31,10 @@ class TaskExecutionPlan:
 
 
 class PipelineSelector:
-    """Selects OOP execution plan."""
+    """Represent Pipeline Selector and centralize its responsibilities inside this module."""
 
     def __init__(self, context: str):
+        """Initialize injected dependencies and runtime configuration for Pipeline Selector."""
         self.context = context
 
     def select(
@@ -37,6 +42,7 @@ class PipelineSelector:
         *,
         oop_plan: TaskExecutionPlan,
     ) -> TaskExecutionPlan:
+        """Execute select as part of this module workflow."""
         _ = AppModeWorkflow().get_app_mode()
         logger.info("APP_MODE=oop (%s): selecionado plano OOP", self.context)
         return oop_plan

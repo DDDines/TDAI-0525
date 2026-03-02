@@ -1,3 +1,5 @@
+"""Document product management service module responsibilities and runtime integration points."""
+
 from __future__ import annotations
 
 from typing import Any
@@ -19,6 +21,7 @@ class ProductManagementService:
         historico_repo: Any,
         uso_ia_repo: Any,
     ) -> None:
+        """Initialize injected dependencies and runtime configuration for Product Management Service."""
         self._models = models
         self._schemas = schemas
         self._produto_repo = produto_repo
@@ -29,16 +32,19 @@ class ProductManagementService:
 
     @staticmethod
     def _ensure_owner_or_superuser(*, db_obj: Any, current_user: Any, forbidden_detail: str) -> None:
+        """Ensure owner or superuser exists or is valid before continuing the flow."""
         if not current_user.is_superuser and db_obj.user_id != current_user.id:
             raise HTTPException(status_code=403, detail=forbidden_detail)
 
     def _get_produto_or_404(self, *, produto_id: int) -> Any:
+        """Retrieve produto or 404 using the current service dependencies."""
         db_produto = self._produto_repo.get_produto(produto_id=produto_id)
         if db_produto is None:
             raise HTTPException(status_code=404, detail="Produto nao encontrado")
         return db_produto
 
     def _ensure_fornecedor_exists(self, *, fornecedor_id: int) -> None:
+        """Ensure fornecedor exists exists or is valid before continuing the flow."""
         fornecedor = self._fornecedor_repo.get_fornecedor(fornecedor_id=fornecedor_id)
         if not fornecedor:
             raise HTTPException(
@@ -47,6 +53,7 @@ class ProductManagementService:
             )
 
     def _ensure_product_type_exists(self, *, product_type_id: int) -> None:
+        """Ensure product type exists exists or is valid before continuing the flow."""
         product_type = self._product_type_repo.get_product_type(
             product_type_id=product_type_id,
         )
@@ -62,6 +69,7 @@ class ProductManagementService:
         produto: Any,
         current_user: Any,
     ) -> Any:
+        """Create produto and return the resulting payload or entity."""
         if getattr(produto, "fornecedor_id", None):
             self._ensure_fornecedor_exists(fornecedor_id=produto.fornecedor_id)
         if getattr(produto, "product_type_id", None):
@@ -97,6 +105,7 @@ class ProductManagementService:
         produto_id: int,
         current_user: Any,
     ) -> Any:
+        """Execute read produto as part of this module workflow."""
         db_produto = self._get_produto_or_404(produto_id=produto_id)
         self._ensure_owner_or_superuser(
             db_obj=db_produto,
@@ -121,6 +130,7 @@ class ProductManagementService:
         product_type_id: int | None,
         current_user: Any,
     ) -> dict[str, Any]:
+        """Execute list produtos as part of this module workflow."""
         user_id_filter = None if current_user.is_superuser else current_user.id
         items = self._produto_repo.get_produtos_by_user(
             user_id=user_id_filter,
@@ -162,6 +172,7 @@ class ProductManagementService:
         produto_update: Any,
         current_user: Any,
     ) -> Any:
+        """Update produto and persist the resulting state changes."""
         db_produto = self._get_produto_or_404(produto_id=produto_id)
         self._ensure_owner_or_superuser(
             db_obj=db_produto,
@@ -204,6 +215,7 @@ class ProductManagementService:
         produto_id: int,
         current_user: Any,
     ) -> Any:
+        """Execute delete produto as part of this module workflow."""
         db_produto = self._get_produto_or_404(produto_id=produto_id)
         self._ensure_owner_or_superuser(
             db_obj=db_produto,
@@ -227,6 +239,7 @@ class ProductManagementService:
         produto_ids: list[int],
         current_user: Any,
     ) -> list[Any]:
+        """Execute batch delete produtos as part of this module workflow."""
         deleted_produtos: list[Any] = []
         not_found_ids: list[int] = []
         not_authorized_ids: list[int] = []

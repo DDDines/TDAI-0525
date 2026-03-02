@@ -16,10 +16,12 @@ class FornecedorRepository:
     """Repository OO de Fornecedor com Session vinculada por request."""
 
     def __init__(self, db: Session) -> None:
+        """Initialize injected dependencies and runtime configuration for Fornecedor Repository."""
         self._db = db
 
     @staticmethod
     def _normalize_supplier_url_fields(data: dict) -> None:
+        """Normalize supplier url fields to keep behavior consistent across callers."""
         if data.get("site_url") is not None:
             data["site_url"] = str(data["site_url"])
         if data.get("link_busca_padrao") is not None:
@@ -27,6 +29,7 @@ class FornecedorRepository:
 
     @staticmethod
     def _apply_fornecedor_search_filter(query, search: Optional[str]):
+        """Execute apply fornecedor search filter as part of this module workflow."""
         if not search:
             return query
 
@@ -40,6 +43,7 @@ class FornecedorRepository:
         )
 
     def _validate_fornecedor_uniqueness(self, *, user_id: int, fornecedor_data: dict) -> None:
+        """Execute validate fornecedor uniqueness as part of this module workflow."""
         existing_fornecedor = (
             self._db.query(Fornecedor)
             .filter(
@@ -75,6 +79,7 @@ class FornecedorRepository:
                 )
 
     def create_fornecedor(self, *, fornecedor: schemas.FornecedorCreate, user_id: int) -> Fornecedor:
+        """Create fornecedor and return the resulting payload or entity."""
         fornecedor_data = fornecedor.model_dump()
         self._validate_fornecedor_uniqueness(user_id=user_id, fornecedor_data=fornecedor_data)
         self._normalize_supplier_url_fields(fornecedor_data)
@@ -86,6 +91,7 @@ class FornecedorRepository:
         return db_fornecedor
 
     def get_fornecedor(self, *, fornecedor_id: int) -> Optional[Fornecedor]:
+        """Retrieve fornecedor using the current service dependencies."""
         return self._db.query(Fornecedor).filter(Fornecedor.id == fornecedor_id).first()
 
     def get_fornecedores_by_user(
@@ -97,6 +103,7 @@ class FornecedorRepository:
         limit: int = 10,
         search: Optional[str] = None,
     ) -> List[Fornecedor]:
+        """Retrieve fornecedores by user using the current service dependencies."""
         query = self._db.query(Fornecedor)
         if not is_admin and user_id:
             query = query.filter(Fornecedor.user_id == user_id)
@@ -110,11 +117,31 @@ class FornecedorRepository:
         is_admin: bool = False,
         search: Optional[str] = None,
     ) -> int:
+        """Execute count fornecedores by user as part of this module workflow."""
         query = self._db.query(func.count(Fornecedor.id))
         if not is_admin and user_id:
             query = query.filter(Fornecedor.user_id == user_id)
         query = self._apply_fornecedor_search_filter(query, search)
         return query.scalar() or 0
+
+    def search_fornecedores_for_index(
+        self,
+        *,
+        query_text: Optional[str],
+        limit: int,
+        user_id: Optional[int],
+        is_admin: bool,
+    ):
+        """Return lightweight supplier rows for search endpoint rendering."""
+        query = self._db.query(Fornecedor.id, Fornecedor.nome, Fornecedor.created_at)
+        if query_text:
+            term = f"%{query_text.lower()}%"
+            query = query.filter(func.lower(Fornecedor.nome).ilike(term))
+        if not is_admin:
+            if user_id is None:
+                return []
+            query = query.filter(Fornecedor.user_id == user_id)
+        return query.order_by(Fornecedor.created_at.desc()).limit(limit).all()
 
     def update_fornecedor(
         self,
@@ -122,6 +149,7 @@ class FornecedorRepository:
         db_fornecedor: Fornecedor,
         fornecedor_update: schemas.FornecedorUpdate,
     ) -> Fornecedor:
+        """Update fornecedor and persist the resulting state changes."""
         update_data = fornecedor_update.model_dump(exclude_unset=True)
         self._normalize_supplier_url_fields(update_data)
 
@@ -138,6 +166,7 @@ class FornecedorRepository:
         nome: str,
         exclude_id: Optional[int] = None,
     ) -> bool:
+        """Exists fornecedor with name for user."""
         query = self._db.query(Fornecedor).filter(
             Fornecedor.user_id == user_id,
             func.lower(Fornecedor.nome) == func.lower(nome),
@@ -152,6 +181,7 @@ class FornecedorRepository:
         db_fornecedor: Fornecedor,
         mapping: Optional[dict],
     ) -> Fornecedor:
+        """Execute set default column mapping as part of this module workflow."""
         db_fornecedor.default_column_mapping = mapping
         self._db.add(db_fornecedor)
         self._db.commit()
@@ -159,6 +189,7 @@ class FornecedorRepository:
         return db_fornecedor
 
     def delete_fornecedor(self, *, db_fornecedor: Fornecedor) -> Fornecedor:
+        """Execute delete fornecedor as part of this module workflow."""
         self._db.delete(db_fornecedor)
         self._db.commit()
         return db_fornecedor
@@ -171,6 +202,7 @@ class FornecedorRepository:
         file_name: str,
         original_file_path: str,
     ) -> CatalogImportFile:
+        """Create catalog import file and return the resulting payload or entity."""
         stored_filename = Path(original_file_path).name
         db_import_file = CatalogImportFile(
             original_filename=file_name,

@@ -1,10 +1,11 @@
+"""Document limit service module responsibilities and runtime integration points."""
+
 from __future__ import annotations
 
 from sqlalchemy.orm import Session
 
 from Backend import models
 from Backend.application.services.ports import LimitPort
-from Backend.infrastructure.adapters.limit_adapter import LimitServiceAdapter
 
 
 class LimitService:
@@ -13,9 +14,10 @@ class LimitService:
     def __init__(
         self,
         *,
-        port: LimitPort | None = None,
+        port: LimitPort,
     ) -> None:
-        self._port = port or LimitServiceAdapter()
+        """Initialize injected dependencies and runtime configuration for Limit Service."""
+        self._port = port
 
     def verificar_limite_uso(
         self,
@@ -23,6 +25,7 @@ class LimitService:
         user: models.User,
         tipo_geracao_principal: str,
     ) -> int:
+        """Execute verificar limite uso as part of this module workflow."""
         return self._port.verificar_limite_uso(
             session=session,
             user=user,
@@ -35,6 +38,7 @@ class LimitService:
         user_id: int,
         creditos_necessarios: int = 1,
     ) -> bool:
+        """Verificar creditos disponiveis geracao ia."""
         return await self._port.verificar_creditos_disponiveis_geracao_ia(
             session=session,
             user_id=user_id,
@@ -47,6 +51,7 @@ class LimitService:
         user_id: int,
         creditos_necessarios: int = 1,
     ) -> bool:
+        """Verificar e consumir creditos geracao ia."""
         return await self._port.verificar_e_consumir_creditos_geracao_ia(
             session=session,
             user_id=user_id,

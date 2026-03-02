@@ -1,3 +1,7 @@
+"""Web enrichment content quality service.
+
+"""
+
 from __future__ import annotations
 
 from typing import Any, Dict
@@ -18,9 +22,11 @@ class WebEnrichmentContentQualityService:
     )
 
     def __init__(self, *, normalization_service: Any) -> None:
+        """Initialize injected dependencies and runtime configuration for Web Enrichment Content Quality Service."""
         self._normalization = normalization_service
 
     def is_meaningful_extracted_text(self, value: Any) -> bool:
+        """Execute is meaningful extracted text as part of this module workflow."""
         text = self._normalization.fold_text(value)
         if not text:
             return False
@@ -37,6 +43,7 @@ class WebEnrichmentContentQualityService:
         return letters >= 50
 
     def metadata_has_minimum_signal(self, metadata: Dict[str, Any]) -> bool:
+        """Execute metadata has minimum signal as part of this module workflow."""
         if not metadata:
             return False
         nome = self._normalization.as_text(metadata.get("nome"))

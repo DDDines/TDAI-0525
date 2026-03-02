@@ -1,2 +1,2 @@
-"""Application layer (OOP-first orchestration)."""
+"""Initialize application package exports and integration boundaries."""
 

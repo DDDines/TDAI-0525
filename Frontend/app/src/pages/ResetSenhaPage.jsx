@@ -1,8 +1,16 @@
+/**
+ * Module reset senha page.
+ *
+ * Defines responsibilities and integration points for pages.
+ */
+
 import React, { useState } from 'react';
 import { useSearchParams, Link } from 'react-router-dom';
 import authService from '../services/authService';
 import { showSuccessToast, showErrorToast } from '../utils/notifications';
-import './LoginPage.css';class _TopLevelFunctionSurface {static ResetSenhaPage()
+import './LoginPage.css';
+
+function ResetSenhaPage()
 
   {
     const [searchParams] = useSearchParams();
@@ -70,4 +78,5 @@ import './LoginPage.css';class _TopLevelFunctionSurface {static ResetSenhaPage()
       </div>
     </div>);
 
-  }}export default _TopLevelFunctionSurface.ResetSenhaPage;
+  }
+export default ResetSenhaPage;

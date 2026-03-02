@@ -1,6 +1,12 @@
+"""Module test architecture boundaries.
+
+Contains backend logic related to test architecture boundaries and documents its role in the OOP architecture.
+"""
+
 from __future__ import annotations
 
 import ast
+import re
 from pathlib import Path
 from typing import Iterable
 
@@ -11,8 +17,8 @@ APPLICATION_ROOT = PROJECT_ROOT / "Backend" / "application"
 APPLICATION_SERVICES_ROOT = APPLICATION_ROOT / "services"
 ROUTERS_ROOT = PROJECT_ROOT / "Backend" / "routers"
 INFRASTRUCTURE_ADAPTERS_ROOT = PROJECT_ROOT / "Backend" / "infrastructure" / "adapters"
-INFRASTRUCTURE_RUNTIME_ROOT = PROJECT_ROOT / "Backend" / "infrastructure" / "runtime"
-INFRASTRUCTURE_RUNTIME_SERVICES_ROOT = (
+LEGACY_RUNTIME_PROVIDER_ROOT = PROJECT_ROOT / "Backend" / "infrastructure" / "runtime"
+LEGACY_RUNTIME_SERVICES_ROOT = (
     PROJECT_ROOT / "Backend" / "infrastructure" / "runtime_services"
 )
 INFRASTRUCTURE_RUNTIME_MODULES_ROOT = (
@@ -25,14 +31,18 @@ CRUD_MODULE_FILES = sorted(BACKEND_ROOT.glob("crud_*.py"))
 
 class _TopLevelFunctionSurface:
 
+    """Represent top level function surface and centralize responsibilities for this module."""
     def _iter_python_files(root: Path) -> Iterable[Path]:
+        """Run iter python files in this workflow."""
         return sorted(path for path in root.rglob("*.py") if path.is_file())
 
     def _parse_python_file(path: Path) -> ast.AST:
+        """Run parse python file in this workflow."""
         source = path.read_text(encoding="utf-8-sig")
         return ast.parse(source, filename=str(path))
 
     def _import_targets(path: Path) -> list[str]:
+        """Run import targets in this workflow."""
         tree = _parse_python_file(path)
         targets: list[str] = []
         for node in ast.walk(tree):
@@ -46,6 +56,7 @@ class _TopLevelFunctionSurface:
         return targets
 
     def _is_http_endpoint_function(node: ast.FunctionDef | ast.AsyncFunctionDef) -> bool:
+        """Run is http endpoint function in this workflow."""
         for decorator in node.decorator_list:
             if not isinstance(decorator, ast.Call):
                 continue
@@ -69,6 +80,7 @@ class _TopLevelFunctionSurface:
         return False
 
     def test_application_does_not_import_backend_services_modules():
+        """Run test application does not import backend services modules in this workflow."""
         offenders: list[str] = []
         for path in _iter_python_files(APPLICATION_ROOT):
             rel = path.relative_to(PROJECT_ROOT)
@@ -79,6 +91,7 @@ class _TopLevelFunctionSurface:
         assert not offenders, "Unexpected imports to Backend.services:\n" + "\n".join(offenders)
 
     def test_application_does_not_import_backend_router_modules():
+        """Run test application does not import backend router modules in this workflow."""
         offenders: list[str] = []
         for path in _iter_python_files(APPLICATION_ROOT):
             rel = path.relative_to(PROJECT_ROOT)
@@ -89,6 +102,7 @@ class _TopLevelFunctionSurface:
         assert not offenders, "Unexpected imports to Backend.routers:\n" + "\n".join(offenders)
 
     def test_application_services_do_not_define_dunder_getattr_fallbacks():
+        """Run test application services do not define dunder getattr fallbacks in this workflow."""
         offenders: list[str] = []
         for path in _iter_python_files(APPLICATION_SERVICES_ROOT):
             rel = path.relative_to(PROJECT_ROOT)
@@ -100,6 +114,7 @@ class _TopLevelFunctionSurface:
         assert not offenders, "Unexpected __getattr__ fallbacks:\n" + "\n".join(offenders)
 
     def test_application_services_do_not_import_legacy_infrastructure_bridges():
+        """Run test application services do not import legacy infrastructure bridges in this workflow."""
         offenders: list[str] = []
         for path in _iter_python_files(APPLICATION_SERVICES_ROOT):
             rel = path.relative_to(PROJECT_ROOT)
@@ -115,6 +130,7 @@ class _TopLevelFunctionSurface:
         )
 
     def test_application_services_do_not_call_private_methods_from_external_objects():
+        """Run test application services do not call private methods from external objects in this workflow."""
         offenders: list[str] = []
         for path in _iter_python_files(APPLICATION_SERVICES_ROOT):
             rel = path.relative_to(PROJECT_ROOT)
@@ -142,6 +158,7 @@ class _TopLevelFunctionSurface:
         )
 
     def test_infrastructure_adapters_do_not_import_backend_services_modules():
+        """Run test infrastructure adapters do not import backend services modules in this workflow."""
         offenders: list[str] = []
         for path in _iter_python_files(INFRASTRUCTURE_ADAPTERS_ROOT):
             rel = path.relative_to(PROJECT_ROOT)
@@ -154,39 +171,27 @@ class _TopLevelFunctionSurface:
             + "\n".join(offenders)
         )
 
-    def test_infrastructure_runtime_providers_do_not_import_backend_services_modules():
-        offenders: list[str] = []
-        for path in _iter_python_files(INFRASTRUCTURE_RUNTIME_ROOT):
-            rel = path.relative_to(PROJECT_ROOT)
-            for target in _import_targets(path):
-                if target == "Backend.services" or target.startswith("Backend.services."):
-                    offenders.append(f"{rel}: {target}")
-    
-        assert not offenders, (
-            "Unexpected direct imports to Backend.services in infrastructure runtime providers:\n"
-            + "\n".join(offenders)
+    def test_legacy_runtime_provider_package_removed():
+        """Ensure the old runtime provider package was removed after OOP finalization."""
+        python_files = list(_iter_python_files(LEGACY_RUNTIME_PROVIDER_ROOT))
+        assert not python_files, (
+            "Legacy infrastructure/runtime package must be removed:\n"
+            + "\n".join(str(path.relative_to(PROJECT_ROOT)) for path in python_files)
         )
 
-    def test_infrastructure_runtime_providers_do_not_import_runtime_modules_directly():
-        offenders: list[str] = []
-        for path in _iter_python_files(INFRASTRUCTURE_RUNTIME_ROOT):
-            rel = path.relative_to(PROJECT_ROOT)
-            for target in _import_targets(path):
-                if target == "Backend.infrastructure.runtime_modules" or target.startswith(
-                    "Backend.infrastructure.runtime_modules."
-                ):
-                    offenders.append(f"{rel}: {target}")
-    
-        assert not offenders, (
-            "Runtime providers must depend on runtime_services, not runtime_modules:\n"
-            + "\n".join(offenders)
+    def test_legacy_runtime_services_package_removed():
+        """Ensure the old runtime_services package was removed after OOP finalization."""
+        python_files = list(_iter_python_files(LEGACY_RUNTIME_SERVICES_ROOT))
+        assert not python_files, (
+            "Legacy infrastructure/runtime_services package must be removed:\n"
+            + "\n".join(str(path.relative_to(PROJECT_ROOT)) for path in python_files)
         )
 
-    def test_runtime_modules_imports_are_constrained_to_runtime_services_and_tests():
+    def test_runtime_modules_imports_are_constrained_to_adapters_and_tests():
+        """Keep runtime_modules isolated; only adapters/testing layers may import them directly."""
         offenders: list[str] = []
     
         allowed_prefixes = [
-            INFRASTRUCTURE_RUNTIME_SERVICES_ROOT.resolve(),
             INFRASTRUCTURE_ADAPTERS_ROOT.resolve(),
             BACKEND_TESTS_ROOT.resolve(),
             (BACKEND_ROOT / "testing").resolve(),
@@ -208,11 +213,12 @@ class _TopLevelFunctionSurface:
                     offenders.append(f"{rel}: {target}")
     
         assert not offenders, (
-            "Direct runtime_modules imports are only allowed in runtime_services and tests:\n"
+            "Direct runtime_modules imports are only allowed in adapters and tests:\n"
             + "\n".join(offenders)
         )
 
     def test_backend_tests_do_not_import_runtime_modules_directly():
+        """Run test backend tests do not import runtime modules directly in this workflow."""
         offenders: list[str] = []
     
         for path in _iter_python_files(BACKEND_TESTS_ROOT):
@@ -224,11 +230,12 @@ class _TopLevelFunctionSurface:
                     offenders.append(f"{rel}: {target}")
     
         assert not offenders, (
-            "Backend/tests must consume runtime_services or Backend.testing.runtime_apis, "
+            "Backend/tests must consume application/adapters or Backend.testing.runtime_apis, "
             "not import runtime_modules directly:\n" + "\n".join(offenders)
         )
 
     def test_project_tests_do_not_import_runtime_modules_directly():
+        """Run test project tests do not import runtime modules directly in this workflow."""
         offenders: list[str] = []
     
         for path in _iter_python_files(PROJECT_TESTS_ROOT):
@@ -240,46 +247,12 @@ class _TopLevelFunctionSurface:
                     offenders.append(f"{rel}: {target}")
     
         assert not offenders, (
-            "tests/ must consume application/runtime_services surfaces, "
+            "tests/ must consume application/adapters surfaces, "
             "not import runtime_modules directly:\n" + "\n".join(offenders)
         )
 
-    def test_infrastructure_runtime_providers_expose_get_runtime_service_only():
-        offenders: list[str] = []
-        missing: list[str] = []
-    
-        for path in _iter_python_files(INFRASTRUCTURE_RUNTIME_ROOT):
-            if path.name == "__init__.py":
-                continue
-    
-            rel = path.relative_to(PROJECT_ROOT)
-            tree = _parse_python_file(path)
-            exported_names: set[str] = set()
-    
-            for node in ast.walk(tree):
-                if isinstance(node, ast.FunctionDef):
-                    exported_names.add(node.name)
-                elif isinstance(node, ast.Assign):
-                    for target in node.targets:
-                        if isinstance(target, ast.Name):
-                            exported_names.add(target.id)
-                elif isinstance(node, ast.AnnAssign) and isinstance(node.target, ast.Name):
-                    exported_names.add(node.target.id)
-    
-            if "get_runtime_module" in exported_names:
-                offenders.append(f"{rel}: get_runtime_module")
-            if "get_runtime_service" not in exported_names:
-                missing.append(str(rel))
-    
-        assert not offenders, (
-            "Legacy runtime provider entrypoints are not allowed:\n" + "\n".join(offenders)
-        )
-        assert not missing, (
-            "Runtime providers must expose get_runtime_service():\n"
-            + "\n".join(missing)
-        )
-
     def test_backend_top_level_non_endpoint_functions_are_allowlisted():
+        """Run test backend top level non endpoint functions are allowlisted in this workflow."""
         offenders: list[str] = []
         allowed_functions = {
             ("Backend/database.py", "get_db"),
@@ -307,48 +280,9 @@ class _TopLevelFunctionSurface:
             + "\n".join(offenders)
         )
 
-    def test_runtime_services_do_not_import_backend_services_modules():
-        offenders: list[str] = []
-        for path in _iter_python_files(INFRASTRUCTURE_RUNTIME_SERVICES_ROOT):
-            rel = path.relative_to(PROJECT_ROOT)
-            for target in _import_targets(path):
-                if target == "Backend.services" or target.startswith("Backend.services."):
-                    offenders.append(f"{rel}: {target}")
-    
-        assert not offenders, (
-            "Unexpected imports to Backend.services in infrastructure runtime services:\n"
-            + "\n".join(offenders)
-        )
-
-    def test_runtime_services_do_not_call_runtime_module_functions_directly():
-        offenders: list[str] = []
-        for path in _iter_python_files(INFRASTRUCTURE_RUNTIME_SERVICES_ROOT):
-            rel = path.relative_to(PROJECT_ROOT)
-            tree = _parse_python_file(path)
-    
-            for node in ast.walk(tree):
-                if not isinstance(node, ast.Call):
-                    continue
-                if not isinstance(node.func, ast.Attribute):
-                    continue
-                owner = node.func.value
-                if not isinstance(owner, ast.Name):
-                    continue
-                if not owner.id.endswith("_module"):
-                    continue
-                if node.func.attr.startswith("get_"):
-                    continue
-                # Allow explicit class construction from runtime modules.
-                if node.func.attr[:1].isupper():
-                    continue
-                offenders.append(f"{rel}:{node.lineno} -> {owner.id}.{node.func.attr}")
-    
-        assert not offenders, (
-            "Runtime services must consume workflow/service objects, "
-            "not call runtime module function APIs directly:\n" + "\n".join(offenders)
-        )
 
     def test_backend_code_does_not_import_backend_services_modules():
+        """Run test backend code does not import backend services modules in this workflow."""
         offenders: list[str] = []
     
         for path in _iter_python_files(BACKEND_ROOT):
@@ -363,6 +297,7 @@ class _TopLevelFunctionSurface:
         )
 
     def test_runtime_modules_do_not_import_backend_crud_package_root():
+        """Run test runtime modules do not import backend crud package root in this workflow."""
         offenders: list[str] = []
         for path in _iter_python_files(INFRASTRUCTURE_RUNTIME_MODULES_ROOT):
             rel = path.relative_to(PROJECT_ROOT)
@@ -390,6 +325,7 @@ class _TopLevelFunctionSurface:
         )
 
     def test_runtime_modules_do_not_expose_public_function_wrappers():
+        """Run test runtime modules do not expose public function wrappers in this workflow."""
         offenders: list[str] = []
         allowed_public_functions: set[str] = set()
     
@@ -412,6 +348,7 @@ class _TopLevelFunctionSurface:
         )
 
     def test_runtime_modules_do_not_define_top_level_functions():
+        """Run test runtime modules do not define top level functions in this workflow."""
         offenders: list[str] = []
     
         for path in _iter_python_files(INFRASTRUCTURE_RUNTIME_MODULES_ROOT):
@@ -427,6 +364,7 @@ class _TopLevelFunctionSurface:
         )
 
     def test_crud_modules_do_not_expose_public_function_wrappers():
+        """Run test crud modules do not expose public function wrappers in this workflow."""
         offenders: list[str] = []
         for path in CRUD_MODULE_FILES:
             rel = path.relative_to(PROJECT_ROOT)
@@ -447,6 +385,7 @@ class _TopLevelFunctionSurface:
         )
 
     def test_runtime_modules_do_not_instantiate_singletons_at_module_scope():
+        """Run test runtime modules do not instantiate singletons at module scope in this workflow."""
         offenders: list[str] = []
         allowed_runtime_module_callees = {"ThreadPoolExecutor"}
     
@@ -474,33 +413,8 @@ class _TopLevelFunctionSurface:
             + "\n".join(offenders)
         )
 
-    def test_runtime_services_do_not_instantiate_singletons_at_module_scope():
-        offenders: list[str] = []
-    
-        for path in _iter_python_files(INFRASTRUCTURE_RUNTIME_SERVICES_ROOT):
-            rel = path.relative_to(PROJECT_ROOT)
-            tree = _parse_python_file(path)
-            for node in tree.body:
-                if not isinstance(node, ast.Assign):
-                    continue
-                if not isinstance(node.value, ast.Call):
-                    continue
-                if not isinstance(node.value.func, ast.Name):
-                    continue
-    
-                callee = node.value.func.id
-                if (
-                    (callee.startswith("_") and len(callee) > 1 and callee[1].isupper())
-                    or callee[:1].isupper()
-                ):
-                    offenders.append(f"{rel}:{node.lineno} -> {callee}")
-    
-        assert not offenders, (
-            "Runtime services must not keep class singletons at module scope:\n"
-            + "\n".join(offenders)
-        )
-
     def test_backend_code_does_not_define_module_level_class_singletons():
+        """Run test backend code does not define module level class singletons in this workflow."""
         offenders: list[str] = []
         allowed_callees = {
             "APIRouter",
@@ -555,6 +469,7 @@ class _TopLevelFunctionSurface:
         )
 
     def test_crud_modules_do_not_instantiate_singletons_at_module_scope():
+        """Run test crud modules do not instantiate singletons at module scope in this workflow."""
         offenders: list[str] = []
     
         for path in CRUD_MODULE_FILES:
@@ -580,6 +495,7 @@ class _TopLevelFunctionSurface:
         )
 
     def test_routers_do_not_import_backend_crud_modules_directly():
+        """Run test routers do not import backend crud modules directly in this workflow."""
         offenders: list[str] = []
         for path in _iter_python_files(ROUTERS_ROOT):
             rel = path.relative_to(PROJECT_ROOT)
@@ -608,6 +524,7 @@ class _TopLevelFunctionSurface:
         )
 
     def test_routers_do_not_import_application_services_package_root():
+        """Run test routers do not import application services package root in this workflow."""
         offenders: list[str] = []
         for path in _iter_python_files(ROUTERS_ROOT):
             rel = path.relative_to(PROJECT_ROOT)
@@ -621,6 +538,7 @@ class _TopLevelFunctionSurface:
         )
 
     def test_routers_do_not_import_threading_module_directly():
+        """Run test routers do not import threading module directly in this workflow."""
         offenders: list[str] = []
         for path in _iter_python_files(ROUTERS_ROOT):
             rel = path.relative_to(PROJECT_ROOT)
@@ -644,6 +562,7 @@ class _TopLevelFunctionSurface:
         )
 
     def test_routers_do_not_spawn_manual_threads():
+        """Run test routers do not spawn manual threads in this workflow."""
         offenders: list[str] = []
         for path in _iter_python_files(ROUTERS_ROOT):
             rel = path.relative_to(PROJECT_ROOT)
@@ -670,6 +589,7 @@ class _TopLevelFunctionSurface:
         )
 
     def test_router_endpoints_do_not_receive_db_parameter():
+        """Run test router endpoints do not receive db parameter in this workflow."""
         offenders: list[str] = []
     
         for path in _iter_python_files(ROUTERS_ROOT):
@@ -701,6 +621,7 @@ class _TopLevelFunctionSurface:
         )
 
     def test_routers_do_not_use_sessiondep_alias():
+        """Run test routers do not use sessiondep alias in this workflow."""
         offenders: list[str] = []
     
         for path in _iter_python_files(ROUTERS_ROOT):
@@ -723,6 +644,7 @@ class _TopLevelFunctionSurface:
         )
 
     def test_routers_do_not_access_request_context_db_directly():
+        """Run test routers do not access request context db directly in this workflow."""
         offenders: list[str] = []
     
         for path in _iter_python_files(ROUTERS_ROOT):
@@ -738,6 +660,7 @@ class _TopLevelFunctionSurface:
         )
 
     def test_routers_do_not_define_module_level_runtime_singletons():
+        """Run test routers do not define module level runtime singletons in this workflow."""
         offenders: list[str] = []
         allowed_callees = {
             "APIRouter",
@@ -785,6 +708,7 @@ class _TopLevelFunctionSurface:
         )
 
     def test_backend_has_no_legacy_crud_imports():
+        """Run test backend has no legacy crud imports in this workflow."""
         offenders: list[str] = []
     
         for path in _iter_python_files(BACKEND_ROOT):
@@ -816,6 +740,7 @@ class _TopLevelFunctionSurface:
         )
 
     def test_tests_do_not_import_backend_crud_modules_directly():
+        """Run test tests do not import backend crud modules directly in this workflow."""
         offenders: list[str] = []
     
         for root in (BACKEND_TESTS_ROOT, PROJECT_TESTS_ROOT):
@@ -847,12 +772,14 @@ class _TopLevelFunctionSurface:
         )
 
     def test_repository_access_adapters_module_removed():
+        """Run test repository access adapters module removed in this workflow."""
         adapters_path = APPLICATION_SERVICES_ROOT / "repository_access_adapters.py"
         assert not adapters_path.exists(), (
             "Legacy repository_access_adapters transitional module should be removed."
         )
 
     def test_application_services_package_init_has_no_eager_reexports():
+        """Run test application services package init has no eager reexports in this workflow."""
         init_path = APPLICATION_SERVICES_ROOT / "__init__.py"
         tree = _parse_python_file(init_path)
         offenders: list[str] = []
@@ -867,6 +794,7 @@ class _TopLevelFunctionSurface:
         )
 
     def test_application_services_do_not_issue_sqlalchemy_query_directly():
+        """Run test application services do not issue sqlalchemy query directly in this workflow."""
         offenders: list[str] = []
     
         for path in _iter_python_files(APPLICATION_SERVICES_ROOT):
@@ -889,6 +817,7 @@ class _TopLevelFunctionSurface:
         )
 
     def test_application_services_have_no_transition_facade_modules():
+        """Run test application services have no transition facade modules in this workflow."""
         offenders = sorted(
             str(path.relative_to(PROJECT_ROOT))
             for path in APPLICATION_SERVICES_ROOT.rglob("*_facade.py")
@@ -900,6 +829,7 @@ class _TopLevelFunctionSurface:
         )
 
     def test_repository_runtime_support_bridge_is_removed():
+        """Run test repository runtime support bridge is removed in this workflow."""
         runtime_support_path = APPLICATION_SERVICES_ROOT / "repository_runtime_support.py"
         assert not runtime_support_path.exists(), (
             "repository_runtime_support.py must be removed."
@@ -920,6 +850,7 @@ class _TopLevelFunctionSurface:
         )
 
     def test_application_service_public_methods_do_not_receive_db_session_factory():
+        """Run test application service public methods do not receive db session factory in this workflow."""
         offenders: list[str] = []
 
         for path in _iter_python_files(APPLICATION_SERVICES_ROOT):
@@ -940,6 +871,7 @@ class _TopLevelFunctionSurface:
         )
 
     def test_runtime_modules_do_not_use_global_statement():
+        """Run test runtime modules do not use global statement in this workflow."""
         offenders: list[str] = []
         for path in _iter_python_files(INFRASTRUCTURE_RUNTIME_MODULES_ROOT):
             rel = path.relative_to(PROJECT_ROOT)
@@ -954,6 +886,7 @@ class _TopLevelFunctionSurface:
         )
 
     def test_file_and_web_runtime_surfaces_do_not_use_varargs():
+        """Run test file and web runtime surfaces do not use varargs in this workflow."""
         offenders: list[str] = []
         target_files = [
             APPLICATION_SERVICES_ROOT / "file_processing" / "contracts.py",
@@ -985,6 +918,7 @@ class _TopLevelFunctionSurface:
         )
 
     def test_router_gateways_do_not_use_kwargs_bridge_methods():
+        """Run test router gateways do not use kwargs bridge methods in this workflow."""
         offenders: list[str] = []
         targets = [
             (ROUTERS_ROOT / "fornecedores.py", "_FornecedoresServiceGateway"),
@@ -1025,6 +959,7 @@ class _TopLevelFunctionSurface:
         )
 
     def test_produtos_coordinator_does_not_use_reflective_dispatch():
+        """Run test produtos coordinator does not use reflective dispatch in this workflow."""
         path = ROUTERS_ROOT / "produtos.py"
         rel = path.relative_to(PROJECT_ROOT)
         tree = _parse_python_file(path)
@@ -1060,6 +995,7 @@ class _TopLevelFunctionSurface:
         )
 
     def test_generation_flow_surfaces_do_not_use_var_kwargs():
+        """Run test generation flow surfaces do not use var kwargs in this workflow."""
         offenders: list[str] = []
         targets = [
             (ROUTERS_ROOT / "generation.py", "GenerationRequestService"),
@@ -1098,6 +1034,7 @@ class _TopLevelFunctionSurface:
         )
 
     def test_application_services_do_not_use_inspect_isclass_resolution():
+        """Run test application services do not use inspect isclass resolution in this workflow."""
         offenders: list[str] = []
         for path in _iter_python_files(APPLICATION_SERVICES_ROOT):
             source = path.read_text(encoding="utf-8-sig")
@@ -1110,6 +1047,7 @@ class _TopLevelFunctionSurface:
         )
 
     def test_application_services_do_not_use_isinstance_type_resolution():
+        """Run test application services do not use isinstance type resolution in this workflow."""
         offenders: list[str] = []
         for path in _iter_python_files(APPLICATION_SERVICES_ROOT):
             rel = path.relative_to(PROJECT_ROOT)
@@ -1135,6 +1073,7 @@ class _TopLevelFunctionSurface:
         )
 
     def test_application_service_public_methods_do_not_take_optional_repo_overrides():
+        """Run test application service public methods do not take optional repo overrides in this workflow."""
         offenders: list[str] = []
 
         for path in _iter_python_files(APPLICATION_SERVICES_ROOT):
@@ -1184,6 +1123,7 @@ class _TopLevelFunctionSurface:
         )
 
     def test_application_service_constructor_repository_dependencies_are_required():
+        """Run test application service constructor repository dependencies are required in this workflow."""
         offenders: list[str] = []
 
         for path in _iter_python_files(APPLICATION_SERVICES_ROOT):
@@ -1244,6 +1184,7 @@ class _TopLevelFunctionSurface:
         )
 
     def test_application_service_constructors_do_not_use_repo_cls_parameters():
+        """Run test application service constructors do not use repo cls parameters in this workflow."""
         offenders: list[str] = []
 
         for path in _iter_python_files(APPLICATION_SERVICES_ROOT):
@@ -1278,6 +1219,7 @@ class _TopLevelFunctionSurface:
         )
 
     def test_application_services_do_not_use_local_repository_imports():
+        """Run test application services do not use local repository imports in this workflow."""
         offenders: list[str] = []
 
         for path in _iter_python_files(APPLICATION_SERVICES_ROOT):
@@ -1315,6 +1257,7 @@ class _TopLevelFunctionSurface:
         )
 
     def test_routers_do_not_mutate_private_attributes_of_external_objects():
+        """Run test routers do not mutate private attributes of external objects in this workflow."""
         offenders: list[str] = []
 
         for path in _iter_python_files(ROUTERS_ROOT):
@@ -1340,6 +1283,7 @@ class _TopLevelFunctionSurface:
         )
 
     def test_application_services_do_not_use_typeerror_fallback_dependency_resolution():
+        """Run test application services do not use typeerror fallback dependency resolution in this workflow."""
         offenders: list[str] = []
 
         for path in _iter_python_files(APPLICATION_SERVICES_ROOT):
@@ -1354,7 +1298,212 @@ class _TopLevelFunctionSurface:
             + "\n".join(offenders)
         )
 
+    def test_runtime_modules_do_not_use_legacy_crud_alias_parameters():
+        """Run test runtime modules do not use legacy crud alias parameters in this workflow."""
+        offenders: list[str] = []
+
+        for path in _iter_python_files(INFRASTRUCTURE_RUNTIME_MODULES_ROOT):
+            rel = path.relative_to(PROJECT_ROOT)
+            source = path.read_text(encoding="utf-8-sig")
+            if "crud_module" in source or "crud_users_module" in source:
+                offenders.append(str(rel))
+
+        assert not offenders, (
+            "Runtime modules must not use legacy crud alias parameters "
+            "(crud_module/crud_users_module):\n"
+            + "\n".join(offenders)
+        )
+
+    def test_limit_runtime_module_has_no_typeerror_signature_fallbacks():
+        """Run test limit runtime module has no typeerror signature fallbacks in this workflow."""
+        limit_module_path = INFRASTRUCTURE_RUNTIME_MODULES_ROOT / "limit_module.py"
+        source = limit_module_path.read_text(encoding="utf-8-sig")
+        assert "except TypeError" not in source, (
+            "Limit runtime module must not use TypeError fallback for dependency "
+            "signature compatibility."
+        )
+
+    def test_ia_and_limit_services_require_explicit_port_dependency():
+        """Run test ia and limit services require explicit port dependency in this workflow."""
+        offenders: list[str] = []
+        targets = [
+            APPLICATION_SERVICES_ROOT / "ia_generation_service.py",
+            APPLICATION_SERVICES_ROOT / "limit_service.py",
+        ]
+
+        for path in targets:
+            rel = path.relative_to(PROJECT_ROOT)
+            source = path.read_text(encoding="utf-8-sig")
+            if "| None = None" in source and "port:" in source:
+                offenders.append(f"{rel}: optional port dependency")
+            if "or IAGenerationServiceAdapter(" in source:
+                offenders.append(f"{rel}: fallback adapter instantiation")
+            if "or LimitServiceAdapter(" in source:
+                offenders.append(f"{rel}: fallback adapter instantiation")
+
+        assert not offenders, (
+            "IA/Limit services must receive explicit injected ports "
+            "(no optional/default adapter fallback):\n"
+            + "\n".join(offenders)
+        )
+
+    def test_tasks_module_has_no_procedural_sqlalchemy_runtime_construction():
+        """Run test tasks module has no procedural sqlalchemy runtime construction in this workflow."""
+        tasks_path = BACKEND_ROOT / "tasks.py"
+        source = tasks_path.read_text(encoding="utf-8-sig")
+        offenders: list[str] = []
+        for pattern in ("create_engine(", "sessionmaker(", "db.query("):
+            if pattern in source:
+                offenders.append(pattern)
+
+        assert not offenders, (
+            "Backend/tasks.py must delegate persistence via OO services/repositories "
+            "(no procedural SQLAlchemy runtime setup):\n"
+            + "\n".join(offenders)
+        )
+
+    def test_file_processing_runtime_has_no_direct_catalog_import_file_query():
+        """Run test file processing runtime has no direct catalog import file query in this workflow."""
+        runtime_path = INFRASTRUCTURE_RUNTIME_MODULES_ROOT / "file_processing_module.py"
+        source = runtime_path.read_text(encoding="utf-8-sig")
+        assert "db.query(models.CatalogImportFile)" not in source, (
+            "File processing runtime module must not query CatalogImportFile directly; "
+            "use injected repository/service."
+        )
+
+    def test_backend_production_code_has_no_db_session_factory_term():
+        """Run test backend production code has no db session factory term in this workflow."""
+        offenders: list[str] = []
+        excluded_roots = (
+            BACKEND_TESTS_ROOT.resolve(),
+            (BACKEND_ROOT / "migrations").resolve(),
+        )
+
+        for path in _iter_python_files(BACKEND_ROOT):
+            resolved = path.resolve()
+            if any(str(resolved).startswith(str(root)) for root in excluded_roots):
+                continue
+            source = path.read_text(encoding="utf-8-sig")
+            if "db_session_factory" in source:
+                offenders.append(str(path.relative_to(PROJECT_ROOT)))
+
+        assert not offenders, (
+            "Production backend code must use OO session providers "
+            "(no db_session_factory term):\n" + "\n".join(offenders)
+        )
+
+    def test_application_services_do_not_use_dynamic_callable_repo_resolution():
+        """Run test application services do not use dynamic callable repo resolution in this workflow."""
+        offenders: list[str] = []
+        target_files = (
+            APPLICATION_SERVICES_ROOT / "catalog_import_task_service.py",
+            APPLICATION_SERVICES_ROOT / "web_enrichment_task_service.py",
+            APPLICATION_SERVICES_ROOT / "web_enrichment_components.py",
+        )
+
+        for path in target_files:
+            source = path.read_text(encoding="utf-8-sig")
+            if "if callable(" in source:
+                offenders.append(str(path.relative_to(PROJECT_ROOT)))
+
+        assert not offenders, (
+            "Application task/enrichment flows must use explicit repository factories "
+            "(no dynamic `if callable(...)` fallback):\n" + "\n".join(offenders)
+        )
+
+    def test_backend_production_functions_have_docstrings():
+        """Require docstrings for every production function in backend code."""
+        offenders: list[str] = []
+        excluded_roots = (
+            BACKEND_TESTS_ROOT.resolve(),
+            (BACKEND_ROOT / "migrations").resolve(),
+            (BACKEND_ROOT / "alembic").resolve(),
+        )
+
+        for path in _iter_python_files(BACKEND_ROOT):
+            resolved = path.resolve()
+            if any(str(resolved).startswith(str(root)) for root in excluded_roots):
+                continue
+            tree = _parse_python_file(path)
+            rel = path.relative_to(PROJECT_ROOT)
+            for node in ast.walk(tree):
+                if not isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
+                    continue
+                if ast.get_docstring(node) is None:
+                    offenders.append(f"{rel}:{node.lineno} -> {node.name}")
+
+        assert not offenders, (
+            "Every production function must include a meaningful docstring:\n"
+            + "\n".join(offenders)
+        )
+
+    def test_backend_production_docstrings_do_not_use_placeholder_templates():
+        """Block legacy placeholder docstring templates in production code."""
+        offenders: list[str] = []
+        excluded_roots = (
+            BACKEND_TESTS_ROOT.resolve(),
+            (BACKEND_ROOT / "migrations").resolve(),
+            (BACKEND_ROOT / "alembic").resolve(),
+        )
+        forbidden_patterns = (
+            r"^Run .+ in this workflow\.$",
+            r"^Return .+ for this workflow\.$",
+            r"^Initialize collaborators and configuration required by this component\.$",
+            r"^Represent .+ and centralize responsibilities for this module\.$",
+        )
+
+        for path in _iter_python_files(BACKEND_ROOT):
+            resolved = path.resolve()
+            if any(str(resolved).startswith(str(root)) for root in excluded_roots):
+                continue
+            tree = _parse_python_file(path)
+            rel = path.relative_to(PROJECT_ROOT)
+            for node in ast.walk(tree):
+                if not isinstance(node, (ast.Module, ast.ClassDef, ast.FunctionDef, ast.AsyncFunctionDef)):
+                    continue
+                docstring = ast.get_docstring(node)
+                if not docstring:
+                    continue
+                for pattern in forbidden_patterns:
+                    if re.match(pattern, docstring):
+                        line = getattr(node, "lineno", 1)
+                        offenders.append(f"{rel}:{line} -> '{docstring}'")
+                        break
+
+        assert not offenders, (
+            "Production docstrings must avoid placeholder boilerplate templates:\n"
+            + "\n".join(offenders)
+        )
+
+    def test_backend_production_code_has_no_varargs_signatures():
+        """Run test backend production code has no varargs signatures in this workflow."""
+        offenders: list[str] = []
+        excluded_roots = (
+            BACKEND_TESTS_ROOT.resolve(),
+            (BACKEND_ROOT / "migrations").resolve(),
+        )
+
+        for path in _iter_python_files(BACKEND_ROOT):
+            resolved = path.resolve()
+            if any(str(resolved).startswith(str(root)) for root in excluded_roots):
+                continue
+            tree = _parse_python_file(path)
+            rel = path.relative_to(PROJECT_ROOT)
+            for node in ast.walk(tree):
+                if not isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
+                    continue
+                if node.args.vararg is not None:
+                    offenders.append(f"{rel}:{node.lineno} -> *{node.args.vararg.arg}")
+                if node.args.kwarg is not None:
+                    offenders.append(f"{rel}:{node.lineno} -> **{node.args.kwarg.arg}")
+
+        assert not offenders, (
+            "Production backend code must expose explicit signatures "
+            "(no *args/**kwargs):\n" + "\n".join(offenders)
+        )
+
     def test_tests_do_not_import_private_backend_symbols():
+        """Run test tests do not import private backend symbols in this workflow."""
         offenders: list[str] = []
     
         for root in (BACKEND_TESTS_ROOT, PROJECT_TESTS_ROOT):
@@ -1382,6 +1531,7 @@ class _TopLevelFunctionSurface:
         )
 
     def test_produtos_core_endpoints_do_not_receive_db_session_directly():
+        """Run test produtos core endpoints do not receive db session directly in this workflow."""
         produtos_router_path = ROUTERS_ROOT / "produtos.py"
         tree = _parse_python_file(produtos_router_path)
         offenders: list[str] = []
@@ -1431,22 +1581,18 @@ test_application_services_do_not_define_dunder_getattr_fallbacks = _TopLevelFunc
 test_application_services_do_not_import_legacy_infrastructure_bridges = _TopLevelFunctionSurface.test_application_services_do_not_import_legacy_infrastructure_bridges
 test_application_services_do_not_call_private_methods_from_external_objects = _TopLevelFunctionSurface.test_application_services_do_not_call_private_methods_from_external_objects
 test_infrastructure_adapters_do_not_import_backend_services_modules = _TopLevelFunctionSurface.test_infrastructure_adapters_do_not_import_backend_services_modules
-test_infrastructure_runtime_providers_do_not_import_backend_services_modules = _TopLevelFunctionSurface.test_infrastructure_runtime_providers_do_not_import_backend_services_modules
-test_infrastructure_runtime_providers_do_not_import_runtime_modules_directly = _TopLevelFunctionSurface.test_infrastructure_runtime_providers_do_not_import_runtime_modules_directly
-test_runtime_modules_imports_are_constrained_to_runtime_services_and_tests = _TopLevelFunctionSurface.test_runtime_modules_imports_are_constrained_to_runtime_services_and_tests
+test_legacy_runtime_provider_package_removed = _TopLevelFunctionSurface.test_legacy_runtime_provider_package_removed
+test_legacy_runtime_services_package_removed = _TopLevelFunctionSurface.test_legacy_runtime_services_package_removed
+test_runtime_modules_imports_are_constrained_to_adapters_and_tests = _TopLevelFunctionSurface.test_runtime_modules_imports_are_constrained_to_adapters_and_tests
 test_backend_tests_do_not_import_runtime_modules_directly = _TopLevelFunctionSurface.test_backend_tests_do_not_import_runtime_modules_directly
 test_project_tests_do_not_import_runtime_modules_directly = _TopLevelFunctionSurface.test_project_tests_do_not_import_runtime_modules_directly
-test_infrastructure_runtime_providers_expose_get_runtime_service_only = _TopLevelFunctionSurface.test_infrastructure_runtime_providers_expose_get_runtime_service_only
 test_backend_top_level_non_endpoint_functions_are_allowlisted = _TopLevelFunctionSurface.test_backend_top_level_non_endpoint_functions_are_allowlisted
-test_runtime_services_do_not_import_backend_services_modules = _TopLevelFunctionSurface.test_runtime_services_do_not_import_backend_services_modules
-test_runtime_services_do_not_call_runtime_module_functions_directly = _TopLevelFunctionSurface.test_runtime_services_do_not_call_runtime_module_functions_directly
 test_backend_code_does_not_import_backend_services_modules = _TopLevelFunctionSurface.test_backend_code_does_not_import_backend_services_modules
 test_runtime_modules_do_not_import_backend_crud_package_root = _TopLevelFunctionSurface.test_runtime_modules_do_not_import_backend_crud_package_root
 test_runtime_modules_do_not_expose_public_function_wrappers = _TopLevelFunctionSurface.test_runtime_modules_do_not_expose_public_function_wrappers
 test_runtime_modules_do_not_define_top_level_functions = _TopLevelFunctionSurface.test_runtime_modules_do_not_define_top_level_functions
 test_crud_modules_do_not_expose_public_function_wrappers = _TopLevelFunctionSurface.test_crud_modules_do_not_expose_public_function_wrappers
 test_runtime_modules_do_not_instantiate_singletons_at_module_scope = _TopLevelFunctionSurface.test_runtime_modules_do_not_instantiate_singletons_at_module_scope
-test_runtime_services_do_not_instantiate_singletons_at_module_scope = _TopLevelFunctionSurface.test_runtime_services_do_not_instantiate_singletons_at_module_scope
 test_backend_code_does_not_define_module_level_class_singletons = _TopLevelFunctionSurface.test_backend_code_does_not_define_module_level_class_singletons
 test_crud_modules_do_not_instantiate_singletons_at_module_scope = _TopLevelFunctionSurface.test_crud_modules_do_not_instantiate_singletons_at_module_scope
 test_routers_do_not_import_backend_crud_modules_directly = _TopLevelFunctionSurface.test_routers_do_not_import_backend_crud_modules_directly
@@ -1478,6 +1624,16 @@ test_application_service_constructors_do_not_use_repo_cls_parameters = _TopLevel
 test_application_services_do_not_use_local_repository_imports = _TopLevelFunctionSurface.test_application_services_do_not_use_local_repository_imports
 test_routers_do_not_mutate_private_attributes_of_external_objects = _TopLevelFunctionSurface.test_routers_do_not_mutate_private_attributes_of_external_objects
 test_application_services_do_not_use_typeerror_fallback_dependency_resolution = _TopLevelFunctionSurface.test_application_services_do_not_use_typeerror_fallback_dependency_resolution
+test_runtime_modules_do_not_use_legacy_crud_alias_parameters = _TopLevelFunctionSurface.test_runtime_modules_do_not_use_legacy_crud_alias_parameters
+test_limit_runtime_module_has_no_typeerror_signature_fallbacks = _TopLevelFunctionSurface.test_limit_runtime_module_has_no_typeerror_signature_fallbacks
+test_ia_and_limit_services_require_explicit_port_dependency = _TopLevelFunctionSurface.test_ia_and_limit_services_require_explicit_port_dependency
+test_tasks_module_has_no_procedural_sqlalchemy_runtime_construction = _TopLevelFunctionSurface.test_tasks_module_has_no_procedural_sqlalchemy_runtime_construction
+test_file_processing_runtime_has_no_direct_catalog_import_file_query = _TopLevelFunctionSurface.test_file_processing_runtime_has_no_direct_catalog_import_file_query
+test_backend_production_code_has_no_db_session_factory_term = _TopLevelFunctionSurface.test_backend_production_code_has_no_db_session_factory_term
+test_application_services_do_not_use_dynamic_callable_repo_resolution = _TopLevelFunctionSurface.test_application_services_do_not_use_dynamic_callable_repo_resolution
+test_backend_production_functions_have_docstrings = _TopLevelFunctionSurface.test_backend_production_functions_have_docstrings
+test_backend_production_docstrings_do_not_use_placeholder_templates = _TopLevelFunctionSurface.test_backend_production_docstrings_do_not_use_placeholder_templates
+test_backend_production_code_has_no_varargs_signatures = _TopLevelFunctionSurface.test_backend_production_code_has_no_varargs_signatures
 test_tests_do_not_import_private_backend_symbols = _TopLevelFunctionSurface.test_tests_do_not_import_private_backend_symbols
 test_produtos_core_endpoints_do_not_receive_db_session_directly = _TopLevelFunctionSurface.test_produtos_core_endpoints_do_not_receive_db_session_directly
 

@@ -1,17 +1,16 @@
+/**
+ * Module attribute field.
+ *
+ * Defines responsibilities and integration points for components produtos shared.
+ */
+
 // Frontend/app/src/components/produtos/shared/AttributeField.jsx
 import React from 'react';
 
 // Estilos (podem vir de um arquivo CSS compartilhado ou serem definidos aqui/inline)
-class _TopLevelFunctionSurface {static AttributeField(
 
 
-
-
-
-
-
-
-
+function AttributeField(
 
 
   { attributeTemplate, value, onChange, disabled = false }) {
@@ -155,4 +154,5 @@ class _TopLevelFunctionSurface {static AttributeField(
         }
     </div>);
 
-  }}const fieldStyles = { formGroup: { marginBottom: '1rem' }, label: { display: 'block', marginBottom: '0.3rem', fontWeight: '500', color: '#333', fontSize: '0.9rem' }, input: { width: '100%', padding: '0.6rem 0.75rem', border: '1px solid #d1d5db', borderRadius: 'var(--radius)', fontSize: '0.95rem', boxSizing: 'border-box' }, select: { width: '100%', padding: '0.6rem 0.75rem', border: '1px solid #d1d5db', borderRadius: 'var(--radius)', fontSize: '0.95rem', boxSizing: 'border-box', backgroundColor: 'white' }, textarea: { width: '100%', minHeight: '80px', padding: '0.6rem 0.75rem', border: '1px solid #d1d5db', borderRadius: 'var(--radius)', fontSize: '0.95rem', boxSizing: 'border-box', resize: 'vertical' }, checkboxContainer: { display: 'flex', alignItems: 'center', marginTop: '0.25rem' }, checkbox: { marginRight: '0.5rem', width: 'auto', height: 'auto', cursor: 'pointer' }, checkboxLabel: { fontWeight: 'normal', fontSize: '0.95rem', cursor: 'pointer', userSelect: 'none' }, tooltipIcon: { cursor: 'help', marginLeft: '4px', color: '#6b7280', fontSize: '0.8em' } };export default _TopLevelFunctionSurface.AttributeField;
+  }
+const fieldStyles = { formGroup: { marginBottom: '1rem' }, label: { display: 'block', marginBottom: '0.3rem', fontWeight: '500', color: '#333', fontSize: '0.9rem' }, input: { width: '100%', padding: '0.6rem 0.75rem', border: '1px solid #d1d5db', borderRadius: 'var(--radius)', fontSize: '0.95rem', boxSizing: 'border-box' }, select: { width: '100%', padding: '0.6rem 0.75rem', border: '1px solid #d1d5db', borderRadius: 'var(--radius)', fontSize: '0.95rem', boxSizing: 'border-box', backgroundColor: 'white' }, textarea: { width: '100%', minHeight: '80px', padding: '0.6rem 0.75rem', border: '1px solid #d1d5db', borderRadius: 'var(--radius)', fontSize: '0.95rem', boxSizing: 'border-box', resize: 'vertical' }, checkboxContainer: { display: 'flex', alignItems: 'center', marginTop: '0.25rem' }, checkbox: { marginRight: '0.5rem', width: 'auto', height: 'auto', cursor: 'pointer' }, checkboxLabel: { fontWeight: 'normal', fontSize: '0.95rem', cursor: 'pointer', userSelect: 'none' }, tooltipIcon: { cursor: 'help', marginLeft: '4px', color: '#6b7280', fontSize: '0.8em' } };export default AttributeField;

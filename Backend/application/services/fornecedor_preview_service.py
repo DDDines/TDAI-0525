@@ -1,3 +1,5 @@
+"""Document fornecedor preview service module responsibilities and runtime integration points."""
+
 from __future__ import annotations
 
 from pathlib import Path
@@ -19,14 +21,17 @@ class FornecedorPreviewService:
         web_data_extractor_service: Any,
         catalog_file_repository: Any,
     ) -> None:
+        """Initialize injected dependencies and runtime configuration for Fornecedor Preview Service."""
         self._file_processing_service = file_processing_service
         self._web_data_extractor_service = web_data_extractor_service
         self._catalog_file_repository = catalog_file_repository
 
     def _resolve_session(self) -> Any:
+        """Resolve session from injected repositories or runtime context."""
         return getattr(self._catalog_file_repository, "_db", None)
 
     async def preview_pages(self, *, file: Any) -> dict[str, Any]:
+        """Execute preview pages as part of this module workflow."""
         if not file.filename.lower().endswith(".pdf"):
             raise HTTPException(status_code=400, detail="Apenas arquivos PDF sao permitidos.")
 
@@ -53,6 +58,7 @@ class FornecedorPreviewService:
         offset: int,
         limit: int,
     ) -> Any:
+        """Execute preview pdf as part of this module workflow."""
         session = self._resolve_session()
         if not file.filename.lower().endswith(".pdf"):
             raise HTTPException(
@@ -76,6 +82,7 @@ class FornecedorPreviewService:
         page_number: int,
         region: list[float],
     ) -> dict[str, Any]:
+        """Execute preview catalog from region as part of this module workflow."""
         session = self._resolve_session()
         file_path = self._file_processing_service.get_file_path_by_id(
             session,
@@ -117,6 +124,7 @@ class FornecedorPreviewService:
         pages: list[int] | None,
         all_pages: bool,
     ) -> dict[str, Any]:
+        """Extract data from pdf bulk."""
         session = self._resolve_session()
         file_path = self._file_processing_service.get_file_path_by_id(
             session,

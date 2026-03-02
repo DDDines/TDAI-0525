@@ -1,3 +1,8 @@
+"""Module test generation task service.
+
+Contains backend logic related to test generation task service and documents its role in the OOP architecture.
+"""
+
 from __future__ import annotations
 
 import types
@@ -8,13 +13,17 @@ from Backend.application.services.generation_task_service import GenerationTaskS
 
 
 class _UserStub:
+    """Represent user stub and centralize responsibilities for this module."""
     def __init__(self, user_id: int = 1, is_superuser: bool = False) -> None:
+        """Initialize collaborators and configuration required by this component."""
         self.id = user_id
         self.is_superuser = is_superuser
 
 
 class _ProdutoStub:
+    """Represent produto stub and centralize responsibilities for this module."""
     def __init__(self, *, produto_id: int = 10, user_id: int = 1) -> None:
+        """Initialize collaborators and configuration required by this component."""
         self.id = produto_id
         self.user_id = user_id
         self.log_processamento = []
@@ -25,22 +34,29 @@ class _ProdutoStub:
 
 
 class _CrudUsersStub:
+    """Represent crud users stub and centralize responsibilities for this module."""
     def __init__(self, user: _UserStub | None) -> None:
+        """Initialize collaborators and configuration required by this component."""
         self._user = user
 
     def get_user(self, *, user_id: int):
+        """Return user for this workflow."""
         return self._user
 
 
 class _CrudProdutosStub:
+    """Represent crud produtos stub and centralize responsibilities for this module."""
     def __init__(self, produto: _ProdutoStub | None) -> None:
+        """Initialize collaborators and configuration required by this component."""
         self._produto = produto
         self.updates = []
 
     def get_produto(self, *, produto_id: int):
+        """Return produto for this workflow."""
         return self._produto
 
     def update_produto(self, *, db_produto, produto_update):
+        """Update produto for this workflow."""
         payload = vars(produto_update)
         self.updates.append(payload)
         for key, value in payload.items():
@@ -49,16 +65,33 @@ class _CrudProdutosStub:
 
 
 class _FakeSession:
+    """Represent fake session and centralize responsibilities for this module."""
     def close(self):
+        """Run close in this workflow."""
         return None
+
+
+class _SessionProviderStub:
+    """Simple OO provider to open sessions from a factory."""
+
+    def __init__(self, factory):
+        """Store session factory callable used in tests."""
+        self._factory = factory
+
+    def open_session(self):
+        """Open and return a session instance."""
+        return self._factory()
 
 
 class _TopLevelFunctionSurface:
 
+    """Represent top level function surface and centralize responsibilities for this module."""
     def _db_session_factory():
+        """Run db session factory in this workflow."""
         return _FakeSession()
 
     def _build_models_stub():
+        """Run build models stub in this workflow."""
         return types.SimpleNamespace(
             StatusGeracaoIAEnum=types.SimpleNamespace(
                 EM_PROGRESSO="EM_PROGRESSO",
@@ -68,39 +101,50 @@ class _TopLevelFunctionSurface:
         )
 
     def _build_schemas_stub():
+        """Run build schemas stub in this workflow."""
         class _ProdutoUpdate:
+            """Represent produto update and centralize responsibilities for this module."""
             def __init__(self, **kwargs):
+                """Initialize collaborators and configuration required by this component."""
                 for key, value in kwargs.items():
                     setattr(self, key, value)
     
         return types.SimpleNamespace(ProdutoUpdate=_ProdutoUpdate)
 
     def _build_service(*, produto: _ProdutoStub, user: _UserStub | None = None):
+        """Run build service in this workflow."""
         crud_users = _CrudUsersStub(user or _UserStub())
         crud_produtos = _CrudProdutosStub(produto)
     
         class _UserRepository:
+            """Represent user repository and centralize responsibilities for this module."""
             def __init__(self, _session):
+                """Initialize collaborators and configuration required by this component."""
                 self._stub = crud_users
     
             def get_user(self, *, user_id: int):
+                """Return user for this workflow."""
                 return self._stub.get_user(user_id=user_id)
     
         class _ProductRepository:
+            """Represent product repository and centralize responsibilities for this module."""
             def __init__(self, _session):
+                """Initialize collaborators and configuration required by this component."""
                 self._stub = crud_produtos
     
             def get_produto(self, *, produto_id: int):
+                """Return produto for this workflow."""
                 return self._stub.get_produto(produto_id=produto_id)
     
             def update_produto(self, *, db_produto, produto_update):
+                """Update produto for this workflow."""
                 return self._stub.update_produto(
                     db_produto=db_produto,
                     produto_update=produto_update,
                 )
     
         service = GenerationTaskService(
-            db_session_factory=_db_session_factory,
+            session_provider=_SessionProviderStub(_db_session_factory),
             user_repository_factory=_UserRepository,
             product_repository_factory=_ProductRepository,
             models=_build_models_stub(),
@@ -111,10 +155,12 @@ class _TopLevelFunctionSurface:
 
     @pytest.mark.asyncio
     async def test_generation_task_service_marks_success_for_titulo():
+        """Run test generation task service marks success for titulo in this workflow."""
         produto = _ProdutoStub()
         service, crud_produtos = _build_service(produto=produto)
     
         async def _fake_generation(**kwargs):
+            """Run fake generation in this workflow."""
             return ["Titulo 1", "Titulo 2"]
     
         await service.run_generation_task(
@@ -130,10 +176,12 @@ class _TopLevelFunctionSurface:
 
     @pytest.mark.asyncio
     async def test_generation_task_service_marks_failure_for_empty_result():
+        """Run test generation task service marks failure for empty result in this workflow."""
         produto = _ProdutoStub()
         service, crud_produtos = _build_service(produto=produto)
     
         async def _fake_generation(**kwargs):
+            """Run fake generation in this workflow."""
             return ""
     
         await service.run_generation_task(
@@ -158,19 +206,25 @@ test_generation_task_service_marks_failure_for_empty_result = _TopLevelFunctionS
 
 
 class _LoggerStub:
+    """Represent logger stub and centralize responsibilities for this module."""
     def __init__(self):
+        """Initialize collaborators and configuration required by this component."""
         self.logs = []
 
     def info(self, *args, **kwargs):
+        """Run info in this workflow."""
         self.logs.append(("info", args, kwargs))
 
     def warning(self, *args, **kwargs):
+        """Run warning in this workflow."""
         self.logs.append(("warning", args, kwargs))
 
     def error(self, *args, **kwargs):
+        """Run error in this workflow."""
         self.logs.append(("error", args, kwargs))
 
     def exception(self, *args, **kwargs):
+        """Run exception in this workflow."""
         self.logs.append(("exception", args, kwargs))
 
 
