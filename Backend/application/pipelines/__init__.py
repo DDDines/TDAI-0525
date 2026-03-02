@@ -1,2 +1,2 @@
-"""Application pipelines."""
+"""Initialize pipelines package exports and integration boundaries."""
 

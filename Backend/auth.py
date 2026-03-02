@@ -79,7 +79,7 @@ class AuthRuntime:
         session: Optional[Session] = None,
         user_repository: Optional[UserRepository] = None,
     ) -> None:
-        """Initialize dependencies for AuthRuntime."""
+        """Initialize injected dependencies and runtime configuration for Auth Runtime."""
         self._session = session
         self._user_repository = user_repository or (
             UserRepository(session) if session is not None else None
@@ -102,11 +102,11 @@ class AuthRuntime:
         return pwd_context.verify(plain_password, hashed_password)
 
     def get_password_hash(self, password: str) -> str:
-        """Return Password hash."""
+        """Retrieve password hash using the current service dependencies."""
         return pwd_context.hash(password)
 
     def create_access_token(self, data: dict, expires_delta: Optional[timedelta] = None) -> str:
-        """Create access token."""
+        """Create access token and return the resulting payload or entity."""
         to_encode = data.copy()
         expire = (
             datetime.now(timezone.utc) + expires_delta
@@ -118,7 +118,7 @@ class AuthRuntime:
         return jwt.encode(to_encode, settings.SECRET_KEY, algorithm=settings.ALGORITHM)
 
     def create_refresh_token(self, data: dict, expires_delta: Optional[timedelta] = None) -> str:
-        """Create refresh token."""
+        """Create refresh token and return the resulting payload or entity."""
         to_encode = data.copy()
         expire = (
             datetime.now(timezone.utc) + expires_delta
@@ -130,7 +130,7 @@ class AuthRuntime:
         return jwt.encode(to_encode, settings.REFRESH_SECRET_KEY, algorithm=settings.ALGORITHM)
 
     def create_password_reset_token(self) -> str:
-        """Create password reset token."""
+        """Create password reset token and return the resulting payload or entity."""
         return secrets.token_urlsafe(32)
 
     def hash_password_reset_token(self, token: str) -> str:
@@ -153,7 +153,7 @@ class AuthRuntime:
         return user
 
     async def get_current_user(self, token: str) -> models.User:
-        """Return Current user."""
+        """Retrieve current user using the current service dependencies."""
         credentials_exception = HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Nao foi possivel validar as credenciais",
@@ -176,7 +176,7 @@ class AuthRuntime:
 
     @staticmethod
     def get_current_active_user(current_user: models.User) -> models.User:
-        """Return Current active user."""
+        """Retrieve current active user using the current service dependencies."""
         if not current_user.is_active:
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Usuario inativo")
         return current_user
@@ -231,7 +231,7 @@ class AuthRuntime:
         user_update: schemas.UserUpdate,
         current_user: models.User,
     ) -> models.User:
-        """Update users me."""
+        """Update users me and persist the resulting state changes."""
         update_data = user_update.model_dump(exclude_unset=True)
         if "password" in update_data:
             raise HTTPException(
@@ -382,7 +382,7 @@ class AuthWorkflow:
         session: Optional[Session] = None,
         runtime: Optional[AuthRuntime] = None,
     ) -> None:
-        """Initialize dependencies for AuthWorkflow."""
+        """Initialize injected dependencies and runtime configuration for Auth Workflow."""
         self._runtime = runtime or AuthRuntime(session=session)
 
     def verify_password(self, plain_password: str, hashed_password: str) -> bool:
@@ -390,19 +390,19 @@ class AuthWorkflow:
         return self._runtime.verify_password(plain_password=plain_password, hashed_password=hashed_password)
 
     def get_password_hash(self, password: str) -> str:
-        """Return Password hash."""
+        """Retrieve password hash using the current service dependencies."""
         return self._runtime.get_password_hash(password=password)
 
     def create_access_token(self, data: dict, expires_delta: Optional[timedelta] = None) -> str:
-        """Create access token."""
+        """Create access token and return the resulting payload or entity."""
         return self._runtime.create_access_token(data=data, expires_delta=expires_delta)
 
     def create_refresh_token(self, data: dict, expires_delta: Optional[timedelta] = None) -> str:
-        """Create refresh token."""
+        """Create refresh token and return the resulting payload or entity."""
         return self._runtime.create_refresh_token(data=data, expires_delta=expires_delta)
 
     def create_password_reset_token(self) -> str:
-        """Create password reset token."""
+        """Create password reset token and return the resulting payload or entity."""
         return self._runtime.create_password_reset_token()
 
     def hash_password_reset_token(self, token: str) -> str:
@@ -418,12 +418,12 @@ class AuthWorkflow:
         return self._runtime.authenticate_user(email=email, password=password)
 
     async def get_current_user(self, token: str) -> models.User:
-        """Return Current user."""
+        """Retrieve current user using the current service dependencies."""
         return await self._runtime.get_current_user(token=token)
 
     @staticmethod
     def get_current_active_user(current_user: models.User) -> models.User:
-        """Return Current active user."""
+        """Retrieve current active user using the current service dependencies."""
         return AuthRuntime.get_current_active_user(current_user=current_user)
 
     async def login_for_access_token(self, form_data: OAuth2PasswordRequestForm) -> Dict[str, str]:
@@ -439,7 +439,7 @@ class AuthWorkflow:
         user_update: schemas.UserUpdate,
         current_user: models.User,
     ) -> models.User:
-        """Update users me."""
+        """Update users me and persist the resulting state changes."""
         return await self._runtime.update_users_me(user_update=user_update, current_user=current_user)
 
     async def change_password_me(
@@ -463,11 +463,11 @@ class _AuthRequestScope:
     """Escopo request-scoped para operacoes de autenticacao HTTP."""
 
     def __init__(self, *, session: Session) -> None:
-        """Initialize dependencies for  AuthRequestScope."""
+        """Initialize injected dependencies and runtime configuration for Auth Request Scope."""
         self._workflow = AuthWorkflow(session=session)
 
     async def get_current_user(self, *, token: str) -> models.User:
-        """Return Current user."""
+        """Retrieve current user using the current service dependencies."""
         return await self._workflow.get_current_user(token=token)
 
     async def login_for_access_token(self, *, form_data: OAuth2PasswordRequestForm):
@@ -484,7 +484,7 @@ class _AuthRequestScope:
         user_update: schemas.UserUpdate,
         current_user: models.User,
     ) -> models.User:
-        """Update users me."""
+        """Update users me and persist the resulting state changes."""
         return await self._workflow.update_users_me(user_update=user_update, current_user=current_user)
 
     async def change_password_me(
@@ -504,7 +504,7 @@ _build_auth_request_scope = ServiceContainerDependencySupport.build_request_scop
 
 class _AuthDependencies:
 
-    """Encapsulates Auth dependencies."""
+    """Represent Auth Dependencies and centralize its responsibilities inside this module."""
     @staticmethod
     async def get_current_user(
         token: str = Depends(oauth2_scheme),
@@ -516,7 +516,7 @@ class _AuthDependencies:
 
 class _AuthActiveUserDependency:
 
-    """Encapsulates Auth active user dependency."""
+    """Represent Auth Active User Dependency and centralize its responsibilities inside this module."""
     @staticmethod
     async def get_current_active_user(
         current_user: models.User = Depends(_AuthDependencies.get_current_user),
@@ -527,7 +527,7 @@ class _AuthActiveUserDependency:
 
 class _EndpointHandlers:
 
-    """Encapsulates Endpoint handlers."""
+    """Represent Endpoint Handlers and centralize its responsibilities inside this module."""
     @router.post("/token", response_model=schemas.Token)
     async def login_for_access_token(
         form_data: OAuth2PasswordRequestForm = Depends(),
@@ -541,7 +541,7 @@ class _EndpointHandlers:
         refresh_token_data: schemas.RefreshTokenRequest,
         request_scope: _AuthRequestScope = Depends(_build_auth_request_scope),
     ):
-        """Endpoint de refresh token."""
+        """Execute refresh access token as part of this module workflow."""
         return await request_scope.refresh_access_token(refresh_token_data=refresh_token_data)
 
     @router.get("/users/me", response_model=schemas.UserResponse)

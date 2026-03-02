@@ -1,7 +1,5 @@
 # Backend/infrastructure/runtime_modules/ia_generation_module.py
-"""Ia generation module.
-
-"""
+"""Document ia generation module module responsibilities and runtime integration points."""
 
 
 import httpx # Para chamadas HTTP assÃƒÆ’Ã‚Â­ncronas
@@ -38,15 +36,15 @@ class AiProviderWorkflow:
     """Workflow OO para operaÃƒÆ’Ã‚Â§ÃƒÆ’Ã‚Âµes de provedor IA (chaves e chamadas HTTP)."""
 
     def __init__(self, runtime: Optional["AiProviderRuntime"] = None) -> None:
-        """Initialize dependencies for AiProviderWorkflow."""
+        """Initialize injected dependencies and runtime configuration for Ai Provider Workflow."""
         self._runtime = runtime or AiProviderRuntime()
 
     async def get_openai_api_key(self, db: Session, user: models.User) -> Optional[str]:
-        """Return Openai api key."""
+        """Retrieve openai api key using the current service dependencies."""
         return await self._runtime.get_openai_api_key(db=db, user=user)
 
     async def get_gemini_api_key(self, db: Session, user: models.User) -> Optional[str]:
-        """Return Gemini api key."""
+        """Retrieve gemini api key using the current service dependencies."""
         return await self._runtime.get_gemini_api_key(db=db, user=user)
 
     async def call_openai_api(
@@ -57,7 +55,7 @@ class AiProviderWorkflow:
         temperature: float = 0.7,
         max_tokens: int = 500,
     ) -> str:
-        """Call openai api."""
+        """Execute call openai api as part of this module workflow."""
         return await self._runtime.call_openai_api(
             prompt_messages=prompt_messages,
             api_key=api_key,
@@ -89,7 +87,7 @@ class AiProviderWorkflow:
         temperature: float = 0.6,
         max_tokens: int = 1024,
     ) -> str:
-        """Call gemini api."""
+        """Execute call gemini api as part of this module workflow."""
         return await self._runtime.call_gemini_api(
             prompt_text=prompt_text,
             api_key=api_key,
@@ -105,7 +103,7 @@ class AiProviderRuntime:
     async def get_openai_api_key(
         self, db: Session, user: models.User
     ) -> Optional[str]:
-        """Return Openai api key."""
+        """Retrieve openai api key using the current service dependencies."""
         if user.chave_openai_pessoal:
             logger.info(f"Usando chave OpenAI pessoal para usuÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¡rio ID: {user.id}")
             return user.chave_openai_pessoal
@@ -118,7 +116,7 @@ class AiProviderRuntime:
     async def get_gemini_api_key(
         self, db: Session, user: models.User
     ) -> Optional[str]:
-        """Return Gemini api key."""
+        """Retrieve gemini api key using the current service dependencies."""
         if user.chave_google_gemini_pessoal:
             logger.info(f"Usando chave Gemini pessoal para usuÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¡rio ID: {user.id}")
             return user.chave_google_gemini_pessoal
@@ -138,7 +136,7 @@ class AiProviderRuntime:
         temperature: float = 0.7,
         max_tokens: int = 500,
     ) -> str:
-        """Call openai api."""
+        """Execute call openai api as part of this module workflow."""
         if not api_key:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
@@ -295,7 +293,7 @@ class AiProviderRuntime:
         temperature: float = 0.6,
         max_tokens: int = 1024,
     ) -> str:
-        """Call gemini api."""
+        """Execute call gemini api as part of this module workflow."""
         if not api_key:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
@@ -349,13 +347,13 @@ class IAGenerationWorkflow:
     """Workflow OO para operaÃƒÆ’Ã‚Â§ÃƒÆ’Ã‚Âµes de geraÃƒÆ’Ã‚Â§ÃƒÆ’Ã‚Â£o de conteÃƒÆ’Ã‚Âºdo IA."""
 
     def __init__(self, runtime: Optional["IAGenerationRuntime"] = None) -> None:
-        """Initialize dependencies for IAGenerationWorkflow."""
+        """Initialize injected dependencies and runtime configuration for IAGeneration Workflow."""
         self._runtime = runtime or IAGenerationRuntime()
 
     async def gerar_titulos_com_openai(
         self, db: Session, produto_id: int, user: models.User, num_titulos: int = 3
     ) -> List[str]:
-        """Gerar titulos com openai."""
+        """Execute gerar titulos com openai as part of this module workflow."""
         return await self._runtime.gerar_titulos_com_openai(
             db=db,
             produto_id=produto_id,
@@ -370,7 +368,7 @@ class IAGenerationWorkflow:
         user: models.User,
         tamanho_palavras: int = 150,
     ) -> str:
-        """Gerar descricao com openai."""
+        """Execute gerar descricao com openai as part of this module workflow."""
         return await self._runtime.gerar_descricao_com_openai(
             db=db,
             produto_id=produto_id,
@@ -381,7 +379,7 @@ class IAGenerationWorkflow:
     async def gerar_titulos_com_gemini(
         self, db: Session, produto_id: int, user: models.User, num_titulos: int = 3
     ) -> List[str]:
-        """Gerar titulos com gemini."""
+        """Execute gerar titulos com gemini as part of this module workflow."""
         return await self._runtime.gerar_titulos_com_gemini(
             db=db,
             produto_id=produto_id,
@@ -396,7 +394,7 @@ class IAGenerationWorkflow:
         user: models.User,
         tamanho_palavras: int = 150,
     ) -> str:
-        """Gerar descricao com gemini."""
+        """Execute gerar descricao com gemini as part of this module workflow."""
         return await self._runtime.gerar_descricao_com_gemini(
             db=db,
             produto_id=produto_id,
@@ -424,7 +422,7 @@ class IAGenerationRuntime:
     async def gerar_titulos_com_openai(
         self, db: Session, produto_id: int, user: models.User, num_titulos: int = 3
     ) -> List[str]:
-        """Gerar titulos com openai."""
+        """Execute gerar titulos com openai as part of this module workflow."""
         return await self._gerar_titulos_com_openai_impl(
             db=db,
             produto_id=produto_id,
@@ -439,7 +437,7 @@ class IAGenerationRuntime:
         user: models.User,
         tamanho_palavras: int = 150,
     ) -> str:
-        """Gerar descricao com openai."""
+        """Execute gerar descricao com openai as part of this module workflow."""
         return await self._gerar_descricao_com_openai_impl(
             db=db,
             produto_id=produto_id,
@@ -450,7 +448,7 @@ class IAGenerationRuntime:
     async def gerar_titulos_com_gemini(
         self, db: Session, produto_id: int, user: models.User, num_titulos: int = 3
     ) -> List[str]:
-        """Gerar titulos com gemini."""
+        """Execute gerar titulos com gemini as part of this module workflow."""
         return await self._gerar_titulos_com_gemini_impl(
             db=db,
             produto_id=produto_id,
@@ -465,7 +463,7 @@ class IAGenerationRuntime:
         user: models.User,
         tamanho_palavras: int = 150,
     ) -> str:
-        """Gerar descricao com gemini."""
+        """Execute gerar descricao com gemini as part of this module workflow."""
         return await self._gerar_descricao_com_gemini_impl(
             db=db,
             produto_id=produto_id,
@@ -488,7 +486,7 @@ class IAGenerationRuntime:
 
     @staticmethod
     def _get_ai_provider_workflow() -> AiProviderWorkflow:
-        """Get ai provider workflow."""
+        """Retrieve ai provider workflow using the current service dependencies."""
         return AiProviderWorkflow(runtime=AiProviderRuntime())
 
     async def _gerar_titulos_com_openai_impl(self, db: Session, produto_id: int, user: models.User, num_titulos: int = 3) -> List[str]:

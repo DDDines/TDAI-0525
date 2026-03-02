@@ -1,6 +1,4 @@
-"""Web enrichment start service.
-
-"""
+"""Document web enrichment start service module responsibilities and runtime integration points."""
 
 from __future__ import annotations
 
@@ -25,7 +23,7 @@ class WebEnrichmentStartService:
         orchestrator_cls: Any = WebEnrichmentPipelineOrchestrator,
         product_repository: Any,
     ) -> None:
-        """Initialize dependencies for WebEnrichmentStartService."""
+        """Initialize injected dependencies and runtime configuration for Web Enrichment Start Service."""
         self._product_repository = product_repository
         self._models = models
         self._dispatcher = dispatcher_cls
@@ -37,7 +35,7 @@ class WebEnrichmentStartService:
         produto_id: int,
         current_user: Any,
     ) -> None:
-        """Validate start preconditions."""
+        """Execute validate start preconditions as part of this module workflow."""
         db_produto_check = self._product_repository.get_produto(produto_id=produto_id)
         if not db_produto_check:
             raise HTTPException(
@@ -65,7 +63,7 @@ class WebEnrichmentStartService:
         command: Any,
         oop_executor: Any,
     ) -> Any:
-        """Dispatch start."""
+        """Execute dispatch start as part of this module workflow."""
         orchestrator = self._orchestrator_cls(
             oop_executor=oop_executor,
         )

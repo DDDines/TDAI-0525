@@ -18,7 +18,7 @@ class CatalogImportWorkflowService:
         status_service: Any,
         runtime: Optional[Any] = None,
     ) -> None:
-        """Initialize dependencies for CatalogImportWorkflowService."""
+        """Initialize injected dependencies and runtime configuration for Catalog Import Workflow Service."""
         if runtime is not None:
             start_service = getattr(runtime, "start_service", start_service)
             status_service = getattr(runtime, "status_service", status_service)

@@ -1,6 +1,4 @@
-"""Runtime apis.
-
-"""
+"""Document runtime apis module responsibilities and runtime integration points."""
 
 from __future__ import annotations
 
@@ -21,7 +19,7 @@ class RuntimeApis:
 
     @staticmethod
     def processar_linha_padronizada(linha_original, mapeamento_colunas_usuario=None):
-        """Processar linha padronizada."""
+        """Execute processar linha padronizada as part of this module workflow."""
         return file_processing.LineMappingWorkflow().processar_linha_padronizada(
             linha_original=linha_original,
             mapeamento_colunas_usuario=mapeamento_colunas_usuario,

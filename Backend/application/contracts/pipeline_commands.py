@@ -1,6 +1,4 @@
-"""Pipeline commands.
-
-"""
+"""Document pipeline commands module responsibilities and runtime integration points."""
 
 from __future__ import annotations
 
@@ -10,7 +8,7 @@ from typing import Dict, List, Optional
 
 @dataclass(frozen=True)
 class CatalogImportFinalizeCommand:
-    """Encapsulates Catalog import finalize command."""
+    """Represent Catalog Import Finalize Command and centralize its responsibilities inside this module."""
     file_id: int
     user_id: int
     product_type_id: Optional[int]
@@ -22,7 +20,7 @@ class CatalogImportFinalizeCommand:
 
 @dataclass(frozen=True)
 class WebEnrichmentStartCommand:
-    """Encapsulates Web enrichment start command."""
+    """Represent Web Enrichment Start Command and centralize its responsibilities inside this module."""
     produto_id: int
     user_id: int
     termos_busca_override: Optional[str]

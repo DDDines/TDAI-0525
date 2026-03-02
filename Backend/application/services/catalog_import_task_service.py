@@ -20,7 +20,7 @@ from Backend.application.services.catalog_import_components import (
 
 
 class CatalogImportTaskRuntime:
-    """Encapsulates Catalog import task runtime."""
+    """Represent Catalog Import Task Runtime and centralize its responsibilities inside this module."""
     RUNTIME_FIELDS = (
         "logger",
         "catalog_logger",
@@ -71,7 +71,7 @@ class CatalogImportTaskRuntime:
         write_catalog_import_report: Callable,
         normalize_import_text: Callable,
     ) -> None:
-        """Initialize dependencies for CatalogImportTaskRuntime."""
+        """Initialize injected dependencies and runtime configuration for Catalog Import Task Runtime."""
         self.logger = logger
         self.catalog_logger = catalog_logger
         self.models = models
@@ -131,7 +131,7 @@ class CatalogImportTaskWorkflow:
         normalize_import_text: Callable,
         runtime: Optional[Any] = None,
     ) -> None:
-        """Initialize dependencies for CatalogImportTaskWorkflow."""
+        """Initialize injected dependencies and runtime configuration for Catalog Import Task Workflow."""
         runtime_obj = CatalogImportTaskRuntime(
             session_provider=session_provider,
             logger=logger,
@@ -634,7 +634,7 @@ class CatalogImportTaskService:
         write_catalog_import_report: Callable,
         normalize_import_text: Callable,
     ):
-        """Initialize dependencies for CatalogImportTaskService."""
+        """Initialize injected dependencies and runtime configuration for Catalog Import Task Service."""
         self._deps = {
             "session_provider": session_provider,
             "logger": logger,

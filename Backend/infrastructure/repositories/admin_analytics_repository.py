@@ -18,15 +18,15 @@ class AdminAnalyticsRepository:
         self._db = db
 
     def count_total_users(self) -> int:
-        """Return total user count."""
+        """Execute count total users as part of this module workflow."""
         return self._db.query(func.count(models.User.id)).scalar() or 0
 
     def count_total_products(self) -> int:
-        """Return total product count."""
+        """Execute count total products as part of this module workflow."""
         return self._db.query(func.count(models.Produto.id)).scalar() or 0
 
     def count_total_suppliers(self) -> int:
-        """Return total supplier count."""
+        """Execute count total suppliers as part of this module workflow."""
         return self._db.query(func.count(models.Fornecedor.id)).scalar() or 0
 
     def count_ia_usage_since(self, *, start_at: datetime) -> int:
@@ -76,7 +76,7 @@ class AdminAnalyticsRepository:
         )
 
     def count_products_by_user(self, *, user_id: int) -> int:
-        """Return total product count for one user."""
+        """Execute count products by user as part of this module workflow."""
         return (
             self._db.query(func.count(models.Produto.id))
             .filter(models.Produto.user_id == user_id)
@@ -97,7 +97,7 @@ class AdminAnalyticsRepository:
         )
 
     def list_product_status_counts(self):
-        """Return grouped product counts by enrichment status."""
+        """Execute list product status counts as part of this module workflow."""
         return (
             self._db.query(
                 models.Produto.status_enriquecimento_web,
@@ -117,5 +117,5 @@ class AdminAnalyticsRepository:
         )
 
     def get_user_by_id(self, *, user_id: int):
-        """Return one user by identifier."""
+        """Retrieve user by id using the current service dependencies."""
         return self._db.get(models.User, user_id)

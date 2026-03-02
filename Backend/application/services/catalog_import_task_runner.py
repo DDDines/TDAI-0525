@@ -41,7 +41,7 @@ class CatalogImportTaskRunner:
         product_repository_factory: Any,
         catalog_file_repository_factory: Any,
     ) -> None:
-        """Initialize dependencies for CatalogImportTaskRunner."""
+        """Initialize injected dependencies and runtime configuration for Catalog Import Task Runner."""
         self._kwargs = {
             "session_provider": session_provider,
             "logger": logger,

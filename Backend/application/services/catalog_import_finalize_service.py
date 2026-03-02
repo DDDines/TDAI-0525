@@ -30,7 +30,7 @@ class CatalogImportFinalizeService:
         sync_env_var: str = "CATALOG_IMPORT_TEST_SYNC",
         thread_name_prefix: str = "catalog-import",
     ) -> None:
-        """Build dispatcher/orchestrator collaborators for finalize execution."""
+        """Initialize injected dependencies and runtime configuration for Catalog Import Finalize Service."""
         self._orchestrator = orchestrator or CatalogImportPipelineOrchestrator(
             oop_executor=oop_executor,
         )

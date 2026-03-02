@@ -23,45 +23,45 @@ class SocialAuthRequestService:
         self,
         session: Session = Depends(ServiceContainerDependencySupport.get_request_db_session),
     ) -> None:
-        """Initialize dependencies for SocialAuthRequestService."""
+        """Initialize injected dependencies and runtime configuration for Social Auth Request Service."""
         self._session = session
         self._auth_workflow = AuthWorkflow(session=session)
 
     @staticmethod
     def _has_client(provider: str) -> bool:
-        """Has client."""
+        """Execute has client as part of this module workflow."""
         return provider in oauth._clients
 
     @staticmethod
     async def _authorize_redirect(provider: str, request: Request, redirect_uri: str):
-        """Authorize redirect."""
+        """Execute authorize redirect as part of this module workflow."""
         return await getattr(oauth, provider).authorize_redirect(request, redirect_uri)
 
     @staticmethod
     async def _authorize_access_token(provider: str, request: Request):
-        """Authorize access token."""
+        """Execute authorize access token as part of this module workflow."""
         return await getattr(oauth, provider).authorize_access_token(request)
 
     @staticmethod
     async def _parse_google_id_token(request: Request, token):
-        """Parse google id token."""
+        """Parse google id token into structured data used by downstream logic."""
         return await oauth.google.parse_id_token(request, token)
 
     @staticmethod
     async def _get_userinfo(provider: str, token):
-        """Get userinfo."""
+        """Retrieve userinfo using the current service dependencies."""
         resp = await getattr(oauth, provider).get("userinfo", token=token)
         return resp.json()
 
     def social_login_config(self) -> schemas.SocialLoginConfig:
-        """Social login config."""
+        """Execute social login config as part of this module workflow."""
         return schemas.SocialLoginConfig(
             google_enabled=self._has_client("google"),
             facebook_enabled=self._has_client("facebook"),
         )
 
     async def google_login(self, request: Request):
-        """Google login."""
+        """Execute google login as part of this module workflow."""
         if not self._has_client("google"):
             raise HTTPException(
                 status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
@@ -70,7 +70,7 @@ class SocialAuthRequestService:
         return await self._authorize_redirect("google", request, settings.GOOGLE_REDIRECT_URI)
 
     async def google_callback(self, request: Request) -> schemas.Token:
-        """Google callback."""
+        """Execute google callback as part of this module workflow."""
         if not self._has_client("google"):
             raise HTTPException(
                 status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
@@ -101,7 +101,7 @@ class SocialAuthRequestService:
         return schemas.Token(access_token=access, refresh_token=refresh, token_type="bearer")
 
     async def facebook_login(self, request: Request):
-        """Facebook login."""
+        """Execute facebook login as part of this module workflow."""
         if not self._has_client("facebook"):
             raise HTTPException(
                 status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
@@ -114,7 +114,7 @@ class SocialAuthRequestService:
         )
 
     async def facebook_callback(self, request: Request) -> schemas.Token:
-        """Facebook callback."""
+        """Execute facebook callback as part of this module workflow."""
         if not self._has_client("facebook"):
             raise HTTPException(
                 status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
@@ -143,25 +143,25 @@ class SocialAuthRequestService:
 
 @router.get("/social/config", response_model=schemas.SocialLoginConfig)
 async def social_login_config(request_service: SocialAuthRequestService = Depends()):
-    """Social login config."""
+    """Execute social login config as part of this module workflow."""
     return request_service.social_login_config()
 
 
 @router.get("/google/login")
 async def google_login(request: Request, request_service: SocialAuthRequestService = Depends()):
-    """Google login."""
+    """Execute google login as part of this module workflow."""
     return await request_service.google_login(request)
 
 
 @router.get("/google/callback", response_model=schemas.Token)
 async def google_callback(request: Request, request_service: SocialAuthRequestService = Depends()):
-    """Google callback."""
+    """Execute google callback as part of this module workflow."""
     return await request_service.google_callback(request)
 
 
 @router.get("/facebook/login")
 async def facebook_login(request: Request, request_service: SocialAuthRequestService = Depends()):
-    """Facebook login."""
+    """Execute facebook login as part of this module workflow."""
     return await request_service.facebook_login(request)
 
 
@@ -170,5 +170,5 @@ async def facebook_callback(
     request: Request,
     request_service: SocialAuthRequestService = Depends(),
 ):
-    """Facebook callback."""
+    """Execute facebook callback as part of this module workflow."""
     return await request_service.facebook_callback(request)

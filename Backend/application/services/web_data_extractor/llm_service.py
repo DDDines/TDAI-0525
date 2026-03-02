@@ -1,6 +1,4 @@
-"""Llm service.
-
-"""
+"""Document llm service module responsibilities and runtime integration points."""
 
 from __future__ import annotations
 
@@ -17,7 +15,7 @@ from Backend.application.services.web_data_extractor.contracts import (
 class WebDataExtractorLLMService:
     """Encapsulates Web data extractor l l m service."""
     def __init__(self, port: WebDataExtractorPort) -> None:
-        """Initialize dependencies for WebDataExtractorLLMService."""
+        """Initialize injected dependencies and runtime configuration for Web Data Extractor LLMService."""
         self._port = port
 
     async def extrair_dados_produto_com_llm(

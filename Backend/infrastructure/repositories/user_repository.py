@@ -1,6 +1,4 @@
-"""User repository.
-
-"""
+"""Document user repository module responsibilities and runtime integration points."""
 
 from __future__ import annotations
 
@@ -25,19 +23,19 @@ class UserRepository:
     """Repository OO de usuarios, roles e planos com Session por request."""
 
     def __init__(self, db: Session) -> None:
-        """Initialize dependencies for UserRepository."""
+        """Initialize injected dependencies and runtime configuration for User Repository."""
         self._db = db
         self._security_workflow = security.SecurityWorkflow()
 
     @staticmethod
     def _apply_default_plan_limits(db_user: User) -> None:
-        """Apply default plan limits."""
+        """Execute apply default plan limits as part of this module workflow."""
         db_user.limite_produtos = settings.DEFAULT_LIMIT_PRODUTOS_SEM_PLANO
         db_user.limite_enriquecimento_web = settings.DEFAULT_LIMIT_ENRIQUECIMENTO_SEM_PLANO
         db_user.limite_geracao_ia = settings.DEFAULT_LIMIT_GERACAO_IA_SEM_PLANO
 
     def _apply_plano_limits(self, *, db_user: User, plano_id: Optional[int]) -> None:
-        """Apply plano limits."""
+        """Execute apply plano limits as part of this module workflow."""
         if plano_id is None:
             db_user.plano_id = None
             self._apply_default_plan_limits(db_user)
@@ -59,15 +57,15 @@ class UserRepository:
         db_user.limite_geracao_ia = plano.limite_geracao_ia
 
     def get_user(self, *, user_id: int) -> Optional[User]:
-        """Return User."""
+        """Retrieve user using the current service dependencies."""
         return self._db.query(User).filter(User.id == user_id).first()
 
     def get_user_by_email(self, *, email: str) -> Optional[User]:
-        """Return User by email."""
+        """Retrieve user by email using the current service dependencies."""
         return self._db.query(User).filter(User.email == email).first()
 
     def get_users(self, *, skip: int = 0, limit: int = 100) -> List[User]:
-        """Return Users."""
+        """Retrieve users using the current service dependencies."""
         return self._db.query(User).offset(skip).limit(limit).all()
 
     def search_users_by_email(self, *, query_text: Optional[str], limit: int) -> List[User]:
@@ -79,7 +77,7 @@ class UserRepository:
         return query.order_by(User.created_at.desc()).limit(limit).all()
 
     def create_user(self, *, user: schemas.UserCreate) -> User:
-        """Create user."""
+        """Create user and return the resulting payload or entity."""
         hashed_password = self._security_workflow.get_password_hash(user.password)
         db_user = User(
             email=user.email,
@@ -130,7 +128,7 @@ class UserRepository:
             schemas.UserUpdateOAuth,
         ],
     ) -> User:
-        """Update user."""
+        """Update user and persist the resulting state changes."""
         update_data = user_update.model_dump(exclude_unset=True)
 
         if update_data.get("password"):
@@ -150,7 +148,7 @@ class UserRepository:
         return db_user
 
     def delete_user(self, *, db_user: User) -> User:
-        """Delete user."""
+        """Execute delete user as part of this module workflow."""
         self._db.delete(db_user)
         self._db.commit()
         return db_user
@@ -161,7 +159,7 @@ class UserRepository:
         user_oauth: schemas.UserCreateOAuth,
         plano_id_default: Optional[int] = None,
     ) -> User:
-        """Create user oauth."""
+        """Create user oauth and return the resulting payload or entity."""
         db_user = User(
             email=user_oauth.email,
             nome_completo=user_oauth.nome_completo,
@@ -206,7 +204,7 @@ class UserRepository:
         provider: str,
         provider_user_id: str,
     ) -> Optional[User]:
-        """Return User by provider."""
+        """Retrieve user by provider using the current service dependencies."""
         return (
             self._db.query(User)
             .filter(User.provider == provider, User.provider_user_id == provider_user_id)
@@ -220,30 +218,30 @@ class UserRepository:
         token_hash: str,
         expires_at: datetime,
     ) -> None:
-        """Set user password reset token."""
+        """Execute set user password reset token as part of this module workflow."""
         user.reset_password_token = token_hash
         user.reset_password_token_expires_at = expires_at
         self._db.commit()
         self._db.refresh(user)
 
     def get_user_by_reset_token(self, *, token_hash: str) -> Optional[User]:
-        """Return User by reset token."""
+        """Retrieve user by reset token using the current service dependencies."""
         return self._db.query(User).filter(User.reset_password_token == token_hash).first()
 
     def get_role(self, *, role_id: int) -> Optional[Role]:
-        """Return Role."""
+        """Retrieve role using the current service dependencies."""
         return self._db.query(Role).filter(Role.id == role_id).first()
 
     def get_role_by_name(self, *, name: str) -> Optional[Role]:
-        """Return Role by name."""
+        """Retrieve role by name using the current service dependencies."""
         return self._db.query(Role).filter(Role.name == name).first()
 
     def get_roles(self, *, skip: int = 0, limit: int = 10) -> List[Role]:
-        """Return Roles."""
+        """Retrieve roles using the current service dependencies."""
         return self._db.query(Role).offset(skip).limit(limit).all()
 
     def create_role(self, *, role: schemas.RoleCreate) -> Role:
-        """Create role."""
+        """Create role and return the resulting payload or entity."""
         db_role = Role(name=role.name, description=role.description)
         self._db.add(db_role)
         self._db.commit()
@@ -251,19 +249,19 @@ class UserRepository:
         return db_role
 
     def get_plano(self, *, plano_id: int) -> Optional[Plano]:
-        """Return Plano."""
+        """Retrieve plano using the current service dependencies."""
         return self._db.query(Plano).filter(Plano.id == plano_id).first()
 
     def get_plano_by_name(self, *, nome: str) -> Optional[Plano]:
-        """Return Plano by name."""
+        """Retrieve plano by name using the current service dependencies."""
         return self._db.query(Plano).filter(Plano.nome == nome).first()
 
     def get_planos(self, *, skip: int = 0, limit: int = 10) -> List[Plano]:
-        """Return Planos."""
+        """Retrieve planos using the current service dependencies."""
         return self._db.query(Plano).offset(skip).limit(limit).all()
 
     def create_plano(self, *, plano: schemas.PlanoCreate) -> Plano:
-        """Create plano."""
+        """Create plano and return the resulting payload or entity."""
         db_plano = Plano(**plano.model_dump())
         self._db.add(db_plano)
         self._db.commit()
@@ -276,7 +274,7 @@ class UserRepository:
         db_plano: Plano,
         plano_update: schemas.PlanoUpdate,
     ) -> Plano:
-        """Update plano."""
+        """Update plano and persist the resulting state changes."""
         update_data = plano_update.model_dump(exclude_unset=True)
         for key, value in update_data.items():
             setattr(db_plano, key, value)
@@ -285,7 +283,7 @@ class UserRepository:
         return db_plano
 
     def delete_plano(self, *, db_plano: Plano) -> Plano:
-        """Delete plano."""
+        """Execute delete plano as part of this module workflow."""
         self._db.delete(db_plano)
         self._db.commit()
         return db_plano

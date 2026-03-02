@@ -1,6 +1,4 @@
-"""Limit service.
-
-"""
+"""Document limit service module responsibilities and runtime integration points."""
 
 from __future__ import annotations
 
@@ -18,7 +16,7 @@ class LimitService:
         *,
         port: LimitPort,
     ) -> None:
-        """Initialize dependencies for LimitService."""
+        """Initialize injected dependencies and runtime configuration for Limit Service."""
         self._port = port
 
     def verificar_limite_uso(
@@ -27,7 +25,7 @@ class LimitService:
         user: models.User,
         tipo_geracao_principal: str,
     ) -> int:
-        """Verificar limite uso."""
+        """Execute verificar limite uso as part of this module workflow."""
         return self._port.verificar_limite_uso(
             session=session,
             user=user,

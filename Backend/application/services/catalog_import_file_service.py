@@ -22,7 +22,7 @@ class CatalogImportFileService:
         catalog_file_repository: Any,
         fornecedor_repository: Any,
     ) -> None:
-        """Initialize dependencies for CatalogImportFileService."""
+        """Initialize injected dependencies and runtime configuration for Catalog Import File Service."""
         self._models = models
         self._file_processing_service = file_processing_service
         self._catalog_import_start_service = catalog_import_start_service
@@ -47,7 +47,7 @@ class CatalogImportFileService:
         skip: int,
         limit: int,
     ) -> dict[str, Any]:
-        """List user files."""
+        """Execute list user files as part of this module workflow."""
         repo = self._resolve_catalog_file_repo()
         items, total_items = repo.list_catalog_files_for_user(
             user_id=user_id,
@@ -68,7 +68,7 @@ class CatalogImportFileService:
         file_id: int,
         user_id: int,
     ) -> Any:
-        """Return User file or 404."""
+        """Retrieve user file or 404 using the current service dependencies."""
         repo = self._resolve_catalog_file_repo()
         record = repo.get_catalog_file_for_user(
             file_id=file_id,
@@ -84,7 +84,7 @@ class CatalogImportFileService:
         file_id: int,
         user_id: int,
     ) -> Any:
-        """Delete user file."""
+        """Execute delete user file as part of this module workflow."""
         repo = self._resolve_catalog_file_repo()
         record = self.get_user_file_or_404(
             file_id=file_id,

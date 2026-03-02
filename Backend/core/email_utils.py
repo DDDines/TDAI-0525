@@ -1,6 +1,4 @@
-"""Email utils.
-
-"""
+"""Document email utils module responsibilities and runtime integration points."""
 
 from datetime import datetime
 from pathlib import Path
@@ -15,23 +13,23 @@ logger = get_logger(__name__)
 
 class EmailWorkflow:
 
-    """Encapsulates Email workflow."""
+    """Represent Email Workflow and centralize its responsibilities inside this module."""
     def __init__(self, runtime: Optional['EmailRuntime']=None):
-        """Initialize dependencies for EmailWorkflow."""
+        """Initialize injected dependencies and runtime configuration for Email Workflow."""
         self._runtime = runtime or EmailRuntime()
         self._conf = self._runtime.build_connection_config()
 
     @property
     def conf(self):
-        """Conf."""
+        """Execute conf as part of this module workflow."""
         return self._conf
 
     def _build_connection_config(self) -> Optional[ConnectionConfig]:
-        """Build connection config."""
+        """Build connection config from current inputs and configuration."""
         return self._runtime.build_connection_config()
 
     async def send_email(self, *, email_to: EmailStr, subject: str, html_content: str, template_body: Optional[Dict[str, Any]]=None, template_name: Optional[str]=None, raise_if_unconfigured: Optional[bool]=None) -> None:
-        """Send email."""
+        """Execute send email as part of this module workflow."""
         if raise_if_unconfigured is None:
             raise_if_unconfigured = self._runtime.get_raise_on_missing_email_config()
         if not self._conf:
@@ -66,7 +64,7 @@ class EmailWorkflow:
                 raise RuntimeError(f'Falha ao enviar email: {exc}')
 
     async def send_password_reset_email(self, *, email_to: EmailStr, username: str, reset_link: str, raise_if_unconfigured: Optional[bool]=None) -> None:
-        """Send password reset email."""
+        """Execute send password reset email as part of this module workflow."""
         if raise_if_unconfigured is None:
             raise_if_unconfigured = self._runtime.get_raise_on_missing_email_config()
         if not self._conf:
@@ -90,18 +88,18 @@ class EmailRuntime:
     """Runtime OO para configuração e envio de email."""
 
     def build_connection_config(self) -> Optional[ConnectionConfig]:
-        """Build connection config."""
+        """Build connection config from current inputs and configuration."""
         if settings.MAIL_USERNAME and settings.MAIL_PASSWORD and settings.MAIL_FROM and settings.MAIL_SERVER:
             return ConnectionConfig(MAIL_USERNAME=settings.MAIL_USERNAME, MAIL_PASSWORD=settings.MAIL_PASSWORD, MAIL_FROM=settings.MAIL_FROM, MAIL_PORT=settings.MAIL_PORT, MAIL_SERVER=settings.MAIL_SERVER, MAIL_FROM_NAME=settings.MAIL_FROM_NAME, MAIL_STARTTLS=settings.MAIL_STARTTLS, MAIL_SSL_TLS=settings.MAIL_SSL_TLS, USE_CREDENTIALS=settings.USE_CREDENTIALS, VALIDATE_CERTS=settings.VALIDATE_CERTS, TEMPLATE_FOLDER=TEMPLATE_FOLDER)
         logger.warning('Configuracoes de Email (MAIL_USERNAME, MAIL_PASSWORD, MAIL_FROM, MAIL_SERVER) incompletas no .env. Funcionalidade de envio de email desabilitada.')
         return None
 
     def get_raise_on_missing_email_config(self) -> bool:
-        """Return Raise on missing email config."""
+        """Retrieve raise on missing email config using the current service dependencies."""
         return settings.RAISE_ON_MISSING_EMAIL_CONFIG
 
     def create_fastmail(self, conf: ConnectionConfig) -> FastMail:
-        """Create fastmail."""
+        """Create fastmail and return the resulting payload or entity."""
         return FastMail(conf)
 
     def create_message_schema(
@@ -112,7 +110,7 @@ class EmailRuntime:
         body: str | None = None,
         subtype: MessageType = MessageType.plain,
     ) -> MessageSchema:
-        """Create message schema."""
+        """Create message schema and return the resulting payload or entity."""
         return MessageSchema(
             subject=subject,
             recipients=recipients,
@@ -121,5 +119,5 @@ class EmailRuntime:
         )
 
     def current_year(self) -> int:
-        """Current year."""
+        """Execute current year as part of this module workflow."""
         return datetime.now().year

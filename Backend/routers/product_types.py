@@ -36,7 +36,7 @@ class ProductTypesRequestService:
         self,
         session: Session = Depends(ServiceContainerDependencySupport.get_request_db_session),
     ) -> None:
-        """Initialize dependencies for ProductTypesRequestService."""
+        """Initialize injected dependencies and runtime configuration for Product Types Request Service."""
         self._session = session
         self._product_type_repo = ProductTypeRepository(session)
         self._historico_repo = HistoricoRepository(session)
@@ -47,7 +47,7 @@ class ProductTypesRequestService:
         product_type_in: schemas.ProductTypeCreate,
         current_user: models.User,
     ) -> models.ProductType:
-        """Create product type."""
+        """Create product type and return the resulting payload or entity."""
         user_id_for_type = None if current_user.is_superuser else current_user.id
         logger.info(
             "ROUTER (create_product_type): requisicao recebida do usuario ID %s para alvo %s",
@@ -98,7 +98,7 @@ class ProductTypesRequestService:
         skip: int = 0,
         limit: int = 100,
     ) -> List[models.ProductType]:
-        """Read product types."""
+        """Execute read product types as part of this module workflow."""
         logger.info(
             "ROUTER (read_product_types): iniciando busca para usuario ID %s",
             current_user.id,
@@ -120,7 +120,7 @@ class ProductTypesRequestService:
         identifier: str,
         current_user: models.User,
     ) -> models.ProductType:
-        """Read product type details."""
+        """Execute read product type details as part of this module workflow."""
         logger.info(
             "ROUTER (read_product_type_details): iniciando busca por '%s'",
             identifier,
@@ -165,7 +165,7 @@ class ProductTypesRequestService:
         product_type_in: schemas.ProductTypeUpdate,
         current_user: models.User,
     ) -> models.ProductType:
-        """Update product type."""
+        """Update product type and persist the resulting state changes."""
         db_product_type = self._product_type_repo.get_product_type(product_type_id=type_id)
         if not db_product_type:
             raise HTTPException(
@@ -192,7 +192,7 @@ class ProductTypesRequestService:
         type_id: int,
         current_user: models.User,
     ) -> models.ProductType:
-        """Delete product type."""
+        """Execute delete product type as part of this module workflow."""
         db_product_type = self._product_type_repo.get_product_type(product_type_id=type_id)
         if not db_product_type:
             raise HTTPException(
@@ -241,7 +241,7 @@ class ProductTypesRequestService:
         attribute_id: int,
         attribute_in: schemas.AttributeTemplateUpdate,
     ) -> models.AttributeTemplate:
-        """Update attribute for product type."""
+        """Update attribute for product type and persist the resulting state changes."""
         db_attribute_to_check = self._product_type_repo.get_attribute_template(
             attribute_template_id=attribute_id
         )
@@ -316,7 +316,7 @@ class ProductTypesRequestService:
         reorder_request: ReorderRequest,
         current_user: models.User,
     ) -> models.AttributeTemplate:
-        """Reorder attribute."""
+        """Execute reorder attribute as part of this module workflow."""
         product_type = self._product_type_repo.get_product_type(product_type_id=type_id)
         if not product_type:
             raise HTTPException(
@@ -349,7 +349,7 @@ def create_product_type_endpoint(
     ),
     request_service: ProductTypesRequestService = Depends(),
 ):
-    """Create product type endpoint."""
+    """Create product type endpoint and return the resulting payload or entity."""
     return request_service.create_product_type(product_type_in=product_type_in, current_user=current_user)
 
 
@@ -362,7 +362,7 @@ def read_product_types_endpoint(
     ),
     request_service: ProductTypesRequestService = Depends(),
 ):
-    """Read product types endpoint."""
+    """Execute read product types endpoint as part of this module workflow."""
     return request_service.read_product_types(current_user=current_user, skip=skip, limit=limit)
 
 
@@ -381,7 +381,7 @@ async def read_product_type_details_route(
     ),
     request_service: ProductTypesRequestService = Depends(),
 ):
-    """Read product type details route."""
+    """Execute read product type details route as part of this module workflow."""
     return await request_service.read_product_type_details(
         identifier=type_id_or_key_path,
         current_user=current_user,
@@ -397,7 +397,7 @@ def update_product_type_endpoint(
     ),
     request_service: ProductTypesRequestService = Depends(),
 ):
-    """Update product type endpoint."""
+    """Update product type endpoint and persist the resulting state changes."""
     return request_service.update_product_type(
         type_id=type_id,
         product_type_in=product_type_in,
@@ -413,7 +413,7 @@ def delete_product_type_endpoint(
     ),
     request_service: ProductTypesRequestService = Depends(),
 ):
-    """Delete product type endpoint."""
+    """Execute delete product type endpoint as part of this module workflow."""
     return request_service.delete_product_type(type_id=type_id, current_user=current_user)
 
 
@@ -445,7 +445,7 @@ def update_attribute_for_product_type_endpoint(
     ),
     request_service: ProductTypesRequestService = Depends(),
 ):
-    """Update attribute for product type endpoint."""
+    """Update attribute for product type endpoint and persist the resulting state changes."""
     _ = current_user
     return request_service.update_attribute_for_product_type(
         type_id=type_id,
@@ -481,7 +481,7 @@ def reorder_attribute_endpoint(
     ),
     request_service: ProductTypesRequestService = Depends(),
 ):
-    """Reorder attribute endpoint."""
+    """Execute reorder attribute endpoint as part of this module workflow."""
     return request_service.reorder_attribute(
         type_id=type_id,
         attribute_id=attribute_id,

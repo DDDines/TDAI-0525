@@ -1,7 +1,5 @@
 # Backend/infrastructure/runtime_modules/web_data_extractor_module.py
-"""Web data extractor module.
-
-"""
+"""Document web data extractor module module responsibilities and runtime integration points."""
 
 import asyncio
 import sys
@@ -92,7 +90,7 @@ class WebSearchEngineRuntime:
     """Runtime OO para buscas web (cache + scoring + fallback publico/CSE)."""
 
     def __init__(self) -> None:
-        """Initialize dependencies for WebSearchEngineRuntime."""
+        """Initialize injected dependencies and runtime configuration for Web Search Engine Runtime."""
         self._search_cache: Dict[str, Tuple[float, List[str]]] = {}
         self._search_cache_ttl_seconds = 600.0
         self._search_cache_max_entries = 300
@@ -100,24 +98,24 @@ class WebSearchEngineRuntime:
         self._search_semaphore: Optional[asyncio.Semaphore] = None
 
     def busca_publica_disponivel(self) -> bool:
-        """Busca publica disponivel."""
+        """Execute busca publica disponivel as part of this module workflow."""
         return True
 
     def get_search_cache_lock(self) -> asyncio.Lock:
-        """Return Search cache lock."""
+        """Retrieve search cache lock using the current service dependencies."""
         if self._search_cache_lock is None:
             self._search_cache_lock = asyncio.Lock()
         return self._search_cache_lock
 
     def get_search_semaphore(self) -> asyncio.Semaphore:
-        """Return Search semaphore."""
+        """Retrieve search semaphore using the current service dependencies."""
         if self._search_semaphore is None:
             limit = int(getattr(settings, "WEB_SEARCH_CONCURRENCY", 3) or 3)
             self._search_semaphore = asyncio.Semaphore(max(1, limit))
         return self._search_semaphore
 
     async def search_cache_get(self, query_key: str) -> Optional[List[str]]:
-        """Search cache get."""
+        """Execute search cache get as part of this module workflow."""
         lock = self.get_search_cache_lock()
         now = time.monotonic()
         async with lock:
@@ -131,7 +129,7 @@ class WebSearchEngineRuntime:
             return list(urls)
 
     async def search_cache_set(self, query_key: str, urls: List[str]) -> None:
-        """Search cache set."""
+        """Execute search cache set as part of this module workflow."""
         lock = self.get_search_cache_lock()
         now = time.monotonic()
         async with lock:
@@ -141,7 +139,7 @@ class WebSearchEngineRuntime:
             self._search_cache[query_key] = (now, list(urls))
 
     def score_url_publica(self, url: str) -> int:
-        """Score url publica."""
+        """Execute score url publica as part of this module workflow."""
         parsed = urlparse(url)
         host = (parsed.netloc or "").lower()
         path = (parsed.path or "").lower()
@@ -163,7 +161,7 @@ class WebSearchEngineRuntime:
         return score
 
     def extract_redirect_destination(self, query: str) -> Optional[str]:
-        """Extract redirect destination."""
+        """Execute extract redirect destination as part of this module workflow."""
         if not query:
             return None
         qs = parse_qs(query or "")
@@ -176,7 +174,7 @@ class WebSearchEngineRuntime:
         return None
 
     def unwrap_redirect_url(self, url: str, max_hops: int = 3) -> str:
-        """Unwrap redirect url."""
+        """Execute unwrap redirect url as part of this module workflow."""
         current = str(url or "").strip()
         for _ in range(max(1, max_hops)):
             parsed = urlparse(current)
@@ -229,7 +227,7 @@ class WebSearchEngineRuntime:
         return False
 
     def normalizar_url_busca(self, candidata: str, base_url: str) -> Optional[str]:
-        """Normalizar url busca."""
+        """Execute normalizar url busca as part of this module workflow."""
         if not candidata:
             return None
         url_final = str(candidata).strip()
@@ -314,7 +312,7 @@ class WebSearchEngineRuntime:
         return url_final
 
     def buscar_urls_publicas_sync(self, query: str, num_results: int = 3) -> List[str]:
-        """Buscar urls publicas sync."""
+        """Execute buscar urls publicas sync as part of this module workflow."""
         if not query:
             return []
 
@@ -398,11 +396,11 @@ class WebSearchEngineRuntime:
         query: str,
         num_results: int = 3,
     ) -> List[str]:
-        """Buscar urls publicas async."""
+        """Execute buscar urls publicas async as part of this module workflow."""
         return await asyncio.to_thread(self.buscar_urls_publicas_sync, query, num_results)
 
     def _executar_busca_google_cse(self, query_limpa: str, limite: int) -> List[str]:
-        """Executar busca google cse."""
+        """Execute executar busca google cse as part of this module workflow."""
         service = build(
             "customsearch",
             "v1",
@@ -421,7 +419,7 @@ class WebSearchEngineRuntime:
         query: str,
         num_results: int = 3,
     ) -> List[str]:
-        """Buscar urls google async."""
+        """Execute buscar urls google async as part of this module workflow."""
         query_limpa = str(query or "").strip()
         if not query_limpa:
             return []
@@ -515,16 +513,16 @@ class WebContentFetchEngineRuntime:
     """Runtime OO para coleta de conte?do HTML (Playwright + fallback HTTP)."""
 
     def __init__(self, search_runtime: WebSearchEngineRuntime) -> None:
-        """Initialize dependencies for WebContentFetchEngineRuntime."""
+        """Initialize injected dependencies and runtime configuration for Web Content Fetch Engine Runtime."""
         self._search_runtime = search_runtime
         self._playwright_chromium_indisponivel = False
 
     def is_playwright_chromium_indisponivel(self) -> bool:
-        """Is playwright chromium indisponivel."""
+        """Execute is playwright chromium indisponivel as part of this module workflow."""
         return self._playwright_chromium_indisponivel
 
     def set_playwright_chromium_indisponivel(self, value: bool) -> None:
-        """Set playwright chromium indisponivel."""
+        """Execute set playwright chromium indisponivel as part of this module workflow."""
         self._playwright_chromium_indisponivel = bool(value)
 
     def coletar_conteudo_pagina_http_sync(
@@ -553,7 +551,7 @@ class WebContentFetchEngineRuntime:
         url: str,
         timeout: int = 20,
     ) -> Optional[str]:
-        """Coletar conteudo pagina http."""
+        """Execute coletar conteudo pagina http as part of this module workflow."""
         try:
             return await asyncio.to_thread(
                 self.coletar_conteudo_pagina_http_sync,
@@ -614,7 +612,7 @@ class WebContentFetchEngineRuntime:
             asyncio.set_event_loop(None)
 
     async def coletar_conteudo_pagina_playwright(self, url: str) -> Optional[str]:
-        """Coletar conteudo pagina playwright."""
+        """Execute coletar conteudo pagina playwright as part of this module workflow."""
         if self._search_runtime.url_deve_ser_ignorada_antes_da_coleta(url):
             logger.info(
                 "URL ignorada antes da coleta por baixa relevancia/tracking: %s",
@@ -717,22 +715,22 @@ class WebSearchWorkflow:
     """Workflow OO para estrategias de busca web."""
 
     def __init__(self, runtime: Optional["WebSearchRuntime"] = None) -> None:
-        """Initialize dependencies for WebSearchWorkflow."""
+        """Initialize injected dependencies and runtime configuration for Web Search Workflow."""
         self._runtime = runtime or WebSearchRuntime()
 
     def busca_publica_disponivel(self) -> bool:
-        """Busca publica disponivel."""
+        """Execute busca publica disponivel as part of this module workflow."""
         return self._runtime.busca_publica_disponivel()
 
     async def buscar_urls_publicas(self, query: str, num_results: int = 3) -> List[str]:
-        """Buscar urls publicas."""
+        """Execute buscar urls publicas as part of this module workflow."""
         return await self._runtime.buscar_urls_publicas_async(
             query=query,
             num_results=num_results,
         )
 
     async def buscar_urls_google(self, query: str, num_results: int = 3) -> List[str]:
-        """Buscar urls google."""
+        """Execute buscar urls google as part of this module workflow."""
         return await self._runtime.buscar_urls_google_async(
             query=query,
             num_results=num_results,
@@ -743,7 +741,7 @@ class WebSearchWorkflow:
         return self._runtime.url_deve_ser_ignorada_antes_da_coleta(url)
 
     def normalizar_url_busca(self, candidata: str, base_url: str) -> Optional[str]:
-        """Normalizar url busca."""
+        """Execute normalizar url busca as part of this module workflow."""
         return self._runtime.normalizar_url_busca(
             candidata=candidata,
             base_url=base_url,
@@ -756,11 +754,11 @@ class WebContentCollectionWorkflow:
     def __init__(
         self, runtime: Optional["WebContentCollectionRuntime"] = None
     ) -> None:
-        """Initialize dependencies for WebContentCollectionWorkflow."""
+        """Initialize injected dependencies and runtime configuration for Web Content Collection Workflow."""
         self._runtime = runtime or WebContentCollectionRuntime()
 
     async def coletar_conteudo_pagina_playwright(self, url: str) -> Optional[str]:
-        """Coletar conteudo pagina playwright."""
+        """Execute coletar conteudo pagina playwright as part of this module workflow."""
         return await self._runtime.coletar_conteudo_pagina_playwright(url)
 
 
@@ -771,11 +769,11 @@ class WebSearchRuntime:
         self,
         engine_runtime: Optional[WebSearchEngineRuntime] = None,
     ) -> None:
-        """Initialize dependencies for WebSearchRuntime."""
+        """Initialize injected dependencies and runtime configuration for Web Search Runtime."""
         self._engine_runtime = engine_runtime or WebSearchEngineRuntime()
 
     def busca_publica_disponivel(self) -> bool:
-        """Busca publica disponivel."""
+        """Execute busca publica disponivel as part of this module workflow."""
         return self._engine_runtime.busca_publica_disponivel()
 
     async def buscar_urls_publicas_async(
@@ -783,7 +781,7 @@ class WebSearchRuntime:
         query: str,
         num_results: int = 3,
     ) -> List[str]:
-        """Buscar urls publicas async."""
+        """Execute buscar urls publicas async as part of this module workflow."""
         return await self._engine_runtime.buscar_urls_publicas_async(
             query=query,
             num_results=num_results,
@@ -794,7 +792,7 @@ class WebSearchRuntime:
         query: str,
         num_results: int = 3,
     ) -> List[str]:
-        """Buscar urls google async."""
+        """Execute buscar urls google async as part of this module workflow."""
         return await self._engine_runtime.buscar_urls_google_async(
             query=query,
             num_results=num_results,
@@ -805,7 +803,7 @@ class WebSearchRuntime:
         return self._engine_runtime.url_deve_ser_ignorada_antes_da_coleta(url)
 
     def normalizar_url_busca(self, candidata: str, base_url: str) -> Optional[str]:
-        """Normalizar url busca."""
+        """Execute normalizar url busca as part of this module workflow."""
         return self._engine_runtime.normalizar_url_busca(
             candidata=candidata,
             base_url=base_url,
@@ -819,13 +817,13 @@ class WebContentCollectionRuntime:
         self,
         engine_runtime: Optional[WebContentFetchEngineRuntime] = None,
     ) -> None:
-        """Initialize dependencies for WebContentCollectionRuntime."""
+        """Initialize injected dependencies and runtime configuration for Web Content Collection Runtime."""
         self._engine_runtime = engine_runtime or WebContentFetchEngineRuntime(
             search_runtime=WebSearchEngineRuntime()
         )
 
     async def coletar_conteudo_pagina_playwright(self, url: str) -> Optional[str]:
-        """Coletar conteudo pagina playwright."""
+        """Execute coletar conteudo pagina playwright as part of this module workflow."""
         return await self._engine_runtime.coletar_conteudo_pagina_playwright(
             url
         )
@@ -849,7 +847,7 @@ class MetadataExtractionRuntime:
         )
 
     def limpar_valor_metadado(self, valor: Any) -> Optional[Any]:
-        """Limpar valor metadado."""
+        """Execute limpar valor metadado as part of this module workflow."""
         if valor is None:
             return None
         if isinstance(valor, str):
@@ -862,7 +860,7 @@ class MetadataExtractionRuntime:
         return valor
 
     def _get_first_string(self, value: Any) -> Optional[str]:
-        """Get first string."""
+        """Retrieve first string using the current service dependencies."""
         if isinstance(value, list):
             for item_val in value:
                 cleaned = self.limpar_valor_metadado(item_val)
@@ -873,7 +871,7 @@ class MetadataExtractionRuntime:
         return cleaned_val if isinstance(cleaned_val, str) else None
 
     def extrair_metadados_estruturados(self, html_content: str, url: str) -> Dict[str, Any]:
-        """Extrair metadados estruturados."""
+        """Execute extrair metadados estruturados as part of this module workflow."""
         if not html_content:
             return {}
         metadata_extraida: Dict[str, Any] = {}
@@ -911,7 +909,7 @@ class MetadataExtractionRuntime:
         return metadata_extraida
 
     def normalizar_dados_de_metadados(self, metadata_bruta: Dict[str, Any]) -> Dict[str, Any]:
-        """Normalizar dados de metadados."""
+        """Execute normalizar dados de metadados as part of this module workflow."""
         dados_norm: Dict[str, Any] = {}
         produto_json_ld = metadata_bruta.get("json-ld_product_candidate")
         produto_microdata = metadata_bruta.get("microdata_product_candidate")
@@ -994,7 +992,7 @@ class WebLLMExtractionEngineRuntime:
         self,
         ai_provider_workflow_factory: Optional[Callable[[], AiProviderWorkflow]] = None,
     ) -> None:
-        """Initialize dependencies for WebLLMExtractionEngineRuntime."""
+        """Initialize injected dependencies and runtime configuration for Web LLMExtraction Engine Runtime."""
         self._ai_provider_workflow_factory = (
             ai_provider_workflow_factory or (lambda: AiProviderWorkflow())
         )
@@ -1131,7 +1129,7 @@ class WebExtractionEnrichmentWorkflow:
         produto: models.Produto,
         runtime: Optional["WebExtractionEnrichmentRuntime"] = None,
     ) -> None:
-        """Initialize dependencies for WebExtractionEnrichmentWorkflow."""
+        """Initialize injected dependencies and runtime configuration for Web Extraction Enrichment Workflow."""
         self.db = db
         self.url = url
         self.produto = produto
@@ -1144,7 +1142,7 @@ class WebExtractionEnrichmentWorkflow:
         message: str,
         details: Optional[Dict[str, Any]] = None,
     ) -> None:
-        """Add log."""
+        """Execute add log as part of this module workflow."""
         entry = {
             "timestamp": self._runtime.now_iso(),
             "level": level,
@@ -1155,13 +1153,13 @@ class WebExtractionEnrichmentWorkflow:
         self.log_enriquecimento.append(entry)
 
     def _persist_status(self, status: models.StatusEnriquecimentoEnum) -> None:
-        """Persist status."""
+        """Execute persist status as part of this module workflow."""
         self.produto.status_enriquecimento_web = status
         self.db.add(self.produto)
         self.db.commit()
 
     async def _collect_html(self) -> Optional[str]:
-        """Collect html."""
+        """Execute collect html as part of this module workflow."""
         self._add_log(
             "INFO",
             f"Iniciando enriquecimento web para produto ID {self.produto.id} com URL: {self.url}",
@@ -1170,7 +1168,7 @@ class WebExtractionEnrichmentWorkflow:
         return await self._runtime.collect_html(url=self.url)
 
     def _merge_metadata(self, dados_normalizados_de_meta: Dict[str, Any]) -> None:
-        """Merge metadata."""
+        """Execute merge metadata as part of this module workflow."""
         if self.produto.dados_brutos_web is None:
             self.produto.dados_brutos_web = {}
         for key, value in dados_normalizados_de_meta.items():
@@ -1183,7 +1181,7 @@ class WebExtractionEnrichmentWorkflow:
         dados_normalizados_de_meta: Dict[str, Any],
         texto_principal: Optional[str],
     ) -> models.StatusEnriquecimentoEnum:
-        """Define status final."""
+        """Execute define status final as part of this module workflow."""
         if not dados_normalizados_de_meta and not texto_principal:
             self._add_log(
                 "WARNING",
@@ -1202,7 +1200,7 @@ class WebExtractionEnrichmentWorkflow:
         return models.StatusEnriquecimentoEnum.CONCLUIDO_SUCESSO
 
     async def run(self) -> models.Produto:
-        """Run."""
+        """Execute run as part of this module workflow."""
         html_content = await self._collect_html()
         if not html_content:
             self._add_log("ERROR", "Falha ao coletar HTML da pagina.")
@@ -1265,14 +1263,14 @@ class WebExtractionEnrichmentWorkflow:
 
 
 class WebExtractionEnrichmentRuntime:
-    """Encapsulates Web extraction enrichment runtime."""
+    """Represent Web Extraction Enrichment Runtime and centralize its responsibilities inside this module."""
     def __init__(
         self,
         *,
         content_collection_workflow: Optional[WebContentCollectionWorkflow] = None,
         extraction_support_workflow: Optional["WebExtractionSupportWorkflow"] = None,
     ) -> None:
-        """Initialize dependencies for WebExtractionEnrichmentRuntime."""
+        """Initialize injected dependencies and runtime configuration for Web Extraction Enrichment Runtime."""
         self._content_collection_workflow = (
             content_collection_workflow or WebContentCollectionWorkflow()
         )
@@ -1281,15 +1279,15 @@ class WebExtractionEnrichmentRuntime:
         )
 
     def now_iso(self) -> str:
-        """Now iso."""
+        """Execute now iso as part of this module workflow."""
         return datetime.now(timezone.utc).isoformat()
 
     async def collect_html(self, *, url: str) -> Optional[str]:
-        """Collect html."""
+        """Execute collect html as part of this module workflow."""
         return await self._content_collection_workflow.coletar_conteudo_pagina_playwright(url)
 
     def extract_main_text(self, *, html_content: str) -> Optional[str]:
-        """Extract main text."""
+        """Execute extract main text as part of this module workflow."""
         return self._extraction_support_workflow.extrair_texto_principal_com_trafilatura(
             html_content
         )
@@ -1297,14 +1295,14 @@ class WebExtractionEnrichmentRuntime:
     def extract_structured_metadata(
         self, *, html_content: str, url: str
     ) -> Dict[str, Any]:
-        """Extract structured metadata."""
+        """Execute extract structured metadata as part of this module workflow."""
         return self._extraction_support_workflow.extrair_metadados_estruturados(
             html_content,
             url,
         )
 
     def normalize_metadata(self, *, metadata: Dict[str, Any]) -> Dict[str, Any]:
-        """Normalize metadata."""
+        """Normalize metadata to keep behavior consistent across callers."""
         return self._extraction_support_workflow.normalizar_dados_de_metadados(metadata)
 
 
@@ -1374,14 +1372,14 @@ class WebExtractionSupportRuntime:
         enrichment_runtime: Optional[Any] = None,
         ocr_runtime: Optional[Any] = None,
     ) -> None:
-        """Initialize dependencies for WebExtractionSupportRuntime."""
+        """Initialize injected dependencies and runtime configuration for Web Extraction Support Runtime."""
         self.metadata_runtime = metadata_runtime
         self.llm_runtime = llm_runtime
         self.enrichment_runtime = enrichment_runtime
         self.ocr_runtime = ocr_runtime
 
     def apply_overrides(self, runtime: Any) -> "WebExtractionSupportRuntime":
-        """Apply overrides."""
+        """Execute apply overrides as part of this module workflow."""
         for field_name in self.RUNTIME_FIELDS:
             setattr(self, field_name, getattr(runtime, field_name, getattr(self, field_name)))
         return self
@@ -1398,7 +1396,7 @@ class WebExtractionSupportWorkflow:
         ocr_runtime: Optional["WebOCRRuntime"] = None,
         runtime: Optional[Any] = None,
     ) -> None:
-        """Initialize dependencies for WebExtractionSupportWorkflow."""
+        """Initialize injected dependencies and runtime configuration for Web Extraction Support Workflow."""
         runtime_obj = WebExtractionSupportRuntime(
             metadata_runtime=metadata_runtime,
             llm_runtime=llm_runtime,
@@ -1423,7 +1421,7 @@ class WebExtractionSupportWorkflow:
     def extrair_metadados_estruturados(
         self, html_content: str, url: str
     ) -> Dict[str, Any]:
-        """Extrair metadados estruturados."""
+        """Execute extrair metadados estruturados as part of this module workflow."""
         return self._metadata_runtime.extrair_metadados_estruturados(
             html_content=html_content,
             url=url,
@@ -1433,7 +1431,7 @@ class WebExtractionSupportWorkflow:
         self,
         metadata_bruta: Dict[str, Any],
     ) -> Dict[str, Any]:
-        """Normalizar dados de metadados."""
+        """Execute normalizar dados de metadados as part of this module workflow."""
         return self._metadata_runtime.normalizar_dados_de_metadados(metadata_bruta)
 
     async def extrair_dados_produto_com_llm(
@@ -1480,7 +1478,7 @@ class WebLLMExtractionRuntime:
         self,
         engine_runtime: Optional[WebLLMExtractionEngineRuntime] = None,
     ) -> None:
-        """Initialize dependencies for WebLLMExtractionRuntime."""
+        """Initialize injected dependencies and runtime configuration for Web LLMExtraction Runtime."""
         self._engine_runtime = engine_runtime or WebLLMExtractionEngineRuntime()
 
     async def extrair_dados_produto_com_llm(
@@ -1508,7 +1506,7 @@ class WebURLExtractionRuntime:
         self,
         engine_runtime: Optional[WebURLExtractionEngineRuntime] = None,
     ) -> None:
-        """Initialize dependencies for WebURLExtractionRuntime."""
+        """Initialize injected dependencies and runtime configuration for Web URLExtraction Runtime."""
         self._engine_runtime = engine_runtime or WebURLExtractionEngineRuntime()
 
     async def extract_relevant_data_from_url(
@@ -1532,7 +1530,7 @@ class WebOCRRuntime:
         self,
         engine_runtime: Optional[WebOCREngineRuntime] = None,
     ) -> None:
-        """Initialize dependencies for WebOCRRuntime."""
+        """Initialize injected dependencies and runtime configuration for Web OCRRuntime."""
         self._engine_runtime = engine_runtime or WebOCREngineRuntime()
 
     def extract_text_from_image_region(self, image_bytes: bytes):
@@ -1559,7 +1557,7 @@ class WebDataExtractorRuntime:
         extraction_support_workflow: Optional[WebExtractionSupportWorkflow] = None,
         playwright_chromium_indisponivel: bool = False,
     ) -> None:
-        """Initialize dependencies for WebDataExtractorRuntime."""
+        """Initialize injected dependencies and runtime configuration for Web Data Extractor Runtime."""
         self._search_engine_runtime = search_engine_runtime or WebSearchEngineRuntime()
         self._content_fetch_engine_runtime = (
             content_fetch_engine_runtime
@@ -1603,21 +1601,21 @@ class WebDataExtractorRuntime:
 
     @property
     def search_workflow(self) -> WebSearchWorkflow:
-        """Search workflow."""
+        """Execute search workflow as part of this module workflow."""
         return self._search_workflow
 
     @property
     def content_collection_workflow(self) -> WebContentCollectionWorkflow:
-        """Content collection workflow."""
+        """Execute content collection workflow as part of this module workflow."""
         return self._content_collection_workflow
 
     @property
     def extraction_support_workflow(self) -> WebExtractionSupportWorkflow:
-        """Extraction support workflow."""
+        """Execute extraction support workflow as part of this module workflow."""
         return self._extraction_support_workflow
 
     def busca_publica_disponivel(self) -> bool:
-        """Busca publica disponivel."""
+        """Execute busca publica disponivel as part of this module workflow."""
         return self._search_workflow.busca_publica_disponivel()
 
     async def buscar_urls_publicas(
@@ -1625,7 +1623,7 @@ class WebDataExtractorRuntime:
         query: str,
         num_results: int = 3,
     ) -> List[str]:
-        """Buscar urls publicas."""
+        """Execute buscar urls publicas as part of this module workflow."""
         return await self._search_workflow.buscar_urls_publicas(
             query=query,
             num_results=num_results,
@@ -1636,14 +1634,14 @@ class WebDataExtractorRuntime:
         query: str,
         num_results: int = 3,
     ) -> List[str]:
-        """Buscar urls google."""
+        """Execute buscar urls google as part of this module workflow."""
         return await self._search_workflow.buscar_urls_google(
             query=query,
             num_results=num_results,
         )
 
     async def coletar_conteudo_pagina_playwright(self, url: str) -> Optional[str]:
-        """Coletar conteudo pagina playwright."""
+        """Execute coletar conteudo pagina playwright as part of this module workflow."""
         return await self._content_collection_workflow.coletar_conteudo_pagina_playwright(
             url
         )
@@ -1662,7 +1660,7 @@ class WebDataExtractorRuntime:
         html_content: str,
         url: str,
     ) -> Dict[str, Any]:
-        """Extrair metadados estruturados."""
+        """Execute extrair metadados estruturados as part of this module workflow."""
         return self._extraction_support_workflow.extrair_metadados_estruturados(
             html_content,
             url,
@@ -1672,7 +1670,7 @@ class WebDataExtractorRuntime:
         self,
         metadata_bruta: Dict[str, Any],
     ) -> Dict[str, Any]:
-        """Normalizar dados de metadados."""
+        """Execute normalizar dados de metadados as part of this module workflow."""
         return self._extraction_support_workflow.normalizar_dados_de_metadados(
             metadata_bruta
         )

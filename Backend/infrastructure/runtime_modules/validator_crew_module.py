@@ -1,6 +1,4 @@
-"""Validator crew module.
-
-"""
+"""Document validator crew module module responsibilities and runtime integration points."""
 
 import os
 from concurrent.futures import ThreadPoolExecutor, TimeoutError
@@ -30,10 +28,10 @@ else:
     CREW_RUNTIME_AVAILABLE = False
 
 class _ValidationCrewFactory:
-    """Encapsulates Validation crew factory."""
+    """Represent Validation Crew Factory and centralize its responsibilities inside this module."""
     @staticmethod
     def build_llm():
-        """Build llm."""
+        """Build llm from current inputs and configuration."""
         openai_key = os.getenv("OPENAI_API_KEY")
         if not (openai_key and CREW_RUNTIME_AVAILABLE):
             return None
@@ -45,7 +43,7 @@ class _ValidationCrewFactory:
 
     @staticmethod
     def build_executor() -> ThreadPoolExecutor:
-        """Build executor."""
+        """Build executor from current inputs and configuration."""
         return ThreadPoolExecutor(
             max_workers=max(1, int(os.getenv("VALIDATION_CREW_WORKERS", "2")))
         )
@@ -71,7 +69,7 @@ class _ValidationCrewPromptBuilder:
 
     @classmethod
     def build_validation_description(cls, raw_data: Any) -> str:
-        """Build validation description."""
+        """Build validation description from current inputs and configuration."""
         return f"""
             Analise o seguinte dicionario de dados brutos de um produto:
             ---
@@ -128,7 +126,7 @@ class ValidationCrewRuntime:
         executor: ThreadPoolExecutor,
         prompt_builder: type[_ValidationCrewPromptBuilder] = _ValidationCrewPromptBuilder,
     ) -> None:
-        """Initialize dependencies for ValidationCrewRuntime."""
+        """Initialize injected dependencies and runtime configuration for Validation Crew Runtime."""
         self._llm = llm_instance
         self._runtime_available = runtime_available
         self._agent_cls = agent_cls
@@ -139,11 +137,11 @@ class ValidationCrewRuntime:
         self._prompt_builder = prompt_builder
 
     def _is_available(self) -> bool:
-        """Is available."""
+        """Execute is available as part of this module workflow."""
         return bool(self._runtime_available and self._llm is not None)
 
     def _build_crew(self, raw_data: Any):
-        """Build crew."""
+        """Build crew from current inputs and configuration."""
         if not self._is_available():
             return None
 
@@ -168,14 +166,14 @@ class ValidationCrewRuntime:
         )
 
     def _run_sync(self, raw_data: Any):
-        """Run sync."""
+        """Execute run sync as part of this module workflow."""
         crew = self._build_crew(raw_data)
         if crew is None:
             return raw_data
         return crew.kickoff()
 
     def run(self, raw_data: Any, timeout_seconds: int = 8):
-        """Run."""
+        """Execute run as part of this module workflow."""
         if not self._is_available():
             return raw_data
         try:
@@ -191,7 +189,7 @@ class ValidationCrewWorkflow:
     """Workflow OO para validacao opcional via crewAI."""
 
     def __init__(self, runtime: ValidationCrewRuntime | None = None) -> None:
-        """Initialize dependencies for ValidationCrewWorkflow."""
+        """Initialize injected dependencies and runtime configuration for Validation Crew Workflow."""
         self._runtime = runtime or ValidationCrewRuntime(
             llm_instance=_ValidationCrewFactory.build_llm(),
             runtime_available=CREW_RUNTIME_AVAILABLE,
@@ -203,7 +201,7 @@ class ValidationCrewWorkflow:
         )
 
     def run_validation_crew(self, raw_data: Any, timeout_seconds: int = 8):
-        """Run validation crew."""
+        """Execute run validation crew as part of this module workflow."""
         return self._runtime.run(raw_data=raw_data, timeout_seconds=timeout_seconds)
 
 

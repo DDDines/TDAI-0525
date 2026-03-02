@@ -14,12 +14,12 @@ class RegistroUsoIARepository:
     """Repository OO de registros de uso IA com Session vinculada por request."""
 
     def __init__(self, db: Session) -> None:
-        """Initialize dependencies for RegistroUsoIARepository."""
+        """Initialize injected dependencies and runtime configuration for Registro Uso IARepository."""
         self._db = db
 
     @staticmethod
     def _normalize_tipo_acao(tipo_acao: Optional[models.TipoAcaoEnum]):
-        """Normalize tipo acao."""
+        """Normalize tipo acao to keep behavior consistent across callers."""
         if isinstance(tipo_acao, str):
             try:
                 return models.TipoAcaoEnum(tipo_acao)
@@ -31,7 +31,7 @@ class RegistroUsoIARepository:
         self,
         registro_uso: schemas.RegistroUsoIACreate,
     ) -> models.RegistroUsoIA:
-        """Create registro uso ia."""
+        """Create registro uso ia and return the resulting payload or entity."""
         db_obj = models.RegistroUsoIA(**registro_uso.model_dump(exclude_unset=True))
         self._db.add(db_obj)
         self._db.commit()
@@ -39,7 +39,7 @@ class RegistroUsoIARepository:
         return db_obj
 
     def get_registro_uso_ia(self, *, registro_id: int) -> Optional[models.RegistroUsoIA]:
-        """Return one IA usage record by identifier."""
+        """Retrieve registro uso ia using the current service dependencies."""
         return (
             self._db.query(models.RegistroUsoIA)
             .filter(models.RegistroUsoIA.id == registro_id)
@@ -56,7 +56,7 @@ class RegistroUsoIARepository:
         data_inicio: Optional[datetime] = None,
         data_fim: Optional[datetime] = None,
     ) -> List[models.RegistroUsoIA]:
-        """Return Registros uso ia."""
+        """Retrieve registros uso ia using the current service dependencies."""
         normalized_tipo_acao = self._normalize_tipo_acao(tipo_acao)
         query = self._db.query(models.RegistroUsoIA).filter(models.RegistroUsoIA.user_id == user_id)
         if normalized_tipo_acao:
@@ -80,7 +80,7 @@ class RegistroUsoIARepository:
         data_inicio: Optional[datetime] = None,
         data_fim: Optional[datetime] = None,
     ) -> int:
-        """Count registros uso ia."""
+        """Execute count registros uso ia as part of this module workflow."""
         normalized_tipo_acao = self._normalize_tipo_acao(tipo_acao)
         query = self._db.query(func.count(models.RegistroUsoIA.id)).filter(
             models.RegistroUsoIA.user_id == user_id
@@ -101,7 +101,7 @@ class RegistroUsoIARepository:
         skip: int = 0,
         limit: int = 100,
     ) -> List[models.RegistroUsoIA]:
-        """Return Usos ia by produto."""
+        """Retrieve usos ia by produto using the current service dependencies."""
         return (
             self._db.query(models.RegistroUsoIA)
             .filter(
@@ -144,7 +144,7 @@ class RegistroUsoIARepository:
         )
 
     def get_geracoes_ia_count_no_mes_corrente(self, *, user_id: int) -> int:
-        """Return Geracoes ia count no mes corrente."""
+        """Retrieve geracoes ia count no mes corrente using the current service dependencies."""
         inicio_mes = (
             datetime.now(timezone.utc)
             .replace(day=1, hour=0, minute=0, second=0, microsecond=0)

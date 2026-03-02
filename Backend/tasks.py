@@ -1,6 +1,4 @@
-"""Tasks.
-
-"""
+"""Document tasks module responsibilities and runtime integration points."""
 
 from __future__ import annotations
 
@@ -17,9 +15,9 @@ from Backend.application.services.service_container import (
 
 class TaskWorkflow:
 
-    """Encapsulates Task workflow."""
+    """Represent Task Workflow and centralize its responsibilities inside this module."""
     def __init__(self, runtime: Optional["TaskRuntime"] = None) -> None:
-        """Initialize dependencies for TaskWorkflow."""
+        """Initialize injected dependencies and runtime configuration for Task Workflow."""
         self._runtime = runtime or TaskRuntime()
 
     def process_pdf_extraction_task(
@@ -28,7 +26,7 @@ class TaskWorkflow:
         page_number: int,
         db_url: str,
     ) -> None:
-        """Pdf extraction task."""
+        """Execute pdf extraction task and return the normalized execution result."""
         self._runtime.process_pdf_extraction_task(
             import_job_id=import_job_id,
             page_number=page_number,
@@ -38,12 +36,12 @@ class TaskWorkflow:
 
 class TaskRuntime:
 
-    """Encapsulates Task runtime."""
+    """Represent Task Runtime and centralize its responsibilities inside this module."""
     def __init__(
         self,
         task_service: Optional[PdfExtractionTaskService] = None,
     ) -> None:
-        """Initialize dependencies for TaskRuntime."""
+        """Initialize injected dependencies and runtime configuration for Task Runtime."""
         if task_service is not None:
             self._task_service = task_service
             return
@@ -60,7 +58,7 @@ class TaskRuntime:
         page_number: int,
         db_url: str,
     ) -> None:
-        """Pdf extraction task."""
+        """Execute pdf extraction task and return the normalized execution result."""
         self._task_service.process_pdf_extraction_task(
             import_job_id=import_job_id,
             page_number=page_number,

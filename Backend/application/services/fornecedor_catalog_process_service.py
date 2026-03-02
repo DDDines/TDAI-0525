@@ -1,6 +1,4 @@
-"""Fornecedor catalog process service.
-
-"""
+"""Document fornecedor catalog process service module responsibilities and runtime integration points."""
 
 from __future__ import annotations
 
@@ -20,7 +18,7 @@ class FornecedorCatalogProcessService:
         fornecedor_repo: Any,
         catalog_file_repository: Any,
     ) -> None:
-        """Initialize dependencies for FornecedorCatalogProcessService."""
+        """Initialize injected dependencies and runtime configuration for Fornecedor Catalog Process Service."""
         self._models = models
         self._fornecedor_repo = fornecedor_repo
         self._catalog_file_repository = catalog_file_repository
@@ -38,7 +36,7 @@ class FornecedorCatalogProcessService:
         region: Optional[list[float]],
         mapping: Optional[Dict[str, str]],
     ) -> Dict[str, Any]:
-        """Start full processing."""
+        """Execute start full processing as part of this module workflow."""
         fornecedor = self._validate_fornecedor_access(
             fornecedor_repo=self._fornecedor_repo,
             fornecedor_id=fornecedor_id,
@@ -84,7 +82,7 @@ class FornecedorCatalogProcessService:
         fornecedor_id: int,
         current_user: Any,
     ) -> Any:
-        """Validate fornecedor access."""
+        """Execute validate fornecedor access as part of this module workflow."""
         fornecedor = fornecedor_repo.get_fornecedor(fornecedor_id=fornecedor_id)
         if not fornecedor:
             raise HTTPException(status_code=404, detail="Fornecedor nao encontrado")
@@ -100,7 +98,7 @@ class FornecedorCatalogProcessService:
         fornecedor_id: int,
         catalog_file_repo: Any,
     ) -> Any:
-        """Create processing job from source."""
+        """Create processing job from source and return the resulting payload or entity."""
         job = self._models.CatalogImportFile(
             user_id=user_id,
             fornecedor_id=fornecedor_id,

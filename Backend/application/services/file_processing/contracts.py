@@ -1,6 +1,4 @@
-"""Contracts.
-
-"""
+"""Document contracts module responsibilities and runtime integration points."""
 
 from __future__ import annotations
 
@@ -12,7 +10,7 @@ from sqlalchemy.orm import Session
 
 
 class FileProcessingPort(Protocol):
-    """Encapsulates File processing port."""
+    """Represent File Processing Port and centralize its responsibilities inside this module."""
     async def save_uploaded_catalog(
         self,
         file: UploadFile,

@@ -1,6 +1,4 @@
-"""Generation task service.
-
-"""
+"""Document generation task service module responsibilities and runtime integration points."""
 
 from __future__ import annotations
 
@@ -24,7 +22,7 @@ class GenerationTaskService:
         user_repository_factory: Any,
         product_repository_factory: Any,
     ) -> None:
-        """Initialize dependencies for GenerationTaskService."""
+        """Initialize injected dependencies and runtime configuration for Generation Task Service."""
         self._session_provider = session_provider
         self._user_repository_factory = user_repository_factory
         self._product_repository_factory = product_repository_factory
@@ -33,18 +31,18 @@ class GenerationTaskService:
         self._logger = logger
 
     def _get_user_access(self, session: Session) -> Any:
-        """Get user access."""
+        """Retrieve user access using the current service dependencies."""
         return self._user_repository_factory(session)
 
     def _get_product_access(self, session: Session) -> Any:
-        """Get product access."""
+        """Retrieve product access using the current service dependencies."""
         return self._product_repository_factory(session)
 
     def _resolve_generation_targets(
         self,
         tipo_geracao_principal: str,
     ) -> Optional[Tuple[str, str]]:
-        """Resolve generation targets."""
+        """Resolve generation targets from injected repositories or runtime context."""
         if tipo_geracao_principal == "titulo":
             return "status_titulo_ia", "titulos_sugeridos"
         if tipo_geracao_principal == "descricao":
@@ -56,7 +54,7 @@ class GenerationTaskService:
         current_log: Any,
         action: str,
     ) -> list:
-        """Append process log."""
+        """Execute append process log as part of this module workflow."""
         log_obj = list(current_log or [])
         log_obj.append(
             {

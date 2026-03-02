@@ -37,7 +37,7 @@ class MainBootstrapRuntime:
     """Runtime OO responsavel por bootstrap da aplicacao e defaults de dominio."""
 
     def build_allowed_origins(self) -> List[str]:
-        """Build allowed origins."""
+        """Build allowed origins from current inputs and configuration."""
         exact_frontend_origin = 'http://localhost:5173'
         default_cors_origins_list = [exact_frontend_origin, 'http://127.0.0.1:5173', f'{exact_frontend_origin}/', 'http://127.0.0.1:5173/', 'http://localhost', 'http://127.0.0.1']
         allowed_origins: List[str] = []
@@ -66,14 +66,14 @@ class MainBootstrapRuntime:
         return sorted(set(allowed_origins))
 
     def ensure_static_files_path(self) -> Path:
-        """Ensure static files path."""
+        """Ensure static files path exists or is valid before continuing the flow."""
         static_files_path = Path(__file__).parent / 'static'
         if not static_files_path.exists():
             static_files_path.mkdir(parents=True, exist_ok=True)
         return static_files_path
 
     async def startup_event_create_defaults(self) -> None:
-        """Startup event create defaults."""
+        """Execute startup event create defaults as part of this module workflow."""
         logger.info('Executando startup para criar defaults (roles, planos, admin, product types)...')
         session: Session = SessionLocal()
         try:
@@ -96,7 +96,7 @@ class MainBootstrapRuntime:
         logger.info('Evento de startup para defaults concluido.')
 
     def create_new_user(self, *, user_in: schemas.UserCreate, session: Session) -> models.User:
-        """Create new user."""
+        """Create new user and return the resulting payload or entity."""
         user_repo = UserRepository(session)
         if user_repo.get_user_by_email(email=user_in.email):
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail='Um usuario com este email ja existe no sistema.')
@@ -105,7 +105,7 @@ class MainBootstrapRuntime:
 
     @staticmethod
     def _ensure_tables() -> None:
-        """Ensure tables."""
+        """Ensure tables exists or is valid before continuing the flow."""
         try:
             logger.info('AUTO_CREATE_TABLES habilitado - criando/verificando tabelas...')
             models.Base.metadata.create_all(bind=engine)
@@ -115,7 +115,7 @@ class MainBootstrapRuntime:
 
     @staticmethod
     def _ensure_roles(*, user_repo: UserRepository) -> Tuple[Optional[models.Role], Optional[models.Role]]:
-        """Ensure roles."""
+        """Ensure roles exists or is valid before continuing the flow."""
         roles_a_criar = [{'name': 'admin', 'description': 'Administrador do sistema com acesso total.'}, {'name': 'user', 'description': 'Usuario padrao com acesso as funcionalidades do seu plano.'}]
         admin_role_obj: Optional[models.Role] = None
         user_role_obj: Optional[models.Role] = None
@@ -136,7 +136,7 @@ class MainBootstrapRuntime:
 
     @staticmethod
     def _ensure_planos(*, user_repo: UserRepository) -> Tuple[Optional[models.Plano], Optional[models.Plano]]:
-        """Ensure planos."""
+        """Ensure planos exists or is valid before continuing the flow."""
         plano_gratuito_data = schemas.PlanoCreate(nome='Gratuito', descricao='Plano basico gratuito com limitacoes.', preco_mensal=0.0, limite_produtos=settings.DEFAULT_LIMIT_PRODUTOS_SEM_PLANO, limite_enriquecimento_web=settings.DEFAULT_LIMIT_ENRIQUECIMENTO_SEM_PLANO, limite_geracao_ia=settings.DEFAULT_LIMIT_GERACAO_IA_SEM_PLANO, permite_api_externa=False, suporte_prioritario=False)
         plano_pro_data = schemas.PlanoCreate(nome='Pro', descricao='Plano profissional com mais limites e funcionalidades.', preco_mensal=49.9, limite_produtos=1000, limite_enriquecimento_web=500, limite_geracao_ia=2000, permite_api_externa=True, suporte_prioritario=True)
         admin_plano_obj: Optional[models.Plano] = None
@@ -158,7 +158,7 @@ class MainBootstrapRuntime:
         return (admin_plano_obj, plano_gratuito_obj)
 
     def _ensure_admin_user(self, *, session: Session, user_repo: UserRepository, admin_role_obj: Optional[models.Role], admin_plano_obj: Optional[models.Plano], plano_gratuito_obj: Optional[models.Plano]) -> Optional[models.User]:
-        """Ensure admin user."""
+        """Ensure admin user exists or is valid before continuing the flow."""
         admin_user = user_repo.get_user_by_email(email=settings.ADMIN_EMAIL)
         if not admin_user:
             if not admin_role_obj:
@@ -204,7 +204,7 @@ class MainBootstrapRuntime:
 
     @staticmethod
     def _ensure_global_product_types(*, product_type_repo: ProductTypeRepository) -> None:
-        """Ensure global product types."""
+        """Ensure global product types exists or is valid before continuing the flow."""
         product_types_data = [{'key_name': 'eletronicos', 'friendly_name': 'Eletronicos', 'description': 'Tipo padrao para produtos eletronicos.', 'attribute_templates': [{'attribute_key': 'marca', 'label': 'Marca', 'field_type': models.AttributeFieldTypeEnum.TEXT, 'is_required': True, 'display_order': 0, 'description': 'Marca do produto eletronico'}, {'attribute_key': 'voltagem', 'label': 'Voltagem', 'field_type': models.AttributeFieldTypeEnum.SELECT, 'options': '["110v", "220v", "Bivolt"]', 'is_required': True, 'display_order': 1, 'description': 'Selecione a voltagem'}, {'attribute_key': 'cor_principal', 'label': 'Cor Principal', 'field_type': models.AttributeFieldTypeEnum.TEXT, 'is_required': False, 'display_order': 2, 'description': 'Cor predominante do produto'}]}, {'key_name': 'vestuario', 'friendly_name': 'Vestuario', 'description': 'Tipo padrao para pecas de vestuario.', 'attribute_templates': [{'attribute_key': 'tamanho', 'label': 'Tamanho', 'field_type': models.AttributeFieldTypeEnum.SELECT, 'options': '["P", "M", "G", "GG", "XG"]', 'is_required': True, 'display_order': 1, 'description': 'Selecione o tamanho da peca'}, {'attribute_key': 'cor', 'label': 'Cor', 'field_type': models.AttributeFieldTypeEnum.TEXT, 'is_required': True, 'display_order': 2, 'description': 'Cor da peca de vestuario'}, {'attribute_key': 'material', 'label': 'Material Principal', 'field_type': models.AttributeFieldTypeEnum.TEXT, 'is_required': False, 'display_order': 3, 'description': 'Material principal da confeccao'}]}]
         for pt_data in product_types_data:
             product_type_in_db = product_type_repo.get_product_type_by_key_name(key_name=pt_data['key_name'], user_id=None)
@@ -216,7 +216,7 @@ class MainBootstrapRuntime:
 
     @staticmethod
     def _ensure_default_supplier(*, session: Session, admin_user: Optional[models.User], fornecedor_repo: FornecedorRepository) -> None:
-        """Ensure default supplier."""
+        """Ensure default supplier exists or is valid before continuing the flow."""
         if not admin_user:
             return
         fornecedor_existente = session.query(models.Fornecedor).filter(func.lower(models.Fornecedor.nome) == 'uouu', models.Fornecedor.user_id == admin_user.id).first()
@@ -228,7 +228,7 @@ class MainBootstrapRuntime:
 
     @staticmethod
     def _ensure_default_product(*, session: Session, admin_user: Optional[models.User], product_repo: ProductRepository) -> None:
-        """Ensure default product."""
+        """Ensure default product exists or is valid before continuing the flow."""
         if not admin_user:
             return
         if session.query(models.Produto).count() != 0:
@@ -258,31 +258,31 @@ class MainBootstrapWorkflow:
     """Workflow/escopo request-scoped para o fluxo de bootstrap da API."""
 
     def __init__(self, runtime: Optional[MainBootstrapRuntime]=None) -> None:
-        """Initialize dependencies for MainBootstrapWorkflow."""
+        """Initialize injected dependencies and runtime configuration for Main Bootstrap Workflow."""
         self._runtime = runtime or MainBootstrapRuntime()
 
     def build_allowed_origins(self) -> List[str]:
-        """Build allowed origins."""
+        """Build allowed origins from current inputs and configuration."""
         return self._runtime.build_allowed_origins()
 
     def ensure_static_files_path(self) -> Path:
-        """Ensure static files path."""
+        """Ensure static files path exists or is valid before continuing the flow."""
         return self._runtime.ensure_static_files_path()
 
     async def startup_event_create_defaults(self) -> None:
-        """Startup event create defaults."""
+        """Execute startup event create defaults as part of this module workflow."""
         await self._runtime.startup_event_create_defaults()
 
     def create_new_user(self, user_in: schemas.UserCreate, session: Session) -> models.User:
-        """Create new user."""
+        """Create new user and return the resulting payload or entity."""
         return self._runtime.create_new_user(user_in=user_in, session=session)
 
 class _MainLifecycleEntries:
 
-    """Encapsulates Main lifecycle entries."""
+    """Represent Main Lifecycle Entries and centralize its responsibilities inside this module."""
     @staticmethod
     async def lifespan(_app: FastAPI):
-        """Lifespan."""
+        """Execute lifespan as part of this module workflow."""
         await MainBootstrapWorkflow().startup_event_create_defaults()
         yield
 
@@ -300,23 +300,23 @@ app.mount('/static', StaticFiles(directory=static_files_path), name='static')
 
 class _EndpointHandlers:
 
-    """Encapsulates Endpoint handlers."""
+    """Represent Endpoint Handlers and centralize its responsibilities inside this module."""
     @app.post('/api/v1/users/', response_model=schemas.UserResponse, status_code=status.HTTP_201_CREATED, tags=['Usuarios'])
     def create_new_user(
         user_in: schemas.UserCreate,
         session: Session = Depends(ServiceContainerDependencySupport.get_request_db_session),
     ):
-        """Create new user."""
+        """Create new user and return the resulting payload or entity."""
         return MainBootstrapWorkflow().create_new_user(user_in=user_in, session=session)
 
     @app.get('/', tags=['Raiz'])
     async def root():
-        """Root."""
+        """Execute root as part of this module workflow."""
         return {'message': f'Bem-vindo a API do {settings.PROJECT_NAME}!'}
 
     @app.get('/health', status_code=status.HTTP_200_OK, tags=['Health Check'])
     async def health_check():
-        """Health check."""
+        """Execute health check as part of this module workflow."""
         return {'status': 'ok'}
 app.include_router(auth_router_direct, prefix=settings.API_V1_STR + '/auth', tags=['Autenticacao e Usuarios'])
 app.include_router(social_auth_router, prefix=settings.API_V1_STR + '/auth', tags=['Autenticacao Social'])

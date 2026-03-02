@@ -1,6 +1,4 @@
-"""Contracts.
-
-"""
+"""Document contracts module responsibilities and runtime integration points."""
 
 from __future__ import annotations
 
@@ -12,9 +10,9 @@ from Backend import models
 
 
 class WebDataExtractorPort(Protocol):
-    """Encapsulates Web data extractor port."""
+    """Represent Web Data Extractor Port and centralize its responsibilities inside this module."""
     def busca_publica_disponivel(self) -> bool:
-        """Return whether fallback public search is available."""
+        """Execute busca publica disponivel as part of this module workflow."""
         ...
 
     async def buscar_urls_publicas(

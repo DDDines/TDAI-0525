@@ -60,7 +60,7 @@ class CatalogImportIssueTracker:
             self.quarantine_samples.append(normalized_item)
 
     def top_error_reasons(self, limit: int = 10) -> List[Tuple[str, int]]:
-        """Return the most frequent critical error reasons."""
+        """Execute top error reasons as part of this module workflow."""
         reasons = Counter(
             self._extract_import_error_reason(err)
             for err in self.errors
@@ -69,11 +69,11 @@ class CatalogImportIssueTracker:
         return reasons.most_common(limit)
 
     def top_ignored_reasons(self, limit: int = 10) -> List[Tuple[str, int]]:
-        """Return the most frequent non-critical discarded reasons."""
+        """Execute top ignored reasons as part of this module workflow."""
         return self.ignored_reason_counter.most_common(limit)
 
     def top_quarantine_reasons(self, limit: int = 10) -> List[Tuple[str, int]]:
-        """Return the most frequent quarantine reasons."""
+        """Execute top quarantine reasons as part of this module workflow."""
         return self.quarantine_reason_counter.most_common(limit)
 
 

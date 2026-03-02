@@ -1,6 +1,4 @@
-"""Catalog import.
-
-"""
+"""Document catalog import module responsibilities and runtime integration points."""
 
 from __future__ import annotations
 
@@ -28,7 +26,7 @@ class CatalogImportPipelineOrchestrator:
         oop_executor: TaskExecutor,
         context: str = "catalog_import.finalize",
     ) -> None:
-        """Initialize dependencies for CatalogImportPipelineOrchestrator."""
+        """Initialize injected dependencies and runtime configuration for Catalog Import Pipeline Orchestrator."""
         oop_use_case = CatalogImportProcessingUseCase(processor=oop_executor)
         self._oop_builder = CatalogImportTaskBuilder(
             executor=OOPCatalogImportExecutor(oop_use_case)
@@ -40,7 +38,7 @@ class CatalogImportPipelineOrchestrator:
         *,
         command: CatalogImportFinalizeCommand,
     ) -> TaskExecutionPlan:
-        """Select finalize plan."""
+        """Execute select finalize plan as part of this module workflow."""
         oop_plan = self._oop_builder.build_finalize_plan(
             file_id=command.file_id,
             user_id=command.user_id,

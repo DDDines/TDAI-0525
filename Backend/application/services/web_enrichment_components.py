@@ -1,6 +1,4 @@
-"""Web enrichment components.
-
-"""
+"""Document web enrichment components module responsibilities and runtime integration points."""
 
 from __future__ import annotations
 
@@ -11,7 +9,7 @@ from typing import Any, Dict, List, Optional
 
 @dataclass(frozen=True)
 class WebEnrichmentConfigSnapshot:
-    """Encapsulates Web enrichment config snapshot."""
+    """Represent Web Enrichment Config Snapshot and centralize its responsibilities inside this module."""
     openai_user_configurada: bool
     openai_system_configurada: bool
     openai_api_configurada: bool
@@ -20,7 +18,7 @@ class WebEnrichmentConfigSnapshot:
     busca_web_disponivel: bool
 
     def as_log_line(self) -> str:
-        """As log line."""
+        """Execute as log line as part of this module workflow."""
         return (
             "Config API: "
             f"openai_user={'sim' if self.openai_user_configurada else 'nao'}, "
@@ -34,7 +32,7 @@ class WebEnrichmentConfigInspector:
     """Inspeciona disponibilidade de provedores externos para enriquecimento."""
 
     def inspect(self, *, user: Any, settings: Any, web_extractor: Any) -> WebEnrichmentConfigSnapshot:
-        """Inspect."""
+        """Execute inspect as part of this module workflow."""
         openai_user_configurada = bool(getattr(user, "chave_openai_pessoal", None))
         openai_system_configurada = bool(getattr(settings, "OPENAI_API_KEY", None))
         openai_api_configurada = bool(openai_user_configurada or openai_system_configurada)
@@ -61,12 +59,12 @@ class WebEnrichmentQueryPlanner:
 
     @staticmethod
     def _dedupe(values: List[str]) -> List[str]:
-        """Dedupe."""
+        """Execute dedupe as part of this module workflow."""
         return [v for v in dict.fromkeys(v for v in values if v)]
 
     @staticmethod
     def _extract_code_tokens(value: Any) -> List[str]:
-        """Extract code tokens."""
+        """Execute extract code tokens as part of this module workflow."""
         text = str(value or "").upper()
         if not text:
             return []
@@ -83,7 +81,7 @@ class WebEnrichmentQueryPlanner:
 
     @staticmethod
     def _dynamic_text_hints(dynamic_attributes: Any) -> Dict[str, str]:
-        """Dynamic text hints."""
+        """Execute dynamic text hints as part of this module workflow."""
         hints = {"aplicacao": "", "material": "", "marca": ""}
         if not isinstance(dynamic_attributes, dict):
             return hints
@@ -109,7 +107,7 @@ class WebEnrichmentQueryPlanner:
         db_produto_obj: Any,
         termos_busca_override: Optional[str],
     ) -> List[str]:
-        """Build candidates."""
+        """Build candidates from current inputs and configuration."""
         if termos_busca_override:
             return self._dedupe([termos_busca_override.strip()])
 
@@ -198,7 +196,7 @@ class WebEnrichmentStatusResolver:
         busca_web_disponivel: bool,
         urls_a_processar: List[str],
     ) -> Any:
-        """Resolve."""
+        """Execute resolve as part of this module workflow."""
         if status_para_salvar_no_final not in {
             models.StatusEnriquecimentoEnum.EM_PROGRESSO,
             models.StatusEnriquecimentoEnum.FALHOU,
@@ -233,7 +231,7 @@ class WebEnrichmentFinalizationService:
         models: Any,
         product_repository_factory: Any,
     ) -> None:
-        """Initialize dependencies for WebEnrichmentFinalizationService."""
+        """Initialize injected dependencies and runtime configuration for Web Enrichment Finalization Service."""
         self._normalize_human_text = normalize_human_text
         self._build_payload_enriquecimento_visivel = build_payload_enriquecimento_visivel
         self._schemas = schemas
@@ -249,7 +247,7 @@ class WebEnrichmentFinalizationService:
         dados_extraidos_agregados: Dict[str, Any],
         log_mensagens: List[str],
     ) -> Any:
-        """Apply."""
+        """Execute apply as part of this module workflow."""
         if (
             db_produto_obj.status_enriquecimento_web
             == self._models.StatusEnriquecimentoEnum.EM_PROGRESSO

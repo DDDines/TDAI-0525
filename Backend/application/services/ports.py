@@ -1,6 +1,4 @@
-"""Ports.
-
-"""
+"""Document ports module responsibilities and runtime integration points."""
 
 from __future__ import annotations
 
@@ -14,7 +12,7 @@ from Backend.application.services.web_data_extractor.contracts import WebDataExt
 
 
 class IAGenerationPort(Protocol):
-    """Encapsulates I a generation port."""
+    """Represent IAGeneration Port and centralize its responsibilities inside this module."""
     async def gerar_titulos_com_openai(
         self,
         *,
@@ -71,7 +69,7 @@ class IAGenerationPort(Protocol):
 
 
 class LimitPort(Protocol):
-    """Encapsulates Limit port."""
+    """Represent Limit Port and centralize its responsibilities inside this module."""
     def verificar_limite_uso(
         self,
         session: Session,
@@ -101,7 +99,7 @@ class LimitPort(Protocol):
 
 
 class ValidationPort(Protocol):
-    """Encapsulates Validation port."""
+    """Represent Validation Port and centralize its responsibilities inside this module."""
     def run_validation_crew(self, raw_data: Any):
         """Validate and normalize raw extraction data."""
         ...

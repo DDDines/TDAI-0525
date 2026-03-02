@@ -1,6 +1,4 @@
-"""Web enrichment task runner.
-
-"""
+"""Document web enrichment task runner module responsibilities and runtime integration points."""
 
 from __future__ import annotations
 
@@ -37,7 +35,7 @@ class WebEnrichmentTaskRunner:
         product_repository_factory: Any,
         usage_repository_factory: Any,
     ) -> None:
-        """Initialize dependencies for WebEnrichmentTaskRunner."""
+        """Initialize injected dependencies and runtime configuration for Web Enrichment Task Runner."""
         self._kwargs = {
             "session_provider": session_provider,
             "logger": logger,
@@ -62,13 +60,13 @@ class WebEnrichmentTaskRunner:
         self._service: WebEnrichmentTaskService | None = None
 
     def _build(self) -> WebEnrichmentTaskService:
-        """Build."""
+        """Execute build as part of this module workflow."""
         build_kwargs = dict(self._kwargs)
         build_kwargs["web_extractor"] = self._web_extractor
         return WebEnrichmentTaskService(**build_kwargs)
 
     def _get_service(self) -> WebEnrichmentTaskService:
-        """Get service."""
+        """Retrieve service using the current service dependencies."""
         if self._service is None:
             self._service = self._build()
         return self._service
@@ -80,7 +78,7 @@ class WebEnrichmentTaskRunner:
         user_id: int,
         termos_busca_override: Optional[str] = None,
     ) -> None:
-        """Execute."""
+        """Execute execute as part of this module workflow."""
         await self._get_service().execute(
             produto_id=produto_id,
             user_id=user_id,

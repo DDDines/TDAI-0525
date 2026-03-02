@@ -1,6 +1,4 @@
-"""Web data extractor adapter.
-
-"""
+"""Document web data extractor adapter module responsibilities and runtime integration points."""
 
 from __future__ import annotations
 
@@ -18,11 +16,11 @@ class WebDataExtractorServiceAdapter:
     """OOP port adapter backed by the current web extraction implementation."""
 
     def __init__(self, runtime: WebDataExtractorRuntime | None = None) -> None:
-        """Initialize dependencies for WebDataExtractorServiceAdapter."""
+        """Initialize injected dependencies and runtime configuration for Web Data Extractor Service Adapter."""
         self._runtime = runtime or WebDataExtractorRuntime()
 
     def busca_publica_disponivel(self) -> bool:
-        """Busca publica disponivel."""
+        """Execute busca publica disponivel as part of this module workflow."""
         return self._runtime.busca_publica_disponivel()
 
     async def buscar_urls_publicas(
@@ -30,7 +28,7 @@ class WebDataExtractorServiceAdapter:
         query: str,
         num_results: int = 3,
     ) -> List[str]:
-        """Buscar urls publicas."""
+        """Execute buscar urls publicas as part of this module workflow."""
         return await self._runtime.buscar_urls_publicas(
             query=query,
             num_results=num_results,
@@ -41,14 +39,14 @@ class WebDataExtractorServiceAdapter:
         query: str,
         num_results: int = 3,
     ) -> List[str]:
-        """Buscar urls google."""
+        """Execute buscar urls google as part of this module workflow."""
         return await self._runtime.buscar_urls_google(
             query=query,
             num_results=num_results,
         )
 
     async def coletar_conteudo_pagina_playwright(self, url: str) -> Optional[str]:
-        """Coletar conteudo pagina playwright."""
+        """Execute coletar conteudo pagina playwright as part of this module workflow."""
         return await self._runtime.coletar_conteudo_pagina_playwright(url=url)
 
     def extrair_texto_principal_com_trafilatura(
@@ -65,7 +63,7 @@ class WebDataExtractorServiceAdapter:
         html_content: str,
         url: str,
     ) -> Dict[str, Any]:
-        """Extrair metadados estruturados."""
+        """Execute extrair metadados estruturados as part of this module workflow."""
         return self._runtime.extrair_metadados_estruturados(
             html_content=html_content,
             url=url,
@@ -75,7 +73,7 @@ class WebDataExtractorServiceAdapter:
         self,
         metadata_bruta: Dict[str, Any],
     ) -> Dict[str, Any]:
-        """Normalizar dados de metadados."""
+        """Execute normalizar dados de metadados as part of this module workflow."""
         return self._runtime.normalizar_dados_de_metadados(
             metadata_bruta=metadata_bruta
         )

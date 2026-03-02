@@ -1,6 +1,4 @@
-"""Web enrichment relevance service.
-
-"""
+"""Document web enrichment relevance service module responsibilities and runtime integration points."""
 
 from __future__ import annotations
 
@@ -11,7 +9,7 @@ from urllib.parse import urlparse
 
 
 class WebEnrichmentRelevanceService:
-    """Encapsulates Web enrichment relevance service."""
+    """Represent Web Enrichment Relevance Service and centralize its responsibilities inside this module."""
     _RELEVANCE_STOPWORDS = {
         "de",
         "da",
@@ -65,14 +63,14 @@ class WebEnrichmentRelevanceService:
 
     @staticmethod
     def _fold_text(value: Any) -> str:
-        """Fold text."""
+        """Execute fold text as part of this module workflow."""
         text = unicodedata.normalize("NFKD", str(value or ""))
         text = text.encode("ascii", "ignore").decode("ascii")
         text = re.sub(r"[^a-zA-Z0-9]+", " ", text).lower()
         return re.sub(r"\s+", " ", text).strip()
 
     def tokens_for_relevance(self, value: Any) -> List[str]:
-        """Tokens for relevance."""
+        """Execute tokens for relevance as part of this module workflow."""
         base = self._fold_text(value)
         if not base:
             return []
@@ -80,7 +78,7 @@ class WebEnrichmentRelevanceService:
 
     @staticmethod
     def extract_code_tokens(values: List[Any]) -> List[str]:
-        """Extract code tokens."""
+        """Execute extract code tokens as part of this module workflow."""
         combined = " ".join(str(v or "") for v in values)
         upper = (
             unicodedata.normalize("NFKD", combined)
@@ -141,7 +139,7 @@ class WebEnrichmentRelevanceService:
 
     @staticmethod
     def extract_supplier_domain(site_url: Any) -> str:
-        """Extract supplier domain."""
+        """Execute extract supplier domain as part of this module workflow."""
         try:
             parsed = urlparse(str(site_url or "").strip())
             if parsed.netloc:
@@ -157,7 +155,7 @@ class WebEnrichmentRelevanceService:
         candidate_url: str,
         fornecedor_domain: str = "",
     ) -> int:
-        """Score url for product."""
+        """Execute score url for product as part of this module workflow."""
         parsed = urlparse(str(candidate_url or "").strip())
         host = (parsed.netloc or "").lower()
         path = (parsed.path or "").lower()
@@ -203,7 +201,7 @@ class WebEnrichmentRelevanceService:
         fornecedor_domain: str = "",
         max_urls: int = 4,
     ) -> Tuple[List[str], List[Tuple[str, int]]]:
-        """Prioritize urls for enrichment."""
+        """Execute prioritize urls for enrichment as part of this module workflow."""
         deduped = [u for u in dict.fromkeys(urls_candidatas or []) if u]
         scored: List[Tuple[str, int]] = []
         for url in deduped:

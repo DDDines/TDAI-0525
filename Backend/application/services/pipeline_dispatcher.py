@@ -1,6 +1,4 @@
-"""Pipeline dispatcher.
-
-"""
+"""Document pipeline dispatcher module responsibilities and runtime integration points."""
 
 from __future__ import annotations
 
@@ -21,10 +19,10 @@ class PipelineDispatcher:
 
     @staticmethod
     async def run_inline(plan: TaskExecutionPlan) -> None:
-        """Run inline."""
+        """Execute run inline as part of this module workflow."""
         await plan.executor(**plan.task_kwargs)
 
     @staticmethod
     def dispatch_background(background_tasks: BackgroundTasks, plan: TaskExecutionPlan) -> None:
-        """Dispatch background."""
+        """Execute dispatch background as part of this module workflow."""
         background_tasks.add_task(plan.executor, **plan.task_kwargs)

@@ -1,6 +1,4 @@
-"""Content service.
-
-"""
+"""Document content service module responsibilities and runtime integration points."""
 
 from __future__ import annotations
 
@@ -12,13 +10,13 @@ from Backend.application.services.web_data_extractor.contracts import (
 
 
 class WebDataExtractorContentService:
-    """Encapsulates Web data extractor content service."""
+    """Represent Web Data Extractor Content Service and centralize its responsibilities inside this module."""
     def __init__(self, port: WebDataExtractorPort) -> None:
-        """Initialize dependencies for WebDataExtractorContentService."""
+        """Initialize injected dependencies and runtime configuration for Web Data Extractor Content Service."""
         self._port = port
 
     async def coletar_conteudo_pagina_playwright(self, url: str) -> Optional[str]:
-        """Coletar conteudo pagina playwright."""
+        """Execute coletar conteudo pagina playwright as part of this module workflow."""
         return await self._port.coletar_conteudo_pagina_playwright(url=url)
 
     def extrair_texto_principal_com_trafilatura(

@@ -1,6 +1,4 @@
-"""Web enrichment.
-
-"""
+"""Document web enrichment module responsibilities and runtime integration points."""
 
 from __future__ import annotations
 
@@ -20,7 +18,7 @@ class OOPWebEnrichmentExecutor:
     """
 
     def __init__(self, use_case: WebEnrichmentProcessingUseCase):
-        """Initialize dependencies for OOPWebEnrichmentExecutor."""
+        """Initialize injected dependencies and runtime configuration for OOPWeb Enrichment Executor."""
         self._use_case = use_case
 
     async def __call__(
@@ -30,7 +28,7 @@ class OOPWebEnrichmentExecutor:
         user_id: int,
         termos_busca_override: Optional[str] = None,
     ) -> Any:
-        """Call."""
+        """Execute call as part of this module workflow."""
         command = WebEnrichmentStartCommand(
             produto_id=produto_id,
             user_id=user_id,
@@ -42,9 +40,9 @@ class OOPWebEnrichmentExecutor:
 
 
 class WebEnrichmentTaskBuilder:
-    """Encapsulates Web enrichment task builder."""
+    """Represent Web Enrichment Task Builder and centralize its responsibilities inside this module."""
     def __init__(self, executor: OOPWebEnrichmentExecutor):
-        """Initialize dependencies for WebEnrichmentTaskBuilder."""
+        """Initialize injected dependencies and runtime configuration for Web Enrichment Task Builder."""
         self._executor = executor
 
     def build_start_plan(
@@ -54,7 +52,7 @@ class WebEnrichmentTaskBuilder:
         user_id: int,
         termos_busca_override: Optional[str],
     ) -> TaskExecutionPlan:
-        """Build start plan."""
+        """Build start plan from current inputs and configuration."""
         task_kwargs = {
             "produto_id": produto_id,
             "user_id": user_id,

@@ -1,6 +1,4 @@
-"""Fornecedor import job repository.
-
-"""
+"""Document fornecedor import job repository module responsibilities and runtime integration points."""
 
 from __future__ import annotations
 
@@ -15,7 +13,7 @@ class FornecedorImportJobRepository:
     """Repository OO para jobs de importacao de fornecedor."""
 
     def __init__(self, db: Session) -> None:
-        """Initialize dependencies for FornecedorImportJobRepository."""
+        """Initialize injected dependencies and runtime configuration for Fornecedor Import Job Repository."""
         self._db = db
 
     def create_import_job(
@@ -24,7 +22,7 @@ class FornecedorImportJobRepository:
         user_id: int,
         result_summary: Optional[dict] = None,
     ) -> models.FornecedorImportJob:
-        """Create import job."""
+        """Create import job and return the resulting payload or entity."""
         job = models.FornecedorImportJob(
             user_id=user_id,
             result_summary=result_summary or {},
@@ -39,7 +37,7 @@ class FornecedorImportJobRepository:
         *,
         job_id: int,
     ) -> Optional[models.FornecedorImportJob]:
-        """Return Import job."""
+        """Retrieve import job using the current service dependencies."""
         return (
             self._db.query(models.FornecedorImportJob)
             .filter(models.FornecedorImportJob.id == job_id)
@@ -52,7 +50,7 @@ class FornecedorImportJobRepository:
         job: models.FornecedorImportJob,
         status: str,
     ) -> models.FornecedorImportJob:
-        """Update job status."""
+        """Update job status and persist the resulting state changes."""
         job.status = status
         self._db.add(job)
         self._db.commit()

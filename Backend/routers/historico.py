@@ -24,7 +24,7 @@ class HistoricoRequestService:
         self,
         session=Depends(ServiceContainerDependencySupport.get_request_db_session),
     ) -> None:
-        """Initialize dependencies for HistoricoRequestService."""
+        """Initialize injected dependencies and runtime configuration for Historico Request Service."""
         self._historico_repo = HistoricoRepository(session)
 
     def list_historico(
@@ -34,7 +34,7 @@ class HistoricoRequestService:
         skip: int,
         limit: int,
     ) -> schemas.HistoricoPage:
-        """List historico."""
+        """Execute list historico as part of this module workflow."""
         user_id_filter = None if current_user.is_superuser else current_user.id
         items = self._historico_repo.get_registros_historico(
             user_id=user_id_filter,
@@ -52,7 +52,7 @@ class HistoricoRequestService:
 
     @staticmethod
     def get_tipos_acao() -> List[str]:
-        """Return Tipos acao."""
+        """Retrieve tipos acao using the current service dependencies."""
         return [enum_member.value for enum_member in models.TipoAcaoEnum]
 
 
@@ -65,11 +65,11 @@ def list_historico(
     ),
     request_service: HistoricoRequestService = Depends(),
 ):
-    """List historico."""
+    """Execute list historico as part of this module workflow."""
     return request_service.list_historico(current_user=current_user, skip=skip, limit=limit)
 
 
 @router.get("/tipos", response_model=List[str])
 def get_tipos_acao(request_service: HistoricoRequestService = Depends()):
-    """Return Tipos acao."""
+    """Retrieve tipos acao using the current service dependencies."""
     return request_service.get_tipos_acao()

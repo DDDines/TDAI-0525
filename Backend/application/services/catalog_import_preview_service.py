@@ -41,7 +41,7 @@ class CatalogImportPreviewService:
     def _resolve_catalog_file_repo(
         self,
     ) -> Any:
-        """Return the catalog file repository dependency."""
+        """Resolve catalog file repo from injected repositories or runtime context."""
         return self._catalog_file_repository
 
     async def importar_catalogo_preview(

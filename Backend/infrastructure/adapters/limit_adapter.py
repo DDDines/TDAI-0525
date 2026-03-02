@@ -1,6 +1,4 @@
-"""Limit adapter.
-
-"""
+"""Document limit adapter module responsibilities and runtime integration points."""
 
 from __future__ import annotations
 
@@ -16,7 +14,7 @@ class LimitServiceAdapter:
     """OOP port adapter backed by the current limits implementation."""
 
     def __init__(self, runtime: LimitWorkflow | None = None) -> None:
-        """Initialize dependencies for LimitServiceAdapter."""
+        """Initialize injected dependencies and runtime configuration for Limit Service Adapter."""
         self._runtime = runtime or LimitWorkflow()
 
     def verificar_limite_uso(
@@ -25,7 +23,7 @@ class LimitServiceAdapter:
         user: models.User,
         tipo_geracao_principal: str,
     ) -> int:
-        """Verificar limite uso."""
+        """Execute verificar limite uso as part of this module workflow."""
         return self._runtime.verificar_limite_uso(
             db=session,
             user=user,

@@ -56,7 +56,7 @@ class WebEnrichmentRequestService:
         self,
         session: Session = Depends(ServiceContainerDependencySupport.get_request_db_session),
     ) -> None:
-        """Initialize dependencies for WebEnrichmentRequestService."""
+        """Initialize injected dependencies and runtime configuration for Web Enrichment Request Service."""
         self._session = session
         if hasattr(session, "get_bind"):
             session_provider = (
@@ -108,7 +108,7 @@ class WebEnrichmentRequestService:
         user_id: int,
         termos_busca_override: Optional[str] = None,
     ):
-        """Tarefa enriquecer produto web."""
+        """Execute tarefa enriquecer produto web as part of this module workflow."""
         await self._task_runner.execute(
             produto_id=produto_id,
             user_id=user_id,
@@ -123,7 +123,7 @@ class WebEnrichmentRequestService:
         current_user: models.User,
         termos_busca_override: Optional[str] = None,
     ) -> Dict[str, str]:
-        """Iniciar enriquecimento produto web."""
+        """Execute iniciar enriquecimento produto web as part of this module workflow."""
         self._start_service.validate_start_preconditions(
             produto_id=produto_id,
             current_user=current_user,

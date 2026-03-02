@@ -22,7 +22,7 @@ class CatalogImportStatusService:
         models: Any,
         catalog_file_repository: Any,
     ) -> None:
-        """Initialize dependencies for CatalogImportStatusService."""
+        """Initialize injected dependencies and runtime configuration for Catalog Import Status Service."""
         self._models = models
         self._catalog_file_repository = catalog_file_repository
 
@@ -38,7 +38,7 @@ class CatalogImportStatusService:
         file_id: int,
         user_id: int,
     ) -> Any:
-        """Return Record or 404."""
+        """Retrieve record or 404 using the current service dependencies."""
         repo = self._resolve_catalog_file_repo()
         record = repo.get_catalog_file_for_user(
             file_id=file_id,
@@ -49,7 +49,7 @@ class CatalogImportStatusService:
         return record
 
     def build_simple_status(self, *, record: Any) -> dict[str, Any]:
-        """Build simple status."""
+        """Build simple status from current inputs and configuration."""
         record_status = record.status or "PROCESSING"
         if record_status in {"IMPORTED", "DONE"}:
             status_value = "DONE"
@@ -70,7 +70,7 @@ class CatalogImportStatusService:
         }
 
     def build_result_response(self, *, record: Any) -> Any:
-        """Build result response."""
+        """Build result response from current inputs and configuration."""
         record_status = record.status or "PROCESSING"
         terminal_status = record_status in self._TERMINAL_STATUSES
         if not terminal_status or not record.result_summary:

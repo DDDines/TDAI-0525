@@ -24,11 +24,11 @@ class _RequestScopedDependency:
     """Dependencia request-scoped OO parametrizada por factory de sessao."""
 
     def __init__(self, factory: Callable[[Session], Any]) -> None:
-        """Initialize dependencies for  RequestScopedDependency."""
+        """Initialize injected dependencies and runtime configuration for Request Scoped Dependency."""
         self._factory = factory
 
     def __call__(self, session: Session=Depends(database.get_db)) -> Any:
-        """Call."""
+        """Execute call as part of this module workflow."""
         return self._factory(session)
 
 class ServiceContainerDependencySupport:
@@ -36,37 +36,37 @@ class ServiceContainerDependencySupport:
 
     @staticmethod
     def get_request_db_session(session: Session=Depends(database.get_db)) -> Session:
-        """Return Request db session."""
+        """Retrieve request db session using the current service dependencies."""
         return session
 
     @staticmethod
     def build_request_scoped_dependency(factory: Callable[[Session], Any]) -> Callable[[Session], Any]:
-        """Build request scoped dependency."""
+        """Build request scoped dependency from current inputs and configuration."""
         return _RequestScopedDependency(factory)
 
     @staticmethod
     def build_file_processing_service() -> FileProcessingOrchestratorService:
-        """Build file processing service."""
+        """Build file processing service from current inputs and configuration."""
         return FileProcessingOrchestratorService(FileProcessingServiceAdapter())
 
     @staticmethod
     def build_web_data_extractor_service() -> WebDataExtractorOrchestratorService:
-        """Build web data extractor service."""
+        """Build web data extractor service from current inputs and configuration."""
         return WebDataExtractorOrchestratorService(WebDataExtractorServiceAdapter())
 
     @staticmethod
     def build_ia_generation_service() -> IAGenerationService:
-        """Build ia generation service."""
+        """Build ia generation service from current inputs and configuration."""
         return IAGenerationService(port=IAGenerationServiceAdapter())
 
     @staticmethod
     def build_limit_service() -> LimitService:
-        """Build limit service."""
+        """Build limit service from current inputs and configuration."""
         return LimitService(port=LimitServiceAdapter())
 
     @staticmethod
     def get_background_session_provider() -> "SessionProvider":
-        """Return OO session provider for background workloads."""
+        """Retrieve background session provider using the current service dependencies."""
         return SessionProvider(database.SessionLocal)
 
     @staticmethod
@@ -110,22 +110,22 @@ class DependencyContainer:
 
     @staticmethod
     def get_db_session(session: Session) -> Session:
-        """Return Db session."""
+        """Retrieve db session using the current service dependencies."""
         return session
 
     @staticmethod
     def get_product_management_service(session: Session) -> ProductManagementService:
-        """Return Product management service."""
+        """Retrieve product management service using the current service dependencies."""
         repos = ProductRepositories.build_product_management_repositories(session=session)
         return ProductManagementService(models=models, schemas=schemas, **repos)
 
     @staticmethod
     def get_product_media_service(session: Session) -> ProductMediaService:
-        """Return Product media service."""
+        """Retrieve product media service using the current service dependencies."""
         repos = ProductRepositories.build_product_media_repositories(session=session)
         return ProductMediaService(schemas=schemas, **repos)
 
     @staticmethod
     def get_fornecedor_management_service(session: Session) -> FornecedorManagementService:
-        """Return Fornecedor management service."""
+        """Retrieve fornecedor management service using the current service dependencies."""
         return FornecedorManagementService(models=models, schemas=schemas, fornecedor_repo=FornecedorRepository(session), historico_repo=HistoricoRepository(session))

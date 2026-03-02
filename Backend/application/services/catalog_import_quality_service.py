@@ -13,7 +13,7 @@ from typing import Any, Dict, Optional
 
 @dataclass(slots=True)
 class CatalogRow:
-    """Encapsulates Catalog row."""
+    """Represent Catalog Row and centralize its responsibilities inside this module."""
     nome_base: Optional[str] = None
     sku_original: Optional[str] = None
     ean_original: Optional[str] = None

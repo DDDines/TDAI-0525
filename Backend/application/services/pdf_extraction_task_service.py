@@ -1,6 +1,4 @@
-"""Pdf extraction task service.
-
-"""
+"""Document pdf extraction task service module responsibilities and runtime integration points."""
 
 from __future__ import annotations
 
@@ -29,13 +27,13 @@ class PdfExtractionTaskService:
         catalog_import_file_repository_factory: Callable[[Session], CatalogImportFileRepository] = CatalogImportFileRepository,
         file_processing_service: Any,
     ) -> None:
-        """Initialize dependencies for PdfExtractionTaskService."""
+        """Initialize injected dependencies and runtime configuration for Pdf Extraction Task Service."""
         self._session_provider = session_provider
         self._catalog_import_file_repository_factory = catalog_import_file_repository_factory
         self._file_processing_service = file_processing_service
 
     def _resolve_catalog_file_path(self, stored_filename: str) -> Path:
-        """Resolve catalog file path."""
+        """Resolve catalog file path from injected repositories or runtime context."""
         file_path = Path(settings.UPLOAD_DIRECTORY) / "catalogs" / stored_filename
         if file_path.is_absolute():
             return file_path
@@ -54,7 +52,7 @@ class PdfExtractionTaskService:
         page_number: int,
         db_url: str,
     ) -> None:
-        """Pdf extraction task."""
+        """Execute pdf extraction task and return the normalized execution result."""
         _ = db_url
         session = self._session_provider.open_session()
         catalog_file_repo = self._catalog_import_file_repository_factory(session)

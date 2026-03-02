@@ -1,6 +1,4 @@
-"""Storage service.
-
-"""
+"""Document storage service module responsibilities and runtime integration points."""
 
 from __future__ import annotations
 
@@ -16,7 +14,7 @@ class FileProcessingStorageService:
     """Operacoes de storage de catalogos."""
 
     def __init__(self, port: FileProcessingPort) -> None:
-        """Initialize dependencies for FileProcessingStorageService."""
+        """Initialize injected dependencies and runtime configuration for File Processing Storage Service."""
         self._port = port
 
     async def save_uploaded_catalog(
@@ -24,16 +22,16 @@ class FileProcessingStorageService:
         file: UploadFile,
         fornecedor_id: Optional[int] = None,
     ):
-        """Save uploaded catalog."""
+        """Execute save uploaded catalog as part of this module workflow."""
         return await self._port.save_uploaded_catalog(
             file=file,
             fornecedor_id=fornecedor_id,
         )
 
     def delete_catalog_file(self, stored_filename: str) -> None:
-        """Delete catalog file."""
+        """Execute delete catalog file as part of this module workflow."""
         return self._port.delete_catalog_file(stored_filename=stored_filename)
 
     def get_file_path_by_id(self, db: Session, file_id: str | int) -> str:
-        """Return File path by id."""
+        """Retrieve file path by id using the current service dependencies."""
         return self._port.get_file_path_by_id(db=db, file_id=file_id)

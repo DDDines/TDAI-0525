@@ -1,6 +1,4 @@
-"""Init.
-
-"""
+"""Initialize web data extractor package exports and integration boundaries."""
 
 from Backend.application.services.web_data_extractor.content_service import (
     WebDataExtractorContentService,

@@ -1,6 +1,4 @@
-"""Product repositories.
-
-"""
+"""Document product repositories module responsibilities and runtime integration points."""
 
 from __future__ import annotations
 
@@ -25,7 +23,7 @@ class ProductRepositories:
 
     @staticmethod
     def build_product_management_repositories(*, session: Any) -> dict[str, Any]:
-        """Build product management repositories."""
+        """Build product management repositories from current inputs and configuration."""
         return {
             "produto_repo": ProductRepository(session),
             "fornecedor_repo": FornecedorRepository(session),
@@ -36,7 +34,7 @@ class ProductRepositories:
 
     @staticmethod
     def build_product_media_repositories(*, session: Any) -> dict[str, Any]:
-        """Build product media repositories."""
+        """Build product media repositories from current inputs and configuration."""
         return {
             "produto_repo": ProductRepository(session),
         }

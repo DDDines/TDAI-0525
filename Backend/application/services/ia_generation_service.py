@@ -1,6 +1,4 @@
-"""Ia generation service.
-
-"""
+"""Document ia generation service module responsibilities and runtime integration points."""
 
 from __future__ import annotations
 
@@ -18,7 +16,7 @@ class IAGenerationService:
         *,
         port: IAGenerationPort,
     ) -> None:
-        """Initialize dependencies for IAGenerationService."""
+        """Initialize injected dependencies and runtime configuration for IAGeneration Service."""
         self._port = port
 
     async def gerar_titulos_com_openai(
@@ -29,7 +27,7 @@ class IAGenerationService:
         user: models.User,
         num_titulos: int = 3,
     ) -> list[str]:
-        """Gerar titulos com openai."""
+        """Execute gerar titulos com openai as part of this module workflow."""
         return await self._port.gerar_titulos_com_openai(
             session=session,
             produto_id=produto_id,
@@ -45,7 +43,7 @@ class IAGenerationService:
         user: models.User,
         tamanho_palavras: int = 150,
     ) -> str:
-        """Gerar descricao com openai."""
+        """Execute gerar descricao com openai as part of this module workflow."""
         return await self._port.gerar_descricao_com_openai(
             session=session,
             produto_id=produto_id,
@@ -61,7 +59,7 @@ class IAGenerationService:
         user: models.User,
         num_titulos: int = 3,
     ) -> list[str]:
-        """Gerar titulos com gemini."""
+        """Execute gerar titulos com gemini as part of this module workflow."""
         return await self._port.gerar_titulos_com_gemini(
             session=session,
             produto_id=produto_id,
@@ -77,7 +75,7 @@ class IAGenerationService:
         user: models.User,
         tamanho_palavras: int = 150,
     ) -> str:
-        """Gerar descricao com gemini."""
+        """Execute gerar descricao com gemini as part of this module workflow."""
         return await self._port.gerar_descricao_com_gemini(
             session=session,
             produto_id=produto_id,

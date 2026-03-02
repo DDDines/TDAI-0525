@@ -1,6 +1,4 @@
-"""Limit module.
-
-"""
+"""Document limit module module responsibilities and runtime integration points."""
 
 from __future__ import annotations
 
@@ -28,17 +26,17 @@ class LimitRuntime:
         user_repository_factory: Callable[[Session], Any] = UserRepository,
         logger_factory=get_logger,
     ) -> None:
-        """Initialize dependencies for LimitRuntime."""
+        """Initialize injected dependencies and runtime configuration for Limit Runtime."""
         self._usage_repository_factory = usage_repository_factory
         self._user_repository_factory = user_repository_factory
         self._logger = logger_factory(__name__)
 
     def _usage_repository(self, db: Session):
-        """Usage repository."""
+        """Execute usage repository as part of this module workflow."""
         return self._usage_repository_factory(db)
 
     def _user_repository(self, db: Session):
-        """User repository."""
+        """Execute user repository as part of this module workflow."""
         return self._user_repository_factory(db)
 
     def verificar_limite_uso(
@@ -162,7 +160,7 @@ class LimitWorkflow:
     """Workflow OO para regras de limite e credito."""
 
     def __init__(self, runtime: Optional[LimitRuntime] = None) -> None:
-        """Initialize dependencies for LimitWorkflow."""
+        """Initialize injected dependencies and runtime configuration for Limit Workflow."""
         self._runtime = runtime or LimitRuntime(
             usage_repository_factory=RegistroUsoIARepository,
             user_repository_factory=UserRepository,
@@ -175,7 +173,7 @@ class LimitWorkflow:
         user: models.User,
         tipo_geracao_principal: str,
     ) -> int:
-        """Verificar limite uso."""
+        """Execute verificar limite uso as part of this module workflow."""
         return self._runtime.verificar_limite_uso(
             db=db,
             user=user,

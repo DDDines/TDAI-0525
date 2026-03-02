@@ -1,6 +1,4 @@
-"""Orchestrator service.
-
-"""
+"""Document orchestrator service module responsibilities and runtime integration points."""
 
 from __future__ import annotations
 
@@ -34,7 +32,7 @@ class WebDataExtractorOrchestratorService:
     """Servico OO unificado para extracao de dados da web."""
 
     def __init__(self, port: WebDataExtractorPort) -> None:
-        """Initialize dependencies for WebDataExtractorOrchestratorService."""
+        """Initialize injected dependencies and runtime configuration for Web Data Extractor Orchestrator Service."""
         self.search = WebDataExtractorSearchService(port)
         self.content = WebDataExtractorContentService(port)
         self.metadata = WebDataExtractorMetadataService(port)
@@ -42,7 +40,7 @@ class WebDataExtractorOrchestratorService:
         self.ocr = WebDataExtractorOCRService(port)
 
     def busca_publica_disponivel(self) -> bool:
-        """Busca publica disponivel."""
+        """Execute busca publica disponivel as part of this module workflow."""
         return self.search.busca_publica_disponivel()
 
     async def buscar_urls_publicas(
@@ -50,7 +48,7 @@ class WebDataExtractorOrchestratorService:
         query: str,
         num_results: int = 3,
     ) -> List[str]:
-        """Buscar urls publicas."""
+        """Execute buscar urls publicas as part of this module workflow."""
         return await self.search.buscar_urls_publicas(
             query=query,
             num_results=num_results,
@@ -61,14 +59,14 @@ class WebDataExtractorOrchestratorService:
         query: str,
         num_results: int = 3,
     ) -> List[str]:
-        """Buscar urls google."""
+        """Execute buscar urls google as part of this module workflow."""
         return await self.search.buscar_urls_google(
             query=query,
             num_results=num_results,
         )
 
     async def coletar_conteudo_pagina_playwright(self, url: str) -> Optional[str]:
-        """Coletar conteudo pagina playwright."""
+        """Execute coletar conteudo pagina playwright as part of this module workflow."""
         return await self.content.coletar_conteudo_pagina_playwright(url=url)
 
     def extrair_texto_principal_com_trafilatura(
@@ -85,7 +83,7 @@ class WebDataExtractorOrchestratorService:
         html_content: str,
         url: str,
     ) -> Dict[str, Any]:
-        """Extrair metadados estruturados."""
+        """Execute extrair metadados estruturados as part of this module workflow."""
         return self.metadata.extrair_metadados_estruturados(
             html_content=html_content,
             url=url,
@@ -95,7 +93,7 @@ class WebDataExtractorOrchestratorService:
         self,
         metadata_bruta: Dict[str, Any],
     ) -> Dict[str, Any]:
-        """Normalizar dados de metadados."""
+        """Execute normalizar dados de metadados as part of this module workflow."""
         return self.metadata.normalizar_dados_de_metadados(
             metadata_bruta=metadata_bruta
         )

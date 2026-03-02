@@ -31,19 +31,19 @@ class ProductRepository:
     )
 
     def __init__(self, db: Session) -> None:
-        """Initialize dependencies for ProductRepository."""
+        """Initialize injected dependencies and runtime configuration for Product Repository."""
         self._db = db
 
     @staticmethod
     def _normalize_identifier_fields(produto_data: Dict[str, Any]) -> None:
-        """Normalize identifier fields."""
+        """Normalize identifier fields to keep behavior consistent across callers."""
         for field_name in ("sku", "ean"):
             if field_name in produto_data and produto_data[field_name] == "":
                 produto_data[field_name] = None
 
     @staticmethod
     def _parse_json_fields(produto_data: Dict[str, Any], fields: List[str]) -> None:
-        """Parse json fields."""
+        """Parse json fields into structured data used by downstream logic."""
         for field_name in fields:
             if field_name in produto_data and isinstance(produto_data[field_name], str):
                 try:
@@ -53,7 +53,7 @@ class ProductRepository:
 
     @staticmethod
     def _apply_search_filter(query, search: Optional[str]):
-        """Apply search filter."""
+        """Execute apply search filter as part of this module workflow."""
         if not search:
             return query
 
@@ -81,7 +81,7 @@ class ProductRepository:
         status_titulo_ia: Optional[StatusGeracaoIAEnum],
         status_descricao_ia: Optional[StatusGeracaoIAEnum],
     ):
-        """Apply optional filters."""
+        """Execute apply optional filters as part of this module workflow."""
         if fornecedor_id is not None:
             query = query.filter(Produto.fornecedor_id == fornecedor_id)
         if product_type_id is not None:
@@ -100,7 +100,7 @@ class ProductRepository:
 
     @staticmethod
     def _apply_ordering(query, sort_by: Optional[str], sort_order: Optional[str]):
-        """Apply ordering."""
+        """Execute apply ordering as part of this module workflow."""
         if sort_by:
             column_to_sort = getattr(Produto, sort_by, None)
             if column_to_sort is not None:
@@ -110,7 +110,7 @@ class ProductRepository:
         return query.order_by(Produto.id)
 
     def _validate_unique_identifiers(self, *, user_id: int, produto_data: Dict[str, Any]) -> None:
-        """Validate unique identifiers."""
+        """Execute validate unique identifiers as part of this module workflow."""
         sku = produto_data.get("sku")
         ean = produto_data.get("ean")
 
@@ -139,7 +139,7 @@ class ProductRepository:
                 )
 
     def create_produto(self, *, produto: schemas.ProdutoCreate, user_id: int) -> Produto:
-        """Create produto."""
+        """Create produto and return the resulting payload or entity."""
         produto_data = produto.model_dump(exclude_unset=True)
         self._normalize_identifier_fields(produto_data)
         self._validate_unique_identifiers(user_id=user_id, produto_data=produto_data)
@@ -157,7 +157,7 @@ class ProductRepository:
         produtos: List[schemas.ProdutoCreate],
         user_id: int,
     ) -> Tuple[List[Produto], List[Produto], List[Dict[str, Any]]]:
-        """Create produtos bulk."""
+        """Create produtos bulk and return the resulting payload or entity."""
         created_produtos: List[Produto] = []
         updated_produtos: List[Produto] = []
         erros: List[Dict[str, Any]] = []
@@ -228,7 +228,7 @@ class ProductRepository:
         return created_produtos, updated_produtos, erros
 
     def get_produto(self, *, produto_id: int) -> Optional[Produto]:
-        """Return Produto."""
+        """Retrieve produto using the current service dependencies."""
         return (
             self._db.query(Produto)
             .options(
@@ -240,7 +240,7 @@ class ProductRepository:
         )
 
     def get_produto_for_update(self, *, produto_id: int) -> Optional[Produto]:
-        """Return Produto for update."""
+        """Retrieve produto for update using the current service dependencies."""
         query = self._db.query(Produto).filter(Produto.id == produto_id)
         engine = self._db.get_bind()
         dialect_name = engine.dialect.name if engine and engine.dialect else None
@@ -265,7 +265,7 @@ class ProductRepository:
         status_titulo_ia: Optional[StatusGeracaoIAEnum] = None,
         status_descricao_ia: Optional[StatusGeracaoIAEnum] = None,
     ) -> List[Produto]:
-        """Return Produtos by user."""
+        """Retrieve produtos by user using the current service dependencies."""
         query = self._db.query(Produto).options(
             selectinload(Produto.fornecedor),
             selectinload(Produto.product_type),
@@ -302,7 +302,7 @@ class ProductRepository:
         status_titulo_ia: Optional[StatusGeracaoIAEnum] = None,
         status_descricao_ia: Optional[StatusGeracaoIAEnum] = None,
     ) -> int:
-        """Count produtos by user."""
+        """Execute count produtos by user as part of this module workflow."""
         query = self._db.query(func.count(Produto.id))
 
         if not is_admin:
@@ -349,7 +349,7 @@ class ProductRepository:
         db_produto: Produto,
         produto_update: schemas.ProdutoUpdate,
     ) -> Produto:
-        """Update produto."""
+        """Update produto and persist the resulting state changes."""
         update_data = produto_update.model_dump(exclude_unset=True)
         self._parse_json_fields(
             update_data,
@@ -367,13 +367,13 @@ class ProductRepository:
         return db_produto
 
     def delete_produto(self, *, db_produto: Produto) -> Produto:
-        """Delete produto."""
+        """Execute delete produto as part of this module workflow."""
         self._db.delete(db_produto)
         self._db.commit()
         return db_produto
 
     async def save_produto_image(self, *, produto_id: int, file: UploadFile) -> str:
-        """Save produto image."""
+        """Execute save produto image as part of this module workflow."""
         _ = produto_id
 
         if not file.filename:
@@ -401,7 +401,7 @@ class ProductRepository:
         return f"/{relative_path.as_posix()}"
 
     def get_or_create_produto(self, *, produto: schemas.ProdutoCreate, user_id: int) -> Produto:
-        """Return Or create produto."""
+        """Retrieve or create produto using the current service dependencies."""
         base_query = self._db.query(Produto).filter(Produto.user_id == user_id)
         existing: Optional[Produto] = None
 

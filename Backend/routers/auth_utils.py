@@ -28,7 +28,7 @@ class AuthRequestService:
         security_workflow: security.SecurityWorkflow,
         user_repository_factory: Callable[[Session], UserRepository],
     ) -> None:
-        """Initialize dependencies for AuthRequestService."""
+        """Initialize injected dependencies and runtime configuration for Auth Request Service."""
         self._security_workflow = security_workflow
         self._user_repository_factory = user_repository_factory
 
@@ -39,7 +39,7 @@ class AuthRequestService:
         session: Session,
         token: str,
     ) -> models.User:
-        """Return Current user."""
+        """Retrieve current user using the current service dependencies."""
         _ = request
         credentials_exception = HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -59,14 +59,14 @@ class AuthRequestService:
 
     @staticmethod
     async def get_current_active_user(*, current_user: models.User) -> models.User:
-        """Return Current active user."""
+        """Retrieve current active user using the current service dependencies."""
         if not current_user.is_active:
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Inactive user")
         return current_user
 
     @staticmethod
     async def get_current_active_superuser(*, current_user: models.User) -> models.User:
-        """Return Current active superuser."""
+        """Retrieve current active superuser using the current service dependencies."""
         if not current_user.is_superuser:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
@@ -77,10 +77,10 @@ class AuthRequestService:
 
 class _AuthUtilsCurrentUserDependency:
 
-    """Encapsulates Auth utils current user dependency."""
+    """Represent Auth Utils Current User Dependency and centralize its responsibilities inside this module."""
     @staticmethod
     def build_auth_request_service() -> AuthRequestService:
-        """Build auth request service."""
+        """Build auth request service from current inputs and configuration."""
         return AuthRequestService(
             security_workflow=security.SecurityWorkflow(),
             user_repository_factory=lambda session: UserRepository(session),
@@ -91,28 +91,28 @@ class _AuthUtilsCurrentUserDependency:
         session: Session = Depends(ServiceContainerDependencySupport.get_request_db_session),
         token: str = Depends(oauth2_scheme),
     ) -> models.User:
-        """Return Current user."""
+        """Retrieve current user using the current service dependencies."""
         service = _AuthUtilsCurrentUserDependency.build_auth_request_service()
         return await service.get_current_user(request=None, session=session, token=token)
 
 
 class _AuthUtilsActiveUserDependency:
 
-    """Encapsulates Auth utils active user dependency."""
+    """Represent Auth Utils Active User Dependency and centralize its responsibilities inside this module."""
     @staticmethod
     async def get_current_active_user(
         current_user: models.User = Depends(_AuthUtilsCurrentUserDependency.get_current_user),
     ) -> models.User:
-        """Return Current active user."""
+        """Retrieve current active user using the current service dependencies."""
         return await AuthRequestService.get_current_active_user(current_user=current_user)
 
 
 class _AuthUtilsSuperUserDependency:
 
-    """Encapsulates Auth utils super user dependency."""
+    """Represent Auth Utils Super User Dependency and centralize its responsibilities inside this module."""
     @staticmethod
     async def get_current_active_superuser(
         current_user: models.User = Depends(_AuthUtilsActiveUserDependency.get_current_active_user),
     ) -> models.User:
-        """Return Current active superuser."""
+        """Retrieve current active superuser using the current service dependencies."""
         return await AuthRequestService.get_current_active_superuser(current_user=current_user)

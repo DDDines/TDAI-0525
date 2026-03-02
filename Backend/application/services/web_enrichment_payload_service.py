@@ -1,6 +1,4 @@
-"""Web enrichment payload service.
-
-"""
+"""Document web enrichment payload service module responsibilities and runtime integration points."""
 
 from __future__ import annotations
 
@@ -60,15 +58,15 @@ class WebEnrichmentPayloadService:
     )
 
     def __init__(self, *, normalization_service: Any) -> None:
-        """Initialize dependencies for WebEnrichmentPayloadService."""
+        """Initialize injected dependencies and runtime configuration for Web Enrichment Payload Service."""
         self._normalization = normalization_service
 
     def _contains_part_hint(self, text_folded: str) -> bool:
-        """Contains part hint."""
+        """Execute contains part hint as part of this module workflow."""
         return any(hint in text_folded for hint in self._PART_NAME_HINTS)
 
     def _looks_like_application_only(self, value: Any) -> bool:
-        """Looks like application only."""
+        """Execute looks like application only as part of this module workflow."""
         text = self._normalization.as_text(value, max_len=500)
         if not text:
             return False
@@ -82,7 +80,7 @@ class WebEnrichmentPayloadService:
         return has_application_hint and (has_year or has_range) and few_words and not self._contains_part_hint(folded)
 
     def _is_weak_existing_field(self, field_name: str, value: Any) -> bool:
-        """Is weak existing field."""
+        """Execute is weak existing field as part of this module workflow."""
         text = self._normalization.as_text(value, max_len=2500)
         if not text:
             return True
@@ -120,7 +118,7 @@ class WebEnrichmentPayloadService:
         return False
 
     def _is_weak_dynamic_value(self, attr_key: str, value: Any) -> bool:
-        """Is weak dynamic value."""
+        """Execute is weak dynamic value as part of this module workflow."""
         text = self._normalization.as_text(value, max_len=1500)
         if not text:
             return True
@@ -182,7 +180,7 @@ class WebEnrichmentPayloadService:
         allow_replace_suspicious: bool = False,
         allow_replace_weak: bool = False,
     ) -> Optional[str]:
-        """Set dynamic if empty."""
+        """Execute set dynamic if empty as part of this module workflow."""
         text_value = self._normalization.as_text(value)
         value_from_existing = False
         if not text_value:
