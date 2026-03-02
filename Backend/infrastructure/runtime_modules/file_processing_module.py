@@ -976,13 +976,134 @@ class PdfIngestionRuntime:
         """Initialize injected dependencies and runtime configuration for Pdf Ingestion Runtime."""
         self._web_data_extractor_service = web_data_extractor_service or WebDataExtractorServiceAdapter()
 
+    @staticmethod
+    def _is_discard_payload(produto_padronizado: Any) -> bool:
+        """Identify line-mapping discard payloads that must not be imported as products."""
+        return isinstance(produto_padronizado, dict) and bool(
+            produto_padronizado.get('motivo_descarte')
+        )
+
+    @staticmethod
+    def _extract_structured_rows_from_text(page_text: str) -> List[Dict[str, Any]]:
+        """Parse plain-text PDF content into row-like dictionaries when possible."""
+        rows: List[Dict[str, Any]] = []
+        if not page_text or not page_text.strip():
+            return rows
+        lines = [line.strip() for line in page_text.splitlines() if line and line.strip()]
+        for line in lines:
+            if len(line) < 6:
+                continue
+            if ':' in line and len(line.split(':', 1)[0]) <= 40:
+                # Typical narrative `key: value` metadata line, not catalog row.
+                continue
+            parts_by_gap = [part.strip() for part in re.split(r'\s{2,}|\t+', line) if part and part.strip()]
+            line_tokens = [token for token in re.split(r'\s+', line) if token]
+            has_code_hint = any(
+                _FileProcessingImplementation._token_looks_like_code(token.upper())
+                for token in line_tokens[:8]
+            )
+            if len(parts_by_gap) >= 2 and has_code_hint:
+                rows.append({f'col_{idx}': value for idx, value in enumerate(parts_by_gap)})
+                continue
+            tokens = [token for token in line_tokens if token]
+            if len(tokens) >= 3 and _FileProcessingImplementation._token_looks_like_code(tokens[0]):
+                rows.append({'sku_original': tokens[0], 'nome_base': ' '.join(tokens[1:])})
+        return rows
+
+    @staticmethod
+    def _is_low_confidence_dataframe(df_value: pd.DataFrame) -> bool:
+        """Detect low-confidence OCR/text dataframe outputs that are likely narrative noise."""
+        if df_value is None or df_value.empty:
+            return True
+        rows = int(len(df_value.index))
+        cols = int(len(df_value.columns))
+        values: List[str] = []
+        for row in df_value.to_dict(orient='records'):
+            for value in row.values():
+                cleaned = _FileProcessingImplementation._limpar_valor_extraido(value)
+                if cleaned:
+                    values.append(cleaned)
+        joined = ' '.join(values)
+        tokens = [token for token in re.split(r'\s+', joined) if token]
+        has_digit = any(ch.isdigit() for ch in joined)
+        has_code_hint = any(
+            _FileProcessingImplementation._token_looks_like_code(token.upper())
+            for token in tokens[:12]
+        )
+        if cols <= 1 and rows <= 3:
+            if has_code_hint:
+                return False
+            if len(tokens) <= 3:
+                return True
+            if not has_digit and len(tokens) <= 6:
+                return True
+        return False
+
     def _append_produto(self, produtos_extraidos: List[Dict[str, Any]], produto_padronizado: Optional[Dict[str, Any]], product_type_id: Optional[int]) -> None:
         """Execute append produto as part of this module workflow."""
         if not produto_padronizado:
             return
+        if self._is_discard_payload(produto_padronizado):
+            return
+        nome_base = _FileProcessingImplementation._limpar_valor_extraido(
+            produto_padronizado.get('nome_base')
+        )
+        sku_original = _FileProcessingImplementation._limpar_valor_extraido(
+            produto_padronizado.get('sku_original')
+        )
+        ean_original = _FileProcessingImplementation._limpar_valor_extraido(
+            produto_padronizado.get('ean_original')
+        )
+        has_identity = bool(nome_base or sku_original or ean_original)
+        if not has_identity:
+            return
+        if not sku_original and not ean_original:
+            if self._looks_like_toc_or_page_marker(nome_base):
+                return
+            if self._is_weak_name_only_identity(nome_base):
+                return
+        if not sku_original and not ean_original:
+            nome_tokens = [token for token in re.split(r'\s+', nome_base or '') if token]
+            if (
+                len(nome_tokens) < 2
+                and not any(ch.isdigit() for ch in (nome_base or ''))
+            ):
+                return
         if product_type_id is not None:
             produto_padronizado['product_type_id'] = product_type_id
         produtos_extraidos.append(produto_padronizado)
+
+    @staticmethod
+    def _looks_like_toc_or_page_marker(nome_base: str) -> bool:
+        """Reject table-of-contents/page-index rows misdetected as products."""
+        cleaned = _FileProcessingImplementation._limpar_valor_extraido(nome_base)
+        if not cleaned:
+            return True
+        if cleaned.startswith('Conteudo da Pagina '):
+            return False
+        normalized = unicodedata.normalize('NFKD', cleaned)
+        normalized = ''.join(ch for ch in normalized if not unicodedata.combining(ch))
+        normalized = re.sub(r'[^a-zA-Z0-9]+', ' ', normalized).strip().lower()
+        if normalized in {'codigo paginas', 'cedigo paginas', 'indice', 'sumario'}:
+            return True
+        if 'pagina' in normalized and len(normalized.split()) <= 3:
+            return True
+        return False
+
+    @staticmethod
+    def _is_weak_name_only_identity(nome_base: str) -> bool:
+        """Reject low-signal identities when nome_base is the only populated field."""
+        cleaned = _FileProcessingImplementation._limpar_valor_extraido(nome_base)
+        if not cleaned:
+            return True
+        compact = re.sub(r'[^A-Za-z0-9]', '', cleaned)
+        if not compact:
+            return True
+        if re.fullmatch(r'\d{1,5}', compact):
+            return True
+        if re.fullmatch(r'[A-Za-z]\d{1,4}', compact):
+            return True
+        return False
 
     async def processar_arquivo_pdf(self, conteudo_arquivo: bytes, mapeamento_colunas_usuario: Optional[Dict[str, str]]=None, usar_llm: bool=True, product_type_id: Optional[int]=None, pages: Optional[List[int]]=None, region: Optional[List[float]]=None) -> List[Dict[str, Any]]:
         """Execute processar arquivo pdf as part of this module workflow."""
@@ -1027,7 +1148,11 @@ class PdfIngestionRuntime:
                         log_pdf.append(f'Pagina {page_num}: BBox invalido ({bbox_mode}); ignorando recorte.')
                     if bbox_abs and temp_pdf_path:
                         try:
-                            df_region = extract_data_from_pdf_region(str(temp_pdf_path), page_num, list(bbox_abs))
+                            df_region = _FileProcessingImplementation._extract_data_from_pdf_region_impl(
+                                file_path=str(temp_pdf_path),
+                                page_number=page_num,
+                                region=list(bbox_abs),
+                            )
                         except Exception as e_region:
                             log_pdf.append(f'Pagina {page_num}: Falha no extrator de regiao: {str(e_region)}')
                             df_region = pd.DataFrame()
@@ -1057,6 +1182,47 @@ class PdfIngestionRuntime:
                     else:
                         log_pdf.append(f'Pagina {page_num}: Nenhuma tabela encontrada.')
                 if not produtos_extraidos and page_list_to_process:
+                    if temp_pdf_path is None:
+                        with tempfile.NamedTemporaryFile(delete=False, suffix='.pdf') as tmp_pdf:
+                            tmp_pdf.write(conteudo_arquivo)
+                            temp_pdf_path = Path(tmp_pdf.name)
+                    for page_num in page_list_to_process:
+                        if not 1 <= page_num <= total_pages:
+                            continue
+                        try:
+                            df_page_region = _FileProcessingImplementation._extract_data_from_pdf_region_impl(
+                                file_path=str(temp_pdf_path),
+                                page_number=page_num,
+                                region=None,
+                            )
+                        except Exception as region_fallback_exc:
+                            log_pdf.append(
+                                f'Pagina {page_num}: Falha no fallback de extracao tabular/ocr: {region_fallback_exc}'
+                            )
+                            continue
+                        if df_page_region.empty:
+                            continue
+                        if self._is_low_confidence_dataframe(df_page_region):
+                            log_pdf.append(
+                                f'Pagina {page_num}: fallback tabular/OCR ignorado por baixa confianca.'
+                            )
+                            continue
+                        region_rows = df_page_region.to_dict(orient='records')
+                        before_count = len(produtos_extraidos)
+                        for row in region_rows:
+                            self._append_produto(
+                                produtos_extraidos=produtos_extraidos,
+                                produto_padronizado=_FileProcessingImplementation._processar_linha_padronizada(
+                                    row,
+                                    mapeamento_colunas_usuario,
+                                ),
+                                product_type_id=product_type_id,
+                            )
+                        if len(produtos_extraidos) > before_count:
+                            log_pdf.append(
+                                f'Pagina {page_num}: fallback tabular/OCR retornou {len(produtos_extraidos) - before_count} produto(s).'
+                            )
+                if not produtos_extraidos and page_list_to_process:
                     log_pdf.append('Nenhum produto extraido de tabelas/regiao. Tentando extracao de texto bruto.')
                     for page_num in page_list_to_process:
                         if not 1 <= page_num <= total_pages:
@@ -1070,32 +1236,68 @@ class PdfIngestionRuntime:
                         if page_text and page_text.strip():
                             log_pdf.append(f'Pagina {page_num}: Texto extraido.')
                             texto_chave = f'texto_completo_pagina_{page_num}'
+                            structured_rows = self._extract_structured_rows_from_text(page_text)
+                            if structured_rows:
+                                before_count = len(produtos_extraidos)
+                                for row in structured_rows:
+                                    self._append_produto(
+                                        produtos_extraidos=produtos_extraidos,
+                                        produto_padronizado=_FileProcessingImplementation._processar_linha_padronizada(
+                                            row,
+                                            mapeamento_colunas_usuario,
+                                        ),
+                                        product_type_id=product_type_id,
+                                    )
+                                added_count = len(produtos_extraidos) - before_count
+                                if added_count > 0:
+                                    log_pdf.append(
+                                        f'Pagina {page_num}: Texto estruturado gerou {added_count} produto(s).'
+                                    )
+                                    continue
                             if usar_llm:
                                 try:
                                     dados_produto = await self._web_data_extractor_service.extrair_dados_produto_com_llm(page_text)
                                     if isinstance(dados_produto, dict):
                                         dados_produto['texto_bruto'] = page_text.strip()[:20000]
-                                        if product_type_id is not None:
-                                            dados_produto['product_type_id'] = product_type_id
-                                        produtos_extraidos.append(dados_produto)
-                                        log_pdf.append(f'Pagina {page_num}: Texto processado com LLM.')
+                                        before_count = len(produtos_extraidos)
+                                        self._append_produto(
+                                            produtos_extraidos=produtos_extraidos,
+                                            produto_padronizado=dados_produto,
+                                            product_type_id=product_type_id,
+                                        )
+                                        if len(produtos_extraidos) > before_count:
+                                            log_pdf.append(f'Pagina {page_num}: Texto processado com LLM.')
+                                        else:
+                                            log_pdf.append(
+                                                f'Pagina {page_num}: LLM retornou payload sem identidade de produto.'
+                                            )
                                     else:
-                                        item = {'nome_base': f'Texto da pagina {page_num}', 'dados_brutos_adicionais': {texto_chave: page_text.strip()[:20000]}}
-                                        if product_type_id is not None:
-                                            item['product_type_id'] = product_type_id
-                                        produtos_extraidos.append(item)
+                                        log_pdf.append(
+                                            f'Pagina {page_num}: LLM retornou formato inesperado; ignorando payload.'
+                                        )
                                 except Exception as llm_e:
                                     log_pdf.append(f'Pagina {page_num}: Erro ao processar com LLM: {str(llm_e)}')
-                                    item = {'nome_base': f'Conteudo Bruto da Pagina {page_num}', 'dados_brutos_adicionais': {texto_chave: page_text.strip()[:20000]}}
-                                    if product_type_id is not None:
-                                        item['product_type_id'] = product_type_id
-                                    produtos_extraidos.append(item)
                             else:
-                                item = {'nome_base': f'Conteudo da Pagina {page_num}', 'dados_brutos_adicionais': {texto_chave: page_text.strip()[:20000]}}
-                                if product_type_id is not None:
-                                    item['product_type_id'] = product_type_id
-                                produtos_extraidos.append(item)
-                                log_pdf.append(f'Pagina {page_num}: Texto armazenado sem LLM.')
+                                token_count = len([tok for tok in page_text.split() if tok])
+                                if token_count <= 16:
+                                    item = {
+                                        'nome_base': f'Conteudo da Pagina {page_num}',
+                                        'dados_brutos_adicionais': {
+                                            texto_chave: page_text.strip()[:20000]
+                                        },
+                                    }
+                                    self._append_produto(
+                                        produtos_extraidos=produtos_extraidos,
+                                        produto_padronizado=item,
+                                        product_type_id=product_type_id,
+                                    )
+                                    log_pdf.append(
+                                        f'Pagina {page_num}: Texto curto armazenado sem LLM para revisao manual.'
+                                    )
+                                else:
+                                    log_pdf.append(
+                                        f'Pagina {page_num}: Texto sem padrao de linha de produto; ignorado (usar regiao/mapeamento).'
+                                    )
                         else:
                             log_pdf.append(f'Pagina {page_num}: Nenhum texto extraivel (pode ser imagem ou protegido).')
                 if not produtos_extraidos:

@@ -192,7 +192,7 @@ class CatalogImportPreviewService:
                         row,
                         None,
                     )
-                    if produto:
+                    if produto and not produto.get("motivo_descarte"):
                         produtos.append(produto)
 
                 log.append(
@@ -217,7 +217,7 @@ class CatalogImportPreviewService:
                             row,
                             None,
                         )
-                        if produto:
+                        if produto and not produto.get("motivo_descarte"):
                             produtos.append(produto)
                     log.append(
                         f"Pagina {page}: extraidas {len(text_rows)} linhas por fallback de texto (chave:valor)."

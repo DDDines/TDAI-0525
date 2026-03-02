@@ -4,6 +4,7 @@
 
 import httpx # Para chamadas HTTP assíncronas
 import json
+import re
 from typing import List, Dict, Any, Optional
 from sqlalchemy.orm import Session
 import logging # Adicionado para logging
@@ -489,146 +490,369 @@ class IAGenerationRuntime:
         """Retrieve ai provider workflow using the current service dependencies."""
         return AiProviderWorkflow(runtime=AiProviderRuntime())
 
+    @staticmethod
+    def _sanitize_title_candidates(raw_text: str) -> List[str]:
+        """Normalize raw LLM output into clean title candidates."""
+        if not raw_text:
+            return []
+        candidates: List[str] = []
+        for line in str(raw_text).splitlines():
+            cleaned = line.strip()
+            if not cleaned:
+                continue
+            cleaned = re.sub(r'^\s*(?:[-*•]+|\d+[)\].:-])\s*', '', cleaned).strip()
+            cleaned = cleaned.strip(' "\'`')
+            if len(cleaned) < 4:
+                continue
+            if cleaned not in candidates:
+                candidates.append(cleaned)
+        return candidates
+
+    @staticmethod
+    def _build_local_title_candidates(db_produto: Any, *, num_titulos: int) -> List[str]:
+        """Build deterministic fallback titles when no IA key is configured."""
+        base_name = (
+            (getattr(db_produto, "nome_base", None) or getattr(db_produto, "nome_chat_api", None) or "Produto")
+            .strip()
+        )
+        marca = str(getattr(db_produto, "marca", "") or "").strip()
+        modelo = str(getattr(db_produto, "modelo", "") or "").strip()
+        sku = str(getattr(db_produto, "sku", "") or "").strip()
+        categoria = str(getattr(db_produto, "categoria_original", "") or "").strip()
+
+        seeds = [
+            base_name,
+            f"{base_name} {marca}".strip(),
+            f"{base_name} {modelo}".strip(),
+            f"{base_name} {categoria}".strip(),
+            f"{base_name} {sku}".strip(),
+            f"{base_name} Alta Durabilidade".strip(),
+        ]
+        unique: List[str] = []
+        for seed in seeds:
+            cleaned = re.sub(r"\s+", " ", seed).strip(" -")
+            if len(cleaned) < 4:
+                continue
+            if cleaned not in unique:
+                unique.append(cleaned)
+            if len(unique) >= max(1, num_titulos):
+                break
+        return unique[: max(1, num_titulos)]
+
+    @staticmethod
+    def _build_local_description(db_produto: Any, *, tamanho_palavras: int) -> str:
+        """Build deterministic fallback description when no IA key is configured."""
+        nome = str(getattr(db_produto, "nome_base", "") or "").strip() or "Produto automotivo"
+        marca = str(getattr(db_produto, "marca", "") or "").strip()
+        modelo = str(getattr(db_produto, "modelo", "") or "").strip()
+        sku = str(getattr(db_produto, "sku", "") or "").strip()
+        ean = str(getattr(db_produto, "ean", "") or "").strip()
+        categoria = str(getattr(db_produto, "categoria_original", "") or "").strip()
+        descricao_origem = str(
+            getattr(db_produto, "descricao_original", "") or getattr(db_produto, "descricao_chat_api", "") or ""
+        ).strip()
+
+        parts: List[str] = [f"{nome} e uma peca voltada para aplicacao automotiva com foco em reposicao confiavel."]
+        if marca:
+            parts.append(f"Fabricado por {marca}, mantendo padrao de compatibilidade para uso profissional.")
+        if modelo:
+            parts.append(f"Compativel com aplicacoes relacionadas ao modelo {modelo}.")
+        if categoria:
+            parts.append(f"Categoria de referencia: {categoria}.")
+        if sku:
+            parts.append(f"Codigo de identificacao (SKU): {sku}.")
+        if ean:
+            parts.append(f"Codigo EAN: {ean}.")
+        if descricao_origem:
+            parts.append(f"Informacoes adicionais do catalogo: {descricao_origem}.")
+        parts.append("Antes da venda, confirme medidas, posicao de montagem e compatibilidade com o veiculo de destino.")
+
+        text = " ".join(parts).strip()
+        target_words = max(40, int(tamanho_palavras))
+        words = [token for token in text.split() if token]
+        if len(words) >= target_words:
+            return " ".join(words[:target_words])
+        return text
+
+    @staticmethod
+    def _registrar_uso_fallback(
+        *,
+        db: Session,
+        user_id: int,
+        produto_id: int,
+        tipo_acao: Any,
+        provider_name: str,
+        details: str,
+    ) -> None:
+        """Persist fallback usage entry without blocking request flow."""
+        try:
+            RegistroUsoIARepository(db).create_registro_uso_ia(
+                registro_uso=schemas.RegistroUsoIACreate(
+                    user_id=user_id,
+                    produto_id=produto_id,
+                    tipo_acao=tipo_acao,
+                    provedor_ia=provider_name,
+                    modelo_ia="template-fallback",
+                    creditos_consumidos=0,
+                    status="FALLBACK",
+                    detalhes_erro=details,
+                )
+            )
+        except Exception:
+            logger.warning("Falha ao registrar uso de fallback local para produto %s.", produto_id)
     async def _gerar_titulos_com_openai_impl(self, db: Session, produto_id: int, user: models.User, num_titulos: int = 3) -> List[str]:
-        # ... (código existente para gerar títulos com OpenAI - manter como está)
-        # Apenas garanta que ele use get_openai_api_key e registre o uso corretamente
-        """Gerar titulos com openai impl."""
-        logger.info(f"Iniciando geração de títulos para produto ID {produto_id} pelo usuário ID {user.id}")
-        # ... (restante da lógica existente) ...
-        # Exemplo de adaptação mínima:
+        """Gerar titulos com OpenAI; aplica fallback local quando chave nao existe."""
+        logger.info(
+            "Iniciando geracao de titulos OpenAI para produto ID %s pelo usuario ID %s",
+            produto_id,
+            user.id,
+        )
+        db_produto = ProductRepository(db).get_produto(produto_id=produto_id)
+        if not db_produto:
+            raise HTTPException(status_code=404, detail="Produto nao encontrado")
+
         ai_provider_workflow = self._get_ai_provider_workflow()
         api_key = await ai_provider_workflow.get_openai_api_key(db=db, user=user)
         if not api_key:
-            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Chave da API OpenAI não disponível.")
-    
-        # ... (construção do prompt e chamada à API OpenAI) ...
-        # ... (registro do uso com crud.create_registro_uso_ia) ...
-        # Este código é apenas um placeholder, o seu código original para esta função deve ser mantido e adaptado.
-        db_produto = ProductRepository(db).get_produto(produto_id=produto_id)
-        if not db_produto:
-            raise HTTPException(status_code=404, detail="Produto não encontrado")
-    
+            logger.warning("OpenAI indisponivel para produto %s; aplicando fallback local.", produto_id)
+            self._registrar_uso_fallback(
+                db=db,
+                user_id=user.id,
+                produto_id=produto_id,
+                tipo_acao=models.TipoAcaoEnum.CRIACAO_TITULO_PRODUTO,
+                provider_name="openai",
+                details="Chave OpenAI ausente; fallback local aplicado.",
+            )
+            return self._build_local_title_candidates(
+                db_produto,
+                num_titulos=max(1, int(num_titulos or 1)),
+            )
+
         prompt_messages = [
-            {"role": "system", "content": f"Você é um especialista em copywriting para e-commerce. Gere {num_titulos} opções de títulos curtos, atraentes e otimizados para SEO para o produto a seguir."},
-            {"role": "user", "content": f"Produto: {db_produto.nome_base}. Descrição: {db_produto.descricao_original or db_produto.descricao_chat_api or ''}. Marca: {db_produto.marca or ''}."}
+            {
+                "role": "system",
+                "content": (
+                    f"Voce e um especialista em copywriting para e-commerce. Gere {num_titulos} opcoes "
+                    "de titulos curtos, atraentes e otimizados para SEO para o produto a seguir."
+                ),
+            },
+            {
+                "role": "user",
+                "content": (
+                    f"Produto: {db_produto.nome_base}. "
+                    f"Descricao: {db_produto.descricao_original or db_produto.descricao_chat_api or ''}. "
+                    f"Marca: {db_produto.marca or ''}."
+                ),
+            },
         ]
-        
+
         titulos_str = await ai_provider_workflow.call_openai_api(
             prompt_messages=prompt_messages,
             api_key=api_key,
-            max_tokens=150 * num_titulos,
+            max_tokens=150 * max(1, int(num_titulos or 1)),
         )
-        titulos_list = [t.strip() for t in titulos_str.split('\n') if t.strip()]
-    
-        RegistroUsoIARepository(db).create_registro_uso_ia(registro_uso=schemas.RegistroUsoIACreate(
-            user_id=user.id, produto_id=produto_id, tipo_acao=models.TipoAcaoEnum.CRIACAO_TITULO_PRODUTO,
-            provedor_ia="openai", modelo_ia=OPENAI_DEFAULT_MODEL, creditos_consumidos=1 # Ajustar créditos
-        ))
-        return titulos_list[:num_titulos]
+        titulos_list = self._sanitize_title_candidates(titulos_str)
+        if not titulos_list:
+            titulos_list = self._build_local_title_candidates(
+                db_produto,
+                num_titulos=max(1, int(num_titulos or 1)),
+            )
+
+        RegistroUsoIARepository(db).create_registro_uso_ia(
+            registro_uso=schemas.RegistroUsoIACreate(
+                user_id=user.id,
+                produto_id=produto_id,
+                tipo_acao=models.TipoAcaoEnum.CRIACAO_TITULO_PRODUTO,
+                provedor_ia="openai",
+                modelo_ia=OPENAI_DEFAULT_MODEL,
+                creditos_consumidos=1,
+            )
+        )
+        return titulos_list[: max(1, int(num_titulos or 1))]
 
     async def _gerar_descricao_com_openai_impl(self, db: Session, produto_id: int, user: models.User, tamanho_palavras: int = 150) -> str:
-        # ... (código existente para gerar descrição com OpenAI - manter como está)
-        # Apenas garanta que ele use get_openai_api_key e registre o uso corretamente
-        """Gerar descricao com openai impl."""
-        logger.info(f"Iniciando geração de descrição para produto ID {produto_id} pelo usuário ID {user.id}")
-        # ... (restante da lógica existente) ...
-        # Exemplo de adaptação mínima:
+        """Gerar descricao com OpenAI; aplica fallback local quando chave nao existe."""
+        logger.info(
+            "Iniciando geracao de descricao OpenAI para produto ID %s pelo usuario ID %s",
+            produto_id,
+            user.id,
+        )
+        db_produto = ProductRepository(db).get_produto(produto_id=produto_id)
+        if not db_produto:
+            raise HTTPException(status_code=404, detail="Produto nao encontrado")
+
         ai_provider_workflow = self._get_ai_provider_workflow()
         api_key = await ai_provider_workflow.get_openai_api_key(db=db, user=user)
         if not api_key:
-            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Chave da API OpenAI não disponível.")
-            
-        db_produto = ProductRepository(db).get_produto(produto_id=produto_id)
-        if not db_produto:
-            raise HTTPException(status_code=404, detail="Produto não encontrado")
-    
+            logger.warning("OpenAI indisponivel para produto %s; aplicando fallback local.", produto_id)
+            self._registrar_uso_fallback(
+                db=db,
+                user_id=user.id,
+                produto_id=produto_id,
+                tipo_acao=models.TipoAcaoEnum.CRIACAO_DESCRICAO_PRODUTO,
+                provider_name="openai",
+                details="Chave OpenAI ausente; fallback local aplicado.",
+            )
+            return self._build_local_description(
+                db_produto,
+                tamanho_palavras=max(40, int(tamanho_palavras or 40)),
+            )
+
         prompt_messages = [
-            {"role": "system", "content": f"Você é um copywriter especialista em e-commerce. Crie uma descrição de produto persuasiva e detalhada, com aproximadamente {tamanho_palavras} palavras, para o item a seguir. Destaque benefícios e características chave."},
-            {"role": "user", "content": f"Produto: {db_produto.nome_base}. Informações adicionais: {db_produto.descricao_original or ''}. Marca: {db_produto.marca or ''}. Modelo: {db_produto.modelo or ''}."}
+            {
+                "role": "system",
+                "content": (
+                    f"Voce e um copywriter especialista em e-commerce. Crie uma descricao persuasiva "
+                    f"com aproximadamente {tamanho_palavras} palavras para o item a seguir."
+                ),
+            },
+            {
+                "role": "user",
+                "content": (
+                    f"Produto: {db_produto.nome_base}. "
+                    f"Informacoes adicionais: {db_produto.descricao_original or ''}. "
+                    f"Marca: {db_produto.marca or ''}. Modelo: {db_produto.modelo or ''}."
+                ),
+            },
         ]
-        
+
         descricao = await ai_provider_workflow.call_openai_api(
             prompt_messages=prompt_messages,
             api_key=api_key,
-            max_tokens=tamanho_palavras + 100,
+            max_tokens=max(60, int(tamanho_palavras or 60)) + 100,
         )
-    
-        RegistroUsoIARepository(db).create_registro_uso_ia(registro_uso=schemas.RegistroUsoIACreate(
-            user_id=user.id, produto_id=produto_id, tipo_acao=models.TipoAcaoEnum.CRIACAO_DESCRICAO_PRODUTO,
-            provedor_ia="openai", modelo_ia=OPENAI_DEFAULT_MODEL, creditos_consumidos=1 # Ajustar créditos
-        ))
+        if not isinstance(descricao, str) or not descricao.strip():
+            descricao = self._build_local_description(
+                db_produto,
+                tamanho_palavras=max(40, int(tamanho_palavras or 40)),
+            )
+
+        RegistroUsoIARepository(db).create_registro_uso_ia(
+            registro_uso=schemas.RegistroUsoIACreate(
+                user_id=user.id,
+                produto_id=produto_id,
+                tipo_acao=models.TipoAcaoEnum.CRIACAO_DESCRICAO_PRODUTO,
+                provedor_ia="openai",
+                modelo_ia=OPENAI_DEFAULT_MODEL,
+                creditos_consumidos=1,
+            )
+        )
         return descricao
 
     async def _gerar_titulos_com_gemini_impl(self, db: Session, produto_id: int, user: models.User, num_titulos: int = 3) -> List[str]:
-        """Gera títulos usando a API Gemini."""
-        logger.info(f"Iniciando geração de títulos Gemini para produto ID {produto_id} pelo usuário ID {user.id}")
+        """Gerar titulos com Gemini; aplica fallback local quando chave nao existe."""
+        logger.info(
+            "Iniciando geracao de titulos Gemini para produto ID %s pelo usuario ID %s",
+            produto_id,
+            user.id,
+        )
+        db_produto = ProductRepository(db).get_produto(produto_id=produto_id)
+        if not db_produto:
+            raise HTTPException(status_code=404, detail="Produto nao encontrado")
+
         ai_provider_workflow = self._get_ai_provider_workflow()
         api_key = await ai_provider_workflow.get_gemini_api_key(db=db, user=user)
         if not api_key:
-            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Chave da API Gemini não disponível.")
-    
-        db_produto = ProductRepository(db).get_produto(produto_id=produto_id)
-        if not db_produto:
-            raise HTTPException(status_code=404, detail="Produto não encontrado")
-    
+            logger.warning("Gemini indisponivel para produto %s; aplicando fallback local.", produto_id)
+            self._registrar_uso_fallback(
+                db=db,
+                user_id=user.id,
+                produto_id=produto_id,
+                tipo_acao=models.TipoAcaoEnum.CRIACAO_TITULO_PRODUTO,
+                provider_name="gemini",
+                details="Chave Gemini ausente; fallback local aplicado.",
+            )
+            return self._build_local_title_candidates(
+                db_produto,
+                num_titulos=max(1, int(num_titulos or 1)),
+            )
+
         prompt_text = (
-            f"Crie {num_titulos} sugestões de títulos curtos e atrativos para o seguinte produto:\n"
+            f"Crie {num_titulos} sugestoes de titulos curtos e atrativos para o seguinte produto:\n"
             f"Nome: {db_produto.nome_base}\n"
-            f"Descrição: {db_produto.descricao_original or db_produto.descricao_chat_api or ''}\n"
+            f"Descricao: {db_produto.descricao_original or db_produto.descricao_chat_api or ''}\n"
             f"Marca: {db_produto.marca or ''}"
         )
-    
         resultado = await ai_provider_workflow.call_gemini_api(
             prompt_text=prompt_text,
             api_key=api_key,
-            max_tokens=150 * num_titulos,
+            max_tokens=150 * max(1, int(num_titulos or 1)),
         )
-        titulos_list = [t.strip() for t in resultado.split('\n') if t.strip()]
-    
-        RegistroUsoIARepository(db).create_registro_uso_ia(registro_uso=schemas.RegistroUsoIACreate(
-            user_id=user.id,
-            produto_id=produto_id,
-            tipo_acao=models.TipoAcaoEnum.CRIACAO_TITULO_PRODUTO,
-            provedor_ia="gemini",
-            modelo_ia="gemini-1.5-flash-latest",
-            creditos_consumidos=1,
-        ))
-        return titulos_list[:num_titulos]
+        titulos_list = self._sanitize_title_candidates(resultado)
+        if not titulos_list:
+            titulos_list = self._build_local_title_candidates(
+                db_produto,
+                num_titulos=max(1, int(num_titulos or 1)),
+            )
+
+        RegistroUsoIARepository(db).create_registro_uso_ia(
+            registro_uso=schemas.RegistroUsoIACreate(
+                user_id=user.id,
+                produto_id=produto_id,
+                tipo_acao=models.TipoAcaoEnum.CRIACAO_TITULO_PRODUTO,
+                provedor_ia="gemini",
+                modelo_ia="gemini-1.5-flash-latest",
+                creditos_consumidos=1,
+            )
+        )
+        return titulos_list[: max(1, int(num_titulos or 1))]
 
     async def _gerar_descricao_com_gemini_impl(self, db: Session, produto_id: int, user: models.User, tamanho_palavras: int = 150) -> str:
-        """Gera descrição usando a API Gemini."""
-        logger.info(f"Iniciando geração de descrição Gemini para produto ID {produto_id} pelo usuário ID {user.id}")
+        """Gerar descricao com Gemini; aplica fallback local quando chave nao existe."""
+        logger.info(
+            "Iniciando geracao de descricao Gemini para produto ID %s pelo usuario ID %s",
+            produto_id,
+            user.id,
+        )
+        db_produto = ProductRepository(db).get_produto(produto_id=produto_id)
+        if not db_produto:
+            raise HTTPException(status_code=404, detail="Produto nao encontrado")
+
         ai_provider_workflow = self._get_ai_provider_workflow()
         api_key = await ai_provider_workflow.get_gemini_api_key(db=db, user=user)
         if not api_key:
-            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Chave da API Gemini não disponível.")
-    
-        db_produto = ProductRepository(db).get_produto(produto_id=produto_id)
-        if not db_produto:
-            raise HTTPException(status_code=404, detail="Produto não encontrado")
-    
+            logger.warning("Gemini indisponivel para produto %s; aplicando fallback local.", produto_id)
+            self._registrar_uso_fallback(
+                db=db,
+                user_id=user.id,
+                produto_id=produto_id,
+                tipo_acao=models.TipoAcaoEnum.CRIACAO_DESCRICAO_PRODUTO,
+                provider_name="gemini",
+                details="Chave Gemini ausente; fallback local aplicado.",
+            )
+            return self._build_local_description(
+                db_produto,
+                tamanho_palavras=max(40, int(tamanho_palavras or 40)),
+            )
+
         prompt_text = (
-            f"Escreva uma descrição de aproximadamente {tamanho_palavras} palavras para o seguinte produto:\n"
+            f"Escreva uma descricao de aproximadamente {tamanho_palavras} palavras para o seguinte produto:\n"
             f"Nome: {db_produto.nome_base}\n"
-            f"Informações adicionais: {db_produto.descricao_original or ''}\n"
+            f"Informacoes adicionais: {db_produto.descricao_original or ''}\n"
             f"Marca: {db_produto.marca or ''}\n"
             f"Modelo: {db_produto.modelo or ''}"
         )
-    
         descricao = await ai_provider_workflow.call_gemini_api(
             prompt_text=prompt_text,
             api_key=api_key,
-            max_tokens=tamanho_palavras + 100,
+            max_tokens=max(60, int(tamanho_palavras or 60)) + 100,
         )
-    
-        RegistroUsoIARepository(db).create_registro_uso_ia(registro_uso=schemas.RegistroUsoIACreate(
-            user_id=user.id,
-            produto_id=produto_id,
-            tipo_acao=models.TipoAcaoEnum.CRIACAO_DESCRICAO_PRODUTO,
-            provedor_ia="gemini",
-            modelo_ia="gemini-1.5-flash-latest",
-            creditos_consumidos=1,
-        ))
+        if not isinstance(descricao, str) or not descricao.strip():
+            descricao = self._build_local_description(
+                db_produto,
+                tamanho_palavras=max(40, int(tamanho_palavras or 40)),
+            )
+
+        RegistroUsoIARepository(db).create_registro_uso_ia(
+            registro_uso=schemas.RegistroUsoIACreate(
+                user_id=user.id,
+                produto_id=produto_id,
+                tipo_acao=models.TipoAcaoEnum.CRIACAO_DESCRICAO_PRODUTO,
+                provedor_ia="gemini",
+                modelo_ia="gemini-1.5-flash-latest",
+                creditos_consumidos=1,
+            )
+        )
         return descricao
 
     async def _sugerir_valores_atributos_com_gemini_impl(self, 
@@ -787,7 +1011,6 @@ class IAGenerationRuntime:
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail="Erro inesperado ao gerar sugestoes de atributos.",
             )
-
 
 
 
