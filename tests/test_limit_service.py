@@ -7,8 +7,8 @@ from sqlalchemy.pool import StaticPool
 
 from Backend import models
 from Backend.database import Base
-from Backend.infrastructure.runtime_services.limit_runtime_service import (
-    LimitRuntimeService,
+from Backend.infrastructure.adapters.limit_adapter import (
+    LimitServiceAdapter,
 )
 
 
@@ -16,7 +16,7 @@ class _TopLevelFunctionSurface:
 
     @pytest.mark.asyncio
     async def test_verificar_e_consumir_creditos_geracao_ia():
-        limit_runtime_service = LimitRuntimeService()
+        limit_workflow = LimitServiceAdapter()
         engine = create_engine(
             "sqlite:///:memory:",
             connect_args={"check_same_thread": False},
@@ -40,7 +40,7 @@ class _TopLevelFunctionSurface:
             )
         db.commit()
     
-        assert await limit_runtime_service.verificar_e_consumir_creditos_geracao_ia(db, user.id, 1)
+        assert await limit_workflow.verificar_e_consumir_creditos_geracao_ia(db, user.id, 1)
     
         db.add(
             models.RegistroUsoIA(
@@ -50,11 +50,11 @@ class _TopLevelFunctionSurface:
         )
         db.commit()
     
-        assert not await limit_runtime_service.verificar_e_consumir_creditos_geracao_ia(db, user.id, 1)
+        assert not await limit_workflow.verificar_e_consumir_creditos_geracao_ia(db, user.id, 1)
         db.close()
 
     def test_verificar_limite_uso_retorna_saldo():
-        limit_runtime_service = LimitRuntimeService()
+        limit_workflow = LimitServiceAdapter()
         engine = create_engine(
             "sqlite:///:memory:",
             connect_args={"check_same_thread": False},
@@ -87,7 +87,7 @@ class _TopLevelFunctionSurface:
         )
         db.commit()
     
-        remaining = limit_runtime_service.verificar_limite_uso(db, user, "titulo")
+        remaining = limit_workflow.verificar_limite_uso(db, user, "titulo")
         assert remaining == 3
         db.close()
 
