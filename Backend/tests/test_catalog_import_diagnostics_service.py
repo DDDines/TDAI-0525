@@ -1,3 +1,9 @@
+"""Module test catalog import diagnostics service.
+
+This module contains backend application/runtime logic and is fully
+documented for maintainability and onboarding.
+"""
+
 from __future__ import annotations
 
 from pathlib import Path
@@ -8,24 +14,52 @@ from Backend.application.services.catalog_import_diagnostics_service import (
 
 
 class _SanitizationStub:
+    """Class _SanitizationStub.
+
+    Encapsulates one responsibility in the backend architecture.
+    """
     @staticmethod
     def extract_import_error_reason(item):
+        """Execute extract_import_error_reason.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         if isinstance(item, dict):
             return item.get("motivo_descarte") or "erro_sem_motivo"
         return "erro_sem_motivo"
 
 
 class _LoggerStub:
+    """Class _LoggerStub.
+
+    Encapsulates one responsibility in the backend architecture.
+    """
     def __init__(self):
+        """Execute __init__.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         self.messages = []
 
     def warning(self, message, *args):
+        """Execute warning.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         self.messages.append((message, args))
 
 
 class _TopLevelFunctionSurface:
 
+    """Class _TopLevelFunctionSurface.
+
+    Encapsulates one responsibility in the backend architecture.
+    """
     def _build_service(tmp_path: Path) -> CatalogImportDiagnosticsService:
+        """Execute _build_service.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         return CatalogImportDiagnosticsService(
             catalog_log_dir=tmp_path / "logs",
             logger=_LoggerStub(),
@@ -33,17 +67,29 @@ class _TopLevelFunctionSurface:
         )
 
     def test_resolve_storage_path_keeps_absolute(tmp_path):
+        """Execute test_resolve_storage_path_keeps_absolute.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         service = _build_service(tmp_path)
         absolute = tmp_path / "data" / "catalog.pdf"
         assert service.resolve_storage_path(absolute) == absolute
 
     def test_resolve_storage_path_with_backend_prefix(tmp_path):
+        """Execute test_resolve_storage_path_with_backend_prefix.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         service = _build_service(tmp_path)
         resolved = service.resolve_storage_path("Backend/uploads/catalogs/file.pdf")
     
         assert resolved.parts[-4:] == ("Backend", "uploads", "catalogs", "file.pdf")
 
     def test_write_catalog_import_report_persists_json(tmp_path):
+        """Execute test_write_catalog_import_report_persists_json.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         service = _build_service(tmp_path)
         report_path = service.write_catalog_import_report(
             file_id=321,

@@ -14,10 +14,18 @@ class RegistroUsoIARepository:
     """Repository OO de registros de uso IA com Session vinculada por request."""
 
     def __init__(self, db: Session) -> None:
+        """Execute __init__.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         self._db = db
 
     @staticmethod
     def _normalize_tipo_acao(tipo_acao: Optional[models.TipoAcaoEnum]):
+        """Execute _normalize_tipo_acao.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         if isinstance(tipo_acao, str):
             try:
                 return models.TipoAcaoEnum(tipo_acao)
@@ -29,6 +37,10 @@ class RegistroUsoIARepository:
         self,
         registro_uso: schemas.RegistroUsoIACreate,
     ) -> models.RegistroUsoIA:
+        """Execute create_registro_uso_ia.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         db_obj = models.RegistroUsoIA(**registro_uso.model_dump(exclude_unset=True))
         self._db.add(db_obj)
         self._db.commit()
@@ -45,6 +57,10 @@ class RegistroUsoIARepository:
         data_inicio: Optional[datetime] = None,
         data_fim: Optional[datetime] = None,
     ) -> List[models.RegistroUsoIA]:
+        """Execute get_registros_uso_ia.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         normalized_tipo_acao = self._normalize_tipo_acao(tipo_acao)
         query = self._db.query(models.RegistroUsoIA).filter(models.RegistroUsoIA.user_id == user_id)
         if normalized_tipo_acao:
@@ -68,6 +84,10 @@ class RegistroUsoIARepository:
         data_inicio: Optional[datetime] = None,
         data_fim: Optional[datetime] = None,
     ) -> int:
+        """Execute count_registros_uso_ia.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         normalized_tipo_acao = self._normalize_tipo_acao(tipo_acao)
         query = self._db.query(func.count(models.RegistroUsoIA.id)).filter(
             models.RegistroUsoIA.user_id == user_id
@@ -88,6 +108,10 @@ class RegistroUsoIARepository:
         skip: int = 0,
         limit: int = 100,
     ) -> List[models.RegistroUsoIA]:
+        """Execute get_usos_ia_by_produto.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         return (
             self._db.query(models.RegistroUsoIA)
             .filter(
@@ -106,6 +130,10 @@ class RegistroUsoIARepository:
         user_id: int,
         tipo_geracao_prefix: str,
     ) -> int:
+        """Execute count_usos_ia_by_user_and_type_no_mes_corrente.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         inicio_mes = (
             datetime.now(timezone.utc)
             .replace(day=1, hour=0, minute=0, second=0, microsecond=0)
@@ -129,6 +157,10 @@ class RegistroUsoIARepository:
         )
 
     def get_geracoes_ia_count_no_mes_corrente(self, *, user_id: int) -> int:
+        """Execute get_geracoes_ia_count_no_mes_corrente.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         inicio_mes = (
             datetime.now(timezone.utc)
             .replace(day=1, hour=0, minute=0, second=0, microsecond=0)

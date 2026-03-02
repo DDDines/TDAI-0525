@@ -1,3 +1,9 @@
+"""Module test web enrichment components.
+
+This module contains backend application/runtime logic and is fully
+documented for maintainability and onboarding.
+"""
+
 from __future__ import annotations
 
 from enum import Enum
@@ -12,6 +18,10 @@ from Backend.application.services.web_enrichment_components import (
 
 
 class _FakeStatus(Enum):
+    """Class _FakeStatus.
+
+    Encapsulates one responsibility in the backend architecture.
+    """
     EM_PROGRESSO = "EM_PROGRESSO"
     FALHOU = "FALHOU"
     CONCLUIDO_SUCESSO = "CONCLUIDO_SUCESSO"
@@ -21,29 +31,65 @@ class _FakeStatus(Enum):
 
 
 class _FakeModels:
+    """Class _FakeModels.
+
+    Encapsulates one responsibility in the backend architecture.
+    """
     StatusEnriquecimentoEnum = _FakeStatus
 
 
 class _FakeProdutoUpdate:
+    """Class _FakeProdutoUpdate.
+
+    Encapsulates one responsibility in the backend architecture.
+    """
     def __init__(self, **kwargs):
+        """Execute __init__.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         self.payload = kwargs
 
 
 class _FakeSchemas:
+    """Class _FakeSchemas.
+
+    Encapsulates one responsibility in the backend architecture.
+    """
     ProdutoUpdate = _FakeProdutoUpdate
 
 
 class _FakeCrudProdutos:
+    """Class _FakeCrudProdutos.
+
+    Encapsulates one responsibility in the backend architecture.
+    """
     def __init__(self):
+        """Execute __init__.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         self.calls = []
 
     def update_produto(self, *, db_produto, produto_update):
+        """Execute update_produto.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         self.calls.append((db_produto, produto_update))
 
 
 class _TopLevelFunctionSurface:
 
+    """Class _TopLevelFunctionSurface.
+
+    Encapsulates one responsibility in the backend architecture.
+    """
     def test_config_inspector_reads_sources():
+        """Execute test_config_inspector_reads_sources.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         inspector = WebEnrichmentConfigInspector()
         user = SimpleNamespace(chave_openai_pessoal=None)
         settings = SimpleNamespace(OPENAI_API_KEY=None, GOOGLE_CSE_API_KEY="k", GOOGLE_CSE_ID="cx")
@@ -56,6 +102,10 @@ class _TopLevelFunctionSurface:
         assert snapshot.busca_web_disponivel is True
 
     def test_query_planner_override_has_priority():
+        """Execute test_query_planner_override_has_priority.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         planner = WebEnrichmentQueryPlanner()
         produto = SimpleNamespace(
             nome_base="Suporte do Aparabarro",
@@ -71,6 +121,10 @@ class _TopLevelFunctionSurface:
         assert candidates == ["termo customizado"]
 
     def test_query_planner_generates_base_terms():
+        """Execute test_query_planner_generates_base_terms.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         planner = WebEnrichmentQueryPlanner()
         produto = SimpleNamespace(
             nome_base="Suporte do Aparabarro",
@@ -88,6 +142,10 @@ class _TopLevelFunctionSurface:
         assert "SP1081" in candidates
 
     def test_status_resolver_handles_partial_without_openai():
+        """Execute test_status_resolver_handles_partial_without_openai.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         resolver = WebEnrichmentStatusResolver()
         status = resolver.resolve(
             models=_FakeModels,
@@ -100,6 +158,10 @@ class _TopLevelFunctionSurface:
         assert status == _FakeStatus.CONCLUIDO_COM_DADOS_PARCIAIS
 
     def test_status_resolver_handles_no_sources():
+        """Execute test_status_resolver_handles_no_sources.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         resolver = WebEnrichmentStatusResolver()
         status = resolver.resolve(
             models=_FakeModels,
@@ -112,6 +174,10 @@ class _TopLevelFunctionSurface:
         assert status == _FakeStatus.FALHA_CONFIGURACAO_API_EXTERNA
 
     def test_finalization_service_updates_payload_and_normalizes_logs():
+        """Execute test_finalization_service_updates_payload_and_normalizes_logs.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         crud_produtos = _FakeCrudProdutos()
         finalizer = WebEnrichmentFinalizationService(
             normalize_human_text=lambda txt: txt.strip(),

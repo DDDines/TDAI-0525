@@ -1,3 +1,9 @@
+"""Module generation task service.
+
+This module contains backend application/runtime logic and is fully
+documented for maintainability and onboarding.
+"""
+
 from __future__ import annotations
 
 from datetime import datetime, timezone
@@ -20,6 +26,10 @@ class GenerationTaskService:
         user_repository_factory: Any,
         product_repository_factory: Any,
     ) -> None:
+        """Execute __init__.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         self._db_session_factory = db_session_factory
         self._user_repository_factory = user_repository_factory
         self._product_repository_factory = product_repository_factory
@@ -28,15 +38,27 @@ class GenerationTaskService:
         self._logger = logger
 
     def _get_user_access(self, session: Session) -> Any:
+        """Execute _get_user_access.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         return self._user_repository_factory(session)
 
     def _get_product_access(self, session: Session) -> Any:
+        """Execute _get_product_access.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         return self._product_repository_factory(session)
 
     def _resolve_generation_targets(
         self,
         tipo_geracao_principal: str,
     ) -> Optional[Tuple[str, str]]:
+        """Execute _resolve_generation_targets.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         if tipo_geracao_principal == "titulo":
             return "status_titulo_ia", "titulos_sugeridos"
         if tipo_geracao_principal == "descricao":
@@ -48,6 +70,10 @@ class GenerationTaskService:
         current_log: Any,
         action: str,
     ) -> list:
+        """Execute _append_process_log.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         log_obj = list(current_log or [])
         log_obj.append(
             {

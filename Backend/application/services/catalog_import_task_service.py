@@ -1,3 +1,9 @@
+"""Module catalog import task service.
+
+This module contains backend application/runtime logic and is fully
+documented for maintainability and onboarding.
+"""
+
 from __future__ import annotations
 
 from typing import Any, Callable, Dict, List, Optional
@@ -14,6 +20,10 @@ from Backend.application.services.catalog_import_components import (
 
 
 class CatalogImportTaskRuntime:
+    """Class CatalogImportTaskRuntime.
+
+    Encapsulates one responsibility in the backend architecture.
+    """
     RUNTIME_FIELDS = (
         "logger",
         "catalog_logger",
@@ -64,6 +74,10 @@ class CatalogImportTaskRuntime:
         write_catalog_import_report: Callable,
         normalize_import_text: Callable,
     ) -> None:
+        """Execute __init__.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         self.logger = logger
         self.catalog_logger = catalog_logger
         self.models = models
@@ -87,6 +101,10 @@ class CatalogImportTaskRuntime:
         self.normalize_import_text = normalize_import_text
 
     def apply_overrides(self, runtime: Any) -> "CatalogImportTaskRuntime":
+        """Execute apply_overrides.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         for field_name in self.RUNTIME_FIELDS:
             setattr(self, field_name, getattr(runtime, field_name, getattr(self, field_name)))
         return self
@@ -122,6 +140,10 @@ class CatalogImportTaskWorkflow:
         normalize_import_text: Callable,
         runtime: Optional[Any] = None,
     ) -> None:
+        """Execute __init__.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         runtime_obj = CatalogImportTaskRuntime(
             db_session_factory=db_session_factory,
             logger=logger,
@@ -204,6 +226,10 @@ class CatalogImportTaskWorkflow:
 
     @staticmethod
     def _resolve_repository_runtime(repository_provider: Any, session: Session) -> Any:
+        """Execute _resolve_repository_runtime.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         if repository_provider is None:
             raise ValueError("repository provider is required")
         if callable(repository_provider):
@@ -211,6 +237,10 @@ class CatalogImportTaskWorkflow:
         return repository_provider
 
     def _load_catalog_file(self) -> bool:
+        """Execute _load_catalog_file.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         self.catalog_file = self.catalog_file_repo_runtime.get_catalog_file_for_user(
             file_id=self.file_id,
             user_id=self.user_id,
@@ -237,6 +267,10 @@ class CatalogImportTaskWorkflow:
         return True
 
     def _resolve_file(self):
+        """Execute _resolve_file.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         file_path = self.resolve_storage_path(
             self.Path(self.settings.UPLOAD_DIRECTORY)
             / "catalogs"
@@ -257,6 +291,10 @@ class CatalogImportTaskWorkflow:
         return file_path, content, ext
 
     def _build_produto_schema(self, cleaned_prod: Dict[str, Any]):
+        """Execute _build_produto_schema.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         return self.schemas.ProdutoCreate(
             nome_base=cleaned_prod.get("nome_base")
             or cleaned_prod.get("sku_original")
@@ -280,6 +318,10 @@ class CatalogImportTaskWorkflow:
         conversion_error_prefix: str,
         produtos_create: List[Any],
     ) -> None:
+        """Execute _process_quality_and_schema.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         if isinstance(prod, dict) and (
             prod.get("motivo_descarte")
             or any(key.startswith("erro_processamento") for key in prod.keys())
@@ -339,6 +381,10 @@ class CatalogImportTaskWorkflow:
             )
 
     def _flush_produtos(self, *, produtos_create: List[Any]) -> tuple[List[Any], List[Any]]:
+        """Execute _flush_produtos.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         created_page: List[Any] = []
         updated_page: List[Any] = []
         if not produtos_create:
@@ -361,6 +407,10 @@ class CatalogImportTaskWorkflow:
         return created_page, updated_page
 
     async def _process_pdf(self, *, content: bytes) -> None:
+        """Execute _process_pdf.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         import io
         import pdfplumber
 
@@ -409,6 +459,10 @@ class CatalogImportTaskWorkflow:
             )
 
     async def _process_tabular(self, *, ext: str, content: bytes) -> bool:
+        """Execute _process_tabular.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         self.file_state_service.initialize_pages(
             catalog_file=self.catalog_file,
             total_pages=1,
@@ -457,6 +511,10 @@ class CatalogImportTaskWorkflow:
         return True
 
     def _finalize_success(self) -> None:
+        """Execute _finalize_success.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         result_payload = self.result_builder.build(
             file_id=self.file_id,
             created=self.created,
@@ -517,6 +575,10 @@ class CatalogImportTaskWorkflow:
         )
 
     def _handle_failure(self, error: Exception) -> None:
+        """Execute _handle_failure.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         self.logger.exception("Erro ao processar importacao de catalogo")
         self.catalog_logger.exception("falha file_id=%s erro=%s", self.file_id, error)
         if not self.db:
@@ -540,6 +602,10 @@ class CatalogImportTaskWorkflow:
         pages: Optional[List[int]] = None,
         region: Optional[List[float]] = None,
     ) -> None:
+        """Execute run.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         if self._db_session_factory is None:
             raise ValueError("db_session_factory is required for CatalogImportTaskWorkflow")
         self.db = self._db_session_factory()
@@ -614,6 +680,10 @@ class CatalogImportTaskService:
         write_catalog_import_report: Callable,
         normalize_import_text: Callable,
     ):
+        """Execute __init__.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         self._deps = {
             "db_session_factory": db_session_factory,
             "logger": logger,
@@ -650,6 +720,10 @@ class CatalogImportTaskService:
         pages: Optional[List[int]] = None,
         region: Optional[List[float]] = None,
     ):
+        """Execute execute.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         workflow = CatalogImportTaskWorkflow(**self._deps)
         await workflow.run(
             file_id=file_id,

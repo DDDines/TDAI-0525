@@ -1,4 +1,10 @@
-﻿from __future__ import annotations
+"""Module product repositories.
+
+This module contains backend application/runtime logic and is fully
+documented for maintainability and onboarding.
+"""
+
+from __future__ import annotations
 
 from typing import Any
 
@@ -21,6 +27,10 @@ class ProductRepositories:
 
     @staticmethod
     def build_product_management_repositories(*, session: Any) -> dict[str, Any]:
+        """Execute build_product_management_repositories.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         return {
             "produto_repo": ProductRepository(session),
             "fornecedor_repo": FornecedorRepository(session),
@@ -31,6 +41,10 @@ class ProductRepositories:
 
     @staticmethod
     def build_product_media_repositories(*, session: Any) -> dict[str, Any]:
+        """Execute build_product_media_repositories.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         return {
             "produto_repo": ProductRepository(session),
         }

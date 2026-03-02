@@ -1,3 +1,9 @@
+"""Module limit module.
+
+This module contains backend application/runtime logic and is fully
+documented for maintainability and onboarding.
+"""
+
 from __future__ import annotations
 
 from collections.abc import Callable
@@ -24,14 +30,26 @@ class LimitRuntime:
         user_repository_factory: Callable[[Session], Any] = UserRepository,
         logger_factory=get_logger,
     ) -> None:
+        """Execute __init__.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         self._usage_repository_factory = usage_repository_factory
         self._user_repository_factory = user_repository_factory
         self._logger = logger_factory(__name__)
 
     def _usage_repository(self, db: Session):
+        """Execute _usage_repository.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         return self._usage_repository_factory(db)
 
     def _user_repository(self, db: Session):
+        """Execute _user_repository.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         return self._user_repository_factory(db)
 
     def verificar_limite_uso(
@@ -155,6 +173,10 @@ class LimitWorkflow:
     """Workflow OO para regras de limite e credito."""
 
     def __init__(self, runtime: Optional[LimitRuntime] = None) -> None:
+        """Execute __init__.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         self._runtime = runtime or LimitRuntime(
             usage_repository_factory=RegistroUsoIARepository,
             user_repository_factory=UserRepository,
@@ -167,6 +189,10 @@ class LimitWorkflow:
         user: models.User,
         tipo_geracao_principal: str,
     ) -> int:
+        """Execute verificar_limite_uso.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         return self._runtime.verificar_limite_uso(
             db=db,
             user=user,
@@ -179,6 +205,10 @@ class LimitWorkflow:
         user_id: int,
         creditos_necessarios: int = 1,
     ) -> bool:
+        """Execute verificar_creditos_disponiveis_geracao_ia.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         return await self._runtime.verificar_creditos_disponiveis_geracao_ia(
             db=db,
             user_id=user_id,
@@ -191,6 +221,10 @@ class LimitWorkflow:
         user_id: int,
         creditos_necessarios: int = 1,
     ) -> bool:
+        """Execute verificar_e_consumir_creditos_geracao_ia.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         return await self._runtime.verificar_e_consumir_creditos_geracao_ia(
             db=db,
             user_id=user_id,

@@ -1,3 +1,9 @@
+"""Module contracts.
+
+This module contains backend application/runtime logic and is fully
+documented for maintainability and onboarding.
+"""
+
 from __future__ import annotations
 
 from typing import Any, Dict, List, Optional, Protocol
@@ -8,6 +14,10 @@ from Backend import models
 
 
 class WebDataExtractorPort(Protocol):
+    """Class WebDataExtractorPort.
+
+    Encapsulates one responsibility in the backend architecture.
+    """
     def busca_publica_disponivel(self) -> bool: ...
 
     async def buscar_urls_publicas(

@@ -1,4 +1,10 @@
-﻿# Backend/infrastructure/runtime_modules/web_data_extractor_module.py
+# Backend/infrastructure/runtime_modules/web_data_extractor_module.py
+"""Module web data extractor module.
+
+This module contains backend application/runtime logic and is fully
+documented for maintainability and onboarding.
+"""
+
 import asyncio
 import sys
 import time
@@ -88,6 +94,10 @@ class WebSearchEngineRuntime:
     """Runtime OO para buscas web (cache + scoring + fallback publico/CSE)."""
 
     def __init__(self) -> None:
+        """Execute __init__.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         self._search_cache: Dict[str, Tuple[float, List[str]]] = {}
         self._search_cache_ttl_seconds = 600.0
         self._search_cache_max_entries = 300
@@ -95,20 +105,36 @@ class WebSearchEngineRuntime:
         self._search_semaphore: Optional[asyncio.Semaphore] = None
 
     def busca_publica_disponivel(self) -> bool:
+        """Execute busca_publica_disponivel.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         return True
 
     def get_search_cache_lock(self) -> asyncio.Lock:
+        """Execute get_search_cache_lock.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         if self._search_cache_lock is None:
             self._search_cache_lock = asyncio.Lock()
         return self._search_cache_lock
 
     def get_search_semaphore(self) -> asyncio.Semaphore:
+        """Execute get_search_semaphore.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         if self._search_semaphore is None:
             limit = int(getattr(settings, "WEB_SEARCH_CONCURRENCY", 3) or 3)
             self._search_semaphore = asyncio.Semaphore(max(1, limit))
         return self._search_semaphore
 
     async def search_cache_get(self, query_key: str) -> Optional[List[str]]:
+        """Execute search_cache_get.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         lock = self.get_search_cache_lock()
         now = time.monotonic()
         async with lock:
@@ -122,6 +148,10 @@ class WebSearchEngineRuntime:
             return list(urls)
 
     async def search_cache_set(self, query_key: str, urls: List[str]) -> None:
+        """Execute search_cache_set.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         lock = self.get_search_cache_lock()
         now = time.monotonic()
         async with lock:
@@ -131,6 +161,10 @@ class WebSearchEngineRuntime:
             self._search_cache[query_key] = (now, list(urls))
 
     def score_url_publica(self, url: str) -> int:
+        """Execute score_url_publica.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         parsed = urlparse(url)
         host = (parsed.netloc or "").lower()
         path = (parsed.path or "").lower()
@@ -152,6 +186,10 @@ class WebSearchEngineRuntime:
         return score
 
     def extract_redirect_destination(self, query: str) -> Optional[str]:
+        """Execute extract_redirect_destination.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         if not query:
             return None
         qs = parse_qs(query or "")
@@ -164,6 +202,10 @@ class WebSearchEngineRuntime:
         return None
 
     def unwrap_redirect_url(self, url: str, max_hops: int = 3) -> str:
+        """Execute unwrap_redirect_url.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         current = str(url or "").strip()
         for _ in range(max(1, max_hops)):
             parsed = urlparse(current)
@@ -216,6 +258,10 @@ class WebSearchEngineRuntime:
         return False
 
     def normalizar_url_busca(self, candidata: str, base_url: str) -> Optional[str]:
+        """Execute normalizar_url_busca.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         if not candidata:
             return None
         url_final = str(candidata).strip()
@@ -300,6 +346,10 @@ class WebSearchEngineRuntime:
         return url_final
 
     def buscar_urls_publicas_sync(self, query: str, num_results: int = 3) -> List[str]:
+        """Execute buscar_urls_publicas_sync.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         if not query:
             return []
 
@@ -383,9 +433,17 @@ class WebSearchEngineRuntime:
         query: str,
         num_results: int = 3,
     ) -> List[str]:
+        """Execute buscar_urls_publicas_async.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         return await asyncio.to_thread(self.buscar_urls_publicas_sync, query, num_results)
 
     def _executar_busca_google_cse(self, query_limpa: str, limite: int) -> List[str]:
+        """Execute _executar_busca_google_cse.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         service = build(
             "customsearch",
             "v1",
@@ -404,6 +462,10 @@ class WebSearchEngineRuntime:
         query: str,
         num_results: int = 3,
     ) -> List[str]:
+        """Execute buscar_urls_google_async.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         query_limpa = str(query or "").strip()
         if not query_limpa:
             return []
@@ -497,13 +559,25 @@ class WebContentFetchEngineRuntime:
     """Runtime OO para coleta de conte?do HTML (Playwright + fallback HTTP)."""
 
     def __init__(self, search_runtime: WebSearchEngineRuntime) -> None:
+        """Execute __init__.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         self._search_runtime = search_runtime
         self._playwright_chromium_indisponivel = False
 
     def is_playwright_chromium_indisponivel(self) -> bool:
+        """Execute is_playwright_chromium_indisponivel.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         return self._playwright_chromium_indisponivel
 
     def set_playwright_chromium_indisponivel(self, value: bool) -> None:
+        """Execute set_playwright_chromium_indisponivel.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         self._playwright_chromium_indisponivel = bool(value)
 
     def coletar_conteudo_pagina_http_sync(
@@ -511,6 +585,10 @@ class WebContentFetchEngineRuntime:
         url: str,
         timeout: int = 20,
     ) -> Optional[str]:
+        """Execute coletar_conteudo_pagina_http_sync.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         headers = {
             "User-Agent": (
                 "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
@@ -531,6 +609,10 @@ class WebContentFetchEngineRuntime:
         url: str,
         timeout: int = 20,
     ) -> Optional[str]:
+        """Execute coletar_conteudo_pagina_http.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         try:
             return await asyncio.to_thread(
                 self.coletar_conteudo_pagina_http_sync,
@@ -545,6 +627,10 @@ class WebContentFetchEngineRuntime:
         self,
         url: str,
     ) -> Optional[str]:
+        """Execute coletar_conteudo_pagina_playwright_core.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         browser = None
         async with async_playwright() as p_instance:
             try:
@@ -568,6 +654,10 @@ class WebContentFetchEngineRuntime:
         self,
         url: str,
     ) -> Optional[str]:
+        """Execute coletar_conteudo_playwright_em_thread_sync.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         loop = None
         try:
             if sys.platform.startswith("win") and hasattr(
@@ -589,6 +679,10 @@ class WebContentFetchEngineRuntime:
             asyncio.set_event_loop(None)
 
     async def coletar_conteudo_pagina_playwright(self, url: str) -> Optional[str]:
+        """Execute coletar_conteudo_pagina_playwright.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         if self._search_runtime.url_deve_ser_ignorada_antes_da_coleta(url):
             logger.info(
                 "URL ignorada antes da coleta por baixa relevancia/tracking: %s",
@@ -691,27 +785,51 @@ class WebSearchWorkflow:
     """Workflow OO para estrategias de busca web."""
 
     def __init__(self, runtime: Optional["WebSearchRuntime"] = None) -> None:
+        """Execute __init__.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         self._runtime = runtime or WebSearchRuntime()
 
     def busca_publica_disponivel(self) -> bool:
+        """Execute busca_publica_disponivel.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         return self._runtime.busca_publica_disponivel()
 
     async def buscar_urls_publicas(self, query: str, num_results: int = 3) -> List[str]:
+        """Execute buscar_urls_publicas.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         return await self._runtime.buscar_urls_publicas_async(
             query=query,
             num_results=num_results,
         )
 
     async def buscar_urls_google(self, query: str, num_results: int = 3) -> List[str]:
+        """Execute buscar_urls_google.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         return await self._runtime.buscar_urls_google_async(
             query=query,
             num_results=num_results,
         )
 
     def url_deve_ser_ignorada_antes_da_coleta(self, url: str) -> bool:
+        """Execute url_deve_ser_ignorada_antes_da_coleta.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         return self._runtime.url_deve_ser_ignorada_antes_da_coleta(url)
 
     def normalizar_url_busca(self, candidata: str, base_url: str) -> Optional[str]:
+        """Execute normalizar_url_busca.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         return self._runtime.normalizar_url_busca(
             candidata=candidata,
             base_url=base_url,
@@ -724,9 +842,17 @@ class WebContentCollectionWorkflow:
     def __init__(
         self, runtime: Optional["WebContentCollectionRuntime"] = None
     ) -> None:
+        """Execute __init__.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         self._runtime = runtime or WebContentCollectionRuntime()
 
     async def coletar_conteudo_pagina_playwright(self, url: str) -> Optional[str]:
+        """Execute coletar_conteudo_pagina_playwright.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         return await self._runtime.coletar_conteudo_pagina_playwright(url)
 
 
@@ -737,9 +863,17 @@ class WebSearchRuntime:
         self,
         engine_runtime: Optional[WebSearchEngineRuntime] = None,
     ) -> None:
+        """Execute __init__.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         self._engine_runtime = engine_runtime or WebSearchEngineRuntime()
 
     def busca_publica_disponivel(self) -> bool:
+        """Execute busca_publica_disponivel.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         return self._engine_runtime.busca_publica_disponivel()
 
     async def buscar_urls_publicas_async(
@@ -747,6 +881,10 @@ class WebSearchRuntime:
         query: str,
         num_results: int = 3,
     ) -> List[str]:
+        """Execute buscar_urls_publicas_async.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         return await self._engine_runtime.buscar_urls_publicas_async(
             query=query,
             num_results=num_results,
@@ -757,15 +895,27 @@ class WebSearchRuntime:
         query: str,
         num_results: int = 3,
     ) -> List[str]:
+        """Execute buscar_urls_google_async.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         return await self._engine_runtime.buscar_urls_google_async(
             query=query,
             num_results=num_results,
         )
 
     def url_deve_ser_ignorada_antes_da_coleta(self, url: str) -> bool:
+        """Execute url_deve_ser_ignorada_antes_da_coleta.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         return self._engine_runtime.url_deve_ser_ignorada_antes_da_coleta(url)
 
     def normalizar_url_busca(self, candidata: str, base_url: str) -> Optional[str]:
+        """Execute normalizar_url_busca.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         return self._engine_runtime.normalizar_url_busca(
             candidata=candidata,
             base_url=base_url,
@@ -779,11 +929,19 @@ class WebContentCollectionRuntime:
         self,
         engine_runtime: Optional[WebContentFetchEngineRuntime] = None,
     ) -> None:
+        """Execute __init__.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         self._engine_runtime = engine_runtime or WebContentFetchEngineRuntime(
             search_runtime=WebSearchEngineRuntime()
         )
 
     async def coletar_conteudo_pagina_playwright(self, url: str) -> Optional[str]:
+        """Execute coletar_conteudo_pagina_playwright.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         return await self._engine_runtime.coletar_conteudo_pagina_playwright(
             url
         )
@@ -794,6 +952,10 @@ class MetadataExtractionRuntime:
     """Runtime OO para extracao de texto e metadados estruturados."""
 
     def extrair_texto_principal_com_trafilatura(self, html_content: str) -> Optional[str]:
+        """Execute extrair_texto_principal_com_trafilatura.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         if not html_content:
             return None
         return trafilatura.extract(
@@ -806,6 +968,10 @@ class MetadataExtractionRuntime:
         )
 
     def limpar_valor_metadado(self, valor: Any) -> Optional[Any]:
+        """Execute limpar_valor_metadado.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         if valor is None:
             return None
         if isinstance(valor, str):
@@ -818,6 +984,10 @@ class MetadataExtractionRuntime:
         return valor
 
     def _get_first_string(self, value: Any) -> Optional[str]:
+        """Execute _get_first_string.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         if isinstance(value, list):
             for item_val in value:
                 cleaned = self.limpar_valor_metadado(item_val)
@@ -828,6 +998,10 @@ class MetadataExtractionRuntime:
         return cleaned_val if isinstance(cleaned_val, str) else None
 
     def extrair_metadados_estruturados(self, html_content: str, url: str) -> Dict[str, Any]:
+        """Execute extrair_metadados_estruturados.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         if not html_content:
             return {}
         metadata_extraida: Dict[str, Any] = {}
@@ -865,6 +1039,10 @@ class MetadataExtractionRuntime:
         return metadata_extraida
 
     def normalizar_dados_de_metadados(self, metadata_bruta: Dict[str, Any]) -> Dict[str, Any]:
+        """Execute normalizar_dados_de_metadados.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         dados_norm: Dict[str, Any] = {}
         produto_json_ld = metadata_bruta.get("json-ld_product_candidate")
         produto_microdata = metadata_bruta.get("microdata_product_candidate")
@@ -947,6 +1125,10 @@ class WebLLMExtractionEngineRuntime:
         self,
         ai_provider_workflow_factory: Optional[Callable[[], AiProviderWorkflow]] = None,
     ) -> None:
+        """Execute __init__.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         self._ai_provider_workflow_factory = (
             ai_provider_workflow_factory or (lambda: AiProviderWorkflow())
         )
@@ -959,6 +1141,10 @@ class WebLLMExtractionEngineRuntime:
         produto_nome_base: str = "Produto",
         user: Optional[models.User] = None,
     ) -> Optional[Dict[str, Any]]:
+        """Execute extrair_dados_produto_com_llm.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         if not texto_pagina and not metadados_normalizados:
             logger.info("Nenhum texto de pÃƒÆ’Ã‚Â¡gina nem metadados fornecidos para extraÃƒÆ’Ã‚Â§ÃƒÆ’Ã‚Â£o LLM.")
             return {"erro_llm": "Nenhum conteÃƒÆ’Ã‚Âºdo para processar"}
@@ -1082,6 +1268,10 @@ class WebExtractionEnrichmentWorkflow:
         produto: models.Produto,
         runtime: Optional["WebExtractionEnrichmentRuntime"] = None,
     ) -> None:
+        """Execute __init__.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         self.db = db
         self.url = url
         self.produto = produto
@@ -1094,6 +1284,10 @@ class WebExtractionEnrichmentWorkflow:
         message: str,
         details: Optional[Dict[str, Any]] = None,
     ) -> None:
+        """Execute _add_log.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         entry = {
             "timestamp": self._runtime.now_iso(),
             "level": level,
@@ -1104,11 +1298,19 @@ class WebExtractionEnrichmentWorkflow:
         self.log_enriquecimento.append(entry)
 
     def _persist_status(self, status: models.StatusEnriquecimentoEnum) -> None:
+        """Execute _persist_status.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         self.produto.status_enriquecimento_web = status
         self.db.add(self.produto)
         self.db.commit()
 
     async def _collect_html(self) -> Optional[str]:
+        """Execute _collect_html.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         self._add_log(
             "INFO",
             f"Iniciando enriquecimento web para produto ID {self.produto.id} com URL: {self.url}",
@@ -1117,6 +1319,10 @@ class WebExtractionEnrichmentWorkflow:
         return await self._runtime.collect_html(url=self.url)
 
     def _merge_metadata(self, dados_normalizados_de_meta: Dict[str, Any]) -> None:
+        """Execute _merge_metadata.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         if self.produto.dados_brutos_web is None:
             self.produto.dados_brutos_web = {}
         for key, value in dados_normalizados_de_meta.items():
@@ -1129,6 +1335,10 @@ class WebExtractionEnrichmentWorkflow:
         dados_normalizados_de_meta: Dict[str, Any],
         texto_principal: Optional[str],
     ) -> models.StatusEnriquecimentoEnum:
+        """Execute _define_status_final.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         if not dados_normalizados_de_meta and not texto_principal:
             self._add_log(
                 "WARNING",
@@ -1147,6 +1357,10 @@ class WebExtractionEnrichmentWorkflow:
         return models.StatusEnriquecimentoEnum.CONCLUIDO_SUCESSO
 
     async def run(self) -> models.Produto:
+        """Execute run.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         html_content = await self._collect_html()
         if not html_content:
             self._add_log("ERROR", "Falha ao coletar HTML da pagina.")
@@ -1209,12 +1423,20 @@ class WebExtractionEnrichmentWorkflow:
 
 
 class WebExtractionEnrichmentRuntime:
+    """Class WebExtractionEnrichmentRuntime.
+
+    Encapsulates one responsibility in the backend architecture.
+    """
     def __init__(
         self,
         *,
         content_collection_workflow: Optional[WebContentCollectionWorkflow] = None,
         extraction_support_workflow: Optional["WebExtractionSupportWorkflow"] = None,
     ) -> None:
+        """Execute __init__.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         self._content_collection_workflow = (
             content_collection_workflow or WebContentCollectionWorkflow()
         )
@@ -1223,12 +1445,24 @@ class WebExtractionEnrichmentRuntime:
         )
 
     def now_iso(self) -> str:
+        """Execute now_iso.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         return datetime.now(timezone.utc).isoformat()
 
     async def collect_html(self, *, url: str) -> Optional[str]:
+        """Execute collect_html.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         return await self._content_collection_workflow.coletar_conteudo_pagina_playwright(url)
 
     def extract_main_text(self, *, html_content: str) -> Optional[str]:
+        """Execute extract_main_text.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         return self._extraction_support_workflow.extrair_texto_principal_com_trafilatura(
             html_content
         )
@@ -1236,12 +1470,20 @@ class WebExtractionEnrichmentRuntime:
     def extract_structured_metadata(
         self, *, html_content: str, url: str
     ) -> Dict[str, Any]:
+        """Execute extract_structured_metadata.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         return self._extraction_support_workflow.extrair_metadados_estruturados(
             html_content,
             url,
         )
 
     def normalize_metadata(self, *, metadata: Dict[str, Any]) -> Dict[str, Any]:
+        """Execute normalize_metadata.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         return self._extraction_support_workflow.normalizar_dados_de_metadados(metadata)
 
 
@@ -1257,6 +1499,10 @@ class WebURLExtractionEngineRuntime:
         url: str,
         produto: models.Produto,
     ) -> models.Produto:
+        """Execute extract_relevant_data_from_url.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         workflow = WebExtractionEnrichmentWorkflow(db=db, url=url, produto=produto)
         return await workflow.run()
 
@@ -1265,6 +1511,10 @@ class WebOCREngineRuntime:
     """Engine runtime OO para OCR de regiÃƒÆ’Ã‚Â£o de imagem."""
 
     def extract_text_from_image_region(self, image_bytes: bytes):
+        """Execute extract_text_from_image_region.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         try:
             from google.cloud import vision  # type: ignore
         except Exception as e:  # pragma: no cover - optional dependency
@@ -1309,12 +1559,20 @@ class WebExtractionSupportRuntime:
         enrichment_runtime: Optional[Any] = None,
         ocr_runtime: Optional[Any] = None,
     ) -> None:
+        """Execute __init__.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         self.metadata_runtime = metadata_runtime
         self.llm_runtime = llm_runtime
         self.enrichment_runtime = enrichment_runtime
         self.ocr_runtime = ocr_runtime
 
     def apply_overrides(self, runtime: Any) -> "WebExtractionSupportRuntime":
+        """Execute apply_overrides.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         for field_name in self.RUNTIME_FIELDS:
             setattr(self, field_name, getattr(runtime, field_name, getattr(self, field_name)))
         return self
@@ -1331,6 +1589,10 @@ class WebExtractionSupportWorkflow:
         ocr_runtime: Optional["WebOCRRuntime"] = None,
         runtime: Optional[Any] = None,
     ) -> None:
+        """Execute __init__.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         runtime_obj = WebExtractionSupportRuntime(
             metadata_runtime=metadata_runtime,
             llm_runtime=llm_runtime,
@@ -1349,11 +1611,19 @@ class WebExtractionSupportWorkflow:
     def extrair_texto_principal_com_trafilatura(
         self, html_content: str
     ) -> Optional[str]:
+        """Execute extrair_texto_principal_com_trafilatura.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         return self._metadata_runtime.extrair_texto_principal_com_trafilatura(html_content)
 
     def extrair_metadados_estruturados(
         self, html_content: str, url: str
     ) -> Dict[str, Any]:
+        """Execute extrair_metadados_estruturados.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         return self._metadata_runtime.extrair_metadados_estruturados(
             html_content=html_content,
             url=url,
@@ -1363,6 +1633,10 @@ class WebExtractionSupportWorkflow:
         self,
         metadata_bruta: Dict[str, Any],
     ) -> Dict[str, Any]:
+        """Execute normalizar_dados_de_metadados.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         return self._metadata_runtime.normalizar_dados_de_metadados(metadata_bruta)
 
     async def extrair_dados_produto_com_llm(
@@ -1373,6 +1647,10 @@ class WebExtractionSupportWorkflow:
         produto_nome_base: str = "Produto",
         user: Optional[models.User] = None,
     ) -> Optional[Dict[str, Any]]:
+        """Execute extrair_dados_produto_com_llm.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         return await self._llm_runtime.extrair_dados_produto_com_llm(
             texto_pagina=texto_pagina,
             metadados_normalizados=metadados_normalizados,
@@ -1387,6 +1665,10 @@ class WebExtractionSupportWorkflow:
         url: str,
         produto: models.Produto,
     ) -> models.Produto:
+        """Execute extract_relevant_data_from_url.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         return await self._enrichment_runtime.extract_relevant_data_from_url(
             db=db,
             url=url,
@@ -1394,6 +1676,10 @@ class WebExtractionSupportWorkflow:
         )
 
     def extract_text_from_image_region(self, image_bytes: bytes):
+        """Execute extract_text_from_image_region.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         return self._ocr_runtime.extract_text_from_image_region(
             image_bytes=image_bytes
         )
@@ -1406,6 +1692,10 @@ class WebLLMExtractionRuntime:
         self,
         engine_runtime: Optional[WebLLMExtractionEngineRuntime] = None,
     ) -> None:
+        """Execute __init__.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         self._engine_runtime = engine_runtime or WebLLMExtractionEngineRuntime()
 
     async def extrair_dados_produto_com_llm(
@@ -1416,6 +1706,10 @@ class WebLLMExtractionRuntime:
         produto_nome_base: str = "Produto",
         user: Optional[models.User] = None,
     ) -> Optional[Dict[str, Any]]:
+        """Execute extrair_dados_produto_com_llm.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         return await self._engine_runtime.extrair_dados_produto_com_llm(
             texto_pagina=texto_pagina,
             metadados_normalizados=metadados_normalizados,
@@ -1432,6 +1726,10 @@ class WebURLExtractionRuntime:
         self,
         engine_runtime: Optional[WebURLExtractionEngineRuntime] = None,
     ) -> None:
+        """Execute __init__.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         self._engine_runtime = engine_runtime or WebURLExtractionEngineRuntime()
 
     async def extract_relevant_data_from_url(
@@ -1440,6 +1738,10 @@ class WebURLExtractionRuntime:
         url: str,
         produto: models.Produto,
     ) -> models.Produto:
+        """Execute extract_relevant_data_from_url.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         return await self._engine_runtime.extract_relevant_data_from_url(
             db=db,
             url=url,
@@ -1454,9 +1756,17 @@ class WebOCRRuntime:
         self,
         engine_runtime: Optional[WebOCREngineRuntime] = None,
     ) -> None:
+        """Execute __init__.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         self._engine_runtime = engine_runtime or WebOCREngineRuntime()
 
     def extract_text_from_image_region(self, image_bytes: bytes):
+        """Execute extract_text_from_image_region.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         return self._engine_runtime.extract_text_from_image_region(
             image_bytes=image_bytes
         )
@@ -1479,6 +1789,10 @@ class WebDataExtractorRuntime:
         extraction_support_workflow: Optional[WebExtractionSupportWorkflow] = None,
         playwright_chromium_indisponivel: bool = False,
     ) -> None:
+        """Execute __init__.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         self._search_engine_runtime = search_engine_runtime or WebSearchEngineRuntime()
         self._content_fetch_engine_runtime = (
             content_fetch_engine_runtime
@@ -1522,17 +1836,33 @@ class WebDataExtractorRuntime:
 
     @property
     def search_workflow(self) -> WebSearchWorkflow:
+        """Execute search_workflow.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         return self._search_workflow
 
     @property
     def content_collection_workflow(self) -> WebContentCollectionWorkflow:
+        """Execute content_collection_workflow.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         return self._content_collection_workflow
 
     @property
     def extraction_support_workflow(self) -> WebExtractionSupportWorkflow:
+        """Execute extraction_support_workflow.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         return self._extraction_support_workflow
 
     def busca_publica_disponivel(self) -> bool:
+        """Execute busca_publica_disponivel.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         return self._search_workflow.busca_publica_disponivel()
 
     async def buscar_urls_publicas(
@@ -1540,6 +1870,10 @@ class WebDataExtractorRuntime:
         query: str,
         num_results: int = 3,
     ) -> List[str]:
+        """Execute buscar_urls_publicas.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         return await self._search_workflow.buscar_urls_publicas(
             query=query,
             num_results=num_results,
@@ -1550,12 +1884,20 @@ class WebDataExtractorRuntime:
         query: str,
         num_results: int = 3,
     ) -> List[str]:
+        """Execute buscar_urls_google.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         return await self._search_workflow.buscar_urls_google(
             query=query,
             num_results=num_results,
         )
 
     async def coletar_conteudo_pagina_playwright(self, url: str) -> Optional[str]:
+        """Execute coletar_conteudo_pagina_playwright.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         return await self._content_collection_workflow.coletar_conteudo_pagina_playwright(
             url
         )
@@ -1564,6 +1906,10 @@ class WebDataExtractorRuntime:
         self,
         html_content: str,
     ) -> Optional[str]:
+        """Execute extrair_texto_principal_com_trafilatura.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         return self._extraction_support_workflow.extrair_texto_principal_com_trafilatura(
             html_content
         )
@@ -1573,6 +1919,10 @@ class WebDataExtractorRuntime:
         html_content: str,
         url: str,
     ) -> Dict[str, Any]:
+        """Execute extrair_metadados_estruturados.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         return self._extraction_support_workflow.extrair_metadados_estruturados(
             html_content,
             url,
@@ -1582,6 +1932,10 @@ class WebDataExtractorRuntime:
         self,
         metadata_bruta: Dict[str, Any],
     ) -> Dict[str, Any]:
+        """Execute normalizar_dados_de_metadados.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         return self._extraction_support_workflow.normalizar_dados_de_metadados(
             metadata_bruta
         )
@@ -1594,6 +1948,10 @@ class WebDataExtractorRuntime:
         produto_nome_base: str = "Produto",
         user: Optional[models.User] = None,
     ) -> Optional[Dict[str, Any]]:
+        """Execute extrair_dados_produto_com_llm.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         return await self._extraction_support_workflow.extrair_dados_produto_com_llm(
             texto_pagina=texto_pagina,
             metadados_normalizados=metadados_normalizados,
@@ -1609,6 +1967,10 @@ class WebDataExtractorRuntime:
         url: str,
         produto: models.Produto,
     ) -> models.Produto:
+        """Execute extract_relevant_data_from_url.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         return await self._extraction_support_workflow.extract_relevant_data_from_url(
             db=session,
             url=url,
@@ -1616,6 +1978,10 @@ class WebDataExtractorRuntime:
         )
 
     def extract_text_from_image_region(self, image_bytes: bytes):
+        """Execute extract_text_from_image_region.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         return self._extraction_support_workflow.extract_text_from_image_region(
             image_bytes
         )

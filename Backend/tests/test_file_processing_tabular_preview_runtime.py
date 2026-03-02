@@ -1,4 +1,10 @@
-﻿import pytest
+"""Module test file processing tabular preview runtime.
+
+This module contains backend application/runtime logic and is fully
+documented for maintainability and onboarding.
+"""
+
+import pytest
 import pandas as pd
 
 from Backend.testing.runtime_apis import file_processing
@@ -6,8 +12,16 @@ from Backend.testing.runtime_apis import file_processing
 
 class _TopLevelFunctionSurface:
 
+    """Class _TopLevelFunctionSurface.
+
+    Encapsulates one responsibility in the backend architecture.
+    """
     @pytest.mark.asyncio
     async def test_tabular_preview_runtime_preview_excel(monkeypatch):
+        """Execute test_tabular_preview_runtime_preview_excel.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         runtime = file_processing.TabularPreviewRuntime()
     
         monkeypatch.setattr(
@@ -23,9 +37,17 @@ class _TopLevelFunctionSurface:
 
     @pytest.mark.asyncio
     async def test_preview_csv_impl_usa_runtime(monkeypatch):
+        """Execute test_preview_csv_impl_usa_runtime.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         called = {}
     
         async def _fake_preview_arquivo_csv(self, **kwargs):
+            """Execute _fake_preview_arquivo_csv.
+
+            This callable is documented to make behavior explicit for readers.
+            """
             _ = self
             called.update(kwargs)
             return {"headers": ["c1"], "sample_rows": [{"c1": "v"}]}

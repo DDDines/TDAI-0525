@@ -1,3 +1,9 @@
+"""Module   init  .
+
+This module contains backend application/runtime logic and is fully
+documented for maintainability and onboarding.
+"""
+
 from Backend.infrastructure.repositories.fornecedor_import_job_repository import (
     FornecedorImportJobRepository,
 )

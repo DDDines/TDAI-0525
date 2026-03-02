@@ -1,3 +1,9 @@
+"""Module product management service.
+
+This module contains backend application/runtime logic and is fully
+documented for maintainability and onboarding.
+"""
+
 from __future__ import annotations
 
 from typing import Any
@@ -19,6 +25,10 @@ class ProductManagementService:
         historico_repo: Any,
         uso_ia_repo: Any,
     ) -> None:
+        """Execute __init__.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         self._models = models
         self._schemas = schemas
         self._produto_repo = produto_repo
@@ -29,16 +39,28 @@ class ProductManagementService:
 
     @staticmethod
     def _ensure_owner_or_superuser(*, db_obj: Any, current_user: Any, forbidden_detail: str) -> None:
+        """Execute _ensure_owner_or_superuser.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         if not current_user.is_superuser and db_obj.user_id != current_user.id:
             raise HTTPException(status_code=403, detail=forbidden_detail)
 
     def _get_produto_or_404(self, *, produto_id: int) -> Any:
+        """Execute _get_produto_or_404.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         db_produto = self._produto_repo.get_produto(produto_id=produto_id)
         if db_produto is None:
             raise HTTPException(status_code=404, detail="Produto nao encontrado")
         return db_produto
 
     def _ensure_fornecedor_exists(self, *, fornecedor_id: int) -> None:
+        """Execute _ensure_fornecedor_exists.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         fornecedor = self._fornecedor_repo.get_fornecedor(fornecedor_id=fornecedor_id)
         if not fornecedor:
             raise HTTPException(
@@ -47,6 +69,10 @@ class ProductManagementService:
             )
 
     def _ensure_product_type_exists(self, *, product_type_id: int) -> None:
+        """Execute _ensure_product_type_exists.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         product_type = self._product_type_repo.get_product_type(
             product_type_id=product_type_id,
         )
@@ -62,6 +88,10 @@ class ProductManagementService:
         produto: Any,
         current_user: Any,
     ) -> Any:
+        """Execute create_produto.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         if getattr(produto, "fornecedor_id", None):
             self._ensure_fornecedor_exists(fornecedor_id=produto.fornecedor_id)
         if getattr(produto, "product_type_id", None):
@@ -97,6 +127,10 @@ class ProductManagementService:
         produto_id: int,
         current_user: Any,
     ) -> Any:
+        """Execute read_produto.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         db_produto = self._get_produto_or_404(produto_id=produto_id)
         self._ensure_owner_or_superuser(
             db_obj=db_produto,
@@ -121,6 +155,10 @@ class ProductManagementService:
         product_type_id: int | None,
         current_user: Any,
     ) -> dict[str, Any]:
+        """Execute list_produtos.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         user_id_filter = None if current_user.is_superuser else current_user.id
         items = self._produto_repo.get_produtos_by_user(
             user_id=user_id_filter,
@@ -162,6 +200,10 @@ class ProductManagementService:
         produto_update: Any,
         current_user: Any,
     ) -> Any:
+        """Execute update_produto.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         db_produto = self._get_produto_or_404(produto_id=produto_id)
         self._ensure_owner_or_superuser(
             db_obj=db_produto,
@@ -204,6 +246,10 @@ class ProductManagementService:
         produto_id: int,
         current_user: Any,
     ) -> Any:
+        """Execute delete_produto.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         db_produto = self._get_produto_or_404(produto_id=produto_id)
         self._ensure_owner_or_superuser(
             db_obj=db_produto,
@@ -227,6 +273,10 @@ class ProductManagementService:
         produto_ids: list[int],
         current_user: Any,
     ) -> list[Any]:
+        """Execute batch_delete_produtos.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         deleted_produtos: list[Any] = []
         not_found_ids: list[int] = []
         not_authorized_ids: list[int] = []

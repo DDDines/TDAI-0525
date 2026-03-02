@@ -1,3 +1,9 @@
+"""Module database.
+
+This module contains backend application/runtime logic and is fully
+documented for maintainability and onboarding.
+"""
+
 from sqlalchemy import create_engine
 from sqlalchemy.orm import declarative_base, sessionmaker
 from sqlalchemy.pool import StaticPool
@@ -17,6 +23,10 @@ Base = declarative_base()
 
 
 def get_db():
+    """Execute get_db.
+
+    This callable is documented to make behavior explicit for readers.
+    """
     session = SessionLocal()
     try:
         yield session

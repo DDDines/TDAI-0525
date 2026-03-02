@@ -1,11 +1,25 @@
-﻿from __future__ import annotations
+"""Module test web data extractor metadata runtime.
+
+This module contains backend application/runtime logic and is fully
+documented for maintainability and onboarding.
+"""
+
+from __future__ import annotations
 
 from Backend.testing.runtime_apis import web_extractor
 
 
 class _TopLevelFunctionSurface:
 
+    """Class _TopLevelFunctionSurface.
+
+    Encapsulates one responsibility in the backend architecture.
+    """
     def test_metadata_runtime_limpa_strings_e_listas():
+        """Execute test_metadata_runtime_limpa_strings_e_listas.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         runtime = web_extractor.MetadataExtractionRuntime()
     
         cleaned = runtime.limpar_valor_metadado(["  a  ", None, "  b   c  "])
@@ -13,6 +27,10 @@ class _TopLevelFunctionSurface:
         assert cleaned == ["a", "b c"]
 
     def test_metadata_runtime_normaliza_json_ld_preferencial():
+        """Execute test_metadata_runtime_normaliza_json_ld_preferencial.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         runtime = web_extractor.MetadataExtractionRuntime()
         metadata = {
             "json-ld_product_candidate": {
@@ -41,6 +59,10 @@ class _TopLevelFunctionSurface:
         assert result["disponibilidade"] == "InStock"
 
     def test_metadata_runtime_fallback_para_opengraph():
+        """Execute test_metadata_runtime_fallback_para_opengraph.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         runtime = web_extractor.MetadataExtractionRuntime()
         metadata = {
             "opengraph": {

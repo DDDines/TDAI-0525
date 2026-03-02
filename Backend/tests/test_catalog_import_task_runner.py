@@ -1,3 +1,9 @@
+"""Module test catalog import task runner.
+
+This module contains backend application/runtime logic and is fully
+documented for maintainability and onboarding.
+"""
+
 from __future__ import annotations
 
 import pytest
@@ -8,16 +14,36 @@ from Backend.application.services.catalog_import_task_runner import (
 
 
 class _TaskServiceStub:
+    """Class _TaskServiceStub.
+
+    Encapsulates one responsibility in the backend architecture.
+    """
     def __init__(self) -> None:
+        """Execute __init__.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         self.calls = []
 
     async def execute(self, **kwargs):
+        """Execute execute.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         self.calls.append(kwargs)
 
 
 class _TopLevelFunctionSurface:
 
+    """Class _TopLevelFunctionSurface.
+
+    Encapsulates one responsibility in the backend architecture.
+    """
     def _build_runner() -> CatalogImportTaskRunner:
+        """Execute _build_runner.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         return CatalogImportTaskRunner(
             db_session_factory=lambda: None,
             logger=object(),
@@ -45,11 +71,19 @@ class _TopLevelFunctionSurface:
 
     @pytest.mark.asyncio
     async def test_catalog_import_task_runner_uses_single_oop_service():
+        """Execute test_catalog_import_task_runner_uses_single_oop_service.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         runner = _build_runner()
         service_stub = _TaskServiceStub()
         build_calls = []
     
         def _fake_build():
+            """Execute _fake_build.
+
+            This callable is documented to make behavior explicit for readers.
+            """
             build_calls.append("build")
             return service_stub
     
@@ -85,11 +119,19 @@ class _TopLevelFunctionSurface:
 
     @pytest.mark.asyncio
     async def test_catalog_import_task_runner_execute_reuses_cached_service():
+        """Execute test_catalog_import_task_runner_execute_reuses_cached_service.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         runner = _build_runner()
         service_stub = _TaskServiceStub()
         build_calls = []
     
         def _fake_build():
+            """Execute _fake_build.
+
+            This callable is documented to make behavior explicit for readers.
+            """
             build_calls.append("build")
             return service_stub
     

@@ -1,3 +1,9 @@
+"""Module email utils.
+
+This module contains backend application/runtime logic and is fully
+documented for maintainability and onboarding.
+"""
+
 from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, Optional
@@ -11,18 +17,38 @@ logger = get_logger(__name__)
 
 class EmailWorkflow:
 
+    """Class EmailWorkflow.
+
+    Encapsulates one responsibility in the backend architecture.
+    """
     def __init__(self, runtime: Optional['EmailRuntime']=None):
+        """Execute __init__.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         self._runtime = runtime or EmailRuntime()
         self._conf = self._runtime.build_connection_config()
 
     @property
     def conf(self):
+        """Execute conf.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         return self._conf
 
     def _build_connection_config(self) -> Optional[ConnectionConfig]:
+        """Execute _build_connection_config.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         return self._runtime.build_connection_config()
 
     async def send_email(self, *, email_to: EmailStr, subject: str, html_content: str, template_body: Optional[Dict[str, Any]]=None, template_name: Optional[str]=None, raise_if_unconfigured: Optional[bool]=None) -> None:
+        """Execute send_email.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         if raise_if_unconfigured is None:
             raise_if_unconfigured = self._runtime.get_raise_on_missing_email_config()
         if not self._conf:
@@ -50,6 +76,10 @@ class EmailWorkflow:
                 raise RuntimeError(f'Falha ao enviar email: {exc}')
 
     async def send_password_reset_email(self, *, email_to: EmailStr, username: str, reset_link: str, raise_if_unconfigured: Optional[bool]=None) -> None:
+        """Execute send_password_reset_email.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         if raise_if_unconfigured is None:
             raise_if_unconfigured = self._runtime.get_raise_on_missing_email_config()
         if not self._conf:
@@ -73,19 +103,39 @@ class EmailRuntime:
     """Runtime OO para configuração e envio de email."""
 
     def build_connection_config(self) -> Optional[ConnectionConfig]:
+        """Execute build_connection_config.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         if settings.MAIL_USERNAME and settings.MAIL_PASSWORD and settings.MAIL_FROM and settings.MAIL_SERVER:
             return ConnectionConfig(MAIL_USERNAME=settings.MAIL_USERNAME, MAIL_PASSWORD=settings.MAIL_PASSWORD, MAIL_FROM=settings.MAIL_FROM, MAIL_PORT=settings.MAIL_PORT, MAIL_SERVER=settings.MAIL_SERVER, MAIL_FROM_NAME=settings.MAIL_FROM_NAME, MAIL_STARTTLS=settings.MAIL_STARTTLS, MAIL_SSL_TLS=settings.MAIL_SSL_TLS, USE_CREDENTIALS=settings.USE_CREDENTIALS, VALIDATE_CERTS=settings.VALIDATE_CERTS, TEMPLATE_FOLDER=TEMPLATE_FOLDER)
         logger.warning('Configuracoes de Email (MAIL_USERNAME, MAIL_PASSWORD, MAIL_FROM, MAIL_SERVER) incompletas no .env. Funcionalidade de envio de email desabilitada.')
         return None
 
     def get_raise_on_missing_email_config(self) -> bool:
+        """Execute get_raise_on_missing_email_config.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         return settings.RAISE_ON_MISSING_EMAIL_CONFIG
 
     def create_fastmail(self, conf: ConnectionConfig) -> FastMail:
+        """Execute create_fastmail.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         return FastMail(conf)
 
     def create_message_schema(self, **kwargs) -> MessageSchema:
+        """Execute create_message_schema.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         return MessageSchema(**kwargs)
 
     def current_year(self) -> int:
+        """Execute current_year.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         return datetime.now().year

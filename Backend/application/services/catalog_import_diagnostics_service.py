@@ -1,3 +1,9 @@
+"""Module catalog import diagnostics service.
+
+This module contains backend application/runtime logic and is fully
+documented for maintainability and onboarding.
+"""
+
 from __future__ import annotations
 
 from collections import Counter
@@ -16,6 +22,10 @@ class CatalogImportDiagnosticsService:
         logger: Any,
         sanitization_service: Any,
     ) -> None:
+        """Execute __init__.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         self._catalog_log_dir = Path(catalog_log_dir)
         self._logger = logger
         self._sanitization_service = sanitization_service

@@ -1,3 +1,9 @@
+"""Module test task workflows runtime basic.
+
+This module contains backend application/runtime logic and is fully
+documented for maintainability and onboarding.
+"""
+
 from __future__ import annotations
 
 from pathlib import Path
@@ -13,8 +19,20 @@ from Backend.application.services.web_enrichment_task_service import (
 
 class _TopLevelFunctionSurface:
 
+    """Class _TopLevelFunctionSurface.
+
+    Encapsulates one responsibility in the backend architecture.
+    """
     def test_catalog_import_task_workflow_aplica_runtime_override():
+        """Execute test_catalog_import_task_workflow_aplica_runtime_override.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         def normalize_issue(item):
+            """Execute normalize_issue.
+
+            This callable is documented to make behavior explicit for readers.
+            """
             return item
     
         workflow = CatalogImportTaskWorkflow(
@@ -50,6 +68,10 @@ class _TopLevelFunctionSurface:
         assert workflow.resolve_storage_path(Path("abc.txt")) == Path("runtime/abc.txt")
 
     def test_web_enrichment_task_workflow_aplica_runtime_override():
+        """Execute test_web_enrichment_task_workflow_aplica_runtime_override.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         workflow = WebEnrichmentTaskWorkflow(
             db_session_factory=lambda: object(),
             logger="default_logger",

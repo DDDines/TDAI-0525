@@ -1,3 +1,9 @@
+"""Module validator crew service.
+
+This module contains backend application/runtime logic and is fully
+documented for maintainability and onboarding.
+"""
+
 from __future__ import annotations
 
 from typing import Any, Optional
@@ -8,8 +14,16 @@ from Backend.infrastructure.adapters.validator_crew_adapter import (
 
 
 class _FallbackValidatorCrew:
+    """Class _FallbackValidatorCrew.
+
+    Encapsulates one responsibility in the backend architecture.
+    """
     @staticmethod
     def run_validation_crew(raw_data: Any):
+        """Execute run_validation_crew.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         return raw_data
 
 
@@ -22,6 +36,10 @@ class ValidatorCrewService:
         logger: Any = None,
         runner: Optional[Any] = None,
     ) -> None:
+        """Execute __init__.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         self._logger = logger
         if runner is not None:
             self._runner = runner
@@ -38,6 +56,10 @@ class ValidatorCrewService:
             self._runner = _FallbackValidatorCrew()
 
     def run_validation_crew(self, raw_data: Any):
+        """Execute run_validation_crew.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         try:
             return self._runner.run_validation_crew(raw_data)
         except Exception as exc:

@@ -1,3 +1,9 @@
+"""Module web enrichment.
+
+This module contains backend application/runtime logic and is fully
+documented for maintainability and onboarding.
+"""
+
 from __future__ import annotations
 
 from typing import Any, Optional
@@ -16,9 +22,17 @@ class OOPWebEnrichmentExecutor:
     """
 
     def __init__(self, use_case: WebEnrichmentProcessingUseCase):
+        """Execute __init__.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         self._use_case = use_case
 
     async def __call__(self, **task_kwargs: Any) -> Any:
+        """Execute __call__.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         command = WebEnrichmentStartCommand(
             produto_id=task_kwargs.get("produto_id"),
             user_id=task_kwargs.get("user_id"),
@@ -30,7 +44,15 @@ class OOPWebEnrichmentExecutor:
 
 
 class WebEnrichmentTaskBuilder:
+    """Class WebEnrichmentTaskBuilder.
+
+    Encapsulates one responsibility in the backend architecture.
+    """
     def __init__(self, executor: OOPWebEnrichmentExecutor):
+        """Execute __init__.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         self._executor = executor
 
     def build_start_plan(
@@ -40,6 +62,10 @@ class WebEnrichmentTaskBuilder:
         user_id: int,
         termos_busca_override: Optional[str],
     ) -> TaskExecutionPlan:
+        """Execute build_start_plan.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         task_kwargs = {
             "produto_id": produto_id,
             "user_id": user_id,

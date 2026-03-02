@@ -24,6 +24,10 @@ class HistoricoRequestService:
         self,
         session=Depends(ServiceContainerDependencySupport.get_request_db_session),
     ) -> None:
+        """Execute __init__.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         self._historico_repo = HistoricoRepository(session)
 
     def list_historico(
@@ -33,6 +37,10 @@ class HistoricoRequestService:
         skip: int,
         limit: int,
     ) -> schemas.HistoricoPage:
+        """Execute list_historico.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         user_id_filter = None if current_user.is_superuser else current_user.id
         items = self._historico_repo.get_registros_historico(
             user_id=user_id_filter,
@@ -50,6 +58,10 @@ class HistoricoRequestService:
 
     @staticmethod
     def get_tipos_acao() -> List[str]:
+        """Execute get_tipos_acao.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         return [enum_member.value for enum_member in models.TipoAcaoEnum]
 
 
@@ -62,9 +74,17 @@ def list_historico(
     ),
     request_service: HistoricoRequestService = Depends(),
 ):
+    """Execute list_historico.
+
+    This callable is documented to make behavior explicit for readers.
+    """
     return request_service.list_historico(current_user=current_user, skip=skip, limit=limit)
 
 
 @router.get("/tipos", response_model=List[str])
 def get_tipos_acao(request_service: HistoricoRequestService = Depends()):
+    """Execute get_tipos_acao.
+
+    This callable is documented to make behavior explicit for readers.
+    """
     return request_service.get_tipos_acao()

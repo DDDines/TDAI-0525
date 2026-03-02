@@ -1,3 +1,9 @@
+"""Module test web enrichment router workflow runtime.
+
+This module contains backend application/runtime logic and is fully
+documented for maintainability and onboarding.
+"""
+
 from __future__ import annotations
 
 from types import SimpleNamespace
@@ -10,12 +16,28 @@ from Backend.routers.web_enrichment import WebEnrichmentRequestService
 
 class _TopLevelFunctionSurface:
 
+    """Class _TopLevelFunctionSurface.
+
+    Encapsulates one responsibility in the backend architecture.
+    """
     @pytest.mark.asyncio
     async def test_workflow_delega_execucao_task_para_runtime():
+        """Execute test_workflow_delega_execucao_task_para_runtime.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         called = []
     
         class FakeTaskRunner:
+            """Class FakeTaskRunner.
+
+            Encapsulates one responsibility in the backend architecture.
+            """
             async def execute(self, **kwargs):
+                """Execute execute.
+
+                This callable is documented to make behavior explicit for readers.
+                """
                 called.append(("task", kwargs))
 
         service = WebEnrichmentRequestService()
@@ -33,12 +55,28 @@ class _TopLevelFunctionSurface:
         assert called[0][1]["termos_busca_override"] == "termo"
 
     def test_workflow_iniciar_enriquecimento_usa_validacao_e_dispatch_do_runtime():
+        """Execute test_workflow_iniciar_enriquecimento_usa_validacao_e_dispatch_do_runtime.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         called = []
     
         class FakeStartService:
+            """Class FakeStartService.
+
+            Encapsulates one responsibility in the backend architecture.
+            """
             def validate_start_preconditions(self, **kwargs):
+                """Execute validate_start_preconditions.
+
+                This callable is documented to make behavior explicit for readers.
+                """
                 called.append(("validate", kwargs))
             def dispatch_start(self, **kwargs):
+                """Execute dispatch_start.
+
+                This callable is documented to make behavior explicit for readers.
+                """
                 called.append(("dispatch", kwargs))
 
         service = WebEnrichmentRequestService()

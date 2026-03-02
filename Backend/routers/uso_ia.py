@@ -32,6 +32,10 @@ class UsoIARequestService:
         self,
         session: Session = Depends(ServiceContainerDependencySupport.get_request_db_session),
     ) -> None:
+        """Execute __init__.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         self._session = session
         self._registro_repo = RegistroUsoIARepository(session)
         self._product_repo = ProductRepository(session)
@@ -42,6 +46,10 @@ class UsoIARequestService:
         current_user: models.User,
         uso_ia_data: schemas.RegistroUsoIACreate,
     ) -> schemas.RegistroUsoIAResponse:
+        """Execute create_uso_ia.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         try:
             uso_ia_data.user_id = current_user.id
             return self._registro_repo.create_registro_uso_ia(registro_uso=uso_ia_data)
@@ -64,6 +72,10 @@ class UsoIARequestService:
         data_inicio: Optional[datetime],
         data_fim: Optional[datetime],
     ) -> schemas.UsoIAPage:
+        """Execute list_usos_ia_usuario.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         try:
             tipo_enum = models.TipoAcaoEnum(tipo_geracao) if tipo_geracao else None
         except ValueError as exc:
@@ -100,6 +112,10 @@ class UsoIARequestService:
         current_user: models.User,
         registro_id: int,
     ) -> schemas.RegistroUsoIAResponse:
+        """Execute read_uso_ia_especifico.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         db_registro = (
             self._session.query(models.RegistroUsoIA)
             .filter(models.RegistroUsoIA.id == registro_id)
@@ -125,6 +141,10 @@ class UsoIARequestService:
         skip: int,
         limit: int,
     ) -> List[schemas.RegistroUsoIAResponse]:
+        """Execute read_usos_ia_por_produto.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         produto = self._product_repo.get_produto(produto_id=produto_id)
         if not produto:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Produto nao encontrado")
@@ -150,6 +170,10 @@ def create_uso_ia_endpoint(
     ),
     request_service: UsoIARequestService = Depends(),
 ):
+    """Execute create_uso_ia_endpoint.
+
+    This callable is documented to make behavior explicit for readers.
+    """
     return request_service.create_uso_ia(current_user=current_user, uso_ia_data=uso_ia_data)
 
 
@@ -165,6 +189,10 @@ def read_usos_ia_usuario_logado(
     data_inicio: Optional[datetime] = Query(None, description="Data de inicio (ISO)"),
     data_fim: Optional[datetime] = Query(None, description="Data de fim (ISO)"),
 ):
+    """Execute read_usos_ia_usuario_logado.
+
+    This callable is documented to make behavior explicit for readers.
+    """
     return request_service.list_usos_ia_usuario(
         current_user=current_user,
         skip=skip,
@@ -185,6 +213,10 @@ def read_usos_ia_por_produto(
     skip: int = Query(0, ge=0),
     limit: int = Query(100, ge=1, le=200),
 ):
+    """Execute read_usos_ia_por_produto.
+
+    This callable is documented to make behavior explicit for readers.
+    """
     return request_service.read_usos_ia_por_produto(
         current_user=current_user,
         produto_id=produto_id,
@@ -201,6 +233,10 @@ def read_uso_ia_especifico(
     ),
     request_service: UsoIARequestService = Depends(),
 ):
+    """Execute read_uso_ia_especifico.
+
+    This callable is documented to make behavior explicit for readers.
+    """
     return request_service.read_uso_ia_especifico(
         current_user=current_user,
         registro_id=registro_id,

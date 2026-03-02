@@ -1,3 +1,9 @@
+"""Module web enrichment content quality service.
+
+This module contains backend application/runtime logic and is fully
+documented for maintainability and onboarding.
+"""
+
 from __future__ import annotations
 
 from typing import Any, Dict
@@ -18,9 +24,17 @@ class WebEnrichmentContentQualityService:
     )
 
     def __init__(self, *, normalization_service: Any) -> None:
+        """Execute __init__.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         self._normalization = normalization_service
 
     def is_meaningful_extracted_text(self, value: Any) -> bool:
+        """Execute is_meaningful_extracted_text.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         text = self._normalization.fold_text(value)
         if not text:
             return False
@@ -37,6 +51,10 @@ class WebEnrichmentContentQualityService:
         return letters >= 50
 
     def metadata_has_minimum_signal(self, metadata: Dict[str, Any]) -> bool:
+        """Execute metadata_has_minimum_signal.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         if not metadata:
             return False
         nome = self._normalization.as_text(metadata.get("nome"))

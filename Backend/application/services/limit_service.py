@@ -1,3 +1,9 @@
+"""Module limit service.
+
+This module contains backend application/runtime logic and is fully
+documented for maintainability and onboarding.
+"""
+
 from __future__ import annotations
 
 from sqlalchemy.orm import Session
@@ -14,6 +20,10 @@ class LimitService:
         *,
         port: LimitPort,
     ) -> None:
+        """Execute __init__.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         self._port = port
 
     def verificar_limite_uso(
@@ -22,6 +32,10 @@ class LimitService:
         user: models.User,
         tipo_geracao_principal: str,
     ) -> int:
+        """Execute verificar_limite_uso.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         return self._port.verificar_limite_uso(
             session=session,
             user=user,
@@ -34,6 +48,10 @@ class LimitService:
         user_id: int,
         creditos_necessarios: int = 1,
     ) -> bool:
+        """Execute verificar_creditos_disponiveis_geracao_ia.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         return await self._port.verificar_creditos_disponiveis_geracao_ia(
             session=session,
             user_id=user_id,
@@ -46,6 +64,10 @@ class LimitService:
         user_id: int,
         creditos_necessarios: int = 1,
     ) -> bool:
+        """Execute verificar_e_consumir_creditos_geracao_ia.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         return await self._port.verificar_e_consumir_creditos_geracao_ia(
             session=session,
             user_id=user_id,

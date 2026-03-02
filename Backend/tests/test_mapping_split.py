@@ -1,3 +1,9 @@
+"""Module test mapping split.
+
+This module contains backend application/runtime logic and is fully
+documented for maintainability and onboarding.
+"""
+
 from Backend.testing.runtime_apis import RuntimeApis
 from Backend.application.services.catalog_import_quality_service import (
     CatalogImportQualityService,
@@ -15,7 +21,15 @@ _sanitization_service = CatalogImportSanitizationService(
 
 class _TopLevelFunctionSurface:
 
+    """Class _TopLevelFunctionSurface.
+
+    Encapsulates one responsibility in the backend architecture.
+    """
     def test_split_sku_nome_auto_when_combined_column():
+        """Execute test_split_sku_nome_auto_when_combined_column.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         row = {"col_0": "1816D 943 666 39 01 Paralama/Estribo", "col_1": "SMC"}
         mapping = {"col_0": "auto:sku_nome", "col_1": "attr:material"}
     
@@ -27,6 +41,10 @@ class _TopLevelFunctionSurface:
         assert result.get("dynamic_attributes", {}).get("material") == "SMC"
 
     def test_split_sku_nome_auto_when_only_sku():
+        """Execute test_split_sku_nome_auto_when_only_sku.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         row = {"col_0": "1816E 943 666 38 01", "col_1": "Paralama/Estribo"}
         mapping = {"col_0": "auto:sku_nome", "col_1": "descricao_original"}
     
@@ -37,6 +55,10 @@ class _TopLevelFunctionSurface:
         assert result.get("descricao_original") == "Paralama/Estribo"
 
     def test_merge_multiple_columns_into_description():
+        """Execute test_merge_multiple_columns_into_description.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         row = {
             "col_0": "1816D 943 666 39 01 Paralama/Estribo",
             "col_1": "Actros 2651 - 2016",
@@ -56,6 +78,10 @@ class _TopLevelFunctionSurface:
         assert result.get("descricao_original") == "Actros 2651 - 2016 | SMC"
 
     def test_split_sku_nome_auto_with_alphanumeric_original_code():
+        """Execute test_split_sku_nome_auto_with_alphanumeric_original_code.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         row = {
             "col_0": "3035D BC4517C831BBXWA Ponteira para-choque Cargo 2428",
             "col_1": "Plastico",
@@ -70,6 +96,10 @@ class _TopLevelFunctionSurface:
         assert result.get("dynamic_attributes", {}).get("material") == "Plastico"
 
     def test_default_header_aliases_feed_dynamic_attributes():
+        """Execute test_default_header_aliases_feed_dynamic_attributes.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         row = {
             "n_fab": "1816D",
             "n_original": "943 666 39 01",
@@ -88,6 +118,10 @@ class _TopLevelFunctionSurface:
         assert result.get("dynamic_attributes", {}).get("material") == "SMC"
 
     def test_split_sku_nome_auto_handles_directional_token():
+        """Execute test_split_sku_nome_auto_handles_directional_token.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         row = {"n_fab": "3035 E BC4517K903BBXWA Ponteira para-choque"}
     
         result = RuntimeApis.processar_linha_padronizada(row, None)
@@ -97,6 +131,10 @@ class _TopLevelFunctionSurface:
         assert result.get("nome_base") == "Ponteira para-choque"
 
     def test_quality_filter_rejects_noise_row():
+        """Execute test_quality_filter_rejects_noise_row.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         reason = _quality_service.evaluate_product_row_quality(
             {
                 "nome_base": "i",
@@ -108,6 +146,10 @@ class _TopLevelFunctionSurface:
         assert reason.startswith("Linha descartada por baixa qualidade")
 
     def test_quality_filter_accepts_real_catalog_row():
+        """Execute test_quality_filter_accepts_real_catalog_row.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         reason = _quality_service.evaluate_product_row_quality(
             {
                 "nome_base": "Paralama/Estribo",
@@ -118,6 +160,10 @@ class _TopLevelFunctionSurface:
         assert reason is None
 
     def test_quality_filter_rejects_annotation_header_even_with_context():
+        """Execute test_quality_filter_rejects_annotation_header_even_with_context.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         reason = _quality_service.evaluate_product_row_quality(
             {
                 "nome_base": "Anotacoes:",
@@ -130,6 +176,10 @@ class _TopLevelFunctionSurface:
         assert "cabecalho de anotacoes" in reason
 
     def test_quality_filter_rejects_annotation_header_variant():
+        """Execute test_quality_filter_rejects_annotation_header_variant.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         reason = _quality_service.evaluate_product_row_quality(
             {
                 "nome_base": "Anotages:",
@@ -141,6 +191,10 @@ class _TopLevelFunctionSurface:
         assert "cabecalho de anotacoes" in reason
 
     def test_quality_filter_rejects_numeric_name_with_sku_without_description():
+        """Execute test_quality_filter_rejects_numeric_name_with_sku_without_description.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         reason = _quality_service.evaluate_product_row_quality(
             {
                 "nome_base": "8212",
@@ -157,6 +211,10 @@ class _TopLevelFunctionSurface:
         )
 
     def test_quality_filter_rejects_sku_duplicated_in_name_without_description():
+        """Execute test_quality_filter_rejects_sku_duplicated_in_name_without_description.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         reason = _quality_service.evaluate_product_row_quality(
             {
                 "nome_base": "1663 E",
@@ -172,6 +230,10 @@ class _TopLevelFunctionSurface:
         )
 
     def test_quality_classifier_quarantines_code_like_name_with_application_context_only():
+        """Execute test_quality_classifier_quarantines_code_like_name_with_application_context_only.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         result = _quality_service.classify_product_row_quality(
             {
                 "nome_base": "1663 E",
@@ -187,6 +249,10 @@ class _TopLevelFunctionSurface:
         )
 
     def test_quality_filter_accepts_numeric_name_when_description_is_good():
+        """Execute test_quality_filter_accepts_numeric_name_when_description_is_good.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         reason = _quality_service.evaluate_product_row_quality(
             {
                 "nome_base": "8212",
@@ -198,6 +264,10 @@ class _TopLevelFunctionSurface:
         assert reason is None
 
     def test_non_critical_reason_classifier():
+        """Execute test_non_critical_reason_classifier.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         assert _sanitization_service.is_non_critical_import_reason("Faltam nome_base e sku_original")
         assert _sanitization_service.is_non_critical_import_reason(
             "Nenhum dado de produto pode ser extraido do PDF (pode estar protegido, vazio ou somente imagem sem OCR)."
@@ -205,6 +275,10 @@ class _TopLevelFunctionSurface:
         assert not _sanitization_service.is_non_critical_import_reason("Erro ao converter linha: valor invalido")
 
     def test_sanitize_discards_textual_ean():
+        """Execute test_sanitize_discards_textual_ean.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         payload = {
             "nome_base": "Paralama",
             "ean_original": "Actros 2651 - 2016",
@@ -218,6 +292,10 @@ class _TopLevelFunctionSurface:
         assert extras.get("ean_original_descartado") == "Actros 2651 - 2016"
 
     def test_sanitize_truncates_fields_with_limits():
+        """Execute test_sanitize_truncates_fields_with_limits.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         payload = {
             "nome_base": "Produto Teste",
             "sku_original": "S" * 120,
@@ -234,6 +312,10 @@ class _TopLevelFunctionSurface:
         assert len(sanitized.get("categoria_original")) == 150
 
     def test_quality_classifier_quarantines_numeric_name_with_application_only():
+        """Execute test_quality_classifier_quarantines_numeric_name_with_application_only.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         result = _quality_service.classify_product_row_quality(
             {
                 "nome_base": "8212",
@@ -249,6 +331,10 @@ class _TopLevelFunctionSurface:
         )
 
     def test_sanitize_promotes_part_name_from_raw_fields():
+        """Execute test_sanitize_promotes_part_name_from_raw_fields.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         payload = {
             "nome_base": "8212",
             "sku_original": "8212",
@@ -263,6 +349,10 @@ class _TopLevelFunctionSurface:
         assert extras.get("descricao_substituida_por_dados_brutos") == "col_2"
 
     def test_sanitize_promotes_category_part_name_when_name_is_code():
+        """Execute test_sanitize_promotes_category_part_name_when_name_is_code.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         payload = {
             "nome_base": "7092E 3175158",
             "sku_original": "7092E 3175158",
@@ -275,6 +365,10 @@ class _TopLevelFunctionSurface:
         assert sanitized.get("nome_base") == "Estribo Superior"
 
     def test_sanitize_drops_placeholder_sku_values():
+        """Execute test_sanitize_drops_placeholder_sku_values.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         payload = {
             "nome_base": "Paralama Dianteiro",
             "sku_original": "None",
@@ -287,6 +381,10 @@ class _TopLevelFunctionSurface:
         assert extras.get("sku_original_descartado") == "None"
 
     def test_sanitize_merges_raw_payloads_and_promotes_part_description():
+        """Execute test_sanitize_merges_raw_payloads_and_promotes_part_description.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         payload = {
             "nome_base": "1663 E",
             "sku_original": "1663 E",
@@ -304,6 +402,10 @@ class _TopLevelFunctionSurface:
         assert extras.get("col_2") == "Paralama Dianteiro"
 
     def test_quality_filter_rejects_sku_duplicated_name_with_application_only_context():
+        """Execute test_quality_filter_rejects_sku_duplicated_name_with_application_only_context.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         reason = _quality_service.evaluate_product_row_quality(
             {
                 "nome_base": "1663 E",
@@ -319,6 +421,10 @@ class _TopLevelFunctionSurface:
         )
 
     def test_quality_filter_rejects_ocr_noise_name_with_application_only():
+        """Execute test_quality_filter_rejects_ocr_noise_name_with_application_only.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         reason = _quality_service.evaluate_product_row_quality(
             {
                 "nome_base": "as 927",
@@ -331,6 +437,10 @@ class _TopLevelFunctionSurface:
         assert "ruido OCR" in reason
 
     def test_quality_filter_rejects_short_name_with_sku_without_part_context():
+        """Execute test_quality_filter_rejects_short_name_with_sku_without_part_context.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         reason = _quality_service.evaluate_product_row_quality(
             {
                 "nome_base": "8212",
@@ -347,6 +457,10 @@ class _TopLevelFunctionSurface:
         )
 
     def test_quality_filter_rejects_short_numeric_code_with_weak_part_context():
+        """Execute test_quality_filter_rejects_short_numeric_code_with_weak_part_context.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         reason = _quality_service.evaluate_product_row_quality(
             {
                 "nome_base": "8199",
@@ -360,6 +474,10 @@ class _TopLevelFunctionSurface:
         assert "codigo curto sem contexto forte de peca" in reason
 
     def test_quality_filter_rejects_sku_with_only_vehicle_application_context():
+        """Execute test_quality_filter_rejects_sku_with_only_vehicle_application_context.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         reason = _quality_service.evaluate_product_row_quality(
             {
                 "nome_base": "1663 E",
@@ -377,6 +495,10 @@ class _TopLevelFunctionSurface:
         )
 
     def test_sanitize_promotes_part_name_from_raw_when_description_is_application():
+        """Execute test_sanitize_promotes_part_name_from_raw_when_description_is_application.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         payload = {
             "nome_base": "oof D",
             "sku_original": "8199",

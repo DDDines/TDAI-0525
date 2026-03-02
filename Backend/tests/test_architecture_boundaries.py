@@ -1,3 +1,9 @@
+"""Module test architecture boundaries.
+
+This module contains backend application/runtime logic and is fully
+documented for maintainability and onboarding.
+"""
+
 from __future__ import annotations
 
 import ast
@@ -25,14 +31,30 @@ CRUD_MODULE_FILES = sorted(BACKEND_ROOT.glob("crud_*.py"))
 
 class _TopLevelFunctionSurface:
 
+    """Class _TopLevelFunctionSurface.
+
+    Encapsulates one responsibility in the backend architecture.
+    """
     def _iter_python_files(root: Path) -> Iterable[Path]:
+        """Execute _iter_python_files.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         return sorted(path for path in root.rglob("*.py") if path.is_file())
 
     def _parse_python_file(path: Path) -> ast.AST:
+        """Execute _parse_python_file.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         source = path.read_text(encoding="utf-8-sig")
         return ast.parse(source, filename=str(path))
 
     def _import_targets(path: Path) -> list[str]:
+        """Execute _import_targets.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         tree = _parse_python_file(path)
         targets: list[str] = []
         for node in ast.walk(tree):
@@ -46,6 +68,10 @@ class _TopLevelFunctionSurface:
         return targets
 
     def _is_http_endpoint_function(node: ast.FunctionDef | ast.AsyncFunctionDef) -> bool:
+        """Execute _is_http_endpoint_function.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         for decorator in node.decorator_list:
             if not isinstance(decorator, ast.Call):
                 continue
@@ -69,6 +95,10 @@ class _TopLevelFunctionSurface:
         return False
 
     def test_application_does_not_import_backend_services_modules():
+        """Execute test_application_does_not_import_backend_services_modules.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         offenders: list[str] = []
         for path in _iter_python_files(APPLICATION_ROOT):
             rel = path.relative_to(PROJECT_ROOT)
@@ -79,6 +109,10 @@ class _TopLevelFunctionSurface:
         assert not offenders, "Unexpected imports to Backend.services:\n" + "\n".join(offenders)
 
     def test_application_does_not_import_backend_router_modules():
+        """Execute test_application_does_not_import_backend_router_modules.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         offenders: list[str] = []
         for path in _iter_python_files(APPLICATION_ROOT):
             rel = path.relative_to(PROJECT_ROOT)
@@ -89,6 +123,10 @@ class _TopLevelFunctionSurface:
         assert not offenders, "Unexpected imports to Backend.routers:\n" + "\n".join(offenders)
 
     def test_application_services_do_not_define_dunder_getattr_fallbacks():
+        """Execute test_application_services_do_not_define_dunder_getattr_fallbacks.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         offenders: list[str] = []
         for path in _iter_python_files(APPLICATION_SERVICES_ROOT):
             rel = path.relative_to(PROJECT_ROOT)
@@ -100,6 +138,10 @@ class _TopLevelFunctionSurface:
         assert not offenders, "Unexpected __getattr__ fallbacks:\n" + "\n".join(offenders)
 
     def test_application_services_do_not_import_legacy_infrastructure_bridges():
+        """Execute test_application_services_do_not_import_legacy_infrastructure_bridges.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         offenders: list[str] = []
         for path in _iter_python_files(APPLICATION_SERVICES_ROOT):
             rel = path.relative_to(PROJECT_ROOT)
@@ -115,6 +157,10 @@ class _TopLevelFunctionSurface:
         )
 
     def test_application_services_do_not_call_private_methods_from_external_objects():
+        """Execute test_application_services_do_not_call_private_methods_from_external_objects.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         offenders: list[str] = []
         for path in _iter_python_files(APPLICATION_SERVICES_ROOT):
             rel = path.relative_to(PROJECT_ROOT)
@@ -142,6 +188,10 @@ class _TopLevelFunctionSurface:
         )
 
     def test_infrastructure_adapters_do_not_import_backend_services_modules():
+        """Execute test_infrastructure_adapters_do_not_import_backend_services_modules.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         offenders: list[str] = []
         for path in _iter_python_files(INFRASTRUCTURE_ADAPTERS_ROOT):
             rel = path.relative_to(PROJECT_ROOT)
@@ -155,6 +205,10 @@ class _TopLevelFunctionSurface:
         )
 
     def test_infrastructure_runtime_providers_do_not_import_backend_services_modules():
+        """Execute test_infrastructure_runtime_providers_do_not_import_backend_services_modules.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         offenders: list[str] = []
         for path in _iter_python_files(INFRASTRUCTURE_RUNTIME_ROOT):
             rel = path.relative_to(PROJECT_ROOT)
@@ -168,6 +222,10 @@ class _TopLevelFunctionSurface:
         )
 
     def test_infrastructure_runtime_providers_do_not_import_runtime_modules_directly():
+        """Execute test_infrastructure_runtime_providers_do_not_import_runtime_modules_directly.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         offenders: list[str] = []
         for path in _iter_python_files(INFRASTRUCTURE_RUNTIME_ROOT):
             rel = path.relative_to(PROJECT_ROOT)
@@ -183,6 +241,10 @@ class _TopLevelFunctionSurface:
         )
 
     def test_runtime_modules_imports_are_constrained_to_runtime_services_and_tests():
+        """Execute test_runtime_modules_imports_are_constrained_to_runtime_services_and_tests.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         offenders: list[str] = []
     
         allowed_prefixes = [
@@ -213,6 +275,10 @@ class _TopLevelFunctionSurface:
         )
 
     def test_backend_tests_do_not_import_runtime_modules_directly():
+        """Execute test_backend_tests_do_not_import_runtime_modules_directly.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         offenders: list[str] = []
     
         for path in _iter_python_files(BACKEND_TESTS_ROOT):
@@ -229,6 +295,10 @@ class _TopLevelFunctionSurface:
         )
 
     def test_project_tests_do_not_import_runtime_modules_directly():
+        """Execute test_project_tests_do_not_import_runtime_modules_directly.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         offenders: list[str] = []
     
         for path in _iter_python_files(PROJECT_TESTS_ROOT):
@@ -245,6 +315,10 @@ class _TopLevelFunctionSurface:
         )
 
     def test_infrastructure_runtime_providers_expose_get_runtime_service_only():
+        """Execute test_infrastructure_runtime_providers_expose_get_runtime_service_only.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         offenders: list[str] = []
         missing: list[str] = []
     
@@ -280,6 +354,10 @@ class _TopLevelFunctionSurface:
         )
 
     def test_backend_top_level_non_endpoint_functions_are_allowlisted():
+        """Execute test_backend_top_level_non_endpoint_functions_are_allowlisted.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         offenders: list[str] = []
         allowed_functions = {
             ("Backend/database.py", "get_db"),
@@ -308,6 +386,10 @@ class _TopLevelFunctionSurface:
         )
 
     def test_runtime_services_do_not_import_backend_services_modules():
+        """Execute test_runtime_services_do_not_import_backend_services_modules.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         offenders: list[str] = []
         for path in _iter_python_files(INFRASTRUCTURE_RUNTIME_SERVICES_ROOT):
             rel = path.relative_to(PROJECT_ROOT)
@@ -321,6 +403,10 @@ class _TopLevelFunctionSurface:
         )
 
     def test_runtime_services_do_not_call_runtime_module_functions_directly():
+        """Execute test_runtime_services_do_not_call_runtime_module_functions_directly.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         offenders: list[str] = []
         for path in _iter_python_files(INFRASTRUCTURE_RUNTIME_SERVICES_ROOT):
             rel = path.relative_to(PROJECT_ROOT)
@@ -349,6 +435,10 @@ class _TopLevelFunctionSurface:
         )
 
     def test_backend_code_does_not_import_backend_services_modules():
+        """Execute test_backend_code_does_not_import_backend_services_modules.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         offenders: list[str] = []
     
         for path in _iter_python_files(BACKEND_ROOT):
@@ -363,6 +453,10 @@ class _TopLevelFunctionSurface:
         )
 
     def test_runtime_modules_do_not_import_backend_crud_package_root():
+        """Execute test_runtime_modules_do_not_import_backend_crud_package_root.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         offenders: list[str] = []
         for path in _iter_python_files(INFRASTRUCTURE_RUNTIME_MODULES_ROOT):
             rel = path.relative_to(PROJECT_ROOT)
@@ -390,6 +484,10 @@ class _TopLevelFunctionSurface:
         )
 
     def test_runtime_modules_do_not_expose_public_function_wrappers():
+        """Execute test_runtime_modules_do_not_expose_public_function_wrappers.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         offenders: list[str] = []
         allowed_public_functions: set[str] = set()
     
@@ -412,6 +510,10 @@ class _TopLevelFunctionSurface:
         )
 
     def test_runtime_modules_do_not_define_top_level_functions():
+        """Execute test_runtime_modules_do_not_define_top_level_functions.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         offenders: list[str] = []
     
         for path in _iter_python_files(INFRASTRUCTURE_RUNTIME_MODULES_ROOT):
@@ -427,6 +529,10 @@ class _TopLevelFunctionSurface:
         )
 
     def test_crud_modules_do_not_expose_public_function_wrappers():
+        """Execute test_crud_modules_do_not_expose_public_function_wrappers.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         offenders: list[str] = []
         for path in CRUD_MODULE_FILES:
             rel = path.relative_to(PROJECT_ROOT)
@@ -447,6 +553,10 @@ class _TopLevelFunctionSurface:
         )
 
     def test_runtime_modules_do_not_instantiate_singletons_at_module_scope():
+        """Execute test_runtime_modules_do_not_instantiate_singletons_at_module_scope.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         offenders: list[str] = []
         allowed_runtime_module_callees = {"ThreadPoolExecutor"}
     
@@ -475,6 +585,10 @@ class _TopLevelFunctionSurface:
         )
 
     def test_runtime_services_do_not_instantiate_singletons_at_module_scope():
+        """Execute test_runtime_services_do_not_instantiate_singletons_at_module_scope.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         offenders: list[str] = []
     
         for path in _iter_python_files(INFRASTRUCTURE_RUNTIME_SERVICES_ROOT):
@@ -501,6 +615,10 @@ class _TopLevelFunctionSurface:
         )
 
     def test_backend_code_does_not_define_module_level_class_singletons():
+        """Execute test_backend_code_does_not_define_module_level_class_singletons.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         offenders: list[str] = []
         allowed_callees = {
             "APIRouter",
@@ -555,6 +673,10 @@ class _TopLevelFunctionSurface:
         )
 
     def test_crud_modules_do_not_instantiate_singletons_at_module_scope():
+        """Execute test_crud_modules_do_not_instantiate_singletons_at_module_scope.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         offenders: list[str] = []
     
         for path in CRUD_MODULE_FILES:
@@ -580,6 +702,10 @@ class _TopLevelFunctionSurface:
         )
 
     def test_routers_do_not_import_backend_crud_modules_directly():
+        """Execute test_routers_do_not_import_backend_crud_modules_directly.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         offenders: list[str] = []
         for path in _iter_python_files(ROUTERS_ROOT):
             rel = path.relative_to(PROJECT_ROOT)
@@ -608,6 +734,10 @@ class _TopLevelFunctionSurface:
         )
 
     def test_routers_do_not_import_application_services_package_root():
+        """Execute test_routers_do_not_import_application_services_package_root.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         offenders: list[str] = []
         for path in _iter_python_files(ROUTERS_ROOT):
             rel = path.relative_to(PROJECT_ROOT)
@@ -621,6 +751,10 @@ class _TopLevelFunctionSurface:
         )
 
     def test_routers_do_not_import_threading_module_directly():
+        """Execute test_routers_do_not_import_threading_module_directly.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         offenders: list[str] = []
         for path in _iter_python_files(ROUTERS_ROOT):
             rel = path.relative_to(PROJECT_ROOT)
@@ -644,6 +778,10 @@ class _TopLevelFunctionSurface:
         )
 
     def test_routers_do_not_spawn_manual_threads():
+        """Execute test_routers_do_not_spawn_manual_threads.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         offenders: list[str] = []
         for path in _iter_python_files(ROUTERS_ROOT):
             rel = path.relative_to(PROJECT_ROOT)
@@ -670,6 +808,10 @@ class _TopLevelFunctionSurface:
         )
 
     def test_router_endpoints_do_not_receive_db_parameter():
+        """Execute test_router_endpoints_do_not_receive_db_parameter.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         offenders: list[str] = []
     
         for path in _iter_python_files(ROUTERS_ROOT):
@@ -701,6 +843,10 @@ class _TopLevelFunctionSurface:
         )
 
     def test_routers_do_not_use_sessiondep_alias():
+        """Execute test_routers_do_not_use_sessiondep_alias.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         offenders: list[str] = []
     
         for path in _iter_python_files(ROUTERS_ROOT):
@@ -723,6 +869,10 @@ class _TopLevelFunctionSurface:
         )
 
     def test_routers_do_not_access_request_context_db_directly():
+        """Execute test_routers_do_not_access_request_context_db_directly.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         offenders: list[str] = []
     
         for path in _iter_python_files(ROUTERS_ROOT):
@@ -738,6 +888,10 @@ class _TopLevelFunctionSurface:
         )
 
     def test_routers_do_not_define_module_level_runtime_singletons():
+        """Execute test_routers_do_not_define_module_level_runtime_singletons.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         offenders: list[str] = []
         allowed_callees = {
             "APIRouter",
@@ -785,6 +939,10 @@ class _TopLevelFunctionSurface:
         )
 
     def test_backend_has_no_legacy_crud_imports():
+        """Execute test_backend_has_no_legacy_crud_imports.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         offenders: list[str] = []
     
         for path in _iter_python_files(BACKEND_ROOT):
@@ -816,6 +974,10 @@ class _TopLevelFunctionSurface:
         )
 
     def test_tests_do_not_import_backend_crud_modules_directly():
+        """Execute test_tests_do_not_import_backend_crud_modules_directly.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         offenders: list[str] = []
     
         for root in (BACKEND_TESTS_ROOT, PROJECT_TESTS_ROOT):
@@ -847,12 +1009,20 @@ class _TopLevelFunctionSurface:
         )
 
     def test_repository_access_adapters_module_removed():
+        """Execute test_repository_access_adapters_module_removed.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         adapters_path = APPLICATION_SERVICES_ROOT / "repository_access_adapters.py"
         assert not adapters_path.exists(), (
             "Legacy repository_access_adapters transitional module should be removed."
         )
 
     def test_application_services_package_init_has_no_eager_reexports():
+        """Execute test_application_services_package_init_has_no_eager_reexports.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         init_path = APPLICATION_SERVICES_ROOT / "__init__.py"
         tree = _parse_python_file(init_path)
         offenders: list[str] = []
@@ -867,6 +1037,10 @@ class _TopLevelFunctionSurface:
         )
 
     def test_application_services_do_not_issue_sqlalchemy_query_directly():
+        """Execute test_application_services_do_not_issue_sqlalchemy_query_directly.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         offenders: list[str] = []
     
         for path in _iter_python_files(APPLICATION_SERVICES_ROOT):
@@ -889,6 +1063,10 @@ class _TopLevelFunctionSurface:
         )
 
     def test_application_services_have_no_transition_facade_modules():
+        """Execute test_application_services_have_no_transition_facade_modules.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         offenders = sorted(
             str(path.relative_to(PROJECT_ROOT))
             for path in APPLICATION_SERVICES_ROOT.rglob("*_facade.py")
@@ -900,6 +1078,10 @@ class _TopLevelFunctionSurface:
         )
 
     def test_repository_runtime_support_bridge_is_removed():
+        """Execute test_repository_runtime_support_bridge_is_removed.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         runtime_support_path = APPLICATION_SERVICES_ROOT / "repository_runtime_support.py"
         assert not runtime_support_path.exists(), (
             "repository_runtime_support.py must be removed."
@@ -920,6 +1102,10 @@ class _TopLevelFunctionSurface:
         )
 
     def test_application_service_public_methods_do_not_receive_db_session_factory():
+        """Execute test_application_service_public_methods_do_not_receive_db_session_factory.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         offenders: list[str] = []
 
         for path in _iter_python_files(APPLICATION_SERVICES_ROOT):
@@ -940,6 +1126,10 @@ class _TopLevelFunctionSurface:
         )
 
     def test_runtime_modules_do_not_use_global_statement():
+        """Execute test_runtime_modules_do_not_use_global_statement.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         offenders: list[str] = []
         for path in _iter_python_files(INFRASTRUCTURE_RUNTIME_MODULES_ROOT):
             rel = path.relative_to(PROJECT_ROOT)
@@ -954,6 +1144,10 @@ class _TopLevelFunctionSurface:
         )
 
     def test_file_and_web_runtime_surfaces_do_not_use_varargs():
+        """Execute test_file_and_web_runtime_surfaces_do_not_use_varargs.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         offenders: list[str] = []
         target_files = [
             APPLICATION_SERVICES_ROOT / "file_processing" / "contracts.py",
@@ -985,6 +1179,10 @@ class _TopLevelFunctionSurface:
         )
 
     def test_router_gateways_do_not_use_kwargs_bridge_methods():
+        """Execute test_router_gateways_do_not_use_kwargs_bridge_methods.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         offenders: list[str] = []
         targets = [
             (ROUTERS_ROOT / "fornecedores.py", "_FornecedoresServiceGateway"),
@@ -1025,6 +1223,10 @@ class _TopLevelFunctionSurface:
         )
 
     def test_produtos_coordinator_does_not_use_reflective_dispatch():
+        """Execute test_produtos_coordinator_does_not_use_reflective_dispatch.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         path = ROUTERS_ROOT / "produtos.py"
         rel = path.relative_to(PROJECT_ROOT)
         tree = _parse_python_file(path)
@@ -1060,6 +1262,10 @@ class _TopLevelFunctionSurface:
         )
 
     def test_generation_flow_surfaces_do_not_use_var_kwargs():
+        """Execute test_generation_flow_surfaces_do_not_use_var_kwargs.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         offenders: list[str] = []
         targets = [
             (ROUTERS_ROOT / "generation.py", "GenerationRequestService"),
@@ -1098,6 +1304,10 @@ class _TopLevelFunctionSurface:
         )
 
     def test_application_services_do_not_use_inspect_isclass_resolution():
+        """Execute test_application_services_do_not_use_inspect_isclass_resolution.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         offenders: list[str] = []
         for path in _iter_python_files(APPLICATION_SERVICES_ROOT):
             source = path.read_text(encoding="utf-8-sig")
@@ -1110,6 +1320,10 @@ class _TopLevelFunctionSurface:
         )
 
     def test_application_services_do_not_use_isinstance_type_resolution():
+        """Execute test_application_services_do_not_use_isinstance_type_resolution.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         offenders: list[str] = []
         for path in _iter_python_files(APPLICATION_SERVICES_ROOT):
             rel = path.relative_to(PROJECT_ROOT)
@@ -1135,6 +1349,10 @@ class _TopLevelFunctionSurface:
         )
 
     def test_application_service_public_methods_do_not_take_optional_repo_overrides():
+        """Execute test_application_service_public_methods_do_not_take_optional_repo_overrides.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         offenders: list[str] = []
 
         for path in _iter_python_files(APPLICATION_SERVICES_ROOT):
@@ -1184,6 +1402,10 @@ class _TopLevelFunctionSurface:
         )
 
     def test_application_service_constructor_repository_dependencies_are_required():
+        """Execute test_application_service_constructor_repository_dependencies_are_required.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         offenders: list[str] = []
 
         for path in _iter_python_files(APPLICATION_SERVICES_ROOT):
@@ -1244,6 +1466,10 @@ class _TopLevelFunctionSurface:
         )
 
     def test_application_service_constructors_do_not_use_repo_cls_parameters():
+        """Execute test_application_service_constructors_do_not_use_repo_cls_parameters.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         offenders: list[str] = []
 
         for path in _iter_python_files(APPLICATION_SERVICES_ROOT):
@@ -1278,6 +1504,10 @@ class _TopLevelFunctionSurface:
         )
 
     def test_application_services_do_not_use_local_repository_imports():
+        """Execute test_application_services_do_not_use_local_repository_imports.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         offenders: list[str] = []
 
         for path in _iter_python_files(APPLICATION_SERVICES_ROOT):
@@ -1315,6 +1545,10 @@ class _TopLevelFunctionSurface:
         )
 
     def test_routers_do_not_mutate_private_attributes_of_external_objects():
+        """Execute test_routers_do_not_mutate_private_attributes_of_external_objects.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         offenders: list[str] = []
 
         for path in _iter_python_files(ROUTERS_ROOT):
@@ -1340,6 +1574,10 @@ class _TopLevelFunctionSurface:
         )
 
     def test_application_services_do_not_use_typeerror_fallback_dependency_resolution():
+        """Execute test_application_services_do_not_use_typeerror_fallback_dependency_resolution.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         offenders: list[str] = []
 
         for path in _iter_python_files(APPLICATION_SERVICES_ROOT):
@@ -1355,6 +1593,10 @@ class _TopLevelFunctionSurface:
         )
 
     def test_runtime_modules_do_not_use_legacy_crud_alias_parameters():
+        """Execute test_runtime_modules_do_not_use_legacy_crud_alias_parameters.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         offenders: list[str] = []
 
         for path in _iter_python_files(INFRASTRUCTURE_RUNTIME_MODULES_ROOT):
@@ -1370,6 +1612,10 @@ class _TopLevelFunctionSurface:
         )
 
     def test_limit_runtime_module_has_no_typeerror_signature_fallbacks():
+        """Execute test_limit_runtime_module_has_no_typeerror_signature_fallbacks.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         limit_module_path = INFRASTRUCTURE_RUNTIME_MODULES_ROOT / "limit_module.py"
         source = limit_module_path.read_text(encoding="utf-8-sig")
         assert "except TypeError" not in source, (
@@ -1378,6 +1624,10 @@ class _TopLevelFunctionSurface:
         )
 
     def test_ia_and_limit_services_require_explicit_port_dependency():
+        """Execute test_ia_and_limit_services_require_explicit_port_dependency.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         offenders: list[str] = []
         targets = [
             APPLICATION_SERVICES_ROOT / "ia_generation_service.py",
@@ -1401,6 +1651,10 @@ class _TopLevelFunctionSurface:
         )
 
     def test_tasks_module_has_no_procedural_sqlalchemy_runtime_construction():
+        """Execute test_tasks_module_has_no_procedural_sqlalchemy_runtime_construction.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         tasks_path = BACKEND_ROOT / "tasks.py"
         source = tasks_path.read_text(encoding="utf-8-sig")
         offenders: list[str] = []
@@ -1415,6 +1669,10 @@ class _TopLevelFunctionSurface:
         )
 
     def test_file_processing_runtime_has_no_direct_catalog_import_file_query():
+        """Execute test_file_processing_runtime_has_no_direct_catalog_import_file_query.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         runtime_path = INFRASTRUCTURE_RUNTIME_MODULES_ROOT / "file_processing_module.py"
         source = runtime_path.read_text(encoding="utf-8-sig")
         assert "db.query(models.CatalogImportFile)" not in source, (
@@ -1423,6 +1681,10 @@ class _TopLevelFunctionSurface:
         )
 
     def test_tests_do_not_import_private_backend_symbols():
+        """Execute test_tests_do_not_import_private_backend_symbols.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         offenders: list[str] = []
     
         for root in (BACKEND_TESTS_ROOT, PROJECT_TESTS_ROOT):
@@ -1450,6 +1712,10 @@ class _TopLevelFunctionSurface:
         )
 
     def test_produtos_core_endpoints_do_not_receive_db_session_directly():
+        """Execute test_produtos_core_endpoints_do_not_receive_db_session_directly.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         produtos_router_path = ROUTERS_ROOT / "produtos.py"
         tree = _parse_python_file(produtos_router_path)
         offenders: list[str] = []

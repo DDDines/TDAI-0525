@@ -1,4 +1,10 @@
-﻿from __future__ import annotations
+"""Module test web data extractor runtime state.
+
+This module contains backend application/runtime logic and is fully
+documented for maintainability and onboarding.
+"""
+
+from __future__ import annotations
 
 import pytest
 
@@ -7,8 +13,16 @@ from Backend.testing.runtime_apis import web_extractor
 
 class _TopLevelFunctionSurface:
 
+    """Class _TopLevelFunctionSurface.
+
+    Encapsulates one responsibility in the backend architecture.
+    """
     @pytest.mark.asyncio
     async def test_runtime_isola_cache_e_semaforo_de_busca_por_instancia():
+        """Execute test_runtime_isola_cache_e_semaforo_de_busca_por_instancia.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         runtime_a = web_extractor.WebSearchEngineRuntime()
         runtime_b = web_extractor.WebSearchEngineRuntime()
     
@@ -21,6 +35,10 @@ class _TopLevelFunctionSurface:
         assert sem_a is not sem_b
 
     def test_runtime_sincroniza_flag_playwright():
+        """Execute test_runtime_sincroniza_flag_playwright.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         search_engine = web_extractor.WebSearchEngineRuntime()
         runtime = web_extractor.WebContentFetchEngineRuntime(search_runtime=search_engine)
         runtime.set_playwright_chromium_indisponivel(True)

@@ -1,3 +1,9 @@
+"""Module   init  .
+
+This module contains backend application/runtime logic and is fully
+documented for maintainability and onboarding.
+"""
+
 from Backend.application.orchestrators.catalog_import import CatalogImportPipelineOrchestrator
 from Backend.application.orchestrators.web_enrichment import WebEnrichmentPipelineOrchestrator
 

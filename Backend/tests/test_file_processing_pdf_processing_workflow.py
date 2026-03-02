@@ -1,25 +1,63 @@
-﻿import pytest
+"""Module test file processing pdf processing workflow.
+
+This module contains backend application/runtime logic and is fully
+documented for maintainability and onboarding.
+"""
+
+import pytest
 
 from Backend.testing.runtime_apis import file_processing
 
 
 class _TopLevelFunctionSurface:
 
+    """Class _TopLevelFunctionSurface.
+
+    Encapsulates one responsibility in the backend architecture.
+    """
     @pytest.mark.asyncio
     async def test_pdf_processing_workflow_usa_runtime_de_ingestao():
+        """Execute test_pdf_processing_workflow_usa_runtime_de_ingestao.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         called = {}
     
         class FakeIngestionRuntime:
+            """Class FakeIngestionRuntime.
+
+            Encapsulates one responsibility in the backend architecture.
+            """
             async def processar_arquivo_pdf(self, **kwargs):
+                """Execute processar_arquivo_pdf.
+
+                This callable is documented to make behavior explicit for readers.
+                """
                 called.update(kwargs)
                 return [{"ok": True}]
     
         class FakePreviewRuntime:
+            """Class FakePreviewRuntime.
+
+            Encapsulates one responsibility in the backend architecture.
+            """
             async def preview_arquivo_pdf(self, **kwargs):
+                """Execute preview_arquivo_pdf.
+
+                This callable is documented to make behavior explicit for readers.
+                """
                 return {"num_pages": 1}
     
         class FakeDispatchRuntime:
+            """Class FakeDispatchRuntime.
+
+            Encapsulates one responsibility in the backend architecture.
+            """
             async def gerar_preview(self, **kwargs):
+                """Execute gerar_preview.
+
+                This callable is documented to make behavior explicit for readers.
+                """
                 return {"headers": []}
     
         workflow = file_processing.PdfProcessingWorkflow(
@@ -47,19 +85,47 @@ class _TopLevelFunctionSurface:
 
     @pytest.mark.asyncio
     async def test_pdf_processing_workflow_usa_runtime_de_preview():
+        """Execute test_pdf_processing_workflow_usa_runtime_de_preview.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         called = {}
     
         class FakeIngestionRuntime:
+            """Class FakeIngestionRuntime.
+
+            Encapsulates one responsibility in the backend architecture.
+            """
             async def processar_arquivo_pdf(self, **kwargs):
+                """Execute processar_arquivo_pdf.
+
+                This callable is documented to make behavior explicit for readers.
+                """
                 return []
     
         class FakePreviewRuntime:
+            """Class FakePreviewRuntime.
+
+            Encapsulates one responsibility in the backend architecture.
+            """
             async def preview_arquivo_pdf(self, **kwargs):
+                """Execute preview_arquivo_pdf.
+
+                This callable is documented to make behavior explicit for readers.
+                """
                 called.update(kwargs)
                 return {"num_pages": 2, "preview_images": []}
     
         class FakeDispatchRuntime:
+            """Class FakeDispatchRuntime.
+
+            Encapsulates one responsibility in the backend architecture.
+            """
             async def gerar_preview(self, **kwargs):
+                """Execute gerar_preview.
+
+                This callable is documented to make behavior explicit for readers.
+                """
                 return {}
     
         workflow = file_processing.PdfProcessingWorkflow(
@@ -85,18 +151,46 @@ class _TopLevelFunctionSurface:
 
     @pytest.mark.asyncio
     async def test_pdf_processing_workflow_usa_runtime_de_dispatch():
+        """Execute test_pdf_processing_workflow_usa_runtime_de_dispatch.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         called = {}
     
         class FakeIngestionRuntime:
+            """Class FakeIngestionRuntime.
+
+            Encapsulates one responsibility in the backend architecture.
+            """
             async def processar_arquivo_pdf(self, **kwargs):
+                """Execute processar_arquivo_pdf.
+
+                This callable is documented to make behavior explicit for readers.
+                """
                 return []
     
         class FakePreviewRuntime:
+            """Class FakePreviewRuntime.
+
+            Encapsulates one responsibility in the backend architecture.
+            """
             async def preview_arquivo_pdf(self, **kwargs):
+                """Execute preview_arquivo_pdf.
+
+                This callable is documented to make behavior explicit for readers.
+                """
                 return {}
     
         class FakeDispatchRuntime:
+            """Class FakeDispatchRuntime.
+
+            Encapsulates one responsibility in the backend architecture.
+            """
             async def gerar_preview(self, **kwargs):
+                """Execute gerar_preview.
+
+                This callable is documented to make behavior explicit for readers.
+                """
                 called.update(kwargs)
                 return {"headers": ["h1"], "sample_rows": []}
     

@@ -1,4 +1,10 @@
-﻿import pandas as pd
+"""Module file processing module.
+
+This module contains backend application/runtime logic and is fully
+documented for maintainability and onboarding.
+"""
+
+import pandas as pd
 from pdfplumber import open as pdf_open
 import csv
 import io
@@ -123,6 +129,10 @@ class _FileProcessingImplementation:
 
     @staticmethod
     def _norm_text(v: Any) -> str:
+        """Execute _norm_text.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         return LineNormalizationRuntime().norm_text(v)
 
     @staticmethod
@@ -152,30 +162,58 @@ class _FileProcessingImplementation:
 
     @staticmethod
     async def _processar_arquivo_excel_impl(conteudo_arquivo: bytes, mapeamento_colunas_usuario: Optional[Dict[str, str]]=None, sheet_name: Optional[str]=None, product_type_id: Optional[int]=None) -> List[Dict[str, Any]]:
+        """Execute _processar_arquivo_excel_impl.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         return await TabularIngestionEngineRuntime().processar_arquivo_excel(conteudo_arquivo=conteudo_arquivo, mapeamento_colunas_usuario=mapeamento_colunas_usuario, sheet_name=sheet_name, product_type_id=product_type_id)
 
     @staticmethod
     async def _processar_arquivo_csv_impl(conteudo_arquivo: bytes, mapeamento_colunas_usuario: Optional[Dict[str, str]]=None, product_type_id: Optional[int]=None) -> List[Dict[str, Any]]:
+        """Execute _processar_arquivo_csv_impl.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         return await TabularIngestionEngineRuntime().processar_arquivo_csv(conteudo_arquivo=conteudo_arquivo, mapeamento_colunas_usuario=mapeamento_colunas_usuario, product_type_id=product_type_id)
 
     @staticmethod
     async def _processar_arquivo_pdf_impl(conteudo_arquivo: bytes, mapeamento_colunas_usuario: Optional[Dict[str, str]]=None, usar_llm: bool=True, product_type_id: Optional[int]=None, pages: Optional[List[int]]=None, region: Optional[List[float]]=None) -> List[Dict[str, Any]]:
+        """Execute _processar_arquivo_pdf_impl.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         return await PdfIngestionRuntime().processar_arquivo_pdf(conteudo_arquivo=conteudo_arquivo, mapeamento_colunas_usuario=mapeamento_colunas_usuario, usar_llm=usar_llm, product_type_id=product_type_id, pages=pages, region=region)
 
     @staticmethod
     async def _preview_arquivo_excel_impl(conteudo_arquivo: bytes, max_rows: int=5) -> Dict[str, Any]:
+        """Execute _preview_arquivo_excel_impl.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         return await TabularPreviewEngineRuntime().preview_arquivo_excel(conteudo_arquivo=conteudo_arquivo, max_rows=max_rows)
 
     @staticmethod
     async def _preview_arquivo_csv_impl(conteudo_arquivo: bytes, max_rows: int=5) -> Dict[str, Any]:
+        """Execute _preview_arquivo_csv_impl.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         return await TabularPreviewEngineRuntime().preview_arquivo_csv(conteudo_arquivo=conteudo_arquivo, max_rows=max_rows)
 
     @staticmethod
     async def _preview_arquivo_pdf_impl(conteudo_arquivo: bytes, ext: str, start_page: int=1, page_count: int=1, dpi: int=72) -> Dict[str, Any]:
+        """Execute _preview_arquivo_pdf_impl.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         return await PdfPreviewRuntime().preview_arquivo_pdf(conteudo_arquivo=conteudo_arquivo, ext=ext, start_page=start_page, page_count=page_count, dpi=dpi)
 
     @staticmethod
     async def _gerar_preview_impl(conteudo_arquivo: bytes, ext: str, max_rows: int=5) -> Dict[str, Any]:
+        """Execute _gerar_preview_impl.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         return await PreviewDispatchRuntime().gerar_preview(conteudo_arquivo=conteudo_arquivo, ext=ext, max_rows=max_rows)
 
     @staticmethod
@@ -600,19 +638,35 @@ class _FileProcessingImplementation:
 
     @staticmethod
     def _generate_pdf_page_images_impl(file_path: str, file_id: str) -> List[str]:
+        """Execute _generate_pdf_page_images_impl.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         return PdfAssetUtilityRuntime().generate_pdf_page_images(file_path=file_path, file_id=file_id)
 
     @staticmethod
     def _extract_pdf_region_image_impl(file_path: str, page_number: int, region: Optional[List[float]]=None, dpi: int=300) -> bytes:
+        """Execute _extract_pdf_region_image_impl.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         return PdfAssetUtilityRuntime().extract_pdf_region_image(file_path=file_path, page_number=page_number, region=region, dpi=dpi)
 
     @staticmethod
     def _parse_annotation_to_dataframe_impl(annotation: object, vertical_tolerance: int=5) -> pd.DataFrame:
+        """Execute _parse_annotation_to_dataframe_impl.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         return PdfAssetUtilityRuntime().parse_annotation_to_dataframe(annotation=annotation, vertical_tolerance=vertical_tolerance)
 class OcrRuntimeState:
     """Estado de OCR encapsulado por instancia, sem variaveis globais mutaveis."""
 
     def __init__(self) -> None:
+        """Execute __init__.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         self.available = False
         self.exec_available = False
         self.exec_failed_once = False
@@ -621,6 +675,10 @@ class OcrRuntimeState:
         self._initialize()
 
     def _initialize(self) -> None:
+        """Execute _initialize.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         try:
             import pytesseract as pytesseract_module
             from PIL import Image as pil_image_cls
@@ -650,6 +708,10 @@ class LineNormalizationRuntime:
     """Runtime OO para normalizacao de valores, mapeamento e split SKU/Nome."""
 
     def limpar_valor_extraido(self, valor: Any) -> Optional[str]:
+        """Execute limpar_valor_extraido.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         if valor is None:
             return None
         try:
@@ -661,6 +723,10 @@ class LineNormalizationRuntime:
             return None
 
     def valor_tem_conteudo_util(self, valor: Any) -> bool:
+        """Execute valor_tem_conteudo_util.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         if valor is None:
             return False
         cleaned = str(valor).strip()
@@ -671,9 +737,17 @@ class LineNormalizationRuntime:
         return True
 
     def norm_text(self, value: Any) -> str:
+        """Execute norm_text.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         return str(value).lower().strip()
 
     def normalizar_mapeamento_usuario(self, mapeamento_colunas_usuario: Optional[Dict[str, str]], linha_original: Dict[str, Any]) -> Dict[str, str]:
+        """Execute normalizar_mapeamento_usuario.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         if not mapeamento_colunas_usuario:
             return {}
         linha_keys = {self.norm_text(key) for key in linha_original.keys()}
@@ -701,6 +775,10 @@ class LineNormalizationRuntime:
         return normalized
 
     def coerce_region_bbox(self, region: Optional[List[float]], page_width: float, page_height: float) -> tuple[Optional[tuple[float, float, float, float]], Optional[str]]:
+        """Execute coerce_region_bbox.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         if not region or len(region) != 4:
             return (None, None)
         try:
@@ -724,6 +802,10 @@ class LineNormalizationRuntime:
         return ((x0, y0, x1, y1), 'normalized' if normalized_mode else 'absolute')
 
     def token_looks_like_code(self, token: str) -> bool:
+        """Execute token_looks_like_code.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         value = token.strip().upper()
         if not value or len(value) > 32:
             return False
@@ -740,6 +822,10 @@ class LineNormalizationRuntime:
         return False
 
     def split_sku_nome_auto(self, value: str) -> tuple[Optional[str], Optional[str]]:
+        """Execute split_sku_nome_auto.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         tokens = [tok for tok in str(value).split() if tok]
         if not tokens:
             return (None, None)
@@ -779,6 +865,10 @@ class LineMappingWorkflow:
     _FALLBACK_SKU_COLUMNS = {'n fab', 'no fab', 'nfab', 'fab'}
 
     def __init__(self, runtime: Optional['LineMappingRuntime']=None) -> None:
+        """Execute __init__.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         self._runtime = runtime
 
     def processar_linha_padronizada(self, linha_original: Dict[str, Any], mapeamento_colunas_usuario: Optional[Dict[str, str]]=None) -> Optional[Dict[str, Any]]:
@@ -878,14 +968,26 @@ class LineMappingRuntime:
     """Runtime OO para reutilizar a rotina padrÃƒÂ£o de mapeamento de linha."""
 
     def __init__(self, workflow: Optional['LineMappingWorkflow']=None) -> None:
+        """Execute __init__.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         self._workflow = workflow or LineMappingWorkflow()
 
     def processar_linha_padronizada(self, linha_original: Dict[str, Any], mapeamento_colunas_usuario: Optional[Dict[str, str]]=None) -> Optional[Dict[str, Any]]:
+        """Execute processar_linha_padronizada.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         return self._workflow.processar_linha_padronizada(linha_original=linha_original, mapeamento_colunas_usuario=mapeamento_colunas_usuario)
 class TabularIngestionEngineRuntime:
     """Runtime OO para ingestao de arquivos tabulares (Excel/CSV)."""
 
     async def processar_arquivo_excel(self, conteudo_arquivo: bytes, mapeamento_colunas_usuario: Optional[Dict[str, str]]=None, sheet_name: Optional[str]=None, product_type_id: Optional[int]=None) -> List[Dict[str, Any]]:
+        """Execute processar_arquivo_excel.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         produtos_extraidos: List[Dict[str, Any]] = []
         try:
             xls = pd.ExcelFile(io.BytesIO(conteudo_arquivo))
@@ -906,6 +1008,10 @@ class TabularIngestionEngineRuntime:
             return [{'erro_processamento_excel': f'Falha ao ler arquivo Excel: {str(e)}'}]
 
     async def processar_arquivo_csv(self, conteudo_arquivo: bytes, mapeamento_colunas_usuario: Optional[Dict[str, str]]=None, product_type_id: Optional[int]=None) -> List[Dict[str, Any]]:
+        """Execute processar_arquivo_csv.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         produtos_extraidos: List[Dict[str, Any]] = []
         try:
             try:
@@ -946,9 +1052,17 @@ class PdfIngestionRuntime:
     """Runtime OO para ingestao de PDF."""
 
     def __init__(self, web_data_extractor_service: Optional[Any]=None) -> None:
+        """Execute __init__.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         self._web_data_extractor_service = web_data_extractor_service or WebDataExtractorServiceAdapter()
 
     def _append_produto(self, produtos_extraidos: List[Dict[str, Any]], produto_padronizado: Optional[Dict[str, Any]], product_type_id: Optional[int]) -> None:
+        """Execute _append_produto.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         if not produto_padronizado:
             return
         if product_type_id is not None:
@@ -956,6 +1070,10 @@ class PdfIngestionRuntime:
         produtos_extraidos.append(produto_padronizado)
 
     async def processar_arquivo_pdf(self, conteudo_arquivo: bytes, mapeamento_colunas_usuario: Optional[Dict[str, str]]=None, usar_llm: bool=True, product_type_id: Optional[int]=None, pages: Optional[List[int]]=None, region: Optional[List[float]]=None) -> List[Dict[str, Any]]:
+        """Execute processar_arquivo_pdf.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         produtos_extraidos: List[Dict[str, Any]] = []
         log_pdf: List[str] = []
         temp_pdf_path: Optional[Path] = None
@@ -1088,12 +1206,20 @@ class TabularPreviewEngineRuntime:
     """Runtime OO para preview de planilhas/tabulares."""
 
     def _decode_csv_bytes(self, conteudo_arquivo: bytes) -> str:
+        """Execute _decode_csv_bytes.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         try:
             return conteudo_arquivo.decode('utf-8-sig')
         except UnicodeDecodeError:
             return conteudo_arquivo.decode('latin-1')
 
     def _detect_csv_delimiter(self, conteudo_str: str) -> str:
+        """Execute _detect_csv_delimiter.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         sample = conteudo_str[:1024]
         try:
             dialect = csv.Sniffer().sniff(sample, delimiters=[',', ';', '\t', '|'])
@@ -1107,6 +1233,10 @@ class TabularPreviewEngineRuntime:
             return ','
 
     async def preview_arquivo_excel(self, conteudo_arquivo: bytes, max_rows: int=5) -> Dict[str, Any]:
+        """Execute preview_arquivo_excel.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         try:
             df = pd.read_excel(io.BytesIO(conteudo_arquivo), sheet_name=0)
             headers = [str(col) for col in df.columns]
@@ -1117,6 +1247,10 @@ class TabularPreviewEngineRuntime:
             return {'error': f'Falha ao ler arquivo Excel: {str(e)}'}
 
     async def preview_arquivo_csv(self, conteudo_arquivo: bytes, max_rows: int=5) -> Dict[str, Any]:
+        """Execute preview_arquivo_csv.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         try:
             conteudo_str = self._decode_csv_bytes(conteudo_arquivo)
             delimitador = self._detect_csv_delimiter(conteudo_str)
@@ -1136,6 +1270,10 @@ class PdfPreviewRuntime:
     """Runtime OO para preview de PDF."""
 
     def __init__(self, preview_executor: Optional[ThreadPoolExecutor]=None, max_preview_workers: Optional[int]=None) -> None:
+        """Execute __init__.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         self._max_preview_workers = (
             int(os.getenv('PDF_PREVIEW_WORKERS', '0'))
             if max_preview_workers is None
@@ -1144,21 +1282,41 @@ class PdfPreviewRuntime:
         self._preview_executor = preview_executor or self._build_preview_executor()
 
     def _build_preview_executor(self) -> Optional[ThreadPoolExecutor]:
+        """Execute _build_preview_executor.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         if self._max_preview_workers <= 0:
             return None
         return ThreadPoolExecutor(max_workers=self._max_preview_workers)
 
     def _resolve_poppler_path(self) -> Optional[str]:
+        """Execute _resolve_poppler_path.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         return os.getenv('POPPLER_PATH') or settings.POPPLER_PATH
 
     def _resolve_poppler_kwargs(self) -> Dict[str, Any]:
+        """Execute _resolve_poppler_kwargs.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         poppler_dir = self._resolve_poppler_path()
         return {'poppler_path': poppler_dir} if poppler_dir else {}
 
     def _build_page_processor(self, conteudo_arquivo: bytes, dpi: int, kwargs: Dict[str, Any]):
+        """Execute _build_page_processor.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         return partial(self._process_page, conteudo_arquivo=conteudo_arquivo, dpi=dpi, kwargs=kwargs)
 
     def _process_page(self, page_number: int, *, conteudo_arquivo: bytes, dpi: int, kwargs: Dict[str, Any]) -> Dict[str, Any]:
+        """Execute _process_page.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         with pdf_open(io.BytesIO(conteudo_arquivo)) as reader:
             page = reader.pages[page_number - 1]
             tables = page.extract_tables()
@@ -1186,6 +1344,10 @@ class PdfPreviewRuntime:
         return result
 
     async def preview_arquivo_pdf(self, conteudo_arquivo: bytes, ext: str, start_page: int=1, page_count: int=1, dpi: int=72) -> Dict[str, Any]:
+        """Execute preview_arquivo_pdf.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         start = time.perf_counter()
         poppler_dir = self._resolve_poppler_path()
         pdftoppm_path = shutil.which('pdftoppm', path=poppler_dir) if poppler_dir else shutil.which('pdftoppm')
@@ -1224,53 +1386,117 @@ class PreviewDispatchRuntime:
     """Runtime OO para despacho de preview por extensao."""
 
     def __init__(self, tabular_preview_runtime: Optional[TabularPreviewEngineRuntime]=None, pdf_preview_runtime: Optional[PdfPreviewRuntime]=None, extractor_factory: Optional['_PreviewExtractorFactory']=None) -> None:
+        """Execute __init__.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         self._tabular_preview_runtime = tabular_preview_runtime or TabularPreviewEngineRuntime()
         self._pdf_preview_runtime = pdf_preview_runtime or PdfPreviewRuntime()
         self._extractor_factory = extractor_factory or _PreviewExtractorFactory(excel_extractor=_ExcelPreviewExtractor(self._tabular_preview_runtime), csv_extractor=_CsvPreviewExtractor(self._tabular_preview_runtime), pdf_extractor=_PdfPreviewExtractor(self._pdf_preview_runtime))
 
     async def gerar_preview(self, conteudo_arquivo: bytes, ext: str, max_rows: int=5) -> Dict[str, Any]:
+        """Execute gerar_preview.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         ext_norm = ext.lower()
         extractor = self._extractor_factory.get_extractor(ext_norm)
         return await extractor.extract(conteudo_arquivo=conteudo_arquivo, ext=ext_norm, max_rows=max_rows)
 
 class _PreviewExtractor:
 
+    """Class _PreviewExtractor.
+
+    Encapsulates one responsibility in the backend architecture.
+    """
     async def extract(self, *, conteudo_arquivo: bytes, ext: str, max_rows: int) -> Dict[str, Any]:
+        """Execute extract.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         raise NotImplementedError
 
 class _ExcelPreviewExtractor(_PreviewExtractor):
 
+    """Class _ExcelPreviewExtractor.
+
+    Encapsulates one responsibility in the backend architecture.
+    """
     def __init__(self, tabular_preview_runtime: TabularPreviewEngineRuntime) -> None:
+        """Execute __init__.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         self._tabular_preview_runtime = tabular_preview_runtime
 
     async def extract(self, *, conteudo_arquivo: bytes, ext: str, max_rows: int) -> Dict[str, Any]:
+        """Execute extract.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         _ = ext
         return await self._tabular_preview_runtime.preview_arquivo_excel(conteudo_arquivo=conteudo_arquivo, max_rows=max_rows)
 
 class _CsvPreviewExtractor(_PreviewExtractor):
 
+    """Class _CsvPreviewExtractor.
+
+    Encapsulates one responsibility in the backend architecture.
+    """
     def __init__(self, tabular_preview_runtime: TabularPreviewEngineRuntime) -> None:
+        """Execute __init__.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         self._tabular_preview_runtime = tabular_preview_runtime
 
     async def extract(self, *, conteudo_arquivo: bytes, ext: str, max_rows: int) -> Dict[str, Any]:
+        """Execute extract.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         _ = ext
         return await self._tabular_preview_runtime.preview_arquivo_csv(conteudo_arquivo=conteudo_arquivo, max_rows=max_rows)
 
 class _PdfPreviewExtractor(_PreviewExtractor):
 
+    """Class _PdfPreviewExtractor.
+
+    Encapsulates one responsibility in the backend architecture.
+    """
     def __init__(self, pdf_preview_runtime: PdfPreviewRuntime) -> None:
+        """Execute __init__.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         self._pdf_preview_runtime = pdf_preview_runtime
 
     async def extract(self, *, conteudo_arquivo: bytes, ext: str, max_rows: int) -> Dict[str, Any]:
+        """Execute extract.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         _ = max_rows
         return await self._pdf_preview_runtime.preview_arquivo_pdf(conteudo_arquivo=conteudo_arquivo, ext=ext, start_page=1, page_count=1)
 
 class _PreviewExtractorFactory:
 
+    """Class _PreviewExtractorFactory.
+
+    Encapsulates one responsibility in the backend architecture.
+    """
     def __init__(self, *, excel_extractor: _PreviewExtractor, csv_extractor: _PreviewExtractor, pdf_extractor: _PreviewExtractor) -> None:
+        """Execute __init__.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         self._extractors = {'.xlsx': excel_extractor, '.xls': excel_extractor, '.csv': csv_extractor, '.pdf': pdf_extractor}
 
     def get_extractor(self, ext_norm: str) -> _PreviewExtractor:
+        """Execute get_extractor.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         extractor = self._extractors.get(ext_norm)
         if extractor is None:
             raise ValueError('Formato de arquivo nao suportado para preview')
@@ -1280,9 +1506,17 @@ class PdfImageConversionRuntime:
     """Runtime OO para conversao de bytes PDF em imagens base64."""
 
     def _resolve_poppler_path(self) -> Optional[str]:
+        """Execute _resolve_poppler_path.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         return os.getenv('POPPLER_PATH') or settings.POPPLER_PATH
 
     def _ensure_poppler_available(self, poppler_dir: Optional[str]) -> Dict[str, Any]:
+        """Execute _ensure_poppler_available.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         pdftoppm_path = shutil.which('pdftoppm', path=poppler_dir) if poppler_dir else shutil.which('pdftoppm')
         if pdftoppm_path is None:
             msg = 'Poppler (pdftoppm) executable not found. Install poppler-utilson Linux or set POPPLER_PATH to its directory.'
@@ -1291,6 +1525,10 @@ class PdfImageConversionRuntime:
         return {'poppler_path': poppler_dir} if poppler_dir else {}
 
     def _convert_sync(self, conteudo_arquivo: bytes, max_pages: int, start_page: int, dpi: int) -> List[str]:
+        """Execute _convert_sync.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         poppler_dir = self._resolve_poppler_path()
         kwargs = self._ensure_poppler_available(poppler_dir)
         last_page = None if max_pages == 0 else start_page + max_pages - 1
@@ -1303,13 +1541,25 @@ class PdfImageConversionRuntime:
         return result
 
     async def pdf_bytes_to_images(self, conteudo_arquivo: bytes, max_pages: int=1, start_page: int=1, dpi: int=200) -> List[str]:
+        """Execute pdf_bytes_to_images.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         loop = asyncio.get_running_loop()
         return await loop.run_in_executor(None, lambda: self._convert_sync(conteudo_arquivo=conteudo_arquivo, max_pages=max_pages, start_page=start_page, dpi=dpi))
 
 class _PdfRegionExtractionUtils:
 
+    """Class _PdfRegionExtractionUtils.
+
+    Encapsulates one responsibility in the backend architecture.
+    """
     @staticmethod
     def make_unique(cols: List[Any]) -> List[str]:
+        """Execute make_unique.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         seen: Dict[str, int] = {}
         unique: List[str] = []
         for col in cols:
@@ -1322,6 +1572,10 @@ class _PdfRegionExtractionUtils:
 
     @staticmethod
     def clean_df(df: pd.DataFrame) -> pd.DataFrame:
+        """Execute clean_df.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         if df is None or df.empty:
             return pd.DataFrame()
         df = df.dropna(axis=1, how='all')
@@ -1331,6 +1585,10 @@ class _PdfRegionExtractionUtils:
 
     @staticmethod
     def median_int(values: List[int], default: int) -> int:
+        """Execute median_int.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         if not values:
             return default
         sorted_values = sorted(values)
@@ -1341,6 +1599,10 @@ class _PdfRegionExtractionUtils:
 
     @staticmethod
     def cluster_positions(x_values: List[int], tolerance: int) -> List[int]:
+        """Execute cluster_positions.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         clusters: List[int] = []
         for x in x_values:
             if not clusters or abs(x - clusters[-1]) > tolerance:
@@ -1349,6 +1611,10 @@ class _PdfRegionExtractionUtils:
 
     @staticmethod
     def normalize_ocr_snippet(text: Any) -> str:
+        """Execute normalize_ocr_snippet.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         normalized = unicodedata.normalize('NFKD', str(text or ''))
         normalized = ''.join((ch for ch in normalized if not unicodedata.combining(ch)))
         normalized = normalized.upper()
@@ -1358,6 +1624,10 @@ class _PdfRegionExtractionUtils:
 
     @classmethod
     def header_field_for_text(cls, text: str) -> Optional[str]:
+        """Execute header_field_for_text.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         t = cls.normalize_ocr_snippet(text)
         if not t:
             return None
@@ -1375,6 +1645,10 @@ class _PdfRegionExtractionUtils:
 
     @classmethod
     def detect_header_columns(cls, merged_lines: List[List[Dict[str, Any]]]) -> Optional[Dict[str, Any]]:
+        """Execute detect_header_columns.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         if not merged_lines:
             return None
         ratio_by_field = {'n_fab': 0.04, 'n_original': 0.2, 'descricao': 0.38, 'aplicacao': 0.67, 'material': 0.88}
@@ -1418,6 +1692,10 @@ class _PdfRegionExtractionUtils:
 
     @classmethod
     def is_header_like_row(cls, text: str) -> bool:
+        """Execute is_header_like_row.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         norm = cls.normalize_ocr_snippet(text)
         if not norm:
             return False
@@ -1427,6 +1705,10 @@ class _PdfRegionExtractionUtils:
 
     @classmethod
     def filter_ocr_rows(cls, raw_rows: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+        """Execute filter_ocr_rows.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         filtered_rows: List[Dict[str, Any]] = []
         for row in raw_rows:
             cleaned_row = {k: (v or '').strip() for k, v in row.items()}
@@ -1448,6 +1730,10 @@ class _PdfRegionExtractionUtils:
 
     @classmethod
     def tables_to_df(cls, tables: List[List[List[Any]]]) -> pd.DataFrame:
+        """Execute tables_to_df.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         rows: List[Dict[str, Any]] = []
         headers: List[str] = []
         for table in tables:
@@ -1464,6 +1750,10 @@ class _PdfRegionExtractionUtils:
 
     @staticmethod
     def group_words_by_line_ids(words: List[Dict[str, Any]]) -> List[List[Dict[str, Any]]]:
+        """Execute group_words_by_line_ids.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         buckets: Dict[tuple[int, int, int], List[Dict[str, Any]]] = {}
         for word in words:
             line_num = int(word.get('line', 0) or 0)
@@ -1477,6 +1767,10 @@ class _PdfRegionExtractionUtils:
 
     @classmethod
     def group_words_by_y(cls, words: List[Dict[str, Any]]) -> List[List[Dict[str, Any]]]:
+        """Execute group_words_by_y.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         if not words:
             return []
         heights = [int(w.get('h', 0) or 0) for w in words if int(w.get('h', 0) or 0) > 0]
@@ -1492,6 +1786,10 @@ class _PdfRegionExtractionUtils:
 
     @classmethod
     def merge_words_in_line(cls, line_words: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+        """Execute merge_words_in_line.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         if not line_words:
             return []
         sorted_words = sorted(line_words, key=lambda item: item['x'])
@@ -1525,6 +1823,10 @@ class PdfAssetUtilityRuntime:
     """Runtime OO para utilitarios de assets PDF."""
 
     def generate_pdf_page_images(self, file_path: str, file_id: str) -> List[str]:
+        """Execute generate_pdf_page_images.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         try:
             import fitz
         except Exception as e:
@@ -1545,6 +1847,10 @@ class PdfAssetUtilityRuntime:
         return urls
 
     def extract_pdf_region_image(self, file_path: str, page_number: int, region: Optional[List[float]]=None, dpi: int=300) -> bytes:
+        """Execute extract_pdf_region_image.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         logger.debug('Recebendo coordenadas: %s', region)
         with pdfplumber.open(file_path) as pdf:
             if not 1 <= page_number <= len(pdf.pages):
@@ -1561,6 +1867,10 @@ class PdfAssetUtilityRuntime:
             return buf.getvalue()
 
     def parse_annotation_to_dataframe(self, annotation: object, vertical_tolerance: int=5) -> pd.DataFrame:
+        """Execute parse_annotation_to_dataframe.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         logger.debug('Iniciando analise do texto')
         try:
             words: List[Dict[str, Any]] = []
@@ -1609,74 +1919,162 @@ class CatalogStorageWorkflow:
     """Workflow OO para operacoes de storage de catalogo."""
 
     def __init__(self, runtime: Optional['CatalogStorageRuntime']=None) -> None:
+        """Execute __init__.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         self._runtime = runtime or CatalogStorageRuntime()
 
     async def save_uploaded_catalog(self, file: UploadFile, fornecedor_id: Optional[int]=None) -> models.CatalogImportFile:
+        """Execute save_uploaded_catalog.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         return await self._runtime.save_uploaded_catalog(file=file, fornecedor_id=fornecedor_id)
 
     def delete_catalog_file(self, stored_filename: str) -> None:
+        """Execute delete_catalog_file.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         self._runtime.delete_catalog_file(stored_filename=stored_filename)
 
     def get_file_path_by_id(self, db: Session, file_id: str) -> str:
+        """Execute get_file_path_by_id.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         return self._runtime.get_file_path_by_id(db=db, file_id=file_id)
 
 class CatalogStorageRuntime:
 
+    """Class CatalogStorageRuntime.
+
+    Encapsulates one responsibility in the backend architecture.
+    """
     async def save_uploaded_catalog(self, file: UploadFile, fornecedor_id: Optional[int]=None) -> models.CatalogImportFile:
+        """Execute save_uploaded_catalog.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         return await _FileProcessingImplementation._save_uploaded_catalog_impl(file=file, fornecedor_id=fornecedor_id)
 
     def delete_catalog_file(self, stored_filename: str) -> None:
+        """Execute delete_catalog_file.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         _FileProcessingImplementation._delete_catalog_file_impl(stored_filename)
 
     def get_file_path_by_id(self, db: Session, file_id: str) -> str:
+        """Execute get_file_path_by_id.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         return _FileProcessingImplementation._get_file_path_by_id_impl(db=db, file_id=file_id)
 class TabularIngestionWorkflow:
     """Workflow OO para ingestÃƒÆ’Ã‚Â£o de arquivos tabulares (Excel/CSV)."""
 
     def __init__(self, runtime: Optional['TabularIngestionRuntime']=None) -> None:
+        """Execute __init__.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         self._runtime = runtime or TabularIngestionRuntime()
 
     async def processar_arquivo_excel(self, conteudo_arquivo: bytes, mapeamento_colunas_usuario: Optional[Dict[str, str]]=None, sheet_name: Optional[str]=None, product_type_id: Optional[int]=None) -> List[Dict[str, Any]]:
+        """Execute processar_arquivo_excel.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         return await self._runtime.processar_arquivo_excel(conteudo_arquivo=conteudo_arquivo, mapeamento_colunas_usuario=mapeamento_colunas_usuario, sheet_name=sheet_name, product_type_id=product_type_id)
 
     async def processar_arquivo_csv(self, conteudo_arquivo: bytes, mapeamento_colunas_usuario: Optional[Dict[str, str]]=None, product_type_id: Optional[int]=None) -> List[Dict[str, Any]]:
+        """Execute processar_arquivo_csv.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         return await self._runtime.processar_arquivo_csv(conteudo_arquivo=conteudo_arquivo, mapeamento_colunas_usuario=mapeamento_colunas_usuario, product_type_id=product_type_id)
 
 class TabularIngestionRuntime:
 
+    """Class TabularIngestionRuntime.
+
+    Encapsulates one responsibility in the backend architecture.
+    """
     async def processar_arquivo_excel(self, conteudo_arquivo: bytes, mapeamento_colunas_usuario: Optional[Dict[str, str]]=None, sheet_name: Optional[str]=None, product_type_id: Optional[int]=None) -> List[Dict[str, Any]]:
+        """Execute processar_arquivo_excel.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         return await _FileProcessingImplementation._processar_arquivo_excel_impl(conteudo_arquivo=conteudo_arquivo, mapeamento_colunas_usuario=mapeamento_colunas_usuario, sheet_name=sheet_name, product_type_id=product_type_id)
 
     async def processar_arquivo_csv(self, conteudo_arquivo: bytes, mapeamento_colunas_usuario: Optional[Dict[str, str]]=None, product_type_id: Optional[int]=None) -> List[Dict[str, Any]]:
+        """Execute processar_arquivo_csv.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         return await _FileProcessingImplementation._processar_arquivo_csv_impl(conteudo_arquivo=conteudo_arquivo, mapeamento_colunas_usuario=mapeamento_colunas_usuario, product_type_id=product_type_id)
 class TabularPreviewWorkflow:
     """Workflow OO para preview tabular (Excel/CSV)."""
 
     def __init__(self, runtime: Optional['TabularPreviewRuntime']=None) -> None:
+        """Execute __init__.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         self._runtime = runtime or TabularPreviewRuntime()
 
     async def preview_arquivo_excel(self, conteudo_arquivo: bytes, max_rows: int=5) -> Dict[str, Any]:
+        """Execute preview_arquivo_excel.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         return await self._runtime.preview_arquivo_excel(conteudo_arquivo=conteudo_arquivo, max_rows=max_rows)
 
     async def preview_arquivo_csv(self, conteudo_arquivo: bytes, max_rows: int=5) -> Dict[str, Any]:
+        """Execute preview_arquivo_csv.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         return await self._runtime.preview_arquivo_csv(conteudo_arquivo=conteudo_arquivo, max_rows=max_rows)
 
 class TabularPreviewRuntime:
 
+    """Class TabularPreviewRuntime.
+
+    Encapsulates one responsibility in the backend architecture.
+    """
     async def preview_arquivo_excel(self, conteudo_arquivo: bytes, max_rows: int=5) -> Dict[str, Any]:
+        """Execute preview_arquivo_excel.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         return await _FileProcessingImplementation._preview_arquivo_excel_impl(conteudo_arquivo=conteudo_arquivo, max_rows=max_rows)
 
     async def preview_arquivo_csv(self, conteudo_arquivo: bytes, max_rows: int=5) -> Dict[str, Any]:
+        """Execute preview_arquivo_csv.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         return await _FileProcessingImplementation._preview_arquivo_csv_impl(conteudo_arquivo=conteudo_arquivo, max_rows=max_rows)
 class PdfAssetRuntime:
     """Runtime OO para dependencias de utilitarios de imagem/regiao de PDF."""
     RUNTIME_FIELDS = ('pdf_image_runtime', 'pdf_asset_runtime')
 
     def __init__(self, *, pdf_image_runtime: Optional[Any]=None, pdf_asset_runtime: Optional[Any]=None) -> None:
+        """Execute __init__.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         self.pdf_image_runtime = pdf_image_runtime or PdfImageConversionRuntime()
         self.pdf_asset_runtime = pdf_asset_runtime or PdfAssetUtilityRuntime()
 
     def apply_overrides(self, runtime: Any) -> 'PdfAssetRuntime':
+        """Execute apply_overrides.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         for field_name in self.RUNTIME_FIELDS:
             setattr(self, field_name, getattr(runtime, field_name, getattr(self, field_name)))
         return self
@@ -1685,6 +2083,10 @@ class PdfAssetWorkflow:
     """Workflow OO para utilitarios de imagem/regiao de PDF."""
 
     def __init__(self, runtime: Optional[Any]=None, pdf_image_runtime: Optional[PdfImageConversionRuntime]=None, pdf_asset_runtime: Optional[PdfAssetRuntime]=None) -> None:
+        """Execute __init__.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         runtime_obj = PdfAssetRuntime(pdf_image_runtime=pdf_image_runtime, pdf_asset_runtime=pdf_asset_runtime)
         if runtime is not None:
             runtime_obj.apply_overrides(runtime)
@@ -1693,27 +2095,55 @@ class PdfAssetWorkflow:
         self._pdf_asset_runtime = runtime_obj.pdf_asset_runtime
 
     async def pdf_bytes_to_images(self, conteudo_arquivo: bytes, max_pages: int=1, start_page: int=1, dpi: int=200) -> List[str]:
+        """Execute pdf_bytes_to_images.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         return await self._pdf_image_runtime.pdf_bytes_to_images(conteudo_arquivo=conteudo_arquivo, max_pages=max_pages, start_page=start_page, dpi=dpi)
 
     def pdf_pages_to_images(self, db: Session, file: UploadFile, fornecedor_id: int, user_id: int, offset: int, limit: int) -> Dict[str, Any]:
+        """Execute pdf_pages_to_images.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         return _FileProcessingImplementation._pdf_pages_to_images_impl(db=db, file=file, fornecedor_id=fornecedor_id, user_id=user_id, offset=offset, limit=limit)
 
     async def extrair_pagina_pdf(self, conteudo_pdf: bytes, page_number: int, region: Optional[List[float]]=None) -> Dict[str, Any]:
+        """Execute extrair_pagina_pdf.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         return await _FileProcessingImplementation._extrair_pagina_pdf_impl(conteudo_pdf=conteudo_pdf, page_number=page_number, region=region)
 
     def generate_pdf_page_images(self, file_path: str, file_id: str) -> List[str]:
+        """Execute generate_pdf_page_images.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         return self._pdf_asset_runtime.generate_pdf_page_images(file_path=file_path, file_id=file_id)
 
     def extract_pdf_region_image(self, file_path: str, page_number: int, region: Optional[List[float]]=None, dpi: int=300) -> bytes:
+        """Execute extract_pdf_region_image.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         return self._pdf_asset_runtime.extract_pdf_region_image(file_path=file_path, page_number=page_number, region=region, dpi=dpi)
 
     def parse_annotation_to_dataframe(self, annotation: object, vertical_tolerance: int=5) -> pd.DataFrame:
+        """Execute parse_annotation_to_dataframe.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         return self._pdf_asset_runtime.parse_annotation_to_dataframe(annotation=annotation, vertical_tolerance=vertical_tolerance)
 class PdfProcessingRuntime:
     """Runtime OO para dependencias de processamento e preview de PDF."""
     RUNTIME_FIELDS = ('pdf_ingestion_runtime', 'pdf_preview_runtime', 'preview_dispatch_runtime', 'extract_data_from_pdf_region', 'ocr_runtime_state')
 
     def __init__(self, *, pdf_ingestion_runtime: Optional[Any]=None, pdf_preview_runtime: Optional[Any]=None, preview_dispatch_runtime: Optional[Any]=None, extract_data_from_pdf_region: Optional[Any]=None, ocr_runtime_state: Optional[OcrRuntimeState]=None) -> None:
+        """Execute __init__.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         self.pdf_ingestion_runtime = pdf_ingestion_runtime or PdfIngestionRuntime()
         self.pdf_preview_runtime = pdf_preview_runtime or PdfPreviewRuntime()
         self.preview_dispatch_runtime = preview_dispatch_runtime or PreviewDispatchRuntime()
@@ -1728,6 +2158,10 @@ class PdfProcessingRuntime:
         )
 
     def apply_overrides(self, runtime: Any) -> 'PdfProcessingRuntime':
+        """Execute apply_overrides.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         for field_name in self.RUNTIME_FIELDS:
             setattr(self, field_name, getattr(runtime, field_name, getattr(self, field_name)))
         return self
@@ -1736,6 +2170,10 @@ class PdfProcessingWorkflow:
     """Workflow OO para processamento e preview de PDF."""
 
     def __init__(self, runtime: Optional[Any]=None, pdf_ingestion_runtime: Optional[Any]=None, pdf_preview_runtime: Optional[Any]=None, preview_dispatch_runtime: Optional[Any]=None) -> None:
+        """Execute __init__.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         runtime_obj = PdfProcessingRuntime(pdf_ingestion_runtime=pdf_ingestion_runtime, pdf_preview_runtime=pdf_preview_runtime, preview_dispatch_runtime=preview_dispatch_runtime)
         if runtime is not None:
             runtime_obj.apply_overrides(runtime)
@@ -1746,39 +2184,83 @@ class PdfProcessingWorkflow:
         self._preview_dispatch_runtime = runtime_obj.preview_dispatch_runtime
 
     async def processar_arquivo_pdf(self, conteudo_arquivo: bytes, mapeamento_colunas_usuario: Optional[Dict[str, str]]=None, usar_llm: bool=True, product_type_id: Optional[int]=None, pages: Optional[List[int]]=None, region: Optional[List[float]]=None) -> List[Dict[str, Any]]:
+        """Execute processar_arquivo_pdf.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         return await self._pdf_ingestion_runtime.processar_arquivo_pdf(conteudo_arquivo=conteudo_arquivo, mapeamento_colunas_usuario=mapeamento_colunas_usuario, usar_llm=usar_llm, product_type_id=product_type_id, pages=pages, region=region)
 
     async def preview_arquivo_pdf(self, conteudo_arquivo: bytes, ext: str, start_page: int=1, page_count: int=1, dpi: int=72) -> Dict[str, Any]:
+        """Execute preview_arquivo_pdf.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         return await self._pdf_preview_runtime.preview_arquivo_pdf(conteudo_arquivo=conteudo_arquivo, ext=ext, start_page=start_page, page_count=page_count, dpi=dpi)
 
     async def gerar_preview(self, conteudo_arquivo: bytes, ext: str, max_rows: int=5) -> Dict[str, Any]:
+        """Execute gerar_preview.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         return await self._preview_dispatch_runtime.gerar_preview(conteudo_arquivo=conteudo_arquivo, ext=ext, max_rows=max_rows)
 
     def extract_data_from_pdf_region(self, file_path: str, page_number: int, region: Optional[List[float]]=None) -> pd.DataFrame:
+        """Execute extract_data_from_pdf_region.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         return self._extract_data_from_pdf_region(file_path=file_path, page_number=page_number, region=region)
 class PdfJobWorkflow:
     """Workflow OO para processamento assÃƒÆ’Ã‚\xadncrono de jobs de PDF."""
 
     def __init__(self, runtime: Optional['PdfJobRuntime']=None) -> None:
+        """Execute __init__.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         self._runtime = runtime or PdfJobRuntime()
 
     async def process_pdf_job(self, job_id: int, pdf_path: str, start_page: int=1, mapping: Optional[Dict[str, str]]=None) -> None:
+        """Execute process_pdf_job.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         await self._runtime.process_pdf_job(job_id=job_id, pdf_path=pdf_path, start_page=start_page, mapping=mapping)
 
     def extract_data_from_single_page(self, file_path: str, page_number: int) -> Dict[str, Any]:
+        """Execute extract_data_from_single_page.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         return self._runtime.extract_data_from_single_page(file_path=file_path, page_number=page_number)
 
 class PdfJobRuntime:
 
+    """Class PdfJobRuntime.
+
+    Encapsulates one responsibility in the backend architecture.
+    """
     async def process_pdf_job(self, job_id: int, pdf_path: str, start_page: int=1, mapping: Optional[Dict[str, str]]=None) -> None:
+        """Execute process_pdf_job.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         await _FileProcessingImplementation._process_pdf_job_impl(job_id=job_id, pdf_path=pdf_path, start_page=start_page, mapping=mapping)
 
     def extract_data_from_single_page(self, file_path: str, page_number: int) -> Dict[str, Any]:
+        """Execute extract_data_from_single_page.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         return _FileProcessingImplementation._extract_data_from_single_page_impl(file_path=file_path, page_number=page_number)
 class FileProcessingRuntime:
     """Composicao OO para fluxos de processamento de arquivo sem estado global."""
 
     def __init__(self, *, catalog_storage_workflow: Optional[CatalogStorageWorkflow]=None, line_mapping_workflow: Optional[LineMappingWorkflow]=None, tabular_ingestion_workflow: Optional[TabularIngestionWorkflow]=None, tabular_preview_workflow: Optional[TabularPreviewWorkflow]=None, pdf_asset_workflow: Optional[PdfAssetWorkflow]=None, pdf_processing_workflow: Optional[PdfProcessingWorkflow]=None, pdf_job_workflow: Optional[PdfJobWorkflow]=None) -> None:
+        """Execute __init__.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         self._catalog_storage = catalog_storage_workflow or CatalogStorageWorkflow()
         self._line_mapping = line_mapping_workflow or LineMappingWorkflow()
         self._tabular_ingestion = tabular_ingestion_workflow or TabularIngestionWorkflow()
@@ -1792,15 +2274,27 @@ class FileProcessingRuntime:
         file: UploadFile,
         fornecedor_id: Optional[int] = None,
     ) -> models.CatalogImportFile:
+        """Execute save_uploaded_catalog.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         return await self._catalog_storage.save_uploaded_catalog(
             file=file,
             fornecedor_id=fornecedor_id,
         )
 
     def delete_catalog_file(self, stored_filename: str) -> None:
+        """Execute delete_catalog_file.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         return self._catalog_storage.delete_catalog_file(stored_filename=stored_filename)
 
     def get_file_path_by_id(self, db: Session, file_id: str | int) -> str:
+        """Execute get_file_path_by_id.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         return self._catalog_storage.get_file_path_by_id(db=db, file_id=file_id)
 
     async def processar_arquivo_excel(
@@ -1810,6 +2304,10 @@ class FileProcessingRuntime:
         sheet_name: Optional[str] = None,
         product_type_id: Optional[int] = None,
     ) -> List[Dict[str, Any]]:
+        """Execute processar_arquivo_excel.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         return await self._tabular_ingestion.processar_arquivo_excel(
             conteudo_arquivo=conteudo_arquivo,
             mapeamento_colunas_usuario=mapeamento_colunas_usuario,
@@ -1823,6 +2321,10 @@ class FileProcessingRuntime:
         mapeamento_colunas_usuario: Optional[Dict[str, str]] = None,
         product_type_id: Optional[int] = None,
     ) -> List[Dict[str, Any]]:
+        """Execute processar_arquivo_csv.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         return await self._tabular_ingestion.processar_arquivo_csv(
             conteudo_arquivo=conteudo_arquivo,
             mapeamento_colunas_usuario=mapeamento_colunas_usuario,
@@ -1838,6 +2340,10 @@ class FileProcessingRuntime:
         pages: Optional[List[int]] = None,
         region: Optional[List[float]] = None,
     ) -> List[Dict[str, Any]]:
+        """Execute processar_arquivo_pdf.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         return await self._pdf_processing.processar_arquivo_pdf(
             conteudo_arquivo=conteudo_arquivo,
             mapeamento_colunas_usuario=mapeamento_colunas_usuario,
@@ -1852,6 +2358,10 @@ class FileProcessingRuntime:
         conteudo_arquivo: bytes,
         max_rows: int = 5,
     ) -> Dict[str, Any]:
+        """Execute preview_arquivo_excel.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         return await self._tabular_preview.preview_arquivo_excel(
             conteudo_arquivo=conteudo_arquivo,
             max_rows=max_rows,
@@ -1862,6 +2372,10 @@ class FileProcessingRuntime:
         conteudo_arquivo: bytes,
         max_rows: int = 5,
     ) -> Dict[str, Any]:
+        """Execute preview_arquivo_csv.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         return await self._tabular_preview.preview_arquivo_csv(
             conteudo_arquivo=conteudo_arquivo,
             max_rows=max_rows,
@@ -1875,6 +2389,10 @@ class FileProcessingRuntime:
         page_count: int = 1,
         dpi: int = 72,
     ) -> Dict[str, Any]:
+        """Execute preview_arquivo_pdf.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         return await self._pdf_processing.preview_arquivo_pdf(
             conteudo_arquivo=conteudo_arquivo,
             ext=ext,
@@ -1889,6 +2407,10 @@ class FileProcessingRuntime:
         ext: str,
         max_rows: int = 5,
     ) -> Dict[str, Any]:
+        """Execute gerar_preview.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         return await self._pdf_processing.gerar_preview(
             conteudo_arquivo=conteudo_arquivo,
             ext=ext,
@@ -1902,6 +2424,10 @@ class FileProcessingRuntime:
         start_page: int = 1,
         dpi: int = 200,
     ) -> List[str]:
+        """Execute pdf_bytes_to_images.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         return await self._pdf_asset.pdf_bytes_to_images(
             conteudo_arquivo=conteudo_arquivo,
             max_pages=max_pages,
@@ -1918,6 +2444,10 @@ class FileProcessingRuntime:
         offset: int,
         limit: int,
     ) -> Dict[str, Any]:
+        """Execute pdf_pages_to_images.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         return self._pdf_asset.pdf_pages_to_images(
             db=db,
             file=file,
@@ -1933,6 +2463,10 @@ class FileProcessingRuntime:
         page_number: int,
         region: Optional[List[float]] = None,
     ) -> Dict[str, Any]:
+        """Execute extrair_pagina_pdf.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         return await self._pdf_asset.extrair_pagina_pdf(
             conteudo_pdf=conteudo_pdf,
             page_number=page_number,
@@ -1940,6 +2474,10 @@ class FileProcessingRuntime:
         )
 
     def generate_pdf_page_images(self, file_path: str, file_id: str) -> List[str]:
+        """Execute generate_pdf_page_images.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         return self._pdf_asset.generate_pdf_page_images(file_path=file_path, file_id=file_id)
 
     def extract_pdf_region_image(
@@ -1949,6 +2487,10 @@ class FileProcessingRuntime:
         region: Optional[List[float]] = None,
         dpi: int = 300,
     ) -> bytes:
+        """Execute extract_pdf_region_image.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         return self._pdf_asset.extract_pdf_region_image(
             file_path=file_path,
             page_number=page_number,
@@ -1961,6 +2503,10 @@ class FileProcessingRuntime:
         annotation: object,
         vertical_tolerance: int = 5,
     ) -> pd.DataFrame:
+        """Execute parse_annotation_to_dataframe.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         return self._pdf_asset.parse_annotation_to_dataframe(
             annotation=annotation,
             vertical_tolerance=vertical_tolerance,
@@ -1972,6 +2518,10 @@ class FileProcessingRuntime:
         page_number: int,
         region: Optional[List[float]] = None,
     ) -> pd.DataFrame:
+        """Execute extract_data_from_pdf_region.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         return self._pdf_processing.extract_data_from_pdf_region(
             file_path=file_path,
             page_number=page_number,
@@ -1985,6 +2535,10 @@ class FileProcessingRuntime:
         start_page: int = 1,
         mapping: Optional[Dict[str, str]] = None,
     ) -> None:
+        """Execute process_pdf_job.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         return await self._pdf_job.process_pdf_job(
             job_id=job_id,
             pdf_path=pdf_path,
@@ -1997,6 +2551,10 @@ class FileProcessingRuntime:
         file_path: str,
         page_number: int,
     ) -> Dict[str, Any]:
+        """Execute extract_data_from_single_page.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         return self._pdf_job.extract_data_from_single_page(
             file_path=file_path,
             page_number=page_number,
@@ -2007,6 +2565,10 @@ class FileProcessingRuntime:
         linha_original: Dict[str, Any],
         mapeamento_colunas_usuario: Optional[Dict[str, str]] = None,
     ) -> Optional[Dict[str, Any]]:
+        """Execute processar_linha_padronizada.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         return self._line_mapping.processar_linha_padronizada(
             linha_original=linha_original,
             mapeamento_colunas_usuario=mapeamento_colunas_usuario,

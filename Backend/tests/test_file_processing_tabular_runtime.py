@@ -1,4 +1,10 @@
-﻿import io
+"""Module test file processing tabular runtime.
+
+This module contains backend application/runtime logic and is fully
+documented for maintainability and onboarding.
+"""
+
+import io
 
 import pandas as pd
 import pytest
@@ -8,8 +14,16 @@ from Backend.testing.runtime_apis import file_processing
 
 class _TopLevelFunctionSurface:
 
+    """Class _TopLevelFunctionSurface.
+
+    Encapsulates one responsibility in the backend architecture.
+    """
     @pytest.mark.asyncio
     async def test_tabular_runtime_processa_csv_com_delimitador_semicolon():
+        """Execute test_tabular_runtime_processa_csv_com_delimitador_semicolon.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         runtime = file_processing.TabularIngestionRuntime()
         csv_bytes = (
             "col_0;col_1\n"
@@ -30,6 +44,10 @@ class _TopLevelFunctionSurface:
 
     @pytest.mark.asyncio
     async def test_tabular_runtime_processa_excel_com_sheet_especifica():
+        """Execute test_tabular_runtime_processa_excel_com_sheet_especifica.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         runtime = file_processing.TabularIngestionRuntime()
     
         buffer = io.BytesIO()

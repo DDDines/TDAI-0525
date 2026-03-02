@@ -18,10 +18,18 @@ class ProductTypeRepository:
     """Repository OO de tipos de produto com Session vinculada por request."""
 
     def __init__(self, db: Session) -> None:
+        """Execute __init__.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         self._db = db
 
     @staticmethod
     def _apply_product_type_search(query, search: Optional[str]):
+        """Execute _apply_product_type_search.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         if not search:
             return query
         search_term = f"%{search.lower()}%"
@@ -39,6 +47,10 @@ class ProductTypeRepository:
         product_type_create: schemas.ProductTypeCreate,
         user_id: Optional[int] = None,
     ) -> ProductType:
+        """Execute create_product_type.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         existing_query = self._db.query(ProductType).filter(
             func.lower(ProductType.key_name) == func.lower(product_type_create.key_name)
         )
@@ -85,6 +97,10 @@ class ProductTypeRepository:
         return db_product_type
 
     def get_product_type(self, *, product_type_id: int) -> Optional[ProductType]:
+        """Execute get_product_type.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         return (
             self._db.query(ProductType)
             .options(selectinload(ProductType.attribute_templates))
@@ -98,6 +114,10 @@ class ProductTypeRepository:
         key_name: str,
         user_id: Optional[int] = None,
     ) -> Optional[ProductType]:
+        """Execute get_product_type_by_key_name.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         query = (
             self._db.query(ProductType)
             .options(selectinload(ProductType.attribute_templates))
@@ -120,6 +140,10 @@ class ProductTypeRepository:
         limit: int = 100,
         search: Optional[str] = None,
     ) -> List[ProductType]:
+        """Execute get_product_types_for_user.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         query = self._db.query(ProductType).options(selectinload(ProductType.attribute_templates))
         if user_id:
             query = query.filter(or_(ProductType.user_id == user_id, ProductType.user_id.is_(None)))
@@ -135,6 +159,10 @@ class ProductTypeRepository:
         )
 
     def count_product_types_for_user(self, *, user_id: Optional[int], search: Optional[str] = None) -> int:
+        """Execute count_product_types_for_user.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         query = self._db.query(func.count(ProductType.id))
         if user_id:
             query = query.filter(or_(ProductType.user_id == user_id, ProductType.user_id.is_(None)))
@@ -151,6 +179,10 @@ class ProductTypeRepository:
         db_product_type: ProductType,
         product_type_update: schemas.ProductTypeUpdate,
     ) -> ProductType:
+        """Execute update_product_type.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         update_data = product_type_update.model_dump(exclude_unset=True)
 
         if "key_name" in update_data and update_data["key_name"] != db_product_type.key_name:
@@ -181,6 +213,10 @@ class ProductTypeRepository:
         return db_product_type
 
     def delete_product_type(self, *, db_product_type: ProductType) -> ProductType:
+        """Execute delete_product_type.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         associated_products = (
             self._db.query(Produto).filter(Produto.product_type_id == db_product_type.id).count()
         )
@@ -204,6 +240,10 @@ class ProductTypeRepository:
         attr_template_create: schemas.AttributeTemplateCreate,
         product_type_id: int,
     ) -> AttributeTemplate:
+        """Execute create_attribute_template.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         existing_attribute = (
             self._db.query(AttributeTemplate)
             .filter(
@@ -232,6 +272,10 @@ class ProductTypeRepository:
         return db_attr_template
 
     def get_attribute_template(self, *, attribute_template_id: int) -> Optional[AttributeTemplate]:
+        """Execute get_attribute_template.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         return (
             self._db.query(AttributeTemplate)
             .filter(AttributeTemplate.id == attribute_template_id)
@@ -244,6 +288,10 @@ class ProductTypeRepository:
         db_attr_template: AttributeTemplate,
         attr_template_update: schemas.AttributeTemplateUpdate,
     ) -> AttributeTemplate:
+        """Execute update_attribute_template.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         update_data = attr_template_update.model_dump(exclude_unset=True)
 
         if "attribute_key" in update_data and update_data["attribute_key"] != db_attr_template.attribute_key:
@@ -273,11 +321,19 @@ class ProductTypeRepository:
         return db_attr_template
 
     def delete_attribute_template(self, *, db_attr_template: AttributeTemplate) -> AttributeTemplate:
+        """Execute delete_attribute_template.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         self._db.delete(db_attr_template)
         self._db.commit()
         return db_attr_template
 
     def reorder_attribute_template(self, *, attribute_id: int, direction: str) -> Optional[AttributeTemplate]:
+        """Execute reorder_attribute_template.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         attr_to_move = self.get_attribute_template(attribute_template_id=attribute_id)
         if not attr_to_move:
             return None

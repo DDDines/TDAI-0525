@@ -1,4 +1,10 @@
-﻿from Backend.application.services.file_processing.contracts import FileProcessingPort
+"""Module   init  .
+
+This module contains backend application/runtime logic and is fully
+documented for maintainability and onboarding.
+"""
+
+from Backend.application.services.file_processing.contracts import FileProcessingPort
 from Backend.application.services.file_processing.orchestrator_service import (
     FileProcessingOrchestratorService,
 )

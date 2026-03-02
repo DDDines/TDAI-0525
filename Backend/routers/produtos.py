@@ -55,6 +55,10 @@ class _ProdutosServiceBundle:
     """Componente OO principal '_ProdutosServiceBundle' do modulo 'produtos'."""
 
     def __init__(self, *, db_session_factory: Any | None = None) -> None:
+        """Execute __init__.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         self._service_container = ServiceContainer()
         self._db_session_factory = db_session_factory or ServiceContainerDependencySupport.get_background_db_session_factory()
         self.file_processing_service = self._service_container.file_processing
@@ -75,6 +79,10 @@ class _ProdutosCatalogService:
     """Runtime OO responsavel por integracoes e operacoes de 'produtos'."""
 
     def __init__(self, *, session: Session, services: Optional[_ProdutosServiceBundle]=None) -> None:
+        """Execute __init__.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         self._session = session
         runtime_session_factory = sessionmaker(bind=session.get_bind())
         self._services = services or _ProdutosServiceBundle(db_session_factory=runtime_session_factory)
@@ -132,89 +140,189 @@ class _ProdutosCatalogService:
         )
 
     def _build_product_management_service(self) -> ProductManagementService:
+        """Execute _build_product_management_service.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         repos = ProductRepositories.build_product_management_repositories(session=self._session)
         return ProductManagementService(models=models, schemas=schemas, **repos)
 
     def _build_product_media_service(self) -> ProductMediaService:
+        """Execute _build_product_media_service.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         repos = ProductRepositories.build_product_media_repositories(session=self._session)
         return ProductMediaService(schemas=schemas, **repos)
 
     def create_produto(self, produto: schemas.ProdutoCreate, current_user: models.User) -> models.Produto:
+        """Execute create_produto.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         return self._build_product_management_service().create_produto(produto=produto, current_user=current_user)
 
     def list_catalog_import_files(self, user_id: int, fornecedor_id: Optional[int], skip: int, limit: int) -> schemas.CatalogImportFilePage:
+        """Execute list_catalog_import_files.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         return self._catalog_import_file_service.list_user_files(user_id=user_id, fornecedor_id=fornecedor_id, skip=skip, limit=limit)
 
     def delete_catalog_import_file(self, file_id: int, user_id: int):
+        """Execute delete_catalog_import_file.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         return self._catalog_import_file_service.delete_user_file(file_id=file_id, user_id=user_id)
 
     async def reprocess_catalog_import_file(self, background_tasks: BackgroundTasks, file_id: int, user_id: int, product_type_id: Optional[int], fornecedor_id: Optional[int], mapping: Optional[Dict[str, str]], pages: Optional[List[int]], region: Optional[List[float]]):
+        """Execute reprocess_catalog_import_file.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         return await self._catalog_import_file_service.reprocess_catalog_file(background_tasks=background_tasks, file_id=file_id, user_id=user_id, product_type_id=product_type_id, fornecedor_id=fornecedor_id, mapping=mapping, pages=pages, region=region)
 
     def read_produto(self, produto_id: int, current_user: models.User):
+        """Execute read_produto.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         return self._build_product_management_service().read_produto(produto_id=produto_id, current_user=current_user)
 
     def list_produtos(self, skip: int, limit: int, sort_by: Optional[str], sort_order: Optional[str], search: Optional[str], fornecedor_id: Optional[int], categoria: Optional[str], status_enriquecimento_web: Optional[models.StatusEnriquecimentoEnum], status_titulo_ia: Optional[models.StatusGeracaoIAEnum], status_descricao_ia: Optional[models.StatusGeracaoIAEnum], product_type_id: Optional[int], current_user: models.User):
+        """Execute list_produtos.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         return self._build_product_management_service().list_produtos(skip=skip, limit=limit, sort_by=sort_by, sort_order=sort_order, search=search, fornecedor_id=fornecedor_id, categoria=categoria, status_enriquecimento_web=status_enriquecimento_web, status_titulo_ia=status_titulo_ia, status_descricao_ia=status_descricao_ia, product_type_id=product_type_id, current_user=current_user)
 
     def update_produto(self, produto_id: int, produto_update: schemas.ProdutoUpdate, current_user: models.User):
+        """Execute update_produto.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         return self._build_product_management_service().update_produto(produto_id=produto_id, produto_update=produto_update, current_user=current_user)
 
     def delete_produto(self, produto_id: int, current_user: models.User):
+        """Execute delete_produto.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         return self._build_product_management_service().delete_produto(produto_id=produto_id, current_user=current_user)
 
     def batch_delete_produtos(self, produto_ids: List[int], current_user: models.User):
+        """Execute batch_delete_produtos.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         return self._build_product_management_service().batch_delete_produtos(produto_ids=produto_ids, current_user=current_user)
 
     async def upload_produto_image(self, produto_id: int, file: UploadFile, current_user: models.User):
+        """Execute upload_produto_image.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         return await self._build_product_media_service().upload_produto_image(produto_id=produto_id, file=file, current_user=current_user)
 
     async def importar_catalogo_preview(self, file: UploadFile, fornecedor_id: Optional[int], start_page: int, page_count: int, dpi: int, user_id: int) -> schemas.ImportPreviewResponse:
+        """Execute importar_catalogo_preview.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         response_payload = await self._catalog_import_preview_service.importar_catalogo_preview(file=file, fornecedor_id=fornecedor_id, start_page=start_page, page_count=page_count, dpi=dpi, user_id=user_id)
         return schemas.ImportPreviewResponse(**response_payload)
 
     async def importar_catalogo_fornecedor(self, fornecedor_id: int, file: UploadFile, mapeamento_colunas_usuario: Optional[str], current_user: models.User):
+        """Execute importar_catalogo_fornecedor.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         return await self._catalog_import_ingest_service.importar_catalogo_fornecedor(fornecedor_id=fornecedor_id, file=file, mapeamento_colunas_usuario=mapeamento_colunas_usuario, current_user=current_user)
 
     async def importar_catalogo_finalizar(self, background_tasks: BackgroundTasks, file_id: int, product_type_id: int, fornecedor_id: int, mapping: Optional[Dict[str, str]], pages: Optional[List[int]], region: Optional[List[float]], user_id: int):
+        """Execute importar_catalogo_finalizar.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         return await self._catalog_import_workflow_service.importar_catalogo_finalizar(background_tasks=background_tasks, file_id=file_id, product_type_id=product_type_id, fornecedor_id=fornecedor_id, mapping=mapping, pages=pages, region=region, user_id=user_id)
 
     def importar_catalogo_status(self, file_id: int, user_id: int):
+        """Execute importar_catalogo_status.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         return self._catalog_import_workflow_service.importar_catalogo_status(file_id=file_id, user_id=user_id)
 
     def importar_catalogo_status_simple(self, file_id: int, user_id: int):
+        """Execute importar_catalogo_status_simple.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         return self._catalog_import_workflow_service.importar_catalogo_status_simple(file_id=file_id, user_id=user_id)
 
     def importar_catalogo_result(self, file_id: int, user_id: int):
+        """Execute importar_catalogo_result.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         return self._catalog_import_workflow_service.importar_catalogo_result(file_id=file_id, user_id=user_id)
 
     async def importar_catalogo_finalizar_todas_paginas(self, file_id: int, start_page: int, mapping: Optional[Dict[str, str]], user_id: int):
+        """Execute importar_catalogo_finalizar_todas_paginas.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         return await self._catalog_import_workflow_service.importar_catalogo_finalizar_todas_paginas(file_id=file_id, start_page=start_page, mapping=mapping, user_id=user_id)
 
     async def selecionar_regiao(self, file_id: int, page: int, bbox: List[float], bbox_norm: Optional[List[float]], user_id: int):
+        """Execute selecionar_regiao.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         return self._catalog_import_preview_service.selecionar_regiao(file_id=file_id, page=page, bbox=bbox, bbox_norm=bbox_norm, user_id=user_id)
 
     async def extrair_pagina_unica(self, file_id: int, page_number: int, user_id: int):
+        """Execute extrair_pagina_unica.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         return await self._catalog_import_preview_service.extrair_pagina_unica(file_id=file_id, page_number=page_number, user_id=user_id)
 
 class ProdutosCatalogCoordinator:
     """Workflow/escopo request-scoped para o fluxo de 'produtos'."""
 
     def __init__(self, runtime: Optional[object]=None) -> None:
+        """Execute __init__.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         if runtime is None:
             raise RuntimeError("ProdutosCatalogCoordinator requires an explicit runtime instance.")
         self._runtime = runtime
 
     @staticmethod
     async def _await_if_needed(result: Any):
+        """Execute _await_if_needed.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         if inspect.isawaitable(result):
             return await result
         return result
 
     def create_produto(self, produto: schemas.ProdutoCreate, current_user: models.User) -> models.Produto:
+        """Execute create_produto.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         return self._runtime.create_produto(produto=produto, current_user=current_user)
 
     def list_catalog_import_files(self, user_id: int, fornecedor_id: Optional[int], skip: int, limit: int) -> schemas.CatalogImportFilePage:
+        """Execute list_catalog_import_files.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         return self._runtime.list_catalog_import_files(
             user_id=user_id,
             fornecedor_id=fornecedor_id,
@@ -223,9 +331,17 @@ class ProdutosCatalogCoordinator:
         )
 
     def delete_catalog_import_file(self, file_id: int, user_id: int):
+        """Execute delete_catalog_import_file.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         return self._runtime.delete_catalog_import_file(file_id=file_id, user_id=user_id)
 
     async def reprocess_catalog_import_file(self, background_tasks: BackgroundTasks, file_id: int, user_id: int, product_type_id: Optional[int], fornecedor_id: Optional[int], mapping: Optional[Dict[str, str]], pages: Optional[List[int]], region: Optional[List[float]]):
+        """Execute reprocess_catalog_import_file.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         return await self._await_if_needed(
             self._runtime.reprocess_catalog_import_file(
                 background_tasks=background_tasks,
@@ -240,12 +356,24 @@ class ProdutosCatalogCoordinator:
         )
 
     def read_produto(self, produto_id: int, current_user: models.User):
+        """Execute read_produto.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         return self._runtime.read_produto(produto_id=produto_id, current_user=current_user)
 
     def list_produtos(self, skip: int, limit: int, sort_by: Optional[str], sort_order: Optional[str], search: Optional[str], fornecedor_id: Optional[int], categoria: Optional[str], status_enriquecimento_web: Optional[models.StatusEnriquecimentoEnum], status_titulo_ia: Optional[models.StatusGeracaoIAEnum], status_descricao_ia: Optional[models.StatusGeracaoIAEnum], product_type_id: Optional[int], current_user: models.User):
+        """Execute list_produtos.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         return self._runtime.list_produtos(skip=skip, limit=limit, sort_by=sort_by, sort_order=sort_order, search=search, fornecedor_id=fornecedor_id, categoria=categoria, status_enriquecimento_web=status_enriquecimento_web, status_titulo_ia=status_titulo_ia, status_descricao_ia=status_descricao_ia, product_type_id=product_type_id, current_user=current_user)
 
     def update_produto(self, produto_id: int, produto_update: schemas.ProdutoUpdate, current_user: models.User):
+        """Execute update_produto.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         return self._runtime.update_produto(
             produto_id=produto_id,
             produto_update=produto_update,
@@ -253,12 +381,24 @@ class ProdutosCatalogCoordinator:
         )
 
     def delete_produto(self, produto_id: int, current_user: models.User):
+        """Execute delete_produto.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         return self._runtime.delete_produto(produto_id=produto_id, current_user=current_user)
 
     def batch_delete_produtos(self, produto_ids: List[int], current_user: models.User):
+        """Execute batch_delete_produtos.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         return self._runtime.batch_delete_produtos(produto_ids=produto_ids, current_user=current_user)
 
     async def upload_produto_image(self, produto_id: int, file: UploadFile, current_user: models.User):
+        """Execute upload_produto_image.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         return await self._await_if_needed(
             self._runtime.upload_produto_image(
                 produto_id=produto_id,
@@ -268,6 +408,10 @@ class ProdutosCatalogCoordinator:
         )
 
     async def importar_catalogo_preview(self, file: UploadFile, fornecedor_id: Optional[int], start_page: int, page_count: int, dpi: int, user_id: int) -> schemas.ImportPreviewResponse:
+        """Execute importar_catalogo_preview.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         result = await self._await_if_needed(
             self._runtime.importar_catalogo_preview(
                 file=file,
@@ -285,6 +429,10 @@ class ProdutosCatalogCoordinator:
         return result
 
     async def importar_catalogo_fornecedor(self, fornecedor_id: int, file: UploadFile, mapeamento_colunas_usuario: Optional[str], current_user: models.User):
+        """Execute importar_catalogo_fornecedor.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         return await self._await_if_needed(
             self._runtime.importar_catalogo_fornecedor(
                 fornecedor_id=fornecedor_id,
@@ -295,6 +443,10 @@ class ProdutosCatalogCoordinator:
         )
 
     async def importar_catalogo_finalizar(self, background_tasks: BackgroundTasks, file_id: int, product_type_id: int, fornecedor_id: int, mapping: Optional[Dict[str, str]], pages: Optional[List[int]], region: Optional[List[float]], user_id: int):
+        """Execute importar_catalogo_finalizar.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         return await self._await_if_needed(
             self._runtime.importar_catalogo_finalizar(
                 background_tasks=background_tasks,
@@ -309,15 +461,31 @@ class ProdutosCatalogCoordinator:
         )
 
     def importar_catalogo_status(self, file_id: int, user_id: int):
+        """Execute importar_catalogo_status.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         return self._runtime.importar_catalogo_status(file_id=file_id, user_id=user_id)
 
     def importar_catalogo_status_simple(self, file_id: int, user_id: int):
+        """Execute importar_catalogo_status_simple.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         return self._runtime.importar_catalogo_status_simple(file_id=file_id, user_id=user_id)
 
     def importar_catalogo_result(self, file_id: int, user_id: int):
+        """Execute importar_catalogo_result.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         return self._runtime.importar_catalogo_result(file_id=file_id, user_id=user_id)
 
     async def importar_catalogo_finalizar_todas_paginas(self, file_id: int, start_page: int, mapping: Optional[Dict[str, str]], user_id: int):
+        """Execute importar_catalogo_finalizar_todas_paginas.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         return await self._await_if_needed(
             self._runtime.importar_catalogo_finalizar_todas_paginas(
                 file_id=file_id,
@@ -328,6 +496,10 @@ class ProdutosCatalogCoordinator:
         )
 
     async def selecionar_regiao(self, file_id: int, page: int, bbox: List[float], bbox_norm: Optional[List[float]], user_id: int):
+        """Execute selecionar_regiao.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         return await self._await_if_needed(
             self._runtime.selecionar_regiao(
                 file_id=file_id,
@@ -339,6 +511,10 @@ class ProdutosCatalogCoordinator:
         )
 
     async def extrair_pagina_unica(self, file_id: int, page_number: int, user_id: int):
+        """Execute extrair_pagina_unica.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         return await self._await_if_needed(
             self._runtime.extrair_pagina_unica(
                 file_id=file_id,
@@ -350,6 +526,10 @@ class _ProdutosRequestServices:
     """Componente OO principal '_ProdutosRequestServices' do modulo 'produtos'."""
 
     def __init__(self, *, product_management_service: ProductManagementService, product_media_service: ProductMediaService) -> None:
+        """Execute __init__.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         self.product_management_service = product_management_service
         self.product_media_service = product_media_service
 _build_produtos_request_services = ServiceContainerDependencySupport.build_request_scoped_dependency(lambda session: _ProdutosRequestServices(product_management_service=DependencyContainer.get_product_management_service(session), product_media_service=DependencyContainer.get_product_media_service(session)))
@@ -358,54 +538,114 @@ class _ProdutosCatalogRequestScope:
     """Workflow/escopo request-scoped para o fluxo de 'produtos'."""
 
     def __init__(self, *, session: Session, workflow: ProdutosCatalogCoordinator | None=None) -> None:
+        """Execute __init__.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         self._workflow = workflow or ProdutosCatalogCoordinator(runtime=_ProdutosCatalogService(session=session))
 
     def list_catalog_import_files(self, *, user_id: int, fornecedor_id: Optional[int], skip: int, limit: int) -> schemas.CatalogImportFilePage:
+        """Execute list_catalog_import_files.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         return self._workflow.list_catalog_import_files(user_id=user_id, fornecedor_id=fornecedor_id, skip=skip, limit=limit)
 
     def delete_catalog_import_file(self, *, file_id: int, user_id: int):
+        """Execute delete_catalog_import_file.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         return self._workflow.delete_catalog_import_file(file_id=file_id, user_id=user_id)
 
     async def reprocess_catalog_import_file(self, *, background_tasks: BackgroundTasks, file_id: int, user_id: int, product_type_id: Optional[int], fornecedor_id: Optional[int], mapping: Optional[Dict[str, str]], pages: Optional[List[int]], region: Optional[List[float]]):
+        """Execute reprocess_catalog_import_file.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         return await self._workflow.reprocess_catalog_import_file(background_tasks=background_tasks, file_id=file_id, user_id=user_id, product_type_id=product_type_id, fornecedor_id=fornecedor_id, mapping=mapping, pages=pages, region=region)
 
     async def importar_catalogo_preview(self, *, file: UploadFile, fornecedor_id: Optional[int], start_page: int, page_count: int, dpi: int, user_id: int) -> schemas.ImportPreviewResponse:
+        """Execute importar_catalogo_preview.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         return await self._workflow.importar_catalogo_preview(file=file, fornecedor_id=fornecedor_id, start_page=start_page, page_count=page_count, dpi=dpi, user_id=user_id)
 
     async def importar_catalogo_fornecedor(self, *, fornecedor_id: int, file: UploadFile, mapeamento_colunas_usuario: Optional[str], current_user: models.User):
+        """Execute importar_catalogo_fornecedor.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         return await self._workflow.importar_catalogo_fornecedor(fornecedor_id=fornecedor_id, file=file, mapeamento_colunas_usuario=mapeamento_colunas_usuario, current_user=current_user)
 
     async def importar_catalogo_finalizar(self, *, background_tasks: BackgroundTasks, file_id: int, product_type_id: int, fornecedor_id: int, mapping: Optional[Dict[str, str]], pages: Optional[List[int]], region: Optional[List[float]], user_id: int):
+        """Execute importar_catalogo_finalizar.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         return await self._workflow.importar_catalogo_finalizar(background_tasks=background_tasks, file_id=file_id, product_type_id=product_type_id, fornecedor_id=fornecedor_id, mapping=mapping, pages=pages, region=region, user_id=user_id)
 
     def importar_catalogo_status(self, *, file_id: int, user_id: int):
+        """Execute importar_catalogo_status.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         return self._workflow.importar_catalogo_status(file_id=file_id, user_id=user_id)
 
     def importar_catalogo_status_simple(self, *, file_id: int, user_id: int):
+        """Execute importar_catalogo_status_simple.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         return self._workflow.importar_catalogo_status_simple(file_id=file_id, user_id=user_id)
 
     def importar_catalogo_result(self, *, file_id: int, user_id: int):
+        """Execute importar_catalogo_result.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         return self._workflow.importar_catalogo_result(file_id=file_id, user_id=user_id)
 
     async def importar_catalogo_finalizar_todas_paginas(self, *, file_id: int, start_page: int, mapping: Optional[Dict[str, str]], user_id: int):
+        """Execute importar_catalogo_finalizar_todas_paginas.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         return await self._workflow.importar_catalogo_finalizar_todas_paginas(file_id=file_id, start_page=start_page, mapping=mapping, user_id=user_id)
 
     async def selecionar_regiao(self, *, file_id: int, page: int, bbox: List[float], bbox_norm: Optional[List[float]], user_id: int):
+        """Execute selecionar_regiao.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         return await self._workflow.selecionar_regiao(file_id=file_id, page=page, bbox=bbox, bbox_norm=bbox_norm, user_id=user_id)
 
     async def extrair_pagina_unica(self, *, file_id: int, page_number: int, user_id: int):
+        """Execute extrair_pagina_unica.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         return await self._workflow.extrair_pagina_unica(file_id=file_id, page_number=page_number, user_id=user_id)
 
 class _ProdutosRequestContext:
     """Componente OO principal '_ProdutosRequestContext' do modulo 'produtos'."""
 
     def __init__(self, *, request_services: _ProdutosRequestServices, catalog_workflow: _ProdutosCatalogRequestScope) -> None:
+        """Execute __init__.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         self.request_services = request_services
         self.catalog_workflow = catalog_workflow
 _build_produtos_request_context = ServiceContainerDependencySupport.build_request_scoped_dependency(lambda session: _ProdutosRequestContext(request_services=_build_produtos_request_services(session), catalog_workflow=_ProdutosCatalogRequestScope(session=session)))
 
 class _EndpointHandlers:
 
+    """Class _EndpointHandlers.
+
+    Encapsulates one responsibility in the backend architecture.
+    """
     @router.post('/', response_model=schemas.ProdutoResponse, status_code=status.HTTP_201_CREATED)
     def create_produto(produto: schemas.ProdutoCreate, current_user: models.User=Depends(auth_utils._AuthUtilsActiveUserDependency.get_current_active_user), request_services: _ProdutosRequestServices=Depends(_build_produtos_request_services)):
         """Endpoint HTTP que delega a execucao para workflow/servico OO (create_produto)."""

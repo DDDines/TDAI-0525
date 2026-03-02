@@ -1,9 +1,23 @@
+"""Module test file processing line runtime.
+
+This module contains backend application/runtime logic and is fully
+documented for maintainability and onboarding.
+"""
+
 from Backend.testing.runtime_apis import file_processing
 
 
 class _TopLevelFunctionSurface:
 
+    """Class _TopLevelFunctionSurface.
+
+    Encapsulates one responsibility in the backend architecture.
+    """
     def test_line_runtime_normaliza_mapeamento_invertido():
+        """Execute test_line_runtime_normaliza_mapeamento_invertido.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         runtime = file_processing.LineNormalizationRuntime()
     
         result = runtime.normalizar_mapeamento_usuario(
@@ -22,6 +36,10 @@ class _TopLevelFunctionSurface:
         }
 
     def test_line_runtime_coerce_region_bbox_normalizado():
+        """Execute test_line_runtime_coerce_region_bbox_normalizado.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         runtime = file_processing.LineNormalizationRuntime()
     
         bbox, mode = runtime.coerce_region_bbox([0.1, 0.2, 0.9, 0.8], 1000.0, 500.0)
@@ -30,6 +48,10 @@ class _TopLevelFunctionSurface:
         assert bbox == (100.0, 100.0, 900.0, 400.0)
 
     def test_line_runtime_split_sku_nome_auto_coluna_combinada():
+        """Execute test_line_runtime_split_sku_nome_auto_coluna_combinada.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         runtime = file_processing.LineNormalizationRuntime()
     
         sku, nome = runtime.split_sku_nome_auto("1816D 943 666 39 01 Paralama/Estribo")
@@ -38,6 +60,10 @@ class _TopLevelFunctionSurface:
         assert nome == "Paralama/Estribo"
 
     def test_line_runtime_limpeza_e_conteudo_util():
+        """Execute test_line_runtime_limpeza_e_conteudo_util.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         runtime = file_processing.LineNormalizationRuntime()
     
         assert runtime.limpar_valor_extraido("  #N/A  ") is None
@@ -46,6 +72,10 @@ class _TopLevelFunctionSurface:
         assert runtime.valor_tem_conteudo_util("SMC")
 
     def test_line_mapping_workflow_processa_coluna_auto_sku_nome():
+        """Execute test_line_mapping_workflow_processa_coluna_auto_sku_nome.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         workflow = file_processing.LineMappingWorkflow()
     
         result = workflow.processar_linha_padronizada(
@@ -59,6 +89,10 @@ class _TopLevelFunctionSurface:
         assert result.get("dynamic_attributes", {}).get("material") == "SMC"
 
     def test_line_mapping_workflow_descarta_linha_sem_nome_e_sku_com_mapping_explicito():
+        """Execute test_line_mapping_workflow_descarta_linha_sem_nome_e_sku_com_mapping_explicito.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         workflow = file_processing.LineMappingWorkflow()
     
         result = workflow.processar_linha_padronizada(

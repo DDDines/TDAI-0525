@@ -1,3 +1,9 @@
+"""Module test catalog import sanitization service.
+
+This module contains backend application/runtime logic and is fully
+documented for maintainability and onboarding.
+"""
+
 from Backend.application.services.catalog_import_quality_service import (
     CatalogImportQualityService,
 )
@@ -8,12 +14,24 @@ from Backend.application.services.catalog_import_sanitization_service import (
 
 class _TopLevelFunctionSurface:
 
+    """Class _TopLevelFunctionSurface.
+
+    Encapsulates one responsibility in the backend architecture.
+    """
     def test_normalize_validated_data_parses_json_string():
+        """Execute test_normalize_validated_data_parses_json_string.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         service = CatalogImportSanitizationService(CatalogImportQualityService())
         parsed = service.normalize_validated_data('{"nome_base":"ABC"}', {"nome_base": "fallback"})
         assert parsed["nome_base"] == "ABC"
 
     def test_sanitize_extracted_product_discards_invalid_ean_text():
+        """Execute test_sanitize_extracted_product_discards_invalid_ean_text.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         service = CatalogImportSanitizationService(CatalogImportQualityService())
         sanitized = service.sanitize_extracted_product(
             {
@@ -25,6 +43,10 @@ class _TopLevelFunctionSurface:
         assert sanitized["ean_original"] is None
 
     def test_normalize_import_text_decodes_mojibake_reason():
+        """Execute test_normalize_import_text_decodes_mojibake_reason.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         service = CatalogImportSanitizationService(CatalogImportQualityService())
         raw = "Nenhum dado de produto pÃƒÂ´de ser extraÃƒÂ­do do PDF."
         normalized = service.normalize_import_text(raw)

@@ -1,3 +1,9 @@
+"""Module test catalog import start service.
+
+This module contains backend application/runtime logic and is fully
+documented for maintainability and onboarding.
+"""
+
 from __future__ import annotations
 
 from pathlib import Path
@@ -12,50 +18,110 @@ from Backend.application.services.catalog_import_start_service import (
 
 
 class _FinalizeServiceStub:
+    """Class _FinalizeServiceStub.
+
+    Encapsulates one responsibility in the backend architecture.
+    """
     def __init__(self):
+        """Execute __init__.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         self.calls = []
         self.direct_calls = []
 
     async def dispatch_or_run(self, *, background_tasks, command):
+        """Execute dispatch_or_run.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         self.calls.append((background_tasks, command))
         return {"ok": True}
 
     async def run_direct(self, *, command):
+        """Execute run_direct.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         self.direct_calls.append(command)
         return {"ok": True}
 
 
 class _ModelsStub:
+    """Class _ModelsStub.
+
+    Encapsulates one responsibility in the backend architecture.
+    """
     class CatalogImportFile:
+        """Class CatalogImportFile.
+
+        Encapsulates one responsibility in the backend architecture.
+        """
         pass
 
 
 class _CatalogFileRepoStub:
+    """Class _CatalogFileRepoStub.
+
+    Encapsulates one responsibility in the backend architecture.
+    """
     def __init__(self, record):
+        """Execute __init__.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         self.record = record
         self.updated = []
 
     def get_catalog_file_for_user(self, *, file_id: int, user_id: int):
+        """Execute get_catalog_file_for_user.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         _ = (file_id, user_id)
         return self.record
 
     def update_catalog_file(self, *, catalog_file):
+        """Execute update_catalog_file.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         self.updated.append(catalog_file)
         return catalog_file
 
 
 class _FornecedorRepoStub:
+    """Class _FornecedorRepoStub.
+
+    Encapsulates one responsibility in the backend architecture.
+    """
     def __init__(self, fornecedor=None):
+        """Execute __init__.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         self._fornecedor = fornecedor
 
     def get_fornecedor(self, *, fornecedor_id: int):
+        """Execute get_fornecedor.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         _ = fornecedor_id
         return self._fornecedor
 
 
 class _TopLevelFunctionSurface:
 
+    """Class _TopLevelFunctionSurface.
+
+    Encapsulates one responsibility in the backend architecture.
+    """
     def _build_service(*, upload_dir: str, fornecedor=None, finalize_service=None, record=None):
+        """Execute _build_service.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         catalog_file_repo = _CatalogFileRepoStub(record)
         service = CatalogImportStartService(
             models=_ModelsStub,
@@ -68,6 +134,10 @@ class _TopLevelFunctionSurface:
         return service, catalog_file_repo
 
     def test_get_catalog_file_or_404_success():
+        """Execute test_get_catalog_file_or_404_success.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         record = SimpleNamespace(id=1)
         service, _ = _build_service(upload_dir=".", record=record)
     
@@ -79,6 +149,10 @@ class _TopLevelFunctionSurface:
         assert found is record
 
     def test_get_catalog_file_or_404_not_found():
+        """Execute test_get_catalog_file_or_404_not_found.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         service, _ = _build_service(upload_dir=".", record=None)
     
         with pytest.raises(HTTPException) as exc:
@@ -90,6 +164,10 @@ class _TopLevelFunctionSurface:
         assert exc.value.status_code == 404
 
     def test_resolve_fornecedor_id_fallback_and_required_error():
+        """Execute test_resolve_fornecedor_id_fallback_and_required_error.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         service, _ = _build_service(upload_dir=".")
         record = SimpleNamespace(fornecedor_id=7)
     
@@ -112,6 +190,10 @@ class _TopLevelFunctionSurface:
         assert exc.value.status_code == 400
 
     def test_mark_processing_updates_record_and_commits():
+        """Execute test_mark_processing_updates_record_and_commits.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         service, catalog_file_repo = _build_service(upload_dir=".")
         record = SimpleNamespace(status="DONE", fornecedor_id=None, pages_processed=3, total_pages=8)
     
@@ -128,6 +210,10 @@ class _TopLevelFunctionSurface:
         assert catalog_file_repo.updated == [record]
 
     def test_ensure_catalog_binary_exists(tmp_path):
+        """Execute test_ensure_catalog_binary_exists.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         upload_dir = tmp_path / "uploads"
         (upload_dir / "catalogs").mkdir(parents=True)
         file_path = upload_dir / "catalogs" / "ok.pdf"
@@ -141,6 +227,10 @@ class _TopLevelFunctionSurface:
         assert exc.value.status_code == 404
 
     def test_resolve_pdf_pages_validates_file_presence_and_extension(tmp_path):
+        """Execute test_resolve_pdf_pages_validates_file_presence_and_extension.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         upload_dir = tmp_path / "uploads"
         (upload_dir / "catalogs").mkdir(parents=True)
         service, _ = _build_service(upload_dir=str(upload_dir))
@@ -162,6 +252,10 @@ class _TopLevelFunctionSurface:
         assert exc_ext.value.status_code == 400
 
     def test_resolve_pdf_pages_returns_range_from_start(tmp_path):
+        """Execute test_resolve_pdf_pages_returns_range_from_start.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         upload_dir = tmp_path / "uploads"
         (upload_dir / "catalogs").mkdir(parents=True)
         pdf_file = upload_dir / "catalogs" / "catalogo.pdf"
@@ -178,6 +272,10 @@ class _TopLevelFunctionSurface:
         assert pages == [3, 4, 5]
 
     def test_resolve_mapping_prefers_input_then_default():
+        """Execute test_resolve_mapping_prefers_input_then_default.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         default_mapping = {"col_0": "nome_base"}
         service, _ = _build_service(
             upload_dir=".",
@@ -194,6 +292,10 @@ class _TopLevelFunctionSurface:
 
     @pytest.mark.asyncio
     async def test_dispatch_finalize_calls_finalize_service():
+        """Execute test_dispatch_finalize_calls_finalize_service.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         finalize_service = _FinalizeServiceStub()
         service, _ = _build_service(upload_dir=".", finalize_service=finalize_service)
         command = service.build_finalize_command(
@@ -217,6 +319,10 @@ class _TopLevelFunctionSurface:
 
     @pytest.mark.asyncio
     async def test_run_finalize_direct_calls_finalize_service():
+        """Execute test_run_finalize_direct_calls_finalize_service.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         finalize_service = _FinalizeServiceStub()
         service, _ = _build_service(upload_dir=".", finalize_service=finalize_service)
         command = service.build_finalize_command(

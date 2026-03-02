@@ -1,4 +1,10 @@
-﻿import pandas as pd
+"""Module test file processing pdf asset workflow.
+
+This module contains backend application/runtime logic and is fully
+documented for maintainability and onboarding.
+"""
+
+import pandas as pd
 import pytest
 
 from Backend.testing.runtime_apis import file_processing
@@ -6,23 +12,55 @@ from Backend.testing.runtime_apis import file_processing
 
 class _TopLevelFunctionSurface:
 
+    """Class _TopLevelFunctionSurface.
+
+    Encapsulates one responsibility in the backend architecture.
+    """
     @pytest.mark.asyncio
     async def test_pdf_asset_workflow_usa_runtime_de_conversao():
+        """Execute test_pdf_asset_workflow_usa_runtime_de_conversao.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         called = {}
     
         class FakeImageRuntime:
+            """Class FakeImageRuntime.
+
+            Encapsulates one responsibility in the backend architecture.
+            """
             async def pdf_bytes_to_images(self, **kwargs):
+                """Execute pdf_bytes_to_images.
+
+                This callable is documented to make behavior explicit for readers.
+                """
                 called.update(kwargs)
                 return ["img64"]
     
         class FakeAssetRuntime:
+            """Class FakeAssetRuntime.
+
+            Encapsulates one responsibility in the backend architecture.
+            """
             def generate_pdf_page_images(self, **kwargs):
+                """Execute generate_pdf_page_images.
+
+                This callable is documented to make behavior explicit for readers.
+                """
                 return []
     
             def extract_pdf_region_image(self, **kwargs):
+                """Execute extract_pdf_region_image.
+
+                This callable is documented to make behavior explicit for readers.
+                """
                 return b""
     
             def parse_annotation_to_dataframe(self, **kwargs):
+                """Execute parse_annotation_to_dataframe.
+
+                This callable is documented to make behavior explicit for readers.
+                """
                 return pd.DataFrame()
     
         workflow = file_processing.PdfAssetWorkflow(
@@ -44,24 +82,52 @@ class _TopLevelFunctionSurface:
         assert called["dpi"] == 150
 
     def test_pdf_asset_workflow_usa_runtime_de_assets():
+        """Execute test_pdf_asset_workflow_usa_runtime_de_assets.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         called = {"generate": {}, "extract": {}, "parse": {}}
         expected_df = pd.DataFrame([{"col_1": "ok"}])
     
         class FakeImageRuntime:
+            """Class FakeImageRuntime.
+
+            Encapsulates one responsibility in the backend architecture.
+            """
             async def pdf_bytes_to_images(self, **kwargs):
+                """Execute pdf_bytes_to_images.
+
+                This callable is documented to make behavior explicit for readers.
+                """
                 _ = kwargs
                 return []
     
         class FakeAssetRuntime:
+            """Class FakeAssetRuntime.
+
+            Encapsulates one responsibility in the backend architecture.
+            """
             def generate_pdf_page_images(self, **kwargs):
+                """Execute generate_pdf_page_images.
+
+                This callable is documented to make behavior explicit for readers.
+                """
                 called["generate"].update(kwargs)
                 return ["/static/previews/x/page-1.png"]
     
             def extract_pdf_region_image(self, **kwargs):
+                """Execute extract_pdf_region_image.
+
+                This callable is documented to make behavior explicit for readers.
+                """
                 called["extract"].update(kwargs)
                 return b"img"
     
             def parse_annotation_to_dataframe(self, **kwargs):
+                """Execute parse_annotation_to_dataframe.
+
+                This callable is documented to make behavior explicit for readers.
+                """
                 called["parse"].update(kwargs)
                 return expected_df
     

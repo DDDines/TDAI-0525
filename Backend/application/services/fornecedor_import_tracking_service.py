@@ -1,3 +1,9 @@
+"""Module fornecedor import tracking service.
+
+This module contains backend application/runtime logic and is fully
+documented for maintainability and onboarding.
+"""
+
 from __future__ import annotations
 
 from typing import Any
@@ -15,6 +21,10 @@ class FornecedorImportTrackingService:
         process_pdf_extraction_task: Any,
         catalog_file_repository: Any,
     ) -> None:
+        """Execute __init__.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         self._models = models
         self._process_pdf_extraction_task = process_pdf_extraction_task
         self._catalog_file_repository = catalog_file_repository
@@ -26,6 +36,10 @@ class FornecedorImportTrackingService:
         user_id: int,
         not_found_detail: str,
     ) -> Any:
+        """Execute get_catalog_record_or_404.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         record = self._catalog_file_repository.get_catalog_file_for_user(
             file_id=file_id,
             user_id=user_id,
@@ -36,6 +50,10 @@ class FornecedorImportTrackingService:
 
     @staticmethod
     def build_progress_payload(*, record: Any) -> dict[str, Any]:
+        """Execute build_progress_payload.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         return {
             "status": record.status,
             "progress": record.pages_processed,
@@ -51,6 +69,10 @@ class FornecedorImportTrackingService:
         page_number: int,
         db_url: str,
     ) -> None:
+        """Execute schedule_page_extraction.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         background_tasks.add_task(
             self._process_pdf_extraction_task,
             import_job_id=import_job_id,
@@ -60,6 +82,10 @@ class FornecedorImportTrackingService:
 
     @staticmethod
     def build_import_job_status_payload(*, record: Any) -> dict[str, Any]:
+        """Execute build_import_job_status_payload.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         response = {"status": record.status}
         if record.status == "COMPLETED":
             response["resultado_json"] = record.resultado_json

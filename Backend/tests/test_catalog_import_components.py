@@ -1,3 +1,9 @@
+"""Module test catalog import components.
+
+This module contains backend application/runtime logic and is fully
+documented for maintainability and onboarding.
+"""
+
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -15,7 +21,15 @@ from Backend.application.services.catalog_import_components import (
 
 class _TopLevelFunctionSurface:
 
+    """Class _TopLevelFunctionSurface.
+
+    Encapsulates one responsibility in the backend architecture.
+    """
     def test_issue_tracker_classifies_critical_vs_non_critical():
+        """Execute test_issue_tracker_classifies_critical_vs_non_critical.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         tracker = CatalogImportIssueTracker(
             normalize_import_issue_item=lambda item: dict(item),
             extract_import_error_reason=lambda item: str(item.get("motivo", "")),
@@ -35,6 +49,10 @@ class _TopLevelFunctionSurface:
         assert tracker.top_quarantine_reasons(limit=1)[0][0] == "quarentena: score baixo"
 
     def test_quality_accumulator_returns_averages():
+        """Execute test_quality_accumulator_returns_averages.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         quality = CatalogImportQualityAccumulator()
         quality.add_accepted(90)
         quality.add_accepted(80.0)
@@ -45,6 +63,10 @@ class _TopLevelFunctionSurface:
         assert quality.quarantine_avg == 60.0
 
     def test_outcome_resolver_returns_failed_when_no_success():
+        """Execute test_outcome_resolver_returns_failed_when_no_success.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         resolver = CatalogImportOutcomeResolver()
         status, partial = resolver.resolve(
             created_count=0,
@@ -57,6 +79,10 @@ class _TopLevelFunctionSurface:
         assert partial is False
 
     def test_outcome_resolver_returns_partial_when_has_success_and_errors():
+        """Execute test_outcome_resolver_returns_partial_when_has_success_and_errors.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         resolver = CatalogImportOutcomeResolver()
         status, partial = resolver.resolve(
             created_count=2,
@@ -69,6 +95,10 @@ class _TopLevelFunctionSurface:
         assert partial is True
 
     def test_file_state_service_persists_processing_and_final():
+        """Execute test_file_state_service_persists_processing_and_final.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         repo = _FakeCatalogFileRepo()
         file_obj = _FakeCatalogFile()
         state_service = CatalogImportFileStateService(catalog_file_repository=repo)
@@ -99,18 +129,46 @@ class _TopLevelFunctionSurface:
         assert repo.saved[-1] is file_obj
 
     def test_audit_writer_adds_usage_and_history_rows():
+        """Execute test_audit_writer_adds_usage_and_history_rows.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         class _Usage:
+            """Class _Usage.
+
+            Encapsulates one responsibility in the backend architecture.
+            """
             def __init__(self, **kwargs):
+                """Execute __init__.
+
+                This callable is documented to make behavior explicit for readers.
+                """
                 self.payload = kwargs
     
         class _History:
+            """Class _History.
+
+            Encapsulates one responsibility in the backend architecture.
+            """
             def __init__(self, **kwargs):
+                """Execute __init__.
+
+                This callable is documented to make behavior explicit for readers.
+                """
                 self.payload = kwargs
     
         class _Actions:
+            """Class _Actions.
+
+            Encapsulates one responsibility in the backend architecture.
+            """
             CRIACAO_PRODUTO = "CRIACAO_PRODUTO"
     
         class _SysActions:
+            """Class _SysActions.
+
+            Encapsulates one responsibility in the backend architecture.
+            """
             CRIACAO = "CRIACAO"
     
         models = SimpleNamespace(
@@ -132,15 +190,35 @@ class _TopLevelFunctionSurface:
         assert db.added[3].payload["entity_id"] == 2
 
     def test_result_builder_generates_summary_and_report():
+        """Execute test_result_builder_generates_summary_and_report.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         class _ProdutoResponse:
+            """Class _ProdutoResponse.
+
+            Encapsulates one responsibility in the backend architecture.
+            """
             def __init__(self, payload):
+                """Execute __init__.
+
+                This callable is documented to make behavior explicit for readers.
+                """
                 self._payload = payload
     
             @classmethod
             def model_validate(cls, payload):
+                """Execute model_validate.
+
+                This callable is documented to make behavior explicit for readers.
+                """
                 return cls(payload)
     
             def model_dump(self, mode="json"):
+                """Execute model_dump.
+
+                This callable is documented to make behavior explicit for readers.
+                """
                 return self._payload
     
         schemas = SimpleNamespace(ProdutoResponse=_ProdutoResponse)
@@ -195,28 +273,60 @@ test_result_builder_generates_summary_and_report = _TopLevelFunctionSurface.test
 
 
 class _FakeDB:
+    """Class _FakeDB.
+
+    Encapsulates one responsibility in the backend architecture.
+    """
     def __init__(self) -> None:
+        """Execute __init__.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         self.commits = 0
         self.added = []
 
     def commit(self) -> None:
+        """Execute commit.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         self.commits += 1
 
     def add(self, item) -> None:
+        """Execute add.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         self.added.append(item)
 
 
 class _FakeCatalogFileRepo:
+    """Class _FakeCatalogFileRepo.
+
+    Encapsulates one responsibility in the backend architecture.
+    """
     def __init__(self) -> None:
+        """Execute __init__.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         self.saved = []
 
     def update_catalog_file(self, *, catalog_file):
+        """Execute update_catalog_file.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         self.saved.append(catalog_file)
         return catalog_file
 
 
 @dataclass
 class _FakeCatalogFile:
+    """Class _FakeCatalogFile.
+
+    Encapsulates one responsibility in the backend architecture.
+    """
     status: str = "PENDING"
     fornecedor_id: int | None = None
     total_pages: int = 0

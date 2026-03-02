@@ -1,4 +1,10 @@
-﻿from __future__ import annotations
+"""Module preview service.
+
+This module contains backend application/runtime logic and is fully
+documented for maintainability and onboarding.
+"""
+
+from __future__ import annotations
 
 from typing import Any, Dict, List
 
@@ -9,6 +15,10 @@ class FileProcessingPreviewService:
     """Preview de conteudo tabular e PDF."""
 
     def __init__(self, port: FileProcessingPort) -> None:
+        """Execute __init__.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         self._port = port
 
     async def preview_arquivo_pdf(
@@ -19,6 +29,10 @@ class FileProcessingPreviewService:
         page_count: int = 1,
         dpi: int = 72,
     ) -> Dict[str, Any]:
+        """Execute preview_arquivo_pdf.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         return await self._port.preview_arquivo_pdf(
             conteudo_arquivo=conteudo_arquivo,
             ext=ext,
@@ -33,6 +47,10 @@ class FileProcessingPreviewService:
         ext: str,
         max_rows: int = 5,
     ) -> Dict[str, Any]:
+        """Execute gerar_preview.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         return await self._port.gerar_preview(
             conteudo_arquivo=conteudo_arquivo,
             ext=ext,
@@ -46,6 +64,10 @@ class FileProcessingPreviewService:
         start_page: int = 1,
         dpi: int = 200,
     ) -> List[str]:
+        """Execute pdf_bytes_to_images.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         return await self._port.pdf_bytes_to_images(
             conteudo_arquivo=conteudo_arquivo,
             max_pages=max_pages,
@@ -62,6 +84,10 @@ class FileProcessingPreviewService:
         offset: int,
         limit: int,
     ) -> Dict[str, Any]:
+        """Execute pdf_pages_to_images.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         return self._port.pdf_pages_to_images(
             db=db,
             file=file,

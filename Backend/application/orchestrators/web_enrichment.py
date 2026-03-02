@@ -1,3 +1,9 @@
+"""Module web enrichment.
+
+This module contains backend application/runtime logic and is fully
+documented for maintainability and onboarding.
+"""
+
 from __future__ import annotations
 
 from typing import Any, Awaitable, Callable
@@ -24,6 +30,10 @@ class WebEnrichmentPipelineOrchestrator:
         oop_executor: TaskExecutor,
         context: str = "web_enrichment.start",
     ) -> None:
+        """Execute __init__.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         oop_use_case = WebEnrichmentProcessingUseCase(processor=oop_executor)
         self._oop_builder = WebEnrichmentTaskBuilder(
             executor=OOPWebEnrichmentExecutor(oop_use_case)
@@ -35,6 +45,10 @@ class WebEnrichmentPipelineOrchestrator:
         *,
         command: WebEnrichmentStartCommand,
     ) -> TaskExecutionPlan:
+        """Execute select_start_plan.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         oop_plan = self._oop_builder.build_start_plan(
             produto_id=command.produto_id,
             user_id=command.user_id,

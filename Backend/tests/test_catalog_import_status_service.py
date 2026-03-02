@@ -1,3 +1,9 @@
+"""Module test catalog import status service.
+
+This module contains backend application/runtime logic and is fully
+documented for maintainability and onboarding.
+"""
+
 from __future__ import annotations
 
 import json
@@ -13,22 +19,50 @@ from Backend.application.services.catalog_import_status_service import (
 
 
 class _ModelsStub:
+    """Class _ModelsStub.
+
+    Encapsulates one responsibility in the backend architecture.
+    """
     class CatalogImportFile:
+        """Class CatalogImportFile.
+
+        Encapsulates one responsibility in the backend architecture.
+        """
         pass
 
 
 class _CatalogFileRepoStub:
+    """Class _CatalogFileRepoStub.
+
+    Encapsulates one responsibility in the backend architecture.
+    """
     def __init__(self, record):
+        """Execute __init__.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         self._record = record
 
     def get_catalog_file_for_user(self, *, file_id: int, user_id: int):
+        """Execute get_catalog_file_for_user.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         _ = (file_id, user_id)
         return self._record
 
 
 class _TopLevelFunctionSurface:
 
+    """Class _TopLevelFunctionSurface.
+
+    Encapsulates one responsibility in the backend architecture.
+    """
     def _build_service(record=None):
+        """Execute _build_service.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         repo = _CatalogFileRepoStub(record)
         service = CatalogImportStatusService(
             models=_ModelsStub,
@@ -37,6 +71,10 @@ class _TopLevelFunctionSurface:
         return service, repo
 
     def test_get_record_or_404_returns_record():
+        """Execute test_get_record_or_404_returns_record.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         record = SimpleNamespace(id=10)
         service, _ = _build_service(record=record)
     
@@ -45,6 +83,10 @@ class _TopLevelFunctionSurface:
         assert found is record
 
     def test_get_record_or_404_raises_404_when_missing():
+        """Execute test_get_record_or_404_raises_404_when_missing.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         service, _ = _build_service(record=None)
     
         with pytest.raises(HTTPException) as exc:
@@ -64,6 +106,10 @@ class _TopLevelFunctionSurface:
         ],
     )
     def test_build_simple_status_maps_status(raw_status, expected_status):
+        """Execute test_build_simple_status_maps_status.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         service, _ = _build_service()
         record = SimpleNamespace(
             status=raw_status,
@@ -80,6 +126,10 @@ class _TopLevelFunctionSurface:
         assert payload["result_ready"] is False
 
     def test_build_simple_status_sets_result_ready_for_terminal_with_summary():
+        """Execute test_build_simple_status_sets_result_ready_for_terminal_with_summary.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         service, _ = _build_service()
         record = SimpleNamespace(
             status="FAILED",
@@ -93,6 +143,10 @@ class _TopLevelFunctionSurface:
         assert payload["result_ready"] is True
 
     def test_build_result_response_returns_pending_jsonresponse():
+        """Execute test_build_result_response_returns_pending_jsonresponse.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         service, _ = _build_service()
         record = SimpleNamespace(status="PROCESSING", result_summary=None)
     
@@ -105,6 +159,10 @@ class _TopLevelFunctionSurface:
         assert data["status"] == "PROCESSING"
 
     def test_build_result_response_returns_result_summary_when_ready():
+        """Execute test_build_result_response_returns_result_summary_when_ready.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         service, _ = _build_service()
         summary = {"created": [], "updated": [], "errors": []}
         record = SimpleNamespace(status="DONE", result_summary=summary)

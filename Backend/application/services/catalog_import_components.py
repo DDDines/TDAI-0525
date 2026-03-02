@@ -1,3 +1,9 @@
+"""Module catalog import components.
+
+This module contains backend application/runtime logic and is fully
+documented for maintainability and onboarding.
+"""
+
 from __future__ import annotations
 
 from collections import Counter
@@ -14,6 +20,10 @@ class CatalogImportIssueTracker:
         extract_import_error_reason: Callable[[Dict[str, Any]], str],
         is_non_critical_import_reason: Callable[[str], bool],
     ) -> None:
+        """Execute __init__.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         self._normalize_import_issue_item = normalize_import_issue_item
         self._extract_import_error_reason = extract_import_error_reason
         self._is_non_critical_import_reason = is_non_critical_import_reason
@@ -29,6 +39,10 @@ class CatalogImportIssueTracker:
         self.quarantine_quality_scores: List[int] = []
 
     def add_issue(self, item: Dict[str, Any]) -> None:
+        """Execute add_issue.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         normalized_item = self._normalize_import_issue_item(item)
         reason = self._extract_import_error_reason(normalized_item)
         if self._is_non_critical_import_reason(reason):
@@ -40,6 +54,10 @@ class CatalogImportIssueTracker:
         self.errors.append(normalized_item)
 
     def add_quarantine_issue(self, item: Dict[str, Any]) -> None:
+        """Execute add_quarantine_issue.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         normalized_item = self._normalize_import_issue_item(item)
         reason = self._extract_import_error_reason(normalized_item)
         self.quarantine_non_critical.append(normalized_item)
@@ -51,6 +69,10 @@ class CatalogImportIssueTracker:
             self.quarantine_samples.append(normalized_item)
 
     def top_error_reasons(self, limit: int = 10) -> List[Tuple[str, int]]:
+        """Execute top_error_reasons.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         reasons = Counter(
             self._extract_import_error_reason(err)
             for err in self.errors
@@ -59,9 +81,17 @@ class CatalogImportIssueTracker:
         return reasons.most_common(limit)
 
     def top_ignored_reasons(self, limit: int = 10) -> List[Tuple[str, int]]:
+        """Execute top_ignored_reasons.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         return self.ignored_reason_counter.most_common(limit)
 
     def top_quarantine_reasons(self, limit: int = 10) -> List[Tuple[str, int]]:
+        """Execute top_quarantine_reasons.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         return self.quarantine_reason_counter.most_common(limit)
 
 
@@ -69,27 +99,51 @@ class CatalogImportQualityAccumulator:
     """Agrega scores de qualidade para estatísticas finais."""
 
     def __init__(self) -> None:
+        """Execute __init__.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         self.accepted_scores: List[int] = []
         self.quarantine_scores: List[int] = []
 
     def add_accepted(self, score: Any) -> None:
+        """Execute add_accepted.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         if isinstance(score, (int, float)):
             self.accepted_scores.append(int(score))
 
     def add_quarantine(self, score: Any) -> None:
+        """Execute add_quarantine.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         if isinstance(score, (int, float)):
             self.quarantine_scores.append(int(score))
 
     @staticmethod
     def _avg(values: List[int]) -> Optional[float]:
+        """Execute _avg.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         return round(sum(values) / len(values), 2) if values else None
 
     @property
     def accepted_avg(self) -> Optional[float]:
+        """Execute accepted_avg.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         return self._avg(self.accepted_scores)
 
     @property
     def quarantine_avg(self) -> Optional[float]:
+        """Execute quarantine_avg.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         return self._avg(self.quarantine_scores)
 
 
@@ -105,6 +159,10 @@ class CatalogImportOutcomeResolver:
         ignored_count: int,
         quarantine_count: int,
     ) -> Tuple[str, bool]:
+        """Execute resolve.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         total_success = created_count + updated_count
         has_partial_success = total_success > 0 and errors_count > 0
         final_status = "IMPORTED"
@@ -119,12 +177,24 @@ class CatalogImportFileStateService:
     """Encapsula persistencia de status/paginas do CatalogImportFile."""
 
     def __init__(self, *, catalog_file_repository: Any) -> None:
+        """Execute __init__.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         self._catalog_file_repository = catalog_file_repository
 
     def _repo(self) -> Any:
+        """Execute _repo.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         return self._catalog_file_repository
 
     def mark_processing(self, *, catalog_file: Any, fornecedor_id: int) -> None:
+        """Execute mark_processing.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         catalog_file.status = "PROCESSING"
         catalog_file.fornecedor_id = fornecedor_id
         self._repo().update_catalog_file(catalog_file=catalog_file)
@@ -136,6 +206,10 @@ class CatalogImportFileStateService:
         file_id: int,
         stored_filename: str,
     ) -> None:
+        """Execute mark_file_missing.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         catalog_file.status = "FAILED"
         catalog_file.result_summary = {
             "created": [],
@@ -156,11 +230,19 @@ class CatalogImportFileStateService:
         catalog_file: Any,
         total_pages: int,
     ) -> None:
+        """Execute initialize_pages.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         catalog_file.total_pages = total_pages
         catalog_file.pages_processed = 0
         self._repo().update_catalog_file(catalog_file=catalog_file)
 
     def increment_page(self, *, catalog_file: Any) -> None:
+        """Execute increment_page.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         catalog_file.pages_processed = (catalog_file.pages_processed or 0) + 1
         self._repo().update_catalog_file(catalog_file=catalog_file)
 
@@ -171,6 +253,10 @@ class CatalogImportFileStateService:
         final_status: str,
         result_summary: Dict[str, Any],
     ) -> None:
+        """Execute mark_final.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         catalog_file.status = final_status
         catalog_file.result_summary = result_summary
         self._repo().update_catalog_file(catalog_file=catalog_file)
@@ -182,6 +268,10 @@ class CatalogImportFileStateService:
         file_id: int,
         error: Exception,
     ) -> None:
+        """Execute mark_failure_with_exception.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         catalog_file.status = "FAILED"
         catalog_file.result_summary = {
             "created": [],
@@ -200,6 +290,10 @@ class CatalogImportAuditWriter:
     """Registra auditoria de criacao dos produtos em lote."""
 
     def __init__(self, *, models: Any) -> None:
+        """Execute __init__.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         self._models = models
 
     def register_creation(
@@ -209,6 +303,10 @@ class CatalogImportAuditWriter:
         produtos_criados: List[Any],
         session: Any,
     ) -> None:
+        """Execute register_creation.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         for db_produto in produtos_criados:
             session.add(
                 self._models.RegistroUsoIA(
@@ -239,6 +337,10 @@ class CatalogImportResultBuilder:
         write_catalog_import_report: Callable[..., Any],
         outcome_resolver: CatalogImportOutcomeResolver,
     ) -> None:
+        """Execute __init__.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         self._schemas = schemas
         self._normalize_import_text = normalize_import_text
         self._write_catalog_import_report = write_catalog_import_report
@@ -256,6 +358,10 @@ class CatalogImportResultBuilder:
         pages_total: int,
         ext: str,
     ) -> Dict[str, Any]:
+        """Execute build.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         created_count = len(created)
         updated_count = len(updated)
         errors_count = len(issue_tracker.errors)

@@ -1,4 +1,10 @@
-﻿from __future__ import annotations
+"""Module web enrichment task runner.
+
+This module contains backend application/runtime logic and is fully
+documented for maintainability and onboarding.
+"""
+
+from __future__ import annotations
 
 from typing import Any, Optional
 
@@ -33,6 +39,10 @@ class WebEnrichmentTaskRunner:
         product_repository: Any,
         usage_repository: Any,
     ) -> None:
+        """Execute __init__.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         self._kwargs = {
             "db_session_factory": db_session_factory,
             "logger": logger,
@@ -57,11 +67,19 @@ class WebEnrichmentTaskRunner:
         self._service: WebEnrichmentTaskService | None = None
 
     def _build(self) -> WebEnrichmentTaskService:
+        """Execute _build.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         build_kwargs = dict(self._kwargs)
         build_kwargs["web_extractor"] = self._web_extractor
         return WebEnrichmentTaskService(**build_kwargs)
 
     def _get_service(self) -> WebEnrichmentTaskService:
+        """Execute _get_service.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         if self._service is None:
             self._service = self._build()
         return self._service
@@ -73,6 +91,10 @@ class WebEnrichmentTaskRunner:
         user_id: int,
         termos_busca_override: Optional[str] = None,
     ) -> None:
+        """Execute execute.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         await self._get_service().execute(
             produto_id=produto_id,
             user_id=user_id,

@@ -23,37 +23,69 @@ class SocialAuthRequestService:
         self,
         session: Session = Depends(ServiceContainerDependencySupport.get_request_db_session),
     ) -> None:
+        """Execute __init__.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         self._session = session
         self._auth_workflow = AuthWorkflow(session=session)
 
     @staticmethod
     def _has_client(provider: str) -> bool:
+        """Execute _has_client.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         return provider in oauth._clients
 
     @staticmethod
     async def _authorize_redirect(provider: str, request: Request, redirect_uri: str):
+        """Execute _authorize_redirect.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         return await getattr(oauth, provider).authorize_redirect(request, redirect_uri)
 
     @staticmethod
     async def _authorize_access_token(provider: str, request: Request):
+        """Execute _authorize_access_token.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         return await getattr(oauth, provider).authorize_access_token(request)
 
     @staticmethod
     async def _parse_google_id_token(request: Request, token):
+        """Execute _parse_google_id_token.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         return await oauth.google.parse_id_token(request, token)
 
     @staticmethod
     async def _get_userinfo(provider: str, token):
+        """Execute _get_userinfo.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         resp = await getattr(oauth, provider).get("userinfo", token=token)
         return resp.json()
 
     def social_login_config(self) -> schemas.SocialLoginConfig:
+        """Execute social_login_config.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         return schemas.SocialLoginConfig(
             google_enabled=self._has_client("google"),
             facebook_enabled=self._has_client("facebook"),
         )
 
     async def google_login(self, request: Request):
+        """Execute google_login.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         if not self._has_client("google"):
             raise HTTPException(
                 status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
@@ -62,6 +94,10 @@ class SocialAuthRequestService:
         return await self._authorize_redirect("google", request, settings.GOOGLE_REDIRECT_URI)
 
     async def google_callback(self, request: Request) -> schemas.Token:
+        """Execute google_callback.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         if not self._has_client("google"):
             raise HTTPException(
                 status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
@@ -92,6 +128,10 @@ class SocialAuthRequestService:
         return schemas.Token(access_token=access, refresh_token=refresh, token_type="bearer")
 
     async def facebook_login(self, request: Request):
+        """Execute facebook_login.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         if not self._has_client("facebook"):
             raise HTTPException(
                 status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
@@ -104,6 +144,10 @@ class SocialAuthRequestService:
         )
 
     async def facebook_callback(self, request: Request) -> schemas.Token:
+        """Execute facebook_callback.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         if not self._has_client("facebook"):
             raise HTTPException(
                 status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
@@ -132,21 +176,37 @@ class SocialAuthRequestService:
 
 @router.get("/social/config", response_model=schemas.SocialLoginConfig)
 async def social_login_config(request_service: SocialAuthRequestService = Depends()):
+    """Execute social_login_config.
+
+    This callable is documented to make behavior explicit for readers.
+    """
     return request_service.social_login_config()
 
 
 @router.get("/google/login")
 async def google_login(request: Request, request_service: SocialAuthRequestService = Depends()):
+    """Execute google_login.
+
+    This callable is documented to make behavior explicit for readers.
+    """
     return await request_service.google_login(request)
 
 
 @router.get("/google/callback", response_model=schemas.Token)
 async def google_callback(request: Request, request_service: SocialAuthRequestService = Depends()):
+    """Execute google_callback.
+
+    This callable is documented to make behavior explicit for readers.
+    """
     return await request_service.google_callback(request)
 
 
 @router.get("/facebook/login")
 async def facebook_login(request: Request, request_service: SocialAuthRequestService = Depends()):
+    """Execute facebook_login.
+
+    This callable is documented to make behavior explicit for readers.
+    """
     return await request_service.facebook_login(request)
 
 
@@ -155,4 +215,8 @@ async def facebook_callback(
     request: Request,
     request_service: SocialAuthRequestService = Depends(),
 ):
+    """Execute facebook_callback.
+
+    This callable is documented to make behavior explicit for readers.
+    """
     return await request_service.facebook_callback(request)

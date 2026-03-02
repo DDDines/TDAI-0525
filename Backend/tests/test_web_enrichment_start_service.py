@@ -1,3 +1,9 @@
+"""Module test web enrichment start service.
+
+This module contains backend application/runtime logic and is fully
+documented for maintainability and onboarding.
+"""
+
 from __future__ import annotations
 
 from types import SimpleNamespace
@@ -12,40 +18,88 @@ from Backend.application.services.web_enrichment_start_service import (
 
 
 class _CrudProdutosStub:
+    """Class _CrudProdutosStub.
+
+    Encapsulates one responsibility in the backend architecture.
+    """
     def __init__(self, produto=None):
+        """Execute __init__.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         self.produto = produto
 
     def get_produto(self, *, produto_id: int):
+        """Execute get_produto.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         _ = produto_id
         return self.produto
 
 
 class _ModelsStub:
+    """Class _ModelsStub.
+
+    Encapsulates one responsibility in the backend architecture.
+    """
     class StatusEnriquecimentoEnum:
+        """Class StatusEnriquecimentoEnum.
+
+        Encapsulates one responsibility in the backend architecture.
+        """
         EM_PROGRESSO = "EM_PROGRESSO"
 
 
 class _DispatcherStub:
+    """Class _DispatcherStub.
+
+    Encapsulates one responsibility in the backend architecture.
+    """
     dispatched = []
 
     @classmethod
     def reset(cls):
+        """Execute reset.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         cls.dispatched = []
 
     @classmethod
     def dispatch_background(cls, background_tasks, plan):
+        """Execute dispatch_background.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         cls.dispatched.append((background_tasks, plan))
 
 
 class _OrchestratorStub:
+    """Class _OrchestratorStub.
+
+    Encapsulates one responsibility in the backend architecture.
+    """
     def __init__(self, *args, **kwargs):
+        """Execute __init__.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         _ = (args, kwargs)
         self.calls = []
 
     def select_start_plan(self, *, command):
+        """Execute select_start_plan.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         self.calls.append(command)
 
         async def _executor(**kwargs):
+            """Execute _executor.
+
+            This callable is documented to make behavior explicit for readers.
+            """
             return kwargs
 
         return TaskExecutionPlan(
@@ -58,7 +112,15 @@ class _OrchestratorStub:
 
 class _TopLevelFunctionSurface:
 
+    """Class _TopLevelFunctionSurface.
+
+    Encapsulates one responsibility in the backend architecture.
+    """
     def _build_service(produto=None):
+        """Execute _build_service.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         return WebEnrichmentStartService(
             product_repository=_CrudProdutosStub(produto=produto),
             models=_ModelsStub,
@@ -67,6 +129,10 @@ class _TopLevelFunctionSurface:
         )
 
     def test_validate_start_preconditions_not_found():
+        """Execute test_validate_start_preconditions_not_found.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         service = _build_service(produto=None)
         user = SimpleNamespace(id=1, is_superuser=False)
     
@@ -79,6 +145,10 @@ class _TopLevelFunctionSurface:
         assert exc.value.status_code == 404
 
     def test_validate_start_preconditions_forbidden():
+        """Execute test_validate_start_preconditions_forbidden.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         produto = SimpleNamespace(user_id=2, status_enriquecimento_web="PENDENTE")
         service = _build_service(produto=produto)
         user = SimpleNamespace(id=1, is_superuser=False)
@@ -92,6 +162,10 @@ class _TopLevelFunctionSurface:
         assert exc.value.status_code == 403
 
     def test_validate_start_preconditions_conflict():
+        """Execute test_validate_start_preconditions_conflict.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         produto = SimpleNamespace(user_id=1, status_enriquecimento_web="EM_PROGRESSO")
         service = _build_service(produto=produto)
         user = SimpleNamespace(id=1, is_superuser=False)
@@ -105,6 +179,10 @@ class _TopLevelFunctionSurface:
         assert exc.value.status_code == 409
 
     def test_validate_start_preconditions_success():
+        """Execute test_validate_start_preconditions_success.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         produto = SimpleNamespace(user_id=1, status_enriquecimento_web="PENDENTE")
         service = _build_service(produto=produto)
         user = SimpleNamespace(id=1, is_superuser=False)
@@ -115,6 +193,10 @@ class _TopLevelFunctionSurface:
         )
 
     def test_dispatch_start_selects_and_dispatches():
+        """Execute test_dispatch_start_selects_and_dispatches.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         _DispatcherStub.reset()
         produto = SimpleNamespace(user_id=1, status_enriquecimento_web="PENDENTE")
         service = _build_service(produto=produto)

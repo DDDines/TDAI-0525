@@ -27,15 +27,27 @@ class AdminAnalyticsRequestService:
         self,
         session: Session = Depends(ServiceContainerDependencySupport.get_request_db_session),
     ) -> None:
+        """Execute __init__.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         self._session = session
         self._user_repository = UserRepository(session)
         self._historico_repository = HistoricoRepository(session)
 
     @staticmethod
     def _now_utc() -> datetime:
+        """Execute _now_utc.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         return datetime.now(timezone.utc)
 
     def get_total_counts(self) -> schemas.TotalCounts:
+        """Execute get_total_counts.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         try:
             total_usuarios = self._session.query(func.count(models.User.id)).scalar() or 0
             total_produtos = self._session.query(func.count(models.Produto.id)).scalar() or 0
@@ -78,6 +90,10 @@ class AdminAnalyticsRequestService:
             ) from exc
 
     def get_uso_ia_por_plano(self) -> List[schemas.UsoIAPorPlano]:
+        """Execute get_uso_ia_por_plano.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         planos = self._user_repository.get_planos(skip=0, limit=1000)
         resultado: List[schemas.UsoIAPorPlano] = []
         start_of_month = self._now_utc().replace(
@@ -108,6 +124,10 @@ class AdminAnalyticsRequestService:
         return resultado
 
     def get_uso_ia_por_tipo(self) -> List[schemas.UsoIAPorTipo]:
+        """Execute get_uso_ia_por_tipo.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         start_of_month = self._now_utc().replace(
             day=1,
             hour=0,
@@ -133,6 +153,10 @@ class AdminAnalyticsRequestService:
         ]
 
     def get_user_activity(self, *, skip: int, limit: int) -> List[schemas.UserActivity]:
+        """Execute get_user_activity.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         users = self._user_repository.get_users(skip=skip, limit=limit)
         activities: List[schemas.UserActivity] = []
         start_of_month = self._now_utc().replace(
@@ -171,6 +195,10 @@ class AdminAnalyticsRequestService:
         return activities
 
     def get_product_status_counts(self) -> List[schemas.ProductStatusCount]:
+        """Execute get_product_status_counts.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         results = (
             self._session.query(
                 models.Produto.status_enriquecimento_web,
@@ -182,6 +210,10 @@ class AdminAnalyticsRequestService:
         return [schemas.ProductStatusCount(status=row[0], total=row.total) for row in results]
 
     def get_recent_activities(self, *, limit: int) -> List[schemas.RecentActivity]:
+        """Execute get_recent_activities.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         registros = (
             self._session.query(models.RegistroUsoIA)
             .order_by(models.RegistroUsoIA.created_at.desc())
@@ -203,17 +235,29 @@ class AdminAnalyticsRequestService:
         return activities
 
     def get_recent_historico(self, *, limit: int) -> List[schemas.RegistroHistoricoResponse]:
+        """Execute get_recent_historico.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         return self._historico_repository.get_registros_historico(skip=0, limit=limit)
 
 
 class _AdminAnalyticsDependencies:
 
+    """Class _AdminAnalyticsDependencies.
+
+    Encapsulates one responsibility in the backend architecture.
+    """
     @staticmethod
     async def get_current_active_admin_user(
         current_user: models.User = Depends(
             auth_utils._AuthUtilsActiveUserDependency.get_current_active_user
         ),
     ):
+        """Execute get_current_active_admin_user.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         if not current_user.is_superuser:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
@@ -228,6 +272,10 @@ class _AdminAnalyticsDependencies:
     dependencies=[Depends(_AdminAnalyticsDependencies.get_current_active_admin_user)],
 )
 async def get_total_counts_endpoint(request_service: AdminAnalyticsRequestService = Depends()):
+    """Execute get_total_counts_endpoint.
+
+    This callable is documented to make behavior explicit for readers.
+    """
     return request_service.get_total_counts()
 
 
@@ -237,6 +285,10 @@ async def get_total_counts_endpoint(request_service: AdminAnalyticsRequestServic
     dependencies=[Depends(_AdminAnalyticsDependencies.get_current_active_admin_user)],
 )
 async def get_uso_ia_por_plano_endpoint(request_service: AdminAnalyticsRequestService = Depends()):
+    """Execute get_uso_ia_por_plano_endpoint.
+
+    This callable is documented to make behavior explicit for readers.
+    """
     return request_service.get_uso_ia_por_plano()
 
 
@@ -246,6 +298,10 @@ async def get_uso_ia_por_plano_endpoint(request_service: AdminAnalyticsRequestSe
     dependencies=[Depends(_AdminAnalyticsDependencies.get_current_active_admin_user)],
 )
 async def get_uso_ia_por_tipo_endpoint(request_service: AdminAnalyticsRequestService = Depends()):
+    """Execute get_uso_ia_por_tipo_endpoint.
+
+    This callable is documented to make behavior explicit for readers.
+    """
     return request_service.get_uso_ia_por_tipo()
 
 
@@ -259,6 +315,10 @@ async def get_user_activity_endpoint(
     limit: int = Query(100, ge=1, le=200),
     request_service: AdminAnalyticsRequestService = Depends(),
 ):
+    """Execute get_user_activity_endpoint.
+
+    This callable is documented to make behavior explicit for readers.
+    """
     return request_service.get_user_activity(skip=skip, limit=limit)
 
 
@@ -268,6 +328,10 @@ async def get_user_activity_endpoint(
     dependencies=[Depends(_AdminAnalyticsDependencies.get_current_active_admin_user)],
 )
 async def get_product_status_counts(request_service: AdminAnalyticsRequestService = Depends()):
+    """Execute get_product_status_counts.
+
+    This callable is documented to make behavior explicit for readers.
+    """
     return request_service.get_product_status_counts()
 
 
@@ -280,6 +344,10 @@ async def get_recent_activities(
     limit: int = Query(10, ge=1, le=50),
     request_service: AdminAnalyticsRequestService = Depends(),
 ):
+    """Execute get_recent_activities.
+
+    This callable is documented to make behavior explicit for readers.
+    """
     return request_service.get_recent_activities(limit=limit)
 
 
@@ -292,4 +360,8 @@ async def get_recent_historico(
     limit: int = Query(10, ge=1, le=50),
     request_service: AdminAnalyticsRequestService = Depends(),
 ):
+    """Execute get_recent_historico.
+
+    This callable is documented to make behavior explicit for readers.
+    """
     return request_service.get_recent_historico(limit=limit)

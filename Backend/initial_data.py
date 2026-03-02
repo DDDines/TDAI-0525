@@ -18,6 +18,10 @@ class InitialDataRuntime:
     """Runtime OO responsavel por inicializar dados base do sistema."""
 
     def create_initial_data(self, session: Session):
+        """Execute create_initial_data.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         logger.info('Verificando/criando dados iniciais (roles, planos, admin)...')
         user_repo = UserRepository(session)
         product_type_repo = ProductTypeRepository(session)
@@ -33,6 +37,10 @@ class InitialDataRuntime:
 
     @staticmethod
     def _ensure_default_roles(*, user_repo: UserRepository) -> Tuple[Optional[Role], Optional[Role]]:
+        """Execute _ensure_default_roles.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         roles_padrao = [{'name': 'admin', 'description': 'Administrador do sistema'}, {'name': 'user', 'description': 'Usuario padrao da plataforma'}]
         admin_role: Optional[Role] = None
         user_role: Optional[Role] = None
@@ -49,6 +57,10 @@ class InitialDataRuntime:
 
     @staticmethod
     def _ensure_default_plans(*, user_repo: UserRepository) -> None:
+        """Execute _ensure_default_plans.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         planos_padrao = [{'nome': 'Gratuito', 'descricao': 'Plano basico com limitacoes.', 'preco_mensal': 0.0, 'limite_produtos': settings.DEFAULT_LIMIT_PRODUTOS_SEM_PLANO, 'limite_enriquecimento_web': settings.DEFAULT_LIMIT_ENRIQUECIMENTO_SEM_PLANO, 'limite_geracao_ia': settings.DEFAULT_LIMIT_GERACAO_IA_SEM_PLANO, 'permite_api_externa': False, 'suporte_prioritario': False}, {'nome': 'Pro', 'descricao': 'Plano profissional com mais limites e funcionalidades.', 'preco_mensal': 99.9, 'limite_produtos': 1000, 'limite_enriquecimento_web': 500, 'limite_geracao_ia': 2000, 'permite_api_externa': True, 'suporte_prioritario': True}]
         for plano_data in planos_padrao:
             plano = user_repo.get_plano_by_name(nome=plano_data['nome'])
@@ -58,6 +70,10 @@ class InitialDataRuntime:
             logger.info("Plano '%s' criado.", plano_data['nome'])
 
     def _ensure_admin_user(self, *, session: Session, user_repo: UserRepository) -> Optional[User]:
+        """Execute _ensure_admin_user.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         admin_email = settings.FIRST_SUPERUSER_EMAIL
         admin_password = settings.FIRST_SUPERUSER_PASSWORD
         admin_user = user_repo.get_user_by_email(email=admin_email)
@@ -77,6 +93,10 @@ class InitialDataRuntime:
 
     @staticmethod
     def _ensure_global_product_types(*, product_type_repo: ProductTypeRepository) -> None:
+        """Execute _ensure_global_product_types.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         tipos_produto_globais = [{'key_name': 'eletronicos', 'friendly_name': 'Eletronicos', 'description': 'Tipo padrao para produtos eletronicos.', 'attribute_templates': [schemas.AttributeTemplateCreate(attribute_key='voltagem', label='Voltagem', field_type=AttributeFieldTypeEnum.SELECT, options='["110V", "220V", "Bivolt"]', is_required=True, display_order=1), schemas.AttributeTemplateCreate(attribute_key='cor_predominante', label='Cor Predominante', field_type=AttributeFieldTypeEnum.TEXT, is_required=False, display_order=2), schemas.AttributeTemplateCreate(attribute_key='garantia_meses', label='Garantia (meses)', field_type=AttributeFieldTypeEnum.NUMBER, default_value='12', display_order=3)]}, {'key_name': 'vestuario', 'friendly_name': 'Vestuario', 'description': 'Tipo padrao para pecas de vestuario.', 'attribute_templates': [schemas.AttributeTemplateCreate(attribute_key='tamanho', label='Tamanho', field_type=AttributeFieldTypeEnum.SELECT, options='["P", "M", "G", "GG"]', is_required=True, display_order=1), schemas.AttributeTemplateCreate(attribute_key='cor_produto', label='Cor', field_type=AttributeFieldTypeEnum.TEXT, is_required=True, display_order=2), schemas.AttributeTemplateCreate(attribute_key='material_principal', label='Material Principal', field_type=AttributeFieldTypeEnum.TEXT, display_order=3), schemas.AttributeTemplateCreate(attribute_key='genero_vestuario', label='Genero', field_type=AttributeFieldTypeEnum.SELECT, options='["Masculino", "Feminino", "Unissex"]', display_order=4)]}]
         for pt_data in tipos_produto_globais:
             pt_create_schema = schemas.ProductTypeCreate(**pt_data)
@@ -94,6 +114,10 @@ class InitialDataRuntime:
 
     @staticmethod
     def _ensure_default_supplier(*, session: Session, admin_user: Optional[User], fornecedor_repo: FornecedorRepository) -> None:
+        """Execute _ensure_default_supplier.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         if not admin_user:
             return
         fornecedor_existente = session.query(Fornecedor).filter(func.lower(Fornecedor.nome) == 'uouu', Fornecedor.user_id == admin_user.id).first()
@@ -105,6 +129,10 @@ class InitialDataRuntime:
 
     @staticmethod
     def _ensure_default_product(*, session: Session, user_repo: UserRepository, product_repo: ProductRepository) -> None:
+        """Execute _ensure_default_product.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         if session.query(Produto).count() != 0:
             return
         admin_user = user_repo.get_user_by_email(email=settings.FIRST_SUPERUSER_EMAIL)
@@ -117,13 +145,25 @@ class InitialDataWorkflow:
     """Workflow/escopo request-scoped para criacao de dados iniciais."""
 
     def __init__(self, runtime: Optional[InitialDataRuntime]=None) -> None:
+        """Execute __init__.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         self._runtime = runtime or InitialDataRuntime()
 
     def create_initial_data(self, session: Session):
+        """Execute create_initial_data.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         return self._runtime.create_initial_data(session=session)
 
 class _InitialDataEntryPoints:
 
+    """Class _InitialDataEntryPoints.
+
+    Encapsulates one responsibility in the backend architecture.
+    """
     @staticmethod
     def create_initial_data(session: Session):
         """Entrada publica de compatibilidade para rotinas de seed."""

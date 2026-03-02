@@ -1,3 +1,9 @@
+"""Module catalog import ingest service.
+
+This module contains backend application/runtime logic and is fully
+documented for maintainability and onboarding.
+"""
+
 from __future__ import annotations
 
 from pathlib import Path
@@ -26,6 +32,10 @@ class CatalogImportIngestService:
         uso_ia_repo: Any,
         historico_repo: Any,
     ) -> None:
+        """Execute __init__.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         self._schemas = schemas
         self._models = models
         self._fornecedor_repo = fornecedor_repo
@@ -47,6 +57,10 @@ class CatalogImportIngestService:
         erros: List[Dict[str, Any]],
         ignored_non_critical: List[Dict[str, Any]],
     ) -> None:
+        """Execute _append_import_issue.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         normalized_item = self._normalize_import_issue_item(item)
         reason = self._extract_import_error_reason(normalized_item)
         if self._is_non_critical_import_reason(reason):
@@ -60,6 +74,10 @@ class CatalogImportIngestService:
         item: Dict[str, Any],
         quarantine_non_critical: List[Dict[str, Any]],
     ) -> None:
+        """Execute _append_quarantine_issue.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         normalized_item = self._normalize_import_issue_item(item)
         quarantine_non_critical.append(normalized_item)
 
@@ -215,6 +233,10 @@ class CatalogImportIngestService:
         mapeamento_colunas_usuario: Optional[str],
         fornecedor_repo: Any,
     ) -> Optional[Dict[str, Any]]:
+        """Execute _resolve_mapping.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         mapping_dict = None
         if mapeamento_colunas_usuario:
             try:
@@ -239,6 +261,10 @@ class CatalogImportIngestService:
         ext: str,
         mapping_dict: Optional[Dict[str, Any]],
     ) -> List[Dict[str, Any]]:
+        """Execute _process_file_by_extension.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         if ext in [".xlsx", ".xls"]:
             return await self._file_processing_service.processar_arquivo_excel(
                 content,

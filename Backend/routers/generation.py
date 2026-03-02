@@ -30,6 +30,10 @@ class GenerationRequestService:
         self,
         session: Session = Depends(ServiceContainerDependencySupport.get_request_db_session),
     ) -> None:
+        """Execute __init__.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         self._session = session
         self._ia_generation_service = ServiceContainerDependencySupport.build_ia_generation_service()
         self._generation_task_service = GenerationTaskService(
@@ -47,12 +51,20 @@ class GenerationRequestService:
         )
 
     def _validate_product_access(self, *, produto_id: int, current_user: models.User):
+        """Execute _validate_product_access.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         return self._generation_scheduling_service.validate_product_access(
             produto_id=produto_id,
             current_user=current_user,
         )
 
     def _mark_pending_status(self, *, db_produto, generation_type: str) -> None:
+        """Execute _mark_pending_status.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         self._generation_scheduling_service.mark_pending_status(
             db_produto=db_produto,
             generation_type=generation_type,
@@ -67,6 +79,10 @@ class GenerationRequestService:
         num_titulos: int | None = None,
         tamanho_palavras: int | None = None,
     ) -> None:
+        """Execute tarefa_processar_geracao_e_registrar_uso.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         await self._generation_task_service.run_generation_task(
             user_id=user_id,
             produto_id=produto_id,
@@ -84,6 +100,10 @@ class GenerationRequestService:
         num_titulos: int,
         current_user: models.User,
     ):
+        """Execute agendar_geracao_novos_titulos_openai.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         self._validate_product_access(produto_id=produto_id, current_user=current_user)
         self._generation_scheduling_service.enqueue_generation_task(
             background_tasks=background_tasks,
@@ -104,6 +124,10 @@ class GenerationRequestService:
         tamanho_palavras: int,
         current_user: models.User,
     ):
+        """Execute agendar_geracao_nova_descricao_openai.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         self._validate_product_access(produto_id=produto_id, current_user=current_user)
         self._generation_scheduling_service.enqueue_generation_task(
             background_tasks=background_tasks,
@@ -124,6 +148,10 @@ class GenerationRequestService:
         num_titulos: int,
         current_user: models.User,
     ):
+        """Execute agendar_geracao_novos_titulos_gemini.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         db_produto = self._validate_product_access(
             produto_id=produto_id,
             current_user=current_user,
@@ -148,6 +176,10 @@ class GenerationRequestService:
         tamanho_palavras: int,
         current_user: models.User,
     ):
+        """Execute agendar_geracao_nova_descricao_gemini.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         db_produto = self._validate_product_access(
             produto_id=produto_id,
             current_user=current_user,
@@ -170,6 +202,10 @@ class GenerationRequestService:
         produto_id: int,
         current_user: models.User,
     ) -> schemas.SugestoesAtributosResponse:
+        """Execute sugerir_atributos_para_produto_com_gemini.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         try:
             return await self._ia_generation_service.sugerir_valores_atributos_com_gemini(
                 session=self._session,
@@ -205,6 +241,10 @@ async def agendar_geracao_novos_titulos_openai(
         auth_utils._AuthUtilsActiveUserDependency.get_current_active_user
     ),
 ):
+    """Execute agendar_geracao_novos_titulos_openai.
+
+    This callable is documented to make behavior explicit for readers.
+    """
     return request_service.agendar_geracao_novos_titulos_openai(
         produto_id=produto_id,
         background_tasks=background_tasks,
@@ -228,6 +268,10 @@ async def agendar_geracao_nova_descricao_openai(
         auth_utils._AuthUtilsActiveUserDependency.get_current_active_user
     ),
 ):
+    """Execute agendar_geracao_nova_descricao_openai.
+
+    This callable is documented to make behavior explicit for readers.
+    """
     return request_service.agendar_geracao_nova_descricao_openai(
         produto_id=produto_id,
         background_tasks=background_tasks,
@@ -250,6 +294,10 @@ async def agendar_geracao_novos_titulos_gemini(
         auth_utils._AuthUtilsActiveUserDependency.get_current_active_user
     ),
 ):
+    """Execute agendar_geracao_novos_titulos_gemini.
+
+    This callable is documented to make behavior explicit for readers.
+    """
     return request_service.agendar_geracao_novos_titulos_gemini(
         produto_id=produto_id,
         background_tasks=background_tasks,
@@ -272,6 +320,10 @@ async def agendar_geracao_nova_descricao_gemini(
         auth_utils._AuthUtilsActiveUserDependency.get_current_active_user
     ),
 ):
+    """Execute agendar_geracao_nova_descricao_gemini.
+
+    This callable is documented to make behavior explicit for readers.
+    """
     return request_service.agendar_geracao_nova_descricao_gemini(
         produto_id=produto_id,
         background_tasks=background_tasks,
@@ -291,6 +343,10 @@ async def sugerir_atributos_para_produto_com_gemini(
         auth_utils._AuthUtilsActiveUserDependency.get_current_active_user
     ),
 ):
+    """Execute sugerir_atributos_para_produto_com_gemini.
+
+    This callable is documented to make behavior explicit for readers.
+    """
     return await request_service.sugerir_atributos_para_produto_com_gemini(
         produto_id=produto_id,
         current_user=current_user,

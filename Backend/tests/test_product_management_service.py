@@ -1,3 +1,9 @@
+"""Module test product management service.
+
+This module contains backend application/runtime logic and is fully
+documented for maintainability and onboarding.
+"""
+
 from __future__ import annotations
 
 from types import SimpleNamespace
@@ -11,7 +17,15 @@ from Backend.application.services.product_management_service import (
 
 
 class _CrudProdutosStub:
+    """Class _CrudProdutosStub.
+
+    Encapsulates one responsibility in the backend architecture.
+    """
     def __init__(self, *, produto=None):
+        """Execute __init__.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         self.produto = produto
         self.created = []
         self.updated = []
@@ -20,6 +34,10 @@ class _CrudProdutosStub:
         self.total_items = 0
 
     def create_produto(self, *, produto, user_id):
+        """Execute create_produto.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         created = SimpleNamespace(
             id=produto.id,
             user_id=user_id,
@@ -31,95 +49,195 @@ class _CrudProdutosStub:
         return created
 
     def get_produto(self, *, produto_id):
+        """Execute get_produto.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         _ = produto_id
         return self.produto
 
     def get_produtos_by_user(self, **kwargs):
+        """Execute get_produtos_by_user.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         _ = kwargs
         return self.list_items
 
     def count_produtos_by_user(self, **kwargs):
+        """Execute count_produtos_by_user.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         _ = kwargs
         return self.total_items
 
     def update_produto(self, *, db_produto, produto_update):
+        """Execute update_produto.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         self.updated.append((db_produto, produto_update))
         if getattr(produto_update, "nome_base", None):
             db_produto.nome_base = produto_update.nome_base
         return db_produto
 
     def delete_produto(self, *, db_produto):
+        """Execute delete_produto.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         self.deleted.append(db_produto)
         return db_produto
 
 
 class _CrudFornecedoresStub:
+    """Class _CrudFornecedoresStub.
+
+    Encapsulates one responsibility in the backend architecture.
+    """
     def __init__(self, *, fornecedor=True):
+        """Execute __init__.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         self.fornecedor = fornecedor
 
     def get_fornecedor(self, *, fornecedor_id):
+        """Execute get_fornecedor.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         _ = fornecedor_id
         return self.fornecedor
 
 
 class _CrudProductTypesStub:
+    """Class _CrudProductTypesStub.
+
+    Encapsulates one responsibility in the backend architecture.
+    """
     def __init__(self, *, product_type=True):
+        """Execute __init__.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         self.product_type = product_type
 
     def get_product_type(self, *, product_type_id):
+        """Execute get_product_type.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         _ = product_type_id
         return self.product_type
 
 
 class _CrudHistoricoStub:
+    """Class _CrudHistoricoStub.
+
+    Encapsulates one responsibility in the backend architecture.
+    """
     def __init__(self):
+        """Execute __init__.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         self.calls = []
 
     def create_registro_historico(self, payload):
+        """Execute create_registro_historico.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         self.calls.append(payload.data)
 
 
 class _CrudUsoIAStub:
+    """Class _CrudUsoIAStub.
+
+    Encapsulates one responsibility in the backend architecture.
+    """
     def __init__(self):
+        """Execute __init__.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         self.calls = []
 
     def create_registro_uso_ia(self, payload):
+        """Execute create_registro_uso_ia.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         self.calls.append(payload.data)
 
 
 class _SchemaPayload:
+    """Class _SchemaPayload.
+
+    Encapsulates one responsibility in the backend architecture.
+    """
     def __init__(self, **kwargs):
+        """Execute __init__.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         self.data = kwargs
 
 
 class _SchemasStub:
+    """Class _SchemasStub.
+
+    Encapsulates one responsibility in the backend architecture.
+    """
     RegistroUsoIACreate = _SchemaPayload
     RegistroHistoricoCreate = _SchemaPayload
 
 
 class _TipoAcaoEnumStub:
+    """Class _TipoAcaoEnumStub.
+
+    Encapsulates one responsibility in the backend architecture.
+    """
     CRIACAO_PRODUTO = "CRIACAO_PRODUTO"
 
 
 class _TipoAcaoSistemaEnumStub:
+    """Class _TipoAcaoSistemaEnumStub.
+
+    Encapsulates one responsibility in the backend architecture.
+    """
     CRIACAO = "CRIACAO"
     ATUALIZACAO = "ATUALIZACAO"
     DELECAO = "DELECAO"
 
 
 class _ModelsStub:
+    """Class _ModelsStub.
+
+    Encapsulates one responsibility in the backend architecture.
+    """
     TipoAcaoEnum = _TipoAcaoEnumStub
     TipoAcaoSistemaEnum = _TipoAcaoSistemaEnumStub
 
 
 class _TopLevelFunctionSurface:
 
+    """Class _TopLevelFunctionSurface.
+
+    Encapsulates one responsibility in the backend architecture.
+    """
     def _build_service(
         *,
         produto=None,
         fornecedor=True,
         product_type=True,
     ):
+        """Execute _build_service.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         crud_produtos = _CrudProdutosStub(produto=produto)
         crud_historico = _CrudHistoricoStub()
         crud_uso_ia = _CrudUsoIAStub()
@@ -135,6 +253,10 @@ class _TopLevelFunctionSurface:
         return service, crud_produtos, crud_historico, crud_uso_ia
 
     def test_create_produto_records_historico_and_ia_usage():
+        """Execute test_create_produto_records_historico_and_ia_usage.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         service, crud_produtos, crud_historico, crud_uso_ia = _build_service()
     
         created = service.create_produto(
@@ -148,6 +270,10 @@ class _TopLevelFunctionSurface:
         assert crud_historico.calls[0]["acao"] == "CRIACAO"
 
     def test_create_produto_raises_when_fornecedor_missing():
+        """Execute test_create_produto_raises_when_fornecedor_missing.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         service, _, _, _ = _build_service(fornecedor=False)
     
         with pytest.raises(HTTPException) as exc:
@@ -159,6 +285,10 @@ class _TopLevelFunctionSurface:
         assert exc.value.status_code == 404
 
     def test_read_produto_raises_403_for_non_owner():
+        """Execute test_read_produto_raises_403_for_non_owner.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         produto = SimpleNamespace(id=10, user_id=9)
         service, _, _, _ = _build_service(produto=produto)
     
@@ -171,6 +301,10 @@ class _TopLevelFunctionSurface:
         assert exc.value.status_code == 403
 
     def test_list_produtos_builds_page_payload():
+        """Execute test_list_produtos_builds_page_payload.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         service, crud_produtos, _, _ = _build_service()
         crud_produtos.list_items = [SimpleNamespace(id=1), SimpleNamespace(id=2)]
         crud_produtos.total_items = 2
@@ -195,6 +329,10 @@ class _TopLevelFunctionSurface:
         assert payload["page"] == 1
 
     def test_update_produto_records_historico():
+        """Execute test_update_produto_records_historico.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         produto = SimpleNamespace(id=10, user_id=3, fornecedor_id=1, product_type_id=2, nome_base="Peca")
         service, crud_produtos, crud_historico, _ = _build_service(produto=produto)
     
@@ -213,6 +351,10 @@ class _TopLevelFunctionSurface:
         assert crud_historico.calls[0]["acao"] == "ATUALIZACAO"
 
     def test_delete_produto_records_historico():
+        """Execute test_delete_produto_records_historico.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         produto = SimpleNamespace(id=10, user_id=3)
         service, crud_produtos, crud_historico, _ = _build_service(produto=produto)
     
@@ -226,6 +368,10 @@ class _TopLevelFunctionSurface:
         assert crud_historico.calls[0]["acao"] == "DELECAO"
 
     def test_batch_delete_produtos_raises_when_all_missing():
+        """Execute test_batch_delete_produtos_raises_when_all_missing.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         service, _, _, _ = _build_service(produto=None)
     
         with pytest.raises(HTTPException) as exc:

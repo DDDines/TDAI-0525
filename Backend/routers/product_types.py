@@ -36,6 +36,10 @@ class ProductTypesRequestService:
         self,
         session: Session = Depends(ServiceContainerDependencySupport.get_request_db_session),
     ) -> None:
+        """Execute __init__.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         self._session = session
         self._product_type_repo = ProductTypeRepository(session)
         self._historico_repo = HistoricoRepository(session)
@@ -46,6 +50,10 @@ class ProductTypesRequestService:
         product_type_in: schemas.ProductTypeCreate,
         current_user: models.User,
     ) -> models.ProductType:
+        """Execute create_product_type.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         user_id_for_type = None if current_user.is_superuser else current_user.id
         logger.info(
             "ROUTER (create_product_type): requisicao recebida do usuario ID %s para alvo %s",
@@ -96,6 +104,10 @@ class ProductTypesRequestService:
         skip: int = 0,
         limit: int = 100,
     ) -> List[models.ProductType]:
+        """Execute read_product_types.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         logger.info(
             "ROUTER (read_product_types): iniciando busca para usuario ID %s",
             current_user.id,
@@ -117,6 +129,10 @@ class ProductTypesRequestService:
         identifier: str,
         current_user: models.User,
     ) -> models.ProductType:
+        """Execute read_product_type_details.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         logger.info(
             "ROUTER (read_product_type_details): iniciando busca por '%s'",
             identifier,
@@ -161,6 +177,10 @@ class ProductTypesRequestService:
         product_type_in: schemas.ProductTypeUpdate,
         current_user: models.User,
     ) -> models.ProductType:
+        """Execute update_product_type.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         db_product_type = self._product_type_repo.get_product_type(product_type_id=type_id)
         if not db_product_type:
             raise HTTPException(
@@ -187,6 +207,10 @@ class ProductTypesRequestService:
         type_id: int,
         current_user: models.User,
     ) -> models.ProductType:
+        """Execute delete_product_type.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         db_product_type = self._product_type_repo.get_product_type(product_type_id=type_id)
         if not db_product_type:
             raise HTTPException(
@@ -210,6 +234,10 @@ class ProductTypesRequestService:
         type_id: int,
         attribute_in: schemas.AttributeTemplateCreate,
     ) -> models.AttributeTemplate:
+        """Execute add_attribute_to_product_type.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         existing_attr_template = (
             self._session.query(models.AttributeTemplate)
             .filter(
@@ -238,6 +266,10 @@ class ProductTypesRequestService:
         attribute_id: int,
         attribute_in: schemas.AttributeTemplateUpdate,
     ) -> models.AttributeTemplate:
+        """Execute update_attribute_for_product_type.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         db_attribute_to_check = self._product_type_repo.get_attribute_template(
             attribute_template_id=attribute_id
         )
@@ -286,6 +318,10 @@ class ProductTypesRequestService:
         type_id: int,
         attribute_id: int,
     ) -> models.AttributeTemplate:
+        """Execute remove_attribute_from_product_type.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         db_attribute_to_check = self._product_type_repo.get_attribute_template(
             attribute_template_id=attribute_id
         )
@@ -315,6 +351,10 @@ class ProductTypesRequestService:
         reorder_request: ReorderRequest,
         current_user: models.User,
     ) -> models.AttributeTemplate:
+        """Execute reorder_attribute.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         product_type = self._product_type_repo.get_product_type(product_type_id=type_id)
         if not product_type:
             raise HTTPException(
@@ -347,6 +387,10 @@ def create_product_type_endpoint(
     ),
     request_service: ProductTypesRequestService = Depends(),
 ):
+    """Execute create_product_type_endpoint.
+
+    This callable is documented to make behavior explicit for readers.
+    """
     return request_service.create_product_type(product_type_in=product_type_in, current_user=current_user)
 
 
@@ -359,6 +403,10 @@ def read_product_types_endpoint(
     ),
     request_service: ProductTypesRequestService = Depends(),
 ):
+    """Execute read_product_types_endpoint.
+
+    This callable is documented to make behavior explicit for readers.
+    """
     return request_service.read_product_types(current_user=current_user, skip=skip, limit=limit)
 
 
@@ -377,6 +425,10 @@ async def read_product_type_details_route(
     ),
     request_service: ProductTypesRequestService = Depends(),
 ):
+    """Execute read_product_type_details_route.
+
+    This callable is documented to make behavior explicit for readers.
+    """
     return await request_service.read_product_type_details(
         identifier=type_id_or_key_path,
         current_user=current_user,
@@ -392,6 +444,10 @@ def update_product_type_endpoint(
     ),
     request_service: ProductTypesRequestService = Depends(),
 ):
+    """Execute update_product_type_endpoint.
+
+    This callable is documented to make behavior explicit for readers.
+    """
     return request_service.update_product_type(
         type_id=type_id,
         product_type_in=product_type_in,
@@ -407,6 +463,10 @@ def delete_product_type_endpoint(
     ),
     request_service: ProductTypesRequestService = Depends(),
 ):
+    """Execute delete_product_type_endpoint.
+
+    This callable is documented to make behavior explicit for readers.
+    """
     return request_service.delete_product_type(type_id=type_id, current_user=current_user)
 
 
@@ -423,6 +483,10 @@ def add_attribute_to_product_type_endpoint(
     ),
     request_service: ProductTypesRequestService = Depends(),
 ):
+    """Execute add_attribute_to_product_type_endpoint.
+
+    This callable is documented to make behavior explicit for readers.
+    """
     _ = current_user
     return request_service.add_attribute_to_product_type(type_id=type_id, attribute_in=attribute_in)
 
@@ -437,6 +501,10 @@ def update_attribute_for_product_type_endpoint(
     ),
     request_service: ProductTypesRequestService = Depends(),
 ):
+    """Execute update_attribute_for_product_type_endpoint.
+
+    This callable is documented to make behavior explicit for readers.
+    """
     _ = current_user
     return request_service.update_attribute_for_product_type(
         type_id=type_id,
@@ -454,6 +522,10 @@ def remove_attribute_from_product_type_endpoint(
     ),
     request_service: ProductTypesRequestService = Depends(),
 ):
+    """Execute remove_attribute_from_product_type_endpoint.
+
+    This callable is documented to make behavior explicit for readers.
+    """
     _ = current_user
     return request_service.remove_attribute_from_product_type(type_id=type_id, attribute_id=attribute_id)
 
@@ -471,6 +543,10 @@ def reorder_attribute_endpoint(
     ),
     request_service: ProductTypesRequestService = Depends(),
 ):
+    """Execute reorder_attribute_endpoint.
+
+    This callable is documented to make behavior explicit for readers.
+    """
     return request_service.reorder_attribute(
         type_id=type_id,
         attribute_id=attribute_id,

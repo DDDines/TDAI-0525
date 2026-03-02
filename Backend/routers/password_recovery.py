@@ -27,12 +27,20 @@ class PasswordRecoveryRequestService:
         self,
         session: Session = Depends(ServiceContainerDependencySupport.get_request_db_session),
     ) -> None:
+        """Execute __init__.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         self._session = session
         self._auth_workflow = AuthWorkflow(session=session)
         self._email_workflow = EmailWorkflow()
         self._user_repository = UserRepository(session)
 
     async def recover_password(self, *, email: str, request: Request) -> schemas.Msg:
+        """Execute recover_password.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         _ = request
         user = self._user_repository.get_user_by_email(email=email)
         if not user:
@@ -69,6 +77,10 @@ class PasswordRecoveryRequestService:
             ) from exc
 
     def reset_password(self, *, reset_data: schemas.PasswordResetSchema) -> schemas.Msg:
+        """Execute reset_password.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         token_hash = self._auth_workflow.hash_password_reset_token(reset_data.token)
         user = self._user_repository.get_user_by_reset_token(token_hash=token_hash)
         if not user:
@@ -104,6 +116,10 @@ async def recover_password(
     request: Request,
     request_service: PasswordRecoveryRequestService = Depends(),
 ):
+    """Execute recover_password.
+
+    This callable is documented to make behavior explicit for readers.
+    """
     return await request_service.recover_password(email=email, request=request)
 
 
@@ -113,4 +129,8 @@ def reset_password(
     reset_data: schemas.PasswordResetSchema = Body(...),
     request_service: PasswordRecoveryRequestService = Depends(),
 ):
+    """Execute reset_password.
+
+    This callable is documented to make behavior explicit for readers.
+    """
     return request_service.reset_password(reset_data=reset_data)

@@ -56,6 +56,10 @@ class WebEnrichmentRequestService:
         self,
         session: Session = Depends(ServiceContainerDependencySupport.get_request_db_session),
     ) -> None:
+        """Execute __init__.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         self._session = session
         db_session_factory = ServiceContainerDependencySupport.get_background_db_session_factory()
         normalization_service = WebEnrichmentNormalizationService()
@@ -100,6 +104,10 @@ class WebEnrichmentRequestService:
         user_id: int,
         termos_busca_override: Optional[str] = None,
     ):
+        """Execute tarefa_enriquecer_produto_web.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         await self._task_runner.execute(
             produto_id=produto_id,
             user_id=user_id,
@@ -114,6 +122,10 @@ class WebEnrichmentRequestService:
         current_user: models.User,
         termos_busca_override: Optional[str] = None,
     ) -> Dict[str, str]:
+        """Execute iniciar_enriquecimento_produto_web.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         self._start_service.validate_start_preconditions(
             produto_id=produto_id,
             current_user=current_user,
@@ -150,6 +162,10 @@ async def iniciar_enriquecimento_produto_web_endpoint(
     ),
     request_service: WebEnrichmentRequestService = Depends(),
 ):
+    """Execute iniciar_enriquecimento_produto_web_endpoint.
+
+    This callable is documented to make behavior explicit for readers.
+    """
     return request_service.iniciar_enriquecimento_produto_web(
         produto_id=produto_id,
         background_tasks=background_tasks,

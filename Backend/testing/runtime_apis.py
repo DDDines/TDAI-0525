@@ -1,3 +1,9 @@
+"""Module runtime apis.
+
+This module contains backend application/runtime logic and is fully
+documented for maintainability and onboarding.
+"""
+
 from __future__ import annotations
 
 """Centralized test-only access to runtime internals.
@@ -17,6 +23,10 @@ class RuntimeApis:
 
     @staticmethod
     def processar_linha_padronizada(linha_original, mapeamento_colunas_usuario=None):
+        """Execute processar_linha_padronizada.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         return file_processing.LineMappingWorkflow().processar_linha_padronizada(
             linha_original=linha_original,
             mapeamento_colunas_usuario=mapeamento_colunas_usuario,

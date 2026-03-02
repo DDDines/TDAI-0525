@@ -1,3 +1,9 @@
+"""Module test fornecedor management service.
+
+This module contains backend application/runtime logic and is fully
+documented for maintainability and onboarding.
+"""
+
 from __future__ import annotations
 
 from types import SimpleNamespace
@@ -11,7 +17,15 @@ from Backend.application.services.fornecedor_management_service import (
 
 
 class _FornecedorRepoStub:
+    """Class _FornecedorRepoStub.
+
+    Encapsulates one responsibility in the backend architecture.
+    """
     def __init__(self, fornecedor=None):
+        """Execute __init__.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         self._fornecedor = fornecedor
         self.created_calls = []
         self.updated_calls = []
@@ -22,72 +36,144 @@ class _FornecedorRepoStub:
         self.mapping_updates = []
 
     def get_fornecedor(self, *, fornecedor_id):
+        """Execute get_fornecedor.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         _ = fornecedor_id
         return self._fornecedor
 
     def create_fornecedor(self, *, fornecedor, user_id):
+        """Execute create_fornecedor.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         created = SimpleNamespace(id=fornecedor.id, nome=fornecedor.nome, user_id=user_id)
         self.created_calls.append((fornecedor, user_id))
         return created
 
     def get_fornecedores_by_user(self, *, user_id, is_admin, skip, limit, search):
+        """Execute get_fornecedores_by_user.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         _ = (user_id, is_admin, skip, limit, search)
         return self.list_items
 
     def count_fornecedores_by_user(self, *, user_id, is_admin, search):
+        """Execute count_fornecedores_by_user.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         _ = (user_id, is_admin, search)
         return self.list_total
 
     def exists_fornecedor_with_name_for_user(self, *, user_id, nome, exclude_id):
+        """Execute exists_fornecedor_with_name_for_user.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         _ = (user_id, nome, exclude_id)
         return self.has_duplicate_name
 
     def update_fornecedor(self, *, db_fornecedor, fornecedor_update):
+        """Execute update_fornecedor.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         self.updated_calls.append((db_fornecedor, fornecedor_update))
         if fornecedor_update.nome:
             db_fornecedor.nome = fornecedor_update.nome
         return db_fornecedor
 
     def set_default_column_mapping(self, *, db_fornecedor, mapping):
+        """Execute set_default_column_mapping.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         db_fornecedor.default_column_mapping = mapping
         self.mapping_updates.append((db_fornecedor, mapping))
         return db_fornecedor
 
     def delete_fornecedor(self, *, db_fornecedor):
+        """Execute delete_fornecedor.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         self.deleted_calls.append(db_fornecedor)
         return db_fornecedor
 
 
 class _HistoricoRepoStub:
+    """Class _HistoricoRepoStub.
+
+    Encapsulates one responsibility in the backend architecture.
+    """
     def __init__(self):
+        """Execute __init__.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         self.calls = []
 
     def create_registro_historico(self, payload):
+        """Execute create_registro_historico.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         self.calls.append(payload)
 
 
 class _RegistroHistoricoCreateStub:
+    """Class _RegistroHistoricoCreateStub.
+
+    Encapsulates one responsibility in the backend architecture.
+    """
     def __init__(self, **kwargs):
+        """Execute __init__.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         self.data = kwargs
 
 
 class _TipoAcaoSistemaEnumStub:
+    """Class _TipoAcaoSistemaEnumStub.
+
+    Encapsulates one responsibility in the backend architecture.
+    """
     CRIACAO = "CRIACAO"
     ATUALIZACAO = "ATUALIZACAO"
     DELECAO = "DELECAO"
 
 
 class _ModelsStub:
+    """Class _ModelsStub.
+
+    Encapsulates one responsibility in the backend architecture.
+    """
     TipoAcaoSistemaEnum = _TipoAcaoSistemaEnumStub
 
 
 class _SchemasStub:
+    """Class _SchemasStub.
+
+    Encapsulates one responsibility in the backend architecture.
+    """
     RegistroHistoricoCreate = _RegistroHistoricoCreateStub
 
 
 class _TopLevelFunctionSurface:
 
+    """Class _TopLevelFunctionSurface.
+
+    Encapsulates one responsibility in the backend architecture.
+    """
     def _build_service(*, fornecedor):
+        """Execute _build_service.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         fornecedor_repo = _FornecedorRepoStub(fornecedor=fornecedor)
         historico_repo = _HistoricoRepoStub()
         service = FornecedorManagementService(
@@ -99,6 +185,10 @@ class _TopLevelFunctionSurface:
         return service, fornecedor_repo, historico_repo
 
     def test_resolve_fornecedor_for_user_success():
+        """Execute test_resolve_fornecedor_for_user_success.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         fornecedor = SimpleNamespace(id=5, user_id=10, nome="Fornecedor A")
         service, _, _ = _build_service(fornecedor=fornecedor)
     
@@ -112,6 +202,10 @@ class _TopLevelFunctionSurface:
         assert result is fornecedor
 
     def test_ensure_current_user_identified_raises_400():
+        """Execute test_ensure_current_user_identified_raises_400.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         service, _, _ = _build_service(fornecedor=None)
     
         with pytest.raises(HTTPException) as exc:
@@ -120,6 +214,10 @@ class _TopLevelFunctionSurface:
         assert exc.value.status_code == 400
 
     def test_create_fornecedor_records_historico():
+        """Execute test_create_fornecedor_records_historico.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         service, fornecedor_repo, historico_repo = _build_service(fornecedor=None)
     
         created = service.create_fornecedor(
@@ -133,6 +231,10 @@ class _TopLevelFunctionSurface:
         assert payload["acao"] == "CRIACAO"
 
     def test_list_fornecedores_page_for_regular_user():
+        """Execute test_list_fornecedores_page_for_regular_user.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         service, fornecedor_repo, _ = _build_service(fornecedor=None)
         fornecedor_repo.list_items = [SimpleNamespace(id=1), SimpleNamespace(id=2)]
         fornecedor_repo.list_total = 2
@@ -150,6 +252,10 @@ class _TopLevelFunctionSurface:
         assert payload["limit"] == 10
 
     def test_resolve_fornecedor_for_user_raises_404():
+        """Execute test_resolve_fornecedor_for_user_raises_404.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         service, _, _ = _build_service(fornecedor=None)
     
         with pytest.raises(HTTPException) as exc:
@@ -164,6 +270,10 @@ class _TopLevelFunctionSurface:
         assert exc.value.detail == "nao encontrado"
 
     def test_resolve_fornecedor_for_user_raises_403():
+        """Execute test_resolve_fornecedor_for_user_raises_403.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         fornecedor = SimpleNamespace(id=5, user_id=99, nome="Fornecedor A")
         service, _, _ = _build_service(fornecedor=fornecedor)
     
@@ -178,6 +288,10 @@ class _TopLevelFunctionSurface:
         assert exc.value.status_code == 403
 
     def test_update_fornecedor_records_historico():
+        """Execute test_update_fornecedor_records_historico.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         fornecedor = SimpleNamespace(id=5, user_id=10, nome="Fornecedor A")
         service, fornecedor_repo, historico_repo = _build_service(fornecedor=fornecedor)
     
@@ -194,6 +308,10 @@ class _TopLevelFunctionSurface:
         assert payload["acao"] == "ATUALIZACAO"
 
     def test_update_fornecedor_raises_for_duplicate_name():
+        """Execute test_update_fornecedor_raises_for_duplicate_name.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         fornecedor = SimpleNamespace(id=5, user_id=10, nome="Fornecedor A")
         service, fornecedor_repo, _ = _build_service(fornecedor=fornecedor)
         fornecedor_repo.has_duplicate_name = True
@@ -208,6 +326,10 @@ class _TopLevelFunctionSurface:
         assert exc.value.status_code == 400
 
     def test_update_mapping_persists_and_returns_fornecedor():
+        """Execute test_update_mapping_persists_and_returns_fornecedor.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         fornecedor = SimpleNamespace(id=5, user_id=10, nome="Fornecedor A", default_column_mapping=None)
         service, fornecedor_repo, _ = _build_service(fornecedor=fornecedor)
     
@@ -221,6 +343,10 @@ class _TopLevelFunctionSurface:
         assert len(fornecedor_repo.mapping_updates) == 1
 
     def test_delete_fornecedor_records_historico():
+        """Execute test_delete_fornecedor_records_historico.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         fornecedor = SimpleNamespace(id=5, user_id=10, nome="Fornecedor A")
         service, fornecedor_repo, historico_repo = _build_service(fornecedor=fornecedor)
     

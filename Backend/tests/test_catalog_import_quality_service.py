@@ -1,3 +1,9 @@
+"""Module test catalog import quality service.
+
+This module contains backend application/runtime logic and is fully
+documented for maintainability and onboarding.
+"""
+
 from Backend.application.services.catalog_import_quality_service import (
     CatalogRow,
     CatalogImportQualityService,
@@ -6,17 +12,33 @@ from Backend.application.services.catalog_import_quality_service import (
 
 class _TopLevelFunctionSurface:
 
+    """Class _TopLevelFunctionSurface.
+
+    Encapsulates one responsibility in the backend architecture.
+    """
     def test_text_has_context_rejects_symbol_only_values():
+        """Execute test_text_has_context_rejects_symbol_only_values.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         service = CatalogImportQualityService()
         assert service.text_has_context("---") is False
         assert service.text_has_context("|") is False
 
     def test_text_looks_like_part_code_detects_structured_codes():
+        """Execute test_text_looks_like_part_code_detects_structured_codes.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         service = CatalogImportQualityService()
         assert service.text_looks_like_part_code("2C456840300BB") is True
         assert service.text_looks_like_part_code("Paralama Dianteiro") is False
 
     def test_classify_product_row_quality_discards_annotation_header():
+        """Execute test_classify_product_row_quality_discards_annotation_header.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         service = CatalogImportQualityService()
         result = service.classify_product_row_quality(
             {
@@ -31,6 +53,10 @@ class _TopLevelFunctionSurface:
         assert "cabecalho de anotacoes" in (result["reason"] or "")
 
     def test_classify_product_row_quality_quarantines_code_without_part_context():
+        """Execute test_classify_product_row_quality_quarantines_code_without_part_context.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         service = CatalogImportQualityService()
         result = service.classify_product_row_quality(
             {
@@ -45,6 +71,10 @@ class _TopLevelFunctionSurface:
         assert result["decision"] != "accept"
 
     def test_evaluate_discards_sku_code_with_application_only_context():
+        """Execute test_evaluate_discards_sku_code_with_application_only_context.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         service = CatalogImportQualityService()
         reason = service.evaluate_product_row_quality(
             {
@@ -60,6 +90,10 @@ class _TopLevelFunctionSurface:
         assert ("codigo" in reason_lower) or ("ruido ocr" in reason_lower)
 
     def test_evaluate_keeps_sku_code_when_dynamic_part_context_exists():
+        """Execute test_evaluate_keeps_sku_code_when_dynamic_part_context_exists.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         service = CatalogImportQualityService()
         reason = service.evaluate_product_row_quality(
             {
@@ -76,6 +110,10 @@ class _TopLevelFunctionSurface:
         assert reason is None
 
     def test_evaluate_discards_short_numeric_code_without_strong_part_context():
+        """Execute test_evaluate_discards_short_numeric_code_without_strong_part_context.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         service = CatalogImportQualityService()
         reason = service.evaluate_product_row_quality(
             {
@@ -91,6 +129,10 @@ class _TopLevelFunctionSurface:
         assert "codigo curto sem contexto forte de peca" in reason
 
     def test_evaluate_accepts_short_numeric_code_with_strong_part_context():
+        """Execute test_evaluate_accepts_short_numeric_code_with_strong_part_context.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         service = CatalogImportQualityService()
         reason = service.evaluate_product_row_quality(
             {
@@ -105,6 +147,10 @@ class _TopLevelFunctionSurface:
         assert reason is None
 
     def test_quality_service_accepts_catalog_row_domain_object():
+        """Execute test_quality_service_accepts_catalog_row_domain_object.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         service = CatalogImportQualityService()
         row = CatalogRow(
             nome_base="Paralama dianteiro",

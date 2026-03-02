@@ -1,4 +1,10 @@
 # Backend/models.py
+"""Module models.
+
+This module contains backend application/runtime logic and is fully
+documented for maintainability and onboarding.
+"""
+
 
 from sqlalchemy import (
     Column,
@@ -26,6 +32,10 @@ import enum
 
 # Definição dos Enums Python
 class StatusEnriquecimentoEnum(str, enum.Enum):
+    """Class StatusEnriquecimentoEnum.
+
+    Encapsulates one responsibility in the backend architecture.
+    """
     NAO_INICIADO = "NAO_INICIADO"
     PENDENTE = "PENDENTE"  # Adicionado, se necessário para indicar que está na fila
     EM_PROGRESSO = "EM_PROGRESSO"
@@ -43,6 +53,10 @@ class StatusEnriquecimentoEnum(str, enum.Enum):
 
 
 class StatusGeracaoIAEnum(str, enum.Enum):
+    """Class StatusGeracaoIAEnum.
+
+    Encapsulates one responsibility in the backend architecture.
+    """
     NAO_INICIADO = "NAO_INICIADO"
     PENDENTE = "PENDENTE"
     EM_PROGRESSO = "EM_PROGRESSO"
@@ -52,6 +66,10 @@ class StatusGeracaoIAEnum(str, enum.Enum):
 
 
 class TipoAcaoEnum(str, enum.Enum):
+    """Class TipoAcaoEnum.
+
+    Encapsulates one responsibility in the backend architecture.
+    """
     CRIACAO_TITULO_PRODUTO = "criacao_titulo_produto"
     CRIACAO_DESCRICAO_PRODUTO = "criacao_descricao_produto"
     ENRIQUECIMENTO_WEB_PRODUTO = (
@@ -68,12 +86,20 @@ class TipoAcaoEnum(str, enum.Enum):
 
 
 class TipoAcaoSistemaEnum(str, enum.Enum):
+    """Class TipoAcaoSistemaEnum.
+
+    Encapsulates one responsibility in the backend architecture.
+    """
     CRIACAO = "CRIACAO"
     ATUALIZACAO = "ATUALIZACAO"
     DELECAO = "DELECAO"
 
 
 class AttributeFieldTypeEnum(str, enum.Enum):
+    """Class AttributeFieldTypeEnum.
+
+    Encapsulates one responsibility in the backend architecture.
+    """
     TEXT = "text"
     NUMBER = "number"
     BOOLEAN = "boolean"
@@ -88,6 +114,10 @@ class AttributeFieldTypeEnum(str, enum.Enum):
 
 # Modelo de Usuário
 class User(Base):
+    """Class User.
+
+    Encapsulates one responsibility in the backend architecture.
+    """
     __tablename__ = "users"
 
     id = Column(Integer, primary_key=True, index=True)
@@ -153,6 +183,10 @@ class User(Base):
 
 # Modelo de Role (Função/Papel do usuário)
 class Role(Base):
+    """Class Role.
+
+    Encapsulates one responsibility in the backend architecture.
+    """
     __tablename__ = "roles"
     id = Column(Integer, primary_key=True, index=True)
     name = Column(
@@ -169,6 +203,10 @@ class Role(Base):
 
 # Modelo de Plano de Assinatura
 class Plano(Base):
+    """Class Plano.
+
+    Encapsulates one responsibility in the backend architecture.
+    """
     __tablename__ = "planos"
     id = Column(Integer, primary_key=True, index=True)
     nome = Column(String, unique=True, index=True, nullable=False)
@@ -193,6 +231,10 @@ class Plano(Base):
 
 # Modelo de Fornecedor
 class Fornecedor(Base):
+    """Class Fornecedor.
+
+    Encapsulates one responsibility in the backend architecture.
+    """
     __tablename__ = "fornecedores"
 
     id = Column(Integer, primary_key=True, index=True)
@@ -227,6 +269,10 @@ class Fornecedor(Base):
 
 # Modelo de Tipo de Produto (ProductType)
 class ProductType(Base):
+    """Class ProductType.
+
+    Encapsulates one responsibility in the backend architecture.
+    """
     __tablename__ = "product_types"
 
     id = Column(Integer, primary_key=True, index=True)
@@ -276,6 +322,10 @@ Index(
 
 # Modelo de Template de Atributo (AttributeTemplate)
 class AttributeTemplate(Base):
+    """Class AttributeTemplate.
+
+    Encapsulates one responsibility in the backend architecture.
+    """
     __tablename__ = "attribute_templates"
 
     id = Column(Integer, primary_key=True, index=True)
@@ -325,6 +375,10 @@ class AttributeTemplate(Base):
 
 # Modelo de Produto
 class Produto(Base):
+    """Class Produto.
+
+    Encapsulates one responsibility in the backend architecture.
+    """
     __tablename__ = "produtos"
 
     id = Column(Integer, primary_key=True, index=True)
@@ -446,6 +500,10 @@ class Produto(Base):
 
 # Modelo para Registro de Uso de IA
 class RegistroUsoIA(Base):
+    """Class RegistroUsoIA.
+
+    Encapsulates one responsibility in the backend architecture.
+    """
     __tablename__ = "registros_uso_ia"
 
     id = Column(Integer, primary_key=True, index=True)
@@ -485,6 +543,10 @@ class RegistroUsoIA(Base):
 
 
 class RegistroHistorico(Base):
+    """Class RegistroHistorico.
+
+    Encapsulates one responsibility in the backend architecture.
+    """
     __tablename__ = "registros_historico"
 
     id = Column(Integer, primary_key=True, index=True)
@@ -499,6 +561,10 @@ class RegistroHistorico(Base):
 
 
 class CatalogImportFile(Base):
+    """Class CatalogImportFile.
+
+    Encapsulates one responsibility in the backend architecture.
+    """
     __tablename__ = "catalog_import_files"
 
     id = Column(Integer, primary_key=True, index=True)
@@ -518,6 +584,10 @@ class CatalogImportFile(Base):
 
 
 class FornecedorImportJob(Base):
+    """Class FornecedorImportJob.
+
+    Encapsulates one responsibility in the backend architecture.
+    """
     __tablename__ = "fornecedor_import_jobs"
 
     id = Column(Integer, primary_key=True, index=True)

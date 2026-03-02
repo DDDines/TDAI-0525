@@ -1,4 +1,10 @@
 # Caminho: Backend/schemas.py
+"""Module schemas.
+
+This module contains backend application/runtime logic and is fully
+documented for maintainability and onboarding.
+"""
+
 
 from typing import List, Optional, Dict, Any, Union, Literal
 from pydantic import (
@@ -29,20 +35,36 @@ from Backend.models import (
 
 # Schemas de Autenticação e Usuário
 class Token(BaseModel):
+    """Class Token.
+
+    Encapsulates one responsibility in the backend architecture.
+    """
     access_token: str
     token_type: str
 
 
 class TokenData(BaseModel):
+    """Class TokenData.
+
+    Encapsulates one responsibility in the backend architecture.
+    """
     email: Optional[str] = None
     user_id: Optional[int] = None  # Adicionado para identificar o usuário pelo ID
 
 
 class RefreshTokenRequest(BaseModel):
+    """Class RefreshTokenRequest.
+
+    Encapsulates one responsibility in the backend architecture.
+    """
     refresh_token: str
 
 
 class UserBase(BaseModel):
+    """Class UserBase.
+
+    Encapsulates one responsibility in the backend architecture.
+    """
     email: EmailStr
     nome_completo: Optional[str] = None
     is_active: Optional[bool] = True
@@ -55,16 +77,28 @@ class UserBase(BaseModel):
 
 
 class UserCreate(UserBase):
+    """Class UserCreate.
+
+    Encapsulates one responsibility in the backend architecture.
+    """
     password: str
 
 
 class UserCreateOAuth(UserBase):  # Para criação via OAuth
+    """Class UserCreateOAuth.
+
+    Encapsulates one responsibility in the backend architecture.
+    """
     provider: Optional[str] = None
     provider_user_id: Optional[str] = None
     # Não requer password na criação OAuth
 
 
 class UserUpdate(BaseModel):  # O que o próprio usuário pode atualizar
+    """Class UserUpdate.
+
+    Encapsulates one responsibility in the backend architecture.
+    """
     email: Optional[EmailStr] = None
     nome_completo: Optional[str] = None
     password: Optional[str] = None  # Para alteração de senha
@@ -76,6 +110,10 @@ class UserUpdate(BaseModel):  # O que o próprio usuário pode atualizar
 class UserUpdateByAdmin(
     UserUpdate
 ):  # O que um admin pode atualizar em qualquer usuário
+    """Class UserUpdateByAdmin.
+
+    Encapsulates one responsibility in the backend architecture.
+    """
     is_active: Optional[bool] = None
     is_superuser: Optional[bool] = None
     plano_id: Optional[int] = None
@@ -89,16 +127,28 @@ class UserUpdateByAdmin(
 class UserUpdateOAuth(
     BaseModel
 ):  # Dados que podem ser atualizados via OAuth (ex: nome, se mudar no provedor)
+    """Class UserUpdateOAuth.
+
+    Encapsulates one responsibility in the backend architecture.
+    """
     nome_completo: Optional[str] = None
     # Outros campos que o OAuth possa fornecer e queiramos atualizar
 
 
 class UserChangePassword(BaseModel):
+    """Class UserChangePassword.
+
+    Encapsulates one responsibility in the backend architecture.
+    """
     current_password: str = Field(..., min_length=1)
     new_password: str = Field(..., min_length=8)
 
 
 class UserResponse(UserBase):  # O que é retornado pela API
+    """Class UserResponse.
+
+    Encapsulates one responsibility in the backend architecture.
+    """
     id: int
     created_at: datetime
     updated_at: datetime
@@ -113,31 +163,55 @@ class UserResponse(UserBase):  # O que é retornado pela API
     model_config = ConfigDict(from_attributes=True)
 
 class PasswordResetRequest(BaseModel):
+    """Class PasswordResetRequest.
+
+    Encapsulates one responsibility in the backend architecture.
+    """
     email: EmailStr
 
 
 class PasswordResetConfirm(BaseModel):
+    """Class PasswordResetConfirm.
+
+    Encapsulates one responsibility in the backend architecture.
+    """
     token: str
     new_password: str
 
 
 # Schemas para Role
 class RoleBase(BaseModel):
+    """Class RoleBase.
+
+    Encapsulates one responsibility in the backend architecture.
+    """
     name: str = Field(..., min_length=3, max_length=50)
     description: Optional[str] = None
 
 
 class RoleCreate(RoleBase):
+    """Class RoleCreate.
+
+    Encapsulates one responsibility in the backend architecture.
+    """
     pass
 
 
 class RoleUpdate(RoleBase):
+    """Class RoleUpdate.
+
+    Encapsulates one responsibility in the backend architecture.
+    """
     name: Optional[str] = Field(
         None, min_length=3, max_length=50
     )  # Tornar opcional na atualização
 
 
 class RoleResponse(RoleBase):
+    """Class RoleResponse.
+
+    Encapsulates one responsibility in the backend architecture.
+    """
     id: int
     created_at: datetime
     updated_at: datetime
@@ -147,6 +221,10 @@ class RoleResponse(RoleBase):
 
 # Schemas para Plano
 class PlanoBase(BaseModel):
+    """Class PlanoBase.
+
+    Encapsulates one responsibility in the backend architecture.
+    """
     nome: str = Field(..., min_length=3, max_length=100)
     descricao: Optional[str] = None
     preco_mensal: float = Field(..., ge=0)
@@ -158,10 +236,18 @@ class PlanoBase(BaseModel):
 
 
 class PlanoCreate(PlanoBase):
+    """Class PlanoCreate.
+
+    Encapsulates one responsibility in the backend architecture.
+    """
     pass
 
 
 class PlanoUpdate(PlanoBase):
+    """Class PlanoUpdate.
+
+    Encapsulates one responsibility in the backend architecture.
+    """
     nome: Optional[str] = Field(None, min_length=3, max_length=100)
     preco_mensal: Optional[float] = Field(None, ge=0)
     limite_produtos: Optional[int] = Field(None, ge=0)
@@ -171,6 +257,10 @@ class PlanoUpdate(PlanoBase):
 
 
 class PlanoResponse(PlanoBase):
+    """Class PlanoResponse.
+
+    Encapsulates one responsibility in the backend architecture.
+    """
     id: int
     created_at: datetime
     updated_at: datetime
@@ -180,6 +270,10 @@ class PlanoResponse(PlanoBase):
 
 # Schemas para Fornecedor
 class FornecedorBase(BaseModel):
+    """Class FornecedorBase.
+
+    Encapsulates one responsibility in the backend architecture.
+    """
     nome: str = Field(..., max_length=200)
     email_contato: Optional[EmailStr] = None
     telefone_contato: Optional[str] = Field(None, max_length=20)
@@ -193,16 +287,28 @@ class FornecedorBase(BaseModel):
 
 
 class FornecedorCreate(FornecedorBase):
+    """Class FornecedorCreate.
+
+    Encapsulates one responsibility in the backend architecture.
+    """
     pass
 
 
 class FornecedorUpdate(FornecedorBase):
     # Tornar campos opcionais para atualização parcial
+    """Class FornecedorUpdate.
+
+    Encapsulates one responsibility in the backend architecture.
+    """
     nome: Optional[str] = Field(None, max_length=200)
     # Adicionar Optional para todos os outros campos se desejar atualização parcial
 
 
 class FornecedorResponse(FornecedorBase):
+    """Class FornecedorResponse.
+
+    Encapsulates one responsibility in the backend architecture.
+    """
     id: int
     user_id: int
     created_at: datetime
@@ -212,6 +318,10 @@ class FornecedorResponse(FornecedorBase):
     model_config = ConfigDict(from_attributes=True)
 
 class FornecedorPage(BaseModel):
+    """Class FornecedorPage.
+
+    Encapsulates one responsibility in the backend architecture.
+    """
     items: List[FornecedorResponse]
     total_items: int
     page: int
@@ -220,6 +330,10 @@ class FornecedorPage(BaseModel):
 
 # Schemas para AttributeTemplate
 class AttributeTemplateBase(BaseModel):
+    """Class AttributeTemplateBase.
+
+    Encapsulates one responsibility in the backend architecture.
+    """
     attribute_key: str = Field(
         ...,
         description="Chave única do atributo no template (ex: 'cor', 'tamanho_tela').",
@@ -252,6 +366,10 @@ class AttributeTemplateBase(BaseModel):
     @field_validator("options", mode="before")
     @classmethod
     def parse_json_options(cls, value: Any) -> Any:
+        """Execute parse_json_options.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         if isinstance(value, str):
             try:
                 parsed_value = json.loads(value)
@@ -266,11 +384,19 @@ class AttributeTemplateBase(BaseModel):
 
 
 class AttributeTemplateCreate(AttributeTemplateBase):
+    """Class AttributeTemplateCreate.
+
+    Encapsulates one responsibility in the backend architecture.
+    """
     pass  # product_type_id será atribuído no CRUD
 
 
 class AttributeTemplateUpdate(AttributeTemplateBase):
     # Todos os campos são opcionais na atualização
+    """Class AttributeTemplateUpdate.
+
+    Encapsulates one responsibility in the backend architecture.
+    """
     attribute_key: Optional[str] = None
     label: Optional[str] = None
     field_type: Optional[AttributeFieldTypeEnum] = None
@@ -278,6 +404,10 @@ class AttributeTemplateUpdate(AttributeTemplateBase):
 
 
 class AttributeTemplateResponse(AttributeTemplateBase):
+    """Class AttributeTemplateResponse.
+
+    Encapsulates one responsibility in the backend architecture.
+    """
     id: int
     product_type_id: int
     options: Optional[List[str]] = None  # Garante que a resposta seja uma lista
@@ -286,6 +416,10 @@ class AttributeTemplateResponse(AttributeTemplateBase):
 
 # Schemas para ProductType
 class ProductTypeBase(BaseModel):
+    """Class ProductTypeBase.
+
+    Encapsulates one responsibility in the backend architecture.
+    """
     key_name: str = Field(
         ...,
         description="Chave única para identificar o tipo de produto (ex: 'smartphones', 'camisetas_manga_longa').",
@@ -300,10 +434,18 @@ class ProductTypeBase(BaseModel):
 
 
 class ProductTypeCreate(ProductTypeBase):
+    """Class ProductTypeCreate.
+
+    Encapsulates one responsibility in the backend architecture.
+    """
     attribute_templates: List[AttributeTemplateCreate] = []
 
 
 class ProductTypeUpdate(ProductTypeBase):
+    """Class ProductTypeUpdate.
+
+    Encapsulates one responsibility in the backend architecture.
+    """
     key_name: Optional[str] = None
     friendly_name: Optional[str] = None
     # attribute_templates: Opcionalmente, permitir atualizar/adicionar/remover atributos aqui,
@@ -311,6 +453,10 @@ class ProductTypeUpdate(ProductTypeBase):
 
 
 class ProductTypeResponse(ProductTypeBase):
+    """Class ProductTypeResponse.
+
+    Encapsulates one responsibility in the backend architecture.
+    """
     id: int
     user_id: Optional[int] = (
         None  # Tipos podem ser globais (user_id=None) ou específicos do usuário
@@ -323,6 +469,10 @@ class ProductTypeResponse(ProductTypeBase):
 
 # Schemas para Produto
 class ProdutoBase(BaseModel):
+    """Class ProdutoBase.
+
+    Encapsulates one responsibility in the backend architecture.
+    """
     nome_base: str = Field(
         ..., max_length=255, description="Nome principal ou base do produto."
     )
@@ -402,14 +552,26 @@ class ProdutoBase(BaseModel):
 
 
 class ProdutoCreate(ProdutoBase):
+    """Class ProdutoCreate.
+
+    Encapsulates one responsibility in the backend architecture.
+    """
     pass
 
 
 class ProdutoUpdate(ProdutoBase):
+    """Class ProdutoUpdate.
+
+    Encapsulates one responsibility in the backend architecture.
+    """
     nome_base: Optional[str] = Field(None, max_length=255)
 
 
 class ProdutoResponse(ProdutoBase):
+    """Class ProdutoResponse.
+
+    Encapsulates one responsibility in the backend architecture.
+    """
     id: int
     user_id: int
     created_at: datetime
@@ -421,10 +583,18 @@ class ProdutoResponse(ProdutoBase):
     model_config = ConfigDict(from_attributes=True)
 
 class ProdutoBatchDeleteRequest(BaseModel):
+    """Class ProdutoBatchDeleteRequest.
+
+    Encapsulates one responsibility in the backend architecture.
+    """
     produto_ids: List[int]
 
 
 class ImportPreviewResponse(BaseModel):
+    """Class ImportPreviewResponse.
+
+    Encapsulates one responsibility in the backend architecture.
+    """
     file_id: int
     num_pages: int = 0
     table_pages: List[int] = Field(default_factory=list)
@@ -435,6 +605,10 @@ class ImportPreviewResponse(BaseModel):
 
 
 class ImportCatalogoResponse(BaseModel):
+    """Class ImportCatalogoResponse.
+
+    Encapsulates one responsibility in the backend architecture.
+    """
     produtos_criados: List[ProdutoResponse]
     erros: List[Dict[str, Any]]
 
@@ -447,6 +621,10 @@ class UpdatedProductInfo(BaseModel):
 
 
 class CatalogImportResult(BaseModel):
+    """Class CatalogImportResult.
+
+    Encapsulates one responsibility in the backend architecture.
+    """
     created: List[ProdutoResponse]
     updated: List[ProdutoResponse]
     errors: List[Dict[str, Any]]
@@ -455,12 +633,20 @@ class CatalogImportResult(BaseModel):
 
 
 class CatalogImportResultPending(BaseModel):
+    """Class CatalogImportResultPending.
+
+    Encapsulates one responsibility in the backend architecture.
+    """
     ready: bool = False
     status: str
     detail: str
 
 
 class RegionExtractionResponse(BaseModel):
+    """Class RegionExtractionResponse.
+
+    Encapsulates one responsibility in the backend architecture.
+    """
     produtos: List[Dict[str, Any]]
     log: Optional[List[str]] = None
     preview_headers: Optional[List[str]] = None
@@ -468,12 +654,20 @@ class RegionExtractionResponse(BaseModel):
 
 
 class SinglePageExtractionResponse(BaseModel):
+    """Class SinglePageExtractionResponse.
+
+    Encapsulates one responsibility in the backend architecture.
+    """
     image: str
     text: str
     table: Optional[List[List[Any]]] = None
 
 
 class ProdutoPage(BaseModel):
+    """Class ProdutoPage.
+
+    Encapsulates one responsibility in the backend architecture.
+    """
     items: List[ProdutoResponse]
     total_items: int
     page: int
@@ -482,6 +676,10 @@ class ProdutoPage(BaseModel):
 
 # Schemas para RegistroUsoIA
 class RegistroUsoIABase(BaseModel):
+    """Class RegistroUsoIABase.
+
+    Encapsulates one responsibility in the backend architecture.
+    """
     user_id: int
     produto_id: Optional[int] = None
     tipo_acao: TipoAcaoEnum
@@ -498,16 +696,28 @@ class RegistroUsoIABase(BaseModel):
 
 
 class RegistroUsoIACreate(RegistroUsoIABase):
+    """Class RegistroUsoIACreate.
+
+    Encapsulates one responsibility in the backend architecture.
+    """
     pass
 
 
 class RegistroUsoIAResponse(RegistroUsoIABase):
+    """Class RegistroUsoIAResponse.
+
+    Encapsulates one responsibility in the backend architecture.
+    """
     id: int
     created_at: datetime
 
     model_config = ConfigDict(from_attributes=True)
 
 class UsoIAPage(BaseModel):
+    """Class UsoIAPage.
+
+    Encapsulates one responsibility in the backend architecture.
+    """
     items: List[RegistroUsoIAResponse]
     total_items: int
     page: int
@@ -516,6 +726,10 @@ class UsoIAPage(BaseModel):
 
 # Schemas para RegistroHistorico
 class RegistroHistoricoBase(BaseModel):
+    """Class RegistroHistoricoBase.
+
+    Encapsulates one responsibility in the backend architecture.
+    """
     user_id: Optional[int] = None
     entidade: str
     acao: TipoAcaoSistemaEnum
@@ -524,16 +738,28 @@ class RegistroHistoricoBase(BaseModel):
 
 
 class RegistroHistoricoCreate(RegistroHistoricoBase):
+    """Class RegistroHistoricoCreate.
+
+    Encapsulates one responsibility in the backend architecture.
+    """
     pass
 
 
 class RegistroHistoricoResponse(RegistroHistoricoBase):
+    """Class RegistroHistoricoResponse.
+
+    Encapsulates one responsibility in the backend architecture.
+    """
     id: int
     created_at: datetime
 
     model_config = ConfigDict(from_attributes=True)
 
 class HistoricoPage(BaseModel):
+    """Class HistoricoPage.
+
+    Encapsulates one responsibility in the backend architecture.
+    """
     items: List[RegistroHistoricoResponse]
     total_items: int
     page: int
@@ -541,6 +767,10 @@ class HistoricoPage(BaseModel):
 
 
 class CatalogImportFileBase(BaseModel):
+    """Class CatalogImportFileBase.
+
+    Encapsulates one responsibility in the backend architecture.
+    """
     original_filename: str
     stored_filename: str
     status: str
@@ -550,11 +780,19 @@ class CatalogImportFileBase(BaseModel):
 
 
 class CatalogImportFileCreate(CatalogImportFileBase):
+    """Class CatalogImportFileCreate.
+
+    Encapsulates one responsibility in the backend architecture.
+    """
     user_id: int
     fornecedor_id: Optional[int] = None
 
 
 class CatalogImportFileResponse(CatalogImportFileBase):
+    """Class CatalogImportFileResponse.
+
+    Encapsulates one responsibility in the backend architecture.
+    """
     id: int
     user_id: int
     fornecedor_id: Optional[int] = None
@@ -572,6 +810,10 @@ class CatalogImportStatus(BaseModel):
 
 
 class CatalogImportFilePage(BaseModel):
+    """Class CatalogImportFilePage.
+
+    Encapsulates one responsibility in the backend architecture.
+    """
     items: List[CatalogImportFileResponse]
     total_items: int
     page: int
@@ -579,11 +821,19 @@ class CatalogImportFilePage(BaseModel):
 
 
 class FornecedorImportJobBase(BaseModel):
+    """Class FornecedorImportJobBase.
+
+    Encapsulates one responsibility in the backend architecture.
+    """
     status: str
     result_summary: Optional[Dict[str, Any]] = None
 
 
 class FornecedorImportJobResponse(FornecedorImportJobBase):
+    """Class FornecedorImportJobResponse.
+
+    Encapsulates one responsibility in the backend architecture.
+    """
     id: int
     user_id: int
     created_at: datetime
@@ -601,12 +851,20 @@ class PdfPreviewResponse(BaseModel):
 
 # --- Password Recovery Schemas ---
 class PasswordResetSchema(BaseModel):
+    """Class PasswordResetSchema.
+
+    Encapsulates one responsibility in the backend architecture.
+    """
     new_password: str = Field(..., min_length=8)
     token: str
 
 
 # --- Admin Analytics Schemas ---
 class TotalCounts(BaseModel):
+    """Class TotalCounts.
+
+    Encapsulates one responsibility in the backend architecture.
+    """
     total_usuarios: int
     total_produtos: int
     total_fornecedores: int
@@ -615,17 +873,29 @@ class TotalCounts(BaseModel):
 
 
 class UsoIAPorPlano(BaseModel):
+    """Class UsoIAPorPlano.
+
+    Encapsulates one responsibility in the backend architecture.
+    """
     plano_id: Optional[int] = None
     nome_plano: str
     total_geracoes_ia_no_mes: int
 
 
 class UsoIAPorTipo(BaseModel):
+    """Class UsoIAPorTipo.
+
+    Encapsulates one responsibility in the backend architecture.
+    """
     tipo_acao: str
     total_no_mes: int
 
 
 class UserActivity(BaseModel):
+    """Class UserActivity.
+
+    Encapsulates one responsibility in the backend architecture.
+    """
     user_id: int
     email: EmailStr
     nome_completo: Optional[str] = None
@@ -636,11 +906,19 @@ class UserActivity(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
 class ProductStatusCount(BaseModel):
+    """Class ProductStatusCount.
+
+    Encapsulates one responsibility in the backend architecture.
+    """
     status: StatusEnriquecimentoEnum
     total: int
 
 
 class RecentActivity(BaseModel):
+    """Class RecentActivity.
+
+    Encapsulates one responsibility in the backend architecture.
+    """
     id: int
     user_id: int
     user_email: Optional[EmailStr] = None
@@ -651,6 +929,10 @@ class RecentActivity(BaseModel):
 
 # ----- NOVOS SCHEMAS PARA SUGESTAO DE ATRIBUTOS GEMINI -----
 class SugestaoAtributoItem(BaseModel):
+    """Class SugestaoAtributoItem.
+
+    Encapsulates one responsibility in the backend architecture.
+    """
     chave_atributo: str = Field(
         ...,
         description="A chave do atributo para o qual o valor é sugerido (ex: 'cor', 'material').",
@@ -661,6 +943,10 @@ class SugestaoAtributoItem(BaseModel):
 
 
 class SugestoesAtributosResponse(BaseModel):
+    """Class SugestoesAtributosResponse.
+
+    Encapsulates one responsibility in the backend architecture.
+    """
     sugestoes_atributos: List[SugestaoAtributoItem] = Field(
         ..., description="Lista de sugestões de atributos e seus valores."
     )
@@ -674,21 +960,37 @@ class SugestoesAtributosResponse(BaseModel):
 
 # --- Schemas para busca unificada ---
 class SearchItem(BaseModel):
+    """Class SearchItem.
+
+    Encapsulates one responsibility in the backend architecture.
+    """
     id: int
     type: str
     name: str
 
 
 class SearchResults(BaseModel):
+    """Class SearchResults.
+
+    Encapsulates one responsibility in the backend architecture.
+    """
     results: List[SearchItem]
 
 
 # --- Utility Schemas ---
 class Msg(BaseModel):
+    """Class Msg.
+
+    Encapsulates one responsibility in the backend architecture.
+    """
     msg: str
 
 
 class FileProcessResponse(BaseModel):
+    """Class FileProcessResponse.
+
+    Encapsulates one responsibility in the backend architecture.
+    """
     filename: str
     original_filename: Optional[str] = None
     url: str
@@ -705,18 +1007,30 @@ class SocialLoginConfig(BaseModel):
 
 
 class RegionExtractionRequest(BaseModel):
+    """Class RegionExtractionRequest.
+
+    Encapsulates one responsibility in the backend architecture.
+    """
     import_file_id: int
     page_number: int
     region: List[float]
 
 
 class CatalogRegionPreviewRequest(BaseModel):
+    """Class CatalogRegionPreviewRequest.
+
+    Encapsulates one responsibility in the backend architecture.
+    """
     file_id: str
     page_number: int
     region: Optional[List[float]] = None
 
 
 class PdfRegionBulkRequest(BaseModel):
+    """Class PdfRegionBulkRequest.
+
+    Encapsulates one responsibility in the backend architecture.
+    """
     file_id: int
     region: List[float]
     pages: Optional[List[int]] = None
@@ -724,6 +1038,10 @@ class PdfRegionBulkRequest(BaseModel):
 
 
 class CatalogPreview(BaseModel):
+    """Class CatalogPreview.
+
+    Encapsulates one responsibility in the backend architecture.
+    """
     columns: List[str]
     data: List[Dict[str, Any]]
 

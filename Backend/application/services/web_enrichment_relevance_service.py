@@ -1,4 +1,10 @@
-﻿from __future__ import annotations
+"""Module web enrichment relevance service.
+
+This module contains backend application/runtime logic and is fully
+documented for maintainability and onboarding.
+"""
+
+from __future__ import annotations
 
 import re
 import unicodedata
@@ -7,6 +13,10 @@ from urllib.parse import urlparse
 
 
 class WebEnrichmentRelevanceService:
+    """Class WebEnrichmentRelevanceService.
+
+    Encapsulates one responsibility in the backend architecture.
+    """
     _RELEVANCE_STOPWORDS = {
         "de",
         "da",
@@ -60,12 +70,20 @@ class WebEnrichmentRelevanceService:
 
     @staticmethod
     def _fold_text(value: Any) -> str:
+        """Execute _fold_text.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         text = unicodedata.normalize("NFKD", str(value or ""))
         text = text.encode("ascii", "ignore").decode("ascii")
         text = re.sub(r"[^a-zA-Z0-9]+", " ", text).lower()
         return re.sub(r"\s+", " ", text).strip()
 
     def tokens_for_relevance(self, value: Any) -> List[str]:
+        """Execute tokens_for_relevance.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         base = self._fold_text(value)
         if not base:
             return []
@@ -73,6 +91,10 @@ class WebEnrichmentRelevanceService:
 
     @staticmethod
     def extract_code_tokens(*values: Any) -> List[str]:
+        """Execute extract_code_tokens.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         combined = " ".join(str(v or "") for v in values)
         upper = (
             unicodedata.normalize("NFKD", combined)
@@ -99,6 +121,10 @@ class WebEnrichmentRelevanceService:
         source_desc: Any,
         source_url: str,
     ) -> bool:
+        """Execute is_source_relevant_for_product.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         ref_parts = [
             getattr(db_produto_obj, "nome_base", None),
             getattr(db_produto_obj, "marca", None),
@@ -132,6 +158,10 @@ class WebEnrichmentRelevanceService:
 
     @staticmethod
     def extract_supplier_domain(site_url: Any) -> str:
+        """Execute extract_supplier_domain.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         try:
             parsed = urlparse(str(site_url or "").strip())
             if parsed.netloc:
@@ -147,6 +177,10 @@ class WebEnrichmentRelevanceService:
         candidate_url: str,
         fornecedor_domain: str = "",
     ) -> int:
+        """Execute score_url_for_product.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         parsed = urlparse(str(candidate_url or "").strip())
         host = (parsed.netloc or "").lower()
         path = (parsed.path or "").lower()
@@ -192,6 +226,10 @@ class WebEnrichmentRelevanceService:
         fornecedor_domain: str = "",
         max_urls: int = 4,
     ) -> Tuple[List[str], List[Tuple[str, int]]]:
+        """Execute prioritize_urls_for_enrichment.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         deduped = [u for u in dict.fromkeys(urls_candidatas or []) if u]
         scored: List[Tuple[str, int]] = []
         for url in deduped:

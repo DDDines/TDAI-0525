@@ -1,3 +1,9 @@
+"""Module file processing adapter.
+
+This module contains backend application/runtime logic and is fully
+documented for maintainability and onboarding.
+"""
+
 from __future__ import annotations
 
 from typing import Any, Dict, List, Optional
@@ -15,6 +21,10 @@ class FileProcessingServiceAdapter:
     """OOP port adapter backed by the current file-processing implementation."""
 
     def __init__(self, runtime: FileProcessingRuntime | None = None) -> None:
+        """Execute __init__.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         self._service = runtime or FileProcessingRuntime()
 
     async def save_uploaded_catalog(
@@ -22,12 +32,24 @@ class FileProcessingServiceAdapter:
         file: UploadFile,
         fornecedor_id: Optional[int] = None,
     ) -> Any:
+        """Execute save_uploaded_catalog.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         return await self._service.save_uploaded_catalog(file=file, fornecedor_id=fornecedor_id)
 
     def delete_catalog_file(self, stored_filename: str) -> None:
+        """Execute delete_catalog_file.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         return self._service.delete_catalog_file(stored_filename=stored_filename)
 
     def get_file_path_by_id(self, db: Session, file_id: str | int) -> str:
+        """Execute get_file_path_by_id.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         return self._service.get_file_path_by_id(db=db, file_id=file_id)
 
     async def processar_arquivo_excel(
@@ -37,6 +59,10 @@ class FileProcessingServiceAdapter:
         sheet_name: Optional[str] = None,
         product_type_id: Optional[int] = None,
     ) -> List[Dict[str, Any]]:
+        """Execute processar_arquivo_excel.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         return await self._service.processar_arquivo_excel(
             conteudo_arquivo=conteudo_arquivo,
             mapeamento_colunas_usuario=mapeamento_colunas_usuario,
@@ -50,6 +76,10 @@ class FileProcessingServiceAdapter:
         mapeamento_colunas_usuario: Optional[Dict[str, str]] = None,
         product_type_id: Optional[int] = None,
     ) -> List[Dict[str, Any]]:
+        """Execute processar_arquivo_csv.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         return await self._service.processar_arquivo_csv(
             conteudo_arquivo=conteudo_arquivo,
             mapeamento_colunas_usuario=mapeamento_colunas_usuario,
@@ -65,6 +95,10 @@ class FileProcessingServiceAdapter:
         pages: Optional[List[int]] = None,
         region: Optional[List[float]] = None,
     ) -> List[Dict[str, Any]]:
+        """Execute processar_arquivo_pdf.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         return await self._service.processar_arquivo_pdf(
             conteudo_arquivo=conteudo_arquivo,
             mapeamento_colunas_usuario=mapeamento_colunas_usuario,
@@ -79,6 +113,10 @@ class FileProcessingServiceAdapter:
         conteudo_arquivo: bytes,
         max_rows: int = 5,
     ) -> Dict[str, Any]:
+        """Execute preview_arquivo_excel.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         return await self._service.preview_arquivo_excel(
             conteudo_arquivo=conteudo_arquivo,
             max_rows=max_rows,
@@ -89,6 +127,10 @@ class FileProcessingServiceAdapter:
         conteudo_arquivo: bytes,
         max_rows: int = 5,
     ) -> Dict[str, Any]:
+        """Execute preview_arquivo_csv.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         return await self._service.preview_arquivo_csv(
             conteudo_arquivo=conteudo_arquivo,
             max_rows=max_rows,
@@ -102,6 +144,10 @@ class FileProcessingServiceAdapter:
         page_count: int = 1,
         dpi: int = 72,
     ) -> Dict[str, Any]:
+        """Execute preview_arquivo_pdf.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         return await self._service.preview_arquivo_pdf(
             conteudo_arquivo=conteudo_arquivo,
             ext=ext,
@@ -116,6 +162,10 @@ class FileProcessingServiceAdapter:
         ext: str,
         max_rows: int = 5,
     ) -> Dict[str, Any]:
+        """Execute gerar_preview.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         return await self._service.gerar_preview(
             conteudo_arquivo=conteudo_arquivo,
             ext=ext,
@@ -129,6 +179,10 @@ class FileProcessingServiceAdapter:
         start_page: int = 1,
         dpi: int = 200,
     ) -> List[str]:
+        """Execute pdf_bytes_to_images.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         return await self._service.pdf_bytes_to_images(
             conteudo_arquivo=conteudo_arquivo,
             max_pages=max_pages,
@@ -145,6 +199,10 @@ class FileProcessingServiceAdapter:
         offset: int,
         limit: int,
     ) -> Dict[str, Any]:
+        """Execute pdf_pages_to_images.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         return self._service.pdf_pages_to_images(
             db=db,
             file=file,
@@ -160,6 +218,10 @@ class FileProcessingServiceAdapter:
         page_number: int,
         region: Optional[List[float]] = None,
     ) -> Dict[str, Any]:
+        """Execute extrair_pagina_pdf.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         return await self._service.extrair_pagina_pdf(
             conteudo_pdf=conteudo_pdf,
             page_number=page_number,
@@ -167,6 +229,10 @@ class FileProcessingServiceAdapter:
         )
 
     def generate_pdf_page_images(self, file_path: str, file_id: str) -> List[str]:
+        """Execute generate_pdf_page_images.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         return self._service.generate_pdf_page_images(file_path=file_path, file_id=file_id)
 
     def extract_pdf_region_image(
@@ -176,6 +242,10 @@ class FileProcessingServiceAdapter:
         region: Optional[List[float]] = None,
         dpi: int = 300,
     ) -> bytes:
+        """Execute extract_pdf_region_image.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         return self._service.extract_pdf_region_image(
             file_path=file_path,
             page_number=page_number,
@@ -188,6 +258,10 @@ class FileProcessingServiceAdapter:
         annotation: object,
         vertical_tolerance: int = 5,
     ) -> pd.DataFrame:
+        """Execute parse_annotation_to_dataframe.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         return self._service.parse_annotation_to_dataframe(
             annotation=annotation,
             vertical_tolerance=vertical_tolerance,
@@ -199,6 +273,10 @@ class FileProcessingServiceAdapter:
         page_number: int,
         region: Optional[List[float]] = None,
     ) -> pd.DataFrame:
+        """Execute extract_data_from_pdf_region.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         return self._service.extract_data_from_pdf_region(
             file_path=file_path,
             page_number=page_number,
@@ -212,6 +290,10 @@ class FileProcessingServiceAdapter:
         start_page: int = 1,
         mapping: Optional[Dict[str, str]] = None,
     ) -> None:
+        """Execute process_pdf_job.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         return await self._service.process_pdf_job(
             job_id=job_id,
             pdf_path=pdf_path,
@@ -224,6 +306,10 @@ class FileProcessingServiceAdapter:
         file_path: str,
         page_number: int,
     ) -> Dict[str, Any]:
+        """Execute extract_data_from_single_page.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         return self._service.extract_data_from_single_page(
             file_path=file_path,
             page_number=page_number,
@@ -234,6 +320,10 @@ class FileProcessingServiceAdapter:
         linha_original: Dict[str, Any],
         mapeamento_colunas_usuario: Optional[Dict[str, str]] = None,
     ) -> Optional[Dict[str, Any]]:
+        """Execute processar_linha_padronizada.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         return self._service.processar_linha_padronizada(
             linha_original=linha_original,
             mapeamento_colunas_usuario=mapeamento_colunas_usuario,

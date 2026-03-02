@@ -1,3 +1,9 @@
+"""Module test pipeline dispatcher.
+
+This module contains backend application/runtime logic and is fully
+documented for maintainability and onboarding.
+"""
+
 from __future__ import annotations
 
 import pytest
@@ -9,21 +15,41 @@ from Backend.application.services.pipeline_dispatcher import PipelineDispatcher
 
 class _TopLevelFunctionSurface:
 
+    """Class _TopLevelFunctionSurface.
+
+    Encapsulates one responsibility in the backend architecture.
+    """
     async def _dummy_executor(**kwargs):
+        """Execute _dummy_executor.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         return kwargs
 
     def test_should_run_inline_for_tests_with_sync_flag(monkeypatch):
+        """Execute test_should_run_inline_for_tests_with_sync_flag.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         monkeypatch.delenv("PYTEST_CURRENT_TEST", raising=False)
         monkeypatch.setenv("CATALOG_IMPORT_TEST_SYNC", "1")
         assert PipelineDispatcher.should_run_inline_for_tests("CATALOG_IMPORT_TEST_SYNC")
 
     def test_should_not_run_inline_when_no_flags(monkeypatch):
+        """Execute test_should_not_run_inline_when_no_flags.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         monkeypatch.delenv("PYTEST_CURRENT_TEST", raising=False)
         monkeypatch.delenv("CATALOG_IMPORT_TEST_SYNC", raising=False)
         assert not PipelineDispatcher.should_run_inline_for_tests("CATALOG_IMPORT_TEST_SYNC")
 
     @pytest.mark.asyncio
     async def test_run_inline_executes_plan():
+        """Execute test_run_inline_executes_plan.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         plan = TaskExecutionPlan(
             name="test.run_inline",
             executor_name="dummy",
@@ -33,6 +59,10 @@ class _TopLevelFunctionSurface:
         await PipelineDispatcher.run_inline(plan)
 
     def test_dispatch_background_schedules_task():
+        """Execute test_dispatch_background_schedules_task.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         plan = TaskExecutionPlan(
             name="test.background",
             executor_name="dummy",

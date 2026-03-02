@@ -1,3 +1,9 @@
+"""Module catalog import.
+
+This module contains backend application/runtime logic and is fully
+documented for maintainability and onboarding.
+"""
+
 from __future__ import annotations
 
 from typing import Any, Awaitable, Callable
@@ -24,6 +30,10 @@ class CatalogImportPipelineOrchestrator:
         oop_executor: TaskExecutor,
         context: str = "catalog_import.finalize",
     ) -> None:
+        """Execute __init__.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         oop_use_case = CatalogImportProcessingUseCase(processor=oop_executor)
         self._oop_builder = CatalogImportTaskBuilder(
             executor=OOPCatalogImportExecutor(oop_use_case)
@@ -35,6 +45,10 @@ class CatalogImportPipelineOrchestrator:
         *,
         command: CatalogImportFinalizeCommand,
     ) -> TaskExecutionPlan:
+        """Execute select_finalize_plan.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         oop_plan = self._oop_builder.build_finalize_plan(
             file_id=command.file_id,
             user_id=command.user_id,

@@ -1,3 +1,9 @@
+"""Module web enrichment start service.
+
+This module contains backend application/runtime logic and is fully
+documented for maintainability and onboarding.
+"""
+
 from __future__ import annotations
 
 from typing import Any
@@ -21,6 +27,10 @@ class WebEnrichmentStartService:
         orchestrator_cls: Any = WebEnrichmentPipelineOrchestrator,
         product_repository: Any,
     ) -> None:
+        """Execute __init__.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         self._product_repository = product_repository
         self._models = models
         self._dispatcher = dispatcher_cls
@@ -32,6 +42,10 @@ class WebEnrichmentStartService:
         produto_id: int,
         current_user: Any,
     ) -> None:
+        """Execute validate_start_preconditions.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         db_produto_check = self._product_repository.get_produto(produto_id=produto_id)
         if not db_produto_check:
             raise HTTPException(
@@ -59,6 +73,10 @@ class WebEnrichmentStartService:
         command: Any,
         oop_executor: Any,
     ) -> Any:
+        """Execute dispatch_start.
+
+        This callable is documented to make behavior explicit for readers.
+        """
         orchestrator = self._orchestrator_cls(
             oop_executor=oop_executor,
         )

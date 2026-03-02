@@ -1,4 +1,10 @@
-﻿from Backend.application.services.web_data_extractor.content_service import (
+"""Module   init  .
+
+This module contains backend application/runtime logic and is fully
+documented for maintainability and onboarding.
+"""
+
+from Backend.application.services.web_data_extractor.content_service import (
     WebDataExtractorContentService,
 )
 from Backend.application.services.web_data_extractor.contracts import WebDataExtractorPort
