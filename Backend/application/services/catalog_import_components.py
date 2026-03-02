@@ -1,6 +1,6 @@
-"""Module catalog import components.
+"""Catalog import components.
 
-Contains backend logic related to catalog import components and documents its role in the OOP architecture.
+Defines the module responsibilities and how it fits in the backend architecture.
 """
 
 from __future__ import annotations
@@ -19,7 +19,7 @@ class CatalogImportIssueTracker:
         extract_import_error_reason: Callable[[Dict[str, Any]], str],
         is_non_critical_import_reason: Callable[[str], bool],
     ) -> None:
-        """Initialize collaborators and configuration required by this component."""
+        """Initialize required dependencies and runtime configuration."""
         self._normalize_import_issue_item = normalize_import_issue_item
         self._extract_import_error_reason = extract_import_error_reason
         self._is_non_critical_import_reason = is_non_critical_import_reason
@@ -35,7 +35,7 @@ class CatalogImportIssueTracker:
         self.quarantine_quality_scores: List[int] = []
 
     def add_issue(self, item: Dict[str, Any]) -> None:
-        """Run add issue in this workflow."""
+        """Process Add issue."""
         normalized_item = self._normalize_import_issue_item(item)
         reason = self._extract_import_error_reason(normalized_item)
         if self._is_non_critical_import_reason(reason):
@@ -47,7 +47,7 @@ class CatalogImportIssueTracker:
         self.errors.append(normalized_item)
 
     def add_quarantine_issue(self, item: Dict[str, Any]) -> None:
-        """Run add quarantine issue in this workflow."""
+        """Process Add quarantine issue."""
         normalized_item = self._normalize_import_issue_item(item)
         reason = self._extract_import_error_reason(normalized_item)
         self.quarantine_non_critical.append(normalized_item)
@@ -59,7 +59,7 @@ class CatalogImportIssueTracker:
             self.quarantine_samples.append(normalized_item)
 
     def top_error_reasons(self, limit: int = 10) -> List[Tuple[str, int]]:
-        """Run top error reasons in this workflow."""
+        """Process Top error reasons."""
         reasons = Counter(
             self._extract_import_error_reason(err)
             for err in self.errors
@@ -68,11 +68,11 @@ class CatalogImportIssueTracker:
         return reasons.most_common(limit)
 
     def top_ignored_reasons(self, limit: int = 10) -> List[Tuple[str, int]]:
-        """Run top ignored reasons in this workflow."""
+        """Process Top ignored reasons."""
         return self.ignored_reason_counter.most_common(limit)
 
     def top_quarantine_reasons(self, limit: int = 10) -> List[Tuple[str, int]]:
-        """Run top quarantine reasons in this workflow."""
+        """Process Top quarantine reasons."""
         return self.quarantine_reason_counter.most_common(limit)
 
 
@@ -80,33 +80,33 @@ class CatalogImportQualityAccumulator:
     """Agrega scores de qualidade para estatísticas finais."""
 
     def __init__(self) -> None:
-        """Initialize collaborators and configuration required by this component."""
+        """Initialize required dependencies and runtime configuration."""
         self.accepted_scores: List[int] = []
         self.quarantine_scores: List[int] = []
 
     def add_accepted(self, score: Any) -> None:
-        """Run add accepted in this workflow."""
+        """Process Add accepted."""
         if isinstance(score, (int, float)):
             self.accepted_scores.append(int(score))
 
     def add_quarantine(self, score: Any) -> None:
-        """Run add quarantine in this workflow."""
+        """Process Add quarantine."""
         if isinstance(score, (int, float)):
             self.quarantine_scores.append(int(score))
 
     @staticmethod
     def _avg(values: List[int]) -> Optional[float]:
-        """Run avg in this workflow."""
+        """Process Avg."""
         return round(sum(values) / len(values), 2) if values else None
 
     @property
     def accepted_avg(self) -> Optional[float]:
-        """Run accepted avg in this workflow."""
+        """Process Accepted avg."""
         return self._avg(self.accepted_scores)
 
     @property
     def quarantine_avg(self) -> Optional[float]:
-        """Run quarantine avg in this workflow."""
+        """Process Quarantine avg."""
         return self._avg(self.quarantine_scores)
 
 
@@ -122,7 +122,7 @@ class CatalogImportOutcomeResolver:
         ignored_count: int,
         quarantine_count: int,
     ) -> Tuple[str, bool]:
-        """Run resolve in this workflow."""
+        """Process Resolve."""
         total_success = created_count + updated_count
         has_partial_success = total_success > 0 and errors_count > 0
         final_status = "IMPORTED"
@@ -137,15 +137,15 @@ class CatalogImportFileStateService:
     """Encapsula persistencia de status/paginas do CatalogImportFile."""
 
     def __init__(self, *, catalog_file_repository: Any) -> None:
-        """Initialize collaborators and configuration required by this component."""
+        """Initialize required dependencies and runtime configuration."""
         self._catalog_file_repository = catalog_file_repository
 
     def _repo(self) -> Any:
-        """Run repo in this workflow."""
+        """Process Repo."""
         return self._catalog_file_repository
 
     def mark_processing(self, *, catalog_file: Any, fornecedor_id: int) -> None:
-        """Mark processing for this workflow."""
+        """Mark processing."""
         catalog_file.status = "PROCESSING"
         catalog_file.fornecedor_id = fornecedor_id
         self._repo().update_catalog_file(catalog_file=catalog_file)
@@ -157,7 +157,7 @@ class CatalogImportFileStateService:
         file_id: int,
         stored_filename: str,
     ) -> None:
-        """Mark file missing for this workflow."""
+        """Mark file missing."""
         catalog_file.status = "FAILED"
         catalog_file.result_summary = {
             "created": [],
@@ -178,13 +178,13 @@ class CatalogImportFileStateService:
         catalog_file: Any,
         total_pages: int,
     ) -> None:
-        """Run initialize pages in this workflow."""
+        """Process Initialize pages."""
         catalog_file.total_pages = total_pages
         catalog_file.pages_processed = 0
         self._repo().update_catalog_file(catalog_file=catalog_file)
 
     def increment_page(self, *, catalog_file: Any) -> None:
-        """Run increment page in this workflow."""
+        """Process Increment page."""
         catalog_file.pages_processed = (catalog_file.pages_processed or 0) + 1
         self._repo().update_catalog_file(catalog_file=catalog_file)
 
@@ -195,7 +195,7 @@ class CatalogImportFileStateService:
         final_status: str,
         result_summary: Dict[str, Any],
     ) -> None:
-        """Mark final for this workflow."""
+        """Mark final."""
         catalog_file.status = final_status
         catalog_file.result_summary = result_summary
         self._repo().update_catalog_file(catalog_file=catalog_file)
@@ -207,7 +207,7 @@ class CatalogImportFileStateService:
         file_id: int,
         error: Exception,
     ) -> None:
-        """Mark failure with exception for this workflow."""
+        """Mark failure with exception."""
         catalog_file.status = "FAILED"
         catalog_file.result_summary = {
             "created": [],
@@ -226,7 +226,7 @@ class CatalogImportAuditWriter:
     """Registra auditoria de criacao dos produtos em lote."""
 
     def __init__(self, *, models: Any) -> None:
-        """Initialize collaborators and configuration required by this component."""
+        """Initialize required dependencies and runtime configuration."""
         self._models = models
 
     def register_creation(
@@ -236,7 +236,7 @@ class CatalogImportAuditWriter:
         produtos_criados: List[Any],
         session: Any,
     ) -> None:
-        """Run register creation in this workflow."""
+        """Process Register creation."""
         for db_produto in produtos_criados:
             session.add(
                 self._models.RegistroUsoIA(
@@ -267,7 +267,7 @@ class CatalogImportResultBuilder:
         write_catalog_import_report: Callable[..., Any],
         outcome_resolver: CatalogImportOutcomeResolver,
     ) -> None:
-        """Initialize collaborators and configuration required by this component."""
+        """Initialize required dependencies and runtime configuration."""
         self._schemas = schemas
         self._normalize_import_text = normalize_import_text
         self._write_catalog_import_report = write_catalog_import_report
@@ -285,7 +285,7 @@ class CatalogImportResultBuilder:
         pages_total: int,
         ext: str,
     ) -> Dict[str, Any]:
-        """Run build in this workflow."""
+        """Process Build."""
         created_count = len(created)
         updated_count = len(updated)
         errors_count = len(issue_tracker.errors)

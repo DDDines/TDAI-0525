@@ -1,6 +1,6 @@
-"""Module storage service.
+"""Storage service.
 
-Contains backend logic related to storage service and documents its role in the OOP architecture.
+Defines the module responsibilities and how it fits in the backend architecture.
 """
 
 from __future__ import annotations
@@ -17,7 +17,7 @@ class FileProcessingStorageService:
     """Operacoes de storage de catalogos."""
 
     def __init__(self, port: FileProcessingPort) -> None:
-        """Initialize collaborators and configuration required by this component."""
+        """Initialize required dependencies and runtime configuration."""
         self._port = port
 
     async def save_uploaded_catalog(
@@ -25,16 +25,16 @@ class FileProcessingStorageService:
         file: UploadFile,
         fornecedor_id: Optional[int] = None,
     ):
-        """Run save uploaded catalog in this workflow."""
+        """Process Save uploaded catalog."""
         return await self._port.save_uploaded_catalog(
             file=file,
             fornecedor_id=fornecedor_id,
         )
 
     def delete_catalog_file(self, stored_filename: str) -> None:
-        """Delete catalog file for this workflow."""
+        """Delete catalog file."""
         return self._port.delete_catalog_file(stored_filename=stored_filename)
 
     def get_file_path_by_id(self, db: Session, file_id: str | int) -> str:
-        """Return file path by id for this workflow."""
+        """Return File path by id."""
         return self._port.get_file_path_by_id(db=db, file_id=file_id)

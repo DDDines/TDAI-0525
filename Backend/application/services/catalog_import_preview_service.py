@@ -1,6 +1,6 @@
-"""Module catalog import preview service.
+"""Catalog import preview service.
 
-Contains backend logic related to catalog import preview service and documents its role in the OOP architecture.
+Defines the module responsibilities and how it fits in the backend architecture.
 """
 
 from __future__ import annotations
@@ -28,7 +28,7 @@ class CatalogImportPreviewService:
         pdfplumber_module: Any,
         catalog_file_repository: Any,
     ) -> None:
-        """Initialize collaborators and configuration required by this component."""
+        """Initialize required dependencies and runtime configuration."""
         self._models = models
         self._settings = settings
         self._file_processing_service = file_processing_service
@@ -40,7 +40,7 @@ class CatalogImportPreviewService:
     def _resolve_catalog_file_repo(
         self,
     ) -> Any:
-        """Run resolve catalog file repo in this workflow."""
+        """Process Resolve catalog file repo."""
         return self._catalog_file_repository
 
     async def importar_catalogo_preview(
@@ -291,7 +291,7 @@ class CatalogImportPreviewService:
         file_id: int,
         user_id: int,
     ) -> Any:
-        """Run get record or 404 in this workflow."""
+        """Process Get record or 404."""
         record = catalog_file_repo.get_catalog_file_for_user(
             file_id=file_id,
             user_id=user_id,
@@ -301,14 +301,14 @@ class CatalogImportPreviewService:
         return record
 
     def _build_catalog_path(self, record: Any) -> Path:
-        """Run build catalog path in this workflow."""
+        """Process Build catalog path."""
         return self._resolve_storage_path(
             Path(self._settings.UPLOAD_DIRECTORY) / "catalogs" / record.stored_filename
         )
 
     @staticmethod
     def _normalize_preview_row(row: Dict[str, Any]) -> Dict[str, Any]:
-        """Run normalize preview row in this workflow."""
+        """Process Normalize preview row."""
         normalized: Dict[str, Any] = {}
         for key, value in row.items():
             if value is None:
@@ -327,7 +327,7 @@ class CatalogImportPreviewService:
         page: int,
         selected_bbox: List[float],
     ) -> List[Dict[str, str]]:
-        """Run extract text rows in this workflow."""
+        """Process Extract text rows."""
         with self._pdfplumber.open(file_path) as pdf:
             target_page = pdf.pages[page - 1]
             cropped = target_page.crop(tuple(selected_bbox))
@@ -336,7 +336,7 @@ class CatalogImportPreviewService:
 
     @staticmethod
     def _parse_key_value_rows(raw_text: str) -> List[Dict[str, str]]:
-        """Run parse key value rows in this workflow."""
+        """Process Parse key value rows."""
         rows: List[Dict[str, str]] = []
         current: Dict[str, str] = {}
         aliases = {

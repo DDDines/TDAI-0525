@@ -1,6 +1,6 @@
-"""Module catalog import start service.
+"""Catalog import start service.
 
-Contains backend logic related to catalog import start service and documents its role in the OOP architecture.
+Defines the module responsibilities and how it fits in the backend architecture.
 """
 
 from __future__ import annotations
@@ -27,7 +27,7 @@ class CatalogImportStartService:
         catalog_file_repository: Any,
         fornecedor_repo: Any,
     ) -> None:
-        """Initialize collaborators and configuration required by this component."""
+        """Initialize required dependencies and runtime configuration."""
         self._models = models
         self._fornecedor_repo = fornecedor_repo
         self._settings = settings
@@ -38,13 +38,13 @@ class CatalogImportStartService:
     def _resolve_catalog_file_repo(
         self,
     ) -> Any:
-        """Run resolve catalog file repo in this workflow."""
+        """Process Resolve catalog file repo."""
         return self._catalog_file_repository
 
     def _resolve_fornecedor_repo(
         self,
     ) -> Any:
-        """Run resolve fornecedor repo in this workflow."""
+        """Process Resolve fornecedor repo."""
         return self._fornecedor_repo
 
     def get_catalog_file_or_404(
@@ -53,7 +53,7 @@ class CatalogImportStartService:
         file_id: int,
         user_id: int,
     ) -> Any:
-        """Return catalog file or 404 for this workflow."""
+        """Return Catalog file or 404."""
         repo = self._resolve_catalog_file_repo()
         catalog_file = repo.get_catalog_file_for_user(
             file_id=file_id,
@@ -70,7 +70,7 @@ class CatalogImportStartService:
         fornecedor_id: Optional[int],
         required_message: str,
     ) -> int:
-        """Resolve fornecedor id for this workflow."""
+        """Resolve fornecedor id."""
         fornecedor_id_final = fornecedor_id or catalog_file.fornecedor_id
         if not fornecedor_id_final:
             raise HTTPException(status_code=400, detail=required_message)
@@ -83,7 +83,7 @@ class CatalogImportStartService:
         fornecedor_id: int,
         reset_pages: bool = False,
     ) -> None:
-        """Mark processing for this workflow."""
+        """Mark processing."""
         repo = self._resolve_catalog_file_repo()
         catalog_file.status = "PROCESSING"
         catalog_file.fornecedor_id = fornecedor_id
@@ -93,7 +93,7 @@ class CatalogImportStartService:
         repo.update_catalog_file(catalog_file=catalog_file)
 
     def ensure_catalog_binary_exists(self, *, catalog_file: Any) -> None:
-        """Ensure catalog binary exists for this workflow."""
+        """Ensure catalog binary exists."""
         file_path = self._catalog_path(catalog_file)
         if not file_path.exists():
             raise HTTPException(status_code=404, detail="Arquivo nao encontrado")
@@ -104,7 +104,7 @@ class CatalogImportStartService:
         catalog_file: Any,
         start_page: int,
     ) -> list[int]:
-        """Resolve pdf pages for this workflow."""
+        """Resolve pdf pages."""
         file_path = self._catalog_path(catalog_file)
         if not file_path.exists():
             raise HTTPException(status_code=404, detail="Arquivo nao encontrado")
@@ -121,7 +121,7 @@ class CatalogImportStartService:
         fornecedor_id: int,
         mapping: Optional[Dict[str, str]],
     ) -> Optional[Dict[str, str]]:
-        """Resolve mapping for this workflow."""
+        """Resolve mapping."""
         if mapping is not None:
             return mapping
         repo = self._resolve_fornecedor_repo()
@@ -141,7 +141,7 @@ class CatalogImportStartService:
         pages: Optional[list[int]],
         region: Optional[list[float]],
     ) -> CatalogImportFinalizeCommand:
-        """Build finalize command for this workflow."""
+        """Build finalize command."""
         return CatalogImportFinalizeCommand(
             file_id=file_id,
             user_id=user_id,
@@ -158,7 +158,7 @@ class CatalogImportStartService:
         background_tasks: Any,
         command: CatalogImportFinalizeCommand,
     ) -> Any:
-        """Dispatch finalize for this workflow."""
+        """Dispatch finalize."""
         return await self._finalize_service.dispatch_or_run(
             background_tasks=background_tasks,
             command=command,
@@ -169,20 +169,20 @@ class CatalogImportStartService:
         *,
         command: CatalogImportFinalizeCommand,
     ) -> Any:
-        """Run finalize direct for this workflow."""
+        """Run finalize direct."""
         return await self._finalize_service.run_direct(
             command=command,
         )
 
     def _catalog_path(self, catalog_file: Any) -> Path:
-        """Run catalog path in this workflow."""
+        """Process Catalog path."""
         return self._resolve_storage_path(
             Path(self._settings.UPLOAD_DIRECTORY) / "catalogs" / catalog_file.stored_filename
         )
 
     @staticmethod
     def _count_pdf_pages(content: bytes) -> int:
-        """Run count pdf pages in this workflow."""
+        """Process Count pdf pages."""
         import pdfplumber
 
         with pdfplumber.open(io.BytesIO(content)) as pdf:

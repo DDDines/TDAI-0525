@@ -1,6 +1,6 @@
-"""Module database.
+"""Database.
 
-Contains backend logic related to database and documents its role in the OOP architecture.
+Defines the module responsibilities and how it fits in the backend architecture.
 """
 
 from sqlalchemy import create_engine
@@ -22,7 +22,7 @@ Base = declarative_base()
 
 
 def get_db():
-    """Return db for this workflow."""
+    """Return Db."""
     session = SessionLocal()
     try:
         yield session

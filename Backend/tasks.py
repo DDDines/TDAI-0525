@@ -1,6 +1,6 @@
-"""Module tasks.
+"""Tasks.
 
-Contains backend logic related to tasks and documents its role in the OOP architecture.
+Defines the module responsibilities and how it fits in the backend architecture.
 """
 
 from __future__ import annotations
@@ -18,9 +18,9 @@ from Backend.application.services.service_container import (
 
 class TaskWorkflow:
 
-    """Represent task workflow and centralize responsibilities for this module."""
+    """Encapsulates Task workflow."""
     def __init__(self, runtime: Optional["TaskRuntime"] = None) -> None:
-        """Initialize collaborators and configuration required by this component."""
+        """Initialize required dependencies and runtime configuration."""
         self._runtime = runtime or TaskRuntime()
 
     def process_pdf_extraction_task(
@@ -29,7 +29,7 @@ class TaskWorkflow:
         page_number: int,
         db_url: str,
     ) -> None:
-        """Process pdf extraction task for this workflow."""
+        """Process pdf extraction task."""
         self._runtime.process_pdf_extraction_task(
             import_job_id=import_job_id,
             page_number=page_number,
@@ -39,12 +39,12 @@ class TaskWorkflow:
 
 class TaskRuntime:
 
-    """Represent task runtime and centralize responsibilities for this module."""
+    """Encapsulates Task runtime."""
     def __init__(
         self,
         task_service: Optional[PdfExtractionTaskService] = None,
     ) -> None:
-        """Initialize collaborators and configuration required by this component."""
+        """Initialize required dependencies and runtime configuration."""
         if task_service is not None:
             self._task_service = task_service
             return
@@ -61,7 +61,7 @@ class TaskRuntime:
         page_number: int,
         db_url: str,
     ) -> None:
-        """Process pdf extraction task for this workflow."""
+        """Process pdf extraction task."""
         self._task_service.process_pdf_extraction_task(
             import_job_id=import_job_id,
             page_number=page_number,

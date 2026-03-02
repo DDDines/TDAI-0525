@@ -1,6 +1,6 @@
-"""Module catalog import ingest service.
+"""Catalog import ingest service.
 
-Contains backend logic related to catalog import ingest service and documents its role in the OOP architecture.
+Defines the module responsibilities and how it fits in the backend architecture.
 """
 
 from __future__ import annotations
@@ -31,7 +31,7 @@ class CatalogImportIngestService:
         uso_ia_repo: Any,
         historico_repo: Any,
     ) -> None:
-        """Initialize collaborators and configuration required by this component."""
+        """Initialize required dependencies and runtime configuration."""
         self._schemas = schemas
         self._models = models
         self._fornecedor_repo = fornecedor_repo
@@ -53,7 +53,7 @@ class CatalogImportIngestService:
         erros: List[Dict[str, Any]],
         ignored_non_critical: List[Dict[str, Any]],
     ) -> None:
-        """Run append import issue in this workflow."""
+        """Process Append import issue."""
         normalized_item = self._normalize_import_issue_item(item)
         reason = self._extract_import_error_reason(normalized_item)
         if self._is_non_critical_import_reason(reason):
@@ -67,7 +67,7 @@ class CatalogImportIngestService:
         item: Dict[str, Any],
         quarantine_non_critical: List[Dict[str, Any]],
     ) -> None:
-        """Run append quarantine issue in this workflow."""
+        """Process Append quarantine issue."""
         normalized_item = self._normalize_import_issue_item(item)
         quarantine_non_critical.append(normalized_item)
 
@@ -223,7 +223,7 @@ class CatalogImportIngestService:
         mapeamento_colunas_usuario: Optional[str],
         fornecedor_repo: Any,
     ) -> Optional[Dict[str, Any]]:
-        """Run resolve mapping in this workflow."""
+        """Process Resolve mapping."""
         mapping_dict = None
         if mapeamento_colunas_usuario:
             try:
@@ -248,7 +248,7 @@ class CatalogImportIngestService:
         ext: str,
         mapping_dict: Optional[Dict[str, Any]],
     ) -> List[Dict[str, Any]]:
-        """Run process file by extension in this workflow."""
+        """Process Process file by extension."""
         if ext in [".xlsx", ".xls"]:
             return await self._file_processing_service.processar_arquivo_excel(
                 content,

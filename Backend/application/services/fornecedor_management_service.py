@@ -1,6 +1,6 @@
-"""Module fornecedor management service.
+"""Fornecedor management service.
 
-Contains backend logic related to fornecedor management service and documents its role in the OOP architecture.
+Defines the module responsibilities and how it fits in the backend architecture.
 """
 
 from __future__ import annotations
@@ -21,7 +21,7 @@ class FornecedorManagementService:
         fornecedor_repo: Any,
         historico_repo: Any,
     ) -> None:
-        """Initialize collaborators and configuration required by this component."""
+        """Initialize required dependencies and runtime configuration."""
         self._models = models
         self._schemas = schemas
         self._fornecedor_repo = fornecedor_repo
@@ -29,7 +29,7 @@ class FornecedorManagementService:
 
     @staticmethod
     def ensure_current_user_identified(*, current_user: Any) -> None:
-        """Ensure current user identified for this workflow."""
+        """Ensure current user identified."""
         if current_user is None or getattr(current_user, "id", None) is None:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
@@ -45,7 +45,7 @@ class FornecedorManagementService:
         fornecedor_id: int,
         detail: str = "Fornecedor nao encontrado",
     ) -> Any:
-        """Return fornecedor or 404 for this workflow."""
+        """Return Fornecedor or 404."""
         fornecedor = self._fornecedor_repo.get_fornecedor(fornecedor_id=fornecedor_id)
         if not fornecedor:
             raise HTTPException(status_code=404, detail=detail)
@@ -53,7 +53,7 @@ class FornecedorManagementService:
 
     @staticmethod
     def ensure_user_access(*, fornecedor: Any, current_user: Any, forbidden_detail: str) -> None:
-        """Ensure user access for this workflow."""
+        """Ensure user access."""
         if not current_user.is_superuser and fornecedor.user_id != current_user.id:
             raise HTTPException(status_code=403, detail=forbidden_detail)
 
@@ -65,7 +65,7 @@ class FornecedorManagementService:
         not_found_detail: str,
         forbidden_detail: str,
     ) -> Any:
-        """Resolve fornecedor for user for this workflow."""
+        """Resolve fornecedor for user."""
         fornecedor = self.get_fornecedor_or_404(
             fornecedor_id=fornecedor_id,
             detail=not_found_detail,
@@ -84,7 +84,7 @@ class FornecedorManagementService:
         owner_user_id: int,
         new_name: str,
     ) -> None:
-        """Ensure unique name on update for this workflow."""
+        """Ensure unique name on update."""
         already_exists = self._fornecedor_repo.exists_fornecedor_with_name_for_user(
             user_id=owner_user_id,
             nome=new_name,
@@ -102,7 +102,7 @@ class FornecedorManagementService:
         fornecedor: Any,
         current_user: Any,
     ) -> Any:
-        """Create fornecedor for this workflow."""
+        """Create fornecedor."""
         self.ensure_current_user_identified(current_user=current_user)
         created = self._fornecedor_repo.create_fornecedor(
             fornecedor=fornecedor,
@@ -126,7 +126,7 @@ class FornecedorManagementService:
         limit: int,
         termo_busca: str | None,
     ) -> dict[str, Any]:
-        """List fornecedores page for this workflow."""
+        """List fornecedores page."""
         items = self._fornecedor_repo.get_fornecedores_by_user(
             user_id=current_user.id,
             is_admin=current_user.is_superuser,
@@ -154,7 +154,7 @@ class FornecedorManagementService:
         fornecedor_update: Any,
         current_user: Any,
     ) -> Any:
-        """Update fornecedor for this workflow."""
+        """Update fornecedor."""
         fornecedor = self.resolve_fornecedor_for_user(
             fornecedor_id=fornecedor_id,
             current_user=current_user,
@@ -188,7 +188,7 @@ class FornecedorManagementService:
         fornecedor_id: int,
         current_user: Any,
     ) -> Any:
-        """Return mapping for this workflow."""
+        """Return Mapping."""
         fornecedor = self.resolve_fornecedor_for_user(
             fornecedor_id=fornecedor_id,
             current_user=current_user,
@@ -204,7 +204,7 @@ class FornecedorManagementService:
         current_user: Any,
         mapping: Any,
     ) -> Any:
-        """Update mapping for this workflow."""
+        """Update mapping."""
         fornecedor = self.resolve_fornecedor_for_user(
             fornecedor_id=fornecedor_id,
             current_user=current_user,
@@ -222,7 +222,7 @@ class FornecedorManagementService:
         fornecedor_id: int,
         current_user: Any,
     ) -> Any:
-        """Delete fornecedor for this workflow."""
+        """Delete fornecedor."""
         fornecedor = self.resolve_fornecedor_for_user(
             fornecedor_id=fornecedor_id,
             current_user=current_user,

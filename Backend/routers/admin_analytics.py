@@ -29,18 +29,18 @@ class AdminAnalyticsRequestService:
         self,
         session: Session = Depends(ServiceContainerDependencySupport.get_request_db_session),
     ) -> None:
-        """Initialize collaborators and configuration required by this component."""
+        """Initialize required dependencies and runtime configuration."""
         self._user_repository = UserRepository(session)
         self._historico_repository = HistoricoRepository(session)
         self._analytics_repository = AdminAnalyticsRepository(session)
 
     @staticmethod
     def _now_utc() -> datetime:
-        """Run now utc in this workflow."""
+        """Process Now utc."""
         return datetime.now(timezone.utc)
 
     def get_total_counts(self) -> schemas.TotalCounts:
-        """Return total counts for this workflow."""
+        """Return Total counts."""
         try:
             start_of_month = self._now_utc().replace(
                 day=1,
@@ -68,7 +68,7 @@ class AdminAnalyticsRequestService:
             ) from exc
 
     def get_uso_ia_por_plano(self) -> List[schemas.UsoIAPorPlano]:
-        """Return uso ia por plano for this workflow."""
+        """Return Uso ia por plano."""
         planos = self._user_repository.get_planos(skip=0, limit=1000)
         resultado: List[schemas.UsoIAPorPlano] = []
         start_of_month = self._now_utc().replace(
@@ -93,7 +93,7 @@ class AdminAnalyticsRequestService:
         return resultado
 
     def get_uso_ia_por_tipo(self) -> List[schemas.UsoIAPorTipo]:
-        """Return uso ia por tipo for this workflow."""
+        """Return Uso ia por tipo."""
         start_of_month = self._now_utc().replace(
             day=1,
             hour=0,
@@ -113,7 +113,7 @@ class AdminAnalyticsRequestService:
         ]
 
     def get_user_activity(self, *, skip: int, limit: int) -> List[schemas.UserActivity]:
-        """Return user activity for this workflow."""
+        """Return User activity."""
         users = self._user_repository.get_users(skip=skip, limit=limit)
         activities: List[schemas.UserActivity] = []
         start_of_month = self._now_utc().replace(
@@ -144,12 +144,12 @@ class AdminAnalyticsRequestService:
         return activities
 
     def get_product_status_counts(self) -> List[schemas.ProductStatusCount]:
-        """Return product status counts for this workflow."""
+        """Return Product status counts."""
         results = self._analytics_repository.list_product_status_counts()
         return [schemas.ProductStatusCount(status=row[0], total=row.total) for row in results]
 
     def get_recent_activities(self, *, limit: int) -> List[schemas.RecentActivity]:
-        """Return recent activities for this workflow."""
+        """Return Recent activities."""
         registros = self._analytics_repository.list_recent_usage_records(limit=limit)
         activities: List[schemas.RecentActivity] = []
         for reg in registros:
@@ -166,20 +166,20 @@ class AdminAnalyticsRequestService:
         return activities
 
     def get_recent_historico(self, *, limit: int) -> List[schemas.RegistroHistoricoResponse]:
-        """Return recent historico for this workflow."""
+        """Return Recent historico."""
         return self._historico_repository.get_registros_historico(skip=0, limit=limit)
 
 
 class _AdminAnalyticsDependencies:
 
-    """Represent admin analytics dependencies and centralize responsibilities for this module."""
+    """Encapsulates Admin analytics dependencies."""
     @staticmethod
     async def get_current_active_admin_user(
         current_user: models.User = Depends(
             auth_utils._AuthUtilsActiveUserDependency.get_current_active_user
         ),
     ):
-        """Return current active admin user for this workflow."""
+        """Return Current active admin user."""
         if not current_user.is_superuser:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
@@ -194,7 +194,7 @@ class _AdminAnalyticsDependencies:
     dependencies=[Depends(_AdminAnalyticsDependencies.get_current_active_admin_user)],
 )
 async def get_total_counts_endpoint(request_service: AdminAnalyticsRequestService = Depends()):
-    """Return total counts endpoint for this workflow."""
+    """Return Total counts endpoint."""
     return request_service.get_total_counts()
 
 
@@ -204,7 +204,7 @@ async def get_total_counts_endpoint(request_service: AdminAnalyticsRequestServic
     dependencies=[Depends(_AdminAnalyticsDependencies.get_current_active_admin_user)],
 )
 async def get_uso_ia_por_plano_endpoint(request_service: AdminAnalyticsRequestService = Depends()):
-    """Return uso ia por plano endpoint for this workflow."""
+    """Return Uso ia por plano endpoint."""
     return request_service.get_uso_ia_por_plano()
 
 
@@ -214,7 +214,7 @@ async def get_uso_ia_por_plano_endpoint(request_service: AdminAnalyticsRequestSe
     dependencies=[Depends(_AdminAnalyticsDependencies.get_current_active_admin_user)],
 )
 async def get_uso_ia_por_tipo_endpoint(request_service: AdminAnalyticsRequestService = Depends()):
-    """Return uso ia por tipo endpoint for this workflow."""
+    """Return Uso ia por tipo endpoint."""
     return request_service.get_uso_ia_por_tipo()
 
 
@@ -228,7 +228,7 @@ async def get_user_activity_endpoint(
     limit: int = Query(100, ge=1, le=200),
     request_service: AdminAnalyticsRequestService = Depends(),
 ):
-    """Return user activity endpoint for this workflow."""
+    """Return User activity endpoint."""
     return request_service.get_user_activity(skip=skip, limit=limit)
 
 
@@ -238,7 +238,7 @@ async def get_user_activity_endpoint(
     dependencies=[Depends(_AdminAnalyticsDependencies.get_current_active_admin_user)],
 )
 async def get_product_status_counts(request_service: AdminAnalyticsRequestService = Depends()):
-    """Return product status counts for this workflow."""
+    """Return Product status counts."""
     return request_service.get_product_status_counts()
 
 
@@ -251,7 +251,7 @@ async def get_recent_activities(
     limit: int = Query(10, ge=1, le=50),
     request_service: AdminAnalyticsRequestService = Depends(),
 ):
-    """Return recent activities for this workflow."""
+    """Return Recent activities."""
     return request_service.get_recent_activities(limit=limit)
 
 
@@ -264,5 +264,5 @@ async def get_recent_historico(
     limit: int = Query(10, ge=1, le=50),
     request_service: AdminAnalyticsRequestService = Depends(),
 ):
-    """Return recent historico for this workflow."""
+    """Return Recent historico."""
     return request_service.get_recent_historico(limit=limit)

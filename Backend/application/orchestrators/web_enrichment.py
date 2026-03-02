@@ -1,6 +1,6 @@
-"""Module web enrichment.
+"""Web enrichment.
 
-Contains backend logic related to web enrichment and documents its role in the OOP architecture.
+Defines the module responsibilities and how it fits in the backend architecture.
 """
 
 from __future__ import annotations
@@ -29,7 +29,7 @@ class WebEnrichmentPipelineOrchestrator:
         oop_executor: TaskExecutor,
         context: str = "web_enrichment.start",
     ) -> None:
-        """Initialize collaborators and configuration required by this component."""
+        """Initialize required dependencies and runtime configuration."""
         oop_use_case = WebEnrichmentProcessingUseCase(processor=oop_executor)
         self._oop_builder = WebEnrichmentTaskBuilder(
             executor=OOPWebEnrichmentExecutor(oop_use_case)
@@ -41,7 +41,7 @@ class WebEnrichmentPipelineOrchestrator:
         *,
         command: WebEnrichmentStartCommand,
     ) -> TaskExecutionPlan:
-        """Select start plan for this workflow."""
+        """Select start plan."""
         oop_plan = self._oop_builder.build_start_plan(
             produto_id=command.produto_id,
             user_id=command.user_id,

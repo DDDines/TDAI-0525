@@ -1,6 +1,6 @@
-"""Module web data extractor adapter.
+"""Web data extractor adapter.
 
-Contains backend logic related to web data extractor adapter and documents its role in the OOP architecture.
+Defines the module responsibilities and how it fits in the backend architecture.
 """
 
 from __future__ import annotations
@@ -19,11 +19,11 @@ class WebDataExtractorServiceAdapter:
     """OOP port adapter backed by the current web extraction implementation."""
 
     def __init__(self, runtime: WebDataExtractorRuntime | None = None) -> None:
-        """Initialize collaborators and configuration required by this component."""
+        """Initialize required dependencies and runtime configuration."""
         self._runtime = runtime or WebDataExtractorRuntime()
 
     def busca_publica_disponivel(self) -> bool:
-        """Run busca publica disponivel in this workflow."""
+        """Process Busca publica disponivel."""
         return self._runtime.busca_publica_disponivel()
 
     async def buscar_urls_publicas(
@@ -31,7 +31,7 @@ class WebDataExtractorServiceAdapter:
         query: str,
         num_results: int = 3,
     ) -> List[str]:
-        """Run buscar urls publicas in this workflow."""
+        """Process Buscar urls publicas."""
         return await self._runtime.buscar_urls_publicas(
             query=query,
             num_results=num_results,
@@ -42,21 +42,21 @@ class WebDataExtractorServiceAdapter:
         query: str,
         num_results: int = 3,
     ) -> List[str]:
-        """Run buscar urls google in this workflow."""
+        """Process Buscar urls google."""
         return await self._runtime.buscar_urls_google(
             query=query,
             num_results=num_results,
         )
 
     async def coletar_conteudo_pagina_playwright(self, url: str) -> Optional[str]:
-        """Run coletar conteudo pagina playwright in this workflow."""
+        """Process Coletar conteudo pagina playwright."""
         return await self._runtime.coletar_conteudo_pagina_playwright(url=url)
 
     def extrair_texto_principal_com_trafilatura(
         self,
         html_content: str,
     ) -> Optional[str]:
-        """Run extrair texto principal com trafilatura in this workflow."""
+        """Process Extrair texto principal com trafilatura."""
         return self._runtime.extrair_texto_principal_com_trafilatura(
             html_content=html_content
         )
@@ -66,7 +66,7 @@ class WebDataExtractorServiceAdapter:
         html_content: str,
         url: str,
     ) -> Dict[str, Any]:
-        """Run extrair metadados estruturados in this workflow."""
+        """Process Extrair metadados estruturados."""
         return self._runtime.extrair_metadados_estruturados(
             html_content=html_content,
             url=url,
@@ -76,7 +76,7 @@ class WebDataExtractorServiceAdapter:
         self,
         metadata_bruta: Dict[str, Any],
     ) -> Dict[str, Any]:
-        """Run normalizar dados de metadados in this workflow."""
+        """Process Normalizar dados de metadados."""
         return self._runtime.normalizar_dados_de_metadados(
             metadata_bruta=metadata_bruta
         )
@@ -89,7 +89,7 @@ class WebDataExtractorServiceAdapter:
         produto_nome_base: str = "Produto",
         user: Optional[models.User] = None,
     ) -> Optional[Dict[str, Any]]:
-        """Run extrair dados produto com llm in this workflow."""
+        """Process Extrair dados produto com llm."""
         return await self._runtime.extrair_dados_produto_com_llm(
             texto_pagina=texto_pagina,
             metadados_normalizados=metadados_normalizados,
@@ -105,7 +105,7 @@ class WebDataExtractorServiceAdapter:
         url: str,
         produto: models.Produto,
     ) -> models.Produto:
-        """Extract relevant data from url for this workflow."""
+        """Extract relevant data from url."""
         return await self._runtime.extract_relevant_data_from_url(
             session=session,
             url=url,
@@ -113,5 +113,5 @@ class WebDataExtractorServiceAdapter:
         )
 
     def extract_text_from_image_region(self, image_bytes: bytes):
-        """Extract text from image region for this workflow."""
+        """Extract text from image region."""
         return self._runtime.extract_text_from_image_region(image_bytes=image_bytes)

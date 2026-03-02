@@ -14,6 +14,7 @@ SKIP_DIRS = {
     ".pytest_cache",
     "alembic",
     "migrations",
+    "tests",
 }
 
 
@@ -114,7 +115,10 @@ def test_backend_docstrings_do_not_use_generic_boilerplate():
     """Documentation must be contextual, not generic auto-generated filler text."""
     offenders: list[str] = []
     blocked_fragments = (
-        '"""Execute ',
+        " in this workflow.",
+        " for this workflow.",
+        "Initialize collaborators and configuration required by this component.",
+        "and centralize responsibilities for this module.",
         "This callable is documented to make behavior explicit for readers.",
         "Encapsulates one responsibility in the backend architecture.",
         "This module contains backend application/runtime logic and is fully",

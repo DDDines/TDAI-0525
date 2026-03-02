@@ -79,34 +79,34 @@ class AuthRuntime:
         session: Optional[Session] = None,
         user_repository: Optional[UserRepository] = None,
     ) -> None:
-        """Initialize collaborators and configuration required by this component."""
+        """Initialize required dependencies and runtime configuration."""
         self._session = session
         self._user_repository = user_repository or (
             UserRepository(session) if session is not None else None
         )
 
     def _require_user_repository(self) -> UserRepository:
-        """Run require user repository in this workflow."""
+        """Process Require user repository."""
         if self._user_repository is None:
             raise RuntimeError("AuthRuntime requires a session-bound UserRepository.")
         return self._user_repository
 
     def _require_session(self) -> Session:
-        """Run require session in this workflow."""
+        """Process Require session."""
         if self._session is None:
             raise RuntimeError("AuthRuntime requires a session for write operations.")
         return self._session
 
     def verify_password(self, plain_password: str, hashed_password: str) -> bool:
-        """Run verify password in this workflow."""
+        """Process Verify password."""
         return pwd_context.verify(plain_password, hashed_password)
 
     def get_password_hash(self, password: str) -> str:
-        """Return password hash for this workflow."""
+        """Return Password hash."""
         return pwd_context.hash(password)
 
     def create_access_token(self, data: dict, expires_delta: Optional[timedelta] = None) -> str:
-        """Create access token for this workflow."""
+        """Create access token."""
         to_encode = data.copy()
         expire = (
             datetime.now(timezone.utc) + expires_delta
@@ -118,7 +118,7 @@ class AuthRuntime:
         return jwt.encode(to_encode, settings.SECRET_KEY, algorithm=settings.ALGORITHM)
 
     def create_refresh_token(self, data: dict, expires_delta: Optional[timedelta] = None) -> str:
-        """Create refresh token for this workflow."""
+        """Create refresh token."""
         to_encode = data.copy()
         expire = (
             datetime.now(timezone.utc) + expires_delta
@@ -130,19 +130,19 @@ class AuthRuntime:
         return jwt.encode(to_encode, settings.REFRESH_SECRET_KEY, algorithm=settings.ALGORITHM)
 
     def create_password_reset_token(self) -> str:
-        """Create password reset token for this workflow."""
+        """Create password reset token."""
         return secrets.token_urlsafe(32)
 
     def hash_password_reset_token(self, token: str) -> str:
-        """Run hash password reset token in this workflow."""
+        """Process Hash password reset token."""
         return hashlib.sha256(token.encode()).hexdigest()
 
     def verify_password_reset_token(self, token: str, token_hash: str) -> bool:
-        """Run verify password reset token in this workflow."""
+        """Process Verify password reset token."""
         return self.hash_password_reset_token(token=token) == token_hash
 
     def authenticate_user(self, email: str, password: str) -> Optional[models.User]:
-        """Run authenticate user in this workflow."""
+        """Process Authenticate user."""
         user = self._require_user_repository().get_user_by_email(email=email)
         if not user:
             return None
@@ -153,7 +153,7 @@ class AuthRuntime:
         return user
 
     async def get_current_user(self, token: str) -> models.User:
-        """Return current user for this workflow."""
+        """Return Current user."""
         credentials_exception = HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Nao foi possivel validar as credenciais",
@@ -176,13 +176,13 @@ class AuthRuntime:
 
     @staticmethod
     def get_current_active_user(current_user: models.User) -> models.User:
-        """Return current active user for this workflow."""
+        """Return Current active user."""
         if not current_user.is_active:
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Usuario inativo")
         return current_user
 
     async def login_for_access_token(self, form_data: OAuth2PasswordRequestForm) -> Dict[str, str]:
-        """Run login for access token in this workflow."""
+        """Process Login for access token."""
         user = self.authenticate_user(email=form_data.username, password=form_data.password)
         if not user:
             raise HTTPException(
@@ -201,7 +201,7 @@ class AuthRuntime:
         return {"access_token": access_token, "refresh_token": refresh_token, "token_type": "bearer"}
 
     async def refresh_access_token(self, refresh_token_data: schemas.RefreshTokenRequest) -> Dict[str, str]:
-        """Run refresh access token in this workflow."""
+        """Process Refresh access token."""
         token = refresh_token_data.refresh_token
         credentials_exception = HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -231,7 +231,7 @@ class AuthRuntime:
         user_update: schemas.UserUpdate,
         current_user: models.User,
     ) -> models.User:
-        """Update users me for this workflow."""
+        """Update users me."""
         update_data = user_update.model_dump(exclude_unset=True)
         if "password" in update_data:
             raise HTTPException(
@@ -256,7 +256,7 @@ class AuthRuntime:
         payload: schemas.UserChangePassword,
         current_user: models.User,
     ) -> Dict[str, str]:
-        """Run change password me in this workflow."""
+        """Process Change password me."""
         if not current_user.hashed_password or not self.verify_password(
             payload.current_password,
             current_user.hashed_password,
@@ -281,7 +281,7 @@ class AuthRuntime:
         provider: str,
         provider_user_id: str,
     ) -> Optional[models.User]:
-        """Run get or create social user in this workflow."""
+        """Process Get or create social user."""
         user_repo = self._require_user_repository()
         session = self._require_session()
         db_user = user_repo.get_user_by_email(email=email)
@@ -320,7 +320,7 @@ class AuthRuntime:
         return created_user
 
     async def process_google_login(self, google_userinfo: Dict[str, Any]) -> Optional[models.User]:
-        """Process google login for this workflow."""
+        """Process google login."""
         email = google_userinfo.get("email")
         if not email:
             logger.error("Email do Google nao encontrado nas informacoes do usuario.")
@@ -348,7 +348,7 @@ class AuthRuntime:
         )
 
     async def process_facebook_login(self, facebook_userinfo: Dict[str, Any]) -> Optional[models.User]:
-        """Process facebook login for this workflow."""
+        """Process facebook login."""
         email = facebook_userinfo.get("email")
         if not email:
             logger.error(
@@ -382,56 +382,56 @@ class AuthWorkflow:
         session: Optional[Session] = None,
         runtime: Optional[AuthRuntime] = None,
     ) -> None:
-        """Initialize collaborators and configuration required by this component."""
+        """Initialize required dependencies and runtime configuration."""
         self._runtime = runtime or AuthRuntime(session=session)
 
     def verify_password(self, plain_password: str, hashed_password: str) -> bool:
-        """Run verify password in this workflow."""
+        """Process Verify password."""
         return self._runtime.verify_password(plain_password=plain_password, hashed_password=hashed_password)
 
     def get_password_hash(self, password: str) -> str:
-        """Return password hash for this workflow."""
+        """Return Password hash."""
         return self._runtime.get_password_hash(password=password)
 
     def create_access_token(self, data: dict, expires_delta: Optional[timedelta] = None) -> str:
-        """Create access token for this workflow."""
+        """Create access token."""
         return self._runtime.create_access_token(data=data, expires_delta=expires_delta)
 
     def create_refresh_token(self, data: dict, expires_delta: Optional[timedelta] = None) -> str:
-        """Create refresh token for this workflow."""
+        """Create refresh token."""
         return self._runtime.create_refresh_token(data=data, expires_delta=expires_delta)
 
     def create_password_reset_token(self) -> str:
-        """Create password reset token for this workflow."""
+        """Create password reset token."""
         return self._runtime.create_password_reset_token()
 
     def hash_password_reset_token(self, token: str) -> str:
-        """Run hash password reset token in this workflow."""
+        """Process Hash password reset token."""
         return self._runtime.hash_password_reset_token(token=token)
 
     def verify_password_reset_token(self, token: str, token_hash: str) -> bool:
-        """Run verify password reset token in this workflow."""
+        """Process Verify password reset token."""
         return self._runtime.verify_password_reset_token(token=token, token_hash=token_hash)
 
     def authenticate_user(self, email: str, password: str) -> Optional[models.User]:
-        """Run authenticate user in this workflow."""
+        """Process Authenticate user."""
         return self._runtime.authenticate_user(email=email, password=password)
 
     async def get_current_user(self, token: str) -> models.User:
-        """Return current user for this workflow."""
+        """Return Current user."""
         return await self._runtime.get_current_user(token=token)
 
     @staticmethod
     def get_current_active_user(current_user: models.User) -> models.User:
-        """Return current active user for this workflow."""
+        """Return Current active user."""
         return AuthRuntime.get_current_active_user(current_user=current_user)
 
     async def login_for_access_token(self, form_data: OAuth2PasswordRequestForm) -> Dict[str, str]:
-        """Run login for access token in this workflow."""
+        """Process Login for access token."""
         return await self._runtime.login_for_access_token(form_data=form_data)
 
     async def refresh_access_token(self, refresh_token_data: schemas.RefreshTokenRequest) -> Dict[str, str]:
-        """Run refresh access token in this workflow."""
+        """Process Refresh access token."""
         return await self._runtime.refresh_access_token(refresh_token_data=refresh_token_data)
 
     async def update_users_me(
@@ -439,7 +439,7 @@ class AuthWorkflow:
         user_update: schemas.UserUpdate,
         current_user: models.User,
     ) -> models.User:
-        """Update users me for this workflow."""
+        """Update users me."""
         return await self._runtime.update_users_me(user_update=user_update, current_user=current_user)
 
     async def change_password_me(
@@ -447,15 +447,15 @@ class AuthWorkflow:
         payload: schemas.UserChangePassword,
         current_user: models.User,
     ) -> Dict[str, str]:
-        """Run change password me in this workflow."""
+        """Process Change password me."""
         return await self._runtime.change_password_me(payload=payload, current_user=current_user)
 
     async def process_google_login(self, google_userinfo: Dict[str, Any]) -> Optional[models.User]:
-        """Process google login for this workflow."""
+        """Process google login."""
         return await self._runtime.process_google_login(google_userinfo=google_userinfo)
 
     async def process_facebook_login(self, facebook_userinfo: Dict[str, Any]) -> Optional[models.User]:
-        """Process facebook login for this workflow."""
+        """Process facebook login."""
         return await self._runtime.process_facebook_login(facebook_userinfo=facebook_userinfo)
 
 
@@ -463,19 +463,19 @@ class _AuthRequestScope:
     """Escopo request-scoped para operacoes de autenticacao HTTP."""
 
     def __init__(self, *, session: Session) -> None:
-        """Initialize collaborators and configuration required by this component."""
+        """Initialize required dependencies and runtime configuration."""
         self._workflow = AuthWorkflow(session=session)
 
     async def get_current_user(self, *, token: str) -> models.User:
-        """Return current user for this workflow."""
+        """Return Current user."""
         return await self._workflow.get_current_user(token=token)
 
     async def login_for_access_token(self, *, form_data: OAuth2PasswordRequestForm):
-        """Run login for access token in this workflow."""
+        """Process Login for access token."""
         return await self._workflow.login_for_access_token(form_data=form_data)
 
     async def refresh_access_token(self, *, refresh_token_data: schemas.RefreshTokenRequest):
-        """Run refresh access token in this workflow."""
+        """Process Refresh access token."""
         return await self._workflow.refresh_access_token(refresh_token_data=refresh_token_data)
 
     async def update_users_me(
@@ -484,7 +484,7 @@ class _AuthRequestScope:
         user_update: schemas.UserUpdate,
         current_user: models.User,
     ) -> models.User:
-        """Update users me for this workflow."""
+        """Update users me."""
         return await self._workflow.update_users_me(user_update=user_update, current_user=current_user)
 
     async def change_password_me(
@@ -493,7 +493,7 @@ class _AuthRequestScope:
         payload: schemas.UserChangePassword,
         current_user: models.User,
     ) -> Dict[str, str]:
-        """Run change password me in this workflow."""
+        """Process Change password me."""
         return await self._workflow.change_password_me(payload=payload, current_user=current_user)
 
 
@@ -504,7 +504,7 @@ _build_auth_request_scope = ServiceContainerDependencySupport.build_request_scop
 
 class _AuthDependencies:
 
-    """Represent auth dependencies and centralize responsibilities for this module."""
+    """Encapsulates Auth dependencies."""
     @staticmethod
     async def get_current_user(
         token: str = Depends(oauth2_scheme),
@@ -516,7 +516,7 @@ class _AuthDependencies:
 
 class _AuthActiveUserDependency:
 
-    """Represent auth active user dependency and centralize responsibilities for this module."""
+    """Encapsulates Auth active user dependency."""
     @staticmethod
     async def get_current_active_user(
         current_user: models.User = Depends(_AuthDependencies.get_current_user),
@@ -527,7 +527,7 @@ class _AuthActiveUserDependency:
 
 class _EndpointHandlers:
 
-    """Represent endpoint handlers and centralize responsibilities for this module."""
+    """Encapsulates Endpoint handlers."""
     @router.post("/token", response_model=schemas.Token)
     async def login_for_access_token(
         form_data: OAuth2PasswordRequestForm = Depends(),

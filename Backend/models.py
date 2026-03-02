@@ -1,7 +1,7 @@
 # Backend/models.py
-"""Module models.
+"""Models.
 
-Contains backend logic related to models and documents its role in the OOP architecture.
+Defines the module responsibilities and how it fits in the backend architecture.
 """
 
 
@@ -31,7 +31,7 @@ import enum
 
 # Definição dos Enums Python
 class StatusEnriquecimentoEnum(str, enum.Enum):
-    """Represent status enriquecimento enum and centralize responsibilities for this module."""
+    """Encapsulates Status enriquecimento enum."""
     NAO_INICIADO = "NAO_INICIADO"
     PENDENTE = "PENDENTE"  # Adicionado, se necessário para indicar que está na fila
     EM_PROGRESSO = "EM_PROGRESSO"
@@ -49,7 +49,7 @@ class StatusEnriquecimentoEnum(str, enum.Enum):
 
 
 class StatusGeracaoIAEnum(str, enum.Enum):
-    """Represent status geracao i a enum and centralize responsibilities for this module."""
+    """Encapsulates Status geracao i a enum."""
     NAO_INICIADO = "NAO_INICIADO"
     PENDENTE = "PENDENTE"
     EM_PROGRESSO = "EM_PROGRESSO"
@@ -59,7 +59,7 @@ class StatusGeracaoIAEnum(str, enum.Enum):
 
 
 class TipoAcaoEnum(str, enum.Enum):
-    """Represent tipo acao enum and centralize responsibilities for this module."""
+    """Encapsulates Tipo acao enum."""
     CRIACAO_TITULO_PRODUTO = "criacao_titulo_produto"
     CRIACAO_DESCRICAO_PRODUTO = "criacao_descricao_produto"
     ENRIQUECIMENTO_WEB_PRODUTO = (
@@ -76,14 +76,14 @@ class TipoAcaoEnum(str, enum.Enum):
 
 
 class TipoAcaoSistemaEnum(str, enum.Enum):
-    """Represent tipo acao sistema enum and centralize responsibilities for this module."""
+    """Encapsulates Tipo acao sistema enum."""
     CRIACAO = "CRIACAO"
     ATUALIZACAO = "ATUALIZACAO"
     DELECAO = "DELECAO"
 
 
 class AttributeFieldTypeEnum(str, enum.Enum):
-    """Represent attribute field type enum and centralize responsibilities for this module."""
+    """Encapsulates Attribute field type enum."""
     TEXT = "text"
     NUMBER = "number"
     BOOLEAN = "boolean"
@@ -98,7 +98,7 @@ class AttributeFieldTypeEnum(str, enum.Enum):
 
 # Modelo de Usuário
 class User(Base):
-    """Represent user and centralize responsibilities for this module."""
+    """Encapsulates User."""
     __tablename__ = "users"
 
     id = Column(Integer, primary_key=True, index=True)
@@ -164,7 +164,7 @@ class User(Base):
 
 # Modelo de Role (Função/Papel do usuário)
 class Role(Base):
-    """Represent role and centralize responsibilities for this module."""
+    """Encapsulates Role."""
     __tablename__ = "roles"
     id = Column(Integer, primary_key=True, index=True)
     name = Column(
@@ -181,7 +181,7 @@ class Role(Base):
 
 # Modelo de Plano de Assinatura
 class Plano(Base):
-    """Represent plano and centralize responsibilities for this module."""
+    """Encapsulates Plano."""
     __tablename__ = "planos"
     id = Column(Integer, primary_key=True, index=True)
     nome = Column(String, unique=True, index=True, nullable=False)
@@ -206,7 +206,7 @@ class Plano(Base):
 
 # Modelo de Fornecedor
 class Fornecedor(Base):
-    """Represent fornecedor and centralize responsibilities for this module."""
+    """Encapsulates Fornecedor."""
     __tablename__ = "fornecedores"
 
     id = Column(Integer, primary_key=True, index=True)
@@ -241,7 +241,7 @@ class Fornecedor(Base):
 
 # Modelo de Tipo de Produto (ProductType)
 class ProductType(Base):
-    """Represent product type and centralize responsibilities for this module."""
+    """Encapsulates Product type."""
     __tablename__ = "product_types"
 
     id = Column(Integer, primary_key=True, index=True)
@@ -291,7 +291,7 @@ Index(
 
 # Modelo de Template de Atributo (AttributeTemplate)
 class AttributeTemplate(Base):
-    """Represent attribute template and centralize responsibilities for this module."""
+    """Encapsulates Attribute template."""
     __tablename__ = "attribute_templates"
 
     id = Column(Integer, primary_key=True, index=True)
@@ -341,7 +341,7 @@ class AttributeTemplate(Base):
 
 # Modelo de Produto
 class Produto(Base):
-    """Represent produto and centralize responsibilities for this module."""
+    """Encapsulates Produto."""
     __tablename__ = "produtos"
 
     id = Column(Integer, primary_key=True, index=True)
@@ -463,7 +463,7 @@ class Produto(Base):
 
 # Modelo para Registro de Uso de IA
 class RegistroUsoIA(Base):
-    """Represent registro uso i a and centralize responsibilities for this module."""
+    """Encapsulates Registro uso i a."""
     __tablename__ = "registros_uso_ia"
 
     id = Column(Integer, primary_key=True, index=True)
@@ -503,7 +503,7 @@ class RegistroUsoIA(Base):
 
 
 class RegistroHistorico(Base):
-    """Represent registro historico and centralize responsibilities for this module."""
+    """Encapsulates Registro historico."""
     __tablename__ = "registros_historico"
 
     id = Column(Integer, primary_key=True, index=True)
@@ -518,7 +518,7 @@ class RegistroHistorico(Base):
 
 
 class CatalogImportFile(Base):
-    """Represent catalog import file and centralize responsibilities for this module."""
+    """Encapsulates Catalog import file."""
     __tablename__ = "catalog_import_files"
 
     id = Column(Integer, primary_key=True, index=True)
@@ -538,7 +538,7 @@ class CatalogImportFile(Base):
 
 
 class FornecedorImportJob(Base):
-    """Represent fornecedor import job and centralize responsibilities for this module."""
+    """Encapsulates Fornecedor import job."""
     __tablename__ = "fornecedor_import_jobs"
 
     id = Column(Integer, primary_key=True, index=True)

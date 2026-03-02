@@ -1,6 +1,6 @@
-"""Module fornecedor import job repository.
+"""Fornecedor import job repository.
 
-Contains backend logic related to fornecedor import job repository and documents its role in the OOP architecture.
+Defines the module responsibilities and how it fits in the backend architecture.
 """
 
 from __future__ import annotations
@@ -16,7 +16,7 @@ class FornecedorImportJobRepository:
     """Repository OO para jobs de importacao de fornecedor."""
 
     def __init__(self, db: Session) -> None:
-        """Initialize collaborators and configuration required by this component."""
+        """Initialize required dependencies and runtime configuration."""
         self._db = db
 
     def create_import_job(
@@ -25,7 +25,7 @@ class FornecedorImportJobRepository:
         user_id: int,
         result_summary: Optional[dict] = None,
     ) -> models.FornecedorImportJob:
-        """Create import job for this workflow."""
+        """Create import job."""
         job = models.FornecedorImportJob(
             user_id=user_id,
             result_summary=result_summary or {},
@@ -40,7 +40,7 @@ class FornecedorImportJobRepository:
         *,
         job_id: int,
     ) -> Optional[models.FornecedorImportJob]:
-        """Return import job for this workflow."""
+        """Return Import job."""
         return (
             self._db.query(models.FornecedorImportJob)
             .filter(models.FornecedorImportJob.id == job_id)
@@ -53,7 +53,7 @@ class FornecedorImportJobRepository:
         job: models.FornecedorImportJob,
         status: str,
     ) -> models.FornecedorImportJob:
-        """Update job status for this workflow."""
+        """Update job status."""
         job.status = status
         self._db.add(job)
         self._db.commit()

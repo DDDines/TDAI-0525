@@ -29,7 +29,7 @@ class SearchRequestService:
         self,
         session: Session = Depends(ServiceContainerDependencySupport.get_request_db_session),
     ) -> None:
-        """Initialize collaborators and configuration required by this component."""
+        """Initialize required dependencies and runtime configuration."""
         self._product_repo = ProductRepository(session)
         self._fornecedor_repo = FornecedorRepository(session)
         self._product_type_repo = ProductTypeRepository(session)
@@ -42,7 +42,7 @@ class SearchRequestService:
         q: Optional[str],
         limit: int,
     ) -> schemas.SearchResults:
-        """Run search all in this workflow."""
+        """Process Search all."""
         results_items: List[Tuple] = []
         term = q.strip().lower() if q else None
 
@@ -116,5 +116,5 @@ def search_all(
         auth_utils._AuthUtilsActiveUserDependency.get_current_active_user
     ),
 ):
-    """Run search all in this workflow."""
+    """Process Search all."""
     return request_service.search_all(current_user=current_user, q=q, limit=limit)

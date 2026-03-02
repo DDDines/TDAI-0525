@@ -1,6 +1,6 @@
-"""Module web enrichment normalization service.
+"""Web enrichment normalization service.
 
-Contains backend logic related to web enrichment normalization service and documents its role in the OOP architecture.
+Defines the module responsibilities and how it fits in the backend architecture.
 """
 
 from __future__ import annotations
@@ -33,7 +33,7 @@ class WebEnrichmentNormalizationService:
         # Conta caracteres típicos de mojibake UTF-8->latin1/cp1252.
         # A versão anterior usava tokens multi-char ("Ãƒ"), o que nunca
         # batia com chars individuais iterados em `candidate`.
-        """Run encoding marker count in this workflow."""
+        """Process Encoding marker count."""
         if not candidate:
             return 0
         return sum(
@@ -42,19 +42,19 @@ class WebEnrichmentNormalizationService:
         )
 
     def _has_markers(self, candidate: str) -> bool:
-        """Run has markers in this workflow."""
+        """Process Has markers."""
         return self._encoding_marker_count(candidate) > 0 or "??" in candidate
 
     @staticmethod
     def _decode_maybe(candidate: str, source_encoding: str) -> str:
-        """Run decode maybe in this workflow."""
+        """Process Decode maybe."""
         try:
             return candidate.encode(source_encoding).decode("utf-8")
         except Exception:
             return candidate
 
     def normalize_human_text(self, value: Any) -> str:
-        """Normalize human text for this workflow."""
+        """Normalize human text."""
         text = str(value or "")
         if not text:
             return ""
@@ -117,14 +117,14 @@ class WebEnrichmentNormalizationService:
 
     @staticmethod
     def fold_text(value: Any) -> str:
-        """Run fold text in this workflow."""
+        """Process Fold text."""
         text = unicodedata.normalize("NFKD", str(value or ""))
         text = text.encode("ascii", "ignore").decode("ascii")
         text = re.sub(r"[^a-zA-Z0-9]+", " ", text).lower()
         return re.sub(r"\s+", " ", text).strip()
 
     def is_empty(self, value: Any) -> bool:
-        """Run is empty in this workflow."""
+        """Process Is empty."""
         if value is None:
             return True
         if isinstance(value, str):
@@ -138,7 +138,7 @@ class WebEnrichmentNormalizationService:
         return False
 
     def as_text(self, value: Any, max_len: int = 8000) -> Optional[str]:
-        """Run as text in this workflow."""
+        """Process As text."""
         if self.is_empty(value):
             return None
         if isinstance(value, (list, tuple, set)):
@@ -151,7 +151,7 @@ class WebEnrichmentNormalizationService:
         return text[:max_len] if len(text) > max_len else text
 
     def first_non_empty(self, values: List[Any]) -> Optional[Any]:
-        """Run first non empty in this workflow."""
+        """Process First non empty."""
         for value in values:
             if not self.is_empty(value):
                 return value
@@ -159,7 +159,7 @@ class WebEnrichmentNormalizationService:
 
     @staticmethod
     def parse_price(value: Any) -> Optional[float]:
-        """Parse price for this workflow."""
+        """Parse price."""
         if value is None:
             return None
         if isinstance(value, (int, float)):
@@ -182,7 +182,7 @@ class WebEnrichmentNormalizationService:
             return None
 
     def sanitize_code_value(self, value: Any) -> Optional[str]:
-        """Run sanitize code value in this workflow."""
+        """Process Sanitize code value."""
         text = self.as_text(value, max_len=120)
         if not text:
             return None
@@ -210,7 +210,7 @@ class WebEnrichmentNormalizationService:
         return clean or None
 
     def is_suspicious_code(self, value: Any) -> bool:
-        """Run is suspicious code in this workflow."""
+        """Process Is suspicious code."""
         text = self.sanitize_code_value(value)
         if not text:
             return False
@@ -220,7 +220,7 @@ class WebEnrichmentNormalizationService:
         )
 
     def extract_signals_from_description(self, text: Any) -> Dict[str, str]:
-        """Extract signals from description for this workflow."""
+        """Extract signals from description."""
         raw = self.as_text(text, max_len=12000)
         if not raw:
             return {}
@@ -253,7 +253,7 @@ class WebEnrichmentNormalizationService:
         return extracted
 
     def is_placeholder_value(self, value: Any) -> bool:
-        """Run is placeholder value in this workflow."""
+        """Process Is placeholder value."""
         text = self.as_text(value, max_len=1000)
         if not text:
             return True

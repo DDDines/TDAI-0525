@@ -55,7 +55,7 @@ class _ProdutosServiceBundle:
     """Componente OO principal '_ProdutosServiceBundle' do modulo 'produtos'."""
 
     def __init__(self, *, session_provider: Any | None = None) -> None:
-        """Initialize collaborators and configuration required by this component."""
+        """Initialize required dependencies and runtime configuration."""
         self._service_container = ServiceContainer()
         self._session_provider = (
             session_provider
@@ -81,7 +81,7 @@ class _ProdutosCatalogService:
     """Runtime OO responsavel por integracoes e operacoes de 'produtos'."""
 
     def __init__(self, *, session: Session, services: Optional[_ProdutosServiceBundle]=None) -> None:
-        """Initialize collaborators and configuration required by this component."""
+        """Initialize required dependencies and runtime configuration."""
         self._session = session
         runtime_session_provider = (
             ServiceContainerDependencySupport.build_background_session_provider_from_session(
@@ -145,114 +145,114 @@ class _ProdutosCatalogService:
         )
 
     def _build_product_management_service(self) -> ProductManagementService:
-        """Run build product management service in this workflow."""
+        """Process Build product management service."""
         repos = ProductRepositories.build_product_management_repositories(session=self._session)
         return ProductManagementService(models=models, schemas=schemas, **repos)
 
     def _build_product_media_service(self) -> ProductMediaService:
-        """Run build product media service in this workflow."""
+        """Process Build product media service."""
         repos = ProductRepositories.build_product_media_repositories(session=self._session)
         return ProductMediaService(schemas=schemas, **repos)
 
     def create_produto(self, produto: schemas.ProdutoCreate, current_user: models.User) -> models.Produto:
-        """Create produto for this workflow."""
+        """Create produto."""
         return self._build_product_management_service().create_produto(produto=produto, current_user=current_user)
 
     def list_catalog_import_files(self, user_id: int, fornecedor_id: Optional[int], skip: int, limit: int) -> schemas.CatalogImportFilePage:
-        """List catalog import files for this workflow."""
+        """List catalog import files."""
         return self._catalog_import_file_service.list_user_files(user_id=user_id, fornecedor_id=fornecedor_id, skip=skip, limit=limit)
 
     def delete_catalog_import_file(self, file_id: int, user_id: int):
-        """Delete catalog import file for this workflow."""
+        """Delete catalog import file."""
         return self._catalog_import_file_service.delete_user_file(file_id=file_id, user_id=user_id)
 
     async def reprocess_catalog_import_file(self, background_tasks: BackgroundTasks, file_id: int, user_id: int, product_type_id: Optional[int], fornecedor_id: Optional[int], mapping: Optional[Dict[str, str]], pages: Optional[List[int]], region: Optional[List[float]]):
-        """Run reprocess catalog import file in this workflow."""
+        """Process Reprocess catalog import file."""
         return await self._catalog_import_file_service.reprocess_catalog_file(background_tasks=background_tasks, file_id=file_id, user_id=user_id, product_type_id=product_type_id, fornecedor_id=fornecedor_id, mapping=mapping, pages=pages, region=region)
 
     def read_produto(self, produto_id: int, current_user: models.User):
-        """Run read produto in this workflow."""
+        """Process Read produto."""
         return self._build_product_management_service().read_produto(produto_id=produto_id, current_user=current_user)
 
     def list_produtos(self, skip: int, limit: int, sort_by: Optional[str], sort_order: Optional[str], search: Optional[str], fornecedor_id: Optional[int], categoria: Optional[str], status_enriquecimento_web: Optional[models.StatusEnriquecimentoEnum], status_titulo_ia: Optional[models.StatusGeracaoIAEnum], status_descricao_ia: Optional[models.StatusGeracaoIAEnum], product_type_id: Optional[int], current_user: models.User):
-        """List produtos for this workflow."""
+        """List produtos."""
         return self._build_product_management_service().list_produtos(skip=skip, limit=limit, sort_by=sort_by, sort_order=sort_order, search=search, fornecedor_id=fornecedor_id, categoria=categoria, status_enriquecimento_web=status_enriquecimento_web, status_titulo_ia=status_titulo_ia, status_descricao_ia=status_descricao_ia, product_type_id=product_type_id, current_user=current_user)
 
     def update_produto(self, produto_id: int, produto_update: schemas.ProdutoUpdate, current_user: models.User):
-        """Update produto for this workflow."""
+        """Update produto."""
         return self._build_product_management_service().update_produto(produto_id=produto_id, produto_update=produto_update, current_user=current_user)
 
     def delete_produto(self, produto_id: int, current_user: models.User):
-        """Delete produto for this workflow."""
+        """Delete produto."""
         return self._build_product_management_service().delete_produto(produto_id=produto_id, current_user=current_user)
 
     def batch_delete_produtos(self, produto_ids: List[int], current_user: models.User):
-        """Run batch delete produtos in this workflow."""
+        """Process Batch delete produtos."""
         return self._build_product_management_service().batch_delete_produtos(produto_ids=produto_ids, current_user=current_user)
 
     async def upload_produto_image(self, produto_id: int, file: UploadFile, current_user: models.User):
-        """Run upload produto image in this workflow."""
+        """Process Upload produto image."""
         return await self._build_product_media_service().upload_produto_image(produto_id=produto_id, file=file, current_user=current_user)
 
     async def importar_catalogo_preview(self, file: UploadFile, fornecedor_id: Optional[int], start_page: int, page_count: int, dpi: int, user_id: int) -> schemas.ImportPreviewResponse:
-        """Run importar catalogo preview in this workflow."""
+        """Process Importar catalogo preview."""
         response_payload = await self._catalog_import_preview_service.importar_catalogo_preview(file=file, fornecedor_id=fornecedor_id, start_page=start_page, page_count=page_count, dpi=dpi, user_id=user_id)
         return schemas.ImportPreviewResponse(**response_payload)
 
     async def importar_catalogo_fornecedor(self, fornecedor_id: int, file: UploadFile, mapeamento_colunas_usuario: Optional[str], current_user: models.User):
-        """Run importar catalogo fornecedor in this workflow."""
+        """Process Importar catalogo fornecedor."""
         return await self._catalog_import_ingest_service.importar_catalogo_fornecedor(fornecedor_id=fornecedor_id, file=file, mapeamento_colunas_usuario=mapeamento_colunas_usuario, current_user=current_user)
 
     async def importar_catalogo_finalizar(self, background_tasks: BackgroundTasks, file_id: int, product_type_id: int, fornecedor_id: int, mapping: Optional[Dict[str, str]], pages: Optional[List[int]], region: Optional[List[float]], user_id: int):
-        """Run importar catalogo finalizar in this workflow."""
+        """Process Importar catalogo finalizar."""
         return await self._catalog_import_workflow_service.importar_catalogo_finalizar(background_tasks=background_tasks, file_id=file_id, product_type_id=product_type_id, fornecedor_id=fornecedor_id, mapping=mapping, pages=pages, region=region, user_id=user_id)
 
     def importar_catalogo_status(self, file_id: int, user_id: int):
-        """Run importar catalogo status in this workflow."""
+        """Process Importar catalogo status."""
         return self._catalog_import_workflow_service.importar_catalogo_status(file_id=file_id, user_id=user_id)
 
     def importar_catalogo_status_simple(self, file_id: int, user_id: int):
-        """Run importar catalogo status simple in this workflow."""
+        """Process Importar catalogo status simple."""
         return self._catalog_import_workflow_service.importar_catalogo_status_simple(file_id=file_id, user_id=user_id)
 
     def importar_catalogo_result(self, file_id: int, user_id: int):
-        """Run importar catalogo result in this workflow."""
+        """Process Importar catalogo result."""
         return self._catalog_import_workflow_service.importar_catalogo_result(file_id=file_id, user_id=user_id)
 
     async def importar_catalogo_finalizar_todas_paginas(self, file_id: int, start_page: int, mapping: Optional[Dict[str, str]], user_id: int):
-        """Run importar catalogo finalizar todas paginas in this workflow."""
+        """Process Importar catalogo finalizar todas paginas."""
         return await self._catalog_import_workflow_service.importar_catalogo_finalizar_todas_paginas(file_id=file_id, start_page=start_page, mapping=mapping, user_id=user_id)
 
     async def selecionar_regiao(self, file_id: int, page: int, bbox: List[float], bbox_norm: Optional[List[float]], user_id: int):
-        """Run selecionar regiao in this workflow."""
+        """Process Selecionar regiao."""
         return self._catalog_import_preview_service.selecionar_regiao(file_id=file_id, page=page, bbox=bbox, bbox_norm=bbox_norm, user_id=user_id)
 
     async def extrair_pagina_unica(self, file_id: int, page_number: int, user_id: int):
-        """Run extrair pagina unica in this workflow."""
+        """Process Extrair pagina unica."""
         return await self._catalog_import_preview_service.extrair_pagina_unica(file_id=file_id, page_number=page_number, user_id=user_id)
 
 class ProdutosCatalogCoordinator:
     """Workflow/escopo request-scoped para o fluxo de 'produtos'."""
 
     def __init__(self, runtime: Optional[object]=None) -> None:
-        """Initialize collaborators and configuration required by this component."""
+        """Initialize required dependencies and runtime configuration."""
         if runtime is None:
             raise RuntimeError("ProdutosCatalogCoordinator requires an explicit runtime instance.")
         self._runtime = runtime
 
     @staticmethod
     async def _await_if_needed(result: Any):
-        """Run await if needed in this workflow."""
+        """Process Await if needed."""
         if inspect.isawaitable(result):
             return await result
         return result
 
     def create_produto(self, produto: schemas.ProdutoCreate, current_user: models.User) -> models.Produto:
-        """Create produto for this workflow."""
+        """Create produto."""
         return self._runtime.create_produto(produto=produto, current_user=current_user)
 
     def list_catalog_import_files(self, user_id: int, fornecedor_id: Optional[int], skip: int, limit: int) -> schemas.CatalogImportFilePage:
-        """List catalog import files for this workflow."""
+        """List catalog import files."""
         return self._runtime.list_catalog_import_files(
             user_id=user_id,
             fornecedor_id=fornecedor_id,
@@ -261,11 +261,11 @@ class ProdutosCatalogCoordinator:
         )
 
     def delete_catalog_import_file(self, file_id: int, user_id: int):
-        """Delete catalog import file for this workflow."""
+        """Delete catalog import file."""
         return self._runtime.delete_catalog_import_file(file_id=file_id, user_id=user_id)
 
     async def reprocess_catalog_import_file(self, background_tasks: BackgroundTasks, file_id: int, user_id: int, product_type_id: Optional[int], fornecedor_id: Optional[int], mapping: Optional[Dict[str, str]], pages: Optional[List[int]], region: Optional[List[float]]):
-        """Run reprocess catalog import file in this workflow."""
+        """Process Reprocess catalog import file."""
         return await self._await_if_needed(
             self._runtime.reprocess_catalog_import_file(
                 background_tasks=background_tasks,
@@ -280,15 +280,15 @@ class ProdutosCatalogCoordinator:
         )
 
     def read_produto(self, produto_id: int, current_user: models.User):
-        """Run read produto in this workflow."""
+        """Process Read produto."""
         return self._runtime.read_produto(produto_id=produto_id, current_user=current_user)
 
     def list_produtos(self, skip: int, limit: int, sort_by: Optional[str], sort_order: Optional[str], search: Optional[str], fornecedor_id: Optional[int], categoria: Optional[str], status_enriquecimento_web: Optional[models.StatusEnriquecimentoEnum], status_titulo_ia: Optional[models.StatusGeracaoIAEnum], status_descricao_ia: Optional[models.StatusGeracaoIAEnum], product_type_id: Optional[int], current_user: models.User):
-        """List produtos for this workflow."""
+        """List produtos."""
         return self._runtime.list_produtos(skip=skip, limit=limit, sort_by=sort_by, sort_order=sort_order, search=search, fornecedor_id=fornecedor_id, categoria=categoria, status_enriquecimento_web=status_enriquecimento_web, status_titulo_ia=status_titulo_ia, status_descricao_ia=status_descricao_ia, product_type_id=product_type_id, current_user=current_user)
 
     def update_produto(self, produto_id: int, produto_update: schemas.ProdutoUpdate, current_user: models.User):
-        """Update produto for this workflow."""
+        """Update produto."""
         return self._runtime.update_produto(
             produto_id=produto_id,
             produto_update=produto_update,
@@ -296,15 +296,15 @@ class ProdutosCatalogCoordinator:
         )
 
     def delete_produto(self, produto_id: int, current_user: models.User):
-        """Delete produto for this workflow."""
+        """Delete produto."""
         return self._runtime.delete_produto(produto_id=produto_id, current_user=current_user)
 
     def batch_delete_produtos(self, produto_ids: List[int], current_user: models.User):
-        """Run batch delete produtos in this workflow."""
+        """Process Batch delete produtos."""
         return self._runtime.batch_delete_produtos(produto_ids=produto_ids, current_user=current_user)
 
     async def upload_produto_image(self, produto_id: int, file: UploadFile, current_user: models.User):
-        """Run upload produto image in this workflow."""
+        """Process Upload produto image."""
         return await self._await_if_needed(
             self._runtime.upload_produto_image(
                 produto_id=produto_id,
@@ -314,7 +314,7 @@ class ProdutosCatalogCoordinator:
         )
 
     async def importar_catalogo_preview(self, file: UploadFile, fornecedor_id: Optional[int], start_page: int, page_count: int, dpi: int, user_id: int) -> schemas.ImportPreviewResponse:
-        """Run importar catalogo preview in this workflow."""
+        """Process Importar catalogo preview."""
         result = await self._await_if_needed(
             self._runtime.importar_catalogo_preview(
                 file=file,
@@ -332,7 +332,7 @@ class ProdutosCatalogCoordinator:
         return result
 
     async def importar_catalogo_fornecedor(self, fornecedor_id: int, file: UploadFile, mapeamento_colunas_usuario: Optional[str], current_user: models.User):
-        """Run importar catalogo fornecedor in this workflow."""
+        """Process Importar catalogo fornecedor."""
         return await self._await_if_needed(
             self._runtime.importar_catalogo_fornecedor(
                 fornecedor_id=fornecedor_id,
@@ -343,7 +343,7 @@ class ProdutosCatalogCoordinator:
         )
 
     async def importar_catalogo_finalizar(self, background_tasks: BackgroundTasks, file_id: int, product_type_id: int, fornecedor_id: int, mapping: Optional[Dict[str, str]], pages: Optional[List[int]], region: Optional[List[float]], user_id: int):
-        """Run importar catalogo finalizar in this workflow."""
+        """Process Importar catalogo finalizar."""
         return await self._await_if_needed(
             self._runtime.importar_catalogo_finalizar(
                 background_tasks=background_tasks,
@@ -358,19 +358,19 @@ class ProdutosCatalogCoordinator:
         )
 
     def importar_catalogo_status(self, file_id: int, user_id: int):
-        """Run importar catalogo status in this workflow."""
+        """Process Importar catalogo status."""
         return self._runtime.importar_catalogo_status(file_id=file_id, user_id=user_id)
 
     def importar_catalogo_status_simple(self, file_id: int, user_id: int):
-        """Run importar catalogo status simple in this workflow."""
+        """Process Importar catalogo status simple."""
         return self._runtime.importar_catalogo_status_simple(file_id=file_id, user_id=user_id)
 
     def importar_catalogo_result(self, file_id: int, user_id: int):
-        """Run importar catalogo result in this workflow."""
+        """Process Importar catalogo result."""
         return self._runtime.importar_catalogo_result(file_id=file_id, user_id=user_id)
 
     async def importar_catalogo_finalizar_todas_paginas(self, file_id: int, start_page: int, mapping: Optional[Dict[str, str]], user_id: int):
-        """Run importar catalogo finalizar todas paginas in this workflow."""
+        """Process Importar catalogo finalizar todas paginas."""
         return await self._await_if_needed(
             self._runtime.importar_catalogo_finalizar_todas_paginas(
                 file_id=file_id,
@@ -381,7 +381,7 @@ class ProdutosCatalogCoordinator:
         )
 
     async def selecionar_regiao(self, file_id: int, page: int, bbox: List[float], bbox_norm: Optional[List[float]], user_id: int):
-        """Run selecionar regiao in this workflow."""
+        """Process Selecionar regiao."""
         return await self._await_if_needed(
             self._runtime.selecionar_regiao(
                 file_id=file_id,
@@ -393,7 +393,7 @@ class ProdutosCatalogCoordinator:
         )
 
     async def extrair_pagina_unica(self, file_id: int, page_number: int, user_id: int):
-        """Run extrair pagina unica in this workflow."""
+        """Process Extrair pagina unica."""
         return await self._await_if_needed(
             self._runtime.extrair_pagina_unica(
                 file_id=file_id,
@@ -405,7 +405,7 @@ class _ProdutosRequestServices:
     """Componente OO principal '_ProdutosRequestServices' do modulo 'produtos'."""
 
     def __init__(self, *, product_management_service: ProductManagementService, product_media_service: ProductMediaService) -> None:
-        """Initialize collaborators and configuration required by this component."""
+        """Initialize required dependencies and runtime configuration."""
         self.product_management_service = product_management_service
         self.product_media_service = product_media_service
 _build_produtos_request_services = ServiceContainerDependencySupport.build_request_scoped_dependency(lambda session: _ProdutosRequestServices(product_management_service=DependencyContainer.get_product_management_service(session), product_media_service=DependencyContainer.get_product_media_service(session)))
@@ -414,69 +414,69 @@ class _ProdutosCatalogRequestScope:
     """Workflow/escopo request-scoped para o fluxo de 'produtos'."""
 
     def __init__(self, *, session: Session, workflow: ProdutosCatalogCoordinator | None=None) -> None:
-        """Initialize collaborators and configuration required by this component."""
+        """Initialize required dependencies and runtime configuration."""
         self._workflow = workflow or ProdutosCatalogCoordinator(runtime=_ProdutosCatalogService(session=session))
 
     def list_catalog_import_files(self, *, user_id: int, fornecedor_id: Optional[int], skip: int, limit: int) -> schemas.CatalogImportFilePage:
-        """List catalog import files for this workflow."""
+        """List catalog import files."""
         return self._workflow.list_catalog_import_files(user_id=user_id, fornecedor_id=fornecedor_id, skip=skip, limit=limit)
 
     def delete_catalog_import_file(self, *, file_id: int, user_id: int):
-        """Delete catalog import file for this workflow."""
+        """Delete catalog import file."""
         return self._workflow.delete_catalog_import_file(file_id=file_id, user_id=user_id)
 
     async def reprocess_catalog_import_file(self, *, background_tasks: BackgroundTasks, file_id: int, user_id: int, product_type_id: Optional[int], fornecedor_id: Optional[int], mapping: Optional[Dict[str, str]], pages: Optional[List[int]], region: Optional[List[float]]):
-        """Run reprocess catalog import file in this workflow."""
+        """Process Reprocess catalog import file."""
         return await self._workflow.reprocess_catalog_import_file(background_tasks=background_tasks, file_id=file_id, user_id=user_id, product_type_id=product_type_id, fornecedor_id=fornecedor_id, mapping=mapping, pages=pages, region=region)
 
     async def importar_catalogo_preview(self, *, file: UploadFile, fornecedor_id: Optional[int], start_page: int, page_count: int, dpi: int, user_id: int) -> schemas.ImportPreviewResponse:
-        """Run importar catalogo preview in this workflow."""
+        """Process Importar catalogo preview."""
         return await self._workflow.importar_catalogo_preview(file=file, fornecedor_id=fornecedor_id, start_page=start_page, page_count=page_count, dpi=dpi, user_id=user_id)
 
     async def importar_catalogo_fornecedor(self, *, fornecedor_id: int, file: UploadFile, mapeamento_colunas_usuario: Optional[str], current_user: models.User):
-        """Run importar catalogo fornecedor in this workflow."""
+        """Process Importar catalogo fornecedor."""
         return await self._workflow.importar_catalogo_fornecedor(fornecedor_id=fornecedor_id, file=file, mapeamento_colunas_usuario=mapeamento_colunas_usuario, current_user=current_user)
 
     async def importar_catalogo_finalizar(self, *, background_tasks: BackgroundTasks, file_id: int, product_type_id: int, fornecedor_id: int, mapping: Optional[Dict[str, str]], pages: Optional[List[int]], region: Optional[List[float]], user_id: int):
-        """Run importar catalogo finalizar in this workflow."""
+        """Process Importar catalogo finalizar."""
         return await self._workflow.importar_catalogo_finalizar(background_tasks=background_tasks, file_id=file_id, product_type_id=product_type_id, fornecedor_id=fornecedor_id, mapping=mapping, pages=pages, region=region, user_id=user_id)
 
     def importar_catalogo_status(self, *, file_id: int, user_id: int):
-        """Run importar catalogo status in this workflow."""
+        """Process Importar catalogo status."""
         return self._workflow.importar_catalogo_status(file_id=file_id, user_id=user_id)
 
     def importar_catalogo_status_simple(self, *, file_id: int, user_id: int):
-        """Run importar catalogo status simple in this workflow."""
+        """Process Importar catalogo status simple."""
         return self._workflow.importar_catalogo_status_simple(file_id=file_id, user_id=user_id)
 
     def importar_catalogo_result(self, *, file_id: int, user_id: int):
-        """Run importar catalogo result in this workflow."""
+        """Process Importar catalogo result."""
         return self._workflow.importar_catalogo_result(file_id=file_id, user_id=user_id)
 
     async def importar_catalogo_finalizar_todas_paginas(self, *, file_id: int, start_page: int, mapping: Optional[Dict[str, str]], user_id: int):
-        """Run importar catalogo finalizar todas paginas in this workflow."""
+        """Process Importar catalogo finalizar todas paginas."""
         return await self._workflow.importar_catalogo_finalizar_todas_paginas(file_id=file_id, start_page=start_page, mapping=mapping, user_id=user_id)
 
     async def selecionar_regiao(self, *, file_id: int, page: int, bbox: List[float], bbox_norm: Optional[List[float]], user_id: int):
-        """Run selecionar regiao in this workflow."""
+        """Process Selecionar regiao."""
         return await self._workflow.selecionar_regiao(file_id=file_id, page=page, bbox=bbox, bbox_norm=bbox_norm, user_id=user_id)
 
     async def extrair_pagina_unica(self, *, file_id: int, page_number: int, user_id: int):
-        """Run extrair pagina unica in this workflow."""
+        """Process Extrair pagina unica."""
         return await self._workflow.extrair_pagina_unica(file_id=file_id, page_number=page_number, user_id=user_id)
 
 class _ProdutosRequestContext:
     """Componente OO principal '_ProdutosRequestContext' do modulo 'produtos'."""
 
     def __init__(self, *, request_services: _ProdutosRequestServices, catalog_workflow: _ProdutosCatalogRequestScope) -> None:
-        """Initialize collaborators and configuration required by this component."""
+        """Initialize required dependencies and runtime configuration."""
         self.request_services = request_services
         self.catalog_workflow = catalog_workflow
 _build_produtos_request_context = ServiceContainerDependencySupport.build_request_scoped_dependency(lambda session: _ProdutosRequestContext(request_services=_build_produtos_request_services(session), catalog_workflow=_ProdutosCatalogRequestScope(session=session)))
 
 class _EndpointHandlers:
 
-    """Represent endpoint handlers and centralize responsibilities for this module."""
+    """Encapsulates Endpoint handlers."""
     @router.post('/', response_model=schemas.ProdutoResponse, status_code=status.HTTP_201_CREATED)
     def create_produto(produto: schemas.ProdutoCreate, current_user: models.User=Depends(auth_utils._AuthUtilsActiveUserDependency.get_current_active_user), request_services: _ProdutosRequestServices=Depends(_build_produtos_request_services)):
         """Endpoint HTTP que delega a execucao para workflow/servico OO (create_produto)."""

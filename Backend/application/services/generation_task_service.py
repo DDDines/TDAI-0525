@@ -1,6 +1,6 @@
-"""Module generation task service.
+"""Generation task service.
 
-Contains backend logic related to generation task service and documents its role in the OOP architecture.
+Defines the module responsibilities and how it fits in the backend architecture.
 """
 
 from __future__ import annotations
@@ -25,7 +25,7 @@ class GenerationTaskService:
         user_repository_factory: Any,
         product_repository_factory: Any,
     ) -> None:
-        """Initialize collaborators and configuration required by this component."""
+        """Initialize required dependencies and runtime configuration."""
         self._session_provider = session_provider
         self._user_repository_factory = user_repository_factory
         self._product_repository_factory = product_repository_factory
@@ -34,18 +34,18 @@ class GenerationTaskService:
         self._logger = logger
 
     def _get_user_access(self, session: Session) -> Any:
-        """Run get user access in this workflow."""
+        """Process Get user access."""
         return self._user_repository_factory(session)
 
     def _get_product_access(self, session: Session) -> Any:
-        """Run get product access in this workflow."""
+        """Process Get product access."""
         return self._product_repository_factory(session)
 
     def _resolve_generation_targets(
         self,
         tipo_geracao_principal: str,
     ) -> Optional[Tuple[str, str]]:
-        """Run resolve generation targets in this workflow."""
+        """Process Resolve generation targets."""
         if tipo_geracao_principal == "titulo":
             return "status_titulo_ia", "titulos_sugeridos"
         if tipo_geracao_principal == "descricao":
@@ -57,7 +57,7 @@ class GenerationTaskService:
         current_log: Any,
         action: str,
     ) -> list:
-        """Run append process log in this workflow."""
+        """Process Append process log."""
         log_obj = list(current_log or [])
         log_obj.append(
             {

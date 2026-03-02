@@ -1,6 +1,6 @@
-"""Module catalog import.
+"""Catalog import.
 
-Contains backend logic related to catalog import and documents its role in the OOP architecture.
+Defines the module responsibilities and how it fits in the backend architecture.
 """
 
 from __future__ import annotations
@@ -29,7 +29,7 @@ class CatalogImportPipelineOrchestrator:
         oop_executor: TaskExecutor,
         context: str = "catalog_import.finalize",
     ) -> None:
-        """Initialize collaborators and configuration required by this component."""
+        """Initialize required dependencies and runtime configuration."""
         oop_use_case = CatalogImportProcessingUseCase(processor=oop_executor)
         self._oop_builder = CatalogImportTaskBuilder(
             executor=OOPCatalogImportExecutor(oop_use_case)
@@ -41,7 +41,7 @@ class CatalogImportPipelineOrchestrator:
         *,
         command: CatalogImportFinalizeCommand,
     ) -> TaskExecutionPlan:
-        """Select finalize plan for this workflow."""
+        """Select finalize plan."""
         oop_plan = self._oop_builder.build_finalize_plan(
             file_id=command.file_id,
             user_id=command.user_id,

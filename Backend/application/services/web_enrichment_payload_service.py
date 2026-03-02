@@ -1,6 +1,6 @@
-"""Module web enrichment payload service.
+"""Web enrichment payload service.
 
-Contains backend logic related to web enrichment payload service and documents its role in the OOP architecture.
+Defines the module responsibilities and how it fits in the backend architecture.
 """
 
 from __future__ import annotations
@@ -61,15 +61,15 @@ class WebEnrichmentPayloadService:
     )
 
     def __init__(self, *, normalization_service: Any) -> None:
-        """Initialize collaborators and configuration required by this component."""
+        """Initialize required dependencies and runtime configuration."""
         self._normalization = normalization_service
 
     def _contains_part_hint(self, text_folded: str) -> bool:
-        """Run contains part hint in this workflow."""
+        """Process Contains part hint."""
         return any(hint in text_folded for hint in self._PART_NAME_HINTS)
 
     def _looks_like_application_only(self, value: Any) -> bool:
-        """Run looks like application only in this workflow."""
+        """Process Looks like application only."""
         text = self._normalization.as_text(value, max_len=500)
         if not text:
             return False
@@ -83,7 +83,7 @@ class WebEnrichmentPayloadService:
         return has_application_hint and (has_year or has_range) and few_words and not self._contains_part_hint(folded)
 
     def _is_weak_existing_field(self, field_name: str, value: Any) -> bool:
-        """Run is weak existing field in this workflow."""
+        """Process Is weak existing field."""
         text = self._normalization.as_text(value, max_len=2500)
         if not text:
             return True
@@ -121,7 +121,7 @@ class WebEnrichmentPayloadService:
         return False
 
     def _is_weak_dynamic_value(self, attr_key: str, value: Any) -> bool:
-        """Run is weak dynamic value in this workflow."""
+        """Process Is weak dynamic value."""
         text = self._normalization.as_text(value, max_len=1500)
         if not text:
             return True
@@ -155,7 +155,7 @@ class WebEnrichmentPayloadService:
         ignored_notes: List[str],
         allow_replace_weak: bool = False,
     ) -> None:
-        """Run apply if empty or weak in this workflow."""
+        """Process Apply if empty or weak."""
         if self._normalization.is_empty(new_value):
             return
         if self._normalization.is_empty(current_value):
@@ -183,7 +183,7 @@ class WebEnrichmentPayloadService:
         allow_replace_suspicious: bool = False,
         allow_replace_weak: bool = False,
     ) -> Optional[str]:
-        """Run set dynamic if empty in this workflow."""
+        """Process Set dynamic if empty."""
         text_value = self._normalization.as_text(value)
         value_from_existing = False
         if not text_value:

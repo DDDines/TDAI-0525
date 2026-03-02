@@ -1,6 +1,6 @@
-"""Module catalog import status service.
+"""Catalog import status service.
 
-Contains backend logic related to catalog import status service and documents its role in the OOP architecture.
+Defines the module responsibilities and how it fits in the backend architecture.
 """
 
 from __future__ import annotations
@@ -22,14 +22,14 @@ class CatalogImportStatusService:
         models: Any,
         catalog_file_repository: Any,
     ) -> None:
-        """Initialize collaborators and configuration required by this component."""
+        """Initialize required dependencies and runtime configuration."""
         self._models = models
         self._catalog_file_repository = catalog_file_repository
 
     def _resolve_catalog_file_repo(
         self,
     ) -> Any:
-        """Run resolve catalog file repo in this workflow."""
+        """Process Resolve catalog file repo."""
         return self._catalog_file_repository
 
     def get_record_or_404(
@@ -38,7 +38,7 @@ class CatalogImportStatusService:
         file_id: int,
         user_id: int,
     ) -> Any:
-        """Return record or 404 for this workflow."""
+        """Return Record or 404."""
         repo = self._resolve_catalog_file_repo()
         record = repo.get_catalog_file_for_user(
             file_id=file_id,
@@ -49,7 +49,7 @@ class CatalogImportStatusService:
         return record
 
     def build_simple_status(self, *, record: Any) -> dict[str, Any]:
-        """Build simple status for this workflow."""
+        """Build simple status."""
         record_status = record.status or "PROCESSING"
         if record_status in {"IMPORTED", "DONE"}:
             status_value = "DONE"
@@ -70,7 +70,7 @@ class CatalogImportStatusService:
         }
 
     def build_result_response(self, *, record: Any) -> Any:
-        """Build result response for this workflow."""
+        """Build result response."""
         record_status = record.status or "PROCESSING"
         terminal_status = record_status in self._TERMINAL_STATUSES
         if not terminal_status or not record.result_summary:

@@ -1,6 +1,6 @@
-"""Module web enrichment relevance service.
+"""Web enrichment relevance service.
 
-Contains backend logic related to web enrichment relevance service and documents its role in the OOP architecture.
+Defines the module responsibilities and how it fits in the backend architecture.
 """
 
 from __future__ import annotations
@@ -12,7 +12,7 @@ from urllib.parse import urlparse
 
 
 class WebEnrichmentRelevanceService:
-    """Represent web enrichment relevance service and centralize responsibilities for this module."""
+    """Encapsulates Web enrichment relevance service."""
     _RELEVANCE_STOPWORDS = {
         "de",
         "da",
@@ -66,14 +66,14 @@ class WebEnrichmentRelevanceService:
 
     @staticmethod
     def _fold_text(value: Any) -> str:
-        """Run fold text in this workflow."""
+        """Process Fold text."""
         text = unicodedata.normalize("NFKD", str(value or ""))
         text = text.encode("ascii", "ignore").decode("ascii")
         text = re.sub(r"[^a-zA-Z0-9]+", " ", text).lower()
         return re.sub(r"\s+", " ", text).strip()
 
     def tokens_for_relevance(self, value: Any) -> List[str]:
-        """Run tokens for relevance in this workflow."""
+        """Process Tokens for relevance."""
         base = self._fold_text(value)
         if not base:
             return []
@@ -81,7 +81,7 @@ class WebEnrichmentRelevanceService:
 
     @staticmethod
     def extract_code_tokens(values: List[Any]) -> List[str]:
-        """Extract code tokens for this workflow."""
+        """Extract code tokens."""
         combined = " ".join(str(v or "") for v in values)
         upper = (
             unicodedata.normalize("NFKD", combined)
@@ -108,7 +108,7 @@ class WebEnrichmentRelevanceService:
         source_desc: Any,
         source_url: str,
     ) -> bool:
-        """Run is source relevant for product in this workflow."""
+        """Process Is source relevant for product."""
         ref_parts = [
             getattr(db_produto_obj, "nome_base", None),
             getattr(db_produto_obj, "marca", None),
@@ -142,7 +142,7 @@ class WebEnrichmentRelevanceService:
 
     @staticmethod
     def extract_supplier_domain(site_url: Any) -> str:
-        """Extract supplier domain for this workflow."""
+        """Extract supplier domain."""
         try:
             parsed = urlparse(str(site_url or "").strip())
             if parsed.netloc:
@@ -158,7 +158,7 @@ class WebEnrichmentRelevanceService:
         candidate_url: str,
         fornecedor_domain: str = "",
     ) -> int:
-        """Run score url for product in this workflow."""
+        """Process Score url for product."""
         parsed = urlparse(str(candidate_url or "").strip())
         host = (parsed.netloc or "").lower()
         path = (parsed.path or "").lower()
@@ -204,7 +204,7 @@ class WebEnrichmentRelevanceService:
         fornecedor_domain: str = "",
         max_urls: int = 4,
     ) -> Tuple[List[str], List[Tuple[str, int]]]:
-        """Run prioritize urls for enrichment in this workflow."""
+        """Process Prioritize urls for enrichment."""
         deduped = [u for u in dict.fromkeys(urls_candidatas or []) if u]
         scored: List[Tuple[str, int]] = []
         for url in deduped:

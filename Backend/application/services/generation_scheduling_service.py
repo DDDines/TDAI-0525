@@ -1,6 +1,6 @@
-"""Module generation scheduling service.
+"""Generation scheduling service.
 
-Contains backend logic related to generation scheduling service and documents its role in the OOP architecture.
+Defines the module responsibilities and how it fits in the backend architecture.
 """
 
 from __future__ import annotations
@@ -20,7 +20,7 @@ class GenerationSchedulingService:
         models: Any,
         product_repository: Any,
     ) -> None:
-        """Initialize collaborators and configuration required by this component."""
+        """Initialize required dependencies and runtime configuration."""
         self._product_repository = product_repository
         self._schemas = schemas
         self._models = models
@@ -31,7 +31,7 @@ class GenerationSchedulingService:
         produto_id: int,
         current_user: Any,
     ) -> Any:
-        """Validate product access for this workflow."""
+        """Validate product access."""
         db_produto = self._product_repository.get_produto(produto_id=produto_id)
         if not db_produto:
             raise HTTPException(
@@ -51,7 +51,7 @@ class GenerationSchedulingService:
         db_produto: Any,
         generation_type: str,
     ) -> None:
-        """Mark pending status for this workflow."""
+        """Mark pending status."""
         status_field_map = {
             "titulo": "status_titulo_ia",
             "descricao": "status_descricao_ia",
@@ -80,7 +80,7 @@ class GenerationSchedulingService:
         num_titulos: int | None = None,
         tamanho_palavras: int | None = None,
     ) -> None:
-        """Run enqueue generation task in this workflow."""
+        """Process Enqueue generation task."""
         background_tasks.add_task(
             task_executor,
             user_id=user_id,

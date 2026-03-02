@@ -16,12 +16,12 @@ class FornecedorRepository:
     """Repository OO de Fornecedor com Session vinculada por request."""
 
     def __init__(self, db: Session) -> None:
-        """Initialize collaborators and configuration required by this component."""
+        """Initialize required dependencies and runtime configuration."""
         self._db = db
 
     @staticmethod
     def _normalize_supplier_url_fields(data: dict) -> None:
-        """Run normalize supplier url fields in this workflow."""
+        """Process Normalize supplier url fields."""
         if data.get("site_url") is not None:
             data["site_url"] = str(data["site_url"])
         if data.get("link_busca_padrao") is not None:
@@ -29,7 +29,7 @@ class FornecedorRepository:
 
     @staticmethod
     def _apply_fornecedor_search_filter(query, search: Optional[str]):
-        """Run apply fornecedor search filter in this workflow."""
+        """Process Apply fornecedor search filter."""
         if not search:
             return query
 
@@ -43,7 +43,7 @@ class FornecedorRepository:
         )
 
     def _validate_fornecedor_uniqueness(self, *, user_id: int, fornecedor_data: dict) -> None:
-        """Run validate fornecedor uniqueness in this workflow."""
+        """Process Validate fornecedor uniqueness."""
         existing_fornecedor = (
             self._db.query(Fornecedor)
             .filter(
@@ -79,7 +79,7 @@ class FornecedorRepository:
                 )
 
     def create_fornecedor(self, *, fornecedor: schemas.FornecedorCreate, user_id: int) -> Fornecedor:
-        """Create fornecedor for this workflow."""
+        """Create fornecedor."""
         fornecedor_data = fornecedor.model_dump()
         self._validate_fornecedor_uniqueness(user_id=user_id, fornecedor_data=fornecedor_data)
         self._normalize_supplier_url_fields(fornecedor_data)
@@ -91,7 +91,7 @@ class FornecedorRepository:
         return db_fornecedor
 
     def get_fornecedor(self, *, fornecedor_id: int) -> Optional[Fornecedor]:
-        """Return fornecedor for this workflow."""
+        """Return Fornecedor."""
         return self._db.query(Fornecedor).filter(Fornecedor.id == fornecedor_id).first()
 
     def get_fornecedores_by_user(
@@ -103,7 +103,7 @@ class FornecedorRepository:
         limit: int = 10,
         search: Optional[str] = None,
     ) -> List[Fornecedor]:
-        """Return fornecedores by user for this workflow."""
+        """Return Fornecedores by user."""
         query = self._db.query(Fornecedor)
         if not is_admin and user_id:
             query = query.filter(Fornecedor.user_id == user_id)
@@ -117,7 +117,7 @@ class FornecedorRepository:
         is_admin: bool = False,
         search: Optional[str] = None,
     ) -> int:
-        """Count fornecedores by user for this workflow."""
+        """Count fornecedores by user."""
         query = self._db.query(func.count(Fornecedor.id))
         if not is_admin and user_id:
             query = query.filter(Fornecedor.user_id == user_id)
@@ -149,7 +149,7 @@ class FornecedorRepository:
         db_fornecedor: Fornecedor,
         fornecedor_update: schemas.FornecedorUpdate,
     ) -> Fornecedor:
-        """Update fornecedor for this workflow."""
+        """Update fornecedor."""
         update_data = fornecedor_update.model_dump(exclude_unset=True)
         self._normalize_supplier_url_fields(update_data)
 
@@ -166,7 +166,7 @@ class FornecedorRepository:
         nome: str,
         exclude_id: Optional[int] = None,
     ) -> bool:
-        """Run exists fornecedor with name for user in this workflow."""
+        """Process Exists fornecedor with name for user."""
         query = self._db.query(Fornecedor).filter(
             Fornecedor.user_id == user_id,
             func.lower(Fornecedor.nome) == func.lower(nome),
@@ -181,7 +181,7 @@ class FornecedorRepository:
         db_fornecedor: Fornecedor,
         mapping: Optional[dict],
     ) -> Fornecedor:
-        """Run set default column mapping in this workflow."""
+        """Process Set default column mapping."""
         db_fornecedor.default_column_mapping = mapping
         self._db.add(db_fornecedor)
         self._db.commit()
@@ -189,7 +189,7 @@ class FornecedorRepository:
         return db_fornecedor
 
     def delete_fornecedor(self, *, db_fornecedor: Fornecedor) -> Fornecedor:
-        """Delete fornecedor for this workflow."""
+        """Delete fornecedor."""
         self._db.delete(db_fornecedor)
         self._db.commit()
         return db_fornecedor
@@ -202,7 +202,7 @@ class FornecedorRepository:
         file_name: str,
         original_file_path: str,
     ) -> CatalogImportFile:
-        """Create catalog import file for this workflow."""
+        """Create catalog import file."""
         stored_filename = Path(original_file_path).name
         db_import_file = CatalogImportFile(
             original_filename=file_name,

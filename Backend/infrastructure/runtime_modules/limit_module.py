@@ -1,6 +1,6 @@
-"""Module limit module.
+"""Limit module.
 
-Contains backend logic related to limit module and documents its role in the OOP architecture.
+Defines the module responsibilities and how it fits in the backend architecture.
 """
 
 from __future__ import annotations
@@ -29,17 +29,17 @@ class LimitRuntime:
         user_repository_factory: Callable[[Session], Any] = UserRepository,
         logger_factory=get_logger,
     ) -> None:
-        """Initialize collaborators and configuration required by this component."""
+        """Initialize required dependencies and runtime configuration."""
         self._usage_repository_factory = usage_repository_factory
         self._user_repository_factory = user_repository_factory
         self._logger = logger_factory(__name__)
 
     def _usage_repository(self, db: Session):
-        """Run usage repository in this workflow."""
+        """Process Usage repository."""
         return self._usage_repository_factory(db)
 
     def _user_repository(self, db: Session):
-        """Run user repository in this workflow."""
+        """Process User repository."""
         return self._user_repository_factory(db)
 
     def verificar_limite_uso(
@@ -163,7 +163,7 @@ class LimitWorkflow:
     """Workflow OO para regras de limite e credito."""
 
     def __init__(self, runtime: Optional[LimitRuntime] = None) -> None:
-        """Initialize collaborators and configuration required by this component."""
+        """Initialize required dependencies and runtime configuration."""
         self._runtime = runtime or LimitRuntime(
             usage_repository_factory=RegistroUsoIARepository,
             user_repository_factory=UserRepository,
@@ -176,7 +176,7 @@ class LimitWorkflow:
         user: models.User,
         tipo_geracao_principal: str,
     ) -> int:
-        """Run verificar limite uso in this workflow."""
+        """Process Verificar limite uso."""
         return self._runtime.verificar_limite_uso(
             db=db,
             user=user,
@@ -189,7 +189,7 @@ class LimitWorkflow:
         user_id: int,
         creditos_necessarios: int = 1,
     ) -> bool:
-        """Run verificar creditos disponiveis geracao ia in this workflow."""
+        """Process Verificar creditos disponiveis geracao ia."""
         return await self._runtime.verificar_creditos_disponiveis_geracao_ia(
             db=db,
             user_id=user_id,
@@ -202,7 +202,7 @@ class LimitWorkflow:
         user_id: int,
         creditos_necessarios: int = 1,
     ) -> bool:
-        """Run verificar e consumir creditos geracao ia in this workflow."""
+        """Process Verificar e consumir creditos geracao ia."""
         return await self._runtime.verificar_e_consumir_creditos_geracao_ia(
             db=db,
             user_id=user_id,

@@ -1,7 +1,7 @@
 # Caminho: Backend/schemas.py
-"""Module schemas.
+"""Schemas.
 
-Contains backend logic related to schemas and documents its role in the OOP architecture.
+Defines the module responsibilities and how it fits in the backend architecture.
 """
 
 
@@ -34,24 +34,24 @@ from Backend.models import (
 
 # Schemas de Autenticação e Usuário
 class Token(BaseModel):
-    """Represent token and centralize responsibilities for this module."""
+    """Encapsulates Token."""
     access_token: str
     token_type: str
 
 
 class TokenData(BaseModel):
-    """Represent token data and centralize responsibilities for this module."""
+    """Encapsulates Token data."""
     email: Optional[str] = None
     user_id: Optional[int] = None  # Adicionado para identificar o usuário pelo ID
 
 
 class RefreshTokenRequest(BaseModel):
-    """Represent refresh token request and centralize responsibilities for this module."""
+    """Encapsulates Refresh token request."""
     refresh_token: str
 
 
 class UserBase(BaseModel):
-    """Represent user base and centralize responsibilities for this module."""
+    """Encapsulates User base."""
     email: EmailStr
     nome_completo: Optional[str] = None
     is_active: Optional[bool] = True
@@ -64,19 +64,19 @@ class UserBase(BaseModel):
 
 
 class UserCreate(UserBase):
-    """Represent user create and centralize responsibilities for this module."""
+    """Encapsulates User create."""
     password: str
 
 
 class UserCreateOAuth(UserBase):  # Para criação via OAuth
-    """Represent user create o auth and centralize responsibilities for this module."""
+    """Encapsulates User create o auth."""
     provider: Optional[str] = None
     provider_user_id: Optional[str] = None
     # Não requer password na criação OAuth
 
 
 class UserUpdate(BaseModel):  # O que o próprio usuário pode atualizar
-    """Represent user update and centralize responsibilities for this module."""
+    """Encapsulates User update."""
     email: Optional[EmailStr] = None
     nome_completo: Optional[str] = None
     password: Optional[str] = None  # Para alteração de senha
@@ -88,7 +88,7 @@ class UserUpdate(BaseModel):  # O que o próprio usuário pode atualizar
 class UserUpdateByAdmin(
     UserUpdate
 ):  # O que um admin pode atualizar em qualquer usuário
-    """Represent user update by admin and centralize responsibilities for this module."""
+    """Encapsulates User update by admin."""
     is_active: Optional[bool] = None
     is_superuser: Optional[bool] = None
     plano_id: Optional[int] = None
@@ -102,19 +102,19 @@ class UserUpdateByAdmin(
 class UserUpdateOAuth(
     BaseModel
 ):  # Dados que podem ser atualizados via OAuth (ex: nome, se mudar no provedor)
-    """Represent user update o auth and centralize responsibilities for this module."""
+    """Encapsulates User update o auth."""
     nome_completo: Optional[str] = None
     # Outros campos que o OAuth possa fornecer e queiramos atualizar
 
 
 class UserChangePassword(BaseModel):
-    """Represent user change password and centralize responsibilities for this module."""
+    """Encapsulates User change password."""
     current_password: str = Field(..., min_length=1)
     new_password: str = Field(..., min_length=8)
 
 
 class UserResponse(UserBase):  # O que é retornado pela API
-    """Represent user response and centralize responsibilities for this module."""
+    """Encapsulates User response."""
     id: int
     created_at: datetime
     updated_at: datetime
@@ -129,37 +129,37 @@ class UserResponse(UserBase):  # O que é retornado pela API
     model_config = ConfigDict(from_attributes=True)
 
 class PasswordResetRequest(BaseModel):
-    """Represent password reset request and centralize responsibilities for this module."""
+    """Encapsulates Password reset request."""
     email: EmailStr
 
 
 class PasswordResetConfirm(BaseModel):
-    """Represent password reset confirm and centralize responsibilities for this module."""
+    """Encapsulates Password reset confirm."""
     token: str
     new_password: str
 
 
 # Schemas para Role
 class RoleBase(BaseModel):
-    """Represent role base and centralize responsibilities for this module."""
+    """Encapsulates Role base."""
     name: str = Field(..., min_length=3, max_length=50)
     description: Optional[str] = None
 
 
 class RoleCreate(RoleBase):
-    """Represent role create and centralize responsibilities for this module."""
+    """Encapsulates Role create."""
     pass
 
 
 class RoleUpdate(RoleBase):
-    """Represent role update and centralize responsibilities for this module."""
+    """Encapsulates Role update."""
     name: Optional[str] = Field(
         None, min_length=3, max_length=50
     )  # Tornar opcional na atualização
 
 
 class RoleResponse(RoleBase):
-    """Represent role response and centralize responsibilities for this module."""
+    """Encapsulates Role response."""
     id: int
     created_at: datetime
     updated_at: datetime
@@ -169,7 +169,7 @@ class RoleResponse(RoleBase):
 
 # Schemas para Plano
 class PlanoBase(BaseModel):
-    """Represent plano base and centralize responsibilities for this module."""
+    """Encapsulates Plano base."""
     nome: str = Field(..., min_length=3, max_length=100)
     descricao: Optional[str] = None
     preco_mensal: float = Field(..., ge=0)
@@ -181,12 +181,12 @@ class PlanoBase(BaseModel):
 
 
 class PlanoCreate(PlanoBase):
-    """Represent plano create and centralize responsibilities for this module."""
+    """Encapsulates Plano create."""
     pass
 
 
 class PlanoUpdate(PlanoBase):
-    """Represent plano update and centralize responsibilities for this module."""
+    """Encapsulates Plano update."""
     nome: Optional[str] = Field(None, min_length=3, max_length=100)
     preco_mensal: Optional[float] = Field(None, ge=0)
     limite_produtos: Optional[int] = Field(None, ge=0)
@@ -196,7 +196,7 @@ class PlanoUpdate(PlanoBase):
 
 
 class PlanoResponse(PlanoBase):
-    """Represent plano response and centralize responsibilities for this module."""
+    """Encapsulates Plano response."""
     id: int
     created_at: datetime
     updated_at: datetime
@@ -206,7 +206,7 @@ class PlanoResponse(PlanoBase):
 
 # Schemas para Fornecedor
 class FornecedorBase(BaseModel):
-    """Represent fornecedor base and centralize responsibilities for this module."""
+    """Encapsulates Fornecedor base."""
     nome: str = Field(..., max_length=200)
     email_contato: Optional[EmailStr] = None
     telefone_contato: Optional[str] = Field(None, max_length=20)
@@ -220,19 +220,19 @@ class FornecedorBase(BaseModel):
 
 
 class FornecedorCreate(FornecedorBase):
-    """Represent fornecedor create and centralize responsibilities for this module."""
+    """Encapsulates Fornecedor create."""
     pass
 
 
 class FornecedorUpdate(FornecedorBase):
     # Tornar campos opcionais para atualização parcial
-    """Represent fornecedor update and centralize responsibilities for this module."""
+    """Encapsulates Fornecedor update."""
     nome: Optional[str] = Field(None, max_length=200)
     # Adicionar Optional para todos os outros campos se desejar atualização parcial
 
 
 class FornecedorResponse(FornecedorBase):
-    """Represent fornecedor response and centralize responsibilities for this module."""
+    """Encapsulates Fornecedor response."""
     id: int
     user_id: int
     created_at: datetime
@@ -242,7 +242,7 @@ class FornecedorResponse(FornecedorBase):
     model_config = ConfigDict(from_attributes=True)
 
 class FornecedorPage(BaseModel):
-    """Represent fornecedor page and centralize responsibilities for this module."""
+    """Encapsulates Fornecedor page."""
     items: List[FornecedorResponse]
     total_items: int
     page: int
@@ -251,7 +251,7 @@ class FornecedorPage(BaseModel):
 
 # Schemas para AttributeTemplate
 class AttributeTemplateBase(BaseModel):
-    """Represent attribute template base and centralize responsibilities for this module."""
+    """Encapsulates Attribute template base."""
     attribute_key: str = Field(
         ...,
         description="Chave única do atributo no template (ex: 'cor', 'tamanho_tela').",
@@ -284,7 +284,7 @@ class AttributeTemplateBase(BaseModel):
     @field_validator("options", mode="before")
     @classmethod
     def parse_json_options(cls, value: Any) -> Any:
-        """Parse json options for this workflow."""
+        """Parse json options."""
         if isinstance(value, str):
             try:
                 parsed_value = json.loads(value)
@@ -299,13 +299,13 @@ class AttributeTemplateBase(BaseModel):
 
 
 class AttributeTemplateCreate(AttributeTemplateBase):
-    """Represent attribute template create and centralize responsibilities for this module."""
+    """Encapsulates Attribute template create."""
     pass  # product_type_id será atribuído no CRUD
 
 
 class AttributeTemplateUpdate(AttributeTemplateBase):
     # Todos os campos são opcionais na atualização
-    """Represent attribute template update and centralize responsibilities for this module."""
+    """Encapsulates Attribute template update."""
     attribute_key: Optional[str] = None
     label: Optional[str] = None
     field_type: Optional[AttributeFieldTypeEnum] = None
@@ -313,7 +313,7 @@ class AttributeTemplateUpdate(AttributeTemplateBase):
 
 
 class AttributeTemplateResponse(AttributeTemplateBase):
-    """Represent attribute template response and centralize responsibilities for this module."""
+    """Encapsulates Attribute template response."""
     id: int
     product_type_id: int
     options: Optional[List[str]] = None  # Garante que a resposta seja uma lista
@@ -322,7 +322,7 @@ class AttributeTemplateResponse(AttributeTemplateBase):
 
 # Schemas para ProductType
 class ProductTypeBase(BaseModel):
-    """Represent product type base and centralize responsibilities for this module."""
+    """Encapsulates Product type base."""
     key_name: str = Field(
         ...,
         description="Chave única para identificar o tipo de produto (ex: 'smartphones', 'camisetas_manga_longa').",
@@ -337,12 +337,12 @@ class ProductTypeBase(BaseModel):
 
 
 class ProductTypeCreate(ProductTypeBase):
-    """Represent product type create and centralize responsibilities for this module."""
+    """Encapsulates Product type create."""
     attribute_templates: List[AttributeTemplateCreate] = []
 
 
 class ProductTypeUpdate(ProductTypeBase):
-    """Represent product type update and centralize responsibilities for this module."""
+    """Encapsulates Product type update."""
     key_name: Optional[str] = None
     friendly_name: Optional[str] = None
     # attribute_templates: Opcionalmente, permitir atualizar/adicionar/remover atributos aqui,
@@ -350,7 +350,7 @@ class ProductTypeUpdate(ProductTypeBase):
 
 
 class ProductTypeResponse(ProductTypeBase):
-    """Represent product type response and centralize responsibilities for this module."""
+    """Encapsulates Product type response."""
     id: int
     user_id: Optional[int] = (
         None  # Tipos podem ser globais (user_id=None) ou específicos do usuário
@@ -363,7 +363,7 @@ class ProductTypeResponse(ProductTypeBase):
 
 # Schemas para Produto
 class ProdutoBase(BaseModel):
-    """Represent produto base and centralize responsibilities for this module."""
+    """Encapsulates Produto base."""
     nome_base: str = Field(
         ..., max_length=255, description="Nome principal ou base do produto."
     )
@@ -443,17 +443,17 @@ class ProdutoBase(BaseModel):
 
 
 class ProdutoCreate(ProdutoBase):
-    """Represent produto create and centralize responsibilities for this module."""
+    """Encapsulates Produto create."""
     pass
 
 
 class ProdutoUpdate(ProdutoBase):
-    """Represent produto update and centralize responsibilities for this module."""
+    """Encapsulates Produto update."""
     nome_base: Optional[str] = Field(None, max_length=255)
 
 
 class ProdutoResponse(ProdutoBase):
-    """Represent produto response and centralize responsibilities for this module."""
+    """Encapsulates Produto response."""
     id: int
     user_id: int
     created_at: datetime
@@ -465,12 +465,12 @@ class ProdutoResponse(ProdutoBase):
     model_config = ConfigDict(from_attributes=True)
 
 class ProdutoBatchDeleteRequest(BaseModel):
-    """Represent produto batch delete request and centralize responsibilities for this module."""
+    """Encapsulates Produto batch delete request."""
     produto_ids: List[int]
 
 
 class ImportPreviewResponse(BaseModel):
-    """Represent import preview response and centralize responsibilities for this module."""
+    """Encapsulates Import preview response."""
     file_id: int
     num_pages: int = 0
     table_pages: List[int] = Field(default_factory=list)
@@ -481,7 +481,7 @@ class ImportPreviewResponse(BaseModel):
 
 
 class ImportCatalogoResponse(BaseModel):
-    """Represent import catalogo response and centralize responsibilities for this module."""
+    """Encapsulates Import catalogo response."""
     produtos_criados: List[ProdutoResponse]
     erros: List[Dict[str, Any]]
 
@@ -494,7 +494,7 @@ class UpdatedProductInfo(BaseModel):
 
 
 class CatalogImportResult(BaseModel):
-    """Represent catalog import result and centralize responsibilities for this module."""
+    """Encapsulates Catalog import result."""
     created: List[ProdutoResponse]
     updated: List[ProdutoResponse]
     errors: List[Dict[str, Any]]
@@ -503,14 +503,14 @@ class CatalogImportResult(BaseModel):
 
 
 class CatalogImportResultPending(BaseModel):
-    """Represent catalog import result pending and centralize responsibilities for this module."""
+    """Encapsulates Catalog import result pending."""
     ready: bool = False
     status: str
     detail: str
 
 
 class RegionExtractionResponse(BaseModel):
-    """Represent region extraction response and centralize responsibilities for this module."""
+    """Encapsulates Region extraction response."""
     produtos: List[Dict[str, Any]]
     log: Optional[List[str]] = None
     preview_headers: Optional[List[str]] = None
@@ -518,14 +518,14 @@ class RegionExtractionResponse(BaseModel):
 
 
 class SinglePageExtractionResponse(BaseModel):
-    """Represent single page extraction response and centralize responsibilities for this module."""
+    """Encapsulates Single page extraction response."""
     image: str
     text: str
     table: Optional[List[List[Any]]] = None
 
 
 class ProdutoPage(BaseModel):
-    """Represent produto page and centralize responsibilities for this module."""
+    """Encapsulates Produto page."""
     items: List[ProdutoResponse]
     total_items: int
     page: int
@@ -534,7 +534,7 @@ class ProdutoPage(BaseModel):
 
 # Schemas para RegistroUsoIA
 class RegistroUsoIABase(BaseModel):
-    """Represent registro uso i a base and centralize responsibilities for this module."""
+    """Encapsulates Registro uso i a base."""
     user_id: int
     produto_id: Optional[int] = None
     tipo_acao: TipoAcaoEnum
@@ -551,19 +551,19 @@ class RegistroUsoIABase(BaseModel):
 
 
 class RegistroUsoIACreate(RegistroUsoIABase):
-    """Represent registro uso i a create and centralize responsibilities for this module."""
+    """Encapsulates Registro uso i a create."""
     pass
 
 
 class RegistroUsoIAResponse(RegistroUsoIABase):
-    """Represent registro uso i a response and centralize responsibilities for this module."""
+    """Encapsulates Registro uso i a response."""
     id: int
     created_at: datetime
 
     model_config = ConfigDict(from_attributes=True)
 
 class UsoIAPage(BaseModel):
-    """Represent uso i a page and centralize responsibilities for this module."""
+    """Encapsulates Uso i a page."""
     items: List[RegistroUsoIAResponse]
     total_items: int
     page: int
@@ -572,7 +572,7 @@ class UsoIAPage(BaseModel):
 
 # Schemas para RegistroHistorico
 class RegistroHistoricoBase(BaseModel):
-    """Represent registro historico base and centralize responsibilities for this module."""
+    """Encapsulates Registro historico base."""
     user_id: Optional[int] = None
     entidade: str
     acao: TipoAcaoSistemaEnum
@@ -581,19 +581,19 @@ class RegistroHistoricoBase(BaseModel):
 
 
 class RegistroHistoricoCreate(RegistroHistoricoBase):
-    """Represent registro historico create and centralize responsibilities for this module."""
+    """Encapsulates Registro historico create."""
     pass
 
 
 class RegistroHistoricoResponse(RegistroHistoricoBase):
-    """Represent registro historico response and centralize responsibilities for this module."""
+    """Encapsulates Registro historico response."""
     id: int
     created_at: datetime
 
     model_config = ConfigDict(from_attributes=True)
 
 class HistoricoPage(BaseModel):
-    """Represent historico page and centralize responsibilities for this module."""
+    """Encapsulates Historico page."""
     items: List[RegistroHistoricoResponse]
     total_items: int
     page: int
@@ -601,7 +601,7 @@ class HistoricoPage(BaseModel):
 
 
 class CatalogImportFileBase(BaseModel):
-    """Represent catalog import file base and centralize responsibilities for this module."""
+    """Encapsulates Catalog import file base."""
     original_filename: str
     stored_filename: str
     status: str
@@ -611,13 +611,13 @@ class CatalogImportFileBase(BaseModel):
 
 
 class CatalogImportFileCreate(CatalogImportFileBase):
-    """Represent catalog import file create and centralize responsibilities for this module."""
+    """Encapsulates Catalog import file create."""
     user_id: int
     fornecedor_id: Optional[int] = None
 
 
 class CatalogImportFileResponse(CatalogImportFileBase):
-    """Represent catalog import file response and centralize responsibilities for this module."""
+    """Encapsulates Catalog import file response."""
     id: int
     user_id: int
     fornecedor_id: Optional[int] = None
@@ -635,7 +635,7 @@ class CatalogImportStatus(BaseModel):
 
 
 class CatalogImportFilePage(BaseModel):
-    """Represent catalog import file page and centralize responsibilities for this module."""
+    """Encapsulates Catalog import file page."""
     items: List[CatalogImportFileResponse]
     total_items: int
     page: int
@@ -643,13 +643,13 @@ class CatalogImportFilePage(BaseModel):
 
 
 class FornecedorImportJobBase(BaseModel):
-    """Represent fornecedor import job base and centralize responsibilities for this module."""
+    """Encapsulates Fornecedor import job base."""
     status: str
     result_summary: Optional[Dict[str, Any]] = None
 
 
 class FornecedorImportJobResponse(FornecedorImportJobBase):
-    """Represent fornecedor import job response and centralize responsibilities for this module."""
+    """Encapsulates Fornecedor import job response."""
     id: int
     user_id: int
     created_at: datetime
@@ -667,14 +667,14 @@ class PdfPreviewResponse(BaseModel):
 
 # --- Password Recovery Schemas ---
 class PasswordResetSchema(BaseModel):
-    """Represent password reset schema and centralize responsibilities for this module."""
+    """Encapsulates Password reset schema."""
     new_password: str = Field(..., min_length=8)
     token: str
 
 
 # --- Admin Analytics Schemas ---
 class TotalCounts(BaseModel):
-    """Represent total counts and centralize responsibilities for this module."""
+    """Encapsulates Total counts."""
     total_usuarios: int
     total_produtos: int
     total_fornecedores: int
@@ -683,20 +683,20 @@ class TotalCounts(BaseModel):
 
 
 class UsoIAPorPlano(BaseModel):
-    """Represent uso i a por plano and centralize responsibilities for this module."""
+    """Encapsulates Uso i a por plano."""
     plano_id: Optional[int] = None
     nome_plano: str
     total_geracoes_ia_no_mes: int
 
 
 class UsoIAPorTipo(BaseModel):
-    """Represent uso i a por tipo and centralize responsibilities for this module."""
+    """Encapsulates Uso i a por tipo."""
     tipo_acao: str
     total_no_mes: int
 
 
 class UserActivity(BaseModel):
-    """Represent user activity and centralize responsibilities for this module."""
+    """Encapsulates User activity."""
     user_id: int
     email: EmailStr
     nome_completo: Optional[str] = None
@@ -707,13 +707,13 @@ class UserActivity(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
 class ProductStatusCount(BaseModel):
-    """Represent product status count and centralize responsibilities for this module."""
+    """Encapsulates Product status count."""
     status: StatusEnriquecimentoEnum
     total: int
 
 
 class RecentActivity(BaseModel):
-    """Represent recent activity and centralize responsibilities for this module."""
+    """Encapsulates Recent activity."""
     id: int
     user_id: int
     user_email: Optional[EmailStr] = None
@@ -724,7 +724,7 @@ class RecentActivity(BaseModel):
 
 # ----- NOVOS SCHEMAS PARA SUGESTAO DE ATRIBUTOS GEMINI -----
 class SugestaoAtributoItem(BaseModel):
-    """Represent sugestao atributo item and centralize responsibilities for this module."""
+    """Encapsulates Sugestao atributo item."""
     chave_atributo: str = Field(
         ...,
         description="A chave do atributo para o qual o valor é sugerido (ex: 'cor', 'material').",
@@ -735,7 +735,7 @@ class SugestaoAtributoItem(BaseModel):
 
 
 class SugestoesAtributosResponse(BaseModel):
-    """Represent sugestoes atributos response and centralize responsibilities for this module."""
+    """Encapsulates Sugestoes atributos response."""
     sugestoes_atributos: List[SugestaoAtributoItem] = Field(
         ..., description="Lista de sugestões de atributos e seus valores."
     )
@@ -749,25 +749,25 @@ class SugestoesAtributosResponse(BaseModel):
 
 # --- Schemas para busca unificada ---
 class SearchItem(BaseModel):
-    """Represent search item and centralize responsibilities for this module."""
+    """Encapsulates Search item."""
     id: int
     type: str
     name: str
 
 
 class SearchResults(BaseModel):
-    """Represent search results and centralize responsibilities for this module."""
+    """Encapsulates Search results."""
     results: List[SearchItem]
 
 
 # --- Utility Schemas ---
 class Msg(BaseModel):
-    """Represent msg and centralize responsibilities for this module."""
+    """Encapsulates Msg."""
     msg: str
 
 
 class FileProcessResponse(BaseModel):
-    """Represent file process response and centralize responsibilities for this module."""
+    """Encapsulates File process response."""
     filename: str
     original_filename: Optional[str] = None
     url: str
@@ -784,21 +784,21 @@ class SocialLoginConfig(BaseModel):
 
 
 class RegionExtractionRequest(BaseModel):
-    """Represent region extraction request and centralize responsibilities for this module."""
+    """Encapsulates Region extraction request."""
     import_file_id: int
     page_number: int
     region: List[float]
 
 
 class CatalogRegionPreviewRequest(BaseModel):
-    """Represent catalog region preview request and centralize responsibilities for this module."""
+    """Encapsulates Catalog region preview request."""
     file_id: str
     page_number: int
     region: Optional[List[float]] = None
 
 
 class PdfRegionBulkRequest(BaseModel):
-    """Represent pdf region bulk request and centralize responsibilities for this module."""
+    """Encapsulates Pdf region bulk request."""
     file_id: int
     region: List[float]
     pages: Optional[List[int]] = None
@@ -806,7 +806,7 @@ class PdfRegionBulkRequest(BaseModel):
 
 
 class CatalogPreview(BaseModel):
-    """Represent catalog preview and centralize responsibilities for this module."""
+    """Encapsulates Catalog preview."""
     columns: List[str]
     data: List[Dict[str, Any]]
 

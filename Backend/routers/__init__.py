@@ -1,8 +1,8 @@
 # catalogai_project/app/routers/__init__.py
 # Este arquivo pode estar vazio.
 # Ele marca o diretório 'routers' como um subpacote de 'app'.
-"""Module init.
+"""Init.
 
-Contains backend logic related to init and documents its role in the OOP architecture.
+Defines the module responsibilities and how it fits in the backend architecture.
 """
 

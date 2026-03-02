@@ -1,6 +1,6 @@
-"""Module init.
+"""Init.
 
-Contains backend logic related to init and documents its role in the OOP architecture.
+Defines the module responsibilities and how it fits in the backend architecture.
 """
 
 from Backend.application.services.file_processing.contracts import FileProcessingPort

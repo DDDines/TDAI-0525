@@ -1,6 +1,6 @@
-"""Module fornecedor preview service.
+"""Fornecedor preview service.
 
-Contains backend logic related to fornecedor preview service and documents its role in the OOP architecture.
+Defines the module responsibilities and how it fits in the backend architecture.
 """
 
 from __future__ import annotations
@@ -24,17 +24,17 @@ class FornecedorPreviewService:
         web_data_extractor_service: Any,
         catalog_file_repository: Any,
     ) -> None:
-        """Initialize collaborators and configuration required by this component."""
+        """Initialize required dependencies and runtime configuration."""
         self._file_processing_service = file_processing_service
         self._web_data_extractor_service = web_data_extractor_service
         self._catalog_file_repository = catalog_file_repository
 
     def _resolve_session(self) -> Any:
-        """Run resolve session in this workflow."""
+        """Process Resolve session."""
         return getattr(self._catalog_file_repository, "_db", None)
 
     async def preview_pages(self, *, file: Any) -> dict[str, Any]:
-        """Run preview pages in this workflow."""
+        """Process Preview pages."""
         if not file.filename.lower().endswith(".pdf"):
             raise HTTPException(status_code=400, detail="Apenas arquivos PDF sao permitidos.")
 
@@ -61,7 +61,7 @@ class FornecedorPreviewService:
         offset: int,
         limit: int,
     ) -> Any:
-        """Run preview pdf in this workflow."""
+        """Process Preview pdf."""
         session = self._resolve_session()
         if not file.filename.lower().endswith(".pdf"):
             raise HTTPException(
@@ -85,7 +85,7 @@ class FornecedorPreviewService:
         page_number: int,
         region: list[float],
     ) -> dict[str, Any]:
-        """Run preview catalog from region in this workflow."""
+        """Process Preview catalog from region."""
         session = self._resolve_session()
         file_path = self._file_processing_service.get_file_path_by_id(
             session,
@@ -127,7 +127,7 @@ class FornecedorPreviewService:
         pages: list[int] | None,
         all_pages: bool,
     ) -> dict[str, Any]:
-        """Extract data from pdf bulk for this workflow."""
+        """Extract data from pdf bulk."""
         session = self._resolve_session()
         file_path = self._file_processing_service.get_file_path_by_id(
             session,

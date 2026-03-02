@@ -1,6 +1,6 @@
-"""Module preview service.
+"""Preview service.
 
-Contains backend logic related to preview service and documents its role in the OOP architecture.
+Defines the module responsibilities and how it fits in the backend architecture.
 """
 
 from __future__ import annotations
@@ -14,7 +14,7 @@ class FileProcessingPreviewService:
     """Preview de conteudo tabular e PDF."""
 
     def __init__(self, port: FileProcessingPort) -> None:
-        """Initialize collaborators and configuration required by this component."""
+        """Initialize required dependencies and runtime configuration."""
         self._port = port
 
     async def preview_arquivo_pdf(
@@ -25,7 +25,7 @@ class FileProcessingPreviewService:
         page_count: int = 1,
         dpi: int = 72,
     ) -> Dict[str, Any]:
-        """Run preview arquivo pdf in this workflow."""
+        """Process Preview arquivo pdf."""
         return await self._port.preview_arquivo_pdf(
             conteudo_arquivo=conteudo_arquivo,
             ext=ext,
@@ -40,7 +40,7 @@ class FileProcessingPreviewService:
         ext: str,
         max_rows: int = 5,
     ) -> Dict[str, Any]:
-        """Run gerar preview in this workflow."""
+        """Process Gerar preview."""
         return await self._port.gerar_preview(
             conteudo_arquivo=conteudo_arquivo,
             ext=ext,
@@ -54,7 +54,7 @@ class FileProcessingPreviewService:
         start_page: int = 1,
         dpi: int = 200,
     ) -> List[str]:
-        """Run pdf bytes to images in this workflow."""
+        """Process Pdf bytes to images."""
         return await self._port.pdf_bytes_to_images(
             conteudo_arquivo=conteudo_arquivo,
             max_pages=max_pages,
@@ -71,7 +71,7 @@ class FileProcessingPreviewService:
         offset: int,
         limit: int,
     ) -> Dict[str, Any]:
-        """Run pdf pages to images in this workflow."""
+        """Process Pdf pages to images."""
         return self._port.pdf_pages_to_images(
             db=db,
             file=file,

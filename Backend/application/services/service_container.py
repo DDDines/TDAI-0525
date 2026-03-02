@@ -24,11 +24,11 @@ class _RequestScopedDependency:
     """Dependencia request-scoped OO parametrizada por factory de sessao."""
 
     def __init__(self, factory: Callable[[Session], Any]) -> None:
-        """Initialize collaborators and configuration required by this component."""
+        """Initialize required dependencies and runtime configuration."""
         self._factory = factory
 
     def __call__(self, session: Session=Depends(database.get_db)) -> Any:
-        """Run call in this workflow."""
+        """Process Call."""
         return self._factory(session)
 
 class ServiceContainerDependencySupport:
@@ -36,32 +36,32 @@ class ServiceContainerDependencySupport:
 
     @staticmethod
     def get_request_db_session(session: Session=Depends(database.get_db)) -> Session:
-        """Return request db session for this workflow."""
+        """Return Request db session."""
         return session
 
     @staticmethod
     def build_request_scoped_dependency(factory: Callable[[Session], Any]) -> Callable[[Session], Any]:
-        """Build request scoped dependency for this workflow."""
+        """Build request scoped dependency."""
         return _RequestScopedDependency(factory)
 
     @staticmethod
     def build_file_processing_service() -> FileProcessingOrchestratorService:
-        """Build file processing service for this workflow."""
+        """Build file processing service."""
         return FileProcessingOrchestratorService(FileProcessingServiceAdapter())
 
     @staticmethod
     def build_web_data_extractor_service() -> WebDataExtractorOrchestratorService:
-        """Build web data extractor service for this workflow."""
+        """Build web data extractor service."""
         return WebDataExtractorOrchestratorService(WebDataExtractorServiceAdapter())
 
     @staticmethod
     def build_ia_generation_service() -> IAGenerationService:
-        """Build ia generation service for this workflow."""
+        """Build ia generation service."""
         return IAGenerationService(port=IAGenerationServiceAdapter())
 
     @staticmethod
     def build_limit_service() -> LimitService:
-        """Build limit service for this workflow."""
+        """Build limit service."""
         return LimitService(port=LimitServiceAdapter())
 
     @staticmethod
@@ -110,22 +110,22 @@ class DependencyContainer:
 
     @staticmethod
     def get_db_session(session: Session) -> Session:
-        """Return db session for this workflow."""
+        """Return Db session."""
         return session
 
     @staticmethod
     def get_product_management_service(session: Session) -> ProductManagementService:
-        """Return product management service for this workflow."""
+        """Return Product management service."""
         repos = ProductRepositories.build_product_management_repositories(session=session)
         return ProductManagementService(models=models, schemas=schemas, **repos)
 
     @staticmethod
     def get_product_media_service(session: Session) -> ProductMediaService:
-        """Return product media service for this workflow."""
+        """Return Product media service."""
         repos = ProductRepositories.build_product_media_repositories(session=session)
         return ProductMediaService(schemas=schemas, **repos)
 
     @staticmethod
     def get_fornecedor_management_service(session: Session) -> FornecedorManagementService:
-        """Return fornecedor management service for this workflow."""
+        """Return Fornecedor management service."""
         return FornecedorManagementService(models=models, schemas=schemas, fornecedor_repo=FornecedorRepository(session), historico_repo=HistoricoRepository(session))

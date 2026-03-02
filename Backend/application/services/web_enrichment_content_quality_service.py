@@ -1,6 +1,6 @@
-"""Module web enrichment content quality service.
+"""Web enrichment content quality service.
 
-Contains backend logic related to web enrichment content quality service and documents its role in the OOP architecture.
+Defines the module responsibilities and how it fits in the backend architecture.
 """
 
 from __future__ import annotations
@@ -23,11 +23,11 @@ class WebEnrichmentContentQualityService:
     )
 
     def __init__(self, *, normalization_service: Any) -> None:
-        """Initialize collaborators and configuration required by this component."""
+        """Initialize required dependencies and runtime configuration."""
         self._normalization = normalization_service
 
     def is_meaningful_extracted_text(self, value: Any) -> bool:
-        """Run is meaningful extracted text in this workflow."""
+        """Process Is meaningful extracted text."""
         text = self._normalization.fold_text(value)
         if not text:
             return False
@@ -44,7 +44,7 @@ class WebEnrichmentContentQualityService:
         return letters >= 50
 
     def metadata_has_minimum_signal(self, metadata: Dict[str, Any]) -> bool:
-        """Run metadata has minimum signal in this workflow."""
+        """Process Metadata has minimum signal."""
         if not metadata:
             return False
         nome = self._normalization.as_text(metadata.get("nome"))

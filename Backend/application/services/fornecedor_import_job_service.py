@@ -1,6 +1,6 @@
-"""Module fornecedor import job service.
+"""Fornecedor import job service.
 
-Contains backend logic related to fornecedor import job service and documents its role in the OOP architecture.
+Defines the module responsibilities and how it fits in the backend architecture.
 """
 
 from __future__ import annotations
@@ -21,22 +21,22 @@ class FornecedorImportJobService:
         produto_repository_factory: Any,
         produto_create_schema: Any,
     ) -> None:
-        """Initialize collaborators and configuration required by this component."""
+        """Initialize required dependencies and runtime configuration."""
         self._session_provider = session_provider
         self._import_job_repository_factory = import_job_repository_factory
         self._produto_repository_factory = produto_repository_factory
         self._produto_create_schema = produto_create_schema
 
     def _import_job_repo(self, session: Any) -> Any:
-        """Run import job repo in this workflow."""
+        """Process Import job repo."""
         return self._import_job_repository_factory(session)
 
     def _produto_repo(self, session: Any) -> Any:
-        """Run produto repo in this workflow."""
+        """Process Produto repo."""
         return self._produto_repository_factory(session)
 
     def get_job_for_user_or_404(self, *, job_id: int, user_id: int) -> Any:
-        """Return job for user or 404 for this workflow."""
+        """Return Job for user or 404."""
         if self._session_provider is None:
             raise ValueError("session_provider is required for FornecedorImportJobService")
         session = self._session_provider.open_session()
@@ -50,7 +50,7 @@ class FornecedorImportJobService:
             session.close()
 
     def build_review_payload(self, *, job: Any) -> Any:
-        """Build review payload for this workflow."""
+        """Build review payload."""
         return job.result_summary or {}
 
     def schedule_commit(
@@ -60,7 +60,7 @@ class FornecedorImportJobService:
         job_id: int,
         user_id: int,
     ) -> None:
-        """Run schedule commit in this workflow."""
+        """Process Schedule commit."""
         background_tasks.add_task(
             self.commit_job_task,
             job_id=job_id,
@@ -68,7 +68,7 @@ class FornecedorImportJobService:
         )
 
     def commit_job_task(self, *, job_id: int, user_id: int) -> None:
-        """Run commit job task in this workflow."""
+        """Process Commit job task."""
         if self._session_provider is None:
             raise ValueError("session_provider is required for FornecedorImportJobService")
         session = self._session_provider.open_session()
@@ -90,7 +90,7 @@ class FornecedorImportJobService:
 
     @staticmethod
     def _iter_summary_rows(summary: Any) -> Iterable[dict[str, Any]]:
-        """Run iter summary rows in this workflow."""
+        """Process Iter summary rows."""
         if isinstance(summary, list):
             for item in summary:
                 if isinstance(item, dict):

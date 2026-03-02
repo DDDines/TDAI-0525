@@ -1,6 +1,6 @@
-"""Module catalog import finalize service.
+"""Catalog import finalize service.
 
-Contains backend logic related to catalog import finalize service and documents its role in the OOP architecture.
+Defines the module responsibilities and how it fits in the backend architecture.
 """
 
 from __future__ import annotations
@@ -29,7 +29,7 @@ class CatalogImportFinalizeService:
         sync_env_var: str = "CATALOG_IMPORT_TEST_SYNC",
         thread_name_prefix: str = "catalog-import",
     ) -> None:
-        """Initialize collaborators and configuration required by this component."""
+        """Initialize required dependencies and runtime configuration."""
         self._orchestrator = orchestrator or CatalogImportPipelineOrchestrator(
             oop_executor=oop_executor,
         )
@@ -42,7 +42,7 @@ class CatalogImportFinalizeService:
         *,
         command: CatalogImportFinalizeCommand,
     ) -> TaskExecutionPlan:
-        """Select plan for this workflow."""
+        """Select plan."""
         return self._orchestrator.select_finalize_plan(
             command=command,
         )
@@ -53,7 +53,7 @@ class CatalogImportFinalizeService:
         background_tasks: BackgroundTasks,
         command: CatalogImportFinalizeCommand,
     ) -> TaskExecutionPlan:
-        """Dispatch or run for this workflow."""
+        """Dispatch or run."""
         plan = self.select_plan(
             command=command,
         )
@@ -69,7 +69,7 @@ class CatalogImportFinalizeService:
         *,
         command: CatalogImportFinalizeCommand,
     ) -> TaskExecutionPlan:
-        """Run direct for this workflow."""
+        """Run direct."""
         plan = self.select_plan(
             command=command,
         )

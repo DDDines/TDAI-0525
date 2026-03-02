@@ -1,6 +1,6 @@
-"""Module security.
+"""Security.
 
-Contains backend logic related to security and documents its role in the OOP architecture.
+Defines the module responsibilities and how it fits in the backend architecture.
 """
 
 from datetime import datetime, timedelta, timezone
@@ -16,64 +16,64 @@ ACCESS_TOKEN_EXPIRE_MINUTES = settings.ACCESS_TOKEN_EXPIRE_MINUTES
 REFRESH_TOKEN_EXPIRE_DAYS = settings.REFRESH_TOKEN_EXPIRE_DAYS
 
 class TokenPayload(BaseModel):
-    """Represent token payload and centralize responsibilities for this module."""
+    """Encapsulates Token payload."""
     sub: Optional[str] = None
     user_id: Optional[int] = None
 
 class SecurityWorkflow:
 
-    """Represent security workflow and centralize responsibilities for this module."""
+    """Encapsulates Security workflow."""
     def __init__(self, runtime: Optional['SecurityRuntime']=None) -> None:
-        """Initialize collaborators and configuration required by this component."""
+        """Initialize required dependencies and runtime configuration."""
         self._runtime = runtime or SecurityRuntime()
 
     def verify_password(self, plain_password: str, hashed_password: str) -> bool:
-        """Run verify password in this workflow."""
+        """Process Verify password."""
         return self._runtime.verify_password(plain_password=plain_password, hashed_password=hashed_password)
 
     def get_password_hash(self, password: str) -> str:
-        """Return password hash for this workflow."""
+        """Return Password hash."""
         return self._runtime.get_password_hash(password=password)
 
     def create_access_token(self, data: dict, expires_delta: Optional[timedelta]=None) -> str:
-        """Create access token for this workflow."""
+        """Create access token."""
         return self._runtime.create_access_token(data=data, expires_delta=expires_delta)
 
     def create_refresh_token(self, data: dict, expires_delta: Optional[timedelta]=None) -> str:
-        """Create refresh token for this workflow."""
+        """Create refresh token."""
         return self._runtime.create_refresh_token(data=data, expires_delta=expires_delta)
 
     def decode_token(self, token: str, secret_key: str) -> Optional[TokenPayload]:
-        """Run decode token in this workflow."""
+        """Process Decode token."""
         return self._runtime.decode_token(token=token, secret_key=secret_key)
 
 class SecurityRuntime:
     """Runtime OO para operaÃ§Ãµes de hash e token JWT."""
 
     def verify_password(self, *, plain_password: str, hashed_password: str) -> bool:
-        """Run verify password in this workflow."""
+        """Process Verify password."""
         return pwd_context.verify(plain_password, hashed_password)
 
     def get_password_hash(self, *, password: str) -> str:
-        """Return password hash for this workflow."""
+        """Return Password hash."""
         return pwd_context.hash(password)
 
     def create_access_token(self, *, data: dict, expires_delta: Optional[timedelta]=None) -> str:
-        """Create access token for this workflow."""
+        """Create access token."""
         to_encode = data.copy()
         expire = datetime.now(timezone.utc) + expires_delta if expires_delta else datetime.now(timezone.utc) + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
         to_encode.update({'exp': expire})
         return jwt.encode(to_encode, settings.SECRET_KEY, algorithm=ALGORITHM)
 
     def create_refresh_token(self, *, data: dict, expires_delta: Optional[timedelta]=None) -> str:
-        """Create refresh token for this workflow."""
+        """Create refresh token."""
         to_encode = data.copy()
         expire = datetime.now(timezone.utc) + expires_delta if expires_delta else datetime.now(timezone.utc) + timedelta(days=REFRESH_TOKEN_EXPIRE_DAYS)
         to_encode.update({'exp': expire, 'token_type': 'refresh'})
         return jwt.encode(to_encode, settings.REFRESH_SECRET_KEY, algorithm=ALGORITHM)
 
     def decode_token(self, *, token: str, secret_key: str) -> Optional[TokenPayload]:
-        """Run decode token in this workflow."""
+        """Process Decode token."""
         try:
             payload_dict = jwt.decode(token, secret_key, algorithms=[ALGORITHM])
             raw_user_id = payload_dict.get('user_id')

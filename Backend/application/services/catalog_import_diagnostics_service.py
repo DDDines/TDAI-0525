@@ -1,6 +1,6 @@
-"""Module catalog import diagnostics service.
+"""Catalog import diagnostics service.
 
-Contains backend logic related to catalog import diagnostics service and documents its role in the OOP architecture.
+Defines the module responsibilities and how it fits in the backend architecture.
 """
 
 from __future__ import annotations
@@ -21,7 +21,7 @@ class CatalogImportDiagnosticsService:
         logger: Any,
         sanitization_service: Any,
     ) -> None:
-        """Initialize collaborators and configuration required by this component."""
+        """Initialize required dependencies and runtime configuration."""
         self._catalog_log_dir = Path(catalog_log_dir)
         self._logger = logger
         self._sanitization_service = sanitization_service

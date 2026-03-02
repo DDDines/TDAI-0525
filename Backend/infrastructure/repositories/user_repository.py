@@ -1,6 +1,6 @@
-"""Module user repository.
+"""User repository.
 
-Contains backend logic related to user repository and documents its role in the OOP architecture.
+Defines the module responsibilities and how it fits in the backend architecture.
 """
 
 from __future__ import annotations
@@ -26,19 +26,19 @@ class UserRepository:
     """Repository OO de usuarios, roles e planos com Session por request."""
 
     def __init__(self, db: Session) -> None:
-        """Initialize collaborators and configuration required by this component."""
+        """Initialize required dependencies and runtime configuration."""
         self._db = db
         self._security_workflow = security.SecurityWorkflow()
 
     @staticmethod
     def _apply_default_plan_limits(db_user: User) -> None:
-        """Run apply default plan limits in this workflow."""
+        """Process Apply default plan limits."""
         db_user.limite_produtos = settings.DEFAULT_LIMIT_PRODUTOS_SEM_PLANO
         db_user.limite_enriquecimento_web = settings.DEFAULT_LIMIT_ENRIQUECIMENTO_SEM_PLANO
         db_user.limite_geracao_ia = settings.DEFAULT_LIMIT_GERACAO_IA_SEM_PLANO
 
     def _apply_plano_limits(self, *, db_user: User, plano_id: Optional[int]) -> None:
-        """Run apply plano limits in this workflow."""
+        """Process Apply plano limits."""
         if plano_id is None:
             db_user.plano_id = None
             self._apply_default_plan_limits(db_user)
@@ -60,15 +60,15 @@ class UserRepository:
         db_user.limite_geracao_ia = plano.limite_geracao_ia
 
     def get_user(self, *, user_id: int) -> Optional[User]:
-        """Return user for this workflow."""
+        """Return User."""
         return self._db.query(User).filter(User.id == user_id).first()
 
     def get_user_by_email(self, *, email: str) -> Optional[User]:
-        """Return user by email for this workflow."""
+        """Return User by email."""
         return self._db.query(User).filter(User.email == email).first()
 
     def get_users(self, *, skip: int = 0, limit: int = 100) -> List[User]:
-        """Return users for this workflow."""
+        """Return Users."""
         return self._db.query(User).offset(skip).limit(limit).all()
 
     def search_users_by_email(self, *, query_text: Optional[str], limit: int) -> List[User]:
@@ -80,7 +80,7 @@ class UserRepository:
         return query.order_by(User.created_at.desc()).limit(limit).all()
 
     def create_user(self, *, user: schemas.UserCreate) -> User:
-        """Create user for this workflow."""
+        """Create user."""
         hashed_password = self._security_workflow.get_password_hash(user.password)
         db_user = User(
             email=user.email,
@@ -131,7 +131,7 @@ class UserRepository:
             schemas.UserUpdateOAuth,
         ],
     ) -> User:
-        """Update user for this workflow."""
+        """Update user."""
         update_data = user_update.model_dump(exclude_unset=True)
 
         if update_data.get("password"):
@@ -151,7 +151,7 @@ class UserRepository:
         return db_user
 
     def delete_user(self, *, db_user: User) -> User:
-        """Delete user for this workflow."""
+        """Delete user."""
         self._db.delete(db_user)
         self._db.commit()
         return db_user
@@ -162,7 +162,7 @@ class UserRepository:
         user_oauth: schemas.UserCreateOAuth,
         plano_id_default: Optional[int] = None,
     ) -> User:
-        """Create user oauth for this workflow."""
+        """Create user oauth."""
         db_user = User(
             email=user_oauth.email,
             nome_completo=user_oauth.nome_completo,
@@ -207,7 +207,7 @@ class UserRepository:
         provider: str,
         provider_user_id: str,
     ) -> Optional[User]:
-        """Return user by provider for this workflow."""
+        """Return User by provider."""
         return (
             self._db.query(User)
             .filter(User.provider == provider, User.provider_user_id == provider_user_id)
@@ -221,30 +221,30 @@ class UserRepository:
         token_hash: str,
         expires_at: datetime,
     ) -> None:
-        """Run set user password reset token in this workflow."""
+        """Process Set user password reset token."""
         user.reset_password_token = token_hash
         user.reset_password_token_expires_at = expires_at
         self._db.commit()
         self._db.refresh(user)
 
     def get_user_by_reset_token(self, *, token_hash: str) -> Optional[User]:
-        """Return user by reset token for this workflow."""
+        """Return User by reset token."""
         return self._db.query(User).filter(User.reset_password_token == token_hash).first()
 
     def get_role(self, *, role_id: int) -> Optional[Role]:
-        """Return role for this workflow."""
+        """Return Role."""
         return self._db.query(Role).filter(Role.id == role_id).first()
 
     def get_role_by_name(self, *, name: str) -> Optional[Role]:
-        """Return role by name for this workflow."""
+        """Return Role by name."""
         return self._db.query(Role).filter(Role.name == name).first()
 
     def get_roles(self, *, skip: int = 0, limit: int = 10) -> List[Role]:
-        """Return roles for this workflow."""
+        """Return Roles."""
         return self._db.query(Role).offset(skip).limit(limit).all()
 
     def create_role(self, *, role: schemas.RoleCreate) -> Role:
-        """Create role for this workflow."""
+        """Create role."""
         db_role = Role(name=role.name, description=role.description)
         self._db.add(db_role)
         self._db.commit()
@@ -252,19 +252,19 @@ class UserRepository:
         return db_role
 
     def get_plano(self, *, plano_id: int) -> Optional[Plano]:
-        """Return plano for this workflow."""
+        """Return Plano."""
         return self._db.query(Plano).filter(Plano.id == plano_id).first()
 
     def get_plano_by_name(self, *, nome: str) -> Optional[Plano]:
-        """Return plano by name for this workflow."""
+        """Return Plano by name."""
         return self._db.query(Plano).filter(Plano.nome == nome).first()
 
     def get_planos(self, *, skip: int = 0, limit: int = 10) -> List[Plano]:
-        """Return planos for this workflow."""
+        """Return Planos."""
         return self._db.query(Plano).offset(skip).limit(limit).all()
 
     def create_plano(self, *, plano: schemas.PlanoCreate) -> Plano:
-        """Create plano for this workflow."""
+        """Create plano."""
         db_plano = Plano(**plano.model_dump())
         self._db.add(db_plano)
         self._db.commit()
@@ -277,7 +277,7 @@ class UserRepository:
         db_plano: Plano,
         plano_update: schemas.PlanoUpdate,
     ) -> Plano:
-        """Update plano for this workflow."""
+        """Update plano."""
         update_data = plano_update.model_dump(exclude_unset=True)
         for key, value in update_data.items():
             setattr(db_plano, key, value)
@@ -286,7 +286,7 @@ class UserRepository:
         return db_plano
 
     def delete_plano(self, *, db_plano: Plano) -> Plano:
-        """Delete plano for this workflow."""
+        """Delete plano."""
         self._db.delete(db_plano)
         self._db.commit()
         return db_plano

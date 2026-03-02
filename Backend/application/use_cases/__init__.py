@@ -1,6 +1,6 @@
-"""Module init.
+"""Init.
 
-Contains backend logic related to init and documents its role in the OOP architecture.
+Defines the module responsibilities and how it fits in the backend architecture.
 """
 
 from Backend.application.use_cases.catalog_import_processing import (

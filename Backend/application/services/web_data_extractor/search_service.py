@@ -1,6 +1,6 @@
-"""Module search service.
+"""Search service.
 
-Contains backend logic related to search service and documents its role in the OOP architecture.
+Defines the module responsibilities and how it fits in the backend architecture.
 """
 
 from __future__ import annotations
@@ -13,13 +13,13 @@ from Backend.application.services.web_data_extractor.contracts import (
 
 
 class WebDataExtractorSearchService:
-    """Represent web data extractor search service and centralize responsibilities for this module."""
+    """Encapsulates Web data extractor search service."""
     def __init__(self, port: WebDataExtractorPort) -> None:
-        """Initialize collaborators and configuration required by this component."""
+        """Initialize required dependencies and runtime configuration."""
         self._port = port
 
     def busca_publica_disponivel(self) -> bool:
-        """Run busca publica disponivel in this workflow."""
+        """Process Busca publica disponivel."""
         return self._port.busca_publica_disponivel()
 
     async def buscar_urls_publicas(
@@ -27,7 +27,7 @@ class WebDataExtractorSearchService:
         query: str,
         num_results: int = 3,
     ) -> List[str]:
-        """Run buscar urls publicas in this workflow."""
+        """Process Buscar urls publicas."""
         return await self._port.buscar_urls_publicas(
             query=query,
             num_results=num_results,
@@ -38,7 +38,7 @@ class WebDataExtractorSearchService:
         query: str,
         num_results: int = 3,
     ) -> List[str]:
-        """Run buscar urls google in this workflow."""
+        """Process Buscar urls google."""
         return await self._port.buscar_urls_google(
             query=query,
             num_results=num_results,

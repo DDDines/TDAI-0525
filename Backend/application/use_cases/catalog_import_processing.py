@@ -1,6 +1,6 @@
-"""Module catalog import processing.
+"""Catalog import processing.
 
-Contains backend logic related to catalog import processing and documents its role in the OOP architecture.
+Defines the module responsibilities and how it fits in the backend architecture.
 """
 
 from __future__ import annotations
@@ -20,7 +20,7 @@ class CatalogImportProcessingUseCase:
     """
 
     def __init__(self, processor: TaskExecutor):
-        """Initialize collaborators and configuration required by this component."""
+        """Initialize required dependencies and runtime configuration."""
         self._processor = processor
 
     async def execute_command(
@@ -28,7 +28,7 @@ class CatalogImportProcessingUseCase:
         *,
         command: CatalogImportFinalizeCommand,
     ) -> Any:
-        """Run execute command in this workflow."""
+        """Process Execute command."""
         file_id = self._require_positive_int(command.file_id, "file_id")
         user_id = self._require_positive_int(command.user_id, "user_id")
         fornecedor_id = self._require_positive_int(command.fornecedor_id, "fornecedor_id")
@@ -64,7 +64,7 @@ class CatalogImportProcessingUseCase:
         pages: Any = None,
         region: Any = None,
     ) -> Any:
-        """Run execute in this workflow."""
+        """Process Execute."""
         command = CatalogImportFinalizeCommand(
             file_id=file_id,
             user_id=user_id,
@@ -80,7 +80,7 @@ class CatalogImportProcessingUseCase:
 
     @staticmethod
     def _require_positive_int(raw_value: Any, field_name: str) -> int:
-        """Run require positive int in this workflow."""
+        """Process Require positive int."""
         try:
             value = int(raw_value)
         except (TypeError, ValueError):
@@ -91,7 +91,7 @@ class CatalogImportProcessingUseCase:
 
     @classmethod
     def _normalize_mapping(cls, raw_mapping: Any) -> Optional[Dict[str, str]]:
-        """Run normalize mapping in this workflow."""
+        """Process Normalize mapping."""
         if raw_mapping is None:
             return None
         if not isinstance(raw_mapping, dict):
@@ -109,7 +109,7 @@ class CatalogImportProcessingUseCase:
 
     @classmethod
     def _normalize_pages(cls, raw_pages: Any) -> Optional[List[int]]:
-        """Run normalize pages in this workflow."""
+        """Process Normalize pages."""
         if raw_pages is None:
             return None
         if not isinstance(raw_pages, list):
@@ -127,7 +127,7 @@ class CatalogImportProcessingUseCase:
 
     @staticmethod
     def _normalize_region(raw_region: Any) -> Optional[List[float]]:
-        """Run normalize region in this workflow."""
+        """Process Normalize region."""
         if raw_region is None:
             return None
         if not isinstance(raw_region, list):

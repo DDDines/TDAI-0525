@@ -1,6 +1,6 @@
-"""Module catalog import.
+"""Catalog import.
 
-Contains backend logic related to catalog import and documents its role in the OOP architecture.
+Defines the module responsibilities and how it fits in the backend architecture.
 """
 
 from __future__ import annotations
@@ -21,7 +21,7 @@ class OOPCatalogImportExecutor:
     """
 
     def __init__(self, use_case: CatalogImportProcessingUseCase):
-        """Initialize collaborators and configuration required by this component."""
+        """Initialize required dependencies and runtime configuration."""
         self._use_case = use_case
 
     async def __call__(
@@ -35,7 +35,7 @@ class OOPCatalogImportExecutor:
         pages: Optional[List[int]] = None,
         region: Optional[List[float]] = None,
     ) -> Any:
-        """Run call in this workflow."""
+        """Process Call."""
         command = CatalogImportFinalizeCommand(
             file_id=file_id,
             user_id=user_id,
@@ -51,9 +51,9 @@ class OOPCatalogImportExecutor:
 
 
 class CatalogImportTaskBuilder:
-    """Represent catalog import task builder and centralize responsibilities for this module."""
+    """Encapsulates Catalog import task builder."""
     def __init__(self, executor: OOPCatalogImportExecutor):
-        """Initialize collaborators and configuration required by this component."""
+        """Initialize required dependencies and runtime configuration."""
         self._executor = executor
 
     def build_finalize_plan(
@@ -67,7 +67,7 @@ class CatalogImportTaskBuilder:
         pages: Optional[List[int]],
         region: Optional[List[float]],
     ) -> TaskExecutionPlan:
-        """Build finalize plan for this workflow."""
+        """Build finalize plan."""
         task_kwargs = {
             "file_id": file_id,
             "user_id": user_id,

@@ -56,7 +56,7 @@ class WebEnrichmentRequestService:
         self,
         session: Session = Depends(ServiceContainerDependencySupport.get_request_db_session),
     ) -> None:
-        """Initialize collaborators and configuration required by this component."""
+        """Initialize required dependencies and runtime configuration."""
         self._session = session
         if hasattr(session, "get_bind"):
             session_provider = (
@@ -108,7 +108,7 @@ class WebEnrichmentRequestService:
         user_id: int,
         termos_busca_override: Optional[str] = None,
     ):
-        """Run tarefa enriquecer produto web in this workflow."""
+        """Process Tarefa enriquecer produto web."""
         await self._task_runner.execute(
             produto_id=produto_id,
             user_id=user_id,
@@ -123,7 +123,7 @@ class WebEnrichmentRequestService:
         current_user: models.User,
         termos_busca_override: Optional[str] = None,
     ) -> Dict[str, str]:
-        """Run iniciar enriquecimento produto web in this workflow."""
+        """Process Iniciar enriquecimento produto web."""
         self._start_service.validate_start_preconditions(
             produto_id=produto_id,
             current_user=current_user,
@@ -160,7 +160,7 @@ async def iniciar_enriquecimento_produto_web_endpoint(
     ),
     request_service: WebEnrichmentRequestService = Depends(),
 ):
-    """Run iniciar enriquecimento produto web endpoint in this workflow."""
+    """Process Iniciar enriquecimento produto web endpoint."""
     return request_service.iniciar_enriquecimento_produto_web(
         produto_id=produto_id,
         background_tasks=background_tasks,

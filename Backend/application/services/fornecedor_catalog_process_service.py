@@ -1,6 +1,6 @@
-"""Module fornecedor catalog process service.
+"""Fornecedor catalog process service.
 
-Contains backend logic related to fornecedor catalog process service and documents its role in the OOP architecture.
+Defines the module responsibilities and how it fits in the backend architecture.
 """
 
 from __future__ import annotations
@@ -21,7 +21,7 @@ class FornecedorCatalogProcessService:
         fornecedor_repo: Any,
         catalog_file_repository: Any,
     ) -> None:
-        """Initialize collaborators and configuration required by this component."""
+        """Initialize required dependencies and runtime configuration."""
         self._models = models
         self._fornecedor_repo = fornecedor_repo
         self._catalog_file_repository = catalog_file_repository
@@ -39,7 +39,7 @@ class FornecedorCatalogProcessService:
         region: Optional[list[float]],
         mapping: Optional[Dict[str, str]],
     ) -> Dict[str, Any]:
-        """Run start full processing in this workflow."""
+        """Process Start full processing."""
         fornecedor = self._validate_fornecedor_access(
             fornecedor_repo=self._fornecedor_repo,
             fornecedor_id=fornecedor_id,
@@ -85,7 +85,7 @@ class FornecedorCatalogProcessService:
         fornecedor_id: int,
         current_user: Any,
     ) -> Any:
-        """Run validate fornecedor access in this workflow."""
+        """Process Validate fornecedor access."""
         fornecedor = fornecedor_repo.get_fornecedor(fornecedor_id=fornecedor_id)
         if not fornecedor:
             raise HTTPException(status_code=404, detail="Fornecedor nao encontrado")
@@ -101,7 +101,7 @@ class FornecedorCatalogProcessService:
         fornecedor_id: int,
         catalog_file_repo: Any,
     ) -> Any:
-        """Run create processing job from source in this workflow."""
+        """Process Create processing job from source."""
         job = self._models.CatalogImportFile(
             user_id=user_id,
             fornecedor_id=fornecedor_id,

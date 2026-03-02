@@ -1,6 +1,6 @@
-"""Module catalog import task service.
+"""Catalog import task service.
 
-Contains backend logic related to catalog import task service and documents its role in the OOP architecture.
+Defines the module responsibilities and how it fits in the backend architecture.
 """
 
 from __future__ import annotations
@@ -20,7 +20,7 @@ from Backend.application.services.catalog_import_components import (
 
 
 class CatalogImportTaskRuntime:
-    """Represent catalog import task runtime and centralize responsibilities for this module."""
+    """Encapsulates Catalog import task runtime."""
     RUNTIME_FIELDS = (
         "logger",
         "catalog_logger",
@@ -71,7 +71,7 @@ class CatalogImportTaskRuntime:
         write_catalog_import_report: Callable,
         normalize_import_text: Callable,
     ) -> None:
-        """Initialize collaborators and configuration required by this component."""
+        """Initialize required dependencies and runtime configuration."""
         self.logger = logger
         self.catalog_logger = catalog_logger
         self.models = models
@@ -95,7 +95,7 @@ class CatalogImportTaskRuntime:
         self.normalize_import_text = normalize_import_text
 
     def apply_overrides(self, runtime: Any) -> "CatalogImportTaskRuntime":
-        """Run apply overrides in this workflow."""
+        """Process Apply overrides."""
         for field_name in self.RUNTIME_FIELDS:
             setattr(self, field_name, getattr(runtime, field_name, getattr(self, field_name)))
         return self
@@ -131,7 +131,7 @@ class CatalogImportTaskWorkflow:
         normalize_import_text: Callable,
         runtime: Optional[Any] = None,
     ) -> None:
-        """Initialize collaborators and configuration required by this component."""
+        """Initialize required dependencies and runtime configuration."""
         runtime_obj = CatalogImportTaskRuntime(
             session_provider=session_provider,
             logger=logger,
@@ -223,7 +223,7 @@ class CatalogImportTaskWorkflow:
         return self.product_repository_factory(session)
 
     def _load_catalog_file(self) -> bool:
-        """Run load catalog file in this workflow."""
+        """Process Load catalog file."""
         self.catalog_file = self.catalog_file_repo_runtime.get_catalog_file_for_user(
             file_id=self.file_id,
             user_id=self.user_id,
@@ -250,7 +250,7 @@ class CatalogImportTaskWorkflow:
         return True
 
     def _resolve_file(self):
-        """Run resolve file in this workflow."""
+        """Process Resolve file."""
         file_path = self.resolve_storage_path(
             self.Path(self.settings.UPLOAD_DIRECTORY)
             / "catalogs"
@@ -271,7 +271,7 @@ class CatalogImportTaskWorkflow:
         return file_path, content, ext
 
     def _build_produto_schema(self, cleaned_prod: Dict[str, Any]):
-        """Run build produto schema in this workflow."""
+        """Process Build produto schema."""
         return self.schemas.ProdutoCreate(
             nome_base=cleaned_prod.get("nome_base")
             or cleaned_prod.get("sku_original")
@@ -295,7 +295,7 @@ class CatalogImportTaskWorkflow:
         conversion_error_prefix: str,
         produtos_create: List[Any],
     ) -> None:
-        """Run process quality and schema in this workflow."""
+        """Process Process quality and schema."""
         if isinstance(prod, dict) and (
             prod.get("motivo_descarte")
             or any(key.startswith("erro_processamento") for key in prod.keys())
@@ -355,7 +355,7 @@ class CatalogImportTaskWorkflow:
             )
 
     def _flush_produtos(self, *, produtos_create: List[Any]) -> tuple[List[Any], List[Any]]:
-        """Run flush produtos in this workflow."""
+        """Process Flush produtos."""
         created_page: List[Any] = []
         updated_page: List[Any] = []
         if not produtos_create:
@@ -378,7 +378,7 @@ class CatalogImportTaskWorkflow:
         return created_page, updated_page
 
     async def _process_pdf(self, *, content: bytes) -> None:
-        """Run process pdf in this workflow."""
+        """Process Process pdf."""
         import io
         import pdfplumber
 
@@ -427,7 +427,7 @@ class CatalogImportTaskWorkflow:
             )
 
     async def _process_tabular(self, *, ext: str, content: bytes) -> bool:
-        """Run process tabular in this workflow."""
+        """Process Process tabular."""
         self.file_state_service.initialize_pages(
             catalog_file=self.catalog_file,
             total_pages=1,
@@ -476,7 +476,7 @@ class CatalogImportTaskWorkflow:
         return True
 
     def _finalize_success(self) -> None:
-        """Run finalize success in this workflow."""
+        """Process Finalize success."""
         result_payload = self.result_builder.build(
             file_id=self.file_id,
             created=self.created,
@@ -537,7 +537,7 @@ class CatalogImportTaskWorkflow:
         )
 
     def _handle_failure(self, error: Exception) -> None:
-        """Run handle failure in this workflow."""
+        """Process Handle failure."""
         self.logger.exception("Erro ao processar importacao de catalogo")
         self.catalog_logger.exception("falha file_id=%s erro=%s", self.file_id, error)
         if not self.db:
@@ -561,7 +561,7 @@ class CatalogImportTaskWorkflow:
         pages: Optional[List[int]] = None,
         region: Optional[List[float]] = None,
     ) -> None:
-        """Run run in this workflow."""
+        """Process Run."""
         if self._session_provider is None:
             raise ValueError("session_provider is required for CatalogImportTaskWorkflow")
         self.db = self._session_provider.open_session()
@@ -634,7 +634,7 @@ class CatalogImportTaskService:
         write_catalog_import_report: Callable,
         normalize_import_text: Callable,
     ):
-        """Initialize collaborators and configuration required by this component."""
+        """Initialize required dependencies and runtime configuration."""
         self._deps = {
             "session_provider": session_provider,
             "logger": logger,
@@ -671,7 +671,7 @@ class CatalogImportTaskService:
         pages: Optional[List[int]] = None,
         region: Optional[List[float]] = None,
     ):
-        """Run execute in this workflow."""
+        """Process Execute."""
         workflow = CatalogImportTaskWorkflow(**self._deps)
         await workflow.run(
             file_id=file_id,

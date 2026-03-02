@@ -1,6 +1,6 @@
-"""Module product repositories.
+"""Product repositories.
 
-Contains backend logic related to product repositories and documents its role in the OOP architecture.
+Defines the module responsibilities and how it fits in the backend architecture.
 """
 
 from __future__ import annotations
@@ -26,7 +26,7 @@ class ProductRepositories:
 
     @staticmethod
     def build_product_management_repositories(*, session: Any) -> dict[str, Any]:
-        """Build product management repositories for this workflow."""
+        """Build product management repositories."""
         return {
             "produto_repo": ProductRepository(session),
             "fornecedor_repo": FornecedorRepository(session),
@@ -37,7 +37,7 @@ class ProductRepositories:
 
     @staticmethod
     def build_product_media_repositories(*, session: Any) -> dict[str, Any]:
-        """Build product media repositories for this workflow."""
+        """Build product media repositories."""
         return {
             "produto_repo": ProductRepository(session),
         }

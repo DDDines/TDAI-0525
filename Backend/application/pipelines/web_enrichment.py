@@ -1,6 +1,6 @@
-"""Module web enrichment.
+"""Web enrichment.
 
-Contains backend logic related to web enrichment and documents its role in the OOP architecture.
+Defines the module responsibilities and how it fits in the backend architecture.
 """
 
 from __future__ import annotations
@@ -21,7 +21,7 @@ class OOPWebEnrichmentExecutor:
     """
 
     def __init__(self, use_case: WebEnrichmentProcessingUseCase):
-        """Initialize collaborators and configuration required by this component."""
+        """Initialize required dependencies and runtime configuration."""
         self._use_case = use_case
 
     async def __call__(
@@ -31,7 +31,7 @@ class OOPWebEnrichmentExecutor:
         user_id: int,
         termos_busca_override: Optional[str] = None,
     ) -> Any:
-        """Run call in this workflow."""
+        """Process Call."""
         command = WebEnrichmentStartCommand(
             produto_id=produto_id,
             user_id=user_id,
@@ -43,9 +43,9 @@ class OOPWebEnrichmentExecutor:
 
 
 class WebEnrichmentTaskBuilder:
-    """Represent web enrichment task builder and centralize responsibilities for this module."""
+    """Encapsulates Web enrichment task builder."""
     def __init__(self, executor: OOPWebEnrichmentExecutor):
-        """Initialize collaborators and configuration required by this component."""
+        """Initialize required dependencies and runtime configuration."""
         self._executor = executor
 
     def build_start_plan(
@@ -55,7 +55,7 @@ class WebEnrichmentTaskBuilder:
         user_id: int,
         termos_busca_override: Optional[str],
     ) -> TaskExecutionPlan:
-        """Build start plan for this workflow."""
+        """Build start plan."""
         task_kwargs = {
             "produto_id": produto_id,
             "user_id": user_id,

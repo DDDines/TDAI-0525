@@ -1,6 +1,6 @@
-"""Module catalog import file repository.
+"""Catalog import file repository.
 
-Contains backend logic related to catalog import file repository and documents its role in the OOP architecture.
+Defines the module responsibilities and how it fits in the backend architecture.
 """
 
 from __future__ import annotations
@@ -16,7 +16,7 @@ class CatalogImportFileRepository:
     """Repository OO de arquivos de importacao de catalogo por request."""
 
     def __init__(self, db: Session) -> None:
-        """Initialize collaborators and configuration required by this component."""
+        """Initialize required dependencies and runtime configuration."""
         self._db = db
 
     def list_catalog_files_for_user(
@@ -27,7 +27,7 @@ class CatalogImportFileRepository:
         skip: int,
         limit: int,
     ) -> Tuple[List[CatalogImportFile], int]:
-        """List catalog files for user for this workflow."""
+        """List catalog files for user."""
         query = self._db.query(CatalogImportFile).filter(
             CatalogImportFile.user_id == user_id
         )
@@ -49,7 +49,7 @@ class CatalogImportFileRepository:
         file_id: int,
         user_id: int,
     ) -> Optional[CatalogImportFile]:
-        """Return catalog file for user for this workflow."""
+        """Return Catalog file for user."""
         return (
             self._db.query(CatalogImportFile)
             .filter_by(id=file_id, user_id=user_id)
@@ -57,24 +57,24 @@ class CatalogImportFileRepository:
         )
 
     def get_catalog_file(self, *, file_id: int) -> Optional[CatalogImportFile]:
-        """Return catalog file for this workflow."""
+        """Return Catalog file."""
         return self._db.query(CatalogImportFile).filter_by(id=file_id).first()
 
     def save_catalog_file(self, *, catalog_file: CatalogImportFile) -> CatalogImportFile:
-        """Run save catalog file in this workflow."""
+        """Process Save catalog file."""
         self._db.add(catalog_file)
         self._db.commit()
         self._db.refresh(catalog_file)
         return catalog_file
 
     def update_catalog_file(self, *, catalog_file: CatalogImportFile) -> CatalogImportFile:
-        """Update catalog file for this workflow."""
+        """Update catalog file."""
         self._db.add(catalog_file)
         self._db.commit()
         self._db.refresh(catalog_file)
         return catalog_file
 
     def delete_catalog_file(self, *, catalog_file: CatalogImportFile) -> None:
-        """Delete catalog file for this workflow."""
+        """Delete catalog file."""
         self._db.delete(catalog_file)
         self._db.commit()

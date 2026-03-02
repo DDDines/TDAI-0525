@@ -1,6 +1,6 @@
-"""Module web enrichment processing.
+"""Web enrichment processing.
 
-Contains backend logic related to web enrichment processing and documents its role in the OOP architecture.
+Defines the module responsibilities and how it fits in the backend architecture.
 """
 
 from __future__ import annotations
@@ -20,7 +20,7 @@ class WebEnrichmentProcessingUseCase:
     """
 
     def __init__(self, processor: TaskExecutor):
-        """Initialize collaborators and configuration required by this component."""
+        """Initialize required dependencies and runtime configuration."""
         self._processor = processor
 
     async def execute_command(
@@ -28,7 +28,7 @@ class WebEnrichmentProcessingUseCase:
         *,
         command: WebEnrichmentStartCommand,
     ) -> Any:
-        """Run execute command in this workflow."""
+        """Process Execute command."""
         produto_id = self._require_positive_int(command.produto_id, "produto_id")
         user_id = self._require_positive_int(command.user_id, "user_id")
         termos_busca_override = self._normalize_search_terms(command.termos_busca_override)
@@ -46,7 +46,7 @@ class WebEnrichmentProcessingUseCase:
         user_id: Any,
         termos_busca_override: Any = None,
     ) -> Any:
-        """Run execute in this workflow."""
+        """Process Execute."""
         command = WebEnrichmentStartCommand(
             produto_id=produto_id,
             user_id=user_id,
@@ -58,7 +58,7 @@ class WebEnrichmentProcessingUseCase:
 
     @staticmethod
     def _require_positive_int(raw_value: Any, field_name: str) -> int:
-        """Run require positive int in this workflow."""
+        """Process Require positive int."""
         try:
             value = int(raw_value)
         except (TypeError, ValueError):
@@ -69,7 +69,7 @@ class WebEnrichmentProcessingUseCase:
 
     @staticmethod
     def _normalize_search_terms(raw_terms: Any) -> Optional[str]:
-        """Run normalize search terms in this workflow."""
+        """Process Normalize search terms."""
         if raw_terms is None:
             return None
         text = str(raw_terms).strip()

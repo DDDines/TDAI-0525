@@ -1,6 +1,6 @@
-"""Module catalog import sanitization service.
+"""Catalog import sanitization service.
 
-Contains backend logic related to catalog import sanitization service and documents its role in the OOP architecture.
+Defines the module responsibilities and how it fits in the backend architecture.
 """
 
 from __future__ import annotations
@@ -18,24 +18,24 @@ class CatalogImportSanitizationService:
     """Centraliza normalizacao/sanitizacao textual da importacao de catalogo."""
 
     def __init__(self, quality_service: CatalogImportQualityService) -> None:
-        """Initialize collaborators and configuration required by this component."""
+        """Initialize required dependencies and runtime configuration."""
         self._quality = quality_service
 
     @staticmethod
     def _marker_count(candidate: str) -> int:
-        """Run marker count in this workflow."""
+        """Process Marker count."""
         return sum(
             candidate.count(ch)
             for ch in ("\u00c3", "\u00c2", "\u00e2", "\u0192", "\ufffd")
         )
 
     def _looks_mojibake(self, candidate: str) -> bool:
-        """Run looks mojibake in this workflow."""
+        """Process Looks mojibake."""
         return self._marker_count(candidate) > 0 or "??" in candidate
 
     @staticmethod
     def _decode_maybe(candidate: str, source_encoding: str) -> str:
-        """Run decode maybe in this workflow."""
+        """Process Decode maybe."""
         try:
             return candidate.encode(source_encoding).decode("utf-8")
         except Exception:
@@ -179,7 +179,7 @@ class CatalogImportSanitizationService:
 
     @staticmethod
     def is_non_critical_import_reason(reason: str) -> bool:
-        """Run is non critical import reason in this workflow."""
+        """Process Is non critical import reason."""
         reason_norm = str(reason or "").strip().lower()
         if not reason_norm:
             return False

@@ -6,6 +6,7 @@ Contains backend logic related to test architecture boundaries and documents its
 from __future__ import annotations
 
 import ast
+import re
 from pathlib import Path
 from typing import Iterable
 
@@ -1530,6 +1531,70 @@ class _TopLevelFunctionSurface:
             "(no dynamic `if callable(...)` fallback):\n" + "\n".join(offenders)
         )
 
+    def test_backend_production_functions_have_docstrings():
+        """Require docstrings for every production function in backend code."""
+        offenders: list[str] = []
+        excluded_roots = (
+            BACKEND_TESTS_ROOT.resolve(),
+            (BACKEND_ROOT / "migrations").resolve(),
+            (BACKEND_ROOT / "alembic").resolve(),
+        )
+
+        for path in _iter_python_files(BACKEND_ROOT):
+            resolved = path.resolve()
+            if any(str(resolved).startswith(str(root)) for root in excluded_roots):
+                continue
+            tree = _parse_python_file(path)
+            rel = path.relative_to(PROJECT_ROOT)
+            for node in ast.walk(tree):
+                if not isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
+                    continue
+                if ast.get_docstring(node) is None:
+                    offenders.append(f"{rel}:{node.lineno} -> {node.name}")
+
+        assert not offenders, (
+            "Every production function must include a meaningful docstring:\n"
+            + "\n".join(offenders)
+        )
+
+    def test_backend_production_docstrings_do_not_use_placeholder_templates():
+        """Block legacy placeholder docstring templates in production code."""
+        offenders: list[str] = []
+        excluded_roots = (
+            BACKEND_TESTS_ROOT.resolve(),
+            (BACKEND_ROOT / "migrations").resolve(),
+            (BACKEND_ROOT / "alembic").resolve(),
+        )
+        forbidden_patterns = (
+            r"^Run .+ in this workflow\.$",
+            r"^Return .+ for this workflow\.$",
+            r"^Initialize collaborators and configuration required by this component\.$",
+            r"^Represent .+ and centralize responsibilities for this module\.$",
+        )
+
+        for path in _iter_python_files(BACKEND_ROOT):
+            resolved = path.resolve()
+            if any(str(resolved).startswith(str(root)) for root in excluded_roots):
+                continue
+            tree = _parse_python_file(path)
+            rel = path.relative_to(PROJECT_ROOT)
+            for node in ast.walk(tree):
+                if not isinstance(node, (ast.Module, ast.ClassDef, ast.FunctionDef, ast.AsyncFunctionDef)):
+                    continue
+                docstring = ast.get_docstring(node)
+                if not docstring:
+                    continue
+                for pattern in forbidden_patterns:
+                    if re.match(pattern, docstring):
+                        line = getattr(node, "lineno", 1)
+                        offenders.append(f"{rel}:{line} -> '{docstring}'")
+                        break
+
+        assert not offenders, (
+            "Production docstrings must avoid placeholder boilerplate templates:\n"
+            + "\n".join(offenders)
+        )
+
     def test_backend_production_code_has_no_varargs_signatures():
         """Run test backend production code has no varargs signatures in this workflow."""
         offenders: list[str] = []
@@ -1690,6 +1755,8 @@ test_tasks_module_has_no_procedural_sqlalchemy_runtime_construction = _TopLevelF
 test_file_processing_runtime_has_no_direct_catalog_import_file_query = _TopLevelFunctionSurface.test_file_processing_runtime_has_no_direct_catalog_import_file_query
 test_backend_production_code_has_no_db_session_factory_term = _TopLevelFunctionSurface.test_backend_production_code_has_no_db_session_factory_term
 test_application_services_do_not_use_dynamic_callable_repo_resolution = _TopLevelFunctionSurface.test_application_services_do_not_use_dynamic_callable_repo_resolution
+test_backend_production_functions_have_docstrings = _TopLevelFunctionSurface.test_backend_production_functions_have_docstrings
+test_backend_production_docstrings_do_not_use_placeholder_templates = _TopLevelFunctionSurface.test_backend_production_docstrings_do_not_use_placeholder_templates
 test_backend_production_code_has_no_varargs_signatures = _TopLevelFunctionSurface.test_backend_production_code_has_no_varargs_signatures
 test_tests_do_not_import_private_backend_symbols = _TopLevelFunctionSurface.test_tests_do_not_import_private_backend_symbols
 test_produtos_core_endpoints_do_not_receive_db_session_directly = _TopLevelFunctionSurface.test_produtos_core_endpoints_do_not_receive_db_session_directly

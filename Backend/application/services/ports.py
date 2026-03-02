@@ -1,6 +1,6 @@
-"""Module ports.
+"""Ports.
 
-Contains backend logic related to ports and documents its role in the OOP architecture.
+Defines the module responsibilities and how it fits in the backend architecture.
 """
 
 from __future__ import annotations
@@ -15,7 +15,7 @@ from Backend.application.services.web_data_extractor.contracts import WebDataExt
 
 
 class IAGenerationPort(Protocol):
-    """Represent i a generation port and centralize responsibilities for this module."""
+    """Encapsulates I a generation port."""
     async def gerar_titulos_com_openai(
         self,
         *,
@@ -23,7 +23,9 @@ class IAGenerationPort(Protocol):
         produto_id: int,
         user: models.User,
         num_titulos: int = 3,
-    ) -> list[str]: ...
+    ) -> list[str]:
+        """Generate SEO titles with OpenAI for a product."""
+        ...
 
     async def gerar_descricao_com_openai(
         self,
@@ -32,7 +34,9 @@ class IAGenerationPort(Protocol):
         produto_id: int,
         user: models.User,
         tamanho_palavras: int = 150,
-    ) -> str: ...
+    ) -> str:
+        """Generate a product description with OpenAI."""
+        ...
 
     async def gerar_titulos_com_gemini(
         self,
@@ -41,7 +45,9 @@ class IAGenerationPort(Protocol):
         produto_id: int,
         user: models.User,
         num_titulos: int = 3,
-    ) -> list[str]: ...
+    ) -> list[str]:
+        """Generate SEO titles with Gemini for a product."""
+        ...
 
     async def gerar_descricao_com_gemini(
         self,
@@ -50,7 +56,9 @@ class IAGenerationPort(Protocol):
         produto_id: int,
         user: models.User,
         tamanho_palavras: int = 150,
-    ) -> str: ...
+    ) -> str:
+        """Generate a product description with Gemini."""
+        ...
 
     async def sugerir_valores_atributos_com_gemini(
         self,
@@ -58,36 +66,46 @@ class IAGenerationPort(Protocol):
         session: Session,
         produto_id: int,
         user: models.User,
-    ) -> schemas.SugestoesAtributosResponse: ...
+    ) -> schemas.SugestoesAtributosResponse:
+        """Suggest dynamic attribute values with Gemini."""
+        ...
 
 
 class LimitPort(Protocol):
-    """Represent limit port and centralize responsibilities for this module."""
+    """Encapsulates Limit port."""
     def verificar_limite_uso(
         self,
         session: Session,
         user: models.User,
         tipo_geracao_principal: str,
-    ) -> int: ...
+    ) -> int:
+        """Return the credit cost for the requested generation action."""
+        ...
 
     async def verificar_creditos_disponiveis_geracao_ia(
         self,
         session: Session,
         user_id: int,
         creditos_necessarios: int = 1,
-    ) -> bool: ...
+    ) -> bool:
+        """Check whether the user has enough credits before generation."""
+        ...
 
     async def verificar_e_consumir_creditos_geracao_ia(
         self,
         session: Session,
         user_id: int,
         creditos_necessarios: int = 1,
-    ) -> bool: ...
+    ) -> bool:
+        """Validate and consume credits in a single transactional operation."""
+        ...
 
 
 class ValidationPort(Protocol):
-    """Represent validation port and centralize responsibilities for this module."""
-    def run_validation_crew(self, raw_data: Any): ...
+    """Encapsulates Validation port."""
+    def run_validation_crew(self, raw_data: Any):
+        """Validate and normalize raw extraction data."""
+        ...
 
 
 __all__ = [

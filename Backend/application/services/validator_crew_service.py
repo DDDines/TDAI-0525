@@ -1,6 +1,6 @@
-"""Module validator crew service.
+"""Validator crew service.
 
-Contains backend logic related to validator crew service and documents its role in the OOP architecture.
+Defines the module responsibilities and how it fits in the backend architecture.
 """
 
 from __future__ import annotations
@@ -13,10 +13,10 @@ from Backend.infrastructure.adapters.validator_crew_adapter import (
 
 
 class _FallbackValidatorCrew:
-    """Represent fallback validator crew and centralize responsibilities for this module."""
+    """Encapsulates Fallback validator crew."""
     @staticmethod
     def run_validation_crew(raw_data: Any):
-        """Run validation crew for this workflow."""
+        """Run validation crew."""
         return raw_data
 
 
@@ -29,7 +29,7 @@ class ValidatorCrewService:
         logger: Any = None,
         runner: Optional[Any] = None,
     ) -> None:
-        """Initialize collaborators and configuration required by this component."""
+        """Initialize required dependencies and runtime configuration."""
         self._logger = logger
         if runner is not None:
             self._runner = runner
@@ -46,7 +46,7 @@ class ValidatorCrewService:
             self._runner = _FallbackValidatorCrew()
 
     def run_validation_crew(self, raw_data: Any):
-        """Run validation crew for this workflow."""
+        """Run validation crew."""
         try:
             return self._runner.run_validation_crew(raw_data)
         except Exception as exc:

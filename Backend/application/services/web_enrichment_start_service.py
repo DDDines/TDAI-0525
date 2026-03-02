@@ -1,6 +1,6 @@
-"""Module web enrichment start service.
+"""Web enrichment start service.
 
-Contains backend logic related to web enrichment start service and documents its role in the OOP architecture.
+Defines the module responsibilities and how it fits in the backend architecture.
 """
 
 from __future__ import annotations
@@ -26,7 +26,7 @@ class WebEnrichmentStartService:
         orchestrator_cls: Any = WebEnrichmentPipelineOrchestrator,
         product_repository: Any,
     ) -> None:
-        """Initialize collaborators and configuration required by this component."""
+        """Initialize required dependencies and runtime configuration."""
         self._product_repository = product_repository
         self._models = models
         self._dispatcher = dispatcher_cls
@@ -38,7 +38,7 @@ class WebEnrichmentStartService:
         produto_id: int,
         current_user: Any,
     ) -> None:
-        """Validate start preconditions for this workflow."""
+        """Validate start preconditions."""
         db_produto_check = self._product_repository.get_produto(produto_id=produto_id)
         if not db_produto_check:
             raise HTTPException(
@@ -66,7 +66,7 @@ class WebEnrichmentStartService:
         command: Any,
         oop_executor: Any,
     ) -> Any:
-        """Dispatch start for this workflow."""
+        """Dispatch start."""
         orchestrator = self._orchestrator_cls(
             oop_executor=oop_executor,
         )

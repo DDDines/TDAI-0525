@@ -1,6 +1,6 @@
-"""Module fornecedor import tracking service.
+"""Fornecedor import tracking service.
 
-Contains backend logic related to fornecedor import tracking service and documents its role in the OOP architecture.
+Defines the module responsibilities and how it fits in the backend architecture.
 """
 
 from __future__ import annotations
@@ -20,7 +20,7 @@ class FornecedorImportTrackingService:
         process_pdf_extraction_task: Any,
         catalog_file_repository: Any,
     ) -> None:
-        """Initialize collaborators and configuration required by this component."""
+        """Initialize required dependencies and runtime configuration."""
         self._models = models
         self._process_pdf_extraction_task = process_pdf_extraction_task
         self._catalog_file_repository = catalog_file_repository
@@ -32,7 +32,7 @@ class FornecedorImportTrackingService:
         user_id: int,
         not_found_detail: str,
     ) -> Any:
-        """Return catalog record or 404 for this workflow."""
+        """Return Catalog record or 404."""
         record = self._catalog_file_repository.get_catalog_file_for_user(
             file_id=file_id,
             user_id=user_id,
@@ -43,7 +43,7 @@ class FornecedorImportTrackingService:
 
     @staticmethod
     def build_progress_payload(*, record: Any) -> dict[str, Any]:
-        """Build progress payload for this workflow."""
+        """Build progress payload."""
         return {
             "status": record.status,
             "progress": record.pages_processed,
@@ -59,7 +59,7 @@ class FornecedorImportTrackingService:
         page_number: int,
         db_url: str,
     ) -> None:
-        """Run schedule page extraction in this workflow."""
+        """Process Schedule page extraction."""
         background_tasks.add_task(
             self._process_pdf_extraction_task,
             import_job_id=import_job_id,
@@ -69,7 +69,7 @@ class FornecedorImportTrackingService:
 
     @staticmethod
     def build_import_job_status_payload(*, record: Any) -> dict[str, Any]:
-        """Build import job status payload for this workflow."""
+        """Build import job status payload."""
         response = {"status": record.status}
         if record.status == "COMPLETED":
             response["resultado_json"] = record.resultado_json

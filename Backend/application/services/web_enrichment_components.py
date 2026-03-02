@@ -1,6 +1,6 @@
-"""Module web enrichment components.
+"""Web enrichment components.
 
-Contains backend logic related to web enrichment components and documents its role in the OOP architecture.
+Defines the module responsibilities and how it fits in the backend architecture.
 """
 
 from __future__ import annotations
@@ -12,7 +12,7 @@ from typing import Any, Dict, List, Optional
 
 @dataclass(frozen=True)
 class WebEnrichmentConfigSnapshot:
-    """Represent web enrichment config snapshot and centralize responsibilities for this module."""
+    """Encapsulates Web enrichment config snapshot."""
     openai_user_configurada: bool
     openai_system_configurada: bool
     openai_api_configurada: bool
@@ -21,7 +21,7 @@ class WebEnrichmentConfigSnapshot:
     busca_web_disponivel: bool
 
     def as_log_line(self) -> str:
-        """Run as log line in this workflow."""
+        """Process As log line."""
         return (
             "Config API: "
             f"openai_user={'sim' if self.openai_user_configurada else 'nao'}, "
@@ -35,7 +35,7 @@ class WebEnrichmentConfigInspector:
     """Inspeciona disponibilidade de provedores externos para enriquecimento."""
 
     def inspect(self, *, user: Any, settings: Any, web_extractor: Any) -> WebEnrichmentConfigSnapshot:
-        """Run inspect in this workflow."""
+        """Process Inspect."""
         openai_user_configurada = bool(getattr(user, "chave_openai_pessoal", None))
         openai_system_configurada = bool(getattr(settings, "OPENAI_API_KEY", None))
         openai_api_configurada = bool(openai_user_configurada or openai_system_configurada)
@@ -62,12 +62,12 @@ class WebEnrichmentQueryPlanner:
 
     @staticmethod
     def _dedupe(values: List[str]) -> List[str]:
-        """Run dedupe in this workflow."""
+        """Process Dedupe."""
         return [v for v in dict.fromkeys(v for v in values if v)]
 
     @staticmethod
     def _extract_code_tokens(value: Any) -> List[str]:
-        """Run extract code tokens in this workflow."""
+        """Process Extract code tokens."""
         text = str(value or "").upper()
         if not text:
             return []
@@ -84,7 +84,7 @@ class WebEnrichmentQueryPlanner:
 
     @staticmethod
     def _dynamic_text_hints(dynamic_attributes: Any) -> Dict[str, str]:
-        """Run dynamic text hints in this workflow."""
+        """Process Dynamic text hints."""
         hints = {"aplicacao": "", "material": "", "marca": ""}
         if not isinstance(dynamic_attributes, dict):
             return hints
@@ -110,7 +110,7 @@ class WebEnrichmentQueryPlanner:
         db_produto_obj: Any,
         termos_busca_override: Optional[str],
     ) -> List[str]:
-        """Build candidates for this workflow."""
+        """Build candidates."""
         if termos_busca_override:
             return self._dedupe([termos_busca_override.strip()])
 
@@ -199,7 +199,7 @@ class WebEnrichmentStatusResolver:
         busca_web_disponivel: bool,
         urls_a_processar: List[str],
     ) -> Any:
-        """Run resolve in this workflow."""
+        """Process Resolve."""
         if status_para_salvar_no_final not in {
             models.StatusEnriquecimentoEnum.EM_PROGRESSO,
             models.StatusEnriquecimentoEnum.FALHOU,
@@ -234,7 +234,7 @@ class WebEnrichmentFinalizationService:
         models: Any,
         product_repository_factory: Any,
     ) -> None:
-        """Initialize collaborators and configuration required by this component."""
+        """Initialize required dependencies and runtime configuration."""
         self._normalize_human_text = normalize_human_text
         self._build_payload_enriquecimento_visivel = build_payload_enriquecimento_visivel
         self._schemas = schemas
@@ -250,7 +250,7 @@ class WebEnrichmentFinalizationService:
         dados_extraidos_agregados: Dict[str, Any],
         log_mensagens: List[str],
     ) -> Any:
-        """Run apply in this workflow."""
+        """Process Apply."""
         if (
             db_produto_obj.status_enriquecimento_web
             == self._models.StatusEnriquecimentoEnum.EM_PROGRESSO

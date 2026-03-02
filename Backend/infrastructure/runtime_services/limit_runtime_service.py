@@ -1,6 +1,6 @@
-"""Module limit runtime service.
+"""Limit runtime service.
 
-Contains backend logic related to limit runtime service and documents its role in the OOP architecture.
+Defines the module responsibilities and how it fits in the backend architecture.
 """
 
 from __future__ import annotations
@@ -15,7 +15,7 @@ class LimitRuntimeService:
     """Explicit runtime service surface for limits and credits flows."""
 
     def __init__(self) -> None:
-        """Initialize collaborators and configuration required by this component."""
+        """Initialize required dependencies and runtime configuration."""
         self._workflow = LimitWorkflow()
 
     def verificar_limite_uso(
@@ -24,7 +24,7 @@ class LimitRuntimeService:
         user: models.User,
         tipo_geracao_principal: str,
     ) -> int:
-        """Run verificar limite uso in this workflow."""
+        """Process Verificar limite uso."""
         return self._workflow.verificar_limite_uso(
             db=session,
             user=user,
@@ -37,7 +37,7 @@ class LimitRuntimeService:
         user_id: int,
         creditos_necessarios: int = 1,
     ) -> bool:
-        """Run verificar creditos disponiveis geracao ia in this workflow."""
+        """Process Verificar creditos disponiveis geracao ia."""
         return await self._workflow.verificar_creditos_disponiveis_geracao_ia(
             db=session,
             user_id=user_id,
@@ -50,7 +50,7 @@ class LimitRuntimeService:
         user_id: int,
         creditos_necessarios: int = 1,
     ) -> bool:
-        """Run verificar e consumir creditos geracao ia in this workflow."""
+        """Process Verificar e consumir creditos geracao ia."""
         return await self._workflow.verificar_e_consumir_creditos_geracao_ia(
             db=session,
             user_id=user_id,

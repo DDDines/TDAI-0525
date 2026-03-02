@@ -18,12 +18,12 @@ class ProductTypeRepository:
     """Repository OO de tipos de produto com Session vinculada por request."""
 
     def __init__(self, db: Session) -> None:
-        """Initialize collaborators and configuration required by this component."""
+        """Initialize required dependencies and runtime configuration."""
         self._db = db
 
     @staticmethod
     def _apply_product_type_search(query, search: Optional[str]):
-        """Run apply product type search in this workflow."""
+        """Process Apply product type search."""
         if not search:
             return query
         search_term = f"%{search.lower()}%"
@@ -41,7 +41,7 @@ class ProductTypeRepository:
         product_type_create: schemas.ProductTypeCreate,
         user_id: Optional[int] = None,
     ) -> ProductType:
-        """Create product type for this workflow."""
+        """Create product type."""
         existing_query = self._db.query(ProductType).filter(
             func.lower(ProductType.key_name) == func.lower(product_type_create.key_name)
         )
@@ -88,7 +88,7 @@ class ProductTypeRepository:
         return db_product_type
 
     def get_product_type(self, *, product_type_id: int) -> Optional[ProductType]:
-        """Return product type for this workflow."""
+        """Return Product type."""
         return (
             self._db.query(ProductType)
             .options(selectinload(ProductType.attribute_templates))
@@ -102,7 +102,7 @@ class ProductTypeRepository:
         key_name: str,
         user_id: Optional[int] = None,
     ) -> Optional[ProductType]:
-        """Return product type by key name for this workflow."""
+        """Return Product type by key name."""
         query = (
             self._db.query(ProductType)
             .options(selectinload(ProductType.attribute_templates))
@@ -125,7 +125,7 @@ class ProductTypeRepository:
         limit: int = 100,
         search: Optional[str] = None,
     ) -> List[ProductType]:
-        """Return product types for user for this workflow."""
+        """Return Product types for user."""
         query = self._db.query(ProductType).options(selectinload(ProductType.attribute_templates))
         if user_id:
             query = query.filter(or_(ProductType.user_id == user_id, ProductType.user_id.is_(None)))
@@ -141,7 +141,7 @@ class ProductTypeRepository:
         )
 
     def count_product_types_for_user(self, *, user_id: Optional[int], search: Optional[str] = None) -> int:
-        """Count product types for user for this workflow."""
+        """Count product types for user."""
         query = self._db.query(func.count(ProductType.id))
         if user_id:
             query = query.filter(or_(ProductType.user_id == user_id, ProductType.user_id.is_(None)))
@@ -177,7 +177,7 @@ class ProductTypeRepository:
         db_product_type: ProductType,
         product_type_update: schemas.ProductTypeUpdate,
     ) -> ProductType:
-        """Update product type for this workflow."""
+        """Update product type."""
         update_data = product_type_update.model_dump(exclude_unset=True)
 
         if "key_name" in update_data and update_data["key_name"] != db_product_type.key_name:
@@ -208,7 +208,7 @@ class ProductTypeRepository:
         return db_product_type
 
     def delete_product_type(self, *, db_product_type: ProductType) -> ProductType:
-        """Delete product type for this workflow."""
+        """Delete product type."""
         associated_products = (
             self._db.query(Produto).filter(Produto.product_type_id == db_product_type.id).count()
         )
@@ -232,7 +232,7 @@ class ProductTypeRepository:
         attr_template_create: schemas.AttributeTemplateCreate,
         product_type_id: int,
     ) -> AttributeTemplate:
-        """Create attribute template for this workflow."""
+        """Create attribute template."""
         existing_attribute = (
             self._db.query(AttributeTemplate)
             .filter(
@@ -277,7 +277,7 @@ class ProductTypeRepository:
         return query.first()
 
     def get_attribute_template(self, *, attribute_template_id: int) -> Optional[AttributeTemplate]:
-        """Return attribute template for this workflow."""
+        """Return Attribute template."""
         return (
             self._db.query(AttributeTemplate)
             .filter(AttributeTemplate.id == attribute_template_id)
@@ -290,7 +290,7 @@ class ProductTypeRepository:
         db_attr_template: AttributeTemplate,
         attr_template_update: schemas.AttributeTemplateUpdate,
     ) -> AttributeTemplate:
-        """Update attribute template for this workflow."""
+        """Update attribute template."""
         update_data = attr_template_update.model_dump(exclude_unset=True)
 
         if "attribute_key" in update_data and update_data["attribute_key"] != db_attr_template.attribute_key:
@@ -320,13 +320,13 @@ class ProductTypeRepository:
         return db_attr_template
 
     def delete_attribute_template(self, *, db_attr_template: AttributeTemplate) -> AttributeTemplate:
-        """Delete attribute template for this workflow."""
+        """Delete attribute template."""
         self._db.delete(db_attr_template)
         self._db.commit()
         return db_attr_template
 
     def reorder_attribute_template(self, *, attribute_id: int, direction: str) -> Optional[AttributeTemplate]:
-        """Run reorder attribute template in this workflow."""
+        """Process Reorder attribute template."""
         attr_to_move = self.get_attribute_template(attribute_template_id=attribute_id)
         if not attr_to_move:
             return None

@@ -1,6 +1,6 @@
-"""Module catalog import file service.
+"""Catalog import file service.
 
-Contains backend logic related to catalog import file service and documents its role in the OOP architecture.
+Defines the module responsibilities and how it fits in the backend architecture.
 """
 
 from __future__ import annotations
@@ -22,7 +22,7 @@ class CatalogImportFileService:
         catalog_file_repository: Any,
         fornecedor_repository: Any,
     ) -> None:
-        """Initialize collaborators and configuration required by this component."""
+        """Initialize required dependencies and runtime configuration."""
         self._models = models
         self._file_processing_service = file_processing_service
         self._catalog_import_start_service = catalog_import_start_service
@@ -32,11 +32,11 @@ class CatalogImportFileService:
     def _resolve_catalog_file_repo(
         self,
     ) -> Any:
-        """Run resolve catalog file repo in this workflow."""
+        """Process Resolve catalog file repo."""
         return self._catalog_file_repository
 
     def _resolve_fornecedor_repo(self) -> Any:
-        """Run resolve fornecedor repo in this workflow."""
+        """Process Resolve fornecedor repo."""
         return self._fornecedor_repository
 
     def list_user_files(
@@ -47,7 +47,7 @@ class CatalogImportFileService:
         skip: int,
         limit: int,
     ) -> dict[str, Any]:
-        """List user files for this workflow."""
+        """List user files."""
         repo = self._resolve_catalog_file_repo()
         items, total_items = repo.list_catalog_files_for_user(
             user_id=user_id,
@@ -68,7 +68,7 @@ class CatalogImportFileService:
         file_id: int,
         user_id: int,
     ) -> Any:
-        """Return user file or 404 for this workflow."""
+        """Return User file or 404."""
         repo = self._resolve_catalog_file_repo()
         record = repo.get_catalog_file_for_user(
             file_id=file_id,
@@ -84,7 +84,7 @@ class CatalogImportFileService:
         file_id: int,
         user_id: int,
     ) -> Any:
-        """Delete user file for this workflow."""
+        """Delete user file."""
         repo = self._resolve_catalog_file_repo()
         record = self.get_user_file_or_404(
             file_id=file_id,
@@ -106,7 +106,7 @@ class CatalogImportFileService:
         pages: list[int] | None,
         region: list[float] | None,
     ) -> dict[str, Any]:
-        """Run reprocess catalog file in this workflow."""
+        """Process Reprocess catalog file."""
         catalog_file_repo = self._resolve_catalog_file_repo()
         fornecedor_repo = self._resolve_fornecedor_repo()
         catalog_file = self._catalog_import_start_service.get_catalog_file_or_404(
