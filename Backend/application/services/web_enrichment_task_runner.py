@@ -18,7 +18,7 @@ class WebEnrichmentTaskRunner:
     def __init__(
         self,
         *,
-        db_session_factory: Any,
+        session_provider: Any,
         logger: Any,
         SQLAlchemyError: Any,
         models: Any,
@@ -40,7 +40,7 @@ class WebEnrichmentTaskRunner:
     ) -> None:
         """Initialize collaborators and configuration required by this component."""
         self._kwargs = {
-            "db_session_factory": db_session_factory,
+            "session_provider": session_provider,
             "logger": logger,
             "SQLAlchemyError": SQLAlchemyError,
             "user_repository": user_repository,

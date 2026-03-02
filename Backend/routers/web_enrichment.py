@@ -58,7 +58,14 @@ class WebEnrichmentRequestService:
     ) -> None:
         """Initialize collaborators and configuration required by this component."""
         self._session = session
-        db_session_factory = ServiceContainerDependencySupport.get_background_db_session_factory()
+        if hasattr(session, "get_bind"):
+            session_provider = (
+                ServiceContainerDependencySupport.build_background_session_provider_from_session(
+                    session
+                )
+            )
+        else:
+            session_provider = ServiceContainerDependencySupport.get_background_session_provider()
         normalization_service = WebEnrichmentNormalizationService()
         relevance_service = WebEnrichmentRelevanceService()
         content_quality_service = WebEnrichmentContentQualityService(
@@ -70,7 +77,7 @@ class WebEnrichmentRequestService:
 
         extractor_service = WebDataExtractorOrchestratorService(WebDataExtractorServiceAdapter())
         self._task_runner = WebEnrichmentTaskRunner(
-            db_session_factory=db_session_factory,
+            session_provider=session_provider,
             logger=logger,
             SQLAlchemyError=SQLAlchemyError,
             user_repository=UserRepository,

@@ -19,7 +19,7 @@ from Backend.application.services.catalog_import_sanitization_service import Cat
 from Backend.application.services.catalog_import_start_service import CatalogImportStartService
 from Backend.application.services.catalog_import_task_runner import CatalogImportTaskRunner
 from Backend.application.services.validator_crew_service import ValidatorCrewService
-from Backend.application.services.service_container import DependencyContainer, ServiceContainer, ServiceContainerDependencySupport, SessionProvider
+from Backend.application.services.service_container import DependencyContainer, ServiceContainer, ServiceContainerDependencySupport
 from Backend.core.config import settings
 from Backend.core.logging_config import get_logger
 from Backend.infrastructure.repositories.catalog_import_file_repository import CatalogImportFileRepository
@@ -51,24 +51,27 @@ catalog_file_repository = CatalogImportFileRepository
 class _FornecedoresServiceBundle:
     """Componente OO principal '_FornecedoresServiceBundle' do modulo 'fornecedores'."""
 
-    def __init__(self, *, db_session_factory: Any | None = None) -> None:
+    def __init__(self, *, session_provider: Any | None = None) -> None:
         """Initialize collaborators and configuration required by this component."""
         self._service_container = ServiceContainer()
-        self._db_session_factory = db_session_factory or ServiceContainerDependencySupport.get_background_db_session_factory()
+        self._session_provider = (
+            session_provider
+            or ServiceContainerDependencySupport.get_background_session_provider()
+        )
         self.file_processing_service = self._service_container.file_processing
         self.web_data_extractor_service = self._service_container.web_data_extractor
         self.catalog_quality_service = CatalogImportQualityService()
         self.catalog_sanitization_service = CatalogImportSanitizationService(quality_service=self.catalog_quality_service)
         self.catalog_import_diagnostics_service = CatalogImportDiagnosticsService(catalog_log_dir=catalog_log_dir, logger=logger, sanitization_service=self.catalog_sanitization_service)
         self.validator_crew = ValidatorCrewService(logger=logger)
-        self.catalog_import_task_runner = CatalogImportTaskRunner(db_session_factory=self._db_session_factory, logger=logger, catalog_logger=logger, models=models, schemas=schemas, product_repository=produto_repository, catalog_file_repository=catalog_file_repository, file_processing_service=self.file_processing_service, validator_crew=self.validator_crew, settings=settings, path_cls=Path, time_module=time, counter_cls=Counter, resolve_storage_path=self.catalog_import_diagnostics_service.resolve_storage_path, normalize_import_issue_item=self.catalog_sanitization_service.normalize_import_issue_item, extract_import_error_reason=self.catalog_sanitization_service.extract_import_error_reason, is_non_critical_import_reason=self.catalog_sanitization_service.is_non_critical_import_reason, normalizar_dados_validados=self.catalog_sanitization_service.normalize_validated_data, sanitize_produto_extraido=self.catalog_sanitization_service.sanitize_extracted_product, classificar_qualidade_linha_produto=self.catalog_quality_service.classify_product_row_quality, write_catalog_import_report=self.catalog_import_diagnostics_service.write_catalog_import_report, normalize_import_text=self.catalog_sanitization_service.normalize_import_text)
+        self.catalog_import_task_runner = CatalogImportTaskRunner(session_provider=self._session_provider, logger=logger, catalog_logger=logger, models=models, schemas=schemas, product_repository=produto_repository, catalog_file_repository=catalog_file_repository, file_processing_service=self.file_processing_service, validator_crew=self.validator_crew, settings=settings, path_cls=Path, time_module=time, counter_cls=Counter, resolve_storage_path=self.catalog_import_diagnostics_service.resolve_storage_path, normalize_import_issue_item=self.catalog_sanitization_service.normalize_import_issue_item, extract_import_error_reason=self.catalog_sanitization_service.extract_import_error_reason, is_non_critical_import_reason=self.catalog_sanitization_service.is_non_critical_import_reason, normalizar_dados_validados=self.catalog_sanitization_service.normalize_validated_data, sanitize_produto_extraido=self.catalog_sanitization_service.sanitize_extracted_product, classificar_qualidade_linha_produto=self.catalog_quality_service.classify_product_row_quality, write_catalog_import_report=self.catalog_import_diagnostics_service.write_catalog_import_report, normalize_import_text=self.catalog_sanitization_service.normalize_import_text)
         self.catalog_import_finalize_service = CatalogImportFinalizeService(
             oop_executor=self.catalog_import_task_runner.execute
         )
         self.catalog_import_start_service = CatalogImportStartService(models=models, fornecedor_repo=fornecedor_repository, catalog_file_repository=catalog_file_repository, settings=settings, resolve_storage_path=self.catalog_import_diagnostics_service.resolve_storage_path, finalize_service=self.catalog_import_finalize_service)
         self.fornecedor_catalog_process_service = FornecedorCatalogProcessService(models=models, fornecedor_repo=fornecedor_repository, catalog_file_repository=catalog_file_repository, catalog_import_start_service=self.catalog_import_start_service)
         self.fornecedor_import_job_service = FornecedorImportJobService(
-            session_provider=SessionProvider(self._db_session_factory),
+            session_provider=self._session_provider,
             import_job_repository_factory=FornecedorImportJobRepository,
             produto_repository_factory=ProductRepository,
             produto_create_schema=schemas.ProdutoCreate,
@@ -171,8 +174,14 @@ class _FornecedoresServiceGateway:
     def __init__(self, *, session: Session, services: Optional[_FornecedoresServiceBundle]=None) -> None:
         """Initialize collaborators and configuration required by this component."""
         self._session = session
-        runtime_session_factory = ServiceContainerDependencySupport.build_background_db_session_factory_from_session(session)
-        self._services = services or _FornecedoresServiceBundle(db_session_factory=runtime_session_factory)
+        runtime_session_provider = (
+            ServiceContainerDependencySupport.build_background_session_provider_from_session(
+                session
+            )
+        )
+        self._services = services or _FornecedoresServiceBundle(
+            session_provider=runtime_session_provider
+        )
         self._catalog_file_repo = CatalogImportFileRepository(session)
         self._fornecedor_repo = FornecedorRepository(session)
         self._catalog_import_start_service = CatalogImportStartService(

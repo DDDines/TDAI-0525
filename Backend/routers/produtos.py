@@ -54,16 +54,19 @@ catalog_file_repository = CatalogImportFileRepository
 class _ProdutosServiceBundle:
     """Componente OO principal '_ProdutosServiceBundle' do modulo 'produtos'."""
 
-    def __init__(self, *, db_session_factory: Any | None = None) -> None:
+    def __init__(self, *, session_provider: Any | None = None) -> None:
         """Initialize collaborators and configuration required by this component."""
         self._service_container = ServiceContainer()
-        self._db_session_factory = db_session_factory or ServiceContainerDependencySupport.get_background_db_session_factory()
+        self._session_provider = (
+            session_provider
+            or ServiceContainerDependencySupport.get_background_session_provider()
+        )
         self.file_processing_service = self._service_container.file_processing
         self.catalog_quality_service = CatalogImportQualityService()
         self.catalog_sanitization_service = CatalogImportSanitizationService(quality_service=self.catalog_quality_service)
         self.catalog_import_diagnostics_service = CatalogImportDiagnosticsService(catalog_log_dir=catalog_log_dir, logger=catalog_logger, sanitization_service=self.catalog_sanitization_service)
         self.validator_crew = ValidatorCrewService(logger=logger)
-        self.catalog_import_task_runner = CatalogImportTaskRunner(db_session_factory=self._db_session_factory, logger=logger, catalog_logger=catalog_logger, models=models, schemas=schemas, product_repository=produto_repository, catalog_file_repository=catalog_file_repository, file_processing_service=self.file_processing_service, validator_crew=self.validator_crew, settings=settings, path_cls=Path, time_module=time, counter_cls=Counter, resolve_storage_path=self.catalog_import_diagnostics_service.resolve_storage_path, normalize_import_issue_item=self.catalog_sanitization_service.normalize_import_issue_item, extract_import_error_reason=self.catalog_sanitization_service.extract_import_error_reason, is_non_critical_import_reason=self.catalog_sanitization_service.is_non_critical_import_reason, normalizar_dados_validados=self.catalog_sanitization_service.normalize_validated_data, sanitize_produto_extraido=self.catalog_sanitization_service.sanitize_extracted_product, classificar_qualidade_linha_produto=self.catalog_quality_service.classify_product_row_quality, write_catalog_import_report=self.catalog_import_diagnostics_service.write_catalog_import_report, normalize_import_text=self.catalog_sanitization_service.normalize_import_text)
+        self.catalog_import_task_runner = CatalogImportTaskRunner(session_provider=self._session_provider, logger=logger, catalog_logger=catalog_logger, models=models, schemas=schemas, product_repository=produto_repository, catalog_file_repository=catalog_file_repository, file_processing_service=self.file_processing_service, validator_crew=self.validator_crew, settings=settings, path_cls=Path, time_module=time, counter_cls=Counter, resolve_storage_path=self.catalog_import_diagnostics_service.resolve_storage_path, normalize_import_issue_item=self.catalog_sanitization_service.normalize_import_issue_item, extract_import_error_reason=self.catalog_sanitization_service.extract_import_error_reason, is_non_critical_import_reason=self.catalog_sanitization_service.is_non_critical_import_reason, normalizar_dados_validados=self.catalog_sanitization_service.normalize_validated_data, sanitize_produto_extraido=self.catalog_sanitization_service.sanitize_extracted_product, classificar_qualidade_linha_produto=self.catalog_quality_service.classify_product_row_quality, write_catalog_import_report=self.catalog_import_diagnostics_service.write_catalog_import_report, normalize_import_text=self.catalog_sanitization_service.normalize_import_text)
         self.catalog_import_finalize_service = CatalogImportFinalizeService(
             oop_executor=self.catalog_import_task_runner.execute
         )
@@ -80,8 +83,14 @@ class _ProdutosCatalogService:
     def __init__(self, *, session: Session, services: Optional[_ProdutosServiceBundle]=None) -> None:
         """Initialize collaborators and configuration required by this component."""
         self._session = session
-        runtime_session_factory = ServiceContainerDependencySupport.build_background_db_session_factory_from_session(session)
-        self._services = services or _ProdutosServiceBundle(db_session_factory=runtime_session_factory)
+        runtime_session_provider = (
+            ServiceContainerDependencySupport.build_background_session_provider_from_session(
+                session
+            )
+        )
+        self._services = services or _ProdutosServiceBundle(
+            session_provider=runtime_session_provider
+        )
         self._catalog_file_repository = CatalogImportFileRepository(self._session)
         self._fornecedor_repository = FornecedorRepository(self._session)
         self._produto_repository = ProductRepository(self._session)

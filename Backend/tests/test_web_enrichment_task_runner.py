@@ -29,7 +29,7 @@ class _TopLevelFunctionSurface:
     def _build_runner() -> WebEnrichmentTaskRunner:
         """Run build runner in this workflow."""
         return WebEnrichmentTaskRunner(
-            db_session_factory=lambda: None,
+            session_provider=type("SessionProviderStub", (), {"open_session": staticmethod(lambda: None)})(),
             logger=object(),
             SQLAlchemyError=Exception,
             user_repository=object(),

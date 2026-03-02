@@ -29,7 +29,7 @@ class _TopLevelFunctionSurface:
     def _build_runner() -> CatalogImportTaskRunner:
         """Run build runner in this workflow."""
         return CatalogImportTaskRunner(
-            db_session_factory=lambda: None,
+            session_provider=type("SessionProviderStub", (), {"open_session": staticmethod(lambda: None)})(),
             logger=object(),
             catalog_logger=object(),
             models=object(),

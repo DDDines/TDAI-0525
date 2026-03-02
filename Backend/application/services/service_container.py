@@ -65,21 +65,6 @@ class ServiceContainerDependencySupport:
         return LimitService(port=LimitServiceAdapter())
 
     @staticmethod
-    def get_background_db_session_factory() -> Callable[[], Session]:
-        """Return background db session factory for this workflow."""
-        return database.SessionLocal
-
-    @staticmethod
-    def build_background_db_session_factory_from_session(
-        session: Session,
-    ) -> Callable[[], Session]:
-        """Build a background session factory bound to the current request engine."""
-        bind = session.get_bind()
-        if bind is None:
-            raise ValueError("Session bind is required to build background session factory.")
-        return sessionmaker(autocommit=False, autoflush=False, bind=bind)
-
-    @staticmethod
     def get_background_session_provider() -> "SessionProvider":
         """Return OO session provider for background workloads."""
         return SessionProvider(database.SessionLocal)
@@ -89,11 +74,10 @@ class ServiceContainerDependencySupport:
         session: Session,
     ) -> "SessionProvider":
         """Build OO session provider bound to current request engine."""
-        return SessionProvider(
-            ServiceContainerDependencySupport.build_background_db_session_factory_from_session(
-                session
-            )
-        )
+        bind = session.get_bind()
+        if bind is None:
+            raise ValueError("Session bind is required to build background session provider.")
+        return SessionProvider(sessionmaker(autocommit=False, autoflush=False, bind=bind))
 
 
 class SessionProviderPort(Protocol):

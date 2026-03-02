@@ -8,6 +8,7 @@ from __future__ import annotations
 from typing import Any, Dict, List, Optional
 from sqlalchemy.orm import Session
 
+from Backend.application.services.service_container import SessionProviderPort
 from Backend.application.services.web_enrichment_components import (
     WebEnrichmentConfigInspector,
     WebEnrichmentFinalizationService,
@@ -93,7 +94,7 @@ class WebEnrichmentTaskWorkflow:
         *,
         logger,
         SQLAlchemyError,
-        db_session_factory,
+        session_provider: SessionProviderPort,
         user_repository,
         product_repository,
         usage_repository,
@@ -135,7 +136,7 @@ class WebEnrichmentTaskWorkflow:
             runtime_obj.apply_overrides(runtime)
 
         self._runtime = runtime_obj
-        self._db_session_factory = db_session_factory
+        self._session_provider = session_provider
         self.logger = runtime_obj.logger
         self.SQLAlchemyError = runtime_obj.SQLAlchemyError
         self.user_repository = runtime_obj.user_repository
@@ -435,9 +436,9 @@ class WebEnrichmentTaskWorkflow:
         dados_extraidos_agregados: Dict[str, Any] = {}
 
         try:
-            if self._db_session_factory is None:
-                raise ValueError("db_session_factory is required for WebEnrichmentTaskWorkflow")
-            db = self._db_session_factory()
+            if self._session_provider is None:
+                raise ValueError("session_provider is required for WebEnrichmentTaskWorkflow")
+            db = self._session_provider.open_session()
             db_produto_obj = self._load_locked_product(db, produto_id)
             if not db_produto_obj:
                 log_mensagens.append(
@@ -640,7 +641,7 @@ class WebEnrichmentTaskService:
         *,
         logger,
         SQLAlchemyError,
-        db_session_factory,
+        session_provider: SessionProviderPort,
         models,
         schemas,
         web_extractor,
@@ -662,7 +663,7 @@ class WebEnrichmentTaskService:
         self._deps = {
             "logger": logger,
             "SQLAlchemyError": SQLAlchemyError,
-            "db_session_factory": db_session_factory,
+            "session_provider": session_provider,
             "user_repository": user_repository,
             "product_repository": product_repository,
             "usage_repository": usage_repository,

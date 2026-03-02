@@ -18,7 +18,7 @@ class CatalogImportTaskRunner:
     def __init__(
         self,
         *,
-        db_session_factory: Any,
+        session_provider: Any,
         logger: Any,
         catalog_logger: Any,
         models: Any,
@@ -43,7 +43,7 @@ class CatalogImportTaskRunner:
     ) -> None:
         """Initialize collaborators and configuration required by this component."""
         self._kwargs = {
-            "db_session_factory": db_session_factory,
+            "session_provider": session_provider,
             "logger": logger,
             "catalog_logger": catalog_logger,
             "models": models,

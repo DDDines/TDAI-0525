@@ -8,6 +8,7 @@ from __future__ import annotations
 from typing import Any, Callable, Dict, List, Optional
 from sqlalchemy.orm import Session
 
+from Backend.application.services.service_container import SessionProviderPort
 from Backend.application.services.catalog_import_components import (
     CatalogImportAuditWriter,
     CatalogImportFileStateService,
@@ -47,7 +48,7 @@ class CatalogImportTaskRuntime:
     def __init__(
         self,
         *,
-        db_session_factory,
+        session_provider: SessionProviderPort,
         logger,
         catalog_logger,
         models,
@@ -106,7 +107,7 @@ class CatalogImportTaskWorkflow:
     def __init__(
         self,
         *,
-        db_session_factory,
+        session_provider: SessionProviderPort,
         logger,
         catalog_logger,
         models,
@@ -132,7 +133,7 @@ class CatalogImportTaskWorkflow:
     ) -> None:
         """Initialize collaborators and configuration required by this component."""
         runtime_obj = CatalogImportTaskRuntime(
-            db_session_factory=db_session_factory,
+            session_provider=session_provider,
             logger=logger,
             catalog_logger=catalog_logger,
             models=models,
@@ -159,7 +160,7 @@ class CatalogImportTaskWorkflow:
             runtime_obj.apply_overrides(runtime)
 
         self._runtime = runtime_obj
-        self._db_session_factory = db_session_factory
+        self._session_provider = session_provider
         self.logger = runtime_obj.logger
         self.catalog_logger = runtime_obj.catalog_logger
         self.models = runtime_obj.models
@@ -560,9 +561,9 @@ class CatalogImportTaskWorkflow:
         region: Optional[List[float]] = None,
     ) -> None:
         """Run run in this workflow."""
-        if self._db_session_factory is None:
-            raise ValueError("db_session_factory is required for CatalogImportTaskWorkflow")
-        self.db = self._db_session_factory()
+        if self._session_provider is None:
+            raise ValueError("session_provider is required for CatalogImportTaskWorkflow")
+        self.db = self._session_provider.open_session()
         self.catalog_file_repo_runtime = self._resolve_repository_runtime(
             self.catalog_file_repository,
             self.db,
@@ -611,7 +612,7 @@ class CatalogImportTaskService:
     def __init__(
         self,
         *,
-        db_session_factory,
+        session_provider: SessionProviderPort,
         logger,
         catalog_logger,
         models,
@@ -636,7 +637,7 @@ class CatalogImportTaskService:
     ):
         """Initialize collaborators and configuration required by this component."""
         self._deps = {
-            "db_session_factory": db_session_factory,
+            "session_provider": session_provider,
             "logger": logger,
             "catalog_logger": catalog_logger,
             "models": models,

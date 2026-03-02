@@ -26,7 +26,7 @@ class _TopLevelFunctionSurface:
             return item
     
         workflow = CatalogImportTaskWorkflow(
-            db_session_factory=lambda: object(),
+            session_provider=SimpleNamespace(open_session=lambda: object()),
             logger="default_logger",
             catalog_logger="default_catalog_logger",
             models=SimpleNamespace(CatalogImportFile=object),
@@ -60,7 +60,7 @@ class _TopLevelFunctionSurface:
     def test_web_enrichment_task_workflow_aplica_runtime_override():
         """Run test web enrichment task workflow aplica runtime override in this workflow."""
         workflow = WebEnrichmentTaskWorkflow(
-            db_session_factory=lambda: object(),
+            session_provider=SimpleNamespace(open_session=lambda: object()),
             logger="default_logger",
             SQLAlchemyError=Exception,
             user_repository=SimpleNamespace(),
