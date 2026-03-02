@@ -79,26 +79,26 @@ class AuthRuntime:
         session: Optional[Session] = None,
         user_repository: Optional[UserRepository] = None,
     ) -> None:
-        """Initialize required dependencies and runtime configuration."""
+        """Initialize dependencies used by this component."""
         self._session = session
         self._user_repository = user_repository or (
             UserRepository(session) if session is not None else None
         )
 
     def _require_user_repository(self) -> UserRepository:
-        """Process Require user repository."""
+        """Handle Require user repository in this request workflow."""
         if self._user_repository is None:
             raise RuntimeError("AuthRuntime requires a session-bound UserRepository.")
         return self._user_repository
 
     def _require_session(self) -> Session:
-        """Process Require session."""
+        """Handle Require session in this request workflow."""
         if self._session is None:
             raise RuntimeError("AuthRuntime requires a session for write operations.")
         return self._session
 
     def verify_password(self, plain_password: str, hashed_password: str) -> bool:
-        """Process Verify password."""
+        """Handle Verify password in this request workflow."""
         return pwd_context.verify(plain_password, hashed_password)
 
     def get_password_hash(self, password: str) -> str:
@@ -134,15 +134,15 @@ class AuthRuntime:
         return secrets.token_urlsafe(32)
 
     def hash_password_reset_token(self, token: str) -> str:
-        """Process Hash password reset token."""
+        """Handle Hash password reset token in this request workflow."""
         return hashlib.sha256(token.encode()).hexdigest()
 
     def verify_password_reset_token(self, token: str, token_hash: str) -> bool:
-        """Process Verify password reset token."""
+        """Handle Verify password reset token in this request workflow."""
         return self.hash_password_reset_token(token=token) == token_hash
 
     def authenticate_user(self, email: str, password: str) -> Optional[models.User]:
-        """Process Authenticate user."""
+        """Handle Authenticate user in this request workflow."""
         user = self._require_user_repository().get_user_by_email(email=email)
         if not user:
             return None
@@ -182,7 +182,7 @@ class AuthRuntime:
         return current_user
 
     async def login_for_access_token(self, form_data: OAuth2PasswordRequestForm) -> Dict[str, str]:
-        """Process Login for access token."""
+        """Handle Login for access token in this request workflow."""
         user = self.authenticate_user(email=form_data.username, password=form_data.password)
         if not user:
             raise HTTPException(
@@ -201,7 +201,7 @@ class AuthRuntime:
         return {"access_token": access_token, "refresh_token": refresh_token, "token_type": "bearer"}
 
     async def refresh_access_token(self, refresh_token_data: schemas.RefreshTokenRequest) -> Dict[str, str]:
-        """Process Refresh access token."""
+        """Handle Refresh access token in this request workflow."""
         token = refresh_token_data.refresh_token
         credentials_exception = HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -256,7 +256,7 @@ class AuthRuntime:
         payload: schemas.UserChangePassword,
         current_user: models.User,
     ) -> Dict[str, str]:
-        """Process Change password me."""
+        """Handle Change password me in this request workflow."""
         if not current_user.hashed_password or not self.verify_password(
             payload.current_password,
             current_user.hashed_password,
@@ -281,7 +281,7 @@ class AuthRuntime:
         provider: str,
         provider_user_id: str,
     ) -> Optional[models.User]:
-        """Process Get or create social user."""
+        """Handle Get or create social user in this request workflow."""
         user_repo = self._require_user_repository()
         session = self._require_session()
         db_user = user_repo.get_user_by_email(email=email)
@@ -320,7 +320,7 @@ class AuthRuntime:
         return created_user
 
     async def process_google_login(self, google_userinfo: Dict[str, Any]) -> Optional[models.User]:
-        """Process google login."""
+        """Handle google login in this request workflow."""
         email = google_userinfo.get("email")
         if not email:
             logger.error("Email do Google nao encontrado nas informacoes do usuario.")
@@ -348,7 +348,7 @@ class AuthRuntime:
         )
 
     async def process_facebook_login(self, facebook_userinfo: Dict[str, Any]) -> Optional[models.User]:
-        """Process facebook login."""
+        """Handle facebook login in this request workflow."""
         email = facebook_userinfo.get("email")
         if not email:
             logger.error(
@@ -382,11 +382,11 @@ class AuthWorkflow:
         session: Optional[Session] = None,
         runtime: Optional[AuthRuntime] = None,
     ) -> None:
-        """Initialize required dependencies and runtime configuration."""
+        """Initialize dependencies used by this component."""
         self._runtime = runtime or AuthRuntime(session=session)
 
     def verify_password(self, plain_password: str, hashed_password: str) -> bool:
-        """Process Verify password."""
+        """Handle Verify password in this request workflow."""
         return self._runtime.verify_password(plain_password=plain_password, hashed_password=hashed_password)
 
     def get_password_hash(self, password: str) -> str:
@@ -406,15 +406,15 @@ class AuthWorkflow:
         return self._runtime.create_password_reset_token()
 
     def hash_password_reset_token(self, token: str) -> str:
-        """Process Hash password reset token."""
+        """Handle Hash password reset token in this request workflow."""
         return self._runtime.hash_password_reset_token(token=token)
 
     def verify_password_reset_token(self, token: str, token_hash: str) -> bool:
-        """Process Verify password reset token."""
+        """Handle Verify password reset token in this request workflow."""
         return self._runtime.verify_password_reset_token(token=token, token_hash=token_hash)
 
     def authenticate_user(self, email: str, password: str) -> Optional[models.User]:
-        """Process Authenticate user."""
+        """Handle Authenticate user in this request workflow."""
         return self._runtime.authenticate_user(email=email, password=password)
 
     async def get_current_user(self, token: str) -> models.User:
@@ -427,11 +427,11 @@ class AuthWorkflow:
         return AuthRuntime.get_current_active_user(current_user=current_user)
 
     async def login_for_access_token(self, form_data: OAuth2PasswordRequestForm) -> Dict[str, str]:
-        """Process Login for access token."""
+        """Handle Login for access token in this request workflow."""
         return await self._runtime.login_for_access_token(form_data=form_data)
 
     async def refresh_access_token(self, refresh_token_data: schemas.RefreshTokenRequest) -> Dict[str, str]:
-        """Process Refresh access token."""
+        """Handle Refresh access token in this request workflow."""
         return await self._runtime.refresh_access_token(refresh_token_data=refresh_token_data)
 
     async def update_users_me(
@@ -447,15 +447,15 @@ class AuthWorkflow:
         payload: schemas.UserChangePassword,
         current_user: models.User,
     ) -> Dict[str, str]:
-        """Process Change password me."""
+        """Handle Change password me in this request workflow."""
         return await self._runtime.change_password_me(payload=payload, current_user=current_user)
 
     async def process_google_login(self, google_userinfo: Dict[str, Any]) -> Optional[models.User]:
-        """Process google login."""
+        """Handle google login in this request workflow."""
         return await self._runtime.process_google_login(google_userinfo=google_userinfo)
 
     async def process_facebook_login(self, facebook_userinfo: Dict[str, Any]) -> Optional[models.User]:
-        """Process facebook login."""
+        """Handle facebook login in this request workflow."""
         return await self._runtime.process_facebook_login(facebook_userinfo=facebook_userinfo)
 
 
@@ -463,7 +463,7 @@ class _AuthRequestScope:
     """Escopo request-scoped para operacoes de autenticacao HTTP."""
 
     def __init__(self, *, session: Session) -> None:
-        """Initialize required dependencies and runtime configuration."""
+        """Initialize dependencies used by this component."""
         self._workflow = AuthWorkflow(session=session)
 
     async def get_current_user(self, *, token: str) -> models.User:
@@ -471,11 +471,11 @@ class _AuthRequestScope:
         return await self._workflow.get_current_user(token=token)
 
     async def login_for_access_token(self, *, form_data: OAuth2PasswordRequestForm):
-        """Process Login for access token."""
+        """Handle Login for access token in this request workflow."""
         return await self._workflow.login_for_access_token(form_data=form_data)
 
     async def refresh_access_token(self, *, refresh_token_data: schemas.RefreshTokenRequest):
-        """Process Refresh access token."""
+        """Handle Refresh access token in this request workflow."""
         return await self._workflow.refresh_access_token(refresh_token_data=refresh_token_data)
 
     async def update_users_me(
@@ -493,7 +493,7 @@ class _AuthRequestScope:
         payload: schemas.UserChangePassword,
         current_user: models.User,
     ) -> Dict[str, str]:
-        """Process Change password me."""
+        """Handle Change password me in this request workflow."""
         return await self._workflow.change_password_me(payload=payload, current_user=current_user)
 
 

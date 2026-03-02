@@ -34,7 +34,7 @@ class _FornecedoresDependencies:
     """Encapsulates Fornecedores dependencies."""
     @staticmethod
     def _build_fornecedores_service_bundle():
-        """Process Build fornecedores service bundle."""
+        """Handle Build fornecedores service bundle in this request workflow."""
         return _FornecedoresServiceBundle()
 
     @staticmethod
@@ -52,7 +52,7 @@ class _FornecedoresServiceBundle:
     """Componente OO principal '_FornecedoresServiceBundle' do modulo 'fornecedores'."""
 
     def __init__(self, *, session_provider: Any | None = None) -> None:
-        """Initialize required dependencies and runtime configuration."""
+        """Initialize dependencies used by this component."""
         self._service_container = ServiceContainer()
         self._session_provider = (
             session_provider
@@ -88,7 +88,7 @@ class FornecedoresRequestService:
     """Workflow/escopo request-scoped para o fluxo de 'fornecedores'."""
 
     def __init__(self, runtime: '_FornecedoresServiceGateway') -> None:
-        """Initialize required dependencies and runtime configuration."""
+        """Initialize dependencies used by this component."""
         self._runtime = runtime
 
     def create_fornecedor(self, fornecedor: schemas.FornecedorCreate, current_user: models.User, fornecedor_management_service: FornecedorManagementService) -> models.Fornecedor:
@@ -101,7 +101,7 @@ class FornecedoresRequestService:
         return self._runtime.list_fornecedores_page(current_user=current_user, skip=skip, limit=limit, termo_busca=termo_busca, fornecedor_management_service=fornecedor_management_service)
 
     def read_fornecedor(self, fornecedor_id: int, current_user: models.User, fornecedor_management_service: FornecedorManagementService) -> models.Fornecedor:
-        """Process Read fornecedor."""
+        """Handle Read fornecedor in this request workflow."""
         return self._runtime.resolve_fornecedor_for_user(fornecedor_id=fornecedor_id, current_user=current_user, not_found_detail='Fornecedor nao encontrado ou nao pertence ao usuario', forbidden_detail='Nao autorizado a acessar este fornecedor.', fornecedor_management_service=fornecedor_management_service)
 
     def update_fornecedor(self, fornecedor_id: int, fornecedor_update: schemas.FornecedorUpdate, current_user: models.User, fornecedor_management_service: FornecedorManagementService) -> models.Fornecedor:
@@ -117,16 +117,16 @@ class FornecedoresRequestService:
         return self._runtime.update_mapping(fornecedor_id=fornecedor_id, current_user=current_user, mapping=mapping, fornecedor_management_service=fornecedor_management_service)
 
     async def preview_pages(self, file: UploadFile):
-        """Process Preview pages."""
+        """Handle Preview pages in this request workflow."""
         return await self._runtime.preview_pages(file=file)
 
     async def preview_pdf(self, fornecedor_id: int, file: UploadFile, current_user: models.User, offset: int, limit: int, fornecedor_management_service: FornecedorManagementService) -> schemas.PdfPreviewResponse:
-        """Process Preview pdf."""
+        """Handle Preview pdf in this request workflow."""
         _ = self._runtime.resolve_fornecedor_for_user(fornecedor_id=fornecedor_id, current_user=current_user, not_found_detail='Fornecedor nao encontrado', forbidden_detail='Nao autorizado a acessar este fornecedor.', fornecedor_management_service=fornecedor_management_service)
         return self._runtime.preview_pdf(file=file, fornecedor_id=fornecedor_id, user_id=current_user.id, offset=offset, limit=limit)
 
     def preview_catalog_from_region(self, preview_request: schemas.CatalogRegionPreviewRequest) -> schemas.CatalogPreview:
-        """Process Preview catalog from region."""
+        """Handle Preview catalog from region in this request workflow."""
         return self._runtime.preview_catalog_from_region(file_id=preview_request.file_id, page_number=preview_request.page_number, region=preview_request.region)
 
     def extract_data_from_pdf_bulk(self, background_tasks: BackgroundTasks, request: schemas.PdfRegionBulkRequest):
@@ -139,7 +139,7 @@ class FornecedoresRequestService:
         return self._runtime.build_progress_payload(record=record)
 
     async def process_full_catalog(self, background_tasks: BackgroundTasks, file_id: int, fornecedor_id: int, tipo_produto_id: int, start_page: int, region: Optional[List[float]], mapping: Optional[dict], current_user: models.User):
-        """Process full catalog."""
+        """Handle full catalog in this request workflow."""
         return await self._runtime.start_full_processing(background_tasks=background_tasks, current_user=current_user, file_id=file_id, fornecedor_id=fornecedor_id, tipo_produto_id=tipo_produto_id, start_page=start_page, region=region, mapping=mapping)
 
     def extract_page_data(self, background_tasks: BackgroundTasks, file_id: int, page_number: int, current_user: models.User) -> dict:
@@ -153,12 +153,12 @@ class FornecedoresRequestService:
         return self._runtime.delete_fornecedor(fornecedor_id=fornecedor_id, current_user=current_user, fornecedor_management_service=fornecedor_management_service)
 
     def review_import_job(self, job_id: int, current_user: models.User) -> dict:
-        """Process Review import job."""
+        """Handle Review import job in this request workflow."""
         job = self._runtime.get_job_for_user_or_404(job_id=job_id, user_id=current_user.id)
         return self._runtime.build_review_payload(job=job)
 
     def commit_import_job(self, background_tasks: BackgroundTasks, job_id: int, current_user: models.User) -> dict:
-        """Process Commit import job."""
+        """Handle Commit import job in this request workflow."""
         _ = self._runtime.get_job_for_user_or_404(job_id=job_id, user_id=current_user.id)
         self._runtime.schedule_commit(background_tasks=background_tasks, job_id=job_id, user_id=current_user.id)
         return {'status': 'PROCESSING', 'job_id': job_id}
@@ -172,7 +172,7 @@ class _FornecedoresServiceGateway:
     """Runtime OO para integrações do router de fornecedores."""
 
     def __init__(self, *, session: Session, services: Optional[_FornecedoresServiceBundle]=None) -> None:
-        """Initialize required dependencies and runtime configuration."""
+        """Initialize dependencies used by this component."""
         self._session = session
         runtime_session_provider = (
             ServiceContainerDependencySupport.build_background_session_provider_from_session(
@@ -305,7 +305,7 @@ class _FornecedoresServiceGateway:
         *,
         file: UploadFile,
     ):
-        """Process Preview pages."""
+        """Handle Preview pages in this request workflow."""
         return await self._fornecedor_preview_service.preview_pages(file=file)
 
     def preview_pdf(
@@ -317,7 +317,7 @@ class _FornecedoresServiceGateway:
         offset: int,
         limit: int,
     ):
-        """Process Preview pdf."""
+        """Handle Preview pdf in this request workflow."""
         return self._fornecedor_preview_service.preview_pdf(
             file=file,
             fornecedor_id=fornecedor_id,
@@ -333,7 +333,7 @@ class _FornecedoresServiceGateway:
         page_number: int,
         region: list[float],
     ):
-        """Process Preview catalog from region."""
+        """Handle Preview catalog from region in this request workflow."""
         return self._fornecedor_preview_service.preview_catalog_from_region(
             file_id=file_id,
             page_number=page_number,
@@ -394,7 +394,7 @@ class _FornecedoresServiceGateway:
         region: Optional[List[float]],
         mapping: Optional[dict],
     ):
-        """Process Start full processing."""
+        """Handle Start full processing in this request workflow."""
         return await self._fornecedor_catalog_process_service.start_full_processing(
             background_tasks=background_tasks,
             current_user=current_user,
@@ -414,7 +414,7 @@ class _FornecedoresServiceGateway:
         page_number: int,
         db_url: str,
     ):
-        """Process Schedule page extraction."""
+        """Handle Schedule page extraction in this request workflow."""
         return self._fornecedor_import_tracking_service.schedule_page_extraction(
             background_tasks=background_tasks,
             import_job_id=import_job_id,
@@ -462,7 +462,7 @@ class _FornecedoresServiceGateway:
         job_id: int,
         user_id: int,
     ):
-        """Process Schedule commit."""
+        """Handle Schedule commit in this request workflow."""
         return self._fornecedor_import_job_service.schedule_commit(
             background_tasks=background_tasks,
             job_id=job_id,
@@ -488,7 +488,7 @@ class _FornecedoresRequestScope:
     """Workflow/escopo request-scoped para o fluxo de 'fornecedores'."""
 
     def __init__(self, *, session: Session, fornecedor_management_service: FornecedorManagementService) -> None:
-        """Initialize required dependencies and runtime configuration."""
+        """Initialize dependencies used by this component."""
         self._fornecedor_management_service = fornecedor_management_service
         self._request_service = _FornecedoresDependencies.get_fornecedores_request_service(session)
 
@@ -501,7 +501,7 @@ class _FornecedoresRequestScope:
         return self._request_service.list_fornecedores_page(current_user=current_user, skip=skip, limit=limit, termo_busca=termo_busca, fornecedor_management_service=self._fornecedor_management_service)
 
     def read_fornecedor(self, *, fornecedor_id: int, current_user: models.User) -> models.Fornecedor:
-        """Process Read fornecedor."""
+        """Handle Read fornecedor in this request workflow."""
         return self._request_service.read_fornecedor(fornecedor_id=fornecedor_id, current_user=current_user, fornecedor_management_service=self._fornecedor_management_service)
 
     def update_fornecedor(self, *, fornecedor_id: int, fornecedor_update: schemas.FornecedorUpdate, current_user: models.User) -> models.Fornecedor:
@@ -517,15 +517,15 @@ class _FornecedoresRequestScope:
         return self._request_service.update_mapping(fornecedor_id=fornecedor_id, mapping=mapping, current_user=current_user, fornecedor_management_service=self._fornecedor_management_service)
 
     async def preview_pages(self, *, file: UploadFile):
-        """Process Preview pages."""
+        """Handle Preview pages in this request workflow."""
         return await self._request_service.preview_pages(file=file)
 
     async def preview_pdf(self, *, fornecedor_id: int, file: UploadFile, current_user: models.User, offset: int, limit: int) -> schemas.PdfPreviewResponse:
-        """Process Preview pdf."""
+        """Handle Preview pdf in this request workflow."""
         return await self._request_service.preview_pdf(fornecedor_id=fornecedor_id, file=file, current_user=current_user, offset=offset, limit=limit, fornecedor_management_service=self._fornecedor_management_service)
 
     def preview_catalog_from_region(self, *, preview_request: schemas.CatalogRegionPreviewRequest) -> schemas.CatalogPreview:
-        """Process Preview catalog from region."""
+        """Handle Preview catalog from region in this request workflow."""
         return self._request_service.preview_catalog_from_region(preview_request=preview_request)
 
     def extract_data_from_pdf_bulk(self, *, background_tasks: BackgroundTasks, request: schemas.PdfRegionBulkRequest):
@@ -537,7 +537,7 @@ class _FornecedoresRequestScope:
         return self._request_service.get_import_progress(job_id=job_id, current_user=current_user)
 
     async def process_full_catalog(self, *, background_tasks: BackgroundTasks, file_id: int, fornecedor_id: int, tipo_produto_id: int, start_page: int, region: Optional[List[float]], mapping: Optional[dict], current_user: models.User):
-        """Process full catalog."""
+        """Handle full catalog in this request workflow."""
         return await self._request_service.process_full_catalog(background_tasks=background_tasks, file_id=file_id, fornecedor_id=fornecedor_id, tipo_produto_id=tipo_produto_id, start_page=start_page, region=region, mapping=mapping, current_user=current_user)
 
     def extract_page_data(self, *, background_tasks: BackgroundTasks, file_id: int, page_number: int, current_user: models.User) -> dict:
@@ -549,11 +549,11 @@ class _FornecedoresRequestScope:
         return self._request_service.delete_fornecedor(fornecedor_id=fornecedor_id, current_user=current_user, fornecedor_management_service=self._fornecedor_management_service)
 
     def review_import_job(self, *, job_id: int, current_user: models.User) -> dict:
-        """Process Review import job."""
+        """Handle Review import job in this request workflow."""
         return self._request_service.review_import_job(job_id=job_id, current_user=current_user)
 
     def commit_import_job(self, *, background_tasks: BackgroundTasks, job_id: int, current_user: models.User) -> dict:
-        """Process Commit import job."""
+        """Handle Commit import job in this request workflow."""
         return self._request_service.commit_import_job(background_tasks=background_tasks, job_id=job_id, current_user=current_user)
 
     def get_import_job_status(self, *, job_id: int, current_user: models.User) -> dict:

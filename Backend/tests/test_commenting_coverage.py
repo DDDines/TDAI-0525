@@ -185,7 +185,7 @@ def test_backend_docstrings_do_not_use_generic_boilerplate():
 def test_backend_generic_docstring_count_does_not_regress():
     """Keep reducing generic docstrings and block any regression in total count."""
     offenders = _generic_docstring_offenders()
-    max_allowed = 668
+    max_allowed = 557
 
     assert len(offenders) <= max_allowed, (
         "Generic docstring count regressed. "
