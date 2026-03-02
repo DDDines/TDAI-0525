@@ -1,6 +1,7 @@
-"""Catalog import finalize service.
+"""Catalog import finalization dispatcher.
 
-Defines the module responsibilities and how it fits in the backend architecture.
+Encapsulates plan selection and execution strategy (inline in tests or
+background in runtime) for catalog import finalization commands.
 """
 
 from __future__ import annotations
@@ -29,7 +30,7 @@ class CatalogImportFinalizeService:
         sync_env_var: str = "CATALOG_IMPORT_TEST_SYNC",
         thread_name_prefix: str = "catalog-import",
     ) -> None:
-        """Initialize required dependencies and runtime configuration."""
+        """Build dispatcher/orchestrator collaborators for finalize execution."""
         self._orchestrator = orchestrator or CatalogImportPipelineOrchestrator(
             oop_executor=oop_executor,
         )
@@ -42,7 +43,7 @@ class CatalogImportFinalizeService:
         *,
         command: CatalogImportFinalizeCommand,
     ) -> TaskExecutionPlan:
-        """Select plan."""
+        """Create the task execution plan for a finalize command."""
         return self._orchestrator.select_finalize_plan(
             command=command,
         )
@@ -53,7 +54,7 @@ class CatalogImportFinalizeService:
         background_tasks: BackgroundTasks,
         command: CatalogImportFinalizeCommand,
     ) -> TaskExecutionPlan:
-        """Dispatch or run."""
+        """Execute inline in test mode or dispatch to FastAPI background tasks."""
         plan = self.select_plan(
             command=command,
         )
@@ -69,7 +70,7 @@ class CatalogImportFinalizeService:
         *,
         command: CatalogImportFinalizeCommand,
     ) -> TaskExecutionPlan:
-        """Run direct."""
+        """Run the selected finalize plan synchronously in the current request."""
         plan = self.select_plan(
             command=command,
         )

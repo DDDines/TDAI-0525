@@ -1,6 +1,6 @@
 """Catalog import start service.
 
-Defines the module responsibilities and how it fits in the backend architecture.
+Contains cohesive services used by the catalog import pipeline.
 """
 
 from __future__ import annotations
@@ -27,7 +27,7 @@ class CatalogImportStartService:
         catalog_file_repository: Any,
         fornecedor_repo: Any,
     ) -> None:
-        """Initialize required dependencies and runtime configuration."""
+        """Initialize dependencies used by this component."""
         self._models = models
         self._fornecedor_repo = fornecedor_repo
         self._settings = settings
@@ -38,13 +38,13 @@ class CatalogImportStartService:
     def _resolve_catalog_file_repo(
         self,
     ) -> Any:
-        """Process Resolve catalog file repo."""
+        """Handle resolve catalog file repo within the catalog import workflow."""
         return self._catalog_file_repository
 
     def _resolve_fornecedor_repo(
         self,
     ) -> Any:
-        """Process Resolve fornecedor repo."""
+        """Handle resolve fornecedor repo within the catalog import workflow."""
         return self._fornecedor_repo
 
     def get_catalog_file_or_404(
@@ -175,14 +175,14 @@ class CatalogImportStartService:
         )
 
     def _catalog_path(self, catalog_file: Any) -> Path:
-        """Process Catalog path."""
+        """Handle catalog path within the catalog import workflow."""
         return self._resolve_storage_path(
             Path(self._settings.UPLOAD_DIRECTORY) / "catalogs" / catalog_file.stored_filename
         )
 
     @staticmethod
     def _count_pdf_pages(content: bytes) -> int:
-        """Process Count pdf pages."""
+        """Handle count pdf pages within the catalog import workflow."""
         import pdfplumber
 
         with pdfplumber.open(io.BytesIO(content)) as pdf:

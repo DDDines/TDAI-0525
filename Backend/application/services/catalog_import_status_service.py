@@ -1,6 +1,6 @@
 """Catalog import status service.
 
-Defines the module responsibilities and how it fits in the backend architecture.
+Contains cohesive services used by the catalog import pipeline.
 """
 
 from __future__ import annotations
@@ -22,14 +22,14 @@ class CatalogImportStatusService:
         models: Any,
         catalog_file_repository: Any,
     ) -> None:
-        """Initialize required dependencies and runtime configuration."""
+        """Initialize dependencies used by this component."""
         self._models = models
         self._catalog_file_repository = catalog_file_repository
 
     def _resolve_catalog_file_repo(
         self,
     ) -> Any:
-        """Process Resolve catalog file repo."""
+        """Handle resolve catalog file repo within the catalog import workflow."""
         return self._catalog_file_repository
 
     def get_record_or_404(

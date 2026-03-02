@@ -1,6 +1,7 @@
-"""Catalog import diagnostics service.
+"""Catalog import diagnostics persistence.
 
-Defines the module responsibilities and how it fits in the backend architecture.
+Provides storage/path helpers and report generation for import diagnostics so
+operators can inspect failures after asynchronous execution.
 """
 
 from __future__ import annotations
@@ -21,7 +22,7 @@ class CatalogImportDiagnosticsService:
         logger: Any,
         sanitization_service: Any,
     ) -> None:
-        """Initialize required dependencies and runtime configuration."""
+        """Inject diagnostics dependencies and guarantee log directory existence."""
         self._catalog_log_dir = Path(catalog_log_dir)
         self._logger = logger
         self._sanitization_service = sanitization_service

@@ -1,6 +1,6 @@
 """Catalog import quality service.
 
-Defines the module responsibilities and how it fits in the backend architecture.
+Contains cohesive services used by the catalog import pipeline.
 """
 
 from __future__ import annotations
@@ -24,7 +24,7 @@ class CatalogRow:
 
     @classmethod
     def from_mapping(cls, data: Dict[str, Any]) -> "CatalogRow":
-        """Process From mapping."""
+        """Handle from mapping within the catalog import workflow."""
         dynamic_attributes = data.get("dynamic_attributes")
         if not isinstance(dynamic_attributes, dict):
             dynamic_attributes = {}
@@ -88,11 +88,11 @@ class CatalogImportQualityService:
 
     @staticmethod
     def alnum_len(value: Any) -> int:
-        """Process Alnum len."""
+        """Handle alnum len within the catalog import workflow."""
         return len(re.sub(r"[^0-9A-Za-z]", "", str(value or "")))
 
     def text_has_context(self, value: Any) -> bool:
-        """Process Text has context."""
+        """Handle text has context within the catalog import workflow."""
         text = str(value or "").strip()
         if not text:
             return False
@@ -106,7 +106,7 @@ class CatalogImportQualityService:
 
     @staticmethod
     def fold_ascii_text(value: Any) -> str:
-        """Process Fold ascii text."""
+        """Handle fold ascii text within the catalog import workflow."""
         folded = (
             unicodedata.normalize("NFKD", str(value or ""))
             .encode("ascii", errors="ignore")
@@ -117,14 +117,14 @@ class CatalogImportQualityService:
         return re.sub(r"\s+", " ", folded).strip()
 
     def text_looks_like_part_name(self, value: Any) -> bool:
-        """Process Text looks like part name."""
+        """Handle text looks like part name within the catalog import workflow."""
         text = self.fold_ascii_text(value)
         if not text:
             return False
         return any(keyword in text for keyword in self._PART_KEYWORDS)
 
     def text_looks_like_vehicle_application(self, value: Any) -> bool:
-        """Process Text looks like vehicle application."""
+        """Handle text looks like vehicle application within the catalog import workflow."""
         text = self.fold_ascii_text(value)
         if not text:
             return False
@@ -134,7 +134,7 @@ class CatalogImportQualityService:
         return (has_model or has_year) and not has_part
 
     def part_context_strength(self, value: Any) -> int:
-        """Process Part context strength."""
+        """Handle part context strength within the catalog import workflow."""
         text = self.fold_ascii_text(value)
         if not text or not self.text_looks_like_part_name(text):
             return 0
@@ -151,7 +151,7 @@ class CatalogImportQualityService:
 
     @staticmethod
     def text_looks_like_part_code(value: Any) -> bool:
-        """Process Text looks like part code."""
+        """Handle text looks like part code within the catalog import workflow."""
         text = str(value or "").strip()
         if not text:
             return False
@@ -191,7 +191,7 @@ class CatalogImportQualityService:
         return False
 
     def name_looks_like_annotation_header(self, value: Any) -> bool:
-        """Process Name looks like annotation header."""
+        """Handle name looks like annotation header within the catalog import workflow."""
         text = self.fold_ascii_text(value)
         if not text:
             return False
@@ -207,7 +207,7 @@ class CatalogImportQualityService:
         return False
 
     def name_looks_like_ocr_noise(self, value: Any) -> bool:
-        """Process Name looks like ocr noise."""
+        """Handle name looks like ocr noise within the catalog import workflow."""
         text = self.fold_ascii_text(value)
         if not text:
             return False
@@ -243,7 +243,7 @@ class CatalogImportQualityService:
 
     @staticmethod
     def _coerce_row(data: CatalogRow | Dict[str, Any]) -> Optional[CatalogRow]:
-        """Process Coerce row."""
+        """Handle coerce row within the catalog import workflow."""
         if isinstance(data, CatalogRow):
             return data
         if isinstance(data, dict):
@@ -251,7 +251,7 @@ class CatalogImportQualityService:
         return None
 
     def evaluate_product_row_quality(self, data: CatalogRow | Dict[str, Any]) -> Optional[str]:
-        """Process Evaluate product row quality."""
+        """Handle evaluate product row quality within the catalog import workflow."""
         row = self._coerce_row(data)
         if row is None:
             return "Linha descartada por baixa qualidade: formato invalido"
@@ -408,7 +408,7 @@ class CatalogImportQualityService:
         return None
 
     def score_product_row_quality(self, data: CatalogRow | Dict[str, Any]) -> int:
-        """Process Score product row quality."""
+        """Handle score product row quality within the catalog import workflow."""
         row = self._coerce_row(data)
         if row is None:
             return 0
@@ -469,7 +469,7 @@ class CatalogImportQualityService:
         self,
         data: CatalogRow | Dict[str, Any],
     ) -> Dict[str, Any]:
-        """Process Classify product row quality."""
+        """Handle classify product row quality within the catalog import workflow."""
         strict_reason = self.evaluate_product_row_quality(data)
         score = self.score_product_row_quality(data)
 

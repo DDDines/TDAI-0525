@@ -1,6 +1,8 @@
-"""Catalog import sanitization service.
+"""Catalog import sanitization primitives.
 
-Defines the module responsibilities and how it fits in the backend architecture.
+This module concentrates text normalization and record sanitation used before
+persisting catalog rows. The goal is to keep extraction noise-handling rules in
+one place so the import pipeline remains predictable and debuggable.
 """
 
 from __future__ import annotations
@@ -18,24 +20,24 @@ class CatalogImportSanitizationService:
     """Centraliza normalizacao/sanitizacao textual da importacao de catalogo."""
 
     def __init__(self, quality_service: CatalogImportQualityService) -> None:
-        """Initialize required dependencies and runtime configuration."""
+        """Inject quality heuristics used by sanitation fallback decisions."""
         self._quality = quality_service
 
     @staticmethod
     def _marker_count(candidate: str) -> int:
-        """Process Marker count."""
+        """Count mojibake markers to compare candidate decoding quality."""
         return sum(
             candidate.count(ch)
             for ch in ("\u00c3", "\u00c2", "\u00e2", "\u0192", "\ufffd")
         )
 
     def _looks_mojibake(self, candidate: str) -> bool:
-        """Process Looks mojibake."""
+        """Return True when text likely contains encoding corruption."""
         return self._marker_count(candidate) > 0 or "??" in candidate
 
     @staticmethod
     def _decode_maybe(candidate: str, source_encoding: str) -> str:
-        """Process Decode maybe."""
+        """Try round-trip decode from a source encoding into UTF-8 text."""
         try:
             return candidate.encode(source_encoding).decode("utf-8")
         except Exception:
@@ -179,7 +181,7 @@ class CatalogImportSanitizationService:
 
     @staticmethod
     def is_non_critical_import_reason(reason: str) -> bool:
-        """Process Is non critical import reason."""
+        """Classify known operational noise reasons that should not fail the import."""
         reason_norm = str(reason or "").strip().lower()
         if not reason_norm:
             return False

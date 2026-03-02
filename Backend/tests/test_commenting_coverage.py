@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import ast
+import re
 from pathlib import Path
 
 
@@ -16,6 +17,21 @@ SKIP_DIRS = {
     "migrations",
     "tests",
 }
+
+GENERIC_DOCSTRING_PATTERNS = (
+    re.compile(r"^Process\s", re.IGNORECASE),
+    re.compile(
+        r"^Initialize required dependencies and runtime configuration\.?$",
+        re.IGNORECASE,
+    ),
+    re.compile(
+        r"^Defines the module responsibilities and how it fits in the backend architecture\.?$",
+        re.IGNORECASE,
+    ),
+    re.compile(r"^Select plan\.?$", re.IGNORECASE),
+    re.compile(r"^Dispatch or run\.?$", re.IGNORECASE),
+    re.compile(r"^Run direct\.?$", re.IGNORECASE),
+)
 
 
 def _iter_backend_python_files():
@@ -59,6 +75,32 @@ def _public_defs_missing_docstring(source: str) -> list[str]:
             missing.add(node.name)
 
     return sorted(missing)
+
+
+def _generic_docstring_offenders() -> list[tuple[str, int, str]]:
+    """Return generic/placeholder-like docstrings that should be gradually eliminated."""
+    offenders: list[tuple[str, int, str]] = []
+
+    for path in _iter_backend_python_files():
+        source = _read_source(path)
+        tree = ast.parse(source)
+        rel = str(path.relative_to(PROJECT_ROOT))
+
+        for node in ast.walk(tree):
+            if not isinstance(
+                node, (ast.Module, ast.ClassDef, ast.FunctionDef, ast.AsyncFunctionDef)
+            ):
+                continue
+            docstring = ast.get_docstring(node)
+            if not docstring:
+                continue
+
+            normalized = " ".join(docstring.strip().split())
+            if any(pattern.match(normalized) for pattern in GENERIC_DOCSTRING_PATTERNS):
+                line = getattr(node, "lineno", 1)
+                offenders.append((rel, line, normalized))
+
+    return offenders
 
 
 def test_backend_modules_have_module_docstring():
@@ -137,4 +179,17 @@ def test_backend_docstrings_do_not_use_generic_boilerplate():
     assert not offenders, (
         "Generic docstring boilerplate found in Backend code:\n"
         + "\n".join(offenders)
+    )
+
+
+def test_backend_generic_docstring_count_does_not_regress():
+    """Keep reducing generic docstrings and block any regression in total count."""
+    offenders = _generic_docstring_offenders()
+    max_allowed = 668
+
+    assert len(offenders) <= max_allowed, (
+        "Generic docstring count regressed. "
+        f"Current={len(offenders)} exceeds allowed={max_allowed}.\n"
+        "Sample offenders:\n"
+        + "\n".join(f"{path}:{line} -> {doc}" for path, line, doc in offenders[:40])
     )

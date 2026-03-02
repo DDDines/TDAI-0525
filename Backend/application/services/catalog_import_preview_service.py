@@ -1,6 +1,7 @@
-"""Catalog import preview service.
+"""Catalog import preview orchestration.
 
-Defines the module responsibilities and how it fits in the backend architecture.
+Provides the read-only import preview flow: upload persistence, page preview,
+region extraction and single-page probing for PDF diagnostics.
 """
 
 from __future__ import annotations
@@ -28,7 +29,7 @@ class CatalogImportPreviewService:
         pdfplumber_module: Any,
         catalog_file_repository: Any,
     ) -> None:
-        """Initialize required dependencies and runtime configuration."""
+        """Inject collaborators required by preview endpoints."""
         self._models = models
         self._settings = settings
         self._file_processing_service = file_processing_service
@@ -40,7 +41,7 @@ class CatalogImportPreviewService:
     def _resolve_catalog_file_repo(
         self,
     ) -> Any:
-        """Process Resolve catalog file repo."""
+        """Return the catalog file repository dependency."""
         return self._catalog_file_repository
 
     async def importar_catalogo_preview(
@@ -291,7 +292,7 @@ class CatalogImportPreviewService:
         file_id: int,
         user_id: int,
     ) -> Any:
-        """Process Get record or 404."""
+        """Load a catalog file owned by the user or raise 404."""
         record = catalog_file_repo.get_catalog_file_for_user(
             file_id=file_id,
             user_id=user_id,
@@ -301,14 +302,14 @@ class CatalogImportPreviewService:
         return record
 
     def _build_catalog_path(self, record: Any) -> Path:
-        """Process Build catalog path."""
+        """Resolve the absolute storage path for a persisted catalog file."""
         return self._resolve_storage_path(
             Path(self._settings.UPLOAD_DIRECTORY) / "catalogs" / record.stored_filename
         )
 
     @staticmethod
     def _normalize_preview_row(row: Dict[str, Any]) -> Dict[str, Any]:
-        """Process Normalize preview row."""
+        """Normalize dataframe rows so JSON responses do not expose NaN values."""
         normalized: Dict[str, Any] = {}
         for key, value in row.items():
             if value is None:
@@ -327,7 +328,7 @@ class CatalogImportPreviewService:
         page: int,
         selected_bbox: List[float],
     ) -> List[Dict[str, str]]:
-        """Process Extract text rows."""
+        """Extract key/value style rows from a cropped PDF region text layer."""
         with self._pdfplumber.open(file_path) as pdf:
             target_page = pdf.pages[page - 1]
             cropped = target_page.crop(tuple(selected_bbox))
@@ -336,7 +337,7 @@ class CatalogImportPreviewService:
 
     @staticmethod
     def _parse_key_value_rows(raw_text: str) -> List[Dict[str, str]]:
-        """Process Parse key value rows."""
+        """Parse lines formatted as `key: value` into structured row dictionaries."""
         rows: List[Dict[str, str]] = []
         current: Dict[str, str] = {}
         aliases = {

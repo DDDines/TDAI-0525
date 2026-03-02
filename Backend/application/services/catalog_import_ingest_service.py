@@ -1,6 +1,6 @@
 """Catalog import ingest service.
 
-Defines the module responsibilities and how it fits in the backend architecture.
+Contains cohesive services used by the catalog import pipeline.
 """
 
 from __future__ import annotations
@@ -31,7 +31,7 @@ class CatalogImportIngestService:
         uso_ia_repo: Any,
         historico_repo: Any,
     ) -> None:
-        """Initialize required dependencies and runtime configuration."""
+        """Initialize dependencies used by this component."""
         self._schemas = schemas
         self._models = models
         self._fornecedor_repo = fornecedor_repo
@@ -53,7 +53,7 @@ class CatalogImportIngestService:
         erros: List[Dict[str, Any]],
         ignored_non_critical: List[Dict[str, Any]],
     ) -> None:
-        """Process Append import issue."""
+        """Handle append import issue within the catalog import workflow."""
         normalized_item = self._normalize_import_issue_item(item)
         reason = self._extract_import_error_reason(normalized_item)
         if self._is_non_critical_import_reason(reason):
@@ -67,7 +67,7 @@ class CatalogImportIngestService:
         item: Dict[str, Any],
         quarantine_non_critical: List[Dict[str, Any]],
     ) -> None:
-        """Process Append quarantine issue."""
+        """Handle append quarantine issue within the catalog import workflow."""
         normalized_item = self._normalize_import_issue_item(item)
         quarantine_non_critical.append(normalized_item)
 
@@ -223,7 +223,7 @@ class CatalogImportIngestService:
         mapeamento_colunas_usuario: Optional[str],
         fornecedor_repo: Any,
     ) -> Optional[Dict[str, Any]]:
-        """Process Resolve mapping."""
+        """Handle resolve mapping within the catalog import workflow."""
         mapping_dict = None
         if mapeamento_colunas_usuario:
             try:
@@ -248,7 +248,7 @@ class CatalogImportIngestService:
         ext: str,
         mapping_dict: Optional[Dict[str, Any]],
     ) -> List[Dict[str, Any]]:
-        """Process Process file by extension."""
+        """Handle process file by extension within the catalog import workflow."""
         if ext in [".xlsx", ".xls"]:
             return await self._file_processing_service.processar_arquivo_excel(
                 content,
