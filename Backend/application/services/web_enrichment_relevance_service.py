@@ -80,7 +80,7 @@ class WebEnrichmentRelevanceService:
         return [t for t in base.split(" ") if len(t) >= 3 and t not in self._RELEVANCE_STOPWORDS]
 
     @staticmethod
-    def extract_code_tokens(*values: Any) -> List[str]:
+    def extract_code_tokens(values: List[Any]) -> List[str]:
         """Extract code tokens for this workflow."""
         combined = " ".join(str(v or "") for v in values)
         upper = (
@@ -128,7 +128,7 @@ class WebEnrichmentRelevanceService:
         src_tokens = set(self.tokens_for_relevance(source_text))
         overlap = [t for t in ref_tokens if t in src_tokens]
 
-        code_tokens = self.extract_code_tokens(*ref_parts)
+        code_tokens = self.extract_code_tokens(ref_parts)
         src_compact = re.sub(r"[^A-Z0-9]", "", str(source_text).upper())
         code_hit = any(re.sub(r"[^A-Z0-9]", "", token) in src_compact for token in code_tokens)
 

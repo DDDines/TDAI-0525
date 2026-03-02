@@ -53,16 +53,26 @@ class CatalogImportProcessingUseCase:
             region=region,
         )
 
-    async def execute(self, **task_kwargs: Any) -> Any:
+    async def execute(
+        self,
+        *,
+        file_id: Any,
+        user_id: Any,
+        product_type_id: Any,
+        fornecedor_id: Any,
+        mapping: Any = None,
+        pages: Any = None,
+        region: Any = None,
+    ) -> Any:
         """Run execute in this workflow."""
         command = CatalogImportFinalizeCommand(
-            file_id=task_kwargs.get("file_id"),
-            user_id=task_kwargs.get("user_id"),
-            product_type_id=task_kwargs.get("product_type_id"),
-            fornecedor_id=task_kwargs.get("fornecedor_id"),
-            mapping=task_kwargs.get("mapping"),
-            pages=task_kwargs.get("pages"),
-            region=task_kwargs.get("region"),
+            file_id=file_id,
+            user_id=user_id,
+            product_type_id=product_type_id,
+            fornecedor_id=fornecedor_id,
+            mapping=mapping,
+            pages=pages,
+            region=region,
         )
         return await self.execute_command(
             command=command,

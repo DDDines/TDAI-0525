@@ -24,16 +24,26 @@ class OOPCatalogImportExecutor:
         """Initialize collaborators and configuration required by this component."""
         self._use_case = use_case
 
-    async def __call__(self, **task_kwargs: Any) -> Any:
+    async def __call__(
+        self,
+        *,
+        file_id: int,
+        user_id: int,
+        product_type_id: Optional[int],
+        fornecedor_id: int,
+        mapping: Optional[Dict[str, str]] = None,
+        pages: Optional[List[int]] = None,
+        region: Optional[List[float]] = None,
+    ) -> Any:
         """Run call in this workflow."""
         command = CatalogImportFinalizeCommand(
-            file_id=task_kwargs.get("file_id"),
-            user_id=task_kwargs.get("user_id"),
-            product_type_id=task_kwargs.get("product_type_id"),
-            fornecedor_id=task_kwargs.get("fornecedor_id"),
-            mapping=task_kwargs.get("mapping"),
-            pages=task_kwargs.get("pages"),
-            region=task_kwargs.get("region"),
+            file_id=file_id,
+            user_id=user_id,
+            product_type_id=product_type_id,
+            fornecedor_id=fornecedor_id,
+            mapping=mapping,
+            pages=pages,
+            region=region,
         )
         return await self._use_case.execute_command(
             command=command,

@@ -39,12 +39,18 @@ class WebEnrichmentProcessingUseCase:
             termos_busca_override=termos_busca_override,
         )
 
-    async def execute(self, **task_kwargs: Any) -> Any:
+    async def execute(
+        self,
+        *,
+        produto_id: Any,
+        user_id: Any,
+        termos_busca_override: Any = None,
+    ) -> Any:
         """Run execute in this workflow."""
         command = WebEnrichmentStartCommand(
-            produto_id=task_kwargs.get("produto_id"),
-            user_id=task_kwargs.get("user_id"),
-            termos_busca_override=task_kwargs.get("termos_busca_override"),
+            produto_id=produto_id,
+            user_id=user_id,
+            termos_busca_override=termos_busca_override,
         )
         return await self.execute_command(
             command=command,

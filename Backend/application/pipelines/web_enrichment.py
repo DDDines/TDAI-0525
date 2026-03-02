@@ -24,12 +24,18 @@ class OOPWebEnrichmentExecutor:
         """Initialize collaborators and configuration required by this component."""
         self._use_case = use_case
 
-    async def __call__(self, **task_kwargs: Any) -> Any:
+    async def __call__(
+        self,
+        *,
+        produto_id: int,
+        user_id: int,
+        termos_busca_override: Optional[str] = None,
+    ) -> Any:
         """Run call in this workflow."""
         command = WebEnrichmentStartCommand(
-            produto_id=task_kwargs.get("produto_id"),
-            user_id=task_kwargs.get("user_id"),
-            termos_busca_override=task_kwargs.get("termos_busca_override"),
+            produto_id=produto_id,
+            user_id=user_id,
+            termos_busca_override=termos_busca_override,
         )
         return await self._use_case.execute_command(
             command=command,

@@ -31,9 +31,11 @@ class _TopLevelFunctionSurface:
     def test_extract_code_tokens_returns_structured_codes():
         """Run test extract code tokens returns structured codes in this workflow."""
         tokens = WebEnrichmentRelevanceService.extract_code_tokens(
-            "SKU TJG809201A",
-            "codigo 2C456840300BB",
-            "texto generico",
+            [
+                "SKU TJG809201A",
+                "codigo 2C456840300BB",
+                "texto generico",
+            ]
         )
     
         assert "TJG809201A" in tokens

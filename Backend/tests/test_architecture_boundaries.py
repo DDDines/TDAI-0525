@@ -1490,6 +1490,54 @@ class _TopLevelFunctionSurface:
             "use injected repository/service."
         )
 
+    def test_backend_production_code_has_no_db_session_factory_term():
+        """Run test backend production code has no db session factory term in this workflow."""
+        offenders: list[str] = []
+        excluded_roots = (
+            BACKEND_TESTS_ROOT.resolve(),
+            (BACKEND_ROOT / "migrations").resolve(),
+        )
+
+        for path in _iter_python_files(BACKEND_ROOT):
+            resolved = path.resolve()
+            if any(str(resolved).startswith(str(root)) for root in excluded_roots):
+                continue
+            source = path.read_text(encoding="utf-8-sig")
+            if "db_session_factory" in source:
+                offenders.append(str(path.relative_to(PROJECT_ROOT)))
+
+        assert not offenders, (
+            "Production backend code must use OO session providers "
+            "(no db_session_factory term):\n" + "\n".join(offenders)
+        )
+
+    def test_backend_production_code_has_no_varargs_signatures():
+        """Run test backend production code has no varargs signatures in this workflow."""
+        offenders: list[str] = []
+        excluded_roots = (
+            BACKEND_TESTS_ROOT.resolve(),
+            (BACKEND_ROOT / "migrations").resolve(),
+        )
+
+        for path in _iter_python_files(BACKEND_ROOT):
+            resolved = path.resolve()
+            if any(str(resolved).startswith(str(root)) for root in excluded_roots):
+                continue
+            tree = _parse_python_file(path)
+            rel = path.relative_to(PROJECT_ROOT)
+            for node in ast.walk(tree):
+                if not isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
+                    continue
+                if node.args.vararg is not None:
+                    offenders.append(f"{rel}:{node.lineno} -> *{node.args.vararg.arg}")
+                if node.args.kwarg is not None:
+                    offenders.append(f"{rel}:{node.lineno} -> **{node.args.kwarg.arg}")
+
+        assert not offenders, (
+            "Production backend code must expose explicit signatures "
+            "(no *args/**kwargs):\n" + "\n".join(offenders)
+        )
+
     def test_tests_do_not_import_private_backend_symbols():
         """Run test tests do not import private backend symbols in this workflow."""
         offenders: list[str] = []
@@ -1621,6 +1669,8 @@ test_limit_runtime_module_has_no_typeerror_signature_fallbacks = _TopLevelFuncti
 test_ia_and_limit_services_require_explicit_port_dependency = _TopLevelFunctionSurface.test_ia_and_limit_services_require_explicit_port_dependency
 test_tasks_module_has_no_procedural_sqlalchemy_runtime_construction = _TopLevelFunctionSurface.test_tasks_module_has_no_procedural_sqlalchemy_runtime_construction
 test_file_processing_runtime_has_no_direct_catalog_import_file_query = _TopLevelFunctionSurface.test_file_processing_runtime_has_no_direct_catalog_import_file_query
+test_backend_production_code_has_no_db_session_factory_term = _TopLevelFunctionSurface.test_backend_production_code_has_no_db_session_factory_term
+test_backend_production_code_has_no_varargs_signatures = _TopLevelFunctionSurface.test_backend_production_code_has_no_varargs_signatures
 test_tests_do_not_import_private_backend_symbols = _TopLevelFunctionSurface.test_tests_do_not_import_private_backend_symbols
 test_produtos_core_endpoints_do_not_receive_db_session_directly = _TopLevelFunctionSurface.test_produtos_core_endpoints_do_not_receive_db_session_directly
 

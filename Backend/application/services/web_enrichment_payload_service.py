@@ -260,18 +260,18 @@ class WebEnrichmentPayloadService:
         ignored_notes: List[str] = []
 
         nome_web = self._normalization.as_text(
-            self._normalization.first_non_empty(
+            self._normalization.first_non_empty([
                 dados_extraidos_agregados.get("nome_sugerido_seo"),
                 dados_extraidos_agregados.get("nome"),
-            ),
+            ]),
             max_len=255,
         )
         descricao_web = self._normalization.as_text(
-            self._normalization.first_non_empty(
+            self._normalization.first_non_empty([
                 dados_extraidos_agregados.get("descricao_detalhada_seo"),
                 dados_extraidos_agregados.get("descricao_curta"),
                 dados_extraidos_agregados.get("texto_relevante_coletado"),
-            ),
+            ]),
             max_len=10000,
         )
         imagem_url_web = self._normalization.as_text(
@@ -299,11 +299,11 @@ class WebEnrichmentPayloadService:
                 dados_extraidos_agregados[key] = value
 
         codigo_original_web = self._normalization.sanitize_code_value(
-            self._normalization.first_non_empty(
+            self._normalization.first_non_empty([
                 dados_extraidos_agregados.get("codigo_original"),
                 dados_extraidos_agregados.get("sku_original"),
                 sku_web,
-            )
+            ])
         )
         if (
             codigo_original_web

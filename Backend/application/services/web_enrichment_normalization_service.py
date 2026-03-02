@@ -5,7 +5,7 @@ Contains backend logic related to web enrichment normalization service and docum
 
 from __future__ import annotations
 
-from typing import Any, Dict, Optional
+from typing import Any, Dict, List, Optional
 import re
 import unicodedata
 
@@ -150,7 +150,7 @@ class WebEnrichmentNormalizationService:
             return None
         return text[:max_len] if len(text) > max_len else text
 
-    def first_non_empty(self, *values: Any) -> Optional[Any]:
+    def first_non_empty(self, values: List[Any]) -> Optional[Any]:
         """Run first non empty in this workflow."""
         for value in values:
             if not self.is_empty(value):
