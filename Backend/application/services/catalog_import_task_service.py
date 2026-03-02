@@ -26,8 +26,8 @@ class CatalogImportTaskRuntime:
         "catalog_logger",
         "models",
         "schemas",
-        "product_repository",
-        "catalog_file_repository",
+        "product_repository_factory",
+        "catalog_file_repository_factory",
         "file_processing_service",
         "validator_crew",
         "settings",
@@ -53,8 +53,8 @@ class CatalogImportTaskRuntime:
         catalog_logger,
         models,
         schemas,
-        product_repository,
-        catalog_file_repository,
+        product_repository_factory,
+        catalog_file_repository_factory,
         file_processing_service,
         validator_crew,
         settings,
@@ -76,8 +76,8 @@ class CatalogImportTaskRuntime:
         self.catalog_logger = catalog_logger
         self.models = models
         self.schemas = schemas
-        self.product_repository = product_repository
-        self.catalog_file_repository = catalog_file_repository
+        self.product_repository_factory = product_repository_factory
+        self.catalog_file_repository_factory = catalog_file_repository_factory
         self.file_processing_service = file_processing_service
         self.validator_crew = validator_crew
         self.settings = settings
@@ -112,8 +112,8 @@ class CatalogImportTaskWorkflow:
         catalog_logger,
         models,
         schemas,
-        product_repository,
-        catalog_file_repository,
+        product_repository_factory,
+        catalog_file_repository_factory,
         file_processing_service,
         validator_crew,
         settings,
@@ -138,8 +138,8 @@ class CatalogImportTaskWorkflow:
             catalog_logger=catalog_logger,
             models=models,
             schemas=schemas,
-            product_repository=product_repository,
-            catalog_file_repository=catalog_file_repository,
+            product_repository_factory=product_repository_factory,
+            catalog_file_repository_factory=catalog_file_repository_factory,
             file_processing_service=file_processing_service,
             validator_crew=validator_crew,
             settings=settings,
@@ -165,8 +165,10 @@ class CatalogImportTaskWorkflow:
         self.catalog_logger = runtime_obj.catalog_logger
         self.models = runtime_obj.models
         self.schemas = runtime_obj.schemas
-        self.product_repository = runtime_obj.product_repository
-        self.catalog_file_repository = runtime_obj.catalog_file_repository
+        self.product_repository_factory = runtime_obj.product_repository_factory
+        self.catalog_file_repository_factory = (
+            runtime_obj.catalog_file_repository_factory
+        )
         self.file_processing_service = runtime_obj.file_processing_service
         self.validator_crew = runtime_obj.validator_crew
         self.settings = runtime_obj.settings
@@ -212,14 +214,13 @@ class CatalogImportTaskWorkflow:
         self.catalog_file_repo_runtime: Any | None = None
         self.product_repo_runtime: Any | None = None
 
-    @staticmethod
-    def _resolve_repository_runtime(repository_provider: Any, session: Session) -> Any:
-        """Run resolve repository runtime in this workflow."""
-        if repository_provider is None:
-            raise ValueError("repository provider is required")
-        if callable(repository_provider):
-            return repository_provider(session)
-        return repository_provider
+    def _build_catalog_file_repository(self, *, session: Session) -> Any:
+        """Instantiate catalog file repository using the injected factory."""
+        return self.catalog_file_repository_factory(session)
+
+    def _build_product_repository(self, *, session: Session) -> Any:
+        """Instantiate product repository using the injected factory."""
+        return self.product_repository_factory(session)
 
     def _load_catalog_file(self) -> bool:
         """Run load catalog file in this workflow."""
@@ -564,16 +565,14 @@ class CatalogImportTaskWorkflow:
         if self._session_provider is None:
             raise ValueError("session_provider is required for CatalogImportTaskWorkflow")
         self.db = self._session_provider.open_session()
-        self.catalog_file_repo_runtime = self._resolve_repository_runtime(
-            self.catalog_file_repository,
-            self.db,
+        self.catalog_file_repo_runtime = self._build_catalog_file_repository(
+            session=self.db,
         )
         self.file_state_service = CatalogImportFileStateService(
             catalog_file_repository=self.catalog_file_repo_runtime
         )
-        self.product_repo_runtime = self._resolve_repository_runtime(
-            self.product_repository,
-            self.db,
+        self.product_repo_runtime = self._build_product_repository(
+            session=self.db,
         )
         self.file_id = file_id
         self.user_id = user_id
@@ -617,8 +616,8 @@ class CatalogImportTaskService:
         catalog_logger,
         models,
         schemas,
-        product_repository,
-        catalog_file_repository,
+        product_repository_factory,
+        catalog_file_repository_factory,
         file_processing_service,
         validator_crew,
         settings,
@@ -642,8 +641,8 @@ class CatalogImportTaskService:
             "catalog_logger": catalog_logger,
             "models": models,
             "schemas": schemas,
-            "product_repository": product_repository,
-            "catalog_file_repository": catalog_file_repository,
+            "product_repository_factory": product_repository_factory,
+            "catalog_file_repository_factory": catalog_file_repository_factory,
             "file_processing_service": file_processing_service,
             "validator_crew": validator_crew,
             "settings": settings,

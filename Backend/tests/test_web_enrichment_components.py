@@ -141,7 +141,7 @@ class _TopLevelFunctionSurface:
                 ["marca"],
             ),
             schemas=_FakeSchemas,
-            product_repository=crud_produtos,
+            product_repository_factory=lambda _session: crud_produtos,
             models=_FakeModels,
         )
         db_obj = object()

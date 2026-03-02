@@ -1511,6 +1511,25 @@ class _TopLevelFunctionSurface:
             "(no db_session_factory term):\n" + "\n".join(offenders)
         )
 
+    def test_application_services_do_not_use_dynamic_callable_repo_resolution():
+        """Run test application services do not use dynamic callable repo resolution in this workflow."""
+        offenders: list[str] = []
+        target_files = (
+            APPLICATION_SERVICES_ROOT / "catalog_import_task_service.py",
+            APPLICATION_SERVICES_ROOT / "web_enrichment_task_service.py",
+            APPLICATION_SERVICES_ROOT / "web_enrichment_components.py",
+        )
+
+        for path in target_files:
+            source = path.read_text(encoding="utf-8-sig")
+            if "if callable(" in source:
+                offenders.append(str(path.relative_to(PROJECT_ROOT)))
+
+        assert not offenders, (
+            "Application task/enrichment flows must use explicit repository factories "
+            "(no dynamic `if callable(...)` fallback):\n" + "\n".join(offenders)
+        )
+
     def test_backend_production_code_has_no_varargs_signatures():
         """Run test backend production code has no varargs signatures in this workflow."""
         offenders: list[str] = []
@@ -1670,6 +1689,7 @@ test_ia_and_limit_services_require_explicit_port_dependency = _TopLevelFunctionS
 test_tasks_module_has_no_procedural_sqlalchemy_runtime_construction = _TopLevelFunctionSurface.test_tasks_module_has_no_procedural_sqlalchemy_runtime_construction
 test_file_processing_runtime_has_no_direct_catalog_import_file_query = _TopLevelFunctionSurface.test_file_processing_runtime_has_no_direct_catalog_import_file_query
 test_backend_production_code_has_no_db_session_factory_term = _TopLevelFunctionSurface.test_backend_production_code_has_no_db_session_factory_term
+test_application_services_do_not_use_dynamic_callable_repo_resolution = _TopLevelFunctionSurface.test_application_services_do_not_use_dynamic_callable_repo_resolution
 test_backend_production_code_has_no_varargs_signatures = _TopLevelFunctionSurface.test_backend_production_code_has_no_varargs_signatures
 test_tests_do_not_import_private_backend_symbols = _TopLevelFunctionSurface.test_tests_do_not_import_private_backend_symbols
 test_produtos_core_endpoints_do_not_receive_db_session_directly = _TopLevelFunctionSurface.test_produtos_core_endpoints_do_not_receive_db_session_directly

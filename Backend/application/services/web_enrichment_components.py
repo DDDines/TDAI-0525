@@ -232,13 +232,13 @@ class WebEnrichmentFinalizationService:
         build_payload_enriquecimento_visivel: Any,
         schemas: Any,
         models: Any,
-        product_repository: Any,
+        product_repository_factory: Any,
     ) -> None:
         """Initialize collaborators and configuration required by this component."""
         self._normalize_human_text = normalize_human_text
         self._build_payload_enriquecimento_visivel = build_payload_enriquecimento_visivel
         self._schemas = schemas
-        self._product_repository = product_repository
+        self._product_repository_factory = product_repository_factory
         self._models = models
 
     def apply(
@@ -337,7 +337,7 @@ class WebEnrichmentFinalizationService:
                 "resumo_aplicacao": resumo_aplicacao,
             },
         )
-        product_repo = self._resolve_product_repository(db=db)
+        product_repo = self._product_repository_factory(db)
         product_repo.update_produto(
             db_produto=db_produto_obj,
             produto_update=payload_final_update,
@@ -346,11 +346,3 @@ class WebEnrichmentFinalizationService:
             f"Produto ID {db_produto_obj.id} FINALMENTE atualizado com status: {status_valor_str}."
         )
         return status_para_salvar_no_final
-
-    def _resolve_product_repository(self, *, db: Any) -> Any:
-        """Run resolve product repository in this workflow."""
-        if self._product_repository is None:
-            raise ValueError("product_repository is required")
-        if callable(self._product_repository):
-            return self._product_repository(db)
-        return self._product_repository

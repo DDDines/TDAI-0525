@@ -22,9 +22,9 @@ class WebEnrichmentTaskRuntime:
     RUNTIME_FIELDS = (
         "logger",
         "SQLAlchemyError",
-        "user_repository",
-        "product_repository",
-        "usage_repository",
+        "user_repository_factory",
+        "product_repository_factory",
+        "usage_repository_factory",
         "models",
         "schemas",
         "web_extractor",
@@ -44,9 +44,9 @@ class WebEnrichmentTaskRuntime:
         *,
         logger,
         SQLAlchemyError,
-        user_repository,
-        product_repository,
-        usage_repository,
+        user_repository_factory,
+        product_repository_factory,
+        usage_repository_factory,
         models,
         schemas,
         web_extractor,
@@ -63,9 +63,9 @@ class WebEnrichmentTaskRuntime:
         """Initialize collaborators and configuration required by this component."""
         self.logger = logger
         self.SQLAlchemyError = SQLAlchemyError
-        self.user_repository = user_repository
-        self.product_repository = product_repository
-        self.usage_repository = usage_repository
+        self.user_repository_factory = user_repository_factory
+        self.product_repository_factory = product_repository_factory
+        self.usage_repository_factory = usage_repository_factory
         self.models = models
         self.schemas = schemas
         self.web_extractor = web_extractor
@@ -95,9 +95,9 @@ class WebEnrichmentTaskWorkflow:
         logger,
         SQLAlchemyError,
         session_provider: SessionProviderPort,
-        user_repository,
-        product_repository,
-        usage_repository,
+        user_repository_factory,
+        product_repository_factory,
+        usage_repository_factory,
         models,
         schemas,
         web_extractor,
@@ -116,9 +116,9 @@ class WebEnrichmentTaskWorkflow:
         runtime_obj = WebEnrichmentTaskRuntime(
             logger=logger,
             SQLAlchemyError=SQLAlchemyError,
-            user_repository=user_repository,
-            product_repository=product_repository,
-            usage_repository=usage_repository,
+            user_repository_factory=user_repository_factory,
+            product_repository_factory=product_repository_factory,
+            usage_repository_factory=usage_repository_factory,
             models=models,
             schemas=schemas,
             web_extractor=web_extractor,
@@ -139,9 +139,9 @@ class WebEnrichmentTaskWorkflow:
         self._session_provider = session_provider
         self.logger = runtime_obj.logger
         self.SQLAlchemyError = runtime_obj.SQLAlchemyError
-        self.user_repository = runtime_obj.user_repository
-        self.product_repository = runtime_obj.product_repository
-        self.usage_repository = runtime_obj.usage_repository
+        self.user_repository_factory = runtime_obj.user_repository_factory
+        self.product_repository_factory = runtime_obj.product_repository_factory
+        self.usage_repository_factory = runtime_obj.usage_repository_factory
         self.models = runtime_obj.models
         self.schemas = runtime_obj.schemas
         self.web_extractor = runtime_obj.web_extractor
@@ -161,22 +161,25 @@ class WebEnrichmentTaskWorkflow:
             normalize_human_text=runtime_obj.normalize_human_text,
             build_payload_enriquecimento_visivel=runtime_obj.build_payload_enriquecimento_visivel,
             schemas=runtime_obj.schemas,
-            product_repository=runtime_obj.product_repository,
+            product_repository_factory=runtime_obj.product_repository_factory,
             models=runtime_obj.models,
         )
 
-    @staticmethod
-    def _resolve_repo(repo_or_cls: Any, session: Session) -> Any:
-        """Run resolve repo in this workflow."""
-        if repo_or_cls is None:
-            raise ValueError("repository provider is required")
-        if callable(repo_or_cls):
-            return repo_or_cls(session)
-        return repo_or_cls
+    def _build_user_repository(self, *, session: Session) -> Any:
+        """Instantiate user repository using the injected factory."""
+        return self.user_repository_factory(session)
+
+    def _build_product_repository(self, *, session: Session) -> Any:
+        """Instantiate product repository using the injected factory."""
+        return self.product_repository_factory(session)
+
+    def _build_usage_repository(self, *, session: Session) -> Any:
+        """Instantiate usage repository using the injected factory."""
+        return self.usage_repository_factory(session)
 
     def _load_locked_product(self, session: Session, produto_id: int):
         """Run load locked product in this workflow."""
-        product_repo = self._resolve_repo(self.product_repository, session)
+        product_repo = self._build_product_repository(session=session)
         try:
             return product_repo.get_produto_for_update(produto_id=produto_id)
         except AttributeError:
@@ -191,7 +194,7 @@ class WebEnrichmentTaskWorkflow:
         resposta: str,
     ) -> None:
         """Run register config failure in this workflow."""
-        usage_repo = self._resolve_repo(self.usage_repository, session)
+        usage_repo = self._build_usage_repository(session=session)
         usage_repo.create_registro_uso_ia(
             registro_uso=self.schemas.RegistroUsoIACreate(
                 user_id=user_id,
@@ -467,7 +470,7 @@ class WebEnrichmentTaskWorkflow:
             dados_extraidos_agregados = db_produto_obj.dados_brutos_web.copy()
 
         try:
-            user_repo = self._resolve_repo(self.user_repository, db)
+            user_repo = self._build_user_repository(session=db)
             user = user_repo.get_user(user_id=user_id)
             if not user:
                 log_mensagens.append(f"ERRO FATAL: Usuario ID {user_id} nao encontrado.")
@@ -655,18 +658,18 @@ class WebEnrichmentTaskService:
         is_meaningful_extracted_text,
         metadata_has_minimum_signal,
         is_source_relevant_for_product,
-        user_repository,
-        product_repository,
-        usage_repository,
+        user_repository_factory,
+        product_repository_factory,
+        usage_repository_factory,
     ):
         """Initialize collaborators and configuration required by this component."""
         self._deps = {
             "logger": logger,
             "SQLAlchemyError": SQLAlchemyError,
             "session_provider": session_provider,
-            "user_repository": user_repository,
-            "product_repository": product_repository,
-            "usage_repository": usage_repository,
+            "user_repository_factory": user_repository_factory,
+            "product_repository_factory": product_repository_factory,
+            "usage_repository_factory": usage_repository_factory,
             "models": models,
             "schemas": schemas,
             "web_extractor": web_extractor,

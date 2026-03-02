@@ -38,8 +38,8 @@ class CatalogImportTaskRunner:
         classificar_qualidade_linha_produto: Any,
         write_catalog_import_report: Any,
         normalize_import_text: Any,
-        product_repository: Any,
-        catalog_file_repository: Any,
+        product_repository_factory: Any,
+        catalog_file_repository_factory: Any,
     ) -> None:
         """Initialize collaborators and configuration required by this component."""
         self._kwargs = {
@@ -48,8 +48,8 @@ class CatalogImportTaskRunner:
             "catalog_logger": catalog_logger,
             "models": models,
             "schemas": schemas,
-            "product_repository": product_repository,
-            "catalog_file_repository": catalog_file_repository,
+            "product_repository_factory": product_repository_factory,
+            "catalog_file_repository_factory": catalog_file_repository_factory,
             "validator_crew": validator_crew,
             "settings": settings,
             "Path": path_cls,
