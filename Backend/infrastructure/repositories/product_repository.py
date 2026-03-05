@@ -256,7 +256,7 @@ class ProductRepository:
         log_message: Optional[str] = None,
     ) -> Optional[Produto]:
         """Persist web enrichment status updates for a product."""
-        produto = self.get_produto_for_update(produto_id=produto_id)
+        produto = self.get_produto(produto_id=produto_id)
         if produto is None:
             return None
 

@@ -148,6 +148,7 @@ function ProductEditModal(
     const { isAuthenticated: _isAuthenticated } = useAuth();
     const { effectiveMode } = useAppExperience();
     const showAiFeatures = typeof showAiFeaturesProp === 'boolean' ? showAiFeaturesProp : effectiveMode === 'complete';
+    const showGenerationFeatures = true;
 
     const [formData, setFormData] = useState(initialFormData);
     const [activeTab, setActiveTab] = useState('info');
@@ -254,10 +255,14 @@ function ProductEditModal(
     }, [isOpen]);
 
     useEffect(() => {
-      if (!showAiFeatures && (activeTab === 'conteudo-ia' || activeTab === 'sugestoes-ia')) {
+      if (!showGenerationFeatures && activeTab === 'conteudo-ia') {
+        setActiveTab('info');
+        return;
+      }
+      if (!showAiFeatures && activeTab === 'sugestoes-ia') {
         setActiveTab('info');
       }
-    }, [activeTab, showAiFeatures]);
+    }, [activeTab, showAiFeatures, showGenerationFeatures]);
 
     const extractIaSuggestions = useCallback((dadosBrutos) => {
       const extracted = {};
@@ -526,41 +531,57 @@ function ProductEditModal(
       return null;
     };
 
+
     const _handleEnrichWeb = async () => {
       if (!product?.id) {
         showWarningToast("Salve o produto primeiro antes de enriquecer a web.");
         return;
       }
+      const productId = product.id;
       const runId = Date.now();
       enrichmentPollRunRef.current = runId;
       setIsEnrichingWeb(true);
       setError(null);
-      showInfoToast("Processo de enriquecimento web iniciado. Isso pode levar alguns minutos e atualizará o log e as sugestões.");
+      showInfoToast("Processo de enriquecimento web iniciado. Isso pode levar alguns minutos e atualizar o log e as sugestoes.");
       try {
-        await productService.iniciarEnriquecimentoWebProduto(product.id);
-        showSuccessToast("Comando de enriquecimento enviado. Aguardando atualização do produto.");
-        const refreshed = await pollEnrichmentUntilTerminal(product.id, runId);
+        await productService.iniciarEnriquecimentoWebProduto(productId);
         if (enrichmentPollRunRef.current !== runId) return;
 
-        if (!refreshed) {
-          showWarningToast(
-            "O enriquecimento continua em segundo plano. Reabra o produto em instantes para ver o resultado final."
-          );
-          return;
-        }
+        setFormData((prev) => ({
+          ...prev,
+          status_enriquecimento_web: 'PENDENTE',
+        }));
+        showSuccessToast("Comando de enriquecimento enviado. Atualizando status do produto em segundo plano.");
 
-        const summary = refreshed?.log_enriquecimento_web?.resumo_aplicacao || {};
-        const appliedTotal = Number(summary?.aplicados_total || 0);
-        const ignoredTotal = Number(summary?.ignorados_total || 0);
-        const statusFinal = String(refreshed?.status_enriquecimento_web || '').toUpperCase();
+        void (async () => {
+          try {
+            const refreshed = await pollEnrichmentUntilTerminal(productId, runId);
+            if (enrichmentPollRunRef.current !== runId) return;
 
-        if (statusFinal === 'CONCLUIDO_SUCESSO' || statusFinal === 'CONCLUIDO_COM_DADOS_PARCIAIS') {
-          showSuccessToast(
-            `Enriquecimento finalizado (${statusFinal}). Aplicados: ${appliedTotal}. Ignorados: ${ignoredTotal}.`
-          );
-        } else if (statusFinal) {
-          showWarningToast(`Enriquecimento finalizado com status ${statusFinal}.`);
-        }
+            if (!refreshed) {
+              showWarningToast(
+                "O enriquecimento continua em segundo plano. Reabra o produto em instantes para ver o resultado final."
+              );
+              return;
+            }
+
+            const summary = refreshed?.log_enriquecimento_web?.resumo_aplicacao || {};
+            const appliedTotal = Number(summary?.aplicados_total || 0);
+            const ignoredTotal = Number(summary?.ignorados_total || 0);
+            const statusFinal = String(refreshed?.status_enriquecimento_web || '').toUpperCase();
+
+            if (statusFinal === 'CONCLUIDO_SUCESSO' || statusFinal === 'CONCLUIDO_COM_DADOS_PARCIAIS') {
+              showSuccessToast(
+                `Enriquecimento finalizado (${statusFinal}). Aplicados: ${appliedTotal}. Ignorados: ${ignoredTotal}.`
+              );
+            } else if (statusFinal) {
+              showWarningToast(`Enriquecimento finalizado com status ${statusFinal}.`);
+            }
+          } catch (pollErr) {
+            if (enrichmentPollRunRef.current !== runId) return;
+            console.warn('Falha ao acompanhar status de enriquecimento web:', pollErr);
+          }
+        })();
       } catch (err) {
         const errorDetail = resolveErrorDetail(err, "Erro ao iniciar enriquecimento web.");
         setError(errorDetail);
@@ -571,6 +592,7 @@ function ProductEditModal(
         }
       }
     };
+
 
     const handleFetchGeminiSuggestions = async () => {
       if (!product?.id) {
@@ -655,8 +677,13 @@ function ProductEditModal(
       }
       setIsGeneratingIA(true);
       try {
-        await productService.gerarTitulosProduto(product.id);
-        showInfoToast("Geração de títulos iniciada. Verifique em breve.");
+        if (showAiFeatures) {
+          await productService.gerarTitulosProduto(product.id);
+          showInfoToast("Geração de títulos iniciada. Verifique em breve.");
+        } else {
+          await productService.gerarTitulosProdutoModoBasico(product.id);
+          showInfoToast("Títulos gerados no modo básico.");
+        }
         if (titleRefreshTimeoutRef.current) {
           clearTimeout(titleRefreshTimeoutRef.current);
         }
@@ -695,8 +722,13 @@ function ProductEditModal(
       }
       setIsGeneratingIA(true);
       try {
-        await productService.gerarDescricaoProduto(product.id);
-        showInfoToast("Geração de descrição iniciada. Verifique em breve.");
+        if (showAiFeatures) {
+          await productService.gerarDescricaoProduto(product.id);
+          showInfoToast("Geração de descrição iniciada. Verifique em breve.");
+        } else {
+          await productService.gerarDescricaoProdutoModoBasico(product.id);
+          showInfoToast("Descrição gerada no modo básico.");
+        }
         if (descriptionRefreshTimeoutRef.current) {
           clearTimeout(descriptionRefreshTimeoutRef.current);
         }
@@ -801,9 +833,14 @@ function ProductEditModal(
                     <button type="button" className={activeTab === 'info' ? 'active' : ''} onClick={() => setActiveTab('info')}>Info Principais</button>
                     <button type="button" className={activeTab === 'atributos' ? 'active' : ''} onClick={() => setActiveTab('atributos')} disabled={!formData.fornecedor_id || !formData.product_type_id}>Atributos</button>
                     <button type="button" className={activeTab === 'midia' ? 'active' : ''} onClick={() => setActiveTab('midia')} disabled={!formData.fornecedor_id || !formData.product_type_id}>Mídia</button>
+                    {showGenerationFeatures &&
+                    <>
+                        <button type="button" className={activeTab === 'conteudo-ia' ? 'active' : ''} onClick={() => setActiveTab('conteudo-ia')} disabled={!formData.fornecedor_id || !formData.product_type_id}>
+                          {showAiFeatures ? 'Conteúdo IA' : 'Conteúdo'}
+                        </button>
+                      </>}
                     {showAiFeatures &&
                     <>
-                        <button type="button" className={activeTab === 'conteudo-ia' ? 'active' : ''} onClick={() => setActiveTab('conteudo-ia')} disabled={!formData.fornecedor_id || !formData.product_type_id}>Conteúdo IA</button>
                         <button type="button" className={activeTab === 'sugestoes-ia' ? 'active' : ''} onClick={() => setActiveTab('sugestoes-ia')} disabled={!formData.fornecedor_id || !formData.product_type_id}>Sugestões IA</button>
                       </>
                     }
@@ -889,13 +926,21 @@ function ProductEditModal(
                              </div>
                          </div>
               }
-                    {showAiFeatures && activeTab === 'conteudo-ia' &&
+                    {showGenerationFeatures && activeTab === 'conteudo-ia' &&
               <div className="form-section">
-                            <h3>Conteúdo Gerado por IA</h3>
-                            <button type="button" onClick={handleGenerateTitles} disabled={isGeneratingIA || isNewProduct}> {isGeneratingIA ? 'Gerando Títulos...' : 'Gerar Títulos (OpenAI)'} </button>
+                            <h3>{showAiFeatures ? 'Conteúdo Gerado por IA' : 'Conteúdo Gerado'}</h3>
+                            <button type="button" onClick={_handleEnrichWeb} disabled={isEnrichingWeb || isNewProduct}>
+                              {isEnrichingWeb ? 'Enriquecendo Web...' : 'Enriquecer Web'}
+                            </button>
+                            <hr />
+                            <button type="button" onClick={handleGenerateTitles} disabled={isGeneratingIA || isNewProduct}>
+                              {isGeneratingIA ? 'Gerando Títulos...' : showAiFeatures ? 'Gerar Títulos (OpenAI)' : 'Gerar Títulos (Básico)'}
+                            </button>
                             {formData.titulos_sugeridos && formData.titulos_sugeridos.length > 0 && <div> <h4>Títulos Sugeridos:</h4> <ul> {formData.titulos_sugeridos.map((title, index) => <li key={index}>{title}</li>)} </ul> </div>}
                             <hr />
-                            <button type="button" onClick={handleGenerateDescription} disabled={isGeneratingIA || isNewProduct}> {isGeneratingIA ? 'Gerando Descrição...' : 'Gerar Descrição (OpenAI)'} </button>
+                            <button type="button" onClick={handleGenerateDescription} disabled={isGeneratingIA || isNewProduct}>
+                              {isGeneratingIA ? 'Gerando Descrição...' : showAiFeatures ? 'Gerar Descrição (OpenAI)' : 'Gerar Descrição (Básico)'}
+                            </button>
                             {formData.descricao_chat_api && <div style={{ marginTop: '10px' }}> <h4>Descrição Principal Gerada:</h4> <textarea value={formData.descricao_chat_api} readOnly rows="10" style={{ width: '100%', backgroundColor: '#f9f9f9' }} /> </div>}
                         </div>
               }
@@ -987,4 +1032,4 @@ function ProductEditModal(
         </>);
 
   }
-const BASE_PRODUCT_FIELDS = new Set(['nome_base', 'nome_chat_api', 'descricao_original', 'descricao_curta_orig', 'descricao_chat_api', 'descricao_curta_gerada', 'sku', 'ean', 'ncm', 'marca', 'modelo', 'categoria_original', 'categoria_mapeada', 'preco_custo', 'preco_venda', 'preco_promocional', 'estoque_disponivel', 'peso_gramas', 'dimensoes_cm', 'imagem_principal_url', 'imagens_secundarias_urls', 'fornecedor_id', 'product_type_id', 'ativo_marketplace', 'data_publicacao_marketplace', 'status_enriquecimento_web', 'status_titulo_ia', 'status_descricao_ia', 'log_enriquecimento_web', 'titulos_sugeridos']);const initialFormData = { nome_base: '', nome_chat_api: '', descricao_original: '', descricao_curta_orig: '', descricao_chat_api: '', descricao_curta_gerada: '', sku: '', ean: '', ncm: '', marca: '', modelo: '', categoria_original: '', categoria_mapeada: '', preco_custo: '', preco_venda: '', preco_promocional: '', estoque_disponivel: '', peso_gramas: '', dimensoes_cm: '', imagem_principal_url: '', imagens_secundarias_urls: [], fornecedor_id: '', product_type_id: '', dynamic_attributes: {}, dados_brutos_web: {}, titulos_sugeridos: [], ativo_marketplace: false, data_publicacao_marketplace: null, log_enriquecimento_web: { historico_mensagens: [] }, status_enriquecimento_web: null, status_titulo_ia: null, status_descricao_ia: null };const WEB_ENRICHMENT_POLL_INTERVAL_MS = 3000;const WEB_ENRICHMENT_MAX_POLLS = 40;const WEB_ENRICHMENT_TERMINAL_STATUSES = new Set(['CONCLUIDO_SUCESSO', 'CONCLUIDO_COM_DADOS_PARCIAIS', 'NENHUMA_FONTE_ENCONTRADA', 'FALHA_API_EXTERNA', 'FALHA_CONFIGURACAO_API_EXTERNA', 'FALHOU']);export default ProductEditModal;
+const BASE_PRODUCT_FIELDS = new Set(['nome_base', 'nome_chat_api', 'descricao_original', 'descricao_curta_orig', 'descricao_chat_api', 'descricao_curta_gerada', 'sku', 'ean', 'ncm', 'marca', 'modelo', 'categoria_original', 'categoria_mapeada', 'preco_custo', 'preco_venda', 'preco_promocional', 'estoque_disponivel', 'peso_gramas', 'dimensoes_cm', 'imagem_principal_url', 'imagens_secundarias_urls', 'fornecedor_id', 'product_type_id', 'ativo_marketplace', 'data_publicacao_marketplace', 'status_enriquecimento_web', 'status_titulo_ia', 'status_descricao_ia', 'log_enriquecimento_web', 'titulos_sugeridos']);const initialFormData = { nome_base: '', nome_chat_api: '', descricao_original: '', descricao_curta_orig: '', descricao_chat_api: '', descricao_curta_gerada: '', sku: '', ean: '', ncm: '', marca: '', modelo: '', categoria_original: '', categoria_mapeada: '', preco_custo: '', preco_venda: '', preco_promocional: '', estoque_disponivel: '', peso_gramas: '', dimensoes_cm: '', imagem_principal_url: '', imagens_secundarias_urls: [], fornecedor_id: '', product_type_id: '', dynamic_attributes: {}, dados_brutos_web: {}, titulos_sugeridos: [], ativo_marketplace: false, data_publicacao_marketplace: null, log_enriquecimento_web: { historico_mensagens: [] }, status_enriquecimento_web: null, status_titulo_ia: null, status_descricao_ia: null };const WEB_ENRICHMENT_POLL_INTERVAL_MS = 3000;const WEB_ENRICHMENT_MAX_POLLS = 40;const WEB_ENRICHMENT_TERMINAL_STATUSES = new Set(['CONCLUIDO', 'CONCLUIDO_SUCESSO', 'CONCLUIDO_COM_DADOS_PARCIAIS', 'NENHUMA_FONTE_ENCONTRADA', 'FALHA_API_EXTERNA', 'FALHA_CONFIGURACAO_API_EXTERNA', 'FALHA', 'FALHOU', 'NAO_APLICAVEL']);export default ProductEditModal;

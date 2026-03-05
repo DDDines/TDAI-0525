@@ -14,10 +14,14 @@ from Backend.application.services.catalog_import_sanitization_service import (
 class _TopLevelFunctionSurface:
 
     """Represent top level function surface and centralize responsibilities for this module."""
+
     def test_normalize_validated_data_parses_json_string():
         """Run test normalize validated data parses json string in this workflow."""
         service = CatalogImportSanitizationService(CatalogImportQualityService())
-        parsed = service.normalize_validated_data('{"nome_base":"ABC"}', {"nome_base": "fallback"})
+        parsed = service.normalize_validated_data(
+            '{"nome_base":"ABC"}',
+            {"nome_base": "fallback"},
+        )
         assert parsed["nome_base"] == "ABC"
 
     def test_sanitize_extracted_product_discards_invalid_ean_text():
@@ -35,15 +39,61 @@ class _TopLevelFunctionSurface:
     def test_normalize_import_text_decodes_mojibake_reason():
         """Run test normalize import text decodes mojibake reason in this workflow."""
         service = CatalogImportSanitizationService(CatalogImportQualityService())
-        raw = "Nenhum dado de produto pÃƒÂ´de ser extraÃƒÂ­do do PDF."
+        raw = "Nenhum dado de produto p\u00c3\u0192\u00c6\u2019\u00c3\u201a\u00c2\u00b4de ser extra\u00c3\u0192\u00c6\u2019\u00c3\u201a\u00c2\u00addo do PDF."
         normalized = service.normalize_import_text(raw)
-        assert "pôde" in normalized
-        assert "extraído" in normalized
+        assert "p\u00f4de" in normalized
+        assert "extra\u00eddo" in normalized
+
+    def test_sanitize_extracted_product_applies_conservative_ocr_corrections():
+        """Run test sanitize extracted product applies conservative ocr corrections in this workflow."""
+        service = CatalogImportSanitizationService(CatalogImportQualityService())
+        sanitized = service.sanitize_extracted_product(
+            {
+                "nome_base": "Suporte de Fixagdo",
+                "descricao_original": "Reservatdrio de AR",
+                "dynamic_attributes": {"material": "Reforgo Metalico"},
+            }
+        )
+        assert sanitized["nome_base"] == "Suporte de Fixa\u00e7\u00e3o"
+        assert sanitized["descricao_original"] == "Reservat\u00f3rio de AR"
+        assert sanitized["dynamic_attributes"]["material"] == "Refor\u00e7o Met\u00e1lico"
+
+    def test_sanitize_extracted_product_uses_name_as_description_when_missing():
+        """Run test sanitize extracted product uses name as description when missing in this workflow."""
+        service = CatalogImportSanitizationService(CatalogImportQualityService())
+        sanitized = service.sanitize_extracted_product(
+            {
+                "nome_base": "Paralama Traseiro Esquerdo",
+                "descricao_original": "",
+            }
+        )
+        assert sanitized["descricao_original"] == "Paralama Traseiro Esquerdo"
+        extras = sanitized.get("dados_brutos_adicionais") or {}
+        assert extras.get("descricao_substituida_por_nome_base") is True
+
+    def test_sanitize_extracted_product_promotes_part_name_from_dynamic_attributes():
+        """Run test sanitize extracted product promotes part name from dynamic attributes in this workflow."""
+        service = CatalogImportSanitizationService(CatalogImportQualityService())
+        sanitized = service.sanitize_extracted_product(
+            {
+                "nome_base": "1724E 944 880 00 06",
+                "sku_original": "1724E 944 880 00 06",
+                "descricao_original": "",
+                "dynamic_attributes": {
+                    "aplicacao": "Paralama Traseiro da Cabine",
+                    "material": "SMC",
+                },
+            }
+        )
+        assert sanitized["descricao_original"] == "Paralama Traseiro da Cabine"
+        assert sanitized["nome_base"] == "Paralama Traseiro da Cabine"
+        extras = sanitized.get("dados_brutos_adicionais") or {}
+        assert extras.get("descricao_substituida_por_atributo_dinamico") is True
+
 
 test_normalize_validated_data_parses_json_string = _TopLevelFunctionSurface.test_normalize_validated_data_parses_json_string
 test_sanitize_extracted_product_discards_invalid_ean_text = _TopLevelFunctionSurface.test_sanitize_extracted_product_discards_invalid_ean_text
 test_normalize_import_text_decodes_mojibake_reason = _TopLevelFunctionSurface.test_normalize_import_text_decodes_mojibake_reason
-
-
-
-
+test_sanitize_extracted_product_applies_conservative_ocr_corrections = _TopLevelFunctionSurface.test_sanitize_extracted_product_applies_conservative_ocr_corrections
+test_sanitize_extracted_product_uses_name_as_description_when_missing = _TopLevelFunctionSurface.test_sanitize_extracted_product_uses_name_as_description_when_missing
+test_sanitize_extracted_product_promotes_part_name_from_dynamic_attributes = _TopLevelFunctionSurface.test_sanitize_extracted_product_promotes_part_name_from_dynamic_attributes

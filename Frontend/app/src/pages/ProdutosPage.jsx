@@ -30,13 +30,14 @@ const WEB_ENRICHMENT_TERMINAL_STATUSES = new Set([
   'NAO_APLICAVEL',
 ]);
 const WEB_ENRICHMENT_POLL_INTERVAL_MS = 3000;
-const WEB_ENRICHMENT_MAX_POLLS = 20;
+const WEB_ENRICHMENT_MAX_POLLS = 120;
 
 function ProdutosPage()
 
   {
     const { effectiveMode } = useAppExperience();
     const showAiFeatures = effectiveMode === 'complete';
+    const showGenerationFeatures = true;
     const [searchParams] = useSearchParams();
     const navigate = useNavigate();
     const [produtos, setProdutos] = useState([]);
@@ -285,6 +286,9 @@ function ProdutosPage()
         });
       }
 
+      showInfoToast(
+        'O enriquecimento web ainda pode estar em andamento em segundo plano. Atualizando a lista.'
+      );
       fetchProdutos();
     }, [fetchProdutos, mergeProdutosById]);
 
@@ -337,9 +341,17 @@ function ProdutosPage()
       for (const produtoId of idsToProcess) {
         try {
           if (contentType === 'titulo') {
-            await productService.gerarTitulosProduto(produtoId);
+            if (showAiFeatures) {
+              await productService.gerarTitulosProduto(produtoId);
+            } else {
+              await productService.gerarTitulosProdutoModoBasico(produtoId);
+            }
           } else if (contentType === 'descricao') {
-            await productService.gerarDescricaoProduto(produtoId);
+            if (showAiFeatures) {
+              await productService.gerarDescricaoProduto(produtoId);
+            } else {
+              await productService.gerarDescricaoProdutoModoBasico(produtoId);
+            }
           }
         } catch (err) {
           showErrorToast(`Erro ao gerar ${contentType} para produto ID ${produtoId}: ${err.response?.data?.detail || err.message}`);
@@ -468,10 +480,14 @@ function ProdutosPage()
           <span>{selectedProdutos.size} produto(s) selecionado(s)</span>
           <button onClick={handleDeleteSelected} className="btn-danger btn-sm">Deletar</button>
           <button onClick={handleEnrichSelectedWeb} className="btn-secondary btn-sm">Enriquecer Web</button>
-          {showAiFeatures &&
+          {showGenerationFeatures &&
           <>
-              <button onClick={() => handleGenerateContentForSelected('titulo')} className="btn-secondary btn-sm">Gerar Títulos IA</button>
-              <button onClick={() => handleGenerateContentForSelected('descricao')} className="btn-secondary btn-sm">Gerar Descrições IA</button>
+              <button onClick={() => handleGenerateContentForSelected('titulo')} className="btn-secondary btn-sm">
+                {showAiFeatures ? 'Gerar Títulos IA' : 'Gerar Títulos'}
+              </button>
+              <button onClick={() => handleGenerateContentForSelected('descricao')} className="btn-secondary btn-sm">
+                {showAiFeatures ? 'Gerar Descrições IA' : 'Gerar Descrições'}
+              </button>
             </>
           }
         </div>

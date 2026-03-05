@@ -8,8 +8,10 @@ one place so the import pipeline remains predictable and debuggable.
 from __future__ import annotations
 
 from typing import Any, Dict
+from difflib import get_close_matches
 import json
 import re
+import unicodedata
 
 from Backend.application.services.catalog_import_quality_service import (
     CatalogImportQualityService,
@@ -18,6 +20,35 @@ from Backend.application.services.catalog_import_quality_service import (
 
 class CatalogImportSanitizationService:
     """Centraliza normalizacao/sanitizacao textual da importacao de catalogo."""
+
+    _DOMAIN_VOCABULARY = {
+        "paralama": "paralama",
+        "meio": "meio",
+        "dianteiro": "dianteiro",
+        "traseiro": "traseiro",
+        "direito": "direito",
+        "esquerdo": "esquerdo",
+        "duplo": "duplo",
+        "single": "single",
+        "suporte": "suporte",
+        "fixacao": "fixação",
+        "fixador": "fixador",
+        "reforco": "reforço",
+        "reservatorio": "reservatório",
+        "aparabarro": "aparabarro",
+        "plastico": "plástico",
+        "metalico": "metálico",
+        "cabine": "cabine",
+        "carreta": "carreta",
+        "bitrem": "bitrem",
+        "exportacao": "exportação",
+        "envolvente": "envolvente",
+        "categoria": "categoria",
+        "descricao": "descrição",
+        "aplicacao": "aplicação",
+        "apos": "após",
+        "ate": "até",
+    }
 
     def __init__(self, quality_service: CatalogImportQualityService) -> None:
         """Inject quality heuristics used by sanitation fallback decisions."""
@@ -42,6 +73,139 @@ class CatalogImportSanitizationService:
             return candidate.encode(source_encoding).decode("utf-8")
         except Exception:
             return candidate
+
+    @staticmethod
+    def _fold_ascii(value: str) -> str:
+        """Fold text to lowercase ASCII for fuzzy matching/canonical comparison."""
+        folded = (
+            unicodedata.normalize("NFKD", str(value or ""))
+            .encode("ascii", errors="ignore")
+            .decode("ascii")
+            .lower()
+        )
+        folded = re.sub(r"[^a-z0-9]+", "", folded)
+        return folded
+
+    @classmethod
+    def _token_variants(cls, token: str) -> set[str]:
+        """Generate OCR-like token variants used during fuzzy vocabulary matching."""
+        token = token.lower()
+        variants = {token}
+        replacements = (
+            ("gdo", "cao"),
+            ("gao", "cao"),
+            ("gd", "ca"),
+            ("drio", "torio"),
+            ("derio", "torio"),
+            ("g", "c"),
+            ("d", "o"),
+            ("0", "o"),
+            ("1", "l"),
+            ("5", "s"),
+        )
+        for source, target in replacements:
+            snapshot = list(variants)
+            for candidate in snapshot:
+                if source in candidate:
+                    variants.add(candidate.replace(source, target))
+        return variants
+
+    @classmethod
+    def _maybe_correct_domain_token(cls, token: str) -> str:
+        """Apply conservative OCR correction for alphabetic domain words only."""
+        if not token:
+            return token
+        if re.search(r"\d", token):
+            return token
+        if len(token) < 4:
+            return token
+
+        token_folded = cls._fold_ascii(token)
+        if not token_folded:
+            return token
+        if token_folded in cls._DOMAIN_VOCABULARY:
+            canonical = cls._DOMAIN_VOCABULARY[token_folded]
+            return cls._preserve_case_style(token, canonical)
+
+        best_match = None
+        for variant in cls._token_variants(token_folded):
+            cutoff = 0.86 if len(variant) >= 6 else 0.9
+            matches = get_close_matches(
+                variant,
+                cls._DOMAIN_VOCABULARY.keys(),
+                n=1,
+                cutoff=cutoff,
+            )
+            if matches:
+                best_match = matches[0]
+                break
+
+        if not best_match:
+            return token
+
+        canonical = cls._DOMAIN_VOCABULARY[best_match]
+        return cls._preserve_case_style(token, canonical)
+
+    @staticmethod
+    def _preserve_case_style(source: str, corrected: str) -> str:
+        """Preserve source token case style when applying corrected vocabulary term."""
+        if source.isupper():
+            return corrected.upper()
+        if source[0].isupper():
+            return corrected[:1].upper() + corrected[1:]
+        return corrected
+
+    def _normalize_product_text(self, value: Any) -> Any:
+        """Normalize product text fields with mojibake + conservative OCR correction."""
+        if value is None:
+            return None
+        text = str(value).strip()
+        if not text:
+            return None
+
+        text = self.normalize_import_text(text)
+        text = text.replace("_", " ")
+        text = re.sub(r"\s+", " ", text).strip()
+
+        parts = re.split(r"(\W+)", text, flags=re.UNICODE)
+        normalized_parts = []
+        for part in parts:
+            if not part:
+                continue
+            if re.fullmatch(r"[A-Za-zÀ-ÿ]+", part):
+                normalized_parts.append(self._maybe_correct_domain_token(part))
+            else:
+                normalized_parts.append(part)
+
+        normalized_text = "".join(normalized_parts)
+        normalized_text = re.sub(r"\s+", " ", normalized_text).strip()
+        return normalized_text or None
+
+    def _pick_part_candidate_from_dynamic_attributes(
+        self,
+        dynamic_attributes: Dict[str, Any],
+    ) -> str | None:
+        """Select a strong part-name candidate from dynamic attributes when available."""
+        if not isinstance(dynamic_attributes, dict):
+            return None
+
+        best_candidate: str | None = None
+        best_score = 0
+        for value in dynamic_attributes.values():
+            if not isinstance(value, str):
+                continue
+            candidate = self._normalize_product_text(value)
+            if not candidate:
+                continue
+            if not self._quality.text_has_context(candidate):
+                continue
+            score = self._quality.part_context_strength(candidate)
+            if self._quality.text_looks_like_vehicle_application(candidate):
+                score = max(0, score - 1)
+            if score > best_score:
+                best_score = score
+                best_candidate = candidate
+        return best_candidate if best_score >= 2 else None
 
     def normalize_import_text(self, value: str) -> str:
         """Corrige artefatos comuns de encoding em mensagens de importacao."""
@@ -232,8 +396,8 @@ class CatalogImportSanitizationService:
 
         nome_base = data.get("nome_base")
         if nome_base is not None:
-            nome_base = str(nome_base).strip()
-            if len(nome_base) > 255:
+            nome_base = self._normalize_product_text(nome_base)
+            if nome_base and len(nome_base) > 255:
                 extras["nome_base_truncado_de"] = nome_base
                 nome_base = nome_base[:255]
             data["nome_base"] = nome_base or None
@@ -251,35 +415,47 @@ class CatalogImportSanitizationService:
 
         marca = data.get("marca")
         if marca is not None:
-            marca = str(marca).strip()
-            if len(marca) > 100:
+            marca = self._normalize_product_text(marca)
+            if marca and len(marca) > 100:
                 extras["marca_truncada_de"] = marca
                 marca = marca[:100]
             data["marca"] = marca or None
 
         modelo = data.get("modelo")
         if modelo is not None:
-            modelo = str(modelo).strip()
-            if len(modelo) > 100:
+            modelo = self._normalize_product_text(modelo)
+            if modelo and len(modelo) > 100:
                 extras["modelo_truncado_de"] = modelo
                 modelo = modelo[:100]
             data["modelo"] = modelo or None
 
         categoria_original = data.get("categoria_original")
         if categoria_original is not None:
-            categoria_original = str(categoria_original).strip()
-            if len(categoria_original) > 150:
+            categoria_original = self._normalize_product_text(categoria_original)
+            if categoria_original and len(categoria_original) > 150:
                 extras["categoria_original_truncada_de"] = categoria_original
                 categoria_original = categoria_original[:150]
             data["categoria_original"] = categoria_original or None
 
         descricao_original = data.get("descricao_original")
         if descricao_original is not None:
-            descricao_original = str(descricao_original).strip()
-            if len(descricao_original) > 5000:
+            descricao_original = self._normalize_product_text(descricao_original)
+            if descricao_original and len(descricao_original) > 5000:
                 extras["descricao_original_truncada_de"] = descricao_original
                 descricao_original = descricao_original[:5000]
             data["descricao_original"] = descricao_original or None
+
+        dynamic_attributes = data.get("dynamic_attributes")
+        if isinstance(dynamic_attributes, dict):
+            normalized_dynamic_attributes = {}
+            for attr_key, attr_value in dynamic_attributes.items():
+                if isinstance(attr_value, str):
+                    normalized_dynamic_attributes[attr_key] = (
+                        self._normalize_product_text(attr_value) or attr_value
+                    )
+                else:
+                    normalized_dynamic_attributes[attr_key] = attr_value
+            data["dynamic_attributes"] = normalized_dynamic_attributes
 
         ean_original = data.get("ean_original")
         if ean_original is not None:
@@ -355,6 +531,17 @@ class CatalogImportSanitizationService:
             )
             extras["descricao_aplicacao_substituida_por_categoria"] = True
 
+        if (
+            not descricao_util
+            and nome_base
+            and self._quality.text_looks_like_part_name(nome_base)
+            and not self._quality.text_looks_like_part_code(nome_base)
+        ):
+            data["descricao_original"] = nome_base[:5000]
+            descricao_original = data["descricao_original"]
+            descricao_util = self._quality.text_has_context(descricao_original)
+            extras["descricao_substituida_por_nome_base"] = True
+
         nome_fraco = (
             not nome_base
             or nome_numerico
@@ -389,6 +576,24 @@ class CatalogImportSanitizationService:
                     )
                     extras["descricao_substituida_por_dados_brutos"] = str(raw_key)
                     break
+
+        # Quando mapeamento cai em atributos dinamicos, tenta recuperar nome/descricao
+        # a partir de valores com contexto forte de peca.
+        dynamic_part_candidate = self._pick_part_candidate_from_dynamic_attributes(
+            data.get("dynamic_attributes") or {}
+        )
+        if dynamic_part_candidate:
+            if not descricao_util or descricao_parece_aplicacao:
+                data["descricao_original"] = dynamic_part_candidate[:5000]
+                descricao_original = data["descricao_original"]
+                descricao_util = self._quality.text_has_context(descricao_original)
+                descricao_parece_peca = self._quality.text_looks_like_part_name(
+                    descricao_original
+                )
+                descricao_parece_aplicacao = (
+                    self._quality.text_looks_like_vehicle_application(descricao_original)
+                )
+                extras["descricao_substituida_por_atributo_dinamico"] = True
 
         # Se nome e' apenas codigo/sku, tenta promover descricao util para nome_base.
         if descricao_util and (

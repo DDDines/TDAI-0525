@@ -623,6 +623,23 @@ class WebEnrichmentTaskWorkflow:
                         produto_id,
                         e_final_update,
                     )
+                    try:
+                        fallback_repo = self._build_product_repository(session=db)
+                        fallback_repo.set_web_enrichment_status(
+                            produto_id=produto_id,
+                            status=self.models.StatusEnriquecimentoEnum.FALHOU,
+                            log_message=(
+                                "Falha ao persistir status final do enriquecimento: "
+                                f"{e_final_update}"
+                            ),
+                        )
+                        status_para_salvar_no_final = self.models.StatusEnriquecimentoEnum.FALHOU
+                    except Exception as fallback_exc:
+                        self.logger.error(
+                            "ERRO CRITICO ao forcar status terminal de falha para produto %s: %s",
+                            produto_id,
+                            fallback_exc,
+                        )
 
             final_status_value_print = status_para_salvar_no_final.value
             self.logger.info(
@@ -672,7 +689,6 @@ class WebEnrichmentTaskService:
             "web_extractor": web_extractor,
             "settings": settings,
             "json": json,
-            "re": re,
             "normalize_human_text": normalize_human_text,
             "build_payload_enriquecimento_visivel": build_payload_enriquecimento_visivel,
             "extrair_dominio_fornecedor": extrair_dominio_fornecedor,

@@ -48,6 +48,14 @@ function timestamp() {return (
 
       new Date().toLocaleTimeString('pt-BR'));}
 
+function formatElapsed(seconds) {
+  if (!Number.isFinite(seconds) || seconds < 0) return '0s';
+  if (seconds < 60) return `${seconds}s`;
+  const minutes = Math.floor(seconds / 60);
+  const remainingSeconds = seconds % 60;
+  return `${minutes}m ${remainingSeconds}s`;
+}
+
 function normalizeDisplayText(
 
   value) {
@@ -481,17 +489,20 @@ function ImportCatalogWizard(
       pollLoopActiveRef.current = true;
 
       let keepPolling = true;
-      const pollingStartedAt = Date.now();
+      let lastProgressAt = Date.now();
       let terminalDetectedAt = null;
       let terminalAttempts = 0;
       let terminalStableCount = 0;
       let lastTerminalSnapshot = '';
+      let lastObservedStatus = '';
+      let lastObservedPagesProcessed = 0;
+      let lastObservedPagesTotal = 0;
       try {
         while (keepPolling && pollRunRef.current === runId) {
-          const absoluteElapsedMs = Date.now() - pollingStartedAt;
-          if (absoluteElapsedMs >= MAX_ABSOLUTE_POLL_MS) {
+          const noProgressElapsedMs = Date.now() - lastProgressAt;
+          if (noProgressElapsedMs >= MAX_ABSOLUTE_POLL_MS) {
             const hardTimeoutMessage =
-            'Monitoramento encerrado por tempo limite. Atualize em instantes para obter o resultado final.';
+            'Monitoramento encerrado por inatividade de progresso. O processamento pode continuar no backend; atualize em instantes para obter o resultado final.';
             setError(hardTimeoutMessage);
             appendTimeline(hardTimeoutMessage);
             break;
@@ -510,6 +521,16 @@ function ImportCatalogWizard(
 
             const pagesProcessed = status?.pages_processed ?? 0;
             const pagesTotal = status?.total_pages ?? status?.pages_total ?? expectedPages ?? 0;
+            const hasStatusChanged = status.status !== lastObservedStatus;
+            const hasPagesAdvanced = pagesProcessed > lastObservedPagesProcessed;
+            const hasPageTotalChanged = pagesTotal !== lastObservedPagesTotal;
+            if (hasStatusChanged || hasPagesAdvanced || hasPageTotalChanged) {
+              lastProgressAt = Date.now();
+            }
+            lastObservedStatus = status.status;
+            lastObservedPagesProcessed = pagesProcessed;
+            lastObservedPagesTotal = pagesTotal;
+
             const terminalStatuses = new Set(['IMPORTED', 'DONE', 'FAILED', 'PARTIAL']);
             const isTerminal = Boolean(status?.status && terminalStatuses.has(status.status));
             if (!isTerminal) {
@@ -716,7 +737,7 @@ function ImportCatalogWizard(
     const processingActive = !statusData || !isTerminalStatus;
     const waitingFinalResult = step === 'processing' && isTerminalStatus && !resultData && !error;
     const elapsedSec = processingStartedAt ? Math.max(0, Math.floor((Date.now() - processingStartedAt) / 1000)) : 0;
-    const showLoadingPopup = isLoading || step === 'processing' && (processingActive || waitingFinalResult);
+    const showLoadingPopup = isLoading || step === 'processing' && !error && (processingActive || waitingFinalResult);
     const loadingPopupMessage =
     step === 'processing' && processingActive ?
     'Processando importação do catálogo...' :
@@ -742,8 +763,15 @@ function ImportCatalogWizard(
       <div className="wizard-container" aria-live="polite">
       {showLoadingPopup &&
         <LoadingPopup
+          title="Importação de catálogo em andamento"
           message={loadingPopupMessage}
           isOpen={showLoadingPopup}
+          progressPercent={progressPct}
+          progressLabel={`${pagesProcessed}/${pagesTotal || '?'} páginas processadas`}
+          chips={[
+          { label: 'Status', value: statusData?.status || 'PROCESSING' },
+          { label: 'Arquivo', value: fileId ? `#${fileId}` : '-' },
+          { label: 'Tempo', value: formatElapsed(elapsedSec) }]}
           details={statusTimeline.slice(-5)} />
 
         }

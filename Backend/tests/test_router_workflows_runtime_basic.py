@@ -421,6 +421,44 @@ class _TopLevelFunctionSurface:
         assert called[1][1]["user_id"] == 4
         assert called[1][1]["num_titulos"] == 5
 
+    def test_generation_workflow_agendar_basico_descricao_delega_validacao_status_e_enqueue():
+        """Run test generation workflow agendar basico descricao delega validacao status e enqueue in this workflow."""
+        called = []
+
+        class FakeSchedulingService:
+            """Represent fake scheduling service and centralize responsibilities for this module."""
+            def enqueue_generation_task(self, **kwargs):
+                """Run enqueue generation task in this workflow."""
+                called.append(("enqueue_generation_task", kwargs))
+
+        request_service = GenerationRequestService(session="db")
+        request_service._generation_scheduling_service = FakeSchedulingService()
+        request_service._validate_product_access = lambda **kwargs: called.append(
+            ("validate_product_access", kwargs)
+        ) or SimpleNamespace(id=kwargs["produto_id"])
+        request_service._mark_pending_status = lambda **kwargs: called.append(
+            ("mark_pending_status", kwargs)
+        )
+        request_service._basic_generation_service = SimpleNamespace(
+            gerar_descricao_basica="fn_basico_descricao"
+        )
+        user = SimpleNamespace(id=7)
+
+        response = request_service.agendar_geracao_nova_descricao_basica(
+            produto_id=31,
+            background_tasks=SimpleNamespace(),
+            tamanho_palavras=120,
+            current_user=user,
+        )
+
+        assert "31" in response["msg"]
+        assert called[0][0] == "validate_product_access"
+        assert called[1][0] == "mark_pending_status"
+        assert called[2][0] == "enqueue_generation_task"
+        assert called[2][1]["produto_id"] == 31
+        assert called[2][1]["user_id"] == 7
+        assert called[2][1]["tamanho_palavras"] == 120
+
     @pytest.mark.asyncio
     async def test_generation_workflow_sugerir_atributos_delega_runtime():
         """Run test generation workflow sugerir atributos delega runtime in this workflow."""
@@ -707,6 +745,7 @@ test_main_bootstrap_workflow_delega_metodos_sync_para_runtime = _TopLevelFunctio
 test_main_bootstrap_workflow_delega_metodo_async_para_runtime = _TopLevelFunctionSurface.test_main_bootstrap_workflow_delega_metodo_async_para_runtime
 test_produtos_workflow_runtime_override_delega_metodos_injetados = _TopLevelFunctionSurface.test_produtos_workflow_runtime_override_delega_metodos_injetados
 test_produtos_workflow_runtime_parcial_preserva_fallback_nativo = _TopLevelFunctionSurface.test_produtos_workflow_runtime_parcial_preserva_fallback_nativo
+test_generation_workflow_agendar_basico_descricao_delega_validacao_status_e_enqueue = _TopLevelFunctionSurface.test_generation_workflow_agendar_basico_descricao_delega_validacao_status_e_enqueue
 
 
 

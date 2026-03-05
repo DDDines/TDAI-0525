@@ -33,6 +33,8 @@ jest.mock('../../services/productService', () => ({
       })
     ),
     getAtributoSuggestions: jest.fn(() => Promise.resolve({})),
+    gerarTitulosProdutoModoBasico: jest.fn(() => Promise.resolve({})),
+    gerarDescricaoProdutoModoBasico: jest.fn(() => Promise.resolve({})),
   },
 }));
 
@@ -78,4 +80,21 @@ test('maps alias dynamic attributes to template keys when product payload lacks 
   expect(await screen.findByLabelText(/^titulo/i)).toHaveValue('Titulo extraido');
   expect(screen.getByLabelText(/^id/i)).toHaveValue('SP1081');
   expect(screen.getByLabelText(/^descricao/i)).toHaveValue('Descricao extraida');
+});
+
+test('shows basic generation actions when ai features are disabled', async () => {
+  render(
+    <ProductEditModal
+      isOpen={true}
+      onClose={() => {}}
+      product={{ id: 1 }}
+      showAiFeatures={false}
+    />
+  );
+
+  await userEvent.click(screen.getByRole('button', { name: /conte[uú]do/i }));
+
+  expect(screen.getByRole('button', { name: /gerar t[ií]tulos \(b[aá]sico\)/i })).toBeInTheDocument();
+  expect(screen.getByRole('button', { name: /gerar descri[cç][aã]o \(b[aá]sico\)/i })).toBeInTheDocument();
+  expect(screen.queryByRole('button', { name: /sugest[oõ]es ia/i })).not.toBeInTheDocument();
 });

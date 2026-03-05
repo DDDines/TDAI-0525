@@ -5,6 +5,9 @@ from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query, s
 from sqlalchemy.orm import Session
 
 from Backend import models, schemas
+from Backend.application.services.basic_content_generation_service import (
+    BasicContentGenerationService,
+)
 from Backend.application.services.generation_scheduling_service import GenerationSchedulingService
 from Backend.application.services.generation_task_service import GenerationTaskService
 from Backend.application.services.ia_generation_service import IAGenerationService
@@ -33,6 +36,7 @@ class GenerationRequestService:
         """Initialize injected dependencies and runtime configuration for Generation Request Service."""
         self._session = session
         self._ia_generation_service = ServiceContainerDependencySupport.build_ia_generation_service()
+        self._basic_generation_service = BasicContentGenerationService()
         self._generation_task_service = GenerationTaskService(
             session_provider=ServiceContainerDependencySupport.get_background_session_provider(),
             user_repository_factory=UserRepository,
@@ -121,6 +125,66 @@ class GenerationRequestService:
             tamanho_palavras=tamanho_palavras,
         )
         return {"msg": f"Geracao de descricao (OpenAI) para o produto ID {produto_id} agendada."}
+
+    def agendar_geracao_novos_titulos_basico(
+        self,
+        *,
+        produto_id: int,
+        background_tasks: BackgroundTasks,
+        num_titulos: int,
+        current_user: models.User,
+    ):
+        """Agendar geracao de titulos no pipeline basico sem IA externa."""
+        db_produto = self._validate_product_access(
+            produto_id=produto_id,
+            current_user=current_user,
+        )
+        self._mark_pending_status(db_produto=db_produto, generation_type="titulo")
+        self._generation_scheduling_service.enqueue_generation_task(
+            background_tasks=background_tasks,
+            task_executor=self.tarefa_processar_geracao_e_registrar_uso,
+            user_id=current_user.id,
+            produto_id=produto_id,
+            generation_type="titulo",
+            generation_func=self._basic_generation_service.gerar_titulos_basicos,
+            num_titulos=num_titulos,
+        )
+        return {
+            "msg": (
+                f"Geracao de titulos (Basico) para o produto ID {produto_id} "
+                "foi agendada."
+            )
+        }
+
+    def agendar_geracao_nova_descricao_basica(
+        self,
+        *,
+        produto_id: int,
+        background_tasks: BackgroundTasks,
+        tamanho_palavras: int,
+        current_user: models.User,
+    ):
+        """Agendar geracao de descricao no pipeline basico sem IA externa."""
+        db_produto = self._validate_product_access(
+            produto_id=produto_id,
+            current_user=current_user,
+        )
+        self._mark_pending_status(db_produto=db_produto, generation_type="descricao")
+        self._generation_scheduling_service.enqueue_generation_task(
+            background_tasks=background_tasks,
+            task_executor=self.tarefa_processar_geracao_e_registrar_uso,
+            user_id=current_user.id,
+            produto_id=produto_id,
+            generation_type="descricao",
+            generation_func=self._basic_generation_service.gerar_descricao_basica,
+            tamanho_palavras=tamanho_palavras,
+        )
+        return {
+            "msg": (
+                f"Geracao de descricao (Basico) para o produto ID {produto_id} "
+                "foi agendada."
+            )
+        }
 
     def agendar_geracao_novos_titulos_gemini(
         self,
@@ -248,6 +312,52 @@ async def agendar_geracao_nova_descricao_openai(
 
 
 @router.post(
+    "/titulos/basico/{produto_id}",
+    response_model=schemas.Msg,
+    status_code=status.HTTP_202_ACCEPTED,
+)
+async def agendar_geracao_novos_titulos_basico(
+    produto_id: int,
+    background_tasks: BackgroundTasks,
+    num_titulos: int = Query(3, ge=1, le=10),
+    request_service: GenerationRequestService = Depends(),
+    current_user: models.User = Depends(
+        auth_utils._AuthUtilsActiveUserDependency.get_current_active_user
+    ),
+):
+    """Agendar geracao basica de titulos sem IA externa."""
+    return request_service.agendar_geracao_novos_titulos_basico(
+        produto_id=produto_id,
+        background_tasks=background_tasks,
+        num_titulos=num_titulos,
+        current_user=current_user,
+    )
+
+
+@router.post(
+    "/descricao/basico/{produto_id}",
+    response_model=schemas.Msg,
+    status_code=status.HTTP_202_ACCEPTED,
+)
+async def agendar_geracao_nova_descricao_basica(
+    produto_id: int,
+    background_tasks: BackgroundTasks,
+    tamanho_palavras: int = Query(150, ge=50, le=500),
+    request_service: GenerationRequestService = Depends(),
+    current_user: models.User = Depends(
+        auth_utils._AuthUtilsActiveUserDependency.get_current_active_user
+    ),
+):
+    """Agendar geracao basica de descricao sem IA externa."""
+    return request_service.agendar_geracao_nova_descricao_basica(
+        produto_id=produto_id,
+        background_tasks=background_tasks,
+        tamanho_palavras=tamanho_palavras,
+        current_user=current_user,
+    )
+
+
+@router.post(
     "/titulos/gemini/{produto_id}",
     response_model=schemas.Msg,
     status_code=status.HTTP_202_ACCEPTED,
@@ -309,3 +419,63 @@ async def sugerir_atributos_para_produto_com_gemini(
         produto_id=produto_id,
         current_user=current_user,
     )
+
+
+# Compatibilidade de rota para clientes com barra final.
+router.add_api_route(
+    "/titulos/openai/{produto_id}/",
+    agendar_geracao_novos_titulos_openai,
+    methods=["POST"],
+    response_model=schemas.Msg,
+    status_code=status.HTTP_202_ACCEPTED,
+    include_in_schema=False,
+    deprecated=True,
+)
+router.add_api_route(
+    "/descricao/openai/{produto_id}/",
+    agendar_geracao_nova_descricao_openai,
+    methods=["POST"],
+    response_model=schemas.Msg,
+    status_code=status.HTTP_202_ACCEPTED,
+    include_in_schema=False,
+    deprecated=True,
+)
+router.add_api_route(
+    "/titulos/basico/{produto_id}/",
+    agendar_geracao_novos_titulos_basico,
+    methods=["POST"],
+    response_model=schemas.Msg,
+    status_code=status.HTTP_202_ACCEPTED,
+    include_in_schema=False,
+)
+router.add_api_route(
+    "/descricao/basico/{produto_id}/",
+    agendar_geracao_nova_descricao_basica,
+    methods=["POST"],
+    response_model=schemas.Msg,
+    status_code=status.HTTP_202_ACCEPTED,
+    include_in_schema=False,
+)
+router.add_api_route(
+    "/titulos/gemini/{produto_id}/",
+    agendar_geracao_novos_titulos_gemini,
+    methods=["POST"],
+    response_model=schemas.Msg,
+    status_code=status.HTTP_202_ACCEPTED,
+    include_in_schema=False,
+)
+router.add_api_route(
+    "/descricao/gemini/{produto_id}/",
+    agendar_geracao_nova_descricao_gemini,
+    methods=["POST"],
+    response_model=schemas.Msg,
+    status_code=status.HTTP_202_ACCEPTED,
+    include_in_schema=False,
+)
+router.add_api_route(
+    "/sugerir-atributos-gemini/{produto_id}/",
+    sugerir_atributos_para_produto_com_gemini,
+    methods=["POST"],
+    response_model=schemas.SugestoesAtributosResponse,
+    include_in_schema=False,
+)

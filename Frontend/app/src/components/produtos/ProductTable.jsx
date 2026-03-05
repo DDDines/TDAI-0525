@@ -64,7 +64,7 @@ function ProductTable({
 
   const getSortDirectionIcon = (key) => {
     if (sortConfig?.key === key) {
-      return sortConfig.direction === 'ascending' ? ' ?' : ' ?';
+      return sortConfig.direction === 'ascending' ? ' ^' : ' v';
     }
     return '';
   };
@@ -84,7 +84,7 @@ function ProductTable({
             disabled={safeProdutos.length === 0 || tableLoading}
           />
         </th>
-        <th onClick={() => onSort('id')}>ID{getSortDirectionIcon('id')}</th>
+        <th onClick={() => onSort('id')}>ID</th>
         <th onClick={() => onSort('nome_base')}>Nome Base{getSortDirectionIcon('nome_base')}</th>
         <th onClick={() => onSort('sku')}>SKU{getSortDirectionIcon('sku')}</th>
         <th onClick={() => onSort('fornecedor_id')}>Fornecedor{getSortDirectionIcon('fornecedor_id')}</th>
