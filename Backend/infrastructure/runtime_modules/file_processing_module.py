@@ -1018,11 +1018,36 @@ class PdfIngestionRuntime:
         rows = int(len(df_value.index))
         cols = int(len(df_value.columns))
         values: List[str] = []
+        row_signals: List[Dict[str, Any]] = []
         for row in df_value.to_dict(orient='records'):
+            row_values: List[str] = []
             for value in row.values():
                 cleaned = _FileProcessingImplementation._limpar_valor_extraido(value)
                 if cleaned:
                     values.append(cleaned)
+                    row_values.append(cleaned)
+            if not row_values:
+                continue
+            row_text = ' '.join(row_values)
+            row_tokens = [token for token in re.split(r'\s+', row_text) if token]
+            row_compact = re.sub(r'[^0-9A-Za-z]', '', row_text)
+            row_signals.append(
+                {
+                    'alnum_len': len(row_compact),
+                    'has_digit': any(ch.isdigit() for ch in row_compact),
+                    'has_code_hint': any(
+                        _FileProcessingImplementation._token_looks_like_code(token.upper())
+                        for token in row_tokens[:8]
+                    ),
+                    'has_context_word': any(
+                        re.search(r'[A-Za-z]{4,}', token)
+                        for token in row_tokens
+                    ),
+                    'token_count': len(row_tokens),
+                }
+            )
+        if not values or not row_signals:
+            return True
         joined = ' '.join(values)
         tokens = [token for token in re.split(r'\s+', joined) if token]
         has_digit = any(ch.isdigit() for ch in joined)
@@ -1030,6 +1055,21 @@ class PdfIngestionRuntime:
             _FileProcessingImplementation._token_looks_like_code(token.upper())
             for token in tokens[:12]
         )
+        has_context_word = any(re.search(r'[A-Za-z]{4,}', token) for token in tokens)
+        strong_rows = sum(
+            1
+            for signal in row_signals
+            if signal['alnum_len'] >= 10
+            or signal['has_code_hint']
+            or signal['has_context_word']
+        )
+        if strong_rows == 0:
+            return True
+        if rows <= 3 and cols <= 2:
+            if not has_code_hint and not has_context_word:
+                mean_alnum = sum(signal['alnum_len'] for signal in row_signals) / len(row_signals)
+                if mean_alnum < 7:
+                    return True
         if cols <= 1 and rows <= 3:
             if has_code_hint:
                 return False

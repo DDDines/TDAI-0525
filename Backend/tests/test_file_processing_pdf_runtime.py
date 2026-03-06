@@ -264,6 +264,66 @@ class _TopLevelFunctionSurface:
         assert isinstance(result, list)
         assert "erro_processamento_pdf" in result[0]
 
+    @pytest.mark.asyncio
+    async def test_pdf_runtime_descarta_fallback_ocr_com_poucos_caracteres(monkeypatch):
+        """Run test pdf runtime descarta fallback ocr com poucos caracteres in this workflow."""
+        runtime = file_processing.PdfIngestionRuntime()
+        calls = {"extract_region": 0}
+
+        class FakePage:
+            """Represent fake page and centralize responsibilities for this module."""
+
+            width = 100
+            height = 100
+
+            def extract_tables(self, *args, **kwargs):
+                """Run extract tables in this workflow."""
+                return []
+
+            def extract_text(self, *args, **kwargs):
+                """Run extract text in this workflow."""
+                return ""
+
+            def crop(self, _bbox):
+                """Run crop in this workflow."""
+                return self
+
+        class FakePdf:
+            """Represent fake pdf and centralize responsibilities for this module."""
+
+            pages = [FakePage()]
+
+            def __enter__(self):
+                """Run enter in this workflow."""
+                return self
+
+            def __exit__(self, exc_type, exc, tb):
+                """Run exit in this workflow."""
+                return False
+
+        def _fake_extract_data_from_pdf_region_impl(*, file_path, page_number, region=None, ocr_runtime_state=None):
+            """Run fake extract data from pdf region impl in this workflow."""
+            _ = file_path, page_number, region, ocr_runtime_state
+            calls["extract_region"] += 1
+            return pd.DataFrame([{"col_0": "a1"}, {"col_0": "b2"}])
+
+        monkeypatch.setattr(file_processing.pdfplumber, "open", lambda *_args, **_kwargs: FakePdf())
+        monkeypatch.setattr(
+            file_processing._FileProcessingImplementation,
+            "_extract_data_from_pdf_region_impl",
+            _fake_extract_data_from_pdf_region_impl,
+        )
+
+        result = await runtime.processar_arquivo_pdf(
+            conteudo_arquivo=b"fake",
+            usar_llm=False,
+            extraction_mode="ocr",
+        )
+
+        assert calls["extract_region"] >= 1
+        assert isinstance(result, list)
+        assert "erro_processamento_pdf" in result[0]
+
     def test_pdf_runtime_descarta_marcadores_de_indice():
         """Run test pdf runtime descarta marcadores de indice in this workflow."""
         runtime = file_processing.PdfIngestionRuntime()
@@ -310,6 +370,7 @@ test_processar_arquivo_pdf_impl_usa_runtime = _TopLevelFunctionSurface.test_proc
 test_pdf_runtime_ignora_payload_de_descarte = _TopLevelFunctionSurface.test_pdf_runtime_ignora_payload_de_descarte
 test_pdf_runtime_aplica_fallback_tabular_ocr_sem_bbox = _TopLevelFunctionSurface.test_pdf_runtime_aplica_fallback_tabular_ocr_sem_bbox
 test_pdf_runtime_table_mode_nao_executa_fallback_ocr = _TopLevelFunctionSurface.test_pdf_runtime_table_mode_nao_executa_fallback_ocr
+test_pdf_runtime_descarta_fallback_ocr_com_poucos_caracteres = _TopLevelFunctionSurface.test_pdf_runtime_descarta_fallback_ocr_com_poucos_caracteres
 test_pdf_runtime_descarta_marcadores_de_indice = _TopLevelFunctionSurface.test_pdf_runtime_descarta_marcadores_de_indice
 test_pdf_runtime_mantem_fallback_conteudo_curto = _TopLevelFunctionSurface.test_pdf_runtime_mantem_fallback_conteudo_curto
 
