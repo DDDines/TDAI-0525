@@ -147,7 +147,7 @@ class WebEnrichmentPayloadService:
                 return True
             return False
 
-        if field_name in {"descricao_original", "descricao_chat_api"}:
+        if field_name == "descricao_original":
             if len(folded) < 20:
                 return True
             if self._looks_like_application_only(text):
@@ -378,15 +378,6 @@ class WebEnrichmentPayloadService:
         self._apply_if_empty_or_weak(
             field_name="descricao_original",
             current_value=db_produto_obj.descricao_original,
-            new_value=descricao_web,
-            update_fields=update_fields,
-            notes=notes,
-            ignored_notes=ignored_notes,
-            allow_replace_weak=True,
-        )
-        self._apply_if_empty_or_weak(
-            field_name="descricao_chat_api",
-            current_value=db_produto_obj.descricao_chat_api,
             new_value=descricao_web,
             update_fields=update_fields,
             notes=notes,

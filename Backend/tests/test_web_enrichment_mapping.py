@@ -73,7 +73,7 @@ class _TopLevelFunctionSurface:
     
         assert update_fields["nome_chat_api"] == "Suporte Fixacao Apara Barro Randon 695mm"
         assert update_fields["descricao_original"].startswith("Codigo: SP1081")
-        assert update_fields["descricao_chat_api"].startswith("Codigo: SP1081")
+        assert "descricao_chat_api" not in update_fields
         assert update_fields["imagem_principal_url"] == "https://img.test/produto.webp"
         assert update_fields["marca"] == "Pickup Parts"
         assert update_fields["sku"] == "SP1081"
@@ -215,10 +215,10 @@ class _TopLevelFunctionSurface:
     
         assert update_fields["nome_chat_api"] == "Suporte Fixacao do Para-choque"
         assert update_fields["descricao_original"].startswith("Suporte de fixacao")
-        assert update_fields["descricao_chat_api"].startswith("Suporte de fixacao")
+        assert "descricao_chat_api" not in update_fields
         assert "nome_chat_api:substituido_valor_fraco" in notes
         assert "descricao_original:substituido_valor_fraco" in notes
-        assert "descricao_chat_api:substituido_valor_fraco" in notes
+        assert not any(item.startswith("descricao_chat_api:") for item in notes)
         assert not any(item.startswith("descricao_original:") for item in ignored)
 
     def test_build_payload_remove_historico_empresa_de_descricao_web():
