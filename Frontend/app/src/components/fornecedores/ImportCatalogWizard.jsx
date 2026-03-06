@@ -764,6 +764,13 @@ function ImportCatalogWizard(
     resultData?.stats?.quarentena_nao_critica ?? (resultData?.quarantine_non_critical?.length || 0);
     const acceptedQualityAvg = resultData?.stats?.qualidade_score_medio_aceitas;
     const quarantineQualityAvg = resultData?.stats?.qualidade_score_medio_quarentena;
+    const resultOutput = resultData?.output && typeof resultData.output === 'object' ? resultData.output : {};
+    const resultOutputHeadline = normalizeDisplayText(resultOutput?.headline || '');
+    const resultOutputLabel = normalizeDisplayText(resultOutput?.status_label || '');
+    const resultOutputPages = resultOutput?.pages && typeof resultOutput.pages === 'object' ? resultOutput.pages : {};
+    const resultTopReasons = Array.isArray(resultData?.top_reasons) ?
+    resultData.top_reasons.slice(0, 5) :
+    [];
 
     return (
       <div className="wizard-container" aria-live="polite">
@@ -1107,6 +1114,12 @@ function ImportCatalogWizard(
           {resultData &&
           <div className="wizard-result-block">
               <h4>Resultado</h4>
+              {resultOutputLabel &&
+            <p><strong>{resultOutputLabel}</strong></p>
+            }
+              {resultOutputHeadline &&
+            <p>{resultOutputHeadline}</p>
+            }
               {statusData?.status === 'FAILED' && resultData?.errors?.length > 0 &&
             <p className="wizard-result-error">
                   Falha: {resultData.errors[0]?.erro_processamento_pdf || resultData.errors[0]?.erro_processamento || 'Verifique os detalhes em Erros/Log.'}
@@ -1128,6 +1141,9 @@ function ImportCatalogWizard(
                     Páginas: {resultData?.stats?.pages_processed ?? statusData?.pages_processed ?? 0}/
                     {resultData?.stats?.pages_total ?? statusData?.total_pages ?? statusData?.pages_total ?? 0}
                   </li>
+                  {typeof resultOutputPages?.progress_pct === 'number' &&
+              <li>Progresso final: {resultOutputPages.progress_pct}%</li>
+              }
                   <li>Formato: {resultData?.stats?.ext || selectedFile?.name?.split('.').pop()?.toLowerCase() || '-'}</li>
                   {acceptedQualityAvg != null &&
               <li>Qualidade média (aceitos): {acceptedQualityAvg}</li>
@@ -1136,6 +1152,18 @@ function ImportCatalogWizard(
               <li>Qualidade média (quarentena): {quarantineQualityAvg}</li>
               }
                 </ul>
+            }
+              {resultTopReasons.length > 0 &&
+            <details>
+                  <summary>Top motivos de erro</summary>
+                  <ul className="wizard-result-list">
+                    {resultTopReasons.map((item, idx) =>
+                <li key={`reason-${idx}`}>
+                        {normalizeDisplayText(item?.reason || '-')} ({item?.count ?? 0})
+                      </li>
+                )}
+                  </ul>
+                </details>
             }
               {resultData.errors?.length > 0 &&
             <details>

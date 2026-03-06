@@ -11,7 +11,7 @@ from typing import Any, Callable, Dict, List, Optional, Tuple
 
 
 class CatalogImportIssueTracker:
-    """Centraliza coleta/classificação de erros, descartes e quarentena."""
+    """Centraliza coleta/classificacao de erros, descartes e quarentena."""
 
     def __init__(
         self,
@@ -78,7 +78,7 @@ class CatalogImportIssueTracker:
 
 
 class CatalogImportQualityAccumulator:
-    """Agrega scores de qualidade para estatísticas finais."""
+    """Agrega scores de qualidade para estatisticas finais."""
 
     def __init__(self) -> None:
         """Initialize quality score buckets for accepted and quarantined rows."""
@@ -274,6 +274,48 @@ class CatalogImportResultBuilder:
         self._write_catalog_import_report = write_catalog_import_report
         self._outcome_resolver = outcome_resolver
 
+    @staticmethod
+    def _status_label(status: str) -> str:
+        """Map terminal status to a stable display label."""
+        if status == "IMPORTED":
+            return "Importacao concluida"
+        if status == "PARTIAL":
+            return "Importacao parcial"
+        if status == "FAILED":
+            return "Importacao falhou"
+        return "Importacao finalizada"
+
+    @staticmethod
+    def _progress_pct(*, pages_processed: int, pages_total: int) -> float:
+        """Compute progress percentage using safe defaults."""
+        if pages_total <= 0:
+            return 0.0
+        return round((pages_processed / pages_total) * 100, 2)
+
+    @classmethod
+    def _build_headline(
+        cls,
+        *,
+        final_status: str,
+        created_count: int,
+        updated_count: int,
+        errors_count: int,
+    ) -> str:
+        """Build a concise headline summarizing the import outcome."""
+        if final_status == "FAILED":
+            return (
+                f"Falha na importacao: nenhum produto salvo. "
+                f"Erros criticos detectados: {errors_count}."
+            )
+        if final_status == "PARTIAL":
+            total_saved = created_count + updated_count
+            return (
+                f"Importacao parcial: {total_saved} produto(s) salvo(s) "
+                f"e {errors_count} erro(s) critico(s)."
+            )
+        total_saved = created_count + updated_count
+        return f"Importacao concluida com sucesso: {total_saved} produto(s) salvo(s)."
+
     def build(
         self,
         *,
@@ -305,6 +347,12 @@ class CatalogImportResultBuilder:
         top_quarantine_reasons = issue_tracker.top_quarantine_reasons(limit=10)
         accepted_quality_avg = quality_scores.accepted_avg
         quarantine_quality_avg = quality_scores.quarantine_avg
+        pages_processed = pages_processed or 0
+        pages_total = pages_total or 0
+        progress_pct = self._progress_pct(
+            pages_processed=pages_processed,
+            pages_total=pages_total,
+        )
 
         result_summary: Dict[str, Any] = {
             "created": [
@@ -328,16 +376,58 @@ class CatalogImportResultBuilder:
                 "qualidade_score_medio_aceitas": accepted_quality_avg,
                 "qualidade_score_medio_quarentena": quarantine_quality_avg,
                 "partial_success": has_partial_success,
-                "pages_processed": pages_processed or 0,
-                "pages_total": pages_total or 0,
+                "pages_processed": pages_processed,
+                "pages_total": pages_total,
                 "ext": ext,
             },
+            "output": {
+                "status": final_status,
+                "status_label": self._status_label(final_status),
+                "headline": self._build_headline(
+                    final_status=final_status,
+                    created_count=created_count,
+                    updated_count=updated_count,
+                    errors_count=errors_count,
+                ),
+                "pages": {
+                    "processed": pages_processed,
+                    "total": pages_total,
+                    "progress_pct": progress_pct,
+                },
+                "counts": {
+                    "created": created_count,
+                    "updated": updated_count,
+                    "critical_errors": errors_count,
+                    "discarded_non_critical": ignored_count,
+                    "quarantine_non_critical": quarantine_count,
+                },
+                "quality": {
+                    "accepted_avg": accepted_quality_avg,
+                    "quarantine_avg": quarantine_quality_avg,
+                },
+            },
+            "top_reasons": [
+                {"reason": self._normalize_import_text(reason), "count": count}
+                for reason, count in top_reasons
+            ],
+            "top_ignored_reasons": [
+                {"reason": self._normalize_import_text(reason), "count": count}
+                for reason, count in top_ignored_reasons
+            ],
+            "top_quarantine_reasons": [
+                {"reason": self._normalize_import_text(reason), "count": count}
+                for reason, count in top_quarantine_reasons
+            ],
             "log": [
                 f"Resumo final: status={final_status}",
                 (
                     f"Criados={created_count}, Atualizados={updated_count}, "
-                    f"Erros={errors_count}, Descartes não críticos={ignored_count}, "
-                    f"Quarentena não crítica={quarantine_count}"
+                    f"Erros={errors_count}, Descartes nao criticos={ignored_count}, "
+                    f"Quarentena nao critica={quarantine_count}"
+                ),
+                (
+                    f"Paginas processadas: {pages_processed}/{pages_total} "
+                    f"({progress_pct}%)"
                 ),
             ],
         }
@@ -350,7 +440,7 @@ class CatalogImportResultBuilder:
             top_ignored_log = "; ".join(
                 [f"{self._normalize_import_text(reason)} ({count})" for reason, count in top_ignored_reasons]
             )
-            result_summary["log"].append(f"Top descartes não críticos: {top_ignored_log}")
+            result_summary["log"].append(f"Top descartes nao criticos: {top_ignored_log}")
         if top_quarantine_reasons:
             top_quarantine_log = "; ".join(
                 [
@@ -361,15 +451,15 @@ class CatalogImportResultBuilder:
             result_summary["log"].append(f"Top linhas em quarentena: {top_quarantine_log}")
         if accepted_quality_avg is not None:
             result_summary["log"].append(
-                f"Score médio de qualidade (aceitas): {accepted_quality_avg}"
+                f"Score medio de qualidade (aceitas): {accepted_quality_avg}"
             )
         if quarantine_quality_avg is not None:
             result_summary["log"].append(
-                f"Score médio de qualidade (quarentena): {quarantine_quality_avg}"
+                f"Score medio de qualidade (quarentena): {quarantine_quality_avg}"
             )
         if has_partial_success:
             result_summary["log"].append(
-                "Importação concluída com sucesso parcial: produtos foram gravados, mas houve erros críticos."
+                "Importacao concluida com sucesso parcial: produtos foram gravados, mas houve erros criticos."
             )
 
         report_path = self._write_catalog_import_report(
@@ -386,12 +476,12 @@ class CatalogImportResultBuilder:
             quarantine_samples=issue_tracker.quarantine_samples,
             accepted_quality_avg=accepted_quality_avg,
             quarantine_quality_avg=quarantine_quality_avg,
-            pages_processed=pages_processed or 0,
-            pages_total=pages_total or 0,
+            pages_processed=pages_processed,
+            pages_total=pages_total,
             ext=ext,
         )
         if report_path:
-            result_summary["log"].append(f"Relatório detalhado: {report_path}")
+            result_summary["log"].append(f"Relatorio detalhado: {report_path}")
 
         return {
             "final_status": final_status,

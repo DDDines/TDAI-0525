@@ -117,6 +117,8 @@ class GenerationTaskService:
         funcao_geracao_ia_no_servico: Any,
         num_titulos: int | None = None,
         tamanho_palavras: int | None = None,
+        template_titulo: str | None = None,
+        template_descricao: str | None = None,
     ) -> None:
         """Executa geracao IA e persiste status/log no produto."""
         session: Optional[Session] = None
@@ -195,6 +197,10 @@ class GenerationTaskService:
                 llm_call_payload["num_titulos"] = num_titulos
             if tamanho_palavras is not None:
                 llm_call_payload["tamanho_palavras"] = tamanho_palavras
+            if template_titulo is not None:
+                llm_call_payload["template_titulo"] = template_titulo
+            if template_descricao is not None:
+                llm_call_payload["template_descricao"] = template_descricao
 
             resultado_ia = await funcao_geracao_ia_no_servico(**llm_call_payload)
             self._logger.info(

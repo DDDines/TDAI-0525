@@ -6,6 +6,7 @@
 
 import logger from '../utils/logger';
 import apiClient from './apiClient';
+import basicTemplateService from './basicTemplateService';
 
 async function getProdutos(params = {}) {
   try {
@@ -99,8 +100,24 @@ async function gerarDescricaoGemini(produtoId) {
   }
 }
 
-async function gerarTitulosProdutoModoBasico(produtoId) {
+async function gerarTitulosProdutoModoBasico(produtoId, options = {}) {
   try {
+    const customTemplate = basicTemplateService.resolveCustomTemplateForRequest(
+      'title',
+      options?.template
+    );
+    if (customTemplate) {
+      const response = await apiClient.post(
+        `/geracao/titulos/basico/${produtoId}`,
+        null,
+        {
+          params: {
+            template: customTemplate,
+          },
+        }
+      );
+      return response.data;
+    }
     const response = await apiClient.post(`/geracao/titulos/basico/${produtoId}`);
     return response.data;
   } catch (error) {
@@ -112,8 +129,24 @@ async function gerarTitulosProdutoModoBasico(produtoId) {
   }
 }
 
-async function gerarDescricaoProdutoModoBasico(produtoId) {
+async function gerarDescricaoProdutoModoBasico(produtoId, options = {}) {
   try {
+    const customTemplate = basicTemplateService.resolveCustomTemplateForRequest(
+      'description',
+      options?.template
+    );
+    if (customTemplate) {
+      const response = await apiClient.post(
+        `/geracao/descricao/basico/${produtoId}`,
+        null,
+        {
+          params: {
+            template: customTemplate,
+          },
+        }
+      );
+      return response.data;
+    }
     const response = await apiClient.post(`/geracao/descricao/basico/${produtoId}`);
     return response.data;
   } catch (error) {

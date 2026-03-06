@@ -173,6 +173,12 @@
   color: #475569;
 }
 
+.settings-textarea {
+  min-height: 110px;
+  resize: vertical;
+  font-family: 'Consolas', 'Monaco', monospace;
+}
+
 .settings-help-text {
   font-size: 0.9rem;
   color: #64748b;
@@ -242,6 +248,19 @@
 
 .settings-mode-reset-btn {
   border-style: dashed;
+}
+
+.settings-template-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+  margin-top: 1rem;
+}
+
+.settings-template-actions .settings-primary-btn {
+  width: auto;
+  margin-top: 0;
+  padding-inline: 1rem;
 }
 
 .settings-primary-btn {

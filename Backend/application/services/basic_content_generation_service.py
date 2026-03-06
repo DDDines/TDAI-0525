@@ -13,6 +13,15 @@ from Backend.infrastructure.repositories.product_repository import ProductReposi
 class BasicContentGenerationService:
     """Gera titulos e descricoes basicas usando apenas dados internos do produto."""
 
+    _DEFAULT_TITLE_TEMPLATE = "{nome_base} {marca} {modelo} {sku} {keyword}"
+    _DEFAULT_DESCRIPTION_TEMPLATE = (
+        "{intro}\n\n"
+        "{descricao_web}\n\n"
+        "Especificacoes tecnicas:\n{specs}\n\n"
+        "Destaques:\n{bullets}\n\n"
+        "Palavras-chave: {keywords}"
+    )
+    _TEMPLATE_FIELD_PATTERN = re.compile(r"\{([A-Za-z0-9_]+)\}")
     _KEYWORD_STOPWORDS = {
         "com",
         "para",
@@ -108,6 +117,59 @@ class BasicContentGenerationService:
             if key_clean and value_clean:
                 parsed[key_clean] = value_clean
         return parsed
+
+    @staticmethod
+    def _safe_template(template: Any, *, default_template: str) -> str:
+        """Normalize custom templates and fallback to built-in defaults."""
+        raw = str(template or "").replace("\r\n", "\n").strip()
+        if not raw:
+            return default_template
+        return raw[:2000]
+
+    def _render_template(self, *, template: str, context: Dict[str, Any]) -> str:
+        """Render a lightweight placeholder template with normalized values."""
+
+        def _normalize_value(value: Any) -> str:
+            """Normalize template values into compact printable strings."""
+            if value is None:
+                return ""
+            if isinstance(value, dict):
+                pairs = [
+                    f"{self._normalize_space(k)}: {self._normalize_space(v)}"
+                    for k, v in value.items()
+                    if self._normalize_space(k) and self._normalize_space(v)
+                ]
+                return "; ".join(pairs)
+            if isinstance(value, list):
+                items = [self._normalize_space(item) for item in value if self._normalize_space(item)]
+                return ", ".join(items)
+            return self._normalize_space(value)
+
+        def _replace(match: re.Match[str]) -> str:
+            """Replace placeholder matches using the provided render context."""
+            key = match.group(1)
+            return _normalize_value(context.get(key))
+
+        rendered = self._TEMPLATE_FIELD_PATTERN.sub(_replace, template)
+        rendered = re.sub(r"[ \t]+\n", "\n", rendered)
+        rendered = re.sub(r"\n{3,}", "\n\n", rendered)
+        rendered = re.sub(r"\s{2,}", " ", rendered)
+        rendered = "\n".join(line.strip() for line in rendered.splitlines())
+        rendered = "\n".join(line for line in rendered.splitlines() if line.strip())
+        return rendered.strip()
+
+    @staticmethod
+    def _format_list_for_template(
+        values: List[str],
+        *,
+        bullet_prefix: str = "- ",
+        empty_fallback: str = "Nao informado.",
+    ) -> str:
+        """Format list values to a deterministic multiline template fragment."""
+        normalized = [str(value or "").strip() for value in values if str(value or "").strip()]
+        if not normalized:
+            return empty_fallback
+        return "\n".join(f"{bullet_prefix}{item}" for item in normalized)
 
     def _extract_keywords_from_texts(self, *, texts: List[str], limit: int = 8) -> List[str]:
         """Generate compact keyword hints from text snippets."""
@@ -277,9 +339,14 @@ class BasicContentGenerationService:
             )
         return produto
 
-    def _build_title_candidates(self, *, produto: Any) -> List[str]:
+    def _build_title_candidates(
+        self,
+        *,
+        produto: Any,
+        web_context: Dict[str, Any] | None = None,
+    ) -> List[str]:
         """Build title candidates from product identity and technical hints."""
-        web_context = self._extract_web_context(produto=produto)
+        web_context = web_context or self._extract_web_context(produto=produto)
 
         nome_base = self._normalize_space(getattr(produto, "nome_base", "")) or self._normalize_space(
             web_context.get("nome")
@@ -333,7 +400,75 @@ class BasicContentGenerationService:
         fallback = self._normalize_space(f"Produto {getattr(produto, 'id', '')}")
         return [fallback or "Produto"]
 
-    def _build_basic_description(self, *, produto: Any, tamanho_palavras: int) -> str:
+    def _build_titles_with_template(
+        self,
+        *,
+        produto: Any,
+        template_titulo: str,
+        web_context: Dict[str, Any],
+        base_candidates: List[str],
+        max_titles: int,
+    ) -> List[str]:
+        """Render optional title templates and merge with deterministic fallbacks."""
+        nome_base = self._normalize_space(getattr(produto, "nome_base", "")) or "Produto"
+        marca = self._normalize_space(getattr(produto, "marca", ""))
+        modelo = self._normalize_space(getattr(produto, "modelo", ""))
+        sku = self._normalize_space(getattr(produto, "sku", ""))
+        ean = self._normalize_space(getattr(produto, "ean", ""))
+        categoria = self._normalize_space(
+            getattr(produto, "categoria_mapeada", "")
+            or getattr(produto, "categoria_original", "")
+        )
+        fornecedor = getattr(produto, "fornecedor", None)
+        fornecedor_nome = self._normalize_space(getattr(fornecedor, "nome", "")) if fornecedor else ""
+        web_nome = self._normalize_space(web_context.get("nome"))
+        web_descricao = self._normalize_space(web_context.get("descricao"))
+
+        keywords = self._coerce_list(web_context.get("keywords"))
+        spec_items = list(self._coerce_dict(web_context.get("specs")).items())
+        rendered_titles: List[str] = []
+        upper_bound = max(10, max_titles * 4)
+
+        for index in range(upper_bound):
+            keyword = keywords[index % len(keywords)] if keywords else ""
+            spec_key = ""
+            spec_value = ""
+            if spec_items:
+                spec_key, spec_value = spec_items[index % len(spec_items)]
+
+            title_base = base_candidates[index % len(base_candidates)] if base_candidates else ""
+            context = {
+                "nome_base": nome_base,
+                "marca": marca,
+                "modelo": modelo,
+                "sku": sku,
+                "ean": ean,
+                "categoria": categoria,
+                "fornecedor": fornecedor_nome,
+                "nome_web": web_nome,
+                "descricao_web": web_descricao,
+                "keyword": keyword,
+                "spec_key": self._normalize_space(spec_key),
+                "spec_value": self._normalize_space(spec_value),
+                "titulo_base": title_base,
+                "indice": str(index + 1),
+            }
+            rendered = self._render_template(template=template_titulo, context=context)
+            rendered = self._normalize_space(rendered)[:120]
+            if rendered:
+                rendered_titles.append(rendered)
+            if len(self._unique_keep_order(rendered_titles)) >= max_titles:
+                break
+
+        return self._unique_keep_order(rendered_titles)
+
+    def _build_basic_description(
+        self,
+        *,
+        produto: Any,
+        tamanho_palavras: int,
+        template_descricao: str,
+    ) -> str:
         """Compose a concise basic description from product and dynamic attributes."""
         web_context = self._extract_web_context(produto=produto)
         nome_base = self._normalize_space(getattr(produto, "nome_base", "")) or "Produto"
@@ -353,11 +488,8 @@ class BasicContentGenerationService:
             intro_parts.append(f"modelo {modelo}")
         if categoria:
             intro_parts.append(f"categoria {categoria}")
-        descricao = f"{', '.join(intro_parts)}."
-
+        intro = f"{', '.join(intro_parts)}."
         descricao_web = self._normalize_space(web_context.get("descricao"))
-        if descricao_web:
-            descricao = f"{descricao}\n\n{descricao_web}"
 
         specs: List[str] = []
         if sku:
@@ -387,18 +519,43 @@ class BasicContentGenerationService:
 
         specs = self._unique_keep_order(specs)
 
-        if specs:
-            descricao = f"{descricao}\n\n" + "\n".join(specs)
-
         bullets = self._coerce_list(web_context.get("bullets"))
-        if bullets:
-            descricao = f"{descricao}\n\nDestaques:\n" + "\n".join(
-                f"- {item}" for item in bullets[:5]
-            )
+        bullets = bullets[:5]
 
         keywords = self._coerce_list(web_context.get("keywords"))
-        if keywords:
-            descricao = f"{descricao}\n\nPalavras-chave: {', '.join(keywords[:8])}"
+        keywords = keywords[:8]
+
+        template_context = {
+            "intro": intro,
+            "nome_base": nome_base,
+            "marca": marca,
+            "modelo": modelo,
+            "sku": sku,
+            "ean": ean,
+            "categoria": categoria,
+            "descricao_web": descricao_web or "Descricao complementar indisponivel.",
+            "specs": self._format_list_for_template(
+                specs,
+                bullet_prefix="- ",
+                empty_fallback="- Sem especificacoes tecnicas adicionais.",
+            ),
+            "bullets": self._format_list_for_template(
+                bullets,
+                bullet_prefix="- ",
+                empty_fallback="- Sem destaques adicionais.",
+            ),
+            "keywords": ", ".join(keywords) if keywords else "Sem palavras-chave relevantes.",
+            "keywords_list": keywords,
+            "specs_list": specs,
+            "bullets_list": bullets,
+        }
+
+        descricao = self._render_template(
+            template=template_descricao,
+            context=template_context,
+        )
+        if not descricao:
+            descricao = intro
 
         max_words = max(40, int(tamanho_palavras or 150))
         words = descricao.split()
@@ -413,13 +570,36 @@ class BasicContentGenerationService:
         produto_id: int,
         user: Any,
         num_titulos: int = 5,
+        template_titulo: str | None = None,
     ) -> List[str]:
         """Generate title suggestions without external IA providers."""
         _ = user
         produto = self._load_produto(session=session, produto_id=produto_id)
-        candidates = self._build_title_candidates(produto=produto)
         max_titles = max(1, min(int(num_titulos or 5), 10))
-        return candidates[:max_titles]
+        web_context = self._extract_web_context(produto=produto)
+        fallback_candidates = self._build_title_candidates(
+            produto=produto,
+            web_context=web_context,
+        )
+        safe_template = self._safe_template(
+            template_titulo,
+            default_template=self._DEFAULT_TITLE_TEMPLATE,
+        )
+        templated_candidates = self._build_titles_with_template(
+            produto=produto,
+            template_titulo=safe_template,
+            web_context=web_context,
+            base_candidates=fallback_candidates,
+            max_titles=max_titles,
+        )
+        merged_candidates = self._unique_keep_order([*templated_candidates, *fallback_candidates])
+        merged_candidates = self._ensure_minimum_title_candidates(
+            candidates=merged_candidates,
+            produto=produto,
+            minimum_count=max_titles,
+            web_context=web_context,
+        )
+        return merged_candidates[:max_titles]
 
     async def gerar_descricao_basica(
         self,
@@ -428,11 +608,17 @@ class BasicContentGenerationService:
         produto_id: int,
         user: Any,
         tamanho_palavras: int = 150,
+        template_descricao: str | None = None,
     ) -> str:
         """Generate a basic product description without external IA providers."""
         _ = user
         produto = self._load_produto(session=session, produto_id=produto_id)
+        safe_template = self._safe_template(
+            template_descricao,
+            default_template=self._DEFAULT_DESCRIPTION_TEMPLATE,
+        )
         return self._build_basic_description(
             produto=produto,
             tamanho_palavras=tamanho_palavras,
+            template_descricao=safe_template,
         )

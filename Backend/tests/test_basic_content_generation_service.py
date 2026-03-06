@@ -213,6 +213,76 @@ class _TopLevelFunctionSurface:
         assert "iniciou suas atividades" not in descricao.lower()
         assert "ano de 2015" not in descricao.lower()
 
+    @pytest.mark.asyncio
+    async def test_gerar_titulos_basicos_respeita_template_customizado():
+        """Ensure custom title templates are applied in non-AI mode."""
+        produto = SimpleNamespace(
+            id=33,
+            nome_base="Amortecedor Traseiro",
+            marca="Monroe",
+            modelo="M-889",
+            sku="AM889",
+            ean="",
+            categoria_original="Suspensao",
+            categoria_mapeada=None,
+            fornecedor=None,
+            dynamic_attributes={},
+            dados_brutos_web={
+                "palavras_chave_seo_relevantes_lista": ["hidraulico"],
+            },
+        )
+        service = _TopLevelFunctionSurface._build_service(produto)
+
+        titulos = await service.gerar_titulos_basicos(
+            session=object(),
+            produto_id=33,
+            user=SimpleNamespace(id=1),
+            num_titulos=3,
+            template_titulo="{marca} | {nome_base} | {sku}",
+        )
+
+        assert len(titulos) == 3
+        assert titulos[0] == "Monroe | Amortecedor Traseiro | AM889"
+
+    @pytest.mark.asyncio
+    async def test_gerar_descricao_basica_aplica_template_customizado():
+        """Ensure custom description templates are applied in non-AI mode."""
+        produto = SimpleNamespace(
+            id=34,
+            nome_base="Bomba Dagua",
+            marca="Pierburg",
+            modelo="PD-10",
+            sku="BD100",
+            ean="7891111111111",
+            categoria_original="Arrefecimento",
+            categoria_mapeada=None,
+            fornecedor=None,
+            dynamic_attributes={"Material": "Aluminio"},
+            dados_brutos_web={
+                "descricao_curta": "Com rotor reforcado para alta durabilidade.",
+                "palavras_chave_seo_relevantes_lista": ["bomba dagua", "motor diesel"],
+            },
+        )
+        service = _TopLevelFunctionSurface._build_service(produto)
+
+        descricao = await service.gerar_descricao_basica(
+            session=object(),
+            produto_id=34,
+            user=SimpleNamespace(id=1),
+            tamanho_palavras=120,
+            template_descricao=(
+                "Produto: {nome_base} ({marca})\n"
+                "Resumo: {descricao_web}\n"
+                "Specs:\n{specs}\n"
+                "Tags: {keywords}"
+            ),
+        )
+
+        assert "Produto: Bomba Dagua (Pierburg)" in descricao
+        assert "Specs:" in descricao
+        assert "Material: Aluminio" in descricao
+        assert "Tags: bomba dagua, motor diesel" in descricao
+
 
 _build_service = _TopLevelFunctionSurface._build_service
 test_gerar_titulos_basicos_respeita_limite = _TopLevelFunctionSurface.test_gerar_titulos_basicos_respeita_limite
@@ -220,3 +290,5 @@ test_gerar_descricao_basica_inclui_campos_relevantes = _TopLevelFunctionSurface.
 test_gerar_titulos_basicos_padrao_entrega_cinco_opcoes = _TopLevelFunctionSurface.test_gerar_titulos_basicos_padrao_entrega_cinco_opcoes
 test_gerar_descricao_basica_aproveita_contexto_web = _TopLevelFunctionSurface.test_gerar_descricao_basica_aproveita_contexto_web
 test_gerar_descricao_basica_remove_historico_empresa_inferido = _TopLevelFunctionSurface.test_gerar_descricao_basica_remove_historico_empresa_inferido
+test_gerar_titulos_basicos_respeita_template_customizado = _TopLevelFunctionSurface.test_gerar_titulos_basicos_respeita_template_customizado
+test_gerar_descricao_basica_aplica_template_customizado = _TopLevelFunctionSurface.test_gerar_descricao_basica_aplica_template_customizado

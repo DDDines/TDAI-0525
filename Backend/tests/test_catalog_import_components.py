@@ -199,6 +199,9 @@ class _TopLevelFunctionSurface:
         assert payload["created_count"] == 1
         assert payload["errors_count"] == 1
         assert payload["result_summary"]["stats"]["pages_processed"] == 3
+        assert payload["result_summary"]["output"]["status"] == "PARTIAL"
+        assert payload["result_summary"]["output"]["pages"]["progress_pct"] == 30.0
+        assert payload["result_summary"]["top_reasons"][0]["reason"] == "erro x"
         assert payload["report_path"] == "r.json"
         assert len(report_calls) == 1
 

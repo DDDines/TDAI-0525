@@ -76,14 +76,24 @@ class GenerationSchedulingService:
         generation_func: Any,
         num_titulos: int | None = None,
         tamanho_palavras: int | None = None,
+        template_titulo: str | None = None,
+        template_descricao: str | None = None,
     ) -> None:
         """Execute enqueue generation task as part of this module workflow."""
+        task_payload = {
+            "user_id": user_id,
+            "produto_id": produto_id,
+            "tipo_geracao_principal": generation_type,
+            "funcao_geracao_ia_no_servico": generation_func,
+            "num_titulos": num_titulos,
+            "tamanho_palavras": tamanho_palavras,
+        }
+        if template_titulo is not None:
+            task_payload["template_titulo"] = template_titulo
+        if template_descricao is not None:
+            task_payload["template_descricao"] = template_descricao
+
         background_tasks.add_task(
             task_executor,
-            user_id=user_id,
-            produto_id=produto_id,
-            tipo_geracao_principal=generation_type,
-            funcao_geracao_ia_no_servico=generation_func,
-            num_titulos=num_titulos,
-            tamanho_palavras=tamanho_palavras,
+            **task_payload,
         )

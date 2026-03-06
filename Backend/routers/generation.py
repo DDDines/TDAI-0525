@@ -73,6 +73,8 @@ class GenerationRequestService:
         funcao_geracao_ia_no_servico,
         num_titulos: int | None = None,
         tamanho_palavras: int | None = None,
+        template_titulo: str | None = None,
+        template_descricao: str | None = None,
     ) -> None:
         """Handle Tarefa processar geracao e registrar uso in this request workflow."""
         await self._generation_task_service.run_generation_task(
@@ -82,6 +84,8 @@ class GenerationRequestService:
             funcao_geracao_ia_no_servico=funcao_geracao_ia_no_servico,
             num_titulos=num_titulos,
             tamanho_palavras=tamanho_palavras,
+            template_titulo=template_titulo,
+            template_descricao=template_descricao,
         )
 
     def agendar_geracao_novos_titulos_openai(
@@ -132,6 +136,7 @@ class GenerationRequestService:
         produto_id: int,
         background_tasks: BackgroundTasks,
         num_titulos: int,
+        template_titulo: str | None = None,
         current_user: models.User,
     ):
         """Agendar geracao de titulos no pipeline basico sem IA externa."""
@@ -148,6 +153,7 @@ class GenerationRequestService:
             generation_type="titulo",
             generation_func=self._basic_generation_service.gerar_titulos_basicos,
             num_titulos=num_titulos,
+            template_titulo=template_titulo,
         )
         return {
             "msg": (
@@ -162,6 +168,7 @@ class GenerationRequestService:
         produto_id: int,
         background_tasks: BackgroundTasks,
         tamanho_palavras: int,
+        template_descricao: str | None = None,
         current_user: models.User,
     ):
         """Agendar geracao de descricao no pipeline basico sem IA externa."""
@@ -178,6 +185,7 @@ class GenerationRequestService:
             generation_type="descricao",
             generation_func=self._basic_generation_service.gerar_descricao_basica,
             tamanho_palavras=tamanho_palavras,
+            template_descricao=template_descricao,
         )
         return {
             "msg": (
@@ -320,6 +328,7 @@ async def agendar_geracao_novos_titulos_basico(
     produto_id: int,
     background_tasks: BackgroundTasks,
     num_titulos: int = Query(5, ge=1, le=10),
+    template: str | None = Query(None, max_length=2000),
     request_service: GenerationRequestService = Depends(),
     current_user: models.User = Depends(
         auth_utils._AuthUtilsActiveUserDependency.get_current_active_user
@@ -330,6 +339,7 @@ async def agendar_geracao_novos_titulos_basico(
         produto_id=produto_id,
         background_tasks=background_tasks,
         num_titulos=num_titulos,
+        template_titulo=template,
         current_user=current_user,
     )
 
@@ -343,6 +353,7 @@ async def agendar_geracao_nova_descricao_basica(
     produto_id: int,
     background_tasks: BackgroundTasks,
     tamanho_palavras: int = Query(150, ge=50, le=500),
+    template: str | None = Query(None, max_length=2000),
     request_service: GenerationRequestService = Depends(),
     current_user: models.User = Depends(
         auth_utils._AuthUtilsActiveUserDependency.get_current_active_user
@@ -353,6 +364,7 @@ async def agendar_geracao_nova_descricao_basica(
         produto_id=produto_id,
         background_tasks=background_tasks,
         tamanho_palavras=tamanho_palavras,
+        template_descricao=template,
         current_user=current_user,
     )
 

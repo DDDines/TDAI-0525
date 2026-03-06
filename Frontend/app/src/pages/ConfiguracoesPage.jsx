@@ -6,6 +6,7 @@
 
 import React, { useState, useEffect } from 'react';
 import authService from '../services/authService';
+import basicTemplateService from '../services/basicTemplateService';
 import { showSuccessToast, showErrorToast } from '../utils/notifications';
 import ChangePasswordModal from '../components/user/ChangePasswordModal';
 import { useAuth } from '../contexts/AuthContext';
@@ -37,6 +38,10 @@ function ConfiguracoesPage() {
   const [loadingProfile, setLoadingProfile] = useState(false);
   const [initialUserDataLoaded, setInitialUserDataLoaded] = useState(false);
   const [isChangePasswordModalOpen, setIsChangePasswordModalOpen] = useState(false);
+  const [basicTemplates, setBasicTemplates] = useState(() =>
+  basicTemplateService.getBasicGenerationTemplates()
+  );
+  const [savingTemplates, setSavingTemplates] = useState(false);
 
   useEffect(() => {
     const fetchCurrentUser = async () => {
@@ -110,6 +115,37 @@ function ConfiguracoesPage() {
 
   const handleCloseChangePasswordModal = () => {
     setIsChangePasswordModalOpen(false);
+  };
+
+  const handleBasicTemplateChange = (event) => {
+    const { name, value } = event.target;
+    setBasicTemplates((prev) => ({
+      ...prev,
+      [name]: value,
+    }));
+  };
+
+  const handleSaveBasicTemplates = (event) => {
+    event.preventDefault();
+    setSavingTemplates(true);
+    try {
+      const savedTemplates = basicTemplateService.saveBasicGenerationTemplates({
+        titleTemplate: basicTemplates.titleTemplate,
+        descriptionTemplate: basicTemplates.descriptionTemplate,
+      });
+      setBasicTemplates(savedTemplates);
+      showSuccessToast('Templates do modo basico salvos com sucesso.');
+    } catch (error) {
+      showErrorToast(error.message || 'Falha ao salvar templates do modo basico.');
+    } finally {
+      setSavingTemplates(false);
+    }
+  };
+
+  const handleResetBasicTemplates = () => {
+    const resetTemplates = basicTemplateService.resetBasicGenerationTemplates();
+    setBasicTemplates(resetTemplates);
+    showSuccessToast('Templates do modo basico restaurados para o padrao.');
   };
 
   const handleSelectExperienceMode = (mode) => {
@@ -348,6 +384,58 @@ function ConfiguracoesPage() {
               Apenas administradores podem alternar o modo de visualizacao.
             </p>
           )}
+        </section>
+
+        <section className="settings-section-card">
+          <h2>Templates do Modo Basico</h2>
+          <p className="settings-help-text">
+            Estes templates sao usados na geracao sem IA para titulos e descricoes de produto.
+          </p>
+          <form onSubmit={handleSaveBasicTemplates}>
+            <div className="settings-field">
+              <label htmlFor="titleTemplate">Template de Titulos</label>
+              <textarea
+                id="titleTemplate"
+                name="titleTemplate"
+                className="settings-input settings-textarea"
+                rows={3}
+                value={basicTemplates.titleTemplate}
+                onChange={handleBasicTemplateChange}
+                disabled={savingTemplates}
+              />
+            </div>
+
+            <div className="settings-field">
+              <label htmlFor="descriptionTemplate">Template de Descricao</label>
+              <textarea
+                id="descriptionTemplate"
+                name="descriptionTemplate"
+                className="settings-input settings-textarea"
+                rows={8}
+                value={basicTemplates.descriptionTemplate}
+                onChange={handleBasicTemplateChange}
+                disabled={savingTemplates}
+              />
+            </div>
+
+            <small className="settings-help-text">
+              Placeholders: nome_base, marca, modelo, sku, ean, categoria, keyword, descricao_web, specs, bullets, keywords, intro.
+            </small>
+
+            <div className="settings-template-actions">
+              <button type="submit" className="settings-primary-btn" disabled={savingTemplates}>
+                {savingTemplates ? 'Salvando templates...' : 'Salvar templates'}
+              </button>
+              <button
+                type="button"
+                className="settings-mode-reset-btn"
+                onClick={handleResetBasicTemplates}
+                disabled={savingTemplates}
+              >
+                Restaurar padrao
+              </button>
+            </div>
+          </form>
         </section>
       </div>
 
