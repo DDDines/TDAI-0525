@@ -5,6 +5,7 @@ Contains backend logic related to test basic content generation service and docu
 
 from __future__ import annotations
 
+import re
 from types import SimpleNamespace
 
 import pytest
@@ -245,6 +246,49 @@ class _TopLevelFunctionSurface:
         assert titulos[0] == "Monroe | Amortecedor Traseiro | AM889"
 
     @pytest.mark.asyncio
+    async def test_gerar_titulos_basicos_remove_ruido_empresa_e_contato():
+        """Ensure title generation strips company/contact artifacts from noisy web context."""
+        produto = SimpleNamespace(
+            id=35,
+            nome_base="de AR 60 Litros Uouu Comercio Eletronico 986 345 430 8205",
+            marca="",
+            modelo="",
+            sku="AR60",
+            ean="",
+            categoria_original="Climatizacao",
+            categoria_mapeada=None,
+            fornecedor=SimpleNamespace(nome="Uouu Comercio Eletronico"),
+            dynamic_attributes={},
+            dados_brutos_web={
+                "nome": "de AR 60 Litros Uouu Comercio Eletronico 986 345 430 8205",
+                "palavras_chave_seo_relevantes_lista": [
+                    "favoritos",
+                    "qualidade",
+                    "seus",
+                    "whatsapp 11 99888 7766",
+                ],
+                "especificacoes_tecnicas_dict": {
+                    "Contato": "986 345 430 8205",
+                },
+            },
+        )
+        service = _TopLevelFunctionSurface._build_service(produto)
+
+        titulos = await service.gerar_titulos_basicos(
+            session=object(),
+            produto_id=35,
+            user=SimpleNamespace(id=1),
+            num_titulos=5,
+        )
+
+        assert len(titulos) == 5
+        assert all("comercio" not in titulo.lower() for titulo in titulos)
+        assert all("eletronico" not in titulo.lower() for titulo in titulos)
+        assert all("whatsapp" not in titulo.lower() for titulo in titulos)
+        assert all(not re.search(r"\d{3}\s+\d{3}\s+\d{3}", titulo) for titulo in titulos)
+        assert any("AR 60 Litros" in titulo for titulo in titulos)
+
+    @pytest.mark.asyncio
     async def test_gerar_descricao_basica_aplica_template_customizado():
         """Ensure custom description templates are applied in non-AI mode."""
         produto = SimpleNamespace(
@@ -291,4 +335,5 @@ test_gerar_titulos_basicos_padrao_entrega_cinco_opcoes = _TopLevelFunctionSurfac
 test_gerar_descricao_basica_aproveita_contexto_web = _TopLevelFunctionSurface.test_gerar_descricao_basica_aproveita_contexto_web
 test_gerar_descricao_basica_remove_historico_empresa_inferido = _TopLevelFunctionSurface.test_gerar_descricao_basica_remove_historico_empresa_inferido
 test_gerar_titulos_basicos_respeita_template_customizado = _TopLevelFunctionSurface.test_gerar_titulos_basicos_respeita_template_customizado
+test_gerar_titulos_basicos_remove_ruido_empresa_e_contato = _TopLevelFunctionSurface.test_gerar_titulos_basicos_remove_ruido_empresa_e_contato
 test_gerar_descricao_basica_aplica_template_customizado = _TopLevelFunctionSurface.test_gerar_descricao_basica_aplica_template_customizado

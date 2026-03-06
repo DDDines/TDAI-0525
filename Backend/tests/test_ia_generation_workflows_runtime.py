@@ -278,11 +278,13 @@ class _TopLevelFunctionSurface:
         """Run test ia generation runtime sanitize titles remove historico empresa in this workflow."""
         runtime = ia_service.IAGenerationRuntime()
         titles = runtime._sanitize_title_candidates(
-            "1. Paralama Iveco Stralis Original\n2. Uouu desde 2015 no mercado"
+            "1. Paralama Iveco Stralis Original\n2. Uouu desde 2015 no mercado\n3. Uouu Comercio Eletronico 986 345 430 8205"
         )
 
         assert any("Paralama Iveco Stralis Original" == title for title in titles)
         assert not any("2015" in title and "mercado" in title.lower() for title in titles)
+        assert not any("comercio" in title.lower() for title in titles)
+        assert not any("986" in title for title in titles)
 
 test_ai_provider_workflow_usa_runtime_injetado = _TopLevelFunctionSurface.test_ai_provider_workflow_usa_runtime_injetado
 test_ia_generation_workflow_usa_runtime_injetado = _TopLevelFunctionSurface.test_ia_generation_workflow_usa_runtime_injetado

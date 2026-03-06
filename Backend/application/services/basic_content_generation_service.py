@@ -66,6 +66,16 @@ class BasicContentGenerationService:
         r"\b(?:empresa|marca|fabricante|industria|loja|grupo|nos|nossa|historia|tradicao|mercado)\b",
         re.IGNORECASE,
     )
+    _TITLE_CONTACT_MARKER_PATTERN = re.compile(
+        r"\b(?:comercio|com[eé]rcio|eletronico|eletr[oô]nico|loja|empresa|atendimento|contato|telefone|fone|whatsapp|sac|site)\b",
+        re.IGNORECASE,
+    )
+    _PHONE_OR_ID_BLOCK_PATTERN = re.compile(r"(?:\+?\d[\d\s()./-]{7,}\d)")
+    _EMAIL_PATTERN = re.compile(
+        r"\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}\b",
+        re.IGNORECASE,
+    )
+    _URL_PATTERN = re.compile(r"\b(?:https?://|www\.)\S+\b", re.IGNORECASE)
 
     def __init__(self, *, product_repository_factory: Any = ProductRepository) -> None:
         """Initialize injected dependencies and runtime configuration for Basic Content Generation Service."""
@@ -75,6 +85,53 @@ class BasicContentGenerationService:
     def _normalize_space(value: Any) -> str:
         """Normalize spacing and coerce arbitrary values to safe strings."""
         return " ".join(str(value or "").strip().split())
+
+    @classmethod
+    def _sanitize_title_fragment(
+        cls,
+        value: Any,
+        *,
+        cut_on_contact_marker: bool = False,
+        max_len: int = 120,
+    ) -> str:
+        """Remove contact/company noise from title fragments while preserving product identity."""
+        text = cls._normalize_space(value)
+        if not text:
+            return ""
+
+        text = cls._URL_PATTERN.sub(" ", text)
+        text = cls._EMAIL_PATTERN.sub(" ", text)
+        text = cls._PHONE_OR_ID_BLOCK_PATTERN.sub(" ", text)
+
+        if cut_on_contact_marker:
+            marker_match = cls._TITLE_CONTACT_MARKER_PATTERN.search(text)
+            if marker_match:
+                text = text[: marker_match.start()]
+
+        text = cls._TITLE_CONTACT_MARKER_PATTERN.sub(" ", text)
+        text = re.sub(r"\b(?:tel|telefone|fone|whatsapp|contato|atendimento|sac)\b[:\-]?", " ", text, flags=re.IGNORECASE)
+        text = re.sub(r"\s+", " ", text).strip(" -|,;:/")
+        if not text:
+            return ""
+
+        if sum(char.isdigit() for char in text) >= max(6, len(text) // 2):
+            return ""
+
+        return text[:max_len]
+
+    @classmethod
+    def _is_noisy_title_fragment(cls, value: Any) -> bool:
+        """Identify fragments that look like contact/company metadata instead of product content."""
+        text = cls._normalize_space(value)
+        if not text:
+            return True
+        if cls._URL_PATTERN.search(text) or cls._EMAIL_PATTERN.search(text):
+            return True
+        if cls._TITLE_CONTACT_MARKER_PATTERN.search(text):
+            return True
+        if cls._PHONE_OR_ID_BLOCK_PATTERN.search(text):
+            return True
+        return False
 
     @staticmethod
     def _unique_keep_order(values: List[str]) -> List[str]:
@@ -249,6 +306,7 @@ class BasicContentGenerationService:
         bullets = self._coerce_list(raw.get("lista_caracteristicas_beneficios_bullets"))
         keywords = self._coerce_list(raw.get("palavras_chave_seo_relevantes_lista"))
         specs = self._coerce_dict(raw.get("especificacoes_tecnicas_dict"))
+        nome = self._sanitize_title_fragment(nome, cut_on_contact_marker=True, max_len=120)
 
         if not descricao:
             fontes = raw.get("fontes_web_coletadas")
@@ -279,6 +337,16 @@ class BasicContentGenerationService:
                 ],
                 limit=8,
             )
+        keywords = [
+            self._sanitize_title_fragment(item, cut_on_contact_marker=True, max_len=60)
+            for item in keywords
+        ]
+        keywords = [
+            item
+            for item in keywords
+            if item and not self._is_noisy_title_fragment(item)
+        ]
+        keywords = self._unique_keep_order(keywords)
 
         return {
             "nome": nome,
@@ -300,13 +368,15 @@ class BasicContentGenerationService:
         nome_base = self._normalize_space(getattr(produto, "nome_base", "")) or self._normalize_space(
             web_context.get("nome")
         ) or "Produto"
-        marca = self._normalize_space(getattr(produto, "marca", ""))
+        nome_base = self._sanitize_title_fragment(nome_base, cut_on_contact_marker=True) or "Produto"
+        marca = self._sanitize_title_fragment(getattr(produto, "marca", ""), cut_on_contact_marker=True, max_len=80)
         sku = self._normalize_space(getattr(produto, "sku", ""))
-        modelo = self._normalize_space(getattr(produto, "modelo", ""))
+        modelo = self._sanitize_title_fragment(getattr(produto, "modelo", ""), cut_on_contact_marker=True, max_len=80)
         categoria = self._normalize_space(
             getattr(produto, "categoria_mapeada", "")
             or getattr(produto, "categoria_original", "")
         )
+        categoria = self._sanitize_title_fragment(categoria, cut_on_contact_marker=True, max_len=80)
         keyword_seed = self._coerce_list(web_context.get("keywords"))
 
         patterns = [
@@ -317,11 +387,18 @@ class BasicContentGenerationService:
             self._normalize_space(" ".join(part for part in [nome_base, categoria, modelo] if part)),
         ]
         for keyword in keyword_seed[:4]:
+            if self._is_noisy_title_fragment(keyword):
+                continue
             patterns.append(
                 self._normalize_space(" ".join(part for part in [nome_base, keyword, sku] if part))
             )
 
-        combined = self._unique_keep_order([*candidates, *patterns])
+        combined = [
+            self._sanitize_title_fragment(item, cut_on_contact_marker=True)
+            for item in [*candidates, *patterns]
+        ]
+        combined = [item for item in combined if item and not self._is_noisy_title_fragment(item)]
+        combined = self._unique_keep_order(combined)
         while len(combined) < minimum_count:
             option_index = len(combined) + 1
             combined.append(self._normalize_space(f"{nome_base} opcao {option_index}"))
@@ -351,44 +428,53 @@ class BasicContentGenerationService:
         nome_base = self._normalize_space(getattr(produto, "nome_base", "")) or self._normalize_space(
             web_context.get("nome")
         )
-        marca = self._normalize_space(getattr(produto, "marca", ""))
-        modelo = self._normalize_space(getattr(produto, "modelo", ""))
+        nome_base = self._sanitize_title_fragment(nome_base, cut_on_contact_marker=True)
+        marca = self._sanitize_title_fragment(getattr(produto, "marca", ""), cut_on_contact_marker=True, max_len=80)
+        modelo = self._sanitize_title_fragment(getattr(produto, "modelo", ""), cut_on_contact_marker=True, max_len=80)
         sku = self._normalize_space(getattr(produto, "sku", ""))
         ean = self._normalize_space(getattr(produto, "ean", ""))
         categoria = self._normalize_space(
             getattr(produto, "categoria_mapeada", "")
             or getattr(produto, "categoria_original", "")
         )
-
-        fornecedor_nome = ""
-        fornecedor = getattr(produto, "fornecedor", None)
-        if fornecedor is not None:
-            fornecedor_nome = self._normalize_space(getattr(fornecedor, "nome", ""))
+        categoria = self._sanitize_title_fragment(categoria, cut_on_contact_marker=True, max_len=80)
 
         keywords = self._coerce_list(web_context.get("keywords"))
         specs = self._coerce_dict(web_context.get("specs"))
-        nome_web = self._normalize_space(web_context.get("nome"))
+        nome_web = self._sanitize_title_fragment(
+            web_context.get("nome"),
+            cut_on_contact_marker=True,
+            max_len=120,
+        )
 
         candidates: List[str] = [
             self._normalize_space(" ".join(part for part in [marca, nome_base, modelo, sku] if part)),
             self._normalize_space(" ".join(part for part in [nome_base, marca, ean] if part)),
             self._normalize_space(" ".join(part for part in [nome_base, categoria, sku] if part)),
-            self._normalize_space(" ".join(part for part in [nome_base, fornecedor_nome] if part)),
             self._normalize_space(" ".join(part for part in [nome_base, modelo] if part)),
             self._normalize_space(" ".join(part for part in [nome_web, sku] if part)),
             self._normalize_space(" ".join(part for part in [nome_base, categoria, modelo] if part)),
         ]
 
         for keyword in keywords[:5]:
+            if self._is_noisy_title_fragment(keyword):
+                continue
             candidates.append(
                 self._normalize_space(" ".join(part for part in [nome_base, keyword, sku] if part))
             )
         for _, spec_value in list(specs.items())[:4]:
+            spec_clean = self._sanitize_title_fragment(spec_value, cut_on_contact_marker=True, max_len=80)
+            if not spec_clean or self._is_noisy_title_fragment(spec_clean):
+                continue
             candidates.append(
-                self._normalize_space(" ".join(part for part in [nome_base, spec_value, sku] if part))
+                self._normalize_space(" ".join(part for part in [nome_base, spec_clean, sku] if part))
             )
 
-        candidates = [item[:120] for item in self._unique_keep_order(candidates) if item]
+        candidates = [
+            self._sanitize_title_fragment(item, cut_on_contact_marker=True, max_len=120)
+            for item in candidates
+        ]
+        candidates = [item for item in self._unique_keep_order(candidates) if item and not self._is_noisy_title_fragment(item)]
         candidates = self._ensure_minimum_title_candidates(
             candidates=candidates,
             produto=produto,
@@ -411,20 +497,30 @@ class BasicContentGenerationService:
     ) -> List[str]:
         """Render optional title templates and merge with deterministic fallbacks."""
         nome_base = self._normalize_space(getattr(produto, "nome_base", "")) or "Produto"
-        marca = self._normalize_space(getattr(produto, "marca", ""))
-        modelo = self._normalize_space(getattr(produto, "modelo", ""))
+        nome_base = self._sanitize_title_fragment(nome_base, cut_on_contact_marker=True) or "Produto"
+        marca = self._sanitize_title_fragment(getattr(produto, "marca", ""), cut_on_contact_marker=True, max_len=80)
+        modelo = self._sanitize_title_fragment(getattr(produto, "modelo", ""), cut_on_contact_marker=True, max_len=80)
         sku = self._normalize_space(getattr(produto, "sku", ""))
         ean = self._normalize_space(getattr(produto, "ean", ""))
         categoria = self._normalize_space(
             getattr(produto, "categoria_mapeada", "")
             or getattr(produto, "categoria_original", "")
         )
+        categoria = self._sanitize_title_fragment(categoria, cut_on_contact_marker=True, max_len=80)
         fornecedor = getattr(produto, "fornecedor", None)
-        fornecedor_nome = self._normalize_space(getattr(fornecedor, "nome", "")) if fornecedor else ""
-        web_nome = self._normalize_space(web_context.get("nome"))
+        fornecedor_nome = self._sanitize_title_fragment(
+            getattr(fornecedor, "nome", "") if fornecedor else "",
+            cut_on_contact_marker=True,
+            max_len=80,
+        )
+        web_nome = self._sanitize_title_fragment(web_context.get("nome"), cut_on_contact_marker=True, max_len=120)
         web_descricao = self._normalize_space(web_context.get("descricao"))
 
-        keywords = self._coerce_list(web_context.get("keywords"))
+        keywords = [
+            self._sanitize_title_fragment(item, cut_on_contact_marker=True, max_len=60)
+            for item in self._coerce_list(web_context.get("keywords"))
+        ]
+        keywords = [item for item in keywords if item and not self._is_noisy_title_fragment(item)]
         spec_items = list(self._coerce_dict(web_context.get("specs")).items())
         rendered_titles: List[str] = []
         upper_bound = max(10, max_titles * 4)
@@ -454,8 +550,12 @@ class BasicContentGenerationService:
                 "indice": str(index + 1),
             }
             rendered = self._render_template(template=template_titulo, context=context)
-            rendered = self._normalize_space(rendered)[:120]
-            if rendered:
+            rendered = self._sanitize_title_fragment(
+                rendered,
+                cut_on_contact_marker=True,
+                max_len=120,
+            )
+            if rendered and not self._is_noisy_title_fragment(rendered):
                 rendered_titles.append(rendered)
             if len(self._unique_keep_order(rendered_titles)) >= max_titles:
                 break
