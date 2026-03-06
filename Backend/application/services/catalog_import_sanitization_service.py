@@ -50,6 +50,17 @@ class CatalogImportSanitizationService:
         "ate": "até",
     }
 
+    _CONTACT_MARKER_PATTERN = re.compile(
+        r"\b(?:comercio|com[eé]rcio|eletronico|eletr[oô]nico|loja|empresa|site|atendimento|contato|telefone|fone|whatsapp|sac)\b",
+        re.IGNORECASE,
+    )
+    _PHONE_OR_ID_BLOCK_PATTERN = re.compile(r"(?:\+?\d[\d\s()./-]{7,}\d)")
+    _EMAIL_PATTERN = re.compile(
+        r"\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}\b",
+        re.IGNORECASE,
+    )
+    _URL_PATTERN = re.compile(r"\b(?:https?://|www\.)\S+\b", re.IGNORECASE)
+
     def __init__(self, quality_service: CatalogImportQualityService) -> None:
         """Inject quality heuristics used by sanitation fallback decisions."""
         self._quality = quality_service
@@ -180,6 +191,64 @@ class CatalogImportSanitizationService:
         normalized_text = "".join(normalized_parts)
         normalized_text = re.sub(r"\s+", " ", normalized_text).strip()
         return normalized_text or None
+
+    @classmethod
+    def _sanitize_identity_text(
+        cls,
+        value: Any,
+        *,
+        max_len: int,
+        cut_on_contact_marker: bool = True,
+    ) -> str | None:
+        """Sanitize short identity fields (name/brand/model/category) from contact noise."""
+        text = " ".join(str(value or "").strip().split())
+        if not text:
+            return None
+
+        text = cls._URL_PATTERN.sub(" ", text)
+        text = cls._EMAIL_PATTERN.sub(" ", text)
+        text = cls._PHONE_OR_ID_BLOCK_PATTERN.sub(" ", text)
+
+        if cut_on_contact_marker:
+            marker_match = cls._CONTACT_MARKER_PATTERN.search(text)
+            if marker_match:
+                text = text[: marker_match.start()]
+        text = cls._CONTACT_MARKER_PATTERN.sub(" ", text)
+        text = re.sub(r"\s+", " ", text).strip(" -|,;:/")
+        if not text:
+            return None
+        return text[:max_len]
+
+    @classmethod
+    def _sanitize_description_text(cls, value: Any, *, max_len: int = 5000) -> str | None:
+        """Sanitize long description fields removing contact/institutional snippets."""
+        text = " ".join(str(value or "").strip().split())
+        if not text:
+            return None
+
+        text = cls._URL_PATTERN.sub(" ", text)
+        text = cls._EMAIL_PATTERN.sub(" ", text)
+        text = cls._PHONE_OR_ID_BLOCK_PATTERN.sub(" ", text)
+        text = re.sub(r"\s+", " ", text).strip()
+        if not text:
+            return None
+
+        chunks = re.split(r"(?<=[.!?])\s+|[\n\r]+", text)
+        filtered_chunks = []
+        for chunk in chunks:
+            normalized_chunk = " ".join(str(chunk or "").strip().split())
+            if not normalized_chunk:
+                continue
+            if cls._CONTACT_MARKER_PATTERN.search(normalized_chunk):
+                continue
+            filtered_chunks.append(normalized_chunk)
+
+        if filtered_chunks:
+            text = " ".join(filtered_chunks).strip()
+        if not text:
+            return None
+
+        return text[:max_len]
 
     def _pick_part_candidate_from_dynamic_attributes(
         self,
@@ -396,10 +465,18 @@ class CatalogImportSanitizationService:
 
         nome_base = data.get("nome_base")
         if nome_base is not None:
+            nome_base_original = str(nome_base)
             nome_base = self._normalize_product_text(nome_base)
+            nome_base = self._sanitize_identity_text(
+                nome_base,
+                max_len=255,
+                cut_on_contact_marker=True,
+            )
             if nome_base and len(nome_base) > 255:
                 extras["nome_base_truncado_de"] = nome_base
                 nome_base = nome_base[:255]
+            if nome_base_original and nome_base and nome_base_original.strip() != nome_base:
+                extras["nome_base_limpo_ruido"] = nome_base_original
             data["nome_base"] = nome_base or None
 
         sku_original = data.get("sku_original")
@@ -415,34 +492,65 @@ class CatalogImportSanitizationService:
 
         marca = data.get("marca")
         if marca is not None:
+            marca_original = str(marca)
             marca = self._normalize_product_text(marca)
+            marca = self._sanitize_identity_text(
+                marca,
+                max_len=100,
+                cut_on_contact_marker=True,
+            )
             if marca and len(marca) > 100:
                 extras["marca_truncada_de"] = marca
                 marca = marca[:100]
+            if marca_original and marca and marca_original.strip() != marca:
+                extras["marca_limpa_ruido"] = marca_original
             data["marca"] = marca or None
 
         modelo = data.get("modelo")
         if modelo is not None:
+            modelo_original = str(modelo)
             modelo = self._normalize_product_text(modelo)
+            modelo = self._sanitize_identity_text(
+                modelo,
+                max_len=100,
+                cut_on_contact_marker=True,
+            )
             if modelo and len(modelo) > 100:
                 extras["modelo_truncado_de"] = modelo
                 modelo = modelo[:100]
+            if modelo_original and modelo and modelo_original.strip() != modelo:
+                extras["modelo_limpo_ruido"] = modelo_original
             data["modelo"] = modelo or None
 
         categoria_original = data.get("categoria_original")
         if categoria_original is not None:
+            categoria_raw = str(categoria_original)
             categoria_original = self._normalize_product_text(categoria_original)
+            categoria_original = self._sanitize_identity_text(
+                categoria_original,
+                max_len=150,
+                cut_on_contact_marker=True,
+            )
             if categoria_original and len(categoria_original) > 150:
                 extras["categoria_original_truncada_de"] = categoria_original
                 categoria_original = categoria_original[:150]
+            if categoria_raw and categoria_original and categoria_raw.strip() != categoria_original:
+                extras["categoria_limpa_ruido"] = categoria_raw
             data["categoria_original"] = categoria_original or None
 
         descricao_original = data.get("descricao_original")
         if descricao_original is not None:
+            descricao_raw = str(descricao_original)
             descricao_original = self._normalize_product_text(descricao_original)
+            descricao_original = self._sanitize_description_text(
+                descricao_original,
+                max_len=5000,
+            )
             if descricao_original and len(descricao_original) > 5000:
                 extras["descricao_original_truncada_de"] = descricao_original
                 descricao_original = descricao_original[:5000]
+            if descricao_raw and descricao_original and descricao_raw.strip() != descricao_original:
+                extras["descricao_limpa_ruido"] = True
             data["descricao_original"] = descricao_original or None
 
         dynamic_attributes = data.get("dynamic_attributes")
@@ -450,9 +558,25 @@ class CatalogImportSanitizationService:
             normalized_dynamic_attributes = {}
             for attr_key, attr_value in dynamic_attributes.items():
                 if isinstance(attr_value, str):
-                    normalized_dynamic_attributes[attr_key] = (
-                        self._normalize_product_text(attr_value) or attr_value
+                    normalized_attr = self._normalize_product_text(attr_value) or attr_value
+                    normalized_attr = self._sanitize_identity_text(
+                        normalized_attr,
+                        max_len=500,
+                        cut_on_contact_marker=False,
                     )
+                    if normalized_attr is not None:
+                        normalized_dynamic_attributes[attr_key] = normalized_attr
+                    else:
+                        raw_attr = " ".join(str(attr_value or "").strip().split())
+                        if (
+                            self._CONTACT_MARKER_PATTERN.search(raw_attr)
+                            or self._PHONE_OR_ID_BLOCK_PATTERN.search(raw_attr)
+                            or self._EMAIL_PATTERN.search(raw_attr)
+                            or self._URL_PATTERN.search(raw_attr)
+                        ):
+                            normalized_dynamic_attributes[attr_key] = None
+                        else:
+                            normalized_dynamic_attributes[attr_key] = attr_value
                 else:
                     normalized_dynamic_attributes[attr_key] = attr_value
             data["dynamic_attributes"] = normalized_dynamic_attributes

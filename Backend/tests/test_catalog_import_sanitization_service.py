@@ -90,6 +90,30 @@ class _TopLevelFunctionSurface:
         extras = sanitized.get("dados_brutos_adicionais") or {}
         assert extras.get("descricao_substituida_por_atributo_dinamico") is True
 
+    def test_sanitize_extracted_product_removes_company_contact_noise():
+        """Ensure import sanitization strips company/contact snippets from product text fields."""
+        service = CatalogImportSanitizationService(CatalogImportQualityService())
+        sanitized = service.sanitize_extracted_product(
+            {
+                "nome_base": "de AR 60 Litros Uouu Comercio Eletronico 986 345 430 8205",
+                "descricao_original": (
+                    "Reservatorio de ar para linha pesada. "
+                    "Contato via whatsapp 11 99888 7766 ou www.lojaexemplo.com."
+                ),
+                "marca": "Uouu Comercio Eletronico",
+                "dynamic_attributes": {
+                    "aplicacao": "Scania R450",
+                    "obs": "Telefone 11 99888 7766",
+                },
+            }
+        )
+
+        assert sanitized["nome_base"] == "de AR 60 Litros Uouu"
+        assert sanitized["descricao_original"] == "Reservatório de ar para linha pesada."
+        assert sanitized["marca"] == "Uouu"
+        assert sanitized["dynamic_attributes"]["aplicacao"] == "Scania R450"
+        assert sanitized["dynamic_attributes"]["obs"] is None
+
 
 test_normalize_validated_data_parses_json_string = _TopLevelFunctionSurface.test_normalize_validated_data_parses_json_string
 test_sanitize_extracted_product_discards_invalid_ean_text = _TopLevelFunctionSurface.test_sanitize_extracted_product_discards_invalid_ean_text
@@ -97,3 +121,4 @@ test_normalize_import_text_decodes_mojibake_reason = _TopLevelFunctionSurface.te
 test_sanitize_extracted_product_applies_conservative_ocr_corrections = _TopLevelFunctionSurface.test_sanitize_extracted_product_applies_conservative_ocr_corrections
 test_sanitize_extracted_product_uses_name_as_description_when_missing = _TopLevelFunctionSurface.test_sanitize_extracted_product_uses_name_as_description_when_missing
 test_sanitize_extracted_product_promotes_part_name_from_dynamic_attributes = _TopLevelFunctionSurface.test_sanitize_extracted_product_promotes_part_name_from_dynamic_attributes
+test_sanitize_extracted_product_removes_company_contact_noise = _TopLevelFunctionSurface.test_sanitize_extracted_product_removes_company_contact_noise
