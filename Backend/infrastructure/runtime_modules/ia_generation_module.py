@@ -603,6 +603,7 @@ class IAGenerationRuntime:
         categoria = str(getattr(db_produto, "categoria_original", "") or "").strip()
 
         def _clean_title_part(value: str) -> str:
+            """Strip contact/institutional artifacts from local fallback title fragments."""
             cleaned = URL_PATTERN.sub(" ", value)
             cleaned = EMAIL_PATTERN.sub(" ", cleaned)
             cleaned = PHONE_OR_ID_BLOCK_PATTERN.sub(" ", cleaned)

@@ -10,8 +10,8 @@ Plataforma para importar catalogos, enriquecer dados de produtos via web e gerar
 - Backlog P0/P1/P2 documentado em `docs/BUGS_PRIORIZADOS_2026-02-18.md` foi concluido.
 
 Validacao executada em 2026-03-06:
-- `pytest -q`: `457 passed`
-- `npm test`: `21 suites / 50 tests passed`
+- `pytest -q`: `399 passed`
+- `npm test`: `22 suites / 53 tests passed`
 - `npm run lint`: `OK`
 - `npm run build`: `OK`
 
@@ -66,6 +66,11 @@ Detalhes extras: `docs/EXECUCAO_LOCAL.md`.
 - Frontend (testes): `cd Frontend/app && npm test`
 - Frontend (lint): `cd Frontend/app && npm run lint`
 - Frontend (build): `cd Frontend/app && npm run build`
+
+## Manutencao Retroativa (Conteudo)
+- Dry-run de limpeza retroativa (sem gravar): `python scripts/backfill_product_content_sanitization.py --limit 200`
+- Aplicar limpeza retroativa no banco: `python scripts/backfill_product_content_sanitization.py --apply`
+- Escopos opcionais: `--user-id <id>`, `--produto-id <id>`, `--commit-every <n>`, `--verbose`
 
 ## Documentacao Importante
 - Arquitetura e modos: `docs/architecture-modes.md`
