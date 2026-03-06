@@ -1,10 +1,9 @@
-"""Document file processing module module responsibilities and runtime integration points."""
+﻿"""Document file processing module module responsibilities and runtime integration points."""
 
 import pandas as pd
 from pdfplumber import open as pdf_open
 import csv
 import io
-import chardet
 import base64
 import os
 import re
@@ -13,7 +12,7 @@ import unicodedata
 import asyncio
 from sqlalchemy.orm import Session
 from concurrent.futures import ThreadPoolExecutor
-from pdf2image import convert_from_bytes, convert_from_path
+from pdf2image import convert_from_bytes
 import time
 from functools import partial
 from typing import List, Dict, Any, Union, Optional, Callable
@@ -26,7 +25,7 @@ import pdfplumber
 from pdfplumber.pdf import PDF as PdfPlumberPDF
 from Backend.core.logging_config import get_logger
 from Backend.core.config import settings
-from Backend import database, models, schemas
+from Backend import database, models
 from Backend.infrastructure.adapters.web_data_extractor_adapter import WebDataExtractorServiceAdapter
 from Backend.infrastructure.repositories.catalog_import_file_repository import (
     CatalogImportFileRepository,
@@ -73,7 +72,7 @@ class _FileProcessingImplementation:
 
     @staticmethod
     async def _save_uploaded_catalog_impl(file: UploadFile, fornecedor_id: Optional[int]=None) -> models.CatalogImportFile:
-        """Salva o arquivo de catálogo no disco e retorna um objeto CatalogImportFile.
+        """Salva o arquivo de catÃ¡logo no disco e retorna um objeto CatalogImportFile.
     
     
     
@@ -83,11 +82,11 @@ class _FileProcessingImplementation:
     
         file: UploadFile
     
-            Arquivo recebido na requisição.
+            Arquivo recebido na requisiÃ§Ã£o.
     
         fornecedor_id: Optional[int]
     
-            Identificador do fornecedor para o qual o catálogo será importado.
+            Identificador do fornecedor para o qual o catÃ¡logo serÃ¡ importado.
     
         """
         directory = _FileProcessingImplementation._resolve_storage_path(Path(settings.UPLOAD_DIRECTORY) / 'catalogs')
@@ -119,7 +118,7 @@ class _FileProcessingImplementation:
 
     @staticmethod
     def _valor_tem_conteudo_util(valor: Any) -> bool:
-        """Retorna True para valores úteis (evita lixo de OCR como '!' ou '-')."""
+        """Retorna True para valores Ãºteis (evita lixo de OCR como '!' ou '-')."""
         return LineNormalizationRuntime().valor_tem_conteudo_util(valor)
 
     @staticmethod
@@ -196,7 +195,7 @@ class _FileProcessingImplementation:
     def _pdf_pages_to_images_impl(db: Session, file: UploadFile, fornecedor_id: int, user_id: int, offset: int, limit: int) -> Dict[str, Any]:
         """
     
-        Salva um ficheiro PDF, cria um registo na base de dados, e converte um lote de páginas em imagens.
+        Salva um ficheiro PDF, cria um registo na base de dados, e converte um lote de pÃ¡ginas em imagens.
     
         """
         upload_dir = _FileProcessingImplementation._resolve_storage_path(Path(settings.UPLOAD_DIRECTORY))
@@ -215,7 +214,7 @@ class _FileProcessingImplementation:
         try:
             content = file.file.read()
         except Exception as e:
-            logger.error(f'Erro ao ler o conteúdo do ficheiro stream: {e}')
+            logger.error(f'Erro ao ler o conteÃºdo do ficheiro stream: {e}')
             raise HTTPException(status_code=500, detail='Erro interno ao ler o ficheiro.')
         finally:
             file.file.close()
@@ -231,7 +230,7 @@ class _FileProcessingImplementation:
                 total_pages = len(pdf.pages)
         except Exception as e:
             logger.error(f'Erro ao ler PDF com pdfplumber: {e}')
-            raise HTTPException(status_code=500, detail='Não foi possível ler o ficheiro PDF.')
+            raise HTTPException(status_code=500, detail='NÃ£o foi possÃ­vel ler o ficheiro PDF.')
         first_page_to_convert = offset + 1
         last_page_to_convert = min(offset + limit, total_pages)
         image_urls = []
@@ -248,7 +247,7 @@ class _FileProcessingImplementation:
                     image_urls.append(image_url)
             except Exception as e:
                 logger.error(f'Falha ao converter PDF para imagens: {e}', exc_info=True)
-                raise HTTPException(status_code=500, detail=f'Erro ao processar o PDF. Verifique se o Poppler está instalado corretamente.')
+                raise HTTPException(status_code=500, detail='Erro ao processar o PDF. Verifique se o Poppler estÃ¡ instalado corretamente.')
         return {'image_urls': image_urls, 'total_pages': total_pages, 'import_file_id': import_file.id}
 
     @staticmethod
@@ -445,7 +444,7 @@ class _FileProcessingImplementation:
         """Return an image, text and optional table extracted from a PDF page."""
         with pdfplumber.open(io.BytesIO(conteudo_pdf)) as pdf:
             if not 1 <= page_number <= len(pdf.pages):
-                raise ValueError(f'Número de página inválido: {page_number}. PDF tem {len(pdf.pages)} páginas.')
+                raise ValueError(f'NÃºmero de pÃ¡gina invÃ¡lido: {page_number}. PDF tem {len(pdf.pages)} pÃ¡ginas.')
             page = pdf.pages[page_number - 1]
             page_to_process = page
             if region and len(region) == 4:
@@ -565,7 +564,7 @@ class _FileProcessingImplementation:
         try:
             with pdfplumber.open(file_path) as pdf:
                 if not 1 <= page_number <= len(pdf.pages):
-                    raise ValueError(f'Número de página inválido: {page_number}. PDF tem {len(pdf.pages)} páginas.')
+                    raise ValueError(f'NÃºmero de pÃ¡gina invÃ¡lido: {page_number}. PDF tem {len(pdf.pages)} pÃ¡ginas.')
                 page = pdf.pages[page_number - 1]
                 tables = page.extract_tables(table_settings={'vertical_strategy': 'lines', 'horizontal_strategy': 'lines'})
                 if tables:
@@ -576,7 +575,7 @@ class _FileProcessingImplementation:
                             if any((any((cell for cell in r)) for r in rows)):
                                 return {'headers': headers, 'rows': rows}
                 text = page.extract_text() or ''
-                lines = [l.strip() for l in text.splitlines() if l.strip()]
+                lines = [line.strip() for line in text.splitlines() if line.strip()]
                 if len(lines) >= 2:
                     headers = lines[0].split()
                     rows = [ln.split() for ln in lines[1:]]
@@ -590,17 +589,17 @@ class _FileProcessingImplementation:
             from PIL import Image
             doc = fitz.open(file_path)
             if not 1 <= page_number <= doc.page_count:
-                raise ValueError(f'Número de página inválido: {page_number}. PDF tem {doc.page_count} páginas.')
+                raise ValueError(f'NÃºmero de pÃ¡gina invÃ¡lido: {page_number}. PDF tem {doc.page_count} pÃ¡ginas.')
             page = doc.load_page(page_number - 1)
             pix = page.get_pixmap(dpi=300)
             img = Image.open(io.BytesIO(pix.tobytes()))
             text = pytesseract.image_to_string(img)
-            lines = [l.strip() for l in text.splitlines() if l.strip()]
+            lines = [line.strip() for line in text.splitlines() if line.strip()]
             if lines:
                 headers = lines[0].split()
                 rows = [ln.split() for ln in lines[1:]]
         except Exception as e:
-            logger.error('Erro ao executar OCR da página do PDF: %s', e)
+            logger.error('Erro ao executar OCR da pÃ¡gina do PDF: %s', e)
         finally:
             try:
                 doc.close()
@@ -768,7 +767,7 @@ class LineNormalizationRuntime:
         sku_tokens: List[str] = []
         nome_tokens: List[str] = []
         for tok in tokens:
-            if tok in {'_', '-', '--', '|', '¦'}:
+            if tok in {'_', '-', '--', '|', 'Â¦'}:
                 continue
             has_lower = any((ch.isalpha() and ch.islower() for ch in tok))
             if not nome_tokens:
@@ -890,7 +889,7 @@ class LineMappingWorkflow:
                 return {'motivo_descarte': 'Faltam nome_base e sku_original', 'linha_original': linha_original}
         if produto_dados_padronizados.get('nome_base') and (not _FileProcessingImplementation._valor_tem_conteudo_util(produto_dados_padronizados.get('nome_base'))):
             if not produto_dados_padronizados.get('sku_original'):
-                return {'motivo_descarte': 'nome_base sem conteúdo útil', 'linha_original': linha_original}
+                return {'motivo_descarte': 'nome_base sem conteÃºdo Ãºtil', 'linha_original': linha_original}
         if dados_brutos_nao_mapeados:
             produto_dados_padronizados['dados_brutos_adicionais'] = dados_brutos_nao_mapeados
         if dynamic_attributes:
@@ -898,7 +897,7 @@ class LineMappingWorkflow:
         return produto_dados_padronizados
 
 class LineMappingRuntime:
-    """Runtime OO para reutilizar a rotina padrão de mapeamento de linha."""
+    """Runtime OO para reutilizar a rotina padrÃ£o de mapeamento de linha."""
 
     def __init__(self, workflow: Optional['LineMappingWorkflow']=None) -> None:
         """Initialize injected dependencies and runtime configuration for Line Mapping Runtime."""
@@ -1995,7 +1994,7 @@ class CatalogStorageRuntime:
         """Retrieve file path by id using the current service dependencies."""
         return _FileProcessingImplementation._get_file_path_by_id_impl(db=db, file_id=file_id)
 class TabularIngestionWorkflow:
-    """Workflow OO para ingestão de arquivos tabulares (Excel/CSV)."""
+    """Workflow OO para ingestÃ£o de arquivos tabulares (Excel/CSV)."""
 
     def __init__(self, runtime: Optional['TabularIngestionRuntime']=None) -> None:
         """Initialize injected dependencies and runtime configuration for Tabular Ingestion Workflow."""
@@ -2149,7 +2148,7 @@ class PdfProcessingWorkflow:
         """Extract data from pdf region."""
         return self._extract_data_from_pdf_region(file_path=file_path, page_number=page_number, region=region)
 class PdfJobWorkflow:
-    """Workflow OO para processamento assíncrono de jobs de PDF."""
+    """Workflow OO para processamento assÃ­ncrono de jobs de PDF."""
 
     def __init__(self, runtime: Optional['PdfJobRuntime']=None) -> None:
         """Initialize injected dependencies and runtime configuration for Pdf Job Workflow."""
@@ -2455,3 +2454,4 @@ class FileProcessingRuntime:
             linha_original=linha_original,
             mapeamento_colunas_usuario=mapeamento_colunas_usuario,
         )
+

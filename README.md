@@ -7,11 +7,11 @@ Plataforma para importar catalogos, enriquecer dados de produtos via web e gerar
 - Backend em arquitetura OOP-only (`APP_MODE=oop`).
 - API publica versionada em `/api/v1`.
 - Frontend React + Vite em `Frontend/app`.
-- Pendencias atuais de refinamento estao em `docs/BUGS_PRIORIZADOS_2026-02-18.md`.
+- Backlog P0/P1/P2 documentado em `docs/BUGS_PRIORIZADOS_2026-02-18.md` foi concluido.
 
 Validacao executada em 2026-03-06:
-- `pytest -q`: `451 passed`
-- `npm test`: `21 suites / 49 tests passed`
+- `pytest -q`: `457 passed`
+- `npm test`: `21 suites / 50 tests passed`
 - `npm run lint`: `OK`
 - `npm run build`: `OK`
 
