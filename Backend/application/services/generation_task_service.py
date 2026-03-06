@@ -65,6 +65,49 @@ class GenerationTaskService:
         )
         return log_obj
 
+    @staticmethod
+    def _normalize_title_list(value: Any) -> list[str]:
+        """Normalize title payloads into a clean list of strings."""
+        if not isinstance(value, list):
+            return []
+        normalized: list[str] = []
+        seen = set()
+        for item in value:
+            text = " ".join(str(item or "").strip().split())
+            if not text:
+                continue
+            folded = text.lower()
+            if folded in seen:
+                continue
+            seen.add(folded)
+            normalized.append(text[:160])
+        return normalized
+
+    @classmethod
+    def _merge_raw_generation_data(
+        cls,
+        *,
+        current_raw: Any,
+        tipo_geracao_principal: str,
+        resultado_ia: Any,
+    ) -> dict[str, Any]:
+        """Persist generation artifacts in dados_brutos_web for UI consumption."""
+        raw_data = dict(current_raw) if isinstance(current_raw, dict) else {}
+        now_iso = datetime.now(timezone.utc).isoformat()
+
+        if tipo_geracao_principal == "titulo":
+            titles = cls._normalize_title_list(resultado_ia)
+            if titles:
+                raw_data["titulos_sugeridos_gerados"] = titles
+                raw_data["titulos_sugeridos_ultima_atualizacao"] = now_iso
+        elif tipo_geracao_principal == "descricao":
+            descricao = " ".join(str(resultado_ia or "").strip().split())
+            if descricao:
+                raw_data["descricao_gerada"] = descricao[:12000]
+                raw_data["descricao_gerada_ultima_atualizacao"] = now_iso
+
+        return raw_data
+
     async def run_generation_task(
         self,
         *,
@@ -168,6 +211,11 @@ class GenerationTaskService:
             if resultado_ia and (is_valid_str or is_valid_list):
                 update_data_final_dict[campo_produto_para_atualizar_com_resultado] = resultado_ia
                 update_data_final_dict[status_field_to_update] = self._models.StatusGeracaoIAEnum.CONCLUIDO
+                update_data_final_dict["dados_brutos_web"] = self._merge_raw_generation_data(
+                    current_raw=getattr(db_produto, "dados_brutos_web", None),
+                    tipo_geracao_principal=tipo_geracao_principal,
+                    resultado_ia=resultado_ia,
+                )
                 update_data_final_dict["log_processamento"] = self._append_process_log(
                     db_produto.log_processamento,
                     f"{log_entry_prefix}: Geracao concluida com sucesso.",

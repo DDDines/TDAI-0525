@@ -264,10 +264,32 @@ class _TopLevelFunctionSurface:
         assert "Coluna Externa" in result
         assert "SKU" in result
 
+    def test_ia_generation_runtime_sanitize_description_remove_historico_empresa():
+        """Run test ia generation runtime sanitize description remove historico empresa in this workflow."""
+        runtime = ia_service.IAGenerationRuntime()
+        cleaned = runtime._sanitize_generated_description(
+            "Paralama externo com boa resistencia. A Uouu iniciou suas atividades no ano de 2015."
+        )
+
+        assert "Paralama externo com boa resistencia" in cleaned
+        assert "iniciou suas atividades" not in cleaned.lower()
+
+    def test_ia_generation_runtime_sanitize_titles_remove_historico_empresa():
+        """Run test ia generation runtime sanitize titles remove historico empresa in this workflow."""
+        runtime = ia_service.IAGenerationRuntime()
+        titles = runtime._sanitize_title_candidates(
+            "1. Paralama Iveco Stralis Original\n2. Uouu desde 2015 no mercado"
+        )
+
+        assert any("Paralama Iveco Stralis Original" == title for title in titles)
+        assert not any("2015" in title and "mercado" in title.lower() for title in titles)
+
 test_ai_provider_workflow_usa_runtime_injetado = _TopLevelFunctionSurface.test_ai_provider_workflow_usa_runtime_injetado
 test_ia_generation_workflow_usa_runtime_injetado = _TopLevelFunctionSurface.test_ia_generation_workflow_usa_runtime_injetado
 test_ia_generation_runtime_fallback_titulos_sem_chave = _TopLevelFunctionSurface.test_ia_generation_runtime_fallback_titulos_sem_chave
 test_ia_generation_runtime_fallback_descricao_sem_chave = _TopLevelFunctionSurface.test_ia_generation_runtime_fallback_descricao_sem_chave
+test_ia_generation_runtime_sanitize_description_remove_historico_empresa = _TopLevelFunctionSurface.test_ia_generation_runtime_sanitize_description_remove_historico_empresa
+test_ia_generation_runtime_sanitize_titles_remove_historico_empresa = _TopLevelFunctionSurface.test_ia_generation_runtime_sanitize_titles_remove_historico_empresa
 
 
 

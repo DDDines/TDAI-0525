@@ -512,14 +512,15 @@ async function commitImport(
 
 async function finalizarImportacaoCatalogo(
 
-  { fileId, productTypeId, fornecedorId, mapping, pages, region }) {
+  { fileId, productTypeId, fornecedorId, mapping, pages, region, extractionMode }) {
     try {
       const payload = {
         product_type_id: productTypeId,
         fornecedor_id: fornecedorId,
         mapping,
         pages,
-        region
+        region,
+        extraction_mode: extractionMode || 'ocr'
       };
       const response = await apiClient.post(`/produtos/importar-catalogo-finalizar/${fileId}/`, payload);
       return response.data;

@@ -36,6 +36,7 @@ class _TopLevelFunctionSurface:
             mapping={" col_0 ": " Nome Base ", "": "ignorar", "col_1": ""},
             pages=[1, "2", 2, "3"],
             region=["1.0", 2, 3.5, "4"],
+            extraction_mode=" IA ",
         )
     
         assert result["file_id"] == 10
@@ -45,6 +46,7 @@ class _TopLevelFunctionSurface:
         assert result["mapping"] == {"col_0": "Nome Base"}
         assert result["pages"] == [1, 2, 3]
         assert result["region"] == [1.0, 2.0, 3.5, 4.0]
+        assert result["extraction_mode"] == "ia"
 
     @pytest.mark.asyncio
     async def test_catalog_import_use_case_rejects_invalid_ids():
@@ -81,6 +83,24 @@ class _TopLevelFunctionSurface:
     
         assert result["file_id"] == 10
         assert result["pages"] == [1, 2]
+        assert result["extraction_mode"] == "ocr"
+
+    @pytest.mark.asyncio
+    async def test_catalog_import_use_case_rejects_invalid_extraction_mode():
+        """Run test catalog import use case rejects invalid extraction mode in this workflow."""
+        use_case = CatalogImportProcessingUseCase(processor=_dummy_processor)
+
+        with pytest.raises(ValueError, match="extraction_mode"):
+            await use_case.execute(
+                file_id=10,
+                user_id=20,
+                product_type_id=3,
+                fornecedor_id=8,
+                mapping={"col_0": "Nome Base"},
+                pages=[1],
+                region=[1.0, 2.0, 3.0, 4.0],
+                extraction_mode="auto",
+            )
 
     @pytest.mark.asyncio
     async def test_web_enrichment_use_case_normalizes_search_terms():
@@ -127,6 +147,7 @@ _dummy_processor = _TopLevelFunctionSurface._dummy_processor
 test_catalog_import_use_case_normalizes_payload = _TopLevelFunctionSurface.test_catalog_import_use_case_normalizes_payload
 test_catalog_import_use_case_rejects_invalid_ids = _TopLevelFunctionSurface.test_catalog_import_use_case_rejects_invalid_ids
 test_catalog_import_use_case_execute_command_normalizes_payload = _TopLevelFunctionSurface.test_catalog_import_use_case_execute_command_normalizes_payload
+test_catalog_import_use_case_rejects_invalid_extraction_mode = _TopLevelFunctionSurface.test_catalog_import_use_case_rejects_invalid_extraction_mode
 test_web_enrichment_use_case_normalizes_search_terms = _TopLevelFunctionSurface.test_web_enrichment_use_case_normalizes_search_terms
 test_web_enrichment_use_case_rejects_invalid_produto_id = _TopLevelFunctionSurface.test_web_enrichment_use_case_rejects_invalid_produto_id
 test_web_enrichment_use_case_execute_command_normalizes_payload = _TopLevelFunctionSurface.test_web_enrichment_use_case_execute_command_normalizes_payload

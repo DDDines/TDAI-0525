@@ -203,9 +203,9 @@ class _ProdutosCatalogService:
         """Handle Importar catalogo fornecedor in this request workflow."""
         return await self._catalog_import_ingest_service.importar_catalogo_fornecedor(fornecedor_id=fornecedor_id, file=file, mapeamento_colunas_usuario=mapeamento_colunas_usuario, current_user=current_user)
 
-    async def importar_catalogo_finalizar(self, background_tasks: BackgroundTasks, file_id: int, product_type_id: int, fornecedor_id: int, mapping: Optional[Dict[str, str]], pages: Optional[List[int]], region: Optional[List[float]], user_id: int):
+    async def importar_catalogo_finalizar(self, background_tasks: BackgroundTasks, file_id: int, product_type_id: int, fornecedor_id: int, mapping: Optional[Dict[str, str]], pages: Optional[List[int]], region: Optional[List[float]], extraction_mode: str, user_id: int):
         """Handle Importar catalogo finalizar in this request workflow."""
-        return await self._catalog_import_workflow_service.importar_catalogo_finalizar(background_tasks=background_tasks, file_id=file_id, product_type_id=product_type_id, fornecedor_id=fornecedor_id, mapping=mapping, pages=pages, region=region, user_id=user_id)
+        return await self._catalog_import_workflow_service.importar_catalogo_finalizar(background_tasks=background_tasks, file_id=file_id, product_type_id=product_type_id, fornecedor_id=fornecedor_id, mapping=mapping, pages=pages, region=region, extraction_mode=extraction_mode, user_id=user_id)
 
     def importar_catalogo_status(self, file_id: int, user_id: int):
         """Handle Importar catalogo status in this request workflow."""
@@ -219,9 +219,9 @@ class _ProdutosCatalogService:
         """Handle Importar catalogo result in this request workflow."""
         return self._catalog_import_workflow_service.importar_catalogo_result(file_id=file_id, user_id=user_id)
 
-    async def importar_catalogo_finalizar_todas_paginas(self, file_id: int, start_page: int, mapping: Optional[Dict[str, str]], user_id: int):
+    async def importar_catalogo_finalizar_todas_paginas(self, file_id: int, start_page: int, mapping: Optional[Dict[str, str]], extraction_mode: str, user_id: int):
         """Handle Importar catalogo finalizar todas paginas in this request workflow."""
-        return await self._catalog_import_workflow_service.importar_catalogo_finalizar_todas_paginas(file_id=file_id, start_page=start_page, mapping=mapping, user_id=user_id)
+        return await self._catalog_import_workflow_service.importar_catalogo_finalizar_todas_paginas(file_id=file_id, start_page=start_page, mapping=mapping, extraction_mode=extraction_mode, user_id=user_id)
 
     async def selecionar_regiao(self, file_id: int, page: int, bbox: List[float], bbox_norm: Optional[List[float]], user_id: int):
         """Handle Selecionar regiao in this request workflow."""
@@ -342,7 +342,7 @@ class ProdutosCatalogCoordinator:
             )
         )
 
-    async def importar_catalogo_finalizar(self, background_tasks: BackgroundTasks, file_id: int, product_type_id: int, fornecedor_id: int, mapping: Optional[Dict[str, str]], pages: Optional[List[int]], region: Optional[List[float]], user_id: int):
+    async def importar_catalogo_finalizar(self, background_tasks: BackgroundTasks, file_id: int, product_type_id: int, fornecedor_id: int, mapping: Optional[Dict[str, str]], pages: Optional[List[int]], region: Optional[List[float]], extraction_mode: str, user_id: int):
         """Handle Importar catalogo finalizar in this request workflow."""
         return await self._await_if_needed(
             self._runtime.importar_catalogo_finalizar(
@@ -353,6 +353,7 @@ class ProdutosCatalogCoordinator:
                 mapping=mapping,
                 pages=pages,
                 region=region,
+                extraction_mode=extraction_mode,
                 user_id=user_id,
             )
         )
@@ -369,13 +370,14 @@ class ProdutosCatalogCoordinator:
         """Handle Importar catalogo result in this request workflow."""
         return self._runtime.importar_catalogo_result(file_id=file_id, user_id=user_id)
 
-    async def importar_catalogo_finalizar_todas_paginas(self, file_id: int, start_page: int, mapping: Optional[Dict[str, str]], user_id: int):
+    async def importar_catalogo_finalizar_todas_paginas(self, file_id: int, start_page: int, mapping: Optional[Dict[str, str]], extraction_mode: str, user_id: int):
         """Handle Importar catalogo finalizar todas paginas in this request workflow."""
         return await self._await_if_needed(
             self._runtime.importar_catalogo_finalizar_todas_paginas(
                 file_id=file_id,
                 start_page=start_page,
                 mapping=mapping,
+                extraction_mode=extraction_mode,
                 user_id=user_id,
             )
         )
@@ -437,9 +439,9 @@ class _ProdutosCatalogRequestScope:
         """Handle Importar catalogo fornecedor in this request workflow."""
         return await self._workflow.importar_catalogo_fornecedor(fornecedor_id=fornecedor_id, file=file, mapeamento_colunas_usuario=mapeamento_colunas_usuario, current_user=current_user)
 
-    async def importar_catalogo_finalizar(self, *, background_tasks: BackgroundTasks, file_id: int, product_type_id: int, fornecedor_id: int, mapping: Optional[Dict[str, str]], pages: Optional[List[int]], region: Optional[List[float]], user_id: int):
+    async def importar_catalogo_finalizar(self, *, background_tasks: BackgroundTasks, file_id: int, product_type_id: int, fornecedor_id: int, mapping: Optional[Dict[str, str]], pages: Optional[List[int]], region: Optional[List[float]], extraction_mode: str, user_id: int):
         """Handle Importar catalogo finalizar in this request workflow."""
-        return await self._workflow.importar_catalogo_finalizar(background_tasks=background_tasks, file_id=file_id, product_type_id=product_type_id, fornecedor_id=fornecedor_id, mapping=mapping, pages=pages, region=region, user_id=user_id)
+        return await self._workflow.importar_catalogo_finalizar(background_tasks=background_tasks, file_id=file_id, product_type_id=product_type_id, fornecedor_id=fornecedor_id, mapping=mapping, pages=pages, region=region, extraction_mode=extraction_mode, user_id=user_id)
 
     def importar_catalogo_status(self, *, file_id: int, user_id: int):
         """Handle Importar catalogo status in this request workflow."""
@@ -453,9 +455,9 @@ class _ProdutosCatalogRequestScope:
         """Handle Importar catalogo result in this request workflow."""
         return self._workflow.importar_catalogo_result(file_id=file_id, user_id=user_id)
 
-    async def importar_catalogo_finalizar_todas_paginas(self, *, file_id: int, start_page: int, mapping: Optional[Dict[str, str]], user_id: int):
+    async def importar_catalogo_finalizar_todas_paginas(self, *, file_id: int, start_page: int, mapping: Optional[Dict[str, str]], extraction_mode: str, user_id: int):
         """Handle Importar catalogo finalizar todas paginas in this request workflow."""
-        return await self._workflow.importar_catalogo_finalizar_todas_paginas(file_id=file_id, start_page=start_page, mapping=mapping, user_id=user_id)
+        return await self._workflow.importar_catalogo_finalizar_todas_paginas(file_id=file_id, start_page=start_page, mapping=mapping, extraction_mode=extraction_mode, user_id=user_id)
 
     async def selecionar_regiao(self, *, file_id: int, page: int, bbox: List[float], bbox_norm: Optional[List[float]], user_id: int):
         """Handle Selecionar regiao in this request workflow."""
@@ -538,9 +540,9 @@ class _EndpointHandlers:
         return await request_context.catalog_workflow.importar_catalogo_fornecedor(fornecedor_id=fornecedor_id, file=file, mapeamento_colunas_usuario=mapeamento_colunas_usuario, current_user=current_user)
 
     @router.post('/importar-catalogo-finalizar/{file_id}/', status_code=status.HTTP_202_ACCEPTED)
-    async def importar_catalogo_finalizar(background_tasks: BackgroundTasks, file_id: int, product_type_id: int=Body(..., embed=True), fornecedor_id: int=Body(..., embed=True), mapping: Optional[Dict[str, str]]=Body(None), pages: Optional[List[int]]=Body(None), region: Optional[List[float]]=Body(None), current_user: models.User=Depends(auth_utils._AuthUtilsActiveUserDependency.get_current_active_user), request_context: _ProdutosRequestContext=Depends(_build_produtos_request_context)):
+    async def importar_catalogo_finalizar(background_tasks: BackgroundTasks, file_id: int, product_type_id: int=Body(..., embed=True), fornecedor_id: int=Body(..., embed=True), mapping: Optional[Dict[str, str]]=Body(None), pages: Optional[List[int]]=Body(None), region: Optional[List[float]]=Body(None), extraction_mode: str=Body("ocr", embed=True), current_user: models.User=Depends(auth_utils._AuthUtilsActiveUserDependency.get_current_active_user), request_context: _ProdutosRequestContext=Depends(_build_produtos_request_context)):
         """Endpoint HTTP que delega a execucao para workflow/servico OO (importar_catalogo_finalizar)."""
-        return await request_context.catalog_workflow.importar_catalogo_finalizar(background_tasks=background_tasks, file_id=file_id, product_type_id=product_type_id, fornecedor_id=fornecedor_id, mapping=mapping, pages=pages, region=region, user_id=current_user.id)
+        return await request_context.catalog_workflow.importar_catalogo_finalizar(background_tasks=background_tasks, file_id=file_id, product_type_id=product_type_id, fornecedor_id=fornecedor_id, mapping=mapping, pages=pages, region=region, extraction_mode=extraction_mode, user_id=current_user.id)
 
     @router.get('/importar-catalogo-status/{file_id}/', response_model=schemas.CatalogImportFileResponse)
     def importar_catalogo_status(file_id: int, current_user: models.User=Depends(auth_utils._AuthUtilsActiveUserDependency.get_current_active_user), request_context: _ProdutosRequestContext=Depends(_build_produtos_request_context)):
@@ -558,9 +560,9 @@ class _EndpointHandlers:
         return request_context.catalog_workflow.importar_catalogo_result(file_id=file_id, user_id=current_user.id)
 
     @router.post('/importar-catalogo-finalizar/', response_model=schemas.CatalogImportResult)
-    async def importar_catalogo_finalizar_todas_paginas(file_id: int=Body(..., embed=True), start_page: int=Body(1, embed=True), mapping: Optional[Dict[str, str]]=Body(None), current_user: models.User=Depends(auth_utils._AuthUtilsActiveUserDependency.get_current_active_user), request_context: _ProdutosRequestContext=Depends(_build_produtos_request_context)):
+    async def importar_catalogo_finalizar_todas_paginas(file_id: int=Body(..., embed=True), start_page: int=Body(1, embed=True), mapping: Optional[Dict[str, str]]=Body(None), extraction_mode: str=Body("ocr", embed=True), current_user: models.User=Depends(auth_utils._AuthUtilsActiveUserDependency.get_current_active_user), request_context: _ProdutosRequestContext=Depends(_build_produtos_request_context)):
         """Endpoint HTTP que delega a execucao para workflow/servico OO (importar_catalogo_finalizar_todas_paginas)."""
-        return await request_context.catalog_workflow.importar_catalogo_finalizar_todas_paginas(file_id=file_id, start_page=start_page, mapping=mapping, user_id=current_user.id)
+        return await request_context.catalog_workflow.importar_catalogo_finalizar_todas_paginas(file_id=file_id, start_page=start_page, mapping=mapping, extraction_mode=extraction_mode, user_id=current_user.id)
 
     @router.post('/selecionar-regiao/', response_model=schemas.RegionExtractionResponse)
     async def selecionar_regiao(file_id: int=Body(..., embed=True), page: int=Body(..., embed=True), bbox: List[float]=Body(..., embed=True), bbox_norm: Optional[List[float]]=Body(None, embed=True), current_user: models.User=Depends(auth_utils._AuthUtilsActiveUserDependency.get_current_active_user), request_context: _ProdutosRequestContext=Depends(_build_produtos_request_context)):

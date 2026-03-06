@@ -124,12 +124,70 @@ describe('ImportCatalogWizard', () => {
     await userEvent.click(screen.getByText('Iniciar Processamento'));
 
     await waitFor(() => {
+        expect(fornecedorService.finalizarImportacaoCatalogo).toHaveBeenCalledWith(
+          expect.objectContaining({
+            fileId: 1,
+            productTypeId: 4,
+            fornecedorId: 1,
+            pages: [1],
+            extractionMode: 'ocr',
+          })
+        );
+      });
+  });
+
+  test('starts import with IA extraction mode when selected', async () => {
+    productTypeService.getProductTypes.mockResolvedValue({
+      items: [{ id: 4, friendly_name: 'Automotivo' }],
+    });
+    productTypeService.getProductTypeDetails.mockResolvedValue({ attribute_templates: [] });
+    fornecedorService.previewCatalogo.mockResolvedValue({
+      fileId: 1,
+      headers: null,
+      sampleRows: null,
+      previewImages: [{ page: 1, image: 'data:image/png;base64,abc' }],
+      numPages: 2,
+      tablePages: [],
+    });
+    fornecedorService.finalizarImportacaoCatalogo.mockResolvedValue({
+      status: 'PROCESSING',
+      file_id: 1,
+    });
+    fornecedorService.getImportacaoStatus.mockResolvedValueOnce({
+      status: 'IMPORTED',
+      pages_processed: 2,
+      total_pages: 2,
+    });
+    fornecedorService.getImportacaoResult.mockResolvedValue({
+      stats: { produtos_criados: 1, produtos_atualizados: 0, erros: 0, pages_processed: 2, pages_total: 2 },
+      created: [],
+      updated: [],
+      errors: [],
+      log: [],
+    });
+
+    render(
+      <ImportCatalogWizard
+        fornecedor={{ id: 1, default_column_mapping: { col_0: 'auto:sku_nome' } }}
+        onClose={() => {}}
+        isOpen
+      />
+    );
+
+    const fileInput = document.querySelector('input[type="file"]');
+    const file = new File(['a'], 'test.pdf', { type: 'application/pdf' });
+    await userEvent.upload(fileInput, file);
+    await userEvent.click(screen.getByText('Gerar Preview'));
+    await screen.findByRole('img', { name: /1/ });
+
+    await userEvent.selectOptions(screen.getByRole('combobox', { name: /tipo de produto/i }), '4');
+    await userEvent.selectOptions(screen.getByRole('combobox', { name: /modo de extracao/i }), 'ia');
+    await userEvent.click(screen.getByText('Iniciar Processamento'));
+
+    await waitFor(() => {
       expect(fornecedorService.finalizarImportacaoCatalogo).toHaveBeenCalledWith(
         expect.objectContaining({
-          fileId: 1,
-          productTypeId: 4,
-          fornecedorId: 1,
-          pages: [1],
+          extractionMode: 'ia',
         })
       );
     });

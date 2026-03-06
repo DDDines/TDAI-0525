@@ -14,7 +14,7 @@ import LoadingPopup from '../components/common/LoadingPopup.jsx';
 import './ConfiguracoesPage.css';
 
 function ConfiguracoesPage() {
-  const { user } = useAuth();
+  const { user, setUser } = useAuth();
   const {
     effectiveMode,
     defaultMode,
@@ -28,6 +28,8 @@ function ConfiguracoesPage() {
 
   const [profileData, setProfileData] = useState({
     nome_completo: '',
+    nome_empresa: '',
+    avatar_url: '',
     email: '',
     idioma_preferido: 'pt_BR',
     chave_openai_pessoal: '',
@@ -44,6 +46,8 @@ function ConfiguracoesPage() {
         if (currentUser) {
           setProfileData({
             nome_completo: currentUser.nome_completo || currentUser.nome || '',
+            nome_empresa: currentUser.nome_empresa || '',
+            avatar_url: currentUser.avatar_url || '',
             email: currentUser.email || '',
             idioma_preferido: currentUser.idioma_preferido || 'pt_BR',
             chave_openai_pessoal: currentUser.chave_openai_pessoal || '',
@@ -72,6 +76,8 @@ function ConfiguracoesPage() {
     try {
       const updatePayload = {
         nome_completo: profileData.nome_completo,
+        nome_empresa: profileData.nome_empresa,
+        avatar_url: profileData.avatar_url,
         idioma_preferido: profileData.idioma_preferido,
         chave_openai_pessoal: profileData.chave_openai_pessoal,
       };
@@ -79,9 +85,12 @@ function ConfiguracoesPage() {
       const updatedUser = await authService.updateCurrentUser(updatePayload);
       showSuccessToast('Perfil atualizado com sucesso!');
       if (updatedUser) {
+        setUser(updatedUser);
         setProfileData((prev) => ({
           ...prev,
           nome_completo: updatedUser.nome_completo || updatedUser.nome || '',
+          nome_empresa: updatedUser.nome_empresa || '',
+          avatar_url: updatedUser.avatar_url || '',
           idioma_preferido: updatedUser.idioma_preferido || 'pt_BR',
           chave_openai_pessoal: updatedUser.chave_openai_pessoal || '',
         }));
@@ -119,134 +128,228 @@ function ConfiguracoesPage() {
     showSuccessToast('Visualizacao voltou ao modo padrao da plataforma.');
   };
 
+  const formatMembershipDate = (value) => {
+    if (!value) {
+      return '-';
+    }
+    const parsedDate = new Date(value);
+    if (Number.isNaN(parsedDate.getTime())) {
+      return '-';
+    }
+    return parsedDate.toLocaleDateString('pt-BR');
+  };
+
+  const userRoleDisplay = user?.is_superuser ? 'Administrador' : 'Usuario';
+  const userPlanDisplay = user?.plano?.nome || 'Sem plano';
+  const userCreatedAtDisplay = formatMembershipDate(user?.created_at);
+  const profileAvatarFallback = (profileData.nome_completo || profileData.email || 'U')
+    .slice(0, 1)
+    .toUpperCase();
+
   if (!initialUserDataLoaded && loadingProfile) {
     return <LoadingPopup isOpen={true} message="Carregando configuracoes..." />;
   }
 
   return (
     <div className="settings-page-shell">
-      <h1 className="settings-page-title">Configuracoes</h1>
-
       <section className="settings-section-card">
         <h2>Perfil do Usuario</h2>
-        <form className="settings-form" onSubmit={handleProfileSubmit}>
-          <div className="settings-field">
-            <label htmlFor="email">Email</label>
-            <input
-              type="email"
-              id="email"
-              name="email"
-              value={profileData.email}
-              readOnly
-              disabled
-              className="settings-input settings-input-readonly"
-            />
-          </div>
+        <div className="settings-profile-layout">
+          <form className="settings-form settings-form-main" onSubmit={handleProfileSubmit}>
+            <div className="settings-field">
+              <label htmlFor="email">Email</label>
+              <input
+                type="email"
+                id="email"
+                name="email"
+                value={profileData.email}
+                readOnly
+                disabled
+                className="settings-input settings-input-readonly"
+              />
+            </div>
 
-          <div className="settings-field">
-            <label htmlFor="nome">Nome</label>
-            <input
-              type="text"
-              id="nome"
-              name="nome_completo"
-              value={profileData.nome_completo}
-              onChange={handleProfileChange}
-              className="settings-input"
-              disabled={loadingProfile}
-            />
-          </div>
+            <div className="settings-field">
+              <label htmlFor="nome">Nome</label>
+              <input
+                type="text"
+                id="nome"
+                name="nome_completo"
+                value={profileData.nome_completo}
+                onChange={handleProfileChange}
+                className="settings-input"
+                disabled={loadingProfile}
+              />
+            </div>
 
-          <div className="settings-field">
-            <label htmlFor="idioma_preferido">Idioma preferido</label>
-            <select
-              id="idioma_preferido"
-              name="idioma_preferido"
-              value={profileData.idioma_preferido}
-              onChange={handleProfileChange}
-              className="settings-input"
-              disabled={loadingProfile}
-            >
-              <option value="pt_BR">Portugues (pt-BR)</option>
-              <option value="en">Ingles (en)</option>
-            </select>
-          </div>
+            <div className="settings-field">
+              <label htmlFor="nome_empresa">Empresa</label>
+              <input
+                type="text"
+                id="nome_empresa"
+                name="nome_empresa"
+                value={profileData.nome_empresa}
+                onChange={handleProfileChange}
+                className="settings-input"
+                disabled={loadingProfile}
+              />
+            </div>
 
-          <div className="settings-field">
-            <label htmlFor="chave_openai_pessoal">Chave OpenAI pessoal (opcional)</label>
-            <input
-              type="password"
-              id="chave_openai_pessoal"
-              name="chave_openai_pessoal"
-              value={profileData.chave_openai_pessoal}
-              onChange={handleProfileChange}
-              className="settings-input"
-              placeholder="sk-..."
-              autoComplete="off"
-              disabled={loadingProfile}
-            />
-            <small className="settings-help-text">
-              Se fornecida, esta chave sera usada para suas geracoes no modo completo.
-            </small>
-          </div>
+            <div className="settings-field">
+              <label htmlFor="avatar_url">Imagem do usuario (URL)</label>
+              <input
+                type="url"
+                id="avatar_url"
+                name="avatar_url"
+                value={profileData.avatar_url}
+                onChange={handleProfileChange}
+                className="settings-input"
+                placeholder="https://..."
+                autoComplete="off"
+                disabled={loadingProfile}
+              />
+              <small className="settings-help-text">
+                Essa imagem vai aparecer no canto superior direito da plataforma.
+              </small>
+            </div>
 
-          <button type="submit" className="settings-primary-btn" disabled={loadingProfile}>
-            {loadingProfile ? 'Salvando perfil...' : 'Salvar alteracoes do perfil'}
-          </button>
-        </form>
-      </section>
+            <div className="settings-field">
+              <label htmlFor="idioma_preferido">Idioma preferido</label>
+              <select
+                id="idioma_preferido"
+                name="idioma_preferido"
+                value={profileData.idioma_preferido}
+                onChange={handleProfileChange}
+                className="settings-input"
+                disabled={loadingProfile}
+              >
+                <option value="pt_BR">Portugues (pt-BR)</option>
+                <option value="en">Ingles (en)</option>
+              </select>
+            </div>
 
-      <section className="settings-section-card">
-        <h2>Seguranca</h2>
-        <button onClick={handleOpenChangePasswordModal} className="settings-primary-btn">
-          Alterar Senha
-        </button>
-      </section>
+            <div className="settings-field">
+              <label htmlFor="chave_openai_pessoal">Chave OpenAI pessoal (opcional)</label>
+              <input
+                type="password"
+                id="chave_openai_pessoal"
+                name="chave_openai_pessoal"
+                value={profileData.chave_openai_pessoal}
+                onChange={handleProfileChange}
+                className="settings-input"
+                placeholder="sk-..."
+                autoComplete="off"
+                disabled={loadingProfile}
+              />
+              <small className="settings-help-text">
+                Se fornecida, esta chave sera usada para suas geracoes no modo completo.
+              </small>
+            </div>
 
-      <section className="settings-section-card">
-        <h2>Experiencia do Produto</h2>
-        <div className="settings-experience-status">
-          <span className="settings-field-label">Modo ativo para esta sessao:</span>
-          <span className={`settings-mode-badge ${isCompleteMode ? 'complete' : 'basic'}`}>
-            {isCompleteMode ? 'Completo (com IA)' : 'Basico (sem IA)'}
-          </span>
+            <button type="submit" className="settings-primary-btn" disabled={loadingProfile}>
+              {loadingProfile ? 'Salvando perfil...' : 'Salvar alteracoes do perfil'}
+            </button>
+          </form>
+
+          <aside className="settings-profile-panel" aria-label="Informacoes pessoais">
+            <div className="settings-profile-avatar-wrap">
+              <div className="settings-profile-avatar" aria-hidden="true">
+                {profileData.avatar_url ? (
+                  <img src={profileData.avatar_url} alt="" referrerPolicy="no-referrer" />
+                ) : (
+                  <span>{profileAvatarFallback}</span>
+                )}
+              </div>
+              <div className="settings-profile-heading">
+                <h3>{profileData.nome_completo || 'Usuario sem nome'}</h3>
+                <p>{profileData.nome_empresa || 'Empresa nao informada'}</p>
+              </div>
+            </div>
+
+            <div className="settings-profile-divider" />
+
+            <div className="settings-profile-details">
+              <div className="settings-profile-detail-row">
+                <span className="settings-profile-detail-label">Email</span>
+                <span className="settings-profile-detail-value">{profileData.email || '-'}</span>
+              </div>
+              <div className="settings-profile-detail-row">
+                <span className="settings-profile-detail-label">Perfil</span>
+                <span className="settings-profile-detail-value">{userRoleDisplay}</span>
+              </div>
+              <div className="settings-profile-detail-row">
+                <span className="settings-profile-detail-label">Plano</span>
+                <span className="settings-profile-detail-value">{userPlanDisplay}</span>
+              </div>
+              <div className="settings-profile-detail-row">
+                <span className="settings-profile-detail-label">Idioma</span>
+                <span className="settings-profile-detail-value">
+                  {profileData.idioma_preferido === 'en' ? 'Ingles' : 'Portugues'}
+                </span>
+              </div>
+              <div className="settings-profile-detail-row">
+                <span className="settings-profile-detail-label">Membro desde</span>
+                <span className="settings-profile-detail-value">{userCreatedAtDisplay}</span>
+              </div>
+            </div>
+          </aside>
         </div>
+      </section>
 
-        <p className="settings-help-text">
-          Modo padrao da plataforma: <strong>{defaultMode === 'complete' ? 'Completo' : 'Basico'}</strong>.
-        </p>
+      <div className="settings-secondary-grid">
+        <section className="settings-section-card">
+          <h2>Seguranca</h2>
+          <button onClick={handleOpenChangePasswordModal} className="settings-primary-btn">
+            Alterar Senha
+          </button>
+        </section>
 
-        {isAdmin && canAdminPreview ? (
-          <div className="settings-experience-controls">
-            <button
-              type="button"
-              className={`settings-mode-btn ${effectiveMode === 'basic' ? 'active' : ''}`}
-              onClick={() => handleSelectExperienceMode('basic')}
-            >
-              Visualizar Basico
-            </button>
-            <button
-              type="button"
-              className={`settings-mode-btn ${effectiveMode === 'complete' ? 'active' : ''}`}
-              onClick={() => handleSelectExperienceMode('complete')}
-            >
-              Visualizar Completo
-            </button>
-            {adminPreviewMode ? (
+        <section className="settings-section-card">
+          <h2>Experiencia do Produto</h2>
+          <div className="settings-experience-status">
+            <span className="settings-field-label">Modo ativo para esta sessao:</span>
+            <span className={`settings-mode-badge ${isCompleteMode ? 'complete' : 'basic'}`}>
+              {isCompleteMode ? 'Completo (com IA)' : 'Basico (sem IA)'}
+            </span>
+          </div>
+
+          <p className="settings-help-text">
+            Modo padrao da plataforma: <strong>{defaultMode === 'complete' ? 'Completo' : 'Basico'}</strong>.
+          </p>
+
+          {isAdmin && canAdminPreview ? (
+            <div className="settings-experience-controls">
               <button
                 type="button"
-                className="settings-mode-reset-btn"
-                onClick={handleResetExperienceMode}
+                className={`settings-mode-btn ${effectiveMode === 'basic' ? 'active' : ''}`}
+                onClick={() => handleSelectExperienceMode('basic')}
               >
-                Voltar ao padrao
+                Visualizar Basico
               </button>
-            ) : null}
-          </div>
-        ) : (
-          <p className="settings-help-text">
-            Apenas administradores podem alternar o modo de visualizacao.
-          </p>
-        )}
-      </section>
+              <button
+                type="button"
+                className={`settings-mode-btn ${effectiveMode === 'complete' ? 'active' : ''}`}
+                onClick={() => handleSelectExperienceMode('complete')}
+              >
+                Visualizar Completo
+              </button>
+              {adminPreviewMode ? (
+                <button
+                  type="button"
+                  className="settings-mode-reset-btn"
+                  onClick={handleResetExperienceMode}
+                >
+                  Voltar ao padrao
+                </button>
+              ) : null}
+            </div>
+          ) : (
+            <p className="settings-help-text">
+              Apenas administradores podem alternar o modo de visualizacao.
+            </p>
+          )}
+        </section>
+      </div>
 
       <ChangePasswordModal
         isOpen={isChangePasswordModalOpen}

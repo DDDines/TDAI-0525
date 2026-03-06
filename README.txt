@@ -2,9 +2,9 @@ CatalogAI (TDAI-0525)
 
 Este arquivo e um resumo rapido.
 Para instrucoes completas e atualizadas, use:
-- README.md (raiz)
-- README Backend.md
-- README Frontend.md
+- README.md (raiz de Project)
+- docs/EXECUCAO_LOCAL.md
+- Frontend/app/README.md
 
 Passos minimos:
 1) Copiar .env.example para .env e definir APP_MODE=oop

@@ -35,6 +35,7 @@ class CatalogImportWorkflowService:
         mapping: Optional[Dict[str, str]],
         pages: Optional[List[int]],
         region: Optional[List[float]],
+        extraction_mode: str = "ocr",
         user_id: int,
     ) -> Dict[str, Any]:
         """Handle importar catalogo finalizar within the catalog import workflow."""
@@ -60,6 +61,7 @@ class CatalogImportWorkflowService:
             mapping=resolved_mapping,
             pages=pages,
             region=region,
+            extraction_mode=extraction_mode,
         )
         await self._start_service.dispatch_finalize(
             background_tasks=background_tasks,
@@ -111,6 +113,7 @@ class CatalogImportWorkflowService:
         file_id: int,
         start_page: int,
         mapping: Optional[Dict[str, str]],
+        extraction_mode: str = "ocr",
         user_id: int,
     ) -> Any:
         """Handle importar catalogo finalizar todas paginas within the catalog import workflow."""
@@ -139,6 +142,7 @@ class CatalogImportWorkflowService:
             mapping=resolved_mapping,
             pages=pages,
             region=None,
+            extraction_mode=extraction_mode,
         )
         await self._start_service.run_finalize_direct(
             command=command,

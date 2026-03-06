@@ -180,6 +180,7 @@ function ImportCatalogWizard(
     const [selectedPreviewIndex, setSelectedPreviewIndex] = useState(null);
     const [productTypes, setProductTypes] = useState([]);
     const [productTypeId, setProductTypeId] = useState(initialProductTypeId || '');
+    const [extractionMode, setExtractionMode] = useState('ocr');
     const [fieldOptions, setFieldOptions] = useState(BASE_FIELD_OPTIONS);
     const [statusData, setStatusData] = useState(null);
     const [resultData, setResultData] = useState(null);
@@ -251,6 +252,7 @@ function ImportCatalogWizard(
       setSelectedPreviewIndex(null);
       setMapping({ ...defaultFornecedorMapping });
       setProductTypeId(initialProductTypeId || '');
+      setExtractionMode('ocr');
       setStatusData(null);
       setResultData(null);
       setError('');
@@ -692,7 +694,8 @@ function ImportCatalogWizard(
           fornecedorId: fornecedor.id,
           mapping: mapping && Object.keys(mapping).length ? mapping : null,
           pages: selectedPages,
-          region: selectedBboxNorm || selectedBbox
+          region: selectedBboxNorm || selectedBbox,
+          extractionMode
         });
       } catch (err) {
         pollRunRef.current += 1;
@@ -737,6 +740,9 @@ function ImportCatalogWizard(
     const processingActive = !statusData || !isTerminalStatus;
     const waitingFinalResult = step === 'processing' && isTerminalStatus && !resultData && !error;
     const elapsedSec = processingStartedAt ? Math.max(0, Math.floor((Date.now() - processingStartedAt) / 1000)) : 0;
+    const etaSec = pagesProcessed > 0 && pagesTotal > pagesProcessed ?
+    Math.max(0, Math.round((elapsedSec / pagesProcessed) * (pagesTotal - pagesProcessed))) :
+    0;
     const showLoadingPopup = isLoading || step === 'processing' && !error && (processingActive || waitingFinalResult);
     const loadingPopupMessage =
     step === 'processing' && processingActive ?
@@ -771,7 +777,8 @@ function ImportCatalogWizard(
           chips={[
           { label: 'Status', value: statusData?.status || 'PROCESSING' },
           { label: 'Arquivo', value: fileId ? `#${fileId}` : '-' },
-          { label: 'Tempo', value: formatElapsed(elapsedSec) }]}
+          { label: 'Tempo', value: formatElapsed(elapsedSec) },
+          { label: 'ETA', value: etaSec > 0 ? formatElapsed(etaSec) : '-' }]}
           details={statusTimeline.slice(-5)} />
 
         }
@@ -972,6 +979,19 @@ function ImportCatalogWizard(
                         </option>);
 
                     })}
+                  </select>
+                </label>
+
+                <label htmlFor="wizard-extraction-mode">
+                  Modo de Extracao
+                  <select
+                    id="wizard-extraction-mode"
+                    value={extractionMode}
+                    onChange={(e) => setExtractionMode(e.target.value)}
+                    className="wizard-inline-select">
+                    <option value="table">Tabela</option>
+                    <option value="ocr">OCR</option>
+                    <option value="ia">IA</option>
                   </select>
                 </label>
               </div>

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 from typing import Any, Dict, List, Optional
 from sqlalchemy.orm import Session
 
@@ -86,6 +87,59 @@ class WebEnrichmentTaskRuntime:
 class WebEnrichmentTaskWorkflow:
     """Orquestra o fluxo completo de enriquecimento web com etapas coesas."""
 
+    _KEYWORD_STOPWORDS = {
+        "com",
+        "para",
+        "sem",
+        "dos",
+        "das",
+        "nos",
+        "nas",
+        "uma",
+        "uns",
+        "umas",
+        "que",
+        "por",
+        "the",
+        "and",
+        "item",
+        "peca",
+        "pecas",
+        "produto",
+        "produtos",
+        "linha",
+        "detalhes",
+        "detalhado",
+        "detalhada",
+        "tecnica",
+        "tecnicas",
+        "ficha",
+        "mais",
+        "menos",
+        "sobre",
+        "link",
+        "http",
+        "https",
+    }
+    _COMPANY_TIMELINE_HINTS = (
+        "iniciou suas atividades",
+        "iniciou as atividades",
+        "fundada em",
+        "fundado em",
+        "anos de mercado",
+        "no mercado desde",
+        "atuando desde",
+        "historia da empresa",
+    )
+    _COMPANY_TIMELINE_PATTERN = re.compile(
+        r"\b(?:fundad[oa]\s+em\s+(?:19|20)\d{2}|desde\s+(?:19|20)\d{2}|iniciou\s+suas?\s+atividades(?:\s+no?\s+ano\s+de\s+(?:19|20)\d{2})?)\b",
+        re.IGNORECASE,
+    )
+    _COMPANY_ENTITY_HINT_PATTERN = re.compile(
+        r"\b(?:empresa|marca|fabricante|industria|loja|grupo|nos|nossa|historia|tradicao|mercado)\b",
+        re.IGNORECASE,
+    )
+
     def __init__(
         self,
         *,
@@ -161,6 +215,317 @@ class WebEnrichmentTaskWorkflow:
             product_repository_factory=runtime_obj.product_repository_factory,
             models=runtime_obj.models,
         )
+
+    @staticmethod
+    def _compact_text(value: Any, *, max_len: int = 12000) -> str:
+        """Normalize extracted text fragments and constrain maximum length."""
+        text = " ".join(str(value or "").strip().split())
+        if not text:
+            return ""
+        return text[:max_len]
+
+    @classmethod
+    def _looks_like_company_timeline_claim(cls, text: Any) -> bool:
+        """Detect company timeline/history claims that are not product facts."""
+        compact = " ".join(str(text or "").strip().split())
+        if not compact:
+            return False
+
+        lowered = compact.lower()
+        if any(hint in lowered for hint in cls._COMPANY_TIMELINE_HINTS):
+            return True
+
+        if not cls._COMPANY_TIMELINE_PATTERN.search(compact):
+            return False
+
+        return bool(cls._COMPANY_ENTITY_HINT_PATTERN.search(compact))
+
+    @classmethod
+    def _sanitize_company_timeline_text(cls, value: Any, *, max_len: int = 12000) -> str:
+        """Remove unsupported company-history snippets from free text fields."""
+        text = cls._compact_text(value, max_len=max_len)
+        if not text:
+            return ""
+
+        chunks = re.split(r"(?<=[.!?])\s+|[\n\r]+", text)
+        filtered_chunks: List[str] = []
+        for chunk in chunks:
+            clean = " ".join(str(chunk or "").strip().split())
+            if len(clean) < 4:
+                continue
+            if cls._looks_like_company_timeline_claim(clean):
+                continue
+            filtered_chunks.append(clean)
+
+        if filtered_chunks:
+            return cls._compact_text(" ".join(filtered_chunks), max_len=max_len)
+        return text
+
+    def _sanitize_aggregated_payload(self, payload: Dict[str, Any]) -> None:
+        """Sanitize aggregated enrichment payload in-place."""
+        if not isinstance(payload, dict):
+            return
+
+        payload["descricao_curta"] = self._sanitize_company_timeline_text(
+            payload.get("descricao_curta"),
+            max_len=600,
+        )
+        payload["descricao_detalhada_seo"] = self._sanitize_company_timeline_text(
+            payload.get("descricao_detalhada_seo"),
+            max_len=1800,
+        )
+        payload["texto_relevante_coletado"] = self._sanitize_company_timeline_text(
+            payload.get("texto_relevante_coletado"),
+            max_len=14000,
+        )
+
+        bullets = self._coerce_to_list(payload.get("lista_caracteristicas_beneficios_bullets"))
+        if bullets:
+            filtered_bullets = [
+                item
+                for item in bullets
+                if not self._looks_like_company_timeline_claim(item)
+            ]
+            payload["lista_caracteristicas_beneficios_bullets"] = filtered_bullets[:6]
+
+        fontes_web = payload.get("fontes_web_coletadas")
+        if isinstance(fontes_web, list):
+            normalized_sources: List[Dict[str, Any]] = []
+            for source in fontes_web:
+                if not isinstance(source, dict):
+                    continue
+                source_copy = dict(source)
+                source_copy["descricao_curta"] = self._sanitize_company_timeline_text(
+                    source_copy.get("descricao_curta"),
+                    max_len=220,
+                )
+                normalized_sources.append(source_copy)
+            payload["fontes_web_coletadas"] = normalized_sources[:8]
+
+    @classmethod
+    def _split_sentences(cls, *, text: str, max_items: int, min_len: int = 24) -> List[str]:
+        """Extract sentence-like chunks from arbitrary text payloads."""
+        items: List[str] = []
+        seen = set()
+        for fragment in re.split(r"[\n\r]+|(?<=[.!?])\s+", text or ""):
+            clean = " ".join(fragment.strip().split()).strip(" -;,.")
+            if len(clean) < min_len:
+                continue
+            if cls._looks_like_company_timeline_claim(clean):
+                continue
+            normalized = clean.lower()
+            if normalized in seen:
+                continue
+            seen.add(normalized)
+            items.append(clean)
+            if len(items) >= max_items:
+                break
+        return items
+
+    def _merge_collected_text(self, *, existing_text: Any, new_text: Any, max_len: int = 14000) -> str:
+        """Merge text extracted from multiple URLs while avoiding duplicated blocks."""
+        existing = self._sanitize_company_timeline_text(existing_text, max_len=max_len)
+        incoming = self._sanitize_company_timeline_text(new_text, max_len=max_len)
+        if not incoming:
+            return existing
+        if not existing:
+            return incoming
+        if incoming in existing:
+            return existing
+        if existing in incoming:
+            return incoming[:max_len]
+        merged = f"{existing}\n\n{incoming}"
+        return merged[:max_len]
+
+    def _extract_specs_from_text(self, *, text: str, limit: int = 12) -> Dict[str, str]:
+        """Extract lightweight key-value specs from free text content."""
+        specs: Dict[str, str] = {}
+        if not text:
+            return specs
+
+        pattern = re.compile(
+            r"([A-Za-z0-9][A-Za-z0-9 /_-]{2,45})\s*[:\-]\s*([^\n;]{2,140})"
+        )
+        for match in pattern.finditer(text):
+            key = self._compact_text(match.group(1), max_len=60).strip(" -:;,.")
+            value = self._compact_text(match.group(2), max_len=140).strip(" -:;,.")
+            if not key or not value:
+                continue
+            key_low = key.lower()
+            if key_low.startswith("http") or key_low in {"www", "sku", "ean"}:
+                continue
+            if value.lower().startswith("//"):
+                continue
+            if key_low in specs:
+                continue
+            specs[key_low] = value
+            if len(specs) >= limit:
+                break
+        return specs
+
+    def _extract_keywords(self, *, source_texts: List[str], limit: int = 10) -> List[str]:
+        """Generate SEO-like keyword hints from text and metadata snippets."""
+        score_by_token: Dict[str, int] = {}
+        for source_text in source_texts:
+            for raw_token in re.findall(r"[A-Za-z0-9][A-Za-z0-9./-]{2,}", source_text or ""):
+                token = raw_token.strip(".,;:()[]{}<>\"'").lower()
+                if len(token) < 3:
+                    continue
+                if token in self._KEYWORD_STOPWORDS:
+                    continue
+                if token.isdigit() and len(token) < 4:
+                    continue
+                if token.startswith("http"):
+                    continue
+                score_by_token[token] = score_by_token.get(token, 0) + 1
+
+        ranked = sorted(
+            score_by_token.items(),
+            key=lambda item: (-item[1], -len(item[0]), item[0]),
+        )
+        return [token for token, _ in ranked[:limit]]
+
+    @staticmethod
+    def _coerce_to_list(value: Any) -> List[str]:
+        """Normalize list-like and scalar values to a compact list of strings."""
+        if isinstance(value, list):
+            values = value
+        elif value is None:
+            values = []
+        else:
+            values = [value]
+
+        normalized: List[str] = []
+        for item in values:
+            text = " ".join(str(item or "").strip().split())
+            if text:
+                normalized.append(text)
+        return normalized
+
+    def _aplicar_enriquecimento_heuristico(
+        self,
+        *,
+        db_produto_obj: Any,
+        dados_extraidos_agregados: Dict[str, Any],
+        log_mensagens: List[str],
+    ) -> None:
+        """Fill core enrichment fields heuristically when LLM is unavailable or partial."""
+        self._sanitize_aggregated_payload(dados_extraidos_agregados)
+        texto_base = self._compact_text(
+            dados_extraidos_agregados.get("texto_relevante_coletado"),
+            max_len=14000,
+        )
+        if not texto_base and not dados_extraidos_agregados:
+            return
+
+        nome_atual = self._compact_text(
+            dados_extraidos_agregados.get("nome")
+            or dados_extraidos_agregados.get("nome_sugerido_seo"),
+            max_len=255,
+        )
+        if not nome_atual:
+            nome_base = self._compact_text(getattr(db_produto_obj, "nome_base", ""), max_len=180)
+            marca = self._compact_text(getattr(db_produto_obj, "marca", ""), max_len=80)
+            sku = self._compact_text(getattr(db_produto_obj, "sku", ""), max_len=80)
+            nome_fallback = " ".join(part for part in [nome_base, marca, sku] if part)
+            nome_fallback = self._compact_text(nome_fallback, max_len=255)
+            if nome_fallback:
+                dados_extraidos_agregados["nome"] = nome_fallback
+                log_mensagens.append(
+                    "Nome preenchido heuristica/metadata para fortalecer geracao basica."
+                )
+
+        descricao_curta = self._compact_text(
+            dados_extraidos_agregados.get("descricao_curta"),
+            max_len=600,
+        )
+        if not descricao_curta and texto_base:
+            sentencas = self._split_sentences(text=texto_base, max_items=2, min_len=30)
+            resumo = " ".join(sentencas).strip() or self._compact_text(texto_base, max_len=420)
+            if resumo:
+                dados_extraidos_agregados["descricao_curta"] = resumo
+                descricao_curta = resumo
+                log_mensagens.append(
+                    "Descricao curta criada heuristica a partir do texto coletado."
+                )
+
+        specs_existentes = dados_extraidos_agregados.get("especificacoes_tecnicas_dict")
+        specs_dict: Dict[str, str] = dict(specs_existentes) if isinstance(specs_existentes, dict) else {}
+        specs_extraidos = self._extract_specs_from_text(text=texto_base, limit=10)
+        specs_alterado = False
+        for key_lower, value in specs_extraidos.items():
+            if any(existing_key.lower() == key_lower for existing_key in specs_dict.keys()):
+                continue
+            specs_dict[key_lower.capitalize()] = value
+            specs_alterado = True
+        if specs_alterado:
+            dados_extraidos_agregados["especificacoes_tecnicas_dict"] = specs_dict
+            log_mensagens.append(
+                f"Especificacoes tecnicas inferidas heuristica: {len(specs_dict)} chave(s)."
+            )
+
+        bullets = self._coerce_to_list(
+            dados_extraidos_agregados.get("lista_caracteristicas_beneficios_bullets")
+        )
+        if len(bullets) < 3 and texto_base:
+            for sentenca in self._split_sentences(text=texto_base, max_items=6, min_len=28):
+                if sentenca.lower() in {item.lower() for item in bullets}:
+                    continue
+                bullets.append(sentenca)
+                if len(bullets) >= 5:
+                    break
+        if bullets:
+            dados_extraidos_agregados["lista_caracteristicas_beneficios_bullets"] = bullets[:6]
+
+        keywords = self._coerce_to_list(
+            dados_extraidos_agregados.get("palavras_chave_seo_relevantes_lista")
+        )
+        keyword_sources = [
+            self._compact_text(getattr(db_produto_obj, "nome_base", ""), max_len=220),
+            self._compact_text(getattr(db_produto_obj, "marca", ""), max_len=120),
+            self._compact_text(getattr(db_produto_obj, "modelo", ""), max_len=120),
+            self._compact_text(getattr(db_produto_obj, "sku", ""), max_len=120),
+            self._compact_text(getattr(db_produto_obj, "ean", ""), max_len=32),
+            self._compact_text(getattr(db_produto_obj, "categoria_mapeada", ""), max_len=120),
+            self._compact_text(getattr(db_produto_obj, "categoria_original", ""), max_len=120),
+            texto_base,
+            descricao_curta,
+            " ".join(bullets[:4]),
+            " ".join(f"{k} {v}" for k, v in specs_dict.items()),
+        ]
+        extracted_keywords = self._extract_keywords(source_texts=keyword_sources, limit=12)
+        existing_folded = {item.lower() for item in keywords}
+        for token in extracted_keywords:
+            if token in existing_folded:
+                continue
+            keywords.append(token)
+            existing_folded.add(token)
+            if len(keywords) >= 10:
+                break
+        if keywords:
+            dados_extraidos_agregados["palavras_chave_seo_relevantes_lista"] = keywords[:10]
+
+        descricao_detalhada = self._compact_text(
+            dados_extraidos_agregados.get("descricao_detalhada_seo"),
+            max_len=1800,
+        )
+        if not descricao_detalhada:
+            partes_descricao = []
+            if descricao_curta:
+                partes_descricao.append(descricao_curta)
+            if bullets:
+                partes_descricao.append("Destaques: " + "; ".join(bullets[:3]))
+            if specs_dict:
+                specs_text = "; ".join(
+                    f"{key}: {value}" for key, value in list(specs_dict.items())[:4]
+                )
+                partes_descricao.append("Especificacoes: " + specs_text)
+            descricao_composta = self._compact_text(" ".join(partes_descricao), max_len=1800)
+            if descricao_composta:
+                dados_extraidos_agregados["descricao_detalhada_seo"] = descricao_composta
+                log_mensagens.append(
+                    "Descricao detalhada seo composta heuristica para uso na geracao."
+                )
 
     def _build_user_repository(self, *, session: Session) -> Any:
         """Instantiate user repository using the injected factory."""
@@ -301,6 +666,14 @@ class WebEnrichmentTaskWorkflow:
                 )
                 metadados_normalizados_pagina = {}
 
+            if metadados_normalizados_pagina:
+                self._sanitize_aggregated_payload(metadados_normalizados_pagina)
+
+            texto_principal = self._sanitize_company_timeline_text(
+                texto_principal,
+                max_len=14000,
+            )
+
             nome_fonte = metadados_normalizados_pagina.get("nome")
             descricao_fonte = metadados_normalizados_pagina.get("descricao_curta") or (
                 texto_principal[:600] if texto_principal else ""
@@ -330,8 +703,29 @@ class WebEnrichmentTaskWorkflow:
                     "Texto principal extraido da URL "
                     f"{url_processar} (primeiros 300 chars): {texto_principal[:300]}"
                 )
-                if "texto_relevante_coletado" not in dados_extraidos_agregados:
-                    dados_extraidos_agregados["texto_relevante_coletado"] = texto_principal
+                dados_extraidos_agregados["texto_relevante_coletado"] = self._merge_collected_text(
+                    existing_text=dados_extraidos_agregados.get("texto_relevante_coletado"),
+                    new_text=texto_principal,
+                    max_len=14000,
+                )
+                fontes_web = dados_extraidos_agregados.get("fontes_web_coletadas")
+                if not isinstance(fontes_web, list):
+                    fontes_web = []
+                if url_processar not in {str(item.get("url", "")) for item in fontes_web if isinstance(item, dict)}:
+                    fontes_web.append(
+                        {
+                            "url": url_processar,
+                            "nome": self._compact_text(
+                                metadados_normalizados_pagina.get("nome"),
+                                max_len=160,
+                            ),
+                            "descricao_curta": self._compact_text(
+                                metadados_normalizados_pagina.get("descricao_curta"),
+                                max_len=220,
+                            ),
+                        }
+                    )
+                    dados_extraidos_agregados["fontes_web_coletadas"] = fontes_web[:8]
                 dados_coletados_de_fontes_web = True
 
             if metadados_normalizados_pagina.get("nome") and metadados_normalizados_pagina.get(
@@ -357,6 +751,7 @@ class WebEnrichmentTaskWorkflow:
         status_para_salvar_no_final,
     ) -> tuple[bool, Any]:
         """Execute executar llm as part of this module workflow."""
+        self._sanitize_aggregated_payload(dados_extraidos_agregados)
         if not openai_api_configurada:
             log_mensagens.append("LLM nao foi chamado pois a API OpenAI nao esta configurada.")
             return dados_coletados_de_fontes_web, status_para_salvar_no_final
@@ -415,6 +810,7 @@ class WebEnrichmentTaskWorkflow:
             return dados_coletados_de_fontes_web, status_para_salvar_no_final
 
         dados_extraidos_agregados.update(dados_do_llm)
+        self._sanitize_aggregated_payload(dados_extraidos_agregados)
         return True, status_para_salvar_no_final
 
     async def run(
@@ -465,6 +861,7 @@ class WebEnrichmentTaskWorkflow:
 
         if isinstance(db_produto_obj.dados_brutos_web, dict):
             dados_extraidos_agregados = db_produto_obj.dados_brutos_web.copy()
+            self._sanitize_aggregated_payload(dados_extraidos_agregados)
 
         try:
             user_repo = self._build_user_repository(session=db)
@@ -562,6 +959,11 @@ class WebEnrichmentTaskWorkflow:
                 dados_extraidos_agregados=dados_extraidos_agregados,
                 log_mensagens=log_mensagens,
                 busca_web_disponivel=busca_web_disponivel,
+            )
+            self._aplicar_enriquecimento_heuristico(
+                db_produto_obj=db_produto_obj,
+                dados_extraidos_agregados=dados_extraidos_agregados,
+                log_mensagens=log_mensagens,
             )
 
             (

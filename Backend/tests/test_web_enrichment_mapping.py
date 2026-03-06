@@ -221,6 +221,25 @@ class _TopLevelFunctionSurface:
         assert "descricao_chat_api:substituido_valor_fraco" in notes
         assert not any(item.startswith("descricao_original:") for item in ignored)
 
+    def test_build_payload_remove_historico_empresa_de_descricao_web():
+        """Run test build payload remove historico empresa de descricao web in this workflow."""
+        produto = _make_product(
+            descricao_original="Actros 2651 - 2016",
+            descricao_chat_api="Actros 2651 - 2016",
+        )
+        dados = {
+            "descricao_detalhada_seo": (
+                "Paralama externo em plastico reforcado. "
+                "A Uouu iniciou suas atividades no ano de 2015 e atua no mercado."
+            ),
+        }
+
+        update_fields, notes, _ = _payload_service.build_payload_enriquecimento_visivel(produto, dados)
+
+        assert update_fields["descricao_original"].startswith("Paralama externo em plastico reforcado")
+        assert "iniciou suas atividades" not in update_fields["descricao_original"].lower()
+        assert "descricao_original:substituido_valor_fraco" in notes
+
     def test_source_relevance_rejects_unrelated_candidate():
         """Run test source relevance rejects unrelated candidate in this workflow."""
         produto = SimpleNamespace(

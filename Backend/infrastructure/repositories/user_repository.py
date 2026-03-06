@@ -83,6 +83,8 @@ class UserRepository:
             email=user.email,
             hashed_password=hashed_password,
             nome_completo=user.nome_completo,
+            nome_empresa=user.nome_empresa,
+            avatar_url=user.avatar_url,
             idioma_preferido=user.idioma_preferido,
             chave_openai_pessoal=user.chave_openai_pessoal,
             chave_google_gemini_pessoal=user.chave_google_gemini_pessoal,
@@ -163,6 +165,8 @@ class UserRepository:
         db_user = User(
             email=user_oauth.email,
             nome_completo=user_oauth.nome_completo,
+            nome_empresa=user_oauth.nome_empresa,
+            avatar_url=user_oauth.avatar_url,
             provider=user_oauth.provider,
             provider_user_id=user_oauth.provider_user_id,
             is_active=True,

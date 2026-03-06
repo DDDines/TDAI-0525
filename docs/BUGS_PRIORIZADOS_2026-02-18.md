@@ -14,10 +14,9 @@
 - [ ] Endpoint de selecao de regiao para PDFs sinteticos simples ainda diverge da expectativa de alguns testes antigos.
 
 ## P1 - Ambiente
-- [ ] Ambiente local com conflito `numpy`/`pyarrow` (ABI) gera warnings/excecoes de import em alguns contextos.
+- [x] Ambiente local com conflito `numpy`/`pyarrow` (ABI) gera warnings/excecoes de import em alguns contextos.
 
 ## P2 - UX e Performance
-- [ ] Exibir ETA/progresso real de processamento por pagina no wizard.
+- [x] Exibir ETA/progresso real de processamento por pagina no wizard.
 - [ ] Melhorar heuristicas de OCR para reduzir ruido em linhas com poucos caracteres.
-- [ ] Adicionar opcao explicita no frontend para modo de extracao (Tabela/OCR/IA) por arquivo.
-
+- [x] Adicionar opcao explicita no frontend para modo de extracao (Tabela/OCR/IA) por arquivo.

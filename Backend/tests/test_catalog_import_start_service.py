@@ -233,6 +233,7 @@ class _TopLevelFunctionSurface:
             mapping={"col_0": "nome_base"},
             pages=[1, 2],
             region=[0.1, 0.2, 0.3, 0.4],
+            extraction_mode="ia",
         )
     
         await service.dispatch_finalize(
@@ -243,6 +244,7 @@ class _TopLevelFunctionSurface:
         assert len(finalize_service.calls) == 1
         _, called_command = finalize_service.calls[0]
         assert called_command.file_id == 3
+        assert called_command.extraction_mode == "ia"
 
     @pytest.mark.asyncio
     async def test_run_finalize_direct_calls_finalize_service():
@@ -266,6 +268,7 @@ class _TopLevelFunctionSurface:
         assert len(finalize_service.direct_calls) == 1
         called_command = finalize_service.direct_calls[0]
         assert called_command.file_id == 12
+        assert called_command.extraction_mode == "ocr"
 
 _build_service = _TopLevelFunctionSurface._build_service
 test_get_catalog_file_or_404_success = _TopLevelFunctionSurface.test_get_catalog_file_or_404_success

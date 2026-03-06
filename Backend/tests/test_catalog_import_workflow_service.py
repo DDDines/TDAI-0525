@@ -103,12 +103,15 @@ class _TopLevelFunctionSurface:
                 mapping=None,
                 pages=[12],
                 region=[0.1, 0.1, 0.9, 0.9],
+                extraction_mode="ia",
                 user_id=99,
             )
         )
     
         assert result == {"status": "PROCESSING", "file_id": 10}
         assert any(call[0] == "dispatch" for call in start.calls)
+        build_calls = [call for call in start.calls if call[0] == "build"]
+        assert build_calls[-1][1]["extraction_mode"] == "ia"
 
     def test_importar_catalogo_status_and_result_delegate_to_status_service():
         """Run test importar catalogo status and result delegate to status service in this workflow."""
@@ -144,12 +147,15 @@ class _TopLevelFunctionSurface:
                 file_id=20,
                 start_page=2,
                 mapping={"col_0": "Nome Base"},
+                extraction_mode="table",
                 user_id=5,
             )
         )
     
         assert result == {"ok": True}
         assert any(call[0] == "run_direct" for call in start.calls)
+        build_calls = [call for call in start.calls if call[0] == "build"]
+        assert build_calls[-1][1]["extraction_mode"] == "table"
 
 test_importar_catalogo_finalizar_dispatches_and_returns_processing = _TopLevelFunctionSurface.test_importar_catalogo_finalizar_dispatches_and_returns_processing
 test_importar_catalogo_status_and_result_delegate_to_status_service = _TopLevelFunctionSurface.test_importar_catalogo_status_and_result_delegate_to_status_service

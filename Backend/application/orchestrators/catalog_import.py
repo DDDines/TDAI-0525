@@ -47,6 +47,7 @@ class CatalogImportPipelineOrchestrator:
             mapping=command.mapping,
             pages=command.pages,
             region=command.region,
+            extraction_mode=command.extraction_mode,
         )
         return self._selector.select(
             oop_plan=oop_plan,

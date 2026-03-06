@@ -140,6 +140,7 @@ class CatalogImportStartService:
         mapping: Optional[Dict[str, str]],
         pages: Optional[list[int]],
         region: Optional[list[float]],
+        extraction_mode: str = "ocr",
     ) -> CatalogImportFinalizeCommand:
         """Build finalize command from current inputs and configuration."""
         return CatalogImportFinalizeCommand(
@@ -150,6 +151,7 @@ class CatalogImportStartService:
             mapping=mapping,
             pages=pages,
             region=region,
+            extraction_mode=extraction_mode,
         )
 
     async def dispatch_finalize(

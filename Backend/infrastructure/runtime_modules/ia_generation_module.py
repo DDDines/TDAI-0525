@@ -32,6 +32,25 @@ OPENAI_DEFAULT_MODEL = "gpt-3.5-turbo" # Ou o modelo que você preferir/tiver ac
 # gemini-1.5-flash-latest ou gemini-1.5-pro-latest ou um específico como gemini-1.0-pro
 GEMINI_API_URL_GENERATE_CONTENT = "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent"
 
+COMPANY_TIMELINE_HINTS = (
+    "iniciou suas atividades",
+    "iniciou as atividades",
+    "fundada em",
+    "fundado em",
+    "anos de mercado",
+    "no mercado desde",
+    "atuando desde",
+    "historia da empresa",
+)
+COMPANY_TIMELINE_PATTERN = re.compile(
+    r"\b(?:fundad[oa]\s+em\s+(?:19|20)\d{2}|desde\s+(?:19|20)\d{2}|iniciou\s+suas?\s+atividades(?:\s+no?\s+ano\s+de\s+(?:19|20)\d{2})?)\b",
+    re.IGNORECASE,
+)
+COMPANY_ENTITY_HINT_PATTERN = re.compile(
+    r"\b(?:empresa|marca|fabricante|industria|loja|grupo|nos|nossa|historia|tradicao|mercado)\b",
+    re.IGNORECASE,
+)
+
 
 class AiProviderWorkflow:
     """Workflow OO para operações de provedor IA (chaves e chamadas HTTP)."""
@@ -491,6 +510,43 @@ class IAGenerationRuntime:
         return AiProviderWorkflow(runtime=AiProviderRuntime())
 
     @staticmethod
+    def _looks_like_company_timeline_claim(text: str) -> bool:
+        """Detect unsupported company timeline/history claims that tend to be hallucinated."""
+        compact = " ".join(str(text or "").strip().split())
+        if not compact:
+            return False
+
+        lowered = compact.lower()
+        if any(hint in lowered for hint in COMPANY_TIMELINE_HINTS):
+            return True
+
+        if not COMPANY_TIMELINE_PATTERN.search(compact):
+            return False
+
+        return bool(COMPANY_ENTITY_HINT_PATTERN.search(compact))
+
+    @staticmethod
+    def _sanitize_generated_description(raw_text: Any) -> str:
+        """Remove unsupported company-history claims from generated descriptions."""
+        text = " ".join(str(raw_text or "").strip().split())
+        if not text:
+            return ""
+
+        chunks = re.split(r"(?<=[.!?])\s+|[\r\n]+", text)
+        filtered_chunks: List[str] = []
+        for chunk in chunks:
+            normalized_chunk = " ".join(str(chunk or "").strip().split())
+            if not normalized_chunk:
+                continue
+            if IAGenerationRuntime._looks_like_company_timeline_claim(normalized_chunk):
+                continue
+            filtered_chunks.append(normalized_chunk)
+
+        if filtered_chunks:
+            return " ".join(filtered_chunks).strip()
+        return text
+
+    @staticmethod
     def _sanitize_title_candidates(raw_text: str) -> List[str]:
         """Normalize raw LLM output into clean title candidates."""
         if not raw_text:
@@ -503,6 +559,8 @@ class IAGenerationRuntime:
             cleaned = re.sub(r'^\s*(?:[-*•]+|\d+[)\].:-])\s*', '', cleaned).strip()
             cleaned = cleaned.strip(' "\'`')
             if len(cleaned) < 4:
+                continue
+            if IAGenerationRuntime._looks_like_company_timeline_claim(cleaned):
                 continue
             if cleaned not in candidates:
                 candidates.append(cleaned)
@@ -633,7 +691,9 @@ class IAGenerationRuntime:
                 "role": "system",
                 "content": (
                     f"Voce e um especialista em copywriting para e-commerce. Gere {num_titulos} opcoes "
-                    "de titulos curtos, atraentes e otimizados para SEO para o produto a seguir."
+                    "de titulos curtos, atraentes e otimizados para SEO para o produto a seguir. "
+                    "Use apenas fatos explicitamente presentes no contexto. "
+                    "Nao invente historico de empresa, ano de fundacao, tempo de mercado ou dados institucionais."
                 ),
             },
             {
@@ -703,7 +763,9 @@ class IAGenerationRuntime:
                 "role": "system",
                 "content": (
                     f"Voce e um copywriter especialista em e-commerce. Crie uma descricao persuasiva "
-                    f"com aproximadamente {tamanho_palavras} palavras para o item a seguir."
+                    f"com aproximadamente {tamanho_palavras} palavras para o item a seguir. "
+                    "Use somente fatos presentes no contexto. "
+                    "Nao invente historico de empresa, ano de fundacao, tempo de mercado, premios ou credenciais."
                 ),
             },
             {
@@ -721,6 +783,7 @@ class IAGenerationRuntime:
             api_key=api_key,
             max_tokens=max(60, int(tamanho_palavras or 60)) + 100,
         )
+        descricao = self._sanitize_generated_description(descricao)
         if not isinstance(descricao, str) or not descricao.strip():
             descricao = self._build_local_description(
                 db_produto,
@@ -769,6 +832,7 @@ class IAGenerationRuntime:
 
         prompt_text = (
             f"Crie {num_titulos} sugestoes de titulos curtos e atrativos para o seguinte produto:\n"
+            "Use apenas informacoes do contexto e nao invente historico de empresa ou ano de fundacao.\n"
             f"Nome: {db_produto.nome_base}\n"
             f"Descricao: {db_produto.descricao_original or db_produto.descricao_chat_api or ''}\n"
             f"Marca: {db_produto.marca or ''}"
@@ -827,6 +891,7 @@ class IAGenerationRuntime:
 
         prompt_text = (
             f"Escreva uma descricao de aproximadamente {tamanho_palavras} palavras para o seguinte produto:\n"
+            "Use apenas fatos do contexto e nao invente historico de empresa ou ano de fundacao.\n"
             f"Nome: {db_produto.nome_base}\n"
             f"Informacoes adicionais: {db_produto.descricao_original or ''}\n"
             f"Marca: {db_produto.marca or ''}\n"
@@ -837,6 +902,7 @@ class IAGenerationRuntime:
             api_key=api_key,
             max_tokens=max(60, int(tamanho_palavras or 60)) + 100,
         )
+        descricao = self._sanitize_generated_description(descricao)
         if not isinstance(descricao, str) or not descricao.strip():
             descricao = self._build_local_description(
                 db_produto,

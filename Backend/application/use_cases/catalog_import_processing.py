@@ -39,6 +39,7 @@ class CatalogImportProcessingUseCase:
         mapping = self._normalize_mapping(command.mapping)
         pages = self._normalize_pages(command.pages)
         region = self._normalize_region(command.region)
+        extraction_mode = self._normalize_extraction_mode(command.extraction_mode)
 
         return await self._processor(
             file_id=file_id,
@@ -48,6 +49,7 @@ class CatalogImportProcessingUseCase:
             mapping=mapping,
             pages=pages,
             region=region,
+            extraction_mode=extraction_mode,
         )
 
     async def execute(
@@ -60,6 +62,7 @@ class CatalogImportProcessingUseCase:
         mapping: Any = None,
         pages: Any = None,
         region: Any = None,
+        extraction_mode: Any = "ocr",
     ) -> Any:
         """Execute execute as part of this module workflow."""
         command = CatalogImportFinalizeCommand(
@@ -70,6 +73,7 @@ class CatalogImportProcessingUseCase:
             mapping=mapping,
             pages=pages,
             region=region,
+            extraction_mode=extraction_mode,
         )
         return await self.execute_command(
             command=command,
@@ -138,4 +142,16 @@ class CatalogImportProcessingUseCase:
                 normalized.append(float(value))
             except (TypeError, ValueError):
                 raise ValueError("region deve conter apenas numeros") from None
+        return normalized
+
+    @staticmethod
+    def _normalize_extraction_mode(raw_mode: Any) -> str:
+        """Normalize extraction mode to keep behavior consistent across callers."""
+        if raw_mode is None:
+            return "ocr"
+        normalized = str(raw_mode).strip().lower()
+        if not normalized:
+            return "ocr"
+        if normalized not in {"table", "ocr", "ia"}:
+            raise ValueError("extraction_mode deve ser um de: table, ocr, ia")
         return normalized

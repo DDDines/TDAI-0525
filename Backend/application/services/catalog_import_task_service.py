@@ -206,6 +206,7 @@ class CatalogImportTaskWorkflow:
         self.mapping: Optional[Dict[str, str]] = None
         self.pages: Optional[List[int]] = None
         self.region: Optional[List[float]] = None
+        self.extraction_mode: str = "ocr"
 
         self.created: List[Any] = []
         self.updated: List[Any] = []
@@ -233,13 +234,14 @@ class CatalogImportTaskWorkflow:
             return False
 
         self.catalog_logger.info(
-            "inicio variant=oop file_id=%s user_id=%s fornecedor_id=%s product_type_id=%s pages=%s region=%s mapping_keys=%s",
+            "inicio variant=oop file_id=%s user_id=%s fornecedor_id=%s product_type_id=%s pages=%s region=%s extraction_mode=%s mapping_keys=%s",
             self.file_id,
             self.user_id,
             self.fornecedor_id,
             self.product_type_id,
             self.pages,
             self.region,
+            self.extraction_mode,
             list(self.mapping.keys()) if self.mapping else [],
         )
 
@@ -382,6 +384,7 @@ class CatalogImportTaskWorkflow:
         import io
         import pdfplumber
 
+        usar_llm = self.extraction_mode == "ia"
         with pdfplumber.open(io.BytesIO(content)) as pdf:
             total = len(self.pages) if self.pages else len(pdf.pages)
 
@@ -396,10 +399,11 @@ class CatalogImportTaskWorkflow:
             produtos_data = await self.file_processing_service.processar_arquivo_pdf(
                 content,
                 mapeamento_colunas_usuario=self.mapping,
-                usar_llm=False,
+                usar_llm=usar_llm,
                 product_type_id=self.product_type_id,
                 pages=[page],
                 region=self.region,
+                extraction_mode=self.extraction_mode,
             )
 
             produtos_create: List[Any] = []
@@ -560,6 +564,7 @@ class CatalogImportTaskWorkflow:
         mapping: Optional[Dict[str, str]] = None,
         pages: Optional[List[int]] = None,
         region: Optional[List[float]] = None,
+        extraction_mode: str = "ocr",
     ) -> None:
         """Handle run within the catalog import workflow."""
         if self._session_provider is None:
@@ -581,6 +586,7 @@ class CatalogImportTaskWorkflow:
         self.mapping = mapping
         self.pages = pages
         self.region = region
+        self.extraction_mode = extraction_mode
 
         try:
             if not self._load_catalog_file():
@@ -670,6 +676,7 @@ class CatalogImportTaskService:
         mapping: Optional[Dict[str, str]] = None,
         pages: Optional[List[int]] = None,
         region: Optional[List[float]] = None,
+        extraction_mode: str = "ocr",
     ):
         """Handle execute within the catalog import workflow."""
         workflow = CatalogImportTaskWorkflow(**self._deps)
@@ -681,4 +688,5 @@ class CatalogImportTaskService:
             mapping=mapping,
             pages=pages,
             region=region,
+            extraction_mode=extraction_mode,
         )

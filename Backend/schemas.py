@@ -51,6 +51,8 @@ class UserBase(BaseModel):
     """Represent User Base and centralize its responsibilities inside this module."""
     email: EmailStr
     nome_completo: Optional[str] = None
+    nome_empresa: Optional[str] = None
+    avatar_url: Optional[str] = None
     is_active: Optional[bool] = True
     is_superuser: Optional[bool] = False
     idioma_preferido: Optional[str] = "pt_BR"
@@ -76,7 +78,9 @@ class UserUpdate(BaseModel):  # O que o próprio usuário pode atualizar
     """Represent User Update and centralize its responsibilities inside this module."""
     email: Optional[EmailStr] = None
     nome_completo: Optional[str] = None
-    password: Optional[str] = None  # Para alteração de senha
+    nome_empresa: Optional[str] = None
+    avatar_url: Optional[str] = None
+    password: Optional[str] = None  # Para alteracao de senha
     idioma_preferido: Optional[str] = None
     chave_openai_pessoal: Optional[str] = None
     chave_google_gemini_pessoal: Optional[str] = None
@@ -101,6 +105,7 @@ class UserUpdateOAuth(
 ):  # Dados que podem ser atualizados via OAuth (ex: nome, se mudar no provedor)
     """Represent User Update OAuth and centralize its responsibilities inside this module."""
     nome_completo: Optional[str] = None
+    avatar_url: Optional[str] = None
     # Outros campos que o OAuth possa fornecer e queiramos atualizar
 
 

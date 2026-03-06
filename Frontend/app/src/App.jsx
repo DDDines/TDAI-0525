@@ -17,6 +17,7 @@ import MainLayout from './components/MainLayout';
 import LoginPage from './pages/LoginPage';
 import DashboardPage from './pages/DashboardPage';
 import ProdutosPage from './pages/ProdutosPage';
+import ProdutoConteudoPage from './pages/ProdutoConteudoPage';
 import FornecedoresPage from './pages/FornecedoresPage';
 import TiposProdutoPage from './pages/TiposProdutoPage';
 import EnriquecimentoPage from './pages/EnriquecimentoPage';
@@ -67,6 +68,7 @@ function AppContent()
         <Route index element={<Navigate to="/dashboard" replace />} /> {/* Redireciona / para /dashboard */}
         <Route path="dashboard" element={<DashboardPage />} />
         <Route path="produtos" element={<ProdutosPage />} />
+        <Route path="produtos/:produtoId/conteudo" element={<ProdutoConteudoPage />} />
         <Route path="fornecedores" element={<FornecedoresPage />} />
         <Route path="tipos-de-produto" element={<TiposProdutoPage />} />
         <Route path="enriquecimento" element={<EnriquecimentoPage />} />

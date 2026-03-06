@@ -56,6 +56,24 @@ class WebEnrichmentPayloadService:
         "dianteiro",
         "traseiro",
     )
+    _COMPANY_TIMELINE_HINTS = (
+        "iniciou suas atividades",
+        "iniciou as atividades",
+        "fundada em",
+        "fundado em",
+        "anos de mercado",
+        "no mercado desde",
+        "atuando desde",
+        "historia da empresa",
+    )
+    _COMPANY_TIMELINE_PATTERN = re.compile(
+        r"\b(?:fundad[oa]\s+em\s+(?:19|20)\d{2}|desde\s+(?:19|20)\d{2}|iniciou\s+suas?\s+atividades(?:\s+no?\s+ano\s+de\s+(?:19|20)\d{2})?)\b",
+        re.IGNORECASE,
+    )
+    _COMPANY_ENTITY_HINT_PATTERN = re.compile(
+        r"\b(?:empresa|marca|fabricante|industria|loja|grupo|nos|nossa|historia|tradicao|mercado)\b",
+        re.IGNORECASE,
+    )
 
     def __init__(self, *, normalization_service: Any) -> None:
         """Initialize injected dependencies and runtime configuration for Web Enrichment Payload Service."""
@@ -64,6 +82,36 @@ class WebEnrichmentPayloadService:
     def _contains_part_hint(self, text_folded: str) -> bool:
         """Execute contains part hint as part of this module workflow."""
         return any(hint in text_folded for hint in self._PART_NAME_HINTS)
+
+    def _looks_like_company_timeline_claim(self, value: Any) -> bool:
+        """Detect unsupported company-history snippets for product descriptions."""
+        text = self._normalization.as_text(value, max_len=2500)
+        folded = self._normalization.fold_text(text)
+        if not folded:
+            return False
+        if any(hint in folded for hint in self._COMPANY_TIMELINE_HINTS):
+            return True
+        if not self._COMPANY_TIMELINE_PATTERN.search(text):
+            return False
+        return bool(self._COMPANY_ENTITY_HINT_PATTERN.search(text))
+
+    def _sanitize_description_text(self, value: Any, *, max_len: int = 10000) -> str:
+        """Remove company-history claims from description-like fields."""
+        text = self._normalization.as_text(value, max_len=max_len)
+        if not text:
+            return ""
+        parts = re.split(r"(?<=[.!?])\s+|[\n\r]+", text)
+        filtered_parts: List[str] = []
+        for part in parts:
+            chunk = self._normalization.as_text(part, max_len=max_len)
+            if not chunk:
+                continue
+            if self._looks_like_company_timeline_claim(chunk):
+                continue
+            filtered_parts.append(chunk)
+        if filtered_parts:
+            return self._normalization.as_text(" ".join(filtered_parts), max_len=max_len)
+        return text
 
     def _looks_like_application_only(self, value: Any) -> bool:
         """Execute looks like application only as part of this module workflow."""
@@ -271,6 +319,7 @@ class WebEnrichmentPayloadService:
             ]),
             max_len=10000,
         )
+        descricao_web = self._sanitize_description_text(descricao_web, max_len=10000)
         imagem_url_web = self._normalization.as_text(
             dados_extraidos_agregados.get("imagem_url"),
             max_len=2000,

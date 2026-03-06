@@ -57,6 +57,7 @@ class _TopLevelFunctionSurface:
         assert plan.executor_name == "oop_catalog_import_task"
         assert plan.task_kwargs["file_id"] == 123
         assert plan.task_kwargs["fornecedor_id"] == 8
+        assert plan.task_kwargs["extraction_mode"] == "ocr"
 
     def test_catalog_import_orchestrator_uses_oop_in_oop_mode():
         """Run test catalog import orchestrator uses oop in oop mode in this workflow."""
@@ -79,6 +80,7 @@ class _TopLevelFunctionSurface:
         assert plan.executor_name == "oop_catalog_import_task"
         assert plan.task_kwargs["product_type_id"] == 3
         assert plan.task_kwargs["pages"] == [1, 2, 3]
+        assert plan.task_kwargs["extraction_mode"] == "ocr"
 
     def test_web_enrichment_orchestrator_uses_oop_plan():
         """Run test web enrichment orchestrator uses oop plan in this workflow."""

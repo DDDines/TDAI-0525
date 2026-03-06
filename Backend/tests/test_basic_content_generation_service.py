@@ -51,6 +51,7 @@ class _TopLevelFunctionSurface:
             categoria_mapeada=None,
             fornecedor=SimpleNamespace(nome="Fornecedor A"),
             dynamic_attributes={},
+            dados_brutos_web={},
         )
         service = _TopLevelFunctionSurface._build_service(produto)
 
@@ -81,6 +82,9 @@ class _TopLevelFunctionSurface:
                 "Material": "Ceramica",
                 "Aplicacao": "Dianteira",
             },
+            dados_brutos_web={
+                "descricao_curta": "Composto com alta resistencia termica.",
+            },
         )
         service = _TopLevelFunctionSurface._build_service(produto)
 
@@ -95,8 +99,124 @@ class _TopLevelFunctionSurface:
         assert "SKU: PF20" in descricao
         assert "Material: Ceramica" in descricao
 
+    @pytest.mark.asyncio
+    async def test_gerar_titulos_basicos_padrao_entrega_cinco_opcoes():
+        """Run test gerar titulos basicos padrao entrega cinco opcoes in this workflow."""
+        produto = SimpleNamespace(
+            id=30,
+            nome_base="Paralama Dianteiro",
+            marca="Pickup Parts",
+            modelo="FD-2010",
+            sku="PP-1081",
+            ean="",
+            categoria_original="Lataria",
+            categoria_mapeada=None,
+            fornecedor=SimpleNamespace(nome="Fornecedor B"),
+            dynamic_attributes={},
+            dados_brutos_web={
+                "palavras_chave_seo_relevantes_lista": [
+                    "paralama",
+                    "ford cargo",
+                    "linha pesada",
+                ],
+                "especificacoes_tecnicas_dict": {
+                    "Aplicacao": "Ford Cargo",
+                },
+            },
+        )
+        service = _TopLevelFunctionSurface._build_service(produto)
+
+        titulos = await service.gerar_titulos_basicos(
+            session=object(),
+            produto_id=30,
+            user=SimpleNamespace(id=1),
+        )
+
+        assert len(titulos) == 5
+        assert any("Paralama Dianteiro" in titulo for titulo in titulos)
+
+    @pytest.mark.asyncio
+    async def test_gerar_descricao_basica_aproveita_contexto_web():
+        """Run test gerar descricao basica aproveita contexto web in this workflow."""
+        produto = SimpleNamespace(
+            id=31,
+            nome_base="Suporte de Fixacao",
+            marca="Pickup Parts",
+            modelo="SP1081",
+            sku="SP1081",
+            ean="7890000000000",
+            categoria_original="Fixacao",
+            categoria_mapeada=None,
+            fornecedor=None,
+            dynamic_attributes={},
+            dados_brutos_web={
+                "descricao_detalhada_seo": "Suporte reforcado para linha pesada e alta durabilidade.",
+                "lista_caracteristicas_beneficios_bullets": [
+                    "Estrutura em metal resistente",
+                    "Instalacao simplificada",
+                ],
+                "palavras_chave_seo_relevantes_lista": [
+                    "suporte reforcado",
+                    "linha pesada",
+                ],
+                "especificacoes_tecnicas_dict": {
+                    "Material": "Metal",
+                    "Aplicacao": "Caminhoes",
+                },
+            },
+        )
+        service = _TopLevelFunctionSurface._build_service(produto)
+
+        descricao = await service.gerar_descricao_basica(
+            session=object(),
+            produto_id=31,
+            user=SimpleNamespace(id=1),
+            tamanho_palavras=160,
+        )
+
+        assert "Suporte reforcado para linha pesada" in descricao
+        assert "Destaques:" in descricao
+        assert "Palavras-chave:" in descricao
+        assert "Material: Metal" in descricao
+
+    @pytest.mark.asyncio
+    async def test_gerar_descricao_basica_remove_historico_empresa_inferido():
+        """Run test gerar descricao basica remove historico empresa inferido in this workflow."""
+        produto = SimpleNamespace(
+            id=32,
+            nome_base="Paralama Externo",
+            marca="Rodoplast",
+            modelo="IV-FD",
+            sku="900484",
+            ean="",
+            categoria_original="Lataria",
+            categoria_mapeada=None,
+            fornecedor=None,
+            dynamic_attributes={},
+            dados_brutos_web={
+                "descricao_detalhada_seo": (
+                    "Paralama externo em plastico reforcado. "
+                    "A Uouu iniciou suas atividades no ano de 2015 e segue no mercado."
+                ),
+            },
+        )
+        service = _TopLevelFunctionSurface._build_service(produto)
+
+        descricao = await service.gerar_descricao_basica(
+            session=object(),
+            produto_id=32,
+            user=SimpleNamespace(id=1),
+            tamanho_palavras=120,
+        )
+
+        assert "Paralama externo em plastico reforcado" in descricao
+        assert "iniciou suas atividades" not in descricao.lower()
+        assert "ano de 2015" not in descricao.lower()
+
 
 _build_service = _TopLevelFunctionSurface._build_service
 test_gerar_titulos_basicos_respeita_limite = _TopLevelFunctionSurface.test_gerar_titulos_basicos_respeita_limite
 test_gerar_descricao_basica_inclui_campos_relevantes = _TopLevelFunctionSurface.test_gerar_descricao_basica_inclui_campos_relevantes
-
+test_gerar_titulos_basicos_padrao_entrega_cinco_opcoes = _TopLevelFunctionSurface.test_gerar_titulos_basicos_padrao_entrega_cinco_opcoes
+test_gerar_descricao_basica_aproveita_contexto_web = _TopLevelFunctionSurface.test_gerar_descricao_basica_aproveita_contexto_web
+test_gerar_descricao_basica_remove_historico_empresa_inferido = _TopLevelFunctionSurface.test_gerar_descricao_basica_remove_historico_empresa_inferido

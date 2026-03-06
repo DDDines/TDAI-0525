@@ -31,6 +31,7 @@ class OOPCatalogImportExecutor:
         mapping: Optional[Dict[str, str]] = None,
         pages: Optional[List[int]] = None,
         region: Optional[List[float]] = None,
+        extraction_mode: str = "ocr",
     ) -> Any:
         """Execute call as part of this module workflow."""
         command = CatalogImportFinalizeCommand(
@@ -41,6 +42,7 @@ class OOPCatalogImportExecutor:
             mapping=mapping,
             pages=pages,
             region=region,
+            extraction_mode=extraction_mode,
         )
         return await self._use_case.execute_command(
             command=command,
@@ -63,6 +65,7 @@ class CatalogImportTaskBuilder:
         mapping: Optional[Dict[str, str]],
         pages: Optional[List[int]],
         region: Optional[List[float]],
+        extraction_mode: str = "ocr",
     ) -> TaskExecutionPlan:
         """Build finalize plan from current inputs and configuration."""
         task_kwargs = {
@@ -73,6 +76,7 @@ class CatalogImportTaskBuilder:
             "mapping": dict(mapping) if isinstance(mapping, dict) else mapping,
             "pages": list(pages) if pages else pages,
             "region": list(region) if region else region,
+            "extraction_mode": extraction_mode,
         }
         return TaskExecutionPlan(
             name="catalog_import.finalize",

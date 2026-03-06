@@ -31,6 +31,7 @@ class _ProdutoStub:
         self.descricao_chat_api = None
         self.status_titulo_ia = None
         self.status_descricao_ia = None
+        self.dados_brutos_web = {}
 
 
 class _CrudUsersStub:
@@ -172,6 +173,7 @@ class _TopLevelFunctionSurface:
     
         assert produto.status_titulo_ia == "CONCLUIDO"
         assert produto.titulos_sugeridos == ["Titulo 1", "Titulo 2"]
+        assert produto.dados_brutos_web["titulos_sugeridos_gerados"] == ["Titulo 1", "Titulo 2"]
         assert len(crud_produtos.updates) >= 2
 
     @pytest.mark.asyncio
@@ -190,8 +192,79 @@ class _TopLevelFunctionSurface:
             tipo_geracao_principal="descricao",
             funcao_geracao_ia_no_servico=_fake_generation,
         )
-    
+     
         assert produto.status_descricao_ia == "FALHA"
+
+    @pytest.mark.asyncio
+    async def test_generation_task_service_persists_description_in_raw_data():
+        """Run test generation task service persists description in raw data in this workflow."""
+        produto = _ProdutoStub()
+        service, _crud_produtos = _build_service(produto=produto)
+
+        async def _fake_generation(**kwargs):
+            """Run fake generation in this workflow."""
+            return "Descricao consolidada da peca para vitrine."
+
+        await service.run_generation_task(
+            user_id=1,
+            produto_id=10,
+            tipo_geracao_principal="descricao",
+            funcao_geracao_ia_no_servico=_fake_generation,
+        )
+
+        assert produto.status_descricao_ia == "CONCLUIDO"
+        assert (
+            produto.dados_brutos_web["descricao_gerada"]
+            == "Descricao consolidada da peca para vitrine."
+        )
+
+    @pytest.mark.asyncio
+    async def test_generation_task_service_description_does_not_change_titles():
+        """Ensure descricao workflow does not overwrite title artifacts."""
+        produto = _ProdutoStub()
+        produto.titulos_sugeridos = ["Titulo legado"]
+        produto.status_titulo_ia = "CONCLUIDO"
+        service, _crud_produtos = _build_service(produto=produto)
+
+        async def _fake_generation(**kwargs):
+            """Run fake generation in this workflow."""
+            return "Descricao nova e objetiva."
+
+        await service.run_generation_task(
+            user_id=1,
+            produto_id=10,
+            tipo_geracao_principal="descricao",
+            funcao_geracao_ia_no_servico=_fake_generation,
+        )
+
+        assert produto.status_descricao_ia == "CONCLUIDO"
+        assert produto.descricao_chat_api == "Descricao nova e objetiva."
+        assert produto.titulos_sugeridos == ["Titulo legado"]
+        assert produto.status_titulo_ia == "CONCLUIDO"
+
+    @pytest.mark.asyncio
+    async def test_generation_task_service_titles_do_not_change_description():
+        """Ensure titulo workflow does not overwrite description artifacts."""
+        produto = _ProdutoStub()
+        produto.descricao_chat_api = "Descricao legada"
+        produto.status_descricao_ia = "CONCLUIDO"
+        service, _crud_produtos = _build_service(produto=produto)
+
+        async def _fake_generation(**kwargs):
+            """Run fake generation in this workflow."""
+            return ["Titulo novo 1", "Titulo novo 2"]
+
+        await service.run_generation_task(
+            user_id=1,
+            produto_id=10,
+            tipo_geracao_principal="titulo",
+            funcao_geracao_ia_no_servico=_fake_generation,
+        )
+
+        assert produto.status_titulo_ia == "CONCLUIDO"
+        assert produto.titulos_sugeridos == ["Titulo novo 1", "Titulo novo 2"]
+        assert produto.descricao_chat_api == "Descricao legada"
+        assert produto.status_descricao_ia == "CONCLUIDO"
 
 _db_session_factory = _TopLevelFunctionSurface._db_session_factory
 _build_models_stub = _TopLevelFunctionSurface._build_models_stub
@@ -199,6 +272,9 @@ _build_schemas_stub = _TopLevelFunctionSurface._build_schemas_stub
 _build_service = _TopLevelFunctionSurface._build_service
 test_generation_task_service_marks_success_for_titulo = _TopLevelFunctionSurface.test_generation_task_service_marks_success_for_titulo
 test_generation_task_service_marks_failure_for_empty_result = _TopLevelFunctionSurface.test_generation_task_service_marks_failure_for_empty_result
+test_generation_task_service_persists_description_in_raw_data = _TopLevelFunctionSurface.test_generation_task_service_persists_description_in_raw_data
+test_generation_task_service_description_does_not_change_titles = _TopLevelFunctionSurface.test_generation_task_service_description_does_not_change_titles
+test_generation_task_service_titles_do_not_change_description = _TopLevelFunctionSurface.test_generation_task_service_titles_do_not_change_description
 
 
 

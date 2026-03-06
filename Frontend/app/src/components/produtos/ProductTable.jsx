@@ -7,7 +7,7 @@
 import React from 'react';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import { LuPencil } from 'react-icons/lu';
+import { LuFileText, LuPencil } from 'react-icons/lu';
 import LoadingPopup from '../common/LoadingPopup.jsx';
 import logger from '../../utils/logger';
 import './ProductTable.css';
@@ -27,6 +27,12 @@ const STATUS_CONFIG = {
   NAO_APLICAVEL: { class: 'grey', text: '-', title: 'Nao aplicavel' },
 };
 
+const PROCESS_STATUS_CONFIG = [
+  { key: 'status_enriquecimento_web', label: 'Web' },
+  { key: 'status_titulo_ia', label: 'Tit' },
+  { key: 'status_descricao_ia', label: 'Desc' },
+];
+
 function StatusIcon({ status }) {
   const normalizedStatus = String(
     typeof status === 'object' && status !== null && 'value' in status ? status.value : status || ''
@@ -43,11 +49,30 @@ function StatusIcon({ status }) {
   );
 }
 
+function StatusSummary({ produto, showAiColumns }) {
+  const processes = showAiColumns ? PROCESS_STATUS_CONFIG : PROCESS_STATUS_CONFIG.slice(0, 1);
+  return (
+    <div className="status-summary">
+      {processes.map((processInfo) => (
+        <span
+          key={`${produto?.id || 'produto'}-${processInfo.key}`}
+          className="status-process-chip"
+          title={processInfo.label}
+        >
+          <span className="status-process-label">{processInfo.label}</span>
+          <StatusIcon status={produto?.[processInfo.key]} />
+        </span>
+      ))}
+    </div>
+  );
+}
+
 function ProductTable({
   produtos,
   onEdit,
   onSort,
   sortConfig,
+  onViewContent,
   onSelectProduto,
   selectedProdutos,
   onSelectAllProdutos,
@@ -56,7 +81,7 @@ function ProductTable({
   isLoading,
 }) {
   const tableLoading = Boolean(loading || isLoading);
-  const totalColumns = showAiColumns ? 10 : 8;
+  const totalColumns = 8;
 
   logger.log('ProductTable: produtos:', produtos);
   logger.log('ProductTable: loading:', tableLoading);
@@ -88,13 +113,7 @@ function ProductTable({
         <th onClick={() => onSort('nome_base')}>Nome Base{getSortDirectionIcon('nome_base')}</th>
         <th onClick={() => onSort('sku')}>SKU{getSortDirectionIcon('sku')}</th>
         <th onClick={() => onSort('fornecedor_id')}>Fornecedor{getSortDirectionIcon('fornecedor_id')}</th>
-        <th onClick={() => onSort('status_enriquecimento_web')}>Status Web{getSortDirectionIcon('status_enriquecimento_web')}</th>
-        {showAiColumns ? (
-          <>
-            <th onClick={() => onSort('status_titulo_ia')}>Status Titulo{getSortDirectionIcon('status_titulo_ia')}</th>
-            <th onClick={() => onSort('status_descricao_ia')}>Status Descricao{getSortDirectionIcon('status_descricao_ia')}</th>
-          </>
-        ) : null}
+        <th onClick={() => onSort('status_enriquecimento_web')}>Status{getSortDirectionIcon('status_enriquecimento_web')}</th>
         <th onClick={() => onSort('data_atualizacao')}>Atualizado Em{getSortDirectionIcon('data_atualizacao')}</th>
         <th>Acoes</th>
       </tr>
@@ -129,11 +148,17 @@ function ProductTable({
     return (
       <tbody>
         {safeProdutos.map((produto) => (
-          <tr key={produto.id} className={selectedSet.has(produto.id) ? 'selected-row' : ''}>
+          <tr
+            key={produto.id}
+            className={`${selectedSet.has(produto.id) ? 'selected-row' : ''} ${typeof onViewContent === 'function' ? 'row-open-content' : ''}`}
+            onDoubleClick={typeof onViewContent === 'function' ? () => onViewContent(produto) : undefined}
+            title={typeof onViewContent === 'function' ? 'Duplo clique para abrir conteúdo gerado' : undefined}
+          >
             <td>
               <input
                 type="checkbox"
                 checked={selectedSet.has(produto.id)}
+                onClick={(event) => event.stopPropagation()}
                 onChange={() => onSelectProduto(produto.id)}
               />
             </td>
@@ -142,25 +167,34 @@ function ProductTable({
             <td>{produto.sku || '--'}</td>
             <td>{produto.fornecedor_id ? `ID: ${produto.fornecedor_id}` : '--'}</td>
             <td>
-              <StatusIcon status={produto.status_enriquecimento_web} />
+              <StatusSummary produto={produto} showAiColumns={showAiColumns} />
             </td>
-            {showAiColumns ? (
-              <>
-                <td>
-                  <StatusIcon status={produto.status_titulo_ia} />
-                </td>
-                <td>
-                  <StatusIcon status={produto.status_descricao_ia} />
-                </td>
-              </>
-            ) : null}
             <td>
               {produto.data_atualizacao
                 ? format(new Date(produto.data_atualizacao), 'dd/MM/yyyy HH:mm', { locale: ptBR })
                 : '--'}
             </td>
             <td>
-              <button onClick={() => onEdit(produto)} className="btn-icon btn-edit" title="Editar produto">
+              {typeof onViewContent === 'function' ? (
+                <button
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    onViewContent(produto);
+                  }}
+                  className="btn-icon btn-view-content"
+                  title="Ver conteúdo gerado"
+                >
+                  <LuFileText />
+                </button>
+              ) : null}
+              <button
+                onClick={(event) => {
+                  event.stopPropagation();
+                  onEdit(produto);
+                }}
+                className="btn-icon btn-edit"
+                title="Editar produto"
+              >
                 <LuPencil />
               </button>
             </td>

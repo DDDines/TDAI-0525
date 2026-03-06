@@ -93,6 +93,7 @@ class FileProcessingOrchestratorService:
         product_type_id: Optional[int] = None,
         pages: Optional[List[int]] = None,
         region: Optional[List[float]] = None,
+        extraction_mode: str = "ocr",
     ) -> List[Dict[str, Any]]:
         """Execute processar arquivo pdf as part of this module workflow."""
         return await self.pdf.processar_arquivo_pdf(
@@ -102,6 +103,7 @@ class FileProcessingOrchestratorService:
             product_type_id=product_type_id,
             pages=pages,
             region=region,
+            extraction_mode=extraction_mode,
         )
 
     async def preview_arquivo_excel(

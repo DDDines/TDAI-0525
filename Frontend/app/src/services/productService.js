@@ -176,6 +176,33 @@ async function getAtributoSuggestions(produtoId) {
 
 const sugerirAtributosGemini = getAtributoSuggestions;
 
+async function registrarFeedbackConteudoGerado(produtoId, feedbackPayload = {}) {
+  const valor = String(feedbackPayload?.valor || '').trim().toLowerCase();
+  if (!['gostei', 'nao_gostei'].includes(valor)) {
+    throw new Error('Feedback invalido. Use "gostei" ou "nao_gostei".');
+  }
+
+  const comentario = String(feedbackPayload?.comentario || '').trim();
+  const produtoAtual = await getProdutoById(produtoId);
+  const dadosBrutos = produtoAtual?.dados_brutos_web && typeof produtoAtual.dados_brutos_web === 'object'
+    ? { ...produtoAtual.dados_brutos_web }
+    : {};
+
+  const novoRegistro = {
+    valor,
+    comentario: comentario || null,
+    origem: 'tela_conteudo',
+    atualizado_em: new Date().toISOString(),
+  };
+  const historicoAnterior = Array.isArray(dadosBrutos.feedback_conteudo_historico)
+    ? dadosBrutos.feedback_conteudo_historico
+    : [];
+  dadosBrutos.feedback_conteudo = novoRegistro;
+  dadosBrutos.feedback_conteudo_historico = [novoRegistro, ...historicoAnterior].slice(0, 20);
+
+  return updateProduto(produtoId, { dados_brutos_web: dadosBrutos });
+}
+
 export {
   getProdutos,
   getProdutoById,
@@ -192,6 +219,7 @@ export {
   batchDeleteProdutos,
   getAtributoSuggestions,
   sugerirAtributosGemini,
+  registrarFeedbackConteudoGerado,
 };
 
 export default {
@@ -210,4 +238,5 @@ export default {
   batchDeleteProdutos,
   getAtributoSuggestions,
   sugerirAtributosGemini,
+  registrarFeedbackConteudoGerado,
 };

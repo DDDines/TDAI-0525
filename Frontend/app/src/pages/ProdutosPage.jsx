@@ -69,23 +69,39 @@ function ProdutosPage()
       }
     }, [productTypesError]);
 
+    const buildProductNavigationQuery = useCallback(() => {
+      const query = {
+        sort_by: sortConfig.key,
+        sort_order: sortConfig.direction === 'ascending' ? 'asc' : 'desc',
+        search: searchTerm || undefined,
+        status_enriquecimento_web: filtroStatusEnriquecimento || undefined,
+        status_titulo_ia: showAiFeatures ? filtroStatusTituloIA || undefined : undefined,
+        status_descricao_ia: showAiFeatures ? filtroStatusDescricaoIA || undefined : undefined,
+        fornecedor_id: filtroFornecedor || undefined,
+        product_type_id: filtroTipoProduto || undefined,
+      };
+      Object.keys(query).forEach((key) => query[key] === undefined && delete query[key]);
+      return query;
+    }, [
+      sortConfig,
+      searchTerm,
+      filtroStatusEnriquecimento,
+      filtroStatusTituloIA,
+      filtroStatusDescricaoIA,
+      filtroFornecedor,
+      filtroTipoProduto,
+      showAiFeatures,
+    ]);
+
     const fetchProdutos = useCallback(async () => {
       setLoading(true);
       setError(null);
       try {
         const params = {
+          ...buildProductNavigationQuery(),
           skip: currentPage * limitPerPage,
           limit: limitPerPage,
-          sort_by: sortConfig.key,
-          sort_order: sortConfig.direction === 'ascending' ? 'asc' : 'desc',
-          search: searchTerm,
-          status_enriquecimento_web: filtroStatusEnriquecimento || undefined,
-          status_titulo_ia: showAiFeatures ? filtroStatusTituloIA || undefined : undefined,
-          status_descricao_ia: showAiFeatures ? filtroStatusDescricaoIA || undefined : undefined,
-          fornecedor_id: filtroFornecedor || undefined,
-          product_type_id: filtroTipoProduto || undefined
         };
-        Object.keys(params).forEach((key) => params[key] === undefined && delete params[key]);
         const data = await productService.getProdutos(params);
         setProdutos(Array.isArray(data.items) ? data.items : []);
         setTotalProdutos(data.total_items || 0);
@@ -98,16 +114,10 @@ function ProdutosPage()
         setLoading(false);
       }
     }, [
-    currentPage,
-    limitPerPage,
-    sortConfig,
-    searchTerm,
-    filtroStatusEnriquecimento,
-    filtroStatusTituloIA,
-    filtroStatusDescricaoIA,
-    filtroFornecedor,
-    filtroTipoProduto,
-    showAiFeatures]
+      currentPage,
+      limitPerPage,
+      buildProductNavigationQuery,
+    ]
     );
 
     useEffect(() => {
@@ -142,6 +152,18 @@ function ProdutosPage()
     const handleOpenModal = (produto = null) => {
       setProdutoParaEditar(produto);
       setIsModalOpen(true);
+    };
+
+    const handleOpenContentView = (produto) => {
+      if (!produto?.id) {
+        return;
+      }
+      navigate(`/produtos/${produto.id}/conteudo`, {
+        state: {
+          productIds: produtos.map((item) => item.id),
+          productQuery: buildProductNavigationQuery(),
+        },
+      });
     };
 
     const handleCloseModal = () => {
@@ -405,7 +427,7 @@ function ProdutosPage()
               }}
               className="filtro-select">
 
-            <option value="">Status Web</option>
+            <option value="">Status</option>
             <option value="NAO_INICIADO">Não iniciado</option>
             <option value="PENDENTE">Pendente</option>
             <option value="EM_PROGRESSO">Em progresso</option>
@@ -499,6 +521,7 @@ function ProdutosPage()
         <ProductTable
           produtos={produtos}
           onEdit={handleOpenModal}
+          onViewContent={handleOpenContentView}
           onSort={handleSort}
           sortConfig={sortConfig}
           onSelectProduto={handleSelectProduto}
@@ -530,6 +553,14 @@ function ProdutosPage()
             onClose={handleCloseModal}
             product={produtoParaEditar}
             showAiFeatures={showAiFeatures}
+            onOpenContentView={(produtoId) =>
+              navigate(`/produtos/${produtoId}/conteudo`, {
+                state: {
+                  productIds: produtos.map((item) => item.id),
+                  productQuery: buildProductNavigationQuery(),
+                },
+              })
+            }
             onProductUpdated={handleProductUpdated} />
 
         </Modal>

@@ -16,6 +16,7 @@ class CatalogImportFinalizeCommand:
     mapping: Optional[Dict[str, str]]
     pages: Optional[List[int]]
     region: Optional[List[float]]
+    extraction_mode: str = "ocr"
 
 
 @dataclass(frozen=True)

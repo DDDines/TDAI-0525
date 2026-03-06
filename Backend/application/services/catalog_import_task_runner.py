@@ -90,6 +90,7 @@ class CatalogImportTaskRunner:
         mapping: Optional[Dict[str, str]] = None,
         pages: Optional[List[int]] = None,
         region: Optional[List[float]] = None,
+        extraction_mode: str = "ocr",
     ) -> None:
         """Handle execute within the catalog import workflow."""
         await self._get_service().execute(
@@ -100,5 +101,6 @@ class CatalogImportTaskRunner:
             mapping=mapping,
             pages=pages,
             region=region,
+            extraction_mode=extraction_mode,
         )
 

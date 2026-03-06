@@ -46,6 +46,10 @@
   background-color: #c7d2fe;
 }
 
+.product-table tbody tr.row-open-content {
+  cursor: pointer;
+}
+
 .product-table td:first-child,
 .product-table th:first-child,
 .product-table td:nth-child(2),
@@ -66,6 +70,29 @@
   font-weight: bold;
   min-width: 32px;
   text-align: center;
+}
+
+.status-summary {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+
+.status-process-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.status-process-label {
+  display: inline-block;
+  min-width: 30px;
+  text-align: right;
+  font-size: 0.68rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  color: #6b7280;
 }
 
 .status-icon.grey { background-color: #e5e7eb; color: #4b5563; }
@@ -93,4 +120,8 @@
 .btn-icon svg {
   width: 1rem;
   height: 1rem;
+}
+
+.btn-view-content {
+  margin-right: 6px;
 }

@@ -58,6 +58,7 @@ class FileProcessingPort(Protocol):
         product_type_id: Optional[int] = None,
         pages: Optional[List[int]] = None,
         region: Optional[List[float]] = None,
+        extraction_mode: str = "ocr",
     ) -> List[Dict[str, Any]]:
         """Extract normalized product rows from a PDF file payload."""
         ...

@@ -104,6 +104,8 @@ class User(Base):
         String, nullable=True
     )  # Nullable para OAuth users sem senha local
     nome_completo = Column(String, index=True, nullable=True)
+    nome_empresa = Column(String, index=True, nullable=True)
+    avatar_url = Column(String, nullable=True)
     is_active = Column(Boolean, default=True)
     is_superuser = Column(Boolean, default=False)
     created_at = Column(DateTime(timezone=True), server_default=func.now())

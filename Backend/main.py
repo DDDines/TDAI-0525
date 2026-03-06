@@ -5,7 +5,7 @@ from typing import List, Optional, Tuple
 from fastapi import Depends, FastAPI, HTTPException, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
-from sqlalchemy import func
+from sqlalchemy import func, inspect, text
 from sqlalchemy.orm import Session
 from Backend import models
 from Backend import schemas
@@ -79,6 +79,7 @@ class MainBootstrapRuntime:
         try:
             if settings.AUTO_CREATE_TABLES:
                 self._ensure_tables()
+            self._ensure_legacy_user_profile_columns(session=session)
             user_repo = UserRepository(session)
             product_type_repo = ProductTypeRepository(session)
             fornecedor_repo = FornecedorRepository(session)
@@ -112,6 +113,35 @@ class MainBootstrapRuntime:
             logger.info('Criacao/verificacao de tabelas concluida.')
         except Exception as exc:
             logger.error('Falha ao criar/verificar tabelas automaticamente: %s', exc)
+
+    @staticmethod
+    def _ensure_legacy_user_profile_columns(*, session: Session) -> None:
+        """Add missing profile columns in users table to keep old local databases compatible."""
+        try:
+            inspector = inspect(engine)
+            if "users" not in inspector.get_table_names():
+                return
+            user_columns = {column["name"] for column in inspector.get_columns("users")}
+            statements = []
+            if "nome_empresa" not in user_columns:
+                statements.append("ALTER TABLE users ADD COLUMN nome_empresa VARCHAR")
+            if "avatar_url" not in user_columns:
+                statements.append("ALTER TABLE users ADD COLUMN avatar_url VARCHAR")
+            if not statements:
+                return
+            for statement in statements:
+                session.execute(text(statement))
+            session.commit()
+            logger.info(
+                "Colunas de perfil adicionadas em users: %s",
+                ", ".join(["nome_empresa" if "nome_empresa" in s else "avatar_url" for s in statements]),
+            )
+        except Exception as exc:
+            session.rollback()
+            logger.warning(
+                "Nao foi possivel garantir colunas de perfil de usuario automaticamente: %s",
+                exc,
+            )
 
     @staticmethod
     def _ensure_roles(*, user_repo: UserRepository) -> Tuple[Optional[models.Role], Optional[models.Role]]:

@@ -293,13 +293,27 @@ body.dark .theme-toggle-logo-fallback {
 .user-area {
   display: flex; 
   align-items: center; 
-  gap: 0.75rem; 
   position: relative;
+}
+.user-trigger {
+  border: none;
+  background: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0;
+  cursor: pointer;
+}
+.user-trigger:focus-visible {
+  outline: 2px solid #2563eb;
+  outline-offset: 3px;
+  border-radius: 999px;
 }
 .user-avatar {
   width: 36px; 
   height: 36px; 
   border-radius: 50%;
+  overflow: hidden;
   background: var(--primary); 
   color: #fff;
   display: flex; 
@@ -307,12 +321,16 @@ body.dark .theme-toggle-logo-fallback {
   justify-content: center;
   font-weight: bold; 
   font-size: 1.1rem; 
-  cursor: pointer; 
   user-select: none;
+}
+.user-avatar-image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
 }
 .user-name { 
   font-weight: 500; 
-  cursor: pointer; 
   color: #333;
 }
 .user-menu {
@@ -323,11 +341,58 @@ body.dark .theme-toggle-logo-fallback {
   background: var(--card-bg);
   box-shadow: var(--shadow-md); 
   border-radius: var(--radius);
-  min-width: 180px; 
+  min-width: 260px; 
   z-index: 99; 
   display: flex;
   flex-direction: column;
   border: 1px solid #eee;
+}
+.user-menu-profile {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  padding: 0.85rem 1rem 0.75rem;
+  border-bottom: 1px solid rgba(148, 163, 184, 0.25);
+}
+.user-menu-profile-name {
+  margin: 0;
+  font-size: 0.93rem;
+  font-weight: 700;
+  color: #1f2937;
+}
+.user-menu-profile-email {
+  margin: 0;
+  font-size: 0.8rem;
+  color: #64748b;
+}
+.user-menu-profile-company {
+  margin: 0;
+  font-size: 0.8rem;
+  color: #334155;
+}
+.user-menu-profile-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  margin-top: 0.25rem;
+}
+.user-menu-profile-meta span {
+  border: 1px solid rgba(148, 163, 184, 0.35);
+  border-radius: 999px;
+  padding: 0.1rem 0.45rem;
+  font-size: 0.72rem;
+  color: #475569;
+}
+body.dark .user-name {
+  color: #e2e8f0;
+}
+body.dark .user-menu-profile-name {
+  color: #f1f5f9;
+}
+body.dark .user-menu-profile-email,
+body.dark .user-menu-profile-company,
+body.dark .user-menu-profile-meta span {
+  color: #cbd5e1;
 }
 .user-menu button {
   border: none; 

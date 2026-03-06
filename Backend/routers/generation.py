@@ -319,7 +319,7 @@ async def agendar_geracao_nova_descricao_openai(
 async def agendar_geracao_novos_titulos_basico(
     produto_id: int,
     background_tasks: BackgroundTasks,
-    num_titulos: int = Query(3, ge=1, le=10),
+    num_titulos: int = Query(5, ge=1, le=10),
     request_service: GenerationRequestService = Depends(),
     current_user: models.User = Depends(
         auth_utils._AuthUtilsActiveUserDependency.get_current_active_user

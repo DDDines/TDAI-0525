@@ -163,9 +163,9 @@ class _FileProcessingImplementation:
         return await TabularIngestionEngineRuntime().processar_arquivo_csv(conteudo_arquivo=conteudo_arquivo, mapeamento_colunas_usuario=mapeamento_colunas_usuario, product_type_id=product_type_id)
 
     @staticmethod
-    async def _processar_arquivo_pdf_impl(conteudo_arquivo: bytes, mapeamento_colunas_usuario: Optional[Dict[str, str]]=None, usar_llm: bool=True, product_type_id: Optional[int]=None, pages: Optional[List[int]]=None, region: Optional[List[float]]=None) -> List[Dict[str, Any]]:
+    async def _processar_arquivo_pdf_impl(conteudo_arquivo: bytes, mapeamento_colunas_usuario: Optional[Dict[str, str]]=None, usar_llm: bool=True, product_type_id: Optional[int]=None, pages: Optional[List[int]]=None, region: Optional[List[float]]=None, extraction_mode: str='ocr') -> List[Dict[str, Any]]:
         """Execute processar arquivo pdf impl as part of this module workflow."""
-        return await PdfIngestionRuntime().processar_arquivo_pdf(conteudo_arquivo=conteudo_arquivo, mapeamento_colunas_usuario=mapeamento_colunas_usuario, usar_llm=usar_llm, product_type_id=product_type_id, pages=pages, region=region)
+        return await PdfIngestionRuntime().processar_arquivo_pdf(conteudo_arquivo=conteudo_arquivo, mapeamento_colunas_usuario=mapeamento_colunas_usuario, usar_llm=usar_llm, product_type_id=product_type_id, pages=pages, region=region, extraction_mode=extraction_mode)
 
     @staticmethod
     async def _preview_arquivo_excel_impl(conteudo_arquivo: bytes, max_rows: int=5) -> Dict[str, Any]:
@@ -1105,12 +1105,18 @@ class PdfIngestionRuntime:
             return True
         return False
 
-    async def processar_arquivo_pdf(self, conteudo_arquivo: bytes, mapeamento_colunas_usuario: Optional[Dict[str, str]]=None, usar_llm: bool=True, product_type_id: Optional[int]=None, pages: Optional[List[int]]=None, region: Optional[List[float]]=None) -> List[Dict[str, Any]]:
+    async def processar_arquivo_pdf(self, conteudo_arquivo: bytes, mapeamento_colunas_usuario: Optional[Dict[str, str]]=None, usar_llm: bool=True, product_type_id: Optional[int]=None, pages: Optional[List[int]]=None, region: Optional[List[float]]=None, extraction_mode: str='ocr') -> List[Dict[str, Any]]:
         """Execute processar arquivo pdf as part of this module workflow."""
         produtos_extraidos: List[Dict[str, Any]] = []
         log_pdf: List[str] = []
         temp_pdf_path: Optional[Path] = None
         page_list_to_process: List[int] = []
+        mode = str(extraction_mode or 'ocr').strip().lower()
+        if mode not in {'table', 'ocr', 'ia'}:
+            mode = 'ocr'
+        allow_ocr_fallback = mode in {'ocr', 'ia'}
+        allow_text_fallback = mode in {'ocr', 'ia'}
+        allow_llm = bool(usar_llm) and mode == 'ia'
         try:
             if region and len(region) == 4:
                 with tempfile.NamedTemporaryFile(delete=False, suffix='.pdf') as tmp_pdf:
@@ -1146,7 +1152,7 @@ class PdfIngestionRuntime:
                         logger.info('processar_arquivo_pdf: page=%s bbox=%s mode=%s', page_num, bbox_abs, bbox_mode)
                     elif region:
                         log_pdf.append(f'Pagina {page_num}: BBox invalido ({bbox_mode}); ignorando recorte.')
-                    if bbox_abs and temp_pdf_path:
+                    if bbox_abs and temp_pdf_path and allow_ocr_fallback:
                         try:
                             df_region = _FileProcessingImplementation._extract_data_from_pdf_region_impl(
                                 file_path=str(temp_pdf_path),
@@ -1181,7 +1187,7 @@ class PdfIngestionRuntime:
                                 self._append_produto(produtos_extraidos=produtos_extraidos, produto_padronizado=_FileProcessingImplementation._processar_linha_padronizada(linha_dict_raw, mapeamento_colunas_usuario), product_type_id=product_type_id)
                     else:
                         log_pdf.append(f'Pagina {page_num}: Nenhuma tabela encontrada.')
-                if not produtos_extraidos and page_list_to_process:
+                if not produtos_extraidos and page_list_to_process and allow_ocr_fallback:
                     if temp_pdf_path is None:
                         with tempfile.NamedTemporaryFile(delete=False, suffix='.pdf') as tmp_pdf:
                             tmp_pdf.write(conteudo_arquivo)
@@ -1222,7 +1228,7 @@ class PdfIngestionRuntime:
                             log_pdf.append(
                                 f'Pagina {page_num}: fallback tabular/OCR retornou {len(produtos_extraidos) - before_count} produto(s).'
                             )
-                if not produtos_extraidos and page_list_to_process:
+                if not produtos_extraidos and page_list_to_process and allow_text_fallback:
                     log_pdf.append('Nenhum produto extraido de tabelas/regiao. Tentando extracao de texto bruto.')
                     for page_num in page_list_to_process:
                         if not 1 <= page_num <= total_pages:
@@ -1254,7 +1260,7 @@ class PdfIngestionRuntime:
                                         f'Pagina {page_num}: Texto estruturado gerou {added_count} produto(s).'
                                     )
                                     continue
-                            if usar_llm:
+                            if allow_llm:
                                 try:
                                     dados_produto = await self._web_data_extractor_service.extrair_dados_produto_com_llm(page_text)
                                     if isinstance(dados_produto, dict):
@@ -2087,9 +2093,9 @@ class PdfProcessingWorkflow:
         self._pdf_preview_runtime = runtime_obj.pdf_preview_runtime
         self._preview_dispatch_runtime = runtime_obj.preview_dispatch_runtime
 
-    async def processar_arquivo_pdf(self, conteudo_arquivo: bytes, mapeamento_colunas_usuario: Optional[Dict[str, str]]=None, usar_llm: bool=True, product_type_id: Optional[int]=None, pages: Optional[List[int]]=None, region: Optional[List[float]]=None) -> List[Dict[str, Any]]:
+    async def processar_arquivo_pdf(self, conteudo_arquivo: bytes, mapeamento_colunas_usuario: Optional[Dict[str, str]]=None, usar_llm: bool=True, product_type_id: Optional[int]=None, pages: Optional[List[int]]=None, region: Optional[List[float]]=None, extraction_mode: str='ocr') -> List[Dict[str, Any]]:
         """Execute processar arquivo pdf as part of this module workflow."""
-        return await self._pdf_ingestion_runtime.processar_arquivo_pdf(conteudo_arquivo=conteudo_arquivo, mapeamento_colunas_usuario=mapeamento_colunas_usuario, usar_llm=usar_llm, product_type_id=product_type_id, pages=pages, region=region)
+        return await self._pdf_ingestion_runtime.processar_arquivo_pdf(conteudo_arquivo=conteudo_arquivo, mapeamento_colunas_usuario=mapeamento_colunas_usuario, usar_llm=usar_llm, product_type_id=product_type_id, pages=pages, region=region, extraction_mode=extraction_mode)
 
     async def preview_arquivo_pdf(self, conteudo_arquivo: bytes, ext: str, start_page: int=1, page_count: int=1, dpi: int=72) -> Dict[str, Any]:
         """Execute preview arquivo pdf as part of this module workflow."""
@@ -2218,6 +2224,7 @@ class FileProcessingRuntime:
         product_type_id: Optional[int] = None,
         pages: Optional[List[int]] = None,
         region: Optional[List[float]] = None,
+        extraction_mode: str = "ocr",
     ) -> List[Dict[str, Any]]:
         """Execute processar arquivo pdf as part of this module workflow."""
         return await self._pdf_processing.processar_arquivo_pdf(
@@ -2227,6 +2234,7 @@ class FileProcessingRuntime:
             product_type_id=product_type_id,
             pages=pages,
             region=region,
+            extraction_mode=extraction_mode,
         )
 
     async def preview_arquivo_excel(

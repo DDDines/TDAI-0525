@@ -91,6 +91,27 @@ function isEmptyLike(
     return ['none', 'null', 'nan', 'na', '-', '--'].includes(folded);
   }
 
+function extractGeneratedTitles(
+
+  prod) {
+    const directTitles = Array.isArray(prod?.titulos_sugeridos) ? prod.titulos_sugeridos : [];
+    const rawTitles = Array.isArray(prod?.dados_brutos_web?.titulos_sugeridos_gerados) ?
+    prod.dados_brutos_web.titulos_sugeridos_gerados :
+    [];
+    const merged = [...directTitles, ...rawTitles].
+    map((item) => String(item || '').trim()).
+    filter(Boolean);
+    const seen = new Set();
+    const unique = [];
+    merged.forEach((item) => {
+      const folded = item.toLowerCase();
+      if (seen.has(folded)) return;
+      seen.add(folded);
+      unique.push(item);
+    });
+    return unique.slice(0, 10);
+  }
+
 function normalizeDynamicAttrsToTemplateKeys(
 
   dynamicAttrsRaw, attributeTemplates) {
@@ -142,7 +163,7 @@ function normalizeDynamicAttrsToTemplateKeys(
 
 function ProductEditModal(
 
-  { isOpen, onClose, product, onProductUpdated, showAiFeatures: showAiFeaturesProp }) {
+  { isOpen, onClose, product, onProductUpdated, showAiFeatures: showAiFeaturesProp, onOpenContentView }) {
     const isNewProduct = !product?.id;
 
     const { isAuthenticated: _isAuthenticated } = useAuth();
@@ -325,7 +346,7 @@ function ProductEditModal(
         product_type_id: prod.product_type_id || '',
         dynamic_attributes: dynamicAttrs,
         dados_brutos_web: dadosBrutos,
-        titulos_sugeridos: prod.titulos_sugeridos || [],
+        titulos_sugeridos: extractGeneratedTitles(prod),
         ativo_marketplace: prod.ativo_marketplace || false,
         data_publicacao_marketplace: prod.data_publicacao_marketplace || null,
         log_enriquecimento_web: prod.log_enriquecimento_web || { historico_mensagens: [] },
@@ -694,7 +715,15 @@ function ProductEditModal(
               if (!isMountedRef.current || !isOpenRef.current) {
                 return;
               }
-              setFormData((prev) => ({ ...prev, nome_chat_api: updatedProduct.nome_chat_api, titulos_sugeridos: updatedProduct.titulos_sugeridos }));
+              setFormData((prev) => ({
+                ...prev,
+                nome_chat_api: updatedProduct.nome_chat_api,
+                dados_brutos_web:
+                updatedProduct.dados_brutos_web && typeof updatedProduct.dados_brutos_web === 'object' ?
+                updatedProduct.dados_brutos_web :
+                prev.dados_brutos_web,
+                titulos_sugeridos: extractGeneratedTitles(updatedProduct)
+              }));
               if (onProductUpdated) onProductUpdated(updatedProduct);
             } catch (refreshErr) {
               if (!isMountedRef.current || !isOpenRef.current) {
@@ -712,6 +741,23 @@ function ProductEditModal(
         showErrorToast(err.response?.data?.detail || "Erro ao gerar títulos.");
       } finally {
         setIsGeneratingIA(false);
+      }
+    };
+
+    const handleOpenContentView = () => {
+      if (!product?.id) {
+        showWarningToast('Salve o produto primeiro para visualizar o conteúdo gerado.');
+        return;
+      }
+      if (typeof onClose === 'function') {
+        onClose();
+      }
+      if (typeof onOpenContentView === 'function') {
+        onOpenContentView(product.id);
+        return;
+      }
+      if (typeof window !== 'undefined') {
+        window.location.assign(`/produtos/${product.id}/conteudo`);
       }
     };
 
@@ -929,6 +975,9 @@ function ProductEditModal(
                     {showGenerationFeatures && activeTab === 'conteudo-ia' &&
               <div className="form-section">
                             <h3>{showAiFeatures ? 'Conteúdo Gerado por IA' : 'Conteúdo Gerado'}</h3>
+                            <button type="button" onClick={handleOpenContentView} disabled={isNewProduct}>
+                              Ver 5 Títulos + Descrição em Tela Dedicada
+                            </button>
                             <button type="button" onClick={_handleEnrichWeb} disabled={isEnrichingWeb || isNewProduct}>
                               {isEnrichingWeb ? 'Enriquecendo Web...' : 'Enriquecer Web'}
                             </button>
