@@ -164,4 +164,20 @@ describe('AttributeField', () => {
 
     expect(screen.getByText(/suportado por AttributeField/i)).toBeInTheDocument();
   });
+
+  test('falls back to empty values when there is no explicit or default value', () => {
+    render(
+      <AttributeField
+        attributeTemplate={{
+          attribute_key: 'observacao',
+          label: 'Observacao',
+          field_type: 'text',
+        }}
+        value={undefined}
+        onChange={jest.fn()}
+      />
+    );
+
+    expect(screen.getByLabelText(/Observacao/i)).toHaveValue('');
+  });
 });

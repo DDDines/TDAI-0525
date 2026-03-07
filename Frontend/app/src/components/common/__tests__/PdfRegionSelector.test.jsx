@@ -1,6 +1,7 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import '@testing-library/jest-dom';
 import PdfRegionSelector from '../PdfRegionSelector.jsx';
+import { renderPdfPage } from '../PdfRegionSelector.helpers.js';
 
 const mockGetDocument = jest.fn();
 
@@ -107,6 +108,10 @@ test('calls onSelect with normalized coordinates after drag', async () => {
   });
 });
 
+test('renderPdfPage exits early when there is no document or canvas', async () => {
+  await expect(renderPdfPage(null, 1, null)).resolves.toBeUndefined();
+});
+
 test('notifies apply-all checkbox changes', async () => {
   const onApplyAllChange = jest.fn();
 
@@ -209,6 +214,35 @@ test('does not call onSelect when the user releases the mouse without drawing a 
   expect(onSelect).not.toHaveBeenCalled();
 
   unmount();
+});
+
+test('ignores mouse move events before drawing starts', async () => {
+  const onSelect = jest.fn();
+
+  const { container } = render(
+    <PdfRegionSelector
+      file={new Uint8Array([1, 2, 3])}
+      onSelect={onSelect}
+      initialPage={2}
+      initialApplyAll={true}
+    />
+  );
+
+  const canvas = container.querySelector('canvas');
+  Object.defineProperty(canvas, 'getBoundingClientRect', {
+    value: () => ({ left: 0, top: 0, width: 200, height: 100 }),
+    configurable: true,
+  });
+
+  await waitFor(() => {
+    expect(canvas.width).toBe(200);
+  });
+
+  fireEvent.mouseMove(canvas, { clientX: 50, clientY: 60 });
+  fireEvent.mouseUp(canvas);
+
+  expect(onSelect).not.toHaveBeenCalled();
+  expect(container.querySelector('.pdf-region-selector-overlay')).not.toBeInTheDocument();
 });
 
 test('handles missing files without requesting a PDF document', () => {

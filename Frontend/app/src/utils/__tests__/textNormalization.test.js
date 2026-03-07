@@ -32,12 +32,19 @@ describe('normalizeDisplayText', () => {
   });
 
   test('keeps the original text when decoding would add more mojibake markers', () => {
-    const decode = jest.fn(() => 'ÃÃÃ');
-    const textDecoderSpy = jest
-      .spyOn(global, 'TextDecoder')
-      .mockImplementation(() => ({ decode }));
+    const decode = jest.fn(() => 'ÃƒÃƒÃƒ');
+    const textDecoderSpy = jest.spyOn(global, 'TextDecoder').mockImplementation(() => ({ decode }));
 
-    expect(normalizeDisplayText('PÃ¡gina')).toBe('PÃ¡gina');
+    expect(normalizeDisplayText('PÃƒ¡gina')).toBe('PÃƒ¡gina');
+
+    textDecoderSpy.mockRestore();
+  });
+
+  test('adopts the decoded text when it reduces mojibake markers', () => {
+    const decode = jest.fn(() => 'Página');
+    const textDecoderSpy = jest.spyOn(global, 'TextDecoder').mockImplementation(() => ({ decode }));
+
+    expect(normalizeDisplayText('PÃ¡gina')).toBe('Página');
 
     textDecoderSpy.mockRestore();
   });

@@ -435,8 +435,9 @@ function ProductEditModal(
               showWarningToast(`Enriquecimento finalizado com status ${statusFinal}.`);
             }
           } catch (pollErr) {
-            if (enrichmentPollRunRef.current !== runId) return;
-            console.warn('Falha ao acompanhar status de enriquecimento web:', pollErr);
+            if (enrichmentPollRunRef.current === runId) {
+              console.warn('Falha ao acompanhar status de enriquecimento web:', pollErr);
+            }
           }
         })();
       } catch (err) {

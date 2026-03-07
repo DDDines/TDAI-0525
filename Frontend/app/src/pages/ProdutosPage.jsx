@@ -13,7 +13,7 @@ import ProductEditModal from '../components/ProductEditModal';
 import { useAppExperience } from '../contexts/AppExperienceContext';
 import PaginationControls from '../components/common/PaginationControls';
 import productService from '../services/productService';
-import { showErrorToast, showSuccessToast, showInfoToast, showWarningToast } from '../utils/notifications';
+import { showErrorToast, showSuccessToast, showInfoToast } from '../utils/notifications';
 import './ProdutosPage.css';
 import { useProductTypes } from '../contexts/ProductTypeContext';
 import LoadingPopup from '../components/common/LoadingPopup.jsx';
@@ -124,8 +124,27 @@ function ProdutosPage()
       fetchProdutos();
     }, [fetchProdutos]);
 
+    const removePendingRefreshTimeout = useCallback((entryToRemove) => {
+      pendingRefreshTimeoutsRef.current = pendingRefreshTimeoutsRef.current.filter(
+        (entry) => entry !== entryToRemove
+      );
+    }, []);
+
+    const schedulePendingRefreshTimeout = useCallback((callback, delayMs, onCancel) => {
+      const entry = { timeoutId: null, onCancel };
+      entry.timeoutId = setTimeout(() => {
+        removePendingRefreshTimeout(entry);
+        callback();
+      }, delayMs);
+      pendingRefreshTimeoutsRef.current.push(entry);
+      return entry;
+    }, [removePendingRefreshTimeout]);
+
     const clearPendingRefreshTimeouts = useCallback(() => {
-      pendingRefreshTimeoutsRef.current.forEach((timeoutId) => clearTimeout(timeoutId));
+      pendingRefreshTimeoutsRef.current.forEach((entry) => {
+        clearTimeout(entry.timeoutId);
+        entry.onCancel?.();
+      });
       pendingRefreshTimeoutsRef.current = [];
     }, []);
 
@@ -135,15 +154,11 @@ function ProdutosPage()
     }, [clearPendingRefreshTimeouts]);
 
     const scheduleProdutosRefresh = useCallback((message) => {
-      const timeoutId = setTimeout(() => {
+      schedulePendingRefreshTimeout(() => {
         showInfoToast(message);
         fetchProdutos();
-        pendingRefreshTimeoutsRef.current = pendingRefreshTimeoutsRef.current.filter(
-          (id) => id !== timeoutId
-        );
       }, 15000);
-      pendingRefreshTimeoutsRef.current.push(timeoutId);
-    }, [fetchProdutos]);
+    }, [fetchProdutos, schedulePendingRefreshTimeout]);
 
     const handleProductUpdated = (updatedProduct) => {
       setProdutos((prevProdutos) => prevProdutos.map((p) => p.id === updatedProduct.id ? updatedProduct : p));
@@ -218,10 +233,6 @@ function ProdutosPage()
     };
 
     const handleDeleteSelected = async () => {
-      if (selectedProdutos.size === 0) {
-        showErrorToast('Nenhum produto selecionado para deletar.');
-        return;
-      }
       if (window.confirm(`Tem certeza que deseja deletar ${selectedProdutos.size} produto(s) selecionado(s)?`)) {
         setLoading(true);
         try {
@@ -265,9 +276,6 @@ function ProdutosPage()
       const pollRunId = webStatusPollRunRef.current + 1;
       webStatusPollRunRef.current = pollRunId;
       const ids = Array.from(produtoIds).map((id) => String(id));
-      if (ids.length === 0) {
-        return;
-      }
 
       for (let attempt = 0; attempt < WEB_ENRICHMENT_MAX_POLLS; attempt += 1) {
         if (webStatusPollRunRef.current !== pollRunId) {
@@ -298,13 +306,7 @@ function ProdutosPage()
         }
 
         await new Promise((resolve) => {
-          const timeoutId = setTimeout(() => {
-            pendingRefreshTimeoutsRef.current = pendingRefreshTimeoutsRef.current.filter(
-              (id) => id !== timeoutId
-            );
-            resolve();
-          }, WEB_ENRICHMENT_POLL_INTERVAL_MS);
-          pendingRefreshTimeoutsRef.current.push(timeoutId);
+          schedulePendingRefreshTimeout(resolve, WEB_ENRICHMENT_POLL_INTERVAL_MS, resolve);
         });
       }
 
@@ -312,14 +314,9 @@ function ProdutosPage()
         'O enriquecimento web ainda pode estar em andamento em segundo plano. Atualizando a lista.'
       );
       fetchProdutos();
-    }, [fetchProdutos, mergeProdutosById]);
+    }, [fetchProdutos, mergeProdutosById, schedulePendingRefreshTimeout]);
 
     const handleEnrichSelectedWeb = async () => {
-      if (selectedProdutos.size === 0) {
-        showWarningToast('Nenhum produto selecionado para enriquecimento web.');
-        return;
-      }
-
       const idsToProcess = Array.from(selectedProdutos);
       setSelectedProdutos(new Set());
       updateLocalProductStatus(new Set(idsToProcess), 'status_enriquecimento_web', 'PENDENTE');
@@ -346,11 +343,6 @@ function ProdutosPage()
     };
 
     const handleGenerateContentForSelected = async (contentType) => {
-      if (selectedProdutos.size === 0) {
-        showWarningToast(`Nenhum produto selecionado para gerar ${contentType}s.`);
-        return;
-      }
-
       const contentTypePlural = contentType === 'titulo' ? 'títulos' : 'descrições';
       showInfoToast(`Geração de ${contentTypePlural} iniciada para ${selectedProdutos.size} produto(s).`);
 

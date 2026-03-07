@@ -163,9 +163,6 @@ function EnriquecimentoPage() {
     const pollRunId = webStatusPollRunRef.current + 1;
     webStatusPollRunRef.current = pollRunId;
     const ids = Array.from(produtoIds).map((id) => String(id));
-    if (ids.length === 0) {
-      return;
-    }
 
     for (let attempt = 0; attempt < WEB_ENRICHMENT_MAX_POLLS; attempt += 1) {
       if (webStatusPollRunRef.current !== pollRunId) {

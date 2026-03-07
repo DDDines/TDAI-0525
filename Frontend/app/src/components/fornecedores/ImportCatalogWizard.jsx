@@ -10,6 +10,7 @@ import productTypeService from '../../services/productTypeService';
 import { normalizeDisplayText } from '../../utils/textNormalization';
 import { extractErrorMessage } from '../../utils/errorDetails';
 import {
+  appendUniqueTimelineEntry,
   formatCellValue,
   getPreviewImageSrc,
   formatElapsed,
@@ -74,30 +75,12 @@ function ImportCatalogWizard(
     const openResetKeyRef = useRef(null);
 
     const appendTimeline = useCallback((message) => {
-      if (!message) return;
-      const safeMessage = normalizeDisplayText(message);
-      if (!safeMessage) return;
-      const dedupeKey = safeMessage.
-      replace(/[\u200B-\u200D\uFEFF]/g, '').
-      replace(/\s+/g, ' ').
-      trim().
-      toLowerCase();
-      if (!dedupeKey) return;
-      if (timelineSeenRef.current.has(dedupeKey)) return;
       setStatusTimeline((prev) => {
-        const recentKeys = prev.
-        slice(-6).
-        map((entry) =>
-        entry.
-        replace(/^\[[^\]]+\]\s*/, '').
-        replace(/[\u200B-\u200D\uFEFF]/g, '').
-        replace(/\s+/g, ' ').
-        trim().
-        toLowerCase()
-        );
-        if (recentKeys.includes(dedupeKey)) return prev;
-        timelineSeenRef.current.add(dedupeKey);
-        return [...prev, `[${timestamp()}] ${safeMessage}`].slice(-160);
+        const nextState = appendUniqueTimelineEntry(prev, message, timestamp());
+        if (nextState.appended) {
+          timelineSeenRef.current.add(nextState.dedupeKey);
+        }
+        return nextState.entries;
       });
     }, []);
 
@@ -208,7 +191,6 @@ function ImportCatalogWizard(
     };
 
     const handlePreview = async () => {
-      if (!selectedFile) return;
       setIsLoading(true);
       setLoadingMessage('Gerando preview...');
       setPreviewError('');

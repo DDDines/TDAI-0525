@@ -402,6 +402,15 @@ describe('ProductEditModal', () => {
     expect(showWarningToast).toHaveBeenCalledWith('Dados carregados parcialmente.');
   });
 
+  test('keeps the form usable when the backend returns an empty full-product payload', async () => {
+    productService.getProdutoById.mockResolvedValueOnce(null);
+
+    renderModal({ product: { id: 10 } });
+
+    expect(await screen.findByLabelText(/Fornecedor/i)).toHaveValue('');
+    expect(screen.getByRole('button', { name: /Salvar Produto/i })).toBeInTheDocument();
+  });
+
   test('fetches the supplier by id when it is missing from the initial dependency list', async () => {
     fornecedorService.getFornecedores.mockResolvedValueOnce({ items: [fornecedores[1]] });
     fornecedorService.getFornecedorById.mockResolvedValueOnce({
@@ -808,8 +817,38 @@ describe('ProductEditModal', () => {
     });
   });
 
+  test('reads enrichment start errors from direct detail payloads', async () => {
+    productService.iniciarEnriquecimentoWebProduto.mockRejectedValueOnce({
+      detail: 'falha via detail direta',
+    });
+
+    renderModal({ product: { id: 10 } });
+
+    await screen.findByLabelText(/Nome Base/i);
+    await user.click(screen.getByRole('button', { name: /Conte/i }));
+    await user.click(screen.getByRole('button', { name: /Enriquecer Web/i }));
+
+    await waitFor(() => {
+      expect(showErrorToast).toHaveBeenCalledWith('falha via detail direta');
+    });
+  });
+
   test('uses the generic enrichment start fallback when the backend returns no detail', async () => {
     productService.iniciarEnriquecimentoWebProduto.mockRejectedValueOnce({});
+
+    renderModal({ product: { id: 10 } });
+
+    await screen.findByLabelText(/Nome Base/i);
+    await user.click(screen.getByRole('button', { name: /Conte/i }));
+    await user.click(screen.getByRole('button', { name: /Enriquecer Web/i }));
+
+    await waitFor(() => {
+      expect(showErrorToast).toHaveBeenCalledWith('Erro ao iniciar enriquecimento web.');
+    });
+  });
+
+  test('uses the generic enrichment start fallback when the service rejects with null', async () => {
+    productService.iniciarEnriquecimentoWebProduto.mockRejectedValueOnce(null);
 
     renderModal({ product: { id: 10 } });
 
@@ -852,6 +891,189 @@ describe('ProductEditModal', () => {
       );
     });
   }, 15000);
+
+  test('stops the next enrichment polling iteration when the modal closes', async () => {
+    const { rerender } = render(
+      <ProductEditModal
+        isOpen={true}
+        onClose={onClose}
+        onProductUpdated={onProductUpdated}
+        onOpenContentView={onOpenContentView}
+        product={{ id: 10 }}
+        showAiFeatures={false}
+      />
+    );
+
+    await screen.findByLabelText(/Nome Base/i);
+    await user.click(screen.getByRole('button', { name: /Conte/i }));
+    await user.click(screen.getByRole('button', { name: /Enriquecer Web/i }));
+
+    await waitFor(() => {
+      expect(productService.iniciarEnriquecimentoWebProduto).toHaveBeenCalledWith(10);
+    });
+    await waitFor(() => {
+      expect(productService.getProdutoById).toHaveBeenCalledTimes(2);
+    });
+
+    rerender(
+      <ProductEditModal
+        isOpen={false}
+        onClose={onClose}
+        onProductUpdated={onProductUpdated}
+        onOpenContentView={onOpenContentView}
+        product={{ id: 10 }}
+        showAiFeatures={false}
+      />
+    );
+
+    await advance(3000);
+
+    expect(productService.getProdutoById).toHaveBeenCalledTimes(2);
+  });
+
+  test('aborts enrichment completion updates when the modal closes before polling resolves', async () => {
+    const pollingRequest = createDeferred();
+    productService.getProdutoById
+      .mockResolvedValueOnce(baseProduct)
+      .mockImplementationOnce(() => pollingRequest.promise);
+
+    const { rerender } = render(
+      <ProductEditModal
+        isOpen={true}
+        onClose={onClose}
+        onProductUpdated={onProductUpdated}
+        onOpenContentView={onOpenContentView}
+        product={{ id: 10 }}
+        showAiFeatures={false}
+      />
+    );
+
+    await screen.findByLabelText(/Nome Base/i);
+    await user.click(screen.getByRole('button', { name: /Conte/i }));
+    await user.click(screen.getByRole('button', { name: /Enriquecer Web/i }));
+
+    await waitFor(() => {
+      expect(productService.iniciarEnriquecimentoWebProduto).toHaveBeenCalledWith(10);
+    });
+
+    rerender(
+      <ProductEditModal
+        isOpen={false}
+        onClose={onClose}
+        onProductUpdated={onProductUpdated}
+        onOpenContentView={onOpenContentView}
+        product={{ id: 10 }}
+        showAiFeatures={false}
+      />
+    );
+
+    await act(async () => {
+      pollingRequest.resolve({
+        ...baseProduct,
+        status_enriquecimento_web: 'CONCLUIDO_SUCESSO',
+        descricao_original: 'Descricao tardia de enrichment',
+      });
+      await Promise.resolve();
+    });
+
+    expect(onProductUpdated).not.toHaveBeenCalledWith(
+      expect.objectContaining({ descricao_original: 'Descricao tardia de enrichment' })
+    );
+    expect(showSuccessToast).not.toHaveBeenCalledWith(
+      'Enriquecimento finalizado (CONCLUIDO_SUCESSO). Aplicados: 0. Ignorados: 0.'
+    );
+  });
+
+  test('ignores enrichment polling errors that arrive after the modal closes', async () => {
+    const pollingRequest = createDeferred();
+    productService.getProdutoById
+      .mockResolvedValueOnce(baseProduct)
+      .mockImplementationOnce(() => pollingRequest.promise);
+
+    const { rerender } = render(
+      <ProductEditModal
+        isOpen={true}
+        onClose={onClose}
+        onProductUpdated={onProductUpdated}
+        onOpenContentView={onOpenContentView}
+        product={{ id: 10 }}
+        showAiFeatures={false}
+      />
+    );
+
+    await screen.findByLabelText(/Nome Base/i);
+    await user.click(screen.getByRole('button', { name: /Conte/i }));
+    await user.click(screen.getByRole('button', { name: /Enriquecer Web/i }));
+
+    await waitFor(() => {
+      expect(productService.iniciarEnriquecimentoWebProduto).toHaveBeenCalledWith(10);
+    });
+
+    rerender(
+      <ProductEditModal
+        isOpen={false}
+        onClose={onClose}
+        onProductUpdated={onProductUpdated}
+        onOpenContentView={onOpenContentView}
+        product={{ id: 10 }}
+        showAiFeatures={false}
+      />
+    );
+
+    await act(async () => {
+      pollingRequest.reject(new Error('falha tardia enrichment'));
+      await Promise.resolve();
+    });
+
+    expect(consoleWarnSpy).not.toHaveBeenCalledWith(
+      'Falha ao consultar status de enriquecimento web:',
+      expect.any(Error)
+    );
+  });
+
+  test('abandons the enrichment workflow when the start command resolves after the modal closes', async () => {
+    const startRequest = createDeferred();
+    productService.iniciarEnriquecimentoWebProduto.mockImplementationOnce(() => startRequest.promise);
+
+    const { rerender } = render(
+      <ProductEditModal
+        isOpen={true}
+        onClose={onClose}
+        onProductUpdated={onProductUpdated}
+        onOpenContentView={onOpenContentView}
+        product={{ id: 10 }}
+        showAiFeatures={false}
+      />
+    );
+
+    await screen.findByLabelText(/Nome Base/i);
+    await user.click(screen.getByRole('button', { name: /Conte/i }));
+    await user.click(screen.getByRole('button', { name: /Enriquecer Web/i }));
+
+    await waitFor(() => {
+      expect(productService.iniciarEnriquecimentoWebProduto).toHaveBeenCalledWith(10);
+    });
+
+    rerender(
+      <ProductEditModal
+        isOpen={false}
+        onClose={onClose}
+        onProductUpdated={onProductUpdated}
+        onOpenContentView={onOpenContentView}
+        product={{ id: 10 }}
+        showAiFeatures={false}
+      />
+    );
+
+    await act(async () => {
+      startRequest.resolve({});
+      await Promise.resolve();
+    });
+
+    expect(showSuccessToast).not.toHaveBeenCalledWith(
+      'Comando de enriquecimento enviado. Atualizando status do produto em segundo plano.'
+    );
+  });
 
   test('recovers from transient polling errors while tracking web enrichment', async () => {
     productService.getProdutoById

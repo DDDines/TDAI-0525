@@ -4,17 +4,20 @@ import userEvent from '@testing-library/user-event';
 import UserMenu from '../UserMenu.jsx';
 import { useAuth } from '../../contexts/AuthContext';
 
+const mockNavigate = jest.fn();
+
 jest.mock('../../contexts/AuthContext', () => ({
   useAuth: jest.fn(),
 }));
 
 jest.mock('react-router-dom', () => ({
-  useNavigate: () => jest.fn(),
+  useNavigate: () => mockNavigate,
 }));
 
 describe('UserMenu', () => {
   const onLogout = jest.fn();
   const onNavigate = jest.fn();
+  const logout = jest.fn();
 
   beforeEach(() => {
     jest.clearAllMocks();
@@ -26,7 +29,7 @@ describe('UserMenu', () => {
         is_superuser: true,
         plano: { nome: 'Pro' },
       },
-      logout: jest.fn(),
+      logout,
       isLoading: false,
     });
   });
@@ -83,5 +86,19 @@ describe('UserMenu', () => {
     await user.click(screen.getByRole('button', { name: /Julio Cesar/i }));
 
     expect(screen.queryByRole('menu')).not.toBeInTheDocument();
+  });
+
+  test('falls back to router navigation and auth logout when callbacks are not provided', async () => {
+    const user = userEvent.setup();
+
+    render(<UserMenu />);
+
+    await user.click(screen.getByRole('button', { name: /Julio Cesar/i }));
+    await user.click(screen.getByRole('button', { name: /Configuracoes/i }));
+    expect(mockNavigate).toHaveBeenCalledWith('/configuracoes');
+
+    await user.click(screen.getByRole('button', { name: /Julio Cesar/i }));
+    await user.click(screen.getByRole('button', { name: /Sair/i }));
+    expect(logout).toHaveBeenCalledTimes(1);
   });
 });

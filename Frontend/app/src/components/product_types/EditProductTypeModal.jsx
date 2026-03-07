@@ -15,11 +15,11 @@ function EditProductTypeModal(
     const [keyName, setKeyName] = useState('');
 
     useEffect(() => {
-      if (isOpen && type) {
-        setFriendlyName(type.friendly_name || '');
-        setDescription(type.description || '');
-        setKeyName(type.key_name || '');
-      }
+      if (!isOpen) return;
+
+      setFriendlyName(type?.friendly_name || '');
+      setDescription(type?.description || '');
+      setKeyName(type?.key_name || '');
     }, [isOpen, type]);
 
     const handleSubmit = (e) => {
@@ -50,7 +50,6 @@ function EditProductTypeModal(
               id="edit-type-key-name"
               type="text"
               value={keyName}
-              onChange={(e) => setKeyName(e.target.value)}
               className="form-control"
               disabled />
             

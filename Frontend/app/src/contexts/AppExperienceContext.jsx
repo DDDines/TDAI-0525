@@ -36,7 +36,7 @@ function normalizeMode(value) {
 }
 
 function loadStoredAdminPreviewMode() {
-  if (typeof window === 'undefined') {
+  if (typeof window === 'undefined' || !window.localStorage) {
     return null;
   }
   const stored = window.localStorage.getItem(ADMIN_PREVIEW_STORAGE_KEY);
@@ -48,14 +48,14 @@ function loadStoredAdminPreviewMode() {
 }
 
 function persistAdminPreviewMode(mode) {
-  if (typeof window === 'undefined') {
+  if (typeof window === 'undefined' || !window.localStorage) {
     return;
   }
   window.localStorage.setItem(ADMIN_PREVIEW_STORAGE_KEY, mode);
 }
 
 function removeStoredAdminPreviewMode() {
-  if (typeof window === 'undefined') {
+  if (typeof window === 'undefined' || !window.localStorage) {
     return;
   }
   window.localStorage.removeItem(ADMIN_PREVIEW_STORAGE_KEY);
@@ -155,4 +155,11 @@ function useAppExperience() {
   return useContext(AppExperienceContext);
 }
 
-export { AppExperienceProvider, useAppExperience };
+export {
+  AppExperienceProvider,
+  loadStoredAdminPreviewMode,
+  normalizeMode,
+  persistAdminPreviewMode,
+  removeStoredAdminPreviewMode,
+  useAppExperience,
+};

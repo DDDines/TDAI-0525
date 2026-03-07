@@ -243,9 +243,35 @@ describe('LoginPage', () => {
     });
 
     const googleClick = fireEvent.click(googleLink);
+    const facebookClick = fireEvent.click(facebookLink);
 
     expect(googleClick).toBe(false);
+    expect(facebookClick).toBe(true);
     expect(facebookLink).not.toHaveClass('disabled');
+  });
+
+  test('prevents clicks for disabled facebook login', async () => {
+    useAuth.mockReturnValue({
+      login: jest.fn(),
+      isAuthenticated: false,
+      isLoading: false,
+      user: null,
+    });
+    configService.getSocialLoginConfig.mockResolvedValue({
+      google_enabled: true,
+      facebook_enabled: false,
+    });
+
+    render(
+      <MemoryRouter>
+        <LoginPage />
+      </MemoryRouter>
+    );
+
+    const facebookLink = (await screen.findByText(/Entrar com Facebook/i)).closest('a');
+    const facebookClick = fireEvent.click(facebookLink);
+
+    expect(facebookClick).toBe(false);
   });
 
   test('logs social config loading failures without blocking the form', async () => {

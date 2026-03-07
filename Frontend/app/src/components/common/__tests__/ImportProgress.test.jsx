@@ -11,6 +11,16 @@ jest.mock('../../../services/fornecedorService', () => ({
   },
 }));
 
+function createDeferred() {
+  let resolve;
+  let reject;
+  const promise = new Promise((res, rej) => {
+    resolve = res;
+    reject = rej;
+  });
+  return { promise, resolve, reject };
+}
+
 describe('common ImportProgress', () => {
   let consoleErrorSpy;
 
@@ -170,5 +180,49 @@ describe('common ImportProgress', () => {
     await waitFor(() => {
       expect(onDone).toHaveBeenCalledWith(null);
     });
+  });
+
+  test('ignores stale status responses after the component unmounts', async () => {
+    const pendingStatus = createDeferred();
+    fornecedorService.getImportacaoStatus.mockImplementationOnce(() => pendingStatus.promise);
+
+    const onDone = jest.fn();
+    const { unmount } = render(<ImportProgress fileId={95} onDone={onDone} />);
+
+    unmount();
+
+    await act(async () => {
+      pendingStatus.resolve({ status: 'DONE', pages_processed: 1, total_pages: 1, result_ready: true });
+      await Promise.resolve();
+    });
+
+    expect(onDone).not.toHaveBeenCalled();
+  });
+
+  test('ignores stale final result responses after the component unmounts', async () => {
+    const pendingResult = createDeferred();
+    fornecedorService.getImportacaoStatus.mockResolvedValueOnce({
+      status: 'DONE',
+      pages_processed: 1,
+      total_pages: 1,
+      result_ready: true,
+    });
+    fornecedorService.getImportacaoResult.mockImplementationOnce(() => pendingResult.promise);
+
+    const onDone = jest.fn();
+    const { unmount } = render(<ImportProgress fileId={96} onDone={onDone} />);
+
+    await waitFor(() => {
+      expect(fornecedorService.getImportacaoResult).toHaveBeenCalledWith(96);
+    });
+
+    unmount();
+
+    await act(async () => {
+      pendingResult.resolve({ ready: true, created: 2 });
+      await Promise.resolve();
+    });
+
+    expect(onDone).not.toHaveBeenCalled();
   });
 });

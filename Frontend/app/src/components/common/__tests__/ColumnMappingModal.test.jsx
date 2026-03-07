@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import '@testing-library/jest-dom';
 import ColumnMappingModal from '../ColumnMappingModal.jsx';
@@ -73,6 +73,48 @@ test('does not reset selected mapping on rerender when initialMapping is omitted
   );
 });
 
+test('keeps local mapping edits when the same initial mapping is provided again', async () => {
+  const headers = ['Coluna A'];
+  const options = [
+    { value: 'nome_produto', label: 'Nome Produto' },
+    { value: 'sku_original', label: 'SKU' },
+  ];
+
+  const { rerender } = render(
+    <ColumnMappingModal
+      isOpen={true}
+      onClose={() => {}}
+      headers={headers}
+      rows={[]}
+      fieldOptions={options}
+      initialMapping={{ 'Coluna A': 'nome_produto' }}
+      onConfirm={() => {}}
+    />
+  );
+
+  const select = screen.getByRole('combobox', { name: /campo para coluna coluna a/i });
+  expect(select).toHaveValue('nome_produto');
+
+  await userEvent.selectOptions(select, 'sku_original');
+  expect(select).toHaveValue('sku_original');
+
+  rerender(
+    <ColumnMappingModal
+      isOpen={true}
+      onClose={() => {}}
+      headers={headers}
+      rows={[]}
+      fieldOptions={options}
+      initialMapping={{ 'Coluna A': 'nome_produto' }}
+      onConfirm={() => {}}
+    />
+  );
+
+  expect(screen.getByRole('combobox', { name: /campo para coluna coluna a/i })).toHaveValue(
+    'sku_original'
+  );
+});
+
 test('does not render when closed', () => {
   render(
     <ColumnMappingModal
@@ -117,6 +159,31 @@ test('keeps unique base fields exclusive across headers and clears the mapping',
 
   expect(firstSelect).toHaveValue('');
   expect(secondSelect).toHaveValue('');
+});
+
+test('clears the previous header when the same unique base field is forced into another column', async () => {
+  render(
+    <ColumnMappingModal
+      isOpen={true}
+      onClose={() => {}}
+      headers={['Coluna A', 'Coluna B']}
+      rows={[]}
+      fieldOptions={[
+        { value: 'sku_original', label: 'SKU' },
+        { value: 'descricao_original', label: 'DescriÃ§Ã£o' },
+      ]}
+      onConfirm={() => {}}
+    />
+  );
+
+  const firstSelect = screen.getByRole('combobox', { name: /campo para coluna coluna a/i });
+  const secondSelect = screen.getByRole('combobox', { name: /campo para coluna coluna b/i });
+
+  await userEvent.selectOptions(firstSelect, 'sku_original');
+  fireEvent.change(secondSelect, { target: { value: 'sku_original' } });
+
+  expect(firstSelect).toHaveValue('');
+  expect(secondSelect).toHaveValue('sku_original');
 });
 
 test('renders product type choices, preview object cells and syncs a new initial mapping', async () => {

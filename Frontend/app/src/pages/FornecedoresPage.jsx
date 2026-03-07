@@ -130,42 +130,38 @@ function FornecedoresPage()
         setLoading(true);
         let successCount = 0;
         let errorOccurred = false;
-        try {
-          for (const id of selectedIds) {
-            try {
-              await fornecedorService.deleteFornecedor(id);
-              successCount += 1;
-            } catch (singleDeleteError) {
-              console.error(`Falha ao deletar fornecedor ID ${id}:`, singleDeleteError);
-              errorOccurred = true;
-            }
-          }
 
-          if (successCount > 0) {
-            showSuccessToast(`${successCount} fornecedor(es) deletado(s) com sucesso!`);
+        for (const id of selectedIds) {
+          try {
+            await fornecedorService.deleteFornecedor(id);
+            successCount += 1;
+          } catch (singleDeleteError) {
+            console.error(`Falha ao deletar fornecedor ID ${id}:`, singleDeleteError);
+            errorOccurred = true;
           }
-          if (errorOccurred) {
-            showErrorToast('Alguns fornecedores não puderam ser deletados. Verifique o console.');
-          }
-
-          const newTotalFornecedores = totalFornecedoresCount - successCount;
-          const newTotalPages = Math.ceil(newTotalFornecedores / limitPerPage);
-
-          if (currentPage >= newTotalPages && newTotalPages > 0) {
-            setCurrentPage(newTotalPages - 1);
-          } else if (newTotalFornecedores === 0) {
-            setCurrentPage(0);
-            setFornecedores([]);
-            setTotalFornecedoresCount(0);
-          } else {
-            fetchFornecedores();
-          }
-          setSelectedIds([]);
-        } catch (err) {
-          showErrorToast(`Erro ao processar deleção em massa: ${err.message || 'Erro desconhecido'}`);
-        } finally {
-          setLoading(false);
         }
+
+        if (successCount > 0) {
+          showSuccessToast(`${successCount} fornecedor(es) deletado(s) com sucesso!`);
+        }
+        if (errorOccurred) {
+          showErrorToast('Alguns fornecedores não puderam ser deletados. Verifique o console.');
+        }
+
+        const newTotalFornecedores = totalFornecedoresCount - successCount;
+        const newTotalPages = Math.ceil(newTotalFornecedores / limitPerPage);
+
+        if (currentPage >= newTotalPages && newTotalPages > 0) {
+          setCurrentPage(newTotalPages - 1);
+        } else if (newTotalFornecedores === 0) {
+          setCurrentPage(0);
+          setFornecedores([]);
+          setTotalFornecedoresCount(0);
+        } else {
+          fetchFornecedores();
+        }
+        setSelectedIds([]);
+        setLoading(false);
       }
     };
 
@@ -259,3 +255,4 @@ function FornecedoresPage()
 
   }
 export default FornecedoresPage;
+

@@ -371,4 +371,65 @@ describe('ProdutoConteudoPage', () => {
     expect(screen.getByRole('button', { name: /Produto Anterior/i })).toBeDisabled();
     expect(screen.getByRole('button', { name: /Pr.+ximo Produto/i })).toBeDisabled();
   });
+
+  test('adds the loaded product id to the ordered navigation list when it was missing', async () => {
+    productService.getProdutos.mockResolvedValueOnce({
+      items: [{ id: 29 }, { id: 30 }],
+      total_items: 2,
+    });
+    productService.getProdutoById.mockResolvedValueOnce({
+      id: 35,
+      nome_base: 'Produto novo na lista',
+      titulos_sugeridos: ['Titulo unico'],
+      descricao_chat_api: 'Descricao aproveitavel.',
+      dados_brutos_web: {},
+    });
+
+    renderPage({
+      pathname: '/produtos/35/conteudo',
+      state: {
+        productIds: [30],
+        productQuery: { sort_by: 'id', sort_order: 'asc' },
+      },
+    });
+
+    expect(await screen.findByText('Titulo unico')).toBeInTheDocument();
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: /Produto Anterior/i })).toBeEnabled();
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: /Produto Anterior/i }));
+    expect(mockNavigate).toHaveBeenCalledWith('/produtos/30/conteudo', {
+      state: {
+        productIds: [29, 30, 35],
+        productQuery: { sort_by: 'id', sort_order: 'asc' },
+      },
+    });
+  });
+
+  test('ignores feedback submission when the loaded content still has no persisted product id', async () => {
+    productService.getProdutoById.mockResolvedValueOnce({
+      id: null,
+      nome_base: 'Rascunho temporario',
+      titulos_sugeridos: ['Titulo provisório'],
+      descricao_chat_api: 'Descricao provisoria.',
+      dados_brutos_web: {},
+    });
+
+    renderPage({
+      pathname: '/produtos/31/conteudo',
+      state: {
+        productIds: [31],
+        productQuery: { sort_by: 'id', sort_order: 'asc' },
+      },
+    });
+
+    expect(await screen.findByText(/Titulo provis.rio/i)).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Gostei' }));
+
+    expect(productService.registrarFeedbackConteudoGerado).not.toHaveBeenCalled();
+    expect(showSuccessToast).not.toHaveBeenCalled();
+    expect(showErrorToast).not.toHaveBeenCalled();
+  });
 });

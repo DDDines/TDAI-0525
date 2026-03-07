@@ -256,6 +256,20 @@ describe('ProdutosPage', () => {
     });
   });
 
+  test('ignora a abertura de conteudo quando o produto nao possui id valido', async () => {
+    productService.getProdutos.mockResolvedValueOnce({
+      items: [{ ...baseItems[0], id: 0 }],
+      total_items: 1,
+    });
+
+    renderPage();
+    await screen.findByText('Reservatorio de AR 20 Litros');
+
+    fireEvent.click(screen.getByTitle(/Ver conte.+do gerado/i));
+
+    expect(mockNavigate).not.toHaveBeenCalled();
+  });
+
   test('gera titulos em lote no modo basico e agenda refresh da lista', async () => {
     jest.useFakeTimers();
     renderPage();
@@ -311,6 +325,32 @@ describe('ProdutosPage', () => {
     await waitFor(() => {
       expect(productService.getProdutoById).toHaveBeenCalledWith('2558');
     });
+  });
+
+  test('interrompe o polling de enriquecimento ao desmontar a pagina apos falhas de consulta', async () => {
+    jest.useFakeTimers();
+    productService.getProdutoById.mockRejectedValue(new Error('poll indisponivel'));
+
+    const { unmount } = renderPage();
+    await screen.findByText('Reservatorio de AR 20 Litros');
+
+    fireEvent.click(screen.getAllByRole('checkbox')[1]);
+    fireEvent.click(screen.getByText('Enriquecer Web'));
+
+    await waitFor(() => {
+      expect(productService.iniciarEnriquecimentoWebProduto).toHaveBeenCalledWith(2558);
+    });
+    await waitFor(() => {
+      expect(productService.getProdutoById).toHaveBeenCalledWith('2558');
+    });
+
+    unmount();
+
+    await act(async () => {
+      jest.advanceTimersByTime(3000);
+    });
+
+    expect(productService.getProdutoById).toHaveBeenCalledTimes(1);
   });
 
   test('carrega produto por query string e abre modal de edicao', async () => {
@@ -524,6 +564,61 @@ describe('ProdutosPage', () => {
       );
     });
     expect(screen.getByTitle('Falha')).toBeInTheDocument();
+  });
+
+  test('permite trocar o tamanho da pagina e reseta a navegacao para a primeira pagina', async () => {
+    const manyItems = Array.from({ length: 10 }, (_, index) => ({
+      ...baseItems[index % baseItems.length],
+      id: index + 1,
+      nome_base: `Produto ${index + 1}`,
+      sku: `SKU-${index + 1}`,
+    }));
+
+    productService.getProdutos
+      .mockResolvedValueOnce({
+        items: manyItems,
+        total_items: 30,
+      })
+      .mockResolvedValueOnce({
+        items: manyItems.map((item) => ({ ...item, id: item.id + 10 })),
+        total_items: 30,
+      })
+      .mockResolvedValueOnce({
+        items: Array.from({ length: 25 }, (_, index) => ({
+          ...baseItems[index % baseItems.length],
+          id: index + 1,
+          nome_base: `Produto Ajustado ${index + 1}`,
+          sku: `SKU-AJUSTADO-${index + 1}`,
+        })),
+        total_items: 30,
+      });
+
+    renderPage();
+    await screen.findByText('Produto 1');
+
+    fireEvent.click(screen.getByRole('button', { name: /Pr.+xima/i }));
+
+    await waitFor(() => {
+      expect(productService.getProdutos).toHaveBeenLastCalledWith(
+        expect.objectContaining({
+          skip: 10,
+          limit: 10,
+        })
+      );
+    });
+
+    fireEvent.change(document.querySelector('.items-per-page-select'), {
+      target: { value: '25' },
+    });
+
+    await waitFor(() => {
+      expect(productService.getProdutos).toHaveBeenLastCalledWith(
+        expect.objectContaining({
+          skip: 0,
+          limit: 25,
+        })
+      );
+    });
   });
 
   test('avisa quando o polling de enriquecimento nao chega ao estado terminal', async () => {

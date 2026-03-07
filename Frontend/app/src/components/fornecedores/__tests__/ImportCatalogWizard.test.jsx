@@ -1405,5 +1405,54 @@ describe('ImportCatalogWizard', () => {
       )
     ).toBeInTheDocument();
   });
+  test('ignores empty file selections without resetting the wizard state', async () => {
+    render(
+      <ImportCatalogWizard
+        fornecedor={{ id: 1, default_column_mapping: { col_0: 'auto:sku_nome' } }}
+        onClose={() => {}}
+        isOpen
+      />
+    );
+
+    fireEvent.change(document.querySelector('input[type="file"]'), {
+      target: { files: [] },
+    });
+
+    expect(screen.queryByText(/Arquivo selecionado:/i)).not.toBeInTheDocument();
+    expect(fornecedorService.previewCatalogo).not.toHaveBeenCalled();
+  });
+
+  test('preserves the current preview when rerendered with the same reset key', async () => {
+    fornecedorService.previewCatalogo.mockResolvedValue({
+      fileId: 91,
+      headers: null,
+      sampleRows: null,
+      previewImages: [{ page: 1, image: 'data:image/png;base64,abc' }],
+      numPages: 1,
+      tablePages: [],
+    });
+
+    const { rerender } = render(
+      <ImportCatalogWizard
+        fornecedor={{ id: 1, default_column_mapping: { col_0: 'auto:sku_nome' } }}
+        onClose={() => {}}
+        isOpen
+      />
+    );
+
+    await uploadAndGeneratePreview();
+    expect(await screen.findByRole('img', { name: /1/ })).toBeInTheDocument();
+
+    rerender(
+      <ImportCatalogWizard
+        fornecedor={{ id: 1, default_column_mapping: { col_0: 'auto:sku_nome' } }}
+        onClose={() => {}}
+        isOpen
+      />
+    );
+
+    expect(screen.getByRole('img', { name: /1/ })).toBeInTheDocument();
+    expect(screen.getByText(/Passo 2:/i)).toBeInTheDocument();
+  });
 });
 

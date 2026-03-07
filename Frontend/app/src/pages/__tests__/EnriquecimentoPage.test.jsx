@@ -344,6 +344,20 @@ describe('EnriquecimentoPage', () => {
     });
   });
 
+  test('toggles the same row selection on and off', async () => {
+    render(<EnriquecimentoPage />);
+
+    await waitFor(() => {
+      expect(screen.getByTestId('produtos-renderizados')).toHaveTextContent('Produto Teste');
+    });
+
+    await userEvent.click(screen.getByText('select-first'));
+    expect(screen.getByTestId('selecionados')).toHaveTextContent('1');
+
+    await userEvent.click(screen.getByText('select-first'));
+    expect(screen.getByTestId('selecionados')).toHaveTextContent('');
+  });
+
   test('shows info fallback when a failed product has no external history details', async () => {
     productService.getProdutos.mockResolvedValueOnce({
       items: [
@@ -471,5 +485,46 @@ describe('EnriquecimentoPage', () => {
         'O enriquecimento web ainda pode estar em andamento em segundo plano. Atualizando a lista.'
       );
     });
+  }, 15000);
+
+  test('cancels the previous polling loop when a new enrichment batch starts', async () => {
+    jest.useFakeTimers();
+    productService.getProdutoById.mockResolvedValue({
+      id: 1,
+      status_enriquecimento_web: 'EM_PROGRESSO',
+    });
+
+    render(<EnriquecimentoPage />);
+
+    await waitFor(() => {
+      expect(screen.getByTestId('produtos-renderizados')).toHaveTextContent('Produto Teste');
+    });
+
+    fireEvent.click(screen.getByText('select-first'));
+    fireEvent.click(screen.getByRole('button', { name: /Enriquecer Web/i }));
+
+    await waitFor(() =>
+      expect(productService.iniciarEnriquecimentoWebProduto).toHaveBeenCalledTimes(1)
+    );
+    await waitFor(() => {
+      expect(productService.getProdutoById).toHaveBeenCalledTimes(1);
+    });
+
+    fireEvent.click(screen.getByText('select-first'));
+    fireEvent.click(screen.getByRole('button', { name: /Enriquecer Web/i }));
+
+    await waitFor(() =>
+      expect(productService.iniciarEnriquecimentoWebProduto).toHaveBeenCalledTimes(2)
+    );
+    await waitFor(() => {
+      expect(productService.getProdutoById).toHaveBeenCalledTimes(2);
+    });
+
+    await act(async () => {
+      jest.advanceTimersByTime(3000);
+      await Promise.resolve();
+    });
+
+    expect(productService.getProdutoById).toHaveBeenCalledTimes(3);
   }, 15000);
 });

@@ -42,7 +42,7 @@ function safeParse(value) {
 }
 
 function getBasicGenerationTemplates() {
-  if (typeof window === 'undefined') {
+  if (typeof window === 'undefined' || !window.localStorage) {
     return { ...DEFAULT_BASIC_GENERATION_TEMPLATES };
   }
   const parsed = safeParse(window.localStorage.getItem(STORAGE_KEY));

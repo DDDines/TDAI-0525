@@ -47,6 +47,7 @@ function normalizeDynamicAttrsToTemplateKeys(dynamicAttrsRaw, attributeTemplates
     for (const [key, value] of entries) {
       if (isEmptyLike(value)) continue;
       const keyNorm = foldText(key);
+      if (!keyNorm) continue;
       for (const alias of aliases) {
         const aliasNorm = foldText(alias);
         if (!aliasNorm) continue;

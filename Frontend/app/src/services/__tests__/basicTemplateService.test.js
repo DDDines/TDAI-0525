@@ -15,6 +15,22 @@ describe('basicTemplateService', () => {
     expect(templates).toEqual(DEFAULT_BASIC_GENERATION_TEMPLATES);
   });
 
+  test('returns defaults when localStorage is unavailable', () => {
+    const originalDescriptor = Object.getOwnPropertyDescriptor(window, 'localStorage');
+
+    Object.defineProperty(window, 'localStorage', {
+      value: undefined,
+      configurable: true,
+      writable: true,
+    });
+
+    expect(basicTemplateService.getBasicGenerationTemplates()).toEqual(
+      DEFAULT_BASIC_GENERATION_TEMPLATES
+    );
+
+    Object.defineProperty(window, 'localStorage', originalDescriptor);
+  });
+
   test('falls back to defaults when storage contains invalid or empty values', () => {
     window.localStorage.setItem(
       STORAGE_KEY,

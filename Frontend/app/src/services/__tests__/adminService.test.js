@@ -68,6 +68,15 @@ describe('adminService', () => {
     expect(apiClient.get).toHaveBeenNthCalledWith(2, '/admin/analytics/recent-activities');
   });
 
+  test('gets product status counts successfully', async () => {
+    apiClient.get.mockResolvedValueOnce({ data: [{ status: 'DONE', total: 4 }] });
+
+    await expect(adminService.getProductStatusCounts()).resolves.toEqual([
+      { status: 'DONE', total: 4 },
+    ]);
+    expect(apiClient.get).toHaveBeenCalledWith('/admin/analytics/product-status-counts');
+  });
+
   test('falls back to generic errors for status counts and recent activities without backend payloads', async () => {
     apiClient.get
       .mockRejectedValueOnce(new Error('status timeout'))

@@ -161,4 +161,55 @@ describe('ProductTable', () => {
 
     expect(onSelectAllProdutos).toHaveBeenCalledWith(false);
   });
+
+  test('renders sort indicators for SKU, status and update date columns', () => {
+    const onSort = jest.fn();
+    const { rerender } = render(
+      <ProductTable
+        produtos={produtos}
+        onEdit={() => {}}
+        onSort={onSort}
+        onSelectProduto={() => {}}
+        selectedProdutos={new Set()}
+        onSelectAllProdutos={() => {}}
+        sortConfig={{ key: 'sku', direction: 'descending' }}
+      />
+    );
+
+    expect(screen.getByText(/SKU v/)).toBeInTheDocument();
+    fireEvent.click(screen.getByText(/SKU v/));
+
+    rerender(
+      <ProductTable
+        produtos={produtos}
+        onEdit={() => {}}
+        onSort={onSort}
+        onSelectProduto={() => {}}
+        selectedProdutos={new Set()}
+        onSelectAllProdutos={() => {}}
+        sortConfig={{ key: 'status_enriquecimento_web', direction: 'ascending' }}
+      />
+    );
+
+    expect(screen.getByText(/Status \^/)).toBeInTheDocument();
+    fireEvent.click(screen.getByText(/Status \^/));
+
+    rerender(
+      <ProductTable
+        produtos={produtos}
+        onEdit={() => {}}
+        onSort={onSort}
+        onSelectProduto={() => {}}
+        selectedProdutos={new Set()}
+        onSelectAllProdutos={() => {}}
+        sortConfig={{ key: 'data_atualizacao', direction: 'descending' }}
+      />
+    );
+
+    expect(screen.getByText(/Atualizado Em v/)).toBeInTheDocument();
+    fireEvent.click(screen.getByText(/Atualizado Em v/));
+    expect(onSort).toHaveBeenNthCalledWith(1, 'sku');
+    expect(onSort).toHaveBeenNthCalledWith(2, 'status_enriquecimento_web');
+    expect(onSort).toHaveBeenNthCalledWith(3, 'data_atualizacao');
+  });
 });

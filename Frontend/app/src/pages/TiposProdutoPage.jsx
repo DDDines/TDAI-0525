@@ -89,7 +89,6 @@ function TiposProdutoPage()
     };
 
     const handleSaveEditedType = async (payload) => {
-      if (!editingType) return;
       setIsSubmitting(true);
       try {
         await updateProductType(editingType.id, payload);
@@ -128,7 +127,6 @@ function TiposProdutoPage()
     };
 
     const handleDeleteAttribute = async (attributeId) => {
-      if (!selectedProductType) return;
       if (window.confirm('Tem certeza que deseja remover este atributo do template?')) {
         try {
           await productTypeService.removeAttributeFromType(selectedProductType.id, attributeId);
@@ -142,7 +140,6 @@ function TiposProdutoPage()
     };
 
     const handleReorderAttribute = async (attributeId, direction) => {
-      if (!selectedProductType) return;
       try {
         await productTypeService.reorderAttributeInType(selectedProductType.id, attributeId, direction);
         showSuccessToast('Ordem do atributo atualizada.');

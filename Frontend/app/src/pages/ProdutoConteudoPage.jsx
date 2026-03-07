@@ -28,7 +28,6 @@ const COMPANY_TIMELINE_HINTS = [
 
 function hasCompanyTimelineClaim(text) {
   const normalized = normalizeText(text).toLowerCase();
-  if (!normalized) return false;
   if (COMPANY_TIMELINE_HINTS.some((hint) => normalized.includes(hint))) return true;
   return /(?:fundad[oa]\s+em\s+(?:19|20)\d{2}|desde\s+(?:19|20)\d{2}|iniciou\s+suas?\s+atividades)/i.test(
     normalized,
@@ -37,7 +36,6 @@ function hasCompanyTimelineClaim(text) {
 
 function sanitizeCompanyTimelineText(text) {
   const normalized = normalizeText(text);
-  if (!normalized) return '';
   const chunks = normalized.split(/(?<=[.!?])\s+|\n+/);
   const filtered = chunks
     .map((chunk) => normalizeText(chunk))
@@ -194,7 +192,15 @@ function ProdutoConteudoPage() {
       try {
         const listedIds = await fetchOrderedProductIds(queryFromState);
         if (!cancelled && listedIds.length > 0) {
-          setOrderedProductIds(listedIds);
+          setOrderedProductIds((prev) => {
+            const merged = [...listedIds];
+            prev.forEach((id) => {
+              if (!merged.includes(id)) {
+                merged.push(id);
+              }
+            });
+            return merged;
+          });
         }
       } catch {
         if (!cancelled && idsFromState.length === 0) {
@@ -268,7 +274,6 @@ function ProdutoConteudoPage() {
       : null;
 
   const navigateToProduct = (targetProductId) => {
-    if (!targetProductId) return;
     navigate(`/produtos/${targetProductId}/conteudo`, {
       state: {
         productIds: orderedProductIds,

@@ -130,4 +130,39 @@ describe('DashboardPage', () => {
       expect(showErrorToast).toHaveBeenCalledWith('Falha ao carregar dashboard');
     });
   });
+
+  test('logs additional admin data failures without breaking the dashboard shell', async () => {
+    adminService.getProductStatusCounts.mockRejectedValueOnce(new Error('status offline'));
+
+    render(
+      <MemoryRouter>
+        <DashboardPage />
+      </MemoryRouter>
+    );
+
+    expect(await screen.findByText('Total Produtos')).toBeInTheDocument();
+    await waitFor(() => {
+      expect(consoleErrorSpy).toHaveBeenCalledWith(
+        'Erro ao buscar dados adicionais do dashboard:',
+        expect.any(Error)
+      );
+    });
+  });
+
+  test('logs search failures and keeps the screen usable', async () => {
+    searchService.searchAll.mockRejectedValueOnce(new Error('busca indisponivel'));
+
+    render(
+      <MemoryRouter>
+        <DashboardPage />
+      </MemoryRouter>
+    );
+
+    expect(await screen.findByText('Total Produtos')).toBeInTheDocument();
+    await userEvent.type(screen.getByPlaceholderText(/pesquisar/i), 'erro');
+
+    await waitFor(() => {
+      expect(consoleErrorSpy).toHaveBeenCalledWith('Erro ao buscar:', expect.any(Error));
+    });
+  });
 });

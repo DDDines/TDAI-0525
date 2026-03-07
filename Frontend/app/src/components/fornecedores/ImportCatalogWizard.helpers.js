@@ -37,3 +37,45 @@ export function normalizePayloadStrings(payload) {
   if (typeof payload === 'string') return normalizeDisplayText(payload);
   return payload;
 }
+
+export function appendUniqueTimelineEntry(previousEntries, message, timestampLabel) {
+  const safeMessage = normalizeDisplayText(message);
+  const dedupeKey = safeMessage
+    .replace(/[\u200B-\u200D\uFEFF]/g, '')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .toLowerCase();
+
+  if (!dedupeKey) {
+    return {
+      appended: false,
+      dedupeKey: '',
+      entries: previousEntries,
+    };
+  }
+
+  const recentKeys = previousEntries
+    .slice(-6)
+    .map((entry) =>
+      String(entry || '')
+        .replace(/^\[[^\]]+\]\s*/, '')
+        .replace(/[\u200B-\u200D\uFEFF]/g, '')
+        .replace(/\s+/g, ' ')
+        .trim()
+        .toLowerCase()
+    );
+
+  if (recentKeys.includes(dedupeKey)) {
+    return {
+      appended: false,
+      dedupeKey,
+      entries: previousEntries,
+    };
+  }
+
+  return {
+    appended: true,
+    dedupeKey,
+    entries: [...previousEntries, `[${timestampLabel}] ${safeMessage}`].slice(-160),
+  };
+}

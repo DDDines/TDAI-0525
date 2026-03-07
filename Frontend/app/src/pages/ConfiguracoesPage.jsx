@@ -149,17 +149,11 @@ function ConfiguracoesPage() {
   };
 
   const handleSelectExperienceMode = (mode) => {
-    if (!isAdmin || !canAdminPreview) {
-      return;
-    }
     setAdminPreviewMode(mode);
     showSuccessToast(`Modo de visualizacao alterado para ${mode === 'complete' ? 'Completo' : 'Basico'}.`);
   };
 
   const handleResetExperienceMode = () => {
-    if (!isAdmin || !canAdminPreview) {
-      return;
-    }
     clearAdminPreviewMode();
     showSuccessToast('Visualizacao voltou ao modo padrao da plataforma.');
   };

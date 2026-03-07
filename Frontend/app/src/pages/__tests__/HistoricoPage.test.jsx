@@ -159,7 +159,7 @@ describe('HistoricoPage', () => {
         {
           id: 2,
           produto_id: null,
-          tipo_acao: 'acao_customizada',
+          tipo_acao: '',
           resposta_ia: '',
           tokens_prompt: null,
           tokens_resposta: null,
@@ -180,11 +180,11 @@ describe('HistoricoPage', () => {
       ],
       total_items: 1,
     });
-    usoIAService.getTiposHistorico.mockResolvedValueOnce(['acao_customizada']);
+    usoIAService.getTiposHistorico.mockResolvedValueOnce(['', 'acao_customizada']);
 
     render(<HistoricoPage />);
 
-    expect((await screen.findAllByText('Acao Customizada')).length).toBeGreaterThanOrEqual(2);
+    expect((await screen.findAllByText('N/A')).length).toBeGreaterThanOrEqual(4);
     expect(screen.getAllByText('N/A').length).toBeGreaterThanOrEqual(3);
     expect(screen.getByText(/N\/A\s+tokens/i)).toBeInTheDocument();
   });

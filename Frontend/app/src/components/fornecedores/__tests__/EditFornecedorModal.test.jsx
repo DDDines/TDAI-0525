@@ -166,6 +166,8 @@ describe('EditFornecedorModal', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Salvar alterações' }));
     expect(showErrorToast).toHaveBeenCalledWith('Erro: ID do fornecedor não encontrado.');
+    fireEvent.click(screen.getByRole('button', { name: 'Arquivos' }));
+    expect(fornecedorService.getCatalogImportFiles).not.toHaveBeenCalled();
   });
 
   test('opens import wizard and supports file actions on the files tab', async () => {
@@ -194,6 +196,9 @@ describe('EditFornecedorModal', () => {
       expect(fornecedorService.getCatalogImportFiles).toHaveBeenCalledWith({ fornecedor_id: 5 });
     });
     expect(screen.getByTestId('catalog-file-names')).toHaveTextContent('file1.csv');
+
+    fireEvent.click(screen.getByRole('button', { name: 'Adicionar arquivo' }));
+    expect(screen.getByTestId('wizard-state')).toHaveAttribute('data-open', 'true');
 
     fireEvent.click(screen.getByText('reprocess-first'));
     fireEvent.click(screen.getByText('delete-first'));
@@ -250,3 +255,4 @@ describe('EditFornecedorModal', () => {
     });
   });
 });
+

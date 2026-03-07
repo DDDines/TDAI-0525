@@ -97,6 +97,22 @@ describe('NewFornecedorModal', () => {
     });
   });
 
+  test('keeps already normalized urls unchanged', async () => {
+    const user = userEvent.setup();
+    renderModal();
+
+    await user.type(screen.getByLabelText(/Nome/i), 'Fornecedor Seguro');
+    await user.type(screen.getByLabelText(/Site URL/i), 'https://seguro.example');
+    await user.click(screen.getByRole('button', { name: /^Salvar$/i }));
+
+    await waitFor(() => {
+      expect(onSave).toHaveBeenCalledWith({
+        nome: 'Fornecedor Seguro',
+        site_url: 'https://seguro.example',
+      });
+    });
+  });
+
   test('keeps the form data when the save promise rejects', async () => {
     const user = userEvent.setup();
     onSave.mockRejectedValueOnce(new Error('falha'));

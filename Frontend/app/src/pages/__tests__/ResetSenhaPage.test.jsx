@@ -28,6 +28,15 @@ function renderPage(path) {
   );
 }
 
+function fillPasswords(password, confirmPassword = password) {
+  fireEvent.change(screen.getByLabelText(/^Nova senha \(/i), {
+    target: { value: password },
+  });
+  fireEvent.change(screen.getByLabelText(/^Confirmar nova senha$/i), {
+    target: { value: confirmPassword },
+  });
+}
+
 describe('ResetSenhaPage', () => {
   beforeEach(() => {
     jest.clearAllMocks();
@@ -36,13 +45,8 @@ describe('ResetSenhaPage', () => {
   test('blocks submission when passwords do not match', () => {
     renderPage('/resetar-senha?token=abc123');
 
-    fireEvent.change(screen.getByLabelText('Nova senha (mín. 8 caracteres)'), {
-      target: { value: '12345678' },
-    });
-    fireEvent.change(screen.getByLabelText('Confirmar nova senha'), {
-      target: { value: '87654321' },
-    });
-    fireEvent.click(screen.getByText('Alterar Senha'));
+    fillPasswords('12345678', '87654321');
+    fireEvent.click(screen.getByRole('button', { name: /Alterar Senha/i }));
 
     expect(showErrorToast).toHaveBeenCalledWith('A senha e a confirmação não coincidem.');
     expect(authService.resetPassword).not.toHaveBeenCalled();
@@ -51,13 +55,8 @@ describe('ResetSenhaPage', () => {
   test('blocks submission when the reset token is missing', () => {
     renderPage('/resetar-senha');
 
-    fireEvent.change(screen.getByLabelText('Nova senha (mín. 8 caracteres)'), {
-      target: { value: '12345678' },
-    });
-    fireEvent.change(screen.getByLabelText('Confirmar nova senha'), {
-      target: { value: '12345678' },
-    });
-    fireEvent.click(screen.getByText('Alterar Senha'));
+    fillPasswords('12345678');
+    fireEvent.click(screen.getByRole('button', { name: /Alterar Senha/i }));
 
     expect(showErrorToast).toHaveBeenCalledWith('Token inválido.');
   });
@@ -67,17 +66,36 @@ describe('ResetSenhaPage', () => {
 
     renderPage('/resetar-senha?token=abc123');
 
-    fireEvent.change(screen.getByLabelText('Nova senha (mín. 8 caracteres)'), {
-      target: { value: '12345678' },
-    });
-    fireEvent.change(screen.getByLabelText('Confirmar nova senha'), {
-      target: { value: '12345678' },
-    });
-    fireEvent.click(screen.getByText('Alterar Senha'));
+    fillPasswords('12345678');
+    fireEvent.click(screen.getByRole('button', { name: /Alterar Senha/i }));
 
     await waitFor(() => {
       expect(authService.resetPassword).toHaveBeenCalledWith('abc123', '12345678');
     });
     expect(showSuccessToast).toHaveBeenCalledWith('Senha alterada com sucesso. Faça login.');
+  });
+
+  test('shows submitting state and uses the default error fallback on unknown failures', async () => {
+    let rejectRequest;
+    authService.resetPassword.mockImplementationOnce(
+      () =>
+        new Promise((_, reject) => {
+          rejectRequest = reject;
+        })
+    );
+
+    renderPage('/resetar-senha?token=abc123');
+
+    fillPasswords('12345678');
+    fireEvent.click(screen.getByRole('button', { name: /Alterar Senha/i }));
+
+    expect(screen.getByRole('button', { name: /Salvando/i })).toBeDisabled();
+
+    rejectRequest({});
+
+    await waitFor(() => {
+      expect(showErrorToast).toHaveBeenCalledWith('Falha ao redefinir senha.');
+    });
+    expect(screen.getByRole('button', { name: /Alterar Senha/i })).toBeEnabled();
   });
 });

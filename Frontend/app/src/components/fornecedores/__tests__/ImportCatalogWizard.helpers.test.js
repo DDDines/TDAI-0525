@@ -1,4 +1,5 @@
 import {
+  appendUniqueTimelineEntry,
   formatCellValue,
   getPreviewImageSrc,
   formatElapsed,
@@ -36,6 +37,41 @@ describe('ImportCatalogWizard helpers', () => {
     ).toEqual({
       headline: 'Relatório',
       lines: ['Importação concluída', { label: 'Descrição' }],
+    });
+  });
+
+  test('appends timeline entries only when the normalized message is unique and meaningful', () => {
+    expect(appendUniqueTimelineEntry([], '', '10:00:00')).toEqual({
+      appended: false,
+      dedupeKey: '',
+      entries: [],
+    });
+
+    expect(
+      appendUniqueTimelineEntry(
+        ['[10:00:00] Preview gerado com sucesso.'],
+        '  Preview gerado com sucesso.  ',
+        '10:00:01'
+      )
+    ).toEqual({
+      appended: false,
+      dedupeKey: 'preview gerado com sucesso.',
+      entries: ['[10:00:00] Preview gerado com sucesso.'],
+    });
+
+    expect(
+      appendUniqueTimelineEntry(
+        ['[10:00:00] Preview gerado com sucesso.'],
+        'Processamento iniciado',
+        '10:00:02'
+      )
+    ).toEqual({
+      appended: true,
+      dedupeKey: 'processamento iniciado',
+      entries: [
+        '[10:00:00] Preview gerado com sucesso.',
+        '[10:00:02] Processamento iniciado',
+      ],
     });
   });
 });

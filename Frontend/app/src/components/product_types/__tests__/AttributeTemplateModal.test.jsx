@@ -64,6 +64,20 @@ describe('AttributeTemplateModal', () => {
     expect(onSave).not.toHaveBeenCalled();
   });
 
+  test('rejects malformed select options JSON', async () => {
+    const user = userEvent.setup();
+    renderModal();
+
+    await user.type(screen.getByLabelText(/R.tulo/i), 'Cor');
+    await user.type(screen.getByLabelText(/Chave do Atributo/i), 'cor');
+    await user.selectOptions(screen.getByLabelText(/Tipo do Campo/i), 'SELECT');
+    fireEvent.change(screen.getByLabelText(/Op..es/i), { target: { value: '["Preto"' } });
+    await user.click(screen.getByRole('button', { name: /Salvar Atributo/i }));
+
+    expect(showErrorToast.mock.calls.at(-1)[0]).toMatch(/formato das op/i);
+    expect(onSave).not.toHaveBeenCalled();
+  });
+
   test('normalizes field type to lowercase and keeps JSON options for select', async () => {
     const user = userEvent.setup();
     renderModal();

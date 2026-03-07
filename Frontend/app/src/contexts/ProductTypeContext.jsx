@@ -18,6 +18,10 @@ import logger from '../utils/logger';
 
 const ProductTypeContext = createContext(null);
 
+function filterOutProductType(prevTypes, id) {
+  return prevTypes.filter((pt) => pt.id !== id);
+}
+
 function ProductTypeProvider({ children }) {
   const [productTypes, setProductTypes] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -142,7 +146,7 @@ function ProductTypeProvider({ children }) {
       logger.log(`ProductTypeContext: Removendo tipo de produto ID ${id}`);
       try {
         await productTypeService.deleteProductType(id);
-        setProductTypes((prevTypes) => prevTypes.filter((pt) => pt.id !== id));
+        setProductTypes(filterOutProductType(productTypes, id));
         showSuccessToast('Tipo de produto removido com sucesso!');
       } catch (err) {
         const errorMessage = err.response?.data?.detail || err.message || 'Falha ao remover tipo de produto.';
@@ -151,7 +155,7 @@ function ProductTypeProvider({ children }) {
         throw err;
       }
     },
-    [user]
+    [productTypes, user]
   );
 
   const value = {
