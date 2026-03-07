@@ -553,14 +553,12 @@ function ProdutosPage()
             onClose={handleCloseModal}
             product={produtoParaEditar}
             showAiFeatures={showAiFeatures}
-            onOpenContentView={(produtoId) =>
-              navigate(`/produtos/${produtoId}/conteudo`, {
-                state: {
-                  productIds: produtos.map((item) => item.id),
-                  productQuery: buildProductNavigationQuery(),
-                },
-              })
-            }
+            onOpenContentView={(produtoId) => {
+              if (!produtoId) {
+                return;
+              }
+              handleOpenContentView({ id: produtoId });
+            }}
             onProductUpdated={handleProductUpdated} />
 
         </Modal>

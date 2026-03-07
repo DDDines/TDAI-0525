@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import '@testing-library/jest-dom';
 import userEvent from '@testing-library/user-event';
 import ImportCatalogWizard from '../ImportCatalogWizard.jsx';
@@ -91,6 +91,7 @@ describe('ImportCatalogWizard', () => {
   afterEach(() => {
     consoleErrorSpy.mockRestore();
     consoleWarnSpy.mockRestore();
+    jest.useRealTimers();
   });
 
   const createPdfFile = () => {
@@ -365,6 +366,180 @@ describe('ImportCatalogWizard', () => {
     expect(await screen.findByText('Falha remota no preview')).toBeInTheDocument();
   });
 
+  test('shows unsupported preview warning when backend returns no headers and no images', async () => {
+    fornecedorService.previewCatalogo.mockResolvedValue({
+      fileId: 77,
+      headers: null,
+      sampleRows: null,
+      previewImages: [],
+      numPages: 1,
+      tablePages: [],
+    });
+
+    render(
+      <ImportCatalogWizard
+        fornecedor={{ id: 1, default_column_mapping: {} }}
+        onClose={() => {}}
+        isOpen
+      />
+    );
+
+    await uploadAndGeneratePreview();
+
+    expect(
+      await screen.findByText('Nenhum preview disponível. Verifique se o arquivo é suportado.')
+    ).toBeInTheDocument();
+  });
+
+  test('opens manual mapping with fallback headers when there are no extracted rows', async () => {
+    fornecedorService.previewCatalogo.mockResolvedValue({
+      fileId: 79,
+      headers: null,
+      sampleRows: null,
+      previewImages: [{ page: 1, image: 'data:image/png;base64,abc' }],
+      numPages: 1,
+      tablePages: [],
+    });
+
+    render(
+      <ImportCatalogWizard
+        fornecedor={{ id: 1, default_column_mapping: {} }}
+        onClose={() => {}}
+        isOpen
+      />
+    );
+
+    await uploadAndGeneratePreview();
+    await screen.findByRole('img', { name: /1/ });
+
+    await userEvent.click(screen.getByRole('button', { name: /Mapear manualmente/i }));
+
+    expect(await screen.findByText('Mapear Colunas')).toBeInTheDocument();
+    expect(screen.getByRole('combobox', { name: /Campo para coluna col_0/i })).toBeInTheDocument();
+  });
+
+  test('normalizes raw preview image strings and respects preview page inputs', async () => {
+    fornecedorService.previewCatalogo.mockResolvedValue({
+      fileId: 78,
+      headers: null,
+      sampleRows: null,
+      previewImages: ['raw-base64-image'],
+      numPages: 3,
+      tablePages: [3],
+    });
+
+    render(
+      <ImportCatalogWizard
+        fornecedor={{ id: 9, default_column_mapping: {} }}
+        onClose={() => {}}
+        isOpen
+      />
+    );
+
+    const fileInput = document.querySelector('input[type="file"]');
+    const file = createPdfFile();
+    await userEvent.upload(fileInput, file);
+    fireEvent.change(screen.getByLabelText(/Página inicial/i), { target: { value: '3' } });
+    fireEvent.change(screen.getByLabelText(/Quantidade de páginas/i), { target: { value: '1' } });
+    await userEvent.click(screen.getByText('Gerar Preview'));
+
+    const image = await screen.findByRole('img', { name: /3/ });
+    expect(image).toHaveAttribute('src', 'data:image/png;base64,raw-base64-image');
+    expect(fornecedorService.previewCatalogo).toHaveBeenCalledWith(expect.any(File), 1, 3, 9);
+  });
+
+  test('serializes object detail when preview request fails with structured payload', async () => {
+    fornecedorService.previewCatalogo.mockRejectedValue({
+      detail: { reason: 'layout_invalido', page: 4 },
+    });
+
+    render(
+      <ImportCatalogWizard
+        fornecedor={{ id: 1, default_column_mapping: {} }}
+        onClose={() => {}}
+        isOpen
+      />
+    );
+
+    await uploadAndGeneratePreview();
+
+    expect(
+      await screen.findByText('{"reason":"layout_invalido","page":4}')
+    ).toBeInTheDocument();
+  });
+
+  test('keeps the product type selector usable when loading types fails', async () => {
+    productTypeService.getProductTypes.mockRejectedValueOnce(new Error('falha tipos'));
+    fornecedorService.previewCatalogo.mockResolvedValue({
+      fileId: 80,
+      headers: null,
+      sampleRows: null,
+      previewImages: [{ page: 1, image: 'data:image/png;base64,abc' }],
+      numPages: 1,
+      tablePages: [],
+    });
+
+    render(
+      <ImportCatalogWizard
+        fornecedor={{ id: 1, default_column_mapping: {} }}
+        onClose={() => {}}
+        isOpen
+      />
+    );
+
+    await uploadAndGeneratePreview();
+    await screen.findByRole('img', { name: /1/ });
+
+    const productTypeSelect = screen.getByRole('combobox', { name: /tipo de produto/i });
+    expect(productTypeSelect).toBeInTheDocument();
+    expect(screen.getAllByRole('option', { name: /Selecione/i })).toHaveLength(1);
+    expect(consoleErrorSpy).toHaveBeenCalledWith(
+      'Erro ao carregar tipos de produto:',
+      expect.any(Error)
+    );
+  });
+
+  test('resets the wizard state when closing and reopening the modal', async () => {
+    fornecedorService.previewCatalogo.mockResolvedValue({
+      fileId: 81,
+      headers: null,
+      sampleRows: null,
+      previewImages: [{ page: 1, image: 'data:image/png;base64,abc' }],
+      numPages: 1,
+      tablePages: [],
+    });
+
+    const { rerender } = render(
+      <ImportCatalogWizard
+        fornecedor={{ id: 1, default_column_mapping: {} }}
+        onClose={() => {}}
+        isOpen
+      />
+    );
+
+    await uploadAndGeneratePreview();
+    expect(await screen.findByRole('img', { name: /1/ })).toBeInTheDocument();
+
+    rerender(
+      <ImportCatalogWizard
+        fornecedor={{ id: 1, default_column_mapping: {} }}
+        onClose={() => {}}
+        isOpen={false}
+      />
+    );
+
+    rerender(
+      <ImportCatalogWizard
+        fornecedor={{ id: 1, default_column_mapping: {} }}
+        onClose={() => {}}
+        isOpen
+      />
+    );
+
+    expect(screen.getByText('Passo 1: Enviar catálogo')).toBeInTheDocument();
+    expect(screen.queryByRole('img', { name: /1/ })).not.toBeInTheDocument();
+  });
+
   test('keeps manual mapping even when saving supplier mapping fails', async () => {
     productTypeService.getProductTypes.mockResolvedValue({
       items: [{ id: 4, friendly_name: 'Automotivo' }],
@@ -409,6 +584,47 @@ describe('ImportCatalogWizard', () => {
       });
     });
     expect(startButton).toBeEnabled();
+  });
+
+  test('saves supplier mapping successfully when mapping confirmation succeeds', async () => {
+    productTypeService.getProductTypes.mockResolvedValue({
+      items: [{ id: 4, friendly_name: 'Automotivo' }],
+    });
+    fornecedorService.previewCatalogo.mockResolvedValue({
+      fileId: 82,
+      headers: ['titulo_bruto'],
+      sampleRows: [{ titulo_bruto: 'Compressor de ar' }],
+      previewImages: [{ page: 1, image: 'data:image/png;base64,abc' }],
+      numPages: 1,
+      tablePages: [1],
+    });
+    fornecedorService.setFornecedorMapping.mockResolvedValue({ ok: true });
+
+    render(
+      <ImportCatalogWizard
+        fornecedor={{ id: 1, default_column_mapping: {} }}
+        onClose={() => {}}
+        isOpen
+      />
+    );
+
+    await uploadAndGeneratePreview();
+    await screen.findByText(/Pr[ée]via das colunas detectadas/i);
+
+    await userEvent.click(screen.getByRole('button', { name: /Definir mapeamento/i }));
+    await screen.findByText('Mapear Colunas');
+    await userEvent.selectOptions(
+      screen.getByRole('combobox', { name: /Campo para coluna titulo_bruto/i }),
+      'auto:sku_nome'
+    );
+    await userEvent.click(screen.getByRole('button', { name: /Confirmar mapeamento/i }));
+
+    await waitFor(() => {
+      expect(fornecedorService.setFornecedorMapping).toHaveBeenCalledWith(1, {
+        titulo_bruto: 'auto:sku_nome',
+      });
+    });
+    expect(screen.queryByText('Mapear Colunas')).not.toBeInTheDocument();
   });
 
   test('extracts a selected region from a chosen preview page and opens mapping modal', async () => {
@@ -658,4 +874,60 @@ describe('ImportCatalogWizard', () => {
     );
     expect(fornecedorService.getImportacaoResult).toHaveBeenCalledTimes(2);
   }, 15000);
+
+  test('shows a timeout message when the final result never becomes ready', async () => {
+    jest.useFakeTimers();
+    const localUser = userEvent.setup({ advanceTimers: jest.advanceTimersByTime });
+
+    productTypeService.getProductTypes.mockResolvedValue({
+      items: [{ id: 4, friendly_name: 'Automotivo' }],
+    });
+    fornecedorService.previewCatalogo.mockResolvedValue({
+      fileId: 188,
+      headers: null,
+      sampleRows: null,
+      previewImages: [{ page: 1, image: 'data:image/png;base64,abc' }],
+      numPages: 1,
+      tablePages: [1],
+    });
+    fornecedorService.finalizarImportacaoCatalogo.mockResolvedValue({
+      status: 'PROCESSING',
+      file_id: 188,
+    });
+    fornecedorService.getImportacaoStatus.mockResolvedValue({
+      status: 'DONE',
+      result_ready: false,
+      pages_processed: 1,
+      total_pages: 1,
+    });
+    fornecedorService.getImportacaoResult.mockResolvedValue({
+      ready: false,
+    });
+
+    render(
+      <ImportCatalogWizard
+        fornecedor={{ id: 1, default_column_mapping: { col_0: 'auto:sku_nome' } }}
+        onClose={() => {}}
+        isOpen
+      />
+    );
+
+    const fileInput = document.querySelector('input[type="file"]');
+    const file = createPdfFile();
+    await localUser.upload(fileInput, file);
+    await localUser.click(screen.getByText('Gerar Preview'));
+    await screen.findByRole('img', { name: /1/ });
+    await localUser.selectOptions(screen.getByRole('combobox', { name: /tipo de produto/i }), '4');
+    await localUser.click(screen.getByRole('button', { name: /Iniciar Processamento/i }));
+
+    for (let step = 0; step < 30; step += 1) {
+      await jest.advanceTimersByTimeAsync(2000);
+    }
+
+    expect(
+      await screen.findByText(
+        'Processamento concluído, mas o resultado final ainda não ficou disponível. Tente atualizar em instantes.'
+      )
+    ).toBeInTheDocument();
+  }, 20000);
 });

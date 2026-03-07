@@ -46,7 +46,7 @@ jest.mock('../../components/common/Modal', () => ({
 
 jest.mock('../../components/ProductEditModal', () => ({
   __esModule: true,
-  default: ({ product, showAiFeatures, onClose, onOpenContentView }) => (
+  default: ({ product, showAiFeatures, onClose, onOpenContentView, onProductUpdated }) => (
     <div
       data-testid="product-edit-modal"
       data-product-id={String(product?.id ?? 'new')}
@@ -54,6 +54,21 @@ jest.mock('../../components/ProductEditModal', () => ({
     >
       <button type="button" onClick={() => onOpenContentView?.(product?.id ?? 999)}>
         open-content-from-modal
+      </button>
+      <button type="button" onClick={() => onOpenContentView?.()}>
+        open-content-without-id
+      </button>
+      <button
+        type="button"
+        onClick={() =>
+          onProductUpdated?.({
+            ...(product || {}),
+            id: product?.id ?? 2558,
+            nome_base: 'Produto Atualizado via Modal',
+          })
+        }
+      >
+        simulate-update-product
       </button>
       <button type="button" onClick={() => onClose?.()}>
         close-product-edit-modal
@@ -119,9 +134,12 @@ function renderPage(initialEntries = ['/produtos']) {
 }
 
 describe('ProdutosPage', () => {
+  let consoleErrorSpy;
+
   beforeEach(() => {
     jest.clearAllMocks();
     jest.useRealTimers();
+    consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
     mockEffectiveMode = 'basic';
     mockProductTypesState = {
       productTypes: [],
@@ -140,6 +158,10 @@ describe('ProdutosPage', () => {
     productService.iniciarEnriquecimentoWebProduto.mockResolvedValue({ ok: true });
     productService.getProdutoById.mockResolvedValue(baseItems[0]);
     window.confirm = jest.fn(() => true);
+  });
+
+  afterEach(() => {
+    consoleErrorSpy.mockRestore();
   });
 
   test('mantem chips de status de titulo e descricao visiveis mesmo no modo basico', async () => {
@@ -200,6 +222,18 @@ describe('ProdutosPage', () => {
           search: 'pressao',
           sort_by: 'nome_base',
           sort_order: 'asc',
+        })
+      );
+    });
+
+    fireEvent.click(screen.getByText(/Nome Base/));
+
+    await waitFor(() => {
+      expect(productService.getProdutos).toHaveBeenLastCalledWith(
+        expect.objectContaining({
+          search: 'pressao',
+          sort_by: 'nome_base',
+          sort_order: 'desc',
         })
       );
     });
@@ -318,10 +352,24 @@ describe('ProdutosPage', () => {
       },
     });
 
+    fireEvent.click(screen.getByText('open-content-without-id'));
+    expect(mockNavigate).toHaveBeenCalledTimes(1);
+
     fireEvent.click(screen.getByText('close-product-edit-modal'));
     await waitFor(() => {
       expect(screen.queryByTestId('product-edit-modal')).not.toBeInTheDocument();
     });
+  });
+
+  test('aplica update vindo do modal e atualiza a lista local', async () => {
+    renderPage(['/produtos?id=2558']);
+
+    expect(await screen.findByTestId('product-edit-modal')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByText('simulate-update-product'));
+
+    expect(await screen.findByText('Produto Atualizado via Modal')).toBeInTheDocument();
+    expect(screen.queryByText('Reservatorio de AR 20 Litros')).not.toBeInTheDocument();
   });
 
   test('respeita cancelamento e mostra erro ao falhar deletar em lote', async () => {
@@ -442,8 +490,72 @@ describe('ProdutosPage', () => {
     });
   });
 
+  test('permite selecionar tudo, desmarcar um item e limpar a selecao em lote', async () => {
+    renderPage();
+    await screen.findByText('Reservatorio de AR 20 Litros');
+
+    const [selectAllCheckbox, firstRowCheckbox] = screen.getAllByRole('checkbox');
+
+    fireEvent.click(selectAllCheckbox);
+    expect(screen.getByText('2 produto(s) selecionado(s)')).toBeInTheDocument();
+
+    fireEvent.click(firstRowCheckbox);
+    expect(screen.getByText('1 produto(s) selecionado(s)')).toBeInTheDocument();
+
+    fireEvent.click(selectAllCheckbox);
+    expect(screen.getByText('2 produto(s) selecionado(s)')).toBeInTheDocument();
+
+    fireEvent.click(selectAllCheckbox);
+    expect(screen.queryByText(/produto\(s\) selecionado\(s\)/i)).not.toBeInTheDocument();
+  });
+
+  test('marca falha quando a geracao de conteudo retorna erro', async () => {
+    productService.gerarDescricaoProdutoModoBasico.mockRejectedValueOnce(new Error('modelo basico indisponivel'));
+
+    renderPage();
+    await screen.findByText('Reservatorio de AR 20 Litros');
+
+    fireEvent.click(screen.getAllByRole('checkbox')[1]);
+    fireEvent.click(screen.getByText('Gerar Descrições'));
+
+    await waitFor(() => {
+      expect(showErrorToast).toHaveBeenCalledWith(
+        'Erro ao gerar descricao para produto ID 2558: modelo basico indisponivel'
+      );
+    });
+    expect(screen.getByTitle('Falha')).toBeInTheDocument();
+  });
+
+  test('avisa quando o polling de enriquecimento nao chega ao estado terminal', async () => {
+    jest.useFakeTimers();
+    productService.getProdutoById.mockResolvedValue({
+      ...baseItems[0],
+      status_enriquecimento_web: 'EM_PROGRESSO',
+    });
+
+    renderPage();
+    await screen.findByText('Reservatorio de AR 20 Litros');
+
+    fireEvent.click(screen.getAllByRole('checkbox')[1]);
+    fireEvent.click(screen.getByText('Enriquecer Web'));
+
+    await waitFor(() => {
+      expect(productService.iniciarEnriquecimentoWebProduto).toHaveBeenCalledWith(2558);
+    });
+
+    for (let step = 0; step < 120; step += 1) {
+      // The polling loop schedules the next iteration via timeout on each pass.
+      await jest.advanceTimersByTimeAsync(3000);
+    }
+
+    await waitFor(() => {
+      expect(showInfoToast).toHaveBeenCalledWith(
+        'O enriquecimento web ainda pode estar em andamento em segundo plano. Atualizando a lista.'
+      );
+    });
+  });
+
   test('mostra warning quando o contexto de tipos reporta erro', async () => {
-    const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
     mockProductTypesState = {
       productTypes: [],
       isLoading: false,
@@ -457,6 +569,5 @@ describe('ProdutosPage', () => {
       'ProdutosPage: erro recebido do ProductTypeContext:',
       expect.any(Error)
     );
-    consoleErrorSpy.mockRestore();
   });
 });

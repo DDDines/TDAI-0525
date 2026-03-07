@@ -689,6 +689,33 @@ describe('ProductEditModal', () => {
     });
   }, 15000);
 
+  test('warns when web enrichment finishes with a non-success terminal status', async () => {
+    productService.getProdutoById
+      .mockResolvedValueOnce(baseProduct)
+      .mockResolvedValueOnce({
+        ...baseProduct,
+        status_enriquecimento_web: 'FALHA',
+      });
+
+    renderModal({ product: { id: 10 } });
+
+    await screen.findByLabelText(/Nome Base/i);
+    await user.click(screen.getByRole('button', { name: /Conte/i }));
+    await user.click(screen.getByRole('button', { name: /Enriquecer Web/i }));
+
+    await waitFor(() => {
+      expect(productService.iniciarEnriquecimentoWebProduto).toHaveBeenCalledWith(10);
+    });
+
+    await flushAsync();
+
+    await waitFor(() => {
+      expect(showWarningToast).toHaveBeenCalledWith(
+        'Enriquecimento finalizado com status FALHA.'
+      );
+    });
+  });
+
   test('clears pending title and description refreshes when the modal closes', async () => {
     const { rerender } = render(
       <ProductEditModal
@@ -734,6 +761,8 @@ describe('ProductEditModal', () => {
   });
 
   test('fetchGeminiSuggestions does not crash when API returns empty object', async () => {
+    productService.getAtributoSuggestions.mockResolvedValueOnce({});
+
     render(
       <ProductEditModal
         isOpen={true}
@@ -754,6 +783,9 @@ describe('ProductEditModal', () => {
     await waitFor(() => {
       expect(button).not.toBeDisabled();
     });
+    expect(showInfoToast).toHaveBeenCalledWith(
+      'Nenhuma sugestão de atributo específica retornada pela IA (Gemini).'
+    );
   });
 
   test('loads Gemini suggestions, warns when none are selected and applies selected values', async () => {

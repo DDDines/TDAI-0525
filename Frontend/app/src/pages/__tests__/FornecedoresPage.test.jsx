@@ -98,13 +98,23 @@ const fornecedoresPayload = {
 };
 
 describe('FornecedoresPage', () => {
+  let consoleErrorSpy;
+  let consoleWarnSpy;
+
   beforeEach(() => {
     jest.clearAllMocks();
+    consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+    consoleWarnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {});
     fornecedorService.getFornecedores.mockResolvedValue(fornecedoresPayload);
     fornecedorService.createFornecedor.mockResolvedValue({ id: 3 });
     fornecedorService.updateFornecedor.mockResolvedValue({ id: 1 });
     fornecedorService.deleteFornecedor.mockResolvedValue({ ok: true });
     window.confirm = jest.fn(() => true);
+  });
+
+  afterEach(() => {
+    consoleErrorSpy.mockRestore();
+    consoleWarnSpy.mockRestore();
   });
 
   test('loads suppliers, shows the total and refetches when search changes', async () => {
@@ -383,5 +393,58 @@ describe('FornecedoresPage', () => {
     });
     expect(screen.getByText('0')).toBeInTheDocument();
     expect(screen.getByTestId('fornecedor-table-names')).toHaveTextContent('');
+  });
+
+  test('retorna para a pagina anterior quando a ultima pagina fica vazia apos delecao', async () => {
+    fornecedorService.getFornecedores.mockImplementation(({ skip }) =>
+      Promise.resolve(
+        skip === 10
+          ? {
+              items: [
+                {
+                  id: 11,
+                  nome: 'Fornecedor Z',
+                  site_url: 'https://z.example',
+                  created_at: '2026-03-07',
+                },
+              ],
+              total_items: 11,
+            }
+          : {
+              items: fornecedoresPayload.items,
+              total_items: 11,
+            }
+      )
+    );
+
+    render(<FornecedoresPage />);
+
+    fireEvent.click(await screen.findByText('next-page'));
+
+    await waitFor(() => {
+      expect(fornecedorService.getFornecedores).toHaveBeenLastCalledWith({
+        skip: 10,
+        limit: 10,
+        termo_busca: undefined,
+      });
+    });
+    expect(screen.getByTestId('fornecedor-table-names')).toHaveTextContent('Fornecedor Z');
+
+    fireEvent.click(screen.getByText('toggle-first'));
+    fireEvent.click(screen.getByText('Deletar Selecionado(s)'));
+
+    await waitFor(() => {
+      expect(fornecedorService.deleteFornecedor).toHaveBeenCalledWith(11);
+    });
+    await waitFor(() => {
+      expect(fornecedorService.getFornecedores).toHaveBeenLastCalledWith({
+        skip: 0,
+        limit: 10,
+        termo_busca: undefined,
+      });
+    });
+    expect(screen.getByTestId('fornecedor-table-names')).toHaveTextContent(
+      'Fornecedor A,Fornecedor B'
+    );
   });
 });
