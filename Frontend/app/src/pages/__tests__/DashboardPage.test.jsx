@@ -131,6 +131,34 @@ describe('DashboardPage', () => {
     });
   });
 
+  test('prefers error detail and default fallback messages when dashboard bootstrap fails', async () => {
+    authService.getCurrentUser.mockRejectedValueOnce({ detail: 'detalhe do backend' });
+
+    const { unmount } = render(
+      <MemoryRouter>
+        <DashboardPage />
+      </MemoryRouter>
+    );
+
+    await waitFor(() => {
+      expect(showErrorToast).toHaveBeenCalledWith('detalhe do backend');
+    });
+
+    unmount();
+    jest.clearAllMocks();
+    authService.getCurrentUser.mockRejectedValueOnce({});
+
+    render(
+      <MemoryRouter>
+        <DashboardPage />
+      </MemoryRouter>
+    );
+
+    await waitFor(() => {
+      expect(showErrorToast).toHaveBeenCalledWith('Falha ao carregar dados do dashboard.');
+    });
+  });
+
   test('logs additional admin data failures without breaking the dashboard shell', async () => {
     adminService.getProductStatusCounts.mockRejectedValueOnce(new Error('status offline'));
 
@@ -164,5 +192,33 @@ describe('DashboardPage', () => {
     await waitFor(() => {
       expect(consoleErrorSpy).toHaveBeenCalledWith('Erro ao buscar:', expect.any(Error));
     });
+  });
+
+  test('renders zero fallbacks and empty-search feedback when admin metrics are sparse', async () => {
+    adminService.getTotalCounts.mockResolvedValueOnce({
+      total_produtos: null,
+      total_fornecedores: undefined,
+      total_usuarios: undefined,
+      total_geracoes_ia_mes: null,
+      total_enriquecimentos_mes: undefined,
+    });
+    searchService.searchAll.mockResolvedValueOnce({}).mockResolvedValueOnce({});
+
+    render(
+      <MemoryRouter>
+        <DashboardPage />
+      </MemoryRouter>
+    );
+
+    expect(await screen.findByText('Total Produtos')).toBeInTheDocument();
+    expect(screen.getAllByText('0').length).toBeGreaterThan(0);
+    expect(screen.getByText('Usuários: 0')).toBeInTheDocument();
+    expect(screen.getByText('Gerações IA (mês): 0')).toBeInTheDocument();
+    expect(screen.getByText('Enriquecimentos (mês): 0')).toBeInTheDocument();
+
+    const searchInput = screen.getByPlaceholderText(/pesquisar/i);
+    await userEvent.type(searchInput, 'sem resultado');
+
+    expect(await screen.findByText(/Nenhum resultado encontrado/i)).toBeInTheDocument();
   });
 });

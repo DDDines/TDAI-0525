@@ -47,7 +47,7 @@ function Sidebar(
     return (
       <aside className={`sidebar ${isOpen ? 'open' : 'closed'}`}>
       <div className="sidebar-header">
-        {LogoImg ? <img src={LogoImg} alt="CatalogAI logo" className="sidebar-logo" /> : null}
+        <img src={LogoImg} alt="CatalogAI logo" className="sidebar-logo" />
         {isOpen && <h1 className="sidebar-title">CatalogAI</h1>}
         {isOpen &&
         <span className={`sidebar-mode-chip ${isCompleteMode ? 'complete' : 'basic'}`}>

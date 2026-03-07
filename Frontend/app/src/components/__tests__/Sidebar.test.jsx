@@ -30,6 +30,7 @@ describe('Sidebar', () => {
       </MemoryRouter>
     );
 
+    expect(screen.getByAltText(/CatalogAI logo/i)).toBeInTheDocument();
     expect(screen.getByText('CatalogAI')).toBeInTheDocument();
     expect(screen.getByText('Modo Completo')).toBeInTheDocument();
     expect(screen.getByText('Produtos').closest('a')).toHaveClass('active');
@@ -47,9 +48,22 @@ describe('Sidebar', () => {
       </MemoryRouter>
     );
 
+    expect(screen.getByAltText(/CatalogAI logo/i)).toBeInTheDocument();
     expect(screen.queryByText('CatalogAI')).not.toBeInTheDocument();
     expect(screen.queryByText('Dashboard')).not.toBeInTheDocument();
     expect(screen.queryByText('Modo Básico')).not.toBeInTheDocument();
     expect(screen.getByTitle('Dashboard')).toBeInTheDocument();
+  });
+
+  test('renders the basic-mode badge when the sidebar is open in basic experience mode', () => {
+    useAppExperience.mockReturnValueOnce({ effectiveMode: 'basic' });
+
+    render(
+      <MemoryRouter initialEntries={['/dashboard']}>
+        <Sidebar isOpen={true} />
+      </MemoryRouter>
+    );
+
+    expect(screen.getByText('Modo Básico')).toBeInTheDocument();
   });
 });

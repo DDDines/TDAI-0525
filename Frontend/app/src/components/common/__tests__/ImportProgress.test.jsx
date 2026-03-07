@@ -83,7 +83,7 @@ describe('common ImportProgress', () => {
     }
 
     expect(
-      await screen.findByText(/resultado final ainda n[ãa]o foi consolidado/i),
+      await screen.findByText(/resultado final ainda n[ãa]o foi consolidado/i)
     ).toBeInTheDocument();
     expect(onDone).toHaveBeenCalledWith(null);
     expect(fornecedorService.getImportacaoResult).not.toHaveBeenCalled();
@@ -115,6 +115,18 @@ describe('common ImportProgress', () => {
     await act(async () => {
       await Promise.resolve();
     });
+  });
+
+  test('falls back to sparse payload defaults while still rendering progress', async () => {
+    fornecedorService.getImportacaoStatus.mockResolvedValueOnce({
+      status: null,
+      pages_total: 7,
+    });
+
+    render(<ImportProgress fileId={97} />);
+
+    expect(await screen.findByText(/Processando 0 de 7 páginas/i)).toBeInTheDocument();
+    expect(fornecedorService.getImportacaoResult).not.toHaveBeenCalled();
   });
 
   test('keeps polling when the final result is not ready yet and then resolves', async () => {
@@ -182,6 +194,34 @@ describe('common ImportProgress', () => {
     });
   });
 
+  test('supports timeout and polling error flows without an onDone callback', async () => {
+    fornecedorService.getImportacaoStatus.mockResolvedValue({
+      status: 'DONE',
+      pages_processed: 1,
+      total_pages: 1,
+      result_ready: true,
+    });
+    fornecedorService.getImportacaoResult.mockResolvedValue({ ready: false });
+
+    const { unmount } = render(<ImportProgress fileId={98} />);
+
+    for (let index = 0; index < 19; index += 1) {
+      await act(async () => {
+        await jest.runOnlyPendingTimersAsync();
+      });
+    }
+
+    expect(
+      await screen.findByText(/Resultado final ainda pendente após o tempo limite de espera/i)
+    ).toBeInTheDocument();
+
+    unmount();
+    fornecedorService.getImportacaoStatus.mockRejectedValueOnce({});
+    render(<ImportProgress fileId={99} />);
+
+    expect(await screen.findByText('Erro ao consultar status')).toBeInTheDocument();
+  });
+
   test('ignores stale status responses after the component unmounts', async () => {
     const pendingStatus = createDeferred();
     fornecedorService.getImportacaoStatus.mockImplementationOnce(() => pendingStatus.promise);
@@ -192,7 +232,12 @@ describe('common ImportProgress', () => {
     unmount();
 
     await act(async () => {
-      pendingStatus.resolve({ status: 'DONE', pages_processed: 1, total_pages: 1, result_ready: true });
+      pendingStatus.resolve({
+        status: 'DONE',
+        pages_processed: 1,
+        total_pages: 1,
+        result_ready: true,
+      });
       await Promise.resolve();
     });
 

@@ -1,40 +1,39 @@
 import { render, screen } from '@testing-library/react';
 import '@testing-library/jest-dom';
-import { TextEncoder, TextDecoder } from 'util';class _TopLevelFunctionSurface {static renderWithTheme() {return (
+import userEvent from '@testing-library/user-event';
+import ThemeToggle from '../../ThemeToggle.jsx';
+import { useTheme } from '../../../contexts/ThemeContext.jsx';
 
+jest.mock('../../../contexts/ThemeContext.jsx', () => ({
+  useTheme: jest.fn(),
+}));
 
+describe('ThemeToggle', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+  });
 
+  test('renders the dark-mode transition affordance and toggles the theme', async () => {
+    const toggleTheme = jest.fn();
+    useTheme.mockReturnValue({ mode: 'dark', toggleTheme });
 
+    render(<ThemeToggle className="theme-button" />);
 
+    const button = screen.getByRole('button', { name: /ir para claro/i });
+    expect(button).toHaveClass('theme-button');
+    expect(screen.getByText(/Tema atual: escuro/i)).toBeInTheDocument();
+    expect(screen.getByRole('img', { hidden: true })).toBeInTheDocument();
 
+    await userEvent.click(button);
+    expect(toggleTheme).toHaveBeenCalled();
+  });
 
+  test('renders the light-mode transition affordance', () => {
+    useTheme.mockReturnValue({ mode: 'light', toggleTheme: jest.fn() });
 
+    render(<ThemeToggle />);
 
-
-
-
-
-
-
-      render(
-        <ThemeProvider>
-      <Topbar toggleSidebar={() => {}} />
-    </ThemeProvider>
-      ));}}globalThis.TextEncoder = TextEncoder;globalThis.TextDecoder = TextDecoder;import userEvent from '@testing-library/user-event';import Topbar from '../../Topbar.jsx';import { ThemeProvider } from '../../../contexts/ThemeContext.jsx';jest.mock('../../../contexts/AuthContext.jsx', () => ({ useAuth: () => ({ logout: jest.fn() }) }));jest.mock('react-router-dom', () => ({ useNavigate: () => jest.fn() }));const renderWithTheme = _TopLevelFunctionSurface.renderWithTheme;
-
-test('applies theme from localStorage on mount', () => {
-  localStorage.setItem('theme', 'dark');
-  renderWithTheme();
-  expect(document.body).toHaveClass('dark');
-});
-
-test('toggle button toggles dark class on body', async () => {
-  localStorage.setItem('theme', 'light');
-  const user = userEvent.setup();
-  renderWithTheme();
-  const button = screen.getByRole('button', { name: /alternar tema/i });
-  await user.click(button);
-  expect(document.body).toHaveClass('dark');
-  await user.click(button);
-  expect(document.body).not.toHaveClass('dark');
+    expect(screen.getByRole('button', { name: /ir para escuro/i })).toBeInTheDocument();
+    expect(screen.getByText(/Tema atual: claro/i)).toBeInTheDocument();
+  });
 });

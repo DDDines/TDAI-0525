@@ -1,5 +1,8 @@
 ﻿import {
   appendUniqueTimelineEntry,
+  buildAttributeOption,
+  buildImportStartPayload,
+  buildTimelineLines,
   buildWizardResetKey,
   buildWizardViewModel,
   cloneFornecedorMapping,
@@ -7,9 +10,16 @@
   extractProductTypesCollection,
   formatCellValue,
   formatElapsed,
+  getProductTypeOptionLabel,
   getPreviewImageSrc,
+  normalizeImportStatus,
+  normalizePreviewPayload,
   normalizePayloadStrings,
+  resolveMappingEditorState,
   resolveManualMappingPreview,
+  resolvePreviewImageIndex,
+  resolveWizardPage,
+  sanitizePositivePageInput,
 } from '../ImportCatalogWizard.helpers.js';
 
 describe('ImportCatalogWizard helpers', () => {
@@ -109,6 +119,125 @@ describe('ImportCatalogWizard helpers', () => {
     expect(extractProductTypeAttributes(null)).toEqual([]);
   });
 
+  test('builds attribute and product type labels with safe fallbacks', () => {
+    expect(buildAttributeOption({ attribute_key: 'cor', label: 'Cor' })).toEqual({
+      value: 'attr:cor',
+      label: 'Atributo: Cor',
+    });
+    expect(buildAttributeOption({ attribute_key: 'sku' })).toEqual({
+      value: 'attr:sku',
+      label: 'Atributo: sku',
+    });
+
+    expect(getProductTypeOptionLabel({ friendly_name: 'Linha Pesada' })).toBe('Linha Pesada');
+    expect(getProductTypeOptionLabel({ friendly_name: '', nome: 'Motores' })).toBe('Motores');
+    expect(getProductTypeOptionLabel({ name: 'Bombas' })).toBe('Bombas');
+    expect(getProductTypeOptionLabel({ slug: 'suspensao' })).toBe('suspensao');
+    expect(getProductTypeOptionLabel({ key_name: 'filtros' })).toBe('filtros');
+    expect(getProductTypeOptionLabel({ id: 9 })).toBe('9');
+  });
+
+  test('normalizes preview payloads, import requests and polling status safely', () => {
+    expect(resolveWizardPage(undefined, 7)).toBe(7);
+    expect(resolveWizardPage('5', 2)).toBe(5);
+    expect(resolveWizardPage(null, null)).toBe(1);
+    expect(sanitizePositivePageInput('', 4)).toBe(4);
+    expect(sanitizePositivePageInput('0', 4)).toBe(4);
+    expect(sanitizePositivePageInput('6', 4)).toBe(6);
+    expect(resolvePreviewImageIndex(0, 3, 1)).toBeNull();
+    expect(resolvePreviewImageIndex(4, 7, 5)).toBe(2);
+    expect(buildTimelineLines([])).toEqual(['Aguardando atualizações...']);
+    expect(buildTimelineLines(['linha 1'])).toEqual(['linha 1']);
+
+    expect(
+      normalizePreviewPayload({
+        fileId: undefined,
+        headers: 'invalid',
+        sampleRows: null,
+        previewImages: null,
+        numPages: undefined,
+      })
+    ).toEqual(
+      expect.objectContaining({
+        fileId: null,
+        headers: null,
+        sampleRows: [],
+        previewImages: [],
+        numPages: 0,
+        tablePages: [],
+      })
+    );
+
+    expect(
+      resolveMappingEditorState({
+        regionPreview: { headers: ['sku'] },
+        manualMappingRows: [{ sku: 'A1' }],
+        fallbackHeaders: ['fallback'],
+      })
+    ).toEqual({
+      headers: ['sku'],
+      rows: [{ sku: 'A1' }],
+    });
+
+    expect(
+      resolveMappingEditorState({
+        regionPreview: null,
+        manualMappingRows: [{ nome: 'Filtro' }],
+        fallbackHeaders: ['fallback'],
+      })
+    ).toEqual({
+      headers: ['nome'],
+      rows: [{ nome: 'Filtro' }],
+    });
+
+    expect(
+      normalizeImportStatus({ status: ' completed ', pages_total: 6 }, 10)
+    ).toEqual(
+      expect.objectContaining({
+        status: 'IMPORTED',
+        pages_processed: 0,
+        total_pages: 6,
+      })
+    );
+
+    expect(
+      normalizeImportStatus({ status: null }, 3)
+    ).toEqual(
+      expect.objectContaining({
+        status: 'PROCESSING',
+        pages_processed: 0,
+        total_pages: 3,
+      })
+    );
+
+    expect(
+      buildImportStartPayload({
+        fileId: 44,
+        productTypeId: '',
+        fornecedorId: 8,
+        mapping: {},
+        selectedPageForRegion: null,
+        startPage: 9,
+        applyAllPages: false,
+        previewData: { numPages: 0 },
+        selectedBboxNorm: null,
+        selectedBbox: { x: 1 },
+        extractionMode: 'ocr',
+      })
+    ).toEqual({
+      estimatedTotal: 1,
+      payload: {
+        fileId: 44,
+        productTypeId: null,
+        fornecedorId: 8,
+        mapping: null,
+        pages: [9],
+        region: { x: 1 },
+        extractionMode: 'ocr',
+      },
+    });
+  });
+
   test('resolves manual mapping preview from region, preview or manual rows', () => {
     expect(
       resolveManualMappingPreview({
@@ -144,6 +273,30 @@ describe('ImportCatalogWizard helpers', () => {
     ).toEqual({
       headers: ['fallback'],
       rows: [{ C: '3' }],
+    });
+
+    expect(
+      resolveManualMappingPreview({
+        regionPreview: { headers: [], rows: null },
+        previewData: { headers: [], sampleRows: null },
+        manualMappingRows: [{ fallback: '1' }],
+        fallbackHeaders: ['fallback'],
+      })
+    ).toEqual({
+      headers: ['fallback'],
+      rows: [{ fallback: '1' }],
+    });
+
+    expect(
+      resolveManualMappingPreview({
+        regionPreview: { headers: [], rows: null },
+        previewData: { headers: [], sampleRows: null },
+        manualMappingRows: null,
+        fallbackHeaders: ['fallback'],
+      })
+    ).toEqual({
+      headers: ['fallback'],
+      rows: [],
     });
   });
 
@@ -262,5 +415,196 @@ describe('ImportCatalogWizard helpers', () => {
         formatExt: 'pdf',
       })
     );
+  });
+
+  test('builds wizard state from secondary counters and sparse mappings', () => {
+    expect(
+      buildWizardViewModel({
+        resultData: {
+          stats: {
+            pages_processed: 4,
+            pages_total: 9,
+            quarentena_nao_critica: 7,
+          },
+          output: null,
+        },
+        statusData: {
+          status: 'partial',
+          pages_total: 6,
+        },
+        expectedPages: 12,
+        step: 'preview',
+        error: '',
+        processingStartedAt: null,
+        isLoading: false,
+        loadingMessage: 'Preview',
+        applyAllPages: false,
+        selectedPageForRegion: 5,
+        startPage: 2,
+        fileId: 10,
+        mapping: null,
+        productTypeId: '',
+        selectedFile: null,
+      })
+    ).toEqual(
+      expect.objectContaining({
+        pagesProcessed: 4,
+        pagesTotal: 6,
+        showLoadingPopup: false,
+        hasPrimaryMapping: false,
+        quarantineCount: 7,
+        selectedScopeLabel: 'somente página 5',
+        formatExt: '-',
+      })
+    );
+
+    expect(
+      buildWizardViewModel({
+        resultData: {
+          stats: {
+            pages_total: 11,
+          },
+        },
+        statusData: null,
+        expectedPages: null,
+        step: 'processing',
+        error: 'falha',
+        processingStartedAt: null,
+        isLoading: false,
+        loadingMessage: '',
+        applyAllPages: false,
+        selectedPageForRegion: null,
+        startPage: 4,
+        fileId: 12,
+        mapping: {},
+        productTypeId: '1',
+        selectedFile: new File(['conteudo'], 'catalogo.json'),
+      })
+    ).toEqual(
+      expect.objectContaining({
+        pagesTotal: 11,
+        selectedScopeLabel: 'somente página 4',
+      })
+    );
+
+    expect(
+      buildWizardViewModel({
+        resultData: null,
+        statusData: null,
+        expectedPages: undefined,
+        step: 'upload',
+        error: '',
+        processingStartedAt: null,
+        isLoading: false,
+        loadingMessage: '',
+        applyAllPages: false,
+        selectedPageForRegion: null,
+        startPage: 1,
+        fileId: null,
+        mapping: {},
+        productTypeId: '',
+        selectedFile: null,
+      })
+    ).toEqual(
+      expect.objectContaining({
+        pagesTotal: 0,
+      })
+    );
+  });
+
+  test('deduplicates recent timeline entries even when previous entries are sparse', () => {
+    expect(
+      appendUniqueTimelineEntry(
+        [null, '[10:00:00] Processamento iniciado'],
+        'processamento iniciado',
+        '10:00:01'
+      )
+    ).toEqual({
+      appended: false,
+      dedupeKey: 'processamento iniciado',
+      entries: [null, '[10:00:00] Processamento iniciado'],
+    });
+  });
+
+  test('builds failure details and top reason fallbacks when result payload is sparse', () => {
+    expect(
+      buildWizardViewModel({
+        resultData: {
+          errors: [{ erro_processamento: 'Falha parcial' }],
+          top_reasons: [{ reason: '', count: undefined }],
+        },
+        statusData: { status: 'FAILED', pages_total: 2 },
+        expectedPages: undefined,
+        step: 'processing',
+        error: '',
+        processingStartedAt: null,
+        isLoading: false,
+        loadingMessage: '',
+        applyAllPages: false,
+        selectedPageForRegion: undefined,
+        startPage: 1,
+        fileId: null,
+        mapping: {},
+        productTypeId: '',
+        selectedFile: null,
+      })
+    ).toEqual(
+      expect.objectContaining({
+        failedMessage: 'Falha parcial',
+        showFailedResultMessage: true,
+        resultTopReasons: [{ reason: '-', count: 0 }],
+      })
+    );
+
+    expect(
+      buildWizardViewModel({
+        resultData: {
+          errors: [{}],
+        },
+        statusData: { status: 'FAILED' },
+        expectedPages: undefined,
+        step: 'processing',
+        error: '',
+        processingStartedAt: null,
+        isLoading: false,
+        loadingMessage: '',
+        applyAllPages: false,
+        selectedPageForRegion: undefined,
+        startPage: 1,
+        fileId: null,
+        mapping: {},
+        productTypeId: '',
+        selectedFile: null,
+      })
+    ).toEqual(
+      expect.objectContaining({
+        failedMessage: 'Verifique os detalhes em Erros/Log.',
+      })
+    );
+
+    expect(
+      normalizeImportStatus({}, undefined)
+    ).toEqual(
+      expect.objectContaining({
+        total_pages: 0,
+      })
+    );
+
+    expect(
+      resolveMappingEditorState({
+        regionPreview: null,
+        manualMappingRows: null,
+        fallbackHeaders: ['fallback'],
+      })
+    ).toEqual({
+      headers: ['fallback'],
+      rows: [],
+    });
+
+    expect(buildAttributeOption({ label: 'Sem chave' })).toEqual({
+      value: 'attr:',
+      label: 'Atributo: Sem chave',
+    });
+    expect(getProductTypeOptionLabel({})).toBe('');
   });
 });

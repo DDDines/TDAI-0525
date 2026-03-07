@@ -453,6 +453,24 @@ describe('ProductEditModal', () => {
     );
   });
 
+  test('keeps the dependency list stable when suppliers come without items and fallback lookup returns null', async () => {
+    fornecedorService.getFornecedores.mockResolvedValueOnce({});
+    fornecedorService.getFornecedorById.mockResolvedValueOnce(null);
+
+    renderModal({
+      product: {
+        id: 10,
+        nome_base: 'Produto Base',
+        fornecedor_id: 1,
+        product_type_id: 1,
+      },
+    });
+
+    expect(await screen.findByDisplayValue('Produto Base')).toBeInTheDocument();
+    expect(fornecedorService.getFornecedorById).toHaveBeenCalledWith(1);
+    expect(screen.getByRole('combobox', { name: /Fornecedor/i })).toHaveValue('');
+  });
+
   test('shows an error toast when supplier dependencies cannot be loaded', async () => {
     fornecedorService.getFornecedores.mockRejectedValueOnce(new Error('falha fornecedores'));
 
@@ -463,6 +481,17 @@ describe('ProductEditModal', () => {
         'Erro ao carregar lista de fornecedores para o modal.'
       );
     });
+  });
+
+  test('clears the selected product type without trying to initialize template attributes again', async () => {
+    renderModal({ product: null });
+
+    await proceedToCreateForm();
+    expect(await screen.findByLabelText(/Nome Base/i)).toBeInTheDocument();
+
+    await user.selectOptions(screen.getByRole('combobox', { name: /Tipo de Produto/i }), '');
+
+    expect(screen.queryByLabelText(/Nome Base/i)).not.toBeInTheDocument();
   });
 
   test('opens the dedicated content view from an existing product', async () => {
@@ -493,6 +522,23 @@ describe('ProductEditModal', () => {
     expect(enrichButton).toBeDisabled();
     expect(titlesButton).toBeDisabled();
     expect(descriptionButton).toBeDisabled();
+  });
+
+  test('renders safely when the product type context is temporarily unavailable', async () => {
+    useProductTypes.mockReturnValueOnce({
+      productTypes: undefined,
+      addProductType: jest.fn(),
+    });
+    productService.getProdutoById.mockResolvedValueOnce({
+      ...baseProduct,
+      product_type_id: '',
+      product_type: null,
+    });
+
+    renderModal({ product: { id: 10 } });
+
+    await screen.findByLabelText(/Fornecedor/i);
+    expect(screen.getByText(/Editar Produto:/i)).toBeInTheDocument();
   });
 
   test('falls back to window navigation when no dedicated content handler is provided', async () => {
@@ -541,6 +587,52 @@ describe('ProductEditModal', () => {
       );
     });
     expect(showErrorToast).toHaveBeenCalledWith('falha ao salvar');
+  });
+
+  test('uses the generic save error fallback and still closes successfully without update callback', async () => {
+    productService.updateProduto.mockRejectedValueOnce({});
+
+    const { rerender } = render(
+      <ProductEditModal
+        isOpen={true}
+        onClose={onClose}
+        product={{ id: 10 }}
+        showAiFeatures={false}
+      />
+    );
+
+    const nameInput = await screen.findByLabelText(/Nome Base/i);
+    await user.clear(nameInput);
+    await user.type(nameInput, 'Produto sem callback');
+    await user.click(screen.getByRole('button', { name: /Salvar Produto/i }));
+
+    await waitFor(() => {
+      expect(showErrorToast).toHaveBeenCalledWith('Erro ao salvar produto.');
+    });
+
+    productService.updateProduto.mockResolvedValueOnce({
+      ...baseProduct,
+      nome_base: 'Produto sem callback',
+    });
+
+    rerender(
+      <ProductEditModal
+        isOpen={true}
+        onClose={onClose}
+        product={{ id: 10 }}
+        showAiFeatures={false}
+      />
+    );
+
+    const refreshedNameInput = await screen.findByLabelText(/Nome Base/i);
+    await user.clear(refreshedNameInput);
+    await user.type(refreshedNameInput, 'Produto sem callback');
+    await user.click(screen.getByRole('button', { name: /Salvar Produto/i }));
+
+    await waitFor(() => {
+      expect(showSuccessToast).toHaveBeenCalledWith('Produto atualizado com sucesso!');
+    });
+    expect(onClose).toHaveBeenCalled();
   });
 
   test('updates an existing product successfully and closes the modal', async () => {
@@ -725,6 +817,29 @@ describe('ProductEditModal', () => {
     await user.click(screen.getByRole('button', { name: /Gerar Descrição/i }));
     await waitFor(() => {
       expect(showErrorToast).toHaveBeenCalledWith('erro descricao');
+    });
+  });
+
+  test('uses generic generation error fallbacks when the service returns an empty payload', async () => {
+    productService.gerarTitulosProdutoModoBasico.mockRejectedValueOnce({});
+    productService.gerarDescricaoProdutoModoBasico.mockRejectedValueOnce({});
+
+    renderModal({ product: baseProduct });
+
+    await screen.findByLabelText(/Nome Base/i);
+    await user.click(screen.getByRole('button', { name: /Conte/i }));
+
+    await user.click(screen.getByRole('button', { name: /Gerar T/i }));
+    await waitFor(() => {
+      expect(showErrorToast).toHaveBeenCalledWith('Erro ao gerar títulos.');
+    });
+
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: /Gerar Descri/i })).toBeEnabled();
+    });
+    await user.click(screen.getByRole('button', { name: /Gerar Descri/i }));
+    await waitFor(() => {
+      expect(showErrorToast).toHaveBeenCalledWith('Erro ao gerar descrição.');
     });
   });
 
@@ -1333,6 +1448,37 @@ describe('ProductEditModal', () => {
     expect(await screen.findByDisplayValue('material')).toBeInTheDocument();
   });
 
+  test('applies multiple Gemini suggestions using the plural success message', async () => {
+    productService.getAtributoSuggestions.mockResolvedValueOnce({
+      sugestoes_atributos: [
+        { chave_atributo: 'material', valor_sugerido: 'Aluminio' },
+        { chave_atributo: 'acabamento', valor_sugerido: 'Escovado' },
+      ],
+    });
+
+    render(
+      <ProductEditModal
+        isOpen={true}
+        onClose={onClose}
+        product={{ id: 10 }}
+        showAiFeatures={true}
+      />
+    );
+
+    await screen.findByLabelText(/Nome Base/i);
+    await user.click(screen.getByRole('button', { name: /Sugest/i }));
+    await user.click(screen.getByRole('button', { name: /Buscar Sugest/i }));
+
+    const checkboxes = await screen.findAllByRole('checkbox');
+    await user.click(checkboxes[0]);
+    await user.click(checkboxes[1]);
+    await user.click(screen.getByRole('button', { name: /Aplicar Selecionados/i }));
+
+    expect(showSuccessToast).toHaveBeenCalledWith(
+      '2 sugestões aplicadas aos atributos dinâmicos!'
+    );
+  });
+
   test('handles Gemini suggestion errors and clears stale suggestions', async () => {
     productService.getAtributoSuggestions.mockRejectedValueOnce(
       new Error('falha gemini')
@@ -1353,6 +1499,29 @@ describe('ProductEditModal', () => {
 
     await waitFor(() => {
       expect(showErrorToast).toHaveBeenCalledWith('falha gemini');
+    });
+  });
+
+  test('uses the generic Gemini fallback when the suggestion service returns an empty error payload', async () => {
+    productService.getAtributoSuggestions.mockRejectedValueOnce({});
+
+    render(
+      <ProductEditModal
+        isOpen={true}
+        onClose={onClose}
+        product={{ id: 10 }}
+        showAiFeatures={true}
+      />
+    );
+
+    await screen.findByLabelText(/Nome Base/i);
+    await user.click(screen.getByRole('button', { name: /Sugest/i }));
+    await user.click(screen.getByRole('button', { name: /Buscar Sugest/i }));
+
+    await waitFor(() => {
+      expect(showErrorToast).toHaveBeenCalledWith(
+        'Falha ao carregar sugestões da IA (Gemini).'
+      );
     });
   });
 

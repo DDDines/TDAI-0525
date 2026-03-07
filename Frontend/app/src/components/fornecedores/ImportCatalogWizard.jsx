@@ -11,6 +11,9 @@ import { normalizeDisplayText } from '../../utils/textNormalization';
 import { extractErrorMessage } from '../../utils/errorDetails';
 import {
   appendUniqueTimelineEntry,
+  buildAttributeOption,
+  buildImportStartPayload,
+  buildTimelineLines,
   buildWizardResetKey,
   buildWizardViewModel,
   cloneFornecedorMapping,
@@ -18,9 +21,16 @@ import {
   extractProductTypesCollection,
   formatCellValue,
   getPreviewImageSrc,
+  getProductTypeOptionLabel,
   formatElapsed,
+  normalizeImportStatus,
+  normalizePreviewPayload,
   normalizePayloadStrings,
+  resolveMappingEditorState,
   resolveManualMappingPreview,
+  resolvePreviewImageIndex,
+  resolveWizardPage,
+  sanitizePositivePageInput,
 } from './ImportCatalogWizard.helpers.js';
 import LoadingPopup from '../common/LoadingPopup';
 import ColumnMappingModal from '../common/ColumnMappingModal.jsx';
@@ -163,10 +173,7 @@ function ImportCatalogWizard(
         try {
           const details = await productTypeService.getProductTypeDetails(productTypeId);
           const attrs = extractProductTypeAttributes(details);
-          const attrOptions = attrs.map((a) => ({
-            value: `attr:${a.attribute_key}`,
-            label: `Atributo: ${a.label || a.attribute_key}`
-          }));
+          const attrOptions = attrs.map((attribute) => buildAttributeOption(attribute));
           setFieldOptions([...base, ...attrOptions]);
         } catch (err) {
           console.warn('Falha ao carregar atributos do tipo de produto:', err);
@@ -202,12 +209,13 @@ function ImportCatalogWizard(
       setPreviewError('');
       appendTimeline('Iniciando geração de preview do arquivo.');
       try {
-        const preview = await fornecedorService.previewCatalogo(
+        const previewRaw = await fornecedorService.previewCatalogo(
           selectedFile,
           pageCount,
           startPage,
           fornecedor.id
         );
+        const preview = normalizePreviewPayload(previewRaw);
         if (preview.error) {
           setPreviewError(preview.error);
           setPreviewData(null);
@@ -220,9 +228,9 @@ function ImportCatalogWizard(
         setSelectedPageForRegion(startPage);
         setSelectedPreviewIndex(null);
         appendTimeline(
-          `Preview gerado com sucesso. File ID ${preview.fileId}. ${preview.numPages || 0} páginas detectadas.`
+          `Preview gerado com sucesso. File ID ${preview.fileId}. ${preview.numPages} páginas detectadas.`
         );
-        if (preview.previewImages?.length > 1) {
+        if (preview.previewImages.length > 1) {
           setShowPagePicker(true);
         }
       } catch (err) {
@@ -239,9 +247,9 @@ function ImportCatalogWizard(
       const buffer = await selectedFile.arrayBuffer();
       setPdfBytes(new Uint8Array(buffer));
       setSelectedPageForRegion(pageToUse);
-      if (previewImages.length > 0) {
-        const idx = Math.max(0, Math.min(previewImages.length - 1, pageToUse - startPage));
-        setSelectedPreviewIndex(idx);
+      const previewIndex = resolvePreviewImageIndex(previewImages.length, pageToUse, startPage);
+      if (previewIndex !== null) {
+        setSelectedPreviewIndex(previewIndex);
       }
       setSelectedBbox(null);
       setRegionPreview(null);
@@ -254,7 +262,7 @@ function ImportCatalogWizard(
         setShowPagePicker(true);
         return;
       }
-      await launchRegionSelector(selectedPageForRegion || startPage);
+      await launchRegionSelector(resolveWizardPage(selectedPageForRegion, startPage));
     };
 
     const handleRegionSelect = async ({
@@ -320,24 +328,23 @@ function ImportCatalogWizard(
     };
 
     const openManualMapping = () => {
-      const headers =
-      regionPreview?.headers?.length ?
-      regionPreview.headers :
-      manualMappingRows.length > 0 ?
-      Object.keys(manualMappingRows[0]) :
-      FALLBACK_HEADERS;
-      const rows = manualMappingRows?.length ? manualMappingRows : [];
+      const { headers, rows } = resolveMappingEditorState({
+        regionPreview,
+        manualMappingRows,
+        fallbackHeaders: FALLBACK_HEADERS,
+      });
       setRegionPreview({ headers, rows });
       setShowMappingModal(true);
       appendTimeline('Abrindo mapeamento manual de colunas.');
     };
 
     const handleConfirmMapping = async (map) => {
-      setMapping(map);
-      appendTimeline(`Mapeamento atualizado com ${Object.keys(map || {}).length} coluna(s).`);
+      const nextMapping = cloneFornecedorMapping(map);
+      setMapping(nextMapping);
+      appendTimeline(`Mapeamento atualizado com ${Object.keys(nextMapping).length} coluna(s).`);
       try {
         if (fornecedor?.id) {
-          await fornecedorService.setFornecedorMapping(fornecedor.id, map);
+          await fornecedorService.setFornecedorMapping(fornecedor.id, nextMapping);
           appendTimeline('Mapeamento salvo no fornecedor com sucesso.');
         }
       } catch (err) {
@@ -372,17 +379,11 @@ function ImportCatalogWizard(
 
           try {
             const statusRaw = await fornecedorService.getImportacaoStatus(id);
-            const statusValue = String(statusRaw?.status || '').trim().toUpperCase();
-            const canonicalStatus =
-            statusValue === 'DONE' || statusValue === 'COMPLETED' ? 'IMPORTED' : statusValue;
-            const status = {
-              ...statusRaw,
-              status: canonicalStatus || statusRaw?.status || 'PROCESSING'
-            };
+            const status = normalizeImportStatus(statusRaw, expectedPages);
             setStatusData(status);
 
-            const pagesProcessed = status?.pages_processed ?? 0;
-            const pagesTotal = status?.total_pages ?? status?.pages_total ?? expectedPages ?? 0;
+            const pagesProcessed = status.pages_processed;
+            const pagesTotal = status.total_pages;
             const hasStatusChanged = status.status !== lastObservedStatus;
             const hasPagesAdvanced = pagesProcessed > lastObservedPagesProcessed;
             const hasPageTotalChanged = pagesTotal !== lastObservedPagesTotal;
@@ -502,7 +503,6 @@ function ImportCatalogWizard(
     };
 
     const startImport = async () => {
-      const ptId = productTypeId ? parseInt(productTypeId, 10) : null;
       setIsLoading(true);
       setLoadingMessage('Iniciando processamento...');
       setError('');
@@ -515,15 +515,19 @@ function ImportCatalogWizard(
       pollLoopActiveRef.current = false;
       appendTimeline('Solicitação de processamento enviada para o backend.');
       try {
-        const selectedPages = applyAllPages ?
-        null :
-        selectedPageForRegion ?
-        [selectedPageForRegion] :
-        null;
-
-        const estimatedTotal = selectedPages?.length ?
-        selectedPages.length :
-        previewData?.numPages || 0;
+        const { estimatedTotal, payload } = buildImportStartPayload({
+          fileId,
+          productTypeId,
+          fornecedorId: fornecedor.id,
+          mapping,
+          selectedPageForRegion,
+          startPage,
+          applyAllPages,
+          previewData,
+          selectedBboxNorm,
+          selectedBbox,
+          extractionMode,
+        });
         setExpectedPages(estimatedTotal);
         setProcessingStartedAt(Date.now());
         setStatusData((prev) => ({
@@ -538,15 +542,7 @@ function ImportCatalogWizard(
         pollRunRef.current = runId;
         pollStatus(fileId, runId);
 
-        await fornecedorService.finalizarImportacaoCatalogo({
-          fileId,
-          productTypeId: ptId,
-          fornecedorId: fornecedor.id,
-          mapping: mapping && Object.keys(mapping).length ? mapping : null,
-          pages: selectedPages,
-          region: selectedBboxNorm || selectedBbox,
-          extractionMode
-        });
+        await fornecedorService.finalizarImportacaoCatalogo(payload);
       } catch (err) {
         pollRunRef.current += 1;
         setStep('preview');
@@ -570,28 +566,39 @@ function ImportCatalogWizard(
       fallbackHeaders: FALLBACK_HEADERS,
     });
     const currentStepIndex = Math.max(0, STEP_FLOW.indexOf(step));
+    const liveTimelineLines = buildTimelineLines(statusTimeline);
     const {
       acceptedQualityAvg,
       canStartWithMapping,
       criticalErrorsCount,
+      createdCount,
       discardedNonCritical,
       elapsedSec,
-      etaSec,
-      hasPartialSuccess,
+      etaLabel,
+      failedMessage,
       hasPrimaryMapping,
       loadingPopupMessage,
       pagesProcessed,
-      pagesTotal,
+      pagesTotalLabel,
       processingActive,
+      processingStatusLabel,
+      previewFileIdLabel,
       progressPct,
       quarantineCount,
       quarantineQualityAvg,
+      regionSelectionPage,
+      resultPagesProcessed,
+      resultPagesTotal,
       resultOutputHeadline,
       resultOutputLabel,
       resultOutputPages,
       resultTopReasons,
       selectedScopeLabel,
       showLoadingPopup,
+      showFailedResultMessage,
+      showPartialWarning,
+      showResultStats,
+      updatedCount,
       formatExt,
     } = buildWizardViewModel({
       resultData,
@@ -619,12 +626,12 @@ function ImportCatalogWizard(
           message={loadingPopupMessage}
           isOpen={showLoadingPopup}
           progressPercent={progressPct}
-          progressLabel={`${pagesProcessed}/${pagesTotal || '?'} páginas processadas`}
+          progressLabel={`${pagesProcessed}/${pagesTotalLabel} páginas processadas`}
           chips={[
           { label: 'Status', value: statusData?.status || 'PROCESSING' },
           { label: 'Arquivo', value: fileId ? `#${fileId}` : '-' },
           { label: 'Tempo', value: formatElapsed(elapsedSec) },
-          { label: 'ETA', value: etaSec > 0 ? formatElapsed(etaSec) : '-' }]}
+          { label: 'ETA', value: etaLabel }]}
           details={statusTimeline.slice(-5)} />
 
         }
@@ -677,7 +684,7 @@ function ImportCatalogWizard(
                   type="number"
                   min="1"
                   value={startPage}
-                  onChange={(e) => setStartPage(Math.max(1, parseInt(e.target.value || '1', 10)))}
+                  onChange={(e) => setStartPage(sanitizePositivePageInput(e.target.value))}
                   className="wizard-small-number-input" />
                 
               </label>
@@ -688,7 +695,7 @@ function ImportCatalogWizard(
                   type="number"
                   min="1"
                   value={pageCount}
-                  onChange={(e) => setPageCount(Math.max(1, parseInt(e.target.value || '1', 10)))}
+                  onChange={(e) => setPageCount(sanitizePositivePageInput(e.target.value))}
                   className="wizard-small-number-input" />
                 
               </label>
@@ -708,7 +715,7 @@ function ImportCatalogWizard(
           <header className="wizard-panel-header">
             <h3>Passo 2: Revisar e mapear dados</h3>
             <p>
-              File ID {fileId || '-'} | páginas no arquivo: {previewData.numPages || 0}
+              File ID {previewFileIdLabel} | páginas no arquivo: {previewData.numPages}
             </p>
           </header>
 
@@ -797,9 +804,9 @@ function ImportCatalogWizard(
                     id="wizard-page-select"
                     type="number"
                     min="1"
-                    value={selectedPageForRegion || startPage}
+                    value={regionSelectionPage}
                     onChange={(e) => {
-                      const val = Math.max(1, parseInt(e.target.value || '1', 10));
+                      const val = sanitizePositivePageInput(e.target.value);
                       setSelectedPageForRegion(val);
                     }}
                     className="wizard-small-number-input" />
@@ -818,7 +825,7 @@ function ImportCatalogWizard(
                     {productTypes.map((pt) => {
                       const value = pt.id;
                       if (value === null || value === undefined) return null;
-                      const label = pt.friendly_name || pt.nome || pt.name || pt.slug || pt.key_name || value;
+                      const label = getProductTypeOptionLabel(pt);
                       return (
                         <option key={value} value={value}>
                           {label}
@@ -922,10 +929,10 @@ function ImportCatalogWizard(
 
           <div className="wizard-processing-card">
             <div className="wizard-processing-header">
-              {LogoImg ? <img src={LogoImg} alt="CatalogAI" className="wizard-processing-logo" /> : null}
+              <img src={LogoImg} alt="CatalogAI" className="wizard-processing-logo" />
               <div>
-                <strong>Status:</strong> {statusData?.status || 'PROCESSING'}
-                <div>{`Páginas: ${pagesProcessed}/${pagesTotal || '?'}`}</div>
+                <strong>Status:</strong> {processingStatusLabel}
+                <div>{`Páginas: ${pagesProcessed}/${pagesTotalLabel}`}</div>
                 <div>{`Tempo decorrido: ${elapsedSec}s`}</div>
               </div>
               {processingActive ? <div className="wizard-processing-spinner" /> : <div className="wizard-processing-done">OK</div>}
@@ -938,15 +945,11 @@ function ImportCatalogWizard(
 
             <div className="wizard-live-log" aria-live="polite">
               <h4>Atualizações em tempo real</h4>
-              {statusTimeline.length === 0 ?
-              <p>Aguardando atualizações...</p> :
-
               <ul>
-                  {statusTimeline.map((line, idx) =>
+                  {liveTimelineLines.map((line, idx) =>
                 <li key={`${line}-${idx}`}>{line}</li>
                 )}
                 </ul>
-              }
             </div>
           </div>
 
@@ -959,26 +962,25 @@ function ImportCatalogWizard(
               {resultOutputHeadline &&
             <p>{resultOutputHeadline}</p>
             }
-              {statusData?.status === 'FAILED' && resultData?.errors?.length > 0 &&
+              {showFailedResultMessage &&
             <p className="wizard-result-error">
-                  Falha: {resultData.errors[0]?.erro_processamento_pdf || resultData.errors[0]?.erro_processamento || 'Verifique os detalhes em Erros/Log.'}
+                  Falha: {failedMessage}
                 </p>
             }
-              {(statusData?.status === 'IMPORTED' || statusData?.status === 'DONE' || statusData?.status === 'PARTIAL') && hasPartialSuccess &&
+              {showPartialWarning &&
             <p className="wizard-result-warning">
                   Importação concluída com alertas: há erros críticos que exigem revisão.
                 </p>
             }
-              {(resultData.stats || resultData.created || resultData.updated || resultData.errors) &&
+              {showResultStats &&
             <ul className="wizard-result-list">
-                  <li>Criados: {resultData?.stats?.produtos_criados ?? (resultData?.created?.length || 0)}</li>
-                  <li>Atualizados: {resultData?.stats?.produtos_atualizados ?? (resultData?.updated?.length || 0)}</li>
+                  <li>Criados: {createdCount}</li>
+                  <li>Atualizados: {updatedCount}</li>
                   <li>Erros críticos: {criticalErrorsCount}</li>
                   <li>Descartes não críticos: {discardedNonCritical}</li>
                   <li>Quarentena (não importados): {quarantineCount}</li>
                   <li>
-                    Páginas: {resultData?.stats?.pages_processed ?? statusData?.pages_processed ?? 0}/
-                    {resultData?.stats?.pages_total ?? statusData?.total_pages ?? statusData?.pages_total ?? 0}
+                    Páginas: {resultPagesProcessed}/{resultPagesTotal}
                   </li>
                   {typeof resultOutputPages?.progress_pct === 'number' &&
               <li>Progresso final: {resultOutputPages.progress_pct}%</li>
@@ -998,7 +1000,7 @@ function ImportCatalogWizard(
                   <ul className="wizard-result-list">
                     {resultTopReasons.map((item, idx) =>
                 <li key={`reason-${idx}`}>
-                        {normalizeDisplayText(item?.reason || '-')} ({item?.count ?? 0})
+                        {item.reason} ({item.count})
                       </li>
                 )}
                   </ul>
@@ -1032,10 +1034,10 @@ function ImportCatalogWizard(
       <Modal isOpen={showRegionModal} onClose={() => setShowRegionModal(false)} title="Selecione a região da tabela">
         {pdfBytes &&
           <PdfRegionSelector
-            key={`pdf-region-${selectedPageForRegion || startPage}`}
+            key={`pdf-region-${regionSelectionPage}`}
             file={pdfBytes}
             onSelect={handleRegionSelect}
-            initialPage={selectedPageForRegion || startPage}
+            initialPage={regionSelectionPage}
             initialApplyAll={applyAllPages}
             onApplyAllChange={setApplyAllPages} />
 

@@ -16,7 +16,7 @@ function LoadingOverlay(
     return (
       <div className="modal-overlay loading-overlay">
       <div className="loading-overlay-content">
-        {LogoImg ? <img src={LogoImg} alt="CatalogAI logo" className="loading-logo" /> : null}
+        <img src={LogoImg} alt="CatalogAI logo" className="loading-logo" />
         <div className="loading-spinner" />
         <p>{message}</p>
       </div>

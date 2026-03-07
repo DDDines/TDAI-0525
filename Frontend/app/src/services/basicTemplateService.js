@@ -71,14 +71,14 @@ function saveBasicGenerationTemplates(partialTemplates = {}) {
     ),
   };
 
-  if (typeof window !== 'undefined') {
+  if (typeof window !== 'undefined' && window.localStorage) {
     window.localStorage.setItem(STORAGE_KEY, JSON.stringify(merged));
   }
   return merged;
 }
 
 function resetBasicGenerationTemplates() {
-  if (typeof window !== 'undefined') {
+  if (typeof window !== 'undefined' && window.localStorage) {
     window.localStorage.removeItem(STORAGE_KEY);
   }
   return { ...DEFAULT_BASIC_GENERATION_TEMPLATES };

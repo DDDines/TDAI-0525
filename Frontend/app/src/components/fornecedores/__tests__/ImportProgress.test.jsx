@@ -85,3 +85,31 @@ test('stops polling updates after unmounting', async () => {
 
   expect(onPendingReview).not.toHaveBeenCalled();
 });
+
+test('falls back to zero totals, tolerates missing callbacks and ignores rejected requests after unmount', async () => {
+  let rejectRequest;
+  mockedService.getImportProgress
+    .mockResolvedValueOnce({ progress: 0, status: 'PROCESSING' })
+    .mockImplementationOnce(
+      () =>
+        new Promise((_, reject) => {
+          rejectRequest = reject;
+        })
+    );
+
+  const { unmount } = render(<ImportProgress jobId={24} />);
+
+  await screen.findByText(/Processando p.*gina 0 de 0/i);
+
+  await act(async () => {
+    await jest.runOnlyPendingTimersAsync();
+  });
+
+  expect(typeof rejectRequest).toBe('function');
+
+  unmount();
+  await act(async () => {
+    rejectRequest(new Error('falha tardia'));
+    await Promise.resolve();
+  });
+});

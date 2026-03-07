@@ -1,7 +1,10 @@
 import {
+  buildProductFormState,
   buildInitialDynamicAttributes,
   coerceFormFieldValue,
+  extractIaSuggestionMap,
   extractGeneratedTitles,
+  handleContentViewNavigation,
   normalizeDynamicAttrsToTemplateKeys,
   resolveProductFormStage,
   resolveServiceErrorDetail,
@@ -70,6 +73,162 @@ describe('ProductEditModal helpers', () => {
     );
   });
 
+  test('normalizeDynamicAttrsToTemplateKeys tolerates sparse inputs and template fallback labels', () => {
+    expect(
+      normalizeDynamicAttrsToTemplateKeys(null, null)
+    ).toEqual({});
+
+    expect(
+      normalizeDynamicAttrsToTemplateKeys(
+        {
+          '': 'ignorar',
+          referencia: 'REF-10',
+          descricao: null,
+        },
+        [
+          { attribute_key: 'referencia' },
+          { attribute_key: 'descricao_curta', label: undefined },
+          { attribute_key: 'titulo_auto', label: '' },
+        ]
+      )
+    ).toEqual(
+      expect.objectContaining({
+        referencia: 'REF-10',
+      })
+    );
+  });
+
+  test('extracts IA suggestions and builds product form state with safe fallbacks', () => {
+    const initialSnapshot = {
+      nome_base: '',
+      dynamic_attributes: {},
+    };
+
+    expect(
+      buildProductFormState(null, [], new Set(), initialSnapshot)
+    ).toEqual({
+      formData: initialSnapshot,
+      iaSuggestions: {},
+      selectedIaSuggestions: {},
+    });
+
+    expect(extractIaSuggestionMap(null)).toEqual({});
+    expect(
+      extractIaSuggestionMap({
+        especificacoes_tecnicas_dict: Object.create(
+          { herdado: 'ignorar' },
+          {
+            largura: { value: '20cm', enumerable: true },
+            material: { value: 'Aco', enumerable: true },
+          }
+        ),
+      })
+    ).toEqual({
+      largura: '20cm',
+      material: 'Aco',
+    });
+
+    expect(
+      buildProductFormState(
+        {
+          product_type: {
+            id: 7,
+            attribute_templates: [{ attribute_key: 'cor', label: '' }],
+          },
+          dynamic_attributes: {
+            cor: '',
+            nome: 'Filtro premium',
+          },
+          imagens_secundarias_urls: null,
+          dados_brutos_web: {
+            especificacoes_tecnicas_dict: { pressao: '10bar' },
+            titulos_sugeridos_gerados: ['Titulo A'],
+          },
+          ativo_marketplace: null,
+          log_enriquecimento_web: null,
+          status_enriquecimento_web: '',
+          status_titulo_ia: undefined,
+          status_descricao_ia: undefined,
+        },
+        [{ id: 7, attribute_templates: [{ attribute_key: 'cor', label: 'Cor' }] }],
+        new Set(['nome_base']),
+        {
+          nome_base: '',
+          nome_chat_api: '',
+          descricao_original: '',
+          descricao_curta_orig: '',
+          descricao_chat_api: '',
+          descricao_curta_gerada: '',
+          sku: '',
+          ean: '',
+          ncm: '',
+          marca: '',
+          modelo: '',
+          categoria_original: '',
+          categoria_mapeada: '',
+          preco_custo: '',
+          preco_venda: '',
+          preco_promocional: '',
+          estoque_disponivel: '',
+          peso_gramas: '',
+          dimensoes_cm: '',
+          imagem_principal_url: '',
+          imagens_secundarias_urls: [],
+          fornecedor_id: '',
+          product_type_id: '',
+          dynamic_attributes: {},
+          dados_brutos_web: {},
+          titulos_sugeridos: [],
+          ativo_marketplace: false,
+          data_publicacao_marketplace: null,
+          log_enriquecimento_web: { historico_mensagens: [] },
+          status_enriquecimento_web: null,
+          status_titulo_ia: null,
+          status_descricao_ia: null,
+        }
+      )
+    ).toEqual(
+      expect.objectContaining({
+        formData: expect.objectContaining({
+          dynamic_attributes: { cor: '', nome: 'Filtro premium' },
+          imagens_secundarias_urls: [],
+          titulos_sugeridos: ['Titulo A'],
+          ativo_marketplace: false,
+          log_enriquecimento_web: { historico_mensagens: [] },
+          status_enriquecimento_web: null,
+          status_titulo_ia: null,
+          status_descricao_ia: null,
+        }),
+        iaSuggestions: { pressao: '10bar' },
+        selectedIaSuggestions: { pressao: false },
+      })
+    );
+
+    expect(
+      buildProductFormState(
+        {
+          dynamic_attributes: 'invalido',
+          product_type_id: '',
+          product_type: { id: 9 },
+        },
+        [
+          {
+            id: 9,
+            attribute_templates: [{ attribute_key: 'codigo_fabricante', label: 'Codigo' }],
+          },
+        ],
+        new Set(),
+        initialSnapshot
+      )
+    ).toEqual(
+      expect.objectContaining({
+        formData: expect.objectContaining({
+          dynamic_attributes: {},
+        }),
+      })
+    );
+  });
+
   test('coerceFormFieldValue keeps checkbox and plain values stable', () => {
     expect(coerceFormFieldValue('ativo_marketplace', 'ignored', 'checkbox', false)).toBe(false);
     expect(coerceFormFieldValue('nome_base', 'Produto X', 'text', true)).toBe('Produto X');
@@ -102,6 +261,25 @@ describe('ProductEditModal helpers', () => {
     });
 
     expect(buildInitialDynamicAttributes(null, new Set())).toBeNull();
+  });
+
+  test('buildInitialDynamicAttributes handles boolean false defaults and non-string field types', () => {
+    expect(
+      buildInitialDynamicAttributes(
+        {
+          attribute_templates: [
+            { attribute_key: 'ativo', field_type: 'boolean', default_value: 'false' },
+            { attribute_key: 'metadata', field_type: null, default_value: null },
+            { attribute_key: 'flag', field_type: 'boolean', default_value: '1' },
+          ],
+        },
+        new Set()
+      )
+    ).toEqual({
+      ativo: false,
+      metadata: '',
+      flag: true,
+    });
   });
 
   test('sanitizes numeric fields and resolves service errors by priority', () => {
@@ -138,5 +316,26 @@ describe('ProductEditModal helpers', () => {
       resolveServiceErrorDetail({ response: { data: { msg: 'backend msg' } } }, 'fallback')
     ).toBe('backend msg');
     expect(resolveServiceErrorDetail(null, 'fallback')).toBe('fallback');
+  });
+
+  test('routes content view through callback, location fallback or noop', () => {
+    const onClose = jest.fn();
+    const onOpenContentView = jest.fn();
+    const locationAssign = jest.fn();
+
+    expect(handleContentViewNavigation(10, onClose, onOpenContentView, locationAssign)).toBe(
+      'callback'
+    );
+    expect(onClose).toHaveBeenCalled();
+    expect(onOpenContentView).toHaveBeenCalledWith(10);
+    expect(locationAssign).not.toHaveBeenCalled();
+
+    onClose.mockClear();
+    onOpenContentView.mockClear();
+
+    expect(handleContentViewNavigation(11, undefined, undefined, locationAssign)).toBe('location');
+    expect(locationAssign).toHaveBeenCalledWith('/produtos/11/conteudo');
+
+    expect(handleContentViewNavigation(12, undefined, undefined, undefined)).toBe('noop');
   });
 });

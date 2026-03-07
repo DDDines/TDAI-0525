@@ -6,13 +6,14 @@ test('renders overlay when open', () => {
   render(<LoadingOverlay isOpen={true} message="Loading test" />);
   expect(screen.getByText('Loading test')).toBeInTheDocument();
   expect(screen.queryByText('Loading...')).not.toBeInTheDocument();
+  expect(screen.getByAltText(/CatalogAI logo/i)).toBeInTheDocument();
 });
 
 test('uses the default message when open without a custom message', () => {
   render(<LoadingOverlay isOpen={true} />);
 
   expect(screen.getByText('Carregando...')).toBeInTheDocument();
-  expect(screen.queryByAltText(/CatalogAI logo/i)).not.toBeInTheDocument();
+  expect(screen.getByAltText(/CatalogAI logo/i)).toBeInTheDocument();
 });
 
 test('renders nothing when the overlay is closed', () => {

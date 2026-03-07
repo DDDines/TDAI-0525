@@ -587,6 +587,39 @@ describe('ImportCatalogWizard', () => {
     expect(fornecedorService.previewCatalogo).toHaveBeenCalledWith(expect.any(File), 1, 3, 9);
   });
 
+  test('sanitizes empty page inputs and opens the region selector without preview images', async () => {
+    fornecedorService.previewCatalogo.mockResolvedValue({
+      fileId: 84,
+      headers: ['titulo'],
+      sampleRows: [{ titulo: 'Filtro da cabine' }],
+      previewImages: [],
+      numPages: 0,
+      tablePages: [],
+    });
+
+    render(
+      <ImportCatalogWizard
+        fornecedor={{ id: 1, default_column_mapping: {} }}
+        onClose={() => {}}
+        isOpen
+      />
+    );
+
+    const fileInput = document.querySelector('input[type="file"]');
+    const file = createPdfFile();
+    await userEvent.upload(fileInput, file);
+    fireEvent.change(screen.getByLabelText(/Página inicial/i), { target: { value: '' } });
+    fireEvent.change(screen.getByLabelText(/Quantidade de páginas/i), { target: { value: '' } });
+    await userEvent.click(screen.getByText('Gerar Preview'));
+
+    expect(await screen.findByText('Filtro da cabine')).toBeInTheDocument();
+    expect(fornecedorService.previewCatalogo).toHaveBeenCalledWith(expect.any(File), 1, 1, 1);
+
+    fireEvent.change(screen.getByLabelText(/Página para seleção/i), { target: { value: '' } });
+    await userEvent.click(screen.getByRole('button', { name: /Selecionar regi/i }));
+    expect(await screen.findByTestId('pdf-region-selector')).toHaveTextContent('pagina-1');
+  });
+
   test('serializes object detail when preview request fails with structured payload', async () => {
     fornecedorService.previewCatalogo.mockRejectedValue({
       detail: { reason: 'layout_invalido', page: 4 },
@@ -841,6 +874,39 @@ describe('ImportCatalogWizard', () => {
       });
     });
     expect(screen.queryByText('Mapear Colunas')).not.toBeInTheDocument();
+  });
+
+  test('keeps local mapping when the supplier has no id to persist defaults', async () => {
+    fornecedorService.previewCatalogo.mockResolvedValue({
+      fileId: 183,
+      headers: ['titulo_bruto'],
+      sampleRows: [{ titulo_bruto: 'Compressor axial' }],
+      previewImages: [{ page: 1, image: 'data:image/png;base64,abc' }],
+      numPages: 1,
+      tablePages: [1],
+    });
+
+    render(
+      <ImportCatalogWizard
+        fornecedor={{ default_column_mapping: {} }}
+        onClose={() => {}}
+        isOpen
+      />
+    );
+
+    await uploadAndGeneratePreview();
+    await screen.findByText(/Prévia das colunas detectadas/i);
+    await userEvent.click(screen.getByRole('button', { name: /Definir mapeamento/i }));
+    await screen.findByText('Mapear Colunas');
+    await userEvent.selectOptions(
+      screen.getByRole('combobox', { name: /Campo para coluna titulo_bruto/i }),
+      'auto:sku_nome'
+    );
+    await userEvent.click(screen.getByRole('button', { name: /Confirmar mapeamento/i }));
+
+    expect(fornecedorService.setFornecedorMapping).not.toHaveBeenCalled();
+    expect(screen.queryByText('Mapear Colunas')).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Iniciar Processamento/i })).toBeDisabled();
   });
 
   test('extracts a selected region from a chosen preview page and opens mapping modal', async () => {
@@ -1404,6 +1470,49 @@ describe('ImportCatalogWizard', () => {
         element?.tagName.toLowerCase() === 'pre' && /Importa..o conclu.da/i.test(content)
       )
     ).toBeInTheDocument();
+  });
+
+  test('shows the failed-result message when the backend finishes with status FAILED', async () => {
+    productTypeService.getProductTypes.mockResolvedValue({
+      items: [{ id: 4, friendly_name: 'Automotivo' }],
+    });
+    fornecedorService.previewCatalogo.mockResolvedValue({
+      fileId: 206,
+      headers: ['titulo'],
+      sampleRows: [{ titulo: 'Compressor' }],
+      previewImages: [{ page: 1, image: 'data:image/png;base64,abc' }],
+      numPages: 1,
+      tablePages: [1],
+    });
+    fornecedorService.finalizarImportacaoCatalogo.mockResolvedValue({
+      status: 'PROCESSING',
+      file_id: 206,
+    });
+    fornecedorService.getImportacaoStatus.mockResolvedValue({
+      status: 'FAILED',
+      result_ready: true,
+      pages_processed: 1,
+      total_pages: 1,
+    });
+    fornecedorService.getImportacaoResult.mockResolvedValue({
+      errors: [{ erro_processamento: 'Arquivo sem layout válido' }],
+      stats: { pages_processed: 1, pages_total: 1 },
+    });
+
+    render(
+      <ImportCatalogWizard
+        fornecedor={{ id: 1, default_column_mapping: { titulo: 'auto:sku_nome' } }}
+        onClose={() => {}}
+        isOpen
+      />
+    );
+
+    await uploadAndGeneratePreview();
+    await screen.findByText('Compressor');
+    await userEvent.selectOptions(screen.getByRole('combobox', { name: /tipo de produto/i }), '4');
+    await userEvent.click(screen.getByRole('button', { name: /Iniciar Processamento/i }));
+
+    expect(await screen.findByText(/Falha: Arquivo sem layout válido/i)).toBeInTheDocument();
   });
   test('ignores empty file selections without resetting the wizard state', async () => {
     render(

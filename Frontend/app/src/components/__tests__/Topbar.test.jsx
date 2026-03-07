@@ -66,4 +66,10 @@ describe('Topbar', () => {
     await user.click(screen.getByRole('button', { name: 'user-menu-logout' }));
     expect(logout).toHaveBeenCalledTimes(1);
   });
+
+  test('falls back to the default dashboard title when no explicit view title is provided', () => {
+    render(<Topbar toggleSidebar={toggleSidebar} />);
+
+    expect(screen.getByRole('heading', { name: 'Dashboard' })).toBeInTheDocument();
+  });
 });

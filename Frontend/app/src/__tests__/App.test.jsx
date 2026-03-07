@@ -23,6 +23,10 @@ jest.mock('../contexts/ThemeContext', () => ({
   useTheme: jest.fn(),
 }));
 
+jest.mock('react-toastify', () => ({
+  ToastContainer: ({ theme }) => <div data-testid="toast-theme">{theme}</div>,
+}));
+
 jest.mock('../components/MainLayout', () => {
   const { Outlet } = jest.requireActual('react-router-dom');
   return {
@@ -144,6 +148,15 @@ describe('App', () => {
     render(<App />);
     expect(screen.getByTestId('main-layout')).toBeInTheDocument();
     expect(screen.getByText('produtos-page')).toBeInTheDocument();
+  });
+
+  test('applies the toast theme from the current theme mode', () => {
+    window.history.pushState({}, '', '/dashboard');
+    useTheme.mockReturnValueOnce({ mode: 'dark' });
+
+    render(<App />);
+
+    expect(screen.getByTestId('toast-theme')).toHaveTextContent('dark');
   });
 
   test('renders the not-found route for unknown paths', () => {

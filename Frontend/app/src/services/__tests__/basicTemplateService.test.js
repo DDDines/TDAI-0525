@@ -75,6 +75,35 @@ describe('basicTemplateService', () => {
     expect(merged.descriptionTemplate).toHaveLength(2000);
   });
 
+  test('supports empty saves, stringified payloads and environments without localStorage setters', () => {
+    expect(basicTemplateService.saveBasicGenerationTemplates()).toEqual(
+      DEFAULT_BASIC_GENERATION_TEMPLATES
+    );
+
+    window.localStorage.setItem(STORAGE_KEY, JSON.stringify('invalid-type'));
+    expect(basicTemplateService.getBasicGenerationTemplates()).toEqual(
+      DEFAULT_BASIC_GENERATION_TEMPLATES
+    );
+
+    const originalDescriptor = Object.getOwnPropertyDescriptor(window, 'localStorage');
+    Object.defineProperty(window, 'localStorage', {
+      value: undefined,
+      configurable: true,
+      writable: true,
+    });
+
+    expect(
+      basicTemplateService.saveBasicGenerationTemplates({
+        titleTemplate: '{nome_base}',
+      })
+    ).toEqual({
+      titleTemplate: '{nome_base}',
+      descriptionTemplate: DEFAULT_BASIC_GENERATION_TEMPLATES.descriptionTemplate,
+    });
+
+    Object.defineProperty(window, 'localStorage', originalDescriptor);
+  });
+
   test('resets persisted templates and resolves request-specific overrides', () => {
     basicTemplateService.saveBasicGenerationTemplates({
       titleTemplate: '{nome_base} {sku}',
@@ -96,5 +125,6 @@ describe('basicTemplateService', () => {
     expect(window.localStorage.getItem(STORAGE_KEY)).toBeNull();
     expect(basicTemplateService.resolveCustomTemplateForRequest('title')).toBeNull();
     expect(basicTemplateService.resolveCustomTemplateForRequest('unknown')).toBeNull();
+    expect(basicTemplateService.resolveCustomTemplateForRequest('description', '  ')).toBeNull();
   });
 });

@@ -45,6 +45,24 @@ describe('ThemeContext', () => {
     expect(localStorage.getItem('theme')).toBe('light');
   });
 
+  test('falls back to light mode when storage contains an unknown theme', () => {
+    localStorage.setItem('theme', 'sepia');
+
+    render(
+      <ThemeProvider>
+        <Probe />
+      </ThemeProvider>
+    );
+
+    expect(screen.getByTestId('mode')).toHaveTextContent('light');
+    expect(document.body).not.toHaveClass('dark');
+    expect(localStorage.getItem('theme')).toBe('light');
+
+    fireEvent.click(screen.getByText('toggle-theme'));
+    expect(screen.getByTestId('mode')).toHaveTextContent('dark');
+    expect(document.body).toHaveClass('dark');
+  });
+
   test('throws when the hook is used outside the provider', () => {
     expect(() => render(<InvalidProbe />)).toThrow(
       'useTheme deve ser usado dentro de um ThemeProvider'

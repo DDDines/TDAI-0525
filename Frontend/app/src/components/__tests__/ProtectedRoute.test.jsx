@@ -79,6 +79,22 @@ describe('ProtectedRoute', () => {
     expect(screen.getByText('Private Content')).toBeInTheDocument();
   });
 
+  test('renders children when authenticated and no role restriction is provided', () => {
+    mockUseAuth.mockReturnValue({
+      isAuthenticated: true,
+      user: { role: 'viewer' },
+      isLoading: false
+    });
+
+    renderWithRoutes(
+      <ProtectedRoute>
+        <div>Private Content</div>
+      </ProtectedRoute>
+    );
+
+    expect(screen.getByText('Private Content')).toBeInTheDocument();
+  });
+
   test('redirects to dashboard when authenticated but role is not allowed', () => {
     mockUseAuth.mockReturnValue({
       isAuthenticated: true,

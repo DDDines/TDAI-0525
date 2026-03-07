@@ -35,6 +35,139 @@ export function extractProductTypeAttributes(details) {
   return [];
 }
 
+export function buildAttributeOption(attribute) {
+  const attributeKey = normalizeDisplayText(attribute?.attribute_key || '');
+  const attributeLabel = normalizeDisplayText(attribute?.label || '');
+  return {
+    value: `attr:${attributeKey}`,
+    label: `Atributo: ${attributeLabel || attributeKey}`,
+  };
+}
+
+export function getProductTypeOptionLabel(productType) {
+  const candidates = [
+    productType?.friendly_name,
+    productType?.nome,
+    productType?.name,
+    productType?.slug,
+    productType?.key_name,
+    productType?.id,
+  ];
+  const selected = candidates.find(
+    (value) => value !== null && value !== undefined && String(value).trim()
+  );
+  return normalizeDisplayText(String(selected ?? ''));
+}
+
+export function resolveWizardPage(selectedPageForRegion, startPage) {
+  const selectedPage = Number(selectedPageForRegion);
+  if (Number.isFinite(selectedPage) && selectedPage > 0) return selectedPage;
+
+  const fallbackPage = Number(startPage);
+  if (Number.isFinite(fallbackPage) && fallbackPage > 0) return fallbackPage;
+  return 1;
+}
+
+export function sanitizePositivePageInput(value, fallbackValue = 1) {
+  const fallback = resolveWizardPage(fallbackValue, 1);
+  const parsedValue = Number.parseInt(value || String(fallback), 10);
+  if (Number.isNaN(parsedValue) || parsedValue < 1) return fallback;
+  return parsedValue;
+}
+
+export function resolvePreviewImageIndex(previewImageCount, pageToUse, startPage) {
+  if (!Number.isFinite(previewImageCount) || previewImageCount < 1) return null;
+  return Math.max(0, Math.min(previewImageCount - 1, pageToUse - startPage));
+}
+
+export function normalizePreviewPayload(preview) {
+  return {
+    ...preview,
+    fileId: preview?.fileId ?? null,
+    headers: Array.isArray(preview?.headers) ? preview.headers : null,
+    sampleRows: Array.isArray(preview?.sampleRows) ? preview.sampleRows : [],
+    previewImages: Array.isArray(preview?.previewImages) ? preview.previewImages : [],
+    numPages:
+      typeof preview?.numPages === 'number' && preview.numPages >= 0 ? preview.numPages : 0,
+    tablePages: Array.isArray(preview?.tablePages) ? preview.tablePages : [],
+  };
+}
+
+export function resolveMappingEditorState({ regionPreview, manualMappingRows, fallbackHeaders }) {
+  let headers = fallbackHeaders;
+  if (Array.isArray(regionPreview?.headers) && regionPreview.headers.length > 0) {
+    headers = regionPreview.headers;
+  } else if (Array.isArray(manualMappingRows) && manualMappingRows.length > 0) {
+    headers = Object.keys(manualMappingRows[0]);
+  }
+
+  const rows = Array.isArray(manualMappingRows) ? manualMappingRows : [];
+  return { headers, rows };
+}
+
+export function normalizeImportStatus(statusRaw, expectedPages) {
+  const statusText =
+    typeof statusRaw?.status === 'string' ? normalizeDisplayText(statusRaw.status).trim() : '';
+  const statusNormalized = statusText.toUpperCase();
+  const canonicalStatus =
+    statusNormalized === 'DONE' || statusNormalized === 'COMPLETED'
+      ? 'IMPORTED'
+      : statusNormalized || 'PROCESSING';
+
+  const pagesProcessed =
+    typeof statusRaw?.pages_processed === 'number' ? statusRaw.pages_processed : 0;
+
+  let pagesTotal = 0;
+  if (typeof statusRaw?.total_pages === 'number') {
+    pagesTotal = statusRaw.total_pages;
+  } else if (typeof statusRaw?.pages_total === 'number') {
+    pagesTotal = statusRaw.pages_total;
+  } else if (typeof expectedPages === 'number') {
+    pagesTotal = expectedPages;
+  }
+
+  return {
+    ...statusRaw,
+    status: canonicalStatus,
+    pages_processed: pagesProcessed,
+    total_pages: pagesTotal,
+  };
+}
+
+export function buildImportStartPayload({
+  fileId,
+  productTypeId,
+  fornecedorId,
+  mapping,
+  selectedPageForRegion,
+  startPage,
+  applyAllPages,
+  previewData,
+  selectedBboxNorm,
+  selectedBbox,
+  extractionMode,
+}) {
+  const pageToImport = resolveWizardPage(selectedPageForRegion, startPage);
+  const selectedPages = applyAllPages ? null : [pageToImport];
+  const normalizedPreview = normalizePreviewPayload(previewData);
+  const parsedProductTypeId = Number.parseInt(productTypeId, 10);
+  const normalizedMapping =
+    mapping && typeof mapping === 'object' && Object.keys(mapping).length > 0 ? mapping : null;
+
+  return {
+    estimatedTotal: selectedPages ? selectedPages.length : normalizedPreview.numPages,
+    payload: {
+      fileId,
+      productTypeId: Number.isNaN(parsedProductTypeId) ? null : parsedProductTypeId,
+      fornecedorId,
+      mapping: normalizedMapping,
+      pages: selectedPages,
+      region: selectedBboxNorm || selectedBbox || null,
+      extractionMode,
+    },
+  };
+}
+
 export function resolveManualMappingPreview({
   regionPreview,
   previewData,
@@ -81,6 +214,7 @@ export function buildWizardViewModel({
   const resultErrors = Array.isArray(resultData?.errors) ? resultData.errors : [];
   const createdItems = Array.isArray(resultData?.created) ? resultData.created : [];
   const updatedItems = Array.isArray(resultData?.updated) ? resultData.updated : [];
+  const regionSelectionPage = resolveWizardPage(selectedPageForRegion, startPage);
 
   const criticalErrorsCount =
     typeof stats.erros === 'number' ? stats.erros : resultErrors.length;
@@ -143,7 +277,7 @@ export function buildWizardViewModel({
 
   const selectedScopeLabel = applyAllPages
     ? 'todas as páginas do PDF'
-    : `somente página ${selectedPageForRegion || startPage}`;
+    : `somente página ${regionSelectionPage}`;
 
   const canStartImport = Boolean(fileId && productTypeId) && !isLoading;
   const mappingValues = Object.values(mapping || {});
@@ -175,6 +309,38 @@ export function buildWizardViewModel({
     typeof stats.ext === 'string' && stats.ext.trim()
       ? stats.ext
       : selectedFile?.name?.split('.').pop()?.toLowerCase() || '-';
+  const previewFileIdLabel = fileId === null || fileId === undefined ? '-' : String(fileId);
+  const processingStatusLabel = normalizeDisplayText(String(statusData?.status || 'PROCESSING'));
+  const pagesTotalLabel = pagesTotal > 0 ? String(pagesTotal) : '?';
+  const etaLabel = etaSec > 0 ? formatElapsed(etaSec) : '-';
+  const showResultStats = Boolean(
+    resultData?.stats || resultData?.created || resultData?.updated || resultData?.errors
+  );
+  const resultPagesProcessed =
+    typeof stats.pages_processed === 'number' ? stats.pages_processed : pagesProcessed;
+  const resultPagesTotal =
+    typeof stats.pages_total === 'number'
+      ? stats.pages_total
+      : typeof statusData?.total_pages === 'number'
+        ? statusData.total_pages
+        : typeof statusData?.pages_total === 'number'
+          ? statusData.pages_total
+          : 0;
+  const failedMessage =
+    resultErrors.length > 0
+      ? normalizeDisplayText(
+          resultErrors[0]?.erro_processamento_pdf ||
+            resultErrors[0]?.erro_processamento ||
+            'Verifique os detalhes em Erros/Log.'
+        )
+      : '';
+  const showPartialWarning =
+    ['IMPORTED', 'DONE', 'PARTIAL'].includes(statusNormalized) && hasPartialSuccess;
+  const showFailedResultMessage = statusNormalized === 'FAILED' && Boolean(failedMessage);
+  const normalizedTopReasons = resultTopReasons.map((item) => ({
+    reason: normalizeDisplayText(item?.reason || '-'),
+    count: item?.count ?? 0,
+  }));
 
   return {
     criticalErrorsCount,
@@ -191,6 +357,7 @@ export function buildWizardViewModel({
     showLoadingPopup,
     loadingPopupMessage,
     selectedScopeLabel,
+    regionSelectionPage,
     canStartImport,
     hasPrimaryMapping,
     canStartWithMapping: canStartImport && hasPrimaryMapping,
@@ -202,8 +369,20 @@ export function buildWizardViewModel({
     resultOutputHeadline,
     resultOutputLabel,
     resultOutputPages,
-    resultTopReasons,
+    resultTopReasons: normalizedTopReasons,
     formatExt,
+    previewFileIdLabel,
+    processingStatusLabel,
+    pagesTotalLabel,
+    etaLabel,
+    showResultStats,
+    createdCount,
+    updatedCount,
+    resultPagesProcessed,
+    resultPagesTotal,
+    failedMessage,
+    showFailedResultMessage,
+    showPartialWarning,
   };
 }
 
@@ -239,6 +418,12 @@ export function normalizePayloadStrings(payload) {
   }
   if (typeof payload === 'string') return normalizeDisplayText(payload);
   return payload;
+}
+
+export function buildTimelineLines(statusTimeline) {
+  return Array.isArray(statusTimeline) && statusTimeline.length > 0
+    ? statusTimeline
+    : ['Aguardando atualizações...'];
 }
 
 export function appendUniqueTimelineEntry(previousEntries, message, timestampLabel) {

@@ -22,13 +22,7 @@ function ThemeToggle(
         aria-label={`Alternar tema (ir para ${nextMode})`}
         title={`Alternar tema (ir para ${nextMode})`}>
 
-      {logo ?
-        <img src={logo} alt="" className="theme-toggle-logo" /> :
-
-        <span className="theme-toggle-logo-fallback" aria-hidden="true">
-          CA
-        </span>
-        }
+      <img src={logo} alt="" className="theme-toggle-logo" />
       <span className="visually-hidden">{`Tema atual: ${mode === 'dark' ? 'escuro' : 'claro'}`}</span>
     </button>);
 

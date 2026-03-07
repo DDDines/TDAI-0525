@@ -17,10 +17,11 @@ import fornecedorService from '../services/fornecedorService';
 import AttributeField from './produtos/shared/AttributeField';
 import { useProductTypes } from '../contexts/ProductTypeContext';
 import {
+  buildProductFormState,
   buildInitialDynamicAttributes,
   coerceFormFieldValue,
   extractGeneratedTitles,
-  normalizeDynamicAttrsToTemplateKeys,
+  handleContentViewNavigation,
   resolveProductFormStage,
   resolveServiceErrorDetail,
   resolveShowAiFeatures,
@@ -135,77 +136,18 @@ function ProductEditModal(
       }
     }, [activeTab, showAiFeatures]);
 
-    const extractIaSuggestions = useCallback((dadosBrutos) => {
-      const extracted = {};
-      if (dadosBrutos) {
-        if (dadosBrutos.especificacoes_tecnicas_dict && typeof dadosBrutos.especificacoes_tecnicas_dict === 'object') {
-          for (const key in dadosBrutos.especificacoes_tecnicas_dict) {
-            if (Object.prototype.hasOwnProperty.call(dadosBrutos.especificacoes_tecnicas_dict, key)) {
-              extracted[key] = dadosBrutos.especificacoes_tecnicas_dict[key];
-            }
-          }
-        }
-      }
-      setIaAttributeSuggestions(extracted);
-      const initialSelections = {};
-      for (const key in extracted) {
-        initialSelections[key] = false;
-      }
-      setSelectedIaSuggestions(initialSelections);
-    }, []);
-
     const populateFormData = useCallback((prod) => {
       if (!prod) return;
-      const dynamicAttrsRaw = prod.dynamic_attributes && typeof prod.dynamic_attributes === 'object' ? prod.dynamic_attributes : {};
-      const productTypeId = Number(prod?.product_type_id || prod?.product_type?.id || 0);
-      const fallbackTypeTemplates =
-      productTypes.find((type) => Number(type?.id) === productTypeId)?.attribute_templates || [];
-      const typeTemplates =
-      prod?.product_type?.attribute_templates && Array.isArray(prod.product_type.attribute_templates) ?
-      prod.product_type.attribute_templates :
-      fallbackTypeTemplates;
-      const dynamicAttrsNormalized = normalizeDynamicAttrsToTemplateKeys(dynamicAttrsRaw, typeTemplates);
-      const dynamicAttrs = Object.fromEntries(
-        Object.entries(dynamicAttrsNormalized).filter(([key]) => !BASE_PRODUCT_FIELDS.has(key))
+      const nextState = buildProductFormState(
+        prod,
+        productTypes,
+        BASE_PRODUCT_FIELDS,
+        initialFormData
       );
-      const dadosBrutos = prod.dados_brutos_web && typeof prod.dados_brutos_web === 'object' ? prod.dados_brutos_web : {};
-
-      setFormData({
-        nome_base: prod.nome_base || '',
-        nome_chat_api: prod.nome_chat_api || '',
-        descricao_original: prod.descricao_original || '',
-        descricao_curta_orig: prod.descricao_curta_orig || '',
-        descricao_chat_api: prod.descricao_chat_api || '',
-        descricao_curta_gerada: prod.descricao_curta_gerada || '',
-        sku: prod.sku || '',
-        ean: prod.ean || '',
-        ncm: prod.ncm || '',
-        marca: prod.marca || '',
-        modelo: prod.modelo || '',
-        categoria_original: prod.categoria_original || '',
-        categoria_mapeada: prod.categoria_mapeada || '',
-        preco_custo: prod.preco_custo || '',
-        preco_venda: prod.preco_venda || '',
-        preco_promocional: prod.preco_promocional || '',
-        estoque_disponivel: prod.estoque_disponivel || '',
-        peso_gramas: prod.peso_gramas || '',
-        dimensoes_cm: prod.dimensoes_cm || '',
-        imagem_principal_url: prod.imagem_principal_url || '',
-        imagens_secundarias_urls: prod.imagens_secundarias_urls || [],
-        fornecedor_id: prod.fornecedor_id || '',
-        product_type_id: prod.product_type_id || '',
-        dynamic_attributes: dynamicAttrs,
-        dados_brutos_web: dadosBrutos,
-        titulos_sugeridos: extractGeneratedTitles(prod),
-        ativo_marketplace: prod.ativo_marketplace || false,
-        data_publicacao_marketplace: prod.data_publicacao_marketplace || null,
-        log_enriquecimento_web: prod.log_enriquecimento_web || { historico_mensagens: [] },
-        status_enriquecimento_web: prod.status_enriquecimento_web || null,
-        status_titulo_ia: prod.status_titulo_ia || null,
-        status_descricao_ia: prod.status_descricao_ia || null
-      });
-      extractIaSuggestions(dadosBrutos);
-    }, [extractIaSuggestions, productTypes]);
+      setFormData(nextState.formData);
+      setIaAttributeSuggestions(nextState.iaSuggestions);
+      setSelectedIaSuggestions(nextState.selectedIaSuggestions);
+    }, [productTypes]);
 
     useEffect(() => {
       const loadDetails = async () => {
@@ -530,16 +472,12 @@ function ProductEditModal(
     };
 
     const handleOpenContentView = () => {
-      if (typeof onClose === 'function') {
-        onClose();
-      }
-      if (typeof onOpenContentView === 'function') {
-        onOpenContentView(product.id);
-        return;
-      }
-      if (typeof window !== 'undefined') {
-        window.location.assign(`/produtos/${product.id}/conteudo`);
-      }
+      handleContentViewNavigation(
+        product.id,
+        onClose,
+        onOpenContentView,
+        typeof window !== 'undefined' ? window.location.assign.bind(window.location) : null
+      );
     };
 
     const handleGenerateDescription = async () => {
@@ -584,7 +522,8 @@ function ProductEditModal(
       }
     };
 
-    const selectedProductType = productTypes.find((type) => type.id === parseInt(formData.product_type_id));
+    const safeProductTypes = Array.isArray(productTypes) ? productTypes : [];
+    const selectedProductType = safeProductTypes.find((type) => type.id === parseInt(formData.product_type_id));
     const attributeTemplates = selectedProductType ? selectedProductType.attribute_templates : [];
     const enrichmentSummary = formData?.log_enriquecimento_web?.resumo_aplicacao || {};
     const appliedFields = Array.isArray(enrichmentSummary?.aplicados) ? enrichmentSummary.aplicados : [];
@@ -626,7 +565,7 @@ function ProductEditModal(
                         Tipo de Produto:
                         <select name="product_type_id" value={formData.product_type_id} onChange={handleChange} required>
                             <option value="">Selecione um tipo</option>
-                            {(productTypes || []).map((type) =>
+                            {safeProductTypes.map((type) =>
                 <option key={type.id} value={type.id}>{type.friendly_name}</option>
                 )}
                         </select>
@@ -670,7 +609,7 @@ function ProductEditModal(
                                     Tipo de Produto:
                                     <select name="product_type_id" value={formData.product_type_id} onChange={handleChange} required>
                                         <option value="">Selecione um tipo</option>
-                                        {(productTypes || []).map((type) =>
+                                        {safeProductTypes.map((type) =>
                     <option key={type.id} value={type.id}>{type.friendly_name}</option>
                     )}
                                     </select>

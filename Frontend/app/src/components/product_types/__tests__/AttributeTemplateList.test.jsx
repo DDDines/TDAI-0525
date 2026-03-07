@@ -35,6 +35,7 @@ describe('AttributeTemplateList', () => {
         label: 'Material',
         attribute_key: 'material',
         field_type: 'TEXT',
+        is_required: true,
         display_order: 1,
       },
       {
@@ -42,7 +43,7 @@ describe('AttributeTemplateList', () => {
         label: 'Cor',
         attribute_key: 'cor',
         field_type: 'SELECT',
-        options: ['Preto', 'Branco'],
+        options: 'Preto / Branco',
         display_order: 0,
       },
     ];
@@ -59,7 +60,8 @@ describe('AttributeTemplateList', () => {
     const titles = screen.getAllByText(/Cor|Material/);
     expect(titles[0]).toHaveTextContent('Cor');
     expect(titles[1]).toHaveTextContent('Material');
-    expect(screen.getByText(/Preto, Branco/i)).toBeInTheDocument();
+    expect(screen.getByText(/Preto \/ Branco/i)).toBeInTheDocument();
+    expect(screen.getByText(/Obrigatório/i)).toBeInTheDocument();
 
     await user.click(screen.getAllByRole('button', { name: /Editar/i })[0]);
     expect(onEdit).toHaveBeenCalledWith(expect.objectContaining({ id: 1 }));

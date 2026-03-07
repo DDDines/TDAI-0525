@@ -63,4 +63,25 @@ describe('RecuperarSenhaPage', () => {
       expect(showErrorToast).toHaveBeenCalledWith('email inválido');
     });
   });
+
+  test('falls back to the default recovery error when the backend returns an empty payload', async () => {
+    authService.requestPasswordRecovery.mockRejectedValueOnce({});
+
+    render(
+      <MemoryRouter>
+        <RecuperarSenhaPage />
+      </MemoryRouter>
+    );
+
+    fireEvent.change(screen.getByLabelText('Email cadastrado'), {
+      target: { value: 'fallback@example.com' },
+    });
+    fireEvent.click(screen.getByText('Enviar link'));
+
+    await waitFor(() => {
+      expect(showErrorToast).toHaveBeenCalledWith(
+        'Falha ao solicitar recuperação de senha.'
+      );
+    });
+  });
 });

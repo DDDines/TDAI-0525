@@ -212,6 +212,16 @@ describe('ConfiguracoesPage', () => {
     });
   });
 
+  test('uses the default load error when the current user endpoint returns an empty failure payload', async () => {
+    authService.getCurrentUser.mockRejectedValueOnce({});
+
+    render(<ConfiguracoesPage />);
+
+    await waitFor(() => {
+      expect(showErrorToast).toHaveBeenCalledWith('Falha ao carregar dados do usuario.');
+    });
+  });
+
   test('shows the loading state first and keeps defaults when current user payload is empty', async () => {
     authService.getCurrentUser.mockImplementationOnce(
       () =>
@@ -311,5 +321,48 @@ describe('ConfiguracoesPage', () => {
     });
     expect(showSuccessToast).toHaveBeenCalledWith('Perfil atualizado com sucesso!');
     expect(setUser).not.toHaveBeenCalled();
+  });
+
+  test('fills profile defaults from sparse payloads and normalizes sparse update responses', async () => {
+    authService.getCurrentUser.mockResolvedValueOnce({});
+    authService.updateCurrentUser.mockResolvedValueOnce({
+      nome: 'Nome sem completo',
+      nome_empresa: null,
+      avatar_url: null,
+      idioma_preferido: null,
+      chave_openai_pessoal: null,
+    });
+    useAuth.mockReturnValue({
+      user: {
+        id: 8,
+        is_superuser: true,
+        plano: { nome: 'Enterprise' },
+        created_at: '2026-03-07T00:00:00.000Z',
+      },
+      setUser,
+    });
+
+    render(<ConfiguracoesPage />);
+
+    expect(await screen.findByText('Usuario sem nome')).toBeInTheDocument();
+    expect(screen.getByLabelText('Email')).toHaveValue('');
+    expect(screen.getByText('Empresa nao informada')).toBeInTheDocument();
+    expect(screen.getByText('Portugues')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByText('Salvar alteracoes do perfil'));
+
+    await waitFor(() => {
+      expect(setUser).toHaveBeenCalledWith({
+        nome: 'Nome sem completo',
+        nome_empresa: null,
+        avatar_url: null,
+        idioma_preferido: null,
+        chave_openai_pessoal: null,
+      });
+    });
+
+    expect(screen.getByText('Nome sem completo')).toBeInTheDocument();
+    expect(screen.getByText('Empresa nao informada')).toBeInTheDocument();
+    expect(screen.getByText('Portugues')).toBeInTheDocument();
   });
 });

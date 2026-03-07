@@ -33,7 +33,7 @@ function LoadingPopup(
       <div className="modal-overlay">
       <div className="modal-content loading-popup-content">
         <div className="loading-popup-header">
-          {LogoImg ? <img src={LogoImg} alt="CatalogAI" className="loading-popup-logo" /> : null}
+          <img src={LogoImg} alt="CatalogAI" className="loading-popup-logo" />
           <div className="loading-popup-header-copy">
             <h3 className="loading-popup-title">{title}</h3>
             <p className="loading-popup-message">{message}</p>

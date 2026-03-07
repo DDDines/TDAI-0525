@@ -91,6 +91,101 @@ function normalizeDynamicAttrsToTemplateKeys(dynamicAttrsRaw, attributeTemplates
   return result;
 }
 
+function extractIaSuggestionMap(dadosBrutos) {
+  if (!dadosBrutos || typeof dadosBrutos !== 'object') return {};
+  if (
+    !dadosBrutos.especificacoes_tecnicas_dict ||
+    typeof dadosBrutos.especificacoes_tecnicas_dict !== 'object'
+  ) {
+    return {};
+  }
+
+  const extracted = {};
+  for (const key in dadosBrutos.especificacoes_tecnicas_dict) {
+    if (Object.prototype.hasOwnProperty.call(dadosBrutos.especificacoes_tecnicas_dict, key)) {
+      extracted[key] = dadosBrutos.especificacoes_tecnicas_dict[key];
+    }
+  }
+  return extracted;
+}
+
+function buildProductFormState(prod, productTypes, baseProductFields, initialFormData) {
+  if (!prod) {
+    return {
+      formData: initialFormData,
+      iaSuggestions: {},
+      selectedIaSuggestions: {},
+    };
+  }
+
+  const availableProductTypes = Array.isArray(productTypes) ? productTypes : [];
+  const dynamicAttrsRaw =
+    prod.dynamic_attributes && typeof prod.dynamic_attributes === 'object'
+      ? prod.dynamic_attributes
+      : {};
+  const resolvedProductTypeId = Number(prod?.product_type_id || prod?.product_type?.id || 0);
+  const fallbackTypeTemplates =
+    availableProductTypes.find((type) => Number(type?.id) === resolvedProductTypeId)?.attribute_templates ||
+    [];
+  const typeTemplates =
+    prod?.product_type?.attribute_templates && Array.isArray(prod.product_type.attribute_templates)
+      ? prod.product_type.attribute_templates
+      : fallbackTypeTemplates;
+  const dynamicAttrsNormalized = normalizeDynamicAttrsToTemplateKeys(
+    dynamicAttrsRaw,
+    typeTemplates
+  );
+  const dynamicAttrs = Object.fromEntries(
+    Object.entries(dynamicAttrsNormalized).filter(([key]) => !baseProductFields.has(key))
+  );
+  const dadosBrutos =
+    prod.dados_brutos_web && typeof prod.dados_brutos_web === 'object' ? prod.dados_brutos_web : {};
+  const iaSuggestions = extractIaSuggestionMap(dadosBrutos);
+  const selectedIaSuggestions = Object.fromEntries(
+    Object.keys(iaSuggestions).map((key) => [key, false])
+  );
+
+  return {
+    formData: {
+      ...initialFormData,
+      nome_base: prod.nome_base || '',
+      nome_chat_api: prod.nome_chat_api || '',
+      descricao_original: prod.descricao_original || '',
+      descricao_curta_orig: prod.descricao_curta_orig || '',
+      descricao_chat_api: prod.descricao_chat_api || '',
+      descricao_curta_gerada: prod.descricao_curta_gerada || '',
+      sku: prod.sku || '',
+      ean: prod.ean || '',
+      ncm: prod.ncm || '',
+      marca: prod.marca || '',
+      modelo: prod.modelo || '',
+      categoria_original: prod.categoria_original || '',
+      categoria_mapeada: prod.categoria_mapeada || '',
+      preco_custo: prod.preco_custo || '',
+      preco_venda: prod.preco_venda || '',
+      preco_promocional: prod.preco_promocional || '',
+      estoque_disponivel: prod.estoque_disponivel || '',
+      peso_gramas: prod.peso_gramas || '',
+      dimensoes_cm: prod.dimensoes_cm || '',
+      imagem_principal_url: prod.imagem_principal_url || '',
+      imagens_secundarias_urls: prod.imagens_secundarias_urls || [],
+      fornecedor_id: prod.fornecedor_id || '',
+      product_type_id: prod.product_type_id || '',
+      dynamic_attributes: dynamicAttrs,
+      dados_brutos_web: dadosBrutos,
+      titulos_sugeridos: extractGeneratedTitles(prod),
+      ativo_marketplace: prod.ativo_marketplace || false,
+      data_publicacao_marketplace: prod.data_publicacao_marketplace || null,
+      log_enriquecimento_web: prod.log_enriquecimento_web || { historico_mensagens: [] },
+      status_enriquecimento_web: prod.status_enriquecimento_web || null,
+      status_titulo_ia: prod.status_titulo_ia || null,
+      status_descricao_ia: prod.status_descricao_ia || null,
+    },
+    iaSuggestions,
+    selectedIaSuggestions,
+  };
+}
+
 function coerceFormFieldValue(name, value, type, checked) {
   if (name === 'imagens_secundarias_urls') {
     return value.split(',').map((url) => url.trim()).filter(Boolean);
@@ -180,10 +275,28 @@ function resolveServiceErrorDetail(err, fallback) {
   return fallback;
 }
 
+function handleContentViewNavigation(productId, onClose, onOpenContentView, locationAssign) {
+  if (typeof onClose === 'function') {
+    onClose();
+  }
+  if (typeof onOpenContentView === 'function') {
+    onOpenContentView(productId);
+    return 'callback';
+  }
+  if (typeof locationAssign === 'function') {
+    locationAssign(`/produtos/${productId}/conteudo`);
+    return 'location';
+  }
+  return 'noop';
+}
+
 export {
+  buildProductFormState,
   buildInitialDynamicAttributes,
   coerceFormFieldValue,
+  extractIaSuggestionMap,
   extractGeneratedTitles,
+  handleContentViewNavigation,
   normalizeDynamicAttrsToTemplateKeys,
   resolveProductFormStage,
   resolveServiceErrorDetail,
