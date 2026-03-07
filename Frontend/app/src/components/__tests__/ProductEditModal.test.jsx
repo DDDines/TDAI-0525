@@ -1,10 +1,12 @@
-import { act, render, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import '@testing-library/jest-dom';
 import userEvent from '@testing-library/user-event';
 import ProductEditModal from '../ProductEditModal.jsx';
 import productService from '../../services/productService';
+import fornecedorService from '../../services/fornecedorService';
 import { useProductTypes } from '../../contexts/ProductTypeContext';
 import {
+  showErrorToast,
   showInfoToast,
   showSuccessToast,
   showWarningToast,
@@ -137,6 +139,8 @@ describe('ProductEditModal', () => {
   const onProductUpdated = jest.fn();
   const onOpenContentView = jest.fn();
   let user;
+  let consoleErrorSpy;
+  let consoleWarnSpy;
 
   const baseProduct = {
     id: 10,
@@ -165,6 +169,8 @@ describe('ProductEditModal', () => {
     jest.clearAllMocks();
     jest.useFakeTimers();
     user = userEvent.setup({ advanceTimers: jest.advanceTimersByTime });
+    consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+    consoleWarnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {});
 
     useProductTypes.mockReturnValue({
       productTypes: mockProductTypes,
@@ -183,6 +189,8 @@ describe('ProductEditModal', () => {
   afterEach(() => {
     jest.runOnlyPendingTimers();
     jest.useRealTimers();
+    consoleErrorSpy.mockRestore();
+    consoleWarnSpy.mockRestore();
   });
 
   function renderModal(props = {}) {
@@ -279,6 +287,58 @@ describe('ProductEditModal', () => {
     expect(screen.getByLabelText(/^Descricao/i)).toHaveValue('Descricao extraida');
   });
 
+  test('falls back to partial product data when full product loading fails', async () => {
+    productService.getProdutoById.mockRejectedValueOnce(new Error('falha no carregamento'));
+
+    renderModal({
+      product: {
+        id: 10,
+        nome_base: 'Parcial',
+        fornecedor_id: 1,
+        product_type_id: 1,
+        dynamic_attributes: {},
+      },
+    });
+
+    expect(await screen.findByDisplayValue('Parcial')).toBeInTheDocument();
+    expect(showErrorToast).toHaveBeenCalledWith('Erro ao carregar dados completos do produto.');
+    expect(showWarningToast).toHaveBeenCalledWith('Dados carregados parcialmente.');
+  });
+
+  test('fetches the supplier by id when it is missing from the initial dependency list', async () => {
+    fornecedorService.getFornecedores.mockResolvedValueOnce({ items: [fornecedores[1]] });
+    fornecedorService.getFornecedorById.mockResolvedValueOnce({
+      id: 1,
+      nome: 'Fornecedor 1 (fallback)',
+      site_url: 'https://fornecedor-1.example',
+    });
+
+    renderModal({
+      product: {
+        id: 10,
+        nome_base: 'Produto Base',
+        fornecedor_id: 1,
+        product_type_id: 1,
+      },
+    });
+
+    await screen.findByDisplayValue('Produto Base');
+    expect(fornecedorService.getFornecedorById).toHaveBeenCalledWith(1);
+    expect(screen.getAllByRole('option', { name: /Fornecedor 1/i }).length).toBeGreaterThan(0);
+  });
+
+  test('shows an error toast when supplier dependencies cannot be loaded', async () => {
+    fornecedorService.getFornecedores.mockRejectedValueOnce(new Error('falha fornecedores'));
+
+    renderModal({ product: null });
+
+    await waitFor(() => {
+      expect(showErrorToast).toHaveBeenCalledWith(
+        'Erro ao carregar lista de fornecedores para o modal.'
+      );
+    });
+  });
+
   test('opens the dedicated content view from an existing product', async () => {
     renderModal({ product: { id: 10 } });
 
@@ -290,6 +350,54 @@ describe('ProductEditModal', () => {
 
     expect(onClose).toHaveBeenCalled();
     expect(onOpenContentView).toHaveBeenCalledWith(10);
+  });
+
+  test('falls back to window navigation when no dedicated content handler is provided', async () => {
+    render(
+      <ProductEditModal
+        isOpen={true}
+        onClose={onClose}
+        onProductUpdated={onProductUpdated}
+        product={{ id: 10 }}
+        showAiFeatures={false}
+      />
+    );
+
+    await screen.findByLabelText(/Nome Base/i);
+    await user.click(screen.getByRole('button', { name: /Conte/i }));
+    await user.click(screen.getByRole('button', { name: /Tela Dedicada/i }));
+
+    expect(onClose).toHaveBeenCalled();
+    expect(
+      consoleErrorSpy.mock.calls.some((call) =>
+        call.some((item) => String(item).includes('Not implemented: navigation'))
+      )
+    ).toBe(true);
+  });
+
+  test('shows validation and persistence errors when saving fails', async () => {
+    productService.updateProduto.mockRejectedValueOnce({
+      response: { data: { detail: 'falha ao salvar' } },
+    });
+
+    renderModal({ product: { id: 10 } });
+
+    const nameInput = await screen.findByLabelText(/Nome Base/i);
+    await user.clear(nameInput);
+    fireEvent.submit(screen.getByRole('button', { name: /Salvar Produto/i }).closest('form'));
+
+    expect(showErrorToast).toHaveBeenCalledWith('O nome base do produto é obrigatório.');
+
+    await user.type(nameInput, 'Produto Atualizado');
+    await user.click(screen.getByRole('button', { name: /Salvar Produto/i }));
+
+    await waitFor(() => {
+      expect(productService.updateProduto).toHaveBeenCalledWith(
+        10,
+        expect.objectContaining({ nome_base: 'Produto Atualizado' })
+      );
+    });
+    expect(showErrorToast).toHaveBeenCalledWith('falha ao salvar');
   });
 
   test('refreshes generated titles and descriptions without mixing both outputs', async () => {
@@ -330,6 +438,110 @@ describe('ProductEditModal', () => {
     expect(screen.getByText('Titulo 1')).toBeInTheDocument();
     expect(screen.getByText('Titulo 2')).toBeInTheDocument();
     expect(showInfoToast.mock.calls.map((call) => call[0]).join(' ')).toMatch(/modo b.sico/i);
+  });
+
+  test('uses AI generation endpoints when AI features are enabled', async () => {
+    productService.getProdutoById
+      .mockResolvedValueOnce(baseProduct)
+      .mockResolvedValueOnce({
+        ...baseProduct,
+        titulos_sugeridos: ['Titulo IA'],
+        nome_chat_api: 'Nome IA',
+      })
+      .mockResolvedValueOnce({
+        ...baseProduct,
+        titulos_sugeridos: ['Titulo IA'],
+        descricao_chat_api: 'Descricao IA gerada',
+      });
+
+    render(
+      <ProductEditModal
+        isOpen={true}
+        onClose={onClose}
+        onProductUpdated={onProductUpdated}
+        onOpenContentView={onOpenContentView}
+        product={{ id: 10 }}
+        showAiFeatures={true}
+      />
+    );
+
+    await screen.findByLabelText(/Nome Base/i);
+    await user.click(screen.getByRole('button', { name: /Conte/i }));
+
+    await user.click(screen.getByRole('button', { name: /Gerar T/i }));
+    await waitFor(() => {
+      expect(productService.gerarTitulosProduto).toHaveBeenCalledWith(10);
+    });
+    await advance(7000);
+
+    await user.click(screen.getByRole('button', { name: /Gerar D/i }));
+    await waitFor(() => {
+      expect(productService.gerarDescricaoProduto).toHaveBeenCalledWith(10);
+    });
+    await advance(7000);
+
+    expect(await screen.findByText('Titulo IA')).toBeInTheDocument();
+    expect(await screen.findByDisplayValue('Descricao IA gerada')).toBeInTheDocument();
+    expect(showInfoToast).toHaveBeenCalledWith('Geração de títulos iniciada. Verifique em breve.');
+    expect(showInfoToast).toHaveBeenCalledWith('Geração de descrição iniciada. Verifique em breve.');
+  });
+
+  test('shows refresh errors after generation when post-processing fetch fails', async () => {
+    productService.getProdutoById
+      .mockResolvedValueOnce(baseProduct)
+      .mockRejectedValueOnce(new Error('falha no refresh de titulos'))
+      .mockRejectedValueOnce(new Error('falha no refresh de descricao'));
+
+    renderModal({ product: { id: 10 } });
+
+    await screen.findByLabelText(/Nome Base/i);
+    await user.click(screen.getByRole('button', { name: /Conte/i }));
+
+    await user.click(screen.getByRole('button', { name: /Gerar T/i }));
+    await waitFor(() => {
+      expect(productService.gerarTitulosProdutoModoBasico).toHaveBeenCalledWith(10);
+    });
+    await advance(7000);
+
+    await user.click(screen.getByRole('button', { name: /Gerar D/i }));
+    await waitFor(() => {
+      expect(productService.gerarDescricaoProdutoModoBasico).toHaveBeenCalledWith(10);
+    });
+    await advance(7000);
+
+    expect(showErrorToast).toHaveBeenCalledWith(
+      'Nao foi possivel atualizar os titulos gerados.'
+    );
+    expect(showErrorToast).toHaveBeenCalledWith(
+      'Nao foi possivel atualizar a descricao gerada.'
+    );
+  });
+
+  test('shows direct generation errors for titles and descriptions', async () => {
+    productService.gerarTitulosProdutoModoBasico.mockRejectedValueOnce({
+      response: { data: { detail: 'erro titulos' } },
+    });
+    productService.gerarDescricaoProdutoModoBasico.mockRejectedValueOnce({
+      response: { data: { detail: 'erro descricao' } },
+    });
+
+    renderModal({ product: { id: 10 } });
+
+    await screen.findByLabelText(/Nome Base/i);
+    await user.click(screen.getByRole('button', { name: /Conte/i }));
+
+    await user.click(screen.getByRole('button', { name: /Gerar T/i }));
+    await waitFor(() => {
+      expect(showErrorToast).toHaveBeenCalledWith('erro titulos');
+    });
+
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: /Gerar Descrição/i })).toBeEnabled();
+    });
+    await user.click(screen.getByRole('button', { name: /Gerar Descrição/i }));
+    await waitFor(() => {
+      expect(showErrorToast).toHaveBeenCalledWith('erro descricao');
+    });
   });
 
   test('polls web enrichment until terminal status and updates product data', async () => {
@@ -373,6 +585,53 @@ describe('ProductEditModal', () => {
     );
   });
 
+  test('shows enrichment start errors without breaking the modal state', async () => {
+    productService.iniciarEnriquecimentoWebProduto.mockRejectedValueOnce(
+      new Error('servico indisponivel')
+    );
+
+    renderModal({ product: { id: 10 } });
+
+    await screen.findByLabelText(/Nome Base/i);
+    await user.click(screen.getByRole('button', { name: /Conte/i }));
+    await user.click(screen.getByRole('button', { name: /Enriquecer Web/i }));
+
+    await waitFor(() => {
+      expect(showErrorToast).toHaveBeenCalledWith('servico indisponivel');
+    });
+  });
+
+  test('warns when web enrichment keeps running after the polling window', async () => {
+    productService.getProdutoById
+      .mockResolvedValueOnce(baseProduct)
+      .mockImplementation(() =>
+        Promise.resolve({
+          ...baseProduct,
+          status_enriquecimento_web: 'EM_PROGRESSO',
+        })
+      );
+
+    renderModal({ product: { id: 10 } });
+
+    await screen.findByLabelText(/Nome Base/i);
+    await user.click(screen.getByRole('button', { name: /Conte/i }));
+    await user.click(screen.getByRole('button', { name: /Enriquecer Web/i }));
+
+    await waitFor(() => {
+      expect(productService.iniciarEnriquecimentoWebProduto).toHaveBeenCalledWith(10);
+    });
+
+    for (let i = 0; i < 40; i += 1) {
+      await advance(3000);
+    }
+
+    await waitFor(() => {
+      expect(showWarningToast).toHaveBeenCalledWith(
+        'O enriquecimento continua em segundo plano. Reabra o produto em instantes para ver o resultado final.'
+      );
+    });
+  }, 15000);
+
   test('fetchGeminiSuggestions does not crash when API returns empty object', async () => {
     render(
       <ProductEditModal
@@ -396,6 +655,89 @@ describe('ProductEditModal', () => {
     });
   });
 
+  test('loads Gemini suggestions, warns when none are selected and applies selected values', async () => {
+    productService.getAtributoSuggestions.mockResolvedValueOnce({
+      sugestoes_atributos: [
+        { chave_atributo: 'material', valor_sugerido: 'Aluminio' },
+        { chave_atributo: 'acabamento', valor_sugerido: 'Escovado' },
+      ],
+    });
+
+    render(
+      <ProductEditModal
+        isOpen={true}
+        onClose={onClose}
+        product={{ id: 10 }}
+        showAiFeatures={true}
+      />
+    );
+
+    await screen.findByLabelText(/Nome Base/i);
+    await user.click(screen.getByRole('button', { name: /Sugest/i }));
+    await user.click(screen.getByRole('button', { name: /Buscar Sugest/i }));
+
+    expect(await screen.findByText(/material:/i)).toBeInTheDocument();
+    expect(showSuccessToast).toHaveBeenCalledWith('Sugestões da IA (Gemini) carregadas!');
+
+    await user.click(screen.getByRole('button', { name: /Aplicar Selecionados/i }));
+    expect(showWarningToast).toHaveBeenCalledWith('Nenhuma sugestão selecionada para aplicar.');
+
+    await user.click(screen.getAllByRole('checkbox')[0]);
+    await user.click(screen.getByRole('button', { name: /Aplicar Selecionados/i }));
+
+    expect(showSuccessToast).toHaveBeenCalledWith(
+      '1 sugestão aplicada aos atributos dinâmicos!'
+    );
+    expect(await screen.findByDisplayValue('material')).toBeInTheDocument();
+  });
+
+  test('handles Gemini suggestion errors and clears stale suggestions', async () => {
+    productService.getAtributoSuggestions.mockRejectedValueOnce(
+      new Error('falha gemini')
+    );
+
+    render(
+      <ProductEditModal
+        isOpen={true}
+        onClose={onClose}
+        product={{ id: 10 }}
+        showAiFeatures={true}
+      />
+    );
+
+    await screen.findByLabelText(/Nome Base/i);
+    await user.click(screen.getByRole('button', { name: /Sugest/i }));
+    await user.click(screen.getByRole('button', { name: /Buscar Sugest/i }));
+
+    await waitFor(() => {
+      expect(showErrorToast).toHaveBeenCalledWith('falha gemini');
+    });
+  });
+
+  test('renders normalized log summaries and the empty log state', async () => {
+    productService.getProdutoById.mockResolvedValueOnce({
+      ...baseProduct,
+      log_enriquecimento_web: {
+        historico_mensagens: [],
+        resumo_aplicacao: {
+          aplicados: ['marca'],
+          ignorados: ['sku'],
+          campos_alterados_detalhe: ['Descri??o atualizada'],
+        },
+      },
+    });
+
+    renderModal({ product: { id: 10 } });
+
+    await screen.findByLabelText(/Nome Base/i);
+    await user.click(screen.getByRole('button', { name: /^Log$/i }));
+
+    expect(screen.getByText(/Campos aplicados:/i).parentElement).toHaveTextContent('marca');
+    expect(screen.getByText(/Campos ignorados:/i).parentElement).toHaveTextContent('sku');
+    expect(screen.getByText('Descrição atualizada')).toBeInTheDocument();
+    expect(screen.getByText('Nenhum log disponível.')).toBeInTheDocument();
+  });
+
   test('warns when trying to add a duplicated manual attribute key', async () => {
     renderModal({ product: null });
 
@@ -407,5 +749,24 @@ describe('ProductEditModal', () => {
 
     expect(showWarningToast).toHaveBeenCalled();
     expect(showWarningToast.mock.calls.at(-1)[0]).toMatch(/Atributo com esta chave/i);
+  });
+
+  test('adds and removes a manual attribute while keeping the form in sync', async () => {
+    renderModal({ product: null });
+
+    await proceedToCreateForm();
+    await user.click(screen.getByRole('button', { name: /Atributos/i }));
+
+    await user.type(screen.getByPlaceholderText(/Nova chave/i), 'acabamento_manual');
+    await user.click(screen.getByRole('button', { name: /Adicionar Atributo Manual/i }));
+
+    expect(await screen.findByDisplayValue('acabamento_manual')).toBeInTheDocument();
+
+    await user.click(screen.getByTitle(/Remover este atributo manual/i));
+
+    expect(showInfoToast).toHaveBeenCalledWith(
+      'Atributo manual "acabamento_manual" removido.'
+    );
+    expect(screen.queryByDisplayValue('acabamento_manual')).not.toBeInTheDocument();
   });
 });
