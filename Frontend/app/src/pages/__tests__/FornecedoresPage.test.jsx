@@ -43,13 +43,14 @@ jest.mock('../../components/fornecedores/FornecedorTable', () => ({
       <button onClick={() => onSelectRow(fornecedores[1]?.id)}>toggle-second</button>
       <button onClick={() => onRowClick(fornecedores[0])}>edit-first</button>
       <button onClick={() => onSelectAllRows({ target: { checked: true } })}>select-all</button>
+      <button onClick={() => onSelectAllRows({ target: { checked: false } })}>clear-all</button>
     </div>
   ),
 }));
 
 jest.mock('../../components/fornecedores/NewFornecedorModal', () => ({
   __esModule: true,
-  default: ({ isOpen, onSave }) => (
+  default: ({ isOpen, onSave, onClose }) => (
     <div data-testid="new-modal-state" data-open={String(isOpen)}>
       <button
         onClick={() => {
@@ -58,13 +59,14 @@ jest.mock('../../components/fornecedores/NewFornecedorModal', () => ({
       >
         save-new-fornecedor
       </button>
+      <button onClick={() => onClose?.()}>close-new-fornecedor</button>
     </div>
   ),
 }));
 
 jest.mock('../../components/fornecedores/EditFornecedorModal', () => ({
   __esModule: true,
-  default: ({ isOpen, fornecedorData, onSave }) => (
+  default: ({ isOpen, fornecedorData, onSave, onClose }) => (
     <div data-testid="edit-modal-state" data-open={String(isOpen)}>
       <button
         onClick={() => {
@@ -75,6 +77,7 @@ jest.mock('../../components/fornecedores/EditFornecedorModal', () => ({
       >
         save-edit-fornecedor
       </button>
+      <button onClick={() => onClose?.()}>close-edit-fornecedor</button>
     </div>
   ),
 }));
@@ -276,6 +279,109 @@ describe('FornecedoresPage', () => {
         termo_busca: undefined,
       });
     });
+    expect(screen.getByTestId('fornecedor-table-names')).toHaveTextContent('');
+  });
+
+  test('supports select-all clearing and canceling deletion', async () => {
+    render(<FornecedoresPage />);
+
+    await waitFor(() => {
+      expect(screen.getByTestId('fornecedor-table-names')).toHaveTextContent(
+        'Fornecedor A,Fornecedor B'
+      );
+    });
+
+    fireEvent.click(screen.getByText('select-all'));
+    expect(screen.getByTestId('selected-ids')).toHaveTextContent('1,2');
+
+    fireEvent.click(screen.getByText('clear-all'));
+    expect(screen.getByTestId('selected-ids')).toHaveTextContent('');
+
+    fireEvent.click(screen.getByText('toggle-first'));
+    window.confirm = jest.fn(() => false);
+    fireEvent.click(screen.getByText('Deletar Selecionado(s)'));
+
+    expect(fornecedorService.deleteFornecedor).not.toHaveBeenCalled();
+  });
+
+  test('closes new and edit modals through page callbacks', async () => {
+    render(<FornecedoresPage />);
+
+    await waitFor(() => {
+      expect(screen.getByTestId('fornecedor-table-names')).toHaveTextContent(
+        'Fornecedor A,Fornecedor B'
+      );
+    });
+
+    fireEvent.click(screen.getByText('Novo Fornecedor'));
+    await waitFor(() => {
+      expect(screen.getByTestId('new-modal-state')).toHaveAttribute('data-open', 'true');
+    });
+    fireEvent.click(screen.getByText('close-new-fornecedor'));
+    await waitFor(() => {
+      expect(screen.getByTestId('new-modal-state')).toHaveAttribute('data-open', 'false');
+    });
+
+    fireEvent.click(screen.getByText('edit-first'));
+    await waitFor(() => {
+      expect(screen.getByTestId('edit-modal-state')).toHaveAttribute('data-open', 'true');
+    });
+    fireEvent.click(screen.getByText('close-edit-fornecedor'));
+    await waitFor(() => {
+      expect(screen.getByTestId('edit-modal-state')).toHaveAttribute('data-open', 'false');
+    });
+  });
+
+  test('formats string detail and raw string errors from backend payloads', async () => {
+    fornecedorService.createFornecedor.mockRejectedValueOnce({
+      detail: 'nome duplicado',
+    });
+    fornecedorService.updateFornecedor.mockRejectedValueOnce('timeout remoto');
+
+    render(<FornecedoresPage />);
+
+    await waitFor(() => {
+      expect(screen.getByTestId('fornecedor-table-names')).toHaveTextContent(
+        'Fornecedor A,Fornecedor B'
+      );
+    });
+
+    fireEvent.click(screen.getByText('Novo Fornecedor'));
+    fireEvent.click(screen.getByText('save-new-fornecedor'));
+    await waitFor(() => {
+      expect(showErrorToast).toHaveBeenCalledWith(
+        'Erro ao criar fornecedor: nome duplicado'
+      );
+    });
+
+    fireEvent.click(screen.getByText('edit-first'));
+    fireEvent.click(screen.getByText('save-edit-fornecedor'));
+    await waitFor(() => {
+      expect(showErrorToast).toHaveBeenCalledWith(
+        'Erro ao atualizar fornecedor: timeout remoto'
+      );
+    });
+  });
+
+  test('resets the list state when deleting the last available supplier', async () => {
+    fornecedorService.getFornecedores.mockResolvedValue({
+      items: [{ id: 1, nome: 'Fornecedor A', site_url: 'https://a.example', created_at: '2026-03-07' }],
+      total_items: 1,
+    });
+
+    render(<FornecedoresPage />);
+
+    await waitFor(() => {
+      expect(screen.getByText('1')).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByText('toggle-first'));
+    fireEvent.click(screen.getByText('Deletar Selecionado(s)'));
+
+    await waitFor(() => {
+      expect(showSuccessToast).toHaveBeenCalledWith('1 fornecedor(es) deletado(s) com sucesso!');
+    });
+    expect(screen.getByText('0')).toBeInTheDocument();
     expect(screen.getByTestId('fornecedor-table-names')).toHaveTextContent('');
   });
 });

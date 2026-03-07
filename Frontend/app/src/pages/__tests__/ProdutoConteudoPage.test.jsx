@@ -49,6 +49,8 @@ function renderPage(initialEntry) {
 }
 
 describe('ProdutoConteudoPage', () => {
+  let feedbackReject;
+
   beforeEach(() => {
     jest.clearAllMocks();
     productService.getProdutos.mockResolvedValue({
@@ -76,6 +78,7 @@ describe('ProdutoConteudoPage', () => {
         },
       },
     });
+    feedbackReject = null;
   });
 
   test('renders unique generated titles, sanitizes company timeline claims and enables navigation', async () => {
@@ -169,5 +172,203 @@ describe('ProdutoConteudoPage', () => {
     await waitFor(() => {
       expect(showErrorToast).toHaveBeenCalledWith('Falha ao carregar conteudo.');
     });
+  });
+
+  test('falls back to placeholders and disables feedback when there is no generated content', async () => {
+    productService.getProdutos.mockRejectedValueOnce(new Error('lista indisponivel'));
+    productService.getProdutoById.mockResolvedValueOnce({
+      id: 31,
+      nome_base: 'Produto sem conteudo',
+      titulos_sugeridos: [],
+      descricao_chat_api: '',
+      descricao_original: '',
+      dados_brutos_web: {},
+    });
+
+    renderPage({
+      pathname: '/produtos/31/conteudo',
+    });
+
+    expect(await screen.findByText(/Produto #31 - Produto sem conteudo/i)).toBeInTheDocument();
+    expect(screen.getAllByText(/Titulo ainda nao gerado|T.tulo ainda n.o gerado/i)).toHaveLength(5);
+    expect(screen.getByText(/Descri..o ainda n.o gerada/i)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Gostei' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: /N.o Gostei/i })).toBeDisabled();
+    expect(screen.getByRole('button', { name: /Produto Anterior/i })).toBeDisabled();
+    expect(screen.getByRole('button', { name: /Pr.+ximo Produto/i })).toBeDisabled();
+  });
+
+  test('sanitizes list query defaults, preserves full-list navigation and supports header actions', async () => {
+    productService.getProdutos.mockResolvedValueOnce({
+      items: [{ id: 29 }, { id: 30 }, { id: 31 }, { id: 32 }, { id: 33 }],
+      total_items: 5,
+    });
+
+    renderPage({
+      pathname: '/produtos/31/conteudo',
+      state: {
+        productIds: ['31', '31', 'invalido', 30, 0, 29],
+        productQuery: {
+          fornecedor_id: 22,
+          sort_by: '',
+          sort_order: '',
+          ignored: 'x',
+          status_titulo_ia: null,
+        },
+      },
+    });
+
+    await screen.findByText('Titulo A');
+
+    expect(productService.getProdutos).toHaveBeenCalledWith({
+      fornecedor_id: 22,
+      sort_by: 'id',
+      sort_order: 'asc',
+      skip: 0,
+      limit: 200,
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: /Voltar para Produtos/i }));
+    expect(mockNavigate).toHaveBeenCalledWith('/produtos');
+
+    fireEvent.click(screen.getByRole('button', { name: /Abrir Edi/i }));
+    expect(mockNavigate).toHaveBeenCalledWith('/produtos?id=31');
+
+    fireEvent.click(screen.getByRole('button', { name: /Produto Anterior/i }));
+    expect(mockNavigate).toHaveBeenCalledWith('/produtos/30/conteudo', {
+      state: {
+        productIds: [29, 30, 31, 32, 33],
+        productQuery: {
+          fornecedor_id: 22,
+          sort_by: 'id',
+          sort_order: 'asc',
+        },
+      },
+    });
+  });
+
+  test('loads saved feedback, preserves timeline-only text when needed and handles feedback save failures', async () => {
+    productService.getProdutoById.mockResolvedValueOnce({
+      id: 31,
+      nome_base: 'Reservatorio de Ar',
+      titulos_sugeridos: ['Titulo A'],
+      descricao_chat_api: 'Fundada em 1999.',
+      dados_brutos_web: {
+        feedback_conteudo: {
+          valor: 'nao_gostei',
+          comentario: 'Texto muito institucional',
+        },
+      },
+    });
+    productService.registrarFeedbackConteudoGerado.mockImplementationOnce(
+      () =>
+        new Promise((resolve, reject) => {
+          feedbackReject = reject;
+        })
+    );
+
+    renderPage({
+      pathname: '/produtos/31/conteudo',
+      state: {
+        productIds: [31],
+        productQuery: { sort_by: 'id', sort_order: 'desc' },
+      },
+    });
+
+    expect(await screen.findByDisplayValue('Texto muito institucional')).toBeInTheDocument();
+    expect(screen.getByText('Fundada em 1999.')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: /N.o Gostei/i }));
+
+    expect(productService.registrarFeedbackConteudoGerado).toHaveBeenCalledWith(31, {
+      valor: 'nao_gostei',
+      comentario: 'Texto muito institucional',
+    });
+    expect(screen.getByRole('button', { name: 'Gostei' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: /N.o Gostei/i })).toBeDisabled();
+    expect(screen.getByPlaceholderText(/Ex:/i)).toBeDisabled();
+
+    feedbackReject(new Error('Falha ao salvar feedback.'));
+
+    await waitFor(() => {
+      expect(showErrorToast).toHaveBeenCalledWith('Falha ao salvar feedback.');
+    });
+    expect(screen.getByRole('button', { name: 'Gostei' })).toBeEnabled();
+  });
+
+  test('uses alternate description sources and shows seo fallback content', async () => {
+    productService.getProdutoById.mockResolvedValueOnce({
+      id: 31,
+      nome_base: 'Reservatorio de Ar',
+      titulos_sugeridos: [],
+      descricao_chat_api: '',
+      descricao_original: '',
+      dados_brutos_web: {
+        descricao_gerada: '',
+        descricao_detalhada_seo: 'Descricao SEO aproveitavel.',
+      },
+    });
+
+    renderPage({
+      pathname: '/produtos/31/conteudo',
+      state: {
+        productIds: [31],
+        productQuery: { sort_by: 'id', sort_order: 'asc' },
+      },
+    });
+
+    expect(await screen.findByText('Descricao SEO aproveitavel.')).toBeInTheDocument();
+  });
+
+  test('keeps the state ordering when the backend list returns no items', async () => {
+    productService.getProdutos.mockResolvedValueOnce({
+      items: [],
+      total_items: 0,
+    });
+
+    renderPage({
+      pathname: '/produtos/31/conteudo',
+      state: {
+        productIds: [30, 31],
+        productQuery: { sort_by: 'id', sort_order: 'asc' },
+      },
+    });
+
+    await screen.findByText('Titulo A');
+
+    fireEvent.click(screen.getByRole('button', { name: /Produto Anterior/i }));
+    expect(mockNavigate).toHaveBeenCalledWith('/produtos/30/conteudo', {
+      state: {
+        productIds: [30, 31],
+        productQuery: { sort_by: 'id', sort_order: 'asc' },
+      },
+    });
+  });
+
+  test('stops the full-list fetch when a partial page is returned without total count', async () => {
+    productService.getProdutos.mockResolvedValueOnce({
+      items: [{ id: 31 }],
+    });
+
+    renderPage({
+      pathname: '/produtos/31/conteudo',
+      state: {
+        productIds: [],
+        productQuery: { fornecedor_id: 99 },
+      },
+    });
+
+    await screen.findByText('Titulo A');
+
+    expect(productService.getProdutos).toHaveBeenCalledTimes(1);
+    expect(productService.getProdutos).toHaveBeenCalledWith({
+      fornecedor_id: 99,
+      sort_by: 'id',
+      sort_order: 'asc',
+      skip: 0,
+      limit: 200,
+    });
+    expect(screen.getByRole('button', { name: /Produto Anterior/i })).toBeDisabled();
+    expect(screen.getByRole('button', { name: /Pr.+ximo Produto/i })).toBeDisabled();
   });
 });

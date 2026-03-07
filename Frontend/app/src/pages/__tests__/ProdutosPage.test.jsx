@@ -10,6 +10,12 @@ import {
 } from '../../utils/notifications';
 
 const mockNavigate = jest.fn();
+let mockEffectiveMode = 'basic';
+let mockProductTypesState = {
+  productTypes: [],
+  isLoading: false,
+  error: null,
+};
 
 jest.mock('react-router-dom', () => {
   const actual = jest.requireActual('react-router-dom');
@@ -25,6 +31,8 @@ jest.mock('../../services/productService', () => ({
     getProdutos: jest.fn(),
     getProdutoById: jest.fn(),
     batchDeleteProdutos: jest.fn(),
+    gerarTitulosProduto: jest.fn(),
+    gerarDescricaoProduto: jest.fn(),
     gerarTitulosProdutoModoBasico: jest.fn(),
     gerarDescricaoProdutoModoBasico: jest.fn(),
     iniciarEnriquecimentoWebProduto: jest.fn(),
@@ -38,21 +46,30 @@ jest.mock('../../components/common/Modal', () => ({
 
 jest.mock('../../components/ProductEditModal', () => ({
   __esModule: true,
-  default: () => <div data-testid="product-edit-modal" />,
+  default: ({ product, showAiFeatures, onClose, onOpenContentView }) => (
+    <div
+      data-testid="product-edit-modal"
+      data-product-id={String(product?.id ?? 'new')}
+      data-ai={String(showAiFeatures)}
+    >
+      <button type="button" onClick={() => onOpenContentView?.(product?.id ?? 999)}>
+        open-content-from-modal
+      </button>
+      <button type="button" onClick={() => onClose?.()}>
+        close-product-edit-modal
+      </button>
+    </div>
+  ),
 }));
 
 jest.mock('../../contexts/AppExperienceContext', () => ({
   useAppExperience: () => ({
-    effectiveMode: 'basic',
+    effectiveMode: mockEffectiveMode,
   }),
 }));
 
 jest.mock('../../contexts/ProductTypeContext', () => ({
-  useProductTypes: () => ({
-    productTypes: [],
-    isLoading: false,
-    error: null,
-  }),
+  useProductTypes: () => mockProductTypesState,
 }));
 
 jest.mock('../../utils/logger', () => ({
@@ -105,11 +122,19 @@ describe('ProdutosPage', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     jest.useRealTimers();
+    mockEffectiveMode = 'basic';
+    mockProductTypesState = {
+      productTypes: [],
+      isLoading: false,
+      error: null,
+    };
     productService.getProdutos.mockResolvedValue({
       items: baseItems,
       total_items: baseItems.length,
     });
     productService.batchDeleteProdutos.mockResolvedValue({ deleted: 1 });
+    productService.gerarTitulosProduto.mockResolvedValue({ ok: true });
+    productService.gerarDescricaoProduto.mockResolvedValue({ ok: true });
     productService.gerarTitulosProdutoModoBasico.mockResolvedValue({ ok: true });
     productService.gerarDescricaoProdutoModoBasico.mockResolvedValue({ ok: true });
     productService.iniciarEnriquecimentoWebProduto.mockResolvedValue({ ok: true });
@@ -272,5 +297,166 @@ describe('ProdutosPage', () => {
     await waitFor(() => {
       expect(showErrorToast).toHaveBeenCalledWith('produto nao encontrado');
     });
+  });
+
+  test('abre modal de novo produto, fecha e propaga navegacao de conteudo a partir do modal', async () => {
+    renderPage();
+    await screen.findByText('Reservatorio de AR 20 Litros');
+
+    fireEvent.click(screen.getByText('+ Novo Produto'));
+
+    expect(await screen.findByTestId('product-edit-modal')).toHaveAttribute('data-product-id', 'new');
+
+    fireEvent.click(screen.getByText('open-content-from-modal'));
+    expect(mockNavigate).toHaveBeenCalledWith('/produtos/999/conteudo', {
+      state: {
+        productIds: [2558, 2559],
+        productQuery: {
+          sort_by: 'id',
+          sort_order: 'desc',
+        },
+      },
+    });
+
+    fireEvent.click(screen.getByText('close-product-edit-modal'));
+    await waitFor(() => {
+      expect(screen.queryByTestId('product-edit-modal')).not.toBeInTheDocument();
+    });
+  });
+
+  test('respeita cancelamento e mostra erro ao falhar deletar em lote', async () => {
+    renderPage();
+    await screen.findByText('Reservatorio de AR 20 Litros');
+
+    fireEvent.click(screen.getAllByRole('checkbox')[1]);
+
+    window.confirm = jest.fn(() => false);
+    fireEvent.click(screen.getByText('Deletar'));
+    expect(productService.batchDeleteProdutos).not.toHaveBeenCalled();
+
+    window.confirm = jest.fn(() => true);
+    productService.batchDeleteProdutos.mockRejectedValueOnce(new Error('sem permissao'));
+    fireEvent.click(screen.getByText('Deletar'));
+
+    await waitFor(() => {
+      expect(showErrorToast).toHaveBeenCalledWith('sem permissao');
+    });
+  });
+
+  test('processa enriquecimento web parcial e marca falha local para itens rejeitados', async () => {
+    productService.iniciarEnriquecimentoWebProduto
+      .mockRejectedValueOnce(new Error('sem fonte'))
+      .mockResolvedValueOnce({ ok: true });
+    productService.getProdutoById.mockResolvedValueOnce({
+      ...baseItems[1],
+      status_enriquecimento_web: 'CONCLUIDO_SUCESSO',
+    });
+
+    renderPage();
+    await screen.findByText('Reservatorio de AR 20 Litros');
+
+    fireEvent.click(screen.getAllByRole('checkbox')[0]);
+    fireEvent.click(screen.getByText('Enriquecer Web'));
+
+    await waitFor(() => {
+      expect(productService.iniciarEnriquecimentoWebProduto).toHaveBeenCalledWith(2558);
+      expect(productService.iniciarEnriquecimentoWebProduto).toHaveBeenCalledWith(2559);
+    });
+    expect(showErrorToast).toHaveBeenCalledWith(
+      'Erro ao iniciar enriquecimento para produto ID 2558: sem fonte'
+    );
+    await waitFor(() => {
+      expect(productService.getProdutoById).toHaveBeenCalledWith('2559');
+    });
+  });
+
+  test('usa filtros e geracao IA quando o modo completo esta ativo', async () => {
+    mockEffectiveMode = 'complete';
+    mockProductTypesState = {
+      productTypes: [{ id: 7, friendly_name: 'Freios' }],
+      isLoading: false,
+      error: null,
+    };
+
+    renderPage();
+    await screen.findByText('Reservatorio de AR 20 Litros');
+
+    fireEvent.change(screen.getByDisplayValue('Status'), {
+      target: { value: 'CONCLUIDO_SUCESSO' },
+    });
+    fireEvent.change(screen.getByDisplayValue('Status Título IA'), {
+      target: { value: 'CONCLUIDO' },
+    });
+    fireEvent.change(screen.getByDisplayValue('Status Descrição IA'), {
+      target: { value: 'NAO_INICIADO' },
+    });
+    fireEvent.change(screen.getByDisplayValue('Todos os tipos'), {
+      target: { value: '7' },
+    });
+
+    await waitFor(() => {
+      expect(productService.getProdutos).toHaveBeenLastCalledWith(
+        expect.objectContaining({
+          status_enriquecimento_web: 'CONCLUIDO_SUCESSO',
+          status_titulo_ia: 'CONCLUIDO',
+          status_descricao_ia: 'NAO_INICIADO',
+          product_type_id: '7',
+        })
+      );
+    });
+
+    fireEvent.click(screen.getAllByRole('checkbox')[1]);
+    fireEvent.click(screen.getByText('Gerar Títulos IA'));
+    await waitFor(() => {
+      expect(productService.gerarTitulosProduto).toHaveBeenCalledWith(2558);
+    });
+
+    fireEvent.click(screen.getAllByRole('checkbox')[1]);
+    fireEvent.click(screen.getByText('Gerar Descrições IA'));
+    await waitFor(() => {
+      expect(productService.gerarDescricaoProduto).toHaveBeenCalledWith(2558);
+    });
+  });
+
+  test('gera descricoes no modo basico e agenda refresh da lista', async () => {
+    jest.useFakeTimers();
+    renderPage();
+    await screen.findByText('Reservatorio de AR 20 Litros');
+
+    fireEvent.click(screen.getAllByRole('checkbox')[1]);
+    fireEvent.click(screen.getByText('Gerar Descrições'));
+
+    await waitFor(() => {
+      expect(productService.gerarDescricaoProdutoModoBasico).toHaveBeenCalledWith(2558);
+    });
+    expect(showInfoToast).toHaveBeenCalledWith('Geração de descrições iniciada para 1 produto(s).');
+
+    await act(async () => {
+      jest.advanceTimersByTime(15000);
+    });
+
+    await waitFor(() => {
+      expect(showInfoToast).toHaveBeenCalledWith(
+        'Atualizando lista para verificar resultados da geração de descrições...'
+      );
+    });
+  });
+
+  test('mostra warning quando o contexto de tipos reporta erro', async () => {
+    const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+    mockProductTypesState = {
+      productTypes: [],
+      isLoading: false,
+      error: new Error('tipos indisponiveis'),
+    };
+
+    renderPage();
+    await screen.findByText('Reservatorio de AR 20 Litros');
+
+    expect(consoleErrorSpy).toHaveBeenCalledWith(
+      'ProdutosPage: erro recebido do ProductTypeContext:',
+      expect.any(Error)
+    );
+    consoleErrorSpy.mockRestore();
   });
 });

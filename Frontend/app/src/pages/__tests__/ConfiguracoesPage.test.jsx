@@ -40,7 +40,14 @@ jest.mock('../../utils/notifications', () => ({
 
 jest.mock('../../components/user/ChangePasswordModal', () => ({
   __esModule: true,
-  default: ({ isOpen }) => (isOpen ? <div data-testid="change-password-modal" /> : null),
+  default: ({ isOpen, onClose }) =>
+    isOpen ? (
+      <div data-testid="change-password-modal">
+        <button type="button" onClick={() => onClose?.()}>
+          close-change-password
+        </button>
+      </div>
+    ) : null,
 }));
 
 jest.mock('../../components/common/LoadingPopup.jsx', () => ({
@@ -53,6 +60,7 @@ describe('ConfiguracoesPage', () => {
   const setAdminPreviewMode = jest.fn();
   const clearAdminPreviewMode = jest.fn();
   let consoleErrorSpy;
+  let resolveCurrentUser;
 
   beforeEach(() => {
     jest.clearAllMocks();
@@ -101,6 +109,7 @@ describe('ConfiguracoesPage', () => {
       idioma_preferido: 'en',
       chave_openai_pessoal: 'sk-live',
     });
+    resolveCurrentUser = null;
   });
 
   afterEach(() => {
@@ -181,11 +190,16 @@ describe('ConfiguracoesPage', () => {
     fireEvent.click(screen.getByText('Visualizar Basico'));
     expect(setAdminPreviewMode).toHaveBeenCalledWith('basic');
 
+    fireEvent.click(screen.getByText('Visualizar Completo'));
+    expect(setAdminPreviewMode).toHaveBeenCalledWith('complete');
+
     fireEvent.click(screen.getByText('Voltar ao padrao'));
     expect(clearAdminPreviewMode).toHaveBeenCalled();
 
     fireEvent.click(screen.getByText('Alterar Senha'));
     expect(screen.getByTestId('change-password-modal')).toBeInTheDocument();
+    fireEvent.click(screen.getByText('close-change-password'));
+    expect(screen.queryByTestId('change-password-modal')).not.toBeInTheDocument();
   });
 
   test('shows an error toast when loading the current user fails', async () => {
@@ -196,5 +210,106 @@ describe('ConfiguracoesPage', () => {
     await waitFor(() => {
       expect(showErrorToast).toHaveBeenCalledWith('perfil indisponivel');
     });
+  });
+
+  test('shows the loading state first and keeps defaults when current user payload is empty', async () => {
+    authService.getCurrentUser.mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          resolveCurrentUser = resolve;
+        })
+    );
+    useAuth.mockReturnValue({
+      user: {
+        id: 8,
+        is_superuser: false,
+        plano: null,
+        created_at: null,
+      },
+      setUser,
+    });
+    useAppExperience.mockReturnValue({
+      effectiveMode: 'basic',
+      defaultMode: 'basic',
+      isAdmin: false,
+      canAdminPreview: false,
+      adminPreviewMode: null,
+      setAdminPreviewMode,
+      clearAdminPreviewMode,
+    });
+
+    render(<ConfiguracoesPage />);
+
+    expect(screen.getByText('Carregando configuracoes...')).toBeInTheDocument();
+    resolveCurrentUser(null);
+
+    expect(
+      await screen.findByText('Apenas administradores podem alternar o modo de visualizacao.')
+    ).toBeInTheDocument();
+    expect(screen.getByText('Basico (sem IA)')).toBeInTheDocument();
+    expect(screen.getByText('Sem plano')).toBeInTheDocument();
+    expect(screen.getByText('Empresa nao informada')).toBeInTheDocument();
+    expect(screen.getByText('Usuario sem nome')).toBeInTheDocument();
+    expect(screen.getByText('U')).toBeInTheDocument();
+    expect(screen.getAllByText('-').length).toBeGreaterThan(0);
+    expect(screen.queryByText('Visualizar Completo')).not.toBeInTheDocument();
+    expect(screen.queryByText('Voltar ao padrao')).not.toBeInTheDocument();
+  });
+
+  test('formats profile update errors and template save errors', async () => {
+    authService.updateCurrentUser.mockRejectedValueOnce({
+      detail: [{ msg: 'nome invalido' }, { msg: 'idioma invalido' }],
+    });
+    basicTemplateService.saveBasicGenerationTemplates.mockImplementationOnce(() => {
+      throw new Error('falha ao salvar template');
+    });
+
+    render(<ConfiguracoesPage />);
+
+    expect(await screen.findByDisplayValue('julio@example.com')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByText('Salvar alteracoes do perfil'));
+    await waitFor(() => {
+      expect(showErrorToast).toHaveBeenCalledWith('nome invalido; idioma invalido');
+    });
+
+    fireEvent.click(screen.getByText('Salvar templates'));
+    expect(showErrorToast).toHaveBeenCalledWith('falha ao salvar template');
+  });
+
+  test('supports profile fallback fields, null updates and invalid membership dates', async () => {
+    authService.getCurrentUser.mockResolvedValueOnce({
+      id: 8,
+      nome: 'Nome alternativo',
+      nome_empresa: '',
+      avatar_url: '',
+      email: 'fallback@example.com',
+      idioma_preferido: '',
+      chave_openai_pessoal: '',
+    });
+    authService.updateCurrentUser.mockResolvedValueOnce(null);
+    useAuth.mockReturnValue({
+      user: {
+        id: 8,
+        is_superuser: false,
+        plano: null,
+        created_at: 'invalido',
+      },
+      setUser,
+    });
+
+    render(<ConfiguracoesPage />);
+
+    expect(await screen.findByDisplayValue('fallback@example.com')).toBeInTheDocument();
+    expect(screen.getByText('Nome alternativo')).toBeInTheDocument();
+    expect(screen.getByText('Usuario')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByText('Salvar alteracoes do perfil'));
+
+    await waitFor(() => {
+      expect(authService.updateCurrentUser).toHaveBeenCalled();
+    });
+    expect(showSuccessToast).toHaveBeenCalledWith('Perfil atualizado com sucesso!');
+    expect(setUser).not.toHaveBeenCalled();
   });
 });
