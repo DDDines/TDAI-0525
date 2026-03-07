@@ -42,10 +42,13 @@ jest.mock('../../../services/fornecedorService', () => ({
 
 jest.mock('../../common/Modal.jsx', () => ({
   __esModule: true,
-  default: ({ isOpen, title, children }) =>
+  default: ({ isOpen, title, children, onClose }) =>
     isOpen ? (
       <div data-testid={`modal-${title || 'sem-titulo'}`}>
         {title ? <h2>{title}</h2> : null}
+        <button type="button" onClick={() => onClose?.()}>
+          {`fechar-${title || 'sem-titulo'}`}
+        </button>
         {children}
       </div>
     ) : null,
@@ -493,6 +496,40 @@ describe('ImportCatalogWizard', () => {
     ).toBeInTheDocument();
   });
 
+  test('skips preview pages without image data and allows modal close callbacks', async () => {
+    fornecedorService.previewCatalogo.mockResolvedValue({
+      fileId: 81,
+      headers: ['titulo'],
+      sampleRows: [{ titulo: 'Filtro' }],
+      previewImages: ['   ', { page: 2, image: 'data:image/png;base64,xyz' }],
+      numPages: 2,
+      tablePages: [1, 2],
+    });
+
+    render(
+      <ImportCatalogWizard
+        fornecedor={{ id: 1, default_column_mapping: { titulo: 'auto:sku_nome' } }}
+        onClose={() => {}}
+        isOpen
+      />
+    );
+
+    await uploadAndGeneratePreview();
+    expect(await screen.findAllByRole('img', { name: /2/ })).toHaveLength(2);
+    expect(screen.queryByRole('img', { name: /1/ })).not.toBeInTheDocument();
+
+    expect(screen.getByTestId(/modal-Escolha a p.+gina/i)).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /P.*1/i })).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /P.*2/i })).toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: /fechar-Escolha a p.+gina/i }));
+    expect(screen.queryByTestId(/modal-Escolha a p.+gina/i)).not.toBeInTheDocument();
+
+    await userEvent.click(screen.getByRole('button', { name: /Definir mapeamento/i }));
+    expect(await screen.findByText('Mapear Colunas')).toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: /fechar-Mapear Colunas/i }));
+    expect(screen.queryByText('Mapear Colunas')).not.toBeInTheDocument();
+  });
+
   test('opens manual mapping with fallback headers when there are no extracted rows', async () => {
     fornecedorService.previewCatalogo.mockResolvedValue({
       fileId: 79,
@@ -599,6 +636,48 @@ describe('ImportCatalogWizard', () => {
       'Erro ao carregar tipos de produto:',
       expect.any(Error)
     );
+  });
+
+  test('loads attribute options for the selected product type and skips invalid ids', async () => {
+    productTypeService.getProductTypes.mockResolvedValue({
+      items: [
+        { id: null, friendly_name: 'Ignorar' },
+        { id: 7, friendly_name: 'Linha pesada' },
+      ],
+    });
+    productTypeService.getProductTypeDetails.mockResolvedValue({
+      attribute_templates: [{ attribute_key: 'cor', label: 'Cor' }],
+    });
+    fornecedorService.previewCatalogo.mockResolvedValue({
+      fileId: 82,
+      headers: ['titulo_bruto'],
+      sampleRows: [{ titulo_bruto: 'Cubo de roda' }],
+      previewImages: [{ page: 1, image: 'data:image/png;base64,abc' }],
+      numPages: 1,
+      tablePages: [1],
+    });
+
+    render(
+      <ImportCatalogWizard
+        fornecedor={{ id: 1, default_column_mapping: { titulo_bruto: 'auto:sku_nome' } }}
+        onClose={() => {}}
+        isOpen
+      />
+    );
+
+    await uploadAndGeneratePreview();
+    await screen.findByText('Cubo de roda');
+
+    const productTypeSelect = screen.getByRole('combobox', { name: /tipo de produto/i });
+    expect(screen.queryByRole('option', { name: 'Ignorar' })).not.toBeInTheDocument();
+
+    await userEvent.selectOptions(productTypeSelect, '7');
+    await userEvent.click(screen.getByRole('button', { name: /Definir mapeamento/i }));
+
+    expect(
+      await screen.findByRole('combobox', { name: /Campo para coluna titulo_bruto/i })
+    ).toBeInTheDocument();
+    expect(screen.getByRole('option', { name: /Atributo: Cor/i })).toBeInTheDocument();
   });
 
   test('falls back to base field options when loading product type attributes fails', async () => {
@@ -809,6 +888,32 @@ describe('ImportCatalogWizard', () => {
 
     expect((await screen.findAllByText('Compressor premium')).length).toBeGreaterThanOrEqual(1);
     expect(screen.getByText('Mapear Colunas')).toBeInTheDocument();
+  });
+
+  test('closes the region selector modal without selecting a region', async () => {
+    fornecedorService.previewCatalogo.mockResolvedValue({
+      fileId: 83,
+      headers: null,
+      sampleRows: null,
+      previewImages: [{ page: 1, image: 'data:image/png;base64,abc' }],
+      numPages: 1,
+      tablePages: [1],
+    });
+
+    render(
+      <ImportCatalogWizard
+        fornecedor={{ id: 1, default_column_mapping: {} }}
+        onClose={() => {}}
+        isOpen
+      />
+    );
+
+    await uploadAndGeneratePreview();
+    await screen.findByRole('img', { name: /1/ });
+    await userEvent.click(screen.getByRole('button', { name: /Selecionar regi/i }));
+    expect(await screen.findByTestId(/modal-Selecione a regi/i)).toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: /fechar-Selecione a regi/i }));
+    expect(screen.queryByTestId(/modal-Selecione a regi/i)).not.toBeInTheDocument();
   });
 
   test('builds region preview from extracted products when preview rows are unavailable', async () => {

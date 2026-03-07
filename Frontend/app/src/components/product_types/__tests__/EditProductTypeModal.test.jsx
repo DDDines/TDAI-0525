@@ -28,3 +28,32 @@ test('calls onSave with updated values', async () => {
 
   expect(onSave).toHaveBeenCalledWith({ friendly_name: 'Novo Nome', description: 'Nova desc', key_name: 'eletronicos' });
 });
+
+test('does not render when closed and disables actions while submitting', () => {
+  const onClose = jest.fn();
+  const { rerender } = render(
+    <EditProductTypeModal
+      isOpen={false}
+      onClose={onClose}
+      onSave={jest.fn()}
+      type={null}
+      isSubmitting={true}
+    />
+  );
+
+  expect(screen.queryByText(/Editar Tipo de Produto/i)).not.toBeInTheDocument();
+
+  rerender(
+    <EditProductTypeModal
+      isOpen={true}
+      onClose={onClose}
+      onSave={jest.fn()}
+      type={null}
+      isSubmitting={true}
+    />
+  );
+
+  expect(screen.getByLabelText(/Nome Amig/i)).toHaveValue('');
+  expect(screen.getByRole('button', { name: /Cancelar/i })).toBeDisabled();
+  expect(screen.getByRole('button', { name: /Salvando/i })).toBeDisabled();
+});

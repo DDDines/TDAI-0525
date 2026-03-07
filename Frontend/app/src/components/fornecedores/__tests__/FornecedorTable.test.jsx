@@ -88,6 +88,9 @@ describe('FornecedorTable', () => {
     expect(onSelectRow).toHaveBeenCalledWith(1);
     expect(onRowClick).not.toHaveBeenCalled();
 
+    await user.click(firstRowCheckbox.closest('td'));
+    expect(onRowClick).not.toHaveBeenCalled();
+
     await user.click(screen.getByRole('link', { name: /https:\/\/fornecedor-1\.example/i }));
     expect(onRowClick).not.toHaveBeenCalled();
 

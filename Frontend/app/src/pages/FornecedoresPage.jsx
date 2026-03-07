@@ -11,7 +11,8 @@ import FornecedorTable from '../components/fornecedores/FornecedorTable';
 import NewFornecedorModal from '../components/fornecedores/NewFornecedorModal';
 import EditFornecedorModal from '../components/fornecedores/EditFornecedorModal';
 import PaginationControls from '../components/common/PaginationControls';
-import { showSuccessToast, showErrorToast, showWarningToast } from '../utils/notifications';
+import { showSuccessToast, showErrorToast } from '../utils/notifications';
+import { extractErrorMessage } from '../utils/errorDetails';
 import './FornecedoresPage.css';
 
 function FornecedoresPage()
@@ -78,7 +79,6 @@ function FornecedoresPage()
 
     const handleSaveNew = async (data) => {
       setModalLoading(true);
-      let errorMessage = 'Erro desconhecido ao criar fornecedor.';
       try {
         await fornecedorService.createFornecedor(data);
         showSuccessToast('Fornecedor criado com sucesso!');
@@ -91,19 +91,10 @@ function FornecedoresPage()
         return Promise.resolve();
       } catch (errThrownByService) {
         console.error('Objeto de erro recebido em handleSaveNew (FornecedoresPage):', errThrownByService);
-        if (errThrownByService && errThrownByService.detail) {
-          if (typeof errThrownByService.detail === 'string') {
-            errorMessage = errThrownByService.detail;
-          } else if (Array.isArray(errThrownByService.detail)) {
-            errorMessage = errThrownByService.detail.map((e) => `${e.loc ? `${e.loc.join('.')}: ` : ''}${e.msg}`).join('; ');
-          } else {
-            errorMessage = JSON.stringify(errThrownByService.detail);
-          }
-        } else if (errThrownByService && errThrownByService.message) {
-          errorMessage = errThrownByService.message;
-        } else if (typeof errThrownByService === 'string') {
-          errorMessage = errThrownByService;
-        }
+        const errorMessage = extractErrorMessage(
+          errThrownByService,
+          'Erro desconhecido ao criar fornecedor.'
+        );
         showErrorToast(`Erro ao criar fornecedor: ${errorMessage}`);
         return Promise.reject(errThrownByService);
       } finally {
@@ -113,7 +104,6 @@ function FornecedoresPage()
 
     const handleSaveUpdate = async (id, data) => {
       setModalLoading(true);
-      let errorMessage = 'Erro desconhecido ao atualizar fornecedor.';
       try {
         await fornecedorService.updateFornecedor(id, data);
         showSuccessToast('Fornecedor atualizado com sucesso!');
@@ -124,19 +114,10 @@ function FornecedoresPage()
         return Promise.resolve();
       } catch (errThrownByService) {
         console.error('Objeto de erro recebido em handleSaveUpdate (FornecedoresPage):', errThrownByService);
-        if (errThrownByService && errThrownByService.detail) {
-          if (typeof errThrownByService.detail === 'string') {
-            errorMessage = errThrownByService.detail;
-          } else if (Array.isArray(errThrownByService.detail)) {
-            errorMessage = errThrownByService.detail.map((e) => `${e.loc ? `${e.loc.join('.')}: ` : ''}${e.msg}`).join('; ');
-          } else {
-            errorMessage = JSON.stringify(errThrownByService.detail);
-          }
-        } else if (errThrownByService && errThrownByService.message) {
-          errorMessage = errThrownByService.message;
-        } else if (typeof errThrownByService === 'string') {
-          errorMessage = errThrownByService;
-        }
+        const errorMessage = extractErrorMessage(
+          errThrownByService,
+          'Erro desconhecido ao atualizar fornecedor.'
+        );
         showErrorToast(`Erro ao atualizar fornecedor: ${errorMessage}`);
         return Promise.reject(errThrownByService);
       } finally {
@@ -145,11 +126,6 @@ function FornecedoresPage()
     };
 
     const handleDeleteSelected = async () => {
-      if (selectedIds.length === 0) {
-        showWarningToast('Nenhum fornecedor selecionado para deletar.');
-        return;
-      }
-
       if (window.confirm(`Tem certeza que deseja deletar ${selectedIds.length} fornecedor(es) selecionado(s)?`)) {
         setLoading(true);
         let successCount = 0;

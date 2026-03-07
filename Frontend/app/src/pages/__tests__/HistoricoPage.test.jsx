@@ -6,6 +6,7 @@ import usoIAService from '../../services/usoIAService';
 import historicoService from '../../services/historicoService';
 import { useAuth } from '../../contexts/AuthContext';
 import { showErrorToast } from '../../utils/notifications';
+import logger from '../../utils/logger';
 
 jest.mock('../../services/usoIAService', () => ({
   __esModule: true,
@@ -102,11 +103,25 @@ describe('HistoricoPage', () => {
     render(<HistoricoPage />);
 
     await waitFor(() => {
-      expect(screen.getByText('Nenhum registro de uso de IA encontrado.')).toBeInTheDocument();
+      expect(screen.getByText(/Nenhum registro de uso de IA encontrado/i)).toBeInTheDocument();
     });
 
     expect(usoIAService.getMeuHistoricoUsoIA).not.toHaveBeenCalled();
     expect(historicoService.getHistorico).not.toHaveBeenCalled();
+  });
+
+  test('waits for auth loading before fetching history', () => {
+    useAuth.mockReturnValue({
+      user: { id: 8 },
+      isLoading: true,
+    });
+
+    render(<HistoricoPage />);
+
+    expect(usoIAService.getMeuHistoricoUsoIA).not.toHaveBeenCalled();
+    expect(historicoService.getHistorico).not.toHaveBeenCalled();
+    expect(logger.log).toHaveBeenCalledWith(expect.stringMatching(/auth/i));
+    expect(screen.getByText(/Carregando hist/i)).toBeInTheDocument();
   });
 
   test('loads IA history, system events, filters and paginates results', async () => {
@@ -115,7 +130,7 @@ describe('HistoricoPage', () => {
     expect(await screen.findByText(/Texto gerado para o produto/)).toBeInTheDocument();
     expect(screen.getByText('produto')).toBeInTheDocument();
 
-    fireEvent.change(screen.getByLabelText('Filtrar por tipo de ação:'), {
+    fireEvent.change(screen.getByLabelText(/Filtrar por tipo de a/i), {
       target: { value: 'geracao_titulo_ia' },
     });
 
@@ -138,6 +153,42 @@ describe('HistoricoPage', () => {
     });
   });
 
+  test('renders fallback values and formats custom action labels', async () => {
+    usoIAService.getMeuHistoricoUsoIA.mockResolvedValueOnce({
+      items: [
+        {
+          id: 2,
+          produto_id: null,
+          tipo_acao: 'acao_customizada',
+          resposta_ia: '',
+          tokens_prompt: null,
+          tokens_resposta: null,
+          created_at: null,
+        },
+      ],
+      total_items: 1,
+    });
+    historicoService.getHistorico.mockResolvedValueOnce({
+      items: [
+        {
+          id: 10,
+          entidade: 'fornecedor',
+          acao: 'criacao',
+          entity_id: 33,
+          created_at: null,
+        },
+      ],
+      total_items: 1,
+    });
+    usoIAService.getTiposHistorico.mockResolvedValueOnce(['acao_customizada']);
+
+    render(<HistoricoPage />);
+
+    expect((await screen.findAllByText('Acao Customizada')).length).toBeGreaterThanOrEqual(2);
+    expect(screen.getAllByText('N/A').length).toBeGreaterThanOrEqual(3);
+    expect(screen.getByText(/N\/A\s+tokens/i)).toBeInTheDocument();
+  });
+
   test('shows an error toast when the IA history request fails', async () => {
     usoIAService.getMeuHistoricoUsoIA.mockRejectedValueOnce(new Error('historico indisponivel'));
 
@@ -146,6 +197,46 @@ describe('HistoricoPage', () => {
     await waitFor(() => {
       expect(showErrorToast).toHaveBeenCalledWith('historico indisponivel');
     });
-    expect(screen.getByText(/Erro ao carregar histórico/)).toBeInTheDocument();
+    expect(screen.getByText(/Erro ao carregar hist/i)).toBeInTheDocument();
+  });
+
+  test('uses backend response detail when the IA history request fails with API payload', async () => {
+    usoIAService.getMeuHistoricoUsoIA.mockRejectedValueOnce({
+      response: { data: { detail: 'detalhe do backend' } },
+    });
+
+    render(<HistoricoPage />);
+
+    await waitFor(() => {
+      expect(showErrorToast).toHaveBeenCalledWith('detalhe do backend');
+    });
+    expect(screen.getByText(/detalhe do backend/i)).toBeInTheDocument();
+  });
+
+  test('handles unexpected payloads and logs secondary fetch failures', async () => {
+    const consoleWarnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {});
+    usoIAService.getMeuHistoricoUsoIA.mockResolvedValueOnce({ invalid: true });
+    historicoService.getHistorico.mockRejectedValueOnce(new Error('falha sistema'));
+    usoIAService.getTiposHistorico.mockRejectedValueOnce(new Error('falha tipos'));
+
+    render(<HistoricoPage />);
+
+    await waitFor(() => {
+      expect(screen.getByText(/Nenhum registro de uso de IA encontrado/i)).toBeInTheDocument();
+    });
+
+    expect(consoleWarnSpy).toHaveBeenCalledWith(
+      'HistoricoPage: formato de dados inesperado recebido:',
+      { invalid: true }
+    );
+    expect(consoleErrorSpy).toHaveBeenCalledWith(
+      'Erro ao buscar histórico do sistema:',
+      expect.any(Error)
+    );
+    expect(consoleErrorSpy).toHaveBeenCalledWith(
+      'Erro ao carregar tipos de histórico:',
+      expect.any(Error)
+    );
+    consoleWarnSpy.mockRestore();
   });
 });

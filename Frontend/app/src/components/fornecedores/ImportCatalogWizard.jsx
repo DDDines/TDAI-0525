@@ -8,6 +8,13 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import * as fornecedorService from '../../services/fornecedorService';
 import productTypeService from '../../services/productTypeService';
 import { normalizeDisplayText } from '../../utils/textNormalization';
+import { extractErrorMessage } from '../../utils/errorDetails';
+import {
+  formatCellValue,
+  getPreviewImageSrc,
+  formatElapsed,
+  normalizePayloadStrings,
+} from './ImportCatalogWizard.helpers.js';
 import LoadingPopup from '../common/LoadingPopup';
 import ColumnMappingModal from '../common/ColumnMappingModal.jsx';
 import PdfRegionSelector from '../common/PdfRegionSelector.jsx';
@@ -15,75 +22,17 @@ import Modal from '../common/Modal.jsx';
 import LogoImg from '../../assets/Logo.png';
 import './ImportCatalogWizard.css';
 
-function formatCellValue(
-
-
-  value) {
-    if (value === null || value === undefined) return '';
-    if (typeof value === 'object') return JSON.stringify(value);
-    return String(value);
-  }
-
-function getPreviewImageSrc(
-
-  img) {
-    if (typeof img === 'string') {
-      if (!img.trim()) return null;
-      return img.startsWith('data:image') ? img : `data:image/png;base64,${img}`;
-    }
-    if (img && typeof img === 'object' && img.image) return img.image;
-    return null;
-  }
-
-function toErrorDetail(
-
-  err, fallback) {
-    if (!err) return fallback;
-    if (typeof err?.detail === 'string') return err.detail;
-    if (typeof err?.message === 'string') return err.message;
-    if (err?.detail && typeof err.detail === 'object') return JSON.stringify(err.detail);
-    return fallback;
-  }
-
 function timestamp() {return (
 
       new Date().toLocaleTimeString('pt-BR'));}
 
-function formatElapsed(seconds) {
-  if (!Number.isFinite(seconds) || seconds < 0) return '0s';
-  if (seconds < 60) return `${seconds}s`;
-  const minutes = Math.floor(seconds / 60);
-  const remainingSeconds = seconds % 60;
-  return `${minutes}m ${remainingSeconds}s`;
-}
-
-function normalizePayloadStrings(
-
-  payload) {
-    if (Array.isArray(payload)) return payload.map((item) => normalizePayloadStrings(item));
-    if (payload && typeof payload === 'object') {
-      return Object.fromEntries(
-        Object.entries(payload).map(([k, v]) => [k, normalizePayloadStrings(v)])
-      );
-    }
-    if (typeof payload === 'string') return normalizeDisplayText(payload);
-    return payload;
-  }
-
 function ImportCatalogWizard(
 
   { fornecedor, productTypeId: initialProductTypeId, onClose, isOpen }) {
-    const defaultFornecedorMappingJson = useMemo(
-      () => JSON.stringify(fornecedor?.default_column_mapping || {}),
+    const defaultFornecedorMapping = useMemo(
+      () => ({ ...(fornecedor?.default_column_mapping || {}) }),
       [fornecedor?.default_column_mapping]
     );
-    const defaultFornecedorMapping = useMemo(() => {
-      try {
-        return JSON.parse(defaultFornecedorMappingJson);
-      } catch {
-        return {};
-      }
-    }, [defaultFornecedorMappingJson]);
 
     const [step, setStep] = useState('upload');
     const [selectedFile, setSelectedFile] = useState(null);
@@ -289,7 +238,7 @@ function ImportCatalogWizard(
           setShowPagePicker(true);
         }
       } catch (err) {
-        const detail = toErrorDetail(err, 'Falha ao gerar preview.');
+        const detail = extractErrorMessage(err, 'Falha ao gerar preview.');
         setPreviewError(detail);
         appendTimeline(`Erro ao gerar preview: ${detail}`);
       } finally {
@@ -299,7 +248,6 @@ function ImportCatalogWizard(
     };
 
     const launchRegionSelector = async (pageToUse) => {
-      if (!selectedFile || !fileId) return;
       const buffer = await selectedFile.arrayBuffer();
       setPdfBytes(new Uint8Array(buffer));
       setSelectedPageForRegion(pageToUse);
@@ -314,7 +262,6 @@ function ImportCatalogWizard(
     };
 
     const handleOpenRegionSelector = async () => {
-      if (!selectedFile || !fileId) return;
       if (previewImages.length > 1) {
         setShowPagePicker(true);
         return;
@@ -330,7 +277,6 @@ function ImportCatalogWizard(
       canvasHeight,
       applyAllPages: applyAll
     }) => {
-      if (!fileId) return;
       setSelectedPageForRegion(page);
       setSelectedBbox(bbox);
       setSelectedBboxNorm(bboxNorm);
@@ -376,7 +322,7 @@ function ImportCatalogWizard(
         setPreviewError('Nenhum dado extraído da região selecionada.');
         appendTimeline('Nenhum dado útil encontrado na região selecionada.');
       } catch (err) {
-        const detail = toErrorDetail(err, 'Falha ao extrair região.');
+        const detail = extractErrorMessage(err, 'Falha ao extrair região.');
         setRegionError(detail);
         appendTimeline(`Erro ao extrair região: ${detail}`);
       } finally {
@@ -414,8 +360,6 @@ function ImportCatalogWizard(
     };
 
     const pollStatus = async (id, runId) => {
-      if (pollLoopActiveRef.current && pollRunRef.current === runId) return;
-
       pollLoopActiveRef.current = true;
 
       let keepPolling = true;
@@ -534,7 +478,7 @@ function ImportCatalogWizard(
                   }
                 } catch (err) {
                   const detail = normalizeDisplayText(
-                    toErrorDetail(err, 'Falha ao obter resultado final da importação.')
+                    extractErrorMessage(err, 'Falha ao obter resultado final da importação.')
                   );
                   const waitingResult =
                   /ainda n[ãa]o dispon[íi]vel|not available|still processing/i.test(detail);
@@ -552,7 +496,7 @@ function ImportCatalogWizard(
             }
           } catch (err) {
             console.error('Erro ao consultar status:', err);
-            const detail = toErrorDetail(err, 'Falha ao consultar status da importação.');
+            const detail = extractErrorMessage(err, 'Falha ao consultar status da importação.');
             setError(detail);
             appendTimeline(`Erro de monitoramento: ${detail}`);
             keepPolling = false;
@@ -570,17 +514,7 @@ function ImportCatalogWizard(
     };
 
     const startImport = async () => {
-      if (!fileId) {
-        setError('Gere o preview primeiro.');
-        return;
-      }
-
       const ptId = productTypeId ? parseInt(productTypeId, 10) : null;
-      if (!ptId) {
-        setError('Selecione um tipo de produto.');
-        return;
-      }
-
       setIsLoading(true);
       setLoadingMessage('Iniciando processamento...');
       setError('');
@@ -628,7 +562,9 @@ function ImportCatalogWizard(
       } catch (err) {
         pollRunRef.current += 1;
         setStep('preview');
-        const detail = normalizeDisplayText(toErrorDetail(err, 'Falha ao iniciar processamento.'));
+        const detail = normalizeDisplayText(
+          extractErrorMessage(err, 'Falha ao iniciar processamento.')
+        );
         setError(detail);
         appendTimeline(`Erro ao iniciar processamento: ${detail}`);
       } finally {

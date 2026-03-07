@@ -306,6 +306,17 @@ describe('EnriquecimentoPage', () => {
     expect(screen.getByTestId('produtos-renderizados')).toHaveTextContent('');
   });
 
+  test('shows the fallback fetch error when the product request has no message', async () => {
+    productService.getProdutos.mockRejectedValueOnce({});
+
+    render(<EnriquecimentoPage />);
+
+    expect(
+      await screen.findByText('Erro ao carregar produtos: Falha ao buscar produtos.')
+    ).toBeInTheDocument();
+    expect(screen.getByTestId('produtos-renderizados')).toHaveTextContent('');
+  });
+
   test('toggles select-all off and sorts descending on the second click', async () => {
     render(<EnriquecimentoPage />);
 
@@ -378,6 +389,52 @@ describe('EnriquecimentoPage', () => {
     });
     expect(productService.getProdutos).toHaveBeenCalledTimes(2);
   });
+
+  test('falls back to a generic start error and timed refresh when polling cannot read any product', async () => {
+    jest.useFakeTimers();
+    productService.iniciarEnriquecimentoWebProduto.mockRejectedValueOnce({});
+    productService.getProdutos.mockResolvedValue({
+      items: [baseProduto],
+      total_items: 1,
+    });
+
+    render(<EnriquecimentoPage />);
+
+    await waitFor(() => {
+      expect(screen.getByTestId('produtos-renderizados')).toHaveTextContent('Produto Teste');
+    });
+
+    fireEvent.click(screen.getByText('select-first'));
+    fireEvent.click(screen.getByRole('button', { name: /Enriquecer Web/i }));
+
+    await waitFor(() => {
+      expect(showErrorToast).toHaveBeenCalledWith(
+        'Erro desconhecido ao iniciar enriquecimento para produto ID 1.'
+      );
+    });
+
+    productService.iniciarEnriquecimentoWebProduto.mockResolvedValueOnce({ ok: true });
+    productService.getProdutoById.mockRejectedValue({});
+    fireEvent.click(screen.getByText('select-first'));
+    fireEvent.click(screen.getByRole('button', { name: /Enriquecer Web/i }));
+
+    await waitFor(() =>
+      expect(productService.iniciarEnriquecimentoWebProduto).toHaveBeenCalledWith(1)
+    );
+
+    for (let i = 0; i < 121; i += 1) {
+      await act(async () => {
+        jest.advanceTimersByTime(3000);
+        await Promise.resolve();
+      });
+    }
+
+    await waitFor(() => {
+      expect(showInfoToast).toHaveBeenCalledWith(
+        'O enriquecimento web ainda pode estar em andamento em segundo plano. Atualizando a lista.'
+      );
+    });
+  }, 15000);
 
   test('falls back to a timed refresh when polling never reaches a terminal status', async () => {
     jest.useFakeTimers();

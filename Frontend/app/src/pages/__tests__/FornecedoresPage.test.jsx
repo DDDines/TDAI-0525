@@ -245,6 +245,41 @@ describe('FornecedoresPage', () => {
     });
   });
 
+  test('formats update detail payloads and toggles row selection off', async () => {
+    fornecedorService.updateFornecedor
+      .mockRejectedValueOnce({ detail: 'site duplicado' })
+      .mockRejectedValueOnce({ detail: [{ loc: ['body', 'site_url'], msg: 'invalido' }] });
+
+    render(<FornecedoresPage />);
+
+    await waitFor(() => {
+      expect(screen.getByTestId('fornecedor-table-names')).toHaveTextContent(
+        'Fornecedor A,Fornecedor B'
+      );
+    });
+
+    fireEvent.click(screen.getByText('toggle-first'));
+    expect(screen.getByTestId('selected-ids')).toHaveTextContent('1');
+    fireEvent.click(screen.getByText('toggle-first'));
+    expect(screen.getByTestId('selected-ids')).toHaveTextContent('');
+
+    fireEvent.click(screen.getByText('edit-first'));
+    fireEvent.click(screen.getByText('save-edit-fornecedor'));
+    await waitFor(() => {
+      expect(showErrorToast).toHaveBeenCalledWith(
+        'Erro ao atualizar fornecedor: site duplicado'
+      );
+    });
+
+    fireEvent.click(screen.getByText('edit-first'));
+    fireEvent.click(screen.getByText('save-edit-fornecedor'));
+    await waitFor(() => {
+      expect(showErrorToast).toHaveBeenCalledWith(
+        'Erro ao atualizar fornecedor: body.site_url: invalido'
+      );
+    });
+  });
+
   test('shows partial delete failure and refreshes remaining rows', async () => {
     fornecedorService.deleteFornecedor
       .mockResolvedValueOnce({ ok: true })
@@ -435,6 +470,43 @@ describe('FornecedoresPage', () => {
       expect(showErrorToast).toHaveBeenCalledWith(
         'Erro ao criar fornecedor: timeout bruto'
       );
+    });
+  });
+
+  test('keeps the active search term when creating a supplier from filtered results', async () => {
+    render(<FornecedoresPage />);
+
+    await waitFor(() => {
+      expect(screen.getByTestId('fornecedor-table-names')).toHaveTextContent(
+        'Fornecedor A,Fornecedor B'
+      );
+    });
+
+    fireEvent.change(screen.getByPlaceholderText('Nome do fornecedor...'), {
+      target: { value: 'Filtro ativo' },
+    });
+    await waitFor(() => {
+      expect(fornecedorService.getFornecedores).toHaveBeenLastCalledWith({
+        skip: 0,
+        limit: 10,
+        termo_busca: 'Filtro ativo',
+      });
+    });
+
+    fireEvent.click(screen.getByText('Novo Fornecedor'));
+    fireEvent.click(screen.getByText('save-new-fornecedor'));
+
+    await waitFor(() => {
+      expect(fornecedorService.createFornecedor).toHaveBeenCalledWith({
+        nome: 'Novo Fornecedor',
+      });
+    });
+    await waitFor(() => {
+      expect(fornecedorService.getFornecedores).toHaveBeenLastCalledWith({
+        skip: 0,
+        limit: 10,
+        termo_busca: 'Filtro ativo',
+      });
     });
   });
 

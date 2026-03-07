@@ -14,9 +14,9 @@ import {
   showSuccessToast,
   showErrorToast,
   showInfoToast,
-  showWarningToast,
 } from '../utils/notifications';
 import logger from '../utils/logger';
+import { extractErrorMessage } from '../utils/errorDetails';
 
 const WEB_ENRICHMENT_TERMINAL_STATUSES = new Set([
   'CONCLUIDO',
@@ -80,7 +80,7 @@ function EnriquecimentoPage() {
         setTotalProdutosCount(0);
       }
     } catch (err) {
-      const errorMsg = err && err.message ? err.message : 'Falha ao buscar produtos.';
+      const errorMsg = extractErrorMessage(err, 'Falha ao buscar produtos.');
       setError(errorMsg);
       setProdutos([]);
       setTotalProdutosCount(0);
@@ -206,11 +206,6 @@ function EnriquecimentoPage() {
   }, [fetchProdutos, mergeProdutosById]);
 
   const handleEnrichSelected = async () => {
-    if (selectedProductIds.size === 0) {
-      showWarningToast('Nenhum produto selecionado para enriquecimento.');
-      return;
-    }
-
     setActionLoading(true);
     const idsParaProcessar = Array.from(selectedProductIds);
     setSelectedProductIds(new Set());
@@ -226,9 +221,10 @@ function EnriquecimentoPage() {
           await productService.iniciarEnriquecimentoWebProduto(produtoId);
         } catch (err) {
           failedIds.add(String(produtoId));
-          const errorMsg = err && err.message
-            ? err.message
-            : `Erro desconhecido ao iniciar enriquecimento para produto ID ${produtoId}.`;
+          const errorMsg = extractErrorMessage(
+            err,
+            `Erro desconhecido ao iniciar enriquecimento para produto ID ${produtoId}.`
+          );
           showErrorToast(errorMsg);
           console.error(`Erro ao iniciar enriquecimento para produto ID ${produtoId}:`, err);
           updateLocalProductStatus(new Set([produtoId]), 'FALHA');
@@ -355,4 +351,3 @@ function EnriquecimentoPage() {
 }
 
 export default EnriquecimentoPage;
-
