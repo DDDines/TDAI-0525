@@ -40,6 +40,7 @@ jest.mock('../../components/fornecedores/FornecedorTable', () => ({
       </div>
       <div data-testid="selected-ids">{selectedIds.join(',')}</div>
       <button onClick={() => onSelectRow(fornecedores[0]?.id)}>toggle-first</button>
+      <button onClick={() => onSelectRow(fornecedores[1]?.id)}>toggle-second</button>
       <button onClick={() => onRowClick(fornecedores[0])}>edit-first</button>
       <button onClick={() => onSelectAllRows({ target: { checked: true } })}>select-all</button>
     </div>
@@ -50,7 +51,13 @@ jest.mock('../../components/fornecedores/NewFornecedorModal', () => ({
   __esModule: true,
   default: ({ isOpen, onSave }) => (
     <div data-testid="new-modal-state" data-open={String(isOpen)}>
-      <button onClick={() => onSave({ nome: 'Novo Fornecedor' })}>save-new-fornecedor</button>
+      <button
+        onClick={() => {
+          Promise.resolve(onSave({ nome: 'Novo Fornecedor' })).catch(() => {});
+        }}
+      >
+        save-new-fornecedor
+      </button>
     </div>
   ),
 }));
@@ -59,7 +66,13 @@ jest.mock('../../components/fornecedores/EditFornecedorModal', () => ({
   __esModule: true,
   default: ({ isOpen, fornecedorData, onSave }) => (
     <div data-testid="edit-modal-state" data-open={String(isOpen)}>
-      <button onClick={() => onSave(fornecedorData?.id, { nome: 'Fornecedor Editado' })}>
+      <button
+        onClick={() => {
+          Promise.resolve(
+            onSave(fornecedorData?.id, { nome: 'Fornecedor Editado' })
+          ).catch(() => {});
+        }}
+      >
         save-edit-fornecedor
       </button>
     </div>
@@ -117,7 +130,11 @@ describe('FornecedoresPage', () => {
   test('creates and updates a supplier through the page handlers', async () => {
     render(<FornecedoresPage />);
 
-    await screen.findByTestId('fornecedor-table-names');
+    await waitFor(() => {
+      expect(screen.getByTestId('fornecedor-table-names')).toHaveTextContent(
+        'Fornecedor A,Fornecedor B'
+      );
+    });
 
     fireEvent.click(screen.getByText('Novo Fornecedor'));
     fireEvent.click(screen.getByText('save-new-fornecedor'));
@@ -168,5 +185,97 @@ describe('FornecedoresPage', () => {
       'Tem certeza que deseja deletar 1 fornecedor(es) selecionado(s)?'
     );
     expect(showWarningToast).not.toHaveBeenCalled();
+  });
+
+  test('warns when trying to delete without a selection', async () => {
+    render(<FornecedoresPage />);
+
+    await waitFor(() => {
+      expect(screen.getByTestId('fornecedor-table-names')).toHaveTextContent(
+        'Fornecedor A,Fornecedor B'
+      );
+    });
+    expect(screen.getByRole('button', { name: /Deletar Selecionado/i })).toBeDisabled();
+    expect(showWarningToast).not.toHaveBeenCalled();
+  });
+
+  test('formats create and update errors from backend detail payloads', async () => {
+    fornecedorService.createFornecedor.mockRejectedValueOnce({
+      detail: [{ loc: ['body', 'nome'], msg: 'obrigatorio' }],
+    });
+    fornecedorService.updateFornecedor.mockRejectedValueOnce({
+      message: 'falha na atualizacao',
+    });
+
+    render(<FornecedoresPage />);
+
+    await waitFor(() => {
+      expect(screen.getByTestId('fornecedor-table-names')).toHaveTextContent(
+        'Fornecedor A,Fornecedor B'
+      );
+    });
+    fireEvent.click(screen.getByText('Novo Fornecedor'));
+    fireEvent.click(screen.getByText('save-new-fornecedor'));
+    await waitFor(() => {
+      expect(showErrorToast).toHaveBeenCalledWith(
+        'Erro ao criar fornecedor: body.nome: obrigatorio'
+      );
+    });
+
+    fireEvent.click(screen.getByText('edit-first'));
+    fireEvent.click(screen.getByText('save-edit-fornecedor'));
+    await waitFor(() => {
+      expect(showErrorToast).toHaveBeenCalledWith(
+        'Erro ao atualizar fornecedor: falha na atualizacao'
+      );
+    });
+  });
+
+  test('shows partial delete failure and refreshes remaining rows', async () => {
+    fornecedorService.deleteFornecedor
+      .mockResolvedValueOnce({ ok: true })
+      .mockRejectedValueOnce(new Error('nao pode deletar'));
+
+    render(<FornecedoresPage />);
+
+    await waitFor(() => {
+      expect(screen.getByTestId('fornecedor-table-names')).toHaveTextContent(
+        'Fornecedor A,Fornecedor B'
+      );
+    });
+    fireEvent.click(screen.getByText('toggle-first'));
+    fireEvent.click(screen.getByText('toggle-second'));
+    await waitFor(() => {
+      expect(screen.getByTestId('selected-ids')).toHaveTextContent('1,2');
+    });
+    fireEvent.click(screen.getByText('Deletar Selecionado(s)'));
+
+    await waitFor(() => {
+      expect(fornecedorService.deleteFornecedor).toHaveBeenCalledTimes(2);
+    });
+    expect(showSuccessToast).toHaveBeenCalledWith('1 fornecedor(es) deletado(s) com sucesso!');
+    expect(showErrorToast).toHaveBeenCalledWith(
+      'Alguns fornecedores não puderam ser deletados. Verifique o console.'
+    );
+  });
+
+  test('handles pagination and unexpected payload formats', async () => {
+    fornecedorService.getFornecedores.mockImplementation(({ skip }) =>
+      Promise.resolve(skip === 10 ? { invalid: true } : { items: [], total_items: 11 })
+    );
+
+    render(<FornecedoresPage />);
+
+    await screen.findByText('next-page');
+    fireEvent.click(screen.getByText('next-page'));
+
+    await waitFor(() => {
+      expect(fornecedorService.getFornecedores).toHaveBeenLastCalledWith({
+        skip: 10,
+        limit: 10,
+        termo_busca: undefined,
+      });
+    });
+    expect(screen.getByTestId('fornecedor-table-names')).toHaveTextContent('');
   });
 });

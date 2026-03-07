@@ -77,6 +77,37 @@ describe('fornecedorService', () => {
     expect(apiClient.delete).toHaveBeenCalledWith('/fornecedores/2');
   });
 
+  test('core fornecedor endpoints surface request and generic failures', async () => {
+    apiClient.get
+      .mockRejectedValueOnce({ request: {} })
+      .mockRejectedValueOnce(new Error('config get'));
+    apiClient.post.mockRejectedValueOnce(new Error('create timeout'));
+    apiClient.put
+      .mockRejectedValueOnce({ request: {} })
+      .mockRejectedValueOnce(new Error('config put'));
+    apiClient.delete
+      .mockRejectedValueOnce({ request: {} })
+      .mockRejectedValueOnce(new Error('config delete'));
+
+    await expect(fornecedorService.getFornecedorById(4)).rejects.toThrow(
+      /Nenhuma resposta do servidor ao buscar fornecedor 4/i
+    );
+    await expect(fornecedorService.getFornecedorById(4)).rejects.toThrow('config get');
+    await expect(fornecedorService.createFornecedor({ nome: 'Novo' })).rejects.toThrow(
+      'create timeout'
+    );
+    await expect(fornecedorService.updateFornecedor(4, { nome: 'Novo' })).rejects.toThrow(
+      /Nenhuma resposta do servidor ao tentar atualizar fornecedor 4/i
+    );
+    await expect(fornecedorService.updateFornecedor(4, { nome: 'Novo' })).rejects.toThrow(
+      'config put'
+    );
+    await expect(fornecedorService.deleteFornecedor(4)).rejects.toThrow(
+      /Nenhuma resposta do servidor ao tentar deletar fornecedor 4/i
+    );
+    await expect(fornecedorService.deleteFornecedor(4)).rejects.toThrow('config delete');
+  });
+
   test('setFornecedorMapping saves mapping and falls back to a generic error message', async () => {
     apiClient.put
       .mockResolvedValueOnce({ data: { ok: true } })
@@ -125,6 +156,20 @@ describe('fornecedorService', () => {
     });
   });
 
+  test('previewCatalogo and importCatalogo surface backend and generic failures', async () => {
+    const file = new File(['conteudo'], 'catalogo.pdf', { type: 'application/pdf' });
+    apiClient.post
+      .mockRejectedValueOnce({ response: { data: { detail: 'preview backend' } } })
+      .mockRejectedValueOnce(new Error('preview timeout'))
+      .mockRejectedValueOnce(new Error('import config'));
+
+    await expect(fornecedorService.previewCatalogo(file)).rejects.toEqual({
+      detail: 'preview backend',
+    });
+    await expect(fornecedorService.previewCatalogo(file)).rejects.toThrow('preview timeout');
+    await expect(fornecedorService.importCatalogo(9, file)).rejects.toThrow('import config');
+  });
+
   test('importCatalogo includes mapping when provided and handles request failures', async () => {
     const file = new File(['conteudo'], 'catalogo.xlsx');
     apiClient.post
@@ -171,6 +216,23 @@ describe('fornecedorService', () => {
       { force: true }
     );
     expect(apiClient.get).toHaveBeenNthCalledWith(2, '/produtos/importar-catalogo-status/8');
+  });
+
+  test('catalog import maintenance endpoints surface request and generic failures', async () => {
+    apiClient.get
+      .mockRejectedValueOnce({ request: {} })
+      .mockRejectedValueOnce(new Error('status timeout'))
+      .mockRejectedValueOnce(new Error('result timeout'));
+    apiClient.delete.mockRejectedValueOnce(new Error('delete timeout'));
+    apiClient.post.mockRejectedValueOnce(new Error('reprocess timeout'));
+
+    await expect(fornecedorService.getCatalogImportFiles()).rejects.toThrow(
+      /Nenhuma resposta do servidor ao buscar arquivos de importação/i
+    );
+    await expect(fornecedorService.deleteCatalogFile(8)).rejects.toThrow('delete timeout');
+    await expect(fornecedorService.reprocessCatalogFile(8)).rejects.toThrow('reprocess timeout');
+    await expect(fornecedorService.getImportacaoStatus(8)).rejects.toThrow('status timeout');
+    await expect(fornecedorService.getImportacaoResult(8)).rejects.toThrow('result timeout');
   });
 
   test('getImportacaoResult distinguishes between processing and ready states', async () => {
@@ -242,6 +304,18 @@ describe('fornecedorService', () => {
     );
   });
 
+  test('upload and pdf preview surface generic failures', async () => {
+    const file = new File(['conteudo'], 'catalogo.pdf', { type: 'application/pdf' });
+    apiClient.post
+      .mockRejectedValueOnce(new Error('upload timeout'))
+      .mockRejectedValueOnce(new Error('pdf timeout'));
+
+    await expect(fornecedorService.uploadForPagePreview(file, 3)).rejects.toThrow(
+      'upload timeout'
+    );
+    await expect(fornecedorService.getPdfPreview(file, 3)).rejects.toThrow('pdf timeout');
+  });
+
   test('mapping, progress and commit endpoints pass params and payloads correctly', async () => {
     apiClient.get
       .mockResolvedValueOnce({ data: { linhas: [] } })
@@ -282,6 +356,26 @@ describe('fornecedorService', () => {
       { params: { page: 1 } }
     );
     expect(apiClient.post).toHaveBeenNthCalledWith(2, '/fornecedores/import/commit/job-1');
+  });
+
+  test('mapping, progress and commit endpoints surface generic failures', async () => {
+    apiClient.get
+      .mockRejectedValueOnce(new Error('page timeout'))
+      .mockRejectedValueOnce(new Error('progress timeout'))
+      .mockRejectedValueOnce(new Error('review timeout'));
+    apiClient.post
+      .mockRejectedValueOnce(new Error('process timeout'))
+      .mockRejectedValueOnce(new Error('commit timeout'));
+
+    await expect(fornecedorService.fetchPageDataForMapping(90, 4)).rejects.toThrow('page timeout');
+    await expect(fornecedorService.startFullProcess({ file_id: 90 })).rejects.toThrow(
+      'process timeout'
+    );
+    await expect(fornecedorService.getImportProgress('job-1')).rejects.toThrow(
+      'progress timeout'
+    );
+    await expect(fornecedorService.getReviewData('job-1')).rejects.toThrow('review timeout');
+    await expect(fornecedorService.commitImport('job-1')).rejects.toThrow('commit timeout');
   });
 
   test('region selection and finalization endpoints build the expected payloads', async () => {
@@ -370,5 +464,41 @@ describe('fornecedorService', () => {
         extraction_mode: 'ocr',
       }
     );
+  });
+
+  test('region selection and finalization endpoints surface generic failures', async () => {
+    apiClient.post
+      .mockRejectedValueOnce(new Error('region timeout'))
+      .mockRejectedValueOnce(new Error('bulk timeout'))
+      .mockRejectedValueOnce(new Error('produto timeout'))
+      .mockRejectedValueOnce(new Error('final timeout'));
+
+    await expect(
+      fornecedorService.selecionarRegiao({
+        fileId: 1,
+        pageNumber: 2,
+        bbox: { x: 1, y: 2 },
+      })
+    ).rejects.toThrow('region timeout');
+    await expect(
+      fornecedorService.extractRegionBulk({
+        fileId: 1,
+        bbox: { x: 3, y: 4 },
+      })
+    ).rejects.toThrow('bulk timeout');
+    await expect(
+      fornecedorService.selecionarRegiaoProduto({
+        fileId: 1,
+        pageNumber: 4,
+        bbox: { x: 5, y: 6 },
+      })
+    ).rejects.toThrow('produto timeout');
+    await expect(
+      fornecedorService.finalizarImportacaoCatalogo({
+        fileId: 44,
+        productTypeId: 7,
+        fornecedorId: 8,
+      })
+    ).rejects.toThrow('final timeout');
   });
 });

@@ -41,16 +41,33 @@ describe('usoIAService', () => {
     });
   });
 
+  test('returns backend payloads on product-history and my-history failures', async () => {
+    apiClient.get
+      .mockRejectedValueOnce({ response: { data: { detail: 'produto indisponivel' } } })
+      .mockRejectedValueOnce({ response: { data: { detail: 'usuario sem acesso' } } });
+
+    await expect(usoIAService.getHistoricoUsoIAPorProduto(12)).rejects.toEqual({
+      detail: 'produto indisponivel',
+    });
+    await expect(usoIAService.getMeuHistoricoUsoIA()).rejects.toEqual({
+      detail: 'usuario sem acesso',
+    });
+  });
+
   test('gets history types and falls back to explicit errors on failures', async () => {
     apiClient.get
       .mockResolvedValueOnce({ data: ['geracao_titulo_ia'] })
-      .mockRejectedValueOnce(new Error('timeout'));
+      .mockRejectedValueOnce(new Error('timeout'))
+      .mockRejectedValueOnce(new Error('offline'));
 
     await expect(usoIAService.getTiposHistorico()).resolves.toEqual(['geracao_titulo_ia']);
     expect(apiClient.get).toHaveBeenNthCalledWith(1, '/historico/tipos');
 
     await expect(usoIAService.getMeuHistoricoUsoIA()).rejects.toThrow(
       'Failed to fetch my IA usage history'
+    );
+    await expect(usoIAService.getTiposHistorico()).rejects.toThrow(
+      'Failed to fetch historico types'
     );
   });
 });

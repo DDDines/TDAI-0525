@@ -1,5 +1,5 @@
 import React from 'react';
-import { render, screen, waitFor, fireEvent } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import '@testing-library/jest-dom';
 import { ProductTypeProvider, useProductTypes } from '../ProductTypeContext.jsx';
 import productTypeService from '../../services/productTypeService';
@@ -65,17 +65,49 @@ describe('ProductTypeContext', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     jest.spyOn(console, 'error').mockImplementation(() => {});
+    jest.spyOn(console, 'warn').mockImplementation(() => {});
     useAuth.mockReturnValue({
       user: { email: 'admin@example.com' },
       isLoading: false,
     });
-    productTypeService.getProductTypes.mockResolvedValue([
-      { id: 1, friendly_name: 'Moto' },
-    ]);
+    productTypeService.getProductTypes.mockResolvedValue([{ id: 1, friendly_name: 'Moto' }]);
   });
 
   afterEach(() => {
     jest.restoreAllMocks();
+  });
+
+  test('waits for auth session loading before fetching product types', async () => {
+    useAuth.mockReturnValue({
+      user: { email: 'admin@example.com' },
+      isLoading: true,
+    });
+
+    const { rerender } = render(
+      <ProductTypeProvider>
+        <Probe />
+      </ProductTypeProvider>
+    );
+
+    expect(productTypeService.getProductTypes).not.toHaveBeenCalled();
+
+    useAuth.mockReturnValue({
+      user: { email: 'admin@example.com' },
+      isLoading: false,
+    });
+
+    rerender(
+      <ProductTypeProvider>
+        <Probe />
+      </ProductTypeProvider>
+    );
+
+    await waitFor(() => {
+      expect(productTypeService.getProductTypes).toHaveBeenCalledWith({
+        skip: 0,
+        limit: 500,
+      });
+    });
   });
 
   test('does not fetch product types when there is no authenticated user', async () => {
@@ -179,7 +211,38 @@ describe('ProductTypeContext', () => {
     });
   });
 
-  test('requires authentication before adding a product type', async () => {
+  test('handles non-array fetch payloads and refresh attempts without an authenticated user', async () => {
+    productTypeService.getProductTypes.mockResolvedValueOnce({ invalid: true });
+
+    render(
+      <ProductTypeProvider>
+        <Probe />
+      </ProductTypeProvider>
+    );
+
+    await waitFor(() => {
+      expect(screen.getByTestId('names')).toHaveTextContent('');
+    });
+
+    useAuth.mockReturnValue({
+      user: null,
+      isLoading: false,
+    });
+
+    render(
+      <ProductTypeProvider>
+        <Probe />
+      </ProductTypeProvider>
+    );
+
+    fireEvent.click(screen.getAllByText('refresh')[1]);
+
+    await waitFor(() => {
+      expect(console.warn).toHaveBeenCalled();
+    });
+  });
+
+  test('requires authentication before mutating product types', async () => {
     useAuth.mockReturnValue({
       user: null,
       isLoading: false,
@@ -192,11 +255,51 @@ describe('ProductTypeContext', () => {
     );
 
     fireEvent.click(screen.getByText('add'));
+    fireEvent.click(screen.getByText('update'));
+    fireEvent.click(screen.getByText('remove'));
 
     await waitFor(() => {
       expect(showErrorToast).toHaveBeenCalledWith(
         'Você precisa estar logado para adicionar um tipo de produto.'
       );
+      expect(showErrorToast).toHaveBeenCalledWith(
+        'Você precisa estar logado para atualizar um tipo de produto.'
+      );
+      expect(showErrorToast).toHaveBeenCalledWith(
+        'Você precisa estar logado para remover um tipo de produto.'
+      );
+    });
+  });
+
+  test('surfaces service errors when add, update and remove fail', async () => {
+    productTypeService.createProductType.mockRejectedValueOnce({
+      response: { data: { detail: 'duplicado' } },
+    });
+    productTypeService.updateProductType.mockRejectedValueOnce({
+      response: { data: { detail: 'nao encontrado' } },
+    });
+    productTypeService.deleteProductType.mockRejectedValueOnce({
+      response: { data: { detail: 'em uso' } },
+    });
+
+    render(
+      <ProductTypeProvider>
+        <Probe />
+      </ProductTypeProvider>
+    );
+
+    await waitFor(() => {
+      expect(screen.getByTestId('names')).toHaveTextContent('Moto');
+    });
+
+    fireEvent.click(screen.getByText('add'));
+    fireEvent.click(screen.getByText('update'));
+    fireEvent.click(screen.getByText('remove'));
+
+    await waitFor(() => {
+      expect(showErrorToast).toHaveBeenCalledWith('duplicado');
+      expect(showErrorToast).toHaveBeenCalledWith('nao encontrado');
+      expect(showErrorToast).toHaveBeenCalledWith('em uso');
     });
   });
 });

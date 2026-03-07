@@ -66,6 +66,20 @@ describe('productService', () => {
     );
   });
 
+  test('getProdutoById returns data and rethrows backend payloads when available', async () => {
+    apiClient.get
+      .mockResolvedValueOnce({ data: { id: 12, nome_base: 'Produto X' } })
+      .mockRejectedValueOnce({ response: { data: { detail: 'nao encontrado' } } });
+
+    await expect(productService.getProdutoById(12)).resolves.toEqual({
+      id: 12,
+      nome_base: 'Produto X',
+    });
+    await expect(productService.getProdutoById(13)).rejects.toEqual({
+      detail: 'nao encontrado',
+    });
+  });
+
   test('createProduto, updateProduto and deleteProduto forward payloads to the expected endpoints', async () => {
     apiClient.post.mockResolvedValueOnce({ data: { id: 10 } });
     apiClient.put.mockResolvedValueOnce({ data: { id: 10, nome_base: 'Novo' } });
@@ -81,6 +95,24 @@ describe('productService', () => {
     expect(apiClient.post).toHaveBeenCalledWith('/produtos/', { nome_base: 'Teste' });
     expect(apiClient.put).toHaveBeenCalledWith('/produtos/10/', { nome_base: 'Novo' });
     expect(apiClient.delete).toHaveBeenCalledWith('/produtos/10/');
+  });
+
+  test.each([
+    ['createProduto', () => productService.createProduto({ nome_base: 'Teste' }), 'post', 'Falha ao criar produto'],
+    ['updateProduto', () => productService.updateProduto(10, { nome_base: 'Novo' }), 'put', 'Falha ao atualizar produto 10'],
+    ['deleteProduto', () => productService.deleteProduto(10), 'delete', 'Falha ao apagar produto 10'],
+    ['gerarTitulosProduto', () => productService.gerarTitulosProduto(7), 'post', 'Falha ao gerar titulos'],
+    ['gerarDescricaoProduto', () => productService.gerarDescricaoProduto(7), 'post', 'Falha ao gerar descricao'],
+    ['gerarTitulosGemini', () => productService.gerarTitulosGemini(7), 'post', 'Falha ao gerar titulos com Gemini'],
+    ['gerarDescricaoGemini', () => productService.gerarDescricaoGemini(7), 'post', 'Falha ao gerar descricao com Gemini'],
+    ['gerarTitulosProdutoModoBasico', () => productService.gerarTitulosProdutoModoBasico(7), 'post', 'Falha ao gerar titulos no modo basico'],
+    ['gerarDescricaoProdutoModoBasico', () => productService.gerarDescricaoProdutoModoBasico(7), 'post', 'Falha ao gerar descricao no modo basico'],
+    ['batchDeleteProdutos', () => productService.batchDeleteProdutos([1, 2]), 'post', 'Falha ao apagar produtos em lote'],
+    ['getAtributoSuggestions', () => productService.getAtributoSuggestions(7), 'post', 'Falha ao buscar sugestoes de atributos da IA.'],
+  ])('%s throws a fallback error when the request has no response payload', async (_, call, method, expectedMessage) => {
+    apiClient[method].mockRejectedValueOnce(new Error('network down'));
+
+    await expect(call()).rejects.toThrow(expectedMessage);
   });
 
   test('OpenAI and Gemini generation methods call their respective endpoints', async () => {
@@ -189,6 +221,24 @@ describe('productService', () => {
     );
   });
 
+  test('iniciarEnriquecimentoWebProduto uses msg or a generic fallback when response data is sparse', async () => {
+    apiClient.post
+      .mockRejectedValueOnce({
+        response: {
+          status: 500,
+          data: { msg: 'provedor fora' },
+        },
+      })
+      .mockRejectedValueOnce({});
+
+    await expect(productService.iniciarEnriquecimentoWebProduto(10)).rejects.toThrow(
+      'provedor fora'
+    );
+    await expect(productService.iniciarEnriquecimentoWebProduto(10)).rejects.toThrow(
+      'Falha ao iniciar processo de enriquecimento web'
+    );
+  });
+
   test('batchDeleteProdutos posts the selected ids', async () => {
     apiClient.post.mockResolvedValueOnce({ data: { deleted: 2 } });
 
@@ -212,6 +262,43 @@ describe('productService', () => {
 
     expect(apiClient.post).toHaveBeenNthCalledWith(1, '/geracao/sugerir-atributos-gemini/20/');
     expect(apiClient.post).toHaveBeenNthCalledWith(2, '/geracao/sugerir-atributos-gemini/21/');
+  });
+
+  test('registrarFeedbackConteudoGerado creates feedback storage when product has no prior web data', async () => {
+    jest.useFakeTimers().setSystemTime(new Date('2026-03-07T18:00:00.000Z'));
+
+    apiClient.get.mockResolvedValueOnce({
+      data: {
+        id: 14,
+        dados_brutos_web: null,
+      },
+    });
+    apiClient.put.mockResolvedValueOnce({ data: { ok: true } });
+
+    await expect(
+      productService.registrarFeedbackConteudoGerado(14, {
+        valor: 'nao_gostei',
+      })
+    ).resolves.toEqual({ ok: true });
+
+    expect(apiClient.put).toHaveBeenCalledWith('/produtos/14/', {
+      dados_brutos_web: {
+        feedback_conteudo: {
+          valor: 'nao_gostei',
+          comentario: null,
+          origem: 'tela_conteudo',
+          atualizado_em: '2026-03-07T18:00:00.000Z',
+        },
+        feedback_conteudo_historico: [
+          {
+            valor: 'nao_gostei',
+            comentario: null,
+            origem: 'tela_conteudo',
+            atualizado_em: '2026-03-07T18:00:00.000Z',
+          },
+        ],
+      },
+    });
   });
 
   test('registrarFeedbackConteudoGerado validates accepted values before any request', async () => {
