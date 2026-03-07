@@ -31,6 +31,7 @@ psycopg2-binary==2.9.9
 jinja2==3.1.4
 pytest==8.2.1
 pytest-asyncio==0.23.6
+pytest-cov==7.0.0
 PyMuPDF==1.24.1
 pytesseract==0.3.10
 Pillow==10.3.0
