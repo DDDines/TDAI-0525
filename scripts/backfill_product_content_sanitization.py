@@ -8,6 +8,7 @@ from __future__ import annotations
 import argparse
 from collections import Counter
 from pathlib import Path
+import re
 import sys
 from typing import Any, Dict, Iterable, List, Tuple
 
@@ -31,6 +32,13 @@ from Backend.database import SessionLocal  # noqa: E402
 
 class _TopLevelFunctionSurface:
     """Surface utilities to keep script flow explicit and testable."""
+
+    _NOISY_IDENTITY_HINT_PATTERNS = (
+        re.compile(r"\bacesse\s+noss[oa]\b", re.IGNORECASE),
+        re.compile(r"\btodos?\s+os\s+produtos\b", re.IGNORECASE),
+        re.compile(r"\bnao\s+se\s+esqueca\b", re.IGNORECASE),
+        re.compile(r"\binstalad[oa]\b", re.IGNORECASE),
+    )
 
     @staticmethod
     def _sanitize_identity(
@@ -58,6 +66,18 @@ class _TopLevelFunctionSurface:
         normalized = sanitizer._normalize_product_text(value)
         return sanitizer._sanitize_description_text(normalized, max_len=max_len)
 
+    @classmethod
+    def _looks_like_noisy_identity_label(cls, value: Any) -> bool:
+        """Detect placeholder/promotional strings that should not remain as product names."""
+        text = BasicContentGenerationService._normalize_space(value)
+        if not text:
+            return False
+
+        folded = BasicContentGenerationService._fold_text(text).lower()
+        if any(pattern.search(folded) for pattern in cls._NOISY_IDENTITY_HINT_PATTERNS):
+            return True
+        return BasicContentGenerationService._looks_like_promotional_boilerplate(text)
+
     @staticmethod
     def _sanitize_title_candidate(value: Any, *, max_len: int = 160) -> str:
         """Reuse basic-generation sanitation to clean title-like values."""
@@ -73,7 +93,26 @@ class _TopLevelFunctionSurface:
         return candidate
 
     @staticmethod
-    def _normalize_title_list(value: Any, *, max_titles: int = 10) -> List[str]:
+    def _looks_like_noisy_generated_title(value: Any) -> bool:
+        """Detect legacy generated titles that still carry weak/promotional suffixes."""
+        candidate = _TopLevelFunctionSurface._sanitize_title_candidate(value, max_len=160)
+        if not candidate:
+            return True
+
+        tokens = [
+            token
+            for token in re.findall(
+                r"[a-z0-9]+",
+                BasicContentGenerationService._fold_text(candidate).lower(),
+            )
+            if len(token) >= 3
+        ]
+        if not tokens:
+            return True
+        return any(BasicContentGenerationService._is_weak_keyword(token) for token in tokens)
+
+    @classmethod
+    def _normalize_title_list(cls, value: Any, *, max_titles: int = 10) -> List[str]:
         """Normalize title payloads into a compact, deduplicated list."""
         if isinstance(value, list):
             raw_items = value
@@ -87,6 +126,8 @@ class _TopLevelFunctionSurface:
             candidate = _TopLevelFunctionSurface._sanitize_title_candidate(item, max_len=160)
             if not candidate:
                 continue
+            if cls._looks_like_noisy_generated_title(candidate):
+                continue
             folded = candidate.lower()
             if folded in seen:
                 continue
@@ -97,31 +138,59 @@ class _TopLevelFunctionSurface:
         return cleaned
 
     @staticmethod
-    def _fallback_titles_from_product(produto: Any, *, max_titles: int = 5) -> List[str]:
-        """Build deterministic fallback titles when all stored titles are noisy."""
-        base = _TopLevelFunctionSurface._sanitize_title_candidate(
-            getattr(produto, "nome_base", None),
-            max_len=120,
+    def _rebuild_titles_from_product(
+        produto: Any,
+        *,
+        basic_generation_service: BasicContentGenerationService,
+        max_titles: int = 5,
+    ) -> List[str]:
+        """Regenerate deterministic title suggestions using the current basic generator rules."""
+        web_context = basic_generation_service._extract_web_context(produto=produto)
+        candidates = basic_generation_service._build_title_candidates(
+            produto=produto,
+            web_context=web_context,
         )
-        sku = " ".join(str(getattr(produto, "sku", "") or "").strip().split())
-        candidates = []
-        if base and sku:
-            candidates.append(f"{base} {sku}".strip())
-        if base:
-            candidates.append(base)
-        if not candidates:
-            candidates.append(f"Produto {getattr(produto, 'id', '')}".strip())
-        unique: List[str] = []
-        seen = set()
-        for item in candidates:
-            folded = item.lower()
-            if folded in seen:
-                continue
-            seen.add(folded)
-            unique.append(item[:160])
-            if len(unique) >= max_titles:
-                break
-        return unique
+        candidates = basic_generation_service._ensure_minimum_title_candidates(
+            candidates=candidates,
+            produto=produto,
+            minimum_count=max_titles,
+            web_context=web_context,
+        )
+        return candidates[:max_titles]
+
+    @staticmethod
+    def _generated_description_is_noisy(value: Any) -> bool:
+        """Detect generated descriptions still polluted by support/policy/store boilerplate."""
+        text = BasicContentGenerationService._normalize_space(value)
+        if not text:
+            return False
+        if BasicContentGenerationService._looks_like_promotional_boilerplate(text):
+            return True
+
+        chunks = re.split(r"(?<=[.!?;])\s+|[\r\n]+|;\s*", text)
+        return any(
+            BasicContentGenerationService._looks_like_promotional_boilerplate(chunk)
+            for chunk in chunks
+            if str(chunk or "").strip()
+        )
+
+    @staticmethod
+    def _rebuild_generated_description(
+        produto: Any,
+        *,
+        basic_generation_service: BasicContentGenerationService,
+        tamanho_palavras: int = 150,
+    ) -> str:
+        """Rebuild generated description using the current deterministic basic generator."""
+        template = basic_generation_service._safe_template(
+            None,
+            default_template=basic_generation_service._DEFAULT_DESCRIPTION_TEMPLATE,
+        )
+        return basic_generation_service._build_basic_description(
+            produto=produto,
+            tamanho_palavras=tamanho_palavras,
+            template_descricao=template,
+        )
 
     @staticmethod
     def _sanitize_keywords(value: Any) -> List[str]:
@@ -215,6 +284,7 @@ class _TopLevelFunctionSurface:
         produto: models.Produto,
         *,
         sanitizer: CatalogImportSanitizationService,
+        basic_generation_service: BasicContentGenerationService,
     ) -> Tuple[bool, Counter]:
         """Apply in-memory sanitation to one product, returning change flags."""
         changed = False
@@ -236,6 +306,13 @@ class _TopLevelFunctionSurface:
             produto.nome_base,
             max_len=255,
         )
+        if _TopLevelFunctionSurface._looks_like_noisy_identity_label(nome_base_clean):
+            fallback_name = _TopLevelFunctionSurface._sanitize_identity(
+                sanitizer,
+                getattr(produto, "nome_chat_api", None),
+                max_len=255,
+            )
+            nome_base_clean = fallback_name or f"Produto {getattr(produto, 'id', '')}".strip()
         _update_attr("nome_base", nome_base_clean, allow_none=False)
 
         nome_chat_clean = _TopLevelFunctionSurface._sanitize_identity(
@@ -317,8 +394,9 @@ class _TopLevelFunctionSurface:
                     max_titles=10,
                 )
                 if not clean_titles:
-                    clean_titles = _TopLevelFunctionSurface._fallback_titles_from_product(
+                    clean_titles = _TopLevelFunctionSurface._rebuild_titles_from_product(
                         produto,
+                        basic_generation_service=basic_generation_service,
                         max_titles=5,
                     )
                 _update_raw("titulos_sugeridos_gerados", clean_titles)
@@ -346,6 +424,28 @@ class _TopLevelFunctionSurface:
             if raw_changed:
                 _update_attr("dados_brutos_web", raw, allow_none=False)
 
+        generated_description_candidates = [
+            getattr(produto, "descricao_chat_api", None),
+            raw.get("descricao_gerada") if isinstance(raw, dict) else None,
+        ]
+        if any(
+            _TopLevelFunctionSurface._generated_description_is_noisy(value)
+            for value in generated_description_candidates
+            if value
+        ):
+            rebuilt_description = _TopLevelFunctionSurface._rebuild_generated_description(
+                produto,
+                basic_generation_service=basic_generation_service,
+                tamanho_palavras=150,
+            )
+            if rebuilt_description:
+                _update_attr("descricao_chat_api", rebuilt_description, allow_none=True)
+                if isinstance(raw, dict) and raw.get("descricao_gerada") != rebuilt_description:
+                    raw["descricao_gerada"] = rebuilt_description
+                    field_counter["dados_brutos_web.descricao_gerada"] += 1
+                    changed = True
+                    _update_attr("dados_brutos_web", raw, allow_none=False)
+
         return changed, field_counter
 
     @staticmethod
@@ -361,6 +461,7 @@ class _TopLevelFunctionSurface:
         """Execute backfill workflow."""
         session = SessionLocal()
         sanitizer = CatalogImportSanitizationService(CatalogImportQualityService())
+        basic_generation_service = BasicContentGenerationService()
         summary = Counter()
         field_summary = Counter()
         changed_since_commit = 0
@@ -399,6 +500,7 @@ class _TopLevelFunctionSurface:
                     changed, field_counter = _TopLevelFunctionSurface._sanitize_product_payload(
                         produto,
                         sanitizer=sanitizer,
+                        basic_generation_service=basic_generation_service,
                     )
                     if changed:
                         summary["changed_products"] += 1
@@ -417,6 +519,8 @@ class _TopLevelFunctionSurface:
                         changed_since_commit = 0
 
                 last_id = produtos[-1].id
+                if apply_changes and changed_since_commit > 0:
+                    session.flush()
                 session.expunge_all()
 
             if apply_changes:

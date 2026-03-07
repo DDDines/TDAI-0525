@@ -70,6 +70,23 @@ class _TopLevelFunctionSurface:
         assert snapshot.busca_publica_fallback is True
         assert snapshot.busca_web_disponivel is True
 
+    def test_config_inspector_ignora_openai_malformada():
+        """Treat malformed saved OpenAI values as absent configuration."""
+        inspector = WebEnrichmentConfigInspector()
+        user = SimpleNamespace(chave_openai_pessoal="adminpassword")
+        settings = SimpleNamespace(
+            OPENAI_API_KEY="not-a-real-key",
+            GOOGLE_CSE_API_KEY="k",
+            GOOGLE_CSE_ID="cx",
+        )
+        extractor = SimpleNamespace(busca_publica_disponivel=lambda: True)
+
+        snapshot = inspector.inspect(user=user, settings=settings, web_extractor=extractor)
+        assert snapshot.openai_user_configurada is False
+        assert snapshot.openai_system_configurada is False
+        assert snapshot.openai_api_configurada is False
+        assert snapshot.busca_web_disponivel is True
+
     def test_query_planner_override_has_priority():
         """Run test query planner override has priority in this workflow."""
         planner = WebEnrichmentQueryPlanner()
@@ -166,6 +183,7 @@ class _TopLevelFunctionSurface:
         assert "resumo_aplicacao" in produto_update.payload["log_enriquecimento_web"]
 
 test_config_inspector_reads_sources = _TopLevelFunctionSurface.test_config_inspector_reads_sources
+test_config_inspector_ignora_openai_malformada = _TopLevelFunctionSurface.test_config_inspector_ignora_openai_malformada
 test_query_planner_override_has_priority = _TopLevelFunctionSurface.test_query_planner_override_has_priority
 test_query_planner_generates_base_terms = _TopLevelFunctionSurface.test_query_planner_generates_base_terms
 test_status_resolver_handles_partial_without_openai = _TopLevelFunctionSurface.test_status_resolver_handles_partial_without_openai

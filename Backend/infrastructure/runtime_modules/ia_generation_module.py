@@ -13,6 +13,7 @@ from fastapi import HTTPException, status
 
 from Backend import models  # models completo para acesso a TipoAcaoEnum
 from Backend import schemas
+from Backend.core.api_key_validation import looks_like_openai_api_key, normalize_optional_secret
 from Backend.core.config import settings
 from Backend.infrastructure.repositories.product_repository import ProductRepository
 from Backend.infrastructure.repositories.registro_uso_ia_repository import (
@@ -134,12 +135,24 @@ class AiProviderRuntime:
         self, db: Session, user: models.User
     ) -> Optional[str]:
         """Retrieve openai api key using the current service dependencies."""
-        if user.chave_openai_pessoal:
+        user_key = normalize_optional_secret(getattr(user, "chave_openai_pessoal", None))
+        system_key = normalize_optional_secret(settings.OPENAI_API_KEY)
+
+        if looks_like_openai_api_key(user_key):
             logger.info(f"Usando chave OpenAI pessoal para usuÃ¡rio ID: {user.id}")
-            return user.chave_openai_pessoal
-        if settings.OPENAI_API_KEY:
+            return user_key
+        if user_key:
+            logger.warning(
+                "Chave OpenAI pessoal ignorada para usuÃ¡rio ID %s: formato invalido.",
+                user.id,
+            )
+
+        if looks_like_openai_api_key(system_key):
             logger.info("Usando chave OpenAI global do sistema.")
-            return settings.OPENAI_API_KEY
+            return system_key
+        if system_key:
+            logger.warning("Chave OpenAI global ignorada: formato invalido.")
+
         logger.warning("Nenhuma chave OpenAI encontrada (nem pessoal, nem global).")
         return None
 

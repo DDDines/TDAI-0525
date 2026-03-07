@@ -280,6 +280,119 @@ class BasicContentGenerationService:
         return useful_parts == 0
 
     @classmethod
+    def _extract_brand_hint_from_generated_name(
+        cls,
+        value: Any,
+        *,
+        identity_parts: List[Any],
+    ) -> str:
+        """Recover a likely manufacturer token from generated/product title text."""
+        text = cls._sanitize_title_fragment(
+            value,
+            cut_on_contact_marker=True,
+            max_len=160,
+        )
+        if not text or cls._is_noisy_title_fragment(text):
+            return ""
+
+        identity_tokens = set()
+        for identity_part in identity_parts:
+            identity_tokens.update(
+                part
+                for part in re.findall(
+                    r"[a-z0-9]+",
+                    cls._fold_text(identity_part).lower(),
+                )
+                if len(part) >= 4
+            )
+
+        for token in re.findall(r"[A-Za-zÀ-ÿ][A-Za-zÀ-ÿ0-9./-]{2,}", text):
+            token_clean = cls._sanitize_title_fragment(
+                token,
+                cut_on_contact_marker=True,
+                max_len=60,
+            )
+            folded = cls._fold_text(token_clean).lower()
+            if len(folded) < 4:
+                continue
+            if any(char.isdigit() for char in folded):
+                continue
+            if folded in identity_tokens:
+                continue
+            if folded in cls._KEYWORD_STOPWORDS:
+                continue
+            if cls._is_weak_keyword(folded):
+                continue
+            return token_clean
+
+        return ""
+
+    def _resolve_generation_brand(
+        self,
+        *,
+        produto: Any,
+        web_context: Dict[str, Any] | None = None,
+    ) -> str:
+        """Prefer a manufacturer hint from generated names when stored brand looks like store noise."""
+        web_context = web_context or {}
+        marca = self._sanitize_title_fragment(
+            getattr(produto, "marca", ""),
+            cut_on_contact_marker=True,
+            max_len=80,
+        )
+        nome_base = self._sanitize_title_fragment(
+            getattr(produto, "nome_base", "") or web_context.get("nome"),
+            cut_on_contact_marker=True,
+            max_len=120,
+        )
+        modelo = self._sanitize_title_fragment(
+            getattr(produto, "modelo", ""),
+            cut_on_contact_marker=True,
+            max_len=80,
+        )
+        categoria = self._sanitize_title_fragment(
+            getattr(produto, "categoria_mapeada", "")
+            or getattr(produto, "categoria_original", ""),
+            cut_on_contact_marker=True,
+            max_len=80,
+        )
+        sku = self._normalize_space(getattr(produto, "sku", ""))
+        ean = self._normalize_space(getattr(produto, "ean", ""))
+        identity_parts = [nome_base, modelo, categoria, sku, ean, marca]
+
+        candidate_texts = [getattr(produto, "nome_chat_api", None)]
+        dynamic_attributes = getattr(produto, "dynamic_attributes", None)
+        if isinstance(dynamic_attributes, dict):
+            candidate_texts.extend(
+                [
+                    dynamic_attributes.get("titulo_auto"),
+                    dynamic_attributes.get("Titulo_Auto"),
+                    dynamic_attributes.get("marca"),
+                    dynamic_attributes.get("Marca"),
+                ]
+            )
+        candidate_texts.append(web_context.get("nome"))
+
+        folded_brand = self._fold_text(marca).lower() if marca else ""
+        for candidate_text in candidate_texts:
+            hint = self._extract_brand_hint_from_generated_name(
+                candidate_text,
+                identity_parts=identity_parts,
+            )
+            if not hint:
+                continue
+            if not marca:
+                return hint
+            if self._fold_text(hint).lower() == folded_brand:
+                return marca
+            candidate_folded = self._fold_text(candidate_text).lower()
+            if folded_brand and folded_brand in candidate_folded:
+                return marca
+            return hint
+
+        return marca
+
+    @classmethod
     def _sanitize_spec_pair(cls, key: Any, value: Any) -> tuple[str, str] | None:
         """Normalize specs and drop internal or promotional entries before rendering output."""
         key_clean = cls._sanitize_title_fragment(
@@ -633,7 +746,7 @@ class BasicContentGenerationService:
             web_context.get("nome")
         ) or "Produto"
         nome_base = self._sanitize_title_fragment(nome_base, cut_on_contact_marker=True) or "Produto"
-        marca = self._sanitize_title_fragment(getattr(produto, "marca", ""), cut_on_contact_marker=True, max_len=80)
+        marca = self._resolve_generation_brand(produto=produto, web_context=web_context)
         sku = self._normalize_space(getattr(produto, "sku", ""))
         modelo = self._sanitize_title_fragment(getattr(produto, "modelo", ""), cut_on_contact_marker=True, max_len=80)
         categoria = self._normalize_space(
@@ -694,7 +807,7 @@ class BasicContentGenerationService:
             web_context.get("nome")
         )
         nome_base = self._sanitize_title_fragment(nome_base, cut_on_contact_marker=True)
-        marca = self._sanitize_title_fragment(getattr(produto, "marca", ""), cut_on_contact_marker=True, max_len=80)
+        marca = self._resolve_generation_brand(produto=produto, web_context=web_context)
         modelo = self._sanitize_title_fragment(getattr(produto, "modelo", ""), cut_on_contact_marker=True, max_len=80)
         sku = self._normalize_space(getattr(produto, "sku", ""))
         ean = self._normalize_space(getattr(produto, "ean", ""))
@@ -765,7 +878,7 @@ class BasicContentGenerationService:
         """Render optional title templates and merge with deterministic fallbacks."""
         nome_base = self._normalize_space(getattr(produto, "nome_base", "")) or "Produto"
         nome_base = self._sanitize_title_fragment(nome_base, cut_on_contact_marker=True) or "Produto"
-        marca = self._sanitize_title_fragment(getattr(produto, "marca", ""), cut_on_contact_marker=True, max_len=80)
+        marca = self._resolve_generation_brand(produto=produto, web_context=web_context)
         modelo = self._sanitize_title_fragment(getattr(produto, "modelo", ""), cut_on_contact_marker=True, max_len=80)
         sku = self._normalize_space(getattr(produto, "sku", ""))
         ean = self._normalize_space(getattr(produto, "ean", ""))
@@ -844,7 +957,7 @@ class BasicContentGenerationService:
         """Compose a concise basic description from product and dynamic attributes."""
         web_context = self._extract_web_context(produto=produto)
         nome_base = self._normalize_space(getattr(produto, "nome_base", "")) or "Produto"
-        marca = self._normalize_space(getattr(produto, "marca", ""))
+        marca = self._resolve_generation_brand(produto=produto, web_context=web_context)
         modelo = self._normalize_space(getattr(produto, "modelo", ""))
         sku = self._normalize_space(getattr(produto, "sku", ""))
         ean = self._normalize_space(getattr(produto, "ean", ""))

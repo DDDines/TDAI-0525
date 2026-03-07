@@ -32,6 +32,7 @@ except ImportError:
 
 # Ajustando as importações para serem absolutas a partir da raiz do projeto (Backend)
 # Assumindo que 'Backend' está no sys.path ou é o diretório de trabalho.
+from Backend.core.api_key_validation import looks_like_openai_api_key, normalize_optional_secret
 from Backend.core.config import settings
 from Backend import models
 from Backend.infrastructure.runtime_modules.ia_generation_module import (
@@ -1054,10 +1055,15 @@ class WebLLMExtractionEngineRuntime:
             + f"\nContexto e Texto para Análise:\n{contexto_para_llm}"
         )
 
+        api_key_para_usar = None
         if user is not None:
-            api_key_para_usar = user.chave_openai_pessoal or settings.OPENAI_API_KEY
-        else:
-            api_key_para_usar = settings.OPENAI_API_KEY
+            user_key = normalize_optional_secret(getattr(user, "chave_openai_pessoal", None))
+            if looks_like_openai_api_key(user_key):
+                api_key_para_usar = user_key
+        if not api_key_para_usar:
+            system_key = normalize_optional_secret(settings.OPENAI_API_KEY)
+            if looks_like_openai_api_key(system_key):
+                api_key_para_usar = system_key
         if not api_key_para_usar:
             logger.warning(
                 "Nenhuma chave API OpenAI disponível para extração de dados com LLM."

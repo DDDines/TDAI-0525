@@ -624,6 +624,57 @@ class _TopLevelFunctionSurface:
         assert any("mercedes" in titulo for titulo in lowered_titles)
         assert all("opcao" not in titulo for titulo in lowered_titles)
 
+    @pytest.mark.asyncio
+    async def test_geracao_basica_prefere_marca_do_nome_gerado_quando_marca_salva_parece_loja():
+        """Prefer manufacturer hints from generated names over noisy store names saved in ``marca``."""
+        produto = SimpleNamespace(
+            id=43,
+            nome_base="Reservatorio de AR 20 Litros",
+            nome_chat_api="Reservatorio de Ar 20 Litros ROCHEPECAS 3084307005",
+            descricao_original=(
+                "Reservatorio de Ar 20 Litros ROCHEPECAS 3084307005 para Mercedes Benz. "
+                "Aplicacao em freios e suspensao."
+            ),
+            descricao_chat_api=None,
+            marca="Mercadocar",
+            modelo="",
+            sku="987 308 430 7005",
+            ean="",
+            categoria_original="Freio a Ar",
+            categoria_mapeada=None,
+            fornecedor=None,
+            dynamic_attributes={
+                "titulo_auto": "Reservatorio de Ar 20 Litros - ROCHEPECAS 3084307005",
+                "Material": "Metalico",
+            },
+            dados_brutos_web={
+                "descricao_detalhada_seo": (
+                    "Reservatorio de ar para Mercedes Benz com aplicacao em freios e suspensao."
+                ),
+                "palavras_chave_seo_relevantes_lista": ["mercedes benz", "freios", "suspensao"],
+            },
+        )
+        service = _TopLevelFunctionSurface._build_service(produto)
+
+        titulos = await service.gerar_titulos_basicos(
+            session=object(),
+            produto_id=43,
+            user=SimpleNamespace(id=1),
+            num_titulos=5,
+        )
+        descricao = await service.gerar_descricao_basica(
+            session=object(),
+            produto_id=43,
+            user=SimpleNamespace(id=1),
+            tamanho_palavras=120,
+        )
+
+        lowered_titles = [titulo.lower() for titulo in titulos]
+        assert any("rochepecas" in titulo for titulo in lowered_titles)
+        assert all("mercadocar" not in titulo for titulo in lowered_titles)
+        assert "rochepecas" in descricao.lower()
+        assert "marca mercadocar" not in descricao.lower()
+
 
 _build_service = _TopLevelFunctionSurface._build_service
 test_gerar_titulos_basicos_respeita_limite = _TopLevelFunctionSurface.test_gerar_titulos_basicos_respeita_limite
@@ -641,3 +692,4 @@ test_gerar_descricao_basica_remove_boilerplate_promocional_do_contexto_web = _To
 test_gerar_descricao_basica_remove_boilerplate_promocional_em_segmentos_com_ponto_e_virgula = _TopLevelFunctionSurface.test_gerar_descricao_basica_remove_boilerplate_promocional_em_segmentos_com_ponto_e_virgula
 test_gerar_titulos_basicos_ignora_keywords_redundantes_da_identidade = _TopLevelFunctionSurface.test_gerar_titulos_basicos_ignora_keywords_redundantes_da_identidade
 test_gerar_titulos_basicos_recupera_keywords_do_texto_limpo = _TopLevelFunctionSurface.test_gerar_titulos_basicos_recupera_keywords_do_texto_limpo
+test_geracao_basica_prefere_marca_do_nome_gerado_quando_marca_salva_parece_loja = _TopLevelFunctionSurface.test_geracao_basica_prefere_marca_do_nome_gerado_quando_marca_salva_parece_loja

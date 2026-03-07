@@ -6,6 +6,8 @@ import re
 from dataclasses import dataclass
 from typing import Any, Dict, List, Optional
 
+from Backend.core.api_key_validation import looks_like_openai_api_key
+
 
 @dataclass(frozen=True)
 class WebEnrichmentConfigSnapshot:
@@ -33,8 +35,12 @@ class WebEnrichmentConfigInspector:
 
     def inspect(self, *, user: Any, settings: Any, web_extractor: Any) -> WebEnrichmentConfigSnapshot:
         """Execute inspect as part of this module workflow."""
-        openai_user_configurada = bool(getattr(user, "chave_openai_pessoal", None))
-        openai_system_configurada = bool(getattr(settings, "OPENAI_API_KEY", None))
+        openai_user_configurada = looks_like_openai_api_key(
+            getattr(user, "chave_openai_pessoal", None)
+        )
+        openai_system_configurada = looks_like_openai_api_key(
+            getattr(settings, "OPENAI_API_KEY", None)
+        )
         openai_api_configurada = bool(openai_user_configurada or openai_system_configurada)
         google_api_configurada = bool(
             getattr(settings, "GOOGLE_CSE_API_KEY", None)

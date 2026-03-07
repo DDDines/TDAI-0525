@@ -527,7 +527,7 @@ function ProdutosPage()
           onSelectProduto={handleSelectProduto}
           selectedProdutos={selectedProdutos}
           onSelectAllProdutos={handleSelectAllProdutos}
-          showAiColumns={showAiFeatures}
+          showAiColumns={showGenerationFeatures}
           loading={loading && produtos && produtos.length > 0} />
 
         }

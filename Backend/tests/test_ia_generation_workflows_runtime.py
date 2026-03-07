@@ -199,6 +199,24 @@ class _TopLevelFunctionSurface:
         assert "Parachoque" in result[0]
 
     @pytest.mark.asyncio
+    async def test_ai_provider_runtime_ignora_chave_openai_malformada_e_usa_global_valida(monkeypatch):
+        """Ignore malformed saved keys and fallback to a valid global OpenAI key."""
+        runtime = ia_service.AiProviderRuntime()
+        monkeypatch.setattr(
+            ia_service.settings,
+            "OPENAI_API_KEY",
+            "sk-test-12345678901234567890",
+            raising=False,
+        )
+
+        result = await runtime.get_openai_api_key(
+            db=object(),
+            user=SimpleNamespace(id=1, chave_openai_pessoal="adminpassword"),
+        )
+
+        assert result == "sk-test-12345678901234567890"
+
+    @pytest.mark.asyncio
     async def test_ia_generation_runtime_fallback_descricao_sem_chave(monkeypatch):
         """Run test ia generation runtime fallback descricao sem chave in this workflow."""
         runtime = ia_service.IAGenerationRuntime()
@@ -289,6 +307,7 @@ class _TopLevelFunctionSurface:
 test_ai_provider_workflow_usa_runtime_injetado = _TopLevelFunctionSurface.test_ai_provider_workflow_usa_runtime_injetado
 test_ia_generation_workflow_usa_runtime_injetado = _TopLevelFunctionSurface.test_ia_generation_workflow_usa_runtime_injetado
 test_ia_generation_runtime_fallback_titulos_sem_chave = _TopLevelFunctionSurface.test_ia_generation_runtime_fallback_titulos_sem_chave
+test_ai_provider_runtime_ignora_chave_openai_malformada_e_usa_global_valida = _TopLevelFunctionSurface.test_ai_provider_runtime_ignora_chave_openai_malformada_e_usa_global_valida
 test_ia_generation_runtime_fallback_descricao_sem_chave = _TopLevelFunctionSurface.test_ia_generation_runtime_fallback_descricao_sem_chave
 test_ia_generation_runtime_sanitize_description_remove_historico_empresa = _TopLevelFunctionSurface.test_ia_generation_runtime_sanitize_description_remove_historico_empresa
 test_ia_generation_runtime_sanitize_titles_remove_historico_empresa = _TopLevelFunctionSurface.test_ia_generation_runtime_sanitize_titles_remove_historico_empresa
