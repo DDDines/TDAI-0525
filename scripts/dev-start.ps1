@@ -14,10 +14,24 @@ $ErrorActionPreference = "Stop"
 $scriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
 $projectRoot = Split-Path -Parent $scriptDir
 $runtimeDir = Join-Path $projectRoot ".runtime"
-$backendPidFile = Join-Path $runtimeDir "backend.pid"
-$frontendPidFile = Join-Path $runtimeDir "frontend.pid"
 
 New-Item -ItemType Directory -Path $runtimeDir -Force | Out-Null
+
+function Get-PidFilePath {
+  param(
+    [string]$BaseName,
+    [int]$Port,
+    [int]$DefaultPort
+  )
+
+  if ($Port -eq $DefaultPort) {
+    return (Join-Path $runtimeDir "${BaseName}.pid")
+  }
+  return (Join-Path $runtimeDir "${BaseName}-${Port}.pid")
+}
+
+$backendPidFile = Get-PidFilePath -BaseName "backend" -Port $BackendPort -DefaultPort 8000
+$frontendPidFile = Get-PidFilePath -BaseName "frontend" -Port $FrontendPort -DefaultPort 5173
 
 function Test-HttpOk {
   param([string]$Url)
@@ -65,6 +79,53 @@ function Test-ProcessRunning {
   catch {
     return $false
   }
+}
+
+function Get-ListeningProcessIds {
+  param([int]$Port)
+
+  try {
+    $connections = Get-NetTCPConnection -LocalPort $Port -State Listen -ErrorAction Stop
+  }
+  catch {
+    return @()
+  }
+
+  return @(
+    $connections |
+      Select-Object -ExpandProperty OwningProcess -Unique |
+      Where-Object { $_ -and $_ -gt 0 }
+  )
+}
+
+function Sync-PidFileWithPort {
+  param(
+    [string]$PidFile,
+    [int]$Port,
+    [int]$FallbackProcessId = 0
+  )
+
+  $candidateIds = @()
+  $candidateIds += Get-ListeningProcessIds -Port $Port
+  if ($FallbackProcessId -gt 0) {
+    $candidateIds += $FallbackProcessId
+  }
+  $candidateIds = @($candidateIds | Select-Object -Unique)
+
+  foreach ($candidateId in $candidateIds) {
+    if (-not (Test-ProcessRunning -ProcessId $candidateId)) {
+      continue
+    }
+    Set-Content -Path $PidFile -Value $candidateId -Encoding ASCII
+    return $candidateId
+  }
+
+  if ($FallbackProcessId -gt 0 -and (Test-ProcessRunning -ProcessId $FallbackProcessId)) {
+    Set-Content -Path $PidFile -Value $FallbackProcessId -Encoding ASCII
+    return $FallbackProcessId
+  }
+
+  return $null
 }
 
 function Resolve-BackendPython {
@@ -121,15 +182,27 @@ function Start-Backend {
 
   if (Test-Path $backendPidFile) {
     $existingPid = [int](Get-Content $backendPidFile -Raw).Trim()
-    if (Test-ProcessRunning -ProcessId $existingPid) {
-      Write-Host "Backend ja em execucao (PID $existingPid)."
+    if ((Test-ProcessRunning -ProcessId $existingPid) -or (Get-ListeningProcessIds -Port $BackendPort)) {
+      $trackedPid = Sync-PidFileWithPort -PidFile $backendPidFile -Port $BackendPort -FallbackProcessId $existingPid
+      if ($trackedPid) {
+        Write-Host "Backend ja em execucao (PID rastreado $trackedPid)."
+      }
+      else {
+        Write-Host "Backend ja em execucao."
+      }
       return
     }
     Remove-Item $backendPidFile -Force
   }
 
   if (Test-HttpOk -Url $backendUrl) {
-    Write-Host "Backend ja responde em $backendUrl (processo externo ao script)."
+    $trackedPid = Sync-PidFileWithPort -PidFile $backendPidFile -Port $BackendPort
+    if ($trackedPid) {
+      Write-Host "Backend ja responde em $backendUrl (PID adotado $trackedPid)."
+    }
+    else {
+      Write-Host "Backend ja responde em $backendUrl (processo externo ao script)."
+    }
     return
   }
 
@@ -159,7 +232,13 @@ function Start-Backend {
       throw "Backend nao respondeu em $backendUrl. Verifique $backendErr e $backendOut."
     }
 
-    Write-Host "Backend OK em $backendUrl (PID $($proc.Id))."
+    $trackedPid = Sync-PidFileWithPort -PidFile $backendPidFile -Port $BackendPort -FallbackProcessId $proc.Id
+    if ($trackedPid) {
+      Write-Host "Backend OK em $backendUrl (PID rastreado $trackedPid; launcher $($proc.Id))."
+    }
+    else {
+      Write-Host "Backend OK em $backendUrl (launcher PID $($proc.Id))."
+    }
     return
   }
 
@@ -169,7 +248,13 @@ function Start-Backend {
     throw "Backend encerrou logo apos iniciar. Verifique $backendErr e $backendOut."
   }
 
-  Write-Host "Backend iniciado em background (PID $($proc.Id))."
+  $trackedPid = Sync-PidFileWithPort -PidFile $backendPidFile -Port $BackendPort -FallbackProcessId $proc.Id
+  if ($trackedPid) {
+    Write-Host "Backend iniciado em background (PID rastreado $trackedPid; launcher $($proc.Id))."
+  }
+  else {
+    Write-Host "Backend iniciado em background (launcher PID $($proc.Id))."
+  }
   Write-Host "Checagem completa: .\\scripts\\dev-status.ps1"
 }
 
@@ -186,15 +271,27 @@ function Start-Frontend {
 
   if (Test-Path $frontendPidFile) {
     $existingPid = [int](Get-Content $frontendPidFile -Raw).Trim()
-    if (Test-ProcessRunning -ProcessId $existingPid) {
-      Write-Host "Frontend ja em execucao (PID $existingPid)."
+    if ((Test-ProcessRunning -ProcessId $existingPid) -or (Get-ListeningProcessIds -Port $FrontendPort)) {
+      $trackedPid = Sync-PidFileWithPort -PidFile $frontendPidFile -Port $FrontendPort -FallbackProcessId $existingPid
+      if ($trackedPid) {
+        Write-Host "Frontend ja em execucao (PID rastreado $trackedPid)."
+      }
+      else {
+        Write-Host "Frontend ja em execucao."
+      }
       return
     }
     Remove-Item $frontendPidFile -Force
   }
 
   if (Test-HttpOk -Url $frontendUrl) {
-    Write-Host "Frontend ja responde em $frontendUrl (processo externo ao script)."
+    $trackedPid = Sync-PidFileWithPort -PidFile $frontendPidFile -Port $FrontendPort
+    if ($trackedPid) {
+      Write-Host "Frontend ja responde em $frontendUrl (PID adotado $trackedPid)."
+    }
+    else {
+      Write-Host "Frontend ja responde em $frontendUrl (processo externo ao script)."
+    }
     return
   }
 
@@ -218,7 +315,13 @@ function Start-Frontend {
       throw "Frontend nao respondeu em $frontendUrl. Verifique $frontendErr e $frontendOut."
     }
 
-    Write-Host "Frontend OK em $frontendUrl (PID $($proc.Id))."
+    $trackedPid = Sync-PidFileWithPort -PidFile $frontendPidFile -Port $FrontendPort -FallbackProcessId $proc.Id
+    if ($trackedPid) {
+      Write-Host "Frontend OK em $frontendUrl (PID rastreado $trackedPid; launcher $($proc.Id))."
+    }
+    else {
+      Write-Host "Frontend OK em $frontendUrl (launcher PID $($proc.Id))."
+    }
     return
   }
 
@@ -228,7 +331,13 @@ function Start-Frontend {
     throw "Frontend encerrou logo apos iniciar. Verifique $frontendErr e $frontendOut."
   }
 
-  Write-Host "Frontend iniciado em background (PID $($proc.Id))."
+  $trackedPid = Sync-PidFileWithPort -PidFile $frontendPidFile -Port $FrontendPort -FallbackProcessId $proc.Id
+  if ($trackedPid) {
+    Write-Host "Frontend iniciado em background (PID rastreado $trackedPid; launcher $($proc.Id))."
+  }
+  else {
+    Write-Host "Frontend iniciado em background (launcher PID $($proc.Id))."
+  }
   Write-Host "Checagem completa: .\\scripts\\dev-status.ps1"
 }
 
