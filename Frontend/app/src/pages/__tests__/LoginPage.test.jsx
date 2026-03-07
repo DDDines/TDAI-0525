@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from '@testing-library/react';
+﻿import { render, screen, waitFor } from '@testing-library/react';
 import '@testing-library/jest-dom';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
@@ -6,6 +6,7 @@ import LoginPage from '../LoginPage.jsx';
 import { useAuth } from '../../contexts/AuthContext';
 import configService from '../../services/configService';
 import { toast } from 'react-toastify';
+import logger from '../../utils/logger';
 
 const mockNavigate = jest.fn();
 const mockLocation = { state: null };
@@ -98,6 +99,26 @@ describe('LoginPage', () => {
     });
   });
 
+  test('redirects authenticated users to dashboard when there is no previous route', async () => {
+    useAuth.mockReturnValue({
+      login: jest.fn(),
+      isAuthenticated: true,
+      isLoading: false,
+      user: { nome_completo: 'Admin' },
+    });
+
+    render(
+      <MemoryRouter>
+        <LoginPage />
+      </MemoryRouter>
+    );
+
+    await waitFor(() => {
+      expect(mockNavigate).toHaveBeenCalledWith('/dashboard', { replace: true });
+    });
+    expect(logger.log).toHaveBeenCalled();
+  });
+
   test('submits login successfully and shows success toast', async () => {
     const loginMock = jest.fn().mockResolvedValue(true);
     useAuth.mockReturnValue({
@@ -144,5 +165,79 @@ describe('LoginPage', () => {
 
     expect(await screen.findByText('Credenciais inválidas')).toBeInTheDocument();
     expect(toast.error).toHaveBeenCalledWith(expect.stringContaining('Falha no login'));
+  });
+
+  test('prefers backend detail payloads when login fails', async () => {
+    const loginMock = jest.fn().mockRejectedValue({
+      response: { data: { detail: 'usuario bloqueado' } },
+    });
+    useAuth.mockReturnValue({
+      login: loginMock,
+      isAuthenticated: false,
+      isLoading: false,
+      user: null,
+    });
+
+    render(
+      <MemoryRouter>
+        <LoginPage />
+      </MemoryRouter>
+    );
+
+    await userEvent.type(screen.getByLabelText(/email/i), 'julio@teste.com');
+    await userEvent.type(screen.getByLabelText(/senha/i), 'senhaerrada');
+    await userEvent.click(screen.getByRole('button', { name: /entrar/i }));
+
+    expect(await screen.findByText('usuario bloqueado')).toBeInTheDocument();
+    expect(toast.error).toHaveBeenCalledWith(expect.stringContaining('usuario bloqueado'));
+  });
+
+  test('loads social login links and marks disabled providers as unavailable', async () => {
+    useAuth.mockReturnValue({
+      login: jest.fn(),
+      isAuthenticated: false,
+      isLoading: false,
+      user: null,
+    });
+    configService.getSocialLoginConfig.mockResolvedValueOnce({
+      google_enabled: true,
+      facebook_enabled: false,
+    });
+
+    render(
+      <MemoryRouter>
+        <LoginPage />
+      </MemoryRouter>
+    );
+
+    const googleLink = await screen.findByRole('link', { name: /Entrar com Google/i });
+    const facebookLink = screen.getByText(/Entrar com Facebook/i).closest('a');
+    expect(googleLink).toHaveAttribute('href', '/api/v1/auth/google/login');
+    expect(facebookLink).not.toHaveAttribute('href');
+    expect(facebookLink).toHaveClass('disabled');
+  });
+
+  test('logs social config loading failures without blocking the form', async () => {
+    useAuth.mockReturnValue({
+      login: jest.fn(),
+      isAuthenticated: false,
+      isLoading: false,
+      user: null,
+    });
+    configService.getSocialLoginConfig.mockRejectedValueOnce(new Error('falha config social'));
+
+    render(
+      <MemoryRouter>
+        <LoginPage />
+      </MemoryRouter>
+    );
+
+    expect(await screen.findByRole('button', { name: /entrar/i })).toBeInTheDocument();
+    await waitFor(() => {
+      expect(consoleErrorSpy).toHaveBeenCalledWith(
+        'LoginPage: Erro ao obter configuracao de social login',
+        expect.any(Error)
+      );
+    });
   });
 });

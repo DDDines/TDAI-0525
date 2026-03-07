@@ -327,6 +327,26 @@ describe('ProductEditModal', () => {
     expect(screen.getAllByRole('option', { name: /Fornecedor 1/i }).length).toBeGreaterThan(0);
   });
 
+  test('logs supplier fallback lookup errors without breaking the modal', async () => {
+    fornecedorService.getFornecedores.mockResolvedValueOnce({ items: [fornecedores[1]] });
+    fornecedorService.getFornecedorById.mockRejectedValueOnce(new Error('falha fornecedor fallback'));
+
+    renderModal({
+      product: {
+        id: 10,
+        nome_base: 'Produto Base',
+        fornecedor_id: 1,
+        product_type_id: 1,
+      },
+    });
+
+    expect(await screen.findByDisplayValue('Produto Base')).toBeInTheDocument();
+    expect(consoleErrorSpy).toHaveBeenCalledWith(
+      'Erro ao buscar fornecedor pelo ID:',
+      expect.any(Error)
+    );
+  });
+
   test('shows an error toast when supplier dependencies cannot be loaded', async () => {
     fornecedorService.getFornecedores.mockRejectedValueOnce(new Error('falha fornecedores'));
 
@@ -350,6 +370,23 @@ describe('ProductEditModal', () => {
 
     expect(onClose).toHaveBeenCalled();
     expect(onOpenContentView).toHaveBeenCalledWith(10);
+  });
+
+  test('keeps generation and content actions disabled until the product is saved', async () => {
+    renderModal({ product: null });
+
+    await proceedToCreateForm();
+    await user.click(screen.getByRole('button', { name: /^Conteúdo$/i }));
+
+    const contentViewButton = screen.getByRole('button', { name: /Tela Dedicada/i });
+    const enrichButton = screen.getByRole('button', { name: /Enriquecer Web/i });
+    const titlesButton = screen.getByRole('button', { name: /Gerar Títulos/i });
+    const descriptionButton = screen.getByRole('button', { name: /Gerar Descrição/i });
+
+    expect(contentViewButton).toBeDisabled();
+    expect(enrichButton).toBeDisabled();
+    expect(titlesButton).toBeDisabled();
+    expect(descriptionButton).toBeDisabled();
   });
 
   test('falls back to window navigation when no dedicated content handler is provided', async () => {
@@ -658,6 +695,22 @@ describe('ProductEditModal', () => {
     });
   });
 
+  test('reads enrichment start errors from backend detail payloads', async () => {
+    productService.iniciarEnriquecimentoWebProduto.mockRejectedValueOnce({
+      response: { data: { detail: 'falha via payload detail' } },
+    });
+
+    renderModal({ product: { id: 10 } });
+
+    await screen.findByLabelText(/Nome Base/i);
+    await user.click(screen.getByRole('button', { name: /Conte/i }));
+    await user.click(screen.getByRole('button', { name: /Enriquecer Web/i }));
+
+    await waitFor(() => {
+      expect(showErrorToast).toHaveBeenCalledWith('falha via payload detail');
+    });
+  });
+
   test('warns when web enrichment keeps running after the polling window', async () => {
     productService.getProdutoById
       .mockResolvedValueOnce(baseProduct)
@@ -688,6 +741,44 @@ describe('ProductEditModal', () => {
       );
     });
   }, 15000);
+
+  test('recovers from transient polling errors while tracking web enrichment', async () => {
+    productService.getProdutoById
+      .mockResolvedValueOnce(baseProduct)
+      .mockRejectedValueOnce(new Error('falha temporaria no polling'))
+      .mockResolvedValueOnce({
+        ...baseProduct,
+        status_enriquecimento_web: 'CONCLUIDO_COM_DADOS_PARCIAIS',
+        log_enriquecimento_web: {
+          historico_mensagens: ['Retomado com sucesso'],
+          resumo_aplicacao: { aplicados_total: 1, ignorados_total: 2 },
+        },
+      });
+
+    renderModal({ product: { id: 10 } });
+
+    await screen.findByLabelText(/Nome Base/i);
+    await user.click(screen.getByRole('button', { name: /Conte/i }));
+    await user.click(screen.getByRole('button', { name: /Enriquecer Web/i }));
+
+    await waitFor(() => {
+      expect(productService.iniciarEnriquecimentoWebProduto).toHaveBeenCalledWith(10);
+    });
+
+    await advance(3000);
+
+    await waitFor(() => {
+      expect(consoleWarnSpy).toHaveBeenCalledWith(
+        'Falha ao consultar status de enriquecimento web:',
+        expect.any(Error)
+      );
+    });
+    await waitFor(() => {
+      expect(showSuccessToast).toHaveBeenCalledWith(
+        'Enriquecimento finalizado (CONCLUIDO_COM_DADOS_PARCIAIS). Aplicados: 1. Ignorados: 2.'
+      );
+    });
+  });
 
   test('warns when web enrichment finishes with a non-success terminal status', async () => {
     productService.getProdutoById
@@ -845,6 +936,23 @@ describe('ProductEditModal', () => {
     await waitFor(() => {
       expect(showErrorToast).toHaveBeenCalledWith('falha gemini');
     });
+  });
+
+  test('keeps Gemini suggestions disabled until the product is saved', async () => {
+    render(
+      <ProductEditModal
+        isOpen={true}
+        onClose={onClose}
+        product={null}
+        showAiFeatures={true}
+      />
+    );
+
+    await proceedToCreateForm();
+    await user.click(screen.getByRole('button', { name: /Sugestões IA/i }));
+
+    const fetchSuggestionsButton = screen.getByRole('button', { name: /Buscar Sugestões/i });
+    expect(fetchSuggestionsButton).toBeDisabled();
   });
 
   test('renders normalized log summaries and the empty log state', async () => {

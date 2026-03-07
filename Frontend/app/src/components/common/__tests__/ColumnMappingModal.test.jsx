@@ -72,3 +72,98 @@ test('does not reset selected mapping on rerender when initialMapping is omitted
     'nome_produto'
   );
 });
+
+test('does not render when closed', () => {
+  render(
+    <ColumnMappingModal
+      isOpen={false}
+      onClose={() => {}}
+      headers={['Coluna A']}
+      rows={[]}
+      fieldOptions={[]}
+    />
+  );
+
+  expect(screen.queryByText('Mapear Colunas')).not.toBeInTheDocument();
+});
+
+test('keeps unique base fields exclusive across headers and clears the mapping', async () => {
+  const user = userEvent.setup();
+  const options = [
+    { value: 'sku_original', label: 'SKU' },
+    { value: 'descricao_original', label: 'Descrição' },
+  ];
+
+  render(
+    <ColumnMappingModal
+      isOpen={true}
+      onClose={() => {}}
+      headers={['Coluna A', 'Coluna B']}
+      rows={[]}
+      fieldOptions={options}
+      onConfirm={() => {}}
+    />
+  );
+
+  const firstSelect = screen.getByRole('combobox', { name: /campo para coluna coluna a/i });
+  const secondSelect = screen.getByRole('combobox', { name: /campo para coluna coluna b/i });
+
+  await user.selectOptions(firstSelect, 'sku_original');
+
+  const secondSkuOption = screen.getAllByRole('option', { name: 'SKU' })[1];
+  expect(secondSkuOption).toBeDisabled();
+
+  await user.click(screen.getByRole('button', { name: /Limpar mapeamento/i }));
+
+  expect(firstSelect).toHaveValue('');
+  expect(secondSelect).toHaveValue('');
+});
+
+test('renders product type choices, preview object cells and syncs a new initial mapping', async () => {
+  const user = userEvent.setup();
+  const onProductTypeChange = jest.fn();
+  const { rerender } = render(
+    <ColumnMappingModal
+      isOpen={true}
+      onClose={() => {}}
+      headers={['Coluna A']}
+      rows={[{ 'Coluna A': { codigo: 'ABC-1' } }]}
+      fieldOptions={[{ value: 'descricao_original', label: 'Descrição' }]}
+      productTypes={[
+        { id: 5, friendly_name: 'Automotivo' },
+        { id: 6, nome: 'Industrial' },
+        { id: null, friendly_name: 'Ignorar' },
+      ]}
+      productTypeId="5"
+      onProductTypeChange={onProductTypeChange}
+      initialMapping={{ 'Coluna A': 'descricao_original' }}
+      onConfirm={() => {}}
+    />
+  );
+
+  expect(screen.getByText('{"codigo":"ABC-1"}')).toBeInTheDocument();
+  await user.selectOptions(screen.getByRole('combobox', { name: /Tipo de Produto/i }), '6');
+  expect(onProductTypeChange).toHaveBeenCalledWith('6');
+  expect(screen.getByRole('combobox', { name: /campo para coluna coluna a/i })).toHaveValue(
+    'descricao_original'
+  );
+
+  rerender(
+    <ColumnMappingModal
+      isOpen={true}
+      onClose={() => {}}
+      headers={['Coluna A']}
+      rows={[{ 'Coluna A': null }]}
+      fieldOptions={[{ value: 'sku_original', label: 'SKU' }]}
+      productTypes={[{ id: 5, friendly_name: 'Automotivo' }]}
+      productTypeId="5"
+      onProductTypeChange={onProductTypeChange}
+      initialMapping={{ 'Coluna A': 'sku_original' }}
+      onConfirm={() => {}}
+    />
+  );
+
+  expect(screen.getByRole('combobox', { name: /campo para coluna coluna a/i })).toHaveValue(
+    'sku_original'
+  );
+});

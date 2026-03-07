@@ -119,3 +119,67 @@ test('shows error and calls onLoadError when pdf load fails', async () => {
   expect(await screen.findByText(/falha ao carregar pdf/i)).toBeInTheDocument();
   expect(onLoadError).toHaveBeenCalledWith(error);
 });
+
+test('resets page and apply-all state when a new file is loaded', async () => {
+  const firstTask = makeSuccessfulPdfTask({ width: 200, height: 100 });
+  const secondTask = makeSuccessfulPdfTask({ width: 150, height: 75 });
+  mockGetDocument
+    .mockReturnValueOnce(firstTask)
+    .mockReturnValueOnce(secondTask);
+
+  const { rerender } = render(
+    <PdfRegionSelector
+      file={new Uint8Array([1, 2, 3])}
+      onSelect={jest.fn()}
+      initialPage={3}
+      initialApplyAll={false}
+    />
+  );
+
+  const checkbox = await screen.findByRole('checkbox');
+  expect(checkbox).not.toBeChecked();
+
+  rerender(
+    <PdfRegionSelector
+      file={new Uint8Array([4, 5, 6])}
+      onSelect={jest.fn()}
+      initialPage={5}
+      initialApplyAll={true}
+    />
+  );
+
+  await waitFor(() => {
+    expect(screen.getByRole('checkbox')).toBeChecked();
+  });
+  expect(secondTask.promise).toBeDefined();
+});
+
+test('does not call onSelect when the user releases the mouse without drawing a rectangle', async () => {
+  const onSelect = jest.fn();
+
+  const { container, unmount } = render(
+    <PdfRegionSelector
+      file={new Uint8Array([1, 2, 3])}
+      onSelect={onSelect}
+      initialPage={2}
+      initialApplyAll={true}
+    />
+  );
+
+  const canvas = container.querySelector('canvas');
+  Object.defineProperty(canvas, 'getBoundingClientRect', {
+    value: () => ({ left: 0, top: 0, width: 200, height: 100 }),
+    configurable: true
+  });
+
+  await waitFor(() => {
+    expect(canvas.width).toBe(200);
+  });
+
+  fireEvent.mouseDown(canvas, { clientX: 20, clientY: 20 });
+  fireEvent.mouseUp(canvas);
+
+  expect(onSelect).not.toHaveBeenCalled();
+
+  unmount();
+});

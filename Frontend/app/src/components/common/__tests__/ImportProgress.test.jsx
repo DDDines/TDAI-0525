@@ -88,4 +88,87 @@ describe('common ImportProgress', () => {
     expect(await screen.findByText('Falha de rede')).toBeInTheDocument();
     expect(onDone).toHaveBeenCalledWith(null);
   });
+
+  test('renders non-terminal progress information while import is still running', async () => {
+    fornecedorService.getImportacaoStatus.mockResolvedValue({
+      status: 'PROCESSING',
+      pages_processed: 2,
+      total_pages: 5,
+    });
+
+    const { unmount } = render(<ImportProgress fileId={91} onDone={jest.fn()} />);
+
+    expect(await screen.findByText(/Processando 2 de 5 páginas/i)).toBeInTheDocument();
+    expect(fornecedorService.getImportacaoResult).not.toHaveBeenCalled();
+
+    unmount();
+    await act(async () => {
+      await Promise.resolve();
+    });
+  });
+
+  test('keeps polling when the final result is not ready yet and then resolves', async () => {
+    fornecedorService.getImportacaoStatus.mockResolvedValue({
+      status: 'DONE',
+      pages_processed: 4,
+      total_pages: 4,
+      result_ready: true,
+    });
+    fornecedorService.getImportacaoResult
+      .mockResolvedValueOnce({ ready: false })
+      .mockResolvedValueOnce({ ready: true, created: 3 });
+
+    const onDone = jest.fn();
+    render(<ImportProgress fileId={92} onDone={onDone} />);
+
+    await act(async () => {
+      await jest.runOnlyPendingTimersAsync();
+    });
+
+    await waitFor(() => {
+      expect(fornecedorService.getImportacaoResult).toHaveBeenCalledTimes(2);
+    });
+    expect(onDone).toHaveBeenCalledWith({ ready: true, created: 3 });
+  });
+
+  test('shows a timeout when the final result stays pending after repeated ready checks', async () => {
+    fornecedorService.getImportacaoStatus.mockResolvedValue({
+      status: 'DONE',
+      pages_processed: 4,
+      total_pages: 4,
+      result_ready: true,
+    });
+    fornecedorService.getImportacaoResult.mockResolvedValue({ ready: false });
+
+    const onDone = jest.fn();
+    render(<ImportProgress fileId={93} onDone={onDone} />);
+
+    for (let index = 0; index < 19; index += 1) {
+      await act(async () => {
+        await jest.runOnlyPendingTimersAsync();
+      });
+    }
+
+    expect(
+      await screen.findByText(/Resultado final ainda pendente após o tempo limite de espera/i)
+    ).toBeInTheDocument();
+    expect(onDone).toHaveBeenCalledWith(null);
+  });
+
+  test('resolves with null when the final result fetch throws', async () => {
+    fornecedorService.getImportacaoStatus.mockResolvedValue({
+      status: 'DONE',
+      pages_processed: 1,
+      total_pages: 1,
+      result_ready: true,
+    });
+    fornecedorService.getImportacaoResult.mockRejectedValue(new Error('falha final'));
+
+    const onDone = jest.fn();
+    render(<ImportProgress fileId={94} onDone={onDone} />);
+
+    await waitFor(() => {
+      expect(onDone).toHaveBeenCalledWith(null);
+    });
+  });
 });

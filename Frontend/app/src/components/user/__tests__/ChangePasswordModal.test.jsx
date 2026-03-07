@@ -89,6 +89,22 @@ describe('ChangePasswordModal', () => {
     expect(authService.changePassword).not.toHaveBeenCalled();
   });
 
+  test('validates password confirmation mismatch before submit', async () => {
+    const user = userEvent.setup();
+
+    renderModal();
+
+    await user.type(screen.getByLabelText(/Senha Atual/i), 'atual1234');
+    await user.type(screen.getByLabelText(/^Nova Senha/i), 'nova12345');
+    await user.type(screen.getByLabelText(/^Confirmar Nova Senha/i), 'diferente9');
+    await user.click(screen.getByRole('button', { name: /Salvar Nova Senha/i }));
+
+    expect(showErrorToast).toHaveBeenCalledWith(
+      'A nova senha e a confirmação não coincidem.'
+    );
+    expect(authService.changePassword).not.toHaveBeenCalled();
+  });
+
   test('submits successfully, clears the form and closes the modal', async () => {
     const user = userEvent.setup();
 
@@ -133,5 +149,54 @@ describe('ChangePasswordModal', () => {
       expect(showErrorToast).toHaveBeenCalledWith('Senha atual incorreta.');
     });
     expect(onClose).not.toHaveBeenCalled();
+  });
+
+  test('serializes structured service errors and keeps the modal open', async () => {
+    const user = userEvent.setup();
+    authService.changePassword.mockRejectedValueOnce({
+      detail: { motivo: 'senha_expirada' },
+    });
+
+    renderModal();
+
+    await user.type(screen.getByLabelText(/Senha Atual/i), 'atual1234');
+    await user.type(screen.getByLabelText(/^Nova Senha/i), 'nova12345');
+    await user.type(screen.getByLabelText(/^Confirmar Nova Senha/i), 'nova12345');
+    await user.click(screen.getByRole('button', { name: /Salvar Nova Senha/i }));
+
+    await waitFor(() => {
+      expect(showErrorToast).toHaveBeenCalledWith('{"motivo":"senha_expirada"}');
+    });
+    expect(onClose).not.toHaveBeenCalled();
+  });
+
+  test('uses the provided userId prop and supports message-only service errors', async () => {
+    const user = userEvent.setup();
+    authService.changePassword.mockRejectedValueOnce(new Error('falha remota'));
+
+    renderModal({ userId: 77 });
+
+    await user.type(screen.getByLabelText(/Senha Atual/i), 'atual1234');
+    await user.type(screen.getByLabelText(/^Nova Senha/i), 'nova12345');
+    await user.type(screen.getByLabelText(/^Confirmar Nova Senha/i), 'nova12345');
+    await user.click(screen.getByRole('button', { name: /Salvar Nova Senha/i }));
+
+    await waitFor(() => {
+      expect(authService.changePassword).toHaveBeenCalledWith(77, {
+        current_password: 'atual1234',
+        new_password: 'nova12345',
+      });
+    });
+    expect(showErrorToast).toHaveBeenCalledWith('falha remota');
+  });
+
+  test('closes immediately through the modal close button when idle', async () => {
+    const user = userEvent.setup();
+
+    renderModal();
+
+    await user.click(screen.getByRole('button', { name: /×/i }));
+
+    expect(onClose).toHaveBeenCalled();
   });
 });

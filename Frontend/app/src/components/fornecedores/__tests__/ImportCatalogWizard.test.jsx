@@ -255,6 +255,92 @@ describe('ImportCatalogWizard', () => {
     });
   });
 
+  test('keeps processing disabled until a product type is selected', async () => {
+    fornecedorService.previewCatalogo.mockResolvedValue({
+      fileId: 2,
+      headers: ['titulo_bruto'],
+      sampleRows: [{ titulo_bruto: 'Filtro' }],
+      previewImages: [{ page: 1, image: 'data:image/png;base64,abc' }],
+      numPages: 1,
+      tablePages: [1],
+    });
+
+    render(
+      <ImportCatalogWizard
+        fornecedor={{ id: 1, default_column_mapping: { titulo_bruto: 'auto:sku_nome' } }}
+        onClose={() => {}}
+        isOpen
+      />
+    );
+
+    await uploadAndGeneratePreview();
+    await screen.findByText('Filtro');
+
+    const startButton = screen.getByRole('button', { name: /Iniciar Processamento/i });
+    expect(startButton).toBeDisabled();
+    expect(
+      screen.getByText(/Selecione o tipo de produto para habilitar a importação final/i)
+    ).toBeInTheDocument();
+    expect(fornecedorService.finalizarImportacaoCatalogo).not.toHaveBeenCalled();
+  });
+
+  test('uses all pages and clamps the selected region page when apply-all is enabled', async () => {
+    productTypeService.getProductTypes.mockResolvedValue({
+      items: [{ id: 4, friendly_name: 'Automotivo' }],
+    });
+    productTypeService.getProductTypeDetails.mockResolvedValue({ attribute_templates: [] });
+    fornecedorService.previewCatalogo.mockResolvedValue({
+      fileId: 3,
+      headers: ['titulo_bruto'],
+      sampleRows: [{ titulo_bruto: 'Filtro premium' }],
+      previewImages: [{ page: 1, image: 'data:image/png;base64,abc' }],
+      numPages: 4,
+      tablePages: [1],
+    });
+    fornecedorService.finalizarImportacaoCatalogo.mockResolvedValue({
+      status: 'PROCESSING',
+      file_id: 3,
+    });
+    fornecedorService.getImportacaoStatus.mockResolvedValueOnce({
+      status: 'IMPORTED',
+      pages_processed: 4,
+      total_pages: 4,
+    });
+    fornecedorService.getImportacaoResult.mockResolvedValue({
+      stats: { produtos_criados: 1, produtos_atualizados: 0, erros: 0, pages_processed: 4, pages_total: 4 },
+      created: [],
+      updated: [],
+      errors: [],
+      log: [],
+    });
+
+    render(
+      <ImportCatalogWizard
+        fornecedor={{ id: 1, default_column_mapping: { titulo_bruto: 'auto:sku_nome' } }}
+        onClose={() => {}}
+        isOpen
+      />
+    );
+
+    await uploadAndGeneratePreview();
+    await screen.findByText(/Pr[ée]via das colunas detectadas/i);
+    await userEvent.selectOptions(screen.getByRole('combobox', { name: /tipo de produto/i }), '4');
+    fireEvent.change(screen.getByLabelText(/Página para seleção/i), { target: { value: '0' } });
+    expect(screen.getByLabelText(/Página para seleção/i)).toHaveValue(1);
+
+    await userEvent.click(screen.getByLabelText(/Aplicar região em todas as páginas/i));
+    expect(screen.getByText(/Escopo atual:/i)).toHaveTextContent(/todas as p.ginas do PDF/i);
+    await userEvent.click(screen.getByRole('button', { name: /Iniciar Processamento/i }));
+
+    await waitFor(() => {
+      expect(fornecedorService.finalizarImportacaoCatalogo).toHaveBeenCalledWith(
+        expect.objectContaining({
+          pages: null,
+        })
+      );
+    });
+  });
+
   test('waits for result_ready before fetching final result', async () => {
     productTypeService.getProductTypes.mockResolvedValue({
       items: [{ id: 4, friendly_name: 'Automotivo' }],
@@ -364,6 +450,22 @@ describe('ImportCatalogWizard', () => {
     await uploadAndGeneratePreview();
 
     expect(await screen.findByText('Falha remota no preview')).toBeInTheDocument();
+  });
+
+  test('falls back to the default preview error when the backend throws an empty payload', async () => {
+    fornecedorService.previewCatalogo.mockRejectedValue({});
+
+    render(
+      <ImportCatalogWizard
+        fornecedor={{ id: 1, default_column_mapping: {} }}
+        onClose={() => {}}
+        isOpen
+      />
+    );
+
+    await uploadAndGeneratePreview();
+
+    expect(await screen.findByText('Falha ao gerar preview.')).toBeInTheDocument();
   });
 
   test('shows unsupported preview warning when backend returns no headers and no images', async () => {
@@ -495,6 +597,41 @@ describe('ImportCatalogWizard', () => {
     expect(screen.getAllByRole('option', { name: /Selecione/i })).toHaveLength(1);
     expect(consoleErrorSpy).toHaveBeenCalledWith(
       'Erro ao carregar tipos de produto:',
+      expect.any(Error)
+    );
+  });
+
+  test('falls back to base field options when loading product type attributes fails', async () => {
+    productTypeService.getProductTypes.mockResolvedValue({
+      items: [{ id: 4, friendly_name: 'Automotivo' }],
+    });
+    productTypeService.getProductTypeDetails.mockRejectedValueOnce(new Error('falha attrs'));
+    fornecedorService.previewCatalogo.mockResolvedValue({
+      fileId: 83,
+      headers: ['titulo_bruto'],
+      sampleRows: [{ titulo_bruto: 'Compressor' }],
+      previewImages: [{ page: 1, image: 'data:image/png;base64,abc' }],
+      numPages: 1,
+      tablePages: [1],
+    });
+
+    render(
+      <ImportCatalogWizard
+        fornecedor={{ id: 1, default_column_mapping: {} }}
+        onClose={() => {}}
+        isOpen
+      />
+    );
+
+    await uploadAndGeneratePreview();
+    await screen.findByText(/Pr[ée]via das colunas detectadas/i);
+    await userEvent.selectOptions(screen.getByRole('combobox', { name: /tipo de produto/i }), '4');
+    await userEvent.click(screen.getByRole('button', { name: /Definir mapeamento/i }));
+
+    expect(await screen.findByText('Mapear Colunas')).toBeInTheDocument();
+    expect(screen.queryByRole('option', { name: /Atributo: Compatibilidade/i })).not.toBeInTheDocument();
+    expect(consoleWarnSpy).toHaveBeenCalledWith(
+      'Falha ao carregar atributos do tipo de produto:',
       expect.any(Error)
     );
   });
@@ -875,6 +1012,158 @@ describe('ImportCatalogWizard', () => {
     expect(fornecedorService.getImportacaoResult).toHaveBeenCalledTimes(2);
   }, 15000);
 
+  test('surfaces a hard final-result fetch error instead of retrying forever', async () => {
+    productTypeService.getProductTypes.mockResolvedValue({
+      items: [{ id: 4, friendly_name: 'Automotivo' }],
+    });
+    fornecedorService.previewCatalogo.mockResolvedValue({
+      fileId: 177,
+      headers: null,
+      sampleRows: null,
+      previewImages: [{ page: 1, image: 'data:image/png;base64,abc' }],
+      numPages: 1,
+      tablePages: [1],
+    });
+    fornecedorService.finalizarImportacaoCatalogo.mockResolvedValue({
+      status: 'PROCESSING',
+      file_id: 177,
+    });
+    fornecedorService.getImportacaoStatus.mockResolvedValue({
+      status: 'DONE',
+      result_ready: true,
+      pages_processed: 1,
+      total_pages: 1,
+    });
+    fornecedorService.getImportacaoResult.mockRejectedValueOnce({
+      detail: 'erro fatal no consolidado',
+    });
+
+    render(
+      <ImportCatalogWizard
+        fornecedor={{ id: 1, default_column_mapping: { col_0: 'auto:sku_nome' } }}
+        onClose={() => {}}
+        isOpen
+      />
+    );
+
+    await uploadAndGeneratePreview();
+    await screen.findByRole('img', { name: /1/ });
+    await userEvent.selectOptions(screen.getByRole('combobox', { name: /tipo de produto/i }), '4');
+    await userEvent.click(screen.getByRole('button', { name: /Iniciar Processamento/i }));
+
+    expect(await screen.findByText('erro fatal no consolidado')).toBeInTheDocument();
+    expect(consoleErrorSpy).toHaveBeenCalledWith(
+      'Erro ao obter resultado final:',
+      expect.any(Object)
+    );
+  });
+
+  test('shows a timeout when processing stalls without progress for too long', async () => {
+    jest.useFakeTimers();
+    const localUser = userEvent.setup({ advanceTimers: jest.advanceTimersByTime });
+
+    productTypeService.getProductTypes.mockResolvedValue({
+      items: [{ id: 4, friendly_name: 'Automotivo' }],
+    });
+    fornecedorService.previewCatalogo.mockResolvedValue({
+      fileId: 190,
+      headers: null,
+      sampleRows: null,
+      previewImages: [{ page: 1, image: 'data:image/png;base64,abc' }],
+      numPages: 1,
+      tablePages: [1],
+    });
+    fornecedorService.finalizarImportacaoCatalogo.mockResolvedValue({
+      status: 'PROCESSING',
+      file_id: 190,
+    });
+    fornecedorService.getImportacaoStatus.mockResolvedValue({
+      status: 'PROCESSING',
+      pages_processed: 0,
+      total_pages: 1,
+    });
+
+    render(
+      <ImportCatalogWizard
+        fornecedor={{ id: 1, default_column_mapping: { col_0: 'auto:sku_nome' } }}
+        onClose={() => {}}
+        isOpen
+      />
+    );
+
+    const fileInput = document.querySelector('input[type="file"]');
+    const file = createPdfFile();
+    await localUser.upload(fileInput, file);
+    await localUser.click(screen.getByText('Gerar Preview'));
+    await screen.findByRole('img', { name: /1/ });
+    await localUser.selectOptions(screen.getByRole('combobox', { name: /tipo de produto/i }), '4');
+    await localUser.click(screen.getByRole('button', { name: /Iniciar Processamento/i }));
+
+    for (let step = 0; step < 160; step += 1) {
+      await jest.advanceTimersByTimeAsync(2000);
+    }
+
+    expect(
+      (await screen.findAllByText(/Monitoramento encerrado por inatividade de progresso/i)).length
+    ).toBeGreaterThan(0);
+    expect(screen.getByText(/Tempo decorrido: 300s/i)).toBeInTheDocument();
+    expect(fornecedorService.getImportacaoResult).not.toHaveBeenCalled();
+  }, 20000);
+
+  test('shows a timeout when the final result remains pending even after ready checks', async () => {
+    jest.useFakeTimers();
+    const localUser = userEvent.setup({ advanceTimers: jest.advanceTimersByTime });
+
+    productTypeService.getProductTypes.mockResolvedValue({
+      items: [{ id: 4, friendly_name: 'Automotivo' }],
+    });
+    fornecedorService.previewCatalogo.mockResolvedValue({
+      fileId: 191,
+      headers: null,
+      sampleRows: null,
+      previewImages: [{ page: 1, image: 'data:image/png;base64,abc' }],
+      numPages: 1,
+      tablePages: [1],
+    });
+    fornecedorService.finalizarImportacaoCatalogo.mockResolvedValue({
+      status: 'PROCESSING',
+      file_id: 191,
+    });
+    fornecedorService.getImportacaoStatus.mockResolvedValue({
+      status: 'DONE',
+      result_ready: true,
+      pages_processed: 1,
+      total_pages: 1,
+    });
+    fornecedorService.getImportacaoResult.mockResolvedValue({
+      ready: false,
+    });
+
+    render(
+      <ImportCatalogWizard
+        fornecedor={{ id: 1, default_column_mapping: { col_0: 'auto:sku_nome' } }}
+        onClose={() => {}}
+        isOpen
+      />
+    );
+
+    const fileInput = document.querySelector('input[type="file"]');
+    const file = createPdfFile();
+    await localUser.upload(fileInput, file);
+    await localUser.click(screen.getByText('Gerar Preview'));
+    await screen.findByRole('img', { name: /1/ });
+    await localUser.selectOptions(screen.getByRole('combobox', { name: /tipo de produto/i }), '4');
+    await localUser.click(screen.getByRole('button', { name: /Iniciar Processamento/i }));
+
+    for (let step = 0; step < 35; step += 1) {
+      await jest.advanceTimersByTimeAsync(2000);
+    }
+
+    expect(
+      (await screen.findAllByText(/Resultado ainda pendente/i)).length
+    ).toBeGreaterThan(0);
+  }, 20000);
+
   test('shows a timeout message when the final result never becomes ready', async () => {
     jest.useFakeTimers();
     const localUser = userEvent.setup({ advanceTimers: jest.advanceTimersByTime });
@@ -930,4 +1219,86 @@ describe('ImportCatalogWizard', () => {
       )
     ).toBeInTheDocument();
   }, 20000);
+
+  test('renders detailed final result sections with normalized output strings', async () => {
+    productTypeService.getProductTypes.mockResolvedValue({
+      items: [{ id: 4, friendly_name: 'Automotivo' }],
+    });
+    fornecedorService.previewCatalogo.mockResolvedValue({
+      fileId: 205,
+      headers: ['meta'],
+      sampleRows: [{ meta: { sku: 'ABC-1' } }],
+      previewImages: [{ page: 1, image: 'data:image/png;base64,abc' }],
+      numPages: 1,
+      tablePages: [1],
+    });
+    fornecedorService.finalizarImportacaoCatalogo.mockResolvedValue({
+      status: 'PROCESSING',
+      file_id: 205,
+    });
+    fornecedorService.getImportacaoStatus.mockResolvedValue({
+      status: 'PARTIAL',
+      result_ready: true,
+      pages_processed: 1,
+      total_pages: 1,
+    });
+    fornecedorService.getImportacaoResult.mockResolvedValue({
+      output: {
+        status_label: 'Conclu?do com revis?o',
+        headline: 'Relat?rio com n?o cr?ticos',
+        pages: { progress_pct: 100 },
+      },
+      stats: {
+        produtos_criados: 1,
+        produtos_atualizados: 2,
+        erros: 1,
+        pages_processed: 1,
+        pages_total: 1,
+        ext: 'pdf',
+        partial_success: true,
+        descartes_nao_criticos: 3,
+        qualidade_score_medio_aceitas: 0.91,
+        qualidade_score_medio_quarentena: 0.42,
+      },
+      errors: [{ erro_processamento_pdf: 'Linha cr?tica' }],
+      log: ['Importa??o conclu?da'],
+      top_reasons: [{ reason: 'cat?logo sem sku', count: 2 }],
+      quarantine_non_critical: [{ linha: 8, motivo: 'material ausente' }],
+    });
+
+    render(
+      <ImportCatalogWizard
+        fornecedor={{ id: 1, default_column_mapping: { meta: 'auto:sku_nome' } }}
+        onClose={() => {}}
+        isOpen
+      />
+    );
+
+    await uploadAndGeneratePreview();
+    expect(await screen.findByText('{"sku":"ABC-1"}')).toBeInTheDocument();
+    await userEvent.selectOptions(screen.getByRole('combobox', { name: /tipo de produto/i }), '4');
+    await userEvent.click(screen.getByRole('button', { name: /Iniciar Processamento/i }));
+
+    expect(await screen.findByText(/Conclu.do com revis.o/i)).toBeInTheDocument();
+    expect(screen.getByText(/Relat.rio com n.o cr.ticos/i)).toBeInTheDocument();
+    expect(screen.getByText(/Importa..o conclu.da com alertas/i)).toBeInTheDocument();
+    expect(screen.getByText(/Progresso final: 100%/i)).toBeInTheDocument();
+    expect(screen.getByText(/Qualidade m.dia \(aceitos\): 0.91/i)).toBeInTheDocument();
+    expect(screen.getByText(/Qualidade m.dia \(quarentena\): 0.42/i)).toBeInTheDocument();
+
+    fireEvent.click(screen.getByText(/Top motivos de erro/i));
+    fireEvent.click(screen.getByText(/^Erros$/i));
+    fireEvent.click(screen.getByText(/^Log$/i));
+    fireEvent.click(screen.getByText(/Linhas em quarentena/i));
+
+    expect(screen.getByText(/cat.logo sem sku/i)).toBeInTheDocument();
+    expect(screen.getByText(/Linha cr.tica/i)).toBeInTheDocument();
+    expect(screen.getByText(/material ausente/i)).toBeInTheDocument();
+    expect(
+      screen.getByText((content, element) =>
+        element?.tagName.toLowerCase() === 'pre' && /Importa..o conclu.da/i.test(content)
+      )
+    ).toBeInTheDocument();
+  });
 });
+

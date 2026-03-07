@@ -208,7 +208,8 @@ describe('FornecedoresPage', () => {
         'Fornecedor A,Fornecedor B'
       );
     });
-    expect(screen.getByRole('button', { name: /Deletar Selecionado/i })).toBeDisabled();
+    const deleteButton = screen.getByRole('button', { name: /Deletar Selecionado/i });
+    expect(deleteButton).toBeDisabled();
     expect(showWarningToast).not.toHaveBeenCalled();
   });
 
@@ -369,6 +370,70 @@ describe('FornecedoresPage', () => {
     await waitFor(() => {
       expect(showErrorToast).toHaveBeenCalledWith(
         'Erro ao atualizar fornecedor: timeout remoto'
+      );
+    });
+  });
+
+  test('formats object detail payloads from backend on create and update', async () => {
+    fornecedorService.createFornecedor.mockRejectedValueOnce({
+      detail: { campo: 'nome', motivo: 'duplicado' },
+    });
+    fornecedorService.updateFornecedor.mockRejectedValueOnce({
+      detail: { campo: 'site_url', motivo: 'invalido' },
+    });
+
+    render(<FornecedoresPage />);
+
+    await waitFor(() => {
+      expect(screen.getByTestId('fornecedor-table-names')).toHaveTextContent(
+        'Fornecedor A,Fornecedor B'
+      );
+    });
+
+    fireEvent.click(screen.getByText('Novo Fornecedor'));
+    fireEvent.click(screen.getByText('save-new-fornecedor'));
+    await waitFor(() => {
+      expect(showErrorToast).toHaveBeenCalledWith(
+        'Erro ao criar fornecedor: {"campo":"nome","motivo":"duplicado"}'
+      );
+    });
+
+    fireEvent.click(screen.getByText('edit-first'));
+    fireEvent.click(screen.getByText('save-edit-fornecedor'));
+    await waitFor(() => {
+      expect(showErrorToast).toHaveBeenCalledWith(
+        'Erro ao atualizar fornecedor: {"campo":"site_url","motivo":"invalido"}'
+      );
+    });
+  });
+
+  test('formats create errors from message and raw string payloads', async () => {
+    fornecedorService.createFornecedor.mockRejectedValueOnce({
+      message: 'falha de conectividade',
+    });
+
+    render(<FornecedoresPage />);
+
+    await waitFor(() => {
+      expect(screen.getByTestId('fornecedor-table-names')).toHaveTextContent(
+        'Fornecedor A,Fornecedor B'
+      );
+    });
+
+    fireEvent.click(screen.getByText('Novo Fornecedor'));
+    fireEvent.click(screen.getByText('save-new-fornecedor'));
+    await waitFor(() => {
+      expect(showErrorToast).toHaveBeenCalledWith(
+        'Erro ao criar fornecedor: falha de conectividade'
+      );
+    });
+
+    fornecedorService.createFornecedor.mockRejectedValueOnce('timeout bruto');
+    fireEvent.click(screen.getByText('Novo Fornecedor'));
+    fireEvent.click(screen.getByText('save-new-fornecedor'));
+    await waitFor(() => {
+      expect(showErrorToast).toHaveBeenCalledWith(
+        'Erro ao criar fornecedor: timeout bruto'
       );
     });
   });
