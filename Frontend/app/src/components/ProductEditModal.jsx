@@ -388,7 +388,12 @@ function ProductEditModal(
 
     const handleChange = (e) => {
       const { name, value, type, checked } = e.target;
-      if (name === 'imagens_secundarias_urls') {
+      if (name === 'product_type_id') {
+        setFormData((prev) => ({ ...prev, [name]: value }));
+        if (value) {
+          initializeAttributesForType(value);
+        }
+      } else if (name === 'imagens_secundarias_urls') {
         const urls = value.split(',').map((url) => url.trim()).filter((url) => url);
         setFormData((prev) => ({ ...prev, [name]: urls }));
       } else if (type === 'checkbox') {

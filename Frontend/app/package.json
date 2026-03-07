@@ -11,7 +11,9 @@
     "preview": "vite preview",
     "test": "jest",
     "test:ci": "jest --watch=false",
-    "test:coverage": "jest --coverage --watch=false --runInBand"
+    "test:coverage": "jest --coverage --watch=false --runInBand",
+    "test:e2e": "playwright test",
+    "test:e2e:headed": "playwright test --headed"
   },
   "dependencies": {
     "axios": "^1.9.0",

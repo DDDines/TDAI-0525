@@ -42,6 +42,14 @@ export default [
     },
   },
   {
+    files: ['playwright.config.js', 'tests/e2e/**/*.js'],
+    languageOptions: {
+      globals: {
+        ...globals.node,
+      },
+    },
+  },
+  {
     files: ['__mocks__/**/*.js'],
     languageOptions: {
       globals: {

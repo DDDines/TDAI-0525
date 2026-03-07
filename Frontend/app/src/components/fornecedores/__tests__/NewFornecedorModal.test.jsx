@@ -1,0 +1,114 @@
+import { render, screen, waitFor } from '@testing-library/react';
+import '@testing-library/jest-dom';
+import userEvent from '@testing-library/user-event';
+import NewFornecedorModal from '../NewFornecedorModal.jsx';
+import { showWarningToast } from '../../../utils/notifications';
+
+jest.mock('../../../utils/notifications', () => ({
+  showWarningToast: jest.fn(),
+}));
+
+describe('NewFornecedorModal', () => {
+  const onClose = jest.fn();
+  const onSave = jest.fn();
+  let consoleErrorSpy;
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    onSave.mockResolvedValue({});
+    consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+  });
+
+  afterEach(() => {
+    consoleErrorSpy.mockRestore();
+  });
+
+  function renderModal(props = {}) {
+    return render(
+      <NewFornecedorModal
+        isOpen={true}
+        onClose={onClose}
+        onSave={onSave}
+        isLoading={false}
+        {...props}
+      />
+    );
+  }
+
+  test('does not render when closed', () => {
+    render(
+      <NewFornecedorModal
+        isOpen={false}
+        onClose={onClose}
+        onSave={onSave}
+        isLoading={false}
+      />
+    );
+
+    expect(screen.queryByText(/Novo Fornecedor/i)).not.toBeInTheDocument();
+  });
+
+  test('validates name before saving', async () => {
+    const user = userEvent.setup();
+    renderModal();
+
+    await user.click(screen.getByRole('button', { name: /^Salvar$/i }));
+    expect(showWarningToast.mock.calls[0][0]).toMatch(/Nome .*obrigat.rio/i);
+
+    await user.type(screen.getByLabelText(/Nome/i), 'A');
+    await user.click(screen.getByRole('button', { name: /^Salvar$/i }));
+    expect(showWarningToast.mock.calls.at(-1)[0]).toMatch(/2 caracteres/i);
+    expect(onSave).not.toHaveBeenCalled();
+  });
+
+  test('normalizes url and clears the form after a successful save', async () => {
+    const user = userEvent.setup();
+    renderModal();
+
+    const nomeInput = screen.getByLabelText(/Nome/i);
+    const siteInput = screen.getByLabelText(/Site URL/i);
+
+    await user.type(nomeInput, 'Fornecedor Teste');
+    await user.type(siteInput, 'exemplo.com');
+    await user.click(screen.getByRole('button', { name: /^Salvar$/i }));
+
+    await waitFor(() => {
+      expect(onSave).toHaveBeenCalledWith({
+        nome: 'Fornecedor Teste',
+        site_url: 'http://exemplo.com',
+      });
+    });
+    expect(nomeInput).toHaveValue('');
+    expect(siteInput).toHaveValue('');
+  });
+
+  test('sends null site_url when the field is blank', async () => {
+    const user = userEvent.setup();
+    renderModal();
+
+    await user.type(screen.getByLabelText(/Nome/i), 'Fornecedor Sem Site');
+    await user.click(screen.getByRole('button', { name: /^Salvar$/i }));
+
+    await waitFor(() => {
+      expect(onSave).toHaveBeenCalledWith({
+        nome: 'Fornecedor Sem Site',
+        site_url: null,
+      });
+    });
+  });
+
+  test('keeps the form data when the save promise rejects', async () => {
+    const user = userEvent.setup();
+    onSave.mockRejectedValueOnce(new Error('falha'));
+    renderModal();
+
+    const nomeInput = screen.getByLabelText(/Nome/i);
+    await user.type(nomeInput, 'Fornecedor Instavel');
+    await user.click(screen.getByRole('button', { name: /^Salvar$/i }));
+
+    await waitFor(() => {
+      expect(onSave).toHaveBeenCalled();
+    });
+    expect(nomeInput).toHaveValue('Fornecedor Instavel');
+  });
+});
