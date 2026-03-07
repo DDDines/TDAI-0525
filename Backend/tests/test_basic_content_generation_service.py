@@ -285,6 +285,9 @@ class _TopLevelFunctionSurface:
         assert all("comercio" not in titulo.lower() for titulo in titulos)
         assert all("eletronico" not in titulo.lower() for titulo in titulos)
         assert all("whatsapp" not in titulo.lower() for titulo in titulos)
+        assert all("favoritos" not in titulo.lower() for titulo in titulos)
+        assert all("qualidade" not in titulo.lower() for titulo in titulos)
+        assert all("seus" not in titulo.lower() for titulo in titulos)
         assert all(not re.search(r"\d{3}\s+\d{3}\s+\d{3}", titulo) for titulo in titulos)
         assert any("AR 60 Litros" in titulo for titulo in titulos)
 
@@ -325,7 +328,223 @@ class _TopLevelFunctionSurface:
         assert "Produto: Bomba Dagua (Pierburg)" in descricao
         assert "Specs:" in descricao
         assert "Material: Aluminio" in descricao
-        assert "Tags: bomba dagua, motor diesel" in descricao
+        assert "Tags: motor diesel" in descricao
+        assert "bomba dagua, motor diesel" not in descricao
+
+    @pytest.mark.asyncio
+    async def test_gerar_descricao_basica_filtra_keywords_fracas_do_contexto_web():
+        """Ensure weak promotional keywords do not leak into the description template."""
+        produto = SimpleNamespace(
+            id=36,
+            nome_base="Reservatorio de Ar",
+            marca="Rochepecas",
+            modelo="",
+            sku="RA-20",
+            ean="",
+            categoria_original="Freio a Ar",
+            categoria_mapeada=None,
+            fornecedor=None,
+            dynamic_attributes={"Material": "Metalico"},
+            dados_brutos_web={
+                "descricao_curta": "Reservatorio de ar para linha pesada.",
+                "palavras_chave_seo_relevantes_lista": [
+                    "seguran",
+                    "pol",
+                    "sua",
+                    "tranquilidade",
+                    "reservatorio de ar",
+                    "linha pesada",
+                ],
+            },
+        )
+        service = _TopLevelFunctionSurface._build_service(produto)
+
+        descricao = await service.gerar_descricao_basica(
+            session=object(),
+            produto_id=36,
+            user=SimpleNamespace(id=1),
+            tamanho_palavras=120,
+        )
+
+        lowered = descricao.lower()
+        assert "palavras-chave:" in lowered
+        assert "seguran" not in lowered
+        assert "tranquilidade" not in lowered
+        assert " sua" not in lowered
+        assert "reservatorio de ar" in lowered
+        assert "linha pesada" in lowered
+
+    @pytest.mark.asyncio
+    async def test_gerar_titulos_basicos_ignora_keywords_fracas_do_contexto_web():
+        """Ensure weak web keywords do not appear in generated title suggestions."""
+        produto = SimpleNamespace(
+            id=37,
+            nome_base="Reservatorio de Ar 20 Litros",
+            marca="Rochepecas",
+            modelo="",
+            sku="RA20",
+            ean="",
+            categoria_original="Freio a Ar",
+            categoria_mapeada=None,
+            fornecedor=None,
+            dynamic_attributes={},
+            dados_brutos_web={
+                "palavras_chave_seo_relevantes_lista": [
+                    "seguran",
+                    "pol",
+                    "sua",
+                    "tranquilidade",
+                    "criptografia",
+                    "reservatorio de ar",
+                    "linha pesada",
+                ],
+            },
+        )
+        service = _TopLevelFunctionSurface._build_service(produto)
+
+        titulos = await service.gerar_titulos_basicos(
+            session=object(),
+            produto_id=37,
+            user=SimpleNamespace(id=1),
+            num_titulos=5,
+        )
+
+        lowered_titles = [titulo.lower() for titulo in titulos]
+        assert len(titulos) == 5
+        assert all("seguran" not in titulo for titulo in lowered_titles)
+        assert all("tranquilidade" not in titulo for titulo in lowered_titles)
+        assert all("criptografia" not in titulo for titulo in lowered_titles)
+        assert all(" sua " not in f" {titulo} " for titulo in lowered_titles)
+        assert any("reservatorio de ar 20 litros" in titulo for titulo in lowered_titles)
+
+    @pytest.mark.asyncio
+    async def test_gerar_descricao_basica_filtra_specs_internas_e_promocionais():
+        """Ensure internal dynamic attrs and promotional specs do not leak into the basic description."""
+        produto = SimpleNamespace(
+            id=38,
+            nome_base="Reservatorio de Ar 20 Litros",
+            marca="Rochepecas",
+            modelo="",
+            sku="RA20",
+            ean="",
+            categoria_original="Freio a Ar",
+            categoria_mapeada=None,
+            fornecedor=None,
+            dynamic_attributes={
+                "titulo_auto": "Reservatorio de Ar 20 Litros - ROCHEPECAS 3084307005",
+                "Desc_Auto": "Descricao longa com ruido de loja.",
+                "Material": "Metalico",
+                "marca": "Mercadocar",
+            },
+            dados_brutos_web={
+                "descricao_curta": "Reservatorio de ar para linha pesada.",
+                "especificacoes_tecnicas_dict": {
+                    "Contato": "5000. Sua compra online protegida. Criptografia e seguranca para garantir tranquilidade.",
+                    "Aplicacao": "Mercedes Benz",
+                },
+            },
+        )
+        service = _TopLevelFunctionSurface._build_service(produto)
+
+        descricao = await service.gerar_descricao_basica(
+            session=object(),
+            produto_id=38,
+            user=SimpleNamespace(id=1),
+            tamanho_palavras=140,
+        )
+
+        lowered = descricao.lower()
+        assert "material: metalico" in lowered
+        assert "aplicacao: mercedes benz" in lowered
+        assert "titulo_auto" not in lowered
+        assert "desc_auto" not in lowered
+        assert "sua compra online" not in lowered
+        assert "criptografia" not in lowered
+
+    @pytest.mark.asyncio
+    async def test_gerar_descricao_basica_remove_boilerplate_promocional_do_contexto_web():
+        """Ensure contact/payment/policy boilerplate is stripped from the web description context."""
+        produto = SimpleNamespace(
+            id=39,
+            nome_base="Reservatorio de Ar 20 Litros",
+            marca="Rochepecas",
+            modelo="",
+            sku="RA20",
+            ean="",
+            categoria_original="Freio a Ar",
+            categoria_mapeada=None,
+            fornecedor=None,
+            dynamic_attributes={},
+            dados_brutos_web={
+                "descricao_detalhada_seo": (
+                    "Reservatorio de ar para Mercedes Benz com alta performance. "
+                    "Se surgirem duvidas, entre em contato conosco clicando aqui ou atraves do telefone 11 2206-5000. "
+                    "Criptografia e seguranca para garantir tranquilidade. "
+                    "Politica de troca e devolucao simples e transparente."
+                ),
+                "lista_caracteristicas_beneficios_bullets": [
+                    "Aplicacao em linha pesada",
+                    "Parcelamento em ate 10x sem juros",
+                ],
+            },
+        )
+        service = _TopLevelFunctionSurface._build_service(produto)
+
+        descricao = await service.gerar_descricao_basica(
+            session=object(),
+            produto_id=39,
+            user=SimpleNamespace(id=1),
+            tamanho_palavras=140,
+        )
+
+        lowered = descricao.lower()
+        assert "reservatorio de ar para mercedes benz com alta performance" in lowered
+        assert "entre em contato" not in lowered
+        assert "telefone" not in lowered
+        assert "criptografia" not in lowered
+        assert "politica de troca" not in lowered
+        assert "sem juros" not in lowered
+
+    @pytest.mark.asyncio
+    async def test_gerar_titulos_basicos_ignora_keywords_redundantes_da_identidade():
+        """Ensure keywords that only repeat the product identity do not pollute title suggestions."""
+        produto = SimpleNamespace(
+            id=40,
+            nome_base="Reservatorio de Ar 20 Litros",
+            marca="Rochepecas",
+            modelo="",
+            sku="RA20",
+            ean="",
+            categoria_original="Freio a Ar",
+            categoria_mapeada=None,
+            fornecedor=None,
+            dynamic_attributes={},
+            dados_brutos_web={
+                "nome": "Reservatorio de Ar 20 Litros - ROCHEPECAS 3084307005",
+                "palavras_chave_seo_relevantes_lista": [
+                    "reservatorio",
+                    "rochepecas",
+                    "litros",
+                    "mercedes benz",
+                ],
+            },
+        )
+        service = _TopLevelFunctionSurface._build_service(produto)
+
+        titulos = await service.gerar_titulos_basicos(
+            session=object(),
+            produto_id=40,
+            user=SimpleNamespace(id=1),
+            num_titulos=5,
+        )
+
+        lowered_titles = [titulo.lower() for titulo in titulos]
+        assert len(titulos) == 5
+        assert all("rochepecas rochepecas" not in titulo for titulo in lowered_titles)
+        assert "reservatorio de ar 20 litros rochepecas reservatorio" not in lowered_titles
+        assert "reservatorio de ar 20 litros rochepecas rochepecas" not in lowered_titles
+        assert "reservatorio de ar 20 litros rochepecas litros" not in lowered_titles
+        assert any("reservatorio de ar 20 litros rochepecas" == titulo for titulo in lowered_titles)
 
 
 _build_service = _TopLevelFunctionSurface._build_service
@@ -337,3 +556,8 @@ test_gerar_descricao_basica_remove_historico_empresa_inferido = _TopLevelFunctio
 test_gerar_titulos_basicos_respeita_template_customizado = _TopLevelFunctionSurface.test_gerar_titulos_basicos_respeita_template_customizado
 test_gerar_titulos_basicos_remove_ruido_empresa_e_contato = _TopLevelFunctionSurface.test_gerar_titulos_basicos_remove_ruido_empresa_e_contato
 test_gerar_descricao_basica_aplica_template_customizado = _TopLevelFunctionSurface.test_gerar_descricao_basica_aplica_template_customizado
+test_gerar_descricao_basica_filtra_keywords_fracas_do_contexto_web = _TopLevelFunctionSurface.test_gerar_descricao_basica_filtra_keywords_fracas_do_contexto_web
+test_gerar_titulos_basicos_ignora_keywords_fracas_do_contexto_web = _TopLevelFunctionSurface.test_gerar_titulos_basicos_ignora_keywords_fracas_do_contexto_web
+test_gerar_descricao_basica_filtra_specs_internas_e_promocionais = _TopLevelFunctionSurface.test_gerar_descricao_basica_filtra_specs_internas_e_promocionais
+test_gerar_descricao_basica_remove_boilerplate_promocional_do_contexto_web = _TopLevelFunctionSurface.test_gerar_descricao_basica_remove_boilerplate_promocional_do_contexto_web
+test_gerar_titulos_basicos_ignora_keywords_redundantes_da_identidade = _TopLevelFunctionSurface.test_gerar_titulos_basicos_ignora_keywords_redundantes_da_identidade

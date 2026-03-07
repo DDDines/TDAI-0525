@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import re
+import unicodedata
 from typing import Any, Dict, List
 
 from fastapi import HTTPException, status
@@ -48,6 +49,81 @@ class BasicContentGenerationService:
         "tecnicas",
         "ficha",
     }
+    _WEAK_KEYWORD_TERMS = {
+        "aqui",
+        "agora",
+        "atendimento",
+        "clicando",
+        "clique",
+        "compra",
+        "compras",
+        "contato",
+        "criptografia",
+        "duvida",
+        "duvidas",
+        "favorito",
+        "favoritos",
+        "garante",
+        "garantia",
+        "garantias",
+        "garantir",
+        "loja",
+        "nossa",
+        "nossas",
+        "nosso",
+        "nossos",
+        "online",
+        "pagamento",
+        "pagamentos",
+        "parcelamento",
+        "politica",
+        "politicas",
+        "protegida",
+        "protegido",
+        "qualidade",
+        "seguranca",
+        "sua",
+        "suas",
+        "satisfacao",
+        "seu",
+        "seus",
+        "tranquilidade",
+        "troca",
+        "trocas",
+        "venda",
+        "vendas",
+        "voce",
+        "voces",
+    }
+    _WEAK_KEYWORD_PREFIXES = (
+        "atend",
+        "clic",
+        "compr",
+        "contat",
+        "criptograf",
+        "devolu",
+        "duvid",
+        "favorit",
+        "garant",
+        "pag",
+        "parcel",
+        "politic",
+        "proteg",
+        "qualidad",
+        "satisf",
+        "seguran",
+        "tranquil",
+        "troc",
+    )
+    _BLOCKED_SPEC_KEYS = {
+        "desc_auto",
+        "disponibilidade",
+        "id_auto",
+        "marca",
+        "moeda_preco",
+        "titulo",
+        "titulo_auto",
+    }
     _COMPANY_TIMELINE_HINTS = (
         "iniciou suas atividades",
         "iniciou as atividades",
@@ -60,6 +136,25 @@ class BasicContentGenerationService:
     )
     _COMPANY_TIMELINE_PATTERN = re.compile(
         r"\b(?:fundad[oa]\s+em\s+(?:19|20)\d{2}|desde\s+(?:19|20)\d{2}|iniciou\s+suas?\s+atividades(?:\s+no?\s+ano\s+de\s+(?:19|20)\d{2})?)\b",
+        re.IGNORECASE,
+    )
+    _PROMOTIONAL_BOILERPLATE_HINTS = (
+        "compra online protegida",
+        "criptografia e seguranca",
+        "criptografia e segurança",
+        "entre em contato",
+        "parcelamento em ate",
+        "parcelamento em até",
+        "politica de troca",
+        "politica de devolucao",
+        "política de troca",
+        "política de devolução",
+        "sem juros",
+        "sua compra online",
+    )
+    _PROMOTIONAL_BOILERPLATE_PATTERN = re.compile(
+        r"\b(?:contato|telefone|whatsapp|sac|atendimento|parcelamento|sem\s+juros|"
+        r"politica\s+de\s+(?:troca|devolu[cç][aã]o)|criptografia|compra\s+online\s+protegida)\b",
         re.IGNORECASE,
     )
     _COMPANY_ENTITY_HINT_PATTERN = re.compile(
@@ -85,6 +180,12 @@ class BasicContentGenerationService:
     def _normalize_space(value: Any) -> str:
         """Normalize spacing and coerce arbitrary values to safe strings."""
         return " ".join(str(value or "").strip().split())
+
+    @staticmethod
+    def _fold_text(value: Any) -> str:
+        """Fold accents and normalize unicode text to a simpler comparable form."""
+        normalized = unicodedata.normalize("NFKD", str(value or ""))
+        return "".join(char for char in normalized if not unicodedata.combining(char))
 
     @classmethod
     def _sanitize_title_fragment(
@@ -132,6 +233,82 @@ class BasicContentGenerationService:
         if cls._PHONE_OR_ID_BLOCK_PATTERN.search(text):
             return True
         return False
+
+    @classmethod
+    def _is_weak_keyword(cls, value: Any) -> bool:
+        """Detect weak promotional or pronoun-like keywords that should not drive titles."""
+        text = cls._normalize_space(value)
+        if not text:
+            return True
+        if cls._is_noisy_title_fragment(text):
+            return True
+
+        folded = cls._fold_text(text).lower()
+        parts = re.findall(r"[a-z0-9]+", folded)
+        if not parts:
+            return True
+
+        useful_parts = 0
+        for part in parts:
+            if len(part) < 4:
+                continue
+            if part in cls._KEYWORD_STOPWORDS:
+                continue
+            if part in cls._WEAK_KEYWORD_TERMS:
+                continue
+            if any(part.startswith(prefix) for prefix in cls._WEAK_KEYWORD_PREFIXES):
+                continue
+            useful_parts += 1
+        return useful_parts == 0
+
+    @classmethod
+    def _sanitize_spec_pair(cls, key: Any, value: Any) -> tuple[str, str] | None:
+        """Normalize specs and drop internal or promotional entries before rendering output."""
+        key_clean = cls._sanitize_title_fragment(
+            key,
+            cut_on_contact_marker=True,
+            max_len=60,
+        )
+        value_clean = cls._sanitize_title_fragment(
+            value,
+            cut_on_contact_marker=True,
+            max_len=100,
+        )
+        if not key_clean or not value_clean:
+            return None
+
+        folded_key = re.sub(r"[^a-z0-9]+", "_", cls._fold_text(key_clean).lower()).strip("_")
+        if folded_key in cls._BLOCKED_SPEC_KEYS:
+            return None
+        if cls._is_weak_keyword(key_clean) or cls._is_weak_keyword(value_clean):
+            return None
+        return key_clean, value_clean
+
+    @classmethod
+    def _is_redundant_keyword(cls, value: Any, *, identity_parts: List[Any]) -> bool:
+        """Detect keywords that only repeat tokens already present in product identity."""
+        if cls._is_weak_keyword(value):
+            return True
+
+        keyword_parts = [
+            part
+            for part in re.findall(r"[a-z0-9]+", cls._fold_text(value).lower())
+            if len(part) >= 4
+        ]
+        if not keyword_parts:
+            return True
+
+        identity_tokens = set()
+        for identity_part in identity_parts:
+            identity_tokens.update(
+                part
+                for part in re.findall(
+                    r"[a-z0-9]+",
+                    cls._fold_text(identity_part).lower(),
+                )
+                if len(part) >= 4
+            )
+        return all(part in identity_tokens for part in keyword_parts)
 
     @staticmethod
     def _unique_keep_order(values: List[str]) -> List[str]:
@@ -242,6 +419,8 @@ class BasicContentGenerationService:
                     continue
                 if token_clean.isdigit() and len(token_clean) < 4:
                     continue
+                if self._is_weak_keyword(token_clean):
+                    continue
                 scores[token_clean] = scores.get(token_clean, 0) + 1
         ranked = sorted(scores.items(), key=lambda item: (-item[1], -len(item[0]), item[0]))
         return [token for token, _ in ranked[:limit]]
@@ -263,6 +442,21 @@ class BasicContentGenerationService:
         return bool(cls._COMPANY_ENTITY_HINT_PATTERN.search(compact))
 
     @classmethod
+    def _looks_like_promotional_boilerplate(cls, text: str) -> bool:
+        """Detect support/payment/return-policy boilerplate that should not compose product copy."""
+        compact = " ".join(str(text or "").strip().split())
+        if not compact:
+            return False
+        lowered = cls._fold_text(compact).lower()
+        if cls._URL_PATTERN.search(compact) or cls._EMAIL_PATTERN.search(compact):
+            return True
+        if cls._PHONE_OR_ID_BLOCK_PATTERN.search(compact):
+            return True
+        if cls._PROMOTIONAL_BOILERPLATE_PATTERN.search(compact):
+            return True
+        return any(hint in lowered for hint in cls._PROMOTIONAL_BOILERPLATE_HINTS)
+
+    @classmethod
     def _sanitize_description_context(cls, raw_text: Any) -> str:
         """Drop unsupported company timeline sentences from source descriptions."""
         text = " ".join(str(raw_text or "").strip().split())
@@ -276,6 +470,8 @@ class BasicContentGenerationService:
             if not normalized_chunk:
                 continue
             if cls._looks_like_company_timeline_claim(normalized_chunk):
+                continue
+            if cls._looks_like_promotional_boilerplate(normalized_chunk):
                 continue
             filtered_chunks.append(normalized_chunk)
 
@@ -305,7 +501,14 @@ class BasicContentGenerationService:
         )
         bullets = self._coerce_list(raw.get("lista_caracteristicas_beneficios_bullets"))
         keywords = self._coerce_list(raw.get("palavras_chave_seo_relevantes_lista"))
-        specs = self._coerce_dict(raw.get("especificacoes_tecnicas_dict"))
+        raw_specs = self._coerce_dict(raw.get("especificacoes_tecnicas_dict"))
+        specs: Dict[str, str] = {}
+        for raw_key, raw_value in raw_specs.items():
+            sanitized_pair = self._sanitize_spec_pair(raw_key, raw_value)
+            if not sanitized_pair:
+                continue
+            spec_key, spec_value = sanitized_pair
+            specs[spec_key] = spec_value
         nome = self._sanitize_title_fragment(nome, cut_on_contact_marker=True, max_len=120)
 
         if not descricao:
@@ -325,6 +528,7 @@ class BasicContentGenerationService:
             item
             for item in bullets
             if not self._looks_like_company_timeline_claim(item)
+            and not self._looks_like_promotional_boilerplate(item)
         ]
 
         if not keywords:
@@ -344,7 +548,7 @@ class BasicContentGenerationService:
         keywords = [
             item
             for item in keywords
-            if item and not self._is_noisy_title_fragment(item)
+            if item and not self._is_weak_keyword(item)
         ]
         keywords = self._unique_keep_order(keywords)
 
@@ -378,6 +582,7 @@ class BasicContentGenerationService:
         )
         categoria = self._sanitize_title_fragment(categoria, cut_on_contact_marker=True, max_len=80)
         keyword_seed = self._coerce_list(web_context.get("keywords"))
+        keyword_identity_parts = [nome_base, marca, modelo, categoria, sku]
 
         patterns = [
             self._normalize_space(" ".join(part for part in [nome_base, marca, sku] if part)),
@@ -387,7 +592,7 @@ class BasicContentGenerationService:
             self._normalize_space(" ".join(part for part in [nome_base, categoria, modelo] if part)),
         ]
         for keyword in keyword_seed[:4]:
-            if self._is_noisy_title_fragment(keyword):
+            if self._is_redundant_keyword(keyword, identity_parts=keyword_identity_parts):
                 continue
             patterns.append(
                 self._normalize_space(" ".join(part for part in [nome_base, keyword, sku] if part))
@@ -446,6 +651,7 @@ class BasicContentGenerationService:
             cut_on_contact_marker=True,
             max_len=120,
         )
+        keyword_identity_parts = [nome_base, marca, modelo, categoria, nome_web, sku, ean]
 
         candidates: List[str] = [
             self._normalize_space(" ".join(part for part in [marca, nome_base, modelo, sku] if part)),
@@ -457,15 +663,16 @@ class BasicContentGenerationService:
         ]
 
         for keyword in keywords[:5]:
-            if self._is_noisy_title_fragment(keyword):
+            if self._is_redundant_keyword(keyword, identity_parts=keyword_identity_parts):
                 continue
             candidates.append(
                 self._normalize_space(" ".join(part for part in [nome_base, keyword, sku] if part))
             )
-        for _, spec_value in list(specs.items())[:4]:
-            spec_clean = self._sanitize_title_fragment(spec_value, cut_on_contact_marker=True, max_len=80)
-            if not spec_clean or self._is_noisy_title_fragment(spec_clean):
+        for spec_key, spec_value in list(specs.items())[:4]:
+            sanitized_pair = self._sanitize_spec_pair(spec_key, spec_value)
+            if not sanitized_pair:
                 continue
+            _, spec_clean = sanitized_pair
             candidates.append(
                 self._normalize_space(" ".join(part for part in [nome_base, spec_clean, sku] if part))
             )
@@ -520,7 +727,12 @@ class BasicContentGenerationService:
             self._sanitize_title_fragment(item, cut_on_contact_marker=True, max_len=60)
             for item in self._coerce_list(web_context.get("keywords"))
         ]
-        keywords = [item for item in keywords if item and not self._is_noisy_title_fragment(item)]
+        keyword_identity_parts = [nome_base, marca, modelo, categoria, fornecedor_nome, web_nome, sku, ean]
+        keywords = [
+            item
+            for item in keywords
+            if item and not self._is_redundant_keyword(item, identity_parts=keyword_identity_parts)
+        ]
         spec_items = list(self._coerce_dict(web_context.get("specs")).items())
         rendered_titles: List[str] = []
         upper_bound = max(10, max_titles * 4)
@@ -600,22 +812,21 @@ class BasicContentGenerationService:
         dynamic_attributes = getattr(produto, "dynamic_attributes", None)
         if isinstance(dynamic_attributes, dict):
             for key, value in dynamic_attributes.items():
-                key_clean = self._normalize_space(key)
-                value_clean = self._normalize_space(value)
-                if key_clean and value_clean:
+                sanitized_pair = self._sanitize_spec_pair(key, value)
+                if sanitized_pair:
+                    key_clean, value_clean = sanitized_pair
                     specs.append(f"{key_clean}: {value_clean}")
                 if len(specs) >= 12:
                     break
 
         web_specs = self._coerce_dict(web_context.get("specs"))
         if web_specs:
-            specs.extend(
-                [
-                    f"{self._normalize_space(key)}: {self._normalize_space(value)}"
-                    for key, value in list(web_specs.items())[:8]
-                    if self._normalize_space(key) and self._normalize_space(value)
-                ]
-            )
+            for key, value in list(web_specs.items())[:8]:
+                sanitized_pair = self._sanitize_spec_pair(key, value)
+                if not sanitized_pair:
+                    continue
+                key_clean, value_clean = sanitized_pair
+                specs.append(f"{key_clean}: {value_clean}")
 
         specs = self._unique_keep_order(specs)
 
@@ -623,6 +834,12 @@ class BasicContentGenerationService:
         bullets = bullets[:5]
 
         keywords = self._coerce_list(web_context.get("keywords"))
+        keyword_identity_parts = [nome_base, marca, modelo, categoria, sku, ean]
+        keywords = [
+            item
+            for item in keywords
+            if item and not self._is_redundant_keyword(item, identity_parts=keyword_identity_parts)
+        ]
         keywords = keywords[:8]
 
         template_context = {
