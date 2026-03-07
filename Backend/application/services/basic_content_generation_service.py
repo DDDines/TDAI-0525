@@ -52,13 +52,16 @@ class BasicContentGenerationService:
     _WEAK_KEYWORD_TERMS = {
         "aqui",
         "agora",
+        "alta",
         "atendimento",
         "clicando",
         "clique",
         "compra",
         "compras",
+        "confira",
         "contato",
         "criptografia",
+        "devolva",
         "duvida",
         "duvidas",
         "favorito",
@@ -78,6 +81,9 @@ class BasicContentGenerationService:
         "parcelamento",
         "politica",
         "politicas",
+        "preocupa",
+        "preocupacoes",
+        "preocupacao",
         "protegida",
         "protegido",
         "qualidade",
@@ -94,11 +100,13 @@ class BasicContentGenerationService:
         "vendas",
         "voce",
         "voces",
+        "alto",
     }
     _WEAK_KEYWORD_PREFIXES = (
         "atend",
         "clic",
         "compr",
+        "confer",
         "contat",
         "criptograf",
         "devolu",
@@ -107,7 +115,9 @@ class BasicContentGenerationService:
         "garant",
         "pag",
         "parcel",
+        "perform",
         "politic",
+        "preocup",
         "proteg",
         "qualidad",
         "satisf",
@@ -140,11 +150,18 @@ class BasicContentGenerationService:
     )
     _PROMOTIONAL_BOILERPLATE_HINTS = (
         "compra online protegida",
+        "confira nossas politicas",
+        "confira nossas políticas",
         "criptografia e seguranca",
         "criptografia e segurança",
+        "devolva",
         "entre em contato",
+        "garantimos sua satisfacao",
+        "garantimos sua satisfação",
         "parcelamento em ate",
         "parcelamento em até",
+        "pague sem preocupacoes",
+        "pague sem preocupações",
         "politica de troca",
         "politica de devolucao",
         "política de troca",
@@ -154,7 +171,8 @@ class BasicContentGenerationService:
     )
     _PROMOTIONAL_BOILERPLATE_PATTERN = re.compile(
         r"\b(?:contato|telefone|whatsapp|sac|atendimento|parcelamento|sem\s+juros|"
-        r"politica\s+de\s+(?:troca|devolu[cç][aã]o)|criptografia|compra\s+online\s+protegida)\b",
+        r"politica\s+de\s+(?:troca|devolu[cç][aã]o)|criptografia|compra\s+online\s+protegida|"
+        r"confira|devolva|preocupa[cç][aã]o(?:es)?)\b",
         re.IGNORECASE,
     )
     _COMPANY_ENTITY_HINT_PATTERN = re.compile(
@@ -308,7 +326,15 @@ class BasicContentGenerationService:
                 )
                 if len(part) >= 4
             )
-        return all(part in identity_tokens for part in keyword_parts)
+        return all(
+            any(
+                part == identity_token
+                or identity_token.startswith(part)
+                or part.startswith(identity_token)
+                for identity_token in identity_tokens
+            )
+            for part in keyword_parts
+        )
 
     @staticmethod
     def _unique_keep_order(values: List[str]) -> List[str]:
@@ -409,7 +435,9 @@ class BasicContentGenerationService:
         """Generate compact keyword hints from text snippets."""
         scores: Dict[str, int] = {}
         for text in texts:
-            for token in re.findall(r"[A-Za-z0-9][A-Za-z0-9./-]{2,}", text or ""):
+            normalized_text = self._fold_text(text or "")
+            clean_tokens: List[str] = []
+            for token in re.findall(r"[A-Za-z0-9][A-Za-z0-9./-]{2,}", normalized_text):
                 token_clean = token.strip(".,;:()[]{}<>\"'").lower()
                 if len(token_clean) < 3:
                     continue
@@ -422,6 +450,12 @@ class BasicContentGenerationService:
                 if self._is_weak_keyword(token_clean):
                     continue
                 scores[token_clean] = scores.get(token_clean, 0) + 1
+                clean_tokens.append(token_clean)
+            for left, right in zip(clean_tokens, clean_tokens[1:]):
+                phrase = f"{left} {right}"
+                if self._is_weak_keyword(phrase):
+                    continue
+                scores[phrase] = scores.get(phrase, 0) + 2
         ranked = sorted(scores.items(), key=lambda item: (-item[1], -len(item[0]), item[0]))
         return [token for token, _ in ranked[:limit]]
 
@@ -463,11 +497,14 @@ class BasicContentGenerationService:
         if not text:
             return ""
 
-        chunks = re.split(r"(?<=[.!?])\s+|[\r\n]+", text)
+        text = re.sub(r"\b(?:destaques?|especificacoes?)\s*:\s*", ". ", text, flags=re.IGNORECASE)
+        chunks = re.split(r"(?<=[.!?;])\s+|[\r\n]+|;\s*", text)
         filtered_chunks: List[str] = []
         for chunk in chunks:
             normalized_chunk = " ".join(str(chunk or "").strip().split())
             if not normalized_chunk:
+                continue
+            if not re.search(r"[A-Za-z0-9]", normalized_chunk):
                 continue
             if cls._looks_like_company_timeline_claim(normalized_chunk):
                 continue
@@ -477,7 +514,7 @@ class BasicContentGenerationService:
 
         if filtered_chunks:
             return " ".join(filtered_chunks).strip()
-        return text
+        return ""
 
     def _extract_web_context(self, *, produto: Any) -> Dict[str, Any]:
         """Read normalized web enrichment context from dados_brutos_web."""
@@ -551,6 +588,29 @@ class BasicContentGenerationService:
             if item and not self._is_weak_keyword(item)
         ]
         keywords = self._unique_keep_order(keywords)
+        if len(keywords) < 4:
+            fallback_keywords = self._extract_keywords_from_texts(
+                texts=[
+                    nome,
+                    descricao,
+                    " ".join(bullets),
+                    " ".join(f"{key} {value}" for key, value in specs.items()),
+                ],
+                limit=12,
+            )
+            for token in fallback_keywords:
+                token_clean = self._sanitize_title_fragment(
+                    token,
+                    cut_on_contact_marker=True,
+                    max_len=60,
+                )
+                if not token_clean or self._is_weak_keyword(token_clean):
+                    continue
+                if token_clean.lower() in {item.lower() for item in keywords}:
+                    continue
+                keywords.append(token_clean)
+                if len(keywords) >= 8:
+                    break
 
         return {
             "nome": nome,
