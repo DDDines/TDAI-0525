@@ -333,6 +333,19 @@ describe('fornecedorService', () => {
     );
   });
 
+  test('getImportacaoResult falls back to PROCESSING when the backend status is blank', async () => {
+    apiClient.get.mockResolvedValueOnce({
+      status: 202,
+      data: { status: '   ', detail: '' },
+    });
+
+    await expect(fornecedorService.getImportacaoResult(14)).resolves.toEqual({
+      ready: false,
+      status: 'PROCESSING',
+      detail: 'Resultado final ainda não disponível. Continue monitorando o status.',
+    });
+  });
+
   test('getImportacaoResult rethrows backend payload enriched with http status', async () => {
     apiClient.get.mockRejectedValueOnce({
       response: {

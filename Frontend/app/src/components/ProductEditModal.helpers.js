@@ -101,4 +101,92 @@ function coerceFormFieldValue(name, value, type, checked) {
   return value;
 }
 
-export { coerceFormFieldValue, extractGeneratedTitles, normalizeDynamicAttrsToTemplateKeys };
+function resolveShowAiFeatures(showAiFeaturesProp, effectiveMode) {
+  if (typeof showAiFeaturesProp === 'boolean') {
+    return showAiFeaturesProp;
+  }
+  return effectiveMode === 'complete';
+}
+
+function resolveProductFormStage(product, fornecedorId, productTypeId) {
+  if (product && product.id) {
+    return 'form';
+  }
+  if (!fornecedorId) {
+    return 'selectFornecedor';
+  }
+  if (!productTypeId) {
+    return 'selectType';
+  }
+  return 'form';
+}
+
+function buildInitialDynamicAttributes(selectedType, baseProductFields) {
+  if (!selectedType || !Array.isArray(selectedType.attribute_templates)) {
+    return null;
+  }
+
+  const initialAttrs = {};
+  selectedType.attribute_templates
+    .filter((template) => !baseProductFields.has(template.attribute_key))
+    .forEach((template) => {
+      const typeLower =
+        typeof template.field_type === 'string' ? template.field_type.toLowerCase() : '';
+      if (template.default_value !== null && template.default_value !== undefined) {
+        initialAttrs[template.attribute_key] =
+          typeLower === 'boolean'
+            ? String(template.default_value).toLowerCase() === 'true' ||
+              template.default_value === '1'
+            : template.default_value;
+      } else {
+        initialAttrs[template.attribute_key] = typeLower === 'boolean' ? false : '';
+      }
+    });
+
+  return initialAttrs;
+}
+
+function parseOptionalFloat(value) {
+  return value !== '' ? parseFloat(value) : null;
+}
+
+function parseOptionalInt(value) {
+  return value !== '' ? parseInt(value, 10) : null;
+}
+
+function sanitizeProdutoData(data) {
+  return {
+    ...data,
+    preco_custo: parseOptionalFloat(data.preco_custo),
+    preco_venda: parseOptionalFloat(data.preco_venda),
+    preco_promocional: parseOptionalFloat(data.preco_promocional),
+    estoque_disponivel: parseOptionalInt(data.estoque_disponivel),
+    peso_gramas: parseOptionalInt(data.peso_gramas),
+    fornecedor_id: parseOptionalInt(data.fornecedor_id),
+    product_type_id: parseOptionalInt(data.product_type_id),
+  };
+}
+
+function resolveServiceErrorDetail(err, fallback) {
+  if (!err) return fallback;
+  if (typeof err?.message === 'string' && err.message.trim()) return err.message;
+  if (typeof err?.detail === 'string' && err.detail.trim()) return err.detail;
+  if (typeof err?.response?.data?.detail === 'string' && err.response.data.detail.trim()) {
+    return err.response.data.detail;
+  }
+  if (typeof err?.response?.data?.msg === 'string' && err.response.data.msg.trim()) {
+    return err.response.data.msg;
+  }
+  return fallback;
+}
+
+export {
+  buildInitialDynamicAttributes,
+  coerceFormFieldValue,
+  extractGeneratedTitles,
+  normalizeDynamicAttrsToTemplateKeys,
+  resolveProductFormStage,
+  resolveServiceErrorDetail,
+  resolveShowAiFeatures,
+  sanitizeProdutoData,
+};

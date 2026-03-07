@@ -36,6 +36,16 @@ describe('productTypeService', () => {
     expect(apiClient.get).toHaveBeenNthCalledWith(2, '/product-types/2');
   });
 
+  test('uses empty params when getProductTypes is called without filters', async () => {
+    apiClient.get.mockResolvedValueOnce({ data: { items: [] } });
+
+    await expect(productTypeService.getProductTypes()).resolves.toEqual({ items: [] });
+
+    expect(apiClient.get).toHaveBeenCalledWith('/product-types/', {
+      params: {},
+    });
+  });
+
   test('creates, updates and deletes product types', async () => {
     apiClient.post.mockResolvedValueOnce({ data: { id: 3 } });
     apiClient.put.mockResolvedValueOnce({ data: { id: 3, friendly_name: 'Atualizado' } });

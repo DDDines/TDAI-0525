@@ -101,4 +101,70 @@ describe('UserMenu', () => {
     await user.click(screen.getByRole('button', { name: /Sair/i }));
     expect(logout).toHaveBeenCalledTimes(1);
   });
+
+  test('renders loading and minimal user states safely', async () => {
+    const user = userEvent.setup();
+
+    useAuth.mockReturnValueOnce({
+      user: {
+        nome_completo: 'Julio',
+        email: '',
+        nome_empresa: '',
+        is_superuser: false,
+        plano: null,
+        avatar_url: 'https://img.example/avatar.png',
+      },
+      logout,
+      isLoading: true,
+    });
+
+    const { unmount } = render(<UserMenu />);
+    expect(screen.getByRole('button', { name: /Carregando/i })).toBeInTheDocument();
+    expect(screen.getByText('...')).toBeInTheDocument();
+
+    unmount();
+    useAuth.mockReturnValue({
+      user: {
+        nome_completo: 'Julio Silva',
+        email: '',
+        nome_empresa: '',
+        is_superuser: false,
+        plano: null,
+        avatar_url: 'https://img.example/avatar.png',
+      },
+      logout,
+      isLoading: false,
+    });
+
+    render(<UserMenu />);
+
+    await user.click(screen.getByRole('button', { name: /Julio Silva/i }));
+    expect(screen.getByAltText(/Avatar de Julio Silva/i)).toBeInTheDocument();
+    expect(screen.getByText('Usuario')).toBeInTheDocument();
+    expect(screen.queryByText(/Plano:/i)).not.toBeInTheDocument();
+    expect(screen.queryByText('CatalogAI')).not.toBeInTheDocument();
+  });
+
+  test('uses a single initial when the user has only one name token', async () => {
+    const user = userEvent.setup();
+
+    useAuth.mockReturnValue({
+      user: {
+        nome_completo: 'Julio',
+        email: '',
+        nome_empresa: '',
+        is_superuser: false,
+        plano: null,
+        avatar_url: '',
+      },
+      logout,
+      isLoading: false,
+    });
+
+    render(<UserMenu />);
+
+    expect(screen.getByText('J')).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: /Julio/i }));
+    expect(screen.getByText('Usuario')).toBeInTheDocument();
+  });
 });

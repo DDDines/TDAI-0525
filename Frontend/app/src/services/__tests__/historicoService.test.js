@@ -34,4 +34,14 @@ describe('historicoService', () => {
       params: { limit: 5 },
     });
   });
+
+  test('uses an empty params object by default', async () => {
+    apiClient.get.mockResolvedValueOnce({ data: { items: [] } });
+
+    await expect(getHistorico()).resolves.toEqual({ items: [] });
+
+    expect(apiClient.get).toHaveBeenCalledWith('/historico/', {
+      params: {},
+    });
+  });
 });

@@ -1,12 +1,22 @@
-import {
+﻿import {
   appendUniqueTimelineEntry,
+  buildWizardResetKey,
+  buildWizardViewModel,
+  cloneFornecedorMapping,
+  extractProductTypeAttributes,
+  extractProductTypesCollection,
   formatCellValue,
-  getPreviewImageSrc,
   formatElapsed,
+  getPreviewImageSrc,
   normalizePayloadStrings,
+  resolveManualMappingPreview,
 } from '../ImportCatalogWizard.helpers.js';
 
 describe('ImportCatalogWizard helpers', () => {
+  afterEach(() => {
+    jest.restoreAllMocks();
+  });
+
   test('formats cell values and preview image sources safely', () => {
     expect(formatCellValue(null)).toBe('');
     expect(formatCellValue(undefined)).toBe('');
@@ -73,5 +83,184 @@ describe('ImportCatalogWizard helpers', () => {
         '[10:00:02] Processamento iniciado',
       ],
     });
+  });
+
+  test('normalizes mapping keys and product type collections safely', () => {
+    const originalMapping = { sku: 'codigo' };
+    const clonedMapping = cloneFornecedorMapping(originalMapping);
+
+    expect(clonedMapping).toEqual({ sku: 'codigo' });
+    expect(clonedMapping).not.toBe(originalMapping);
+    expect(cloneFornecedorMapping(null)).toEqual({});
+
+    expect(buildWizardResetKey(undefined, '')).toBe('none::none');
+    expect(buildWizardResetKey(7, 11)).toBe('7::11');
+
+    expect(extractProductTypesCollection({ items: [{ id: 1 }] })).toEqual([{ id: 1 }]);
+    expect(extractProductTypesCollection([{ id: 2 }])).toEqual([{ id: 2 }]);
+    expect(extractProductTypesCollection({})).toEqual([]);
+
+    expect(extractProductTypeAttributes({ attribute_templates: [{ attribute_key: 'sku' }] })).toEqual([
+      { attribute_key: 'sku' },
+    ]);
+    expect(extractProductTypeAttributes({ attributeTemplates: [{ attribute_key: 'ean' }] })).toEqual([
+      { attribute_key: 'ean' },
+    ]);
+    expect(extractProductTypeAttributes(null)).toEqual([]);
+  });
+
+  test('resolves manual mapping preview from region, preview or manual rows', () => {
+    expect(
+      resolveManualMappingPreview({
+        regionPreview: { headers: ['A'], rows: [{ A: '1' }] },
+        previewData: { headers: ['B'], sampleRows: [{ B: '2' }] },
+        manualMappingRows: [{ C: '3' }],
+        fallbackHeaders: ['fallback'],
+      })
+    ).toEqual({
+      headers: ['A'],
+      rows: [{ A: '1' }],
+    });
+
+    expect(
+      resolveManualMappingPreview({
+        regionPreview: null,
+        previewData: { headers: ['B'], sampleRows: [{ B: '2' }] },
+        manualMappingRows: [{ C: '3' }],
+        fallbackHeaders: ['fallback'],
+      })
+    ).toEqual({
+      headers: ['B'],
+      rows: [{ B: '2' }],
+    });
+
+    expect(
+      resolveManualMappingPreview({
+        regionPreview: null,
+        previewData: null,
+        manualMappingRows: [{ C: '3' }],
+        fallbackHeaders: ['fallback'],
+      })
+    ).toEqual({
+      headers: ['fallback'],
+      rows: [{ C: '3' }],
+    });
+  });
+
+  test('builds a processing view model with partial success and result details', () => {
+    jest.spyOn(Date, 'now').mockReturnValue(90_000);
+
+    expect(
+      buildWizardViewModel({
+        resultData: {
+          stats: {
+            partial_success: false,
+            produtos_criados: 2,
+            produtos_atualizados: 1,
+            erros: 1,
+            descartes_nao_criticos: 4,
+            qualidade_score_medio_aceitas: 91,
+            pages_total: 10,
+          },
+          quarantine_non_critical: [{ id: 1 }, { id: 2 }],
+          output: {
+            headline: 'Relat?rio final',
+            status_label: 'Conclu?do',
+            pages: { progress_pct: 80 },
+          },
+          top_reasons: Array.from({ length: 8 }, (_, index) => ({ reason: `Motivo ${index}`, count: index + 1 })),
+        },
+        statusData: {
+          status: 'DONE',
+          pages_processed: 8,
+          total_pages: 10,
+        },
+        expectedPages: 12,
+        step: 'processing',
+        error: '',
+        processingStartedAt: 30_000,
+        isLoading: false,
+        loadingMessage: '',
+        applyAllPages: true,
+        selectedPageForRegion: 4,
+        startPage: 2,
+        fileId: 55,
+        mapping: { titulo: 'nome_base', codigo: 'sku_original' },
+        productTypeId: '8',
+        selectedFile: new File(['conteudo'], 'catalogo.csv'),
+      })
+    ).toEqual(
+      expect.objectContaining({
+        criticalErrorsCount: 1,
+        hasPartialSuccess: true,
+        pagesProcessed: 8,
+        pagesTotal: 10,
+        progressPct: 80,
+        processingActive: false,
+        waitingFinalResult: false,
+        elapsedSec: 60,
+        etaSec: 15,
+        showLoadingPopup: false,
+        loadingPopupMessage: 'Processando...',
+        selectedScopeLabel: 'todas as páginas do PDF',
+        canStartImport: true,
+        hasPrimaryMapping: true,
+        canStartWithMapping: true,
+        discardedNonCritical: 4,
+        quarantineCount: 2,
+        acceptedQualityAvg: 91,
+        resultOutputHeadline: 'Relatório final',
+        resultOutputLabel: 'Concluído',
+        resultTopReasons: expect.arrayContaining([{ reason: 'Motivo 0', count: 1 }]),
+        formatExt: 'csv',
+      })
+    );
+  });
+
+  test('builds fallback wizard state when no result data exists yet', () => {
+    jest.spyOn(Date, 'now').mockReturnValue(10_000);
+
+    expect(
+      buildWizardViewModel({
+        resultData: null,
+        statusData: null,
+        expectedPages: 6,
+        step: 'processing',
+        error: '',
+        processingStartedAt: null,
+        isLoading: true,
+        loadingMessage: 'Carregando preview...',
+        applyAllPages: false,
+        selectedPageForRegion: null,
+        startPage: 3,
+        fileId: null,
+        mapping: {},
+        productTypeId: '',
+        selectedFile: new File(['conteudo'], 'catalogo.PDF'),
+      })
+    ).toEqual(
+      expect.objectContaining({
+        criticalErrorsCount: 0,
+        hasPartialSuccess: false,
+        pagesProcessed: 0,
+        pagesTotal: 6,
+        progressPct: 0,
+        processingActive: true,
+        waitingFinalResult: false,
+        elapsedSec: 0,
+        etaSec: 0,
+        showLoadingPopup: true,
+        loadingPopupMessage: 'Processando importação do catálogo...',
+        selectedScopeLabel: 'somente página 3',
+        canStartImport: false,
+        hasPrimaryMapping: false,
+        canStartWithMapping: false,
+        quarantineCount: 0,
+        resultOutputHeadline: '',
+        resultOutputLabel: '',
+        resultTopReasons: [],
+        formatExt: 'pdf',
+      })
+    );
   });
 });

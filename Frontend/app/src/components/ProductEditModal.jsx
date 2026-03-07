@@ -17,9 +17,14 @@ import fornecedorService from '../services/fornecedorService';
 import AttributeField from './produtos/shared/AttributeField';
 import { useProductTypes } from '../contexts/ProductTypeContext';
 import {
+  buildInitialDynamicAttributes,
   coerceFormFieldValue,
   extractGeneratedTitles,
-  normalizeDynamicAttrsToTemplateKeys
+  normalizeDynamicAttrsToTemplateKeys,
+  resolveProductFormStage,
+  resolveServiceErrorDetail,
+  resolveShowAiFeatures,
+  sanitizeProdutoData
 } from './ProductEditModal.helpers.js';
 import NewProductTypeModal from './product_types/NewProductTypeModal.jsx';
 import './ProductEditModal.css';
@@ -39,7 +44,7 @@ function ProductEditModal(
 
     const { isAuthenticated: _isAuthenticated } = useAuth();
     const { effectiveMode } = useAppExperience();
-    const showAiFeatures = typeof showAiFeaturesProp === 'boolean' ? showAiFeaturesProp : effectiveMode === 'complete';
+    const showAiFeatures = resolveShowAiFeatures(showAiFeaturesProp, effectiveMode);
 
     const [formData, setFormData] = useState(initialFormData);
     const [activeTab, setActiveTab] = useState('info');
@@ -105,16 +110,7 @@ function ProductEditModal(
     // Define o estágio inicial quando o modal é aberto ou quando o produto muda
     useEffect(() => {
       if (isOpen) {
-        // Se estivermos editando, já vamos direto para o formulário
-        if (product && product.id) {
-          setStage('form');
-        } else if (!formData.fornecedor_id) {
-          setStage('selectFornecedor');
-        } else if (!formData.product_type_id) {
-          setStage('selectType');
-        } else {
-          setStage('form');
-        }
+        setStage(resolveProductFormStage(product, formData.fornecedor_id, formData.product_type_id));
       }
     }, [isOpen, product, formData.fornecedor_id, formData.product_type_id]);
 
@@ -267,20 +263,8 @@ function ProductEditModal(
 
     const initializeAttributesForType = useCallback((typeId) => {
       const selectedType = productTypes.find((pt) => pt.id === parseInt(typeId, 10));
-      if (selectedType && selectedType.attribute_templates) {
-        const initialAttrs = {};
-        selectedType.attribute_templates.
-        filter((tpl) => !BASE_PRODUCT_FIELDS.has(tpl.attribute_key)).
-        forEach((template) => {
-          const typeLower = template.field_type ? template.field_type.toLowerCase() : '';
-          if (template.default_value !== null && template.default_value !== undefined) {
-            initialAttrs[template.attribute_key] = typeLower === 'boolean' ?
-            String(template.default_value).toLowerCase() === 'true' || template.default_value === '1' :
-            template.default_value;
-          } else {
-            initialAttrs[template.attribute_key] = typeLower === 'boolean' ? false : '';
-          }
-        });
+      const initialAttrs = buildInitialDynamicAttributes(selectedType, BASE_PRODUCT_FIELDS);
+      if (initialAttrs) {
         setFormData((prev) => ({ ...prev, dynamic_attributes: initialAttrs }));
       }
     }, [productTypes]);
@@ -299,19 +283,6 @@ function ProductEditModal(
       } else if (newKey) {
         showWarningToast("Atributo com esta chave já existe ou é um campo básico.");
       }
-    };
-
-    // Helper para sanitizar e converter campos numéricos antes de enviar ao backend
-    const sanitizeProdutoData = (data) => {
-      const sanitized = { ...data };
-      sanitized.preco_custo = data.preco_custo !== '' ? parseFloat(data.preco_custo) : null;
-      sanitized.preco_venda = data.preco_venda !== '' ? parseFloat(data.preco_venda) : null;
-      sanitized.preco_promocional = data.preco_promocional !== '' ? parseFloat(data.preco_promocional) : null;
-      sanitized.estoque_disponivel = data.estoque_disponivel !== '' ? parseInt(data.estoque_disponivel, 10) : null;
-      sanitized.peso_gramas = data.peso_gramas !== '' ? parseInt(data.peso_gramas, 10) : null;
-      sanitized.fornecedor_id = data.fornecedor_id !== '' ? parseInt(data.fornecedor_id, 10) : null;
-      sanitized.product_type_id = data.product_type_id !== '' ? parseInt(data.product_type_id, 10) : null;
-      return sanitized;
     };
 
     const handleIaSuggestionToggle = (key) => {
@@ -343,19 +314,6 @@ function ProductEditModal(
     const handleCloseNewTypeModal = () => setIsNewTypeModalOpen(false);
     const handleNewTypeCreated = (newType) => {
       setFormData((prev) => ({ ...prev, product_type_id: newType.id }));
-    };
-
-    const resolveErrorDetail = (err, fallback) => {
-      if (!err) return fallback;
-      if (typeof err?.message === 'string' && err.message.trim()) return err.message;
-      if (typeof err?.detail === 'string' && err.detail.trim()) return err.detail;
-      if (typeof err?.response?.data?.detail === 'string' && err.response.data.detail.trim()) {
-        return err.response.data.detail;
-      }
-      if (typeof err?.response?.data?.msg === 'string' && err.response.data.msg.trim()) {
-        return err.response.data.msg;
-      }
-      return fallback;
     };
 
     const pollEnrichmentUntilTerminal = async (produtoId, runId) => {
@@ -441,7 +399,7 @@ function ProductEditModal(
           }
         })();
       } catch (err) {
-        const errorDetail = resolveErrorDetail(err, "Erro ao iniciar enriquecimento web.");
+        const errorDetail = resolveServiceErrorDetail(err, "Erro ao iniciar enriquecimento web.");
         setError(errorDetail);
         showErrorToast(errorDetail);
       } finally {

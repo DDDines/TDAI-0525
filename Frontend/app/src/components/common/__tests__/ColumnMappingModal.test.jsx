@@ -234,3 +234,36 @@ test('renders product type choices, preview object cells and syncs a new initial
     'sku_original'
   );
 });
+
+test('supports omitted collections and no-op confirm handlers', async () => {
+  const user = userEvent.setup();
+
+  render(<ColumnMappingModal isOpen={true} onClose={() => {}} />);
+
+  expect(screen.getByText(/Colunas mapeadas:/i)).toHaveTextContent('0 de 0');
+
+  await user.click(screen.getByRole('button', { name: /Confirmar mapeamento/i }));
+  await user.click(screen.getByRole('button', { name: /Limpar mapeamento/i }));
+
+  expect(screen.getByText(/Dica:/i)).toBeInTheDocument();
+});
+
+test('uses fallback product type labels when friendly fields are missing', () => {
+  render(
+    <ColumnMappingModal
+      isOpen={true}
+      onClose={() => {}}
+      headers={['Coluna A']}
+      rows={[]}
+      fieldOptions={[]}
+      productTypes={[
+        { id: 7, slug: 'slug-produto' },
+        { id: 8, key_name: 'key-produto' },
+      ]}
+      onConfirm={() => {}}
+    />
+  );
+
+  expect(screen.getByRole('option', { name: 'slug-produto' })).toBeInTheDocument();
+  expect(screen.getByRole('option', { name: 'key-produto' })).toBeInTheDocument();
+});

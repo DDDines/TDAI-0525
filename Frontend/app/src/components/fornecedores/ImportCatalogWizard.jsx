@@ -11,10 +11,16 @@ import { normalizeDisplayText } from '../../utils/textNormalization';
 import { extractErrorMessage } from '../../utils/errorDetails';
 import {
   appendUniqueTimelineEntry,
+  buildWizardResetKey,
+  buildWizardViewModel,
+  cloneFornecedorMapping,
+  extractProductTypeAttributes,
+  extractProductTypesCollection,
   formatCellValue,
   getPreviewImageSrc,
   formatElapsed,
   normalizePayloadStrings,
+  resolveManualMappingPreview,
 } from './ImportCatalogWizard.helpers.js';
 import LoadingPopup from '../common/LoadingPopup';
 import ColumnMappingModal from '../common/ColumnMappingModal.jsx';
@@ -31,7 +37,7 @@ function ImportCatalogWizard(
 
   { fornecedor, productTypeId: initialProductTypeId, onClose, isOpen }) {
     const defaultFornecedorMapping = useMemo(
-      () => ({ ...(fornecedor?.default_column_mapping || {}) }),
+      () => cloneFornecedorMapping(fornecedor?.default_column_mapping),
       [fornecedor?.default_column_mapping]
     );
 
@@ -89,7 +95,7 @@ function ImportCatalogWizard(
         openResetKeyRef.current = null;
         return;
       }
-      const resetKey = `${fornecedor?.id || 'none'}::${initialProductTypeId || 'none'}`;
+      const resetKey = buildWizardResetKey(fornecedor?.id, initialProductTypeId);
       if (openResetKeyRef.current === resetKey) return;
       openResetKeyRef.current = resetKey;
 
@@ -128,7 +134,7 @@ function ImportCatalogWizard(
       const loadProductTypes = async () => {
         try {
           const data = await productTypeService.getProductTypes({ limit: 100 });
-          setProductTypes(data.items || data || []);
+          setProductTypes(extractProductTypesCollection(data));
         } catch (err) {
           console.error('Erro ao carregar tipos de produto:', err);
           setProductTypes([]);
@@ -156,7 +162,7 @@ function ImportCatalogWizard(
         }
         try {
           const details = await productTypeService.getProductTypeDetails(productTypeId);
-          const attrs = details?.attribute_templates || details?.attributeTemplates || [];
+          const attrs = extractProductTypeAttributes(details);
           const attrOptions = attrs.map((a) => ({
             value: `attr:${a.attribute_key}`,
             label: `Atributo: ${a.label || a.attribute_key}`
@@ -557,66 +563,53 @@ function ImportCatalogWizard(
 
     if (!isOpen) return null;
 
-    const mappedHeaders = regionPreview?.headers || previewData?.headers || FALLBACK_HEADERS;
-    const mappedRows = Array.isArray(regionPreview?.rows) ?
-    regionPreview.rows :
-    Array.isArray(previewData?.sampleRows) ?
-    previewData.sampleRows :
-    Array.isArray(manualMappingRows) ?
-    manualMappingRows :
-    [];
-
-    const criticalErrorsCount = resultData?.stats?.erros ?? (resultData?.errors?.length || 0);
-    const hasPartialSuccess = Boolean(resultData?.stats?.partial_success) ||
-    (resultData?.stats?.produtos_criados ?? 0) + (resultData?.stats?.produtos_atualizados ?? 0) > 0 &&
-    criticalErrorsCount > 0;
-
-
-    const pagesProcessed = statusData?.pages_processed ?? resultData?.stats?.pages_processed ?? 0;
-    const pagesTotal =
-    statusData?.total_pages ??
-    statusData?.pages_total ??
-    resultData?.stats?.pages_total ??
-    expectedPages ??
-    0;
-    const progressPct = pagesTotal > 0 ? Math.min(100, Math.round(pagesProcessed / pagesTotal * 100)) : 0;
-    const terminalStatuses = new Set(['IMPORTED', 'DONE', 'FAILED', 'PARTIAL']);
-    const statusNormalized = String(statusData?.status || '').trim().toUpperCase();
-    const isTerminalStatus = terminalStatuses.has(statusNormalized);
-    const processingActive = !statusData || !isTerminalStatus;
-    const waitingFinalResult = step === 'processing' && isTerminalStatus && !resultData && !error;
-    const elapsedSec = processingStartedAt ? Math.max(0, Math.floor((Date.now() - processingStartedAt) / 1000)) : 0;
-    const etaSec = pagesProcessed > 0 && pagesTotal > pagesProcessed ?
-    Math.max(0, Math.round((elapsedSec / pagesProcessed) * (pagesTotal - pagesProcessed))) :
-    0;
-    const showLoadingPopup = isLoading || step === 'processing' && !error && (processingActive || waitingFinalResult);
-    const loadingPopupMessage =
-    step === 'processing' && processingActive ?
-    'Processando importação do catálogo...' :
-    step === 'processing' && waitingFinalResult ?
-    'Aguardando consolidação do resultado final...' :
-    loadingMessage || 'Processando...';
+    const { headers: mappedHeaders, rows: mappedRows } = resolveManualMappingPreview({
+      regionPreview,
+      previewData,
+      manualMappingRows,
+      fallbackHeaders: FALLBACK_HEADERS,
+    });
     const currentStepIndex = Math.max(0, STEP_FLOW.indexOf(step));
-    const selectedScopeLabel = applyAllPages ?
-    'todas as páginas do PDF' :
-    `somente página ${selectedPageForRegion || startPage}`;
-    const canStartImport = Boolean(fileId && productTypeId) && !isLoading;
-    const hasPrimaryMapping = Object.values(mapping || {}).some((dest) =>
-    ['auto:sku_nome', 'nome_base', 'sku_original'].includes(dest)
-    );
-    const canStartWithMapping = canStartImport && hasPrimaryMapping;
-    const discardedNonCritical = resultData?.stats?.descartes_nao_criticos ?? 0;
-    const quarantineCount =
-    resultData?.stats?.quarentena_nao_critica ?? (resultData?.quarantine_non_critical?.length || 0);
-    const acceptedQualityAvg = resultData?.stats?.qualidade_score_medio_aceitas;
-    const quarantineQualityAvg = resultData?.stats?.qualidade_score_medio_quarentena;
-    const resultOutput = resultData?.output && typeof resultData.output === 'object' ? resultData.output : {};
-    const resultOutputHeadline = normalizeDisplayText(resultOutput?.headline || '');
-    const resultOutputLabel = normalizeDisplayText(resultOutput?.status_label || '');
-    const resultOutputPages = resultOutput?.pages && typeof resultOutput.pages === 'object' ? resultOutput.pages : {};
-    const resultTopReasons = Array.isArray(resultData?.top_reasons) ?
-    resultData.top_reasons.slice(0, 5) :
-    [];
+    const {
+      acceptedQualityAvg,
+      canStartWithMapping,
+      criticalErrorsCount,
+      discardedNonCritical,
+      elapsedSec,
+      etaSec,
+      hasPartialSuccess,
+      hasPrimaryMapping,
+      loadingPopupMessage,
+      pagesProcessed,
+      pagesTotal,
+      processingActive,
+      progressPct,
+      quarantineCount,
+      quarantineQualityAvg,
+      resultOutputHeadline,
+      resultOutputLabel,
+      resultOutputPages,
+      resultTopReasons,
+      selectedScopeLabel,
+      showLoadingPopup,
+      formatExt,
+    } = buildWizardViewModel({
+      resultData,
+      statusData,
+      expectedPages,
+      step,
+      error,
+      processingStartedAt,
+      isLoading,
+      loadingMessage,
+      applyAllPages,
+      selectedPageForRegion,
+      startPage,
+      fileId,
+      mapping,
+      productTypeId,
+      selectedFile,
+    });
 
     return (
       <div className="wizard-container" aria-live="polite">
@@ -990,7 +983,7 @@ function ImportCatalogWizard(
                   {typeof resultOutputPages?.progress_pct === 'number' &&
               <li>Progresso final: {resultOutputPages.progress_pct}%</li>
               }
-                  <li>Formato: {resultData?.stats?.ext || selectedFile?.name?.split('.').pop()?.toLowerCase() || '-'}</li>
+                  <li>Formato: {formatExt}</li>
                   {acceptedQualityAvg != null &&
               <li>Qualidade média (aceitos): {acceptedQualityAvg}</li>
               }

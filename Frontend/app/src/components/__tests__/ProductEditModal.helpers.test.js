@@ -1,7 +1,12 @@
 import {
+  buildInitialDynamicAttributes,
   coerceFormFieldValue,
   extractGeneratedTitles,
   normalizeDynamicAttrsToTemplateKeys,
+  resolveProductFormStage,
+  resolveServiceErrorDetail,
+  resolveShowAiFeatures,
+  sanitizeProdutoData,
 } from '../ProductEditModal.helpers.js';
 
 describe('ProductEditModal helpers', () => {
@@ -68,5 +73,70 @@ describe('ProductEditModal helpers', () => {
   test('coerceFormFieldValue keeps checkbox and plain values stable', () => {
     expect(coerceFormFieldValue('ativo_marketplace', 'ignored', 'checkbox', false)).toBe(false);
     expect(coerceFormFieldValue('nome_base', 'Produto X', 'text', true)).toBe('Produto X');
+  });
+
+  test('resolves ai mode, stage and dynamic template defaults', () => {
+    expect(resolveShowAiFeatures(true, 'basic')).toBe(true);
+    expect(resolveShowAiFeatures(undefined, 'complete')).toBe(true);
+    expect(resolveShowAiFeatures(undefined, 'basic')).toBe(false);
+
+    expect(resolveProductFormStage({ id: 10 }, '', '')).toBe('form');
+    expect(resolveProductFormStage(null, '', '')).toBe('selectFornecedor');
+    expect(resolveProductFormStage(null, 1, '')).toBe('selectType');
+    expect(resolveProductFormStage(null, 1, 2)).toBe('form');
+
+    expect(
+      buildInitialDynamicAttributes(
+        {
+          attribute_templates: [
+            { attribute_key: 'titulo_auto', field_type: 'text', default_value: 'Padrao' },
+            { attribute_key: 'ativo_marketplace', field_type: 'boolean', default_value: '1' },
+            { attribute_key: 'manual', field_type: 'boolean', default_value: null },
+          ],
+        },
+        new Set(['ativo_marketplace'])
+      )
+    ).toEqual({
+      titulo_auto: 'Padrao',
+      manual: false,
+    });
+
+    expect(buildInitialDynamicAttributes(null, new Set())).toBeNull();
+  });
+
+  test('sanitizes numeric fields and resolves service errors by priority', () => {
+    expect(
+      sanitizeProdutoData({
+        preco_custo: '10.5',
+        preco_venda: '',
+        preco_promocional: '8.9',
+        estoque_disponivel: '3',
+        peso_gramas: '',
+        fornecedor_id: '12',
+        product_type_id: '',
+      })
+    ).toEqual(
+      expect.objectContaining({
+        preco_custo: 10.5,
+        preco_venda: null,
+        preco_promocional: 8.9,
+        estoque_disponivel: 3,
+        peso_gramas: null,
+        fornecedor_id: 12,
+        product_type_id: null,
+      })
+    );
+
+    expect(resolveServiceErrorDetail({ message: 'mensagem direta' }, 'fallback')).toBe(
+      'mensagem direta'
+    );
+    expect(resolveServiceErrorDetail({ detail: 'detalhe' }, 'fallback')).toBe('detalhe');
+    expect(
+      resolveServiceErrorDetail({ response: { data: { detail: 'backend detail' } } }, 'fallback')
+    ).toBe('backend detail');
+    expect(
+      resolveServiceErrorDetail({ response: { data: { msg: 'backend msg' } } }, 'fallback')
+    ).toBe('backend msg');
+    expect(resolveServiceErrorDetail(null, 'fallback')).toBe('fallback');
   });
 });

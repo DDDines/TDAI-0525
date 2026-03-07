@@ -34,4 +34,14 @@ describe('searchService', () => {
       params: {},
     });
   });
+
+  test('treats undefined terms as an empty search', async () => {
+    apiClient.get.mockResolvedValueOnce({ data: { items: [] } });
+
+    await expect(searchService.searchAll()).resolves.toEqual({ items: [] });
+
+    expect(apiClient.get).toHaveBeenCalledWith('/search/', {
+      params: {},
+    });
+  });
 });
