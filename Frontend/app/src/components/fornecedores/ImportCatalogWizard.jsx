@@ -7,6 +7,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import * as fornecedorService from '../../services/fornecedorService';
 import productTypeService from '../../services/productTypeService';
+import { normalizeDisplayText } from '../../utils/textNormalization';
 import LoadingPopup from '../common/LoadingPopup';
 import ColumnMappingModal from '../common/ColumnMappingModal.jsx';
 import PdfRegionSelector from '../common/PdfRegionSelector.jsx';
@@ -55,79 +56,6 @@ function formatElapsed(seconds) {
   const remainingSeconds = seconds % 60;
   return `${minutes}m ${remainingSeconds}s`;
 }
-
-function normalizeDisplayText(
-
-  value) {
-    if (value === null || value === undefined) return '';
-    let text = String(value);
-    const markerCount = (candidate) => (candidate.match(/[\u00c3\u00c2\u00e2\u0192\ufffd]/g) || []).length;
-    const hasMarkers = (candidate) => markerCount(candidate) > 0 || /[?]{2,}/.test(candidate);
-    const decodeMaybe = (candidate, source) => {
-      try {
-        return new TextDecoder('utf-8', { fatal: false }).decode(
-          Uint8Array.from(Array.from(candidate).map((ch) => ch.charCodeAt(0) & 0xff))
-        );
-      } catch {
-        return source;
-      }
-    };
-
-    for (let i = 0; i < 5 && hasMarkers(text); i += 1) {
-      let improved = text;
-      const decoded = decodeMaybe(text, text);
-      if (decoded && decoded !== text && markerCount(decoded) <= markerCount(improved)) {
-        improved = decoded;
-      }
-      if (improved === text) break;
-      text = improved;
-    }
-
-    text = text.replaceAll('ÃƒÆ’Ã‚', 'Ãƒ').replaceAll('Ã‚', '');
-
-    const replacements = [
-    ['n??o', 'n\u00e3o'],
-    ['n?o', 'n\u00e3o'],
-    ['n\u00c3\u00a3o', 'n\u00e3o'],
-    ['p??gina', 'p\u00e1gina'],
-    ['p?gina', 'p\u00e1gina'],
-    ['P??gina', 'P\u00e1gina'],
-    ['P?gina', 'P\u00e1gina'],
-    ['P\u00c3\u00a1gina', 'P\u00e1gina'],
-    ['p\u00c3\u00a1gina', 'p\u00e1gina'],
-    ['extra??do', 'extra\u00eddo'],
-    ['extra?do', 'extra\u00eddo'],
-    ['extra??vel', 'extra\u00edvel'],
-    ['extra?vel', 'extra\u00edvel'],
-    ['cat??logo', 'cat\u00e1logo'],
-    ['cat?logo', 'cat\u00e1logo'],
-    ['conte??do', 'conte\u00fado'],
-    ['conte?do', 'conte\u00fado'],
-    ['poss??vel', 'poss\u00edvel'],
-    ['poss?vel', 'poss\u00edvel'],
-    ['cr??tico', 'cr\u00edtico'],
-    ['cr?tico', 'cr\u00edtico'],
-    ['cr??tica', 'cr\u00edtica'],
-    ['cr?tica', 'cr\u00edtica'],
-    ['Importa??o', 'Importa\u00e7\u00e3o'],
-    ['importa??o', 'importa\u00e7\u00e3o'],
-    ['Relat?rio', 'Relat\u00f3rio'],
-    ['relat?rio', 'relat\u00f3rio'],
-    ['n?o cr?ticos', 'n\u00e3o cr\u00edticos'],
-    ['n?o dispon?veis', 'n\u00e3o dispon\u00edveis'],
-    ['pÃƒÆ’Ã‚Â´de', 'p\u00f4de'],
-    ['PÃƒÆ’Ã‚Â¡gina', 'P\u00e1gina'],
-    ['pÃƒÆ’Ã‚Â¡gina', 'p\u00e1gina'],
-    ['extraÃƒÆ’Ã‚Â§ÃƒÆ’Ã‚Â£o', 'extra\u00e7\u00e3o'],
-    ['regiÃƒÆ’Ã‚Â£o', 'regi\u00e3o'],
-    ['nÃƒÆ’Ã‚Â£o', 'n\u00e3o']];
-
-    replacements.forEach(([src, dst]) => {
-      text = text.replaceAll(src, dst);
-    });
-
-    return text.replace(/\s+/g, ' ').trim();
-  }
 
 function normalizePayloadStrings(
 

@@ -711,6 +711,20 @@ describe('ProductEditModal', () => {
     });
   });
 
+  test('uses the generic enrichment start fallback when the backend returns no detail', async () => {
+    productService.iniciarEnriquecimentoWebProduto.mockRejectedValueOnce({});
+
+    renderModal({ product: { id: 10 } });
+
+    await screen.findByLabelText(/Nome Base/i);
+    await user.click(screen.getByRole('button', { name: /Conte/i }));
+    await user.click(screen.getByRole('button', { name: /Enriquecer Web/i }));
+
+    await waitFor(() => {
+      expect(showErrorToast).toHaveBeenCalledWith('Erro ao iniciar enriquecimento web.');
+    });
+  });
+
   test('warns when web enrichment keeps running after the polling window', async () => {
     productService.getProdutoById
       .mockResolvedValueOnce(baseProduct)
@@ -877,6 +891,52 @@ describe('ProductEditModal', () => {
     expect(showInfoToast).toHaveBeenCalledWith(
       'Nenhuma sugestão de atributo específica retornada pela IA (Gemini).'
     );
+  });
+
+  test('hydrates IA suggestions from raw specs and returns to info when AI suggestions are hidden', async () => {
+    productService.getProdutoById.mockResolvedValueOnce({
+      ...baseProduct,
+      dados_brutos_web: {
+        especificacoes_tecnicas_dict: {
+          Potencia: '200W',
+          Voltagem: '220V',
+        },
+      },
+    });
+
+    const { rerender } = render(
+      <ProductEditModal
+        isOpen={true}
+        onClose={onClose}
+        onProductUpdated={onProductUpdated}
+        onOpenContentView={onOpenContentView}
+        product={{ id: 10 }}
+        showAiFeatures={true}
+      />
+    );
+
+    await screen.findByLabelText(/Nome Base/i);
+    await user.click(screen.getByRole('button', { name: /Sugest/i }));
+
+    expect(await screen.findByText(/Potencia:/i)).toBeInTheDocument();
+    expect(screen.getByText(/Voltagem:/i)).toBeInTheDocument();
+    expect(screen.getAllByRole('checkbox')[0]).not.toBeChecked();
+
+    rerender(
+      <ProductEditModal
+        isOpen={true}
+        onClose={onClose}
+        onProductUpdated={onProductUpdated}
+        onOpenContentView={onOpenContentView}
+        product={{ id: 10 }}
+        showAiFeatures={false}
+      />
+    );
+
+    await waitFor(() => {
+      expect(screen.queryByRole('button', { name: /Buscar Sugest/i })).not.toBeInTheDocument();
+    });
+    expect(screen.getByRole('button', { name: /Info Principais/i })).toHaveClass('active');
   });
 
   test('loads Gemini suggestions, warns when none are selected and applies selected values', async () => {

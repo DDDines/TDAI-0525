@@ -9,6 +9,17 @@ import * as pdfjs from 'pdfjs-dist/legacy/build/pdf';
 import pdfWorkerSrc from 'pdfjs-dist/legacy/build/pdf.worker.js?url';
 import './PdfRegionSelector.css';
 
+async function renderPdfPage(pdfDocument, pageNumber, canvasElement) {
+  if (!pdfDocument || !canvasElement) return;
+
+  const page = await pdfDocument.getPage(pageNumber);
+  const viewport = page.getViewport({ scale: 1.5 });
+  const context = canvasElement.getContext('2d');
+  canvasElement.width = viewport.width;
+  canvasElement.height = viewport.height;
+  await page.render({ canvasContext: context, viewport }).promise;
+}
+
 function PdfRegionSelector(
 
 
@@ -44,33 +55,32 @@ function PdfRegionSelector(
       let cancelled = false;
 
       const load = async () => {
-        if (!file) return;
+        if (!file) {
+          setLoading(false);
+          return;
+        }
         setLoading(true);
         setError(null);
         try {
           task = pdfjs.getDocument({ data: file });
           doc = await task.promise;
+          if (cancelled) {
+            await doc.destroy();
+            return;
+          }
+          if (pdfDocumentRef.current) {
+            await pdfDocumentRef.current.destroy();
+          }
+          pdfDocumentRef.current = doc;
+          await renderPdfPage(doc, pageNum, canvasRef.current);
         } catch (err) {
           if (!cancelled && onLoadError) onLoadError(err);
           if (!cancelled) setError('Falha ao carregar PDF');
-          return;
+        } finally {
+          if (!cancelled) {
+            setLoading(false);
+          }
         }
-        if (cancelled) {
-          doc.destroy();
-          return;
-        }
-        if (pdfDocumentRef.current) {
-          await pdfDocumentRef.current.destroy();
-        }
-        pdfDocumentRef.current = doc;
-        const page = await doc.getPage(pageNum);
-        const viewport = page.getViewport({ scale: 1.5 });
-        const canvas = canvasRef.current;
-        const ctx = canvas.getContext('2d');
-        canvas.width = viewport.width;
-        canvas.height = viewport.height;
-        await page.render({ canvasContext: ctx, viewport }).promise;
-        setLoading(false);
       };
 
       load();
@@ -78,24 +88,20 @@ function PdfRegionSelector(
       return () => {
         cancelled = true;
         if (task) task.destroy();
-        if (doc) doc.destroy();
+        if (doc) {
+          void doc.destroy();
+        }
         pdfDocumentRef.current = null;
       };
-    }, [file, onLoadError, pageNum]);
+    }, [file, onLoadError]);
 
     useEffect(() => {
       const renderPage = async () => {
         const doc = pdfDocumentRef.current;
         if (!doc) return;
-        const page = await doc.getPage(pageNum);
-        const viewport = page.getViewport({ scale: 1.5 });
-        const canvas = canvasRef.current;
-        const ctx = canvas.getContext('2d');
-        canvas.width = viewport.width;
-        canvas.height = viewport.height;
-        await page.render({ canvasContext: ctx, viewport }).promise;
+        await renderPdfPage(doc, pageNum, canvasRef.current);
       };
-      renderPage();
+      void renderPage();
     }, [pageNum]);
 
     const handleMouseDown = (e) => {

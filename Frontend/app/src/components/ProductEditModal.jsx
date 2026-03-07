@@ -11,6 +11,7 @@ import { useAppExperience } from '../contexts/AppExperienceContext';
 import Modal from './common/Modal';
 import LoadingOverlay from './common/LoadingOverlay.jsx';
 import { showSuccessToast, showErrorToast, showInfoToast, showWarningToast } from '../utils/notifications';
+import { normalizeDisplayText } from '../utils/textNormalization';
 import productService from '../services/productService';
 import fornecedorService from '../services/fornecedorService';
 import AttributeField from './produtos/shared/AttributeField';
@@ -31,55 +32,6 @@ function foldText(
       toLowerCase().
       replace(/[^a-z0-9]+/g, ' ').
       trim());}
-
-function normalizeDisplayText(
-
-  value) {
-    if (value === null || value === undefined) return '';
-    let text = String(value);
-    const markerCount = (candidate) => (candidate.match(/[\u00c3\u00c2\u00e2\u0192\ufffd]/g) || []).length;
-    const hasMarkers = (candidate) => markerCount(candidate) > 0 || /[?]{2,}/.test(candidate);
-    const decodeMaybe = (candidate, source) => {
-      try {
-        return new TextDecoder('utf-8', { fatal: false }).decode(
-          Uint8Array.from(Array.from(candidate).map((ch) => ch.charCodeAt(0) & 0xff))
-        );
-      } catch {
-        return source;
-      }
-    };
-
-    for (let i = 0; i < 4 && hasMarkers(text); i += 1) {
-      const decoded = decodeMaybe(text, text);
-      if (!decoded || decoded === text) break;
-      if (markerCount(decoded) <= markerCount(text)) {
-        text = decoded;
-      } else {
-        break;
-      }
-    }
-
-    const replacements = [
-    ['n??o', 'não'],
-    ['N??o', 'Não'],
-    ['p??de', 'pôde'],
-    ['P??gina', 'Página'],
-    ['p??gina', 'página'],
-    ['descri??o', 'descrição'],
-    ['Descri??o', 'Descrição'],
-    ['conte??do', 'conteúdo'],
-    ['extra??o', 'extração'],
-    ['extra??vel', 'extraível'],
-    ['situa??o', 'situação'],
-    ['configura??o', 'configuração'],
-    ['Configura??o', 'Configuração']];
-
-    replacements.forEach(([src, dst]) => {
-      text = text.replaceAll(src, dst);
-    });
-
-    return text.replace(/\s+/g, ' ').trim();
-  }
 
 function isEmptyLike(
 
@@ -161,6 +113,12 @@ function normalizeDynamicAttrsToTemplateKeys(
     return result;
   }
 
+function clearRefreshTimeout(timeoutRef) {
+  if (!timeoutRef.current) return;
+  clearTimeout(timeoutRef.current);
+  timeoutRef.current = null;
+}
+
 function ProductEditModal(
 
   { isOpen, onClose, product, onProductUpdated, showAiFeatures: showAiFeaturesProp, onOpenContentView }) {
@@ -169,7 +127,6 @@ function ProductEditModal(
     const { isAuthenticated: _isAuthenticated } = useAuth();
     const { effectiveMode } = useAppExperience();
     const showAiFeatures = typeof showAiFeaturesProp === 'boolean' ? showAiFeaturesProp : effectiveMode === 'complete';
-    const showGenerationFeatures = true;
 
     const [formData, setFormData] = useState(initialFormData);
     const [activeTab, setActiveTab] = useState('info');
@@ -253,37 +210,21 @@ function ProductEditModal(
       if (!isOpen) {
         enrichmentPollRunRef.current += 1;
         setIsEnrichingWeb(false);
-        if (titleRefreshTimeoutRef.current) {
-          clearTimeout(titleRefreshTimeoutRef.current);
-          titleRefreshTimeoutRef.current = null;
-        }
-        if (descriptionRefreshTimeoutRef.current) {
-          clearTimeout(descriptionRefreshTimeoutRef.current);
-          descriptionRefreshTimeoutRef.current = null;
-        }
+        clearRefreshTimeout(titleRefreshTimeoutRef);
+        clearRefreshTimeout(descriptionRefreshTimeoutRef);
       }
       return () => {
         enrichmentPollRunRef.current += 1;
-        if (titleRefreshTimeoutRef.current) {
-          clearTimeout(titleRefreshTimeoutRef.current);
-          titleRefreshTimeoutRef.current = null;
-        }
-        if (descriptionRefreshTimeoutRef.current) {
-          clearTimeout(descriptionRefreshTimeoutRef.current);
-          descriptionRefreshTimeoutRef.current = null;
-        }
+        clearRefreshTimeout(titleRefreshTimeoutRef);
+        clearRefreshTimeout(descriptionRefreshTimeoutRef);
       };
     }, [isOpen]);
 
     useEffect(() => {
-      if (!showGenerationFeatures && activeTab === 'conteudo-ia') {
-        setActiveTab('info');
-        return;
-      }
       if (!showAiFeatures && activeTab === 'sugestoes-ia') {
         setActiveTab('info');
       }
-    }, [activeTab, showAiFeatures, showGenerationFeatures]);
+    }, [activeTab, showAiFeatures]);
 
     const extractIaSuggestions = useCallback((dadosBrutos) => {
       const extracted = {};
@@ -710,9 +651,7 @@ function ProductEditModal(
           await productService.gerarTitulosProdutoModoBasico(product.id);
           showInfoToast("Títulos gerados no modo básico.");
         }
-        if (titleRefreshTimeoutRef.current) {
-          clearTimeout(titleRefreshTimeoutRef.current);
-        }
+        clearRefreshTimeout(titleRefreshTimeoutRef);
         titleRefreshTimeoutRef.current = setTimeout(() => {
           void (async () => {
             try {
@@ -780,9 +719,7 @@ function ProductEditModal(
           await productService.gerarDescricaoProdutoModoBasico(product.id);
           showInfoToast("Descrição gerada no modo básico.");
         }
-        if (descriptionRefreshTimeoutRef.current) {
-          clearTimeout(descriptionRefreshTimeoutRef.current);
-        }
+        clearRefreshTimeout(descriptionRefreshTimeoutRef);
         descriptionRefreshTimeoutRef.current = setTimeout(() => {
           void (async () => {
             try {
@@ -812,16 +749,6 @@ function ProductEditModal(
       } finally {
         setIsGeneratingIA(false);
       }
-    };
-
-    const _handleCopyToDescriptionOriginal = (generatedText) => {
-      setFormData((prev) => ({ ...prev, descricao_original: generatedText }));
-      showInfoToast("Descrição gerada copiada para o campo original.");
-    };
-
-    const _handleCopyToDescriptionCurtaOriginal = (generatedText) => {
-      setFormData((prev) => ({ ...prev, descricao_curta_orig: generatedText }));
-      showInfoToast("Descrição curta gerada copiada para o campo original.");
     };
 
     const selectedProductType = productTypes.find((type) => type.id === parseInt(formData.product_type_id));
@@ -884,12 +811,9 @@ function ProductEditModal(
                     <button type="button" className={activeTab === 'info' ? 'active' : ''} onClick={() => setActiveTab('info')}>Info Principais</button>
                     <button type="button" className={activeTab === 'atributos' ? 'active' : ''} onClick={() => setActiveTab('atributos')} disabled={!formData.fornecedor_id || !formData.product_type_id}>Atributos</button>
                     <button type="button" className={activeTab === 'midia' ? 'active' : ''} onClick={() => setActiveTab('midia')} disabled={!formData.fornecedor_id || !formData.product_type_id}>Mídia</button>
-                    {showGenerationFeatures &&
-                    <>
-                        <button type="button" className={activeTab === 'conteudo-ia' ? 'active' : ''} onClick={() => setActiveTab('conteudo-ia')} disabled={!formData.fornecedor_id || !formData.product_type_id}>
+                    <button type="button" className={activeTab === 'conteudo-ia' ? 'active' : ''} onClick={() => setActiveTab('conteudo-ia')} disabled={!formData.fornecedor_id || !formData.product_type_id}>
                           {showAiFeatures ? 'Conteúdo IA' : 'Conteúdo'}
                         </button>
-                      </>}
                     {showAiFeatures &&
                     <>
                         <button type="button" className={activeTab === 'sugestoes-ia' ? 'active' : ''} onClick={() => setActiveTab('sugestoes-ia')} disabled={!formData.fornecedor_id || !formData.product_type_id}>Sugestões IA</button>
@@ -977,7 +901,7 @@ function ProductEditModal(
                              </div>
                          </div>
               }
-                    {showGenerationFeatures && activeTab === 'conteudo-ia' &&
+                    {activeTab === 'conteudo-ia' &&
               <div className="form-section">
                             <h3>{showAiFeatures ? 'Conteúdo Gerado por IA' : 'Conteúdo Gerado'}</h3>
                             <button type="button" onClick={handleOpenContentView} disabled={isNewProduct}>
