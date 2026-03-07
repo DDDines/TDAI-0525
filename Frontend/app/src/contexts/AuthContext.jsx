@@ -37,13 +37,9 @@ function AuthProvider({ children }) {
   const setAuthData = useCallback((userData, token) => {
     setUser(userData);
     setIsAuthenticated(true);
-    if (token) {
-      localStorage.setItem('accessToken', token);
-      apiClient.defaults.headers.common.Authorization = `Bearer ${token}`;
-      logger.log('AuthContext: sessão autenticada e header configurado.');
-    } else {
-      logger.warn('AuthContext: setAuthData chamado sem token.');
-    }
+    localStorage.setItem('accessToken', token);
+    apiClient.defaults.headers.common.Authorization = `Bearer ${token}`;
+    logger.log('AuthContext: sessao autenticada e header configurado.');
     setIsLoading(false);
   }, []);
 

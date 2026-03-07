@@ -1,4 +1,4 @@
-﻿import { render, screen, waitFor } from '@testing-library/react';
+﻿import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import '@testing-library/jest-dom';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
@@ -215,6 +215,37 @@ describe('LoginPage', () => {
     expect(googleLink).toHaveAttribute('href', '/api/v1/auth/google/login');
     expect(facebookLink).not.toHaveAttribute('href');
     expect(facebookLink).toHaveClass('disabled');
+  });
+
+  test('prevents clicks for disabled providers and keeps enabled providers navigable', async () => {
+    useAuth.mockReturnValue({
+      login: jest.fn(),
+      isAuthenticated: false,
+      isLoading: false,
+      user: null,
+    });
+    configService.getSocialLoginConfig.mockResolvedValue({
+      google_enabled: false,
+      facebook_enabled: true,
+    });
+
+    render(
+      <MemoryRouter>
+        <LoginPage />
+      </MemoryRouter>
+    );
+
+    const googleLink = (await screen.findByText(/Entrar com Google/i)).closest('a');
+    const facebookLink = screen.getByText(/Entrar com Facebook/i).closest('a');
+
+    await waitFor(() => {
+      expect(facebookLink).toHaveAttribute('href', '/api/v1/auth/facebook/login');
+    });
+
+    const googleClick = fireEvent.click(googleLink);
+
+    expect(googleClick).toBe(false);
+    expect(facebookLink).not.toHaveClass('disabled');
   });
 
   test('logs social config loading failures without blocking the form', async () => {

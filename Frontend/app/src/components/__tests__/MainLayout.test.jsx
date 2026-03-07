@@ -29,8 +29,10 @@ function renderLayout(path) {
     <MemoryRouter initialEntries={[path]}>
       <Routes>
         <Route path="/" element={<MainLayout />}>
+          <Route index element={<div>Dashboard screen</div>} />
           <Route path="historico" element={<div>Historico screen</div>} />
           <Route path="tipos-de-produto" element={<div>Tipos screen</div>} />
+          <Route path="rota-customizada" element={<div>Custom screen</div>} />
         </Route>
       </Routes>
     </MemoryRouter>
@@ -56,5 +58,18 @@ describe('MainLayout', () => {
 
     fireEvent.click(screen.getByText('toggle-sidebar'));
     expect(screen.getByTestId('sidebar-state')).toHaveTextContent('open');
+  });
+
+  test('uses dashboard as the default title and formats unknown routes', () => {
+    const { unmount } = renderLayout('/');
+
+    expect(screen.getByTestId('topbar-title')).toHaveTextContent('Dashboard');
+    expect(screen.getByText('Dashboard screen')).toBeInTheDocument();
+
+    unmount();
+    renderLayout('/rota-customizada');
+
+    expect(screen.getByTestId('topbar-title')).toHaveTextContent('Rota Customizada');
+    expect(screen.getByText('Custom screen')).toBeInTheDocument();
   });
 });

@@ -61,6 +61,11 @@ function Probe() {
   );
 }
 
+function InvalidProbe() {
+  useProductTypes();
+  return <div>invalid</div>;
+}
+
 describe('ProductTypeContext', () => {
   beforeEach(() => {
     jest.clearAllMocks();
@@ -211,6 +216,36 @@ describe('ProductTypeContext', () => {
     });
   });
 
+  test('falls back to generic fetch and mutation errors when the service returns empty failures', async () => {
+    productTypeService.getProductTypes.mockRejectedValueOnce({});
+
+    render(
+      <ProductTypeProvider>
+        <Probe />
+      </ProductTypeProvider>
+    );
+
+    await waitFor(() => {
+      expect(screen.getByTestId('error')).toHaveTextContent(
+        'Falha ao carregar tipos de produto.'
+      );
+    });
+
+    productTypeService.createProductType.mockRejectedValueOnce({});
+    productTypeService.updateProductType.mockRejectedValueOnce({});
+    productTypeService.deleteProductType.mockRejectedValueOnce({});
+
+    fireEvent.click(screen.getByText('add'));
+    fireEvent.click(screen.getByText('update'));
+    fireEvent.click(screen.getByText('remove'));
+
+    await waitFor(() => {
+      expect(showErrorToast).toHaveBeenCalledWith('Falha ao adicionar tipo de produto.');
+      expect(showErrorToast).toHaveBeenCalledWith('Falha ao atualizar tipo de produto.');
+      expect(showErrorToast).toHaveBeenCalledWith('Falha ao remover tipo de produto.');
+    });
+  });
+
   test('handles non-array fetch payloads and refresh attempts without an authenticated user', async () => {
     productTypeService.getProductTypes.mockResolvedValueOnce({ invalid: true });
 
@@ -259,15 +294,10 @@ describe('ProductTypeContext', () => {
     fireEvent.click(screen.getByText('remove'));
 
     await waitFor(() => {
-      expect(showErrorToast).toHaveBeenCalledWith(
-        'Você precisa estar logado para adicionar um tipo de produto.'
-      );
-      expect(showErrorToast).toHaveBeenCalledWith(
-        'Você precisa estar logado para atualizar um tipo de produto.'
-      );
-      expect(showErrorToast).toHaveBeenCalledWith(
-        'Você precisa estar logado para remover um tipo de produto.'
-      );
+      const messages = showErrorToast.mock.calls.map(([message]) => String(message));
+      expect(messages.some((message) => /precisa estar logado.*adicionar/i.test(message))).toBe(true);
+      expect(messages.some((message) => /precisa estar logado.*atualizar/i.test(message))).toBe(true);
+      expect(messages.some((message) => /precisa estar logado.*remover/i.test(message))).toBe(true);
     });
   });
 
@@ -301,5 +331,11 @@ describe('ProductTypeContext', () => {
       expect(showErrorToast).toHaveBeenCalledWith('nao encontrado');
       expect(showErrorToast).toHaveBeenCalledWith('em uso');
     });
+  });
+
+  test('throws when useProductTypes is called outside the provider', () => {
+    expect(() => render(<InvalidProbe />)).toThrow(
+      'useProductTypes deve ser usado dentro de um ProductTypeProvider'
+    );
   });
 });

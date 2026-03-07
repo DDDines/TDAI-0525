@@ -243,4 +243,51 @@ describe('TiposProdutoPage', () => {
       expect(showErrorToast).toHaveBeenCalledWith('tipo em uso');
     });
   });
+
+  test('warns when an attribute save is attempted after the selected type disappears', async () => {
+    const { rerender } = render(<TiposProdutoPage />);
+
+    fireEvent.click(screen.getByText('Pecas'));
+    fireEvent.click(screen.getByText('+ Novo Atributo'));
+    expect(screen.getByTestId('attribute-modal')).toBeInTheDocument();
+
+    useProductTypes.mockReturnValue({
+      productTypes: [],
+      isLoading: false,
+      error: null,
+      refreshProductTypes,
+      updateProductType,
+    });
+
+    rerender(<TiposProdutoPage />);
+    fireEvent.click(screen.getByText('save-new-attribute'));
+
+    expect(showErrorToast).toHaveBeenCalledWith('Nenhum tipo de produto selecionado.');
+  });
+
+  test('surfaces generic attribute save, delete and reorder failures', async () => {
+    productTypeService.addAttributeToType.mockRejectedValueOnce({});
+    productTypeService.removeAttributeFromType.mockRejectedValueOnce({});
+    productTypeService.reorderAttributeInType.mockRejectedValueOnce({});
+
+    render(<TiposProdutoPage />);
+
+    fireEvent.click(screen.getByText('Pecas'));
+    fireEvent.click(screen.getByText('+ Novo Atributo'));
+    fireEvent.click(screen.getByText('save-new-attribute'));
+
+    await waitFor(() => {
+      expect(showErrorToast).toHaveBeenCalledWith('Falha ao salvar o atributo.');
+    });
+
+    fireEvent.click(screen.getByText('delete-attribute'));
+    await waitFor(() => {
+      expect(showErrorToast).toHaveBeenCalledWith('Falha ao remover o atributo.');
+    });
+
+    fireEvent.click(screen.getByText('reorder-attribute'));
+    await waitFor(() => {
+      expect(showErrorToast).toHaveBeenCalledWith('Falha ao reordenar o atributo.');
+    });
+  });
 });

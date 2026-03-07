@@ -116,6 +116,30 @@ describe('AppExperienceContext', () => {
     expect(localStorage.getItem('catalogai_admin_preview_mode')).toBeNull();
   });
 
+  test('ignores preview toggles for non-admin users and invalid stored preview values', async () => {
+    localStorage.setItem('catalogai_admin_preview_mode', 'modo-invalido');
+    useAuth.mockReturnValue({ user: { is_superuser: false } });
+    configService.getSocialLoginConfig.mockResolvedValue({
+      product_experience_default: 'basic',
+      allow_admin_experience_preview: true,
+    });
+
+    render(
+      <AppExperienceProvider>
+        <Probe />
+      </AppExperienceProvider>
+    );
+
+    await waitFor(() => {
+      expect(screen.getByTestId('loading')).toHaveTextContent('false');
+    });
+
+    fireEvent.click(screen.getByText('preview-complete'));
+
+    expect(screen.getByTestId('admin-preview')).toHaveTextContent('null');
+    expect(localStorage.getItem('catalogai_admin_preview_mode')).toBeNull();
+  });
+
   test('falls back to safe defaults when config loading fails', async () => {
     configService.getSocialLoginConfig.mockRejectedValueOnce(new Error('offline'));
 

@@ -2,6 +2,11 @@ import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import '@testing-library/jest-dom';
 import userEvent from '@testing-library/user-event';
 import ProductEditModal from '../ProductEditModal.jsx';
+import {
+  coerceFormFieldValue,
+  extractGeneratedTitles,
+  normalizeDynamicAttrsToTemplateKeys,
+} from '../ProductEditModal.helpers.js';
 import productService from '../../services/productService';
 import fornecedorService from '../../services/fornecedorService';
 import { useProductTypes } from '../../contexts/ProductTypeContext';
@@ -123,6 +128,16 @@ function flushAsync() {
   });
 }
 
+function createDeferred() {
+  let resolve;
+  let reject;
+  const promise = new Promise((res, rej) => {
+    resolve = res;
+    reject = rej;
+  });
+  return { promise, resolve, reject };
+}
+
 async function advance(ms) {
   await act(async () => {
     jest.advanceTimersByTime(ms);
@@ -133,6 +148,88 @@ async function advance(ms) {
 async function waitForFornecedorOptions() {
   await screen.findByRole('option', { name: 'Fornecedor 1' });
 }
+
+test('coerceFormFieldValue normalizes comma separated urls, checkboxes and plain values', () => {
+  expect(
+    coerceFormFieldValue(
+      'imagens_secundarias_urls',
+      ' https://a.example , , https://b.example ',
+      'text',
+      false
+    )
+  ).toEqual(['https://a.example', 'https://b.example']);
+  expect(coerceFormFieldValue('ativo_marketplace', 'ignored', 'checkbox', true)).toBe(true);
+  expect(coerceFormFieldValue('nome_base', 'Produto X', 'text', false)).toBe('Produto X');
+});
+
+test('extractGeneratedTitles and normalizeDynamicAttrsToTemplateKeys sanitize helper data', () => {
+  expect(
+    extractGeneratedTitles({
+      titulos_sugeridos: ['Titulo A', 'Titulo B'],
+      dados_brutos_web: { titulos_sugeridos_gerados: ['titulo a', 'Titulo C', ''] },
+    })
+  ).toEqual(['Titulo A', 'Titulo B', 'Titulo C']);
+
+  expect(
+    normalizeDynamicAttrsToTemplateKeys(
+      {
+        Titulo: 'Titulo bruto',
+        Codigo_original: 'REF-100',
+        desc_auto: 'Descricao limpa',
+      },
+      [
+        { attribute_key: 'titulo_auto', label: 'Titulo SEO' },
+        { attribute_key: 'referencia', label: 'Codigo' },
+        { attribute_key: 'descricao_longa', label: 'Descricao' },
+      ]
+    )
+  ).toEqual(
+    expect.objectContaining({
+      titulo_auto: 'Titulo bruto',
+      referencia: 'REF-100',
+      descricao_longa: 'Descricao limpa',
+    })
+  );
+
+  expect(
+    normalizeDynamicAttrsToTemplateKeys(
+      { referencia: 'REF-200', inutil: 'valor' },
+      [
+        { attribute_key: 'referencia', label: 'Codigo' },
+        { attribute_key: null, label: 'Ignorar' },
+      ]
+    )
+  ).toEqual(
+    expect.objectContaining({
+      referencia: 'REF-200',
+      inutil: 'valor',
+    })
+  );
+
+  expect(
+    extractGeneratedTitles({
+      titulos_sugeridos: Array.from({ length: 12 }, (_, index) => `Titulo ${index}`),
+      dados_brutos_web: {},
+    })
+  ).toHaveLength(10);
+
+  expect(
+    normalizeDynamicAttrsToTemplateKeys(
+      {
+        descricao_longa: 'Ja preenchido',
+        descricao_bruta: '   ',
+        codigo_original: '-',
+      },
+      [{ attribute_key: 'descricao_longa', label: '' }]
+    )
+  ).toEqual(
+    expect.objectContaining({
+      descricao_longa: 'Ja preenchido',
+      descricao_bruta: '   ',
+      codigo_original: '-',
+    })
+  );
+});
 
 describe('ProductEditModal', () => {
   const onClose = jest.fn();
@@ -821,6 +918,45 @@ describe('ProductEditModal', () => {
     });
   });
 
+  test('logs unexpected enrichment completion errors without breaking the modal', async () => {
+    productService.getProdutoById
+      .mockResolvedValueOnce(baseProduct)
+      .mockResolvedValueOnce({
+        ...baseProduct,
+        status_enriquecimento_web: 'CONCLUIDO_SUCESSO',
+      });
+    showSuccessToast.mockImplementationOnce(() => {});
+    showSuccessToast.mockImplementationOnce(() => {
+      throw new Error('falha no toast final');
+    });
+
+    render(
+      <ProductEditModal
+        isOpen={true}
+        onClose={onClose}
+        onProductUpdated={onProductUpdated}
+        onOpenContentView={onOpenContentView}
+        product={{ id: 10 }}
+        showAiFeatures={false}
+      />
+    );
+
+    await screen.findByLabelText(/Nome Base/i);
+    await user.click(screen.getByRole('button', { name: /Conte/i }));
+    await user.click(screen.getByRole('button', { name: /Enriquecer Web/i }));
+
+    await waitFor(() => {
+      expect(productService.iniciarEnriquecimentoWebProduto).toHaveBeenCalledWith(10);
+    });
+
+    await flushAsync();
+
+    expect(consoleWarnSpy).toHaveBeenCalledWith(
+      'Falha ao acompanhar status de enriquecimento web:',
+      expect.any(Error)
+    );
+  });
+
   test('clears pending title and description refreshes when the modal closes', async () => {
     const { rerender } = render(
       <ProductEditModal
@@ -1069,5 +1205,226 @@ describe('ProductEditModal', () => {
       'Atributo manual "acabamento_manual" removido.'
     );
     expect(screen.queryByDisplayValue('acabamento_manual')).not.toBeInTheDocument();
+  });
+
+  test('updates manual attribute values and switches between media and info tabs', async () => {
+    renderModal({ product: null });
+
+    await proceedToCreateForm();
+    await user.click(screen.getByRole('button', { name: /Atributos/i }));
+    await user.type(screen.getByPlaceholderText(/Nova chave/i), 'acabamento_manual');
+    await user.click(screen.getByRole('button', { name: /Adicionar Atributo Manual/i }));
+
+    const manualKeyInput = await screen.findByDisplayValue('acabamento_manual');
+    const manualValueInput = manualKeyInput.closest('div').querySelectorAll('input')[1];
+    await user.type(manualValueInput, 'Escovado');
+    expect(screen.getByDisplayValue('Escovado')).toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: /M.dia/i }));
+    const imageInput = screen.getByLabelText(/URL Imagem Principal/i);
+    await user.type(imageInput, 'https://cdn.example/imagem-principal.png');
+    expect(await screen.findByAltText(/Principal/i)).toHaveAttribute(
+      'src',
+      'https://cdn.example/imagem-principal.png'
+    );
+
+    await user.click(screen.getByRole('button', { name: /Info Principais/i }));
+    expect(screen.getByRole('button', { name: /Info Principais/i })).toHaveClass('active');
+  });
+
+  test('ignores a successful late title refresh after the modal closes', async () => {
+    const titleRefresh = createDeferred();
+    productService.getProdutoById
+      .mockResolvedValueOnce(baseProduct)
+      .mockImplementationOnce(() => titleRefresh.promise);
+
+    const { rerender } = render(
+      <ProductEditModal
+        isOpen={true}
+        onClose={onClose}
+        onProductUpdated={onProductUpdated}
+        onOpenContentView={onOpenContentView}
+        product={{ id: 10 }}
+        showAiFeatures={false}
+      />
+    );
+
+    await screen.findByLabelText(/Nome Base/i);
+    await user.click(screen.getByRole('button', { name: /Conte/i }));
+    await user.click(screen.getByRole('button', { name: /Gerar T/i }));
+    await waitFor(() => {
+      expect(productService.gerarTitulosProdutoModoBasico).toHaveBeenCalledWith(10);
+    });
+    await advance(7000);
+
+    rerender(
+      <ProductEditModal
+        isOpen={false}
+        onClose={onClose}
+        onProductUpdated={onProductUpdated}
+        onOpenContentView={onOpenContentView}
+        product={{ id: 10 }}
+        showAiFeatures={false}
+      />
+    );
+
+    await act(async () => {
+      titleRefresh.resolve({
+        ...baseProduct,
+        titulos_sugeridos: ['Titulo tardio'],
+      });
+      await Promise.resolve();
+    });
+
+    expect(onProductUpdated).not.toHaveBeenCalledWith(
+      expect.objectContaining({ titulos_sugeridos: ['Titulo tardio'] })
+    );
+    expect(showErrorToast).not.toHaveBeenCalledWith(
+      'Nao foi possivel atualizar os titulos gerados.'
+    );
+  });
+
+  test('ignores a failed late title refresh after the modal closes', async () => {
+    const titleRefresh = createDeferred();
+    productService.getProdutoById
+      .mockResolvedValueOnce(baseProduct)
+      .mockImplementationOnce(() => titleRefresh.promise);
+
+    const { rerender } = render(
+      <ProductEditModal
+        isOpen={true}
+        onClose={onClose}
+        onProductUpdated={onProductUpdated}
+        onOpenContentView={onOpenContentView}
+        product={{ id: 10 }}
+        showAiFeatures={false}
+      />
+    );
+
+    await screen.findByLabelText(/Nome Base/i);
+    await user.click(screen.getByRole('button', { name: /Conte/i }));
+    await user.click(screen.getByRole('button', { name: /Gerar T/i }));
+    await waitFor(() => {
+      expect(productService.gerarTitulosProdutoModoBasico).toHaveBeenCalledWith(10);
+    });
+    await advance(7000);
+
+    rerender(
+      <ProductEditModal
+        isOpen={false}
+        onClose={onClose}
+        onProductUpdated={onProductUpdated}
+        onOpenContentView={onOpenContentView}
+        product={{ id: 10 }}
+        showAiFeatures={false}
+      />
+    );
+
+    await act(async () => {
+      titleRefresh.reject(new Error('falha tardia titulos'));
+      await Promise.resolve();
+    });
+
+    expect(showErrorToast).not.toHaveBeenCalledWith(
+      'Nao foi possivel atualizar os titulos gerados.'
+    );
+  });
+
+  test('ignores a successful late description refresh after the modal closes', async () => {
+    const descriptionRefresh = createDeferred();
+    productService.getProdutoById
+      .mockResolvedValueOnce(baseProduct)
+      .mockImplementationOnce(() => descriptionRefresh.promise);
+
+    const { rerender } = render(
+      <ProductEditModal
+        isOpen={true}
+        onClose={onClose}
+        onProductUpdated={onProductUpdated}
+        onOpenContentView={onOpenContentView}
+        product={{ id: 10 }}
+        showAiFeatures={false}
+      />
+    );
+
+    await screen.findByLabelText(/Nome Base/i);
+    await user.click(screen.getByRole('button', { name: /Conte/i }));
+    await user.click(screen.getByRole('button', { name: /Gerar Descri/i }));
+    await waitFor(() => {
+      expect(productService.gerarDescricaoProdutoModoBasico).toHaveBeenCalledWith(10);
+    });
+    await advance(7000);
+
+    rerender(
+      <ProductEditModal
+        isOpen={false}
+        onClose={onClose}
+        onProductUpdated={onProductUpdated}
+        onOpenContentView={onOpenContentView}
+        product={{ id: 10 }}
+        showAiFeatures={false}
+      />
+    );
+
+    await act(async () => {
+      descriptionRefresh.resolve({
+        ...baseProduct,
+        descricao_chat_api: 'Descricao tardia',
+      });
+      await Promise.resolve();
+    });
+
+    expect(onProductUpdated).not.toHaveBeenCalledWith(
+      expect.objectContaining({ descricao_chat_api: 'Descricao tardia' })
+    );
+    expect(showErrorToast).not.toHaveBeenCalledWith(
+      'Nao foi possivel atualizar a descricao gerada.'
+    );
+  });
+
+  test('ignores a failed late description refresh after the modal closes', async () => {
+    const descriptionRefresh = createDeferred();
+    productService.getProdutoById
+      .mockResolvedValueOnce(baseProduct)
+      .mockImplementationOnce(() => descriptionRefresh.promise);
+
+    const { rerender } = render(
+      <ProductEditModal
+        isOpen={true}
+        onClose={onClose}
+        onProductUpdated={onProductUpdated}
+        onOpenContentView={onOpenContentView}
+        product={{ id: 10 }}
+        showAiFeatures={false}
+      />
+    );
+
+    await screen.findByLabelText(/Nome Base/i);
+    await user.click(screen.getByRole('button', { name: /Conte/i }));
+    await user.click(screen.getByRole('button', { name: /Gerar Descri/i }));
+    await waitFor(() => {
+      expect(productService.gerarDescricaoProdutoModoBasico).toHaveBeenCalledWith(10);
+    });
+    await advance(7000);
+
+    rerender(
+      <ProductEditModal
+        isOpen={false}
+        onClose={onClose}
+        onProductUpdated={onProductUpdated}
+        onOpenContentView={onOpenContentView}
+        product={{ id: 10 }}
+        showAiFeatures={false}
+      />
+    );
+
+    await act(async () => {
+      descriptionRefresh.reject(new Error('falha tardia descricao'));
+      await Promise.resolve();
+    });
+
+    expect(showErrorToast).not.toHaveBeenCalledWith(
+      'Nao foi possivel atualizar a descricao gerada.'
+    );
   });
 });

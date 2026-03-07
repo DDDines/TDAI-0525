@@ -39,6 +39,19 @@ describe('adminService', () => {
     );
   });
 
+  test('rethrows backend payloads for total counts and recent history', async () => {
+    apiClient.get
+      .mockRejectedValueOnce({ response: { data: { detail: 'counts indisponivel' } } })
+      .mockRejectedValueOnce({ response: { data: { detail: 'historico indisponivel' } } });
+
+    await expect(adminService.getTotalCounts()).rejects.toEqual({
+      detail: 'counts indisponivel',
+    });
+    await expect(adminService.getRecentHistorico()).rejects.toEqual({
+      detail: 'historico indisponivel',
+    });
+  });
+
   test('rethrows backend payload for status counts and recent activities', async () => {
     apiClient.get
       .mockRejectedValueOnce({ response: { data: { detail: 'status indisponivel' } } })
@@ -53,6 +66,19 @@ describe('adminService', () => {
 
     expect(apiClient.get).toHaveBeenNthCalledWith(1, '/admin/analytics/product-status-counts');
     expect(apiClient.get).toHaveBeenNthCalledWith(2, '/admin/analytics/recent-activities');
+  });
+
+  test('falls back to generic errors for status counts and recent activities without backend payloads', async () => {
+    apiClient.get
+      .mockRejectedValueOnce(new Error('status timeout'))
+      .mockRejectedValueOnce(new Error('activity timeout'));
+
+    await expect(adminService.getProductStatusCounts()).rejects.toThrow(
+      'Falha ao buscar contagem de status dos produtos.'
+    );
+    await expect(adminService.getRecentActivities()).rejects.toThrow(
+      'Falha ao buscar atividades recentes.'
+    );
   });
 
   test('gets recent history with the provided limit and falls back on missing payloads', async () => {

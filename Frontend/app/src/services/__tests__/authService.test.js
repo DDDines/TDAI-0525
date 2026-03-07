@@ -91,6 +91,16 @@ describe('authService', () => {
     expect(logger.warn).toHaveBeenCalled();
   });
 
+  test('login trims backend validation details on non-auth errors', async () => {
+    apiClient.post.mockRejectedValueOnce({
+      response: { status: 400, data: { detail: '  detalhe validado  ' } },
+    });
+
+    await expect(authService.login('admin@example.com', 'secret')).rejects.toThrow(
+      'detalhe validado'
+    );
+  });
+
   test('getCurrentUser returns current user data', async () => {
     apiClient.get.mockResolvedValue({ data: { id: 7, email: 'admin@example.com' } });
 
@@ -189,6 +199,23 @@ describe('authService', () => {
     expect(showErrorToast).toHaveBeenCalledWith('Senha atual invalida');
   });
 
+  test('update user endpoints fall back to generic messages when there is no backend payload', async () => {
+    apiClient.put
+      .mockRejectedValueOnce(new Error('offline user'))
+      .mockRejectedValueOnce(new Error('offline current user'))
+      .mockRejectedValueOnce(new Error('offline password'));
+
+    await expect(authService.updateUser(11, { nome_completo: 'Admin' })).rejects.toThrow(
+      'Falha ao atualizar perfil.'
+    );
+    await expect(authService.updateCurrentUser({ nome_completo: 'Admin' })).rejects.toThrow(
+      'Falha ao atualizar perfil.'
+    );
+    await expect(
+      authService.changePassword(11, { current_password: 'x', new_password: 'y' })
+    ).rejects.toThrow('Falha ao alterar senha.');
+  });
+
   test('password recovery and reset encode inputs and surface success', async () => {
     apiClient.post
       .mockResolvedValueOnce({ data: { sent: true } })
@@ -229,5 +256,21 @@ describe('authService', () => {
       'Falha ao redefinir senha.'
     );
     expect(showErrorToast).toHaveBeenCalledWith('Falha ao redefinir senha.');
+  });
+
+  test('password recovery and reset cover the opposite error branches as well', async () => {
+    apiClient.post
+      .mockRejectedValueOnce(new Error('offline recovery'))
+      .mockRejectedValueOnce({ response: { data: { detail: 'Token expirado' } } });
+
+    await expect(authService.requestPasswordRecovery('falha@example.com')).rejects.toThrow(
+      'Falha ao solicitar recuperacao de senha.'
+    );
+    expect(showErrorToast).toHaveBeenCalledWith('Falha ao solicitar recuperacao de senha.');
+
+    await expect(authService.resetPassword('token-2', 'outra-senha')).rejects.toEqual({
+      detail: 'Token expirado',
+    });
+    expect(showErrorToast).toHaveBeenCalledWith('Token expirado');
   });
 });

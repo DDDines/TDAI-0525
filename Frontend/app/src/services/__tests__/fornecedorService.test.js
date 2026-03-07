@@ -23,7 +23,7 @@ describe('fornecedorService', () => {
   let consoleErrorSpy;
 
   beforeEach(() => {
-    jest.clearAllMocks();
+    jest.resetAllMocks();
     consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
   });
 
@@ -52,6 +52,14 @@ describe('fornecedorService', () => {
     await expect(fornecedorService.getFornecedores()).rejects.toEqual({ detail: 'backend' });
     await expect(fornecedorService.getFornecedores()).rejects.toThrow(
       'Nenhuma resposta do servidor ao buscar fornecedores.'
+    );
+  });
+
+  test('getFornecedores falls back to a generic configuration error when the failure is empty', async () => {
+    apiClient.get.mockRejectedValueOnce({});
+
+    await expect(fornecedorService.getFornecedores()).rejects.toThrow(
+      /Erro ao configurar requisi.*buscar fornecedores/i
     );
   });
 
@@ -108,6 +116,26 @@ describe('fornecedorService', () => {
     await expect(fornecedorService.deleteFornecedor(4)).rejects.toThrow('config delete');
   });
 
+  test('core fornecedor endpoints rethrow backend payloads when available', async () => {
+    apiClient.get.mockRejectedValueOnce({ response: { data: { detail: 'fornecedor backend' } } });
+    apiClient.post.mockRejectedValueOnce({ response: { data: { detail: 'create backend' } } });
+    apiClient.put.mockRejectedValueOnce({ response: { data: { detail: 'update backend' } } });
+    apiClient.delete.mockRejectedValueOnce({ response: { data: { detail: 'delete backend' } } });
+
+    await expect(fornecedorService.getFornecedorById(4)).rejects.toEqual({
+      detail: 'fornecedor backend',
+    });
+    await expect(fornecedorService.createFornecedor({ nome: 'Novo' })).rejects.toEqual({
+      detail: 'create backend',
+    });
+    await expect(fornecedorService.updateFornecedor(4, { nome: 'Novo' })).rejects.toEqual({
+      detail: 'update backend',
+    });
+    await expect(fornecedorService.deleteFornecedor(4)).rejects.toEqual({
+      detail: 'delete backend',
+    });
+  });
+
   test('setFornecedorMapping saves mapping and falls back to a generic error message', async () => {
     apiClient.put
       .mockResolvedValueOnce({ data: { ok: true } })
@@ -154,6 +182,25 @@ describe('fornecedorService', () => {
       numPages: 6,
       tablePages: [1, 2],
     });
+  });
+
+  test('previewCatalogo omits the optional fornecedor id when not provided', async () => {
+    const file = new File(['conteudo'], 'catalogo.pdf', { type: 'application/pdf' });
+    apiClient.post.mockResolvedValueOnce({
+      data: {
+        file_id: 91,
+        headers: [],
+        sample_rows: [],
+        preview_images: [],
+        num_pages: 1,
+        table_pages: [],
+      },
+    });
+
+    await fornecedorService.previewCatalogo(file, 5, 2);
+
+    const [, formData] = apiClient.post.mock.calls[0];
+    expect(formData.get('fornecedor_id')).toBeNull();
   });
 
   test('previewCatalogo and importCatalogo surface backend and generic failures', async () => {
@@ -235,6 +282,19 @@ describe('fornecedorService', () => {
     await expect(fornecedorService.getImportacaoResult(8)).rejects.toThrow('result timeout');
   });
 
+  test('catalog import maintenance endpoints cover remaining backend and generic branches', async () => {
+    apiClient.get.mockRejectedValueOnce({});
+
+    await expect(fornecedorService.getCatalogImportFiles()).rejects.toThrow(
+      /Erro ao configurar requisi.*arquivos de importa/i
+    );
+
+    apiClient.post.mockRejectedValueOnce({ response: { data: { detail: 'reprocess backend' } } });
+    await expect(fornecedorService.reprocessCatalogFile(8)).rejects.toEqual({
+      detail: 'reprocess backend',
+    });
+  });
+
   test('getImportacaoResult distinguishes between processing and ready states', async () => {
     apiClient.get
       .mockResolvedValueOnce({
@@ -256,6 +316,21 @@ describe('fornecedorService', () => {
       status: 'DONE',
       produtos_criados: 10,
     });
+  });
+
+  test('getImportacaoResult uses the default processing detail when the backend omits it', async () => {
+    apiClient.get.mockResolvedValueOnce({
+      status: 202,
+      data: { status: 'QUEUED' },
+    });
+
+    await expect(fornecedorService.getImportacaoResult(13)).resolves.toEqual(
+      expect.objectContaining({
+        ready: false,
+        status: 'QUEUED',
+        detail: expect.stringMatching(/Resultado final ainda n.o dispon.vel/i),
+      })
+    );
   });
 
   test('getImportacaoResult rethrows backend payload enriched with http status', async () => {
@@ -464,6 +539,95 @@ describe('fornecedorService', () => {
         extraction_mode: 'ocr',
       }
     );
+  });
+
+  test('catalog helpers rethrow backend payloads when the API returns structured errors', async () => {
+    const file = new File(['conteudo'], 'catalogo.pdf', { type: 'application/pdf' });
+
+    apiClient.put
+      .mockRejectedValueOnce({ response: { data: { detail: 'mapping backend' } } });
+    apiClient.post
+      .mockRejectedValueOnce({ response: { data: { detail: 'import backend' } } })
+      .mockRejectedValueOnce({ response: { data: { detail: 'upload backend' } } })
+      .mockRejectedValueOnce({ response: { data: { detail: 'pdf backend' } } })
+      .mockRejectedValueOnce({ response: { data: { detail: 'process backend' } } })
+      .mockRejectedValueOnce({ response: { data: { detail: 'region backend' } } })
+      .mockRejectedValueOnce({ response: { data: { detail: 'bulk backend' } } })
+      .mockRejectedValueOnce({ response: { data: { detail: 'produto backend' } } })
+      .mockRejectedValueOnce({ response: { data: { detail: 'commit backend' } } })
+      .mockRejectedValueOnce({ response: { data: { detail: 'final backend' } } });
+    apiClient.get
+      .mockRejectedValueOnce({ response: { data: { detail: 'files backend' } } })
+      .mockRejectedValueOnce({ response: { data: { detail: 'status backend' } } })
+      .mockRejectedValueOnce({ response: { data: { detail: 'page backend' } } })
+      .mockRejectedValueOnce({ response: { data: { detail: 'progress backend' } } })
+      .mockRejectedValueOnce({ response: { data: { detail: 'review backend' } } });
+    apiClient.delete.mockRejectedValueOnce({ response: { data: { detail: 'delete backend' } } });
+
+    await expect(fornecedorService.setFornecedorMapping(7, {})).rejects.toEqual({
+      detail: 'mapping backend',
+    });
+    await expect(fornecedorService.importCatalogo(9, file)).rejects.toEqual({
+      detail: 'import backend',
+    });
+    await expect(fornecedorService.getCatalogImportFiles()).rejects.toEqual({
+      detail: 'files backend',
+    });
+    await expect(fornecedorService.deleteCatalogFile(8)).rejects.toEqual({
+      detail: 'delete backend',
+    });
+    await expect(fornecedorService.getImportacaoStatus(8)).rejects.toEqual({
+      detail: 'status backend',
+    });
+    await expect(fornecedorService.uploadForPagePreview(file, 3)).rejects.toEqual({
+      detail: 'upload backend',
+    });
+    await expect(fornecedorService.getPdfPreview(file, 3)).rejects.toEqual({
+      detail: 'pdf backend',
+    });
+    await expect(fornecedorService.fetchPageDataForMapping(90, 4)).rejects.toEqual({
+      detail: 'page backend',
+    });
+    await expect(fornecedorService.startFullProcess({ file_id: 90 })).rejects.toEqual({
+      detail: 'process backend',
+    });
+    await expect(fornecedorService.getImportProgress('job-1')).rejects.toEqual({
+      detail: 'progress backend',
+    });
+    await expect(
+      fornecedorService.selecionarRegiao({
+        fileId: 1,
+        pageNumber: 2,
+        bbox: { x: 1, y: 2 },
+      })
+    ).rejects.toEqual({ detail: 'region backend' });
+    await expect(
+      fornecedorService.extractRegionBulk({
+        fileId: 1,
+        bbox: { x: 3, y: 4 },
+      })
+    ).rejects.toEqual({ detail: 'bulk backend' });
+    await expect(
+      fornecedorService.selecionarRegiaoProduto({
+        fileId: 1,
+        pageNumber: 4,
+        bbox: { x: 5, y: 6 },
+      })
+    ).rejects.toEqual({ detail: 'produto backend' });
+    await expect(fornecedorService.getReviewData('job-1')).rejects.toEqual({
+      detail: 'review backend',
+    });
+    await expect(fornecedorService.commitImport('job-1')).rejects.toEqual({
+      detail: 'commit backend',
+    });
+    await expect(
+      fornecedorService.finalizarImportacaoCatalogo({
+        fileId: 44,
+        productTypeId: 7,
+        fornecedorId: 8,
+        extractionMode: 'manual',
+      })
+    ).rejects.toEqual({ detail: 'final backend' });
   });
 
   test('region selection and finalization endpoints surface generic failures', async () => {

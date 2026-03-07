@@ -16,102 +16,15 @@ import productService from '../services/productService';
 import fornecedorService from '../services/fornecedorService';
 import AttributeField from './produtos/shared/AttributeField';
 import { useProductTypes } from '../contexts/ProductTypeContext';
+import {
+  coerceFormFieldValue,
+  extractGeneratedTitles,
+  normalizeDynamicAttrsToTemplateKeys
+} from './ProductEditModal.helpers.js';
 import NewProductTypeModal from './product_types/NewProductTypeModal.jsx';
 import './ProductEditModal.css';
 
 // Campos base que não devem aparecer como atributos dinâmicos
-
-
-function foldText(
-
-
-  value) {return (
-      String(value || '').
-      normalize('NFKD').
-      replace(/[\u0300-\u036f]/g, '').
-      toLowerCase().
-      replace(/[^a-z0-9]+/g, ' ').
-      trim());}
-
-function isEmptyLike(
-
-  value) {
-    if (value === null || value === undefined) return true;
-    const text = String(value).trim();
-    if (!text) return true;
-    const folded = foldText(text);
-    return ['none', 'null', 'nan', 'na', '-', '--'].includes(folded);
-  }
-
-function extractGeneratedTitles(
-
-  prod) {
-    const directTitles = Array.isArray(prod?.titulos_sugeridos) ? prod.titulos_sugeridos : [];
-    const rawTitles = Array.isArray(prod?.dados_brutos_web?.titulos_sugeridos_gerados) ?
-    prod.dados_brutos_web.titulos_sugeridos_gerados :
-    [];
-    const merged = [...directTitles, ...rawTitles].
-    map((item) => String(item || '').trim()).
-    filter(Boolean);
-    const seen = new Set();
-    const unique = [];
-    merged.forEach((item) => {
-      const folded = item.toLowerCase();
-      if (seen.has(folded)) return;
-      seen.add(folded);
-      unique.push(item);
-    });
-    return unique.slice(0, 10);
-  }
-
-function normalizeDynamicAttrsToTemplateKeys(
-
-  dynamicAttrsRaw, attributeTemplates) {
-    const result = { ...(dynamicAttrsRaw || {}) };
-    const entries = Object.entries(dynamicAttrsRaw || {});
-
-    const findAliasValue = (aliases) => {
-      for (const [key, value] of entries) {
-        if (isEmptyLike(value)) continue;
-        const keyNorm = foldText(key);
-        for (const alias of aliases) {
-          const aliasNorm = foldText(alias);
-          if (!aliasNorm) continue;
-          if (keyNorm === aliasNorm || keyNorm.includes(aliasNorm) || aliasNorm.includes(keyNorm)) {
-            return value;
-          }
-        }
-      }
-      return null;
-    };
-
-    (attributeTemplates || []).forEach((tpl) => {
-      const targetKey = tpl?.attribute_key;
-      if (!targetKey) return;
-      if (!isEmptyLike(result[targetKey])) return;
-
-      const label = tpl?.label || targetKey;
-      const labelNorm = foldText(label);
-      const aliases = [label, targetKey];
-
-      if (labelNorm.includes('titulo') || labelNorm.includes('title') || labelNorm.includes('nome')) {
-        aliases.push('titulo', 'title', 'nome');
-      }
-      if (labelNorm === 'id' || labelNorm.includes('codigo') || labelNorm.includes('referencia')) {
-        aliases.push('id', 'codigo_original', 'codigo', 'cod', 'referencia', 'ref');
-      }
-      if (labelNorm.includes('descricao') || labelNorm.includes('desc')) {
-        aliases.push('descricao', 'description', 'desc');
-      }
-
-      const value = findAliasValue(aliases);
-      if (!isEmptyLike(value)) {
-        result[targetKey] = value;
-      }
-    });
-
-    return result;
-  }
 
 function clearRefreshTimeout(timeoutRef) {
   if (!timeoutRef.current) return;
@@ -334,13 +247,11 @@ function ProductEditModal(
         if (value) {
           initializeAttributesForType(value);
         }
-      } else if (name === 'imagens_secundarias_urls') {
-        const urls = value.split(',').map((url) => url.trim()).filter((url) => url);
-        setFormData((prev) => ({ ...prev, [name]: urls }));
-      } else if (type === 'checkbox') {
-        setFormData((prev) => ({ ...prev, [name]: checked }));
       } else {
-        setFormData((prev) => ({ ...prev, [name]: value }));
+        setFormData((prev) => ({
+          ...prev,
+          [name]: coerceFormFieldValue(name, value, type, checked)
+        }));
       }
     };
 
@@ -428,23 +339,6 @@ function ProductEditModal(
       setActiveTab('atributos');
     };
 
-    const handleContinueAfterTypeSelect = () => {
-      if (formData.product_type_id) {
-        initializeAttributesForType(formData.product_type_id);
-        setStage('form');
-      } else {
-        showWarningToast('Selecione um Tipo de Produto para continuar.');
-      }
-    };
-
-    const handleContinueAfterFornecedorSelect = () => {
-      if (formData.fornecedor_id) {
-        setStage(formData.product_type_id ? 'form' : 'selectType');
-      } else {
-        showWarningToast('Selecione um Fornecedor para continuar.');
-      }
-    };
-
     const handleOpenNewTypeModal = () => setIsNewTypeModalOpen(true);
     const handleCloseNewTypeModal = () => setIsNewTypeModalOpen(false);
     const handleNewTypeCreated = (newType) => {
@@ -500,10 +394,6 @@ function ProductEditModal(
 
 
     const _handleEnrichWeb = async () => {
-      if (!product?.id) {
-        showWarningToast("Salve o produto primeiro antes de enriquecer a web.");
-        return;
-      }
       const productId = product.id;
       const runId = Date.now();
       enrichmentPollRunRef.current = runId;
@@ -562,10 +452,6 @@ function ProductEditModal(
 
 
     const handleFetchGeminiSuggestions = async () => {
-      if (!product?.id) {
-        showWarningToast("É preciso salvar o produto antes de buscar sugestões com Gemini.");
-        return;
-      }
       setIsSuggestingGemini(true);
       setError(null);
       showInfoToast("Buscando sugestões de atributos com a IA (Gemini)... Isso pode levar um momento.");
@@ -638,10 +524,6 @@ function ProductEditModal(
     };
 
     const handleGenerateTitles = async () => {
-      if (!product?.id) {
-        showWarningToast("Salve o produto primeiro para gerar títulos.");
-        return;
-      }
       setIsGeneratingIA(true);
       try {
         if (showAiFeatures) {
@@ -689,10 +571,6 @@ function ProductEditModal(
     };
 
     const handleOpenContentView = () => {
-      if (!product?.id) {
-        showWarningToast('Salve o produto primeiro para visualizar o conteúdo gerado.');
-        return;
-      }
       if (typeof onClose === 'function') {
         onClose();
       }
@@ -706,10 +584,6 @@ function ProductEditModal(
     };
 
     const handleGenerateDescription = async () => {
-      if (!product?.id) {
-        showWarningToast("Salve o produto primeiro para gerar descrição.");
-        return;
-      }
       setIsGeneratingIA(true);
       try {
         if (showAiFeatures) {
@@ -776,7 +650,6 @@ function ProductEditModal(
                     </label>
                     <div className="modal-actions" style={{ marginTop: '20px' }}>
                         <button type="button" onClick={onClose} className="btn-secondary">Cancelar</button>
-                        <button type="button" onClick={handleContinueAfterFornecedorSelect} className="btn-primary" disabled={!formData.fornecedor_id}>Continuar</button>
                     </div>
                 </div> :
           stage === 'selectType' ?
@@ -802,7 +675,6 @@ function ProductEditModal(
                     <button type="button" className="btn-small" onClick={handleOpenNewTypeModal} style={{ marginTop: '8px' }}>+ Novo Tipo</button>
                     <div className="modal-actions" style={{ marginTop: '20px' }}>
                         <button type="button" onClick={onClose} className="btn-secondary">Cancelar</button>
-                        <button type="button" onClick={handleContinueAfterTypeSelect} className="btn-primary" disabled={!formData.product_type_id}>Continuar</button>
                     </div>
                 </div> :
 

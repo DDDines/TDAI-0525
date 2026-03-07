@@ -42,6 +42,17 @@ describe('configService', () => {
     expect(apiClient.get).toHaveBeenCalledWith('/auth/social/config');
   });
 
+  test('getSocialLoginConfig falls back to defaults when the backend returns no payload', async () => {
+    apiClient.get.mockResolvedValueOnce({ data: null });
+
+    await expect(configService.getSocialLoginConfig()).resolves.toEqual({
+      google_enabled: false,
+      facebook_enabled: false,
+      product_experience_default: 'basic',
+      allow_admin_experience_preview: true,
+    });
+  });
+
   test('getSocialLoginConfig falls back to default config on failure', async () => {
     apiClient.get.mockRejectedValueOnce(new Error('offline'));
 
