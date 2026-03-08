@@ -16,6 +16,7 @@
     "test:e2e:headed": "playwright test --headed"
   },
   "dependencies": {
+    "@tanstack/react-query": "^5.90.21",
     "axios": "^1.9.0",
     "date-fns": "^4.1.0",
     "dompurify": "^3.2.6",

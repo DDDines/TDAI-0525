@@ -1,5 +1,6 @@
-import { fireEvent, render, screen, waitFor, act } from '@testing-library/react';
+import { fireEvent, screen, waitFor, act } from '@testing-library/react';
 import '@testing-library/jest-dom';
+import { renderWithQueryClient } from '../../../test-utils/renderWithQueryClient.jsx';
 import { MemoryRouter } from 'react-router-dom';
 import ProdutosPage from '../ProdutosPage.jsx';
 import { resolveGenerationHandler } from '../ProdutosPage.helpers.js';
@@ -127,7 +128,7 @@ const baseItems = [
 ];
 
 function renderPage(initialEntries = ['/produtos']) {
-  return render(
+  return renderWithQueryClient(
     <MemoryRouter initialEntries={initialEntries}>
       <ProdutosPage />
     </MemoryRouter>
@@ -783,3 +784,5 @@ describe('ProdutosPage', () => {
     await expect(resolveGenerationHandler('invalido', false, productService)(2558)).resolves.toBeUndefined();
   });
 });
+
+

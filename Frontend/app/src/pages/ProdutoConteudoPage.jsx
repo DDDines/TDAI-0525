@@ -5,10 +5,12 @@
  */
 
 import React, { useEffect, useMemo, useState } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import LoadingOverlay from '../components/common/LoadingOverlay.jsx';
 import productService from '../services/productService';
 import { showErrorToast, showSuccessToast } from '../utils/notifications';
+import { queryKeys } from '../lib/queryKeys.js';
 import './ProdutoConteudoPage.css';
 
 function normalizeText(value) {
@@ -122,126 +124,99 @@ function extractListQueryFromState(stateValue) {
   return sanitized;
 }
 
+async function fetchOrderedProductIds(queryParams) {
+  const allIds = [];
+  const pageLimit = 200;
+  let skip = 0;
+  let attempts = 0;
+
+  while (attempts < 2000) {
+    attempts += 1;
+    const response = await productService.getProdutos({
+      ...queryParams,
+      skip,
+      limit: pageLimit,
+    });
+    const items = Array.isArray(response?.items) ? response.items : [];
+    const pageIds = items
+      .map((item) => Number(item?.id))
+      .filter((id) => Number.isInteger(id) && id > 0);
+    allIds.push(...pageIds);
+
+    if (items.length === 0) {
+      break;
+    }
+
+    skip += items.length;
+    const totalItems = Number(response?.total_items);
+    if (Number.isFinite(totalItems) && totalItems >= 0 && skip >= totalItems) {
+      break;
+    }
+    if (items.length < pageLimit) {
+      break;
+    }
+  }
+
+  return Array.from(new Set(allIds));
+}
+
 function ProdutoConteudoPage() {
   const { produtoId } = useParams();
   const navigate = useNavigate();
   const location = useLocation();
-  const [produto, setProduto] = useState(null);
-  const [loading, setLoading] = useState(true);
+  const queryClient = useQueryClient();
   const [savingFeedback, setSavingFeedback] = useState(false);
   const [feedback, setFeedback] = useState('');
   const [feedbackComment, setFeedbackComment] = useState('');
-  const [orderedProductIds, setOrderedProductIds] = useState([]);
-  const [listQueryFromState, setListQueryFromState] = useState({
-    sort_by: 'id',
-    sort_order: 'asc',
+
+  const idsFromState = useMemo(() => extractOrderedProductIdsFromState(location.state), [location.state]);
+  const listQueryFromState = useMemo(() => extractListQueryFromState(location.state), [location.state]);
+
+  const produtoQuery = useQuery({
+    queryKey: queryKeys.produto(produtoId),
+    queryFn: () => productService.getProdutoById(produtoId),
   });
 
+  const orderedIdsQuery = useQuery({
+    queryKey: queryKeys.orderedProductIds(listQueryFromState),
+    queryFn: () => fetchOrderedProductIds(listQueryFromState),
+    placeholderData: idsFromState,
+  });
+
+  useEffect(() => {
+    if (produtoQuery.error) {
+      showErrorToast(produtoQuery.error?.message || 'Falha ao carregar conteudo do produto.');
+    }
+  }, [produtoQuery.error]);
+
+  const produto = produtoQuery.data;
   const titles = useMemo(() => extractGeneratedTitles(produto), [produto]);
   const description = useMemo(() => extractMainDescription(produto), [produto]);
 
-  const fetchOrderedProductIds = React.useCallback(async (queryParams) => {
-    const allIds = [];
-    const pageLimit = 200;
-    let skip = 0;
-    let attempts = 0;
-
-    while (attempts < 2000) {
-      attempts += 1;
-      const response = await productService.getProdutos({
-        ...queryParams,
-        skip,
-        limit: pageLimit,
-      });
-      const items = Array.isArray(response?.items) ? response.items : [];
-      const pageIds = items
-        .map((item) => Number(item?.id))
-        .filter((id) => Number.isInteger(id) && id > 0);
-      allIds.push(...pageIds);
-
-      if (items.length === 0) {
-        break;
-      }
-
-      skip += items.length;
-      const totalItems = Number(response?.total_items);
-      if (Number.isFinite(totalItems) && totalItems >= 0 && skip >= totalItems) {
-        break;
-      }
-      if (items.length < pageLimit) {
-        break;
-      }
-    }
-
-    return Array.from(new Set(allIds));
-  }, []);
-
   useEffect(() => {
-    let cancelled = false;
-    const idsFromState = extractOrderedProductIdsFromState(location.state);
-    const queryFromState = extractListQueryFromState(location.state);
-    setListQueryFromState(queryFromState);
-    if (idsFromState.length > 0) {
-      setOrderedProductIds(idsFromState);
+    const savedFeedback = produto?.dados_brutos_web?.feedback_conteudo;
+    if (savedFeedback?.valor) {
+      setFeedback(savedFeedback.valor);
+      setFeedbackComment(savedFeedback.comentario || '');
+      return;
     }
+    setFeedback('');
+    setFeedbackComment('');
+  }, [produto]);
 
-    void (async () => {
-      try {
-        const listedIds = await fetchOrderedProductIds(queryFromState);
-        if (!cancelled && listedIds.length > 0) {
-          setOrderedProductIds((prev) => {
-            const merged = [...listedIds];
-            prev.forEach((id) => {
-              if (!merged.includes(id)) {
-                merged.push(id);
-              }
-            });
-            return merged;
-          });
-        }
-      } catch {
-        if (!cancelled && idsFromState.length === 0) {
-          setOrderedProductIds([]);
-        }
+  const orderedProductIds = useMemo(() => {
+    const merged = Array.isArray(orderedIdsQuery.data) ? [...orderedIdsQuery.data] : [];
+    idsFromState.forEach((id) => {
+      if (!merged.includes(id)) {
+        merged.push(id);
       }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [location.state, fetchOrderedProductIds]);
-
-  const refreshProduto = async () => {
-    setLoading(true);
-    try {
-      const data = await productService.getProdutoById(produtoId);
-      setProduto(data);
-      const idFromData = Number(data?.id);
-      if (Number.isInteger(idFromData) && idFromData > 0) {
-        setOrderedProductIds((prev) => {
-          if (prev.includes(idFromData)) {
-            return prev;
-          }
-          return [...prev, idFromData].sort((a, b) => a - b);
-        });
-      }
-      const savedFeedback = data?.dados_brutos_web?.feedback_conteudo;
-      if (savedFeedback?.valor) {
-        setFeedback(savedFeedback.valor);
-        setFeedbackComment(savedFeedback.comentario || '');
-      } else {
-        setFeedback('');
-        setFeedbackComment('');
-      }
-    } catch (error) {
-      showErrorToast(error?.message || 'Falha ao carregar conteúdo do produto.');
-    } finally {
-      setLoading(false);
+    });
+    const productIdFromData = Number(produto?.id);
+    if (Number.isInteger(productIdFromData) && productIdFromData > 0 && !merged.includes(productIdFromData)) {
+      merged.push(productIdFromData);
     }
-  };
-
-  useEffect(() => {
-    void refreshProduto();
-  }, [produtoId]);
+    return merged;
+  }, [idsFromState, orderedIdsQuery.data, produto?.id]);
 
   const handleFeedback = async (valor) => {
     if (!produto?.id) return;
@@ -251,7 +226,7 @@ function ProdutoConteudoPage() {
         valor,
         comentario: feedbackComment,
       });
-      setProduto(updated);
+      queryClient.setQueryData(queryKeys.produto(produto.id), updated);
       setFeedback(valor);
       showSuccessToast('Feedback salvo com sucesso.');
     } catch (error) {
@@ -283,7 +258,7 @@ function ProdutoConteudoPage() {
     <div className="app-page-shell produto-conteudo-shell">
       <div className="app-page-header produto-conteudo-header">
         <div>
-          <h2 className="app-page-heading">Conteúdo Gerado do Produto</h2>
+          <h2 className="app-page-heading">Conteudo Gerado do Produto</h2>
           <p className="app-muted-note">
             Produto #{produto?.id || produtoId} - {produto?.nome_base || 'Sem nome'}
           </p>
@@ -296,9 +271,9 @@ function ProdutoConteudoPage() {
             <button
               type="button"
               className="btn-primary"
-              onClick={() => navigate('/produtos?id=' + produto.id)}
+              onClick={() => navigate(`/produtos?id=${produto.id}`)}
             >
-              Abrir Edição
+              Abrir Edicao
             </button>
           ) : null}
         </div>
@@ -311,7 +286,7 @@ function ProdutoConteudoPage() {
           disabled={!previousProductId}
           onClick={() => navigateToProduct(previousProductId)}
         >
-          ← Produto Anterior
+          Produto Anterior
         </button>
         <button
           type="button"
@@ -319,21 +294,21 @@ function ProdutoConteudoPage() {
           disabled={!nextProductId}
           onClick={() => navigateToProduct(nextProductId)}
         >
-          Próximo Produto →
+          Proximo Produto
         </button>
       </div>
 
       <div className="app-toolbar-card produto-conteudo-grid">
         <div className="produto-conteudo-left-column">
           <section className="produto-conteudo-block produto-conteudo-titles-block">
-            <h3>5 Títulos Sugeridos</h3>
+            <h3>5 Titulos Sugeridos</h3>
             <div className="produto-conteudo-title-list">
               {Array.from({ length: 5 }).map((_, index) => {
                 const title = titles[index] || '';
                 return (
                   <article key={`title-${index}`} className="produto-conteudo-title-card">
                     <span className="produto-conteudo-title-index">{index + 1}</span>
-                    <p>{title || 'Título ainda não gerado para esta posição.'}</p>
+                    <p>{title || 'Titulo ainda nao gerado para esta posicao.'}</p>
                   </article>
                 );
               })}
@@ -341,9 +316,9 @@ function ProdutoConteudoPage() {
           </section>
 
           <section className="produto-conteudo-block produto-conteudo-feedback-card">
-            <h3>Feedback Rápido</h3>
+            <h3>Feedback Rapido</h3>
             <p className="app-muted-note">
-              Marque se o resultado está bom. Isso fica salvo para análise de qualidade.
+              Marque se o resultado esta bom. Isso fica salvo para analise de qualidade.
             </p>
             <div className="produto-conteudo-feedback-actions">
               <button
@@ -360,15 +335,15 @@ function ProdutoConteudoPage() {
                 disabled={savingFeedback || !hasMainContent}
                 onClick={() => handleFeedback('nao_gostei')}
               >
-                Não Gostei
+                Nao Gostei
               </button>
             </div>
             <label className="produto-conteudo-feedback-comment">
-              Comentário (opcional):
+              Comentario (opcional):
               <textarea
                 value={feedbackComment}
                 onChange={(event) => setFeedbackComment(event.target.value)}
-                placeholder="Ex: títulos bons, mas descrição muito curta."
+                placeholder="Ex: titulos bons, mas descricao muito curta."
                 rows={3}
                 disabled={savingFeedback}
               />
@@ -377,14 +352,14 @@ function ProdutoConteudoPage() {
         </div>
 
         <section className="produto-conteudo-block produto-conteudo-description-block">
-          <h3>Descrição Completa</h3>
+          <h3>Descricao Completa</h3>
           <div className="produto-conteudo-description">
-            {description || 'Descrição ainda não gerada.'}
+            {description || 'Descricao ainda nao gerada.'}
           </div>
         </section>
       </div>
 
-      <LoadingOverlay isOpen={loading} message="Carregando conteúdo do produto..." />
+      <LoadingOverlay isOpen={produtoQuery.isLoading} message="Carregando conteudo do produto..." />
     </div>
   );
 }

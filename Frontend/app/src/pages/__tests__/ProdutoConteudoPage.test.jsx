@@ -1,6 +1,7 @@
 import React from 'react';
-import { render, screen, waitFor, fireEvent } from '@testing-library/react';
+import { screen, waitFor, fireEvent } from '@testing-library/react';
 import '@testing-library/jest-dom';
+import { renderWithQueryClient } from '../../../test-utils/renderWithQueryClient.jsx';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import ProdutoConteudoPage from '../ProdutoConteudoPage.jsx';
 import productService from '../../services/productService';
@@ -39,7 +40,7 @@ jest.mock('../../utils/logger', () => ({
 }));
 
 function renderPage(initialEntry) {
-  return render(
+  return renderWithQueryClient(
     <MemoryRouter initialEntries={[initialEntry]}>
       <Routes>
         <Route path="/produtos/:produtoId/conteudo" element={<ProdutoConteudoPage />} />
@@ -49,7 +50,7 @@ function renderPage(initialEntry) {
 }
 
 function renderPageWithoutRouteParam(initialEntry = '/conteudo-sem-id') {
-  return render(
+  return renderWithQueryClient(
     <MemoryRouter initialEntries={[initialEntry]}>
       <Routes>
         <Route path="*" element={<ProdutoConteudoPage />} />
@@ -104,7 +105,7 @@ describe('ProdutoConteudoPage', () => {
       expect(productService.getProdutoById).toHaveBeenCalledWith('31');
     });
 
-    expect(screen.getByText('Titulo A')).toBeInTheDocument();
+    expect(await screen.findByText('Titulo A')).toBeInTheDocument();
     expect(screen.getByText('Titulo B')).toBeInTheDocument();
     expect(screen.getByText('Titulo C')).toBeInTheDocument();
     expect(screen.getByText('Titulo D')).toBeInTheDocument();
@@ -200,10 +201,14 @@ describe('ProdutoConteudoPage', () => {
     });
 
     expect(await screen.findByText(/Produto #31 - Produto sem conteudo/i)).toBeInTheDocument();
-    expect(screen.getAllByText(/Titulo ainda nao gerado|T.tulo ainda n.o gerado/i)).toHaveLength(5);
-    expect(screen.getByText(/Descri..o ainda n.o gerada/i)).toBeInTheDocument();
+    expect(
+      await screen.findAllByText((content) =>
+        content.includes('Titulo ainda') && content.includes('posicao')
+      )
+    ).toHaveLength(5);
+    expect(screen.getByText(/Descricao ainda nao gerada/i)).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Gostei' })).toBeDisabled();
-    expect(screen.getByRole('button', { name: /N.o Gostei/i })).toBeDisabled();
+    expect(screen.getByRole('button', { name: /N.*Gostei/i })).toBeDisabled();
     expect(screen.getByRole('button', { name: /Produto Anterior/i })).toBeDisabled();
     expect(screen.getByRole('button', { name: /Pr.+ximo Produto/i })).toBeDisabled();
   });
@@ -288,14 +293,14 @@ describe('ProdutoConteudoPage', () => {
     expect(await screen.findByDisplayValue('Texto muito institucional')).toBeInTheDocument();
     expect(screen.getByText('Fundada em 1999.')).toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole('button', { name: /N.o Gostei/i }));
+    fireEvent.click(screen.getByRole('button', { name: /N.*Gostei/i }));
 
     expect(productService.registrarFeedbackConteudoGerado).toHaveBeenCalledWith(31, {
       valor: 'nao_gostei',
       comentario: 'Texto muito institucional',
     });
     expect(screen.getByRole('button', { name: 'Gostei' })).toBeDisabled();
-    expect(screen.getByRole('button', { name: /N.o Gostei/i })).toBeDisabled();
+    expect(screen.getByRole('button', { name: /N.*Gostei/i })).toBeDisabled();
     expect(screen.getByPlaceholderText(/Ex:/i)).toBeDisabled();
 
     feedbackReject(new Error('Falha ao salvar feedback.'));
@@ -564,7 +569,7 @@ describe('ProdutoConteudoPage', () => {
     });
 
     await waitFor(() => {
-      expect(showErrorToast).toHaveBeenCalledWith('Falha ao carregar conteúdo do produto.');
+      expect(showErrorToast).toHaveBeenCalledWith('Falha ao carregar conteudo do produto.');
     });
 
     firstRender.unmount();
@@ -611,3 +616,7 @@ describe('ProdutoConteudoPage', () => {
     expect(screen.getByRole('button', { name: /Pr.+ximo Produto/i })).toBeDisabled();
   });
 });
+
+
+
+

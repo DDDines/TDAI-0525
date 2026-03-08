@@ -1,7 +1,8 @@
-import { act, render, screen } from '@testing-library/react';
+import { act, screen } from '@testing-library/react';
 import '@testing-library/jest-dom';
 import ImportProgress from '../ImportProgress.jsx';
 import fornecedorService from '../../../services/fornecedorService';
+import { renderWithQueryClient } from '../../../../test-utils/renderWithQueryClient.jsx';
 
 jest.mock('../../../services/fornecedorService', () => ({
   __esModule: true,
@@ -24,7 +25,7 @@ test('polls progress until pending review', async () => {
     .mockResolvedValueOnce({ pages_processed: 2, total_pages: 5, status: 'PENDING_REVIEW' });
 
   const onPendingReview = jest.fn();
-  render(<ImportProgress jobId={10} onPendingReview={onPendingReview} />);
+  renderWithQueryClient(<ImportProgress jobId={10} onPendingReview={onPendingReview} />);
 
   expect(mockedService.getImportProgress).toHaveBeenCalledWith(10);
   await screen.findByText(/Processando p.*gina 1 de 5/i);
@@ -38,7 +39,7 @@ test('polls progress until pending review', async () => {
 });
 
 test('does not start polling without a job id and falls back to the default progress state', () => {
-  render(<ImportProgress jobId={null} />);
+  renderWithQueryClient(<ImportProgress jobId={null} />);
 
   expect(mockedService.getImportProgress).not.toHaveBeenCalled();
   expect(screen.getByText(/Processando p.*gina 0 de 0/i)).toBeInTheDocument();
@@ -50,7 +51,7 @@ test('logs polling errors and supports payloads that only expose progress', asyn
     .mockResolvedValueOnce({ progress: 3, total_pages: 6, status: 'PROCESSING' })
     .mockRejectedValueOnce(new Error('falha no polling'));
 
-  render(<ImportProgress jobId={22} />);
+  renderWithQueryClient(<ImportProgress jobId={22} />);
 
   await screen.findByText(/Processando p.*gina 3 de 6/i);
 
@@ -59,7 +60,7 @@ test('logs polling errors and supports payloads that only expose progress', asyn
   });
 
   expect(consoleErrorSpy).toHaveBeenCalledWith(
-    'Erro ao consultar progresso de importação:',
+    'Erro ao consultar progresso de importacao:',
     expect.any(Error)
   );
   consoleErrorSpy.mockRestore();
@@ -74,7 +75,7 @@ test('stops polling updates after unmounting', async () => {
   );
 
   const onPendingReview = jest.fn();
-  const { unmount } = render(<ImportProgress jobId={23} onPendingReview={onPendingReview} />);
+  const { unmount } = renderWithQueryClient(<ImportProgress jobId={23} onPendingReview={onPendingReview} />);
   expect(mockedService.getImportProgress).toHaveBeenCalledWith(23);
 
   unmount();
@@ -97,7 +98,7 @@ test('falls back to zero totals, tolerates missing callbacks and ignores rejecte
         })
     );
 
-  const { unmount } = render(<ImportProgress jobId={24} />);
+  const { unmount } = renderWithQueryClient(<ImportProgress jobId={24} />);
 
   await screen.findByText(/Processando p.*gina 0 de 0/i);
 
@@ -121,7 +122,7 @@ test('supports pending review payloads without an onPendingReview callback', asy
     status: 'PENDING_REVIEW',
   });
 
-  render(<ImportProgress jobId={25} />);
+  renderWithQueryClient(<ImportProgress jobId={25} />);
 
   expect(await screen.findByText(/Processando p.*gina 5 de 5/i)).toBeInTheDocument();
 });
@@ -132,7 +133,10 @@ test('falls back to zero processed pages when the polling payload omits both cou
     status: 'PROCESSING',
   });
 
-  render(<ImportProgress jobId={26} />);
+  renderWithQueryClient(<ImportProgress jobId={26} />);
 
   expect(await screen.findByText(/Processando p.*gina 0 de 4/i)).toBeInTheDocument();
 });
+
+
+

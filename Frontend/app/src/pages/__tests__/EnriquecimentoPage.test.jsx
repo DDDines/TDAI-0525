@@ -1,6 +1,7 @@
-import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import '@testing-library/jest-dom';
+import { renderWithQueryClient } from '../../../test-utils/renderWithQueryClient.jsx';
 
 import EnriquecimentoPage from '../EnriquecimentoPage.jsx';
 import productService from '../../services/productService';
@@ -117,7 +118,7 @@ describe('EnriquecimentoPage', () => {
   });
 
   test('fetches products with search, sort and pagination params', async () => {
-    render(<EnriquecimentoPage />);
+    renderWithQueryClient(<EnriquecimentoPage />);
 
     await waitFor(() => expect(productService.getProdutos).toHaveBeenCalledTimes(1));
     expect(productService.getProdutos).toHaveBeenLastCalledWith({
@@ -165,7 +166,7 @@ describe('EnriquecimentoPage', () => {
   });
 
   test('calls enrichment endpoint and polls until terminal success', async () => {
-    render(<EnriquecimentoPage />);
+    renderWithQueryClient(<EnriquecimentoPage />);
 
     await waitFor(() => {
       expect(screen.getByTestId('produtos-renderizados')).toHaveTextContent('Produto Teste');
@@ -199,7 +200,7 @@ describe('EnriquecimentoPage', () => {
       total_items: 1,
     });
 
-    render(<EnriquecimentoPage />);
+    renderWithQueryClient(<EnriquecimentoPage />);
 
     await waitFor(() => {
       expect(screen.getByTestId('produtos-renderizados')).toHaveTextContent('Produto Teste');
@@ -223,7 +224,7 @@ describe('EnriquecimentoPage', () => {
       total_items: 1,
     });
 
-    render(<EnriquecimentoPage />);
+    renderWithQueryClient(<EnriquecimentoPage />);
 
     await waitFor(() => {
       expect(screen.getByTestId('produtos-renderizados')).toHaveTextContent('Produto Teste');
@@ -250,7 +251,7 @@ describe('EnriquecimentoPage', () => {
       { resultado_gerado: 'Timeout no provedor externo' },
     ]);
 
-    render(<EnriquecimentoPage />);
+    renderWithQueryClient(<EnriquecimentoPage />);
 
     await waitFor(() => {
       expect(screen.getByTestId('produtos-renderizados')).toHaveTextContent('Produto Teste');
@@ -281,7 +282,7 @@ describe('EnriquecimentoPage', () => {
     });
     usoIAService.getHistoricoUsoIAPorProduto.mockRejectedValueOnce(new Error('boom'));
 
-    render(<EnriquecimentoPage />);
+    renderWithQueryClient(<EnriquecimentoPage />);
 
     await waitFor(() => {
       expect(screen.getByTestId('produtos-renderizados')).toHaveTextContent('Produto Teste');
@@ -307,7 +308,7 @@ describe('EnriquecimentoPage', () => {
       total_items: 1,
     });
 
-    render(<EnriquecimentoPage />);
+    renderWithQueryClient(<EnriquecimentoPage />);
 
     await waitFor(() => {
       expect(screen.getByTestId('produtos-renderizados')).toHaveTextContent('Produto Teste');
@@ -322,7 +323,7 @@ describe('EnriquecimentoPage', () => {
   test('warns when product payload format is invalid', async () => {
     productService.getProdutos.mockResolvedValueOnce({ invalid: true });
 
-    render(<EnriquecimentoPage />);
+    renderWithQueryClient(<EnriquecimentoPage />);
 
     await waitFor(() => {
       expect(consoleWarnSpy).toHaveBeenCalledWith(
@@ -357,7 +358,7 @@ describe('EnriquecimentoPage', () => {
         status_enriquecimento_web: 'CONCLUIDO_SUCESSO',
       });
 
-    render(<EnriquecimentoPage />);
+    renderWithQueryClient(<EnriquecimentoPage />);
 
     await waitFor(() => {
       expect(screen.getByTestId('produtos-renderizados')).toHaveTextContent('Produto Secundario');
@@ -387,7 +388,7 @@ describe('EnriquecimentoPage', () => {
   test('shows the fallback fetch error when the product request has no message', async () => {
     productService.getProdutos.mockRejectedValueOnce({});
 
-    render(<EnriquecimentoPage />);
+    renderWithQueryClient(<EnriquecimentoPage />);
 
     expect(
       await screen.findByText('Erro ao carregar produtos: Falha ao buscar produtos.')
@@ -396,7 +397,7 @@ describe('EnriquecimentoPage', () => {
   });
 
   test('toggles select-all off and sorts descending on the second click', async () => {
-    render(<EnriquecimentoPage />);
+    renderWithQueryClient(<EnriquecimentoPage />);
 
     await waitFor(() => {
       expect(screen.getByTestId('produtos-renderizados')).toHaveTextContent('Produto Teste');
@@ -423,7 +424,7 @@ describe('EnriquecimentoPage', () => {
   });
 
   test('toggles the same row selection on and off', async () => {
-    render(<EnriquecimentoPage />);
+    renderWithQueryClient(<EnriquecimentoPage />);
 
     await waitFor(() => {
       expect(screen.getByTestId('produtos-renderizados')).toHaveTextContent('Produto Teste');
@@ -449,7 +450,7 @@ describe('EnriquecimentoPage', () => {
     });
     usoIAService.getHistoricoUsoIAPorProduto.mockResolvedValueOnce([]);
 
-    render(<EnriquecimentoPage />);
+    renderWithQueryClient(<EnriquecimentoPage />);
 
     await waitFor(() => {
       expect(screen.getByTestId('produtos-renderizados')).toHaveTextContent('Produto Teste');
@@ -475,7 +476,7 @@ describe('EnriquecimentoPage', () => {
       total_items: 1,
     });
 
-    render(<EnriquecimentoPage />);
+    renderWithQueryClient(<EnriquecimentoPage />);
 
     await waitFor(() => {
       expect(screen.getByTestId('produtos-renderizados')).toHaveTextContent('Produto Teste');
@@ -491,7 +492,7 @@ describe('EnriquecimentoPage', () => {
       new Error('falha no start')
     );
 
-    render(<EnriquecimentoPage />);
+    renderWithQueryClient(<EnriquecimentoPage />);
 
     await waitFor(() => {
       expect(screen.getByTestId('produtos-renderizados')).toHaveTextContent('Produto Teste');
@@ -513,7 +514,7 @@ describe('EnriquecimentoPage', () => {
       total_items: 1,
     });
 
-    render(<EnriquecimentoPage />);
+    renderWithQueryClient(<EnriquecimentoPage />);
 
     await waitFor(() => {
       expect(screen.getByTestId('produtos-renderizados')).toHaveTextContent('Produto Teste');
@@ -566,7 +567,7 @@ describe('EnriquecimentoPage', () => {
       status_enriquecimento_web: 'EM_PROGRESSO',
     });
 
-    render(<EnriquecimentoPage />);
+    renderWithQueryClient(<EnriquecimentoPage />);
 
     await waitFor(() => {
       expect(screen.getByTestId('produtos-renderizados')).toHaveTextContent('Produto Teste');
@@ -603,7 +604,7 @@ describe('EnriquecimentoPage', () => {
       status_enriquecimento_web: 'EM_PROGRESSO',
     });
 
-    render(<EnriquecimentoPage />);
+    renderWithQueryClient(<EnriquecimentoPage />);
 
     await waitFor(() => {
       expect(screen.getByTestId('produtos-renderizados')).toHaveTextContent('Produto Teste');
@@ -637,3 +638,5 @@ describe('EnriquecimentoPage', () => {
     expect(productService.getProdutoById).toHaveBeenCalledTimes(3);
   }, 15000);
 });
+
+

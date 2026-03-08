@@ -1,5 +1,6 @@
 import React from 'react';
-import { render, screen, waitFor, fireEvent } from '@testing-library/react';
+import { screen, waitFor, fireEvent } from '@testing-library/react';
+import { renderWithQueryClient } from '../../../test-utils/renderWithQueryClient.jsx';
 import '@testing-library/jest-dom';
 import FornecedoresPage from '../FornecedoresPage.jsx';
 import fornecedorService from '../../services/fornecedorService';
@@ -118,7 +119,7 @@ describe('FornecedoresPage', () => {
   });
 
   test('loads suppliers, shows the total and refetches when search changes', async () => {
-    render(<FornecedoresPage />);
+    renderWithQueryClient(<FornecedoresPage />);
 
     await waitFor(() => {
       expect(screen.getByText('2')).toBeInTheDocument();
@@ -141,7 +142,7 @@ describe('FornecedoresPage', () => {
   });
 
   test('creates and updates a supplier through the page handlers', async () => {
-    render(<FornecedoresPage />);
+    renderWithQueryClient(<FornecedoresPage />);
 
     await waitFor(() => {
       expect(screen.getByTestId('fornecedor-table-names')).toHaveTextContent(
@@ -175,7 +176,7 @@ describe('FornecedoresPage', () => {
       .mockRejectedValueOnce(new Error('Falha ao buscar fornecedores.'))
       .mockResolvedValue(fornecedoresPayload);
 
-    render(<FornecedoresPage />);
+    renderWithQueryClient(<FornecedoresPage />);
 
     await waitFor(() => {
       expect(showErrorToast).toHaveBeenCalledWith('Falha ao buscar fornecedores.');
@@ -185,8 +186,15 @@ describe('FornecedoresPage', () => {
       target: { value: 'recarregar' },
     });
 
-    await screen.findByTestId('fornecedor-table-names');
+    await waitFor(() => {
+      expect(screen.getByTestId('fornecedor-table-names')).toHaveTextContent(
+        'Fornecedor A,Fornecedor B'
+      );
+    });
     fireEvent.click(screen.getByText('toggle-first'));
+    await waitFor(() => {
+      expect(screen.getByTestId('selected-ids')).toHaveTextContent('1');
+    });
     fireEvent.click(screen.getByText('Deletar Selecionado(s)'));
 
     await waitFor(() => {
@@ -204,7 +212,7 @@ describe('FornecedoresPage', () => {
     fornecedorService.getFornecedores.mockRejectedValueOnce({});
     fornecedorService.deleteFornecedor.mockRejectedValue(new Error('falha delete'));
 
-    render(<FornecedoresPage />);
+    renderWithQueryClient(<FornecedoresPage />);
 
     await waitFor(() => {
       expect(showErrorToast).toHaveBeenCalledWith('Falha ao buscar fornecedores.');
@@ -215,8 +223,15 @@ describe('FornecedoresPage', () => {
       target: { value: 'recarregar' },
     });
 
-    await screen.findByTestId('fornecedor-table-names');
+    await waitFor(() => {
+      expect(screen.getByTestId('fornecedor-table-names')).toHaveTextContent(
+        'Fornecedor A,Fornecedor B'
+      );
+    });
     fireEvent.click(screen.getByText('toggle-first'));
+    await waitFor(() => {
+      expect(screen.getByTestId('selected-ids')).toHaveTextContent('1');
+    });
     fireEvent.click(screen.getByText('Deletar Selecionado(s)'));
 
     await waitFor(() => {
@@ -230,7 +245,7 @@ describe('FornecedoresPage', () => {
   });
 
   test('warns when trying to delete without a selection', async () => {
-    render(<FornecedoresPage />);
+    renderWithQueryClient(<FornecedoresPage />);
 
     await waitFor(() => {
       expect(screen.getByTestId('fornecedor-table-names')).toHaveTextContent(
@@ -250,7 +265,7 @@ describe('FornecedoresPage', () => {
       message: 'falha na atualizacao',
     });
 
-    render(<FornecedoresPage />);
+    renderWithQueryClient(<FornecedoresPage />);
 
     await waitFor(() => {
       expect(screen.getByTestId('fornecedor-table-names')).toHaveTextContent(
@@ -279,7 +294,7 @@ describe('FornecedoresPage', () => {
       .mockRejectedValueOnce({ detail: 'site duplicado' })
       .mockRejectedValueOnce({ detail: [{ loc: ['body', 'site_url'], msg: 'invalido' }] });
 
-    render(<FornecedoresPage />);
+    renderWithQueryClient(<FornecedoresPage />);
 
     await waitFor(() => {
       expect(screen.getByTestId('fornecedor-table-names')).toHaveTextContent(
@@ -314,7 +329,7 @@ describe('FornecedoresPage', () => {
       .mockResolvedValueOnce({ ok: true })
       .mockRejectedValueOnce(new Error('nao pode deletar'));
 
-    render(<FornecedoresPage />);
+    renderWithQueryClient(<FornecedoresPage />);
 
     await waitFor(() => {
       expect(screen.getByTestId('fornecedor-table-names')).toHaveTextContent(
@@ -333,7 +348,7 @@ describe('FornecedoresPage', () => {
     });
     expect(showSuccessToast).toHaveBeenCalledWith('1 fornecedor(es) deletado(s) com sucesso!');
     expect(showErrorToast).toHaveBeenCalledWith(
-      'Alguns fornecedores não puderam ser deletados. Verifique o console.'
+      'Alguns fornecedores nao puderam ser deletados. Verifique o console.'
     );
   });
 
@@ -342,7 +357,7 @@ describe('FornecedoresPage', () => {
       Promise.resolve(skip === 10 ? { invalid: true } : { items: [], total_items: 11 })
     );
 
-    render(<FornecedoresPage />);
+    renderWithQueryClient(<FornecedoresPage />);
 
     await screen.findByText('next-page');
     fireEvent.click(screen.getByText('next-page'));
@@ -358,7 +373,7 @@ describe('FornecedoresPage', () => {
   });
 
   test('supports select-all clearing and canceling deletion', async () => {
-    render(<FornecedoresPage />);
+    renderWithQueryClient(<FornecedoresPage />);
 
     await waitFor(() => {
       expect(screen.getByTestId('fornecedor-table-names')).toHaveTextContent(
@@ -380,7 +395,7 @@ describe('FornecedoresPage', () => {
   });
 
   test('closes new and edit modals through page callbacks', async () => {
-    render(<FornecedoresPage />);
+    renderWithQueryClient(<FornecedoresPage />);
 
     await waitFor(() => {
       expect(screen.getByTestId('fornecedor-table-names')).toHaveTextContent(
@@ -413,7 +428,7 @@ describe('FornecedoresPage', () => {
     });
     fornecedorService.updateFornecedor.mockRejectedValueOnce('timeout remoto');
 
-    render(<FornecedoresPage />);
+    renderWithQueryClient(<FornecedoresPage />);
 
     await waitFor(() => {
       expect(screen.getByTestId('fornecedor-table-names')).toHaveTextContent(
@@ -446,7 +461,7 @@ describe('FornecedoresPage', () => {
       detail: { campo: 'site_url', motivo: 'invalido' },
     });
 
-    render(<FornecedoresPage />);
+    renderWithQueryClient(<FornecedoresPage />);
 
     await waitFor(() => {
       expect(screen.getByTestId('fornecedor-table-names')).toHaveTextContent(
@@ -476,7 +491,7 @@ describe('FornecedoresPage', () => {
       message: 'falha de conectividade',
     });
 
-    render(<FornecedoresPage />);
+    renderWithQueryClient(<FornecedoresPage />);
 
     await waitFor(() => {
       expect(screen.getByTestId('fornecedor-table-names')).toHaveTextContent(
@@ -503,7 +518,7 @@ describe('FornecedoresPage', () => {
   });
 
   test('keeps the active search term when creating a supplier from filtered results', async () => {
-    render(<FornecedoresPage />);
+    renderWithQueryClient(<FornecedoresPage />);
 
     await waitFor(() => {
       expect(screen.getByTestId('fornecedor-table-names')).toHaveTextContent(
@@ -545,7 +560,7 @@ describe('FornecedoresPage', () => {
       total_items: 1,
     });
 
-    render(<FornecedoresPage />);
+    renderWithQueryClient(<FornecedoresPage />);
 
     await waitFor(() => {
       expect(screen.getByText('1')).toBeInTheDocument();
@@ -583,7 +598,7 @@ describe('FornecedoresPage', () => {
       )
     );
 
-    render(<FornecedoresPage />);
+    renderWithQueryClient(<FornecedoresPage />);
 
     fireEvent.click(await screen.findByText('next-page'));
 
@@ -594,23 +609,36 @@ describe('FornecedoresPage', () => {
         termo_busca: undefined,
       });
     });
-    expect(screen.getByTestId('fornecedor-table-names')).toHaveTextContent('Fornecedor Z');
+    await waitFor(() => {
+      expect(screen.getByTestId('fornecedor-table-names')).toHaveTextContent('Fornecedor Z');
+    });
 
     fireEvent.click(screen.getByText('toggle-first'));
+    await waitFor(() => {
+      expect(screen.getByTestId('selected-ids')).toHaveTextContent('11');
+    });
     fireEvent.click(screen.getByText('Deletar Selecionado(s)'));
 
     await waitFor(() => {
       expect(fornecedorService.deleteFornecedor).toHaveBeenCalledWith(11);
     });
     await waitFor(() => {
-      expect(fornecedorService.getFornecedores).toHaveBeenLastCalledWith({
-        skip: 0,
-        limit: 10,
-        termo_busca: undefined,
-      });
+      expect(screen.getByTestId('fornecedor-table-names')).toHaveTextContent(
+        'Fornecedor A,Fornecedor B'
+      );
     });
-    expect(screen.getByTestId('fornecedor-table-names')).toHaveTextContent(
-      'Fornecedor A,Fornecedor B'
+    expect(fornecedorService.getFornecedores).toHaveBeenCalledWith({
+      skip: 0,
+      limit: 10,
+      termo_busca: undefined,
+    });
+    expect(screen.getByTestId('selected-ids')).toHaveTextContent(
+      ''
     );
   });
 });
+
+
+
+
+

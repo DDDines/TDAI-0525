@@ -4,7 +4,8 @@
  * Defines responsibilities and integration points for pages.
  */
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
+import { keepPreviousData, useQuery, useQueryClient } from '@tanstack/react-query';
 import './EnriquecimentoPage.css';
 import productService from '../services/productService';
 import usoIAService from '../services/usoIAService';
@@ -17,6 +18,7 @@ import {
 } from '../utils/notifications';
 import logger from '../utils/logger';
 import { extractErrorMessage } from '../utils/errorDetails';
+import { queryKeys } from '../lib/queryKeys.js';
 
 const WEB_ENRICHMENT_TERMINAL_STATUSES = new Set([
   'CONCLUIDO',
@@ -38,60 +40,60 @@ function notifyWithConsoleLog(title, message) {
   showInfoToast(`${title}: ${truncated}`);
 }
 
-function EnriquecimentoPage() {
-  const [produtos, setProdutos] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [actionLoading, setActionLoading] = useState(false);
-  const [error, setError] = useState(null);
-  const [selectedProductIds, setSelectedProductIds] = useState(new Set());
+function normalizeProductListPayload(responseData) {
+  if (
+    responseData &&
+    Array.isArray(responseData.items) &&
+    typeof responseData.total_items === 'number'
+  ) {
+    return responseData;
+  }
+  console.warn('Formato de dados inesperado recebido para produtos:', responseData);
+  return {
+    items: [],
+    total_items: 0,
+  };
+}
 
+function EnriquecimentoPage() {
+  const [actionLoading, setActionLoading] = useState(false);
+  const [selectedProductIds, setSelectedProductIds] = useState(new Set());
   const [currentPage, setCurrentPage] = useState(0);
   const [limitPerPage] = useState(10);
-  const [totalProdutosCount, setTotalProdutosCount] = useState(0);
   const [searchTerm, setSearchTerm] = useState('');
   const [sortConfig, setSortConfig] = useState({ key: 'id', direction: 'descending' });
   const webStatusPollRunRef = React.useRef(0);
+  const queryClient = useQueryClient();
 
+  const queryParams = useMemo(
+    () => ({
+      skip: currentPage * limitPerPage,
+      limit: limitPerPage,
+      search: searchTerm || undefined,
+      sort_by: sortConfig.key,
+      sort_order: sortConfig.direction === 'ascending' ? 'asc' : 'desc',
+    }),
+    [currentPage, limitPerPage, searchTerm, sortConfig]
+  );
+  const produtosQueryKey = queryKeys.produtos(queryParams);
+  const produtosQuery = useQuery({
+    queryKey: produtosQueryKey,
+    queryFn: async () => normalizeProductListPayload(await productService.getProdutos(queryParams)),
+    placeholderData: keepPreviousData,
+  });
+
+  const produtos = Array.isArray(produtosQuery.data?.items) ? produtosQuery.data.items : [];
+  const totalProdutosCount =
+    typeof produtosQuery.data?.total_items === 'number' ? produtosQuery.data.total_items : 0;
+  const loading = produtosQuery.isLoading || produtosQuery.isFetching;
+  const error = produtosQuery.error
+    ? extractErrorMessage(produtosQuery.error, 'Falha ao buscar produtos.')
+    : null;
   const totalPages = Math.ceil(totalProdutosCount / limitPerPage);
 
-  const fetchProdutos = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const params = {
-        skip: currentPage * limitPerPage,
-        limit: limitPerPage,
-        search: searchTerm || undefined,
-        sort_by: sortConfig.key,
-        sort_order: sortConfig.direction === 'ascending' ? 'asc' : 'desc',
-      };
-      const responseData = await productService.getProdutos(params);
-
-      if (
-        responseData &&
-        Array.isArray(responseData.items) &&
-        typeof responseData.total_items === 'number'
-      ) {
-        setProdutos(responseData.items);
-        setTotalProdutosCount(responseData.total_items);
-      } else {
-        console.warn('Formato de dados inesperado recebido para produtos:', responseData);
-        setProdutos([]);
-        setTotalProdutosCount(0);
-      }
-    } catch (err) {
-      const errorMsg = extractErrorMessage(err, 'Falha ao buscar produtos.');
-      setError(errorMsg);
-      setProdutos([]);
-      setTotalProdutosCount(0);
-    } finally {
-      setLoading(false);
-    }
-  }, [currentPage, limitPerPage, searchTerm, sortConfig]);
-
-  useEffect(() => {
-    fetchProdutos();
-  }, [fetchProdutos]);
+  const refreshProdutos = useCallback(async () => {
+    await produtosQuery.refetch();
+  }, [produtosQuery]);
 
   const handleSearchChange = (event) => {
     setSearchTerm(event.target.value);
@@ -116,7 +118,7 @@ function EnriquecimentoPage() {
 
   const handleSelectAllRows = (isChecked) => {
     if (isChecked) {
-      setSelectedProductIds(new Set(produtos.map((p) => p.id)));
+      setSelectedProductIds(new Set(produtos.map((produto) => produto.id)));
     } else {
       setSelectedProductIds(new Set());
     }
@@ -131,9 +133,19 @@ function EnriquecimentoPage() {
     setCurrentPage(0);
   };
 
+  const updateCurrentProdutosData = useCallback((updater) => {
+    queryClient.setQueryData(produtosQueryKey, (previous) => {
+      const safePrevious = normalizeProductListPayload(previous);
+      return {
+        ...safePrevious,
+        items: updater(safePrevious.items),
+      };
+    });
+  }, [produtosQueryKey, queryClient]);
+
   const updateLocalProductStatus = (ids, newStatus) => {
     const idSet = new Set(Array.from(ids).map((id) => String(id)));
-    setProdutos((prev) =>
+    updateCurrentProdutosData((prev) =>
       prev.map((produto) => (
         idSet.has(String(produto.id))
           ? { ...produto, status_enriquecimento_web: newStatus }
@@ -151,13 +163,18 @@ function EnriquecimentoPage() {
     if (fetchedMap.size === 0) {
       return;
     }
-    setProdutos((prev) =>
+    fetchedProdutos.forEach((produto) => {
+      if (produto?.id !== undefined && produto?.id !== null) {
+        queryClient.setQueryData(queryKeys.produto(produto.id), produto);
+      }
+    });
+    updateCurrentProdutosData((prev) =>
       prev.map((produtoAtual) => {
         const fresh = fetchedMap.get(String(produtoAtual.id));
         return fresh ? { ...produtoAtual, ...fresh } : produtoAtual;
       })
     );
-  }, []);
+  }, [queryClient, updateCurrentProdutosData]);
 
   const pollWebEnrichmentStatuses = useCallback(async (produtoIds) => {
     const pollRunId = webStatusPollRunRef.current + 1;
@@ -188,7 +205,7 @@ function EnriquecimentoPage() {
         );
         if (allTerminal) {
           showSuccessToast('Enriquecimento web finalizado para os produtos selecionados.');
-          fetchProdutos();
+          await queryClient.invalidateQueries({ queryKey: ['produtos'] });
           return;
         }
       }
@@ -199,8 +216,8 @@ function EnriquecimentoPage() {
     showInfoToast(
       'O enriquecimento web ainda pode estar em andamento em segundo plano. Atualizando a lista.'
     );
-    fetchProdutos();
-  }, [fetchProdutos, mergeProdutosById]);
+    await queryClient.invalidateQueries({ queryKey: ['produtos'] });
+  }, [mergeProdutosById, queryClient]);
 
   const handleEnrichSelected = async () => {
     setActionLoading(true);
@@ -237,7 +254,7 @@ function EnriquecimentoPage() {
       return;
     }
 
-    fetchProdutos();
+    await refreshProdutos();
   };
 
   const handleRowClick = (produto) => {
@@ -305,7 +322,7 @@ function EnriquecimentoPage() {
           <h3>Produtos para Enriquecimento Web</h3>
         </div>
 
-        {error && !loading && <p className="error-text">Erro ao carregar produtos: {error}</p>}
+        {error && !loading ? <p className="error-text">Erro ao carregar produtos: {error}</p> : null}
 
         <ProductTable
           produtos={produtos}

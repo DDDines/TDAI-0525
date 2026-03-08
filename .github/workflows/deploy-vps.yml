@@ -1,0 +1,78 @@
+name: Deploy CatalogAI to VPS
+
+on:
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: "deploy uploads a new release; rollback only flips traffic to the requested slot"
+        required: true
+        default: deploy
+        type: choice
+        options:
+          - deploy
+          - rollback
+      ref:
+        description: "Git ref to deploy when mode=deploy"
+        required: false
+        default: main
+      rollback_slot:
+        description: "Target slot for rollback (blue or green). Leave empty to use last-slot."
+        required: false
+        default: ""
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    env:
+      VPS_HOST: ${{ secrets.VPS_HOST }}
+      VPS_USER: ${{ secrets.VPS_USER }}
+      VPS_APP_ROOT: ${{ secrets.VPS_APP_ROOT }}
+    steps:
+      - name: Checkout selected ref
+        if: ${{ inputs.mode == 'deploy' }}
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.ref }}
+
+      - name: Validate required secrets
+        run: |
+          test -n "$VPS_HOST"
+          test -n "$VPS_USER"
+          test -n "$VPS_APP_ROOT"
+          test -n "${{ secrets.VPS_SSH_KEY }}"
+
+      - name: Configure SSH key
+        run: |
+          mkdir -p ~/.ssh
+          printf '%s\n' "${{ secrets.VPS_SSH_KEY }}" > ~/.ssh/id_rsa
+          chmod 600 ~/.ssh/id_rsa
+          ssh-keyscan -H "$VPS_HOST" >> ~/.ssh/known_hosts
+
+      - name: Upload release bundle
+        if: ${{ inputs.mode == 'deploy' }}
+        run: |
+          RELEASE_ID="${GITHUB_SHA}"
+          ARCHIVE_PATH="/tmp/catalogai-${RELEASE_ID}.tgz"
+          git archive --format=tar.gz --output "$ARCHIVE_PATH" HEAD
+          scp "$ARCHIVE_PATH" "${VPS_USER}@${VPS_HOST}:/tmp/catalogai-${RELEASE_ID}.tgz"
+          ssh "${VPS_USER}@${VPS_HOST}" "mkdir -p '${VPS_APP_ROOT}/releases/${RELEASE_ID}' && tar -xzf '/tmp/catalogai-${RELEASE_ID}.tgz' -C '${VPS_APP_ROOT}/releases/${RELEASE_ID}' && rm -f '/tmp/catalogai-${RELEASE_ID}.tgz'"
+
+      - name: Deploy blue-green release
+        if: ${{ inputs.mode == 'deploy' }}
+        run: |
+          RELEASE_ID="${GITHUB_SHA}"
+          ssh "${VPS_USER}@${VPS_HOST}" "\
+            APP_ROOT='${VPS_APP_ROOT}' \
+            RELEASE_DIR='${VPS_APP_ROOT}/releases/${RELEASE_ID}' \
+            ENV_FILE='${VPS_APP_ROOT}/shared/.env' \
+            bash '${VPS_APP_ROOT}/releases/${RELEASE_ID}/scripts/deploy-blue-green.sh'"
+
+      - name: Roll back traffic to previous slot
+        if: ${{ inputs.mode == 'rollback' }}
+        run: |
+          ssh "${VPS_USER}@${VPS_HOST}" "\
+            APP_ROOT='${VPS_APP_ROOT}' \
+            TARGET_SLOT='${{ inputs.rollback_slot }}' \
+            bash '${VPS_APP_ROOT}/current/scripts/rollback-blue-green.sh'"

@@ -5,6 +5,7 @@ import { ProductTypeProvider, useProductTypes } from '../ProductTypeContext.jsx'
 import productTypeService from '../../services/productTypeService';
 import { showErrorToast, showSuccessToast } from '../../utils/notifications';
 import { useAuth } from '../AuthContext';
+import { renderWithQueryClient } from '../../../test-utils/renderWithQueryClient.jsx';
 
 jest.mock('../../services/productTypeService', () => ({
   __esModule: true,
@@ -88,7 +89,7 @@ describe('ProductTypeContext', () => {
       isLoading: true,
     });
 
-    const { rerender } = render(
+    const { rerender } = renderWithQueryClient(
       <ProductTypeProvider>
         <Probe />
       </ProductTypeProvider>
@@ -121,7 +122,7 @@ describe('ProductTypeContext', () => {
       isLoading: false,
     });
 
-    render(
+    renderWithQueryClient(
       <ProductTypeProvider>
         <Probe />
       </ProductTypeProvider>
@@ -136,7 +137,7 @@ describe('ProductTypeContext', () => {
   });
 
   test('fetches product types for authenticated users and can refresh the list', async () => {
-    render(
+    renderWithQueryClient(
       <ProductTypeProvider>
         <Probe />
       </ProductTypeProvider>
@@ -168,7 +169,7 @@ describe('ProductTypeContext', () => {
     });
     productTypeService.deleteProductType.mockResolvedValueOnce({ ok: true });
 
-    render(
+    renderWithQueryClient(
       <ProductTypeProvider>
         <Probe />
       </ProductTypeProvider>
@@ -203,7 +204,7 @@ describe('ProductTypeContext', () => {
       new Error('Falha ao carregar tipos de produto.')
     );
 
-    render(
+    renderWithQueryClient(
       <ProductTypeProvider>
         <Probe />
       </ProductTypeProvider>
@@ -219,7 +220,7 @@ describe('ProductTypeContext', () => {
   test('falls back to generic fetch and mutation errors when the service returns empty failures', async () => {
     productTypeService.getProductTypes.mockRejectedValueOnce({});
 
-    render(
+    renderWithQueryClient(
       <ProductTypeProvider>
         <Probe />
       </ProductTypeProvider>
@@ -249,7 +250,7 @@ describe('ProductTypeContext', () => {
   test('handles non-array fetch payloads and refresh attempts without an authenticated user', async () => {
     productTypeService.getProductTypes.mockResolvedValueOnce({ invalid: true });
 
-    render(
+    renderWithQueryClient(
       <ProductTypeProvider>
         <Probe />
       </ProductTypeProvider>
@@ -264,7 +265,7 @@ describe('ProductTypeContext', () => {
       isLoading: false,
     });
 
-    render(
+    renderWithQueryClient(
       <ProductTypeProvider>
         <Probe />
       </ProductTypeProvider>
@@ -283,7 +284,7 @@ describe('ProductTypeContext', () => {
       isLoading: false,
     });
 
-    render(
+    renderWithQueryClient(
       <ProductTypeProvider>
         <Probe />
       </ProductTypeProvider>
@@ -312,7 +313,7 @@ describe('ProductTypeContext', () => {
       response: { data: { detail: 'em uso' } },
     });
 
-    render(
+    renderWithQueryClient(
       <ProductTypeProvider>
         <Probe />
       </ProductTypeProvider>
@@ -339,3 +340,5 @@ describe('ProductTypeContext', () => {
     );
   });
 });
+
+

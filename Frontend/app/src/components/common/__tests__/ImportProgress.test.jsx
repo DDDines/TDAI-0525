@@ -1,7 +1,8 @@
-ï»¿import { act, render, screen, waitFor } from '@testing-library/react';
+import { act, screen, waitFor } from '@testing-library/react';
 import '@testing-library/jest-dom';
 import ImportProgress from '../ImportProgress.jsx';
 import fornecedorService from '../../../services/fornecedorService';
+import { renderWithQueryClient } from '../../../../test-utils/renderWithQueryClient.jsx';
 
 jest.mock('../../../services/fornecedorService', () => ({
   __esModule: true,
@@ -24,7 +25,7 @@ function createDeferred() {
 async function renderAndFlush(ui) {
   let view;
   await act(async () => {
-    view = render(ui);
+    view = renderWithQueryClient(ui);
     await Promise.resolve();
     await Promise.resolve();
   });
@@ -49,7 +50,7 @@ describe('common ImportProgress', () => {
   });
 
   test('shows initial state and does not poll without file id', () => {
-    render(<ImportProgress fileId={null} onDone={jest.fn()} />);
+    renderWithQueryClient(<ImportProgress fileId={null} onDone={jest.fn()} />);
 
     expect(screen.getByText(/Iniciando processamento/i)).toBeInTheDocument();
     expect(fornecedorService.getImportacaoStatus).not.toHaveBeenCalled();
@@ -95,7 +96,7 @@ describe('common ImportProgress', () => {
     }
 
     expect(
-      await screen.findByText(/resultado final ainda n(a|Ã£)o foi consolidado/i)
+      await screen.findByText(/resultado final ainda n(a|ã)o foi consolidado/i)
     ).toBeInTheDocument();
     expect(onDone).toHaveBeenCalledWith(null);
     expect(fornecedorService.getImportacaoResult).not.toHaveBeenCalled();
@@ -120,7 +121,7 @@ describe('common ImportProgress', () => {
 
     const { unmount } = await renderAndFlush(<ImportProgress fileId={91} onDone={jest.fn()} />);
 
-    expect(await screen.findByText(/Processando 2 de 5 p(a|Ã¡)ginas/i)).toBeInTheDocument();
+    expect(await screen.findByText(/Processando 2 de 5 p(a|á)ginas/i)).toBeInTheDocument();
     expect(fornecedorService.getImportacaoResult).not.toHaveBeenCalled();
 
     unmount();
@@ -137,7 +138,7 @@ describe('common ImportProgress', () => {
 
     await renderAndFlush(<ImportProgress fileId={97} />);
 
-    expect(await screen.findByText(/Processando 0 de 7 p(a|Ã¡)ginas/i)).toBeInTheDocument();
+    expect(await screen.findByText(/Processando 0 de 7 p(a|á)ginas/i)).toBeInTheDocument();
     expect(fornecedorService.getImportacaoResult).not.toHaveBeenCalled();
   });
 
@@ -148,7 +149,7 @@ describe('common ImportProgress', () => {
 
     await renderAndFlush(<ImportProgress fileId={101} />);
 
-    expect(await screen.findByText(/Processando 0 de 0 p(a|Ã¡)ginas/i)).toBeInTheDocument();
+    expect(await screen.findByText(/Processando 0 de 0 p(a|á)ginas/i)).toBeInTheDocument();
   });
 
   test('keeps polling when the final result is not ready yet and then resolves', async () => {
@@ -194,7 +195,7 @@ describe('common ImportProgress', () => {
     }
 
     expect(
-      await screen.findByText(/Resultado final ainda pendente ap(o|Ã³)s o tempo limite de espera/i)
+      await screen.findByText(/Resultado final ainda pendente ap(o|ó)s o tempo limite de espera/i)
     ).toBeInTheDocument();
     expect(onDone).toHaveBeenCalledWith(null);
   });
@@ -234,7 +235,7 @@ describe('common ImportProgress', () => {
     }
 
     expect(
-      await screen.findByText(/Resultado final ainda pendente ap(o|Ã³)s o tempo limite de espera/i)
+      await screen.findByText(/Resultado final ainda pendente ap(o|ó)s o tempo limite de espera/i)
     ).toBeInTheDocument();
 
     unmount();
@@ -337,3 +338,5 @@ describe('common ImportProgress', () => {
     expect(onDone).not.toHaveBeenCalled();
   });
 });
+
+
