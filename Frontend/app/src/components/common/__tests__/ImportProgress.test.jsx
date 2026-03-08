@@ -22,8 +22,10 @@ function createDeferred() {
 }
 
 async function renderAndFlush(ui) {
-  const view = render(ui);
+  let view;
   await act(async () => {
+    view = render(ui);
+    await Promise.resolve();
     await Promise.resolve();
   });
   return view;
@@ -38,9 +40,9 @@ describe('common ImportProgress', () => {
     consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
   });
 
-  afterEach(() => {
-    act(() => {
-      jest.runOnlyPendingTimers();
+  afterEach(async () => {
+    await act(async () => {
+      await jest.runOnlyPendingTimersAsync();
     });
     consoleErrorSpy.mockRestore();
     jest.useRealTimers();
