@@ -124,7 +124,7 @@ async def test_processar_arquivo_pdf_covers_none_pdf_invalid_pages_and_outer_fai
 
     monkeypatch.setattr(file_processing.pdfplumber, "open", lambda *args, **kwargs: None)
     result_none_pdf = await runtime.processar_arquivo_pdf(
-        conteudo_arquivo=b"pdf",
+        conteudo_arquivo=b"%PDF-1.4",
         usar_llm=False,
         extraction_mode="modo-invalido",
     )
@@ -137,7 +137,7 @@ async def test_processar_arquivo_pdf_covers_none_pdf_invalid_pages_and_outer_fai
         lambda *args, **kwargs: _FakePdfContext(SimpleNamespace(pages=[page])),
     )
     result_outer = await runtime.processar_arquivo_pdf(
-        conteudo_arquivo=b"pdf",
+        conteudo_arquivo=b"%PDF-1.4",
         usar_llm=False,
         extraction_mode="ocr",
     )
@@ -150,7 +150,7 @@ async def test_processar_arquivo_pdf_covers_none_pdf_invalid_pages_and_outer_fai
         lambda *args, **kwargs: _FakePdfContext(SimpleNamespace(pages=[page_valid])),
     )
     result_invalid_page = await runtime.processar_arquivo_pdf(
-        conteudo_arquivo=b"pdf",
+        conteudo_arquivo=b"%PDF-1.4",
         usar_llm=False,
         pages=[2],
         extraction_mode="ocr",
@@ -201,7 +201,7 @@ async def test_processar_arquivo_pdf_covers_region_table_and_text_fallback_branc
     )
 
     result = await runtime.processar_arquivo_pdf(
-        conteudo_arquivo=b"pdf",
+        conteudo_arquivo=b"%PDF-1.4",
         usar_llm=False,
         pages=[1],
         region=[0.1, 0.1, 0.9, 0.9],
@@ -244,7 +244,7 @@ async def test_tabular_ingestion_runtime_covers_product_type_and_csv_fallbacks(m
         ),
     )
     excel_result = await runtime.processar_arquivo_excel(
-        b"xlsx",
+        b"PK\x03\x04xlsx",
         product_type_id=9,
     )
     assert excel_result == [{"nome_base": "Produto", "sku_original": "AB12", "product_type_id": 9}]
@@ -306,7 +306,7 @@ async def test_processar_arquivo_pdf_covers_invalid_bbox_and_region_rows(monkeyp
     )
 
     result_invalid_bbox = await runtime.processar_arquivo_pdf(
-        conteudo_arquivo=b"pdf",
+        conteudo_arquivo=b"%PDF-1.4",
         usar_llm=False,
         pages=[1],
         region=[0.9, 0.9, 0.1, 0.1],
@@ -315,7 +315,7 @@ async def test_processar_arquivo_pdf_covers_invalid_bbox_and_region_rows(monkeyp
     assert "Nenhum dado de produto pode ser extraido" in result_invalid_bbox[0]["erro_processamento_pdf"]
 
     result_region = await runtime.processar_arquivo_pdf(
-        conteudo_arquivo=b"pdf",
+        conteudo_arquivo=b"%PDF-1.4",
         usar_llm=False,
         pages=[1],
         region=[0.1, 0.1, 0.9, 0.9],
@@ -352,7 +352,7 @@ async def test_processar_arquivo_pdf_covers_structured_text_without_identity_and
         lambda row, mapping=None: row,
     )
     result = await runtime.processar_arquivo_pdf(
-        conteudo_arquivo=b"pdf",
+        conteudo_arquivo=b"%PDF-1.4",
         usar_llm=False,
         extraction_mode="ocr",
     )
@@ -366,7 +366,7 @@ async def test_processar_arquivo_pdf_covers_structured_text_without_identity_and
     )
     monkeypatch.setattr(runtime, "_extract_structured_rows_from_text", lambda page_text: [])
     result_llm = await runtime.processar_arquivo_pdf(
-        conteudo_arquivo=b"pdf",
+        conteudo_arquivo=b"%PDF-1.4",
         usar_llm=True,
         extraction_mode="ia",
     )

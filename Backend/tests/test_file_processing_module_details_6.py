@@ -265,7 +265,7 @@ async def test_pdf_preview_runtime_handles_partial_page_results(monkeypatch):
 
     monkeypatch.setattr(runtime, "_build_page_processor", fake_build_page_processor)
 
-    result = await runtime.preview_arquivo_pdf(b"pdf", ext=".pdf", start_page=1, page_count=2, dpi=72)
+    result = await runtime.preview_arquivo_pdf(b"%PDF-1.4", ext=".pdf", start_page=1, page_count=2, dpi=72)
 
     assert result["table_pages"] == [2]
     assert result["sample_rows"] == {1: "linha 1"}

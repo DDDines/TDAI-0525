@@ -10,6 +10,7 @@ from __future__ import annotations
 from typing import Any, Dict
 from difflib import get_close_matches
 import json
+from pathlib import Path
 import re
 import unicodedata
 
@@ -20,6 +21,15 @@ from Backend.application.services.catalog_import_quality_service import (
 
 class CatalogImportSanitizationService:
     """Centraliza normalizacao/sanitizacao textual da importacao de catalogo."""
+
+    class FileSecurityValidationError(ValueError):
+        """Structured validation error for file uploads and parsing gates."""
+
+        def __init__(self, *, code: str, detail: str) -> None:
+            """Persist a stable error code and human-readable message."""
+            super().__init__(detail)
+            self.code = code
+            self.detail = detail
 
     _DOMAIN_VOCABULARY = {
         "paralama": "paralama",
@@ -60,10 +70,93 @@ class CatalogImportSanitizationService:
         re.IGNORECASE,
     )
     _URL_PATTERN = re.compile(r"\b(?:https?://|www\.)\S+\b", re.IGNORECASE)
+    _PDF_MAGIC = b"%PDF-"
+    _ZIP_MAGIC = b"PK\x03\x04"
+    _OLE_MAGIC = b"\xd0\xcf\x11\xe0\xa1\xb1\x1a\xe1"
+    _TEXT_ALLOWED_BYTES_PATTERN = re.compile(rb"^[\t\r\n\x20-\x7e\xc0-\xff]*$")
 
     def __init__(self, quality_service: CatalogImportQualityService) -> None:
         """Inject quality heuristics used by sanitation fallback decisions."""
         self._quality = quality_service
+
+    @classmethod
+    def _looks_like_text_bytes(cls, content: bytes) -> bool:
+        """Return True when bytes look like a safe text payload instead of binary data."""
+        if not content:
+            return False
+        sample = content[:4096]
+        if b"\x00" in sample:
+            return False
+        return bool(cls._TEXT_ALLOWED_BYTES_PATTERN.match(sample))
+
+    @classmethod
+    def detect_file_signature(cls, content: bytes) -> str:
+        """Detect a coarse file signature from raw bytes without trusting the extension."""
+        if content.startswith(cls._PDF_MAGIC):
+            return "pdf"
+        if content.startswith(cls._OLE_MAGIC):
+            return "xls"
+        if content.startswith(cls._ZIP_MAGIC):
+            return "zip"
+        if cls._looks_like_text_bytes(content):
+            return "text"
+        return "unknown"
+
+    @classmethod
+    def validate_uploaded_file_payload(
+        cls,
+        *,
+        content: bytes,
+        filename: str | None = None,
+        extension: str | None = None,
+        category: str | None = None,
+        max_bytes: int = 0,
+    ) -> Dict[str, Any]:
+        """Validate size and raw-byte signature before any parser touches the payload."""
+        payload = bytes(content or b"")
+        if max_bytes > 0 and len(payload) > max_bytes:
+            raise cls.FileSecurityValidationError(
+                code="FILE_TOO_LARGE",
+                detail=f"Arquivo excede o limite configurado de {max_bytes} bytes.",
+            )
+
+        resolved_extension = str(extension or Path(str(filename or "")).suffix).strip().lower()
+        resolved_category = str(category or "").strip().lower()
+        if not resolved_category:
+            resolved_category = {
+                ".pdf": "pdf",
+                ".xlsx": "excel",
+                ".xls": "excel",
+                ".csv": "csv",
+            }.get(resolved_extension, "")
+
+        if resolved_category not in {"pdf", "excel", "csv"}:
+            raise cls.FileSecurityValidationError(
+                code="FILE_SIGNATURE_INVALID",
+                detail="Formato de arquivo nao suportado para importacao.",
+            )
+
+        signature = cls.detect_file_signature(payload)
+        allowed_signatures = {
+            "pdf": {"pdf"},
+            "excel": {"zip", "xls"},
+            "csv": {"text"},
+        }[resolved_category]
+        if signature not in allowed_signatures:
+            raise cls.FileSecurityValidationError(
+                code="FILE_SIGNATURE_INVALID",
+                detail=(
+                    f"Assinatura invalida para {resolved_category}. "
+                    f"Esperado {sorted(allowed_signatures)}, obtido {signature}."
+                ),
+            )
+
+        return {
+            "extension": resolved_extension or None,
+            "category": resolved_category,
+            "signature": signature,
+            "size_bytes": len(payload),
+        }
 
     @staticmethod
     def _marker_count(candidate: str) -> int:

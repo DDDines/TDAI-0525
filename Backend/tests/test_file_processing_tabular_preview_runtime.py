@@ -23,7 +23,7 @@ class _TopLevelFunctionSurface:
             lambda *_args, **_kwargs: pd.DataFrame([{"a": "1"}, {"a": "2"}]),
         )
     
-        result = await runtime.preview_arquivo_excel(b"xlsx", max_rows=1)
+        result = await runtime.preview_arquivo_excel(b"PK\x03\x04xlsx", max_rows=1)
     
         assert result["headers"] == ["a"]
         assert result["sample_rows"] == [{"a": "1"}]

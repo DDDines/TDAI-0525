@@ -24,7 +24,7 @@ class _TopLevelFunctionSurface:
         )
     
         result = await runtime.processar_arquivo_pdf(
-            conteudo_arquivo=b"pdf-bytes",
+            conteudo_arquivo=b"%PDF-1.4 bytes",
             usar_llm=False,
         )
     
@@ -51,7 +51,7 @@ class _TopLevelFunctionSurface:
         )
     
         result = await runtime.processar_arquivo_pdf(
-            conteudo_arquivo=b"pdf-bytes",
+            conteudo_arquivo=b"%PDF-1.4 bytes",
             usar_llm=False,
         )
     
@@ -137,7 +137,7 @@ class _TopLevelFunctionSurface:
             lambda *_args, **_kwargs: {"motivo_descarte": "sem_nome_sku", "linha_original": {}},
         )
 
-        result = await runtime.processar_arquivo_pdf(conteudo_arquivo=b"fake", usar_llm=False)
+        result = await runtime.processar_arquivo_pdf(conteudo_arquivo=b"%PDF-1.4", usar_llm=False)
         assert isinstance(result, list)
         assert "erro_processamento_pdf" in result[0]
         assert "Nenhum dado de produto" in result[0]["erro_processamento_pdf"]
@@ -197,7 +197,7 @@ class _TopLevelFunctionSurface:
             lambda *_args, **_kwargs: {"nome_base": "Produto Teste", "sku_original": "SKU123"},
         )
 
-        result = await runtime.processar_arquivo_pdf(conteudo_arquivo=b"fake", usar_llm=False)
+        result = await runtime.processar_arquivo_pdf(conteudo_arquivo=b"%PDF-1.4", usar_llm=False)
         assert calls["extract_region"] >= 1
         assert isinstance(result, list)
         assert result
@@ -255,7 +255,7 @@ class _TopLevelFunctionSurface:
         )
 
         result = await runtime.processar_arquivo_pdf(
-            conteudo_arquivo=b"fake",
+            conteudo_arquivo=b"%PDF-1.4",
             usar_llm=False,
             extraction_mode="table",
         )
@@ -315,7 +315,7 @@ class _TopLevelFunctionSurface:
         )
 
         result = await runtime.processar_arquivo_pdf(
-            conteudo_arquivo=b"fake",
+            conteudo_arquivo=b"%PDF-1.4",
             usar_llm=False,
             extraction_mode="ocr",
         )

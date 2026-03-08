@@ -71,10 +71,16 @@ async def test_content_fetch_engine_playwright_core_closes_browser(monkeypatch):
         async def content(self):
             return "<html>playwright</html>"
 
+        async def close(self):
+            calls["page_closed"] = True
+
     class FakeContext:
         async def new_page(self):
             calls["new_page"] = True
             return FakePage()
+
+        async def close(self):
+            calls["context_closed"] = True
 
     class FakeBrowser:
         def __init__(self):
@@ -91,7 +97,11 @@ async def test_content_fetch_engine_playwright_core_closes_browser(monkeypatch):
     browser = FakeBrowser()
 
     class FakePlaywrightInstance:
-        chromium = SimpleNamespace(launch=lambda **kwargs: asyncio.sleep(0, result=browser))
+        chromium = SimpleNamespace(
+            launch=lambda **kwargs: (
+                calls.update({"launch_kwargs": kwargs}) or asyncio.sleep(0, result=browser)
+            )
+        )
 
     class FakeAsyncPlaywright:
         async def __aenter__(self):
@@ -101,10 +111,120 @@ async def test_content_fetch_engine_playwright_core_closes_browser(monkeypatch):
             return False
 
     monkeypatch.setattr(web_module, "async_playwright", lambda: FakeAsyncPlaywright())
+    monkeypatch.setattr(web_module.settings, "PLAYWRIGHT_GOTO_TIMEOUT_MS", 31000, raising=False)
+    monkeypatch.setattr(
+        web_module.settings,
+        "PLAYWRIGHT_PROXY_POOL_JSON",
+        '[{"server":"http://proxy-a:8080","username":"user","password":"secret"}]',
+        raising=False,
+    )
     html = await runtime.coletar_conteudo_pagina_playwright_core("https://example.com/p")
     assert html == "<html>playwright</html>"
-    assert calls["goto"] == ("https://example.com/p", 30000, "networkidle")
+    assert calls["goto"] == ("https://example.com/p", 31000, "networkidle")
+    assert calls["page_closed"] is True
+    assert calls["context_closed"] is True
     assert calls["closed"] is True
+    assert calls["launch_kwargs"]["proxy"]["server"] == "http://proxy-a:8080"
+    assert calls["context_kwargs"]["ignore_https_errors"] is True
+
+
+def test_content_fetch_engine_proxy_rotation_and_error_classification(monkeypatch):
+    runtime = web_module.WebContentFetchEngineRuntime(
+        search_runtime=SimpleNamespace(url_deve_ser_ignorada_antes_da_coleta=lambda url: False)
+    )
+    monkeypatch.setattr(
+        web_module.settings,
+        "PLAYWRIGHT_PROXY_POOL_JSON",
+        '["skip",{"server":"http://proxy-a:8080"},{"server":"http://proxy-b:8080","username":"u","password":"p"},{"invalid":true}]',
+        raising=False,
+    )
+
+    first = runtime.get_next_playwright_proxy()
+    second = runtime.get_next_playwright_proxy()
+    third = runtime.get_next_playwright_proxy()
+
+    assert first == {"server": "http://proxy-a:8080"}
+    assert second == {"server": "http://proxy-b:8080", "username": "u", "password": "p"}
+    assert third == {"server": "http://proxy-a:8080"}
+    assert runtime.classify_playwright_error(RuntimeError("ERR_PROXY_CONNECTION_FAILED")) == "proxy"
+    assert runtime.classify_playwright_error(web_module.PlaywrightTimeoutError("timeout")) == "timeout"
+    assert runtime.classify_playwright_error(RuntimeError("Access denied by anti bot")) == "anti_bot"
+    assert runtime.classify_playwright_error(RuntimeError("Executable doesn't exist")) == "browser_missing"
+
+
+@pytest.mark.asyncio
+async def test_content_fetch_engine_helper_branches_cover_invalid_config_and_safe_close(monkeypatch):
+    runtime = web_module.WebContentFetchEngineRuntime(
+        search_runtime=SimpleNamespace(url_deve_ser_ignorada_antes_da_coleta=lambda url: False)
+    )
+
+    monkeypatch.setattr(web_module.settings, "PLAYWRIGHT_GOTO_TIMEOUT_MS", "oops", raising=False)
+    assert runtime.get_playwright_goto_timeout_ms() == 30000
+
+    monkeypatch.setattr(web_module.settings, "PLAYWRIGHT_PROXY_POOL_JSON", None, raising=False)
+    assert runtime.get_playwright_proxy_pool() == []
+    assert runtime.get_next_playwright_proxy() is None
+
+    monkeypatch.setattr(web_module.settings, "PLAYWRIGHT_PROXY_POOL_JSON", "{broken", raising=False)
+    assert runtime.get_playwright_proxy_pool() == []
+
+    monkeypatch.setattr(web_module.settings, "PLAYWRIGHT_PROXY_POOL_JSON", '{"server":"http://proxy"}', raising=False)
+    assert runtime.get_playwright_proxy_pool() == []
+
+    await runtime._safe_close_playwright_resource(None)
+    await runtime._safe_close_playwright_resource(object())
+
+    class _BrokenCloser:
+        async def close(self):
+            raise RuntimeError("close failed")
+
+    await runtime._safe_close_playwright_resource(_BrokenCloser())
+
+
+@pytest.mark.asyncio
+async def test_content_fetch_engine_playwright_core_without_proxy_keeps_launch_kwargs_minimal(monkeypatch):
+    runtime = web_module.WebContentFetchEngineRuntime(
+        search_runtime=SimpleNamespace(url_deve_ser_ignorada_antes_da_coleta=lambda url: False)
+    )
+    calls = {}
+
+    class FakePage:
+        async def goto(self, url, timeout, wait_until):
+            calls["goto"] = (url, timeout, wait_until)
+
+        async def content(self):
+            return "<html>no-proxy</html>"
+
+    class FakeContext:
+        async def new_page(self):
+            return FakePage()
+
+    class FakeBrowser:
+        async def new_context(self, **kwargs):
+            return FakeContext()
+
+        async def close(self):
+            return None
+
+    class FakePlaywrightInstance:
+        chromium = SimpleNamespace(
+            launch=lambda **kwargs: (
+                calls.update({"launch_kwargs": kwargs}) or asyncio.sleep(0, result=FakeBrowser())
+            )
+        )
+
+    class FakeAsyncPlaywright:
+        async def __aenter__(self):
+            return FakePlaywrightInstance()
+
+        async def __aexit__(self, exc_type, exc, tb):
+            return False
+
+    monkeypatch.setattr(web_module, "async_playwright", lambda: FakeAsyncPlaywright())
+    monkeypatch.setattr(web_module.settings, "PLAYWRIGHT_PROXY_POOL_JSON", None, raising=False)
+    html = await runtime.coletar_conteudo_pagina_playwright_core("https://example.com/no-proxy")
+    assert html == "<html>no-proxy</html>"
+    assert calls["launch_kwargs"] == {"headless": True}
 
 
 def test_search_engine_public_sync_proxy_fallback_and_non_html_http(monkeypatch):

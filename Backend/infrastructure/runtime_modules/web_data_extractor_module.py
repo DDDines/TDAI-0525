@@ -517,6 +517,7 @@ class WebContentFetchEngineRuntime:
         """Initialize injected dependencies and runtime configuration for Web Content Fetch Engine Runtime."""
         self._search_runtime = search_runtime
         self._playwright_chromium_indisponivel = False
+        self._playwright_proxy_index = 0
 
     def is_playwright_chromium_indisponivel(self) -> bool:
         """Execute is playwright chromium indisponivel as part of this module workflow."""
@@ -525,6 +526,79 @@ class WebContentFetchEngineRuntime:
     def set_playwright_chromium_indisponivel(self, value: bool) -> None:
         """Execute set playwright chromium indisponivel as part of this module workflow."""
         self._playwright_chromium_indisponivel = bool(value)
+
+    def get_playwright_goto_timeout_ms(self) -> int:
+        """Resolve the navigation timeout used for each Playwright page load."""
+        try:
+            return max(1000, int(getattr(settings, "PLAYWRIGHT_GOTO_TIMEOUT_MS", 30000) or 30000))
+        except Exception:
+            return 30000
+
+    def get_playwright_proxy_pool(self) -> List[Dict[str, str]]:
+        """Parse the configured proxy pool and discard invalid entries."""
+        raw_pool = normalize_optional_secret(getattr(settings, "PLAYWRIGHT_PROXY_POOL_JSON", None))
+        if not raw_pool:
+            return []
+        try:
+            payload = json.loads(raw_pool)
+        except Exception:
+            logger.warning("PLAYWRIGHT_PROXY_POOL_JSON invalido. Ignorando configuracao de proxies.")
+            return []
+        if not isinstance(payload, list):
+            return []
+
+        proxies: List[Dict[str, str]] = []
+        for item in payload:
+            if not isinstance(item, dict):
+                continue
+            server = normalize_optional_secret(item.get("server"))
+            if not server:
+                continue
+            proxy_entry: Dict[str, str] = {"server": server}
+            username = normalize_optional_secret(item.get("username"))
+            password = normalize_optional_secret(item.get("password"))
+            if username:
+                proxy_entry["username"] = username
+            if password:
+                proxy_entry["password"] = password
+            proxies.append(proxy_entry)
+        return proxies
+
+    def get_next_playwright_proxy(self) -> Optional[Dict[str, str]]:
+        """Rotate through the configured proxy pool in round-robin order."""
+        proxies = self.get_playwright_proxy_pool()
+        if not proxies:
+            return None
+        proxy = proxies[self._playwright_proxy_index % len(proxies)]
+        self._playwright_proxy_index = (self._playwright_proxy_index + 1) % len(proxies)
+        return dict(proxy)
+
+    @staticmethod
+    def classify_playwright_error(error: Exception) -> str:
+        """Classify Playwright failures so logs and fallback behavior stay explicit."""
+        message = str(error or "").lower()
+        if isinstance(error, PlaywrightTimeoutError) or "timeout" in message:
+            return "timeout"
+        if "proxy" in message or "tunnel" in message or "err_proxy" in message:
+            return "proxy"
+        if "captcha" in message or "access denied" in message or "forbidden" in message or "blocked" in message:
+            return "anti_bot"
+        if "executable doesn't exist" in message or "missing browser" in message:
+            return "browser_missing"
+        return "generic"
+
+    @staticmethod
+    async def _safe_close_playwright_resource(resource: Any) -> None:
+        """Close Playwright page/context/browser objects without masking the original error."""
+        if resource is None:
+            return
+        close_fn = getattr(resource, "close", None)
+        if close_fn is None:
+            return
+        try:
+            await close_fn()
+        except Exception:
+            logger.debug("Falha ao encerrar recurso Playwright de forma segura.", exc_info=True)
 
     def coletar_conteudo_pagina_http_sync(
         self,
@@ -569,9 +643,16 @@ class WebContentFetchEngineRuntime:
     ) -> Optional[str]:
         """Coletar conteudo pagina playwright core."""
         browser = None
+        context = None
+        page = None
+        launch_kwargs: Dict[str, Any] = {"headless": True}
+        proxy = self.get_next_playwright_proxy()
+        if proxy:
+            launch_kwargs["proxy"] = proxy
+        goto_timeout_ms = self.get_playwright_goto_timeout_ms()
         async with async_playwright() as p_instance:
             try:
-                browser = await p_instance.chromium.launch(headless=True)
+                browser = await p_instance.chromium.launch(**launch_kwargs)
                 context = await browser.new_context(
                     user_agent=(
                         "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
@@ -581,11 +662,12 @@ class WebContentFetchEngineRuntime:
                     ignore_https_errors=True,
                 )
                 page = await context.new_page()
-                await page.goto(url, timeout=30000, wait_until="networkidle")
+                await page.goto(url, timeout=goto_timeout_ms, wait_until="networkidle")
                 return await page.content()
             finally:
-                if browser:
-                    await browser.close()
+                await self._safe_close_playwright_resource(page)
+                await self._safe_close_playwright_resource(context)
+                await self._safe_close_playwright_resource(browser)
 
     def coletar_conteudo_playwright_em_thread_sync(
         self,
@@ -648,19 +730,22 @@ class WebContentFetchEngineRuntime:
             except Exception as e:
                 erro_str = str(e)
                 erro_curto = erro_str.splitlines()[0] if erro_str else "erro_desconhecido"
-                if "Executable doesn't exist" in erro_str:
+                error_type = self.classify_playwright_error(e)
+                if error_type == "browser_missing":
                     logger.warning(
                         "Playwright Chromium indisponivel no ambiente. Usando fallback HTTP direto para proximas coletas."
                     )
                     self.set_playwright_chromium_indisponivel(True)
                     logger.warning(
-                        "Falha Playwright (thread dedicada) para %s: %s",
+                        "Falha Playwright [%s] (thread dedicada) para %s: %s",
+                        error_type,
                         url,
                         erro_curto,
                     )
                 else:
                     logger.warning(
-                        "Falha Playwright via thread dedicada para %s: %s. Caindo para HTTP direto.",
+                        "Falha Playwright [%s] via thread dedicada para %s: %s. Caindo para HTTP direto.",
+                        error_type,
                         url,
                         erro_curto,
                     )
@@ -686,17 +771,19 @@ class WebContentFetchEngineRuntime:
         except Exception as e:
             erro_str = str(e)
             erro_curto = erro_str.splitlines()[0] if erro_str else "erro_desconhecido"
-            if "Executable doesn't exist" in erro_str:
+            error_type = self.classify_playwright_error(e)
+            if error_type == "browser_missing":
                 logger.warning(
                     "Playwright Chromium indisponivel no ambiente. Usando fallback HTTP direto para proximas coletas."
                 )
                 self.set_playwright_chromium_indisponivel(True)
-                logger.warning("Falha Playwright para %s: %s", url, erro_curto)
+                logger.warning("Falha Playwright [%s] para %s: %s", error_type, url, erro_curto)
             else:
                 import traceback
 
                 logger.error(
-                    "Erro ao coletar conte?do com Playwright para %s: %s\n%s",
+                    "Erro ao coletar conte?do com Playwright [%s] para %s: %s\n%s",
+                    error_type,
                     url,
                     e,
                     traceback.format_exc(),

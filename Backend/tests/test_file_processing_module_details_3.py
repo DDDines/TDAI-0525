@@ -116,7 +116,7 @@ async def test_tabular_preview_dispatch_and_pdf_image_runtime_cover_fallbacks(mo
     assert preview_runtime._detect_csv_delimiter("ab") == ","
 
     monkeypatch.setattr(file_processing.pd, "read_excel", lambda *a, **k: (_ for _ in ()).throw(RuntimeError("excel fail")))
-    assert await preview_runtime.preview_arquivo_excel(b"x") == {
+    assert await preview_runtime.preview_arquivo_excel(b"PK\x03\x04xlsx") == {
         "error": "Falha ao ler arquivo Excel: excel fail"
     }
 
@@ -156,13 +156,13 @@ async def test_tabular_preview_dispatch_and_pdf_image_runtime_cover_fallbacks(mo
         lambda *args, **kwargs: [_ImageStub(b"img-a"), _ImageStub(b"img-b")],
     )
     converted = image_runtime._convert_sync(
-        conteudo_arquivo=b"pdf",
+        conteudo_arquivo=b"%PDF-1.4",
         max_pages=2,
         start_page=1,
         dpi=144,
     )
     assert len(converted) == 2
-    assert await image_runtime.pdf_bytes_to_images(b"pdf", max_pages=1, start_page=1, dpi=144)
+    assert await image_runtime.pdf_bytes_to_images(b"%PDF-1.4", max_pages=1, start_page=1, dpi=144)
 
 
 def test_pdf_utils_and_asset_runtime_cover_remaining_small_branches(monkeypatch, tmp_path):
@@ -345,7 +345,7 @@ async def test_pdf_ingestion_runtime_covers_text_fallback_llm_and_non_llm_branch
     )
     monkeypatch.setattr(runtime, "_extract_structured_rows_from_text", lambda page_text: [])
     result = await runtime.processar_arquivo_pdf(
-        conteudo_arquivo=b"pdf",
+        conteudo_arquivo=b"%PDF-1.4",
         usar_llm=True,
         extraction_mode="ia",
     )
@@ -361,7 +361,7 @@ async def test_pdf_ingestion_runtime_covers_text_fallback_llm_and_non_llm_branch
     )
     monkeypatch.setattr(runtime, "_extract_structured_rows_from_text", lambda page_text: [])
     result = await runtime.processar_arquivo_pdf(
-        conteudo_arquivo=b"pdf",
+        conteudo_arquivo=b"%PDF-1.4",
         usar_llm=True,
         extraction_mode="ia",
     )
@@ -377,7 +377,7 @@ async def test_pdf_ingestion_runtime_covers_text_fallback_llm_and_non_llm_branch
     )
     monkeypatch.setattr(runtime, "_extract_structured_rows_from_text", lambda page_text: [])
     result = await runtime.processar_arquivo_pdf(
-        conteudo_arquivo=b"pdf",
+        conteudo_arquivo=b"%PDF-1.4",
         usar_llm=True,
         extraction_mode="ia",
     )
@@ -392,7 +392,7 @@ async def test_pdf_ingestion_runtime_covers_text_fallback_llm_and_non_llm_branch
     runtime = file_processing.PdfIngestionRuntime()
     monkeypatch.setattr(runtime, "_extract_structured_rows_from_text", lambda page_text: [])
     result = await runtime.processar_arquivo_pdf(
-        conteudo_arquivo=b"pdf",
+        conteudo_arquivo=b"%PDF-1.4",
         usar_llm=False,
         extraction_mode="ocr",
     )
@@ -407,7 +407,7 @@ async def test_pdf_ingestion_runtime_covers_text_fallback_llm_and_non_llm_branch
     runtime = file_processing.PdfIngestionRuntime()
     monkeypatch.setattr(runtime, "_extract_structured_rows_from_text", lambda page_text: [])
     result = await runtime.processar_arquivo_pdf(
-        conteudo_arquivo=b"pdf",
+        conteudo_arquivo=b"%PDF-1.4",
         usar_llm=False,
         extraction_mode="ocr",
     )

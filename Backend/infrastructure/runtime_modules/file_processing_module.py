@@ -26,6 +26,12 @@ from pdfplumber.pdf import PDF as PdfPlumberPDF
 from Backend.core.logging_config import get_logger
 from Backend.core.config import settings
 from Backend import database, models
+from Backend.application.services.catalog_import_quality_service import (
+    CatalogImportQualityService,
+)
+from Backend.application.services.catalog_import_sanitization_service import (
+    CatalogImportSanitizationService,
+)
 from Backend.infrastructure.adapters.web_data_extractor_adapter import WebDataExtractorServiceAdapter
 from Backend.infrastructure.repositories.catalog_import_file_repository import (
     CatalogImportFileRepository,
@@ -71,6 +77,48 @@ class _FileProcessingImplementation:
         return backend_root / p
 
     @staticmethod
+    def _build_file_security_service() -> CatalogImportSanitizationService:
+        """Build the file security validator used before expensive parsing operations."""
+        return CatalogImportSanitizationService(CatalogImportQualityService())
+
+    @staticmethod
+    def _resolve_max_upload_bytes() -> int:
+        """Resolve the strict upload byte cap from settings with a safe fallback."""
+        try:
+            return max(0, int(getattr(settings, "MAX_UPLOAD_BYTES", 25 * 1024 * 1024) or 0))
+        except Exception:
+            return 25 * 1024 * 1024
+
+    @classmethod
+    def _validate_file_payload(
+        cls,
+        *,
+        content: bytes,
+        filename: Optional[str]=None,
+        extension: Optional[str]=None,
+        category: Optional[str]=None,
+    ) -> Dict[str, Any]:
+        """Validate size and signature before persisting or parsing uploaded content."""
+        return cls._build_file_security_service().validate_uploaded_file_payload(
+            content=content,
+            filename=filename,
+            extension=extension,
+            category=category,
+            max_bytes=cls._resolve_max_upload_bytes(),
+        )
+
+    @staticmethod
+    def _build_file_security_http_exception(
+        error: CatalogImportSanitizationService.FileSecurityValidationError,
+    ) -> HTTPException:
+        """Translate file validation failures into stable HTTP responses for the UI."""
+        status_code = 413 if error.code == 'FILE_TOO_LARGE' else 400
+        return HTTPException(
+            status_code=status_code,
+            detail={"code": error.code, "message": error.detail},
+        )
+
+    @staticmethod
     async def _save_uploaded_catalog_impl(file: UploadFile, fornecedor_id: Optional[int]=None) -> models.CatalogImportFile:
         """Salva o arquivo de catÃ¡logo no disco e retorna um objeto CatalogImportFile.
     
@@ -95,6 +143,14 @@ class _FileProcessingImplementation:
         unique_name = f'{uuid4().hex}{ext}'
         stored_path = directory / unique_name
         content = await file.read()
+        try:
+            _FileProcessingImplementation._validate_file_payload(
+                content=content,
+                filename=file.filename,
+            )
+        except CatalogImportSanitizationService.FileSecurityValidationError as error:
+            await file.close()
+            raise _FileProcessingImplementation._build_file_security_http_exception(error) from error
         with open(stored_path, 'wb') as f_out:
             f_out.write(content)
         await file.close()
@@ -901,6 +957,10 @@ class TabularIngestionEngineRuntime:
         """Execute processar arquivo excel as part of this module workflow."""
         produtos_extraidos: List[Dict[str, Any]] = []
         try:
+            _FileProcessingImplementation._validate_file_payload(
+                content=conteudo_arquivo,
+                category='excel',
+            )
             xls = pd.ExcelFile(io.BytesIO(conteudo_arquivo))
             abas_processar = [sheet_name] if sheet_name else xls.sheet_names
             for aba in abas_processar:
@@ -914,6 +974,8 @@ class TabularIngestionEngineRuntime:
                             produto_padronizado['product_type_id'] = product_type_id
                         produtos_extraidos.append(produto_padronizado)
             return produtos_extraidos
+        except CatalogImportSanitizationService.FileSecurityValidationError as error:
+            return [{'erro_processamento_excel': error.detail, 'error_code': error.code}]
         except Exception as e:
             logger.error('Erro ao processar arquivo Excel: %s', e)
             return [{'erro_processamento_excel': f'Falha ao ler arquivo Excel: {str(e)}'}]
@@ -922,6 +984,10 @@ class TabularIngestionEngineRuntime:
         """Execute processar arquivo csv as part of this module workflow."""
         produtos_extraidos: List[Dict[str, Any]] = []
         try:
+            _FileProcessingImplementation._validate_file_payload(
+                content=conteudo_arquivo,
+                category='csv',
+            )
             try:
                 import chardet
                 detection = chardet.detect(conteudo_arquivo)
@@ -952,6 +1018,8 @@ class TabularIngestionEngineRuntime:
                         produto_padronizado['product_type_id'] = product_type_id
                     produtos_extraidos.append(produto_padronizado)
             return produtos_extraidos
+        except CatalogImportSanitizationService.FileSecurityValidationError as error:
+            return [{'erro_processamento_csv': error.detail, 'error_code': error.code}]
         except Exception as e:
             logger.error('Erro ao processar arquivo CSV: %s', e)
             return [{'erro_processamento_csv': f'Falha ao ler arquivo CSV: {str(e)}'}]
@@ -1145,6 +1213,10 @@ class PdfIngestionRuntime:
         allow_text_fallback = mode in {'ocr', 'ia'}
         allow_llm = bool(usar_llm) and mode == 'ia'
         try:
+            _FileProcessingImplementation._validate_file_payload(
+                content=conteudo_arquivo,
+                category='pdf',
+            )
             if region and len(region) == 4:
                 with tempfile.NamedTemporaryFile(delete=False, suffix='.pdf') as tmp_pdf:
                     tmp_pdf.write(conteudo_arquivo)
@@ -1337,6 +1409,9 @@ class PdfIngestionRuntime:
                     return [{'erro_processamento_pdf': 'Nenhum dado de produto pode ser extraido do PDF (pode estar protegido, vazio ou somente imagem sem OCR).', 'log_pdf': log_pdf}]
             logger.info('processar_arquivo_pdf: concluido produtos_extraidos=%s paginas=%s', len(produtos_extraidos), len(page_list_to_process))
             return produtos_extraidos
+        except CatalogImportSanitizationService.FileSecurityValidationError as error:
+            log_pdf.append(f'{error.code}: {error.detail}')
+            return [{'erro_processamento_pdf': error.detail, 'error_code': error.code, 'log_pdf': log_pdf}]
         except Exception as e:
             import traceback
             log_pdf.append(f'Erro critico ao processar arquivo PDF: {str(e)}')
@@ -1376,10 +1451,16 @@ class TabularPreviewEngineRuntime:
     async def preview_arquivo_excel(self, conteudo_arquivo: bytes, max_rows: int=5) -> Dict[str, Any]:
         """Execute preview arquivo excel as part of this module workflow."""
         try:
+            _FileProcessingImplementation._validate_file_payload(
+                content=conteudo_arquivo,
+                category='excel',
+            )
             df = pd.read_excel(io.BytesIO(conteudo_arquivo), sheet_name=0)
             headers = [str(col) for col in df.columns]
             sample_rows = df.head(max_rows).fillna('').to_dict(orient='records')
             return {'headers': headers, 'sample_rows': sample_rows}
+        except CatalogImportSanitizationService.FileSecurityValidationError as error:
+            return {'error': error.detail, 'error_code': error.code}
         except Exception as e:
             logger.error('Erro ao gerar preview de arquivo Excel: %s', e)
             return {'error': f'Falha ao ler arquivo Excel: {str(e)}'}
@@ -1387,6 +1468,10 @@ class TabularPreviewEngineRuntime:
     async def preview_arquivo_csv(self, conteudo_arquivo: bytes, max_rows: int=5) -> Dict[str, Any]:
         """Execute preview arquivo csv as part of this module workflow."""
         try:
+            _FileProcessingImplementation._validate_file_payload(
+                content=conteudo_arquivo,
+                category='csv',
+            )
             conteudo_str = self._decode_csv_bytes(conteudo_arquivo)
             delimitador = self._detect_csv_delimiter(conteudo_str)
             leitor_csv = csv.DictReader(io.StringIO(conteudo_str), delimiter=delimitador)
@@ -1397,6 +1482,8 @@ class TabularPreviewEngineRuntime:
                     break
                 sample_rows.append(row)
             return {'headers': headers, 'sample_rows': sample_rows}
+        except CatalogImportSanitizationService.FileSecurityValidationError as error:
+            return {'error': error.detail, 'error_code': error.code}
         except Exception as e:
             logger.error('Erro ao gerar preview de arquivo CSV: %s', e)
             return {'error': f'Falha ao ler arquivo CSV: {str(e)}'}
@@ -1489,6 +1576,11 @@ class PdfPreviewRuntime:
             logger.error(msg)
             return {'error': msg}
         try:
+            _FileProcessingImplementation._validate_file_payload(
+                content=conteudo_arquivo,
+                extension=ext,
+                category='pdf',
+            )
             with pdf_open(io.BytesIO(conteudo_arquivo)) as reader:
                 num_pages = len(reader.pages)
             loop = asyncio.get_running_loop()
@@ -1515,6 +1607,8 @@ class PdfPreviewRuntime:
             duration = time.perf_counter() - start
             logger.info('PDF preview processed %s page(s) in %.4f seconds', pages_processed, duration)
             return preview
+        except CatalogImportSanitizationService.FileSecurityValidationError as error:
+            return {'error': error.detail, 'error_code': error.code}
         except Exception as e:
             logger.error('Erro ao gerar preview de arquivo PDF: %s', e)
             return {'error': f'Falha ao ler arquivo PDF: {str(e)}'}

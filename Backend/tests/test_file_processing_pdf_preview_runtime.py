@@ -69,8 +69,26 @@ class _TopLevelFunctionSurface:
         assert called["page_count"] == 1
         assert called["dpi"] == 72
 
+    @pytest.mark.asyncio
+    async def test_pdf_preview_runtime_rejects_invalid_signature_before_opening(monkeypatch):
+        """Reject invalid PDF bytes before pdfplumber/poppler parsing begins."""
+        runtime = file_processing.PdfPreviewRuntime()
+        monkeypatch.setattr(file_processing.settings, "MAX_UPLOAD_BYTES", 1024, raising=False)
+        monkeypatch.setattr(file_processing.shutil, "which", lambda *_args, **_kwargs: "pdftoppm")
+
+        result = await runtime.preview_arquivo_pdf(
+            conteudo_arquivo=b"not-a-pdf",
+            ext=".pdf",
+            start_page=1,
+            page_count=1,
+            dpi=72,
+        )
+
+        assert result["error_code"] == "FILE_SIGNATURE_INVALID"
+
 test_pdf_preview_runtime_retorna_erro_sem_poppler = _TopLevelFunctionSurface.test_pdf_preview_runtime_retorna_erro_sem_poppler
 test_preview_pdf_impl_usa_runtime = _TopLevelFunctionSurface.test_preview_pdf_impl_usa_runtime
+test_pdf_preview_runtime_rejects_invalid_signature_before_opening = _TopLevelFunctionSurface.test_pdf_preview_runtime_rejects_invalid_signature_before_opening
 
 
 

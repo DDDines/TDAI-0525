@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import pytest
+
 from Backend.application.services.catalog_import_quality_service import (
     CatalogImportQualityService,
 )
@@ -393,3 +395,59 @@ def test_sanitize_extracted_product_truncates_overlong_identity_and_description_
     assert len(extras["modelo_truncado_de"]) == 130
     assert len(extras["categoria_original_truncada_de"]) == 170
     assert len(extras["descricao_original_truncada_de"]) == 5100
+
+
+def test_file_signature_detection_and_payload_validation_cover_pdf_excel_csv_and_errors():
+    """Cover raw-byte signature detection and strict upload validation outcomes."""
+    service = _service()
+
+    assert service._looks_like_text_bytes(b"") is False
+    assert service.detect_file_signature(b"%PDF-1.4 fake") == "pdf"
+    assert service.detect_file_signature(b"PK\x03\x04xlsx") == "zip"
+    assert service.detect_file_signature(b"\xd0\xcf\x11\xe0\xa1\xb1\x1a\xe1xls") == "xls"
+    assert service.detect_file_signature("sku,nome\nA1,Produto".encode("utf-8")) == "text"
+    assert service.detect_file_signature(b"\x00\x01\x02\x03") == "unknown"
+
+    pdf_info = service.validate_uploaded_file_payload(
+        content=b"%PDF-1.4 fake",
+        filename="catalogo.pdf",
+        max_bytes=1024,
+    )
+    excel_info = service.validate_uploaded_file_payload(
+        content=b"PK\x03\x04xlsx",
+        category="excel",
+        max_bytes=1024,
+    )
+    csv_info = service.validate_uploaded_file_payload(
+        content="sku,nome\nA1,Produto".encode("utf-8"),
+        extension=".csv",
+        max_bytes=1024,
+    )
+
+    assert pdf_info["signature"] == "pdf"
+    assert excel_info["signature"] == "zip"
+    assert csv_info["signature"] == "text"
+
+    with pytest.raises(CatalogImportSanitizationService.FileSecurityValidationError) as too_large:
+        service.validate_uploaded_file_payload(
+            content=b"%PDF-1.4 fake",
+            filename="catalogo.pdf",
+            max_bytes=4,
+        )
+    assert too_large.value.code == "FILE_TOO_LARGE"
+
+    with pytest.raises(CatalogImportSanitizationService.FileSecurityValidationError) as bad_ext:
+        service.validate_uploaded_file_payload(
+            content=b"%PDF-1.4 fake",
+            filename="catalogo.exe",
+            max_bytes=1024,
+        )
+    assert bad_ext.value.code == "FILE_SIGNATURE_INVALID"
+
+    with pytest.raises(CatalogImportSanitizationService.FileSecurityValidationError) as mismatch:
+        service.validate_uploaded_file_payload(
+            content=b"%PDF-1.4 fake",
+            category="excel",
+            max_bytes=1024,
+        )
+    assert mismatch.value.code == "FILE_SIGNATURE_INVALID"

@@ -103,14 +103,14 @@ async def test_pdf_preview_runtime_builders_success_and_error(monkeypatch):
         return _processor
 
     monkeypatch.setattr(runtime, "_build_page_processor", fake_build_page_processor)
-    preview = await runtime.preview_arquivo_pdf(b"pdf", ext=".pdf", start_page=1, page_count=0, dpi=72)
+    preview = await runtime.preview_arquivo_pdf(b"%PDF-1.4", ext=".pdf", start_page=1, page_count=0, dpi=72)
     assert preview["num_pages"] == 3
     assert preview["table_pages"] == [2]
     assert preview["sample_rows"][1] == "snippet-1"
     assert preview["preview_images"][2]["image"] == "img-3"
 
     monkeypatch.setattr(file_processing, "pdf_open", lambda stream: (_ for _ in ()).throw(RuntimeError("pdf bad")))
-    error = await runtime.preview_arquivo_pdf(b"pdf", ext=".pdf", start_page=1, page_count=1, dpi=72)
+    error = await runtime.preview_arquivo_pdf(b"%PDF-1.4", ext=".pdf", start_page=1, page_count=1, dpi=72)
     assert error == {"error": "Falha ao ler arquivo PDF: pdf bad"}
 
 
