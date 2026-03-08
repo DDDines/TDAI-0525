@@ -73,6 +73,28 @@ EMAIL_PATTERN = re.compile(
     re.IGNORECASE,
 )
 URL_PATTERN = re.compile(r"\b(?:https?://|www\.)\S+\b", re.IGNORECASE)
+TITLE_META_LINE_PATTERN = re.compile(
+    r"^(?:"
+    r"com\s+certeza!?|"
+    r"aqui\s+est[aã]o|"
+    r"op[cç][oõ]es?\s+de|"
+    r"observa[cç][oõ]es?|"
+    r"por\s+que\s+funciona|"
+    r"foco|"
+    r"manter\s+foco|"
+    r"seo|"
+    r"atra[cç][aã]o|"
+    r"formato\s+de\s+resposta|"
+    r"resposta\s+final"
+    r")\b",
+    re.IGNORECASE,
+)
+TITLE_BOLD_SEGMENT_PATTERN = re.compile(r"\*\*(.+?)\*\*")
+TRAILING_EXPLANATION_PATTERN = re.compile(r"\s+\((?:[^()]|\([^()]*\)){8,}\)\s*$")
+DESCRIPTION_META_PREFIX_PATTERN = re.compile(
+    r"^\s*(?:descri[cç][aã]o(?:\s+do\s+produto)?|texto\s+final|resposta\s+final)\s*:\s*",
+    re.IGNORECASE,
+)
 
 
 class AiProviderWorkflow:
@@ -763,6 +785,9 @@ class IAGenerationRuntime:
         if not text:
             return ""
 
+        text = DESCRIPTION_META_PREFIX_PATTERN.sub("", text)
+        text = re.sub(r"^\s*[-*•]+\s*", "", text).strip()
+
         chunks = re.split(r"(?<=[.!?])\s+|[\r\n]+", text)
         filtered_chunks: List[str] = []
         for chunk in chunks:
@@ -786,8 +811,16 @@ class IAGenerationRuntime:
             cleaned = line.strip()
             if not cleaned:
                 continue
+            bold_match = TITLE_BOLD_SEGMENT_PATTERN.search(cleaned)
+            if bold_match:
+                cleaned = bold_match.group(1).strip()
             cleaned = re.sub(r"^\s*(?:[-*•]+|\d+[)\].:-])\s*", "", cleaned).strip()
+            cleaned = re.sub(r"^(?:titulo|t[ií]tulo)\s*:\s*", "", cleaned, flags=re.IGNORECASE)
             cleaned = cleaned.strip(' "\'`')
+            if TITLE_META_LINE_PATTERN.search(cleaned):
+                continue
+            cleaned = TRAILING_EXPLANATION_PATTERN.sub("", cleaned).strip()
+            cleaned = re.split(r"\s+(?:[-–—]\s+)?(?:por que funciona|foco|seo|atra[cç][aã]o)\s*:\s*", cleaned, maxsplit=1, flags=re.IGNORECASE)[0]
             cleaned = URL_PATTERN.sub(" ", cleaned)
             cleaned = EMAIL_PATTERN.sub(" ", cleaned)
             cleaned = PHONE_OR_ID_BLOCK_PATTERN.sub(" ", cleaned)

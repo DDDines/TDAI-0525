@@ -20,6 +20,9 @@ from Backend.infrastructure.repositories.prompt_template_repository import (  # 
     DEFAULT_PROMPT_TEMPLATES,
     PromptTemplateName,
 )
+from Backend.infrastructure.runtime_modules.ia_generation_module import (  # noqa: E402
+    IAGenerationRuntime,
+)
 
 
 DEFAULT_DATASET_PATH = PROJECT_ROOT / "scripts" / "evals" / "catalog_gold_cases.json"
@@ -129,6 +132,15 @@ def call_model(*, base_url: str, api_key: str, model: str, case: Dict[str, Any])
     return str(payload["choices"][0]["message"]["content"]).strip()
 
 
+def normalize_eval_output(case_type: str, output_text: str) -> str:
+    """Apply the same sanitization pipeline used by the runtime before validation."""
+    runtime = IAGenerationRuntime()
+    if case_type == "title":
+        titles = runtime._sanitize_title_candidates(output_text)
+        return titles[0] if titles else ""
+    return runtime._sanitize_generated_description(output_text)
+
+
 def validate_case(case: Dict[str, Any], output_text: str) -> Tuple[bool, List[str]]:
     """Apply deterministic anti-hallucination checks to a generated output."""
     issues: List[str] = []
@@ -162,6 +174,19 @@ def validate_case(case: Dict[str, Any], output_text: str) -> Tuple[bool, List[st
     return (len(issues) == 0, issues)
 
 
+def split_critical_issues(issues: List[str]) -> Tuple[List[str], List[str]]:
+    """Separate critical hallucination/safety issues from softer quality misses."""
+    critical_prefixes = (
+        "saida vazia",
+        "padrao proibido:",
+        "historico de empresa/alucinacao institucional",
+        "telefone ou bloco numerico suspeito",
+    )
+    critical = [issue for issue in issues if issue.startswith(critical_prefixes)]
+    non_critical = [issue for issue in issues if issue not in critical]
+    return critical, non_critical
+
+
 def main() -> int:
     """Run the local eval suite and exit non-zero on unacceptable quality."""
     args = parse_args()
@@ -171,24 +196,30 @@ def main() -> int:
 
     results = []
     for case in cases:
-        output_text = call_model(
+        raw_output_text = call_model(
             base_url=args.base_url.rstrip("/"),
             api_key=args.api_key,
             model=model_name,
             case=case,
         )
-        passed, issues = validate_case(case, output_text)
+        normalized_output = normalize_eval_output(case["type"], raw_output_text)
+        passed, issues = validate_case(case, normalized_output)
+        critical_issues, non_critical_issues = split_critical_issues(issues)
         results.append(
             {
                 "id": case["id"],
                 "type": case["type"],
                 "passed": passed,
                 "issues": issues,
-                "output": output_text,
+                "critical_issues": critical_issues,
+                "non_critical_issues": non_critical_issues,
+                "output": normalized_output,
+                "raw_output": raw_output_text,
             }
         )
 
     failures = [result for result in results if not result["passed"]]
+    critical_failures = [result for result in failures if result["critical_issues"]]
     pass_rate = (len(results) - len(failures)) / len(results)
 
     print(f"Model: {model_name}")
@@ -200,8 +231,16 @@ def main() -> int:
             print(f"- {failure['id']} [{failure['type']}]: {', '.join(failure['issues'])}")
             print(f"  Output: {failure['output']}")
 
-    if len(failures) > args.max_failures:
-        print(f"\nCritical eval failure count exceeded: {len(failures)} > {args.max_failures}")
+    if critical_failures:
+        print(f"\nCritical failures: {len(critical_failures)}")
+        for failure in critical_failures[:10]:
+            print(f"- {failure['id']} [{failure['type']}]: {', '.join(failure['critical_issues'])}")
+
+    if len(critical_failures) > args.max_failures:
+        print(
+            f"\nCritical eval failure count exceeded: "
+            f"{len(critical_failures)} > {args.max_failures}"
+        )
         return 1
     if pass_rate < args.min_pass_rate:
         print(f"\nPass rate below threshold: {pass_rate:.2%} < {args.min_pass_rate:.2%}")

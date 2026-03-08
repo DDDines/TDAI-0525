@@ -358,6 +358,11 @@ def test_ia_generation_runtime_local_helper_edge_paths(monkeypatch):
     )
     assert cleaned_description == "Produto robusto."
 
+    prefixed_description = runtime._sanitize_generated_description(
+        "Descricao do produto: Paralama reforcado para uso severo."
+    )
+    assert prefixed_description == "Paralama reforcado para uso severo."
+
     titles = runtime._sanitize_title_candidates(
         '1. abc\n2. "Paralama contato whatsapp"\n3. Paralama Contato WhatsApp'
     )

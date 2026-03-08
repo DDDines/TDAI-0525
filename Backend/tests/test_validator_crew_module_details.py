@@ -128,10 +128,21 @@ def test_validator_crew_factory_lm_studio_model_resolution_branches(monkeypatch)
     monkeypatch.setattr(module.settings, "LM_STUDIO_API_KEY", "", raising=False)
 
     assert module._ValidationCrewFactory._resolve_openai_compatible_api_key() == "lm-studio"
+    assert module._ValidationCrewFactory._resolve_openai_compatible_base_url() == "http://127.0.0.1:1234/v1"
     assert module._ValidationCrewFactory._resolve_openai_compatible_model() == "google/gemma-3-12b"
 
+    class _ResponseWithModel:
+        @staticmethod
+        def raise_for_status():
+            return None
+
+        @staticmethod
+        def json():
+            return {"data": [{"id": "google/gemma-3-12b"}]}
+
     monkeypatch.setattr(module.settings, "LM_STUDIO_MODEL", None, raising=False)
-    assert module._ValidationCrewFactory._resolve_openai_compatible_model() is None
+    monkeypatch.setattr(module.httpx, "get", lambda *args, **kwargs: _ResponseWithModel())
+    assert module._ValidationCrewFactory._resolve_openai_compatible_model() == "google/gemma-3-12b"
 
     monkeypatch.setattr(module.settings, "LM_STUDIO_BASE_URL", "http://127.0.0.1:1234/v1", raising=False)
     monkeypatch.setattr(module.httpx, "get", lambda *args, **kwargs: (_ for _ in ()).throw(RuntimeError("boom")))

@@ -455,6 +455,14 @@ def test_ia_generation_runtime_helper_paths(monkeypatch):
     )
     assert sanitized_titles == ["Titulo Limpo"]
 
+    verbose_titles = runtime._sanitize_title_candidates(
+        "Com certeza! Aqui estao as opcoes:\n"
+        "1. **Paralama Dianteiro Caminhao Acme - Fixacao Reforcada** (Direto e tecnico)\n"
+        "Observacoes:\n"
+        "- manter foco no SEO"
+    )
+    assert verbose_titles == ["Paralama Dianteiro Caminhao Acme - Fixacao Reforcada"]
+
     produto = SimpleNamespace(
         nome_base="Reservatorio Comércio Eletrônico 9999",
         nome_chat_api=None,

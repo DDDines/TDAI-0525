@@ -30,22 +30,29 @@ class PromptTemplateName:
 
 DEFAULT_PROMPT_TEMPLATES: Dict[str, str] = {
     PromptTemplateName.IA_OPENAI_TITLE_SYSTEM: (
-        "Voce e um especialista em copywriting para e-commerce. Gere {num_titulos} opcoes "
-        "de titulos curtos, atraentes e otimizados para SEO para o produto a seguir. "
+        "Voce e um especialista em copywriting para e-commerce. Gere exatamente {num_titulos} "
+        "titulo(s) curtos, atraentes e otimizados para SEO para o produto a seguir. "
         "Use apenas fatos explicitamente presentes no contexto. "
-        "Nao invente historico de empresa, ano de fundacao, tempo de mercado ou dados institucionais."
+        "Nao invente historico de empresa, ano de fundacao, tempo de mercado ou dados institucionais. "
+        "Formato obrigatorio da resposta: devolva somente os titulos finais, com uma linha por titulo. "
+        "Nao use markdown, numeracao, bullets, asteriscos, aspas, explicacoes, comentarios, observacoes ou texto introdutorio. "
+        "Se for apenas 1 titulo, responda com uma unica linha."
     ),
     PromptTemplateName.IA_OPENAI_TITLE_USER: (
-        "Produto: {nome_base}. Descricao: {descricao}. Marca: {marca}."
+        "Produto: {nome_base}. Descricao: {descricao}. Marca: {marca}. "
+        "Responda somente com o(s) titulo(s) final(is)."
     ),
     PromptTemplateName.IA_OPENAI_DESCRIPTION_SYSTEM: (
         "Voce e um copywriter especialista em e-commerce. Crie uma descricao persuasiva "
         "com aproximadamente {tamanho_palavras} palavras para o item a seguir. "
         "Use somente fatos presentes no contexto. "
-        "Nao invente historico de empresa, ano de fundacao, tempo de mercado, premios ou credenciais."
+        "Nao invente historico de empresa, ano de fundacao, tempo de mercado, premios ou credenciais. "
+        "Formato obrigatorio da resposta: devolva somente um paragrafo final, sem titulo, sem markdown, "
+        "sem bullets, sem listas, sem introducao e sem observacoes."
     ),
     PromptTemplateName.IA_OPENAI_DESCRIPTION_USER: (
-        "Produto: {nome_base}. Informacoes adicionais: {descricao}. Marca: {marca}. Modelo: {modelo}."
+        "Produto: {nome_base}. Informacoes adicionais: {descricao}. Marca: {marca}. Modelo: {modelo}. "
+        "Responda somente com a descricao final."
     ),
     PromptTemplateName.IA_GEMINI_TITLE_USER: (
         "Crie {num_titulos} sugestoes de titulos curtos e atrativos para o seguinte produto:\n"
@@ -182,6 +189,24 @@ class PromptTemplateRepository:
             versao=prompt.versao,
             source=prompt.source,
         )
+
+    def sync_default_templates(self) -> Dict[str, int]:
+        """Insert new prompt versions when bundled defaults diverge from persisted ones."""
+        created_versions: Dict[str, int] = {}
+        for nome, conteudo in DEFAULT_PROMPT_TEMPLATES.items():
+            latest = self.get_latest_template(nome=nome)
+            if latest is not None and str(latest.conteudo or "") == conteudo:
+                continue
+
+            next_version = 1 if latest is None else int(latest.versao or 0) + 1
+            template = PromptTemplate(nome=nome, conteudo=conteudo, versao=next_version)
+            self._db.add(template)
+            self._db.flush()
+            created_versions[nome] = next_version
+
+        if created_versions:
+            self._db.commit()
+        return created_versions
 
 
 class PromptTemplateResolver:

@@ -90,6 +90,72 @@ def test_prompt_template_repository_render_prompt_uses_partial_safe_defaults(db_
     assert "Marca:" in rendered.conteudo
 
 
+def test_prompt_template_repository_sync_default_templates_creates_new_versions(db_session):
+    db_session.add(
+        PromptTemplate(
+            nome=PromptTemplateName.IA_OPENAI_TITLE_SYSTEM,
+            conteudo="prompt legado",
+            versao=1,
+        )
+    )
+    db_session.commit()
+
+    repository = PromptTemplateRepository(db_session)
+
+    created_versions = repository.sync_default_templates()
+    latest = repository.get_latest_template(nome=PromptTemplateName.IA_OPENAI_TITLE_SYSTEM)
+
+    assert created_versions[PromptTemplateName.IA_OPENAI_TITLE_SYSTEM] == 2
+    assert latest is not None
+    assert latest.versao == 2
+    assert latest.conteudo == DEFAULT_PROMPT_TEMPLATES[PromptTemplateName.IA_OPENAI_TITLE_SYSTEM]
+
+
+def test_prompt_template_repository_sync_default_templates_is_idempotent_when_content_matches(db_session):
+    db_session.add(
+        PromptTemplate(
+            nome=PromptTemplateName.IA_OPENAI_DESCRIPTION_SYSTEM,
+            conteudo=DEFAULT_PROMPT_TEMPLATES[PromptTemplateName.IA_OPENAI_DESCRIPTION_SYSTEM],
+            versao=3,
+        )
+    )
+    db_session.commit()
+
+    repository = PromptTemplateRepository(db_session)
+
+    created_versions = repository.sync_default_templates()
+    matching_templates = (
+        db_session.query(PromptTemplate)
+        .filter(PromptTemplate.nome == PromptTemplateName.IA_OPENAI_DESCRIPTION_SYSTEM)
+        .all()
+    )
+
+    assert PromptTemplateName.IA_OPENAI_DESCRIPTION_SYSTEM not in created_versions
+    assert len(matching_templates) == 1
+
+
+def test_prompt_template_repository_sync_default_templates_returns_empty_when_database_is_fully_synced(
+    db_session,
+):
+    for index, (nome, conteudo) in enumerate(DEFAULT_PROMPT_TEMPLATES.items(), start=1):
+        db_session.add(
+            PromptTemplate(
+                nome=nome,
+                conteudo=conteudo,
+                versao=index,
+            )
+        )
+    db_session.commit()
+
+    repository = PromptTemplateRepository(db_session)
+
+    created_versions = repository.sync_default_templates()
+    template_count = db_session.query(PromptTemplate).count()
+
+    assert created_versions == {}
+    assert template_count == len(DEFAULT_PROMPT_TEMPLATES)
+
+
 def test_prompt_template_resolver_falls_back_when_repository_lookup_raises():
     class _BrokenSession:
         def close(self):
