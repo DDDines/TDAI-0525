@@ -31,6 +31,7 @@ class _AsyncClientStub:
         self.response = response
         self.error = error
         self.timeout = timeout
+        self.calls = []
 
     async def __aenter__(self):
         return self
@@ -38,10 +39,14 @@ class _AsyncClientStub:
     async def __aexit__(self, exc_type, exc, tb):
         return False
 
-    async def post(self, *_args, **_kwargs):
+    async def request(self, method, url, **kwargs):
+        self.calls.append((method, url, kwargs))
         if self.error:
             raise self.error
         return self.response
+
+    async def post(self, *args, **kwargs):
+        return await self.request("POST", *args, **kwargs)
 
 
 class _UsageRepositoryStub:
@@ -102,6 +107,16 @@ class _ProviderWorkflowStub:
         if self.suggestion_error:
             raise self.suggestion_error
         return self.suggestion_result
+
+
+class _OpenAIProviderRuntimeStub:
+    async def resolve_openai_model(self, *, api_key, requested_model=None):
+        _ = api_key, requested_model
+        return "google/gemma-3-12b"
+
+    @staticmethod
+    def get_openai_provider_name():
+        return "lm_studio"
 
 
 def _http_status_error(status_code: int, *, text: str, json_data=None):
@@ -218,6 +233,15 @@ async def test_ai_provider_runtime_key_resolution_extra_paths(monkeypatch):
         user=SimpleNamespace(id=5, chave_google_gemini_pessoal=None),
     )
     assert result is None
+
+    monkeypatch.setattr(ia_service.settings, "AI_PROVIDER", "lm_studio", raising=False)
+    monkeypatch.setattr(ia_service.settings, "LM_STUDIO_API_KEY", "", raising=False)
+    result = await runtime.get_openai_api_key(
+        db=object(),
+        user=SimpleNamespace(id=7, chave_openai_pessoal="sk-openai-ignored"),
+    )
+    assert result == "lm-studio"
+    assert runtime.get_openai_provider_name() == "lm_studio"
 
 
 @pytest.mark.asyncio
@@ -474,6 +498,45 @@ async def test_ia_generation_runtime_openai_title_fallback_after_empty_llm(monke
         num_titulos=2,
     )
     assert rebuilt_titles[0].startswith("Paralama Dianteiro")
+
+
+@pytest.mark.asyncio
+async def test_ia_generation_runtime_records_openai_compatible_provider_metadata(monkeypatch):
+    runtime = ia_service.IAGenerationRuntime()
+    _UsageRepositoryStub.created = []
+    monkeypatch.setattr(ia_service, "ProductRepository", _ProductRepositoryStub)
+    monkeypatch.setattr(ia_service, "RegistroUsoIARepository", _UsageRepositoryStub)
+    _ProductRepositoryStub.produto = _produto_base()
+
+    provider_stub = _ProviderWorkflowStub(
+        openai_result="1. Titulo tecnico\n2. Titulo tecnico 2",
+    )
+    provider_stub._runtime = _OpenAIProviderRuntimeStub()
+    monkeypatch.setattr(
+        ia_service.IAGenerationRuntime,
+        "_get_ai_provider_workflow",
+        staticmethod(lambda: provider_stub),
+    )
+
+    titles = await runtime._gerar_titulos_com_openai_impl(
+        db=object(),
+        produto_id=1,
+        user=SimpleNamespace(id=1, is_superuser=False),
+        num_titulos=1,
+    )
+    description = await runtime._gerar_descricao_com_openai_impl(
+        db=object(),
+        produto_id=1,
+        user=SimpleNamespace(id=1, is_superuser=False),
+        tamanho_palavras=60,
+    )
+
+    assert titles
+    assert description
+    assert _UsageRepositoryStub.created[-2].provedor_ia == "lm_studio"
+    assert _UsageRepositoryStub.created[-2].modelo_ia == "google/gemma-3-12b"
+    assert _UsageRepositoryStub.created[-1].provedor_ia == "lm_studio"
+    assert _UsageRepositoryStub.created[-1].modelo_ia == "google/gemma-3-12b"
 
 
 @pytest.mark.asyncio

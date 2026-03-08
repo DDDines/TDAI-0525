@@ -3,6 +3,14 @@
 import os
 from concurrent.futures import ThreadPoolExecutor, TimeoutError
 from typing import Any
+import httpx
+
+from Backend.core.api_key_validation import looks_like_openai_api_key, normalize_optional_secret
+from Backend.core.config import settings
+from Backend.infrastructure.repositories.prompt_template_repository import (
+    PromptTemplateName,
+    PromptTemplateResolver,
+)
 
 
 ENABLE_VALIDATION_CREW = os.getenv("ENABLE_VALIDATION_CREW", "false").lower() in (
@@ -29,17 +37,75 @@ else:
 
 class _ValidationCrewFactory:
     """Represent Validation Crew Factory and centralize its responsibilities inside this module."""
+
+    @staticmethod
+    def _is_lm_studio_enabled() -> bool:
+        """Check whether validation crew should use the local OpenAI-compatible endpoint."""
+        return (normalize_optional_secret(settings.AI_PROVIDER) or "openai").lower() == "lm_studio"
+
+    @staticmethod
+    def _resolve_openai_compatible_api_key() -> str | None:
+        """Resolve the API key used by ChatOpenAI for the active provider."""
+        if _ValidationCrewFactory._is_lm_studio_enabled():
+            return normalize_optional_secret(settings.LM_STUDIO_API_KEY) or "lm-studio"
+
+        openai_key = normalize_optional_secret(os.getenv("OPENAI_API_KEY") or settings.OPENAI_API_KEY)
+        if looks_like_openai_api_key(openai_key):
+            return openai_key
+        return None
+
+    @staticmethod
+    def _resolve_openai_compatible_base_url() -> str | None:
+        """Resolve the base URL for the active OpenAI-compatible provider."""
+        if _ValidationCrewFactory._is_lm_studio_enabled():
+            return str(settings.LM_STUDIO_BASE_URL or "http://127.0.0.1:1234/v1").rstrip("/")
+        return None
+
+    @staticmethod
+    def _resolve_openai_compatible_model() -> str | None:
+        """Resolve the model name used by validator crew."""
+        if not _ValidationCrewFactory._is_lm_studio_enabled():
+            return "gpt-4-turbo"
+
+        configured_model = normalize_optional_secret(settings.LM_STUDIO_MODEL)
+        if configured_model:
+            return configured_model
+
+        base_url = _ValidationCrewFactory._resolve_openai_compatible_base_url()
+        api_key = _ValidationCrewFactory._resolve_openai_compatible_api_key()
+        headers = {
+            "Authorization": f"Bearer {api_key or 'lm-studio'}",
+            "Content-Type": "application/json",
+        }
+        try:
+            response = httpx.get(f"{base_url}/models", headers=headers, timeout=15.0)
+            response.raise_for_status()
+            payload = response.json()
+            for model_item in payload.get("data", []):
+                model_id = normalize_optional_secret((model_item or {}).get("id"))
+                if model_id:
+                    return model_id
+        except Exception:
+            return None
+        return None
+
     @staticmethod
     def build_llm():
         """Build llm from current inputs and configuration."""
-        openai_key = os.getenv("OPENAI_API_KEY")
-        if not (openai_key and CREW_RUNTIME_AVAILABLE):
+        openai_key = _ValidationCrewFactory._resolve_openai_compatible_api_key()
+        model_name = _ValidationCrewFactory._resolve_openai_compatible_model()
+        if not (openai_key and model_name and CREW_RUNTIME_AVAILABLE):
             return None
-        return ChatOpenAI(
-            model="gpt-4-turbo",
-            verbose=True,
-            temperature=0.1,
-        )
+        llm_kwargs = {
+            "model": model_name,
+            "verbose": True,
+            "temperature": 0.1,
+            "api_key": openai_key,
+        }
+        base_url = _ValidationCrewFactory._resolve_openai_compatible_base_url()
+        if base_url:
+            llm_kwargs["base_url"] = base_url
+        return ChatOpenAI(**llm_kwargs)
 
     @staticmethod
     def build_executor() -> ThreadPoolExecutor:
@@ -51,64 +117,35 @@ class _ValidationCrewFactory:
 
 class _ValidationCrewPromptBuilder:
     """Centraliza o prompt de validacao para evitar duplicacao."""
+    _resolver = PromptTemplateResolver()
 
-    ROLE = "Auditor de Qualidade de Dados de E-commerce"
-    GOAL = """
-        Sua missao e receber um dicionario de dados de produto (JSON) extraido de forma bruta
-        e transforma-lo em um JSON limpo, padronizado e pronto para ser salvo em um banco de dados
-        de e-commerce. Voce e o guardiao da qualidade dos dados.
-    """
-    BACKSTORY = """
-        Voce e um especialista em dados de e-commerce com um olhar treinado para identificar
-        e corrigir inconsistencias. Voce entende a importancia de SKUs, EANs, nomes de produtos,
-        precos e descricoes para o funcionamento de uma loja online. Sua experiencia foi forjada
-        analisando milhares de catalogos de produtos e corrigindo erros comuns de OCR, digitacao e
-        formatacao. Voce e metodico, preciso e implacavel na busca pela padronizacao.
-    """
-    EXPECTED_OUTPUT = "Um objeto JSON contendo os dados do produto limpos e padronizados."
+    @classmethod
+    def get_role(cls) -> str:
+        """Return the validator crew role prompt from the prompt repository."""
+        return cls._resolver.get_prompt(nome=PromptTemplateName.VALIDATOR_CREW_ROLE).conteudo
+
+    @classmethod
+    def get_goal(cls) -> str:
+        """Return the validator crew goal prompt from the prompt repository."""
+        return cls._resolver.get_prompt(nome=PromptTemplateName.VALIDATOR_CREW_GOAL).conteudo
+
+    @classmethod
+    def get_backstory(cls) -> str:
+        """Return the validator crew backstory prompt from the prompt repository."""
+        return cls._resolver.get_prompt(nome=PromptTemplateName.VALIDATOR_CREW_BACKSTORY).conteudo
+
+    @classmethod
+    def get_expected_output(cls) -> str:
+        """Return the validator crew expected output prompt from the prompt repository."""
+        return cls._resolver.get_prompt(nome=PromptTemplateName.VALIDATOR_CREW_EXPECTED_OUTPUT).conteudo
 
     @classmethod
     def build_validation_description(cls, raw_data: Any) -> str:
         """Build validation description from current inputs and configuration."""
-        return f"""
-            Analise o seguinte dicionario de dados brutos de um produto:
-            ---
-            {raw_data}
-            ---
-
-            Execute as seguintes acoes de limpeza e padronizacao:
-
-            1.  **SKU e EAN**:
-                - Remova espacos em branco extras, no inicio, no fim e no meio.
-                - Corrija erros comuns de OCR: troque a letra 'O' por '0' (zero) e
-                  a letra 'I' ou 'l' por '1' (um), apenas quando fizer sentido no
-                  contexto de codigo de barras ou SKU.
-                - Se o campo estiver vazio ou for nulo, mantenha `null` ou `None`.
-
-            2.  **Nome do Produto (nome_base)**:
-                - Corrija a capitalizacao para "Title Case".
-                - Remova termos promocionais como "PROMOCAO" e "OFERTA".
-                - Corrija erros obvios de digitacao, quando possivel.
-
-            3.  **Preco (preco_original)**:
-                - O valor deve ser numerico. Remova simbolos de moeda.
-                - Converta virgula decimal para ponto.
-                - Se nao for preco valido, retorne `null`.
-
-            4.  **Descricao (descricao_original)**:
-                - Corrija gramatica e ortografia.
-                - Remova quebras excessivas e normalize espacos.
-                - Mantenha apenas texto informativo e relevante.
-
-            5.  **Marca (marca)**:
-                - Padronize capitalizacao.
-
-            IMPORTANTE:
-            - O output final deve conter APENAS o objeto JSON corrigido.
-            - Nao inclua explicacoes.
-            - Campos invalidos devem ser `null`.
-            - Mantenha a estrutura de chaves original.
-        """
+        return cls._resolver.get_prompt(
+            nome=PromptTemplateName.VALIDATOR_CREW_DESCRIPTION,
+            context={"raw_data": raw_data},
+        ).conteudo
 
 
 class ValidationCrewRuntime:
@@ -146,9 +183,9 @@ class ValidationCrewRuntime:
             return None
 
         data_quality_auditor = self._agent_cls(
-            role=self._prompt_builder.ROLE,
-            goal=self._prompt_builder.GOAL,
-            backstory=self._prompt_builder.BACKSTORY,
+            role=self._prompt_builder.get_role(),
+            goal=self._prompt_builder.get_goal(),
+            backstory=self._prompt_builder.get_backstory(),
             verbose=True,
             llm=self._llm,
             allow_delegation=False,
@@ -156,7 +193,7 @@ class ValidationCrewRuntime:
         validation_task = self._task_cls(
             description=self._prompt_builder.build_validation_description(raw_data),
             agent=data_quality_auditor,
-            expected_output=self._prompt_builder.EXPECTED_OUTPUT,
+            expected_output=self._prompt_builder.get_expected_output(),
         )
         return self._crew_cls(
             agents=[data_quality_auditor],

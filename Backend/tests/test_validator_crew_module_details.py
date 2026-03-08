@@ -37,7 +37,7 @@ def _load_validator_probe_module(monkeypatch, *, enabled: bool, available_import
 
     spec = importlib.util.spec_from_file_location(
         module_name,
-        Path("Backend/infrastructure/runtime_modules/validator_crew_module.py"),
+        Path(__file__).resolve().parents[1] / "infrastructure" / "runtime_modules" / "validator_crew_module.py",
     )
     module = importlib.util.module_from_spec(spec)
     assert spec and spec.loader
@@ -66,6 +66,8 @@ def test_validator_crew_bootstrap_factory_and_prompt_builder(monkeypatch):
     )
     monkeypatch.setenv("OPENAI_API_KEY", "sk-openai-12345678901234567890")
     monkeypatch.setenv("VALIDATION_CREW_WORKERS", "5")
+    monkeypatch.setattr(module.settings, "OPENAI_API_KEY", None, raising=False)
+    monkeypatch.setattr(module.settings, "AI_PROVIDER", "openai", raising=False)
 
     llm = module._ValidationCrewFactory.build_llm()
     executor = module._ValidationCrewFactory.build_executor()
@@ -73,13 +75,79 @@ def test_validator_crew_bootstrap_factory_and_prompt_builder(monkeypatch):
 
     assert llm.kwargs["model"] == "gpt-4-turbo"
     assert llm.kwargs["temperature"] == 0.1
+    assert llm.kwargs["api_key"] == "sk-openai-12345678901234567890"
     assert executor._max_workers == 5
     assert "sku" in prompt
     assert "Nome do Produto" in prompt
+    assert module._ValidationCrewPromptBuilder.get_role() == "Auditor de Qualidade de Dados de E-commerce"
     executor.shutdown(wait=False)
 
     monkeypatch.delenv("OPENAI_API_KEY", raising=False)
+    monkeypatch.setattr(module.settings, "OPENAI_API_KEY", None, raising=False)
     assert module._ValidationCrewFactory.build_llm() is None
+
+
+def test_validator_crew_bootstrap_factory_supports_lm_studio(monkeypatch):
+    module = _load_validator_probe_module(
+        monkeypatch,
+        enabled=True,
+        available_imports=True,
+    )
+
+    class _ResponseStub:
+        @staticmethod
+        def raise_for_status():
+            return None
+
+        @staticmethod
+        def json():
+            return {"data": [{"id": "google/gemma-3-12b"}]}
+
+    monkeypatch.setattr(module.settings, "AI_PROVIDER", "lm_studio", raising=False)
+    monkeypatch.setattr(module.settings, "LM_STUDIO_BASE_URL", "http://127.0.0.1:1234/v1", raising=False)
+    monkeypatch.setattr(module.settings, "LM_STUDIO_MODEL", None, raising=False)
+    monkeypatch.setattr(module.settings, "LM_STUDIO_API_KEY", "lm-studio", raising=False)
+    monkeypatch.setattr(module.httpx, "get", lambda *args, **kwargs: _ResponseStub())
+
+    llm = module._ValidationCrewFactory.build_llm()
+
+    assert llm.kwargs["model"] == "google/gemma-3-12b"
+    assert llm.kwargs["base_url"] == "http://127.0.0.1:1234/v1"
+    assert llm.kwargs["api_key"] == "lm-studio"
+
+
+def test_validator_crew_factory_lm_studio_model_resolution_branches(monkeypatch):
+    module = _load_validator_probe_module(
+        monkeypatch,
+        enabled=True,
+        available_imports=True,
+    )
+    monkeypatch.setattr(module.settings, "AI_PROVIDER", "lm_studio", raising=False)
+    monkeypatch.setattr(module.settings, "LM_STUDIO_BASE_URL", None, raising=False)
+    monkeypatch.setattr(module.settings, "LM_STUDIO_MODEL", "google/gemma-3-12b", raising=False)
+    monkeypatch.setattr(module.settings, "LM_STUDIO_API_KEY", "", raising=False)
+
+    assert module._ValidationCrewFactory._resolve_openai_compatible_api_key() == "lm-studio"
+    assert module._ValidationCrewFactory._resolve_openai_compatible_model() == "google/gemma-3-12b"
+
+    monkeypatch.setattr(module.settings, "LM_STUDIO_MODEL", None, raising=False)
+    assert module._ValidationCrewFactory._resolve_openai_compatible_model() is None
+
+    monkeypatch.setattr(module.settings, "LM_STUDIO_BASE_URL", "http://127.0.0.1:1234/v1", raising=False)
+    monkeypatch.setattr(module.httpx, "get", lambda *args, **kwargs: (_ for _ in ()).throw(RuntimeError("boom")))
+    assert module._ValidationCrewFactory._resolve_openai_compatible_model() is None
+
+    class _ResponseWithoutModel:
+        @staticmethod
+        def raise_for_status():
+            return None
+
+        @staticmethod
+        def json():
+            return {"data": [{}]}
+
+    monkeypatch.setattr(module.httpx, "get", lambda *args, **kwargs: _ResponseWithoutModel())
+    assert module._ValidationCrewFactory._resolve_openai_compatible_model() is None
 
 
 class _AgentStub:
@@ -149,7 +217,7 @@ def test_validation_crew_runtime_build_run_and_error_paths():
     crew = runtime._build_crew({"sku": "1"})
     assert crew.kwargs["process"] == "sequential"
     assert crew.kwargs["tasks"][0].kwargs["expected_output"] == (
-        validator_crew._ValidationCrewPromptBuilder.EXPECTED_OUTPUT
+        validator_crew._ValidationCrewPromptBuilder.get_expected_output()
     )
     assert runtime._run_sync({"sku": "1"}) == {"validated": True}
     assert runtime.run({"sku": "1"}, timeout_seconds=3) == {"validated": True}

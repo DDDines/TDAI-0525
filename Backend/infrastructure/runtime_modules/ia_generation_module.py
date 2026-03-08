@@ -8,6 +8,12 @@ import re
 from typing import List, Dict, Any, Optional
 from sqlalchemy.orm import Session
 import logging # Adicionado para logging
+from tenacity import (
+    AsyncRetrying,
+    retry_if_exception,
+    stop_after_attempt,
+    wait_exponential,
+)
 
 from fastapi import HTTPException, status
 
@@ -16,6 +22,11 @@ from Backend import schemas
 from Backend.core.api_key_validation import looks_like_openai_api_key, normalize_optional_secret
 from Backend.core.config import settings
 from Backend.infrastructure.repositories.product_repository import ProductRepository
+from Backend.infrastructure.repositories.prompt_template_repository import (
+    DEFAULT_PROMPT_TEMPLATES,
+    PromptTemplateName,
+    PromptTemplateRepository,
+)
 from Backend.infrastructure.repositories.registro_uso_ia_repository import (
     RegistroUsoIARepository,
 )
@@ -25,6 +36,7 @@ logger = logging.getLogger(__name__)
 
 # --- Constantes para OpenAI (Exemplo, idealmente viriam de settings) ---
 OPENAI_API_URL_COMPLETIONS = "https://api.openai.com/v1/chat/completions"
+OPENAI_API_URL_MODELS = "https://api.openai.com/v1/models"
 OPENAI_DEFAULT_MODEL = "gpt-3.5-turbo" # Ou o modelo que vocÃª preferir/tiver acesso
 
 # --- Constantes para Gemini (Exemplo, idealmente viriam de settings) ---
@@ -131,10 +143,136 @@ class AiProviderWorkflow:
 class AiProviderRuntime:
     """Runtime OO para integracoes com provedores IA."""
 
+    RETRYABLE_STATUS_CODES = {429, 503}
+
+    def __init__(self) -> None:
+        """Initialize injected dependencies and runtime configuration for Ai Provider Runtime."""
+        self._lm_studio_model_cache = normalize_optional_secret(settings.LM_STUDIO_MODEL)
+
+    @staticmethod
+    def _normalize_provider_name(provider_name: Optional[str]) -> str:
+        """Normalize provider selection to the supported OpenAI-compatible modes."""
+        normalized = normalize_optional_secret(provider_name) or "openai"
+        return normalized.lower()
+
+    def get_openai_provider_name(self) -> str:
+        """Return the active OpenAI-compatible provider label."""
+        provider_name = self._normalize_provider_name(settings.AI_PROVIDER)
+        return "lm_studio" if provider_name == "lm_studio" else "openai"
+
+    def _is_lm_studio_enabled(self) -> bool:
+        """Check whether OpenAI-compatible traffic should be routed to LM Studio."""
+        return self.get_openai_provider_name() == "lm_studio"
+
+    def _get_openai_compatible_base_url(self) -> str:
+        """Resolve the OpenAI-compatible base URL for the active provider."""
+        if self._is_lm_studio_enabled():
+            return str(settings.LM_STUDIO_BASE_URL or "http://127.0.0.1:1234/v1").rstrip("/")
+        return "https://api.openai.com/v1"
+
+    def _build_openai_compatible_url(self, path: str) -> str:
+        """Build a provider-specific OpenAI-compatible endpoint URL."""
+        normalized_path = path if path.startswith("/") else f"/{path}"
+        return f"{self._get_openai_compatible_base_url()}{normalized_path}"
+
+    @classmethod
+    def _is_retryable_exception(cls, exc: Exception) -> bool:
+        """Classify upstream exceptions that should trigger exponential backoff."""
+        if isinstance(exc, (httpx.TimeoutException, httpx.NetworkError, httpx.ConnectError, httpx.ReadError)):
+            return True
+        if isinstance(exc, httpx.HTTPStatusError):
+            return exc.response.status_code in cls.RETRYABLE_STATUS_CODES
+        return False
+
+    async def _request_with_retry(
+        self,
+        *,
+        method: str,
+        url: str,
+        headers: Dict[str, str],
+        timeout_seconds: float,
+        json_payload: Optional[Dict[str, Any]] = None,
+    ) -> httpx.Response:
+        """Execute an outbound HTTP request with retry/backoff for transient failures."""
+        async with httpx.AsyncClient(timeout=timeout_seconds) as client:
+            async for attempt in AsyncRetrying(
+                stop=stop_after_attempt(3),
+                wait=wait_exponential(multiplier=2, min=2, max=8),
+                retry=retry_if_exception(self._is_retryable_exception),
+                reraise=True,
+            ):
+                with attempt:
+                    response = await client.request(
+                        method,
+                        url,
+                        json=json_payload,
+                        headers=headers,
+                    )
+                    response.raise_for_status()
+                    return response
+
+    async def _resolve_lm_studio_model(self, *, api_key: str) -> str:
+        """Resolve the LM Studio model from env override or the local /models endpoint."""
+        explicit_model = normalize_optional_secret(settings.LM_STUDIO_MODEL)
+        if explicit_model:
+            self._lm_studio_model_cache = explicit_model
+            return explicit_model
+
+        if self._lm_studio_model_cache:
+            return self._lm_studio_model_cache
+
+        headers = {
+            "Authorization": f"Bearer {api_key}",
+            "Content-Type": "application/json",
+        }
+        response = await self._request_with_retry(
+            method="GET",
+            url=self._build_openai_compatible_url("/models"),
+            headers=headers,
+            timeout_seconds=30.0,
+        )
+        response_json = response.json()
+        models_payload = response_json.get("data") if isinstance(response_json, dict) else None
+        if isinstance(models_payload, list):
+            for model_entry in models_payload:
+                model_id = normalize_optional_secret((model_entry or {}).get("id"))
+                if model_id:
+                    self._lm_studio_model_cache = model_id
+                    logger.info("Modelo LM Studio resolvido automaticamente: %s", model_id)
+                    return model_id
+
+        logger.error("Nao foi possivel resolver um modelo valido no endpoint /models do LM Studio: %s", response_json)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Nenhum modelo carregado foi encontrado no LM Studio.",
+        )
+
+    async def resolve_openai_model(
+        self,
+        *,
+        api_key: str,
+        requested_model: Optional[str] = None,
+    ) -> str:
+        """Resolve the effective model name for the active OpenAI-compatible provider."""
+        normalized_requested_model = normalize_optional_secret(requested_model)
+        if self._is_lm_studio_enabled():
+            if normalized_requested_model and normalized_requested_model != OPENAI_DEFAULT_MODEL:
+                return normalized_requested_model
+            return await self._resolve_lm_studio_model(api_key=api_key)
+        return normalized_requested_model or OPENAI_DEFAULT_MODEL
+
     async def get_openai_api_key(
         self, db: Session, user: models.User
     ) -> Optional[str]:
         """Retrieve openai api key using the current service dependencies."""
+        if self._is_lm_studio_enabled():
+            lm_studio_key = normalize_optional_secret(settings.LM_STUDIO_API_KEY) or "lm-studio"
+            logger.info(
+                "Usando provider LM Studio OpenAI-compatible em %s.",
+                self._get_openai_compatible_base_url(),
+            )
+            return lm_studio_key
+
         user_key = normalize_optional_secret(getattr(user, "chave_openai_pessoal", None))
         system_key = normalize_optional_secret(settings.OPENAI_API_KEY)
 
@@ -186,58 +324,76 @@ class AiProviderRuntime:
                 detail="Chave da API OpenAI nÃ£o configurada.",
             )
 
+        resolved_model = await self.resolve_openai_model(
+            api_key=api_key,
+            requested_model=model,
+        )
+        provider_name = self.get_openai_provider_name()
         headers = {
             "Authorization": f"Bearer {api_key}",
             "Content-Type": "application/json",
         }
         payload = {
-            "model": model,
+            "model": resolved_model,
             "messages": prompt_messages,
             "temperature": temperature,
             "max_tokens": max_tokens,
         }
-        async with httpx.AsyncClient(timeout=60.0) as client:
-            try:
-                logger.info(
-                    f"Chamando OpenAI API. Modelo: {model}, Tokens MÃ¡x: {max_tokens}, Temp: {temperature}"
-                )
-                response = await client.post(
-                    OPENAI_API_URL_COMPLETIONS,
-                    json=payload,
-                    headers=headers,
-                )
-                response.raise_for_status()
-                api_response_data = response.json()
+        try:
+            logger.info(
+                "Chamando provider OpenAI-compatible '%s'. Modelo: %s, Tokens Max: %s, Temp: %s",
+                provider_name,
+                resolved_model,
+                max_tokens,
+                temperature,
+            )
+            response = await self._request_with_retry(
+                method="POST",
+                url=self._build_openai_compatible_url("/chat/completions"),
+                json_payload=payload,
+                headers=headers,
+                timeout_seconds=60.0,
+            )
+            api_response_data = response.json()
 
-                if api_response_data.get("choices") and len(api_response_data["choices"]) > 0:
-                    content = api_response_data["choices"][0].get("message", {}).get("content", "")
-                    return content.strip()
+            if api_response_data.get("choices") and len(api_response_data["choices"]) > 0:
+                content = api_response_data["choices"][0].get("message", {}).get("content", "")
+                return content.strip()
 
-                logger.error(
-                    "Resposta da API OpenAI nÃ£o contÃ©m 'choices' ou 'choices' estÃ¡ vazio: %s",
-                    api_response_data,
-                )
-                raise HTTPException(
-                    status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                    detail="Resposta inesperada da API OpenAI.",
-                )
-            except httpx.HTTPStatusError as e:
-                logger.error(
-                    f"Erro na API OpenAI: {e.response.status_code} - {e.response.text}",
-                    exc_info=True,
-                )
-                raise HTTPException(
-                    status_code=e.response.status_code,
-                    detail=f"Erro na API OpenAI: {e.response.text}",
-                )
-            except HTTPException:
-                raise
-            except Exception as e:
-                logger.error(f"Erro inesperado ao chamar API OpenAI: {str(e)}", exc_info=True)
-                raise HTTPException(
-                    status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                    detail="Erro inesperado ao comunicar com OpenAI.",
-                )
+            logger.error(
+                "Resposta do provider OpenAI-compatible nao contem 'choices' valido: %s",
+                api_response_data,
+            )
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Resposta inesperada da API OpenAI-compatible.",
+            )
+        except httpx.HTTPStatusError as e:
+            logger.error(
+                "Erro no provider OpenAI-compatible '%s': %s - %s",
+                provider_name,
+                e.response.status_code,
+                e.response.text,
+                exc_info=True,
+            )
+            raise HTTPException(
+                status_code=e.response.status_code,
+                detail=f"Erro na API OpenAI-compatible: {e.response.text}",
+            )
+        except httpx.RequestError as e:
+            logger.error("Erro de rede ao chamar provider OpenAI-compatible: %s", str(e), exc_info=True)
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail="Falha de rede ao comunicar com o provider OpenAI-compatible.",
+            )
+        except HTTPException:
+            raise
+        except Exception as e:
+            logger.error("Erro inesperado ao chamar provider OpenAI-compatible: %s", str(e), exc_info=True)
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Erro inesperado ao comunicar com OpenAI-compatible.",
+            )
 
     async def call_gemini_api_for_suggestions(
         self,
@@ -269,68 +425,78 @@ class AiProviderRuntime:
         url_com_chave = f"{gemini_api_endpoint}?key={api_key}"
         logger.info(f"Chamando Gemini API: {url_com_chave} com schema e prompt.")
 
-        async with httpx.AsyncClient(timeout=90.0) as client:
-            try:
-                response = await client.post(url_com_chave, json=payload, headers=headers)
-                response.raise_for_status()
-                api_response_data = response.json()
+        try:
+            response = await self._request_with_retry(
+                method="POST",
+                url=url_com_chave,
+                json_payload=payload,
+                headers=headers,
+                timeout_seconds=90.0,
+            )
+            api_response_data = response.json()
 
-                if (
-                    api_response_data.get("candidates")
-                    and len(api_response_data["candidates"]) > 0
-                    and api_response_data["candidates"][0].get("content")
-                    and api_response_data["candidates"][0]["content"].get("parts")
-                    and len(api_response_data["candidates"][0]["content"]["parts"]) > 0
-                    and api_response_data["candidates"][0]["content"]["parts"][0].get("text")
-                ):
-                    json_text_response = api_response_data["candidates"][0]["content"]["parts"][0]["text"]
-                    try:
-                        return json.loads(json_text_response)
-                    except json.JSONDecodeError as jde:
-                        logger.error(
-                            f"Erro ao decodificar JSON da resposta da Gemini: {jde}. Resposta: {json_text_response}",
-                            exc_info=True,
-                        )
-                        raise HTTPException(
-                            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                            detail="Resposta da API Gemini nÃ£o Ã© um JSON vÃ¡lido.",
-                        )
-
-                error_detail = "Resposta da API Gemini nÃ£o contÃ©m o conteÃºdo esperado."
-                if api_response_data.get("promptFeedback"):
-                    error_detail += f" Feedback do prompt: {api_response_data['promptFeedback']}"
-                logger.error(
-                    "Estrutura inesperada da resposta da Gemini: %s. Resposta completa: %s",
-                    error_detail,
-                    api_response_data,
-                )
-                raise HTTPException(
-                    status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                    detail=error_detail,
-                )
-
-            except httpx.HTTPStatusError as e:
-                error_text = e.response.text
-                logger.error(
-                    f"Erro na API Gemini (HTTPStatusError): {e.response.status_code} - {error_text}",
-                    exc_info=True,
-                )
-                error_detail = f"Erro na API Gemini: {e.response.status_code}"
+            if (
+                api_response_data.get("candidates")
+                and len(api_response_data["candidates"]) > 0
+                and api_response_data["candidates"][0].get("content")
+                and api_response_data["candidates"][0]["content"].get("parts")
+                and len(api_response_data["candidates"][0]["content"]["parts"]) > 0
+                and api_response_data["candidates"][0]["content"]["parts"][0].get("text")
+            ):
+                json_text_response = api_response_data["candidates"][0]["content"]["parts"][0]["text"]
                 try:
-                    error_data = e.response.json()
-                    if error_data and "error" in error_data and "message" in error_data["error"]:
-                        error_detail = f"Erro na API Gemini: {error_data['error']['message']}"
-                except Exception:
-                    error_detail += f" - {error_text}"
-                raise HTTPException(status_code=e.response.status_code, detail=error_detail)
-            except HTTPException:
-                raise
-            except Exception as e:
-                logger.error(f"Erro inesperado ao chamar API Gemini: {str(e)}", exc_info=True)
-                raise HTTPException(
-                    status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                    detail="Erro inesperado ao comunicar com Gemini.",
-                )
+                    return json.loads(json_text_response)
+                except json.JSONDecodeError as jde:
+                    logger.error(
+                        f"Erro ao decodificar JSON da resposta da Gemini: {jde}. Resposta: {json_text_response}",
+                        exc_info=True,
+                    )
+                    raise HTTPException(
+                        status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                        detail="Resposta da API Gemini nÃ£o Ã© um JSON vÃ¡lido.",
+                    )
+
+            error_detail = "Resposta da API Gemini nÃ£o contÃ©m o conteÃºdo esperado."
+            if api_response_data.get("promptFeedback"):
+                error_detail += f" Feedback do prompt: {api_response_data['promptFeedback']}"
+            logger.error(
+                "Estrutura inesperada da resposta da Gemini: %s. Resposta completa: %s",
+                error_detail,
+                api_response_data,
+            )
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=error_detail,
+            )
+
+        except httpx.HTTPStatusError as e:
+            error_text = e.response.text
+            logger.error(
+                f"Erro na API Gemini (HTTPStatusError): {e.response.status_code} - {error_text}",
+                exc_info=True,
+            )
+            error_detail = f"Erro na API Gemini: {e.response.status_code}"
+            try:
+                error_data = e.response.json()
+                if error_data and "error" in error_data and "message" in error_data["error"]:
+                    error_detail = f"Erro na API Gemini: {error_data['error']['message']}"
+            except Exception:
+                error_detail += f" - {error_text}"
+            raise HTTPException(status_code=e.response.status_code, detail=error_detail)
+        except httpx.RequestError as e:
+            logger.error("Erro de rede ao chamar API Gemini: %s", str(e), exc_info=True)
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail="Falha de rede ao comunicar com Gemini.",
+            )
+        except HTTPException:
+            raise
+        except Exception as e:
+            logger.error(f"Erro inesperado ao chamar API Gemini: {str(e)}", exc_info=True)
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Erro inesperado ao comunicar com Gemini.",
+            )
 
     async def call_gemini_api(
         self,
@@ -354,41 +520,51 @@ class AiProviderRuntime:
         }
         url = f"{endpoint}?key={api_key}"
         headers = {"Content-Type": "application/json"}
-        async with httpx.AsyncClient(timeout=90.0) as client:
-            try:
-                response = await client.post(url, json=payload, headers=headers)
-                response.raise_for_status()
-                data = response.json()
-                if (
-                    data.get("candidates")
-                    and data["candidates"]
-                    and data["candidates"][0].get("content")
-                    and data["candidates"][0]["content"].get("parts")
-                    and data["candidates"][0]["content"]["parts"]
-                ):
-                    return data["candidates"][0]["content"]["parts"][0].get("text", "").strip()
-                logger.error(f"Estrutura inesperada na resposta Gemini: {data}")
-                raise HTTPException(
-                    status_code=500,
-                    detail="Resposta inesperada da API Gemini",
-                )
-            except httpx.HTTPStatusError as e:
-                logger.error(
-                    f"Erro na API Gemini: {e.response.status_code} - {e.response.text}",
-                    exc_info=True,
-                )
-                raise HTTPException(
-                    status_code=e.response.status_code,
-                    detail=f"Erro na API Gemini: {e.response.text}",
-                )
-            except HTTPException:
-                raise
-            except Exception as e:
-                logger.error(f"Erro inesperado ao chamar API Gemini: {str(e)}", exc_info=True)
-                raise HTTPException(
-                    status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                    detail="Erro inesperado ao comunicar com Gemini.",
-                )
+        try:
+            response = await self._request_with_retry(
+                method="POST",
+                url=url,
+                json_payload=payload,
+                headers=headers,
+                timeout_seconds=90.0,
+            )
+            data = response.json()
+            if (
+                data.get("candidates")
+                and data["candidates"]
+                and data["candidates"][0].get("content")
+                and data["candidates"][0]["content"].get("parts")
+                and data["candidates"][0]["content"]["parts"]
+            ):
+                return data["candidates"][0]["content"]["parts"][0].get("text", "").strip()
+            logger.error(f"Estrutura inesperada na resposta Gemini: {data}")
+            raise HTTPException(
+                status_code=500,
+                detail="Resposta inesperada da API Gemini",
+            )
+        except httpx.HTTPStatusError as e:
+            logger.error(
+                f"Erro na API Gemini: {e.response.status_code} - {e.response.text}",
+                exc_info=True,
+            )
+            raise HTTPException(
+                status_code=e.response.status_code,
+                detail=f"Erro na API Gemini: {e.response.text}",
+            )
+        except httpx.RequestError as e:
+            logger.error("Erro de rede ao chamar API Gemini: %s", str(e), exc_info=True)
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail="Falha de rede ao comunicar com Gemini.",
+            )
+        except HTTPException:
+            raise
+        except Exception as e:
+            logger.error(f"Erro inesperado ao chamar API Gemini: {str(e)}", exc_info=True)
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Erro inesperado ao comunicar com Gemini.",
+            )
 
 
 # --- NOVA FUNÃ‡ÃƒO PARA SUGESTÃ•ES GEMINI ---
@@ -537,6 +713,32 @@ class IAGenerationRuntime:
     def _get_ai_provider_workflow() -> AiProviderWorkflow:
         """Retrieve ai provider workflow using the current service dependencies."""
         return AiProviderWorkflow(runtime=AiProviderRuntime())
+
+    @staticmethod
+    def _render_prompt(
+        *,
+        db: Session,
+        nome: str,
+        context: Optional[Dict[str, Any]] = None,
+    ) -> str:
+        """Render a versioned prompt template with the current business context."""
+        try:
+            return PromptTemplateRepository(db).render_prompt(
+                nome=nome,
+                context=context or {},
+            ).conteudo
+        except Exception:
+            class _SafePromptContext(dict):
+                def __missing__(self, key):
+                    """Return an empty string for missing inline fallback placeholders."""
+                    return ""
+
+            safe_context = _SafePromptContext(
+                {key: ("" if value is None else value) for key, value in dict(context or {}).items()}
+            )
+            return DEFAULT_PROMPT_TEMPLATES[nome].format_map(
+                safe_context
+            )
 
     @staticmethod
     def _looks_like_company_timeline_claim(text: str) -> bool:
@@ -749,19 +951,22 @@ class IAGenerationRuntime:
         prompt_messages = [
             {
                 "role": "system",
-                "content": (
-                    f"Voce e um especialista em copywriting para e-commerce. Gere {num_titulos} opcoes "
-                    "de titulos curtos, atraentes e otimizados para SEO para o produto a seguir. "
-                    "Use apenas fatos explicitamente presentes no contexto. "
-                    "Nao invente historico de empresa, ano de fundacao, tempo de mercado ou dados institucionais."
+                "content": self._render_prompt(
+                    db=db,
+                    nome=PromptTemplateName.IA_OPENAI_TITLE_SYSTEM,
+                    context={"num_titulos": num_titulos},
                 ),
             },
             {
                 "role": "user",
-                "content": (
-                    f"Produto: {db_produto.nome_base}. "
-                    f"Descricao: {db_produto.descricao_original or db_produto.descricao_chat_api or ''}. "
-                    f"Marca: {db_produto.marca or ''}."
+                "content": self._render_prompt(
+                    db=db,
+                    nome=PromptTemplateName.IA_OPENAI_TITLE_USER,
+                    context={
+                        "nome_base": db_produto.nome_base,
+                        "descricao": db_produto.descricao_original or db_produto.descricao_chat_api or "",
+                        "marca": db_produto.marca or "",
+                    },
                 ),
             },
         ]
@@ -778,13 +983,23 @@ class IAGenerationRuntime:
                 num_titulos=max(1, int(num_titulos or 1)),
             )
 
+        provider_runtime = getattr(ai_provider_workflow, "_runtime", None)
+        if provider_runtime is not None:
+            modelo_utilizado = await provider_runtime.resolve_openai_model(
+                api_key=api_key,
+                requested_model=OPENAI_DEFAULT_MODEL,
+            )
+            provider_name = provider_runtime.get_openai_provider_name()
+        else:
+            modelo_utilizado = OPENAI_DEFAULT_MODEL
+            provider_name = "openai"
         RegistroUsoIARepository(db).create_registro_uso_ia(
             registro_uso=schemas.RegistroUsoIACreate(
                 user_id=user.id,
                 produto_id=produto_id,
                 tipo_acao=models.TipoAcaoEnum.CRIACAO_TITULO_PRODUTO,
-                provedor_ia="openai",
-                modelo_ia=OPENAI_DEFAULT_MODEL,
+                provedor_ia=provider_name,
+                modelo_ia=modelo_utilizado,
                 creditos_consumidos=1,
             )
         )
@@ -821,19 +1036,23 @@ class IAGenerationRuntime:
         prompt_messages = [
             {
                 "role": "system",
-                "content": (
-                    f"Voce e um copywriter especialista em e-commerce. Crie uma descricao persuasiva "
-                    f"com aproximadamente {tamanho_palavras} palavras para o item a seguir. "
-                    "Use somente fatos presentes no contexto. "
-                    "Nao invente historico de empresa, ano de fundacao, tempo de mercado, premios ou credenciais."
+                "content": self._render_prompt(
+                    db=db,
+                    nome=PromptTemplateName.IA_OPENAI_DESCRIPTION_SYSTEM,
+                    context={"tamanho_palavras": tamanho_palavras},
                 ),
             },
             {
                 "role": "user",
-                "content": (
-                    f"Produto: {db_produto.nome_base}. "
-                    f"Informacoes adicionais: {db_produto.descricao_original or ''}. "
-                    f"Marca: {db_produto.marca or ''}. Modelo: {db_produto.modelo or ''}."
+                "content": self._render_prompt(
+                    db=db,
+                    nome=PromptTemplateName.IA_OPENAI_DESCRIPTION_USER,
+                    context={
+                        "nome_base": db_produto.nome_base,
+                        "descricao": db_produto.descricao_original or "",
+                        "marca": db_produto.marca or "",
+                        "modelo": db_produto.modelo or "",
+                    },
                 ),
             },
         ]
@@ -850,13 +1069,23 @@ class IAGenerationRuntime:
                 tamanho_palavras=max(40, int(tamanho_palavras or 40)),
             )
 
+        provider_runtime = getattr(ai_provider_workflow, "_runtime", None)
+        if provider_runtime is not None:
+            modelo_utilizado = await provider_runtime.resolve_openai_model(
+                api_key=api_key,
+                requested_model=OPENAI_DEFAULT_MODEL,
+            )
+            provider_name = provider_runtime.get_openai_provider_name()
+        else:
+            modelo_utilizado = OPENAI_DEFAULT_MODEL
+            provider_name = "openai"
         RegistroUsoIARepository(db).create_registro_uso_ia(
             registro_uso=schemas.RegistroUsoIACreate(
                 user_id=user.id,
                 produto_id=produto_id,
                 tipo_acao=models.TipoAcaoEnum.CRIACAO_DESCRICAO_PRODUTO,
-                provedor_ia="openai",
-                modelo_ia=OPENAI_DEFAULT_MODEL,
+                provedor_ia=provider_name,
+                modelo_ia=modelo_utilizado,
                 creditos_consumidos=1,
             )
         )
@@ -890,12 +1119,15 @@ class IAGenerationRuntime:
                 num_titulos=max(1, int(num_titulos or 1)),
             )
 
-        prompt_text = (
-            f"Crie {num_titulos} sugestoes de titulos curtos e atrativos para o seguinte produto:\n"
-            "Use apenas informacoes do contexto e nao invente historico de empresa ou ano de fundacao.\n"
-            f"Nome: {db_produto.nome_base}\n"
-            f"Descricao: {db_produto.descricao_original or db_produto.descricao_chat_api or ''}\n"
-            f"Marca: {db_produto.marca or ''}"
+        prompt_text = self._render_prompt(
+            db=db,
+            nome=PromptTemplateName.IA_GEMINI_TITLE_USER,
+            context={
+                "num_titulos": num_titulos,
+                "nome_base": db_produto.nome_base,
+                "descricao": db_produto.descricao_original or db_produto.descricao_chat_api or "",
+                "marca": db_produto.marca or "",
+            },
         )
         resultado = await ai_provider_workflow.call_gemini_api(
             prompt_text=prompt_text,
@@ -949,13 +1181,16 @@ class IAGenerationRuntime:
                 tamanho_palavras=max(40, int(tamanho_palavras or 40)),
             )
 
-        prompt_text = (
-            f"Escreva uma descricao de aproximadamente {tamanho_palavras} palavras para o seguinte produto:\n"
-            "Use apenas fatos do contexto e nao invente historico de empresa ou ano de fundacao.\n"
-            f"Nome: {db_produto.nome_base}\n"
-            f"Informacoes adicionais: {db_produto.descricao_original or ''}\n"
-            f"Marca: {db_produto.marca or ''}\n"
-            f"Modelo: {db_produto.modelo or ''}"
+        prompt_text = self._render_prompt(
+            db=db,
+            nome=PromptTemplateName.IA_GEMINI_DESCRIPTION_USER,
+            context={
+                "tamanho_palavras": tamanho_palavras,
+                "nome_base": db_produto.nome_base,
+                "descricao": db_produto.descricao_original or "",
+                "marca": db_produto.marca or "",
+                "modelo": db_produto.modelo or "",
+            },
         )
         descricao = await ai_provider_workflow.call_gemini_api(
             prompt_text=prompt_text,
@@ -1043,16 +1278,14 @@ class IAGenerationRuntime:
     
         # 4. Construir Prompt para Gemini
         lista_chaves_str = "\n".join([f"- '{chave}'" for chave in chaves_para_sugerir])
-        prompt_final = (
-            f"Analise as seguintes informaÃ§Ãµes sobre um produto:\n---\n{contexto}\n---\n\n"
-            f"Com base nesta anÃ¡lise, sugira valores apropriados para os seguintes atributos definidos (use as chaves exatamente como listadas):\n{lista_chaves_str}\n\n"
-            "Seu objetivo Ã© preencher esses atributos com informaÃ§Ãµes relevantes e concisas inferidas do contexto fornecido.\n"
-            "Sua resposta DEVE ser um objeto JSON contendo uma Ãºnica chave 'sugestoes_atributos'.\n"
-            "O valor de 'sugestoes_atributos' deve ser uma lista de objetos.\n"
-            "Cada objeto na lista deve ter duas chaves: 'chave_atributo' (que deve ser uma das chaves da lista que forneci: "
-            f"{lista_chaves_str}) e 'valor_sugerido' (a sua sugestÃ£o de valor para esse atributo).\n"
-            "Se vocÃª nÃ£o puder sugerir um valor para um atributo especÃ­fico com base nas informaÃ§Ãµes, pode omiti-lo da lista ou fornecer um valor como 'NÃ£o encontrado'.\n"
-            "NÃ£o inclua atributos na sua resposta que nÃ£o foram listados explicitamente."
+        prompt_final = self._render_prompt(
+            db=db,
+            nome=PromptTemplateName.IA_GEMINI_ATTRIBUTE_SUGGESTION_USER,
+            context={
+                "contexto": contexto,
+                "lista_chaves_str": lista_chaves_str,
+                "lista_chaves_inline": lista_chaves_str,
+            },
         )
     
         # 5. Definir o responseSchema esperado da Gemini

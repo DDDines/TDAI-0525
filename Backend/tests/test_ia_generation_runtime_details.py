@@ -30,6 +30,7 @@ class _AsyncClientStub:
         self.response = response
         self.error = error
         self.timeout = timeout
+        self.calls = []
 
     async def __aenter__(self):
         return self
@@ -37,10 +38,28 @@ class _AsyncClientStub:
     async def __aexit__(self, exc_type, exc, tb):
         return False
 
-    async def post(self, *_args, **_kwargs):
+    async def request(self, method, url, **kwargs):
+        self.calls.append((method, url, kwargs))
         if self.error:
             raise self.error
         return self.response
+
+    async def post(self, *args, **kwargs):
+        return await self.request("POST", *args, **kwargs)
+
+
+class _SequenceAsyncClientStub(_AsyncClientStub):
+    def __init__(self, *, responses=None, error=None, timeout=None):
+        super().__init__(response=None, error=error, timeout=timeout)
+        self._responses = list(responses or [])
+
+    async def request(self, method, url, **kwargs):
+        self.calls.append((method, url, kwargs))
+        if self.error:
+            raise self.error
+        if not self._responses:
+            raise AssertionError("No stubbed responses left for request")
+        return self._responses.pop(0)
 
 
 class _UsageRepositoryStub:
@@ -170,6 +189,99 @@ async def test_ai_provider_runtime_openai_http_paths(monkeypatch):
 
 
 @pytest.mark.asyncio
+async def test_ai_provider_runtime_routes_openai_compatible_calls_to_lm_studio(monkeypatch):
+    runtime = ia_service.AiProviderRuntime()
+    client_stub = _SequenceAsyncClientStub(
+        responses=[
+            _ResponseStub(json_data={"data": [{"id": "google/gemma-3-12b"}]}),
+            _ResponseStub(
+                json_data={"choices": [{"message": {"content": "titulo local"}}]}
+            ),
+        ]
+    )
+    monkeypatch.setattr(ia_service.settings, "AI_PROVIDER", "lm_studio", raising=False)
+    monkeypatch.setattr(ia_service.settings, "LM_STUDIO_BASE_URL", "http://127.0.0.1:1234/v1", raising=False)
+    monkeypatch.setattr(ia_service.settings, "LM_STUDIO_MODEL", None, raising=False)
+    monkeypatch.setattr(ia_service.settings, "LM_STUDIO_API_KEY", "lm-studio", raising=False)
+    monkeypatch.setattr(
+        ia_service.httpx,
+        "AsyncClient",
+        lambda timeout=60.0: client_stub,
+    )
+
+    result = await runtime.call_openai_api(
+        prompt_messages=[{"role": "user", "content": "hi"}],
+        api_key="lm-studio",
+    )
+
+    assert result == "titulo local"
+    assert runtime.get_openai_provider_name() == "lm_studio"
+    assert client_stub.calls[0][1] == "http://127.0.0.1:1234/v1/models"
+    assert client_stub.calls[1][1] == "http://127.0.0.1:1234/v1/chat/completions"
+    assert client_stub.calls[1][2]["json"]["model"] == "google/gemma-3-12b"
+
+
+@pytest.mark.asyncio
+async def test_ai_provider_runtime_openai_request_error_returns_503(monkeypatch):
+    runtime = ia_service.AiProviderRuntime()
+    monkeypatch.setattr(
+        ia_service.httpx,
+        "AsyncClient",
+        lambda timeout=60.0: _AsyncClientStub(
+            timeout=timeout,
+            error=httpx.ConnectError("offline", request=httpx.Request("POST", "https://example.com")),
+        ),
+    )
+
+    with pytest.raises(HTTPException) as upstream_error:
+        await runtime.call_openai_api(prompt_messages=[], api_key="k")
+
+    assert upstream_error.value.status_code == 503
+
+
+@pytest.mark.asyncio
+async def test_ai_provider_runtime_resolve_openai_model_branches(monkeypatch):
+    runtime = ia_service.AiProviderRuntime()
+
+    monkeypatch.setattr(ia_service.settings, "AI_PROVIDER", "lm_studio", raising=False)
+    monkeypatch.setattr(ia_service.settings, "LM_STUDIO_MODEL", "google/gemma-3-12b", raising=False)
+    assert await runtime.resolve_openai_model(api_key="lm-studio") == "google/gemma-3-12b"
+
+    monkeypatch.setattr(ia_service.settings, "LM_STUDIO_MODEL", None, raising=False)
+    runtime._lm_studio_model_cache = "cached/model"
+    assert await runtime.resolve_openai_model(api_key="lm-studio") == "cached/model"
+
+    assert (
+        await runtime.resolve_openai_model(
+            api_key="lm-studio",
+            requested_model="custom/local-model",
+        )
+        == "custom/local-model"
+    )
+
+    client_stub = _SequenceAsyncClientStub(responses=[_ResponseStub(json_data={"data": [{}]})])
+    monkeypatch.setattr(
+        ia_service.httpx,
+        "AsyncClient",
+        lambda timeout=30.0: client_stub,
+    )
+    runtime._lm_studio_model_cache = None
+    with pytest.raises(HTTPException) as missing_model:
+        await runtime.resolve_openai_model(api_key="lm-studio")
+    assert missing_model.value.status_code == 500
+
+    client_stub = _SequenceAsyncClientStub(responses=[_ResponseStub(json_data={"data": "invalid"})])
+    monkeypatch.setattr(
+        ia_service.httpx,
+        "AsyncClient",
+        lambda timeout=30.0: client_stub,
+    )
+    with pytest.raises(HTTPException) as invalid_models_payload:
+        await runtime.resolve_openai_model(api_key="lm-studio")
+    assert invalid_models_payload.value.status_code == 500
+
+
+@pytest.mark.asyncio
 async def test_ai_provider_runtime_gemini_suggestion_http_paths(monkeypatch):
     runtime = ia_service.AiProviderRuntime()
 
@@ -248,6 +360,18 @@ async def test_ai_provider_runtime_gemini_suggestion_http_paths(monkeypatch):
         await runtime.call_gemini_api_for_suggestions(prompt_text="x", api_key="k", response_schema={})
     assert generic_error.value.status_code == 500
 
+    monkeypatch.setattr(
+        ia_service.httpx,
+        "AsyncClient",
+        lambda timeout=90.0: _AsyncClientStub(
+            timeout=timeout,
+            error=httpx.ConnectError("offline", request=httpx.Request("POST", "https://example.com")),
+        ),
+    )
+    with pytest.raises(HTTPException) as request_error:
+        await runtime.call_gemini_api_for_suggestions(prompt_text="x", api_key="k", response_schema={})
+    assert request_error.value.status_code == 503
+
 
 @pytest.mark.asyncio
 async def test_ai_provider_runtime_gemini_text_http_paths(monkeypatch):
@@ -297,6 +421,18 @@ async def test_ai_provider_runtime_gemini_text_http_paths(monkeypatch):
     with pytest.raises(HTTPException) as generic_error:
         await runtime.call_gemini_api(prompt_text="x", api_key="k")
     assert generic_error.value.status_code == 500
+
+    monkeypatch.setattr(
+        ia_service.httpx,
+        "AsyncClient",
+        lambda timeout=90.0: _AsyncClientStub(
+            timeout=timeout,
+            error=httpx.ConnectError("offline", request=httpx.Request("POST", "https://example.com")),
+        ),
+    )
+    with pytest.raises(HTTPException) as request_error:
+        await runtime.call_gemini_api(prompt_text="x", api_key="k")
+    assert request_error.value.status_code == 503
 
 
 def test_ia_generation_runtime_helper_paths(monkeypatch):
@@ -350,6 +486,13 @@ def test_ia_generation_runtime_helper_paths(monkeypatch):
         provider_name="openai",
         details="fallback",
     )
+    rendered = runtime._render_prompt(
+        db=object(),
+        nome=ia_service.PromptTemplateName.IA_OPENAI_DESCRIPTION_USER,
+        context={"nome_base": "Reservatorio"},
+    )
+    assert "Reservatorio" in rendered
+    assert "Marca:" in rendered
 
 
 @pytest.mark.asyncio

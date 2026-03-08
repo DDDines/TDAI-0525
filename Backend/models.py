@@ -501,6 +501,24 @@ class RegistroUsoIA(Base):
     produto = relationship("Produto", back_populates="registros_uso_ia")
 
 
+class PromptTemplate(Base):
+    """Represent Prompt Template and centralize its responsibilities inside this module."""
+    __tablename__ = "prompt_templates"
+
+    id = Column(Integer, primary_key=True, index=True)
+    nome = Column(String(150), nullable=False, index=True)
+    conteudo = Column(Text, nullable=False)
+    versao = Column(Integer, nullable=False, default=1)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
+    )
+
+    __table_args__ = (
+        UniqueConstraint("nome", "versao", name="uq_prompt_templates_nome_versao"),
+    )
+
+
 class RegistroHistorico(Base):
     """Represent Registro Historico and centralize its responsibilities inside this module."""
     __tablename__ = "registros_historico"
