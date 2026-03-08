@@ -5,11 +5,22 @@ from pathlib import Path
 from typing import List, Optional
 from dotenv import load_dotenv
 
-try:
-    from pydantic_settings import BaseSettings, SettingsConfigDict
-except ModuleNotFoundError:
-    from pydantic import BaseSettings
-    SettingsConfigDict = dict
+
+class _SettingsBaseLoader:
+    """Resolve the settings base implementation for the current environment."""
+
+    @staticmethod
+    def load():
+        """Load the settings base implementation compatible with the current install."""
+        try:
+            from pydantic_settings import BaseSettings, SettingsConfigDict
+            return BaseSettings, SettingsConfigDict
+        except ModuleNotFoundError:
+            from pydantic.v1 import BaseSettings
+            return BaseSettings, dict
+
+
+BaseSettings, SettingsConfigDict = _SettingsBaseLoader.load()
 from pydantic import AnyHttpUrl, Field, TypeAdapter, ValidationError
 from .logging_config import get_logger
 logger = get_logger(__name__)
