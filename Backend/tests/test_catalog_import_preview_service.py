@@ -138,6 +138,10 @@ class _LoggerStub:
         """Run info in this workflow."""
         self.calls.append((args, kwargs))
 
+    def exception(self, *args, **kwargs):
+        """Run exception in this workflow."""
+        self.calls.append((args, kwargs))
+
 
 class _PageStub:
     """Represent page stub and centralize responsibilities for this module."""
@@ -303,11 +307,207 @@ class _TopLevelFunctionSurface:
         assert result["image"] == "img"
         assert result["text"] == "txt"
 
+    def test_importar_catalogo_preview_tabular_paths_and_exception(tmp_path):
+        """Cover non-PDF preview success, tabular error, and generic exception fallback."""
+        upload = _UploadFileStub(filename="catalogo.xlsx", content=b"xlsx")
+        record = SimpleNamespace(id=11, original_filename="catalogo.xlsx", stored_filename="x.xlsx")
+        service, file_processing, logger, catalog_file_repo = _build_service(upload_dir=tmp_path, record=record)
+        file_processing.saved_record = record
+        file_processing.preview_tabular_response = {
+            "sample_rows": [{"sku": "1"}],
+            "headers": ["sku"],
+        }
+
+        success = asyncio.run(
+            service.importar_catalogo_preview(
+                file=upload,
+                fornecedor_id=None,
+                start_page=1,
+                page_count=1,
+                dpi=72,
+                user_id=77,
+            )
+        )
+        assert success["num_pages"] == 1
+        assert success["headers"] == ["sku"]
+        assert upload.seek_calls == [0]
+        assert catalog_file_repo.saved[0].user_id == 77
+        assert logger.calls
+
+        file_processing.preview_tabular_response = {"error": "planilha invalida"}
+        error_result = asyncio.run(
+            service.importar_catalogo_preview(
+                file=upload,
+                fornecedor_id=None,
+                start_page=1,
+                page_count=1,
+                dpi=72,
+                user_id=77,
+            )
+        )
+        assert error_result["error"] == "planilha invalida"
+        assert error_result["sample_rows"] == []
+
+        async def _boom(*_args, **_kwargs):
+            raise RuntimeError("preview quebrou")
+
+        file_processing.preview_arquivo_pdf = _boom
+        record.original_filename = "catalogo.pdf"
+        upload_pdf = _UploadFileStub(filename="catalogo.pdf", content=b"pdf")
+        fail_result = asyncio.run(
+            service.importar_catalogo_preview(
+                file=upload_pdf,
+                fornecedor_id=None,
+                start_page=1,
+                page_count=1,
+                dpi=72,
+                user_id=77,
+            )
+        )
+        assert "Falha ao gerar preview de PDF" in fail_result["error"]
+        assert fail_result["sample_rows"] == {}
+
+    def test_selecionar_regiao_fallback_text_and_validation_paths(tmp_path):
+        """Cover text fallback, invalid page/bbox, missing file, and generic processing errors."""
+        catalogs_dir = tmp_path / "catalogs"
+        catalogs_dir.mkdir(parents=True, exist_ok=True)
+        (catalogs_dir / "arquivo.pdf").write_bytes(b"dummy")
+
+        page = _PageStub(text="Nome: Produto X\nMarca: Marca Y\n\nSKU: 123\nDescricao: Texto")
+        record = SimpleNamespace(id=2, stored_filename="arquivo.pdf")
+        service, file_processing, logger, _ = _build_service(upload_dir=tmp_path, record=record, pages=[page])
+        file_processing.df_region = _DataFrameStub(rows=[])
+
+        fallback_result = service.selecionar_regiao(
+            file_id=2,
+            page=1,
+            bbox=[0, 0, 900, 900],
+            bbox_norm=[0, 0, 1, 1],
+            user_id=9,
+        )
+        assert fallback_result["preview_headers"] == ["nome", "marca", "sku", "descricao"]
+        assert fallback_result["produtos"]
+        assert any("fallback de texto" in item for item in fallback_result["log"])
+        assert logger.calls
+
+        with pytest.raises(HTTPException) as invalid_page:
+            service.selecionar_regiao(
+                file_id=2,
+                page=99,
+                bbox=[0, 0, 100, 100],
+                bbox_norm=None,
+                user_id=9,
+            )
+        assert invalid_page.value.status_code == 400
+
+        with pytest.raises(HTTPException) as invalid_bbox:
+            service.selecionar_regiao(
+                file_id=2,
+                page=1,
+                bbox=[10, 10, 5, 5],
+                bbox_norm=None,
+                user_id=9,
+            )
+        assert invalid_bbox.value.status_code == 400
+
+        missing_record = SimpleNamespace(id=2, stored_filename="inexistente.pdf")
+        missing_service, _, _, _ = _build_service(upload_dir=tmp_path, record=missing_record, pages=[page])
+        with pytest.raises(HTTPException) as missing_file:
+            missing_service.selecionar_regiao(
+                file_id=2,
+                page=1,
+                bbox=[0, 0, 100, 100],
+                bbox_norm=None,
+                user_id=9,
+            )
+        assert missing_file.value.status_code == 404
+
+        def _explode(*_args, **_kwargs):
+            raise RuntimeError("extract fail")
+
+        file_processing.extract_data_from_pdf_region = _explode
+        with pytest.raises(HTTPException) as generic_error:
+            service.selecionar_regiao(
+                file_id=2,
+                page=1,
+                bbox=[0, 0, 100, 100],
+                bbox_norm=None,
+                user_id=9,
+            )
+        assert generic_error.value.status_code == 500
+
+    def test_extrair_pagina_unica_validation_and_helper_paths(tmp_path):
+        """Cover page extraction error paths and preview row/text parsing helpers."""
+        catalogs_dir = tmp_path / "catalogs"
+        catalogs_dir.mkdir(parents=True, exist_ok=True)
+        (catalogs_dir / "arquivo.pdf").write_bytes(b"pdf")
+        record = SimpleNamespace(id=3, stored_filename="arquivo.pdf")
+        service, file_processing, _, repo = _build_service(upload_dir=tmp_path, record=record)
+
+        assert service._resolve_catalog_file_repo() is repo
+        assert service._get_record_or_404(catalog_file_repo=repo, file_id=3, user_id=1) is record
+        assert service._build_catalog_path(record).as_posix().endswith("/catalogs/arquivo.pdf")
+        assert service._normalize_preview_row({"a": None, "b": float("nan"), "c": "ok"}) == {
+            "a": None,
+            "b": None,
+            "c": "ok",
+        }
+        parsed_rows = service._parse_key_value_rows("Nome Base: Item\nMarca: Teste\nNome Base: Outro\nCodigo: 123")
+        assert parsed_rows == [{"nome_base": "Item", "marca": "Teste"}, {"nome_base": "Outro", "sku": "123"}]
+        extracted_rows = service._extract_text_rows(
+            file_path=service._build_catalog_path(record),
+            page=1,
+            selected_bbox=[0, 0, 10, 10],
+        )
+        assert extracted_rows == []
+
+        async def _raise_value_error(*_args, **_kwargs):
+            raise ValueError("page invalid")
+
+        file_processing.extrair_pagina_pdf = _raise_value_error
+        with pytest.raises(HTTPException) as value_error:
+            asyncio.run(
+                service.extrair_pagina_unica(
+                    file_id=3,
+                    page_number=1,
+                    user_id=1,
+                )
+            )
+        assert value_error.value.status_code == 400
+
+        async def _raise_runtime_error(*_args, **_kwargs):
+            raise RuntimeError("page crash")
+
+        file_processing.extrair_pagina_pdf = _raise_runtime_error
+        with pytest.raises(HTTPException) as runtime_error:
+            asyncio.run(
+                service.extrair_pagina_unica(
+                    file_id=3,
+                    page_number=1,
+                    user_id=1,
+                )
+            )
+        assert runtime_error.value.status_code == 500
+
+        (catalogs_dir / "arquivo.pdf").unlink()
+        with pytest.raises(HTTPException) as missing_file:
+            asyncio.run(
+                service.extrair_pagina_unica(
+                    file_id=3,
+                    page_number=1,
+                    user_id=1,
+                )
+            )
+        assert missing_file.value.status_code == 404
+
 _build_service = _TopLevelFunctionSurface._build_service
 test_importar_catalogo_preview_pdf_success = _TopLevelFunctionSurface.test_importar_catalogo_preview_pdf_success
 test_selecionar_regiao_uses_dataframe_rows = _TopLevelFunctionSurface.test_selecionar_regiao_uses_dataframe_rows
 test_extrair_pagina_unica_raises_404_when_record_missing = _TopLevelFunctionSurface.test_extrair_pagina_unica_raises_404_when_record_missing
 test_extrair_pagina_unica_success = _TopLevelFunctionSurface.test_extrair_pagina_unica_success
+test_importar_catalogo_preview_tabular_paths_and_exception = _TopLevelFunctionSurface.test_importar_catalogo_preview_tabular_paths_and_exception
+test_selecionar_regiao_fallback_text_and_validation_paths = _TopLevelFunctionSurface.test_selecionar_regiao_fallback_text_and_validation_paths
+test_extrair_pagina_unica_validation_and_helper_paths = _TopLevelFunctionSurface.test_extrair_pagina_unica_validation_and_helper_paths
 
 
 

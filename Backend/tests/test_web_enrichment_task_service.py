@@ -263,6 +263,126 @@ class _TopLevelFunctionSurface:
         assert "iniciou suas atividades" not in dados.get("descricao_detalhada_seo", "").lower()
 
     @staticmethod
+    def test_helpers_de_normalizacao_e_extracao_cobrem_branches_menos_triviais():
+        """Exercise compact helpers and sanitization edge cases."""
+        workflow = _TopLevelFunctionSurface._build_workflow()
+        payload = {
+            "descricao_curta": "Empresa fundada em 2015. Reservatorio em aco carbono.",
+            "descricao_detalhada_seo": "Linha para freio. No mercado desde 2010.",
+            "texto_relevante_coletado": "Texto util. A marca iniciou suas atividades no ano de 2012.",
+            "lista_caracteristicas_beneficios_bullets": [
+                "Empresa fundada em 2015",
+                "Aplicacao em linha pesada",
+                "",
+            ],
+            "fontes_web_coletadas": [
+                {"url": "https://a", "descricao_curta": "Fundada em 2011. Produto reforcado."},
+                "ignorar",
+            ],
+        }
+
+        workflow._sanitize_aggregated_payload(payload)
+
+        assert "fundada em" not in payload["descricao_curta"].lower()
+        assert "desde 2010" not in payload["descricao_detalhada_seo"].lower()
+        assert "iniciou suas atividades" not in payload["texto_relevante_coletado"].lower()
+        assert payload["lista_caracteristicas_beneficios_bullets"] == ["Aplicacao em linha pesada"]
+        assert payload["fontes_web_coletadas"] == [{"url": "https://a", "descricao_curta": "Produto reforcado."}]
+
+        split = workflow._split_sentences(
+            text="Curto. Frase repetida e longa o suficiente para entrar. Frase repetida e longa o suficiente para entrar.",
+            max_items=3,
+            min_len=20,
+        )
+        assert split == ["Frase repetida e longa o suficiente para entrar"]
+
+        assert workflow._merge_collected_text(existing_text="", new_text="novo") == "novo"
+        assert workflow._merge_collected_text(existing_text="base", new_text="") == "base"
+        assert workflow._merge_collected_text(existing_text="trecho", new_text="trecho expandido") == "trecho expandido"
+
+        specs = workflow._extract_specs_from_text(
+            text="Material: Aco; sku: 123; EAN: 789; Site: //foo; Aplicacao - Ford Cargo; Material: Aluminio"
+        )
+        assert specs == {"material": "Aco", "aplicacao": "Ford Cargo"}
+
+        keywords = workflow._extract_keywords(
+            source_texts=[
+                "Produto produto para linha pesada http://a 123 abc ford-cargo abc",
+                "abc freio freio 9999",
+            ],
+            limit=6,
+        )
+        assert "produto" not in keywords
+        assert "http" not in keywords
+        assert "9999" in keywords
+        assert "abc" in keywords
+
+        assert workflow._coerce_to_list(None) == []
+        assert workflow._coerce_to_list("  unico  ") == ["unico"]
+        assert workflow._coerce_to_list(["a", "", " b "]) == ["a", "b"]
+        assert workflow._has_meaningful_llm_value("  ") is False
+        assert workflow._has_meaningful_llm_value({"nome": "x"}) is True
+
+    @staticmethod
+    def test_load_locked_product_fallback_e_close_session_quietly():
+        """Fallback to get_produto when lock helper is absent and ignore close cleanup failures."""
+        workflow = _TopLevelFunctionSurface._build_workflow()
+
+        class _RepoWithoutLock:
+            def get_produto(self, *, produto_id):
+                return {"produto_id": produto_id}
+
+        workflow.product_repository_factory = lambda _session: _RepoWithoutLock()
+        assert workflow._load_locked_product(object(), 42) == {"produto_id": 42}
+
+        class _BadSession:
+            def close(self):
+                raise RuntimeError("close failed")
+
+        workflow._close_session_quietly(_BadSession())
+        workflow._close_session_quietly(None)
+
+    @staticmethod
+    @pytest.mark.asyncio
+    async def test_busca_urls_cobre_sem_busca_sem_query_e_sucesso_em_segunda_tentativa():
+        """Cover unavailable search, empty candidates and later successful fallback."""
+        workflow = _TopLevelFunctionSurface._build_workflow()
+        logs = []
+
+        assert await workflow._buscar_urls(
+            query_candidates=["termo"],
+            busca_web_disponivel=False,
+            log_mensagens=logs,
+        ) == []
+        assert "busca web pulada" in logs[-1].lower()
+
+        logs = []
+        workflow.web_extractor = SimpleNamespace(buscar_urls_google=lambda **kwargs: [])
+        assert await workflow._buscar_urls(
+            query_candidates=[],
+            busca_web_disponivel=True,
+            log_mensagens=logs,
+        ) == []
+        assert "nenhum termo de busca valido" in logs[-1].lower()
+
+        attempts = []
+
+        async def buscar_urls_google(**kwargs):
+            attempts.append(kwargs["query"])
+            if len(attempts) == 2:
+                return ["https://ok"]
+            return []
+
+        workflow.web_extractor = SimpleNamespace(buscar_urls_google=buscar_urls_google)
+        logs = []
+        assert await workflow._buscar_urls(
+            query_candidates=["a", "b", "c"],
+            busca_web_disponivel=True,
+            log_mensagens=logs,
+        ) == ["https://ok"]
+        assert attempts == ["a", "b"]
+
+    @staticmethod
     @pytest.mark.asyncio
     async def test_coletar_de_urls_ignora_html_vazio_texto_fraco_e_fonte_irrelevante():
         """Ignore sources with missing HTML, weak text or irrelevant metadata."""
@@ -356,6 +476,61 @@ class _TopLevelFunctionSurface:
 
     @staticmethod
     @pytest.mark.asyncio
+    async def test_coletar_de_urls_cobre_casos_sem_url_sem_busca_e_fonte_duplicada():
+        """Cover no-url branches and keep source list deduplicated."""
+        workflow = _TopLevelFunctionSurface._build_workflow()
+        logs = []
+        payload = {}
+        produto = SimpleNamespace(id=55, nome_base="Reservatorio")
+
+        assert await workflow._coletar_de_urls(
+            db_produto_obj=produto,
+            urls_a_processar=[],
+            dados_extraidos_agregados=payload,
+            log_mensagens=logs,
+            busca_web_disponivel=False,
+        ) is False
+        assert "nenhuma url para processar" in logs[-1].lower()
+
+        logs = []
+        assert await workflow._coletar_de_urls(
+            db_produto_obj=produto,
+            urls_a_processar=[],
+            dados_extraidos_agregados=payload,
+            log_mensagens=logs,
+            busca_web_disponivel=True,
+        ) is False
+        assert "nenhuma url encontrada" in logs[-1].lower()
+
+        async def coletar_html(_url):
+            return "<html>x</html>"
+
+        workflow.web_extractor = SimpleNamespace(
+            coletar_conteudo_pagina_playwright=coletar_html,
+            extrair_texto_principal_com_trafilatura=lambda _html: "Material: Aco carbono. Aplicacao: Ford Cargo.",
+            extrair_metadados_estruturados=lambda _html, _url: {
+                "nome": "Reservatorio de Ar",
+                "descricao_curta": "Descricao curta valida",
+            },
+            normalizar_dados_de_metadados=lambda value: value,
+        )
+        workflow.is_meaningful_extracted_text = lambda text: bool(text)
+        workflow.metadata_has_minimum_signal = lambda metadata: bool(metadata)
+        workflow.is_source_relevant_for_product = lambda *args, **kwargs: True
+        payload = {"fontes_web_coletadas": [{"url": "https://dup"}]}
+        logs = []
+
+        assert await workflow._coletar_de_urls(
+            db_produto_obj=produto,
+            urls_a_processar=["https://dup"],
+            dados_extraidos_agregados=payload,
+            log_mensagens=logs,
+            busca_web_disponivel=True,
+        ) is True
+        assert payload["fontes_web_coletadas"] == [{"url": "https://dup"}]
+
+    @staticmethod
+    @pytest.mark.asyncio
     async def test_executar_llm_retorna_falha_api_externa_quando_provedor_responde_com_erro():
         """Translate LLM provider errors into the expected terminal status."""
         workflow = _TopLevelFunctionSurface._build_workflow()
@@ -380,6 +555,89 @@ class _TopLevelFunctionSurface:
         assert collected is False
         assert status == _FakeStatus.FALHA_API_EXTERNA
         assert any("erro do llm" in item.lower() for item in logs)
+
+    @staticmethod
+    @pytest.mark.asyncio
+    async def test_executar_llm_cobre_sem_openai_sem_dados_sem_resposta_e_sucesso():
+        """Exercise the non-error branches of the LLM execution helper."""
+        workflow = _TopLevelFunctionSurface._build_workflow()
+        produto = SimpleNamespace(
+            nome_base="Reservatorio",
+            dados_brutos_web={"dados_brutos_originais": {"nome": "fallback"}},
+        )
+        user = SimpleNamespace(id=7)
+        logs = []
+
+        collected, status = await workflow._executar_llm(
+            openai_api_configurada=False,
+            db_produto_obj=produto,
+            user=user,
+            dados_extraidos_agregados={},
+            dados_coletados_de_fontes_web=False,
+            log_mensagens=logs,
+            status_para_salvar_no_final=_FakeStatus.EM_PROGRESSO,
+        )
+        assert collected is False
+        assert status == _FakeStatus.EM_PROGRESSO
+        assert "nao esta configurada" in logs[-1].lower()
+
+        logs = []
+        produto_sem_brutos = SimpleNamespace(nome_base="Reservatorio", dados_brutos_web=None)
+        async def fake_llm_nao_usado(**kwargs):
+            return {}
+
+        workflow.web_extractor = SimpleNamespace(extrair_dados_produto_com_llm=fake_llm_nao_usado)
+        collected, status = await workflow._executar_llm(
+            openai_api_configurada=True,
+            db_produto_obj=produto_sem_brutos,
+            user=user,
+            dados_extraidos_agregados={},
+            dados_coletados_de_fontes_web=False,
+            log_mensagens=logs,
+            status_para_salvar_no_final=_FakeStatus.EM_PROGRESSO,
+        )
+        assert collected is False
+        assert status == _FakeStatus.EM_PROGRESSO
+        assert "nenhum texto ou metadado suficiente" in logs[-1].lower()
+
+        async def fake_llm_vazio(**kwargs):
+            return {}
+
+        workflow.web_extractor = SimpleNamespace(extrair_dados_produto_com_llm=fake_llm_vazio)
+        logs = []
+        collected, status = await workflow._executar_llm(
+            openai_api_configurada=True,
+            db_produto_obj=produto,
+            user=user,
+            dados_extraidos_agregados={"descricao_curta": "metadata"},
+            dados_coletados_de_fontes_web=True,
+            log_mensagens=logs,
+            status_para_salvar_no_final=_FakeStatus.EM_PROGRESSO,
+        )
+        assert collected is True
+        assert status == _FakeStatus.EM_PROGRESSO
+        assert "nao retornou dados" in logs[-1].lower()
+
+        async def fake_llm_sucesso(**kwargs):
+            assert kwargs["texto_pagina"] == "{}"
+            return {"nome_sugerido_seo": "Novo titulo", "descricao_detalhada_seo": "Descricao final"}
+
+        workflow.web_extractor = SimpleNamespace(extrair_dados_produto_com_llm=fake_llm_sucesso)
+        logs = []
+        payload = {}
+        collected, status = await workflow._executar_llm(
+            openai_api_configurada=True,
+            db_produto_obj=produto,
+            user=user,
+            dados_extraidos_agregados=payload,
+            dados_coletados_de_fontes_web=False,
+            log_mensagens=logs,
+            status_para_salvar_no_final=_FakeStatus.EM_PROGRESSO,
+        )
+        assert collected is True
+        assert status == _FakeStatus.EM_PROGRESSO
+        assert payload["nome_sugerido_seo"] == "Novo titulo"
+        assert payload["descricao_detalhada_seo"] == "Descricao final"
 
     @staticmethod
     @pytest.mark.asyncio
@@ -431,6 +689,159 @@ class _TopLevelFunctionSurface:
         assert usage_repo.calls[0].status == "FALHA"
         assert finalizer_calls[0]["status_para_salvar_no_final"] == _FakeStatus.FALHA_CONFIGURACAO_API_EXTERNA
         assert session.closed is True
+
+    @staticmethod
+    @pytest.mark.asyncio
+    async def test_run_fecha_sessao_em_produto_inexistente_e_erro_sql_precoce():
+        """Close the session on early exits before the main try/finally block."""
+        error_messages = []
+
+        session_missing = _FakeSession()
+        workflow_missing = WebEnrichmentTaskWorkflow(
+            logger=SimpleNamespace(info=lambda *a, **k: None, error=lambda *a, **k: error_messages.append(a[0] if a else "")),
+            SQLAlchemyError=Exception,
+            session_provider=_SessionProviderStub(session_missing),
+            user_repository_factory=lambda _session: SimpleNamespace(),
+            product_repository_factory=lambda _session: _FakeProductRepository(None),
+            usage_repository_factory=lambda _session: _FakeUsageRepository(),
+            models=_FakeModels,
+            schemas=_FakeSchemas,
+            web_extractor=SimpleNamespace(),
+            settings=SimpleNamespace(),
+            json=SimpleNamespace(dumps=lambda *args, **kwargs: "{}"),
+            normalize_human_text=lambda value: value,
+            build_payload_enriquecimento_visivel=lambda **kwargs: ({}, [], []),
+            extrair_dominio_fornecedor=lambda value: value,
+            priorizar_urls_para_enriquecimento=lambda **kwargs: ([], []),
+            is_meaningful_extracted_text=lambda text: bool(text),
+            metadata_has_minimum_signal=lambda metadata: bool(metadata),
+            is_source_relevant_for_product=lambda *args, **kwargs: True,
+        )
+
+        await workflow_missing.run(produto_id=321, user_id=8)
+        assert session_missing.closed is True
+        assert any("nao encontrado" in str(item).lower() for item in error_messages)
+
+        class _FailingProductRepo:
+            def get_produto_for_update(self, *, produto_id):
+                raise Exception(f"db fail {produto_id}")
+
+        session_error = _FakeSession()
+        workflow_error = WebEnrichmentTaskWorkflow(
+            logger=SimpleNamespace(info=lambda *a, **k: None, error=lambda *a, **k: error_messages.append(a[0] if a else "")),
+            SQLAlchemyError=Exception,
+            session_provider=_SessionProviderStub(session_error),
+            user_repository_factory=lambda _session: SimpleNamespace(),
+            product_repository_factory=lambda _session: _FailingProductRepo(),
+            usage_repository_factory=lambda _session: _FakeUsageRepository(),
+            models=_FakeModels,
+            schemas=_FakeSchemas,
+            web_extractor=SimpleNamespace(),
+            settings=SimpleNamespace(),
+            json=SimpleNamespace(dumps=lambda *args, **kwargs: "{}"),
+            normalize_human_text=lambda value: value,
+            build_payload_enriquecimento_visivel=lambda **kwargs: ({}, [], []),
+            extrair_dominio_fornecedor=lambda value: value,
+            priorizar_urls_para_enriquecimento=lambda **kwargs: ([], []),
+            is_meaningful_extracted_text=lambda text: bool(text),
+            metadata_has_minimum_signal=lambda metadata: bool(metadata),
+            is_source_relevant_for_product=lambda *args, **kwargs: True,
+        )
+
+        await workflow_error.run(produto_id=654, user_id=8)
+        assert session_error.closed is True
+        assert any("erro sql ao carregar produto id 654" in str(item).lower() for item in error_messages)
+
+    @staticmethod
+    @pytest.mark.asyncio
+    async def test_run_cobre_usuario_ausente_status_em_progresso_e_service_execute():
+        """Cover user-missing branch, status reset and thin service wrapper."""
+        session = _FakeSession()
+        produto = SimpleNamespace(
+            id=41,
+            nome_base="Reservatorio",
+            fornecedor=None,
+            dados_brutos_web={"descricao_curta": "texto"},
+            status_enriquecimento_web=_FakeStatus.EM_PROGRESSO,
+            log_enriquecimento_web=None,
+        )
+        product_repo = _FakeProductRepository(produto)
+        finalizer_calls = []
+        workflow = WebEnrichmentTaskWorkflow(
+            logger=SimpleNamespace(info=lambda *a, **k: None, error=lambda *a, **k: None),
+            SQLAlchemyError=Exception,
+            session_provider=_SessionProviderStub(session),
+            user_repository_factory=lambda _session: SimpleNamespace(get_user=lambda user_id: None),
+            product_repository_factory=lambda _session: product_repo,
+            usage_repository_factory=lambda _session: _FakeUsageRepository(),
+            models=_FakeModels,
+            schemas=_FakeSchemas,
+            web_extractor=SimpleNamespace(),
+            settings=SimpleNamespace(),
+            json=SimpleNamespace(dumps=lambda *args, **kwargs: "{}"),
+            normalize_human_text=lambda value: value,
+            build_payload_enriquecimento_visivel=lambda **kwargs: ({}, [], []),
+            extrair_dominio_fornecedor=lambda value: value,
+            priorizar_urls_para_enriquecimento=lambda **kwargs: ([], []),
+            is_meaningful_extracted_text=lambda text: bool(text),
+            metadata_has_minimum_signal=lambda metadata: bool(metadata),
+            is_source_relevant_for_product=lambda *args, **kwargs: True,
+        )
+        workflow.finalization_service = SimpleNamespace(
+            apply=lambda **kwargs: finalizer_calls.append(kwargs) or kwargs["status_para_salvar_no_final"]
+        )
+
+        await workflow.run(produto_id=41, user_id=404)
+
+        assert finalizer_calls[0]["status_para_salvar_no_final"] == _FakeStatus.FALHOU
+        assert finalizer_calls[0]["dados_extraidos_agregados"]["descricao_curta"] == "texto"
+        assert session.closed is True
+
+        captured = {}
+
+        class _WorkflowStub:
+            def __init__(self, **kwargs):
+                captured["deps"] = kwargs
+
+            async def run(self, **kwargs):
+                captured["run_kwargs"] = kwargs
+
+        from Backend.application.services import web_enrichment_task_service as module
+
+        original_workflow = module.WebEnrichmentTaskWorkflow
+        module.WebEnrichmentTaskWorkflow = _WorkflowStub
+        try:
+            service = module.WebEnrichmentTaskService(
+                logger=SimpleNamespace(),
+                SQLAlchemyError=Exception,
+                session_provider=SimpleNamespace(),
+                models=_FakeModels,
+                schemas=_FakeSchemas,
+                web_extractor=SimpleNamespace(),
+                settings=SimpleNamespace(),
+                json=SimpleNamespace(),
+                re=None,
+                normalize_human_text=lambda value: value,
+                build_payload_enriquecimento_visivel=lambda **kwargs: ({}, [], []),
+                extrair_dominio_fornecedor=lambda value: value,
+                priorizar_urls_para_enriquecimento=lambda **kwargs: ([], []),
+                is_meaningful_extracted_text=lambda text: True,
+                metadata_has_minimum_signal=lambda metadata: True,
+                is_source_relevant_for_product=lambda *args, **kwargs: True,
+                user_repository_factory=lambda session: session,
+                product_repository_factory=lambda session: session,
+                usage_repository_factory=lambda session: session,
+            )
+            await service.execute(produto_id=5, user_id=6, termos_busca_override="x")
+        finally:
+            module.WebEnrichmentTaskWorkflow = original_workflow
+
+        assert captured["run_kwargs"] == {
+            "produto_id": 5,
+            "user_id": 6,
+            "termos_busca_override": "x",
+        }
+        assert "session_provider" in captured["deps"]
 
     @staticmethod
     @pytest.mark.asyncio
@@ -499,17 +910,38 @@ _build_workflow = _TopLevelFunctionSurface._build_workflow
 test_aplicar_enriquecimento_heuristico_popula_campos_chave = _TopLevelFunctionSurface.test_aplicar_enriquecimento_heuristico_popula_campos_chave
 test_merge_collected_text_acumula_sem_duplicar = _TopLevelFunctionSurface.test_merge_collected_text_acumula_sem_duplicar
 test_aplicar_enriquecimento_heuristico_remove_historico_empresa = _TopLevelFunctionSurface.test_aplicar_enriquecimento_heuristico_remove_historico_empresa
+test_helpers_de_normalizacao_e_extracao_cobrem_branches_menos_triviais = (
+    _TopLevelFunctionSurface.test_helpers_de_normalizacao_e_extracao_cobrem_branches_menos_triviais
+)
+test_load_locked_product_fallback_e_close_session_quietly = (
+    _TopLevelFunctionSurface.test_load_locked_product_fallback_e_close_session_quietly
+)
+test_busca_urls_cobre_sem_busca_sem_query_e_sucesso_em_segunda_tentativa = (
+    _TopLevelFunctionSurface.test_busca_urls_cobre_sem_busca_sem_query_e_sucesso_em_segunda_tentativa
+)
 test_coletar_de_urls_ignora_html_vazio_texto_fraco_e_fonte_irrelevante = (
     _TopLevelFunctionSurface.test_coletar_de_urls_ignora_html_vazio_texto_fraco_e_fonte_irrelevante
 )
 test_coletar_de_urls_agrega_payload_e_para_quando_fonte_ja_tem_nome_e_descricao = (
     _TopLevelFunctionSurface.test_coletar_de_urls_agrega_payload_e_para_quando_fonte_ja_tem_nome_e_descricao
 )
+test_coletar_de_urls_cobre_casos_sem_url_sem_busca_e_fonte_duplicada = (
+    _TopLevelFunctionSurface.test_coletar_de_urls_cobre_casos_sem_url_sem_busca_e_fonte_duplicada
+)
 test_executar_llm_retorna_falha_api_externa_quando_provedor_responde_com_erro = (
     _TopLevelFunctionSurface.test_executar_llm_retorna_falha_api_externa_quando_provedor_responde_com_erro
 )
+test_executar_llm_cobre_sem_openai_sem_dados_sem_resposta_e_sucesso = (
+    _TopLevelFunctionSurface.test_executar_llm_cobre_sem_openai_sem_dados_sem_resposta_e_sucesso
+)
 test_run_registra_falha_de_configuracao_quando_nao_ha_openai_nem_busca = (
     _TopLevelFunctionSurface.test_run_registra_falha_de_configuracao_quando_nao_ha_openai_nem_busca
+)
+test_run_fecha_sessao_em_produto_inexistente_e_erro_sql_precoce = (
+    _TopLevelFunctionSurface.test_run_fecha_sessao_em_produto_inexistente_e_erro_sql_precoce
+)
+test_run_cobre_usuario_ausente_status_em_progresso_e_service_execute = (
+    _TopLevelFunctionSurface.test_run_cobre_usuario_ausente_status_em_progresso_e_service_execute
 )
 test_run_forca_status_falhou_quando_finalizacao_explode = (
     _TopLevelFunctionSurface.test_run_forca_status_falhou_quando_finalizacao_explode

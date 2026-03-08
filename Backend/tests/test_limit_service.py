@@ -49,6 +49,25 @@ class _PortStub:
         )
         return True
 
+    async def verificar_e_consumir_creditos_geracao_ia(
+        self,
+        session,
+        user_id,
+        creditos_necessarios=1,
+    ):
+        """Run verificar e consumir creditos geracao ia in this workflow."""
+        self.calls.append(
+            (
+                "verificar_e_consumir_creditos_geracao_ia",
+                {
+                    "session": session,
+                    "user_id": user_id,
+                    "creditos_necessarios": creditos_necessarios,
+                },
+            )
+        )
+        return False
+
 
 class _TopLevelFunctionSurface:
 
@@ -80,7 +99,26 @@ class _TopLevelFunctionSurface:
         assert port.calls[0][1]["session"] == "db"
         assert port.calls[0][1]["user_id"] == 7
 
+    @pytest.mark.asyncio
+    async def test_limit_service_delegates_credit_consumption_check():
+        """Cover the async credit consumption entrypoint."""
+        port = _PortStub()
+        service = LimitService(port=port)
+
+        result = await service.verificar_e_consumir_creditos_geracao_ia(
+            session="db",
+            user_id=9,
+            creditos_necessarios=3,
+        )
+
+        assert result is False
+        assert port.calls[0][0] == "verificar_e_consumir_creditos_geracao_ia"
+        assert port.calls[0][1]["creditos_necessarios"] == 3
+
 test_limit_service_delegates_sync_limit_check = _TopLevelFunctionSurface.test_limit_service_delegates_sync_limit_check
 test_limit_service_delegates_async_credit_check = _TopLevelFunctionSurface.test_limit_service_delegates_async_credit_check
+test_limit_service_delegates_credit_consumption_check = (
+    _TopLevelFunctionSurface.test_limit_service_delegates_credit_consumption_check
+)
 
 

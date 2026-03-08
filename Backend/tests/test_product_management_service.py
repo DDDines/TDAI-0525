@@ -25,6 +25,8 @@ class _CrudProdutosStub:
         self.deleted = []
         self.list_items = []
         self.total_items = 0
+        self.list_calls = []
+        self.count_calls = []
 
     def create_produto(self, *, produto, user_id):
         """Create produto for this workflow."""
@@ -40,17 +42,18 @@ class _CrudProdutosStub:
 
     def get_produto(self, *, produto_id):
         """Return produto for this workflow."""
-        _ = produto_id
+        if isinstance(self.produto, dict):
+            return self.produto.get(produto_id)
         return self.produto
 
     def get_produtos_by_user(self, **kwargs):
         """Return produtos by user for this workflow."""
-        _ = kwargs
+        self.list_calls.append(kwargs)
         return self.list_items
 
     def count_produtos_by_user(self, **kwargs):
         """Count produtos by user for this workflow."""
-        _ = kwargs
+        self.count_calls.append(kwargs)
         return self.total_items
 
     def update_produto(self, *, db_produto, produto_update):
@@ -193,6 +196,30 @@ class _TopLevelFunctionSurface:
     
         assert exc.value.status_code == 404
 
+    def test_create_produto_raises_when_product_type_missing():
+        """Reject creation when the selected product type does not exist."""
+        service, _, _, _ = _build_service(product_type=False)
+
+        with pytest.raises(HTTPException) as exc:
+            service.create_produto(
+                produto=SimpleNamespace(id=10, fornecedor_id=None, product_type_id=2),
+                current_user=SimpleNamespace(id=3, is_superuser=False),
+            )
+
+        assert exc.value.status_code == 404
+
+    def test_read_produto_raises_404_when_missing():
+        """Return 404 when the product does not exist."""
+        service, _, _, _ = _build_service(produto=None)
+
+        with pytest.raises(HTTPException) as exc:
+            service.read_produto(
+                produto_id=999,
+                current_user=SimpleNamespace(id=3, is_superuser=False),
+            )
+
+        assert exc.value.status_code == 404
+
     def test_read_produto_raises_403_for_non_owner():
         """Run test read produto raises 403 for non owner in this workflow."""
         produto = SimpleNamespace(id=10, user_id=9)
@@ -231,6 +258,29 @@ class _TopLevelFunctionSurface:
         assert len(payload["items"]) == 2
         assert payload["page"] == 1
 
+    def test_list_produtos_as_superuser_uses_global_filter():
+        """Superusers should not be constrained by owner id filters."""
+        service, crud_produtos, _, _ = _build_service()
+
+        service.list_produtos(
+            skip=10,
+            limit=5,
+            sort_by=None,
+            sort_order=None,
+            search="abc",
+            fornecedor_id=7,
+            categoria="lataria",
+            status_enriquecimento_web="ok",
+            status_titulo_ia="ok",
+            status_descricao_ia="ok",
+            product_type_id=9,
+            current_user=SimpleNamespace(id=3, is_superuser=True),
+        )
+
+        assert crud_produtos.list_calls[0]["user_id"] is None
+        assert crud_produtos.list_calls[0]["is_admin"] is True
+        assert crud_produtos.count_calls[0]["user_id"] is None
+
     def test_update_produto_records_historico():
         """Run test update produto records historico in this workflow."""
         produto = SimpleNamespace(id=10, user_id=3, fornecedor_id=1, product_type_id=2, nome_base="Peca")
@@ -249,6 +299,49 @@ class _TopLevelFunctionSurface:
         assert updated.nome_base == "Peca Atualizada"
         assert len(crud_produtos.updated) == 1
         assert crud_historico.calls[0]["acao"] == "ATUALIZACAO"
+
+    def test_update_produto_raises_on_invalid_new_relationships():
+        """Changing fornecedor or type should validate the new foreign keys."""
+        produto = SimpleNamespace(id=10, user_id=3, fornecedor_id=1, product_type_id=2, nome_base="Peca")
+        service, _, _, _ = _build_service(produto=produto, fornecedor=False)
+
+        with pytest.raises(HTTPException) as exc:
+            service.update_produto(
+                produto_id=10,
+                produto_update=SimpleNamespace(
+                    fornecedor_id=4,
+                    product_type_id=2,
+                    nome_base="Peca Atualizada",
+                ),
+                current_user=SimpleNamespace(id=3, is_superuser=False),
+            )
+
+        assert exc.value.status_code == 404
+
+        service, _, _, _ = _build_service(produto=produto, product_type=False)
+        with pytest.raises(HTTPException) as exc:
+            service.update_produto(
+                produto_id=10,
+                produto_update=SimpleNamespace(
+                    fornecedor_id=1,
+                    product_type_id=9,
+                    nome_base="Peca Atualizada",
+                ),
+                current_user=SimpleNamespace(id=3, is_superuser=False),
+            )
+        assert exc.value.status_code == 404
+
+    def test_delete_produto_raises_404_when_missing():
+        """Deleting a missing product should return 404."""
+        service, _, _, _ = _build_service(produto=None)
+
+        with pytest.raises(HTTPException) as exc:
+            service.delete_produto(
+                produto_id=33,
+                current_user=SimpleNamespace(id=3, is_superuser=False),
+            )
+
+        assert exc.value.status_code == 404
 
     def test_delete_produto_records_historico():
         """Run test delete produto records historico in this workflow."""
@@ -276,14 +369,47 @@ class _TopLevelFunctionSurface:
     
         assert exc.value.status_code == 400
 
+    def test_batch_delete_produtos_handles_partial_success_and_empty_payload():
+        """Return deleted items on partial success and reject empty lists explicitly."""
+        produtos = {
+            1: SimpleNamespace(id=1, user_id=3),
+            2: SimpleNamespace(id=2, user_id=99),
+            3: None,
+        }
+        service, crud_produtos, crud_historico, _ = _build_service(produto=produtos)
+
+        deleted = service.batch_delete_produtos(
+            produto_ids=[1, 2, 3],
+            current_user=SimpleNamespace(id=3, is_superuser=False),
+        )
+
+        assert [item.id for item in deleted] == [1]
+        assert [item.id for item in crud_produtos.deleted] == [1]
+        assert crud_historico.calls[0]["entity_id"] == 1
+
+        with pytest.raises(HTTPException) as exc:
+            service.batch_delete_produtos(
+                produto_ids=[],
+                current_user=SimpleNamespace(id=3, is_superuser=False),
+            )
+        assert exc.value.status_code == 400
+
 _build_service = _TopLevelFunctionSurface._build_service
 test_create_produto_records_historico_and_ia_usage = _TopLevelFunctionSurface.test_create_produto_records_historico_and_ia_usage
 test_create_produto_raises_when_fornecedor_missing = _TopLevelFunctionSurface.test_create_produto_raises_when_fornecedor_missing
+test_create_produto_raises_when_product_type_missing = _TopLevelFunctionSurface.test_create_produto_raises_when_product_type_missing
+test_read_produto_raises_404_when_missing = _TopLevelFunctionSurface.test_read_produto_raises_404_when_missing
 test_read_produto_raises_403_for_non_owner = _TopLevelFunctionSurface.test_read_produto_raises_403_for_non_owner
 test_list_produtos_builds_page_payload = _TopLevelFunctionSurface.test_list_produtos_builds_page_payload
+test_list_produtos_as_superuser_uses_global_filter = _TopLevelFunctionSurface.test_list_produtos_as_superuser_uses_global_filter
 test_update_produto_records_historico = _TopLevelFunctionSurface.test_update_produto_records_historico
+test_update_produto_raises_on_invalid_new_relationships = _TopLevelFunctionSurface.test_update_produto_raises_on_invalid_new_relationships
+test_delete_produto_raises_404_when_missing = _TopLevelFunctionSurface.test_delete_produto_raises_404_when_missing
 test_delete_produto_records_historico = _TopLevelFunctionSurface.test_delete_produto_records_historico
 test_batch_delete_produtos_raises_when_all_missing = _TopLevelFunctionSurface.test_batch_delete_produtos_raises_when_all_missing
+test_batch_delete_produtos_handles_partial_success_and_empty_payload = (
+    _TopLevelFunctionSurface.test_batch_delete_produtos_handles_partial_success_and_empty_payload
+)
 
 
 

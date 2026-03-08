@@ -402,6 +402,17 @@ class WebEnrichmentTaskWorkflow:
                 normalized.append(text)
         return normalized
 
+    @staticmethod
+    def _has_meaningful_llm_value(value: Any) -> bool:
+        """Decide whether a metadata value is worth sending to the LLM."""
+        if value is None:
+            return False
+        if isinstance(value, str):
+            return bool(value.strip())
+        if isinstance(value, (list, tuple, set, dict)):
+            return bool(value)
+        return True
+
     def _aplicar_enriquecimento_heuristico(
         self,
         *,
@@ -538,6 +549,16 @@ class WebEnrichmentTaskWorkflow:
     def _build_usage_repository(self, *, session: Session) -> Any:
         """Instantiate usage repository using the injected factory."""
         return self.usage_repository_factory(session)
+
+    @staticmethod
+    def _close_session_quietly(session: Optional[Session]) -> None:
+        """Close a session object without raising cleanup errors."""
+        if session is None:
+            return
+        try:
+            session.close()
+        except Exception:
+            return
 
     def _load_locked_product(self, session: Session, produto_id: int):
         """Execute load locked product as part of this module workflow."""
@@ -776,7 +797,7 @@ class WebEnrichmentTaskWorkflow:
         metadados_para_llm = {
             k: v
             for k, v in dados_extraidos_agregados.items()
-            if k != "texto_relevante_coletado"
+            if k != "texto_relevante_coletado" and self._has_meaningful_llm_value(v)
         }
 
         if not texto_para_llm and not metadados_para_llm:
@@ -841,6 +862,7 @@ class WebEnrichmentTaskWorkflow:
                     f"ERRO FATAL PRECOCE: Produto ID {produto_id} nao encontrado."
                 )
                 self.logger.error(log_mensagens[-1])
+                self._close_session_quietly(db)
                 return
             status_original = db_produto_obj.status_enriquecimento_web
         except self.SQLAlchemyError as e_sql_load:
@@ -848,6 +870,7 @@ class WebEnrichmentTaskWorkflow:
                 f"ERRO SQL ao carregar produto ID {produto_id}: {e_sql_load}"
             )
             self.logger.error(log_mensagens[-1])
+            self._close_session_quietly(db)
             return
 
         status_para_salvar_no_final = status_original
