@@ -96,6 +96,31 @@ test('renders raw array review payloads and uses item count fallback', async () 
   expect(screen.getByText(/Serão criados 2 produtos/i)).toBeInTheDocument();
 });
 
+test('treats raw object review payloads as empty lists', async () => {
+  fornecedorService.getReviewData.mockResolvedValueOnce({ invalid: true });
+
+  render(<ImportReview jobId={19} isOpen={true} onClose={() => {}} />);
+
+  expect(
+    await screen.findByText((content) => /Ser.*0.*produtos/i.test(content))
+  ).toBeInTheDocument();
+  expect(screen.queryByText('Prod1')).not.toBeInTheDocument();
+});
+
+test('treats invalid nested items payloads as empty lists', async () => {
+  fornecedorService.getReviewData.mockResolvedValueOnce({
+    items: { invalid: true },
+    total_items: 4,
+  });
+
+  render(<ImportReview jobId={20} isOpen={true} onClose={() => {}} />);
+
+  expect(
+    await screen.findByText((content) => /Ser.*4.*produtos/i.test(content))
+  ).toBeInTheDocument();
+  expect(screen.queryByText('Prod1')).not.toBeInTheDocument();
+});
+
 test('shows review loading errors from detail, message and default fallbacks', async () => {
   fornecedorService.getReviewData.mockRejectedValueOnce({ detail: 'falha revisao' });
 

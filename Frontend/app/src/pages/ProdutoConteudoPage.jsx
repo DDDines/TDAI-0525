@@ -74,10 +74,7 @@ function extractMainDescription(produto) {
   ].filter(Boolean);
 
   for (const candidate of candidates) {
-    const safeCandidate = sanitizeCompanyTimelineText(candidate);
-    if (safeCandidate) {
-      return safeCandidate;
-    }
+    return sanitizeCompanyTimelineText(candidate);
   }
 
   return '';
@@ -265,7 +262,7 @@ function ProdutoConteudoPage() {
   };
 
   const hasMainContent = titles.length > 0 || Boolean(description);
-  const currentProductId = Number(produto?.id || produtoId || 0);
+  const currentProductId = Number(produto?.id ?? produtoId ?? 0);
   const currentProductIndex = orderedProductIds.findIndex((id) => id === currentProductId);
   const previousProductId = currentProductIndex > 0 ? orderedProductIds[currentProductIndex - 1] : null;
   const nextProductId =

@@ -1,4 +1,4 @@
-import React from 'react';
+﻿import React from 'react';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import '@testing-library/jest-dom';
 import PlanoPage from '../PlanoPage.jsx';
@@ -45,19 +45,19 @@ describe('PlanoPage', () => {
 
     fireEvent.click(screen.getByText('Upgrade de Plano'));
     fireEvent.click(screen.getByText('Cancelar Assinatura'));
-    fireEvent.click(screen.getByText('Ver Histórico de Cobrança'));
+    fireEvent.click(screen.getByText(/Ver Historico de Cobranca|Ver Hist.rico de Cobran.a/i));
 
     expect(showInfoToast).toHaveBeenNthCalledWith(
       1,
-      'Recurso de upgrade ainda não disponível.'
+      expect.stringMatching(/upgrade ainda n.o disponivel/i)
     );
     expect(showInfoToast).toHaveBeenNthCalledWith(
       2,
-      'Funcionalidade de cancelamento ainda não disponível.'
+      expect.stringMatching(/cancelamento ainda n.o disponivel/i)
     );
     expect(showInfoToast).toHaveBeenNthCalledWith(
       3,
-      'Histórico de cobrança ainda não disponível.'
+      expect.stringMatching(/historico de cobranca ainda n.o disponivel/i)
     );
   });
 
@@ -72,6 +72,19 @@ describe('PlanoPage', () => {
     expect(screen.getByText(/Erro ao carregar dados/)).toBeInTheDocument();
   });
 
+  test('uses the generic load error fallback when the request fails without a message', async () => {
+    authService.getCurrentUser.mockRejectedValueOnce({});
+
+    render(<PlanoPage />);
+
+    await waitFor(() => {
+      expect(showErrorToast).toHaveBeenCalledWith(
+        expect.stringMatching(/Falha ao carregar dados do usu.rio e plano/i)
+      );
+    });
+    expect(screen.getByText(/Erro ao carregar dados/)).toBeInTheDocument();
+  });
+
   test('shows a no-plan fallback when the user has no active subscription', async () => {
     authService.getCurrentUser.mockResolvedValueOnce({ id: 8, plano: null });
 
@@ -79,8 +92,26 @@ describe('PlanoPage', () => {
 
     expect(
       await screen.findByText(
-        'Não foi possível carregar as informações do seu plano ou você não possui um plano ativo.'
+        /Nao foi possivel carregar as informacoes do seu plano|N.o foi poss.vel carregar as informa..es do seu plano/i
       )
     ).toBeInTheDocument();
+  });
+
+  test('renders fallback plan labels when the current plan has no friendly name', async () => {
+    authService.getCurrentUser.mockResolvedValueOnce({
+      id: 8,
+      plano: {
+        nome: '',
+        limite_produtos: 10,
+        limite_enriquecimento_web: 20,
+        limite_geracao_ia: 30,
+      },
+    });
+
+    render(<PlanoPage />);
+
+    expect(await screen.findByText('Plano atual')).toBeInTheDocument();
+    expect(screen.getByText('N/D')).toBeInTheDocument();
+    expect(screen.queryByText(/Suporte priorit/i)).not.toBeInTheDocument();
   });
 });

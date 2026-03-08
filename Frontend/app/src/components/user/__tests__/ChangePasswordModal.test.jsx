@@ -132,6 +132,23 @@ describe('ChangePasswordModal', () => {
     expect(confirmPassword).toHaveValue('');
   });
 
+  test('uses the default success message when the service response does not include one', async () => {
+    const user = userEvent.setup();
+    authService.changePassword.mockResolvedValueOnce({});
+
+    renderModal();
+
+    await user.type(screen.getByLabelText(/Senha Atual/i), 'atual1234');
+    await user.type(screen.getByLabelText(/^Nova Senha/i), 'nova12345');
+    await user.type(screen.getByLabelText(/^Confirmar Nova Senha/i), 'nova12345');
+    await user.click(screen.getByRole('button', { name: /Salvar Nova Senha/i }));
+
+    await waitFor(() => {
+      expect(showSuccessToast).toHaveBeenCalledWith('Senha alterada com sucesso!');
+    });
+    expect(onClose).toHaveBeenCalledTimes(1);
+  });
+
   test('shows service errors without closing the modal', async () => {
     const user = userEvent.setup();
     authService.changePassword.mockRejectedValueOnce({
@@ -188,6 +205,23 @@ describe('ChangePasswordModal', () => {
       });
     });
     expect(showErrorToast).toHaveBeenCalledWith('falha remota');
+  });
+
+  test('uses the generic error fallback when the service rejects without detail or message', async () => {
+    const user = userEvent.setup();
+    authService.changePassword.mockRejectedValueOnce({});
+
+    renderModal();
+
+    await user.type(screen.getByLabelText(/Senha Atual/i), 'atual1234');
+    await user.type(screen.getByLabelText(/^Nova Senha/i), 'nova12345');
+    await user.type(screen.getByLabelText(/^Confirmar Nova Senha/i), 'nova12345');
+    await user.click(screen.getByRole('button', { name: /Salvar Nova Senha/i }));
+
+    await waitFor(() => {
+      expect(showErrorToast).toHaveBeenCalledWith('Falha ao alterar senha.');
+    });
+    expect(onClose).not.toHaveBeenCalled();
   });
 
   test('closes immediately through the modal close button when idle', async () => {

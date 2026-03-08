@@ -58,6 +58,12 @@ describe('productService', () => {
     await expect(productService.getProdutos()).rejects.toEqual({ detail: 'boom' });
   });
 
+  test('getProdutos throws a fallback error when request has no response payload', async () => {
+    apiClient.get.mockRejectedValueOnce(new Error('network down'));
+
+    await expect(productService.getProdutos()).rejects.toThrow('Falha ao buscar produtos');
+  });
+
   test('getProdutoById throws a fallback error when request has no response payload', async () => {
     apiClient.get.mockRejectedValueOnce(new Error('network down'));
 
@@ -208,6 +214,16 @@ describe('productService', () => {
     );
   });
 
+  test('iniciarEnriquecimentoWebProduto uses the generic 409 fallback when detail is missing', async () => {
+    apiClient.post.mockRejectedValueOnce({
+      response: { status: 409, data: {} },
+    });
+
+    await expect(productService.iniciarEnriquecimentoWebProduto(10)).rejects.toThrow(
+      'Ja existe enriquecimento em andamento para este produto.'
+    );
+  });
+
   test('iniciarEnriquecimentoWebProduto falls back to a generic error detail', async () => {
     apiClient.post.mockRejectedValueOnce({
       response: {
@@ -305,6 +321,15 @@ describe('productService', () => {
     await expect(
       productService.registrarFeedbackConteudoGerado(12, { valor: 'talvez' })
     ).rejects.toThrow('Feedback invalido. Use "gostei" ou "nao_gostei".');
+
+    expect(apiClient.get).not.toHaveBeenCalled();
+    expect(apiClient.put).not.toHaveBeenCalled();
+  });
+
+  test('registrarFeedbackConteudoGerado rejects empty payloads before any request', async () => {
+    await expect(productService.registrarFeedbackConteudoGerado(12)).rejects.toThrow(
+      'Feedback invalido. Use "gostei" ou "nao_gostei".'
+    );
 
     expect(apiClient.get).not.toHaveBeenCalled();
     expect(apiClient.put).not.toHaveBeenCalled();

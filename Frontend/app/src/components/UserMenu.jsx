@@ -24,6 +24,8 @@ function UserMenu({ onLogout, onNavigate, showDropdown = true }) {
   const { user, logout, isLoading } = useAuth();
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef(null);
+  const navigateAction = onNavigate ?? navigate;
+  const logoutAction = onLogout ?? logout;
 
   const userNameDisplay = isLoading ? 'Carregando...' : user?.nome_completo || user?.email || 'Usuario';
   const userInitials = isLoading ? '...' : getInitials(user?.nome_completo || user?.email);
@@ -35,20 +37,12 @@ function UserMenu({ onLogout, onNavigate, showDropdown = true }) {
 
   const handleNavigate = (path) => {
     setMenuOpen(false);
-    if (onNavigate) {
-      onNavigate(path);
-      return;
-    }
-    navigate(path);
+    navigateAction(path);
   };
 
   const handleLogout = () => {
     setMenuOpen(false);
-    if (onLogout) {
-      onLogout();
-      return;
-    }
-    logout();
+    logoutAction();
   };
 
   const enableMenu = showDropdown;

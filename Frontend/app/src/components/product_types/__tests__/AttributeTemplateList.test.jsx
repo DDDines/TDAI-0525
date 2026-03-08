@@ -70,6 +70,28 @@ describe('AttributeTemplateList', () => {
     expect(onDelete).toHaveBeenCalledWith(2);
   });
 
+  test('renders array options using a comma-separated summary', () => {
+    render(
+      <AttributeTemplateList
+        attributes={[
+          {
+            id: 7,
+            label: 'Voltagem',
+            attribute_key: 'voltagem',
+            field_type: 'SELECT',
+            options: ['12V', '24V'],
+            display_order: 0,
+          },
+        ]}
+        onEdit={onEdit}
+        onDelete={onDelete}
+        onReorder={onReorder}
+      />
+    );
+
+    expect(screen.getByText(/12V, 24V/i)).toBeInTheDocument();
+  });
+
   test('enables reorder controls only where movement is possible', async () => {
     const user = userEvent.setup();
     const attributes = [

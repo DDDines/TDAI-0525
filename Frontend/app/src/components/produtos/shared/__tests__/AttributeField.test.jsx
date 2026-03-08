@@ -180,4 +180,157 @@ describe('AttributeField', () => {
 
     expect(screen.getByLabelText(/Observacao/i)).toHaveValue('');
   });
+
+  test('uses safe placeholder fallbacks for textarea and number fields without defaults', () => {
+    const { rerender } = render(
+      <AttributeField
+        attributeTemplate={{
+          attribute_key: 'descricao',
+          label: 'Descricao',
+          field_type: 'textarea',
+        }}
+        value={undefined}
+        onChange={jest.fn()}
+      />
+    );
+
+    expect(screen.getByLabelText(/Descricao/i)).toHaveAttribute('placeholder', 'Digite descricao');
+
+    rerender(
+      <AttributeField
+        attributeTemplate={{
+          attribute_key: 'quantidade',
+          label: 'Quantidade',
+          field_type: 'number',
+        }}
+        value={undefined}
+        onChange={jest.fn()}
+      />
+    );
+
+    expect(screen.getByLabelText(/Quantidade/i)).toHaveAttribute('placeholder', 'Digite quantidade');
+  });
+
+  test('prefers explicit default values in textarea and number placeholders', () => {
+    const { rerender } = render(
+      <AttributeField
+        attributeTemplate={{
+          attribute_key: 'descricao',
+          label: 'Descricao',
+          field_type: 'textarea',
+          default_value: 'Resumo inicial',
+        }}
+        value={undefined}
+        onChange={jest.fn()}
+      />
+    );
+
+    expect(screen.getByLabelText(/Descricao/i)).toHaveAttribute('placeholder', 'Resumo inicial');
+
+    rerender(
+      <AttributeField
+        attributeTemplate={{
+          attribute_key: 'quantidade',
+          label: 'Quantidade',
+          field_type: 'number',
+          default_value: 12,
+        }}
+        value={undefined}
+        onChange={jest.fn()}
+      />
+    );
+
+    expect(screen.getByLabelText(/Quantidade/i)).toHaveAttribute('placeholder', '12');
+  });
+
+  test('supports select options as objects and preserves disabled/required flags', () => {
+    render(
+      <AttributeField
+        attributeTemplate={{
+          attribute_key: 'acabamento',
+          label: 'Acabamento',
+          field_type: 'select',
+          is_required: true,
+          options: JSON.stringify([
+            { value: 'escovado', label: 'Escovado' },
+            { value: 'polido', label: 'Polido' },
+          ]),
+        }}
+        value="escovado"
+        onChange={jest.fn()}
+        disabled={true}
+      />
+    );
+
+    const select = screen.getByLabelText(/Acabamento/i);
+    expect(select).toBeDisabled();
+    expect(select).toBeRequired();
+    expect(screen.getByRole('option', { name: 'Escovado' })).toBeInTheDocument();
+    expect(screen.getByRole('option', { name: 'Polido' })).toBeInTheDocument();
+  });
+
+  test('handles missing field types and false boolean defaults', () => {
+    const { rerender } = render(
+      <AttributeField
+        attributeTemplate={{
+          attribute_key: 'desconhecido',
+          label: 'Desconhecido',
+        }}
+        value={undefined}
+        onChange={jest.fn()}
+      />
+    );
+
+    expect(screen.getByText(/Tipo de campo '' n.o suportado/i)).toBeInTheDocument();
+
+    rerender(
+      <AttributeField
+        attributeTemplate={{
+          attribute_key: 'ativo',
+          label: 'Ativo',
+          field_type: 'boolean',
+          default_value: '0',
+        }}
+        value={undefined}
+        onChange={jest.fn()}
+      />
+    );
+
+    expect(screen.getByRole('checkbox', { name: /Ativo/i })).not.toBeChecked();
+  });
+
+  test('falls back to false for boolean fields without values and normalizes select option labels', () => {
+    const { rerender } = render(
+      <AttributeField
+        attributeTemplate={{
+          attribute_key: 'ativo',
+          label: 'Ativo',
+          field_type: 'boolean',
+        }}
+        value={undefined}
+        onChange={jest.fn()}
+      />
+    );
+
+    expect(screen.getByRole('checkbox', { name: /Ativo/i })).not.toBeChecked();
+
+    rerender(
+      <AttributeField
+        attributeTemplate={{
+          attribute_key: 'acabamento',
+          label: 'Acabamento',
+          field_type: 'select',
+          options: JSON.stringify([
+            { value: 0, label: '' },
+            { value: 'fosco' },
+          ]),
+        }}
+        value=""
+        onChange={jest.fn()}
+      />
+    );
+
+    expect(screen.getByRole('option', { name: '0' })).toBeInTheDocument();
+    expect(screen.getByRole('option', { name: 'fosco' })).toBeInTheDocument();
+  });
 });

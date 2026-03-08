@@ -46,6 +46,13 @@ describe('LoadingPopup', () => {
     expect(screen.queryByText(/Atualizações em tempo real/i)).not.toBeInTheDocument();
   });
 
+  test('renders progress without a label when the progress text is empty', () => {
+    render(<LoadingPopup isOpen={true} progressPercent={10} progressLabel="" />);
+
+    expect(screen.getByRole('progressbar')).toBeInTheDocument();
+    expect(screen.queryByText('10/10')).not.toBeInTheDocument();
+  });
+
   test('renders nothing when the popup is closed', () => {
     const { container } = render(<LoadingPopup isOpen={false} message="Hidden" />);
 

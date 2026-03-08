@@ -1,4 +1,4 @@
-import { act, render, screen, waitFor } from '@testing-library/react';
+﻿import { act, render, screen, waitFor } from '@testing-library/react';
 import '@testing-library/jest-dom';
 import ImportProgress from '../ImportProgress.jsx';
 import fornecedorService from '../../../services/fornecedorService';
@@ -19,6 +19,14 @@ function createDeferred() {
     reject = rej;
   });
   return { promise, resolve, reject };
+}
+
+async function renderAndFlush(ui) {
+  const view = render(ui);
+  await act(async () => {
+    await Promise.resolve();
+  });
+  return view;
 }
 
 describe('common ImportProgress', () => {
@@ -56,7 +64,7 @@ describe('common ImportProgress', () => {
     });
 
     const onDone = jest.fn();
-    render(<ImportProgress fileId={55} onDone={onDone} />);
+    await renderAndFlush(<ImportProgress fileId={55} onDone={onDone} />);
 
     expect(await screen.findByText(/Status: DONE/i)).toBeInTheDocument();
     await waitFor(() => {
@@ -74,7 +82,7 @@ describe('common ImportProgress', () => {
     });
 
     const onDone = jest.fn();
-    render(<ImportProgress fileId={77} onDone={onDone} />);
+    await renderAndFlush(<ImportProgress fileId={77} onDone={onDone} />);
 
     for (let index = 0; index < 19; index += 1) {
       await act(async () => {
@@ -83,7 +91,7 @@ describe('common ImportProgress', () => {
     }
 
     expect(
-      await screen.findByText(/resultado final ainda n[ãa]o foi consolidado/i)
+      await screen.findByText(/resultado final ainda n(a|ã)o foi consolidado/i)
     ).toBeInTheDocument();
     expect(onDone).toHaveBeenCalledWith(null);
     expect(fornecedorService.getImportacaoResult).not.toHaveBeenCalled();
@@ -93,7 +101,7 @@ describe('common ImportProgress', () => {
     fornecedorService.getImportacaoStatus.mockRejectedValue(new Error('Falha de rede'));
 
     const onDone = jest.fn();
-    render(<ImportProgress fileId={12} onDone={onDone} />);
+    await renderAndFlush(<ImportProgress fileId={12} onDone={onDone} />);
 
     expect(await screen.findByText('Falha de rede')).toBeInTheDocument();
     expect(onDone).toHaveBeenCalledWith(null);
@@ -106,9 +114,9 @@ describe('common ImportProgress', () => {
       total_pages: 5,
     });
 
-    const { unmount } = render(<ImportProgress fileId={91} onDone={jest.fn()} />);
+    const { unmount } = await renderAndFlush(<ImportProgress fileId={91} onDone={jest.fn()} />);
 
-    expect(await screen.findByText(/Processando 2 de 5 páginas/i)).toBeInTheDocument();
+    expect(await screen.findByText(/Processando 2 de 5 p(a|á)ginas/i)).toBeInTheDocument();
     expect(fornecedorService.getImportacaoResult).not.toHaveBeenCalled();
 
     unmount();
@@ -123,10 +131,20 @@ describe('common ImportProgress', () => {
       pages_total: 7,
     });
 
-    render(<ImportProgress fileId={97} />);
+    await renderAndFlush(<ImportProgress fileId={97} />);
 
-    expect(await screen.findByText(/Processando 0 de 7 páginas/i)).toBeInTheDocument();
+    expect(await screen.findByText(/Processando 0 de 7 p(a|á)ginas/i)).toBeInTheDocument();
     expect(fornecedorService.getImportacaoResult).not.toHaveBeenCalled();
+  });
+
+  test('falls back to zero total pages when the sparse payload has no counters at all', async () => {
+    fornecedorService.getImportacaoStatus.mockResolvedValueOnce({
+      status: 'PROCESSING',
+    });
+
+    await renderAndFlush(<ImportProgress fileId={101} />);
+
+    expect(await screen.findByText(/Processando 0 de 0 p(a|á)ginas/i)).toBeInTheDocument();
   });
 
   test('keeps polling when the final result is not ready yet and then resolves', async () => {
@@ -141,7 +159,7 @@ describe('common ImportProgress', () => {
       .mockResolvedValueOnce({ ready: true, created: 3 });
 
     const onDone = jest.fn();
-    render(<ImportProgress fileId={92} onDone={onDone} />);
+    await renderAndFlush(<ImportProgress fileId={92} onDone={onDone} />);
 
     await act(async () => {
       await jest.runOnlyPendingTimersAsync();
@@ -163,7 +181,7 @@ describe('common ImportProgress', () => {
     fornecedorService.getImportacaoResult.mockResolvedValue({ ready: false });
 
     const onDone = jest.fn();
-    render(<ImportProgress fileId={93} onDone={onDone} />);
+    await renderAndFlush(<ImportProgress fileId={93} onDone={onDone} />);
 
     for (let index = 0; index < 19; index += 1) {
       await act(async () => {
@@ -172,7 +190,7 @@ describe('common ImportProgress', () => {
     }
 
     expect(
-      await screen.findByText(/Resultado final ainda pendente após o tempo limite de espera/i)
+      await screen.findByText(/Resultado final ainda pendente ap(o|ó)s o tempo limite de espera/i)
     ).toBeInTheDocument();
     expect(onDone).toHaveBeenCalledWith(null);
   });
@@ -187,7 +205,7 @@ describe('common ImportProgress', () => {
     fornecedorService.getImportacaoResult.mockRejectedValue(new Error('falha final'));
 
     const onDone = jest.fn();
-    render(<ImportProgress fileId={94} onDone={onDone} />);
+    await renderAndFlush(<ImportProgress fileId={94} onDone={onDone} />);
 
     await waitFor(() => {
       expect(onDone).toHaveBeenCalledWith(null);
@@ -203,7 +221,7 @@ describe('common ImportProgress', () => {
     });
     fornecedorService.getImportacaoResult.mockResolvedValue({ ready: false });
 
-    const { unmount } = render(<ImportProgress fileId={98} />);
+    const { unmount } = await renderAndFlush(<ImportProgress fileId={98} />);
 
     for (let index = 0; index < 19; index += 1) {
       await act(async () => {
@@ -212,12 +230,12 @@ describe('common ImportProgress', () => {
     }
 
     expect(
-      await screen.findByText(/Resultado final ainda pendente após o tempo limite de espera/i)
+      await screen.findByText(/Resultado final ainda pendente ap(o|ó)s o tempo limite de espera/i)
     ).toBeInTheDocument();
 
     unmount();
     fornecedorService.getImportacaoStatus.mockRejectedValueOnce({});
-    render(<ImportProgress fileId={99} />);
+    await renderAndFlush(<ImportProgress fileId={99} />);
 
     expect(await screen.findByText('Erro ao consultar status')).toBeInTheDocument();
   });
@@ -227,7 +245,7 @@ describe('common ImportProgress', () => {
     fornecedorService.getImportacaoStatus.mockImplementationOnce(() => pendingStatus.promise);
 
     const onDone = jest.fn();
-    const { unmount } = render(<ImportProgress fileId={95} onDone={onDone} />);
+    const { unmount } = await renderAndFlush(<ImportProgress fileId={95} onDone={onDone} />);
 
     unmount();
 
@@ -255,7 +273,7 @@ describe('common ImportProgress', () => {
     fornecedorService.getImportacaoResult.mockImplementationOnce(() => pendingResult.promise);
 
     const onDone = jest.fn();
-    const { unmount } = render(<ImportProgress fileId={96} onDone={onDone} />);
+    const { unmount } = await renderAndFlush(<ImportProgress fileId={96} onDone={onDone} />);
 
     await waitFor(() => {
       expect(fornecedorService.getImportacaoResult).toHaveBeenCalledWith(96);
@@ -265,6 +283,50 @@ describe('common ImportProgress', () => {
 
     await act(async () => {
       pendingResult.resolve({ ready: true, created: 2 });
+      await Promise.resolve();
+    });
+
+    expect(onDone).not.toHaveBeenCalled();
+  });
+
+  test('ignores stale final result failures after the component unmounts', async () => {
+    const pendingResult = createDeferred();
+    fornecedorService.getImportacaoStatus.mockResolvedValueOnce({
+      status: 'DONE',
+      pages_processed: 1,
+      total_pages: 1,
+      result_ready: true,
+    });
+    fornecedorService.getImportacaoResult.mockImplementationOnce(() => pendingResult.promise);
+
+    const onDone = jest.fn();
+    const { unmount } = await renderAndFlush(<ImportProgress fileId={102} onDone={onDone} />);
+
+    await waitFor(() => {
+      expect(fornecedorService.getImportacaoResult).toHaveBeenCalledWith(102);
+    });
+
+    unmount();
+
+    await act(async () => {
+      pendingResult.reject(new Error('falha final tardia'));
+      await Promise.resolve();
+    });
+
+    expect(onDone).not.toHaveBeenCalled();
+  });
+
+  test('ignores stale polling failures after the component unmounts', async () => {
+    const pendingStatus = createDeferred();
+    fornecedorService.getImportacaoStatus.mockImplementationOnce(() => pendingStatus.promise);
+
+    const onDone = jest.fn();
+    const { unmount } = await renderAndFlush(<ImportProgress fileId={103} onDone={onDone} />);
+
+    unmount();
+
+    await act(async () => {
+      pendingStatus.reject(new Error('falha polling tardia'));
       await Promise.resolve();
     });
 

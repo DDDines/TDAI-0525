@@ -159,7 +159,7 @@ describe('HistoricoPage', () => {
         {
           id: 2,
           produto_id: null,
-          tipo_acao: '',
+          tipo_acao: undefined,
           resposta_ia: '',
           tokens_prompt: null,
           tokens_resposta: null,
@@ -200,6 +200,18 @@ describe('HistoricoPage', () => {
     expect(screen.getByText(/Erro ao carregar hist/i)).toBeInTheDocument();
   });
 
+  test('uses the generic history error fallback when the request rejects without details', async () => {
+    usoIAService.getMeuHistoricoUsoIA.mockRejectedValueOnce({});
+
+    render(<HistoricoPage />);
+
+    await waitFor(() => {
+      expect(showErrorToast).toHaveBeenCalledWith(
+        expect.stringMatching(/Falha ao buscar hist.rico de uso de IA/i)
+      );
+    });
+  });
+
   test('uses backend response detail when the IA history request fails with API payload', async () => {
     usoIAService.getMeuHistoricoUsoIA.mockRejectedValueOnce({
       response: { data: { detail: 'detalhe do backend' } },
@@ -238,5 +250,19 @@ describe('HistoricoPage', () => {
       expect.any(Error)
     );
     consoleWarnSpy.mockRestore();
+  });
+
+  test('ignores non-array secondary payloads while still rendering the empty state', async () => {
+    usoIAService.getMeuHistoricoUsoIA.mockResolvedValueOnce({ items: [], total_items: 0 });
+    historicoService.getHistorico.mockResolvedValueOnce({ items: null, total_items: 0 });
+    usoIAService.getTiposHistorico.mockResolvedValueOnce({ invalid: true });
+
+    render(<HistoricoPage />);
+
+    await waitFor(() => {
+      expect(screen.getByText(/Nenhum registro de uso de IA encontrado/i)).toBeInTheDocument();
+    });
+
+    expect(screen.queryByText('produto')).not.toBeInTheDocument();
   });
 });

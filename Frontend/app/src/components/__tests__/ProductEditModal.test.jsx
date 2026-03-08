@@ -308,6 +308,7 @@ describe('ProductEditModal', () => {
     await user.selectOptions(screen.getByRole('combobox', { name: /Fornecedor/i }), '1');
     await user.selectOptions(screen.getByRole('combobox', { name: /Tipo de Produto/i }), '1');
     await screen.findByLabelText(/Nome Base/i);
+    await screen.findByRole('button', { name: /Atributos/i });
   }
 
   test('initializes template attributes once supplier and type are selected in create mode', async () => {
@@ -320,6 +321,27 @@ describe('ProductEditModal', () => {
 
     expect(screen.getByLabelText(/^Cor/i)).toHaveValue('Preta');
     expect(screen.getByLabelText(/^Voltagem/i)).toHaveValue('');
+  });
+
+  test('keeps dynamic attributes untouched when the chosen type has no templates to initialize', async () => {
+    useProductTypes.mockReturnValue({
+      productTypes: [
+        ...mockProductTypes,
+        { id: 3, friendly_name: 'Sem Templates', attribute_templates: null },
+      ],
+      addProductType: jest.fn(),
+    });
+
+    renderModal({ product: null });
+
+    await waitForFornecedorOptions();
+    await user.selectOptions(screen.getByRole('combobox', { name: /Fornecedor/i }), '1');
+    await user.selectOptions(screen.getByRole('combobox', { name: /Tipo de Produto/i }), '3');
+    await screen.findByLabelText(/Nome Base/i);
+    await user.click(screen.getByRole('button', { name: /Atributos/i }));
+
+    expect(screen.queryByLabelText(/^Cor/i)).not.toBeInTheDocument();
+    expect(screen.queryByLabelText(/^Voltagem/i)).not.toBeInTheDocument();
   });
 
   test('opens the new type modal and applies the created type in the stage flow', async () => {
@@ -1146,6 +1168,45 @@ describe('ProductEditModal', () => {
     );
   });
 
+  test('logs enrichment completion toast failures without breaking the modal flow', async () => {
+    productService.getProdutoById
+      .mockResolvedValueOnce(baseProduct)
+      .mockResolvedValueOnce({
+        ...baseProduct,
+        status_enriquecimento_web: 'CONCLUIDO_SUCESSO',
+      });
+    showSuccessToast.mockImplementation((message) => {
+      if (String(message).startsWith('Enriquecimento finalizado')) {
+        throw new Error('toast quebrado');
+      }
+    });
+
+    render(
+      <ProductEditModal
+        isOpen={true}
+        onClose={onClose}
+        onProductUpdated={onProductUpdated}
+        onOpenContentView={onOpenContentView}
+        product={{ id: 10 }}
+        showAiFeatures={false}
+      />
+    );
+
+    await screen.findByLabelText(/Nome Base/i);
+    await user.click(screen.getByRole('button', { name: /Conte/i }));
+    await user.click(screen.getByRole('button', { name: /Enriquecer Web/i }));
+
+    await waitFor(() => {
+      expect(productService.iniciarEnriquecimentoWebProduto).toHaveBeenCalledWith(10);
+    });
+    await advance(3000);
+
+    expect(consoleWarnSpy).toHaveBeenCalledWith(
+      'Falha ao acompanhar status de enriquecimento web:',
+      expect.any(Error)
+    );
+  });
+
   test('abandons the enrichment workflow when the start command resolves after the modal closes', async () => {
     const startRequest = createDeferred();
     productService.iniciarEnriquecimentoWebProduto.mockImplementationOnce(() => startRequest.promise);
@@ -1621,6 +1682,103 @@ describe('ProductEditModal', () => {
 
     await user.click(screen.getByRole('button', { name: /Info Principais/i }));
     expect(screen.getByRole('button', { name: /Info Principais/i })).toHaveClass('active');
+  });
+
+  test('ignores empty manual attribute submissions and keeps the selector stable for unknown types', async () => {
+    renderModal({ product: null });
+
+    await proceedToCreateForm();
+    await user.click(screen.getByRole('button', { name: /Atributos/i }));
+    await user.click(screen.getByRole('button', { name: /Adicionar Atributo Manual/i }));
+
+    expect(showWarningToast).not.toHaveBeenCalledWith(
+      'Atributo com esta chave já existe ou é um campo básico.'
+    );
+
+    await user.click(screen.getByRole('button', { name: /Info Principais/i }));
+    fireEvent.change(screen.getByRole('combobox', { name: /Tipo de Produto/i }), {
+      target: { value: '999' },
+    });
+
+    expect(screen.getByRole('combobox', { name: /Tipo de Produto/i })).toHaveValue('');
+    expect(screen.queryByRole('button', { name: /Atributos/i })).not.toBeInTheDocument();
+  });
+
+  test('keeps polling until a later terminal enrichment status when intermediate payloads are sparse', async () => {
+    productService.getProdutoById
+      .mockResolvedValueOnce(baseProduct)
+      .mockResolvedValueOnce({
+        ...baseProduct,
+        status_enriquecimento_web: undefined,
+      })
+      .mockResolvedValueOnce({
+        ...baseProduct,
+        status_enriquecimento_web: 'CONCLUIDO_SUCESSO',
+        log_enriquecimento_web: {
+          resumo_aplicacao: {},
+        },
+      });
+
+    render(
+      <ProductEditModal
+        isOpen={true}
+        onClose={onClose}
+        onOpenContentView={onOpenContentView}
+        product={{ id: 10 }}
+        showAiFeatures={false}
+      />
+    );
+
+    await screen.findByLabelText(/Nome Base/i);
+    await user.click(screen.getByRole('button', { name: /Conte/i }));
+    await user.click(screen.getByRole('button', { name: /Enriquecer Web/i }));
+
+    await waitFor(() => {
+      expect(productService.iniciarEnriquecimentoWebProduto).toHaveBeenCalledWith(10);
+    });
+
+    await advance(3000);
+
+    await waitFor(() => {
+      expect(showSuccessToast).toHaveBeenCalledWith(
+        'Enriquecimento finalizado (CONCLUIDO_SUCESSO). Aplicados: 0. Ignorados: 0.'
+      );
+    });
+  });
+
+  test('preserves previous web payloads when title refresh returns invalid raw web data', async () => {
+    productService.getProdutoById
+      .mockResolvedValueOnce(baseProduct)
+      .mockResolvedValueOnce({
+        ...baseProduct,
+        titulos_sugeridos: ['Titulo limpo'],
+        dados_brutos_web: 'payload-invalido',
+      });
+
+    render(
+      <ProductEditModal
+        isOpen={true}
+        onClose={onClose}
+        onOpenContentView={onOpenContentView}
+        product={{ id: 10 }}
+        showAiFeatures={false}
+      />
+    );
+
+    await screen.findByLabelText(/Nome Base/i);
+    await user.click(screen.getByRole('button', { name: /Conte/i }));
+    await user.click(screen.getByRole('button', { name: /Gerar T/i }));
+
+    await waitFor(() => {
+      expect(productService.gerarTitulosProdutoModoBasico).toHaveBeenCalledWith(10);
+    });
+
+    await advance(7000);
+
+    expect(await screen.findByText('Titulo limpo')).toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: /Log/i }));
+    expect(screen.getByText(/Nenhum log disponível/i)).toBeInTheDocument();
   });
 
   test('ignores a successful late title refresh after the modal closes', async () => {

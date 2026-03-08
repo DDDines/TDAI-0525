@@ -113,3 +113,26 @@ test('falls back to zero totals, tolerates missing callbacks and ignores rejecte
     await Promise.resolve();
   });
 });
+
+test('supports pending review payloads without an onPendingReview callback', async () => {
+  mockedService.getImportProgress.mockResolvedValueOnce({
+    pages_processed: 5,
+    total_pages: 5,
+    status: 'PENDING_REVIEW',
+  });
+
+  render(<ImportProgress jobId={25} />);
+
+  expect(await screen.findByText(/Processando p.*gina 5 de 5/i)).toBeInTheDocument();
+});
+
+test('falls back to zero processed pages when the polling payload omits both counters', async () => {
+  mockedService.getImportProgress.mockResolvedValueOnce({
+    total_pages: 4,
+    status: 'PROCESSING',
+  });
+
+  render(<ImportProgress jobId={26} />);
+
+  expect(await screen.findByText(/Processando p.*gina 0 de 4/i)).toBeInTheDocument();
+});

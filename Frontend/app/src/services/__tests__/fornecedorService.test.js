@@ -153,6 +153,14 @@ describe('fornecedorService', () => {
     });
   });
 
+  test('setFornecedorMapping uses the default empty mapping payload when none is provided', async () => {
+    apiClient.put.mockResolvedValueOnce({ data: { ok: true } });
+
+    await expect(fornecedorService.setFornecedorMapping(8)).resolves.toEqual({ ok: true });
+
+    expect(apiClient.put).toHaveBeenCalledWith('/fornecedores/8/mapping', {});
+  });
+
   test('previewCatalogo sends a multipart payload and maps preview fields to camelCase', async () => {
     const file = new File(['conteudo'], 'catalogo.pdf', { type: 'application/pdf' });
     apiClient.post.mockResolvedValueOnce({

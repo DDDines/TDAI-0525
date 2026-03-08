@@ -55,6 +55,9 @@ jest.mock('../../components/produtos/ProductTable', () => ({
   }) => (
     <div>
       <div data-testid="produtos-renderizados">{produtos.map((item) => item.nome_base).join(',')}</div>
+      <div data-testid="status-renderizados">
+        {produtos.map((item) => `${item.id}:${item.status_enriquecimento_web || 'vazio'}`).join(',')}
+      </div>
       <div data-testid="selecionados">{Array.from(selectedProdutos).join(',')}</div>
       <button onClick={() => onSelectProduto(produtos[0]?.id)}>select-first</button>
       <button onClick={() => onSelectAllProdutos(true)}>select-all</button>
@@ -208,6 +211,30 @@ describe('EnriquecimentoPage', () => {
     );
   });
 
+  test('truncates very long inline logs before notifying the user', async () => {
+    const longLog = 'x'.repeat(260);
+    productService.getProdutos.mockResolvedValueOnce({
+      items: [
+        {
+          ...baseProduto,
+          log_enriquecimento_web: { historico_mensagens: [longLog] },
+        },
+      ],
+      total_items: 1,
+    });
+
+    render(<EnriquecimentoPage />);
+
+    await waitFor(() => {
+      expect(screen.getByTestId('produtos-renderizados')).toHaveTextContent('Produto Teste');
+    });
+    await userEvent.click(screen.getByText('row-click'));
+
+    expect(showInfoToast).toHaveBeenCalledWith(
+      expect.stringMatching(/^Log de enriquecimento.*\.\.\.$/)
+    );
+  });
+
   test('shows latest usage-history failure details when failed product has no inline log', async () => {
     productService.getProdutos.mockResolvedValueOnce({
       items: [
@@ -306,6 +333,57 @@ describe('EnriquecimentoPage', () => {
     expect(screen.getByTestId('produtos-renderizados')).toHaveTextContent('');
   });
 
+  test('keeps unmatched products untouched while local and fetched statuses update only selected ids', async () => {
+    jest.useFakeTimers();
+    productService.getProdutos.mockResolvedValueOnce({
+      items: [
+        baseProduto,
+        {
+          ...baseProduto,
+          id: 2,
+          nome_base: 'Produto Secundario',
+          status_enriquecimento_web: 'NAO_INICIADO',
+        },
+      ],
+      total_items: 2,
+    });
+    productService.getProdutoById
+      .mockResolvedValueOnce({
+        id: 1,
+        status_enriquecimento_web: null,
+      })
+      .mockResolvedValueOnce({
+        id: 1,
+        status_enriquecimento_web: 'CONCLUIDO_SUCESSO',
+      });
+
+    render(<EnriquecimentoPage />);
+
+    await waitFor(() => {
+      expect(screen.getByTestId('produtos-renderizados')).toHaveTextContent('Produto Secundario');
+    });
+
+    fireEvent.click(screen.getByText('select-first'));
+    fireEvent.click(screen.getByRole('button', { name: /Enriquecer Web/i }));
+
+    await waitFor(() => {
+      expect(screen.getByTestId('status-renderizados')).toHaveTextContent(
+        '1:vazio,2:NAO_INICIADO'
+      );
+    });
+
+    await act(async () => {
+      await jest.advanceTimersByTimeAsync(3000);
+    });
+
+    await waitFor(() => {
+      expect(productService.getProdutoById).toHaveBeenCalledTimes(2);
+      expect(showSuccessToast).toHaveBeenCalledWith(
+        'Enriquecimento web finalizado para os produtos selecionados.'
+      );
+    });
+  }, 15000);
+
   test('shows the fallback fetch error when the product request has no message', async () => {
     productService.getProdutos.mockRejectedValueOnce({});
 
@@ -385,6 +463,29 @@ describe('EnriquecimentoPage', () => {
     });
   });
 
+  test('does not emit row-detail notifications when the product has no status or log yet', async () => {
+    productService.getProdutos.mockResolvedValueOnce({
+      items: [
+        {
+          ...baseProduto,
+          status_enriquecimento_web: null,
+          log_enriquecimento_web: { historico_mensagens: [] },
+        },
+      ],
+      total_items: 1,
+    });
+
+    render(<EnriquecimentoPage />);
+
+    await waitFor(() => {
+      expect(screen.getByTestId('produtos-renderizados')).toHaveTextContent('Produto Teste');
+    });
+    await userEvent.click(screen.getByText('row-click'));
+
+    expect(showInfoToast).not.toHaveBeenCalled();
+    expect(showErrorToast).not.toHaveBeenCalled();
+  });
+
   test('refreshes the list immediately when every enrichment start fails', async () => {
     productService.iniciarEnriquecimentoWebProduto.mockRejectedValueOnce(
       new Error('falha no start')
@@ -430,7 +531,15 @@ describe('EnriquecimentoPage', () => {
     productService.iniciarEnriquecimentoWebProduto.mockResolvedValueOnce({ ok: true });
     productService.getProdutoById.mockRejectedValue({});
     fireEvent.click(screen.getByText('select-first'));
-    fireEvent.click(screen.getByRole('button', { name: /Enriquecer Web/i }));
+
+    await waitFor(() => {
+      expect(screen.getByTestId('selecionados')).toHaveTextContent('1');
+      expect(screen.getByRole('button', { name: /Enriquecer Web \(1\) selecionado\(s\)/i })).not.toBeDisabled();
+    });
+
+    fireEvent.click(
+      screen.getByRole('button', { name: /Enriquecer Web \(1\) selecionado\(s\)/i })
+    );
 
     await waitFor(() =>
       expect(productService.iniciarEnriquecimentoWebProduto).toHaveBeenCalledWith(1)

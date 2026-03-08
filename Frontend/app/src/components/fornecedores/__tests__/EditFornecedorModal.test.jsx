@@ -131,6 +131,35 @@ describe('EditFornecedorModal', () => {
     expect(onClose).toHaveBeenCalled();
   });
 
+  test('keeps fully qualified urls unchanged and supports raw file arrays from the service', async () => {
+    fornecedorService.getCatalogImportFiles.mockResolvedValueOnce(filesMock);
+    const onSave = jest.fn();
+
+    render(
+      <EditFornecedorModal
+        isOpen={true}
+        fornecedorData={{ id: 5, nome: 'Fornecedor X', site_url: 'https://fornecedor.test' }}
+        onClose={() => {}}
+        onSave={onSave}
+        isLoading={false}
+      />
+    );
+
+    await userEvent.clear(screen.getByLabelText('Nome*'));
+    await userEvent.type(screen.getByLabelText('Nome*'), 'Fornecedor Seguro');
+    await userEvent.clear(screen.getByLabelText('Site URL'));
+    await userEvent.type(screen.getByLabelText('Site URL'), 'https://seguro.example');
+    fireEvent.click(screen.getByRole('button', { name: /Salvar altera/i }));
+
+    expect(onSave).toHaveBeenCalledWith(5, {
+      nome: 'Fornecedor Seguro',
+      site_url: 'https://seguro.example',
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Arquivos' }));
+    expect(await screen.findByTestId('catalog-file-names')).toHaveTextContent('file1.csv');
+  });
+
   test('validates required name, minimum length and missing supplier id', async () => {
     const onSave = jest.fn();
     const { rerender } = render(
@@ -168,6 +197,21 @@ describe('EditFornecedorModal', () => {
     expect(showErrorToast).toHaveBeenCalledWith('Erro: ID do fornecedor não encontrado.');
     fireEvent.click(screen.getByRole('button', { name: 'Arquivos' }));
     expect(fornecedorService.getCatalogImportFiles).not.toHaveBeenCalled();
+  });
+
+  test('fills missing supplier fields with empty strings before editing', () => {
+    render(
+      <EditFornecedorModal
+        isOpen={true}
+        fornecedorData={{ id: 7, nome: null, site_url: null }}
+        onClose={() => {}}
+        onSave={() => {}}
+        isLoading={false}
+      />
+    );
+
+    expect(screen.getByLabelText('Nome*')).toHaveValue('');
+    expect(screen.getByLabelText('Site URL')).toHaveValue('');
   });
 
   test('opens import wizard and supports file actions on the files tab', async () => {
@@ -253,6 +297,21 @@ describe('EditFornecedorModal', () => {
         expect.any(Error)
       );
     });
+  });
+
+  test('shows the loading label while the modal save action is disabled', () => {
+    render(
+      <EditFornecedorModal
+        isOpen={true}
+        fornecedorData={{ id: 5, nome: 'Fornecedor X', site_url: '' }}
+        onClose={() => {}}
+        onSave={() => {}}
+        isLoading={true}
+      />
+    );
+
+    expect(screen.getByRole('button', { name: /Salvando/i })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Fechar' })).toBeDisabled();
   });
 });
 

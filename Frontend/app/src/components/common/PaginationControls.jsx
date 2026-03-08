@@ -25,15 +25,11 @@ function PaginationControls(
     }
 
     const handlePrevious = () => {
-      if (currentPage > 0) {
-        onPageChange(currentPage - 1);
-      }
+      onPageChange(currentPage - 1);
     };
 
     const handleNext = () => {
-      if (currentPage < totalPages - 1) {
-        onPageChange(currentPage + 1);
-      }
+      onPageChange(currentPage + 1);
     };
 
     return (

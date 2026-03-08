@@ -125,11 +125,11 @@ function ConfiguracoesPage() {
     }));
   };
 
-  const handleSaveBasicTemplates = (event) => {
+  const handleSaveBasicTemplates = async (event) => {
     event.preventDefault();
     setSavingTemplates(true);
     try {
-      const savedTemplates = basicTemplateService.saveBasicGenerationTemplates({
+      const savedTemplates = await basicTemplateService.saveBasicGenerationTemplates({
         titleTemplate: basicTemplates.titleTemplate,
         descriptionTemplate: basicTemplates.descriptionTemplate,
       });

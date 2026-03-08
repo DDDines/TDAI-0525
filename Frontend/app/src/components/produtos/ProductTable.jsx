@@ -34,9 +34,9 @@ const PROCESS_STATUS_CONFIG = [
 ];
 
 function StatusIcon({ status }) {
-  const normalizedStatus = String(
-    typeof status === 'object' && status !== null && 'value' in status ? status.value : status || ''
-  )
+  const rawStatus =
+    typeof status === 'object' && status !== null && 'value' in status ? status.value : status;
+  const normalizedStatus = String(rawStatus ?? '')
     .split('.')
     .pop()
     .toUpperCase();

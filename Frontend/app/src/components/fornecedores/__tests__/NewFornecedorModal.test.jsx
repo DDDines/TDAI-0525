@@ -113,6 +113,13 @@ describe('NewFornecedorModal', () => {
     });
   });
 
+  test('renders the loading state while save is in progress', () => {
+    renderModal({ isLoading: true });
+
+    expect(screen.getByRole('button', { name: /Salvando/i })).toBeDisabled();
+    expect(screen.getByRole('button', { name: /Fechar/i })).toBeDisabled();
+  });
+
   test('keeps the form data when the save promise rejects', async () => {
     const user = userEvent.setup();
     onSave.mockRejectedValueOnce(new Error('falha'));

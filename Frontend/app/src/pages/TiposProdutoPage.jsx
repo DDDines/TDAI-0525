@@ -78,8 +78,8 @@ function TiposProdutoPage()
       setSelectedProductType(type);
     };
 
-    const handleOpenAttributeModal = (attribute = null) => {
-      setEditingAttribute(attribute);
+    const handleOpenAttributeModal = (attribute) => {
+      setEditingAttribute(attribute ?? null);
       setIsAttributeModalOpen(true);
     };
 

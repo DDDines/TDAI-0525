@@ -65,6 +65,44 @@ describe('ProductTable', () => {
     expect(screen.getByText('Nenhum produto encontrado.')).toBeInTheDocument();
   });
 
+  test('treats malformed collections as empty and keeps the header checkbox disabled', () => {
+    render(
+      <ProductTable
+        produtos={null}
+        onEdit={() => {}}
+        onSort={() => {}}
+        onSelectProduto={() => {}}
+        selectedProdutos={[]}
+        onSelectAllProdutos={() => {}}
+      />
+    );
+
+    expect(screen.getByText('Nenhum produto encontrado.')).toBeInTheDocument();
+    expect(screen.getByRole('checkbox')).toBeDisabled();
+  });
+
+  test('falls back to unknown when status objects do not expose a value field', () => {
+    render(
+      <ProductTable
+        produtos={[
+          {
+            ...produtos[0],
+            id: 3,
+            nome_base: 'Produto C',
+            status_enriquecimento_web: { value: null },
+          },
+        ]}
+        onEdit={() => {}}
+        onSort={() => {}}
+        onSelectProduto={() => {}}
+        selectedProdutos={new Set()}
+        onSelectAllProdutos={() => {}}
+      />
+    );
+
+    expect(screen.getByTitle('Desconhecido')).toBeInTheDocument();
+  });
+
   test('renders rows, process chips and all row actions', () => {
     const onEdit = jest.fn();
     const onSort = jest.fn();

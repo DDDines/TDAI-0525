@@ -144,6 +144,30 @@ describe('LoginPage', () => {
     expect(toast.success).toHaveBeenCalledWith(expect.stringContaining('Bem-vindo de volta'));
   });
 
+  test('falls back to the typed email in the success toast when the auth user is still empty', async () => {
+    const loginMock = jest.fn().mockResolvedValue(true);
+    useAuth.mockReturnValue({
+      login: loginMock,
+      isAuthenticated: false,
+      isLoading: false,
+      user: null,
+    });
+
+    render(
+      <MemoryRouter>
+        <LoginPage />
+      </MemoryRouter>
+    );
+
+    await userEvent.type(screen.getByLabelText(/email/i), 'fallback@teste.com');
+    await userEvent.type(screen.getByLabelText(/senha/i), '123456');
+    await userEvent.click(screen.getByRole('button', { name: /entrar/i }));
+
+    await waitFor(() => {
+      expect(toast.success).toHaveBeenCalledWith('Bem-vindo de volta, fallback@teste.com!');
+    });
+  });
+
   test('shows error message when login fails', async () => {
     const loginMock = jest.fn().mockRejectedValue(new Error('Credenciais inválidas'));
     useAuth.mockReturnValue({
@@ -190,6 +214,30 @@ describe('LoginPage', () => {
 
     expect(await screen.findByText('usuario bloqueado')).toBeInTheDocument();
     expect(toast.error).toHaveBeenCalledWith(expect.stringContaining('usuario bloqueado'));
+  });
+
+  test('uses the generic login error fallback when the request rejects without details', async () => {
+    const loginMock = jest.fn().mockRejectedValue({});
+    useAuth.mockReturnValue({
+      login: loginMock,
+      isAuthenticated: false,
+      isLoading: false,
+      user: null,
+    });
+
+    render(
+      <MemoryRouter>
+        <LoginPage />
+      </MemoryRouter>
+    );
+
+    await userEvent.type(screen.getByLabelText(/email/i), 'julio@teste.com');
+    await userEvent.type(screen.getByLabelText(/senha/i), 'senhaerrada');
+    await userEvent.click(screen.getByRole('button', { name: /entrar/i }));
+
+    expect(
+      await screen.findByText(/Erro desconhecido ao tentar fazer login/i)
+    ).toBeInTheDocument();
   });
 
   test('loads social login links and marks disabled providers as unavailable', async () => {
@@ -272,6 +320,31 @@ describe('LoginPage', () => {
     const facebookClick = fireEvent.click(facebookLink);
 
     expect(facebookClick).toBe(false);
+  });
+
+  test('keeps google login clickable when the provider is enabled', async () => {
+    useAuth.mockReturnValue({
+      login: jest.fn(),
+      isAuthenticated: false,
+      isLoading: false,
+      user: null,
+    });
+    configService.getSocialLoginConfig.mockResolvedValue({
+      google_enabled: true,
+      facebook_enabled: false,
+    });
+
+    render(
+      <MemoryRouter>
+        <LoginPage />
+      </MemoryRouter>
+    );
+
+    const googleLink = (await screen.findByText(/Entrar com Google/i)).closest('a');
+    const googleClick = fireEvent.click(googleLink);
+
+    expect(googleLink).toHaveAttribute('href', '/api/v1/auth/google/login');
+    expect(googleClick).toBe(true);
   });
 
   test('logs social config loading failures without blocking the form', async () => {

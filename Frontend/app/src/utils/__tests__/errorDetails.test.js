@@ -17,4 +17,18 @@ describe('extractErrorMessage', () => {
     expect(extractErrorMessage({ message: 'timeout' }, 'fallback')).toBe('timeout');
     expect(extractErrorMessage({ status: 500 }, 'fallback')).toBe('fallback');
   });
+
+  test('ignores validation entries without a message when building the formatted detail', () => {
+    expect(
+      extractErrorMessage(
+        {
+          detail: [
+            { loc: ['body', 'nome'] },
+            { loc: [], msg: 'generico' },
+          ],
+        },
+        'fallback'
+      )
+    ).toBe('body.nome:; generico');
+  });
 });

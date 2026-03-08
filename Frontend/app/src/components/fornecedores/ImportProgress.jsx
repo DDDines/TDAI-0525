@@ -29,7 +29,7 @@ function ImportProgress(
           setTotalPages(data.total_pages ?? 0);
           if (data.status === 'PENDING_REVIEW') {
             clearInterval(intervalId);
-            if (onPendingReview) onPendingReview();
+            onPendingReview?.();
           }
         } catch (err) {
           if (!cancelled) {

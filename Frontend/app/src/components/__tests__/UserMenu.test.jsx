@@ -167,4 +167,66 @@ describe('UserMenu', () => {
     await user.click(screen.getByRole('button', { name: /Julio/i }));
     expect(screen.getByText('Usuario')).toBeInTheDocument();
   });
+
+  test('falls back to email and safe initials when the profile data is sparse or malformed', async () => {
+    const user = userEvent.setup();
+
+    useAuth.mockReturnValue({
+      user: {
+        nome_completo: '',
+        email: 'fallback@example.com',
+        nome_empresa: '',
+        is_superuser: false,
+        plano: null,
+        avatar_url: '',
+      },
+      logout,
+      isLoading: false,
+    });
+
+    const { unmount } = render(<UserMenu />);
+
+    expect(screen.getByRole('button', { name: /fallback@example.com/i })).toBeInTheDocument();
+    expect(screen.getByText('F')).toBeInTheDocument();
+
+    unmount();
+    useAuth.mockReturnValue({
+      user: {
+        nome_completo: 123,
+        email: '',
+        nome_empresa: '',
+        is_superuser: false,
+        plano: null,
+        avatar_url: '',
+      },
+      logout,
+      isLoading: false,
+    });
+
+    render(<UserMenu />);
+
+    expect(screen.getByRole('button', { name: /123/i })).toBeInTheDocument();
+    expect(screen.getByText('--')).toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: /123/i }));
+    expect(screen.getByText('Sem e-mail')).toBeInTheDocument();
+  });
+
+  test('falls back to a generic label when there is no user object', async () => {
+    const user = userEvent.setup();
+
+    useAuth.mockReturnValue({
+      user: null,
+      logout,
+      isLoading: false,
+    });
+
+    render(<UserMenu />);
+
+    expect(screen.getByRole('button', { name: /Usuario/i })).toBeInTheDocument();
+    expect(screen.getByText('--')).toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: /Usuario/i }));
+    expect(screen.getByText('Sem e-mail')).toBeInTheDocument();
+  });
 });

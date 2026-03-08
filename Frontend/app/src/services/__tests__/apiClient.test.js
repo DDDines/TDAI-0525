@@ -4,6 +4,8 @@ describe('apiClient interceptors', () => {
   let requestFailure;
   let responseSuccess;
   let responseFailure;
+  let axiosCreateMock;
+  const originalProcess = globalThis.process;
 
   function loadApiClient() {
     jest.resetModules();
@@ -31,10 +33,12 @@ describe('apiClient interceptors', () => {
       },
     };
 
+    axiosCreateMock = jest.fn(() => mockClient);
+
     jest.doMock('axios', () => ({
       __esModule: true,
       default: {
-        create: jest.fn(() => mockClient),
+        create: axiosCreateMock,
       },
     }));
 
@@ -61,6 +65,7 @@ describe('apiClient interceptors', () => {
 
   afterEach(() => {
     window.history.pushState({}, '', '/');
+    globalThis.process = originalProcess;
     jest.restoreAllMocks();
   });
 
@@ -134,5 +139,61 @@ describe('apiClient interceptors', () => {
 
     expect(localStorage.getItem('accessToken')).toBe('token-123');
     expect(console.warn).toHaveBeenCalled();
+  });
+
+  test('response interceptor leaves auth state untouched for non-401 errors', async () => {
+    localStorage.setItem('accessToken', 'token-123');
+    localStorage.setItem('refreshToken', 'refresh-456');
+    loadApiClient();
+    const error = {
+      config: { url: '/produtos' },
+      response: {
+        status: 500,
+        data: { detail: 'falha interna' },
+      },
+    };
+
+    await expect(responseFailure(error)).rejects.toBe(error);
+
+    expect(localStorage.getItem('accessToken')).toBe('token-123');
+    expect(localStorage.getItem('refreshToken')).toBe('refresh-456');
+    expect(mockClient.defaults.headers.common.Authorization).toBe('Bearer old-token');
+  });
+
+  test('uses the node environment base url when it is provided', () => {
+    globalThis.process = { env: { VITE_API_BASE_URL: 'https://api.example.com/api/v1' } };
+
+    loadApiClient();
+
+    expect(axiosCreateMock).toHaveBeenCalledWith({
+      baseURL: 'https://api.example.com/api/v1',
+    });
+  });
+
+  test('falls back to the relative api path when process env is unavailable', () => {
+    globalThis.process = undefined;
+
+    loadApiClient();
+
+    expect(axiosCreateMock).toHaveBeenCalledWith({
+      baseURL: '/api/v1',
+    });
+  });
+
+  test('resolveApiBaseUrl prioritizes import.meta, then node env, then the relative fallback', () => {
+    jest.resetModules();
+    const { resolveApiBaseUrl } = require('../apiClient');
+
+    expect(
+      resolveApiBaseUrl(
+        { VITE_API_BASE_URL: 'https://meta.example/api/v1' },
+        { VITE_API_BASE_URL: 'https://node.example/api/v1' }
+      )
+    ).toBe('https://meta.example/api/v1');
+    expect(resolveApiBaseUrl(undefined, { VITE_API_BASE_URL: 'https://node.example/api/v1' })).toBe(
+      'https://node.example/api/v1'
+    );
+    expect(resolveApiBaseUrl({}, {})).toBe('/api/v1');
+    expect(resolveApiBaseUrl({ VITE_API_BASE_URL: '   ' }, { VITE_API_BASE_URL: '' })).toBe('/api/v1');
   });
 });

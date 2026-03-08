@@ -11,6 +11,8 @@ jest.mock('../../../utils/notifications', () => ({
 describe('AttributeTemplateModal', () => {
   const onClose = jest.fn();
   const onSave = jest.fn();
+  const labelMatcher = /R.*tulo/i;
+  const optionsMatcher = /Op.*es/i;
 
   beforeEach(() => {
     jest.clearAllMocks();
@@ -54,10 +56,10 @@ describe('AttributeTemplateModal', () => {
     const user = userEvent.setup();
     renderModal();
 
-    await user.type(screen.getByLabelText(/R.tulo/i), 'Cor');
+    await user.type(screen.getByLabelText(labelMatcher), 'Cor');
     await user.type(screen.getByLabelText(/Chave do Atributo/i), 'cor');
     await user.selectOptions(screen.getByLabelText(/Tipo do Campo/i), 'SELECT');
-    fireEvent.change(screen.getByLabelText(/Op..es/i), { target: { value: '{"a":1}' } });
+    fireEvent.change(screen.getByLabelText(optionsMatcher), { target: { value: '{"a":1}' } });
     await user.click(screen.getByRole('button', { name: /Salvar Atributo/i }));
 
     expect(showErrorToast.mock.calls.at(-1)[0]).toMatch(/array json/i);
@@ -68,10 +70,10 @@ describe('AttributeTemplateModal', () => {
     const user = userEvent.setup();
     renderModal();
 
-    await user.type(screen.getByLabelText(/R.tulo/i), 'Cor');
+    await user.type(screen.getByLabelText(labelMatcher), 'Cor');
     await user.type(screen.getByLabelText(/Chave do Atributo/i), 'cor');
     await user.selectOptions(screen.getByLabelText(/Tipo do Campo/i), 'SELECT');
-    fireEvent.change(screen.getByLabelText(/Op..es/i), { target: { value: '["Preto"' } });
+    fireEvent.change(screen.getByLabelText(optionsMatcher), { target: { value: '["Preto"' } });
     await user.click(screen.getByRole('button', { name: /Salvar Atributo/i }));
 
     expect(showErrorToast.mock.calls.at(-1)[0]).toMatch(/formato das op/i);
@@ -82,10 +84,10 @@ describe('AttributeTemplateModal', () => {
     const user = userEvent.setup();
     renderModal();
 
-    await user.type(screen.getByLabelText(/R.tulo/i), 'Cor');
+    await user.type(screen.getByLabelText(labelMatcher), 'Cor');
     await user.type(screen.getByLabelText(/Chave do Atributo/i), 'cor');
     await user.selectOptions(screen.getByLabelText(/Tipo do Campo/i), 'SELECT');
-    fireEvent.change(screen.getByLabelText(/Op..es/i), { target: { value: '["Preto","Branco"]' } });
+    fireEvent.change(screen.getByLabelText(optionsMatcher), { target: { value: '["Preto","Branco"]' } });
     await user.click(screen.getByRole('button', { name: /Salvar Atributo/i }));
 
     expect(onSave).toHaveBeenCalledWith(
@@ -102,7 +104,7 @@ describe('AttributeTemplateModal', () => {
     const user = userEvent.setup();
     renderModal();
 
-    await user.type(screen.getByLabelText(/R.tulo/i), 'Peso');
+    await user.type(screen.getByLabelText(labelMatcher), 'Peso');
     await user.type(screen.getByLabelText(/Chave do Atributo/i), 'peso');
     await user.selectOptions(screen.getByLabelText(/Tipo do Campo/i), 'NUMBER');
     await user.click(screen.getByRole('button', { name: /Salvar Atributo/i }));
@@ -112,6 +114,23 @@ describe('AttributeTemplateModal', () => {
         label: 'Peso',
         attribute_key: 'peso',
         field_type: 'number',
+        options: null,
+      })
+    );
+  });
+
+  test('keeps saving with an empty field type when the select value is manually cleared', async () => {
+    const user = userEvent.setup();
+    renderModal();
+
+    await user.type(screen.getByLabelText(labelMatcher), 'Peso');
+    await user.type(screen.getByLabelText(/Chave do Atributo/i), 'peso');
+    fireEvent.change(screen.getByLabelText(/Tipo do Campo/i), { target: { value: '' } });
+    await user.click(screen.getByRole('button', { name: /Salvar Atributo/i }));
+
+    expect(onSave).toHaveBeenCalledWith(
+      expect.objectContaining({
+        field_type: '',
         options: null,
       })
     );
@@ -129,10 +148,38 @@ describe('AttributeTemplateModal', () => {
     });
 
     expect(screen.getByText(/Editar Atributo/i)).toBeInTheDocument();
-    expect(screen.getByLabelText(/R.tulo/i)).toHaveValue('Memoria RAM');
+    expect(screen.getByLabelText(labelMatcher)).toHaveValue('Memoria RAM');
     expect(screen.getByLabelText(/Chave do Atributo/i)).toHaveValue('memoria_ram');
     expect(screen.getByLabelText(/Chave do Atributo/i)).toBeDisabled();
     expect(screen.getByLabelText(/Tipo do Campo/i)).toHaveValue('MULTISELECT');
-    expect(screen.getByLabelText(/Op..es/i)).toHaveValue('[\n  "8GB",\n  "16GB"\n]');
+    expect(screen.getByLabelText(optionsMatcher)).toHaveValue('[\n  "8GB",\n  "16GB"\n]');
+  });
+
+  test('updates checkbox fields and renders submitting controls when disabled', async () => {
+    const user = userEvent.setup();
+    const { rerender } = renderModal();
+
+    await user.type(screen.getByLabelText(labelMatcher), 'Garantia');
+    await user.type(screen.getByLabelText(/Chave do Atributo/i), 'garantia');
+    await user.click(screen.getByRole('checkbox'));
+    await user.click(screen.getByRole('button', { name: /Salvar Atributo/i }));
+
+    expect(onSave).toHaveBeenCalledWith(
+      expect.objectContaining({
+        is_required: true,
+      })
+    );
+
+    rerender(
+      <AttributeTemplateModal
+        isOpen={true}
+        onClose={onClose}
+        onSave={onSave}
+        isSubmitting={true}
+      />
+    );
+
+    expect(screen.getByRole('button', { name: /Salvando/i })).toBeDisabled();
+    expect(screen.getByRole('button', { name: /Cancelar/i })).toBeDisabled();
   });
 });

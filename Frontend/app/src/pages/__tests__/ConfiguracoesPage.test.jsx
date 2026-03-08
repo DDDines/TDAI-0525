@@ -365,4 +365,94 @@ describe('ConfiguracoesPage', () => {
     expect(screen.getByText('Empresa nao informada')).toBeInTheDocument();
     expect(screen.getByText('Portugues')).toBeInTheDocument();
   });
+
+  test('uses default submit and template-save errors when handlers fail without messages', async () => {
+    authService.updateCurrentUser.mockRejectedValueOnce({});
+    basicTemplateService.saveBasicGenerationTemplates.mockImplementationOnce(() => {
+      throw {};
+    });
+
+    render(<ConfiguracoesPage />);
+
+    expect(await screen.findByDisplayValue('julio@example.com')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByText('Salvar alteracoes do perfil'));
+    await waitFor(() => {
+      expect(showErrorToast).toHaveBeenCalledWith('Falha ao atualizar perfil.');
+    });
+
+    fireEvent.click(screen.getByText('Salvar templates'));
+    expect(showErrorToast).toHaveBeenCalledWith('Falha ao salvar templates do modo basico.');
+  });
+
+  test('shows the saving templates state while the basic template save is pending', async () => {
+    let resolveSave;
+    basicTemplateService.saveBasicGenerationTemplates.mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          resolveSave = resolve;
+        })
+    );
+
+    render(<ConfiguracoesPage />);
+
+    expect(await screen.findByDisplayValue('{nome_base} {marca}')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByText('Salvar templates'));
+
+    expect(screen.getByRole('button', { name: /Salvando templates/i })).toBeDisabled();
+
+    resolveSave({
+      titleTemplate: '{nome_base} {marca}',
+      descriptionTemplate: '{descricao_web}',
+    });
+
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: /Salvar templates/i })).toBeEnabled();
+    });
+  });
+
+  test('renders empty update payloads with UI fallbacks and keeps preview reset hidden by default', async () => {
+    authService.updateCurrentUser.mockResolvedValueOnce({
+      nome_completo: '',
+      nome: '',
+      nome_empresa: '',
+      avatar_url: '',
+      idioma_preferido: '',
+      chave_openai_pessoal: '',
+    });
+    useAppExperience.mockReturnValue({
+      effectiveMode: 'basic',
+      defaultMode: 'complete',
+      isAdmin: true,
+      canAdminPreview: true,
+      adminPreviewMode: null,
+      setAdminPreviewMode,
+      clearAdminPreviewMode,
+    });
+
+    render(<ConfiguracoesPage />);
+
+    expect(await screen.findByDisplayValue('julio@example.com')).toBeInTheDocument();
+    expect(screen.getByText('Basico (sem IA)')).toBeInTheDocument();
+    expect(screen.getByText('Visualizar Basico')).toHaveClass('active');
+    expect(screen.queryByText('Voltar ao padrao')).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByText('Salvar alteracoes do perfil'));
+
+    await waitFor(() => {
+      expect(setUser).toHaveBeenCalledWith({
+        nome_completo: '',
+        nome: '',
+        nome_empresa: '',
+        avatar_url: '',
+        idioma_preferido: '',
+        chave_openai_pessoal: '',
+      });
+    });
+
+    expect(screen.getByText('Usuario sem nome')).toBeInTheDocument();
+    expect(screen.getByText('Empresa nao informada')).toBeInTheDocument();
+    expect(screen.getByText('Portugues')).toBeInTheDocument();
+  });
 });

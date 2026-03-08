@@ -267,3 +267,87 @@ test('uses fallback product type labels when friendly fields are missing', () =>
   expect(screen.getByRole('option', { name: 'slug-produto' })).toBeInTheDocument();
   expect(screen.getByRole('option', { name: 'key-produto' })).toBeInTheDocument();
 });
+
+test('supports nome, name and raw id fallbacks for product type labels', () => {
+  render(
+    <ColumnMappingModal
+      isOpen={true}
+      onClose={() => {}}
+      headers={['Coluna A']}
+      rows={[]}
+      fieldOptions={[]}
+      productTypes={[
+        { id: 9, nome: 'Nome legado' },
+        { id: 10, name: 'Name legado' },
+        { id: 11 },
+      ]}
+      onConfirm={() => {}}
+    />
+  );
+
+  expect(screen.getByRole('option', { name: 'Nome legado' })).toBeInTheDocument();
+  expect(screen.getByRole('option', { name: 'Name legado' })).toBeInTheDocument();
+  expect(screen.getByRole('option', { name: '11' })).toBeInTheDocument();
+});
+
+test('treats null and empty mappings as equivalent when syncing initial values', async () => {
+  const { rerender } = render(
+    <ColumnMappingModal
+      isOpen={true}
+      onClose={() => {}}
+      headers={['Coluna A']}
+      rows={[]}
+      fieldOptions={[{ value: 'sku_original', label: 'SKU' }]}
+      initialMapping={null}
+      onConfirm={() => {}}
+    />
+  );
+
+  const select = screen.getByRole('combobox', { name: /campo para coluna coluna a/i });
+  await userEvent.selectOptions(select, 'sku_original');
+  expect(select).toHaveValue('sku_original');
+
+  rerender(
+    <ColumnMappingModal
+      isOpen={true}
+      onClose={() => {}}
+      headers={['Coluna A']}
+      rows={[]}
+      fieldOptions={[{ value: 'sku_original', label: 'SKU' }]}
+      initialMapping={{ 'Coluna A': '' }}
+      onConfirm={() => {}}
+    />
+  );
+
+  expect(screen.getByRole('combobox', { name: /campo para coluna coluna a/i })).toHaveValue('');
+});
+
+test('treats nullish mapping values as equivalent while preserving the same key set', () => {
+  const { rerender } = render(
+    <ColumnMappingModal
+      isOpen={true}
+      onClose={() => {}}
+      headers={['Coluna A']}
+      rows={[]}
+      fieldOptions={[{ value: 'sku_original', label: 'SKU' }]}
+      initialMapping={{ 'Coluna A': null }}
+      onConfirm={() => {}}
+    />
+  );
+
+  expect(screen.getByRole('combobox', { name: /campo para coluna coluna a/i })).toHaveValue('');
+
+  rerender(
+    <ColumnMappingModal
+      isOpen={true}
+      onClose={() => {}}
+      headers={['Coluna A']}
+      rows={[]}
+      fieldOptions={[{ value: 'sku_original', label: 'SKU' }]}
+      initialMapping={{ 'Coluna A': undefined }}
+      onConfirm={() => {}}
+    />
+  );
+
+  expect(screen.getByRole('combobox', { name: /campo para coluna coluna a/i })).toHaveValue('');
+});

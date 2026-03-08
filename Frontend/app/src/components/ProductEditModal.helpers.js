@@ -216,6 +216,14 @@ function resolveProductFormStage(product, fornecedorId, productTypeId) {
   return 'form';
 }
 
+function logAsyncPollError(logFn, currentRunId, expectedRunId, message, error) {
+  if (currentRunId !== expectedRunId) {
+    return false;
+  }
+  logFn(message, error);
+  return true;
+}
+
 function buildInitialDynamicAttributes(selectedType, baseProductFields) {
   if (!selectedType || !Array.isArray(selectedType.attribute_templates)) {
     return null;
@@ -302,4 +310,5 @@ export {
   resolveServiceErrorDetail,
   resolveShowAiFeatures,
   sanitizeProdutoData,
+  logAsyncPollError,
 };

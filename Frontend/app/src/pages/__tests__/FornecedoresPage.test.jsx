@@ -200,6 +200,35 @@ describe('FornecedoresPage', () => {
     expect(showWarningToast).not.toHaveBeenCalled();
   });
 
+  test('uses the generic fetch error fallback and avoids success toasts when every deletion fails', async () => {
+    fornecedorService.getFornecedores.mockRejectedValueOnce({});
+    fornecedorService.deleteFornecedor.mockRejectedValue(new Error('falha delete'));
+
+    render(<FornecedoresPage />);
+
+    await waitFor(() => {
+      expect(showErrorToast).toHaveBeenCalledWith('Falha ao buscar fornecedores.');
+    });
+
+    fornecedorService.getFornecedores.mockResolvedValueOnce(fornecedoresPayload);
+    fireEvent.change(screen.getByPlaceholderText('Nome do fornecedor...'), {
+      target: { value: 'recarregar' },
+    });
+
+    await screen.findByTestId('fornecedor-table-names');
+    fireEvent.click(screen.getByText('toggle-first'));
+    fireEvent.click(screen.getByText('Deletar Selecionado(s)'));
+
+    await waitFor(() => {
+      expect(fornecedorService.deleteFornecedor).toHaveBeenCalledWith(1);
+    });
+
+    expect(showSuccessToast).not.toHaveBeenCalledWith('1 fornecedor(es) deletado(s) com sucesso!');
+    expect(showErrorToast).toHaveBeenCalledWith(
+      expect.stringMatching(/Alguns fornecedores.*puderam ser deletados/i)
+    );
+  });
+
   test('warns when trying to delete without a selection', async () => {
     render(<FornecedoresPage />);
 

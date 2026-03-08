@@ -16,17 +16,22 @@ function normalizeMapping(
     return { ...value };
   }
 
+function normalizeMappingValue(value) {
+    if (value === null || value === undefined) return '';
+    return String(value);
+  }
+
 function areMappingsEqual(
 
   left, right) {
-    const a = left || {};
-    const b = right || {};
+    const a = normalizeMapping(left);
+    const b = normalizeMapping(right);
     const aKeys = Object.keys(a);
     const bKeys = Object.keys(b);
 
     if (aKeys.length !== bKeys.length) return false;
     for (const key of aKeys) {
-      if ((a[key] || '') !== (b[key] || '')) return false;
+      if (normalizeMappingValue(a[key]) !== normalizeMappingValue(b[key])) return false;
     }
     return true;
   }

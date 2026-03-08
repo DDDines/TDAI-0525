@@ -22,6 +22,7 @@ import {
   coerceFormFieldValue,
   extractGeneratedTitles,
   handleContentViewNavigation,
+  logAsyncPollError,
   resolveProductFormStage,
   resolveServiceErrorDetail,
   resolveShowAiFeatures,
@@ -56,6 +57,7 @@ function ProductEditModal(
     const [_error, setError] = useState(null);
     const [fornecedores, setFornecedores] = useState([]);
     const { productTypes } = useProductTypes();
+    const safeProductTypes = Array.isArray(productTypes) ? productTypes : [];
 
     // Para novos produtos, mostramos primeiro a seleção do fornecedor e do tipo
     // Se estiver editando (product fornecido), iniciamos diretamente no formulário
@@ -140,14 +142,14 @@ function ProductEditModal(
       if (!prod) return;
       const nextState = buildProductFormState(
         prod,
-        productTypes,
+        safeProductTypes,
         BASE_PRODUCT_FIELDS,
         initialFormData
       );
       setFormData(nextState.formData);
       setIaAttributeSuggestions(nextState.iaSuggestions);
       setSelectedIaSuggestions(nextState.selectedIaSuggestions);
-    }, [productTypes]);
+    }, [safeProductTypes]);
 
     useEffect(() => {
       const loadDetails = async () => {
@@ -204,12 +206,12 @@ function ProductEditModal(
     };
 
     const initializeAttributesForType = useCallback((typeId) => {
-      const selectedType = productTypes.find((pt) => pt.id === parseInt(typeId, 10));
+      const selectedType = safeProductTypes.find((pt) => pt.id === parseInt(typeId, 10));
       const initialAttrs = buildInitialDynamicAttributes(selectedType, BASE_PRODUCT_FIELDS);
       if (initialAttrs) {
         setFormData((prev) => ({ ...prev, dynamic_attributes: initialAttrs }));
       }
-    }, [productTypes]);
+    }, [safeProductTypes]);
 
     const addDynamicAttribute = () => {
       const newKey = newAttrKey.trim();
@@ -275,7 +277,7 @@ function ProductEditModal(
           WEB_ENRICHMENT_TERMINAL_STATUSES.has(currentStatus))
           {
             populateFormData(refreshedProduct);
-            if (onProductUpdated) onProductUpdated(refreshedProduct);
+            onProductUpdated?.(refreshedProduct);
             return refreshedProduct;
           }
         } catch (pollError) {
@@ -325,19 +327,23 @@ function ProductEditModal(
             const summary = refreshed?.log_enriquecimento_web?.resumo_aplicacao || {};
             const appliedTotal = Number(summary?.aplicados_total || 0);
             const ignoredTotal = Number(summary?.ignorados_total || 0);
-            const statusFinal = String(refreshed?.status_enriquecimento_web || '').toUpperCase();
+            const statusFinal = String(refreshed.status_enriquecimento_web).toUpperCase();
 
             if (statusFinal === 'CONCLUIDO_SUCESSO' || statusFinal === 'CONCLUIDO_COM_DADOS_PARCIAIS') {
               showSuccessToast(
                 `Enriquecimento finalizado (${statusFinal}). Aplicados: ${appliedTotal}. Ignorados: ${ignoredTotal}.`
               );
-            } else if (statusFinal) {
+            } else {
               showWarningToast(`Enriquecimento finalizado com status ${statusFinal}.`);
             }
           } catch (pollErr) {
-            if (enrichmentPollRunRef.current === runId) {
-              console.warn('Falha ao acompanhar status de enriquecimento web:', pollErr);
-            }
+            logAsyncPollError(
+              console.warn,
+              enrichmentPollRunRef.current,
+              runId,
+              'Falha ao acompanhar status de enriquecimento web:',
+              pollErr
+            );
           }
         })();
       } catch (err) {
@@ -451,7 +457,7 @@ function ProductEditModal(
                 prev.dados_brutos_web,
                 titulos_sugeridos: extractGeneratedTitles(updatedProduct)
               }));
-              if (onProductUpdated) onProductUpdated(updatedProduct);
+              onProductUpdated?.(updatedProduct);
             } catch (refreshErr) {
               if (!isMountedRef.current || !isOpenRef.current) {
                 return;
@@ -476,7 +482,7 @@ function ProductEditModal(
         product.id,
         onClose,
         onOpenContentView,
-        typeof window !== 'undefined' ? window.location.assign.bind(window.location) : null
+        window.location.assign.bind(window.location)
       );
     };
 
@@ -502,7 +508,7 @@ function ProductEditModal(
                 ...prev,
                 descricao_chat_api: updatedProduct.descricao_chat_api
               }));
-              if (onProductUpdated) onProductUpdated(updatedProduct);
+              onProductUpdated?.(updatedProduct);
             } catch (refreshErr) {
               if (!isMountedRef.current || !isOpenRef.current) {
                 return;
@@ -522,7 +528,6 @@ function ProductEditModal(
       }
     };
 
-    const safeProductTypes = Array.isArray(productTypes) ? productTypes : [];
     const selectedProductType = safeProductTypes.find((type) => type.id === parseInt(formData.product_type_id));
     const attributeTemplates = selectedProductType ? selectedProductType.attribute_templates : [];
     const enrichmentSummary = formData?.log_enriquecimento_web?.resumo_aplicacao || {};
@@ -627,7 +632,6 @@ function ProductEditModal(
                     {activeTab === 'atributos' &&
               <div className="form-section">
                              <h3>Atributos Dinâmicos e de Template</h3>
-                             {!formData.product_type_id && <p>Selecione um Tipo de Produto na aba "Info Principais".</p>}
                              {attributeTemplates && attributeTemplates.length > 0 &&
                 <div>
                                      <h4>Atributos do Tipo ({selectedProductType?.friendly_name})</h4>

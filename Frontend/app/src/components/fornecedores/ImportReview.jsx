@@ -39,12 +39,14 @@ function ImportReview(
             skip: page * limit,
             limit
           });
-          if (data.items) {
-            setItems(data.items);
-            setTotalItems(data.total_items ?? data.items.length);
+          if (data?.items) {
+            const nextItems = Array.isArray(data.items) ? data.items : [];
+            setItems(nextItems);
+            setTotalItems(data.total_items ?? nextItems.length);
           } else {
-            setItems(data);
-            setTotalItems(Array.isArray(data) ? data.length : 0);
+            const nextItems = Array.isArray(data) ? data : [];
+            setItems(nextItems);
+            setTotalItems(nextItems.length);
           }
         } catch (err) {
           console.error('Erro ao obter dados de revisão:', err);

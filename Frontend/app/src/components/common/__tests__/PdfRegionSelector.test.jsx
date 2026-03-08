@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import '@testing-library/jest-dom';
 import PdfRegionSelector from '../PdfRegionSelector.jsx';
 import { renderPdfPage } from '../PdfRegionSelector.helpers.js';
@@ -132,6 +132,22 @@ test('notifies apply-all checkbox changes', async () => {
   expect(onApplyAllChange).toHaveBeenCalledWith(false);
 });
 
+test('toggles apply-all safely without a callback', async () => {
+  render(
+    <PdfRegionSelector
+      file={new Uint8Array([1])}
+      onSelect={jest.fn()}
+      initialApplyAll={false}
+    />
+  );
+
+  const checkbox = await screen.findByRole('checkbox');
+  expect(checkbox).not.toBeChecked();
+
+  fireEvent.click(checkbox);
+  expect(checkbox).toBeChecked();
+});
+
 test('shows error and calls onLoadError when pdf load fails', async () => {
   const error = new Error('pdf load failed');
   const onLoadError = jest.fn();
@@ -151,6 +167,17 @@ test('shows error and calls onLoadError when pdf load fails', async () => {
 
   expect(await screen.findByText(/falha ao carregar pdf/i)).toBeInTheDocument();
   expect(onLoadError).toHaveBeenCalledWith(error);
+});
+
+test('shows a generic error without calling a missing onLoadError callback', async () => {
+  mockGetDocument.mockReturnValue({
+    promise: Promise.reject(new Error('pdf indisponivel')),
+    destroy: jest.fn(),
+  });
+
+  render(<PdfRegionSelector file={new Uint8Array([9])} onSelect={jest.fn()} />);
+
+  expect(await screen.findByText(/falha ao carregar pdf/i)).toBeInTheDocument();
 });
 
 test('resets page and apply-all state when a new file is loaded', async () => {
@@ -216,6 +243,44 @@ test('does not call onSelect when the user releases the mouse without drawing a 
   unmount();
 });
 
+test('uses 1 as the normalized canvas fallback when width and height are zero', async () => {
+  const onSelect = jest.fn();
+
+  const { container } = render(
+    <PdfRegionSelector
+      file={new Uint8Array([1, 2, 3])}
+      onSelect={onSelect}
+      initialPage={4}
+      initialApplyAll={true}
+    />
+  );
+
+  const canvas = container.querySelector('canvas');
+  Object.defineProperty(canvas, 'getBoundingClientRect', {
+    value: () => ({ left: 0, top: 0, width: 0, height: 0 }),
+    configurable: true,
+  });
+
+  await waitFor(() => {
+    expect(canvas).toBeInTheDocument();
+  });
+
+  canvas.width = 0;
+  canvas.height = 0;
+
+  fireEvent.mouseDown(canvas, { clientX: 10, clientY: 20 });
+  fireEvent.mouseMove(canvas, { clientX: 30, clientY: 50 });
+  fireEvent.mouseUp(canvas);
+
+  expect(onSelect).toHaveBeenCalledWith(
+    expect.objectContaining({
+      canvasWidth: 1,
+      canvasHeight: 1,
+      bboxNorm: [10, 20, 30, 50],
+    })
+  );
+});
+
 test('ignores mouse move events before drawing starts', async () => {
   const onSelect = jest.fn();
 
@@ -266,6 +331,39 @@ test('destroys a deferred pdf load when the selector unmounts before completion'
   await waitFor(() => {
     expect(deferred.doc.destroy).toHaveBeenCalled();
   });
+});
+
+test('ignores late load failures after the selector unmounts', async () => {
+  let rejectTask;
+  mockGetDocument.mockReturnValueOnce({
+    promise: new Promise((_, reject) => {
+      rejectTask = reject;
+    }),
+    destroy: jest.fn(),
+  });
+
+  const onLoadError = jest.fn();
+  const { unmount } = render(
+    <PdfRegionSelector
+      file={new Uint8Array([7, 8, 9])}
+      onSelect={jest.fn()}
+      onLoadError={onLoadError}
+    />
+  );
+
+  unmount();
+
+  await waitFor(() => {
+    expect(typeof rejectTask).toBe('function');
+  });
+
+  await act(async () => {
+    rejectTask(new Error('falha tardia no pdf'));
+    await Promise.resolve();
+  });
+
+  expect(onLoadError).not.toHaveBeenCalled();
+  expect(screen.queryByText(/falha ao carregar pdf/i)).not.toBeInTheDocument();
 });
 
 test('destroys the previous pdf document and rerenders when the page changes', async () => {

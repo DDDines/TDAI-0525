@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Module attribute template modal.
  *
  * Defines responsibilities and integration points for components product types.
@@ -20,7 +20,7 @@ function AttributeTemplateModal(
     const [formData, setFormData] = useState(DEFAULT_FORM_DATA);
     const isEditing = attribute && attribute.id;
 
-    // Popula o formulário quando o modal abre ou o atributo a ser editado muda
+    // Popula o formulÃ¡rio quando o modal abre ou o atributo a ser editado muda
     useEffect(() => {
       if (isOpen) {
         setFormData({
@@ -49,33 +49,31 @@ function AttributeTemplateModal(
     const handleSubmit = (e) => {
       e.preventDefault();
       if (!formData.label.trim() || !formData.attribute_key.trim()) {
-        showErrorToast("Rótulo e Chave do Atributo são obrigatórios.");
+        showErrorToast("RÃ³tulo e Chave do Atributo sÃ£o obrigatÃ³rios.");
         return;
       }
 
       const payload = { ...formData };
 
-      // Converte o tipo de campo para minúsculas, conforme esperado pelo backend
-      if (payload.field_type) {
-        payload.field_type = payload.field_type.toLowerCase();
-      }
+      // Converte o tipo de campo para minÃºsculas, conforme esperado pelo backend
+      payload.field_type = String(payload.field_type || '').toLowerCase();
 
-      // Valida e formata o campo 'options' se for um tipo de seleção
+      // Valida e formata o campo 'options' se for um tipo de seleÃ§Ã£o
       if (payload.field_type === 'select' || payload.field_type === 'multiselect') {
         try {
-          // Tenta parsear para garantir que é um JSON Array válido
+          // Tenta parsear para garantir que Ã© um JSON Array vÃ¡lido
           const parsedOptions = JSON.parse(payload.options);
           if (!Array.isArray(parsedOptions)) {
-            showErrorToast("O campo 'Opções' deve ser um array JSON válido (ex: [\"Opção 1\", \"Opção 2\"]).");
+            showErrorToast("O campo 'OpÃ§Ãµes' deve ser um array JSON vÃ¡lido (ex: [\"OpÃ§Ã£o 1\", \"OpÃ§Ã£o 2\"]).");
             return;
           }
-          // O backend espera uma string JSON, então mantemos como está no payload
+          // O backend espera uma string JSON, entÃ£o mantemos como estÃ¡ no payload
         } catch {
-          showErrorToast("O formato das opções é inválido. Deve ser um array JSON. Ex: [\"Valor1\", \"Valor2\"]");
+          showErrorToast("O formato das opÃ§Ãµes Ã© invÃ¡lido. Deve ser um array JSON. Ex: [\"Valor1\", \"Valor2\"]");
           return;
         }
       } else {
-        payload.options = null; // Garante que opções não sejam enviadas para outros tipos de campo
+        payload.options = null; // Garante que opÃ§Ãµes nÃ£o sejam enviadas para outros tipos de campo
       }
 
       onSave(payload);
@@ -101,29 +99,29 @@ function AttributeTemplateModal(
         </div>
         <form onSubmit={handleSubmit}>
           <div style={styles.formGroup}>
-            <label htmlFor="label" style={styles.label}>Rótulo (Ex: Cor, Memória RAM)*</label>
+            <label htmlFor="label" style={styles.label}>RÃ³tulo (Ex: Cor, MemÃ³ria RAM)*</label>
             <input id="label" name="label" value={formData.label} onChange={handleChange} style={styles.input} required disabled={isSubmitting} />
           </div>
           <div style={styles.formGroup}>
             <label htmlFor="attribute_key" style={styles.label}>Chave do Atributo (Ex: cor, memoria_ram)*</label>
             <input id="attribute_key" name="attribute_key" value={formData.attribute_key} onChange={handleChange} style={styles.input} required disabled={isEditing || isSubmitting} />
-            {isEditing && <small>A chave não pode ser alterada após a criação.</small>}
+            {isEditing && <small>A chave nÃ£o pode ser alterada apÃ³s a criaÃ§Ã£o.</small>}
           </div>
           <div style={styles.formGroup}>
             <label htmlFor="field_type" style={styles.label}>Tipo do Campo</label>
             <select id="field_type" name="field_type" value={formData.field_type} onChange={handleChange} style={styles.input} disabled={isSubmitting}>
                 <option value="TEXT">Texto</option>
                 <option value="TEXTAREA">Texto Longo</option>
-                <option value="NUMBER">Número</option>
-                <option value="BOOLEAN">Sim/Não</option>
-                <option value="SELECT">Seleção Única</option>
-                <option value="MULTISELECT">Seleção Múltipla</option>
+                <option value="NUMBER">NÃºmero</option>
+                <option value="BOOLEAN">Sim/NÃ£o</option>
+                <option value="SELECT">SeleÃ§Ã£o Ãšnica</option>
+                <option value="MULTISELECT">SeleÃ§Ã£o MÃºltipla</option>
                 <option value="DATE">Data</option>
             </select>
           </div>
           {(formData.field_type === 'SELECT' || formData.field_type === 'MULTISELECT') &&
             <div style={styles.formGroup}>
-                <label htmlFor="options" style={styles.label}>Opções (em formato JSON Array)</label>
+                <label htmlFor="options" style={styles.label}>OpÃ§Ãµes (em formato JSON Array)</label>
                 <textarea id="options" name="options" value={formData.options} onChange={handleChange} style={styles.textarea} placeholder='Ex: ["P", "M", "G"]' disabled={isSubmitting} />
             </div>
             }
@@ -134,7 +132,7 @@ function AttributeTemplateModal(
           <div style={styles.formGroup}>
             <label style={styles.checkboxLabel}>
               <input type="checkbox" name="is_required" checked={formData.is_required} onChange={handleChange} style={styles.checkboxInput} disabled={isSubmitting} />
-              É um campo obrigatório?
+              Ã‰ um campo obrigatÃ³rio?
             </label>
           </div>
           <div style={styles.actions}>

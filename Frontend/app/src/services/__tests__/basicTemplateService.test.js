@@ -127,4 +127,20 @@ describe('basicTemplateService', () => {
     expect(basicTemplateService.resolveCustomTemplateForRequest('unknown')).toBeNull();
     expect(basicTemplateService.resolveCustomTemplateForRequest('description', '  ')).toBeNull();
   });
+
+  test('resets templates cleanly when localStorage is unavailable', () => {
+    const originalDescriptor = Object.getOwnPropertyDescriptor(window, 'localStorage');
+
+    Object.defineProperty(window, 'localStorage', {
+      value: undefined,
+      configurable: true,
+      writable: true,
+    });
+
+    expect(basicTemplateService.resetBasicGenerationTemplates()).toEqual(
+      DEFAULT_BASIC_GENERATION_TEMPLATES
+    );
+
+    Object.defineProperty(window, 'localStorage', originalDescriptor);
+  });
 });

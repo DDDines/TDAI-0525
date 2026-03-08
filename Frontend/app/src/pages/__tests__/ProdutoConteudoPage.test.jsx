@@ -48,6 +48,16 @@ function renderPage(initialEntry) {
   );
 }
 
+function renderPageWithoutRouteParam(initialEntry = '/conteudo-sem-id') {
+  return render(
+    <MemoryRouter initialEntries={[initialEntry]}>
+      <Routes>
+        <Route path="*" element={<ProdutoConteudoPage />} />
+      </Routes>
+    </MemoryRouter>
+  );
+}
+
 describe('ProdutoConteudoPage', () => {
   let feedbackReject;
 
@@ -320,11 +330,58 @@ describe('ProdutoConteudoPage', () => {
     expect(await screen.findByText('Descricao SEO aproveitavel.')).toBeInTheDocument();
   });
 
+  test('keeps empty saved comments and preserves timeline-only descriptions when they are the first valid candidate', async () => {
+    productService.getProdutoById.mockResolvedValueOnce({
+      id: 31,
+      nome_base: 'Reservatorio de Ar',
+      titulos_sugeridos: ['Titulo A'],
+      descricao_chat_api: 'Fundada em 1999.',
+      dados_brutos_web: {
+        feedback_conteudo: {
+          valor: 'gostei',
+        },
+      },
+    });
+
+    renderPage({
+      pathname: '/produtos/31/conteudo',
+      state: {
+        productIds: [31],
+        productQuery: { sort_by: 'id', sort_order: 'asc' },
+      },
+    });
+
+    expect(await screen.findByText('Fundada em 1999.')).toBeInTheDocument();
+    expect(screen.getByPlaceholderText(/Ex:/i)).toHaveValue('');
+  });
+
   test('keeps the state ordering when the backend list returns no items', async () => {
     productService.getProdutos.mockResolvedValueOnce({
       items: [],
       total_items: 0,
     });
+
+    renderPage({
+      pathname: '/produtos/31/conteudo',
+      state: {
+        productIds: [30, 31],
+        productQuery: { sort_by: 'id', sort_order: 'asc' },
+      },
+    });
+
+    await screen.findByText('Titulo A');
+
+    fireEvent.click(screen.getByRole('button', { name: /Produto Anterior/i }));
+    expect(mockNavigate).toHaveBeenCalledWith('/produtos/30/conteudo', {
+      state: {
+        productIds: [30, 31],
+        productQuery: { sort_by: 'id', sort_order: 'asc' },
+      },
+    });
+  });
+
+  test('preserves ids from state when the full-list fetch fails after mount', async () => {
+    productService.getProdutos.mockRejectedValueOnce(new Error('lista indisponivel'));
 
     renderPage({
       pathname: '/produtos/31/conteudo',
@@ -368,6 +425,68 @@ describe('ProdutoConteudoPage', () => {
       skip: 0,
       limit: 200,
     });
+    expect(screen.getByRole('button', { name: /Produto Anterior/i })).toBeDisabled();
+    expect(screen.getByRole('button', { name: /Pr.+ximo Produto/i })).toBeDisabled();
+  });
+
+  test('continues fetching the full list when the first page is full and falls back to the route id', async () => {
+    const fullPage = Array.from({ length: 200 }, (_, index) => ({ id: index + 1 }));
+    productService.getProdutos
+      .mockResolvedValueOnce({
+        items: fullPage,
+      })
+      .mockResolvedValueOnce({
+        items: [{ id: 201 }],
+      });
+    productService.getProdutoById.mockResolvedValueOnce({
+      id: null,
+      nome_base: 'Produto vindo da rota',
+      titulos_sugeridos: ['Titulo da rota'],
+      descricao_chat_api: 'Descricao valida.',
+      dados_brutos_web: {},
+    });
+
+    renderPage({
+      pathname: '/produtos/31/conteudo',
+      state: {
+        productIds: [],
+        productQuery: { fornecedor_id: 88 },
+      },
+    });
+
+    expect(await screen.findByText('Titulo da rota')).toBeInTheDocument();
+    await waitFor(() => {
+      expect(productService.getProdutos).toHaveBeenCalledTimes(2);
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: /Produto Anterior/i }));
+    expect(mockNavigate).toHaveBeenCalledWith('/produtos/30/conteudo', {
+      state: {
+        productIds: Array.from({ length: 201 }, (_, index) => index + 1),
+        productQuery: {
+          fornecedor_id: 88,
+          sort_by: 'id',
+          sort_order: 'asc',
+        },
+      },
+    });
+  });
+
+  test('treats non-array list payloads as empty while preserving the loaded product id', async () => {
+    productService.getProdutos.mockResolvedValueOnce({
+      items: { invalid: true },
+      total_items: 0,
+    });
+
+    renderPage({
+      pathname: '/produtos/31/conteudo',
+      state: {
+        productIds: [],
+        productQuery: { sort_by: 'id', sort_order: 'asc' },
+      },
+    });
+
+    expect(await screen.findByText('Titulo A')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /Produto Anterior/i })).toBeDisabled();
     expect(screen.getByRole('button', { name: /Pr.+ximo Produto/i })).toBeDisabled();
   });
@@ -431,5 +550,64 @@ describe('ProdutoConteudoPage', () => {
     expect(productService.registrarFeedbackConteudoGerado).not.toHaveBeenCalled();
     expect(showSuccessToast).not.toHaveBeenCalled();
     expect(showErrorToast).not.toHaveBeenCalled();
+  });
+
+  test('uses default load and save error fallbacks when service errors are empty', async () => {
+    productService.getProdutoById.mockRejectedValueOnce({});
+
+    const firstRender = renderPage({
+      pathname: '/produtos/31/conteudo',
+      state: {
+        productIds: [31],
+        productQuery: { sort_by: 'id', sort_order: 'asc' },
+      },
+    });
+
+    await waitFor(() => {
+      expect(showErrorToast).toHaveBeenCalledWith('Falha ao carregar conteúdo do produto.');
+    });
+
+    firstRender.unmount();
+    jest.clearAllMocks();
+    productService.getProdutoById.mockResolvedValueOnce({
+      id: 31,
+      nome_base: 'Reservatorio de Ar',
+      titulos_sugeridos: ['Titulo A'],
+      descricao_chat_api: 'Descricao valida.',
+      dados_brutos_web: {},
+    });
+    productService.registrarFeedbackConteudoGerado.mockRejectedValueOnce({});
+
+    renderPage({
+      pathname: '/produtos/31/conteudo',
+      state: {
+        productIds: [31],
+        productQuery: { sort_by: 'id', sort_order: 'asc' },
+      },
+    });
+
+    await screen.findByText('Descricao valida.');
+    fireEvent.click(screen.getByRole('button', { name: 'Gostei' }));
+
+    await waitFor(() => {
+      expect(showErrorToast).toHaveBeenCalledWith('Falha ao salvar feedback.');
+    });
+  });
+
+  test('falls back to product id zero when neither the route param nor the loaded payload exposes an id', async () => {
+    productService.getProdutoById.mockResolvedValueOnce({
+      id: null,
+      nome_base: 'Produto sem rota',
+      titulos_sugeridos: ['Titulo sem rota'],
+      descricao_chat_api: 'Descricao sem rota.',
+      dados_brutos_web: {},
+    });
+
+    renderPageWithoutRouteParam();
+
+    expect(await screen.findByText('Titulo sem rota')).toBeInTheDocument();
+    expect(productService.getProdutoById).toHaveBeenCalledWith(undefined);
+    expect(screen.getByRole('button', { name: /Produto Anterior/i })).toBeDisabled();
+    expect(screen.getByRole('button', { name: /Pr.+ximo Produto/i })).toBeDisabled();
   });
 });

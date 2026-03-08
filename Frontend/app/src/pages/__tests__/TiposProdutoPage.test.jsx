@@ -230,6 +230,21 @@ describe('TiposProdutoPage', () => {
     );
   });
 
+  test('clears the current selection when deleting the selected type', async () => {
+    render(<TiposProdutoPage />);
+
+    fireEvent.click(screen.getByText('Pecas'));
+    expect(screen.getByTestId('attribute-list')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByTitle('Deletar tipo'));
+
+    await waitFor(() => {
+      expect(productTypeService.deleteProductType).toHaveBeenCalledWith(1);
+    });
+
+    expect(screen.queryByTestId('attribute-list')).not.toBeInTheDocument();
+  });
+
   test('shows an error toast when deleting a type fails', async () => {
     productTypeService.deleteProductType.mockRejectedValueOnce({
       response: { data: { detail: 'tipo em uso' } },
@@ -241,6 +256,26 @@ describe('TiposProdutoPage', () => {
 
     await waitFor(() => {
       expect(showErrorToast).toHaveBeenCalledWith('tipo em uso');
+    });
+  });
+
+  test('uses the generic delete fallback and respects delete confirmation cancellation', async () => {
+    productTypeService.deleteProductType.mockRejectedValueOnce({});
+    window.confirm = jest
+      .fn()
+      .mockReturnValueOnce(false)
+      .mockReturnValueOnce(true);
+
+    render(<TiposProdutoPage />);
+
+    fireEvent.click(screen.getByTitle('Deletar tipo'));
+    expect(productTypeService.deleteProductType).not.toHaveBeenCalled();
+
+    fireEvent.click(screen.getByTitle('Deletar tipo'));
+    await waitFor(() => {
+      expect(showErrorToast).toHaveBeenCalledWith(
+        expect.stringMatching(/Falha ao deletar o tipo "Pecas"/i)
+      );
     });
   });
 
@@ -289,5 +324,74 @@ describe('TiposProdutoPage', () => {
     await waitFor(() => {
       expect(showErrorToast).toHaveBeenCalledWith('Falha ao reordenar o atributo.');
     });
+  });
+
+  test('keeps the selected type untouched when deleting another type is cancelled and handles missing attribute counts', async () => {
+    useProductTypes.mockReturnValue({
+      productTypes: [
+        ...baseProductTypes,
+        {
+          id: 2,
+          key_name: 'sem-atributos',
+          friendly_name: 'Sem atributos',
+          attribute_templates: null,
+        },
+      ],
+      isLoading: false,
+      error: null,
+      refreshProductTypes,
+      updateProductType,
+    });
+    window.confirm = jest
+      .fn()
+      .mockReturnValueOnce(false)
+      .mockReturnValueOnce(false);
+
+    render(<TiposProdutoPage />);
+
+    expect(screen.getByText(/Sem atributos/)).toHaveTextContent('(0 atrib.)');
+
+    fireEvent.click(screen.getByText('Pecas'));
+    await waitFor(() => {
+      expect(screen.getAllByTitle('Deletar tipo')).toHaveLength(2);
+    });
+    fireEvent.click(screen.getAllByTitle('Deletar tipo')[1]);
+
+    expect(productTypeService.deleteProductType).not.toHaveBeenCalled();
+    expect(screen.getByTestId('attribute-list')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByText('delete-attribute'));
+    expect(productTypeService.removeAttributeFromType).not.toHaveBeenCalled();
+  });
+
+  test('keeps the selected type when another type is deleted successfully', async () => {
+    useProductTypes.mockReturnValue({
+      productTypes: [
+        ...baseProductTypes,
+        {
+          id: 2,
+          key_name: 'secundario',
+          friendly_name: 'Secundario',
+          attribute_templates: [],
+        },
+      ],
+      isLoading: false,
+      error: null,
+      refreshProductTypes,
+      updateProductType,
+    });
+
+    render(<TiposProdutoPage />);
+
+    fireEvent.click(screen.getByText('Pecas'));
+    expect(screen.getByTestId('attribute-list')).toBeInTheDocument();
+
+    fireEvent.click(screen.getAllByTitle('Deletar tipo')[1]);
+
+    await waitFor(() => {
+      expect(productTypeService.deleteProductType).toHaveBeenCalledWith(2);
+    });
+
+    expect(screen.getByTestId('attribute-list')).toBeInTheDocument();
   });
 });

@@ -17,6 +17,7 @@ import { showErrorToast, showSuccessToast, showInfoToast } from '../utils/notifi
 import './ProdutosPage.css';
 import { useProductTypes } from '../contexts/ProductTypeContext';
 import LoadingPopup from '../components/common/LoadingPopup.jsx';
+import { resolveGenerationHandler } from './ProdutosPage.helpers.js';
 
 const WEB_ENRICHMENT_TERMINAL_STATUSES = new Set([
   'CONCLUIDO',
@@ -164,8 +165,8 @@ function ProdutosPage()
       setProdutos((prevProdutos) => prevProdutos.map((p) => p.id === updatedProduct.id ? updatedProduct : p));
     };
 
-    const handleOpenModal = (produto = null) => {
-      setProdutoParaEditar(produto);
+    const handleOpenModal = (produto) => {
+      setProdutoParaEditar(produto ?? null);
       setIsModalOpen(true);
     };
 
@@ -346,30 +347,19 @@ function ProdutosPage()
       const contentTypePlural = contentType === 'titulo' ? 'títulos' : 'descrições';
       showInfoToast(`Geração de ${contentTypePlural} iniciada para ${selectedProdutos.size} produto(s).`);
 
-      const statusField = `status_${contentType}_ia`;
-      updateLocalProductStatus(selectedProdutos, statusField, 'EM_PROGRESSO');
+    const statusField = `status_${contentType}_ia`;
+    updateLocalProductStatus(selectedProdutos, statusField, 'EM_PROGRESSO');
 
-      const idsToProcess = Array.from(selectedProdutos);
-      setSelectedProdutos(new Set());
+    const idsToProcess = Array.from(selectedProdutos);
+    setSelectedProdutos(new Set());
+    const generationHandler = resolveGenerationHandler(contentType, showAiFeatures, productService);
 
-      for (const produtoId of idsToProcess) {
-        try {
-          if (contentType === 'titulo') {
-            if (showAiFeatures) {
-              await productService.gerarTitulosProduto(produtoId);
-            } else {
-              await productService.gerarTitulosProdutoModoBasico(produtoId);
-            }
-          } else if (contentType === 'descricao') {
-            if (showAiFeatures) {
-              await productService.gerarDescricaoProduto(produtoId);
-            } else {
-              await productService.gerarDescricaoProdutoModoBasico(produtoId);
-            }
-          }
-        } catch (err) {
-          showErrorToast(`Erro ao gerar ${contentType} para produto ID ${produtoId}: ${err.response?.data?.detail || err.message}`);
-          updateLocalProductStatus(new Set([produtoId]), statusField, 'FALHA');
+    for (const produtoId of idsToProcess) {
+      try {
+        await generationHandler(produtoId);
+      } catch (err) {
+        showErrorToast(`Erro ao gerar ${contentType} para produto ID ${produtoId}: ${err.response?.data?.detail || err.message}`);
+        updateLocalProductStatus(new Set([produtoId]), statusField, 'FALHA');
         }
       }
 

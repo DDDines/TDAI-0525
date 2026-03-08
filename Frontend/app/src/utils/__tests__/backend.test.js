@@ -34,4 +34,15 @@ describe('getBackendBaseUrl', () => {
 
     expect(getBackendBaseUrl()).toBe('');
   });
+
+  test('prefers the import.meta environment base url when it is available', () => {
+    const OriginalFunction = global.Function;
+    global.Function = jest.fn(() => () => ({ VITE_API_BASE_URL: 'https://meta.example/api/v1' }));
+
+    try {
+      expect(getBackendBaseUrl()).toBe('https://meta.example');
+    } finally {
+      global.Function = OriginalFunction;
+    }
+  });
 });

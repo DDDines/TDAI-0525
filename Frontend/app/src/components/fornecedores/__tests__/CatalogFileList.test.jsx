@@ -32,6 +32,12 @@ test('shows empty state when there are no files', () => {
   expect(screen.getByText('Nenhum arquivo encontrado.')).toBeInTheDocument();
 });
 
+test('uses the default empty collection when files prop is omitted', () => {
+  render(<CatalogFileList />);
+
+  expect(screen.getByText('Nenhum arquivo encontrado.')).toBeInTheDocument();
+});
+
 test('renders link to stored file for each entry', () => {
   render(<CatalogFileList files={files} />);
 

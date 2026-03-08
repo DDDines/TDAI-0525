@@ -89,4 +89,29 @@ describe('NewProductTypeModal', () => {
     });
     expect(screen.getByRole('button', { name: /Salvar Tipo/i })).toBeEnabled();
   });
+
+  test('supports creation without an onCreated callback and resets state when reopened', async () => {
+    addProductType.mockResolvedValue({ id: 9, key_name: 'linha_leve', friendly_name: 'Linha Leve' });
+    const onClose = jest.fn();
+    const { rerender } = render(
+      <NewProductTypeModal isOpen={true} onClose={onClose} onCreated={undefined} />
+    );
+
+    await userEvent.type(screen.getByLabelText(/Nome Amig/i), 'Linha Leve');
+    await userEvent.click(screen.getByRole('button', { name: /Salvar Tipo/i }));
+
+    await waitFor(() => {
+      expect(addProductType).toHaveBeenCalledWith({
+        key_name: 'linha_leve',
+        friendly_name: 'Linha Leve',
+        attribute_templates: [],
+      });
+    });
+    expect(onClose).toHaveBeenCalled();
+
+    rerender(<NewProductTypeModal isOpen={false} onClose={onClose} onCreated={undefined} />);
+    rerender(<NewProductTypeModal isOpen={true} onClose={onClose} onCreated={undefined} />);
+
+    expect(screen.getByLabelText(/Nome Amig/i)).toHaveValue('');
+  });
 });

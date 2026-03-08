@@ -70,4 +70,12 @@ describe('usoIAService', () => {
       'Failed to fetch historico types'
     );
   });
+
+  test('falls back to explicit errors when the product history request has no backend payload', async () => {
+    apiClient.get.mockRejectedValueOnce(new Error('offline'));
+
+    await expect(usoIAService.getHistoricoUsoIAPorProduto(99)).rejects.toThrow(
+      'Failed to fetch IA usage history for product 99'
+    );
+  });
 });

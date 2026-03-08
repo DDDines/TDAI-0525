@@ -5,6 +5,7 @@ import {
   extractIaSuggestionMap,
   extractGeneratedTitles,
   handleContentViewNavigation,
+  logAsyncPollError,
   normalizeDynamicAttrsToTemplateKeys,
   resolveProductFormStage,
   resolveServiceErrorDetail,
@@ -227,6 +228,26 @@ describe('ProductEditModal helpers', () => {
         }),
       })
     );
+
+    expect(
+      buildProductFormState(
+        {
+          dynamic_attributes: { sku_tecnico: 'ABC-10' },
+          product_type_id: 3,
+          dados_brutos_web: null,
+        },
+        { id: 3, attribute_templates: [{ attribute_key: 'sku_tecnico', label: 'SKU Tecnico' }] },
+        new Set(),
+        initialSnapshot
+      )
+    ).toEqual(
+      expect.objectContaining({
+        formData: expect.objectContaining({
+          dynamic_attributes: { sku_tecnico: 'ABC-10' },
+          dados_brutos_web: {},
+        }),
+      })
+    );
   });
 
   test('coerceFormFieldValue keeps checkbox and plain values stable', () => {
@@ -337,5 +358,16 @@ describe('ProductEditModal helpers', () => {
     expect(locationAssign).toHaveBeenCalledWith('/produtos/11/conteudo');
 
     expect(handleContentViewNavigation(12, undefined, undefined, undefined)).toBe('noop');
+  });
+
+  test('only logs async polling errors for the active run', () => {
+    const logFn = jest.fn();
+
+    expect(logAsyncPollError(logFn, 10, 10, 'poll', new Error('x'))).toBe(true);
+    expect(logFn).toHaveBeenCalledWith('poll', expect.any(Error));
+
+    logFn.mockClear();
+    expect(logAsyncPollError(logFn, 11, 10, 'poll', new Error('x'))).toBe(false);
+    expect(logFn).not.toHaveBeenCalled();
   });
 });

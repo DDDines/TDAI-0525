@@ -2,6 +2,7 @@ import { fireEvent, render, screen, waitFor, act } from '@testing-library/react'
 import '@testing-library/jest-dom';
 import { MemoryRouter } from 'react-router-dom';
 import ProdutosPage from '../ProdutosPage.jsx';
+import { resolveGenerationHandler } from '../ProdutosPage.helpers.js';
 import productService from '../../services/productService';
 import {
   showErrorToast,
@@ -195,6 +196,35 @@ describe('ProdutosPage', () => {
     expect(productService.getProdutos).toHaveBeenCalledTimes(2);
   });
 
+  test('treats malformed list payloads as empty and shows the loading label for product types', async () => {
+    mockProductTypesState = {
+      productTypes: [],
+      isLoading: true,
+      error: null,
+    };
+    productService.getProdutos.mockResolvedValueOnce({
+      items: null,
+      total_items: 0,
+    });
+
+    renderPage();
+
+    await waitFor(() => {
+      expect(productService.getProdutos).toHaveBeenCalled();
+    });
+
+    expect(screen.queryByText('Reservatorio de AR 20 Litros')).not.toBeInTheDocument();
+    expect(screen.getByRole('option', { name: 'Carregando tipos...' })).toBeInTheDocument();
+  });
+
+  test('uses the default list error fallback when the backend rejects without details', async () => {
+    productService.getProdutos.mockRejectedValueOnce({});
+
+    renderPage();
+
+    expect(await screen.findByText(/Falha ao carregar produtos\./i)).toBeInTheDocument();
+  });
+
   test('recarrega a lista com filtros de busca e ordenacao atualizados', async () => {
     renderPage();
     await screen.findByText('Reservatorio de AR 20 Litros');
@@ -370,6 +400,16 @@ describe('ProdutosPage', () => {
 
     await waitFor(() => {
       expect(showErrorToast).toHaveBeenCalledWith('produto nao encontrado');
+    });
+  });
+
+  test('uses the default query-string load error when the backend returns an empty failure object', async () => {
+    productService.getProdutoById.mockRejectedValueOnce({});
+
+    renderPage(['/produtos?id=9999']);
+
+    await waitFor(() => {
+      expect(showErrorToast).toHaveBeenCalledWith('Falha ao carregar produto.');
     });
   });
 
@@ -566,6 +606,38 @@ describe('ProdutosPage', () => {
     expect(screen.getByTitle('Falha')).toBeInTheDocument();
   });
 
+  test('uses the default batch delete fallback when the backend rejects without details', async () => {
+    productService.batchDeleteProdutos.mockRejectedValueOnce({});
+
+    renderPage();
+    await screen.findByText('Reservatorio de AR 20 Litros');
+
+    fireEvent.click(screen.getAllByRole('checkbox')[1]);
+    fireEvent.click(screen.getByText('Deletar'));
+
+    await waitFor(() => {
+      expect(showErrorToast).toHaveBeenCalledWith('Falha ao deletar produtos.');
+    });
+  });
+
+  test('marks all selected products as failed when every enrichment start request is rejected', async () => {
+    productService.iniciarEnriquecimentoWebProduto.mockRejectedValue(new Error('sem conector'));
+
+    renderPage();
+    await screen.findByText('Reservatorio de AR 20 Litros');
+
+    fireEvent.click(screen.getAllByRole('checkbox')[1]);
+    fireEvent.click(screen.getByText('Enriquecer Web'));
+
+    await waitFor(() => {
+      expect(showErrorToast).toHaveBeenCalledWith(
+        'Erro ao iniciar enriquecimento para produto ID 2558: sem conector'
+      );
+    });
+    expect(productService.getProdutoById).not.toHaveBeenCalled();
+    expect(screen.getByTitle('Falha')).toBeInTheDocument();
+  });
+
   test('permite trocar o tamanho da pagina e reseta a navegacao para a primeira pagina', async () => {
     const manyItems = Array.from({ length: 10 }, (_, index) => ({
       ...baseItems[index % baseItems.length],
@@ -650,6 +722,37 @@ describe('ProdutosPage', () => {
     });
   });
 
+  test('continua o polling quando o status enriquecimento vem vazio antes do estado terminal', async () => {
+    jest.useFakeTimers();
+    productService.getProdutoById
+      .mockResolvedValueOnce({
+        ...baseItems[0],
+        status_enriquecimento_web: null,
+      })
+      .mockResolvedValueOnce({
+        ...baseItems[0],
+        status_enriquecimento_web: 'CONCLUIDO_SUCESSO',
+      });
+
+    renderPage();
+    await screen.findByText('Reservatorio de AR 20 Litros');
+
+    fireEvent.click(screen.getAllByRole('checkbox')[1]);
+    fireEvent.click(screen.getByText('Enriquecer Web'));
+
+    await waitFor(() => {
+      expect(productService.iniciarEnriquecimentoWebProduto).toHaveBeenCalledWith(2558);
+    });
+
+    await act(async () => {
+      await jest.advanceTimersByTimeAsync(3000);
+    });
+
+    await waitFor(() => {
+      expect(productService.getProdutoById).toHaveBeenCalledTimes(2);
+    });
+  });
+
   test('mostra warning quando o contexto de tipos reporta erro', async () => {
     mockProductTypesState = {
       productTypes: [],
@@ -664,5 +767,19 @@ describe('ProdutosPage', () => {
       'ProdutosPage: erro recebido do ProductTypeContext:',
       expect.any(Error)
     );
+  });
+
+  test('resolveGenerationHandler returns the correct handler for each mode and the noop fallback', async () => {
+    expect(resolveGenerationHandler('titulo', true, productService)).toBe(productService.gerarTitulosProduto);
+    expect(resolveGenerationHandler('descricao', true, productService)).toBe(productService.gerarDescricaoProduto);
+    expect(resolveGenerationHandler('titulo', false, productService)).toBe(
+      productService.gerarTitulosProdutoModoBasico
+    );
+    expect(resolveGenerationHandler('descricao', false, productService)).toBe(
+      productService.gerarDescricaoProdutoModoBasico
+    );
+    expect(resolveGenerationHandler('titulo', true)).toBe(productService.gerarTitulosProduto);
+
+    await expect(resolveGenerationHandler('invalido', false, productService)(2558)).resolves.toBeUndefined();
   });
 });

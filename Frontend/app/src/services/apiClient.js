@@ -25,10 +25,23 @@ const nodeEnv =
   globalThis.process.env
     ? globalThis.process.env
     : undefined;
-const API_BASE_URL =
-  (metaEnv && metaEnv.VITE_API_BASE_URL) ||
-  (nodeEnv && nodeEnv.VITE_API_BASE_URL) ||
-  '/api/v1';
+
+export function resolveApiBaseUrl(metaEnvironment = metaEnv, nodeEnvironment = nodeEnv) {
+  const candidates = [
+    metaEnvironment?.VITE_API_BASE_URL,
+    nodeEnvironment?.VITE_API_BASE_URL,
+  ];
+
+  for (const candidate of candidates) {
+    if (typeof candidate === 'string' && candidate.trim()) {
+      return candidate;
+    }
+  }
+
+  return '/api/v1';
+}
+
+const API_BASE_URL = resolveApiBaseUrl();
 
 const apiClient = axios.create({
   baseURL: API_BASE_URL,

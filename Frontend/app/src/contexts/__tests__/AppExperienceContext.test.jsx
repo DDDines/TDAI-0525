@@ -9,6 +9,7 @@ import {
   removeStoredAdminPreviewMode,
   useAppExperience,
 } from '../AppExperienceContext.jsx';
+import { act } from '@testing-library/react';
 import configService from '../../services/configService';
 import { useAuth } from '../AuthContext';
 
@@ -179,6 +180,7 @@ describe('AppExperienceContext', () => {
   test('normalizes invalid experience modes to basic', () => {
     expect(normalizeMode(' COMPLETE ')).toBe('complete');
     expect(normalizeMode('modo-invalido')).toBe('basic');
+    expect(normalizeMode()).toBe('basic');
   });
 
   test('storage helpers are no-ops when window is unavailable', () => {
@@ -211,5 +213,67 @@ describe('AppExperienceContext', () => {
 
     expect(() => fireEvent.click(screen.getByText('default-preview'))).not.toThrow();
     expect(() => fireEvent.click(screen.getByText('default-clear'))).not.toThrow();
+  });
+
+  test('falls back to default config when the public config endpoint returns null', async () => {
+    configService.getSocialLoginConfig.mockResolvedValueOnce(null);
+
+    render(
+      <AppExperienceProvider>
+        <Probe />
+      </AppExperienceProvider>
+    );
+
+    await waitFor(() => {
+      expect(screen.getByTestId('loading')).toHaveTextContent('false');
+    });
+
+    expect(screen.getByTestId('default-mode')).toHaveTextContent('basic');
+    expect(screen.getByTestId('effective-mode')).toHaveTextContent('basic');
+  });
+
+  test('ignores config resolutions and failures that arrive after unmount', async () => {
+    let resolveConfig;
+    let rejectConfig;
+    configService.getSocialLoginConfig.mockImplementationOnce(
+      () =>
+        new Promise((resolve, reject) => {
+          resolveConfig = resolve;
+          rejectConfig = reject;
+        })
+    );
+
+    const { unmount } = render(
+      <AppExperienceProvider>
+        <Probe />
+      </AppExperienceProvider>
+    );
+
+    unmount();
+
+    await act(async () => {
+      resolveConfig({ product_experience_default: 'complete' });
+      await Promise.resolve();
+    });
+
+    configService.getSocialLoginConfig.mockImplementationOnce(
+      () =>
+        new Promise((_, reject) => {
+          rejectConfig = reject;
+        })
+    );
+
+    const secondRender = render(
+      <AppExperienceProvider>
+        <Probe />
+      </AppExperienceProvider>
+    );
+
+    secondRender.unmount();
+
+    await act(async () => {
+      rejectConfig(new Error('offline tardio'));
+      await Promise.resolve();
+    });
   });
 });
