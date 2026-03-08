@@ -37,7 +37,7 @@ class _TopLevelFunctionSurface:
         absolute = tmp_path / "a.pdf"
         assert impl._resolve_storage_path(absolute) == absolute
         backend_relative = impl._resolve_storage_path(Path("Backend/static/uploads"))
-        assert str(backend_relative).lower().endswith("backend\\static\\uploads")
+        assert backend_relative.as_posix().lower().endswith("backend/static/uploads")
 
         class PasswordError(Exception):
             pass
@@ -253,7 +253,8 @@ class _TopLevelFunctionSurface:
         monkeypatch.setattr(file_processing.settings, "FILE_PARSE_MAX_MEMORY_MB", "bad", raising=False)
         assert impl._resolve_file_parse_timeout_seconds() == 30
         assert impl._resolve_file_parse_max_memory_mb() == 0
-        assert impl._resolve_project_root().name == "Project"
+        project_root = impl._resolve_project_root()
+        assert (project_root / "Backend").exists()
         assert impl._build_file_parse_error_payload(
             prefix="erro",
             error_code="FILE_PARSE_TIMEOUT",

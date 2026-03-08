@@ -136,7 +136,7 @@ def test_configure_database_url_builds_sqlite_fallback(monkeypatch):
     runtime.configure_database_url(settings_obj)
 
     assert settings_obj.DATABASE_URL.startswith("sqlite:///")
-    assert settings_obj.DATABASE_URL.endswith("Backend\\catalog.db")
+    assert settings_obj.DATABASE_URL.replace("\\", "/").endswith("Backend/catalog.db")
     assert "Usando SQLite" in info_messages[0][0]
 
 

@@ -103,8 +103,8 @@ jobs:
         run: >
           pytest -q
           Backend/tests/test_architecture_boundaries.py
+          Backend/tests/test_app_mode_pipeline_selector.py
           Backend/tests/test_pipeline_orchestrators.py
-          Backend/tests/test_legacy_guard.py
           Backend/tests/test_service_container_defaults.py
 
   frontend:

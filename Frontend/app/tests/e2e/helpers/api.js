@@ -30,13 +30,23 @@ export function extractGeneratedTitles(product) {
 
 export async function createAdminApiContext(playwright) {
   const bootstrapContext = await playwright.request.newContext();
-  const tokenResponse = await bootstrapContext.post(`${backendApiBaseUrl}auth/token`, {
-    form: {
-      username: e2eEmail,
-      password: e2ePassword,
-    },
-  });
-  expect(tokenResponse.ok()).toBeTruthy();
+  let tokenResponse = null;
+  const deadline = Date.now() + 60_000;
+
+  while (Date.now() < deadline) {
+    tokenResponse = await bootstrapContext.post(`${backendApiBaseUrl}auth/token`, {
+      form: {
+        username: e2eEmail,
+        password: e2ePassword,
+      },
+    });
+    if (tokenResponse.ok()) {
+      break;
+    }
+    await new Promise((resolve) => setTimeout(resolve, 2_000));
+  }
+
+  expect(tokenResponse?.ok()).toBeTruthy();
   const tokenData = await parseJson(tokenResponse);
   expect(tokenData?.access_token).toBeTruthy();
   await bootstrapContext.dispose();

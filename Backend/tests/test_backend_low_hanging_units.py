@@ -264,10 +264,10 @@ def test_task_workflow_and_runtime_delegate(monkeypatch):
     ]
 
 
-def test_pdf_extraction_task_service_resolves_absolute_and_relative_paths(monkeypatch):
+def test_pdf_extraction_task_service_resolves_absolute_and_relative_paths(monkeypatch, tmp_path):
     monkeypatch.setattr(
         "Backend.application.services.pdf_extraction_task_service.settings",
-        SimpleNamespace(UPLOAD_DIRECTORY="C:/uploads"),
+        SimpleNamespace(UPLOAD_DIRECTORY=str(tmp_path)),
     )
     service = PdfExtractionTaskService(
         session_provider=_FakeSessionProvider(_FakeSession()),
@@ -275,14 +275,14 @@ def test_pdf_extraction_task_service_resolves_absolute_and_relative_paths(monkey
     )
 
     absolute = service._resolve_catalog_file_path("arquivo.pdf")
-    assert absolute == Path("C:/uploads") / "catalogs" / "arquivo.pdf"
+    assert absolute == tmp_path / "catalogs" / "arquivo.pdf"
 
     monkeypatch.setattr(
         "Backend.application.services.pdf_extraction_task_service.settings",
         SimpleNamespace(UPLOAD_DIRECTORY="uploads"),
     )
     relative = service._resolve_catalog_file_path("arquivo.pdf")
-    assert str(relative).endswith("static\\uploads\\catalogs\\arquivo.pdf")
+    assert relative.as_posix().endswith("static/uploads/catalogs/arquivo.pdf")
 
 
 def test_pdf_extraction_task_service_returns_when_job_not_found(caplog):
