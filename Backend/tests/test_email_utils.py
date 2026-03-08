@@ -115,6 +115,26 @@ async def test_email_workflow_send_email_handles_missing_config_and_send_errors(
             html_content="<b>ok</b>",
         )
 
+    await EmailWorkflow(runtime=_FakeRuntime(conf="conf")).send_email(
+        email_to="dest@example.com",
+        subject="Sem raise automatico",
+        html_content="",
+        raise_if_unconfigured=False,
+    )
+
+    await EmailWorkflow(
+        runtime=_FakeRuntime(
+            conf="conf",
+            raise_on_missing=False,
+            mail_client=_FakeMailClient(error=RuntimeError("smtp instavel")),
+        )
+    ).send_email(
+        email_to="dest@example.com",
+        subject="Erro tolerado",
+        html_content="<b>ok</b>",
+        raise_if_unconfigured=False,
+    )
+
 
 @pytest.mark.asyncio
 async def test_email_workflow_password_reset_success_and_failure_paths():
@@ -149,6 +169,13 @@ async def test_email_workflow_password_reset_success_and_failure_paths():
             username="Julio",
             reset_link="https://catalog/reset",
         )
+
+    await EmailWorkflow(runtime=_FakeRuntime(conf=None, raise_on_missing=True)).send_password_reset_email(
+        email_to="dest@example.com",
+        username="Julio",
+        reset_link="https://catalog/reset",
+        raise_if_unconfigured=False,
+    )
 
 
 def test_email_runtime_builds_config_and_exposes_helpers(monkeypatch):

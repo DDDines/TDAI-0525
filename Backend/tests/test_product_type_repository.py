@@ -448,3 +448,63 @@ def test_repository_search_and_conflict_paths_for_product_types_and_attributes()
     finally:
         session.close()
         Base.metadata.drop_all(bind=engine)
+
+
+def test_repository_covers_duplicate_user_key_and_unique_update_paths():
+    engine, session = _build_session()
+    try:
+        owner = _create_user(session, email="owner@example.com")
+        repo = ProductTypeRepository(session)
+        _create_product_type(
+            session,
+            key_name="cabines",
+            friendly_name="Cabines",
+            user_id=owner.id,
+        )
+
+        with pytest.raises(HTTPException) as exc_info:
+            repo.create_product_type(
+                product_type_create=schemas.ProductTypeCreate(
+                    key_name="cabines",
+                    friendly_name="Cabines 2",
+                ),
+                user_id=owner.id,
+            )
+
+        assert "ja existe" in exc_info.value.detail.lower()
+
+        fresh_type = _create_product_type(
+            session,
+            key_name="escapamentos",
+            friendly_name="Escapamentos",
+            user_id=owner.id,
+        )
+        updated = repo.update_product_type(
+            db_product_type=fresh_type,
+            product_type_update=schemas.ProductTypeUpdate(key_name="escapamentos-pesados"),
+        )
+        assert updated.key_name == "escapamentos-pesados"
+
+        attr = repo.create_attribute_template(
+            product_type_id=fresh_type.id,
+            attr_template_create=schemas.AttributeTemplateCreate(
+                attribute_key="material",
+                label="Material",
+            ),
+        )
+        assert (
+            repo.get_attribute_template_by_key(
+                product_type_id=fresh_type.id,
+                attribute_key="material",
+            ).id
+            == attr.id
+        )
+
+        updated_attr = repo.update_attribute_template(
+            db_attr_template=attr,
+            attr_template_update=schemas.AttributeTemplateUpdate(attribute_key="material-base"),
+        )
+        assert updated_attr.attribute_key == "material-base"
+    finally:
+        session.close()
+        Base.metadata.drop_all(bind=engine)

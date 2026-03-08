@@ -53,28 +53,72 @@ def test_company_timeline_detection_and_sanitization_cover_edge_paths():
     assert _payload_service._sanitize_description_text(
         "Nossa empresa foi fundada em 2015."
     ) == "Nossa empresa foi fundada em 2015."
+    assert _payload_service._looks_like_company_timeline_claim("Nossa marca desde 2015.") is True
+    assert _payload_service._sanitize_description_text(
+        "Paralama reforcado.\n\nNossa marca desde 2015."
+    ) == "Paralama reforcado."
+
+
+def test_sanitize_description_skips_empty_chunks_via_normalizer(monkeypatch):
+    """Ignore empty normalized chunks while keeping valid description pieces."""
+    original_as_text = _payload_service._normalization.as_text
+
+    def _patched_as_text(value, max_len=10000):
+        if value == "vazio":
+            return ""
+        return original_as_text(value, max_len=max_len)
+
+    monkeypatch.setattr(_payload_service._normalization, "as_text", _patched_as_text)
+    sanitized = _payload_service._sanitize_description_text(
+        "Paralama reforcado.\nvazio\nNossa marca desde 2015."
+    )
+
+    assert sanitized == "Paralama reforcado."
 
 
 def test_application_and_weak_value_heuristics_cover_remaining_branches():
     """Cover weak-field and weak-dynamic heuristics."""
     assert _payload_service._looks_like_application_only(None) is False
+    assert _payload_service._looks_like_application_only("----") is False
     assert _payload_service._looks_like_application_only("Actros 2016-2018") is True
     assert _payload_service._looks_like_application_only("Paralama Actros 2016-2018") is False
 
+    assert _payload_service._is_weak_existing_field("nome_chat_api", None) is True
+    assert _payload_service._is_weak_existing_field("nome_chat_api", "----") is True
+    assert _payload_service._is_weak_existing_field("nome_chat_api", "todos") is True
     assert _payload_service._is_weak_existing_field("nome_chat_api", "1234") is True
+    assert _payload_service._is_weak_existing_field("nome_chat_api", "1234/5678") is True
     assert _payload_service._is_weak_existing_field("nome_chat_api", "Actros 2016-2018") is True
     assert _payload_service._is_weak_existing_field(
         "nome_chat_api", "Paralama dianteiro reforcado"
     ) is False
     assert _payload_service._is_weak_existing_field("descricao_original", "anotacoes internas") is True
+    assert (
+        _payload_service._is_weak_existing_field(
+            "descricao_original",
+            "Mercedes Actros 2016-2018 dianteiro",
+        )
+        is True
+    )
+    assert (
+        _payload_service._is_weak_existing_field(
+            "descricao_original",
+            "Observacoes internas detalhadas do fornecedor",
+        )
+        is True
+    )
     assert _payload_service._is_weak_existing_field(
         "descricao_original", "Paralama dianteiro reforcado com suporte"
     ) is False
+    assert _payload_service._is_weak_existing_field("marca", None) is True
+    assert _payload_service._is_weak_existing_field("marca", "generico") is True
     assert _payload_service._is_weak_existing_field("marca", "sm") is True
     assert _payload_service._is_weak_existing_field("marca", "Randon") is False
     assert _payload_service._is_weak_existing_field("sku", "ABC123") is False
 
     assert _payload_service._is_weak_dynamic_value("descricao", None) is True
+    assert _payload_service._is_weak_dynamic_value("descricao", "----") is True
+    assert _payload_service._is_weak_dynamic_value("descricao", "todos") is True
     assert _payload_service._is_weak_dynamic_value("descricao", "curta") is True
     assert _payload_service._is_weak_dynamic_value("descricao", "Actros 2016-2018") is True
     assert _payload_service._is_weak_dynamic_value("id", "ABC123MARCA") is True
@@ -205,6 +249,52 @@ def test_set_dynamic_if_empty_covers_alias_lookup_replacement_and_ignore_paths()
     assert "material_predominante" in dynamic_ignored
 
 
+def test_set_dynamic_if_empty_covers_weak_replacement_branch():
+    """Replace weak dynamic values when a stronger candidate arrives."""
+    dynamic_current = {"material": "geral"}
+    target = _payload_service._set_dynamic_if_empty(
+        candidates=["material"],
+        value="plastico injetado",
+        dynamic_current=dynamic_current,
+        normalized_key_to_real={"material": "material"},
+        dynamic_ignored=[],
+        allow_replace_weak=True,
+    )
+
+    assert target == "material"
+    assert dynamic_current["material"] == "plastico injetado"
+
+
+def test_set_dynamic_if_empty_covers_empty_known_norm_branch():
+    """Skip empty normalized keys while resolving fallback target aliases."""
+    dynamic_current = {"peso_legado": "10kg"}
+    target = _payload_service._set_dynamic_if_empty(
+        candidates=["peso"],
+        value="12kg",
+        dynamic_current=dynamic_current,
+        normalized_key_to_real={"": "ignorar", "peso_legado": "peso_legado"},
+        dynamic_ignored=[],
+    )
+
+    assert target is None
+
+
+def test_set_dynamic_if_empty_skips_empty_existing_alias_before_using_next_match():
+    """Keep scanning alias matches when the first current value is empty."""
+    target = _payload_service._set_dynamic_if_empty(
+        candidates=["descricao"],
+        value=None,
+        dynamic_current={
+            "descricao_vazia": "   ",
+            "descricao_legada": "Descricao reaproveitada",
+        },
+        normalized_key_to_real={"desc_auto": "desc_auto"},
+        dynamic_ignored=[],
+    )
+
+    assert target == "desc_auto"
+
+
 def test_build_payload_handles_signal_extraction_specs_and_ignored_notes():
     """Build visible payloads while extracting signals and deduplicating ignored notes."""
     produto = _make_product(
@@ -255,3 +345,23 @@ def test_build_payload_handles_template_entries_without_attr_key_and_dedupes_ign
     assert update_fields == {}
     assert notes == []
     assert ignored == ["dynamic_attributes=material,material_extra"]
+
+
+def test_build_payload_keeps_existing_signal_values_and_replaces_weak_dynamic_aliases():
+    """Preserve explicit extracted signals and replace weak dynamic aliases once."""
+    produto = _make_product(
+        dynamic_attributes={"descricao": "Actros 2016-2018"},
+        product_type=SimpleNamespace(
+            attribute_templates=[SimpleNamespace(attribute_key="descricao", label="Descricao")]
+        ),
+    )
+    dados = {
+        "codigo_original": "LEGADO-1",
+        "descricao_curta": "Codigo: ABC123 Material: plastico injetado",
+    }
+
+    update_fields, notes, _ = _payload_service.build_payload_enriquecimento_visivel(produto, dados)
+
+    assert dados["codigo_original"] == "LEGADO-1"
+    assert update_fields["dynamic_attributes"]["descricao"].startswith("Codigo: ABC123")
+    assert "dynamic_attributes=descricao,id,material" in notes

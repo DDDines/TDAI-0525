@@ -39,8 +39,10 @@ describe('common ImportProgress', () => {
   });
 
   afterEach(() => {
+    act(() => {
+      jest.runOnlyPendingTimers();
+    });
     consoleErrorSpy.mockRestore();
-    jest.runOnlyPendingTimers();
     jest.useRealTimers();
   });
 

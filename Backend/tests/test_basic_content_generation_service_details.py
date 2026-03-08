@@ -139,6 +139,42 @@ def test_resolve_generation_brand_prefers_hint_for_missing_brand_and_store_noise
     )
 
 
+def test_resolve_generation_brand_preserves_existing_brand_when_hint_matches_or_candidate_contains_it(monkeypatch):
+    """Cover the branches that keep the stored brand instead of swapping it."""
+    service = _service()
+    produto_same_brand = _produto(
+        nome_base="Filtro de Ar",
+        marca="Bosch",
+        nome_chat_api="Bosch Premium",
+        dynamic_attributes={},
+    )
+    monkeypatch.setattr(
+        BasicContentGenerationService,
+        "_extract_brand_hint_from_generated_name",
+        classmethod(lambda cls, value, *, identity_parts: "Bosch"),
+    )
+    assert service._resolve_generation_brand(produto=produto_same_brand, web_context={}) == "Bosch"
+
+    produto_brand_inside_candidate = _produto(
+        nome_base="Filtro de Ar",
+        marca="Bosch",
+        nome_chat_api="Bosch Marelli",
+        dynamic_attributes={},
+    )
+    monkeypatch.setattr(
+        BasicContentGenerationService,
+        "_extract_brand_hint_from_generated_name",
+        classmethod(lambda cls, value, *, identity_parts: "Marelli"),
+    )
+    assert (
+        service._resolve_generation_brand(
+            produto=produto_brand_inside_candidate,
+            web_context={},
+        )
+        == "Bosch"
+    )
+
+
 def test_sanitize_spec_pair_and_redundant_keyword_rules():
     """Cover blocked spec keys and redundant keyword decisions."""
     cls = BasicContentGenerationService
@@ -152,6 +188,7 @@ def test_sanitize_spec_pair_and_redundant_keyword_rules():
     identity = ["Reservatorio de Ar 20 Litros", "Rochepecas", "Freio a Ar"]
     assert cls._is_redundant_keyword("seguranca", identity_parts=identity) is True
     assert cls._is_redundant_keyword("!!!", identity_parts=identity) is True
+    assert cls._is_redundant_keyword("ab.", identity_parts=identity) is True
     assert cls._is_redundant_keyword("reservatorio litros", identity_parts=identity) is True
     assert cls._is_redundant_keyword("mercedes benz", identity_parts=identity) is False
 
@@ -175,6 +212,7 @@ def test_coerce_list_and_dict_cover_scalar_and_blank_entries():
     """Cover scalar fallback and blank-entry skips for coercion helpers."""
     assert BasicContentGenerationService._coerce_list("valor unico") == ["valor unico"]
     assert BasicContentGenerationService._coerce_list(None) == []
+    assert BasicContentGenerationService._coerce_list(["", "ok"]) == ["ok"]
     assert BasicContentGenerationService._coerce_dict({" A ": " 1 ", "": "2", "B": ""}) == {
         "A": "1"
     }
@@ -185,12 +223,13 @@ def test_extract_keywords_from_texts_skips_noise_and_keeps_compound_terms():
     service = _service()
     keywords = service._extract_keywords_from_texts(
         texts=[
-            "http://example.com 123 produto seguranca freio suspensao mercedes benz",
+            "http://example.com ab. 123 produto seguranca freio suspensao mercedes benz",
             "Freio suspensao linha pesada",
         ],
         limit=8,
     )
     assert "http" not in keywords
+    assert "ab" not in keywords
     assert "seguranca" not in keywords
     assert "123" not in keywords
     assert "freio" in keywords
@@ -375,6 +414,53 @@ def test_build_title_candidates_skips_invalid_spec_pairs():
     assert any("Filtro de Ar" in candidate for candidate in candidates)
 
 
+def test_build_title_candidates_and_description_skip_invalid_specs_only():
+    """Cover continue branches when every spec candidate is sanitized out."""
+    service = _service()
+    produto = _produto(
+        nome_base="Filtro de Ar",
+        dados_brutos_web={
+            "especificacoes_tecnicas_dict": {
+                "Contato": "11 99888 7766",
+                "Politica": "Sem juros",
+            }
+        },
+    )
+    web_context = service._extract_web_context(produto=produto)
+    candidates = service._build_title_candidates(produto=produto, web_context=web_context)
+    assert candidates
+    assert not any("99888" in candidate or "Sem juros" in candidate for candidate in candidates)
+
+    descricao = service._build_basic_description(
+        produto=produto,
+        tamanho_palavras=100,
+        template_descricao="{specs}",
+    )
+    assert "99888" not in descricao
+    assert "Sem juros" not in descricao
+
+
+def test_build_title_candidates_and_description_cover_continue_when_spec_pair_is_none(monkeypatch):
+    """Force the explicit continue branches for rejected spec pairs."""
+    service = _service()
+    produto = _produto(
+        nome_base="Filtro de Ar",
+        dados_brutos_web={"especificacoes_tecnicas_dict": {"Cor": "Azul"}},
+    )
+    monkeypatch.setattr(BasicContentGenerationService, "_sanitize_spec_pair", classmethod(lambda cls, key, value: None))
+    candidates = service._build_title_candidates(
+        produto=produto,
+        web_context=service._extract_web_context(produto=produto),
+    )
+    assert candidates
+    descricao = service._build_basic_description(
+        produto=produto,
+        tamanho_palavras=100,
+        template_descricao="{specs}",
+    )
+    assert "Azul" not in descricao
+
+
 def test_build_titles_with_template_skips_noisy_render_and_build_description_fallback_and_truncation():
     """Cover noisy rendered titles, intro fallback, web-spec skip and truncation."""
     service = _service()
@@ -473,3 +559,36 @@ def test_build_basic_description_limits_dynamic_specs_and_skips_invalid_web_spec
     assert "Attr10: Valor10" not in descricao
     assert "99888" not in descricao
     assert "Cor: Azul" not in descricao
+
+
+def test_build_title_candidates_and_description_skip_invalid_spec_pairs_from_forced_web_context(monkeypatch):
+    """Inject invalid web specs directly because the extractor sanitizes them before these loops run."""
+    service = _service()
+    produto = _produto(
+        nome_base="Filtro de Ar",
+        dynamic_attributes={"Material": "Papel", "Contato": "11 99888 7766"},
+    )
+    forced_context = {
+        "nome": "Filtro de Ar",
+        "descricao": "Descricao limpa",
+        "bullets": [],
+        "keywords": [],
+        "specs": {"Contato": "11 99888 7766", "Cor": "Azul"},
+    }
+
+    candidates = service._build_title_candidates(
+        produto=produto,
+        web_context=forced_context,
+    )
+    monkeypatch.setattr(service, "_extract_web_context", lambda *, produto: forced_context)
+    descricao = service._build_basic_description(
+        produto=produto,
+        tamanho_palavras=100,
+        template_descricao="{specs}",
+    )
+
+    assert candidates
+    assert all("99888" not in item for item in candidates)
+    assert "Material: Papel" in descricao
+    assert "Cor: Azul" not in descricao
+    assert "Contato" not in descricao

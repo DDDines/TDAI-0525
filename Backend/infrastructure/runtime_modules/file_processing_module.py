@@ -405,9 +405,6 @@ class _FileProcessingImplementation:
                             return df_ocr_guided
                     logger.info('extract_data_from_pdf_region: OCR header-guided sem linhas validas; fallback para cluster')
                 x_positions = sorted((int(seg['x0']) for line in merged_lines for seg in line))
-                if not x_positions:
-                    logger.info('OCR da regiao nao produziu colunas validas.')
-                    return pd.DataFrame()
                 max_x = max((int(word['x'] + word['w']) for word in words))
                 region_px_width = max(1, max_x)
                 tol_x = max(24, min(80, int(region_px_width / 35)))
@@ -579,8 +576,7 @@ class _FileProcessingImplementation:
                 if len(lines) >= 2:
                     headers = lines[0].split()
                     rows = [ln.split() for ln in lines[1:]]
-                    if rows:
-                        return {'headers': headers, 'rows': rows}
+                    return {'headers': headers, 'rows': rows}
         except Exception as e:
             logger.error('Erro ao extrair com pdfplumber: %s', e)
         try:
@@ -712,8 +708,7 @@ class LineNormalizationRuntime:
             inverted: Dict[str, str] = {}
             for destination, source_col in normalized.items():
                 source_norm = self.norm_text(source_col)
-                if source_norm:
-                    inverted[source_norm] = destination
+                inverted[source_norm] = destination
             logger.info('Mapeamento invertido detectado e normalizado: total=%s key_hits=%s value_hits=%s', len(normalized), key_hits, value_hits)
             return inverted
         return normalized
@@ -868,13 +863,6 @@ class LineMappingWorkflow:
                     if campo_produto_destino not in produto_dados_padronizados:
                         produto_dados_padronizados[campo_produto_destino] = valor_limpo
             else:
-                if nome_coluna_flat in self._FALLBACK_SKU_COLUMNS and (not produto_dados_padronizados.get('sku_original')):
-                    produto_dados_padronizados['sku_original'] = valor_limpo
-                    continue
-                dynamic_key = self._FALLBACK_DYNAMIC_BY_COLUMN.get(nome_coluna_flat)
-                if dynamic_key and dynamic_key not in dynamic_attributes:
-                    dynamic_attributes[dynamic_key] = valor_limpo
-                    continue
                 dados_brutos_nao_mapeados[str(nome_coluna_original).strip()] = valor_limpo
         if not produto_dados_padronizados.get('nome_base') and (not produto_dados_padronizados.get('sku_original')):
             if mapeamento_usuario_norm:
@@ -1757,9 +1745,6 @@ class _PdfRegionExtractionUtils:
                 continue
             if candidate['score'] > best['score']:
                 best = candidate
-                continue
-            if candidate['score'] == best['score'] and candidate['line_idx'] < best['line_idx']:
-                best = candidate
         return best
 
     @classmethod
@@ -1788,8 +1773,6 @@ class _PdfRegionExtractionUtils:
                 continue
             alnum_count = len(re.sub('[^0-9A-Za-z\\u00C0-\\u00FF]', '', joined))
             if alnum_count < 2:
-                continue
-            if len(non_empty_values) == 1 and len(non_empty_values[0]) <= 1:
                 continue
             filtered_rows.append(cleaned_row)
         return filtered_rows
@@ -1868,8 +1851,6 @@ class _PdfRegionExtractionUtils:
         merged: List[Dict[str, Any]] = []
         for seg in segments:
             seg_text = ' '.join(seg['parts']).strip()
-            if not seg_text:
-                continue
             merged.append({'x0': int(seg['x0']), 'x1': int(seg['x1']), 'text': seg_text})
         return merged
 

@@ -176,6 +176,71 @@ def test_normalize_issue_error_reason_and_non_critical_reason_helpers():
     assert service.is_non_critical_import_reason("erro fatal") is False
 
 
+def test_normalize_import_text_and_error_reason_cover_remaining_mojibake_and_blank_paths(monkeypatch):
+    """Cover the no-improvement mojibake break and blank normalized error branches."""
+    service = _service()
+    monkeypatch.setattr(service, "_looks_mojibake", lambda text: "Ã" in str(text))
+    monkeypatch.setattr(service, "_decode_maybe", lambda candidate, _source: candidate)
+    assert service.normalize_import_text("PeÃ§a") == "PeÃ§a"
+
+    monkeypatch.setattr(service, "normalize_import_text", lambda _value: "")
+    assert service.extract_import_error_reason({"erro_processamento": "falha crua"}) == "erro_sem_motivo"
+    monkeypatch.setattr(service, "normalize_import_text", lambda _value: "\n")
+    assert service.extract_import_error_reason({"erro_processamento": "falha crua"}) == "erro_sem_motivo"
+
+
+def test_normalize_import_text_can_exhaust_mojibake_loop_without_break(monkeypatch):
+    """Force the decode loop to exhaust all iterations before applying replacements."""
+    service = _service()
+
+    monkeypatch.setattr(service, "_looks_mojibake", lambda _text: True)
+    monkeypatch.setattr(service, "_marker_count", lambda candidate: len(str(candidate)))
+    monkeypatch.setattr(service, "_decode_maybe", lambda candidate, _source: str(candidate)[:-1])
+
+    assert service.normalize_import_text("abcdefghi").startswith("abc")
+
+
+def test_sanitize_extracted_product_handles_missing_nome_base_key():
+    """Cover the branch where nome_base is absent from the extracted payload."""
+    service = _service(_QualityStub())
+    sanitized = service.sanitize_extracted_product(
+        {
+            "sku_original": "ZX99",
+            "descricao_original": "part context",
+        }
+    )
+    assert sanitized["nome_base"] == "part context"
+    assert sanitized["dados_brutos_adicionais"]["nome_base_substituido_por_descricao"] is True
+
+
+def test_sanitize_description_text_skips_blank_chunks_and_raw_extra_blank_candidates():
+    """Cover blank chunk filtering and blank raw-extra candidates during product sanitation."""
+    service = _service(_QualityStub())
+
+    assert (
+        CatalogImportSanitizationService._sanitize_description_text(
+            "Paralama reforcado.\n   \nContato whatsapp 11 99888 7766."
+        )
+        == "Paralama reforcado."
+    )
+
+    sanitized = service.sanitize_extracted_product(
+        {
+            "nome_base": "123456",
+            "sku_original": "123456",
+            "descricao_original": "",
+            "marca": "Bosch",
+            "modelo": "X1",
+            "dados_brutos_adicionais": {"vazio": "   ", "origem": "part context"},
+        }
+    )
+    extras = sanitized["dados_brutos_adicionais"]
+    assert sanitized["descricao_original"] == "part context"
+    assert extras["descricao_substituida_por_dados_brutos"] == "origem"
+    assert sanitized["marca"] == "Bosch"
+    assert sanitized["modelo"] == "X1"
+
+
 def test_normalize_validated_data_covers_dict_bad_json_non_dict_json_and_fallback_type():
     """Cover all normalized validated-data return branches."""
     service = _service()
@@ -183,6 +248,7 @@ def test_normalize_validated_data_covers_dict_bad_json_non_dict_json_and_fallbac
     assert service.normalize_validated_data(payload, {}) is payload
     assert service.normalize_validated_data("[1,2,3]", {"fallback": True}) == {"fallback": True}
     assert service.normalize_validated_data("{invalid", {"fallback": True}) == {"fallback": True}
+    assert service.normalize_validated_data(123, {"fallback": True}) == {"fallback": True}
     assert service.normalize_validated_data("{}", []) == {}
 
 

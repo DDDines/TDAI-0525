@@ -133,3 +133,19 @@ def test_commit_job_task_accepts_itens_summary_and_skips_invalid_rows():
     assert produto_repo.calls == [({"nome_base": "Produto X", "sku_original": "SKU-X"}, 55)]
     assert job_repo.updated == "COMPLETED"
     assert session.closed is True
+
+
+def test_iter_summary_rows_covers_non_dict_and_multi_item_paths():
+    """Cover the remaining summary iterator branches explicitly."""
+    service, _, _ = _build_service(
+        job=None,
+        session_provider=_SessionProviderStub(_SessionStub()),
+    )
+
+    assert list(service._iter_summary_rows("ignorar")) == []
+    assert list(
+        service._iter_summary_rows(
+            {"produtos": [{"nome_base": "A"}, "ignorar", {"nome_base": "B"}]}
+        )
+    ) == [{"nome_base": "A"}, {"nome_base": "B"}]
+    assert list(service._iter_summary_rows({"produtos": "invalido", "itens": "x"})) == []

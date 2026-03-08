@@ -274,7 +274,7 @@ class WebSearchEngineRuntime:
             for key in ("uddg", "u", "u3"):
                 vals = qs.get(key) or []
                 if vals:
-                    destino = unquote(vals[0])
+                    destino = unquote(vals[0]).strip()
                     if destino:
                         break
 
@@ -649,10 +649,9 @@ class WebContentFetchEngineRuntime:
                 erro_str = str(e)
                 erro_curto = erro_str.splitlines()[0] if erro_str else "erro_desconhecido"
                 if "Executable doesn't exist" in erro_str:
-                    if not self._playwright_chromium_indisponivel:
-                        logger.warning(
-                            "Playwright Chromium indisponivel no ambiente. Usando fallback HTTP direto para proximas coletas."
-                        )
+                    logger.warning(
+                        "Playwright Chromium indisponivel no ambiente. Usando fallback HTTP direto para proximas coletas."
+                    )
                     self.set_playwright_chromium_indisponivel(True)
                     logger.warning(
                         "Falha Playwright (thread dedicada) para %s: %s",
@@ -688,10 +687,9 @@ class WebContentFetchEngineRuntime:
             erro_str = str(e)
             erro_curto = erro_str.splitlines()[0] if erro_str else "erro_desconhecido"
             if "Executable doesn't exist" in erro_str:
-                if not self._playwright_chromium_indisponivel:
-                    logger.warning(
-                        "Playwright Chromium indisponivel no ambiente. Usando fallback HTTP direto para proximas coletas."
-                    )
+                logger.warning(
+                    "Playwright Chromium indisponivel no ambiente. Usando fallback HTTP direto para proximas coletas."
+                )
                 self.set_playwright_chromium_indisponivel(True)
                 logger.warning("Falha Playwright para %s: %s", url, erro_curto)
             else:

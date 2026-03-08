@@ -412,6 +412,23 @@ test_batch_delete_produtos_handles_partial_success_and_empty_payload = (
 )
 
 
+def test_batch_delete_produtos_reports_only_unauthorized_ids_when_no_missing_items():
+    produtos = {
+        1: SimpleNamespace(id=1, user_id=3),
+        2: SimpleNamespace(id=2, user_id=99),
+    }
+    service, crud_produtos, crud_historico, _ = _build_service(produto=produtos)
+
+    deleted = service.batch_delete_produtos(
+        produto_ids=[1, 2],
+        current_user=SimpleNamespace(id=3, is_superuser=False),
+    )
+
+    assert [item.id for item in deleted] == [1]
+    assert [item.id for item in crud_produtos.deleted] == [1]
+    assert crud_historico.calls[0]["entity_id"] == 1
+
+
 
 
 

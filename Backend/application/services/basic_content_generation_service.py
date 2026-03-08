@@ -426,8 +426,6 @@ class BasicContentGenerationService:
             for part in re.findall(r"[a-z0-9]+", cls._fold_text(value).lower())
             if len(part) >= 4
         ]
-        if not keyword_parts:
-            return True
 
         identity_tokens = set()
         for identity_part in identity_parts:

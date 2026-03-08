@@ -206,6 +206,18 @@ def test_user_repository_duplicate_email_oauth_and_missing_plan_paths(monkeypatc
                 plano_id_default=default_plan.id,
             )
         assert duplicate_oauth_error.value.status_code == 400
+
+        oauth_without_plan = repo.create_user_oauth(
+            user_oauth=schemas.UserCreateOAuth(
+                email="oauth-sem-plano@example.com",
+                nome_completo="OAuth Sem Plano",
+                provider="google",
+                provider_user_id="google-789",
+            ),
+            plano_id_default=99999,
+        )
+        assert oauth_without_plan.plano_id is None
+        assert oauth_without_plan.role_id == default_role.id
     finally:
         session.close()
         Base.metadata.drop_all(bind=engine)

@@ -389,6 +389,13 @@ def test_product_repository_update_delete_get_or_create_and_scalar_none():
         assert created.id == reused_by_ean.id
         assert created.nome_base == "Atualiza via EAN"
 
+        created_without_identity_code = repo.get_or_create_produto(
+            produto=schemas.ProdutoCreate(nome_base="Sem Codigo"),
+            user_id=user.id,
+        )
+        assert created_without_identity_code.id not in {product.id, reused_by_ean.id}
+        assert created_without_identity_code.nome_base == "Sem Codigo"
+
         deleted = repo.delete_produto(db_produto=created)
         assert deleted.id == created.id
         assert repo.get_produto(produto_id=created.id) is None
@@ -408,6 +415,47 @@ def test_product_repository_update_delete_get_or_create_and_scalar_none():
             user_id=1,
             is_admin=True,
         ) == 0
+    finally:
+        session.close()
+        Base.metadata.drop_all(bind=engine)
+
+
+def test_product_repository_set_web_enrichment_status_covers_non_dict_and_non_list_history():
+    engine, session = _build_session()
+    try:
+        user = _create_user(session, email="owner@example.com")
+        repo = ProductRepository(session)
+        product_string_log = _create_product(
+            session,
+            user_id=user.id,
+            nome_base="Produto Historico String",
+            sku="STRING-1",
+        )
+        product_string_log.log_enriquecimento_web = "texto avulso"
+        session.commit()
+
+        updated_string = repo.set_web_enrichment_status(
+            produto_id=product_string_log.id,
+            status=models.StatusEnriquecimentoEnum.CONCLUIDO,
+            log_message="novo log",
+        )
+        assert updated_string.log_enriquecimento_web == {"historico_mensagens": ["novo log"]}
+
+        product_dict_non_list = _create_product(
+            session,
+            user_id=user.id,
+            nome_base="Produto Historico Dict",
+            sku="DICT-1",
+        )
+        product_dict_non_list.log_enriquecimento_web = {"historico_mensagens": "invalido"}
+        session.commit()
+
+        updated_dict = repo.set_web_enrichment_status(
+            produto_id=product_dict_non_list.id,
+            status=models.StatusEnriquecimentoEnum.CONCLUIDO,
+            log_message="segundo log",
+        )
+        assert updated_dict.log_enriquecimento_web == {"historico_mensagens": ["segundo log"]}
     finally:
         session.close()
         Base.metadata.drop_all(bind=engine)

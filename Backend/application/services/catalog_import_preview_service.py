@@ -372,8 +372,6 @@ class CatalogImportPreviewService:
                 continue
             raw_key = match.group(1).strip().lower()
             value = match.group(2).strip()
-            if not value:
-                continue
 
             key = aliases.get(raw_key, raw_key.replace(" ", "_"))
             if key in current and current:

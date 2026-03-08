@@ -500,6 +500,70 @@ class _TopLevelFunctionSurface:
             )
         assert missing_file.value.status_code == 404
 
+    def test_parse_key_value_rows_skips_non_matching_and_blank_value_lines(tmp_path):
+        """Cover helper branches that ignore malformed and empty key-value rows."""
+        service, _, _, _ = _build_service(upload_dir=tmp_path, record=None)
+        rows = service._parse_key_value_rows(
+            "Linha invalida\nNome Base: Produto X\nSKU:   \nDescricao: Texto util"
+        )
+        assert rows == [{"nome_base": "Produto X", "descricao": "Texto util"}]
+
+    def test_selecionar_regiao_text_fallback_handles_duplicate_headers_and_discarded_rows(tmp_path):
+        """Cover duplicate-header and discarded-product branches in text fallback."""
+        catalogs_dir = tmp_path / "catalogs"
+        catalogs_dir.mkdir(parents=True, exist_ok=True)
+        (catalogs_dir / "arquivo.pdf").write_bytes(b"dummy")
+
+        record = SimpleNamespace(id=4, stored_filename="arquivo.pdf")
+        service, file_processing, _, _ = _build_service(upload_dir=tmp_path, record=record)
+        file_processing.df_region = _DataFrameStub(rows=[])
+        file_processing.processar_linha_padronizada = lambda row, mapping: (
+            {"motivo_descarte": "ruido"} if "Produto X" in str(row) else {"nome_base": "ok"}
+        )
+        service._extract_text_rows = lambda **kwargs: [
+            {"nome_base": "Produto X", "sku": "1"},
+            {"nome_base": "Produto Y", "sku": "2"},
+        ]
+
+        result = service.selecionar_regiao(
+            file_id=4,
+            page=1,
+            bbox=[0, 0, 100, 100],
+            bbox_norm=None,
+            user_id=3,
+        )
+
+        assert result["preview_headers"] == ["nome_base", "sku"]
+        assert result["produtos"] == [{"nome_base": "ok"}]
+
+    def test_selecionar_regiao_text_fallback_skips_none_products_and_preserves_late_headers(tmp_path):
+        """Cover the falsy-product branch and repeated header keys during text fallback."""
+        catalogs_dir = tmp_path / "catalogs"
+        catalogs_dir.mkdir(parents=True, exist_ok=True)
+        (catalogs_dir / "arquivo.pdf").write_bytes(b"dummy")
+
+        record = SimpleNamespace(id=5, stored_filename="arquivo.pdf")
+        service, file_processing, _, _ = _build_service(upload_dir=tmp_path, record=record)
+        file_processing.df_region = _DataFrameStub(rows=[])
+        file_processing.processar_linha_padronizada = lambda row, mapping: (
+            None if row.get("sku") == "1" else {"nome_base": row["nome_base"], "sku": row["sku"]}
+        )
+        service._extract_text_rows = lambda **kwargs: [
+            {"nome_base": "Produto X", "sku": "1"},
+            {"nome_base": "Produto Y", "sku": "2", "marca": "Teste"},
+        ]
+
+        result = service.selecionar_regiao(
+            file_id=5,
+            page=1,
+            bbox=[0, 0, 100, 100],
+            bbox_norm=None,
+            user_id=3,
+        )
+
+        assert result["preview_headers"] == ["nome_base", "sku", "marca"]
+        assert result["produtos"] == [{"nome_base": "Produto Y", "sku": "2"}]
+
 _build_service = _TopLevelFunctionSurface._build_service
 test_importar_catalogo_preview_pdf_success = _TopLevelFunctionSurface.test_importar_catalogo_preview_pdf_success
 test_selecionar_regiao_uses_dataframe_rows = _TopLevelFunctionSurface.test_selecionar_regiao_uses_dataframe_rows
@@ -508,6 +572,9 @@ test_extrair_pagina_unica_success = _TopLevelFunctionSurface.test_extrair_pagina
 test_importar_catalogo_preview_tabular_paths_and_exception = _TopLevelFunctionSurface.test_importar_catalogo_preview_tabular_paths_and_exception
 test_selecionar_regiao_fallback_text_and_validation_paths = _TopLevelFunctionSurface.test_selecionar_regiao_fallback_text_and_validation_paths
 test_extrair_pagina_unica_validation_and_helper_paths = _TopLevelFunctionSurface.test_extrair_pagina_unica_validation_and_helper_paths
+test_parse_key_value_rows_skips_non_matching_and_blank_value_lines = _TopLevelFunctionSurface.test_parse_key_value_rows_skips_non_matching_and_blank_value_lines
+test_selecionar_regiao_text_fallback_handles_duplicate_headers_and_discarded_rows = _TopLevelFunctionSurface.test_selecionar_regiao_text_fallback_handles_duplicate_headers_and_discarded_rows
+test_selecionar_regiao_text_fallback_skips_none_products_and_preserves_late_headers = _TopLevelFunctionSurface.test_selecionar_regiao_text_fallback_skips_none_products_and_preserves_late_headers
 
 
 

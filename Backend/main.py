@@ -61,8 +61,6 @@ class MainBootstrapRuntime:
                 allowed_origins = list(default_cors_origins_list)
         except Exception:
             allowed_origins = list(default_cors_origins_list)
-        if exact_frontend_origin not in allowed_origins:
-            allowed_origins.insert(0, exact_frontend_origin)
         return sorted(set(allowed_origins))
 
     def ensure_static_files_path(self) -> Path:

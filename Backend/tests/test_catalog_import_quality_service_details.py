@@ -29,7 +29,9 @@ def test_quality_helper_methods_cover_edge_patterns():
     assert service.text_looks_like_part_code("AA BB CC DD EE FF GG") is False
     assert service.text_looks_like_part_code("ab12 cd34") is False
     assert service.text_looks_like_part_code("1234") is True
+    assert service.part_context_strength("Porta curta x") == 3
     assert service.name_looks_like_annotation_header("") is False
+    assert service.name_looks_like_annotation_header("---") is False
     assert service.name_looks_like_annotation_header("anota") is True
     assert service.name_looks_like_annotation_header("nota") is True
     assert service.name_looks_like_ocr_noise("") is False
@@ -37,6 +39,8 @@ def test_quality_helper_methods_cover_edge_patterns():
     assert service.name_looks_like_ocr_noise("ab cd efgh") is False
     assert service.name_looks_like_ocr_noise("ab cd") is True
     assert service.name_looks_like_ocr_noise("1 2 3 ab") is True
+    assert service.name_looks_like_ocr_noise("ab12c") is True
+    assert service.name_looks_like_ocr_noise("abc def ghi") is False
     assert service._coerce_row(123) is None
 
 
@@ -75,12 +79,18 @@ def test_evaluate_product_row_quality_covers_sku_branches_and_numeric_names(monk
     assert service.evaluate_product_row_quality(
         {"nome_base": "--", "ean_original": "789"}
     ) == "Linha descartada por baixa qualidade: nome sem conteudo"
+    assert CatalogImportQualityService().evaluate_product_row_quality(
+        {"nome_base": "ab 12345", "sku_original": "ZX99"}
+    ) == "Linha descartada por baixa qualidade: nome com padrao de ruido OCR"
 
     monkeypatch.setattr(service, "name_looks_like_ocr_noise", lambda _value: False)
 
     assert service.evaluate_product_row_quality(
         {"nome_base": "ABCD1", "sku_original": "ABC123"}
     ) == "Linha descartada por baixa qualidade: nome curto com SKU sem contexto de peca"
+    assert service.evaluate_product_row_quality(
+        {"nome_base": "ABCDEF", "sku_original": "ABCDEF"}
+    ) == "Linha descartada por baixa qualidade: SKU duplicado em nome sem descricao"
     assert service.evaluate_product_row_quality(
         {"nome_base": "ABC12345", "sku_original": "ABC12345"}
     ) == "Linha descartada por baixa qualidade: SKU duplicado em nome sem descricao"
@@ -128,6 +138,15 @@ def test_score_product_row_quality_covers_fallback_and_dynamic_hits():
     )
 
     assert score == 100
+    weak_name_score = service.score_product_row_quality(
+        {
+            "nome_base": "AB12",
+            "sku_original": "ABC12345",
+            "descricao_original": "",
+            "categoria_original": "",
+        }
+    )
+    assert weak_name_score < 70
 
 
 def test_classify_product_row_quality_covers_direct_discard_and_accept_paths():
@@ -229,3 +248,125 @@ def test_classify_product_row_quality_quarantine_branches_with_patched_strict_re
 
     assert result["decision"] == "quarantine"
     assert result["reason"] == expected_reason
+
+
+def test_quality_service_covers_remaining_score_and_quarantine_branches(monkeypatch):
+    """Exercise remaining quarantine reasons and category application penalties."""
+    service = CatalogImportQualityService()
+
+    assert service.score_product_row_quality(
+        {
+            "nome_base": "Paralama dianteiro",
+            "descricao_original": "Paralama reforcado",
+            "categoria_original": "Actros 2016-2018",
+        }
+    ) < service.score_product_row_quality(
+        {
+            "nome_base": "Paralama dianteiro",
+            "descricao_original": "Paralama reforcado",
+            "categoria_original": "Paralama",
+        }
+    )
+
+    monkeypatch.setattr(service, "evaluate_product_row_quality", lambda _data: None)
+    monkeypatch.setattr(service, "score_product_row_quality", lambda _data: 70)
+    monkeypatch.setattr(service, "name_looks_like_ocr_noise", lambda _value: True)
+    monkeypatch.setattr(service, "text_looks_like_part_name", lambda _value: False)
+    monkeypatch.setattr(
+        service,
+        "text_looks_like_vehicle_application",
+        lambda value: "Actros" in str(value or ""),
+    )
+
+    ocr_application = service.classify_product_row_quality(
+        {"nome_base": "ab 12", "descricao_original": "Actros 2016-2018"}
+    )
+    assert ocr_application["reason"] == "Linha em quarentena: nome fraco e contexto apenas de aplicacao"
+
+    monkeypatch.setattr(service, "name_looks_like_ocr_noise", lambda _value: False)
+    monkeypatch.setattr(service, "text_looks_like_part_code", lambda _value: True)
+
+    code_application = service.classify_product_row_quality(
+        {"nome_base": "ABC123", "descricao_original": "Actros 2016-2018"}
+    )
+    assert (
+        code_application["reason"]
+        == "Linha em quarentena: nome parece codigo e contexto indica apenas aplicacao"
+    )
+
+    monkeypatch.setattr(service, "text_looks_like_part_code", lambda _value: False)
+    monkeypatch.setattr(
+        service,
+        "text_looks_like_part_name",
+        lambda value: "Paralama" in str(value or ""),
+    )
+    short_code = service.classify_product_row_quality(
+        {"nome_base": "1234", "sku_original": "1234", "descricao_original": "Paralama"}
+    )
+    assert short_code["reason"] == "Linha em quarentena: codigo curto requer contexto forte de peca"
+
+
+def test_evaluate_product_row_quality_covers_remaining_contextual_and_numeric_branches(monkeypatch):
+    """Hit the remaining discard branches that require non-application context or patched OCR heuristics."""
+    service = CatalogImportQualityService()
+
+    assert service.evaluate_product_row_quality(
+        {"nome_base": "ab 12345", "categoria_original": "Premium"}
+    ) == "Linha descartada por baixa qualidade: nome com padrao de ruido OCR"
+
+    monkeypatch.setattr(service, "name_looks_like_ocr_noise", lambda _value: False)
+    assert service.evaluate_product_row_quality(
+        {"nome_base": "123456", "categoria_original": "Premium"}
+    ) == "Linha descartada por baixa qualidade: nome apenas numerico sem descricao"
+
+
+def test_score_and_classify_cover_remaining_nome_fallbacks(monkeypatch):
+    """Cover weak-name scoring without dynamic dicts and code quarantine without vehicle-application context."""
+    service = CatalogImportQualityService()
+
+    score = service.score_product_row_quality(
+        {
+            "nome_base": "AB12",
+            "sku_original": "ZX99",
+            "descricao_original": "Paralama",
+            "dynamic_attributes": [],
+        }
+    )
+    assert score > 0
+
+    monkeypatch.setattr(service, "evaluate_product_row_quality", lambda _data: None)
+    monkeypatch.setattr(service, "score_product_row_quality", lambda _data: 70)
+    monkeypatch.setattr(service, "name_looks_like_ocr_noise", lambda _value: False)
+    monkeypatch.setattr(service, "text_looks_like_part_code", lambda _value: True)
+    monkeypatch.setattr(service, "text_looks_like_part_name", lambda _value: False)
+    monkeypatch.setattr(service, "text_looks_like_vehicle_application", lambda _value: False)
+
+    result = service.classify_product_row_quality(
+        {"nome_base": "ABC123", "descricao_original": "sem contexto de aplicacao"}
+    )
+
+    assert result["decision"] == "quarantine"
+    assert result["reason"] == "Linha em quarentena: nome parece codigo sem descricao confiavel"
+
+
+def test_quality_service_covers_remaining_none_and_score_fallback_paths():
+    """Cover remaining non-discard exits and score branches without nome or dynamic dicts."""
+    service = CatalogImportQualityService()
+
+    assert service.evaluate_product_row_quality(
+        {"nome_base": "", "sku_original": "ZX99", "descricao_original": "Paralama reforcado"}
+    ) is None
+    assert service.evaluate_product_row_quality(
+        {"nome_base": "AB1234", "sku_original": "ZX99", "categoria_original": "Premium"}
+    ) is None
+
+    score = service.score_product_row_quality(
+        CatalogRow(
+            nome_base="",
+            sku_original="ZX99",
+            descricao_original="Paralama reforcado",
+            categoria_original="",
+            dynamic_attributes=["material"],
+        )
+    )
+    assert score > 0

@@ -214,15 +214,9 @@ class WebEnrichmentStatusResolver:
                 return models.StatusEnriquecimentoEnum.CONCLUIDO_COM_DADOS_PARCIAIS
             return models.StatusEnriquecimentoEnum.CONCLUIDO_SUCESSO
 
-        if urls_a_processar:
+        if urls_a_processar or busca_web_disponivel or openai_api_configurada:
             return models.StatusEnriquecimentoEnum.NENHUMA_FONTE_ENCONTRADA
-        if busca_web_disponivel and not urls_a_processar:
-            return models.StatusEnriquecimentoEnum.NENHUMA_FONTE_ENCONTRADA
-        if not busca_web_disponivel and not openai_api_configurada:
-            return models.StatusEnriquecimentoEnum.FALHA_CONFIGURACAO_API_EXTERNA
-        if not busca_web_disponivel and openai_api_configurada:
-            return models.StatusEnriquecimentoEnum.NENHUMA_FONTE_ENCONTRADA
-        return models.StatusEnriquecimentoEnum.FALHOU
+        return models.StatusEnriquecimentoEnum.FALHA_CONFIGURACAO_API_EXTERNA
 
 
 class WebEnrichmentFinalizationService:

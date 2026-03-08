@@ -237,16 +237,12 @@ class CatalogImportSanitizationService:
         filtered_chunks = []
         for chunk in chunks:
             normalized_chunk = " ".join(str(chunk or "").strip().split())
-            if not normalized_chunk:
-                continue
             if cls._CONTACT_MARKER_PATTERN.search(normalized_chunk):
                 continue
             filtered_chunks.append(normalized_chunk)
 
         if filtered_chunks:
             text = " ".join(filtered_chunks).strip()
-        if not text:
-            return None
 
         return text[:max_len]
 

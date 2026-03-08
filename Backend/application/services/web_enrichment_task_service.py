@@ -426,7 +426,11 @@ class WebEnrichmentTaskWorkflow:
             dados_extraidos_agregados.get("texto_relevante_coletado"),
             max_len=14000,
         )
-        if not texto_base and not dados_extraidos_agregados:
+        has_signal = any(
+            self._has_meaningful_llm_value(value)
+            for value in dados_extraidos_agregados.values()
+        )
+        if not texto_base and not has_signal:
             return
 
         nome_atual = self._compact_text(

@@ -200,6 +200,114 @@ def test_fornecedores_gateway_init_wires_runtime_services(monkeypatch):
     assert gateway._fornecedor_import_job_service == "job-service"
 
 
+@pytest.mark.asyncio
+async def test_fornecedores_gateway_covers_remaining_delegate_methods():
+    management_calls = []
+    preview_calls = []
+    tracking_calls = []
+    job_calls = []
+
+    class FakeManagementService:
+        def update_fornecedor(self, **kwargs):
+            management_calls.append(("update_fornecedor", kwargs))
+            return {"updated": kwargs["fornecedor_id"]}
+
+        def delete_fornecedor(self, **kwargs):
+            management_calls.append(("delete_fornecedor", kwargs))
+            return {"deleted": kwargs["fornecedor_id"]}
+
+    class FakePreviewService:
+        async def preview_pages(self, **kwargs):
+            preview_calls.append(("preview_pages", kwargs))
+            return {"pages": True}
+
+        def preview_catalog_from_region(self, **kwargs):
+            preview_calls.append(("preview_catalog_from_region", kwargs))
+            return {"region": kwargs["region"]}
+
+        def extract_data_from_pdf_bulk(self, **kwargs):
+            preview_calls.append(("extract_data_from_pdf_bulk", kwargs))
+            return {"bulk": kwargs["file_id"]}
+
+    class FakeTrackingService:
+        def get_catalog_record_or_404(self, **kwargs):
+            tracking_calls.append(("get_catalog_record_or_404", kwargs))
+            return SimpleNamespace(id=kwargs["file_id"], status="PROCESSING")
+
+        def build_progress_payload(self, **kwargs):
+            tracking_calls.append(("build_progress_payload", kwargs))
+            return {"progress": kwargs["record"].id}
+
+        def build_import_job_status_payload(self, **kwargs):
+            tracking_calls.append(("build_import_job_status_payload", kwargs))
+            return {"status": kwargs["record"].status}
+
+        def schedule_page_extraction(self, **kwargs):
+            tracking_calls.append(("schedule_page_extraction", kwargs))
+            return None
+
+    class FakeJobService:
+        def get_job_for_user_or_404(self, **kwargs):
+            job_calls.append(("get_job_for_user_or_404", kwargs))
+            return SimpleNamespace(id=kwargs["job_id"])
+
+        def build_review_payload(self, **kwargs):
+            job_calls.append(("build_review_payload", kwargs))
+            return {"review": kwargs["job"].id}
+
+        def schedule_commit(self, **kwargs):
+            job_calls.append(("schedule_commit", kwargs))
+            return None
+
+    gateway = object.__new__(fornecedores_module._FornecedoresServiceGateway)
+    gateway._fornecedor_preview_service = FakePreviewService()
+    gateway._fornecedor_import_tracking_service = FakeTrackingService()
+    gateway._fornecedor_import_job_service = FakeJobService()
+
+    current_user = SimpleNamespace(id=7)
+    management_service = FakeManagementService()
+
+    assert gateway.update_fornecedor(
+        fornecedor_id=12,
+        fornecedor_update=_fornecedor_update(),
+        current_user=current_user,
+        fornecedor_management_service=management_service,
+    ) == {"updated": 12}
+    assert await gateway.preview_pages(file="arquivo.pdf") == {"pages": True}
+    assert gateway.preview_catalog_from_region(
+        file_id=9,
+        page_number=2,
+        region=[1.0, 2.0, 3.0, 4.0],
+    ) == {"region": [1.0, 2.0, 3.0, 4.0]}
+    assert gateway.extract_data_from_pdf_bulk(
+        background_tasks="bg",
+        file_id=11,
+        region=[0.1, 0.2, 0.3, 0.4],
+        pages=[1, 2],
+        all_pages=False,
+    ) == {"bulk": 11}
+    record = gateway.get_catalog_record_or_404(
+        file_id=5,
+        user_id=7,
+        not_found_detail="x",
+    )
+    assert gateway.build_progress_payload(record=record) == {"progress": 5}
+    assert gateway.delete_fornecedor(
+        fornecedor_id=14,
+        current_user=current_user,
+        fornecedor_management_service=management_service,
+    ) == {"deleted": 14}
+    job = gateway.get_job_for_user_or_404(job_id=20, user_id=7)
+    assert gateway.build_review_payload(job=job) == {"review": 20}
+    assert gateway.schedule_commit(background_tasks="bg", job_id=20, user_id=7) is None
+    assert gateway.build_import_job_status_payload(record=record) == {"status": "PROCESSING"}
+
+    assert any(name == "update_fornecedor" for name, _payload in management_calls)
+    assert any(name == "preview_pages" for name, _payload in preview_calls)
+    assert any(name == "build_progress_payload" for name, _payload in tracking_calls)
+    assert any(name == "schedule_commit" for name, _payload in job_calls)
+
+
 def test_fornecedores_request_service_covers_sync_delegate_paths():
     calls = []
 

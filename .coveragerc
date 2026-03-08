@@ -1,0 +1,13 @@
+[run]
+source = Backend
+omit =
+    Backend/tests/*
+    Backend/alembic/*
+    Backend/__pycache__/*
+    */__pycache__/*
+
+[report]
+exclude_lines =
+    pragma: no cover
+    if TYPE_CHECKING:
+    if __name__ == "__main__":

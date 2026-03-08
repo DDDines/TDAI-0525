@@ -183,10 +183,6 @@ class WebEnrichmentPayloadService:
             return True
         if ("id" == attr_norm or "codigo" in attr_norm) and self._normalization.is_suspicious_code(text):
             return True
-        if ("aplic" in attr_norm or "application" in attr_norm) and folded in {"todos", "todas", "geral"}:
-            return True
-        if "material" in attr_norm and folded in {"todos", "todas", "geral"}:
-            return True
         return False
 
     def _apply_if_empty_or_weak(
@@ -256,9 +252,6 @@ class WebEnrichmentPayloadService:
             for known_norm, known_key in normalized_key_to_real.items():
                 if not known_norm or not candidate_norm:
                     continue
-                if candidate_norm == known_norm:
-                    target_key = known_key
-                    break
                 if candidate_norm == "descricao" and "desc" in known_norm:
                     target_key = known_key
                     break
@@ -492,14 +485,8 @@ class WebEnrichmentPayloadService:
 
         if dynamic_current != dynamic_before:
             update_fields["dynamic_attributes"] = dynamic_current
-            if dynamic_filled:
-                unique_dynamic = []
-                seen = set()
-                for item in dynamic_filled:
-                    if item not in seen:
-                        seen.add(item)
-                        unique_dynamic.append(item)
-                notes.append(f"dynamic_attributes={','.join(unique_dynamic)}")
+            unique_dynamic = list(dict.fromkeys(dynamic_filled))
+            notes.append(f"dynamic_attributes={','.join(unique_dynamic)}")
 
         if dynamic_ignored:
             unique_ignored = []

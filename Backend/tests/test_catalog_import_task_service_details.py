@@ -305,6 +305,21 @@ def test_handle_failure_skips_without_db_and_marks_catalog_when_present():
     assert workflow.file_state_service.calls[-1][0] == "mark_failure_with_exception"
 
 
+def test_handle_failure_with_db_and_missing_catalog_file_is_noop():
+    """Skip failure persistence when the catalog file no longer exists."""
+    workflow = _build_workflow()
+    workflow.db = _SessionStub()
+    workflow.file_state_service = _FileStateStub()
+    workflow.catalog_file_repo_runtime = SimpleNamespace(
+        get_catalog_file=lambda **kwargs: None
+    )
+    workflow.file_id = 77
+
+    workflow._handle_failure(RuntimeError("boom"))
+
+    assert workflow.file_state_service.calls == []
+
+
 @pytest.mark.asyncio
 async def test_run_covers_guards_early_returns_and_failure_path():
     """Cover session-provider guard plus early returns/failure handling inside ``run``."""
@@ -349,6 +364,17 @@ async def test_run_covers_guards_early_returns_and_failure_path():
     await workflow_failure.run(file_id=1, user_id=2, product_type_id=None, fornecedor_id=3)
     assert captured == ["falhou"]
     assert session_failure.closed is True
+
+
+@pytest.mark.asyncio
+async def test_run_skips_close_when_session_provider_returns_none():
+    """Cover the ``finally`` branch where the workflow never receives a DB session."""
+    workflow = _build_workflow(session_provider=_SessionProvider(None))
+    workflow._load_catalog_file = lambda: False
+
+    await workflow.run(file_id=1, user_id=2, product_type_id=None, fornecedor_id=3)
+
+    assert workflow.db is None
 
 
 @pytest.mark.asyncio

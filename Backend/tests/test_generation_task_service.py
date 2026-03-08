@@ -515,6 +515,65 @@ def test_generation_task_service_normalize_title_list_returns_empty_for_non_list
     assert service._normalize_title_list("titulo unico") == []
 
 
+def test_generation_task_service_merge_raw_generation_data_covers_unknown_type_and_blank_description():
+    service, _crud_produtos = _build_service(produto=_ProdutoStub())
+
+    assert service._merge_raw_generation_data(
+        current_raw={"persistir": True},
+        tipo_geracao_principal="desconhecido",
+        resultado_ia="algo",
+    ) == {"persistir": True}
+    assert service._merge_raw_generation_data(
+        current_raw={},
+        tipo_geracao_principal="descricao",
+        resultado_ia="   ",
+    ) == {}
+
+
+@pytest.mark.asyncio
+async def test_generation_task_service_handles_http_exception_before_product_load():
+    produto = _ProdutoStub()
+    crud_produtos = _CrudProdutosStub(produto)
+
+    class _UserRepository:
+        def __init__(self, _session):
+            pass
+
+        def get_user(self, *, user_id: int):
+            raise HTTPException(status_code=403, detail="bloqueado")
+
+    class _ProductRepository:
+        def __init__(self, _session):
+            self._stub = crud_produtos
+
+        def get_produto(self, *, produto_id: int):
+            return self._stub.get_produto(produto_id=produto_id)
+
+        def update_produto(self, *, db_produto, produto_update):
+            return self._stub.update_produto(db_produto=db_produto, produto_update=produto_update)
+
+    service = GenerationTaskService(
+        session_provider=_SessionProviderStub(_db_session_factory),
+        user_repository_factory=_UserRepository,
+        product_repository_factory=_ProductRepository,
+        models=_build_models_stub(),
+        schemas=_build_schemas_stub(),
+        logger=_LoggerStub(),
+    )
+
+    async def _fake_generation(**kwargs):
+        raise AssertionError("Nao deveria chamar IA")
+
+    await service.run_generation_task(
+        user_id=1,
+        produto_id=10,
+        tipo_geracao_principal="titulo",
+        funcao_geracao_ia_no_servico=_fake_generation,
+    )
+
+    assert crud_produtos.updates == []
+
+
 
 
 

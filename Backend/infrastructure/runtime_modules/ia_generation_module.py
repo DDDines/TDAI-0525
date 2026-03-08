@@ -565,8 +565,6 @@ class IAGenerationRuntime:
         filtered_chunks: List[str] = []
         for chunk in chunks:
             normalized_chunk = " ".join(str(chunk or "").strip().split())
-            if not normalized_chunk:
-                continue
             if IAGenerationRuntime._looks_like_company_timeline_claim(normalized_chunk):
                 continue
             filtered_chunks.append(normalized_chunk)

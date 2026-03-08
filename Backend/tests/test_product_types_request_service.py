@@ -240,3 +240,47 @@ test_reorder_attribute_requires_owner_or_superuser = (
 test_reorder_attribute_returns_not_found_when_repository_cannot_move = (
     _TopLevelFunctionSurface.test_reorder_attribute_returns_not_found_when_repository_cannot_move
 )
+
+
+@pytest.mark.asyncio
+async def test_read_product_type_details_returns_404_when_key_is_missing_everywhere():
+    service = _TopLevelFunctionSurface._build_service()
+    current_user = SimpleNamespace(id=9, is_superuser=False)
+
+    with pytest.raises(HTTPException) as exc_info:
+        await service.read_product_type_details(identifier="inexistente", current_user=current_user)
+
+    assert exc_info.value.status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_read_product_type_details_returns_user_specific_key_without_global_fallback():
+    service = _TopLevelFunctionSurface._build_service()
+    current_user = SimpleNamespace(id=9, is_superuser=False)
+    user_type = SimpleNamespace(id=71, key_name="freios", user_id=9)
+    service._product_type_repo.by_key[("freios", 9)] = user_type
+
+    result = await service.read_product_type_details(
+        identifier="freios",
+        current_user=current_user,
+    )
+
+    assert result is user_type
+
+
+def test_update_attribute_allows_unique_key_and_returns_updated_resource():
+    service = _TopLevelFunctionSurface._build_service()
+    service._product_type_repo.attribute_by_id[10] = SimpleNamespace(
+        id=10,
+        product_type_id=55,
+        attribute_key="cor",
+    )
+
+    updated = service.update_attribute_for_product_type(
+        type_id=55,
+        attribute_id=10,
+        attribute_in=schemas.AttributeTemplateUpdate(attribute_key="acabamento"),
+    )
+
+    assert updated.id == 10
+    assert updated.attribute_key == "acabamento"

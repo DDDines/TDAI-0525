@@ -100,8 +100,6 @@ class CatalogImportQualityService:
             return False
         if not re.search(r"[^\W\d_]", text, flags=re.UNICODE):
             return False
-        if re.fullmatch(r"[-_=|./\s0-9]+", text):
-            return False
         return True
 
     @staticmethod
@@ -170,8 +168,6 @@ class CatalogImportQualityService:
         code_tokens = 0
         for tok in tokens:
             tok_u = tok.upper()
-            if not re.fullmatch(r"[0-9A-Z./-]+", tok_u):
-                continue
             digits = sum(ch.isdigit() for ch in tok_u)
             letters = sum(ch.isalpha() for ch in tok_u)
             if digits >= 2:
@@ -185,8 +181,6 @@ class CatalogImportQualityService:
 
         mostly_code_tokens = code_tokens >= max(1, len(tokens) - 1)
         if mostly_code_tokens and not has_lower and digit_ratio >= 0.35:
-            return True
-        if compact.isdigit() and len(compact) >= 3:
             return True
         return False
 
@@ -215,8 +209,6 @@ class CatalogImportQualityService:
             return False
 
         tokens = [tok for tok in text.split(" ") if tok]
-        if not tokens:
-            return False
 
         meaningful_alpha = [tok for tok in tokens if tok.isalpha() and len(tok) >= 4]
         if meaningful_alpha:
@@ -233,11 +225,10 @@ class CatalogImportQualityService:
                 return True
 
         compact = "".join(tokens)
-        if compact:
-            letters = sum(ch.isalpha() for ch in compact)
-            digits = sum(ch.isdigit() for ch in compact)
-            if len(compact) <= 7 and letters <= 3 and digits >= 2:
-                return True
+        letters = sum(ch.isalpha() for ch in compact)
+        digits = sum(ch.isdigit() for ch in compact)
+        if len(compact) <= 7 and letters <= 3 and digits >= 2:
+            return True
 
         return False
 
@@ -338,12 +329,9 @@ class CatalogImportQualityService:
             strong_alpha = any(len(re.sub(r"[^A-Za-z]", "", tok)) >= 4 for tok in alpha_tokens)
             if not has_context and not strong_alpha:
                 return "Linha descartada por baixa qualidade: nome sem termo forte sem SKU/EAN"
-            if nome_compacto:
-                digits_ratio_nome = sum(ch.isdigit() for ch in nome_compacto) / len(nome_compacto)
-                if digits_ratio_nome >= 0.55 and not has_context and len(tokens_nome) <= 5:
-                    return "Linha descartada por baixa qualidade: nome numerico sem contexto sem SKU/EAN"
-            if len(tokens_nome) == 1 and len(tokens_nome[0]) <= 2:
-                return "Linha descartada por baixa qualidade: nome curto isolado"
+            digits_ratio_nome = sum(ch.isdigit() for ch in nome_compacto) / len(nome_compacto)
+            if digits_ratio_nome >= 0.55 and not has_context and len(tokens_nome) <= 5:
+                return "Linha descartada por baixa qualidade: nome numerico sem contexto sem SKU/EAN"
             if len(tokens_nome) == 1 and not has_context:
                 return "Linha descartada por baixa qualidade: nome isolado sem contexto"
             if not has_context and nome_alnum < 6:
@@ -370,40 +358,28 @@ class CatalogImportQualityService:
             and not nome_peca
         ):
             return "Linha descartada por baixa qualidade: SKU com contexto apenas de aplicacao"
-        if sku and nome_ruido_ocr and not has_part_context:
-            if descricao_aplicacao or categoria_aplicacao or not has_context:
-                return "Linha descartada por baixa qualidade: SKU com nome fraco sem descricao de peca"
         if sku and nome_numerico and not has_part_context:
             return "Linha descartada por baixa qualidade: nome numerico sem contexto"
-        if sku and nome_numerico and sku_compacto == nome_compacto and not has_part_context:
-            return "Linha descartada por baixa qualidade: nome numerico igual ao SKU sem descricao"
         if short_numeric_code_name and not ean and strongest_part_context < 3:
             return "Linha descartada por baixa qualidade: codigo curto sem contexto forte de peca"
         if sku and not nome and not has_part_context:
             return "Linha descartada por baixa qualidade: SKU sem nome/descricao confiavel"
         if sku and nome_codigo_peca and not has_part_context:
-            if descricao_aplicacao or categoria_aplicacao:
-                return "Linha descartada por baixa qualidade: SKU com codigo e apenas aplicacao"
             if not has_context:
                 return "Linha descartada por baixa qualidade: SKU com codigo sem descricao confiavel"
-        if sku and not nome and not has_context:
-            return "Linha descartada por baixa qualidade: SKU sem contexto"
 
         if nome:
             if nome_alnum < 2:
                 return "Linha descartada por baixa qualidade: nome sem conteudo"
             tokens_nome = re.findall(r"[0-9A-Za-z]+", nome)
-            if len(tokens_nome) == 1 and len(tokens_nome[0]) <= 1 and not sku:
-                return "Linha descartada por baixa qualidade: nome muito curto"
-            if nome_compacto:
-                digits_ratio = sum(ch.isdigit() for ch in nome_compacto) / len(nome_compacto)
-                if digits_ratio >= 0.85 and not has_context and (not sku or sku_compacto == nome_compacto):
-                    return "Linha descartada por baixa qualidade: nome numerico sem contexto"
-                if nome_numerico and len(nome_compacto) <= 6 and not descricao_tem_contexto:
-                    return "Linha descartada por baixa qualidade: nome apenas numerico sem descricao"
-                if nome_codigo_peca and not has_part_context and digits_ratio >= 0.45:
-                    if descricao_aplicacao or categoria_aplicacao or not has_context:
-                        return "Linha descartada por baixa qualidade: nome em formato de codigo sem contexto"
+            digits_ratio = sum(ch.isdigit() for ch in nome_compacto) / len(nome_compacto)
+            if digits_ratio >= 0.85 and not has_context and (not sku or sku_compacto == nome_compacto):
+                return "Linha descartada por baixa qualidade: nome numerico sem contexto"
+            if nome_numerico and len(nome_compacto) <= 6 and not descricao_tem_contexto:
+                return "Linha descartada por baixa qualidade: nome apenas numerico sem descricao"
+            if nome_codigo_peca and not has_part_context and digits_ratio >= 0.45:
+                if descricao_aplicacao or categoria_aplicacao or not has_context:
+                    return "Linha descartada por baixa qualidade: nome em formato de codigo sem contexto"
 
         return None
 
@@ -554,13 +530,6 @@ class CatalogImportQualityService:
                 "decision": "quarantine",
                 "score": min(score, 52),
                 "reason": "Linha em quarentena: nome parece apenas codigo sem contexto de peca",
-            }
-
-        if nome_codigo_peca and (descricao_aplicacao or categoria_aplicacao) and not descricao_peca and not categoria_peca:
-            return {
-                "decision": "quarantine",
-                "score": min(score, 54),
-                "reason": "Linha em quarentena: codigo sem descricao de peca",
             }
 
         if score < 45:
