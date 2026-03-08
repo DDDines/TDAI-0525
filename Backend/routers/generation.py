@@ -105,6 +105,7 @@ class GenerationRequestService:
             produto_id=produto_id,
             generation_type="titulo",
             generation_func=self._ia_generation_service.gerar_titulos_com_openai,
+            generation_provider_key="openai_title",
             num_titulos=num_titulos,
         )
         return {"msg": f"Geracao de titulos (OpenAI) para o produto ID {produto_id} agendada."}
@@ -126,6 +127,7 @@ class GenerationRequestService:
             produto_id=produto_id,
             generation_type="descricao",
             generation_func=self._ia_generation_service.gerar_descricao_com_openai,
+            generation_provider_key="openai_description",
             tamanho_palavras=tamanho_palavras,
         )
         return {"msg": f"Geracao de descricao (OpenAI) para o produto ID {produto_id} agendada."}
@@ -152,6 +154,7 @@ class GenerationRequestService:
             produto_id=produto_id,
             generation_type="titulo",
             generation_func=self._basic_generation_service.gerar_titulos_basicos,
+            generation_provider_key="basic_title",
             num_titulos=num_titulos,
             template_titulo=template_titulo,
         )
@@ -184,6 +187,7 @@ class GenerationRequestService:
             produto_id=produto_id,
             generation_type="descricao",
             generation_func=self._basic_generation_service.gerar_descricao_basica,
+            generation_provider_key="basic_description",
             tamanho_palavras=tamanho_palavras,
             template_descricao=template_descricao,
         )
@@ -215,6 +219,7 @@ class GenerationRequestService:
             produto_id=produto_id,
             generation_type="titulo",
             generation_func=self._ia_generation_service.gerar_titulos_com_gemini,
+            generation_provider_key="gemini_title",
             num_titulos=num_titulos,
         )
         return {"msg": f"Geracao de titulos com Gemini para o produto ID {produto_id} foi agendada."}
@@ -240,6 +245,7 @@ class GenerationRequestService:
             produto_id=produto_id,
             generation_type="descricao",
             generation_func=self._ia_generation_service.gerar_descricao_com_gemini,
+            generation_provider_key="gemini_description",
             tamanho_palavras=tamanho_palavras,
         )
         return {"msg": f"Geracao de descricao com Gemini para o produto ID {produto_id} foi agendada."}

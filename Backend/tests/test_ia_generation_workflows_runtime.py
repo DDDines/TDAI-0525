@@ -202,6 +202,7 @@ class _TopLevelFunctionSurface:
     async def test_ai_provider_runtime_ignora_chave_openai_malformada_e_usa_global_valida(monkeypatch):
         """Ignore malformed saved keys and fallback to a valid global OpenAI key."""
         runtime = ia_service.AiProviderRuntime()
+        monkeypatch.setattr(ia_service.settings, "AI_PROVIDER", "openai", raising=False)
         monkeypatch.setattr(
             ia_service.settings,
             "OPENAI_API_KEY",

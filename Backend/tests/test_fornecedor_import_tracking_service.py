@@ -38,6 +38,23 @@ class _BackgroundTasksStub:
         self.calls.append((task, kwargs))
 
 
+class _DispatcherStub:
+    """Represent dispatcher stub and centralize responsibilities for this module."""
+
+    def __init__(self, *, use_celery: bool):
+        """Initialize collaborators and configuration required by this component."""
+        self._use_celery = use_celery
+        self.named_calls = []
+
+    def dispatch_named_or_background(self, *, background_tasks, task_name, task_kwargs, fallback_callable):
+        """Capture Celery dispatches and mirror background fallback behavior."""
+        if self._use_celery:
+            self.named_calls.append((task_name, task_kwargs))
+            return "async-result"
+        background_tasks.add_task(fallback_callable, **task_kwargs)
+        return None
+
+
 class _ModelsStub:
     """Represent models stub and centralize responsibilities for this module."""
     class CatalogImportFile:
@@ -48,12 +65,13 @@ class _ModelsStub:
 class _TopLevelFunctionSurface:
 
     """Represent top level function surface and centralize responsibilities for this module."""
-    def _build_service(*, record=None):
+    def _build_service(*, record=None, dispatcher_cls=None):
         """Run build service in this workflow."""
         return FornecedorImportTrackingService(
             models=_ModelsStub,
             process_pdf_extraction_task=lambda **kwargs: kwargs,
             catalog_file_repository=_CatalogFileRepoStub(record),
+            dispatcher_cls=dispatcher_cls or (lambda: _DispatcherStub(use_celery=False)),
         )
 
     def test_get_catalog_record_or_404_returns_record():
@@ -113,6 +131,23 @@ class _TopLevelFunctionSurface:
         assert kwargs["page_number"] == 5
         assert "db_url" not in kwargs
 
+    def test_schedule_page_extraction_dispatches_celery_when_enabled():
+        """Dispatch tracked page extraction through Celery when configured."""
+        dispatcher = _DispatcherStub(use_celery=True)
+        service = _build_service(
+            dispatcher_cls=lambda: dispatcher,
+        )
+
+        service.schedule_page_extraction(
+            background_tasks=_BackgroundTasksStub(),
+            import_job_id=100,
+            page_number=5,
+        )
+
+        assert dispatcher.named_calls == [
+            ("pdf_extraction.page", {"import_job_id": 100, "page_number": 5})
+        ]
+
     def test_build_import_job_status_payload_includes_result_for_completed():
         """Run test build import job status payload includes result for completed in this workflow."""
         record = SimpleNamespace(status="COMPLETED", resultado_json={"ok": True})
@@ -128,6 +163,7 @@ test_get_catalog_record_or_404_returns_record = _TopLevelFunctionSurface.test_ge
 test_get_catalog_record_or_404_raises_when_missing = _TopLevelFunctionSurface.test_get_catalog_record_or_404_raises_when_missing
 test_build_progress_payload_normalizes_total_pages = _TopLevelFunctionSurface.test_build_progress_payload_normalizes_total_pages
 test_schedule_page_extraction_adds_task = _TopLevelFunctionSurface.test_schedule_page_extraction_adds_task
+test_schedule_page_extraction_dispatches_celery_when_enabled = _TopLevelFunctionSurface.test_schedule_page_extraction_dispatches_celery_when_enabled
 test_build_import_job_status_payload_includes_result_for_completed = _TopLevelFunctionSurface.test_build_import_job_status_payload_includes_result_for_completed
 
 

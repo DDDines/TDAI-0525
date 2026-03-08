@@ -10,6 +10,8 @@ import uuid
 import pdfplumber
 from fastapi import HTTPException
 
+from Backend.application.services.async_job_dispatcher import AsyncJobDispatcher
+
 
 class FornecedorPreviewService:
     """Centraliza preview e extracao de dados de catalogo PDF para fornecedores."""
@@ -20,11 +22,13 @@ class FornecedorPreviewService:
         file_processing_service: Any,
         web_data_extractor_service: Any,
         catalog_file_repository: Any,
+        dispatcher_cls: Any = AsyncJobDispatcher,
     ) -> None:
         """Initialize injected dependencies and runtime configuration for Fornecedor Preview Service."""
         self._file_processing_service = file_processing_service
         self._web_data_extractor_service = web_data_extractor_service
         self._catalog_file_repository = catalog_file_repository
+        self._dispatcher = dispatcher_cls()
 
     def _resolve_session(self) -> Any:
         """Resolve session from injected repositories or runtime context."""
@@ -140,13 +144,18 @@ class FornecedorPreviewService:
         if all_pages or not target_pages:
             target_pages = list(range(1, total_pages + 1))
 
+        serialized_file_path = str(file_path)
         for page_number in target_pages:
             if 1 <= page_number <= total_pages:
-                background_tasks.add_task(
-                    self._file_processing_service.extract_data_from_pdf_region,
-                    file_path=file_path,
-                    page_number=page_number,
-                    region=region,
+                self._dispatcher.dispatch_named_or_background(
+                    background_tasks=background_tasks,
+                    task_name="pdf_extraction.region",
+                    task_kwargs={
+                        "file_path": serialized_file_path,
+                        "page_number": page_number,
+                        "region": region,
+                    },
+                    fallback_callable=self._file_processing_service.extract_data_from_pdf_region,
                 )
 
         return {"detail": "Batch processing started", "total_pages": total_pages}

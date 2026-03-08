@@ -6,6 +6,8 @@ from typing import Any
 
 from fastapi import HTTPException
 
+from Backend.application.services.async_job_dispatcher import AsyncJobDispatcher
+
 
 class FornecedorImportTrackingService:
     """Centraliza leitura/schedule de status de importacao no fluxo de fornecedores."""
@@ -16,11 +18,13 @@ class FornecedorImportTrackingService:
         models: Any,
         process_pdf_extraction_task: Any,
         catalog_file_repository: Any,
+        dispatcher_cls: Any = AsyncJobDispatcher,
     ) -> None:
         """Initialize injected dependencies and runtime configuration for Fornecedor Import Tracking Service."""
         self._models = models
         self._process_pdf_extraction_task = process_pdf_extraction_task
         self._catalog_file_repository = catalog_file_repository
+        self._dispatcher = dispatcher_cls()
 
     def get_catalog_record_or_404(
         self,
@@ -56,10 +60,14 @@ class FornecedorImportTrackingService:
         page_number: int,
     ) -> None:
         """Execute schedule page extraction as part of this module workflow."""
-        background_tasks.add_task(
-            self._process_pdf_extraction_task,
-            import_job_id=import_job_id,
-            page_number=page_number,
+        self._dispatcher.dispatch_named_or_background(
+            background_tasks=background_tasks,
+            task_name="pdf_extraction.page",
+            task_kwargs={
+                "import_job_id": import_job_id,
+                "page_number": page_number,
+            },
+            fallback_callable=self._process_pdf_extraction_task,
         )
 
     @staticmethod

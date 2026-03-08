@@ -1,0 +1,28 @@
+services:
+  redis:
+    image: redis:7-alpine
+    container_name: catalogai-redis
+    ports:
+      - "6379:6379"
+    command: ["redis-server", "--save", "", "--appendonly", "no"]
+
+  celery-worker:
+    image: python:3.12-slim
+    container_name: catalogai-celery-worker
+    working_dir: /app
+    depends_on:
+      - redis
+    env_file:
+      - .env
+    environment:
+      PYTHONPATH: /app
+      ASYNC_DISPATCH_PROVIDER: ${ASYNC_DISPATCH_PROVIDER:-celery}
+      REDIS_URL: ${REDIS_URL:-redis://redis:6379/0}
+      CELERY_BROKER_URL: ${CELERY_BROKER_URL:-redis://redis:6379/0}
+      CELERY_RESULT_BACKEND: ${CELERY_RESULT_BACKEND:-redis://redis:6379/1}
+    volumes:
+      - .:/app
+    command: >
+      /bin/sh -lc
+      "pip install -r requirements-backend.txt &&
+      celery -A Backend.celery_app:celery_app worker --loglevel=info"

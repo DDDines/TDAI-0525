@@ -140,6 +140,8 @@ def _http_status_error(status_code: int, *, text: str, json_data=None):
 @pytest.mark.asyncio
 async def test_ai_provider_runtime_openai_http_paths(monkeypatch):
     runtime = ia_service.AiProviderRuntime()
+    monkeypatch.setattr(ia_service.settings, "AI_PROVIDER", "openai", raising=False)
+    runtime._lm_studio_model_cache = None
 
     with pytest.raises(HTTPException) as missing_key:
         await runtime.call_openai_api(prompt_messages=[], api_key="")
@@ -224,6 +226,8 @@ async def test_ai_provider_runtime_routes_openai_compatible_calls_to_lm_studio(m
 @pytest.mark.asyncio
 async def test_ai_provider_runtime_openai_request_error_returns_503(monkeypatch):
     runtime = ia_service.AiProviderRuntime()
+    monkeypatch.setattr(ia_service.settings, "AI_PROVIDER", "openai", raising=False)
+    runtime._lm_studio_model_cache = None
     monkeypatch.setattr(
         ia_service.httpx,
         "AsyncClient",

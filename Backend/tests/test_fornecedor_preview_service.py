@@ -111,6 +111,23 @@ class _BackgroundTasksStub:
         self.calls.append((fn, kwargs))
 
 
+class _DispatcherStub:
+    """Represent dispatcher stub and centralize responsibilities for this module."""
+
+    def __init__(self, *, use_celery: bool):
+        """Initialize collaborators and configuration required by this component."""
+        self._use_celery = use_celery
+        self.named_calls = []
+
+    def dispatch_named_or_background(self, *, background_tasks, task_name, task_kwargs, fallback_callable):
+        """Capture Celery dispatches and mirror background fallback behavior."""
+        if self._use_celery:
+            self.named_calls.append((task_name, task_kwargs))
+            return "async-result"
+        background_tasks.add_task(fallback_callable, **task_kwargs)
+        return None
+
+
 class _CatalogFileRepoStub:
     """Represent catalog file repo stub and centralize responsibilities for this module."""
     def __init__(self):
@@ -137,7 +154,7 @@ class _PdfStub:
 class _TopLevelFunctionSurface:
 
     """Represent top level function surface and centralize responsibilities for this module."""
-    def _build_service():
+    def _build_service(*, dispatcher_cls=None):
         """Run build service in this workflow."""
         file_processing = _FileProcessingStub()
         catalog_repo = _CatalogFileRepoStub()
@@ -145,6 +162,7 @@ class _TopLevelFunctionSurface:
             file_processing_service=file_processing,
             web_data_extractor_service=_WebExtractorStub(),
             catalog_file_repository=catalog_repo,
+            dispatcher_cls=dispatcher_cls or (lambda: _DispatcherStub(use_celery=False)),
         )
         return service, file_processing, catalog_repo
 
@@ -237,6 +255,41 @@ class _TopLevelFunctionSurface:
             assert fn == file_processing.extract_data_from_pdf_region
             assert kwargs["region"] == [1.0, 2.0, 3.0, 4.0]
 
+    def test_extract_data_from_pdf_bulk_dispatches_celery_when_enabled(monkeypatch):
+        """Dispatch raw region extraction through Celery when configured."""
+        dispatcher = _DispatcherStub(use_celery=True)
+        service, _, _ = _build_service(dispatcher_cls=lambda: dispatcher)
+
+        monkeypatch.setattr(preview_module.pdfplumber, "open", lambda _path: _PdfStub(2))
+
+        payload = service.extract_data_from_pdf_bulk(
+            background_tasks=_BackgroundTasksStub(),
+            file_id=1,
+            region=[1.0, 2.0, 3.0, 4.0],
+            pages=None,
+            all_pages=True,
+        )
+
+        assert payload["total_pages"] == 2
+        assert dispatcher.named_calls == [
+            (
+                "pdf_extraction.region",
+                {
+                    "file_path": "/tmp/catalog.pdf",
+                    "page_number": 1,
+                    "region": [1.0, 2.0, 3.0, 4.0],
+                },
+            ),
+            (
+                "pdf_extraction.region",
+                {
+                    "file_path": "/tmp/catalog.pdf",
+                    "page_number": 2,
+                    "region": [1.0, 2.0, 3.0, 4.0],
+                },
+            ),
+        ]
+
 _build_service = _TopLevelFunctionSurface._build_service
 test_preview_pages_rejects_non_pdf = _TopLevelFunctionSurface.test_preview_pages_rejects_non_pdf
 test_preview_pages_generates_images = _TopLevelFunctionSurface.test_preview_pages_generates_images
@@ -244,6 +297,7 @@ test_preview_pdf_rejects_invalid_extension = _TopLevelFunctionSurface.test_previ
 test_preview_catalog_from_region_returns_columns_and_rows = _TopLevelFunctionSurface.test_preview_catalog_from_region_returns_columns_and_rows
 test_preview_catalog_from_region_raises_when_dataframe_empty = _TopLevelFunctionSurface.test_preview_catalog_from_region_raises_when_dataframe_empty
 test_extract_data_from_pdf_bulk_schedules_all_pages = _TopLevelFunctionSurface.test_extract_data_from_pdf_bulk_schedules_all_pages
+test_extract_data_from_pdf_bulk_dispatches_celery_when_enabled = _TopLevelFunctionSurface.test_extract_data_from_pdf_bulk_dispatches_celery_when_enabled
 
 
 

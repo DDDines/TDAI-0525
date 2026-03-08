@@ -204,3 +204,14 @@ def test_build_settings_runs_runtime_pipeline(monkeypatch, tmp_path):
     assert calls[0] == ("load_dotenv", dotenv_path)
     assert calls[1][0] == "configure_database_url"
     assert calls[2][0] == "configure_cors_origins"
+
+
+def test_settings_include_async_and_celery_defaults():
+    """Expose defaults for async dispatch and Celery-backed execution."""
+    settings_obj = config_module.Settings(_env_file=None)
+
+    assert settings_obj.ASYNC_DISPATCH_PROVIDER == "background_tasks"
+    assert settings_obj.REDIS_URL == "redis://localhost:6379/0"
+    assert settings_obj.CELERY_BROKER_URL == "redis://localhost:6379/0"
+    assert settings_obj.CELERY_RESULT_BACKEND == "redis://localhost:6379/1"
+    assert settings_obj.CELERY_TASK_ALWAYS_EAGER is False

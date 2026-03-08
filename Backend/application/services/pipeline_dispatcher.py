@@ -9,6 +9,7 @@ import os
 from fastapi import BackgroundTasks
 
 from Backend.application.pipeline_selector import TaskExecutionPlan
+from Backend.application.services.async_job_dispatcher import AsyncJobDispatcher
 
 
 class PipelineDispatcher:
@@ -39,6 +40,16 @@ class PipelineDispatcher:
     @staticmethod
     def dispatch_background(background_tasks: BackgroundTasks, plan: TaskExecutionPlan) -> None:
         """Execute dispatch background as part of this module workflow."""
+        dispatcher = AsyncJobDispatcher()
+        if dispatcher.uses_celery():
+            try:
+                dispatcher.dispatch_named_task(
+                    task_name=plan.name,
+                    task_kwargs=plan.task_kwargs,
+                )
+                return
+            except LookupError:
+                pass
         background_tasks.add_task(
             PipelineDispatcher._run_plan_in_worker_thread,
             plan,

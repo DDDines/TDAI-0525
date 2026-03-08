@@ -6,6 +6,8 @@ from typing import Any, Iterable
 
 from fastapi import HTTPException
 
+from Backend.application.services.async_job_dispatcher import AsyncJobDispatcher
+
 
 class FornecedorImportJobService:
     """Coordena leitura e commit de jobs de importacao via repositories OO."""
@@ -17,12 +19,14 @@ class FornecedorImportJobService:
         import_job_repository_factory: Any,
         produto_repository_factory: Any,
         produto_create_schema: Any,
+        dispatcher_cls: Any = AsyncJobDispatcher,
     ) -> None:
         """Initialize injected dependencies and runtime configuration for Fornecedor Import Job Service."""
         self._session_provider = session_provider
         self._import_job_repository_factory = import_job_repository_factory
         self._produto_repository_factory = produto_repository_factory
         self._produto_create_schema = produto_create_schema
+        self._dispatcher = dispatcher_cls()
 
     def _import_job_repo(self, session: Any) -> Any:
         """Execute import job repo as part of this module workflow."""
@@ -58,10 +62,14 @@ class FornecedorImportJobService:
         user_id: int,
     ) -> None:
         """Execute schedule commit as part of this module workflow."""
-        background_tasks.add_task(
-            self.commit_job_task,
-            job_id=job_id,
-            user_id=user_id,
+        self._dispatcher.dispatch_named_or_background(
+            background_tasks=background_tasks,
+            task_name="fornecedor_import.commit",
+            task_kwargs={
+                "job_id": job_id,
+                "user_id": user_id,
+            },
+            fallback_callable=self.commit_job_task,
         )
 
     def commit_job_task(self, *, job_id: int, user_id: int) -> None:

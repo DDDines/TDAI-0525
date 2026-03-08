@@ -60,16 +60,35 @@ class _BackgroundTasksStub:
         self.calls.append((task_executor, kwargs))
 
 
+class _DispatcherStub:
+    """Represent dispatcher stub and centralize responsibilities for this module."""
+
+    def __init__(self, *, use_celery: bool):
+        """Initialize collaborators and configuration required by this component."""
+        self._use_celery = use_celery
+        self.named_calls = []
+
+    def uses_celery(self):
+        """Return whether this stub is configured to emulate Celery."""
+        return self._use_celery
+
+    def dispatch_named_task(self, *, task_name, task_kwargs):
+        """Capture Celery dispatch requests."""
+        self.named_calls.append((task_name, task_kwargs))
+        return "async-result"
+
+
 class _TopLevelFunctionSurface:
 
     """Represent top level function surface and centralize responsibilities for this module."""
-    def _build_service(produto=None):
+    def _build_service(produto=None, dispatcher_cls=None):
         """Run build service in this workflow."""
         crud_stub = _CrudProdutosStub(produto=produto)
         service = GenerationSchedulingService(
             schemas=_SchemasStub,
             models=_ModelsStub,
             product_repository=crud_stub,
+            dispatcher_cls=dispatcher_cls or (lambda: _DispatcherStub(use_celery=False)),
         )
         return service, crud_stub
 
@@ -153,12 +172,86 @@ class _TopLevelFunctionSurface:
         assert kwargs["tipo_geracao_principal"] == "descricao"
         assert kwargs["tamanho_palavras"] == 150
 
+    def test_enqueue_generation_task_dispatches_celery_when_enabled():
+        """Dispatch generation through Celery when the async backend is configured for it."""
+        dispatcher = _DispatcherStub(use_celery=True)
+        service, _ = _build_service(
+            produto=SimpleNamespace(user_id=1),
+            dispatcher_cls=lambda: dispatcher,
+        )
+        background_tasks = _BackgroundTasksStub()
+
+        service.enqueue_generation_task(
+            background_tasks=background_tasks,
+            task_executor=lambda **kwargs: kwargs,
+            user_id=7,
+            produto_id=8,
+            generation_type="titulo",
+            generation_func=object(),
+            generation_provider_key="openai_title",
+            num_titulos=4,
+        )
+
+        assert background_tasks.calls == []
+        assert dispatcher.named_calls == [
+            (
+                "generation.run",
+                {
+                    "user_id": 7,
+                    "produto_id": 8,
+                    "tipo_geracao_principal": "titulo",
+                    "generation_provider_key": "openai_title",
+                    "num_titulos": 4,
+                    "tamanho_palavras": None,
+                },
+            )
+        ]
+
+    def test_enqueue_generation_task_dispatches_celery_with_templates():
+        """Include optional templates in the serializable Celery payload when provided."""
+        dispatcher = _DispatcherStub(use_celery=True)
+        service, _ = _build_service(
+            produto=SimpleNamespace(user_id=1),
+            dispatcher_cls=lambda: dispatcher,
+        )
+
+        service.enqueue_generation_task(
+            background_tasks=_BackgroundTasksStub(),
+            task_executor=lambda **kwargs: kwargs,
+            user_id=7,
+            produto_id=8,
+            generation_type="descricao",
+            generation_func=object(),
+            generation_provider_key="basic_description",
+            tamanho_palavras=120,
+            template_titulo="titulo livre",
+            template_descricao="descricao livre",
+        )
+
+        assert dispatcher.named_calls == [
+            (
+                "generation.run",
+                {
+                    "user_id": 7,
+                    "produto_id": 8,
+                    "tipo_geracao_principal": "descricao",
+                    "generation_provider_key": "basic_description",
+                    "num_titulos": None,
+                    "tamanho_palavras": 120,
+                    "template_titulo": "titulo livre",
+                    "template_descricao": "descricao livre",
+                },
+            )
+        ]
+
 _build_service = _TopLevelFunctionSurface._build_service
 test_validate_product_access_not_found = _TopLevelFunctionSurface.test_validate_product_access_not_found
 test_validate_product_access_forbidden = _TopLevelFunctionSurface.test_validate_product_access_forbidden
 test_validate_product_access_success = _TopLevelFunctionSurface.test_validate_product_access_success
 test_mark_pending_status_updates_expected_field = _TopLevelFunctionSurface.test_mark_pending_status_updates_expected_field
 test_enqueue_generation_task_forwards_expected_kwargs = _TopLevelFunctionSurface.test_enqueue_generation_task_forwards_expected_kwargs
+test_enqueue_generation_task_dispatches_celery_when_enabled = _TopLevelFunctionSurface.test_enqueue_generation_task_dispatches_celery_when_enabled
+test_enqueue_generation_task_dispatches_celery_with_templates = _TopLevelFunctionSurface.test_enqueue_generation_task_dispatches_celery_with_templates
 
 
 

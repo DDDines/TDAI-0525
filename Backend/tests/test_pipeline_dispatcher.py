@@ -58,6 +58,60 @@ class _TopLevelFunctionSurface:
         PipelineDispatcher.dispatch_background(bg, plan)
         assert len(bg.tasks) == 1
 
+    def test_dispatch_background_uses_celery_when_enabled(monkeypatch):
+        """Dispatch through Celery when the async backend is configured for it."""
+        plan = TaskExecutionPlan(
+            name="web_enrichment.start",
+            executor_name="dummy",
+            executor=_dummy_executor,
+            task_kwargs={"produto_id": 9},
+        )
+        dispatched = []
+
+        class _DispatcherStub:
+            def uses_celery(self):
+                return True
+
+            def dispatch_named_task(self, *, task_name, task_kwargs):
+                dispatched.append((task_name, task_kwargs))
+
+        monkeypatch.setattr(
+            "Backend.application.services.pipeline_dispatcher.AsyncJobDispatcher",
+            lambda: _DispatcherStub(),
+        )
+        bg = BackgroundTasks()
+
+        PipelineDispatcher.dispatch_background(bg, plan)
+
+        assert dispatched == [("web_enrichment.start", {"produto_id": 9})]
+        assert bg.tasks == []
+
+    def test_dispatch_background_falls_back_when_task_not_registered(monkeypatch):
+        """Fall back to FastAPI background tasks when the Celery registry has no mapping."""
+        plan = TaskExecutionPlan(
+            name="unknown.plan",
+            executor_name="dummy",
+            executor=_dummy_executor,
+            task_kwargs={"a": 1},
+        )
+
+        class _DispatcherStub:
+            def uses_celery(self):
+                return True
+
+            def dispatch_named_task(self, *, task_name, task_kwargs):
+                raise LookupError(task_name)
+
+        monkeypatch.setattr(
+            "Backend.application.services.pipeline_dispatcher.AsyncJobDispatcher",
+            lambda: _DispatcherStub(),
+        )
+        bg = BackgroundTasks()
+
+        PipelineDispatcher.dispatch_background(bg, plan)
+
+        assert len(bg.tasks) == 1
+
     def test_run_plan_in_worker_thread_handles_sync_executor():
         """Execute sync plans without awaiting them."""
         captured = {}
@@ -101,6 +155,8 @@ test_should_run_inline_for_tests_with_sync_flag = _TopLevelFunctionSurface.test_
 test_should_not_run_inline_when_no_flags = _TopLevelFunctionSurface.test_should_not_run_inline_when_no_flags
 test_run_inline_executes_plan = _TopLevelFunctionSurface.test_run_inline_executes_plan
 test_dispatch_background_schedules_task = _TopLevelFunctionSurface.test_dispatch_background_schedules_task
+test_dispatch_background_uses_celery_when_enabled = _TopLevelFunctionSurface.test_dispatch_background_uses_celery_when_enabled
+test_dispatch_background_falls_back_when_task_not_registered = _TopLevelFunctionSurface.test_dispatch_background_falls_back_when_task_not_registered
 test_run_plan_in_worker_thread_handles_sync_executor = _TopLevelFunctionSurface.test_run_plan_in_worker_thread_handles_sync_executor
 test_run_plan_in_worker_thread_handles_async_executor = _TopLevelFunctionSurface.test_run_plan_in_worker_thread_handles_async_executor
 

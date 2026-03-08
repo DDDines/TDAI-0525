@@ -6,6 +6,8 @@ from typing import Any
 
 from fastapi import HTTPException, status
 
+from Backend.application.services.async_job_dispatcher import AsyncJobDispatcher
+
 
 class GenerationSchedulingService:
     """Encapsula validacao de acesso e agendamento das tasks de geracao IA."""
@@ -16,11 +18,13 @@ class GenerationSchedulingService:
         schemas: Any,
         models: Any,
         product_repository: Any,
+        dispatcher_cls: Any = AsyncJobDispatcher,
     ) -> None:
         """Initialize injected dependencies and runtime configuration for Generation Scheduling Service."""
         self._product_repository = product_repository
         self._schemas = schemas
         self._models = models
+        self._dispatcher = dispatcher_cls()
 
     def validate_product_access(
         self,
@@ -74,6 +78,7 @@ class GenerationSchedulingService:
         produto_id: int,
         generation_type: str,
         generation_func: Any,
+        generation_provider_key: str | None = None,
         num_titulos: int | None = None,
         tamanho_palavras: int | None = None,
         template_titulo: str | None = None,
@@ -92,6 +97,25 @@ class GenerationSchedulingService:
             task_payload["template_titulo"] = template_titulo
         if template_descricao is not None:
             task_payload["template_descricao"] = template_descricao
+
+        if generation_provider_key and self._dispatcher.uses_celery():
+            celery_payload = {
+                "user_id": user_id,
+                "produto_id": produto_id,
+                "tipo_geracao_principal": generation_type,
+                "generation_provider_key": generation_provider_key,
+                "num_titulos": num_titulos,
+                "tamanho_palavras": tamanho_palavras,
+            }
+            if template_titulo is not None:
+                celery_payload["template_titulo"] = template_titulo
+            if template_descricao is not None:
+                celery_payload["template_descricao"] = template_descricao
+            self._dispatcher.dispatch_named_task(
+                task_name="generation.run",
+                task_kwargs=celery_payload,
+            )
+            return
 
         background_tasks.add_task(
             task_executor,

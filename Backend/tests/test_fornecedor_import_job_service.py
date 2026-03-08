@@ -87,6 +87,31 @@ class _BackgroundTasksStub:
         self.added.append((fn, kwargs))
 
 
+class _DispatcherStub:
+    """Represent dispatcher stub and centralize responsibilities for this module."""
+
+    def __init__(self, *, use_celery: bool):
+        """Initialize collaborators and configuration required by this component."""
+        self._use_celery = use_celery
+        self.named_calls = []
+
+    def uses_celery(self):
+        """Return whether this dispatcher emulates Celery."""
+        return self._use_celery
+
+    def dispatch_named_task(self, *, task_name, task_kwargs):
+        """Capture Celery task dispatches."""
+        self.named_calls.append((task_name, task_kwargs))
+        return "async-result"
+
+    def dispatch_named_or_background(self, *, background_tasks, task_name, task_kwargs, fallback_callable):
+        """Mirror the real dispatcher interface used by the service."""
+        if self._use_celery:
+            return self.dispatch_named_task(task_name=task_name, task_kwargs=task_kwargs)
+        background_tasks.add_task(fallback_callable, **task_kwargs)
+        return None
+
+
 class _SessionProviderStub:
     """Simple OO provider that opens sessions from a factory."""
 
@@ -102,7 +127,7 @@ class _SessionProviderStub:
 class _TopLevelFunctionSurface:
 
     """Represent top level function surface and centralize responsibilities for this module."""
-    def _build_service(*, job, session_provider=None):
+    def _build_service(*, job, session_provider=None, dispatcher_cls=None):
         """Run build service in this workflow."""
         crud_jobs = _CrudFornecedorImportJobsStub()
         crud_jobs.job = job
@@ -138,6 +163,7 @@ class _TopLevelFunctionSurface:
             import_job_repository_factory=_ImportJobRepoClass,
             produto_repository_factory=_ProdutoRepoClass,
             produto_create_schema=_ProdutoCreateSchemaStub,
+            dispatcher_cls=dispatcher_cls or (lambda: _DispatcherStub(use_celery=False)),
         )
         return service, crud_jobs, crud_produtos
 
@@ -176,6 +202,25 @@ class _TopLevelFunctionSurface:
         task_fn, kwargs = background.added[0]
         assert task_fn == service.commit_job_task
         assert kwargs["job_id"] == 5
+
+    def test_schedule_commit_dispatches_celery_when_enabled():
+        """Dispatch import commit through Celery when configured."""
+        job = SimpleNamespace(id=5, user_id=10, result_summary=[])
+        dispatcher = _DispatcherStub(use_celery=True)
+        service, _, _ = _build_service(
+            job=job,
+            dispatcher_cls=lambda: dispatcher,
+        )
+
+        service.schedule_commit(
+            background_tasks=_BackgroundTasksStub(),
+            job_id=5,
+            user_id=10,
+        )
+
+        assert dispatcher.named_calls == [
+            ("fornecedor_import.commit", {"job_id": 5, "user_id": 10})
+        ]
 
     def test_commit_job_task_processes_valid_rows_and_marks_completed():
         """Run test commit job task processes valid rows and marks completed in this workflow."""
@@ -236,6 +281,7 @@ _build_service = _TopLevelFunctionSurface._build_service
 test_get_job_for_user_or_404_returns_job = _TopLevelFunctionSurface.test_get_job_for_user_or_404_returns_job
 test_get_job_for_user_or_404_raises_for_invalid_user = _TopLevelFunctionSurface.test_get_job_for_user_or_404_raises_for_invalid_user
 test_schedule_commit_adds_background_task = _TopLevelFunctionSurface.test_schedule_commit_adds_background_task
+test_schedule_commit_dispatches_celery_when_enabled = _TopLevelFunctionSurface.test_schedule_commit_dispatches_celery_when_enabled
 test_commit_job_task_processes_valid_rows_and_marks_completed = _TopLevelFunctionSurface.test_commit_job_task_processes_valid_rows_and_marks_completed
 test_commit_job_task_accepts_summary_dict_with_produtos = _TopLevelFunctionSurface.test_commit_job_task_accepts_summary_dict_with_produtos
 

@@ -191,6 +191,7 @@ class _MarkerPatternStub:
 @pytest.mark.asyncio
 async def test_ai_provider_runtime_key_resolution_extra_paths(monkeypatch):
     runtime = ia_service.AiProviderRuntime()
+    monkeypatch.setattr(ia_service.settings, "AI_PROVIDER", "openai", raising=False)
 
     monkeypatch.setattr(ia_service.settings, "OPENAI_API_KEY", None, raising=False)
     result = await runtime.get_openai_api_key(
