@@ -5,6 +5,7 @@ from __future__ import annotations
 import importlib.util
 import sys
 import types
+import builtins
 from concurrent.futures import TimeoutError
 from pathlib import Path
 
@@ -34,6 +35,14 @@ def _load_validator_probe_module(monkeypatch, *, enabled: bool, available_import
     else:
         monkeypatch.delitem(sys.modules, "crewai", raising=False)
         monkeypatch.delitem(sys.modules, "langchain_openai", raising=False)
+        real_import = builtins.__import__
+
+        def _import_guard(name, globals=None, locals=None, fromlist=(), level=0):
+            if name in {"crewai", "langchain_openai"}:
+                raise ImportError(f"forced missing dependency: {name}")
+            return real_import(name, globals, locals, fromlist, level)
+
+        monkeypatch.setattr(builtins, "__import__", _import_guard)
 
     spec = importlib.util.spec_from_file_location(
         module_name,

@@ -22,7 +22,7 @@ describe('ThemeToggle', () => {
     const button = screen.getByRole('button', { name: /ir para claro/i });
     expect(button).toHaveClass('theme-button');
     expect(screen.getByText(/Tema atual: escuro/i)).toBeInTheDocument();
-    expect(screen.getByRole('img', { hidden: true })).toBeInTheDocument();
+    expect(screen.getByRole('presentation')).toBeInTheDocument();
 
     await userEvent.click(button);
     expect(toggleTheme).toHaveBeenCalled();
