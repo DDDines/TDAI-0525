@@ -678,6 +678,12 @@ class WebContentFetchEngineRuntime:
                     url,
                 )
             return html_content
+        except NotImplementedError:
+            logger.warning(
+                "Playwright indisponivel neste loop asyncio. Usando fallback HTTP direto para %s.",
+                url,
+            )
+            return await self.coletar_conteudo_pagina_http(url)
         except Exception as e:
             erro_str = str(e)
             erro_curto = erro_str.splitlines()[0] if erro_str else "erro_desconhecido"
@@ -704,12 +710,6 @@ class WebContentFetchEngineRuntime:
                     url,
                 )
             return html_content
-        except NotImplementedError:
-            logger.warning(
-                "Playwright indisponivel neste loop asyncio. Usando fallback HTTP direto para %s.",
-                url,
-            )
-            return await self.coletar_conteudo_pagina_http(url)
 
 
 class WebSearchWorkflow:
