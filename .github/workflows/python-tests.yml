@@ -65,6 +65,27 @@ jobs:
       - name: Validate alembic head upgrade
         run: python scripts/validate_alembic_upgrade.py
 
+  ops-scripts:
+    name: Ops scripts syntax
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Validate Python ops scripts
+        run: >
+          python -m py_compile
+          scripts/smoke_release.py
+          scripts/check_migration_safety.py
+          scripts/validate_alembic_upgrade.py
+      - name: Validate shell ops scripts
+        run: >
+          bash -n
+          scripts/bootstrap-vps.sh
+          scripts/deploy-blue-green.sh
+          scripts/rollback-blue-green.sh
+
   oop-strict-no-legacy:
     name: Strict OOP gate
     runs-on: ubuntu-latest

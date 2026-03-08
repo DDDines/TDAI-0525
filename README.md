@@ -2,18 +2,24 @@
 
 Plataforma para importar catalogos, enriquecer dados de produtos via web e gerar conteudo com IA para e-commerce.
 
-## Estado Atual (2026-03-06)
-- Backend e frontend estao operacionais no fluxo principal do MVP.
+## Estado Atual (2026-03-08)
+- Backend e frontend estao fechados com cobertura literal `100%`.
 - Backend em arquitetura OOP-only (`APP_MODE=oop`).
 - API publica versionada em `/api/v1`.
 - Frontend React + Vite em `Frontend/app`.
-- Backlog P0/P1/P2 documentado em `docs/BUGS_PRIORIZADOS_2026-02-18.md` foi concluido.
+- LM Studio local suportado lado a lado com OpenAI/Gemini.
+- Prompt templates versionados no banco.
+- Dispatch assincrono preparado com Celery + Redis.
+- CI/CD inclui gate de testes, migration safety e deploy blue-green para VPS Linux.
 
-Validacao executada em 2026-03-06:
-- `pytest -q`: `399 passed`
-- `npm test`: `22 suites / 53 tests passed`
-- `npm run lint`: `OK`
-- `npm run build`: `OK`
+Validacao executada em 2026-03-08:
+- `python -m pytest -q`: `1054 passed`
+- backend coverage: `100.00%`
+- `cd Frontend/app && npm run test:coverage`: `67 suites / 625 tests passed`
+- frontend coverage: `100%`
+- `cd Frontend/app && npm run lint`: `OK`
+- `cd Frontend/app && npm run build`: `OK`
+- `cd Frontend/app && npm run test:e2e`: `2 passed`
 
 ## Estrutura Do Projeto
 - `Backend/`: API FastAPI, aplicacao OOP, repositorios e runtime modules.
@@ -62,10 +68,22 @@ Detalhes extras: `docs/EXECUCAO_LOCAL.md`.
 - Swagger: `http://localhost:8000/docs`
 
 ## Testes E Qualidade
-- Backend: `pytest -q`
-- Frontend (testes): `cd Frontend/app && npm test`
+- Backend: `python -m pytest -q`
+- Frontend (coverage): `cd Frontend/app && npm run test:coverage`
 - Frontend (lint): `cd Frontend/app && npm run lint`
 - Frontend (build): `cd Frontend/app && npm run build`
+- End-to-end: `cd Frontend/app && npm run test:e2e`
+
+## Deploy E Operacao
+- CI principal: `.github/workflows/python-tests.yml`
+- Deploy VPS blue-green: `.github/workflows/deploy-vps.yml`
+- Bootstrap do host Linux: `bash scripts/bootstrap-vps.sh`
+- Safety check de migrations: `python scripts/check_migration_safety.py`
+- Validacao de upgrade Alembic: `python scripts/validate_alembic_upgrade.py`
+- Smoke de release: `python scripts/smoke_release.py --base-url http://127.0.0.1:8000`
+- Rollout blue-green: `bash scripts/deploy-blue-green.sh`
+- Rollback blue-green: `bash scripts/rollback-blue-green.sh`
+- Guia operacional: `docs/PRODUCAO_VPS.md`
 
 ## Manutencao Retroativa (Conteudo)
 - Dry-run de limpeza retroativa (sem gravar): `python scripts/backfill_product_content_sanitization.py --limit 200`

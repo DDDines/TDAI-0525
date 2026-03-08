@@ -19,6 +19,12 @@ NGINX_UPSTREAM_PATH="${NGINX_UPSTREAM_PATH:-/etc/nginx/conf.d/catalogai-upstream
 NGINX_TEST_COMMAND="${NGINX_TEST_COMMAND:-nginx -t}"
 NGINX_RELOAD_COMMAND="${NGINX_RELOAD_COMMAND:-nginx -s reload}"
 SKIP_NGINX_RELOAD="${SKIP_NGINX_RELOAD:-0}"
+API_V1_PREFIX="${API_V1_PREFIX:-/api/v1}"
+SMOKE_RELEASE_ON_DEPLOY="${SMOKE_RELEASE_ON_DEPLOY:-1}"
+SMOKE_TIMEOUT_SECONDS="${SMOKE_TIMEOUT_SECONDS:-30}"
+SMOKE_SCRIPT_PATH="${SMOKE_SCRIPT_PATH:-$RELEASE_DIR/scripts/smoke_release.py}"
+SMOKE_ADMIN_EMAIL="${SMOKE_ADMIN_EMAIL:-${ADMIN_EMAIL:-}}"
+SMOKE_ADMIN_PASSWORD="${SMOKE_ADMIN_PASSWORD:-${ADMIN_PASSWORD:-}}"
 PYTHON_BIN="${PYTHON_BIN:-python3}"
 
 mkdir -p "$APP_ROOT/shared" "$RUN_DIR" "$LOG_DIR" "$APP_ROOT/releases"
@@ -144,6 +150,34 @@ if ! wait_for_health "http://${BACKEND_HOST}:${target_port}${HEALTHCHECK_PATH}";
   stop_pidfile "$target_worker_pid"
   echo "New slot failed healthcheck on port ${target_port}." >&2
   exit 1
+fi
+
+if [[ "$SMOKE_RELEASE_ON_DEPLOY" == "1" ]]; then
+  if [[ ! -f "$SMOKE_SCRIPT_PATH" ]]; then
+    stop_pidfile "$target_backend_pid"
+    stop_pidfile "$target_worker_pid"
+    echo "Smoke script not found: $SMOKE_SCRIPT_PATH" >&2
+    exit 1
+  fi
+
+  smoke_args=(
+    --base-url "http://${BACKEND_HOST}:${target_port}"
+    --api-prefix "$API_V1_PREFIX"
+    --timeout "$SMOKE_TIMEOUT_SECONDS"
+  )
+  if [[ -n "$SMOKE_ADMIN_EMAIL" ]]; then
+    smoke_args+=(--email "$SMOKE_ADMIN_EMAIL")
+  fi
+  if [[ -n "$SMOKE_ADMIN_PASSWORD" ]]; then
+    smoke_args+=(--password "$SMOKE_ADMIN_PASSWORD")
+  fi
+
+  if ! "$RELEASE_DIR/.venv/bin/python" "$SMOKE_SCRIPT_PATH" "${smoke_args[@]}"; then
+    stop_pidfile "$target_backend_pid"
+    stop_pidfile "$target_worker_pid"
+    echo "Smoke release checks failed for slot ${target_slot}." >&2
+    exit 1
+  fi
 fi
 
 backup_upstream=""
