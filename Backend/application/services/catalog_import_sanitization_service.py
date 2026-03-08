@@ -407,7 +407,10 @@ class CatalogImportSanitizationService:
         for key in ("motivo_descarte", "erro_processamento_pdf", "erro_processamento"):
             value = error_item.get(key)
             if value:
-                line = self.normalize_import_text(str(value).strip()).splitlines()[0].strip()
+                normalized = self.normalize_import_text(str(value).strip())
+                if not normalized:
+                    continue
+                line = normalized.splitlines()[0].strip()
                 if line:
                     return line[:300]
         return "erro_sem_motivo"
