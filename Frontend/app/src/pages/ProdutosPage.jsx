@@ -17,7 +17,10 @@ import { showErrorToast, showSuccessToast, showInfoToast } from '../utils/notifi
 import './ProdutosPage.css';
 import { useProductTypes } from '../contexts/ProductTypeContext';
 import LoadingPopup from '../components/common/LoadingPopup.jsx';
-import { resolveGenerationHandler } from './ProdutosPage.helpers.js';
+import {
+  normalizeProductListPayload,
+  resolveGenerationHandler,
+} from './ProdutosPage.helpers.js';
 import { queryKeys } from '../lib/queryKeys.js';
 
 const WEB_ENRICHMENT_TERMINAL_STATUSES = new Set([
@@ -34,17 +37,9 @@ const WEB_ENRICHMENT_TERMINAL_STATUSES = new Set([
 const WEB_ENRICHMENT_POLL_INTERVAL_MS = 3000;
 const WEB_ENRICHMENT_MAX_POLLS = 120;
 
-function normalizeProductListPayload(data) {
-  return {
-    items: Array.isArray(data?.items) ? data.items : [],
-    total_items: typeof data?.total_items === 'number' ? data.total_items : 0,
-  };
-}
-
 function ProdutosPage() {
   const { effectiveMode } = useAppExperience();
   const showAiFeatures = effectiveMode === 'complete';
-  const showGenerationFeatures = true;
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
@@ -525,16 +520,14 @@ function ProdutosPage() {
           <span>{selectedProdutos.size} produto(s) selecionado(s)</span>
           <button onClick={handleDeleteSelected} className="btn-danger btn-sm">Deletar</button>
           <button onClick={handleEnrichSelectedWeb} className="btn-secondary btn-sm">Enriquecer Web</button>
-          {showGenerationFeatures ? (
-            <>
-              <button onClick={() => void handleGenerateContentForSelected('titulo')} className="btn-secondary btn-sm">
-                {showAiFeatures ? 'Gerar Títulos IA' : 'Gerar Títulos'}
-              </button>
-              <button onClick={() => void handleGenerateContentForSelected('descricao')} className="btn-secondary btn-sm">
-                {showAiFeatures ? 'Gerar Descrições IA' : 'Gerar Descrições'}
-              </button>
-            </>
-          ) : null}
+          <>
+            <button onClick={() => void handleGenerateContentForSelected('titulo')} className="btn-secondary btn-sm">
+              {showAiFeatures ? 'Gerar T?tulos IA' : 'Gerar T?tulos'}
+            </button>
+            <button onClick={() => void handleGenerateContentForSelected('descricao')} className="btn-secondary btn-sm">
+              {showAiFeatures ? 'Gerar Descri??es IA' : 'Gerar Descri??es'}
+            </button>
+          </>
         </div>
       ) : null}
 
@@ -550,7 +543,7 @@ function ProdutosPage() {
           onSelectProduto={handleSelectProduto}
           selectedProdutos={selectedProdutos}
           onSelectAllProdutos={handleSelectAllProdutos}
-          showAiColumns={showGenerationFeatures}
+          showAiColumns={true}
           loading={loading && produtos && produtos.length > 0}
         />
       )}

@@ -385,6 +385,51 @@ describe('EnriquecimentoPage', () => {
     });
   }, 15000);
 
+  test('ignores polled entries without id while caching the valid selected products', async () => {
+    jest.useFakeTimers();
+    productService.getProdutos.mockResolvedValueOnce({
+      items: [
+        baseProduto,
+        {
+          ...baseProduto,
+          id: 2,
+          nome_base: 'Produto Secundario',
+        },
+      ],
+      total_items: 2,
+    });
+    productService.getProdutoById
+      .mockResolvedValueOnce({
+        id: 1,
+        status_enriquecimento_web: 'CONCLUIDO_SUCESSO',
+      })
+      .mockResolvedValueOnce({
+        id: null,
+        status_enriquecimento_web: 'CONCLUIDO_SUCESSO',
+      });
+
+    renderWithQueryClient(<EnriquecimentoPage />);
+
+    await waitFor(() => {
+      expect(screen.getByTestId('produtos-renderizados')).toHaveTextContent('Produto Secundario');
+    });
+
+    fireEvent.click(screen.getByText('select-all'));
+    fireEvent.click(screen.getByRole('button', { name: /Enriquecer Web/i }));
+
+    await waitFor(() => {
+      expect(productService.iniciarEnriquecimentoWebProduto).toHaveBeenCalledWith(1);
+      expect(productService.iniciarEnriquecimentoWebProduto).toHaveBeenCalledWith(2);
+    });
+
+    await waitFor(() => {
+      expect(productService.getProdutoById).toHaveBeenCalledTimes(2);
+      expect(showSuccessToast).toHaveBeenCalledWith(
+        'Enriquecimento web finalizado para os produtos selecionados.'
+      );
+    });
+  }, 15000);
+
   test('shows the fallback fetch error when the product request has no message', async () => {
     productService.getProdutos.mockRejectedValueOnce({});
 

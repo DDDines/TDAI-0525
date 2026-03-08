@@ -20,10 +20,12 @@ describe('queryKeys', () => {
   });
 
   test('builds stable list keys with sorted params', () => {
+    expect(buildListQueryKey('produtos')).toEqual(['produtos', {}]);
     expect(buildListQueryKey('produtos', { b: 2, a: 1, vazio: '' })).toEqual([
       'produtos',
       { a: 1, b: 2 },
     ]);
+    expect(buildListQueryKey('produtos', null)).toEqual(['produtos', {}]);
   });
 
   test('exports domain-specific query-key factories', () => {
@@ -43,6 +45,19 @@ describe('queryKeys', () => {
     expect(queryKeys.fornecedorImportProgress(9)).toEqual([
       'fornecedor-import-progress',
       '9',
+    ]);
+  });
+
+  test('normalizes empty factory arguments to stable default keys', () => {
+    expect(queryKeys.produtos()).toEqual(['produtos', {}]);
+    expect(queryKeys.produto()).toEqual(['produto', '']);
+    expect(queryKeys.orderedProductIds()).toEqual(['produto-navigation', {}]);
+    expect(queryKeys.fornecedores()).toEqual(['fornecedores', {}]);
+    expect(queryKeys.catalogImportStatus()).toEqual(['catalog-import-status', '']);
+    expect(queryKeys.catalogImportResult()).toEqual(['catalog-import-result', '']);
+    expect(queryKeys.fornecedorImportProgress()).toEqual([
+      'fornecedor-import-progress',
+      '',
     ]);
   });
 });

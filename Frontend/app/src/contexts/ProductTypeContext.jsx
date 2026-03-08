@@ -60,8 +60,7 @@ function ProductTypeProvider({ children }) {
   const setProductTypesCache = useCallback((updater) => {
     queryClient.setQueryData(productTypesQueryKey, (previous = []) => {
       const safePrevious = Array.isArray(previous) ? previous : [];
-      const nextValue = typeof updater === 'function' ? updater(safePrevious) : updater;
-      return sortProductTypes(Array.isArray(nextValue) ? nextValue : []);
+      return sortProductTypes(updater(safePrevious));
     });
   }, [productTypesQueryKey, queryClient]);
 

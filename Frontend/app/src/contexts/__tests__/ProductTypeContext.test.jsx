@@ -5,7 +5,10 @@ import { ProductTypeProvider, useProductTypes } from '../ProductTypeContext.jsx'
 import productTypeService from '../../services/productTypeService';
 import { showErrorToast, showSuccessToast } from '../../utils/notifications';
 import { useAuth } from '../AuthContext';
-import { renderWithQueryClient } from '../../../test-utils/renderWithQueryClient.jsx';
+import {
+  createTestQueryClient,
+  renderWithQueryClient,
+} from '../../../test-utils/renderWithQueryClient.jsx';
 
 jest.mock('../../services/productTypeService', () => ({
   __esModule: true,
@@ -197,6 +200,55 @@ describe('ProductTypeContext', () => {
     expect(showSuccessToast).toHaveBeenCalledWith('Tipo de produto adicionado com sucesso!');
     expect(showSuccessToast).toHaveBeenCalledWith('Tipo de produto atualizado com sucesso!');
     expect(showSuccessToast).toHaveBeenCalledWith('Tipo de produto removido com sucesso!');
+  });
+
+  test('recovers from a malformed cached payload before appending a new type', async () => {
+    const client = createTestQueryClient();
+    client.setQueryData(['product-types'], { invalid: true });
+    productTypeService.getProductTypes.mockImplementation(
+      () => new Promise(() => {})
+    );
+    productTypeService.createProductType.mockResolvedValueOnce({
+      id: 2,
+      friendly_name: 'Caminhao',
+    });
+
+    renderWithQueryClient(
+      <ProductTypeProvider>
+        <Probe />
+      </ProductTypeProvider>,
+      { client }
+    );
+
+    fireEvent.click(screen.getByText('add'));
+
+    await waitFor(() => {
+      expect(screen.getByTestId('names')).toHaveTextContent('Caminhao');
+    });
+  });
+
+  test('builds a new local cache when a mutation succeeds before the first fetch resolves', async () => {
+    const client = createTestQueryClient();
+    productTypeService.getProductTypes.mockImplementation(
+      () => new Promise(() => {})
+    );
+    productTypeService.createProductType.mockResolvedValueOnce({
+      id: 2,
+      friendly_name: 'Caminhao',
+    });
+
+    renderWithQueryClient(
+      <ProductTypeProvider>
+        <Probe />
+      </ProductTypeProvider>,
+      { client }
+    );
+
+    fireEvent.click(screen.getByText('add'));
+
+    await waitFor(() => {
+      expect(screen.getByTestId('names')).toHaveTextContent('Caminhao');
+    });
   });
 
   test('surfaces fetch errors to the UI', async () => {
