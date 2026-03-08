@@ -31,6 +31,7 @@ export function extractGeneratedTitles(product) {
 export async function createAdminApiContext(playwright) {
   const bootstrapContext = await playwright.request.newContext();
   let tokenResponse = null;
+  let lastTokenBody = '';
   const deadline = Date.now() + 60_000;
 
   while (Date.now() < deadline) {
@@ -43,10 +44,16 @@ export async function createAdminApiContext(playwright) {
     if (tokenResponse.ok()) {
       break;
     }
+    lastTokenBody = await tokenResponse.text();
     await new Promise((resolve) => setTimeout(resolve, 2_000));
   }
 
-  expect(tokenResponse?.ok()).toBeTruthy();
+  if (!tokenResponse?.ok()) {
+    throw new Error(
+      `Failed to bootstrap E2E admin token from ${backendApiBaseUrl}auth/token: ` +
+        `status=${tokenResponse?.status() ?? 'unknown'} body=${lastTokenBody || '<empty>'}`
+    );
+  }
   const tokenData = await parseJson(tokenResponse);
   expect(tokenData?.access_token).toBeTruthy();
   await bootstrapContext.dispose();
@@ -84,6 +91,14 @@ export async function findProductByName(api, nome) {
   expect(response.ok()).toBeTruthy();
   const data = await parseJson(response);
   return (data?.items || []).find((item) => item.nome_base === nome) || null;
+}
+
+export async function createProduct(api, produto) {
+  const response = await api.post('produtos/', {
+    data: produto,
+  });
+  expect(response.ok()).toBeTruthy();
+  return parseJson(response);
 }
 
 export async function getProductById(api, productId) {

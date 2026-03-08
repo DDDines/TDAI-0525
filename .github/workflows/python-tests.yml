@@ -101,7 +101,7 @@ jobs:
         run: python -m pip install --upgrade pip && pip install -r requirements-backend.txt
       - name: Run strict OOP no-legacy gate
         run: >
-          pytest -q
+          pytest -q --no-cov
           Backend/tests/test_architecture_boundaries.py
           Backend/tests/test_app_mode_pipeline_selector.py
           Backend/tests/test_pipeline_orchestrators.py
@@ -135,6 +135,8 @@ jobs:
       FIRST_SUPERUSER_PASSWORD: password
       ADMIN_EMAIL: admin@example.com
       ADMIN_PASSWORD: password
+      DATABASE_URL: sqlite:///./ci_e2e.db
+      AUTO_CREATE_TABLES: "True"
       PLAYWRIGHT_BACKEND_PORT: "8012"
       PLAYWRIGHT_FRONTEND_PORT: "4175"
     steps:
@@ -152,6 +154,8 @@ jobs:
       - name: Install frontend dependencies
         working-directory: Frontend/app
         run: npm ci
+      - name: Prepare e2e backend database
+        run: python scripts/prepare_e2e_backend.py
       - name: Install Playwright Chromium
         working-directory: Frontend/app
         run: npx playwright install chromium

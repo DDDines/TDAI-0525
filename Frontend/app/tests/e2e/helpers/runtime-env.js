@@ -40,12 +40,16 @@ const repoEnv = parseEnvFile(envFilePath);
 
 export const e2eEmail =
   process.env.E2E_ADMIN_EMAIL ||
+  process.env.FIRST_SUPERUSER_EMAIL ||
+  process.env.ADMIN_EMAIL ||
   repoEnv.FIRST_SUPERUSER_EMAIL ||
   repoEnv.ADMIN_EMAIL ||
   'admin@example.com';
 
 export const e2ePassword =
   process.env.E2E_ADMIN_PASSWORD ||
+  process.env.FIRST_SUPERUSER_PASSWORD ||
+  process.env.ADMIN_PASSWORD ||
   repoEnv.FIRST_SUPERUSER_PASSWORD ||
   repoEnv.ADMIN_PASSWORD ||
   'password';

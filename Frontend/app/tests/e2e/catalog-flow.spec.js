@@ -1,5 +1,6 @@
 import { expect, test } from '@playwright/test';
 import {
+  createProduct,
   createAdminApiContext,
   deleteIfExists,
   extractGeneratedTitles,
@@ -19,6 +20,7 @@ const attributeLabel = `Material ${uniqueSuffix}`;
 const attributeKey = `material_${uniqueSuffix}`;
 const productName = `E2E Produto ${uniqueSuffix}`;
 const productSku = `SKU-${uniqueSuffix}`;
+const seededProductPrefix = `E2E Seed ${uniqueSuffix}`;
 
 test.describe.configure({ mode: 'serial' });
 
@@ -27,9 +29,18 @@ test.describe('Catalog critical flow', () => {
   let fornecedorId;
   let productTypeId;
   let productId;
+  const seededProductIds = [];
 
   test.beforeAll(async ({ playwright }) => {
     api = await createAdminApiContext(playwright);
+    for (let index = 1; index <= 11; index += 1) {
+      const seededProduct = await createProduct(api, {
+        nome_base: `${seededProductPrefix} ${index}`,
+        sku: `SEED-${uniqueSuffix}-${index}`,
+        descricao_original: `Produto seed ${index} para smoke E2E`,
+      });
+      seededProductIds.push(seededProduct.id);
+    }
   });
 
   test.afterAll(async () => {
@@ -41,6 +52,9 @@ test.describe('Catalog critical flow', () => {
     }
     if (productTypeId) {
       await deleteIfExists(api, `/product-types/${productTypeId}`);
+    }
+    for (const seededProductId of seededProductIds) {
+      await deleteIfExists(api, `/produtos/${seededProductId}`);
     }
     if (api) {
       await api.dispose();
@@ -182,11 +196,12 @@ test.describe('Catalog critical flow', () => {
 
     await productModal.getByRole('button', { name: /Tela Dedicada/i }).click();
     await expect(page).toHaveURL(new RegExp(`/produtos/${productId}/conteudo$`));
+    await page.reload();
     await expect(page.getByRole('heading', { name: /5 T[ií]tulos Sugeridos/i })).toBeVisible();
     await expect(page.getByRole('heading', { name: /Descri/i })).toBeVisible();
 
     const titleCards = page.locator('.produto-conteudo-title-card');
-    await expect(titleCards.first()).toContainText(titlesBeforeDescription[0]);
+    await expect(titleCards.first()).toContainText(titlesBeforeDescription[0], { timeout: 30_000 });
 
     const generatedContent = [
       await page.locator('.produto-conteudo-title-list').innerText(),

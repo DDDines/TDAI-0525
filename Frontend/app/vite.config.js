@@ -1,8 +1,30 @@
-// Frontend/app/vite.config.js
-import { defineConfig } from 'vite'
-import react from '@vitejs/plugin-react-swc' // Seu plugin React atual
+import { defineConfig } from 'vite';
+import react from '@vitejs/plugin-react-swc';
 
-// https://vitejs.dev/config/
+const nodeEnv = globalThis.process?.env || {};
+
+function resolveProxyTarget() {
+  const explicitApiBaseUrl = String(nodeEnv.VITE_API_BASE_URL || '').trim();
+  if (explicitApiBaseUrl) {
+    try {
+      return new URL(explicitApiBaseUrl).origin;
+    } catch {
+      // Ignore malformed overrides and fall back to host/port defaults.
+    }
+  }
+
+  const backendHost = String(nodeEnv.BACKEND_HOST || '127.0.0.1').trim() || '127.0.0.1';
+  const backendPort =
+    String(
+      nodeEnv.PLAYWRIGHT_BACKEND_PORT ||
+        nodeEnv.BACKEND_PORT ||
+        '8000'
+    ).trim() || '8000';
+  return `http://${backendHost}:${backendPort}`;
+}
+
+const proxyTarget = resolveProxyTarget();
+
 export default defineConfig({
   plugins: [react()],
   build: {
@@ -14,25 +36,19 @@ export default defineConfig({
           typeof warning?.id === 'string' &&
           warning.id.includes('pdfjs-dist/legacy/build/pdf.js')
         ) {
-          return
+          return;
         }
-        warn(warning)
+        warn(warning);
       },
     },
   },
   server: {
-    port: 5173, // Mantém a porta padrão do Vite, ou a que você estiver usando
+    port: 5173,
     proxy: {
-      // Redirecionar requisições que começam com /api/v1 para o seu backend FastAPI
       '/api/v1': {
-        target: 'http://localhost:8000', // URL do seu backend FastAPI
-        changeOrigin: true, // Necessário para virtual hosted sites
-        // secure: false, // Descomente se o seu backend estiver rodando em HTTPS com certificado autoassinado
-        // O rewrite não deve ser necessário aqui, pois seus endpoints FastAPI
-        // já estão esperando o prefixo /api/v1 (conforme incluído em Backend/main.py)
-        // Exemplo de rewrite (SE NECESSÁRIO, mas provavelmente não é o seu caso):
-        // rewrite: (path) => path.replace(/^\/api\/v1/, '')
-      }
-    }
-  }
-})
+        target: proxyTarget,
+        changeOrigin: true,
+      },
+    },
+  },
+});
