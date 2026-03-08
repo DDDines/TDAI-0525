@@ -16,13 +16,13 @@ class _TopLevelFunctionSurface:
     async def test_tabular_preview_runtime_preview_excel(monkeypatch):
         """Run test tabular preview runtime preview excel in this workflow."""
         runtime = file_processing.TabularPreviewRuntime()
-    
+
         monkeypatch.setattr(
-            file_processing.pd,
-            "read_excel",
-            lambda *_args, **_kwargs: pd.DataFrame([{"a": "1"}, {"a": "2"}]),
+            file_processing.TabularPreviewEngineRuntime,
+            "_build_excel_preview_in_subprocess",
+            lambda self, **kwargs: {"ok": True, "headers": ["a"], "sample_rows": [{"a": "1"}]},
         )
-    
+
         result = await runtime.preview_arquivo_excel(b"PK\x03\x04xlsx", max_rows=1)
     
         assert result["headers"] == ["a"]

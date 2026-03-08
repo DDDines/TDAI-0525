@@ -228,13 +228,13 @@ async def test_tabular_ingestion_runtime_covers_product_type_and_csv_fallbacks(m
             for idx, row in enumerate(self._rows):
                 yield idx, SimpleNamespace(to_dict=lambda row=row: row)
 
-    monkeypatch.setattr(file_processing.pd, "ExcelFile", lambda *_a, **_k: SimpleNamespace(sheet_names=["Aba1"]))
     monkeypatch.setattr(
-        file_processing.pd,
-        "read_excel",
-        lambda xls, sheet_name=None: _FakeDataFrame(
-            [{"nome": "AB12 Produto"}, {"nome": None}]
-        ),
+        file_processing.TabularIngestionEngineRuntime,
+        "_parse_excel_records_in_subprocess",
+        lambda self, **kwargs: {
+            "ok": True,
+            "records": [{"nome": "AB12 Produto"}, {"nome": None}],
+        },
     )
     monkeypatch.setattr(
         file_processing._FileProcessingImplementation,
@@ -249,29 +249,14 @@ async def test_tabular_ingestion_runtime_covers_product_type_and_csv_fallbacks(m
     )
     assert excel_result == [{"nome_base": "Produto", "sku_original": "AB12", "product_type_id": 9}]
 
-    class _FakeSniffer:
-        def sniff(self, sample, delimiters=None):
-            raise RuntimeError("sniffer down")
-
-    monkeypatch.setattr(file_processing.csv, "Sniffer", lambda: _FakeSniffer())
-    original_import = builtins.__import__
-
-    def fake_import(name, globals=None, locals=None, fromlist=(), level=0):
-        if name == "chardet":
-            raise ImportError("sem chardet")
-        return original_import(name, globals, locals, fromlist, level)
-
-    monkeypatch.setattr(builtins, "__import__", fake_import)
-    sys.modules.pop("chardet", None)
-
-    class _FakeDictReader:
-        def __init__(self, stream, delimiter=","):
-            self.rows = [{"nome": "CSV Produto"}]
-
-        def __iter__(self):
-            return iter(self.rows)
-
-    monkeypatch.setattr(file_processing.csv, "DictReader", _FakeDictReader)
+    monkeypatch.setattr(
+        file_processing.TabularIngestionEngineRuntime,
+        "_parse_csv_records_in_subprocess",
+        lambda self, **kwargs: {
+            "ok": True,
+            "records": [{"nome": "CSV Produto"}],
+        },
+    )
     csv_result = await runtime.processar_arquivo_csv(
         "nome;valor\nCSV Produto;10".encode("latin-1"),
         product_type_id=5,

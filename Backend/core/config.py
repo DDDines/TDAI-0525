@@ -82,6 +82,8 @@ class Settings(BaseSettings):
     PLAYWRIGHT_PROXY_POOL_JSON: Optional[str] = os.getenv('PLAYWRIGHT_PROXY_POOL_JSON')
     PLAYWRIGHT_GOTO_TIMEOUT_MS: int = int(os.getenv('PLAYWRIGHT_GOTO_TIMEOUT_MS', 30000))
     MAX_UPLOAD_BYTES: int = int(os.getenv('MAX_UPLOAD_BYTES', 25 * 1024 * 1024))
+    FILE_PARSE_TIMEOUT_SECONDS: int = int(os.getenv('FILE_PARSE_TIMEOUT_SECONDS', 30))
+    FILE_PARSE_MAX_MEMORY_MB: int = int(os.getenv('FILE_PARSE_MAX_MEMORY_MB', 0))
     ASYNC_DISPATCH_PROVIDER: str = os.getenv('ASYNC_DISPATCH_PROVIDER', 'background_tasks')
     REDIS_URL: str = os.getenv('REDIS_URL', 'redis://localhost:6379/0')
     CELERY_BROKER_URL: str = os.getenv('CELERY_BROKER_URL', os.getenv('REDIS_URL', 'redis://localhost:6379/0'))

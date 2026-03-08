@@ -115,14 +115,32 @@ async def test_tabular_preview_dispatch_and_pdf_image_runtime_cover_fallbacks(mo
     assert preview_runtime._detect_csv_delimiter("a\tb") == "\t"
     assert preview_runtime._detect_csv_delimiter("ab") == ","
 
-    monkeypatch.setattr(file_processing.pd, "read_excel", lambda *a, **k: (_ for _ in ()).throw(RuntimeError("excel fail")))
+    monkeypatch.setattr(
+        file_processing.TabularPreviewEngineRuntime,
+        "_build_excel_preview_in_subprocess",
+        lambda self, **kwargs: {
+            "ok": False,
+            "error_code": "FILE_PARSE_UNSAFE",
+            "error": "excel fail",
+        },
+    )
     assert await preview_runtime.preview_arquivo_excel(b"PK\x03\x04xlsx") == {
-        "error": "Falha ao ler arquivo Excel: excel fail"
+        "error": "excel fail",
+        "error_code": "FILE_PARSE_UNSAFE",
     }
 
-    monkeypatch.setattr(file_processing.csv, "DictReader", lambda *a, **k: (_ for _ in ()).throw(RuntimeError("csv fail")))
+    monkeypatch.setattr(
+        file_processing.TabularPreviewEngineRuntime,
+        "_build_csv_preview_in_subprocess",
+        lambda self, **kwargs: {
+            "ok": False,
+            "error_code": "FILE_PARSE_UNSAFE",
+            "error": "csv fail",
+        },
+    )
     assert await preview_runtime.preview_arquivo_csv(b"x") == {
-        "error": "Falha ao ler arquivo CSV: csv fail"
+        "error": "csv fail",
+        "error_code": "FILE_PARSE_UNSAFE",
     }
 
     with pytest.raises(NotImplementedError):

@@ -144,18 +144,29 @@ class _TopLevelFunctionSurface:
         """Cover exception branches in Excel and CSV ingestion."""
         runtime = file_processing.TabularIngestionRuntime()
 
-        monkeypatch.setattr(file_processing.pd, "ExcelFile", lambda *_a, **_k: (_ for _ in ()).throw(RuntimeError("excel fail")))
+        monkeypatch.setattr(
+            file_processing.TabularIngestionEngineRuntime,
+            "_parse_excel_records_in_subprocess",
+            lambda self, **kwargs: {
+                "ok": False,
+                "error_code": "FILE_PARSE_UNSAFE",
+                "error": "excel fail",
+            },
+        )
         result = await runtime.processar_arquivo_excel(b"PK\x03\x04xlsx")
-        assert result[0]["erro_processamento_excel"] == "Falha ao ler arquivo Excel: excel fail"
+        assert result[0]["erro_processamento_excel"] == "excel fail"
 
-        original_decode = bytes.decode
-
-        class _BrokenBytes(bytes):
-            def decode(self, encoding="utf-8", errors="strict"):
-                raise RuntimeError("csv fail")
-
-        result = await runtime.processar_arquivo_csv(_BrokenBytes(b"x"))
-        assert result[0]["erro_processamento_csv"] == "Falha ao ler arquivo CSV: csv fail"
+        monkeypatch.setattr(
+            file_processing.TabularIngestionEngineRuntime,
+            "_parse_csv_records_in_subprocess",
+            lambda self, **kwargs: {
+                "ok": False,
+                "error_code": "FILE_PARSE_UNSAFE",
+                "error": "csv fail",
+            },
+        )
+        result = await runtime.processar_arquivo_csv(b"x")
+        assert result[0]["erro_processamento_csv"] == "csv fail"
 
     @pytest.mark.asyncio
     async def test_file_processing_security_validation_returns_structured_error_payloads(monkeypatch):
@@ -231,6 +242,236 @@ class _TopLevelFunctionSurface:
             await pdf_runtime.processar_arquivo_pdf(b"%PDF-1.4")
         )[0]["error_code"] == "FILE_TOO_LARGE"
 
+    def test_file_processing_subprocess_helpers_cover_timeout_and_failure_payloads(
+        monkeypatch,
+        tmp_path,
+    ):
+        """Cover parser subprocess helper branches without spawning real children."""
+        impl = file_processing._FileProcessingImplementation
+
+        monkeypatch.setattr(file_processing.settings, "FILE_PARSE_TIMEOUT_SECONDS", "bad", raising=False)
+        monkeypatch.setattr(file_processing.settings, "FILE_PARSE_MAX_MEMORY_MB", "bad", raising=False)
+        assert impl._resolve_file_parse_timeout_seconds() == 30
+        assert impl._resolve_file_parse_max_memory_mb() == 0
+        assert impl._resolve_project_root().name == "Project"
+        assert impl._build_file_parse_error_payload(
+            prefix="erro",
+            error_code="FILE_PARSE_TIMEOUT",
+            detail="timed out",
+        ) == {"erro": "timed out", "error_code": "FILE_PARSE_TIMEOUT"}
+
+        class _Completed:
+            returncode = 0
+            stdout = ""
+            stderr = ""
+
+        def fake_run_success(command, **kwargs):
+            _ = kwargs
+            output_index = command.index("--output") + 1
+            Path(command[output_index]).write_text(
+                '{"ok": true, "records": [{"sku": "A1"}]}',
+                encoding="utf-8",
+            )
+            return _Completed()
+
+        class _FakeNamedTempFile:
+            counter = 0
+
+            def __init__(self, suffix):
+                self.name = str(tmp_path / f"tmp-{_FakeNamedTempFile.counter}{suffix}")
+                _FakeNamedTempFile.counter += 1
+
+            def __enter__(self):
+                Path(self.name).write_bytes(b"")
+                return self
+
+            def __exit__(self, exc_type, exc, tb):
+                return False
+
+            def write(self, payload):
+                Path(self.name).write_bytes(payload)
+
+        monkeypatch.setattr(
+            file_processing.tempfile,
+            "NamedTemporaryFile",
+            lambda delete=False, suffix="": _FakeNamedTempFile(suffix),
+        )
+        monkeypatch.setattr(file_processing.subprocess, "run", fake_run_success)
+        success = impl._run_tabular_parse_subprocess(
+            mode="excel_ingest",
+            content=b"PK\x03\x04xlsx",
+            suffix=".xlsx",
+        )
+        assert success == {"ok": True, "records": [{"sku": "A1"}]}
+
+        def fake_run_invalid_json(command, **kwargs):
+            _ = kwargs
+            output_index = command.index("--output") + 1
+            Path(command[output_index]).write_text("{invalid", encoding="utf-8")
+            return _Completed()
+
+        monkeypatch.setattr(file_processing.subprocess, "run", fake_run_invalid_json)
+        invalid_json_payload = impl._run_tabular_parse_subprocess(
+            mode="excel_preview",
+            content=b"PK\x03\x04xlsx",
+            suffix=".xlsx",
+            max_rows=None,
+        )
+        assert invalid_json_payload["error_code"] == "FILE_PARSE_UNSAFE"
+
+        monkeypatch.setattr(
+            file_processing.subprocess,
+            "run",
+            lambda *args, **kwargs: (_ for _ in ()).throw(
+                file_processing.subprocess.TimeoutExpired(cmd="python", timeout=1)
+            ),
+        )
+        timeout_payload = impl._run_tabular_parse_subprocess(
+            mode="excel_ingest",
+            content=b"PK\x03\x04xlsx",
+            suffix=".xlsx",
+        )
+        assert timeout_payload["error_code"] == "FILE_PARSE_TIMEOUT"
+
+        class _CompletedKilled:
+            returncode = -9
+            stdout = ""
+            stderr = ""
+
+        monkeypatch.setattr(file_processing.settings, "FILE_PARSE_MAX_MEMORY_MB", 64, raising=False)
+        monkeypatch.setattr(file_processing.subprocess, "run", lambda *args, **kwargs: _CompletedKilled())
+        oom_payload = impl._run_tabular_parse_subprocess(
+            mode="excel_ingest",
+            content=b"PK\x03\x04xlsx",
+            suffix=".xlsx",
+        )
+        assert oom_payload["error_code"] == "FILE_PARSE_OOM"
+
+        class _CompletedFailure:
+            returncode = 1
+            stdout = ""
+            stderr = "stderr fail"
+
+        monkeypatch.setattr(file_processing.settings, "FILE_PARSE_MAX_MEMORY_MB", 0, raising=False)
+        monkeypatch.setattr(file_processing.subprocess, "run", lambda *args, **kwargs: _CompletedFailure())
+        unsafe_payload = impl._run_tabular_parse_subprocess(
+            mode="excel_ingest",
+            content=b"PK\x03\x04xlsx",
+            suffix=".xlsx",
+        )
+        assert unsafe_payload["error_code"] == "FILE_PARSE_UNSAFE"
+        assert unsafe_payload["error"] == "stderr fail"
+
+        def fake_run_missing_output(command, **kwargs):
+            _ = kwargs
+            output_index = command.index("--output") + 1
+            output_path = Path(command[output_index])
+            if output_path.exists():
+                output_path.unlink()
+            return _Completed()
+
+        monkeypatch.setattr(file_processing.subprocess, "run", fake_run_missing_output)
+        missing_output_payload = impl._run_tabular_parse_subprocess(
+            mode="csv_preview",
+            content=b"sku,nome\nA1,Produto",
+            suffix=".csv",
+        )
+        assert missing_output_payload["error_code"] == "FILE_PARSE_UNSAFE"
+
+        monkeypatch.setattr(
+            file_processing.tempfile,
+            "NamedTemporaryFile",
+            lambda *args, **kwargs: (_ for _ in ()).throw(RuntimeError("temp fail")),
+        )
+        generic_failure_payload = impl._run_tabular_parse_subprocess(
+            mode="csv_ingest",
+            content=b"sku,nome\nA1,Produto",
+            suffix=".csv",
+        )
+        assert generic_failure_payload["error_code"] == "FILE_PARSE_UNSAFE"
+        assert generic_failure_payload["error"] == "temp fail"
+
+        monkeypatch.setattr(
+            file_processing.tempfile,
+            "NamedTemporaryFile",
+            lambda delete=False, suffix="": _FakeNamedTempFile(suffix),
+        )
+        monkeypatch.setattr(file_processing.subprocess, "run", fake_run_success)
+        original_unlink = Path.unlink
+
+        def failing_unlink(self, *args, **kwargs):
+            if self.name.startswith("tmp-"):
+                raise OSError("locked temp")
+            return original_unlink(self, *args, **kwargs)
+
+        monkeypatch.setattr(Path, "unlink", failing_unlink)
+        cleanup_failure_payload = impl._run_tabular_parse_subprocess(
+            mode="excel_ingest",
+            content=b"PK\x03\x04xlsx",
+            suffix=".xlsx",
+        )
+        assert cleanup_failure_payload == {"ok": True, "records": [{"sku": "A1"}]}
+
+    @pytest.mark.asyncio
+    async def test_file_processing_tabular_runtime_generic_exception_and_preview_wrapper_paths(
+        monkeypatch,
+    ):
+        """Cover generic exception branches after subprocess parsing was introduced."""
+        preview_runtime = file_processing.TabularPreviewEngineRuntime()
+        assert preview_runtime._detect_csv_delimiter("a|b\n1|2") == "|"
+
+        calls = []
+
+        def fake_runner(**kwargs):
+            calls.append(kwargs)
+            return {"ok": True, "headers": ["sku"], "sample_rows": [{"sku": "A1"}]}
+
+        monkeypatch.setattr(
+            file_processing._FileProcessingImplementation,
+            "_run_tabular_parse_subprocess",
+            staticmethod(fake_runner),
+        )
+        assert preview_runtime._build_excel_preview_in_subprocess(
+            conteudo_arquivo=b"PK\x03\x04xlsx",
+            max_rows=2,
+        ) == {"ok": True, "headers": ["sku"], "sample_rows": [{"sku": "A1"}]}
+        assert calls[-1]["mode"] == "excel_preview"
+
+        ingestion_runtime = file_processing.TabularIngestionRuntime()
+        monkeypatch.setattr(
+            file_processing.TabularIngestionEngineRuntime,
+            "_parse_excel_records_in_subprocess",
+            lambda self, **kwargs: (_ for _ in ()).throw(RuntimeError("excel boom")),
+        )
+        monkeypatch.setattr(
+            file_processing.TabularIngestionEngineRuntime,
+            "_parse_csv_records_in_subprocess",
+            lambda self, **kwargs: (_ for _ in ()).throw(RuntimeError("csv boom")),
+        )
+        assert (
+            await ingestion_runtime.processar_arquivo_excel(b"PK\x03\x04xlsx")
+        )[0]["erro_processamento_excel"] == "Falha ao ler arquivo Excel: excel boom"
+        assert (
+            await ingestion_runtime.processar_arquivo_csv(b"sku,nome\nA1,Produto")
+        )[0]["erro_processamento_csv"] == "Falha ao ler arquivo CSV: csv boom"
+
+        monkeypatch.setattr(
+            file_processing.TabularPreviewEngineRuntime,
+            "_build_excel_preview_in_subprocess",
+            lambda self, **kwargs: (_ for _ in ()).throw(RuntimeError("preview excel boom")),
+        )
+        monkeypatch.setattr(
+            file_processing.TabularPreviewEngineRuntime,
+            "_build_csv_preview_in_subprocess",
+            lambda self, **kwargs: (_ for _ in ()).throw(RuntimeError("preview csv boom")),
+        )
+        assert await preview_runtime.preview_arquivo_excel(b"PK\x03\x04xlsx") == {
+            "error": "Falha ao ler arquivo Excel: preview excel boom"
+        }
+        assert await preview_runtime.preview_arquivo_csv(b"sku,nome\nA1,Produto") == {
+            "error": "Falha ao ler arquivo CSV: preview csv boom"
+        }
+
 
 test_file_processing_impl_path_and_pdf_password_helpers = (
     _TopLevelFunctionSurface.test_file_processing_impl_path_and_pdf_password_helpers
@@ -255,4 +496,10 @@ test_file_processing_security_validation_returns_structured_error_payloads = (
 )
 test_file_processing_security_helper_branches_cover_fallback_limits_and_explicit_catches = (
     _TopLevelFunctionSurface.test_file_processing_security_helper_branches_cover_fallback_limits_and_explicit_catches
+)
+test_file_processing_subprocess_helpers_cover_timeout_and_failure_payloads = (
+    _TopLevelFunctionSurface.test_file_processing_subprocess_helpers_cover_timeout_and_failure_payloads
+)
+test_file_processing_tabular_runtime_generic_exception_and_preview_wrapper_paths = (
+    _TopLevelFunctionSurface.test_file_processing_tabular_runtime_generic_exception_and_preview_wrapper_paths
 )

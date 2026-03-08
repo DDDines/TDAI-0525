@@ -11,6 +11,7 @@ compatibility is still active.
 import Backend.infrastructure.runtime_modules.file_processing_module as file_processing
 import Backend.infrastructure.runtime_modules.ia_generation_module as ia_service
 import Backend.infrastructure.runtime_modules.limit_module as limit_service
+import Backend.infrastructure.runtime_modules.tabular_parse_worker as tabular_parse_worker
 import Backend.infrastructure.runtime_modules.validator_crew_module as validator_crew
 import Backend.infrastructure.runtime_modules.web_data_extractor_module as web_extractor
 
@@ -39,6 +40,7 @@ __all__ = [
     "web_extractor",
     "ia_service",
     "limit_service",
+    "tabular_parse_worker",
     "validator_crew",
     "RuntimeApis",
     "LineNormalizationRuntime",

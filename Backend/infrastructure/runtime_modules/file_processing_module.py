@@ -5,8 +5,11 @@ from pdfplumber import open as pdf_open
 import csv
 import io
 import base64
+import json
 import os
 import re
+import subprocess
+import sys
 import tempfile
 import unicodedata
 import asyncio
@@ -33,6 +36,7 @@ from Backend.application.services.catalog_import_sanitization_service import (
     CatalogImportSanitizationService,
 )
 from Backend.infrastructure.adapters.web_data_extractor_adapter import WebDataExtractorServiceAdapter
+from Backend.infrastructure.runtime_modules import tabular_parse_worker
 from Backend.infrastructure.repositories.catalog_import_file_repository import (
     CatalogImportFileRepository,
 )
@@ -89,6 +93,29 @@ class _FileProcessingImplementation:
         except Exception:
             return 25 * 1024 * 1024
 
+    @staticmethod
+    def _resolve_file_parse_timeout_seconds() -> int:
+        """Resolve the subprocess parsing timeout with a defensive fallback."""
+        try:
+            return max(1, int(getattr(settings, "FILE_PARSE_TIMEOUT_SECONDS", 30) or 30))
+        except Exception:
+            return 30
+
+    @staticmethod
+    def _resolve_file_parse_max_memory_mb() -> int:
+        """Resolve the optional subprocess parser memory cap with a defensive fallback."""
+        try:
+            return max(0, int(getattr(settings, "FILE_PARSE_MAX_MEMORY_MB", 0) or 0))
+        except Exception:
+            return 0
+
+    @staticmethod
+    def _resolve_project_root() -> Path:
+        """Resolve the project root for subprocess module execution."""
+        module_path = Path(__file__).resolve()
+        backend_root = next((parent for parent in module_path.parents if parent.name.lower() == 'backend'), module_path.parents[2])
+        return backend_root.parent
+
     @classmethod
     def _validate_file_payload(
         cls,
@@ -117,6 +144,103 @@ class _FileProcessingImplementation:
             status_code=status_code,
             detail={"code": error.code, "message": error.detail},
         )
+
+    @staticmethod
+    def _build_file_parse_error_payload(
+        *,
+        prefix: str,
+        error_code: str,
+        detail: str,
+    ) -> Dict[str, Any]:
+        """Build a stable structured error payload for isolated parse failures."""
+        return {prefix: detail, 'error_code': error_code}
+
+    @classmethod
+    def _run_tabular_parse_subprocess(
+        cls,
+        *,
+        mode: str,
+        content: bytes,
+        suffix: str,
+        sheet_name: Optional[str]=None,
+        max_rows: int=5,
+    ) -> Dict[str, Any]:
+        """Run raw tabular parsing in a subprocess with timeout and cleanup guarantees."""
+        input_path: Optional[Path] = None
+        output_path: Optional[Path] = None
+        try:
+            with tempfile.NamedTemporaryFile(delete=False, suffix=suffix) as tmp_input:
+                tmp_input.write(content)
+                input_path = Path(tmp_input.name)
+            with tempfile.NamedTemporaryFile(delete=False, suffix='.json') as tmp_output:
+                output_path = Path(tmp_output.name)
+            command = [
+                sys.executable,
+                '-m',
+                'Backend.infrastructure.runtime_modules.tabular_parse_worker',
+                '--mode',
+                mode,
+                '--input',
+                str(input_path),
+                '--output',
+                str(output_path),
+            ]
+            if sheet_name:
+                command.extend(['--sheet-name', sheet_name])
+            if max_rows is not None:
+                command.extend(['--max-rows', str(max_rows)])
+
+            env = os.environ.copy()
+            env['FILE_PARSE_MAX_MEMORY_MB'] = str(cls._resolve_file_parse_max_memory_mb())
+            completed = subprocess.run(
+                command,
+                capture_output=True,
+                text=True,
+                timeout=cls._resolve_file_parse_timeout_seconds(),
+                cwd=str(cls._resolve_project_root()),
+                env=env,
+                check=False,
+            )
+            if output_path.exists():
+                try:
+                    payload = json.loads(output_path.read_text(encoding='utf-8') or '{}')
+                except Exception:
+                    payload = {}
+            else:
+                payload = {}
+            if payload:
+                return payload
+            if completed.returncode in {-9, 137} and cls._resolve_file_parse_max_memory_mb() > 0:
+                return {
+                    'ok': False,
+                    'error_code': 'FILE_PARSE_OOM',
+                    'error': 'Leitura do arquivo excedeu o limite de memoria do parser isolado.',
+                }
+            stderr = (completed.stderr or completed.stdout or '').strip()
+            return {
+                'ok': False,
+                'error_code': 'FILE_PARSE_UNSAFE',
+                'error': stderr or 'Falha desconhecida no parser isolado.',
+            }
+        except subprocess.TimeoutExpired:
+            return {
+                'ok': False,
+                'error_code': 'FILE_PARSE_TIMEOUT',
+                'error': 'Parser isolado excedeu o tempo limite configurado.',
+            }
+        except Exception as exc:
+            return {
+                'ok': False,
+                'error_code': 'FILE_PARSE_UNSAFE',
+                'error': str(exc) or exc.__class__.__name__,
+            }
+        finally:
+            for candidate in (input_path, output_path):
+                if candidate and candidate.exists():
+                    try:
+                        candidate.unlink()
+                    except Exception:
+                        logger.debug('nao foi possivel remover arquivo temporario do parser isolado: %s', candidate)
 
     @staticmethod
     async def _save_uploaded_catalog_impl(file: UploadFile, fornecedor_id: Optional[int]=None) -> models.CatalogImportFile:
@@ -953,6 +1077,32 @@ class LineMappingRuntime:
 class TabularIngestionEngineRuntime:
     """Runtime OO para ingestao de arquivos tabulares (Excel/CSV)."""
 
+    def _parse_excel_records_in_subprocess(
+        self,
+        *,
+        conteudo_arquivo: bytes,
+        sheet_name: Optional[str]=None,
+    ) -> Dict[str, Any]:
+        """Run raw Excel parsing in the isolated parser process."""
+        return _FileProcessingImplementation._run_tabular_parse_subprocess(
+            mode='excel_ingest',
+            content=conteudo_arquivo,
+            suffix='.xlsx',
+            sheet_name=sheet_name,
+        )
+
+    def _parse_csv_records_in_subprocess(
+        self,
+        *,
+        conteudo_arquivo: bytes,
+    ) -> Dict[str, Any]:
+        """Run raw CSV parsing in the isolated parser process."""
+        return _FileProcessingImplementation._run_tabular_parse_subprocess(
+            mode='csv_ingest',
+            content=conteudo_arquivo,
+            suffix='.csv',
+        )
+
     async def processar_arquivo_excel(self, conteudo_arquivo: bytes, mapeamento_colunas_usuario: Optional[Dict[str, str]]=None, sheet_name: Optional[str]=None, product_type_id: Optional[int]=None) -> List[Dict[str, Any]]:
         """Execute processar arquivo excel as part of this module workflow."""
         produtos_extraidos: List[Dict[str, Any]] = []
@@ -961,18 +1111,25 @@ class TabularIngestionEngineRuntime:
                 content=conteudo_arquivo,
                 category='excel',
             )
-            xls = pd.ExcelFile(io.BytesIO(conteudo_arquivo))
-            abas_processar = [sheet_name] if sheet_name else xls.sheet_names
-            for aba in abas_processar:
-                df = pd.read_excel(xls, sheet_name=aba)
-                df.dropna(how='all', inplace=True)
-                for _, linha_pandas in df.iterrows():
-                    linha_dict_raw = {col: val if pd.notna(val) else None for col, val in linha_pandas.to_dict().items()}
-                    produto_padronizado = _FileProcessingImplementation._processar_linha_padronizada(linha_dict_raw, mapeamento_colunas_usuario)
-                    if produto_padronizado:
-                        if product_type_id is not None:
-                            produto_padronizado['product_type_id'] = product_type_id
-                        produtos_extraidos.append(produto_padronizado)
+            parsed = await asyncio.to_thread(
+                self._parse_excel_records_in_subprocess,
+                conteudo_arquivo=conteudo_arquivo,
+                sheet_name=sheet_name,
+            )
+            if not parsed.get('ok'):
+                return [
+                    _FileProcessingImplementation._build_file_parse_error_payload(
+                        prefix='erro_processamento_excel',
+                        error_code=str(parsed.get('error_code') or 'FILE_PARSE_UNSAFE'),
+                        detail=str(parsed.get('error') or 'Falha desconhecida no parser isolado.'),
+                    )
+                ]
+            for linha_dict_raw in parsed.get('records') or []:
+                produto_padronizado = _FileProcessingImplementation._processar_linha_padronizada(linha_dict_raw, mapeamento_colunas_usuario)
+                if produto_padronizado:
+                    if product_type_id is not None:
+                        produto_padronizado['product_type_id'] = product_type_id
+                    produtos_extraidos.append(produto_padronizado)
             return produtos_extraidos
         except CatalogImportSanitizationService.FileSecurityValidationError as error:
             return [{'erro_processamento_excel': error.detail, 'error_code': error.code}]
@@ -988,30 +1145,19 @@ class TabularIngestionEngineRuntime:
                 content=conteudo_arquivo,
                 category='csv',
             )
-            try:
-                import chardet
-                detection = chardet.detect(conteudo_arquivo)
-                encoding_detectada = (detection.get('encoding') or 'utf-8').lower()
-            except Exception:
-                encoding_detectada = 'utf-8'
-            if encoding_detectada.startswith('utf-8'):
-                conteudo_str = conteudo_arquivo.decode('utf-8-sig', errors='replace')
-            else:
-                conteudo_str = conteudo_arquivo.decode(encoding_detectada, errors='replace')
-            linhas = conteudo_str.splitlines()
-            sample = '\n'.join(linhas[:5]) if linhas else conteudo_str
-            try:
-                dialect = csv.Sniffer().sniff(sample, delimiters=[',', ';', '\t', '|'])
-                delimitador_provavel = dialect.delimiter
-            except Exception:
-                delimitador_provavel = ','
-                primeira_linha = conteudo_str.splitlines()[0] if conteudo_str.splitlines() else ''
-                if ';' in primeira_linha:
-                    delimitador_provavel = ';'
-                elif '\t' in primeira_linha:
-                    delimitador_provavel = '\t'
-            leitor_csv = csv.DictReader(io.StringIO(conteudo_str), delimiter=delimitador_provavel)
-            for linha_dict_raw in leitor_csv:
+            parsed = await asyncio.to_thread(
+                self._parse_csv_records_in_subprocess,
+                conteudo_arquivo=conteudo_arquivo,
+            )
+            if not parsed.get('ok'):
+                return [
+                    _FileProcessingImplementation._build_file_parse_error_payload(
+                        prefix='erro_processamento_csv',
+                        error_code=str(parsed.get('error_code') or 'FILE_PARSE_UNSAFE'),
+                        detail=str(parsed.get('error') or 'Falha desconhecida no parser isolado.'),
+                    )
+                ]
+            for linha_dict_raw in parsed.get('records') or []:
                 produto_padronizado = _FileProcessingImplementation._processar_linha_padronizada(linha_dict_raw, mapeamento_colunas_usuario)
                 if produto_padronizado:
                     if product_type_id is not None:
@@ -1448,6 +1594,34 @@ class TabularPreviewEngineRuntime:
                 return '\t'
             return ','
 
+    def _build_excel_preview_in_subprocess(
+        self,
+        *,
+        conteudo_arquivo: bytes,
+        max_rows: int=5,
+    ) -> Dict[str, Any]:
+        """Run raw Excel preview parsing in the isolated parser process."""
+        return _FileProcessingImplementation._run_tabular_parse_subprocess(
+            mode='excel_preview',
+            content=conteudo_arquivo,
+            suffix='.xlsx',
+            max_rows=max_rows,
+        )
+
+    def _build_csv_preview_in_subprocess(
+        self,
+        *,
+        conteudo_arquivo: bytes,
+        max_rows: int=5,
+    ) -> Dict[str, Any]:
+        """Run raw CSV preview parsing in the isolated parser process."""
+        return _FileProcessingImplementation._run_tabular_parse_subprocess(
+            mode='csv_preview',
+            content=conteudo_arquivo,
+            suffix='.csv',
+            max_rows=max_rows,
+        )
+
     async def preview_arquivo_excel(self, conteudo_arquivo: bytes, max_rows: int=5) -> Dict[str, Any]:
         """Execute preview arquivo excel as part of this module workflow."""
         try:
@@ -1455,10 +1629,20 @@ class TabularPreviewEngineRuntime:
                 content=conteudo_arquivo,
                 category='excel',
             )
-            df = pd.read_excel(io.BytesIO(conteudo_arquivo), sheet_name=0)
-            headers = [str(col) for col in df.columns]
-            sample_rows = df.head(max_rows).fillna('').to_dict(orient='records')
-            return {'headers': headers, 'sample_rows': sample_rows}
+            parsed = await asyncio.to_thread(
+                self._build_excel_preview_in_subprocess,
+                conteudo_arquivo=conteudo_arquivo,
+                max_rows=max_rows,
+            )
+            if not parsed.get('ok'):
+                return {
+                    'error': str(parsed.get('error') or 'Falha desconhecida no parser isolado.'),
+                    'error_code': str(parsed.get('error_code') or 'FILE_PARSE_UNSAFE'),
+                }
+            return {
+                'headers': parsed.get('headers') or [],
+                'sample_rows': parsed.get('sample_rows') or [],
+            }
         except CatalogImportSanitizationService.FileSecurityValidationError as error:
             return {'error': error.detail, 'error_code': error.code}
         except Exception as e:
@@ -1472,16 +1656,20 @@ class TabularPreviewEngineRuntime:
                 content=conteudo_arquivo,
                 category='csv',
             )
-            conteudo_str = self._decode_csv_bytes(conteudo_arquivo)
-            delimitador = self._detect_csv_delimiter(conteudo_str)
-            leitor_csv = csv.DictReader(io.StringIO(conteudo_str), delimiter=delimitador)
-            headers = leitor_csv.fieldnames or []
-            sample_rows: List[Dict[str, Any]] = []
-            for idx, row in enumerate(leitor_csv):
-                if idx >= max_rows:
-                    break
-                sample_rows.append(row)
-            return {'headers': headers, 'sample_rows': sample_rows}
+            parsed = await asyncio.to_thread(
+                self._build_csv_preview_in_subprocess,
+                conteudo_arquivo=conteudo_arquivo,
+                max_rows=max_rows,
+            )
+            if not parsed.get('ok'):
+                return {
+                    'error': str(parsed.get('error') or 'Falha desconhecida no parser isolado.'),
+                    'error_code': str(parsed.get('error_code') or 'FILE_PARSE_UNSAFE'),
+                }
+            return {
+                'headers': parsed.get('headers') or [],
+                'sample_rows': parsed.get('sample_rows') or [],
+            }
         except CatalogImportSanitizationService.FileSecurityValidationError as error:
             return {'error': error.detail, 'error_code': error.code}
         except Exception as e:
