@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import pytest
+from fastapi import HTTPException
 from sqlalchemy import create_engine
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import sessionmaker
@@ -275,3 +276,175 @@ test_repository_reorders_attributes_and_normalizes_positions = (
 test_repository_update_attribute_rejects_duplicate_key = (
     _TopLevelFunctionSurface.test_repository_update_attribute_rejects_duplicate_key
 )
+
+
+def test_repository_create_update_and_lookup_product_types_and_attributes():
+    engine, session = _build_session()
+    try:
+        owner = _create_user(session, email="owner@example.com")
+        repo = ProductTypeRepository(session)
+
+        created = repo.create_product_type(
+            product_type_create=schemas.ProductTypeCreate(
+                key_name="motores",
+                friendly_name="Motores",
+                description="Linha de motores",
+                attribute_templates=[
+                    schemas.AttributeTemplateCreate(
+                        attribute_key="potencia",
+                        label="Potencia",
+                        display_order=0,
+                    )
+                ],
+            ),
+            user_id=owner.id,
+        )
+        assert created.user_id == owner.id
+        assert [item.attribute_key for item in created.attribute_templates] == ["potencia"]
+
+        global_created = repo.create_product_type(
+            product_type_create=schemas.ProductTypeCreate(
+                key_name="globais",
+                friendly_name="Globais",
+            ),
+            user_id=None,
+        )
+        assert global_created.user_id is None
+
+        fetched = repo.get_product_type(product_type_id=created.id)
+        assert fetched.id == created.id
+
+        by_key = repo.get_product_type_by_key_name(key_name="motores", user_id=owner.id)
+        assert by_key.id == created.id
+        assert repo.get_product_type_by_key_name(key_name="motores", user_id=None) is None
+        assert repo.get_product_types_for_user(user_id=None, skip=0, limit=10)[0].id == global_created.id
+        assert repo.count_product_types_for_user(user_id=None) == 1
+
+        updated = repo.update_product_type(
+            db_product_type=created,
+            product_type_update=schemas.ProductTypeUpdate(
+                friendly_name="Motores Pesados",
+                description="Atualizado",
+            ),
+        )
+        assert updated.friendly_name == "Motores Pesados"
+        assert updated.description == "Atualizado"
+
+        created_attr = repo.create_attribute_template(
+            product_type_id=created.id,
+            attr_template_create=schemas.AttributeTemplateCreate(
+                attribute_key="voltagem",
+                label="Voltagem",
+                display_order=1,
+            ),
+        )
+        assert created_attr.attribute_key == "voltagem"
+        assert repo.get_attribute_template(attribute_template_id=created_attr.id).id == created_attr.id
+        assert (
+            repo.get_attribute_template_by_key(
+                product_type_id=created.id,
+                attribute_key="voltagem",
+                exclude_attribute_id=created_attr.id,
+            )
+            is None
+        )
+
+        repo.update_attribute_template(
+            db_attr_template=created_attr,
+            attr_template_update=schemas.AttributeTemplateUpdate(label="Voltagem Nominal"),
+        )
+        assert created_attr.label == "Voltagem Nominal"
+
+        deleted_attr = repo.delete_attribute_template(db_attr_template=created_attr)
+        assert deleted_attr.id == created_attr.id
+        assert repo.get_attribute_template(attribute_template_id=created_attr.id) is None
+    finally:
+        session.close()
+        Base.metadata.drop_all(bind=engine)
+
+
+def test_repository_search_and_conflict_paths_for_product_types_and_attributes():
+    engine, session = _build_session()
+    try:
+        owner = _create_user(session, email="owner@example.com")
+        other = _create_user(session, email="other@example.com")
+        repo = ProductTypeRepository(session)
+
+        global_type = _create_product_type(
+            session,
+            key_name="global-key",
+            friendly_name="Global Key",
+            user_id=None,
+        )
+        user_type = _create_product_type(
+            session,
+            key_name="user-key",
+            friendly_name="User Key",
+            user_id=owner.id,
+        )
+        _create_product_type(
+            session,
+            key_name="other-key",
+            friendly_name="Other Key",
+            user_id=other.id,
+        )
+
+        rows = repo.search_product_types_for_index(
+            query_text="key",
+            limit=10,
+            user_id=owner.id,
+            is_admin=False,
+        )
+        assert {row.id for row in rows} == {global_type.id, user_type.id}
+
+        with pytest.raises(IntegrityError):
+            repo.update_product_type(
+                db_product_type=user_type,
+                product_type_update=schemas.ProductTypeUpdate(key_name="global-key"),
+            )
+
+        with pytest.raises(HTTPException):
+            repo.create_product_type(
+                product_type_create=schemas.ProductTypeCreate(
+                    key_name="global-key",
+                    friendly_name="Global Duplicado",
+                ),
+                user_id=None,
+            )
+
+        created_attr = repo.create_attribute_template(
+            product_type_id=user_type.id,
+            attr_template_create=schemas.AttributeTemplateCreate(
+                attribute_key="material",
+                label="Material",
+            ),
+        )
+        with pytest.raises(IntegrityError):
+            repo.create_attribute_template(
+                product_type_id=user_type.id,
+                attr_template_create=schemas.AttributeTemplateCreate(
+                    attribute_key="material",
+                    label="Material",
+                ),
+            )
+
+        created_attr.display_order = None
+        session.commit()
+        moved = repo.reorder_attribute_template(attribute_id=created_attr.id, direction="up")
+        assert moved.id == created_attr.id
+        assert moved.display_order == 0
+        assert repo.reorder_attribute_template(attribute_id=99999, direction="up") is None
+
+        first_attr = repo.create_attribute_template(
+            product_type_id=user_type.id,
+            attr_template_create=schemas.AttributeTemplateCreate(
+                attribute_key="acabamento",
+                label="Acabamento",
+                display_order=1,
+            ),
+        )
+        moved_up = repo.reorder_attribute_template(attribute_id=first_attr.id, direction="up")
+        assert moved_up.id == first_attr.id
+    finally:
+        session.close()
+        Base.metadata.drop_all(bind=engine)

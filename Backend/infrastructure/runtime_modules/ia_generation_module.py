@@ -230,6 +230,8 @@ class AiProviderRuntime:
                     status_code=e.response.status_code,
                     detail=f"Erro na API OpenAI: {e.response.text}",
                 )
+            except HTTPException:
+                raise
             except Exception as e:
                 logger.error(f"Erro inesperado ao chamar API OpenAI: {str(e)}", exc_info=True)
                 raise HTTPException(
@@ -321,6 +323,8 @@ class AiProviderRuntime:
                 except Exception:
                     error_detail += f" - {error_text}"
                 raise HTTPException(status_code=e.response.status_code, detail=error_detail)
+            except HTTPException:
+                raise
             except Exception as e:
                 logger.error(f"Erro inesperado ao chamar API Gemini: {str(e)}", exc_info=True)
                 raise HTTPException(
@@ -377,6 +381,8 @@ class AiProviderRuntime:
                     status_code=e.response.status_code,
                     detail=f"Erro na API Gemini: {e.response.text}",
                 )
+            except HTTPException:
+                raise
             except Exception as e:
                 logger.error(f"Erro inesperado ao chamar API Gemini: {str(e)}", exc_info=True)
                 raise HTTPException(
@@ -575,6 +581,7 @@ class IAGenerationRuntime:
         if not raw_text:
             return []
         candidates: List[str] = []
+        seen_normalized: set[str] = set()
         for line in str(raw_text).splitlines():
             cleaned = line.strip()
             if not cleaned:
@@ -599,7 +606,9 @@ class IAGenerationRuntime:
                 or PHONE_OR_ID_BLOCK_PATTERN.search(cleaned)
             ):
                 continue
-            if cleaned not in candidates:
+            normalized = cleaned.casefold()
+            if normalized not in seen_normalized:
+                seen_normalized.add(normalized)
                 candidates.append(cleaned)
         return candidates
 

@@ -58,26 +58,6 @@ class FornecedorRepository:
                 detail=f"Ja existe um fornecedor com o nome '{fornecedor_data['nome']}'.",
             )
 
-        identificador_unico = fornecedor_data.get("identificador_unico")
-        if identificador_unico:
-            existing_identificador = (
-                self._db.query(Fornecedor)
-                .filter(
-                    Fornecedor.user_id == user_id,
-                    func.lower(Fornecedor.identificador_unico)
-                    == func.lower(identificador_unico),
-                )
-                .first()
-            )
-            if existing_identificador:
-                raise HTTPException(
-                    status_code=status.HTTP_409_CONFLICT,
-                    detail=(
-                        "Ja existe um fornecedor com o identificador unico "
-                        f"'{identificador_unico}'."
-                    ),
-                )
-
     def create_fornecedor(self, *, fornecedor: schemas.FornecedorCreate, user_id: int) -> Fornecedor:
         """Create fornecedor and return the resulting payload or entity."""
         fornecedor_data = fornecedor.model_dump()

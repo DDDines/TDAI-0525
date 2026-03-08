@@ -106,7 +106,7 @@ class AdminAnalyticsRequestService:
         )
         return [
             schemas.UsoIAPorTipo(
-                tipo_geracao=row.tipo_acao,
+                tipo_acao=row.tipo_acao,
                 total_no_mes=row.total_no_mes,
             )
             for row in query_result

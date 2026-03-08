@@ -8,6 +8,7 @@ from __future__ import annotations
 import types
 
 import pytest
+from fastapi import HTTPException
 
 from Backend.application.services.generation_task_service import GenerationTaskService
 
@@ -302,6 +303,216 @@ class _LoggerStub:
     def exception(self, *args, **kwargs):
         """Run exception in this workflow."""
         self.logs.append(("exception", args, kwargs))
+
+
+def test_generation_task_service_helpers_cover_normalization_and_targets():
+    service, _crud_produtos = _build_service(produto=_ProdutoStub())
+
+    assert service._resolve_generation_targets("titulo") == ("status_titulo_ia", "titulos_sugeridos")
+    assert service._resolve_generation_targets("descricao") == (
+        "status_descricao_ia",
+        "descricao_chat_api",
+    )
+    assert service._resolve_generation_targets("desconhecido") is None
+
+    normalized = service._normalize_title_list(
+        ["  Titulo  1  ", "", None, "titulo 1", "Outro titulo" * 30]
+    )
+    assert normalized[0] == "Titulo 1"
+    assert len(normalized) == 2
+    assert len(normalized[1]) == 160
+
+    merged_titles = service._merge_raw_generation_data(
+        current_raw={"persistir": True},
+        tipo_geracao_principal="titulo",
+        resultado_ia=["Titulo 1", "Titulo 1", "Titulo 2"],
+    )
+    assert merged_titles["persistir"] is True
+    assert merged_titles["titulos_sugeridos_gerados"] == ["Titulo 1", "Titulo 2"]
+    assert "titulos_sugeridos_ultima_atualizacao" in merged_titles
+
+    merged_description = service._merge_raw_generation_data(
+        current_raw={},
+        tipo_geracao_principal="descricao",
+        resultado_ia="  Descricao   grande   ",
+    )
+    assert merged_description["descricao_gerada"] == "Descricao grande"
+    assert "descricao_gerada_ultima_atualizacao" in merged_description
+
+    untouched = service._merge_raw_generation_data(
+        current_raw="invalido",
+        tipo_geracao_principal="titulo",
+        resultado_ia=[],
+    )
+    assert untouched == {}
+
+    appended = service._append_process_log([], "acao")
+    assert appended[0]["actor"] == "system"
+    assert appended[0]["action"] == "acao"
+
+
+@pytest.mark.asyncio
+async def test_generation_task_service_handles_missing_session_provider():
+    service, _crud_produtos = _build_service(produto=_ProdutoStub())
+    service._session_provider = None
+
+    async def _fake_generation(**kwargs):
+        return ["Titulo"]
+
+    await service.run_generation_task(
+        user_id=1,
+        produto_id=10,
+        tipo_geracao_principal="titulo",
+        funcao_geracao_ia_no_servico=_fake_generation,
+    )
+
+    assert any(level == "exception" for level, _args, _kwargs in service._logger.logs)
+
+
+@pytest.mark.asyncio
+async def test_generation_task_service_returns_when_generation_type_is_unknown():
+    produto = _ProdutoStub()
+    service, crud_produtos = _build_service(produto=produto)
+
+    async def _fake_generation(**kwargs):
+        raise AssertionError("Nao deveria chamar geracao desconhecida")
+
+    await service.run_generation_task(
+        user_id=1,
+        produto_id=10,
+        tipo_geracao_principal="desconhecido",
+        funcao_geracao_ia_no_servico=_fake_generation,
+    )
+
+    assert crud_produtos.updates == []
+    assert any(level == "error" for level, _args, _kwargs in service._logger.logs)
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    ("service_factory", "expected_log"),
+    [
+        (lambda: _build_service(produto=_ProdutoStub(), user=_UserStub(user_id=2),)[0:2], "nao autorizado"),
+        (lambda: _build_service(produto=None, user=_UserStub()), "Produto"),
+    ],
+)
+async def test_generation_task_service_returns_for_invalid_access_paths(
+    service_factory,
+    expected_log,
+):
+    service, crud_produtos = service_factory()
+
+    async def _fake_generation(**kwargs):
+        raise AssertionError("Nao deveria chegar na chamada IA")
+
+    await service.run_generation_task(
+        user_id=1,
+        produto_id=10,
+        tipo_geracao_principal="titulo",
+        funcao_geracao_ia_no_servico=_fake_generation,
+    )
+
+    assert crud_produtos.updates == []
+    assert any(expected_log.lower() in " ".join(map(str, args)).lower() for _level, args, _kwargs in service._logger.logs)
+
+
+@pytest.mark.asyncio
+async def test_generation_task_service_returns_when_user_is_missing():
+    produto = _ProdutoStub()
+    crud_users = _CrudUsersStub(None)
+    crud_produtos = _CrudProdutosStub(produto)
+
+    class _UserRepository:
+        def __init__(self, _session):
+            self._stub = crud_users
+
+        def get_user(self, *, user_id: int):
+            return self._stub.get_user(user_id=user_id)
+
+    class _ProductRepository:
+        def __init__(self, _session):
+            self._stub = crud_produtos
+
+        def get_produto(self, *, produto_id: int):
+            return self._stub.get_produto(produto_id=produto_id)
+
+        def update_produto(self, *, db_produto, produto_update):
+            return self._stub.update_produto(db_produto=db_produto, produto_update=produto_update)
+
+    service = GenerationTaskService(
+        session_provider=_SessionProviderStub(_db_session_factory),
+        user_repository_factory=_UserRepository,
+        product_repository_factory=_ProductRepository,
+        models=_build_models_stub(),
+        schemas=_build_schemas_stub(),
+        logger=_LoggerStub(),
+    )
+
+    async def _fake_generation(**kwargs):
+        raise AssertionError("Nao deveria chegar na chamada IA")
+
+    await service.run_generation_task(
+        user_id=1,
+        produto_id=10,
+        tipo_geracao_principal="titulo",
+        funcao_geracao_ia_no_servico=_fake_generation,
+    )
+
+    assert crud_produtos.updates == []
+    assert any("usuario" in " ".join(map(str, args)).lower() for _level, args, _kwargs in service._logger.logs)
+
+
+@pytest.mark.asyncio
+async def test_generation_task_service_passes_templates_and_handles_http_exception():
+    produto = _ProdutoStub()
+    service, crud_produtos = _build_service(produto=produto)
+    captured = {}
+
+    async def _fake_generation(**kwargs):
+        captured.update(kwargs)
+        raise HTTPException(status_code=429, detail="rate limit")
+
+    await service.run_generation_task(
+        user_id=1,
+        produto_id=10,
+        tipo_geracao_principal="descricao",
+        funcao_geracao_ia_no_servico=_fake_generation,
+        tamanho_palavras=180,
+        template_descricao="tmpl-desc",
+    )
+
+    assert captured["tamanho_palavras"] == 180
+    assert captured["template_descricao"] == "tmpl-desc"
+    assert produto.status_descricao_ia == "FALHA"
+    assert "429" in produto.log_processamento[-1]["action"]
+    assert len(crud_produtos.updates) == 2
+
+
+@pytest.mark.asyncio
+async def test_generation_task_service_handles_generic_exception_after_progress_update():
+    produto = _ProdutoStub()
+    service, crud_produtos = _build_service(produto=produto)
+
+    async def _fake_generation(**kwargs):
+        raise RuntimeError("falha generica")
+
+    await service.run_generation_task(
+        user_id=1,
+        produto_id=10,
+        tipo_geracao_principal="titulo",
+        funcao_geracao_ia_no_servico=_fake_generation,
+        num_titulos=4,
+        template_titulo="tmpl-title",
+    )
+
+    assert produto.status_titulo_ia == "FALHA"
+    assert "falha generica" in produto.log_processamento[-1]["action"].lower()
+    assert len(crud_produtos.updates) == 2
+
+
+def test_generation_task_service_normalize_title_list_returns_empty_for_non_list():
+    service, _crud_produtos = _build_service(produto=_ProdutoStub())
+    assert service._normalize_title_list("titulo unico") == []
 
 
 
