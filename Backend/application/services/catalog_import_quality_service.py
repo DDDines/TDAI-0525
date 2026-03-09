@@ -85,6 +85,14 @@ class CatalogImportQualityService:
         "ate",
         "acima",
     )
+    _MARKETING_OPERATIONAL_PATTERNS = (
+        re.compile(r"\bminimum\s+order\b", re.IGNORECASE),
+        re.compile(r"\bturnaround\s+time\b", re.IGNORECASE),
+        re.compile(r"\bfull\s+color\b", re.IGNORECASE),
+        re.compile(r"\b(?:made\s+in\s+(?:the\s+)?)?usa\b", re.IGNORECASE),
+        re.compile(r"\b(?:https?://|www\.|[a-z0-9.-]+\.com)\b", re.IGNORECASE),
+        re.compile(r"\b(?:lead\s+time|case\s+pack|order\s+run)\b", re.IGNORECASE),
+    )
 
     @staticmethod
     def alnum_len(value: Any) -> int:
@@ -232,6 +240,16 @@ class CatalogImportQualityService:
 
         return False
 
+    def name_looks_like_marketing_or_operational_copy(self, value: Any) -> bool:
+        """Detect headings or operational statements that should not become products."""
+        text = str(value or "").strip()
+        folded = self.fold_ascii_text(text)
+        if not folded:
+            return False
+        if self.text_looks_like_part_name(folded):
+            return False
+        return any(pattern.search(text) for pattern in self._MARKETING_OPERATIONAL_PATTERNS)
+
     @staticmethod
     def _coerce_row(data: CatalogRow | Dict[str, Any]) -> Optional[CatalogRow]:
         """Handle coerce row within the catalog import workflow."""
@@ -312,6 +330,13 @@ class CatalogImportQualityService:
 
         if self.name_looks_like_annotation_header(nome):
             return "Linha descartada por baixa qualidade: cabecalho de anotacoes"
+        if (
+            self.name_looks_like_marketing_or_operational_copy(nome)
+            and not sku
+            and not ean
+            and not has_part_context
+        ):
+            return "Linha descartada por baixa qualidade: nome com texto operacional/comercial"
         if nome_ruido_ocr and not has_part_context:
             if descricao_aplicacao or categoria_aplicacao or not has_context:
                 return "Linha descartada por baixa qualidade: nome com padrao de ruido OCR"
@@ -432,6 +457,8 @@ class CatalogImportQualityService:
             score -= 18
         if nome_codigo_peca:
             score -= 12
+        if self.name_looks_like_marketing_or_operational_copy(nome):
+            score -= 35
         if not self.text_has_context(nome) and sku:
             score -= 10
         if self.text_looks_like_vehicle_application(descricao):

@@ -41,6 +41,10 @@ def test_quality_helper_methods_cover_edge_patterns():
     assert service.name_looks_like_ocr_noise("1 2 3 ab") is True
     assert service.name_looks_like_ocr_noise("ab12c") is True
     assert service.name_looks_like_ocr_noise("abc def ghi") is False
+    assert service.name_looks_like_marketing_or_operational_copy("Minimum Order Run") is True
+    assert service.name_looks_like_marketing_or_operational_copy("Day Turnaround Time*") is True
+    assert service.name_looks_like_marketing_or_operational_copy("sharperbags.com Full Color the USA") is True
+    assert service.name_looks_like_marketing_or_operational_copy("Princess Frame") is False
     assert service._coerce_row(123) is None
 
 
@@ -53,6 +57,9 @@ def test_evaluate_product_row_quality_covers_low_quality_reasons_without_sku(mon
 
     monkeypatch.setattr(service, "name_looks_like_ocr_noise", lambda _value: False)
 
+    assert service.evaluate_product_row_quality(
+        {"nome_base": "Minimum Order Run"}
+    ) == "Linha descartada por baixa qualidade: nome com texto operacional/comercial"
     assert service.evaluate_product_row_quality({"nome_base": "AA"}) == "Linha descartada por baixa qualidade: nome fraco sem SKU/EAN"
     assert service.evaluate_product_row_quality({"nome_base": "ABC"}) == "Linha descartada por baixa qualidade: nome sem termo forte sem SKU/EAN"
     assert service.evaluate_product_row_quality({"nome_base": "ABCD12345"}) == "Linha descartada por baixa qualidade: nome numerico sem contexto sem SKU/EAN"
@@ -146,7 +153,15 @@ def test_score_product_row_quality_covers_fallback_and_dynamic_hits():
             "categoria_original": "",
         }
     )
+    marketing_score = service.score_product_row_quality(
+        {
+            "nome_base": "Minimum Order Run",
+            "descricao_original": "",
+            "categoria_original": "",
+        }
+    )
     assert weak_name_score < 70
+    assert marketing_score < weak_name_score
 
 
 def test_classify_product_row_quality_covers_direct_discard_and_accept_paths():

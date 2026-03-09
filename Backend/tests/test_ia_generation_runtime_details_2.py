@@ -448,6 +448,96 @@ def test_ia_generation_runtime_local_helper_edge_paths(monkeypatch):
     assert "Codigo EAN" not in description_minimal
 
 
+def test_ia_generation_runtime_title_identity_helper_branches():
+    runtime = ia_service.IAGenerationRuntime()
+
+    assert runtime._tokenize_title_identity("contato loja") == []
+    assert runtime._build_source_title_variants(
+        source_title="Alpha Beta Gamma Delta",
+        source_aliases=["alpha beta gamma delta", None],
+    ) == ["Alpha Beta Gamma Delta"]
+
+    assert runtime._candidate_preserves_source_identity(
+        "Sem contato útil",
+        source_variants=["contato loja"],
+    ) is False
+    assert runtime._candidate_preserves_source_identity(
+        "Paralama Dianteiro",
+        source_variants=["contato loja"],
+    ) is False
+    assert runtime._candidate_preserves_source_identity(
+        "Paralama",
+        source_variants=["Paralama"],
+    ) is True
+    assert runtime._candidate_is_promotional_or_generic(
+        "contato loja",
+        source_variants=["Paralama Dianteiro"],
+    ) is True
+
+    assert runtime._build_deterministic_title_fallbacks(
+        source_variants=["contato loja"],
+        desired_count=3,
+    ) == []
+
+    assert runtime._build_deterministic_title_fallbacks(
+        source_variants=[
+            "Alpha Beta Gamma Delta",
+            "Delta Alpha Beta Gamma",
+            "Alpha Beta",
+        ],
+        desired_count=4,
+    ) == [
+        "Alpha Beta Gamma Delta",
+        "Delta Alpha Beta Gamma",
+        "Gamma Delta Alpha Beta",
+        "Alpha Beta",
+    ]
+    assert runtime._build_deterministic_title_fallbacks(
+        source_variants=["Alpha Beta Gamma", ""],
+        desired_count=3,
+    ) == [
+        "Alpha Beta Gamma",
+        "Gamma Alpha Beta",
+    ]
+
+    assert runtime._reconcile_title_candidates_with_source(
+        [],
+        source_title="Alpha Beta Gamma",
+        desired_count=2,
+    ) == [
+        "Alpha Beta Gamma",
+        "Gamma Alpha Beta",
+    ]
+    assert runtime._reconcile_title_candidates_with_source(
+        [],
+        source_title="Alpha Beta Gamma Delta",
+        desired_count=3,
+    ) == [
+        "Alpha Beta Gamma Delta",
+        "Delta Alpha Beta Gamma",
+        "Gamma Delta Alpha Beta",
+    ]
+
+
+def test_ia_generation_runtime_local_title_marker_cleanup_branch(monkeypatch):
+    runtime = ia_service.IAGenerationRuntime()
+    monkeypatch.setattr(ia_service, "TITLE_CONTACT_MARKER_PATTERN", _MarkerPatternStub(start_index=9))
+
+    cleaned_titles = runtime._build_local_title_candidates(
+        _produto_base(
+            nome_base="Paralama contato loja",
+            marca="Marca contato",
+            modelo="Modelo X",
+            sku="SKU-55",
+            categoria_original="Cabine",
+        ),
+        num_titulos=2,
+    )
+
+    assert cleaned_titles[0].startswith("Paralama")
+    assert all("contato" not in title.lower() for title in cleaned_titles)
+
+
 @pytest.mark.asyncio
 async def test_ia_generation_runtime_openai_description_additional_paths(monkeypatch):
     runtime = ia_service.IAGenerationRuntime()
@@ -545,6 +635,49 @@ async def test_ia_generation_runtime_openai_title_fallback_after_empty_llm(monke
     )
     assert preserved_titles[0] == "Always a Princess Crown Frame"
     assert "Tiara Corona Sempre Uma Princesa" not in preserved_titles
+
+
+@pytest.mark.asyncio
+async def test_ia_generation_runtime_openai_and_gemini_title_fallback_after_identity_cleanup(monkeypatch):
+    runtime = ia_service.IAGenerationRuntime()
+    monkeypatch.setattr(ia_service, "ProductRepository", _ProductRepositoryStub)
+    monkeypatch.setattr(ia_service, "RegistroUsoIARepository", _UsageRepositoryStub)
+    _ProductRepositoryStub.produto = _produto_base(
+        nome_base="",
+        nome_chat_api="",
+        marca="Acme",
+        modelo="Truck",
+        sku="PAR-1",
+        categoria_original="Cabine",
+    )
+
+    monkeypatch.setattr(
+        ia_service.IAGenerationRuntime,
+        "_get_ai_provider_workflow",
+        staticmethod(lambda: _ProviderWorkflowStub(openai_result="1. contato loja\n2. http://example.com")),
+    )
+    rebuilt_openai_titles = await runtime._gerar_titulos_com_openai_impl(
+        db=object(),
+        produto_id=1,
+        user=SimpleNamespace(id=1, is_superuser=False),
+        num_titulos=2,
+    )
+    assert rebuilt_openai_titles[0] == "Produto"
+    assert any("Truck" in title or "Acme" in title for title in rebuilt_openai_titles)
+
+    monkeypatch.setattr(
+        ia_service.IAGenerationRuntime,
+        "_get_ai_provider_workflow",
+        staticmethod(lambda: _ProviderWorkflowStub(gemini_result="1. contato loja\n2. http://example.com")),
+    )
+    rebuilt_gemini_titles = await runtime._gerar_titulos_com_gemini_impl(
+        db=object(),
+        produto_id=1,
+        user=SimpleNamespace(id=1, is_superuser=False),
+        num_titulos=2,
+    )
+    assert rebuilt_gemini_titles[0] == "Produto"
+    assert any("Truck" in title or "Acme" in title for title in rebuilt_gemini_titles)
 
 
 @pytest.mark.asyncio

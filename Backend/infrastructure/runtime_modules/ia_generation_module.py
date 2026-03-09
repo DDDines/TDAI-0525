@@ -980,8 +980,7 @@ class IAGenerationRuntime:
 
         for rotated_words in rotations:
             rotated = " ".join(rotated_words).strip()
-            if rotated:
-                fallbacks.append(rotated)
+            fallbacks.append(rotated)
 
         for alias in source_variants[1:]:
             cleaned_alias = cls._clean_single_title_candidate(alias)

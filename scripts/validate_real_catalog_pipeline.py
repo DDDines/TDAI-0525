@@ -107,6 +107,11 @@ def parse_args() -> argparse.Namespace:
         action="store_true",
         help="Keep the disposable supplier and imported products instead of deleting them.",
     )
+    parser.add_argument(
+        "--expect-no-products",
+        action="store_true",
+        help="Treat zero imported products as a successful rejection path for non-product catalogs.",
+    )
     return parser.parse_args()
 
 
@@ -489,6 +494,40 @@ class RealCatalogPipelineValidator:
             limit=max(self._args.sample_products, len(created_items) or self._args.sample_products),
         )
         self._imported_product_ids = [int(item["id"]) for item in imported_products if isinstance(item.get("id"), int)]
+
+        if self._args.expect_no_products:
+            if imported_products:
+                raise CatalogValidationFailure(
+                    "Catalogo esperado como nao-produto gerou item(s) importados."
+                )
+            report = {
+                "ok": True,
+                "catalog_url": self._args.catalog_url,
+                "catalog_path": str(catalog_path),
+                "supplier": supplier,
+                "product_type_id": product_type_id,
+                "preview": {
+                    "file_id": preview.get("file_id"),
+                    "import_file_id": preview.get("import_file_id"),
+                    "num_pages": preview.get("num_pages"),
+                    "total_pages": preview.get("total_pages"),
+                    "table_pages": preview.get("table_pages"),
+                },
+                "import_start": import_start,
+                "import_status": {
+                    "status": import_status.get("status"),
+                    "total_pages": import_status.get("total_pages"),
+                    "pages_processed": import_status.get("pages_processed"),
+                    "created_count": len(created_items),
+                },
+                "flow_job_id": flow_job_id,
+                "flow_review": summarize_flow_payload(flow_review),
+                "flow_commit": summarize_flow_payload(flow_commit),
+                "sample_products": [],
+                "expectation": "no_products",
+            }
+            self._report_path.write_text(json.dumps(report, ensure_ascii=False, indent=2), encoding="utf-8")
+            return report
 
         if not imported_products:
             raise CatalogValidationFailure("Nenhum produto foi criado a partir do catalogo real.")

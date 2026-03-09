@@ -155,6 +155,7 @@ def test_run_accepts_fornecedor_preview_with_import_file_id_only(tmp_path):
         generation_timeout_seconds=30,
         report_path=str(tmp_path / "report.json"),
         keep_import=True,
+        expect_no_products=False,
     )
     validator = MODULE.RealCatalogPipelineValidator(args)
 
@@ -221,6 +222,7 @@ def test_create_supplier_uses_unique_suffix_in_name_and_site(tmp_path):
         generation_timeout_seconds=30,
         report_path=str(tmp_path / "report.json"),
         keep_import=True,
+        expect_no_products=False,
     )
     validator = MODULE.RealCatalogPipelineValidator(args)
     validator._token = "token"
@@ -256,5 +258,54 @@ def test_create_supplier_uses_unique_suffix_in_name_and_site(tmp_path):
     assert captured["headers"] == {"Authorization": "Bearer token"}
     assert str(captured["json"]["nome"]).startswith("Smoke ")
     assert "/smoke-" in str(captured["json"]["site_url"])
+
+
+def test_run_accepts_expected_no_products_catalog(tmp_path):
+    args = argparse.Namespace(
+        base_url="http://127.0.0.1:8000",
+        api_prefix="/api/v1",
+        admin_email="admin@example.com",
+        admin_password="password",
+        catalog_url="https://example.com/catalog.pdf",
+        catalog_path=str(tmp_path / "catalog.pdf"),
+        supplier_name="Smoke",
+        supplier_site_url="https://example.com",
+        flow="fornecedores",
+        product_type_id=None,
+        start_page=1,
+        sample_products=1,
+        import_timeout_seconds=30,
+        generation_timeout_seconds=30,
+        report_path=str(tmp_path / "report.json"),
+        keep_import=True,
+        expect_no_products=True,
+    )
+    validator = MODULE.RealCatalogPipelineValidator(args)
+
+    validator.ensure_backend_health = lambda: {"status": "ok"}
+    validator.login = lambda: None
+    validator.fetch_product_types = lambda: [{"id": 3, "attribute_templates": []}]
+    validator.download_catalog = lambda: Path(args.catalog_path)
+    validator.create_supplier = lambda: {"id": 91, "nome": "Smoke"}
+    validator.preview_catalog = lambda supplier_id, catalog_path: {"import_file_id": 201, "total_pages": 16}
+    validator.start_import = lambda file_id, supplier_id, product_type_id: {"job_id": 201, "status": "PROCESSING"}
+    validator.wait_for_import = lambda file_id, job_id=None: {
+        "status": "IMPORTED",
+        "result_summary": {"created": []},
+        "pages_processed": 16,
+        "total_pages": 16,
+    }
+    validator.fetch_flow_review = lambda job_id: {"ignored_non_critical": [{"reason": "marketing booklet"}]}
+    validator.commit_flow_review = lambda job_id: {"job_id": job_id, "auto_commit": True}
+    validator.fetch_imported_products = lambda supplier_id, limit: []
+
+    try:
+        report = validator.run()
+    finally:
+        validator.close()
+
+    assert report["ok"] is True
+    assert report["expectation"] == "no_products"
+    assert report["sample_products"] == []
 
 
