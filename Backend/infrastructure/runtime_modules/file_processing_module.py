@@ -575,7 +575,7 @@ class _FileProcessingImplementation:
                         for seg in line:
                             idx_col = min(range(len(guessed_bounds)), key=lambda idx: abs(int(seg['x0']) - guessed_bounds[idx]))
                             key = guessed_headers[idx_col]
-                            row[key] = f'{row[key]} {seg['text']}'.strip() if row[key] else seg['text']
+                            row[key] = f"{row[key]} {seg['text']}".strip() if row[key] else seg['text']
                         raw_rows_guided.append(row)
                     filtered_guided = helper.filter_ocr_rows(raw_rows_guided)
                     if filtered_guided:

@@ -26,6 +26,7 @@ SMOKE_SCRIPT_PATH="${SMOKE_SCRIPT_PATH:-$RELEASE_DIR/scripts/smoke_release.py}"
 SMOKE_ADMIN_EMAIL="${SMOKE_ADMIN_EMAIL:-${ADMIN_EMAIL:-}}"
 SMOKE_ADMIN_PASSWORD="${SMOKE_ADMIN_PASSWORD:-${ADMIN_PASSWORD:-}}"
 PYTHON_BIN="${PYTHON_BIN:-python3}"
+BACKEND_REQUIREMENTS_FILE="${BACKEND_REQUIREMENTS_FILE:-$RELEASE_DIR/requirements-backend-prod.txt}"
 
 mkdir -p "$APP_ROOT/shared" "$RUN_DIR" "$LOG_DIR" "$APP_ROOT/releases"
 
@@ -38,6 +39,16 @@ fi
 
 if [[ ! -d "$RELEASE_DIR" ]]; then
   echo "Release directory not found: $RELEASE_DIR" >&2
+  exit 1
+fi
+
+if ! command -v node >/dev/null 2>&1; then
+  echo "Node.js is required to build the frontend release." >&2
+  exit 1
+fi
+
+if ! node -e 'process.exit(Number(process.versions.node.split(".")[0]) >= 18 ? 0 : 1)'; then
+  echo "Node.js 18 or newer is required to build the frontend release." >&2
   exit 1
 fi
 
@@ -111,7 +122,10 @@ if [[ ! -d "$RELEASE_DIR/.venv" ]]; then
 fi
 
 "$RELEASE_DIR/.venv/bin/python" -m pip install --upgrade pip
-"$RELEASE_DIR/.venv/bin/pip" install -r "$RELEASE_DIR/requirements-backend.txt"
+if [[ ! -f "$BACKEND_REQUIREMENTS_FILE" ]]; then
+  BACKEND_REQUIREMENTS_FILE="$RELEASE_DIR/requirements-backend.txt"
+fi
+"$RELEASE_DIR/.venv/bin/pip" install -r "$BACKEND_REQUIREMENTS_FILE"
 
 if [[ -f "$RELEASE_DIR/Frontend/app/package-lock.json" ]]; then
   (
@@ -122,9 +136,9 @@ if [[ -f "$RELEASE_DIR/Frontend/app/package-lock.json" ]]; then
 fi
 
 (
-  cd "$RELEASE_DIR/Backend"
+  cd "$RELEASE_DIR"
   export PYTHONPATH="$RELEASE_DIR"
-  "$RELEASE_DIR/.venv/bin/python" -m alembic -c alembic.ini upgrade head
+  "$RELEASE_DIR/.venv/bin/python" "$RELEASE_DIR/scripts/upgrade_or_bootstrap_database.py" --config "$RELEASE_DIR/Backend/alembic.ini"
 )
 
 (

@@ -17,7 +17,7 @@ cd catalogai-bootstrap/Project
 APP_ROOT=/srv/catalogai DOMAIN=catalogai.example.com bash scripts/bootstrap-vps.sh
 ```
 
-Isso instala `python3`, `nginx`, `redis-server`, `poppler-utils` e `tesseract-ocr`, cria a estrutura de diretórios em `APP_ROOT` e publica a configuracao inicial do `nginx`.
+Isso instala `python3`, `nginx`, `redis-server`, `poppler-utils`, `tesseract-ocr` e `Node.js 20`, cria a estrutura de diretórios em `APP_ROOT` e publica a configuracao inicial do `nginx`.
 
 ## Estrutura esperada no VPS
 - `APP_ROOT/releases/<sha>`: releases imutaveis
@@ -56,8 +56,9 @@ Use o workflow `Deploy CatalogAI to VPS` em modo `deploy`.
 Fluxo executado:
 1. envia o release por `git archive`
 2. cria ou reaproveita `.venv`
-3. instala dependencias
-4. executa `alembic upgrade head`
+3. instala dependencias de runtime a partir de `requirements-backend-prod.txt`
+4. executa upgrade/bootstrap do banco
+   - em banco vazio, o deploy faz bootstrap do schema atual, cria os defaults e carimba `head`
 5. builda o frontend
 6. sobe backend + worker no slot inativo
 7. executa `healthcheck` e `scripts/smoke_release.py`

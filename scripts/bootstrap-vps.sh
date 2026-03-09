@@ -3,9 +3,10 @@ set -euo pipefail
 
 APP_ROOT="${APP_ROOT:?APP_ROOT is required}"
 DOMAIN="${DOMAIN:?DOMAIN is required}"
-APP_USER="${APP_USER:-$SUDO_USER}"
+APP_USER="${APP_USER:-${SUDO_USER:-}}"
 BACKEND_BLUE_PORT="${BACKEND_BLUE_PORT:-8001}"
 BACKEND_GREEN_PORT="${BACKEND_GREEN_PORT:-8002}"
+REDIS_PORT="${REDIS_PORT:-6379}"
 NGINX_SITE_PATH="${NGINX_SITE_PATH:-/etc/nginx/sites-available/catalogai.conf}"
 NGINX_ENABLED_PATH="${NGINX_ENABLED_PATH:-/etc/nginx/sites-enabled/catalogai.conf}"
 NGINX_UPSTREAM_PATH="${NGINX_UPSTREAM_PATH:-/etc/nginx/conf.d/catalogai-upstream.conf}"
@@ -23,14 +24,28 @@ apt-get install -y \
   git \
   nginx \
   poppler-utils \
+  ca-certificates \
+  gnupg \
   python3 \
   python3-pip \
   python3-venv \
   redis-server \
   tesseract-ocr
 
+if ! command -v node >/dev/null 2>&1 || ! node -e 'process.exit(Number(process.versions.node.split(".")[0]) >= 18 ? 0 : 1)'; then
+  apt-get remove -y nodejs npm libnode-dev nodejs-doc >/dev/null 2>&1 || true
+  apt-get autoremove -y >/dev/null 2>&1 || true
+  curl -fsSL https://deb.nodesource.com/setup_20.x | bash -
+  apt-get install -y nodejs
+fi
+
 systemctl enable redis-server nginx
-systemctl restart redis-server
+
+if redis-cli -p "$REDIS_PORT" ping >/dev/null 2>&1; then
+  echo "Redis ja esta acessivel na porta ${REDIS_PORT}; bootstrap vai reutilizar a instancia existente."
+else
+  systemctl restart redis-server
+fi
 
 mkdir -p \
   "$APP_ROOT/releases" \
