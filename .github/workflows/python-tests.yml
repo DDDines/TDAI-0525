@@ -79,6 +79,7 @@ jobs:
           scripts/smoke_release.py
           scripts/check_migration_safety.py
           scripts/validate_alembic_upgrade.py
+          scripts/validate_local_llm_workflow.py
       - name: Validate shell ops scripts
         run: >
           bash -n
