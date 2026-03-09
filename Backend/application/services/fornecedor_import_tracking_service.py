@@ -74,6 +74,15 @@ class FornecedorImportTrackingService:
     def build_import_job_status_payload(*, record: Any) -> dict[str, Any]:
         """Build import job status payload from current inputs and configuration."""
         response = {"status": record.status}
-        if record.status == "COMPLETED":
+        if hasattr(record, "pages_processed"):
+            response["pages_processed"] = getattr(record, "pages_processed", 0)
+        if hasattr(record, "total_pages"):
+            response["total_pages"] = getattr(record, "total_pages", 0) or 0
+
+        result_summary = getattr(record, "result_summary", None)
+        if result_summary is not None:
+            response["result_summary"] = result_summary
+
+        if getattr(record, "status", None) == "COMPLETED" and getattr(record, "resultado_json", None) is not None:
             response["resultado_json"] = record.resultado_json
         return response

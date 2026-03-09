@@ -260,6 +260,9 @@ async def test_fornecedores_gateway_covers_remaining_delegate_methods():
             return None
 
     gateway = object.__new__(fornecedores_module._FornecedoresServiceGateway)
+    gateway._catalog_file_repo = SimpleNamespace(
+        get_catalog_file_for_user=lambda **kwargs: None,
+    )
     gateway._fornecedor_preview_service = FakePreviewService()
     gateway._fornecedor_import_tracking_service = FakeTrackingService()
     gateway._fornecedor_import_job_service = FakeJobService()
@@ -306,6 +309,74 @@ async def test_fornecedores_gateway_covers_remaining_delegate_methods():
     assert any(name == "preview_pages" for name, _payload in preview_calls)
     assert any(name == "build_progress_payload" for name, _payload in tracking_calls)
     assert any(name == "schedule_commit" for name, _payload in job_calls)
+
+
+def test_fornecedores_gateway_prefers_catalog_file_for_review_status_and_commit():
+    tracking_calls = []
+    job_calls = []
+    catalog_record = SimpleNamespace(
+        id=55,
+        status="IMPORTED",
+        stored_filename="catalog.pdf",
+        result_summary={"created": [{"id": 1}]},
+        pages_processed=10,
+        total_pages=10,
+    )
+
+    class FakeTrackingService:
+        def build_import_job_status_payload(self, **kwargs):
+            tracking_calls.append(("build_import_job_status_payload", kwargs))
+            return {"status": kwargs["record"].status, "result_summary": kwargs["record"].result_summary}
+
+    class FakeJobService:
+        def get_job_for_user_or_404(self, **kwargs):
+            job_calls.append(("get_job_for_user_or_404", kwargs))
+            return SimpleNamespace(id=kwargs["job_id"])
+
+        def build_review_payload(self, **kwargs):
+            job_calls.append(("build_review_payload", kwargs))
+            return {"review": True}
+
+        def schedule_commit(self, **kwargs):
+            job_calls.append(("schedule_commit", kwargs))
+            return None
+
+    gateway = object.__new__(fornecedores_module._FornecedoresServiceGateway)
+    gateway._catalog_file_repo = SimpleNamespace(
+        get_catalog_file_for_user=lambda **kwargs: catalog_record,
+    )
+    gateway._fornecedor_import_tracking_service = FakeTrackingService()
+    gateway._fornecedor_import_job_service = FakeJobService()
+
+    resolved = gateway.get_job_for_user_or_404(job_id=55, user_id=7)
+    assert resolved is catalog_record
+    assert gateway.build_review_payload(job=resolved) == {"created": [{"id": 1}]}
+    assert gateway.schedule_commit(background_tasks="bg", job_id=55, user_id=7) is None
+    assert gateway.build_import_job_status_payload(record=resolved) == {
+        "status": "IMPORTED",
+        "result_summary": {"created": [{"id": 1}]},
+    }
+    assert job_calls == []
+
+
+def test_fornecedores_request_service_commit_import_job_returns_catalog_status_for_auto_commit():
+    class FakeRuntime:
+        def get_job_for_user_or_404(self, **kwargs):
+            _ = kwargs
+            return SimpleNamespace(id=77, status="IMPORTED", stored_filename="catalog.pdf")
+
+        def schedule_commit(self, **kwargs):
+            _ = kwargs
+            return None
+
+    service = fornecedores_module.FornecedoresRequestService(runtime=FakeRuntime())
+    current_user = SimpleNamespace(id=7)
+
+    assert service.commit_import_job(background_tasks=object(), job_id=77, current_user=current_user) == {
+        "status": "IMPORTED",
+        "job_id": 77,
+        "auto_commit": True,
+    }
 
 
 def test_fornecedores_request_service_covers_sync_delegate_paths():

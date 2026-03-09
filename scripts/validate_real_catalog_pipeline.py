@@ -9,6 +9,7 @@ import sys
 import time
 from pathlib import Path
 from typing import Any, Dict, List, Sequence
+from uuid import uuid4
 
 import httpx
 
@@ -55,6 +56,12 @@ def parse_args() -> argparse.Namespace:
     )
     parser.add_argument("--supplier-name", default=DEFAULT_SUPPLIER_NAME, help="Disposable supplier base name.")
     parser.add_argument("--supplier-site-url", default=DEFAULT_SUPPLIER_SITE, help="Disposable supplier site URL.")
+    parser.add_argument(
+        "--flow",
+        choices=("produtos", "fornecedores"),
+        default="produtos",
+        help="Which import route family to validate.",
+    )
     parser.add_argument(
         "--product-type-id",
         type=int,
@@ -113,6 +120,32 @@ def extract_created_items(result_summary: Any) -> List[Dict[str, Any]]:
         if isinstance(created, list):
             return [item for item in created if isinstance(item, dict)]
     return []
+
+
+def summarize_flow_payload(payload: Any, *, sample_size: int = 5) -> Any:
+    """Reduce large review/commit payloads to stable, readable summaries."""
+    if not isinstance(payload, dict):
+        return payload
+
+    summary: Dict[str, Any] = {}
+    for key, value in payload.items():
+        if isinstance(value, list):
+            items = [item for item in value if isinstance(item, dict)]
+            summary[key] = {
+                "count": len(value),
+                "sample": [
+                    {
+                        "id": item.get("id"),
+                        "nome_base": item.get("nome_base"),
+                        "status_titulo_ia": item.get("status_titulo_ia"),
+                        "status_descricao_ia": item.get("status_descricao_ia"),
+                    }
+                    for item in items[:sample_size]
+                ],
+            }
+        else:
+            summary[key] = value
+    return summary
 
 
 def validate_generated_product_snapshot(snapshot: Dict[str, Any]) -> List[str]:
@@ -211,9 +244,10 @@ class RealCatalogPipelineValidator:
         return self._catalog_path
 
     def create_supplier(self) -> Dict[str, Any]:
+        unique_suffix = f"{int(time.time() * 1000)}-{uuid4().hex[:8]}"
         payload = {
-            "nome": f"{self._args.supplier_name} {int(time.time())}",
-            "site_url": self._args.supplier_site_url,
+            "nome": f"{self._args.supplier_name} {unique_suffix}",
+            "site_url": f"{self._args.supplier_site_url.rstrip('/')}/smoke-{unique_suffix}",
         }
         response = self._client.post(self._api_url("/fornecedores/"), headers=self._headers(), json=payload)
         response.raise_for_status()
@@ -224,49 +258,76 @@ class RealCatalogPipelineValidator:
     def preview_catalog(self, *, supplier_id: int, catalog_path: Path) -> Dict[str, Any]:
         with catalog_path.open("rb") as handle:
             files = {"file": (catalog_path.name, handle, "application/pdf")}
-            data = {
-                "fornecedor_id": str(supplier_id),
-                "start_page": str(self._args.start_page),
-                "page_count": "3",
-                "dpi": "72",
-            }
-            response = self._client.post(
-                self._api_url("/produtos/importar-catalogo-preview/"),
-                headers=self._headers(),
-                data=data,
-                files=files,
-            )
+            if self._args.flow == "fornecedores":
+                response = self._client.post(
+                    self._api_url(f"/fornecedores/{supplier_id}/preview-pdf?offset=0&limit=3"),
+                    headers=self._headers(),
+                    files=files,
+                )
+            else:
+                data = {
+                    "fornecedor_id": str(supplier_id),
+                    "start_page": str(self._args.start_page),
+                    "page_count": "3",
+                    "dpi": "72",
+                }
+                response = self._client.post(
+                    self._api_url("/produtos/importar-catalogo-preview/"),
+                    headers=self._headers(),
+                    data=data,
+                    files=files,
+                )
         response.raise_for_status()
         payload = response.json()
-        file_id = payload.get("file_id")
+        file_id = payload.get("file_id") or payload.get("import_file_id")
         if not file_id:
             raise CatalogValidationFailure("Preview do catalogo nao retornou file_id.")
         self._import_file_id = int(file_id)
         return payload
 
     def start_import(self, *, file_id: int, supplier_id: int, product_type_id: int) -> Dict[str, Any]:
-        response = self._client.post(
-            self._api_url(f"/produtos/importar-catalogo-finalizar/{file_id}/"),
-            headers=self._headers(),
-            json={
-                "product_type_id": product_type_id,
-                "fornecedor_id": supplier_id,
-                "mapping": None,
-                "pages": None,
-                "region": None,
-                "extraction_mode": "ocr",
-            },
-        )
+        if self._args.flow == "fornecedores":
+            response = self._client.post(
+                self._api_url("/fornecedores/import/process-full-catalog"),
+                headers=self._headers(),
+                json={
+                    "file_id": file_id,
+                    "fornecedor_id": supplier_id,
+                    "tipo_produto_id": product_type_id,
+                    "start_page": self._args.start_page,
+                    "mapping": None,
+                    "region": None,
+                },
+            )
+        else:
+            response = self._client.post(
+                self._api_url(f"/produtos/importar-catalogo-finalizar/{file_id}/"),
+                headers=self._headers(),
+                json={
+                    "product_type_id": product_type_id,
+                    "fornecedor_id": supplier_id,
+                    "mapping": None,
+                    "pages": None,
+                    "region": None,
+                    "extraction_mode": "ocr",
+                },
+            )
         response.raise_for_status()
         return response.json()
 
-    def wait_for_import(self, *, file_id: int) -> Dict[str, Any]:
+    def wait_for_import(self, *, file_id: int, job_id: int | None = None) -> Dict[str, Any]:
         deadline = time.time() + self._args.import_timeout_seconds
         while time.time() < deadline:
-            response = self._client.get(
-                self._api_url(f"/produtos/importar-catalogo-status/{file_id}/"),
-                headers=self._headers(),
-            )
+            if self._args.flow == "fornecedores":
+                response = self._client.get(
+                    self._api_url(f"/fornecedores/import_job/{job_id or file_id}/status"),
+                    headers=self._headers(),
+                )
+            else:
+                response = self._client.get(
+                    self._api_url(f"/produtos/importar-catalogo-status/{file_id}/"),
+                    headers=self._headers(),
+                )
             response.raise_for_status()
             payload = response.json()
             if str(payload.get("status") or "").upper() in TERMINAL_IMPORT_STATUSES:
@@ -325,6 +386,26 @@ class RealCatalogPipelineValidator:
             f"Produto {product_id} nao concluiu geracao em {self._args.generation_timeout_seconds}s."
         )
 
+    def fetch_flow_review(self, *, job_id: int) -> Any:
+        if self._args.flow != "fornecedores":
+            return None
+        response = self._client.get(
+            self._api_url(f"/fornecedores/import/review/{job_id}"),
+            headers=self._headers(),
+        )
+        response.raise_for_status()
+        return response.json()
+
+    def commit_flow_review(self, *, job_id: int) -> Any:
+        if self._args.flow != "fornecedores":
+            return None
+        response = self._client.post(
+            self._api_url(f"/fornecedores/import/commit/{job_id}"),
+            headers=self._headers(),
+        )
+        response.raise_for_status()
+        return response.json()
+
     def cleanup(self) -> None:
         if self._args.keep_import or not self._supplier_id:
             return
@@ -372,13 +453,17 @@ class RealCatalogPipelineValidator:
         catalog_path = self.download_catalog()
         supplier = self.create_supplier()
         preview = self.preview_catalog(supplier_id=int(supplier["id"]), catalog_path=catalog_path)
+        preview_file_id = int(preview.get("file_id") or preview.get("import_file_id"))
         import_start = self.start_import(
-            file_id=int(preview["file_id"]),
+            file_id=preview_file_id,
             supplier_id=int(supplier["id"]),
             product_type_id=product_type_id,
         )
-        import_status = self.wait_for_import(file_id=int(preview["file_id"]))
+        flow_job_id = int(import_start.get("job_id") or preview_file_id)
+        import_status = self.wait_for_import(file_id=preview_file_id, job_id=flow_job_id)
         created_items = extract_created_items(import_status.get("result_summary"))
+        flow_review = self.fetch_flow_review(job_id=flow_job_id)
+        flow_commit = self.commit_flow_review(job_id=flow_job_id)
         imported_products = self.fetch_imported_products(
             supplier_id=int(supplier["id"]),
             limit=max(self._args.sample_products, len(created_items) or self._args.sample_products),
@@ -413,7 +498,9 @@ class RealCatalogPipelineValidator:
             "product_type_id": product_type_id,
             "preview": {
                 "file_id": preview.get("file_id"),
+                "import_file_id": preview.get("import_file_id"),
                 "num_pages": preview.get("num_pages"),
+                "total_pages": preview.get("total_pages"),
                 "table_pages": preview.get("table_pages"),
             },
             "import_start": import_start,
@@ -423,6 +510,9 @@ class RealCatalogPipelineValidator:
                 "pages_processed": import_status.get("pages_processed"),
                 "created_count": len(created_items),
             },
+            "flow_job_id": flow_job_id,
+            "flow_review": summarize_flow_payload(flow_review),
+            "flow_commit": summarize_flow_payload(flow_commit),
             "sample_products": snapshots,
         }
 

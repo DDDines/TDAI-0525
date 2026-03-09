@@ -69,7 +69,7 @@ class _FornecedoresServiceBundle:
             oop_executor=self.catalog_import_task_runner.execute
         )
         self.catalog_import_start_service = CatalogImportStartService(models=models, fornecedor_repo=fornecedor_repository, catalog_file_repository=catalog_file_repository, settings=settings, resolve_storage_path=self.catalog_import_diagnostics_service.resolve_storage_path, finalize_service=self.catalog_import_finalize_service)
-        self.fornecedor_catalog_process_service = FornecedorCatalogProcessService(models=models, fornecedor_repo=fornecedor_repository, catalog_file_repository=catalog_file_repository, catalog_import_start_service=self.catalog_import_start_service)
+        self.fornecedor_catalog_process_service = FornecedorCatalogProcessService(fornecedor_repo=fornecedor_repository, catalog_import_start_service=self.catalog_import_start_service)
         self.fornecedor_import_job_service = FornecedorImportJobService(
             session_provider=self._session_provider,
             import_job_repository_factory=FornecedorImportJobRepository,
@@ -163,8 +163,10 @@ class FornecedoresRequestService:
 
     def commit_import_job(self, background_tasks: BackgroundTasks, job_id: int, current_user: models.User) -> dict:
         """Handle Commit import job in this request workflow."""
-        _ = self._runtime.get_job_for_user_or_404(job_id=job_id, user_id=current_user.id)
+        job = self._runtime.get_job_for_user_or_404(job_id=job_id, user_id=current_user.id)
         self._runtime.schedule_commit(background_tasks=background_tasks, job_id=job_id, user_id=current_user.id)
+        if hasattr(job, "stored_filename"):
+            return {'status': getattr(job, 'status', 'PROCESSING'), 'job_id': job_id, 'auto_commit': True}
         return {'status': 'PROCESSING', 'job_id': job_id}
 
     def get_import_job_status(self, job_id: int, current_user: models.User) -> dict:
@@ -197,9 +199,7 @@ class _FornecedoresServiceGateway:
             finalize_service=self._services.catalog_import_finalize_service,
         )
         self._fornecedor_catalog_process_service = FornecedorCatalogProcessService(
-            models=models,
             fornecedor_repo=self._fornecedor_repo,
-            catalog_file_repository=self._catalog_file_repo,
             catalog_import_start_service=self._catalog_import_start_service,
         )
         self._fornecedor_import_tracking_service = FornecedorImportTrackingService(
@@ -444,6 +444,12 @@ class _FornecedoresServiceGateway:
         user_id: int,
     ):
         """Retrieve job for user or 404 using the current service dependencies."""
+        catalog_record = self._catalog_file_repo.get_catalog_file_for_user(
+            file_id=job_id,
+            user_id=user_id,
+        )
+        if catalog_record:
+            return catalog_record
         return self._fornecedor_import_job_service.get_job_for_user_or_404(
             job_id=job_id,
             user_id=user_id,
@@ -455,6 +461,8 @@ class _FornecedoresServiceGateway:
         job: Any,
     ):
         """Build review payload from current inputs and configuration."""
+        if hasattr(job, "stored_filename"):
+            return getattr(job, "result_summary", None) or {}
         return self._fornecedor_import_job_service.build_review_payload(job=job)
 
     def schedule_commit(
@@ -465,6 +473,12 @@ class _FornecedoresServiceGateway:
         user_id: int,
     ):
         """Handle Schedule commit in this request workflow."""
+        catalog_record = self._catalog_file_repo.get_catalog_file_for_user(
+            file_id=job_id,
+            user_id=user_id,
+        )
+        if catalog_record:
+            return None
         return self._fornecedor_import_job_service.schedule_commit(
             background_tasks=background_tasks,
             job_id=job_id,

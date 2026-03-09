@@ -13,15 +13,11 @@ class FornecedorCatalogProcessService:
     def __init__(
         self,
         *,
-        models: Any,
         catalog_import_start_service: Any,
         fornecedor_repo: Any,
-        catalog_file_repository: Any,
     ) -> None:
         """Initialize injected dependencies and runtime configuration for Fornecedor Catalog Process Service."""
-        self._models = models
         self._fornecedor_repo = fornecedor_repo
-        self._catalog_file_repository = catalog_file_repository
         self._catalog_import_start_service = catalog_import_start_service
 
     async def start_full_processing(
@@ -46,6 +42,14 @@ class FornecedorCatalogProcessService:
             file_id=file_id,
             user_id=current_user.id,
         )
+        self._catalog_import_start_service.mark_processing(
+            catalog_file=source,
+            fornecedor_id=fornecedor.id,
+            reset_pages=False,
+        )
+        self._catalog_import_start_service.ensure_catalog_binary_exists(
+            catalog_file=source,
+        )
         pages = self._catalog_import_start_service.resolve_pdf_pages(
             catalog_file=source,
             start_page=start_page,
@@ -54,14 +58,8 @@ class FornecedorCatalogProcessService:
             fornecedor_id=fornecedor.id,
             mapping=mapping,
         )
-        job = self._create_processing_job_from_source(
-            source=source,
-            user_id=current_user.id,
-            fornecedor_id=fornecedor.id,
-            catalog_file_repo=self._catalog_file_repository,
-        )
         command = self._catalog_import_start_service.build_finalize_command(
-            file_id=job.id,
+            file_id=source.id,
             user_id=current_user.id,
             product_type_id=tipo_produto_id,
             fornecedor_id=fornecedor.id,
@@ -73,7 +71,7 @@ class FornecedorCatalogProcessService:
             background_tasks=background_tasks,
             command=command,
         )
-        return {"job_id": job.id, "status": "PROCESSING"}
+        return {"job_id": source.id, "status": "PROCESSING"}
 
     def _validate_fornecedor_access(
         self,
@@ -90,21 +88,3 @@ class FornecedorCatalogProcessService:
             raise HTTPException(status_code=403, detail="Nao autorizado")
         return fornecedor
 
-    def _create_processing_job_from_source(
-        self,
-        *,
-        source: Any,
-        user_id: int,
-        fornecedor_id: int,
-        catalog_file_repo: Any,
-    ) -> Any:
-        """Create processing job from source and return the resulting payload or entity."""
-        job = self._models.CatalogImportFile(
-            user_id=user_id,
-            fornecedor_id=fornecedor_id,
-            original_filename=source.original_filename,
-            stored_filename=source.stored_filename,
-            status="PROCESSING",
-        )
-        catalog_file_repo.save_catalog_file(catalog_file=job)
-        return job

@@ -150,13 +150,45 @@ class _TopLevelFunctionSurface:
 
     def test_build_import_job_status_payload_includes_result_for_completed():
         """Run test build import job status payload includes result for completed in this workflow."""
-        record = SimpleNamespace(status="COMPLETED", resultado_json={"ok": True})
+        record = SimpleNamespace(
+            status="COMPLETED",
+            resultado_json={"ok": True},
+            result_summary={"created": 1},
+            pages_processed=5,
+            total_pages=9,
+        )
     
         payload = FornecedorImportTrackingService.build_import_job_status_payload(
             record=record
         )
     
-        assert payload == {"status": "COMPLETED", "resultado_json": {"ok": True}}
+        assert payload == {
+            "status": "COMPLETED",
+            "pages_processed": 5,
+            "total_pages": 9,
+            "result_summary": {"created": 1},
+            "resultado_json": {"ok": True},
+        }
+
+    def test_build_import_job_status_payload_includes_summary_for_catalog_imported():
+        """Expose result_summary for imported catalog records used by fornecedores flow."""
+        record = SimpleNamespace(
+            status="IMPORTED",
+            result_summary={"created": [{"id": 1}]},
+            pages_processed=16,
+            total_pages=16,
+        )
+
+        payload = FornecedorImportTrackingService.build_import_job_status_payload(
+            record=record
+        )
+
+        assert payload == {
+            "status": "IMPORTED",
+            "pages_processed": 16,
+            "total_pages": 16,
+            "result_summary": {"created": [{"id": 1}]},
+        }
 
 _build_service = _TopLevelFunctionSurface._build_service
 test_get_catalog_record_or_404_returns_record = _TopLevelFunctionSurface.test_get_catalog_record_or_404_returns_record
@@ -165,6 +197,7 @@ test_build_progress_payload_normalizes_total_pages = _TopLevelFunctionSurface.te
 test_schedule_page_extraction_adds_task = _TopLevelFunctionSurface.test_schedule_page_extraction_adds_task
 test_schedule_page_extraction_dispatches_celery_when_enabled = _TopLevelFunctionSurface.test_schedule_page_extraction_dispatches_celery_when_enabled
 test_build_import_job_status_payload_includes_result_for_completed = _TopLevelFunctionSurface.test_build_import_job_status_payload_includes_result_for_completed
+test_build_import_job_status_payload_includes_summary_for_catalog_imported = _TopLevelFunctionSurface.test_build_import_job_status_payload_includes_summary_for_catalog_imported
 
 
 

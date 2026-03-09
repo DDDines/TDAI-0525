@@ -15,20 +15,6 @@ from Backend.application.services.fornecedor_catalog_process_service import (
 )
 
 
-class _CatalogImportFileModel:
-    """Represent catalog import file model and centralize responsibilities for this module."""
-    def __init__(self, **kwargs):
-        """Initialize collaborators and configuration required by this component."""
-        for key, value in kwargs.items():
-            setattr(self, key, value)
-        self.id = None
-
-
-class _ModelsStub:
-    """Represent models stub and centralize responsibilities for this module."""
-    CatalogImportFile = _CatalogImportFileModel
-
-
 class _CrudFornecedoresStub:
     """Represent crud fornecedores stub and centralize responsibilities for this module."""
     def __init__(self, fornecedor):
@@ -48,11 +34,21 @@ class _CatalogImportStartServiceStub:
         self._source = source
         self.dispatched = []
         self.commands = []
+        self.marked = []
+        self.ensure_calls = []
 
     def get_catalog_file_or_404(self, **kwargs):
         """Return catalog file or 404 for this workflow."""
         _ = kwargs
         return self._source
+
+    def mark_processing(self, **kwargs):
+        """Capture mark_processing calls for this workflow."""
+        self.marked.append(kwargs)
+
+    def ensure_catalog_binary_exists(self, **kwargs):
+        """Capture ensure_catalog_binary_exists calls for this workflow."""
+        self.ensure_calls.append(kwargs)
 
     def resolve_pdf_pages(self, *, catalog_file, start_page):
         """Resolve pdf pages for this workflow."""
@@ -75,43 +71,24 @@ class _CatalogImportStartServiceStub:
         return {"ok": True}
 
 
-class _DbStub:
-    """Represent db stub and centralize responsibilities for this module."""
-    def __init__(self):
-        """Initialize collaborators and configuration required by this component."""
-        self.saved = []
-        self._next_id = 900
-
-    def save_catalog_file(self, *, catalog_file):
-        """Run save catalog file in this workflow."""
-        self.saved.append(catalog_file)
-        if getattr(catalog_file, "id", None) is None:
-            catalog_file.id = self._next_id
-            self._next_id += 1
-        return catalog_file
-
-
 class _TopLevelFunctionSurface:
 
     """Represent top level function surface and centralize responsibilities for this module."""
     def _build_service(*, fornecedor, source):
         """Run build service in this workflow."""
         fornecedor_repo = _CrudFornecedoresStub(fornecedor=fornecedor)
-        catalog_file_repo = _DbStub()
         service = FornecedorCatalogProcessService(
-            models=_ModelsStub,
             fornecedor_repo=fornecedor_repo,
-            catalog_file_repository=catalog_file_repo,
             catalog_import_start_service=_CatalogImportStartServiceStub(source=source),
         )
-        return service, fornecedor_repo, catalog_file_repo
+        return service, fornecedor_repo
 
     @pytest.mark.asyncio
     async def test_start_full_processing_dispatches_job():
         """Run test start full processing dispatches job in this workflow."""
         fornecedor = SimpleNamespace(id=3, user_id=10)
-        source = SimpleNamespace(original_filename="orig.pdf", stored_filename="stored.pdf")
-        service, fornecedor_repo, catalog_file_repo = _build_service(
+        source = SimpleNamespace(id=900, original_filename="orig.pdf", stored_filename="stored.pdf")
+        service, fornecedor_repo = _build_service(
             fornecedor=fornecedor,
             source=source,
         )
@@ -130,9 +107,12 @@ class _TopLevelFunctionSurface:
     
         assert result["status"] == "PROCESSING"
         assert result["job_id"] == 900
-        assert len(catalog_file_repo.saved) == 1
     
         start_stub = service._catalog_import_start_service
+        assert len(start_stub.marked) == 1
+        assert start_stub.marked[0]["catalog_file"] is source
+        assert start_stub.marked[0]["fornecedor_id"] == 3
+        assert len(start_stub.ensure_calls) == 1
         assert len(start_stub.dispatched) == 1
         assert len(start_stub.commands) == 1
         command_data = start_stub.commands[0]
@@ -143,8 +123,8 @@ class _TopLevelFunctionSurface:
     @pytest.mark.asyncio
     async def test_start_full_processing_raises_when_fornecedor_not_found():
         """Run test start full processing raises when fornecedor not found in this workflow."""
-        source = SimpleNamespace(original_filename="orig.pdf", stored_filename="stored.pdf")
-        service, fornecedor_repo, catalog_file_repo = _build_service(
+        source = SimpleNamespace(id=900, original_filename="orig.pdf", stored_filename="stored.pdf")
+        service, fornecedor_repo = _build_service(
             fornecedor=None,
             source=source,
         )
@@ -167,8 +147,8 @@ class _TopLevelFunctionSurface:
     async def test_start_full_processing_raises_when_user_not_allowed():
         """Run test start full processing raises when user not allowed in this workflow."""
         fornecedor = SimpleNamespace(id=3, user_id=99)
-        source = SimpleNamespace(original_filename="orig.pdf", stored_filename="stored.pdf")
-        service, fornecedor_repo, catalog_file_repo = _build_service(
+        source = SimpleNamespace(id=900, original_filename="orig.pdf", stored_filename="stored.pdf")
+        service, fornecedor_repo = _build_service(
             fornecedor=fornecedor,
             source=source,
         )
