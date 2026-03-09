@@ -205,6 +205,7 @@ async def test_ai_provider_runtime_routes_openai_compatible_calls_to_lm_studio(m
     monkeypatch.setattr(ia_service.settings, "LM_STUDIO_BASE_URL", "http://127.0.0.1:1234/v1", raising=False)
     monkeypatch.setattr(ia_service.settings, "LM_STUDIO_MODEL", None, raising=False)
     monkeypatch.setattr(ia_service.settings, "LM_STUDIO_API_KEY", "lm-studio", raising=False)
+    runtime._lm_studio_model_cache = None
     monkeypatch.setattr(
         ia_service.httpx,
         "AsyncClient",

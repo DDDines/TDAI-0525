@@ -80,6 +80,7 @@ jobs:
           scripts/check_migration_safety.py
           scripts/validate_alembic_upgrade.py
           scripts/validate_local_llm_workflow.py
+          scripts/validate_real_catalog_pipeline.py
       - name: Validate shell ops scripts
         run: >
           bash -n

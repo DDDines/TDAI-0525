@@ -78,6 +78,7 @@ Detalhes extras: `docs/EXECUCAO_LOCAL.md`.
 - Sincronizar os prompts versionados no banco: `python scripts/sync_prompt_templates.py`
 - Rodar evals locais contra o LM Studio: `python scripts/run_evals.py --model google/gemma-3-12b`
 - Validar o fluxo real via API com produto descartavel: `python scripts/validate_local_llm_workflow.py --base-url http://127.0.0.1:8000`
+- Validar importacao + geracao com um catalogo publico real: `python scripts/validate_real_catalog_pipeline.py --base-url http://127.0.0.1:8000`
 - O ultimo comando autentica no backend local, cria um produto temporario, dispara geracao de titulos e descricao no endpoint `openai`, valida a qualidade com regras deterministicas e apaga o produto ao final.
 
 ## Deploy E Operacao
